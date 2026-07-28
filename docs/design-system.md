@@ -206,6 +206,13 @@ mirrors for free. Three things do NOT follow the app's language:
    chart takes this per line — a chart can hold both — and anchors each line's
    chords to the edge that line starts at.
 
+**Alignment ≠ reading order.** These are two decisions and RTL forces you to make
+them separately. A machine-written label (an auto title like "10:58 AM Jul 28th")
+should sit on the same edge as the chrome around it, but forcing its writing
+direction to RTL also re-orders its Latin runs — "AM Jul 28th 10:58". So let the
+STRING keep its own writing direction and override only `textAlign`, through
+`physicalTextAlign`. Content the user actually typed keeps both from the string.
+
 **The RN trap.** `I18nManager.doLeftAndRightSwapInRTL` is on by default, so RN
 rewrites `left`/`right` — including `textAlign` and absolute insets — under RTL.
 Anything whose direction is decided by content rather than by the app must go

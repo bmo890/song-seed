@@ -1,9 +1,9 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { I18nManager, StyleSheet, Text, View } from "react-native";
 import { IconButton } from "../../common/IconButton";
 import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
-import { UserText } from "../../../i18n";
+import { UserText, physicalTextAlign } from "../../../i18n";
 
 type RecordingHeaderProps = {
   eyebrow: string | null;
@@ -22,6 +22,22 @@ type RecordingHeaderProps = {
   onOpenSettings: () => void;
   onHelp: () => void;
 };
+
+/**
+ * An auto-generated title is a label the APP wrote, not something the user typed,
+ * so it should sit on the same edge as the eyebrow above it — otherwise a Hebrew
+ * recorder shows a right-aligned eyebrow over a left-aligned "10:58 AM Jul 28th"
+ * and the header reads as broken in half.
+ *
+ * ALIGNMENT and READING ORDER have to be set separately here. Forcing the whole
+ * text to RTL right-aligns it but also re-orders its Latin runs, turning
+ * "10:58 AM Jul 28th" into "AM Jul 28th 10:58". So the string keeps its own
+ * writing direction (via UserText's "auto") and only the alignment follows the
+ * UI. `physicalTextAlign` pre-inverts for RN's left/right swap.
+ */
+const AUTO_TITLE_ALIGN = {
+  textAlign: physicalTextAlign(I18nManager.isRTL ? "right" : "left"),
+} as const;
 
 export function RecordingHeader({
   eyebrow,
@@ -60,6 +76,7 @@ export function RecordingHeader({
               style={[
                 localStyles.collapsedTitle,
                 titleIsPlaceholder ? localStyles.collapsedTitleAuto : null,
+                titleIsPlaceholder ? AUTO_TITLE_ALIGN : null,
               ]}
               numberOfLines={1}
             >
@@ -106,7 +123,10 @@ export function RecordingHeader({
 
       {!collapsed ? (
         <UserText
-          style={titleIsPlaceholder ? localStyles.titlePlaceholder : localStyles.title}
+          style={[
+            titleIsPlaceholder ? localStyles.titlePlaceholder : localStyles.title,
+            titleIsPlaceholder ? AUTO_TITLE_ALIGN : null,
+          ]}
           numberOfLines={1}
         >
           {title}

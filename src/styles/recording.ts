@@ -299,9 +299,16 @@ export const recordingStyles = {
   recordingTimer: {
     fontSize: 44,
     fontFamily: "PlusJakartaSans_700Bold",
-    color: "#1b1c1a",
+    color: colors.textPrimary,
     letterSpacing: -1.1,
     marginTop: 0,
+    // Without this the whole clock shuffles sideways every time a digit changes
+    // width — at 44pt it's the most visible thing on the page.
+    fontVariant: ["tabular-nums"],
+    // Digits are direction-neutral, so `auto` leaves the clock stranded on the
+    // left under RTL while everything around it mirrors. RN swaps left→right in
+    // RTL, so asking for "left" lands it on the reading edge either way.
+    textAlign: "left",
   },
   recordingTimerCompact: {
     fontSize: 36,
@@ -323,6 +330,9 @@ export const recordingStyles = {
     lineHeight: 30,
   },
   recordingCountInDotsRow: {
+    // Beats progress 1→N through TIME, which never mirrors — same rule as
+    // MetronomeBeatBar. Without this a Hebrew count-in fills backwards.
+    direction: "ltr",
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
@@ -350,21 +360,29 @@ export const recordingStyles = {
     gap: 12,
     marginBottom: -2,
   },
+  // Quiet metadata, not a headline: the app says this kind of thing in 11pt
+  // letterspaced caps everywhere else (SKETCH, TAKES, PRIMARY). A 15pt dot next
+  // to 15pt sentence case was the loudest label on a page that isn't doing
+  // anything yet.
   recordingStatusDot: {
-    width: 15,
-    height: 15,
-    borderRadius: 7.5,
+    width: 8,
+    height: 8,
+    borderRadius: radii.round,
   },
   recordingStatusDotActive: {
-    backgroundColor: "#B5483A",
+    backgroundColor: colors.record,
   },
   recordingStatusDotIdle: {
-    backgroundColor: "#D7C2BD",
+    // Was borderMuted — a warm pink that pre-announced recording while idle.
+    backgroundColor: colors.textMuted,
   },
   recordingStatusText: {
-    fontSize: 15,
-    color: "#84736f",
-    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    color: colors.textSecondary,
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   // Paper, not a display. The reel used to sit on a grey slab, which read as a
   // dead box before you'd recorded anything; the centre rule, the time ticks and
@@ -449,7 +467,11 @@ export const recordingStyles = {
   // the secondary actions read as ink and can't compete with it. Fixed height
   // so waking them up (once there's a take) never moves the dock.
   circleControlBtn: {
-    minWidth: 60,
+    // Wide enough for a real word, and the label is single-line: Hebrew's
+    // "ביטול ההקלטה" overflowed a 60pt column and collided with the record
+    // button. Dedicated short labels now, clipped rather than overlapping.
+    minWidth: 68,
+    maxWidth: 84,
     minHeight: 48,
     alignItems: "center",
     justifyContent: "center",
@@ -461,6 +483,8 @@ export const recordingStyles = {
   controlBtnLabel: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 9.5,
+    lineHeight: 12,
+    textAlign: "center",
     color: colors.textSecondary,
   },
   controlBtnLabelDanger: {

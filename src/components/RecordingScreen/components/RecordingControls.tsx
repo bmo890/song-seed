@@ -43,7 +43,7 @@ export function RecordingControls({
     const { t } = useTranslation();
     return (
         <View style={[styles.recordingControlsBar, compact ? styles.recordingControlsBarCompact : null]}>
-            <View style={local.sideColumn}>
+            <View style={[local.sideColumn, local.sideColumnLead]}>
                 <Pressable
                     style={[
                         styles.circleControlBtn,
@@ -64,8 +64,11 @@ export function RecordingControls({
                         color={!canDiscard || isArming ? colors.textMuted : colors.danger}
                     />
                     {compact ? null : (
-                        <Text style={[styles.controlBtnLabel, styles.controlBtnLabelDanger]}>
-                            {t("recording.discard")}
+                        <Text
+                            style={[styles.controlBtnLabel, styles.controlBtnLabelDanger]}
+                            numberOfLines={1}
+                        >
+                            {t("recording.discardShort")}
                         </Text>
                     )}
                 </Pressable>
@@ -90,7 +93,9 @@ export function RecordingControls({
                             color={!canRedo ? colors.textMuted : colors.textSecondary}
                         />
                         {compact ? null : (
-                            <Text style={styles.controlBtnLabel}>{t("recording.redo")}</Text>
+                            <Text style={styles.controlBtnLabel} numberOfLines={1}>
+                                {t("recording.redoShort")}
+                            </Text>
                         )}
                     </Pressable>
                 ) : null}
@@ -132,7 +137,7 @@ export function RecordingControls({
                 </Pressable>
             </View>
 
-            <View style={local.sideColumn}>
+            <View style={[local.sideColumn, local.sideColumnTrail]}>
                 <Pressable
                     style={[
                         styles.circleControlBtn,
@@ -153,8 +158,11 @@ export function RecordingControls({
                         color={!canSave || isArming ? colors.textMuted : colors.primaryDeep}
                     />
                     {compact ? null : (
-                        <Text style={[styles.controlBtnLabel, canSave && !isArming ? local.saveLabel : null]}>
-                            {t("common.save")}
+                        <Text
+                            style={[styles.controlBtnLabel, canSave && !isArming ? local.saveLabel : null]}
+                            numberOfLines={1}
+                        >
+                            {t("recording.saveShort")}
                         </Text>
                     )}
                 </Pressable>
@@ -171,11 +179,20 @@ const local = StyleSheet.create({
     },
     // Both side columns flex equally so the record button sits dead centre
     // whatever the left one is carrying (discard alone, or discard + redo).
+    // Centring INSIDE each half looked lopsided — two controls packed on one
+    // side and one floating mid-air on the other. Pushing each cluster to its
+    // outer edge gives the row matching margins, which is what reads as
+    // balanced. Logical alignment, so it mirrors correctly in RTL.
     sideColumn: {
         flex: 1,
         flexDirection: "row",
-        justifyContent: "center",
         alignItems: "center",
         gap: 6,
+    },
+    sideColumnLead: {
+        justifyContent: "flex-start",
+    },
+    sideColumnTrail: {
+        justifyContent: "flex-end",
     },
 });

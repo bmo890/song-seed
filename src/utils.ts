@@ -300,12 +300,17 @@ export function ensureUniqueCountedTitle(baseTitle: string, existingTitles: stri
 
 /** Relative "Edited …" label for collection cards/headers. */
 export function formatLastEdited(ts: number): string {
+  // The lyrics.* keys already existed; this function had the English hardcoded
+  // beside them, so a Hebrew collection header read "Edited 4 days ago".
   const days = Math.floor((Date.now() - ts) / 86400000);
-  if (days === 0) return "Edited today";
-  if (days === 1) return "Edited yesterday";
-  if (days < 7) return `Edited ${days} days ago`;
-  if (days < 14) return "Edited last week";
-  return `Edited ${new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+  if (days === 0) return i18n.t("lyrics.editedToday");
+  if (days === 1) return i18n.t("lyrics.editedYesterday");
+  if (days < 7) return i18n.t("lyrics.editedDaysAgo", { count: days });
+  if (days < 14) return i18n.t("lyrics.editedLastWeek");
+  const locale = i18n.language === "he" ? "he-IL" : "en-US";
+  return i18n.t("lyrics.editedDate", {
+    date: new Date(ts).toLocaleDateString(locale, { month: "short", day: "numeric" }),
+  });
 }
 
 /** Unique-enough id for locally created entities: `<prefix>-<epoch-ms>-<7 base36 chars>`. */
