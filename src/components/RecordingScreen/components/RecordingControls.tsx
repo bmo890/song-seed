@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, View, Pressable, StyleSheet } from "react-native";
+import { Animated, View, Pressable, StyleSheet, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
 import { colors } from "../../../design/tokens";
@@ -78,7 +78,7 @@ export function RecordingControls({
 
     return (
         <View style={[styles.recordingControlsBar, compact ? styles.recordingControlsBarCompact : null]}>
-            <View style={[styles.recordingControlsSaveColumn, onRedo ? local.sideColumn : null]}>
+            <View style={local.sideColumn}>
                 <Pressable
                     style={[
                         styles.circleControlBtn,
@@ -95,9 +95,14 @@ export function RecordingControls({
                 >
                     <Ionicons
                         name="trash-outline"
-                        size={compact ? 18 : 22}
-                        color={!canDiscard || isArming ? colors.textMuted : "#B5483A"}
+                        size={compact ? 18 : 21}
+                        color={!canDiscard || isArming ? colors.textMuted : colors.danger}
                     />
+                    {compact ? null : (
+                        <Text style={[styles.controlBtnLabel, styles.controlBtnLabelDanger]}>
+                            {t("recording.discard")}
+                        </Text>
+                    )}
                 </Pressable>
                 {onRedo ? (
                     <Pressable
@@ -116,9 +121,12 @@ export function RecordingControls({
                     >
                         <Ionicons
                             name="refresh-outline"
-                            size={compact ? 18 : 22}
-                            color={!canRedo ? colors.textMuted : colors.textStrong}
+                            size={compact ? 18 : 21}
+                            color={!canRedo ? colors.textMuted : colors.textSecondary}
                         />
+                        {compact ? null : (
+                            <Text style={styles.controlBtnLabel}>{t("recording.redo")}</Text>
+                        )}
                     </Pressable>
                 ) : null}
             </View>
@@ -163,7 +171,7 @@ export function RecordingControls({
                 </Pressable>
             </View>
 
-            <View style={[styles.recordingControlsSaveColumn, onRedo ? local.sideColumn : null]}>
+            <View style={local.sideColumn}>
                 <Pressable
                     style={[
                         styles.circleControlBtn,
@@ -175,12 +183,19 @@ export function RecordingControls({
                         onRequestSave();
                     }}
                     disabled={!canSave || isArming}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("mediaDock.saveRecording")}
                 >
                     <Ionicons
                         name="save-outline"
-                        size={compact ? 18 : 24}
-                        color={!canSave || isArming ? colors.textMuted : colors.textStrong}
+                        size={compact ? 18 : 21}
+                        color={!canSave || isArming ? colors.textMuted : colors.primaryDeep}
                     />
+                    {compact ? null : (
+                        <Text style={[styles.controlBtnLabel, canSave && !isArming ? local.saveLabel : null]}>
+                            {t("common.save")}
+                        </Text>
+                    )}
                 </Pressable>
             </View>
         </View>
@@ -188,13 +203,18 @@ export function RecordingControls({
 }
 
 const local = StyleSheet.create({
-    // Both side columns share this width so the record button stays centered when the
-    // left one carries two buttons (discard + redo).
+    // Save takes the terracotta ink once there's something to save — it's the one
+    // thing you came here to do.
+    saveLabel: {
+        color: colors.primaryDeep,
+    },
+    // Both side columns flex equally so the record button sits dead centre
+    // whatever the left one is carrying (discard alone, or discard + redo).
     sideColumn: {
-        width: 100,
+        flex: 1,
         flexDirection: "row",
         justifyContent: "center",
         alignItems: "center",
-        gap: 10,
+        gap: 6,
     },
 });

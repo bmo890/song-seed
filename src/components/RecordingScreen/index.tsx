@@ -79,7 +79,11 @@ export function RecordingScreen() {
   }`;
 
   return (
-    <SafeAreaView style={styles.screen}>
+    // The room changes colour, not shape: a live take washes the page to
+    // recordSurface. Nothing moves, nothing resizes — the state is felt.
+    <SafeAreaView
+      style={[styles.screen, screen.recording.isRecording ? styles.recordingScreenLive : null]}
+    >
       <View style={styles.recordingScreenLayout}>
         <RecordingHeader
           eyebrow={screen.headerEyebrow}

@@ -394,6 +394,9 @@ export const recordingStyles = {
     flex: 1,
     justifyContent: "center",
   },
+  recordingScreenLive: {
+    backgroundColor: colors.recordSurface,
+  },
   recordingControlsBar: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -439,21 +442,29 @@ export const recordingStyles = {
     fontFamily: "PlusJakartaSans_600SemiBold",
     color: "#a89994",
   },
+  // Bare glyph + word. The record button is the only circle on this page, so
+  // the secondary actions read as ink and can't compete with it. Fixed height
+  // so waking them up (once there's a take) never moves the dock.
   circleControlBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: radii.round,
-    backgroundColor: "#F4F1ED",
+    minWidth: 60,
+    minHeight: 48,
     alignItems: "center",
     justifyContent: "center",
+    gap: 3,
   },
   circleControlBtnCompact: {
-    width: 42,
-    height: 42,
-    borderRadius: radii.round,
+    minHeight: 40,
+  },
+  controlBtnLabel: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 9.5,
+    color: colors.textSecondary,
+  },
+  controlBtnLabelDanger: {
+    color: colors.danger,
   },
   circleControlBtnDisabled: {
-    opacity: 0.5,
+    opacity: 0.32,
   },
   recordBtnWrap: {
     alignItems: "center",
@@ -470,13 +481,13 @@ export const recordingStyles = {
     width: 60,
     height: 60,
   },
+  // One circle, one ring: the 8px grey collar drew a second circle around the
+  // only circle on the page. The record red carries it on its own.
   circleRecordBtn: {
-    width: 96,
-    height: 96,
+    width: 88,
+    height: 88,
     borderRadius: radii.round,
-    backgroundColor: "#B5483A",
-    borderWidth: 8,
-    borderColor: "#EDE9E4",
+    backgroundColor: colors.record,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#B5483A",
@@ -491,13 +502,12 @@ export const recordingStyles = {
     borderRadius: radii.round,
     borderWidth: 5,
   },
-  circleRecordBtnActive: {
-    borderColor: "#D7C2BD",
-    borderWidth: 8,
-  },
+  // The armed/live state is carried by the glyph (mic → pause) and by the page
+  // wash. It used to add an 8px collar, which put a second circle around the
+  // one circle the page is allowed.
+  circleRecordBtnActive: {},
   circleRecordBtnDisabled: {
     backgroundColor: "#CDA89E",
-    borderColor: "#E8E4DF",
     opacity: 0.72,
   },
   recordingInputCard: {

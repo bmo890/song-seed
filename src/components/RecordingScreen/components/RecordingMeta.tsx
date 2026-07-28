@@ -104,11 +104,14 @@ export function RecordingMeta({
         />
     );
 
+    // Bare glyphs, not tinted circles: the record button is the only circle on
+    // this page. The metronome's ON state reads from the terracotta glyph + its
+    // summary, not from a pill around it.
     const metronomeChip = onOpenMetronome ? (
         <View style={metaStyles.metroGroup}>
             <Pressable
                 style={({ pressed }) => [
-                    metronomeEnabled ? metaStyles.metroChipOn : metaStyles.metroChipOff,
+                    metaStyles.metroToggle,
                     metronomeToggleDisabled ? metaStyles.metroChipDisabled : null,
                     pressed ? styles.pressDown : null,
                 ]}
@@ -122,19 +125,19 @@ export function RecordingMeta({
                 accessibilityState={{ selected: metronomeEnabled }}
                 accessibilityLabel={metronomeEnabled ? t("recording.turnMetronomeOff") : t("recording.turnMetronomeOn")}
             >
-                <MetronomeIcon size={15} color={metronomeEnabled ? colors.primaryDeep : "#b6a79f"} />
+                <MetronomeIcon size={18} color={metronomeEnabled ? colors.primaryDeep : colors.textMuted} />
                 {metronomeEnabled && metronomeSummary ? (
                     <Text style={metaStyles.metroChipText}>{metronomeSummary}</Text>
                 ) : null}
             </Pressable>
             <Pressable
-                style={({ pressed }) => [metaStyles.metroCustomizeBtn, pressed ? styles.pressDown : null]}
+                style={({ pressed }) => [metaStyles.metroCustomize, pressed ? styles.pressDown : null]}
                 onPress={onOpenMetronome}
                 hitSlop={8}
                 accessibilityRole="button"
                 accessibilityLabel={t("recording.metronomeSettings")}
             >
-                <Ionicons name="options-outline" size={14} color={colors.textSecondary} />
+                <Ionicons name="options-outline" size={18} color={colors.textSecondary} />
             </Pressable>
         </View>
     ) : null;
@@ -251,22 +254,11 @@ const metaStyles = StyleSheet.create({
     compactSpacer: {
         flex: 1,
     },
-    metroChipOn: {
+    metroToggle: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 5,
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 999,
-        backgroundColor: "#F2E4DF",
-    },
-    metroChipOff: {
-        width: 30,
-        height: 30,
-        borderRadius: radii.round,
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: colors.surfaceContainer,
+        gap: 6,
+        minHeight: 30,
     },
     metroChipText: {
         fontFamily: "PlusJakartaSans_700Bold",
@@ -288,12 +280,8 @@ const metaStyles = StyleSheet.create({
         color: colors.primaryDeep,
         fontVariant: ["tabular-nums"],
     },
-    metroCustomizeBtn: {
-        width: 26,
-        height: 26,
-        borderRadius: radii.round,
-        alignItems: "center",
+    metroCustomize: {
+        minHeight: 30,
         justifyContent: "center",
-        backgroundColor: colors.surfaceContainer,
     },
 });

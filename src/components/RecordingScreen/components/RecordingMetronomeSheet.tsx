@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../../common/BottomSheet";
+import { IconButton } from "../../common/IconButton";
 import { colors, radii } from "../../../design/tokens";
 import {
   CueLevels,
@@ -104,6 +105,19 @@ export function RecordingMetronomeSheet({
           <Text style={s.titleSub}>{enabled ? t("recording.metronomeOn") : t("recording.metronomeOff")}</Text>
           {restoredGridLabel ? <Text style={s.titleGridNote}>{restoredGridLabel}</Text> : null}
         </View>
+        {/* Audition sits with the switch instead of alone on its own row — a
+            secondary action, so a glyph, and it stops the sheet opening with an
+            empty band across it. */}
+        {isNativeAvailable ? (
+          <IconButton
+            icon={previewPlaying ? "stop" : "play"}
+            tone={previewPlaying ? "accent" : "muted"}
+            size={19}
+            disabled={disabled}
+            onPress={() => void onTogglePreview()}
+            accessibilityLabel={previewPlaying ? t("recording.stopPreviewA11y") : t("recording.listenMetronome")}
+          />
+        ) : null}
         {/* The switch lives here as well as on the toolbar glyph. A panel that
             states "On — clicks while you record" and offers no way to change it
             reads as a setting you can't reach. */}
@@ -116,28 +130,6 @@ export function RecordingMetronomeSheet({
         />
       </View>
 
-      {isNativeAvailable ? (
-        <Pressable
-          style={({ pressed }) => [
-            s.listenBtn,
-            previewPlaying ? s.listenBtnActive : null,
-            pressed ? ms.pressed : null,
-          ]}
-          onPress={onTogglePreview}
-          disabled={disabled}
-          accessibilityRole="button"
-          accessibilityLabel={previewPlaying ? t("recording.stopPreviewA11y") : t("recording.listenMetronome")}
-        >
-          <Ionicons
-            name={previewPlaying ? "stop" : "play"}
-            size={14}
-            color={previewPlaying ? colors.onPrimary : colors.primaryDeep}
-          />
-          <Text style={[s.listenBtnText, previewPlaying ? s.listenBtnTextActive : null]}>
-            {previewPlaying ? t("recording.stopPreview") : t("recording.listen")}
-          </Text>
-        </Pressable>
-      ) : null}
 
       {!isNativeAvailable ? (
         <Text style={s.disabledNote}>{t("recording.nativeUnavailable")}</Text>
@@ -251,11 +243,13 @@ const s = StyleSheet.create({
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 14,
     justifyContent: "space-between",
     marginBottom: 4,
   },
   titleLead: {
-    flexShrink: 1,
+    flex: 1,
+    minWidth: 0,
   },
   title: {
     fontFamily: "Lora_600SemiBold",
@@ -273,28 +267,6 @@ const s = StyleSheet.create({
     color: colors.primaryDeep,
     fontFamily: "PlusJakartaSans_600SemiBold",
     marginTop: 2,
-  },
-  listenBtn: {
-    flexDirection: "row",
-    alignSelf: "flex-end",
-    alignItems: "center",
-    gap: 6,
-    minHeight: 38,
-    paddingHorizontal: 16,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surfaceContainer,
-    marginTop: 12,
-  },
-  listenBtnActive: {
-    backgroundColor: colors.primary,
-  },
-  listenBtnText: {
-    color: colors.primaryDeep,
-    fontSize: 13,
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-  listenBtnTextActive: {
-    color: colors.onPrimary,
   },
   disabledNote: {
     fontSize: 13,
