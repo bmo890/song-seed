@@ -14,7 +14,6 @@ import {
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { PlaybackTapeVisualizer } from "../visualizers/PlaybackTapeVisualizer";
-import { GridRulerLabels } from "./GridRulerLabels";
 import { buildGridRulerModel, snapToGrid, type GridRulerGrid } from "../../domain/gridRuler";
 import { MinimapVisualizer } from "../visualizers/MinimapVisualizer";
 import type { SectionBand } from "../../domain/playerSections";
@@ -790,6 +789,8 @@ export function AudioReel({
                             practiceMarkers={practiceMarkers}
                             sectionBands={sectionBands}
                             gridRuler={gridRulerModel}
+                            gridLabelScale={overscaleFactor}
+                            gridLabelColor={palette.utilityIconColor}
                             sharedSelectedRangeStartMs={sharedSelectedRangeStartMs}
                             sharedSelectedRangeEndMs={sharedSelectedRangeEndMs}
                             selectedRangeType={selectedRangeType}
@@ -809,18 +810,6 @@ export function AudioReel({
                             }}
                         />
                     </AnimatedView>
-
-                    {gridRulerModel ? (
-                        <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                            <GridRulerLabels
-                                model={gridRulerModel}
-                                pixelsPerMs={pixelsPerMs}
-                                timelineTranslateX={timelineTranslateX}
-                                scale={overscaleFactor}
-                                color={palette.utilityIconColor}
-                            />
-                        </View>
-                    ) : null}
 
                     {renderOverlay ? (
                         <View style={[StyleSheet.absoluteFill, audioReelStyles.overlayLayer]} pointerEvents="box-none">

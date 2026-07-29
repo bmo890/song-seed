@@ -1,6 +1,15 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { View, StyleSheet, LayoutChangeEvent } from "react-native";
-import { Canvas, Path, Group, Skia, Rect, RoundedRect } from "@shopify/react-native-skia";
+import {
+    Canvas,
+    Path,
+    Group,
+    Skia,
+    Rect,
+    RoundedRect,
+    Text as SkiaText,
+    useFont,
+} from "@shopify/react-native-skia";
 import {
     useSharedValue,
     withDecay,
@@ -36,6 +45,12 @@ type Props = {
     sectionBands?: SectionBand[];
     /** Beat-grid ruler primitives (file-ms space) — manuscript lines under the wave. */
     gridRuler?: GridRulerModel | null;
+    /** Numeric twin of `sharedScale`. The bar numbers are laid out with it rather than
+     *  reading the animated value per label — scaling the layer would scale the glyphs,
+     *  and it only moves during a brief overscale tween. */
+    gridLabelScale?: number;
+    /** Ink for the bar numbers. */
+    gridLabelColor?: string;
     sharedSelectedRangeStartMs?: SharedValue<number>;
     sharedSelectedRangeEndMs?: SharedValue<number>;
     selectedRangeType?: "keep" | "remove";
@@ -119,6 +134,17 @@ const TRACKING_TAU_MS = 130;
 const MAX_TRACKING_VELOCITY_FACTOR = 3;
 /** Residual past which tracking is pointless — jump and re-seed the velocity. */
 const TRACKING_RESYNC_PROGRESS = 0.03;
+// The bar numbers are drawn INSIDE the canvas, under the same transform as the tape, so
+// they are part of the same picture rather than RN views chasing it. Two renderers painting
+// one moving scene can never be kept in step — measured, on iOS, with no React commits at
+// all (docs/product-plan/reel-smoothness-findings.md). Glued by construction instead.
+const GRID_LABEL_FONT_SIZE = 8.5;
+/** Baseline for the numbers along the reel's top edge. */
+const GRID_LABEL_BASELINE_Y = 11;
+/** Left inset from the bar line the number names. */
+const GRID_LABEL_INSET_X = 3;
+const GRID_BAR_LABEL_OPACITY = 0.55;
+const GRID_CHANGE_LABEL_OPACITY = 0.85;
 
 function LoopRangeOverlay({
     durationMs,
@@ -325,6 +351,8 @@ export function PlaybackTapeVisualizer({
     practiceMarkers,
     sectionBands,
     gridRuler,
+    gridLabelScale = 1,
+    gridLabelColor,
     sharedSelectedRangeStartMs,
     sharedSelectedRangeEndMs,
     selectedRangeType = "keep",
@@ -743,11 +771,27 @@ export function PlaybackTapeVisualizer({
             settle(false);
         });
 
-    // Dynamic bounded rules
-    useDerivedValue(() => {
+    // Dynamic bounded rules — the tape's scroll offset.
+    //
+    // A frame callback rather than a derived value, to close an ordering hazard. Reanimated
+    // orders mappers by the inputs and outputs they DECLARE, and `translateX` is written
+    // below as a side effect, so it is not this unit's declared output: nothing orders the
+    // mappers that read it (the Skia canvas transform, `playheadX`, and every overlay's
+    // `useAnimatedStyle`) after the one that writes it. A reader sorted before the writer
+    // is marked dirty too late and repaints on the NEXT frame, so different consumers of
+    // one value could sit a frame apart. Frame callbacks run before the mapper pass, so a
+    // value written here is visible to every consumer in the same frame — and that holds
+    // whichever order the two frame callbacks take, since either way all consumers read
+    // one identical translateX per frame.
+    //
+    // Measured neutral on the overlay jitter (2026-07-29, iOS sim, frame-by-frame): that
+    // has a different cause — see docs/product-plan/reel-smoothness-findings.md. This closes the hazard, nothing more.
+    useFrameCallback(() => {
         if (canvasWidth === 0) return;
-        const cw = contentWidth.value;
-        const tx = targetX.value;
+        // Read from the raw inputs rather than the `contentWidth`/`targetX` mappers, which
+        // have not run yet this frame.
+        const cw = baseContentWidth * scale.value;
+        const tx = audioProgress.value * cw;
         const halfScreen = canvasWidth / 2;
 
         if (
@@ -825,6 +869,15 @@ export function PlaybackTapeVisualizer({
     });
 
     const playheadRectX = useDerivedValue(() => playheadX.value - 2);
+
+    // Same face the RN labels used (text.annotation). Null until loaded — the labels
+    // simply aren't drawn for those first frames rather than popping in at a wrong size.
+    // Content-space px per file-ms, matching what the ruler primitives use.
+    const gridLabelPixelsPerMs = durationMs > 0 ? baseContentWidth / durationMs : 0;
+    const gridLabelFont = useFont(
+        require("@expo-google-fonts/plus-jakarta-sans/600SemiBold/PlusJakartaSans_600SemiBold.ttf"),
+        GRID_LABEL_FONT_SIZE
+    );
 
     const translateTransform = useDerivedValue(() => {
         return [{ translateX: translateX.value }];
@@ -978,6 +1031,37 @@ export function PlaybackTapeVisualizer({
                                         />
                                     ) : null}
                                 </Group>
+                                {/* Bar numbers ride the tape's own transform — inside the
+                                    translate, outside the scale so the glyphs keep their
+                                    shape while their positions follow the zoom. */}
+                                {gridRuler && gridLabelFont ? (
+                                    <>
+                                        <Group opacity={GRID_BAR_LABEL_OPACITY}>
+                                            {gridRuler.barLabels.map((label) => (
+                                                <SkiaText
+                                                    key={`bar-${label.bar}`}
+                                                    x={label.ms * gridLabelPixelsPerMs * gridLabelScale + GRID_LABEL_INSET_X}
+                                                    y={GRID_LABEL_BASELINE_Y}
+                                                    text={String(label.bar)}
+                                                    font={gridLabelFont}
+                                                    color={gridLabelColor ?? rulerColor}
+                                                />
+                                            ))}
+                                        </Group>
+                                        <Group opacity={GRID_CHANGE_LABEL_OPACITY}>
+                                            {gridRuler.changeMarkers.map((marker) => (
+                                                <SkiaText
+                                                    key={`change-${marker.bar}`}
+                                                    x={marker.ms * gridLabelPixelsPerMs * gridLabelScale + GRID_LABEL_INSET_X}
+                                                    y={GRID_LABEL_BASELINE_Y}
+                                                    text={marker.label}
+                                                    font={gridLabelFont}
+                                                    color={gridLabelColor ?? rulerColor}
+                                                />
+                                            ))}
+                                        </Group>
+                                    </>
+                                ) : null}
                             </Group>
                             {sharedSelectedRangeStartMs && sharedSelectedRangeEndMs && selectedRanges?.[0] ? (
                                 <LoopRangeOverlay
