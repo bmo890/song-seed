@@ -432,8 +432,15 @@ export function PlaybackTapeVisualizer({
         reportBaseProgress.value = resetProgress;
         reportFrameTimestamp.value = 0;
         progressVelocity.value = 0;
+        // A JS effect can't stamp the UI clock, so the zero above reads as "the last
+        // report was at time zero" — i.e. hours ago. Parking the tracker makes the next
+        // frame re-seed both from the real clock instead of extrapolating from that.
+        trackingSuspended.value = true;
         lastSeenTransportUpdate.value = transportUpdateToken.value;
         awaitingPlayStartClock.value = false;
+        // A settle window left over from the outgoing clip would otherwise keep the new
+        // one's reports locked out for its remainder.
+        scrubSettleUntil.value = 0;
         pauseHoldUntil.value = 0;
         pauseHoldProgress.value = resetProgress;
         pauseAnchorActive.value = false;
@@ -450,10 +457,14 @@ export function PlaybackTapeVisualizer({
     }, [canvasWidth, baseContentWidth]);
 
     useFrameCallback((frameInfo) => {
+        // Stamped before the duration guard: gesture worklets schedule against this
+        // clock, and a scrub that settles while the duration is still unknown would
+        // otherwise anchor its settle window to zero and never hold.
+        frameNow.value = frameInfo.timestamp;
+
         const duration = durationMsValue.value;
         if (duration <= 0) return;
 
-        frameNow.value = frameInfo.timestamp;
         const scrubVisualLockActive =
             isDragging.value ||
             isScrubbingShared.value ||
@@ -486,7 +497,6 @@ export function PlaybackTapeVisualizer({
             awaitingPlayStartClock.value = isPlayingShared.value;
 
             if (scrubVisualLockActive) {
-                awaitingPlayStartClock.value = isPlayingShared.value;
                 pauseHoldUntil.value = 0;
                 pauseAnchorActive.value = false;
                 reportBaseProgress.value = audioProgress.value;
@@ -519,6 +529,19 @@ export function PlaybackTapeVisualizer({
             }
         }
 
+        // The pause anchor is a WINDOW, not a latch. It exists to swallow the report
+        // storm from the corrective seek the player fires at pause time (PlayerScreen's
+        // pauseFullPlayerAtVisiblePosition), and then it has to let go. Without this the
+        // anchor stayed set for the whole pause and every later report was ignored — so a
+        // seek while paused that doesn't write audioProgress itself (the transport skip
+        // buttons, a marker or loop jump) left the playhead sitting where the pause left
+        // it. PAUSE_VISUAL_HOLD_MS has never actually run; treat it as a starting point
+        // for the device pass, not a tuned number.
+        if (pauseAnchorActive.value && frameInfo.timestamp >= pauseHoldUntil.value) {
+            pauseAnchorActive.value = false;
+            pauseHoldUntil.value = 0;
+        }
+
         if (transportUpdateToken.value !== lastSeenTransportUpdate.value) {
             lastSeenTransportUpdate.value = transportUpdateToken.value;
             if (scrubVisualLockActive) {
@@ -540,9 +563,6 @@ export function PlaybackTapeVisualizer({
                 reportFrameTimestamp.value = frameInfo.timestamp;
                 return;
             }
-
-            pauseHoldUntil.value = 0;
-            pauseAnchorActive.value = false;
 
             if (awaitingPlayStartClock.value && isPlayingShared.value) {
                 const minimumAdvancingProgress = Math.min(0.01, Math.max(0.0005, 12 / duration));
