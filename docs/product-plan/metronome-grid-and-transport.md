@@ -38,6 +38,33 @@ and none of it blocks further code work.
 4. Also riding this rebuild: waveform probe, lock-screen, tuner (older
    pending-rebuild items from other efforts).
 
+### Remote static review of the Kotlin map engine (2026-07-29)
+
+No compiler here — `android/` is prebuild-generated (not in git) and the container
+has no SDK, so item 1 above still stands. What a careful read DID turn up, for
+whoever runs that first compile:
+
+- **No compile-blocking issue found** in the map path (`configureTempoMap`,
+  `startMapRun`, `writeMapChunks`, `renderMapChunk`, `mapGridPulseAtFrame`,
+  `pollMapBeatProgress`, `emitMapBeat`). Types, nullability, the unsigned
+  `playbackHeadPosition` masking, `Short`/`Double` mixing, `Math.pow`, and the
+  trailing comma in `getState`'s `mapOf` are all valid. Treat this as "nothing
+  obvious", not as a pass.
+- **The map writer and the beat poller share one Handler thread.**
+  `mapWriterRunnable` and `pollRunnable` both post to `handler`, and
+  `track.write(...)` defaults to `WRITE_BLOCKING`. The ~300ms track buffer means it
+  should rarely block, but when it does it stalls the 8ms beat poll with it —
+  which delays beat events AND the natively scheduled haptics. Worth
+  `WRITE_NON_BLOCKING` (or a second thread for the writer) once the engine
+  compiles and can be measured.
+- **Stale-map guard is thin.** `clearTempoMap` is only ever called from JS
+  (`useMetronome.ts`, `usePlaybackClick.ts`) and both call sites swallow errors
+  with `.catch(() => {})`; native `stop()` leaves `mapSegments` installed. A failed
+  clear can put the standalone metronome into map mode on its next start.
+  **Do not "fix" this by clearing the map in `stopInternal`** — `startMapRun` calls
+  `stopInternal` first and then dereferences `mapSegments!!`, so that lands an NPE.
+  A separate `stop()`-level clear (or a `preserveMap` flag) is the shape.
+
 ---
 
 ## 0. Ground truth (verified in code, 2026-07-28)
