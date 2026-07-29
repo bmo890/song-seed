@@ -379,20 +379,34 @@ export function GlobalMediaDock({
             20Hz position ticks don't re-render the dock shell. */}
         <DockProgressTrack fallbackDurationMs={activePlayback.fallbackDurationMs} />
 
-        {/* One row: [ ✕ ] [ title·context …flex… ] [ ◀ ▶ ▶▶ ] [ ≡ + n/n ].
-            ✕ anchors far left, the title fills the slack, prev/play/next form a
-            tight transport cluster, and the queue button (with its position
-            readout beneath) closes the right. */}
+        {/* One row: [ ≡ + n/n ] [ title·context …flex… ] [ ◀ ▶ ▶▶ ] [ ✕ ].
+            The queue button (with its position readout beneath) anchors far
+            left, the title fills the slack, prev/play/next form a tight
+            transport cluster, and ✕ closes the right. */}
         <View style={styles.miniMediaDockRow}>
-          <CloseButton
-            size="md"
-            tone="onDark"
-            accessibilityLabel={t("mediaDock.dismiss")}
-            onPress={() => {
-              void fullPlayer.closePlayer();
-              useStore.getState().clearPlayerQueue();
-            }}
-          />
+          <View style={styles.miniMediaDockQueueCol}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.miniMediaDockHeaderBtn,
+                queueOpen ? styles.miniMediaDockHeaderBtnActive : null,
+                pressed ? styles.pressDownStrong : null,
+              ]}
+              onPress={() => {
+                haptic.tap();
+                setQueueOpen((prev) => !prev);
+              }}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel={t(queueOpen ? "common.hideQueue" : "common.showQueue")}
+            >
+              <Ionicons name="list" size={15} color={queueOpen ? "#8b4f3b" : colors.page} />
+            </Pressable>
+            {hasQueueCount ? (
+              <Text style={styles.miniMediaDockQueueCount}>
+                {Math.min(playerQueueIndex + 1, playerQueue.length)}/{playerQueue.length}
+              </Text>
+            ) : null}
+          </View>
 
           <Pressable
             style={[styles.miniMediaDockTitlePress, isPreviewingClip ? { opacity: 0.45 } : null]}
@@ -475,29 +489,15 @@ export function GlobalMediaDock({
             </Pressable>
           </View>
 
-          <View style={styles.miniMediaDockQueueCol}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.miniMediaDockHeaderBtn,
-                queueOpen ? styles.miniMediaDockHeaderBtnActive : null,
-                pressed ? styles.pressDownStrong : null,
-              ]}
-              onPress={() => {
-                haptic.tap();
-                setQueueOpen((prev) => !prev);
-              }}
-              hitSlop={6}
-              accessibilityRole="button"
-              accessibilityLabel={t(queueOpen ? "common.hideQueue" : "common.showQueue")}
-            >
-              <Ionicons name="list" size={15} color={queueOpen ? "#8b4f3b" : colors.page} />
-            </Pressable>
-            {hasQueueCount ? (
-              <Text style={styles.miniMediaDockQueueCount}>
-                {Math.min(playerQueueIndex + 1, playerQueue.length)}/{playerQueue.length}
-              </Text>
-            ) : null}
-          </View>
+          <CloseButton
+            size="md"
+            tone="onDark"
+            accessibilityLabel={t("mediaDock.dismiss")}
+            onPress={() => {
+              void fullPlayer.closePlayer();
+              useStore.getState().clearPlayerQueue();
+            }}
+          />
         </View>
       </View>
       </GestureDetector>

@@ -67,13 +67,33 @@ function TransportBarInner({
   return (
     <View style={styles.row}>
       <View style={slotStyle}>
-        {onClose ? (
-          <CloseButton
-            size={compact ? "sm" : "lg"}
-            tone="onLight"
-            onPress={onClose}
-            accessibilityLabel={t("common.closePlayer")}
-          />
+        {trailingIcon ? (
+          <View style={styles.trailingCol}>
+            <Pressable
+              style={({ pressed }) => [
+                compact ? styles.trailingButtonCompact : styles.trailingButton,
+                trailingActive ? styles.trailingButtonActive : null,
+                trailingDisabled ? styles.buttonDisabled : null,
+                pressed ? styles.pressed : null,
+              ]}
+              onPress={() => {
+                haptic.tap();
+                onTrailingPress?.();
+              }}
+              disabled={trailingDisabled}
+              accessibilityRole="button"
+              accessibilityLabel={t(trailingActive ? "common.hideQueue" : "common.showQueue")}
+            >
+              <Ionicons
+                name={trailingIcon}
+                size={compact ? 15 : 18}
+                color={trailingActive ? colors.page : trailingDisabled ? "#c4b5b2" : "#6b5a55"}
+              />
+            </Pressable>
+            {trailingCaption ? (
+              <Text style={styles.trailingCaption}>{trailingCaption}</Text>
+            ) : null}
+          </View>
         ) : speedBadge ? (
           <Pressable
             style={({ pressed }) => [
@@ -160,33 +180,13 @@ function TransportBarInner({
       </Pressable>
 
       <View style={slotStyle}>
-        {trailingIcon ? (
-          <View style={styles.trailingCol}>
-            <Pressable
-              style={({ pressed }) => [
-                compact ? styles.trailingButtonCompact : styles.trailingButton,
-                trailingActive ? styles.trailingButtonActive : null,
-                trailingDisabled ? styles.buttonDisabled : null,
-                pressed ? styles.pressed : null,
-              ]}
-              onPress={() => {
-                haptic.tap();
-                onTrailingPress?.();
-              }}
-              disabled={trailingDisabled}
-              accessibilityRole="button"
-              accessibilityLabel={t(trailingActive ? "common.hideQueue" : "common.showQueue")}
-            >
-              <Ionicons
-                name={trailingIcon}
-                size={compact ? 15 : 18}
-                color={trailingActive ? colors.page : trailingDisabled ? "#c4b5b2" : "#6b5a55"}
-              />
-            </Pressable>
-            {trailingCaption ? (
-              <Text style={styles.trailingCaption}>{trailingCaption}</Text>
-            ) : null}
-          </View>
+        {onClose ? (
+          <CloseButton
+            size={compact ? "sm" : "lg"}
+            tone="onLight"
+            onPress={onClose}
+            accessibilityLabel={t("common.closePlayer")}
+          />
         ) : null}
       </View>
     </View>
