@@ -400,6 +400,10 @@ export type RecordingGrid = {
   /** Full musical timebase when the take has tempo/meter changes. Absent = the constant
    *  bpm/meterId grid above (bridge via `gridTempoMap()`, never read segments directly). */
   tempoMap?: TempoMap;
+  /** How the bar was FELT (pulse counts, e.g. [3, 2] for 5/4). Snapshotted from the
+   *  metronome's grouping so overdubs and the playback click accent the same beats the
+   *  take was played to. Absent = the meter's default grouping. */
+  grouping?: number[];
   /** Count-in bars used for this take (0 = none). Kept for re-record parity. */
   countInBars: number;
   /** Whether the click sounded through the take (vs count-in only). */
