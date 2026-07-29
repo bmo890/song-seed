@@ -1,4 +1,4 @@
-import { buildGridRulerModel, type GridRulerGrid } from "../gridRuler";
+import { buildGridRulerModel, snapToGrid, type GridRulerGrid } from "../gridRuler";
 
 const BASE_GRID: GridRulerGrid = {
   bpm: 120, // pulse 500ms, 4/4 bar 2000ms
@@ -72,6 +72,41 @@ describe("buildGridRulerModel density", () => {
     // 10px/bar with a 24px minimum → every 4th bar.
     expect(bars.slice(0, 3)).toEqual([1, 5, 9]);
     expect(model.barLabels.length).toBeLessThanOrEqual(28);
+  });
+});
+
+describe("snapToGrid", () => {
+  it("pulls near misses onto the line and leaves far drops alone", () => {
+    // 120bpm 4/4: beats every 500ms, bars every 2000ms.
+    expect(snapToGrid({ grid: BASE_GRID, ms: 2040, toleranceMs: 80, unit: "bar" })).toBe(2000);
+    expect(snapToGrid({ grid: BASE_GRID, ms: 3960, toleranceMs: 80, unit: "bar" })).toBe(4000);
+    expect(snapToGrid({ grid: BASE_GRID, ms: 2500, toleranceMs: 80, unit: "bar" })).toBeNull();
+    expect(snapToGrid({ grid: BASE_GRID, ms: 2540, toleranceMs: 80, unit: "beat" })).toBe(2500);
+  });
+
+  it("respects the downbeat offset and the honesty gates", () => {
+    const offsetGrid = { ...BASE_GRID, firstDownbeatMs: 300 };
+    expect(snapToGrid({ grid: offsetGrid, ms: 2330, toleranceMs: 80, unit: "bar" })).toBe(2300);
+    expect(snapToGrid({ grid: { ...BASE_GRID, firstDownbeatMs: null }, ms: 2040, toleranceMs: 80, unit: "bar" })).toBeNull();
+    // Past gridValidToMs the grid is untrusted — no snapping to a lie.
+    expect(
+      snapToGrid({ grid: { ...BASE_GRID, gridValidToMs: 3000 }, ms: 3960, toleranceMs: 80, unit: "bar" })
+    ).toBeNull();
+  });
+
+  it("snaps across a tempo change using the map", () => {
+    const grid: GridRulerGrid = {
+      ...BASE_GRID,
+      tempoMap: {
+        schemaVersion: 1,
+        segments: [
+          { atBar: 1, bpm: 120, meterId: "4/4" }, // bars 1-4 → 8000ms
+          { atBar: 5, bpm: 60, meterId: "3/4" }, // 3000ms bars
+        ],
+      },
+    };
+    expect(snapToGrid({ grid, ms: 11050, toleranceMs: 100, unit: "bar" })).toBe(11000); // bar 6
+    expect(snapToGrid({ grid, ms: 9950, toleranceMs: 100, unit: "beat" })).toBe(10000); // beat in bar 5
   });
 });
 

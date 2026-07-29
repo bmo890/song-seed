@@ -1,11 +1,14 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { runOnJS } from "react-native-reanimated";
 import { ensureWaveformSidecar } from "../../../services/waveformSidecar";
 import { formatClipOverdubStemOffsetLabel } from "../../../domain/overdub";
 import { fmtDuration } from "../../../utils";
 import { getMetronomeMeterPreset } from "../../../domain/metronome";
 import type { RecordingGrid } from "../../../types";
 import { colors } from "../../../design/tokens";
+import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
 
 /**
@@ -41,6 +44,11 @@ type Props = {
   /** The MASTER's beat grid. Ticks are drawn only when its downbeat anchor was actually
    *  measured (firstDownbeatMs != null) — never guessed onto the timeline. */
   recordingGrid?: RecordingGrid | null;
+  /** Slide-to-move: live preview of a drag in progress (delta from the drag start).
+   *  Both absent = the overlay stays display-only, exactly as before. */
+  onSlide?: (deltaMs: number) => void;
+  /** Drag released — the owner commits (and may snap) the final delta. */
+  onSlideEnd?: (deltaMs: number) => void;
 };
 
 /** Max of `peaks` over the time range [fromMs, toMs) of an audio lasting durationMs. */
@@ -93,9 +101,38 @@ export function StemAlignmentOverlay({
   offsetMs,
   stemColor,
   recordingGrid,
+  onSlide,
+  onSlideEnd,
 }: Props) {
   const { t } = useTranslation();
   const [zoomed, setZoomed] = useState(true);
+
+  // Slide-to-move: horizontal px map 1:1 to timeline ms through the current zoom. The
+  // callbacks receive deltas; the owner previews and commits (and may snap). A ref keeps
+  // the conversion fresh inside the gesture without re-creating it every zoom flip.
+  const msPerPxRef = useRef(1);
+  const slideGesture = useMemo(() => {
+    if (!onSlide || !onSlideEnd) {
+      return null;
+    }
+    return Gesture.Pan()
+      .activateAfterLongPress(150)
+      .onStart(() => {
+        // Drag lift (haptics vocabulary: grab).
+        runOnJS(haptic.grab)();
+      })
+      .onUpdate((event) => {
+        runOnJS(onSlide)(event.translationX * msPerPxRef.current);
+      })
+      .onEnd((event) => {
+        runOnJS(onSlideEnd)(event.translationX * msPerPxRef.current);
+      })
+      .onFinalize((event, success) => {
+        if (!success) {
+          runOnJS(onSlideEnd)(0);
+        }
+      });
+  }, [onSlide, onSlideEnd]);
   const masterPeaks = useDetailPeaks(masterAudioUri, masterFallbackPeaks);
   const stemPeaks = useDetailPeaks(stemAudioUri, stemFallbackPeaks);
 
@@ -109,6 +146,7 @@ export function StemAlignmentOverlay({
     ? Math.max(0, Math.min(offsetMs - 1000, fullTimelineMs - ZOOM_WINDOW_MS))
     : 0;
   const timelineMs = zoomed ? Math.min(ZOOM_WINDOW_MS, fullTimelineMs - zoomStartMs) : fullTimelineMs;
+  msPerPxRef.current = timelineMs / CONTENT_WIDTH;
 
   const bars = useMemo(() => {
     if (masterDurationMs <= 0 && stemDurationMs <= 0) {
@@ -202,7 +240,7 @@ export function StemAlignmentOverlay({
           </Text>
         </Pressable>
       </View>
-      <View style={styles.stage}>
+      <StageShell gesture={slideGesture}>
         <View style={styles.content}>
           {gridTicks.map((tick, index) => (
             <View
@@ -235,8 +273,27 @@ export function StemAlignmentOverlay({
             );
           })}
         </View>
-      </View>
+      </StageShell>
     </View>
+  );
+}
+
+/** The waveform stage, optionally wrapped in the slide gesture — display-only callers
+ *  get the plain view they always had. */
+function StageShell({
+  gesture,
+  children,
+}: {
+  gesture: ReturnType<typeof Gesture.Pan> | null;
+  children: React.ReactNode;
+}) {
+  if (!gesture) {
+    return <View style={styles.stage}>{children}</View>;
+  }
+  return (
+    <GestureDetector gesture={gesture}>
+      <View style={styles.stage}>{children}</View>
+    </GestureDetector>
   );
 }
 

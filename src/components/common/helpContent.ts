@@ -33,9 +33,14 @@ export const RECORDING_HELP: HelpContent = {
       description: "Name each take when you save it, or turn that off in Settings to auto-name and keep the ideas flowing.",
     },
     {
+      icon: "swap-horizontal-outline",
+      label: "Tempo changes",
+      description: "Program tempo or meter changes at bar lines in the metronome sheet — the click follows them through the take.",
+    },
+    {
       icon: "bluetooth-outline",
       label: "Bluetooth latency",
-      description: "Monitoring through wireless headphones? Calibrate once so overdubs line up with what you heard.",
+      description: "Monitoring through wireless headphones? Calibrate once so overdubs line up with what you heard. The haptic pulse has no wireless delay — a steady reference when the beep feels late.",
     },
     {
       icon: "phone-portrait-outline",
