@@ -44,7 +44,8 @@ class SongNookMetronomeModule extends NativeModule<SongNookMetronomeModuleEvents
       pulsesPerBar: config.pulsesPerBar,
       denominator: config.denominator,
       clickEnabled: config.clickEnabled,
-      clickVolume: config.clickVolume,
+      // Same partial-configure contract as the real engines: absent keeps the running value.
+      clickVolume: config.clickVolume ?? this.state.clickVolume,
       beatIntervalMs: 60000 / config.bpm,
     };
     return this.state;

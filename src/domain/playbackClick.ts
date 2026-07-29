@@ -1,6 +1,7 @@
 import {
     MAX_METRONOME_BPM,
     MIN_METRONOME_BPM,
+    getMetronomeAccentPattern,
     getMetronomeBeatIntervalMs,
     getMetronomeMeterPreset,
 } from "./metronome";
@@ -24,7 +25,7 @@ import type { RecordingGrid } from "../types";
 
 export type PlaybackClickGrid = Pick<
     RecordingGrid,
-    "bpm" | "meterId" | "tempoMap" | "firstDownbeatMs" | "gridValidToMs"
+    "bpm" | "meterId" | "tempoMap" | "firstDownbeatMs" | "gridValidToMs" | "grouping"
 >;
 
 export type PlaybackClickEngineParams = {
@@ -90,6 +91,12 @@ export function clickEngineParamsAt(args: {
 
     const preset = getMetronomeMeterPreset(segment.meterId);
     const barWallMs = getMetronomeBeatIntervalMs(scaledBpm) * preset.pulsesPerBar;
+    // The click reproduces the take's FEEL: its stored grouping drives the accents in
+    // the segment that shares the take's meter; other segments use their meter's default.
+    const accentPattern =
+        segment.meterId === grid!.meterId
+            ? getMetronomeAccentPattern(segment.meterId, grid!.grouping ?? null)
+            : getMetronomeAccentPattern(segment.meterId);
 
     // Phase within the CURRENT bar, converted content → wall. Positions before the
     // downbeat (retained pre-roll) behave as "no phase yet": start clean at 0 so the
@@ -127,7 +134,7 @@ export function clickEngineParamsAt(args: {
         meterId: segment.meterId,
         pulsesPerBar: preset.pulsesPerBar,
         denominator: preset.denominator,
-        accentPattern: [...preset.accentPattern],
+        accentPattern,
         phaseOffsetWallMs,
         barWallMs,
         nextBoundaryContentMs,
@@ -141,4 +148,51 @@ export function wallMsUntil(positionMs: number, targetContentMs: number, rate: n
         return Number.POSITIVE_INFINITY;
     }
     return Math.max(0, (targetContentMs - positionMs) / rate);
+}
+
+/** One segment in the native map-engine wire format. */
+export type NativeMapSegmentShape = {
+    atBar: number;
+    bpm: number;
+    meterId: string;
+    pulsesPerBar: number;
+    denominator: number;
+    accentPattern: number[];
+};
+
+/**
+ * The grid's full map in the native engines' wire format, optionally rate-scaled
+ * (map engines run wall-clock 1:1, so practice speed scales every segment's tempo).
+ * Returns null when any scaled segment leaves the engine's range — same refusal rule
+ * as `clickEngineParamsAt`, applied map-wide. Accents follow the take's stored
+ * grouping in segments sharing its meter; other segments use their meter's default.
+ */
+export function nativeTempoMapSegments(
+    grid: PlaybackClickGrid,
+    rate = 1
+): NativeMapSegmentShape[] | null {
+    if (!Number.isFinite(rate) || rate <= 0) {
+        return null;
+    }
+    const map = gridTempoMap(grid);
+    const segments: NativeMapSegmentShape[] = [];
+    for (const segment of map.segments) {
+        const scaledBpm = Math.round(segment.bpm * rate);
+        if (scaledBpm < MIN_METRONOME_BPM || scaledBpm > MAX_METRONOME_BPM) {
+            return null;
+        }
+        const preset = getMetronomeMeterPreset(segment.meterId);
+        segments.push({
+            atBar: segment.atBar,
+            bpm: scaledBpm,
+            meterId: segment.meterId,
+            pulsesPerBar: preset.pulsesPerBar,
+            denominator: preset.denominator,
+            accentPattern:
+                segment.meterId === grid.meterId
+                    ? getMetronomeAccentPattern(segment.meterId, grid.grouping ?? null)
+                    : getMetronomeAccentPattern(segment.meterId),
+        });
+    }
+    return segments;
 }

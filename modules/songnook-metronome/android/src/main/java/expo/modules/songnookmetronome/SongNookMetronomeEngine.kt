@@ -33,6 +33,18 @@ private data class MetronomeConfig(
   val hapticOffsetMs: Int = 0
 )
 
+/** One constant-tempo stretch of a tempo map, precomputed in grid frames.
+ *  Grid zero = the downbeat of bar 1; count-in pulses live at negative grid frames. */
+private data class MapSegment(
+  val atBar: Int,
+  val bpm: Int,
+  val pulsesPerBar: Int,
+  val accentPattern: List<Double>,
+  val startGridPulse: Int,
+  val startFrame: Double,
+  val exactFramesPerPulse: Double
+)
+
 class SongNookMetronomeEngine(
   private val onBeat: (Map<String, Any>) -> Unit,
   private val onStateChange: (Map<String, Any>) -> Unit,
@@ -60,6 +72,30 @@ class SongNookMetronomeEngine(
   private var startUptimeMs = 0L
   private var loopCount = 0L
   private var lastPlaybackHeadFrames = 0L
+
+  // ── Tempo-map mode (streamed clicks) ──────────────────────────────────────
+  // When `mapSegments` is set, the engine streams rendered audio instead of looping a
+  // static bar: the writer keeps ~100ms ahead of the playback head, placing each click
+  // at its exact frame along the map — changes land seamlessly at their bar lines.
+  private var mapSegments: List<MapSegment>? = null
+  /** Grid frame at which THIS RUN began (count-in start → negative; phase start → offset). */
+  private var runStartGridFrame = 0.0
+  /** Grid pulse index of run pulse 0 (the first pulse this run sounds). */
+  private var firstRunGridPulse = 0
+  /** Frames already written to the streaming track (its own timeline starts at 0). */
+  private var mapWriteFrame = 0L
+  private val mapChunkFrames = 2048
+  private val mapAheadFrames = 6615 // ~150ms of schedule-ahead
+  private val mapClickFrames = (44_100 * 0.034).roundToInt()
+
+  private val mapWriterRunnable = object : Runnable {
+    override fun run() {
+      writeMapChunks()
+      if (isRunning && mapSegments != null && config.clickEnabled) {
+        handler?.postDelayed(this, pollIntervalMs)
+      }
+    }
+  }
 
   // Keep the BAR sample-exact for the nominal BPM (Bresenham: pulse boundaries are
   // round(k · exact), so per-pulse rounding error never accumulates). A uniformly rounded
@@ -109,6 +145,10 @@ class SongNookMetronomeEngine(
       return state
     }
 
+    // A structural configure() is the single-tempo world talking (the standalone
+    // metronome's controls) — an installed map is stale the moment it happens.
+    mapSegments = null
+
     exactFramesPerPulse = exactFramesPerPulseForBpm(config.bpm)
     framesPerPulse = framesPerPulseForBpm(config.bpm)
     totalFrames = max(1, (exactFramesPerPulse * config.pulsesPerBar).roundToInt())
@@ -133,19 +173,264 @@ class SongNookMetronomeEngine(
     return getState()
   }
 
-  fun start(countInBars: Int): Map<String, Any> {
+  // ── Tempo-map mode ─────────────────────────────────────────────────────────
+
+  /** Install a tempo map (bar-anchored segments, first at bar 1). See the iOS twin. */
+  fun configureTempoMap(rawSegments: List<Map<String, Any?>>): Map<String, Any> {
+    val segments = mutableListOf<MapSegment>()
+    for (raw in rawSegments) {
+      val atBar = (raw["atBar"] as? Number)?.toInt() ?: continue
+      val bpm = ((raw["bpm"] as? Number)?.toInt() ?: continue).coerceIn(40, 240)
+      val pulsesPerBar = (raw["pulsesPerBar"] as? Number)?.toInt()?.takeIf { it > 0 } ?: continue
+      val accents = ((raw["accentPattern"] as? List<*>)?.mapNotNull { (it as? Number)?.toDouble() })
+        ?.map { it.coerceIn(0.0, 1.0) }
+        ?.takeIf { it.isNotEmpty() } ?: listOf(1.0)
+      val efpp = max(1.0, sampleRate * 60_000.0 / bpm / 1000.0)
+      val previous = segments.lastOrNull()
+      val barsSincePrevious = previous?.let { (atBar - it.atBar).toDouble() } ?: 0.0
+      segments.add(
+        MapSegment(
+          atBar = max(1, atBar),
+          bpm = bpm,
+          pulsesPerBar = pulsesPerBar,
+          accentPattern = accents,
+          startGridPulse = previous?.let { it.startGridPulse + barsSincePrevious.toInt() * it.pulsesPerBar } ?: 0,
+          startFrame = previous?.let { it.startFrame + barsSincePrevious * it.exactFramesPerPulse * it.pulsesPerBar } ?: 0.0,
+          exactFramesPerPulse = efpp
+        )
+      )
+    }
+    mapSegments = segments.ifEmpty { null }
+    return getState()
+  }
+
+  fun clearTempoMap(): Map<String, Any> {
+    mapSegments = null
+    return getState()
+  }
+
+  private fun mapSegmentForGridPulse(gridPulse: Int): MapSegment {
+    val segments = mapSegments!!
+    var active = segments[0]
+    for (segment in segments) {
+      if (segment.startGridPulse <= gridPulse) active = segment else break
+    }
+    return active
+  }
+
+  private fun mapFrameOfGridPulse(gridPulse: Int): Double {
+    val segments = mapSegments!!
+    if (gridPulse < 0) return gridPulse * segments[0].exactFramesPerPulse
+    val segment = mapSegmentForGridPulse(gridPulse)
+    return segment.startFrame + (gridPulse - segment.startGridPulse) * segment.exactFramesPerPulse
+  }
+
+  private fun mapGridPulseAtFrame(frame: Double): Int {
+    val segments = mapSegments!!
+    if (frame < 0) return floor(frame / segments[0].exactFramesPerPulse).toInt()
+    var active = segments[0]
+    for (segment in segments) {
+      if (segment.startFrame <= frame + 0.5) active = segment else break
+    }
+    return active.startGridPulse + floor((frame - active.startFrame) / active.exactFramesPerPulse).toInt()
+  }
+
+  /** Beat metadata for a grid pulse: beatInBar / barNumber / accent / pulsesPerBar. */
+  private fun mapPulseMeta(gridPulse: Int): Array<Any> {
+    val segments = mapSegments!!
+    if (gridPulse < 0) {
+      val ppb = segments[0].pulsesPerBar
+      val position = ((gridPulse % ppb) + ppb) % ppb
+      val accents = segments[0].accentPattern
+      return arrayOf(position + 1, 1, accents[min(position, accents.lastIndex)], ppb)
+    }
+    val segment = mapSegmentForGridPulse(gridPulse)
+    val pulsesInto = gridPulse - segment.startGridPulse
+    val beat = pulsesInto % segment.pulsesPerBar + 1
+    val bar = segment.atBar + pulsesInto / segment.pulsesPerBar
+    return arrayOf(beat, bar, segment.accentPattern[min(beat - 1, segment.accentPattern.lastIndex)], segment.pulsesPerBar)
+  }
+
+  private fun startMapRun(countInPulses: Int, gridOffsetMs: Double): Map<String, Any> {
     stopInternal(releaseTrack = true, emitState = false)
 
     isRunning = true
-    isCountIn = countInBars > 0
-    countInPulsesRemaining = max(0, countInBars) * config.pulsesPerBar
+    isCountIn = countInPulses > 0
+    countInPulsesRemaining = max(0, countInPulses)
     beatInBar = 1
     barNumber = 1
     absolutePulse = 0
     lastEmittedPulse = -1
-    loopCount = 0
+    mapWriteFrame = 0
     lastPlaybackHeadFrames = 0
+    loopCount = 0
+
+    val segments = mapSegments!!
+    if (countInPulses > 0) {
+      runStartGridFrame = -countInPulses * segments[0].exactFramesPerPulse
+      firstRunGridPulse = -countInPulses
+    } else {
+      runStartGridFrame = max(0.0, gridOffsetMs) / 1000.0 * sampleRate
+      var pulse = mapGridPulseAtFrame(runStartGridFrame)
+      if (mapFrameOfGridPulse(pulse) < runStartGridFrame - 1) pulse += 1
+      firstRunGridPulse = pulse
+    }
     startUptimeMs = SystemClock.elapsedRealtime()
+
+    ensureHandler()
+
+    try {
+      if (config.clickEnabled) {
+        val minBufferSize = AudioTrack.getMinBufferSize(
+          sampleRate,
+          AudioFormat.CHANNEL_OUT_MONO,
+          AudioFormat.ENCODING_PCM_16BIT
+        )
+        val track = AudioTrack(
+          AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_MEDIA)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build(),
+          AudioFormat.Builder()
+            .setSampleRate(sampleRate)
+            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+            .build(),
+          max(minBufferSize, mapAheadFrames * 2 * 2),
+          AudioTrack.MODE_STREAM,
+          AudioManager.AUDIO_SESSION_ID_GENERATE
+        )
+        track.setVolume(config.clickVolume.toFloat())
+        track.play()
+        audioTrack = track
+        writeMapChunks()
+        handler?.post(mapWriterRunnable)
+      }
+    } catch (error: Throwable) {
+      onError("Android metronome map start failed: ${error.message ?: "unknown error"}")
+      releaseAudioTrack()
+    }
+
+    handler?.post(pollRunnable)
+    val state = getState()
+    onStateChange(state)
+    return state
+  }
+
+  /** Keep the stream ~150ms ahead of the head, placing clicks at their exact frames. */
+  private fun writeMapChunks() {
+    val track = audioTrack ?: return
+    if (!isRunning || mapSegments == null || !config.clickEnabled) return
+    val head = track.playbackHeadPosition.toLong() and 0xffffffffL
+    var guard = 0
+    while (mapWriteFrame - head < mapAheadFrames && guard < 16) {
+      val chunk = renderMapChunk(mapWriteFrame, mapChunkFrames)
+      try {
+        track.write(chunk, 0, chunk.size)
+      } catch (_: Throwable) {
+        return
+      }
+      mapWriteFrame += mapChunkFrames
+      guard += 1
+    }
+  }
+
+  /** Render `frames` of the run timeline starting at run frame `startFrame` (PCM16). */
+  private fun renderMapChunk(startFrame: Long, frames: Int): ByteArray {
+    val pcm = ShortArray(frames)
+    val chunkGridStart = runStartGridFrame + startFrame
+    val chunkGridEnd = chunkGridStart + frames
+    // Pulses whose click could overlap this chunk (click length back from the start).
+    var pulse = mapGridPulseAtFrame(chunkGridStart - mapClickFrames)
+    val lastPulse = mapGridPulseAtFrame(chunkGridEnd) + 1
+    val attackFrames = max(1, (sampleRate * 0.003).roundToInt())
+    while (pulse <= lastPulse) {
+      if (pulse < firstRunGridPulse) {
+        pulse += 1
+        continue
+      }
+      val meta = mapPulseMeta(pulse)
+      val isDownbeat = meta[0] as Int == 1
+      val accent = meta[2] as Double
+      val clickGridStart = mapFrameOfGridPulse(pulse)
+      val baseFrequency = if (isDownbeat) 1960.0 else 1560.0
+      val overtoneFrequency = if (isDownbeat) 2940.0 else 2350.0
+      val amplitude = 0.22 + accent * 0.46
+      var frameIndex = max(0, (chunkGridStart - clickGridStart).toInt())
+      while (frameIndex < mapClickFrames) {
+        val absoluteGridFrame = clickGridStart + frameIndex
+        if (absoluteGridFrame >= chunkGridEnd) break
+        val chunkIndex = (absoluteGridFrame - chunkGridStart).toInt()
+        if (chunkIndex in 0 until frames) {
+          val sampleTime = frameIndex.toDouble() / sampleRate
+          val attack = min(1.0, frameIndex.toDouble() / attackFrames)
+          val decay = Math.pow(1.0 - frameIndex.toDouble() / mapClickFrames, if (isDownbeat) 2.8 else 2.4)
+          val sample =
+            (sin(2.0 * Math.PI * baseFrequency * sampleTime) * 0.78 +
+              sin(2.0 * Math.PI * overtoneFrequency * sampleTime) * 0.22) *
+              amplitude * attack * decay
+          val mixed = (pcm[chunkIndex] / Short.MAX_VALUE.toDouble()) + sample
+          pcm[chunkIndex] = (mixed.coerceIn(-1.0, 1.0) * Short.MAX_VALUE).roundToInt().toShort()
+        }
+        frameIndex += 1
+      }
+      pulse += 1
+    }
+
+    val bytes = ByteArray(pcm.size * 2)
+    for (index in pcm.indices) {
+      val sample = pcm[index].toInt()
+      bytes[index * 2] = (sample and 0xff).toByte()
+      bytes[index * 2 + 1] = ((sample shr 8) and 0xff).toByte()
+    }
+    return bytes
+  }
+
+  fun start(countInBars: Int): Map<String, Any> {
+    mapSegments?.let { segments ->
+      return startMapRun(max(0, countInBars) * max(segments[0].pulsesPerBar, 1), 0.0)
+    }
+    return startInternal(countInBars = countInBars, phaseOffsetMs = 0.0)
+  }
+
+  /**
+   * Start the click mid-bar: `phaseOffsetMs` (wall-clock, wrapped into one bar) becomes
+   * the loop position of the first rendered sample, so a playback click can join an
+   * already-moving take exactly in phase. No count-in, no pulse-0 haptic (the start is
+   * mid-bar by definition — cues self-correct from the next beat via emitBeat).
+   */
+  fun startAtPhase(offsetMs: Double): Map<String, Any> {
+    mapSegments?.let {
+      // Map mode: the offset is a position along the WHOLE grid, not within one bar.
+      return startMapRun(0, max(0.0, offsetMs))
+    }
+    return startInternal(countInBars = 0, phaseOffsetMs = max(0.0, offsetMs))
+  }
+
+  private fun startInternal(countInBars: Int, phaseOffsetMs: Double): Map<String, Any> {
+    stopInternal(releaseTrack = true, emitState = false)
+
+    val phaseFrames = if (phaseOffsetMs > 0.0 && totalFrames > 0) {
+      ((phaseOffsetMs / 1000.0 * sampleRate).roundToInt() % totalFrames).coerceAtLeast(0)
+    } else {
+      0
+    }
+    val initialPulse = floor(phaseFrames.toDouble() / exactFramesPerPulse).toInt()
+
+    isRunning = true
+    isCountIn = countInBars > 0
+    countInPulsesRemaining = max(0, countInBars) * config.pulsesPerBar
+    // The pulse we start inside has already sounded its onset — never re-emit it.
+    absolutePulse = initialPulse
+    lastEmittedPulse = if (phaseFrames > 0) initialPulse else -1
+    beatInBar = (initialPulse % config.pulsesPerBar) + 1
+    barNumber = 1
+    loopCount = 0
+    // The static track reports the REAL head (which starts at phaseFrames), so the
+    // audio-clock path needs no extra offset; back-date only the silent-run clock.
+    lastPlaybackHeadFrames = phaseFrames.toLong()
+    startUptimeMs = SystemClock.elapsedRealtime() -
+      (phaseFrames.toDouble() / sampleRate.toDouble() * 1000.0).toLong()
 
     ensureHandler()
 
@@ -174,6 +459,9 @@ class SongNookMetronomeEngine(
         )
         track.write(pcm, 0, pcm.size)
         track.setLoopPoints(0, totalFrames, -1)
+        if (phaseFrames > 0) {
+          track.playbackHeadPosition = phaseFrames
+        }
         track.setVolume(config.clickVolume.toFloat())
         track.play()
         audioTrack = track
@@ -185,8 +473,8 @@ class SongNookMetronomeEngine(
 
     // Pulse 0's haptic can't be scheduled from a previous beat — aim it at "now + offset"
     // (audio starts near-immediately from the pre-written static buffer); pulses 1+
-    // self-correct off the audio clock via emitBeat.
-    if (config.hapticEnabled) {
+    // self-correct off the audio clock via emitBeat. Mid-bar phase starts skip it.
+    if (config.hapticEnabled && phaseFrames == 0) {
       scheduleHaptic(max(1L, config.hapticOffsetMs.toLong()))
     }
 
@@ -297,6 +585,10 @@ class SongNookMetronomeEngine(
 
   private fun stopInternal(releaseTrack: Boolean, emitState: Boolean) {
     handler?.removeCallbacks(pollRunnable)
+    handler?.removeCallbacks(mapWriterRunnable)
+    runStartGridFrame = 0.0
+    firstRunGridPulse = 0
+    mapWriteFrame = 0
     isRunning = false
     isCountIn = false
     countInPulsesRemaining = 0
@@ -345,6 +637,11 @@ class SongNookMetronomeEngine(
       return
     }
 
+    if (mapSegments != null) {
+      pollMapBeatProgress()
+      return
+    }
+
     val pulseOrdinal = if (config.clickEnabled && audioTrack != null) {
       val track = audioTrack ?: return
       val currentPlaybackHeadFrames = track.playbackHeadPosition.toLong() and 0xffffffffL
@@ -368,6 +665,37 @@ class SongNookMetronomeEngine(
     }
   }
 
+  private fun pollMapBeatProgress() {
+    val track = audioTrack
+    val currentGridFrame = if (config.clickEnabled && track != null) {
+      val head = track.playbackHeadPosition.toLong() and 0xffffffffL
+      runStartGridFrame + head
+    } else {
+      val elapsedMs = max(0L, SystemClock.elapsedRealtime() - startUptimeMs).toDouble()
+      runStartGridFrame + elapsedMs / 1000.0 * sampleRate
+    }
+
+    val runPulseNow = mapGridPulseAtFrame(currentGridFrame) - firstRunGridPulse
+    if (runPulseNow > lastEmittedPulse) {
+      for (nextPulse in (lastEmittedPulse + 1)..runPulseNow) {
+        emitMapBeat(nextPulse)
+      }
+    }
+  }
+
+  /** Map-mode twin of emitBeat: meta from the segment table; cues use the CURRENT
+   *  segment's pulse spacing so the haptic lead stays true across changes. */
+  private fun emitMapBeat(runPulse: Int) {
+    lastEmittedPulse = runPulse
+    absolutePulse = runPulse
+    val gridPulse = firstRunGridPulse + runPulse
+    val meta = mapPulseMeta(gridPulse)
+    beatInBar = meta[0] as Int
+    barNumber = max(1, meta[1] as Int)
+    val segment = if (gridPulse >= 0) mapSegmentForGridPulse(gridPulse) else mapSegments!![0]
+    finishBeatEmission(meta[2] as Double, segment.exactFramesPerPulse / sampleRate * 1000.0)
+  }
+
   private fun emitBeat(pulseOrdinal: Int) {
     lastEmittedPulse = pulseOrdinal
     absolutePulse = pulseOrdinal
@@ -375,6 +703,10 @@ class SongNookMetronomeEngine(
     barNumber = (pulseOrdinal / config.pulsesPerBar) + 1
 
     val accent = config.accentPattern[(beatInBar - 1).coerceAtMost(config.accentPattern.lastIndex)]
+    finishBeatEmission(accent, beatIntervalMsForBpm(config.bpm))
+  }
+
+  private fun finishBeatEmission(accent: Double, beatIntervalMsForCues: Double) {
     val barsRemainingBeforeBeat = countInBarsRemaining()
 
     val beatPayload = mapOf(
@@ -400,8 +732,7 @@ class SongNookMetronomeEngine(
     // (route latency − motor spin-up) can land the buzz exactly on the audible click, even
     // when it must fire BEFORE the beat event — something a bridge-event chain can never do.
     if (config.hapticEnabled) {
-      val intervalMs = beatIntervalMsForBpm(config.bpm)
-      scheduleHaptic(max(1L, (intervalMs + config.hapticOffsetMs).toLong()))
+      scheduleHaptic(max(1L, (beatIntervalMsForCues + config.hapticOffsetMs).toLong()))
     }
 
     // Snapshot state for *this* beat before flipping isCountIn off below, so the final count-in
@@ -508,6 +839,30 @@ class SongNookMetronomeEngine(
     }
 
     val nowEpochMs = System.currentTimeMillis().toDouble()
+
+    mapSegments?.let { segments ->
+      // Map mode: still "epoch of run pulse 0 + current pulse spacing" — consumers
+      // re-derive per bar, so a spacing that changes at a boundary self-heals.
+      val track = audioTrack
+      val currentGridFrame = if (config.clickEnabled && track != null) {
+        runStartGridFrame + (track.playbackHeadPosition.toLong() and 0xffffffffL)
+      } else {
+        val elapsedMs = max(0L, SystemClock.elapsedRealtime() - startUptimeMs).toDouble()
+        runStartGridFrame + elapsedMs / 1000.0 * sampleRate
+      }
+      val framesSincePulseZero = currentGridFrame - mapFrameOfGridPulse(firstRunGridPulse)
+      val gridPulseNow = mapGridPulseAtFrame(currentGridFrame)
+      val segment = if (gridPulseNow >= 0) mapSegmentForGridPulse(gridPulseNow) else segments[0]
+      return mapOf(
+        "isRunning" to true,
+        "isCountIn" to isCountIn,
+        "anchorEpochMs" to nowEpochMs - framesSincePulseZero / sampleRate * 1000.0,
+        "msPerPulse" to segment.exactFramesPerPulse / sampleRate * 1000.0,
+        "pulsesPerBar" to segment.pulsesPerBar,
+        "countInPulsesRemaining" to countInPulsesRemaining,
+        "absolutePulse" to absolutePulse,
+      )
+    }
     val track = audioTrack
     val anchorEpochMs = if (config.clickEnabled && track != null) {
       val currentPlaybackHeadFrames = track.playbackHeadPosition.toLong() and 0xffffffffL
