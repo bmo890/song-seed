@@ -33,6 +33,7 @@ type Props = {
     metronomeEnabled?: boolean;
     metronomeSummary?: string;
     metronomeToggleDisabled?: boolean;
+    liveTakeGrid?: { firstBeatCaptureMs: number; beatMs: number; pulsesPerBar: number } | null;
     onToggleMetronome?: () => void;
     onOpenMetronome?: () => void;
     /** No-count-in overdub: the master joins at the next bar line. Non-null while that
@@ -62,6 +63,7 @@ export function RecordingMeta({
     metronomeEnabled = false,
     metronomeSummary,
     metronomeToggleDisabled = false,
+    liveTakeGrid = null,
     onToggleMetronome,
     onOpenMetronome,
     guideJoin = null,
@@ -240,6 +242,7 @@ export function RecordingMeta({
             >
                 {waveformData ? (
                     <LiveTapeVisualizer
+                        liveGrid={liveTakeGrid}
                         dataPoints={waveformData.dataPoints || []}
                         intervalMs={waveformData.segmentDurationMs || 50}
                         theme={liveTapeTheme}

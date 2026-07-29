@@ -140,6 +140,7 @@ export function RecordingScreen() {
           guideJoin={screen.guideJoinInfo}
           waveformData={screen.recording.liveWaveformData ?? screen.recording.analysisData}
           metronomeEnabled={screen.recordingMetronomeEnabled}
+          liveTakeGrid={screen.liveTakeGrid}
           metronomeSummary={metronomeSummary}
           metronomeToggleDisabled={
             screen.recordingControlsDisabled || !screen.metronome.isNativeAvailable

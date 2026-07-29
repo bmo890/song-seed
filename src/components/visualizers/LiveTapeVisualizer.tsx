@@ -12,6 +12,10 @@ import { colors } from "../../design/tokens";
 
 type Props = {
     dataPoints: DataPoint[];
+    /** The RUNNING take's measured beat grid, in capture-file ms. When present, the ruler
+     *  draws the metronome's own beats and bars — the same lines playback will draw — in
+     *  place of decorative second ticks. */
+    liveGrid?: { firstBeatCaptureMs: number; beatMs: number; pulsesPerBar: number } | null;
     intervalMs?: number; // Usually 40
     theme?: {
         waveColor?: string;
@@ -65,6 +69,7 @@ const DELIVERY_GAP_EMA_ALPHA = 0.15;
 
 function LiveTapeVisualizerImpl({
     dataPoints,
+    liveGrid = null,
     intervalMs = 50,
     theme,
 }: Props) {
@@ -222,23 +227,51 @@ function LiveTapeVisualizerImpl({
         // Same bound for the ruler: it used to tick out every second since the take began.
         const firstPointMs = drawPoints.length > 0 ? drawPoints[0].startTime ?? 0 : 0;
         const lastPointMs = drawPoints.length > 0 ? drawPoints[drawPoints.length - 1].endTime ?? 0 : 0;
-        const startSecond = Math.max(0, Math.floor(firstPointMs / 1000) - 1);
-        const endSecond = Math.ceil(lastPointMs / 1000) + RULER_LOOKAHEAD_SECONDS;
+        const windowStartMs = Math.max(0, firstPointMs - 1000);
+        const windowEndMs = lastPointMs + RULER_LOOKAHEAD_SECONDS * 1000;
 
-        for (let second = startSecond; second <= endSecond; second += 1) {
-            const x = second * 1000 * pixelsPerMs;
-            const tickHeight = second % 5 === 0 ? 12 : 6;
-            ruler.moveTo(x, 0);
-            ruler.lineTo(x, tickHeight);
+        if (liveGrid && liveGrid.beatMs > 0) {
+            // The metronome's own grid: what the performer is playing to IS the ruler.
+            // Beats are edge ticks like the second ticks were; bars run full height, the
+            // same manuscript line playback draws — one visual language across both.
+            const { firstBeatCaptureMs, beatMs, pulsesPerBar } = liveGrid;
+            const firstIndex = Math.ceil((windowStartMs - firstBeatCaptureMs) / beatMs);
+            for (let index = firstIndex; ; index += 1) {
+                const t = firstBeatCaptureMs + index * beatMs;
+                if (t > windowEndMs) break;
+                if (t < 0) continue;
+                const x = t * pixelsPerMs;
+                const isBar = pulsesPerBar > 0 && ((index % pulsesPerBar) + pulsesPerBar) % pulsesPerBar === 0;
+                if (isBar && canvasHeight > 0) {
+                    ruler.moveTo(x, 0);
+                    ruler.lineTo(x, canvasHeight);
+                } else {
+                    ruler.moveTo(x, 0);
+                    ruler.lineTo(x, 8);
+                    if (canvasHeight > 0) {
+                        ruler.moveTo(x, canvasHeight);
+                        ruler.lineTo(x, canvasHeight - 8);
+                    }
+                }
+            }
+        } else {
+            const startSecond = Math.max(0, Math.floor(windowStartMs / 1000));
+            const endSecond = Math.ceil(windowEndMs / 1000);
+            for (let second = startSecond; second <= endSecond; second += 1) {
+                const x = second * 1000 * pixelsPerMs;
+                const tickHeight = second % 5 === 0 ? 12 : 6;
+                ruler.moveTo(x, 0);
+                ruler.lineTo(x, tickHeight);
 
-            if (canvasHeight > 0) {
-                ruler.moveTo(x, canvasHeight);
-                ruler.lineTo(x, canvasHeight - tickHeight);
+                if (canvasHeight > 0) {
+                    ruler.moveTo(x, canvasHeight);
+                    ruler.lineTo(x, canvasHeight - tickHeight);
+                }
             }
         }
 
         return { wavePath: wave, rulerPath: ruler };
-    }, [canvasHeight, canvasWidth, dataPoints, pixelsPerMs]);
+    }, [canvasHeight, canvasWidth, dataPoints, liveGrid, pixelsPerMs]);
 
     const centerLinePath = useMemo(() => {
         const centerLine = Skia.Path.Make();
