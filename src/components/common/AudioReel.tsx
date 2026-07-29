@@ -148,6 +148,8 @@ type Range = {
 type PracticeMarkerPreview = {
     id: string;
     atMs: number;
+    label?: string;
+    note?: string;
 };
 
 type OverlayArgs = {
@@ -209,6 +211,8 @@ type Props = {
     onScrubStateChange?: (scrubbing: boolean) => void;
     selectedRanges?: Range[];
     practiceMarkers?: PracticeMarkerPreview[];
+    /** Set while a pin badge drags — hides its canvas twin (see PlaybackTapeVisualizer). */
+    sharedDraggingMarkerId?: SharedValue<string>;
     sectionBands?: SectionBand[];
     /** The take's beat grid — draws the manuscript ruler (bars/beats/changes) on the
      *  tape. Absent or untrustworthy grids draw nothing (the model gates honesty). */
@@ -269,6 +273,7 @@ export function AudioReel({
     onScrubStateChange,
     selectedRanges,
     practiceMarkers,
+    sharedDraggingMarkerId,
     sectionBands,
     grid,
     sharedSelectedRangeStartMs,
@@ -787,6 +792,7 @@ export function AudioReel({
                             onScrubStateChange={handleInteractionStateChange}
                             selectedRanges={selectedRanges}
                             practiceMarkers={practiceMarkers}
+                            sharedDraggingMarkerId={sharedDraggingMarkerId}
                             sectionBands={sectionBands}
                             gridRuler={gridRulerModel}
                             gridLabelScale={overscaleFactor}

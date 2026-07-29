@@ -8,7 +8,9 @@ import {
     Rect,
     RoundedRect,
     Text as SkiaText,
+    Paragraph,
     useFont,
+    useFonts,
 } from "@shopify/react-native-skia";
 import {
     useSharedValue,
@@ -20,10 +22,20 @@ import {
     useFrameCallback,
 } from "react-native-reanimated";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
+import type { SkParagraph } from "@shopify/react-native-skia";
 import type { PracticeMarker } from "../../types";
 import type { SectionBand } from "../../domain/playerSections";
 import type { GridRulerModel } from "../../domain/gridRuler";
 import { advanceTracker } from "../../domain/motionTracking";
+import {
+    assignPinRows,
+    estimatePinBadgeWidth,
+    getPinBadgeEdges,
+    resolvePinBadgeAnchor,
+    pinRowTop,
+    PIN_BADGE_HEIGHT,
+    PIN_DOT_SIZE,
+} from "../../domain/practicePinLayout";
 import { colors } from "../../design/tokens";
 
 type Props = {
@@ -41,7 +53,10 @@ type Props = {
     isScrubbing?: boolean;
     onSeek: (timeMs: number) => void;
     selectedRanges?: { id: string; start: number; end: number; type: "keep" | "remove" }[];
-    practiceMarkers?: Pick<PracticeMarker, "id" | "atMs">[];
+    practiceMarkers?: (Pick<PracticeMarker, "id" | "atMs"> & { label?: string; note?: string })[];
+    /** Set while a pin badge is being dragged: that badge's Skia twin hides and the RN
+     *  gesture layer (under the finger) shows instead. */
+    sharedDraggingMarkerId?: SharedValue<string>;
     sectionBands?: SectionBand[];
     /** Beat-grid ruler primitives (file-ms space) — manuscript lines under the wave. */
     gridRuler?: GridRulerModel | null;
@@ -211,6 +226,244 @@ function LoopRangeOverlay({
  * scrolls and zooms with the wave. Where the grid stopped being trustworthy
  * (`validToMs`) the model simply carries no primitives — absence is the signal.
  */
+/**
+ * Pin badge visuals, drawn INSIDE the canvas for the same reason as the section chips and
+ * bar numbers: RN twins chasing the tape slip a frame whenever React commits. The RN layer
+ * keeps ONLY the gestures (invisible hitboxes) — except mid-drag, when its badge becomes
+ * visible under the finger and this one hides.
+ */
+function PinBadgeChipsOverlay({
+    markers,
+    pixelsPerMs,
+    labelScale,
+    durationMs,
+    fontProvider,
+    sharedDraggingMarkerId,
+}: {
+    markers: (Pick<PracticeMarker, "id" | "atMs"> & { label?: string; note?: string })[];
+    pixelsPerMs: number;
+    labelScale: number;
+    durationMs: number;
+    fontProvider: NonNullable<ReturnType<typeof useFonts>>;
+    sharedDraggingMarkerId?: SharedValue<string>;
+}) {
+    const chips = useMemo(() => {
+        const rows = assignPinRows(markers, pixelsPerMs, labelScale, durationMs);
+        const contentWidth = durationMs * pixelsPerMs * labelScale;
+        return rows.map(({ marker, row }) => {
+            const centerX = marker.atMs * pixelsPerMs * labelScale;
+            const width = estimatePinBadgeWidth(marker.label);
+            const anchor = resolvePinBadgeAnchor(centerX, width, contentWidth);
+            const left = getPinBadgeEdges(centerX, width, anchor).left;
+            const top = pinRowTop(row);
+            let paragraph: SkParagraph | null = null;
+            if (marker.label) {
+                paragraph = Skia.ParagraphBuilder.Make({ maxLines: 1, ellipsis: "\u2026" }, fontProvider)
+                    .pushStyle({
+                        fontFamilies: ["Plus Jakarta Sans", "Heebo"],
+                        fontSize: 10,
+                        fontStyle: { weight: 600 },
+                        color: Skia.Color(colors.onPrimary),
+                    })
+                    .addText(marker.label)
+                    .build();
+                paragraph.layout(Math.max(1, width - 12));
+            }
+            return { marker, left, top, width, paragraph };
+        });
+    }, [markers, pixelsPerMs, labelScale, durationMs, fontProvider]);
+
+    return (
+        <>
+            {chips.map((chip) => (
+                <PinBadgeChip key={chip.marker.id} chip={chip} sharedDraggingMarkerId={sharedDraggingMarkerId} />
+            ))}
+        </>
+    );
+}
+
+function PinBadgeChip({
+    chip,
+    sharedDraggingMarkerId,
+}: {
+    chip: {
+        marker: Pick<PracticeMarker, "id" | "atMs"> & { label?: string; note?: string };
+        left: number;
+        top: number;
+        width: number;
+        paragraph: SkParagraph | null;
+    };
+    sharedDraggingMarkerId?: SharedValue<string>;
+}) {
+    const { marker, left, top, width, paragraph } = chip;
+    const opacity = useDerivedValue(() =>
+        sharedDraggingMarkerId && sharedDraggingMarkerId.value === marker.id ? 0 : 1
+    );
+    if (!marker.label) {
+        return (
+            <Group opacity={opacity}>
+                <RoundedRect
+                    x={left + (PIN_BADGE_HEIGHT - PIN_DOT_SIZE) / 2}
+                    y={top + 2}
+                    width={PIN_DOT_SIZE}
+                    height={PIN_DOT_SIZE}
+                    r={PIN_DOT_SIZE / 2}
+                    color={colors.primary}
+                />
+                {marker.note ? (
+                    <RoundedRect
+                        x={left + (PIN_BADGE_HEIGHT - PIN_DOT_SIZE) / 2 + 2}
+                        y={top + 4}
+                        width={PIN_DOT_SIZE - 4}
+                        height={PIN_DOT_SIZE - 4}
+                        r={(PIN_DOT_SIZE - 4) / 2}
+                        color={colors.onPrimary}
+                        opacity={0.85}
+                    />
+                ) : null}
+            </Group>
+        );
+    }
+    return (
+        <Group opacity={opacity}>
+            <RoundedRect x={left} y={top} width={width} height={PIN_BADGE_HEIGHT} r={2} color={colors.primary} />
+            {paragraph ? (
+                <Paragraph paragraph={paragraph} x={left + 6} y={top + 3} width={width - 12} />
+            ) : null}
+            {marker.note ? (
+                <RoundedRect
+                    x={left + width - 8}
+                    y={top + PIN_BADGE_HEIGHT / 2 - 2}
+                    width={4}
+                    height={4}
+                    r={2}
+                    color={colors.onPrimary}
+                    opacity={0.85}
+                />
+            ) : null}
+        </Group>
+    );
+}
+
+const SECTION_CHIP_HEIGHT = 16;
+const SECTION_CHIP_PAD_X = 5;
+const SECTION_CHIP_EDGE_PAD = 2;
+const SECTION_CHIP_BOTTOM_INSET = 3;
+const SECTION_CHIP_FONT_SIZE = 9.5;
+
+/**
+ * Section name chips, drawn INSIDE the canvas so they are part of the same picture as the
+ * bands they name — the RN twin of this layer was the last place section labels could slip
+ * against the tape (any React commit costs the UI thread a frame, and two renderers come
+ * back in different frames; see docs/product-plan/reel-smoothness-findings.md). User text
+ * goes through the Paragraph API: it shapes Hebrew (Heebo is registered as the fallback
+ * face, matching the app-level RTL font remap), which Skia's basic Text cannot.
+ *
+ * Each chip pins to the reel's left edge while its band scrolls off — the same left-edge
+ * slide the RN layer had — via a per-band UI-thread transform reading the tape's
+ * translateX. Same renderer, same frame, glued.
+ */
+function SectionLabelChipsOverlay({
+    bands,
+    pixelsPerMs,
+    labelScale,
+    translateX,
+    heightValue,
+    fontProvider,
+}: {
+    bands: SectionBand[];
+    pixelsPerMs: number;
+    labelScale: number;
+    translateX: SharedValue<number>;
+    heightValue: SharedValue<number>;
+    fontProvider: NonNullable<ReturnType<typeof useFonts>>;
+}) {
+    const chips = useMemo(
+        () =>
+            bands.map((band) => {
+                const startX = band.startMs * pixelsPerMs * labelScale;
+                const bandWidth = Math.max(0, (band.endMs - band.startMs) * pixelsPerMs * labelScale);
+                const paragraph = Skia.ParagraphBuilder.Make(
+                    { maxLines: 1, ellipsis: "\u2026" },
+                    fontProvider
+                )
+                    .pushStyle({
+                        fontFamilies: ["Plus Jakarta Sans", "Heebo"],
+                        fontSize: SECTION_CHIP_FONT_SIZE,
+                        fontStyle: { weight: 600 },
+                        color: Skia.Color(colors.surface),
+                    })
+                    .addText(band.label)
+                    .build();
+                paragraph.layout(Math.max(1, bandWidth - SECTION_CHIP_PAD_X * 2));
+                const textWidth = Math.ceil(paragraph.getLongestLine());
+                const textHeight = paragraph.getHeight();
+                const chipWidth = Math.min(
+                    Math.max(1, bandWidth - SECTION_CHIP_EDGE_PAD * 2),
+                    textWidth + SECTION_CHIP_PAD_X * 2
+                );
+                return { band, startX, bandWidth, paragraph, chipWidth, textHeight };
+            }),
+        [bands, pixelsPerMs, labelScale, fontProvider]
+    );
+
+    return (
+        <>
+            {chips.map((chip) => (
+                <SectionLabelChip key={chip.band.id} chip={chip} translateX={translateX} heightValue={heightValue} />
+            ))}
+        </>
+    );
+}
+
+function SectionLabelChip({
+    chip,
+    translateX,
+    heightValue,
+}: {
+    chip: {
+        band: SectionBand;
+        startX: number;
+        bandWidth: number;
+        paragraph: SkParagraph;
+        chipWidth: number;
+        textHeight: number;
+    };
+    translateX: SharedValue<number>;
+    heightValue: SharedValue<number>;
+}) {
+    const { band, startX, bandWidth, paragraph, chipWidth, textHeight } = chip;
+    // Slide along the band so the chip holds the reel's left edge while the band scrolls
+    // off; vanish when the remaining band can no longer hold it.
+    const slide = useDerivedValue(() => {
+        const offscreen = SECTION_CHIP_EDGE_PAD - (startX + translateX.value);
+        return Math.max(0, Math.min(offscreen, bandWidth - chipWidth - SECTION_CHIP_EDGE_PAD));
+    });
+    const transform = useDerivedValue(() => [{ translateX: startX + SECTION_CHIP_EDGE_PAD + slide.value }]);
+    const opacity = useDerivedValue(() => {
+        const offscreen = SECTION_CHIP_EDGE_PAD - (startX + translateX.value);
+        return offscreen <= bandWidth - chipWidth - SECTION_CHIP_EDGE_PAD ? 1 : 0;
+    });
+    const chipY = useDerivedValue(
+        () => heightValue.value - SECTION_CHIP_BOTTOM_INSET - SECTION_CHIP_HEIGHT
+    );
+    const textY = useDerivedValue(() => chipY.value + (SECTION_CHIP_HEIGHT - textHeight) / 2);
+
+    return (
+        <Group transform={transform} opacity={opacity}>
+            <RoundedRect
+                x={0}
+                y={chipY}
+                width={chipWidth}
+                height={SECTION_CHIP_HEIGHT}
+                r={3}
+                color={band.railColor}
+            />
+            <Paragraph paragraph={paragraph} x={SECTION_CHIP_PAD_X} y={textY} width={chipWidth} />
+        </Group>
+    );
+}
+
 function GridRulerOverlay({
     heightValue,
     model,
@@ -353,6 +606,7 @@ export function PlaybackTapeVisualizer({
     gridRuler,
     gridLabelScale = 1,
     gridLabelColor,
+    sharedDraggingMarkerId,
     sharedSelectedRangeStartMs,
     sharedSelectedRangeEndMs,
     selectedRangeType = "keep",
@@ -878,6 +1132,14 @@ export function PlaybackTapeVisualizer({
         require("@expo-google-fonts/plus-jakarta-sans/600SemiBold/PlusJakartaSans_600SemiBold.ttf"),
         GRID_LABEL_FONT_SIZE
     );
+    // Paragraph faces for USER text (section names). Heebo is the Hebrew fallback,
+    // mirroring the app-level RTL font remap. Null until loaded; the chips wait.
+    const sectionFontProvider = useFonts({
+        "Plus Jakarta Sans": [
+            require("@expo-google-fonts/plus-jakarta-sans/600SemiBold/PlusJakartaSans_600SemiBold.ttf"),
+        ],
+        Heebo: [require("@expo-google-fonts/heebo/600SemiBold/Heebo_600SemiBold.ttf")],
+    });
 
     const translateTransform = useDerivedValue(() => {
         return [{ translateX: translateX.value }];
@@ -1061,6 +1323,26 @@ export function PlaybackTapeVisualizer({
                                             ))}
                                         </Group>
                                     </>
+                                ) : null}
+                                {sectionBands && sectionBands.length > 0 && sectionFontProvider ? (
+                                    <SectionLabelChipsOverlay
+                                        bands={sectionBands}
+                                        pixelsPerMs={durationMs > 0 ? baseContentWidth / durationMs : 0}
+                                        labelScale={gridLabelScale}
+                                        translateX={translateX}
+                                        heightValue={heightSV}
+                                        fontProvider={sectionFontProvider}
+                                    />
+                                ) : null}
+                                {practiceMarkers && practiceMarkers.length > 0 && sectionFontProvider ? (
+                                    <PinBadgeChipsOverlay
+                                        markers={practiceMarkers}
+                                        pixelsPerMs={durationMs > 0 ? baseContentWidth / durationMs : 0}
+                                        labelScale={gridLabelScale}
+                                        durationMs={durationMs}
+                                        fontProvider={sectionFontProvider}
+                                        sharedDraggingMarkerId={sharedDraggingMarkerId}
+                                    />
                                 ) : null}
                             </Group>
                             {sharedSelectedRangeStartMs && sharedSelectedRangeEndMs && selectedRanges?.[0] ? (
