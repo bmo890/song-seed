@@ -31,7 +31,6 @@ type Props = {
     sharedPlaybackRate?: SharedValue<number>;
     isScrubbing?: boolean;
     onSeek: (timeMs: number) => void;
-    onBaseScaleChange?: (scale: number) => void;
     selectedRanges?: { id: string; start: number; end: number; type: "keep" | "remove" }[];
     practiceMarkers?: Pick<PracticeMarker, "id" | "atMs">[];
     sectionBands?: SectionBand[];
@@ -57,7 +56,6 @@ type Props = {
     sharedAudioProgress?: SharedValue<number>;
     sharedPauseHoldMs?: SharedValue<number>;
     sharedPauseHoldToken?: SharedValue<number>;
-    sharedBaseScale?: SharedValue<number>;
     onScrubStateChange?: (isScrubbing: boolean) => void;
     freezeSelectedRangeWhenFullyVisible?: boolean;
 };
@@ -323,7 +321,6 @@ export function PlaybackTapeVisualizer({
     sharedPlaybackRate,
     isScrubbing = false,
     onSeek,
-    onBaseScaleChange,
     selectedRanges,
     practiceMarkers,
     sectionBands,
@@ -337,7 +334,6 @@ export function PlaybackTapeVisualizer({
     sharedAudioProgress,
     sharedPauseHoldMs,
     sharedPauseHoldToken,
-    sharedBaseScale,
     sharedSurfaceHeight,
     onScrubStateChange,
     freezeSelectedRangeWhenFullyVisible = false,
@@ -364,7 +360,6 @@ export function PlaybackTapeVisualizer({
     // The exact percentage distance (0 to 1) of the playhead
     const localAudioProgress = useSharedValue(0);
     const audioProgress = sharedAudioProgress || localAudioProgress;
-    const targetAudioProgress = useSharedValue(0);
     const localCurrentTimeMs = useSharedValue(currentTimeMs);
     const currentTimeMsValue = sharedCurrentTimeMs || localCurrentTimeMs;
     const localDurationMs = useSharedValue(durationMs);
@@ -434,7 +429,6 @@ export function PlaybackTapeVisualizer({
         const resetProgress = durationMs > 0 ? Math.max(0, Math.min(1, currentTimeMs / durationMs)) : 0;
         cancelAnimation(audioProgress);
         audioProgress.value = resetProgress;
-        targetAudioProgress.value = resetProgress;
         reportBaseProgress.value = resetProgress;
         reportFrameTimestamp.value = 0;
         progressVelocity.value = 0;
@@ -447,14 +441,11 @@ export function PlaybackTapeVisualizer({
 
     useEffect(() => {
         if (canvasWidth > 0 && baseContentWidth > 0) {
-            const fitScale = canvasWidth / baseContentWidth;
+            // Fit the whole wave to the canvas — only when the parent doesn't drive the
+            // scale itself (AudioReel does; a bare visualizer doesn't).
             if (!sharedScale) {
-                scale.value = fitScale;
+                scale.value = canvasWidth / baseContentWidth;
             }
-            if (sharedBaseScale) {
-                sharedBaseScale.value = fitScale;
-            }
-            onBaseScaleChange?.(fitScale);
         }
     }, [canvasWidth, baseContentWidth]);
 
@@ -479,7 +470,6 @@ export function PlaybackTapeVisualizer({
                 const holdProgress = Math.max(0, Math.min(1, holdMs / duration));
                 cancelAnimation(audioProgress);
                 audioProgress.value = holdProgress;
-                targetAudioProgress.value = holdProgress;
                 reportBaseProgress.value = holdProgress;
                 reportFrameTimestamp.value = frameInfo.timestamp;
                 pauseHoldProgress.value = holdProgress;
@@ -501,7 +491,6 @@ export function PlaybackTapeVisualizer({
                 pauseAnchorActive.value = false;
                 reportBaseProgress.value = audioProgress.value;
                 reportFrameTimestamp.value = frameInfo.timestamp;
-                targetAudioProgress.value = audioProgress.value;
                 progressVelocity.value = 0;
             } else if (!isPlayingShared.value) {
                 const heldProgress = audioProgress.value;
@@ -513,18 +502,17 @@ export function PlaybackTapeVisualizer({
                 audioProgress.value = heldProgress;
                 reportBaseProgress.value = heldProgress;
                 reportFrameTimestamp.value = frameInfo.timestamp;
-                targetAudioProgress.value = heldProgress;
                 progressVelocity.value = 0;
             } else {
                 pauseAnchorActive.value = false;
                 pauseHoldUntil.value = 0;
-                const previousProgress = audioProgress.value;
-                const startProgress = previousProgress;
+                // Read before cancelling any in-flight fling, so the resume anchors on
+                // the position the tape is actually showing.
+                const resumeProgress = audioProgress.value;
                 cancelAnimation(audioProgress);
-                audioProgress.value = startProgress;
-                reportBaseProgress.value = startProgress;
+                audioProgress.value = resumeProgress;
+                reportBaseProgress.value = resumeProgress;
                 reportFrameTimestamp.value = frameInfo.timestamp;
-                targetAudioProgress.value = startProgress;
                 // Seed the tracker at the nominal rate so the first frames of playback
                 // move at speed instead of accelerating up from a standstill.
                 progressVelocity.value = playbackRateShared.value / duration;
@@ -535,7 +523,6 @@ export function PlaybackTapeVisualizer({
             lastSeenTransportUpdate.value = transportUpdateToken.value;
             if (scrubVisualLockActive) {
                 reportBaseProgress.value = audioProgress.value;
-                targetAudioProgress.value = audioProgress.value;
                 reportFrameTimestamp.value = frameInfo.timestamp;
                 return;
             }
@@ -550,7 +537,6 @@ export function PlaybackTapeVisualizer({
 
             if (pauseAnchorActive.value) {
                 reportBaseProgress.value = pauseHoldProgress.value;
-                targetAudioProgress.value = pauseHoldProgress.value;
                 reportFrameTimestamp.value = frameInfo.timestamp;
                 return;
             }
@@ -571,7 +557,6 @@ export function PlaybackTapeVisualizer({
 
                 if (!clockHasAdvanced && !waitTimedOut) {
                     reportBaseProgress.value = previousProgress;
-                    targetAudioProgress.value = previousProgress;
                     reportFrameTimestamp.value = frameInfo.timestamp;
                     return;
                 }
@@ -580,7 +565,6 @@ export function PlaybackTapeVisualizer({
                 const releaseProgress = isAtStart ? reportedProgress : previousProgress;
                 cancelAnimation(audioProgress);
                 audioProgress.value = releaseProgress;
-                targetAudioProgress.value = releaseProgress;
                 reportBaseProgress.value = releaseProgress;
                 reportFrameTimestamp.value = frameInfo.timestamp;
                 progressVelocity.value = playbackRateShared.value / duration;
@@ -590,7 +574,6 @@ export function PlaybackTapeVisualizer({
             awaitingPlayStartClock.value = false;
             if (recentlyStartedPlaying && progressDelta > stalePlayStartForwardProgress) {
                 reportBaseProgress.value = previousProgress;
-                targetAudioProgress.value = previousProgress;
                 reportFrameTimestamp.value = frameInfo.timestamp;
                 return;
             }
@@ -607,7 +590,6 @@ export function PlaybackTapeVisualizer({
             if (shouldSnap) {
                 cancelAnimation(audioProgress);
                 audioProgress.value = reportedProgress;
-                targetAudioProgress.value = reportedProgress;
                 reportBaseProgress.value = reportedProgress;
                 progressVelocity.value = isPlayingShared.value
                     ? playbackRateShared.value / duration
@@ -620,14 +602,12 @@ export function PlaybackTapeVisualizer({
                     Math.min(1, previousProgress + progressDelta * PLAY_START_CORRECTION_FACTOR)
                 );
                 reportBaseProgress.value = correctedProgress;
-                targetAudioProgress.value = correctedProgress;
             } else {
                 // Steady state: the report IS the target. It arrives as a staircase, but
                 // the tracker below extrapolates it back into the ramp the audio is
                 // actually walking and folds the difference in as a small residual — so
                 // no report ever restarts the scroll from a standstill.
                 reportBaseProgress.value = reportedProgress;
-                targetAudioProgress.value = reportedProgress;
             }
         }
 

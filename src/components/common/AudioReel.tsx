@@ -19,7 +19,7 @@ import { buildGridRulerModel, snapToGrid, type GridRulerGrid } from "../../domai
 import { MinimapVisualizer } from "../visualizers/MinimapVisualizer";
 import type { SectionBand } from "../../domain/playerSections";
 import { fmt } from "../../utils";
-import { colors, radii } from "../../design/tokens";
+import { colors } from "../../design/tokens";
 import { durations } from "../../design/motion";
 import { haptic } from "../../design/haptics";
 import { audioReelStyles } from "./AudioReel.styles";
