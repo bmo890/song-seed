@@ -68,6 +68,18 @@ export function RecordingMeta({
 }: Props) {
     const { t } = useTranslation();
     const safeElapsedMs = Number.isFinite(elapsedMs) ? Math.max(0, elapsedMs) : 0;
+    // Stable identity: this screen re-renders on the take clock, and a fresh object here
+    // would defeat the tape's memo on every one of those frames.
+    const liveTapeTheme = React.useMemo(
+        () => ({
+            waveColor: colors.textMuted,
+            rulerColor: colors.borderMuted,
+            // Full record-red once the tape is moving; quieter while parked, so an idle
+            // page doesn't announce something that isn't happening yet.
+            playheadColor: isRecording ? colors.record : "rgba(192,69,59,0.45)",
+        }),
+        [isRecording]
+    );
 
     const [joinBeatsLeft, setJoinBeatsLeft] = useState<number | null>(null);
     useEffect(() => {
@@ -229,16 +241,8 @@ export function RecordingMeta({
                 {waveformData ? (
                     <LiveTapeVisualizer
                         dataPoints={waveformData.dataPoints || []}
-                        currentTimeMs={safeElapsedMs}
                         intervalMs={waveformData.segmentDurationMs || 50}
-                        theme={{
-                            waveColor: colors.textMuted,
-                            rulerColor: colors.borderMuted,
-                            // Full record-red once the tape is moving; quieter while
-                            // parked, so an idle page doesn't announce something that
-                            // isn't happening yet.
-                            playheadColor: isRecording ? colors.record : "rgba(192,69,59,0.45)",
-                        }}
+                        theme={liveTapeTheme}
                     />
                 ) : null}
             </View>

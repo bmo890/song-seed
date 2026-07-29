@@ -14,6 +14,7 @@ import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import type { PracticeMarker } from "../../types";
 import type { SectionBand } from "../../domain/playerSections";
 import type { GridRulerModel } from "../../domain/gridRuler";
+import { advanceTracker } from "../../domain/motionTracking";
 import { colors } from "../../design/tokens";
 
 type Props = {
@@ -84,16 +85,17 @@ const LOOP_PILL_WIDTH = 14;
 const LOOP_PILL_HEIGHT = 28;
 const PLAY_START_STATUS_GRACE_MS = 450;
 const PLAY_START_CORRECTION_FACTOR = 0.06;
-const PLAYING_CORRECTION_FACTOR = 0.16;
 const PLAY_START_STALE_FORWARD_MS = 40;
 const HARD_FORWARD_SNAP_MS = 650;
 const BACKWARD_SNAP_MS = 80;
-// Frames the reel keeps showing the scrub target after a seek is committed, before it
+// How long the reel keeps showing the scrub target after a seek is committed, before it
 // resumes following position reports. Covers the native seek latency (the source is still
 // repositioning) so a stale in-flight report can't flash the playhead to the old spot the
-// instant the lock releases. ~16 frames (≈260ms) was too short (stale flash); ≈470ms held
-// the playhead visibly still after a scrub. ≈330ms is the middle ground.
-const SCRUB_SETTLE_FRAMES = 20;
+// instant the lock releases. ≈260ms was too short (stale flash); ≈470ms held the playhead
+// visibly still after a scrub. 330ms is the middle ground. Measured in MILLISECONDS, not
+// frames: the old frame countdown ran half as long on a 120Hz display, which is where the
+// stale flash came back.
+const SCRUB_SETTLE_MS = 330;
 const PAUSE_VISUAL_HOLD_MS = 220;
 // How far the frame-rate predictor may coast ahead of the last reported position
 // before it stops and waits. Position reports arrive ~every 50ms but the JS thread
@@ -103,6 +105,22 @@ const PAUSE_VISUAL_HOLD_MS = 220;
 // buffer-stalls, so a generous cap just lets the reel coast smoothly through report
 // gaps (a genuine stall still snaps back via HARD_FORWARD/BACKWARD_SNAP).
 const PREDICTOR_MAX_LEAD_MS = 300;
+// The reel scrolls on an α-β tracking filter (the standard radar/A-V-sync tracker):
+// it carries its own VELOCITY estimate and folds each position report in as a small
+// residual, instead of re-anchoring the ramp to the last painted position on every
+// report. Re-anchoring was the judder: each report restarted the ramp at ~zero
+// velocity, so the tape accelerated from a near-stop 20×/second. The waveform hides
+// that (one candle looks like the next); an isolated bar line, pin, or section edge
+// does not — which is exactly where the stepping was visible.
+//
+// TAU is the convergence time constant. Deriving alpha from the real frame delta keeps
+// the feel identical at 60Hz and 120Hz (a fixed per-frame gain does not — it converges
+// twice as slowly on ProMotion).
+const TRACKING_TAU_MS = 130;
+/** Ceiling on the tracker's velocity estimate, as a multiple of the nominal rate. */
+const MAX_TRACKING_VELOCITY_FACTOR = 3;
+/** Residual past which tracking is pointless — jump and re-seed the velocity. */
+const TRACKING_RESYNC_PROGRESS = 0.03;
 
 function LoopRangeOverlay({
     durationMs,
@@ -361,9 +379,15 @@ export function PlaybackTapeVisualizer({
     const lastSeenTransportUpdate = useSharedValue(0);
     const reportBaseProgress = useSharedValue(0);
     const reportFrameTimestamp = useSharedValue(0);
+    /** Progress units per ms — the tracker's own estimate of how fast the tape runs. */
+    const progressVelocity = useSharedValue(0);
+    /** True while scrub/pause/count-in owns the playhead and the tracker is parked. */
+    const trackingSuspended = useSharedValue(true);
     const lastPlayingState = useSharedValue(isPlaying);
     const playingStateChangedAt = useSharedValue(0);
-    const scrubSettlingFrames = useSharedValue(0);
+    const scrubSettleUntil = useSharedValue(0);
+    /** Last frame timestamp, so gesture worklets can schedule against the same clock. */
+    const frameNow = useSharedValue(0);
     const awaitingPlayStartClock = useSharedValue(false);
     const pauseHoldUntil = useSharedValue(0);
     const pauseHoldProgress = useSharedValue(0);
@@ -413,6 +437,7 @@ export function PlaybackTapeVisualizer({
         targetAudioProgress.value = resetProgress;
         reportBaseProgress.value = resetProgress;
         reportFrameTimestamp.value = 0;
+        progressVelocity.value = 0;
         lastSeenTransportUpdate.value = transportUpdateToken.value;
         awaitingPlayStartClock.value = false;
         pauseHoldUntil.value = 0;
@@ -437,13 +462,11 @@ export function PlaybackTapeVisualizer({
         const duration = durationMsValue.value;
         if (duration <= 0) return;
 
+        frameNow.value = frameInfo.timestamp;
         const scrubVisualLockActive =
             isDragging.value ||
             isScrubbingShared.value ||
-            scrubSettlingFrames.value > 0;
-        if (scrubSettlingFrames.value > 0) {
-            scrubSettlingFrames.value -= 1;
-        }
+            frameInfo.timestamp < scrubSettleUntil.value;
 
         if (
             sharedPauseHoldMs &&
@@ -463,6 +486,7 @@ export function PlaybackTapeVisualizer({
                 pauseHoldUntil.value = frameInfo.timestamp + PAUSE_VISUAL_HOLD_MS;
                 pauseAnchorActive.value = true;
                 awaitingPlayStartClock.value = false;
+                progressVelocity.value = 0;
             }
         }
 
@@ -478,6 +502,7 @@ export function PlaybackTapeVisualizer({
                 reportBaseProgress.value = audioProgress.value;
                 reportFrameTimestamp.value = frameInfo.timestamp;
                 targetAudioProgress.value = audioProgress.value;
+                progressVelocity.value = 0;
             } else if (!isPlayingShared.value) {
                 const heldProgress = audioProgress.value;
                 awaitingPlayStartClock.value = false;
@@ -489,6 +514,7 @@ export function PlaybackTapeVisualizer({
                 reportBaseProgress.value = heldProgress;
                 reportFrameTimestamp.value = frameInfo.timestamp;
                 targetAudioProgress.value = heldProgress;
+                progressVelocity.value = 0;
             } else {
                 pauseAnchorActive.value = false;
                 pauseHoldUntil.value = 0;
@@ -499,6 +525,9 @@ export function PlaybackTapeVisualizer({
                 reportBaseProgress.value = startProgress;
                 reportFrameTimestamp.value = frameInfo.timestamp;
                 targetAudioProgress.value = startProgress;
+                // Seed the tracker at the nominal rate so the first frames of playback
+                // move at speed instead of accelerating up from a standstill.
+                progressVelocity.value = playbackRateShared.value / duration;
             }
         }
 
@@ -554,6 +583,7 @@ export function PlaybackTapeVisualizer({
                 targetAudioProgress.value = releaseProgress;
                 reportBaseProgress.value = releaseProgress;
                 reportFrameTimestamp.value = frameInfo.timestamp;
+                progressVelocity.value = playbackRateShared.value / duration;
                 return;
             }
 
@@ -579,16 +609,25 @@ export function PlaybackTapeVisualizer({
                 audioProgress.value = reportedProgress;
                 targetAudioProgress.value = reportedProgress;
                 reportBaseProgress.value = reportedProgress;
-            } else {
-                const correctionFactor = recentlyStartedPlaying
-                    ? PLAY_START_CORRECTION_FACTOR
-                    : PLAYING_CORRECTION_FACTOR;
+                progressVelocity.value = isPlayingShared.value
+                    ? playbackRateShared.value / duration
+                    : 0;
+            } else if (recentlyStartedPlaying) {
+                // The first reports after pressing play are often stale by a frame or
+                // two; ease onto them rather than believing them outright.
                 const correctedProgress = Math.max(
                     0,
-                    Math.min(1, previousProgress + progressDelta * correctionFactor)
+                    Math.min(1, previousProgress + progressDelta * PLAY_START_CORRECTION_FACTOR)
                 );
                 reportBaseProgress.value = correctedProgress;
                 targetAudioProgress.value = correctedProgress;
+            } else {
+                // Steady state: the report IS the target. It arrives as a staircase, but
+                // the tracker below extrapolates it back into the ramp the audio is
+                // actually walking and folds the difference in as a small residual — so
+                // no report ever restarts the scroll from a standstill.
+                reportBaseProgress.value = reportedProgress;
+                targetAudioProgress.value = reportedProgress;
             }
         }
 
@@ -597,34 +636,53 @@ export function PlaybackTapeVisualizer({
             pauseAnchorActive.value ||
             !isPlayingShared.value ||
             awaitingPlayStartClock.value
-        ) return;
+        ) {
+            trackingSuspended.value = true;
+            progressVelocity.value = 0;
+            return;
+        }
 
         const frameDeltaMs = frameInfo.timeSincePreviousFrame ?? 16;
         if (frameDeltaMs <= 0) return;
 
+        // First frame back after a scrub, a pause, or a count-in: hand the tracker the
+        // nominal rate and the position it is already showing. Letting it build velocity
+        // from zero instead would read as the tape easing in every time.
+        if (trackingSuspended.value) {
+            trackingSuspended.value = false;
+            progressVelocity.value = playbackRateShared.value / duration;
+            reportBaseProgress.value = audioProgress.value;
+            reportFrameTimestamp.value = frameInfo.timestamp;
+            return;
+        }
+
+        const nominalVelocity = playbackRateShared.value / duration;
         const elapsedSinceReport = Math.max(0, frameInfo.timestamp - reportFrameTimestamp.value);
         const reportedProgress = Math.max(0, Math.min(1, currentTimeMsValue.value / duration));
-        const maxLeadProgress = PREDICTOR_MAX_LEAD_MS / duration;
-        const predictedProgress = Math.min(
+        // The reported clock, extrapolated forward at the nominal rate: a straight line,
+        // which is what the audio is actually doing between reports.
+        const targetProgress = Math.min(
             1,
-            reportedProgress + maxLeadProgress,
-            reportBaseProgress.value + (elapsedSinceReport * playbackRateShared.value) / duration
+            reportBaseProgress.value + elapsedSinceReport * nominalVelocity
         );
-        const progressError = predictedProgress - audioProgress.value;
-
-        if (Math.abs(progressError) < 0.0002) {
-            return;
-        }
-
-        if (Math.abs(progressError) > 0.03) {
-            audioProgress.value = predictedProgress;
-            return;
-        }
-
-        audioProgress.value = Math.max(
-            0,
-            Math.min(1, audioProgress.value + progressError * 0.35)
+        const tracked = advanceTracker(
+            audioProgress.value,
+            progressVelocity.value,
+            targetProgress,
+            frameDeltaMs,
+            {
+                tauMs: TRACKING_TAU_MS,
+                maxVelocity: nominalVelocity * MAX_TRACKING_VELOCITY_FACTOR,
+                // A residual this large isn't tracking error, it's a jump (a stall
+                // recovering, a seek the report branch didn't catch).
+                resyncDistance: TRACKING_RESYNC_PROGRESS,
+                resyncVelocity: nominalVelocity,
+            }
         );
+        progressVelocity.value = tracked.velocity;
+        // Coasting is bounded: a genuine stall parks the tape instead of running away.
+        const leadCeiling = reportedProgress + PREDICTOR_MAX_LEAD_MS / duration;
+        audioProgress.value = Math.max(0, Math.min(1, Math.min(tracked.position, leadCeiling)));
     });
 
     // Handle Scrubbing Gestures
@@ -635,7 +693,8 @@ export function PlaybackTapeVisualizer({
             awaitingPlayStartClock.value = false;
             pauseHoldUntil.value = 0;
             pauseAnchorActive.value = false;
-            scrubSettlingFrames.value = 0;
+            scrubSettleUntil.value = 0;
+            progressVelocity.value = 0;
             startProgress.value = audioProgress.value;
             if (onScrubStateChange) runOnJS(onScrubStateChange)(true);
         })
@@ -649,7 +708,8 @@ export function PlaybackTapeVisualizer({
             const settle = (fromFling: boolean) => {
                 "worklet";
                 isDragging.value = false;
-                scrubSettlingFrames.value = SCRUB_SETTLE_FRAMES;
+                scrubSettleUntil.value = frameNow.value + SCRUB_SETTLE_MS;
+                progressVelocity.value = 0;
                 let newTime = audioProgress.value * durationMs;
                 const edgeGuardMs = fromFling && durationMs > 200 ? 150 : 0;
                 const minTime = edgeGuardMs > 0 ? edgeGuardMs : 0;
