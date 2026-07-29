@@ -1,6 +1,7 @@
 import {
   clickEngineParamsAt,
   isPlaybackClickAvailable,
+  nativeTempoMapSegments,
   wallMsUntil,
   type PlaybackClickGrid,
 } from "../playbackClick";
@@ -81,6 +82,62 @@ describe("clickEngineParamsAt", () => {
     expect(after.nextBoundaryContentMs).toBeNull();
     // 9500 is 1500ms into the 3000ms bar at bar 5.
     expect(after.phaseOffsetWallMs).toBeCloseTo(1500, 6);
+  });
+});
+
+describe("clickEngineParamsAt grouping", () => {
+  it("accents from the take's stored grouping, not the meter default", () => {
+    const grid: PlaybackClickGrid = {
+      bpm: 100,
+      meterId: "5/4",
+      firstDownbeatMs: 0,
+      tempoMap: undefined,
+      gridValidToMs: undefined,
+      grouping: [3, 2],
+    };
+    const params = clickEngineParamsAt({ grid, positionMs: 0, rate: 1 })!;
+    // 3+2: accents on pulses 1 and 4 → weights [down, weak, weak, secondary, weak].
+    expect(params.accentPattern[0]).toBe(1);
+    expect(params.accentPattern[3]).toBeGreaterThan(params.accentPattern[1]);
+    expect(params.accentPattern[3]).toBeGreaterThan(params.accentPattern[4]);
+
+    const defaultParams = clickEngineParamsAt({ grid: { ...grid, grouping: undefined }, positionMs: 0, rate: 1 })!;
+    expect(defaultParams.accentPattern).not.toEqual(params.accentPattern);
+  });
+});
+
+describe("nativeTempoMapSegments", () => {
+  const grid: PlaybackClickGrid = {
+    bpm: 120,
+    meterId: "4/4",
+    firstDownbeatMs: 0,
+    gridValidToMs: undefined,
+    tempoMap: {
+      schemaVersion: 1,
+      segments: [
+        { atBar: 1, bpm: 120, meterId: "4/4" },
+        { atBar: 5, bpm: 60, meterId: "3/4" },
+      ],
+    },
+  };
+
+  it("emits the whole map in wire format and rate-scales every segment", () => {
+    const scaled = nativeTempoMapSegments(grid, 1.5)!;
+    expect(scaled.map((s) => s.bpm)).toEqual([180, 90]);
+    expect(scaled[1]).toMatchObject({ atBar: 5, pulsesPerBar: 3, denominator: 4 });
+  });
+
+  it("refuses when any scaled segment leaves the engine range", () => {
+    expect(nativeTempoMapSegments(grid, 0.5)).toBeNull(); // 60bpm segment → 30
+    expect(nativeTempoMapSegments(grid, 1)).toHaveLength(2);
+  });
+
+  it("applies the take's grouping to segments sharing its meter", () => {
+    const grouped = nativeTempoMapSegments({ ...grid, meterId: "4/4", grouping: [4] }, 1)!;
+    const defaulted = nativeTempoMapSegments(grid, 1)!;
+    expect(grouped[0].accentPattern).not.toEqual(defaulted[0].accentPattern);
+    // The 3/4 segment doesn't share the take's meter — untouched by the grouping.
+    expect(grouped[1].accentPattern).toEqual(defaulted[1].accentPattern);
   });
 });
 

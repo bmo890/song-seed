@@ -5,7 +5,10 @@ export type NativeMetronomeConfig = {
   denominator: number;
   accentPattern: number[];
   clickEnabled: boolean;
-  clickVolume: number;
+  /** Optional like the keys below: both engines' parsers keep the RUNNING config for
+   *  absent keys, so a partial configure (e.g. a mid-take tempo change) never clobbers
+   *  live params such as a volume the user adjusted during the take. */
+  clickVolume?: number;
   /** Output latency (ms) of the active route. Delays only the visual beat so it lands with
    *  the audible click (e.g. Bluetooth lag). Omit / 0 = immediate, no compensation. */
   outputLatencyMs?: number;
@@ -15,6 +18,17 @@ export type NativeMetronomeConfig = {
   hapticEnabled?: boolean;
   hapticStrength?: number;
   hapticOffsetMs?: number;
+};
+
+/** One bar-anchored constant-tempo stretch handed to the map-mode engines. */
+export type NativeTempoMapSegment = {
+  /** 1-based bar at which this segment takes effect; first segment at bar 1. */
+  atBar: number;
+  bpm: number;
+  meterId?: string;
+  pulsesPerBar: number;
+  denominator?: number;
+  accentPattern: number[];
 };
 
 export type NativeAudioRouteInfo = {

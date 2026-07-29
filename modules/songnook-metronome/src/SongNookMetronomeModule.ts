@@ -6,6 +6,7 @@ import type {
   NativeGridAnchor,
   NativeMetronomeConfig,
   NativeMetronomeState,
+  NativeTempoMapSegment,
   SongNookMetronomeModuleEvents,
 } from "./SongNookMetronome.types";
 
@@ -24,6 +25,19 @@ declare class SongNookMetronomeModule extends NativeModule<SongNookMetronomeModu
   getGridAnchor?(): Promise<NativeGridAnchor>;
   start(): Promise<NativeMetronomeState>;
   startCountIn(bars: number): Promise<NativeMetronomeState>;
+  /** Optional: true on binaries whose engines can start the loop mid-bar. */
+  supportsPhaseStart?(): boolean;
+  /** Optional: true on binaries whose engines schedule clicks along a tempo map
+   *  (seamless bar-anchored tempo/meter changes). */
+  supportsTempoMap?(): boolean;
+  /** Optional: install a tempo map. While installed, start/startCountIn/startAtPhase
+   *  run in map mode (startAtPhase's offset becomes a whole-grid position). A
+   *  structural configure() clears it. Absent on older binaries — call with `?.`. */
+  configureTempoMap?(segments: NativeTempoMapSegment[]): Promise<NativeMetronomeState>;
+  clearTempoMap?(): Promise<NativeMetronomeState>;
+  /** Optional: start the click with the loop already `offsetMs` into the bar, so it
+   *  joins moving playback in phase. Absent on older binaries — call with `?.`. */
+  startAtPhase?(offsetMs: number): Promise<NativeMetronomeState>;
   stop(): Promise<NativeMetronomeState>;
 }
 

@@ -71,6 +71,22 @@ class SongNookMetronomeModule : Module() {
       true
     }
 
+    Function("supportsPhaseStart") {
+      true
+    }
+
+    Function("supportsTempoMap") {
+      true
+    }
+
+    AsyncFunction("configureTempoMap") { segments: List<Map<String, Any?>> ->
+      engine.configureTempoMap(segments)
+    }
+
+    AsyncFunction("clearTempoMap") {
+      engine.clearTempoMap()
+    }
+
     AsyncFunction("configure") { config: Map<String, Any?> ->
       engine.configure(config)
     }
@@ -106,6 +122,10 @@ class SongNookMetronomeModule : Module() {
 
     AsyncFunction("startCountIn") { bars: Int ->
       engine.start(bars)
+    }
+
+    AsyncFunction("startAtPhase") { offsetMs: Double ->
+      engine.startAtPhase(offsetMs)
     }
 
     AsyncFunction("stop") {

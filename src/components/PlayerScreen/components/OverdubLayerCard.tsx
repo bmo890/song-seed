@@ -19,6 +19,7 @@ import {
   OVERDUB_STEM_NUDGE_STEP_SMALL_MS,
 } from "../../../domain/overdub";
 import type { RecordingGrid } from "../../../types";
+import { snapToGrid } from "../../../domain/gridRuler";
 import { AnimatedCollapse } from "../../common/AnimatedCollapse";
 import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
@@ -169,6 +170,29 @@ export function OverdubLayerCard({
   const canRestoreOriginal = offsetMs !== baselineOffsetMs;
   const summary = buildSummary(gainDb, tonePreset, offsetMs, isMuted, t);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  // Slide-to-move preview: the drag's live delta rides the overlay's offset; the
+  // commit lands on release, snapped onto the master grid's nearest beat when the
+  // drop is close (a 60ms magnet — deliberate off-grid placements stay untouched).
+  const [slidePreviewMs, setSlidePreviewMs] = useState(0);
+  const handleSlide = (deltaMs: number) => setSlidePreviewMs(deltaMs);
+  const handleSlideEnd = (deltaMs: number) => {
+    setSlidePreviewMs(0);
+    if (Math.abs(deltaMs) < 1) {
+      return;
+    }
+    const targetMs = offsetMs + deltaMs;
+    const snappedMs = snapToGrid({
+      grid: masterRecordingGrid ?? null,
+      ms: targetMs,
+      toleranceMs: 60,
+      unit: "beat",
+    });
+    if (snappedMs != null && Math.abs(snappedMs - targetMs) > 1) {
+      // Detent tick: the layer settled onto a beat line.
+      haptic.tap();
+    }
+    onNudge(Math.round(snappedMs ?? targetMs) - offsetMs);
+  };
   const cardTint = computeWorkspaceTheme(color).tint;
   const showSpinner = isRendering && expandedSection != null;
 
@@ -317,9 +341,11 @@ export function OverdubLayerCard({
             stemAudioUri={audioUri}
             stemDurationMs={durationMs}
             stemFallbackPeaks={waveformPeaks}
-            offsetMs={offsetMs}
+            offsetMs={offsetMs + slidePreviewMs}
             stemColor={color}
             recordingGrid={masterRecordingGrid}
+            onSlide={handleSlide}
+            onSlideEnd={handleSlideEnd}
           />
           <View style={cardStyles.alignControls}>
             <Pressable

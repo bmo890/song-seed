@@ -15,7 +15,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { PlaybackTapeVisualizer } from "../visualizers/PlaybackTapeVisualizer";
 import { GridRulerLabels } from "./GridRulerLabels";
-import { buildGridRulerModel, type GridRulerGrid } from "../../domain/gridRuler";
+import { buildGridRulerModel, snapToGrid, type GridRulerGrid } from "../../domain/gridRuler";
 import { MinimapVisualizer } from "../visualizers/MinimapVisualizer";
 import type { SectionBand } from "../../domain/playerSections";
 import { fmt } from "../../utils";
@@ -461,7 +461,26 @@ export function AudioReel({
     const handleSeekCommit = async (timeMs: number) => {
         handleInteractionStateChange(true);
         try {
-            await onSeek(timeMs);
+            // Assistive bar magnet: a scrub that lands CLOSE to a bar line settles on it
+            // (fine scrubbing anywhere else is untouched). Tolerance is visual — a fixed
+            // few points on screen, converted through the current zoom's px/ms.
+            let targetMs = timeMs;
+            if (gridRulerModel && pixelsPerMs > 0) {
+                const snapped = snapToGrid({
+                    grid: grid ?? null,
+                    ms: timeMs,
+                    // Visual 12pt at the current zoom, but never more than a quarter
+                    // second of music — zoomed way out the magnet must stay gentle.
+                    toleranceMs: Math.min(12 / pixelsPerMs, 250),
+                    unit: "bar",
+                });
+                if (snapped != null && Math.abs(snapped - timeMs) > 1) {
+                    targetMs = snapped;
+                    // Detent tick — the reel's physical vocabulary (grab/release/detents).
+                    haptic.tap();
+                }
+            }
+            await onSeek(targetMs);
         } finally {
             handleInteractionStateChange(false);
         }

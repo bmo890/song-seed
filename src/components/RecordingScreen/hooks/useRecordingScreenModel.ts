@@ -1,7 +1,7 @@
 import { useNavigation } from "@react-navigation/native";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { audioDeviceManager, type AudioDevice } from "@siteed/audio-studio";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
 import {
@@ -22,6 +22,19 @@ import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
 import type { ClipVersion, RecordingGrid } from "../../../types";
 import { getDefaultOverdubStemTitle, getRecordingGridBarMs } from "../../../domain/overdub";
+import {
+  getMetronomeAccentPattern,
+  getMetronomeMeterPreset,
+  isSameGrouping,
+} from "../../../domain/metronome";
+import {
+  barStartMs,
+  gridTempoMap,
+  normalizeTempoMap,
+  TEMPO_MAP_SCHEMA_VERSION,
+  type TempoMap,
+} from "../../../domain/tempoMap";
+import { nativeTempoMapSegments } from "../../../domain/playbackClick";
 import { buildSaveDestinations, resolveSaveDestinationLabel, type SaveDestination } from "../../../domain/collectionManagement";
 import { personalWorkspaces } from "../../../domain/workspaceVisibility";
 import { authorizeIntentionalEmptyStateWrite } from "../../../services/stateIntegrity";
@@ -214,6 +227,11 @@ export function useRecordingScreenModel() {
   // starts (the global metronome settings can change afterwards). Attached to the saved
   // clip/stem as `recordingGrid`; null when the take doesn't use the metronome at all.
   const takeGridRef = useRef<RecordingGrid | null>(null);
+  const takeGridChangeTimersRef = useRef<
+    { handle: ReturnType<typeof setTimeout>; gridMs: number }[]
+  >([]);
+  /** True while the running take's changes are scheduled by the native map engine. */
+  const takeUsesNativeMapRef = useRef(false);
   const countInPendingRef = useRef(false);
   const countInModeRef = useRef<"start" | "resume">("start");
   const initializedMetronomeRef = useRef(false);
@@ -681,6 +699,7 @@ export function useRecordingScreenModel() {
 
   async function stopRecordingMetronome() {
     clearMonitoringDelayTimer();
+    clearTakeGridChangeTimers();
     if (!metronome.isRunning && !metronome.isCountIn) {
       return;
     }
@@ -689,6 +708,91 @@ export function useRecordingScreenModel() {
       await metronome.stop();
     } catch (error) {
       console.warn("Recording metronome stop failed", error);
+    }
+  }
+
+  /**
+   * Programmed tempo/meter changes during the take (pre-Phase-E): the engine can't
+   * follow a map natively yet, so each segment boundary gets a JS-scheduled partial
+   * configure() — a structural change restarts the engine with its phase at the bar
+   * line, which is exactly the boundary's downbeat. Seam = JS-timer + restart
+   * latency, once per change; the scheduled-click engine removes it entirely.
+   */
+  function clearTakeGridChangeTimers() {
+    for (const timer of takeGridChangeTimersRef.current) {
+      clearTimeout(timer.handle);
+    }
+    // Any change that never fired makes the stamped grid a lie past its bar line —
+    // mark the grid honest-up-to-there. A boundary past the file's end is inert
+    // (readers only honour gridValidToMs when it lands inside the audio).
+    const earliestPending = takeGridChangeTimersRef.current[0];
+    if (earliestPending && takeGridRef.current) {
+      takeGridRef.current = {
+        ...takeGridRef.current,
+        gridValidToMs: Math.min(
+          takeGridRef.current.gridValidToMs ?? Infinity,
+          Math.max(0, Math.round(earliestPending.gridMs))
+        ),
+      };
+    }
+    takeGridChangeTimersRef.current = [];
+  }
+
+  function scheduleTakeGridChanges(downbeatEpochMs: number) {
+    clearTakeGridChangeTimers();
+    const grid = takeGridRef.current;
+    const map = grid?.tempoMap;
+    if (!grid || !map || map.segments.length < 2 || !grid.clickThroughTake) {
+      return;
+    }
+
+    for (const segment of map.segments.slice(1)) {
+      const gridMs = barStartMs(map, segment.atBar);
+      const waitMs = downbeatEpochMs + gridMs - Date.now();
+      if (waitMs <= 0) {
+        continue;
+      }
+      const preset = getMetronomeMeterPreset(segment.meterId);
+      const accentPattern =
+        segment.meterId === grid.meterId
+          ? getMetronomeAccentPattern(segment.meterId, grid.grouping ?? null)
+          : getMetronomeAccentPattern(segment.meterId);
+      const handle = setTimeout(() => {
+        takeGridChangeTimersRef.current = takeGridChangeTimersRef.current.filter(
+          (entry) => entry.handle !== handle
+        );
+        console.log(
+          `[timing] take grid change: bar ${segment.atBar} → ${segment.bpm} · ${segment.meterId}`
+        );
+        // Partial configure: both engines keep absent keys (volume, cues, latency)
+        // from the running config, so only the structure changes.
+        void SongNookMetronomeModule?.configure({
+          bpm: segment.bpm,
+          meterId: segment.meterId,
+          pulsesPerBar: preset.pulsesPerBar,
+          denominator: preset.denominator,
+          accentPattern,
+          clickEnabled: true,
+        }).catch((error) => {
+          console.warn("[timing] take grid change failed — grid marked untrusted", error);
+          if (takeGridRef.current) {
+            takeGridRef.current = {
+              ...takeGridRef.current,
+              gridValidToMs: Math.min(
+                takeGridRef.current.gridValidToMs ?? Infinity,
+                Math.max(0, Math.round(gridMs))
+              ),
+            };
+          }
+          clearTakeGridChangeTimers();
+        });
+      }, waitMs);
+      takeGridChangeTimersRef.current.push({ handle, gridMs });
+    }
+    if (takeGridChangeTimersRef.current.length > 0) {
+      console.log(
+        `[timing] take grid: ${takeGridChangeTimersRef.current.length} change(s) scheduled off the downbeat anchor`
+      );
     }
   }
 
@@ -1111,6 +1215,21 @@ export function useRecordingScreenModel() {
   const restoredGridLabel = takeGridSourceClip?.recordingGrid
     ? `Original take: ${takeGridSourceClip.recordingGrid.bpm} BPM · ${takeGridSourceClip.recordingGrid.meterId}`
     : null;
+
+  // The sketch's programmed tempo/meter changes — editable only for fresh takes into a
+  // sketch. Overdubs and variations inherit the MASTER's frozen grid instead; the plan
+  // never rewrites, and is never edited from, an existing take's session.
+  const canEditSongGrid = recordingIdea?.kind === "project" && !takeGridSourceClip;
+  const songGrid = canEditSongGrid ? recordingIdea?.songGrid ?? null : null;
+  const handleSongGridChange = useCallback(
+    (next: TempoMap | null) => {
+      if (!recordingIdea || recordingIdea.kind !== "project") {
+        return;
+      }
+      useStore.getState().setSongGrid(recordingIdea.id, next ?? undefined);
+    },
+    [recordingIdea]
+  );
   const restoredGridClipIdRef = useRef<string | null>(null);
   useEffect(() => {
     const grid = takeGridSourceClip?.recordingGrid;
@@ -1124,6 +1243,9 @@ export function useRecordingScreenModel() {
     metronome.setBpmValue(grid.bpm);
     metronome.setMeterIdValue(grid.meterId);
     metronome.setCountInBarsValue(grid.countInBars);
+    // The take's FEEL travels too: a 5/4 master recorded 3+2 must click 3+2 under
+    // the overdub. No stored grouping = restore the meter's default feel.
+    metronome.setGrouping(grid.meterId, grid.grouping ?? null);
     setRecordingMetronomeEnabled(grid.clickThroughTake);
   }, [metronome, takeGridSourceClip]);
 
@@ -1244,6 +1366,12 @@ export function useRecordingScreenModel() {
             `anchor=${downbeatEpochMs != null ? "measured" : "MISSING"})`
         );
         recording.commitHeadTrim(headMs);
+
+        // Programmed tempo/meter changes: the map-native engine already schedules them
+        // sample-exactly; the JS scheduler is the fallback for older binaries only.
+        if (downbeatEpochMs != null && !takeUsesNativeMapRef.current) {
+          scheduleTakeGridChanges(downbeatEpochMs);
+        }
       }
 
       setIsArmingRecording(false);
@@ -1317,6 +1445,41 @@ export function useRecordingScreenModel() {
     const wantsCountIn = metronome.countInBars > 0 && metronome.isNativeAvailable;
     const wantsClickDuringTake = recordingMetronomeEnabled && metronome.isNativeAvailable;
 
+    // The timebase this take will be played to. Programmed changes need the measured
+    // downbeat anchor to schedule from, so a multi-segment map is only stamped on
+    // count-in takes (v1); without one the take stays a single-tempo grid.
+    const takeTempoMap = (() => {
+      if (!wantsCountIn || !wantsClickDuringTake) {
+        return undefined;
+      }
+      const masterGrid = takeGridSourceClip?.recordingGrid;
+      if (masterGrid) {
+        // Overdub/variation: the master's map is the truth — but only while the
+        // sheet still matches its segment 1. A deliberately changed tempo means
+        // the musician left the master's grid; stamp their single-tempo choice.
+        const masterMap = gridTempoMap(masterGrid);
+        const first = masterMap.segments[0];
+        return masterMap.segments.length > 1 &&
+          first.bpm === metronome.bpm &&
+          first.meterId === metronome.meterId
+          ? masterMap
+          : undefined;
+      }
+      const plan = recordingIdea?.kind === "project" ? recordingIdea.songGrid : undefined;
+      if (!plan || plan.segments.length === 0) {
+        return undefined;
+      }
+      // The sheet's live tempo/meter IS segment 1; the plan contributes the changes.
+      const merged = normalizeTempoMap({
+        schemaVersion: TEMPO_MAP_SCHEMA_VERSION,
+        segments: [
+          { atBar: 1, bpm: metronome.bpm, meterId: metronome.meterId },
+          ...plan.segments.filter((segment) => segment.atBar > 1),
+        ],
+      });
+      return merged.segments.length > 1 ? merged : undefined;
+    })();
+
     // Snapshot the beat grid this take is recorded against before anything can mutate the
     // global metronome settings (the count-in completion effect resets countInBars to 0).
     takeGridRef.current =
@@ -1328,6 +1491,12 @@ export function useRecordingScreenModel() {
             clickThroughTake: wantsClickDuringTake,
             firstDownbeatMs: null,
             source: "metronome",
+            ...(takeTempoMap ? { tempoMap: takeTempoMap } : {}),
+            // The feel is part of the grid: only a customised grouping is stored
+            // (absent = the meter's default, per the RecordingGrid contract).
+            ...(isSameGrouping(metronome.grouping, metronome.meterPreset.defaultGrouping)
+              ? {}
+              : { grouping: [...metronome.grouping] }),
           }
         : null;
 
@@ -1361,9 +1530,19 @@ export function useRecordingScreenModel() {
 
         countInModeRef.current = "start";
         countInPendingRef.current = true;
+        // Map-capable binaries schedule the take's tempo/meter changes natively
+        // (sample-exact, seamless); the JS boundary scheduler stays as the fallback.
+        const nativeMapSegments =
+          takeGridRef.current?.tempoMap &&
+          takeGridRef.current.tempoMap.segments.length > 1 &&
+          SongNookMetronomeModule?.supportsTempoMap?.()
+            ? nativeTempoMapSegments(takeGridRef.current)
+            : null;
+        takeUsesNativeMapRef.current = !!nativeMapSegments;
         await metronome.startCountIn(metronome.countInBars, {
           manageAudioSession: false,
           cueDelayMs: activeMonitoringCompensationMs,
+          tempoMapSegments: nativeMapSegments ?? undefined,
         });
 
         // Overdub: use the count-in itself to phase-lock the guide — measure its play()
@@ -1808,6 +1987,9 @@ export function useRecordingScreenModel() {
     lyricsAutoscrollSpeedMultiplier,
     metronome,
     restoredGridLabel,
+    songGrid,
+    canEditSongGrid,
+    handleSongGridChange,
     canPickSaveDestination,
     saveDestinations,
     saveDestinationPickerVisible,

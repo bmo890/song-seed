@@ -216,6 +216,7 @@ function buildLibrary(): { workspaces: Workspace[]; idea: SongIdea } {
                             { atBar: 9, bpm: 120, meterId: "3/4" },
                         ],
                     },
+                    grouping: [4],
                 },
             },
             {
@@ -431,6 +432,7 @@ describe("SongNook Archive round-trip — full fidelity", () => {
                     { atBar: 9, bpm: 120, meterId: "3/4" },
                 ],
             },
+            grouping: [4],
         });
     });
 
@@ -567,6 +569,7 @@ describe("SongNook Archive round-trip — standard (lossy)", () => {
                     { atBar: 9, bpm: 120, meterId: "3/4" },
                 ],
             },
+            grouping: [4],
         });
         // The song grid is musically essential and tiny — carried in standard mode too.
         expect(song.songGrid?.segments).toHaveLength(2);

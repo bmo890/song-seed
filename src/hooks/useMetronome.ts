@@ -48,6 +48,10 @@ type UseMetronomeArgs = {
 type MetronomeStartOptions = {
   manageAudioSession?: boolean;
   cueDelayMs?: number;
+  /** Install this tempo map right after the config sync (which would otherwise clear
+   *  it) so the run schedules clicks along the map. Ignored on binaries without
+   *  map support — callers keep their JS fallback for those. */
+  tempoMapSegments?: import("../../modules/songnook-metronome").NativeTempoMapSegment[];
 };
 
 const METRONOME_AUDIO_SESSION_OWNER_ID = "metronome";
@@ -456,6 +460,15 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
       if (nextState) {
         setNativeState(nextState);
       }
+      // The config sync above clears any installed map (structural configure);
+      // install the run's map AFTER it so the start schedules along the map.
+      if (
+        options.tempoMapSegments &&
+        SongNookMetronomeModule.supportsTempoMap?.() &&
+        SongNookMetronomeModule.configureTempoMap
+      ) {
+        await SongNookMetronomeModule.configureTempoMap(options.tempoMapSegments);
+      }
       setBeatCount(0);
       const state = await SongNookMetronomeModule.start();
       setNativeState(state);
@@ -479,6 +492,14 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         if (nextState) {
           setNativeState(nextState);
         }
+        // See start(): the map must go in after the (map-clearing) config sync.
+        if (
+          options.tempoMapSegments &&
+          SongNookMetronomeModule.supportsTempoMap?.() &&
+          SongNookMetronomeModule.configureTempoMap
+        ) {
+          await SongNookMetronomeModule.configureTempoMap(options.tempoMapSegments);
+        }
         setBeatCount(0);
         const state = await SongNookMetronomeModule.startCountIn(bars);
         setNativeState(state);
@@ -497,6 +518,9 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
       stopVisualScheduler();
       cueActivationAtRef.current = 0;
       const state = await SongNookMetronomeModule.stop();
+      // Leave no installed map behind: the standalone metronome must never
+      // accidentally start in map mode because a take's map was still loaded.
+      await SongNookMetronomeModule.clearTempoMap?.().catch(() => {});
       setNativeState(state);
       setBeatCount(0);
     } finally {

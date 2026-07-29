@@ -245,6 +245,8 @@ export function RecordingScreen() {
         meterId={screen.metronome.meterId}
         grouping={screen.metronome.grouping}
         onSelectGrouping={screen.metronome.setGrouping}
+        songGrid={screen.songGrid}
+        onChangeSongGrid={screen.canEditSongGrid ? screen.handleSongGridChange : undefined}
         countInBars={screen.metronome.countInBars}
         outputs={screen.metronome.outputs}
         beepLevel={screen.metronome.beepLevel}

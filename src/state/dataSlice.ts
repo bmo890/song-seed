@@ -629,11 +629,16 @@ function normalizeRecordingGrid(grid: RecordingGrid | undefined | null): Recordi
     // before tempo maps stay correct. A valid map is the richer record — it wins.
     const tempoMap = sanitizeTempoMap(grid.tempoMap);
     const firstSegment = tempoMap?.segments[0];
+    const meterId = firstSegment ? firstSegment.meterId : grid.meterId;
+    // The grouping must fit the meter it rides on; a mismatched one is dropped, never
+    // guessed (readers fall back to the meter's default feel).
+    const grouping = isValidGrouping(meterId, grid.grouping) ? [...grid.grouping!] : undefined;
 
     return {
         bpm: firstSegment ? firstSegment.bpm : clampMetronomeBpm(grid.bpm),
-        meterId: firstSegment ? firstSegment.meterId : grid.meterId,
+        meterId,
         ...(tempoMap ? { tempoMap } : {}),
+        ...(grouping ? { grouping } : {}),
         countInBars: Number.isFinite(grid.countInBars) ? Math.max(0, Math.round(grid.countInBars)) : 0,
         clickThroughTake: Boolean(grid.clickThroughTake),
         firstDownbeatMs:

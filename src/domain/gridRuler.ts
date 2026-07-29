@@ -1,5 +1,5 @@
 import { getMetronomeBeatIntervalMs, getMetronomeMeterPreset } from "./metronome";
-import { gridTempoMap, type TempoMap } from "./tempoMap";
+import { beatAtMs, gridTempoMap, type TempoMap } from "./tempoMap";
 import type { RecordingGrid } from "../types";
 
 /**
@@ -72,6 +72,52 @@ function pickStep(unitPx: number, minPx: number): number {
         }
     }
     return BAR_STEP_SERIES[BAR_STEP_SERIES.length - 1];
+}
+
+/**
+ * Assistive magnet: the nearest grid line (bar or beat) to `ms`, or null when `ms`
+ * is not within `toleranceMs` of one — a scrub or a slid stem lands anywhere it
+ * likes, and only CLOSE misses get pulled onto the line. Same honesty gates as the
+ * ruler: no trustworthy grid (or past `gridValidToMs`) → never snaps.
+ */
+export function snapToGrid(args: {
+    grid: GridRulerGrid | null | undefined;
+    ms: number;
+    toleranceMs: number;
+    unit: "bar" | "beat";
+}): number | null {
+    const { grid, ms, toleranceMs, unit } = args;
+    if (!grid || !Number.isFinite(ms) || toleranceMs <= 0) {
+        return null;
+    }
+    if (grid.firstDownbeatMs == null || !Number.isFinite(grid.firstDownbeatMs)) {
+        return null;
+    }
+    const offsetMs = Math.max(0, grid.firstDownbeatMs);
+    if (ms < offsetMs - toleranceMs) {
+        return null;
+    }
+
+    const point = beatAtMs(gridTempoMap(grid), ms - offsetMs);
+    const lineStartMs = unit === "bar" ? point.barStartMs : point.pulseStartMs;
+    const lineLengthMs = unit === "bar" ? point.pulseMs * point.pulsesPerBar : point.pulseMs;
+    // A magnet wider than ~40% of the spacing would capture EVERYTHING between two
+    // lines — cap it so free placement always keeps a dead zone in the middle.
+    const effectiveToleranceMs = Math.min(toleranceMs, lineLengthMs * 0.4);
+    const previous = offsetMs + lineStartMs;
+    const next = previous + lineLengthMs;
+    const candidate = ms - previous <= next - ms ? previous : next;
+    if (Math.abs(ms - candidate) > effectiveToleranceMs || candidate < offsetMs - 1) {
+        return null;
+    }
+    if (
+        typeof grid.gridValidToMs === "number" &&
+        Number.isFinite(grid.gridValidToMs) &&
+        candidate > grid.gridValidToMs
+    ) {
+        return null;
+    }
+    return candidate;
 }
 
 /**

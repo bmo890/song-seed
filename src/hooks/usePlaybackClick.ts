@@ -4,6 +4,7 @@ import SongNookMetronomeModule from "../../modules/songnook-metronome";
 import {
   clickEngineParamsAt,
   isPlaybackClickAvailable,
+  nativeTempoMapSegments,
   wallMsUntil,
   type PlaybackClickEngineParams,
   type PlaybackClickGrid,
@@ -136,6 +137,8 @@ function usePlaybackClickNative({
     engineOwnedRef.current = false;
     try {
       await SongNookMetronomeModule!.stop();
+      // Leave no installed map behind for the standalone metronome to trip over.
+      await SongNookMetronomeModule!.clearTempoMap?.().catch(() => {});
     } catch (error) {
       console.warn("[timing] playback click stop failed", error);
     }
@@ -178,11 +181,32 @@ function usePlaybackClickNative({
         return;
       }
 
+      let usedNativeMap = false;
+      let nativeMapSegmentCount = 0;
       try {
         await configureForParams(params);
         if (syncTokenRef.current !== token) return;
 
-        if (supportsPhaseStart && SongNookMetronomeModule!.startAtPhase) {
+        // Map-capable engines take the WHOLE map and a whole-grid offset: tempo
+        // changes then land natively (no boundary timers, no restarts).
+        const mapSegments =
+          SongNookMetronomeModule!.supportsTempoMap?.() && SongNookMetronomeModule!.configureTempoMap
+            ? nativeTempoMapSegments(gridRef.current!, rate)
+            : null;
+        if (mapSegments && SongNookMetronomeModule!.startAtPhase) {
+          usedNativeMap = true;
+          nativeMapSegmentCount = mapSegments.length;
+          await SongNookMetronomeModule!.configureTempoMap!(mapSegments);
+          if (syncTokenRef.current !== token) return;
+          const offsetMs = Math.max(0, gridRef.current!.firstDownbeatMs ?? 0);
+          const gridWallOffsetMs = Math.max(0, (positionMs - offsetMs) / rate);
+          await SongNookMetronomeModule!.startAtPhase(gridWallOffsetMs);
+          engineOwnedRef.current = true;
+          console.log(
+            `[timing] click sync (map): pos=${Math.round(positionMs)}ms rate=${rate} ` +
+              `gridOffset=${Math.round(gridWallOffsetMs)}ms segments=${mapSegments.length}`
+          );
+        } else if (supportsPhaseStart && SongNookMetronomeModule!.startAtPhase) {
           await SongNookMetronomeModule!.startAtPhase(params.phaseOffsetWallMs);
           engineOwnedRef.current = true;
           console.log(
@@ -213,9 +237,9 @@ function usePlaybackClickNative({
       }
       if (syncTokenRef.current !== token) return;
 
-      // Tempo-segment boundary: break phase there and re-derive (audible seam until
-      // the scheduled-click engine of Phase E removes the restart entirely).
-      if (params.nextBoundaryContentMs != null) {
+      // Tempo-segment boundary: break phase there and re-derive — needed only on
+      // engines without native maps (the map engine lands changes itself).
+      if (!usedNativeMap && params.nextBoundaryContentMs != null) {
         timersRef.current.push(
           setTimeout(() => {
             if (syncTokenRef.current !== token) return;
@@ -236,6 +260,12 @@ function usePlaybackClickNative({
 
       // Two clocks (engine sample clock vs player clock) — check drift periodically
       // and restart when audible. The logged error is the Phase F shared-clock KPI.
+      // The modular phase math assumes ONE bar length; past a native multi-segment
+      // map's first boundary it stops being meaningful, so those runs skip the check
+      // (their tempo error is bounded by the same int-bpm rounding either way).
+      if (usedNativeMap && nativeMapSegmentCount > 1) {
+        return;
+      }
       driftIntervalRef.current = setInterval(() => {
         void (async () => {
           if (syncTokenRef.current !== token) return;
@@ -293,9 +323,16 @@ function usePlaybackClickNative({
     pendingDownbeatRef.current = null;
     onDownbeat?.();
     if (enabledRef.current) {
-      // Let the engine roll on from the count-in's own grid; the first drift check (or
-      // the next seek) trues it up against the actual player start.
-      engineOwnedRef.current = true;
+      const hasChanges = (gridRef.current?.tempoMap?.segments.length ?? 1) > 1;
+      if (hasChanges && SongNookMetronomeModule!.supportsTempoMap?.()) {
+        // The count-in ran single-tempo; a take with programmed changes re-joins on
+        // the map so the boundaries land natively from here.
+        void syncClick();
+      } else {
+        // Let the engine roll on from the count-in's own grid; the first drift check
+        // (or the next seek) trues it up against the actual player start.
+        engineOwnedRef.current = true;
+      }
     } else {
       void stopEngine();
     }
