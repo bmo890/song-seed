@@ -14,6 +14,32 @@ context. Read `CLAUDE.md` and `docs/design-system.md` before any UI phase.
 
 ---
 
+## 0a. Owed at the machine (next working session)
+
+Everything here needs hardware or a live desktop — none of it can run remotely,
+and none of it blocks further code work.
+
+1. **Android compile check** — the Kotlin map engine (`startMapRun`,
+   `writeMapChunks`, `renderMapChunk`, `pollMapBeatProgress`) has NEVER been
+   compiled. Highest risk item on the list: unverified new native code.
+   `android/gradlew` exists; `ANDROID_HOME` was unset in this shell, so point it
+   at `~/Library/Android/sdk` first. A `:app:compileDebugKotlin` is enough —
+   no emulator, no device needed.
+2. **Simulator soak** — run the click ~10 minutes on a programmed-changes take
+   and watch the `[timing] click drift` logs. Retires the last engine risk that
+   doesn't need ears (the iOS 32-pulse scheduling window has only seen ~50s
+   runs). Needs a Mac that stays awake; a closed laptop kills the simulator.
+3. **Device listening pass** (physical iPhone, the only ears test):
+   - is the phase-started click actually aligned to the take?
+   - are native map boundaries seamless, or is there an audible seam?
+   - does the count-in hand off cleanly into playback?
+   - how does the new slide-to-move gesture FEEL — magnet too strong / weak?
+   - click voice quality: per-click renderer (map mode) vs the loop buffer.
+4. Also riding this rebuild: waveform probe, lock-screen, tuner (older
+   pending-rebuild items from other efforts).
+
+---
+
 ## 0. Ground truth (verified in code, 2026-07-28)
 
 What exists and works:
