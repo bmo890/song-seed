@@ -1,6 +1,10 @@
 export const resources = {
   en: {
     translation: {
+      bootRecovery: {
+        openFailedTitle: "Couldn't open your library",
+        openFailedBody: "Your songs are safe on this device. Try again.",
+      },
       common: {
         back: "Back",
         more: "More",
@@ -1160,6 +1164,10 @@ export const resources = {
   },
   he: {
     translation: {
+      bootRecovery: {
+        openFailedTitle: "לא ניתן לפתוח את הספרייה",
+        openFailedBody: "השירים שלך שמורים במכשיר. אפשר לנסות שוב.",
+      },
       common: {
         back: "חזרה",
         more: "עוד",

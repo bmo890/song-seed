@@ -36,7 +36,7 @@ import {
   getStateFromPath as getNavigationStateFromPath,
 } from "@react-navigation/native";
 import * as Linking from "expo-linking";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import {
   createDrawerNavigator,
@@ -110,7 +110,11 @@ import { checkClipboardForTransfer } from "./src/services/clipboardTransferCheck
 
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
-import { useStore } from "./src/state/useStore";
+import { onHydrationResult, useStore } from "./src/state/useStore";
+import { setPersistBlocked } from "./src/state/persistRuntime";
+import { authorizeIntentionalEmptyStateWrite } from "./src/services/stateIntegrity";
+import { EmptyState } from "./src/components/common/EmptyState";
+import { useTranslation } from "react-i18next";
 import { AppAlert } from "./src/components/common/AppAlert";
 import { AppDialogHost } from "./src/components/common/AppDialog";
 import { AppErrorBoundary } from "./src/components/common/AppErrorBoundary";
@@ -1059,7 +1063,13 @@ function AppContent() {
 
 export default function App() {
   const locale = useLocaleBootstrap();
+  const { t } = useTranslation();
   const [hasHydrated, setHasHydrated] = useState(() => useStore.persist.hasHydrated());
+  // Hydration can FAIL (disk unreadable — transient during dev reloads, rare in
+  // production). Retry with backoff; after that, show a retry screen. Never present a
+  // writable empty library over an unread disk (2026-07-28 empty-boot incident).
+  const [hydrationFailed, setHydrationFailed] = useState(false);
+  const hydrationRetries = useRef(0);
 
   useEffect(() => {
     const unsubscribeStartHydration = useStore.persist.onHydrate(() => {
@@ -1067,6 +1077,22 @@ export default function App() {
     });
     const unsubscribeFinishHydration = useStore.persist.onFinishHydration(() => {
       setHasHydrated(true);
+    });
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    const unsubscribeHydrationResult = onHydrationResult((error) => {
+      if (!error) {
+        hydrationRetries.current = 0;
+        setHydrationFailed(false);
+        return;
+      }
+      if (hydrationRetries.current < 3) {
+        hydrationRetries.current += 1;
+        retryTimer = setTimeout(() => {
+          void useStore.persist.rehydrate();
+        }, 300 * hydrationRetries.current);
+        return;
+      }
+      setHydrationFailed(true);
     });
 
     if (!useStore.persist.hasHydrated()) {
@@ -1076,6 +1102,8 @@ export default function App() {
     return () => {
       unsubscribeStartHydration();
       unsubscribeFinishHydration();
+      unsubscribeHydrationResult();
+      if (retryTimer) clearTimeout(retryTimer);
     };
   }, []);
 
@@ -1098,9 +1126,6 @@ export default function App() {
       // yields to foreground audio, so this is safe to fire on every launch.
       enqueueMissingMetadataBackfill(useStore.getState().workspaces);
 
-      // Anchor the store-review timing rule on the very first launch.
-      useStore.getState().markFirstLaunch();
-
       // Recovery mode: if the library hydrated empty but the shadow manifest still holds
       // data, surface a restore prompt instead of silently presenting an empty, writable
       // library (the catastrophic-loss scenario). The persist + manifest guards keep the
@@ -1115,17 +1140,40 @@ export default function App() {
           ? manifest.workspaces.reduce((sum, ws) => sum + (ws.ideas?.length ?? 0), 0)
           : 0;
         if (manifestIdeaCount > 0) {
+          // Freeze persistence while the prompt is pending: nothing derived from the
+          // empty in-memory library may reach disk (store or manifest) until the user
+          // decides. Both handlers below lift the freeze on their own terms.
+          setPersistBlocked(true);
           // A device holding a recoverable library is not a first launch: suppress the
           // first-run intro so WelcomeFlow never renders over the data-loss recovery
           // prompt (recoverOrphanedAudio doesn't touch hasSeenWelcome, so this sticks).
           useStore.getState().setHasSeenWelcome(true);
-          AppAlert.confirm(
+          AppAlert.custom(
             "Restore your library?",
             `SongNook opened with an empty library, but a backup with ${manifestIdeaCount} item${manifestIdeaCount === 1 ? "" : "s"} was found on this device. Restore it now?`,
-            () => {
-              void appActions.recoverOrphanedAudio();
-            },
-            { confirmLabel: "Restore", cancelLabel: "Not now", icon: "refresh-outline" }
+            [
+              {
+                label: "Not now",
+                style: "cancel",
+                onPress: () => {
+                  // The user chose to continue with the empty library — that explicit
+                  // decision (not the empty hydration itself) authorizes the store and
+                  // manifest to catch up to empty.
+                  authorizeIntentionalEmptyStateWrite();
+                  setPersistBlocked(false);
+                  useStore.getState().markFirstLaunch();
+                },
+              },
+              {
+                label: "Restore",
+                style: "default",
+                icon: "refresh-outline",
+                onPress: () => {
+                  setPersistBlocked(false);
+                  void appActions.recoverOrphanedAudio();
+                },
+              },
+            ]
           );
           return;
         }
@@ -1133,6 +1181,10 @@ export default function App() {
         // library is already in place (createInitialWorkspace is the store's initial
         // state + the sanitize fallback), so there's nothing to seed here.
       }
+
+      // Anchor the store-review timing rule on the very first launch. Runs after the
+      // recovery check so a pending restore prompt never races a persist write.
+      useStore.getState().markFirstLaunch();
 
       const recordingRecovery = await recoverPendingRecordingSession();
       if (recordingRecovery.status === "recovered") {
@@ -1260,7 +1312,21 @@ export default function App() {
                 backgroundColor: "#FDFBF7",
               }}
             >
-              <ActivityIndicator color="#B87D6B" />
+              {hydrationFailed ? (
+                <EmptyState
+                  icon="refresh-outline"
+                  title={t("bootRecovery.openFailedTitle")}
+                  body={t("bootRecovery.openFailedBody")}
+                  actionLabel={t("common.retry")}
+                  onAction={() => {
+                    hydrationRetries.current = 0;
+                    setHydrationFailed(false);
+                    void useStore.persist.rehydrate();
+                  }}
+                />
+              ) : (
+                <ActivityIndicator color="#B87D6B" />
+              )}
             </View>
           ) : (
             <AppContent />

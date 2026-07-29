@@ -30,6 +30,7 @@ import { materializeSongNookArchiveMerge } from "../services/libraryImport";
 import { findOrphanedAudioFiles, enrichOrphanedClips, buildRecoveredIdeas, findWorkspaceArchives, restoreWorkspaceFromArchive, restoreFromManifest } from "../services/audioRecovery";
 import { forceManifestWrite } from "../services/manifestSync";
 import { buildPersistedAppStoreSnapshot, flushPersistedSnapshot } from "./useStore";
+import { persistRestoredAppStoreSnapshot } from "./persistedSnapshot";
 import { buildRuntimeCleanupPatch } from "./runtimeCleanup";
 import {
     collectManagedIdeaAudioUris,
@@ -2926,8 +2927,11 @@ export const appActions = {
                         (sum, ws) => sum + ws.ideas.length, 0
                     );
 
-                    // Restore the full state from manifest
+                    // Restore the full state from manifest. The raw commit both durably
+                    // lands the restored library and re-arms the write-authority gate
+                    // (hydration may have failed or read a damaged store this session).
                     useStore.setState(restoredState);
+                    await persistRestoredAppStoreSnapshot(useStore.getState());
                     await persistCurrentStoreSnapshot();
 
                     return {
@@ -3068,6 +3072,12 @@ export const appActions = {
         const recoveredCount = archivedWorkspacesRestored > 0
             ? useStore.getState().workspaces.reduce((sum, ws) => sum + ws.ideas.length, 0)
             : orphanedClipsRecovered;
+
+        // Commit the recovered library durably. The raw restore write also re-arms the
+        // write-authority gate when this session booted from a failed/damaged read.
+        try {
+            await persistRestoredAppStoreSnapshot(useStore.getState());
+        } catch { /* the debounced persist still follows; the gate re-arms on its disk check */ }
 
         // Force manifest write after recovery to capture any newly restored data
         try {

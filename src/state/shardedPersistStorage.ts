@@ -16,6 +16,8 @@ import {
     workspaceRowKey,
     type PersistStorageValue,
 } from "./persistSharding";
+import { KvReadFailedError } from "./db/storage";
+import { setHydrationReadOutcome } from "./persistRuntime";
 
 /**
  * zustand persist storage that shards the library across per-workspace SQLite rows so an
@@ -43,17 +45,77 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
     // Whether we've swept orphaned workspace rows (left by a restore or the legacy→sharded
     // transition) — once per session, on the first write.
     let orphansSwept = false;
+    // Write authority: "data" once this session has PROVEN it knows what is on disk
+    // (successful read, or a pre-write disk check). Until then, a write that would
+    // orphan on-disk workspaces is refused — a snapshot not derived from disk must
+    // never overwrite the library (2026-07-28 empty-boot incident).
+    let readOutcome: "none" | "data" | "empty" | "failed" = "none";
+
+    /**
+     * A session that never successfully read the disk may only write if the write
+     * provably destroys nothing: disk is empty, or every workspace the on-disk
+     * snapshot references is also present in the incoming snapshot.
+     */
+    async function verifyWriteAuthority(name: string, value: PersistStorageValue): Promise<boolean> {
+        let existingRaw: string | null | undefined;
+        try {
+            existingRaw = await sqliteStringStorage.getItem(name);
+        } catch {
+            return false; // Disk state unknown — refuse.
+        }
+        const existing = parseMetaRow(existingRaw);
+        if (existing.format === "empty") return true;
+        if (existing.format === "corrupt") return false;
+
+        const incomingIds = new Set(
+            (Array.isArray(value.state.workspaces) ? value.state.workspaces : []).map((ws) => ws.id)
+        );
+        const diskIds =
+            existing.format === "sharded"
+                ? existing.workspaceIds
+                : (existing.value.state?.workspaces ?? []).map((ws) => ws.id);
+        return diskIds.every((id) => incomingIds.has(id));
+    }
 
     return {
         getItem: async (name): Promise<StorageValue<PersistedAppStore> | null> => {
             const startedAt = Date.now();
-            const metaRaw = await sqliteStringStorage.getItem(name);
+            let metaRaw: string | null | undefined;
+            try {
+                metaRaw = await sqliteStringStorage.getItem(name);
+            } catch (err) {
+                // Unknown disk state: fail hydration so the app retries instead of
+                // booting a writable empty library. Writes stay gated meanwhile.
+                readOutcome = "failed";
+                setHydrationReadOutcome("failed");
+                throw err;
+            }
             const meta = parseMetaRow(metaRaw);
 
-            if (meta.format === "empty") return null;
+            if (meta.format === "empty") {
+                // Confirmed-fresh only if no stray workspace rows exist. Rows without a
+                // meta row mean a damaged store, not a fresh install — don't boot empty
+                // over them (a later write's sweep would delete them).
+                const strays = await listKvKeysWithPrefix(`${name}::ws::`);
+                if (strays.length > 0) {
+                    readOutcome = "failed";
+                    setHydrationReadOutcome("failed");
+                    throw new KvReadFailedError(
+                        `meta row missing but ${strays.length} workspace row(s) exist for "${name}"`
+                    );
+                }
+                readOutcome = "empty";
+                setHydrationReadOutcome("empty");
+                return null;
+            }
 
             if (meta.format === "corrupt") {
+                // Deterministic damage — retrying won't help, so hydrate empty to let the
+                // disaster-recovery prompt offer the manifest. The write gate keeps this
+                // session from overwriting the damaged (possibly recoverable) rows.
                 console.warn(`[PersistTelemetry] meta row for "${name}" is unparseable — starting empty`);
+                readOutcome = "failed";
+                setHydrationReadOutcome("failed");
                 return null;
             }
 
@@ -63,13 +125,24 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
                 // new workspace identities, so the first write shards them all regardless.
                 const kb = Math.round((metaRaw?.length ?? 0) / 1024);
                 console.log(`[PersistTelemetry] hydrated "${name}" (monolithic): ${kb}KB in ${Date.now() - startedAt}ms`);
+                readOutcome = "data";
+                setHydrationReadOutcome("data");
                 return meta.value as StorageValue<PersistedAppStore>;
             }
 
             // Sharded: read the referenced workspace rows and reassemble.
             const workspaceKeys = shardedWorkspaceRowKeys(name, meta.workspaceIds);
-            const workspaceValues = await readManyKv(workspaceKeys);
+            let workspaceValues: Map<string, string>;
+            try {
+                workspaceValues = await readManyKv(workspaceKeys);
+            } catch (err) {
+                readOutcome = "failed";
+                setHydrationReadOutcome("failed");
+                throw err;
+            }
             const assembled = assembleShardedSnapshot(name, meta, workspaceValues);
+            readOutcome = "data";
+            setHydrationReadOutcome("data");
 
             let bytes = metaRaw?.length ?? 0;
             for (const value of workspaceValues.values()) bytes += value.length;
@@ -87,6 +160,23 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
         },
 
         setItem: async (name, value): Promise<void> => {
+            // Write-authority gate: a session that never successfully read the on-disk
+            // library must not overwrite it. The meta rewrite + first-write orphan sweep
+            // below would otherwise permanently erase every workspace row.
+            if (readOutcome !== "data") {
+                const allowed = await verifyWriteAuthority(name, value as PersistStorageValue);
+                if (!allowed) {
+                    console.error(
+                        `[PersistAuthority] BLOCKED write to "${name}": this session never ` +
+                            `read the on-disk library (readOutcome=${readOutcome}) and the write ` +
+                            `would orphan on-disk workspaces. Keeping disk untouched.`
+                    );
+                    return;
+                }
+                readOutcome = "data";
+                setHydrationReadOutcome("data");
+            }
+
             // Preserve the pre-sharding monolithic blob ONCE, before the first shard write
             // overwrites the meta row — a crash mid-transition can then still recover fully.
             if (!legacyBackedUp) {
@@ -139,6 +229,9 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
             lastWorkspaceRefs = new Map();
             legacyBackedUp = false;
             orphansSwept = false;
+            // The wipe was deliberate (persist.clearStorage) — disk is now known-empty.
+            readOutcome = "empty";
+            setHydrationReadOutcome("empty");
         },
     };
 }

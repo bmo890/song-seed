@@ -411,6 +411,26 @@ AppState.addEventListener("change", (nextState) => {
     }
 });
 
+/**
+ * Hydration result channel. zustand's onFinishHydration never fires when hydration
+ * FAILS (getItem threw), so App listens here to retry a transient read failure —
+ * booting a writable empty library over an unread disk is never an option.
+ */
+type HydrationResultListener = (error: unknown | undefined) => void;
+const hydrationResultListeners = new Set<HydrationResultListener>();
+
+function notifyHydrationResult(error: unknown | undefined) {
+    hydrationResultListeners.forEach((listener) => listener(error));
+}
+
+/** Subscribe to hydration success/failure. Returns an unsubscribe function. */
+export function onHydrationResult(listener: HydrationResultListener): () => void {
+    hydrationResultListeners.add(listener);
+    return () => {
+        hydrationResultListeners.delete(listener);
+    };
+}
+
 export const useStore = create<AppStore>()(
     persist(
         (...a) => ({
@@ -445,7 +465,16 @@ export const useStore = create<AppStore>()(
                 ...sanitizePersistedState(persistedState as Partial<PersistedAppStore> | undefined),
             }),
             onRehydrateStorage: () => {
-                return (state) => {
+                return (state, error) => {
+                    if (error) {
+                        // Hydration failed (disk unreadable — see KvReadFailedError). The
+                        // store still holds its initial state, but it is NOT authoritative:
+                        // leave hydrationComplete false and let App retry rehydration.
+                        console.warn("[Persist] hydration failed — library not read:", error);
+                        notifyHydrationResult(error);
+                        return;
+                    }
+
                     setHydrationComplete(true);
 
                     if (state) {
@@ -460,6 +489,8 @@ export const useStore = create<AppStore>()(
                             (s) => buildPersistedAppStoreSnapshot(s as AppStore)
                         );
                     }
+
+                    notifyHydrationResult(undefined);
                 };
             },
         }
