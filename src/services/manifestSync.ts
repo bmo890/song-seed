@@ -18,7 +18,7 @@ import {
 import type { PersistedAppStore } from "../state/useStore";
 import {
     getLastPersistedIdeaCount,
-    isHydrationComplete,
+    isHydrationReadAuthoritative,
     isPersistBlocked,
 } from "../state/persistRuntime";
 import { consumeIntentionalEmptyStateWrite } from "./stateIntegrity";
@@ -123,25 +123,19 @@ async function writeManifestToDisk(state: PersistedAppStore): Promise<void> {
             if (existing) {
                 const existingIdeaCount = countTotalIdeas(existing.workspaces);
                 if (existingIdeaCount > 0) {
-                    // The manifest must accept an intentional last-item delete while
-                    // still rejecting unexpected empty-state rewrites during corruption.
-                    const hydratedEmptyStateIsAuthoritative =
-                        isHydrationComplete() &&
-                        !isPersistBlocked() &&
-                        getLastPersistedIdeaCount() === 0;
-
-                    if (!consumeIntentionalEmptyStateWrite() && !hydratedEmptyStateIsAuthoritative) {
+                    // Only an explicit user decision may empty a data-bearing manifest: a
+                    // deliberate last-item delete, or "Not now" on the boot restore prompt
+                    // (both call authorizeIntentionalEmptyStateWrite). "Hydration came up
+                    // empty" is NOT sufficient on its own — an empty boot over a stale disk
+                    // must never destroy the recovery copy (2026-07-28 incident), and even
+                    // an authorized empty write still requires an authoritative disk read.
+                    if (!consumeIntentionalEmptyStateWrite() || !isHydrationReadAuthoritative()) {
                         console.warn(
                             `[ManifestSync] BLOCKED: refusing to write manifest with ${newIdeaCount} ideas ` +
                             `over existing manifest with ${existingIdeaCount} ideas. ` +
                             `This looks like a state corruption event.`
                         );
                         return;
-                    }
-
-                    if (hydratedEmptyStateIsAuthoritative) {
-                        // If AsyncStorage already hydrated into a stable empty library, the
-                        // shadow manifest is stale and must be allowed to catch up on restart.
                     }
                 }
             }

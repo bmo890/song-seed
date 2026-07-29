@@ -17,6 +17,21 @@ import { getDb } from "./database";
  *   failure degrades gracefully instead of losing access to the library.
  */
 
+/**
+ * Thrown when the authoritative store could not be read AND the AsyncStorage fallback
+ * holds no substitute. Callers must treat this as "unknown disk state" — never as an
+ * empty library. Hydration surfaces it and retries instead of booting empty (the
+ * 2026-07-28 empty-boot incident: a transient read failure degraded to null, the store
+ * hydrated fresh, and the first write's orphan sweep would erase the real library).
+ */
+export class KvReadFailedError extends Error {
+    constructor(message: string, cause?: unknown) {
+        super(message);
+        this.name = "KvReadFailedError";
+        (this as { cause?: unknown }).cause = cause;
+    }
+}
+
 // Last value successfully written per key, so unchanged snapshots skip the DB entirely.
 const lastWritten = new Map<string, string>();
 let writeQueue: Promise<void> = Promise.resolve();
@@ -59,7 +74,19 @@ export const sqliteStringStorage = {
             return legacy;
         } catch (err) {
             console.warn("[sqliteStorage] getItem fell back to AsyncStorage:", err);
-            return AsyncStorage.getItem(name);
+            // The fallback may legitimately hold data (legacy install, or rows written
+            // while SQLite was down). But a null fallback proves nothing about the
+            // authoritative store — surface the failure rather than report "empty".
+            let fallback: string | null = null;
+            try {
+                fallback = await AsyncStorage.getItem(name);
+            } catch (fallbackErr) {
+                throw new KvReadFailedError(`both stores unreadable for "${name}"`, fallbackErr);
+            }
+            if (fallback == null) {
+                throw new KvReadFailedError(`SQLite unreadable for "${name}" and no fallback copy`, err);
+            }
+            return fallback;
         }
     },
 
@@ -122,13 +149,20 @@ export async function readManyKv(keys: string[]): Promise<Map<string, string>> {
         return out;
     } catch (err) {
         console.warn("[sqliteStorage] readManyKv fell back to AsyncStorage:", err);
+        // Every requested key is a workspace row the meta row references. A partial
+        // fallback would hydrate a silently smaller library, and the next write's
+        // orphan sweep would make the loss permanent — all-or-nothing instead.
         for (const key of keys) {
+            let value: string | null = null;
             try {
-                const value = await AsyncStorage.getItem(key);
-                if (value != null) out.set(key, value);
-            } catch {
-                // Skip unreadable keys; a partial map still hydrates what it can.
+                value = await AsyncStorage.getItem(key);
+            } catch (fallbackErr) {
+                throw new KvReadFailedError(`workspace row unreadable in both stores: ${key}`, fallbackErr);
             }
+            if (value == null) {
+                throw new KvReadFailedError(`SQLite unreadable and no fallback copy for row: ${key}`, err);
+            }
+            out.set(key, value);
         }
         return out;
     }

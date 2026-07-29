@@ -1,5 +1,9 @@
 import { persistRawSnapshot } from "./db/storage";
-import { isPersistBlocked } from "./persistRuntime";
+import {
+    isHydrationReadAuthoritative,
+    isPersistBlocked,
+    setHydrationReadOutcome,
+} from "./persistRuntime";
 import type { AppStore, PersistedAppStore } from "./storeTypes";
 
 export const STORE_NAME = "songnook-store";
@@ -52,6 +56,24 @@ export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppSto
 
 export async function persistAppStoreSnapshot(state: AppStore): Promise<void> {
     if (isPersistBlocked()) return;
+    // Raw writes bypass the sharded adapter's write-authority gate — apply the same
+    // rule here: state not derived from a successful disk read must never land.
+    if (!isHydrationReadAuthoritative()) {
+        console.warn("[PersistAuthority] skipped raw snapshot write — hydration never read the disk");
+        return;
+    }
     const snapshot = buildPersistedAppStoreSnapshot(state);
     await persistRawSnapshot(STORE_NAME, JSON.stringify({ state: snapshot, version: STORE_VERSION }));
+}
+
+/**
+ * Restore-only: commit a snapshot the user explicitly chose to restore (disaster-recovery
+ * prompt). Deliberately skips the persist lock and the hydration-authority check — the
+ * restored snapshot IS the new authoritative disk state, and committing it re-arms the
+ * write-authority gate for the rest of the session.
+ */
+export async function persistRestoredAppStoreSnapshot(state: AppStore): Promise<void> {
+    const snapshot = buildPersistedAppStoreSnapshot(state);
+    await persistRawSnapshot(STORE_NAME, JSON.stringify({ state: snapshot, version: STORE_VERSION }));
+    setHydrationReadOutcome("data");
 }
