@@ -17,6 +17,7 @@ const BADGE_CHAR_WIDTH = 6;
 const BADGE_H_PAD = 12;
 const ROW_GAP = 2;
 const TOP_PAD = 3; // gap between reel top and the first badge row
+const PIN_LIFT_SPRING = { damping: 20, stiffness: 300 };
 
 type Props = {
   markers: PracticeMarker[];
@@ -115,6 +116,12 @@ function PinBadge({
   const dragTimeMs = useSharedValue(marker.atMs);
   const dragStartMs = useSharedValue(0);
   const isDragging = useSharedValue(false);
+  // The lift spring is STARTED on the drag transitions, never called from inside the
+  // animated style. `withSpring` in a style that re-evaluates every frame (this one does —
+  // it reads the scrolling translateX) re-seeds the animation 60×/second, which both costs
+  // UI-thread work per pin and keeps the value from settling. One shared value, two
+  // transitions, read as a plain number below.
+  const dragLift = useSharedValue(1);
 
   const handleSeek = useCallback(() => onSeek(marker.atMs), [marker.atMs, onSeek]);
   const handleActions = useCallback(() => onRequestActions(marker), [marker, onRequestActions]);
@@ -127,6 +134,7 @@ function PinBadge({
     .activateAfterLongPress(300)
     .onStart(() => {
       isDragging.value = true;
+      dragLift.value = withSpring(1.1, PIN_LIFT_SPRING);
       dragStartMs.value = marker.atMs;
       dragTimeMs.value = marker.atMs;
       draggingMarkerId.value = marker.id;
@@ -144,6 +152,7 @@ function PinBadge({
     })
     .onEnd(() => {
       isDragging.value = false;
+      dragLift.value = withSpring(1, PIN_LIFT_SPRING);
       draggingMarkerId.value = "";
       const movedMs = Math.abs(dragTimeMs.value - dragStartMs.value);
       if (movedMs > 200) {
@@ -154,6 +163,7 @@ function PinBadge({
     })
     .onFinalize(() => {
       isDragging.value = false;
+      dragLift.value = withSpring(1, PIN_LIFT_SPRING);
       draggingMarkerId.value = "";
       if (onDragStateChange) runOnJS(onDragStateChange)(false);
     });
@@ -175,7 +185,7 @@ function PinBadge({
       transform: [
         { translateX: x },
         { translateX: anchorOffset },
-        { scale: withSpring(isDragging.value ? 1.1 : 1, { damping: 20, stiffness: 300 }) },
+        { scale: dragLift.value },
       ],
       zIndex: isDragging.value ? 10 : 0,
     };

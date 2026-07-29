@@ -298,14 +298,14 @@ function PlayerTimelineInner({
       sharedSelectedRangeStartMs={mode === "practice" && practiceLoopEnabled ? sharedLoopPreviewStartMs : undefined}
       sharedSelectedRangeEndMs={mode === "practice" && practiceLoopEnabled ? sharedLoopPreviewEndMs : undefined}
       selectedRangeType={previewRange?.type}
-      renderOverlay={({ pixelsPerMs, timelineTranslateX, timelineScale, sharedAudioProgress }) => (
+      renderOverlay={({ pixelsPerMs, timelineTranslateX, timelineScale, scale, sharedAudioProgress }) => (
         <View style={{ flex: 1, position: "relative" }}>
           {/* Section titles ride the reel in every mode (the song map is useful while listening). */}
           <SectionLabelBadges
             sections={sections}
             pixelsPerMs={pixelsPerMs}
             timelineTranslateX={timelineTranslateX}
-            timelineScale={timelineScale}
+            scale={scale}
           />
           {mode === "practice" ? (
             <>

@@ -155,6 +155,10 @@ type OverlayArgs = {
     pixelsPerMs: number;
     timelineTranslateX: SharedValue<number>;
     timelineScale: SharedValue<number>;
+    /** The same tape scale as `timelineScale`, as a plain number. Overlays that lay their
+     *  content out in content space use this so they don't have to re-measure on the UI
+     *  thread every frame just to follow the tape. */
+    scale: number;
     sharedAudioProgress: SharedValue<number>;
 };
 
@@ -812,7 +816,7 @@ export function AudioReel({
                                 model={gridRulerModel}
                                 pixelsPerMs={pixelsPerMs}
                                 timelineTranslateX={timelineTranslateX}
-                                timelineScale={timelineScale}
+                                scale={overscaleFactor}
                                 color={palette.utilityIconColor}
                             />
                         </View>
@@ -824,6 +828,7 @@ export function AudioReel({
                                 pixelsPerMs,
                                 timelineTranslateX,
                                 timelineScale,
+                                scale: overscaleFactor,
                                 sharedAudioProgress,
                             })}
                         </View>
@@ -897,7 +902,7 @@ export function AudioReel({
 
             {renderBelowSurface ? (
                 <View style={{ marginHorizontal: timelineHorizontalPadding, overflow: "visible" }}>
-                    {renderBelowSurface({ pixelsPerMs, timelineTranslateX, timelineScale, sharedAudioProgress })}
+                    {renderBelowSurface({ pixelsPerMs, timelineTranslateX, timelineScale, scale: overscaleFactor, sharedAudioProgress })}
                 </View>
             ) : null}
 
@@ -930,7 +935,7 @@ export function AudioReel({
 
             {renderBelowOverlay ? (
                 <View style={{ marginHorizontal: timelineHorizontalPadding, overflow: "visible" }}>
-                    {renderBelowOverlay({ pixelsPerMs, timelineTranslateX, timelineScale, sharedAudioProgress })}
+                    {renderBelowOverlay({ pixelsPerMs, timelineTranslateX, timelineScale, scale: overscaleFactor, sharedAudioProgress })}
                 </View>
             ) : null}
 
