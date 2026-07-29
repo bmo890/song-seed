@@ -1,9 +1,10 @@
 # Metronome, Grid & Transport — master plan
 
-Status: **Phases A + B DONE, C BUILT 2026-07-28** (TempoMap domain model; reel grid
-ruler live in the full player; playback click + real count-in built — JS layer
-sim-verified, native `startAtPhase` UNVERIFIED pending rebuild). Everything else
-below is unbuilt unless marked otherwise.
+Status: **Phases A–E + G DONE 2026-07-29** (iOS rebuilt and sim-verified through
+the whole chain: programmed change → native map-engine count-in/record → head
+trim → ruler; playback click runs the native map path across boundaries).
+Remaining: F (shared transport, rides the next audio-engine opening), plus the
+DEVICE listening tests and an Android build — see the checklist notes.
 Owner intent: turn the metronome from a well-engineered sibling feature into the
 app's musical timebase — DAW-trustworthy, grid-tied recording *and* playback,
 pre-programmable tempo/meter changes, bars on the reel.
@@ -393,18 +394,26 @@ Bluetooth (honesty over promises):
 
 ---
 
-## 9. Open decisions for the founder (block only the phase named)
+## 9. Founder decisions (log)
 
-1. **User-facing word for the grid** ("beat grid" / "grid" / "tempo"?) — blocks
-   final copy in B/C/D, not the builds.
-2. **Detected-tempo clips**: is the playback click *offered* (recommended,
-   §4) or *auto-on* when analysis is steady? — Phase C polish.
-3. **Pickup bars / anacrusis** (start on beat 3, etc.): defer or include in the
-   grid editor v1? Recommendation: defer; the data model can carry it later
-   without migration. — Phase D.
-4. **Where the grid editor lives** once the new metronome UI lands (recording
-   sheet vs. sketch page vs. both-read-one-edit). — Phase D binding.
-5. **Snap-to-bar default** (on when grid exists vs. opt-in). — Phase B polish.
+1. **DECIDED 2026-07-29: the word is "grid".** Use it in future user-facing
+   copy (he: רשת/רשת קצב per context). Existing copy stays until touched.
+2. **OPEN — detected-tempo clips.** Founder distrusts analysis on raw phone
+   clips (fair: `bpmSteadiness` gates help but phone takes drift); DAW imports
+   are the credible case. Standing proposal: click stays metronome-grid-only
+   for now; a later "Set the one" flow (steady analysis + user taps the
+   downbeat to confirm) upgrades imports — nothing auto-on, ever.
+3. **Pickup bars**: still deferred (data model can carry it later).
+4. **DECIDED 2026-07-29: snap-to-grid approved and BUILT** — reel scrub
+   settles onto a near bar line (12pt visual magnet, capped at 250ms and 40%
+   of the line spacing; haptic `tap` detent), and overdub layers gained
+   **slide-to-move** on the Align overlay (long-press-drag, live preview,
+   commit snapped to the master grid's nearest BEAT within 60ms; `grab` on
+   lift, `tap` on snap; nudge buttons remain the precision tool). Device
+   feel-pass pending.
+5. **OPEN — editor location**: Changes editor lives on the recording
+   metronome sheet (fresh sketch takes only); founder reviewing (§5 of the
+   plan describes it; also demonstrated in-sim 2026-07-28).
 
 ---
 
@@ -486,7 +495,63 @@ Phase status:
       NOTE: during sim verification a JS reload once booted an empty library
       and the disaster-recovery restore recovered everything (spawned
       investigation task) — watch for recurrence.
-- [ ] D — Grid programming UX (blocked on metronome UI redesign)
-- [ ] E — Scheduled-click engines
-- [ ] F — Shared transport (long-horizon)
-- [ ] G — Bluetooth trust polish
+- [x] D — Grid programming UX (2026-07-28, after the metronome UI redesign
+      landed; sim-verified end-to-end: programmed a bar-9 change, recorded with
+      count-in, ruler showed "4/4 · 102" at bar 9 with correct bar widths):
+      • D1 grouping joins the grid — `RecordingGrid.grouping` (feel snapshot,
+        validated in `normalizeRecordingGrid`), take snapshot stores custom
+        groupings, overdub restore replays them (`metronome.setGrouping`),
+        playback click accents from the take's grouping (segment sharing the
+        take's meter; others use meter defaults).
+      • D2 take tempo map + boundary scheduler — take snapshot builds
+        `tempoMap` (sketch `songGrid` with segment 1 = live sheet settings;
+        overdub = master's map ONLY while the sheet still matches its segment
+        1); JS scheduler fires partial `configure()` at each boundary off the
+        measured downbeat anchor (engine restart = boundary downbeat; both
+        engines keep absent config keys, `clickVolume` now optional in the TS
+        type to match); every stop path clears timers and stamps
+        `gridValidToMs` at the earliest unfired change (inert past file end).
+        v1 limits: multi-segment maps stamp only on count-in takes; pause kills
+        remaining changes (validTo stamped); boundary seam = JS-timer class
+        until Phase E.
+      • D3 Changes editor on the metronome sheet — "Changes" disclosure
+        between Meter and Cues (only for fresh sketch takes; overdubs inherit
+        the master's frozen grid): editorial rows "Bar N · meter · bpm",
+        inline bar/bpm steppers + reused MeterChips, add/delete, count summary.
+        Rows live in LOCAL DRAFT state — a fresh change equals the current
+        tempo and the persisted map rightly normalizes it away; the draft
+        keeps it visible while it's shaped (adjust-state-in-render on open).
+        i18n en+he. Polish item deferred: with the editor expanded the sheet
+        can outgrow the screen and push its title row off — BottomSheet max
+        height + inner scroll wants a look.
+- [x] E — Scheduled-click engines (2026-07-29): map mode ALONGSIDE loop mode on
+      both engines — `configureTempoMap`/`clearTempoMap`/`supportsTempoMap`.
+      iOS: per-click `scheduleBuffer(at:)` from a cumulative segment table
+      (Bresenham per segment), cached click voices, rolling ~32-pulse window
+      topped up from the poll; count-in = pulses before grid zero at segment
+      1's tempo; `startAtPhase` offset becomes a WHOLE-GRID position in map
+      mode; map-aware poll/beat-meta/grid-anchor (anchor stays "run pulse 0 +
+      current spacing" so existing consumers self-heal per bar). Android:
+      streaming AudioTrack writer, clicks rendered at map frames, ~150ms
+      ahead. Structural `configure()` clears the map (single-tempo world);
+      `stop()` paths also `clearTempoMap` so the standalone metronome can
+      never start in a stale map. JS: `nativeTempoMapSegments()` (grouping-
+      aware, rate-scaled, same range-refusal), `useMetronome` start options
+      install the map AFTER the map-clearing config sync, recording model
+      passes it (JS boundary scheduler stays as old-binary fallback),
+      usePlaybackClick prefers the map path (no boundary timers; drift check
+      skipped past a multi-segment map's first boundary where its modular
+      math stops meaning anything). iOS SIM-VERIFIED end-to-end on a rebuilt
+      binary: map count-in → completion → head trim (bar 1 at t=0), stamped
+      map ruler exact through the change (bar 17 at 34.5s), playback click
+      across the boundary without restart. NOT yet verified: audible click
+      quality/alignment (needs ears + device), Android engine (needs an
+      Android build — Kotlin compile included), long-run scheduling (only
+      ~50s runs exercised; the 32-pulse window logic wants a soak).
+- [ ] F — Shared transport (long-horizon; Phase C/E landed the `[timing]`
+      click-drift KPI that decides its urgency)
+- [x] G — Bluetooth trust polish (2026-07-29: largely already shipped by the
+      recording redesign — `RecordingTimingWarnings` quiet banners for
+      uncalibrated/stale BT, BT mic, mid-take route change, with a Calibrate
+      action. Added: haptic-as-wireless-immune-reference line in the
+      Bluetooth help item + a "Tempo changes" help item for discoverability.)
