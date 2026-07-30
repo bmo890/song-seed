@@ -226,3 +226,43 @@ describe("sanitizeTempoMap (untrusted input)", () => {
     expect(sanitized?.segments).toEqual([{ atBar: 1, bpm: 92, meterId: "4/4" }]);
   });
 });
+
+/**
+ * The live recording ruler walks pulses through the map rather than multiplying one beat
+ * length, because the founder's takes carry a programmed change (92·3/4 → 102·4/4 at bar 9)
+ * and the old ruler drew 3/4-at-92 spacing over a 4/4-at-102 click from bar 9 onward.
+ */
+describe("walking pulses across a change, the way the live ruler does", () => {
+  const map = normalizeTempoMap({
+    schemaVersion: 1,
+    segments: [
+      { atBar: 1, bpm: 92, meterId: "3/4" },
+      { atBar: 9, bpm: 102, meterId: "4/4" },
+    ],
+  });
+  const beat92 = 60000 / 92;
+  const beat102 = 60000 / 102;
+
+  it("spaces pulses by the segment they fall in", () => {
+    // Pulses 0..23 are the first eight 3/4 bars; 24 onward are 4/4 at 102.
+    expect(msAtPulse(map, 1) - msAtPulse(map, 0)).toBeCloseTo(beat92, 6);
+    expect(msAtPulse(map, 23) - msAtPulse(map, 22)).toBeCloseTo(beat92, 6);
+    expect(msAtPulse(map, 25) - msAtPulse(map, 24)).toBeCloseTo(beat102, 6);
+  });
+
+  it("puts the change exactly on bar 9's downbeat", () => {
+    const changeMs = 8 * 3 * beat92;
+    expect(msAtPulse(map, 24)).toBeCloseTo(changeMs, 6);
+    expect(beatAtMs(map, changeMs).bar).toBe(9);
+    expect(beatAtMs(map, changeMs).beatInBar).toBe(1);
+  });
+
+  it("marks bar lines every 3 pulses before the change and every 4 after", () => {
+    const barPulses: number[] = [];
+    for (let pulse = 0; pulse < 40; pulse += 1) {
+      if (beatAtMs(map, msAtPulse(map, pulse)).beatInBar === 1) barPulses.push(pulse);
+    }
+    expect(barPulses.slice(0, 9)).toEqual([0, 3, 6, 9, 12, 15, 18, 21, 24]);
+    expect(barPulses.slice(9, 12)).toEqual([28, 32, 36]);
+  });
+});

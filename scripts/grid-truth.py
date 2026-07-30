@@ -49,6 +49,8 @@ MIN_BEATS = 6
 SEARCH_WINDOW_MS = 60.0
 """How far either side of a predicted beat to look for that beat's click."""
 
+METER_PULSES = {"2/4": 2, "3/4": 3, "4/4": 4, "5/4": 5, "6/8": 6, "7/8": 7, "12/8": 12}
+
 
 # ─────────────────────────────────────────────────────────────── audio → onsets ──
 
@@ -152,9 +154,19 @@ class Verdict:
     note: str = ""
 
 
-def measure(clip_id: str, audio_path: str, bpm: float, downbeat_ms: float | None) -> Verdict:
+def measure(
+    clip_id: str,
+    audio_path: str,
+    bpm: float,
+    downbeat_ms: float | None,
+    limit_ms: float | None = None,
+    note: str = "",
+) -> Verdict:
     samples = decode_mono(audio_path)
     duration_ms = len(samples) / SAMPLE_RATE * 1000.0
+    if limit_ms is not None and 0 < limit_ms < duration_ms:
+        duration_ms = limit_ms
+        samples = samples[: int(SAMPLE_RATE * duration_ms / 1000.0)]
     flux = onset_envelope(samples)
     beat_ms = 60_000.0 / bpm
 
@@ -211,6 +223,7 @@ def measure(clip_id: str, audio_path: str, bpm: float, downbeat_ms: float | None
         verdict = "OFF"
 
     return Verdict(
+        note=note,
         clip=clip_id, audio=audio_path, bpm=bpm, stored_downbeat_ms=downbeat_ms,
         duration_ms=duration_ms, beats_found=len(errors), contrast=contrast,
         median_error_ms=median_error, p90_abs_error_ms=p90, spread_ms=spread,
@@ -244,14 +257,27 @@ def load_sim_clips(udid: str, bundle: str):
                 grid = clip.get("recordingGrid")
                 if not grid or not grid.get("clickThroughTake"):
                     continue
-                if grid.get("tempoMap") and len(grid["tempoMap"].get("segments", [])) > 1:
-                    continue  # one phase cannot describe a tempo change
                 uri = clip.get("audioUri") or ""
+                # A tempo-mapped take is measured up to its FIRST tempo change: one phase
+                # cannot describe a tempo change, but the first segment is still a grid
+                # that either tells the truth or doesn't.
+                limit_ms = None
+                note = ""
+                segments = (grid.get("tempoMap") or {}).get("segments") or []
+                if len(segments) > 1:
+                    first, second = segments[0], segments[1]
+                    bars = max(1, (second.get("atBar", 2) - first.get("atBar", 1)))
+                    pulses = METER_PULSES.get(first.get("meterId", "4/4"), 4)
+                    bar_ms = (60_000.0 / first.get("bpm", 120)) * pulses
+                    limit_ms = (grid.get("firstDownbeatMs") or 0) + bars * bar_ms
+                    note = f"segment 1 of {len(segments)}"
                 clips.append({
                     "id": clip.get("id"),
                     "path": uri.replace("file://", ""),
-                    "bpm": grid.get("bpm"),
+                    "bpm": (segments[0].get("bpm") if segments else None) or grid.get("bpm"),
                     "downbeat": grid.get("firstDownbeatMs"),
+                    "limit_ms": limit_ms,
+                    "note": note,
                 })
     return clips
 
@@ -273,7 +299,8 @@ def main() -> int:
         if not args.bpm:
             parser.error("--audio needs --bpm")
         targets = [{"id": args.audio.rsplit("/", 1)[-1], "path": args.audio,
-                    "bpm": args.bpm, "downbeat": args.downbeat}]
+                    "bpm": args.bpm, "downbeat": args.downbeat,
+                    "limit_ms": None, "note": ""}]
     else:
         targets = load_sim_clips(args.udid, args.bundle)
         if args.clip:
@@ -288,7 +315,16 @@ def main() -> int:
         if not target["bpm"]:
             continue
         try:
-            verdicts.append(measure(target["id"], target["path"], target["bpm"], target["downbeat"]))
+            verdicts.append(
+                measure(
+                    target["id"],
+                    target["path"],
+                    target["bpm"],
+                    target["downbeat"],
+                    target.get("limit_ms"),
+                    target.get("note", ""),
+                )
+            )
         except subprocess.CalledProcessError:
             print(f"  ! could not decode {target['path']}", file=sys.stderr)
 

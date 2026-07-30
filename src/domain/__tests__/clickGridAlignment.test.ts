@@ -1,6 +1,7 @@
 import {
   estimateClickPhase,
   alignGridToRecordedClicks,
+  firstSegmentEndMs,
   MIN_CLICK_CONTRAST,
 } from "../clickGridAlignment";
 import type { RecordingGrid } from "../../types";
@@ -137,7 +138,40 @@ describe("alignGridToRecordedClicks", () => {
     expect(result.kind).toBe("unchanged");
   });
 
-  it("leaves tempo-mapped takes alone", () => {
+  /**
+   * A tempo-mapped take used to be refused outright. That was wrong: the map is exact by
+   * construction (the native engine schedules its changes off the same anchor), so the whole
+   * grid is wrong by ONE offset, and correcting firstDownbeatMs shifts every segment with it.
+   * Measured on real takes, the ones that hit this refusal were sitting 77-91ms early with
+   * the correction sitting right there, declined.
+   */
+  it("corrects a tempo-mapped take, measuring inside its first segment", () => {
+    const mapped = grid({
+      firstDownbeatMs: 0,
+      tempoMap: {
+        schemaVersion: 1,
+        segments: [
+          { atBar: 1, bpm: BPM, meterId: "3/4" },
+          { atBar: 9, bpm: 120, meterId: "4/4" },
+        ],
+      },
+    });
+    // Clicks at the first segment's beat spacing for the first 8 bars is what the take
+    // actually contains; the comb only ever looks there.
+    const result = alignGridToRecordedClicks({
+      grid: mapped,
+      signal: sidecarSignal({ durationMs, phaseMs: 244 }),
+      durationMs,
+    });
+    expect(result.kind).toBe("corrected");
+    if (result.kind === "corrected") {
+      expect(Math.abs(result.grid.firstDownbeatMs! - 244)).toBeLessThan(25);
+      // The map itself is untouched — every segment rides the corrected downbeat.
+      expect(result.grid.tempoMap).toEqual(mapped.tempoMap);
+    }
+  });
+
+  it("declines when the first segment is too short to verify", () => {
     const result = alignGridToRecordedClicks({
       grid: grid({
         firstDownbeatMs: 0,
@@ -145,7 +179,7 @@ describe("alignGridToRecordedClicks", () => {
           schemaVersion: 1,
           segments: [
             { atBar: 1, bpm: BPM, meterId: "3/4" },
-            { atBar: 9, bpm: 120, meterId: "4/4" },
+            { atBar: 2, bpm: 120, meterId: "4/4" },
           ],
         },
       }),
@@ -153,5 +187,24 @@ describe("alignGridToRecordedClicks", () => {
       durationMs,
     });
     expect(result.kind).toBe("unchanged");
+  });
+
+  it("only looks inside the first segment", () => {
+    const mapped = {
+      bpm: BPM,
+      meterId: "3/4" as const,
+      firstDownbeatMs: 0,
+      tempoMap: {
+        schemaVersion: 1 as const,
+        segments: [
+          { atBar: 1, bpm: BPM, meterId: "3/4" as const },
+          { atBar: 9, bpm: 120, meterId: "4/4" as const },
+        ],
+      },
+    };
+    // 8 bars of 3/4 at 92bpm.
+    expect(firstSegmentEndMs(mapped as never, 40000)).toBeCloseTo(8 * 3 * BEAT_MS, 3);
+    // A single-tempo take is measured end to end.
+    expect(firstSegmentEndMs(grid(), 40000)).toBe(40000);
   });
 });

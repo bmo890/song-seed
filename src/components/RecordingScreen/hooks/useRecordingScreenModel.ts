@@ -235,6 +235,10 @@ export function useRecordingScreenModel() {
     firstBeatCaptureMs: number;
     beatMs: number;
     pulsesPerBar: number;
+    /** Programmed tempo/meter changes. Without it the live ruler drew the FIRST segment's
+     *  spacing for the whole take, so from the first change onward it was measuring the
+     *  performance against a beat length the click had stopped playing. */
+    tempoMap?: TempoMap | null;
   } | null>(null);  const takeGridChangeTimersRef = useRef<
     { handle: ReturnType<typeof setTimeout>; gridMs: number }[]
   >([]);
@@ -1400,6 +1404,7 @@ export function useRecordingScreenModel() {
             firstBeatCaptureMs: downbeatEpochMs - captureStartEpochMs + audibleCorrectionMs,
             beatMs: anchor.msPerPulse,
             pulsesPerBar: anchor.pulsesPerBar ?? metronome.meterPreset.pulsesPerBar,
+            tempoMap: takeGridRef.current?.tempoMap ?? null,
           });
         }
 
@@ -1866,6 +1871,7 @@ export function useRecordingScreenModel() {
             firstBeatCaptureMs: musicalStartEpochMs - captureStartEpochMs + correctionMs,
             beatMs: anchor.msPerPulse,
             pulsesPerBar: anchor.pulsesPerBar ?? metronome.meterPreset.pulsesPerBar,
+            tempoMap: takeGridRef.current?.tempoMap ?? null,
           });
         }
       } else if (
@@ -1891,6 +1897,7 @@ export function useRecordingScreenModel() {
             firstBeatCaptureMs: firstDownbeatMs,
             beatMs: anchor.msPerPulse,
             pulsesPerBar: anchor.pulsesPerBar ?? metronome.meterPreset.pulsesPerBar,
+            tempoMap: takeGridRef.current?.tempoMap ?? null,
           });
         }
         console.log(`[timing] preview take: first bar line stamped at ${firstDownbeatMs}ms in-file`);

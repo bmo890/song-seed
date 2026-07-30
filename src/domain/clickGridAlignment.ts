@@ -1,5 +1,6 @@
 import type { RecordingGrid } from "../types";
 import { onsetFlux } from "./onsetEnvelope";
+import { getMetronomeBeatIntervalMs, getMetronomeMeterPreset } from "./metronome";
 
 /**
  * Align a take's beat grid to the metronome clicks the microphone actually recorded.
@@ -110,6 +111,24 @@ function comb(args: {
     return { phaseMs: refined, contrast: peak / medianScore };
 }
 
+/**
+ * Where the take's first tempo segment ends, in file ms — the window inside which exactly
+ * one beat length holds. `durationMs` for a single-tempo take.
+ */
+export function firstSegmentEndMs(
+    grid: Pick<RecordingGrid, "bpm" | "meterId" | "tempoMap" | "firstDownbeatMs">,
+    durationMs: number
+): number {
+    const segments = grid.tempoMap?.segments ?? [];
+    if (segments.length < 2) return durationMs;
+    const [first, second] = segments;
+    const bars = Math.max(1, second.atBar - first.atBar);
+    const barMs =
+        getMetronomeBeatIntervalMs(first.bpm) * getMetronomeMeterPreset(first.meterId).pulsesPerBar;
+    const start = Math.max(0, grid.firstDownbeatMs ?? 0);
+    return Math.min(durationMs, start + bars * barMs);
+}
+
 /** Signed distance from `a` to `b` around a beat, in (−beat/2, beat/2]. */
 export function wrapToBeat(delta: number, beatMs: number): number {
     let wrapped = delta % beatMs;
@@ -209,28 +228,45 @@ export function alignGridToRecordedClicks(args: {
 }): GridAlignmentResult {
     const { grid, signal, durationMs } = args;
     if (!grid.clickThroughTake) return { kind: "unchanged", reason: "no click in take" };
-    if (grid.tempoMap) return { kind: "unchanged", reason: "tempo-mapped take" };
     if (!(grid.bpm > 0)) return { kind: "unchanged", reason: "no bpm" };
 
+    // A tempo-mapped take used to be refused outright, and that was the wrong call: the
+    // MAP is exact by construction (the native engine schedules its changes sample-exactly
+    // off the same anchor), so the whole grid is wrong by ONE offset — the route latency —
+    // exactly like a single-tempo take. Correcting `firstDownbeatMs` shifts every segment
+    // with it, because every segment is positioned relative to it.
+    //
+    // So measure inside the FIRST segment only, where a single beat length holds. Beyond
+    // the first change a comb has two beat lengths to explain and cannot; and the phase-lock
+    // gate, which compares two halves of the window, would read a tempo change as a
+    // disagreement and decline. Measured on real takes, the takes that hit this were sitting
+    // 77–91ms early with the correction sitting right there, refused.
+    const analysisEndMs = firstSegmentEndMs(grid, durationMs);
     const beatMs = 60000 / grid.bpm;
-    const estimate = estimateClickPhase({ signal, durationMs, beatMs });
+    const estimate = estimateClickPhase({
+        signal,
+        durationMs,
+        beatMs,
+        windowMs: [0, analysisEndMs],
+    });
     if (!estimate) return { kind: "unchanged", reason: "no estimate" };
     if (estimate.contrast < MIN_CLICK_CONTRAST) {
         return { kind: "unchanged", reason: `contrast ${estimate.contrast.toFixed(2)}` };
     }
 
     // Phase-lock gate: both halves of the take must hear the click at the same phase.
+    const midpointMs = analysisEndMs / 2;
     const firstHalf = estimateClickPhase({
         signal,
         durationMs,
         beatMs,
-        windowMs: [0, durationMs / 2],
+        windowMs: [0, midpointMs],
     });
     const secondHalf = estimateClickPhase({
         signal,
         durationMs,
         beatMs,
-        windowMs: [durationMs / 2, durationMs],
+        windowMs: [midpointMs, analysisEndMs],
     });
     if (!firstHalf || !secondHalf) return { kind: "unchanged", reason: "too short to verify" };
     let halfDelta = Math.abs(firstHalf.phaseMs - secondHalf.phaseMs);

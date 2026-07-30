@@ -8,6 +8,7 @@ import {
 } from "react-native-reanimated";
 import { DataPoint } from "@siteed/audio-studio";
 import { advanceTracker } from "../../domain/motionTracking";
+import { beatAtMs, msAtPulse, type TempoMap } from "../../domain/tempoMap";
 import { colors } from "../../design/tokens";
 
 type Props = {
@@ -19,8 +20,17 @@ type Props = {
     captureNowMs?: number | null;
     /** The RUNNING take's measured beat grid, in capture-file ms. When present, the ruler
      *  draws the metronome's own beats and bars — the same lines playback will draw — in
-     *  place of decorative second ticks. */
-    liveGrid?: { firstBeatCaptureMs: number; beatMs: number; pulsesPerBar: number } | null;
+     *  place of decorative second ticks.
+     *
+     *  `tempoMap` carries programmed tempo/meter changes. Without it the ruler drew the
+     *  first segment's spacing for the whole take, so from the first change onward the
+     *  performer was being measured against a beat length the click had stopped playing. */
+    liveGrid?: {
+        firstBeatCaptureMs: number;
+        beatMs: number;
+        pulsesPerBar: number;
+        tempoMap?: TempoMap | null;
+    } | null;
     intervalMs?: number; // Usually 40
     theme?: {
         waveColor?: string;
@@ -253,14 +263,10 @@ function LiveTapeVisualizerImpl({
             // The metronome's own grid: what the performer is playing to IS the ruler.
             // Beats are edge ticks like the second ticks were; bars run full height, the
             // same manuscript line playback draws — one visual language across both.
-            const { firstBeatCaptureMs, beatMs, pulsesPerBar } = liveGrid;
-            const firstIndex = Math.ceil((windowStartMs - firstBeatCaptureMs) / beatMs);
-            for (let index = firstIndex; ; index += 1) {
-                const t = firstBeatCaptureMs + index * beatMs;
-                if (t > windowEndMs) break;
-                if (t < 0) continue;
+            const { firstBeatCaptureMs } = liveGrid;
+            const drawTick = (t: number, isBar: boolean) => {
+                if (t < 0 || t > windowEndMs) return;
                 const x = t * pixelsPerMs;
-                const isBar = pulsesPerBar > 0 && ((index % pulsesPerBar) + pulsesPerBar) % pulsesPerBar === 0;
                 if (isBar && canvasHeight > 0) {
                     ruler.moveTo(x, 0);
                     ruler.lineTo(x, canvasHeight);
@@ -271,6 +277,33 @@ function LiveTapeVisualizerImpl({
                         ruler.moveTo(x, canvasHeight);
                         ruler.lineTo(x, canvasHeight - 8);
                     }
+                }
+            };
+
+            const map = liveGrid.tempoMap;
+            if (map && map.segments.length > 1) {
+                // Programmed changes: pulse positions come from the map, which is exact by
+                // construction (the native engine schedules its changes off the same
+                // anchor). Walking pulses rather than multiplying one beat length is the
+                // only way a ruler can stay right across a tempo or meter change.
+                const startPulse = beatAtMs(map, Math.max(0, windowStartMs - firstBeatCaptureMs))
+                    .absolutePulse;
+                for (let pulse = startPulse; ; pulse += 1) {
+                    const relative = msAtPulse(map, pulse);
+                    const t = firstBeatCaptureMs + relative;
+                    if (t > windowEndMs) break;
+                    drawTick(t, beatAtMs(map, relative).beatInBar === 1);
+                }
+            } else {
+                const { beatMs, pulsesPerBar } = liveGrid;
+                const firstIndex = Math.ceil((windowStartMs - firstBeatCaptureMs) / beatMs);
+                for (let index = firstIndex; ; index += 1) {
+                    const t = firstBeatCaptureMs + index * beatMs;
+                    if (t > windowEndMs) break;
+                    drawTick(
+                        t,
+                        pulsesPerBar > 0 && ((index % pulsesPerBar) + pulsesPerBar) % pulsesPerBar === 0
+                    );
                 }
             }
         } else {
