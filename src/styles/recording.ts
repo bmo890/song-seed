@@ -13,24 +13,34 @@ export const recordingStyles = {
     alignItems: "center",
     minHeight: 44,
   },
+  // A SECTION LABEL, in the page's own voice. It used to be an 18pt bold heading —
+  // the second-loudest thing on the screen after the clock and the title, for a
+  // collapsed secondary affordance — and the same panel in the full player already
+  // renders it as an uppercase eyebrow. "RECORDING INTO", "READY" and "GUIDE" are all
+  // eyebrows here too, so this was the one label speaking in a different register.
+  // Findability comes from the row and its chevron, not from type size.
   recordingLyricsTitle: {
-    fontSize: 18,
-    lineHeight: 22,
+    fontSize: 11,
+    lineHeight: 14,
     fontFamily: "PlusJakartaSans_700Bold",
-    color: "#1b1c1a",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    color: colors.textSecondary,
   },
-  // Expanded: same look as collapsed, just a touch smaller.
+  // Expanded: the label steps back further still — the lyrics are the content now.
   recordingLyricsTitleExpanded: {
-    fontSize: 16,
-    lineHeight: 20,
+    fontSize: 10,
+    lineHeight: 13,
+    letterSpacing: 1.0,
+    color: colors.textMuted,
   },
   recordingLyricsMeta: {
     fontSize: 13,
-    color: "#84736f",
+    color: colors.textSecondary,
   },
   recordingLyricsSyncMeta: {
     fontSize: 12,
-    color: "#B87D6B",
+    color: colors.primary,
     fontFamily: "PlusJakartaSans_700Bold",
   },
   recordingLyricsAutoscrollBtn: {
@@ -80,17 +90,19 @@ export const recordingStyles = {
     alignItems: "center",
     gap: 8,
   },
+  // BARE GLYPHS. "The record button is the only circle on this page" is this screen's own
+  // rule — the header's metronome, sliders, help and overflow are all unringed glyphs, and
+  // these three sat in tinted grey circles next to a bare chevron. The touch target stays
+  // 34pt; only the fill goes. State is carried by ink (primaryDeep when active), the same
+  // way the metronome glyph carries its own on state.
   recordingLyricsZoomBtn: {
     width: 34,
     height: 34,
     borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F4F1ED",
   },
-  recordingLyricsZoomBtnActive: {
-    backgroundColor: "#F2E4DF",
-  },
+  recordingLyricsZoomBtnActive: {},
   // Speed readout button — same footprint as the icon buttons beside it.
   recordingLyricsSpeedBtn: {
     minWidth: 34,
@@ -99,12 +111,11 @@ export const recordingStyles = {
     borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F4F1ED",
   },
   recordingLyricsSpeedBtnText: {
     fontSize: 13,
     fontFamily: "PlusJakartaSans_700Bold",
-    color: "#84736f",
+    color: colors.textSecondary,
     fontVariant: ["tabular-nums"],
   },
   recordingLyricsSpeedBtnTextActive: {
@@ -120,22 +131,24 @@ export const recordingStyles = {
   recordingLyricsSpeedRowItem: {
     flex: 1,
     paddingVertical: 8,
-    borderRadius: 8,
+    borderRadius: radii.lg,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F4F1ED",
+    backgroundColor: colors.surfaceContainer,
   },
+  // Tonal wash + deep terracotta text, not a solid primary fill: a speed option is not
+  // the page's highest-stakes commit, and solid `primary` is reserved for that.
   recordingLyricsSpeedRowItemActive: {
-    backgroundColor: "#B87D6B",
+    backgroundColor: colors.primarySurface,
   },
   recordingLyricsSpeedRowText: {
     fontSize: 13,
     fontFamily: "PlusJakartaSans_700Bold",
-    color: "#84736f",
+    color: colors.textSecondary,
     fontVariant: ["tabular-nums"],
   },
   recordingLyricsSpeedRowTextActive: {
-    color: "#ffffff",
+    color: colors.primaryDeep,
   },
   recordingLyricsScrollContent: {
     paddingHorizontal: 16,
@@ -150,7 +163,7 @@ export const recordingStyles = {
   recordingLyricsText: {
     fontSize: 20,
     lineHeight: 36,
-    color: "#1b1c1a",
+    color: colors.textPrimary,
     fontFamily: "PlusJakartaSans_400Regular",
   },
   recordingScreenLayout: {
@@ -496,11 +509,14 @@ export const recordingStyles = {
     shadowOffset: { width: 0, height: 6 },
     elevation: 3,
   },
+  // A plain smaller circle. It carried `borderWidth: 5` with NO borderColor, which React
+  // Native renders BLACK — a hard black ring around the record button, on a page whose
+  // rule is that there is no pure black anywhere. Leftover from the 8px collar removed
+  // just below; the width outlived the colour.
   circleRecordBtnCompact: {
     width: 60,
     height: 60,
     borderRadius: radii.round,
-    borderWidth: 5,
   },
   // The armed/live state is carried by the glyph (mic → pause) and by the page
   // wash. It used to add an 8px collar, which put a second circle around the

@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../styles";
-import { colors, radii, spacing } from "../../design/tokens";
+import { colors, radii, spacing, text as textStyles } from "../../design/tokens";
 import { LyricsAutoscrollState, LyricsLine } from "../../types";
 import { ChordChartLines } from "../LyricsVersionScreen/components/chords/ChordChart";
 import { ChordZoomBar } from "../LyricsVersionScreen/components/chords/ChordZoomBar";
@@ -240,18 +240,21 @@ function PlayerLyricsPanelInner({
               ]}
               numberOfLines={1}
             >
-              Lyrics
+              {t("common.lyrics")}
             </Text>
             {!isExpanded ? (
               <Text style={[appStyles.playerLyricsMeta, appStyles.recordingLyricsMeta]}>
-                {versionLabel} • {updatedAtLabel}
+                {versionLabel} · {updatedAtLabel}
               </Text>
             ) : null}
           </Pressable>
 
           {isExpanded && hasChords ? (
             <Pressable
-              style={appStyles.recordingLyricsZoomBtn}
+              style={({ pressed }) => [
+                appStyles.recordingLyricsZoomBtn,
+                pressed ? appStyles.pressDown : null,
+              ]}
               onPress={() => setChordsOn((on) => !on)}
               hitSlop={6}
               accessibilityLabel={chordsOn ? t("player.hideChords") : t("player.showChords")}
@@ -269,9 +272,10 @@ function PlayerLyricsPanelInner({
                   {/* The whole control: is it scrolling right now? Same single tap
                    * idle (test the speed) or mid-take (pause/resume). */}
                   <Pressable
-                    style={[
+                    style={({ pressed }) => [
                       appStyles.recordingLyricsZoomBtn,
                       isScrolling ? appStyles.recordingLyricsZoomBtnActive : null,
+                      pressed ? appStyles.pressDown : null,
                     ]}
                     onPress={() =>
                       autoscrollEnabled ? onAutoscrollInterrupted?.() : onToggleAutoscroll?.(true)
@@ -287,9 +291,10 @@ function PlayerLyricsPanelInner({
                   </Pressable>
 
                   <Pressable
-                    style={[
+                    style={({ pressed }) => [
                       appStyles.recordingLyricsSpeedBtn,
                       speedOpen ? appStyles.recordingLyricsZoomBtnActive : null,
+                      pressed ? appStyles.pressDown : null,
                     ]}
                     onPress={() => setSpeedOpen((open) => !open)}
                     hitSlop={6}
@@ -308,9 +313,10 @@ function PlayerLyricsPanelInner({
               ) : null}
 
               <Pressable
-                style={[
+                style={({ pressed }) => [
                   appStyles.recordingLyricsZoomBtn,
                   zoomOpen ? appStyles.recordingLyricsZoomBtnActive : null,
+                  pressed ? appStyles.pressDown : null,
                 ]}
                 onPress={() => setZoomOpen((open) => !open)}
                 hitSlop={6}
@@ -322,7 +328,11 @@ function PlayerLyricsPanelInner({
           ) : null}
 
           <Pressable
-            style={[appStyles.playerLyricsToggleBtn, appStyles.recordingLyricsToggleBtn]}
+            style={({ pressed }) => [
+              appStyles.playerLyricsToggleBtn,
+              appStyles.recordingLyricsToggleBtn,
+              pressed ? appStyles.pressDown : null,
+            ]}
             onPress={handleToggle}
             hitSlop={6}
           >
@@ -337,9 +347,10 @@ function PlayerLyricsPanelInner({
               return (
                 <Pressable
                   key={speed}
-                  style={[
+                  style={({ pressed }) => [
                     appStyles.recordingLyricsSpeedRowItem,
                     active ? appStyles.recordingLyricsSpeedRowItemActive : null,
+                    pressed ? appStyles.pressDown : null,
                   ]}
                   onPress={() => {
                     onSelectAutoscrollSpeedMultiplier?.(speed);
@@ -411,7 +422,11 @@ function PlayerLyricsPanelInner({
   // scroll), so a long lyric gets real room instead of a cramped inner box.
   return (
     <View style={styles.panel}>
-      <Pressable style={styles.header} onPress={handleToggle} hitSlop={6}>
+      <Pressable
+        style={({ pressed }) => [styles.header, pressed ? appStyles.pressDown : null]}
+        onPress={handleToggle}
+        hitSlop={6}
+      >
         <View style={styles.headerText}>
           <Text style={styles.kicker}>{t("common.lyrics")}</Text>
           <Text style={styles.meta}>
@@ -463,20 +478,18 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   kicker: {
-    fontFamily: "PlusJakartaSans_700Bold",
+    ...textStyles.sectionTitle,
     fontSize: 11,
     letterSpacing: 1.2,
-    textTransform: "uppercase",
-    color: colors.textSecondary,
   },
   meta: {
-    fontFamily: "PlusJakartaSans_400Regular",
+    ...textStyles.supporting,
     fontSize: 12,
     lineHeight: 16,
     color: colors.textMuted,
   },
   summary: {
-    fontFamily: "Lora_500Medium",
+    ...textStyles.cardTitle,
     fontSize: 16,
     lineHeight: 24,
     color: colors.textSecondary,
@@ -496,9 +509,8 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
   },
   text: {
-    fontFamily: "Lora_500Medium",
+    ...textStyles.cardTitle,
     fontSize: 18,
     lineHeight: 30,
-    color: colors.textPrimary,
   },
 });

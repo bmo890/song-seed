@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { PlayerLyricsPanel } from "../../PlayerScreen/PlayerLyricsPanel";
 import { formatClipDate } from "../../../utils";
 import type { LyricsLine } from "../../../types";
@@ -36,11 +37,12 @@ export function RecordingLyricsSection({
   onAutoscrollInterrupted,
   onSelectAutoscrollSpeedMultiplier,
 }: RecordingLyricsSectionProps) {
+  const { t } = useTranslation();
   return (
     <PlayerLyricsPanel
       text={text}
       chordLines={chordLines}
-      versionLabel={`Version ${versionCount}`}
+      versionLabel={t("lyrics.version", { number: versionCount })}
       // The app's recency ladder ("Yesterday", "Tue", "Jun 26"), not
       // toLocaleString's "27/07/2026, 16:08:48" — a machine stamp is the one
       // voice this app never uses.

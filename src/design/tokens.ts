@@ -36,6 +36,10 @@ export const colors = {
   // Deep terracotta — text-safe companion to primary (small accent text, icons,
   // filled controls that need contrast on paper). The app's original accent.
   primaryDeep: "#824F3F",
+  /** The tonal terracotta WASH behind an active/selected control — the "primary" tier of
+   *  the button language, paired with primaryDeep text or icon. Was written out as a bare
+   *  #F2E4DF in six places before it had a name. */
+  primarySurface: "#F2E4DF",
 
   /** Stage ramp (locked 2026-07-27) — the two intermediate steps between
    *  `textMuted` (Idea, nothing invested yet) and `primaryDeep` (Song, finished).
