@@ -33,6 +33,20 @@ export type TrackerOptions = {
     resyncDistance: number;
     /** Velocity to adopt after a resync — the nominal rate of the thing being followed. */
     resyncVelocity: number;
+    /**
+     * Ceiling on how fast the tape may actually MOVE, in position units per ms.
+     *
+     * `maxVelocity` bounds the carried velocity estimate, but the per-frame position step is
+     * `velocity·Δt + residual·α`, and that second term is not velocity — a residual closes at
+     * roughly `residual/tau` on top of the nominal rate, so a 400ms debt at tau=130ms plays
+     * back at about 4× real time for a quarter of a second. That is the "speeds up to catch
+     * up" after a scrub: the tape paying off a debt it accrued while it was held still.
+     *
+     * A genuine discontinuity (a seek landing) should be a JUMP, not a sprint — callers snap
+     * for those. Everything else is drift, and drift must close at a rate the eye reads as
+     * normal motion. Defaults to unbounded so existing behaviour is opt-in only.
+     */
+    maxStepRate?: number;
 };
 
 export type TrackerState = {
@@ -73,8 +87,15 @@ export function advanceTracker(
         Math.min(options.maxVelocity, velocity + (residual * beta) / frameDeltaMs)
     );
 
+    let step = velocity * frameDeltaMs + residual * alpha;
+    const maxStepRate = options.maxStepRate;
+    if (maxStepRate != null && maxStepRate > 0) {
+        const maxStep = maxStepRate * frameDeltaMs;
+        step = Math.max(-maxStep, Math.min(maxStep, step));
+    }
+
     return {
-        position: coasted + residual * alpha,
+        position: position + step,
         velocity: nextVelocity,
         resynced: false,
     };

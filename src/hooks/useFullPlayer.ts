@@ -198,6 +198,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
         positionMs: resolved.positionMs,
         isPlaying: !!next.playing && !next.didJustFinish,
         playbackRate: next.playbackRate ?? 1,
+        seekLanded: resolved.shouldAccept,
       });
     },
     [positionChannel]
@@ -231,10 +232,12 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   const appStateRef = useRef(AppState.currentState);
   const currentSourceUriRef = useRef<string | null>(null);
 
-  const holdSourcePositionAt = useCallback((targetMs: number) => {
+  const holdSourcePositionAt = useCallback((targetMs: number, sourceMs?: number | null) => {
     const safeTargetMs = Math.max(0, targetMs);
     sourcePositionGateRef.current = {
       targetMs: safeTargetMs,
+      // Where we came from, so a short seek's stale reports can't pass for a landing.
+      sourceMs: sourceMs ?? playerPositionRef.current,
       until: Date.now() + SOURCE_POSITION_GATE_MS,
       accepted: false,
     };

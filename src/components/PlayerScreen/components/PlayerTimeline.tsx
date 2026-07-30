@@ -34,6 +34,7 @@ type TransportClock = {
   sharedIsPlaying: SharedValue<boolean>;
   sharedPlaybackRate: SharedValue<number>;
   sharedUpdateToken: SharedValue<number>;
+  sharedSeekLandedToken: SharedValue<number>;
 };
 
 type Props = {
@@ -259,6 +260,7 @@ function PlayerTimelineInner({
       sharedCurrentTimeMs={transportClock.sharedCurrentTimeMs}
       sharedDurationMs={transportClock.sharedDurationMs}
       sharedTransportUpdateToken={transportClock.sharedUpdateToken}
+      sharedSeekLandedToken={transportClock.sharedSeekLandedToken}
       sharedAudioProgress={sharedAudioProgress}
       sharedPauseHoldMs={sharedPauseHoldMs}
       sharedPauseHoldToken={sharedPauseHoldToken}

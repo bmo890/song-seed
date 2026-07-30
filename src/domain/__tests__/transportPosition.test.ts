@@ -55,6 +55,50 @@ describe("resolveSourcePositionHold", () => {
       resolveSourcePositionHold(2_000, hold({ accepted: true }), 5_000, TOLERANCE)
     ).toEqual({ positionMs: 2_000, shouldAccept: false });
   });
+
+  // A short scrub moves less than the tolerance, so the position we came FROM is also
+  // "within tolerance of the target" — and the first stale report used to release the hold
+  // instantly, flashing the playhead back before the engine had moved at all.
+  describe("a seek shorter than the tolerance", () => {
+    const shortSeek = hold({ sourceMs: 30_000, targetMs: 30_200 });
+
+    it("does not mistake the position it came from for the landing", () => {
+      const stale = resolveSourcePositionHold(30_000, shortSeek, 5_000, TOLERANCE);
+      expect(stale.shouldAccept).toBe(true);
+      // Whatever it does with the hold, it must not be MORE wrong than the seek was long.
+      expect(Math.abs(stale.positionMs - 30_200)).toBeLessThanOrEqual(200);
+    });
+  });
+
+  describe("a seek longer than the tolerance", () => {
+    const longSeek = hold({ sourceMs: 5_000, targetMs: 30_000 });
+
+    it("keeps showing the target while the engine still reports the source", () => {
+      expect(resolveSourcePositionHold(5_000, longSeek, 5_000, TOLERANCE)).toEqual({
+        positionMs: 30_000,
+        shouldAccept: false,
+      });
+    });
+
+    it("still rejects a report that has barely left the source", () => {
+      const barelyMoved = resolveSourcePositionHold(6_000, longSeek, 5_000, TOLERANCE);
+      expect(barelyMoved.shouldAccept).toBe(false);
+      expect(barelyMoved.positionMs).toBe(30_000);
+    });
+
+    it("accepts a genuine landing, including one short of the target", () => {
+      // AAC seeks land on the nearest decodable frame, which can be a few hundred ms out.
+      const landed = resolveSourcePositionHold(29_750, longSeek, 5_000, TOLERANCE);
+      expect(landed).toEqual({ positionMs: 29_750, shouldAccept: true });
+    });
+
+    it("still gives up at the deadline", () => {
+      expect(resolveSourcePositionHold(5_000, longSeek, 10_000, TOLERANCE)).toEqual({
+        positionMs: 5_000,
+        shouldAccept: true,
+      });
+    });
+  });
 });
 
 describe("resolveClockPosition", () => {

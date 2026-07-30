@@ -56,6 +56,9 @@ export function useTransportClock({
   const sharedIsPlaying = useSharedValue(isPlaying);
   const sharedPlaybackRate = useSharedValue(playbackRate);
   const sharedUpdateToken = useSharedValue(0);
+  /** Bumped on the report where a seek actually landed. Lets the reel end its post-scrub
+   *  hold on the event rather than on a timer. */
+  const sharedSeekLandedToken = useSharedValue(0);
 
   useEffect(() => {
     if (resetKeyRef.current === resetKey) {
@@ -80,7 +83,12 @@ export function useTransportClock({
    * prop effect. The rules it runs are the same either way — see `resolveClockPosition`.
    */
   const applyReport = useCallback(
-    (reportedMs: number, reportIsPlaying: boolean, reportPlaybackRate: number) => {
+    (
+      reportedMs: number,
+      reportIsPlaying: boolean,
+      reportPlaybackRate: number,
+      seekLanded = false
+    ) => {
       const resolution = resolveClockPosition({
         positionMs: reportedMs,
         isPlaying: reportIsPlaying,
@@ -105,9 +113,12 @@ export function useTransportClock({
       }
 
       sharedCurrentTimeMs.value = resolution.positionMs;
+      if (seekLanded) {
+        sharedSeekLandedToken.value += 1;
+      }
       sharedUpdateToken.value += 1;
     },
-    [resetPositionMs, sharedCurrentTimeMs, sharedUpdateToken]
+    [resetPositionMs, sharedCurrentTimeMs, sharedSeekLandedToken, sharedUpdateToken]
   );
 
   useEffect(() => {
@@ -124,7 +135,7 @@ export function useTransportClock({
       return;
     }
     return positionChannel.subscribe((report) => {
-      applyReport(report.positionMs, report.isPlaying, report.playbackRate);
+      applyReport(report.positionMs, report.isPlaying, report.playbackRate, report.seekLanded);
     });
   }, [applyReport, channelDriven, positionChannel]);
 
@@ -161,8 +172,17 @@ export function useTransportClock({
       sharedIsPlaying,
       sharedPlaybackRate,
       sharedUpdateToken,
+      sharedSeekLandedToken,
       setDisplayPositionMs,
     }),
-    [sharedCurrentTimeMs, sharedDurationMs, sharedIsPlaying, sharedPlaybackRate, sharedUpdateToken, setDisplayPositionMs]
+    [
+      sharedCurrentTimeMs,
+      sharedDurationMs,
+      sharedIsPlaying,
+      sharedPlaybackRate,
+      sharedUpdateToken,
+      sharedSeekLandedToken,
+      setDisplayPositionMs,
+    ]
   );
 }

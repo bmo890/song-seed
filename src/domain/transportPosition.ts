@@ -19,6 +19,12 @@ export type TransportPositionReport = {
     positionMs: number;
     isPlaying: boolean;
     playbackRate: number;
+    /**
+     * This report is the one where a seek LANDED — the engine's own clock reached the target
+     * it was sent to. Surfaces so the reel can end its post-scrub hold on the actual event
+     * instead of on a timer, and land on the position rather than accelerate toward it.
+     */
+    seekLanded?: boolean;
 };
 
 export type TransportPositionChannel = {
@@ -54,6 +60,9 @@ export function createTransportPositionChannel(): TransportPositionChannel {
 export type SourcePositionHold = {
     /** Where the transport was told to be. */
     targetMs: number;
+    /** Where it was when the seek was issued. Used to tell a LANDED report from a stale one
+     *  when the two are close enough that distance-to-target alone cannot. */
+    sourceMs?: number | null;
     /** Wall-clock deadline; past this the engine has had long enough. */
     until: number;
     /** True once the engine's own reports have caught up to the target. */
@@ -70,6 +79,17 @@ export type SourceHoldResolution = {
 /**
  * After a source swap or a seek, the engine keeps reporting the OLD position for a while.
  * Show the target instead until its own reports agree, or until the deadline passes.
+ *
+ * "Agree" cannot be distance-to-target alone. The tolerance is wide (a seek lands on the
+ * nearest decodable frame, which for AAC can be a few hundred ms away), so for any seek
+ * SHORTER than the tolerance the position we came from is also "within tolerance" — and the
+ * first stale report released the hold instantly, flashing the playhead back to the source
+ * before the engine had moved. So the rule scales with the distance actually travelled:
+ *
+ *  - a short seek accepts immediately, because being wrong costs at most that short distance
+ *    and the next report corrects it;
+ *  - a long seek additionally requires the report to have covered at least half the ground,
+ *    which no stale report can fake and every genuine landing satisfies.
  */
 export function resolveSourcePositionHold(
     rawPositionMs: number,
@@ -81,7 +101,14 @@ export function resolveSourcePositionHold(
         return { positionMs: rawPositionMs, shouldAccept: false };
     }
 
-    const hasArrived = Math.abs(rawPositionMs - hold.targetMs) <= toleranceMs;
+    const withinTolerance = Math.abs(rawPositionMs - hold.targetMs) <= toleranceMs;
+    const seekDistanceMs =
+        hold.sourceMs == null ? null : Math.abs(hold.targetMs - hold.sourceMs);
+    const hasLeftTheSource =
+        seekDistanceMs == null ||
+        seekDistanceMs <= toleranceMs ||
+        Math.abs(rawPositionMs - hold.sourceMs!) >= seekDistanceMs / 2;
+    const hasArrived = withinTolerance && hasLeftTheSource;
     const hasTimedOut = nowMs >= hold.until;
 
     if (hasArrived) {

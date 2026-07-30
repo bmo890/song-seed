@@ -146,4 +146,74 @@ describe("advanceTracker", () => {
         expect(step.velocity).toBe(1);
         expect(step.resynced).toBe(false);
     });
+
+    /**
+     * The scrub sprint. `maxVelocity` bounds the carried velocity estimate but NOT the
+     * per-frame correction term, so a debt accrued while the tape was held still (a scrub
+     * settle, a play-start grace) was paid back by running the tape at several times real
+     * speed for a few hundred ms. That is what "it speeds up to catch up" was.
+     */
+    describe("closing a debt after a hold", () => {
+        const frameMs = 1000 / 60;
+        /** Peak on-screen speed, as a multiple of real time, while closing `debtMs`. */
+        function peakSpeed(debtMs: number, options: TrackerOptions) {
+            let position = 0;
+            let velocity = 1;
+            let peak = 0;
+            for (let frame = 0; frame < 60; frame += 1) {
+                const target = debtMs + (frame + 1) * frameMs;
+                const next = advanceTracker(position, velocity, target, frameMs, options);
+                peak = Math.max(peak, (next.position - position) / frameMs);
+                position = next.position;
+                velocity = next.velocity;
+            }
+            return peak;
+        }
+
+        it("sprints when the step rate is unbounded", () => {
+            // 400ms of debt at tau=130ms is roughly 400/130 ≈ 3× on top of nominal.
+            expect(peakSpeed(400, { ...OPTIONS, resyncDistance: 10_000 })).toBeGreaterThan(3);
+        });
+
+        it("stays at a readable speed when the step rate is capped", () => {
+            const capped = peakSpeed(400, {
+                ...OPTIONS,
+                resyncDistance: 10_000,
+                maxStepRate: 1.4,
+            });
+            expect(capped).toBeLessThanOrEqual(1.4 + 1e-9);
+        });
+
+        it("still closes the debt, just without the sprint", () => {
+            let position = 0;
+            let velocity = 1;
+            const options = { ...OPTIONS, resyncDistance: 10_000, maxStepRate: 1.4 };
+            for (let frame = 0; frame < 200; frame += 1) {
+                const target = 400 + (frame + 1) * frameMs;
+                const next = advanceTracker(position, velocity, target, frameMs, options);
+                position = next.position;
+                velocity = next.velocity;
+            }
+            expect(Math.abs(position - (400 + 200 * frameMs))).toBeLessThan(5);
+        });
+
+        it("leaves ordinary tracking untouched", () => {
+            // A capped tape and an uncapped one must be indistinguishable at nominal speed.
+            const options = { ...OPTIONS, maxStepRate: 1.4 };
+            let a = 0;
+            let b = 0;
+            let va = 1;
+            let vb = 1;
+            for (let frame = 0; frame < 120; frame += 1) {
+                const target = (frame + 1) * frameMs;
+                const stepA = advanceTracker(a, va, target, frameMs, OPTIONS);
+                const stepB = advanceTracker(b, vb, target, frameMs, options);
+                a = stepA.position;
+                va = stepA.velocity;
+                b = stepB.position;
+                vb = stepB.velocity;
+            }
+            expect(Math.abs(a - b)).toBeLessThan(1e-9);
+        });
+    });
 });
