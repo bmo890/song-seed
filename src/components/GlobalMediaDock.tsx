@@ -12,6 +12,7 @@ import { useFullPlayerControls } from "../hooks/FullPlayerProvider";
 import { usePlayerSheetPosition } from "../hooks/PlayerSheetPositionProvider";
 import { shouldLiftDockAboveSelectionBar } from "./playerSheetVisibility";
 import { useStore } from "../state/useStore";
+import { resolvePreviousAction } from "../domain/transportPrevious";
 import { styles } from "../styles";
 import { colors } from "../design/tokens";
 import { fmtDuration, getCollectionById } from "../utils";
@@ -188,7 +189,17 @@ export function GlobalMediaDock({
   };
 
   const handleQueuePrev = () => {
-    if (!hasPrevInQueue) return;
+    // Restart-then-previous, the rule every player people know uses. The dock used to
+    // skip straight to the previous clip — and do nothing at all on the first one — so
+    // there was no way back to the top of a take from here.
+    // Read position imperatively: this component deliberately does not subscribe to the
+    // playback tick (it would re-render 20x/sec and jank a concurrent drag).
+    const positionMs = useStore.getState().playerPositionMs;
+    if (resolvePreviousAction({ positionMs, hasPreviousItem: hasPrevInQueue }) === "restart") {
+      haptic.tap();
+      void fullPlayer.seekTo(0);
+      return;
+    }
     useStore.getState().requestInlineStop();
     useStore.getState().advancePlayerQueue("previous", true);
   };

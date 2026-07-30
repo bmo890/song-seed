@@ -841,6 +841,14 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     resumeRecording,
     saveRecording,
     discardRecording,
+    /** Re-activate the recording audio session without resuming capture. The metronome's
+     *  engine plays into this session with manageAudioSession:false, so on resume it has to
+     *  be live BEFORE the click starts — starting the click first is why it failed outright
+     *  on iOS after a pause. */
+    claimAudioSession: claimRecordingAudioSession,
+    /** Raw captured audio in ms — the same axis the beat grid is stamped in, and frozen
+     *  while paused, which is what makes it the right thing to phase a resumed click to. */
+    captureDurationMs: liveWaveformData.durationMs,
     armHeadTrim,
     commitHeadTrim,
     abortHeadTrim,

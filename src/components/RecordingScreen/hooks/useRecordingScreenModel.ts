@@ -35,6 +35,7 @@ import {
   type TempoMap,
 } from "../../../domain/tempoMap";
 import { nativeTempoMapSegments } from "../../../domain/playbackClick";
+import { describeGridPosition, resolveResumeClickPhase } from "../../../domain/resumeClickPhase";
 import { buildSaveDestinations, resolveSaveDestinationLabel, type SaveDestination } from "../../../domain/collectionManagement";
 import { personalWorkspaces } from "../../../domain/workspaceVisibility";
 import { authorizeIntentionalEmptyStateWrite } from "../../../services/stateIntegrity";
@@ -239,7 +240,11 @@ export function useRecordingScreenModel() {
      *  spacing for the whole take, so from the first change onward it was measuring the
      *  performance against a beat length the click had stopped playing. */
     tempoMap?: TempoMap | null;
-  } | null>(null);  const takeGridChangeTimersRef = useRef<
+  } | null>(null);
+  /** Mirror for imperative readers (the resume handler) — a press handler must not depend
+   *  on having re-rendered since the grid was measured. */
+  const liveTakeGridRef = useRef(liveTakeGrid);
+  liveTakeGridRef.current = liveTakeGrid;  const takeGridChangeTimersRef = useRef<
     { handle: ReturnType<typeof setTimeout>; gridMs: number }[]
   >([]);
   /** True while the running take's changes are scheduled by the native map engine. */
@@ -363,6 +368,36 @@ export function useRecordingScreenModel() {
   );
 
   const recordingControlsDisabled = isArmingRecording || (recording.isRecording && !recording.isPaused);
+  /**
+   * The metronome is fixed for the duration of a take — including while PAUSED.
+   *
+   * Everything downstream of a take's grid assumes one set of click settings anchored at one
+   * downbeat: the head trim, the live ruler, the saved grid, self-alignment. Letting the
+   * meter or tempo change mid-take would mean the grid stamped at the downbeat stops
+   * describing the audio from the change onward, with nothing anchoring the later segments.
+   * Supporting that properly is a bigger piece of work than it looks; until then the honest
+   * thing is to make it impossible rather than to let it half-work.
+   */
+  /** Preview ruler for an armed-but-not-yet-recording metronome. Single-tempo by design:
+   *  before the downbeat, bar 1's spacing is the only honest thing to show. */
+  const previewTakeGrid = useMemo(() => {
+    if (!recordingMetronomeEnabled || !metronome.isNativeAvailable) return null;
+    if (!(metronome.beatIntervalMs > 0)) return null;
+    return {
+      firstBeatCaptureMs: 0,
+      beatMs: metronome.beatIntervalMs,
+      pulsesPerBar: metronome.meterPreset.pulsesPerBar,
+      tempoMap: null,
+    };
+  }, [
+    metronome.beatIntervalMs,
+    metronome.isNativeAvailable,
+    metronome.meterPreset.pulsesPerBar,
+    recordingMetronomeEnabled,
+  ]);
+
+  const metronomeLockedForTake =
+    isArmingRecording || recording.isRecording || recording.isPaused;
   const guideMixDurationMs =
     Math.round((guideMixStatus.duration ?? 0) * 1000) ||
     (recordingOverdubClip ? getClipPlaybackDurationMs(recordingOverdubClip) ?? 0 : 0);
@@ -1925,6 +1960,14 @@ export function useRecordingScreenModel() {
     }
     autoStoppingOverdubRef.current = false;
 
+    // The recording audio session has to be live before the click starts: the metronome's
+    // engine plays into it with manageAudioSession:false, and starting it against a session
+    // that a pause left inactive is why the metronome failed outright on iOS after
+    // pause-and-continue. Claiming it here covers both resume paths below.
+    await recording.claimAudioSession().catch((error) => {
+      console.warn("Recording audio session claim before resume failed", error);
+    });
+
     // If count-in was (re)enabled while paused, run a fresh count-in before resuming. The
     // completion effect handles the actual resume (mode "resume") and one-shot reset.
     const wantsCountIn = metronome.countInBars > 0 && metronome.isNativeAvailable;
@@ -1953,10 +1996,42 @@ export function useRecordingScreenModel() {
 
     await resumeGuideMix();
     if (recordingMetronomeEnabled && metronome.isNativeAvailable) {
+      // The click must come back in ON the take's grid, not on a fresh downbeat. Capture ms
+      // is frozen while paused, so the grid position we left off at is still exactly where
+      // capture will resume — see domain/resumeClickPhase for why restarting from pulse 0
+      // put the take's second half off the grid its first half was played to.
+      const liveGrid = liveTakeGridRef.current;
+      const phase = liveGrid
+        ? resolveResumeClickPhase({
+            captureMs: recording.captureDurationMs,
+            firstBeatCaptureMs: liveGrid.firstBeatCaptureMs,
+            beatMs: liveGrid.beatMs,
+            pulsesPerBar: liveGrid.pulsesPerBar,
+            tempoMap: liveGrid.tempoMap ?? null,
+            startsEarlyByMs: activeMonitoringCompensationMs,
+          })
+        : null;
+      const at = liveGrid
+        ? describeGridPosition({
+            captureMs: recording.captureDurationMs,
+            firstBeatCaptureMs: liveGrid.firstBeatCaptureMs,
+            beatMs: liveGrid.beatMs,
+            pulsesPerBar: liveGrid.pulsesPerBar,
+            tempoMap: liveGrid.tempoMap ?? null,
+          })
+        : null;
+      console.log(
+        `[timing] resume click: ` +
+          (phase
+            ? `phase ${Math.round(phase.offsetMs)}ms (${phase.unit})` +
+              (at ? ` — bar ${at.bar} beat ${at.beat}` : "")
+            : "fresh downbeat (no measured grid to continue)")
+      );
       try {
         await metronome.start({
           manageAudioSession: false,
           cueDelayMs: activeMonitoringCompensationMs,
+          phaseOffsetMs: phase?.offsetMs,
         });
       } catch (error) {
         console.warn("Recording metronome resume failed", error);
@@ -2034,6 +2109,7 @@ export function useRecordingScreenModel() {
     hasProjectLyrics,
     recording,
     recordingControlsDisabled,
+    metronomeLockedForTake,
     recordingPlaceholderTitle,
     quickNameModalVisible,
     quickNameDraft,
@@ -2042,7 +2118,18 @@ export function useRecordingScreenModel() {
     metronomeSheetVisible,
     preferredRecordingInputId,
     recordingMetronomeEnabled,
-    liveTakeGrid,
+    /**
+     * What the tape's ruler draws.
+     *
+     * Prefers the take's MEASURED grid, and falls back to a preview built from the
+     * metronome's current settings the moment it is armed. The reel used to keep drawing
+     * decorative second ticks until record was pressed, so the surface only became
+     * metronome-shaped at the least welcome moment — and any meter or tempo change made
+     * before recording showed nothing at all. Anchored at capture 0 because that is where
+     * an idle tape is parked; the spacing is already what the count-in will sound like, so
+     * when the measured grid lands only the phase moves.
+     */
+    liveTakeGrid: liveTakeGrid ?? previewTakeGrid,
     isArmingRecording,
     overdubReviewLocked,
     guideMixIsPlaying: !!guideMixStatus.playing,

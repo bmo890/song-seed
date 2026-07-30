@@ -290,7 +290,11 @@ function PlayerTimelineInner({
       // stays pinned at 1x (whole clip, no zoom controls).
       zoomMultiple={mode === "practice" ? practiceZoomMultiple : mode === "playalong" ? 1 : undefined}
       onZoomMultipleChange={mode === "practice" ? onPracticeZoomMultipleChange : undefined}
-      showMinimapMode={mode === "practice" ? "auto" : "never"}
+      // "auto" = show once zoomed past 1x, which is precisely when a thumb needs it: the
+      // clip no longer fits the reel. It was pinned off outside practice mode, so the full
+      // player lost its only way to cross a zoomed clip quickly. Play-along has no zoom
+      // controls, so auto stays quiet there on its own.
+      showMinimapMode="auto"
       freezeSelectedRangeWhenFullyVisible={mode === "practice" && practiceLoopEnabled}
       selectedRanges={mode === "practice" && practiceLoopEnabled ? practiceLoopSelection : undefined}
       practiceMarkers={mode === "practice" ? practiceMarkers : undefined}

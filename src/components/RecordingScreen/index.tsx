@@ -142,8 +142,12 @@ export function RecordingScreen() {
           metronomeEnabled={screen.recordingMetronomeEnabled}
           liveTakeGrid={screen.liveTakeGrid}
           metronomeSummary={metronomeSummary}
+          // Locked for the whole take, PAUSED INCLUDED. Changing tempo, meter or the click
+          // itself mid-take would mean the grid stamped at the downbeat no longer describes
+          // the audio after the change — a tempo map with no anchor for its later segments.
+          // Out of scope by choice; the lock is how that choice stays honest.
           metronomeToggleDisabled={
-            screen.recordingControlsDisabled || !screen.metronome.isNativeAvailable
+            screen.metronomeLockedForTake || !screen.metronome.isNativeAvailable
           }
           onToggleMetronome={() =>
             screen.setMetronomeEnabledForTake(!screen.recordingMetronomeEnabled)
@@ -168,6 +172,7 @@ export function RecordingScreen() {
             grouping: screen.metronome.grouping,
             isCountIn: screen.metronome.isCountIn,
             isRunning: screen.metronome.isRunning,
+            enabled: screen.recordingMetronomeEnabled,
           }}
           recording={{
             isRecording: screen.recording.isRecording,

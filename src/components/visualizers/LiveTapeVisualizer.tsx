@@ -5,11 +5,13 @@ import {
     useDerivedValue,
     useFrameCallback,
     useSharedValue,
+    withTiming,
 } from "react-native-reanimated";
 import { DataPoint } from "@siteed/audio-studio";
 import { advanceTracker } from "../../domain/motionTracking";
 import { beatAtMs, msAtPulse, type TempoMap } from "../../domain/tempoMap";
 import { colors } from "../../design/tokens";
+import { durations } from "../../design/motion";
 
 type Props = {
     dataPoints: DataPoint[];
@@ -214,6 +216,15 @@ function LiveTapeVisualizerImpl({
         Skia.XYWHRect(0, 0, tapeNowMs.value * pixelsPerMs + CANDLE_WIDTH / 2, 100000)
     );
 
+    // Identity of the ruler being drawn. When it changes — second ticks becoming a beat
+    // grid as the metronome is armed, or a preview grid being replaced by the take's
+    // measured one — the two are cross-faded rather than swapped, so the reel reshapes
+    // instead of jolting. (docs/design-system.md: nothing pops.)
+    const rulerKey = liveGrid
+        ? `grid:${Math.round(liveGrid.beatMs)}:${liveGrid.pulsesPerBar}:` +
+          `${Math.round(liveGrid.firstBeatCaptureMs)}:${liveGrid.tempoMap?.segments.length ?? 1}`
+        : "clock";
+
     const { wavePath, rulerPath } = useMemo(() => {
         const wave = Skia.Path.Make();
         const ruler = Skia.Path.Make();
@@ -332,8 +343,32 @@ function LiveTapeVisualizerImpl({
             }
         }
 
-        return { wavePath: wave, rulerPath: ruler };
+        return { wavePath: wave, rulerPath: ruler, rulerKey };
     }, [canvasHeight, canvasWidth, dataPoints, latestDataMs, liveGrid, pixelsPerMs]);
+
+    // Cross-fade on a ruler change: the outgoing path is held for one transition and the
+    // incoming one fades up over it. Both ride the same tape transform, so they stay in
+    // register with the wave while they trade places.
+    const rulerFade = useSharedValue(1);
+    const previousRulerRef = React.useRef<ReturnType<typeof Skia.Path.Make> | null>(null);
+    const [outgoingRuler, setOutgoingRuler] = useState<ReturnType<typeof Skia.Path.Make> | null>(null);
+    const lastRulerKeyRef = React.useRef(rulerKey);
+    const liveRulerRef = React.useRef(rulerPath);
+    liveRulerRef.current = rulerPath;
+
+    useEffect(() => {
+        if (lastRulerKeyRef.current === rulerKey) return;
+        lastRulerKeyRef.current = rulerKey;
+        setOutgoingRuler(previousRulerRef.current);
+        rulerFade.value = 0;
+        rulerFade.value = withTiming(1, { duration: durations.gentle });
+    }, [rulerFade, rulerKey]);
+
+    useEffect(() => {
+        previousRulerRef.current = rulerPath;
+    }, [rulerPath]);
+
+    const outgoingRulerOpacity = useDerivedValue(() => 1 - rulerFade.value);
 
     const centerLinePath = useMemo(() => {
         const centerLine = Skia.Path.Make();
@@ -368,11 +403,21 @@ function LiveTapeVisualizerImpl({
                         opacity={0.3}
                     />
                     <Group transform={tapeTransform}>
+                        {outgoingRuler ? (
+                            <Path
+                                path={outgoingRuler}
+                                color={rulerColor}
+                                style="stroke"
+                                strokeWidth={1.5}
+                                opacity={outgoingRulerOpacity}
+                            />
+                        ) : null}
                         <Path
                             path={rulerPath}
                             color={rulerColor}
                             style="stroke"
                             strokeWidth={1.5}
+                            opacity={rulerFade}
                         />
                         <Group clip={waveRevealClip}>
                             <Path

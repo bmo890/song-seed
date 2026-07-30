@@ -609,6 +609,12 @@ export const recordingStyles = {
     borderTopWidth: 1,
     borderTopColor: "#E8E4DF",
   },
+  /** Fixed row for the beat dots, held from the moment the metronome is armed. The height
+   *  matches MetronomeBeatBar's compact row so mounting the dots changes nothing. */
+  recordingBeatBarSlot: {
+    height: 16,
+    justifyContent: "center",
+  },
   recordingBottomDockCompact: {
     paddingTop: 4,
     paddingBottom: 6,

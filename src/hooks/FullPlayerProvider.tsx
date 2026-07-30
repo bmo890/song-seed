@@ -13,7 +13,14 @@ type MiniPlayerValue = ReturnType<typeof useInlinePlayer>;
  *  they don't re-render ~20×/sec, which would jank a concurrent drag/scroll. */
 type FullPlayerControls = Pick<
   FullPlayerValue,
-  "openPlayer" | "syncPlayerSource" | "togglePlayer" | "playPlayer" | "pausePlayer" | "closePlayer"
+  | "openPlayer"
+  | "syncPlayerSource"
+  | "togglePlayer"
+  | "playPlayer"
+  | "pausePlayer"
+  | "closePlayer"
+  // The dock's prev button restarts the clip before it leaves it, so it needs to seek.
+  | "seekTo"
 >;
 
 const FullPlayerContext = createContext<FullPlayerValue | null>(null);
@@ -123,6 +130,10 @@ export function FullPlayerProvider({ children }: { children: React.ReactNode }) 
     (...args) => rawDockRef.current!.closePlayer(...args),
     []
   );
+  const seekTo = useCallback<FullPlayerValue["seekTo"]>(
+    (...args) => rawDockRef.current!.seekTo(...args),
+    []
+  );
 
   // `dock` identity changes each render so live playback state (position,
   // isPlaying, waveform) still reaches the few live consumers (player screen +
@@ -136,6 +147,7 @@ export function FullPlayerProvider({ children }: { children: React.ReactNode }) 
       playPlayer,
       pausePlayer,
       closePlayer,
+      seekTo,
     }),
     [rawDock, openPlayer, syncPlayerSource, togglePlayer, playPlayer, pausePlayer, closePlayer]
   );
@@ -143,8 +155,8 @@ export function FullPlayerProvider({ children }: { children: React.ReactNode }) 
   // Stable controls object — identity never changes on a playback tick, so the
   // mini dock (which only needs to drive transport) never re-renders at 20Hz.
   const controls = useMemo<FullPlayerControls>(
-    () => ({ openPlayer, syncPlayerSource, togglePlayer, playPlayer, pausePlayer, closePlayer }),
-    [openPlayer, syncPlayerSource, togglePlayer, playPlayer, pausePlayer, closePlayer]
+    () => ({ openPlayer, syncPlayerSource, togglePlayer, playPlayer, pausePlayer, closePlayer, seekTo }),
+    [openPlayer, syncPlayerSource, togglePlayer, playPlayer, pausePlayer, closePlayer, seekTo]
   );
 
   // Legacy close requests still originate from screens that do not need direct

@@ -13,6 +13,7 @@ import { TransportLayout } from "../common/TransportLayout";
 import { useTransportScrubbing } from "../../hooks/useTransportScrubbing";
 import { usePlayerTransportClock } from "./hooks/usePlayerTransportClock";
 import { usePlaybackClick } from "../../hooks/usePlaybackClick";
+import { resolvePreviousAction } from "../../domain/transportPrevious";
 import { usePracticeLoopController } from "./hooks/usePracticeLoopController";
 import { usePlayerSpeedControls } from "./hooks/usePlayerSpeedControls";
 import { usePlayerPins } from "./hooks/usePlayerPins";
@@ -496,6 +497,21 @@ export function PlayerScreen({
     return () => subscription.remove();
   }, [isActive]);
 
+  // Prev restarts the take before it leaves it — the convention every player people
+  // already know uses, and until now only the lock screen had it. Seeking through
+  // handleSeekWithClick keeps the playback click in step with the jump.
+  const handlePreviousPress = useCallback(() => {
+    const action = resolvePreviousAction({
+      positionMs: playerPositionMsRef.current,
+      hasPreviousItem: hasPreviousTrack,
+    });
+    if (action === "restart") {
+      void handleSeekWithClick(0);
+      return;
+    }
+    lifecycle.handlePreviousTrack();
+  }, [handleSeekWithClick, hasPreviousTrack, lifecycle]);
+
   // Stable JS entry point for the gesture worklet (reads the live ref at call time).
   const runMinimize = useCallback(() => minimizePlayerRef.current(), []);
 
@@ -907,7 +923,7 @@ export function PlayerScreen({
             hasNextTrack={hasNextTrack}
             repeatEnabled={ui.repeatEnabled}
             queueExpanded={ui.queueExpanded}
-            onPreviousTrack={lifecycle.handlePreviousTrack}
+            onPreviousTrack={handlePreviousPress}
             onTogglePlay={handleTogglePlayWithCountIn}
             onNextTrack={lifecycle.handleNextTrack}
             onToggleRepeat={() => ui.setRepeatEnabled((value) => !value)}

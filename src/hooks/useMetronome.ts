@@ -52,6 +52,17 @@ type MetronomeStartOptions = {
    *  it) so the run schedules clicks along the map. Ignored on binaries without
    *  map support — callers keep their JS fallback for those. */
   tempoMapSegments?: import("../../modules/songnook-metronome").NativeTempoMapSegment[];
+  /**
+   * Start the click already this far into the grid instead of on a fresh downbeat.
+   *
+   * Used when resuming a paused take: the take's beat grid is anchored to the downbeat it
+   * started on, and capture time does not advance while paused, so a click that restarts
+   * from pulse 0 lands at an arbitrary phase against that grid. In single-tempo mode this is
+   * ms into the BAR; with a tempo map installed the native engine reads it as a whole-grid
+   * position (see SongNookMetronomeModule.startAtPhase). Ignored on binaries without
+   * phase-start support, which fall back to a plain start.
+   */
+  phaseOffsetMs?: number;
 };
 
 const METRONOME_AUDIO_SESSION_OWNER_ID = "metronome";
@@ -470,7 +481,15 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         await SongNookMetronomeModule.configureTempoMap(options.tempoMapSegments);
       }
       setBeatCount(0);
-      const state = await SongNookMetronomeModule.start();
+      const wantsPhaseStart =
+        options.phaseOffsetMs != null &&
+        Number.isFinite(options.phaseOffsetMs) &&
+        options.phaseOffsetMs > 0 &&
+        SongNookMetronomeModule.supportsPhaseStart?.() === true &&
+        !!SongNookMetronomeModule.startAtPhase;
+      const state = wantsPhaseStart
+        ? await SongNookMetronomeModule.startAtPhase!(options.phaseOffsetMs!)
+        : await SongNookMetronomeModule.start();
       setNativeState(state);
       void startVisualScheduler();
     } catch (error) {

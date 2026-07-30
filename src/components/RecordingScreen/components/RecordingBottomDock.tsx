@@ -14,6 +14,9 @@ type RecordingBottomDockProps = {
     grouping?: readonly number[];
     isCountIn: boolean;
     isRunning: boolean;
+    /** Armed for this take. Reserves the beat bar's row so the dock's height stops
+     *  changing at the exact moment recording starts. */
+    enabled: boolean;
   };
   recording: {
     isRecording: boolean;
@@ -34,21 +37,26 @@ export function RecordingBottomDock({ compact = false, metronome, recording }: R
 
   return (
     <View style={[styles.recordingBottomDock, compact ? styles.recordingBottomDockCompact : null]}>
-      {/* The visual metronome: bar-position dots above the transport, same
-          component as the standalone Metronome page. Rendered only while the
-          click is actually beating (count-in or take), so the dock stays quiet
-          otherwise. */}
-      {beatActive ? (
-        <View style={{ marginBottom: compact ? 4 : 8 }}>
-          <MetronomeBeatBar
-            beatsPerBar={metronome.pulsesPerBar}
-            accentPattern={metronome.accentPattern}
-            grouping={metronome.grouping}
-            currentBeat={metronome.beatInBar}
-            pulseToken={metronome.beatToken}
-            active={beatActive}
-            variant="compact"
-          />
+      {/* The visual metronome: bar-position dots above the transport, same component as
+          the standalone Metronome page.
+          The row is RESERVED as soon as the metronome is armed, not added when the click
+          starts beating. Mounting it on the first beat grew the dock and squeezed the reel
+          above it — a reshape at the one moment the performer is watching the reel. Arming
+          the metronome is the honest moment for the layout to change; pressing record is
+          not. (docs/design-system.md — layout stability: reserve, don't add.) */}
+      {metronome.enabled ? (
+        <View style={[styles.recordingBeatBarSlot, { marginBottom: compact ? 4 : 8 }]}>
+          {beatActive ? (
+            <MetronomeBeatBar
+              beatsPerBar={metronome.pulsesPerBar}
+              accentPattern={metronome.accentPattern}
+              grouping={metronome.grouping}
+              currentBeat={metronome.beatInBar}
+              pulseToken={metronome.beatToken}
+              active={beatActive}
+              variant="compact"
+            />
+          ) : null}
         </View>
       ) : null}
       <RecordingControls

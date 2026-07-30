@@ -5,6 +5,7 @@ import {
   resolveSourcePositionHold,
   type SourcePositionHold,
 } from "../domain/transportPosition";
+import { resolvePreviousAction } from "../domain/transportPrevious";
 import * as FileSystem from "expo-file-system/legacy";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Platform } from "react-native";
@@ -96,7 +97,6 @@ type LockScreenMetadata = {
 // Music, media3's default): pressing it past this position restarts the clip;
 // pressing it within the threshold goes to the previous queue item. 3000ms is
 // media3's own maxSeekToPreviousPositionMs default.
-const LOCK_SCREEN_PREVIOUS_RESTART_MS = 3000;
 
 // Lock-screen button config derives from the live queue: next is grayed out at
 // the end of the queue (or with no queue), previous stays tappable because it
@@ -318,17 +318,19 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
 
   // Lock-screen prev/next drive the queue exactly like the mini player's buttons
   // (GlobalMediaDock): stop any inline preview, then move the queue index.
-  // Previous follows the standard restart-then-previous convention (see
-  // LOCK_SCREEN_PREVIOUS_RESTART_MS); next is a guarded no-op at the queue end
-  // (the button is also grayed out natively via nextTrackEnabled).
+  // Previous follows `resolvePreviousAction` — the same rule every other surface with
+  // the button uses; next is a guarded no-op at the queue end (the button is also
+  // grayed out natively via nextTrackEnabled).
   useEffect(() => {
     const subscription = player.addListener("lockScreenCommand", ({ command }) => {
       const { playerQueue, playerQueueIndex } = useStore.getState();
 
       if (command === "previousTrack") {
-        const hasPrevious = playerQueue.length > 0 && playerQueueIndex > 0;
-        const positionMs = player.currentTime * 1000;
-        if (!hasPrevious || positionMs > LOCK_SCREEN_PREVIOUS_RESTART_MS) {
+        const action = resolvePreviousAction({
+          positionMs: player.currentTime * 1000,
+          hasPreviousItem: playerQueue.length > 0 && playerQueueIndex > 0,
+        });
+        if (action === "restart") {
           player.seekTo(0);
           return;
         }

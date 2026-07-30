@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
+import type { TempoMap } from "../../../domain/tempoMap";
 import { fmtDuration } from "../../../utils";
 import { haptic } from "../../../design/haptics";
 import { AudioAnalysis } from "@siteed/audio-studio";
@@ -33,7 +34,12 @@ type Props = {
     metronomeEnabled?: boolean;
     metronomeSummary?: string;
     metronomeToggleDisabled?: boolean;
-    liveTakeGrid?: { firstBeatCaptureMs: number; beatMs: number; pulsesPerBar: number } | null;
+    liveTakeGrid?: {
+        firstBeatCaptureMs: number;
+        beatMs: number;
+        pulsesPerBar: number;
+        tempoMap?: TempoMap | null;
+    } | null;
     onToggleMetronome?: () => void;
     onOpenMetronome?: () => void;
     /** No-count-in overdub: the master joins at the next bar line. Non-null while that
@@ -155,13 +161,22 @@ export function RecordingMeta({
                 ) : null}
             </Pressable>
             <Pressable
-                style={({ pressed }) => [metaStyles.metroCustomize, pressed ? styles.pressDown : null]}
+                style={({ pressed }) => [
+                    metaStyles.metroCustomize,
+                    metronomeToggleDisabled ? metaStyles.metroChipDisabled : null,
+                    pressed ? styles.pressDown : null,
+                ]}
                 onPress={onOpenMetronome}
+                disabled={metronomeToggleDisabled}
                 hitSlop={8}
                 accessibilityRole="button"
                 accessibilityLabel={t("recording.metronomeSettings")}
             >
-                <Ionicons name="options-outline" size={18} color={colors.textSecondary} />
+                <Ionicons
+                    name="options-outline"
+                    size={18}
+                    color={metronomeToggleDisabled ? colors.textMuted : colors.textSecondary}
+                />
             </Pressable>
         </View>
     ) : null;
