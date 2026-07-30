@@ -121,10 +121,12 @@ The sidecar comb's best score was **0.0230 against a mean of 0.0213**. There is 
 find. It succeeds only on near-silent metronome-only takes, which is exactly why grids
 "sometimes correct themselves and sometimes don't."
 
-**So raising or lowering the gates is not the fix.** Self-alignment needs a real onset
-envelope — high-passed, ~1 ms resolution, derived in the same native decode pass that already
-builds the sidecar. Until it has one, a click take's grid rests on OS-reported latency, which
-the simulator (and Bluetooth, and Android) does not report.
+**So raising or lowering the gates is not the fix.** Self-alignment needed a real onset
+envelope — high-passed, ~1 ms resolution. It has one now, and it comes from a cheaper place
+than a second decode pass: the recorder already hands JS every captured buffer as float32
+PCM, so the envelope is built during the take (`domain/onsetEnvelope.ts`). Nothing to decode
+means nothing to preempt. Takes with no envelope — imports, anything recorded before this —
+still fall back to the sidecar and will still usually decline.
 
 This is what the harness is for: it cancelled a planned gate-tuning change before it shipped,
 which would have been another fix aimed at the wrong thing.
