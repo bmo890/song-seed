@@ -172,7 +172,6 @@ export function RecordingScreen() {
             grouping: screen.metronome.grouping,
             isCountIn: screen.metronome.isCountIn,
             isRunning: screen.metronome.isRunning,
-            enabled: screen.recordingMetronomeEnabled,
           }}
           recording={{
             isRecording: screen.recording.isRecording,
