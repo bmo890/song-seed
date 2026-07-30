@@ -102,6 +102,7 @@ export function PlayerScreen({
   const {
     playerTarget: activePlayerTarget,
     playerPosition,
+    positionChannel,
     playerDuration,
     playbackRate,
     isPlayerPlaying,
@@ -240,6 +241,13 @@ export function PlayerScreen({
     practicePitchTransport.effectiveDurationMs || resolvedDisplayDuration;
   const effectivePlaybackRate = practicePitchTransport.effectivePlaybackRate;
   const effectiveIsPlaying = practicePitchTransport.effectiveIsPlaying;
+  // The reel takes position straight off the engine, with no render in between — a React
+  // commit landing mid-animation is what pulled its overlays off the tape. The channel is
+  // only allowed to drive when the full player genuinely owns the transport AND the engine
+  // is loaded with the clip on screen; otherwise position still arrives as a prop, which is
+  // what keeps the stale-position invariant above honest.
+  const channelDriven =
+    engineMatchesScreenClip && !practicePitchTransport.isOwningNativeTransport;
   const transportClock = usePlayerTransportClock({
     positionMs: effectivePlayerPosition,
     durationMs: effectivePlayerDuration,
@@ -247,6 +255,8 @@ export function PlayerScreen({
     playbackRate: effectivePlaybackRate,
     resetKey: playerClip?.id ?? null,
     resetPositionMs: 0,
+    positionChannel,
+    channelDriven,
   });
   setPauseDisplayPositionRef.current = transportClock.setDisplayPositionMs;
   const hasPreviousTrack = data.playerQueueIndex > 0;

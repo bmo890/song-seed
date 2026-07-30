@@ -41,6 +41,7 @@ type RecordingBodyProps = {
   metronomeEnabled: boolean;
   metronomeSummary: string;
   metronomeToggleDisabled?: boolean;
+  liveTakeGrid?: { firstBeatCaptureMs: number; beatMs: number; pulsesPerBar: number } | null;
   onToggleMetronome?: () => void;
   onOpenMetronome: () => void;
   onToggleLyricsExpanded: (value: boolean) => void;
@@ -81,6 +82,7 @@ export function RecordingBody({
   metronomeEnabled,
   metronomeSummary,
   metronomeToggleDisabled,
+  liveTakeGrid,
   onToggleMetronome,
   onOpenMetronome,
   onToggleLyricsExpanded,
@@ -170,6 +172,7 @@ export function RecordingBody({
           metronomeEnabled={metronomeEnabled}
           metronomeSummary={metronomeSummary}
           metronomeToggleDisabled={metronomeToggleDisabled}
+          liveTakeGrid={liveTakeGrid}
           onToggleMetronome={onToggleMetronome}
           onOpenMetronome={onOpenMetronome}
         />

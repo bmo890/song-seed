@@ -38,6 +38,7 @@ import { nativeTempoMapSegments } from "../../../domain/playbackClick";
 import { buildSaveDestinations, resolveSaveDestinationLabel, type SaveDestination } from "../../../domain/collectionManagement";
 import { personalWorkspaces } from "../../../domain/workspaceVisibility";
 import { authorizeIntentionalEmptyStateWrite } from "../../../services/stateIntegrity";
+import { selfAlignClipGrid } from "../../../services/gridSelfAlignment";
 import { ensureWaveformSidecar } from "../../../services/waveformSidecar";
 import { maybeRequestReviewAfterSave } from "../../../services/reviewPrompt";
 import {
@@ -227,7 +228,14 @@ export function useRecordingScreenModel() {
   // starts (the global metronome settings can change afterwards). Attached to the saved
   // clip/stem as `recordingGrid`; null when the take doesn't use the metronome at all.
   const takeGridRef = useRef<RecordingGrid | null>(null);
-  const takeGridChangeTimersRef = useRef<
+  /** The measured beat grid of the RUNNING take, in capture-file ms — drives the live
+   *  tape's beat ruler so the lines the performer records against are the same lines
+   *  playback will draw. Null when no metronome is in the take or nothing is measured. */
+  const [liveTakeGrid, setLiveTakeGrid] = useState<{
+    firstBeatCaptureMs: number;
+    beatMs: number;
+    pulsesPerBar: number;
+  } | null>(null);  const takeGridChangeTimersRef = useRef<
     { handle: ReturnType<typeof setTimeout>; gridMs: number }[]
   >([]);
   /** True while the running take's changes are scheduled by the native map engine. */
@@ -327,6 +335,18 @@ export function useRecordingScreenModel() {
           return { ...idea, clips: [clip, ...nextClips] };
         })
       );
+
+      // The stamped grid is built from SCHEDULED click epochs; align it to the clicks the
+      // mic actually recorded (device latency, or a failed record-time measurement).
+      if (takeGrid?.clickThroughTake) {
+        void selfAlignClipGrid({
+          ideaId: recordingIdeaId,
+          clipId: clip.id,
+          audioUri: payload.audioUri,
+          durationMs: payload.durationMs ?? clip.durationMs ?? 0,
+          grid: takeGrid,
+        });
+      }
     },
     preferredRecordingInputId
   );
@@ -831,6 +851,7 @@ export function useRecordingScreenModel() {
 
   async function cancelPendingRecordingStart() {
     takeGridRef.current = null;
+    setLiveTakeGrid(null);
     setMidTakeRouteChangeMs(null);
     countInPendingRef.current = false;
     setIsArmingRecording(false);
@@ -940,6 +961,7 @@ export function useRecordingScreenModel() {
 
   async function redoOverdubRecording() {
     takeGridRef.current = null;
+    setLiveTakeGrid(null);
     setQuickNameModalVisible(false);
     setQuickNameDraft("");
     setQuickNamingIdeaId(null);
@@ -1366,6 +1388,13 @@ export function useRecordingScreenModel() {
             `anchor=${downbeatEpochMs != null ? "measured" : "MISSING"})`
         );
         recording.commitHeadTrim(headMs);
+        if (downbeatEpochMs != null && captureStartEpochMs != null && anchor?.msPerPulse) {
+          setLiveTakeGrid({
+            firstBeatCaptureMs: downbeatEpochMs - captureStartEpochMs + audibleCorrectionMs,
+            beatMs: anchor.msPerPulse,
+            pulsesPerBar: anchor.pulsesPerBar ?? metronome.meterPreset.pulsesPerBar,
+          });
+        }
 
         // Programmed tempo/meter changes: the map-native engine already schedules them
         // sample-exactly; the JS scheduler is the fallback for older binaries only.
@@ -1710,9 +1739,26 @@ export function useRecordingScreenModel() {
           cueDelayMs: activeMonitoringCompensationMs,
         });
       }
-      await waitPlainMs(120); // let the engine's audio clock settle before anchoring
-
-      const anchor = await SongNookMetronomeModule?.getGridAnchor?.().catch(() => null);
+      // Let the engine's audio clock settle before anchoring — but a single fixed wait
+      // raced it: when the anchor query landed early the grid saved with a NULL downbeat
+      // and the player silently drew no bar lines. Poll until the engine reports running.
+      type GridAnchorReport = {
+        isRunning?: boolean;
+        anchorEpochMs?: number | null;
+        msPerPulse?: number | null;
+        pulsesPerBar?: number | null;
+      };
+      let anchor: GridAnchorReport | null = null;
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        await waitPlainMs(attempt === 0 ? 120 : 80);
+        anchor = (await SongNookMetronomeModule?.getGridAnchor?.().catch(() => null)) ?? null;
+        if (anchor?.isRunning && anchor.anchorEpochMs != null && anchor.msPerPulse != null) {
+          break;
+        }
+      }
+      if (!(anchor?.isRunning && anchor?.anchorEpochMs != null)) {
+        console.warn("[timing] grid anchor unavailable after retries — grid will rely on click self-align");
+      }
       const anchorEpochMs =
         anchor?.isRunning && anchor.anchorEpochMs != null && anchor.msPerPulse != null
           ? anchor.anchorEpochMs
@@ -1808,6 +1854,13 @@ export function useRecordingScreenModel() {
             `captureStart=${captureStartEpochMs != null ? "measured" : "MISSING"})`
         );
         recording.commitHeadTrim(headMs);
+        if (musicalStartEpochMs != null && captureStartEpochMs != null && anchor?.msPerPulse) {
+          setLiveTakeGrid({
+            firstBeatCaptureMs: musicalStartEpochMs - captureStartEpochMs + correctionMs,
+            beatMs: anchor.msPerPulse,
+            pulsesPerBar: anchor.pulsesPerBar ?? metronome.meterPreset.pulsesPerBar,
+          });
+        }
       } else if (
         captureStartEpochMs != null &&
         anchorEpochMs != null &&
@@ -1826,6 +1879,13 @@ export function useRecordingScreenModel() {
           Math.round(anchorEpochMs + barsSinceAnchor * barMs - captureStartEpochMs + correctionMs)
         );
         takeGridRef.current = { ...takeGridRef.current, firstDownbeatMs };
+        if (anchor?.msPerPulse) {
+          setLiveTakeGrid({
+            firstBeatCaptureMs: firstDownbeatMs,
+            beatMs: anchor.msPerPulse,
+            pulsesPerBar: anchor.pulsesPerBar ?? metronome.meterPreset.pulsesPerBar,
+          });
+        }
         console.log(`[timing] preview take: first bar line stamped at ${firstDownbeatMs}ms in-file`);
       }
     } catch (error) {
@@ -1968,6 +2028,7 @@ export function useRecordingScreenModel() {
     metronomeSheetVisible,
     preferredRecordingInputId,
     recordingMetronomeEnabled,
+    liveTakeGrid,
     isArmingRecording,
     overdubReviewLocked,
     guideMixIsPlaying: !!guideMixStatus.playing,

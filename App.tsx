@@ -114,6 +114,9 @@ import { onHydrationResult, useStore } from "./src/state/useStore";
 import { setPersistBlocked } from "./src/state/persistRuntime";
 import { authorizeIntentionalEmptyStateWrite } from "./src/services/stateIntegrity";
 import { EmptyState } from "./src/components/common/EmptyState";
+// TEMPORARY DIAGNOSTIC — remove with src/components/dev/SyncProbe.tsx.
+import { SyncProbe } from "./src/components/dev/SyncProbe";
+const SHOW_SYNC_PROBE = false;
 import { useTranslation } from "react-i18next";
 import { AppAlert } from "./src/components/common/AppAlert";
 import { AppDialogHost } from "./src/components/common/AppDialog";
@@ -1331,6 +1334,7 @@ export default function App() {
           ) : (
             <AppContent />
           )}
+          {__DEV__ && SHOW_SYNC_PROBE ? <SyncProbe /> : null}
         </AudioRecorderProvider>
       </SafeAreaProvider>
       </AppErrorBoundary>

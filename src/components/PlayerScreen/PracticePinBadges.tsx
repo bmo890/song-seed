@@ -11,12 +11,15 @@ import Animated, {
 import type { PracticeMarker } from "../../types";
 import { colors } from "../../design/tokens";
 import { haptic } from "../../design/haptics";
+import {
+  assignPinRows,
+  estimatePinBadgeWidth,
+  pinRowTop,
+  PIN_BADGE_HEIGHT,
+  PIN_EDGE_GUARD_PX,
+} from "../../domain/practicePinLayout";
 
-const BADGE_HEIGHT = 18;
-const BADGE_CHAR_WIDTH = 6;
-const BADGE_H_PAD = 12;
-const ROW_GAP = 2;
-const TOP_PAD = 3; // gap between reel top and the first badge row
+const PIN_LIFT_SPRING = { damping: 20, stiffness: 300 };
 
 type Props = {
   markers: PracticeMarker[];
@@ -31,58 +34,6 @@ type Props = {
   draggingMarkerId: SharedValue<string>;
   draggingMarkerX: SharedValue<number>;
 };
-
-// The label is a flag flying to the RIGHT of the line (the pole), so it anchors at "start"
-// (left edge on the line). Only near the right edge does it flip to "end" so it stays on-reel.
-type BadgeAnchor = "start" | "end";
-const EDGE_GUARD_PX = 8;
-
-function resolveBadgeAnchor(centerX: number, width: number, contentWidth: number): BadgeAnchor {
-  if (centerX + width > contentWidth - EDGE_GUARD_PX) return "end";
-  return "start";
-}
-
-function getBadgeEdges(centerX: number, width: number, anchor: BadgeAnchor) {
-  if (anchor === "end") return { left: centerX - width, right: centerX };
-  return { left: centerX, right: centerX + width };
-}
-
-function estimateBadgeWidth(label: string): number {
-  if (!label) return BADGE_HEIGHT; // unlabelled pin is a dot
-  return Math.max(32, label.length * BADGE_CHAR_WIDTH + BADGE_H_PAD);
-}
-
-/* Assign each badge the first row whose last badge clears it — overlapping pins drop to a
-   lower row (and the next, and the next) so every label stays readable. */
-function assignRows(
-  markers: PracticeMarker[],
-  pixelsPerMs: number,
-  scale: number,
-  durationMs: number
-): { marker: PracticeMarker; row: number }[] {
-  if (markers.length === 0) return [];
-  const sorted = [...markers].sort((a, b) => a.atMs - b.atMs);
-  const contentWidth = durationMs * pixelsPerMs * scale;
-  const rowRightEdges: number[] = [];
-  const result: { marker: PracticeMarker; row: number }[] = [];
-
-  for (const m of sorted) {
-    const centerX = m.atMs * pixelsPerMs * scale;
-    const width = estimateBadgeWidth(m.label);
-    const anchor = resolveBadgeAnchor(centerX, width, contentWidth);
-    const { left, right } = getBadgeEdges(centerX, width, anchor);
-
-    let assignedRow = rowRightEdges.findIndex((edge) => left >= edge + 4);
-    if (assignedRow === -1) {
-      assignedRow = rowRightEdges.length;
-      rowRightEdges.push(right);
-    } else {
-      rowRightEdges[assignedRow] = right;
-    }
-    result.push({ marker: m, row: assignedRow });
-  }
-  return result;
-}
 
 function PinBadge({
   marker,
@@ -111,10 +62,16 @@ function PinBadge({
   draggingMarkerId: SharedValue<string>;
   draggingMarkerX: SharedValue<number>;
 }) {
-  const badgeW = estimateBadgeWidth(marker.label);
+  const badgeW = estimatePinBadgeWidth(marker.label);
   const dragTimeMs = useSharedValue(marker.atMs);
   const dragStartMs = useSharedValue(0);
   const isDragging = useSharedValue(false);
+  // The lift spring is STARTED on the drag transitions, never called from inside the
+  // animated style. `withSpring` in a style that re-evaluates every frame (this one does —
+  // it reads the scrolling translateX) re-seeds the animation 60×/second, which both costs
+  // UI-thread work per pin and keeps the value from settling. One shared value, two
+  // transitions, read as a plain number below.
+  const dragLift = useSharedValue(1);
 
   const handleSeek = useCallback(() => onSeek(marker.atMs), [marker.atMs, onSeek]);
   const handleActions = useCallback(() => onRequestActions(marker), [marker, onRequestActions]);
@@ -127,6 +84,7 @@ function PinBadge({
     .activateAfterLongPress(300)
     .onStart(() => {
       isDragging.value = true;
+      dragLift.value = withSpring(1.1, PIN_LIFT_SPRING);
       dragStartMs.value = marker.atMs;
       dragTimeMs.value = marker.atMs;
       draggingMarkerId.value = marker.id;
@@ -144,6 +102,7 @@ function PinBadge({
     })
     .onEnd(() => {
       isDragging.value = false;
+      dragLift.value = withSpring(1, PIN_LIFT_SPRING);
       draggingMarkerId.value = "";
       const movedMs = Math.abs(dragTimeMs.value - dragStartMs.value);
       if (movedMs > 200) {
@@ -154,6 +113,7 @@ function PinBadge({
     })
     .onFinalize(() => {
       isDragging.value = false;
+      dragLift.value = withSpring(1, PIN_LIFT_SPRING);
       draggingMarkerId.value = "";
       if (onDragStateChange) runOnJS(onDragStateChange)(false);
     });
@@ -163,20 +123,24 @@ function PinBadge({
   });
 
   const composed = Gesture.Exclusive(panGesture, tapGesture);
-  const topOffset = TOP_PAD + row * (BADGE_HEIGHT + ROW_GAP);
+  const topOffset = pinRowTop(row);
 
   const animatedStyle = useAnimatedStyle(() => {
     const timeMs = isDragging.value ? dragTimeMs.value : marker.atMs;
     const x = timeMs * pixelsPerMs * timelineScale.value + timelineTranslateX.value;
     const contentWidth = durationMs * pixelsPerMs * timelineScale.value;
-    const badgeAnchor = x + badgeW > contentWidth - EDGE_GUARD_PX ? "end" : "start";
+    const badgeAnchor = x + badgeW > contentWidth - PIN_EDGE_GUARD_PX ? "end" : "start";
     const anchorOffset = badgeAnchor === "end" ? -badgeW : 0;
     return {
       transform: [
         { translateX: x },
         { translateX: anchorOffset },
-        { scale: withSpring(isDragging.value ? 1.1 : 1, { damping: 20, stiffness: 300 }) },
+        { scale: dragLift.value },
       ],
+      // At rest this view is a pure HITBOX: the badge the user sees is drawn inside the
+      // reel's canvas, glued to the tape by construction. Mid-drag the canvas twin hides
+      // and this one shows — under the finger, where a one-frame slip cannot be seen.
+      opacity: isDragging.value ? 1 : 0,
       zIndex: isDragging.value ? 10 : 0,
     };
   });
@@ -213,7 +177,7 @@ export function PracticePinBadges({
   draggingMarkerX,
 }: Props) {
   const rowAssignments = useMemo(
-    () => assignRows(markers, pixelsPerMs, 1, durationMs),
+    () => assignPinRows(markers, pixelsPerMs, 1, durationMs),
     [durationMs, markers, pixelsPerMs]
   );
 
@@ -243,7 +207,7 @@ export function PracticePinBadges({
 const badgeStyles = StyleSheet.create({
   badgeWrap: {
     position: "absolute",
-    height: BADGE_HEIGHT,
+    height: PIN_BADGE_HEIGHT,
   },
   badge: {
     flexDirection: "row",

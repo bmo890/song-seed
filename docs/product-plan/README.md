@@ -20,6 +20,11 @@ Key architecture facts every phase touches:
 | Backups | `src/services/libraryBackup.ts`, `libraryExport.ts`, `libraryImport.ts`, `libraryMergeRestore.ts`, disaster-recovery services | This is the app's data-safety story. Treat with extreme care; extensive tests exist in `src/services/__tests__/`. |
 | Monetization seam | `src/entitlements.ts` (`ALL_FEATURES_FREE = true` stub) + `src/components/common/ProGate.tsx` (built, unused) | Feature keys `"cloud-backup" | "auto-backup"` already typed. |
 
+**Reel / live tape / beat grid work:** read
+[reel-and-grid-postmortem.md](reel-and-grid-postmortem.md) first — what was broken, what the
+fixes were, and the measurement loop that found them. Its companion
+[reel-smoothness-findings.md](reel-smoothness-findings.md) holds the raw numbers.
+
 **House rules:** no raw `Alert.alert`; new styles use tokens (never bare `fontWeight` without `fontFamily` — see Phase 2 for why); stage git changes by explicit path (never `git add -A`); run `npx tsc --noEmit` and `npx jest` before any commit; data-safety code (backup/export/restore) requires a test for every behavior change.
 
 ## The phases

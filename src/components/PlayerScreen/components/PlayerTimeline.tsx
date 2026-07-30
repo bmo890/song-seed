@@ -8,7 +8,6 @@ import { openingZoomForDuration } from "../playerZoom";
 import { MultiTimeRangeSelector } from "../../common/TimeRangeSelector";
 import { OverdubLayerLanes, type OverdubLayerLane } from "../../common/OverdubLayerLanes";
 import { PracticePinBadges } from "../PracticePinBadges";
-import { SectionLabelBadges } from "../SectionLabelBadges";
 import type { PracticeMarker, ClipSection, RecordingGrid } from "../../../types";
 import { buildSectionBands } from "../../../domain/playerSections";
 import { haptic } from "../../../design/haptics";
@@ -293,20 +292,16 @@ function PlayerTimelineInner({
       freezeSelectedRangeWhenFullyVisible={mode === "practice" && practiceLoopEnabled}
       selectedRanges={mode === "practice" && practiceLoopEnabled ? practiceLoopSelection : undefined}
       practiceMarkers={mode === "practice" ? practiceMarkers : undefined}
+      sharedDraggingMarkerId={draggingMarkerId}
       sectionBands={sectionBands}
       grid={recordingGrid}
       sharedSelectedRangeStartMs={mode === "practice" && practiceLoopEnabled ? sharedLoopPreviewStartMs : undefined}
       sharedSelectedRangeEndMs={mode === "practice" && practiceLoopEnabled ? sharedLoopPreviewEndMs : undefined}
       selectedRangeType={previewRange?.type}
-      renderOverlay={({ pixelsPerMs, timelineTranslateX, timelineScale, sharedAudioProgress }) => (
+      renderOverlay={({ pixelsPerMs, timelineTranslateX, timelineScale, scale, sharedAudioProgress }) => (
         <View style={{ flex: 1, position: "relative" }}>
-          {/* Section titles ride the reel in every mode (the song map is useful while listening). */}
-          <SectionLabelBadges
-            sections={sections}
-            pixelsPerMs={pixelsPerMs}
-            timelineTranslateX={timelineTranslateX}
-            timelineScale={timelineScale}
-          />
+          {/* Section titles are drawn inside the reel's canvas (PlaybackTapeVisualizer) —
+              part of the tape's own picture, so they can never slip against it. */}
           {mode === "practice" ? (
             <>
               {practiceLoopEnabled ? (

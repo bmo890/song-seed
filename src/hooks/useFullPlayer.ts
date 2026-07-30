@@ -1,5 +1,10 @@
-import { useAudioPlayer } from "expo-audio";
+import { useAudioPlayer, type AudioStatus } from "expo-audio";
 import { useThrottledAudioPlayerStatus } from "./useThrottledAudioPlayerStatus";
+import {
+  createTransportPositionChannel,
+  resolveSourcePositionHold,
+  type SourcePositionHold,
+} from "../domain/transportPosition";
 import * as FileSystem from "expo-file-system/legacy";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Platform } from "react-native";
@@ -158,40 +163,68 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
 
   const playerOptions = useMemo(() => ({ updateInterval: 50 }), []);
   const player = useAudioPlayer(null, playerOptions);
-  // Throttled: transitions commit immediately; pure position ticks re-render at
-  // ~5Hz instead of the native 20Hz. Smooth playhead motion is the UI-thread
-  // transport clock's job — it only needs these periodic corrections.
-  const { status, statusRef } = useThrottledAudioPlayerStatus(player, { positionIntervalMs: 200 });
-  const sourcePositionGateRef = useRef<{
-    targetMs: number;
-    until: number;
-    accepted: boolean;
-  } | null>(null);
+  const sourcePositionGateRef = useRef<SourcePositionHold | null>(null);
+  /**
+   * How position reaches the reel: straight off the native status event, no React commit
+   * in between. The reel's visual clock subscribes to this. Rendering at the report
+   * cadence is what tore the reel's overlays off its canvas — any commit landing
+   * mid-animation does, at any rate (docs/product-plan/reel-smoothness-findings.md).
+   */
+  const positionChannel = useRef(createTransportPositionChannel()).current;
+  /** Latest believed position, kept fresh off the raw status stream for imperative readers. */
+  const playerPositionRef = useRef(0);
+
+  // Runs ~20×/second on the JS thread, before any render. This is the ONLY place the
+  // source-position hold is allowed to change state, so the render path below can consult
+  // the same rule without the two disagreeing about when the engine arrived.
+  const handleRawStatus = useCallback(
+    (next: AudioStatus) => {
+      const rawMs = Math.round((next.currentTime ?? 0) * 1000);
+      const gate = sourcePositionGateRef.current;
+      const resolved = resolveSourcePositionHold(
+        rawMs,
+        gate,
+        Date.now(),
+        SOURCE_POSITION_GATE_TOLERANCE_MS
+      );
+      if (resolved.shouldAccept && gate) {
+        gate.accepted = true;
+      }
+      // Imperative readers (seekBy, record-a-layer punch-in) read this at call time. It
+      // used to be mirrored from a render, so slowing the commit cadence would have let it
+      // go up to a second stale; taken from the raw event it is fresher than it ever was.
+      playerPositionRef.current = resolved.positionMs;
+      positionChannel.publish({
+        positionMs: resolved.positionMs,
+        isPlaying: !!next.playing && !next.didJustFinish,
+        playbackRate: next.playbackRate ?? 1,
+      });
+    },
+    [positionChannel]
+  );
+
+  // Throttled: transitions commit immediately; pure position ticks re-render at ~5Hz
+  // instead of the native 20Hz. Nothing in the React tree needs position at speed — the
+  // reel takes it from `positionChannel` above — but plenty of it needs a periodically
+  // fresh value (lock screen metadata, near-end checks, the store's playback state).
+  const { status, statusRef } = useThrottledAudioPlayerStatus(player, {
+    positionIntervalMs: 200,
+    onRawStatus: handleRawStatus,
+  });
   const rawPlayerPosition = Math.round((status.currentTime ?? 0) * 1000);
   const playerDuration = Math.round((status.duration ?? 0) * 1000);
-  const sourcePositionGate = sourcePositionGateRef.current;
-  const playerPosition =
-    sourcePositionGate && !sourcePositionGate.accepted
-      ? Math.abs(rawPlayerPosition - sourcePositionGate.targetMs) <= SOURCE_POSITION_GATE_TOLERANCE_MS
-        ? rawPlayerPosition
-        : Date.now() < sourcePositionGate.until
-          ? sourcePositionGate.targetMs
-          : rawPlayerPosition
-      : rawPlayerPosition;
-  if (
-    sourcePositionGate &&
-    !sourcePositionGate.accepted &&
-    (Math.abs(rawPlayerPosition - sourcePositionGate.targetMs) <= SOURCE_POSITION_GATE_TOLERANCE_MS ||
-      Date.now() >= sourcePositionGate.until)
-  ) {
-    sourcePositionGate.accepted = true;
-  }
+  // Read-only against the hold: `handleRawStatus` owns accepting it.
+  const playerPosition = resolveSourcePositionHold(
+    rawPlayerPosition,
+    sourcePositionGateRef.current,
+    Date.now(),
+    SOURCE_POSITION_GATE_TOLERANCE_MS
+  ).positionMs;
   const isPlayerPlaying = !!status.playing && !status.didJustFinish;
   const didPlayerJustFinish = !!status.didJustFinish;
   const playbackRate = status.playbackRate ?? 1;
   // Keep transport callbacks stable. PlayerScreen is always mounted, so function identity churn
   // here can retrigger effect chains and store updates on every render.
-  const playerPositionRef = useRef(playerPosition);
   const playerDurationRef = useRef(playerDuration);
   const lockScreenMetadataRef = useRef<LockScreenMetadata | undefined>(undefined);
   const isLockScreenActiveRef = useRef(false);
@@ -750,6 +783,8 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   return {
     playerTarget,
     playerPosition,
+    /** Position at the engine's own cadence, delivered without a render. */
+    positionChannel,
     playerDuration,
     isPlayerPlaying,
     didPlayerJustFinish,

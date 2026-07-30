@@ -14,12 +14,11 @@ import {
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { PlaybackTapeVisualizer } from "../visualizers/PlaybackTapeVisualizer";
-import { GridRulerLabels } from "./GridRulerLabels";
 import { buildGridRulerModel, snapToGrid, type GridRulerGrid } from "../../domain/gridRuler";
 import { MinimapVisualizer } from "../visualizers/MinimapVisualizer";
 import type { SectionBand } from "../../domain/playerSections";
 import { fmt } from "../../utils";
-import { colors, radii } from "../../design/tokens";
+import { colors } from "../../design/tokens";
 import { durations } from "../../design/motion";
 import { haptic } from "../../design/haptics";
 import { audioReelStyles } from "./AudioReel.styles";
@@ -149,12 +148,18 @@ type Range = {
 type PracticeMarkerPreview = {
     id: string;
     atMs: number;
+    label?: string;
+    note?: string;
 };
 
 type OverlayArgs = {
     pixelsPerMs: number;
     timelineTranslateX: SharedValue<number>;
     timelineScale: SharedValue<number>;
+    /** The same tape scale as `timelineScale`, as a plain number. Overlays that lay their
+     *  content out in content space use this so they don't have to re-measure on the UI
+     *  thread every frame just to follow the tape. */
+    scale: number;
     sharedAudioProgress: SharedValue<number>;
 };
 
@@ -206,6 +211,8 @@ type Props = {
     onScrubStateChange?: (scrubbing: boolean) => void;
     selectedRanges?: Range[];
     practiceMarkers?: PracticeMarkerPreview[];
+    /** Set while a pin badge drags — hides its canvas twin (see PlaybackTapeVisualizer). */
+    sharedDraggingMarkerId?: SharedValue<string>;
     sectionBands?: SectionBand[];
     /** The take's beat grid — draws the manuscript ruler (bars/beats/changes) on the
      *  tape. Absent or untrustworthy grids draw nothing (the model gates honesty). */
@@ -266,6 +273,7 @@ export function AudioReel({
     onScrubStateChange,
     selectedRanges,
     practiceMarkers,
+    sharedDraggingMarkerId,
     sectionBands,
     grid,
     sharedSelectedRangeStartMs,
@@ -784,8 +792,11 @@ export function AudioReel({
                             onScrubStateChange={handleInteractionStateChange}
                             selectedRanges={selectedRanges}
                             practiceMarkers={practiceMarkers}
+                            sharedDraggingMarkerId={sharedDraggingMarkerId}
                             sectionBands={sectionBands}
                             gridRuler={gridRulerModel}
+                            gridLabelScale={overscaleFactor}
+                            gridLabelColor={palette.utilityIconColor}
                             sharedSelectedRangeStartMs={sharedSelectedRangeStartMs}
                             sharedSelectedRangeEndMs={sharedSelectedRangeEndMs}
                             selectedRangeType={selectedRangeType}
@@ -806,24 +817,13 @@ export function AudioReel({
                         />
                     </AnimatedView>
 
-                    {gridRulerModel ? (
-                        <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                            <GridRulerLabels
-                                model={gridRulerModel}
-                                pixelsPerMs={pixelsPerMs}
-                                timelineTranslateX={timelineTranslateX}
-                                timelineScale={timelineScale}
-                                color={palette.utilityIconColor}
-                            />
-                        </View>
-                    ) : null}
-
                     {renderOverlay ? (
                         <View style={[StyleSheet.absoluteFill, audioReelStyles.overlayLayer]} pointerEvents="box-none">
                             {renderOverlay({
                                 pixelsPerMs,
                                 timelineTranslateX,
                                 timelineScale,
+                                scale: overscaleFactor,
                                 sharedAudioProgress,
                             })}
                         </View>
@@ -897,7 +897,7 @@ export function AudioReel({
 
             {renderBelowSurface ? (
                 <View style={{ marginHorizontal: timelineHorizontalPadding, overflow: "visible" }}>
-                    {renderBelowSurface({ pixelsPerMs, timelineTranslateX, timelineScale, sharedAudioProgress })}
+                    {renderBelowSurface({ pixelsPerMs, timelineTranslateX, timelineScale, scale: overscaleFactor, sharedAudioProgress })}
                 </View>
             ) : null}
 
@@ -930,7 +930,7 @@ export function AudioReel({
 
             {renderBelowOverlay ? (
                 <View style={{ marginHorizontal: timelineHorizontalPadding, overflow: "visible" }}>
-                    {renderBelowOverlay({ pixelsPerMs, timelineTranslateX, timelineScale, sharedAudioProgress })}
+                    {renderBelowOverlay({ pixelsPerMs, timelineTranslateX, timelineScale, scale: overscaleFactor, sharedAudioProgress })}
                 </View>
             ) : null}
 

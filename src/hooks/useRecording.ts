@@ -40,9 +40,15 @@ type OnRecorded = (
   }
 ) => void | boolean | Promise<void | boolean>;
 
-const LIVE_WAVEFORM_SEGMENT_MS = __DEV__ ? 60 : 40;
-const LIVE_STREAM_INTERVAL_MS = __DEV__ ? 120 : 40;
-const ANALYSIS_SEGMENT_MS = __DEV__ ? 150 : 75;
+// Dev used to throttle the stream to 120ms because each delivery cost a React re-render
+// plus an UNBOUNDED Skia path rebuild, and dev-mode JS couldn't keep up. Both costs are
+// gone (the rebuild is bounded to the visible tape; the scroll is UI-thread) — and the
+// throttle itself had become the visible problem: at 8 deliveries/second the live tape's
+// wave trails the playhead by a whole chunk, which reads as "built left of the playhead".
+// Dev now streams at the production cadence, so what the founder tests is what ships.
+const LIVE_WAVEFORM_SEGMENT_MS = 40;
+const LIVE_STREAM_INTERVAL_MS = 40;
+const ANALYSIS_SEGMENT_MS = 75;
 /** Below this the head trim is noise, not a count-in — skip the re-render. */
 const MIN_HEAD_TRIM_MS = 24;
 /** Ignore absurd trim values (a count-in head is at most a few bars). */
@@ -347,13 +353,13 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       sampleRate: 44100 as SampleRate,
       channels: 1 as const,
       interval: LIVE_STREAM_INTERVAL_MS,
-      intervalAnalysis: __DEV__ ? 150 : 75,
-      segmentDurationMs: __DEV__ ? 150 : 75,
+      intervalAnalysis: 75,
+      segmentDurationMs: 75,
       streamFormat: "float32" as const,
       enableProcessing: true,
       features: { energy: true, rms: true },
       autoResumeAfterInterruption: true,
-      bufferDurationSeconds: __DEV__ ? 0.25 : 0.15,
+      bufferDurationSeconds: 0.15,
       keepAwake: true,
       showNotification: true,
       // Deliberately no waveform: the recording card stays a quiet two-line

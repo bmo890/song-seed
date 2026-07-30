@@ -1,6 +1,17 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { View, StyleSheet, LayoutChangeEvent } from "react-native";
-import { Canvas, Path, Group, Skia, Rect, RoundedRect } from "@shopify/react-native-skia";
+import {
+    Canvas,
+    Path,
+    Group,
+    Skia,
+    Rect,
+    RoundedRect,
+    Text as SkiaText,
+    Paragraph,
+    useFont,
+    useFonts,
+} from "@shopify/react-native-skia";
 import {
     useSharedValue,
     withDecay,
@@ -11,9 +22,20 @@ import {
     useFrameCallback,
 } from "react-native-reanimated";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
+import type { SkParagraph } from "@shopify/react-native-skia";
 import type { PracticeMarker } from "../../types";
 import type { SectionBand } from "../../domain/playerSections";
 import type { GridRulerModel } from "../../domain/gridRuler";
+import { advanceTracker } from "../../domain/motionTracking";
+import {
+    assignPinRows,
+    estimatePinBadgeWidth,
+    getPinBadgeEdges,
+    resolvePinBadgeAnchor,
+    pinRowTop,
+    PIN_BADGE_HEIGHT,
+    PIN_DOT_SIZE,
+} from "../../domain/practicePinLayout";
 import { colors } from "../../design/tokens";
 
 type Props = {
@@ -30,12 +52,20 @@ type Props = {
     sharedPlaybackRate?: SharedValue<number>;
     isScrubbing?: boolean;
     onSeek: (timeMs: number) => void;
-    onBaseScaleChange?: (scale: number) => void;
     selectedRanges?: { id: string; start: number; end: number; type: "keep" | "remove" }[];
-    practiceMarkers?: Pick<PracticeMarker, "id" | "atMs">[];
+    practiceMarkers?: (Pick<PracticeMarker, "id" | "atMs"> & { label?: string; note?: string })[];
+    /** Set while a pin badge is being dragged: that badge's Skia twin hides and the RN
+     *  gesture layer (under the finger) shows instead. */
+    sharedDraggingMarkerId?: SharedValue<string>;
     sectionBands?: SectionBand[];
     /** Beat-grid ruler primitives (file-ms space) — manuscript lines under the wave. */
     gridRuler?: GridRulerModel | null;
+    /** Numeric twin of `sharedScale`. The bar numbers are laid out with it rather than
+     *  reading the animated value per label — scaling the layer would scale the glyphs,
+     *  and it only moves during a brief overscale tween. */
+    gridLabelScale?: number;
+    /** Ink for the bar numbers. */
+    gridLabelColor?: string;
     sharedSelectedRangeStartMs?: SharedValue<number>;
     sharedSelectedRangeEndMs?: SharedValue<number>;
     selectedRangeType?: "keep" | "remove";
@@ -56,7 +86,6 @@ type Props = {
     sharedAudioProgress?: SharedValue<number>;
     sharedPauseHoldMs?: SharedValue<number>;
     sharedPauseHoldToken?: SharedValue<number>;
-    sharedBaseScale?: SharedValue<number>;
     onScrubStateChange?: (isScrubbing: boolean) => void;
     freezeSelectedRangeWhenFullyVisible?: boolean;
 };
@@ -84,16 +113,17 @@ const LOOP_PILL_WIDTH = 14;
 const LOOP_PILL_HEIGHT = 28;
 const PLAY_START_STATUS_GRACE_MS = 450;
 const PLAY_START_CORRECTION_FACTOR = 0.06;
-const PLAYING_CORRECTION_FACTOR = 0.16;
 const PLAY_START_STALE_FORWARD_MS = 40;
 const HARD_FORWARD_SNAP_MS = 650;
 const BACKWARD_SNAP_MS = 80;
-// Frames the reel keeps showing the scrub target after a seek is committed, before it
+// How long the reel keeps showing the scrub target after a seek is committed, before it
 // resumes following position reports. Covers the native seek latency (the source is still
 // repositioning) so a stale in-flight report can't flash the playhead to the old spot the
-// instant the lock releases. ~16 frames (≈260ms) was too short (stale flash); ≈470ms held
-// the playhead visibly still after a scrub. ≈330ms is the middle ground.
-const SCRUB_SETTLE_FRAMES = 20;
+// instant the lock releases. ≈260ms was too short (stale flash); ≈470ms held the playhead
+// visibly still after a scrub. 330ms is the middle ground. Measured in MILLISECONDS, not
+// frames: the old frame countdown ran half as long on a 120Hz display, which is where the
+// stale flash came back.
+const SCRUB_SETTLE_MS = 330;
 const PAUSE_VISUAL_HOLD_MS = 220;
 // How far the frame-rate predictor may coast ahead of the last reported position
 // before it stops and waits. Position reports arrive ~every 50ms but the JS thread
@@ -103,6 +133,33 @@ const PAUSE_VISUAL_HOLD_MS = 220;
 // buffer-stalls, so a generous cap just lets the reel coast smoothly through report
 // gaps (a genuine stall still snaps back via HARD_FORWARD/BACKWARD_SNAP).
 const PREDICTOR_MAX_LEAD_MS = 300;
+// The reel scrolls on an α-β tracking filter (the standard radar/A-V-sync tracker):
+// it carries its own VELOCITY estimate and folds each position report in as a small
+// residual, instead of re-anchoring the ramp to the last painted position on every
+// report. Re-anchoring was the judder: each report restarted the ramp at ~zero
+// velocity, so the tape accelerated from a near-stop 20×/second. The waveform hides
+// that (one candle looks like the next); an isolated bar line, pin, or section edge
+// does not — which is exactly where the stepping was visible.
+//
+// TAU is the convergence time constant. Deriving alpha from the real frame delta keeps
+// the feel identical at 60Hz and 120Hz (a fixed per-frame gain does not — it converges
+// twice as slowly on ProMotion).
+const TRACKING_TAU_MS = 130;
+/** Ceiling on the tracker's velocity estimate, as a multiple of the nominal rate. */
+const MAX_TRACKING_VELOCITY_FACTOR = 3;
+/** Residual past which tracking is pointless — jump and re-seed the velocity. */
+const TRACKING_RESYNC_PROGRESS = 0.03;
+// The bar numbers are drawn INSIDE the canvas, under the same transform as the tape, so
+// they are part of the same picture rather than RN views chasing it. Two renderers painting
+// one moving scene can never be kept in step — measured, on iOS, with no React commits at
+// all (docs/product-plan/reel-smoothness-findings.md). Glued by construction instead.
+const GRID_LABEL_FONT_SIZE = 8.5;
+/** Baseline for the numbers along the reel's top edge. */
+const GRID_LABEL_BASELINE_Y = 11;
+/** Left inset from the bar line the number names. */
+const GRID_LABEL_INSET_X = 3;
+const GRID_BAR_LABEL_OPACITY = 0.55;
+const GRID_CHANGE_LABEL_OPACITY = 0.85;
 
 function LoopRangeOverlay({
     durationMs,
@@ -169,6 +226,244 @@ function LoopRangeOverlay({
  * scrolls and zooms with the wave. Where the grid stopped being trustworthy
  * (`validToMs`) the model simply carries no primitives — absence is the signal.
  */
+/**
+ * Pin badge visuals, drawn INSIDE the canvas for the same reason as the section chips and
+ * bar numbers: RN twins chasing the tape slip a frame whenever React commits. The RN layer
+ * keeps ONLY the gestures (invisible hitboxes) — except mid-drag, when its badge becomes
+ * visible under the finger and this one hides.
+ */
+function PinBadgeChipsOverlay({
+    markers,
+    pixelsPerMs,
+    labelScale,
+    durationMs,
+    fontProvider,
+    sharedDraggingMarkerId,
+}: {
+    markers: (Pick<PracticeMarker, "id" | "atMs"> & { label?: string; note?: string })[];
+    pixelsPerMs: number;
+    labelScale: number;
+    durationMs: number;
+    fontProvider: NonNullable<ReturnType<typeof useFonts>>;
+    sharedDraggingMarkerId?: SharedValue<string>;
+}) {
+    const chips = useMemo(() => {
+        const rows = assignPinRows(markers, pixelsPerMs, labelScale, durationMs);
+        const contentWidth = durationMs * pixelsPerMs * labelScale;
+        return rows.map(({ marker, row }) => {
+            const centerX = marker.atMs * pixelsPerMs * labelScale;
+            const width = estimatePinBadgeWidth(marker.label);
+            const anchor = resolvePinBadgeAnchor(centerX, width, contentWidth);
+            const left = getPinBadgeEdges(centerX, width, anchor).left;
+            const top = pinRowTop(row);
+            let paragraph: SkParagraph | null = null;
+            if (marker.label) {
+                paragraph = Skia.ParagraphBuilder.Make({ maxLines: 1, ellipsis: "\u2026" }, fontProvider)
+                    .pushStyle({
+                        fontFamilies: ["Plus Jakarta Sans", "Heebo"],
+                        fontSize: 10,
+                        fontStyle: { weight: 600 },
+                        color: Skia.Color(colors.onPrimary),
+                    })
+                    .addText(marker.label)
+                    .build();
+                paragraph.layout(Math.max(1, width - 12));
+            }
+            return { marker, left, top, width, paragraph };
+        });
+    }, [markers, pixelsPerMs, labelScale, durationMs, fontProvider]);
+
+    return (
+        <>
+            {chips.map((chip) => (
+                <PinBadgeChip key={chip.marker.id} chip={chip} sharedDraggingMarkerId={sharedDraggingMarkerId} />
+            ))}
+        </>
+    );
+}
+
+function PinBadgeChip({
+    chip,
+    sharedDraggingMarkerId,
+}: {
+    chip: {
+        marker: Pick<PracticeMarker, "id" | "atMs"> & { label?: string; note?: string };
+        left: number;
+        top: number;
+        width: number;
+        paragraph: SkParagraph | null;
+    };
+    sharedDraggingMarkerId?: SharedValue<string>;
+}) {
+    const { marker, left, top, width, paragraph } = chip;
+    const opacity = useDerivedValue(() =>
+        sharedDraggingMarkerId && sharedDraggingMarkerId.value === marker.id ? 0 : 1
+    );
+    if (!marker.label) {
+        return (
+            <Group opacity={opacity}>
+                <RoundedRect
+                    x={left + (PIN_BADGE_HEIGHT - PIN_DOT_SIZE) / 2}
+                    y={top + 2}
+                    width={PIN_DOT_SIZE}
+                    height={PIN_DOT_SIZE}
+                    r={PIN_DOT_SIZE / 2}
+                    color={colors.primary}
+                />
+                {marker.note ? (
+                    <RoundedRect
+                        x={left + (PIN_BADGE_HEIGHT - PIN_DOT_SIZE) / 2 + 2}
+                        y={top + 4}
+                        width={PIN_DOT_SIZE - 4}
+                        height={PIN_DOT_SIZE - 4}
+                        r={(PIN_DOT_SIZE - 4) / 2}
+                        color={colors.onPrimary}
+                        opacity={0.85}
+                    />
+                ) : null}
+            </Group>
+        );
+    }
+    return (
+        <Group opacity={opacity}>
+            <RoundedRect x={left} y={top} width={width} height={PIN_BADGE_HEIGHT} r={2} color={colors.primary} />
+            {paragraph ? (
+                <Paragraph paragraph={paragraph} x={left + 6} y={top + 3} width={width - 12} />
+            ) : null}
+            {marker.note ? (
+                <RoundedRect
+                    x={left + width - 8}
+                    y={top + PIN_BADGE_HEIGHT / 2 - 2}
+                    width={4}
+                    height={4}
+                    r={2}
+                    color={colors.onPrimary}
+                    opacity={0.85}
+                />
+            ) : null}
+        </Group>
+    );
+}
+
+const SECTION_CHIP_HEIGHT = 16;
+const SECTION_CHIP_PAD_X = 5;
+const SECTION_CHIP_EDGE_PAD = 2;
+const SECTION_CHIP_BOTTOM_INSET = 3;
+const SECTION_CHIP_FONT_SIZE = 9.5;
+
+/**
+ * Section name chips, drawn INSIDE the canvas so they are part of the same picture as the
+ * bands they name — the RN twin of this layer was the last place section labels could slip
+ * against the tape (any React commit costs the UI thread a frame, and two renderers come
+ * back in different frames; see docs/product-plan/reel-smoothness-findings.md). User text
+ * goes through the Paragraph API: it shapes Hebrew (Heebo is registered as the fallback
+ * face, matching the app-level RTL font remap), which Skia's basic Text cannot.
+ *
+ * Each chip pins to the reel's left edge while its band scrolls off — the same left-edge
+ * slide the RN layer had — via a per-band UI-thread transform reading the tape's
+ * translateX. Same renderer, same frame, glued.
+ */
+function SectionLabelChipsOverlay({
+    bands,
+    pixelsPerMs,
+    labelScale,
+    translateX,
+    heightValue,
+    fontProvider,
+}: {
+    bands: SectionBand[];
+    pixelsPerMs: number;
+    labelScale: number;
+    translateX: SharedValue<number>;
+    heightValue: SharedValue<number>;
+    fontProvider: NonNullable<ReturnType<typeof useFonts>>;
+}) {
+    const chips = useMemo(
+        () =>
+            bands.map((band) => {
+                const startX = band.startMs * pixelsPerMs * labelScale;
+                const bandWidth = Math.max(0, (band.endMs - band.startMs) * pixelsPerMs * labelScale);
+                const paragraph = Skia.ParagraphBuilder.Make(
+                    { maxLines: 1, ellipsis: "\u2026" },
+                    fontProvider
+                )
+                    .pushStyle({
+                        fontFamilies: ["Plus Jakarta Sans", "Heebo"],
+                        fontSize: SECTION_CHIP_FONT_SIZE,
+                        fontStyle: { weight: 600 },
+                        color: Skia.Color(colors.surface),
+                    })
+                    .addText(band.label)
+                    .build();
+                paragraph.layout(Math.max(1, bandWidth - SECTION_CHIP_PAD_X * 2));
+                const textWidth = Math.ceil(paragraph.getLongestLine());
+                const textHeight = paragraph.getHeight();
+                const chipWidth = Math.min(
+                    Math.max(1, bandWidth - SECTION_CHIP_EDGE_PAD * 2),
+                    textWidth + SECTION_CHIP_PAD_X * 2
+                );
+                return { band, startX, bandWidth, paragraph, chipWidth, textHeight };
+            }),
+        [bands, pixelsPerMs, labelScale, fontProvider]
+    );
+
+    return (
+        <>
+            {chips.map((chip) => (
+                <SectionLabelChip key={chip.band.id} chip={chip} translateX={translateX} heightValue={heightValue} />
+            ))}
+        </>
+    );
+}
+
+function SectionLabelChip({
+    chip,
+    translateX,
+    heightValue,
+}: {
+    chip: {
+        band: SectionBand;
+        startX: number;
+        bandWidth: number;
+        paragraph: SkParagraph;
+        chipWidth: number;
+        textHeight: number;
+    };
+    translateX: SharedValue<number>;
+    heightValue: SharedValue<number>;
+}) {
+    const { band, startX, bandWidth, paragraph, chipWidth, textHeight } = chip;
+    // Slide along the band so the chip holds the reel's left edge while the band scrolls
+    // off; vanish when the remaining band can no longer hold it.
+    const slide = useDerivedValue(() => {
+        const offscreen = SECTION_CHIP_EDGE_PAD - (startX + translateX.value);
+        return Math.max(0, Math.min(offscreen, bandWidth - chipWidth - SECTION_CHIP_EDGE_PAD));
+    });
+    const transform = useDerivedValue(() => [{ translateX: startX + SECTION_CHIP_EDGE_PAD + slide.value }]);
+    const opacity = useDerivedValue(() => {
+        const offscreen = SECTION_CHIP_EDGE_PAD - (startX + translateX.value);
+        return offscreen <= bandWidth - chipWidth - SECTION_CHIP_EDGE_PAD ? 1 : 0;
+    });
+    const chipY = useDerivedValue(
+        () => heightValue.value - SECTION_CHIP_BOTTOM_INSET - SECTION_CHIP_HEIGHT
+    );
+    const textY = useDerivedValue(() => chipY.value + (SECTION_CHIP_HEIGHT - textHeight) / 2);
+
+    return (
+        <Group transform={transform} opacity={opacity}>
+            <RoundedRect
+                x={0}
+                y={chipY}
+                width={chipWidth}
+                height={SECTION_CHIP_HEIGHT}
+                r={3}
+                color={band.railColor}
+            />
+            <Paragraph paragraph={paragraph} x={SECTION_CHIP_PAD_X} y={textY} width={chipWidth} />
+        </Group>
+    );
+}
+
 function GridRulerOverlay({
     heightValue,
     model,
@@ -305,11 +600,13 @@ export function PlaybackTapeVisualizer({
     sharedPlaybackRate,
     isScrubbing = false,
     onSeek,
-    onBaseScaleChange,
     selectedRanges,
     practiceMarkers,
     sectionBands,
     gridRuler,
+    gridLabelScale = 1,
+    gridLabelColor,
+    sharedDraggingMarkerId,
     sharedSelectedRangeStartMs,
     sharedSelectedRangeEndMs,
     selectedRangeType = "keep",
@@ -319,7 +616,6 @@ export function PlaybackTapeVisualizer({
     sharedAudioProgress,
     sharedPauseHoldMs,
     sharedPauseHoldToken,
-    sharedBaseScale,
     sharedSurfaceHeight,
     onScrubStateChange,
     freezeSelectedRangeWhenFullyVisible = false,
@@ -346,7 +642,6 @@ export function PlaybackTapeVisualizer({
     // The exact percentage distance (0 to 1) of the playhead
     const localAudioProgress = useSharedValue(0);
     const audioProgress = sharedAudioProgress || localAudioProgress;
-    const targetAudioProgress = useSharedValue(0);
     const localCurrentTimeMs = useSharedValue(currentTimeMs);
     const currentTimeMsValue = sharedCurrentTimeMs || localCurrentTimeMs;
     const localDurationMs = useSharedValue(durationMs);
@@ -361,9 +656,15 @@ export function PlaybackTapeVisualizer({
     const lastSeenTransportUpdate = useSharedValue(0);
     const reportBaseProgress = useSharedValue(0);
     const reportFrameTimestamp = useSharedValue(0);
+    /** Progress units per ms — the tracker's own estimate of how fast the tape runs. */
+    const progressVelocity = useSharedValue(0);
+    /** True while scrub/pause/count-in owns the playhead and the tracker is parked. */
+    const trackingSuspended = useSharedValue(true);
     const lastPlayingState = useSharedValue(isPlaying);
     const playingStateChangedAt = useSharedValue(0);
-    const scrubSettlingFrames = useSharedValue(0);
+    const scrubSettleUntil = useSharedValue(0);
+    /** Last frame timestamp, so gesture worklets can schedule against the same clock. */
+    const frameNow = useSharedValue(0);
     const awaitingPlayStartClock = useSharedValue(false);
     const pauseHoldUntil = useSharedValue(0);
     const pauseHoldProgress = useSharedValue(0);
@@ -410,11 +711,18 @@ export function PlaybackTapeVisualizer({
         const resetProgress = durationMs > 0 ? Math.max(0, Math.min(1, currentTimeMs / durationMs)) : 0;
         cancelAnimation(audioProgress);
         audioProgress.value = resetProgress;
-        targetAudioProgress.value = resetProgress;
         reportBaseProgress.value = resetProgress;
         reportFrameTimestamp.value = 0;
+        progressVelocity.value = 0;
+        // A JS effect can't stamp the UI clock, so the zero above reads as "the last
+        // report was at time zero" — i.e. hours ago. Parking the tracker makes the next
+        // frame re-seed both from the real clock instead of extrapolating from that.
+        trackingSuspended.value = true;
         lastSeenTransportUpdate.value = transportUpdateToken.value;
         awaitingPlayStartClock.value = false;
+        // A settle window left over from the outgoing clip would otherwise keep the new
+        // one's reports locked out for its remainder.
+        scrubSettleUntil.value = 0;
         pauseHoldUntil.value = 0;
         pauseHoldProgress.value = resetProgress;
         pauseAnchorActive.value = false;
@@ -422,28 +730,27 @@ export function PlaybackTapeVisualizer({
 
     useEffect(() => {
         if (canvasWidth > 0 && baseContentWidth > 0) {
-            const fitScale = canvasWidth / baseContentWidth;
+            // Fit the whole wave to the canvas — only when the parent doesn't drive the
+            // scale itself (AudioReel does; a bare visualizer doesn't).
             if (!sharedScale) {
-                scale.value = fitScale;
+                scale.value = canvasWidth / baseContentWidth;
             }
-            if (sharedBaseScale) {
-                sharedBaseScale.value = fitScale;
-            }
-            onBaseScaleChange?.(fitScale);
         }
     }, [canvasWidth, baseContentWidth]);
 
     useFrameCallback((frameInfo) => {
+        // Stamped before the duration guard: gesture worklets schedule against this
+        // clock, and a scrub that settles while the duration is still unknown would
+        // otherwise anchor its settle window to zero and never hold.
+        frameNow.value = frameInfo.timestamp;
+
         const duration = durationMsValue.value;
         if (duration <= 0) return;
 
         const scrubVisualLockActive =
             isDragging.value ||
             isScrubbingShared.value ||
-            scrubSettlingFrames.value > 0;
-        if (scrubSettlingFrames.value > 0) {
-            scrubSettlingFrames.value -= 1;
-        }
+            frameInfo.timestamp < scrubSettleUntil.value;
 
         if (
             sharedPauseHoldMs &&
@@ -456,13 +763,13 @@ export function PlaybackTapeVisualizer({
                 const holdProgress = Math.max(0, Math.min(1, holdMs / duration));
                 cancelAnimation(audioProgress);
                 audioProgress.value = holdProgress;
-                targetAudioProgress.value = holdProgress;
                 reportBaseProgress.value = holdProgress;
                 reportFrameTimestamp.value = frameInfo.timestamp;
                 pauseHoldProgress.value = holdProgress;
                 pauseHoldUntil.value = frameInfo.timestamp + PAUSE_VISUAL_HOLD_MS;
                 pauseAnchorActive.value = true;
                 awaitingPlayStartClock.value = false;
+                progressVelocity.value = 0;
             }
         }
 
@@ -472,12 +779,11 @@ export function PlaybackTapeVisualizer({
             awaitingPlayStartClock.value = isPlayingShared.value;
 
             if (scrubVisualLockActive) {
-                awaitingPlayStartClock.value = isPlayingShared.value;
                 pauseHoldUntil.value = 0;
                 pauseAnchorActive.value = false;
                 reportBaseProgress.value = audioProgress.value;
                 reportFrameTimestamp.value = frameInfo.timestamp;
-                targetAudioProgress.value = audioProgress.value;
+                progressVelocity.value = 0;
             } else if (!isPlayingShared.value) {
                 const heldProgress = audioProgress.value;
                 awaitingPlayStartClock.value = false;
@@ -488,25 +794,40 @@ export function PlaybackTapeVisualizer({
                 audioProgress.value = heldProgress;
                 reportBaseProgress.value = heldProgress;
                 reportFrameTimestamp.value = frameInfo.timestamp;
-                targetAudioProgress.value = heldProgress;
+                progressVelocity.value = 0;
             } else {
                 pauseAnchorActive.value = false;
                 pauseHoldUntil.value = 0;
-                const previousProgress = audioProgress.value;
-                const startProgress = previousProgress;
+                // Read before cancelling any in-flight fling, so the resume anchors on
+                // the position the tape is actually showing.
+                const resumeProgress = audioProgress.value;
                 cancelAnimation(audioProgress);
-                audioProgress.value = startProgress;
-                reportBaseProgress.value = startProgress;
+                audioProgress.value = resumeProgress;
+                reportBaseProgress.value = resumeProgress;
                 reportFrameTimestamp.value = frameInfo.timestamp;
-                targetAudioProgress.value = startProgress;
+                // Seed the tracker at the nominal rate so the first frames of playback
+                // move at speed instead of accelerating up from a standstill.
+                progressVelocity.value = playbackRateShared.value / duration;
             }
+        }
+
+        // The pause anchor is a WINDOW, not a latch. It exists to swallow the report
+        // storm from the corrective seek the player fires at pause time (PlayerScreen's
+        // pauseFullPlayerAtVisiblePosition), and then it has to let go. Without this the
+        // anchor stayed set for the whole pause and every later report was ignored — so a
+        // seek while paused that doesn't write audioProgress itself (the transport skip
+        // buttons, a marker or loop jump) left the playhead sitting where the pause left
+        // it. PAUSE_VISUAL_HOLD_MS has never actually run; treat it as a starting point
+        // for the device pass, not a tuned number.
+        if (pauseAnchorActive.value && frameInfo.timestamp >= pauseHoldUntil.value) {
+            pauseAnchorActive.value = false;
+            pauseHoldUntil.value = 0;
         }
 
         if (transportUpdateToken.value !== lastSeenTransportUpdate.value) {
             lastSeenTransportUpdate.value = transportUpdateToken.value;
             if (scrubVisualLockActive) {
                 reportBaseProgress.value = audioProgress.value;
-                targetAudioProgress.value = audioProgress.value;
                 reportFrameTimestamp.value = frameInfo.timestamp;
                 return;
             }
@@ -521,13 +842,9 @@ export function PlaybackTapeVisualizer({
 
             if (pauseAnchorActive.value) {
                 reportBaseProgress.value = pauseHoldProgress.value;
-                targetAudioProgress.value = pauseHoldProgress.value;
                 reportFrameTimestamp.value = frameInfo.timestamp;
                 return;
             }
-
-            pauseHoldUntil.value = 0;
-            pauseAnchorActive.value = false;
 
             if (awaitingPlayStartClock.value && isPlayingShared.value) {
                 const minimumAdvancingProgress = Math.min(0.01, Math.max(0.0005, 12 / duration));
@@ -542,7 +859,6 @@ export function PlaybackTapeVisualizer({
 
                 if (!clockHasAdvanced && !waitTimedOut) {
                     reportBaseProgress.value = previousProgress;
-                    targetAudioProgress.value = previousProgress;
                     reportFrameTimestamp.value = frameInfo.timestamp;
                     return;
                 }
@@ -551,16 +867,15 @@ export function PlaybackTapeVisualizer({
                 const releaseProgress = isAtStart ? reportedProgress : previousProgress;
                 cancelAnimation(audioProgress);
                 audioProgress.value = releaseProgress;
-                targetAudioProgress.value = releaseProgress;
                 reportBaseProgress.value = releaseProgress;
                 reportFrameTimestamp.value = frameInfo.timestamp;
+                progressVelocity.value = playbackRateShared.value / duration;
                 return;
             }
 
             awaitingPlayStartClock.value = false;
             if (recentlyStartedPlaying && progressDelta > stalePlayStartForwardProgress) {
                 reportBaseProgress.value = previousProgress;
-                targetAudioProgress.value = previousProgress;
                 reportFrameTimestamp.value = frameInfo.timestamp;
                 return;
             }
@@ -577,18 +892,24 @@ export function PlaybackTapeVisualizer({
             if (shouldSnap) {
                 cancelAnimation(audioProgress);
                 audioProgress.value = reportedProgress;
-                targetAudioProgress.value = reportedProgress;
                 reportBaseProgress.value = reportedProgress;
-            } else {
-                const correctionFactor = recentlyStartedPlaying
-                    ? PLAY_START_CORRECTION_FACTOR
-                    : PLAYING_CORRECTION_FACTOR;
+                progressVelocity.value = isPlayingShared.value
+                    ? playbackRateShared.value / duration
+                    : 0;
+            } else if (recentlyStartedPlaying) {
+                // The first reports after pressing play are often stale by a frame or
+                // two; ease onto them rather than believing them outright.
                 const correctedProgress = Math.max(
                     0,
-                    Math.min(1, previousProgress + progressDelta * correctionFactor)
+                    Math.min(1, previousProgress + progressDelta * PLAY_START_CORRECTION_FACTOR)
                 );
                 reportBaseProgress.value = correctedProgress;
-                targetAudioProgress.value = correctedProgress;
+            } else {
+                // Steady state: the report IS the target. It arrives as a staircase, but
+                // the tracker below extrapolates it back into the ramp the audio is
+                // actually walking and folds the difference in as a small residual — so
+                // no report ever restarts the scroll from a standstill.
+                reportBaseProgress.value = reportedProgress;
             }
         }
 
@@ -597,34 +918,53 @@ export function PlaybackTapeVisualizer({
             pauseAnchorActive.value ||
             !isPlayingShared.value ||
             awaitingPlayStartClock.value
-        ) return;
+        ) {
+            trackingSuspended.value = true;
+            progressVelocity.value = 0;
+            return;
+        }
 
         const frameDeltaMs = frameInfo.timeSincePreviousFrame ?? 16;
         if (frameDeltaMs <= 0) return;
 
+        // First frame back after a scrub, a pause, or a count-in: hand the tracker the
+        // nominal rate and the position it is already showing. Letting it build velocity
+        // from zero instead would read as the tape easing in every time.
+        if (trackingSuspended.value) {
+            trackingSuspended.value = false;
+            progressVelocity.value = playbackRateShared.value / duration;
+            reportBaseProgress.value = audioProgress.value;
+            reportFrameTimestamp.value = frameInfo.timestamp;
+            return;
+        }
+
+        const nominalVelocity = playbackRateShared.value / duration;
         const elapsedSinceReport = Math.max(0, frameInfo.timestamp - reportFrameTimestamp.value);
         const reportedProgress = Math.max(0, Math.min(1, currentTimeMsValue.value / duration));
-        const maxLeadProgress = PREDICTOR_MAX_LEAD_MS / duration;
-        const predictedProgress = Math.min(
+        // The reported clock, extrapolated forward at the nominal rate: a straight line,
+        // which is what the audio is actually doing between reports.
+        const targetProgress = Math.min(
             1,
-            reportedProgress + maxLeadProgress,
-            reportBaseProgress.value + (elapsedSinceReport * playbackRateShared.value) / duration
+            reportBaseProgress.value + elapsedSinceReport * nominalVelocity
         );
-        const progressError = predictedProgress - audioProgress.value;
-
-        if (Math.abs(progressError) < 0.0002) {
-            return;
-        }
-
-        if (Math.abs(progressError) > 0.03) {
-            audioProgress.value = predictedProgress;
-            return;
-        }
-
-        audioProgress.value = Math.max(
-            0,
-            Math.min(1, audioProgress.value + progressError * 0.35)
+        const tracked = advanceTracker(
+            audioProgress.value,
+            progressVelocity.value,
+            targetProgress,
+            frameDeltaMs,
+            {
+                tauMs: TRACKING_TAU_MS,
+                maxVelocity: nominalVelocity * MAX_TRACKING_VELOCITY_FACTOR,
+                // A residual this large isn't tracking error, it's a jump (a stall
+                // recovering, a seek the report branch didn't catch).
+                resyncDistance: TRACKING_RESYNC_PROGRESS,
+                resyncVelocity: nominalVelocity,
+            }
         );
+        progressVelocity.value = tracked.velocity;
+        // Coasting is bounded: a genuine stall parks the tape instead of running away.
+        const leadCeiling = reportedProgress + PREDICTOR_MAX_LEAD_MS / duration;
+        audioProgress.value = Math.max(0, Math.min(1, Math.min(tracked.position, leadCeiling)));
     });
 
     // Handle Scrubbing Gestures
@@ -635,7 +975,8 @@ export function PlaybackTapeVisualizer({
             awaitingPlayStartClock.value = false;
             pauseHoldUntil.value = 0;
             pauseAnchorActive.value = false;
-            scrubSettlingFrames.value = 0;
+            scrubSettleUntil.value = 0;
+            progressVelocity.value = 0;
             startProgress.value = audioProgress.value;
             if (onScrubStateChange) runOnJS(onScrubStateChange)(true);
         })
@@ -649,7 +990,8 @@ export function PlaybackTapeVisualizer({
             const settle = (fromFling: boolean) => {
                 "worklet";
                 isDragging.value = false;
-                scrubSettlingFrames.value = SCRUB_SETTLE_FRAMES;
+                scrubSettleUntil.value = frameNow.value + SCRUB_SETTLE_MS;
+                progressVelocity.value = 0;
                 let newTime = audioProgress.value * durationMs;
                 const edgeGuardMs = fromFling && durationMs > 200 ? 150 : 0;
                 const minTime = edgeGuardMs > 0 ? edgeGuardMs : 0;
@@ -683,11 +1025,27 @@ export function PlaybackTapeVisualizer({
             settle(false);
         });
 
-    // Dynamic bounded rules
-    useDerivedValue(() => {
+    // Dynamic bounded rules — the tape's scroll offset.
+    //
+    // A frame callback rather than a derived value, to close an ordering hazard. Reanimated
+    // orders mappers by the inputs and outputs they DECLARE, and `translateX` is written
+    // below as a side effect, so it is not this unit's declared output: nothing orders the
+    // mappers that read it (the Skia canvas transform, `playheadX`, and every overlay's
+    // `useAnimatedStyle`) after the one that writes it. A reader sorted before the writer
+    // is marked dirty too late and repaints on the NEXT frame, so different consumers of
+    // one value could sit a frame apart. Frame callbacks run before the mapper pass, so a
+    // value written here is visible to every consumer in the same frame — and that holds
+    // whichever order the two frame callbacks take, since either way all consumers read
+    // one identical translateX per frame.
+    //
+    // Measured neutral on the overlay jitter (2026-07-29, iOS sim, frame-by-frame): that
+    // has a different cause — see docs/product-plan/reel-smoothness-findings.md. This closes the hazard, nothing more.
+    useFrameCallback(() => {
         if (canvasWidth === 0) return;
-        const cw = contentWidth.value;
-        const tx = targetX.value;
+        // Read from the raw inputs rather than the `contentWidth`/`targetX` mappers, which
+        // have not run yet this frame.
+        const cw = baseContentWidth * scale.value;
+        const tx = audioProgress.value * cw;
         const halfScreen = canvasWidth / 2;
 
         if (
@@ -765,6 +1123,23 @@ export function PlaybackTapeVisualizer({
     });
 
     const playheadRectX = useDerivedValue(() => playheadX.value - 2);
+
+    // Same face the RN labels used (text.annotation). Null until loaded — the labels
+    // simply aren't drawn for those first frames rather than popping in at a wrong size.
+    // Content-space px per file-ms, matching what the ruler primitives use.
+    const gridLabelPixelsPerMs = durationMs > 0 ? baseContentWidth / durationMs : 0;
+    const gridLabelFont = useFont(
+        require("@expo-google-fonts/plus-jakarta-sans/600SemiBold/PlusJakartaSans_600SemiBold.ttf"),
+        GRID_LABEL_FONT_SIZE
+    );
+    // Paragraph faces for USER text (section names). Heebo is the Hebrew fallback,
+    // mirroring the app-level RTL font remap. Null until loaded; the chips wait.
+    const sectionFontProvider = useFonts({
+        "Plus Jakarta Sans": [
+            require("@expo-google-fonts/plus-jakarta-sans/600SemiBold/PlusJakartaSans_600SemiBold.ttf"),
+        ],
+        Heebo: [require("@expo-google-fonts/heebo/600SemiBold/Heebo_600SemiBold.ttf")],
+    });
 
     const translateTransform = useDerivedValue(() => {
         return [{ translateX: translateX.value }];
@@ -918,6 +1293,57 @@ export function PlaybackTapeVisualizer({
                                         />
                                     ) : null}
                                 </Group>
+                                {/* Bar numbers ride the tape's own transform — inside the
+                                    translate, outside the scale so the glyphs keep their
+                                    shape while their positions follow the zoom. */}
+                                {gridRuler && gridLabelFont ? (
+                                    <>
+                                        <Group opacity={GRID_BAR_LABEL_OPACITY}>
+                                            {gridRuler.barLabels.map((label) => (
+                                                <SkiaText
+                                                    key={`bar-${label.bar}`}
+                                                    x={label.ms * gridLabelPixelsPerMs * gridLabelScale + GRID_LABEL_INSET_X}
+                                                    y={GRID_LABEL_BASELINE_Y}
+                                                    text={String(label.bar)}
+                                                    font={gridLabelFont}
+                                                    color={gridLabelColor ?? rulerColor}
+                                                />
+                                            ))}
+                                        </Group>
+                                        <Group opacity={GRID_CHANGE_LABEL_OPACITY}>
+                                            {gridRuler.changeMarkers.map((marker) => (
+                                                <SkiaText
+                                                    key={`change-${marker.bar}`}
+                                                    x={marker.ms * gridLabelPixelsPerMs * gridLabelScale + GRID_LABEL_INSET_X}
+                                                    y={GRID_LABEL_BASELINE_Y}
+                                                    text={marker.label}
+                                                    font={gridLabelFont}
+                                                    color={gridLabelColor ?? rulerColor}
+                                                />
+                                            ))}
+                                        </Group>
+                                    </>
+                                ) : null}
+                                {sectionBands && sectionBands.length > 0 && sectionFontProvider ? (
+                                    <SectionLabelChipsOverlay
+                                        bands={sectionBands}
+                                        pixelsPerMs={durationMs > 0 ? baseContentWidth / durationMs : 0}
+                                        labelScale={gridLabelScale}
+                                        translateX={translateX}
+                                        heightValue={heightSV}
+                                        fontProvider={sectionFontProvider}
+                                    />
+                                ) : null}
+                                {practiceMarkers && practiceMarkers.length > 0 && sectionFontProvider ? (
+                                    <PinBadgeChipsOverlay
+                                        markers={practiceMarkers}
+                                        pixelsPerMs={durationMs > 0 ? baseContentWidth / durationMs : 0}
+                                        labelScale={gridLabelScale}
+                                        durationMs={durationMs}
+                                        fontProvider={sectionFontProvider}
+                                        sharedDraggingMarkerId={sharedDraggingMarkerId}
+                                    />
+                                ) : null}
                             </Group>
                             {sharedSelectedRangeStartMs && sharedSelectedRangeEndMs && selectedRanges?.[0] ? (
                                 <LoopRangeOverlay
