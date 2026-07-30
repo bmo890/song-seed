@@ -128,3 +128,38 @@ the simulator (and Bluetooth, and Android) does not report.
 
 This is what the harness is for: it cancelled a planned gate-tuning change before it shipped,
 which would have been another fix aimed at the wrong thing.
+
+---
+
+## Validating the fix against the same take
+
+`domain/onsetEnvelope.ts` builds the right signal while recording: the samples are
+first-differenced, summed into ~1ms bins, and read as a rising edge. To check it without
+waiting for a new recording, the take above was decoded and pushed through the **real app
+code** in the recorder's own 40ms delivery chunks:
+
+```
+ONSET  phase=89.9ms  contrast=30.40  binMs=0.9977
+RESULT corrected by +90ms → firstDownbeatMs 90   (onset signal, contrast 30.4)
+```
+
+| | contrast | says the click is at | verdict |
+| --- | --- | --- | --- |
+| sidecar (old) | **1.07** | — | declines |
+| onset envelope (new) | **30.40** | 89.9 ms | corrects by +90 ms |
+| grid-truth harness (independent) | 30.34 | 89.5 ms | — |
+
+The app and a completely independent Python instrument agree to **0.4 ms** on real recorded
+audio with real click bleed and real room noise. Note `binMs = 0.9977`, not 1: at 44100Hz a
+1ms bin is 44 frames, and reporting the nominal figure instead of the real one put ~9ms of
+drift-induced bias into the phase.
+
+Reproducing it (needs a take whose audio you have on disk):
+
+```bash
+ffmpeg -v error -i take.m4a -ac 1 -ar 44100 -f f32le - > take.f32
+```
+
+then feed `take.f32` through `appendOnsetSamples` in 40ms chunks and call
+`alignGridToRecordedClicks`. Compare its correction against
+`python3 scripts/grid-truth.py --audio take.m4a --bpm <bpm> --downbeat <stored>`.

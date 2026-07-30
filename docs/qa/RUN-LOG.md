@@ -306,3 +306,31 @@ automation (flagged as the highest-leverage next investment). Also HUMAN: real r
 capture, Bluetooth, call interruption, lock-screen/background audio, the system share sheet &
 document picker (export/import/restore actions), haptics feel, and Magpie's live book fetch.
 
+
+## 2026-07-30 — grid truth, first run
+
+`scripts/grid-truth.py`, iOS simulator (iPhone 17, iOS 26.2), dev build.
+
+Control (synthetic clicks at a known 137ms phase, sustained tone on top):
+`+0.1ms, ±p90 0.2ms` — instrument noise floor.
+
+Five click takes already in the library, all with `firstDownbeatMs: 0` (never corrected):
+
+| take | contrast | error | ±p90 | drift/min |
+| --- | --- | --- | --- | --- |
+| clip-1785234938327 | 30.34 | **−89.5ms** | 0.7 | +1ms |
+| clip-1785362658104 | 2.86 | −222.6ms | 59.8 | +53ms |
+| clip-1785361972389 | 3.06 | +191.4ms | 55.4 | −6ms |
+| clip-1785361215531 | 1.62 | +63.0ms | 63.5 | +8ms |
+| clip-1785314192607 | 2.84 | +248.3ms | 47.1 | −110ms |
+
+Only the first row is a solid measurement (±0.7ms across 48 beats). The rest have p90 around
+50-60ms — their beats are not resolvable one by one, so read those medians as soft.
+
+Root causes found: self-alignment was blind on the sidecar signal (contrast 1.07 where the
+harness read 30.3), and had never run on any of these takes anyway. Fixed by capturing a 1ms
+high-passed onset envelope during recording; re-measured through the real app code on
+clip-1785234938327 it corrects by +90ms against the harness's 89.5ms.
+
+**Still to do:** re-run after recording a fresh take on a device (the simulator's mic did not
+engage), and decide whether to backfill the existing takes' grids.
