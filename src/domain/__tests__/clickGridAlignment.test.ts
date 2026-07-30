@@ -26,6 +26,11 @@ function sidecarWithClicks(args: {
   return values;
 }
 
+/** The sidecar signal wrapper, so tests read the way callers do. */
+function sidecarSignal(args: Parameters<typeof sidecarWithClicks>[0]) {
+  return { kind: "sidecar" as const, bins: sidecarWithClicks(args) };
+}
+
 function grid(overrides: Partial<RecordingGrid> = {}): RecordingGrid {
   return {
     bpm: BPM,
@@ -42,7 +47,7 @@ describe("estimateClickPhase", () => {
   it("finds the click phase within a sidecar bin", () => {
     const durationMs = 40000;
     const estimate = estimateClickPhase({
-      bins: sidecarWithClicks({ durationMs, phaseMs: 244 }),
+      signal: sidecarSignal({ durationMs, phaseMs: 244 }),
       durationMs,
       beatMs: BEAT_MS,
     });
@@ -55,13 +60,13 @@ describe("estimateClickPhase", () => {
   it("reports low contrast on click-free audio", () => {
     const durationMs = 40000;
     const bins = new Array(2048).fill(0).map((_, index) => ((index * 104729) % 17) / 17);
-    const estimate = estimateClickPhase({ bins, durationMs, beatMs: BEAT_MS });
+    const estimate = estimateClickPhase({ signal: { kind: "sidecar", bins }, durationMs, beatMs: BEAT_MS });
     expect(estimate === null || estimate.contrast < MIN_CLICK_CONTRAST).toBe(true);
   });
 
   it("refuses takes too short to measure", () => {
     expect(
-      estimateClickPhase({ bins: [1, 2, 3], durationMs: 2000, beatMs: BEAT_MS })
+      estimateClickPhase({ signal: { kind: "sidecar", bins: [1, 2, 3] }, durationMs: 2000, beatMs: BEAT_MS })
     ).toBeNull();
   });
 });
@@ -74,7 +79,7 @@ describe("alignGridToRecordedClicks", () => {
     // output+input latency) — the founder's "clicks a half beat off the grid lines".
     const result = alignGridToRecordedClicks({
       grid: grid({ firstDownbeatMs: 0 }),
-      bins: sidecarWithClicks({ durationMs, phaseMs: 244 }),
+      signal: sidecarSignal({ durationMs, phaseMs: 244 }),
       durationMs,
     });
     expect(result.kind).toBe("corrected");
@@ -86,7 +91,7 @@ describe("alignGridToRecordedClicks", () => {
   it("stamps a null downbeat from the audio instead of leaving the take gridless", () => {
     const result = alignGridToRecordedClicks({
       grid: grid({ firstDownbeatMs: null }),
-      bins: sidecarWithClicks({ durationMs, phaseMs: 300 }),
+      signal: sidecarSignal({ durationMs, phaseMs: 300 }),
       durationMs,
     });
     expect(result.kind).toBe("stamped");
@@ -98,7 +103,7 @@ describe("alignGridToRecordedClicks", () => {
   it("leaves an already-aligned grid alone", () => {
     const result = alignGridToRecordedClicks({
       grid: grid({ firstDownbeatMs: 200 }),
-      bins: sidecarWithClicks({ durationMs, phaseMs: 205 }),
+      signal: sidecarSignal({ durationMs, phaseMs: 205 }),
       durationMs,
     });
     expect(result.kind).toBe("unchanged");
@@ -107,7 +112,7 @@ describe("alignGridToRecordedClicks", () => {
   it("refuses an ambiguous near-half-beat correction", () => {
     const result = alignGridToRecordedClicks({
       grid: grid({ firstDownbeatMs: 0 }),
-      bins: sidecarWithClicks({ durationMs, phaseMs: BEAT_MS / 2 }),
+      signal: sidecarSignal({ durationMs, phaseMs: BEAT_MS / 2 }),
       durationMs,
     });
     expect(result.kind).toBe("unchanged");
@@ -116,7 +121,7 @@ describe("alignGridToRecordedClicks", () => {
   it("never touches a grid when the click did not run through the take", () => {
     const result = alignGridToRecordedClicks({
       grid: grid({ clickThroughTake: false, firstDownbeatMs: 0 }),
-      bins: sidecarWithClicks({ durationMs, phaseMs: 244 }),
+      signal: sidecarSignal({ durationMs, phaseMs: 244 }),
       durationMs,
     });
     expect(result.kind).toBe("unchanged");
@@ -126,7 +131,7 @@ describe("alignGridToRecordedClicks", () => {
     const bins = new Array(2048).fill(0).map((_, index) => ((index * 104729) % 17) / 17);
     const result = alignGridToRecordedClicks({
       grid: grid({ firstDownbeatMs: 0 }),
-      bins,
+      signal: { kind: "sidecar" as const, bins },
       durationMs,
     });
     expect(result.kind).toBe("unchanged");
@@ -144,7 +149,7 @@ describe("alignGridToRecordedClicks", () => {
           ],
         },
       }),
-      bins: sidecarWithClicks({ durationMs, phaseMs: 244 }),
+      signal: sidecarSignal({ durationMs, phaseMs: 244 }),
       durationMs,
     });
     expect(result.kind).toBe("unchanged");

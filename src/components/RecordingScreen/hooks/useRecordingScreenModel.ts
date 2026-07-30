@@ -351,6 +351,7 @@ export function useRecordingScreenModel() {
           audioUri: payload.audioUri,
           durationMs: payload.durationMs ?? clip.durationMs ?? 0,
           grid: takeGrid,
+          onsetEnvelope: payload.onsetEnvelope,
         });
       }
     },

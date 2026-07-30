@@ -1,4 +1,5 @@
 import type { RecordingGrid } from "../types";
+import { onsetFlux } from "./onsetEnvelope";
 
 /**
  * Align a take's beat grid to the metronome clicks the microphone actually recorded.
@@ -27,8 +28,10 @@ export type ClickPhaseEstimate = {
     phaseMs: number;
     /** Peak comb score over the median score. Below ~1.3 the "clicks" are noise. */
     contrast: number;
-    /** One sidecar bin, in ms: the measurement's actual resolution. */
+    /** One bin, in ms: the measurement's actual resolution. */
     msPerBin: number;
+    /** Which signal this came from — the two have very different reach. */
+    signalKind: "sidecar" | "onset";
 };
 
 /** Comb score contrast below which the estimate is noise and must not touch the grid. */
@@ -115,31 +118,59 @@ export function wrapToBeat(delta: number, beatMs: number): number {
     return wrapped;
 }
 
+/**
+ * What the comb is being run over.
+ *
+ *  - `sidecar`: the drawing envelope, stretched over the whole file (so its resolution is
+ *    `durationMs / bins.length`). Clicks are read as energy above the noise floor. Kept for
+ *    takes with no onset envelope — imports, and anything recorded before it existed — but
+ *    measurement says it usually cannot see a click at all under real material.
+ *  - `onset`: the 1ms high-passed envelope captured while recording
+ *    (`domain/onsetEnvelope.ts`). Clicks are read as the RISING EDGE, which is where a beat
+ *    is. This is the signal to prefer whenever a take has one.
+ */
+export type ClickSignal =
+    | { kind: "sidecar"; bins: number[] }
+    | { kind: "onset"; bins: number[]; binMs: number };
+
 export function estimateClickPhase(args: {
-    bins: number[];
+    signal: ClickSignal;
     durationMs: number;
     beatMs: number;
-    /** Search step in ms. Default 4ms — well under a sidecar bin. */
+    /** Search step in ms. Defaults to a quarter of a bin, floored at 1ms. */
     stepMs?: number;
     /** Restrict the comb to a window of the take (for the split-half stability gate). */
     windowMs?: [number, number];
 }): ClickPhaseEstimate | null {
-    const { bins, durationMs, beatMs, stepMs = 4 } = args;
+    const { signal, durationMs, beatMs } = args;
+    const bins = signal.bins;
     const [windowStart, windowEnd] = args.windowMs ?? [0, durationMs];
     if (!bins.length || durationMs <= 0 || beatMs <= 0) return null;
     // Need enough beats for the comb to separate clicks from noise.
     if ((windowEnd - windowStart) / beatMs < 6) return null;
 
-    const msPerBin = durationMs / bins.length;
-    // Positive deviation from the noise floor — clicks are spikes above it.
-    const sorted = [...bins].sort((a, b) => a - b);
-    const median = sorted[Math.floor(sorted.length / 2)] ?? 0;
-    const energy = bins.map((v) => Math.max(0, v - median));
+    const msPerBin = signal.kind === "onset" ? signal.binMs : durationMs / bins.length;
+    const stepMs = args.stepMs ?? Math.max(1, msPerBin / 4);
 
-    const result = comb({ signal: energy, msPerBin, beatMs, stepMs, windowStart, windowEnd });
+    let values: number[];
+    if (signal.kind === "onset") {
+        values = onsetFlux(bins);
+    } else {
+        // Positive deviation from the noise floor — clicks are spikes above it.
+        const sorted = [...bins].sort((a, b) => a - b);
+        const median = sorted[Math.floor(sorted.length / 2)] ?? 0;
+        values = bins.map((v) => Math.max(0, v - median));
+    }
+
+    const result = comb({ signal: values, msPerBin, beatMs, stepMs, windowStart, windowEnd });
     if (!result) return null;
 
-    return { phaseMs: result.phaseMs, contrast: result.contrast, msPerBin };
+    return {
+        phaseMs: result.phaseMs,
+        contrast: result.contrast,
+        msPerBin,
+        signalKind: signal.kind,
+    };
 }
 
 export type GridAlignmentResult =
@@ -149,12 +180,14 @@ export type GridAlignmentResult =
           correctionMs: number;
           contrast: number;
           msPerBin: number;
+          signalKind: ClickPhaseEstimate["signalKind"];
       }
     | {
           kind: "stamped";
           grid: RecordingGrid;
           contrast: number;
           msPerBin: number;
+          signalKind: ClickPhaseEstimate["signalKind"];
       }
     | { kind: "unchanged"; reason: string };
 
@@ -171,25 +204,30 @@ export type GridAlignmentResult =
  */
 export function alignGridToRecordedClicks(args: {
     grid: RecordingGrid;
-    bins: number[];
+    signal: ClickSignal;
     durationMs: number;
 }): GridAlignmentResult {
-    const { grid, bins, durationMs } = args;
+    const { grid, signal, durationMs } = args;
     if (!grid.clickThroughTake) return { kind: "unchanged", reason: "no click in take" };
     if (grid.tempoMap) return { kind: "unchanged", reason: "tempo-mapped take" };
     if (!(grid.bpm > 0)) return { kind: "unchanged", reason: "no bpm" };
 
     const beatMs = 60000 / grid.bpm;
-    const estimate = estimateClickPhase({ bins, durationMs, beatMs });
+    const estimate = estimateClickPhase({ signal, durationMs, beatMs });
     if (!estimate) return { kind: "unchanged", reason: "no estimate" };
     if (estimate.contrast < MIN_CLICK_CONTRAST) {
         return { kind: "unchanged", reason: `contrast ${estimate.contrast.toFixed(2)}` };
     }
 
     // Phase-lock gate: both halves of the take must hear the click at the same phase.
-    const firstHalf = estimateClickPhase({ bins, durationMs, beatMs, windowMs: [0, durationMs / 2] });
+    const firstHalf = estimateClickPhase({
+        signal,
+        durationMs,
+        beatMs,
+        windowMs: [0, durationMs / 2],
+    });
     const secondHalf = estimateClickPhase({
-        bins,
+        signal,
         durationMs,
         beatMs,
         windowMs: [durationMs / 2, durationMs],
@@ -207,6 +245,7 @@ export function alignGridToRecordedClicks(args: {
             grid: { ...grid, firstDownbeatMs: estimate.phaseMs },
             contrast: estimate.contrast,
             msPerBin: estimate.msPerBin,
+            signalKind: estimate.signalKind,
         };
     }
 
@@ -233,5 +272,6 @@ export function alignGridToRecordedClicks(args: {
         correctionMs: correction,
         contrast: estimate.contrast,
         msPerBin: estimate.msPerBin,
+        signalKind: estimate.signalKind,
     };
 }

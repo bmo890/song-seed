@@ -26,6 +26,12 @@ import { trimAudioRanges } from "../services/audioTrim";
 import { colors } from "../design/tokens";
 import { useRecordingDisplayElapsed } from "./useRecordingDisplayElapsed";
 import { useLiveRecordingWaveform } from "./useLiveRecordingWaveform";
+import {
+  appendOnsetSamples,
+  createOnsetEnvelopeState,
+  finishOnsetEnvelope,
+  type OnsetEnvelope,
+} from "../domain/onsetEnvelope";
 import { useStore } from "../state/useStore";
 import { deleteManagedAudioUris } from "../services/managedMedia";
 import { useTranslation } from "react-i18next";
@@ -37,6 +43,12 @@ type OnRecorded = (
     waveformPeaks?: number[];
     /** ms cut from the front of the take at save (count-in/pre-roll head). 0 = untrimmed. */
     headTrimmedMs?: number;
+    /**
+     * 1ms high-passed onset envelope of the take, already shifted into FILE ms (the trimmed
+     * head is dropped). This is the signal the beat grid is verified against — see
+     * `domain/onsetEnvelope.ts` for why the waveform sidecar cannot serve.
+     */
+    onsetEnvelope?: OnsetEnvelope | null;
   }
 ) => void | boolean | Promise<void | boolean>;
 
@@ -85,6 +97,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     epochMs: null,
     samples: 0,
   });
+  // Onset envelope of the take being captured — 1ms, high-passed. Reset with every take.
+  const onsetEnvelopeRef = useRef(createOnsetEnvelopeState(44100, 1));
   // Exact capture start reported by the patched native recorder (projected from
   // AudioRecord.getTimestamp / the first tap buffer's AVAudioTime). Preferred over the
   // estimator; null on unpatched binaries.
@@ -119,6 +133,10 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     estimate.epochMs = estimate.epochMs === null ? candidate : Math.min(estimate.epochMs, candidate);
     estimate.samples += 1;
   }, [recorder.durationMs, recorder.isPaused, recorder.isRecording]);
+
+  function resetOnsetEnvelope() {
+    onsetEnvelopeRef.current = createOnsetEnvelopeState(44100, 1);
+  }
 
   function resetCaptureStartEstimate() {
     captureStartEstimateRef.current = { epochMs: null, samples: 0 };
@@ -405,6 +423,14 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         // grid stay in one axis (capture ms); dropping these deliveries entirely is what
         // used to break that.
         appendAudioStream(event, { retainPoints: !headTrimRef.current.pending });
+        // The click bleed's onset envelope, accumulated from the same buffers. This is the
+        // signal the beat grid is verified against at save; measured against the waveform
+        // sidecar the app used to comb, a click under real playing does not exist at all
+        // (docs/qa/grid-truth.md). Built here because it costs one subtract per sample and
+        // the samples are already in hand — nothing to decode, nothing to be preempted.
+        if (event.streamFormat === "float32" && event.data instanceof Float32Array) {
+          appendOnsetSamples(onsetEnvelopeRef.current, event.data);
+        }
         const nativeCaptureStart = (event as { captureStartTimeEpochMs?: unknown })
           .captureStartTimeEpochMs;
         if (
@@ -469,6 +495,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       resetCaptureStartEstimate();
       setHeadTrim({ pending: false, ms: 0 });
       resetLiveWaveform();
+      resetOnsetEnvelope();
       await recorder.prepareRecording(buildRecordingConfig());
       preparedRecordingRef.current = true;
       return true;
@@ -514,6 +541,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       resetCaptureStartEstimate();
       setHeadTrim({ pending: false, ms: 0 });
       resetLiveWaveform();
+      resetOnsetEnvelope();
 
       const recordingStartedAt = Date.now();
       recordingStartedAtRef.current = recordingStartedAt;
@@ -579,6 +607,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     persistedSessionRef.current = false;
     abortHeadTrim();
     resetLiveWaveform();
+      resetOnsetEnvelope();
     try {
       expectedStopReasonRef.current = true;
       await recorder.stopRecording();
@@ -621,7 +650,11 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       const recordingData = await recorder.stopRecording();
       preparedRecordingRef.current = false;
       recordingStartedAtRef.current = null;
+      // Take the onset envelope before anything resets it — the head trim it has to be
+      // shifted by isn't known yet, so keep the raw capture-axis state for now.
+      const capturedOnsetState = onsetEnvelopeRef.current;
       resetLiveWaveform();
+      resetOnsetEnvelope();
       if (!recordingData || !recordingData.fileUri) {
         AppAlert.info(t("recordingErrors.failed"), t("recordingErrors.noFile"));
         return false;
@@ -701,6 +734,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
             : undefined),
         waveformPeaks,
         headTrimmedMs,
+        onsetEnvelope: finishOnsetEnvelope(capturedOnsetState, headTrimmedMs),
       });
 
       if (attached === false) {
@@ -766,6 +800,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       recordingStartedAtRef.current = null;
       abortHeadTrim();
       resetLiveWaveform();
+      resetOnsetEnvelope();
       if (recordingData?.fileUri) {
         // Discard should clean up the recorder output because the app never imports it into
         // managed storage or stores metadata for later recovery.
