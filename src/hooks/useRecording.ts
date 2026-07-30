@@ -58,6 +58,11 @@ type OnRecorded = (
 // throttle itself had become the visible problem: at 8 deliveries/second the live tape's
 // wave trails the playhead by a whole chunk, which reads as "built left of the playhead".
 // Dev now streams at the production cadence, so what the founder tests is what ships.
+/** Capture format. The onset envelope's bin duration is derived from this, so a mismatch
+ *  between what the recorder is configured with and what the envelope assumes would put a
+ *  proportional error into every beat grid — named once, used everywhere. */
+const CAPTURE_SAMPLE_RATE = 44100;
+const CAPTURE_CHANNELS = 1;
 const LIVE_WAVEFORM_SEGMENT_MS = 40;
 const LIVE_STREAM_INTERVAL_MS = 40;
 const ANALYSIS_SEGMENT_MS = 75;
@@ -98,7 +103,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     samples: 0,
   });
   // Onset envelope of the take being captured — 1ms, high-passed. Reset with every take.
-  const onsetEnvelopeRef = useRef(createOnsetEnvelopeState(44100, 1));
+  const onsetEnvelopeRef = useRef(createOnsetEnvelopeState(CAPTURE_SAMPLE_RATE, CAPTURE_CHANNELS));
   // Exact capture start reported by the patched native recorder (projected from
   // AudioRecord.getTimestamp / the first tap buffer's AVAudioTime). Preferred over the
   // estimator; null on unpatched binaries.
@@ -135,7 +140,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   }, [recorder.durationMs, recorder.isPaused, recorder.isRecording]);
 
   function resetOnsetEnvelope() {
-    onsetEnvelopeRef.current = createOnsetEnvelopeState(44100, 1);
+    onsetEnvelopeRef.current = createOnsetEnvelopeState(CAPTURE_SAMPLE_RATE, CAPTURE_CHANNELS);
   }
 
   function resetCaptureStartEstimate() {
@@ -178,8 +183,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   }
   const { waveform: liveWaveformData, appendAudioStream, reset: resetLiveWaveform } =
     useLiveRecordingWaveform({
-      channels: 1,
-      sampleRate: 44100,
+      channels: CAPTURE_CHANNELS,
+      sampleRate: CAPTURE_SAMPLE_RATE,
       segmentDurationMs: LIVE_WAVEFORM_SEGMENT_MS,
     });
   const recordingIdea = useMemo(
@@ -372,8 +377,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       // honors the choice when the id rides the config into the native AudioRecord
       // (patched: AudioRecord.setPreferredDevice).
       deviceId: preferredInputId ?? undefined,
-      sampleRate: 44100 as SampleRate,
-      channels: 1 as const,
+      sampleRate: CAPTURE_SAMPLE_RATE as SampleRate,
+      channels: CAPTURE_CHANNELS as 1,
       interval: LIVE_STREAM_INTERVAL_MS,
       intervalAnalysis: 75,
       segmentDurationMs: 75,
