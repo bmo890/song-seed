@@ -46,6 +46,9 @@ type Props = {
     sharedCurrentTimeMs?: SharedValue<number>;
     sharedDurationMs?: SharedValue<number>;
     sharedTransportUpdateToken?: SharedValue<number>;
+    /** Bumped when a seek actually LANDED (the engine's clock reached the target). Ends the
+     *  post-scrub hold on the event instead of on a timer. */
+    sharedSeekLandedToken?: SharedValue<number>;
     isPlaying?: boolean;
     sharedIsPlaying?: SharedValue<boolean>;
     playbackRate?: number;
@@ -147,6 +150,16 @@ const PREDICTOR_MAX_LEAD_MS = 300;
 const TRACKING_TAU_MS = 130;
 /** Ceiling on the tracker's velocity estimate, as a multiple of the nominal rate. */
 const MAX_TRACKING_VELOCITY_FACTOR = 3;
+/**
+ * Ceiling on how fast the tape may actually travel, as a multiple of the nominal rate.
+ *
+ * The velocity ceiling above does not bound the per-frame correction term, so a residual
+ * closes at roughly `residual/TRACKING_TAU_MS` ON TOP of nominal — a 400ms debt ran the tape
+ * at ~4× for a quarter second, which is the sprint people saw after scrubbing. Genuine
+ * discontinuities (a seek landing) are adopted in one frame instead, so nothing legitimate
+ * needs this headroom; what is left is drift, and drift closing at 1.4× is invisible.
+ */
+const MAX_CATCHUP_VELOCITY_FACTOR = 1.4;
 /** Residual past which tracking is pointless — jump and re-seed the velocity. */
 const TRACKING_RESYNC_PROGRESS = 0.03;
 // The bar numbers are drawn INSIDE the canvas, under the same transform as the tape, so
@@ -159,6 +172,14 @@ const GRID_LABEL_BASELINE_Y = 11;
 /** Left inset from the bar line the number names. */
 const GRID_LABEL_INSET_X = 3;
 const GRID_BAR_LABEL_OPACITY = 0.55;
+// Beat ticks, matched to the recording tape (LiveTapeVisualizer): a mark on BOTH edges,
+// 8pt long, at the same weight as the bar lines. They used to be a single 1px hairline on
+// the bottom edge at 0.28 — technically present, invisible in practice, and drawn under the
+// wave — so playback read as "measure lines only" against a recording tape that shows every
+// beat. One visual language across both, or the grid isn't a grid.
+const GRID_BEAT_TICK_LENGTH = 8;
+const GRID_BEAT_TICK_WIDTH = 1;
+const GRID_BEAT_TICK_OPACITY = 0.42;
 const GRID_CHANGE_LABEL_OPACITY = 0.85;
 
 function LoopRangeOverlay({
@@ -475,7 +496,7 @@ function GridRulerOverlay({
     pixelsPerMs: number;
     inkColor: string;
 }) {
-    const beatTickY = useDerivedValue(() => Math.max(0, heightValue.value - 8));
+    const beatTickY = useDerivedValue(() => Math.max(0, heightValue.value - GRID_BEAT_TICK_LENGTH));
     return (
         <>
             {model.preRollEndMs != null ? (
@@ -500,15 +521,24 @@ function GridRulerOverlay({
                 />
             ))}
             {model.beatTicks.map((tickMs) => (
-                <Rect
-                    key={`beat-${tickMs}`}
-                    x={tickMs * pixelsPerMs}
-                    y={beatTickY}
-                    width={1}
-                    height={8}
-                    color={inkColor}
-                    opacity={0.28}
-                />
+                <React.Fragment key={`beat-${tickMs}`}>
+                    <Rect
+                        x={tickMs * pixelsPerMs}
+                        y={0}
+                        width={GRID_BEAT_TICK_WIDTH}
+                        height={GRID_BEAT_TICK_LENGTH}
+                        color={inkColor}
+                        opacity={GRID_BEAT_TICK_OPACITY}
+                    />
+                    <Rect
+                        x={tickMs * pixelsPerMs}
+                        y={beatTickY}
+                        width={GRID_BEAT_TICK_WIDTH}
+                        height={GRID_BEAT_TICK_LENGTH}
+                        color={inkColor}
+                        opacity={GRID_BEAT_TICK_OPACITY}
+                    />
+                </React.Fragment>
             ))}
             {model.changeMarkers.map((marker) => (
                 <Rect
@@ -594,6 +624,7 @@ export function PlaybackTapeVisualizer({
     sharedCurrentTimeMs,
     sharedDurationMs,
     sharedTransportUpdateToken,
+    sharedSeekLandedToken,
     isPlaying = false,
     sharedIsPlaying,
     playbackRate = 1,
@@ -647,7 +678,10 @@ export function PlaybackTapeVisualizer({
     const localDurationMs = useSharedValue(durationMs);
     const durationMsValue = sharedDurationMs || localDurationMs;
     const localTransportUpdateToken = useSharedValue(0);
+    const localSeekLandedToken = useSharedValue(0);
+    const lastSeenSeekLanded = useSharedValue(0);
     const transportUpdateToken = sharedTransportUpdateToken || localTransportUpdateToken;
+    const seekLandedToken = sharedSeekLandedToken || localSeekLandedToken;
     const localIsPlaying = useSharedValue(isPlaying);
     const isPlayingShared = sharedIsPlaying || localIsPlaying;
     const isScrubbingShared = useSharedValue(isScrubbing);
@@ -663,6 +697,18 @@ export function PlaybackTapeVisualizer({
     const lastPlayingState = useSharedValue(isPlaying);
     const playingStateChangedAt = useSharedValue(0);
     const scrubSettleUntil = useSharedValue(0);
+    /**
+     * A seek was committed: the next report the tape is allowed to believe is a LANDING, and
+     * it should be adopted outright rather than handed to the tracker as a residual.
+     *
+     * A seek is a discontinuity. While the tape holds the scrub position — through the settle
+     * window, and then through the play-start grace — the engine seeks, resumes, and starts
+     * advancing, so by the time the holds expire the tape owes a debt of a few hundred ms.
+     * Feeding that to the α-β tracker closes it by ACCELERATION (roughly gap/tau on top of
+     * the nominal rate), which is the "speeds up to catch up" after a scrub. Landing on it in
+     * one frame is both cheaper to look at and what actually happened.
+     */
+    const adoptNextReport = useSharedValue(false);
     /** Last frame timestamp, so gesture worklets can schedule against the same clock. */
     const frameNow = useSharedValue(0);
     const awaitingPlayStartClock = useSharedValue(false);
@@ -746,6 +792,19 @@ export function PlaybackTapeVisualizer({
 
         const duration = durationMsValue.value;
         if (duration <= 0) return;
+
+        // The post-scrub hold exists to cover the native seek latency, and the engine tells
+        // us when that is over: the source-position gate publishes the seek TARGET until the
+        // engine's own clock reaches it, and bumps this token on the report where it does.
+        // Holding for a fixed 330ms after that is just the tape standing still while audio
+        // plays — a debt it then has to pay off. SCRUB_SETTLE_MS stays as the timeout for a
+        // landing that never comes (or a transport the channel doesn't drive).
+        if (seekLandedToken.value !== lastSeenSeekLanded.value) {
+            lastSeenSeekLanded.value = seekLandedToken.value;
+            if (frameInfo.timestamp < scrubSettleUntil.value) {
+                scrubSettleUntil.value = 0;
+            }
+        }
 
         const scrubVisualLockActive =
             isDragging.value ||
@@ -843,6 +902,22 @@ export function PlaybackTapeVisualizer({
             if (pauseAnchorActive.value) {
                 reportBaseProgress.value = pauseHoldProgress.value;
                 reportFrameTimestamp.value = frameInfo.timestamp;
+                return;
+            }
+
+            // First believable report after a seek: LAND on it. The engine-side hold has
+            // been publishing the seek target until a genuine landing arrived, so this
+            // value is where the audio actually is — not something to converge toward.
+            if (adoptNextReport.value) {
+                adoptNextReport.value = false;
+                awaitingPlayStartClock.value = false;
+                cancelAnimation(audioProgress);
+                audioProgress.value = reportedProgress;
+                reportBaseProgress.value = reportedProgress;
+                reportFrameTimestamp.value = frameInfo.timestamp;
+                progressVelocity.value = isPlayingShared.value
+                    ? playbackRateShared.value / duration
+                    : 0;
                 return;
             }
 
@@ -955,6 +1030,7 @@ export function PlaybackTapeVisualizer({
             {
                 tauMs: TRACKING_TAU_MS,
                 maxVelocity: nominalVelocity * MAX_TRACKING_VELOCITY_FACTOR,
+                maxStepRate: nominalVelocity * MAX_CATCHUP_VELOCITY_FACTOR,
                 // A residual this large isn't tracking error, it's a jump (a stall
                 // recovering, a seek the report branch didn't catch).
                 resyncDistance: TRACKING_RESYNC_PROGRESS,
@@ -976,6 +1052,7 @@ export function PlaybackTapeVisualizer({
             pauseHoldUntil.value = 0;
             pauseAnchorActive.value = false;
             scrubSettleUntil.value = 0;
+            adoptNextReport.value = false;
             progressVelocity.value = 0;
             startProgress.value = audioProgress.value;
             if (onScrubStateChange) runOnJS(onScrubStateChange)(true);
@@ -991,6 +1068,9 @@ export function PlaybackTapeVisualizer({
                 "worklet";
                 isDragging.value = false;
                 scrubSettleUntil.value = frameNow.value + SCRUB_SETTLE_MS;
+                // The seek about to be committed is a discontinuity: land on where the
+                // engine reports from, don't chase it.
+                adoptNextReport.value = true;
                 progressVelocity.value = 0;
                 let newTime = audioProgress.value * durationMs;
                 const edgeGuardMs = fromFling && durationMs > 200 ? 150 : 0;

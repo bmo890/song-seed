@@ -73,6 +73,35 @@ describe("buildGridRulerModel density", () => {
     expect(bars.slice(0, 3)).toEqual([1, 5, 9]);
     expect(model.barLabels.length).toBeLessThanOrEqual(28);
   });
+
+  // Density has to be judged in the pixels the eye gets. When the loaded peaks are coarser
+  // than the zoom asks for, the tape is STRETCHED to fill the zoom — so base px/ms is not
+  // what is on screen, and deciding on it alone hid every beat tick at any zoom on a clip
+  // whose thumbnail peaks hadn't been upgraded yet.
+  it("counts the tape's overscale as real on-screen width", () => {
+    const args = {
+      grid: BASE_GRID,
+      durationMs: 8 * 60 * 1000,
+      pixelsPerMs: ZOOMED_OUT_PX_PER_MS,
+    };
+    expect(buildGridRulerModel(args)!.beatTicks).toHaveLength(0);
+
+    const stretched = buildGridRulerModel({ ...args, overscale: 8 })!;
+    expect(stretched.beatTicks.length).toBeGreaterThan(0);
+    // Positions stay in file ms — overscale changes what is drawn, never where.
+    expect(stretched.barLines[0].ms).toBe(buildGridRulerModel(args)!.barLines[0].ms);
+  });
+
+  it("treats a missing or zero overscale as 1", () => {
+    const args = {
+      grid: BASE_GRID,
+      durationMs: 60_000,
+      pixelsPerMs: ZOOMED_OUT_PX_PER_MS,
+    };
+    const plain = buildGridRulerModel(args)!;
+    expect(buildGridRulerModel({ ...args, overscale: 0 })!.barLines).toEqual(plain.barLines);
+    expect(buildGridRulerModel({ ...args, overscale: 1 })!.barLines).toEqual(plain.barLines);
+  });
 });
 
 describe("snapToGrid", () => {

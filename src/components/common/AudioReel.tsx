@@ -193,6 +193,7 @@ type Props = {
     sharedCurrentTimeMs?: SharedValue<number>;
     sharedDurationMs?: SharedValue<number>;
     sharedTransportUpdateToken?: SharedValue<number>;
+    sharedSeekLandedToken?: SharedValue<number>;
     sharedAudioProgress?: SharedValue<number>;
     sharedPauseHoldMs?: SharedValue<number>;
     sharedPauseHoldToken?: SharedValue<number>;
@@ -255,6 +256,7 @@ export function AudioReel({
     sharedCurrentTimeMs,
     sharedDurationMs,
     sharedTransportUpdateToken,
+    sharedSeekLandedToken,
     sharedAudioProgress: externalSharedAudioProgress,
     sharedPauseHoldMs,
     sharedPauseHoldToken,
@@ -442,10 +444,13 @@ export function AudioReel({
     const pendingLayerStyle = useAnimatedStyle(() => ({ opacity: 1 - waveOpacity.value }));
 
     const pixelsPerMs = durationMs > 0 ? (displayWaveformPeaks.length * 3) / durationMs : 0;
-    // Ruler density follows zoom via pixelsPerMs; positions stay in file ms.
+    // Ruler density follows zoom via pixelsPerMs; positions stay in file ms. Overscale
+    // rides along because it is real on-screen width — a coarse peaks source caps
+    // pixelsPerMs but the tape is stretched to fill the zoom anyway, and the beat ticks
+    // have to be decided in the pixels the eye actually gets.
     const gridRulerModel = React.useMemo(
-        () => buildGridRulerModel({ grid: grid ?? null, durationMs, pixelsPerMs }),
-        [grid, durationMs, pixelsPerMs]
+        () => buildGridRulerModel({ grid: grid ?? null, durationMs, pixelsPerMs, overscale: overscaleFactor }),
+        [grid, durationMs, pixelsPerMs, overscaleFactor]
     );
     const showMinimap =
         showMinimapMode === "always"
@@ -783,6 +788,7 @@ export function AudioReel({
                             sharedCurrentTimeMs={sharedCurrentTimeMs}
                             sharedDurationMs={sharedDurationMs}
                             sharedTransportUpdateToken={sharedTransportUpdateToken}
+                            sharedSeekLandedToken={sharedSeekLandedToken}
                             isPlaying={isPlaying}
                             sharedIsPlaying={sharedIsPlaying}
                             isScrubbing={isScrubbing}

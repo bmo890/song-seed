@@ -125,13 +125,23 @@ export function snapToGrid(args: {
  * `pixelsPerMs` is the reel's base-content px/ms (zoom already baked in); the model
  * must be rebuilt when it changes — it only affects density choices, all positions
  * stay in file ms.
+ *
+ * `overscale` is the extra horizontal stretch the tape applies on top of the base content
+ * (used when the loaded peaks are coarser than the zoom wants). Density has to be decided
+ * in the pixels the EYE gets, which is base × overscale; deciding it in base pixels alone
+ * meant a clip whose thumbnail peaks hadn't been upgraded yet drew no beat ticks at any
+ * zoom, while the recording tape — which has no such cap — drew every beat. That mismatch
+ * is why playback looked like it only had measure lines.
  */
 export function buildGridRulerModel(args: {
     grid: GridRulerGrid | null | undefined;
     durationMs: number;
     pixelsPerMs: number;
+    overscale?: number;
 }): GridRulerModel | null {
     const { grid, durationMs, pixelsPerMs } = args;
+    const overscale = args.overscale != null && args.overscale > 0 ? args.overscale : 1;
+    const visiblePixelsPerMs = pixelsPerMs * overscale;
     if (!grid || durationMs <= 0 || pixelsPerMs <= 0) {
         return null;
     }
@@ -189,9 +199,9 @@ export function buildGridRulerModel(args: {
             });
         }
 
-        const barStep = pickStep(barMs * pixelsPerMs, MIN_BAR_LINE_PX);
-        const labelStep = Math.max(barStep, pickStep(barMs * pixelsPerMs, MIN_LABEL_PX));
-        const drawBeats = pulseMs * pixelsPerMs >= MIN_BEAT_TICK_PX;
+        const barStep = pickStep(barMs * visiblePixelsPerMs, MIN_BAR_LINE_PX);
+        const labelStep = Math.max(barStep, pickStep(barMs * visiblePixelsPerMs, MIN_LABEL_PX));
+        const drawBeats = pulseMs * visiblePixelsPerMs >= MIN_BEAT_TICK_PX;
 
         const lastBarExclusive = next
             ? next.atBar
