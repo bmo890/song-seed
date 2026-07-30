@@ -153,15 +153,32 @@ const MAX_TRACKING_VELOCITY_FACTOR = 3;
 /**
  * Ceiling on how fast the tape may actually travel, as a multiple of the nominal rate.
  *
- * The velocity ceiling above does not bound the per-frame correction term, so a residual
- * closes at roughly `residual/TRACKING_TAU_MS` ON TOP of nominal — a 400ms debt ran the tape
- * at ~4× for a quarter second, which is the sprint people saw after scrubbing. Genuine
- * discontinuities (a seek landing) are adopted in one frame instead, so nothing legitimate
- * needs this headroom; what is left is drift, and drift closing at 1.4× is invisible.
+ * A BACKSTOP, not the mechanism. The velocity ceiling above bounds the carried estimate but
+ * not the per-frame correction term, so an unbounded residual closes at roughly
+ * `residual/TRACKING_TAU_MS` on top of nominal — a 400ms debt at ~4× for a quarter second,
+ * the original post-scrub sprint.
+ *
+ * It must stay GENEROUS, because a tight cap is its own artifact: at 1.4× a 400ms debt held
+ * the tape at exactly the cap for 750ms, and sustained wrong speed reads far worse than a
+ * brief one. What actually bounds the debt is TRACKING_RESYNC_MS below — anything bigger is
+ * a discontinuity and gets landed on in a single frame. Sized so the two agree: a residual
+ * at the resync threshold closes inside ~170ms.
  */
-const MAX_CATCHUP_VELOCITY_FACTOR = 1.4;
-/** Residual past which tracking is pointless — jump and re-seed the velocity. */
-const TRACKING_RESYNC_PROGRESS = 0.03;
+const MAX_CATCHUP_VELOCITY_FACTOR = 2.5;
+/**
+ * Residual past which this is not tracking error but a JUMP — land on it and re-seed.
+ *
+ * Was 3% of the clip's duration: 5.4s on a three-minute clip, a threshold no real residual
+ * could ever reach, so EVERY debt however large was smoothed instead. That is what made a
+ * post-hold gap into a long visible catch-up.
+ *
+ * 80ms is chosen against a measurement, not a feeling. Simulated at the real report cadence
+ * (50ms) with ±22ms of jitter, the residual never exceeds 29ms — so this has ~3× headroom and
+ * fires zero times during normal playback, while a 100ms debt now lands in ONE frame instead
+ * of running 1.7× for 350ms. And 80ms is about one frame of travel on screen, so landing on
+ * it is invisible; smearing it is not.
+ */
+const TRACKING_RESYNC_MS = 80;
 // The bar numbers are drawn INSIDE the canvas, under the same transform as the tape, so
 // they are part of the same picture rather than RN views chasing it. Two renderers painting
 // one moving scene can never be kept in step — measured, on iOS, with no React commits at
@@ -1033,7 +1050,7 @@ export function PlaybackTapeVisualizer({
                 maxStepRate: nominalVelocity * MAX_CATCHUP_VELOCITY_FACTOR,
                 // A residual this large isn't tracking error, it's a jump (a stall
                 // recovering, a seek the report branch didn't catch).
-                resyncDistance: TRACKING_RESYNC_PROGRESS,
+                resyncDistance: TRACKING_RESYNC_MS / duration,
                 resyncVelocity: nominalVelocity,
             }
         );

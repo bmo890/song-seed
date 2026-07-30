@@ -197,6 +197,40 @@ describe("advanceTracker", () => {
             expect(Math.abs(position - (400 + 200 * frameMs))).toBeLessThan(5);
         });
 
+        /**
+         * Clamping the output of a feedback loop without telling the loop makes it oscillate.
+         * The velocity estimate kept integrating an error the position could no longer
+         * express, wound up to its own ceiling, and left the tape travelling too fast once
+         * the residual closed — so it had to undershoot to recover. Measured before the fix:
+         * a 400ms debt held the cap for 750ms then dropped to 0.715× nominal. That is
+         * "rushing to catch up, then slowing down, then rushing again".
+         */
+        it("does not wind up and undershoot when the cap bites", () => {
+            const options = { ...OPTIONS, resyncDistance: 10_000, maxStepRate: 1.4 };
+            let position = 0;
+            let velocity = 1;
+            const steps: number[] = [];
+            // A 400ms debt takes ~1s to close at a 1.4x cap, so run well past that.
+            for (let frame = 0; frame < 240; frame += 1) {
+                const target = 400 + (frame + 1) * frameMs;
+                const next = advanceTracker(position, velocity, target, frameMs, options);
+                steps.push((next.position - position) / frameMs);
+                position = next.position;
+                velocity = next.velocity;
+            }
+            // Once the debt is closed the tape must be running at nominal, not braking.
+            const settled = steps.slice(120);
+            expect(Math.min(...settled)).toBeGreaterThan(0.95);
+            expect(Math.max(...settled)).toBeLessThan(1.05);
+        });
+
+        it("holds the velocity estimate while saturated", () => {
+            const options = { ...OPTIONS, resyncDistance: 10_000, maxStepRate: 1.2 };
+            // A large residual saturates the output; velocity must not creep upward.
+            const first = advanceTracker(0, 1, 5_000, frameMs, options);
+            expect(first.velocity).toBe(1);
+        });
+
         it("leaves ordinary tracking untouched", () => {
             // A capped tape and an uncapped one must be indistinguishable at nominal speed.
             const options = { ...OPTIONS, maxStepRate: 1.4 };

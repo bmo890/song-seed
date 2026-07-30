@@ -82,7 +82,7 @@ export function advanceTracker(
 
     const alpha = 1 - Math.exp(-frameDeltaMs / options.tauMs);
     const beta = (alpha * alpha) / (2 - alpha);
-    const nextVelocity = Math.max(
+    let nextVelocity = Math.max(
         0,
         Math.min(options.maxVelocity, velocity + (residual * beta) / frameDeltaMs)
     );
@@ -91,7 +91,21 @@ export function advanceTracker(
     const maxStepRate = options.maxStepRate;
     if (maxStepRate != null && maxStepRate > 0) {
         const maxStep = maxStepRate * frameDeltaMs;
-        step = Math.max(-maxStep, Math.min(maxStep, step));
+        if (Math.abs(step) > maxStep) {
+            step = Math.max(-maxStep, Math.min(maxStep, step));
+            // ANTI-WINDUP. This is a feedback loop, and clamping its output without telling
+            // it is how you make it oscillate: the velocity estimate keeps integrating an
+            // error the position can no longer express, so it winds up to its own ceiling,
+            // and when the residual finally closes the tape is left travelling far too fast
+            // and has to undershoot to recover. Measured, before this line: a 400ms debt held
+            // the tape at exactly the cap for 750ms and then dropped it to 0.715× nominal —
+            // "rushing to catch up, then slowing down, then rushing again."
+            //
+            // So while the output is saturated, stop integrating. The velocity estimate holds
+            // at whatever it last honestly knew, and the residual closes at the cap without
+            // poisoning the state.
+            nextVelocity = velocity;
+        }
     }
 
     return {
