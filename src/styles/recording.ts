@@ -223,55 +223,38 @@ export const recordingStyles = {
     color: "#B87D6B",
     fontFamily: "PlusJakartaSans_700Bold",
   },
+  // Paper, not a card: the guide is the upper register of one page, not a widget
+  // sitting on it. Full-bleed like the tape below so the two read as one scene.
   recordingGuideCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    gap: 10,
+    marginHorizontal: -28,
+    paddingHorizontal: 28,
+    gap: 6,
   },
   recordingGuideHeader: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
-  },
-  recordingGuideCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
+    minHeight: 18,
   },
   recordingGuideEyebrow: {
-    fontSize: 11,
+    fontSize: 9.5,
     lineHeight: 14,
-    color: "#84736f",
+    color: colors.textMuted,
     fontFamily: "PlusJakartaSans_700Bold",
     textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
-  recordingGuideTitle: {
-    fontSize: 16,
-    lineHeight: 20,
-    color: "#1b1c1a",
-    fontFamily: "PlusJakartaSans_700Bold",
+    letterSpacing: 0.9,
   },
   recordingGuideTiming: {
     alignItems: "flex-end",
     gap: 2,
   },
   recordingGuideTimingText: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: "#1b1c1a",
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontVariant: ["tabular-nums"],
-  },
-  recordingGuideState: {
     fontSize: 11,
     lineHeight: 14,
-    color: "#84736f",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
+    color: colors.textMuted,
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontVariant: ["tabular-nums"],
   },
   recordingGuideWaveWrap: {
     position: "relative",
@@ -467,11 +450,12 @@ export const recordingStyles = {
   // the secondary actions read as ink and can't compete with it. Fixed height
   // so waking them up (once there's a take) never moves the dock.
   circleControlBtn: {
-    // Wide enough for a real word, and the label is single-line: Hebrew's
-    // "ביטול ההקלטה" overflowed a 60pt column and collided with the record
-    // button. Dedicated short labels now, clipped rather than overlapping.
-    minWidth: 68,
-    maxWidth: 84,
+    // Share the column rather than claim a fixed width. With a hard minWidth the
+    // lead column's two controls (discard + redo) needed more room than the
+    // column had, and the second one slid under the record button — visible in
+    // English, worse in Hebrew. Labels are single-line and truncate instead.
+    flex: 1,
+    minWidth: 0,
     minHeight: 48,
     alignItems: "center",
     justifyContent: "center",

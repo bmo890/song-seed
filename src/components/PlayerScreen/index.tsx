@@ -571,7 +571,7 @@ export function PlayerScreen({
   const handleRequestAddPin = useCallback(() => {
     handleAddPin("");
   }, [handleAddPin]);
-  const handleAddOverdub = useCallback(async () => {
+  const handleAddOverdub = useCallback(async (punchInMs: number) => {
     if (!playerIdea || !playerClip) return;
     // First overdub layer is free; stacking more is Pro. Existing multi-layer clips stay
     // fully playable/editable — only ADDING a new layer past the free one is gated.
@@ -580,10 +580,10 @@ export function PlayerScreen({
       return;
     }
     try {
-      // Record the layer from where the player sits: scrubbed to the chorus = punch in
-      // at the chorus (bar-snapped in the action). At the top = classic full layer.
+      // Punch in at the time the button showed. Scrubbed to the chorus = punch in
+      // at the chorus (bar-snapped in the action); at the top = classic full layer.
       await appActions.startClipOverdubRecording(playerIdea.id, playerClip.id, {
-        punchInMs: playerPositionMsRef.current,
+        punchInMs,
       });
       navigation.navigate("Recording" as never);
     } catch (error) {
@@ -1017,7 +1017,9 @@ export function PlayerScreen({
               overdubRootDurationMs={playerClip.durationMs ?? 0}
               overdubRootWaveformPeaks={playerClip.waveformPeaks}
               overdubRootRecordingGrid={playerClip.recordingGrid ?? null}
-              onAddOverdub={handleAddOverdub}
+              // The layers sheet's + states no time, so it keeps its existing
+              // behaviour: punch in wherever the transport sits.
+              onAddOverdub={() => void handleAddOverdub(playerPositionMsRef.current)}
               onSaveAsOneClip={handleSaveAsOneClip}
               onPauseMainPlayback={practicePitchTransport.pause}
               onAdjustRootGain={handleAdjustRootGain}

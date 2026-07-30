@@ -133,7 +133,6 @@ export function RecordingBody({
         {recordingOverdubClip ? (
           <>
             <RecordingOverdubGuide
-              title={recordingOverdubClip.title}
               durationMs={guideMixDurationMs}
               positionMs={guideMixPositionMs}
               isPlaying={guideMixIsPlaying}

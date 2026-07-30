@@ -98,7 +98,8 @@ type PlayerPracticePanelProps = {
   onSetClickEnabled: (enabled: boolean) => void;
 
   // Capture
-  onRecordOverdub: () => void;
+  /** Receives the punch point the BUTTON was showing, not a live read. */
+  onRecordOverdub: (punchInMs: number) => void;
   /** Record a layer punched in at a specific song position (section start / pin). */
   onRecordLayerAt: (atMs: number) => void;
 };
@@ -766,10 +767,13 @@ export function PlayerPracticePanel({
       </View>
 
       {/* The label states the punch point up front: mid-song playhead = the layer records
-          from there (bar-snapped); at the top it's a classic full-length layer. */}
+          from there (bar-snapped); at the top it's a classic full-length layer.
+          It passes the time it PRINTED. Reading the live playhead again inside the
+          handler meant a rolling transport punched in wherever it had got to by the
+          time you tapped — the button said 00:37 and the take opened at 00:48. */}
       <Pressable
         style={({ pressed }) => [s.recordLayerButton, pressed ? s.recordLayerButtonPressed : null]}
-        onPress={onRecordOverdub}
+        onPress={() => onRecordOverdub(playheadMs)}
         accessibilityRole="button"
         accessibilityLabel={
           playheadMs > 1000
