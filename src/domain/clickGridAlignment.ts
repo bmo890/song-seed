@@ -58,6 +58,21 @@ export function minCorrectionMs(msPerBin: number): number {
  *  the whole take — validated against real takes, where songs score high contrast but
  *  their halves disagree by hundreds of ms. */
 export const MAX_HALF_PHASE_DISAGREEMENT_MS = 45;
+/** Beats a comb window needs before its answer means anything. */
+export const MIN_COMB_BEATS = 6;
+/**
+ * Beats each HALF needs for the phase-lock gate.
+ *
+ * It used to be the same 6, which silently disqualified any take under about twelve beats —
+ * eight seconds at 92bpm. Measured: a 6.3s take scored contrast 467 with a 0.6ms spread and
+ * a 68ms error, and was refused as "too short to verify" while every beat in it agreed. A
+ * short take can still be verified; it just has less evidence, so it has to clear a much
+ * higher bar of it.
+ */
+export const MIN_HALF_BEATS = 3;
+/** Contrast a SHORT take must clear, well above the ordinary 1.35. Real click bleed scores
+ *  in the hundreds on an onset envelope; music scores single digits. */
+export const SHORT_TAKE_MIN_CONTRAST = 4;
 
 type CombResult = { phaseMs: number; contrast: number };
 
@@ -160,13 +175,15 @@ export function estimateClickPhase(args: {
     stepMs?: number;
     /** Restrict the comb to a window of the take (for the split-half stability gate). */
     windowMs?: [number, number];
+    /** Beats the window must contain. Defaults to MIN_COMB_BEATS. */
+    minBeats?: number;
 }): ClickPhaseEstimate | null {
-    const { signal, durationMs, beatMs } = args;
+    const { signal, durationMs, beatMs, minBeats = MIN_COMB_BEATS } = args;
     const bins = signal.bins;
     const [windowStart, windowEnd] = args.windowMs ?? [0, durationMs];
     if (!bins.length || durationMs <= 0 || beatMs <= 0) return null;
     // Need enough beats for the comb to separate clicks from noise.
-    if ((windowEnd - windowStart) / beatMs < 6) return null;
+    if ((windowEnd - windowStart) / beatMs < minBeats) return null;
 
     const msPerBin = signal.kind === "onset" ? signal.binMs : durationMs / bins.length;
     const stepMs = args.stepMs ?? Math.max(1, msPerBin / 4);
@@ -256,19 +273,31 @@ export function alignGridToRecordedClicks(args: {
 
     // Phase-lock gate: both halves of the take must hear the click at the same phase.
     const midpointMs = analysisEndMs / 2;
+    const beatsPerHalf = midpointMs / beatMs;
     const firstHalf = estimateClickPhase({
         signal,
         durationMs,
         beatMs,
         windowMs: [0, midpointMs],
+        minBeats: MIN_HALF_BEATS,
     });
     const secondHalf = estimateClickPhase({
         signal,
         durationMs,
         beatMs,
         windowMs: [midpointMs, analysisEndMs],
+        minBeats: MIN_HALF_BEATS,
     });
     if (!firstHalf || !secondHalf) return { kind: "unchanged", reason: "too short to verify" };
+    // Less evidence, so a higher bar of it: a short take must be unmistakably a click.
+    if (beatsPerHalf < MIN_COMB_BEATS && estimate.contrast < SHORT_TAKE_MIN_CONTRAST) {
+        return {
+            kind: "unchanged",
+            reason:
+                `short take, contrast ${estimate.contrast.toFixed(2)} ` +
+                `below ${SHORT_TAKE_MIN_CONTRAST}`,
+        };
+    }
     let halfDelta = Math.abs(firstHalf.phaseMs - secondHalf.phaseMs);
     if (halfDelta > beatMs / 2) halfDelta = beatMs - halfDelta;
     if (halfDelta > MAX_HALF_PHASE_DISAGREEMENT_MS) {

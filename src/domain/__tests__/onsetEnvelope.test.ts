@@ -182,6 +182,39 @@ describe("finding a click under music", () => {
     }
   });
 
+  /**
+   * A 6.3s take (about ten beats at 92bpm) used to be refused as "too short to verify",
+   * because the phase-lock gate wanted six beats in EACH half. Measured on a real one: the
+   * click scored contrast 452 with a 0.6ms spread and the grid was 68ms early — overwhelming
+   * evidence, thrown away. Short takes verify now, against a much higher contrast bar.
+   */
+  it("verifies a short take when the click is unmistakable", () => {
+    const shortMs = 6_300;
+    const short = synthesizeTake({ durationMs: shortMs, phaseMs: 83, clickGain: 0.6, musicGain: 0.2 });
+    const envelope = finishOnsetEnvelope(envelopeOf(short))!;
+    const result = alignGridToRecordedClicks({
+      grid: grid({ firstDownbeatMs: 15 }),
+      signal: { kind: "onset", bins: envelope.bins, binMs: envelope.binMs },
+      durationMs: shortMs,
+    });
+    expect(result.kind).toBe("corrected");
+    if (result.kind === "corrected") {
+      expect(Math.abs(result.grid.firstDownbeatMs! - 83)).toBeLessThan(6);
+    }
+  });
+
+  it("does not let a short take with a weak signal move the grid", () => {
+    const shortMs = 6_300;
+    const weak = synthesizeTake({ durationMs: shortMs, phaseMs: 83, clickGain: 0.01, musicGain: 0.6 });
+    const envelope = finishOnsetEnvelope(envelopeOf(weak))!;
+    const result = alignGridToRecordedClicks({
+      grid: grid({ firstDownbeatMs: 15 }),
+      signal: { kind: "onset", bins: envelope.bins, binMs: envelope.binMs },
+      durationMs: shortMs,
+    });
+    expect(result.kind).toBe("unchanged");
+  });
+
   it("still refuses a take with no click in it", () => {
     const noClicks = synthesizeTake({ durationMs, phaseMs, clickGain: 0 });
     const envelope = finishOnsetEnvelope(envelopeOf(noClicks))!;

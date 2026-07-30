@@ -233,7 +233,17 @@ function LiveTapeVisualizerImpl({
             dataPoints.length > maxCandles ? dataPoints.slice(-maxCandles) : dataPoints;
 
         drawPoints.forEach((point) => {
-            const x = (point.endTime ?? 0) * pixelsPerMs;
+            // CENTRED on the audio it represents, not parked at its right edge.
+            //
+            // A candle is one 40ms segment reduced to a single line. Drawing it at endTime
+            // put every candle's ink up to a whole segment LATER than the sound that made
+            // it — a systematic 0-40ms rightward bias against a beat grid drawn at true
+            // time, which is the recording tape "looking delayed". The centre is the honest
+            // position for a summary of a window. Costs ~1.5px of gap at the playhead,
+            // which the reveal clip below covers.
+            const startMs = point.startTime ?? 0;
+            const endMs = point.endTime ?? startMs;
+            const x = ((startMs + endMs) / 2) * pixelsPerMs;
             const db = Number.isFinite(point.dB)
                 ? point.dB
                 : 20 * Math.log10(Math.max(0.00001, point.rms || point.amplitude || 0));
