@@ -12,6 +12,11 @@ import { colors } from "../../design/tokens";
 
 type Props = {
     dataPoints: DataPoint[];
+    /** Capture ms of the newest audio held, INCLUDING audio that is deliberately not drawn
+     *  (a record-through count-in). Both the wave and the grid are addressed in capture ms,
+     *  so the tape must be driven by the clock rather than by the last drawn candle —
+     *  otherwise it sits parked through the count-in and lurches at the downbeat. */
+    captureNowMs?: number | null;
     /** The RUNNING take's measured beat grid, in capture-file ms. When present, the ruler
      *  draws the metronome's own beats and bars — the same lines playback will draw — in
      *  place of decorative second ticks. */
@@ -69,6 +74,7 @@ const DELIVERY_GAP_EMA_ALPHA = 0.15;
 
 function LiveTapeVisualizerImpl({
     dataPoints,
+    captureNowMs = null,
     liveGrid = null,
     intervalMs = 50,
     theme,
@@ -79,8 +85,12 @@ function LiveTapeVisualizerImpl({
     const pixelsPerMs = CHUNK_WIDTH / Math.max(1, intervalMs);
     const playheadX = canvasWidth > 0 ? canvasWidth / 2 : 0;
 
-    // Where the audio ends right now, in capture ms. The tape chases this.
-    const latestDataMs = dataPoints.length > 0 ? dataPoints[dataPoints.length - 1].endTime ?? 0 : 0;
+    // Where the audio ends right now, in capture ms. The tape chases this. Prefer the
+    // clock over the last drawn candle: during a count-in there are no candles yet, but
+    // capture is rolling and the ruler should already be sweeping past the playhead.
+    const newestCandleMs = dataPoints.length > 0 ? dataPoints[dataPoints.length - 1].endTime ?? 0 : 0;
+    const latestDataMs =
+        captureNowMs != null && captureNowMs > newestCandleMs ? captureNowMs : newestCandleMs;
     const targetDataMs = useSharedValue(0);
     /** Bumped on every delivery, so the frame callback can stamp its arrival against the
      *  UI clock — a JS effect has no access to that clock. */
@@ -166,6 +176,11 @@ function LiveTapeVisualizerImpl({
                 // and start the new take from a standstill rather than at speed.
                 resyncDistance: TRACKING_RESYNC_MS,
                 resyncVelocity: 0,
+                // Never sprint to close a residual: a real discontinuity resyncs above,
+                // and anything smaller must look like normal motion. See the playback
+                // tape's MAX_CATCHUP_VELOCITY_FACTOR for why the velocity cap alone isn't
+                // enough — it doesn't bound the correction term.
+                maxStepRate: MAX_TRACKING_VELOCITY,
             }
         );
         tapeVelocity.value = tracked.velocity;
@@ -225,10 +240,14 @@ function LiveTapeVisualizerImpl({
         });
 
         // Same bound for the ruler: it used to tick out every second since the take began.
+        // Anchored on the CLOCK, not the candles, so a count-in (capture rolling, nothing
+        // drawn) still gets a ruler to sweep past the playhead.
         const firstPointMs = drawPoints.length > 0 ? drawPoints[0].startTime ?? 0 : 0;
         const lastPointMs = drawPoints.length > 0 ? drawPoints[drawPoints.length - 1].endTime ?? 0 : 0;
-        const windowStartMs = Math.max(0, firstPointMs - 1000);
-        const windowEndMs = lastPointMs + RULER_LOOKAHEAD_SECONDS * 1000;
+        const newestMs = Math.max(lastPointMs, latestDataMs);
+        const canvasMs = canvasWidth > 0 ? canvasWidth / pixelsPerMs : 0;
+        const windowStartMs = Math.max(0, Math.min(firstPointMs, newestMs - canvasMs) - 1000);
+        const windowEndMs = newestMs + RULER_LOOKAHEAD_SECONDS * 1000;
 
         if (liveGrid && liveGrid.beatMs > 0) {
             // The metronome's own grid: what the performer is playing to IS the ruler.
@@ -271,7 +290,7 @@ function LiveTapeVisualizerImpl({
         }
 
         return { wavePath: wave, rulerPath: ruler };
-    }, [canvasHeight, canvasWidth, dataPoints, liveGrid, pixelsPerMs]);
+    }, [canvasHeight, canvasWidth, dataPoints, latestDataMs, liveGrid, pixelsPerMs]);
 
     const centerLinePath = useMemo(() => {
         const centerLine = Skia.Path.Make();

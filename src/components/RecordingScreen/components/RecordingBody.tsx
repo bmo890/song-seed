@@ -37,7 +37,7 @@ type RecordingBodyProps = {
   countInCurrentBeat: number;
   countInBeatsPerBar: number;
   guideJoin?: { joinAtEpochMs: number; beatMs: number } | null;
-  waveformData?: Pick<AudioAnalysis, "dataPoints" | "segmentDurationMs">;
+  waveformData?: Pick<AudioAnalysis, "dataPoints" | "segmentDurationMs" | "durationMs">;
   metronomeEnabled: boolean;
   metronomeSummary: string;
   metronomeToggleDisabled?: boolean;

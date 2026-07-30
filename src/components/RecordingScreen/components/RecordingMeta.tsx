@@ -20,7 +20,7 @@ type Props = {
     countInCurrentBar?: number;
     countInCurrentBeat?: number;
     countInBeatsPerBar?: number;
-    waveformData?: Pick<AudioAnalysis, "dataPoints" | "segmentDurationMs">;
+    waveformData?: Pick<AudioAnalysis, "dataPoints" | "segmentDurationMs" | "durationMs">;
     compact?: boolean;
     /** Let the meta section grow to fill (and center within) the leftover space. */
     fill?: boolean;
@@ -244,6 +244,7 @@ export function RecordingMeta({
                     <LiveTapeVisualizer
                         liveGrid={liveTakeGrid}
                         dataPoints={waveformData.dataPoints || []}
+                        captureNowMs={waveformData.durationMs ?? null}
                         intervalMs={waveformData.segmentDurationMs || 50}
                         theme={liveTapeTheme}
                     />

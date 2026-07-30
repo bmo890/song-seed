@@ -141,12 +141,16 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     setHeadTrim({ pending: true, ms: 0 });
   }
 
-  /** Fix the head length (ms of pre-roll to cut at save). Ends the pending state and
-   *  realigns the live tape to the musical start, so the on-screen waveform from here on
-   *  matches the trimmed file that will be saved. */
+  /** Fix the head length (ms of pre-roll to cut at save). Ends the pending state, so the
+   *  live tape starts drawing at the musical start.
+   *
+   *  It deliberately does NOT reset the live waveform. The tape's time axis is capture ms
+   *  (ms since sample 0) and the beat grid is stamped in the same axis; re-zeroing the
+   *  clock here put the two on different origins, which is why the live ruler bore no
+   *  relation to the beats. The count-in audio is hidden by not retaining its points, not
+   *  by rewinding the clock. */
   function commitHeadTrim(ms: number) {
     const safeMs = Number.isFinite(ms) && ms > 0 && ms <= MAX_HEAD_TRIM_MS ? Math.round(ms) : 0;
-    resetLiveWaveform();
     setHeadTrim({ pending: false, ms: safeMs });
   }
 
@@ -395,12 +399,12 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       },
       onAudioStream: async (event: any) => {
         // Record-through: while the head is still pending (count-in / pre-roll), capture is
-        // rolling but this audio will be trimmed off at save. Don't draw it on the live
+        // rolling but this audio will be trimmed off at save. Don't DRAW it on the live
         // tape — otherwise the tape shows a silent count-in lead that the saved (trimmed)
-        // file doesn't have. The tape is realigned to the musical start on commitHeadTrim.
-        if (!headTrimRef.current.pending) {
-          appendAudioStream(event);
-        }
+        // file doesn't have. The clock keeps running through it, so the tape and the beat
+        // grid stay in one axis (capture ms); dropping these deliveries entirely is what
+        // used to break that.
+        appendAudioStream(event, { retainPoints: !headTrimRef.current.pending });
         const nativeCaptureStart = (event as { captureStartTimeEpochMs?: unknown })
           .captureStartTimeEpochMs;
         if (
