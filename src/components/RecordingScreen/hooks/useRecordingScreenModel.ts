@@ -258,14 +258,20 @@ export function useRecordingScreenModel() {
 
   const recording = useRecording(
     async (payload) => {
-      // A trimmed head means the file now STARTS at the musical start (downbeat for solo
+      // A trimmed head means the file now starts at the musical start (downbeat for solo
       // takes, guide t=0 for overdubs) — record that certainty in the grid metadata.
+      //
+      // Not at zero, though: the cut is deliberately placed HEAD_TRIM_SAFETY_EARLY_MS
+      // before the musical start so a rounding error can never clip the first transient.
+      // Stamping 0 threw that margin away and told everything downstream a lie the size of
+      // the margin — small, but permanent, in the same direction every take, and inherited
+      // by every overdub and every export. The file starts early; say so.
       const takeGrid = takeGridRef.current
         ? {
             ...takeGridRef.current,
             firstDownbeatMs:
               payload.headTrimmedMs != null && payload.headTrimmedMs > 0
-                ? 0
+                ? HEAD_TRIM_SAFETY_EARLY_MS
                 : takeGridRef.current.firstDownbeatMs,
           }
         : undefined;
