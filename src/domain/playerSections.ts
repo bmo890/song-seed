@@ -1,4 +1,5 @@
 import type { ClipSection, ClipSectionKind } from "../types";
+import { colors } from "../design/tokens";
 
 export type SectionPreset = {
   kind: ClipSectionKind;
@@ -23,19 +24,64 @@ export type SectionBand = {
 export const MIN_SECTION_LENGTH_MS = 200;
 
 /**
- * Bolder, multi-hue palette so sections read clearly against the waveform instead of
- * washing into the paper. Still earthy rather than neon; chorus keeps the terracotta accent.
+ * One terracotta family in three weights (`colors.markLight/markMid/markDeep`), assigned
+ * by where the part sits in a song's energy — quiet at the edges, deepest at the peak.
+ * The label identifies the part; the ink only says how loud it is. Parts that share a
+ * weight (verse/bridge, chorus/solo) are told apart by their names, which are right there.
  */
 const PRESETS: Record<ClipSectionKind, SectionPreset> = {
-  intro: { kind: "intro", label: "Intro", color: "#3F9C82" },
-  verse: { kind: "verse", label: "Verse", color: "#C98A3C" },
-  prechorus: { kind: "prechorus", label: "Pre-chorus", color: "#D6743F" },
-  chorus: { kind: "chorus", label: "Chorus", color: "#C8463A" },
-  bridge: { kind: "bridge", label: "Bridge", color: "#5775A6" },
-  solo: { kind: "solo", label: "Solo", color: "#9B6FB2" },
-  outro: { kind: "outro", label: "Outro", color: "#6F7E8C" },
-  custom: { kind: "custom", label: "Section", color: "#B0568A" },
+  intro: { kind: "intro", label: "Intro", color: colors.markLight },
+  verse: { kind: "verse", label: "Verse", color: colors.markMid },
+  prechorus: { kind: "prechorus", label: "Pre-chorus", color: colors.markMid },
+  chorus: { kind: "chorus", label: "Chorus", color: colors.markDeep },
+  bridge: { kind: "bridge", label: "Bridge", color: colors.markMid },
+  solo: { kind: "solo", label: "Solo", color: colors.markDeep },
+  outro: { kind: "outro", label: "Outro", color: colors.markLight },
+  custom: { kind: "custom", label: "Section", color: colors.markMid },
 };
+
+/** The only inks a section may carry — offered in the editor, in energy order. */
+export const SECTION_INKS = [colors.markLight, colors.markMid, colors.markDeep] as const;
+
+/**
+ * Snap any stored colour onto the three-ink family. Sections saved under the old eight-hue
+ * palette keep working — a teal intro or a red chorus resolves to the nearest weight rather
+ * than being dropped or left as an orphan hue the editor can no longer represent.
+ */
+export function nearestSectionInk(color: string | undefined | null): string {
+  if (!color) return colors.markMid;
+  const target = hexToRgb(color);
+  if (!target) return colors.markMid;
+  let best: string = colors.markMid;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const ink of SECTION_INKS) {
+    const candidate = hexToRgb(ink)!;
+    // Compare on luminance, not hue: the family varies only in weight, so "nearest" means
+    // "about as dark", which is what carries over from an arbitrary old colour.
+    const distance = Math.abs(luminance(candidate) - luminance(target));
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = ink;
+    }
+  }
+  return best;
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const clean = hex.replace("#", "");
+  const value =
+    clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
+  if (value.length !== 6) return null;
+  return {
+    r: parseInt(value.slice(0, 2), 16) || 0,
+    g: parseInt(value.slice(2, 4), 16) || 0,
+    b: parseInt(value.slice(4, 6), 16) || 0,
+  };
+}
+
+function luminance({ r, g, b }: { r: number; g: number; b: number }): number {
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
 
 export const SECTION_PRESETS: SectionPreset[] = [
   PRESETS.intro,
@@ -62,10 +108,15 @@ export function getSectionPreset(kind: ClipSectionKind): SectionPreset {
   return PRESETS[kind] ?? PRESETS.custom;
 }
 
-/** Resolve a section's base colour. A stored colour (set via the editor) wins for any kind;
- *  otherwise the preset's colour is used. */
+/**
+ * Resolve a section's ink. A stored colour (set via the editor) wins for any kind, but it is
+ * snapped onto the three-weight family on the way out — so a clip saved under the old
+ * eight-hue palette draws in the new ink everywhere, without a migration pass over stored
+ * data. Sections keep whatever hex they were saved with; only the rendering is unified.
+ */
 export function getSectionColor(section: Pick<ClipSection, "kind" | "color">): string {
-  return section.color ?? getSectionPreset(section.kind).color;
+  if (section.color) return nearestSectionInk(section.color);
+  return getSectionPreset(section.kind).color;
 }
 
 /** Convert a #RRGGBB hex to an rgba() string at the given alpha. */
@@ -128,7 +179,7 @@ export function buildSectionBands(sections: ClipSection[], durationMs: number): 
       startMs: Math.max(0, Math.min(durationMs, section.startMs)),
       endMs: Math.max(0, Math.min(durationMs, section.endMs)),
       label: section.label,
-      color: hexToRgba(base, 0.32),
+      color: hexToRgba(base, 0.09),
       railColor: base,
     };
   });

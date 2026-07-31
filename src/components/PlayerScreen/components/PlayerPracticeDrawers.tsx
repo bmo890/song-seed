@@ -7,7 +7,6 @@ import { fmtDuration } from "../../../utils";
 import { colors } from "../../../design/tokens";
 import { getCustomSectionOptions, getSectionColor, MIN_SECTION_LENGTH_MS } from "../../../domain/playerSections";
 import type { SectionCustomInput } from "../hooks/usePlayerSections";
-import { hueToAccentHex } from "../../../domain/workspaceTheme";
 import { formatBpmLabel, hasAnalysisResult, isTempoSteady } from "../../../domain/clipAnalysis";
 import { playerScreenStyles as s } from "../styles";
 import { pd } from "./practiceDrawerStyles";
@@ -892,7 +891,7 @@ export function PlayerPracticeDrawers({
         confirmLabel={detailModal?.mode === "edit" ? t("common.save") : t("songDetail.add")}
         initialName={detailModal?.mode === "edit" ? detailModal.section.label : ""}
         initialColor={
-          detailModal?.mode === "edit" ? getSectionColor(detailModal.section) : hueToAccentHex(210)
+          detailModal?.mode === "edit" ? getSectionColor(detailModal.section) : colors.markMid
         }
         onConfirm={(custom) => {
           if (detailModal?.mode === "edit") onEditSection(detailModal.section.id, custom);

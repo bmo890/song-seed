@@ -41,6 +41,22 @@ export const colors = {
    *  #F2E4DF in six places before it had a name. */
   primarySurface: "#F2E4DF",
 
+  /**
+   * Mark ink (locked 2026-07-31) — sections and pins, on the reel and in the marks
+   * list. ONE terracotta family in three weights, chosen by the part's place in the
+   * song rather than by an arbitrary hue: quiet at the edges (intro/outro), mid
+   * through the body (verse/bridge/pre-chorus), deepest at the peak (chorus/solo).
+   * The LABEL identifies a part; the ink only says how loud it is.
+   *
+   * Replaces an eight-hue palette (teal/amber/orange/red/blue/purple/slate/magenta)
+   * that lived outside this file and argued for itself in a comment. It lost: a red
+   * chorus band read as an error state, and the picker was a rainbow in an app whose
+   * north star is a quiet place to work. See docs/product-plan/full-player-audit.md B2.
+   */
+  markLight: "#CDA695",
+  markMid: "#B87D6B", // = primary
+  markDeep: "#824F3F", // = primaryDeep
+
   /** Stage ramp (locked 2026-07-27) — the two intermediate steps between
    *  `textMuted` (Idea, nothing invested yet) and `primaryDeep` (Song, finished).
    *  One warm hue gaining saturation and depth, so the COLOR is the progression.

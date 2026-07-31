@@ -1232,6 +1232,29 @@ export const playerScreenStyles = StyleSheet.create({
     height: 22,
     borderRadius: radii.sm,
   },
+  sectionInkRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 4,
+  },
+  sectionInkSwatch: {
+    width: 44,
+    height: 30,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: "transparent",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sectionInkSwatchActive: {
+    borderColor: colors.primaryDeep,
+    backgroundColor: colors.primarySurface,
+  },
+  sectionInkFill: {
+    width: 22,
+    height: 4,
+    borderRadius: 2,
+  },
   sectionDetailPreviewText: {
     flex: 1,
     fontFamily: "PlusJakartaSans_600SemiBold",
