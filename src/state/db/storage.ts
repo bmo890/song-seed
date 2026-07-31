@@ -231,17 +231,26 @@ export async function commitShardedWrite(
  */
 export async function listKvKeysWithPrefix(prefix: string): Promise<string[]> {
     try {
-        // Store name is a fixed constant with no LIKE metacharacters, so a plain wildcard
-        // is safe here.
-        const rows = await getDb().getAllAsync<{ key: string }>(
-            "SELECT key FROM kv WHERE key LIKE ?",
-            `${prefix}%`
-        );
-        return rows.map((row) => row.key).filter((key): key is string => key != null);
+        return await listKvKeysWithPrefixOrThrow(prefix);
     } catch (err) {
         console.warn("[sqliteStorage] listKvKeysWithPrefix failed:", err);
         return [];
     }
+}
+
+/**
+ * Strict variant for callers whose decision depends on the listing being TRUE, not
+ * merely available — hydration's "is this really a fresh install?" stray-row check
+ * must treat a failed listing as unknown disk state, never as "no rows".
+ */
+export async function listKvKeysWithPrefixOrThrow(prefix: string): Promise<string[]> {
+    // Store name is a fixed constant with no LIKE metacharacters, so a plain wildcard
+    // is safe here.
+    const rows = await getDb().getAllAsync<{ key: string }>(
+        "SELECT key FROM kv WHERE key LIKE ?",
+        `${prefix}%`
+    );
+    return rows.map((row) => row.key).filter((key): key is string => key != null);
 }
 
 /** Delete a single kv row (used to retire the one-boot legacy-blob backup). Best-effort. */

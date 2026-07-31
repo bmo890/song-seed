@@ -5,6 +5,7 @@ import {
     commitShardedWrite,
     deleteKv,
     listKvKeysWithPrefix,
+    listKvKeysWithPrefixOrThrow,
     readManyKv,
     sqliteStringStorage,
 } from "./db/storage";
@@ -95,8 +96,20 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
             if (meta.format === "empty") {
                 // Confirmed-fresh only if no stray workspace rows exist. Rows without a
                 // meta row mean a damaged store, not a fresh install — don't boot empty
-                // over them (a later write's sweep would delete them).
-                const strays = await listKvKeysWithPrefix(`${name}::ws::`);
+                // over them (a later write's sweep would delete them). The listing must
+                // fail CLOSED: an errored listing is unknown disk state, and minting an
+                // authoritative "empty" from it raises a false restore prompt at best.
+                let strays: string[];
+                try {
+                    strays = await listKvKeysWithPrefixOrThrow(`${name}::ws::`);
+                } catch (err) {
+                    readOutcome = "failed";
+                    setHydrationReadOutcome("failed");
+                    throw new KvReadFailedError(
+                        `could not verify fresh install for "${name}" — stray-row listing failed`,
+                        err
+                    );
+                }
                 if (strays.length > 0) {
                     readOutcome = "failed";
                     setHydrationReadOutcome("failed");

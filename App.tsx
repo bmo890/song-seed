@@ -111,7 +111,7 @@ import { checkClipboardForTransfer } from "./src/services/clipboardTransferCheck
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 import { onHydrationResult, useStore } from "./src/state/useStore";
-import { setPersistBlocked } from "./src/state/persistRuntime";
+import { isHydrationReadAuthoritative, setPersistBlocked } from "./src/state/persistRuntime";
 import { authorizeIntentionalEmptyStateWrite } from "./src/services/stateIntegrity";
 import { EmptyState } from "./src/components/common/EmptyState";
 // TEMPORARY DIAGNOSTIC — remove with src/components/dev/SyncProbe.tsx.
@@ -1098,9 +1098,11 @@ export default function App() {
       setHydrationFailed(true);
     });
 
-    if (!useStore.persist.hasHydrated()) {
-      void useStore.persist.rehydrate();
-    }
+    // No catch-up rehydrate here: the store auto-hydrates at module import, and
+    // onHydrationResult replays a pre-mount failure to this subscriber, so the retry
+    // path above covers every case. A second rehydrate while the first is in flight
+    // let two disk reads race — a transient empty read finishing first presented a
+    // false "empty library" boot over a healthy disk (2026-07-31 false restore prompt).
 
     return () => {
       unsubscribeStartHydration();
@@ -1137,12 +1139,22 @@ export default function App() {
         (sum, ws) => sum + ws.ideas.length,
         0
       );
+      const countLiveIdeas = () =>
+        useStore.getState().workspaces.reduce((sum, ws) => sum + ws.ideas.length, 0);
       if (liveIdeaCount === 0) {
+        // The prompt's premise is "the disk held no library" — only an authoritative
+        // hydration read may claim that. An unsettled or failed read means disk state
+        // is unknown; the retry screen owns that boot, and this effect re-runs if a
+        // later hydration completes.
+        if (!isHydrationReadAuthoritative()) return;
         const manifest = await readManifest();
         const manifestIdeaCount = manifest
           ? manifest.workspaces.reduce((sum, ws) => sum + (ws.ideas?.length ?? 0), 0)
           : 0;
-        if (manifestIdeaCount > 0) {
+        // Re-check the live library at the last moment: the awaits above leave room
+        // for a late hydration to land the real library. A "Restore?" prompt over a
+        // healthy library invites the user to overwrite it with an older backup.
+        if (manifestIdeaCount > 0 && countLiveIdeas() === 0) {
           // Freeze persistence while the prompt is pending: nothing derived from the
           // empty in-memory library may reach disk (store or manifest) until the user
           // decides. Both handlers below lift the freeze on their own terms.
@@ -1161,8 +1173,13 @@ export default function App() {
                 onPress: () => {
                   // The user chose to continue with the empty library — that explicit
                   // decision (not the empty hydration itself) authorizes the store and
-                  // manifest to catch up to empty.
-                  authorizeIntentionalEmptyStateWrite();
+                  // manifest to catch up to empty. Re-verify emptiness at press time:
+                  // if a late hydration landed the real library behind this dialog,
+                  // an empty-write authorization would let the manifest guard clobber
+                  // the recovery copy over a healthy store.
+                  if (countLiveIdeas() === 0) {
+                    authorizeIntentionalEmptyStateWrite();
+                  }
                   setPersistBlocked(false);
                   useStore.getState().markFirstLaunch();
                 },
