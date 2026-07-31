@@ -9,6 +9,10 @@ import { physicalEdge } from "../../i18n";
 type SegmentedOption<T extends string> = {
   key: T;
   label: string;
+  /** Small terracotta dot after the label — "this segment holds something that is
+   *  ON". For tab-like controls whose panes hide state (the player's practice
+   *  drawers); plain selectors leave it unset. */
+  dot?: boolean;
 };
 
 /**
@@ -128,14 +132,17 @@ export function SegmentedControl<T extends string>({
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
           >
-            <Text
-              style={[
-                segmentedControlStyles.segmentLabel,
-                active ? segmentedControlStyles.segmentLabelActive : null,
-              ]}
-            >
-              {option.label}
-            </Text>
+            <View style={segmentedControlStyles.segmentInner}>
+              <Text
+                style={[
+                  segmentedControlStyles.segmentLabel,
+                  active ? segmentedControlStyles.segmentLabelActive : null,
+                ]}
+              >
+                {option.label}
+              </Text>
+              {option.dot ? <View style={segmentedControlStyles.segmentDot} /> : null}
+            </View>
           </Pressable>
         );
       })}
@@ -166,6 +173,17 @@ const segmentedControlStyles = StyleSheet.create({
     borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
+  },
+  segmentInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  segmentDot: {
+    width: 5,
+    height: 5,
+    borderRadius: radii.round,
+    backgroundColor: colors.primary,
   },
   segmentLabel: {
     fontFamily: "PlusJakartaSans_600SemiBold",

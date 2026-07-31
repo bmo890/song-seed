@@ -29,7 +29,7 @@ import { isPlaybackNearEnd } from "../../services/transportPlayback";
 import { PlayerTimeline } from "./components/PlayerTimeline";
 import { PlayerHeaderSection } from "./components/PlayerHeaderSection";
 import { PlayerFooterSection } from "./components/PlayerFooterSection";
-import { PlayerPracticePanel } from "./components/PlayerPracticePanel";
+import { PlayerPracticeDrawers } from "./components/PlayerPracticeDrawers";
 import { PlayerSupportSections } from "./components/PlayerSupportSections";
 import { HelpSheet } from "../common/HelpSheet";
 import { OVERDUB_HELP, PRACTICE_HELP } from "../common/helpContent";
@@ -128,6 +128,18 @@ export function PlayerScreen({
   const playerClip = data.playerClip;
   const resolvedDisplayDuration = data.displayDuration;
   const isMixUpdating = data.isOverdubPreviewRendering;
+  // The Sound drawer's click summary — the take's whole grid, tempo changes included.
+  const clickDetail = useMemo(() => {
+    const grid = playerClip?.recordingGrid;
+    if (!grid) return null;
+    const segments = grid.tempoMap?.segments;
+    if (segments && segments.length > 1) {
+      const first = segments[0];
+      const last = segments[segments.length - 1];
+      return `${Math.round(first.bpm)} · ${first.meterId} → ${Math.round(last.bpm)} · ${last.meterId}`;
+    }
+    return `${Math.round(grid.bpm)} bpm · ${grid.meterId}`;
+  }, [playerClip?.recordingGrid]);
   // When the latest lyric version has chords, give the panel the structured
   // lines so it renders a chord chart (chords above lyrics) while playing.
   const lyricsChordLines = useMemo(() => {
@@ -944,21 +956,24 @@ export function PlayerScreen({
               playbackRate={effectivePlaybackRate}
             />
           ) : ui.mode === "practice" ? (
-            <PlayerPracticePanel
-              expandedTool={ui.expandedTool}
-              onToggleTool={ui.toggleTool}
-              onClose={ui.closeTool}
+            <PlayerPracticeDrawers
               analysis={data.analysis}
               recordingGridBpm={playerClip?.recordingGrid?.bpm ?? null}
+              clickDetail={clickDetail}
               isAnalyzing={clipAnalysis.isAnalyzing}
               analysisError={clipAnalysis.error}
               onDetectAnalysis={() => {
                 if (guardPracticeTool("analysis")) clipAnalysis.runAnalysis();
               }}
+              durationMs={effectivePlayerDuration}
+              playheadMs={effectivePlayerPosition}
+              onSeek={handleSeekWithClick}
+              zoomMultiple={ui.practiceZoomMultiple}
               practiceLoopEnabled={practiceLoopEnabled}
-              practiceRangeLabel={practiceRangeLabel}
-              onSeekLoopStart={() => handleSeekWithClick(practiceLoopRange.start)}
-              onMoveLoopToPlayhead={movePracticeLoopToPlayhead}
+              practiceLoopRange={practiceLoopRange}
+              onSetLoopRange={(start, end) => {
+                if (guardPracticeTool("loop")) handleLoopRangeChange(start, end);
+              }}
               onLoopSection={(section) => {
                 if (guardPracticeTool("loop")) handleLoopSection(section);
               }}
@@ -966,24 +981,15 @@ export function PlayerScreen({
                 if (guardPracticeTool("loop")) handlePracticeLoopToggle();
               }}
               practiceMarkers={data.practiceMarkers}
-              playheadMs={effectivePlayerPosition}
               onAddPin={() => {
                 if (guardPracticeTool("pins")) handleRequestAddPin();
               }}
-              onSeekPin={handleSeekWithClick}
-              expandedPinId={expandedPinId}
-              pinsDurationMs={effectivePlayerDuration}
-              onTogglePinExpanded={togglePinExpanded}
               onRepositionPin={handleRepositionMarker}
               onPinPreview={setPinPreview}
               onEditPin={handleEditPin}
               onDeletePin={handleDeletePinId}
               sections={data.sections}
-              sectionsDurationMs={effectivePlayerDuration}
-              editingSectionId={sectionsApi.editingSectionId}
               onAddSection={sectionsApi.handleAddSection}
-              onSeekSection={handleSeekWithClick}
-              onToggleSectionEdit={sectionsApi.handleToggleEdit}
               onEditSection={sectionsApi.handleEditSection}
               onRepositionSectionEdge={sectionsApi.handleRepositionSectionEdge}
               onSectionPreview={setSectionPreview}
