@@ -17,7 +17,7 @@ Flip the already-built entitlement seam into a real free/Pro split with billing,
 
 **Free forever:** recording (unlimited), workspaces/collections/ideas, playback, trim editor, manual backup & restore (gating data safety breeds one-star reviews), metronome, tuner, lyrics editing, **one** overdub layer per clip, limited word-tool sparks (e.g. 5 saved sparks per tool).
 
-**Pro:** practice suite (loops, pins, speed & pitch, key/BPM analysis), overdub layers beyond the first, auto-backup + future cloud sync (the two existing keys), workspace archive offload, unlimited word-tool sparks, setlist/chord-chart PDF export.
+**Pro:** practice suite (loops, pins, speed & pitch, tempo analysis), overdub layers beyond the first, auto-backup + future cloud sync (the two existing keys), workspace archive offload, unlimited word-tool sparks, setlist/chord-chart PDF export.
 
 **Pricing shape:** monthly ~$3–4, annual ~$25–30, **plus lifetime ~$60–80**. Musician communities are subscription-hostile; the lifetime tier converts holdouts and fits a near-zero-server-cost app. Intro offer: 7-day trial on subscriptions, none on lifetime.
 

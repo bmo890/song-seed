@@ -46,7 +46,7 @@ Character limits noted are current-as-of-2026; confirm in the console at submiss
 >
 > LEARN AND PRACTICE
 > • Loop the hard part, slow it down, or shift the pitch — without changing the recording
-> • Detect a clip's key and tempo
+> • Detect the tempo of steady clips
 > • Drop pins and mark sections to navigate a song
 >
 > TOOLS FOR WORDS

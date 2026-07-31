@@ -13,7 +13,7 @@ import { colors } from "../../../design/tokens";
 import { getCustomSectionOptions, getSectionColor } from "../../../domain/playerSections";
 import type { SectionCustomInput } from "../hooks/usePlayerSections";
 import { hueToAccentHex } from "../../../domain/workspaceTheme";
-import { formatBpmLabel, formatKeyLabel, hasAnalysisResult, isTempoSteady } from "../../../domain/clipAnalysis";
+import { formatBpmLabel, hasAnalysisResult, isTempoSteady } from "../../../domain/clipAnalysis";
 import { playerScreenStyles as s } from "../styles";
 import type { CountInOption, PracticeTool } from "../hooks/usePlayerScreenUi";
 import type { ClipAnalysis, ClipSection, ClipSectionKind, PracticeMarker } from "../../../types";
@@ -34,8 +34,9 @@ type PlayerPracticePanelProps = {
   onToggleTool: (tool: PracticeTool) => void;
   onClose: () => void;
 
-  // Analysis (key + tempo)
+  // Tempo — saved recording grid wins; detection is for imports/legacy clips.
   analysis: ClipAnalysis | null;
+  recordingGridBpm: number | null;
   isAnalyzing: boolean;
   analysisError: string | null;
   onDetectAnalysis: () => void;
@@ -117,6 +118,7 @@ export function PlayerPracticePanel({
   onToggleTool,
   onClose,
   analysis,
+  recordingGridBpm,
   isAnalyzing,
   analysisError,
   onDetectAnalysis,
@@ -333,11 +335,15 @@ export function PlayerPracticePanel({
     <View style={s.toolList}>
       <View>
         <View style={s.analysisRow}>
-          {hasAnalysisResult(analysis) ? (
+          {recordingGridBpm != null ? (
             <>
-              <Ionicons name="musical-note" size={14} color={colors.primary} />
-              <Text style={s.analysisValue}>{formatKeyLabel(analysis)}</Text>
-              <View style={s.analysisSep} />
+              <Ionicons name="pulse-outline" size={14} color={colors.primary} />
+              <Text style={s.analysisValue}>{`${Math.round(recordingGridBpm)} BPM`}</Text>
+              <Text style={s.analysisHint}>{t("player.recordedTempo")}</Text>
+            </>
+          ) : hasAnalysisResult(analysis) ? (
+            <>
+              <Ionicons name="pulse-outline" size={14} color={colors.primary} />
               <Text style={s.analysisValue}>{formatBpmLabel(analysis)}</Text>
               {analysis && analysis.bpm != null && !isTempoSteady(analysis) ? (
                 <Text style={s.analysisHint}>{t("player.loose")}</Text>

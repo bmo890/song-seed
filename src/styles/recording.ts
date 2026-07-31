@@ -1,5 +1,5 @@
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
-import { colors, radii } from "../design/tokens";
+import { colors, radii, text } from "../design/tokens";
 
 // Recording surface: controls, live waveform, guides, input/output, counts.
 // Raw style objects — merged and registered once via StyleSheet.create in ../styles.ts.
@@ -160,11 +160,15 @@ export const recordingStyles = {
     flex: 1,
     minHeight: 160,
   },
+  // Lora, like the full player's lyrics — the same words should not change typeface
+  // depending on which screen you are reading them from. Lora is the editorial face this
+  // app uses for content, and lyrics are content whether you are reading them or singing
+  // them. (RTL swaps it to Frank Ruhl Libre at load, so Hebrew follows automatically.)
+  // Generous leading is kept: this is read at arm's length, mid-take.
   recordingLyricsText: {
+    ...text.cardTitle,
     fontSize: 20,
     lineHeight: 36,
-    color: colors.textPrimary,
-    fontFamily: "PlusJakartaSans_400Regular",
   },
   recordingScreenLayout: {
     flex: 1,

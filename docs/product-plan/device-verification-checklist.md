@@ -111,7 +111,7 @@ I wrote these from the code; you know the real behavior. Open the **?** on each 
 
 - [ ] **Recording** (header ? button) — count-in, metronome cues, naming, Bluetooth latency, background recording.
 - [ ] **Trim editor** (header ? button) — keep vs remove, regions, save-as-new-clip + remove-original, permanent speed/pitch.
-- [ ] **Practice tools** (player "More options" menu → "How practice works") — loop, pins, sections, non-destructive speed/pitch, key/tempo.
+- [ ] **Practice tools** (player "More options" menu → "How practice works") — loop, pins, sections, non-destructive speed/pitch, confidence-gated tempo.
 - [ ] **Overdubs** (player "More options" → "How overdubs work", shown when the clip is layered) — layers ride the take, levels, timing nudge, solo/mute, flatten-before-trimming.
 
 ## 13. 🟡 Store-review prompt (Phase 4)

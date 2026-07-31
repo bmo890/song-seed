@@ -391,6 +391,7 @@ export function PlayerScreen({
     playerIdeaId: playerIdea?.id,
     playerClipId: playerClip?.id,
     audioUri: data.playbackAudioUri,
+    durationMs: effectivePlayerDuration,
   });
   // Repeat (playlist-style): replay the clip from the top when it finishes.
   const replayClip = useCallback(async () => {
@@ -948,6 +949,7 @@ export function PlayerScreen({
               onToggleTool={ui.toggleTool}
               onClose={ui.closeTool}
               analysis={data.analysis}
+              recordingGridBpm={playerClip?.recordingGrid?.bpm ?? null}
               isAnalyzing={clipAnalysis.isAnalyzing}
               analysisError={clipAnalysis.error}
               onDetectAnalysis={() => {

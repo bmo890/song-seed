@@ -54,7 +54,7 @@ Build one shared `EmptyState` component (`src/components/common/EmptyState.tsx` 
 The word tools have help; the audio flows don't. Using the existing HelpSheet pattern (trigger: the same help-icon placement the word tools use), write four:
 
 1. **Recording** (`RecordingScreen`): count-in & metronome behavior, what happens on save (naming setting), background recording, input picker + Bluetooth calibration pointer.
-2. **Full player / practice** (`PlayerScreen` — likely trigger in the practice panel header): sections vs pins vs loop; speed & pitch practice (and that it doesn't alter the clip); analysis (key/BPM detection) and its limits.
+2. **Full player / practice** (`PlayerScreen` — likely trigger in the practice panel header): sections vs pins vs loop; speed & pitch practice (and that it doesn't alter the clip); tempo detection and why uncertain clips stay blank.
 3. **Overdub layers** (overdub section of PlayerScreen): the mental model — layers ride the root take; mute/solo/levels; **why timing edits require flattening first** (this exact confusion has a full-screen interstitial in the editor; the help sheet should pre-empt it); alignment/nudge.
 4. **Trim editor** (`EditorScreen`): keep vs remove intent, regions, what export does (new clip vs replace, the "remove original" toggle), speed & pitch save behavior.
 

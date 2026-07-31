@@ -86,8 +86,8 @@ export const PRACTICE_HELP: HelpContent = {
     },
     {
       icon: "stats-chart-outline",
-      label: "Key & tempo",
-      description: "Detect the clip's key and BPM. A helpful estimate, not the final word.",
+      label: "Tempo",
+      description: "Estimate BPM from a steady clip. SongNook leaves it blank when the rhythm is unclear.",
     },
   ],
 };

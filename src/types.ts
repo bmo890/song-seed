@@ -368,19 +368,24 @@ export type ClipSection = {
 
 export type MusicalMode = "major" | "minor";
 
-/** Cached result of offline key/tempo detection for a clip. */
+/** Cached result of offline tempo detection for a clip. Schema 1 also stored an
+ * unreliable key estimate; the nullable key fields remain for persisted-data compatibility. */
 export type ClipAnalysis = {
   schemaVersion: number;
   analyzedAt: number;
-  /** Tonal centre label, e.g. "E♭" / "F♯". null when detection was inconclusive. */
+  /** Legacy schema-1 tonal centre. New analysis always stores null. */
   key: string | null;
   mode: MusicalMode | null;
-  /** 0..1 — separation between the winning key and the runner-up. */
+  /** Legacy schema-1 confidence. New analysis always stores 0. */
   keyConfidence: number;
   /** Detected tempo (BPM), rounded. null when inconclusive. */
   bpm: number | null;
+  /** 0..1 — confidence that the detected global pulse is real. Added in schema 2. */
+  bpmConfidence?: number;
   /** 0..1 — how steady the tempo is; gates the steady click / count-in. */
   bpmSteadiness: number;
+  /** Next-best pulse candidate, commonly a half/double-tempo interpretation. */
+  bpmAlternative?: number | null;
   /** Set once the user confirms or overrides the suggestion. */
   confirmed?: boolean;
 };
