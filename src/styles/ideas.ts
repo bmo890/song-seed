@@ -478,7 +478,7 @@ export const ideasStyles = {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: radii.round,
-    backgroundColor: "#F2E4DF",
+    backgroundColor: colors.primarySurface,
   },
   ideasCollapsedDayCountText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
@@ -870,7 +870,7 @@ export const ideasStyles = {
     },
   // Active (peeking) state of the "N hidden" toggle chip.
   ideasUnhideAllPillActive: {
-    backgroundColor: "#F2E4DF",
+    backgroundColor: colors.primarySurface,
   },
   ideasUnhideAllPillTextActive: {
     color: colors.primaryDeep,

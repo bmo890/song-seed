@@ -437,7 +437,7 @@ export const ms = StyleSheet.create({
     gap: 6,
   },
   cueActive: {
-    backgroundColor: "#F2E4DF",
+    backgroundColor: colors.primarySurface,
   },
   cueLabel: {
     fontSize: 12,
