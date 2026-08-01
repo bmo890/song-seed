@@ -18,6 +18,8 @@ import { usePracticeLoopController } from "./hooks/usePracticeLoopController";
 import { usePlayerSpeedControls } from "./hooks/usePlayerSpeedControls";
 import { useStepUpLoop } from "./hooks/useStepUpLoop";
 import { clickRateBounds } from "../../domain/stepUpLoop";
+import { haptic } from "../../design/haptics";
+import { toast } from "../common/toastStore";
 import { usePlayerPins } from "./hooks/usePlayerPins";
 import { usePlayerSections } from "./hooks/usePlayerSections";
 import { useClipAnalysis } from "./hooks/useClipAnalysis";
@@ -365,12 +367,22 @@ export function PlayerScreen({
     () => ({ minRate: PRACTICE_SPEED_MIN, maxRate: PRACTICE_SPEED_MAX }),
     []
   );
+  // A finished drill stops the transport: the plan had a defined end, and looping on
+  // at full speed reads as the tool having forgotten it was counting. The toast says
+  // why the music stopped — silence alone would look like a fault.
+  const handleStepUpComplete = useCallback(() => {
+    void practicePitchTransport.pause();
+    // Haptics: `success` — a completion the user waited for, always paired with a toast.
+    haptic.success();
+    toast(t("player.stepUpFinished"), "checkmark-circle-outline");
+  }, [practicePitchTransport, t]);
   const stepUp = useStepUpLoop({
     clipId: playerClip?.id,
     isPracticeLoopActive: ui.mode === "practice" && practiceLoopEnabled,
     speedBounds: stepUpSpeedBounds,
     clickBounds: stepUpClickBounds,
     setPlaybackRate: practicePitchTransport.setPlaybackRate,
+    onDrillComplete: handleStepUpComplete,
   });
   stepUpLoopCycleRef.current = stepUp.handleLoopCycle;
   const handleTransportToggleWithDisplaySync = useCallback(async () => {

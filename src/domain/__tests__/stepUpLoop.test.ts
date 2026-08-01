@@ -181,6 +181,14 @@ describe("stepUpSequenceProgressAtLoop", () => {
     expect(stepUpSequenceProgressAtLoop(SEQUENCE, 99).passNumber).toBe(7);
   });
 
+  it("flags the end on the pass that completes the plan, not before", () => {
+    // The drill stops on this signal, so the exact boundary matters: 7 passes means
+    // atEnd is false through the 7th pass's play and true once it has played.
+    expect(stepUpSequenceProgressAtLoop(SEQUENCE, 5).atEnd).toBe(false);
+    expect(stepUpSequenceProgressAtLoop(SEQUENCE, 6).atEnd).toBe(false);
+    expect(stepUpSequenceProgressAtLoop(SEQUENCE, 7).atEnd).toBe(true);
+  });
+
   it("holds the last rate once every stage is done", () => {
     const done = stepUpSequenceProgressAtLoop(SEQUENCE, 7);
     expect(done).toMatchObject({ rate: 0.8, atEnd: true, stageIndex: 2 });

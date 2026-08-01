@@ -37,6 +37,12 @@ type Args = {
   /** Click engine's supported range, null when the click is off or unavailable. */
   clickBounds: RateBounds | null;
   setPlaybackRate: (rate: number) => void;
+  /**
+   * The plan's last pass has played. A drill is a finite thing — it stops here
+   * rather than looping on at the final speed, which reads as the tool forgetting
+   * it was ever counting.
+   */
+  onDrillComplete: () => void;
 };
 
 type StepUpSession = {
@@ -50,9 +56,13 @@ export function useStepUpLoop({
   speedBounds,
   clickBounds,
   setPlaybackRate,
+  onDrillComplete,
 }: Args) {
   const [sequence, setSequenceState] = useState<StepUpStage[]>(STEP_UP_DEFAULT_SEQUENCE);
   const [session, setSession] = useState<StepUpSession | null>(null);
+
+  const onDrillCompleteRef = useRef(onDrillComplete);
+  onDrillCompleteRef.current = onDrillComplete;
 
   const sessionRef = useRef(session);
   const speedBoundsRef = useRef(speedBounds);
@@ -123,11 +133,19 @@ export function useStepUpLoop({
       return;
     }
     const completedLoops = current.completedLoops + 1;
-    const previousRate = stepUpSequenceProgressAtLoop(current.stages, current.completedLoops).rate;
-    const nextRate = stepUpSequenceProgressAtLoop(current.stages, completedLoops).rate;
+    const previous = stepUpSequenceProgressAtLoop(current.stages, current.completedLoops);
+    const next = stepUpSequenceProgressAtLoop(current.stages, completedLoops);
     setSession({ stages: current.stages, completedLoops });
-    if (nextRate !== previousRate) {
-      setPlaybackRate(nextRate);
+
+    // The plan's passes are all played: the drill is over. The session stays so the
+    // line reads "done" and restart is one tap away, but nothing drives the rate now.
+    if (next.atEnd) {
+      onDrillCompleteRef.current();
+      return;
+    }
+
+    if (next.rate !== previous.rate) {
+      setPlaybackRate(next.rate);
       // Haptics: `light` — step/detent boundaries; the climb is felt, not watched.
       haptic.light();
     }

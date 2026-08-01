@@ -114,6 +114,10 @@ const s = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: "center",
+    // Above the media dock (50) and the player sheet (40) — siblings that both
+    // declare a zIndex. Without one of its own the toast painted behind them, so
+    // every confirmation raised while the player was open went unseen.
+    zIndex: 60,
   },
   pill: {
     flexDirection: "row",
