@@ -320,6 +320,20 @@ export function PlayerScreen({
       ),
     [effectivePlayerDuration, effectivePlayerPosition, ui.practiceZoomMultiple]
   );
+  // The loop wrap has to be timed against a position that is actually current. The
+  // channel carries the engine's own ticks (~20Hz) with no render in between, where
+  // the `playerPosition` prop only commits at ~5Hz by design.
+  const freshPositionMsRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!channelDriven) {
+      freshPositionMsRef.current = null;
+      return;
+    }
+    return positionChannel.subscribe((report) => {
+      freshPositionMsRef.current = report.positionMs;
+    });
+  }, [channelDriven, positionChannel]);
+  const getFreshPositionMs = useCallback(() => freshPositionMsRef.current, []);
   // The step-up hook needs the controller's loop state, and the controller needs the
   // step-up pass counter — the cycle callback goes through a ref to break the tie.
   const stepUpLoopCycleRef = useRef<() => void>(() => {});
@@ -350,6 +364,7 @@ export function PlayerScreen({
     playPlayer: practicePitchTransport.play,
     pausePlayer: practicePitchTransport.pause,
     onDisplaySeek: transportClock.setDisplayPositionMs,
+    getFreshPositionMs,
     onLoopCycle: handleStepUpLoopCycle,
     visibleWindowStartMs: visiblePracticeRange.start,
     visibleWindowEndMs: visiblePracticeRange.end,

@@ -24,6 +24,13 @@ type Args = {
   playPlayer: () => Promise<void>;
   pausePlayer: () => Promise<void>;
   onDisplaySeek?: (ms: number) => void;
+  /**
+   * Freshest known position (ms), read at call time — the transport position
+   * channel, which publishes ~20×/second without a render. `playerPosition` reaches
+   * this hook through a throttled commit and can be most of a second stale, which is
+   * far too coarse to time a loop wrap against. Null when no fast feed is driving.
+   */
+  getFreshPositionMs?: () => number | null;
   /** Fires once per completed pass, at the wrap seek back to loop start. */
   onLoopCycle?: () => void;
   visibleWindowStartMs?: number;
@@ -111,6 +118,7 @@ export function usePracticeLoopController({
   playPlayer,
   pausePlayer,
   onDisplaySeek,
+  getFreshPositionMs,
   onLoopCycle,
   visibleWindowStartMs,
   visibleWindowEndMs,
@@ -135,6 +143,8 @@ export function usePracticeLoopController({
   const manualPracticeJumpRef = useRef(false);
   const onLoopCycleRef = useRef(onLoopCycle);
   const lastLoopCycleAtRef = useRef(0);
+  const getFreshPositionMsRef = useRef(getFreshPositionMs);
+  const wrapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loopSuppressedUntilRef = useRef(0);
 
   const hasValidPracticeLoop = practiceLoopRange.end > practiceLoopRange.start;
@@ -153,6 +163,7 @@ export function usePracticeLoopController({
   visibleWindowEndMsRef.current = visibleWindowEndMs ?? durationMs;
   hasValidPracticeLoopRef.current = hasValidPracticeLoop;
   onLoopCycleRef.current = onLoopCycle;
+  getFreshPositionMsRef.current = getFreshPositionMs;
 
   const isWithinPracticeLoop = useCallback(
     (timeMs: number) => {
@@ -178,17 +189,24 @@ export function usePracticeLoopController({
     loopStateRef.current = nextState;
   }, []);
 
+  const clearWrapTimer = useCallback(() => {
+    if (wrapTimerRef.current === null) return;
+    clearTimeout(wrapTimerRef.current);
+    wrapTimerRef.current = null;
+  }, []);
+
   const suppressLoopBriefly = useCallback((durationMs = 220) => {
     loopSuppressedUntilRef.current = Date.now() + durationMs;
   }, []);
 
   const cancelPendingPracticeSeek = useCallback(() => {
+    clearWrapTimer();
     queuedSeekMsRef.current = null;
     pendingUnlockTargetMsRef.current = null;
     pendingUnlockSourceMsRef.current = null;
     suppressLoopBriefly();
     setLoopState("idle");
-  }, [setLoopState, suppressLoopBriefly]);
+  }, [clearWrapTimer, setLoopState, suppressLoopBriefly]);
 
   useEffect(() => {
     setPracticeLoopRange(buildDefaultLoopRegion(durationMs));
@@ -265,6 +283,47 @@ export function usePracticeLoopController({
     [flushQueuedSeek, onDisplaySeek, setLoopState]
   );
 
+  /** Wrap the loop now: count the pass and seek back to the start. */
+  const performWrap = useCallback(() => {
+    clearWrapTimer();
+    // A scheduled wrap can land after the transport moved on (paused, scrubbed, the
+    // region edited), so the conditions are re-checked at firing time, not trusted
+    // from when it was booked.
+    if (
+      modeRef.current !== "practice" ||
+      !practiceLoopEnabledRef.current ||
+      !isPlayerPlayingRef.current ||
+      !hasValidPracticeLoopRef.current ||
+      loopStateRef.current === "seeking_to_start"
+    ) {
+      return;
+    }
+
+    const now = Date.now();
+    if (now - lastLoopCycleAtRef.current < 70) {
+      return;
+    }
+    lastLoopCycleAtRef.current = now;
+    onLoopCycleRef.current?.();
+
+    const range = practiceLoopRangeRef.current;
+    void queueSeek(range.start, "seeking_to_start").catch((error) => {
+      pendingUnlockTargetMsRef.current = null;
+      setLoopState("looping");
+      console.warn("Practice loop seek failed", error);
+    });
+  }, [clearWrapTimer, queueSeek, setLoopState]);
+
+  const scheduleWrap = useCallback(
+    (wallMsFromNow: number) => {
+      clearWrapTimer();
+      wrapTimerRef.current = setTimeout(performWrap, Math.max(0, wallMsFromNow));
+    },
+    [clearWrapTimer, performWrap]
+  );
+
+  useEffect(() => clearWrapTimer, [clearWrapTimer]);
+
   useEffect(() => {
     if (
       mode !== "practice" ||
@@ -273,6 +332,7 @@ export function usePracticeLoopController({
       isScrubbing ||
       isPinDragging
     ) {
+      clearWrapTimer();
       return;
     }
 
@@ -316,22 +376,23 @@ export function usePracticeLoopController({
       return;
     }
 
-    if (playerPosition < practiceLoopRange.end - loopLeadMs) {
+    // The wrap is SCHEDULED, not watched for. Position reaches this hook through a
+    // deliberately throttled status commit (useFullPlayer keeps the React tree at
+    // ~5Hz), so by the time a sample says "past the end" the take has already run
+    // most of a second beyond it — measured at ~700ms. Extrapolating from the last
+    // sample instead makes the feed's cadence irrelevant: the error collapses to how
+    // stale that one sample is, not how far apart samples are.
+    const wrapAtContentMs = practiceLoopRange.end - loopLeadMs;
+    // Anchor on the freshest position available, not the throttled prop: a stale
+    // anchor shifts the whole schedule late by exactly its staleness.
+    const anchorMs = getFreshPositionMs?.() ?? playerPosition;
+    if (anchorMs < wrapAtContentMs) {
+      const safeRate = Math.max(0.05, playbackRate);
+      scheduleWrap((wrapAtContentMs - anchorMs) / safeRate);
       return;
     }
 
-    const now = Date.now();
-    if (now - lastLoopCycleAtRef.current < 70) {
-      return;
-    }
-    lastLoopCycleAtRef.current = now;
-    onLoopCycleRef.current?.();
-
-    void queueSeek(practiceLoopRange.start, "seeking_to_start").catch((error) => {
-      pendingUnlockTargetMsRef.current = null;
-      setLoopState("looping");
-      console.warn("Practice loop seek failed", error);
-    });
+    performWrap();
   }, [
     hasValidPracticeLoop,
     isPinDragging,
