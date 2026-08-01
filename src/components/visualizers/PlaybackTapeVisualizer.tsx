@@ -38,6 +38,16 @@ import {
 } from "../../domain/practicePinLayout";
 import { colors } from "../../design/tokens";
 
+/**
+ * Pin ink. Everything else on the tape is warm — terracotta audio, coloured sections,
+ * a record-red head — so pins take the page's own charcoal and read as annotations
+ * ON the tape rather than more of it. It is the one mark that isn't about sound.
+ */
+const PIN_INK = colors.textPrimary;
+const PIN_STEM_WIDTH = 2;
+const PIN_FLAG_HEIGHT = 13;
+const PIN_FLAG_WIDTH = 7;
+
 type Props = {
     waveformPeaks: number[];
     durationMs: number;
@@ -338,33 +348,35 @@ function PinBadgeChip({
         sharedDraggingMarkerId && sharedDraggingMarkerId.value === marker.id ? 0 : 1
     );
     if (!marker.label) {
+        // A flag, not a dot. A pin marks ONE instant, and a flag says that; a circle
+        // reads as another round-ended blob on a tape already made of them. Same glyph
+        // the Marks list uses for a pin, so the object looks like itself in both places.
+        const stemX = left + (PIN_BADGE_HEIGHT - PIN_STEM_WIDTH) / 2;
         return (
             <Group opacity={opacity}>
                 <RoundedRect
-                    x={left + (PIN_BADGE_HEIGHT - PIN_DOT_SIZE) / 2}
-                    y={top + 2}
-                    width={PIN_DOT_SIZE}
-                    height={PIN_DOT_SIZE}
-                    r={PIN_DOT_SIZE / 2}
-                    color={colors.primary}
+                    x={stemX}
+                    y={top + 1}
+                    width={PIN_STEM_WIDTH}
+                    height={PIN_FLAG_HEIGHT}
+                    r={PIN_STEM_WIDTH / 2}
+                    color={PIN_INK}
                 />
-                {marker.note ? (
-                    <RoundedRect
-                        x={left + (PIN_BADGE_HEIGHT - PIN_DOT_SIZE) / 2 + 2}
-                        y={top + 4}
-                        width={PIN_DOT_SIZE - 4}
-                        height={PIN_DOT_SIZE - 4}
-                        r={(PIN_DOT_SIZE - 4) / 2}
-                        color={colors.onPrimary}
-                        opacity={0.85}
-                    />
-                ) : null}
+                <Path
+                    path={`M ${stemX + PIN_STEM_WIDTH} ${top + 1} L ${stemX + PIN_STEM_WIDTH + PIN_FLAG_WIDTH} ${top + 4} L ${stemX + PIN_STEM_WIDTH} ${top + 7} Z`}
+                    color={PIN_INK}
+                    // A pin carrying a note flies a hollow flag: the note is the thing
+                    // worth spotting, and hollow still reads at this size where the old
+                    // dot-inside-a-dot did not.
+                    style={marker.note ? "stroke" : "fill"}
+                    strokeWidth={1.2}
+                />
             </Group>
         );
     }
     return (
         <Group opacity={opacity}>
-            <RoundedRect x={left} y={top} width={width} height={PIN_BADGE_HEIGHT} r={2} color={colors.primary} />
+            <RoundedRect x={left} y={top} width={width} height={PIN_BADGE_HEIGHT} r={2} color={PIN_INK} />
             {paragraph ? (
                 <Paragraph paragraph={paragraph} x={left + 6} y={top + 3} width={width - 12} />
             ) : null}
@@ -1325,7 +1337,7 @@ export function PlaybackTapeVisualizer({
     const waveColor = theme?.waveColor || "#C7B9AF";
     const wavePlayedColor = theme?.wavePlayedColor || colors.primary;
     const rulerColor = theme?.rulerColor || colors.borderMuted;
-    const playheadColor = theme?.playheadColor || "#8b4f3b";
+    const playheadColor = theme?.playheadColor || colors.record;
     const backgroundColor = theme?.backgroundColor || "transparent";
 
     return (

@@ -81,7 +81,9 @@ const LIGHT_REEL_PALETTE: ReelPalette = {
     waveColor: "#C7B9AF",
     wavePlayedColor: colors.primary,
     rulerColor: colors.borderMuted,
-    playheadColor: "#8b4f3b",
+    // Record-red: the head is the one thing that MOVES, and on a reel that is the
+    // colour the eye already hunts for. Brown sat inside the waveform's own family.
+    playheadColor: colors.record,
     transportButtonColor: colors.surface,
     transportButtonBorderColor: colors.borderSubtle,
     transportIconColor: colors.textStrong,

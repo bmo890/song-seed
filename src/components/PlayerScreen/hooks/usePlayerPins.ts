@@ -3,6 +3,7 @@ import type { PracticeMarker } from "../../../types";
 import { useStore } from "../../../state/useStore";
 import { haptic } from "../../../design/haptics";
 import { toast } from "../../common/toastStore";
+import { clampPinLabel } from "../../../domain/practicePinLayout";
 import { fmtDuration } from "../../../utils";
 
 type UsePlayerPinsArgs = {
@@ -28,10 +29,11 @@ export function usePlayerPins({
   const [expandedPinId, setExpandedPinId] = useState<string | null>(null);
   const [pinNoteDraft, setPinNoteDraft] = useState("");
 
+  /** Returns the new pin's id so the caller can offer to name it immediately. */
   const handleAddPin = useCallback(
     (label?: string) => {
-      if (!playerIdeaId || !playerClipId) return;
-      const resolvedLabel = (label ?? newPinLabel).trim();
+      if (!playerIdeaId || !playerClipId) return null;
+      const resolvedLabel = clampPinLabel(label ?? newPinLabel);
 
       const newMarker: PracticeMarker = {
         id: `pin-${Date.now()}`,
@@ -43,6 +45,7 @@ export function usePlayerPins({
       haptic.light();
       toast(`Pin added at ${fmtDuration(playerPosition)}`, "pin-outline");
       setNewPinLabel("");
+      return newMarker.id;
       setPinModalVisible(false);
     },
     [newPinLabel, playerClipId, playerIdeaId, playerPosition]
@@ -110,7 +113,7 @@ export function usePlayerPins({
   const handleEditPin = useCallback(
     (markerId: string, edits: { label: string; note: string }) => {
       if (!playerIdeaId || !playerClipId) return;
-      const label = edits.label.trim();
+      const label = clampPinLabel(edits.label);
       const note = edits.note.trim() || undefined;
       const updated = practiceMarkers.map((marker) =>
         marker.id === markerId ? { ...marker, label, note } : marker

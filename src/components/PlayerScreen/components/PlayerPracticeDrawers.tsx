@@ -75,7 +75,8 @@ type PlayerPracticeDrawersProps = {
   onRepositionSectionEdge: (sectionId: string, edge: "start" | "end", ms: number) => void;
   onSectionPreview: (preview: { id: string; startMs?: number; endMs?: number } | null) => void;
   onDeleteSection: (sectionId: string) => void;
-  onAddPin: () => void;
+  /** Returns the new pin's id, so it can be named on the spot. */
+  onAddPin: () => string | null;
   onRepositionPin: (markerId: string, atMs: number) => void;
   onPinPreview: (preview: { id: string; atMs: number } | null) => void;
   onEditPin: (markerId: string, edits: { label: string; note: string }) => void;
@@ -150,13 +151,11 @@ function StepUpProgressLine({
   totalLoops,
   passNumber,
   rate,
-  atEnd,
 }: {
   completedLoops: number;
   totalLoops: number;
   passNumber: number;
   rate: number;
-  atEnd: boolean;
 }) {
   const { t } = useTranslation();
   const dotCount = Math.max(1, Math.min(totalLoops, STEP_UP_MAX_DOTS));
@@ -188,7 +187,7 @@ function StepUpProgressLine({
         })}
       </View>
       <Text style={pd.stepUpProgressCount}>
-        {atEnd ? t("player.stepUpDone") : `${passNumber} / ${totalLoops}`}
+        {`${passNumber} / ${totalLoops}`}
       </Text>
       <Text style={pd.stepUpProgressRate}>{`${rate}×`}</Text>
     </View>
@@ -444,6 +443,13 @@ export function PlayerPracticeDrawers({
     | null
   >(null);
   const [pinEditModal, setPinEditModal] = useState<PracticeMarker | null>(null);
+  // A pin you just dropped opens its name field straight away. Naming was reachable
+  // only through the row's overflow, so pins stayed called "Pin" — and an unnamed
+  // pin is a mark you have to play back to identify.
+  const [namingPinId, setNamingPinId] = useState<string | null>(null);
+  const namingPin = namingPinId
+    ? (practiceMarkers.find((marker) => marker.id === namingPinId) ?? null)
+    : null;
 
   const customSectionOptions = useMemo(() => getCustomSectionOptions(sections), [sections]);
 
@@ -662,7 +668,7 @@ export function PlayerPracticeDrawers({
         </Pressable>
         <Pressable
           style={({ pressed }) => [pd.inkLink, pressed ? s.toolHeaderPressed : null]}
-          onPress={onAddPin}
+          onPress={() => setNamingPinId(onAddPin())}
           accessibilityRole="button"
           accessibilityLabel={t("player.addPin")}
         >
@@ -828,7 +834,6 @@ export function PlayerPracticeDrawers({
             totalLoops={stepUpProgress.totalLoops}
             passNumber={stepUpProgress.passNumber}
             rate={stepUpProgress.rate}
-            atEnd={stepUpProgress.atEnd}
           />
         ) : null}
       </AnimatedCollapse>
@@ -1146,6 +1151,26 @@ export function PlayerPracticeDrawers({
             : undefined
         }
         onClose={() => setPinEditModal(null)}
+      />
+      {/* The same editor, opened by dropping a pin rather than by hunting for it.
+          Closing without a name is fine — the pin keeps its time and stays unnamed. */}
+      <PinDetailModal
+        visible={namingPin != null}
+        initialName={namingPin?.label ?? ""}
+        initialNote={namingPin?.note ?? ""}
+        onConfirm={(edits) => {
+          if (namingPin) onEditPin(namingPin.id, edits);
+          setNamingPinId(null);
+        }}
+        onDelete={
+          namingPin
+            ? () => {
+                onDeletePin(namingPin.id);
+                setNamingPinId(null);
+              }
+            : undefined
+        }
+        onClose={() => setNamingPinId(null)}
       />
     </View>
   );

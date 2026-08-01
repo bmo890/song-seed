@@ -97,7 +97,7 @@ export function MinimapVisualizer({
         ? {
             backgroundColor: colors.surfaceHigh,
             waveColor: "#C7B9AF",
-            playheadColor: "#8b4f3b",
+            playheadColor: colors.record,
             windowFill: "rgba(184, 125, 107, 0.16)",
             windowBorder: "rgba(139, 79, 59, 0.55)",
             keepFill: "rgba(184, 125, 107, 0.30)",

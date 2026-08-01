@@ -651,9 +651,7 @@ export function PlayerScreen({
     },
     [setPracticeLoopRange, practiceLoopEnabled, handlePracticeLoopToggle]
   );
-  const handleRequestAddPin = useCallback(() => {
-    handleAddPin("");
-  }, [handleAddPin]);
+  const handleRequestAddPin = useCallback(() => handleAddPin(""), [handleAddPin]);
   const handleAddOverdub = useCallback(async (punchInMs: number) => {
     if (!playerIdea || !playerClip) return;
     // First overdub layer is free; stacking more is Pro. Existing multi-layer clips stay
@@ -1045,9 +1043,7 @@ export function PlayerScreen({
               }}
               onRestartStepUp={stepUp.restartStepUp}
               practiceMarkers={data.practiceMarkers}
-              onAddPin={() => {
-                if (guardPracticeTool("pins")) handleRequestAddPin();
-              }}
+              onAddPin={() => (guardPracticeTool("pins") ? handleRequestAddPin() : null)}
               onRepositionPin={handleRepositionMarker}
               onPinPreview={setPinPreview}
               onEditPin={handleEditPin}

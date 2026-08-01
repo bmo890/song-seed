@@ -152,9 +152,13 @@ export function useStepUpLoop({
     const next = stepUpSequenceProgressAtLoop(current.stages, completedLoops);
     setSession({ stages: current.stages, completedLoops });
 
-    // The plan's passes are all played: the drill is over. The session stays so the
-    // line reads "done" and restart is one tap away, but nothing drives the rate now.
+    // The plan's passes are all played. The drill stops AND returns to its first
+    // step, exactly as the restart button leaves it — a finished drill you want to
+    // run again is the normal case, and a lingering "done" state is a dead end you
+    // have to clear by hand.
     if (next.atEnd) {
+      setSession({ stages: current.stages, completedLoops: 0 });
+      setPlaybackRate(current.stages[0].rate);
       onDrillCompleteRef.current();
       return;
     }

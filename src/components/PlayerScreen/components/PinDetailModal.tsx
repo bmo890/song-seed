@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
 import { fmtDuration } from "../../../utils";
 import { colors } from "../../../design/tokens";
+import { MAX_PIN_LABEL_LENGTH } from "../../../domain/practicePinLayout";
 import { WarmModal } from "../../common/WarmModal";
 import { playerScreenStyles as s } from "../styles";
 import type { PracticeMarker } from "../../../types";
@@ -130,6 +131,7 @@ export function PinDetailModal({
         onChangeText={setName}
         placeholder={t("player.pinName")}
         placeholderTextColor={colors.textMuted}
+        maxLength={MAX_PIN_LABEL_LENGTH}
         returnKeyType="done"
       />
       <UserTextInput

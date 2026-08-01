@@ -15,6 +15,17 @@ export const PIN_ROW_GAP = 2;
 export const PIN_TOP_PAD = 3;
 export const PIN_EDGE_GUARD_PX = 8;
 export const PIN_DOT_SIZE = 10;
+/**
+ * Longest pin label. The cap is a LAYOUT fact, not a taste one: the badge is drawn
+ * this many characters wide on the tape, and much past this it stops being a mark and
+ * becomes a banner across the take.
+ */
+export const MAX_PIN_LABEL_LENGTH = 24;
+
+/** Trim and cap a label to what the badge can actually draw. */
+export function clampPinLabel(label: string): string {
+    return label.trim().slice(0, MAX_PIN_LABEL_LENGTH);
+}
 
 export type PinBadgeAnchor = "start" | "end";
 
