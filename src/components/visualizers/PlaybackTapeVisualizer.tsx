@@ -30,6 +30,8 @@ import { advanceTracker } from "../../domain/motionTracking";
 import {
     assignPinRows,
     estimatePinBadgeWidth,
+    MIN_PIN_BADGE_WIDTH,
+    PIN_BADGE_H_PAD,
     getPinBadgeEdges,
     resolvePinBadgeAnchor,
     pinRowTop,
@@ -300,11 +302,13 @@ function PinBadgeChipsOverlay({
         const contentWidth = durationMs * pixelsPerMs * labelScale;
         return rows.map(({ marker, row }) => {
             const centerX = marker.atMs * pixelsPerMs * labelScale;
-            const width = estimatePinBadgeWidth(marker.label);
-            const anchor = resolvePinBadgeAnchor(centerX, width, contentWidth);
-            const left = getPinBadgeEdges(centerX, width, anchor).left;
             const top = pinRowTop(row);
             let paragraph: SkParagraph | null = null;
+            // The DRAWN badge hugs its text, measured rather than guessed \u2014 any
+            // per-character estimate leaves dead space at one end. The estimate still
+            // drives row packing and the RN drag target, where erring generous is
+            // right: the handle should never be smaller than the thing you can see.
+            let width = estimatePinBadgeWidth(marker.label);
             if (marker.label) {
                 paragraph = Skia.ParagraphBuilder.Make({ maxLines: 1, ellipsis: "\u2026" }, fontProvider)
                     .pushStyle({
@@ -315,8 +319,15 @@ function PinBadgeChipsOverlay({
                     })
                     .addText(marker.label)
                     .build();
-                paragraph.layout(Math.max(1, width - 12));
+                paragraph.layout(Math.max(1, width - PIN_BADGE_H_PAD));
+                const measured = paragraph.getLongestLine?.() ?? 0;
+                if (measured > 0) {
+                    width = Math.max(MIN_PIN_BADGE_WIDTH, Math.ceil(measured) + PIN_BADGE_H_PAD);
+                    paragraph.layout(Math.max(1, width - PIN_BADGE_H_PAD));
+                }
             }
+            const anchor = resolvePinBadgeAnchor(centerX, width, contentWidth);
+            const left = getPinBadgeEdges(centerX, width, anchor).left;
             return { marker, left, top, width, paragraph };
         });
     }, [markers, pixelsPerMs, labelScale, durationMs, fontProvider]);
