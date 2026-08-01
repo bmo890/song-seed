@@ -123,13 +123,20 @@ export function StepUpSequenceSheet({
         ].map((preset) => (
           <Pressable
             key={preset.key}
-            style={({ pressed }) => [pd.inkOption, pressed ? styles.pressDown : null]}
+            style={({ pressed }) => [
+              pd.inkOption,
+              sheetStyles.presetInk,
+              pressed ? styles.pressDown : null,
+            ]}
             onPress={() => applyPreset(preset.stages)}
+            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
             accessibilityRole="button"
             accessibilityState={{ selected: preset.active }}
             accessibilityLabel={preset.label}
           >
-            {preset.active ? <View style={pd.inkOptionDot} /> : null}
+            {/* The dot's space is reserved, not conditional — otherwise every label
+                jumps sideways as the selection moves. */}
+            <View style={[pd.inkOptionDot, preset.active ? null : sheetStyles.presetDotIdle]} />
             <Text style={[pd.inkOptionText, preset.active ? pd.inkOptionTextOn : null]}>
               {preset.label}
             </Text>
@@ -330,9 +337,16 @@ const sheetStyles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     alignItems: "center",
-    columnGap: 18,
-    rowGap: 8,
-    marginBottom: 12,
+    columnGap: 16,
+    rowGap: 2,
+    marginBottom: 10,
+  },
+  // Bare ink is a ~17pt tap target; pad it out to a comfortable one.
+  presetInk: {
+    paddingVertical: 9,
+  },
+  presetDotIdle: {
+    backgroundColor: "transparent",
   },
   list: {
     maxHeight: 300,
