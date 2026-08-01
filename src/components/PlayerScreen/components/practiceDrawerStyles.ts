@@ -219,6 +219,53 @@ export const pd = StyleSheet.create({
   stepUpSwitchDisabled: {
     opacity: 0.4,
   },
+  // Rising steps: the shape of the climb, at a glance. Bars fill as the drill
+  // advances, so the row reports progress without being read.
+  stepUpGlyph: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 2,
+    height: 13,
+  },
+  stepUpGlyphBar: {
+    width: 2.5,
+    borderRadius: 1,
+  },
+  stepUpLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  stepUpValueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    marginLeft: "auto",
+    // Shrinks before the switch does — a long saved-plan name truncates rather than
+    // pushing the switch off the row's edge.
+    flexShrink: 1,
+    minWidth: 0,
+    // This opens the editor, so it claims the row's full height: text-height alone is
+    // a ~17pt target against a ~44pt thumb.
+    alignSelf: "stretch",
+  },
+  stepUpPlanName: {
+    ...text.supporting,
+    color: colors.textSecondary,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    flexShrink: 1,
+  },
+  stepUpClimb: {
+    ...text.supporting,
+    color: colors.textMuted,
+    fontVariant: ["tabular-nums"],
+  },
+  stepUpLive: {
+    ...text.supporting,
+    color: colors.primaryDeep,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontVariant: ["tabular-nums"],
+  },
   rowDivider: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.borderSubtle,

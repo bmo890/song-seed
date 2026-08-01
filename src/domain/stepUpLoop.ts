@@ -237,6 +237,24 @@ export function stepUpSequenceTotalLoops(stages: StepUpStage[]): number {
     return stages.reduce((total, stage) => total + stage.loops, 0);
 }
 
+/**
+ * The key of the first candidate plan the sequence matches, or null when the plan is
+ * the musician's own edit. Callers key their presets however they like (built-in ids,
+ * saved-preset ids) and label them themselves — naming is i18n's job, not the domain's.
+ */
+export function matchStepUpPreset(
+    sequence: StepUpStage[],
+    candidates: { key: string; stages: StepUpStage[] }[],
+    bounds?: RateBounds | null
+): string | null {
+    for (const candidate of candidates) {
+        if (stepUpSequencesEqual(sequence, normalizeStepUpSequence(candidate.stages, bounds))) {
+            return candidate.key;
+        }
+    }
+    return null;
+}
+
 export function stepUpSequencesEqual(a: StepUpStage[], b: StepUpStage[]): boolean {
     return (
         a.length === b.length &&

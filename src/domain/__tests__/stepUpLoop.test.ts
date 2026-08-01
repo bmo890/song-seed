@@ -5,6 +5,7 @@ import {
   STEP_UP_DEFAULT_SEQUENCE,
   clickRateBounds,
   intersectRateBounds,
+  matchStepUpPreset,
   normalizeStepUpParams,
   normalizeStepUpSequence,
   stagesFromLadder,
@@ -199,6 +200,38 @@ describe("STEP_UP_BUILTIN_PRESETS", () => {
   it("polish stays just under baseline", () => {
     const polish = STEP_UP_BUILTIN_PRESETS.find((preset) => preset.id === "polish")!;
     expect(polish.stages[0].rate).toBe(0.85);
+  });
+});
+
+describe("matchStepUpPreset", () => {
+  const CANDIDATES = STEP_UP_BUILTIN_PRESETS.map((preset) => ({
+    key: preset.id,
+    stages: preset.stages,
+  }));
+
+  it("names the built-in a plan came from", () => {
+    const slowBuild = STEP_UP_BUILTIN_PRESETS.find((preset) => preset.id === "slowBuild")!;
+    expect(matchStepUpPreset(slowBuild.stages, CANDIDATES)).toBe("slowBuild");
+    expect(matchStepUpPreset(STEP_UP_DEFAULT_SEQUENCE, CANDIDATES)).toBe("steadyClimb");
+  });
+
+  it("returns null once the musician edits the plan", () => {
+    const edited: StepUpStage[] = [...STEP_UP_DEFAULT_SEQUENCE.slice(0, -1), { loops: 3, rate: 1 }];
+    expect(matchStepUpPreset(edited, CANDIDATES)).toBeNull();
+  });
+
+  it("compares through the same bounds a session would clamp with", () => {
+    const polish = STEP_UP_BUILTIN_PRESETS.find((preset) => preset.id === "polish")!;
+    // Clamped into a 0.9-1x window the polish plan collapses onto those rates; a plan
+    // stored at the clamped values must still be recognised as that preset.
+    const bounds = { minRate: 0.9, maxRate: 1 };
+    const clamped = normalizeStepUpSequence(polish.stages, bounds);
+    expect(matchStepUpPreset(clamped, CANDIDATES, bounds)).toBe("polish");
+    expect(matchStepUpPreset(clamped, CANDIDATES)).toBeNull();
+  });
+
+  it("is null against an empty candidate list", () => {
+    expect(matchStepUpPreset(STEP_UP_DEFAULT_SEQUENCE, [])).toBeNull();
   });
 });
 

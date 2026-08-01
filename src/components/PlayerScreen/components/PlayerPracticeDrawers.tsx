@@ -17,10 +17,14 @@ import { PinDetailModal } from "./PinDetailModal";
 import { SectionDetailModal, SectionPickerModal } from "./sectionModals";
 import { StepUpSequenceSheet } from "./StepUpSequenceSheet";
 import {
-  stepUpSequenceTotalLoops,
+  STEP_UP_BUILTIN_PRESETS,
+  matchStepUpPreset,
   type StepUpSequenceProgress,
   type StepUpStage,
 } from "../../../domain/stepUpLoop";
+import { useStepUpPresetsStore } from "../../../state/useStepUpPresetsStore";
+import { HelpButton } from "../../common/HelpButton";
+import { HelpSheet } from "../../common/HelpSheet";
 import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
 
@@ -121,12 +125,42 @@ const ltrRow: ViewStyle = { flexDirection: I18nManager.isRTL ? "row-reverse" : "
 
 const MIN_LOOP_LENGTH_MS = 1000;
 
-/** "0.6×–1×" for a climb, "0.7×" when the whole plan sits on one rate. */
-function stepUpPlanRatesLabel(sequence: StepUpStage[]): string {
+/** "0.5× → 1×" — a climb reads as a journey, not a range. One rate states itself. */
+function stepUpClimbLabel(sequence: StepUpStage[]): string {
   const first = sequence[0]?.rate;
   const last = sequence[sequence.length - 1]?.rate;
   if (first == null || last == null) return "";
-  return first === last ? `${first}×` : `${first}×–${last}×`;
+  return first === last ? `${first}×` : `${first}× → ${last}×`;
+}
+
+/**
+ * The climb as rising bars — capped at five so a long drill still reads as a shape
+ * rather than a barcode. `reachedIndex` lights the steps already done (-1 = idle),
+ * so a running drill reports progress without being read.
+ */
+function StepUpGlyph({ stageCount, reachedIndex }: { stageCount: number; reachedIndex: number }) {
+  const bars = Math.max(2, Math.min(5, stageCount));
+  const lastStage = Math.max(1, stageCount - 1);
+  return (
+    <View style={pd.stepUpGlyph}>
+      {Array.from({ length: bars }, (_, index) => {
+        const lit =
+          reachedIndex >= 0 && index <= Math.round((reachedIndex / lastStage) * (bars - 1));
+        return (
+          <View
+            key={index}
+            style={[
+              pd.stepUpGlyphBar,
+              {
+                height: 5 + index * 2,
+                backgroundColor: lit ? colors.primary : colors.borderSubtle,
+              },
+            ]}
+          />
+        );
+      })}
+    </View>
+  );
 }
 
 function SpanGlyph({ color }: { color: string }) {
@@ -352,6 +386,26 @@ export function PlayerPracticeDrawers({
   const [selected, setSelected] = useState<SelectedMark>(null);
   const [loopEdge, setLoopEdge] = useState<"start" | "end">("start");
   const [stepUpSheetOpen, setStepUpSheetOpen] = useState(false);
+  const [stepUpHelpOpen, setStepUpHelpOpen] = useState(false);
+  // The plan wears its name when it IS one — a built-in drill or a saved sequence;
+  // an edited plan is honestly "Custom" rather than borrowing the last name it had.
+  const stepUpUserPresets = useStepUpPresetsStore((state) => state.userPresets);
+  const stepUpPlanName = useMemo(() => {
+    const bounds = { minRate: stepUpRateMin, maxRate: stepUpRateMax };
+    const builtinKey = matchStepUpPreset(
+      stepUpSequence,
+      STEP_UP_BUILTIN_PRESETS.map((preset) => ({ key: preset.id, stages: preset.stages })),
+      bounds
+    );
+    if (builtinKey) return t(`player.stepUpPreset_${builtinKey}`);
+    const userKey = matchStepUpPreset(
+      stepUpSequence,
+      stepUpUserPresets.map((preset) => ({ key: preset.id, stages: preset.stages })),
+      bounds
+    );
+    const saved = stepUpUserPresets.find((preset) => preset.id === userKey);
+    return saved ? saved.name : t("player.stepUpCustom");
+  }, [stepUpRateMax, stepUpRateMin, stepUpSequence, stepUpUserPresets, t]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [detailModal, setDetailModal] = useState<
     | { mode: "edit"; section: ClipSection }
@@ -682,27 +736,44 @@ export function PlayerPracticeDrawers({
       {/* Step up rides the loop: it only means anything while the loop repeats, so it
           lives here rather than in Sound with the manual speed dial. */}
       <View style={[pd.row, pd.rowDivider]}>
-        <Text style={pd.rowLabel}>{t("player.stepUp")}</Text>
-        <Text style={pd.rowValue}>
-          {stepUpEnabled && stepUpProgress
-            ? stepUpProgress.atEnd
-              ? `${stepUpProgress.rate}×`
-              : `${stepUpProgress.rate}× · ${t("player.stepUpPass", {
-                  current: stepUpProgress.loopInStage,
-                  total: stepUpProgress.stageLoops,
-                })}`
-            : `${stepUpPlanRatesLabel(stepUpSequence)} · ${t("player.stepUpPassCount", {
-                count: stepUpSequenceTotalLoops(stepUpSequence),
-              })}`}
-        </Text>
+        <View style={pd.stepUpLabelRow}>
+          <Text style={pd.rowLabel}>{t("player.stepUp")}</Text>
+          <HelpButton compact onPress={() => setStepUpHelpOpen(true)} />
+        </View>
+        {/* The plan itself opens the editor — a separate gear alongside a "?" and a
+            switch made four controls in one row, and pushed the switch off its edge.
+            Idle it states what the plan IS (name + where it travels); running, where
+            it has GOT to — the live rate is the only fact worth reading mid-passage. */}
         <Pressable
-          style={pd.headIconBtn}
-          onPress={() => setStepUpSheetOpen(true)}
-          hitSlop={6}
+          style={({ pressed }) => [pd.stepUpValueRow, pressed ? s.toolHeaderPressed : null]}
+          onPress={() => {
+            haptic.tap();
+            setStepUpSheetOpen(true);
+          }}
           accessibilityRole="button"
           accessibilityLabel={t("player.stepUpEdit")}
         >
-          <Ionicons name="options-outline" size={16} color={colors.textMuted} />
+          <StepUpGlyph
+            stageCount={stepUpSequence.length}
+            reachedIndex={stepUpEnabled && stepUpProgress ? stepUpProgress.stageIndex : -1}
+          />
+          {stepUpEnabled && stepUpProgress ? (
+            <Text style={pd.stepUpLive}>
+              {stepUpProgress.atEnd
+                ? `${stepUpProgress.rate}×`
+                : `${stepUpProgress.rate}× · ${t("player.stepUpPass", {
+                    current: stepUpProgress.loopInStage,
+                    total: stepUpProgress.stageLoops,
+                  })}`}
+            </Text>
+          ) : (
+            <>
+              <Text style={pd.stepUpPlanName} numberOfLines={1}>
+                {stepUpPlanName}
+              </Text>
+              <Text style={pd.stepUpClimb}>{stepUpClimbLabel(stepUpSequence)}</Text>
+            </>
+          )}
         </Pressable>
         {/* Step up counts loop passes, so it can only run while the loop does — the
             session hook ends one the moment the loop goes off. Disabled rather than
@@ -728,6 +799,34 @@ export function PlayerPracticeDrawers({
         sequence={stepUpSequence}
         onChangeSequence={onChangeStepUpSequence}
         rateBounds={{ minRate: stepUpRateMin, maxRate: stepUpRateMax }}
+      />
+      <HelpSheet
+        visible={stepUpHelpOpen}
+        onClose={() => setStepUpHelpOpen(false)}
+        title={t("player.stepUp")}
+        intro={t("player.stepUpHelpIntro")}
+        items={[
+          {
+            icon: "layers-outline",
+            label: t("player.stepUpHelpStepsLabel"),
+            description: t("player.stepUpHelpStepsBody"),
+          },
+          {
+            icon: "infinite",
+            label: t("player.stepUpHelpLoopLabel"),
+            description: t("player.stepUpHelpLoopBody"),
+          },
+          {
+            icon: "options-outline",
+            label: t("player.stepUpHelpPresetsLabel"),
+            description: t("player.stepUpHelpPresetsBody"),
+          },
+          {
+            icon: "speedometer-outline",
+            label: t("player.stepUpHelpSpeedLabel"),
+            description: t("player.stepUpHelpSpeedBody"),
+          },
+        ]}
       />
       <View style={[pd.row, pd.rowDivider]}>
         <Text style={pd.rowLabel}>{t("player.countIn")}</Text>
