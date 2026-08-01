@@ -34,7 +34,6 @@ import {
     resolvePinBadgeAnchor,
     pinRowTop,
     PIN_BADGE_HEIGHT,
-    PIN_DOT_SIZE,
 } from "../../domain/practicePinLayout";
 import { colors } from "../../design/tokens";
 
@@ -44,9 +43,6 @@ import { colors } from "../../design/tokens";
  * ON the tape rather than more of it. It is the one mark that isn't about sound.
  */
 const PIN_INK = colors.textPrimary;
-const PIN_STEM_WIDTH = 2;
-const PIN_FLAG_HEIGHT = 13;
-const PIN_FLAG_WIDTH = 7;
 
 type Props = {
     waveformPeaks: number[];
@@ -347,33 +343,9 @@ function PinBadgeChip({
     const opacity = useDerivedValue(() =>
         sharedDraggingMarkerId && sharedDraggingMarkerId.value === marker.id ? 0 : 1
     );
-    if (!marker.label) {
-        // A flag, not a dot. A pin marks ONE instant, and a flag says that; a circle
-        // reads as another round-ended blob on a tape already made of them. Same glyph
-        // the Marks list uses for a pin, so the object looks like itself in both places.
-        const stemX = left + (PIN_BADGE_HEIGHT - PIN_STEM_WIDTH) / 2;
-        return (
-            <Group opacity={opacity}>
-                <RoundedRect
-                    x={stemX}
-                    y={top + 1}
-                    width={PIN_STEM_WIDTH}
-                    height={PIN_FLAG_HEIGHT}
-                    r={PIN_STEM_WIDTH / 2}
-                    color={PIN_INK}
-                />
-                <Path
-                    path={`M ${stemX + PIN_STEM_WIDTH} ${top + 1} L ${stemX + PIN_STEM_WIDTH + PIN_FLAG_WIDTH} ${top + 4} L ${stemX + PIN_STEM_WIDTH} ${top + 7} Z`}
-                    color={PIN_INK}
-                    // A pin carrying a note flies a hollow flag: the note is the thing
-                    // worth spotting, and hollow still reads at this size where the old
-                    // dot-inside-a-dot did not.
-                    style={marker.note ? "stroke" : "fill"}
-                    strokeWidth={1.2}
-                />
-            </Group>
-        );
-    }
+    // One badge for every pin, named or not — an unnamed one is simply an empty badge
+    // at its minimum width. No second glyph to learn, and the handle you drag is the
+    // same shape and size whether or not the pin has a name yet.
     return (
         <Group opacity={opacity}>
             <RoundedRect x={left} y={top} width={width} height={PIN_BADGE_HEIGHT} r={2} color={PIN_INK} />

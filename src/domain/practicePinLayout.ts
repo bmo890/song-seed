@@ -14,7 +14,8 @@ export const PIN_BADGE_H_PAD = 12;
 export const PIN_ROW_GAP = 2;
 export const PIN_TOP_PAD = 3;
 export const PIN_EDGE_GUARD_PX = 8;
-export const PIN_DOT_SIZE = 10;
+/** Narrowest a badge may draw — a grabbable handle even with no name on it. */
+export const MIN_PIN_BADGE_WIDTH = 30;
 /**
  * Longest pin label. The cap is a LAYOUT fact, not a taste one: the badge is drawn
  * this many characters wide on the tape, and much past this it stops being a mark and
@@ -30,8 +31,10 @@ export function clampPinLabel(label: string): string {
 export type PinBadgeAnchor = "start" | "end";
 
 export function estimatePinBadgeWidth(label: string | undefined): number {
-    if (!label) return PIN_BADGE_HEIGHT; // unlabelled pin is a dot
-    return Math.max(32, label.length * PIN_BADGE_CHAR_WIDTH + PIN_BADGE_H_PAD);
+    // Every pin is the same badge, named or not: an unnamed one is simply empty. It
+    // keeps a minimum width so there is always something to take hold of — this
+    // number is the drag target as much as the picture.
+    return Math.max(MIN_PIN_BADGE_WIDTH, (label?.length ?? 0) * PIN_BADGE_CHAR_WIDTH + PIN_BADGE_H_PAD);
 }
 
 /** The label is a flag flying RIGHT of the pin line; near the right edge it flips. */
