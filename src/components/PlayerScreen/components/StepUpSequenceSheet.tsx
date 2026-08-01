@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../../common/BottomSheet";
-import { WarmModal } from "../../common/WarmModal";
 import { styles } from "../../../styles";
 import { colors, radii } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
@@ -15,7 +14,6 @@ import {
   type StepUpStage,
 } from "../../../domain/stepUpLoop";
 import { useStepUpPresetsStore } from "../../../state/useStepUpPresetsStore";
-import { playerScreenStyles as ps } from "../styles";
 import { pd } from "./practiceDrawerStyles";
 import { UserTextInput } from "../../../i18n";
 import { useTranslation } from "react-i18next";
@@ -24,13 +22,18 @@ const RATE_STEP = 0.05;
 const MAX_STAGE_LOOPS = 20;
 
 /**
- * The Step up customizer: preset chips (three boilerplate drills + the musician's
- * saved sequences), then one row per stage — passes at a speed — with steppers, a
- * remove control, and an add-step row. Edits commit immediately through
- * `onChangeSequence`; a running session restarts on the new plan (the hook's rule).
- * A plan matching no preset is custom — it can be saved by name for reuse anywhere.
- * No bpm anywhere: these are plain track rates, so the sheet works with or without
- * a recorded grid.
+ * The Step up customizer: a row of plans in editorial ink (three boilerplate drills,
+ * the musician's saved sequences, and Custom), then one row per stage — passes at a
+ * speed — with steppers, a remove control, and an add-step row. Edits commit
+ * immediately through `onChangeSequence`; a running session restarts on the new plan
+ * (the hook's rule). Custom is a plan you can choose, not just a state you fall into
+ * by editing, and once chosen it can be named and saved for reuse anywhere.
+ *
+ * Naming is inline rather than a dialog: this sheet is a modal, and iOS silently
+ * refuses to present a modal from inside a presented one.
+ *
+ * No bpm anywhere: these are plain track rates, so the sheet works with or without a
+ * recorded grid.
  */
 export function StepUpSequenceSheet({
   visible,
@@ -49,7 +52,7 @@ export function StepUpSequenceSheet({
   const userPresets = useStepUpPresetsStore((state) => state.userPresets);
   const saveUserPreset = useStepUpPresetsStore((state) => state.saveUserPreset);
   const removeUserPreset = useStepUpPresetsStore((state) => state.removeUserPreset);
-  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [naming, setNaming] = useState(false);
   const [presetName, setPresetName] = useState("");
 
   // A preset is "active" when the plan on screen IS that preset (compared after the
@@ -59,6 +62,18 @@ export function StepUpSequenceSheet({
   const activeUserPreset = userPresets.find((preset) => matchesStages(preset.stages)) ?? null;
   const matchesBuiltin = STEP_UP_BUILTIN_PRESETS.some((preset) => matchesStages(preset.stages));
   const isCustomPlan = !matchesBuiltin && !activeUserPreset;
+
+  // Choosing Custom starts from a short two-rung ladder rather than a blank sheet —
+  // it begins where the plan on screen begins, so the first edit is a nudge, not a
+  // build from nothing.
+  const starterCustomStages: StepUpStage[] = (() => {
+    const firstRate = sequence[0]?.rate ?? rateBounds.minRate;
+    const secondRate = Math.min(rateBounds.maxRate, Math.round((firstRate + RATE_STEP) * 100) / 100);
+    return [
+      { loops: 4, rate: firstRate },
+      { loops: 4, rate: secondRate },
+    ];
+  })();
 
   const applyPreset = (stages: StepUpStage[]) => {
     // Haptics: `tap` — any acknowledged press: buttons, rows, toggles.
@@ -93,7 +108,7 @@ export function StepUpSequenceSheet({
     if (!trimmed) return;
     haptic.tap();
     saveUserPreset(trimmed, sequence);
-    setSaveModalOpen(false);
+    setNaming(false);
     setPresetName("");
   };
 
@@ -101,7 +116,7 @@ export function StepUpSequenceSheet({
   const canRemove = sequence.length > 1;
 
   return (
-    <BottomSheet visible={visible} onClose={onClose}>
+    <BottomSheet visible={visible} onClose={onClose} keyboardAvoiding>
       <Text style={styles.selectionSheetTitle}>{t("player.stepUp")}</Text>
       <Text style={sheetStyles.intro}>{t("player.stepUpSheetHint")}</Text>
       {/* Editorial ink, not chips — the practice drawers retired the chip idiom
@@ -120,6 +135,15 @@ export function StepUpSequenceSheet({
             stages: preset.stages,
             active: activeUserPreset?.id === preset.id,
           })),
+          // Custom sits with the ready-made plans so building your own is a choice you
+          // can make, not something you discover by editing a preset until it stops
+          // matching. Selecting it lays down a short ladder to grow from.
+          {
+            key: "custom",
+            label: t("player.stepUpCustom"),
+            stages: starterCustomStages,
+            active: isCustomPlan,
+          },
         ].map((preset) => (
           <Pressable
             key={preset.key}
@@ -128,7 +152,12 @@ export function StepUpSequenceSheet({
               sheetStyles.presetInk,
               pressed ? styles.pressDown : null,
             ]}
-            onPress={() => applyPreset(preset.stages)}
+            onPress={() => {
+              // Tapping Custom while the plan already IS custom must not wipe the
+              // work it is describing.
+              if (preset.key === "custom" && isCustomPlan) return;
+              applyPreset(preset.stages);
+            }}
             hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
             accessibilityRole="button"
             accessibilityState={{ selected: preset.active }}
@@ -258,13 +287,57 @@ export function StepUpSequenceSheet({
         <Ionicons name="add" size={16} color={colors.textStrong} />
         <Text style={sheetStyles.addRowText}>{t("player.stepUpAddStep")}</Text>
       </Pressable>
-      {isCustomPlan ? (
+      {/* Naming happens inline, not in a dialog: this sheet is itself a modal, and a
+          modal presented from inside a presented modal never appears on iOS — which
+          is exactly how the save flow was silently doing nothing. */}
+      {naming ? (
+        <View style={sheetStyles.namingRow}>
+          <UserTextInput
+            style={sheetStyles.nameInput}
+            value={presetName}
+            onChangeText={setPresetName}
+            placeholder={t("player.stepUpNamePlaceholder")}
+            placeholderTextColor={colors.textMuted}
+            returnKeyType="done"
+            autoFocus
+            onSubmitEditing={commitSavePreset}
+          />
+          <Pressable
+            style={({ pressed }) => [sheetStyles.footerLink, pressed ? styles.pressDown : null]}
+            onPress={() => setNaming(false)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.cancel")}
+          >
+            <Text style={sheetStyles.footerLinkText}>{t("common.cancel")}</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              sheetStyles.footerLink,
+              !presetName.trim() ? sheetStyles.stepperButtonDisabled : null,
+              pressed ? styles.pressDown : null,
+            ]}
+            onPress={commitSavePreset}
+            disabled={!presetName.trim()}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.save")}
+          >
+            <Text style={[sheetStyles.footerLinkText, sheetStyles.footerLinkSave]}>
+              {t("common.save")}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+      {isCustomPlan && !naming ? (
         <Pressable
           style={({ pressed }) => [sheetStyles.footerLink, pressed ? styles.pressDown : null]}
           onPress={() => {
+            haptic.tap();
             setPresetName("");
-            setSaveModalOpen(true);
+            setNaming(true);
           }}
+          hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={t("player.stepUpSavePreset")}
         >
@@ -287,40 +360,6 @@ export function StepUpSequenceSheet({
           </Text>
         </Pressable>
       ) : null}
-      <WarmModal
-        visible={saveModalOpen}
-        onRequestClose={() => setSaveModalOpen(false)}
-        title={t("player.stepUpSaveTitle")}
-      >
-        <UserTextInput
-          style={ps.sectionEditInput}
-          value={presetName}
-          onChangeText={setPresetName}
-          placeholder={t("player.stepUpNamePlaceholder")}
-          placeholderTextColor={colors.textMuted}
-          returnKeyType="done"
-          autoFocus
-          onSubmitEditing={commitSavePreset}
-        />
-        <View style={ps.sectionModalActions}>
-          <View style={{ flex: 1 }} />
-          <Pressable
-            style={ps.sectionModalCancel}
-            onPress={() => setSaveModalOpen(false)}
-            accessibilityRole="button"
-          >
-            <Text style={ps.sectionModalCancelText}>{t("common.cancel")}</Text>
-          </Pressable>
-          <Pressable
-            style={[ps.sectionModalConfirm, !presetName.trim() ? ps.sectionModalConfirmDisabled : null]}
-            onPress={commitSavePreset}
-            disabled={!presetName.trim()}
-            accessibilityRole="button"
-          >
-            <Text style={ps.sectionModalConfirmText}>{t("common.save")}</Text>
-          </Pressable>
-        </View>
-      </WarmModal>
     </BottomSheet>
   );
 }
@@ -424,7 +463,11 @@ const sheetStyles = StyleSheet.create({
     justifyContent: "center",
     gap: 5,
     marginTop: 8,
-    paddingVertical: 7,
+    paddingVertical: 10,
+    // The sheet card's bottom padding is not part of its touchable content box, so a
+    // last child that reaches into it renders but cannot be pressed. This keeps the
+    // footer clear of it.
+    marginBottom: 10,
   },
   footerLinkText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
@@ -433,5 +476,25 @@ const sheetStyles = StyleSheet.create({
   },
   footerLinkDanger: {
     color: colors.danger,
+  },
+  footerLinkSave: {
+    color: colors.primaryDeep,
+  },
+  namingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 8,
+    marginBottom: 10,
+  },
+  nameInput: {
+    flex: 1,
+    height: 38,
+    paddingHorizontal: 12,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surfaceContainer,
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 13,
+    color: colors.textStrong,
   },
 });
