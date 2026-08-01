@@ -25,6 +25,9 @@ jest.mock("../db/storage", () => ({
     listKvKeysWithPrefix: jest.fn(async (prefix: string) =>
         Array.from(mockKv.keys()).filter((key) => key.startsWith(prefix))
     ),
+    listKvKeysWithPrefixOrThrow: jest.fn(async (prefix: string) =>
+        Array.from(mockKv.keys()).filter((key) => key.startsWith(prefix))
+    ),
 }));
 
 import type { Workspace } from "../../types";

@@ -9,12 +9,12 @@ import {
   getSectionColor,
   getSectionPreset,
   MIN_SECTION_LENGTH_MS,
+  nearestSectionInk,
+  SECTION_INKS,
   SECTION_QUICK_ADD,
 } from "../../../domain/playerSections";
 import type { SectionCustomInput } from "../hooks/usePlayerSections";
 import { WarmModal } from "../../common/WarmModal";
-import { HueSlider } from "../../common/HueSlider";
-import { hexToHue, hueToAccentHex } from "../../../domain/workspaceTheme";
 import { playerScreenStyles as s } from "../styles";
 import type { ClipSection, ClipSectionKind } from "../../../types";
 import { haptic } from "../../../design/haptics";
@@ -191,8 +191,10 @@ export function SectionPickerModal({
   );
 }
 
-/** Title + colour editor used both for "new custom section" and editing an existing one.
- *  Reuses the workspace HueSlider so the colour control matches the rest of the app. */
+/** Title + ink editor used both for "new custom section" and editing an existing one.
+ *  The ink is a choice of THREE (colors.markLight/Mid/Deep), not a hue — a section says how
+ *  loud a part is, and a full-spectrum slider in a quiet sketchbook was the loudest control
+ *  in the app (docs/product-plan/full-player-audit.md B2). */
 export function SectionDetailModal({
   visible,
   title,
@@ -214,17 +216,17 @@ export function SectionDetailModal({
 }) {
   const { t } = useTranslation();
   const [name, setName] = useState(initialName);
-  const [hue, setHue] = useState(() => hexToHue(initialColor));
+  const [ink, setInk] = useState<string>(() => nearestSectionInk(initialColor));
   const prevVisible = React.useRef(false);
   useEffect(() => {
     if (visible && !prevVisible.current) {
       setName(initialName);
-      setHue(hexToHue(initialColor));
+      setInk(nearestSectionInk(initialColor));
     }
     prevVisible.current = visible;
   }, [visible, initialName, initialColor]);
 
-  const accentColor = hueToAccentHex(hue);
+  const accentColor = ink;
   const trimmed = name.trim();
   return (
     <WarmModal visible={visible} onRequestClose={onClose} title={title}>
@@ -234,7 +236,20 @@ export function SectionDetailModal({
           {trimmed || t("player.sectionName")}
         </UserText>
       </View>
-      <HueSlider hue={hue} onChange={setHue} />
+      <View style={s.sectionInkRow}>
+        {SECTION_INKS.map((option) => (
+          <Pressable
+            key={option}
+            style={[s.sectionInkSwatch, option === ink ? s.sectionInkSwatchActive : null]}
+            onPress={() => setInk(option)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: option === ink }}
+            accessibilityLabel={t("player.sectionInk")}
+          >
+            <View style={[s.sectionInkFill, { backgroundColor: option }]} />
+          </Pressable>
+        ))}
+      </View>
       <UserTextInput
         style={s.sectionEditInput}
         value={name}

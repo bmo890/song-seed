@@ -102,7 +102,7 @@ export const screenStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 8,
-    backgroundColor: "#F2E4DF",
+    backgroundColor: colors.primarySurface,
     borderRadius: 6,
     paddingHorizontal: 12,
     paddingVertical: 10,

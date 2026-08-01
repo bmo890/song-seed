@@ -450,7 +450,7 @@ export function PlayerSupportSections({
         <PlayerLyricsPanel
           text={latestLyricsText}
           chordLines={lyricsChordLines}
-          versionLabel={t("player.version", { count: lyricsVersionCount })}
+          versionLabel={t("lyrics.version", { number: lyricsVersionCount })}
           updatedAtLabel={formatDate(latestLyricsUpdatedAt!)}
           autoscrollState={{
             mode: "off",

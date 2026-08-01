@@ -16,7 +16,7 @@ import {
 } from "../../../domain/stepUpLoop";
 import { useStepUpPresetsStore } from "../../../state/useStepUpPresetsStore";
 import { playerScreenStyles as ps } from "../styles";
-import { Chip } from "./practicePanelPrimitives";
+import { pd } from "./practiceDrawerStyles";
 import { UserTextInput } from "../../../i18n";
 import { useTranslation } from "react-i18next";
 
@@ -104,22 +104,36 @@ export function StepUpSequenceSheet({
     <BottomSheet visible={visible} onClose={onClose}>
       <Text style={styles.selectionSheetTitle}>{t("player.stepUp")}</Text>
       <Text style={sheetStyles.intro}>{t("player.stepUpSheetHint")}</Text>
+      {/* Editorial ink, not chips — the practice drawers retired the chip idiom
+          (word + leading dot, hollow → terracotta). */}
       <View style={sheetStyles.presetRow}>
-        {STEP_UP_BUILTIN_PRESETS.map((preset) => (
-          <Chip
-            key={preset.id}
-            label={t(`player.stepUpPreset_${preset.id}`)}
-            active={matchesStages(preset.stages)}
+        {[
+          ...STEP_UP_BUILTIN_PRESETS.map((preset) => ({
+            key: preset.id,
+            label: t(`player.stepUpPreset_${preset.id}`),
+            stages: preset.stages,
+            active: matchesStages(preset.stages),
+          })),
+          ...userPresets.map((preset) => ({
+            key: preset.id,
+            label: preset.name,
+            stages: preset.stages,
+            active: activeUserPreset?.id === preset.id,
+          })),
+        ].map((preset) => (
+          <Pressable
+            key={preset.key}
+            style={({ pressed }) => [pd.inkOption, pressed ? styles.pressDown : null]}
             onPress={() => applyPreset(preset.stages)}
-          />
-        ))}
-        {userPresets.map((preset) => (
-          <Chip
-            key={preset.id}
-            label={preset.name}
-            active={activeUserPreset?.id === preset.id}
-            onPress={() => applyPreset(preset.stages)}
-          />
+            accessibilityRole="button"
+            accessibilityState={{ selected: preset.active }}
+            accessibilityLabel={preset.label}
+          >
+            {preset.active ? <View style={pd.inkOptionDot} /> : null}
+            <Text style={[pd.inkOptionText, preset.active ? pd.inkOptionTextOn : null]}>
+              {preset.label}
+            </Text>
+          </Pressable>
         ))}
       </View>
       <ScrollView style={sheetStyles.list} bounces={false}>
@@ -315,8 +329,10 @@ const sheetStyles = StyleSheet.create({
   presetRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 6,
-    marginBottom: 10,
+    alignItems: "center",
+    columnGap: 18,
+    rowGap: 8,
+    marginBottom: 12,
   },
   list: {
     maxHeight: 300,

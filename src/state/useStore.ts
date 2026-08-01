@@ -418,14 +418,26 @@ AppState.addEventListener("change", (nextState) => {
  */
 type HydrationResultListener = (error: unknown | undefined) => void;
 const hydrationResultListeners = new Set<HydrationResultListener>();
+let lastHydrationResult: { error: unknown | undefined } | null = null;
 
 function notifyHydrationResult(error: unknown | undefined) {
-    hydrationResultListeners.forEach((listener) => listener(error));
+    lastHydrationResult = { error };
+    // Snapshot before iterating: a listener subscribing mid-notify gets this result
+    // via its subscribe-time replay, never twice.
+    [...hydrationResultListeners].forEach((listener) => listener(error));
 }
 
-/** Subscribe to hydration success/failure. Returns an unsubscribe function. */
+/**
+ * Subscribe to hydration success/failure. Returns an unsubscribe function.
+ * The most recent result (if any) is replayed immediately, so a listener that
+ * subscribes after the initial auto-hydration settled still observes its outcome.
+ * This is what lets App react to a pre-mount failure WITHOUT issuing a second
+ * rehydrate "just in case" — two concurrent hydrations racing the same disk was
+ * how a transient empty read could finish first and masquerade as an empty boot.
+ */
 export function onHydrationResult(listener: HydrationResultListener): () => void {
     hydrationResultListeners.add(listener);
+    if (lastHydrationResult) listener(lastHydrationResult.error);
     return () => {
         hydrationResultListeners.delete(listener);
     };

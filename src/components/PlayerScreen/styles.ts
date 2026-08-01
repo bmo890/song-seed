@@ -1232,6 +1232,30 @@ export const playerScreenStyles = StyleSheet.create({
     height: 22,
     borderRadius: radii.sm,
   },
+  sectionInkRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 4,
+  },
+  sectionInkSwatch: {
+    width: 38,
+    height: 30,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: "transparent",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sectionInkSwatchActive: {
+    borderColor: colors.primaryDeep,
+    backgroundColor: colors.primarySurface,
+  },
+  sectionInkFill: {
+    width: 22,
+    height: 4,
+    borderRadius: 2,
+  },
   sectionDetailPreviewText: {
     flex: 1,
     fontFamily: "PlusJakartaSans_600SemiBold",
@@ -1395,27 +1419,6 @@ export const playerScreenStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-  },
-  stepUpRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginTop: 2,
-  },
-  stepUpTextWrap: {
-    flex: 1,
-    gap: 1,
-  },
-  stepUpLabel: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13,
-    color: colors.textStrong,
-  },
-  stepUpValue: {
-    fontFamily: "PlusJakartaSans_500Medium",
-    fontSize: 12,
-    color: colors.textMuted,
-    fontVariant: ["tabular-nums"],
   },
   toolLoopPill: {
     flexDirection: "row",

@@ -1,4 +1,5 @@
 import type { ClipSection, ClipSectionKind } from "../types";
+import { colors } from "../design/tokens";
 
 export type SectionPreset = {
   kind: ClipSectionKind;
@@ -23,19 +24,82 @@ export type SectionBand = {
 export const MIN_SECTION_LENGTH_MS = 200;
 
 /**
- * Bolder, multi-hue palette so sections read clearly against the waveform instead of
- * washing into the paper. Still earthy rather than neon; chorus keeps the terracotta accent.
+ * One ink per structural role, fixed for every song — see `colors.section*` for why the
+ * set is harmonised rather than hand-picked. A musician learns the mapping once and then
+ * reads an arrangement at a glance instead of reading seven labels.
  */
 const PRESETS: Record<ClipSectionKind, SectionPreset> = {
-  intro: { kind: "intro", label: "Intro", color: "#3F9C82" },
-  verse: { kind: "verse", label: "Verse", color: "#C98A3C" },
-  prechorus: { kind: "prechorus", label: "Pre-chorus", color: "#D6743F" },
-  chorus: { kind: "chorus", label: "Chorus", color: "#C8463A" },
-  bridge: { kind: "bridge", label: "Bridge", color: "#5775A6" },
-  solo: { kind: "solo", label: "Solo", color: "#9B6FB2" },
-  outro: { kind: "outro", label: "Outro", color: "#6F7E8C" },
-  custom: { kind: "custom", label: "Section", color: "#B0568A" },
+  intro: { kind: "intro", label: "Intro", color: colors.sectionIntro },
+  verse: { kind: "verse", label: "Verse", color: colors.sectionVerse },
+  prechorus: { kind: "prechorus", label: "Pre-chorus", color: colors.sectionPrechorus },
+  chorus: { kind: "chorus", label: "Chorus", color: colors.sectionChorus },
+  bridge: { kind: "bridge", label: "Bridge", color: colors.sectionBridge },
+  solo: { kind: "solo", label: "Solo", color: colors.sectionSolo },
+  outro: { kind: "outro", label: "Outro", color: colors.sectionOutro },
+  custom: { kind: "custom", label: "Section", color: colors.sectionCustom },
 };
+
+/** The inks a section may carry — the eight roles, offered in the editor in song order. */
+export const SECTION_INKS = [
+  colors.sectionIntro,
+  colors.sectionVerse,
+  colors.sectionPrechorus,
+  colors.sectionChorus,
+  colors.sectionBridge,
+  colors.sectionSolo,
+  colors.sectionOutro,
+  colors.sectionCustom,
+] as const;
+
+/**
+ * How strongly a section tints the reel behind the waveform.
+ *
+ * Measured against the two things it has to do at once. At 0.09 the hue lived only in the
+ * label chip and the bands were indistinguishable mid-playback — the tint may as well not
+ * have existed. At the retired 0.32 it swallowed the waveform, the one thing the reel is
+ * for. 0.20 reads across a room and still lets the audio through.
+ */
+export const SECTION_FILL_ALPHA = 0.2;
+
+/**
+ * Snap any stored colour onto the role palette. Sections saved before this change keep
+ * working: a hand-picked hue resolves to the closest role ink rather than being dropped or
+ * left as an orphan the editor can no longer represent.
+ */
+export function nearestSectionInk(color: string | undefined | null): string {
+  if (!color) return colors.sectionCustom;
+  const target = hexToRgb(color);
+  if (!target) return colors.sectionCustom;
+  let best: string = colors.sectionCustom;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const ink of SECTION_INKS) {
+    const candidate = hexToRgb(ink)!;
+    // Compare in RGB space, not by luminance: the family now varies by HUE at one fixed
+    // lightness, so "nearest" has to mean "closest colour". Matching on brightness alone
+    // would map every legacy hex onto whichever ink happened to share its darkness.
+    const distance =
+      (candidate.r - target.r) ** 2 +
+      (candidate.g - target.g) ** 2 +
+      (candidate.b - target.b) ** 2;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = ink;
+    }
+  }
+  return best;
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const clean = hex.replace("#", "");
+  const value =
+    clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
+  if (value.length !== 6) return null;
+  return {
+    r: parseInt(value.slice(0, 2), 16) || 0,
+    g: parseInt(value.slice(2, 4), 16) || 0,
+    b: parseInt(value.slice(4, 6), 16) || 0,
+  };
+}
 
 export const SECTION_PRESETS: SectionPreset[] = [
   PRESETS.intro,
@@ -62,10 +126,15 @@ export function getSectionPreset(kind: ClipSectionKind): SectionPreset {
   return PRESETS[kind] ?? PRESETS.custom;
 }
 
-/** Resolve a section's base colour. A stored colour (set via the editor) wins for any kind;
- *  otherwise the preset's colour is used. */
+/**
+ * Resolve a section's ink. A stored colour (set via the editor) wins for any kind, but it is
+ * snapped onto the role palette on the way out — so a clip saved under an older palette
+ * draws in the current ink everywhere, without a migration pass over stored data. Sections
+ * keep whatever hex they were saved with; only the rendering is unified.
+ */
 export function getSectionColor(section: Pick<ClipSection, "kind" | "color">): string {
-  return section.color ?? getSectionPreset(section.kind).color;
+  if (section.color) return nearestSectionInk(section.color);
+  return getSectionPreset(section.kind).color;
 }
 
 /** Convert a #RRGGBB hex to an rgba() string at the given alpha. */
@@ -128,7 +197,7 @@ export function buildSectionBands(sections: ClipSection[], durationMs: number): 
       startMs: Math.max(0, Math.min(durationMs, section.startMs)),
       endMs: Math.max(0, Math.min(durationMs, section.endMs)),
       label: section.label,
-      color: hexToRgba(base, 0.32),
+      color: hexToRgba(base, SECTION_FILL_ALPHA),
       railColor: base,
     };
   });

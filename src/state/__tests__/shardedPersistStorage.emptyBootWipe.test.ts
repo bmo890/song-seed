@@ -5,6 +5,7 @@
 // letting the meta rewrite + first-write orphan sweep erase every workspace row.
 const mockKv = new Map<string, string>();
 let mockSqliteDown = false;
+let mockListDown = false;
 
 jest.mock("../db/storage", () => ({
     // The adapter throws this on damaged stores; the class must live inside the
@@ -32,9 +33,14 @@ jest.mock("../db/storage", () => ({
     deleteKv: jest.fn(async (key: string) => {
         mockKv.delete(key);
     }),
-    listKvKeysWithPrefix: jest.fn(async (prefix: string) =>
-        Array.from(mockKv.keys()).filter((key) => key.startsWith(prefix))
-    ),
+    listKvKeysWithPrefix: jest.fn(async (prefix: string) => {
+        if (mockListDown) return []; // best-effort variant fails open
+        return Array.from(mockKv.keys()).filter((key) => key.startsWith(prefix));
+    }),
+    listKvKeysWithPrefixOrThrow: jest.fn(async (prefix: string) => {
+        if (mockSqliteDown || mockListDown) throw new Error("sqlite unavailable");
+        return Array.from(mockKv.keys()).filter((key) => key.startsWith(prefix));
+    }),
 }));
 
 import type { Workspace } from "../../types";
@@ -71,6 +77,7 @@ function seedHealthyLibrary() {
 beforeEach(() => {
     mockKv.clear();
     mockSqliteDown = false;
+    mockListDown = false;
     setHydrationReadOutcome("none");
     jest.clearAllMocks();
 });
@@ -136,6 +143,22 @@ describe("write-authority gate", () => {
             value([ws("w-real-1", [{ id: "idea-1" }, { id: "idea-2" }]), ws("w-real-2", [{ id: "idea-3" }]), ws("w-new")]) as any
         );
         expect(JSON.parse(mockKv.get(STORE)!).workspaceIds).toEqual(["w-real-1", "w-real-2", "w-new"]);
+    });
+
+    it("treats a failed stray-row listing as unknown disk state, not a fresh install", async () => {
+        // Meta row absent AND the stray listing errors: a healthy library could be
+        // hiding behind a transient read failure (2026-07-31 false restore prompt) —
+        // hydration must fail and retry, never mint an authoritative "empty".
+        mockListDown = true;
+
+        const storage = createShardedPersistStorage();
+        await expect(storage.getItem(STORE)).rejects.toThrow(/stray-row listing/);
+        expect(getHydrationReadOutcome()).toBe("failed");
+
+        // Disk recovers — a retry now confirms the genuinely fresh install.
+        mockListDown = false;
+        expect(await storage.getItem(STORE)).toBeNull();
+        expect(getHydrationReadOutcome()).toBe("empty");
     });
 
     it("treats workspace rows without a meta row as damage, not a fresh install", async () => {
