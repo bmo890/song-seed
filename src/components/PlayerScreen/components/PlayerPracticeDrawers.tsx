@@ -527,9 +527,18 @@ export function PlayerPracticeDrawers({
             <Ionicons name="flag" size={13} color={color} />
           )}
         </View>
-        <Text style={[pd.markName, isSelected ? pd.markNameSelected : null]} numberOfLines={1}>
-          {name}
-        </Text>
+        {/* A pin's note is the reason it exists — "watch the turnaround" is worth more
+            than "Pin 3". It rides under the name, quiet and clipped to one line. */}
+        <View style={pd.markNameWrap}>
+          <Text style={[pd.markName, isSelected ? pd.markNameSelected : null]} numberOfLines={1}>
+            {name}
+          </Text>
+          {!isSection && entry.marker.note ? (
+            <Text style={pd.markNote} numberOfLines={1}>
+              {entry.marker.note}
+            </Text>
+          ) : null}
+        </View>
         {isSelected ? (
           <View style={pd.selectedHeadActions}>
             <Pressable

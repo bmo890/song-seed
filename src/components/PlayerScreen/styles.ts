@@ -914,6 +914,7 @@ export const playerScreenStyles = StyleSheet.create({
     paddingVertical: 9,
   },
   pinDetailNoteInput: {
+    marginTop: 8,
     minHeight: 64,
     textAlignVertical: "top",
     paddingTop: 9,
@@ -1045,14 +1046,17 @@ export const playerScreenStyles = StyleSheet.create({
   },
   sectionModalActions: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "flex-end",
-    gap: 10,
-    marginTop: 2,
+    gap: 8,
+    marginTop: 14,
   },
   sectionModalCancel: {
-    paddingVertical: 9,
-    paddingHorizontal: 16,
-    borderRadius: radii.sm,
+    height: 38,
+    paddingHorizontal: 14,
+    borderRadius: radii.lg,
+    alignItems: "center",
+    justifyContent: "center",
   },
   sectionModalCancelText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
@@ -1060,10 +1064,12 @@ export const playerScreenStyles = StyleSheet.create({
     color: colors.textSecondary,
   },
   sectionModalConfirm: {
-    paddingVertical: 9,
+    height: 38,
     paddingHorizontal: 18,
-    borderRadius: radii.sm,
-    backgroundColor: colors.primary,
+    borderRadius: radii.lg,
+    backgroundColor: colors.primarySurface,
+    alignItems: "center",
+    justifyContent: "center",
   },
   sectionModalConfirmDisabled: {
     opacity: 0.4,
@@ -1071,7 +1077,7 @@ export const playerScreenStyles = StyleSheet.create({
   sectionModalConfirmText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 13,
-    color: colors.onPrimary,
+    color: colors.primaryDeep,
   },
   toolValueInline: {
     fontFamily: "PlusJakartaSans_500Medium",
@@ -1166,11 +1172,10 @@ export const playerScreenStyles = StyleSheet.create({
     gap: 8,
   },
   sectionModalDelete: {
-    width: 42,
-    height: 42,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: "rgba(168, 68, 58, 0.3)",
+    width: 38,
+    height: 38,
+    borderRadius: radii.lg,
+    backgroundColor: colors.dangerSurface,
     alignItems: "center",
     justifyContent: "center",
   },

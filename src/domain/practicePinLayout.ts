@@ -9,13 +9,23 @@ import type { PracticeMarker } from "../types";
  */
 
 export const PIN_BADGE_HEIGHT = 18;
-export const PIN_BADGE_CHAR_WIDTH = 6;
+/**
+ * Average advance of Plus Jakarta Sans 600 at the badge's 10px. This drives the badge
+ * width, so an over-estimate leaves visible dead space to the right of the label —
+ * 6 did, by roughly a character every eight.
+ */
+export const PIN_BADGE_CHAR_WIDTH = 5.2;
 export const PIN_BADGE_H_PAD = 12;
 export const PIN_ROW_GAP = 2;
 export const PIN_TOP_PAD = 3;
 export const PIN_EDGE_GUARD_PX = 8;
-/** Narrowest a badge may draw — a grabbable handle even with no name on it. */
-export const MIN_PIN_BADGE_WIDTH = 30;
+/**
+ * Narrowest a badge may draw — a grabbable handle even with no name on it. Wide
+ * enough to read as a short label rather than a square blob: at the badge's 18px
+ * height a near-square block looks TALLER than a long one beside it, which is what
+ * an unnamed pin used to look like.
+ */
+export const MIN_PIN_BADGE_WIDTH = 36;
 /**
  * Longest pin label. The cap is a LAYOUT fact, not a taste one: the badge is drawn
  * this many characters wide on the tape, and much past this it stops being a mark and

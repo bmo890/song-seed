@@ -26,10 +26,18 @@ export const pd = StyleSheet.create({
     width: 18,
     alignItems: "center",
   },
+  markNameWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
   markName: {
     ...text.body,
     fontFamily: "PlusJakartaSans_600SemiBold",
-    flex: 1,
+  },
+  markNote: {
+    ...text.supporting,
+    fontSize: 11.5,
+    color: colors.textMuted,
   },
   markNameSelected: {
     fontFamily: "PlusJakartaSans_700Bold",
