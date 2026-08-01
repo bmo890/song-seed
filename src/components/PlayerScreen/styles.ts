@@ -1396,6 +1396,27 @@ export const playerScreenStyles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
+  stepUpRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 2,
+  },
+  stepUpTextWrap: {
+    flex: 1,
+    gap: 1,
+  },
+  stepUpLabel: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 13,
+    color: colors.textStrong,
+  },
+  stepUpValue: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 12,
+    color: colors.textMuted,
+    fontVariant: ["tabular-nums"],
+  },
   toolLoopPill: {
     flexDirection: "row",
     alignItems: "center",

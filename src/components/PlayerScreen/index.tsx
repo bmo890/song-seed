@@ -16,6 +16,8 @@ import { usePlaybackClick } from "../../hooks/usePlaybackClick";
 import { resolvePreviousAction } from "../../domain/transportPrevious";
 import { usePracticeLoopController } from "./hooks/usePracticeLoopController";
 import { usePlayerSpeedControls } from "./hooks/usePlayerSpeedControls";
+import { useStepUpLoop } from "./hooks/useStepUpLoop";
+import { clickRateBounds } from "../../domain/stepUpLoop";
 import { usePlayerPins } from "./hooks/usePlayerPins";
 import { usePlayerSections } from "./hooks/usePlayerSections";
 import { useClipAnalysis } from "./hooks/useClipAnalysis";
@@ -242,6 +244,14 @@ export function PlayerScreen({
     practicePitchTransport.effectiveDurationMs || resolvedDisplayDuration;
   const effectivePlaybackRate = practicePitchTransport.effectivePlaybackRate;
   const effectiveIsPlaying = practicePitchTransport.effectiveIsPlaying;
+  // The take's own beat grid, clicking along with playback (and counting in). Reads
+  // the position lazily at sync moments — never re-renders on the transport clock.
+  const playbackClick = usePlaybackClick({
+    grid: playerClip?.recordingGrid ?? null,
+    isPlaying: effectiveIsPlaying,
+    playbackRate: effectivePlaybackRate,
+    getPositionMs: () => playerPositionMsRef.current,
+  });
   // The reel takes position straight off the engine, with no render in between — a React
   // commit landing mid-animation is what pulled its overlays off the tape. The channel is
   // only allowed to drive when the full player genuinely owns the transport AND the engine
@@ -296,6 +306,10 @@ export function PlayerScreen({
       ),
     [effectivePlayerDuration, effectivePlayerPosition, ui.practiceZoomMultiple]
   );
+  // The step-up hook needs the controller's loop state, and the controller needs the
+  // step-up pass counter — the cycle callback goes through a ref to break the tie.
+  const stepUpLoopCycleRef = useRef<() => void>(() => {});
+  const handleStepUpLoopCycle = useCallback(() => stepUpLoopCycleRef.current(), []);
   const {
     practiceLoopEnabled,
     practiceLoopRange,
@@ -322,9 +336,31 @@ export function PlayerScreen({
     playPlayer: practicePitchTransport.play,
     pausePlayer: practicePitchTransport.pause,
     onDisplaySeek: transportClock.setDisplayPositionMs,
+    onLoopCycle: handleStepUpLoopCycle,
     visibleWindowStartMs: visiblePracticeRange.start,
     visibleWindowEndMs: visiblePracticeRange.end,
   });
+  // Step up: the loop's speed ladder. While the click is sounding, its supported
+  // range fences the climb so the ladder can't carry the click into silence.
+  const stepUpClickBounds = useMemo(
+    () =>
+      playbackClick.enabled && playbackClick.isAvailable
+        ? clickRateBounds(playerClip?.recordingGrid ?? null)
+        : null,
+    [playbackClick.enabled, playbackClick.isAvailable, playerClip?.recordingGrid]
+  );
+  const stepUpSpeedBounds = useMemo(
+    () => ({ minRate: PRACTICE_SPEED_MIN, maxRate: PRACTICE_SPEED_MAX }),
+    []
+  );
+  const stepUp = useStepUpLoop({
+    clipId: playerClip?.id,
+    isPracticeLoopActive: ui.mode === "practice" && practiceLoopEnabled,
+    speedBounds: stepUpSpeedBounds,
+    clickBounds: stepUpClickBounds,
+    setPlaybackRate: practicePitchTransport.setPlaybackRate,
+  });
+  stepUpLoopCycleRef.current = stepUp.handleLoopCycle;
   const handleTransportToggleWithDisplaySync = useCallback(async () => {
     const loopControllerWillSeek =
       ui.mode === "practice" && practiceLoopEnabled && hasValidPracticeLoop;
@@ -443,15 +479,6 @@ export function PlayerScreen({
     // HelpSheet Modal presents — avoids the iOS present-while-dismissing race that
     // can swallow the first tap.
     onShowHelp: (topic) => requestAnimationFrame(() => setHelpTopic(topic)),
-  });
-
-  // The take's own beat grid, clicking along with playback (and counting in). Reads
-  // the position lazily at sync moments — never re-renders on the transport clock.
-  const playbackClick = usePlaybackClick({
-    grid: playerClip?.recordingGrid ?? null,
-    isPlaying: effectiveIsPlaying,
-    playbackRate: effectivePlaybackRate,
-    getPositionMs: () => playerPositionMsRef.current,
   });
 
   // Count-in intercepts only a play START; pausing (and tapping during the count-in
@@ -965,6 +992,15 @@ export function PlayerScreen({
               onTogglePracticeLoop={() => {
                 if (guardPracticeTool("loop")) handlePracticeLoopToggle();
               }}
+              stepUpEnabled={stepUp.stepUpEnabled}
+              stepUpProgress={stepUp.stepUpProgress}
+              stepUpSequence={stepUp.sequence}
+              onChangeStepUpSequence={stepUp.setSequence}
+              stepUpRateMin={PRACTICE_SPEED_MIN}
+              stepUpRateMax={PRACTICE_SPEED_MAX}
+              onToggleStepUp={() => {
+                if (guardPracticeTool("loop")) stepUp.toggleStepUp();
+              }}
               practiceMarkers={data.practiceMarkers}
               playheadMs={effectivePlayerPosition}
               onAddPin={() => {
@@ -993,7 +1029,11 @@ export function PlayerScreen({
               speedMin={PRACTICE_SPEED_MIN}
               speedMax={PRACTICE_SPEED_MAX}
               onSpeedTap={(value) => {
-                if (guardPracticeTool("speed")) handleSpeedTap(value);
+                if (guardPracticeTool("speed")) {
+                  // A manual speed change means the player took the wheel back.
+                  stepUp.cancelStepUp();
+                  handleSpeedTap(value);
+                }
               }}
               onSpeedSlideStart={() => {
                 if (guardPracticeTool("speed")) handleSpeedSlideStart();
@@ -1002,7 +1042,10 @@ export function PlayerScreen({
                 if (guardPracticeTool("speed")) handleSpeedSliding(value);
               }}
               onSpeedSlideEnd={(value) => {
-                if (guardPracticeTool("speed")) handleSpeedSlideEnd(value);
+                if (guardPracticeTool("speed")) {
+                  stepUp.cancelStepUp();
+                  handleSpeedSlideEnd(value);
+                }
               }}
               pitchShiftSemitones={ui.pitchShiftSemitones}
               supportsPitchShift={practicePitchTransport.isPitchShiftAvailable}

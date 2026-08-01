@@ -24,6 +24,8 @@ type Args = {
   playPlayer: () => Promise<void>;
   pausePlayer: () => Promise<void>;
   onDisplaySeek?: (ms: number) => void;
+  /** Fires once per completed pass, at the wrap seek back to loop start. */
+  onLoopCycle?: () => void;
   visibleWindowStartMs?: number;
   visibleWindowEndMs?: number;
 };
@@ -109,6 +111,7 @@ export function usePracticeLoopController({
   playPlayer,
   pausePlayer,
   onDisplaySeek,
+  onLoopCycle,
   visibleWindowStartMs,
   visibleWindowEndMs,
 }: Args) {
@@ -130,6 +133,7 @@ export function usePracticeLoopController({
   const pendingUnlockTargetMsRef = useRef<number | null>(null);
   const pendingUnlockSourceMsRef = useRef<number | null>(null);
   const manualPracticeJumpRef = useRef(false);
+  const onLoopCycleRef = useRef(onLoopCycle);
   const lastLoopCycleAtRef = useRef(0);
   const loopSuppressedUntilRef = useRef(0);
 
@@ -148,6 +152,7 @@ export function usePracticeLoopController({
   visibleWindowStartMsRef.current = visibleWindowStartMs ?? 0;
   visibleWindowEndMsRef.current = visibleWindowEndMs ?? durationMs;
   hasValidPracticeLoopRef.current = hasValidPracticeLoop;
+  onLoopCycleRef.current = onLoopCycle;
 
   const isWithinPracticeLoop = useCallback(
     (timeMs: number) => {
@@ -320,6 +325,7 @@ export function usePracticeLoopController({
       return;
     }
     lastLoopCycleAtRef.current = now;
+    onLoopCycleRef.current?.();
 
     void queueSeek(practiceLoopRange.start, "seeking_to_start").catch((error) => {
       pendingUnlockTargetMsRef.current = null;

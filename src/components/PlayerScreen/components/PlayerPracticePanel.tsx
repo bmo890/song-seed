@@ -13,6 +13,12 @@ import { colors } from "../../../design/tokens";
 import { getCustomSectionOptions, getSectionColor } from "../../../domain/playerSections";
 import type { SectionCustomInput } from "../hooks/usePlayerSections";
 import { hueToAccentHex } from "../../../domain/workspaceTheme";
+import {
+  stepUpSequenceTotalLoops,
+  type StepUpSequenceProgress,
+  type StepUpStage,
+} from "../../../domain/stepUpLoop";
+import { StepUpSequenceSheet } from "./StepUpSequenceSheet";
 import { formatBpmLabel, hasAnalysisResult, isTempoSteady } from "../../../domain/clipAnalysis";
 import { playerScreenStyles as s } from "../styles";
 import type { CountInOption, PracticeTool } from "../hooks/usePlayerScreenUi";
@@ -48,6 +54,15 @@ type PlayerPracticePanelProps = {
   onMoveLoopToPlayhead: () => void;
   onLoopSection: (section: ClipSection) => void;
   onTogglePracticeLoop: () => void;
+
+  // Step up (the loop's speed sequencer)
+  stepUpEnabled: boolean;
+  stepUpProgress: StepUpSequenceProgress | null;
+  stepUpSequence: StepUpStage[];
+  onChangeStepUpSequence: (stages: StepUpStage[]) => void;
+  stepUpRateMin: number;
+  stepUpRateMax: number;
+  onToggleStepUp: () => void;
 
   // Pins
   practiceMarkers: PracticeMarker[];
@@ -106,6 +121,14 @@ type PlayerPracticePanelProps = {
 };
 
 
+/** "0.6×–1×" for a climb, "0.7×" when the whole plan sits on one rate. */
+function stepUpPlanRatesLabel(sequence: StepUpStage[]): string {
+  const first = sequence[0]?.rate;
+  const last = sequence[sequence.length - 1]?.rate;
+  if (first == null || last == null) return "";
+  return first === last ? `${first}×` : `${first}×–${last}×`;
+}
+
 const SETTING_META: Record<"speed" | "pitch" | "countin" | "click", { icon: keyof typeof Ionicons.glyphMap; labelKey: string }> = {
   speed: { icon: "speedometer-outline", labelKey: "player.speed" },
   pitch: { icon: "musical-notes-outline", labelKey: "player.pitch" },
@@ -128,6 +151,13 @@ export function PlayerPracticePanel({
   onMoveLoopToPlayhead,
   onLoopSection,
   onTogglePracticeLoop,
+  stepUpEnabled,
+  stepUpProgress,
+  stepUpSequence,
+  onChangeStepUpSequence,
+  stepUpRateMin,
+  stepUpRateMax,
+  onToggleStepUp,
   practiceMarkers,
   playheadMs,
   onAddPin,
@@ -179,6 +209,7 @@ export function PlayerPracticePanel({
   const [activeEdge, setActiveEdge] = useState<"start" | "end">("start");
   const [pinEditModal, setPinEditModal] = useState<PracticeMarker | null>(null);
   const [loopPickerOpen, setLoopPickerOpen] = useState(false);
+  const [stepUpSheetOpen, setStepUpSheetOpen] = useState(false);
   const customSectionOptions = getCustomSectionOptions(sections);
 
   const openEdgeAdjuster = (section: ClipSection, edge: "start" | "end") => {
@@ -727,10 +758,52 @@ export function PlayerPracticePanel({
               <View style={{ flex: 1 }} />
               <Ionicons name={dirIcon("chevron-forward")} size={15} color={colors.textMuted} />
             </Pressable>
+            <View style={s.stepUpRow}>
+              <View style={s.stepUpTextWrap}>
+                <Text style={s.stepUpLabel}>{t("player.stepUp")}</Text>
+                <Text style={s.stepUpValue}>
+                  {stepUpEnabled && stepUpProgress
+                    ? stepUpProgress.atEnd
+                      ? `${stepUpProgress.rate}×`
+                      : `${stepUpProgress.rate}× · ${t("player.stepUpPass", {
+                          current: stepUpProgress.loopInStage,
+                          total: stepUpProgress.stageLoops,
+                        })}`
+                    : `${stepUpPlanRatesLabel(stepUpSequence)} · ${t("player.stepUpPassCount", {
+                        count: stepUpSequenceTotalLoops(stepUpSequence),
+                      })}`}
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => setStepUpSheetOpen(true)}
+                hitSlop={6}
+                style={s.sectionRowIcon}
+                accessibilityRole="button"
+                accessibilityLabel={t("player.stepUpEdit")}
+              >
+                <Ionicons name="options-outline" size={16} color={colors.textMuted} />
+              </Pressable>
+              <Pressable
+                style={[s.switchShell, stepUpEnabled ? s.switchShellActive : null]}
+                onPress={onToggleStepUp}
+                accessibilityRole="switch"
+                accessibilityState={{ checked: stepUpEnabled }}
+                accessibilityLabel={t("player.toggleStepUp")}
+              >
+                <View style={[s.switchKnob, stepUpEnabled ? s.switchKnobActive : null]} />
+              </Pressable>
+            </View>
           </>
         )}
       </AccordionRow>
 
+      <StepUpSequenceSheet
+        visible={stepUpSheetOpen}
+        onClose={() => setStepUpSheetOpen(false)}
+        sequence={stepUpSequence}
+        onChangeSequence={onChangeStepUpSequence}
+        rateBounds={{ minRate: stepUpRateMin, maxRate: stepUpRateMax }}
+      />
       <LoopSectionPickerModal
         visible={loopPickerOpen}
         sections={sections}
