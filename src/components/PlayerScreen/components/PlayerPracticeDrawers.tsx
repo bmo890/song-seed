@@ -22,7 +22,6 @@ import {
   type StepUpSequenceProgress,
   type StepUpStage,
 } from "../../../domain/stepUpLoop";
-import { useStepUpPresetsStore } from "../../../state/useStepUpPresetsStore";
 import { HelpButton } from "../../common/HelpButton";
 import { HelpSheet } from "../../common/HelpSheet";
 import { AnimatedCollapse } from "../../common/AnimatedCollapse";
@@ -423,31 +422,21 @@ export function PlayerPracticeDrawers({
   const [stepUpHelpOpen, setStepUpHelpOpen] = useState(false);
   // The plan wears its name when it IS one — a built-in drill or a saved sequence;
   // an edited plan is honestly "Custom" rather than borrowing the last name it had.
-  const stepUpUserPresets = useStepUpPresetsStore((state) => state.userPresets);
-  const stepUpIsCustomPlan = useMemo(() => {
-    const bounds = { minRate: stepUpRateMin, maxRate: stepUpRateMax };
-    const candidates = [
-      ...STEP_UP_BUILTIN_PRESETS.map((preset) => ({ key: preset.id, stages: preset.stages })),
-      ...stepUpUserPresets.map((preset) => ({ key: preset.id, stages: preset.stages })),
-    ];
-    return matchStepUpPreset(stepUpSequence, candidates, bounds) == null;
-  }, [stepUpRateMax, stepUpRateMin, stepUpSequence, stepUpUserPresets]);
-  const stepUpPlanName = useMemo(() => {
-    const bounds = { minRate: stepUpRateMin, maxRate: stepUpRateMax };
-    const builtinKey = matchStepUpPreset(
-      stepUpSequence,
-      STEP_UP_BUILTIN_PRESETS.map((preset) => ({ key: preset.id, stages: preset.stages })),
-      bounds
-    );
-    if (builtinKey) return t(`player.stepUpPreset_${builtinKey}`);
-    const userKey = matchStepUpPreset(
-      stepUpSequence,
-      stepUpUserPresets.map((preset) => ({ key: preset.id, stages: preset.stages })),
-      bounds
-    );
-    const saved = stepUpUserPresets.find((preset) => preset.id === userKey);
-    return saved ? saved.name : t("player.stepUpCustom");
-  }, [stepUpRateMax, stepUpRateMin, stepUpSequence, stepUpUserPresets, t]);
+  // A plan is one of the three ready-made drills, or it is the musician's own —
+  // there is nothing else to be, now that named sequences are parked.
+  const stepUpBuiltinKey = useMemo(
+    () =>
+      matchStepUpPreset(
+        stepUpSequence,
+        STEP_UP_BUILTIN_PRESETS.map((preset) => ({ key: preset.id, stages: preset.stages })),
+        { minRate: stepUpRateMin, maxRate: stepUpRateMax }
+      ),
+    [stepUpRateMax, stepUpRateMin, stepUpSequence]
+  );
+  const stepUpIsCustomPlan = stepUpBuiltinKey == null;
+  const stepUpPlanName = stepUpBuiltinKey
+    ? t(`player.stepUpPreset_${stepUpBuiltinKey}`)
+    : t("player.stepUpCustom");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [detailModal, setDetailModal] = useState<
     | { mode: "edit"; section: ClipSection }

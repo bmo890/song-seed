@@ -5,13 +5,20 @@ import { genId } from "../utils";
 import { normalizeStepUpSequence, type StepUpStage } from "../domain/stepUpLoop";
 
 /**
- * App-wide saved Step up sequences. A custom drill isn't per-clip knowledge — the
- * same "2 slow, 2 medium, 3 fast" plan serves any hard passage — so a musician saves
- * it once by name and every practice loop can reach it. Satellite store, mirroring
- * the magpie-prefs pattern: small, AsyncStorage-persisted, outside the hardened
- * library persistence.
+ * The Step up plan, remembered app-wide. A drill isn't per-clip knowledge — the same
+ * "2 slow, 2 medium, 3 fast" ladder serves any hard passage — so the plan you last
+ * chose, and the Custom one you built, follow you from clip to clip.
+ *
+ * `activePlan` is what the sheet opens on. `customPlan` is the single Custom slot:
+ * switching to a built-in drill and back returns YOUR ladder, not a fresh one.
+ *
+ * Satellite store, mirroring the magpie-prefs pattern: small, AsyncStorage-persisted,
+ * outside the hardened library persistence. Null means "never set" — the caller
+ * supplies the default rather than this store guessing one.
  */
 
+/** PARKED (2026-08-01): saving drills under a name is built but not surfaced — one
+ *  global Custom slot covers the need for now. Kept so it can be turned back on. */
 export type StepUpUserPreset = {
   id: string;
   name: string;
@@ -19,6 +26,16 @@ export type StepUpUserPreset = {
 };
 
 type StepUpPresetsStore = {
+  /** The plan the sheet opens on, whichever it is. Null until first chosen. */
+  activePlan: StepUpStage[] | null;
+  /** The musician's own ladder, kept aside so built-ins never overwrite it. */
+  customPlan: StepUpStage[] | null;
+  /**
+   * Record the plan now in use. `isCustom` also files it as THE Custom slot, so
+   * editing a built-in adopts the result as your own rather than losing it.
+   */
+  setActivePlan: (stages: StepUpStage[], isCustom: boolean) => void;
+  // ---- parked: named sequences ----
   userPresets: StepUpUserPreset[];
   /** Trimmed name; an existing preset with the same name (case-insensitive) is replaced. */
   saveUserPreset: (name: string, stages: StepUpStage[]) => void;
@@ -26,7 +43,7 @@ type StepUpPresetsStore = {
 };
 
 const STORE_NAME = "songnook-stepup-presets";
-const STORE_VERSION = 1;
+const STORE_VERSION = 2;
 const MAX_USER_PRESETS = 12;
 const MAX_NAME_LENGTH = 40;
 
@@ -46,9 +63,26 @@ function sanitizeUserPresets(value: unknown): StepUpUserPreset[] {
   return kept;
 }
 
+/** A stored plan is only trusted after the domain has had a look at it. */
+function sanitizePlan(value: unknown): StepUpStage[] | null {
+  return Array.isArray(value) && value.length > 0 ? normalizeStepUpSequence(value) : null;
+}
+
 export const useStepUpPresetsStore = create<StepUpPresetsStore>()(
   persist(
     (set) => ({
+      activePlan: null,
+      customPlan: null,
+
+      setActivePlan: (stages, isCustom) =>
+        set((state) => {
+          const normalized = normalizeStepUpSequence(stages);
+          return {
+            activePlan: normalized,
+            customPlan: isCustom ? normalized : state.customPlan,
+          };
+        }),
+
       userPresets: [],
 
       saveUserPreset: (name, stages) =>
@@ -76,13 +110,22 @@ export const useStepUpPresetsStore = create<StepUpPresetsStore>()(
       name: STORE_NAME,
       version: STORE_VERSION,
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ userPresets: state.userPresets }),
-      merge: (persisted, current) => ({
-        ...current,
-        userPresets: sanitizeUserPresets(
-          (persisted as { userPresets?: unknown } | undefined)?.userPresets
-        ),
+      partialize: (state) => ({
+        activePlan: state.activePlan,
+        customPlan: state.customPlan,
+        userPresets: state.userPresets,
       }),
+      merge: (persisted, current) => {
+        const saved = persisted as
+          | { activePlan?: unknown; customPlan?: unknown; userPresets?: unknown }
+          | undefined;
+        return {
+          ...current,
+          activePlan: sanitizePlan(saved?.activePlan),
+          customPlan: sanitizePlan(saved?.customPlan),
+          userPresets: sanitizeUserPresets(saved?.userPresets),
+        };
+      },
     }
   )
 );

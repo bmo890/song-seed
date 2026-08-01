@@ -22,6 +22,14 @@ const RATE_STEP = 0.05;
 const MAX_STAGE_LOOPS = 20;
 
 /**
+ * PARKED (founder call, 2026-08-01): saving drills under a name is built end to end
+ * — store, naming row, the lot — but not surfaced. One remembered Custom slot covers
+ * the need, and a library of named drills is a bigger idea than the panel can carry
+ * today. Flip this to bring the UI back; nothing else needs changing.
+ */
+const SAVED_SEQUENCES_ENABLED = false;
+
+/**
  * The Step up customizer: a row of plans in editorial ink (three boilerplate drills,
  * the musician's saved sequences, and Custom), then one row per stage — passes at a
  * speed — with steppers, a remove control, and an add-step row. Edits commit
@@ -50,6 +58,7 @@ export function StepUpSequenceSheet({
 }) {
   const { t } = useTranslation();
   const userPresets = useStepUpPresetsStore((state) => state.userPresets);
+  const customPlan = useStepUpPresetsStore((state) => state.customPlan);
   const saveUserPreset = useStepUpPresetsStore((state) => state.saveUserPreset);
   const removeUserPreset = useStepUpPresetsStore((state) => state.removeUserPreset);
   const [naming, setNaming] = useState(false);
@@ -59,7 +68,9 @@ export function StepUpSequenceSheet({
   // same normalization the hook applies on write).
   const matchesStages = (stages: StepUpStage[]) =>
     stepUpSequencesEqual(sequence, normalizeStepUpSequence(stages, rateBounds));
-  const activeUserPreset = userPresets.find((preset) => matchesStages(preset.stages)) ?? null;
+  const activeUserPreset = SAVED_SEQUENCES_ENABLED
+    ? (userPresets.find((preset) => matchesStages(preset.stages)) ?? null)
+    : null;
   const matchesBuiltin = STEP_UP_BUILTIN_PRESETS.some((preset) => matchesStages(preset.stages));
   const isCustomPlan = !matchesBuiltin && !activeUserPreset;
 
@@ -129,19 +140,22 @@ export function StepUpSequenceSheet({
             stages: preset.stages,
             active: matchesStages(preset.stages),
           })),
-          ...userPresets.map((preset) => ({
-            key: preset.id,
-            label: preset.name,
-            stages: preset.stages,
-            active: activeUserPreset?.id === preset.id,
-          })),
+          ...(SAVED_SEQUENCES_ENABLED
+            ? userPresets.map((preset) => ({
+                key: preset.id,
+                label: preset.name,
+                stages: preset.stages,
+                active: activeUserPreset?.id === preset.id,
+              }))
+            : []),
           // Custom sits with the ready-made plans so building your own is a choice you
           // can make, not something you discover by editing a preset until it stops
-          // matching. Selecting it lays down a short ladder to grow from.
+          // matching. It is one remembered slot: whatever you last built is what it
+          // returns to, on any clip, until you change it.
           {
             key: "custom",
             label: t("player.stepUpCustom"),
-            stages: starterCustomStages,
+            stages: customPlan ?? starterCustomStages,
             active: isCustomPlan,
           },
         ].map((preset) => (
@@ -290,7 +304,7 @@ export function StepUpSequenceSheet({
       {/* Naming happens inline, not in a dialog: this sheet is itself a modal, and a
           modal presented from inside a presented modal never appears on iOS — which
           is exactly how the save flow was silently doing nothing. */}
-      {naming ? (
+      {SAVED_SEQUENCES_ENABLED && naming ? (
         <View style={sheetStyles.namingRow}>
           <UserTextInput
             style={sheetStyles.nameInput}
@@ -329,7 +343,7 @@ export function StepUpSequenceSheet({
           </Pressable>
         </View>
       ) : null}
-      {isCustomPlan && !naming ? (
+      {SAVED_SEQUENCES_ENABLED && isCustomPlan && !naming ? (
         <Pressable
           style={({ pressed }) => [sheetStyles.footerLink, pressed ? styles.pressDown : null]}
           onPress={() => {
@@ -344,7 +358,7 @@ export function StepUpSequenceSheet({
           <Ionicons name="bookmark-outline" size={14} color={colors.textSecondary} />
           <Text style={sheetStyles.footerLinkText}>{t("player.stepUpSavePreset")}</Text>
         </Pressable>
-      ) : activeUserPreset ? (
+      ) : SAVED_SEQUENCES_ENABLED && activeUserPreset ? (
         <Pressable
           style={({ pressed }) => [sheetStyles.footerLink, pressed ? styles.pressDown : null]}
           onPress={() => {

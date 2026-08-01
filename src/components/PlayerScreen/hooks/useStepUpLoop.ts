@@ -1,20 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { haptic } from "../../../design/haptics";
 import {
+  STEP_UP_BUILTIN_PRESETS,
   STEP_UP_DEFAULT_SEQUENCE,
   intersectRateBounds,
+  matchStepUpPreset,
   normalizeStepUpSequence,
   stepUpSequenceProgressAtLoop,
   type RateBounds,
   type StepUpSequenceProgress,
   type StepUpStage,
 } from "../../../domain/stepUpLoop";
+import { useStepUpPresetsStore } from "../../../state/useStepUpPresetsStore";
 
 /**
  * Step up — the session around the pure sequence (src/domain/stepUpLoop.ts).
  *
- * The hook owns the editable sequence (the customizer sheet writes it) and, while a
- * session runs, only a pass counter; the rate and progress are derived every render,
+ * The plan itself lives in a small app-wide store (so it follows you between clips);
+ * the hook owns only a pass counter while a session runs; the rate and progress are derived every render,
  * never assigned from an effect. The practice loop controller reports each wrap via
  * `handleLoopCycle`, which advances the counter and — when the stage changes rate —
  * pushes the new rate into the pitch-preserving transport.
@@ -58,7 +61,11 @@ export function useStepUpLoop({
   setPlaybackRate,
   onDrillComplete,
 }: Args) {
-  const [sequence, setSequenceState] = useState<StepUpStage[]>(STEP_UP_DEFAULT_SEQUENCE);
+  // The plan lives app-wide, not per player mount: whatever ladder you last used —
+  // built-in or your own — is the one waiting on the next clip.
+  const storedPlan = useStepUpPresetsStore((state) => state.activePlan);
+  const setActivePlan = useStepUpPresetsStore((state) => state.setActivePlan);
+  const sequence = storedPlan ?? STEP_UP_DEFAULT_SEQUENCE;
   const [session, setSession] = useState<StepUpSession | null>(null);
 
   const onDrillCompleteRef = useRef(onDrillComplete);
@@ -93,14 +100,22 @@ export function useStepUpLoop({
   const setSequence = useCallback(
     (stages: StepUpStage[]) => {
       const normalized = normalizeStepUpSequence(stages, speedBoundsRef.current);
-      setSequenceState(normalized);
+      // Anything that isn't one of the ready-made drills becomes THE Custom plan —
+      // editing a built-in adopts the result as your own rather than losing it.
+      const isBuiltin =
+        matchStepUpPreset(
+          normalized,
+          STEP_UP_BUILTIN_PRESETS.map((preset) => ({ key: preset.id, stages: preset.stages })),
+          speedBoundsRef.current
+        ) != null;
+      setActivePlan(normalized, !isBuiltin);
       if (sessionRef.current) {
         const sessionStages = normalizeStepUpSequence(normalized, sessionBounds());
         setSession({ stages: sessionStages, completedLoops: 0 });
         setPlaybackRate(sessionStages[0].rate);
       }
     },
-    [sessionBounds, setPlaybackRate]
+    [sessionBounds, setActivePlan, setPlaybackRate]
   );
 
   const toggleStepUp = useCallback(() => {
