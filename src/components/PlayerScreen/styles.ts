@@ -1234,11 +1234,12 @@ export const playerScreenStyles = StyleSheet.create({
   },
   sectionInkRow: {
     flexDirection: "row",
-    gap: 10,
+    flexWrap: "wrap",
+    gap: 8,
     marginBottom: 4,
   },
   sectionInkSwatch: {
-    width: 44,
+    width: 38,
     height: 30,
     borderRadius: radii.lg,
     borderWidth: 1,

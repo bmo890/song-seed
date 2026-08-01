@@ -42,20 +42,28 @@ export const colors = {
   primarySurface: "#F2E4DF",
 
   /**
-   * Mark ink (locked 2026-07-31) — sections and pins, on the reel and in the marks
-   * list. ONE terracotta family in three weights, chosen by the part's place in the
-   * song rather than by an arbitrary hue: quiet at the edges (intro/outro), mid
-   * through the body (verse/bridge/pre-chorus), deepest at the peak (chorus/solo).
-   * The LABEL identifies a part; the ink only says how loud it is.
+   * Section ink (locked 2026-08-01) — one colour per structural role, stable across every
+   * song, so "the chorus is the terracotta one" is learned once and then read at a glance
+   * mid-playback. HUE carries the role; lightness and chroma are FIXED (OKLCH L 0.545 /
+   * C 0.098) so the set reads as one family and no part shouts over another.
    *
-   * Replaces an eight-hue palette (teal/amber/orange/red/blue/purple/slate/magenta)
-   * that lived outside this file and argued for itself in a comment. It lost: a red
-   * chorus band read as an error state, and the picker was a rainbow in an app whose
-   * north star is a quiet place to work. See docs/product-plan/full-player-audit.md B2.
+   * That constancy is the whole fix. The retired palette was not wrong to use hue — it was
+   * wrong to hand-pick eight hexes whose lightness ranged 0.52-0.68 and chroma 0.04-0.16,
+   * which is why its chorus screamed (a saturated red, reading as an error on warm paper)
+   * while its outro vanished. A one-hue three-weight ramp replaced it briefly and was worse:
+   * sections are a taxonomy (what kind of part), not a ramp (how loud), so verse and bridge
+   * collapsed onto the same ink. See docs/product-plan/full-player-audit.md B2.
+   *
+   * Every value clears 4.5:1 against both its white label and the page.
    */
-  markLight: "#CDA695",
-  markMid: "#B87D6B", // = primary
-  markDeep: "#824F3F", // = primaryDeep
+  sectionIntro:     "#428051", // sage — a beginning
+  sectionVerse:     "#856E20", // ochre — the body of the song
+  sectionPrechorus: "#98622D", // amber, leaning toward the chorus it feeds
+  sectionChorus:    "#A25853", // terracotta — the peak wears the house accent
+  sectionBridge:    "#576DA9", // indigo — the departure, furthest from the chorus
+  sectionSolo:      "#8B5C92", // plum — expressive
+  sectionOutro:     "#0D7C99", // slate blue — settling
+  sectionCustom:    "#008279", // teal — the default for a part you name yourself
 
   /** Stage ramp (locked 2026-07-27) — the two intermediate steps between
    *  `textMuted` (Idea, nothing invested yet) and `primaryDeep` (Song, finished).

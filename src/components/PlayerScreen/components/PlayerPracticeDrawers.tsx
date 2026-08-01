@@ -891,7 +891,7 @@ export function PlayerPracticeDrawers({
         confirmLabel={detailModal?.mode === "edit" ? t("common.save") : t("songDetail.add")}
         initialName={detailModal?.mode === "edit" ? detailModal.section.label : ""}
         initialColor={
-          detailModal?.mode === "edit" ? getSectionColor(detailModal.section) : colors.markMid
+          detailModal?.mode === "edit" ? getSectionColor(detailModal.section) : colors.sectionCustom
         }
         onConfirm={(custom) => {
           if (detailModal?.mode === "edit") onEditSection(detailModal.section.id, custom);

@@ -24,41 +24,63 @@ export type SectionBand = {
 export const MIN_SECTION_LENGTH_MS = 200;
 
 /**
- * One terracotta family in three weights (`colors.markLight/markMid/markDeep`), assigned
- * by where the part sits in a song's energy — quiet at the edges, deepest at the peak.
- * The label identifies the part; the ink only says how loud it is. Parts that share a
- * weight (verse/bridge, chorus/solo) are told apart by their names, which are right there.
+ * One ink per structural role, fixed for every song — see `colors.section*` for why the
+ * set is harmonised rather than hand-picked. A musician learns the mapping once and then
+ * reads an arrangement at a glance instead of reading seven labels.
  */
 const PRESETS: Record<ClipSectionKind, SectionPreset> = {
-  intro: { kind: "intro", label: "Intro", color: colors.markLight },
-  verse: { kind: "verse", label: "Verse", color: colors.markMid },
-  prechorus: { kind: "prechorus", label: "Pre-chorus", color: colors.markMid },
-  chorus: { kind: "chorus", label: "Chorus", color: colors.markDeep },
-  bridge: { kind: "bridge", label: "Bridge", color: colors.markMid },
-  solo: { kind: "solo", label: "Solo", color: colors.markDeep },
-  outro: { kind: "outro", label: "Outro", color: colors.markLight },
-  custom: { kind: "custom", label: "Section", color: colors.markMid },
+  intro: { kind: "intro", label: "Intro", color: colors.sectionIntro },
+  verse: { kind: "verse", label: "Verse", color: colors.sectionVerse },
+  prechorus: { kind: "prechorus", label: "Pre-chorus", color: colors.sectionPrechorus },
+  chorus: { kind: "chorus", label: "Chorus", color: colors.sectionChorus },
+  bridge: { kind: "bridge", label: "Bridge", color: colors.sectionBridge },
+  solo: { kind: "solo", label: "Solo", color: colors.sectionSolo },
+  outro: { kind: "outro", label: "Outro", color: colors.sectionOutro },
+  custom: { kind: "custom", label: "Section", color: colors.sectionCustom },
 };
 
-/** The only inks a section may carry — offered in the editor, in energy order. */
-export const SECTION_INKS = [colors.markLight, colors.markMid, colors.markDeep] as const;
+/** The inks a section may carry — the eight roles, offered in the editor in song order. */
+export const SECTION_INKS = [
+  colors.sectionIntro,
+  colors.sectionVerse,
+  colors.sectionPrechorus,
+  colors.sectionChorus,
+  colors.sectionBridge,
+  colors.sectionSolo,
+  colors.sectionOutro,
+  colors.sectionCustom,
+] as const;
 
 /**
- * Snap any stored colour onto the three-ink family. Sections saved under the old eight-hue
- * palette keep working — a teal intro or a red chorus resolves to the nearest weight rather
- * than being dropped or left as an orphan hue the editor can no longer represent.
+ * How strongly a section tints the reel behind the waveform.
+ *
+ * Measured against the two things it has to do at once. At 0.09 the hue lived only in the
+ * label chip and the bands were indistinguishable mid-playback — the tint may as well not
+ * have existed. At the retired 0.32 it swallowed the waveform, the one thing the reel is
+ * for. 0.20 reads across a room and still lets the audio through.
+ */
+export const SECTION_FILL_ALPHA = 0.2;
+
+/**
+ * Snap any stored colour onto the role palette. Sections saved before this change keep
+ * working: a hand-picked hue resolves to the closest role ink rather than being dropped or
+ * left as an orphan the editor can no longer represent.
  */
 export function nearestSectionInk(color: string | undefined | null): string {
-  if (!color) return colors.markMid;
+  if (!color) return colors.sectionCustom;
   const target = hexToRgb(color);
-  if (!target) return colors.markMid;
-  let best: string = colors.markMid;
+  if (!target) return colors.sectionCustom;
+  let best: string = colors.sectionCustom;
   let bestDistance = Number.POSITIVE_INFINITY;
   for (const ink of SECTION_INKS) {
     const candidate = hexToRgb(ink)!;
-    // Compare on luminance, not hue: the family varies only in weight, so "nearest" means
-    // "about as dark", which is what carries over from an arbitrary old colour.
-    const distance = Math.abs(luminance(candidate) - luminance(target));
+    // Compare in RGB space, not by luminance: the family now varies by HUE at one fixed
+    // lightness, so "nearest" has to mean "closest colour". Matching on brightness alone
+    // would map every legacy hex onto whichever ink happened to share its darkness.
+    const distance =
+      (candidate.r - target.r) ** 2 +
+      (candidate.g - target.g) ** 2 +
+      (candidate.b - target.b) ** 2;
     if (distance < bestDistance) {
       bestDistance = distance;
       best = ink;
@@ -77,10 +99,6 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
     g: parseInt(value.slice(2, 4), 16) || 0,
     b: parseInt(value.slice(4, 6), 16) || 0,
   };
-}
-
-function luminance({ r, g, b }: { r: number; g: number; b: number }): number {
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
 export const SECTION_PRESETS: SectionPreset[] = [
@@ -110,9 +128,9 @@ export function getSectionPreset(kind: ClipSectionKind): SectionPreset {
 
 /**
  * Resolve a section's ink. A stored colour (set via the editor) wins for any kind, but it is
- * snapped onto the three-weight family on the way out — so a clip saved under the old
- * eight-hue palette draws in the new ink everywhere, without a migration pass over stored
- * data. Sections keep whatever hex they were saved with; only the rendering is unified.
+ * snapped onto the role palette on the way out — so a clip saved under an older palette
+ * draws in the current ink everywhere, without a migration pass over stored data. Sections
+ * keep whatever hex they were saved with; only the rendering is unified.
  */
 export function getSectionColor(section: Pick<ClipSection, "kind" | "color">): string {
   if (section.color) return nearestSectionInk(section.color);
@@ -179,7 +197,7 @@ export function buildSectionBands(sections: ClipSection[], durationMs: number): 
       startMs: Math.max(0, Math.min(durationMs, section.startMs)),
       endMs: Math.max(0, Math.min(durationMs, section.endMs)),
       label: section.label,
-      color: hexToRgba(base, 0.09),
+      color: hexToRgba(base, SECTION_FILL_ALPHA),
       railColor: base,
     };
   });

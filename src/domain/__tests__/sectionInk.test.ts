@@ -3,9 +3,10 @@ import {
   buildSectionBands,
   getSectionColor,
   nearestSectionInk,
+  SECTION_FILL_ALPHA,
   SECTION_INKS,
 } from "../playerSections";
-import type { ClipSection } from "../../types";
+import type { ClipSection, ClipSectionKind } from "../../types";
 
 function section(over: Partial<ClipSection> = {}): ClipSection {
   return {
@@ -18,76 +19,133 @@ function section(over: Partial<ClipSection> = {}): ClipSection {
   } as ClipSection;
 }
 
+const ROLES: ClipSectionKind[] = [
+  "intro",
+  "verse",
+  "prechorus",
+  "chorus",
+  "bridge",
+  "solo",
+  "outro",
+  "custom",
+];
+
+function rgb(hex: string) {
+  const h = hex.replace("#", "");
+  return {
+    r: parseInt(h.slice(0, 2), 16),
+    g: parseInt(h.slice(2, 4), 16),
+    b: parseInt(h.slice(4, 6), 16),
+  };
+}
+
+/** WCAG relative luminance. */
+function relLuminance(hex: string) {
+  const { r, g, b } = rgb(hex);
+  const lin = [r, g, b].map((v) => {
+    const u = v / 255;
+    return u <= 0.04045 ? u / 12.92 : ((u + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+}
+
+function contrast(a: string, b: string) {
+  const la = relLuminance(a);
+  const lb = relLuminance(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
 describe("section ink", () => {
-  it("draws every preset from the three-weight family, never an outside hue", () => {
-    const kinds = ["intro", "verse", "prechorus", "chorus", "bridge", "solo", "outro", "custom"] as const;
-    for (const kind of kinds) {
-      const ink = getSectionColor({ kind, color: undefined });
-      expect(SECTION_INKS).toContain(ink);
+  it("gives every role its own ink — no two parts share a colour", () => {
+    const inks = ROLES.map((kind) => getSectionColor({ kind, color: undefined }));
+    expect(new Set(inks).size).toBe(ROLES.length);
+  });
+
+  it("draws only from the declared palette", () => {
+    for (const kind of ROLES) {
+      expect(SECTION_INKS).toContain(getSectionColor({ kind, color: undefined }));
     }
   });
 
-  it("puts the peak of the song in the deepest ink and the edges in the lightest", () => {
-    expect(getSectionColor({ kind: "chorus", color: undefined })).toBe(colors.markDeep);
-    expect(getSectionColor({ kind: "solo", color: undefined })).toBe(colors.markDeep);
-    expect(getSectionColor({ kind: "intro", color: undefined })).toBe(colors.markLight);
-    expect(getSectionColor({ kind: "outro", color: undefined })).toBe(colors.markLight);
+  /**
+   * The retired palette's real defect: hand-picked hexes whose lightness ranged 0.52–0.68,
+   * so the chorus shouted and the outro whispered. These two guard the fix — hue may vary
+   * freely, brightness may not.
+   */
+  it("holds every ink at one lightness, so no part shouts over another", () => {
+    const luminances = SECTION_INKS.map(relLuminance);
+    const spread = Math.max(...luminances) - Math.min(...luminances);
+    expect(spread).toBeLessThan(0.035);
   });
 
-  describe("legacy sections saved under the old eight-hue palette", () => {
-    // These are the exact colours the retired palette wrote into stored clips.
+  it("keeps every ink legible against both its white label and the page", () => {
+    for (const ink of SECTION_INKS) {
+      expect(contrast(ink, "#FFFFFF")).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(ink, colors.page)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("actually varies in hue — a set of near-identical colours would defeat the point", () => {
+    // Max channel-spread across the palette: a one-hue ramp collapses this toward zero.
+    const spreads = SECTION_INKS.map((ink) => {
+      const { r, g, b } = rgb(ink);
+      return Math.max(r, g, b) - Math.min(r, g, b);
+    });
+    expect(Math.min(...spreads)).toBeGreaterThan(20);
+  });
+
+  describe("sections saved under an older palette", () => {
     it.each([
       ["#3F9C82", "teal intro"],
       ["#C98A3C", "amber verse"],
+      ["#D6743F", "orange pre-chorus"],
       ["#C8463A", "red chorus"],
       ["#5775A6", "blue bridge"],
       ["#9B6FB2", "purple solo"],
       ["#6F7E8C", "slate outro"],
       ["#B0568A", "magenta custom"],
-    ])("snaps %s (%s) onto the family instead of orphaning it", (stored) => {
+      ["#B87D6B", "mid terracotta (the one-hue ramp)"],
+      ["#824F3F", "deep terracotta (the one-hue ramp)"],
+    ])("resolves %s (%s) to a palette ink", (stored) => {
       expect(SECTION_INKS).toContain(nearestSectionInk(stored));
     });
 
-    it("keeps a dark stored colour dark and a light one light", () => {
-      // #C8463A (old chorus) is darker than #CDA695, so it must not land on markLight.
-      expect(nearestSectionInk("#C8463A")).not.toBe(colors.markLight);
-      // A near-white stored colour has nowhere darker to go than the lightest weight.
-      expect(nearestSectionInk("#F5EFEA")).toBe(colors.markLight);
+    it("snaps to the nearest HUE, not merely the nearest brightness", () => {
+      // The whole family sits at one lightness, so a luminance-only match would scatter
+      // these arbitrarily. Each legacy colour must land on its own hue's ink.
+      expect(nearestSectionInk("#C8463A")).toBe(colors.sectionChorus); // red   -> terracotta
+      expect(nearestSectionInk("#5775A6")).toBe(colors.sectionBridge); // blue  -> indigo
+      expect(nearestSectionInk("#9B6FB2")).toBe(colors.sectionSolo); // purple -> plum
+      expect(nearestSectionInk("#3F9C82")).toBe(colors.sectionIntro); // teal  -> sage
     });
 
-    it("falls back to the mid weight for a missing or unreadable colour", () => {
-      expect(nearestSectionInk(undefined)).toBe(colors.markMid);
-      expect(nearestSectionInk("")).toBe(colors.markMid);
-      expect(nearestSectionInk("not-a-colour")).toBe(colors.markMid);
+    it("falls back to the custom ink for a missing or unreadable colour", () => {
+      expect(nearestSectionInk(undefined)).toBe(colors.sectionCustom);
+      expect(nearestSectionInk("")).toBe(colors.sectionCustom);
+      expect(nearestSectionInk("not-a-colour")).toBe(colors.sectionCustom);
+    });
+
+    it("renders a stored colour in the new ink without rewriting what is stored", () => {
+      const stored = section({ kind: "chorus", color: "#C8463A" });
+      expect(getSectionColor(stored)).toBe(colors.sectionChorus);
+      expect(stored.color).toBe("#C8463A");
     });
   });
 
-  it("keeps the band fill faint enough to read the audio through", () => {
-    const [band] = buildSectionBands([section()], 20_000);
-    const alpha = Number(band.color.match(/([\d.]+)\)$/)![1]);
-    // The old 0.32 fill hid the waveform outright — the one thing the reel exists to show.
-    expect(alpha).toBeLessThanOrEqual(0.12);
-    // The rail stays solid: it is what identifies the part.
-    expect(band.railColor).toBe(colors.markMid);
-  });
-});
+  describe("the reel band", () => {
+    it("tints strongly enough to read the arrangement mid-playback", () => {
+      const [band] = buildSectionBands([section()], 20_000);
+      const alpha = Number(band.color.match(/([\d.]+)\)$/)![1]);
+      // At 0.09 the hue lived only in the label chip and the bands were indistinguishable.
+      expect(alpha).toBeGreaterThanOrEqual(0.15);
+      // At the retired 0.32 the fill swallowed the waveform.
+      expect(alpha).toBeLessThanOrEqual(0.24);
+      expect(alpha).toBe(SECTION_FILL_ALPHA);
+    });
 
-describe("stored colours render in the family too", () => {
-  it("snaps a section saved with an old-palette hex, not just the editor's preview", () => {
-    // The exact case in the dev library: a Chorus stored as #C8463A before the change.
-    const ink = getSectionColor({ kind: "chorus", color: "#C8463A" });
-    expect(SECTION_INKS).toContain(ink);
-    expect(ink).not.toBe("#C8463A");
-  });
-
-  it("does not rewrite what is stored — only what is drawn", () => {
-    const stored = section({ kind: "chorus", color: "#C8463A" });
-    getSectionColor(stored);
-    expect(stored.color).toBe("#C8463A");
-  });
-
-  it("bands built from a legacy section use family ink for the rail", () => {
-    const [band] = buildSectionBands([section({ kind: "chorus", color: "#C8463A" })], 20_000);
-    expect(SECTION_INKS).toContain(band.railColor);
+    it("keeps the rail solid — it is what names the part", () => {
+      const [band] = buildSectionBands([section({ kind: "chorus" })], 20_000);
+      expect(band.railColor).toBe(colors.sectionChorus);
+    });
   });
 });
