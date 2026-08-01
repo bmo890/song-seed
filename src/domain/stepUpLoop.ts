@@ -199,6 +199,12 @@ export type StepUpSequenceProgress = {
     loopInStage: number;
     /** The current stage's pass count. */
     stageLoops: number;
+    /** Passes finished so far, across the whole plan. */
+    completedLoops: number;
+    /** Passes in the whole plan before it settles on its final rate. */
+    totalLoops: number;
+    /** 1-based pass being played now, capped at `totalLoops` once the plan is done. */
+    passNumber: number;
 };
 
 export function stepUpSequenceProgressAtLoop(
@@ -206,7 +212,9 @@ export function stepUpSequenceProgressAtLoop(
     completedLoops: number
 ): StepUpSequenceProgress {
     const safeStages = stages.length > 0 ? stages : STEP_UP_DEFAULT_SEQUENCE;
-    let remaining = Number.isFinite(completedLoops) ? Math.max(0, Math.floor(completedLoops)) : 0;
+    const safeLoops = Number.isFinite(completedLoops) ? Math.max(0, Math.floor(completedLoops)) : 0;
+    const totalLoops = stepUpSequenceTotalLoops(safeStages);
+    let remaining = safeLoops;
     for (let index = 0; index < safeStages.length; index += 1) {
         const stage = safeStages[index];
         if (remaining < stage.loops) {
@@ -217,6 +225,9 @@ export function stepUpSequenceProgressAtLoop(
                 stageCount: safeStages.length,
                 loopInStage: remaining + 1,
                 stageLoops: stage.loops,
+                completedLoops: safeLoops,
+                totalLoops,
+                passNumber: safeLoops + 1,
             };
         }
         remaining -= stage.loops;
@@ -229,6 +240,10 @@ export function stepUpSequenceProgressAtLoop(
         stageCount: safeStages.length,
         loopInStage: last.loops,
         stageLoops: last.loops,
+        completedLoops: safeLoops,
+        totalLoops,
+        // Past the plan's end the counter rests at the total rather than running on.
+        passNumber: totalLoops,
     };
 }
 

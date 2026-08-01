@@ -219,17 +219,51 @@ export const pd = StyleSheet.create({
   stepUpSwitchDisabled: {
     opacity: 0.4,
   },
-  // Rising steps: the shape of the climb, at a glance. Bars fill as the drill
-  // advances, so the row reports progress without being read.
-  stepUpGlyph: {
+  // ---- step up's own progress line, under the row ----
+  stepUpProgressRow: {
     flexDirection: "row",
-    alignItems: "flex-end",
-    gap: 2,
-    height: 13,
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 10,
+    paddingTop: 2,
+    paddingBottom: 8,
   },
-  stepUpGlyphBar: {
-    width: 2.5,
-    borderRadius: 1,
+  stepUpDots: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexShrink: 1,
+  },
+  stepUpDot: {
+    width: 6,
+    height: 6,
+    borderRadius: radii.round,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: "transparent",
+  },
+  stepUpDotDone: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  stepUpDotCurrent: {
+    borderColor: colors.primary,
+    borderWidth: 2,
+  },
+  stepUpDotLink: {
+    width: 7,
+    height: 1,
+  },
+  stepUpProgressCount: {
+    ...text.supporting,
+    marginLeft: "auto",
+    color: colors.textSecondary,
+    fontVariant: ["tabular-nums"],
+  },
+  stepUpProgressRate: {
+    ...text.supporting,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    color: colors.primaryDeep,
+    fontVariant: ["tabular-nums"],
   },
   stepUpLabelRow: {
     flexDirection: "row",
@@ -241,13 +275,10 @@ export const pd = StyleSheet.create({
     alignItems: "center",
     gap: 7,
     marginLeft: "auto",
-    // Shrinks before the switch does — a long saved-plan name truncates rather than
-    // pushing the switch off the row's edge.
+    // Shrinks before the icons and switch do — a long saved-plan name truncates
+    // rather than pushing them off the row's edge.
     flexShrink: 1,
     minWidth: 0,
-    // This opens the editor, so it claims the row's full height: text-height alone is
-    // a ~17pt target against a ~44pt thumb.
-    alignSelf: "stretch",
   },
   stepUpPlanName: {
     ...text.supporting,
@@ -258,12 +289,6 @@ export const pd = StyleSheet.create({
   stepUpClimb: {
     ...text.supporting,
     color: colors.textMuted,
-    fontVariant: ["tabular-nums"],
-  },
-  stepUpLive: {
-    ...text.supporting,
-    color: colors.primaryDeep,
-    fontFamily: "PlusJakartaSans_600SemiBold",
     fontVariant: ["tabular-nums"],
   },
   rowDivider: {

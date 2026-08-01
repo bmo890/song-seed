@@ -1016,6 +1016,7 @@ export function PlayerScreen({
               onToggleStepUp={() => {
                 if (guardPracticeTool("loop")) stepUp.toggleStepUp();
               }}
+              onRestartStepUp={stepUp.restartStepUp}
               practiceMarkers={data.practiceMarkers}
               onAddPin={() => {
                 if (guardPracticeTool("pins")) handleRequestAddPin();

@@ -169,6 +169,18 @@ describe("stepUpSequenceProgressAtLoop", () => {
     expect(stepUpSequenceProgressAtLoop(SEQUENCE, 6)).toMatchObject({ rate: 0.8, loopInStage: 3, atEnd: false });
   });
 
+  it("counts passes across the whole plan for the progress line", () => {
+    expect(stepUpSequenceProgressAtLoop(SEQUENCE, 0)).toMatchObject({
+      completedLoops: 0, totalLoops: 7, passNumber: 1,
+    });
+    expect(stepUpSequenceProgressAtLoop(SEQUENCE, 4)).toMatchObject({
+      completedLoops: 4, totalLoops: 7, passNumber: 5,
+    });
+    // Past the end the counter rests at the total rather than running on forever.
+    expect(stepUpSequenceProgressAtLoop(SEQUENCE, 7).passNumber).toBe(7);
+    expect(stepUpSequenceProgressAtLoop(SEQUENCE, 99).passNumber).toBe(7);
+  });
+
   it("holds the last rate once every stage is done", () => {
     const done = stepUpSequenceProgressAtLoop(SEQUENCE, 7);
     expect(done).toMatchObject({ rate: 0.8, atEnd: true, stageIndex: 2 });

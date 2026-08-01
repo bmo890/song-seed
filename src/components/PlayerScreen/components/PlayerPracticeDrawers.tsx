@@ -25,6 +25,7 @@ import {
 import { useStepUpPresetsStore } from "../../../state/useStepUpPresetsStore";
 import { HelpButton } from "../../common/HelpButton";
 import { HelpSheet } from "../../common/HelpSheet";
+import { AnimatedCollapse } from "../../common/AnimatedCollapse";
 import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
 
@@ -96,6 +97,7 @@ type PlayerPracticeDrawersProps = {
   stepUpRateMin: number;
   stepUpRateMax: number;
   onToggleStepUp: () => void;
+  onRestartStepUp: () => void;
 
   // Sound
   playbackSpeed: number;
@@ -133,32 +135,63 @@ function stepUpClimbLabel(sequence: StepUpStage[]): string {
   return first === last ? `${first}×` : `${first}× → ${last}×`;
 }
 
+/** Dots never exceed this — beyond it each dot stands for several passes. */
+const STEP_UP_MAX_DOTS = 12;
+
 /**
- * The climb as rising bars — capped at five so a long drill still reads as a shape
- * rather than a barcode. `reachedIndex` lights the steps already done (-1 = idle),
- * so a running drill reports progress without being read.
+ * The drill's own line, under the row: connected dots for the passes, the pass
+ * counter, and the live speed. A long plan folds several passes into one dot rather
+ * than growing a wider and wider string of them.
+ *
+ * A dot is filled once its passes are behind you, ringed while you are inside it,
+ * and quiet ahead — so the line reads as position without being counted.
  */
-function StepUpGlyph({ stageCount, reachedIndex }: { stageCount: number; reachedIndex: number }) {
-  const bars = Math.max(2, Math.min(5, stageCount));
-  const lastStage = Math.max(1, stageCount - 1);
+function StepUpProgressLine({
+  completedLoops,
+  totalLoops,
+  passNumber,
+  rate,
+  atEnd,
+}: {
+  completedLoops: number;
+  totalLoops: number;
+  passNumber: number;
+  rate: number;
+  atEnd: boolean;
+}) {
+  const { t } = useTranslation();
+  const dotCount = Math.max(1, Math.min(totalLoops, STEP_UP_MAX_DOTS));
+  const passesPerDot = Math.ceil(totalLoops / dotCount);
   return (
-    <View style={pd.stepUpGlyph}>
-      {Array.from({ length: bars }, (_, index) => {
-        const lit =
-          reachedIndex >= 0 && index <= Math.round((reachedIndex / lastStage) * (bars - 1));
-        return (
-          <View
-            key={index}
-            style={[
-              pd.stepUpGlyphBar,
-              {
-                height: 5 + index * 2,
-                backgroundColor: lit ? colors.primary : colors.borderSubtle,
-              },
-            ]}
-          />
-        );
-      })}
+    <View style={pd.stepUpProgressRow}>
+      <View style={pd.stepUpDots}>
+        {Array.from({ length: dotCount }, (_, index) => {
+          const done = completedLoops >= (index + 1) * passesPerDot;
+          const current = !done && completedLoops >= index * passesPerDot;
+          return (
+            <React.Fragment key={index}>
+              {index > 0 ? (
+                <View
+                  style={[
+                    pd.stepUpDotLink,
+                    { backgroundColor: done ? colors.primary : colors.borderSubtle },
+                  ]}
+                />
+              ) : null}
+              <View
+                style={[
+                  pd.stepUpDot,
+                  done ? pd.stepUpDotDone : current ? pd.stepUpDotCurrent : null,
+                ]}
+              />
+            </React.Fragment>
+          );
+        })}
+      </View>
+      <Text style={pd.stepUpProgressCount}>
+        {atEnd ? t("player.stepUpDone") : `${passNumber} / ${totalLoops}`}
+      </Text>
+      <Text style={pd.stepUpProgressRate}>{`${rate}×`}</Text>
     </View>
   );
 }
@@ -362,6 +395,7 @@ export function PlayerPracticeDrawers({
   stepUpRateMin,
   stepUpRateMax,
   onToggleStepUp,
+  onRestartStepUp,
   playbackSpeed,
   speedPresets,
   speedMin,
@@ -390,6 +424,14 @@ export function PlayerPracticeDrawers({
   // The plan wears its name when it IS one — a built-in drill or a saved sequence;
   // an edited plan is honestly "Custom" rather than borrowing the last name it had.
   const stepUpUserPresets = useStepUpPresetsStore((state) => state.userPresets);
+  const stepUpIsCustomPlan = useMemo(() => {
+    const bounds = { minRate: stepUpRateMin, maxRate: stepUpRateMax };
+    const candidates = [
+      ...STEP_UP_BUILTIN_PRESETS.map((preset) => ({ key: preset.id, stages: preset.stages })),
+      ...stepUpUserPresets.map((preset) => ({ key: preset.id, stages: preset.stages })),
+    ];
+    return matchStepUpPreset(stepUpSequence, candidates, bounds) == null;
+  }, [stepUpRateMax, stepUpRateMin, stepUpSequence, stepUpUserPresets]);
   const stepUpPlanName = useMemo(() => {
     const bounds = { minRate: stepUpRateMin, maxRate: stepUpRateMax };
     const builtinKey = matchStepUpPreset(
@@ -740,40 +782,37 @@ export function PlayerPracticeDrawers({
           <Text style={pd.rowLabel}>{t("player.stepUp")}</Text>
           <HelpButton compact onPress={() => setStepUpHelpOpen(true)} />
         </View>
-        {/* The plan itself opens the editor — a separate gear alongside a "?" and a
-            switch made four controls in one row, and pushed the switch off its edge.
-            Idle it states what the plan IS (name + where it travels); running, where
-            it has GOT to — the live rate is the only fact worth reading mid-passage. */}
+        {/* The row states which plan is loaded; the live progression gets its own line
+            below, which keeps room here for the controls. A named plan carries its
+            speeds in its name, so the range is only spelled out for a custom one. */}
+        <View style={pd.stepUpValueRow}>
+          <Text style={pd.stepUpPlanName} numberOfLines={1}>
+            {stepUpPlanName}
+          </Text>
+          {stepUpIsCustomPlan ? (
+            <Text style={pd.stepUpClimb}>{stepUpClimbLabel(stepUpSequence)}</Text>
+          ) : null}
+        </View>
+        {/* Restarting only means something while a drill is running. */}
+        {stepUpEnabled ? (
+          <Pressable
+            style={pd.headIconBtn}
+            onPress={onRestartStepUp}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel={t("player.stepUpRestart")}
+          >
+            <Ionicons name="refresh" size={16} color={colors.textMuted} />
+          </Pressable>
+        ) : null}
         <Pressable
-          style={({ pressed }) => [pd.stepUpValueRow, pressed ? s.toolHeaderPressed : null]}
-          onPress={() => {
-            haptic.tap();
-            setStepUpSheetOpen(true);
-          }}
+          style={pd.headIconBtn}
+          onPress={() => setStepUpSheetOpen(true)}
+          hitSlop={6}
           accessibilityRole="button"
           accessibilityLabel={t("player.stepUpEdit")}
         >
-          <StepUpGlyph
-            stageCount={stepUpSequence.length}
-            reachedIndex={stepUpEnabled && stepUpProgress ? stepUpProgress.stageIndex : -1}
-          />
-          {stepUpEnabled && stepUpProgress ? (
-            <Text style={pd.stepUpLive}>
-              {stepUpProgress.atEnd
-                ? `${stepUpProgress.rate}×`
-                : `${stepUpProgress.rate}× · ${t("player.stepUpPass", {
-                    current: stepUpProgress.loopInStage,
-                    total: stepUpProgress.stageLoops,
-                  })}`}
-            </Text>
-          ) : (
-            <>
-              <Text style={pd.stepUpPlanName} numberOfLines={1}>
-                {stepUpPlanName}
-              </Text>
-              <Text style={pd.stepUpClimb}>{stepUpClimbLabel(stepUpSequence)}</Text>
-            </>
-          )}
+          <Ionicons name="options-outline" size={16} color={colors.textMuted} />
         </Pressable>
         {/* Step up counts loop passes, so it can only run while the loop does — the
             session hook ends one the moment the loop goes off. Disabled rather than
@@ -793,6 +832,17 @@ export function PlayerPracticeDrawers({
           <View style={[s.switchKnob, stepUpEnabled ? s.switchKnobActive : null]} />
         </Pressable>
       </View>
+      <AnimatedCollapse visible={stepUpEnabled && stepUpProgress != null}>
+        {stepUpProgress ? (
+          <StepUpProgressLine
+            completedLoops={stepUpProgress.completedLoops}
+            totalLoops={stepUpProgress.totalLoops}
+            passNumber={stepUpProgress.passNumber}
+            rate={stepUpProgress.rate}
+            atEnd={stepUpProgress.atEnd}
+          />
+        ) : null}
+      </AnimatedCollapse>
       <StepUpSequenceSheet
         visible={stepUpSheetOpen}
         onClose={() => setStepUpSheetOpen(false)}

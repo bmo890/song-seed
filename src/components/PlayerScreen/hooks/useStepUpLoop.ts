@@ -105,6 +105,18 @@ export function useStepUpLoop({
     setPlaybackRate(stages[0].rate);
   }, [sequence, sessionBounds, setPlaybackRate]);
 
+  /** Start the drill over from its first step, keeping the plan. */
+  const restartStepUp = useCallback(() => {
+    const current = sessionRef.current;
+    if (!current) {
+      return;
+    }
+    // Haptics: `tap` — any acknowledged press: buttons, rows, toggles.
+    haptic.tap();
+    setSession({ stages: current.stages, completedLoops: 0 });
+    setPlaybackRate(current.stages[0].rate);
+  }, [setPlaybackRate]);
+
   const handleLoopCycle = useCallback(() => {
     const current = sessionRef.current;
     if (!current) {
@@ -131,6 +143,7 @@ export function useStepUpLoop({
     stepUpEnabled: session != null,
     stepUpProgress,
     toggleStepUp,
+    restartStepUp,
     handleLoopCycle,
     cancelStepUp,
   };
