@@ -35,14 +35,18 @@ import {
     pinRowTop,
     PIN_BADGE_HEIGHT,
 } from "../../domain/practicePinLayout";
-import { colors } from "../../design/tokens";
+import { colors, radii } from "../../design/tokens";
 
 /**
- * Pin ink. Everything else on the tape is warm — terracotta audio, coloured sections,
- * a record-red head — so pins take the page's own charcoal and read as annotations
- * ON the tape rather than more of it. It is the one mark that isn't about sound.
+ * Pin ink: deep terracotta, the app's original accent. It is a shade DOWN from the
+ * waveform rather than a different family — dark enough to separate from the bars and
+ * from the record-red head, warm enough to belong. Charcoal read as a black box
+ * dropped on the tape from another app.
+ *
+ * The badge and its stem share this one value; they are one object and drifted apart
+ * when only the badge was restyled.
  */
-const PIN_INK = colors.textPrimary;
+const PIN_INK = colors.primaryDeep;
 
 type Props = {
     waveformPeaks: number[];
@@ -348,7 +352,7 @@ function PinBadgeChip({
     // same shape and size whether or not the pin has a name yet.
     return (
         <Group opacity={opacity}>
-            <RoundedRect x={left} y={top} width={width} height={PIN_BADGE_HEIGHT} r={2} color={PIN_INK} />
+            <RoundedRect x={left} y={top} width={width} height={PIN_BADGE_HEIGHT} r={radii.sm} color={PIN_INK} />
             {paragraph ? (
                 <Paragraph paragraph={paragraph} x={left + 6} y={top + 3} width={width - 12} />
             ) : null}
@@ -597,7 +601,7 @@ function PinMarkerOverlay({
                     y={3}
                     width={2.5}
                     height={pinHeight}
-                    color="#8b4f3b"
+                    color={PIN_INK}
                 />
             ))}
         </>
