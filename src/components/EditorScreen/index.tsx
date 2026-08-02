@@ -38,13 +38,12 @@ import { useEditorExportFlow } from "./hooks/useEditorExportFlow";
 import { useEditorTransformState } from "./hooks/useEditorTransformState";
 import { useEditorPreviewTransport } from "./hooks/useEditorPreviewTransport";
 import { EditorTransformSection } from "./components/EditorTransformSection";
-import { EditorTransformExportModal } from "./components/EditorTransformExportModal";
 import { clipHasOverdubs, isClipWaveformPending } from "../../domain/clipPresentation";
 import { HelpSheet } from "../common/HelpSheet";
 import { EDITOR_HELP } from "../common/helpContent";
 import { useTranslation } from "react-i18next";
 import { MarkInspector, nudgeStepMsForZoom } from "../common/MarkInspector";
-import { complementSpans, remapClipForSpans } from "../../domain/clipEditRemap";
+import { complementSpans, remapClipForRate, remapClipForSpans } from "../../domain/clipEditRemap";
 import { buildSectionBands, hexToRgba } from "../../domain/playerSections";
 import { fmtDuration } from "../../utils";
 import { canSnapToGrid, snapResolutionForZoom, snapToGrid } from "../../domain/editSnap";
@@ -284,6 +283,30 @@ export function EditorScreen() {
         playheadTimeMs,
     });
 
+    /** Adding at a playhead that sits inside a part splits that part rather than making
+     *  a new one. That is useful, but it used to happen silently — the link now says
+     *  which of the two it will do before you press it. */
+    const playheadSplitsPart = useMemo(
+        () =>
+            selectedRanges.some(
+                (range) =>
+                    playheadTimeMs >= range.start + MIN_REGION_DURATION_MS &&
+                    playheadTimeMs <= range.end - MIN_REGION_DURATION_MS
+            ),
+        [playheadTimeMs, selectedRanges]
+    );
+
+    /** Removals that swallow the whole clip leave nothing to render. */
+    const removesEverything = useMemo(() => {
+        if (editMode !== "remove" || !analysisData || removeRegions.length === 0) return false;
+        return (
+            complementSpans(
+                removeRegions.map((region) => ({ startMs: region.start, endMs: region.end })),
+                analysisData.durationMs
+            ).length === 0
+        );
+    }, [analysisData, editMode, removeRegions]);
+
     const gridForSnap = keepToGrid ? sourceClip?.recordingGrid : null;
     const gridAvailable = canSnapToGrid(sourceClip?.recordingGrid);
     const editDurationMs = analysisData?.durationMs ?? 0;
@@ -335,7 +358,25 @@ export function EditorScreen() {
     /** What the pending edit will do to the take's grid — the same pure remap the save
      *  itself runs, so the line can never disagree with the result. */
     const gridOutcomeLine = useMemo(() => {
-        if (!sourceClip?.recordingGrid || !analysisData || editorMode !== "trim") return null;
+        if (!sourceClip?.recordingGrid || !analysisData) return null;
+
+        // A baked speed change stretches the timebase, so it owes the same honesty the
+        // trim path gives: say what the musician's click will be worth afterwards.
+        if (editorMode === "transform") {
+            if (!transformState.hasActiveTransforms) return null;
+            const { gridOutcome } = remapClipForRate(
+                sourceClip,
+                transformState.playbackRate,
+                analysisData.durationMs / (transformState.playbackRate || 1)
+            );
+            if (gridOutcome.kind === "none") return null;
+            if (gridOutcome.kind === "kept") return t("editor.gridKept");
+            if (gridOutcome.kind === "partial") {
+                return t("editor.gridKeptTo", { time: fmtDuration(gridOutcome.validToMs) });
+            }
+            return t("editor.gridNone");
+        }
+
         const spans =
             editMode === "keep"
                 ? keepRegions.map((region) => ({ startMs: region.start, endMs: region.end }))
@@ -362,6 +403,8 @@ export function EditorScreen() {
         removeRegions,
         sourceClip,
         t,
+        transformState.hasActiveTransforms,
+        transformState.playbackRate,
     ]);
 
     const togglePlay = () => {
@@ -535,6 +578,7 @@ export function EditorScreen() {
                             keepCount={keepRegions.length}
                             removeCount={removeRegions.length}
                             hasActiveTransforms={transformState.hasActiveTransforms}
+                            removesEverything={removesEverything}
                             onExport={exportFlow.openExportModal}
                             onSaveTransform={exportFlow.openTransformExportModal}
                         />
@@ -595,6 +639,7 @@ export function EditorScreen() {
                             // like an editable range.
                             zoomPlacement="overlay"
                             showTimingRow={false}
+                            showExpandToggle={false}
                             onZoomMultipleChange={setZoomMultiple}
                             grid={sourceClip?.recordingGrid ?? null}
                             sectionBands={ghostSectionBands}
@@ -684,7 +729,9 @@ export function EditorScreen() {
                                         hitSlop={6}
                                         style={({ pressed }) => (pressed ? styles.pressDown : null)}
                                     >
-                                        <Text style={editorLocalStyles.addLink}>{t("editor.addPlayhead")}</Text>
+                                        <Text style={editorLocalStyles.addLink}>
+                                            {playheadSplitsPart ? t("editor.splitHere") : t("editor.addPlayhead")}
+                                        </Text>
                                     </Pressable>
                                 </View>
 
@@ -781,47 +828,55 @@ export function EditorScreen() {
 
             <EditorExportProgressModal visible={exportFlow.isExporting} />
 
-            <EditorTransformExportModal
-                visible={exportFlow.transformExportModalVisible}
-                targetIdeaKind={targetIdea?.kind ?? null}
-                targetIdeaTitle={targetIdea?.title ?? null}
-                pitchShiftSemitones={transformState.pitchShiftSemitones}
-                playbackRate={transformState.playbackRate}
-                nameDraft={exportFlow.transformNameDraft}
-                suggestedExportTitle={exportFlow.suggestedExportTitle}
-                removeOriginalAfterExport={exportFlow.removeOriginalAfterExport}
-                onClose={exportFlow.closeTransformExportModal}
-                onChangeNameDraft={exportFlow.setTransformNameDraft}
-                onToggleRemoveOriginalAfterExport={() =>
-                    exportFlow.setRemoveOriginalAfterExport((prev) => !prev)
-                }
-                onSave={() => {
-                    void exportFlow.handleTransformSave();
-                }}
-            />
-
             <EditorSaveSheet
-                visible={exportFlow.exportModalVisible}
-                operation={exportFlow.exportOperation}
+                visible={exportFlow.exportModalVisible || exportFlow.transformExportModalVisible}
+                operation={
+                    exportFlow.transformExportModalVisible ? "transform" : exportFlow.exportOperation
+                }
+                summaryLine={
+                    exportFlow.transformExportModalVisible
+                        ? `${transformState.playbackRate.toFixed(2)}x · ${
+                              transformState.pitchShiftSemitones > 0 ? "+" : ""
+                          }${transformState.pitchShiftSemitones} ${t("player.semitones")}`
+                        : undefined
+                }
                 targetIdeaKind={targetIdea?.kind ?? null}
                 keepRegions={keepRegions}
                 removedMs={removeRegions.reduce((sum, region) => sum + (region.end - region.start), 0)}
                 gridOutcomeLine={gridOutcomeLine}
-                spliceNameDraft={exportFlow.spliceNameDraft}
+                spliceNameDraft={
+                    exportFlow.transformExportModalVisible
+                        ? exportFlow.transformNameDraft
+                        : exportFlow.spliceNameDraft
+                }
                 suggestedExportTitle={exportFlow.suggestedExportTitle}
                 suggestedTitleFor={exportFlow.buildSuggestedTitle}
                 removeOriginalAfterExport={exportFlow.removeOriginalAfterExport}
                 confirmLabel={
-                    exportFlow.exportOperation === "extract"
-                        ? t("editor.extractCount", { count: keepRegions.length })
-                        : t("editor.saveTrimmed")
+                    exportFlow.transformExportModalVisible
+                        ? t("editor.saveNewClip")
+                        : exportFlow.exportOperation === "extract"
+                          ? t("editor.extractCount", { count: keepRegions.length })
+                          : t("editor.saveTrimmed")
                 }
-                onChangeSpliceNameDraft={exportFlow.setSpliceNameDraft}
+                onChangeSpliceNameDraft={
+                    exportFlow.transformExportModalVisible
+                        ? exportFlow.setTransformNameDraft
+                        : exportFlow.setSpliceNameDraft
+                }
                 onToggleRemoveOriginalAfterExport={() =>
                     exportFlow.setRemoveOriginalAfterExport((prev) => !prev)
                 }
-                onClose={exportFlow.closeExportModal}
+                onClose={
+                    exportFlow.transformExportModalVisible
+                        ? exportFlow.closeTransformExportModal
+                        : exportFlow.closeExportModal
+                }
                 onSave={() => {
+                    if (exportFlow.transformExportModalVisible) {
+                        void exportFlow.handleTransformSave();
+                        return;
+                    }
                     void exportFlow.handleExportSave();
                 }}
             />

@@ -12,7 +12,9 @@ import { useTranslation } from "react-i18next";
 
 type EditorSaveSheetProps = {
   visible: boolean;
-  operation: "extract" | "splice";
+  operation: "extract" | "splice" | "transform";
+  /** One-line summary of a single-output save (what was cut, or what was baked in). */
+  summaryLine?: string;
   targetIdeaKind: "project" | "clip" | null;
   keepRegions: EditableSelection[];
   removedMs: number;
@@ -39,6 +41,7 @@ type EditorSaveSheetProps = {
 export function EditorSaveSheet({
   visible,
   operation,
+  summaryLine,
   targetIdeaKind,
   keepRegions,
   removedMs,
@@ -81,10 +84,21 @@ export function EditorSaveSheet({
         ) : (
           <View style={s.spliceBlock}>
             <View style={s.row}>
-              <View style={[s.dot, { backgroundColor: CUT_COLOR }]}>
-                <Ionicons name="cut-outline" size={11} color={colors.onDanger} />
+              <View
+                style={[
+                  s.dot,
+                  { backgroundColor: operation === "transform" ? KEEP_COLOR : CUT_COLOR },
+                ]}
+              >
+                <Ionicons
+                  name={operation === "transform" ? "speedometer-outline" : "cut-outline"}
+                  size={11}
+                  color={colors.onDanger}
+                />
               </View>
-              <Text style={s.name}>{t("editor.removedSummary", { duration: fmtDuration(removedMs) })}</Text>
+              <Text style={s.name}>
+                {summaryLine ?? t("editor.removedSummary", { duration: fmtDuration(removedMs) })}
+              </Text>
             </View>
             <TitleInput
               value={spliceNameDraft}

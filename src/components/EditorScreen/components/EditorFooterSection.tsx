@@ -9,6 +9,8 @@ type EditorFooterSectionProps = {
   intent: "keep" | "remove";
   keepCount: number;
   removeCount: number;
+  /** True when the removals cover the whole clip — there would be nothing left. */
+  removesEverything: boolean;
   hasActiveTransforms: boolean;
   onExport: () => void;
   onSaveTransform: () => void;
@@ -21,6 +23,7 @@ export function EditorFooterSection({
   intent,
   keepCount,
   removeCount,
+  removesEverything,
   hasActiveTransforms,
   onExport,
   onSaveTransform,
@@ -37,6 +40,11 @@ export function EditorFooterSection({
   } else if (intent === "keep") {
     label = keepCount > 0 ? t("editor.extractCount", { count: keepCount }) : t("editor.extractClips");
     enabled = keepCount > 0;
+    onPress = onExport;
+  } else if (removesEverything) {
+    // Enabling this would fail at render time with a generic error; say why instead.
+    label = t("editor.nothingLeft");
+    enabled = false;
     onPress = onExport;
   } else {
     label = t("editor.saveTrimmed");

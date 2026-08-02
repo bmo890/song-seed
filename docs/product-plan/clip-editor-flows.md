@@ -335,9 +335,24 @@ section swallowed by a cut, pin at the seam ms, empty results, rounding.
    Verified by rebuilding the native app and running a real interior cut: a 39s clip
    minus a 9s middle span rendered a 0:30 clip that plays. Audible tuning of the 4ms
    figure still wants a musician's ears.
-   Drag-to-create on the reel remains unbuilt and **still unanswered** (audit §D open
-   question 3 — never put to the founder alongside the §8 decisions). The inspector
-   plus snapping covers the need for now; revisit if marking feels slow.
+   Drag-to-create on the reel: **declined 2026-08-02** — long-press-drag would compete
+   with scrubbing on the same surface, and the inspector plus snapping already places a
+   part precisely. Revisit only if marking feels slow in real use.
+
+6. **Loose ends — CLEARED 2026-08-02.** Four audit items outlived the phases and are
+   now closed. A removal covering the whole clip used to leave the save button live and
+   fail at render with a generic error; the button now reads "Nothing left" and is
+   disabled (A2-adjacent, was unguarded). The Speed & pitch save was the last
+   pre-facelift surface in the room — it now shares `EditorSaveSheet` with the trim
+   path, `EditorTransformExportModal` is deleted, and a baked speed change states its
+   own grid outcome, which it previously never did. The expand toggle (⤢) is
+   **retired** (audit A4 / open question 4): it grew the reel without reflowing the
+   page, and precision now comes from the inspector and snapping. And "Add part" no
+   longer hides a second behaviour — when the playhead sits inside a part the link
+   reads "Split here", so the action says which of the two it will do before you press
+   it (audit A2).
+   The blocking export spinner stays a centred overlay on purpose: it is a progress
+   blocker, not a flow, and it is already on tokens.
 
 ## 8 · Founder decisions — SETTLED 2026-08-01
 
