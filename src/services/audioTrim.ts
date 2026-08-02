@@ -1,32 +1,19 @@
 import { trimAudio } from "@siteed/audio-studio";
 import SongNookPitchShiftModule, { type NativeTrimRange } from "../../modules/songnook-pitch-shift";
+import { complementSpans } from "../domain/clipEditRemap";
 
 type TrimArgs =
   | { fileUri: string; mode: "single"; startTimeMs: number; endTimeMs: number; outputFileName?: string }
   | { fileUri: string; mode: "remove"; ranges: NativeTrimRange[]; durationMs: number; outputFileName?: string };
 
-/** Kept ranges = the complement of the removed ranges over [0, durationMs]. */
+/** Kept ranges = the complement of the removed ranges over [0, durationMs]. Shared with
+ *  `domain/clipEditRemap` so the rendered audio and the remapped pins/sections/grid can
+ *  never disagree about which material survived. */
 function complementRanges(removeRanges: NativeTrimRange[], durationMs: number): NativeTrimRange[] {
-  const clamped = removeRanges
-    .map((range) => ({
-      startTimeMs: Math.max(0, Math.min(durationMs, range.startTimeMs)),
-      endTimeMs: Math.max(0, Math.min(durationMs, range.endTimeMs)),
-    }))
-    .filter((range) => range.endTimeMs > range.startTimeMs)
-    .sort((a, b) => a.startTimeMs - b.startTimeMs);
-
-  const keep: NativeTrimRange[] = [];
-  let cursor = 0;
-  for (const range of clamped) {
-    if (range.startTimeMs > cursor) {
-      keep.push({ startTimeMs: cursor, endTimeMs: range.startTimeMs });
-    }
-    cursor = Math.max(cursor, range.endTimeMs);
-  }
-  if (cursor < durationMs) {
-    keep.push({ startTimeMs: cursor, endTimeMs: durationMs });
-  }
-  return keep;
+  return complementSpans(
+    removeRanges.map((range) => ({ startMs: range.startTimeMs, endMs: range.endTimeMs })),
+    durationMs
+  ).map((span) => ({ startTimeMs: span.startMs, endTimeMs: span.endMs }));
 }
 
 /**

@@ -125,23 +125,23 @@ export const OVERDUB_HELP: HelpContent = {
 };
 
 export const EDITOR_HELP: HelpContent = {
-  title: "Editing audio",
+  title: "Editing a clip",
   intro: "Trim the take, or change its speed and pitch — the result is saved as a new clip.",
   items: [
     {
       icon: "cut-outline",
       label: "Keep or remove",
-      description: "Choose regions to KEEP (everything else is trimmed away) or to REMOVE (those parts are cut out).",
+      description: "Mark parts to KEEP (each becomes its own clip) or to REMOVE (those parts are cut out and the rest is joined).",
     },
     {
       icon: "add-outline",
-      label: "Regions",
-      description: "Add a region at the playhead, drag its edges to fit, or remove it. Add several to keep or cut multiple parts at once.",
+      label: "Parts",
+      description: "Add a part at the playhead, drag its edges to fit, or delete it. Add several to keep or cut multiple parts at once.",
     },
     {
       icon: "save-outline",
       label: "Saving",
-      description: "The edit saves as a new clip, so the original is safe. Turn on 'remove original' when you're sure you won't want it back.",
+      description: "The edit saves as a new clip, so the original is safe. Tick 'Also delete original' only when you're sure you won't want it back.",
     },
     {
       icon: "speedometer-outline",

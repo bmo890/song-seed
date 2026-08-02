@@ -210,16 +210,18 @@ export const audioReelStyles = StyleSheet.create({
         padding: 10,
         borderRadius: 20,
     },
+    /** A circle, not a stadium — round is reserved for genuinely circular icon buttons
+     *  (button language locked 2026-07-24), and this is the transport's play key. */
     playButton: {
-        height: 48,
-        width: 80,
+        height: 56,
+        width: 56,
         borderRadius: radii.round,
         justifyContent: "center",
         alignItems: "center",
     },
     playButtonCompact: {
-        height: 42,
-        width: 68,
+        height: 48,
+        width: 48,
         borderRadius: radii.round,
     },
 });

@@ -1,14 +1,19 @@
 import type { AudioAnalysis } from "@siteed/audio-studio";
-import type { ClipVersion, EditRegion } from "../../types";
+import { colors } from "../../design/tokens";
+import type { EditRegion } from "../../types";
 import { buildDefaultIdeaTitle } from "../../utils";
 
 export const MIN_REGION_DURATION_MS = 1000;
 export const NEW_REGION_FRACTION_OF_DURATION = 8;
 
-// Keep / cut intent colors — warm-leaning green + brick red so they read as
-// semantic (keep = good, cut = remove) without clashing with the paper palette.
-export const KEEP_COLOR = "#3E8E6B";
-export const CUT_COLOR = "#B5564A";
+/**
+ * One ink per meaning, drawn from the palette: keeping a part is the house action, so it
+ * wears terracotta; removing one is destruction, so it wears danger. The same pair is
+ * used on the reel, the intent control and the part rows — before this the reel spoke
+ * Tailwind blue/red while the list below it spoke green/brick, for the same two words.
+ */
+export const KEEP_COLOR = colors.primaryDeep;
+export const CUT_COLOR = colors.danger;
 
 export type EditableSelection = {
   id: string;
@@ -35,10 +40,6 @@ export function cloneEditRegions(editRegions?: EditRegion[]) {
 
 export function cloneTags(tags?: string[]) {
   return tags?.length ? [...tags] : undefined;
-}
-
-export function clonePracticeMarkers(practiceMarkers?: ClipVersion["practiceMarkers"]) {
-  return practiceMarkers?.map((marker) => ({ ...marker }));
 }
 
 export function buildFallbackAnalysis(durationMs: number): AudioAnalysis {

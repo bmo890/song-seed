@@ -73,7 +73,8 @@ const editorLocalStyles = StyleSheet.create({
     overdubGate: {
         gap: 20,
         paddingTop: 40,
-        paddingHorizontal: 10,
+        paddingHorizontal: 16,
+        alignItems: "center",
     },
     overdubGateIconRing: {
         width: 56,
@@ -81,21 +82,21 @@ const editorLocalStyles = StyleSheet.create({
         borderRadius: radii.round,
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "#FDF5F2",
-        borderWidth: 1,
-        borderColor: colors.borderMuted,
+        backgroundColor: colors.primarySurface,
     },
     overdubGateTitle: {
         fontFamily: "Lora_600SemiBold",
         fontSize: 24,
         lineHeight: 30,
         color: colors.textPrimary,
+        textAlign: "center",
     },
     overdubGateBody: {
         fontFamily: "PlusJakartaSans_400Regular",
-        fontSize: 15,
-        lineHeight: 24,
-        color: colors.textStrong,
+        fontSize: 14,
+        lineHeight: 21,
+        color: colors.textSecondary,
+        textAlign: "center",
     },
     loadingText: {
         marginTop: 12,
@@ -397,6 +398,8 @@ export function EditorScreen() {
                 header={
                     <EditorHeaderSection
                         sourceClip={sourceClip}
+                        positionMs={playheadTimeMs}
+                        durationMs={analysisData?.durationMs ?? null}
                         onBack={() => {
                             void previewTransport.pause();
                             navigation.goBack();
@@ -439,6 +442,7 @@ export function EditorScreen() {
                             onPress={() => {
                                 void handleFlattenOverdubAndContinue();
                             }}
+                            style={{ alignSelf: "stretch" }}
                         />
                     </View>
                 ) : isLoading ? (
@@ -465,6 +469,12 @@ export function EditorScreen() {
                             currentTimeMs={playheadTimeMs}
                             resetKey={clipId}
                             chrome="light"
+                            // The player's reel arrangement, reached by configuration: zoom
+                            // rides on the canvas instead of a pill row beneath it, and the
+                            // time lives in the header rather than in two pills that read
+                            // like an editable range.
+                            zoomPlacement="overlay"
+                            showTimingRow={false}
                             sharedCurrentTimeMs={transportClock.sharedCurrentTimeMs}
                             sharedDurationMs={transportClock.sharedDurationMs}
                             sharedTransportUpdateToken={transportClock.sharedUpdateToken}
@@ -529,7 +539,7 @@ export function EditorScreen() {
                                 />
 
                                 <View style={editorLocalStyles.regionsHead}>
-                                    <Text style={editorLocalStyles.regionsLabel}>{t("editor.regions")}</Text>
+                                    <Text style={editorLocalStyles.regionsLabel}>{t("editor.parts")}</Text>
                                     <Pressable
                                         onPress={() => {
                                             haptic.light();
@@ -612,7 +622,6 @@ export function EditorScreen() {
                 targetIdeaTitle={targetIdea?.title ?? null}
                 exportOperation={exportFlow.exportOperation}
                 keepRegions={keepRegions}
-                removeRegions={removeRegions}
                 extractNameDrafts={exportFlow.extractNameDrafts}
                 previewRegionId={exportFlow.previewRegionId}
                 isPreviewPlaying={previewTransport.effectiveIsPlaying}
@@ -621,7 +630,6 @@ export function EditorScreen() {
                 suggestedExportTitle={exportFlow.suggestedExportTitle}
                 removeOriginalAfterExport={exportFlow.removeOriginalAfterExport}
                 onClose={exportFlow.closeExportModal}
-                onSelectExportOperation={exportFlow.setExportOperation}
                 onChangeExtractNameDraft={(regionId, value) => {
                     exportFlow.setExtractNameDrafts((prev) => ({ ...prev, [regionId]: value }));
                 }}

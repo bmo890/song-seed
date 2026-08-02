@@ -1,13 +1,9 @@
 import React from "react";
-import { colors } from "../../../design/tokens";
+import { colors, radii } from "../../../design/tokens";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { haptic } from "../../../design/haptics";
-import {
-  formatPitchShiftLabel,
-  PITCH_SHIFT_MAX_SEMITONES,
-  PITCH_SHIFT_MIN_SEMITONES,
-} from "../../../domain/pitchShift";
+import { PITCH_SHIFT_MAX_SEMITONES, PITCH_SHIFT_MIN_SEMITONES } from "../../../domain/pitchShift";
 import { useTranslation } from "react-i18next";
 
 const MIN_PLAYBACK_RATE = 0.5;
@@ -129,7 +125,9 @@ export function EditorTransformSection({
           </Pressable>
           <View style={[editorTransformStyles.valuePill, !supportsPitchPreview ? editorTransformStyles.valuePillDisabled : null]}>
             <Text style={editorTransformStyles.valueText}>
-              {supportsPitchPreview ? `${pitchShiftSemitones > 0 ? "+" : ""}${pitchShiftSemitones} ${t("player.semitones")}` : t("editor.unavailable")}
+              {supportsPitchPreview
+                ? `${pitchShiftSemitones > 0 ? "+" : ""}${pitchShiftSemitones} ${t("player.semitones")}`
+                : t("editor.unavailable")}
             </Text>
           </View>
           <Pressable
@@ -146,9 +144,6 @@ export function EditorTransformSection({
           >
             <Ionicons name="add" size={16} color={canIncreasePitch ? colors.textStrong : colors.textMuted} />
           </Pressable>
-          <Text style={editorTransformStyles.summaryText}>
-            {supportsPitchPreview ? formatPitchShiftLabel(pitchShiftSemitones) : t("editor.pitchUnavailable")}
-          </Text>
         </View>
       </View>
     </View>
@@ -183,7 +178,7 @@ const editorTransformStyles = StyleSheet.create({
     alignSelf: "flex-start",
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 999,
+    borderRadius: radii.lg,
     backgroundColor: colors.surfaceContainer,
   },
   resetButtonDisabled: {
@@ -219,9 +214,9 @@ const editorTransformStyles = StyleSheet.create({
     gap: 8,
   },
   stepButton: {
-    width: 34,
+    width: 36,
     height: 34,
-    borderRadius: 999,
+    borderRadius: radii.lg,
     backgroundColor: colors.surfaceContainer,
     alignItems: "center",
     justifyContent: "center",
@@ -233,7 +228,7 @@ const editorTransformStyles = StyleSheet.create({
     minWidth: 74,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 999,
+    borderRadius: radii.lg,
     backgroundColor: colors.surface,
     alignItems: "center",
   },
@@ -244,9 +239,5 @@ const editorTransformStyles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "PlusJakartaSans_700Bold",
     color: colors.textPrimary,
-  },
-  summaryText: {
-    fontSize: 12,
-    color: colors.textSecondary,
   },
 });

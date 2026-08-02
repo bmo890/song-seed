@@ -13,10 +13,16 @@ import { genClipTitle } from "../../../utils";
 import { haptic } from "../../../design/haptics";
 import { toast } from "../../common/toastStore";
 import {
+  complementSpans,
+  remapClipForRate,
+  remapClipForSpans,
+  type ClipEditRemap,
+  type GridPolicy,
+} from "../../../domain/clipEditRemap";
+import {
   buildClipId,
   buildFallbackClipTitle,
   cloneEditRegions,
-  clonePracticeMarkers,
   cloneTags,
   type EditableSelection,
 } from "../helpers";
@@ -56,6 +62,10 @@ type UseEditorExportFlowArgs = {
   sourceClip: ClipVersion | null;
   keepRegions: EditableSelection[];
   removeRegions: EditableSelection[];
+  /** Whether the musician is editing to the bar grid or reaching freely — decides what
+   *  an edit that breaks the grid leaves behind. The toggle that sets this ships with
+   *  snapping; until then a gridded clip edits in the safe `preserve` mode. */
+  gridPolicy?: GridPolicy;
   transformPitchShiftSemitones: number;
   transformPlaybackRate: number;
   hasActiveTransforms: boolean;
@@ -81,6 +91,7 @@ export function useEditorExportFlow({
   sourceClip,
   keepRegions,
   removeRegions,
+  gridPolicy = "preserve",
   transformPitchShiftSemitones,
   transformPlaybackRate,
   hasActiveTransforms,
@@ -104,10 +115,14 @@ export function useEditorExportFlow({
   const [extractNameDrafts, setExtractNameDrafts] = useState<Record<string, string>>({});
   const [spliceNameDraft, setSpliceNameDraft] = useState("");
   const [removeOriginalAfterExport, setRemoveOriginalAfterExport] = useState(false);
-  const [exportOperation, setExportOperation] = useState<"extract" | "splice">("extract");
   const [previewRegionId, setPreviewRegionId] = useState<string | null>(null);
   const [transformExportModalVisible, setTransformExportModalVisible] = useState(false);
   const [transformNameDraft, setTransformNameDraft] = useState("");
+
+  // Intent is global (`setIntent` retypes every part), so exactly one of these lists is
+  // ever populated — the operation is derived, never chosen. The modal used to offer a
+  // switcher for the mixed case, which could not occur.
+  const exportOperation: "extract" | "splice" = keepRegions.length > 0 ? "extract" : "splice";
 
   const keepRegionIdsKey = keepRegions.map((region) => region.id).join("|");
   const sourceBaseTitle = sourceClip?.title?.trim() || targetIdea?.title?.trim() || buildFallbackClipTitle();
@@ -196,13 +211,11 @@ export function useEditorExportFlow({
       return;
     }
 
-    const nextOperation = keepCount > 0 ? "extract" : "splice";
     void Promise.resolve(safePause()).catch((error) => {
       console.warn("Preview open pause error:", error);
     });
     resetPreviewScrubSession();
     setPreviewRegionId(null);
-    setExportOperation(nextOperation);
     setExtractNameDrafts(buildInitialExtractDrafts());
     setSpliceNameDraft("");
     setRemoveOriginalAfterExport(false);
@@ -248,8 +261,15 @@ export function useEditorExportFlow({
 
   const buildSpliceTitle = () => spliceNameDraft.trim() || suggestedExportTitle;
 
+  /**
+   * Build the clip an edit produces. `remap` re-expresses everything musical the source
+   * carried — pins, sections, the recording grid, the detected tempo — against the new
+   * timeline (domain/clipEditRemap). Carrying any of it verbatim would point it at the
+   * wrong moment in a file that is now a different length.
+   */
   const buildDerivedClipDraft = (
-    override: Pick<ClipVersion, "title" | "audioUri" | "durationMs" | "waveformPeaks" | "editRegions">
+    override: Pick<ClipVersion, "title" | "audioUri" | "durationMs" | "waveformPeaks" | "editRegions">,
+    remap: ClipEditRemap
   ): Omit<ClipVersion, "id" | "createdAt" | "isPrimary"> | null => {
     if (!sourceClip) return null;
 
@@ -272,7 +292,10 @@ export function useEditorExportFlow({
       waveformPeaks: override.waveformPeaks,
       editRegions: [...(cloneEditRegions(sourceClip.editRegions) ?? []), ...(override.editRegions ?? [])],
       tags: cloneTags(sourceClip.tags),
-      practiceMarkers: clonePracticeMarkers(sourceClip.practiceMarkers),
+      practiceMarkers: remap.practiceMarkers,
+      sections: remap.sections,
+      recordingGrid: remap.recordingGrid,
+      analysis: remap.analysis,
     };
   };
 
@@ -484,20 +507,30 @@ export function useEditorExportFlow({
         });
         const metadata = await importRenderedFileToManaged(result.uri);
         void ensureWaveformSidecar(metadata.audioUri, metadata.durationMs);
-        const derivedClip = buildDerivedClipDraft({
-          title: titles[index] ?? genClipTitle(targetIdea?.title ?? t("editor.clipFallback"), index + 1),
-          audioUri: metadata.audioUri,
-          durationMs: metadata.durationMs,
-          waveformPeaks: metadata.waveformPeaks,
-          editRegions: [
-            {
-              id: region.id,
-              startMs: region.start,
-              endMs: region.end,
-              type: "keep",
-            },
-          ],
-        });
+        const remap = remapClipForSpans(
+          sourceClip,
+          [{ startMs: region.start, endMs: region.end }],
+          analysisData?.durationMs ?? sourceClip.durationMs ?? region.end,
+          { gridPolicy }
+        );
+        console.log("[editor:export] extract grid", { index, outcome: remap.gridOutcome });
+        const derivedClip = buildDerivedClipDraft(
+          {
+            title: titles[index] ?? genClipTitle(targetIdea?.title ?? t("editor.clipFallback"), index + 1),
+            audioUri: metadata.audioUri,
+            durationMs: metadata.durationMs,
+            waveformPeaks: metadata.waveformPeaks,
+            editRegions: [
+              {
+                id: region.id,
+                startMs: region.start,
+                endMs: region.end,
+                type: "keep",
+              },
+            ],
+          },
+          remap
+        );
         if (derivedClip) {
           exportedClips.push(derivedClip);
         }
@@ -533,18 +566,34 @@ export function useEditorExportFlow({
       const metadata = await importRenderedFileToManaged(result.uri);
       void ensureWaveformSidecar(metadata.audioUri, metadata.durationMs);
 
-      const derivedClip = buildDerivedClipDraft({
-        title,
-        audioUri: metadata.audioUri,
-        durationMs: metadata.durationMs,
-        waveformPeaks: metadata.waveformPeaks,
-        editRegions: removeRegions.map<EditRegion>((region) => ({
-          id: region.id,
-          startMs: region.start,
-          endMs: region.end,
-          type: "remove",
-        })),
-      });
+      // The same kept spans the renderer just concatenated, so the audio and its
+      // musical metadata cannot disagree about what survived.
+      const remap = remapClipForSpans(
+        sourceClip,
+        complementSpans(
+          removeRegions.map((region) => ({ startMs: region.start, endMs: region.end })),
+          analysisData.durationMs
+        ),
+        analysisData.durationMs,
+        { gridPolicy }
+      );
+      console.log("[editor:export] splice grid", { outcome: remap.gridOutcome });
+
+      const derivedClip = buildDerivedClipDraft(
+        {
+          title,
+          audioUri: metadata.audioUri,
+          durationMs: metadata.durationMs,
+          waveformPeaks: metadata.waveformPeaks,
+          editRegions: removeRegions.map<EditRegion>((region) => ({
+            id: region.id,
+            startMs: region.start,
+            endMs: region.end,
+            type: "remove",
+          })),
+        },
+        remap
+      );
       const newClipIds = derivedClip ? commitExportedClips([derivedClip]) : [];
       console.log("[editor:export] splice done", { newClipIds });
 
@@ -576,13 +625,22 @@ export function useEditorExportFlow({
       });
       const metadata = await importRenderedFileToManaged(result.outputUri);
       void ensureWaveformSidecar(metadata.audioUri, metadata.durationMs);
-      const derivedClip = buildDerivedClipDraft({
-        title,
-        audioUri: metadata.audioUri,
-        durationMs: metadata.durationMs,
-        waveformPeaks: metadata.waveformPeaks,
-        editRegions: [],
-      });
+      // A rate change stretches the timeline: every pin, section and tempo scales with it.
+      const renderedDurationMs =
+        metadata.durationMs ??
+        (analysisData?.durationMs ?? sourceClip.durationMs ?? 0) / (transformPlaybackRate || 1);
+      const remap = remapClipForRate(sourceClip, transformPlaybackRate, renderedDurationMs);
+      console.log("[editor:export] transform grid", { outcome: remap.gridOutcome });
+      const derivedClip = buildDerivedClipDraft(
+        {
+          title,
+          audioUri: metadata.audioUri,
+          durationMs: metadata.durationMs,
+          waveformPeaks: metadata.waveformPeaks,
+          editRegions: [],
+        },
+        remap
+      );
       const newClipIds = derivedClip ? commitExportedClips([derivedClip]) : [];
       console.log("[editor:export] transform done", { newClipIds });
       setTransformExportModalVisible(false);
@@ -617,7 +675,6 @@ export function useEditorExportFlow({
     removeOriginalAfterExport,
     setRemoveOriginalAfterExport,
     exportOperation,
-    setExportOperation,
     previewRegionId,
     suggestedExportTitle,
     buildSuggestedTitle,

@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { View, StyleSheet, LayoutChangeEvent } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { haptic } from "../../design/haptics";
-import { radii } from "../../design/tokens";
+import { colors, radii } from "../../design/tokens";
+import { hexToRgba } from "../../domain/playerSections";
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -313,6 +314,13 @@ function TimeRegionNode({
 
     const isKeep = region.type === "keep";
     const visualOpacity = showVisuals ? 1 : 0;
+    // Keeping is the house action (terracotta), removing is destruction (danger) — the
+    // same pair the intent control and the part rows use, so one colour means one thing
+    // everywhere on the screen.
+    const ink = isKeep ? colors.primaryDeep : colors.danger;
+    const edgeIdle = hexToRgba(ink, 0.85);
+    const washIdle = hexToRgba(ink, 0.13);
+    const washActive = hexToRgba(ink, 0.2);
 
     const leftStyle = useAnimatedStyle(() => {
         const originalX = leftTime.value * pixelsPerMs * scale.value;
@@ -323,9 +331,7 @@ function TimeRegionNode({
         const active = isLeftActive.value;
         return {
             width: withSpring(active ? 3 : 2, { damping: 20, stiffness: 300 }),
-            backgroundColor: isKeep
-                ? (active ? "rgba(96, 165, 250, 1)" : "rgba(59, 130, 246, 0.9)")
-                : (active ? "rgba(252, 129, 129, 1)" : "rgba(239, 68, 68, 0.8)"),
+            backgroundColor: active ? ink : edgeIdle,
             opacity: visualOpacity,
         };
     });
@@ -346,9 +352,7 @@ function TimeRegionNode({
         const active = isRightActive.value;
         return {
             width: withSpring(active ? 3 : 2, { damping: 20, stiffness: 300 }),
-            backgroundColor: isKeep
-                ? (active ? "rgba(96, 165, 250, 1)" : "rgba(59, 130, 246, 0.9)")
-                : (active ? "rgba(252, 129, 129, 1)" : "rgba(239, 68, 68, 0.8)"),
+            backgroundColor: active ? ink : edgeIdle,
             opacity: visualOpacity,
         };
     });
@@ -371,13 +375,11 @@ function TimeRegionNode({
             ],
             width: Math.max(0, width - 2),
             opacity: showVisuals ? withSpring(bothActive ? 1 : 0.7) : 0,
-            backgroundColor: isKeep
-                ? (bothActive ? "rgba(96, 165, 250, 0.28)" : "rgba(96, 165, 250, 0.18)")
-                : (bothActive ? "rgba(239, 68, 68, 0.25)" : "rgba(239, 68, 68, 0.15)"),
+            backgroundColor: bothActive ? washActive : washIdle,
         };
     });
 
-    const grabPillColor = isKeep ? "rgba(59, 130, 246, 0.9)" : "rgba(239, 68, 68, 0.8)";
+    const grabPillColor = edgeIdle;
 
     return (
         <>

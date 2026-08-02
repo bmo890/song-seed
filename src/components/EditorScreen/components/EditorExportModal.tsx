@@ -15,7 +15,6 @@ type EditorExportModalProps = {
   targetIdeaTitle: string | null;
   exportOperation: "extract" | "splice";
   keepRegions: EditableSelection[];
-  removeRegions: EditableSelection[];
   extractNameDrafts: Record<string, string>;
   previewRegionId: string | null;
   isPreviewPlaying: boolean;
@@ -24,7 +23,6 @@ type EditorExportModalProps = {
   suggestedExportTitle: string;
   removeOriginalAfterExport: boolean;
   onClose: () => void;
-  onSelectExportOperation: (operation: "extract" | "splice") => void;
   onChangeExtractNameDraft: (regionId: string, value: string) => void;
   onToggleRegionPreview: (region: EditableSelection) => void;
   onBeginRegionPreviewScrub: (region: EditableSelection) => void;
@@ -42,7 +40,6 @@ export function EditorExportModal({
   targetIdeaTitle,
   exportOperation,
   keepRegions,
-  removeRegions,
   extractNameDrafts,
   previewRegionId,
   isPreviewPlaying,
@@ -51,7 +48,6 @@ export function EditorExportModal({
   suggestedExportTitle,
   removeOriginalAfterExport,
   onClose,
-  onSelectExportOperation,
   onChangeExtractNameDraft,
   onToggleRegionPreview,
   onBeginRegionPreviewScrub,
@@ -67,49 +63,16 @@ export function EditorExportModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
         <View style={[styles.modalCard, exportModalStyles.modalCard]}>
-          <Text style={styles.title}>{t("editor.exportClips")}</Text>
+          <Text style={styles.title}>
+            {exportOperation === "extract"
+              ? t("editor.extractCount", { count: keepRegions.length })
+              : t("editor.saveTrimmed")}
+          </Text>
           <Text style={[styles.cardMeta, { marginBottom: 2 }]}>
             {targetIdeaKind === "project"
               ? t("editor.exportProject", { title: targetIdeaTitle })
               : t("editor.exportFolder", { title: targetIdeaTitle ?? t("editor.thisFolder") })}
           </Text>
-
-          {keepRegions.length > 0 && removeRegions.length > 0 ? (
-            <View style={{ flexDirection: "row", gap: 8, marginBottom: 12 }}>
-              <Pressable
-                style={[
-                  exportModalStyles.segmentButton,
-                  exportOperation === "extract" ? exportModalStyles.segmentButtonActive : null,
-                ]}
-                onPress={() => onSelectExportOperation("extract")}
-              >
-                <Text
-                  style={[
-                    exportModalStyles.segmentText,
-                    exportOperation === "extract" ? exportModalStyles.segmentTextActive : null,
-                  ]}
-                >
-                  {t("editor.extractCountShort", { count: keepRegions.length })}
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  exportModalStyles.segmentButton,
-                  exportOperation === "splice" ? exportModalStyles.segmentButtonActive : null,
-                ]}
-                onPress={() => onSelectExportOperation("splice")}
-              >
-                <Text
-                  style={[
-                    exportModalStyles.segmentText,
-                    exportOperation === "splice" ? exportModalStyles.segmentTextActive : null,
-                  ]}
-                >
-                  {t("editor.spliceOne")}
-                </Text>
-              </Pressable>
-            </View>
-          ) : null}
 
           {exportOperation === "extract" ? (
             <>
@@ -214,7 +177,7 @@ export function EditorExportModal({
 
           <View style={[styles.rowButtons, { justifyContent: "flex-end", marginTop: 16 }]}>
             <Button variant="secondary" label={t("common.cancel")} onPress={onClose} />
-            <Button variant="primary-emphasis" label={exportOperation === "extract" ? t("editor.extract") : t("editor.saveSplice")} onPress={onSave} />
+            <Button variant="primary-emphasis" label={t("common.save")} onPress={onSave} />
           </View>
         </View>
       </View>
@@ -226,26 +189,6 @@ const exportModalStyles = StyleSheet.create({
   modalCard: {
     maxHeight: "86%",
     width: "92%",
-  },
-  segmentButton: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    borderRadius: radii.lg,
-    paddingVertical: 10,
-    alignItems: "center",
-    backgroundColor: colors.surface,
-  },
-  segmentButtonActive: {
-    backgroundColor: colors.surfaceHigh,
-    borderColor: colors.primary,
-  },
-  segmentText: {
-    color: colors.textSecondary,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-  },
-  segmentTextActive: {
-    color: colors.primary,
   },
   extractList: {
     maxHeight: 360,

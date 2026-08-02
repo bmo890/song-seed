@@ -62,10 +62,13 @@ export function EditorFooterSection({
 }
 
 const s = StyleSheet.create({
+  /** Soft key, not a stadium pill (button language locked 2026-07-24). This opens the
+   *  save step rather than committing, so it wears the tonal terracotta wash; solid
+   *  primary is reserved for the confirm that actually writes the clips. */
   cta: {
-    backgroundColor: colors.primary,
-    borderRadius: radii.round,
-    paddingVertical: 14,
+    backgroundColor: colors.primarySurface,
+    borderRadius: radii.lg,
+    paddingVertical: 11,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -73,7 +76,7 @@ const s = StyleSheet.create({
   ctaText: {
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 15,
-    color: colors.onPrimary,
+    color: colors.primaryDeep,
   },
   ctaTextDisabled: { color: colors.textMuted },
 });

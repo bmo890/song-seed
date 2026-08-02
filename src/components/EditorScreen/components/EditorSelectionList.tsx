@@ -27,9 +27,8 @@ export function EditorSelectionList({
   if (selectedRanges.length === 0) {
     return (
       <View style={s.empty}>
-        <Text style={s.emptyText}>
-          {t("editor.noRegions")}
-        </Text>
+        <Text style={s.emptyTitle}>{t("editor.noPartsTitle")}</Text>
+        <Text style={s.emptyText}>{t("editor.noPartsBody")}</Text>
       </View>
     );
   }
@@ -57,7 +56,7 @@ export function EditorSelectionList({
             <Pressable onPress={() => onSeekRangeEnd(range)} hitSlop={6} style={s.iconBtn} accessibilityLabel={t("editor.jumpEnd")}>
               <Feather name="skip-forward" size={16} color={colors.textSecondary} />
             </Pressable>
-            <Pressable onPress={() => onRemoveRange(range.id)} hitSlop={6} style={s.iconBtn} accessibilityLabel={t("editor.deleteRegion")}>
+            <Pressable onPress={() => onRemoveRange(range.id)} hitSlop={6} style={s.iconBtn} accessibilityLabel={t("editor.deletePart")}>
               <Feather name="trash-2" size={16} color={CUT_COLOR} />
             </Pressable>
           </View>
@@ -68,13 +67,15 @@ export function EditorSelectionList({
 }
 
 const s = StyleSheet.create({
-  wrap: { paddingHorizontal: 16, gap: 8 },
+  wrap: { paddingHorizontal: 16, gap: 6 },
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     backgroundColor: colors.surface,
-    borderRadius: radii.sm,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
     borderLeftWidth: 3,
     paddingVertical: 10,
     paddingHorizontal: 12,
@@ -109,6 +110,13 @@ const s = StyleSheet.create({
   empty: {
     paddingHorizontal: 16,
     paddingVertical: 18,
+    gap: 4,
+  },
+  emptyTitle: {
+    fontFamily: "Lora_500Medium",
+    fontSize: 17,
+    color: colors.textStrong,
+    textAlign: "center",
   },
   emptyText: {
     fontFamily: "PlusJakartaSans_400Regular",
