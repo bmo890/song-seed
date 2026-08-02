@@ -335,8 +335,9 @@ section swallowed by a cut, pin at the seam ms, empty results, rounding.
    Verified by rebuilding the native app and running a real interior cut: a 39s clip
    minus a 9s middle span rendered a 0:30 clip that plays. Audible tuning of the 4ms
    figure still wants a musician's ears.
-   Drag-to-create on the reel remains unbuilt — approved, but the inspector plus
-   snapping covers the need; revisit if marking still feels slow.
+   Drag-to-create on the reel remains unbuilt and **still unanswered** (audit §D open
+   question 3 — never put to the founder alongside the §8 decisions). The inspector
+   plus snapping covers the need for now; revisit if marking feels slow.
 
 ## 8 · Founder decisions — SETTLED 2026-08-01
 
