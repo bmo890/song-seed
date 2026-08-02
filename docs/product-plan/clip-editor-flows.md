@@ -280,9 +280,22 @@ section swallowed by a cut, pin at the seam ms, empty results, rounding.
    `exportOperation` state (now derived) and the word "splice"; full copy pass in EN
    + HE to the **part** vocabulary within budget. Verified in the simulator across
    keep, remove, save and speed/pitch.
-3. **Phase 2 — precision:** shared MarkInspector, selectable part rows, zoom-tied
-   nudge, use-playhead, **snap-to-grid + the "keep to the grid" toggle** (§3), grid
-   honesty line in the save flow.
+3. **Phase 2 — precision — DONE 2026-08-02.** `MarkInspector` extracted to
+   `components/common/` and now shared with the player's practice drawers (the
+   player's local copy is deleted, so precision is literally the same component in
+   both rooms). Part rows are selectable: tapping one selects it, cues the playhead
+   and opens the inspector beneath — which replaces the two skip icons with edge
+   chips that cue each edge individually. Nudge is zoom-scaled
+   (`nudgeStepMsForZoom`), and deliberately escapes the snap. New `domain/editSnap.ts`
+   (+9 tests) snaps edges to bar lines, or to beats once magnified past 4×, with a
+   quarter-bar magnet window so a deliberate mid-bar drag still lands mid-bar; one
+   test asserts the point of the whole thing — a sloppy freehand cut yields
+   `partial`, the same cut snapped yields `kept`. The "Keep to grid" toggle rides in
+   the outcome row as editorial ink (word + leading dot), shown only when the clip
+   has a grid, and drives `GridPolicy` end to end. The save step now states the
+   outcome ("Grid kept" / "Grid kept to 01:12" / "No grid") from the same pure remap
+   the save itself runs. Verified on device: an extract of a gridded take produces a
+   child whose reel draws its own bar ruler.
 4. **Phase 3 — commit:** inline naming, bottom-sheet receipt, danger-tier
    delete-original with the contextual sub-line.
 5. **Phase 4 — reel parity + polish:** ghosted sections/pins on the editor reel,

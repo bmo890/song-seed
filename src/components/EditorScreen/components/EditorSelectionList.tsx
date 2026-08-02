@@ -3,24 +3,27 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { fmt, fmtDuration } from "../../../utils";
 import { colors, radii } from "../../../design/tokens";
+import { styles as appStyles } from "../../../styles";
+import { hexToRgba } from "../../../domain/playerSections";
 import { CUT_COLOR, KEEP_COLOR, type EditableSelection } from "../helpers";
 import { useTranslation } from "react-i18next";
 
 type EditorSelectionListProps = {
   selectedRanges: EditableSelection[];
   intent: "keep" | "remove";
-  onSeekRangeStart: (range: EditableSelection) => void;
-  onSeekRangeEnd: (range: EditableSelection) => void;
+  selectedRangeId: string | null;
+  onSelectRange: (range: EditableSelection) => void;
   onRemoveRange: (id: string) => void;
 };
 
-/** Neutral region rows — type is the global intent, so rows just show the span;
- * the left accent + index color reflect the current keep/cut intent. */
+/** The parts of the clip, in time order. Tapping one selects it — which cues the
+ * playhead and opens the inspector beneath — so the row itself is the control; the
+ * accent and index colour carry the current keep/remove intent. */
 export function EditorSelectionList({
   selectedRanges,
   intent,
-  onSeekRangeStart,
-  onSeekRangeEnd,
+  selectedRangeId,
+  onSelectRange,
   onRemoveRange,
 }: EditorSelectionListProps) {
   const { t } = useTranslation();
@@ -38,30 +41,43 @@ export function EditorSelectionList({
 
   return (
     <View style={s.wrap}>
-      {ordered.map((range, index) => (
-        <View key={range.id} style={[s.row, { borderLeftColor: accent }]}>
-          <View style={[s.idx, { backgroundColor: accent }]}>
-            <Text style={s.idxText}>{index + 1}</Text>
-          </View>
-          <View style={s.copy}>
-            <Text style={s.times}>
-              {fmt(range.start)} – {fmt(range.end)}
-            </Text>
-            <Text style={s.dur}>{fmtDuration(range.end - range.start)}</Text>
-          </View>
-          <View style={s.actions}>
-            <Pressable onPress={() => onSeekRangeStart(range)} hitSlop={6} style={s.iconBtn} accessibilityLabel={t("editor.jumpStart")}>
-              <Feather name="skip-back" size={16} color={colors.textSecondary} />
-            </Pressable>
-            <Pressable onPress={() => onSeekRangeEnd(range)} hitSlop={6} style={s.iconBtn} accessibilityLabel={t("editor.jumpEnd")}>
-              <Feather name="skip-forward" size={16} color={colors.textSecondary} />
-            </Pressable>
-            <Pressable onPress={() => onRemoveRange(range.id)} hitSlop={6} style={s.iconBtn} accessibilityLabel={t("editor.deletePart")}>
+      {ordered.map((range, index) => {
+        const selected = range.id === selectedRangeId;
+        return (
+          <Pressable
+            key={range.id}
+            onPress={() => onSelectRange(range)}
+            style={({ pressed }) => [
+              s.row,
+              { borderLeftColor: accent },
+              selected
+                ? { backgroundColor: hexToRgba(accent, 0.08), borderColor: hexToRgba(accent, 0.35) }
+                : null,
+              pressed ? appStyles.pressDown : null,
+            ]}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+          >
+            <View style={[s.idx, { backgroundColor: accent }]}>
+              <Text style={s.idxText}>{index + 1}</Text>
+            </View>
+            <View style={s.copy}>
+              <Text style={s.times}>
+                {fmt(range.start)} – {fmt(range.end)}
+              </Text>
+              <Text style={s.dur}>{fmtDuration(range.end - range.start)}</Text>
+            </View>
+            <Pressable
+              onPress={() => onRemoveRange(range.id)}
+              hitSlop={8}
+              style={s.iconBtn}
+              accessibilityLabel={t("editor.deletePart")}
+            >
               <Feather name="trash-2" size={16} color={CUT_COLOR} />
             </Pressable>
-          </View>
-        </View>
-      ))}
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -105,7 +121,6 @@ const s = StyleSheet.create({
     color: colors.textMuted,
     fontVariant: ["tabular-nums"],
   },
-  actions: { flexDirection: "row", alignItems: "center", gap: 14 },
   iconBtn: { padding: 2 },
   empty: {
     paddingHorizontal: 16,

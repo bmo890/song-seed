@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { I18nManager, Pressable, Text, View, type ViewStyle } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import Slider from "@react-native-community/slider";
 import { Ionicons } from "@expo/vector-icons";
 import { PITCH_SHIFT_MAX_SEMITONES, PITCH_SHIFT_MIN_SEMITONES } from "../../../domain/pitchShift";
@@ -27,6 +27,7 @@ import { HelpSheet } from "../../common/HelpSheet";
 import { AnimatedCollapse } from "../../common/AnimatedCollapse";
 import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
+import { ltrRow, MarkInspector, nudgeStepMsForZoom } from "../../common/MarkInspector";
 
 /**
  * The practice tools as three drawers — Marks / Loop / Sound — replacing the old
@@ -123,7 +124,6 @@ type PlayerPracticeDrawersProps = {
 };
 
 /** Pin a row's visual order to LTR regardless of language direction. */
-const ltrRow: ViewStyle = { flexDirection: I18nManager.isRTL ? "row-reverse" : "row" };
 
 const MIN_LOOP_LENGTH_MS = 1000;
 
@@ -200,160 +200,6 @@ function SpanGlyph({ color }: { color: string }) {
       <View style={[pd.spanBarV, { backgroundColor: color }]} />
       <View style={[pd.spanBarH, { backgroundColor: color }]} />
       <View style={[pd.spanBarV, { backgroundColor: color }]} />
-    </View>
-  );
-}
-
-function EdgeChip({
-  label,
-  timeMs,
-  active,
-  onPress,
-}: {
-  label: string;
-  timeMs: number;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      style={({ pressed }) => [
-        pd.edgeChip,
-        active ? pd.edgeChipActive : null,
-        pressed ? s.toolHeaderPressed : null,
-      ]}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-      accessibilityLabel={`${label} ${fmtDuration(timeMs)}`}
-    >
-      <Text style={[pd.edgeChipLabel, active ? pd.edgeChipLabelActive : null]}>{label}</Text>
-      <Text style={pd.edgeChipTime}>{fmtDuration(timeMs)}</Text>
-    </Pressable>
-  );
-}
-
-/**
- * The one editor every mark — and the loop — gets: edge chips, a drag slider
- * (live-previewed on the reel), zoom-scaled nudge carets and use-playhead.
- */
-function MarkInspector({
-  startMs,
-  endMs,
-  edge,
-  onPickEdge,
-  minMs,
-  maxMs,
-  onSlide,
-  onSlideCommit,
-  onNudge,
-  onUsePlayhead,
-  usePlayheadDisabled,
-  nudgeStepMs,
-  startLabel,
-  endLabel,
-}: {
-  startMs: number;
-  /** null for a pin — a single point in time. */
-  endMs: number | null;
-  edge: "start" | "end";
-  onPickEdge: (edge: "start" | "end") => void;
-  minMs: number;
-  maxMs: number;
-  onSlide: (ms: number) => void;
-  onSlideCommit: (ms: number) => void;
-  onNudge: (deltaMs: number) => void;
-  onUsePlayhead: () => void;
-  usePlayheadDisabled: boolean;
-  nudgeStepMs: number;
-  startLabel: string;
-  endLabel: string;
-}) {
-  const { t } = useTranslation();
-  const [dragMs, setDragMs] = useState<number | null>(null);
-  const current = edge === "start" || endMs == null ? startMs : endMs;
-  const displayMs = dragMs ?? current;
-  return (
-    <View style={pd.inspector}>
-      <View style={[pd.edgesRow, ltrRow]}>
-        <EdgeChip
-          label={startLabel}
-          timeMs={edge === "start" ? displayMs : startMs}
-          active={edge === "start" || endMs == null}
-          onPress={() => onPickEdge("start")}
-        />
-        {endMs != null ? (
-          <>
-            <Text style={pd.edgeArrow}>→</Text>
-            <EdgeChip
-              label={endLabel}
-              timeMs={edge === "end" ? displayMs : endMs}
-              active={edge === "end"}
-              onPress={() => onPickEdge("end")}
-            />
-          </>
-        ) : null}
-      </View>
-      <View style={[pd.dragRow, ltrRow]}>
-        <Pressable
-          style={pd.nudgeBtn}
-          onPress={() => onNudge(-nudgeStepMs)}
-          hitSlop={6}
-          accessibilityRole="button"
-          accessibilityLabel={t("player.nudgeEarlier")}
-        >
-          <Ionicons name="chevron-back" size={15} color={colors.textStrong} />
-        </Pressable>
-        <Slider
-          style={pd.dragSlider}
-          inverted={I18nManager.isRTL}
-          minimumValue={minMs}
-          maximumValue={Math.max(minMs + 1, maxMs)}
-          step={50}
-          value={Math.max(minMs, Math.min(maxMs, current))}
-          onValueChange={(value) => {
-            const next = Math.round(value);
-            setDragMs(next);
-            onSlide(next);
-          }}
-          onSlidingComplete={(value) => {
-            haptic.tap();
-            onSlideCommit(Math.round(value));
-            setDragMs(null);
-          }}
-          minimumTrackTintColor={colors.primary}
-          maximumTrackTintColor={colors.surfaceHigh}
-          thumbTintColor={colors.primary}
-        />
-        <Pressable
-          style={pd.nudgeBtn}
-          onPress={() => onNudge(nudgeStepMs)}
-          hitSlop={6}
-          accessibilityRole="button"
-          accessibilityLabel={t("player.nudgeLater")}
-        >
-          <Ionicons name="chevron-forward" size={15} color={colors.textStrong} />
-        </Pressable>
-      </View>
-      <View style={pd.hintRow}>
-        <Text style={pd.inspectorHint} numberOfLines={1}>
-          {t("player.inspectorHint", { step: nudgeStepMs })}
-        </Text>
-        <Pressable
-          style={({ pressed }) => [
-            pd.usePlayheadBtn,
-            usePlayheadDisabled ? { opacity: 0.4 } : null,
-            pressed ? s.toolHeaderPressed : null,
-          ]}
-          onPress={onUsePlayhead}
-          disabled={usePlayheadDisabled}
-          accessibilityRole="button"
-          accessibilityLabel={t("player.usePlayhead")}
-        >
-          <Ionicons name="locate-outline" size={13} color={colors.primaryDeep} />
-          <Text style={pd.usePlayheadText}>{t("player.usePlayhead")}</Text>
-        </Pressable>
-      </View>
     </View>
   );
 }
@@ -453,8 +299,7 @@ export function PlayerPracticeDrawers({
 
   const customSectionOptions = useMemo(() => getCustomSectionOptions(sections), [sections]);
 
-  // Micro-adjust only: the caret step shrinks as the reel zooms in.
-  const nudgeStepMs = Math.max(10, Math.round(100 / Math.max(1, zoomMultiple)));
+  const nudgeStepMs = nudgeStepMsForZoom(zoomMultiple);
 
   type MarkEntry =
     | { kind: "section"; atMs: number; section: ClipSection }

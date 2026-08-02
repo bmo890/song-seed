@@ -1,7 +1,9 @@
 import React, { useMemo } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, radii, spacing } from "../../../design/tokens";
 import { SegmentedControl } from "../../common/SegmentedControl";
+import { styles as appStyles } from "../../../styles";
+import { haptic } from "../../../design/haptics";
 import { CUT_COLOR, KEEP_COLOR, formatSelectionDuration } from "../helpers";
 import { useTranslation } from "react-i18next";
 
@@ -12,6 +14,10 @@ type EditorTrimIntentProps = {
   regionCount: number;
   removedMs: number;
   onSelectIntent: (intent: "keep" | "remove") => void;
+  /** Only offered when the clip actually has a metronome grid to keep. */
+  gridAvailable: boolean;
+  keepToGrid: boolean;
+  onToggleKeepToGrid: () => void;
 };
 
 /** Global intent for the whole trim: every part is either kept (each becomes a clip) or
@@ -21,6 +27,9 @@ export function EditorTrimIntent({
   regionCount,
   removedMs,
   onSelectIntent,
+  gridAvailable,
+  keepToGrid,
+  onToggleKeepToGrid,
 }: EditorTrimIntentProps) {
   const { t } = useTranslation();
   const options = useMemo(
@@ -45,7 +54,26 @@ export function EditorTrimIntent({
       <SegmentedControl options={options} value={intent} onChange={onSelectIntent} />
       <View style={s.outcomeRow}>
         <View style={[s.pip, { backgroundColor: pipColor }]} />
-        <Text style={s.outcomeText}>{outcome}</Text>
+        <Text style={s.outcomeText} numberOfLines={1}>
+          {outcome}
+        </Text>
+        {gridAvailable ? (
+          <Pressable
+            style={({ pressed }) => [s.gridToggle, pressed ? appStyles.pressDown : null]}
+            onPress={() => {
+              haptic.tap();
+              onToggleKeepToGrid();
+            }}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: keepToGrid }}
+            hitSlop={8}
+          >
+            <View style={[s.gridDot, keepToGrid ? s.gridDotOn : null]} />
+            <Text style={[s.gridToggleText, keepToGrid ? s.gridToggleTextOn : null]}>
+              {t("editor.keepToGrid")}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
@@ -61,8 +89,36 @@ const s = StyleSheet.create({
   },
   pip: { width: 8, height: 8, borderRadius: radii.round },
   outcomeText: {
+    flexShrink: 1,
     fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 12,
     color: colors.textSecondary,
+  },
+  /** Editorial ink, not a chip or a switch — the house pattern for an on/off choice
+   *  (word + leading dot, hollow to terracotta). */
+  gridToggle: {
+    marginLeft: "auto",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  gridDot: {
+    width: 8,
+    height: 8,
+    borderRadius: radii.round,
+    borderWidth: 1.5,
+    borderColor: colors.textMuted,
+  },
+  gridDotOn: {
+    backgroundColor: colors.primaryDeep,
+    borderColor: colors.primaryDeep,
+  },
+  gridToggleText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  gridToggleTextOn: {
+    color: colors.primaryDeep,
   },
 });

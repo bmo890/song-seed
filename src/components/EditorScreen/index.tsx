@@ -43,6 +43,11 @@ import { clipHasOverdubs, isClipWaveformPending } from "../../domain/clipPresent
 import { HelpSheet } from "../common/HelpSheet";
 import { EDITOR_HELP } from "../common/helpContent";
 import { useTranslation } from "react-i18next";
+import { MarkInspector, nudgeStepMsForZoom } from "../common/MarkInspector";
+import { complementSpans, remapClipForSpans } from "../../domain/clipEditRemap";
+import { fmtDuration } from "../../utils";
+import { canSnapToGrid, snapResolutionForZoom, snapToGrid } from "../../domain/editSnap";
+import { MIN_REGION_DURATION_MS } from "./helpers";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Editor">;
 
@@ -98,6 +103,13 @@ const editorLocalStyles = StyleSheet.create({
         color: colors.textSecondary,
         textAlign: "center",
     },
+    inspectorWrap: {
+        marginHorizontal: 16,
+        marginTop: 8,
+        paddingVertical: 10,
+        borderRadius: radii.lg,
+        backgroundColor: colors.surfaceContainer,
+    },
     loadingText: {
         marginTop: 12,
         fontFamily: "PlusJakartaSans_400Regular",
@@ -123,6 +135,12 @@ export function EditorScreen() {
     const [isFlatteningOverdub, setIsFlatteningOverdub] = useState(false);
     const [editorMode, setEditorMode] = useState<"trim" | "transform">("trim");
     const [helpVisible, setHelpVisible] = useState(false);
+    /** Reel magnification, reported by the reel — it scales the inspector's nudge step
+     *  and decides whether snapping lands on bars or beats. */
+    const [zoomMultiple, setZoomMultiple] = useState(1);
+    /** Edit to the bar grid, or reach freely (see domain/clipEditRemap GridPolicy).
+     *  On by default wherever there is a grid to keep. */
+    const [keepToGrid, setKeepToGrid] = useState(true);
 
     const updateIdeas = useStore((s) => s.updateIdeas);
     const setSelectedIdeaId = useStore((s) => s.setSelectedIdeaId);
@@ -248,6 +266,11 @@ export function EditorScreen() {
     const {
         selectedRanges,
         setSelectedRanges,
+        selectedRange,
+        selectedRangeId,
+        selectedEdge,
+        selectRange,
+        setSelectedEdge,
         editMode,
         setIntent,
         keepRegions,
@@ -258,6 +281,71 @@ export function EditorScreen() {
         analysisDurationMs: analysisData?.durationMs ?? null,
         playheadTimeMs,
     });
+
+    const gridForSnap = keepToGrid ? sourceClip?.recordingGrid : null;
+    const gridAvailable = canSnapToGrid(sourceClip?.recordingGrid);
+    const editDurationMs = analysisData?.durationMs ?? 0;
+
+    /** Every edge move goes through here, wherever it came from — dragging on the reel,
+     *  the inspector slider, or use-playhead. The nudge carets deliberately do not, so
+     *  they stay a surgical escape from the grid. */
+    const snapEdge = useCallback(
+        (timeMs: number) =>
+            snapToGrid({
+                timeMs,
+                grid: gridForSnap,
+                zoomMultiple,
+                durationMs: editDurationMs,
+            }),
+        [gridForSnap, zoomMultiple, editDurationMs]
+    );
+
+    const applyEdge = useCallback(
+        (rangeId: string, edge: "start" | "end", timeMs: number) => {
+            setSelectedRanges((prev) =>
+                prev.map((range) => {
+                    if (range.id !== rangeId) return range;
+                    if (edge === "start") {
+                        return { ...range, start: Math.min(timeMs, range.end - MIN_REGION_DURATION_MS) };
+                    }
+                    return { ...range, end: Math.max(timeMs, range.start + MIN_REGION_DURATION_MS) };
+                })
+            );
+        },
+        [setSelectedRanges]
+    );
+
+    /** What the pending edit will do to the take's grid — the same pure remap the save
+     *  itself runs, so the line can never disagree with the result. */
+    const gridOutcomeLine = useMemo(() => {
+        if (!sourceClip?.recordingGrid || !analysisData || editorMode !== "trim") return null;
+        const spans =
+            editMode === "keep"
+                ? keepRegions.map((region) => ({ startMs: region.start, endMs: region.end }))
+                : complementSpans(
+                      removeRegions.map((region) => ({ startMs: region.start, endMs: region.end })),
+                      analysisData.durationMs
+                  );
+        if (spans.length === 0) return null;
+        const { gridOutcome } = remapClipForSpans(sourceClip, spans, analysisData.durationMs, {
+            gridPolicy: keepToGrid ? "preserve" : "free",
+        });
+        if (gridOutcome.kind === "none") return null;
+        if (gridOutcome.kind === "kept") return t("editor.gridKept");
+        if (gridOutcome.kind === "partial") {
+            return t("editor.gridKeptTo", { time: fmtDuration(gridOutcome.validToMs) });
+        }
+        return t("editor.gridNone");
+    }, [
+        analysisData,
+        editMode,
+        editorMode,
+        keepRegions,
+        keepToGrid,
+        removeRegions,
+        sourceClip,
+        t,
+    ]);
 
     const togglePlay = () => {
         if (previewTransport.effectiveIsPlaying) {
@@ -282,6 +370,7 @@ export function EditorScreen() {
         sourceClip,
         keepRegions,
         removeRegions,
+        gridPolicy: keepToGrid ? "preserve" : "free",
         transformPitchShiftSemitones: transformState.pitchShiftSemitones,
         transformPlaybackRate: transformState.playbackRate,
         hasActiveTransforms: transformState.hasActiveTransforms,
@@ -475,6 +564,7 @@ export function EditorScreen() {
                             // like an editable range.
                             zoomPlacement="overlay"
                             showTimingRow={false}
+                            onZoomMultipleChange={setZoomMultiple}
                             sharedCurrentTimeMs={transportClock.sharedCurrentTimeMs}
                             sharedDurationMs={transportClock.sharedDurationMs}
                             sharedTransportUpdateToken={transportClock.sharedUpdateToken}
@@ -518,7 +608,16 @@ export function EditorScreen() {
                                                   return transportScrub.scrubTo(time);
                                               }}
                                               onRegionChange={(id, start, end) => {
-                                                  setSelectedRanges((prev) => prev.map((r) => (r.id === id ? { ...r, start, end } : r)));
+                                                  setSelectedRanges((prev) =>
+                                                      prev.map((r) => {
+                                                          if (r.id !== id) return r;
+                                                          // Snap only the edge that actually moved, so dragging the
+                                                          // whole part does not quietly resize it.
+                                                          const nextStart = start !== r.start ? snapEdge(start) : start;
+                                                          const nextEnd = end !== r.end ? snapEdge(end) : end;
+                                                          return { ...r, start: nextStart, end: nextEnd };
+                                                      })
+                                                  );
                                               }}
                                           />
                                       )
@@ -536,6 +635,9 @@ export function EditorScreen() {
                                         haptic.tap();
                                         setIntent(intent);
                                     }}
+                                    gridAvailable={gridAvailable}
+                                    keepToGrid={keepToGrid}
+                                    onToggleKeepToGrid={() => setKeepToGrid((prev) => !prev)}
                                 />
 
                                 <View style={editorLocalStyles.regionsHead}>
@@ -555,17 +657,62 @@ export function EditorScreen() {
                                 <EditorSelectionList
                                     selectedRanges={selectedRanges}
                                     intent={editMode}
-                                    onSeekRangeStart={(range) => {
+                                    selectedRangeId={selectedRangeId}
+                                    onSelectRange={(range) => {
+                                        haptic.tap();
+                                        selectRange(range.id, "start");
                                         void transportScrub.seekAndSettle(range.start);
-                                    }}
-                                    onSeekRangeEnd={(range) => {
-                                        void transportScrub.seekAndSettle(range.end);
                                     }}
                                     onRemoveRange={(rangeId) => {
                                         haptic.tap();
                                         removeRange(rangeId);
                                     }}
                                 />
+
+                                {selectedRange ? (
+                                    <View style={editorLocalStyles.inspectorWrap}>
+                                        <MarkInspector
+                                            startMs={selectedRange.start}
+                                            endMs={selectedRange.end}
+                                            edge={selectedEdge}
+                                            onPickEdge={(edge) => {
+                                                setSelectedEdge(edge);
+                                                // Picking an edge cues it, so the reel always shows
+                                                // the moment you are about to move.
+                                                void transportScrub.seekAndSettle(
+                                                    edge === "start" ? selectedRange.start : selectedRange.end
+                                                );
+                                            }}
+                                            minMs={0}
+                                            maxMs={editDurationMs}
+                                            onSlide={(ms) => applyEdge(selectedRange.id, selectedEdge, ms)}
+                                            onSlideCommit={(ms) =>
+                                                applyEdge(selectedRange.id, selectedEdge, snapEdge(ms))
+                                            }
+                                            onNudge={(deltaMs) => {
+                                                const base =
+                                                    selectedEdge === "start" ? selectedRange.start : selectedRange.end;
+                                                applyEdge(selectedRange.id, selectedEdge, base + deltaMs);
+                                            }}
+                                            onUsePlayhead={() =>
+                                                applyEdge(selectedRange.id, selectedEdge, snapEdge(playheadTimeMs))
+                                            }
+                                            usePlayheadDisabled={false}
+                                            nudgeStepMs={nudgeStepMsForZoom(zoomMultiple)}
+                                            startLabel={t("editor.startEdge")}
+                                            endLabel={t("editor.endEdge")}
+                                            hint={
+                                                gridAvailable && keepToGrid
+                                                    ? snapResolutionForZoom(zoomMultiple) === "bar"
+                                                        ? t("editor.snapHintBars")
+                                                        : t("editor.snapHintBeats")
+                                                    : t("player.inspectorHint", {
+                                                          step: nudgeStepMsForZoom(zoomMultiple),
+                                                      })
+                                            }
+                                        />
+                                    </View>
+                                ) : null}
 
                                 <View style={{ height: 24 }} />
                             </>
@@ -621,6 +768,7 @@ export function EditorScreen() {
                 targetIdeaKind={targetIdea?.kind ?? null}
                 targetIdeaTitle={targetIdea?.title ?? null}
                 exportOperation={exportFlow.exportOperation}
+                gridOutcomeLine={gridOutcomeLine}
                 keepRegions={keepRegions}
                 extractNameDrafts={exportFlow.extractNameDrafts}
                 previewRegionId={exportFlow.previewRegionId}

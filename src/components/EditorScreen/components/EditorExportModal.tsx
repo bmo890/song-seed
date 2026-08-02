@@ -14,6 +14,8 @@ type EditorExportModalProps = {
   targetIdeaKind: "project" | "clip" | null;
   targetIdeaTitle: string | null;
   exportOperation: "extract" | "splice";
+  /** "Grid kept" / "Grid kept to 01:12" / "No grid" — null when the clip has no grid. */
+  gridOutcomeLine: string | null;
   keepRegions: EditableSelection[];
   extractNameDrafts: Record<string, string>;
   previewRegionId: string | null;
@@ -39,6 +41,7 @@ export function EditorExportModal({
   targetIdeaKind,
   targetIdeaTitle,
   exportOperation,
+  gridOutcomeLine,
   keepRegions,
   extractNameDrafts,
   previewRegionId,
@@ -151,6 +154,13 @@ export function EditorExportModal({
             </>
           )}
 
+          {gridOutcomeLine ? (
+            <View style={exportModalStyles.gridRow}>
+              <Ionicons name="grid-outline" size={13} color={colors.textMuted} />
+              <Text style={exportModalStyles.gridText}>{gridOutcomeLine}</Text>
+            </View>
+          ) : null}
+
           <Pressable
             style={{ flexDirection: "row", alignItems: "center", marginTop: 16 }}
             onPress={onToggleRemoveOriginalAfterExport}
@@ -230,5 +240,16 @@ const exportModalStyles = StyleSheet.create({
   },
   extractMiniWrap: {
     flex: 1,
+  },
+  gridRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 14,
+  },
+  gridText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 12,
+    color: colors.textMuted,
   },
 });

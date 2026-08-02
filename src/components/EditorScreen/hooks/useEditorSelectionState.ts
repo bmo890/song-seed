@@ -16,6 +16,15 @@ export function useEditorSelectionState({
   const [selectedRanges, setSelectedRanges] = useState<EditableSelection[]>([]);
   const [regionIdCounter, setRegionIdCounter] = useState(1);
   const [editMode, setEditMode] = useState<"keep" | "remove">("keep");
+  /** Which part the inspector is editing, and which of its edges. Selecting a part is
+   *  also what cues the playhead, so the reel always shows what you are adjusting. */
+  const [selectedRangeId, setSelectedRangeId] = useState<string | null>(null);
+  const [selectedEdge, setSelectedEdge] = useState<"start" | "end">("start");
+
+  const selectRange = (id: string | null, edge: "start" | "end" = "start") => {
+    setSelectedRangeId(id);
+    setSelectedEdge(edge);
+  };
 
   const addRange = () => {
     if (!analysisDurationMs) return;
@@ -35,6 +44,7 @@ export function useEditorSelectionState({
           { id: regionIdCounter.toString(), start: newStart, end: insideRange.end, type: insideRange.type },
         ];
       });
+      selectRange(regionIdCounter.toString());
       setRegionIdCounter((prev) => prev + 1);
       return;
     }
@@ -87,11 +97,13 @@ export function useEditorSelectionState({
       ...prev,
       { id: regionIdCounter.toString(), start: newStart, end: newEnd, type: editMode },
     ]);
+    selectRange(regionIdCounter.toString());
     setRegionIdCounter((prev) => prev + 1);
   };
 
   const removeRange = (id: string) => {
     setSelectedRanges((prev) => prev.filter((range) => range.id !== id));
+    setSelectedRangeId((prev) => (prev === id ? null : prev));
   };
 
   // Intent is global: flipping it recolors EVERY region to the new type so the
@@ -107,9 +119,16 @@ export function useEditorSelectionState({
   const keepRegions = selectedRanges.filter((range) => range.type === "keep");
   const removeRegions = selectedRanges.filter((range) => range.type === "remove");
 
+  const selectedRange = selectedRanges.find((range) => range.id === selectedRangeId) ?? null;
+
   return {
     selectedRanges,
     setSelectedRanges,
+    selectedRange,
+    selectedRangeId,
+    selectedEdge,
+    selectRange,
+    setSelectedEdge,
     editMode,
     setIntent,
     keepRegions,
