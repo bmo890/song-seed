@@ -170,12 +170,29 @@ cut.
 **Honesty line in the save sheet** (copy-budget compliant): `Grid kept` ·
 `Grid kept to 01:12` · `No grid`. One quiet row, no paragraph.
 
-### Seam audio quality (independent bug)
-The native renderTrim butt-joins kept ranges with **no crossfade** — a mid-waveform
-cut can click audibly. Add a short equal-power crossfade (~8ms) at interior seams in
-both native renderers (iOS/Android). Extract paths (single range) get a ~4ms fade-in
-/ fade-out at file edges only if the cut is mid-waveform. Needs native rebuild +
-device listening.
+### Seam audio quality — corrected 2026-08-02: a DIP, not a crossfade
+
+The native renderTrim butt-joins kept ranges with no smoothing, so a mid-waveform cut
+can click audibly. The obvious fix — an equal-power **crossfade**, overlapping the
+outgoing and incoming audio — turns out to be wrong for this app, and would quietly
+undo Phases 0–2.
+
+A crossfade of length `f` shortens the output by `f` at every seam. Everything
+downstream shifts by `f`, so a seam that was bar-aligned to within the 1.5ms storage
+tolerance is no longer aligned at all; `clipEditRemap` would correctly conclude the
+grid is broken, and snapping could never save it. The audio would sound smoother and
+the take would lose its click.
+
+So the seam gets a **timeline-preserving dip** instead: a ~4ms fade-out into the seam
+and a ~4ms fade-in out of it, no overlap. Total length is untouched, every remapped
+pin, section and bar line stays exactly where the remap put it, and the discontinuity
+that causes the click is gone. The same short fade applies at the head and tail of an
+extracted clip, where a cut can land mid-waveform just as easily.
+
+Status: iOS implemented via `AVMutableAudioMix` volume ramps (declarative, no
+hand-rolled sample maths). Android needs a custom media3 `AudioProcessor` and is NOT
+written — see the open task. Audible tuning of the 4ms figure needs a device and a
+musician's ears.
 
 ---
 
@@ -307,8 +324,19 @@ section swallowed by a cut, pin at the seam ms, empty results, rounding.
    sub-line naming what goes, and a destructive confirm — instead of a checkbox aside.
    The per-region mini players are replaced, not dropped: selecting a part makes it
    the play range on the screen's own transport, stopping at its end.
-5. **Phase 4 — reel parity + polish:** ghosted sections/pins on the editor reel,
-   ruler, minimap, seam crossfade in the native renderers (device-verified).
+5. **Phase 4 — reel parity + seam polish — DONE 2026-08-02** (Android seam fade
+   excepted). The editor's reel now draws the take's bar/beat ruler, its grid chip,
+   its pins and its sections — sections and pins faded back to ~7% fill / 35% rail so
+   they read as context you cut against while the keep/remove washes stay loudest.
+   Identity only: the reel draws them inside its own canvas and the editor renders
+   none of the player's interactive pin badges. Seam smoothing shipped on iOS as a
+   timeline-preserving dip (§3 — a crossfade would have broken bar alignment);
+   Android needs a custom media3 `AudioProcessor` and is tracked separately.
+   Verified by rebuilding the native app and running a real interior cut: a 39s clip
+   minus a 9s middle span rendered a 0:30 clip that plays. Audible tuning of the 4ms
+   figure still wants a musician's ears.
+   Drag-to-create on the reel remains unbuilt — approved, but the inspector plus
+   snapping covers the need; revisit if marking still feels slow.
 
 ## 8 · Founder decisions — SETTLED 2026-08-01
 
@@ -316,4 +344,5 @@ section swallowed by a cut, pin at the seam ms, empty results, rounding.
 2. "Also save the rest as one clip" on extract: **deferred**.
 3. Combined trim+transform in one save: **deferred** (two saves via the child clip).
 4. Destination stays fixed (same collection / same sketch): yes.
-5. Seam crossfade: ship 8ms, tune by ear on device (Phase 4).
+5. Seam smoothing: a timeline-preserving DIP, not a crossfade (§3). 4ms on iOS;
+   tune by ear on device.

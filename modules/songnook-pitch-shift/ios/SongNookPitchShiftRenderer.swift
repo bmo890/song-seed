@@ -274,6 +274,66 @@ final class SongNookPitchShiftRenderer {
 
   // MARK: - Tier 2: trim/extract/cut via AVMutableComposition
 
+  /// Length of the fade into and out of a cut. Long enough to remove the step
+  /// discontinuity that clicks, short enough that no one hears audio go missing.
+  private static let trimSeamFadeSeconds = 0.004
+
+  /// Soften every cut edge WITHOUT moving anything.
+  ///
+  /// The tempting fix for a clicking splice is an equal-power crossfade, overlapping the
+  /// outgoing and incoming audio. That would be wrong here: an overlap of `f` shortens
+  /// the output by `f` at every seam, so a cut the musician snapped to a bar line would
+  /// land `f` off it, and the grid the editor works so hard to carry (see
+  /// `domain/clipEditRemap`) would be invalidated by its own smoothing.
+  ///
+  /// So this dips instead of crossfading — down into the seam, back up out of it — and
+  /// the timeline is bit-for-bit the length the remap assumed. The same fade tops and
+  /// tails the whole file, since an extract can start mid-waveform just as easily.
+  private func buildTrimSeamMix(
+    track: AVMutableCompositionTrack,
+    seamTimes: [CMTime],
+    segmentDurations: [CMTime],
+    totalDuration: CMTime
+  ) -> AVAudioMix? {
+    if totalDuration.seconds <= 0 { return nil }
+
+    let parameters = AVMutableAudioMixInputParameters(track: track)
+    var wroteRamp = false
+
+    // Never let a fade eat more than a third of the shortest neighbouring segment: on a
+    // very short part the dip would otherwise be most of what you hear.
+    let shortestSegment = segmentDurations.map(\.seconds).filter { $0 > 0 }.min() ?? totalDuration.seconds
+    let fade = min(Self.trimSeamFadeSeconds, max(0.0005, shortestSegment / 3))
+
+    func ramp(from: Float, to: Float, start: Double, end: Double) {
+      let clampedStart = max(0, min(start, totalDuration.seconds))
+      let clampedEnd = max(clampedStart, min(end, totalDuration.seconds))
+      if clampedEnd <= clampedStart { return }
+      parameters.setVolumeRamp(
+        fromStartVolume: from,
+        toEndVolume: to,
+        timeRange: CMTimeRange(
+          start: CMTime(seconds: clampedStart, preferredTimescale: 44100),
+          end: CMTime(seconds: clampedEnd, preferredTimescale: 44100)
+        )
+      )
+      wroteRamp = true
+    }
+
+    ramp(from: 0, to: 1, start: 0, end: fade)
+    for seam in seamTimes {
+      let at = seam.seconds
+      ramp(from: 1, to: 0, start: at - fade, end: at)
+      ramp(from: 0, to: 1, start: at, end: at + fade)
+    }
+    ramp(from: 1, to: 0, start: totalDuration.seconds - fade, end: totalDuration.seconds)
+
+    if !wroteRamp { return nil }
+    let mix = AVMutableAudioMix()
+    mix.inputParameters = [parameters]
+    return mix
+  }
+
   func renderTrim(_ request: [String: Any]) throws -> [String: Any] {
     guard let inputUri = request["inputUri"] as? String else {
       throw NSError(domain: "SongNookPitchShift", code: 20, userInfo: [NSLocalizedDescriptionKey: "Trim rendering requires inputUri."])
@@ -298,6 +358,10 @@ final class SongNookPitchShiftRenderer {
 
     var cursor = CMTime.zero
     var inserted = false
+    // Output-timeline positions where two kept ranges butt together, plus the segment
+    // lengths either side — used to smooth the joins without moving them.
+    var seamTimes: [CMTime] = []
+    var segmentDurations: [CMTime] = []
     for raw in rawRanges {
       guard let map = raw as? [String: Any] else { continue }
       let startMs = (map["startTimeMs"] as? Double) ?? Double((map["startTimeMs"] as? Int) ?? -1)
@@ -307,6 +371,10 @@ final class SongNookPitchShiftRenderer {
       let end = CMTime(seconds: endMs / 1000.0, preferredTimescale: 1000)
       let timeRange = CMTimeRange(start: start, end: end)
       try compTrack.insertTimeRange(timeRange, of: sourceTrack, at: cursor)
+      if inserted {
+        seamTimes.append(cursor)
+      }
+      segmentDurations.append(timeRange.duration)
       cursor = CMTimeAdd(cursor, timeRange.duration)
       inserted = true
     }
@@ -314,12 +382,20 @@ final class SongNookPitchShiftRenderer {
       throw NSError(domain: "SongNookPitchShift", code: 24, userInfo: [NSLocalizedDescriptionKey: "Trim rendering requires at least one valid range."])
     }
 
+    let audioMix = buildTrimSeamMix(
+      track: compTrack,
+      seamTimes: seamTimes,
+      segmentDurations: segmentDurations,
+      totalDuration: cursor
+    )
+
     let outputURL = buildExportOutputURL(fileName: outputFileName)
     guard let exportSession = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetAppleM4A) else {
       throw NSError(domain: "SongNookPitchShift", code: 25, userInfo: [NSLocalizedDescriptionKey: "Could not create export session."])
     }
     exportSession.outputURL = outputURL
     exportSession.outputFileType = .m4a
+    exportSession.audioMix = audioMix
 
     let semaphore = DispatchSemaphore(value: 0)
     var exportError: Error?

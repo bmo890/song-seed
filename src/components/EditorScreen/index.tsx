@@ -45,6 +45,7 @@ import { EDITOR_HELP } from "../common/helpContent";
 import { useTranslation } from "react-i18next";
 import { MarkInspector, nudgeStepMsForZoom } from "../common/MarkInspector";
 import { complementSpans, remapClipForSpans } from "../../domain/clipEditRemap";
+import { buildSectionBands, hexToRgba } from "../../domain/playerSections";
 import { fmtDuration } from "../../utils";
 import { canSnapToGrid, snapResolutionForZoom, snapToGrid } from "../../domain/editSnap";
 import { MIN_REGION_DURATION_MS } from "./helpers";
@@ -316,6 +317,21 @@ export function EditorScreen() {
         [setSelectedRanges]
     );
 
+    /**
+     * The song's own marks, drawn on the editor's reel as context you cut against — the
+     * same bands and pins the player shows, faded back so the keep/remove washes stay the
+     * loudest thing on the tape. They are identity here, never editable: the reel draws
+     * them inside its canvas, and the editor renders none of the player's pin badges.
+     */
+    const ghostSectionBands = useMemo(() => {
+        if (!sourceClip?.sections?.length || !analysisData) return undefined;
+        return buildSectionBands(sourceClip.sections, analysisData.durationMs).map((band) => ({
+            ...band,
+            color: hexToRgba(band.railColor, 0.07),
+            railColor: hexToRgba(band.railColor, 0.35),
+        }));
+    }, [analysisData, sourceClip?.sections]);
+
     /** What the pending edit will do to the take's grid — the same pure remap the save
      *  itself runs, so the line can never disagree with the result. */
     const gridOutcomeLine = useMemo(() => {
@@ -580,6 +596,9 @@ export function EditorScreen() {
                             zoomPlacement="overlay"
                             showTimingRow={false}
                             onZoomMultipleChange={setZoomMultiple}
+                            grid={sourceClip?.recordingGrid ?? null}
+                            sectionBands={ghostSectionBands}
+                            practiceMarkers={sourceClip?.practiceMarkers}
                             sharedCurrentTimeMs={transportClock.sharedCurrentTimeMs}
                             sharedDurationMs={transportClock.sharedDurationMs}
                             sharedTransportUpdateToken={transportClock.sharedUpdateToken}
