@@ -296,8 +296,17 @@ section swallowed by a cut, pin at the seam ms, empty results, rounding.
    outcome ("Grid kept" / "Grid kept to 01:12" / "No grid") from the same pure remap
    the save itself runs. Verified on device: an extract of a gridded take produces a
    child whose reel draws its own bar ruler.
-4. **Phase 3 — commit:** inline naming, bottom-sheet receipt, danger-tier
-   delete-original with the contextual sub-line.
+4. **Phase 3 — commit — DONE 2026-08-02.** Naming moved onto the part rows, so a
+   name is given while marking and the save step stops being a form: a part carries
+   its own `title`, blank falling back to the suggestion, and a named part earns the
+   serif on the row and in the receipt. `EditorExportModal` (a centred `Modal` with a
+   nested `ScrollView` and a mini player per region) is deleted in favour of
+   `EditorSaveSheet`, a canon `BottomSheet` receipt: what you are about to make, the
+   grid outcome line, one confirm whose label matches the button that opened it.
+   "Also delete original" is a danger-tier row that arms visibly — danger wash, a
+   sub-line naming what goes, and a destructive confirm — instead of a checkbox aside.
+   The per-region mini players are replaced, not dropped: selecting a part makes it
+   the play range on the screen's own transport, stopping at its end.
 5. **Phase 4 — reel parity + polish:** ghosted sections/pins on the editor reel,
    ruler, minimap, seam crossfade in the native renderers (device-verified).
 

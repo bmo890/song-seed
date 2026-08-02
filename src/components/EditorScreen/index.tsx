@@ -31,7 +31,7 @@ import { EditorTrimIntent } from "./components/EditorTrimIntent";
 import { SegmentedControl } from "../common/SegmentedControl";
 import { EditorSelectionList } from "./components/EditorSelectionList";
 import { EditorExportProgressModal } from "./components/EditorExportProgressModal";
-import { EditorExportModal } from "./components/EditorExportModal";
+import { EditorSaveSheet } from "./components/EditorSaveSheet";
 import { AppAlert } from "../common/AppAlert";
 import { haptic } from "../../design/haptics";
 import { useEditorExportFlow } from "./hooks/useEditorExportFlow";
@@ -277,6 +277,7 @@ export function EditorScreen() {
         removeRegions,
         addRange,
         removeRange,
+        renameRange,
     } = useEditorSelectionState({
         analysisDurationMs: analysisData?.durationMs ?? null,
         playheadTimeMs,
@@ -351,6 +352,15 @@ export function EditorScreen() {
         if (previewTransport.effectiveIsPlaying) {
             editorLog("togglePlay → pause", { positionMs: playheadTimeMs });
             void previewTransport.pause();
+        } else if (
+            selectedRange &&
+            (playheadTimeMs < selectedRange.start || playheadTimeMs >= selectedRange.end - 1)
+        ) {
+            // A part is selected, so play means "play this part".
+            editorLog("togglePlay → play part", { rangeId: selectedRange.id });
+            transportClock.setDisplayPositionMs(selectedRange.start);
+            setCurrentTime(selectedRange.start);
+            void transportScrub.seekAndSettle(selectedRange.start).then(() => previewTransport.play());
         } else {
             const atEnd = isPlaybackNearEnd(playheadTimeMs, previewTransport.effectiveDurationMs);
             editorLog("togglePlay → play", { positionMs: playheadTimeMs, atEnd });
@@ -361,6 +371,14 @@ export function EditorScreen() {
             void previewTransport.play();
         }
     };
+    useEffect(() => {
+        if (!selectedRange || !previewTransport.effectiveIsPlaying) return;
+        if (playheadTimeMs < selectedRange.end) return;
+        void Promise.resolve(previewTransport.pause()).catch((error) => {
+            console.warn("[editor] part preview stop failed", error);
+        });
+    }, [playheadTimeMs, previewTransport, selectedRange]);
+
     const exportFlow = useEditorExportFlow({
         ideaId,
         clipId,
@@ -375,7 +393,6 @@ export function EditorScreen() {
         transformPlaybackRate: transformState.playbackRate,
         hasActiveTransforms: transformState.hasActiveTransforms,
         playheadTimeMs,
-        isPlayerPlaying: previewTransport.effectiveIsPlaying,
         player: {
             seekTo: async (seconds: number) => {
                 await previewTransport.seekTo(seconds * 1000);
@@ -388,9 +405,7 @@ export function EditorScreen() {
         setSelectedIdeaId,
         markRecentlyAdded,
         safePause: previewTransport.pause,
-        safePlay: previewTransport.play,
         setCurrentTime,
-        cancelTransportScrub: transportScrub.cancelScrub,
     });
 
     useEffect(() => {
@@ -658,6 +673,9 @@ export function EditorScreen() {
                                     selectedRanges={selectedRanges}
                                     intent={editMode}
                                     selectedRangeId={selectedRangeId}
+                                    suggestedTitleFor={exportFlow.buildSuggestedTitle}
+                                    showNames={editMode === "keep"}
+                                    onRenameRange={renameRange}
                                     onSelectRange={(range) => {
                                         haptic.tap();
                                         selectRange(range.id, "start");
@@ -763,44 +781,30 @@ export function EditorScreen() {
                 }}
             />
 
-            <EditorExportModal
+            <EditorSaveSheet
                 visible={exportFlow.exportModalVisible}
+                operation={exportFlow.exportOperation}
                 targetIdeaKind={targetIdea?.kind ?? null}
-                targetIdeaTitle={targetIdea?.title ?? null}
-                exportOperation={exportFlow.exportOperation}
-                gridOutcomeLine={gridOutcomeLine}
                 keepRegions={keepRegions}
-                extractNameDrafts={exportFlow.extractNameDrafts}
-                previewRegionId={exportFlow.previewRegionId}
-                isPreviewPlaying={previewTransport.effectiveIsPlaying}
-                playheadTimeMs={playheadTimeMs}
+                removedMs={removeRegions.reduce((sum, region) => sum + (region.end - region.start), 0)}
+                gridOutcomeLine={gridOutcomeLine}
                 spliceNameDraft={exportFlow.spliceNameDraft}
                 suggestedExportTitle={exportFlow.suggestedExportTitle}
+                suggestedTitleFor={exportFlow.buildSuggestedTitle}
                 removeOriginalAfterExport={exportFlow.removeOriginalAfterExport}
-                onClose={exportFlow.closeExportModal}
-                onChangeExtractNameDraft={(regionId, value) => {
-                    exportFlow.setExtractNameDrafts((prev) => ({ ...prev, [regionId]: value }));
-                }}
-                onToggleRegionPreview={(region) => {
-                    void exportFlow.toggleRegionPreview(region);
-                }}
-                onBeginRegionPreviewScrub={(region) => {
-                    void exportFlow.beginRegionPreviewScrub(region);
-                }}
-                onSeekRegionPreview={(region, relativeTimeMs) => {
-                    void exportFlow.seekRegionPreview(region, relativeTimeMs);
-                }}
-                onCancelRegionPreviewScrub={() => {
-                    void exportFlow.cancelRegionPreviewScrub();
-                }}
+                confirmLabel={
+                    exportFlow.exportOperation === "extract"
+                        ? t("editor.extractCount", { count: keepRegions.length })
+                        : t("editor.saveTrimmed")
+                }
                 onChangeSpliceNameDraft={exportFlow.setSpliceNameDraft}
                 onToggleRemoveOriginalAfterExport={() =>
                     exportFlow.setRemoveOriginalAfterExport((prev) => !prev)
                 }
+                onClose={exportFlow.closeExportModal}
                 onSave={() => {
                     void exportFlow.handleExportSave();
                 }}
-                buildSuggestedTitle={exportFlow.buildSuggestedTitle}
             />
         </SafeAreaView>
     );

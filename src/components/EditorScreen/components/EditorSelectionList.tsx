@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { fmt, fmtDuration } from "../../../utils";
 import { colors, radii } from "../../../design/tokens";
@@ -12,7 +12,12 @@ type EditorSelectionListProps = {
   selectedRanges: EditableSelection[];
   intent: "keep" | "remove";
   selectedRangeId: string | null;
+  /** Suggested name for the part at this index — shown as the field's placeholder. */
+  suggestedTitleFor: (index: number) => string;
+  /** Naming only applies where each part becomes its own clip. */
+  showNames: boolean;
   onSelectRange: (range: EditableSelection) => void;
+  onRenameRange: (id: string, title: string) => void;
   onRemoveRange: (id: string) => void;
 };
 
@@ -23,7 +28,10 @@ export function EditorSelectionList({
   selectedRanges,
   intent,
   selectedRangeId,
+  suggestedTitleFor,
+  showNames,
   onSelectRange,
+  onRenameRange,
   onRemoveRange,
 }: EditorSelectionListProps) {
   const { t } = useTranslation();
@@ -62,10 +70,23 @@ export function EditorSelectionList({
               <Text style={s.idxText}>{index + 1}</Text>
             </View>
             <View style={s.copy}>
-              <Text style={s.times}>
-                {fmt(range.start)} – {fmt(range.end)}
-              </Text>
-              <Text style={s.dur}>{fmtDuration(range.end - range.start)}</Text>
+              <View style={s.timeRow}>
+                <Text style={s.times}>
+                  {fmt(range.start)} – {fmt(range.end)}
+                </Text>
+                <Text style={s.dur}>{fmtDuration(range.end - range.start)}</Text>
+              </View>
+              {showNames ? (
+                <TextInput
+                  style={[s.nameInput, range.title ? s.nameInputFilled : null]}
+                  value={range.title ?? ""}
+                  onChangeText={(value) => onRenameRange(range.id, value)}
+                  placeholder={suggestedTitleFor(index)}
+                  placeholderTextColor={colors.textMuted}
+                  returnKeyType="done"
+                  accessibilityLabel={t("editor.partName")}
+                />
+              ) : null}
             </View>
             <Pressable
               onPress={() => onRemoveRange(range.id)}
@@ -93,7 +114,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderSubtle,
     borderLeftWidth: 3,
-    paddingVertical: 10,
+    paddingVertical: 8,
     paddingHorizontal: 12,
   },
   idx: {
@@ -108,7 +129,8 @@ const s = StyleSheet.create({
     fontSize: 11,
     color: colors.onPrimary,
   },
-  copy: { flex: 1, flexDirection: "row", alignItems: "baseline", gap: 8 },
+  copy: { flex: 1, gap: 1 },
+  timeRow: { flexDirection: "row", alignItems: "baseline", gap: 8 },
   times: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 14,
@@ -120,6 +142,25 @@ const s = StyleSheet.create({
     fontSize: 12,
     color: colors.textMuted,
     fontVariant: ["tabular-nums"],
+  },
+  /** Named parts earn the serif; an unnamed one shows its suggested name quietly, so a
+   *  list of timestamps stays calm. */
+  nameInput: {
+    padding: 0,
+    // Explicit height: a bare TextInput reports a taller intrinsic size than its text
+    // and was pushing its own baseline past the row's rounded edge.
+    height: 22,
+    lineHeight: 16,
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 12.5,
+    color: colors.textSecondary,
+  },
+  nameInputFilled: {
+    height: 24,
+    lineHeight: 18,
+    fontFamily: "Lora_500Medium",
+    fontSize: 14,
+    color: colors.textPrimary,
   },
   iconBtn: { padding: 2 },
   empty: {

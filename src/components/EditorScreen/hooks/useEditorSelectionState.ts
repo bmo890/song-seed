@@ -101,6 +101,10 @@ export function useEditorSelectionState({
     setRegionIdCounter((prev) => prev + 1);
   };
 
+  const renameRange = (id: string, title: string) => {
+    setSelectedRanges((prev) => prev.map((range) => (range.id === id ? { ...range, title } : range)));
+  };
+
   const removeRange = (id: string) => {
     setSelectedRanges((prev) => prev.filter((range) => range.id !== id));
     setSelectedRangeId((prev) => (prev === id ? null : prev));
@@ -135,5 +139,6 @@ export function useEditorSelectionState({
     removeRegions,
     addRange,
     removeRange,
+    renameRange,
   };
 }

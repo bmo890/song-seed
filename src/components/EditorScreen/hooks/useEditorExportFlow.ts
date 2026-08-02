@@ -70,16 +70,13 @@ type UseEditorExportFlowArgs = {
   transformPlaybackRate: number;
   hasActiveTransforms: boolean;
   playheadTimeMs: number;
-  isPlayerPlaying: boolean;
   player: MinimalPlayer;
   navigation: any;
   updateIdeas: (updater: (ideas: SongIdea[]) => SongIdea[]) => void;
   setSelectedIdeaId: (ideaId: string | null) => void;
   markRecentlyAdded: (ids: string[]) => void;
   safePause: () => Promise<void> | void;
-  safePlay: () => Promise<void> | void;
   setCurrentTime: React.Dispatch<React.SetStateAction<number>>;
-  cancelTransportScrub: () => Promise<void>;
 };
 
 export function useEditorExportFlow({
@@ -96,26 +93,21 @@ export function useEditorExportFlow({
   transformPlaybackRate,
   hasActiveTransforms,
   playheadTimeMs,
-  isPlayerPlaying,
   player,
   navigation,
   updateIdeas,
   setSelectedIdeaId,
   markRecentlyAdded,
   safePause,
-  safePlay,
   setCurrentTime,
-  cancelTransportScrub,
 }: UseEditorExportFlowArgs) {
   const { t } = useTranslation();
   const previewWasPlayingRef = useRef(false);
   const previewPausePromiseRef = useRef<Promise<void> | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportModalVisible, setExportModalVisible] = useState(false);
-  const [extractNameDrafts, setExtractNameDrafts] = useState<Record<string, string>>({});
   const [spliceNameDraft, setSpliceNameDraft] = useState("");
   const [removeOriginalAfterExport, setRemoveOriginalAfterExport] = useState(false);
-  const [previewRegionId, setPreviewRegionId] = useState<string | null>(null);
   const [transformExportModalVisible, setTransformExportModalVisible] = useState(false);
   const [transformNameDraft, setTransformNameDraft] = useState("");
 
@@ -142,66 +134,6 @@ export function useEditorExportFlow({
     previewPausePromiseRef.current = null;
   };
 
-  const buildInitialExtractDrafts = () =>
-    keepRegions.reduce<Record<string, string>>((acc, region) => {
-      acc[region.id] = "";
-      return acc;
-    }, {});
-
-  useEffect(() => {
-    if (!exportModalVisible || exportOperation !== "extract") return;
-    setExtractNameDrafts((prev) => {
-      const next: Record<string, string> = {};
-      let changed = false;
-      keepRegions.forEach((region) => {
-        const nextValue = prev[region.id] ?? "";
-        next[region.id] = nextValue;
-        if (prev[region.id] !== nextValue) {
-          changed = true;
-        }
-      });
-      const prevKeys = Object.keys(prev);
-      if (!changed && prevKeys.length === keepRegions.length && prevKeys.every((key) => next[key] === prev[key])) {
-        return prev;
-      }
-      return next;
-    });
-    // Keyed off the region id-string, not the array, so this only runs when the
-    // set of regions changes — `keepRegions` is a fresh array every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exportModalVisible, exportOperation, keepRegionIdsKey]);
-
-  useEffect(() => {
-    if (!previewRegionId) return;
-    const activeRegion = keepRegions.find((region) => region.id === previewRegionId);
-    if (!activeRegion) {
-      resetPreviewScrubSession();
-      setPreviewRegionId(null);
-      return;
-    }
-    if (isPlayerPlaying && playheadTimeMs >= activeRegion.end) {
-      void Promise.resolve(safePause())
-        .then(() => {
-          resetPreviewScrubSession();
-          setPreviewRegionId(null);
-          setCurrentTime(activeRegion.end);
-          return player.seekTo(activeRegion.end / 1000);
-        })
-        .catch((error) => {
-          console.warn("Preview stop seek error:", error);
-        });
-    }
-  }, [isPlayerPlaying, keepRegions, playheadTimeMs, player, previewRegionId, safePause, setCurrentTime]);
-
-  useEffect(() => {
-    if (exportModalVisible || !previewRegionId) return;
-    void Promise.resolve(safePause()).catch((error) => {
-      console.warn("Preview modal close pause error:", error);
-    });
-    resetPreviewScrubSession();
-    setPreviewRegionId(null);
-  }, [exportModalVisible, previewRegionId, safePause]);
-
   const openExportModal = () => {
     const keepCount = keepRegions.length;
     const removeCount = removeRegions.length;
@@ -214,9 +146,6 @@ export function useEditorExportFlow({
     void Promise.resolve(safePause()).catch((error) => {
       console.warn("Preview open pause error:", error);
     });
-    resetPreviewScrubSession();
-    setPreviewRegionId(null);
-    setExtractNameDrafts(buildInitialExtractDrafts());
     setSpliceNameDraft("");
     setRemoveOriginalAfterExport(false);
     setExportModalVisible(true);
@@ -226,8 +155,6 @@ export function useEditorExportFlow({
     void Promise.resolve(safePause()).catch((error) => {
       console.warn("Preview close pause error:", error);
     });
-    resetPreviewScrubSession();
-    setPreviewRegionId(null);
     setExportModalVisible(false);
   };
 
@@ -240,8 +167,6 @@ export function useEditorExportFlow({
     void Promise.resolve(safePause()).catch((error) => {
       console.warn("Transform modal open pause error:", error);
     });
-    resetPreviewScrubSession();
-    setPreviewRegionId(null);
     setTransformNameDraft("");
     setRemoveOriginalAfterExport(false);
     setTransformExportModalVisible(true);
@@ -251,13 +176,11 @@ export function useEditorExportFlow({
     void Promise.resolve(safePause()).catch((error) => {
       console.warn("Transform modal close pause error:", error);
     });
-    resetPreviewScrubSession();
-    setPreviewRegionId(null);
     setTransformExportModalVisible(false);
   };
 
   const buildExtractTitles = () =>
-    keepRegions.map((region, index) => extractNameDrafts[region.id]?.trim() || buildSuggestedTitle(index));
+    keepRegions.map((region, index) => region.title?.trim() || buildSuggestedTitle(index));
 
   const buildSpliceTitle = () => spliceNameDraft.trim() || suggestedExportTitle;
 
@@ -310,8 +233,6 @@ export function useEditorExportFlow({
       );
     }
     setExportModalVisible(false);
-    resetPreviewScrubSession();
-    setPreviewRegionId(null);
     if (targetIdea?.kind === "project") {
       setSelectedIdeaId(ideaId);
     } else {
@@ -410,77 +331,6 @@ export function useEditorExportFlow({
     useStore.getState().logIdeaActivity(ideaId, "updated", "audio-edit", createdClips[0]?.id ?? null);
 
     return createdClips.map((clip) => clip.id);
-  };
-
-  const toggleRegionPreview = async (region: EditableSelection) => {
-    const isSameRegion = previewRegionId === region.id;
-    if (isSameRegion && isPlayerPlaying) {
-      await safePause();
-      resetPreviewScrubSession();
-      setPreviewRegionId(null);
-      return;
-    }
-
-    await cancelTransportScrub();
-    await safePause();
-    setPreviewRegionId(region.id);
-    setCurrentTime(region.start);
-
-    try {
-      await player.seekTo(region.start / 1000);
-      await player.play();
-    } catch (error) {
-      console.warn("Preview error:", error);
-      setPreviewRegionId(null);
-    }
-  };
-
-  const beginRegionPreviewScrub = async (region: EditableSelection) => {
-    const wasPreviewPlaying = previewRegionId === region.id && isPlayerPlaying;
-    previewWasPlayingRef.current = wasPreviewPlaying;
-    setPreviewRegionId(region.id);
-    previewPausePromiseRef.current = isPlayerPlaying ? Promise.resolve(player.pause()) : Promise.resolve();
-    try {
-      await previewPausePromiseRef.current;
-    } catch (error) {
-      console.warn("Preview scrub pause error:", error);
-    }
-  };
-
-  const seekRegionPreview = async (region: EditableSelection, relativeTimeMs: number) => {
-    const targetTime = Math.max(region.start, Math.min(region.end, region.start + relativeTimeMs));
-    try {
-      await previewPausePromiseRef.current;
-    } catch (error) {
-      console.warn("Preview scrub settle error:", error);
-    }
-    setPreviewRegionId(region.id);
-    setCurrentTime((prev) => (prev === targetTime ? prev : targetTime));
-
-    try {
-      await player.seekTo(targetTime / 1000);
-      if (previewWasPlayingRef.current) {
-        await safePlay();
-      }
-    } catch (error) {
-      console.warn("Preview seek error:", error);
-    } finally {
-      previewWasPlayingRef.current = false;
-      previewPausePromiseRef.current = null;
-    }
-  };
-
-  const cancelRegionPreviewScrub = async () => {
-    try {
-      await previewPausePromiseRef.current;
-    } catch (error) {
-      console.warn("Preview scrub cancel settle error:", error);
-    }
-    if (previewWasPlayingRef.current) {
-      await safePlay();
-    }
-    previewWasPlayingRef.current = false;
-    previewPausePromiseRef.current = null;
   };
 
   const exportExtract = async () => {
@@ -668,22 +518,15 @@ export function useEditorExportFlow({
   return {
     isExporting,
     exportModalVisible,
-    extractNameDrafts,
-    setExtractNameDrafts,
     spliceNameDraft,
     setSpliceNameDraft,
     removeOriginalAfterExport,
     setRemoveOriginalAfterExport,
     exportOperation,
-    previewRegionId,
     suggestedExportTitle,
     buildSuggestedTitle,
     openExportModal,
     closeExportModal,
-    toggleRegionPreview,
-    beginRegionPreviewScrub,
-    seekRegionPreview,
-    cancelRegionPreviewScrub,
     handleExportSave,
     transformExportModalVisible,
     transformNameDraft,

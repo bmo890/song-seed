@@ -20,6 +20,9 @@ export type EditableSelection = {
   start: number;
   end: number;
   type: "keep" | "remove";
+  /** Name the musician typed on the row. Empty means "use the suggested one" — naming
+   *  happens while marking, so the save step never has to be a form. */
+  title?: string;
 };
 
 export function buildFallbackClipTitle() {
