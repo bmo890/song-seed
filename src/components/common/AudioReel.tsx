@@ -18,6 +18,7 @@ import { buildGridRulerModel, snapToGrid, type GridRulerGrid } from "../../domai
 import { MinimapVisualizer } from "../visualizers/MinimapVisualizer";
 import type { SectionBand } from "../../domain/playerSections";
 import { fmt } from "../../utils";
+import { ltrRow } from "../../i18n/direction";
 import { colors } from "../../design/tokens";
 import { durations } from "../../design/motion";
 import { haptic } from "../../design/haptics";
@@ -945,7 +946,7 @@ export function AudioReel({
             {showZoomControls && zoomPlacement === "bottom" ? zoomControls : null}
 
             {showTransportControls ? (
-                <View style={[audioReelStyles.transportRow, compact ? audioReelStyles.transportRowCompact : null]}>
+                <View style={[audioReelStyles.transportRow, ltrRow, compact ? audioReelStyles.transportRowCompact : null]}>
                     <TouchableOpacity
                         onPress={() => void handleTransportSeek(onSeekToStart)}
                         style={[

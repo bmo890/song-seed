@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { I18nManager, Pressable, StyleSheet, Text, View, type ViewStyle } from "react-native";
+import { I18nManager, Pressable, StyleSheet, Text, View } from "react-native";
 import Slider from "@react-native-community/slider";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radii, text } from "../../design/tokens";
@@ -7,6 +7,7 @@ import { haptic } from "../../design/haptics";
 import { styles as appStyles } from "../../styles";
 import { fmtDuration } from "../../utils";
 import { useTranslation } from "react-i18next";
+import { ltrRow } from "../../i18n/direction";
 
 /**
  * The one editor for anything that sits at a position on the reel — a pin, a section
@@ -21,8 +22,8 @@ import { useTranslation } from "react-i18next";
  * track reads with the language.
  */
 
-/** Pin a row's visual order to LTR regardless of language direction. */
-export const ltrRow: ViewStyle = { flexDirection: I18nManager.isRTL ? "row-reverse" : "row" };
+/** Re-exported for call sites that already reach for it through the inspector. */
+export { ltrRow };
 
 /** Zoom in, nudge finer: the caret step shrinks as the reel magnifies, so a nudge is
  *  always a small move at whatever scale the musician is actually looking at. */

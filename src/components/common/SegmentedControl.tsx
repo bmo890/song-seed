@@ -79,14 +79,16 @@ export function SegmentedControl<T extends string>({
   // width, snap into place (no slide-from-left); after that, animate — which
   // includes the case where `persist` carries the previous position across a
   // remount, so a swapped-subtree screen still slides in the tapped direction.
-  // translateX is PHYSICAL and RN swaps the thumb's `left` anchor under RTL, so
-  // the offset is counted from the physical left in both directions — in Hebrew
-  // segment 0 renders on the right, and using the raw index slid the thumb off
-  // the end of the track.
+  //
+  // The thumb's anchor edge resolves to the physical RIGHT under RTL, and
+  // translateX is always physical (positive = rightwards). So the offset is
+  // counted from whichever edge segment 0 sits against — rightwards in English,
+  // leftwards in Hebrew — which is just the index with a flipped sign. Counting
+  // physical positions from the left instead slid the thumb one segment past the
+  // end of the track, where the screen clipped it.
   useEffect(() => {
     if (segmentWidth <= 0) return;
-    const physicalIndex = I18nManager.isRTL ? options.length - 1 - activeIndex : activeIndex;
-    const target = physicalIndex * segmentWidth;
+    const target = (I18nManager.isRTL ? -1 : 1) * activeIndex * segmentWidth;
     if (!positioned.current) {
       positioned.current = true;
       thumbX.setValue(target);

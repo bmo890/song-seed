@@ -123,3 +123,40 @@ re-run the flatten through the UI after the edit.
   root's end. Intended or not, the number and the recording disagree.
 - The player overflow is now 8 rows; the design standard caps action sheets at ~6.
 - The save dialog for a layer is titled "Save take as" — a layer is not a take.
+
+---
+
+## Addendum — Hebrew / RTL pass, 2026-08-03
+
+Walked the editor in Hebrew against the house law: **notation stays put, language
+mirrors**. Two real bugs found and fixed; one of them was app-wide.
+
+**Fixed: the reel's transport row was mirroring.** Skip-to-start ended up on the right
+while the start of the audio sat at the left of the reel directly above it — the one
+place mirroring makes the UI wrong rather than native. The row is now pinned LTR, and
+`ltrRow` moved from `MarkInspector` to `src/i18n/direction.tsx`, where the other
+direction helpers live, since it is a direction rule rather than an inspector detail.
+
+**Fixed: the SegmentedControl thumb sat one segment past the end of its track in RTL** —
+clipped by the screen edge, so the active segment had no thumb at all. This is the canon
+control, so it affected every segmented control in the app in Hebrew, not just the
+editor. The thumb's anchor edge resolves to the physical right under RTL while
+`translateX` stays physical, so the offset is now counted from whichever edge segment 0
+sits against — the index with a flipped sign — instead of from the physical left.
+Verified in both directions: Hebrew thumbs land under the active segment and slide the
+right way; English is unchanged.
+
+**Verified correct, no change needed.** Header, meta line, tabs, intent control, outcome
+row and its "Keep to grid" ink, PARTS header, part rows (the `00:00.00 – 00:05.17` range
+keeps its order — digits are LTR by Unicode bidi), the MarkInspector's start→end chips
+and nudge carets (already pinned LTR), the snap hint, and the footer CTA. The reel
+itself stays left-to-right with the playhead advancing leftwards-to-rightwards, which is
+the whole point of the law. Speed and pitch steppers mirror, which is right — a value
+control reads with the language.
+
+**Not a bug, checked and dismissed:** a long pin label on the reel renders anchored with
+an ellipsis and looks displaced, but pin badges are Skia geometry and do not mirror.
+
+**Still unverified in RTL:** the save sheet (`EditorSaveSheet`). Its content is all
+language rows with no time-axis ordering, so the risk is low, but it has not been seen
+in Hebrew.

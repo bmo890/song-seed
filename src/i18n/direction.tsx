@@ -51,6 +51,19 @@ function physical<T extends "left" | "right">(edge: T): "left" | "right" {
   return edge === "left" ? "right" : "left";
 }
 
+/**
+ * Pin a row's visual order to LTR regardless of language direction.
+ *
+ * For rows that map onto the TIME AXIS — transport buttons beside a reel that still
+ * runs left-to-right, an inspector's start/end chips, a nudge pair. Mirroring those
+ * would put "jump to the start" on the right while the start of the audio sits at the
+ * left, which is the one place mirroring makes the UI wrong rather than native.
+ * Language rows mirror normally; this is only for notation.
+ */
+export const ltrRow: { flexDirection: "row" | "row-reverse" } = {
+  flexDirection: I18nManager.isRTL ? "row-reverse" : "row",
+};
+
 /** The style key to use when you mean the physical left/right edge. */
 export function physicalEdge(edge: "left" | "right"): "left" | "right" {
   return physical(edge);
