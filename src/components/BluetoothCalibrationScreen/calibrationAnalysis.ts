@@ -2,11 +2,26 @@ import { MAX_BLUETOOTH_MONITORING_AUTO_OFFSET_MS } from "../../domain/bluetoothM
 
 export const CALIBRATION_BPM = 90;
 export const CALIBRATION_BEAT_INTERVAL_MS = Math.round(60000 / CALIBRATION_BPM);
+export const CALIBRATION_BEAT_COUNT = 16;
 export const AUDIO_MIN_VALID_BEAT_TAPS = 7;
 export const IGNORED_LEAD_IN_BEATS = 2;
 export const AUDIO_TAP_OUTLIER_WINDOW_MS = MAX_BLUETOOTH_MONITORING_AUTO_OFFSET_MS;
 export const AUDIO_MAX_ALLOWED_MAD_MS = 130;
 export const TAP_DEDUPE_WINDOW_MS = 120;
+
+/** Gap-pattern constants. The pass stays a steady grid (so taps are PREDICTIVE — the
+ *  performer's prediction cancels their reaction time, which a random "hearing test"
+ *  beep cannot), but a few beats are silenced at random each run. The app knows the
+ *  gaps; the tapper can't fake them — matching taps against the gap fingerprint pins
+ *  every tap to its true beat, so "tapped 50 ms early" is no longer confusable with
+ *  "tapped 617 ms late" (the aliasing that poisoned consistent early tappers). */
+export const PATTERN_LOCK_IN_BEATS = 3;
+export const PATTERN_SILENT_BEAT_COUNT = 4;
+/** How far ahead of the perceived beat a tap may land and still be recovered. */
+export const MAX_EARLY_TAP_MS = 160;
+/** A tap farther than this from every played beat belongs to none of them. */
+const PATTERN_MATCH_WINDOW_MS = 240;
+const LAG_SEARCH_STEP_MS = 5;
 
 export type PhaseAnalysis = {
   medianMs: number;
@@ -70,6 +85,129 @@ export function analyzeAudioPhaseTaps(taps: number[], totalBeats: number): Phase
     return null;
   }
 
+  return {
+    medianMs: center,
+    madMs: mad,
+    tapCount: residuals.length,
+  };
+}
+
+/** One gap pattern per calibration run: the lock-in beats and the final beat always
+ *  play (the tapper needs a few beats to find the tempo, and the pass must not end on
+ *  silence); the silent beats land among the rest, never two in a row (two consecutive
+ *  gaps breaks the tapper's internal pulse). */
+export function buildCalibrationGapPattern(
+  beatCount = CALIBRATION_BEAT_COUNT,
+  rng: () => number = Math.random
+): boolean[] {
+  const pattern: boolean[] = new Array(beatCount).fill(true);
+  let placed = 0;
+  let attempts = 0;
+  while (placed < PATTERN_SILENT_BEAT_COUNT && attempts < 200) {
+    attempts += 1;
+    const index =
+      PATTERN_LOCK_IN_BEATS +
+      Math.floor(rng() * Math.max(1, beatCount - 1 - PATTERN_LOCK_IN_BEATS));
+    if (index >= beatCount - 1 || !pattern[index]) {
+      continue;
+    }
+    if (!pattern[index - 1] || !pattern[index + 1]) {
+      continue;
+    }
+    pattern[index] = false;
+    placed += 1;
+  }
+  return pattern;
+}
+
+/**
+ * Analyze taps against a gap pattern by finding the lag that best aligns the tap train
+ * with the PLAYED beats. Searching a range that extends BELOW zero is the point: a
+ * consistent early tapper produces a genuine negative center, which the plain
+ * beat-bucket analysis (analyzeAudioPhaseTaps) aliases into a huge late one. A wrong
+ * whole-beat shift loses the score because taps then land on silent slots.
+ */
+export function analyzePatternPhaseTaps(taps: number[], pattern: boolean[]): PhaseAnalysis | null {
+  const interval = CALIBRATION_BEAT_INTERVAL_MS;
+  const sortedTaps = [...taps].sort((a, b) => a - b);
+  const dedupedTaps: number[] = [];
+  sortedTaps.forEach((tapTime) => {
+    const previousTap = dedupedTaps[dedupedTaps.length - 1];
+    if (previousTap != null && tapTime - previousTap < TAP_DEDUPE_WINDOW_MS) {
+      return;
+    }
+    dedupedTaps.push(tapTime);
+  });
+
+  const playedSlots = pattern
+    .map((isPlayed, slotIndex) => (isPlayed ? slotIndex : -1))
+    .filter((slotIndex) => slotIndex >= IGNORED_LEAD_IN_BEATS);
+  if (playedSlots.length < AUDIO_MIN_VALID_BEAT_TAPS || dedupedTaps.length === 0) {
+    return null;
+  }
+  const playedTimes = playedSlots.map((slotIndex) => slotIndex * interval);
+
+  const nearestPlayedIndex = (relativeTime: number) => {
+    // playedTimes is sorted; binary search for the closest entry.
+    let low = 0;
+    let high = playedTimes.length - 1;
+    while (low < high) {
+      const mid = (low + high) >> 1;
+      if (playedTimes[mid] < relativeTime) {
+        low = mid + 1;
+      } else {
+        high = mid;
+      }
+    }
+    if (low > 0 && Math.abs(playedTimes[low - 1] - relativeTime) <= Math.abs(playedTimes[low] - relativeTime)) {
+      return low - 1;
+    }
+    return low;
+  };
+
+  let bestLagMs = 0;
+  let bestScore = -1;
+  for (
+    let lagMs = -MAX_EARLY_TAP_MS;
+    lagMs <= MAX_BLUETOOTH_MONITORING_AUTO_OFFSET_MS;
+    lagMs += LAG_SEARCH_STEP_MS
+  ) {
+    let score = 0;
+    for (const tapTime of dedupedTaps) {
+      const distance = Math.abs(playedTimes[nearestPlayedIndex(tapTime - lagMs)] - (tapTime - lagMs));
+      if (distance <= PATTERN_MATCH_WINDOW_MS) {
+        score += 1 - distance / PATTERN_MATCH_WINDOW_MS;
+      }
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestLagMs = lagMs;
+    }
+  }
+
+  // Residuals at the winning alignment — first tap per played beat wins, same as the
+  // steady analysis.
+  const residualBySlot = new Map<number, number>();
+  dedupedTaps.forEach((tapTime) => {
+    const playedIndex = nearestPlayedIndex(tapTime - bestLagMs);
+    if (Math.abs(playedTimes[playedIndex] - (tapTime - bestLagMs)) > PATTERN_MATCH_WINDOW_MS) {
+      return;
+    }
+    const slotIndex = playedSlots[playedIndex];
+    if (!residualBySlot.has(slotIndex)) {
+      residualBySlot.set(slotIndex, tapTime - playedTimes[playedIndex]);
+    }
+  });
+
+  const residuals = Array.from(residualBySlot.values());
+  if (residuals.length < AUDIO_MIN_VALID_BEAT_TAPS) {
+    return null;
+  }
+  const center = median(residuals);
+  const mad = medianAbsoluteDeviation(residuals, center);
+  if (mad > AUDIO_MAX_ALLOWED_MAD_MS) {
+    return null;
+  }
   return {
     medianMs: center,
     madMs: mad,

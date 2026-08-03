@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import { colors } from "../../design/tokens";
+import { colors, radii, text } from "../../design/tokens";
 
 export const screenStyles = StyleSheet.create({
   scrollContent: {
@@ -10,49 +10,30 @@ export const screenStyles = StyleSheet.create({
   section: {
     gap: 10,
   },
-  routeCard: {
-    backgroundColor: "#efeeea",
-    borderRadius: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    gap: 4,
-  },
   routeTitle: {
-    fontSize: 17,
-    lineHeight: 22,
+    fontSize: 15,
+    lineHeight: 20,
     color: colors.textPrimary,
     fontFamily: "PlusJakartaSans_700Bold",
   },
   routeMeta: {
-    fontSize: 13,
+    ...text.supporting,
     lineHeight: 18,
-    color: "#5a4b45",
   },
-  phaseCard: {
-    backgroundColor: "#efeeea",
-    borderRadius: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    gap: 12,
+  routeHint: {
+    ...text.supporting,
+    lineHeight: 18,
+    color: colors.primaryDeep,
   },
   phaseTitle: {
-    fontSize: 17,
-    lineHeight: 22,
+    fontSize: 15,
+    lineHeight: 20,
     color: colors.textPrimary,
     fontFamily: "PlusJakartaSans_700Bold",
   },
   phaseText: {
-    fontSize: 13,
+    ...text.supporting,
     lineHeight: 18,
-    color: "#5a4b45",
-  },
-  phaseBeatLabel: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: "#6d5b55",
-    fontFamily: "PlusJakartaSans_700Bold",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
   },
   progressBlock: {
     gap: 8,
@@ -63,47 +44,59 @@ export const screenStyles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 12,
   },
+  progressLabel: {
+    ...text.annotation,
+  },
   progressPercent: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: "#6d5b55",
-    fontFamily: "PlusJakartaSans_700Bold",
+    ...text.caption,
+    fontVariant: ["tabular-nums"],
   },
   progressTrack: {
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: colors.borderMuted,
+    height: 6,
+    borderRadius: radii.round,
+    backgroundColor: colors.surfaceHigh,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
-    borderRadius: 999,
-    backgroundColor: colors.primaryDeep,
+    borderRadius: radii.round,
+    backgroundColor: colors.primary,
   },
   tapSurface: {
     minHeight: 140,
-    borderRadius: 6,
-    backgroundColor: "#fffdf9",
+    borderRadius: radii.lg,
+    backgroundColor: colors.surfaceContainer,
     alignItems: "center",
     justifyContent: "center",
   },
   tapSurfaceLabel: {
     fontSize: 20,
     lineHeight: 24,
-    color: colors.textPrimary,
+    color: colors.textStrong,
     fontFamily: "PlusJakartaSans_700Bold",
   },
   phaseError: {
-    fontSize: 13,
+    ...text.supporting,
     lineHeight: 18,
     color: colors.primaryDeep,
+  },
+  phaseSummary: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.textSecondary,
+    fontFamily: "PlusJakartaSans_400Regular",
+  },
+  delayLabel: {
+    ...text.caption,
+    color: colors.textStrong,
+    fontVariant: ["tabular-nums"],
   },
   warningCard: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 8,
     backgroundColor: colors.primarySurface,
-    borderRadius: 6,
+    borderRadius: radii.lg,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
@@ -112,11 +105,7 @@ export const screenStyles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     color: colors.primaryDeep,
-  },
-  phaseSummary: {
-    fontSize: 12,
-    lineHeight: 17,
-    color: "#6d5b55",
+    fontFamily: "PlusJakartaSans_500Medium",
   },
   loadingRow: {
     flexDirection: "row",
@@ -124,60 +113,32 @@ export const screenStyles = StyleSheet.create({
     gap: 8,
   },
   loadingText: {
-    fontSize: 13,
+    ...text.supporting,
     lineHeight: 18,
-    color: "#5a4b45",
   },
   actionRow: {
     flexDirection: "row",
     gap: 10,
   },
+  actionFlex: {
+    flex: 1,
+    alignSelf: "auto",
+  },
   tweakRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    gap: 8,
   },
-  primaryButton: {
-    minHeight: 44,
-    borderRadius: 4,
-    backgroundColor: colors.primaryDeep,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-    flex: 1,
+  tweakKey: {
+    alignSelf: "auto",
+    minHeight: 34,
+    paddingHorizontal: 12,
   },
-  primaryButtonText: {
-    fontSize: 14,
-    lineHeight: 18,
-    color: colors.surface,
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-  secondaryButton: {
-    minHeight: 44,
-    borderRadius: 4,
-    backgroundColor: "#e6e2dd",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-  },
-  secondaryButtonText: {
-    fontSize: 14,
-    lineHeight: 18,
-    color: colors.textPrimary,
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-  buttonDisabled: {
-    opacity: 0.5,
+  tweakKeyText: {
+    fontVariant: ["tabular-nums"],
   },
   savedList: {
     gap: 8,
-  },
-  savedRow: {
-    backgroundColor: "#efeeea",
-    borderRadius: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 12,
   },
   savedCopy: {
     gap: 2,
@@ -189,38 +150,18 @@ export const screenStyles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_700Bold",
   },
   savedMeta: {
-    fontSize: 13,
+    ...text.supporting,
     lineHeight: 18,
-    color: "#5a4b45",
+    fontVariant: ["tabular-nums"],
   },
   savedActionCluster: {
     flexDirection: "row",
     alignItems: "center",
     flexWrap: "wrap",
     gap: 8,
+    marginTop: 6,
   },
-  savedAdjustButton: {
-    minHeight: 36,
-    borderRadius: 4,
-    backgroundColor: "#e6e2dd",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 12,
-  },
-  savedAdjustButtonText: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.textPrimary,
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-  removeButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  removeButtonText: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.primaryDeep,
-    fontFamily: "PlusJakartaSans_700Bold",
+  removeKeyText: {
+    color: colors.danger,
   },
 });

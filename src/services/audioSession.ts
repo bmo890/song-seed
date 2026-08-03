@@ -5,6 +5,12 @@ export type AudioSessionRole = "playback" | "recording" | "metronome";
 type AudioSessionActivationOptions = {
     ownerId?: string;
     force?: boolean;
+    /** Make this owner's role win outright while it is held, ignoring the priority
+     *  ladder. The one sanctioned use is Bluetooth calibration: it must drop
+     *  `allowsRecording` so iOS releases the headset mic and the route leaves the
+     *  phone-call (HFP) profile — but the recording screen underneath holds a
+     *  higher-priority "recording" owner the ladder would otherwise obey. */
+    exclusive?: boolean;
 };
 
 const sharedPlaybackAudioMode = {
@@ -53,9 +59,18 @@ const activeAudioSessionOwners = new Map<string, AudioSessionRole>();
 
 let nextAudioSessionOwnerId = 1;
 let appliedAudioSessionRole: AudioSessionRole | null = null;
+let exclusiveAudioSessionOwnerId: string | null = null;
 let audioSessionQueue = Promise.resolve();
 
 function resolveEffectiveAudioSessionRole(fallbackRole = IDLE_AUDIO_SESSION_ROLE) {
+    if (exclusiveAudioSessionOwnerId) {
+        const exclusiveRole = activeAudioSessionOwners.get(exclusiveAudioSessionOwnerId);
+        if (exclusiveRole) {
+            return exclusiveRole;
+        }
+        exclusiveAudioSessionOwnerId = null;
+    }
+
     let resolvedRole = fallbackRole;
 
     for (const requestedRole of activeAudioSessionOwners.values()) {
@@ -91,14 +106,19 @@ function activateAudioSessionRole(
 ) {
     return enqueueAudioSessionUpdate(async () => {
         const previousRole = options.ownerId ? activeAudioSessionOwners.get(options.ownerId) : undefined;
+        const previousExclusiveOwnerId = exclusiveAudioSessionOwnerId;
 
         if (options.ownerId) {
             activeAudioSessionOwners.set(options.ownerId, role);
+            if (options.exclusive) {
+                exclusiveAudioSessionOwnerId = options.ownerId;
+            }
         }
 
         try {
             await applyAudioSessionRole(resolveEffectiveAudioSessionRole(role), options.force);
         } catch (error) {
+            exclusiveAudioSessionOwnerId = previousExclusiveOwnerId;
             if (options.ownerId) {
                 if (previousRole) {
                     activeAudioSessionOwners.set(options.ownerId, previousRole);
@@ -121,6 +141,9 @@ export function createAudioSessionOwner(scope: string) {
 export async function releaseAudioSessionOwner(ownerId: string, force = false) {
     await enqueueAudioSessionUpdate(async () => {
         const removed = activeAudioSessionOwners.delete(ownerId);
+        if (exclusiveAudioSessionOwnerId === ownerId) {
+            exclusiveAudioSessionOwnerId = null;
+        }
         const nextRole = resolveEffectiveAudioSessionRole();
 
         if (!removed && !force && appliedAudioSessionRole === nextRole) {

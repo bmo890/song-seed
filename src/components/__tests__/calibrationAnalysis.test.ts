@@ -1,11 +1,22 @@
 import {
+  CALIBRATION_BEAT_COUNT,
   CALIBRATION_BEAT_INTERVAL_MS,
+  PATTERN_LOCK_IN_BEATS,
+  PATTERN_SILENT_BEAT_COUNT,
   analyzeAudioPhaseTaps,
+  analyzePatternPhaseTaps,
+  buildCalibrationGapPattern,
   buildResultWarning,
 } from "../BluetoothCalibrationScreen/calibrationAnalysis";
 
 const BEAT = CALIBRATION_BEAT_INTERVAL_MS; // 667 ms at 90 BPM
 const TOTAL_BEATS = 12;
+
+// 16 slots, silent at 4/7/10/13 — a representative run pattern with fixed gaps.
+const FIXED_PATTERN = Array.from({ length: CALIBRATION_BEAT_COUNT }, (_, index) => ![4, 7, 10, 13].includes(index));
+const PLAYED_SLOTS = FIXED_PATTERN.map((played, index) => (played ? index : -1)).filter(
+  (index) => index >= 2 // analysis ignores the lead-in beats
+);
 
 describe("analyzeAudioPhaseTaps", () => {
   it("returns the median residual for a typical steady pass", () => {
@@ -52,6 +63,93 @@ describe("analyzeAudioPhaseTaps", () => {
     );
 
     expect(analyzeAudioPhaseTaps(taps, TOTAL_BEATS)).toBeNull();
+  });
+});
+
+describe("buildCalibrationGapPattern", () => {
+  it("keeps the lock-in beats and the last beat played, gaps never adjacent", () => {
+    // Deterministic rng sweep — the invariants must hold for any draw.
+    for (let seed = 0; seed < 20; seed += 1) {
+      let state = seed + 1;
+      const rng = () => {
+        state = (state * 48271) % 2147483647;
+        return state / 2147483647;
+      };
+      const pattern = buildCalibrationGapPattern(CALIBRATION_BEAT_COUNT, rng);
+
+      expect(pattern).toHaveLength(CALIBRATION_BEAT_COUNT);
+      for (let index = 0; index < PATTERN_LOCK_IN_BEATS; index += 1) {
+        expect(pattern[index]).toBe(true);
+      }
+      expect(pattern[CALIBRATION_BEAT_COUNT - 1]).toBe(true);
+      const silentCount = pattern.filter((played) => !played).length;
+      expect(silentCount).toBeGreaterThan(0);
+      expect(silentCount).toBeLessThanOrEqual(PATTERN_SILENT_BEAT_COUNT);
+      for (let index = 1; index < pattern.length; index += 1) {
+        expect(pattern[index - 1] || pattern[index]).toBe(true);
+      }
+    }
+  });
+});
+
+describe("analyzePatternPhaseTaps", () => {
+  it("measures an ordinary late tapper like the steady analysis", () => {
+    const taps = PLAYED_SLOTS.map((slot, index) => slot * BEAT + 300 + (index % 2 === 0 ? -8 : 8));
+
+    const analysis = analyzePatternPhaseTaps(taps, FIXED_PATTERN);
+
+    expect(analysis).not.toBeNull();
+    expect(analysis!.medianMs).toBeGreaterThanOrEqual(292);
+    expect(analysis!.medianMs).toBeLessThanOrEqual(308);
+    expect(analysis!.tapCount).toBe(PLAYED_SLOTS.length);
+  });
+
+  it("recovers a consistent EARLY tapper as slightly negative, not aliased a beat late", () => {
+    // The steady beat-bucket analysis reads a −50 ms tap as +617 ms on the previous
+    // beat — the exact aliasing the gap fingerprint exists to break.
+    const taps = PLAYED_SLOTS.map((slot) => slot * BEAT - 50);
+
+    const analysis = analyzePatternPhaseTaps(taps, FIXED_PATTERN);
+
+    expect(analysis).not.toBeNull();
+    expect(analysis!.medianMs).toBeGreaterThanOrEqual(-60);
+    expect(analysis!.medianMs).toBeLessThanOrEqual(-40);
+    expect(analysis!.tapCount).toBe(PLAYED_SLOTS.length);
+  });
+
+  it("still resolves a genuinely huge late offset to the late side", () => {
+    const taps = PLAYED_SLOTS.map((slot) => slot * BEAT + 600);
+
+    const analysis = analyzePatternPhaseTaps(taps, FIXED_PATTERN);
+
+    expect(analysis).not.toBeNull();
+    expect(analysis!.medianMs).toBe(600);
+  });
+
+  it("ignores taps at silent slots instead of letting them skew the median", () => {
+    // A tapper who keeps tapping through the gaps: gap-slot taps match no played beat.
+    const taps = [
+      ...PLAYED_SLOTS.map((slot) => slot * BEAT + 250),
+      ...[4, 7, 10, 13].map((slot) => slot * BEAT + 250),
+    ];
+
+    const analysis = analyzePatternPhaseTaps(taps, FIXED_PATTERN);
+
+    expect(analysis).not.toBeNull();
+    expect(analysis!.medianMs).toBe(250);
+    expect(analysis!.tapCount).toBe(PLAYED_SLOTS.length);
+  });
+
+  it("returns null when too few played beats were tapped", () => {
+    const taps = PLAYED_SLOTS.slice(0, 5).map((slot) => slot * BEAT + 300);
+
+    expect(analyzePatternPhaseTaps(taps, FIXED_PATTERN)).toBeNull();
+  });
+
+  it("returns null when the spread exceeds the allowed MAD", () => {
+    const taps = PLAYED_SLOTS.map((slot, index) => slot * BEAT + (index % 2 === 0 ? 0 : 400));
+
+    expect(analyzePatternPhaseTaps(taps, FIXED_PATTERN)).toBeNull();
   });
 });
 

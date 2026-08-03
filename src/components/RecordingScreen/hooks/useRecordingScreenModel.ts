@@ -4,6 +4,7 @@ import { audioDeviceManager, type AudioDevice } from "@siteed/audio-studio";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
+import { toast } from "../../common/toastStore";
 import {
   buildBluetoothMonitoringRouteKey,
   getBluetoothMonitoringCalibrationForRoute,
@@ -497,6 +498,13 @@ export function useRecordingScreenModel() {
   ]);
 
   function openBluetoothCalibration() {
+    // Calibration claims the audio session exclusively (mic released, so the headset
+    // can leave the phone-call profile) — entering it mid-take would cut the recorder's
+    // input. The banner stays visible while recording, so answer the tap honestly.
+    if (recording.isRecording || recording.isPaused) {
+      toast(t("recording.finishTakeFirst"), "timer-outline");
+      return;
+    }
     navigation.navigate("BluetoothCalibration" as never);
   }
 

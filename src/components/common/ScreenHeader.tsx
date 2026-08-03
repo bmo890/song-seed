@@ -70,7 +70,9 @@ export function ScreenHeader({
                 <View style={{ width: 44, height: 44 }} />
             )}
 
-            <Text style={headerStyles.title}>{title}</Text>
+            <Text style={headerStyles.title} numberOfLines={1}>
+                {title}
+            </Text>
 
             {rightElement ? (
                 <View style={{ minWidth: 44, alignItems: "flex-end" }}>{rightElement}</View>
@@ -110,5 +112,11 @@ const headerStyles = StyleSheet.create({
         fontSize: 14,
         color: colors.textStrong,
     },
-    title: textTokens.headerTitle,
+    title: {
+        ...textTokens.headerTitle,
+        // RN Text defaults to flexShrink 0 — a long title otherwise overlaps the back
+        // pill instead of truncating.
+        flexShrink: 1,
+        marginHorizontal: 8,
+    },
 });

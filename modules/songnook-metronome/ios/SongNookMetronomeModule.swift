@@ -38,6 +38,10 @@ public class SongNookMetronomeModule: Module {
       true
     }
 
+    Function("supportsSilentBeats") {
+      true
+    }
+
     AsyncFunction("configureTempoMap") { (segments: [[String: Any]]) -> [String: Any] in
       return self.engine.configureTempoMap(segments)
     }

@@ -14,8 +14,12 @@ import { audioDeviceManager, type AudioDevice } from "@siteed/audio-studio";
 import { PageIntro } from "../common/PageIntro";
 import { AppAlert } from "../common/AppAlert";
 import { actionIcons } from "../common/actionIcons";
+import { Button } from "../common/Button";
 import { ScreenHeader } from "../common/ScreenHeader";
+import { SurfaceCard } from "../common/SurfaceCard";
+import { toast } from "../common/toastStore";
 import { styles as globalStyles } from "../../styles";
+import { haptic } from "../../design/haptics";
 import { useStore } from "../../state/useStore";
 import { ensureCalibrationClickTrackFile } from "../../services/metronomeLoop";
 import {
@@ -26,8 +30,6 @@ import { sanitizeOsOutputLatencyMs } from "../../services/latencyModel";
 import SongNookMetronomeModule from "../../../modules/songnook-metronome";
 import { colors } from "../../design/tokens";
 import {
-  MAX_BLUETOOTH_MONITORING_AUTO_OFFSET_MS,
-  MAX_BLUETOOTH_MONITORING_MANUAL_OFFSET_MS,
   buildBluetoothMonitoringRouteKey,
   buildBluetoothMonitoringRouteLabel,
   isBluetoothLikeAudioDevice,
@@ -36,17 +38,19 @@ import {
   type AudioRouteLike,
 } from "../../domain/bluetoothMonitoring";
 import {
+  CALIBRATION_BEAT_COUNT,
   CALIBRATION_BEAT_INTERVAL_MS,
   CALIBRATION_BPM,
   IGNORED_LEAD_IN_BEATS,
   analyzeAudioPhaseTaps,
+  analyzePatternPhaseTaps,
+  buildCalibrationGapPattern,
   buildResultWarning,
   median,
 } from "./calibrationAnalysis";
 import { screenStyles } from "./styles";
 import { useTranslation } from "react-i18next";
 
-const CALIBRATION_BEAT_COUNT = 12;
 const START_DELAY_MS = 1500;
 const COUNTDOWN_STEP_MS = 500;
 const OFFSET_TWEAK_SMALL_MS = 10;
@@ -54,7 +58,12 @@ const OFFSET_TWEAK_LARGE_MS = 25;
 
 /** Two ear-measured passes: the PLAYER pass beeps through the media pipeline the
  *  guide/master uses; the CLICK pass runs the real metronome engine. On many devices the
- *  two pipelines differ by hundreds of ms — one number cannot serve both. */
+ *  two pipelines differ by hundreds of ms — one number cannot serve both.
+ *  Both passes play a steady grid with a few RANDOMLY SILENCED beats (fresh pattern per
+ *  run): taps stay predictive — prediction cancels reaction time, which a random
+ *  "hearing test" beep cannot — while the gap fingerprint pins each tap to its true
+ *  beat, so a consistent early tapper measures slightly negative instead of aliasing
+ *  into a huge late offset. */
 type CalibrationPhase = "idle" | "player-running" | "click-running" | "result";
 
 type RouteInfo = AudioRouteLike;
@@ -67,24 +76,22 @@ function OffsetTweakRow({
   disabled?: boolean;
   onAdjust: (deltaMs: number) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <View style={screenStyles.tweakRow}>
       {[-OFFSET_TWEAK_LARGE_MS, -OFFSET_TWEAK_SMALL_MS, OFFSET_TWEAK_SMALL_MS, OFFSET_TWEAK_LARGE_MS].map(
         (deltaMs) => (
-          <Pressable
+          <Button
             key={deltaMs}
-            style={({ pressed }) => [
-              screenStyles.secondaryButton,
-              disabled ? screenStyles.buttonDisabled : null,
-              pressed ? globalStyles.pressDown : null,
-            ]}
+            variant="secondary"
+            label={t(deltaMs > 0 ? "bluetoothCalibration.plusMs" : "bluetoothCalibration.minusMs", {
+              value: Math.abs(deltaMs),
+            })}
+            style={screenStyles.tweakKey}
+            textStyle={screenStyles.tweakKeyText}
             disabled={disabled}
             onPress={() => onAdjust(deltaMs)}
-          >
-            <Text style={screenStyles.secondaryButtonText}>
-              {`${deltaMs > 0 ? "+" : "-"}${Math.abs(deltaMs)} ms`}
-            </Text>
-          </Pressable>
+          />
         )
       )}
     </View>
@@ -109,6 +116,9 @@ export function BluetoothCalibrationScreen() {
   const [phaseError, setPhaseError] = useState<string | null>(null);
   const [countdownValue, setCountdownValue] = useState<number | null>(null);
   const [lastAnalysisSummary, setLastAnalysisSummary] = useState<string | null>(null);
+  /** The NEXT run's gap pattern. Its beep file bakes while the screen is idle, so
+   *  Start never waits on synthesis; each completed run rolls a fresh pattern. */
+  const [pendingPattern, setPendingPattern] = useState<boolean[]>(() => buildCalibrationGapPattern());
   const [audioLoopUri, setAudioLoopUri] = useState<string | null>(null);
   const [isPreparingAudio, setIsPreparingAudio] = useState(false);
   const [bluetoothTargetRoute, setBluetoothTargetRoute] = useState<{ routeKey: string; routeLabel: string } | null>(
@@ -127,24 +137,38 @@ export function BluetoothCalibrationScreen() {
    *  poisoned every BT take until recalibration) — the median of several reads can't. */
   const anchorSamplesRef = useRef<number[]>([]);
   const playerOffsetDraftRef = useRef<number | null>(null);
+  /** The pattern of the run in flight (frozen at Start; pendingPattern rolls on). */
+  const runPatternRef = useRef<boolean[] | null>(null);
+  /** Whether the click pass actually rendered the gap pattern (needs silent-beat
+   *  support in the native binary) — decides which analysis reads its taps. */
+  const clickPatternActiveRef = useRef(false);
   const [resultWarning, setResultWarning] = useState<string | null>(null);
 
   const audioPlayer = useAudioPlayer(audioLoopUri ? { uri: audioLoopUri } : null, { updateInterval: 250 });
+  // The player instance is recreated whenever the pattern (and its file) changes; timer
+  // callbacks scheduled before that must reach the CURRENT instance, not their closure's.
+  const audioPlayerRef = useRef(audioPlayer);
+  audioPlayerRef.current = audioPlayer;
 
   const activeRoute = currentOutputRoute ?? currentDevice;
   const activeRouteKey = useMemo(() => buildBluetoothMonitoringRouteKey(activeRoute), [activeRoute]);
   const activeRouteLabel = useMemo(() => buildBluetoothMonitoringRouteLabel(activeRoute), [activeRoute]);
   const isBluetoothRoute = useMemo(() => isBluetoothLikeAudioDevice(activeRoute), [activeRoute]);
+  const isHfpRoute = currentOutputRoute?.profile === "hfp";
   const editableRouteKey = bluetoothTargetRoute?.routeKey ?? (isBluetoothRoute ? activeRouteKey : null);
   const editableRouteLabel = bluetoothTargetRoute?.routeLabel ?? (isBluetoothRoute ? activeRouteLabel : null);
 
-  // Recording flows can leave the audio session forcing output away from A2DP (which made
-  // this screen see "speaker" with headphones connected and refuse to start). Claim a plain
-  // playback session while calibrating so the Bluetooth route is actually active.
+  // Recording flows leave a higher-priority "recording" session owner active, which
+  // keeps `allowsRecording` on, which keeps the headset mic claimed — and Bluetooth
+  // monitoring stuck on the phone-call (HFP) profile whose latency has nothing to do
+  // with normal listening. The EXCLUSIVE playback claim outranks that owner for as long
+  // as this screen is open, so the route renegotiates to the profile takes monitor on.
   useEffect(() => {
-    void activatePlaybackAudioSession({ ownerId: "bluetooth-calibration", force: true }).catch(
-      () => {}
-    );
+    void activatePlaybackAudioSession({
+      ownerId: "bluetooth-calibration",
+      force: true,
+      exclusive: true,
+    }).catch(() => {});
     return () => {
       void releaseAudioSessionOwner("bluetooth-calibration").catch(() => {});
     };
@@ -192,7 +216,7 @@ export function BluetoothCalibrationScreen() {
   useEffect(() => {
     let cancelled = false;
     setIsPreparingAudio(true);
-    void ensureCalibrationClickTrackFile(CALIBRATION_BPM, CALIBRATION_BEAT_COUNT)
+    void ensureCalibrationClickTrackFile(CALIBRATION_BPM, CALIBRATION_BEAT_COUNT, pendingPattern)
       .then((loop) => {
         if (!cancelled) {
           setAudioLoopUri(loop.uri);
@@ -212,8 +236,11 @@ export function BluetoothCalibrationScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [pendingPattern]);
 
+  // Unmount only: a mid-run exit already cleared the finish timers that would have
+  // stopped the engine and the player — without this the click ticks on forever behind
+  // whatever screen comes next.
   useEffect(() => {
     return () => {
       timersRef.current.forEach((timer) => clearTimeout(timer));
@@ -222,17 +249,10 @@ export function BluetoothCalibrationScreen() {
         progressIntervalRef.current = null;
       }
       try {
-        audioPlayer.pause();
+        audioPlayerRef.current.pause();
       } catch {
         // ignore cleanup noise
       }
-    };
-  }, [audioPlayer]);
-
-  // Backing out mid-click-pass clears the finish timer that would have stopped the
-  // engine — without this the click keeps ticking behind whatever screen comes next.
-  useEffect(() => {
-    return () => {
       void SongNookMetronomeModule?.stop().catch(() => {});
     };
   }, []);
@@ -254,12 +274,15 @@ export function BluetoothCalibrationScreen() {
     setPhase(nextPhase);
     setPhaseElapsedMs(0);
     setCountdownValue(null);
+    // Roll the next run's gap pattern the moment this one ends; its file bakes while
+    // the user reads the result.
+    setPendingPattern(buildCalibrationGapPattern());
   }
 
   async function stopAudioPlayback() {
     try {
-      audioPlayer.pause();
-      await audioPlayer.seekTo(0);
+      audioPlayerRef.current.pause();
+      await audioPlayerRef.current.seekTo(0);
     } catch {
       // ignore player cleanup failures
     }
@@ -270,17 +293,18 @@ export function BluetoothCalibrationScreen() {
       return;
     }
     try {
+      const player = audioPlayerRef.current;
       anchorSamplesRef.current = [];
-      await audioPlayer.seekTo(0);
-      audioPlayer.play();
+      await player.seekTo(0);
+      player.play();
 
       // Re-anchor the tap grid to when audio *actually* started. The player's own start
       // latency (20–150 ms, different every run) would otherwise be measured as route
       // latency, which is the largest fixable error in this calibration (audit F13).
       const anchorDeadline = Date.now() + 1500;
       while (Date.now() < anchorDeadline) {
-        const positionSec = audioPlayer.currentTime ?? 0;
-        if (audioPlayer.playing && positionSec > 0) {
+        const positionSec = player.currentTime ?? 0;
+        if (player.playing && positionSec > 0) {
           phaseStartAtRef.current = Date.now() - positionSec * 1000;
           anchorSamplesRef.current.push(phaseStartAtRef.current);
           break;
@@ -293,8 +317,8 @@ export function BluetoothCalibrationScreen() {
       // Keep re-deriving the anchor while the pass plays; the analysis uses the median.
       [700, 1600, 2800].forEach((delayMs) => {
         const sampleTimer = setTimeout(() => {
-          const positionSec = audioPlayer.currentTime ?? 0;
-          if (audioPlayer.playing && positionSec > 0) {
+          const positionSec = player.currentTime ?? 0;
+          if (player.playing && positionSec > 0) {
             anchorSamplesRef.current.push(Date.now() - positionSec * 1000);
           }
         }, delayMs);
@@ -306,8 +330,10 @@ export function BluetoothCalibrationScreen() {
   }
 
   function setPhaseFailure(tappedBeatCount: number) {
-    setLastAnalysisSummary(`Captured ${tappedBeatCount} usable beats.`);
+    setLastAnalysisSummary(t("bluetoothCalibration.capturedBeats", { count: tappedBeatCount }));
     setPhaseError(t("bluetoothCalibration.inconsistent"));
+    // haptics.ts vocabulary: error → something failed (the run produced nothing).
+    haptic.error();
     resetRunState("idle");
   }
 
@@ -316,7 +342,10 @@ export function BluetoothCalibrationScreen() {
       anchorSamplesRef.current.length > 0 ? median(anchorSamplesRef.current) : phaseStartAtRef.current;
     const tapTimes =
       anchorMs != null ? tapEpochsRef.current.map((epoch) => epoch - anchorMs) : [];
-    const analysis = analyzeAudioPhaseTaps(tapTimes, CALIBRATION_BEAT_COUNT);
+    const pattern = runPatternRef.current;
+    const analysis = pattern
+      ? analyzePatternPhaseTaps(tapTimes, pattern)
+      : analyzeAudioPhaseTaps(tapTimes, CALIBRATION_BEAT_COUNT);
     if (!analysis) {
       const analyzedTapCount = Math.max(
         0,
@@ -331,7 +360,10 @@ export function BluetoothCalibrationScreen() {
     setEstimatedOffsetMs(playerOffsetDraftRef.current);
     setPhaseError(null);
     setLastAnalysisSummary(
-      `Music pass: ${analysis.tapCount} valid beats, spread ${Math.round(analysis.madMs)} ms.`
+      t("bluetoothCalibration.musicSummary", {
+        count: analysis.tapCount,
+        spread: Math.round(analysis.madMs),
+      })
     );
     // The two audible pipelines differ by hundreds of ms on some devices — measure the
     // metronome click path with its own pass instead of reusing the player number.
@@ -361,12 +393,19 @@ export function BluetoothCalibrationScreen() {
       void (async () => {
         try {
           setCountdownValue(null);
+          // Old binaries render accent 0 as a quiet click, not a rest — fall back to a
+          // steady pass there and route its taps through the legacy analysis.
+          const pattern = runPatternRef.current;
+          const patternActive = !!pattern && !!SongNookMetronomeModule?.supportsSilentBeats?.();
+          clickPatternActiveRef.current = patternActive;
           await SongNookMetronomeModule!.configure({
             bpm: CALIBRATION_BPM,
             meterId: "4/4",
-            pulsesPerBar: 4,
+            pulsesPerBar: patternActive ? CALIBRATION_BEAT_COUNT : 4,
             denominator: 4,
-            accentPattern: [1, 0.5, 0.5, 0.5],
+            accentPattern: patternActive
+              ? pattern!.map((played) => (played ? 0.5 : 0))
+              : [1, 0.5, 0.5, 0.5],
             clickEnabled: true,
             clickVolume: 0.6,
             outputLatencyMs: 0,
@@ -418,11 +457,14 @@ export function BluetoothCalibrationScreen() {
   function completeClickPass() {
     const anchorMs = phaseStartAtRef.current;
     const tapTimes = anchorMs != null ? tapEpochsRef.current.map((epoch) => epoch - anchorMs) : [];
-    const analysis = analyzeAudioPhaseTaps(tapTimes, CALIBRATION_BEAT_COUNT);
+    const pattern = clickPatternActiveRef.current ? runPatternRef.current : null;
+    const analysis = pattern
+      ? analyzePatternPhaseTaps(tapTimes, pattern)
+      : analyzeAudioPhaseTaps(tapTimes, CALIBRATION_BEAT_COUNT);
     if (!analysis) {
       setEstimatedClickOffsetMs(null);
       setLastAnalysisSummary((current) =>
-        `${current ?? ""} Click pass was too inconsistent — saved music delay only.`.trim()
+        `${current ?? ""} ${t("bluetoothCalibration.clickInconsistent")}`.trim()
       );
       resetRunState("result");
       return;
@@ -432,9 +474,10 @@ export function BluetoothCalibrationScreen() {
     setResultWarning(buildResultWarning(playerOffsetDraftRef.current, clickMs, reportedLatencyMs, t));
     setLastAnalysisSummary(
       (current) =>
-        `${current ?? ""} Click pass: ${analysis.tapCount} valid beats, spread ${Math.round(
-          analysis.madMs
-        )} ms.`.trim()
+        `${current ?? ""} ${t("bluetoothCalibration.clickSummary", {
+          count: analysis.tapCount,
+          spread: Math.round(analysis.madMs),
+        })}`.trim()
     );
     resetRunState("result");
   }
@@ -456,6 +499,10 @@ export function BluetoothCalibrationScreen() {
     tapEpochsRef.current = [];
     anchorSamplesRef.current = [];
     playerOffsetDraftRef.current = null;
+    // Freeze the prepared pattern for this run — the pending one (and its beep file)
+    // must not roll underneath a pass in flight.
+    runPatternRef.current = pendingPattern;
+    clickPatternActiveRef.current = false;
     setEstimatedClickOffsetMs(null);
     setResultWarning(null);
     setPhase("player-running");
@@ -496,6 +543,26 @@ export function BluetoothCalibrationScreen() {
     timersRef.current.push(startTimer as unknown as number);
   }
 
+  const isPassRunning = phase === "player-running" || phase === "click-running";
+
+  // A route change mid-pass (headphones disconnect, profile renegotiation) means the
+  // beeps stopped reaching the ears being measured — the run is garbage. Abort instead
+  // of saving speaker latency under the Bluetooth route's key.
+  useEffect(() => {
+    if (!isPassRunning || !bluetoothTargetRoute) {
+      return;
+    }
+    if (activeRouteKey !== bluetoothTargetRoute.routeKey) {
+      void SongNookMetronomeModule?.stop().catch(() => {});
+      void stopAudioPlayback();
+      setPhaseError(t("bluetoothCalibration.routeChangedAbort"));
+      // haptics.ts vocabulary: error → something failed (the run was aborted).
+      haptic.error();
+      resetRunState("idle");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRouteKey, isPassRunning, bluetoothTargetRoute]);
+
   function handleTap() {
     if (phase !== "player-running" && phase !== "click-running") {
       return;
@@ -529,7 +596,6 @@ export function BluetoothCalibrationScreen() {
     setCalibration(routeKeyToAdjust, routeLabelToAdjust, nextOffsetMs);
   }
 
-  const isPassRunning = phase === "player-running" || phase === "click-running";
   const phaseDurationMs = isPassRunning ? CALIBRATION_BEAT_COUNT * CALIBRATION_BEAT_INTERVAL_MS : 0;
   const phaseProgress =
     phaseDurationMs > 0 ? Math.max(0, Math.min(1, phaseElapsedMs / phaseDurationMs)) : 0;
@@ -547,10 +613,10 @@ export function BluetoothCalibrationScreen() {
       // top of the then-current report, tracking per-connection BT drift automatically.
       reportedLatencyMs ?? undefined
     );
-    AppAlert.info(
-      t("bluetoothCalibration.savedTitle"),
-      t("bluetoothCalibration.savedBody", { name: editableRouteLabel, music: estimatedOffsetMs, click: estimatedClickOffsetMs != null ? t("bluetoothCalibration.savedBodyClick", { value: estimatedClickOffsetMs }) : "" })
-    );
+    // haptics.ts vocabulary: success → a completion the user waited for, paired with a
+    // toast (never a dialog — the result needs no decision).
+    haptic.success();
+    toast(t("bluetoothCalibration.savedToast"), "checkmark-outline");
     navigation.goBack();
   }
 
@@ -595,7 +661,7 @@ export function BluetoothCalibrationScreen() {
     setEstimatedClickOffsetMs(normalizeBluetoothMonitoringSavedOffsetMs(reportedLatencyMs));
     setPhaseError(null);
     setResultWarning(null);
-    setLastAnalysisSummary(t("bluetoothCalibration.seeded", { value: reportedLatencyMs }));
+    setLastAnalysisSummary(t("bluetoothCalibration.seeded"));
     resetRunState("result");
   }
 
@@ -609,8 +675,7 @@ export function BluetoothCalibrationScreen() {
         <PageIntro
           title={t("bluetoothCalibration.title")}
           subtitle={t("bluetoothCalibration.subtitle")}
-          titleNumberOfLines={2}
-          subtitleNumberOfLines={4}
+          subtitleNumberOfLines={3}
         />
 
         <View style={screenStyles.section}>
@@ -620,28 +685,33 @@ export function BluetoothCalibrationScreen() {
               {isBluetoothRoute ? t("bluetoothCalibration.bluetooth") : t("bluetoothCalibration.other")}
             </Text>
           </View>
-          <View style={screenStyles.routeCard}>
+          <SurfaceCard>
             <Text style={screenStyles.routeTitle}>{activeRouteLabel}</Text>
             <Text style={screenStyles.routeMeta}>
               {isBluetoothRoute
                 ? t("bluetoothCalibration.ready")
                 : t("bluetoothCalibration.switchOutput")}
             </Text>
+            {isBluetoothRoute && isHfpRoute ? (
+              <Text style={screenStyles.routeHint}>{t("bluetoothCalibration.hfpActive")}</Text>
+            ) : null}
             {isBluetoothRoute && reportedLatencyMs != null ? (
               <Text style={screenStyles.routeMeta}>
                 {t("bluetoothCalibration.reportedLatency", { value: reportedLatencyMs })}
               </Text>
             ) : null}
-          </View>
+          </SurfaceCard>
         </View>
 
         <View style={screenStyles.section}>
           <View style={globalStyles.settingsSectionHeaderRow}>
             <Text style={globalStyles.settingsSectionLabel}>{t("bluetoothCalibration.calibration")}</Text>
-            <Text style={globalStyles.settingsSectionMeta}>90 BPM</Text>
+            <Text style={globalStyles.settingsSectionMeta}>
+              {t("bluetoothCalibration.bpmMeta", { bpm: CALIBRATION_BPM })}
+            </Text>
           </View>
 
-          <View style={screenStyles.phaseCard}>
+          <SurfaceCard style={screenStyles.section}>
             <Text style={screenStyles.phaseTitle}>
               {phase === "idle"
                 ? t("bluetoothCalibration.idleTitle")
@@ -666,7 +736,7 @@ export function BluetoothCalibrationScreen() {
             {isPassRunning ? (
               <View style={screenStyles.progressBlock}>
                 <View style={screenStyles.progressHeader}>
-                  <Text style={screenStyles.phaseBeatLabel}>
+                  <Text style={screenStyles.progressLabel}>
                     {phase === "player-running" ? t("bluetoothCalibration.musicPass") : t("bluetoothCalibration.clickPass")}
                   </Text>
                   <Text style={screenStyles.progressPercent}>{Math.round(phaseProgress * 100)}%</Text>
@@ -683,7 +753,15 @@ export function BluetoothCalibrationScreen() {
             ) : null}
 
             {isPassRunning ? (
-              <Pressable style={screenStyles.tapSurface} onPress={handleTap}>
+              <Pressable
+                style={({ pressed }) => [
+                  screenStyles.tapSurface,
+                  pressed ? globalStyles.pressDown : null,
+                ]}
+                onPress={handleTap}
+                accessibilityRole="button"
+                accessibilityLabel={t("bluetoothCalibration.tap")}
+              >
                 <Text style={screenStyles.tapSurfaceLabel}>{t("bluetoothCalibration.tap")}</Text>
               </Pressable>
             ) : null}
@@ -700,27 +778,19 @@ export function BluetoothCalibrationScreen() {
 
             {phase === "idle" ? (
               <View style={screenStyles.actionRow}>
-                <Pressable
-                  style={({ pressed }) => [
-                    screenStyles.primaryButton,
-                    (!isBluetoothRoute || isPreparingAudio) ? screenStyles.buttonDisabled : null,
-                    pressed ? globalStyles.pressDown : null,
-                  ]}
+                <Button
+                  label={t("bluetoothCalibration.start")}
+                  style={screenStyles.actionFlex}
                   onPress={schedulePhase}
                   disabled={!isBluetoothRoute || isPreparingAudio}
-                >
-                  <Text style={screenStyles.primaryButtonText}>{t("bluetoothCalibration.start")}</Text>
-                </Pressable>
+                />
                 {isBluetoothRoute && reportedLatencyMs != null ? (
-                  <Pressable
-                    style={({ pressed }) => [
-                      screenStyles.secondaryButton,
-                      pressed ? globalStyles.pressDown : null,
-                    ]}
+                  <Button
+                    variant="secondary"
+                    label={t("bluetoothCalibration.useReported")}
+                    style={screenStyles.actionFlex}
                     onPress={useReportedLatency}
-                  >
-                    <Text style={screenStyles.secondaryButtonText}>{t("bluetoothCalibration.useReported", { value: reportedLatencyMs })}</Text>
-                  </Pressable>
+                  />
                 ) : null}
               </View>
             ) : null}
@@ -733,17 +803,14 @@ export function BluetoothCalibrationScreen() {
                     <Text style={screenStyles.warningText}>{resultWarning}</Text>
                   </View>
                 ) : null}
-                <Text style={screenStyles.phaseBeatLabel}>
+                <Text style={screenStyles.delayLabel}>
                   {editableRouteLabel
                     ? t("bluetoothCalibration.musicDelayNamed", { name: editableRouteLabel, value: estimatedOffsetMs ?? "—" })
                     : t("bluetoothCalibration.musicDelay", { value: estimatedOffsetMs ?? "—" })}
                 </Text>
-                <Text style={screenStyles.phaseSummary}>
-                  {t("bluetoothCalibration.caps", { auto: MAX_BLUETOOTH_MONITORING_AUTO_OFFSET_MS, manual: MAX_BLUETOOTH_MONITORING_MANUAL_OFFSET_MS })}
-                </Text>
                 <OffsetTweakRow disabled={estimatedOffsetMs == null} onAdjust={adjustDraftOffset} />
 
-                <Text style={screenStyles.phaseBeatLabel}>
+                <Text style={screenStyles.delayLabel}>
                   {t("bluetoothCalibration.clickDelay", { value: estimatedClickOffsetMs != null ? `${estimatedClickOffsetMs} ms` : t("bluetoothCalibration.notMeasured") })}
                 </Text>
                 {estimatedClickOffsetMs != null ? (
@@ -751,32 +818,22 @@ export function BluetoothCalibrationScreen() {
                 ) : null}
 
                 <View style={screenStyles.actionRow}>
-                  <Pressable
-                    style={({ pressed }) => [
-                      screenStyles.secondaryButton,
-                      pressed ? globalStyles.pressDown : null,
-                    ]}
+                  <Button
+                    variant="secondary"
+                    label={t("bluetoothCalibration.retry")}
+                    style={screenStyles.actionFlex}
                     onPress={resetCalibrationRun}
-                  >
-                    <Text style={screenStyles.secondaryButtonText}>{t("bluetoothCalibration.retry")}</Text>
-                  </Pressable>
-                  <Pressable
-                    style={({ pressed }) => [
-                      screenStyles.primaryButton,
-                      estimatedOffsetMs == null || !editableRouteKey || !editableRouteLabel
-                        ? screenStyles.buttonDisabled
-                        : null,
-                      pressed ? globalStyles.pressDown : null,
-                    ]}
+                  />
+                  <Button
+                    label={t("bluetoothCalibration.save")}
+                    style={screenStyles.actionFlex}
                     onPress={handleSaveCalibration}
                     disabled={estimatedOffsetMs == null || !editableRouteKey || !editableRouteLabel}
-                  >
-                    <Text style={screenStyles.primaryButtonText}>{t("bluetoothCalibration.save")}</Text>
-                  </Pressable>
+                  />
                 </View>
               </>
             ) : null}
-          </View>
+          </SurfaceCard>
         </View>
 
         <View style={screenStyles.section}>
@@ -790,7 +847,7 @@ export function BluetoothCalibrationScreen() {
           ) : (
             <View style={screenStyles.savedList}>
               {calibrations.map((calibration) => (
-                <View key={calibration.routeKey} style={screenStyles.savedRow}>
+                <SurfaceCard key={calibration.routeKey}>
                   <View style={screenStyles.savedCopy}>
                     <Text style={screenStyles.savedTitle}>{calibration.routeLabel}</Text>
                     <Text style={screenStyles.savedMeta}>
@@ -798,11 +855,11 @@ export function BluetoothCalibrationScreen() {
                     </Text>
                   </View>
                   <View style={screenStyles.savedActionCluster}>
-                    <Pressable
-                      style={({ pressed }) => [
-                        screenStyles.savedAdjustButton,
-                        pressed ? globalStyles.pressDown : null,
-                      ]}
+                    <Button
+                      variant="secondary"
+                      label={t("bluetoothCalibration.minusMs", { value: OFFSET_TWEAK_SMALL_MS })}
+                      style={screenStyles.tweakKey}
+                      textStyle={screenStyles.tweakKeyText}
                       onPress={() =>
                         adjustSavedCalibration(
                           calibration.routeKey,
@@ -811,14 +868,12 @@ export function BluetoothCalibrationScreen() {
                           -OFFSET_TWEAK_SMALL_MS
                         )
                       }
-                    >
-                      <Text style={screenStyles.savedAdjustButtonText}>-10</Text>
-                    </Pressable>
-                    <Pressable
-                      style={({ pressed }) => [
-                        screenStyles.savedAdjustButton,
-                        pressed ? globalStyles.pressDown : null,
-                      ]}
+                    />
+                    <Button
+                      variant="secondary"
+                      label={t("bluetoothCalibration.plusMs", { value: OFFSET_TWEAK_SMALL_MS })}
+                      style={screenStyles.tweakKey}
+                      textStyle={screenStyles.tweakKeyText}
                       onPress={() =>
                         adjustSavedCalibration(
                           calibration.routeKey,
@@ -827,20 +882,16 @@ export function BluetoothCalibrationScreen() {
                           OFFSET_TWEAK_SMALL_MS
                         )
                       }
-                    >
-                      <Text style={screenStyles.savedAdjustButtonText}>+10</Text>
-                    </Pressable>
-                    <Pressable
-                      style={({ pressed }) => [
-                        screenStyles.removeButton,
-                        pressed ? globalStyles.pressDown : null,
-                      ]}
+                    />
+                    <Button
+                      variant="quiet"
+                      label={t("bluetoothCalibration.remove")}
+                      style={screenStyles.tweakKey}
+                      textStyle={screenStyles.removeKeyText}
                       onPress={() => handleRemoveCalibration(calibration.routeKey, calibration.routeLabel)}
-                    >
-                      <Text style={screenStyles.removeButtonText}>{t("bluetoothCalibration.remove")}</Text>
-                    </Pressable>
+                    />
                   </View>
-                </View>
+                </SurfaceCard>
               ))}
             </View>
           )}

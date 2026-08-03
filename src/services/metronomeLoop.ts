@@ -73,11 +73,14 @@ function createWavHeader(dataSize: number) {
 type ClickLoopOptions = {
   beatCount?: number;
   accentDownbeat?: boolean;
+  /** Per-beat played/silent mask (calibration gap patterns). Missing entries play. */
+  beatPattern?: boolean[];
 };
 
 function buildClickLoopBytes(bpm: number, options: ClickLoopOptions = {}) {
   const beatCount = Math.max(1, options.beatCount ?? METRONOME_LOOP_BEAT_COUNT);
   const accentDownbeat = options.accentDownbeat ?? true;
+  const beatPattern = options.beatPattern ?? null;
   const beatIntervalMs = getMetronomeBeatIntervalMs(bpm);
   const beatFrames = Math.max(1, Math.round((SAMPLE_RATE * beatIntervalMs) / 1000));
   const totalFrames = beatFrames * beatCount;
@@ -90,6 +93,9 @@ function buildClickLoopBytes(bpm: number, options: ClickLoopOptions = {}) {
   const attackFrameCount = Math.max(1, Math.round((SAMPLE_RATE * ATTACK_MS) / 1000));
 
   for (let beatIndex = 0; beatIndex < beatCount; beatIndex += 1) {
+    if (beatPattern && beatPattern[beatIndex] === false) {
+      continue;
+    }
     const startFrame = beatIndex * beatFrames;
     const isDownbeat = accentDownbeat && beatIndex === 0;
     const baseFrequency = isDownbeat ? 1960 : 1560;
@@ -168,12 +174,21 @@ export async function ensureMetronomeLoopFile(bpm: number) {
   };
 }
 
-export async function ensureCalibrationClickTrackFile(bpm: number, beatCount: number) {
+export async function ensureCalibrationClickTrackFile(
+  bpm: number,
+  beatCount: number,
+  beatPattern?: boolean[]
+) {
   const normalizedBpm = clampMetronomeBpm(bpm);
   const normalizedBeatCount = Math.max(1, Math.round(beatCount));
   const beatIntervalMs = getMetronomeBeatIntervalMs(normalizedBpm);
   const durationMs = beatIntervalMs * normalizedBeatCount;
-  const filename = `calibration-${normalizedBpm}-${normalizedBeatCount}.wav`;
+  // The gap pattern is baked into the samples, so it must be baked into the name too —
+  // a bitmask keeps each per-run pattern as its own small cached file.
+  const patternKey = beatPattern
+    ? `-${beatPattern.reduce((mask, played, index) => (played ? mask | (1 << index) : mask), 0).toString(16)}`
+    : "";
+  const filename = `calibration-${normalizedBpm}-${normalizedBeatCount}${patternKey}.wav`;
 
   await ensureMetronomeDirectory();
 
@@ -183,6 +198,7 @@ export async function ensureCalibrationClickTrackFile(bpm: number, beatCount: nu
     const wavBytes = buildClickLoopBytes(normalizedBpm, {
       beatCount: normalizedBeatCount,
       accentDownbeat: false,
+      beatPattern,
     });
     await FileSystem.writeAsStringAsync(uri, bytesToBase64(wavBytes), {
       encoding: FileSystem.EncodingType.Base64,
