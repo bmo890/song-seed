@@ -229,6 +229,14 @@ export function BluetoothCalibrationScreen() {
     };
   }, [audioPlayer]);
 
+  // Backing out mid-click-pass clears the finish timer that would have stopped the
+  // engine — without this the click keeps ticking behind whatever screen comes next.
+  useEffect(() => {
+    return () => {
+      void SongNookMetronomeModule?.stop().catch(() => {});
+    };
+  }, []);
+
   function clearPhaseTimers() {
     timersRef.current.forEach((timer) => clearTimeout(timer));
     timersRef.current = [];
@@ -362,6 +370,13 @@ export function BluetoothCalibrationScreen() {
             clickEnabled: true,
             clickVolume: 0.6,
             outputLatencyMs: 0,
+            // The engine MERGES configs, so a haptics-on setting left by a previous
+            // metronome session would survive into this pass — and a buzz on the true
+            // grid while the beep arrives late is a second, contradictory cue that
+            // corrupts the very tap timing this pass measures. Calibration is ears-only.
+            hapticEnabled: false,
+            hapticStrength: 0,
+            hapticOffsetMs: 0,
           });
           await SongNookMetronomeModule!.start();
 

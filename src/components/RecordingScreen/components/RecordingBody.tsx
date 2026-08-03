@@ -1,5 +1,5 @@
 import React from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import type { AudioAnalysis } from "@siteed/audio-studio";
 import type { SongIdea } from "../../../types";
 import { styles } from "../../../styles";
@@ -8,7 +8,6 @@ import { getOverdubStemColor } from "../../../domain/overdub";
 import { RecordingMeta } from "./RecordingMeta";
 import { RecordingLyricsSection } from "./RecordingLyricsSection";
 import { RecordingOverdubGuide } from "./RecordingOverdubGuide";
-import { useTranslation } from "react-i18next";
 
 type RecordingBodyProps = {
   recordingIdea: SongIdea | null | undefined;
@@ -17,11 +16,6 @@ type RecordingBodyProps = {
   guideMixPositionMs: number;
   guideMixDurationMs: number;
   guideMixWaveformPeaks?: number[];
-  isBluetoothRecordingInput: boolean;
-  isBluetoothMonitoringOutput: boolean;
-  recordingInputLabel: string | null;
-  monitoringOutputLabel: string | null;
-  activeBluetoothCalibrationMs: number | null;
   hasProjectLyrics: boolean;
   latestLyricsText: string;
   latestLyricsUpdatedAt: number | null;
@@ -48,7 +42,6 @@ type RecordingBodyProps = {
   onToggleLyricsAutoscroll: (enabled: boolean) => void;
   onLyricsAutoscrollInterrupted: () => void;
   onSelectLyricsAutoscrollSpeedMultiplier: (value: number) => void;
-  onOpenBluetoothCalibration: () => void;
 };
 
 export function RecordingBody({
@@ -58,11 +51,6 @@ export function RecordingBody({
   guideMixPositionMs,
   guideMixDurationMs,
   guideMixWaveformPeaks,
-  isBluetoothRecordingInput,
-  isBluetoothMonitoringOutput,
-  recordingInputLabel,
-  monitoringOutputLabel,
-  activeBluetoothCalibrationMs,
   hasProjectLyrics,
   latestLyricsText,
   latestLyricsUpdatedAt,
@@ -89,9 +77,7 @@ export function RecordingBody({
   onToggleLyricsAutoscroll,
   onLyricsAutoscrollInterrupted,
   onSelectLyricsAutoscrollSpeedMultiplier,
-  onOpenBluetoothCalibration,
 }: RecordingBodyProps) {
-  const { t } = useTranslation();
   const bodyContent = (
       <View
         style={[
@@ -99,37 +85,6 @@ export function RecordingBody({
           hasProjectLyrics && !lyricsExpanded ? styles.recordingContentBodyCollapsedLyrics : null,
         ]}
       >
-        {isBluetoothMonitoringOutput ? (
-          <View style={styles.recordingBluetoothWarning}>
-            <Text style={styles.recordingBluetoothWarningLabel}>{t("recording.bluetoothDetected")}</Text>
-            <Text style={styles.recordingBluetoothWarningText}>
-              {monitoringOutputLabel
-                ? t("recording.bluetoothDelayNamed", { name: monitoringOutputLabel })
-                : t("recording.bluetoothDelay")}
-            </Text>
-            <Text style={styles.recordingBluetoothWarningMeta}>
-              {activeBluetoothCalibrationMs != null
-                ? monitoringOutputLabel
-                  ? t("recording.appliedOffsetNamed", { offset: activeBluetoothCalibrationMs, name: monitoringOutputLabel })
-                  : t("recording.appliedOffset", { offset: activeBluetoothCalibrationMs })
-                : t("recording.noOffset")}
-            </Text>
-            <Pressable
-              style={({ pressed }) => [
-                styles.recordingBluetoothWarningButton,
-                pressed ? styles.pressDown : null,
-              ]}
-              onPress={onOpenBluetoothCalibration}
-            >
-              <Text style={styles.recordingBluetoothWarningButtonText}>
-                {activeBluetoothCalibrationMs != null
-                  ? t("recording.recalibrate", { offset: activeBluetoothCalibrationMs })
-                  : t("recording.calibrateBluetooth")}
-              </Text>
-            </Pressable>
-          </View>
-        ) : null}
-
         {recordingOverdubClip ? (
           <>
             <RecordingOverdubGuide

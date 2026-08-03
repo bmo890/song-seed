@@ -200,46 +200,6 @@ export const recordingStyles = {
   recordingContentBodyCollapsedLyrics: {
     justifyContent: "space-between",
   },
-  recordingBluetoothWarning: {
-    backgroundColor: "#F4F1ED",
-    borderRadius: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 4,
-  },
-  recordingBluetoothWarningLabel: {
-    fontSize: 11,
-    lineHeight: 14,
-    color: "#B87D6B",
-    fontFamily: "PlusJakartaSans_700Bold",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
-  recordingBluetoothWarningText: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: "#1b1c1a",
-  },
-  recordingBluetoothWarningMeta: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: "#84736f",
-  },
-  recordingBluetoothWarningButton: {
-    alignSelf: "flex-start",
-    marginTop: 4,
-    minHeight: 32,
-    borderRadius: 4,
-    backgroundColor: "#EDE9E4",
-    paddingHorizontal: 12,
-    justifyContent: "center",
-  },
-  recordingBluetoothWarningButtonText: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: "#B87D6B",
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
   // Paper, not a card: the guide is the upper register of one page, not a widget
   // sitting on it. Full-bleed like the tape below so the two read as one scene.
   recordingGuideCard: {
