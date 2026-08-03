@@ -106,6 +106,9 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   const bpmRef = useRef(bpm);
   const configuredRef = useRef(false);
   const cueActivationAtRef = useRef<number>(0);
+  /** True while the currently running engine pass was started by THIS hook instance —
+   *  the beat listener below ignores foreign runs (see comment there). */
+  const ownsActiveRunRef = useRef(false);
   // Binaries whose engines schedule haptics natively (no bridge at fire time). On older
   // binaries the JS event-driven fallback below keeps working.
   const nativeCuesSupported = !!SongNookMetronomeModule?.supportsScheduledCues?.();
@@ -443,10 +446,22 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   }, []);
 
   useEventListener(SongNookMetronomeModule!, "onStateChange", (state) => {
+    // Any stop ends this instance's ownership — otherwise a stale claim from an earlier
+    // run would make this instance cue along to the NEXT run even if it's foreign.
+    if (!state.isRunning) {
+      ownsActiveRunRef.current = false;
+    }
     setNativeState(state);
   });
 
   useEventListener(SongNookMetronomeModule!, "onBeat", (event: BeatEventPayload) => {
+    // The engine is a singleton and every mounted instance of this hook hears every
+    // run's beats — including runs it didn't start (Bluetooth calibration's click pass,
+    // the playback click). Cueing along to a foreign run buzzed and pulsed the recording
+    // screen underneath the calibration screen; only the initiator owns the cues.
+    if (!ownsActiveRunRef.current) {
+      return;
+    }
     setBeatCount(event.absolutePulse + 1);
     triggerBeatCue();
   });
@@ -490,6 +505,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
       const state = wantsPhaseStart
         ? await SongNookMetronomeModule.startAtPhase!(options.phaseOffsetMs!)
         : await SongNookMetronomeModule.start();
+      ownsActiveRunRef.current = true;
       setNativeState(state);
       void startVisualScheduler();
     } catch (error) {
@@ -521,6 +537,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         }
         setBeatCount(0);
         const state = await SongNookMetronomeModule.startCountIn(bars);
+        ownsActiveRunRef.current = true;
         setNativeState(state);
         void startVisualScheduler();
       } catch (error) {
@@ -536,6 +553,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     try {
       stopVisualScheduler();
       cueActivationAtRef.current = 0;
+      ownsActiveRunRef.current = false;
       const state = await SongNookMetronomeModule.stop();
       // Leave no installed map behind: the standalone metronome must never
       // accidentally start in map mode because a take's map was still loaded.

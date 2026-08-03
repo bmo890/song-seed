@@ -179,6 +179,20 @@ describe("resolveRouteLatencyProfile", () => {
     expect(profile.recordingCorrectionMs).toBe(0);
   });
 
+  it("an ear calibration tuned below the OS report is honored, not floored", () => {
+    // The OS report can be buffer-inflated garbage; the user tuned both numbers down by
+    // ear. The ± fine-tune buttons must actually take effect.
+    const profile = resolveRouteLatencyProfile({
+      route: BT_BUDS,
+      osLatency: { outputMs: 300 },
+      calibrations: [btCalibration(150, 140)],
+      activeOutputs: ALL_CUES,
+    });
+    expect(profile.outputMs).toBe(140);
+    expect(profile.guidePlayerOutputMs).toBe(150);
+    expect(profile.guideStartAdvanceMs).toBe(10);
+  });
+
   it("applies per-connection BT drift as a bias on the ear calibration", () => {
     // Calibrated when the OS reported 200; this connection reports 260 → +60 drift.
     const calibration = { ...btCalibration(500, 370), osOutputAtCalibrationMs: 200 };

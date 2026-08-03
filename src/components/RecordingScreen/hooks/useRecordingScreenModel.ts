@@ -4,6 +4,7 @@ import { audioDeviceManager, type AudioDevice } from "@siteed/audio-studio";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
+import { toast } from "../../common/toastStore";
 import {
   buildBluetoothMonitoringRouteKey,
   getBluetoothMonitoringCalibrationForRoute,
@@ -435,6 +436,18 @@ export function useRecordingScreenModel() {
   const recordingInputLabel = currentRecordingInput?.name?.trim() || null;
   const monitoringOutputLabel = currentMonitoringOutput?.name?.trim() || null;
 
+  // A swiped-away warning stays away for this recorder session — the condition it named
+  // usually can't change without leaving the screen, so re-nagging is pure noise. A NEW
+  // kind (e.g. a mid-take route change) still appears.
+  const [dismissedWarningKinds, setDismissedWarningKinds] = useState<
+    RecordingTimingWarning["kind"][]
+  >([]);
+  const dismissTimingWarning = useCallback((kind: RecordingTimingWarning["kind"]) => {
+    setDismissedWarningKinds((current) =>
+      current.includes(kind) ? current : [...current, kind]
+    );
+  }, []);
+
   // Honesty layer: surface every situation where timing can't be trusted BEFORE the user
   // wastes a take on it, with a one-tap path to fix what's fixable.
   const timingWarnings = useMemo<RecordingTimingWarning[]>(() => {
@@ -473,9 +486,10 @@ export function useRecordingScreenModel() {
       });
     }
 
-    return warnings;
+    return warnings.filter((warning) => !dismissedWarningKinds.includes(warning.kind));
   }, [
     activeBluetoothCalibration,
+    dismissedWarningKinds,
     isBluetoothMonitoringOutput,
     isBluetoothRecordingInput,
     midTakeRouteChangeMs,
@@ -484,6 +498,13 @@ export function useRecordingScreenModel() {
   ]);
 
   function openBluetoothCalibration() {
+    // Calibration claims the audio session exclusively (mic released, so the headset
+    // can leave the phone-call profile) — entering it mid-take would cut the recorder's
+    // input. The banner stays visible while recording, so answer the tap honestly.
+    if (recording.isRecording || recording.isPaused) {
+      toast(t("recording.finishTakeFirst"), "timer-outline");
+      return;
+    }
     navigation.navigate("BluetoothCalibration" as never);
   }
 
@@ -2143,6 +2164,7 @@ export function useRecordingScreenModel() {
     monitoringOutputLabel,
     activeBluetoothCalibrationMs,
     timingWarnings,
+    dismissTimingWarning,
     openBluetoothCalibration,
     lyricsExpanded,
     lyricsAutoscrollMode,

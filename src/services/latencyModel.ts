@@ -139,6 +139,7 @@ export function resolveRouteLatencyProfile({
   let guidePlayerOutputMs = sanitizedOutput.outputMs;
   let btDriftMs = 0;
   let btDriftKnown = false;
+  let hasEarPlayerCalibration = false;
   if (route && isBluetoothLikeAudioDevice(route)) {
     const routeKey = buildBluetoothMonitoringRouteKey(route);
     const calibration = getBluetoothMonitoringCalibrationForRoute(calibrations, routeKey);
@@ -155,8 +156,12 @@ export function resolveRouteLatencyProfile({
         btDriftMs = sanitizedOutput.outputMs - calibration.osOutputAtCalibrationMs;
         btDriftKnown = true;
       }
-      const driftedPlayerMs = Math.max(0, Math.min(1000, calibration.offsetMs + btDriftMs));
-      guidePlayerOutputMs = Math.max(guidePlayerOutputMs, driftedPlayerMs);
+      // The ear number wins OUTRIGHT — no flooring against the OS report. The user can
+      // tune a saved offset by ear below what the OS claims, and the report can be
+      // buffer-inflated garbage; silently overriding the human's ears with either made
+      // the ± fine-tune buttons a lie.
+      hasEarPlayerCalibration = true;
+      guidePlayerOutputMs = Math.max(0, Math.min(1000, calibration.offsetMs + btDriftMs));
       if (calibration.clickOffsetMs != null && calibration.clickOffsetMs > 0) {
         outputMs = Math.max(0, Math.min(1000, calibration.clickOffsetMs + btDriftMs));
         outputSource = "calibration";
@@ -168,7 +173,9 @@ export function resolveRouteLatencyProfile({
       }
     }
   }
-  guidePlayerOutputMs = Math.max(guidePlayerOutputMs, outputMs);
+  if (!hasEarPlayerCalibration) {
+    guidePlayerOutputMs = Math.max(guidePlayerOutputMs, outputMs);
+  }
 
   const rawInputMs = typeof osLatency?.inputMs === "number" ? osLatency.inputMs : 0;
   const inputKnown = rawInputMs > 0 && rawInputMs <= MAX_PLAUSIBLE_INPUT_LATENCY_MS;

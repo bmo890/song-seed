@@ -352,6 +352,12 @@ class SongNookMetronomeEngine(
       val meta = mapPulseMeta(pulse)
       val isDownbeat = meta[0] as Int == 1
       val accent = meta[2] as Double
+      // Accent 0 is a rest, not a quiet click — the calibration screen leans on this to
+      // render gap patterns on the real click pipeline.
+      if (accent <= 0.0) {
+        pulse += 1
+        continue
+      }
       val clickGridStart = mapFrameOfGridPulse(pulse)
       val baseFrequency = if (isDownbeat) 1960.0 else 1560.0
       val overtoneFrequency = if (isDownbeat) 2940.0 else 2350.0
@@ -897,6 +903,10 @@ private fun buildLoopPcm16(
 
   for (pulseIndex in 0 until config.pulsesPerBar) {
     val accent = config.accentPattern[pulseIndex.coerceAtMost(config.accentPattern.lastIndex)]
+    // Accent 0 is a rest, not a quiet click (see the map scheduler above).
+    if (accent <= 0.0) {
+      continue
+    }
     val startFrame = (pulseIndex * exactFramesPerPulse).roundToInt()
     val baseFrequency = if (pulseIndex == 0) 1960.0 else 1560.0
     val overtoneFrequency = if (pulseIndex == 0) 2940.0 else 2350.0

@@ -109,6 +109,7 @@ export function RecordingScreen() {
         <RecordingTimingWarnings
           warnings={screen.timingWarnings}
           onCalibrate={screen.openBluetoothCalibration}
+          onDismiss={screen.dismissTimingWarning}
         />
 
         <RecordingBody
@@ -118,11 +119,6 @@ export function RecordingScreen() {
           guideMixPositionMs={screen.guideMixPositionMs}
           guideMixDurationMs={screen.guideMixDurationMs}
           guideMixWaveformPeaks={screen.guideMixWaveformPeaks}
-          isBluetoothRecordingInput={screen.isBluetoothRecordingInput}
-          isBluetoothMonitoringOutput={screen.isBluetoothMonitoringOutput}
-          recordingInputLabel={screen.recordingInputLabel}
-          monitoringOutputLabel={screen.monitoringOutputLabel}
-          activeBluetoothCalibrationMs={screen.activeBluetoothCalibrationMs}
           hasProjectLyrics={screen.hasProjectLyrics}
           latestLyricsText={screen.latestLyricsText}
           latestLyricsUpdatedAt={screen.latestLyricsVersion?.updatedAt ?? null}
@@ -159,7 +155,6 @@ export function RecordingScreen() {
           }
           onLyricsAutoscrollInterrupted={() => screen.setLyricsAutoscrollMode("manual")}
           onSelectLyricsAutoscrollSpeedMultiplier={screen.setLyricsAutoscrollSpeedMultiplier}
-          onOpenBluetoothCalibration={() => navigation.navigate("BluetoothCalibration" as never)}
         />
 
         <RecordingBottomDock

@@ -415,6 +415,11 @@ final class SongNookMetronomeEngine {
   /// One click voice, rendered once per (voice, accent) and cached — the same synthesis
   /// as the loop buffer, minus the bar around it.
   private func clickBuffer(accent: Double, isDownbeat: Bool) -> AVAudioPCMBuffer? {
+    // Accent 0 is a rest, not a quiet click — the calibration screen leans on this to
+    // render gap patterns on the real click pipeline.
+    if accent <= 0 {
+      return nil
+    }
     let key = "\(isDownbeat ? "d" : "w")-\(Int((accent * 100).rounded()))"
     if let cached = clickCache[key] {
       return cached
@@ -862,6 +867,10 @@ final class SongNookMetronomeEngine {
 
     for pulseIndex in 0..<config.pulsesPerBar {
       let accent = config.accentPattern[min(pulseIndex, max(config.accentPattern.count - 1, 0))]
+      // Accent 0 is a rest, not a quiet click (see clickBuffer).
+      if accent <= 0 {
+        continue
+      }
       let startFrame = Int(round(Double(pulseIndex) * exactFramesPerPulse))
       let baseFrequency = pulseIndex == 0 ? 1960.0 : 1560.0
       let overtoneFrequency = pulseIndex == 0 ? 2940.0 : 2350.0
