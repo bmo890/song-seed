@@ -2,13 +2,14 @@ import { Linking, ScrollView, Text, View } from "react-native";
 import Constants from "expo-constants";
 import { PageIntro } from "../../common/PageIntro";
 import { settingsScreenStyles, styles } from "../styles";
-import { AboutLinkRow } from "../components/SettingsShared";
+import { AboutLinkRow, SettingsGroup } from "../components/SettingsShared";
 import { AppAlert } from "../../common/AppAlert";
 import { getCrashLogUri } from "../../../services/crashLog";
 import { shareFileUri } from "../../../services/audioStorage";
 import { useStore } from "../../../state/useStore";
 import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
+import { toast } from "../../common/toastStore";
 
 const FEEDBACK_EMAIL = "bmostudio.dev@gmail.com";
 
@@ -19,6 +20,7 @@ const FEEDBACK_EMAIL = "bmostudio.dev@gmail.com";
 export function SettingsAboutView() {
   const { t } = useTranslation();
   const version = Constants.expoConfig?.version ?? "—";
+  const planned = () => toast(t("settingsAccount.comingSoon"), "time-outline");
 
   const sendFeedback = () => {
     const subject = encodeURIComponent(`SongNook feedback (v${version})`);
@@ -55,16 +57,16 @@ export function SettingsAboutView() {
         <View style={styles.settingsSectionHeaderRow}>
           <Text style={styles.settingsSectionLabel}>{t("settings.app")}</Text>
         </View>
-        <View style={styles.settingsOptionStack}>
+        <SettingsGroup>
           <AboutLinkRow label={t("settingsAbout.version")} value={version} />
-        </View>
+        </SettingsGroup>
       </View>
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>
           <Text style={styles.settingsSectionLabel}>{t("settings.feedback")}</Text>
         </View>
-        <View style={styles.settingsOptionStack}>
+        <SettingsGroup>
           <AboutLinkRow label={t("settingsAbout.sendFeedback")} icon="mail-outline" onPress={sendFeedback} />
           <AboutLinkRow
             label={t("settingsAbout.shareDiagnostics")}
@@ -82,7 +84,7 @@ export function SettingsAboutView() {
               useStore.getState().setHasSeenWelcome(false);
             }}
           />
-        </View>
+        </SettingsGroup>
       </View>
 
       <View style={styles.settingsSection}>
@@ -92,6 +94,10 @@ export function SettingsAboutView() {
         <Text style={styles.settingsSectionHint}>
           {t("settingsAbout.privacyBody")}
         </Text>
+        <SettingsGroup>
+          <AboutLinkRow label={t("settingsAbout.privacyPolicy")} icon="shield-checkmark-outline" onPress={planned} />
+          <AboutLinkRow label={t("settingsAbout.terms")} icon="document-text-outline" onPress={planned} />
+        </SettingsGroup>
       </View>
     </ScrollView>
   );

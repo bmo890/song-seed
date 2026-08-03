@@ -29,26 +29,35 @@ export function useSettingsScreenModel() {
   // Accessibility label for the header; the visible serif title comes from each
   // view's PageIntro (the header itself stays untitled to avoid doubled titles).
   const title =
-    view === "library"
-      ? t("settingsLibrary.title")
-      : view === "recording"
-        ? t("settings.recording")
-        : view === "sharing"
-          ? t("sharing.title")
-        : view === "about"
-          ? t("settings.about")
-          : view === "export"
-            ? t("settingsLibrary.exportArchive")
-            : view === "import"
-              ? t("settingsLibrary.importArchive")
-              : view === "storage"
-                ? t("settingsLibrary.storageDetails")
-                : t("settings.title");
+    view === "account"
+      ? t("settings.account")
+      : view === "general"
+        ? t("settings.general")
+        : view === "library"
+          ? t("settingsLibrary.title")
+          : view === "recording"
+            ? t("settings.recordingAudio")
+            : view === "sharing"
+              ? t("sharing.title")
+              : view === "about"
+                ? t("settings.helpAbout")
+                : view === "export"
+                  ? t("settingsLibrary.exportArchive")
+                  : view === "import"
+                    ? t("settingsLibrary.importArchive")
+                    : view === "storage"
+                      ? t("settingsLibrary.storageDetails")
+                      : t("settings.title");
   const showSubscreen = view !== "overview";
-  // Recording, About, and Library are reached straight from the overview, so they return
-  // there. Export / import / storage are reached FROM the library page, so back to library.
+  // Top-level destinations return to the overview. Export / import / storage are
+  // reached from Data & storage, so their back path returns there first.
   const backView: SettingsView =
-    view === "library" || view === "recording" || view === "sharing" || view === "about"
+    view === "account" ||
+    view === "general" ||
+    view === "library" ||
+    view === "recording" ||
+    view === "sharing" ||
+    view === "about"
       ? "overview"
       : "library";
 

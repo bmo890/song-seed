@@ -15,7 +15,17 @@ export type StandardExportOptions = {
 
 export type CollectionSelectionState = "unselected" | "selected" | "inherited" | "excluded";
 export type ExportSectionKey = "format" | "scope" | "options" | "generate";
-export type SettingsView = "overview" | "library" | "recording" | "sharing" | "about" | "export" | "import" | "storage";
+export type SettingsView =
+  | "overview"
+  | "account"
+  | "general"
+  | "library"
+  | "recording"
+  | "sharing"
+  | "about"
+  | "export"
+  | "import"
+  | "storage";
 
 export type SettingsSelectionSummary = {
   selectedWorkspaceCount: number;
@@ -23,4 +33,3 @@ export type SettingsSelectionSummary = {
   exportableIdeaCount: number;
   workspaceCollectionCounts: Record<string, number>;
 };
-

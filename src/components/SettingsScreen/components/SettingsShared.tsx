@@ -12,7 +12,7 @@ import {
 } from "../helpers";
 import type { CollectionSelectionState } from "../types";
 
-export const LIBRARY_DEEP = "#8b4f3b";
+export const LIBRARY_DEEP = colors.primaryDeep;
 
 /**
  * Groups a section's rows onto one soft surface with hairline dividers between
@@ -33,7 +33,7 @@ export function SettingsGroup({ children }: { children: ReactNode }) {
   );
 }
 
-/** Nocturne library-action card: tinted icon circle, title, live status, right accessory. */
+/** Quiet navigation/action row: tonal icon, title, live status, right accessory. */
 export function LibraryActionCard({
   icon,
   title,

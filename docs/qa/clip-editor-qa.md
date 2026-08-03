@@ -87,3 +87,39 @@ whether that claim is true *by ear*, which is the only test that counts.
   (`task_b38f2f52`) — needs a device check that the mix preserves the take's start.
 - Drag-on-reel to create a part was declined; "Add part" / "Split here" is the only
   creation route.
+
+---
+
+## Addendum — overdub findings, 2026-08-03
+
+Two layers were recorded onto a gridded take ("Click test") to exercise the overdub
+paths, which nothing had touched before.
+
+**Fixed while there.** The Layers sheet printed the raw key `player.layerCount` instead
+of "2 layers" — the key lives under `navigation`, not `player`. Same class as the
+`player.version` leak the full-player audit found; worth a sweep for others.
+
+**Fixed: flattening no longer discards the take's grid.** `saveCombinedClipAsNewClip`
+carried tags, pins, sections and analysis but not `recordingGrid`, so every flattened
+clip lost its click and bar ruler — on the exact path the editor forces layered clips
+through. Confirmed on screen: the flattened "Click test Mix" opened in the editor with
+no ruler and no "Keep to grid" toggle, while its 0:33 length matched the root exactly.
+The premise for carrying it is now proven rather than assumed: the native mixer
+schedules a positive offset ahead and, for a negative one, *drops* that much of the
+layer's head instead of extending the mix (`scheduleSegment` path in
+`SongNookPitchShiftRenderer.swift`), so the mix always keeps the root's timeline.
+**Still to confirm by eye: flatten a layered gridded take and check the result now
+draws a bar ruler.** The change is a one-line carry and typechecks, but I could not
+re-run the flatten through the UI after the edit.
+
+**Not fixed — worth your call.**
+- Layer colours come from a free hue slider (`computeWorkspaceTheme(color)`), which is
+  the same unbounded-hue approach we retired from sections in favour of eight
+  harmonised role inks. Layer 2's mint green sits outside the palette entirely.
+- The layer lanes under the reel are flat colour slabs with a label — no waveform —
+  while everything else in the app draws its audio.
+- Layer 2's lane visibly overflows the reel's right edge.
+- Layer 2 recorded ~14s from 00:23 but reports 00:10, i.e. it looks clamped to the
+  root's end. Intended or not, the number and the recording disagree.
+- The player overflow is now 8 rows; the design standard caps action sheets at ~6.
+- The save dialog for a layer is titled "Save take as" — a layer is not a take.

@@ -4,7 +4,7 @@ import { colors } from "../../../design/tokens";
 import { PageIntro } from "../../common/PageIntro";
 import { ensurePro } from "../../common/proUpsell";
 import { settingsScreenStyles, styles } from "../styles";
-import { FormatOptionRow, LibraryActionCard } from "../components/SettingsShared";
+import { FormatOptionRow, LibraryActionCard, SettingsGroup } from "../components/SettingsShared";
 import type { useLibraryBackupFlow } from "../hooks/useLibraryBackupFlow";
 import type { useStorageDiagnostics } from "../hooks/useStorageDiagnostics";
 import { useTranslation } from "react-i18next";
@@ -51,8 +51,9 @@ export function SettingsLibraryView({
           {t("settingsLibrary.safetyHint")}
         </Text>
 
-        <View style={settingsScreenStyles.libraryCardStack}>
+        <SettingsGroup>
           <LibraryActionCard
+            flat
             icon="cloud-upload-outline"
             title={t("settingsLibrary.backUp")}
             busy={backupFlow.isBackingUp}
@@ -75,6 +76,7 @@ export function SettingsLibraryView({
             onPress={backupFlow.handleBackupNow}
           />
           <LibraryActionCard
+            flat
             icon="cloud-download-outline"
             title={t("settingsLibrary.restore")}
             busy={backupFlow.isRestoring}
@@ -86,7 +88,7 @@ export function SettingsLibraryView({
             }
             onPress={backupFlow.handleRestore}
           />
-        </View>
+        </SettingsGroup>
 
         {backupFlow.lastSuccessfulBackupFileName ? (
           <View style={settingsScreenStyles.backupFileNameRow}>
@@ -108,9 +110,10 @@ export function SettingsLibraryView({
         <View style={styles.settingsSectionHeaderRow}>
           <Text style={styles.settingsSectionLabel}>{t("settingsLibrary.backupReminder")}</Text>
         </View>
-        <View style={styles.settingsOptionStack}>
+        <SettingsGroup>
           {backupFlow.reminderOptions.map((option) => (
             <FormatOptionRow
+              flat
               key={option.value}
               title={option.title}
               subtitle={option.subtitle}
@@ -123,7 +126,7 @@ export function SettingsLibraryView({
               }}
             />
           ))}
-        </View>
+        </SettingsGroup>
       </View>
 
       <View style={styles.settingsSection}>
@@ -135,20 +138,22 @@ export function SettingsLibraryView({
           {t("settingsLibrary.archivesHint")}
         </Text>
 
-        <View style={settingsScreenStyles.libraryCardStack}>
+        <SettingsGroup>
           <LibraryActionCard
+            flat
             icon="share-outline"
             title={t("settingsLibrary.exportArchive")}
             meta={t("settingsLibrary.exportArchiveHint")}
             onPress={onBeginExportFlow}
           />
           <LibraryActionCard
+            flat
             icon="download-outline"
             title={t("settingsLibrary.importArchive")}
             meta={t("settingsLibrary.importArchiveHint")}
             onPress={onBeginImportFlow}
           />
-        </View>
+        </SettingsGroup>
       </View>
 
       <View style={styles.settingsSection}>
@@ -156,8 +161,9 @@ export function SettingsLibraryView({
           <Text style={styles.settingsSectionLabel}>{t("settingsLibrary.maintenance")}</Text>
         </View>
 
-        <View style={settingsScreenStyles.libraryCardStack}>
+        <SettingsGroup>
           <LibraryActionCard
+            flat
             icon="medkit-outline"
             title={t("settingsLibrary.recoverAudio")}
             busy={diagnostics.isRecovering}
@@ -170,12 +176,13 @@ export function SettingsLibraryView({
             disabled={diagnostics.isRecovering}
           />
           <LibraryActionCard
+            flat
             icon="server-outline"
             title={t("settingsLibrary.storageDetails")}
             meta={t("settingsLibrary.storageDetailsHint")}
             onPress={onOpenStorageDetails}
           />
-        </View>
+        </SettingsGroup>
       </View>
     </ScrollView>
   );

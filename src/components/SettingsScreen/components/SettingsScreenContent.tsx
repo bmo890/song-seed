@@ -1,8 +1,6 @@
-import { useMemo } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { styles } from "../styles";
-import { useStore } from "../../../state/useStore";
 import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandler";
 import { useSettingsScreenModel } from "../hooks/useSettingsScreenModel";
 import { useLibraryBackupFlow } from "../hooks/useLibraryBackupFlow";
@@ -10,10 +8,12 @@ import { useLibraryExportFlow } from "../hooks/useLibraryExportFlow";
 import { useLibraryImportFlow } from "../hooks/useLibraryImportFlow";
 import { useStorageDiagnostics } from "../hooks/useStorageDiagnostics";
 import { SettingsAboutView } from "../views/SettingsAboutView";
+import { SettingsAccountView } from "../views/SettingsAccountView";
 import { SettingsExportView } from "../views/SettingsExportView";
 import { SettingsImportView } from "../views/SettingsImportView";
 import { SettingsLibraryView } from "../views/SettingsLibraryView";
 import { SettingsOverviewView } from "../views/SettingsOverviewView";
+import { SettingsGeneralView } from "../views/SettingsGeneralView";
 import { SettingsSharingView } from "../views/SettingsSharingView";
 import { SettingsRecordingView } from "../views/SettingsRecordingView";
 import { SettingsStorageView } from "../views/SettingsStorageView";
@@ -21,23 +21,11 @@ import { SettingsStorageView } from "../views/SettingsStorageView";
 export function SettingsScreenContent() {
   useBrowseRootBackHandler();
 
-  const workspaces = useStore((state) => state.workspaces);
-  const primaryWorkspaceId = useStore((state) => state.primaryWorkspaceId);
-  const workspaceStartupPreference = useStore((state) => state.workspaceStartupPreference);
-  const setWorkspaceStartupPreference = useStore((state) => state.setWorkspaceStartupPreference);
-  const hapticsEnabled = useStore((state) => state.hapticsEnabled);
-  const setHapticsEnabled = useStore((state) => state.setHapticsEnabled);
-
   const screen = useSettingsScreenModel();
   const backupFlow = useLibraryBackupFlow();
   const exportFlow = useLibraryExportFlow();
   const importFlow = useLibraryImportFlow();
   const diagnostics = useStorageDiagnostics({ active: screen.view === "storage" });
-
-  const primaryWorkspaceTitle = useMemo(
-    () => workspaces.find((workspace) => workspace.id === primaryWorkspaceId)?.title ?? null,
-    [primaryWorkspaceId, workspaces]
-  );
 
   // Back is held while a subscreen owns an operation that shouldn't be abandoned
   // mid-gesture (import runs inline; storage while scanning). Backup/export/restore run
@@ -61,7 +49,11 @@ export function SettingsScreenContent() {
         onLeftPress={handleBackPress}
       />
 
-      {screen.view === "library" ? (
+      {screen.view === "account" ? (
+        <SettingsAccountView />
+      ) : screen.view === "general" ? (
+        <SettingsGeneralView />
+      ) : screen.view === "library" ? (
         <SettingsLibraryView
           backupFlow={backupFlow}
           diagnostics={diagnostics}
@@ -100,12 +92,9 @@ export function SettingsScreenContent() {
         <SettingsAboutView />
       ) : (
         <SettingsOverviewView
-          workspaceStartupPreference={workspaceStartupPreference}
-          setWorkspaceStartupPreference={setWorkspaceStartupPreference}
-          hapticsEnabled={hapticsEnabled}
-          setHapticsEnabled={setHapticsEnabled}
-          primaryWorkspaceTitle={primaryWorkspaceTitle}
           backupFlow={backupFlow}
+          onOpenAccount={() => screen.setView("account")}
+          onOpenGeneral={() => screen.setView("general")}
           onOpenLibrary={() => screen.setView("library")}
           onOpenRecording={() => screen.setView("recording")}
           onOpenSharing={() => screen.setView("sharing")}

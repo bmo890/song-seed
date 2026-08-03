@@ -513,7 +513,7 @@ export function PlayerSupportSections({
             <View style={chipStyles.layersHeaderCopy}>
               <Text style={chipStyles.sheetTitle}>{t("player.layers")}</Text>
               <Text style={chipStyles.sheetMeta}>
-                {t("player.layerCount", { count: clipOverdubStemCount })}
+                {t("navigation.layerCount", { count: clipOverdubStemCount })}
                 {isOverdubPreviewRendering ? ` · ${t("player.updating")}` : ""}
               </Text>
             </View>

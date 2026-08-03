@@ -1506,6 +1506,14 @@ export const appActions = {
                         practiceMarkers: clonePracticeMarkers(match.clip.practiceMarkers),
                         sections: cloneClipSections(match.clip.sections),
                         analysis: cloneClipAnalysis(match.clip.analysis),
+                        // The mix keeps the root take's timeline exactly: a layer schedules at a
+                        // positive offset, and a negative one drops that much of the layer's head
+                        // rather than extending the mix (native renderer, scheduleSegment path). The
+                        // grid still describes this audio — dropping it cost every flattened clip its
+                        // click, its bar ruler, and any later edit that wanted to preserve them.
+                        recordingGrid: match.clip.recordingGrid
+                            ? { ...match.clip.recordingGrid }
+                            : undefined,
                     },
                 ],
             };
@@ -1560,6 +1568,14 @@ export const appActions = {
                     practiceMarkers: clonePracticeMarkers(match.clip.practiceMarkers),
                     sections: cloneClipSections(match.clip.sections),
                     analysis: cloneClipAnalysis(match.clip.analysis),
+                    // The mix keeps the root take's timeline exactly: a layer schedules at a
+                    // positive offset, and a negative one drops that much of the layer's head
+                    // rather than extending the mix (native renderer, scheduleSegment path). The
+                    // grid still describes this audio — dropping it cost every flattened clip its
+                    // click, its bar ruler, and any later edit that wanted to preserve them.
+                    recordingGrid: match.clip.recordingGrid
+                        ? { ...match.clip.recordingGrid }
+                        : undefined,
                 };
 
                 const repairedRemainingClips =

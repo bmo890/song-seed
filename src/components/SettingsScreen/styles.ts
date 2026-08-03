@@ -6,6 +6,14 @@ export { styles } from "../../styles";
 export const settingsScreenStyles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 40,
+    gap: 22,
+  },
+  overviewContent: {
+    paddingBottom: 48,
+    gap: 24,
+  },
+  overviewSection: {
+    gap: 10,
   },
   actionCardDisabled: {
     opacity: 0.6,
@@ -24,21 +32,18 @@ export const settingsScreenStyles = StyleSheet.create({
     lineHeight: 20,
     color: colors.textStrong,
   },
-  libraryCardStack: {
-    gap: 8,
-    marginTop: 10,
-    marginBottom: 6,
-  },
   // Grouped-settings surface: a section's rows share one soft card, separated by
   // hairline dividers rather than each floating in its own bordered box.
   group: {
     backgroundColor: colors.surface,
-    borderRadius: radii.xl,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
     overflow: "hidden",
   },
   groupDivider: {
     height: 1,
-    backgroundColor: "#ECE6DF",
+    backgroundColor: colors.borderSubtle,
     marginHorizontal: 14,
   },
   libraryCard: {
@@ -46,7 +51,7 @@ export const settingsScreenStyles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     backgroundColor: colors.surfaceContainer,
-    borderRadius: radii.xl,
+    borderRadius: radii.lg,
     paddingVertical: 13,
     paddingHorizontal: 13,
   },
@@ -58,8 +63,8 @@ export const settingsScreenStyles = StyleSheet.create({
   libraryCardIcon: {
     width: 38,
     height: 38,
-    borderRadius: 999,
-    backgroundColor: "#F4EBE6",
+    borderRadius: radii.round,
+    backgroundColor: colors.primarySurface,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -134,6 +139,7 @@ export const settingsScreenStyles = StyleSheet.create({
     gap: 12,
     minHeight: 52,
     paddingVertical: 6,
+    paddingHorizontal: 14,
   },
   aboutRowLabel: {
     fontFamily: "PlusJakartaSans_500Medium",
@@ -152,14 +158,87 @@ export const settingsScreenStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#3F9C82",
-    borderRadius: 999,
+    backgroundColor: colors.accentSuccessText,
+    borderRadius: radii.round,
     paddingVertical: 3,
     paddingHorizontal: 8,
   },
   verifiedChipText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 11,
-    color: "#fff",
+    color: colors.onPrimary,
+  },
+  inlineNoteRow: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  accountIdentity: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    paddingVertical: 4,
+  },
+  accountMark: {
+    width: 48,
+    height: 48,
+    borderRadius: radii.round,
+    backgroundColor: colors.primarySurface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  accountIdentityCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  accountIdentityTitle: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  accountIdentityMeta: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.textSecondary,
+  },
+  planSummary: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: colors.primarySurface,
+    borderRadius: radii.lg,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    marginBottom: 10,
+  },
+  planSummaryCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  planTitle: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 14,
+    color: colors.primaryDeep,
+  },
+  planMeta: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 12,
+    lineHeight: 17,
+    color: colors.textStrong,
+  },
+  planBadge: {
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  planBadgeText: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 10,
+    letterSpacing: 0.7,
+    textTransform: "uppercase",
+    color: colors.primaryDeep,
   },
 });
