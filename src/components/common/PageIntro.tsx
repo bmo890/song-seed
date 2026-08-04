@@ -12,7 +12,10 @@ type PageIntroProps = {
 export function PageIntro({
   title,
   subtitle,
-  titleNumberOfLines = 1,
+  // The serif title is the page's name — it must never be cut short. Two lines
+  // covers every section name at display size; pass 1 only when a layout truly
+  // cannot give the second line.
+  titleNumberOfLines = 2,
   subtitleNumberOfLines,
 }: PageIntroProps) {
   return (

@@ -103,6 +103,11 @@ type Props = {
     sharedPauseHoldToken?: SharedValue<number>;
     onScrubStateChange?: (isScrubbing: boolean) => void;
     freezeSelectedRangeWhenFullyVisible?: boolean;
+    /** Two-finger stretch on the tape. Reports the gesture's running scale factor;
+     *  the reel owner (AudioReel) turns it into discrete zoom detents — zoom is a
+     *  React-level resample here, never a live canvas scale. */
+    onPinchZoomStart?: () => void;
+    onPinchZoomUpdate?: (pinchScale: number) => void;
 };
 
 type PinMarkerOverlayProps = {
@@ -666,6 +671,8 @@ export function PlaybackTapeVisualizer({
     sharedSurfaceHeight,
     onScrubStateChange,
     freezeSelectedRangeWhenFullyVisible = false,
+    onPinchZoomStart,
+    onPinchZoomUpdate,
 }: Props) {
     const [canvasWidth, setCanvasWidth] = useState(0);
     // Height is a shared value, never React state: expand/compact animates it on the UI
@@ -1059,8 +1066,10 @@ export function PlaybackTapeVisualizer({
         audioProgress.value = Math.max(0, Math.min(1, Math.min(tracked.position, leadCeiling)));
     });
 
-    // Handle Scrubbing Gestures
+    // Handle Scrubbing Gestures. One finger only — a second finger means the user
+    // is stretching the tape (pinch zoom below), not scrubbing.
     const pan = Gesture.Pan()
+        .maxPointers(1)
         .onStart(() => {
             cancelAnimation(audioProgress);
             isDragging.value = true;
@@ -1120,6 +1129,20 @@ export function PlaybackTapeVisualizer({
 
             settle(false);
         });
+
+    // Stretch-to-zoom: the pinch only REPORTS its running scale — AudioReel snaps
+    // it to the discrete zoom detents, because zoom is a React-level waveform
+    // resample (peaks density, ruler, labels), never a live canvas scale. Racing
+    // against the one-finger pan means two fingers stretch, one finger scrubs.
+    const pinch = Gesture.Pinch()
+        .enabled(!!onPinchZoomUpdate)
+        .onStart(() => {
+            if (onPinchZoomStart) runOnJS(onPinchZoomStart)();
+        })
+        .onUpdate((event) => {
+            if (onPinchZoomUpdate) runOnJS(onPinchZoomUpdate)(event.scale);
+        });
+    const tapeGesture = Gesture.Race(pinch, pan);
 
     // Dynamic bounded rules — the tape's scroll offset.
     //
@@ -1329,7 +1352,7 @@ export function PlaybackTapeVisualizer({
 
     return (
         <View style={[styles.container, { backgroundColor }]} onLayout={onLayout}>
-            <GestureDetector gesture={pan}>
+            <GestureDetector gesture={tapeGesture}>
                 <View style={StyleSheet.absoluteFill}>
                     {canvasWidth > 0 && (
                         <Canvas style={{ flex: 1 }}>

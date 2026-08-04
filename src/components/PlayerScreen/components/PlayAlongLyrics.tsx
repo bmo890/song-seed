@@ -154,7 +154,7 @@ export function PlayAlongLyrics({
           accessibilityRole="button"
           accessibilityLabel={t("player.resyncLyrics")}
         >
-          <Ionicons name="sync" size={15} color={colors.onPrimary} />
+          <Ionicons name="sync" size={15} color={colors.primaryDeep} />
           <Text style={styles.resyncText}>{t("player.resync")}</Text>
         </Pressable>
       ) : null}
@@ -238,15 +238,18 @@ const styles = StyleSheet.create({
     // Generous tail so the final lines can still scroll up into view at 100%.
     paddingBottom: 160,
   },
+  // Music-stand size: readable with the phone propped an arm's length away.
   line: {
     fontFamily: "Lora_500Medium",
-    fontSize: 22,
-    lineHeight: 36,
+    fontSize: 24,
+    lineHeight: 40,
     color: colors.textPrimary,
   },
   blankLine: {
     height: 18,
   },
+  // Soft key in the primary tier (tonal wash + deep ink) — solid primary is
+  // reserved for the single highest-stakes commit, which a re-follow is not.
   resync: {
     position: "absolute",
     alignSelf: "center",
@@ -254,16 +257,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: colors.primary,
-    borderRadius: radii.round,
+    backgroundColor: colors.primarySurface,
+    borderRadius: radii.lg,
+    minHeight: 38,
     paddingHorizontal: 16,
-    paddingVertical: 9,
     ...shadows.control,
   },
   resyncText: {
-    fontFamily: "PlusJakartaSans_700Bold",
+    fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 13,
-    color: colors.onPrimary,
+    color: colors.primaryDeep,
   },
   empty: {
     flex: 1,

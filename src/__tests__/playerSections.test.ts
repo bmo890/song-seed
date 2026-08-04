@@ -78,13 +78,17 @@ describe("getCustomSectionOptions", () => {
   });
 });
 
+// A new section takes a TYPICAL section's span, never "the rest of the song"
+// (founder call 2026-08-04) — see playerSectionsDefaults.test.ts for the full
+// matrix; these cover the two cases that used to behave differently.
 describe("defaultSectionEndMs", () => {
-  it("extends a new section up to the next section's start", () => {
+  it("takes a typical span when the next section is far away", () => {
+    // The mapped section is 10s, so the new one takes 10s — not the 25s gap.
     const sections = [section({ id: "later", startMs: 30000, endMs: 40000 })];
-    expect(defaultSectionEndMs(sections, 5000, DURATION)).toBe(30000);
+    expect(defaultSectionEndMs(sections, 5000, DURATION)).toBe(15000);
   });
 
-  it("extends to the clip end when nothing follows", () => {
-    expect(defaultSectionEndMs([], 5000, DURATION)).toBe(DURATION);
+  it("takes ~30s on an unmapped clip instead of the clip end", () => {
+    expect(defaultSectionEndMs([], 5000, DURATION)).toBe(35000);
   });
 });

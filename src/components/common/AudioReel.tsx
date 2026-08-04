@@ -566,6 +566,33 @@ export function AudioReel({
         setUncontrolledZoomMultiple(nextZoom);
     }, [nearestZoomIndex, onZoomMultipleChange, zoomMultiple]);
 
+    // Stretch-to-zoom: the tape's pinch reports a running scale; it's snapped to
+    // the same discrete detents as the −/+ keys, committing (with the same light
+    // detent haptic) only when a level boundary is crossed. Zoom stays a React
+    // resample — the canvas never live-scales, which is what keeps the wave honest.
+    const zoomMultipleRef = React.useRef(zoomMultiple);
+    zoomMultipleRef.current = zoomMultiple;
+    const pinchBaseZoomRef = React.useRef(zoomMultiple);
+    const pinchLastZoomRef = React.useRef(zoomMultiple);
+    const handlePinchZoomStart = React.useCallback(() => {
+        pinchBaseZoomRef.current = zoomMultipleRef.current;
+        pinchLastZoomRef.current = zoomMultipleRef.current;
+    }, []);
+    const handlePinchZoomUpdate = React.useCallback(
+        (pinchScale: number) => {
+            const target = snapToZoomLevel(pinchBaseZoomRef.current * pinchScale);
+            if (target === pinchLastZoomRef.current) return;
+            pinchLastZoomRef.current = target;
+            haptic.light();
+            if (onZoomMultipleChange) {
+                onZoomMultipleChange(target);
+                return;
+            }
+            setUncontrolledZoomMultiple(target);
+        },
+        [onZoomMultipleChange]
+    );
+
     // Reset to 1x — the whole clip fits the reel. No-op (and no haptic) when already there.
     const handleZoomToFit = React.useCallback(() => {
         if (zoomMultiple <= MIN_ZOOM) return;
@@ -799,6 +826,8 @@ export function AudioReel({
                             sharedPlaybackRate={sharedPlaybackRate}
                             onSeek={handleSeekCommit}
                             onScrubStateChange={handleInteractionStateChange}
+                            onPinchZoomStart={showZoomControls ? handlePinchZoomStart : undefined}
+                            onPinchZoomUpdate={showZoomControls ? handlePinchZoomUpdate : undefined}
                             selectedRanges={selectedRanges}
                             practiceMarkers={practiceMarkers}
                             sharedDraggingMarkerId={sharedDraggingMarkerId}

@@ -76,9 +76,12 @@ export const selectionStyles = {
     alignItems: "center",
     gap: 14,
     minHeight: 38,
-    paddingHorizontal: 2,
+    paddingHorizontal: 14,
     backgroundColor: colors.page,
-    zIndex: 20, // above FlatList sticky date headers
+    // Above the search/filter chrome it replaces — the filter bar carries its own
+    // high zIndex for dropdown menus, so this must clear that too.
+    zIndex: 200,
+    elevation: 20,
   },
   // Overlay variant: stretches over the chrome it replaces (search/filter rows)
   // instead of inserting itself into the flow.

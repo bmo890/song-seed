@@ -882,11 +882,26 @@ export function PlayerScreen({
                 becomes a label + Done; otherwise it carries markers / Play along / Tools. */}
             <View style={playerScreenStyles.reelToolbar}>
               {ui.mode === "playalong" ? (
+                // Same law as Tools: the mode's own pill stays lit while inside and
+                // tapping it again leaves. A second "Done" button was one big button
+                // too many — two big buttons means one of them is lying.
                 <>
-                  <View style={playerScreenStyles.reelExpandButton}>
-                    <Ionicons name="musical-notes" size={14} color={colors.primary} />
-                    <Text style={playerScreenStyles.reelExpandText}>{t("player.playAlong")}</Text>
-                  </View>
+                  <Pressable
+                    style={({ pressed }) => [
+                      playerScreenStyles.toolsPill,
+                      playerScreenStyles.toolsPillActive,
+                      pressed ? playerScreenStyles.overflowButtonPressed : null,
+                    ]}
+                    onPress={() => ui.setMode("player")}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: true }}
+                    accessibilityLabel={t("player.exitPlayAlong")}
+                  >
+                    <Ionicons name="musical-notes" size={15} color={colors.onPrimary} />
+                    <Text style={[playerScreenStyles.toolsPillText, playerScreenStyles.toolsPillTextActive]}>
+                      {t("player.playAlong")}
+                    </Text>
+                  </Pressable>
                   <PlayAlongSpeedControl
                     speed={playbackSpeed}
                     presets={PRACTICE_SPEED_PRESETS}
@@ -896,21 +911,6 @@ export function PlayerScreen({
                       if (guardPracticeTool("speed")) handleSpeedTap(value);
                     }}
                   />
-                  <Pressable
-                    style={({ pressed }) => [
-                      playerScreenStyles.toolsPill,
-                      playerScreenStyles.toolsPillActive,
-                      pressed ? playerScreenStyles.overflowButtonPressed : null,
-                    ]}
-                    onPress={() => ui.setMode("player")}
-                    accessibilityRole="button"
-                    accessibilityLabel={t("player.exitPlayAlong")}
-                  >
-                    <Ionicons name="checkmark" size={15} color={colors.onPrimary} />
-                    <Text style={[playerScreenStyles.toolsPillText, playerScreenStyles.toolsPillTextActive]}>
-                      {t("common.done")}
-                    </Text>
-                  </Pressable>
                 </>
               ) : (
                 <>
