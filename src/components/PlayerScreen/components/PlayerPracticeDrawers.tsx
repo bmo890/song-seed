@@ -444,6 +444,28 @@ export function PlayerPracticeDrawers({
         : playheadMs >= section.startMs + MIN_SECTION_LENGTH_MS
       : true;
 
+    // One-tap snap to the neighboring section: start edge meets the previous
+    // section's end, end edge meets the next section's start — so mapped sections
+    // can sit flush without slider fiddling.
+    const neighborMs = (() => {
+      if (!section) return null;
+      if (edge === "start") {
+        const prevEnd = sections
+          .filter((other) => other.id !== section.id && other.startMs < section.startMs)
+          .reduce<number | null>((max, other) => Math.max(max ?? 0, other.endMs), null);
+        return prevEnd != null && prevEnd <= section.endMs - MIN_SECTION_LENGTH_MS ? prevEnd : null;
+      }
+      const nextStart = sections
+        .filter((other) => other.id !== section.id && other.startMs > section.startMs)
+        .reduce<number | null>(
+          (min, other) => (min == null ? other.startMs : Math.min(min, other.startMs)),
+          null
+        );
+      return nextStart != null && nextStart >= section.startMs + MIN_SECTION_LENGTH_MS
+        ? nextStart
+        : null;
+    })();
+
     return (
       <View key={`${entry.kind}-${id}`} style={pd.selectedCard}>
         {row}
@@ -498,6 +520,21 @@ export function PlayerPracticeDrawers({
           }}
           usePlayheadDisabled={!canUsePlayhead}
           nudgeStepMs={nudgeStepMs}
+          neighborLabel={
+            neighborMs != null
+              ? edge === "start"
+                ? t("player.snapPrevEnd")
+                : t("player.snapNextStart")
+              : null
+          }
+          onUseNeighbor={
+            neighborMs != null && section
+              ? () => {
+                  haptic.tap();
+                  onRepositionSectionEdge(id, edge, clampSectionEdge(section, edge, neighborMs));
+                }
+              : undefined
+          }
         />
       </View>
     );
@@ -934,14 +971,14 @@ export function PlayerPracticeDrawers({
         onPress={() => onRecordOverdub(playheadMs)}
         accessibilityRole="button"
         accessibilityLabel={
-          playheadMs > 1000
-            ? t("player.recordLayerFrom", { time: fmtDuration(playheadMs) })
-            : t("player.recordLayerOver")
+          playheadMs > 1000 ? t("player.recordLayerAtPlayhead") : t("player.recordLayerOver")
         }
       >
         <View style={pd.recordLayerDot} />
+        {/* Static label on purpose — a ticking mm:ss here made the row feel live
+            and urgent; "at playhead" says the same thing without the clock. */}
         <Text style={pd.recordLayerText}>
-          {playheadMs > 1000 ? t("player.recordLayerFrom", { time: fmtDuration(playheadMs) }) : t("player.recordLayer")}
+          {playheadMs > 1000 ? t("player.recordLayerAtPlayhead") : t("player.recordLayer")}
         </Text>
       </Pressable>
 

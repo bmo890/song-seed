@@ -79,6 +79,11 @@ export type MarkInspectorProps = {
   /** Replaces the default "drag is live · ‹ › ±N ms" line — the editor uses it to say
    *  whether edges are snapping to the bar grid. */
   hint?: string;
+  /** Optional one-tap snap to a neighboring mark — the player's section editor uses
+   *  it for "start at the previous section's end" / "end at the next section's
+   *  start". Rendered only when both label and handler are given. */
+  neighborLabel?: string | null;
+  onUseNeighbor?: () => void;
 };
 
 export function MarkInspector({
@@ -97,6 +102,8 @@ export function MarkInspector({
   startLabel,
   endLabel,
   hint,
+  neighborLabel,
+  onUseNeighbor,
 }: MarkInspectorProps) {
   const { t } = useTranslation();
   const [dragMs, setDragMs] = useState<number | null>(null);
@@ -168,6 +175,17 @@ export function MarkInspector({
         <Text style={mi.inspectorHint} numberOfLines={1}>
           {hint ?? t("player.inspectorHint", { step: nudgeStepMs })}
         </Text>
+        {neighborLabel && onUseNeighbor ? (
+          <Pressable
+            style={({ pressed }) => [mi.usePlayheadBtn, pressed ? appStyles.pressDown : null]}
+            onPress={onUseNeighbor}
+            accessibilityRole="button"
+            accessibilityLabel={neighborLabel}
+          >
+            <Ionicons name="magnet-outline" size={13} color={colors.primaryDeep} />
+            <Text style={mi.usePlayheadText}>{neighborLabel}</Text>
+          </Pressable>
+        ) : null}
         <Pressable
           style={({ pressed }) => [
             mi.usePlayheadBtn,
@@ -230,14 +248,13 @@ const mi = StyleSheet.create({
   hintRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   inspectorHint: {
     ...text.annotation,
-    flexShrink: 1,
+    flex: 1,
     fontSize: 9.5,
     letterSpacing: 0.4,
     textTransform: "none",
     color: colors.textMuted,
   },
   usePlayheadBtn: {
-    marginLeft: "auto",
     flexDirection: "row",
     alignItems: "center",
     gap: 5,

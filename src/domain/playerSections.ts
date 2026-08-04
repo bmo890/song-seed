@@ -273,7 +273,17 @@ export function resolveSectionEdit(
   return list;
 }
 
-/** Find a sensible default span for a new section starting at `startMs`. */
+/** A new section's default length when the clip offers no better hint: about a
+ *  sung verse, not a whole song. */
+const DEFAULT_SECTION_SPAN_MS = 30000;
+
+/** Find a sensible default span for a new section starting at `startMs`.
+ *
+ *  The span is a typical section's worth — the median length of the sections
+ *  already mapped, or ~30s on an unmapped clip — never "everything until the end
+ *  of the song". The next section's start (or the clip end) still caps it, and
+ *  when the room left is only about a section anyway (≤1.5× the typical span)
+ *  the new section takes all of it, since a sliver of leftover would be noise. */
 export function defaultSectionEndMs(
   sections: ClipSection[],
   startMs: number,
@@ -284,6 +294,16 @@ export function defaultSectionEndMs(
     .map((section) => section.startMs)
     .filter((value) => value > startMs)
     .sort((a, b) => a - b)[0];
-  const end = nextStart ?? ceiling;
+  const boundary = Math.min(nextStart ?? ceiling, ceiling);
+
+  const lengths = sections
+    .map((section) => section.endMs - section.startMs)
+    .filter((value) => value >= MIN_SECTION_LENGTH_MS)
+    .sort((a, b) => a - b);
+  const typicalSpan =
+    lengths.length > 0 ? lengths[Math.floor(lengths.length / 2)] : DEFAULT_SECTION_SPAN_MS;
+
+  const room = boundary - startMs;
+  const end = room <= typicalSpan * 1.5 ? boundary : startMs + typicalSpan;
   return Math.max(startMs + MIN_SECTION_LENGTH_MS, Math.min(end, ceiling));
 }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AppAlert } from "../../common/AppAlert";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
@@ -18,6 +19,7 @@ const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
 const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 
 export function useRevisitScreenModel() {
+  const { t } = useTranslation();
   const navigation = useNavigation<any>();
   const isFocused = useIsFocused();
   const rootNavigation = navigation.getParent?.();
@@ -195,15 +197,16 @@ export function useRevisitScreenModel() {
   function openCandidateMenu(candidate: RevisitCandidate) {
     AppAlert.custom(candidate.title, undefined, [
       {
-        label: "Set aside",
+        label: t("activity.setAside"),
         style: "default",
-        icon: "file-tray-outline",
-        description: "Keep it on the Shelf for 7 days.",
+        // Timer glyph — shelving is about a 7-day stay, not a container.
+        icon: "timer-outline",
+        description: t("activity.setAsideHint"),
         onPress: () => {
           useShelfStore.getState().setAside([{ kind: "idea", id: candidate.ideaId }]);
           haptic.success();
-          toast("On the shelf for 7 days", "file-tray-outline", {
-            action: { label: "View shelf", onPress: () => openShelf(navigation) },
+          toast(t("activity.onShelf"), "file-tray-outline", {
+            action: { label: t("activity.viewShelf"), onPress: () => openShelf(navigation) },
           });
         },
       },

@@ -668,7 +668,9 @@ export function BluetoothCalibrationScreen() {
   return (
     <SafeAreaView style={globalStyles.screen}>
       <View style={globalStyles.transportHeaderZone}>
-        <ScreenHeader title={t("bluetoothCalibration.header")} leftIcon="back" />
+        {/* Settings-subpage pattern: the header stays "Settings" so the top of the
+            page never changes rooms; the serif PageIntro names the section. */}
+        <ScreenHeader title={t("settings.title")} leftIcon="back" />
       </View>
 
       <ScrollView style={globalStyles.flexFill} contentContainerStyle={screenStyles.scrollContent}>

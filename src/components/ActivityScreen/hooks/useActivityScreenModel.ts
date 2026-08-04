@@ -495,7 +495,7 @@ export function useActivityScreenModel() {
         {
           label: t("activity.setAside"),
           style: "default",
-          icon: "file-tray-outline",
+          icon: "timer-outline",
           description: t("activity.setAsideHint"),
           onPress: () => {
             useShelfStore.getState().setAside([{ kind: "idea", id: item.ideaId }]);

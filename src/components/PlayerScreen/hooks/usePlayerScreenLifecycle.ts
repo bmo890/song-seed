@@ -582,7 +582,7 @@ export function usePlayerScreenLifecycle({
       {
         label: t("player.setAside"),
         style: "default",
-        icon: "file-tray-outline",
+        icon: "timer-outline",
         onPress: () => {
           if (!playerIdea) return;
           useShelfStore.getState().setAside([{ kind: "idea", id: playerIdea.id }]);

@@ -150,15 +150,20 @@ export function useWorkspaceListScreenModel() {
       });
     }
 
-    actions.push({
-      key: "archive",
-      label: t(actionSheetWorkspace.isArchived ? "workspaceList.unarchive" : "workspaceList.archive"),
-      icon: actionSheetWorkspace.isArchived ? "arrow-up-circle-outline" : "archive-outline",
-      onPress: () => {
-        closeActionSheet();
-        archiveActions.confirmArchiveWorkspace(actionSheetWorkspace);
-      },
-    });
+    // Archiving is shelved (2026-08-04) until the recent persistence plumbing is
+    // re-tested against it — no NEW archives from the UI. Already-archived
+    // workspaces keep their unarchive/offload rows so nothing gets stranded.
+    if (actionSheetWorkspace.isArchived) {
+      actions.push({
+        key: "archive",
+        label: t("workspaceList.unarchive"),
+        icon: "arrow-up-circle-outline",
+        onPress: () => {
+          closeActionSheet();
+          archiveActions.confirmArchiveWorkspace(actionSheetWorkspace);
+        },
+      });
+    }
 
     // The real space saver: move the archived package into the user's own storage
     // and delete the on-device copy. Only offered while the package is still local.

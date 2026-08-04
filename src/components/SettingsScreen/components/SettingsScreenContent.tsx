@@ -1,4 +1,5 @@
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { styles } from "../styles";
 import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandler";
@@ -20,6 +21,7 @@ import { SettingsStorageView } from "../views/SettingsStorageView";
 
 export function SettingsScreenContent() {
   useBrowseRootBackHandler();
+  const { t } = useTranslation();
 
   const screen = useSettingsScreenModel();
   const backupFlow = useLibraryBackupFlow();
@@ -42,9 +44,11 @@ export function SettingsScreenContent() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      {/* The serif title lives in each view's PageIntro; the header stays untitled. */}
+      {/* The serif section title lives in each view's PageIntro. On the overview the
+          header stays untitled (the PageIntro already says Settings); on subscreens
+          the header says Settings so the top of the page never changes rooms. */}
       <ScreenHeader
-        title=""
+        title={screen.showSubscreen ? t("settings.title") : ""}
         leftIcon={screen.showSubscreen ? "back" : "hamburger"}
         onLeftPress={handleBackPress}
       />

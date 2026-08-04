@@ -435,9 +435,10 @@ export function IdeaSelectionBar({
         key: "set-aside",
         label:
           interactiveSelectedIdeas.length > 1
-            ? `Set aside (${interactiveSelectedIdeas.length})`
-            : "Set aside",
-        icon: "file-tray-outline",
+            ? t("selection.setAsideCount", { count: interactiveSelectedIdeas.length })
+            : t("selection.setAside"),
+        // Timer glyph — shelving is about a 7-day stay, not a container.
+        icon: "timer-outline",
         onPress: handleSetAsideSelection,
         disabled: interactiveSelectedIdeas.length === 0,
       });

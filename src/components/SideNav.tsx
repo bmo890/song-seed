@@ -57,6 +57,7 @@ type Props = {
   workspaceTitle: string | null;
   workspaceColor?: string;
   workspaceAvatarKey?: number;
+  collectionsCount: number;
   recentCollections: RecentCollectionLite[];
   onGoHome: () => void;       // Switch workspace (home = workspace picker)
   onGoWorkspace: () => void;  // Collections for current workspace
@@ -78,6 +79,7 @@ export function SideNav({
   workspaceTitle,
   workspaceColor,
   workspaceAvatarKey,
+  collectionsCount,
   recentCollections,
   onGoHome,
   onGoWorkspace,
@@ -150,19 +152,25 @@ export function SideNav({
       </View>
 
       {/* ── Workspace card — the one tinted island ─────────────────────── */}
-      {/* Everything below it is global; this block alone is "here". */}
+      {/* Everything below it is global; this block alone is "here". The tint is
+          washed to half strength on purpose: the card is a context reminder, not
+          a destination, so it should murmur rather than dominate the drawer. */}
       <View style={sideNavStyles.workspaceBlock}>
-        <View style={[sideNavStyles.workspaceCard, { backgroundColor: workspaceTheme.tint }]}>
+        <View style={[sideNavStyles.workspaceCard, { backgroundColor: `${workspaceTheme.tint}80` }]}>
 
-          {/* Identity + switcher. The chevron is the familiar account-switch
-              affordance — tap to change which workspace you're in. */}
+          {/* Identity + switcher. The swap glyph reads as "change workspace" —
+              the old chevron-down promised a dropdown that never came. */}
           <View style={sideNavStyles.workspaceNameRow}>
-            <WorkspaceAvatar
-              color={workspaceColor}
-              name={workspaceTitle ?? "?"}
-              avatarKey={workspaceAvatarKey}
-              size={32}
-            />
+            {/* A surface backing ring keeps the avatar's marble legible — drawn
+                straight on the tint, its hues bled into the card. */}
+            <View style={sideNavStyles.avatarChip}>
+              <WorkspaceAvatar
+                color={workspaceColor}
+                name={workspaceTitle ?? "?"}
+                avatarKey={workspaceAvatarKey}
+                size={30}
+              />
+            </View>
             <View style={sideNavStyles.workspaceIdentity}>
               <Text style={sideNavStyles.sectionLabel}>{t("navigation.workspace")}</Text>
               <UserText value={workspaceTitle ?? ""} style={sideNavStyles.workspaceName} numberOfLines={1}>
@@ -177,7 +185,7 @@ export function SideNav({
               onPress={onGoHome}
               hitSlop={10}
             >
-              <Ionicons name="chevron-down" size={18} color={colors.primaryDeep} />
+              <Ionicons name="swap-horizontal" size={17} color={colors.primaryDeep} />
             </Pressable>
           </View>
 
@@ -190,6 +198,9 @@ export function SideNav({
             >
               <Ionicons name="albums-outline" size={17} color={colors.primaryDeep} />
               <Text style={sideNavStyles.cardRowLabel}>{t("navigation.collections")}</Text>
+              {collectionsCount > 0 ? (
+                <Text style={sideNavStyles.cardRowCount}>{collectionsCount}</Text>
+              ) : null}
               <Ionicons name={dirIcon("chevron-forward")} size={14} color={colors.textMuted} />
             </Pressable>
           ) : null}
@@ -204,12 +215,14 @@ export function SideNav({
                 pressed ? styles.pressDown : null,
               ]}
               onPress={() => onOpenCollection(mostRecent.id)}
+              accessibilityLabel={`${t("navigation.recent")} · ${mostRecent.title}`}
             >
               <Ionicons name="folder-outline" size={16} color={colors.textSecondary} />
               <UserText value={mostRecent.title} style={sideNavStyles.recentLabel} numberOfLines={1}>
                 {mostRecent.title}
               </UserText>
-              <Text style={sideNavStyles.recentTag}>{t("navigation.recent")}</Text>
+              {/* A clock glyph marks recency; the label already names the place. */}
+              <Ionicons name="time-outline" size={14} color={colors.textMuted} />
             </Pressable>
           ) : null}
         </View>
@@ -382,6 +395,14 @@ const sideNavStyles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
+  avatarChip: {
+    width: 38,
+    height: 38,
+    borderRadius: radii.round,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   workspaceIdentity: {
     flex: 1,
     minWidth: 0,
@@ -419,6 +440,13 @@ const sideNavStyles = StyleSheet.create({
     lineHeight: 20,
     color: colors.textPrimary,
   },
+  // Quiet inventory count — information, not a badge asking for action.
+  cardRowCount: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 12,
+    fontVariant: ["tabular-nums"],
+    color: colors.textMuted,
+  },
   // The recent collection is nested under Collections — indented one level.
   recentRow: {
     paddingStart: 26,
@@ -430,13 +458,6 @@ const sideNavStyles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 19,
     color: colors.textPrimary,
-  },
-  recentTag: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 9.5,
-    letterSpacing: 0.7,
-    textTransform: "uppercase",
-    color: colors.textMuted,
   },
 
   // Scrollable sections

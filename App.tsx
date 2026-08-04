@@ -555,6 +555,7 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
       workspaceTitle={activeWorkspace?.title ?? null}
       workspaceColor={activeWorkspace?.color}
       workspaceAvatarKey={activeWorkspace?.avatarKey}
+      collectionsCount={activeWorkspace?.collections.length ?? 0}
       recentCollections={recentCollections}
       onGoHome={() => {
         closeDrawer();
@@ -597,7 +598,10 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
       }}
       onGoSettings={() => {
         closeDrawer();
-        navigation.navigate("SettingsHome");
+        // Settings is a single drawer screen with internal view state, so without
+        // an explicit target it re-opens on whatever subview it was left on. The
+        // sidebar row always means "take me to Settings", i.e. the overview.
+        navigation.navigate("SettingsHome", { initialView: "overview", openToken: Date.now() });
       }}
       onGoNotepad={() => {
         closeDrawer();

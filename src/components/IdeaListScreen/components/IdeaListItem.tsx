@@ -17,7 +17,6 @@ import { appActions } from "../../../state/actions";
 import { StageInk } from "../../common/StageMark";
 import { IdeaCard } from "../../common/IdeaCard";
 import { AppAlert } from "../../common/AppAlert";
-import { useWorkspaceTheme } from "../../../context/WorkspaceThemeContext";
 import { colors } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
 import { toast } from "../../common/toastStore";
@@ -75,7 +74,6 @@ function IdeaListItemInner({
     const listSelectionMode = useStore((s) => s.listSelectionMode);
     const songTargetPicker = useStore((s) => s.songTargetPicker);
     const setSelectedIdeaId = useStore((s) => s.setSelectedIdeaId);
-    const { accent: workspaceAccent } = useWorkspaceTheme();
 
     const navigation = useNavigation();
     const rootNavigation = (navigation as any).getParent?.();
@@ -258,7 +256,7 @@ function IdeaListItemInner({
                             nowPlaying={nowPlaying}
                             nowPlayingIsPlaying={nowPlayingIsPlaying}
                             isSong={item.kind === "project"}
-                            accentBorderColor={item.kind === "project" ? workspaceAccent : null}
+                            accentBorderColor={item.kind === "project" ? colors.primary : null}
                             compact={compact}
                             denseRow={compact}
                             containerStyle={[
