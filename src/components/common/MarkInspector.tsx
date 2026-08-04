@@ -46,7 +46,9 @@ function EdgeChip({
     <Pressable
       style={({ pressed }) => [
         mi.edgeChip,
-        active ? mi.edgeChipActive : null,
+        // Only ONE edge is being edited at a time; the other chip recedes so
+        // there is never a question of which end the slider and nudges move.
+        active ? mi.edgeChipActive : mi.edgeChipIdle,
         pressed ? appStyles.pressDown : null,
       ]}
       onPress={onPress}
@@ -55,7 +57,9 @@ function EdgeChip({
       accessibilityLabel={`${label} ${fmtDuration(timeMs)}`}
     >
       <Text style={[mi.edgeChipLabel, active ? mi.edgeChipLabelActive : null]}>{label}</Text>
-      <Text style={mi.edgeChipTime}>{fmtDuration(timeMs)}</Text>
+      <Text style={[mi.edgeChipTime, active ? null : mi.edgeChipTimeIdle]}>
+        {fmtDuration(timeMs)}
+      </Text>
     </Pressable>
   );
 }
@@ -223,6 +227,9 @@ const mi = StyleSheet.create({
     backgroundColor: colors.surface,
     borderColor: colors.primary,
   },
+  edgeChipIdle: {
+    opacity: 0.45,
+  },
   edgeChipLabel: {
     ...text.annotation,
     fontSize: 9,
@@ -233,6 +240,9 @@ const mi = StyleSheet.create({
     ...text.body,
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontVariant: ["tabular-nums"],
+  },
+  edgeChipTimeIdle: {
+    color: colors.textSecondary,
   },
   edgeArrow: { ...text.supporting, color: colors.textMuted },
   dragRow: { alignItems: "center", gap: 8 },

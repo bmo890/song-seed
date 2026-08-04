@@ -28,6 +28,7 @@ import { AnimatedCollapse } from "../../common/AnimatedCollapse";
 import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
 import { ltrRow, MarkInspector, nudgeStepMsForZoom } from "../../common/MarkInspector";
+import { UndoRedoButtons } from "../../common/useUndoHistory";
 
 /**
  * The practice tools as three drawers — Marks / Loop / Sound — replacing the old
@@ -82,6 +83,12 @@ type PlayerPracticeDrawersProps = {
   onPinPreview: (preview: { id: string; atMs: number } | null) => void;
   onEditPin: (markerId: string, edits: { label: string; note: string }) => void;
   onDeletePin: (markerId: string) => void;
+  /** One shared undo history over sections + pins — edits here are quick and
+   *  easy to fat-finger, so every change can be stepped back. */
+  canUndoMarks: boolean;
+  canRedoMarks: boolean;
+  onUndoMarks: () => void;
+  onRedoMarks: () => void;
 
   // Loop
   practiceLoopEnabled: boolean;
@@ -227,6 +234,10 @@ export function PlayerPracticeDrawers({
   onPinPreview,
   onEditPin,
   onDeletePin,
+  canUndoMarks,
+  canRedoMarks,
+  onUndoMarks,
+  onRedoMarks,
   practiceLoopEnabled,
   practiceLoopRange,
   onSetLoopRange,
@@ -567,6 +578,14 @@ export function PlayerPracticeDrawers({
           <Text style={pd.inkLinkText}>{t("player.pinShort")}</Text>
         </Pressable>
         <Text style={pd.addHint}>{t("player.atTime", { time: fmtDuration(playheadMs) })}</Text>
+        <View style={pd.undoRedoRow}>
+          <UndoRedoButtons
+            canUndo={canUndoMarks}
+            canRedo={canRedoMarks}
+            onUndo={onUndoMarks}
+            onRedo={onRedoMarks}
+          />
+        </View>
       </View>
     </View>
   );

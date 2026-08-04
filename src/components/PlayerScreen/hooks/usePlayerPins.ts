@@ -12,6 +12,9 @@ type UsePlayerPinsArgs = {
   practiceMarkers: PracticeMarker[];
   displayDuration: number;
   playerPosition: number;
+  /** Called right before any persisted change — the marks undo history records
+   *  its pre-change snapshot here. */
+  onBeforeChange?: () => void;
 };
 
 export function usePlayerPins({
@@ -20,6 +23,7 @@ export function usePlayerPins({
   practiceMarkers,
   displayDuration,
   playerPosition,
+  onBeforeChange,
 }: UsePlayerPinsArgs) {
   const [newPinLabel, setNewPinLabel] = useState("");
   const [pinModalVisible, setPinModalVisible] = useState(false);
@@ -41,14 +45,15 @@ export function usePlayerPins({
         atMs: playerPosition,
       };
 
+      onBeforeChange?.();
       useStore.getState().addClipPracticeMarker(playerIdeaId, playerClipId, newMarker);
       haptic.light();
       toast(`Pin added at ${fmtDuration(playerPosition)}`, "pin-outline");
       setNewPinLabel("");
-      return newMarker.id;
       setPinModalVisible(false);
+      return newMarker.id;
     },
-    [newPinLabel, playerClipId, playerIdeaId, playerPosition]
+    [newPinLabel, onBeforeChange, playerClipId, playerIdeaId, playerPosition]
   );
 
   const handleRepositionMarker = useCallback(
@@ -59,9 +64,10 @@ export function usePlayerPins({
           ? { ...marker, atMs: Math.round(Math.max(0, Math.min(displayDuration, newAtMs))) }
           : marker
       );
+      onBeforeChange?.();
       useStore.getState().setClipPracticeMarkers(playerIdeaId, playerClipId, updated);
     },
-    [displayDuration, playerClipId, playerIdeaId, practiceMarkers]
+    [displayDuration, onBeforeChange, playerClipId, playerIdeaId, practiceMarkers]
   );
 
   const handlePinActions = useCallback((marker: PracticeMarker) => {
@@ -74,20 +80,27 @@ export function usePlayerPins({
     if (!playerIdeaId || !playerClipId || !pinActionsTarget) return;
     const label = pinRenameValue.trim();
     if (!label) return;
+    if (label === pinActionsTarget.label) {
+      setPinActionsVisible(false);
+      setPinActionsTarget(null);
+      return;
+    }
     const updated = practiceMarkers.map((marker) =>
       marker.id === pinActionsTarget.id ? { ...marker, label } : marker
     );
+    onBeforeChange?.();
     useStore.getState().setClipPracticeMarkers(playerIdeaId, playerClipId, updated);
     setPinActionsVisible(false);
     setPinActionsTarget(null);
-  }, [pinActionsTarget, pinRenameValue, playerClipId, playerIdeaId, practiceMarkers]);
+  }, [onBeforeChange, pinActionsTarget, pinRenameValue, playerClipId, playerIdeaId, practiceMarkers]);
 
   const handleDeletePin = useCallback(() => {
     if (!playerIdeaId || !playerClipId || !pinActionsTarget) return;
+    onBeforeChange?.();
     useStore.getState().removeClipPracticeMarker(playerIdeaId, playerClipId, pinActionsTarget.id);
     setPinActionsVisible(false);
     setPinActionsTarget(null);
-  }, [pinActionsTarget, playerClipId, playerIdeaId]);
+  }, [onBeforeChange, pinActionsTarget, playerClipId, playerIdeaId]);
 
   const commitPinNote = useCallback(
     (markerId: string, note: string) => {
@@ -100,9 +113,10 @@ export function usePlayerPins({
       const updated = practiceMarkers.map((marker) =>
         marker.id === markerId ? { ...marker, note: nextNote } : marker
       );
+      onBeforeChange?.();
       useStore.getState().setClipPracticeMarkers(playerIdeaId, playerClipId, updated);
     },
-    [playerClipId, playerIdeaId, practiceMarkers]
+    [onBeforeChange, playerClipId, playerIdeaId, practiceMarkers]
   );
 
   // The caret just toggles the inline timing adjuster now; name/note live in the editor modal.
@@ -115,21 +129,27 @@ export function usePlayerPins({
       if (!playerIdeaId || !playerClipId) return;
       const label = clampPinLabel(edits.label);
       const note = edits.note.trim() || undefined;
+      // A no-op save (dialog confirmed without changes) writes nothing — it
+      // would otherwise pollute the undo history with an invisible step.
+      const current = practiceMarkers.find((marker) => marker.id === markerId);
+      if (current && current.label === label && (current.note ?? undefined) === note) return;
       const updated = practiceMarkers.map((marker) =>
         marker.id === markerId ? { ...marker, label, note } : marker
       );
+      onBeforeChange?.();
       useStore.getState().setClipPracticeMarkers(playerIdeaId, playerClipId, updated);
     },
-    [playerClipId, playerIdeaId, practiceMarkers]
+    [onBeforeChange, playerClipId, playerIdeaId, practiceMarkers]
   );
 
   const handleDeletePinId = useCallback(
     (markerId: string) => {
       if (!playerIdeaId || !playerClipId) return;
+      onBeforeChange?.();
       useStore.getState().removeClipPracticeMarker(playerIdeaId, playerClipId, markerId);
       setExpandedPinId((prev) => (prev === markerId ? null : prev));
     },
-    [playerClipId, playerIdeaId]
+    [onBeforeChange, playerClipId, playerIdeaId]
   );
 
   return {

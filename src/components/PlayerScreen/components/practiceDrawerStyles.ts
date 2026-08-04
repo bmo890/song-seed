@@ -197,6 +197,13 @@ export const pd = StyleSheet.create({
     marginLeft: "auto",
     fontVariant: ["tabular-nums"],
   },
+  // Undo/redo sit at the row's end, tighter than the row's 18pt gap — they are
+  // one control in two halves, not two separate actions.
+  undoRedoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
   emptyText: {
     ...text.supporting,
     paddingHorizontal: 10,

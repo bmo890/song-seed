@@ -16,6 +16,9 @@ type UsePlayerSectionsArgs = {
   sections: ClipSection[];
   displayDuration: number;
   playerPosition: number;
+  /** Called right before any persisted change — the marks undo history records
+   *  its pre-change snapshot here. */
+  onBeforeChange?: () => void;
 };
 
 /** Optional custom descriptor (title + colour) when adding/retyping a custom section. */
@@ -27,18 +30,23 @@ export function usePlayerSections({
   sections,
   displayDuration,
   playerPosition,
+  onBeforeChange,
 }: UsePlayerSectionsArgs) {
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [draftLabel, setDraftLabel] = useState("");
 
+  // Every section mutation funnels through here, so one hook covers the whole
+  // undo surface. Undo/redo restores write to the store directly, not through
+  // persist — no history loop.
   const persist = useCallback(
     (next: ClipSection[]) => {
       if (!playerIdeaId || !playerClipId) return;
+      onBeforeChange?.();
       useStore
         .getState()
         .setClipSections(playerIdeaId, playerClipId, normalizeSections(next, displayDuration));
     },
-    [displayDuration, playerClipId, playerIdeaId]
+    [displayDuration, onBeforeChange, playerClipId, playerIdeaId]
   );
 
   const handleAddSection = useCallback(
@@ -111,6 +119,12 @@ export function usePlayerSections({
   const handleEditSection = useCallback(
     (sectionId: string, edits: { label: string; color: string }) => {
       const label = edits.label.trim();
+      // A no-op save writes nothing — it would otherwise pollute the undo
+      // history with an invisible step.
+      const current = sections.find((section) => section.id === sectionId);
+      if (current && (label || current.label) === current.label && current.color === edits.color) {
+        return;
+      }
       persist(
         sections.map((section) =>
           section.id === sectionId

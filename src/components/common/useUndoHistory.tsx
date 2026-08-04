@@ -20,23 +20,23 @@ export function useUndoHistory<T>(current: T, restore: (value: T) => void) {
     setHist((h) => ({ undo: [...h.undo.slice(-39), previous], redo: [] }));
   }, []);
 
+  // `restore` must run OUTSIDE the state updater: updaters can execute during
+  // the render phase, and a restore that writes another store from there trips
+  // React's "cannot update a component while rendering" warning. Reading `hist`
+  // from the closure is safe — undo/redo are re-created whenever it changes.
   const undo = useCallback(() => {
-    setHist((h) => {
-      if (h.undo.length === 0) return h;
-      const prev = h.undo[h.undo.length - 1];
-      restore(prev);
-      return { undo: h.undo.slice(0, -1), redo: [...h.redo.slice(-39), current] };
-    });
-  }, [restore, current]);
+    if (hist.undo.length === 0) return;
+    const prev = hist.undo[hist.undo.length - 1];
+    setHist({ undo: hist.undo.slice(0, -1), redo: [...hist.redo.slice(-39), current] });
+    restore(prev);
+  }, [hist, restore, current]);
 
   const redo = useCallback(() => {
-    setHist((h) => {
-      if (h.redo.length === 0) return h;
-      const next = h.redo[h.redo.length - 1];
-      restore(next);
-      return { undo: [...h.undo.slice(-39), current], redo: h.redo.slice(0, -1) };
-    });
-  }, [restore, current]);
+    if (hist.redo.length === 0) return;
+    const next = hist.redo[hist.redo.length - 1];
+    setHist({ undo: [...hist.undo.slice(-39), current], redo: hist.redo.slice(0, -1) });
+    restore(next);
+  }, [hist, restore, current]);
 
   const clear = useCallback(() => setHist({ undo: [], redo: [] }), []);
 

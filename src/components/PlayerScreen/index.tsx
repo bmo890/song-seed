@@ -22,6 +22,7 @@ import { haptic } from "../../design/haptics";
 import { toast } from "../common/toastStore";
 import { usePlayerPins } from "./hooks/usePlayerPins";
 import { usePlayerSections } from "./hooks/usePlayerSections";
+import { useUndoHistory } from "../common/useUndoHistory";
 import { useClipAnalysis } from "./hooks/useClipAnalysis";
 import { usePlayerScreenData } from "./hooks/usePlayerScreenData";
 import { usePlayerScreenLifecycle } from "./hooks/usePlayerScreenLifecycle";
@@ -425,6 +426,39 @@ export function PlayerScreen({
     transportClock,
     ui.mode,
   ]);
+  // Undo/redo over the marks edited in the Tools drawer (sections + pins share
+  // one history — an undo steps back whichever changed last). Snapshots are the
+  // STORE's own values, never the lyrics-derived fallback markers or the
+  // normalized view, so a restore writes back exactly what was there before.
+  const marksSnapshot = useMemo(
+    () => ({
+      sections: playerClip?.sections ?? [],
+      markers: playerClip?.practiceMarkers ?? [],
+    }),
+    [playerClip?.sections, playerClip?.practiceMarkers]
+  );
+  const marksSnapshotRef = useRef(marksSnapshot);
+  marksSnapshotRef.current = marksSnapshot;
+  const restoreMarks = useCallback(
+    (value: { sections: ClipSection[]; markers: PracticeMarker[] }) => {
+      if (!playerIdea?.id || !playerClip?.id) return;
+      const state = useStore.getState();
+      state.setClipSections(playerIdea.id, playerClip.id, value.sections);
+      state.setClipPracticeMarkers(playerIdea.id, playerClip.id, value.markers);
+    },
+    [playerIdea?.id, playerClip?.id]
+  );
+  const marksHistory = useUndoHistory(marksSnapshot, restoreMarks);
+  const recordMarksChange = useCallback(
+    () => marksHistory.record(marksSnapshotRef.current),
+    [marksHistory.record] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  // A different clip is a different history.
+  const clearMarksHistory = marksHistory.clear;
+  useEffect(() => {
+    clearMarksHistory();
+  }, [clearMarksHistory, playerClip?.id]);
+
   const {
     newPinLabel,
     pinModalVisible,
@@ -454,6 +488,7 @@ export function PlayerScreen({
     practiceMarkers: data.practiceMarkers,
     displayDuration: effectivePlayerDuration,
     playerPosition: effectivePlayerPosition,
+    onBeforeChange: recordMarksChange,
   });
   const sectionsApi = usePlayerSections({
     playerIdeaId: playerIdea?.id,
@@ -461,6 +496,7 @@ export function PlayerScreen({
     sections: data.sections,
     displayDuration: effectivePlayerDuration,
     playerPosition: effectivePlayerPosition,
+    onBeforeChange: recordMarksChange,
   });
   const clipAnalysis = useClipAnalysis({
     playerIdeaId: playerIdea?.id,
@@ -1043,6 +1079,10 @@ export function PlayerScreen({
               }}
               onRestartStepUp={stepUp.restartStepUp}
               practiceMarkers={data.practiceMarkers}
+              canUndoMarks={marksHistory.canUndo}
+              canRedoMarks={marksHistory.canRedo}
+              onUndoMarks={marksHistory.undo}
+              onRedoMarks={marksHistory.redo}
               onAddPin={() => (guardPracticeTool("pins") ? handleRequestAddPin() : null)}
               onRepositionPin={handleRepositionMarker}
               onPinPreview={setPinPreview}
