@@ -42,17 +42,11 @@ export function useNotepadScreenModel() {
   const [selectedCutUpIds, setSelectedCutUpIds] = useState<string[]>([]);
   const [selectedMagpieIds, setSelectedMagpieIds] = useState<string[]>([]);
   const handledRouteOpenTokenRef = useRef<number | null>(null);
-  const handledTabTokenRef = useRef<number | null>(null);
-  // The tab the user has explicitly chosen, or null to let the default derive
-  // from content (below). Sparks live on their own tab, apart from Lyrics.
-  const [pickedTab, setPickedTab] = useState<"lyrics" | "sparks" | null>(null);
-  const setActiveTab = setPickedTab;
   const sparkCount = wordLadders.length + cutUpSparks.length + magpieSparks.length;
-  // Land on whichever tab actually has content on entry: Sparks only when there
-  // are sparks and no lyrics, otherwise Lyrics. Derived in render (not an effect)
-  // so the very first frame is already on the right tab.
-  const activeTab: "lyrics" | "sparks" =
-    pickedTab ?? (notes.length === 0 && sparkCount > 0 ? "sparks" : "lyrics");
+  // The route decides the room: NotepadHome is the Lyric Pad (notes), SparkHome
+  // is the Lyric Spark page (word tools + saved sparks). No tab switch — each is
+  // its own page, reached from its own sidebar row.
+  const activeTab: "lyrics" | "sparks" = route.name === "SparkHome" ? "sparks" : "lyrics";
 
   const filteredNotes = useMemo(() => {
     const needle = searchQuery.trim().toLowerCase();
@@ -188,12 +182,6 @@ export function useNotepadScreenModel() {
     notes.length + wordLadders.length + cutUpSparks.length + magpieSparks.length;
   const isSearching = searchQuery.trim().length > 0;
 
-  // If the user explicitly opened the Sparks tab and then deletes the last spark,
-  // fall back to Lyrics (the segmented control also hides itself at zero sparks).
-  useEffect(() => {
-    if (pickedTab === "sparks" && sparkCount === 0) setActiveTab("lyrics");
-  }, [pickedTab, sparkCount, setActiveTab]);
-
   const activeNote = useMemo(
     () => (activeNoteId ? notes.find((n) => n.id === activeNoteId) ?? null : null),
     [activeNoteId, notes]
@@ -213,19 +201,6 @@ export function useNotepadScreenModel() {
     handledRouteOpenTokenRef.current = routeOpenToken;
     setActiveNoteId(routeNoteId);
   }, [notes, route.params?.noteId, route.params?.openToken]);
-
-  // Deep link from the drawer: "Lyrics Pad" and "Sparks" are two doors into this
-  // same screen, differing only by which tab they land on. The openToken makes a
-  // repeat tap re-apply the tab even when the route params are otherwise identical.
-  useEffect(() => {
-    const routeInitialTab = route.params?.initialTab as "lyrics" | "sparks" | undefined;
-    const routeOpenToken = route.params?.openToken as number | undefined;
-    if (!routeInitialTab || typeof routeOpenToken !== "number" || handledTabTokenRef.current === routeOpenToken) {
-      return;
-    }
-    handledTabTokenRef.current = routeOpenToken;
-    setPickedTab(routeInitialTab);
-  }, [route.params?.initialTab, route.params?.openToken]);
 
   const handleNewNote = useCallback(() => {
     const id = addNote();
@@ -501,7 +476,6 @@ export function useNotepadScreenModel() {
     totalEntryCount,
     sparkCount,
     activeTab,
-    setActiveTab,
     isSearching,
     searchQuery,
     setSearchQuery,

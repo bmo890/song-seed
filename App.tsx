@@ -157,6 +157,7 @@ const HOME_DRAWER_ROUTE_NAMES: Array<keyof HomeDrawerParamList> = [
   "LibraryHome",
   "SettingsHome",
   "NotepadHome",
+  "SparkHome",
   "WordLadderHome",
   "CutUpHome",
   "MagpieHome",
@@ -528,12 +529,14 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
           ? "library"
           : deepestRouteName === "SettingsHome"
             ? "settings"
-            : deepestRouteName === "NotepadHome" ||
-                deepestRouteName === "WordLadderHome" ||
-                deepestRouteName === "CutUpHome" ||
-                deepestRouteName === "MagpieHome"
+            : deepestRouteName === "NotepadHome"
               ? "notepad"
-              : null;
+              : deepestRouteName === "SparkHome" ||
+                  deepestRouteName === "WordLadderHome" ||
+                  deepestRouteName === "CutUpHome" ||
+                  deepestRouteName === "MagpieHome"
+                ? "sparks"
+                : null;
 
   const recentCollections = activeWorkspace
     ? getRecentCollectionsForWorkspace(activeWorkspace, collectionLastOpenedAt, 1).map((entry) => ({
@@ -605,11 +608,11 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
       }}
       onGoNotepad={() => {
         closeDrawer();
-        navigation.navigate("NotepadHome", { initialTab: "lyrics", openToken: Date.now() });
+        navigation.navigate("NotepadHome", { openToken: Date.now() });
       }}
       onGoSparks={() => {
         closeDrawer();
-        navigation.navigate("NotepadHome", { initialTab: "sparks", openToken: Date.now() });
+        navigation.navigate("SparkHome", { openToken: Date.now() });
       }}
       onOpenCollection={(collectionId) => {
         closeDrawer();
@@ -677,6 +680,8 @@ function DrawerRoutes() {
       <Drawer.Screen name="LibraryHome" component={LibraryScreen} />
       <Drawer.Screen name="SettingsHome" component={SettingsScreen} />
       <Drawer.Screen name="NotepadHome" component={NotepadScreen} />
+      {/* Same component, fixed to sparks mode by its route name. */}
+      <Drawer.Screen name="SparkHome" component={NotepadScreen} />
       <Drawer.Screen name="WordLadderHome" component={WordLadderScreen} />
       <Drawer.Screen name="CutUpHome" component={CutUpScreen} />
       <Drawer.Screen name="MagpieHome" component={MagpieScreen} />

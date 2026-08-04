@@ -53,6 +53,7 @@ type Props = {
     | "library"
     | "settings"
     | "notepad"
+    | "sparks"
     | null;
   workspaceTitle: string | null;
   workspaceColor?: string;
@@ -283,14 +284,15 @@ export function SideNav({
           onPress={onGoActivity}
         />
 
-        {/* Tools — grab-and-go utilities. Sparks (Word Ladder / Cut-Up / Magpie)
-            lives here; it also stays reachable from inside the Lyrics Pad. */}
+        {/* Tools — grab-and-go utilities. Lyric Spark (Word Ladder / Cut-Up /
+            Borrowed Words) has its own page now, apart from the Lyric Pad. */}
         <View style={sideNavStyles.divider} />
         <Text style={sideNavStyles.sectionLabelScroll}>{t("navigation.tools")}</Text>
         <NavRow
           icon={NAV_ICONS.sparks}
           iconColor={NAV_ICON_COLOR}
           label={t("navigation.sparks")}
+          active={currentRoute === "sparks"}
           onPress={onGoSparks}
         />
         <NavRow

@@ -68,50 +68,51 @@ export const selectionStyles = {
     alignItems: "center",
   },
   selectionText: { fontSize: 13, color: colors.textStrong, fontFamily: "PlusJakartaSans_600SemiBold" },
-  // ─── Selection top bar (count · All/None · Done) ────────────────────────────
-  // Floating surface card (no harsh borders): depth from the whisper shadow.
+  // ─── Selection top bar (count · All · Cancel) ───────────────────────────────
+  // The sketch page's law, made universal: selection repurposes existing chrome
+  // in place — no card, no shadow, and above all no pushing the list downward.
   selectionTopBar: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    marginHorizontal: 12,
-    marginTop: 2,
-    marginBottom: 8,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    gap: 10,
-    ...shadows.card,
+    gap: 14,
+    minHeight: 38,
+    paddingHorizontal: 2,
+    backgroundColor: colors.page,
     zIndex: 20, // above FlatList sticky date headers
+  },
+  // Overlay variant: stretches over the chrome it replaces (search/filter rows)
+  // instead of inserting itself into the flow.
+  selectionTopBarOverlay: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   selectionTopBarCount: {
     fontSize: 13,
     fontFamily: "PlusJakartaSans_600SemiBold",
+    fontVariant: ["tabular-nums"],
     color: colors.textStrong,
   },
-  // Bordered "All" chip — sits right after the count
-  selectionTopBarChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    borderColor: colors.primaryDeep,
-  },
+  // "All" is editorial ink, not a chip — one quiet word in the action color.
   selectionTopBarChipText: {
     fontSize: 12,
     fontFamily: "PlusJakartaSans_700Bold",
     color: colors.primaryDeep,
   },
+  // Cancel is a soft key, same register as the sketch page's.
   selectionTopBarCancelBtn: {
+    minHeight: 30,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surfaceHigh,
     paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 6,
-    backgroundColor: colors.primaryDeep,
+    justifyContent: "center",
   },
   selectionTopBarCancelBtnText: {
     fontSize: 12,
-    fontFamily: "PlusJakartaSans_700Bold",
-    color: "#FDFBF7",
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    color: colors.textStrong,
   },
   // ─── Selection toolbar (icon-only bottom action bar) ─────────────────────────
   // Surface sheet lifted off the page: rounded top corners + whisper shadow

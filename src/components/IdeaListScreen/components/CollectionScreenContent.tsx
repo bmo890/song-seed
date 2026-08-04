@@ -133,19 +133,22 @@ export function CollectionScreenContent() {
               <View style={{ paddingHorizontal: 14 }}>
                 <CollectionSearchSection />
                 <CollectionFilterSection />
+                {/* Selection controls overlay the search/filter chrome in place
+                    (the sketch page's law) — the header keeps its height, so the
+                    list never gets pushed down on entering selection. */}
+                {screen.listSelectionMode ? (
+                  <SelectionTopBar
+                    overlay
+                    count={selectedListIdeaIds.length}
+                    allSelected={allListSelected}
+                    onSelectAll={() =>
+                      useStore.getState().replaceListSelection(selectableListIdeaIds)
+                    }
+                    onCancel={() => useStore.getState().cancelListSelection()}
+                  />
+                ) : null}
               </View>
-              {screen.listSelectionMode ? (
-                <SelectionTopBar
-                  count={selectedListIdeaIds.length}
-                  allSelected={allListSelected}
-                  onSelectAll={() =>
-                    useStore.getState().replaceListSelection(selectableListIdeaIds)
-                  }
-                  onCancel={() => useStore.getState().cancelListSelection()}
-                />
-              ) : null}
-              {/* Floating day chip: hangs just below the pinned block (top: "100%"),
-                  so it automatically shifts down when the selection bar is open. */}
+              {/* Floating day chip: hangs just below the pinned block (top: "100%"). */}
               <StickyDayChip visible={screen.showDateDividers} />
             </View>
           }

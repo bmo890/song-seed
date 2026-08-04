@@ -291,7 +291,7 @@ export function useMagpieScreenModel() {
       t("magpie.deleteBody"),
       () => {
         deleteMagpieSpark(sparkId);
-        navigation.navigate("NotepadHome");
+        navigation.navigate("SparkHome");
       },
       { confirmLabel: t("wordSparks.delete") }
     );
@@ -302,12 +302,12 @@ export function useMagpieScreenModel() {
 
   const goBack = useCallback(() => {
     if (spark?.savedLyricId) {
-      navigation.navigate("NotepadHome");
+      navigation.navigate("SparkHome");
       return;
     }
     if (!hasContent) {
       if (sparkId) deleteMagpieSpark(sparkId);
-      navigation.navigate("NotepadHome");
+      navigation.navigate("SparkHome");
       return;
     }
     AppAlert.custom(t("wordSparks.saveUnfinishedTitle"), t("wordSparks.saveUnfinishedBody"), [
@@ -317,14 +317,14 @@ export function useMagpieScreenModel() {
         icon: actionIcons.discard,
         onPress: () => {
           if (sparkId) deleteMagpieSpark(sparkId);
-          navigation.navigate("NotepadHome");
+          navigation.navigate("SparkHome");
         },
       },
       {
         label: t("wordSparks.saveUnfinished"),
         style: "default",
         icon: actionIcons.bookmark,
-        onPress: () => navigation.navigate("NotepadHome"),
+        onPress: () => navigation.navigate("SparkHome"),
       },
       { label: t("wordSparks.keepWorking"), style: "cancel" },
     ]);

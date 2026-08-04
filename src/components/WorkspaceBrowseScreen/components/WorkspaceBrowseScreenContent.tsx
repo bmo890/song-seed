@@ -216,17 +216,21 @@ function WorkspaceBrowseInner() {
                   placeholder={t("workspaceBrowse.searchPlaceholder")}
                   onChangeText={collectionsModel.setSearchQuery}
                 />
+                {/* Overlays the search row in place — the header keeps its
+                    height, so entering selection never pushes the list down. */}
+                {selectionModel.selectionMode ? (
+                  <SelectionTopBar
+                    overlay
+                    style={{ backgroundColor: theme.bg }}
+                    count={selectionModel.selectedCollectionIds.length}
+                    allSelected={selectionModel.canDeselectAll}
+                    onSelectAll={() =>
+                      selectionModel.setSelectedCollectionIds(selectionModel.selectableCollectionIds)
+                    }
+                    onCancel={() => selectionModel.setSelectedCollectionIds([])}
+                  />
+                ) : null}
               </View>
-              {selectionModel.selectionMode ? (
-                <SelectionTopBar
-                  count={selectionModel.selectedCollectionIds.length}
-                  allSelected={selectionModel.canDeselectAll}
-                  onSelectAll={() =>
-                    selectionModel.setSelectedCollectionIds(selectionModel.selectableCollectionIds)
-                  }
-                  onCancel={() => selectionModel.setSelectedCollectionIds([])}
-                />
-              ) : null}
             </View>
           }
         />

@@ -467,7 +467,7 @@ export function useCutUpScreenModel() {
       t("cutUp.deleteBody"),
       () => {
         deleteCutUpSpark(sparkId);
-        navigation.navigate("NotepadHome");
+        navigation.navigate("SparkHome");
       },
       { confirmLabel: t("wordSparks.delete") }
     );
@@ -482,7 +482,7 @@ export function useCutUpScreenModel() {
   const goBack = useCallback(() => {
     // Already saved to the Lyrics Pad → just leave (the spark stays for resuming).
     if (spark?.savedLyricId) {
-      navigation.navigate("NotepadHome");
+      navigation.navigate("SparkHome");
       return;
     }
 
@@ -490,7 +490,7 @@ export function useCutUpScreenModel() {
     // discard the auto-created record rather than silently keeping it.
     if (!hasContent) {
       if (sparkId) deleteCutUpSpark(sparkId);
-      navigation.navigate("NotepadHome");
+      navigation.navigate("SparkHome");
       return;
     }
 
@@ -501,14 +501,14 @@ export function useCutUpScreenModel() {
         icon: actionIcons.discard,
         onPress: () => {
           if (sparkId) deleteCutUpSpark(sparkId);
-          navigation.navigate("NotepadHome");
+          navigation.navigate("SparkHome");
         },
       },
       {
         label: t("wordSparks.saveUnfinished"),
         style: "default",
         icon: actionIcons.bookmark,
-        onPress: () => navigation.navigate("NotepadHome"),
+        onPress: () => navigation.navigate("SparkHome"),
       },
       { label: t("wordSparks.keepWorking"), style: "cancel" },
     ]);

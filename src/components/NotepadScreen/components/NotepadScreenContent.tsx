@@ -12,7 +12,6 @@ import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { DockAddBadgeIcon } from "../../common/dockIcons";
 import { AppAlert } from "../../common/AppAlert";
 import { NoteEditor } from "./NoteEditor";
-import { NewLyricsPadItemSheet } from "./NewLyricsPadItemSheet";
 import { LyricsSparkSheet } from "./LyricsSparkSheet";
 import { useNotepadScreenModel, type NotebookEntry } from "../hooks/useNotepadScreenModel";
 import { styles } from "../../../styles";
@@ -299,10 +298,9 @@ export function NotepadScreenContent() {
   const { t } = useTranslation();
   const {
     sections,
-    totalEntryCount,
+    totalNoteCount,
     sparkCount,
     activeTab,
-    setActiveTab,
     isSearching,
     searchQuery,
     setSearchQuery,
@@ -344,8 +342,9 @@ export function NotepadScreenContent() {
     handleStartAddToSong,
   } = useNotepadScreenModel();
   const [moreVisible, setMoreVisible] = useState(false);
-  const [newItemSheetVisible, setNewItemSheetVisible] = useState(false);
   const [sparkSheetVisible, setSparkSheetVisible] = useState(false);
+  // The route fixes the room: SparkHome renders this screen in sparks mode.
+  const isSparkPage = activeTab === "sparks";
 
   if (activeNote) {
     return (
@@ -359,8 +358,10 @@ export function NotepadScreenContent() {
     );
   }
 
-  const emptyBody = t("notepad.looseLines");
-  const countLabel = t("notepad.pageCount", { count: totalEntryCount });
+  const countLabel = isSparkPage
+    ? t("notepad.sparkCountLabel", { count: sparkCount })
+    : t("notepad.pageCount", { count: totalNoteCount });
+  const pageEmpty = isSparkPage ? sparkCount === 0 : totalNoteCount === 0;
   const selectedCount =
     selectedNoteIds.length + selectedLadderIds.length + selectedCutUpIds.length + selectedMagpieIds.length;
   // Sparks support only Delete — the note-specific actions (Add to Song,
@@ -437,95 +438,68 @@ export function NotepadScreenContent() {
     <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
       {!selectionMode ? (
         <ScreenHeader
-          title={t("screens.lyricsPad")}
+          title={t(isSparkPage ? "screens.lyricSpark" : "screens.lyricsPad")}
           rightElement={
-            <View style={listStyles.headerActions}>
-              <Pressable
-                testID="lyrics-spark-open"
-                accessibilityRole="button"
-                accessibilityLabel={t("notepad.lyricsSpark")}
-                style={({ pressed }) => [listStyles.newBtn, pressed ? styles.pressDown : null]}
-                onPress={() => setSparkSheetVisible(true)}
-                hitSlop={4}
-              >
-                <Ionicons name="sparkles-outline" size={20} color={colors.primary} />
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [listStyles.newBtn, pressed ? styles.pressDown : null]}
-                onPress={() => setNewItemSheetVisible(true)}
-                hitSlop={4}
-              >
-                <Ionicons name="add" size={22} color={colors.primary} />
-              </Pressable>
-            </View>
+            // One + per room: on the pad it writes a page; on the spark page it
+            // opens the chooser for the three word tools.
+            <Pressable
+              testID={isSparkPage ? "lyrics-spark-open" : undefined}
+              accessibilityRole="button"
+              accessibilityLabel={t(isSparkPage ? "notepad.lyricsSpark" : "notepad.newPage")}
+              style={({ pressed }) => [listStyles.newBtn, pressed ? styles.pressDown : null]}
+              onPress={isSparkPage ? () => setSparkSheetVisible(true) : handleNewNote}
+              hitSlop={4}
+            >
+              <Ionicons name="add" size={22} color={colors.primary} />
+            </Pressable>
           }
         />
       ) : null}
 
-      {totalEntryCount === 0 ? (
+      {pageEmpty ? (
         <View style={listStyles.emptyState}>
           <View style={listStyles.emptyIconWrap}>
-            <Ionicons name="document-text-outline" size={26} color={colors.primary} />
+            <Ionicons
+              name={isSparkPage ? "sparkles-outline" : "document-text-outline"}
+              size={26}
+              color={colors.primary}
+            />
           </View>
-          <Text style={listStyles.emptyTitle}>{t("notepad.blankPage")}</Text>
-          <Text style={listStyles.emptyBody}>{emptyBody}</Text>
-          <Button label={t("notepad.writeSomething")} onPress={handleNewNote} style={listStyles.emptyAction} />
+          <Text style={listStyles.emptyTitle}>
+            {t(isSparkPage ? "notepad.noSparks" : "notepad.blankPage")}
+          </Text>
+          <Text style={listStyles.emptyBody}>
+            {t(isSparkPage ? "notepad.noSparksHint" : "notepad.looseLines")}
+          </Text>
+          <Button
+            label={t(isSparkPage ? "notepad.startSpark" : "notepad.writeSomething")}
+            onPress={isSparkPage ? () => setSparkSheetVisible(true) : handleNewNote}
+            style={listStyles.emptyAction}
+          />
         </View>
       ) : (
         <>
           {!selectionMode ? <Text style={listStyles.countLabel}>{countLabel}</Text> : null}
 
-          {!selectionMode && sparkCount > 0 ? (
-            <View style={listStyles.segmented}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ selected: activeTab === "lyrics" }}
-                style={[listStyles.segment, activeTab === "lyrics" ? listStyles.segmentActive : null]}
-                onPress={() => setActiveTab("lyrics")}
-              >
-                <Text
-                  style={[listStyles.segmentLabel, activeTab === "lyrics" ? listStyles.segmentLabelActive : null]}
-                >
-                  {t("notepad.lyrics")}
-                </Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ selected: activeTab === "sparks" }}
-                style={[listStyles.segment, activeTab === "sparks" ? listStyles.segmentActive : null]}
-                onPress={() => setActiveTab("sparks")}
-              >
-                <Text
-                  style={[listStyles.segmentLabel, activeTab === "sparks" ? listStyles.segmentLabelActive : null]}
-                >
-                  {t("notepad.sparks")}
-                </Text>
-                <View style={listStyles.segmentBadge}>
-                  <Text style={listStyles.segmentBadgeText}>{sparkCount}</Text>
-                </View>
-              </Pressable>
-            </View>
-          ) : null}
-
-          <SearchField
-            value={searchQuery}
-            placeholder={
-              sparkCount > 0 ? t(activeTab === "sparks" ? "notepad.searchSparks" : "notepad.searchLyrics") : t("notepad.searchNotes")
-            }
-            onChangeText={setSearchQuery}
-            containerStyle={listStyles.searchField}
-          />
-
-          {selectionMode ? (
-            <View style={listStyles.selectionBarWrap}>
+          {/* Selection overlays the search row in place — the list below never
+              gets pushed down on entering selection. */}
+          <View>
+            <SearchField
+              value={searchQuery}
+              placeholder={t(isSparkPage ? "notepad.searchSparks" : "notepad.searchLyrics")}
+              onChangeText={setSearchQuery}
+              containerStyle={listStyles.searchField}
+            />
+            {selectionMode ? (
               <SelectionTopBar
+                overlay
                 count={selectedCount}
                 allSelected={allSelected}
                 onSelectAll={selectAllVisible}
                 onCancel={cancelSelection}
               />
-            </View>
-          ) : null}
+            ) : null}
+          </View>
 
           {sections.length === 0 && isSearching ? (
             <View style={listStyles.emptyState}>
@@ -629,15 +603,6 @@ export function NotepadScreenContent() {
         onClose={() => setMoreVisible(false)}
       />
 
-      <NewLyricsPadItemSheet
-        visible={newItemSheetVisible}
-        onClose={() => setNewItemSheetVisible(false)}
-        onNewPage={() => {
-          setNewItemSheetVisible(false);
-          handleNewNote();
-        }}
-      />
-
       <LyricsSparkSheet
         visible={sparkSheetVisible}
         onClose={() => setSparkSheetVisible(false)}
@@ -659,10 +624,6 @@ export function NotepadScreenContent() {
 }
 
 const listStyles = StyleSheet.create({
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
   newBtn: {
     width: 40,
     height: 40,
@@ -676,54 +637,6 @@ const listStyles = StyleSheet.create({
   },
   searchField: {
     marginBottom: spacing.lg,
-  },
-  segmented: {
-    flexDirection: "row",
-    backgroundColor: colors.surfaceContainer,
-    borderRadius: radii.md,
-    padding: 3,
-    marginBottom: spacing.lg,
-  },
-  segment: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 7,
-    borderRadius: radii.sm,
-  },
-  segmentActive: {
-    backgroundColor: colors.surface,
-  },
-  segmentLabel: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13.5,
-    color: colors.textSecondary,
-  },
-  segmentLabelActive: {
-    color: colors.textPrimary,
-  },
-  segmentBadge: {
-    minWidth: 18,
-    height: 18,
-    paddingHorizontal: 5,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  segmentBadgeText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 11,
-    color: colors.textStrong,
-  },
-  selectionBarWrap: {
-    // The shared selection card carries its own 12pt horizontal margin (for
-    // full-bleed contexts); this screen is already inset 16, so cancel it to
-    // keep the card aligned with the search field above.
-    marginHorizontal: -spacing.md,
-    marginBottom: spacing.md,
   },
   scroll: {
     flex: 1,

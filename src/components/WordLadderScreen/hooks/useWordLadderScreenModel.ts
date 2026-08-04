@@ -259,7 +259,7 @@ export function useWordLadderScreenModel() {
       t("wordLadder.deleteBody"),
       () => {
         deleteWordLadder(exerciseId);
-        navigation.navigate("NotepadHome");
+        navigation.navigate("SparkHome");
       },
       { confirmLabel: t("wordSparks.delete") }
     );
@@ -295,7 +295,7 @@ export function useWordLadderScreenModel() {
   const goBack = useCallback(() => {
     // Already saved to the Lyrics Pad → just leave (the exercise stays for resuming).
     if (exercise?.savedLyricId) {
-      navigation.navigate("NotepadHome");
+      navigation.navigate("SparkHome");
       return;
     }
 
@@ -303,7 +303,7 @@ export function useWordLadderScreenModel() {
     // discard the auto-created record rather than silently keeping it.
     if (!hasContent) {
       if (exerciseId) deleteWordLadder(exerciseId);
-      navigation.navigate("NotepadHome");
+      navigation.navigate("SparkHome");
       return;
     }
 
@@ -314,14 +314,14 @@ export function useWordLadderScreenModel() {
         icon: actionIcons.discard,
         onPress: () => {
           if (exerciseId) deleteWordLadder(exerciseId);
-          navigation.navigate("NotepadHome");
+          navigation.navigate("SparkHome");
         },
       },
       {
         label: t("wordSparks.saveUnfinished"),
         style: "default",
         icon: actionIcons.bookmark,
-        onPress: () => navigation.navigate("NotepadHome"),
+        onPress: () => navigation.navigate("SparkHome"),
       },
       { label: t("wordSparks.keepWorking"), style: "cancel" },
     ]);

@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import Animated, { FadeInDown, FadeOut } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { styles } from "../../styles";
@@ -11,15 +11,20 @@ type Props = {
   onSelectAll?: () => void;
   /** Exits selection mode. */
   onCancel: () => void;
+  /** Stretch over the chrome the bar replaces (search/filter rows) instead of
+   *  inserting into the flow — selection must never push the list downward. */
+  overlay?: boolean;
+  /** Container override — e.g. matching a tinted header's background. */
+  style?: StyleProp<ViewStyle>;
 };
 
-/** Bar rendered at the bottom of the header block (top of the timeline) during
- *  selection mode — count, bordered "All" chip, and Cancel. */
-export function SelectionTopBar({ count, allSelected, onSelectAll, onCancel }: Props) {
+/** Selection-mode controls — count, "All" ink, Cancel soft key — in the sketch
+ *  page's quiet register: chrome swapped in place, not a floating card. */
+export function SelectionTopBar({ count, allSelected, onSelectAll, onCancel, overlay, style }: Props) {
   const { t } = useTranslation();
   return (
     <Animated.View
-      style={styles.selectionTopBar}
+      style={[styles.selectionTopBar, overlay ? styles.selectionTopBarOverlay : null, style]}
       entering={FadeInDown.duration(180)}
       exiting={FadeOut.duration(120)}
     >
@@ -28,12 +33,12 @@ export function SelectionTopBar({ count, allSelected, onSelectAll, onCancel }: P
       {onSelectAll ? (
         <Pressable
           style={({ pressed }) => [
-            styles.selectionTopBarChip,
             allSelected ? { opacity: 0.35 } : null,
             pressed && !allSelected ? styles.pressDown : null,
           ]}
           onPress={onSelectAll}
           disabled={allSelected}
+          hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
           accessibilityRole="button"
           accessibilityLabel={t("common.selectAll")}
         >
