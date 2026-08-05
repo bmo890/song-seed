@@ -402,6 +402,19 @@ export const pd = StyleSheet.create({
     paddingHorizontal: 10,
     paddingTop: 4,
   },
+  // Sits with its label (the auto end-margin pushes the value back to the right
+  // edge of the space-between row) and rides the text baseline rather than it.
+  dialResetBtn: {
+    marginStart: 8,
+    marginEnd: "auto",
+    alignSelf: "center",
+    width: 26,
+    height: 26,
+    borderRadius: radii.round,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+  },
   dialValue: {
     fontFamily: "Lora_600SemiBold",
     fontSize: 26,

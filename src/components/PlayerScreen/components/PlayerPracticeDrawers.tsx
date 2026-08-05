@@ -317,10 +317,11 @@ export function PlayerPracticeDrawers({
     return entries.sort((a, b) => a.atMs - b.atMs);
   }, [sections, practiceMarkers]);
 
-  // Each dot reports its own drawer: count-in is set IN the loop drawer, so its
-  // state lights that tab, not Sound's.
+  // A dot means something is RUNNING, not merely set up: the loop is looping, or
+  // a sound setting is bent away from neutral. Step-up can't run without the
+  // loop, and count-in is a one-shot arming choice — neither is a live state.
   const drawerHasState = {
-    loop: practiceLoopEnabled || stepUpEnabled || countInOption !== "off",
+    loop: practiceLoopEnabled,
     sound:
       Math.abs(playbackSpeed - 1) > 0.01 ||
       pitchShiftSemitones !== 0 ||
@@ -638,7 +639,6 @@ export function PlayerPracticeDrawers({
           />
         ) : null}
       </View>
-      {!practiceLoopEnabled ? <Text style={pd.note}>{t("player.loopHint")}</Text> : null}
       {sections.length > 0 ? (
         <>
           <Text style={pd.subhead}>{t("player.loopAPart")}</Text>
@@ -816,8 +816,24 @@ export function PlayerPracticeDrawers({
 
   const soundDrawer = (
     <View style={pd.wrap}>
+      {/* Each dial resets from its own label — the reset lives with the thing it
+          resets, and only appears once there is something to undo. */}
       <View style={pd.dialHead}>
         <Text style={pd.rowLabel}>{t("player.speed")}</Text>
+        {Math.abs(playbackSpeed - 1) > 0.01 ? (
+          <Pressable
+            style={({ pressed }) => [pd.dialResetBtn, pressed ? s.toolHeaderPressed : null]}
+            onPress={() => {
+              haptic.tap();
+              onSpeedTap(1);
+            }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t("player.resetSpeed")}
+          >
+            <Ionicons name="refresh" size={14} color={colors.primaryDeep} />
+          </Pressable>
+        ) : null}
         <Text style={pd.dialValue}>{`${Math.round(playbackSpeed * 100) / 100}×`}</Text>
       </View>
       <Slider
@@ -855,6 +871,20 @@ export function PlayerPracticeDrawers({
 
       <View style={pd.dialHead}>
         <Text style={pd.rowLabel}>{t("player.pitch")}</Text>
+        {supportsPitchShift && pitchShiftSemitones !== 0 ? (
+          <Pressable
+            style={({ pressed }) => [pd.dialResetBtn, pressed ? s.toolHeaderPressed : null]}
+            onPress={() => {
+              haptic.tap();
+              onAdjustPitchShift(0);
+            }}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t("player.resetPitch")}
+          >
+            <Ionicons name="refresh" size={14} color={colors.primaryDeep} />
+          </Pressable>
+        ) : null}
         <Text style={pd.dialValue}>
           {supportsPitchShift ? `${pitchShiftSemitones > 0 ? "+" : ""}${pitchShiftSemitones}` : "—"}
           {supportsPitchShift ? <Text style={pd.dialUnit}> {t("player.semitones")}</Text> : null}
@@ -896,22 +926,6 @@ export function PlayerPracticeDrawers({
           accessibilityLabel={t("player.raisePitch")}
         >
           <Ionicons name="add" size={16} color={canIncreasePitch ? colors.textStrong : colors.textMuted} />
-        </Pressable>
-        <Pressable
-          onPress={() => supportsPitchShift && onAdjustPitchShift(0)}
-          disabled={!supportsPitchShift || pitchShiftSemitones === 0}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={t("player.original")}
-        >
-          <Text
-            style={[
-              pd.inkLinkText,
-              !supportsPitchShift || pitchShiftSemitones === 0 ? { color: colors.textMuted } : null,
-            ]}
-          >
-            {t("player.original")}
-          </Text>
         </Pressable>
       </View>
 
@@ -979,7 +993,6 @@ export function PlayerPracticeDrawers({
         </View>
       )}
       {analysisError ? <Text style={pd.note}>{analysisError}</Text> : null}
-      <Text style={pd.note}>{t("player.playbackOnly")}</Text>
     </View>
   );
 

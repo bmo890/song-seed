@@ -55,6 +55,12 @@ export function usePlayerSpeedControls({
     if (isSlidingSpeed.current) {
       return;
     }
+    // A non-positive rate is not a slow speed, it's an idle transport reporting
+    // nothing. Clamping it would silently show the floor (0.5×) as the chosen
+    // speed; ignoring it leaves the dial on the last real value.
+    if (!Number.isFinite(playbackRate) || playbackRate <= 0) {
+      return;
+    }
     setPlaybackSpeed(cleanSpeed(playbackRate));
   }, [cleanSpeed, playbackRate]);
 

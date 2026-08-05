@@ -197,7 +197,10 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       positionChannel.publish({
         positionMs: resolved.positionMs,
         isPlaying: !!next.playing && !next.didJustFinish,
-        playbackRate: next.playbackRate ?? 1,
+        // Same falsy-zero guard as `playbackRate` below — an idle 0 here would
+        // stall the reel's between-sample extrapolation.
+        playbackRate:
+          typeof next.playbackRate === "number" && next.playbackRate > 0 ? next.playbackRate : 1,
         seekLanded: resolved.shouldAccept,
       });
     },
@@ -223,7 +226,12 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   ).positionMs;
   const isPlayerPlaying = !!status.playing && !status.didJustFinish;
   const didPlayerJustFinish = !!status.didJustFinish;
-  const playbackRate = status.playbackRate ?? 1;
+  // `?? 1` was not enough: a paused/idle player reports rate 0, and 0 is not
+  // nullish. That zero reached the practice speed dial, which clamps into its
+  // range and so read 0.5× — the floor — as if the musician had chosen it.
+  // Only a positive rate is a real rate; anything else means "normal".
+  const playbackRate =
+    typeof status.playbackRate === "number" && status.playbackRate > 0 ? status.playbackRate : 1;
   // Keep transport callbacks stable. PlayerScreen is always mounted, so function identity churn
   // here can retrigger effect chains and store updates on every render.
   const playerDurationRef = useRef(playerDuration);
