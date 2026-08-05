@@ -267,6 +267,8 @@ export function PlayerScreen({
     playbackRate: effectivePlaybackRate,
     getPositionMs: () => playerPositionMsRef.current,
   });
+  const playbackClickLevel = useStore((s) => s.playbackClickLevel);
+  const setPlaybackClickLevel = useStore((s) => s.setPlaybackClickLevel);
   // The reel takes position straight off the engine, with no render in between — a React
   // commit landing mid-animation is what pulled its overlays off the tape. The channel is
   // only allowed to drive when the full player genuinely owns the transport AND the engine
@@ -563,6 +565,16 @@ export function PlayerScreen({
       playbackClick.cancelCountIn();
       return;
     }
+    // "3s" is a run-up of the SONG itself: back the playhead up three seconds and
+    // play, so the musician hears where they are — the count-in a gridless take
+    // deserves, and the one that works for punching into a loop.
+    if (ui.countInOption === "3s" && !effectiveIsPlaying) {
+      void (async () => {
+        await handleLoopAwareSeek(Math.max(0, effectivePlayerPosition - 3000));
+        lifecycle.handleTogglePlayPress();
+      })();
+      return;
+    }
     const bars = ui.countInOption === "1b" ? 1 : ui.countInOption === "2b" ? 2 : 0;
     if (effectiveIsPlaying || bars <= 0) {
       lifecycle.handleTogglePlayPress();
@@ -575,7 +587,14 @@ export function PlayerScreen({
           lifecycle.handleTogglePlayPress();
         }
       });
-  }, [effectiveIsPlaying, lifecycle, playbackClick, ui.countInOption]);
+  }, [
+    effectiveIsPlaying,
+    effectivePlayerPosition,
+    handleLoopAwareSeek,
+    lifecycle,
+    playbackClick,
+    ui.countInOption,
+  ]);
 
   // Committed position jumps re-phase the click immediately (drift checks are the
   // backstop, not the mechanism).
@@ -709,27 +728,6 @@ export function PlayerScreen({
       AppAlert.info(t("player.layerUnavailable"), message);
     }
   }, [navigation, playerClip, playerIdea]);
-  const handleRecordLayerAt = useCallback(
-    async (atMs: number) => {
-      if (!playerIdea || !playerClip) return;
-      if (!canAddOverdubLayer(getClipOverdubStemCount(playerClip), hasProAccess("overdub-layers"))) {
-        openProUpsell("overdub-layers");
-        return;
-      }
-      try {
-        // Punch in at a section start or pin (bar-snapped in the action).
-        await appActions.startClipOverdubRecording(playerIdea.id, playerClip.id, {
-          punchInMs: atMs,
-        });
-        navigation.navigate("Recording" as never);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : t("player.layerStartFailed");
-        AppAlert.info(t("player.layerUnavailable"), message);
-      }
-    },
-    [navigation, playerClip, playerIdea]
-  );
   // Practice tools are Pro (per-tool configurable via PRACTICE_TOOL_IS_PRO — flip one entry
   // to make that tool free, no call-site change). Returns true if the tap may proceed;
   // otherwise opens the upsell. Opening practice mode and viewing existing pins/sections/
@@ -1123,12 +1121,13 @@ export function PlayerScreen({
                 if (guardPracticeTool("pitch")) ui.setPitchShiftSemitones(value);
               }}
               countInOption={ui.countInOption}
+              clickLevel={playbackClickLevel}
+              onSetClickLevel={setPlaybackClickLevel}
               onSelectCountIn={ui.setCountInOption}
               clickAvailable={playbackClick.isAvailable}
               clickEnabled={playbackClick.enabled}
               onSetClickEnabled={playbackClick.setEnabled}
               onRecordOverdub={handleAddOverdub}
-              onRecordLayerAt={handleRecordLayerAt}
             />
           ) : (
             <PlayerSupportSections

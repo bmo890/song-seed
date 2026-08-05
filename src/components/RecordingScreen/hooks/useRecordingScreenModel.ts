@@ -128,9 +128,12 @@ export function useRecordingScreenModel() {
   // master has no tempo grid). 0 = classic full-length layer — every code path below
   // reduces to the pre-punch behavior exactly.
   const punchInMs = recordingGuideMixUri ? recordingPunchInMs ?? 0 : 0;
+  // Without a grid the lead-in is SECONDS of the actual song — the point is to
+  // hear where you are and where you're punching in, and 1.5s wasn't a run-up,
+  // it was a stumble. With a grid, one bar stays the musical lead-in.
   const punchLeadInMs =
     punchInMs > 0
-      ? Math.min(punchInMs, getRecordingGridBarMs(recordingOverdubClip?.recordingGrid) ?? 1500)
+      ? Math.min(punchInMs, getRecordingGridBarMs(recordingOverdubClip?.recordingGrid) ?? 3000)
       : 0;
   // Arriving via a take's "New version" action: the header names the take being
   // versioned, not just the sketch — the recorder finally says which path you took.

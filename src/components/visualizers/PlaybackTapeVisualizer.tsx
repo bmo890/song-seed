@@ -309,13 +309,16 @@ function PinBadgeChipsOverlay({
             const centerX = marker.atMs * pixelsPerMs * labelScale;
             const top = pinRowTop(row);
             let paragraph: SkParagraph | null = null;
-            // The DRAWN badge hugs its text, measured rather than guessed \u2014 any
-            // per-character estimate leaves dead space at one end. The estimate still
-            // drives row packing and the RN drag target, where erring generous is
-            // right: the handle should never be smaller than the thing you can see.
+            // The DRAWN badge hugs its text: lay the label out UNCONSTRAINED first,
+            // then size the badge to the measured line. The old order \u2014 layout at an
+            // estimated width, then re-measure \u2014 truncated first and measured the
+            // truncation, so short labels vanished behind an ellipsis the moment the
+            // estimate ran tight. Labels are capped at entry (MAX_PIN_LABEL_LENGTH),
+            // so a badge never needs to ellipsize at all. The estimate still drives
+            // row packing and the RN drag target, where erring generous is right.
             let width = estimatePinBadgeWidth(marker.label);
             if (marker.label) {
-                paragraph = Skia.ParagraphBuilder.Make({ maxLines: 1, ellipsis: "\u2026" }, fontProvider)
+                paragraph = Skia.ParagraphBuilder.Make({ maxLines: 1 }, fontProvider)
                     .pushStyle({
                         fontFamilies: ["Plus Jakarta Sans", "Heebo"],
                         fontSize: 10,
@@ -324,12 +327,13 @@ function PinBadgeChipsOverlay({
                     })
                     .addText(marker.label)
                     .build();
-                paragraph.layout(Math.max(1, width - PIN_BADGE_H_PAD));
+                paragraph.layout(10000);
                 const measured = paragraph.getLongestLine?.() ?? 0;
                 if (measured > 0) {
                     width = Math.max(MIN_PIN_BADGE_WIDTH, Math.ceil(measured) + PIN_BADGE_H_PAD);
-                    paragraph.layout(Math.max(1, width - PIN_BADGE_H_PAD));
                 }
+                // Final wrap width with a pixel of slack so rounding never clips.
+                paragraph.layout(Math.max(1, width - PIN_BADGE_H_PAD + 2));
             }
             const anchor = resolvePinBadgeAnchor(centerX, width, contentWidth);
             const left = getPinBadgeEdges(centerX, width, anchor).left;
@@ -370,7 +374,14 @@ function PinBadgeChip({
         <Group opacity={opacity}>
             <RoundedRect x={left} y={top} width={width} height={PIN_BADGE_HEIGHT} r={radii.sm} color={PIN_INK} />
             {paragraph ? (
-                <Paragraph paragraph={paragraph} x={left + 6} y={top + 3} width={width - 12} />
+                // The width here re-lays the paragraph out — it must match the width
+                // the badge was sized from (pad + slack), or the text truncates again.
+                <Paragraph
+                    paragraph={paragraph}
+                    x={left + PIN_BADGE_H_PAD / 2}
+                    y={top + 3}
+                    width={width - PIN_BADGE_H_PAD + 2}
+                />
             ) : null}
             {marker.note ? (
                 <RoundedRect

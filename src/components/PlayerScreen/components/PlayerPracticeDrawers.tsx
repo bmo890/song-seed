@@ -121,26 +121,20 @@ type PlayerPracticeDrawersProps = {
   onAdjustPitchShift: (value: number) => void;
   countInOption: CountInOption;
   onSelectCountIn: (option: CountInOption) => void;
+  /** Playback-click volume (0–100), its own store dial. */
+  clickLevel: number;
+  onSetClickLevel: (value: number) => void;
   clickAvailable: boolean;
   clickEnabled: boolean;
   onSetClickEnabled: (enabled: boolean) => void;
 
   // Record a layer
   onRecordOverdub: (playheadMs: number) => void;
-  onRecordLayerAt: (atMs: number) => void;
 };
 
 /** Pin a row's visual order to LTR regardless of language direction. */
 
 const MIN_LOOP_LENGTH_MS = 1000;
-
-/** "0.5× → 1×" — a climb reads as a journey, not a range. One rate states itself. */
-function stepUpClimbLabel(sequence: StepUpStage[]): string {
-  const first = sequence[0]?.rate;
-  const last = sequence[sequence.length - 1]?.rate;
-  if (first == null || last == null) return "";
-  return first === last ? `${first}×` : `${first}× → ${last}×`;
-}
 
 /** Dots never exceed this — beyond it each dot stands for several passes. */
 const STEP_UP_MAX_DOTS = 12;
@@ -264,11 +258,12 @@ export function PlayerPracticeDrawers({
   onAdjustPitchShift,
   countInOption,
   onSelectCountIn,
+  clickLevel,
+  onSetClickLevel,
   clickAvailable,
   clickEnabled,
   onSetClickEnabled,
   onRecordOverdub,
-  onRecordLayerAt,
 }: PlayerPracticeDrawersProps) {
   const { t } = useTranslation();
   const [drawer, setDrawer] = useState<Drawer>("marks");
@@ -289,7 +284,6 @@ export function PlayerPracticeDrawers({
       ),
     [stepUpRateMax, stepUpRateMin, stepUpSequence]
   );
-  const stepUpIsCustomPlan = stepUpBuiltinKey == null;
   const stepUpPlanName = stepUpBuiltinKey
     ? t(`player.stepUpPreset_${stepUpBuiltinKey}`)
     : t("player.stepUpCustom");
@@ -323,14 +317,14 @@ export function PlayerPracticeDrawers({
     return entries.sort((a, b) => a.atMs - b.atMs);
   }, [sections, practiceMarkers]);
 
+  // Each dot reports its own drawer: count-in is set IN the loop drawer, so its
+  // state lights that tab, not Sound's.
   const drawerHasState = {
-    marks: marks.length > 0,
-    loop: practiceLoopEnabled || stepUpEnabled,
+    loop: practiceLoopEnabled || stepUpEnabled || countInOption !== "off",
     sound:
       Math.abs(playbackSpeed - 1) > 0.01 ||
       pitchShiftSemitones !== 0 ||
-      (clickAvailable && clickEnabled) ||
-      countInOption !== "off",
+      (clickAvailable && clickEnabled),
   };
 
   const canDecreasePitch = supportsPitchShift && pitchShiftSemitones > PITCH_SHIFT_MIN_SEMITONES;
@@ -397,15 +391,6 @@ export function PlayerPracticeDrawers({
         </View>
         {isSelected ? (
           <View style={pd.selectedHeadActions}>
-            <Pressable
-              style={pd.headIconBtn}
-              onPress={() => onRecordLayerAt(entry.atMs)}
-              hitSlop={6}
-              accessibilityRole="button"
-              accessibilityLabel={t("player.recordFromTitle", { title: name })}
-            >
-              <Ionicons name="mic-outline" size={16} color={colors.primary} />
-            </Pressable>
             <Pressable
               style={pd.headIconBtn}
               onPress={() =>
@@ -553,12 +538,10 @@ export function PlayerPracticeDrawers({
 
   const marksDrawer = (
     <View style={pd.wrap}>
-      {marks.length === 0 ? (
-        <Text style={pd.emptyText}>{t("player.noMarks")}</Text>
-      ) : (
-        marks.map(renderMarkRow)
-      )}
-      <View style={pd.addRow}>
+      {/* The add row leads the list rather than trailing it: on a well-marked
+          take the tail scrolls behind the transport, and adding a mark (or
+          undoing one) must never need a scroll to reach. */}
+      <View style={[pd.addRow, pd.addRowLead]}>
         <Pressable
           style={({ pressed }) => [pd.inkLink, pressed ? s.toolHeaderPressed : null]}
           onPress={() => setPickerOpen(true)}
@@ -587,6 +570,11 @@ export function PlayerPracticeDrawers({
           />
         </View>
       </View>
+      {marks.length === 0 ? (
+        <Text style={pd.emptyText}>{t("player.noMarks")}</Text>
+      ) : (
+        marks.map(renderMarkRow)
+      )}
     </View>
   );
 
@@ -690,13 +678,12 @@ export function PlayerPracticeDrawers({
         {/* The row states which plan is loaded; the live progression gets its own line
             below, which keeps room here for the controls. A named plan carries its
             speeds in its name, so the range is only spelled out for a custom one. */}
+        {/* The row states which plan is loaded — just its name. A custom plan's
+            actual speeds live in the step-up sheet, not on this line. */}
         <View style={pd.stepUpValueRow}>
           <Text style={pd.stepUpPlanName} numberOfLines={1}>
             {stepUpPlanName}
           </Text>
-          {stepUpIsCustomPlan ? (
-            <Text style={pd.stepUpClimb}>{stepUpClimbLabel(stepUpSequence)}</Text>
-          ) : null}
         </View>
         {/* Restarting only means something while a drill is running. */}
         {stepUpEnabled ? (
@@ -784,15 +771,22 @@ export function PlayerPracticeDrawers({
       />
       <View style={[pd.row, pd.rowDivider]}>
         <Text style={pd.rowLabel}>{t("player.countIn")}</Text>
-        {clickAvailable ? (
-          <View style={pd.inkOptionRow}>
-            {(
-              [
-                { key: "off" as const, label: t("player.off") },
-                { key: "1b" as const, label: t("player.bars", { count: 1 }) },
-                { key: "2b" as const, label: t("player.bars", { count: 2 }) },
-              ]
-            ).map((option) => {
+        {/* Seconds are always offered — a run-up of the SONG ITSELF needs no
+            grid, and it's the honest count-in for a take that never had one.
+            Bar counts only exist where a trustworthy click does. */}
+        <View style={pd.inkOptionRow}>
+          {(
+            [
+              { key: "off" as const, label: t("player.off") },
+              { key: "3s" as const, label: t("player.countInSeconds", { count: 3 }) },
+              ...(clickAvailable
+                ? [
+                    { key: "1b" as const, label: t("player.bars", { count: 1 }) },
+                    { key: "2b" as const, label: t("player.bars", { count: 2 }) },
+                  ]
+                : []),
+            ]
+          ).map((option) => {
               const active = countInOption === option.key;
               return (
                 <Pressable
@@ -811,10 +805,7 @@ export function PlayerPracticeDrawers({
                 </Pressable>
               );
             })}
-          </View>
-        ) : (
-          <Text style={pd.rowValue}>{t("player.clickUnavailable")}</Text>
-        )}
+        </View>
       </View>
     </View>
   );
@@ -925,19 +916,44 @@ export function PlayerPracticeDrawers({
       </View>
 
       {clickAvailable ? (
-        <View style={[pd.row, pd.rowDivider]}>
-          <Text style={pd.rowLabel}>{t("player.click")}</Text>
-          {clickDetail ? <Text style={pd.rowValue}>{clickDetail}</Text> : null}
-          <Pressable
-            style={[s.switchShell, clickEnabled ? s.switchShellActive : null]}
-            onPress={() => onSetClickEnabled(!clickEnabled)}
-            accessibilityRole="switch"
-            accessibilityState={{ checked: clickEnabled }}
-            accessibilityLabel={t("player.click")}
-          >
-            <View style={[s.switchKnob, clickEnabled ? s.switchKnobActive : null]} />
-          </Pressable>
-        </View>
+        <>
+          <View style={[pd.row, pd.rowDivider]}>
+            <Text style={pd.rowLabel}>{t("player.click")}</Text>
+            {clickDetail ? <Text style={pd.rowValue}>{clickDetail}</Text> : null}
+            <Pressable
+              style={[s.switchShell, clickEnabled ? s.switchShellActive : null]}
+              onPress={() => onSetClickEnabled(!clickEnabled)}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: clickEnabled }}
+              accessibilityLabel={t("player.click")}
+            >
+              <View style={[s.switchKnob, clickEnabled ? s.switchKnobActive : null]} />
+            </Pressable>
+          </View>
+          {/* The click's own volume — it competes with the song, so it has a dial
+              here rather than borrowing the standalone metronome's beep level. */}
+          {clickEnabled ? (
+            <View style={pd.clickVolumeRow}>
+              <Ionicons name="volume-low-outline" size={16} color={colors.textMuted} />
+              <Slider
+                style={pd.clickVolumeSlider}
+                minimumValue={0}
+                maximumValue={100}
+                step={5}
+                value={clickLevel}
+                onSlidingComplete={(value) => {
+                  haptic.tap();
+                  onSetClickLevel(Math.round(value));
+                }}
+                minimumTrackTintColor={colors.primary}
+                maximumTrackTintColor={colors.surfaceHigh}
+                thumbTintColor={colors.primary}
+                accessibilityLabel={t("player.clickVolume")}
+              />
+              <Ionicons name="volume-high-outline" size={16} color={colors.textMuted} />
+            </View>
+          ) : null}
+        </>
       ) : (
         <View style={pd.ghostRow}>
           <Text style={pd.rowLabel}>{t("player.click")}</Text>
@@ -970,21 +986,8 @@ export function PlayerPracticeDrawers({
   // ---------------------------------------------------------------- shell
   return (
     <View style={s.toolList}>
-      <SegmentedControl<Drawer>
-        options={[
-          { key: "marks", label: t("player.marks"), dot: drawerHasState.marks },
-          { key: "loop", label: t("player.loop"), dot: drawerHasState.loop },
-          { key: "sound", label: t("player.sound"), dot: drawerHasState.sound },
-        ]}
-        selectedKey={drawer}
-        onSelect={(next) => {
-          setDrawer(next);
-          onSectionPreview(null);
-          onPinPreview(null);
-        }}
-      />
-      {drawer === "marks" ? marksDrawer : drawer === "loop" ? loopDrawer : soundDrawer}
-
+      {/* Above the tabs: recording a layer is a constant of the Tools room, not a
+          fact of any one drawer, so it never moves when the tabs do. */}
       <Pressable
         style={({ pressed }) => [pd.recordLayerRow, pressed ? s.toolHeaderPressed : null]}
         onPress={() => onRecordOverdub(playheadMs)}
@@ -1000,6 +1003,24 @@ export function PlayerPracticeDrawers({
           {playheadMs > 1000 ? t("player.recordLayerAtPlayhead") : t("player.recordLayer")}
         </Text>
       </Pressable>
+
+      <SegmentedControl<Drawer>
+        options={[
+          // The dot means "something is RUNNING in there" — a loop looping, a
+          // sound bent away from neutral. Marks merely existing is not a state
+          // to signal, so that tab never wears one.
+          { key: "marks", label: t("player.marks") },
+          { key: "loop", label: t("player.loop"), dot: drawerHasState.loop },
+          { key: "sound", label: t("player.sound"), dot: drawerHasState.sound },
+        ]}
+        selectedKey={drawer}
+        onSelect={(next) => {
+          setDrawer(next);
+          onSectionPreview(null);
+          onPinPreview(null);
+        }}
+      />
+      {drawer === "marks" ? marksDrawer : drawer === "loop" ? loopDrawer : soundDrawer}
 
       <SectionPickerModal
         visible={pickerOpen}

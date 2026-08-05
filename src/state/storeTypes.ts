@@ -27,6 +27,7 @@ export type PersistedAppStore = Pick<
     | "metronomeGroupingByMeterId"
     | "metronomeOutputs"
     | "metronomeBeepLevel"
+    | "playbackClickLevel"
     | "metronomeHapticLevel"
     | "metronomeCountInBars"
     | "globalCustomClipTags"

@@ -2,7 +2,9 @@ import { useState } from "react";
 import { clampPitchShiftSemitones } from "../../../domain/pitchShift";
 
 export type PlayerMode = "player" | "practice" | "playalong";
-export type CountInOption = "off" | "1b" | "2b";
+// "3s" is a run-up of the SONG (seek back three seconds, then play) — the honest
+// count-in for a take without a grid; the bar options click the take's own grid.
+export type CountInOption = "off" | "3s" | "1b" | "2b";
 /** Practice tools. pins/loop/sections expand inline (accordion); speed/pitch/countin/click open a popover. */
 export type PracticeTool = "pins" | "loop" | "sections" | "speed" | "pitch" | "countin" | "click";
 

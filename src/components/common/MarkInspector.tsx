@@ -174,37 +174,47 @@ export function MarkInspector({
         >
           <Ionicons name="chevron-forward" size={15} color={colors.textStrong} />
         </Pressable>
-      </View>
-      <View style={mi.hintRow}>
-        <Text style={mi.inspectorHint} numberOfLines={1}>
-          {hint ?? t("player.inspectorHint", { step: nudgeStepMs })}
-        </Text>
-        {neighborLabel && onUseNeighbor ? (
-          <Pressable
-            style={({ pressed }) => [mi.usePlayheadBtn, pressed ? appStyles.pressDown : null]}
-            onPress={onUseNeighbor}
-            accessibilityRole="button"
-            accessibilityLabel={neighborLabel}
-          >
-            <Ionicons name="magnet-outline" size={13} color={colors.primaryDeep} />
-            <Text style={mi.usePlayheadText}>{neighborLabel}</Text>
-          </Pressable>
-        ) : null}
+        {/* Use-playhead rides the slider row it acts on — icon-only, since the
+            row's job is already "move this edge". */}
         <Pressable
           style={({ pressed }) => [
-            mi.usePlayheadBtn,
+            mi.nudgeBtn,
             usePlayheadDisabled ? { opacity: 0.4 } : null,
             pressed ? appStyles.pressDown : null,
           ]}
           onPress={onUsePlayhead}
           disabled={usePlayheadDisabled}
+          hitSlop={6}
           accessibilityRole="button"
           accessibilityLabel={t("player.usePlayhead")}
         >
-          <Ionicons name="locate-outline" size={13} color={colors.primaryDeep} />
-          <Text style={mi.usePlayheadText}>{t("player.usePlayhead")}</Text>
+          <Ionicons name="locate-outline" size={15} color={colors.primaryDeep} />
         </Pressable>
       </View>
+      {/* Only rendered when there is something to SAY — a snap hint from the
+          editor or a neighbor to meet. "Drag is live" told nobody anything. */}
+      {hint || (neighborLabel && onUseNeighbor) ? (
+        <View style={mi.hintRow}>
+          {hint ? (
+            <Text style={mi.inspectorHint} numberOfLines={1}>
+              {hint}
+            </Text>
+          ) : (
+            <View style={mi.hintSpacer} />
+          )}
+          {neighborLabel && onUseNeighbor ? (
+            <Pressable
+              style={({ pressed }) => [mi.usePlayheadBtn, pressed ? appStyles.pressDown : null]}
+              onPress={onUseNeighbor}
+              accessibilityRole="button"
+              accessibilityLabel={neighborLabel}
+            >
+              <Ionicons name="magnet-outline" size={13} color={colors.primaryDeep} />
+              <Text style={mi.usePlayheadText}>{neighborLabel}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -256,6 +266,7 @@ const mi = StyleSheet.create({
     justifyContent: "center",
   },
   hintRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  hintSpacer: { flex: 1 },
   inspectorHint: {
     ...text.annotation,
     flex: 1,

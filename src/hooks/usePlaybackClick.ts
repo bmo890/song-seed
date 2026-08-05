@@ -89,7 +89,10 @@ function usePlaybackClickNative({
   playbackRate,
   getPositionMs,
 }: UsePlaybackClickArgs): PlaybackClickApi {
-  const beepLevel = useStore((s) => s.metronomeBeepLevel);
+  // The click's OWN volume dial — never the standalone metronome's beep level,
+  // which a musician may keep muted (haptic-only) without meaning to silence
+  // the playback click too.
+  const beepLevel = useStore((s) => s.playbackClickLevel);
 
   const [enabled, setEnabledState] = useState(false);
   const [isCountingIn, setIsCountingIn] = useState(false);
@@ -298,14 +301,16 @@ function usePlaybackClickNative({
     [clearTimers, configureForParams, stopEngine, supportsPhaseStart]
   );
 
-  // Follow the transport: play ↔ pause/stop, rate changes, take changes.
+  // Follow the transport: play ↔ pause/stop, rate changes, take changes. The
+  // volume dial rides along — a level change re-configures mid-play, so the
+  // slider is audible immediately rather than from the next sync.
   useEffect(() => {
     if (enabled && isPlaying) {
       void syncClick();
     } else if (!isCountingInRef.current) {
       void stopEngine();
     }
-  }, [enabled, isPlaying, playbackRate, grid, syncClick, stopEngine]);
+  }, [enabled, isPlaying, playbackRate, grid, beepLevel, syncClick, stopEngine]);
 
   useEffect(() => {
     return () => {

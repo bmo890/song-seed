@@ -132,6 +132,10 @@ export type DataSlice = {
     metronomeBeepLevel: number;
     metronomeHapticLevel: number;
     metronomeCountInBars: number;
+    /** Volume of the PLAYBACK click (a take's own grid, in the player) — its own
+     *  dial, deliberately not the standalone metronome's beep level: a muted
+     *  metronome must never silently mute the playback click. */
+    playbackClickLevel: number;
     setActiveWorkspaceId: (id: string) => void;
     setPrimaryWorkspaceId: (id: string | null) => void;
     setPrimaryCollectionId: (workspaceId: string, collectionId: string | null) => void;
@@ -154,6 +158,7 @@ export type DataSlice = {
     setMetronomeGrouping: (meterId: MetronomeMeterId, grouping: number[] | null) => void;
     setMetronomeOutputEnabled: (key: keyof MetronomeOutputs, enabled: boolean) => void;
     setMetronomeBeepLevel: (value: number) => void;
+    setPlaybackClickLevel: (value: number) => void;
     setMetronomeHapticLevel: (value: number) => void;
     setMetronomeCountInBars: (value: number) => void;
     notes: Note[];
@@ -1235,6 +1240,7 @@ export const createDataSlice: StateCreator<
     metronomeGroupingByMeterId: {},
     metronomeOutputs: DEFAULT_METRONOME_OUTPUTS,
     metronomeBeepLevel: DEFAULT_METRONOME_BEEP_LEVEL,
+    playbackClickLevel: DEFAULT_METRONOME_BEEP_LEVEL,
     metronomeHapticLevel: DEFAULT_METRONOME_HAPTIC_LEVEL,
     metronomeCountInBars: DEFAULT_METRONOME_COUNT_IN_BARS,
     globalCustomClipTags: [],
@@ -1401,6 +1407,7 @@ export const createDataSlice: StateCreator<
             };
         }),
     setMetronomeBeepLevel: (value) => set({ metronomeBeepLevel: clampMetronomeLevel(value) }),
+    setPlaybackClickLevel: (value) => set({ playbackClickLevel: clampMetronomeLevel(value) }),
     setMetronomeHapticLevel: (value) => set({ metronomeHapticLevel: clampMetronomeLevel(value) }),
     setMetronomeCountInBars: (value) => set({ metronomeCountInBars: clampMetronomeCountInBars(value) }),
     addNote: () => {

@@ -10,11 +10,14 @@ import type { PracticeMarker } from "../types";
 
 export const PIN_BADGE_HEIGHT = 18;
 /**
- * Average advance of Plus Jakarta Sans 600 at the badge's 10px. This drives the badge
- * width, so an over-estimate leaves visible dead space to the right of the label —
- * 6 did, by roughly a character every eight.
+ * Average advance of Plus Jakarta Sans 600 at the badge's 10px. The DRAWN badge is
+ * sized from a real text measurement now; this estimate only drives row packing and
+ * the RN drag target, where erring GENEROUS is right — an estimate that runs tight
+ * was how short labels ended up truncated (the badge laid out narrower than its
+ * own text). 5.2 was tuned for minimal dead space back when the estimate WAS the
+ * width; 6.5 stays safely at or above the true advance.
  */
-export const PIN_BADGE_CHAR_WIDTH = 5.2;
+export const PIN_BADGE_CHAR_WIDTH = 6.5;
 /** Breathing room either side of the label — 5px a side at the badge's 10px type. */
 export const PIN_BADGE_H_PAD = 10;
 export const PIN_ROW_GAP = 2;

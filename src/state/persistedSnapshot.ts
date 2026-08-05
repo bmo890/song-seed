@@ -31,6 +31,7 @@ export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppSto
         metronomeGroupingByMeterId: state.metronomeGroupingByMeterId,
         metronomeOutputs: state.metronomeOutputs,
         metronomeBeepLevel: state.metronomeBeepLevel,
+        playbackClickLevel: state.playbackClickLevel,
         metronomeHapticLevel: state.metronomeHapticLevel,
         metronomeCountInBars: state.metronomeCountInBars,
         globalCustomClipTags: state.globalCustomClipTags,

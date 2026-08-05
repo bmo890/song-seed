@@ -190,6 +190,24 @@ export const pd = StyleSheet.create({
     ...text.caption,
     color: colors.primaryDeep,
   },
+  clickVolumeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 10,
+    marginTop: -4,
+  },
+  clickVolumeSlider: { flex: 1, height: 30 },
+  // Leading the list: the divider moves under the row instead of above it.
+  addRowLead: {
+    borderTopWidth: 0,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderSubtle,
+    paddingTop: 2,
+    paddingBottom: 12,
+    marginTop: 0,
+    marginBottom: 2,
+  },
   addHint: {
     ...text.supporting,
     fontSize: 12,

@@ -205,6 +205,10 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
             typeof state?.metronomeHapticLevel === "number" && Number.isFinite(state.metronomeHapticLevel)
                 ? clampMetronomeLevel(state.metronomeHapticLevel)
                 : DEFAULT_METRONOME_HAPTIC_LEVEL,
+        playbackClickLevel:
+            typeof state?.playbackClickLevel === "number" && Number.isFinite(state.playbackClickLevel)
+                ? clampMetronomeLevel(state.playbackClickLevel)
+                : DEFAULT_METRONOME_BEEP_LEVEL,
         metronomeCountInBars:
             typeof state?.metronomeCountInBars === "number" && Number.isFinite(state.metronomeCountInBars)
                 ? clampMetronomeCountInBars(state.metronomeCountInBars)
