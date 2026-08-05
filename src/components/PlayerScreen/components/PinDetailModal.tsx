@@ -134,6 +134,20 @@ export function PinDetailModal({
         maxLength={MAX_PIN_LABEL_LENGTH}
         returnKeyType="done"
       />
+      {/* The limit is a layout fact (the badge is drawn this wide on the tape), so
+          the count appears once you're near it rather than nagging from empty.
+          A pin named before the limit tightened can still open over it — saving
+          trims to fit, so that state has to read as a warning, not as normal. */}
+      {name.length >= MAX_PIN_LABEL_LENGTH - 5 ? (
+        <Text
+          style={[
+            s.pinNameCount,
+            name.length > MAX_PIN_LABEL_LENGTH ? s.pinNameCountOver : null,
+          ]}
+        >
+          {t("player.pinNameCount", { used: name.length, max: MAX_PIN_LABEL_LENGTH })}
+        </Text>
+      ) : null}
       <UserTextInput
         style={[s.sectionEditInput, s.pinDetailNoteInput]}
         value={note}

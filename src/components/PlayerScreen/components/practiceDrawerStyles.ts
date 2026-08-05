@@ -300,8 +300,15 @@ export const pd = StyleSheet.create({
   },
   stepUpLabelRow: {
     flexDirection: "row",
+    // Centre on the label's CAP height, not its line box: a text box carries
+    // descender space below the glyphs, so a box-centred icon reads low beside
+    // a word with no descenders ("Step up"). The 1px lift is that optical
+    // correction, the same one the reset glyphs get by riding their label.
     alignItems: "center",
-    gap: 4,
+    gap: 5,
+  },
+  stepUpHelpNudge: {
+    marginTop: -1,
   },
   stepUpValueRow: {
     flexDirection: "row",
@@ -402,12 +409,16 @@ export const pd = StyleSheet.create({
     paddingHorizontal: 10,
     paddingTop: 4,
   },
-  // Sits with its label (the auto end-margin pushes the value back to the right
-  // edge of the space-between row) and rides the text baseline rather than it.
+  // Label + reset travel together as one group. The group (not the button) is the
+  // baseline participant of `dialHead`, so the label still shares the big value's
+  // baseline while the button centers against the LABEL rather than against the
+  // 26px number's much taller line box — which is what floated it high.
+  dialLabelGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   dialResetBtn: {
-    marginStart: 8,
-    marginEnd: "auto",
-    alignSelf: "center",
     width: 26,
     height: 26,
     borderRadius: radii.round,
@@ -421,9 +432,17 @@ export const pd = StyleSheet.create({
     color: colors.textPrimary,
     fontVariant: ["tabular-nums"],
   },
+  // Off-neutral: the number itself carries the action colour, so a glance at the
+  // drawer says "this take is being played differently" without reading a value.
+  dialValueChanged: {
+    color: colors.primaryDeep,
+  },
   dialUnit: {
     ...text.caption,
     color: colors.textSecondary,
+  },
+  dialUnitChanged: {
+    color: colors.primaryDeep,
   },
   soundSlider: {
     height: 34,

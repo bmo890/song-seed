@@ -673,7 +673,9 @@ export function PlayerPracticeDrawers({
       <View style={[pd.row, pd.rowDivider]}>
         <View style={pd.stepUpLabelRow}>
           <Text style={pd.rowLabel}>{t("player.stepUp")}</Text>
-          <HelpButton compact onPress={() => setStepUpHelpOpen(true)} />
+          <View style={pd.stepUpHelpNudge}>
+            <HelpButton compact onPress={() => setStepUpHelpOpen(true)} />
+          </View>
         </View>
         {/* The row states which plan is loaded; the live progression gets its own line
             below, which keeps room here for the controls. A named plan carries its
@@ -812,6 +814,10 @@ export function PlayerPracticeDrawers({
 
   // ---------------------------------------------------------------- sound
   const speedIsPreset = (preset: number) => Math.abs(playbackSpeed - preset) < 0.01;
+  // "Bent away from original" — drives both the reset affordance and the value's
+  // colour, so the two can never disagree about whether anything changed.
+  const speedIsChanged = Math.abs(playbackSpeed - 1) > 0.01;
+  const pitchIsChanged = supportsPitchShift && pitchShiftSemitones !== 0;
   const detectedLabel = hasAnalysisResult(analysis) ? formatBpmLabel(analysis) : null;
 
   const soundDrawer = (
@@ -819,22 +825,26 @@ export function PlayerPracticeDrawers({
       {/* Each dial resets from its own label — the reset lives with the thing it
           resets, and only appears once there is something to undo. */}
       <View style={pd.dialHead}>
-        <Text style={pd.rowLabel}>{t("player.speed")}</Text>
-        {Math.abs(playbackSpeed - 1) > 0.01 ? (
-          <Pressable
-            style={({ pressed }) => [pd.dialResetBtn, pressed ? s.toolHeaderPressed : null]}
-            onPress={() => {
-              haptic.tap();
-              onSpeedTap(1);
-            }}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={t("player.resetSpeed")}
-          >
-            <Ionicons name="refresh" size={14} color={colors.primaryDeep} />
-          </Pressable>
-        ) : null}
-        <Text style={pd.dialValue}>{`${Math.round(playbackSpeed * 100) / 100}×`}</Text>
+        <View style={pd.dialLabelGroup}>
+          <Text style={pd.rowLabel}>{t("player.speed")}</Text>
+          {speedIsChanged ? (
+            <Pressable
+              style={({ pressed }) => [pd.dialResetBtn, pressed ? s.toolHeaderPressed : null]}
+              onPress={() => {
+                haptic.tap();
+                onSpeedTap(1);
+              }}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t("player.resetSpeed")}
+            >
+              <Ionicons name="refresh" size={14} color={colors.primaryDeep} />
+            </Pressable>
+          ) : null}
+        </View>
+        <Text style={[pd.dialValue, speedIsChanged ? pd.dialValueChanged : null]}>
+          {`${Math.round(playbackSpeed * 100) / 100}×`}
+        </Text>
       </View>
       <Slider
         style={pd.soundSlider}
@@ -870,24 +880,31 @@ export function PlayerPracticeDrawers({
       </View>
 
       <View style={pd.dialHead}>
-        <Text style={pd.rowLabel}>{t("player.pitch")}</Text>
-        {supportsPitchShift && pitchShiftSemitones !== 0 ? (
-          <Pressable
-            style={({ pressed }) => [pd.dialResetBtn, pressed ? s.toolHeaderPressed : null]}
-            onPress={() => {
-              haptic.tap();
-              onAdjustPitchShift(0);
-            }}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={t("player.resetPitch")}
-          >
-            <Ionicons name="refresh" size={14} color={colors.primaryDeep} />
-          </Pressable>
-        ) : null}
-        <Text style={pd.dialValue}>
+        <View style={pd.dialLabelGroup}>
+          <Text style={pd.rowLabel}>{t("player.pitch")}</Text>
+          {pitchIsChanged ? (
+            <Pressable
+              style={({ pressed }) => [pd.dialResetBtn, pressed ? s.toolHeaderPressed : null]}
+              onPress={() => {
+                haptic.tap();
+                onAdjustPitchShift(0);
+              }}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t("player.resetPitch")}
+            >
+              <Ionicons name="refresh" size={14} color={colors.primaryDeep} />
+            </Pressable>
+          ) : null}
+        </View>
+        <Text style={[pd.dialValue, pitchIsChanged ? pd.dialValueChanged : null]}>
           {supportsPitchShift ? `${pitchShiftSemitones > 0 ? "+" : ""}${pitchShiftSemitones}` : "—"}
-          {supportsPitchShift ? <Text style={pd.dialUnit}> {t("player.semitones")}</Text> : null}
+          {supportsPitchShift ? (
+            <Text style={[pd.dialUnit, pitchIsChanged ? pd.dialUnitChanged : null]}>
+              {" "}
+              {t("player.semitones")}
+            </Text>
+          ) : null}
         </Text>
       </View>
       <View style={[pd.pitchRow, ltrRow]}>

@@ -34,7 +34,15 @@ export const MIN_PIN_BADGE_WIDTH = 20;
  * this many characters wide on the tape, and much past this it stops being a mark and
  * becomes a banner across the take.
  */
-export const MAX_PIN_LABEL_LENGTH = 24;
+export const MAX_PIN_LABEL_LENGTH = 18;
+
+/**
+ * Hard ceiling on a drawn badge, in content px. The label cap alone can't guarantee
+ * this — pins saved before a cap change (or under a wider face) still exist in the
+ * library — so the tape enforces its own limit and lets those few ellipsize. Sized
+ * to comfortably clear a full-length label at the badge's 10px type.
+ */
+export const MAX_PIN_BADGE_WIDTH = 132;
 
 /** Trim and cap a label to what the badge can actually draw. */
 export function clampPinLabel(label: string): string {
@@ -67,12 +75,20 @@ export function getPinBadgeEdges(centerX: number, width: number, anchor: PinBadg
 
 export type PinRowAssignment<M> = { marker: M; row: number };
 
-/** First row whose last badge clears this one; overlapping pins drop a row. */
+/** First row whose last badge clears this one; overlapping pins drop a row.
+ *
+ *  `resolveWidth` MUST be the same width the caller will draw with. The Skia layer
+ *  measures its labels and passes those measurements in: when packing used the
+ *  estimate while drawing used the measurement, the two could disagree about the
+ *  badge's width and therefore about its ANCHOR — the packer reserving space to the
+ *  left of a pin while the renderer drew to the right of it. Badges then landed on
+ *  the same row on top of each other, which is the staggering "breaking". */
 export function assignPinRows<M extends Pick<PracticeMarker, "atMs"> & { label?: string }>(
     markers: M[],
     pixelsPerMs: number,
     scale: number,
-    durationMs: number
+    durationMs: number,
+    resolveWidth: (marker: M) => number = (marker) => estimatePinBadgeWidth(marker.label)
 ): PinRowAssignment<M>[] {
     if (markers.length === 0) return [];
     const sorted = [...markers].sort((a, b) => a.atMs - b.atMs);
@@ -82,7 +98,7 @@ export function assignPinRows<M extends Pick<PracticeMarker, "atMs"> & { label?:
 
     for (const marker of sorted) {
         const centerX = marker.atMs * pixelsPerMs * scale;
-        const width = estimatePinBadgeWidth(marker.label);
+        const width = resolveWidth(marker);
         const anchor = resolvePinBadgeAnchor(centerX, width, contentWidth);
         const { left, right } = getPinBadgeEdges(centerX, width, anchor);
 

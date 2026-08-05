@@ -913,6 +913,17 @@ export const playerScreenStyles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 9,
   },
+  pinNameCount: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 10,
+    color: colors.textMuted,
+    textAlign: "right",
+    marginTop: 4,
+    fontVariant: ["tabular-nums"],
+  },
+  pinNameCountOver: {
+    color: colors.danger,
+  },
   pinDetailNoteInput: {
     marginTop: 8,
     minHeight: 64,
