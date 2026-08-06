@@ -2,6 +2,7 @@ import { useState } from "react";
 import { I18nManager, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { ChordPlacement, LyricsLine } from "../../../../types";
 import { ChordLine } from "./ChordLine";
+import { SerifChordLines } from "./SerifChordChart";
 import { LYRIC_FONT_SIZE, MEASURE_SAMPLE, MONO_FONT, chordChartColors } from "./chordChartStyle";
 import { chordGraphemeAnchor, graphemeCount } from "../../../../domain/chords";
 import { detectTextDirection, resolveContentDirection } from "../../../../i18n";
@@ -17,10 +18,28 @@ type LinesProps = {
   onMoveChord?: (lineId: string, chordId: string, at: number) => void;
 };
 
-/** The chart body — measuring text + a horizontally-scrolling column of lines.
- * Has no vertical scroll of its own, so it can be dropped inside any vertical
- * scroller (the lyric sheet's, or the player/recording autoscroll panel). */
+/** The chart body. READING renders the serif voice (sans badges over Lora
+ * lines — one identity with plain lyrics); EDITING keeps the monospace grid,
+ * whose uniform advance width is what the chord drag math anchors to. Neither
+ * owns a vertical scroll, so both drop inside any vertical scroller (the lyric
+ * sheet's, or the player/recording autoscroll panel). */
 export function ChordChartLines({ lines, editable, zoom = 1, onAddAt, onEditChord, onMoveChord }: LinesProps) {
+  if (!editable) {
+    return <SerifChordLines lines={lines} zoom={zoom} />;
+  }
+  return (
+    <MonoChordChartLines
+      lines={lines}
+      editable={editable}
+      zoom={zoom}
+      onAddAt={onAddAt}
+      onEditChord={onEditChord}
+      onMoveChord={onMoveChord}
+    />
+  );
+}
+
+function MonoChordChartLines({ lines, editable, zoom = 1, onAddAt, onEditChord, onMoveChord }: LinesProps) {
   const [charWidth, setCharWidth] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
   const [dragging, setDragging] = useState(false);
