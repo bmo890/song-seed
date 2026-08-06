@@ -80,44 +80,15 @@ type PlayerSupportSectionsProps = {
   clipNotes: string;
   clipNotesSummary: string;
   notesExpanded: boolean;
+  /** Mixer sheet visibility — owned by the screen so the reel's lane portal can open it. */
+  layersExpanded: boolean;
+  onToggleLayersExpanded: (value: boolean) => void;
   queueEntries: QueueEntry[];
   queueExpanded: boolean;
   onToggleNotesExpanded: (value: boolean) => void;
   onToggleQueueExpanded: (value: boolean) => void;
   onQueueOpenIdea: (ideaId: string) => void;
 };
-
-/** A quiet pill in the utility row beneath the lyrics. Carries an optional
- * count badge (Layers/Queue) or a terracotta presence dot (Notes). */
-const UtilityChip = React.memo(function UtilityChip({
-  icon,
-  label,
-  count,
-  dot,
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  count?: number;
-  dot?: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      style={({ pressed }) => [chipStyles.chip, pressed ? appStyles.pressDown : null]}
-      onPress={onPress}
-    >
-      <Ionicons name={icon} size={16} color={colors.primary} />
-      <Text style={chipStyles.chipLabel}>{label}</Text>
-      {count != null ? (
-        <View style={chipStyles.chipCount}>
-          <Text style={chipStyles.chipCountText}>{count}</Text>
-        </View>
-      ) : null}
-      {dot ? <View style={chipStyles.chipDot} /> : null}
-    </Pressable>
-  );
-});
 
 export function PlayerSupportSections({
   canAuthor,
@@ -155,6 +126,8 @@ export function PlayerSupportSections({
   onRemoveStem,
   clipNotes,
   notesExpanded,
+  layersExpanded,
+  onToggleLayersExpanded,
   queueEntries,
   queueExpanded,
   onToggleNotesExpanded,
@@ -167,7 +140,7 @@ export function PlayerSupportSections({
     positionIntervalMs: 200,
   });
   const [activeLayerPreviewId, setActiveLayerPreviewId] = useState<string | null>(null);
-  const [layersSheetOpen, setLayersSheetOpen] = useState(false);
+  const layersSheetOpen = layersExpanded;
   // Progressive disclosure: one section open at a time across the whole sheet (accordion),
   // so the layer list stays scannable instead of every control being permanently expanded.
   const [rootMixExpanded, setRootMixExpanded] = useState(false);
@@ -405,7 +378,7 @@ export function PlayerSupportSections({
 
   function closeLayersSheet() {
     audition.stop();
-    setLayersSheetOpen(false);
+    onToggleLayersExpanded(false);
   }
 
   // "Save as one clip" is a flatten/bounce — like a photo editor's Save: keep the layered
@@ -469,26 +442,9 @@ export function PlayerSupportSections({
         onBuildChart={onBuildChart}
       />
 
-      {/* Quiet utility row: notes, layers, and the queue live behind a tap
-          rather than each holding a permanent card. */}
-      <View style={chipStyles.utilityRow}>
-        <UtilityChip
-          icon="document-text-outline"
-          label={t("songDetail.notes")}
-          dot={hasNotes}
-          onPress={() => onToggleNotesExpanded(true)}
-        />
-        {hasClipOverdubs ? (
-          <UtilityChip
-            icon="layers-outline"
-            label={t("player.layers")}
-            count={clipOverdubStemCount}
-            onPress={() => setLayersSheetOpen(true)}
-          />
-        ) : null}
-        {/* No "Queue" chip here — the transport bar's list button (bottom control
-            bar) is the single entry point to the queue sheet. */}
-      </View>
+      {/* No chip row: the layer lane under the reel is the mixer's door, the
+          Notes shelf above the transport is the notes door, and the transport
+          bar's list button is the queue's. Doors live where their subjects do. */}
 
       {/* Notes — read-only here; editing lives on the song's Notes tab. */}
       <BottomSheet visible={notesExpanded} onClose={() => onToggleNotesExpanded(false)}>
@@ -654,46 +610,6 @@ export function PlayerSupportSections({
 }
 
 const chipStyles = StyleSheet.create({
-  utilityRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-    paddingTop: spacing.xs,
-  },
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.surfaceContainer,
-    borderRadius: radii.round,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-  },
-  chipLabel: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13,
-    color: colors.textStrong,
-  },
-  chipCount: {
-    minWidth: 18,
-    height: 18,
-    borderRadius: radii.round,
-    paddingHorizontal: 5,
-    backgroundColor: colors.surfaceHigh,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  chipCountText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 11,
-    color: colors.textSecondary,
-  },
-  chipDot: {
-    width: 7,
-    height: 7,
-    borderRadius: radii.round,
-    backgroundColor: colors.primary,
-  },
   rootMetaCluster: {
     flexDirection: "row",
     alignItems: "center",

@@ -41,6 +41,7 @@ import { OVERDUB_HELP, PRACTICE_HELP } from "../common/helpContent";
 import { PlayerArtifactReader, PlayAlongSpeedControl } from "./components/PlayerArtifactReader";
 import { chartSummary, lyricChordSummary } from "./components/PlayerArtifactDoors";
 import { PlayerPinSheets } from "./components/PlayerPinSheets";
+import { PlayerShelf } from "./components/PlayerShelf";
 import { playerScreenStyles } from "./styles";
 import { getVisibleTimelineRange } from "./helpers";
 import { openIdeaInCollection } from "../../navigation";
@@ -950,6 +951,14 @@ export function PlayerScreen({
                   sections={ui.markersVisible ? previewedSections : EMPTY_SECTIONS}
                   recordingGrid={playerClip.recordingGrid ?? null}
                   overdubLayerLanes={overdubLayerLanes}
+                  // The lane IS the mixer's door — but only where the sheet exists
+                  // to open (player mode mounts the support sections that host it).
+                  onOpenLayerMixer={
+                    ui.mode === "player" && data.hasClipOverdubs
+                      ? () => ui.setLayersExpanded(true)
+                      : undefined
+                  }
+                  layerMixerAccessibilityLabel={t("player.layers")}
                   draggingMarkerId={draggingMarkerId}
                   draggingMarkerX={draggingMarkerX}
                   onLoopRangeChange={handleLoopRangeChange}
@@ -1090,27 +1099,26 @@ export function PlayerScreen({
               ) : (
                 <>
                   {/* The eye only earns a place when the clip has marks to hide;
-                      the empty stand-in keeps Tools pinned to the trailing edge. */}
+                      icon-only, so toggling never re-flows the row. The empty
+                      stand-in keeps Tools pinned to the trailing edge. */}
                   {!hasMarks ? <View /> : null}
                   {hasMarks ? (
                     <Pressable
                       style={({ pressed }) => [
-                        playerScreenStyles.reelExpandButton,
+                        playerScreenStyles.readingIconButton,
                         pressed ? playerScreenStyles.overflowButtonPressed : null,
                       ]}
                       onPress={() => ui.setMarkersVisible((value) => !value)}
+                      hitSlop={6}
                       accessibilityRole="button"
                       accessibilityState={{ checked: ui.markersVisible }}
                       accessibilityLabel={ui.markersVisible ? t("player.hideMarkers") : t("player.showMarkers")}
                     >
                       <Ionicons
                         name={ui.markersVisible ? "eye-outline" : "eye-off-outline"}
-                        size={14}
+                        size={15}
                         color={colors.textSecondary}
                       />
-                      <Text style={playerScreenStyles.reelExpandText}>
-                        {ui.markersVisible ? t("player.hideMarkers") : t("player.showMarkers")}
-                      </Text>
                     </Pressable>
                   ) : null}
                   <View style={playerScreenStyles.reelToolbarRight}>
@@ -1128,7 +1136,7 @@ export function PlayerScreen({
                       <Ionicons
                         name="options-outline"
                         size={15}
-                        color={ui.mode === "practice" ? colors.onPrimary : colors.textSecondary}
+                        color={ui.mode === "practice" ? colors.primaryDeep : colors.textStrong}
                       />
                       <Text
                         style={[
@@ -1151,6 +1159,14 @@ export function PlayerScreen({
               <ProgressThread
                 sharedCurrentTimeMs={transportClock.sharedCurrentTimeMs}
                 sharedDurationMs={transportClock.sharedDurationMs}
+              />
+            ) : null}
+            {/* The shelf anchors the page's bottom in the base listening state —
+                doors for what the clip has, nothing when it has nothing. */}
+            {ui.mode === "player" && !isReading ? (
+              <PlayerShelf
+                hasNotes={data.clipNotes.trim().length > 0}
+                onOpenNotes={() => ui.setNotesExpanded(true)}
               />
             ) : null}
           <PlayerFooterSection
@@ -1321,6 +1337,8 @@ export function PlayerScreen({
               clipNotes={data.clipNotes}
               clipNotesSummary={data.clipNotesSummary}
               notesExpanded={ui.notesExpanded}
+              layersExpanded={ui.layersExpanded}
+              onToggleLayersExpanded={ui.setLayersExpanded}
               queueEntries={data.queueEntries}
               queueExpanded={ui.queueExpanded}
               onToggleNotesExpanded={ui.setNotesExpanded}

@@ -68,6 +68,9 @@ type Props = {
   /** Un-flattened overdub layers, drawn as slim lanes under the reel so their placement
    *  on the master's timeline is visible at a glance. */
   overdubLayerLanes?: OverdubLayerLane[];
+  /** Lane-as-portal: tapping the lane opens the mixer (player mode only). */
+  onOpenLayerMixer?: () => void;
+  layerMixerAccessibilityLabel?: string;
   draggingMarkerId: SharedValue<string>;
   draggingMarkerX: SharedValue<number>;
   onLoopRangeChange: (start: number, end: number) => void;
@@ -222,6 +225,8 @@ function PlayerTimelineInner({
   sections,
   recordingGrid,
   overdubLayerLanes,
+  onOpenLayerMixer,
+  layerMixerAccessibilityLabel,
   draggingMarkerId,
   draggingMarkerX,
   onLoopRangeChange,
@@ -361,6 +366,8 @@ function PlayerTimelineInner({
               pixelsPerMs={pixelsPerMs}
               timelineTranslateX={timelineTranslateX}
               timelineScale={timelineScale}
+              onPress={onOpenLayerMixer}
+              accessibilityLabel={layerMixerAccessibilityLabel}
             />
           ) : null}
           {mode === "practice" && practiceLoopEnabled && previewRange ? (

@@ -2,7 +2,7 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { GestureDetector, type PanGesture } from "react-native-gesture-handler";
 import { IconButton } from "../../common/IconButton";
-import { fmtDuration, formatDate } from "../../../utils";
+import { fmtDuration, formatClipDate } from "../../../utils";
 import { colors } from "../../../design/tokens";
 import { playerScreenStyles } from "../styles";
 import { useTranslation } from "react-i18next";
@@ -106,12 +106,12 @@ export function PlayerHeaderSection({
               <Text style={playerScreenStyles.metaDot}>•</Text>
             </>
           ) : null}
-          <Text style={playerScreenStyles.metaText}>{formatDate(createdAt)}</Text>
+          <Text style={playerScreenStyles.metaText}>{formatClipDate(createdAt)}</Text>
           {overdubLayerCount > 0 ? (
             <>
               <Text style={playerScreenStyles.metaDot}>•</Text>
               <Text style={playerScreenStyles.metaText}>
-                {overdubLayerCount} {overdubLayerCount === 1 ? "layer" : "layers"}
+                {t("navigation.layerCount", { count: overdubLayerCount })}
               </Text>
             </>
           ) : null}

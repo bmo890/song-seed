@@ -25,6 +25,7 @@ export function usePlayerScreenUi() {
   // Text-size multiplier for the open artifact — persists across doors within a session.
   const [readingZoom, setReadingZoom] = useState(1);
   const [notesExpanded, setNotesExpanded] = useState(false);
+  const [layersExpanded, setLayersExpanded] = useState(false);
   const [queueExpanded, setQueueExpanded] = useState(false);
   const [countInOption, setCountInOption] = useState<CountInOption>("off");
   const [practiceZoomMultiple, setPracticeZoomMultiple] = useState<number>(1);
@@ -84,6 +85,8 @@ export function usePlayerScreenUi() {
     setRepeatEnabled,
     notesExpanded,
     setNotesExpanded,
+    layersExpanded,
+    setLayersExpanded,
     queueExpanded,
     setQueueExpanded,
     countInOption,

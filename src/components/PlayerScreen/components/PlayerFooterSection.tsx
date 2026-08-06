@@ -61,7 +61,9 @@ export function PlayerFooterSection({
         onNext={onNextTrack}
         trailingIcon={mode !== "player" ? "repeat" : "list-outline"}
         trailingActive={mode !== "player" ? repeatEnabled : queueExpanded}
-        trailingDisabled={false}
+        // A queue of one is a list of the thing already playing — the button
+        // only earns a tap when there's somewhere to go.
+        trailingDisabled={mode === "player" && queueLength <= 1}
         trailingCaption={queueCaption}
         onTrailingPress={mode !== "player" ? onToggleRepeat : onToggleQueueExpanded}
       />

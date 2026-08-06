@@ -1,7 +1,10 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import Animated, { SharedValue, useAnimatedStyle } from "react-native-reanimated";
 import { withAlpha } from "../../domain/overdub";
+import { colors } from "../../design/tokens";
+import { dirIcon } from "../../design/directionalIcons";
 
 /**
  * Slim lanes under an audio reel marking where each (un-flattened) overdub layer sits on
@@ -115,11 +118,17 @@ export function OverdubLayerLanes({
   pixelsPerMs,
   timelineTranslateX,
   timelineScale,
+  onPress,
+  accessibilityLabel,
 }: {
   lanes: OverdubLayerLane[];
   pixelsPerMs: number;
   timelineTranslateX: SharedValue<number>;
   timelineScale: SharedValue<number>;
+  /** Lane-as-portal (2026-08-06): the lane is where layers live on the tape, so
+   *  the lane is the door to the mixer. Omit to keep it purely indicative. */
+  onPress?: () => void;
+  accessibilityLabel?: string;
 }) {
   const visibleLanes = lanes.filter((lane) => lane.durationMs > 0);
   const { rowByLaneId, rowCount } = React.useMemo(
@@ -129,22 +138,42 @@ export function OverdubLayerLanes({
   if (visibleLanes.length === 0) {
     return null;
   }
+  const stripHeight = rowCount * (LANE_HEIGHT + LANE_GAP) - LANE_GAP;
+  const bars = visibleLanes.map((lane) => (
+    <LaneBar
+      key={lane.id}
+      lane={lane}
+      rowIndex={rowByLaneId[lane.id] ?? 0}
+      pixelsPerMs={pixelsPerMs}
+      timelineTranslateX={timelineTranslateX}
+      timelineScale={timelineScale}
+    />
+  ));
+  if (!onPress) {
+    return (
+      <View style={[laneStyles.strip, { height: stripHeight }]} pointerEvents="none">
+        {bars}
+      </View>
+    );
+  }
   return (
-    <View
-      style={[laneStyles.strip, { height: rowCount * (LANE_HEIGHT + LANE_GAP) - LANE_GAP }]}
-      pointerEvents="none"
+    <Pressable
+      style={({ pressed }) => [
+        laneStyles.strip,
+        { height: stripHeight },
+        pressed ? laneStyles.stripPressed : null,
+      ]}
+      onPress={onPress}
+      hitSlop={{ top: 4, bottom: 6 }}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
     >
-      {visibleLanes.map((lane) => (
-        <LaneBar
-          key={lane.id}
-          lane={lane}
-          rowIndex={rowByLaneId[lane.id] ?? 0}
-          pixelsPerMs={pixelsPerMs}
-          timelineTranslateX={timelineTranslateX}
-          timelineScale={timelineScale}
-        />
-      ))}
-    </View>
+      {bars}
+      {/* Trailing chevron pinned off the timeline: the strip is a door, not just paint. */}
+      <View style={laneStyles.chevron} pointerEvents="none">
+        <Ionicons name={dirIcon("chevron-forward")} size={12} color={colors.textMuted} />
+      </View>
+    </Pressable>
   );
 }
 
@@ -153,6 +182,16 @@ const laneStyles = StyleSheet.create({
     marginTop: 3,
     overflow: "hidden",
     position: "relative",
+  },
+  stripPressed: {
+    opacity: 0.7,
+  },
+  chevron: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    end: 2,
+    justifyContent: "center",
   },
   bar: {
     position: "absolute",

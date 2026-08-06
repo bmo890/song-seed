@@ -25,30 +25,27 @@ export const playerScreenStyles = StyleSheet.create({
   overflowButtonPressed: {
     opacity: 0.7,
   },
-  // "Tools" toggle — replaces the Player|Practice segmented control. Quiet outlined
-  // pill that fills terracotta when practice tools are open.
+  // "Tools" toggle — a soft key (button law 2026-07-24: stadium round retired on
+  // text buttons). Open state wears the tonal terracotta wash, not solid primary.
   toolsPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
     height: 34,
     paddingHorizontal: 13,
-    borderRadius: radii.round,
-    borderWidth: 0.5,
-    borderColor: colors.borderMuted,
-    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surfaceHigh,
   },
   toolsPillActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: colors.primarySurface,
   },
   toolsPillText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 13,
-    color: colors.textSecondary,
+    color: colors.textStrong,
   },
   toolsPillTextActive: {
-    color: colors.onPrimary,
+    color: colors.primaryDeep,
   },
   titleBlock: {
     gap: 6,
