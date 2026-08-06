@@ -276,8 +276,10 @@ function PlayerTimelineInner({
       chrome="light"
       showTransportControls={false}
       showExpandToggle={false}
-      // Slim reel keeps pinch-zoom but sheds the corner zoom chrome — no room.
-      showZoomControls={!readingSlim}
+      // Zoom is part of the reel's identity — the slim reel keeps the controls
+      // and pinch alike; the minimap halves instead so navigation stays cheap.
+      showZoomControls
+      minimapCompact={readingSlim}
       zoomPlacement="overlay"
       showTimingRow={false}
       defaultExpanded={false}

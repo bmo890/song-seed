@@ -240,6 +240,8 @@ type Props = {
     expandedHeightOverride?: number;
     showMinimapMode?: "auto" | "always" | "never";
     minimapInteractive?: boolean;
+    /** Half-height minimap — for slim reels where the full map would out-weigh the tape. */
+    minimapCompact?: boolean;
     zoomMultiple?: number;
     onZoomMultipleChange?: (zoomMultiple: number) => void;
     /** Desired initial zoom for the uncontrolled case (snapped to the nearest step).
@@ -300,6 +302,7 @@ export function AudioReel({
     expandedHeightOverride,
     showMinimapMode = "auto",
     minimapInteractive = true,
+    minimapCompact = false,
     zoomMultiple: controlledZoomMultiple,
     onZoomMultipleChange,
     initialZoomMultiple,
@@ -960,6 +963,7 @@ export function AudioReel({
                             onScrubStateChange={handleInteractionStateChange}
                             chrome={chrome}
                             interactive={minimapInteractive}
+                            compact={minimapCompact}
                             sharedAudioProgress={sharedAudioProgress}
                         />
                     ) : null}

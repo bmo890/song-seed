@@ -26,6 +26,9 @@ type Props = {
     onScrubStateChange?: (scrubbing: boolean) => void;
     chrome?: "dark" | "light";
     interactive?: boolean;
+    /** Half-height variant for the reading state's slim reel — the map stays a
+     *  navigator without out-weighing the tape it serves. */
+    compact?: boolean;
 };
 
 export function MinimapVisualizer({
@@ -47,9 +50,10 @@ export function MinimapVisualizer({
     onScrubStateChange,
     chrome = "dark",
     interactive = true,
+    compact = false,
 }: Props) {
     const [containerWidth, setContainerWidth] = useState(0);
-    const containerHeight = 40; // Fixed height minimap
+    const containerHeight = compact ? 20 : 40; // Fixed height minimap (halved in compact)
 
     const baseContentWidth = waveformPeaks.length * 3;
 
@@ -257,7 +261,10 @@ export function MinimapVisualizer({
     const composed = Gesture.Exclusive(pan, tap);
 
     return (
-        <View style={[styles.container, { backgroundColor: palette.backgroundColor }]} onLayout={onLayout}>
+        <View
+            style={[styles.container, { backgroundColor: palette.backgroundColor, height: containerHeight }]}
+            onLayout={onLayout}
+        >
             {containerWidth > 0 && wavePath && (
                 <GestureDetector gesture={interactive ? composed : Gesture.Tap()}>
                     <View style={StyleSheet.absoluteFill}>
