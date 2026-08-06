@@ -14,7 +14,9 @@ type PlayerHeaderSectionProps = {
   overdubLayerCount?: number;
   playerPosition: number;
   displayDuration: number;
-  mode: "player" | "practice" | "playalong";
+  /** Collapsed (practice / reading): title tucks into the nav row so the reel
+   *  and the open surface get the vertical room. */
+  collapsed: boolean;
   /** Finger-tracking drag-to-collapse — bound to the HEADER ONLY so it never
    *  contests the reel scrub, loop handles, sliders, or lyric scrolling below. */
   dragGesture: PanGesture;
@@ -29,7 +31,7 @@ export function PlayerHeaderSection({
   overdubLayerCount = 0,
   playerPosition,
   displayDuration,
-  mode,
+  collapsed,
   dragGesture,
   onMinimize,
   onOverflow,
@@ -58,10 +60,10 @@ export function PlayerHeaderSection({
     />
   );
 
-  // Collapsed (practice / play-along): title tucks into the nav row, metadata
-  // hidden, so the reel sits near the top and the lyrics / practice console get
-  // the vertical room.
-  if (mode !== "player") {
+  // Collapsed (practice / reading): title tucks into the nav row, metadata
+  // hidden, so the reel sits near the top and the open surface / practice
+  // console get the vertical room.
+  if (collapsed) {
     return (
       <GestureDetector gesture={dragGesture}>
         <View style={playerScreenStyles.headerBlock}>

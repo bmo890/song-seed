@@ -3,12 +3,12 @@ import { BackHandler, Dimensions, Platform, Pressable, Text, View } from "react-
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Gesture } from "react-native-gesture-handler";
-import { Easing, runOnJS, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
+import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
 import type { ClipSection, PracticeMarker } from "../../types";
 import { styles } from "../../styles";
 import { colors } from "../../design/tokens";
 import { useFullPlayerContext } from "../../hooks/FullPlayerProvider";
-import { fmtDuration } from "../../utils";
+import { fmtDuration, formatClipDate } from "../../utils";
 import { TransportLayout } from "../common/TransportLayout";
 import { useTransportScrubbing } from "../../hooks/useTransportScrubbing";
 import { usePlayerTransportClock } from "./hooks/usePlayerTransportClock";
@@ -38,7 +38,8 @@ import { PlayerPracticeDrawers } from "./components/PlayerPracticeDrawers";
 import { PlayerSupportSections } from "./components/PlayerSupportSections";
 import { HelpSheet } from "../common/HelpSheet";
 import { OVERDUB_HELP, PRACTICE_HELP } from "../common/helpContent";
-import { PlayAlongLyrics, PlayAlongSpeedControl } from "./components/PlayAlongLyrics";
+import { PlayerArtifactReader, PlayAlongSpeedControl } from "./components/PlayerArtifactReader";
+import { chartSummary, lyricChordSummary } from "./components/PlayerArtifactDoors";
 import { PlayerPinSheets } from "./components/PlayerPinSheets";
 import { playerScreenStyles } from "./styles";
 import { getVisibleTimelineRange } from "./helpers";
@@ -62,6 +63,28 @@ const EMPTY_SECTIONS: ClipSection[] = [];
 // fast flick (px/s) collapses it from anywhere.
 const SHEET_DISMISS_DISTANCE = Dimensions.get("window").height * 0.25;
 const SHEET_DISMISS_VELOCITY = 1200;
+
+/** Full view's stand-in for the reel: a hairline thread above the transport
+ *  carrying playback position, driven off the transport clock's shared values
+ *  so it rides the UI thread like the tape does. */
+function ProgressThread({
+  sharedCurrentTimeMs,
+  sharedDurationMs,
+}: {
+  sharedCurrentTimeMs: SharedValue<number>;
+  sharedDurationMs: SharedValue<number>;
+}) {
+  const fillStyle = useAnimatedStyle(() => {
+    const duration = sharedDurationMs.value;
+    const pct = duration > 0 ? Math.min(100, (sharedCurrentTimeMs.value / duration) * 100) : 0;
+    return { width: `${pct}%` };
+  });
+  return (
+    <View style={playerScreenStyles.progressThreadTrack} pointerEvents="none">
+      <Animated.View style={[playerScreenStyles.progressThreadFill, fillStyle]} />
+    </View>
+  );
+}
 
 /** Minimal navigation surface the player needs, provided by PlayerSheet: the
  *  player is a root-level sheet (not a route), so "goBack" means "collapse the
@@ -151,6 +174,41 @@ export function PlayerScreen({
     const lines = data.latestLyricsVersion?.document.lines ?? [];
     return lines.some((line) => line.chords.length > 0) ? lines : undefined;
   }, [data.latestLyricsVersion]);
+  // ---- Reading ladder (settled 2026-08-06) ----
+  // reading = an artifact holds the page (slim reel); fullView = the reel leaves
+  // and a hairline thread above the transport carries position instead.
+  const isReading = ui.mode === "player" && ui.readingArtifact !== null;
+  const isFullView = isReading && ui.readingAltitude === "full";
+  const chordSheet = playerIdea?.kind === "project" ? playerIdea.chordSheet ?? null : null;
+  const hasChart = useMemo(
+    () =>
+      !!chordSheet &&
+      chordSheet.sections.some((section) =>
+        section.kind === "text" ? !!section.text?.trim() : section.measures.length > 0
+      ),
+    [chordSheet]
+  );
+  const lyricsPreviewLine = useMemo(() => {
+    const firstLine = data.latestLyricsText
+      .split("\n")
+      .map((line) => line.trim())
+      .find((line) => line.length > 0);
+    return firstLine ?? "";
+  }, [data.latestLyricsText]);
+  const doorChordSummary = useMemo(() => lyricChordSummary(lyricsChordLines), [lyricsChordLines]);
+  const chartHandle = useMemo(
+    () => chartSummary(chordSheet, (count) => t("player.chartBars", { count })),
+    [chordSheet, t]
+  );
+  // Whispered version meta — "v1 · Jul 25", never a second-precision timestamp.
+  const lyricsMeta = useMemo(() => {
+    const updatedAt = data.latestLyricsVersion?.updatedAt;
+    if (!updatedAt) return null;
+    const version = playerIdea?.lyrics?.versions.length ?? 1;
+    return `v${version} · ${formatClipDate(updatedAt)}`;
+  }, [data.latestLyricsVersion?.updatedAt, playerIdea?.lyrics?.versions.length]);
+  // Marker visibility only matters when the clip has marks to show or hide.
+  const hasMarks = data.practiceMarkers.length > 0 || data.sections.length > 0;
   // While a pin is dragged/nudged we override its position locally so the reel moves live,
   // without writing the whole library snapshot to SQLite on every tick.
   const previewedMarkers = useMemo(() => {
@@ -460,6 +518,18 @@ export function PlayerScreen({
   useEffect(() => {
     clearMarksHistory();
   }, [clearMarksHistory, playerClip?.id]);
+  // Reading follows the SKETCH's artifacts: switching takes within one sketch
+  // keeps the page open (same words), but landing on a different idea closes it —
+  // otherwise a loose clip inherits the previous clip's empty reading surface.
+  const closeReading = ui.closeReading;
+  const readingIdeaRef = useRef<string | null>(null);
+  useEffect(() => {
+    const ideaId = playerIdea?.id ?? null;
+    if (readingIdeaRef.current !== null && readingIdeaRef.current !== ideaId) {
+      closeReading();
+    }
+    readingIdeaRef.current = ideaId;
+  }, [closeReading, playerIdea?.id]);
 
   const {
     newPinLabel,
@@ -828,7 +898,7 @@ export function PlayerScreen({
   const renderedTree = (
     <SafeAreaView style={[styles.screen, playerScreenStyles.screen]}>
       <TransportLayout
-        scrollable={ui.mode !== "playalong"}
+        scrollable={!isReading}
         header={
           <PlayerHeaderSection
             clipTitle={playerClip.title}
@@ -837,7 +907,7 @@ export function PlayerScreen({
             overdubLayerCount={data.clipOverdubStemCount}
             playerPosition={effectivePlayerPosition}
             displayDuration={effectivePlayerDuration}
-            mode={ui.mode}
+            collapsed={ui.mode === "practice" || isReading}
             dragGesture={dismissGesture}
             onMinimize={lifecycle.minimizePlayer}
             onOverflow={lifecycle.handleOverflowMenu}
@@ -845,19 +915,21 @@ export function PlayerScreen({
         }
         stickyTop={
           <View style={playerScreenStyles.stickyReel}>
-            {/* When the page header is collapsed (practice / play-along) it no longer
+            {/* When the page header is collapsed (practice / reading) it no longer
                 shows the timing, so surface a compact playhead / length row above the reel. */}
-            {ui.mode !== "player" ? (
+            {ui.mode === "practice" || isReading ? (
               <View style={playerScreenStyles.reelTimingRow}>
                 <Text style={playerScreenStyles.reelTimingText}>
                   {fmtDuration(effectivePlayerPosition)} / {fmtDuration(effectivePlayerDuration)}
                 </Text>
               </View>
             ) : null}
+            {!isFullView ? (
             <View style={playerScreenStyles.waveformSection}>
               <View style={playerScreenStyles.waveformShell}>
                 <PlayerTimeline
                   mode={ui.mode}
+                  readingSlim={isReading}
                   reelExpanded={ui.reelExpanded}
                   waveformPeaks={data.waveformPeaks}
                   waveformPending={data.waveformPending}
@@ -891,97 +963,157 @@ export function PlayerScreen({
                   practiceZoomMultiple={ui.practiceZoomMultiple}
                   onPracticeZoomMultipleChange={ui.setPracticeZoomMultiple}
                 />
-                {/* Expand/shrink floats in the reel's top-right corner, out of the toolbar. */}
-                <Pressable
-                  style={({ pressed }) => [
-                    playerScreenStyles.reelCornerButton,
-                    pressed ? playerScreenStyles.overflowButtonPressed : null,
-                  ]}
-                  onPress={() => ui.setReelExpanded((value) => !value)}
-                  hitSlop={6}
-                  accessibilityRole="button"
-                  accessibilityState={{ expanded: ui.reelExpanded }}
-                  accessibilityLabel={ui.reelExpanded ? t("player.shrinkWaveform") : t("player.expandWaveform")}
-                >
-                  <Ionicons
-                    name={ui.reelExpanded ? "contract-outline" : "expand-outline"}
-                    size={15}
-                    color={colors.textSecondary}
-                  />
-                </Pressable>
-              </View>
-            </View>
-
-            {/* Reel stays pinned above the scrollable tools. In play-along the row
-                becomes a label + Done; otherwise it carries markers / Play along / Tools. */}
-            <View style={playerScreenStyles.reelToolbar}>
-              {ui.mode === "playalong" ? (
-                // Same law as Tools: the mode's own pill stays lit while inside and
-                // tapping it again leaves. A second "Done" button was one big button
-                // too many — two big buttons means one of them is lying.
-                <>
+                {/* Expand/shrink floats in the reel's top-right corner, out of the
+                    toolbar. Hidden while reading — the slim reel has no room for
+                    corner chrome, and growth belongs to the artifact then. */}
+                {!isReading ? (
                   <Pressable
                     style={({ pressed }) => [
-                      playerScreenStyles.toolsPill,
-                      playerScreenStyles.toolsPillActive,
+                      playerScreenStyles.reelCornerButton,
                       pressed ? playerScreenStyles.overflowButtonPressed : null,
                     ]}
-                    onPress={() => ui.setMode("player")}
+                    onPress={() => ui.setReelExpanded((value) => !value)}
+                    hitSlop={6}
                     accessibilityRole="button"
-                    accessibilityState={{ selected: true }}
-                    accessibilityLabel={t("player.exitPlayAlong")}
+                    accessibilityState={{ expanded: ui.reelExpanded }}
+                    accessibilityLabel={ui.reelExpanded ? t("player.shrinkWaveform") : t("player.expandWaveform")}
                   >
-                    <Ionicons name="musical-notes" size={15} color={colors.onPrimary} />
-                    <Text style={[playerScreenStyles.toolsPillText, playerScreenStyles.toolsPillTextActive]}>
-                      {t("player.playAlong")}
-                    </Text>
+                    <Ionicons
+                      name={ui.reelExpanded ? "contract-outline" : "expand-outline"}
+                      size={15}
+                      color={colors.textSecondary}
+                    />
                   </Pressable>
-                  <PlayAlongSpeedControl
-                    speed={playbackSpeed}
-                    presets={PRACTICE_SPEED_PRESETS}
-                    min={PRACTICE_SPEED_MIN}
-                    max={PRACTICE_SPEED_MAX}
-                    onSelect={(value) => {
-                      if (guardPracticeTool("speed")) handleSpeedTap(value);
-                    }}
-                  />
-                </>
-              ) : (
+                ) : null}
+              </View>
+            </View>
+            ) : null}
+
+            {/* Reel stays pinned above the scrollable content. While reading, the row
+                becomes the artifact's bar: name/close, then follow · speed · Aa · full view. */}
+            <View style={playerScreenStyles.reelToolbar}>
+              {isReading ? (
                 <>
                   <Pressable
                     style={({ pressed }) => [
                       playerScreenStyles.reelExpandButton,
                       pressed ? playerScreenStyles.overflowButtonPressed : null,
                     ]}
-                    onPress={() => ui.setMarkersVisible((value) => !value)}
+                    onPress={ui.closeReading}
+                    hitSlop={6}
                     accessibilityRole="button"
-                    accessibilityState={{ checked: ui.markersVisible }}
-                    accessibilityLabel={ui.markersVisible ? t("player.hideMarkers") : t("player.showMarkers")}
+                    accessibilityLabel={t("player.closeReading")}
                   >
-                    <Ionicons
-                      name={ui.markersVisible ? "eye-outline" : "eye-off-outline"}
-                      size={14}
-                      color={colors.textSecondary}
-                    />
+                    <Ionicons name="chevron-up" size={14} color={colors.textSecondary} />
                     <Text style={playerScreenStyles.reelExpandText}>
-                      {ui.markersVisible ? t("player.hideMarkers") : t("player.showMarkers")}
+                      {ui.readingArtifact === "chart" ? t("screens.chart") : t("common.lyrics")}
                     </Text>
                   </Pressable>
                   <View style={playerScreenStyles.reelToolbarRight}>
-                    {data.hasProjectLyrics && ui.mode === "player" ? (
+                    {/* Follow (the old play-along): only offered where it can act. */}
+                    <Pressable
+                      style={({ pressed }) => [
+                        playerScreenStyles.readingChip,
+                        ui.followEnabled ? playerScreenStyles.readingChipActive : null,
+                        pressed ? playerScreenStyles.overflowButtonPressed : null,
+                      ]}
+                      onPress={() => ui.setFollowEnabled(!ui.followEnabled)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: ui.followEnabled }}
+                      accessibilityLabel={t("player.playAlongLyrics")}
+                    >
+                      <Ionicons
+                        name={ui.followEnabled ? "musical-notes" : "musical-notes-outline"}
+                        size={14}
+                        color={ui.followEnabled ? colors.primaryDeep : colors.textSecondary}
+                      />
+                      <Text
+                        style={[
+                          playerScreenStyles.readingChipText,
+                          ui.followEnabled ? playerScreenStyles.readingChipTextActive : null,
+                        ]}
+                      >
+                        {t("player.playAlong")}
+                      </Text>
+                    </Pressable>
+                    {ui.followEnabled ? (
+                      <PlayAlongSpeedControl
+                        speed={playbackSpeed}
+                        presets={PRACTICE_SPEED_PRESETS}
+                        min={PRACTICE_SPEED_MIN}
+                        max={PRACTICE_SPEED_MAX}
+                        onSelect={(value) => {
+                          if (guardPracticeTool("speed")) handleSpeedTap(value);
+                        }}
+                      />
+                    ) : ui.readingArtifact === "lyrics" ? (
+                      // Aa cycles the text size — a dial would out-weigh the job.
                       <Pressable
                         style={({ pressed }) => [
-                          playerScreenStyles.toolsPill,
+                          playerScreenStyles.readingIconButton,
                           pressed ? playerScreenStyles.overflowButtonPressed : null,
                         ]}
-                        onPress={() => ui.setMode("playalong")}
+                        onPress={() => {
+                          haptic.tap();
+                          const presets = [1, 1.15, 1.3, 0.9];
+                          const index = presets.indexOf(ui.readingZoom);
+                          ui.setReadingZoom(presets[(index + 1) % presets.length] ?? 1);
+                        }}
+                        hitSlop={6}
                         accessibilityRole="button"
-                        accessibilityLabel={t("player.playAlongLyrics")}
+                        accessibilityLabel={t("player.lyricSize")}
                       >
-                        <Ionicons name="musical-notes-outline" size={15} color={colors.textSecondary} />
-                        <Text style={playerScreenStyles.toolsPillText}>{t("player.playAlong")}</Text>
+                        <Ionicons name="text" size={15} color={colors.textSecondary} />
                       </Pressable>
                     ) : null}
+                    <Pressable
+                      style={({ pressed }) => [
+                        playerScreenStyles.readingIconButton,
+                        pressed ? playerScreenStyles.overflowButtonPressed : null,
+                      ]}
+                      onPress={() =>
+                        ui.setReadingAltitude(isFullView ? "reading" : "full")
+                      }
+                      hitSlop={6}
+                      accessibilityRole="button"
+                      accessibilityState={{ expanded: isFullView }}
+                      accessibilityLabel={isFullView ? t("player.exitFullView") : t("player.fullView")}
+                    >
+                      <Ionicons
+                        name={isFullView ? "contract-outline" : "expand-outline"}
+                        size={15}
+                        color={colors.textSecondary}
+                      />
+                    </Pressable>
+                  </View>
+                </>
+              ) : (
+                <>
+                  {/* The eye only earns a place when the clip has marks to hide;
+                      the empty stand-in keeps Tools pinned to the trailing edge. */}
+                  {!hasMarks ? <View /> : null}
+                  {hasMarks ? (
+                    <Pressable
+                      style={({ pressed }) => [
+                        playerScreenStyles.reelExpandButton,
+                        pressed ? playerScreenStyles.overflowButtonPressed : null,
+                      ]}
+                      onPress={() => ui.setMarkersVisible((value) => !value)}
+                      accessibilityRole="button"
+                      accessibilityState={{ checked: ui.markersVisible }}
+                      accessibilityLabel={ui.markersVisible ? t("player.hideMarkers") : t("player.showMarkers")}
+                    >
+                      <Ionicons
+                        name={ui.markersVisible ? "eye-outline" : "eye-off-outline"}
+                        size={14}
+                        color={colors.textSecondary}
+                      />
+                      <Text style={playerScreenStyles.reelExpandText}>
+                        {ui.markersVisible ? t("player.hideMarkers") : t("player.showMarkers")}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                  <View style={playerScreenStyles.reelToolbarRight}>
                     <Pressable
                       style={({ pressed }) => [
                         playerScreenStyles.toolsPill,
@@ -1014,6 +1146,13 @@ export function PlayerScreen({
           </View>
         }
         footer={
+          <>
+            {isFullView ? (
+              <ProgressThread
+                sharedCurrentTimeMs={transportClock.sharedCurrentTimeMs}
+                sharedDurationMs={transportClock.sharedDurationMs}
+              />
+            ) : null}
           <PlayerFooterSection
             mode={ui.mode}
             playDisabled={false}
@@ -1029,13 +1168,18 @@ export function PlayerScreen({
             onToggleQueueExpanded={() => ui.setQueueExpanded((value) => !value)}
             onClose={lifecycle.stopSessionAndClose}
           />
+          </>
         }
       >
-        <View style={ui.mode === "playalong" ? playerScreenStyles.playAlongContent : playerScreenStyles.content}>
-          {ui.mode === "playalong" ? (
-            <PlayAlongLyrics
+        <View style={isReading ? playerScreenStyles.playAlongContent : playerScreenStyles.content}>
+          {isReading ? (
+            <PlayerArtifactReader
+              artifact={ui.readingArtifact!}
               text={data.latestLyricsText}
               chordLines={lyricsChordLines}
+              chordSheet={chordSheet}
+              zoom={ui.readingZoom}
+              followEnabled={ui.followEnabled}
               positionMs={effectivePlayerPosition}
               durationMs={effectivePlayerDuration}
               isPlaying={effectiveIsPlaying}
@@ -1131,12 +1275,25 @@ export function PlayerScreen({
             />
           ) : (
             <PlayerSupportSections
-              hasProjectLyrics={data.hasProjectLyrics}
-              latestLyricsText={data.latestLyricsText}
-              lyricsChordLines={lyricsChordLines}
-              lyricsVersionCount={playerIdea.lyrics?.versions.length ?? 1}
-              latestLyricsUpdatedAt={data.latestLyricsVersion?.updatedAt ?? null}
-              lyricsExpanded={ui.lyricsExpanded}
+              canAuthor={playerIdea.kind === "project"}
+              hasLyrics={data.hasProjectLyrics}
+              lyricsPreviewLine={lyricsPreviewLine}
+              lyricsChordSummary={doorChordSummary}
+              lyricsMeta={lyricsMeta}
+              hasChart={hasChart}
+              chartHandle={chartHandle}
+              onOpenLyrics={() => ui.openReading("lyrics")}
+              onOpenChart={() => ui.openReading("chart")}
+              // Interim CTA: land on the sketch's own tab. Writing against the
+              // tape (editor with the reel on top) is its own later phase.
+              onWriteLyrics={() => {
+                lifecycle.minimizePlayer();
+                navigation.navigate("IdeaDetail", { ideaId: playerIdea.id, initialSongTab: "lyrics" });
+              }}
+              onBuildChart={() => {
+                lifecycle.minimizePlayer();
+                navigation.navigate("IdeaDetail", { ideaId: playerIdea.id, initialSongTab: "chart" });
+              }}
               hasClipOverdubs={data.hasClipOverdubs}
               clipOverdubStemCount={data.clipOverdubStemCount}
               isOverdubPreviewRendering={isMixUpdating}
@@ -1166,7 +1323,6 @@ export function PlayerScreen({
               notesExpanded={ui.notesExpanded}
               queueEntries={data.queueEntries}
               queueExpanded={ui.queueExpanded}
-              onToggleLyricsExpanded={ui.setLyricsExpanded}
               onToggleNotesExpanded={ui.setNotesExpanded}
               onToggleQueueExpanded={ui.setQueueExpanded}
               onQueueOpenIdea={(ideaId) => {

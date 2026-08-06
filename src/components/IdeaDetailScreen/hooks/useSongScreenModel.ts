@@ -14,6 +14,12 @@ export function useSongScreenModel() {
   const route = useRoute<any>();
   const routeIdeaId = route.params?.ideaId;
   const startInEdit = !!route.params?.startInEdit;
+  const initialSongTab = route.params?.initialSongTab as
+    | "takes"
+    | "lyrics"
+    | "chart"
+    | "notes"
+    | undefined;
   const selectedIdeaId = useStore((s) => s.selectedIdeaId);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const setSelectedIdeaId = useStore((s) => s.setSelectedIdeaId);
@@ -48,7 +54,14 @@ export function useSongScreenModel() {
   const [clipTagFilter, setClipTagFilter] = useState<SongClipTagFilter>([]);
   const [clipGroupFilter, setClipGroupFilter] = useState<SongClipGroupFilter>([]);
   const [clipBookmarkedOnly, setClipBookmarkedOnly] = useState(false);
-  const [songTab, setSongTab] = useState<"takes" | "lyrics" | "chart" | "notes">("takes");
+  const [songTab, setSongTab] = useState<"takes" | "lyrics" | "chart" | "notes">(
+    initialSongTab ?? "takes"
+  );
+  // A later navigate to this (already-mounted) screen can request a tab — the
+  // player's door CTAs land on Lyrics/Chart this way.
+  useEffect(() => {
+    if (initialSongTab) setSongTab(initialSongTab);
+  }, [initialSongTab, routeIdeaId]);
   const [draftTitle, setDraftTitle] = useState("");
   const [draftStatus, setDraftStatus] = useState<IdeaStatus>("seed");
   const [draftCompletion, setDraftCompletion] = useState(0);

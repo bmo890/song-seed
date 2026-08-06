@@ -11,12 +11,23 @@ import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
 import { ChordChartLines } from "../../LyricsVersionScreen/components/chords/ChordChart";
-import type { LyricsLine } from "../../../types";
+import { ChordSheetSection } from "../../ChordSheetScreen/ChordSheetSection";
+import type { ChordSheet, LyricsLine } from "../../../types";
 import { useTranslation } from "react-i18next";
+import { UserText } from "../../../i18n";
+
+const noop = () => {};
 
 type Props = {
+  /** Which artifact is open — decides the body (lyric text / lyric chart / block chart). */
+  artifact: "lyrics" | "chart";
   text: string;
   chordLines?: LyricsLine[];
+  chordSheet?: ChordSheet | null;
+  /** Text-size multiplier from the reading bar's Aa control. */
+  zoom: number;
+  /** Follow (the old play-along): scroll in lock-step with the playhead. */
+  followEnabled: boolean;
   positionMs: number;
   durationMs: number;
   isPlaying: boolean;
@@ -26,19 +37,20 @@ type Props = {
 };
 
 /**
- * Play-along lyrics: the lyrics fill the screen and scroll in lock-step with the
- * playhead. The mapping is proportional — at X% through the song the lyrics sit
- * at X% of their scroll range — so it "follows the waveform" without any per-line
- * timing. A manual drag hands control back to the reader (follow pauses) until
- * they tap Resync.
- *
- * Smoothness: audio position updates arrive coarsely (every audio tick), so a
- * requestAnimationFrame loop extrapolates between samples using wall-clock time
- * and scrolls every frame — the same trick the waveform playhead uses.
+ * The open artifact of the reading ladder: lyrics (plain or chord chart) or the
+ * standalone block chart, filling the space the slim reel freed up. With follow
+ * on, the scroll maps proportionally to the playhead — at X% through the song
+ * the text sits at X% of its range — extrapolated per-frame between coarse audio
+ * ticks (same trick as the waveform playhead). A manual drag hands control back
+ * to the reader until they tap Resync.
  */
-export function PlayAlongLyrics({
+export function PlayerArtifactReader({
+  artifact,
   text,
   chordLines,
+  chordSheet,
+  zoom,
+  followEnabled,
   positionMs,
   durationMs,
   isPlaying,
@@ -48,14 +60,15 @@ export function PlayAlongLyrics({
   const scrollRef = useRef<ScrollView>(null);
   const [viewportHeight, setViewportHeight] = useState(0);
   const [contentHeight, setContentHeight] = useState(0);
-  const [following, setFollowing] = useState(true);
+  // True while follow is on AND the reader hasn't dragged away from it.
+  const [tracking, setTracking] = useState(true);
 
-  const showChart = !!chordLines && chordLines.some((line) => line.chords.length > 0);
+  const showLyricChart = artifact === "lyrics" && !!chordLines && chordLines.some((line) => line.chords.length > 0);
   const lines = useMemo(() => text.split("\n"), [text]);
 
   // Live values the rAF loop reads without re-subscribing each render.
   const maxOffsetRef = useRef(0);
-  const followingRef = useRef(following);
+  const trackingRef = useRef(followEnabled && tracking);
   const isPlayingRef = useRef(isPlaying);
   const durationRef = useRef(durationMs);
   const rateRef = useRef(playbackRate);
@@ -66,7 +79,7 @@ export function PlayAlongLyrics({
   const sampleWallRef = useRef(Date.now());
 
   maxOffsetRef.current = Math.max(0, contentHeight - viewportHeight);
-  followingRef.current = following;
+  trackingRef.current = followEnabled && tracking;
   isPlayingRef.current = isPlaying;
   durationRef.current = durationMs;
   rateRef.current = playbackRate > 0 ? playbackRate : 1;
@@ -76,13 +89,21 @@ export function PlayAlongLyrics({
     sampleWallRef.current = Date.now();
   }, [positionMs]);
 
+  // Switching follow on always re-arms tracking (and forces one fresh scroll).
+  useEffect(() => {
+    if (followEnabled) {
+      lastTargetRef.current = -1;
+      setTracking(true);
+    }
+  }, [followEnabled]);
+
   // One rAF loop for the component's life. It only moves the scroll while
-  // following; a manual takeover or a paused/empty track leaves it untouched.
+  // tracking; a manual takeover or a closed follow leaves it untouched.
   useEffect(() => {
     let raf = 0;
     const tick = () => {
       raf = requestAnimationFrame(tick);
-      if (!followingRef.current) return;
+      if (!trackingRef.current) return;
       const duration = durationRef.current;
       const maxOffset = maxOffsetRef.current;
       if (duration <= 0 || maxOffset <= 0) return;
@@ -104,21 +125,53 @@ export function PlayAlongLyrics({
     setViewportHeight(e.nativeEvent.layout.height);
 
   // A drag means the reader took over — stop following until they resync.
-  const handleScrollBeginDrag = () => setFollowing(false);
+  const handleScrollBeginDrag = () => setTracking(false);
 
   const resync = useCallback(() => {
     lastTargetRef.current = -1; // force the next tick to scroll
-    setFollowing(true);
+    setTracking(true);
   }, []);
 
-  if (!text.trim()) {
-    return (
-      <View style={styles.empty}>
-        <Ionicons name="musical-notes-outline" size={26} color={colors.textMuted} />
-        <Text style={styles.emptyText}>{t("player.noLyrics")}</Text>
-      </View>
+  const body =
+    artifact === "chart" ? (
+      chordSheet && chordSheet.sections.length > 0 ? (
+        chordSheet.sections.map((section) =>
+          section.kind === "text" ? (
+            <UserText key={section.id} value={section.text ?? ""} style={styles.chartText}>
+              {section.text ?? ""}
+            </UserText>
+          ) : (
+            <ChordSheetSection
+              key={section.id}
+              section={section}
+              editable={false}
+              selectionActive={false}
+              selectedMeasureIds={[]}
+              onTapMeasure={noop}
+              onLongPressMeasure={noop}
+              onAddMeasure={noop}
+              onNotes={noop}
+              onOpenMenu={noop}
+            />
+          )
+        )
+      ) : null
+    ) : showLyricChart ? (
+      <ChordChartLines lines={chordLines!} editable={false} zoom={zoom} />
+    ) : (
+      lines.map((line, i) =>
+        line.trim() ? (
+          <Text
+            key={i}
+            style={[styles.line, { fontSize: 20 * zoom, lineHeight: 34 * zoom }]}
+          >
+            {line}
+          </Text>
+        ) : (
+          <View key={i} style={styles.blankLine} />
+        )
+      )
     );
-  }
 
   return (
     <View style={styles.root}>
@@ -132,22 +185,10 @@ export function PlayAlongLyrics({
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
       >
-        {showChart ? (
-          <ChordChartLines lines={chordLines!} editable={false} />
-        ) : (
-          lines.map((line, i) =>
-            line.trim() ? (
-              <Text key={i} style={styles.line}>
-                {line}
-              </Text>
-            ) : (
-              <View key={i} style={styles.blankLine} />
-            )
-          )
-        )}
+        {body}
       </ScrollView>
 
-      {!following ? (
+      {followEnabled && !tracking ? (
         <Pressable
           style={({ pressed }) => [styles.resync, pressed ? appStyles.pressDown : null]}
           onPress={resync}
@@ -162,8 +203,9 @@ export function PlayAlongLyrics({
   );
 }
 
-/** Compact −/＋ speed stepper for the play-along bar. Steps through the shared
- * practice presets; the playhead-synced scroll follows the new rate for free. */
+/** Compact −/＋ speed stepper for the reading bar while follow is on. Steps
+ * through the shared practice presets; the playhead-synced scroll follows the
+ * new rate for free. */
 export function PlayAlongSpeedControl({
   speed,
   presets,
@@ -234,19 +276,24 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.md,
     // Generous tail so the final lines can still scroll up into view at 100%.
     paddingBottom: 160,
   },
-  // Music-stand size: readable with the phone propped an arm's length away.
   line: {
     fontFamily: "Lora_500Medium",
-    fontSize: 24,
-    lineHeight: 40,
     color: colors.textPrimary,
   },
   blankLine: {
     height: 18,
+  },
+  chartText: {
+    fontFamily: "Lora_500Medium",
+    fontSize: 15,
+    lineHeight: 24,
+    fontStyle: "italic",
+    color: colors.textSecondary,
+    marginVertical: spacing.sm,
   },
   // Soft key in the primary tier (tonal wash + deep ink) — solid primary is
   // reserved for the single highest-stakes commit, which a re-follow is not.
@@ -268,31 +315,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.primaryDeep,
   },
-  empty: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-  },
-  emptyText: {
-    ...textTokens.supporting,
-  },
   speed: {
     flexDirection: "row",
     alignItems: "center",
-    height: 34,
-    paddingHorizontal: 4,
-    borderRadius: radii.round,
+    height: 32,
+    paddingHorizontal: 2,
+    borderRadius: radii.lg,
     backgroundColor: colors.surfaceContainer,
   },
   speedBtn: {
-    width: 30,
-    height: 34,
+    width: 28,
+    height: 32,
     alignItems: "center",
     justifyContent: "center",
   },
   speedValue: {
-    minWidth: 46,
+    minWidth: 44,
     textAlign: "center",
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 13,

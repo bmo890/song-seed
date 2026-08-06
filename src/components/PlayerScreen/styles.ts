@@ -101,6 +101,46 @@ export const playerScreenStyles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
   },
+  // Reading bar (open artifact): quiet soft-key chips at radii.lg — the button
+  // language's tier for contextual controls, not the retired stadium pill.
+  readingChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    height: 32,
+    paddingHorizontal: 11,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surfaceContainer,
+  },
+  readingChipActive: {
+    backgroundColor: colors.primarySurface,
+  },
+  readingChipText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 12.5,
+    color: colors.textSecondary,
+  },
+  readingChipTextActive: {
+    color: colors.primaryDeep,
+  },
+  readingIconButton: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.lg,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceContainer,
+  },
+  // Full view's hairline stand-in for the reel: position as a quiet thread.
+  progressThreadTrack: {
+    height: 2,
+    backgroundColor: colors.borderSubtle,
+    overflow: "hidden",
+  },
+  progressThreadFill: {
+    height: 2,
+    backgroundColor: colors.primary,
+  },
   reelTimingRow: {
     flexDirection: "row",
     justifyContent: "flex-end",

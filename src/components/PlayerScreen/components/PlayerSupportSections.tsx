@@ -3,8 +3,8 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAudioPlayer } from "expo-audio";
 import { useThrottledAudioPlayerStatus } from "../../../hooks/useThrottledAudioPlayerStatus";
-import type { LyricsLine, RecordingGrid } from "../../../types";
-import { PlayerLyricsPanel } from "../PlayerLyricsPanel";
+import type { RecordingGrid } from "../../../types";
+import { PlayerArtifactDoors } from "./PlayerArtifactDoors";
 import { QueuePanel } from "../../QueuePanel";
 import { BottomSheet } from "../../common/BottomSheet";
 import { styles as appStyles } from "../../../styles";
@@ -42,12 +42,18 @@ type OverdubStemEntry = {
 };
 
 type PlayerSupportSectionsProps = {
-  hasProjectLyrics: boolean;
-  latestLyricsText: string;
-  lyricsChordLines?: LyricsLine[];
-  lyricsVersionCount: number;
-  latestLyricsUpdatedAt: number | null;
-  lyricsExpanded: boolean;
+  /** Doors — only sketches carry readable artifacts. */
+  canAuthor: boolean;
+  hasLyrics: boolean;
+  lyricsPreviewLine: string;
+  lyricsChordSummary: string;
+  lyricsMeta: string | null;
+  hasChart: boolean;
+  chartHandle: string;
+  onOpenLyrics: () => void;
+  onOpenChart: () => void;
+  onWriteLyrics: () => void;
+  onBuildChart: () => void;
   hasClipOverdubs: boolean;
   clipOverdubStemCount: number;
   isOverdubPreviewRendering: boolean;
@@ -76,7 +82,6 @@ type PlayerSupportSectionsProps = {
   notesExpanded: boolean;
   queueEntries: QueueEntry[];
   queueExpanded: boolean;
-  onToggleLyricsExpanded: (value: boolean) => void;
   onToggleNotesExpanded: (value: boolean) => void;
   onToggleQueueExpanded: (value: boolean) => void;
   onQueueOpenIdea: (ideaId: string) => void;
@@ -115,12 +120,17 @@ const UtilityChip = React.memo(function UtilityChip({
 });
 
 export function PlayerSupportSections({
-  hasProjectLyrics,
-  latestLyricsText,
-  lyricsChordLines,
-  lyricsVersionCount,
-  latestLyricsUpdatedAt,
-  lyricsExpanded,
+  canAuthor,
+  hasLyrics,
+  lyricsPreviewLine,
+  lyricsChordSummary,
+  lyricsMeta,
+  hasChart,
+  chartHandle,
+  onOpenLyrics,
+  onOpenChart,
+  onWriteLyrics,
+  onBuildChart,
   hasClipOverdubs,
   clipOverdubStemCount,
   isOverdubPreviewRendering,
@@ -147,7 +157,6 @@ export function PlayerSupportSections({
   notesExpanded,
   queueEntries,
   queueExpanded,
-  onToggleLyricsExpanded,
   onToggleNotesExpanded,
   onToggleQueueExpanded,
   onQueueOpenIdea,
@@ -427,7 +436,6 @@ export function PlayerSupportSections({
     ]);
   }
 
-  const hasLyrics = hasProjectLyrics && latestLyricsUpdatedAt !== null;
   // The queue sheet renders for ANY active queue (even a single item) so the
   // always-present footer queue button is never a dead tap.
   const hasQueue = queueEntries.length > 0;
@@ -446,23 +454,20 @@ export function PlayerSupportSections({
 
   return (
     <View style={playerScreenStyles.supportStack}>
-      {hasLyrics ? (
-        <PlayerLyricsPanel
-          text={latestLyricsText}
-          chordLines={lyricsChordLines}
-          versionLabel={t("lyrics.version", { number: lyricsVersionCount })}
-          updatedAtLabel={formatDate(latestLyricsUpdatedAt!)}
-          autoscrollState={{
-            mode: "off",
-            currentTimeMs: 0,
-            durationMs: 0,
-            activeLineId: null,
-          }}
-          defaultExpanded={false}
-          expanded={lyricsExpanded}
-          onToggleExpanded={onToggleLyricsExpanded}
-        />
-      ) : null}
+      {/* Closed rung of the reading ladder: one door per artifact. */}
+      <PlayerArtifactDoors
+        canAuthor={canAuthor}
+        hasLyrics={hasLyrics}
+        lyricsPreviewLine={lyricsPreviewLine}
+        lyricsChordSummary={lyricsChordSummary}
+        lyricsMeta={lyricsMeta}
+        hasChart={hasChart}
+        chartHandle={chartHandle}
+        onOpenLyrics={onOpenLyrics}
+        onOpenChart={onOpenChart}
+        onWriteLyrics={onWriteLyrics}
+        onBuildChart={onBuildChart}
+      />
 
       {/* Quiet utility row: notes, layers, and the queue live behind a tap
           rather than each holding a permanent card. */}

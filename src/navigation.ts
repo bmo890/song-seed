@@ -58,7 +58,14 @@ export type WorkspaceStackParamList = {
 
 export type RootStackParamList = {
   Home: NavigatorScreenParams<HomeDrawerParamList> | undefined;
-  IdeaDetail: { ideaId?: string; startInEdit?: boolean } | undefined;
+  IdeaDetail:
+    | {
+        ideaId?: string;
+        startInEdit?: boolean;
+        /** Land on a specific sketch tab (the player's door CTAs use this). */
+        initialSongTab?: "takes" | "lyrics" | "chart" | "notes";
+      }
+    | undefined;
   Activity: { workspaceId?: string; collectionId?: string } | undefined;
   Recording: undefined;
   BluetoothCalibration: undefined;

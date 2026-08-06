@@ -38,7 +38,10 @@ type TransportClock = {
 };
 
 type Props = {
-  mode: "player" | "practice" | "playalong";
+  mode: "player" | "practice";
+  /** Reading rung of the ladder: the SAME reel, only thinner — bands, pins,
+   *  scrub and pinch-zoom all keep working while an artifact holds the page. */
+  readingSlim?: boolean;
   reelExpanded: boolean;
   waveformPeaks: number[];
   /** Peaks are a synthetic placeholder — draw the pending line instead of a fake wave. */
@@ -198,6 +201,7 @@ function LoopMoveHandle({
 
 function PlayerTimelineInner({
   mode,
+  readingSlim,
   reelExpanded,
   waveformPeaks,
   waveformPending,
@@ -272,23 +276,23 @@ function PlayerTimelineInner({
       chrome="light"
       showTransportControls={false}
       showExpandToggle={false}
-      showZoomControls={mode !== "playalong"}
+      // Slim reel keeps pinch-zoom but sheds the corner zoom chrome — no room.
+      showZoomControls={!readingSlim}
       zoomPlacement="overlay"
       showTimingRow={false}
       defaultExpanded={false}
       surfaceRadius={4}
       timelineHorizontalPadding={0}
       // Bigger reel in the default listening view (waveform as hero); smaller when Tools
-      // are open to leave room for the practice console. Horizontal precision in practice
-      // comes from zoom + minimap, not reel height.
+      // are open to leave room for the practice console; slimmest while an artifact is
+      // open for reading — the tape stays a live instrument, it just pays rent.
       collapsedHeightOverride={
-        reelExpanded ? 250 : mode === "practice" ? 128 : mode === "playalong" ? 112 : 184
+        readingSlim ? 64 : reelExpanded ? 250 : mode === "practice" ? 128 : 184
       }
       // Practice mode is controlled (parent owns the zoom). The normal player runs
       // UNCONTROLLED so the zoom buttons work and the duration-aware follow-window
-      // (initialZoomMultiple) applies — long songs open as a scrolling tape. Play-along
-      // stays pinned at 1x (whole clip, no zoom controls).
-      zoomMultiple={mode === "practice" ? practiceZoomMultiple : mode === "playalong" ? 1 : undefined}
+      // (initialZoomMultiple) applies — long songs open as a scrolling tape.
+      zoomMultiple={mode === "practice" ? practiceZoomMultiple : undefined}
       onZoomMultipleChange={mode === "practice" ? onPracticeZoomMultipleChange : undefined}
       // "auto" = show once zoomed past 1x, which is precisely when a thumb needs it: the
       // clip no longer fits the reel. It was pinned off outside practice mode, so the full
