@@ -22,6 +22,9 @@ export function usePlayerScreenUi() {
   const [readingArtifact, setReadingArtifact] = useState<ReadingArtifact | null>(null);
   const [readingAltitude, setReadingAltitude] = useState<ReadingAltitude>("reading");
   const [followEnabled, setFollowEnabled] = useState(false);
+  // Write-against-the-tape: the lyrics artifact open as an EDITOR (slim reel +
+  // loop stay live above the text). Only meaningful with readingArtifact "lyrics".
+  const [lyricsWriting, setLyricsWriting] = useState(false);
   // Text-size multiplier for the open artifact — persists across doors within a session.
   const [readingZoom, setReadingZoom] = useState(1);
   const [notesExpanded, setNotesExpanded] = useState(false);
@@ -50,6 +53,7 @@ export function usePlayerScreenUi() {
       setReadingArtifact(null);
       setReadingAltitude("reading");
       setFollowEnabled(false);
+      setLyricsWriting(false);
     }
   }, []);
 
@@ -57,12 +61,24 @@ export function usePlayerScreenUi() {
     setModeState("player");
     setReadingArtifact(artifact);
     setReadingAltitude("reading");
+    setLyricsWriting(false);
+  }, []);
+
+  // Writing pins the ladder at the reading altitude — the slim reel with its
+  // loop is the whole point of writing against the tape.
+  const openWriting = useCallback(() => {
+    setModeState("player");
+    setReadingArtifact("lyrics");
+    setReadingAltitude("reading");
+    setFollowEnabled(false);
+    setLyricsWriting(true);
   }, []);
 
   const closeReading = useCallback(() => {
     setReadingArtifact(null);
     setReadingAltitude("reading");
     setFollowEnabled(false);
+    setLyricsWriting(false);
   }, []);
 
   return {
@@ -77,6 +93,9 @@ export function usePlayerScreenUi() {
     setReadingZoom,
     openReading,
     closeReading,
+    lyricsWriting,
+    openWriting,
+    stopWriting: () => setLyricsWriting(false),
     reelExpanded,
     setReelExpanded,
     markersVisible,

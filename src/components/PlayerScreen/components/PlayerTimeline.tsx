@@ -55,6 +55,9 @@ type Props = {
   isPlayerPlaying: boolean;
   playbackRate: number;
   isScrubbing: boolean;
+  /** Loop visuals + handles live on the reel wherever a loop-bearing surface is
+   *  open — practice Tools, or the writing editor on the slim reel. */
+  loopActive?: boolean;
   transportClock: TransportClock;
   sharedAudioProgress?: SharedValue<number>;
   sharedPauseHoldMs?: SharedValue<number>;
@@ -215,6 +218,7 @@ function PlayerTimelineInner({
   isPlayerPlaying,
   playbackRate,
   isScrubbing,
+  loopActive = false,
   transportClock,
   sharedAudioProgress,
   sharedPauseHoldMs,
@@ -306,23 +310,21 @@ function PlayerTimelineInner({
       // player lost its only way to cross a zoomed clip quickly. Play-along has no zoom
       // controls, so auto stays quiet there on its own.
       showMinimapMode="auto"
-      freezeSelectedRangeWhenFullyVisible={mode === "practice" && practiceLoopEnabled}
-      selectedRanges={mode === "practice" && practiceLoopEnabled ? practiceLoopSelection : undefined}
+      freezeSelectedRangeWhenFullyVisible={loopActive}
+      selectedRanges={loopActive ? practiceLoopSelection : undefined}
       practiceMarkers={mode === "practice" ? practiceMarkers : undefined}
       sharedDraggingMarkerId={draggingMarkerId}
       sectionBands={sectionBands}
       grid={recordingGrid}
-      sharedSelectedRangeStartMs={mode === "practice" && practiceLoopEnabled ? sharedLoopPreviewStartMs : undefined}
-      sharedSelectedRangeEndMs={mode === "practice" && practiceLoopEnabled ? sharedLoopPreviewEndMs : undefined}
+      sharedSelectedRangeStartMs={loopActive ? sharedLoopPreviewStartMs : undefined}
+      sharedSelectedRangeEndMs={loopActive ? sharedLoopPreviewEndMs : undefined}
       selectedRangeType={previewRange?.type}
       renderOverlay={({ pixelsPerMs, timelineTranslateX, timelineScale, scale, sharedAudioProgress }) => (
         <View style={{ flex: 1, position: "relative" }}>
           {/* Section titles are drawn inside the reel's canvas (PlaybackTapeVisualizer) —
               part of the tape's own picture, so they can never slip against it. */}
-          {mode === "practice" ? (
-            <>
-              {practiceLoopEnabled ? (
-                <MultiTimeRangeSelector
+          {loopActive ? (
+            <MultiTimeRangeSelector
                   durationMs={durationMs}
                   pixelsPerMs={pixelsPerMs}
                   regions={practiceLoopSelection}
@@ -336,7 +338,9 @@ function PlayerTimelineInner({
                   onSeek={(timeMs) => void onSeek(timeMs)}
                   showVisuals={false}
                 />
-              ) : null}
+          ) : null}
+          {mode === "practice" ? (
+            <>
               <DragIndicatorLine
                 draggingMarkerId={draggingMarkerId}
                 draggingMarkerX={draggingMarkerX}
@@ -370,7 +374,7 @@ function PlayerTimelineInner({
               accessibilityLabel={layerMixerAccessibilityLabel}
             />
           ) : null}
-          {mode === "practice" && practiceLoopEnabled && previewRange ? (
+          {loopActive && previewRange ? (
             <LoopMoveHandle
               range={previewRange}
               durationMs={durationMs}

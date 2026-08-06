@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-type PlayerMode = "player" | "practice";
 type LoopTransportState = "idle" | "armed" | "looping" | "seeking_to_start";
 
 type LoopRange = {
@@ -14,7 +13,9 @@ type QueueSeekOptions = {
 
 type Args = {
   clipId?: string | null;
-  mode: PlayerMode;
+  /** True while a loop-bearing surface is open (practice Tools, or the
+   *  write-against-the-tape editor) — the controller only wraps then. */
+  loopSurfaceActive: boolean;
   durationMs: number;
   playerPosition: number;
   isPlayerPlaying: boolean;
@@ -108,7 +109,7 @@ function BASE_DEFAULT_LOOP_SPAN_MS_FALLBACK(durationMs: number) {
 
 export function usePracticeLoopController({
   clipId,
-  mode,
+  loopSurfaceActive,
   durationMs,
   playerPosition,
   isPlayerPlaying,
@@ -127,7 +128,7 @@ export function usePracticeLoopController({
   const [practiceLoopRange, setPracticeLoopRange] = useState<LoopRange>({ start: 0, end: 0 });
   const [isPinDragging, setIsPinDragging] = useState(false);
 
-  const modeRef = useRef(mode);
+  const loopSurfaceActiveRef = useRef(loopSurfaceActive);
   const durationMsRef = useRef(durationMs);
   const playerPositionRef = useRef(playerPosition);
   const isPlayerPlayingRef = useRef(isPlayerPlaying);
@@ -153,7 +154,7 @@ export function usePracticeLoopController({
   const loopUnlockToleranceMs = 60;
   const loopResumeToleranceMs = Math.max(loopUnlockToleranceMs, Math.round(140 * playbackRate));
 
-  modeRef.current = mode;
+  loopSurfaceActiveRef.current = loopSurfaceActive;
   durationMsRef.current = durationMs;
   playerPositionRef.current = playerPosition;
   isPlayerPlayingRef.current = isPlayerPlaying;
@@ -217,7 +218,7 @@ export function usePracticeLoopController({
     setLoopState("idle");
     queuedSeekMsRef.current = null;
     pendingUnlockTargetMsRef.current = null;
-  }, [clipId, mode, practiceLoopEnabled, practiceLoopRange.end, practiceLoopRange.start, setLoopState]);
+  }, [clipId, loopSurfaceActive, practiceLoopEnabled, practiceLoopRange.end, practiceLoopRange.start, setLoopState]);
 
   useEffect(() => {
     const unlockTargetMs = pendingUnlockTargetMsRef.current;
@@ -290,7 +291,7 @@ export function usePracticeLoopController({
     // region edited), so the conditions are re-checked at firing time, not trusted
     // from when it was booked.
     if (
-      modeRef.current !== "practice" ||
+      !loopSurfaceActiveRef.current ||
       !practiceLoopEnabledRef.current ||
       !isPlayerPlayingRef.current ||
       !hasValidPracticeLoopRef.current ||
@@ -326,7 +327,7 @@ export function usePracticeLoopController({
 
   useEffect(() => {
     if (
-      mode !== "practice" ||
+      !loopSurfaceActive ||
       !practiceLoopEnabled ||
       !isPlayerPlaying ||
       isScrubbing ||
@@ -400,7 +401,7 @@ export function usePracticeLoopController({
     isScrubbing,
     isWithinPracticeLoop,
     loopLeadMs,
-    mode,
+    loopSurfaceActive,
     playerPosition,
     practiceLoopEnabled,
     practiceLoopRange.end,
@@ -412,19 +413,19 @@ export function usePracticeLoopController({
   const handleLoopAwareSeek = useCallback(
     async (targetMs: number) => {
       const currentDurationMs = durationMsRef.current;
-      const currentMode = modeRef.current;
+      const currentLoopSurfaceActive = loopSurfaceActiveRef.current;
       const currentPracticeLoopEnabled = practiceLoopEnabledRef.current;
       const currentHasValidPracticeLoop = hasValidPracticeLoopRef.current;
       const currentIsPlayerPlaying = isPlayerPlayingRef.current;
       const clampedMs = Math.max(0, Math.min(targetMs, currentDurationMs || targetMs));
       const insideLoop =
-        currentMode === "practice" && currentPracticeLoopEnabled && currentHasValidPracticeLoop
+        currentLoopSurfaceActive && currentPracticeLoopEnabled && currentHasValidPracticeLoop
           ? isWithinPracticeLoop(clampedMs)
           : false;
 
       manualPracticeJumpRef.current = true;
       setLoopState(
-        currentMode === "practice" &&
+        currentLoopSurfaceActive &&
           currentPracticeLoopEnabled &&
           currentHasValidPracticeLoop &&
           currentIsPlayerPlaying &&
@@ -434,7 +435,7 @@ export function usePracticeLoopController({
       );
       await queueSeek(
         clampedMs,
-        currentMode === "practice" &&
+        currentLoopSurfaceActive &&
           currentPracticeLoopEnabled &&
           currentHasValidPracticeLoop &&
           currentIsPlayerPlaying &&
@@ -518,13 +519,13 @@ export function usePracticeLoopController({
       return;
     }
 
-    const currentMode = modeRef.current;
+    const currentLoopSurfaceActive = loopSurfaceActiveRef.current;
     const currentPracticeLoopEnabled = practiceLoopEnabledRef.current;
     const currentHasValidPracticeLoop = hasValidPracticeLoopRef.current;
     const currentPlayerPosition = playerPositionRef.current;
     const currentPracticeLoopRange = practiceLoopRangeRef.current;
 
-    if (currentMode === "practice" && currentPracticeLoopEnabled && currentHasValidPracticeLoop) {
+    if (currentLoopSurfaceActive && currentPracticeLoopEnabled && currentHasValidPracticeLoop) {
       const shouldResumeFromManualPosition = manualPracticeJumpRef.current;
       const shouldStartInsideLoop = isWithinPracticeLoop(currentPlayerPosition);
 

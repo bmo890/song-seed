@@ -42,6 +42,7 @@ import { PlayerArtifactReader, PlayAlongSpeedControl } from "./components/Player
 import { chartSummary, lyricChordSummary } from "./components/PlayerArtifactDoors";
 import { PlayerPinSheets } from "./components/PlayerPinSheets";
 import { PlayerShelf } from "./components/PlayerShelf";
+import { PlayerLyricsWriter } from "./components/PlayerLyricsWriter";
 import { playerScreenStyles } from "./styles";
 import { getVisibleTimelineRange } from "./helpers";
 import { openIdeaInCollection } from "../../navigation";
@@ -179,7 +180,8 @@ export function PlayerScreen({
   // reading = an artifact holds the page (slim reel); fullView = the reel leaves
   // and a hairline thread above the transport carries position instead.
   const isReading = ui.mode === "player" && ui.readingArtifact !== null;
-  const isFullView = isReading && ui.readingAltitude === "full";
+  const isWriting = isReading && ui.readingArtifact === "lyrics" && ui.lyricsWriting;
+  const isFullView = isReading && !isWriting && ui.readingAltitude === "full";
   const chordSheet = playerIdea?.kind === "project" ? playerIdea.chordSheet ?? null : null;
   const hasChart = useMemo(
     () =>
@@ -416,7 +418,7 @@ export function PlayerScreen({
     movePracticeLoopToPlayhead,
   } = usePracticeLoopController({
     clipId: playerClip?.id,
-    mode: ui.mode,
+    loopSurfaceActive: ui.mode === "practice" || isWriting,
     durationMs: effectivePlayerDuration,
     playerPosition: effectivePlayerPosition,
     isPlayerPlaying: effectiveIsPlaying,
@@ -464,7 +466,7 @@ export function PlayerScreen({
   stepUpLoopCycleRef.current = stepUp.handleLoopCycle;
   const handleTransportToggleWithDisplaySync = useCallback(async () => {
     const loopControllerWillSeek =
-      ui.mode === "practice" && practiceLoopEnabled && hasValidPracticeLoop;
+      (ui.mode === "practice" || isWriting) && practiceLoopEnabled && hasValidPracticeLoop;
     const shouldDisplayRestart =
       !effectiveIsPlaying &&
       !loopControllerWillSeek &&
@@ -482,6 +484,7 @@ export function PlayerScreen({
     effectivePlayerPosition,
     handleTransportToggle,
     hasValidPracticeLoop,
+    isWriting,
     practiceLoopEnabled,
     practicePitchTransport.isOwningNativeTransport,
     transportClock,
@@ -807,6 +810,50 @@ export function PlayerScreen({
     if (isPracticeToolPro(tool) && !ensurePro("practice-suite")) return false;
     return true;
   }, []);
+  // Writing bar: quick loop scopes without opening Tools — the sections the take
+  // already has, or the whole take. Fine-tuning stays on the reel's own handles.
+  const handleLoopScopePick = useCallback(() => {
+    if (!guardPracticeTool("loop")) return;
+    AppAlert.custom(t("player.loopWhat"), "", [
+      ...data.sections.slice(0, 5).map((section) => ({
+        label: section.label,
+        onPress: () => handleLoopSection(section),
+      })),
+      {
+        label: t("player.wholeTake"),
+        onPress: () => {
+          setPracticeLoopRange({ start: 0, end: effectivePlayerDuration });
+          if (!practiceLoopEnabled) handlePracticeLoopToggle();
+        },
+      },
+      { label: t("common.cancel"), style: "cancel" as const },
+    ]);
+  }, [
+    data.sections,
+    effectivePlayerDuration,
+    guardPracticeTool,
+    handleLoopSection,
+    handlePracticeLoopToggle,
+    practiceLoopEnabled,
+    setPracticeLoopRange,
+    t,
+  ]);
+  // The new-version escape while writing: fork the words, or start clean.
+  const handleNewLyricVersionWhileWriting = useCallback(() => {
+    if (!playerIdea) return;
+    AppAlert.custom(t("player.newVersionTitle"), t("player.newVersionBody"), [
+      {
+        label: t("player.newVersionFromCurrent"),
+        onPress: () =>
+          appActions.saveProjectLyricsAsNewVersion(playerIdea.id, data.latestLyricsText),
+      },
+      {
+        label: t("player.newVersionBlank"),
+        onPress: () => appActions.saveProjectLyricsAsNewVersion(playerIdea.id, ""),
+      },
+      { label: t("common.cancel"), style: "cancel" as const },
+    ]);
+  }, [data.latestLyricsText, playerIdea, t]);
   const handleSaveAsOneClip = useCallback(
     async (mode: "copy" | "replace") => {
       if (!playerIdea || !playerClip) return;
@@ -950,6 +997,7 @@ export function PlayerScreen({
                   practiceMarkers={ui.markersVisible ? previewedMarkers : EMPTY_MARKERS}
                   sections={ui.markersVisible ? previewedSections : EMPTY_SECTIONS}
                   recordingGrid={playerClip.recordingGrid ?? null}
+                  loopActive={practiceLoopEnabled && (ui.mode === "practice" || isWriting)}
                   overdubLayerLanes={overdubLayerLanes}
                   // The lane IS the mixer's door — but only where the sheet exists
                   // to open (player mode mounts the support sections that host it).
@@ -1008,7 +1056,7 @@ export function PlayerScreen({
                       playerScreenStyles.reelExpandButton,
                       pressed ? playerScreenStyles.overflowButtonPressed : null,
                     ]}
-                    onPress={ui.closeReading}
+                    onPress={isWriting ? ui.stopWriting : ui.closeReading}
                     hitSlop={6}
                     accessibilityRole="button"
                     accessibilityLabel={t("player.closeReading")}
@@ -1018,6 +1066,81 @@ export function PlayerScreen({
                       {ui.readingArtifact === "chart" ? t("screens.chart") : t("common.lyrics")}
                     </Text>
                   </Pressable>
+                  {isWriting ? (
+                    <View style={playerScreenStyles.reelToolbarRight}>
+                      {/* Loop: the writer's companion — keep a part going while words come. */}
+                      <Pressable
+                        style={({ pressed }) => [
+                          playerScreenStyles.readingChip,
+                          practiceLoopEnabled ? playerScreenStyles.readingChipActive : null,
+                          pressed ? playerScreenStyles.overflowButtonPressed : null,
+                        ]}
+                        onPress={() => {
+                          if (guardPracticeTool("loop")) handlePracticeLoopToggle();
+                        }}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: practiceLoopEnabled }}
+                        accessibilityLabel={t("player.loop")}
+                      >
+                        <Ionicons
+                          name="repeat"
+                          size={14}
+                          color={practiceLoopEnabled ? colors.primaryDeep : colors.textSecondary}
+                        />
+                        <Text
+                          style={[
+                            playerScreenStyles.readingChipText,
+                            practiceLoopEnabled ? playerScreenStyles.readingChipTextActive : null,
+                          ]}
+                        >
+                          {t("player.loop")}
+                        </Text>
+                      </Pressable>
+                      {data.sections.length > 0 ? (
+                        <Pressable
+                          style={({ pressed }) => [
+                            playerScreenStyles.readingIconButton,
+                            pressed ? playerScreenStyles.overflowButtonPressed : null,
+                          ]}
+                          onPress={handleLoopScopePick}
+                          hitSlop={6}
+                          accessibilityRole="button"
+                          accessibilityLabel={t("player.loopWhat")}
+                        >
+                          <Ionicons name="albums-outline" size={15} color={colors.textSecondary} />
+                        </Pressable>
+                      ) : null}
+                      <Pressable
+                        style={({ pressed }) => [
+                          playerScreenStyles.readingIconButton,
+                          pressed ? playerScreenStyles.overflowButtonPressed : null,
+                        ]}
+                        onPress={handleNewLyricVersionWhileWriting}
+                        hitSlop={6}
+                        accessibilityRole="button"
+                        accessibilityLabel={t("player.newVersionTitle")}
+                      >
+                        <Ionicons name="duplicate-outline" size={15} color={colors.textSecondary} />
+                      </Pressable>
+                      {/* Transport lives here while the keyboard buries the footer. */}
+                      <Pressable
+                        style={({ pressed }) => [
+                          playerScreenStyles.readingIconButton,
+                          pressed ? playerScreenStyles.overflowButtonPressed : null,
+                        ]}
+                        onPress={handleTogglePlayWithCountIn}
+                        hitSlop={6}
+                        accessibilityRole="button"
+                        accessibilityLabel={effectiveIsPlaying ? t("common.pause") : t("common.play")}
+                      >
+                        <Ionicons
+                          name={effectiveIsPlaying ? "pause" : "play"}
+                          size={15}
+                          color={colors.primaryDeep}
+                        />
+                      </Pressable>
+                    </View>
+                  ) : (
                   <View style={playerScreenStyles.reelToolbarRight}>
                     {/* Follow (the old play-along): only offered where it can act. */}
                     <Pressable
@@ -1075,6 +1198,21 @@ export function PlayerScreen({
                         <Ionicons name="text" size={15} color={colors.textSecondary} />
                       </Pressable>
                     ) : null}
+                    {playerIdea.kind === "project" && ui.readingArtifact === "lyrics" ? (
+                      // Read → notice a line → fix it against the same tape.
+                      <Pressable
+                        style={({ pressed }) => [
+                          playerScreenStyles.readingIconButton,
+                          pressed ? playerScreenStyles.overflowButtonPressed : null,
+                        ]}
+                        onPress={ui.openWriting}
+                        hitSlop={6}
+                        accessibilityRole="button"
+                        accessibilityLabel={t("player.editLyrics")}
+                      >
+                        <Ionicons name="create-outline" size={15} color={colors.textSecondary} />
+                      </Pressable>
+                    ) : null}
                     <Pressable
                       style={({ pressed }) => [
                         playerScreenStyles.readingIconButton,
@@ -1095,6 +1233,7 @@ export function PlayerScreen({
                       />
                     </Pressable>
                   </View>
+                  )}
                 </>
               ) : (
                 <>
@@ -1188,7 +1327,15 @@ export function PlayerScreen({
         }
       >
         <View style={isReading ? playerScreenStyles.playAlongContent : playerScreenStyles.content}>
-          {isReading ? (
+          {isWriting ? (
+            <PlayerLyricsWriter
+              // Keyed on the version so a new-version fork reseeds the editor.
+              key={data.latestLyricsVersion?.id ?? "unwritten"}
+              ideaId={playerIdea.id}
+              initialText={data.latestLyricsText}
+              textDirection={data.latestLyricsVersion?.textDirection ?? "auto"}
+            />
+          ) : isReading ? (
             <PlayerArtifactReader
               artifact={ui.readingArtifact!}
               text={data.latestLyricsText}
@@ -1300,12 +1447,8 @@ export function PlayerScreen({
               chartHandle={chartHandle}
               onOpenLyrics={() => ui.openReading("lyrics")}
               onOpenChart={() => ui.openReading("chart")}
-              // Interim CTA: land on the sketch's own tab. Writing against the
-              // tape (editor with the reel on top) is its own later phase.
-              onWriteLyrics={() => {
-                lifecycle.minimizePlayer();
-                navigation.navigate("IdeaDetail", { ideaId: playerIdea.id, initialSongTab: "lyrics" });
-              }}
+              // "Write" opens against the tape — the whole point of the door.
+              onWriteLyrics={ui.openWriting}
               onBuildChart={() => {
                 lifecycle.minimizePlayer();
                 navigation.navigate("IdeaDetail", { ideaId: playerIdea.id, initialSongTab: "chart" });
