@@ -10,7 +10,6 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated";
 import { ensureWaveformSidecar } from "../../../services/waveformSidecar";
-import { formatClipOverdubStemOffsetLabel } from "../../../domain/overdub";
 import { fmtDuration } from "../../../utils";
 import { getMetronomeMeterPreset } from "../../../domain/metronome";
 import type { RecordingGrid } from "../../../types";
@@ -270,18 +269,14 @@ export function StemAlignmentOverlay({
 
   return (
     <View style={styles.wrap}>
+      {/* No legend: the grey wave is the master, the coloured wave is the layer — the
+          colours say it, and the ? sheet spells it out. Only the zoom toggle remains,
+          as quiet ink. */}
       <View style={styles.headerRow}>
-        <Text style={styles.legend}>
-          <Text style={styles.legendMaster}>▮ {t("player.master")}</Text>
-          {"   "}
-          <Text style={{ color: stemColor }}>▮ {t("player.thisLayer")}</Text>
-          {"   "}
-          {formatClipOverdubStemOffsetLabel(offsetMs)}
-          {gridTicks.length > 0 && recordingGrid ? `   · ${t("player.bpmGrid", { bpm: recordingGrid.bpm })}` : ""}
-        </Text>
         <Pressable
           style={({ pressed }) => [styles.zoomChip, pressed ? styles.pressed : null]}
           onPress={() => setZoomed((current) => !current)}
+          hitSlop={{ top: 6, bottom: 6 }}
           accessibilityRole="button"
           accessibilityLabel={zoomed ? t("player.showFullClip") : t("player.zoomLayer")}
         >
@@ -366,34 +361,24 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
+    justifyContent: "flex-end",
   },
-  legend: {
-    fontSize: 11,
-    color: colors.textSecondary,
-  },
-  legendMaster: {
-    color: "#b5a89f",
-  },
+  // Quiet ink — the zoom toggle is a whisper, not a chip.
   zoomChip: {
-    borderRadius: 4,
-    backgroundColor: "#efeae4",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
   },
   zoomChipText: {
     fontSize: 11,
     fontFamily: "PlusJakartaSans_600SemiBold",
-    color: "#5a4b45",
+    color: colors.textSecondary,
   },
   pressed: {
     opacity: 0.7,
   },
+  // No box: the bars sit on the page surface — whitespace does the framing.
   stage: {
     height: VIEW_HEIGHT,
-    borderRadius: 4,
-    backgroundColor: "#F7F4F0",
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",

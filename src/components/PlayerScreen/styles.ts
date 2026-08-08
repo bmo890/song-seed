@@ -128,6 +128,10 @@ export const playerScreenStyles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.surfaceContainer,
   },
+  // Bare glyph (sketch-page toolbar language): no fill — the icon alone is the button.
+  bareGlyphButton: {
+    padding: 6,
+  },
   // Full view's hairline stand-in for the reel: position as a quiet thread.
   progressThreadTrack: {
     height: 2,

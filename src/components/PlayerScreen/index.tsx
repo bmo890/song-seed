@@ -1344,7 +1344,7 @@ export function PlayerScreen({
                   <View style={playerScreenStyles.reelToolbarRight}>
                     <Pressable
                       style={({ pressed }) => [
-                        playerScreenStyles.readingIconButton,
+                        playerScreenStyles.bareGlyphButton,
                         pressed ? playerScreenStyles.overflowButtonPressed : null,
                       ]}
                       onPress={() => {
@@ -1355,11 +1355,11 @@ export function PlayerScreen({
                       accessibilityRole="button"
                       accessibilityLabel={t("player.recordNewLayer")}
                     >
-                      <Ionicons name="add" size={17} color={colors.primaryDeep} />
+                      <Ionicons name="add" size={18} color={colors.primaryDeep} />
                     </Pressable>
                     <Pressable
                       style={({ pressed }) => [
-                        playerScreenStyles.readingIconButton,
+                        playerScreenStyles.bareGlyphButton,
                         pressed ? playerScreenStyles.overflowButtonPressed : null,
                       ]}
                       onPress={() => setHelpTopic("overdub")}

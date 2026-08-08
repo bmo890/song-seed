@@ -109,7 +109,8 @@ export const OVERDUB_HELP: HelpContent = {
     {
       icon: "git-compare-outline",
       label: "Timing",
-      description: "Nudge a layer earlier or later by milliseconds while it plays, until it locks into the groove.",
+      description:
+        "The grey wave is the take, the coloured wave is the layer. Nudge or slide the layer while it plays, until it locks into the groove.",
     },
     {
       icon: "headset-outline",

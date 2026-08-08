@@ -48,6 +48,9 @@ const LANE_ALPHA_MUTED = 0.16;
  *  fraction of the shorter bar — a small edge overlap reads fine (labels sit at each
  *  bar's start), a real overlap forces a new row. */
 const SHARE_ROW_OVERLAP_FRACTION = 0.2;
+/** Room the sticky label keeps clear of the bar's tail, so pinning never pushes the
+ *  name past the bar it belongs to. */
+const LABEL_PIN_RESERVE_PX = 110;
 
 /** Greedy interval partitioning → row index per lane (temporal, so zoom-independent). */
 export function packOverdubLaneRows(lanes: OverdubLayerLane[]): {
@@ -167,10 +170,27 @@ function LaneBar({
     };
   });
 
+  // Sticky label: while the bar's head is scrolled off-screen, the name pins to the
+  // visible edge (clamped so it never escapes the bar's own end) — a lane in frame
+  // always says whose it is.
+  const labelStyle = useAnimatedStyle(() => {
+    const leftPx =
+      (lane.offsetMs + dragDeltaMs.value) * pixelsPerMs * timelineScale.value +
+      timelineTranslateX.value;
+    const widthPx = Math.max(3, lane.durationMs * pixelsPerMs * timelineScale.value);
+    const maxShiftPx = Math.max(0, widthPx - LABEL_PIN_RESERVE_PX);
+    return {
+      transform: [{ translateX: Math.min(Math.max(0, -leftPx), maxShiftPx) }],
+    };
+  });
+
   const content = (
-    <Text style={[laneStyles.label, lane.isMuted ? laneStyles.labelMuted : null]} numberOfLines={1}>
+    <Animated.Text
+      style={[laneStyles.label, lane.isMuted ? laneStyles.labelMuted : null, labelStyle]}
+      numberOfLines={1}
+    >
       {lane.isMuted ? `${lane.title} · muted` : lane.title}
-    </Text>
+    </Animated.Text>
   );
 
   const bar = (

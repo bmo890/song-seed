@@ -296,8 +296,9 @@ function PlayerTimelineInner({
       showExpandToggle={false}
       // Zoom is part of the reel's identity — the slim reel keeps the controls
       // and pinch alike; the minimap halves instead so navigation stays cheap.
+      // The bench halves it too: three stacked waveforms is one too many.
       showZoomControls
-      minimapCompact={readingSlim}
+      minimapCompact={readingSlim || mode === "layers"}
       zoomPlacement="overlay"
       showTimingRow={false}
       defaultExpanded={false}

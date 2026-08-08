@@ -100,12 +100,48 @@ type Props = {
   onCloseBench: () => void;
 };
 
+/** Circular icon key — the face row's toggles (Solo, Mute). Colour carries state:
+ *  quiet ink at rest, terracotta wash when the toggle is live. Words stay in the
+ *  accessibility labels. */
+function RoundKey({
+  icon,
+  active = false,
+  disabled = false,
+  onPress,
+  accessibilityLabel,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  active?: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+  accessibilityLabel: string;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        benchStyles.roundKey,
+        active ? benchStyles.roundKeyActive : null,
+        disabled ? benchStyles.keyDisabled : null,
+        pressed ? appStyles.pressDown : null,
+      ]}
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active, disabled }}
+      accessibilityLabel={accessibilityLabel}
+    >
+      <Ionicons name={icon} size={16} color={active ? colors.primaryDeep : colors.textStrong} />
+    </Pressable>
+  );
+}
+
 /** Soft key on the bench face — colour carries state, not heft. */
 function BenchKey({
   icon,
   label,
   active = false,
   disabled = false,
+  trailing = false,
   onPress,
   accessibilityLabel,
 }: {
@@ -113,6 +149,8 @@ function BenchKey({
   label: string;
   active?: boolean;
   disabled?: boolean;
+  /** Pushed to the row's far edge — the door sits apart from the verbs. */
+  trailing?: boolean;
   onPress: () => void;
   accessibilityLabel?: string;
 }) {
@@ -122,6 +160,7 @@ function BenchKey({
         benchStyles.key,
         active ? benchStyles.keyActive : null,
         disabled ? benchStyles.keyDisabled : null,
+        trailing ? benchStyles.keyTrailing : null,
         pressed ? appStyles.pressDown : null,
       ]}
       onPress={onPress}
@@ -682,16 +721,15 @@ export function PlayerLayersBench({
               onPress={togglePlayHere}
               accessibilityLabel={isAuditioning ? t("player.stopTogether") : t("player.playTogether")}
             />
-            <BenchKey
+            <RoundKey
               icon={soloActive && soloStatus.playing ? "pause" : "headset-outline"}
-              label={t("player.solo")}
               active={soloActive}
               disabled={!selectedStem.audioUri}
               onPress={() => void toggleSolo()}
+              accessibilityLabel={t("player.solo")}
             />
-            <BenchKey
+            <RoundKey
               icon={selectedStem.isMuted ? "volume-mute" : "volume-mute-outline"}
-              label={t("player.mute")}
               active={selectedStem.isMuted}
               onPress={() => {
                 haptic.tap(); // Vocabulary: tap = control toggles.
@@ -703,6 +741,7 @@ export function PlayerLayersBench({
               icon="options-outline"
               label={t("player.levels")}
               active={levelsOpen}
+              trailing
               onPress={() => {
                 haptic.tap(); // Vocabulary: tap = control toggles.
                 setLevelsOpen((current) => !current);
@@ -748,7 +787,9 @@ export function PlayerLayersBench({
             </View>
           </AnimatedCollapse>
 
-          {/* The micro strip: this layer against the master, nudge by nudge. */}
+          {/* The micro strip: this layer against the master, nudge by nudge. Strip and
+              nudges breathe as one unit; the groups around them get the air. */}
+          <View style={benchStyles.timingGroup}>
           <StemAlignmentOverlay
             masterAudioUri={rootAudioUri}
             masterDurationMs={rootDurationMs}
@@ -802,6 +843,7 @@ export function PlayerLayersBench({
               <Ionicons name="refresh-outline" size={12} color={colors.textSecondary} />
               <Text style={benchStyles.originalButtonText}>{t("player.original")}</Text>
             </Pressable>
+          </View>
           </View>
         </View>
       )}
@@ -968,7 +1010,10 @@ const benchStyles = StyleSheet.create({
     gap: spacing.md,
   },
   section: {
-    gap: 10,
+    gap: 14,
+  },
+  timingGroup: {
+    gap: 6,
   },
   headerRow: {
     flexDirection: "row",
@@ -1008,16 +1053,18 @@ const benchStyles = StyleSheet.create({
     justifyContent: "center",
     gap: 5,
     minHeight: 38,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     borderRadius: radii.lg,
     backgroundColor: colors.surfaceHigh,
-    flexGrow: 1,
   },
   keyActive: {
     backgroundColor: colors.primarySurface,
   },
   keyDisabled: {
     opacity: 0.45,
+  },
+  keyTrailing: {
+    marginStart: "auto",
   },
   keyText: {
     fontSize: 12,
@@ -1026,6 +1073,17 @@ const benchStyles = StyleSheet.create({
   },
   keyTextActive: {
     color: colors.primaryDeep,
+  },
+  roundKey: {
+    width: 38,
+    height: 38,
+    borderRadius: radii.round,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceHigh,
+  },
+  roundKeyActive: {
+    backgroundColor: colors.primarySurface,
   },
   soloScrubber: {
     width: "100%",
@@ -1085,15 +1143,14 @@ const benchStyles = StyleSheet.create({
     gap: 6,
     flexWrap: "wrap",
   },
+  // Quiet ink, not chips: nudges are tapped rhythmically — text invites that, fills don't.
   nudgeKey: {
-    paddingHorizontal: 9,
+    paddingHorizontal: 8,
     paddingVertical: 8,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surfaceHigh,
   },
   nudgeKeyText: {
-    fontSize: 11,
-    lineHeight: 14,
+    fontSize: 12,
+    lineHeight: 15,
     fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.textStrong,
     fontVariant: ["tabular-nums"],
