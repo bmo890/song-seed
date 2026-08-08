@@ -49,7 +49,8 @@ import {
     getClipOverdubRootSettings,
     getDefaultOverdubStemTitle,
     snapPunchInMsToGrid,
-    toggleLowCutTonePreset,
+    toggleToneFlag,
+    type OverdubToneFlag,
 } from "../domain/overdub";
 import { ensurePreviewAudioDirectory, importAudioAsset, loadManagedAudioMetadata, MANAGED_WAVEFORM_PEAK_COUNT } from "../services/audioStorage";
 import { renderMixedFile } from "../services/pitchShift";
@@ -1357,7 +1358,7 @@ export const appActions = {
         await scheduleClipOverdubRerender(ideaId, clipId, { force: true });
     },
 
-    toggleClipOverdubRootLowCut: async (ideaId: string, clipId: string) => {
+    toggleClipOverdubRootToneFlag: async (ideaId: string, clipId: string, flag: OverdubToneFlag) => {
         const state = useStore.getState();
         const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
         if (!match) {
@@ -1366,7 +1367,7 @@ export const appActions = {
 
         const rootSettings = getClipOverdubRootSettings(match.clip);
         state.updateClipOverdubRoot(ideaId, clipId, {
-            tonePreset: toggleLowCutTonePreset(rootSettings.tonePreset),
+            tonePreset: toggleToneFlag(rootSettings.tonePreset, flag),
         });
         await scheduleClipOverdubRerender(ideaId, clipId, { force: true });
     },
@@ -1427,11 +1428,16 @@ export const appActions = {
         await scheduleClipOverdubRerender(ideaId, clipId, { force: true });
     },
 
-    toggleClipOverdubStemLowCut: async (ideaId: string, clipId: string, stemId: string) => {
+    toggleClipOverdubStemToneFlag: async (
+        ideaId: string,
+        clipId: string,
+        stemId: string,
+        flag: OverdubToneFlag
+    ) => {
         const { state, stem } = resolveOverdubStem(ideaId, clipId, stemId);
 
         state.updateClipOverdubStem(ideaId, clipId, stemId, {
-            tonePreset: toggleLowCutTonePreset(stem.tonePreset),
+            tonePreset: toggleToneFlag(stem.tonePreset, flag),
         });
         await scheduleClipOverdubRerender(ideaId, clipId, { force: true });
     },

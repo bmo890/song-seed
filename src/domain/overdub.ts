@@ -62,8 +62,49 @@ export function buildCombinedClipTitle(_idea: SongIdea, clip: ClipVersion) {
   return `${clip.title} Mix`;
 }
 
-export function toggleLowCutTonePreset(current: string | undefined) {
-  return current === "low-cut" ? "neutral" : "low-cut";
+// ── Tone flags ───────────────────────────────────────────────────────────────
+// Tone is a SET of quick EQ switches under their real names (settled 2026-08-07),
+// encoded canonically as flags joined by "+" in the order below — "low-cut+hi-cut" —
+// with "neutral" standing for none. The single legacy values ("low-cut", and the never-
+// surfaced "warm"/"bright") parse as themselves, so no stored data needs migrating.
+export const OVERDUB_TONE_FLAGS = ["low-cut", "hi-cut", "mid-boost"] as const;
+export type OverdubToneFlag = (typeof OVERDUB_TONE_FLAGS)[number];
+
+export function parseToneFlags(preset: string | undefined): OverdubToneFlag[] {
+  if (!preset) {
+    return [];
+  }
+  const parts = preset.split("+");
+  return OVERDUB_TONE_FLAGS.filter((flag) => parts.includes(flag));
+}
+
+export function hasToneFlag(preset: string | undefined, flag: OverdubToneFlag): boolean {
+  return parseToneFlags(preset).includes(flag);
+}
+
+/** Canonical encoding for a flag set: fixed order, "+"-joined, "neutral" for none. */
+export function formatToneFlags(flags: readonly OverdubToneFlag[]): string {
+  const ordered = OVERDUB_TONE_FLAGS.filter((flag) => flags.includes(flag));
+  return ordered.length > 0 ? ordered.join("+") : "neutral";
+}
+
+export function toggleToneFlag(preset: string | undefined, flag: OverdubToneFlag): string {
+  const flags = parseToneFlags(preset);
+  return formatToneFlags(
+    flags.includes(flag) ? flags.filter((candidate) => candidate !== flag) : [...flags, flag]
+  );
+}
+
+/** Hydration guard: canonicalize whatever was persisted. Unknown values fall back to
+ *  "neutral"; the legacy singles "warm"/"bright" survive untouched (old data, no UI). */
+export function sanitizeTonePreset(value: unknown): string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return "neutral";
+  }
+  if (value === "neutral" || value === "warm" || value === "bright") {
+    return value;
+  }
+  return formatToneFlags(parseToneFlags(value));
 }
 
 /** Fine-alignment steps for nudging a stem against the guide (same interaction pattern

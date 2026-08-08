@@ -423,7 +423,10 @@ export type RecordingGrid = {
   source: RecordingGridSource;
 };
 
-export type ClipOverdubTonePreset = "neutral" | "low-cut" | "warm" | "bright";
+/** Tone is a set of EQ flags encoded canonically — "neutral", one flag ("low-cut"),
+ *  or a "+"-joined combination ("low-cut+hi-cut+mid-boost"); legacy singles
+ *  "warm"/"bright" remain valid. Parse/format via domain/overdub tone helpers. */
+export type ClipOverdubTonePreset = string;
 
 export type ClipOverdubRootSettings = {
   gainDb: number;

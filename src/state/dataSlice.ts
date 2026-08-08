@@ -50,6 +50,7 @@ import { createWordLadderExercise } from "../domain/wordLadder";
 import { createCutUpSpark } from "../domain/cutUp";
 import { createMagpieSpark } from "../domain/magpie";
 import { sanitizeChordSheet } from "../domain/chordSheet";
+import { sanitizeTonePreset } from "../domain/overdub";
 import { normalizeTempoMap, sanitizeTempoMap, tempoMapEquals, type TempoMap } from "../domain/tempoMap";
 import { genChildClipTitle, genId, genRootClipTitle } from "../utils";
 import { buildClipGraph } from "../domain/clipGraph";
@@ -321,17 +322,9 @@ const MAX_ACTIVITY_EVENTS = 2000;
 const buildCollectionId = () => genId("col");
 
 function normalizeClipOverdubRootSettings(root?: ClipOverdubRootSettings | null): ClipOverdubRootSettings {
-    const tonePreset =
-        root?.tonePreset === "low-cut" ||
-        root?.tonePreset === "warm" ||
-        root?.tonePreset === "bright" ||
-        root?.tonePreset === "neutral"
-            ? root.tonePreset
-            : "neutral";
-
     return {
         gainDb: Number.isFinite(root?.gainDb) ? Number(root?.gainDb) : 0,
-        tonePreset,
+        tonePreset: sanitizeTonePreset(root?.tonePreset),
     };
 }
 
@@ -663,13 +656,7 @@ function normalizeClipOverdubStem(stem: ClipOverdubStem | undefined, index: numb
         return null;
     }
 
-    const tonePreset =
-        stem.tonePreset === "low-cut" ||
-        stem.tonePreset === "warm" ||
-        stem.tonePreset === "bright" ||
-        stem.tonePreset === "neutral"
-            ? stem.tonePreset
-            : "neutral";
+    const tonePreset = sanitizeTonePreset(stem.tonePreset);
     const audioUri = typeof stem.audioUri === "string" && stem.audioUri.length > 0 ? stem.audioUri : undefined;
 
     return {

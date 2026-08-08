@@ -7,7 +7,10 @@ import type { AudioStatus } from "expo-audio";
 import { useSharedValue, type SharedValue } from "react-native-reanimated";
 import { useThrottledAudioPlayerStatus } from "../../../hooks/useThrottledAudioPlayerStatus";
 import { StemAlignmentOverlay } from "./StemAlignmentOverlay";
-import { EditLayerModal } from "./OverdubLayerCard";
+import { WarmModal } from "../../common/WarmModal";
+import { HueSlider } from "../../common/HueSlider";
+import { hexToHue, hueToAccentHex } from "../../../domain/workspaceTheme";
+import { UserTextInput } from "../../../i18n";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
 import { AnimatedCollapse } from "../../common/AnimatedCollapse";
@@ -15,11 +18,14 @@ import { useOverdubAlignmentAudition } from "../hooks/useOverdubAlignmentAuditio
 import { activateAndPlay, replacePlaybackSource } from "../../../services/transportPlayback";
 import {
   formatClipOverdubStemOffsetLabel,
+  hasToneFlag,
   OVERDUB_GAIN_MAX_DB,
   OVERDUB_GAIN_MIN_DB,
   OVERDUB_STEM_NUDGE_STEP_LARGE_MS,
   OVERDUB_STEM_NUDGE_STEP_SMALL_MS,
+  OVERDUB_TONE_FLAGS,
   overdubGainDbToPlayerVolume,
+  type OverdubToneFlag,
 } from "../../../domain/overdub";
 import { snapToGrid } from "../../../domain/gridRuler";
 import type { RecordingGrid } from "../../../types";
@@ -77,15 +83,18 @@ type Props = {
   transportClock: BenchTransportClock;
   /** Where the main transport rests — the playhead returns here when bench audio stops. */
   getRestingPositionMs: () => number;
+  /** Second-granularity position for the header's mm:ss readout while bench audio is
+   *  what's sounding; null hands the readout back to the main transport. */
+  onDisplayPositionChange?: (ms: number | null) => void;
   onPauseMainPlayback: () => Promise<void>;
   onAdjustRootGain: (deltaDb: number) => void;
-  onToggleRootLowCut: () => void;
+  onToggleRootToneFlag: (flag: OverdubToneFlag) => void;
   onAdjustStemGain: (stemId: string, deltaDb: number) => void;
   onNudgeStem: (stemId: string, deltaMs: number) => void;
   onRenameStem: (stemId: string, title: string) => void;
   onChangeStemColor: (stemId: string, color: string) => void;
   onToggleStemMute: (stemId: string) => void;
-  onToggleStemLowCut: (stemId: string) => void;
+  onToggleStemToneFlag: (stemId: string, flag: OverdubToneFlag) => void;
   onRemoveStem: (stemId: string) => void;
   onSaveAsOneClip: (mode: "copy" | "replace") => void;
   onCloseBench: () => void;
@@ -133,8 +142,41 @@ function BenchKey({
   );
 }
 
+/** i18n keys for the tone flags, in the flags' own canonical order. */
+const TONE_FLAG_LABEL_KEYS: Record<OverdubToneFlag, string> = {
+  "low-cut": "player.lowCut",
+  "hi-cut": "player.hiCut",
+  "mid-boost": "player.midBoost",
+};
+
+/** The tone row: quick EQ switches under their real names, multi-select. */
+function ToneFlagRow({
+  tonePreset,
+  onToggleFlag,
+}: {
+  tonePreset: string;
+  onToggleFlag: (flag: OverdubToneFlag) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <View style={benchStyles.toneRow}>
+      {OVERDUB_TONE_FLAGS.map((flag) => (
+        <ToneInk
+          key={flag}
+          label={t(TONE_FLAG_LABEL_KEYS[flag])}
+          active={hasToneFlag(tonePreset, flag)}
+          onPress={() => {
+            haptic.tap(); // Vocabulary: tap = control toggles.
+            onToggleFlag(flag);
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
 /** Editorial ink toggle (word + leading dot, hollow → terracotta) — the tone row's
- *  multi-select language. One switch today (Low cut); the row grows with the engine. */
+ *  multi-select language. */
 function ToneInk({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return (
     <Pressable
@@ -217,15 +259,16 @@ export function PlayerLayersBench({
   isMainPlaybackPlaying,
   transportClock,
   getRestingPositionMs,
+  onDisplayPositionChange,
   onPauseMainPlayback,
   onAdjustRootGain,
-  onToggleRootLowCut,
+  onToggleRootToneFlag,
   onAdjustStemGain,
   onNudgeStem,
   onRenameStem,
   onChangeStemColor,
   onToggleStemMute,
-  onToggleStemLowCut,
+  onToggleStemToneFlag,
   onRemoveStem,
   onSaveAsOneClip,
   onCloseBench,
@@ -376,6 +419,40 @@ export function PlayerLayersBench({
       releaseReel();
     };
   }, [releaseReel]);
+
+  // Header readout: while bench audio runs, sample the strip playhead at second
+  // granularity — one commit per displayed second, the same cadence the main
+  // transport's mm:ss already renders at.
+  const lastSentSecondRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!onDisplayPositionChange) {
+      return;
+    }
+    if (!benchAudible) {
+      lastSentSecondRef.current = null;
+      onDisplayPositionChange(null);
+      return;
+    }
+    const tick = () => {
+      const ms = sharedStripPlayheadMs.value;
+      if (ms < 0) {
+        return;
+      }
+      const second = Math.floor(ms / 1000);
+      if (lastSentSecondRef.current === second) {
+        return;
+      }
+      lastSentSecondRef.current = second;
+      onDisplayPositionChange(ms);
+    };
+    tick();
+    const interval = setInterval(tick, 250);
+    return () => {
+      clearInterval(interval);
+      lastSentSecondRef.current = null;
+      onDisplayPositionChange(null);
+    };
+  }, [benchAudible, onDisplayPositionChange, sharedStripPlayheadMs]);
 
   // Main playback wins — never two transports at once.
   useEffect(() => {
@@ -569,16 +646,7 @@ export function PlayerLayersBench({
           {rootSettings ? (
             <>
               <GainSliderRow gainDb={rootSettings.gainDb} onCommitGain={onAdjustRootGain} />
-              <View style={benchStyles.toneRow}>
-                <ToneInk
-                  label={t("player.lowCut")}
-                  active={rootSettings.tonePreset === "low-cut"}
-                  onPress={() => {
-                    haptic.tap(); // Vocabulary: tap = control toggles.
-                    onToggleRootLowCut();
-                  }}
-                />
-              </View>
+              <ToneFlagRow tonePreset={rootSettings.tonePreset} onToggleFlag={onToggleRootToneFlag} />
             </>
           ) : null}
         </View>
@@ -673,16 +741,10 @@ export function PlayerLayersBench({
                 gainDb={selectedStem.gainDb}
                 onCommitGain={(delta) => onAdjustStemGain(selectedStem.id, delta)}
               />
-              <View style={benchStyles.toneRow}>
-                <ToneInk
-                  label={t("player.lowCut")}
-                  active={selectedStem.tonePreset === "low-cut"}
-                  onPress={() => {
-                    haptic.tap(); // Vocabulary: tap = control toggles.
-                    onToggleStemLowCut(selectedStem.id);
-                  }}
-                />
-              </View>
+              <ToneFlagRow
+                tonePreset={selectedStem.tonePreset}
+                onToggleFlag={(flag) => onToggleStemToneFlag(selectedStem.id, flag)}
+              />
             </View>
           </AnimatedCollapse>
 
@@ -777,7 +839,131 @@ export function PlayerLayersBench({
   );
 }
 
+/** Name + color editor for a layer, combined into one Edit action — the same HueSlider
+ *  used for workspace/section colors, so picking a layer's color matches the rest of the
+ *  app. Draft state resets from props each time the modal opens. */
+function EditLayerModal({
+  visible,
+  title,
+  color,
+  onSave,
+  onClose,
+}: {
+  visible: boolean;
+  title: string;
+  color: string;
+  onSave: (title: string, color: string) => void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const [draftTitle, setDraftTitle] = useState(title);
+  const [hue, setHue] = useState(() => hexToHue(color));
+  const prevVisible = useRef(false);
+  useEffect(() => {
+    if (visible && !prevVisible.current) {
+      setDraftTitle(title);
+      setHue(hexToHue(color));
+    }
+    prevVisible.current = visible;
+  }, [visible, title, color]);
+
+  const previewColor = hueToAccentHex(hue);
+  const trimmed = draftTitle.trim();
+
+  return (
+    <WarmModal visible={visible} onRequestClose={onClose} title={t("player.editLayer")}>
+      <View style={benchStyles.colorPreviewRow}>
+        <View style={[benchStyles.colorPreviewSwatch, { backgroundColor: previewColor }]} />
+        <UserTextInput
+          style={benchStyles.editNameInput}
+          value={draftTitle}
+          onChangeText={setDraftTitle}
+          placeholder={t("player.layerName")}
+          placeholderTextColor={colors.textMuted}
+          returnKeyType="done"
+        />
+      </View>
+      <HueSlider hue={hue} onChange={setHue} />
+      <View style={benchStyles.editModalActions}>
+        <Pressable
+          style={({ pressed }) => [benchStyles.editModalCancel, pressed ? appStyles.pressDown : null]}
+          onPress={onClose}
+          accessibilityRole="button"
+        >
+          <Text style={benchStyles.editModalCancelText}>{t("common.cancel")}</Text>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [
+            benchStyles.editModalConfirm,
+            !trimmed ? benchStyles.editModalConfirmDisabled : null,
+            pressed ? appStyles.pressDown : null,
+          ]}
+          onPress={() => {
+            if (!trimmed) return;
+            onSave(trimmed, previewColor);
+            onClose();
+          }}
+          disabled={!trimmed}
+          accessibilityRole="button"
+        >
+          <Text style={benchStyles.editModalConfirmText}>{t("common.save")}</Text>
+        </Pressable>
+      </View>
+    </WarmModal>
+  );
+}
+
 const benchStyles = StyleSheet.create({
+  colorPreviewRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 4,
+  },
+  colorPreviewSwatch: {
+    width: 28,
+    height: 28,
+    borderRadius: radii.round,
+  },
+  editNameInput: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: "PlusJakartaSans_700Bold",
+    color: colors.textPrimary,
+    paddingVertical: 6,
+  },
+  editModalActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 10,
+    marginTop: 8,
+  },
+  editModalCancel: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  editModalCancelText: {
+    fontSize: 14,
+    fontFamily: "PlusJakartaSans_700Bold",
+    color: colors.textSecondary,
+  },
+  // Soft key, not a stadium pill (button language locked 2026-07-24): tonal
+  // terracotta wash carries the commit.
+  editModalConfirm: {
+    borderRadius: radii.lg,
+    backgroundColor: colors.primarySurface,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  editModalConfirmDisabled: {
+    opacity: 0.5,
+  },
+  editModalConfirmText: {
+    fontSize: 14,
+    fontFamily: "PlusJakartaSans_700Bold",
+    color: colors.primaryDeep,
+  },
   bench: {
     gap: spacing.md,
   },

@@ -45,7 +45,9 @@ export type NativeMixedRenderInput = {
    *  silence; NEGATIVE pulls it earlier by dropping the first |offset| of the input
    *  (how a late-recorded overdub gets corrected). */
   offsetMs?: number;
-  tonePreset?: "neutral" | "low-cut" | "warm" | "bright";
+  /** Canonical tone-flag encoding: "neutral", or "+"-joined flags out of
+   *  "low-cut" | "hi-cut" | "mid-boost" (legacy singles "warm"/"bright" pass through). */
+  tonePreset?: string;
 };
 
 export type NativeMixedRenderRequest = {

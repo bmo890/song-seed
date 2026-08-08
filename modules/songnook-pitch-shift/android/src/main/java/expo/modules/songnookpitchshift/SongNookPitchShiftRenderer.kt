@@ -187,8 +187,17 @@ class SongNookPitchShiftRenderer(
       processors += GainProcessor(DefaultGainProvider.Builder(dbToGainFactor(gainDb)).build())
     }
 
-    if (input.tonePreset == "low-cut") {
+    // Tone is a "+"-joined flag set ("low-cut+mid-boost"); legacy singles parse the same.
+    // Parameters mirror the iOS renderer's EQ bands.
+    val toneFlags = input.tonePreset.split("+")
+    if (toneFlags.contains("low-cut")) {
       processors += LowCutAudioProcessor()
+    }
+    if (toneFlags.contains("hi-cut")) {
+      processors += BiquadAudioProcessor.lowPass(7200.0)
+    }
+    if (toneFlags.contains("mid-boost")) {
+      processors += BiquadAudioProcessor.peaking(1800.0, 4.0, 1.0)
     }
 
     return processors

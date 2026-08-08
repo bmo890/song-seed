@@ -58,7 +58,7 @@ export type SongNookArchiveLibraryPreferences = {
 
 export type ArchiveClipOverdubRootManifest = {
     gainDb: number;
-    tonePreset: "neutral" | "low-cut" | "warm" | "bright";
+    tonePreset: string;
 };
 
 export type ArchiveClipOverdubStemManifest = {
@@ -66,7 +66,7 @@ export type ArchiveClipOverdubStemManifest = {
     title: string;
     gainDb: number;
     offsetMs: number;
-    tonePreset: "neutral" | "low-cut" | "warm" | "bright";
+    tonePreset: string;
     isMuted: boolean;
     durationMs?: number;
     waveformPeaks?: number[];

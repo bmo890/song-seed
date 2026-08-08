@@ -282,6 +282,20 @@ export function PlayerScreen({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ui.mode, data.hasClipOverdubs, ui.setMode]);
+  // While bench audio is sounding, the compact timing row reads the bench's clock
+  // (second granularity — same commit cadence as the main transport's readout).
+  const [benchDisplayMs, setBenchDisplayMs] = useState<number | null>(null);
+  const handleBenchDisplayPosition = useCallback((ms: number | null) => {
+    setBenchDisplayMs((previous) => {
+      if (ms == null) {
+        return previous == null ? previous : null;
+      }
+      if (previous != null && Math.floor(previous / 1000) === Math.floor(ms / 1000)) {
+        return previous;
+      }
+      return ms;
+    });
+  }, []);
   const pauseFullPlayerAtVisiblePosition = useCallback(async () => {
     const durationMs = resolvedDisplayDuration || playerDuration;
     const visualProgress = timelineAudioProgress.value;
@@ -937,11 +951,11 @@ export function PlayerScreen({
       renameStem: wrap(appActions.renameClipOverdubStem, t("player.renameLayerFailed")),
       changeStemColor: wrap(appActions.setClipOverdubStemColor, t("player.layerColorFailed")),
       adjustRootGain: wrap(appActions.adjustClipOverdubRootGain, t("player.rootGainFailed")),
-      toggleRootLowCut: wrap(appActions.toggleClipOverdubRootLowCut, t("player.rootToneFailed")),
+      toggleRootToneFlag: wrap(appActions.toggleClipOverdubRootToneFlag, t("player.rootToneFailed")),
       adjustStemGain: wrap(appActions.adjustClipOverdubStemGain, t("player.layerGainFailed")),
       nudgeStem: wrap(appActions.nudgeClipOverdubStem, t("player.layerTimingFailed")),
       toggleStemMute: wrap(appActions.toggleClipOverdubStemMute, t("player.layerMuteFailed")),
-      toggleStemLowCut: wrap(appActions.toggleClipOverdubStemLowCut, t("player.layerToneFailed")),
+      toggleStemToneFlag: wrap(appActions.toggleClipOverdubStemToneFlag, t("player.layerToneFailed")),
       removeStem: wrap(appActions.removeClipOverdubStem, t("player.removeLayerFailed")),
     };
   }, [playerClip, playerIdea, t]);
@@ -949,11 +963,11 @@ export function PlayerScreen({
     renameStem: handleRenameStem,
     changeStemColor: handleChangeStemColor,
     adjustRootGain: handleAdjustRootGain,
-    toggleRootLowCut: handleToggleRootLowCut,
+    toggleRootToneFlag: handleToggleRootToneFlag,
     adjustStemGain: handleAdjustStemGain,
     nudgeStem: handleNudgeStem,
     toggleStemMute: handleToggleStemMute,
-    toggleStemLowCut: handleToggleStemLowCut,
+    toggleStemToneFlag: handleToggleStemToneFlag,
     removeStem: handleRemoveStem,
   } = layerHandlers;
 
@@ -1034,7 +1048,12 @@ export function PlayerScreen({
             {ui.mode !== "player" || isReading ? (
               <View style={playerScreenStyles.reelTimingRow}>
                 <Text style={playerScreenStyles.reelTimingText}>
-                  {fmtDuration(effectivePlayerPosition)} / {fmtDuration(effectivePlayerDuration)}
+                  {fmtDuration(
+                    ui.mode === "layers" && benchDisplayMs != null
+                      ? benchDisplayMs
+                      : effectivePlayerPosition
+                  )}{" "}
+                  / {fmtDuration(effectivePlayerDuration)}
                 </Text>
               </View>
             ) : null}
@@ -1566,15 +1585,16 @@ export function PlayerScreen({
               isMainPlaybackPlaying={effectiveIsPlaying}
               transportClock={transportClock}
               getRestingPositionMs={() => playerPositionMsRef.current}
+              onDisplayPositionChange={handleBenchDisplayPosition}
               onPauseMainPlayback={practicePitchTransport.pause}
               onAdjustRootGain={handleAdjustRootGain}
-              onToggleRootLowCut={handleToggleRootLowCut}
+              onToggleRootToneFlag={handleToggleRootToneFlag}
               onAdjustStemGain={handleAdjustStemGain}
               onNudgeStem={handleNudgeStem}
               onRenameStem={handleRenameStem}
               onChangeStemColor={handleChangeStemColor}
               onToggleStemMute={handleToggleStemMute}
-              onToggleStemLowCut={handleToggleStemLowCut}
+              onToggleStemToneFlag={handleToggleStemToneFlag}
               onRemoveStem={handleRemoveStem}
               onSaveAsOneClip={handleSaveAsOneClip}
               onCloseBench={() => ui.setMode("player")}

@@ -139,7 +139,7 @@ final class SongNookPitchShiftRenderer {
     for input in inputs {
       let audioFile = try AVAudioFile(forReading: input.inputURL)
       let playerNode = AVAudioPlayerNode()
-      let eqNode = AVAudioUnitEQ(numberOfBands: 1)
+      let eqNode = AVAudioUnitEQ(numberOfBands: 3)
       configureTone(eqNode, tonePreset: input.tonePreset)
       eqNode.globalGain = Float(input.gainDb)
 
@@ -242,13 +242,31 @@ final class SongNookPitchShiftRenderer {
     )
   }
 
+  /// Tone is a set of flags joined by "+" ("low-cut+mid-boost"); each flag maps to one
+  /// EQ band, bypassed unless its flag is present. Legacy single values parse the same.
   private func configureTone(_ eqNode: AVAudioUnitEQ, tonePreset: String) {
-    let band = eqNode.bands[0]
-    band.filterType = .highPass
-    band.frequency = 140
-    band.bandwidth = 0.8
-    band.bypass = tonePreset != "low-cut"
-    band.gain = 0
+    let flags = Set(tonePreset.split(separator: "+").map(String.init))
+
+    let lowCut = eqNode.bands[0]
+    lowCut.filterType = .highPass
+    lowCut.frequency = 140
+    lowCut.bandwidth = 0.8
+    lowCut.gain = 0
+    lowCut.bypass = !flags.contains("low-cut")
+
+    let hiCut = eqNode.bands[1]
+    hiCut.filterType = .lowPass
+    hiCut.frequency = 7200
+    hiCut.bandwidth = 0.8
+    hiCut.gain = 0
+    hiCut.bypass = !flags.contains("hi-cut")
+
+    let midBoost = eqNode.bands[2]
+    midBoost.filterType = .parametric
+    midBoost.frequency = 1800
+    midBoost.bandwidth = 1.0
+    midBoost.gain = 4
+    midBoost.bypass = !flags.contains("mid-boost")
   }
 
   private func buildOutputURL(fileName: String?) -> URL {
