@@ -77,6 +77,8 @@ type Props = {
   /** Bench (layers mode): lanes become the layer selector. */
   selectedLaneId?: string | null;
   onPressLane?: (id: string) => void;
+  onLaneDragEnd?: (id: string, deltaMs: number, msPerPx: number) => void;
+  laneDragResetToken?: number;
   draggingMarkerId: SharedValue<string>;
   draggingMarkerX: SharedValue<number>;
   onLoopRangeChange: (start: number, end: number) => void;
@@ -236,6 +238,8 @@ function PlayerTimelineInner({
   layerMixerAccessibilityLabel,
   selectedLaneId,
   onPressLane,
+  onLaneDragEnd,
+  laneDragResetToken,
   draggingMarkerId,
   draggingMarkerX,
   onLoopRangeChange,
@@ -379,6 +383,8 @@ function PlayerTimelineInner({
               accessibilityLabel={layerMixerAccessibilityLabel}
               selectedLaneId={mode === "layers" ? selectedLaneId : undefined}
               onPressLane={mode === "layers" ? onPressLane : undefined}
+              onLaneDragEnd={mode === "layers" ? onLaneDragEnd : undefined}
+              laneDragResetToken={laneDragResetToken}
             />
           ) : null}
           {loopActive && previewRange ? (

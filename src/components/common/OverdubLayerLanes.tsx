@@ -1,9 +1,16 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import Animated, { SharedValue, useAnimatedStyle } from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  SharedValue,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+} from "react-native-reanimated";
 import { withAlpha } from "../../domain/overdub";
 import { colors } from "../../design/tokens";
+import { haptic } from "../../design/haptics";
 import { dirIcon } from "../../design/directionalIcons";
 
 /**
@@ -24,6 +31,9 @@ export type OverdubLayerLane = {
   durationMs: number;
   color: string;
   isMuted: boolean;
+  /** The base take's lane in the bench selector: selectable, but it never slides —
+   *  it IS the timeline. */
+  fixed?: boolean;
 };
 
 const LANE_HEIGHT = 15;
@@ -83,6 +93,8 @@ function LaneBar({
   timelineScale,
   isSelected = false,
   onPressLane,
+  onDragEnd,
+  dragResetToken = 0,
 }: {
   lane: OverdubLayerLane;
   rowIndex: number;
@@ -92,6 +104,8 @@ function LaneBar({
   timelineScale: SharedValue<number>;
   isSelected?: boolean;
   onPressLane?: (id: string) => void;
+  onDragEnd?: (id: string, deltaMs: number, msPerPx: number) => void;
+  dragResetToken?: number;
 }) {
   // withAlpha is plain JS, not a worklet — resolve the colour here (JS thread) and only
   // capture the resulting string inside the worklet below.
@@ -99,8 +113,52 @@ function LaneBar({
     lane.color,
     lane.isMuted ? LANE_ALPHA_MUTED : isSelected ? LANE_ALPHA_SELECTED : LANE_ALPHA
   );
+
+  // Coarse placement (2026-08-07): the SELECTED lane slides along the tape — same
+  // long-press-then-pan family as the loop's move pill. The preview delta lives on the
+  // UI thread; the owner commits (and may beat-snap) on release, and the bar holds its
+  // dragged position until the committed offset (or the reset token) lands back.
+  const dragDeltaMs = useSharedValue(0);
+  const draggable = isSelected && !!onDragEnd && !lane.fixed;
+  React.useEffect(() => {
+    dragDeltaMs.value = 0;
+  }, [lane.offsetMs, dragResetToken, dragDeltaMs]);
+  const dragGesture = React.useMemo(() => {
+    if (!draggable || !onDragEnd) {
+      return null;
+    }
+    return Gesture.Pan()
+      .activateAfterLongPress(220)
+      .onStart(() => {
+        // Drag lift (haptics vocabulary: grab).
+        runOnJS(haptic.grab)();
+      })
+      .onChange((event) => {
+        const pxPerMs = pixelsPerMs * timelineScale.value;
+        if (pxPerMs <= 0) {
+          return;
+        }
+        dragDeltaMs.value = event.translationX / pxPerMs;
+      })
+      .onEnd((event) => {
+        const pxPerMs = pixelsPerMs * timelineScale.value;
+        if (pxPerMs <= 0) {
+          dragDeltaMs.value = 0;
+          return;
+        }
+        runOnJS(onDragEnd)(lane.id, event.translationX / pxPerMs, 1 / pxPerMs);
+      })
+      .onFinalize((_event, success) => {
+        if (!success) {
+          dragDeltaMs.value = 0;
+        }
+      });
+  }, [draggable, onDragEnd, lane.id, pixelsPerMs, timelineScale, dragDeltaMs]);
+
   const barStyle = useAnimatedStyle(() => {
-    const leftPx = lane.offsetMs * pixelsPerMs * timelineScale.value + timelineTranslateX.value;
+    const leftPx =
+      (lane.offsetMs + dragDeltaMs.value) * pixelsPerMs * timelineScale.value +
+      timelineTranslateX.value;
     const widthPx = Math.max(3, lane.durationMs * pixelsPerMs * timelineScale.value);
     return {
       transform: [{ translateX: leftPx }],
@@ -115,7 +173,7 @@ function LaneBar({
     </Text>
   );
 
-  return (
+  const bar = (
     <Animated.View
       style={[
         laneStyles.bar,
@@ -140,6 +198,11 @@ function LaneBar({
       )}
     </Animated.View>
   );
+
+  if (!dragGesture) {
+    return bar;
+  }
+  return <GestureDetector gesture={dragGesture}>{bar}</GestureDetector>;
 }
 
 export function OverdubLayerLanes({
@@ -151,6 +214,8 @@ export function OverdubLayerLanes({
   accessibilityLabel,
   selectedLaneId,
   onPressLane,
+  onLaneDragEnd,
+  laneDragResetToken,
 }: {
   lanes: OverdubLayerLane[];
   pixelsPerMs: number;
@@ -164,6 +229,12 @@ export function OverdubLayerLanes({
    *  targets; the selected lane deepens and takes a border in its own colour. */
   selectedLaneId?: string | null;
   onPressLane?: (id: string) => void;
+  /** Selected-lane slide: release hands the owner the delta (and the ms-per-px of the
+   *  current zoom, for a snap tolerance that means the same distance on any zoom). */
+  onLaneDragEnd?: (id: string, deltaMs: number, msPerPx: number) => void;
+  /** Bumped by the owner after every drag commit — even a no-op one — so the preview
+   *  delta always resets, including when a snap lands back on the original offset. */
+  laneDragResetToken?: number;
 }) {
   const selectable = !!onPressLane;
   const laneHeight = selectable ? LANE_HEIGHT_SELECTABLE : LANE_HEIGHT;
@@ -187,6 +258,8 @@ export function OverdubLayerLanes({
       timelineScale={timelineScale}
       isSelected={selectable && lane.id === selectedLaneId}
       onPressLane={onPressLane}
+      onDragEnd={onLaneDragEnd}
+      dragResetToken={laneDragResetToken}
     />
   ));
   if (selectable) {

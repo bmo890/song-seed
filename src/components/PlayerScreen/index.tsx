@@ -49,6 +49,7 @@ import { getVisibleTimelineRange } from "./helpers";
 import { openIdeaInCollection } from "../../navigation";
 import { AppAlert } from "../common/AppAlert";
 import { getClipOverdubStemCount } from "../../domain/clipPresentation";
+import { snapToGrid } from "../../domain/gridRuler";
 import { canAddOverdubLayer, isPracticeToolPro, type PracticeTool } from "../../domain/proGating";
 import { hasProAccess } from "../../domain/entitlements";
 import { ensurePro, openProUpsell } from "../common/proUpsell";
@@ -257,6 +258,7 @@ export function PlayerScreen({
         durationMs: playerClip?.durationMs ?? 0,
         color: colors.textMuted,
         isMuted: false,
+        fixed: true,
       },
       ...stemLanes,
     ];
@@ -955,6 +957,36 @@ export function PlayerScreen({
     removeStem: handleRemoveStem,
   } = layerHandlers;
 
+  // Coarse layer placement from the reel (bench phase 3): the selected lane's drag
+  // commits here. The snap tolerance is zoom-aware — ~10px of screen either way — but
+  // never more than half a beat, so zoomed-out drags still land on the nearest beat
+  // without swallowing deliberate off-grid placements at high zoom.
+  const [laneDragResetToken, setLaneDragResetToken] = useState(0);
+  const handleLaneDragEnd = useCallback(
+    (stemId: string, deltaMs: number, msPerPx: number) => {
+      const stem = data.overdubStemEntries.find((entry) => entry.id === stemId);
+      if (stem && Math.abs(deltaMs) >= 1) {
+        const grid = playerClip?.recordingGrid ?? null;
+        const targetMs = stem.offsetMs + deltaMs;
+        const beatMs = grid && grid.bpm > 0 ? 60000 / grid.bpm : null;
+        const pxToleranceMs = Math.max(60, 10 * msPerPx);
+        const toleranceMs = beatMs ? Math.min(pxToleranceMs, beatMs * 0.45) : pxToleranceMs;
+        const snappedMs = snapToGrid({ grid, ms: targetMs, toleranceMs, unit: "beat" });
+        if (snappedMs != null && Math.abs(snappedMs - targetMs) > 1) {
+          // Detent tick (haptics vocabulary: tap) — the layer settled onto a beat line.
+          haptic.tap();
+        }
+        const finalDeltaMs = Math.round(snappedMs ?? targetMs) - stem.offsetMs;
+        if (finalDeltaMs !== 0) {
+          handleNudgeStem(stemId, finalDeltaMs);
+        }
+      }
+      // Always reset the preview — even a no-op commit must let the bar spring home.
+      setLaneDragResetToken((token) => token + 1);
+    },
+    [data.overdubStemEntries, playerClip?.recordingGrid, handleNudgeStem]
+  );
+
   if (!playerIdea || !playerClip) {
     // The clip can vanish mid-collapse (an audition ends → queue clears while the
     // sheet is still sliding off). Keep showing the last good frame instead of
@@ -1044,6 +1076,8 @@ export function PlayerScreen({
                     haptic.tap();
                     ui.setBenchLayerId(laneId);
                   }}
+                  onLaneDragEnd={handleLaneDragEnd}
+                  laneDragResetToken={laneDragResetToken}
                   draggingMarkerId={draggingMarkerId}
                   draggingMarkerX={draggingMarkerX}
                   onLoopRangeChange={handleLoopRangeChange}
