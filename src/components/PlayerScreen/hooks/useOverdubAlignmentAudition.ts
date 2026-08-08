@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { useAudioPlayer } from "expo-audio";
+import type { AudioStatus } from "expo-audio";
+import { useThrottledAudioPlayerStatus } from "../../../hooks/useThrottledAudioPlayerStatus";
 import { activatePlaybackAudioSession } from "../../../services/audioSession";
 import { overdubGainDbToPlayerVolume } from "../../../domain/overdub";
 
@@ -14,6 +16,13 @@ import { overdubGainDbToPlayerVolume } from "../../../domain/overdub";
  *   master position = max(0, offset), stem position = master position − offset.
  * A positive offset therefore starts the audition at the moment the stem enters; a
  * negative offset drops the stem's head — both exactly mirroring the mix renderers.
+ *
+ * The audition LOOPS the layer's span (settled 2026-08-07): when the stem runs out the
+ * pair restarts at the span's start — a steady pulse to nudge against, until stopped.
+ *
+ * `onMasterRawStatus` is the position feed: every native status event from the master
+ * player, unthrottled and with no render involved — the bench uses it to drive the reel
+ * playhead and the micro strip cursor, so the audition is never blind.
  */
 
 export type AlignmentAuditionTarget = {
@@ -25,11 +34,17 @@ export type AlignmentAuditionTarget = {
 };
 
 
-export function useOverdubAlignmentAudition() {
-  const masterPlayer = useAudioPlayer(null, { updateInterval: 250 });
+export function useOverdubAlignmentAudition(options?: {
+  onMasterRawStatus?: (status: AudioStatus) => void;
+}) {
+  // 100ms master ticks: the raw feed anchors the reel's dead-reckoned playhead, so the
+  // anchors should arrive at roughly the cadence the main transport channel provides.
+  const masterPlayer = useAudioPlayer(null, { updateInterval: 100 });
   const stemPlayer = useAudioPlayer(null, { updateInterval: 250 });
-  const masterStatus = useAudioPlayerStatus(masterPlayer);
-  const stemStatus = useAudioPlayerStatus(stemPlayer);
+  const { status: masterStatus } = useThrottledAudioPlayerStatus(masterPlayer, {
+    onRawStatus: options?.onMasterRawStatus,
+  });
+  const { status: stemStatus } = useThrottledAudioPlayerStatus(stemPlayer);
 
   const [auditioningStemId, setAuditioningStemId] = useState<string | null>(null);
   const loadedUrisRef = useRef<{ master: string | null; stem: string | null }>({
@@ -37,6 +52,7 @@ export function useOverdubAlignmentAudition() {
     stem: null,
   });
   const startRunRef = useRef(0);
+  const lastTargetRef = useRef<AlignmentAuditionTarget | null>(null);
 
   const isAuditionPlaying =
     auditioningStemId !== null && (!!masterStatus.playing || !!stemStatus.playing);
@@ -59,6 +75,7 @@ export function useOverdubAlignmentAudition() {
   async function start(target: AlignmentAuditionTarget) {
     const runToken = startRunRef.current + 1;
     startRunRef.current = runToken;
+    lastTargetRef.current = target;
 
     pauseBothSafely();
     await activatePlaybackAudioSession();
@@ -97,19 +114,27 @@ export function useOverdubAlignmentAudition() {
 
   function stop() {
     startRunRef.current += 1;
+    lastTargetRef.current = null;
     pauseBothSafely();
     setAuditioningStemId(null);
   }
 
-  // Both streams ran out — leave audition mode so the button returns to "play".
+  // Span loop: the stem always runs out at the span's end (it starts at the span's
+  // start), so its finish is the wrap point — restart the pair there. The master's tail
+  // past the layer never plays, which is the point: the audition IS the layer's span.
   useEffect(() => {
-    if (!auditioningStemId) {
+    if (!auditioningStemId || !stemStatus.didJustFinish) {
       return;
     }
-    if (masterStatus.didJustFinish && !stemStatus.playing) {
-      setAuditioningStemId(null);
+    const target = lastTargetRef.current;
+    if (!target || target.stemId !== auditioningStemId) {
+      return;
     }
-  }, [auditioningStemId, masterStatus.didJustFinish, stemStatus.playing]);
+    void start(target).catch(() => {
+      stop();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stemStatus.didJustFinish, auditioningStemId]);
 
   useEffect(() => {
     return () => {

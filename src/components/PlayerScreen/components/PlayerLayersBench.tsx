@@ -3,6 +3,8 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 import Slider from "@react-native-community/slider";
 import { Ionicons } from "@expo/vector-icons";
 import { useAudioPlayer } from "expo-audio";
+import type { AudioStatus } from "expo-audio";
+import { useSharedValue, type SharedValue } from "react-native-reanimated";
 import { useThrottledAudioPlayerStatus } from "../../../hooks/useThrottledAudioPlayerStatus";
 import { StemAlignmentOverlay } from "./StemAlignmentOverlay";
 import { EditLayerModal } from "./OverdubLayerCard";
@@ -52,6 +54,16 @@ export type BenchStemEntry = {
   color: string;
 };
 
+/** The slice of the transport clock the bench is allowed to drive. While Play here or
+ *  Solo runs (main transport paused), the bench anchors these directly off its own audio
+ *  engines — the reel's playhead then moves with what is actually sounding. */
+export type BenchTransportClock = {
+  sharedCurrentTimeMs: SharedValue<number>;
+  sharedIsPlaying: SharedValue<boolean>;
+  sharedPlaybackRate: SharedValue<number>;
+  sharedUpdateToken: SharedValue<number>;
+};
+
 type Props = {
   selectedLaneId: string;
   stems: BenchStemEntry[];
@@ -62,6 +74,9 @@ type Props = {
   rootRecordingGrid?: RecordingGrid | null;
   isRendering: boolean;
   isMainPlaybackPlaying: boolean;
+  transportClock: BenchTransportClock;
+  /** Where the main transport rests — the playhead returns here when bench audio stops. */
+  getRestingPositionMs: () => number;
   onPauseMainPlayback: () => Promise<void>;
   onAdjustRootGain: (deltaDb: number) => void;
   onToggleRootLowCut: () => void;
@@ -200,6 +215,8 @@ export function PlayerLayersBench({
   rootRecordingGrid,
   isRendering,
   isMainPlaybackPlaying,
+  transportClock,
+  getRestingPositionMs,
   onPauseMainPlayback,
   onAdjustRootGain,
   onToggleRootLowCut,
@@ -220,10 +237,61 @@ export function PlayerLayersBench({
   const [levelsOpen, setLevelsOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
 
+  // ---- The position feed ------------------------------------------------------------
+  // Raw status events (no renders) anchor the reel clock and the micro strip cursor
+  // while the bench is what's sounding. The reel dead-reckons between anchors exactly
+  // as it does for the main transport channel; the strip cursor tweens between them.
+  const feedActiveRef = useRef<"audition" | "solo" | null>(null);
+  const fedRef = useRef(false);
+  const selectedOffsetRef = useRef(0);
+  selectedOffsetRef.current = selectedStem?.offsetMs ?? 0;
+  const isMainPlayingRef = useRef(isMainPlaybackPlaying);
+  isMainPlayingRef.current = isMainPlaybackPlaying;
+  const sharedStripPlayheadMs = useSharedValue(-1);
+
+  const feedReel = React.useCallback(
+    (masterMs: number, playing: boolean) => {
+      fedRef.current = true;
+      transportClock.sharedCurrentTimeMs.value = masterMs;
+      transportClock.sharedIsPlaying.value = playing;
+      transportClock.sharedPlaybackRate.value = 1;
+      transportClock.sharedUpdateToken.value += 1;
+      sharedStripPlayheadMs.value = masterMs;
+    },
+    [transportClock, sharedStripPlayheadMs]
+  );
+
+  // Bench audio ended: hide the strip cursor and hand the clock back — parked at the
+  // main transport's resting position, unless the main transport is already playing
+  // again (then its own channel owns the clock and we must not touch it).
+  const releaseReel = React.useCallback(() => {
+    sharedStripPlayheadMs.value = -1;
+    if (!fedRef.current) {
+      return;
+    }
+    fedRef.current = false;
+    if (isMainPlayingRef.current) {
+      return;
+    }
+    transportClock.sharedIsPlaying.value = false;
+    transportClock.sharedCurrentTimeMs.value = getRestingPositionMs();
+    transportClock.sharedUpdateToken.value += 1;
+  }, [transportClock, sharedStripPlayheadMs, getRestingPositionMs]);
+
   // ---- Solo (the layer truly alone) -------------------------------------------------
   const soloPlayer = useAudioPlayer(null, { updateInterval: 120 });
   const { status: soloStatus } = useThrottledAudioPlayerStatus(soloPlayer, {
     positionIntervalMs: 200,
+    onRawStatus: (status: AudioStatus) => {
+      if (feedActiveRef.current !== "solo") {
+        return;
+      }
+      // Solo runs on the layer's own tape — map it onto the master's timeline.
+      feedReel(
+        selectedOffsetRef.current + Math.round((status.currentTime ?? 0) * 1000),
+        !!status.playing
+      );
+    },
   });
   const [soloActive, setSoloActive] = useState(false);
   const soloDurationMs = selectedStem?.durationMs ?? Math.round((soloStatus.duration ?? 0) * 1000);
@@ -239,7 +307,15 @@ export function PlayerLayersBench({
   }, [soloPlayer]);
 
   // ---- Play here (master + layer together over the layer's span) --------------------
-  const audition = useOverdubAlignmentAudition();
+  const audition = useOverdubAlignmentAudition({
+    onMasterRawStatus: (status: AudioStatus) => {
+      if (feedActiveRef.current !== "audition") {
+        return;
+      }
+      // The audition's master player IS the master timeline — feed it straight through.
+      feedReel(Math.round((status.currentTime ?? 0) * 1000), !!status.playing);
+    },
+  });
   const isAuditioning = audition.auditioningStemId === selectedStem?.id;
   const lastAuditionOffsetRef = useRef<number | null>(null);
   const auditionRestartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -266,11 +342,40 @@ export function PlayerLayersBench({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLaneId, pauseSoloSafely]);
 
+  // Solo loops the layer (settled 2026-08-07): running out wraps to the top — a steady
+  // pulse for level and tone judgements, until the key is tapped again.
   useEffect(() => {
-    if (soloStatus.didJustFinish) {
+    if (!soloStatus.didJustFinish || !soloActive) {
+      return;
+    }
+    try {
+      const seekResult = soloPlayer.seekTo(0);
+      void Promise.resolve(seekResult)
+        .then(() => {
+          soloPlayer.play();
+        })
+        .catch(() => setSoloActive(false));
+    } catch {
       setSoloActive(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [soloStatus.didJustFinish]);
+
+  // The feed follows whichever bench engine is live; when neither is, the reel clock
+  // goes back to the main transport.
+  const benchAudible = isAuditioning || soloActive;
+  useEffect(() => {
+    feedActiveRef.current = isAuditioning ? "audition" : soloActive ? "solo" : null;
+    if (!benchAudible) {
+      releaseReel();
+    }
+  }, [isAuditioning, soloActive, benchAudible, releaseReel]);
+
+  useEffect(() => {
+    return () => {
+      releaseReel();
+    };
+  }, [releaseReel]);
 
   // Main playback wins — never two transports at once.
   useEffect(() => {
@@ -594,6 +699,8 @@ export function PlayerLayersBench({
             recordingGrid={rootRecordingGrid}
             onSlide={handleSlide}
             onSlideEnd={handleSlideEnd}
+            sharedPlayheadMs={sharedStripPlayheadMs}
+            playheadColor={selectedStem.color}
           />
           <View style={benchStyles.nudgeRow}>
             <NudgeKey

@@ -1,7 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { runOnJS } from "react-native-reanimated";
+import Animated, {
+  Easing,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  type SharedValue,
+} from "react-native-reanimated";
 import { ensureWaveformSidecar } from "../../../services/waveformSidecar";
 import { formatClipOverdubStemOffsetLabel } from "../../../domain/overdub";
 import { fmtDuration } from "../../../utils";
@@ -49,7 +56,52 @@ type Props = {
   onSlide?: (deltaMs: number) => void;
   /** Drag released — the owner commits (and may snap) the final delta. */
   onSlideEnd?: (deltaMs: number) => void;
+  /** Live playhead on the master's timeline (ms; negative = hidden). Fed off the audio
+   *  engine with no renders involved — while Play here or Solo runs, the cursor shows
+   *  exactly what is sounding, so a nudge is never judged blind. */
+  sharedPlayheadMs?: SharedValue<number>;
+  /** The cursor's ink — the layer's own colour for Solo, warm ink for Play here. */
+  playheadColor?: string;
 };
+
+/** The moving cursor: chases each anchor with a short linear tween (anchors arrive at
+ *  ~10Hz), snapping instead when the jump is a wrap or a seek. */
+function StripPlayhead({
+  sharedPlayheadMs,
+  zoomStartMs,
+  timelineMs,
+  color,
+}: {
+  sharedPlayheadMs: SharedValue<number>;
+  zoomStartMs: number;
+  timelineMs: number;
+  color: string;
+}) {
+  const prevXRef = useSharedValue(-1);
+  const playheadStyle = useAnimatedStyle(() => {
+    const ms = sharedPlayheadMs.value;
+    const x = ((ms - zoomStartMs) / timelineMs) * CONTENT_WIDTH;
+    const visible = ms >= 0 && x >= -1 && x <= CONTENT_WIDTH + 1;
+    const jumped = Math.abs(x - prevXRef.value) > 40 || prevXRef.value < 0;
+    prevXRef.value = visible ? x : -1;
+    return {
+      opacity: visible ? 1 : 0,
+      transform: [
+        {
+          translateX: jumped
+            ? x
+            : withTiming(x, { duration: 160, easing: Easing.linear }),
+        },
+      ],
+    };
+  });
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[styles.playhead, { backgroundColor: color }, playheadStyle]}
+    />
+  );
+}
 
 /** Max of `peaks` over the time range [fromMs, toMs) of an audio lasting durationMs. */
 function samplePeakRange(peaks: number[], durationMs: number, fromMs: number, toMs: number) {
@@ -103,6 +155,8 @@ export function StemAlignmentOverlay({
   recordingGrid,
   onSlide,
   onSlideEnd,
+  sharedPlayheadMs,
+  playheadColor,
 }: Props) {
   const { t } = useTranslation();
   const [zoomed, setZoomed] = useState(true);
@@ -272,6 +326,14 @@ export function StemAlignmentOverlay({
               </View>
             );
           })}
+          {sharedPlayheadMs ? (
+            <StripPlayhead
+              sharedPlayheadMs={sharedPlayheadMs}
+              zoomStartMs={zoomStartMs}
+              timelineMs={timelineMs}
+              color={playheadColor ?? colors.primaryDeep}
+            />
+          ) : null}
         </View>
       </StageShell>
     </View>
@@ -343,6 +405,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: BAR_GAP,
+  },
+  playhead: {
+    position: "absolute",
+    // `left` (not `start`): the canvas shares the reel's LTR-pinned time axis.
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 1.5,
+    borderRadius: 1,
   },
   beatTick: {
     position: "absolute",

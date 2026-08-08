@@ -1530,6 +1530,8 @@ export function PlayerScreen({
               rootRecordingGrid={playerClip.recordingGrid ?? null}
               isRendering={isMixUpdating}
               isMainPlaybackPlaying={effectiveIsPlaying}
+              transportClock={transportClock}
+              getRestingPositionMs={() => playerPositionMsRef.current}
               onPauseMainPlayback={practicePitchTransport.pause}
               onAdjustRootGain={handleAdjustRootGain}
               onToggleRootLowCut={handleToggleRootLowCut}
