@@ -61,6 +61,9 @@ type Props = {
   sharedPlayheadMs?: SharedValue<number>;
   /** The cursor's ink — the layer's own colour for Solo, warm ink for Play here. */
   playheadColor?: string;
+  /** Second-granularity playback position (null when nothing plays). While the detail
+   *  zoom is open, the window follows this — the tape never plays out of view. */
+  followMs?: number | null;
 };
 
 /** The moving cursor: chases each anchor with a short linear tween (anchors arrive at
@@ -156,9 +159,12 @@ export function StemAlignmentOverlay({
   onSlideEnd,
   sharedPlayheadMs,
   playheadColor,
+  followMs,
 }: Props) {
   const { t } = useTranslation();
-  const [zoomed, setZoomed] = useState(true);
+  // Full clip by default — the whole point of the strip is seeing the layer against the
+  // take; the detail window is the opt-in for millisecond work.
+  const [zoomed, setZoomed] = useState(false);
 
   // Slide-to-move: horizontal px map 1:1 to timeline ms through the current zoom. The
   // callbacks receive deltas; the owner previews and commits (and may snap). A ref keeps
@@ -192,11 +198,12 @@ export function StemAlignmentOverlay({
   // Timeline t=0 is the master's start. The stem occupies [offsetMs, offsetMs + stemDur];
   // a negative offset drops the stem's head (mirrors the mixers' behavior).
   const fullTimelineMs = Math.max(masterDurationMs, offsetMs + stemDurationMs, 1);
-  // The zoom window follows the LAYER, not the top of the song — a punched-in layer at
-  // 1:23 zooms to 1:23 (with a second of master context in front), so the nudge view
-  // always shows the layer against the master around it.
+  // The zoom window follows what matters: the PLAYHEAD while something plays (a second
+  // of lead kept in front, so the tape never runs out of view), the LAYER's start
+  // otherwise — a punched-in layer at 1:23 zooms to 1:23 with its master context.
+  const zoomAnchorMs = followMs != null && followMs >= 0 ? followMs : offsetMs;
   const zoomStartMs = zoomed
-    ? Math.max(0, Math.min(offsetMs - 1000, fullTimelineMs - ZOOM_WINDOW_MS))
+    ? Math.max(0, Math.min(zoomAnchorMs - 1000, fullTimelineMs - ZOOM_WINDOW_MS))
     : 0;
   const timelineMs = zoomed ? Math.min(ZOOM_WINDOW_MS, fullTimelineMs - zoomStartMs) : fullTimelineMs;
   msPerPxRef.current = timelineMs / CONTENT_WIDTH;
@@ -283,7 +290,7 @@ export function StemAlignmentOverlay({
           <Text style={styles.zoomChipText}>
             {zoomed
               ? zoomStartMs > 0
-                ? t("player.atOffset", { time: fmtDuration(offsetMs) })
+                ? t("player.atOffset", { time: fmtDuration(zoomStartMs + 1000) })
                 : t("player.firstSeconds", { count: ZOOM_WINDOW_MS / 1000 })
               : t("player.fullClip")}
           </Text>

@@ -100,65 +100,33 @@ type Props = {
   onCloseBench: () => void;
 };
 
-/** Circular icon key — the face row's toggles (Solo, Mute). Colour carries state:
- *  quiet ink at rest, terracotta wash when the toggle is live. Words stay in the
- *  accessibility labels. */
+/** Circular icon key — the face row speaks entirely in icons; colour carries state
+ *  (quiet ink at rest, terracotta wash when live) and tier ("primary" = the verb wears
+ *  the wash at rest too). Words live in the accessibility labels. */
 function RoundKey({
   icon,
   active = false,
   disabled = false,
-  onPress,
-  accessibilityLabel,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  active?: boolean;
-  disabled?: boolean;
-  onPress: () => void;
-  accessibilityLabel: string;
-}) {
-  return (
-    <Pressable
-      style={({ pressed }) => [
-        benchStyles.roundKey,
-        active ? benchStyles.roundKeyActive : null,
-        disabled ? benchStyles.keyDisabled : null,
-        pressed ? appStyles.pressDown : null,
-      ]}
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityState={{ selected: active, disabled }}
-      accessibilityLabel={accessibilityLabel}
-    >
-      <Ionicons name={icon} size={16} color={active ? colors.primaryDeep : colors.textStrong} />
-    </Pressable>
-  );
-}
-
-/** Soft key on the bench face — colour carries state, not heft. */
-function BenchKey({
-  icon,
-  label,
-  active = false,
-  disabled = false,
+  tone = "default",
   trailing = false,
   onPress,
   accessibilityLabel,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
-  label: string;
   active?: boolean;
   disabled?: boolean;
+  tone?: "primary" | "default";
   /** Pushed to the row's far edge — the door sits apart from the verbs. */
   trailing?: boolean;
   onPress: () => void;
-  accessibilityLabel?: string;
+  accessibilityLabel: string;
 }) {
+  const primary = tone === "primary";
   return (
     <Pressable
       style={({ pressed }) => [
-        benchStyles.key,
-        active ? benchStyles.keyActive : null,
+        benchStyles.roundKey,
+        primary || active ? benchStyles.roundKeyActive : null,
         disabled ? benchStyles.keyDisabled : null,
         trailing ? benchStyles.keyTrailing : null,
         pressed ? appStyles.pressDown : null,
@@ -167,16 +135,13 @@ function BenchKey({
       disabled={disabled}
       accessibilityRole="button"
       accessibilityState={{ selected: active, disabled }}
-      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityLabel={accessibilityLabel}
     >
       <Ionicons
         name={icon}
-        size={14}
-        color={active ? colors.primaryDeep : colors.textStrong}
+        size={16}
+        color={primary || active ? colors.primaryDeep : colors.textStrong}
       />
-      <Text style={[benchStyles.keyText, active ? benchStyles.keyTextActive : null]}>
-        {label}
-      </Text>
     </Pressable>
   );
 }
@@ -459,17 +424,16 @@ export function PlayerLayersBench({
     };
   }, [releaseReel]);
 
-  // Header readout: while bench audio runs, sample the strip playhead at second
-  // granularity — one commit per displayed second, the same cadence the main
-  // transport's mm:ss already renders at.
+  // Second-granularity position for React readers: the header's mm:ss readout and the
+  // micro strip's follow window — one commit per displayed second, the same cadence
+  // the main transport's readout already renders at.
+  const [stripFollowMs, setStripFollowMs] = useState<number | null>(null);
   const lastSentSecondRef = useRef<number | null>(null);
   useEffect(() => {
-    if (!onDisplayPositionChange) {
-      return;
-    }
     if (!benchAudible) {
       lastSentSecondRef.current = null;
-      onDisplayPositionChange(null);
+      setStripFollowMs(null);
+      onDisplayPositionChange?.(null);
       return;
     }
     const tick = () => {
@@ -482,14 +446,16 @@ export function PlayerLayersBench({
         return;
       }
       lastSentSecondRef.current = second;
-      onDisplayPositionChange(ms);
+      setStripFollowMs(ms);
+      onDisplayPositionChange?.(ms);
     };
     tick();
     const interval = setInterval(tick, 250);
     return () => {
       clearInterval(interval);
       lastSentSecondRef.current = null;
-      onDisplayPositionChange(null);
+      setStripFollowMs(null);
+      onDisplayPositionChange?.(null);
     };
   }, [benchAudible, onDisplayPositionChange, sharedStripPlayheadMs]);
 
@@ -711,11 +677,13 @@ export function PlayerLayersBench({
             </Pressable>
           </View>
 
-          {/* The bench face: the four verbs a layer answers to. */}
+          {/* The bench face, all icons: play the layer in place · solo · mute — and the
+              adjust door apart at the trailing edge. Inside the layer's own bench, the
+              play key needs no words to say whose play it is. */}
           <View style={benchStyles.faceRow}>
-            <BenchKey
+            <RoundKey
               icon={isAuditioning ? "stop" : "play"}
-              label={isAuditioning ? t("player.stop") : t("player.playHere")}
+              tone="primary"
               active={isAuditioning}
               disabled={!selectedStem.audioUri || !rootAudioUri}
               onPress={togglePlayHere}
@@ -737,15 +705,15 @@ export function PlayerLayersBench({
               }}
               accessibilityLabel={selectedStem.isMuted ? t("player.unmuteLayer") : t("player.muteLayer")}
             />
-            <BenchKey
+            <RoundKey
               icon="options-outline"
-              label={t("player.levels")}
               active={levelsOpen}
               trailing
               onPress={() => {
                 haptic.tap(); // Vocabulary: tap = control toggles.
                 setLevelsOpen((current) => !current);
               }}
+              accessibilityLabel={t("player.adjustA11y")}
             />
           </View>
 
@@ -772,24 +740,8 @@ export function PlayerLayersBench({
             />
           ) : null}
 
-          {/* Levels — a door, not a board. Volume with its computed dB, then tone as
-              quick EQ switches under their real names. */}
-          <AnimatedCollapse visible={levelsOpen}>
-            <View style={benchStyles.levelsDrawer}>
-              <GainSliderRow
-                gainDb={selectedStem.gainDb}
-                onCommitGain={(delta) => onAdjustStemGain(selectedStem.id, delta)}
-              />
-              <ToneFlagRow
-                tonePreset={selectedStem.tonePreset}
-                onToggleFlag={(flag) => onToggleStemToneFlag(selectedStem.id, flag)}
-              />
-            </View>
-          </AnimatedCollapse>
-
-          {/* The micro strip: this layer against the master, nudge by nudge. Strip and
-              nudges breathe as one unit; the groups around them get the air. */}
-          <View style={benchStyles.timingGroup}>
+          {/* The micro strip: this layer against the master, always in view — full clip
+              by default, the detail window follows the playhead while audio runs. */}
           <StemAlignmentOverlay
             masterAudioUri={rootAudioUri}
             masterDurationMs={rootDurationMs}
@@ -804,7 +756,13 @@ export function PlayerLayersBench({
             onSlideEnd={handleSlideEnd}
             sharedPlayheadMs={sharedStripPlayheadMs}
             playheadColor={selectedStem.color}
+            followMs={stripFollowMs}
           />
+
+          {/* One adjust drawer — timing, volume, tone — behind the face row's door.
+              Nothing stands at attention until asked for. */}
+          <AnimatedCollapse visible={levelsOpen}>
+            <View style={benchStyles.adjustDrawer}>
           <View style={benchStyles.nudgeRow}>
             <NudgeKey
               label={`◀ ${OVERDUB_STEM_NUDGE_STEP_LARGE_MS}`}
@@ -844,7 +802,16 @@ export function PlayerLayersBench({
               <Text style={benchStyles.originalButtonText}>{t("player.original")}</Text>
             </Pressable>
           </View>
-          </View>
+              <GainSliderRow
+                gainDb={selectedStem.gainDb}
+                onCommitGain={(delta) => onAdjustStemGain(selectedStem.id, delta)}
+              />
+              <ToneFlagRow
+                tonePreset={selectedStem.tonePreset}
+                onToggleFlag={(flag) => onToggleStemToneFlag(selectedStem.id, flag)}
+              />
+            </View>
+          </AnimatedCollapse>
         </View>
       )}
 
@@ -1012,9 +979,6 @@ const benchStyles = StyleSheet.create({
   section: {
     gap: 14,
   },
-  timingGroup: {
-    gap: 6,
-  },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1047,32 +1011,11 @@ const benchStyles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  key: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-    minHeight: 38,
-    paddingHorizontal: 14,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surfaceHigh,
-  },
-  keyActive: {
-    backgroundColor: colors.primarySurface,
-  },
   keyDisabled: {
     opacity: 0.45,
   },
   keyTrailing: {
     marginStart: "auto",
-  },
-  keyText: {
-    fontSize: 12,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    color: colors.textStrong,
-  },
-  keyTextActive: {
-    color: colors.primaryDeep,
   },
   roundKey: {
     width: 38,
@@ -1090,8 +1033,8 @@ const benchStyles = StyleSheet.create({
     height: 26,
     marginTop: -4,
   },
-  levelsDrawer: {
-    gap: 6,
+  adjustDrawer: {
+    gap: 10,
     paddingVertical: 2,
   },
   gainRow: {
