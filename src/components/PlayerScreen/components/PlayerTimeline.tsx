@@ -38,7 +38,7 @@ type TransportClock = {
 };
 
 type Props = {
-  mode: "player" | "practice";
+  mode: "player" | "practice" | "layers";
   /** Reading rung of the ladder: the SAME reel, only thinner — bands, pins,
    *  scrub and pinch-zoom all keep working while an artifact holds the page. */
   readingSlim?: boolean;
@@ -74,6 +74,9 @@ type Props = {
   /** Lane-as-portal: tapping the lane opens the mixer (player mode only). */
   onOpenLayerMixer?: () => void;
   layerMixerAccessibilityLabel?: string;
+  /** Bench (layers mode): lanes become the layer selector. */
+  selectedLaneId?: string | null;
+  onPressLane?: (id: string) => void;
   draggingMarkerId: SharedValue<string>;
   draggingMarkerX: SharedValue<number>;
   onLoopRangeChange: (start: number, end: number) => void;
@@ -231,6 +234,8 @@ function PlayerTimelineInner({
   overdubLayerLanes,
   onOpenLayerMixer,
   layerMixerAccessibilityLabel,
+  selectedLaneId,
+  onPressLane,
   draggingMarkerId,
   draggingMarkerX,
   onLoopRangeChange,
@@ -298,7 +303,7 @@ function PlayerTimelineInner({
       // are open to leave room for the practice console; slimmest while an artifact is
       // open for reading — the tape stays a live instrument, it just pays rent.
       collapsedHeightOverride={
-        readingSlim ? 64 : reelExpanded ? 250 : mode === "practice" ? 128 : 184
+        readingSlim ? 64 : reelExpanded ? 250 : mode !== "player" ? 128 : 184
       }
       // Practice mode is controlled (parent owns the zoom). The normal player runs
       // UNCONTROLLED so the zoom buttons work and the duration-aware follow-window
@@ -372,6 +377,8 @@ function PlayerTimelineInner({
               timelineScale={timelineScale}
               onPress={onOpenLayerMixer}
               accessibilityLabel={layerMixerAccessibilityLabel}
+              selectedLaneId={mode === "layers" ? selectedLaneId : undefined}
+              onPressLane={mode === "layers" ? onPressLane : undefined}
             />
           ) : null}
           {loopActive && previewRange ? (

@@ -5,7 +5,7 @@ import { useStore } from "../../../state/useStore";
 import { playerScreenStyles } from "../styles";
 
 type PlayerFooterSectionProps = {
-  mode: "player" | "practice";
+  mode: "player" | "practice" | "layers";
   playDisabled?: boolean;
   isPlaying: boolean;
   hasPreviousTrack: boolean;

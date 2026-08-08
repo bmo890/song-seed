@@ -1,22 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useAudioPlayer } from "expo-audio";
-import { useThrottledAudioPlayerStatus } from "../../../hooks/useThrottledAudioPlayerStatus";
-import type { RecordingGrid } from "../../../types";
+import React, { useCallback } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { PlayerArtifactDoors } from "./PlayerArtifactDoors";
 import { QueuePanel } from "../../QueuePanel";
 import { BottomSheet } from "../../common/BottomSheet";
-import { styles as appStyles } from "../../../styles";
-import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
-import { formatDate } from "../../../utils";
-import { activateAndPlay, replacePlaybackSource } from "../../../services/transportPlayback";
-import { OVERDUB_GAIN_STEP_DB, overdubGainDbToPlayerVolume } from "../../../domain/overdub";
+import { colors, spacing, text as textTokens } from "../../../design/tokens";
 import { playerScreenStyles } from "../styles";
-import { AppAlert } from "../../common/AppAlert";
-import { actionIcons } from "../../common/actionIcons";
-import { LayerControlButton, OverdubLayerCard, type OverdubLayerSection } from "./OverdubLayerCard";
-import { useOverdubAlignmentAudition } from "../hooks/useOverdubAlignmentAudition";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../../i18n";
 
@@ -25,20 +13,6 @@ type QueueEntry = {
   clipId: string;
   title: string;
   subtitle: string;
-};
-
-type OverdubStemEntry = {
-  id: string;
-  title: string;
-  meta: string;
-  audioUri: string | null;
-  durationMs: number;
-  waveformPeaks?: number[];
-  gainDb: number;
-  offsetMs: number;
-  isMuted: boolean;
-  tonePreset: string;
-  color: string;
 };
 
 type PlayerSupportSectionsProps = {
@@ -54,35 +28,8 @@ type PlayerSupportSectionsProps = {
   onOpenChart: () => void;
   onWriteLyrics: () => void;
   onBuildChart: () => void;
-  hasClipOverdubs: boolean;
-  clipOverdubStemCount: number;
-  isOverdubPreviewRendering: boolean;
-  isMainPlaybackPlaying: boolean;
-  overdubRootSettings: { gainDb: number; tonePreset: string } | null;
-  overdubStemEntries: OverdubStemEntry[];
-  /** The root take the stems are mixed against (its audio is the mix's t=0 reference). */
-  overdubRootAudioUri: string | null;
-  overdubRootDurationMs: number;
-  overdubRootWaveformPeaks?: number[];
-  overdubRootRecordingGrid?: RecordingGrid | null;
-  onAddOverdub: () => void;
-  onSaveAsOneClip: (mode: "copy" | "replace") => void;
-  onPauseMainPlayback: () => Promise<void>;
-  onAdjustRootGain: (deltaDb: number) => void;
-  onToggleRootLowCut: () => void;
-  onAdjustStemGain: (stemId: string, deltaDb: number) => void;
-  onNudgeStem: (stemId: string, deltaMs: number) => void;
-  onRenameStem: (stemId: string, title: string) => void;
-  onChangeStemColor: (stemId: string, color: string) => void;
-  onToggleStemMute: (stemId: string) => void;
-  onToggleStemLowCut: (stemId: string) => void;
-  onRemoveStem: (stemId: string) => void;
   clipNotes: string;
-  clipNotesSummary: string;
   notesExpanded: boolean;
-  /** Mixer sheet visibility — owned by the screen so the reel's lane portal can open it. */
-  layersExpanded: boolean;
-  onToggleLayersExpanded: (value: boolean) => void;
   queueEntries: QueueEntry[];
   queueExpanded: boolean;
   onToggleNotesExpanded: (value: boolean) => void;
@@ -102,32 +49,8 @@ export function PlayerSupportSections({
   onOpenChart,
   onWriteLyrics,
   onBuildChart,
-  hasClipOverdubs,
-  clipOverdubStemCount,
-  isOverdubPreviewRendering,
-  isMainPlaybackPlaying,
-  overdubRootSettings,
-  overdubStemEntries,
-  overdubRootAudioUri,
-  overdubRootDurationMs,
-  overdubRootWaveformPeaks,
-  overdubRootRecordingGrid,
-  onAddOverdub,
-  onSaveAsOneClip,
-  onPauseMainPlayback,
-  onAdjustRootGain,
-  onToggleRootLowCut,
-  onAdjustStemGain,
-  onNudgeStem,
-  onRenameStem,
-  onChangeStemColor,
-  onToggleStemMute,
-  onToggleStemLowCut,
-  onRemoveStem,
   clipNotes,
   notesExpanded,
-  layersExpanded,
-  onToggleLayersExpanded,
   queueEntries,
   queueExpanded,
   onToggleNotesExpanded,
@@ -135,279 +58,6 @@ export function PlayerSupportSections({
   onQueueOpenIdea,
 }: PlayerSupportSectionsProps) {
   const { t } = useTranslation();
-  const layerPreviewPlayer = useAudioPlayer(null, { updateInterval: 120 });
-  const { status: layerPreviewStatus } = useThrottledAudioPlayerStatus(layerPreviewPlayer, {
-    positionIntervalMs: 200,
-  });
-  const [activeLayerPreviewId, setActiveLayerPreviewId] = useState<string | null>(null);
-  const layersSheetOpen = layersExpanded;
-  // Progressive disclosure: one section open at a time across the whole sheet (accordion),
-  // so the layer list stays scannable instead of every control being permanently expanded.
-  const [rootMixExpanded, setRootMixExpanded] = useState(false);
-  const [expandedStemSection, setExpandedStemSection] = useState<{
-    stemId: string;
-    section: OverdubLayerSection;
-  } | null>(null);
-  // The offset a layer had when its Align section was opened — the "Original" revert
-  // target. Captured on open so a sitting's nudges can be undone without discarding a
-  // previously-saved alignment. One at a time (accordion), so a single slot suffices.
-  const alignBaselineRef = React.useRef<{ stemId: string; offsetMs: number } | null>(null);
-
-  // In-place master+layer audition for the Align section — the nudge feedback loop.
-  const audition = useOverdubAlignmentAudition();
-  const auditioningStem =
-    overdubStemEntries.find((stem) => stem.id === audition.auditioningStemId) ?? null;
-  const lastAuditionOffsetRef = React.useRef<number | null>(null);
-  const auditionRestartTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const activeLayerPreviewDurationMs = Math.round((layerPreviewStatus.duration ?? 0) * 1000);
-  const activeLayerPreviewPositionMs = Math.round((layerPreviewStatus.currentTime ?? 0) * 1000);
-
-  const pauseLayerPreviewSafely = React.useCallback(() => {
-    try {
-      const result = layerPreviewPlayer.pause();
-      void Promise.resolve(result).catch(() => {});
-    } catch {
-      // Ignore teardown noise from stale native player handles during unmount/handoff.
-    }
-  }, [layerPreviewPlayer]);
-
-  useEffect(() => {
-    if (layerPreviewStatus.didJustFinish) {
-      setActiveLayerPreviewId(null);
-    }
-  }, [layerPreviewStatus.didJustFinish]);
-
-  useEffect(() => {
-    if (!isMainPlaybackPlaying || !activeLayerPreviewId) return;
-    pauseLayerPreviewSafely();
-    setActiveLayerPreviewId(null);
-  }, [activeLayerPreviewId, isMainPlaybackPlaying, pauseLayerPreviewSafely]);
-
-  // Main playback wins over the alignment audition too — never two transports at once.
-  useEffect(() => {
-    if (isMainPlaybackPlaying && audition.auditioningStemId) {
-      audition.stop();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [audition.auditioningStemId, isMainPlaybackPlaying]);
-
-  // Hearing a nudge is the point: while auditioning, an offset change restarts playback
-  // at the new offset after a short settle, so successive nudge taps coalesce into one
-  // restart and each landing is audible within ~a third of a second.
-  useEffect(() => {
-    if (!auditioningStem || !auditioningStem.audioUri || !overdubRootAudioUri) {
-      return;
-    }
-    if (lastAuditionOffsetRef.current === auditioningStem.offsetMs) {
-      return;
-    }
-    if (auditionRestartTimerRef.current) {
-      clearTimeout(auditionRestartTimerRef.current);
-    }
-    const target = {
-      stemId: auditioningStem.id,
-      masterAudioUri: overdubRootAudioUri,
-      stemAudioUri: auditioningStem.audioUri,
-      offsetMs: auditioningStem.offsetMs,
-      stemGainDb: auditioningStem.gainDb,
-    };
-    auditionRestartTimerRef.current = setTimeout(() => {
-      auditionRestartTimerRef.current = null;
-      lastAuditionOffsetRef.current = target.offsetMs;
-      void audition.start(target).catch(() => {
-        audition.stop();
-      });
-    }, 350);
-
-    return () => {
-      if (auditionRestartTimerRef.current) {
-        clearTimeout(auditionRestartTimerRef.current);
-        auditionRestartTimerRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auditioningStem?.id, auditioningStem?.offsetMs, overdubRootAudioUri]);
-
-  useEffect(() => {
-    return () => {
-      pauseLayerPreviewSafely();
-    };
-  }, [pauseLayerPreviewSafely]);
-
-  const previewSources = useMemo(
-    () =>
-      overdubStemEntries.map((stem) => ({
-        id: stem.id,
-        audioUri: stem.audioUri,
-        durationMs: stem.durationMs,
-      })),
-    [overdubStemEntries]
-  );
-
-  useEffect(() => {
-    if (!activeLayerPreviewId) return;
-    const activeSourceStillExists = previewSources.some(
-      (entry) => entry.id === activeLayerPreviewId && !!entry.audioUri
-    );
-    if (activeSourceStillExists) return;
-
-    pauseLayerPreviewSafely();
-    setActiveLayerPreviewId(null);
-  }, [activeLayerPreviewId, pauseLayerPreviewSafely, previewSources]);
-
-  const activeLayerDurationMs =
-    previewSources.find((entry) => entry.id === activeLayerPreviewId)?.durationMs ??
-    activeLayerPreviewDurationMs;
-
-  async function toggleLayerPreview(id: string, audioUri: string | null, gainDb = 0) {
-    if (!audioUri) return;
-
-    try {
-      if (activeLayerPreviewId === id && layerPreviewStatus.playing) {
-        await layerPreviewPlayer.pause();
-        return;
-      }
-
-      audition.stop();
-      await onPauseMainPlayback();
-
-      // Solo preview honours the layer's own gain, so a level tweak is audible here too
-      // (low cut still only applies to the rendered mix — no live EQ on this player).
-      layerPreviewPlayer.volume = overdubGainDbToPlayerVolume(gainDb);
-
-      if (activeLayerPreviewId === id) {
-        await activateAndPlay(
-          layerPreviewPlayer,
-          layerPreviewStatus,
-          activeLayerDurationMs,
-          activeLayerPreviewPositionMs
-        );
-        return;
-      }
-
-      await replacePlaybackSource(layerPreviewPlayer, audioUri, false);
-      setActiveLayerPreviewId(id);
-      await activateAndPlay(layerPreviewPlayer, { duration: 0, currentTime: 0 });
-    } catch (error) {
-      pauseLayerPreviewSafely();
-      setActiveLayerPreviewId(null);
-      const message = error instanceof Error ? error.message : t("player.layerPlayFailed");
-      console.warn("Layer preview failed", error);
-      AppAlert.info(t("player.layerPreviewFailed"), message);
-    }
-  }
-
-  function getLayerProgressRatio(id: string) {
-    if (activeLayerPreviewId !== id || !activeLayerDurationMs) return 0;
-    return activeLayerPreviewPositionMs / activeLayerDurationMs;
-  }
-
-  // Scrub the active solo preview — mirrors the main transport's tap-to-seek so a long
-  // layer doesn't have to be listened through end-to-end.
-  function seekLayerPreview(id: string, ratio: number) {
-    if (activeLayerPreviewId !== id || !activeLayerDurationMs) return;
-    const clamped = Math.max(0, Math.min(1, ratio));
-    try {
-      const result = layerPreviewPlayer.seekTo((clamped * activeLayerDurationMs) / 1000);
-      void Promise.resolve(result).catch(() => {});
-    } catch {
-      // Stale native handle during teardown — ignore.
-    }
-  }
-
-  function removeStemSafely(stemId: string) {
-    if (activeLayerPreviewId === stemId) {
-      pauseLayerPreviewSafely();
-      setActiveLayerPreviewId(null);
-    }
-    if (audition.auditioningStemId === stemId) {
-      audition.stop();
-    }
-    if (expandedStemSection?.stemId === stemId) {
-      setExpandedStemSection(null);
-    }
-    onRemoveStem(stemId);
-  }
-
-  function toggleStemSection(stemId: string, section: OverdubLayerSection) {
-    const isClosing =
-      expandedStemSection?.stemId === stemId && expandedStemSection.section === section;
-    // Collapsing (or switching away from) an Align section ends its audition — the
-    // controls it belongs to are gone.
-    if (audition.auditioningStemId && (isClosing || audition.auditioningStemId !== stemId)) {
-      audition.stop();
-    }
-    setExpandedStemSection(isClosing ? null : { stemId, section });
-    if (!isClosing) {
-      setRootMixExpanded(false);
-      // Snapshot the alignment baseline the moment Align opens, so "Original" reverts to
-      // where this layer sat before the user started nudging in this sitting.
-      if (section === "align") {
-        const stem = overdubStemEntries.find((candidate) => candidate.id === stemId);
-        alignBaselineRef.current = { stemId, offsetMs: stem?.offsetMs ?? 0 };
-      }
-    }
-  }
-
-  function toggleStemAudition(stem: (typeof overdubStemEntries)[number]) {
-    if (audition.auditioningStemId === stem.id) {
-      audition.stop();
-      return;
-    }
-    if (!stem.audioUri || !overdubRootAudioUri) {
-      return;
-    }
-    pauseLayerPreviewSafely();
-    setActiveLayerPreviewId(null);
-    lastAuditionOffsetRef.current = stem.offsetMs;
-    void onPauseMainPlayback().catch(() => {});
-    void audition
-      .start({
-        stemId: stem.id,
-        masterAudioUri: overdubRootAudioUri,
-        stemAudioUri: stem.audioUri,
-        offsetMs: stem.offsetMs,
-        stemGainDb: stem.gainDb,
-      })
-      .catch((error) => {
-        console.warn("Alignment audition failed", error);
-        audition.stop();
-      });
-  }
-
-  function closeLayersSheet() {
-    audition.stop();
-    onToggleLayersExpanded(false);
-  }
-
-  // "Save as one clip" is a flatten/bounce — like a photo editor's Save: keep the layered
-  // take and make a flat copy, or flatten over this take (irreversible: the layers can't
-  // be re-edited after). The chooser IS the confirmation; each option spells the outcome.
-  function openSaveAsOneClip() {
-    AppAlert.custom(t("player.combineTitle"), t("player.combineBody"), [
-      {
-        label: t("player.saveCopy"),
-        description: t("player.saveCopyDesc"),
-        icon: actionIcons.copy,
-        onPress: () => {
-          closeLayersSheet();
-          onSaveAsOneClip("copy");
-        },
-      },
-      {
-        label: t("player.replaceTake"),
-        description: t("player.replaceTakeDesc"),
-        icon: actionIcons.convert,
-        style: "destructive",
-        onPress: () => {
-          closeLayersSheet();
-          onSaveAsOneClip("replace");
-        },
-      },
-      { label: t("common.cancel"), style: "cancel" },
-    ]);
-  }
 
   // The queue sheet renders for ANY active queue (even a single item) so the
   // always-present footer queue button is never a dead tap.
@@ -442,9 +92,11 @@ export function PlayerSupportSections({
         onBuildChart={onBuildChart}
       />
 
-      {/* No chip row: the layer lane under the reel is the mixer's door, the
+      {/* No chip row: the layer lane under the reel is the bench's door, the
           Notes shelf above the transport is the notes door, and the transport
-          bar's list button is the queue's. Doors live where their subjects do. */}
+          bar's list button is the queue's. Doors live where their subjects do.
+          Layer editing itself moved to the bench (layers mode) — the sheet died
+          with the mixer metaphor (2026-08-07). */}
 
       {/* Notes — read-only here; editing lives on the song's Notes tab. */}
       <BottomSheet visible={notesExpanded} onClose={() => onToggleNotesExpanded(false)}>
@@ -466,178 +118,11 @@ export function PlayerSupportSections({
           <QueuePanel framed={false} onOpenIdea={openIdeaFromQueue} />
         </BottomSheet>
       ) : null}
-
-      {/* Layers (overdub mixer) */}
-      {hasClipOverdubs ? (
-        <BottomSheet visible={layersSheetOpen} onClose={closeLayersSheet}>
-          <View style={chipStyles.layersHeaderRow}>
-            <View style={chipStyles.layersHeaderCopy}>
-              <Text style={chipStyles.sheetTitle}>{t("player.layers")}</Text>
-              <Text style={chipStyles.sheetMeta}>
-                {t("navigation.layerCount", { count: clipOverdubStemCount })}
-                {isOverdubPreviewRendering ? ` · ${t("player.updating")}` : ""}
-              </Text>
-            </View>
-            <View style={chipStyles.layersHeaderActions}>
-              <Pressable
-                style={chipStyles.headerIconButton}
-                onPress={() => {
-                  closeLayersSheet();
-                  onAddOverdub();
-                }}
-                hitSlop={6}
-                accessibilityRole="button"
-                accessibilityLabel={t("player.recordNewLayer")}
-              >
-                <Ionicons name="add" size={22} color={colors.primaryDeep} />
-              </Pressable>
-              <Pressable
-                style={chipStyles.headerIconButton}
-                onPress={openSaveAsOneClip}
-                hitSlop={6}
-                accessibilityRole="button"
-                accessibilityLabel={t("player.saveOneClip")}
-              >
-                <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
-              </Pressable>
-            </View>
-          </View>
-          <ScrollView style={chipStyles.sheetScroll} showsVerticalScrollIndicator={false}>
-            {/* Base take: one quiet row; its controls disclose on tap like the layers'. */}
-            {overdubRootSettings ? (
-              <View style={playerScreenStyles.layerRootSection}>
-                <Pressable
-                  style={playerScreenStyles.layerRootHeader}
-                  onPress={() => {
-                    setRootMixExpanded((current) => !current);
-                    setExpandedStemSection(null);
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("player.baseSettings")}
-                >
-                  <Text style={playerScreenStyles.layerRootTitle}>{t("player.baseTake")}</Text>
-                  <View style={chipStyles.rootMetaCluster}>
-                    <Text style={playerScreenStyles.layerRootMeta}>
-                      {`${overdubRootSettings.gainDb > 0 ? "+" : ""}${overdubRootSettings.gainDb} dB${
-                        overdubRootSettings.tonePreset === "low-cut" ? " · Low cut" : ""
-                      }`}
-                    </Text>
-                    <Ionicons
-                      name={rootMixExpanded ? "chevron-up" : "chevron-down"}
-                      size={13}
-                      color={colors.textMuted}
-                    />
-                  </View>
-                </Pressable>
-                {rootMixExpanded ? (
-                  <View style={playerScreenStyles.layerControls}>
-                    <LayerControlButton
-                      label={`-${OVERDUB_GAIN_STEP_DB} dB`}
-                      onPress={() => onAdjustRootGain(-OVERDUB_GAIN_STEP_DB)}
-                    />
-                    <LayerControlButton
-                      label={`+${OVERDUB_GAIN_STEP_DB} dB`}
-                      onPress={() => onAdjustRootGain(OVERDUB_GAIN_STEP_DB)}
-                    />
-                    <LayerControlButton
-                      label={t("player.lowCut")}
-                      active={overdubRootSettings.tonePreset === "low-cut"}
-                      onPress={onToggleRootLowCut}
-                    />
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
-
-            <View style={playerScreenStyles.layerList}>
-              {overdubStemEntries.map((stem) => (
-                <OverdubLayerCard
-                  key={stem.id}
-                  title={stem.title}
-                  durationMs={stem.durationMs}
-                  waveformPeaks={stem.waveformPeaks}
-                  gainDb={stem.gainDb}
-                  offsetMs={stem.offsetMs}
-                  tonePreset={stem.tonePreset}
-                  isMuted={stem.isMuted}
-                  audioUri={stem.audioUri}
-                  color={stem.color}
-                  onChangeColor={(color) => onChangeStemColor(stem.id, color)}
-                  isRendering={isOverdubPreviewRendering}
-                  isPreviewPlaying={activeLayerPreviewId === stem.id && !!layerPreviewStatus.playing}
-                  isPreviewActive={activeLayerPreviewId === stem.id}
-                  previewProgressRatio={getLayerProgressRatio(stem.id)}
-                  onSeekPreview={(ratio) => seekLayerPreview(stem.id, ratio)}
-                  onTogglePreview={() => toggleLayerPreview(stem.id, stem.audioUri, stem.gainDb)}
-                  onToggleMuted={() => onToggleStemMute(stem.id)}
-                  expandedSection={
-                    expandedStemSection?.stemId === stem.id ? expandedStemSection.section : null
-                  }
-                  onToggleSection={(section) => toggleStemSection(stem.id, section)}
-                  onRename={(nextTitle) => onRenameStem(stem.id, nextTitle)}
-                  onAdjustGain={(deltaDb) => onAdjustStemGain(stem.id, deltaDb)}
-                  onToggleLowCut={() => onToggleStemLowCut(stem.id)}
-                  onRemove={() => removeStemSafely(stem.id)}
-                  masterAudioUri={overdubRootAudioUri}
-                  masterDurationMs={overdubRootDurationMs}
-                  masterWaveformPeaks={overdubRootWaveformPeaks}
-                  masterRecordingGrid={overdubRootRecordingGrid}
-                  onNudge={(deltaMs) => onNudgeStem(stem.id, deltaMs)}
-                  baselineOffsetMs={
-                    alignBaselineRef.current?.stemId === stem.id
-                      ? alignBaselineRef.current.offsetMs
-                      : stem.offsetMs
-                  }
-                  onRestoreOriginal={() => {
-                    const baseline =
-                      alignBaselineRef.current?.stemId === stem.id
-                        ? alignBaselineRef.current.offsetMs
-                        : stem.offsetMs;
-                    if (baseline !== stem.offsetMs) {
-                      onNudgeStem(stem.id, baseline - stem.offsetMs);
-                    }
-                  }}
-                  isAuditioning={audition.auditioningStemId === stem.id}
-                  onToggleAudition={() => toggleStemAudition(stem)}
-                />
-              ))}
-            </View>
-          </ScrollView>
-        </BottomSheet>
-      ) : null}
     </View>
   );
 }
 
 const chipStyles = StyleSheet.create({
-  rootMetaCluster: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  layersHeaderRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: spacing.sm,
-  },
-  layersHeaderCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  layersHeaderActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  headerIconButton: {
-    width: 34,
-    height: 34,
-    borderRadius: radii.round,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.surfaceContainer,
-  },
   sheetTitle: {
     fontFamily: "Lora_600SemiBold",
     fontSize: 19,

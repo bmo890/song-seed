@@ -1,7 +1,9 @@
 import { useCallback, useState } from "react";
 import { clampPitchShiftSemitones } from "../../../domain/pitchShift";
 
-export type PlayerMode = "player" | "practice";
+/** "layers" is the bench (2026-08-07): a reel-anchored surface like practice —
+ *  lanes fatten into a selector, one bench below serves the selected layer. */
+export type PlayerMode = "player" | "practice" | "layers";
 /** The two readable artifacts a sketch can hang on a take. */
 export type ReadingArtifact = "lyrics" | "chart";
 /** The reading ladder (settled 2026-08-06): closed → reading (slim reel) →
@@ -28,7 +30,8 @@ export function usePlayerScreenUi() {
   // Text-size multiplier for the open artifact — persists across doors within a session.
   const [readingZoom, setReadingZoom] = useState(1);
   const [notesExpanded, setNotesExpanded] = useState(false);
-  const [layersExpanded, setLayersExpanded] = useState(false);
+  // The bench's selected lane: a stem id, or "root" for the base take.
+  const [benchLayerId, setBenchLayerId] = useState<string>("root");
   const [queueExpanded, setQueueExpanded] = useState(false);
   const [countInOption, setCountInOption] = useState<CountInOption>("off");
   const [practiceZoomMultiple, setPracticeZoomMultiple] = useState<number>(1);
@@ -45,11 +48,11 @@ export function usePlayerScreenUi() {
 
   const closeTool = () => setExpandedTool(null);
 
-  // Opening Tools closes the reading surface — the practice console needs the
-  // full-height reel back, and returning to "player" reopens at the doors.
+  // Opening Tools or the bench closes the reading surface — both need the reel
+  // back at height, and returning to "player" reopens at the doors.
   const setMode = useCallback((next: PlayerMode) => {
     setModeState(next);
-    if (next === "practice") {
+    if (next !== "player") {
       setReadingArtifact(null);
       setReadingAltitude("reading");
       setFollowEnabled(false);
@@ -104,8 +107,8 @@ export function usePlayerScreenUi() {
     setRepeatEnabled,
     notesExpanded,
     setNotesExpanded,
-    layersExpanded,
-    setLayersExpanded,
+    benchLayerId,
+    setBenchLayerId,
     queueExpanded,
     setQueueExpanded,
     countInOption,

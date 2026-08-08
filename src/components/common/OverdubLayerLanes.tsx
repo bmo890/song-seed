@@ -27,8 +27,11 @@ export type OverdubLayerLane = {
 };
 
 const LANE_HEIGHT = 15;
+/** Bench selector: the same lanes, fattened into per-layer touch targets. */
+const LANE_HEIGHT_SELECTABLE = 24;
 const LANE_GAP = 3;
 const LANE_ALPHA = 0.5;
+const LANE_ALPHA_SELECTED = 0.85;
 /** Muted layers drop to a faint wash so they read as "off" without vanishing. */
 const LANE_ALPHA_MUTED = 0.16;
 /** A later layer may still share a row if it overlaps the row's occupant by at most this
@@ -74,19 +77,28 @@ export function packOverdubLaneRows(lanes: OverdubLayerLane[]): {
 function LaneBar({
   lane,
   rowIndex,
+  laneHeight,
   pixelsPerMs,
   timelineTranslateX,
   timelineScale,
+  isSelected = false,
+  onPressLane,
 }: {
   lane: OverdubLayerLane;
   rowIndex: number;
+  laneHeight: number;
   pixelsPerMs: number;
   timelineTranslateX: SharedValue<number>;
   timelineScale: SharedValue<number>;
+  isSelected?: boolean;
+  onPressLane?: (id: string) => void;
 }) {
   // withAlpha is plain JS, not a worklet — resolve the colour here (JS thread) and only
   // capture the resulting string inside the worklet below.
-  const laneColor = withAlpha(lane.color, lane.isMuted ? LANE_ALPHA_MUTED : LANE_ALPHA);
+  const laneColor = withAlpha(
+    lane.color,
+    lane.isMuted ? LANE_ALPHA_MUTED : isSelected ? LANE_ALPHA_SELECTED : LANE_ALPHA
+  );
   const barStyle = useAnimatedStyle(() => {
     const leftPx = lane.offsetMs * pixelsPerMs * timelineScale.value + timelineTranslateX.value;
     const widthPx = Math.max(3, lane.durationMs * pixelsPerMs * timelineScale.value);
@@ -97,18 +109,35 @@ function LaneBar({
     };
   });
 
+  const content = (
+    <Text style={[laneStyles.label, lane.isMuted ? laneStyles.labelMuted : null]} numberOfLines={1}>
+      {lane.isMuted ? `${lane.title} · muted` : lane.title}
+    </Text>
+  );
+
   return (
     <Animated.View
       style={[
         laneStyles.bar,
-        { top: rowIndex * (LANE_HEIGHT + LANE_GAP) },
+        { top: rowIndex * (laneHeight + LANE_GAP), height: laneHeight },
         lane.isMuted ? laneStyles.barMuted : null,
+        isSelected ? { borderWidth: 1.5, borderColor: lane.color, borderStyle: "solid" } : null,
         barStyle,
       ]}
     >
-      <Text style={[laneStyles.label, lane.isMuted ? laneStyles.labelMuted : null]} numberOfLines={1}>
-        {lane.isMuted ? `${lane.title} · muted` : lane.title}
-      </Text>
+      {onPressLane ? (
+        <Pressable
+          style={laneStyles.laneTouch}
+          onPress={() => onPressLane(lane.id)}
+          accessibilityRole="button"
+          accessibilityState={{ selected: isSelected }}
+          accessibilityLabel={lane.title}
+        >
+          {content}
+        </Pressable>
+      ) : (
+        content
+      )}
     </Animated.View>
   );
 }
@@ -120,6 +149,8 @@ export function OverdubLayerLanes({
   timelineScale,
   onPress,
   accessibilityLabel,
+  selectedLaneId,
+  onPressLane,
 }: {
   lanes: OverdubLayerLane[];
   pixelsPerMs: number;
@@ -129,7 +160,13 @@ export function OverdubLayerLanes({
    *  the lane is the door to the mixer. Omit to keep it purely indicative. */
   onPress?: () => void;
   accessibilityLabel?: string;
+  /** Bench selector mode (2026-08-07): lanes fatten into per-layer touch
+   *  targets; the selected lane deepens and takes a border in its own colour. */
+  selectedLaneId?: string | null;
+  onPressLane?: (id: string) => void;
 }) {
+  const selectable = !!onPressLane;
+  const laneHeight = selectable ? LANE_HEIGHT_SELECTABLE : LANE_HEIGHT;
   const visibleLanes = lanes.filter((lane) => lane.durationMs > 0);
   const { rowByLaneId, rowCount } = React.useMemo(
     () => packOverdubLaneRows(visibleLanes),
@@ -138,17 +175,24 @@ export function OverdubLayerLanes({
   if (visibleLanes.length === 0) {
     return null;
   }
-  const stripHeight = rowCount * (LANE_HEIGHT + LANE_GAP) - LANE_GAP;
+  const stripHeight = rowCount * (laneHeight + LANE_GAP) - LANE_GAP;
   const bars = visibleLanes.map((lane) => (
     <LaneBar
       key={lane.id}
       lane={lane}
       rowIndex={rowByLaneId[lane.id] ?? 0}
+      laneHeight={laneHeight}
       pixelsPerMs={pixelsPerMs}
       timelineTranslateX={timelineTranslateX}
       timelineScale={timelineScale}
+      isSelected={selectable && lane.id === selectedLaneId}
+      onPressLane={onPressLane}
     />
   ));
+  if (selectable) {
+    // Selector mode: the strip is not a door — each lane answers for itself.
+    return <View style={[laneStyles.strip, { height: stripHeight }]}>{bars}</View>;
+  }
   if (!onPress) {
     return (
       <View style={[laneStyles.strip, { height: stripHeight }]} pointerEvents="none">
@@ -199,6 +243,10 @@ const laneStyles = StyleSheet.create({
     borderRadius: 4,
     justifyContent: "center",
     overflow: "hidden",
+  },
+  laneTouch: {
+    flex: 1,
+    justifyContent: "center",
   },
   barMuted: {
     borderWidth: 1,

@@ -36,6 +36,7 @@ import { PlayerHeaderSection } from "./components/PlayerHeaderSection";
 import { PlayerFooterSection } from "./components/PlayerFooterSection";
 import { PlayerPracticeDrawers } from "./components/PlayerPracticeDrawers";
 import { PlayerSupportSections } from "./components/PlayerSupportSections";
+import { PlayerLayersBench, BENCH_ROOT_LANE_ID } from "./components/PlayerLayersBench";
 import { HelpSheet } from "../common/HelpSheet";
 import { OVERDUB_HELP, PRACTICE_HELP } from "../common/helpContent";
 import { PlayerArtifactReader, PlayAlongSpeedControl } from "./components/PlayerArtifactReader";
@@ -234,18 +235,51 @@ export function PlayerScreen({
     );
   }, [data.sections, sectionPreview]);
   // Slim lanes under the reel marking where each un-flattened layer sits on the master.
-  const overdubLayerLanes = useMemo(
-    () =>
-      data.overdubStemEntries.map((stem) => ({
-        id: stem.id,
-        title: stem.title,
-        offsetMs: stem.offsetMs,
-        durationMs: stem.durationMs,
-        color: stem.color,
-        isMuted: stem.isMuted,
-      })),
-    [data.overdubStemEntries]
-  );
+  // In layers mode the lanes fatten into the bench's selector, and the base take joins
+  // them as a selectable lane of its own (fewer controls — it IS the timeline).
+  const overdubLayerLanes = useMemo(() => {
+    const stemLanes = data.overdubStemEntries.map((stem) => ({
+      id: stem.id,
+      title: stem.title,
+      offsetMs: stem.offsetMs,
+      durationMs: stem.durationMs,
+      color: stem.color,
+      isMuted: stem.isMuted,
+    }));
+    if (ui.mode !== "layers") {
+      return stemLanes;
+    }
+    return [
+      {
+        id: BENCH_ROOT_LANE_ID,
+        title: t("player.baseTake"),
+        offsetMs: 0,
+        durationMs: playerClip?.durationMs ?? 0,
+        color: colors.textMuted,
+        isMuted: false,
+      },
+      ...stemLanes,
+    ];
+  }, [data.overdubStemEntries, ui.mode, playerClip?.durationMs, t]);
+  // The bench serves whatever lane is selected; if that layer vanishes (removed,
+  // flattened) fall back to the first layer, then the base take.
+  const benchSelectedLaneId =
+    ui.benchLayerId === BENCH_ROOT_LANE_ID ||
+    data.overdubStemEntries.some((stem) => stem.id === ui.benchLayerId)
+      ? ui.benchLayerId
+      : data.overdubStemEntries[0]?.id ?? BENCH_ROOT_LANE_ID;
+  const openLayersBench = useCallback(() => {
+    ui.setBenchLayerId(data.overdubStemEntries[0]?.id ?? BENCH_ROOT_LANE_ID);
+    ui.setMode("layers");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.overdubStemEntries, ui.setBenchLayerId, ui.setMode]);
+  // A flatten-replace (or removing the last layer) dissolves the bench's subject.
+  useEffect(() => {
+    if (ui.mode === "layers" && !data.hasClipOverdubs) {
+      ui.setMode("player");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ui.mode, data.hasClipOverdubs, ui.setMode]);
   const pauseFullPlayerAtVisiblePosition = useCallback(async () => {
     const durationMs = resolvedDisplayDuration || playerDuration;
     const visualProgress = timelineAudioProgress.value;
@@ -955,7 +989,7 @@ export function PlayerScreen({
             overdubLayerCount={data.clipOverdubStemCount}
             playerPosition={effectivePlayerPosition}
             displayDuration={effectivePlayerDuration}
-            collapsed={ui.mode === "practice" || isReading}
+            collapsed={ui.mode !== "player" || isReading}
             dragGesture={dismissGesture}
             onMinimize={lifecycle.minimizePlayer}
             onOverflow={lifecycle.handleOverflowMenu}
@@ -965,7 +999,7 @@ export function PlayerScreen({
           <View style={playerScreenStyles.stickyReel}>
             {/* When the page header is collapsed (practice / reading) it no longer
                 shows the timing, so surface a compact playhead / length row above the reel. */}
-            {ui.mode === "practice" || isReading ? (
+            {ui.mode !== "player" || isReading ? (
               <View style={playerScreenStyles.reelTimingRow}>
                 <Text style={playerScreenStyles.reelTimingText}>
                   {fmtDuration(effectivePlayerPosition)} / {fmtDuration(effectivePlayerDuration)}
@@ -999,14 +1033,17 @@ export function PlayerScreen({
                   recordingGrid={playerClip.recordingGrid ?? null}
                   loopActive={practiceLoopEnabled && (ui.mode === "practice" || isWriting)}
                   overdubLayerLanes={overdubLayerLanes}
-                  // The lane IS the mixer's door — but only where the sheet exists
-                  // to open (player mode mounts the support sections that host it).
+                  // The lane IS the bench's door: tap it and the surface opens with
+                  // the lanes fattened into the selector.
                   onOpenLayerMixer={
-                    ui.mode === "player" && data.hasClipOverdubs
-                      ? () => ui.setLayersExpanded(true)
-                      : undefined
+                    ui.mode === "player" && data.hasClipOverdubs ? openLayersBench : undefined
                   }
                   layerMixerAccessibilityLabel={t("player.layers")}
+                  selectedLaneId={benchSelectedLaneId}
+                  onPressLane={(laneId) => {
+                    haptic.tap();
+                    ui.setBenchLayerId(laneId);
+                  }}
                   draggingMarkerId={draggingMarkerId}
                   draggingMarkerX={draggingMarkerX}
                   onLoopRangeChange={handleLoopRangeChange}
@@ -1235,6 +1272,52 @@ export function PlayerScreen({
                   </View>
                   )}
                 </>
+              ) : ui.mode === "layers" ? (
+                <>
+                  {/* Bench bar: name/close leading, then record-a-layer and help. */}
+                  <Pressable
+                    style={({ pressed }) => [
+                      playerScreenStyles.reelExpandButton,
+                      pressed ? playerScreenStyles.overflowButtonPressed : null,
+                    ]}
+                    onPress={() => ui.setMode("player")}
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("player.closeLayers")}
+                  >
+                    <Ionicons name="chevron-up" size={14} color={colors.textSecondary} />
+                    <Text style={playerScreenStyles.reelExpandText}>{t("player.layers")}</Text>
+                  </Pressable>
+                  <View style={playerScreenStyles.reelToolbarRight}>
+                    <Pressable
+                      style={({ pressed }) => [
+                        playerScreenStyles.readingIconButton,
+                        pressed ? playerScreenStyles.overflowButtonPressed : null,
+                      ]}
+                      onPress={() => {
+                        ui.setMode("player");
+                        void handleAddOverdub(playerPositionMsRef.current);
+                      }}
+                      hitSlop={6}
+                      accessibilityRole="button"
+                      accessibilityLabel={t("player.recordNewLayer")}
+                    >
+                      <Ionicons name="add" size={17} color={colors.primaryDeep} />
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [
+                        playerScreenStyles.readingIconButton,
+                        pressed ? playerScreenStyles.overflowButtonPressed : null,
+                      ]}
+                      onPress={() => setHelpTopic("overdub")}
+                      hitSlop={6}
+                      accessibilityRole="button"
+                      accessibilityLabel={t("common.help")}
+                    >
+                      <Ionicons name="help-circle-outline" size={16} color={colors.textSecondary} />
+                    </Pressable>
+                  </View>
+                </>
               ) : (
                 <>
                   {/* The eye only earns a place when the clip has marks to hide;
@@ -1436,6 +1519,30 @@ export function PlayerScreen({
               onSetClickEnabled={playbackClick.setEnabled}
               onRecordOverdub={handleAddOverdub}
             />
+          ) : ui.mode === "layers" ? (
+            <PlayerLayersBench
+              selectedLaneId={benchSelectedLaneId}
+              stems={data.overdubStemEntries}
+              rootSettings={data.overdubRootSettings}
+              rootAudioUri={playerClip.audioUri ?? null}
+              rootDurationMs={playerClip.durationMs ?? 0}
+              rootWaveformPeaks={playerClip.waveformPeaks}
+              rootRecordingGrid={playerClip.recordingGrid ?? null}
+              isRendering={isMixUpdating}
+              isMainPlaybackPlaying={effectiveIsPlaying}
+              onPauseMainPlayback={practicePitchTransport.pause}
+              onAdjustRootGain={handleAdjustRootGain}
+              onToggleRootLowCut={handleToggleRootLowCut}
+              onAdjustStemGain={handleAdjustStemGain}
+              onNudgeStem={handleNudgeStem}
+              onRenameStem={handleRenameStem}
+              onChangeStemColor={handleChangeStemColor}
+              onToggleStemMute={handleToggleStemMute}
+              onToggleStemLowCut={handleToggleStemLowCut}
+              onRemoveStem={handleRemoveStem}
+              onSaveAsOneClip={handleSaveAsOneClip}
+              onCloseBench={() => ui.setMode("player")}
+            />
           ) : (
             <PlayerSupportSections
               canAuthor={playerIdea.kind === "project"}
@@ -1453,35 +1560,8 @@ export function PlayerScreen({
                 lifecycle.minimizePlayer();
                 navigation.navigate("IdeaDetail", { ideaId: playerIdea.id, initialSongTab: "chart" });
               }}
-              hasClipOverdubs={data.hasClipOverdubs}
-              clipOverdubStemCount={data.clipOverdubStemCount}
-              isOverdubPreviewRendering={isMixUpdating}
-              isMainPlaybackPlaying={effectiveIsPlaying}
-              overdubRootSettings={data.overdubRootSettings}
-              overdubStemEntries={data.overdubStemEntries}
-              overdubRootAudioUri={playerClip.audioUri ?? null}
-              overdubRootDurationMs={playerClip.durationMs ?? 0}
-              overdubRootWaveformPeaks={playerClip.waveformPeaks}
-              overdubRootRecordingGrid={playerClip.recordingGrid ?? null}
-              // The layers sheet's + states no time, so it keeps its existing
-              // behaviour: punch in wherever the transport sits.
-              onAddOverdub={() => void handleAddOverdub(playerPositionMsRef.current)}
-              onSaveAsOneClip={handleSaveAsOneClip}
-              onPauseMainPlayback={practicePitchTransport.pause}
-              onAdjustRootGain={handleAdjustRootGain}
-              onToggleRootLowCut={handleToggleRootLowCut}
-              onAdjustStemGain={handleAdjustStemGain}
-              onNudgeStem={handleNudgeStem}
-              onRenameStem={handleRenameStem}
-              onChangeStemColor={handleChangeStemColor}
-              onToggleStemMute={handleToggleStemMute}
-              onToggleStemLowCut={handleToggleStemLowCut}
-              onRemoveStem={handleRemoveStem}
               clipNotes={data.clipNotes}
-              clipNotesSummary={data.clipNotesSummary}
               notesExpanded={ui.notesExpanded}
-              layersExpanded={ui.layersExpanded}
-              onToggleLayersExpanded={ui.setLayersExpanded}
               queueEntries={data.queueEntries}
               queueExpanded={ui.queueExpanded}
               onToggleNotesExpanded={ui.setNotesExpanded}

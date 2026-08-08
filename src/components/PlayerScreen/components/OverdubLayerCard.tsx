@@ -434,7 +434,7 @@ export function OverdubLayerCard({
 /** Name + color editor for a layer, combined into one Edit action — the same HueSlider
  *  used for workspace/section colors, so picking a layer's color matches the rest of the
  *  app. Draft state resets from props each time the modal opens. */
-function EditLayerModal({
+export function EditLayerModal({
   visible,
   title,
   color,

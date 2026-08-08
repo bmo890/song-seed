@@ -7,7 +7,7 @@ import {
 } from "../../../hooks/useNativePitchTransport";
 
 type Args = {
-  mode: "player" | "practice";
+  mode: "player" | "practice" | "layers";
   isFocused: boolean;
   clip: { id: string; audioUri?: string | null } | null;
   pitchShiftSemitones: number;
