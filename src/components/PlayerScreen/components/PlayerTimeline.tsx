@@ -317,7 +317,7 @@ function PlayerTimelineInner({
       onZoomMultipleChange={mode === "practice" ? onPracticeZoomMultipleChange : undefined}
       // "auto" = show once zoomed past 1x, which is precisely when a thumb needs it: the
       // clip no longer fits the reel. It was pinned off outside practice mode, so the full
-      // player lost its only way to cross a zoomed clip quickly. Play-along has no zoom
+      // player lost its only way to cross a zoomed clip quickly. Reading has no zoom
       // controls, so auto stays quiet there on its own.
       showMinimapMode="auto"
       freezeSelectedRangeWhenFullyVisible={loopActive}

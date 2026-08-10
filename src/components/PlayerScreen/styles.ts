@@ -198,8 +198,8 @@ export const playerScreenStyles = StyleSheet.create({
     paddingBottom: 8,
     gap: 10,
   },
-  // Play-along fills the body so the lyrics get every spare pixel.
-  playAlongContent: {
+  // Reading fills the body so the lyrics get every spare pixel.
+  followContent: {
     flex: 1,
   },
   footerStack: {

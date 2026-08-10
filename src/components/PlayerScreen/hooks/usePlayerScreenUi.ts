@@ -7,8 +7,8 @@ export type PlayerMode = "player" | "practice" | "layers";
 /** The two readable artifacts a sketch can hang on a take. */
 export type ReadingArtifact = "lyrics" | "chart";
 /** The reading ladder (settled 2026-08-06): closed → reading (slim reel) →
- *  full view (no reel, hairline thread). Play-along is no longer a mode — it's
- *  the `followEnabled` property of an open artifact. */
+ *  full view (no reel, hairline thread). Follow is not a mode — it's the
+ *  `followEnabled` property of an open artifact. */
 export type ReadingAltitude = "reading" | "full";
 // "3s" is a run-up of the SONG (seek back three seconds, then play) — the honest
 // count-in for a take without a grid; the bar options click the take's own grid.

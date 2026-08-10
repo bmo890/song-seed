@@ -39,7 +39,7 @@ import { PlayerSupportSections } from "./components/PlayerSupportSections";
 import { PlayerLayersBench, BENCH_ROOT_LANE_ID } from "./components/PlayerLayersBench";
 import { HelpSheet } from "../common/HelpSheet";
 import { OVERDUB_HELP, PRACTICE_HELP } from "../common/helpContent";
-import { PlayerArtifactReader, PlayAlongSpeedControl } from "./components/PlayerArtifactReader";
+import { PlayerArtifactReader, FollowSpeedControl } from "./components/PlayerArtifactReader";
 import { chartSummary, lyricChordSummary } from "./components/PlayerArtifactDoors";
 import { PlayerPinSheets } from "./components/PlayerPinSheets";
 import { PlayerShelf } from "./components/PlayerShelf";
@@ -1232,7 +1232,7 @@ export function PlayerScreen({
                     </View>
                   ) : (
                   <View style={playerScreenStyles.reelToolbarRight}>
-                    {/* Follow (the old play-along): only offered where it can act. */}
+                    {/* Follow: only offered where it can act. */}
                     <Pressable
                       style={({ pressed }) => [
                         playerScreenStyles.readingChip,
@@ -1242,7 +1242,7 @@ export function PlayerScreen({
                       onPress={() => ui.setFollowEnabled(!ui.followEnabled)}
                       accessibilityRole="button"
                       accessibilityState={{ selected: ui.followEnabled }}
-                      accessibilityLabel={t("player.playAlongLyrics")}
+                      accessibilityLabel={t("player.followA11y")}
                     >
                       <Ionicons
                         name={ui.followEnabled ? "musical-notes" : "musical-notes-outline"}
@@ -1255,11 +1255,11 @@ export function PlayerScreen({
                           ui.followEnabled ? playerScreenStyles.readingChipTextActive : null,
                         ]}
                       >
-                        {t("player.playAlong")}
+                        {t("player.follow")}
                       </Text>
                     </Pressable>
                     {ui.followEnabled ? (
-                      <PlayAlongSpeedControl
+                      <FollowSpeedControl
                         speed={playbackSpeed}
                         presets={PRACTICE_SPEED_PRESETS}
                         min={PRACTICE_SPEED_MIN}
@@ -1462,7 +1462,7 @@ export function PlayerScreen({
           </>
         }
       >
-        <View style={isReading ? playerScreenStyles.playAlongContent : playerScreenStyles.content}>
+        <View style={isReading ? playerScreenStyles.followContent : playerScreenStyles.content}>
           {isWriting ? (
             <PlayerLyricsWriter
               // Keyed on the version so a new-version fork reseeds the editor.

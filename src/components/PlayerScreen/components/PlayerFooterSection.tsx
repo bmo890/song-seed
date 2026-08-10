@@ -39,7 +39,7 @@ export function PlayerFooterSection({
   const queueIndex = useStore((s) => s.playerQueueIndex);
   const queueLength = useStore((s) => s.playerQueue.length);
   // Queue "n / n" beneath the list button — matches the mini dock. Only shown for
-  // a real multi-item queue and only in player mode (practice/play-along reuse the
+  // a real multi-item queue and only in player mode (practice/reading reuse the
   // trailing slot for repeat).
   const queueCaption =
     mode === "player" && queueLength > 1

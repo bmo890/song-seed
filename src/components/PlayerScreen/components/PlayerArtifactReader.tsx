@@ -26,7 +26,7 @@ type Props = {
   chordSheet?: ChordSheet | null;
   /** Text-size multiplier from the reading bar's Aa control. */
   zoom: number;
-  /** Follow (the old play-along): scroll in lock-step with the playhead. */
+  /** Follow: scroll in lock-step with the playhead. */
   followEnabled: boolean;
   positionMs: number;
   durationMs: number;
@@ -206,7 +206,7 @@ export function PlayerArtifactReader({
 /** Compact −/＋ speed stepper for the reading bar while follow is on. Steps
  * through the shared practice presets; the playhead-synced scroll follows the
  * new rate for free. */
-export function PlayAlongSpeedControl({
+export function FollowSpeedControl({
   speed,
   presets,
   min,
