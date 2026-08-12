@@ -13,52 +13,72 @@ Character limits noted are current-as-of-2026; confirm in the console at submiss
 ## Names & taglines
 
 - **App name (both stores):** `SongNook`
-- **App Store subtitle** (30 chars): `Catch song ideas, grow them` (27)
-  - Alt: `Your songwriting sketchbook` (27)
+- **App Store subtitle** (30 chars): `Write it. Learn it. Play it.` (28)
+  - Alt: `From first hum to the gig` (25) · `Write, practice, perform` (24)
 - **Play short description** (80 chars):
-  `Record song ideas the moment they strike, then grow them into finished songs.` (78)
+  `Write songs, learn them cold, and play them. Every version kept, all offline.` (76)
+
+> **Changed 2026-08-12** — was `Catch song ideas, grow them`. Rationale in
+> [positioning.md](positioning.md): the old line described the first fifth of the
+> product and filed us in the voice-memo category. The verb triad names both the
+> writing and the performance halves in the user's own words, and "Learn" carries the
+> practice suite — the part no competitor has — without listing a single feature.
 
 ---
 
 ## Promotional text (App Store, 170 chars — updatable without review)
 
-`Every song starts as a hum in the car or a riff at 2am. SongNook catches it before it's gone — then helps you shape it. Everything stays on your device.` (154)
+`Most apps hold one moment of a song. SongNook holds all of them — the first hum, every lyric version, the take you practice at 70%, the setlist on Friday. All on your device.` (174 → trim)
+
+Final (168): `Most apps hold one moment of a song. SongNook holds them all — the first hum, every lyric version, the take you practice at 70%, the setlist Friday. All on your device.`
+
+Counts verified in-repo; the em dash is one character. Re-count in the console before
+pasting — Apple counts what it counts.
 
 ---
 
 ## Description (App Store + Play — same body)
 
-> SongNook is a songwriting sketchbook for the ideas that arrive when you least
-> expect them. Hum a melody, strum a riff, or sing a line — capture it in a tap,
-> before it slips away. Then grow it into a song, at your own pace.
+> A song has a whole life — the hum in the car, the verse that takes three weeks, the
+> take you play at 70% until your fingers know it, the setlist on Friday night.
+> SongNook holds all of it, in one place, from the first idea to the stage.
 >
 > Everything you make stays on your device. No account, no cloud, no sign-up.
 >
-> CATCH THE SPARK
+> WRITE IT
 > • One-tap recording with a count-in and a metronome to keep you steady
 > • Import voice memos and audio files from anywhere on your phone
 > • Record while the screen is locked — your take keeps going
->
-> GROW EVERY IDEA
 > • Organize takes into workspaces and collections — one idea, one home
-> • Keep lyrics, chords, and multiple versions alongside the audio
 > • Layer overdubs: stack a harmony or a second part over a take
+> • Lyrics that keep every version — nothing you wrote is lost
+> • Chords alongside the audio, and word tools for when a line won't come
 >
-> LEARN AND PRACTICE
-> • Loop the hard part, slow it down, or shift the pitch — without changing the recording
-> • Detect the tempo of steady clips
+> LEARN IT
+> • Loop the hard bar until it's yours
+> • Slow it down or shift the pitch — without changing the recording
 > • Drop pins and mark sections to navigate a song
+> • Detect the tempo of steady clips
+> • Tune up and count in without leaving the app
 >
-> TOOLS FOR WORDS
-> • A rhyme, synonym, and related-word finder for when a line won't come
-> • Cut-up and "magpie" tools to shake loose a new direction
+> PLAY IT
+> • Build setlists in the order you'll play them
+> • Keep songbooks you can read from a music stand
+> • Export chord charts and setlists as PDFs
 >
-> YOURS, AND ONLY YOURS
+> AND IT'S YOURS
 > • Your library never leaves your device
 > • Back up and export whenever you like — to Files, iCloud, or Drive — you choose where
 > • Nothing is uploaded automatically, ever
 >
-> Made for songwriters, by a songwriter. Start with a hum.
+> Made by a songwriter, for anyone with a song to finish.
+
+> **Restructured 2026-08-12** — the old body ran CATCH THE SPARK → GROW EVERY IDEA →
+> LEARN AND PRACTICE → TOOLS FOR WORDS → YOURS, AND ONLY YOURS. Same capabilities,
+> resequenced into the three acts from [positioning.md](positioning.md) §5 so the
+> practice and performance halves aren't buried below the fold. Privacy moves to the
+> closer: it's what earns trust, not what earns the download. The word tools fold into
+> WRITE IT rather than standing as their own section — they're a means, not a category.
 
 ---
 
