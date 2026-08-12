@@ -546,7 +546,7 @@ Two consequences worth acting on:
    nobody sent you a link. Those surfaces are not nice-to-haves, they are our
    substitute for [untitled]'s built-in daily trigger, and they deserve to be treated
    as core.
-2. **We must be able to say what SongNook is in one sentence containing one job.**
+2. **We must be able to say what SongNook is in one shape a stranger can hold.**
    Theirs takes six words: *a safe place for unreleased music.* If our answer is a list
    of twenty capabilities, a stranger has nothing to hold onto. The store listing's
    "catch song ideas, grow them" is the right instinct; the whole product should be
@@ -557,6 +557,10 @@ The uncomfortable summary: they built less and picked a sharper pain. We built m
 and picked a broader, softer one. Breadth is only an advantage if it resolves into a
 single legible promise — otherwise it reads as a Swiss-army knife, and Swiss-army
 knives don't get opened every day.
+
+**Follow-up:** the resolution of that promise — and the argument that our second
+vertical (performance prep) is the retention trigger this section says we lack — is
+worked out in [positioning.md](positioning.md).
 
 ---
 
