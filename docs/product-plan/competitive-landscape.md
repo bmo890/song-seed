@@ -1,9 +1,12 @@
-# Competitive analysis — [untitled] (untitled.stream)
+# Competitive landscape
 
 **Written:** 2026-08-12 · **Method:** public sources only (App/Play listings, press,
 reviews, founder interviews). No hands-on use — direct fetches were blocked by this
 environment's network policy, so every claim below traces to a cited search result.
 Treat feature details as *reported*, not verified. Sources at the bottom.
+
+Deep dive on **[untitled]** (§1–6), then shorter profiles of **Samply** (§7) and
+**BandLab** (§8), then the map that places all three (§9).
 
 ---
 
@@ -204,7 +207,107 @@ capability we already ship.
 
 ---
 
+## 7. Samply
+
+**What it is:** a client-review tool for audio professionals. Founded 2019,
+Cambridge MA, tiny funding (~$125K reported) — a lean, focused, profitable-shaped
+business, not a venture rocket. Web-first with a free native iOS companion app.
+
+**Core loop:** you send a mix to a client/collaborator; they leave **time-coded
+comments** on the waveform; you reply, ship a new version, they A/B the versions.
+That's the product. Its users are mixing and mastering engineers, composers, sync
+agents, podcast producers — people whose *job* has a feedback round.
+
+**Notable features**
+- Time-coded comments with replies and threads
+- Version management + A/B listening between versions
+- Lossless, gapless playback; **loudness matching (LUFS normalization)** so version A/B isn't decided by whichever is louder — a genuinely expert touch
+- Access control: password protection, download on/off, comment permissions
+- Custom branding; live listening sessions; take payment before download (paid tiers)
+- iOS app is free and playback-focused: offline listening, AirPlay, CarPlay
+- Free tier; paid tiers unlock unlimited storage, advanced editing, enhanced privacy
+
+**Relevance to us: low, but instructive.** Samply sits *downstream* of everything
+SongNook does — it starts when you have a mix worth sending to someone who will
+critique it. There is no capture, no writing, no practice, no performance. A
+SongNook user graduates *into* a Samply-shaped need only if they work with clients.
+
+**What's worth learning from them:**
+1. **A small, sharp, unfunded product can win a niche outright** by being the best at one loop. That's a more relevant model for us than [untitled]'s venture path.
+2. **LUFS-matched A/B** is the kind of detail that signals "built by someone who does this work." Our equivalents are the metronome timing audit and latency model — real, and currently invisible to the user. Their lesson is to *let the craft show*.
+3. **Version A/B is a primitive we half-have.** We store lyric versions and clip lineage; we don't let you *compare two takes back to back at matched level*. For a songwriter choosing between three passes at a chorus, that's a real, small, in-scope feature — and it's ours to build, since neither [untitled] nor BandLab does it either.
+
+## 8. BandLab
+
+**What it is:** a free cloud DAW welded to a music social network. **100M+ registered
+users** across 170+ countries — the largest player in this space by two orders of
+magnitude.
+
+**Notable features**
+- Browser + mobile multitrack DAW: 16 tracks free (32 with membership), 15-minute max duration, unlimited projects, no storage cap
+- 370+ instruments, 160,000+ loops and samples, beat maker, synths, drum machines
+- Mixing effects (reverb, compression, EQ) and free **Mastering**
+- AI tools: Voice Cleaner, Voice-to-MIDI, AutoPitch, AutoMix, SongStarter
+- **Collab projects** — a drummer adds a beat, a guitarist a riff, owner compiles the mix
+- Social feed, forks/remixes of other people's projects, followers
+- Membership (~$8.25/mo annual, $14.95/mo monthly): distribution to Spotify/Apple Music keeping 100% royalties, Opportunities (gigs, deals, sync), Fan Reach campaigns, 32 tracks
+
+**Relevance to us: low overlap, high gravitational pull.** BandLab is *production* —
+arranging, beat-making, mixing, mastering, releasing. SongNook has no ambition to be a
+DAW and should never acquire one. But BandLab is free, enormous, and on every
+platform, so it is the default answer to "what app should I use to make music on my
+phone." We will lose that framing every time; we have to not be in it.
+
+**Their structural weakness, and it's the same one:** BandLab is a *social production
+network*. It's loud by design — a feed, followers, remix counts, opportunities,
+campaigns. It is the exact opposite of "a quiet place to finish creative work." It
+also requires an account and lives entirely in their cloud, and its writing support
+is nil (SongStarter generates ideas *for* you; it doesn't help you write yours).
+
+**What's worth learning from them:** the free tier is genuinely generous and the
+paywall sits on *distribution and career services*, not on the act of making music.
+That's the same instinct as our "never gate capture" rule, and it validates it at
+100M-user scale.
+
+## 9. The map
+
+Place the four apps on the songwriting timeline and the picture resolves:
+
+```
+   hum ──── song ──── take ──── mix ──── release ──── audience
+    │         │         │         │          │            │
+ SongNook ════════════╡         │          │            │
+                    [untitled] ═╪══════════╪════════════╡
+                            Samply ════════╡
+                    BandLab ═══════════════╪════════════╡
+```
+
+- **SongNook** — capture → write → practice → perform. Ends before the mix.
+- **[untitled]** — store, version, share, sell what you've already bounced.
+- **Samply** — one narrow loop: get expert feedback on a mix.
+- **BandLab** — produce and release; plus a social graph.
+
+**Nobody is where we are.** All three assume a file already exists. All three require
+an account and a cloud. None of them has lyrics, chords, practice tooling, setlists,
+or any notion of returning to an old idea. The songwriting craft layer is empty
+territory occupied by scattered single-purpose apps (rhyme dictionaries, chord
+charts, metronomes, setlist apps) — never assembled into one workshop.
+
+**What all three confirm:**
+1. **Musicians pay.** $7.99–$14.95/mo across the board. Our planned $3–4/mo is low.
+2. **They all monetize infrastructure or career services** — storage, delivery, distribution — never the creative act. Same conclusion as Phase 6's "never gate capture."
+3. **They are all loud in some way** — feeds, listener analytics, notifications, opportunities, campaigns. The quiet is genuinely unoccupied.
+4. **Cloud + account is the universal assumption.** Local-first is not a limitation we're apologizing for; it is the only unclaimed position in the category.
+
+**The sharpest version of our pitch, given this field:** *everyone else stores or
+produces the music you've already made. SongNook is where the song gets written — and
+it never leaves your phone.*
+
+---
+
 ## Sources
+
+**[untitled]**
 
 - [Untitled — App Store](https://apps.apple.com/us/app/untitled/id6445854828) · [Ratings & Reviews](https://apps.apple.com/us/app/untitled/id6445854828?see-all=reviews&platform=iphone) · [Desktop app](https://apps.apple.com/us/app/untitled-for-desktop/id6744922982?mt=12)
 - [[untitled] — Google Play](https://play.google.com/store/apps/details?id=stream.untitled)
@@ -219,3 +322,15 @@ capability we already ship.
 - [[untitled] Launches Paywalled Projects — Midnight Rebels](https://midnightrebels.com/untitled-launches-paywalled-projects-to-let-artists-sell-demos-commission-free/)
 - [New app, [untitled], lets you share and organise unreleased music — MusicTech](https://musictech.com/news/gear/untitled-to-organise-unreleased-music/)
 - [DJ Mag](https://djmag.com/news/new-app-untitled-launched-help-producers-share-and-organise-unreleased-music-securely) · [Product Hunt](https://www.producthunt.com/products/untitled-2) · [Crunchbase](https://www.crunchbase.com/organization/untitled-61d6)
+
+**Samply**
+
+- [Samply — Listen & Share, App Store](https://apps.apple.com/us/app/samply-listen-share/id6463439253) · [Apps docs](https://docs.samply.app/applications.html)
+- [Samply — Crunchbase](https://www.crunchbase.com/organization/samply-db2e) · [PitchBook](https://pitchbook.com/profiles/company/442316-89)
+- [Top 5 Samply alternatives — Audome](https://blog.audome.com/samply-app-alternatives-5/) · [Fasttrak vs. Samply](https://fasttrak.it/comparison/samply) · [Gearspace thread](https://gearspace.com/board/mastering-forum/1377425-whats-deal-samply-app.html)
+
+**BandLab**
+
+- [BandLab — App Store](https://apps.apple.com/us/app/bandlab-music-maker-beats/id968585775)
+- [BandLab Pro and Max membership](https://blog.bandlab.com/bandlab-membership/) · [Membership FAQ](https://help.bandlab.com/hc/en-us/articles/20758981227033-BandLab-Membership-FAQ) · [Track & project duration limits](https://help.bandlab.com/hc/en-us/articles/115002945433-Track-and-Project-Duration-Limits) · [Distribution FAQ](https://blog.bandlab.com/bandlab-distribution-faq/)
+- [BandLab Review 2026 — MakerStack](https://makerstack.co/reviews/bandlab-review/) · [AI Tool Finder](https://aitoolfinder.org/tools/bandlab/) · [Audeobox guide](https://www.audeobox.com/learn/bandlab/)
