@@ -50,6 +50,16 @@ export const playerScreenStyles = StyleSheet.create({
   titleBlock: {
     gap: 6,
   },
+  // Title + overflow share the first content row; ⋯ hangs on the title's
+  // first line even when the title wraps.
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  titleFlex: {
+    flex: 1,
+    marginEnd: 8,
+  },
   title: {
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 23,
@@ -132,7 +142,42 @@ export const playerScreenStyles = StyleSheet.create({
   bareGlyphButton: {
     padding: 6,
   },
+  // Label atop the text-size slider sheet (same shape as the sparks' sheet).
+  textSizeSheetLabel: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 14,
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  // Chords toggle in the same sheet — editorial ink (word + leading dot).
+  chordsInk: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingVertical: 4,
+    marginTop: 10,
+    alignSelf: "flex-start",
+  },
+  chordsInkDot: {
+    width: 8,
+    height: 8,
+    borderRadius: radii.round,
+    borderWidth: 1.5,
+    borderColor: colors.textMuted,
+  },
+  chordsInkText: {
+    fontSize: 13,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    color: colors.textSecondary,
+  },
   // Full view's hairline stand-in for the reel: position as a quiet thread.
+  // The row is the touch target (scrub/tap); the visible line stays 2px, and
+  // the bottom padding keeps the thread off the transport bar.
+  progressThreadRow: {
+    paddingTop: 10,
+    paddingBottom: 12,
+    justifyContent: "center",
+  },
   progressThreadTrack: {
     height: 2,
     backgroundColor: colors.borderSubtle,

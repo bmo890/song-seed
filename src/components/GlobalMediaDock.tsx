@@ -442,10 +442,10 @@ export function GlobalMediaDock({
             <Pressable
               style={({ pressed }) => [
                 styles.miniMediaDockSkipBtn,
-                !hasPrevInQueue ? { opacity: 0.3 } : null,
-                pressed && hasPrevInQueue ? styles.pressDownStrong : null,
+                pressed ? styles.pressDownStrong : null,
               ]}
-              disabled={!hasPrevInQueue}
+              // Never disabled: past 3s it restarts the take (the convention),
+              // and resolvePreviousAction already handles the no-previous case.
               onPress={() => {
                 haptic.tap();
                 handleQueuePrev();

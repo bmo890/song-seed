@@ -50,47 +50,6 @@ export const RECORDING_HELP: HelpContent = {
   ],
 };
 
-export const PRACTICE_HELP: HelpContent = {
-  title: "Practice tools",
-  intro: "Slow it down, loop the hard part, learn the song.",
-  items: [
-    {
-      icon: "repeat-outline",
-      label: "Loop",
-      description: "Set a start and end and the section repeats, so you can drill one phrase until it sticks.",
-    },
-    {
-      icon: "pin-outline",
-      label: "Pins",
-      description: "Drop a marker at any moment, then jump straight back to it later.",
-    },
-    {
-      icon: "albums-outline",
-      label: "Sections",
-      description: "Label verse, chorus, and the rest to navigate — and loop — by part.",
-    },
-    {
-      icon: "speedometer-outline",
-      label: "Speed",
-      description: "Play slower or faster without changing the pitch.",
-    },
-    {
-      icon: "swap-vertical-outline",
-      label: "Pitch",
-      description: "Shift up or down in semitones to match your instrument or voice.",
-    },
-    {
-      icon: "sparkles-outline",
-      label: "Non-destructive",
-      description: "Speed and pitch here only change playback — the saved clip is never altered.",
-    },
-    {
-      icon: "stats-chart-outline",
-      label: "Tempo",
-      description: "Estimate BPM from a steady clip. SongNook leaves it blank when the rhythm is unclear.",
-    },
-  ],
-};
 
 export const OVERDUB_HELP: HelpContent = {
   title: "Overdub layers",

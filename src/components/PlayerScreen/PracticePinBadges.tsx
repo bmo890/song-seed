@@ -15,6 +15,7 @@ import {
   assignPinRows,
   estimatePinBadgeWidth,
   pinRowTop,
+  MIN_PIN_BADGE_WIDTH,
   PIN_BADGE_HEIGHT,
   PIN_EDGE_GUARD_PX,
 } from "../../domain/practicePinLayout";
@@ -33,6 +34,9 @@ type Props = {
   onDragStateChange?: (dragging: boolean) => void;
   draggingMarkerId: SharedValue<string>;
   draggingMarkerX: SharedValue<number>;
+  /** Practice owns pin editing. When false (plain player), a pin is a jump
+   *  target only: tap seeks, no drag, no actions sheet. */
+  editable?: boolean;
 };
 
 function PinBadge({
@@ -48,6 +52,7 @@ function PinBadge({
   onDragStateChange,
   draggingMarkerId,
   draggingMarkerX,
+  editable,
 }: {
   marker: PracticeMarker;
   row: number;
@@ -61,6 +66,7 @@ function PinBadge({
   onDragStateChange?: (dragging: boolean) => void;
   draggingMarkerId: SharedValue<string>;
   draggingMarkerX: SharedValue<number>;
+  editable: boolean;
 }) {
   const badgeW = estimatePinBadgeWidth(marker.label);
   const dragTimeMs = useSharedValue(marker.atMs);
@@ -122,7 +128,7 @@ function PinBadge({
     runOnJS(handleSeek)();
   });
 
-  const composed = Gesture.Exclusive(panGesture, tapGesture);
+  const composed = editable ? Gesture.Exclusive(panGesture, tapGesture) : tapGesture;
   const topOffset = pinRowTop(row);
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -137,27 +143,33 @@ function PinBadge({
         { translateX: anchorOffset },
         { scale: dragLift.value },
       ],
-      // At rest this view is a pure HITBOX: the badge the user sees is drawn inside the
-      // reel's canvas, glued to the tape by construction. Mid-drag the canvas twin hides
-      // and this one shows — under the finger, where a one-frame slip cannot be seen.
-      opacity: isDragging.value ? 1 : 0,
       zIndex: isDragging.value ? 10 : 0,
     };
   });
+  // At rest this view is a pure HITBOX: the badge the user sees is drawn inside the
+  // reel's canvas, glued to the tape by construction. Mid-drag the canvas twin hides
+  // and this one shows — under the finger, where a one-frame slip cannot be seen.
+  // The invisibility lives on the INNER content, never the wrapper: Fabric drops
+  // opacity-0 views from hit-testing, and an opacity-0 wrapper is a dead hitbox.
+  const contentStyle = useAnimatedStyle(() => ({
+    opacity: isDragging.value ? 1 : 0,
+  }));
 
   return (
     <GestureDetector gesture={composed}>
       <Animated.View style={[badgeStyles.badgeWrap, { top: topOffset }, animatedStyle]}>
-        {marker.label ? (
-          <View style={badgeStyles.badge}>
-            <Text style={badgeStyles.badgeText} numberOfLines={1}>
-              {marker.label}
-            </Text>
-            {marker.note ? <View style={badgeStyles.noteDot} /> : null}
-          </View>
-        ) : (
-          <View style={[badgeStyles.badgeDot, marker.note ? badgeStyles.badgeDotNote : null]} />
-        )}
+        <Animated.View style={contentStyle}>
+          {marker.label ? (
+            <View style={badgeStyles.badge}>
+              <Text style={badgeStyles.badgeText} numberOfLines={1}>
+                {marker.label}
+              </Text>
+              {marker.note ? <View style={badgeStyles.noteDot} /> : null}
+            </View>
+          ) : (
+            <View style={[badgeStyles.badgeDot, marker.note ? badgeStyles.badgeDotNote : null]} />
+          )}
+        </Animated.View>
       </Animated.View>
     </GestureDetector>
   );
@@ -175,6 +187,7 @@ export function PracticePinBadges({
   onDragStateChange,
   draggingMarkerId,
   draggingMarkerX,
+  editable = true,
 }: Props) {
   const rowAssignments = useMemo(
     () => assignPinRows(markers, pixelsPerMs, 1, durationMs),
@@ -198,6 +211,7 @@ export function PracticePinBadges({
           onDragStateChange={onDragStateChange}
           draggingMarkerId={draggingMarkerId}
           draggingMarkerX={draggingMarkerX}
+          editable={editable}
         />
       ))}
     </View>
@@ -208,6 +222,9 @@ const badgeStyles = StyleSheet.create({
   badgeWrap: {
     position: "absolute",
     height: PIN_BADGE_HEIGHT,
+    // Touch target at least as wide as the drawn badge — the RN dot for an
+    // unlabeled pin is narrower than its Skia twin.
+    minWidth: MIN_PIN_BADGE_WIDTH,
   },
   badge: {
     flexDirection: "row",

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { BackHandler, Dimensions, Platform, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Gesture } from "react-native-gesture-handler";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
 import type { ClipSection, PracticeMarker } from "../../types";
 import { styles } from "../../styles";
@@ -38,7 +38,9 @@ import { PlayerPracticeDrawers } from "./components/PlayerPracticeDrawers";
 import { PlayerSupportSections } from "./components/PlayerSupportSections";
 import { PlayerLayersBench, BENCH_ROOT_LANE_ID } from "./components/PlayerLayersBench";
 import { HelpSheet } from "../common/HelpSheet";
-import { OVERDUB_HELP, PRACTICE_HELP } from "../common/helpContent";
+import { BottomSheet } from "../common/BottomSheet";
+import { ChordZoomBar } from "../LyricsVersionScreen/components/chords/ChordZoomBar";
+import { OVERDUB_HELP } from "../common/helpContent";
 import { PlayerArtifactReader, FollowSpeedControl } from "./components/PlayerArtifactReader";
 import { chartSummary, lyricChordSummary } from "./components/PlayerArtifactDoors";
 import { PlayerPinSheets } from "./components/PlayerPinSheets";
@@ -70,23 +72,80 @@ const SHEET_DISMISS_VELOCITY = 1200;
 
 /** Full view's stand-in for the reel: a hairline thread above the transport
  *  carrying playback position, driven off the transport clock's shared values
- *  so it rides the UI thread like the tape does. */
+ *  so it rides the UI thread like the tape does. It scrubs, too — drag previews
+ *  along the thread and commits the seek on release; a tap jumps straight
+ *  there. The visible line stays 2px; the touchable row around it does not. */
 function ProgressThread({
   sharedCurrentTimeMs,
   sharedDurationMs,
+  onSeek,
 }: {
   sharedCurrentTimeMs: SharedValue<number>;
   sharedDurationMs: SharedValue<number>;
+  onSeek: (timeMs: number) => void;
 }) {
+  const trackWidth = useSharedValue(0);
+  const scrubbing = useSharedValue(false);
+  const scrubX = useSharedValue(0);
+
+  const commitAt = useCallback(
+    (fraction: number) => {
+      const duration = sharedDurationMs.value;
+      if (duration > 0) onSeek(Math.max(0, Math.min(duration, fraction * duration)));
+    },
+    [onSeek, sharedDurationMs]
+  );
+
+  const gesture = React.useMemo(() => {
+    const clampX = (x: number, width: number) => {
+      "worklet";
+      return Math.max(0, Math.min(width, x));
+    };
+    const pan = Gesture.Pan()
+      .onStart((e) => {
+        scrubbing.value = true;
+        scrubX.value = clampX(e.x, trackWidth.value);
+      })
+      .onChange((e) => {
+        scrubX.value = clampX(e.x, trackWidth.value);
+      })
+      .onEnd(() => {
+        const width = trackWidth.value;
+        if (width > 0) runOnJS(commitAt)(scrubX.value / width);
+      })
+      .onFinalize(() => {
+        scrubbing.value = false;
+      });
+    const tap = Gesture.Tap().onEnd((e) => {
+      const width = trackWidth.value;
+      if (width > 0) runOnJS(commitAt)(clampX(e.x, width) / width);
+    });
+    return Gesture.Race(pan, tap);
+  }, [commitAt, scrubX, scrubbing, trackWidth]);
+
   const fillStyle = useAnimatedStyle(() => {
+    const width = trackWidth.value;
+    if (scrubbing.value && width > 0) {
+      return { width: `${(scrubX.value / width) * 100}%` };
+    }
     const duration = sharedDurationMs.value;
     const pct = duration > 0 ? Math.min(100, (sharedCurrentTimeMs.value / duration) * 100) : 0;
     return { width: `${pct}%` };
   });
+
   return (
-    <View style={playerScreenStyles.progressThreadTrack} pointerEvents="none">
-      <Animated.View style={[playerScreenStyles.progressThreadFill, fillStyle]} />
-    </View>
+    <GestureDetector gesture={gesture}>
+      <View
+        style={playerScreenStyles.progressThreadRow}
+        onLayout={(e) => {
+          trackWidth.value = e.nativeEvent.layout.width;
+        }}
+      >
+        <View style={playerScreenStyles.progressThreadTrack}>
+          <Animated.View style={[playerScreenStyles.progressThreadFill, fillStyle]} />
+        </View>
+      </View>
+    </GestureDetector>
   );
 }
 
@@ -129,7 +188,7 @@ export function PlayerScreen({
     startMs?: number;
     endMs?: number;
   } | null>(null);
-  const [helpTopic, setHelpTopic] = useState<"practice" | "overdub" | null>(null);
+  const [helpTopic, setHelpTopic] = useState<"overdub" | null>(null);
 
   const fullPlayer = useFullPlayerContext();
   const {
@@ -971,6 +1030,9 @@ export function PlayerScreen({
     removeStem: handleRemoveStem,
   } = layerHandlers;
 
+  // Reading text size: the Aa button opens the shared slider sheet (ChordZoomBar).
+  const [textSizeOpen, setTextSizeOpen] = useState(false);
+
   // Coarse layer placement from the reel (bench phase 3): the selected lane's drag
   // commits here. The snap tolerance is zoom-aware — ~10px of screen either way — but
   // never more than half a beat, so zoomed-out drags still land on the nearest beat
@@ -1037,7 +1099,6 @@ export function PlayerScreen({
             displayDuration={effectivePlayerDuration}
             collapsed={ui.mode !== "player" || isReading}
             dragGesture={dismissGesture}
-            onMinimize={lifecycle.minimizePlayer}
             onOverflow={lifecycle.handleOverflowMenu}
           />
         }
@@ -1269,7 +1330,8 @@ export function PlayerScreen({
                         }}
                       />
                     ) : ui.readingArtifact === "lyrics" ? (
-                      // Aa cycles the text size — a dial would out-weigh the job.
+                      // Aa opens the same text-size slider the sparks use —
+                      // one control for "make the words bigger" everywhere.
                       <Pressable
                         style={({ pressed }) => [
                           playerScreenStyles.readingIconButton,
@@ -1277,9 +1339,7 @@ export function PlayerScreen({
                         ]}
                         onPress={() => {
                           haptic.tap();
-                          const presets = [1, 1.15, 1.3, 0.9];
-                          const index = presets.indexOf(ui.readingZoom);
-                          ui.setReadingZoom(presets[(index + 1) % presets.length] ?? 1);
+                          setTextSizeOpen(true);
                         }}
                         hitSlop={6}
                         accessibilityRole="button"
@@ -1434,6 +1494,7 @@ export function PlayerScreen({
               <ProgressThread
                 sharedCurrentTimeMs={transportClock.sharedCurrentTimeMs}
                 sharedDurationMs={transportClock.sharedDurationMs}
+                onSeek={(timeMs) => void handleSeekWithClick(timeMs)}
               />
             ) : null}
             {/* The shelf anchors the page's bottom in the base listening state —
@@ -1478,6 +1539,7 @@ export function PlayerScreen({
               chordLines={lyricsChordLines}
               chordSheet={chordSheet}
               zoom={ui.readingZoom}
+              showChords={ui.chordsVisible}
               followEnabled={ui.followEnabled}
               positionMs={effectivePlayerPosition}
               durationMs={effectivePlayerDuration}
@@ -1659,10 +1721,47 @@ export function PlayerScreen({
       <HelpSheet
         visible={helpTopic !== null}
         onClose={() => setHelpTopic(null)}
-        title={(helpTopic === "overdub" ? OVERDUB_HELP : PRACTICE_HELP).title}
-        intro={(helpTopic === "overdub" ? OVERDUB_HELP : PRACTICE_HELP).intro}
-        items={(helpTopic === "overdub" ? OVERDUB_HELP : PRACTICE_HELP).items}
+        title={OVERDUB_HELP.title}
+        intro={OVERDUB_HELP.intro}
+        items={OVERDUB_HELP.items}
       />
+
+      <BottomSheet visible={textSizeOpen} onClose={() => setTextSizeOpen(false)}>
+        <Text style={playerScreenStyles.textSizeSheetLabel}>{t("player.lyricSize")}</Text>
+        <ChordZoomBar zoom={ui.readingZoom} onChange={ui.setReadingZoom} />
+        {lyricsChordLines ? (
+          // Chords over the words are a reading preference too — editorial ink,
+          // hollow dot → terracotta, same voice as every multi-select.
+          <Pressable
+            style={({ pressed }) => [
+              playerScreenStyles.chordsInk,
+              pressed ? styles.pressDown : null,
+            ]}
+            onPress={() => ui.setChordsVisible(!ui.chordsVisible)}
+            hitSlop={{ top: 6, bottom: 6 }}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: ui.chordsVisible }}
+            accessibilityLabel={t("player.chords")}
+          >
+            <View
+              style={[
+                playerScreenStyles.chordsInkDot,
+                ui.chordsVisible
+                  ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                  : null,
+              ]}
+            />
+            <Text
+              style={[
+                playerScreenStyles.chordsInkText,
+                ui.chordsVisible ? { color: colors.primaryDeep } : null,
+              ]}
+            >
+              {t("player.chords")}
+            </Text>
+          </Pressable>
+        ) : null}
+      </BottomSheet>
     </SafeAreaView>
   );
 

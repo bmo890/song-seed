@@ -54,7 +54,10 @@ export function PlayerFooterSection({
         isPlaying={isPlaying}
         playDisabled={playDisabled}
         onClose={onClose}
-        canGoPrevious={hasPreviousTrack}
+        // Previous always works: past 3s it restarts the take, before that it
+        // steps back in the queue (resolvePreviousAction). Disabling it when
+        // the queue has no previous item made restart unreachable by touch.
+        canGoPrevious
         canGoNext={hasNextTrack}
         onPrevious={onPreviousTrack}
         onTogglePlay={onTogglePlay}

@@ -2,11 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
-import { clipHasOverdubs, getClipOverdubStemCount, getClipPlaybackUri } from "../../../domain/clipPresentation";
-import { canAddOverdubLayer } from "../../../domain/proGating";
-import { hasProAccess } from "../../../domain/entitlements";
-import { openProUpsell } from "../../common/proUpsell";
+import { clipHasOverdubs, getClipPlaybackUri } from "../../../domain/clipPresentation";
 import { MANAGED_WAVEFORM_PEAK_COUNT, loadManagedAudioMetadata, shareAudioFile } from "../../../services/audioStorage";
+import { createClipsShareLink } from "../../../services/clipShareLink";
+import { presentShareLink } from "../../../services/shareLinkFlow";
+import { isSendServiceConfigured } from "../../../config/sendService";
 import { isForegroundAudioBusy, waitForForegroundAudioIdle } from "../../../services/audioForegroundActivity";
 import { buildClipLockScreenMetadata } from "../../../services/lockScreenMetadata";
 import { appActions } from "../../../state/actions";
@@ -64,7 +64,7 @@ type UsePlayerScreenLifecycleArgs = {
   setSpeedPanelVisible: (visible: boolean) => void;
   prepareTransportForClose: () => void;
   /** Opens a help sheet from the overflow menu. */
-  onShowHelp: (topic: "practice" | "overdub") => void;
+  onShowHelp: (topic: "overdub") => void;
 };
 
 export function usePlayerScreenLifecycle({
@@ -461,32 +461,9 @@ export function usePlayerScreenLifecycle({
       });
     };
 
+    // The menu is clip MANAGEMENT only. Recording verbs live on the recording
+    // surfaces (Tools' "Record a layer", the bench's +) — no "Add overdub" here.
     AppAlert.custom(t("player.options"), playerClip?.title ?? undefined, [
-      {
-        label: t("player.addOverdub"),
-        style: "default",
-        icon: actionIcons.record,
-        onPress: async () => {
-          if (!playerIdea || !playerClip) return;
-          // Same overdub-layers gate as the reel's add-layer buttons (this is a third entry
-          // point to the identical action). First layer free; a second+ opens the upsell.
-          if (!canAddOverdubLayer(getClipOverdubStemCount(playerClip), hasProAccess("overdub-layers"))) {
-            openProUpsell("overdub-layers");
-            return;
-          }
-          if (isPlayerPlaying) {
-            await pausePlayer();
-          }
-          try {
-            await appActions.startClipOverdubRecording(playerIdea.id, playerClip.id);
-            navigation.navigate("Recording" as never);
-          } catch (error) {
-            const message =
-              error instanceof Error ? error.message : t("player.overdubStartFailed");
-            AppAlert.info(t("player.overdubUnavailable"), message);
-          }
-        },
-      },
       ...(hasOverdubs
         ? [
             {
@@ -515,7 +492,7 @@ export function usePlayerScreenLifecycle({
             {
               label: t("player.saveCombinedEdit"),
               style: "default" as const,
-              icon: actionIcons.edit,
+              icon: "cut-outline" as const,
               onPress: async () => {
                 try {
                   await openFlattenedEditor();
@@ -529,9 +506,10 @@ export function usePlayerScreenLifecycle({
           ]
         : [
             {
-              label: t("player.editClip"),
+              // Scissors, not a pencil: the editor's job here is trimming the tape.
+              label: t("player.trimAudio"),
               style: "default" as const,
-              icon: actionIcons.edit,
+              icon: "cut-outline" as const,
               onPress: async () => {
                 if (!playerIdea || !playerClip) return;
                 if (isPlayerPlaying) {
@@ -546,12 +524,6 @@ export function usePlayerScreenLifecycle({
               },
             },
           ]),
-      {
-        label: t("player.practiceHelp"),
-        style: "default" as const,
-        icon: "help-circle-outline" as const,
-        onPress: () => onShowHelp("practice"),
-      },
       ...(hasOverdubs
         ? [
             {
@@ -563,13 +535,22 @@ export function usePlayerScreenLifecycle({
           ]
         : []),
       {
-        label: t("player.shareAudio"),
+        label: t("player.share"),
         style: "default",
         icon: actionIcons.share,
         onPress: async () => {
           const playbackUri = playerClip ? getClipPlaybackUri(playerClip) : null;
           if (!playbackUri) return;
           const clipTitle = playerClip?.title ?? t("player.clip");
+          // Share = a link (SongNook Send): uploads the take, copies the URL,
+          // offers the OS sheet — the receiving end needs nothing installed.
+          // Without the service (fresh checkout, no env) fall back to the file.
+          if (__DEV__ || isSendServiceConfigured()) {
+            await presentShareLink(() => createClipsShareLink([{ title: clipTitle, audioUri: playbackUri }], clipTitle), {
+              emptyMessage: t("player.shareAudioFailed"),
+            });
+            return;
+          }
           try {
             await shareAudioFile(playbackUri, clipTitle);
           } catch (error) {
@@ -582,7 +563,8 @@ export function usePlayerScreenLifecycle({
       {
         label: t("player.setAside"),
         style: "default",
-        icon: "timer-outline",
+        // Same glyph the sidebar's Shelf wears — one icon per place.
+        icon: "file-tray-outline",
         onPress: () => {
           if (!playerIdea) return;
           useShelfStore.getState().setAside([{ kind: "idea", id: playerIdea.id }]);

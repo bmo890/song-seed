@@ -20,6 +20,92 @@ type Range = {
   type: "keep" | "remove";
 };
 
+/** Height of the tappable rail over each section band — the bottom strip where
+ *  the Skia label chip rides. Kept shallow so taps higher on the tape still scrub. */
+const SECTION_JUMP_RAIL_HEIGHT = 30;
+
+/** Invisible tap rails over the section bands: tapping a section's label strip
+ *  jumps the playhead to its start. The visible chip is Skia (glued to the
+ *  tape); these are hitboxes only, same pattern as the pin badges. */
+function SectionJumpHitboxes({
+  bands,
+  pixelsPerMs,
+  timelineTranslateX,
+  timelineScale,
+  onSeek,
+}: {
+  bands: { id: string; label: string; startMs: number; endMs: number }[];
+  pixelsPerMs: number;
+  timelineTranslateX: SharedValue<number>;
+  timelineScale: SharedValue<number>;
+  onSeek: (timeMs: number) => void;
+}) {
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      {bands.map((band) => (
+        <SectionJumpHitbox
+          key={band.id}
+          band={band}
+          pixelsPerMs={pixelsPerMs}
+          timelineTranslateX={timelineTranslateX}
+          timelineScale={timelineScale}
+          onSeek={onSeek}
+        />
+      ))}
+    </View>
+  );
+}
+
+function SectionJumpHitbox({
+  band,
+  pixelsPerMs,
+  timelineTranslateX,
+  timelineScale,
+  onSeek,
+}: {
+  band: { id: string; label: string; startMs: number; endMs: number };
+  pixelsPerMs: number;
+  timelineTranslateX: SharedValue<number>;
+  timelineScale: SharedValue<number>;
+  onSeek: (timeMs: number) => void;
+}) {
+  const handleJump = React.useCallback(
+    () => onSeek(band.startMs),
+    [band.startMs, onSeek]
+  );
+  const tapGesture = React.useMemo(
+    () =>
+      Gesture.Tap().onEnd(() => {
+        runOnJS(handleJump)();
+      }),
+    [handleJump]
+  );
+  const animatedStyle = useAnimatedStyle(() => {
+    const scale = timelineScale.value;
+    const left = band.startMs * pixelsPerMs * scale + timelineTranslateX.value;
+    const width = Math.max(0, (band.endMs - band.startMs) * pixelsPerMs * scale);
+    return { transform: [{ translateX: left }], width };
+  });
+  return (
+    <GestureDetector gesture={tapGesture}>
+      <Animated.View
+        style={[sectionJumpStyles.rail, animatedStyle]}
+        accessibilityRole="button"
+        accessibilityLabel={band.label}
+      />
+    </GestureDetector>
+  );
+}
+
+const sectionJumpStyles = StyleSheet.create({
+  rail: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    height: SECTION_JUMP_RAIL_HEIGHT,
+  },
+});
+
 const LOOP_MOVE_PILL_WIDTH = 34;
 const LOOP_MOVE_PILL_HEIGHT = 10;
 const LOOP_MOVE_HITBOX_WIDTH = 52;
@@ -322,7 +408,10 @@ function PlayerTimelineInner({
       showMinimapMode="auto"
       freezeSelectedRangeWhenFullyVisible={loopActive}
       selectedRanges={loopActive ? practiceLoopSelection : undefined}
-      practiceMarkers={mode === "practice" ? practiceMarkers : undefined}
+      // Pins show wherever the full-height tape does — they're the song's own
+      // map, not a practice tool. The bench and the slim reading reel skip
+      // them (too little tape to carry badges).
+      practiceMarkers={mode !== "layers" && !readingSlim ? practiceMarkers : undefined}
       sharedDraggingMarkerId={draggingMarkerId}
       sectionBands={sectionBands}
       grid={recordingGrid}
@@ -349,11 +438,20 @@ function PlayerTimelineInner({
                   showVisuals={false}
                 />
           ) : null}
-          {mode === "practice" ? (
+          {mode !== "layers" && !readingSlim ? (
             <>
-              <DragIndicatorLine
-                draggingMarkerId={draggingMarkerId}
-                draggingMarkerX={draggingMarkerX}
+              {mode === "practice" ? (
+                <DragIndicatorLine
+                  draggingMarkerId={draggingMarkerId}
+                  draggingMarkerX={draggingMarkerX}
+                />
+              ) : null}
+              <SectionJumpHitboxes
+                bands={sectionBands}
+                pixelsPerMs={pixelsPerMs}
+                timelineTranslateX={timelineTranslateX}
+                timelineScale={timelineScale}
+                onSeek={(timeMs) => void onSeek(timeMs)}
               />
               <PracticePinBadges
                 markers={practiceMarkers}
@@ -367,6 +465,7 @@ function PlayerTimelineInner({
                 onDragStateChange={onPinDragStateChange}
                 draggingMarkerId={draggingMarkerId}
                 draggingMarkerX={draggingMarkerX}
+                editable={mode === "practice"}
               />
             </>
           ) : null}

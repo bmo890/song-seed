@@ -26,6 +26,9 @@ type Props = {
   chordSheet?: ChordSheet | null;
   /** Text-size multiplier from the reading bar's Aa control. */
   zoom: number;
+  /** Chord lines over the lyrics — the Aa sheet can turn them off for a
+   *  words-only read. Ignored when the version has no chords. */
+  showChords?: boolean;
   /** Follow: scroll in lock-step with the playhead. */
   followEnabled: boolean;
   positionMs: number;
@@ -50,6 +53,7 @@ export function PlayerArtifactReader({
   chordLines,
   chordSheet,
   zoom,
+  showChords = true,
   followEnabled,
   positionMs,
   durationMs,
@@ -63,7 +67,11 @@ export function PlayerArtifactReader({
   // True while follow is on AND the reader hasn't dragged away from it.
   const [tracking, setTracking] = useState(true);
 
-  const showLyricChart = artifact === "lyrics" && !!chordLines && chordLines.some((line) => line.chords.length > 0);
+  const showLyricChart =
+    artifact === "lyrics" &&
+    showChords &&
+    !!chordLines &&
+    chordLines.some((line) => line.chords.length > 0);
   const lines = useMemo(() => text.split("\n"), [text]);
 
   // Live values the rAF loop reads without re-subscribing each render.

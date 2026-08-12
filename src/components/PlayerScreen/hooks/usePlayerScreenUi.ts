@@ -29,6 +29,9 @@ export function usePlayerScreenUi() {
   const [lyricsWriting, setLyricsWriting] = useState(false);
   // Text-size multiplier for the open artifact — persists across doors within a session.
   const [readingZoom, setReadingZoom] = useState(1);
+  // Chord lines over the lyrics: on by default when the version carries chords;
+  // the Aa sheet can switch them off for a words-only read.
+  const [chordsVisible, setChordsVisible] = useState(true);
   const [notesExpanded, setNotesExpanded] = useState(false);
   // The bench's selected lane: a stem id, or "root" for the base take.
   const [benchLayerId, setBenchLayerId] = useState<string>("root");
@@ -94,6 +97,8 @@ export function usePlayerScreenUi() {
     setFollowEnabled,
     readingZoom,
     setReadingZoom,
+    chordsVisible,
+    setChordsVisible,
     openReading,
     closeReading,
     lyricsWriting,

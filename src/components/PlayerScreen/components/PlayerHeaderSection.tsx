@@ -20,7 +20,6 @@ type PlayerHeaderSectionProps = {
   /** Finger-tracking drag-to-collapse — bound to the HEADER ONLY so it never
    *  contests the reel scrub, loop handles, sliders, or lyric scrolling below. */
   dragGesture: PanGesture;
-  onMinimize: () => void;
   onOverflow: () => void;
 };
 
@@ -33,23 +32,12 @@ export function PlayerHeaderSection({
   displayDuration,
   collapsed,
   dragGesture,
-  onMinimize,
   onOverflow,
 }: PlayerHeaderSectionProps) {
   const { t } = useTranslation();
-  // The player is a now-playing sheet, not a destination: its single exit is
-  // the collapse chevron (top-left, where the sheet "goes down"), which never
-  // stops audio — playback continues in the mini dock. It leads in deep
-  // terracotta; the overflow ⋯ opposite stays a quiet warm-gray. Both are bare
-  // glyphs on the surface — no matching circles to confuse them.
-  const collapseButton = (
-    <IconButton
-      icon="chevron-down"
-      tone="accent"
-      onPress={onMinimize}
-      accessibilityLabel={t("player.minimize")}
-    />
-  );
+  // The player is a now-playing sheet, not a destination: the grabber (drag
+  // down) and the footer ✕ are its exits — no chevron doubling them. The
+  // overflow ⋯ shares the title row as a quiet warm-gray bare glyph.
   const overflowMenuButton = (
     <IconButton
       icon="ellipsis-horizontal"
@@ -71,7 +59,6 @@ export function PlayerHeaderSection({
             <View style={grabberStyles.grabber} />
           </View>
           <View style={playerScreenStyles.navRow}>
-            {collapseButton}
             <Text style={playerScreenStyles.navTitle} numberOfLines={1}>
               {clipTitle}
             </Text>
@@ -89,16 +76,13 @@ export function PlayerHeaderSection({
         <View style={grabberStyles.grabberRow}>
           <View style={grabberStyles.grabber} />
         </View>
-      <View style={playerScreenStyles.navRow}>
-        {collapseButton}
-
-        <View style={playerScreenStyles.navRowRight}>
+      <View style={playerScreenStyles.titleBlock}>
+        <View style={playerScreenStyles.titleRow}>
+          <Text style={[playerScreenStyles.title, playerScreenStyles.titleFlex]}>
+            {clipTitle}
+          </Text>
           {overflowMenuButton}
         </View>
-      </View>
-
-      <View style={playerScreenStyles.titleBlock}>
-        <Text style={playerScreenStyles.title}>{clipTitle}</Text>
         <View style={playerScreenStyles.metaRow}>
           {projectTitle ? (
             <>
