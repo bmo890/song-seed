@@ -159,11 +159,10 @@ export const playerScreenStyles = StyleSheet.create({
   lyricsVersionRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 2,
-    gap: 8,
+    gap: 6,
   },
   lyricsVersionText: {
     flexShrink: 1,
@@ -175,6 +174,7 @@ export const playerScreenStyles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 12,
     color: colors.primaryDeep,
+    marginStart: "auto",
   },
   // Chords toggle in the same sheet — editorial ink (word + leading dot).
   chordsInk: {

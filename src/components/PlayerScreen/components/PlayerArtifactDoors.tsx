@@ -42,6 +42,7 @@ function Door({
   preview,
   previewSerif,
   meta,
+  metaEdited,
   onOpen,
   emptyLabel,
   ctaLabel,
@@ -56,6 +57,8 @@ function Door({
   preview?: string;
   previewSerif?: boolean;
   meta?: string;
+  /** The page moved on after this clip's take — a tiny pencil beside the meta. */
+  metaEdited?: boolean;
   onOpen: () => void;
   /** Empty-door state: quiet label + one ink CTA (opens the editor). */
   emptyLabel?: string;
@@ -79,6 +82,9 @@ function Door({
             <Text style={doorStyles.kind}>{kind}</Text>
             {summary ? <Text style={doorStyles.kindSummary}>{summary}</Text> : null}
             <View style={doorStyles.kindSpacer} />
+            {metaEdited ? (
+              <Ionicons name="create-outline" size={11} color={colors.textMuted} />
+            ) : null}
             {meta ? <Text style={doorStyles.meta}>{meta}</Text> : null}
           </View>
           {isEmpty ? (
@@ -114,6 +120,8 @@ type Props = {
   lyricsChordSummary: string;
   /** Whispered version meta — "v1 · Jul 25". */
   lyricsMeta: string | null;
+  /** The words moved on after this take was recorded. */
+  lyricsEditedSinceTake?: boolean;
   hasChart: boolean;
   chartHandle: string;
   onOpenLyrics: () => void;
@@ -133,6 +141,7 @@ export function PlayerArtifactDoors({
   lyricsPreviewLine,
   lyricsChordSummary,
   lyricsMeta,
+  lyricsEditedSinceTake,
   hasChart,
   chartHandle,
   onOpenLyrics,
@@ -150,6 +159,7 @@ export function PlayerArtifactDoors({
         preview={hasLyrics ? lyricsPreviewLine : undefined}
         previewSerif
         meta={hasLyrics ? lyricsMeta ?? undefined : undefined}
+        metaEdited={hasLyrics ? lyricsEditedSinceTake : undefined}
         onOpen={onOpenLyrics}
         emptyLabel={t("player.noLyricsYet")}
         ctaLabel={t("player.writeLyrics")}

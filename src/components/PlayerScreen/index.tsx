@@ -14,6 +14,7 @@ import { useTransportScrubbing } from "../../hooks/useTransportScrubbing";
 import { usePlayerTransportClock } from "./hooks/usePlayerTransportClock";
 import { usePlaybackClick } from "../../hooks/usePlaybackClick";
 import { resolvePreviousAction } from "../../domain/transportPrevious";
+import { wasLyricsEditedSinceTake } from "../../domain/lyrics";
 import { usePracticeLoopController } from "./hooks/usePracticeLoopController";
 import { usePlayerSpeedControls } from "./hooks/usePlayerSpeedControls";
 import { useStepUpLoop } from "./hooks/useStepUpLoop";
@@ -241,6 +242,12 @@ export function PlayerScreen({
     data.clipLyrics.total > 0 &&
     data.clipLyrics.index !== data.clipLyrics.total;
   const readingStampedLyrics = clipStampDiffers && !lyricsShowLatest;
+  // Soft honesty mark: the page this take was sung from has been edited since
+  // the tape rolled (in-place edits don't fork — they leave this trace).
+  const lyricsEditedSinceTake =
+    !!playerClip?.lyricsVersionId &&
+    !data.clipLyrics.stampMissing &&
+    wasLyricsEditedSinceTake(data.clipLyrics.version, playerClip?.createdAt);
   const displayedLyricsVersion = readingStampedLyrics
     ? data.clipLyrics.version
     : data.latestLyricsVersion;
@@ -1582,37 +1589,45 @@ export function PlayerScreen({
             />
           ) : isReading ? (
             <>
-              {ui.readingArtifact === "lyrics" && (clipStampDiffers || data.clipLyrics.stampMissing) ? (
-                // The take's page vs the song's latest words — one quiet line,
-                // and one tap to flip. A deleted stamp says so instead of
-                // silently swapping the words.
+              {ui.readingArtifact === "lyrics" &&
+              (clipStampDiffers || data.clipLyrics.stampMissing || lyricsEditedSinceTake) ? (
+                // The take's page vs the song's latest words — one quiet line.
+                // Flippable when both pages exist; a deleted stamp or an
+                // edited-in-place page just says so (a pencil marks the drift).
                 <Pressable
                   style={({ pressed }) => [
                     playerScreenStyles.lyricsVersionRow,
-                    pressed ? styles.pressDown : null,
+                    pressed && clipStampDiffers ? styles.pressDown : null,
                   ]}
                   onPress={() => setLyricsShowLatest((value) => !value)}
-                  disabled={data.clipLyrics.stampMissing}
-                  accessibilityRole="button"
+                  disabled={!clipStampDiffers}
+                  accessibilityRole={clipStampDiffers ? "button" : "text"}
                   accessibilityLabel={
                     data.clipLyrics.stampMissing
                       ? t("player.stampDeleted")
-                      : readingStampedLyrics
-                        ? t("player.showLatest")
-                        : t("player.showTakes")
+                      : !clipStampDiffers
+                        ? t("player.editedSinceTake")
+                        : readingStampedLyrics
+                          ? t("player.showLatest")
+                          : t("player.showTakes")
                   }
                 >
+                  {lyricsEditedSinceTake ? (
+                    <Ionicons name="create-outline" size={12} color={colors.textMuted} />
+                  ) : null}
                   <Text style={playerScreenStyles.lyricsVersionText}>
                     {data.clipLyrics.stampMissing
                       ? t("player.stampDeleted")
-                      : readingStampedLyrics
-                        ? t("player.takesPage", {
-                            index: data.clipLyrics.index,
-                            total: data.clipLyrics.total,
-                          })
-                        : t("player.latestPage", { total: data.clipLyrics.total })}
+                      : !clipStampDiffers
+                        ? t("player.editedSinceTake")
+                        : readingStampedLyrics
+                          ? t("player.takesPage", {
+                              index: data.clipLyrics.index,
+                              total: data.clipLyrics.total,
+                            })
+                          : t("player.latestPage", { total: data.clipLyrics.total })}
                   </Text>
-                  {!data.clipLyrics.stampMissing ? (
+                  {clipStampDiffers ? (
                     <Text style={playerScreenStyles.lyricsVersionAction}>
                       {readingStampedLyrics ? t("player.showLatest") : t("player.showTakes")}
                     </Text>
@@ -1755,6 +1770,7 @@ export function PlayerScreen({
               lyricsPreviewLine={lyricsPreviewLine}
               lyricsChordSummary={doorChordSummary}
               lyricsMeta={lyricsMeta}
+              lyricsEditedSinceTake={lyricsEditedSinceTake}
               hasChart={hasChart}
               chartHandle={chartHandle}
               onOpenLyrics={() => ui.openReading("lyrics")}

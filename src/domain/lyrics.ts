@@ -91,11 +91,16 @@ export function countLyricsVersionReferences(
   return { takes, charts, setlists: setlistCount };
 }
 
-/** Tape seals the page: once any take stamps a lyrics version, that version is
- *  history — edits fork forward instead of rewriting it. Until then the latest
- *  version is the living draft and edits land in place. */
-export function isLyricsVersionSealed(idea: SongIdea, versionId: string): boolean {
-  return idea.clips.some((clip) => clip.lyricsVersionId === versionId);
+/** The soft honesty rule (2026-08-10): edits always land in place on the
+ *  living draft — no auto-fork — and a take instead MARKS that its page moved
+ *  on after it was recorded. True when the stamped version was edited after
+ *  the take's tape rolled. */
+export function wasLyricsEditedSinceTake(
+  version: Pick<LyricsVersion, "updatedAt"> | null | undefined,
+  takeCreatedAt: number | undefined
+): boolean {
+  if (!version || !takeCreatedAt) return false;
+  return version.updatedAt > takeCreatedAt;
 }
 
 /** Resolve the lyrics version a take should display: its stamp when that

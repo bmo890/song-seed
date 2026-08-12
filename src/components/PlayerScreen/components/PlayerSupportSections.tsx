@@ -22,6 +22,7 @@ type PlayerSupportSectionsProps = {
   lyricsPreviewLine: string;
   lyricsChordSummary: string;
   lyricsMeta: string | null;
+  lyricsEditedSinceTake?: boolean;
   hasChart: boolean;
   chartHandle: string;
   onOpenLyrics: () => void;
@@ -43,6 +44,7 @@ export function PlayerSupportSections({
   lyricsPreviewLine,
   lyricsChordSummary,
   lyricsMeta,
+  lyricsEditedSinceTake,
   hasChart,
   chartHandle,
   onOpenLyrics,
@@ -84,6 +86,7 @@ export function PlayerSupportSections({
         lyricsPreviewLine={lyricsPreviewLine}
         lyricsChordSummary={lyricsChordSummary}
         lyricsMeta={lyricsMeta}
+        lyricsEditedSinceTake={lyricsEditedSinceTake}
         hasChart={hasChart}
         chartHandle={chartHandle}
         onOpenLyrics={onOpenLyrics}

@@ -16,7 +16,7 @@ import {
 } from "../types";
 import { useStore } from "./useStore";
 import { createEmptyProjectLyrics, createEmptyWorkspaceIdeasListState, normalizeWorkspaces } from "./dataSlice";
-import { createLyricsVersion, isLyricsVersionSealed, lyricsTextToDocument } from "../domain/lyrics";
+import { createLyricsVersion, lyricsTextToDocument } from "../domain/lyrics";
 import { cloneChordSheet } from "../domain/chordSheet";
 import { buildChordDisplay, clampChordIndex, graphemeCount, graphemeIndexToStringIndex, recordChordInPalette, type ChordParts } from "../domain/chords";
 import type { ChordPlacement, ChordSheet, ContentDirection, LyricsDocument, LyricsLine, RecordingGrid } from "../types";
@@ -1697,19 +1697,11 @@ export const appActions = {
                     };
                 }
 
-                // Tape seals the page: once a take stamps the latest version, the
-                // first edit after it forks forward — silently, mid-keystroke, so
-                // writing during playback never pauses. The fork starts unsealed,
-                // so every following autosave lands in place on it.
-                if (isLyricsVersionSealed(idea, latestVersion.id)) {
-                    return {
-                        ...idea,
-                        lyrics: {
-                            versions: [...versions, createLyricsVersion(nextDocument, textDirection)],
-                        },
-                    };
-                }
-
+                // The latest version is always the living draft — edits land in
+                // place, even after a take stamps it (softened 2026-08-10: no
+                // auto-fork). The take keeps its honesty another way: readers
+                // compare the version's updatedAt against the take's createdAt
+                // and mark the words as edited-since-take.
                 const nextVersion = {
                     ...latestVersion,
                     updatedAt: Date.now(),

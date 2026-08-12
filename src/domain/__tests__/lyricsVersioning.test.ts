@@ -1,7 +1,7 @@
 import {
   countLyricsVersionReferences,
-  isLyricsVersionSealed,
   resolveClipLyricsVersion,
+  wasLyricsEditedSinceTake,
 } from "../lyrics";
 import type { LyricsVersion, SongIdea } from "../../types";
 
@@ -37,15 +37,13 @@ function makeIdea(versionIds: string[], clipStamps: (string | undefined)[]): Son
   } as SongIdea;
 }
 
-describe("isLyricsVersionSealed", () => {
-  it("is sealed only once a take stamps the version", () => {
-    const unsealed = makeIdea(["v1", "v2"], [undefined]);
-    expect(isLyricsVersionSealed(unsealed, "v2")).toBe(false);
-
-    const sealed = makeIdea(["v1", "v2"], ["v2"]);
-    expect(isLyricsVersionSealed(sealed, "v2")).toBe(true);
-    // The older, unstamped version stays editable by this rule alone.
-    expect(isLyricsVersionSealed(sealed, "v1")).toBe(false);
+describe("wasLyricsEditedSinceTake", () => {
+  it("marks the page moved only when edited after the take's tape rolled", () => {
+    expect(wasLyricsEditedSinceTake({ updatedAt: 100 }, 200)).toBe(false);
+    expect(wasLyricsEditedSinceTake({ updatedAt: 300 }, 200)).toBe(true);
+    // No version or no take timestamp → nothing to claim.
+    expect(wasLyricsEditedSinceTake(null, 200)).toBe(false);
+    expect(wasLyricsEditedSinceTake({ updatedAt: 300 }, undefined)).toBe(false);
   });
 });
 
