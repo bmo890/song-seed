@@ -24,7 +24,7 @@ with: they expect a file, we expect an impulse.
 
 The real threat is not their current feature set. It is that they are **walking
 toward us** — in-app recording, overdub, a tuner, a trim/pitch/speed edit suite — with
-$22.6M and 100K monthly users behind them. The real opportunity is that the entire
+$22.6M and 300K monthly users behind them. The real opportunity is that the entire
 songwriting craft layer (lyrics, chords, practice, performance, resurfacing) is
 absent from their product and appears to be nowhere in their roadmap, because it does
 not serve their business model.
@@ -38,7 +38,7 @@ not serve their business model.
 | Company | Sin Titulo Inc. — founders Dan Lilienthal & José Chayet |
 | Launched | Aug 2, 2023 on the App Store (~2 years live) |
 | Funding | ~$22.6M total; a16z-backed; $900k pre-seed in early 2021 (General Catalyst, Looking Glass) |
-| Scale | ~100K monthly active users; ~32K paying subscribers |
+| Scale | **300,000 monthly users (Dec 2025), 3× year-over-year**; ~34,000 paying $49.99/yr (≈$1.7M ARR). Earlier reporting cited ~100K MAU / ~32K subs — that figure is stale. |
 | Ratings | ~4.9★ across ~15K iOS reviews |
 | Platforms | iPhone, Android, Web, **Mac desktop app** — all syncing |
 | Price | $7.99/mo or $49.99/yr. Free tier exists but storage is capped; edit suite, unlimited storage, and extra privacy features are paid |
@@ -102,7 +102,7 @@ From user reviews and the published design critique:
 | Collaboration | Collaborators, timestamped comments | **None.** Received packages are read-only snapshots, by design |
 | Stem separation | AI stems | None |
 | Selling to fans | Paid Projects, 0% artist cut | None |
-| Distribution & trust | 100K MAU, 4.9★/15K reviews, a16z, name artists | Pre-launch. Zero users, zero reviews, no dev accounts yet |
+| Distribution & trust | 300K MAU, 4.9★/15K reviews, a16z, name artists | Pre-launch. Zero users, zero reviews, no dev accounts yet |
 | Storage headroom | Unlimited on paid | Device storage; archive offload is planned, not built |
 | Import breadth | Video→audio, AirDrop, iMessage, Mac upload | Files/voice memos on-device (which, notably, *they* can't do) |
 
@@ -306,12 +306,63 @@ it never leaves your phone.*
 
 ---
 
-## 10. How [untitled] actually grew
+## 10. How [untitled] acquired users — the marketing
 
-Worth separating from the feature analysis, because the answer is uncomfortable: their
-growth came from a mechanism we have deliberately refused to build.
+The short answer, and it is genuinely the answer: **they did almost no conventional
+marketing.** Co-founder José Chayet, on being asked about growth: *"If you start there,
+you're thinking about marketing, not the product."* Reporting consistently describes
+the company as having "relied largely on word of mouth to grow." There is **no public
+evidence of paid user acquisition, performance marketing, paid influencer deals,
+billboards, or an ASO campaign.** That's an absence of evidence rather than proof of
+zero spend — but it is not the story anyone tells about them, including themselves.
 
-### The engine, in order of importance
+What they did instead, concretely, in rough chronological order:
+
+### The tactics they actually ran
+
+**A. A very long build before any push.** The founders spent ~5.5 years on the vision
+before scale arrived, with an explicit plan from day one to build a vertically
+integrated music company across creation, distribution, and consumption. Growth was
+allowed to be slow because the product was the strategy.
+
+**B. Closed beta + waitlist, seeded inside a specific subculture (mid-2022 →
+Aug 2023).** Whispers circulated in tight-knit TikTok indie-producer communities more
+than a year before the public App Store launch. Not a broadcast — an embedded
+presence in a scene.
+
+**C. Hands-on creator seeding — the closest thing to a real marketing program.**
+Producer-creators on TikTok described having "been working with the team at [untitled]
+as they prepared to launch." They cultivated direct relationships with credible
+micro-influencers *inside the producer niche*, who then made organic content
+unprompted. High-touch and cheap; the opposite of a paid influencer buy.
+
+**D. Artist status seeding.** Getting the app into the hands of PinkPantheress, Hayley
+Williams, Tommy Richman, Geese, Álvaro Díaz. Their one notable ad — shot on iPhone —
+cast *real working producers* (credits including Solange, Caroline Polachek, Charli
+XCX, Kevin Abstract) rather than actors. In music, tools are status objects; "the app
+your favourite producer uses" outperforms any media buy.
+
+**E. Launch PR built on a newsworthy problem, not a product announcement.** The pitch
+to press was leak culture — Kanye and Frank Ocean stems for sale on the dark web —
+which is a story journalists write for free. DJ Mag, MusicTech, and EDM all covered
+the August 2023 launch. Earned media bought credibility, not just reach.
+
+**F. Feature-as-news, repeatedly.** Paid Projects (0% from the artist, 5% to the
+buyer), vinyl pressing, AI stem splitting, timestamped comments. Each ships as an
+announceable story and generates another coverage cycle. This looks deliberate: build
+things that are inherently reportable.
+
+**G. The a16z / tech-press flywheel.** $22.6M raised, an a16z announcement post, Not
+Boring, and Fast Company ranking them **No. 47 on the World's 50 Most Innovative
+Companies of 2026**. Repeated free placement in front of industry and tech audiences.
+
+**H. Going physical.** They opened a Brooklyn office containing a performance space and
+a recording studio, with stated intent to do shows and eventually a festival. Marketing
+as *place* — being literally embedded in the scene rather than advertising to it.
+
+### But the real engine was in the product
+
+None of the above explains 3× year-over-year growth on its own. Two loops do:
 
 **1. The share link is simultaneously the product and the advertisement.**
 Their core job-to-be-done — send a WIP to a collaborator, manager, label, or PR — mints
@@ -342,20 +393,16 @@ who've worked with Solange, Caroline Polachek, Charli XCX, Kevin Abstract. In mu
 tools are status objects. "The app your favourite producer uses" outperforms any
 paid ad.
 
-**5. A crisis narrative with a named villain.** Kanye and Frank Ocean stems ending up
-for sale on the dark web. That's a story journalists write for free — DJ Mag,
-MusicTech, and EDM all covered the launch, which bought credibility, not just reach.
+Reported trajectory: **300,000 monthly users as of December 2025 — triple the year
+prior — of whom ~34,000 pay $49.99/yr.** That's roughly $1.7M ARR against $22.6M
+raised, which is worth noting: at this stage they are optimising for growth and
+category ownership, not revenue. Their patience with slow monetisation is a function
+of the raise, and is not available to us.
 
-**6. Capital and the a16z halo.** $22.6M, an a16z announcement post, Not Boring
-coverage, Fast Company Most Innovative Companies 2026. This puts the product in front
-of the industry and tech press repeatedly, for free.
+### On the near-empty social account
 
-Reported trajectory: **300K+ monthly users as of December, triple the year prior.**
-
-### On the 3 posts / 42K followers
-
-This is a *symptom* of the growth, not its cause — and the distinction matters a lot
-before we imitate it.
+A side note, because it's the visible part and the most misleading: it is a *symptom*
+of the growth, not its cause.
 
 Three things are likely all true at once:
 - **The audience arrived from elsewhere.** TikTok tutorials, press, artist mentions,
@@ -379,7 +426,7 @@ the posture only after we have an engine that makes silence a choice.
 **SongNook has no viral loop, and by design nearly cannot have one.** Local-first, no
 accounts, nothing uploaded. [untitled]'s entire acquisition engine is precisely the
 thing we refused. That refusal is still right — it's our only unclaimed position — but
-we must stop expecting their playbook to transfer. Five things that *do*:
+we must stop expecting their playbook to transfer wholesale. Seven things that *do*:
 
 1. **Invest in the one loop we can have: received packages.** `songnook-send` snapshots
    — a setlist to learn, a songbook, a friend's clips — arrive as a link that needs the
@@ -407,6 +454,21 @@ we must stop expecting their playbook to transfer. Five things that *do*:
    craft layer is inherently demonstrable: getting from a hum to a chorus, using the
    word tools to break a stuck line, practising a part at 70%. Songwriting instruction
    is an enormous organic category, and every demo of those features is also a lesson.
+6. **Hand-seed creators, don't buy them.** Their highest-leverage move was cultivating
+   direct relationships with a small number of credible producer-creators *before*
+   launch, who then made content unprompted. The songwriter-YouTube and
+   songwriting-teacher equivalent is a list of maybe 30 people, reachable by email, at
+   zero cost. This is a founder job, not a marketing spend, and it should start now.
+7. **Ship features that are stories.** They got repeat coverage cycles by releasing
+   things that were inherently reportable. Ours are already sitting in the roadmap —
+   the never-uploads privacy stance, the word tools, clip lineage. Sequencing releases
+   for announceability is free reach.
+
+**The asymmetry to keep in view:** their word-of-mouth strategy was *affordable*
+because $22.6M bought 5.5 years of patience and a tolerance for ~$1.7M ARR. We do not
+have that runway. Word of mouth is the right long-term shape for us too — but we need
+at least one channel that produces users on a timescale we can survive, and points
+2, 3, and 6 are the candidates.
 
 ---
 
@@ -430,6 +492,9 @@ we must stop expecting their playbook to transfer. Five things that *do*:
 - [[untitled] Is Blowing Up — Here's Why Musicians Love It (YouTube)](https://www.youtube.com/watch?v=WNZ72aGxri4) · [Untitled App — TikTok topic](https://www.tiktok.com/discover/untitled-app) · [How to get unreleased music on untitled — TikTok topic](https://www.tiktok.com/discover/how-to-get-unreleased-music-on-untitled-stream)
 - [untitled.stream on ROSTR Stack](https://stack.rostr.cc/listings/untitledstream) · [Tracxn profile](https://tracxn.com/d/companies/untitledstream/__3FPbVSS1NkQsAPqVyzegT2k8lknvheKEAyYhq9OPwxc)
 
+
+- [FINIEN EP131 — José Chayet & Dan Lilienthal, co-founders (podcast)](https://www.finien.com/podcasts/ep131-untitled-jose-chayet-dan-lilienthal-co-founders/) · [Big Ass Kids interview](https://www.bigasskids.com/ralphs/interviews/untitled-co-founders-dan-lilienthal-jos-chayet-on-the-rise-of-the-diy-artist-and-how-their-platform-will-kickstart-a-music-renaissance)
+- [Fast Company — 10 most innovative companies in music 2026](https://www.fastcompany.com/91497277/music-most-innovative-companies-2026)
 
 **Samply**
 
