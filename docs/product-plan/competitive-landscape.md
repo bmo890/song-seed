@@ -6,7 +6,8 @@ environment's network policy, so every claim below traces to a cited search resu
 Treat feature details as *reported*, not verified. Sources at the bottom.
 
 Deep dive on **[untitled]** (§1–6), then shorter profiles of **Samply** (§7) and
-**BandLab** (§8), then the map that places all three (§9).
+**BandLab** (§8), the map that places all three (§9), and how [untitled] actually
+grew — plus what of it transfers to us (§10).
 
 ---
 
@@ -305,6 +306,110 @@ it never leaves your phone.*
 
 ---
 
+## 10. How [untitled] actually grew
+
+Worth separating from the feature analysis, because the answer is uncomfortable: their
+growth came from a mechanism we have deliberately refused to build.
+
+### The engine, in order of importance
+
+**1. The share link is simultaneously the product and the advertisement.**
+Their core job-to-be-done — send a WIP to a collaborator, manager, label, or PR — mints
+a new user *every single time it is performed*. Artists send [untitled] links to
+collaborators, PR teams, and labels; the recipient needs the app to hear it properly.
+This is a genuine product-led viral loop, not a referral program bolted on. The sender
+is also usually the higher-status party in the exchange, which means every invitation
+arrives with an implicit endorsement. Reported growth was "listening went up every
+month, without much marketing."
+
+**2. A second, much larger loop on the fan side.** Artists started using it to drop or
+leak unreleased tracks *to fans*, and fans downloaded the app to hear them. The Daily
+Dot headline is "artists are calling it the best thing since torrenting." TikTok is
+full of "how to get unreleased music on untitled" tutorials — not tutorials made by the
+company. A professional tool acquired a consumer audience because the *content on it*
+was scarce and desirable. This is the single biggest multiplier and it was largely
+emergent, not designed.
+
+**3. Deliberate scarcity before launch.** Whispers circulated in tight-knit TikTok
+indie-producer communities by mid-2022 — a closed beta and waitlist — but the public
+App Store launch wasn't until August 2023. They spent over a year accumulating demand
+behind a closed door.
+
+**4. Seeded from the top of the status hierarchy.** They worked directly with producers
+ahead of launch. Named users now include PinkPantheress, Tommy Richman, Hayley
+Williams, Geese, Álvaro Díaz; their ad — shot on iPhone — features real producers
+who've worked with Solange, Caroline Polachek, Charli XCX, Kevin Abstract. In music,
+tools are status objects. "The app your favourite producer uses" outperforms any
+paid ad.
+
+**5. A crisis narrative with a named villain.** Kanye and Frank Ocean stems ending up
+for sale on the dark web. That's a story journalists write for free — DJ Mag,
+MusicTech, and EDM all covered the launch, which bought credibility, not just reach.
+
+**6. Capital and the a16z halo.** $22.6M, an a16z announcement post, Not Boring
+coverage, Fast Company Most Innovative Companies 2026. This puts the product in front
+of the industry and tech press repeatedly, for free.
+
+Reported trajectory: **300K+ monthly users as of December, triple the year prior.**
+
+### On the 3 posts / 42K followers
+
+This is a *symptom* of the growth, not its cause — and the distinction matters a lot
+before we imitate it.
+
+Three things are likely all true at once:
+- **The audience arrived from elsewhere.** TikTok tutorials, press, artist mentions,
+  and the app itself sent people to the account, where they followed so as not to miss
+  news. Followers accrued without any content being posted.
+- **Silence is congruent with the brand.** The product is named "[untitled]" — an empty
+  field — and sells itself as a *sacred, private* space. A busy marketing feed would
+  contradict the promise. Restraint here is brand consistency, not a growth tactic.
+- **Scarcity signals insider status.** In music culture, the tools that matter are
+  often the ones you have to know about. A near-empty account reads as "we don't need
+  to explain ourselves," which is exactly the posture that makes a tool feel like
+  membership.
+
+**The trap:** this is survivorship bias. Restraint did not produce the growth — the
+viral loop produced the growth, and restraint was *affordable because the loop worked*.
+An empty Instagram attached to a product with no loop is just an empty Instagram. Copy
+the posture only after we have an engine that makes silence a choice.
+
+### What this means for us — honestly
+
+**SongNook has no viral loop, and by design nearly cannot have one.** Local-first, no
+accounts, nothing uploaded. [untitled]'s entire acquisition engine is precisely the
+thing we refused. That refusal is still right — it's our only unclaimed position — but
+we must stop expecting their playbook to transfer. Five things that *do*:
+
+1. **Invest in the one loop we can have: received packages.** `songnook-send` snapshots
+   — a setlist to learn, a songbook, a friend's clips — arrive as a link that needs the
+   app. Weaker than a live listening surface, but real. The "zero-decision receipt"
+   principle in `sharing-and-received-architecture.md` is therefore not only a UX rule,
+   it is our **primary acquisition surface**: a recipient with no library must land
+   somewhere beautiful and immediately understand what this app is. That first-run path
+   deserves disproportionate design attention.
+2. **Run their pre-launch play — it's cheap, and we're at exactly the right moment.**
+   We are pre-launch with no dev accounts yet. A waitlist seeded into songwriter
+   communities (songwriting subreddits, worship-music circles, guitar/uke forums,
+   songwriter YouTube) months before submission costs nothing and builds the same
+   accumulated demand. This is the single most directly copyable thing in the whole
+   analysis.
+3. **Seed from the top of a *different* hierarchy.** Their A-list is pop/rap producers,
+   which we cannot reach and would not serve. Ours is working songwriters, songwriting
+   teachers, worship leaders, and gigging musicians — the people who actually have
+   setlists, songbooks, and half-finished verses. Far cheaper to reach, far more loyal,
+   and they have the problems we solve.
+4. **We have a free-press narrative with a named villain too.** Theirs is leaks; ours
+   is *"your unfinished songs are training data."* "The songwriting app that never
+   uploads your music" is a genuinely timely 2026 story, and unlike them we can prove
+   it — there is no server to trust.
+5. **Content is our substitute for virality.** We can't run the fan-leak loop, but the
+   craft layer is inherently demonstrable: getting from a hum to a chorus, using the
+   word tools to break a stuck line, practising a part at 70%. Songwriting instruction
+   is an enormous organic category, and every demo of those features is also a lesson.
+
+---
+
 ## Sources
 
 **[untitled]**
@@ -322,6 +427,9 @@ it never leaves your phone.*
 - [[untitled] Launches Paywalled Projects — Midnight Rebels](https://midnightrebels.com/untitled-launches-paywalled-projects-to-let-artists-sell-demos-commission-free/)
 - [New app, [untitled], lets you share and organise unreleased music — MusicTech](https://musictech.com/news/gear/untitled-to-organise-unreleased-music/)
 - [DJ Mag](https://djmag.com/news/new-app-untitled-launched-help-producers-share-and-organise-unreleased-music-securely) · [Product Hunt](https://www.producthunt.com/products/untitled-2) · [Crunchbase](https://www.crunchbase.com/organization/untitled-61d6)
+- [[untitled] Is Blowing Up — Here's Why Musicians Love It (YouTube)](https://www.youtube.com/watch?v=WNZ72aGxri4) · [Untitled App — TikTok topic](https://www.tiktok.com/discover/untitled-app) · [How to get unreleased music on untitled — TikTok topic](https://www.tiktok.com/discover/how-to-get-unreleased-music-on-untitled-stream)
+- [untitled.stream on ROSTR Stack](https://stack.rostr.cc/listings/untitledstream) · [Tracxn profile](https://tracxn.com/d/companies/untitledstream/__3FPbVSS1NkQsAPqVyzegT2k8lknvheKEAyYhq9OPwxc)
+
 
 **Samply**
 
