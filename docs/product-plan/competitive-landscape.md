@@ -6,8 +6,9 @@ environment's network policy, so every claim below traces to a cited search resu
 Treat feature details as *reported*, not verified. Sources at the bottom.
 
 Deep dive on **[untitled]** (§1–6), then shorter profiles of **Samply** (§7) and
-**BandLab** (§8), the map that places all three (§9), and how [untitled] actually
-grew — plus what of it transfers to us (§10).
+**BandLab** (§8), the map that places all three (§9), how [untitled] actually grew —
+plus what of it transfers to us (§10) — and why their small feature set is the point,
+with the warning it carries for us (§11).
 
 ---
 
@@ -469,6 +470,93 @@ because $22.6M bought 5.5 years of patience and a tolerance for ~$1.7M ARR. We d
 have that runway. Word of mouth is the right long-term shape for us too — but we need
 at least one channel that produces users on a timescale we can survive, and points
 2, 3, and 6 are the candidates.
+
+---
+
+## 11. Why so few features, and who actually needs it
+
+The natural reaction to their feature list is "that's it?" It's worth answering
+properly, because the answer contains the sharpest warning in this document.
+
+### First, a correction: they have less *product surface*, not less engineering
+
+Count what's under their four screens: real-time sync across iOS, Android, Web and
+macOS; lossless streaming; offline mode with conflict handling; at-rest encryption and
+a security audit; version history; AI stem separation; link-level access control;
+listen analytics; timestamped comments; payments via Stripe and Apple Pay; vinyl
+fulfilment. **Their sync layer alone is probably more engineering than SongNook's
+entire feature list.** It just isn't *visible*, because infrastructure never is.
+
+Feature count is a terrible proxy for value. Their product is mostly invisible
+engineering behind a small surface; ours is mostly visible surface over local state.
+Neither is better — but we should stop reading their screen count as thinness.
+
+### Who it's for — five real people
+
+1. **The bedroom producer with 300 beats.** Everything is `Untitled_final_v3_REAL.wav` on a hard drive and in three chat threads. They cannot find or play the one they need.
+2. **The signed or semi-signed artist with leak anxiety.** Unreleased material is their single most valuable asset and it's scattered across devices and DMs. Kanye and Frank Ocean stems selling on the dark web made this vivid and personal.
+3. **The manager, A&R, or label person** who receives twenty pieces of audio a week and needs them to just play, immediately, at quality, without downloading anything.
+4. **The collaborator or session player** who gets sent a reference and sends one back.
+5. **The fan** — an entirely accidental audience that arrived because unreleased music started living there.
+
+Note what unites 1–4: **they all already have the file.** Their pain begins at the
+moment the bounce exists. None of them is stuck on a lyric.
+
+### The job, stated plainly
+
+*"I have hundreds of audio files that matter enormously to me, and every tool I have
+for holding and sending them is hostile to audio."*
+
+Their real competitor set was never another music app. It was **Dropbox, Google Drive,
+iMessage, AirDrop, WeTransfer, email-to-self, and private SoundCloud links.** Against
+*that* field, "folders, a beautiful player, and a link that opens instantly" is not a
+thin product — it is a categorical improvement. You don't need many features to beat a
+folder of untitled WAVs.
+
+Three properties make it stick:
+
+- **Frequency.** It's touched several times a day by people whose job is making music. Infrastructure used daily doesn't need features; it needs to be reliable and out of the way.
+- **Anxiety.** It sells relief from two fears — losing the work, and it leaking. Fear-relief products retain far better than convenience products.
+- **Social obligation.** Someone else sent you the link. You didn't choose the app; the app arrived attached to a person you needed to hear from.
+
+And the small surface is not a shortfall — it's *why* the app is fast, calm, learnable
+in thirty seconds, and beautiful. Restraint is the product.
+
+### The warning for us
+
+**Our problem is less painful than theirs, and we should design as if we know that.**
+
+| | [untitled] | SongNook |
+|---|---|---|
+| User arrives with | a file | an impulse |
+| Core anxiety | "I'll lose it / it'll leak" | "I never finish anything" |
+| Felt | daily, acutely, by professionals | occasionally, diffusely, by everyone |
+| Trigger to open | someone sent me a link · I just bounced a mix | inspiration, unscheduled |
+| Sustains a $50/yr habit? | demonstrably yes | unproven |
+
+Storage anxiety is sharp, recurring, and professional — which is why a four-screen app
+can charge $50 a year. Blank-page anxiety is felt by far more people but less acutely
+and less often, and it has no external trigger reminding you to open the app. That is
+a harder retention problem, and no amount of feature depth fixes it.
+
+Two consequences worth acting on:
+
+1. **Depth is not our answer to it — habit and delight are.** This is precisely what
+   Shelf, Revisit, and Activity are for: manufacturing a reason to open the app when
+   nobody sent you a link. Those surfaces are not nice-to-haves, they are our
+   substitute for [untitled]'s built-in daily trigger, and they deserve to be treated
+   as core.
+2. **We must be able to say what SongNook is in one sentence containing one job.**
+   Theirs takes six words: *a safe place for unreleased music.* If our answer is a list
+   of twenty capabilities, a stranger has nothing to hold onto. The store listing's
+   "catch song ideas, grow them" is the right instinct; the whole product should be
+   defensible at that altitude. **Every feature we have needs to be reachable from one
+   sentence, or it's making the app harder to explain rather than better.**
+
+The uncomfortable summary: they built less and picked a sharper pain. We built more
+and picked a broader, softer one. Breadth is only an advantage if it resolves into a
+single legible promise — otherwise it reads as a Swiss-army knife, and Swiss-army
+knives don't get opened every day.
 
 ---
 
