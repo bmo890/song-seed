@@ -16,7 +16,7 @@ Character limits noted are current-as-of-2026; confirm in the console at submiss
 - **App Store subtitle** (30 chars): `Write it. Learn it. Play it.` (28)
   - Alt: `From first hum to the gig` (25) · `Write, practice, perform` (24)
 - **Play short description** (80 chars):
-  `Write songs, learn them cold, and play them. Every version kept, all offline.` (76)
+  `Write songs, learn them cold, and play them. Every version kept, all offline.` (77)
 
 > **Changed 2026-08-12** — was `Catch song ideas, grow them`. Rationale in
 > [positioning.md](positioning.md): the old line described the first fifth of the
@@ -86,7 +86,7 @@ pasting — Apple counts what it counts.
 
 `songwriting,voice memo,song ideas,riff,demo,recorder,practice,looper,lyrics,chords,melody,rhyme,tuner` (101 → trim one)
 
-Final (99): `songwriting,voice memo,song idea,riff,demo,recorder,practice,looper,lyrics,chords,melody,rhyme,tuner`
+Final (100 — exactly at the limit, verify in the console): `songwriting,voice memo,song idea,riff,demo,recorder,practice,looper,lyrics,chords,melody,rhyme,tuner`
 
 Notes: the app *name* ("SongNook") and *category* are indexed separately — don't
 spend keyword chars on them. "metronome" and "audio editor" are strong but cut for
