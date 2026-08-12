@@ -1202,6 +1202,7 @@ export function PlayerScreen({
             <View style={playerScreenStyles.reelToolbar}>
               {isReading ? (
                 <>
+                  <View style={playerScreenStyles.reelToolbarLeft}>
                   <Pressable
                     style={({ pressed }) => [
                       playerScreenStyles.reelExpandButton,
@@ -1217,6 +1218,28 @@ export function PlayerScreen({
                       {ui.readingArtifact === "chart" ? t("screens.chart") : t("common.lyrics")}
                     </Text>
                   </Pressable>
+                  {/* Same reel, only thinner — so the same eye. Full view has no
+                      reel, so the toggle would govern nothing there. */}
+                  {hasMarks && !isFullView ? (
+                    <Pressable
+                      style={({ pressed }) => [
+                        playerScreenStyles.readingIconButton,
+                        pressed ? playerScreenStyles.overflowButtonPressed : null,
+                      ]}
+                      onPress={() => ui.setMarkersVisible((value) => !value)}
+                      hitSlop={6}
+                      accessibilityRole="button"
+                      accessibilityState={{ checked: ui.markersVisible }}
+                      accessibilityLabel={ui.markersVisible ? t("player.hideMarkers") : t("player.showMarkers")}
+                    >
+                      <Ionicons
+                        name={ui.markersVisible ? "eye-outline" : "eye-off-outline"}
+                        size={15}
+                        color={colors.textSecondary}
+                      />
+                    </Pressable>
+                  ) : null}
+                  </View>
                   {isWriting ? (
                     <View style={playerScreenStyles.reelToolbarRight}>
                       {/* Loop: the writer's companion — keep a part going while words come. */}

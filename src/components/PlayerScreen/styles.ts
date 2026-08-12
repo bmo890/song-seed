@@ -87,6 +87,11 @@ export const playerScreenStyles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
+  reelToolbarLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   stickyReel: {
     paddingHorizontal: 14,
     paddingTop: 4,

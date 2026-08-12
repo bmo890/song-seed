@@ -408,10 +408,10 @@ function PlayerTimelineInner({
       showMinimapMode="auto"
       freezeSelectedRangeWhenFullyVisible={loopActive}
       selectedRanges={loopActive ? practiceLoopSelection : undefined}
-      // Pins show wherever the full-height tape does — they're the song's own
-      // map, not a practice tool. The bench and the slim reading reel skip
-      // them (too little tape to carry badges).
-      practiceMarkers={mode !== "layers" && !readingSlim ? practiceMarkers : undefined}
+      // Pins show wherever the tape does — full height or reading-slim. They're
+      // the song's own map, not a practice tool. Only the bench skips them
+      // (three stacked waveforms is already plenty).
+      practiceMarkers={mode !== "layers" ? practiceMarkers : undefined}
       sharedDraggingMarkerId={draggingMarkerId}
       sectionBands={sectionBands}
       grid={recordingGrid}
@@ -438,7 +438,7 @@ function PlayerTimelineInner({
                   showVisuals={false}
                 />
           ) : null}
-          {mode !== "layers" && !readingSlim ? (
+          {mode !== "layers" ? (
             <>
               {mode === "practice" ? (
                 <DragIndicatorLine
