@@ -328,6 +328,12 @@ export function useRecordingScreenModel() {
         ? genChildClipTitle(targetIdea.clips, parentClip)
         : genRootClipTitle(targetIdea.clips);
 
+      // Stamp the lyrics version the singer had in front of them — the take's
+      // page. The reader honors this stamp; editing the lyrics later can never
+      // rewrite what this take shows.
+      const lyricsVersionAtRecord =
+        targetIdea.kind === "project" ? getLatestLyricsVersion(targetIdea)?.id : undefined;
+
       const clip: ClipVersion = {
         id: `clip-${Date.now()}`,
         title,
@@ -340,6 +346,7 @@ export function useRecordingScreenModel() {
         durationMs: payload.durationMs,
         waveformPeaks: payload.waveformPeaks,
         recordingGrid: takeGrid,
+        lyricsVersionId: lyricsVersionAtRecord,
         tags: parentClip?.tags?.length ? [...parentClip.tags] : undefined,
       };
 

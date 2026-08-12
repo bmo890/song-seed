@@ -111,6 +111,9 @@ export type ArchiveClipManifest = {
     practiceMarkers?: PracticeMarker[];
     sections?: ClipSection[];
     analysis?: ClipAnalysis;
+    /** The lyrics version this take was recorded against (resolves against the
+     *  song's lyricsVersions on import; harmless if absent or dangling). */
+    lyricsVersionId?: string;
     manualSortOrder?: number;
 };
 

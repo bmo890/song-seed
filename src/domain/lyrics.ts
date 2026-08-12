@@ -64,6 +64,68 @@ export function getLatestLyricsVersion(idea?: SongIdea | null): LyricsVersion | 
   return versions.length > 0 ? versions[versions.length - 1] ?? null : null;
 }
 
+/** What still points at these lyrics versions — deleting them severs takes,
+ *  songbook charts, and setlist parts, so the confirm owes the user a count. */
+export function countLyricsVersionReferences(
+  idea: SongIdea,
+  versionIds: string[],
+  songbooks: { items: { ideaId: string; versionId?: string }[] }[],
+  setlists: { entries: { ideaId: string; lyricVersionIds: string[] }[] }[]
+): { takes: number; charts: number; setlists: number } {
+  const ids = new Set(versionIds);
+  const takes = idea.clips.filter(
+    (clip) => clip.lyricsVersionId && ids.has(clip.lyricsVersionId)
+  ).length;
+  const charts = songbooks.reduce(
+    (count, songbook) =>
+      count +
+      songbook.items.filter((item) => item.ideaId === idea.id && item.versionId && ids.has(item.versionId))
+        .length,
+    0
+  );
+  const setlistCount = setlists.filter((setlist) =>
+    setlist.entries.some(
+      (entry) => entry.ideaId === idea.id && entry.lyricVersionIds.some((id) => ids.has(id))
+    )
+  ).length;
+  return { takes, charts, setlists: setlistCount };
+}
+
+/** Tape seals the page: once any take stamps a lyrics version, that version is
+ *  history — edits fork forward instead of rewriting it. Until then the latest
+ *  version is the living draft and edits land in place. */
+export function isLyricsVersionSealed(idea: SongIdea, versionId: string): boolean {
+  return idea.clips.some((clip) => clip.lyricsVersionId === versionId);
+}
+
+/** Resolve the lyrics version a take should display: its stamp when that
+ *  version still exists, otherwise the latest (old takes, imports, or a
+ *  deleted stamp). `stampMissing` is true only when a stamp exists but its
+ *  version was deleted — the honest "showing latest instead" case. */
+export function resolveClipLyricsVersion(
+  idea: SongIdea | null | undefined,
+  lyricsVersionId: string | undefined
+): { version: LyricsVersion | null; index: number; total: number; stampMissing: boolean } {
+  if (!idea || idea.kind !== "project") {
+    return { version: null, index: 0, total: 0, stampMissing: false };
+  }
+  const versions = idea.lyrics?.versions ?? [];
+  const total = versions.length;
+  if (lyricsVersionId) {
+    const index = versions.findIndex((version) => version.id === lyricsVersionId);
+    if (index >= 0) {
+      return { version: versions[index] ?? null, index: index + 1, total, stampMissing: false };
+    }
+    return {
+      version: versions[total - 1] ?? null,
+      index: total,
+      total,
+      stampMissing: total > 0,
+    };
+  }
+  return { version: versions[total - 1] ?? null, index: total, total, stampMissing: false };
+}
+
 export function getLatestLyricsText(idea?: SongIdea | null) {
   return lyricsDocumentToText(getLatestLyricsVersion(idea)?.document);
 }

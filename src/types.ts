@@ -492,6 +492,10 @@ export type ClipVersion = {
   sections?: ClipSection[];
   analysis?: ClipAnalysis;
   recordingGrid?: RecordingGrid;
+  /** The lyrics version current when this take was recorded — the page that was
+   *  actually sung from. Absent on takes from before stamping existed and on
+   *  imports; readers fall back to the latest version. */
+  lyricsVersionId?: string;
   manualSortOrder?: number;
   overdub?: ClipOverdubState;
 };

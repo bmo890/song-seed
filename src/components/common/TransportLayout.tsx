@@ -10,9 +10,20 @@ type Props = {
   footer?: ReactNode;
   children: ReactNode;
   scrollable?: boolean;
+  /** When the footer's first row draws its own top line (the full-view progress
+   *  thread doubles as the divider), the zone's hairline must stand down. */
+  footerDivider?: boolean;
 };
 
-export function TransportLayout({ header, stickyTop, floating, footer, children, scrollable = false }: Props) {
+export function TransportLayout({
+  header,
+  stickyTop,
+  floating,
+  footer,
+  children,
+  scrollable = false,
+  footerDivider = true,
+}: Props) {
   const surfaceStyle = [styles.transportSurface, floating ? styles.transportSurfaceWithFloating : null];
   const content = scrollable ? (
     <ScrollView
@@ -37,7 +48,16 @@ export function TransportLayout({ header, stickyTop, floating, footer, children,
         {content}
         {floating ? <View style={styles.transportFloatingZone}>{floating}</View> : null}
       </View>
-      {footer ? <View style={styles.transportFooterZone}>{footer}</View> : null}
+      {footer ? (
+        <View
+          style={[
+            styles.transportFooterZone,
+            footerDivider ? null : styles.transportFooterZoneNoDivider,
+          ]}
+        >
+          {footer}
+        </View>
+      ) : null}
     </View>
   );
 }

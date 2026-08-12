@@ -16,7 +16,7 @@ import {
 } from "../types";
 import { useStore } from "./useStore";
 import { createEmptyProjectLyrics, createEmptyWorkspaceIdeasListState, normalizeWorkspaces } from "./dataSlice";
-import { createLyricsVersion, lyricsTextToDocument } from "../domain/lyrics";
+import { createLyricsVersion, isLyricsVersionSealed, lyricsTextToDocument } from "../domain/lyrics";
 import { cloneChordSheet } from "../domain/chordSheet";
 import { buildChordDisplay, clampChordIndex, graphemeCount, graphemeIndexToStringIndex, recordChordInPalette, type ChordParts } from "../domain/chords";
 import type { ChordPlacement, ChordSheet, ContentDirection, LyricsDocument, LyricsLine, RecordingGrid } from "../types";
@@ -1574,6 +1574,9 @@ export const appActions = {
                     practiceMarkers: clonePracticeMarkers(match.clip.practiceMarkers),
                     sections: cloneClipSections(match.clip.sections),
                     analysis: cloneClipAnalysis(match.clip.analysis),
+                    // Same performance, same page: the flattened mix keeps the
+                    // source take's lyrics stamp (it stays within this sketch).
+                    lyricsVersionId: match.clip.lyricsVersionId,
                     // The mix keeps the root take's timeline exactly: a layer schedules at a
                     // positive offset, and a negative one drops that much of the layer's head
                     // rather than extending the mix (native renderer, scheduleSegment path). The
@@ -1691,6 +1694,19 @@ export const appActions = {
                     return {
                         ...idea,
                         lyrics: { versions: [createLyricsVersion(nextDocument, textDirection)] },
+                    };
+                }
+
+                // Tape seals the page: once a take stamps the latest version, the
+                // first edit after it forks forward — silently, mid-keystroke, so
+                // writing during playback never pauses. The fork starts unsealed,
+                // so every following autosave lands in place on it.
+                if (isLyricsVersionSealed(idea, latestVersion.id)) {
+                    return {
+                        ...idea,
+                        lyrics: {
+                            versions: [...versions, createLyricsVersion(nextDocument, textDirection)],
+                        },
                     };
                 }
 

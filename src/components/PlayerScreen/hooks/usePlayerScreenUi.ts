@@ -70,6 +70,13 @@ export function usePlayerScreenUi() {
     setLyricsWriting(false);
   }, []);
 
+  // The writer is keyed on this token, NOT the latest version id: a sealed
+  // version forking silently mid-autosave changes the id, and a version-id key
+  // would remount the editor and drop the keyboard mid-thought. Bump it to
+  // deliberately reseed (opening the writer, the explicit new-version button).
+  const [writingSession, setWritingSession] = useState(0);
+  const bumpWritingSession = useCallback(() => setWritingSession((value) => value + 1), []);
+
   // Writing pins the ladder at the reading altitude — the slim reel with its
   // loop is the whole point of writing against the tape.
   const openWriting = useCallback(() => {
@@ -78,6 +85,7 @@ export function usePlayerScreenUi() {
     setReadingAltitude("reading");
     setFollowEnabled(false);
     setLyricsWriting(true);
+    setWritingSession((value) => value + 1);
   }, []);
 
   const closeReading = useCallback(() => {
@@ -103,6 +111,8 @@ export function usePlayerScreenUi() {
     closeReading,
     lyricsWriting,
     openWriting,
+    writingSession,
+    bumpWritingSession,
     stopWriting: () => setLyricsWriting(false),
     reelExpanded,
     setReelExpanded,

@@ -12,7 +12,7 @@ import {
   getOverdubStemColor,
 } from "../../../domain/overdub";
 import { useClipWaveform } from "../../../hooks/useClipWaveform";
-import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../domain/lyrics";
+import { getLatestLyricsVersion, lyricsDocumentToText, resolveClipLyricsVersion } from "../../../domain/lyrics";
 import { normalizeSections } from "../../../domain/playerSections";
 import { useStore } from "../../../state/useStore";
 import type { SongIdea } from "../../../types";
@@ -95,7 +95,18 @@ export function usePlayerScreenData({ playerDuration, isPlaying = false }: UsePl
   );
   const latestLyricsText = useMemo(
     () => lyricsDocumentToText(latestLyricsVersion?.document),
-    [latestLyricsVersion?.id]
+    // Keyed on the document, not the version id — in-place autosaves keep the
+    // id and used to leave this text (and the open reader) stale.
+    [latestLyricsVersion?.document]
+  );
+  // The take's page: the version stamped at record time, when it still exists.
+  const clipLyrics = useMemo(
+    () => resolveClipLyricsVersion(playerIdea, playerClip?.lyricsVersionId),
+    [playerIdea, playerClip?.lyricsVersionId]
+  );
+  const clipLyricsText = useMemo(
+    () => lyricsDocumentToText(clipLyrics.version?.document),
+    [clipLyrics.version?.document]
   );
   const hasProjectLyrics = playerIdea?.kind === "project" && latestLyricsText.trim().length > 0;
   const playerCollection =
@@ -175,6 +186,8 @@ export function usePlayerScreenData({ playerDuration, isPlaying = false }: UsePl
     queueEntries,
     latestLyricsVersion,
     latestLyricsText,
+    clipLyrics,
+    clipLyricsText,
     hasProjectLyrics,
     playerCollection,
     playbackAudioUri,

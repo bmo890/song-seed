@@ -645,6 +645,7 @@ function applyFullClipMetadata(manifest: ArchiveClipManifest, clip: ClipVersion)
     manifest.practiceMarkers = clip.practiceMarkers;
     manifest.sections = clip.sections;
     manifest.analysis = clip.analysis;
+    manifest.lyricsVersionId = clip.lyricsVersionId;
     manifest.manualSortOrder = clip.manualSortOrder;
 }
 

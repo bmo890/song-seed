@@ -67,6 +67,16 @@ export function useLyricsVersionScreenModel() {
     ? versions.find((version) => version.id === versionId) ?? null
     : null;
   const resolvedVersion = sourceVersion ?? latestVersion;
+  // A requested version that no longer exists (deleted after a setlist/songbook
+  // pinned it) falls back to latest — with a toast, never silently.
+  const requestedVersionMissing = !!versionId && !sourceVersion && !!latestVersion;
+  const missingNoticeShownRef = useRef(false);
+  useEffect(() => {
+    if (requestedVersionMissing && !missingNoticeShownRef.current) {
+      missingNoticeShownRef.current = true;
+      toast(t("lyrics.versionGone"), "alert-circle-outline");
+    }
+  }, [requestedVersionMissing, t]);
   const isLatestSource = !!resolvedVersion && resolvedVersion.id === latestVersion?.id;
   const sourceText = lyricsDocumentToText(resolvedVersion?.document);
   const sourceVersionNumber = resolvedVersion

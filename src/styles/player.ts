@@ -161,6 +161,10 @@ export const playerStyles = {
     borderTopWidth: 1,
     borderTopColor: "#E8E4DF",
   },
+  // Full view: the progress thread IS the divider — no second hairline.
+  transportFooterZoneNoDivider: {
+    borderTopWidth: 0,
+  },
   transportFooterCard: {
     backgroundColor: "#fff",
     borderRadius: radii.xl,

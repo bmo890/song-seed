@@ -231,12 +231,26 @@ export function PlayerScreen({
     }
     return `${Math.round(grid.bpm)} bpm · ${grid.meterId}`;
   }, [playerClip?.recordingGrid]);
-  // When the latest lyric version has chords, give the panel the structured
+  // The take's page (settled lyrics-versioning rules): a stamped take reads the
+  // version it was sung from; "Show latest" flips forward for this open.
+  const [lyricsShowLatest, setLyricsShowLatest] = useState(false);
+  useEffect(() => setLyricsShowLatest(false), [playerClip?.id]);
+  const clipStampDiffers =
+    !!playerClip?.lyricsVersionId &&
+    !data.clipLyrics.stampMissing &&
+    data.clipLyrics.total > 0 &&
+    data.clipLyrics.index !== data.clipLyrics.total;
+  const readingStampedLyrics = clipStampDiffers && !lyricsShowLatest;
+  const displayedLyricsVersion = readingStampedLyrics
+    ? data.clipLyrics.version
+    : data.latestLyricsVersion;
+  const displayedLyricsText = readingStampedLyrics ? data.clipLyricsText : data.latestLyricsText;
+  // When the displayed lyric version has chords, give the panel the structured
   // lines so it renders a chord chart (chords above lyrics) while playing.
   const lyricsChordLines = useMemo(() => {
-    const lines = data.latestLyricsVersion?.document.lines ?? [];
+    const lines = displayedLyricsVersion?.document.lines ?? [];
     return lines.some((line) => line.chords.length > 0) ? lines : undefined;
-  }, [data.latestLyricsVersion]);
+  }, [displayedLyricsVersion]);
   // ---- Reading ladder (settled 2026-08-06) ----
   // reading = an artifact holds the page (slim reel); fullView = the reel leaves
   // and a hairline thread above the transport carries position instead.
@@ -253,24 +267,27 @@ export function PlayerScreen({
     [chordSheet]
   );
   const lyricsPreviewLine = useMemo(() => {
-    const firstLine = data.latestLyricsText
+    const firstLine = displayedLyricsText
       .split("\n")
       .map((line) => line.trim())
       .find((line) => line.length > 0);
     return firstLine ?? "";
-  }, [data.latestLyricsText]);
+  }, [displayedLyricsText]);
   const doorChordSummary = useMemo(() => lyricChordSummary(lyricsChordLines), [lyricsChordLines]);
   const chartHandle = useMemo(
     () => chartSummary(chordSheet, (count) => t("player.chartBars", { count })),
     [chordSheet, t]
   );
-  // Whispered version meta — "v1 · Jul 25", never a second-precision timestamp.
+  // Whispered version meta — the IDENTITY of the page on display ("v2 of 4"),
+  // not a tally. Never a second-precision timestamp.
   const lyricsMeta = useMemo(() => {
-    const updatedAt = data.latestLyricsVersion?.updatedAt;
+    const updatedAt = displayedLyricsVersion?.updatedAt;
     if (!updatedAt) return null;
-    const version = playerIdea?.lyrics?.versions.length ?? 1;
-    return `v${version} · ${formatClipDate(updatedAt)}`;
-  }, [data.latestLyricsVersion?.updatedAt, playerIdea?.lyrics?.versions.length]);
+    const total = data.clipLyrics.total || 1;
+    const index = readingStampedLyrics ? data.clipLyrics.index : total;
+    const identity = total > 1 ? t("player.versionOf", { index, total }) : "v1";
+    return `${identity} · ${formatClipDate(updatedAt)}`;
+  }, [displayedLyricsVersion?.updatedAt, data.clipLyrics.total, data.clipLyrics.index, readingStampedLyrics, t]);
   // Marker visibility only matters when the clip has marks to show or hide.
   const hasMarks = data.practiceMarkers.length > 0 || data.sections.length > 0;
   // While a pin is dragged/nudged we override its position locally so the reel moves live,
@@ -953,16 +970,21 @@ export function PlayerScreen({
     AppAlert.custom(t("player.newVersionTitle"), t("player.newVersionBody"), [
       {
         label: t("player.newVersionFromCurrent"),
-        onPress: () =>
-          appActions.saveProjectLyricsAsNewVersion(playerIdea.id, data.latestLyricsText),
+        onPress: () => {
+          appActions.saveProjectLyricsAsNewVersion(playerIdea.id, data.latestLyricsText);
+          ui.bumpWritingSession();
+        },
       },
       {
         label: t("player.newVersionBlank"),
-        onPress: () => appActions.saveProjectLyricsAsNewVersion(playerIdea.id, ""),
+        onPress: () => {
+          appActions.saveProjectLyricsAsNewVersion(playerIdea.id, "");
+          ui.bumpWritingSession();
+        },
       },
       { label: t("common.cancel"), style: "cancel" as const },
     ]);
-  }, [data.latestLyricsText, playerIdea, t]);
+  }, [data.latestLyricsText, playerIdea, t, ui]);
   const handleSaveAsOneClip = useCallback(
     async (mode: "copy" | "replace") => {
       if (!playerIdea || !playerClip) return;
@@ -1089,6 +1111,7 @@ export function PlayerScreen({
     <SafeAreaView style={[styles.screen, playerScreenStyles.screen]}>
       <TransportLayout
         scrollable={!isReading}
+        footerDivider={!isFullView}
         header={
           <PlayerHeaderSection
             clipTitle={playerClip.title}
@@ -1549,26 +1572,67 @@ export function PlayerScreen({
         <View style={isReading ? playerScreenStyles.followContent : playerScreenStyles.content}>
           {isWriting ? (
             <PlayerLyricsWriter
-              // Keyed on the version so a new-version fork reseeds the editor.
-              key={data.latestLyricsVersion?.id ?? "unwritten"}
+              // Keyed on the SESSION, not the version id: a sealed version
+              // forking silently mid-autosave must never remount the editor
+              // (keyboard drop mid-thought). Deliberate reseeds bump the token.
+              key={`write-${ui.writingSession}`}
               ideaId={playerIdea.id}
               initialText={data.latestLyricsText}
               textDirection={data.latestLyricsVersion?.textDirection ?? "auto"}
             />
           ) : isReading ? (
-            <PlayerArtifactReader
-              artifact={ui.readingArtifact!}
-              text={data.latestLyricsText}
-              chordLines={lyricsChordLines}
-              chordSheet={chordSheet}
-              zoom={ui.readingZoom}
-              showChords={ui.chordsVisible}
-              followEnabled={ui.followEnabled}
-              positionMs={effectivePlayerPosition}
-              durationMs={effectivePlayerDuration}
-              isPlaying={effectiveIsPlaying}
-              playbackRate={effectivePlaybackRate}
-            />
+            <>
+              {ui.readingArtifact === "lyrics" && (clipStampDiffers || data.clipLyrics.stampMissing) ? (
+                // The take's page vs the song's latest words — one quiet line,
+                // and one tap to flip. A deleted stamp says so instead of
+                // silently swapping the words.
+                <Pressable
+                  style={({ pressed }) => [
+                    playerScreenStyles.lyricsVersionRow,
+                    pressed ? styles.pressDown : null,
+                  ]}
+                  onPress={() => setLyricsShowLatest((value) => !value)}
+                  disabled={data.clipLyrics.stampMissing}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    data.clipLyrics.stampMissing
+                      ? t("player.stampDeleted")
+                      : readingStampedLyrics
+                        ? t("player.showLatest")
+                        : t("player.showTakes")
+                  }
+                >
+                  <Text style={playerScreenStyles.lyricsVersionText}>
+                    {data.clipLyrics.stampMissing
+                      ? t("player.stampDeleted")
+                      : readingStampedLyrics
+                        ? t("player.takesPage", {
+                            index: data.clipLyrics.index,
+                            total: data.clipLyrics.total,
+                          })
+                        : t("player.latestPage", { total: data.clipLyrics.total })}
+                  </Text>
+                  {!data.clipLyrics.stampMissing ? (
+                    <Text style={playerScreenStyles.lyricsVersionAction}>
+                      {readingStampedLyrics ? t("player.showLatest") : t("player.showTakes")}
+                    </Text>
+                  ) : null}
+                </Pressable>
+              ) : null}
+              <PlayerArtifactReader
+                artifact={ui.readingArtifact!}
+                text={displayedLyricsText}
+                chordLines={lyricsChordLines}
+                chordSheet={chordSheet}
+                zoom={ui.readingZoom}
+                showChords={ui.chordsVisible}
+                followEnabled={ui.followEnabled}
+                positionMs={effectivePlayerPosition}
+                durationMs={effectivePlayerDuration}
+                isPlaying={effectiveIsPlaying}
+                playbackRate={effectivePlaybackRate}
+              />
+            </>
           ) : ui.mode === "practice" ? (
             <PlayerPracticeDrawers
               analysis={data.analysis}

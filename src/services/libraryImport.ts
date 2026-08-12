@@ -142,6 +142,7 @@ function readFullClipMetadata(clipManifest: ArchiveClipManifest) {
         sections: clipManifest.sections,
         analysis: clipManifest.analysis,
         recordingGrid: clipManifest.recordingGrid,
+        lyricsVersionId: clipManifest.lyricsVersionId,
         manualSortOrder: clipManifest.manualSortOrder,
     };
 }

@@ -154,6 +154,28 @@ export const playerScreenStyles = StyleSheet.create({
     color: colors.textPrimary,
     marginBottom: 4,
   },
+  // The take's-page row above the reader: one whispered line naming which
+  // version holds the page, one quiet action to flip.
+  lyricsVersionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 2,
+    gap: 8,
+  },
+  lyricsVersionText: {
+    flexShrink: 1,
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  lyricsVersionAction: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 12,
+    color: colors.primaryDeep,
+  },
   // Chords toggle in the same sheet — editorial ink (word + leading dot).
   chordsInk: {
     flexDirection: "row",
@@ -176,12 +198,14 @@ export const playerScreenStyles = StyleSheet.create({
     color: colors.textSecondary,
   },
   // Full view's hairline stand-in for the reel: position as a quiet thread.
-  // The row is the touch target (scrub/tap); the visible line stays 2px, and
-  // the bottom padding keeps the thread off the transport bar.
+  // The thread IS the footer's top border (the zone's own hairline stands down
+  // via footerDivider={false}): full-bleed, flush with the zone's top edge,
+  // unfilled track in the border's grey. The row below it is the touch target.
   progressThreadRow: {
-    paddingTop: 10,
+    marginHorizontal: -16,
+    marginTop: -6,
     paddingBottom: 12,
-    justifyContent: "center",
+    justifyContent: "flex-start",
   },
   progressThreadTrack: {
     height: 2,

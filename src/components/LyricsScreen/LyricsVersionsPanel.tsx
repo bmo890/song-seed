@@ -10,7 +10,7 @@ import { SongIdea, type LyricsVersion } from "../../types";
 import { ChordChartLines } from "../LyricsVersionScreen/components/chords/ChordChart";
 import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
-import { getLatestLyricsVersion, lyricsDocumentToText } from "../../domain/lyrics";
+import { countLyricsVersionReferences, getLatestLyricsVersion, lyricsDocumentToText } from "../../domain/lyrics";
 import { buildLyricsTextFromNote } from "../../domain/notepad";
 import { Button } from "../common/Button";
 import { AppAlert } from "../common/AppAlert";
@@ -106,7 +106,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
   function deleteSelectedVersions() {
     if (selectedVersionIds.length === 0) return;
     const includesLatest = !!latestVersion && selectedVersionIds.includes(latestVersion.id);
-    const message =
+    const baseMessage =
       selectedVersionIds.length === 1
         ? includesLatest
           ? t("lyrics.deleteCurrent")
@@ -114,6 +114,25 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
         : includesLatest
           ? t("lyrics.deleteSelectedCurrent")
           : t("lyrics.deleteSelected");
+
+    // Deleting a referenced version severs takes/charts/setlists — say so, with
+    // numbers, instead of letting the words swap silently later.
+    const state = useStore.getState();
+    const refs = countLyricsVersionReferences(
+      projectIdea,
+      selectedVersionIds,
+      state.songbooks,
+      state.setlists
+    );
+    const refParts = [
+      refs.takes > 0 ? t("lyrics.refTakes", { count: refs.takes }) : null,
+      refs.charts > 0 ? t("lyrics.refCharts", { count: refs.charts }) : null,
+      refs.setlists > 0 ? t("lyrics.refSetlists", { count: refs.setlists }) : null,
+    ].filter(Boolean);
+    const message =
+      refParts.length > 0
+        ? `${baseMessage} ${t("lyrics.refFallback", { used: refParts.join(" · ") })}`
+        : baseMessage;
 
     AppAlert.destructive(t("lyrics.deleteTitle"), message, () => {
       appActions.deleteProjectLyricsVersions(projectIdea.id, selectedVersionIds);
