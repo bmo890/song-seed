@@ -1,4 +1,5 @@
 import * as FileSystem from "expo-file-system/legacy";
+import { i18n } from "../i18n/instance";
 import { File } from "expo-file-system";
 import {
     reportBackupProgress,
@@ -235,7 +236,7 @@ export async function createZipArchive(
                                 phase: "packaging",
                                 completedBytes: completedSourceBytes,
                                 totalBytes: totalSourceBytes,
-                                message: "Packaging",
+                                message: i18n.t("process.packaging"),
                             });
                             bytesSinceYield = 0;
                             await yieldToBackupUi(options?.signal);
@@ -290,6 +291,6 @@ export async function createZipArchive(
         phase: "packaging",
         completedBytes: totalSourceBytes,
         totalBytes: totalSourceBytes,
-        message: "Packaged",
+        message: i18n.t("process.packaged"),
     });
 }

@@ -1,4 +1,5 @@
 import { File } from "expo-file-system";
+import { i18n } from "../i18n/instance";
 import { strFromU8 } from "fflate";
 import {
     reportBackupProgress,
@@ -148,7 +149,7 @@ export async function indexStoredZipArchive(
         phase: "inspecting",
         completedBytes: 0,
         totalBytes: archiveSizeBytes,
-        message: "Inspecting backup",
+        message: i18n.t("process.inspectingBackup"),
     });
 
     const entries = new Map<string, StoredZipEntry>();
@@ -235,7 +236,7 @@ export async function indexStoredZipArchive(
                     phase: "inspecting",
                     completedBytes: dataEnd,
                     totalBytes: archiveSizeBytes,
-                    message: "Inspecting backup",
+                    message: i18n.t("process.inspectingBackup"),
                 });
                 await yieldToBackupUi(options?.signal);
             }
@@ -253,7 +254,7 @@ export async function indexStoredZipArchive(
         phase: "inspecting",
         completedBytes: archiveSizeBytes,
         totalBytes: archiveSizeBytes,
-        message: "Backup structure verified",
+        message: i18n.t("process.backupVerified"),
     });
     return { archiveUri, archiveSizeBytes, entries };
 }

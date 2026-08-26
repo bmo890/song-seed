@@ -1,4 +1,5 @@
 import * as FileSystem from "expo-file-system/legacy";
+import { i18n } from "../i18n/instance";
 import { File } from "expo-file-system";
 import { strFromU8 } from "fflate";
 import { resolveManagedUri } from "./storagePaths";
@@ -324,7 +325,7 @@ export async function restoreFromDisasterRecoveryBackup(
             phase: "restoring",
             completedBytes: 0,
             totalBytes: totalMediaBytes,
-            message: "Restoring recordings",
+            message: i18n.t("process.restoringClips"),
         });
 
         for (const record of manifest.files) {
@@ -379,7 +380,7 @@ export async function restoreFromDisasterRecoveryBackup(
                 phase: "restoring",
                 completedBytes: restoredBytes,
                 totalBytes: totalMediaBytes,
-                message: "Restoring recordings",
+                message: i18n.t("process.restoringClips"),
             });
         }
 
@@ -391,7 +392,7 @@ export async function restoreFromDisasterRecoveryBackup(
             phase: "verifying",
             completedBytes: 0,
             totalBytes: totalMediaBytes,
-            message: "Verifying restored recordings",
+            message: i18n.t("process.verifyingRestoredClips"),
         });
         for (const record of manifest.files) {
             throwIfBackupCancelled(options?.signal);
@@ -419,7 +420,7 @@ export async function restoreFromDisasterRecoveryBackup(
                 phase: "verifying",
                 completedBytes: verifiedBytes,
                 totalBytes: totalMediaBytes,
-                message: "Verifying restored recordings",
+                message: i18n.t("process.verifyingRestoredClips"),
             });
         }
 
@@ -430,7 +431,7 @@ export async function restoreFromDisasterRecoveryBackup(
             phase: "committing",
             completedBytes: totalMediaBytes,
             totalBytes: totalMediaBytes,
-            message: "Finishing restore",
+            message: i18n.t("process.finishingRestore"),
         });
         setPersistBlocked(true);
         persistenceLocked = true;

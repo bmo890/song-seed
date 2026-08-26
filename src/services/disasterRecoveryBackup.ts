@@ -1,4 +1,5 @@
 import * as FileSystem from "expo-file-system/legacy";
+import { i18n } from "../i18n/instance";
 import { File } from "expo-file-system";
 import { buildTimestampSlug } from "./audioStorage";
 import { createZipArchive, type ZipArchiveEntry } from "./zipArchive";
@@ -116,7 +117,7 @@ async function inspectFileIntegrity(
                     phase: "hashing",
                     completedBytes: progressOffsetBytes + sizeBytes,
                     totalBytes: progressTotalBytes,
-                    message: "Verifying recordings",
+                    message: i18n.t("process.verifyingClips"),
                 });
                 bytesSinceYield = 0;
                 await yieldToBackupUi(options?.signal);
@@ -254,7 +255,7 @@ export async function buildDisasterRecoveryBackup(
         phase: "preparing",
         completedBytes: 0,
         totalBytes: 0,
-        message: "Preparing library backup",
+        message: i18n.t("process.preparingBackup"),
     });
     const snapshotAbs = buildPersistedAppStoreSnapshot(state);
 
@@ -324,7 +325,7 @@ export async function buildDisasterRecoveryBackup(
         phase: "hashing",
         completedBytes: 0,
         totalBytes: totalMediaBytes,
-        message: "Verifying recordings",
+        message: i18n.t("process.verifyingClips"),
     });
 
     const hashStartedAt = Date.now();
@@ -376,7 +377,7 @@ export async function buildDisasterRecoveryBackup(
             phase: "hashing",
             completedBytes: hashedMediaBytes,
             totalBytes: totalMediaBytes,
-            message: "Verifying recordings",
+            message: i18n.t("process.verifyingClips"),
         });
     }
 
@@ -432,7 +433,7 @@ export async function buildDisasterRecoveryBackup(
         phase: "packaging",
         completedBytes: 0,
         totalBytes: totalMediaBytes,
-        message: "Packaging backup",
+        message: i18n.t("process.packagingBackup"),
     });
     const packStartedAt = Date.now();
     await createZipArchive(archiveUri, entries, opts);

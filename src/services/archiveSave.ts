@@ -1,4 +1,5 @@
 import * as FileSystem from "expo-file-system/legacy";
+import { i18n } from "../i18n/instance";
 import { Platform } from "react-native";
 import { shareFileUri } from "./audioStorage";
 import {
@@ -68,7 +69,7 @@ export async function saveArchiveToUserLocation(
                         phase: "saving",
                         completedBytes,
                         totalBytes,
-                        message: "Saving",
+                        message: i18n.t("process.saving"),
                     });
                 },
             });
@@ -90,14 +91,14 @@ export async function saveArchiveToUserLocation(
         phase: "saving",
         completedBytes: 0,
         totalBytes: 0,
-        message: "Choose where to save",
+        message: i18n.t("process.chooseWhereToSave"),
     });
     await shareFileUri(archiveUri, archiveTitle, "application/zip");
     reportBackupProgress(options, {
         phase: "saving",
         completedBytes: 0,
         totalBytes: 0,
-        message: "Saved",
+        message: i18n.t("process.saved"),
     });
     return { savedUri: archiveUri, saveConfirmed: false };
 }

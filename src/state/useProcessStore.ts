@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { BackupOperationPhase, BackupOperationProgress } from "../services/backupOperation";
+import { i18n } from "../i18n/instance";
 
 /**
  * The single active long-running library operation (backup / export / restore), lifted OUT
@@ -28,24 +29,25 @@ export type LibraryProcess = {
     onCancel?: () => void;
 };
 
-/** Ordered steps per kind, each mapping to one or more engine phases. Drives the timeline. */
-const PROCESS_STEPS: Record<LibraryProcessKind, { label: string; phases: BackupOperationPhase[] }[]> = {
+/** Ordered steps per kind, each mapping to one or more engine phases. Drives the timeline.
+ *  Labels are i18n keys (process.*), resolved at read time so they follow the language. */
+const PROCESS_STEPS: Record<LibraryProcessKind, { labelKey: string; phases: BackupOperationPhase[] }[]> = {
     backup: [
-        { label: "Prepare", phases: ["preparing"] },
-        { label: "Verify", phases: ["hashing", "verifying"] },
-        { label: "Package", phases: ["packaging"] },
-        { label: "Save", phases: ["saving"] },
+        { labelKey: "process.stepPrepare", phases: ["preparing"] },
+        { labelKey: "process.stepVerify", phases: ["hashing", "verifying"] },
+        { labelKey: "process.stepPackage", phases: ["packaging"] },
+        { labelKey: "process.stepSave", phases: ["saving"] },
     ],
     export: [
-        { label: "Prepare", phases: ["preparing"] },
-        { label: "Package", phases: ["packaging"] },
-        { label: "Save", phases: ["saving"] },
+        { labelKey: "process.stepPrepare", phases: ["preparing"] },
+        { labelKey: "process.stepPackage", phases: ["packaging"] },
+        { labelKey: "process.stepSave", phases: ["saving"] },
     ],
     restore: [
-        { label: "Inspect", phases: ["inspecting"] },
-        { label: "Restore", phases: ["restoring"] },
-        { label: "Verify", phases: ["verifying", "hashing"] },
-        { label: "Commit", phases: ["committing"] },
+        { labelKey: "process.stepInspect", phases: ["inspecting"] },
+        { labelKey: "process.stepRestore", phases: ["restoring"] },
+        { labelKey: "process.stepVerify", phases: ["verifying", "hashing"] },
+        { labelKey: "process.stepCommit", phases: ["committing"] },
     ],
 };
 
@@ -93,10 +95,11 @@ export function getProcessSteps(process: LibraryProcess): ProcessStep[] {
     const activeIndex = steps.findIndex((step) => step.phases.includes(process.progress.phase));
     const resolvedActive = activeIndex >= 0 ? activeIndex : 0;
     return steps.map((step, index) => {
-        if (process.status === "success") return { label: step.label, state: "done" };
-        if (index < resolvedActive) return { label: step.label, state: "done" };
-        if (index === resolvedActive) return { label: step.label, state: "active" };
-        return { label: step.label, state: "upcoming" };
+        const label = i18n.t(step.labelKey);
+        if (process.status === "success") return { label, state: "done" };
+        if (index < resolvedActive) return { label, state: "done" };
+        if (index === resolvedActive) return { label, state: "active" };
+        return { label, state: "upcoming" };
     });
 }
 
@@ -132,12 +135,12 @@ type ProcessStore = {
     dismiss: (id?: string) => void;
 };
 
-const INITIAL_PROGRESS: BackupOperationProgress = {
+const initialProgress = (): BackupOperationProgress => ({
     phase: "preparing",
     completedBytes: 0,
     totalBytes: 0,
-    message: "Preparing",
-};
+    message: i18n.t("process.preparing"),
+});
 
 /**
  * Progress commits re-render every subscriber (the full takeover, the pill, the Settings
@@ -156,7 +159,7 @@ export const useProcessStore = create<ProcessStore>((set, get) => ({
                 kind,
                 title,
                 status: "running",
-                progress: INITIAL_PROGRESS,
+                progress: initialProgress(),
                 startedAt: Date.now(),
                 minimized: false,
                 canCancel,

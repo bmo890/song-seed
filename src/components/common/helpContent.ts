@@ -1,112 +1,77 @@
 import type { HelpItem } from "./HelpSheet";
+import { i18n } from "../../i18n/instance";
 
 /**
  * Help-sheet copy for the audio flows that had no help before. Kept as data so
  * every sheet renders through the shared HelpSheet. Claims here describe real
  * behavior — verify against the flow when it changes.
+ *
+ * All copy lives in the i18n catalog (helpContent.*). The exported objects use
+ * getters so every read resolves against the CURRENT language rather than the
+ * language active at import time.
  */
 
 export type HelpContent = { title: string; intro: string; items: HelpItem[] };
 
+const t = (key: string) => i18n.t(`helpContent.${key}`);
+
+const item = (icon: HelpItem["icon"], key: string): HelpItem => ({
+  icon,
+  label: t(`${key}Label`),
+  description: t(`${key}Body`),
+});
+
 export const RECORDING_HELP: HelpContent = {
-  title: "Recording",
-  intro: "Capture a take — with a click to keep you steady.",
-  items: [
-    {
-      icon: "mic-outline",
-      label: "Record & pause",
-      description: "Tap the mic to start, tap again to pause. Save keeps the take in this collection; the trash discards it.",
-    },
-    {
-      icon: "timer-outline",
-      label: "Count-in",
-      description: "Play 1, 2, or 4 bars of clicks before recording starts. Open the metronome to set it.",
-    },
-    {
-      icon: "musical-notes-outline",
-      label: "Metronome",
-      description: "A click while you record — as a beep, a screen flash, a haptic pulse, or all three. It guides you but is never recorded into the take.",
-    },
-    {
-      icon: "create-outline",
-      label: "Naming",
-      description: "Name each take when you save it, or turn that off in Settings to auto-name and keep the ideas flowing.",
-    },
-    {
-      icon: "swap-horizontal-outline",
-      label: "Tempo changes",
-      description: "Program tempo or meter changes at bar lines in the metronome sheet — the click follows them through the take.",
-    },
-    {
-      icon: "bluetooth-outline",
-      label: "Bluetooth latency",
-      description: "Monitoring through wireless headphones? Calibrate once so overdubs line up with what you heard. The haptic pulse has no wireless delay — a steady reference when the beep feels late.",
-    },
-    {
-      icon: "phone-portrait-outline",
-      label: "Keeps going",
-      description: "Recording continues if the screen locks or you switch apps.",
-    },
-  ],
+  get title() {
+    return t("recording.title");
+  },
+  get intro() {
+    return t("recording.intro");
+  },
+  get items() {
+    return [
+      item("mic-outline", "recording.record"),
+      item("timer-outline", "recording.countIn"),
+      item("musical-notes-outline", "recording.metronome"),
+      item("create-outline", "recording.naming"),
+      item("swap-horizontal-outline", "recording.tempo"),
+      item("bluetooth-outline", "recording.bluetooth"),
+      item("phone-portrait-outline", "recording.keepsGoing"),
+    ];
+  },
 };
 
-
 export const OVERDUB_HELP: HelpContent = {
-  title: "Overdub layers",
-  intro: "Stack a harmony, a second part, a clap — over the take you already have.",
-  items: [
-    {
-      icon: "layers-outline",
-      label: "Layers ride the take",
-      description: "Each layer plays over the root clip. The root itself stays untouched.",
-    },
-    {
-      icon: "options-outline",
-      label: "Levels",
-      description: "Set each layer's volume, or add a low cut to clean up rumble and handling noise.",
-    },
-    {
-      icon: "git-compare-outline",
-      label: "Timing",
-      description:
-        "The grey wave is the take, the coloured wave is the layer. Nudge or slide the layer while it plays, until it locks into the groove.",
-    },
-    {
-      icon: "headset-outline",
-      label: "Solo & mute",
-      description: "Play one layer alone, or mute it, to check how the parts sit together.",
-    },
-    {
-      icon: "save-outline",
-      label: "Editing a layered clip",
-      description: "To trim or change the speed of a clip that has layers, save a combined mix first — timing edits on the root would break the alignment.",
-    },
-  ],
+  get title() {
+    return t("overdub.title");
+  },
+  get intro() {
+    return t("overdub.intro");
+  },
+  get items() {
+    return [
+      item("layers-outline", "overdub.layers"),
+      item("options-outline", "overdub.levels"),
+      item("git-compare-outline", "overdub.timing"),
+      item("headset-outline", "overdub.solo"),
+      item("save-outline", "overdub.editing"),
+    ];
+  },
 };
 
 export const EDITOR_HELP: HelpContent = {
-  title: "Editing a clip",
-  intro: "Trim the take, or change its speed and pitch — the result is saved as a new clip.",
-  items: [
-    {
-      icon: "cut-outline",
-      label: "Keep or remove",
-      description: "Mark parts to KEEP (each becomes its own clip) or to REMOVE (those parts are cut out and the rest is joined).",
-    },
-    {
-      icon: "add-outline",
-      label: "Parts",
-      description: "Add a part at the playhead, drag its edges to fit, or delete it. Add several to keep or cut multiple parts at once.",
-    },
-    {
-      icon: "save-outline",
-      label: "Saving",
-      description: "The edit saves as a new clip, so the original is safe. Tick 'Also delete original' only when you're sure you won't want it back.",
-    },
-    {
-      icon: "speedometer-outline",
-      label: "Speed & pitch",
-      description: "Bake a permanent speed or pitch change into a new clip — unlike the practice tools, this one sticks.",
-    },
-  ],
+  get title() {
+    return t("editor.title");
+  },
+  get intro() {
+    return t("editor.intro");
+  },
+  get items() {
+    return [
+      item("cut-outline", "editor.keepRemove"),
+      item("add-outline", "editor.parts"),
+      item("save-outline", "editor.saving"),
+      item("speedometer-outline", "editor.speed"),
+    ];
+  },
 };
