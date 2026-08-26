@@ -194,6 +194,9 @@ export function page(opts: {
   /** Page-specific CSS appended after the shared design system (e.g. the
    *  recipient page's app-preview gallery). */
   extraStyle?: string;
+  /** When set, the footer carries a quiet "Report" link to the abuse funnel —
+   *  every page that shows someone else's content must offer one. */
+  reportHref?: string;
 }): string {
   return `<!doctype html>
 <html lang="en">
@@ -218,7 +221,9 @@ ${opts.noindex ? '<meta name="robots" content="noindex,nofollow">' : ""}
 ${opts.body}
 <footer class="foot">
   <span>Files are held for a limited time, then quietly let go.</span>
-  <span>SongNook — a home for song ideas</span>
+  <span>SongNook — a home for song ideas${
+    opts.reportHref ? ` · <a href="${escapeHtml(opts.reportHref)}">Report</a>` : ""
+  }</span>
 </footer>
 </div>
 ${opts.bodyScript ? `<script>${opts.bodyScript}</script>` : ""}

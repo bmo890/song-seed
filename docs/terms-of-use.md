@@ -20,7 +20,7 @@ Send is a small, free service for handing your own musical work to other people.
 - **Links are keys.** Anyone with the link can download the files. Share links only with people you trust to have them.
 - **Acceptable use.** Upload only content you have the right to share. Don't use Send for anything unlawful, for infringing someone else's rights, for malware, or as a general file host. Send accepts audio files and SongNook packages only.
 - **We may remove transfers.** If a transfer is reported or appears to violate these terms, we may delete it and block further uploads from the source, without notice.
-- **Report abuse.** If a Send link is being used to distribute something unlawful or something that's yours without permission, email **<CONTACT_EMAIL>** with the link. We will look at it promptly.
+- **Report abuse.** If a Send link is being used to distribute something unlawful or something that's yours without permission, email **bmostudio.dev@gmail.com** with the link. We will look at it promptly.
 
 ## No warranty
 
@@ -34,4 +34,4 @@ If these terms change, the updated version will be posted at this address with a
 
 ## Contact
 
-Questions or abuse reports: **<CONTACT_EMAIL>**
+Questions or abuse reports: **bmostudio.dev@gmail.com**

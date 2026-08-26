@@ -146,6 +146,7 @@ ${GALLERY_HTML}
     bodyScript: GALLERY_SCRIPT + iosScript,
     extraStyle: GALLERY_CSS + FUNNEL_CSS,
     noindex: true,
+    reportHref: `/report/${encodeURIComponent(t.transferId)}`,
   });
 }
 

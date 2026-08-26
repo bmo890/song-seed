@@ -135,22 +135,22 @@ declared (unchanged from store-listing.md reasoning).
 
 ---
 
-## Judgment calls needing founder review
+## Judgment calls — RESOLVED 2026-08-26 (founder + code verification)
 
-1. **IP / rate-limit declaration.** Recommended "do not declare" on both
-   stores per the transient-security-processing carve-outs, but neither
-   store's guidance is perfectly explicit for a 2-hour KV counter. The
-   conservative alternative costs little on Play; on Apple it would add a
-   category to the label. Founder decision.
-2. **Word-lookup words.** Kept the store-listing.md posture (stateless
-   third-party call, not collection). Note the Hebrew path now transits a
-   developer-operated worker — if that worker ever adds logging, this flips.
-   Confirm the worker keeps no logs before submitting.
-3. **Report funnel visibility.** The `/report/:id` mailto page exists, but
-   the recipient (download) page footer does not link to it
-   (`server/songnook-send/src/pages/shell.ts`). For a clean Apple 1.2 story,
-   consider adding a quiet "Report" link to that footer before submission —
-   the reviewer paragraph above claims only what exists today.
+1. **IP / rate-limit declaration.** Founder chose industry standard →
+   **do not declare** on either store (transient security processing,
+   ≤2-hour KV counters, no logs kept beyond the window).
+2. **Word-lookup words — VERIFIED in code.** `server/word-he/worker.js`
+   logs only `{ mode, wordLen, themes: count }` — never the word itself.
+   Results are cached as an anonymous **shared dictionary** (cache keys
+   contain the normalized word, shared by every user who looks it up;
+   nothing links an entry to a person or IP; rate-limit counters are
+   separate keys containing no words). The "stateless, not collection"
+   posture stands. Re-verify only if the worker ever adds logging.
+3. **Report funnel visibility — DONE.** The recipient page footer now
+   carries a "Report" link to `/report/:id`, and `ABUSE_CONTACT_EMAIL`
+   is set to bmostudio.dev@gmail.com in wrangler.toml. Takedown runbook:
+   songnook-send-handoff.md §Takedown.
 4. **"Optional message/name" category.** Apple's "Other User Content" and
    Play's "Other user-generated content" are the closest buckets; consoles
    occasionally rename these — map to whatever the live form calls free-text

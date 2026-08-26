@@ -143,3 +143,26 @@ The receive-flow landing screen, the Settings sent-links list, the iOS clipboard
 check, and design polish are all **unblocked** (backend is live) and can be built
 now without any of items 1–4. Only their on-device verification waits on the
 native rebuild.
+
+## Takedown runbook (abuse reports)
+
+Reports arrive at **bmostudio.dev@gmail.com** via the recipient page's footer
+"Report" link → `/report/:id` mailto funnel. To remove a reported transfer
+(everything auto-expires in 7 days regardless; this is the "sooner on request"
+path the privacy policy promises):
+
+```bash
+cd server/songnook-send
+# 1. Mark the transfer gone (the page and API immediately read as unavailable):
+npx wrangler d1 execute songnook_send --remote \
+  --command "UPDATE transfers SET status='removed' WHERE transfer_id='<ID>'"
+# 2. Delete the stored files (keys are <transferId>/<itemId>):
+npx wrangler r2 object delete songnook-send/<ID>/<ITEM_ID> --remote
+#    (list a transfer's items first if needed:)
+npx wrangler d1 execute songnook_send --remote \
+  --command "SELECT item_id FROM items WHERE transfer_id='<ID>'"
+```
+
+The nightly sweep also purges any leftovers once `expires_at` passes. Reply to
+the reporter when done — the whole flow is a support-mailbox commitment, no
+admin UI exists (deliberate for v1).

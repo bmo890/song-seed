@@ -69,9 +69,11 @@ The hard rules below are non-negotiable.
 - Budgets (hard): buttons ≤ 2 words · empty-state title ≤ 6 / body ≤ 14 ·
   settings hint ≤ 12 · alert body ≤ 20 · toast ≤ 5. Needs more words? The design
   is unclear — fix the design.
-- Terminology law: **clip** (recorded fragment) · **take** (only within a song's
-  takes) · **sketch** (song-in-progress workspace) · **song** (finished) — never
-  "recording/idea/scrap" as object names, never "track", never "song project".
+- Terminology law: **idea** (umbrella: anything in progress — founder-blessed
+  2026-08-26) · **clip** (recorded fragment) · **take** (only within a song's
+  takes) · **sketch** (song-in-progress workspace) · **song** (finished). Use
+  clip/sketch when speaking of one specifically; "idea" covers the mix. Never
+  "recording/scrap" as object names, never "track", never "song project".
 - Every user-facing string through `t()` (`src/i18n/translations.ts`), including
   `label=`/`accessibilityLabel=`. Check RTL (fonts auto-remap to Hebrew faces).
 

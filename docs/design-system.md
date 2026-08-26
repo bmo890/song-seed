@@ -419,7 +419,7 @@ design, not the copy.
 | Concept | Canonical | Banned as object names |
 |---|---|---|
 | A recorded audio fragment | **clip** | ~~recording~~ (verb only), ~~idea~~ (the creative concept, not the object), ~~scrap~~ (Cut-Up internal only) |
-| A collection list item (umbrella) | **idea** — collection contexts only (the header's "N ideas" counts clips AND sketches with mixed media; decided 2026-07-23) | never replaces **clip** as the recorded-fragment object name |
+| Anything in progress (umbrella) | **idea** — the blessed umbrella for the clip+sketch mix, app-wide (broadened from collection-only 2026-08-26: "N ideas", "Raw ideas", Revisit all correct) | never replaces **clip** or **sketch** when the sentence means one specifically |
 | A take of a song | **take** — only inside a song's takes context | |
 | A song-in-progress container | **sketch** (workspace UI) | ~~song project~~ |
 | A finished song | **song** | ~~track~~ |
