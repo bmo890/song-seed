@@ -73,6 +73,10 @@
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.POST_PROMOTED_NOTIFICATIONS"
       ],
+      "blockedPermissions": [
+        "android.permission.READ_PHONE_STATE",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ],
       "package": "com.bmostudio.songnook"
     },
     "plugins": [

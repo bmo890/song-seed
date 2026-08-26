@@ -179,12 +179,18 @@ export function parseTransferUrl(input: string | null | undefined): string | nul
 export async function fetchTransfer(transferId: string): Promise<TransferPayload> {
   if (!TRANSFER_ID_PATTERN.test(transferId)) throw new TransferGoneError();
   let res: Response;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
   try {
-    res = await fetch(`${SEND_SERVICE_BASE_URL}/api/transfers/${encodeURIComponent(transferId)}`);
+    res = await fetch(`${SEND_SERVICE_BASE_URL}/api/transfers/${encodeURIComponent(transferId)}`, {
+      signal: controller.signal,
+    });
   } catch (err) {
     throw new SendTransferError(
       `Couldn't reach the transfer service (${(err as Error).message}).`
     );
+  } finally {
+    clearTimeout(timeout);
   }
   if (res.status === 404 || res.status === 410) throw new TransferGoneError();
   if (!res.ok) {
@@ -220,16 +226,33 @@ export async function downloadTransferItem(
   const safeName = item.fileName.replace(/[^\w.\- ]+/g, "_").slice(0, 160) || "file";
   const target = `${RECEIVE_CACHE_DIR}/${item.itemId}-${safeName}`;
 
+  // A hung socket must not stall the receive flow forever: the progress
+  // callback doubles as a liveness signal — no bytes for STALL_MS cancels the
+  // download and surfaces a retryable error instead of an eternal spinner.
+  const STALL_MS = 30_000;
+  let lastProgressAt = Date.now();
   const download = FileSystem.createDownloadResumable(
     item.downloadUrl,
     target,
     {},
     (progress) => {
+      lastProgressAt = Date.now();
       if (!onProgress || progress.totalBytesExpectedToWrite <= 0) return;
       onProgress(progress.totalBytesWritten / progress.totalBytesExpectedToWrite);
     }
   );
-  const result = await download.downloadAsync();
+  const stallWatch = setInterval(() => {
+    if (Date.now() - lastProgressAt > STALL_MS) {
+      clearInterval(stallWatch);
+      void download.cancelAsync().catch(() => {});
+    }
+  }, 5_000);
+  let result: FileSystem.FileSystemDownloadResult | undefined;
+  try {
+    result = await download.downloadAsync();
+  } finally {
+    clearInterval(stallWatch);
+  }
   if (!result || (result.status !== 200 && result.status !== 206)) {
     throw new SendTransferError(
       `Download failed for "${item.fileName}" (${result?.status ?? "no response"}).`,

@@ -23,7 +23,8 @@ export interface PresignedUpload {
 export async function presignUpload(
   env: Env,
   key: string,
-  contentType: string
+  contentType: string,
+  contentLength: number
 ): Promise<PresignedUpload> {
   const client = new AwsClient({
     accessKeyId: env.R2_ACCESS_KEY_ID,
@@ -37,14 +38,25 @@ export async function presignUpload(
   )}?X-Amz-Expires=${UPLOAD_URL_TTL_SECONDS}`;
 
   const signed = await client.sign(
-    new Request(endpoint, { method: "PUT", headers: { "content-type": contentType } }),
+    new Request(endpoint, {
+      method: "PUT",
+      headers: {
+        "content-type": contentType,
+        // Folding the DECLARED size into the signature makes R2 itself refuse a
+        // PUT of any other length — the only storage-abuse hole in the presigned
+        // path was an oversized body parked on a never-finalized draft.
+        "content-length": String(contentLength),
+      },
+    }),
     { aws: { signQuery: true } }
   );
 
   return {
     uploadUrl: signed.url,
     method: "PUT",
-    // content-type is folded into the signature, so the client must send it back verbatim.
+    // content-type is folded into the signature, so the client must send it back
+    // verbatim. content-length is signed too, but the HTTP stack sets that header
+    // itself from the actual body — do NOT list it here for manual echo.
     headers: { "content-type": contentType },
   };
 }

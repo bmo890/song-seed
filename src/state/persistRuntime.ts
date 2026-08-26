@@ -57,6 +57,49 @@ export function setPersistBlocked(value: boolean) {
 }
 
 /**
+ * Sustained write-failure signal. Every library write lands in SQLite or, degraded,
+ * in AsyncStorage — but when BOTH stores refuse, the user is editing a library that
+ * exists only in memory. That must never stay invisible (2026-08-26 audit F5): after
+ * a few consecutive dual failures the app shows a persistent "can't save" banner,
+ * cleared by the next write that lands anywhere durable.
+ */
+const PERSIST_FAILURE_THRESHOLD = 3;
+let consecutivePersistWriteFailures = 0;
+let persistFailing = false;
+const persistFailingListeners = new Set<(failing: boolean) => void>();
+
+function setPersistFailing(next: boolean) {
+    if (persistFailing === next) return;
+    persistFailing = next;
+    [...persistFailingListeners].forEach((listener) => listener(next));
+}
+
+export function reportPersistWriteFailure() {
+    consecutivePersistWriteFailures += 1;
+    if (consecutivePersistWriteFailures >= PERSIST_FAILURE_THRESHOLD) {
+        setPersistFailing(true);
+    }
+}
+
+export function reportPersistWriteSuccess() {
+    consecutivePersistWriteFailures = 0;
+    setPersistFailing(false);
+}
+
+export function isPersistFailing() {
+    return persistFailing;
+}
+
+/** Subscribe to the failing flag; the current value is replayed immediately. */
+export function onPersistFailingChange(listener: (failing: boolean) => void): () => void {
+    persistFailingListeners.add(listener);
+    listener(persistFailing);
+    return () => {
+        persistFailingListeners.delete(listener);
+    };
+}
+
+/**
  * Workspace ids the hydrate could NOT load (row corrupt — bytes quarantined — or
  * missing). Empty on a clean boot. App reads this after hydration to tell the user
  * a workspace was set aside instead of letting the library silently shrink.

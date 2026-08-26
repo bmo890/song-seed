@@ -66,6 +66,7 @@ import { TransferReceiveScreen } from "./src/components/TransferReceiveScreen";
 import { ActivityScreen } from "./src/components/ActivityScreen";
 import { GlobalMediaDock } from "./src/components/GlobalMediaDock";
 import { ImportProgressBanner } from "./src/components/ImportProgressBanner";
+import { PersistFailureBanner } from "./src/components/PersistFailureBanner";
 import { LibraryProcessHost } from "./src/components/LibraryProcessHost";
 import { DuplicateReviewSheet } from "./src/components/DuplicateReviewSheet";
 import { LibraryScreen } from "./src/components/LibraryScreen";
@@ -1063,6 +1064,7 @@ function AppContent() {
         />
         </PlayerSheetPositionProvider>
         <ImportProgressBanner hidden={isDrawerOpen} />
+        <PersistFailureBanner hidden={isDrawerOpen} />
         <DuplicateReviewSheet />
         <LibraryProcessHost drawerOpen={isDrawerOpen} />
         {/* Quiet confirmations — above the dock, below AppDialogHost (which mounts

@@ -32,18 +32,27 @@ export interface RegisteredItem {
   headers: Record<string, string>;
 }
 
+/** JSON API calls are tiny — bound them like every other network path (RN's
+ *  OkHttp read timeout is infinite, so a hung socket would spin forever). */
+const JSON_TIMEOUT_MS = 8000;
+
 async function postJson<T>(path: string, body?: unknown): Promise<T> {
   let res: Response;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), JSON_TIMEOUT_MS);
   try {
     res = await fetch(`${SEND_SERVICE_BASE_URL}${path}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal: controller.signal,
     });
   } catch (err) {
     throw new SendTransferError(
       `Couldn't reach the transfer service (${(err as Error).message}).`
     );
+  } finally {
+    clearTimeout(timeout);
   }
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
@@ -80,11 +89,21 @@ export async function registerAndUploadFile(
 
   let uploadStatus: number;
   try {
-    const res = await FileSystem.uploadAsync(item.uploadUrl, file.fileUri, {
-      httpMethod: item.method ?? "PUT",
-      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-      headers: item.headers ?? {},
-    });
+    // uploadAsync exposes no progress or abort, so a truly hung socket can only
+    // be bounded by an absolute ceiling — generous enough for a large file on a
+    // slow uplink, finite enough that "Get a link" never spins forever. An
+    // abandoned draft is swept server-side within 24h either way.
+    const UPLOAD_CEILING_MS = 15 * 60 * 1000;
+    const res = await Promise.race([
+      FileSystem.uploadAsync(item.uploadUrl, file.fileUri, {
+        httpMethod: item.method ?? "PUT",
+        uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+        headers: item.headers ?? {},
+      }),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("upload timed out")), UPLOAD_CEILING_MS)
+      ),
+    ]);
     uploadStatus = res.status;
   } catch (err) {
     throw new SendTransferError(`Upload failed (${(err as Error).message}).`);

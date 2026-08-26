@@ -10,6 +10,7 @@ import {
 import * as FileSystem from "expo-file-system/legacy";
 import { Linking, Platform } from "react-native";
 import { AppAlert } from "../components/common/AppAlert";
+import { haptic } from "../design/haptics";
 import { metersToWaveformPeaks } from "../utils";
 import {
   activateRecordingAudioSession,
@@ -526,6 +527,23 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       const hasPermission = await requestRecordingPermissions();
       if (!hasPermission) {
         return false;
+      }
+
+      // A full disk mid-take is the worst place to find out (2026-08-26 audit
+      // F5): refuse to START when free space is below the same 64MB reserve the
+      // backup paths keep. The probe itself fails OPEN — a probe error must
+      // never block a take.
+      try {
+        const MIN_RECORDING_FREE_BYTES = 64 * 1024 * 1024;
+        const freeBytes = await FileSystem.getFreeDiskStorageAsync();
+        if (Number.isFinite(freeBytes) && freeBytes >= 0 && freeBytes < MIN_RECORDING_FREE_BYTES) {
+          // Haptics vocabulary `error`: "Something failed" — the take can't start.
+          haptic.error();
+          AppAlert.info(t("recording.noSpaceTitle"), t("recording.noSpaceBody"));
+          return false;
+        }
+      } catch {
+        // Unknown free space — proceed; the save path has its own recovery.
       }
 
       try {

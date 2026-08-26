@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getDb } from "./database";
+import { reportPersistWriteFailure, reportPersistWriteSuccess } from "../persistRuntime";
 
 /**
  * A string key/value `StateStorage` backed by SQLite, used as the base for zustand's
@@ -101,14 +102,19 @@ export const sqliteStringStorage = {
                     Date.now()
                 );
                 lastWritten.set(name, value);
+                reportPersistWriteSuccess();
             } catch (err) {
                 // Last-resort durability: keep the write in AsyncStorage if SQLite failed. Do NOT
                 // update lastWritten, so the next attempt retries the SQLite write.
                 console.warn("[sqliteStorage] setItem fell back to AsyncStorage:", err);
                 try {
                     await AsyncStorage.setItem(name, value);
+                    // Degraded but durable — the library still landed somewhere.
+                    reportPersistWriteSuccess();
                 } catch {
-                    // Both stores failed — surface nothing; the in-memory store is still intact.
+                    // Both stores failed — the in-memory store is intact, but nothing is
+                    // landing on disk. Count it so a sustained outage surfaces a banner.
+                    reportPersistWriteFailure();
                 }
             }
         }),
@@ -203,16 +209,21 @@ export async function commitShardedWrite(
             });
             for (const row of pendingWrites) lastWritten.set(row.key, row.value);
             for (const key of pendingDeletes) lastWritten.delete(key);
+            reportPersistWriteSuccess();
         } catch (err) {
             // Do NOT update lastWritten on failure, so the next write retries SQLite.
             console.warn("[sqliteStorage] commitShardedWrite fell back to AsyncStorage:", err);
+            let anyRowLost = false;
             for (const row of pendingWrites) {
                 try {
                     await AsyncStorage.setItem(row.key, row.value);
                 } catch {
                     // Both stores failed for this row — the in-memory store is still intact.
+                    anyRowLost = true;
                 }
             }
+            if (anyRowLost) reportPersistWriteFailure();
+            else reportPersistWriteSuccess();
             for (const key of pendingDeletes) {
                 try {
                     await AsyncStorage.removeItem(key);

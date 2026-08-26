@@ -129,7 +129,7 @@ api.post("/transfers/:id/items", async (c) => {
 
   const itemId = newItemId();
   const r2Key = `${transferId}/${itemId}`; // key is opaque; original name kept in metadata only
-  const presigned = await presignUpload(c.env, r2Key, mimeType);
+  const presigned = await presignUpload(c.env, r2Key, mimeType, size);
 
   await insertItem(c.env, {
     item_id: itemId,
