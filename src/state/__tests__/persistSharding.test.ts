@@ -123,7 +123,9 @@ describe("round trip: plan → apply → assemble", () => {
         }
 
         const assembled = assembleShardedSnapshot(STORE, meta, wsValues);
-        expect(assembled).toEqual(value);
+        expect(assembled.value).toEqual(value);
+        expect(assembled.missingIds).toEqual([]);
+        expect(assembled.corrupt).toEqual([]);
     });
 
     it("survives incremental edits (edit + add + remove) across writes", () => {
@@ -150,7 +152,7 @@ describe("round trip: plan → apply → assemble", () => {
             const v = kv.get(key);
             if (v != null) wsValues.set(key, v);
         }
-        expect(assembleShardedSnapshot(STORE, meta, wsValues)).toEqual(value2);
+        expect(assembleShardedSnapshot(STORE, meta, wsValues).value).toEqual(value2);
     });
 
     it("skips a missing workspace row instead of failing the whole hydrate", () => {
@@ -168,6 +170,7 @@ describe("round trip: plan → apply → assemble", () => {
             if (v != null) wsValues.set(key, v);
         }
         const assembled = assembleShardedSnapshot(STORE, meta, wsValues);
-        expect(assembled.state.workspaces.map((w) => w.id)).toEqual(["w1"]);
+        expect(assembled.value.state.workspaces.map((w) => w.id)).toEqual(["w1"]);
+        expect(assembled.missingIds).toEqual(["w2"]);
     });
 });

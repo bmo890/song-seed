@@ -55,3 +55,18 @@ export function isPersistBlocked() {
 export function setPersistBlocked(value: boolean) {
     persistBlocked = value;
 }
+
+/**
+ * Workspace ids the hydrate could NOT load (row corrupt — bytes quarantined — or
+ * missing). Empty on a clean boot. App reads this after hydration to tell the user
+ * a workspace was set aside instead of letting the library silently shrink.
+ */
+let hydrationDegradedWorkspaceIds: string[] = [];
+
+export function getHydrationDegradedWorkspaceIds(): string[] {
+    return hydrationDegradedWorkspaceIds;
+}
+
+export function setHydrationDegradedWorkspaceIds(ids: string[]) {
+    hydrationDegradedWorkspaceIds = ids;
+}

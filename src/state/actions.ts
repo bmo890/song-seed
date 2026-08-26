@@ -308,8 +308,10 @@ async function publishClipOverdubMixRerender(
             // Persist the cleared reference BEFORE the file goes — an app death between
             // the (debounced) persist and the deletion would otherwise leave the saved
             // state pointing at a file that no longer exists (an unplayable clip).
-            await flushPersistedSnapshot().catch(() => {});
-            deleteManagedAudioUrisAfterGrace([currentMixUri]);
+            // A skipped/failed flush means the reference is still on disk: keep the file.
+            await flushPersistedSnapshot()
+                .then(() => deleteManagedAudioUrisAfterGrace([currentMixUri]))
+                .catch(() => {});
         }
         return null;
     }
@@ -323,9 +325,11 @@ async function publishClipOverdubMixRerender(
 
     if (currentMixUri && currentMixUri !== nextMix.audioUri) {
         // Same discipline as the deletion flows: the state that stops referencing the
-        // old mix file must be durable before that file is trashed.
-        await flushPersistedSnapshot().catch(() => {});
-        deleteManagedAudioUrisAfterGrace([currentMixUri]);
+        // old mix file must be durable before that file is trashed. A skipped/failed
+        // flush keeps the old file — persisted metadata may still point at it.
+        await flushPersistedSnapshot()
+            .then(() => deleteManagedAudioUrisAfterGrace([currentMixUri]))
+            .catch(() => {});
     }
 
     return nextMix.audioUri;
@@ -1447,7 +1451,14 @@ export const appActions = {
 
         state.removeClipOverdubStem(ideaId, clipId, stemId);
         if (stem.audioUri) {
-            await deleteManagedAudioUris([stem.audioUri]);
+            // Durably commit the removed stem reference before its file is trashed —
+            // same flush-then-trash discipline as the clip/idea delete flows.
+            try {
+                await flushPersistedSnapshot();
+                await deleteManagedAudioUris([stem.audioUri]);
+            } catch (error) {
+                console.warn("[DataSafety] Stem file kept — metadata was not durable.", error);
+            }
         }
         await scheduleClipOverdubRerender(ideaId, clipId, { force: true });
     },
@@ -2732,7 +2743,14 @@ export const appActions = {
                 })),
             };
         });
-        void deleteManagedAudioUris(audioUrisToDelete);
+        // Durably commit the metadata change before trashing files — a crash inside the
+        // passive-persist debounce window must never leave saved metadata pointing at
+        // audio that already moved to trash (2026-08-26 audit F2).
+        void flushPersistedSnapshot()
+            .then(() => deleteManagedAudioUris(audioUrisToDelete))
+            .catch((error) => {
+                console.warn("[DataSafety] Media deletion skipped because metadata was not durable.", error);
+            });
     },
 
     startClipboardFromList: (mode: "copy" | "move") => {

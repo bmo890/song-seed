@@ -149,32 +149,50 @@ export function shardedWorkspaceRowKeys(storeName: string, workspaceIds: string[
     return workspaceIds.map((id) => workspaceRowKey(storeName, id));
 }
 
+export type AssembledShardedSnapshot = {
+    value: PersistStorageValue;
+    /** Referenced ids whose row was absent — nothing recoverable remains. */
+    missingIds: string[];
+    /** Referenced ids whose row exists but won't parse — raw bytes preserved for quarantine. */
+    corrupt: { id: string; raw: string }[];
+};
+
 /**
  * Reassemble a sharded snapshot from its meta + workspace rows, preserving workspace order.
- * A referenced-but-missing or corrupt workspace row is skipped with a warning rather than
- * failing the whole hydrate — losing one workspace beats losing the library.
+ * A referenced-but-missing or corrupt workspace row is excluded rather than failing the
+ * whole hydrate — losing one workspace beats losing the library — but the exclusion is
+ * REPORTED, never silent: the adapter quarantines corrupt bytes (out of the orphan sweep's
+ * reach) and the app surfaces the degradation (2026-08-26 audit F1).
  */
 export function assembleShardedSnapshot(
     storeName: string,
     meta: Extract<ParsedMeta, { format: "sharded" }>,
     workspaceRowValues: Map<string, string>
-): PersistStorageValue {
+): AssembledShardedSnapshot {
     const workspaces: Workspace[] = [];
+    const missingIds: string[] = [];
+    const corrupt: { id: string; raw: string }[] = [];
     for (const id of meta.workspaceIds) {
         const raw = workspaceRowValues.get(workspaceRowKey(storeName, id));
         if (raw == null) {
             console.warn(`[persistSharding] workspace row missing for ${id} — skipping`);
+            missingIds.push(id);
             continue;
         }
         try {
             workspaces.push(JSON.parse(raw) as Workspace);
         } catch {
             console.warn(`[persistSharding] workspace row corrupt for ${id} — skipping`);
+            corrupt.push({ id, raw });
         }
     }
 
     return {
-        state: { ...(meta.metaState as object), workspaces } as PersistedAppStore,
-        version: meta.version,
+        value: {
+            state: { ...(meta.metaState as object), workspaces } as PersistedAppStore,
+            version: meta.version,
+        },
+        missingIds,
+        corrupt,
     };
 }

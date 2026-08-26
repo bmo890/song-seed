@@ -1229,6 +1229,13 @@ export const resources = {
       },
       songClipboard: { otherCount_one: " and {{count}} other", otherCount_other: " and {{count}} others", duplicateBody_one: "You are copying {{count}} clip ({{names}}{{remainder}}) into the same song it already belongs to. This will create a duplicate. Continue?", duplicateBody_other: "You are copying {{count}} clips ({{names}}{{remainder}}) into the same song they already belong to. This will create duplicates. Continue?", pasteHere: "Paste clips here", cannotMove: "Cannot move here", cannotMoveBody: "You cannot move clips into the same song they are already in. To duplicate them, cancel and use Copy instead.", duplicateTitle: "Duplicate clips?", duplicate: "Duplicate", movePrimaryTitle: "Move primary clips here?", copyPrimaryTitle: "Copy primary clips here?", primaryBody: "Songs can't be placed inside another song. For now, SongNook will {{mode}} only the primary clip from each selected song into this song.", moveTitle: "Move clips here?", copyTitle: "Copy clips here?", confirmBody: "Are you sure you want to {{mode}} these clips into this song?", moveVerb: "move", copyVerb: "copy", yes: "Yes" },
       pro: { headline: "Shape every idea", subhead: "Capturing is always free. Pro unlocks the tools that turn a scrap into a song.", purchaseUnavailable: "Purchasing isn't available in this build yet — this is a preview of the upgrade.", noRestores: "There are no purchases to restore yet.", getLifetime: "Get Lifetime", startTrial: "Start free trial", restore: "Restore", terms: "Terms", privacy: "Privacy", features: { 0: { title: "Practice suite", blurb: "Loop, slow down, and pitch-shift to learn any part." }, 1: { title: "Unlimited overdub layers", blurb: "Stack takes into a full arrangement." }, 2: { title: "Unlimited word sparks", blurb: "Keep every rhyme, cut-up, and stolen line." }, 3: { title: "Auto-backup", blurb: "Your library saved automatically." }, 4: { title: "Archive offload", blurb: "Move finished workspaces off-device to Files." }, 5: { title: "PDF export", blurb: "Print chord charts and setlists." } }, plans: { annual: { label: "Annual", price: "$27.99 / yr", sub: "7-day free trial · about $2.33/mo", tag: "Best value" }, monthly: { label: "Monthly", price: "$3.99 / mo", sub: "7-day free trial" }, lifetime: { label: "Lifetime", price: "$69.99", sub: "Pay once — yours forever" } } },
+      recovery: {
+        degradedTitle: "Part of your library didn't load",
+        degradedBody_one:
+          "One workspace couldn't be read and was set aside. Everything else loaded. A backup can restore it.",
+        degradedBody_other:
+          "{{count}} workspaces couldn't be read and were set aside. Everything else loaded. A backup can restore them.",
+      },
       time: {
         justNow: "Just now",
         today: "Today",
@@ -2511,6 +2518,15 @@ export const resources = {
       },
       songClipboard: { otherCount_one: " ועוד קטע אחד", otherCount_two: " ועוד שני קטעים", otherCount_other: " ועוד {{count}} קטעים", duplicateBody_one: "אתם מעתיקים קטע אחד ({{names}}{{remainder}}) אל אותו שיר שהוא כבר שייך אליו. תיווצר כפילות. להמשיך?", duplicateBody_two: "אתם מעתיקים שני קטעים ({{names}}{{remainder}}) אל אותו שיר שהם כבר שייכים אליו. ייווצרו כפילויות. להמשיך?", duplicateBody_other: "אתם מעתיקים {{count}} קטעים ({{names}}{{remainder}}) אל אותו שיר שהם כבר שייכים אליו. ייווצרו כפילויות. להמשיך?", pasteHere: "הדבקת קטעים כאן", cannotMove: "לא ניתן להעביר לכאן", cannotMoveBody: "אי אפשר להעביר קטעים אל אותו שיר שהם כבר נמצאים בו. כדי לשכפל אותם, בטלו ובחרו בהעתקה.", duplicateTitle: "לשכפל קטעים?", duplicate: "שכפול", movePrimaryTitle: "להעביר לכאן קטעים ראשיים?", copyPrimaryTitle: "להעתיק לכאן קטעים ראשיים?", primaryBody: "אי אפשר למקם שירים בתוך שיר אחר. בינתיים SongNook יבצע {{mode}} רק של הקטע הראשי מכל שיר שנבחר אל השיר הזה.", moveTitle: "להעביר לכאן קטעים?", copyTitle: "להעתיק לכאן קטעים?", confirmBody: "להמשיך ולבצע {{mode}} של הקטעים האלה אל השיר הזה?", moveVerb: "העברה", copyVerb: "העתקה", yes: "כן" },
       pro: { headline: "לתת צורה לכל רעיון", subhead: "ההקלטה תמיד חינמית. Pro פותח כלים שהופכים שבריר של רעיון לשיר.", purchaseUnavailable: "רכישה עדיין לא זמינה בגרסה הזו — זו רק תצוגה מקדימה של השדרוג.", noRestores: "אין עדיין רכישות לשחזור.", getLifetime: "לקבל לצמיתות", startTrial: "להתחיל ניסיון חינם", restore: "שחזור", terms: "תנאים", privacy: "פרטיות", features: { 0: { title: "כלי תרגול", blurb: "חוזרים על קטע, מאטים ומשנים גובה כדי ללמוד כל חלק." }, 1: { title: "שכבות אוברדאב ללא הגבלה", blurb: "מערימים טייקים לעיבוד שלם." }, 2: { title: "ניצוצות כתיבה ללא הגבלה", blurb: "שומרים כל חרוז, קאט־אפ ושורה שנאספה." }, 3: { title: "גיבוי אוטומטי", blurb: "הספרייה נשמרת אוטומטית." }, 4: { title: "העברה לארכיון", blurb: "מעבירים מרחבי עבודה שהסתיימו אל הקבצים במכשיר." }, 5: { title: "ייצוא PDF", blurb: "מדפיסים תרשימי אקורדים וסטים." } }, plans: { annual: { label: "שנתי", price: "$27.99 / שנה", sub: "7 ימי ניסיון חינם · בערך $2.33 לחודש", tag: "הערך הטוב ביותר" }, monthly: { label: "חודשי", price: "$3.99 / חודש", sub: "7 ימי ניסיון חינם" }, lifetime: { label: "לכל החיים", price: "$69.99", sub: "משלמים פעם אחת — שלכם לתמיד" } } },
+      recovery: {
+        degradedTitle: "חלק מהספרייה לא נטען",
+        degradedBody_one:
+          "מרחב עבודה אחד לא נקרא והופרש בצד. כל השאר נטען. גיבוי יכול לשחזר אותו.",
+        degradedBody_two:
+          "שני מרחבי עבודה לא נקראו והופרשו בצד. כל השאר נטען. גיבוי יכול לשחזר אותם.",
+        degradedBody_other:
+          "{{count}} מרחבי עבודה לא נקראו והופרשו בצד. כל השאר נטען. גיבוי יכול לשחזר אותם.",
+      },
       time: {
         justNow: "עכשיו",
         today: "היום",

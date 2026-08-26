@@ -56,13 +56,27 @@ export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppSto
     };
 }
 
+/**
+ * Thrown when a requested snapshot write was refused by a safety gate (persist lock or
+ * missing hydration authority). Callers that flush BECAUSE they need durability before a
+ * destructive follow-up (trashing audio, reporting success) must treat this as "not
+ * durable" and skip the follow-up — a resolved skip used to let media get trashed while
+ * metadata was frozen (2026-08-26 audit F3).
+ */
+export class PersistSkippedError extends Error {
+    constructor(reason: string) {
+        super(`snapshot write skipped: ${reason}`);
+        this.name = "PersistSkippedError";
+    }
+}
+
 export async function persistAppStoreSnapshot(state: AppStore): Promise<void> {
-    if (isPersistBlocked()) return;
+    if (isPersistBlocked()) throw new PersistSkippedError("persist is blocked");
     // Raw writes bypass the sharded adapter's write-authority gate — apply the same
     // rule here: state not derived from a successful disk read must never land.
     if (!isHydrationReadAuthoritative()) {
         console.warn("[PersistAuthority] skipped raw snapshot write — hydration never read the disk");
-        return;
+        throw new PersistSkippedError("hydration never read the disk");
     }
     const snapshot = buildPersistedAppStoreSnapshot(state);
     await persistRawSnapshot(STORE_NAME, JSON.stringify({ state: snapshot, version: STORE_VERSION }));

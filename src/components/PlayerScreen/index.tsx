@@ -793,6 +793,10 @@ export function PlayerScreen({
         if (!ran) {
           lifecycle.handleTogglePlayPress();
         }
+      })
+      .catch(() => {
+        // A failed count-in must never eat the play press — start playback plain.
+        lifecycle.handleTogglePlayPress();
       });
   }, [
     effectiveIsPlaying,

@@ -18,7 +18,7 @@ import {
     type PersistStorageValue,
 } from "./persistSharding";
 import { KvReadFailedError } from "./db/storage";
-import { setHydrationReadOutcome } from "./persistRuntime";
+import { setHydrationDegradedWorkspaceIds, setHydrationReadOutcome } from "./persistRuntime";
 
 /**
  * zustand persist storage that shards the library across per-workspace SQLite rows so an
@@ -34,6 +34,16 @@ const SLOW_WRITE_WARN_MS = 120;
  *  and retired after the next successful sharded read. */
 function legacyBackupKey(storeName: string): string {
     return `${storeName}::legacy-blob`;
+}
+
+/**
+ * Where an unparseable workspace row's raw bytes are preserved. Deliberately OUTSIDE the
+ * `::ws::` prefix so neither the first-write orphan sweep nor the stray-row fresh-install
+ * check can touch it — quarantined bytes outlive the row they came from until a deliberate
+ * library wipe (2026-08-26 audit F1: the sweep used to destroy the only recoverable copy).
+ */
+export function quarantinedWorkspaceRowKey(storeName: string, workspaceId: string): string {
+    return `${storeName}::quarantine::${workspaceId}`;
 }
 
 export function createShardedPersistStorage(): PersistStorage<PersistedAppStore> {
@@ -153,7 +163,34 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
                 setHydrationReadOutcome("failed");
                 throw err;
             }
-            const assembled = assembleShardedSnapshot(name, meta, workspaceValues);
+            const { value: assembled, missingIds, corrupt } = assembleShardedSnapshot(
+                name,
+                meta,
+                workspaceValues
+            );
+
+            // A referenced row that won't load is a real (partial) data incident, never a
+            // silent skip: preserve corrupt bytes where the orphan sweep can't reach them,
+            // and record every degraded id so App can tell the user.
+            if (corrupt.length > 0) {
+                await commitShardedWrite(
+                    corrupt.map(({ id, raw }) => ({
+                        key: quarantinedWorkspaceRowKey(name, id),
+                        value: raw,
+                    })),
+                    []
+                );
+            }
+            const degradedIds = [...corrupt.map(({ id }) => id), ...missingIds];
+            if (degradedIds.length > 0) {
+                console.error(
+                    `[PersistTelemetry] hydrated "${name}" DEGRADED — ` +
+                        `${corrupt.length} corrupt (quarantined), ${missingIds.length} missing: ` +
+                        degradedIds.join(", ")
+                );
+            }
+            setHydrationDegradedWorkspaceIds(degradedIds);
+
             readOutcome = "data";
             setHydrationReadOutcome("data");
 
@@ -235,10 +272,12 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
         },
 
         removeItem: async (name): Promise<void> => {
-            // Drop the meta row, the legacy backup, and EVERY workspace row on disk (swept by
-            // prefix, not just this session's known refs) so nothing is left orphaned.
+            // Drop the meta row, the legacy backup, EVERY workspace row on disk (swept by
+            // prefix, not just this session's known refs), and any quarantined rows — a
+            // deliberate wipe means the user is done with those bytes too.
             const workspaceRows = await listKvKeysWithPrefix(`${name}::ws::`);
-            await commitShardedWrite([], [name, legacyBackupKey(name), ...workspaceRows]);
+            const quarantineRows = await listKvKeysWithPrefix(`${name}::quarantine::`);
+            await commitShardedWrite([], [name, legacyBackupKey(name), ...workspaceRows, ...quarantineRows]);
             lastWorkspaceRefs = new Map();
             legacyBackedUp = false;
             orphansSwept = false;

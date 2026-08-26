@@ -111,7 +111,11 @@ import { checkClipboardForTransfer } from "./src/services/clipboardTransferCheck
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 import { onHydrationResult, useStore } from "./src/state/useStore";
-import { isHydrationReadAuthoritative, setPersistBlocked } from "./src/state/persistRuntime";
+import {
+  getHydrationDegradedWorkspaceIds,
+  isHydrationReadAuthoritative,
+  setPersistBlocked,
+} from "./src/state/persistRuntime";
 import { authorizeIntentionalEmptyStateWrite } from "./src/services/stateIntegrity";
 import { EmptyState } from "./src/components/common/EmptyState";
 // TEMPORARY DIAGNOSTIC — remove with src/components/dev/SyncProbe.tsx.
@@ -127,7 +131,7 @@ import { WelcomeFlow } from "./src/components/common/WelcomeFlow";
 import { installGlobalCrashHandler } from "./src/services/crashLog";
 import { RestoreRestartGate } from "./src/components/common/RestoreRestartGate";
 import { FullPlayerProvider } from "./src/hooks/FullPlayerProvider";
-import { LocaleProvider, useLocale, useLocaleBootstrap } from "./src/i18n";
+import { i18n, LocaleProvider, useLocale, useLocaleBootstrap } from "./src/i18n";
 
 // Hold the native splash until fonts + store hydration + navigation restore are ready, so
 // the app opens in one continuous motion instead of flashing a bare spinner. Hidden in
@@ -1209,6 +1213,19 @@ export default function App() {
         // Fresh install with no recoverable backup: the starter "My Songs"/"Ideas"
         // library is already in place (createInitialWorkspace is the store's initial
         // state + the sanitize fallback), so there's nothing to seed here.
+      }
+
+      // A hydrate that had to set a workspace aside (corrupt/missing shard row —
+      // bytes quarantined by the storage adapter) is a partial data incident the
+      // user must hear about; silence here is how libraries shrink unnoticed.
+      const degradedWorkspaceIds = getHydrationDegradedWorkspaceIds();
+      if (degradedWorkspaceIds.length > 0) {
+        AppAlert.info(
+          i18n.t("recovery.degradedTitle"),
+          i18n.t("recovery.degradedBody", { count: degradedWorkspaceIds.length })
+        );
+        useStore.getState().markFirstLaunch();
+        return;
       }
 
       // Anchor the store-review timing rule on the very first launch. Runs after the
