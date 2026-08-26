@@ -1,7 +1,11 @@
+import { useState } from "react";
 import { Animated, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenHeader } from "../../common/ScreenHeader";
+import { HelpButton } from "../../common/HelpButton";
+import { HelpSheet } from "../../common/HelpSheet";
+import { METRONOME_HELP } from "../../common/helpContent";
 import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
 import { METRONOME_METER_PRESETS } from "../../../domain/metronome";
@@ -27,6 +31,7 @@ import { useTranslation } from "react-i18next";
 export function MetronomeScreenContent() {
   const { t } = useTranslation();
   const model = useMetronomeScreenModel();
+  const [helpVisible, setHelpVisible] = useState(false);
   const isRunning = model.isRunning;
   const beatBarActive = isRunning && model.outputs.visual;
   const meterLabel =
@@ -39,7 +44,11 @@ export function MetronomeScreenContent() {
 
   return (
     <SafeAreaView style={s.screen}>
-      <ScreenHeader title={t("screens.metronome")} leftIcon="hamburger" />
+      <ScreenHeader
+        title={t("screens.metronome")}
+        leftIcon="hamburger"
+        rightElement={<HelpButton onPress={() => setHelpVisible(true)} />}
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -143,6 +152,14 @@ export function MetronomeScreenContent() {
           />
         </View>
       </ScrollView>
+
+      <HelpSheet
+        visible={helpVisible}
+        onClose={() => setHelpVisible(false)}
+        title={METRONOME_HELP.title}
+        intro={METRONOME_HELP.intro}
+        items={METRONOME_HELP.items}
+      />
     </SafeAreaView>
   );
 }

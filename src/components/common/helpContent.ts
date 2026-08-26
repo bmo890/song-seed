@@ -75,3 +75,67 @@ export const EDITOR_HELP: HelpContent = {
     ];
   },
 };
+
+export const SHELF_HELP: HelpContent = {
+  get title() {
+    return t("shelf.title");
+  },
+  get intro() {
+    return t("shelf.intro");
+  },
+  get items() {
+    return [
+      item("file-tray-outline", "shelf.add"),
+      item("time-outline", "shelf.stay"),
+      item("arrow-undo-outline", "shelf.leave"),
+    ];
+  },
+};
+
+export const COMPILATIONS_HELP: HelpContent = {
+  get title() {
+    return t("compilations.title");
+  },
+  get intro() {
+    return t("compilations.intro");
+  },
+  get items() {
+    return [
+      item("musical-notes-outline", "compilations.playlists"),
+      item("book-outline", "compilations.songbook"),
+      item("albums-outline", "compilations.setlists"),
+    ];
+  },
+};
+
+export const METRONOME_HELP: HelpContent = {
+  get title() {
+    return t("metronome.title");
+  },
+  get intro() {
+    return t("metronome.intro");
+  },
+  get items() {
+    return [
+      item("speedometer-outline", "metronome.tempo"),
+      item("grid-outline", "metronome.meter"),
+      item("volume-high-outline", "metronome.cues"),
+    ];
+  },
+};
+
+export const SEND_HELP: HelpContent = {
+  get title() {
+    return t("send.title");
+  },
+  get intro() {
+    return t("send.intro");
+  },
+  get items() {
+    return [
+      item("link-outline", "send.key"),
+      item("time-outline", "send.expiry"),
+      item("cloud-offline-outline", "send.revoke"),
+    ];
+  },
+};

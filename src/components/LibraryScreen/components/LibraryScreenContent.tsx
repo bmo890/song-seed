@@ -3,6 +3,9 @@ import { useRoute } from "@react-navigation/native";
 import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenHeader } from "../../common/ScreenHeader";
+import { HelpButton } from "../../common/HelpButton";
+import { HelpSheet } from "../../common/HelpSheet";
+import { COMPILATIONS_HELP } from "../../common/helpContent";
 import { SegmentedControl, useSegmentedThumb } from "../../common/SegmentedControl";
 import type { ScrollOffset } from "../../../hooks/usePersistedScrollView";
 import { QuickNameModal } from "../../modals/QuickNameModal";
@@ -39,6 +42,10 @@ export function LibraryScreenContent() {
   const { t } = useTranslation();
   useBrowseRootBackHandler();
   const [section, setSection] = useState<Section>("playlists");
+  const [helpVisible, setHelpVisible] = useState(false);
+  // One help sheet for all three tabs — it explains the trio, so it mounts here
+  // and each section's list header carries the same "?" (2026-08-26 audit B11).
+  const helpButton = <HelpButton onPress={() => setHelpVisible(true)} />;
   // Switching tabs swaps the whole section subtree, so the SegmentedControl
   // remounts. Own its thumb state here (this screen doesn't remount) so the
   // pill slides from the previous tab instead of jumping in from the left.
@@ -81,17 +88,25 @@ export function LibraryScreenContent() {
   return (
     <SafeAreaView style={styles.screen}>
       {section === "songbook" ? (
-        <SongbookSection tabs={tabs} scroll={listScroll.songbook} />
+        <SongbookSection tabs={tabs} scroll={listScroll.songbook} headerRight={helpButton} />
       ) : section === "setlists" ? (
-        <SetlistsSection tabs={tabs} scroll={listScroll.setlists} />
+        <SetlistsSection tabs={tabs} scroll={listScroll.setlists} headerRight={helpButton} />
       ) : (
-        <PlaylistsSection tabs={tabs} scroll={listScroll.playlists} />
+        <PlaylistsSection tabs={tabs} scroll={listScroll.playlists} headerRight={helpButton} />
       )}
+
+      <HelpSheet
+        visible={helpVisible}
+        onClose={() => setHelpVisible(false)}
+        title={COMPILATIONS_HELP.title}
+        intro={COMPILATIONS_HELP.intro}
+        items={COMPILATIONS_HELP.items}
+      />
     </SafeAreaView>
   );
 }
 
-function PlaylistsSection({ tabs, scroll }: { tabs: ReactNode; scroll: ScrollOffset }) {
+function PlaylistsSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scroll: ScrollOffset; headerRight?: ReactNode }) {
   const { t } = useTranslation();
   const model = useLibraryScreenModel();
 
@@ -101,6 +116,7 @@ function PlaylistsSection({ tabs, scroll }: { tabs: ReactNode; scroll: ScrollOff
         title={model.pageTitle}
         leftIcon={model.showBack ? "back" : "hamburger"}
         onLeftPress={model.showBack ? model.handleBackPress : undefined}
+        rightElement={!model.showBack ? headerRight : undefined}
       />
 
       {!model.showBack ? tabs : null}
@@ -165,7 +181,7 @@ function PlaylistsSection({ tabs, scroll }: { tabs: ReactNode; scroll: ScrollOff
   );
 }
 
-function SongbookSection({ tabs, scroll }: { tabs: ReactNode; scroll: ScrollOffset }) {
+function SongbookSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scroll: ScrollOffset; headerRight?: ReactNode }) {
   const { t } = useTranslation();
   const songbook = useSongbookModel();
 
@@ -177,6 +193,7 @@ function SongbookSection({ tabs, scroll }: { tabs: ReactNode; scroll: ScrollOffs
         title={headerTitle}
         leftIcon={songbook.showBack ? "back" : "hamburger"}
         onLeftPress={songbook.showBack ? songbook.handleBack : undefined}
+        rightElement={!songbook.showBack ? headerRight : undefined}
       />
 
       {!songbook.showBack ? tabs : null}
@@ -239,7 +256,7 @@ function SongbookSection({ tabs, scroll }: { tabs: ReactNode; scroll: ScrollOffs
   );
 }
 
-function SetlistsSection({ tabs, scroll }: { tabs: ReactNode; scroll: ScrollOffset }) {
+function SetlistsSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scroll: ScrollOffset; headerRight?: ReactNode }) {
   const { t } = useTranslation();
   const setlist = useSetlistModel();
 
@@ -255,6 +272,7 @@ function SetlistsSection({ tabs, scroll }: { tabs: ReactNode; scroll: ScrollOffs
         title={headerTitle}
         leftIcon={setlist.showBack ? "back" : "hamburger"}
         onLeftPress={setlist.showBack ? setlist.handleBack : undefined}
+        rightElement={!setlist.showBack ? headerRight : undefined}
       />
 
       {!setlist.showBack ? tabs : null}

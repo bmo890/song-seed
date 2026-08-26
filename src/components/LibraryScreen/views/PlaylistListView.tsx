@@ -7,15 +7,21 @@ import { useStore } from "../../../state/useStore";
 import { usePersistedScrollView, type ScrollOffset } from "../../../hooks/usePersistedScrollView";
 import type { Playlist } from "../../../types";
 import { useTranslation } from "react-i18next";
+import { i18n } from "../../../i18n/instance";
+import { Button } from "../../common/Button";
+import { EmptyState } from "../../common/EmptyState";
 
 function formatPlaylistUpdatedAt(timestamp: number) {
   const now = Date.now();
   const ageHours = Math.max(0, Math.floor((now - timestamp) / 3600000));
-  if (ageHours < 1) return "just now";
-  if (ageHours < 24) return `${ageHours}h ago`;
+  if (ageHours < 1) return i18n.t("library.updatedNow");
+  if (ageHours < 24) return i18n.t("library.updatedHours", { count: ageHours });
   const ageDays = Math.floor(ageHours / 24);
-  if (ageDays < 7) return `${ageDays}d ago`;
-  return new Date(timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  if (ageDays < 7) return i18n.t("library.updatedDays", { count: ageDays });
+  const locale = i18n.language === "he" ? "he-IL" : "en-US";
+  return i18n.t("library.updatedDate", {
+    date: new Date(timestamp).toLocaleDateString(locale, { month: "short", day: "numeric" }),
+  });
 }
 
 export function PlaylistListView({
@@ -41,17 +47,14 @@ export function PlaylistListView({
       contentContainerStyle={[styles.libraryScrollContent, { paddingBottom: 36 + playerDockHeight }]}
       showsVerticalScrollIndicator={false}
     >
-      <Pressable
-        style={({ pressed }) => [listStyles.createRow, pressed ? styles.pressDown : null]}
-        onPress={onCreatePlaylist}
-        accessibilityRole="button"
-        accessibilityLabel={t("library.createPlaylistA11y")}
-      >
-        <View style={listStyles.createIcon}>
-          <Ionicons name="add" size={17} color={colors.onPrimary} />
+      {/* One creation affordance per state: the soft key when there's a list,
+          the empty state's own action when there isn't — same law as the other
+          two Compilations tabs (2026-08-26 audit B10). */}
+      {playlists.length > 0 ? (
+        <View style={styles.inputRow}>
+          <Button label={t("library.newPlaylistShort")} onPress={onCreatePlaylist} />
         </View>
-        <Text style={listStyles.createLabel}>{t("library.newPlaylistShort")}</Text>
-      </Pressable>
+      ) : null}
 
       <View style={listStyles.listStack}>
         {playlists.map((playlist) => (
@@ -68,7 +71,7 @@ export function PlaylistListView({
                 {playlist.title}
               </Text>
               <Text style={listStyles.playlistMeta} numberOfLines={1}>
-                {playlist.items.length} {playlist.items.length === 1 ? "track" : "tracks"} ·{" "}
+                {t("library.tracks", { count: playlist.items.length })} ·{" "}
                 {formatPlaylistUpdatedAt(playlist.updatedAt)}
               </Text>
             </View>
@@ -78,38 +81,19 @@ export function PlaylistListView({
       </View>
 
       {playlists.length === 0 ? (
-        <View style={listStyles.emptyWrap}>
-          <Ionicons name="musical-notes-outline" size={24} color={colors.textMuted} />
-          <Text style={listStyles.emptyTitle}>{t("library.playlistEmpty")}</Text>
-          <Text style={listStyles.emptyBody}>{t("library.playlistEmptyBody")}</Text>
-        </View>
+        <EmptyState
+          icon="musical-notes-outline"
+          title={t("library.playlistEmpty")}
+          body={t("library.playlistEmptyBody")}
+          actionLabel={t("library.newPlaylistShort")}
+          onAction={onCreatePlaylist}
+        />
       ) : null}
     </ScrollView>
   );
 }
 
 const listStyles = StyleSheet.create({
-  createRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    paddingVertical: 8,
-    paddingHorizontal: 2,
-    marginBottom: spacing.sm,
-  },
-  createIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: radii.round,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  createLabel: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 14,
-    color: colors.textPrimary,
-  },
   listStack: {
     gap: spacing.sm,
   },
@@ -146,21 +130,5 @@ const listStyles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_400Regular",
     color: colors.textSecondary,
     fontVariant: ["tabular-nums"],
-  },
-  emptyWrap: {
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 36,
-    paddingHorizontal: 30,
-  },
-  emptyTitle: {
-    ...textTokens.sectionTitle,
-    color: colors.textPrimary,
-  },
-  emptyBody: {
-    ...textTokens.supporting,
-    color: colors.textSecondary,
-    textAlign: "center",
-    lineHeight: 20,
   },
 });

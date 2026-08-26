@@ -3,6 +3,7 @@ import { colors } from "../../../design/tokens";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
 import { Button } from "../../common/Button";
+import { EmptyState } from "../../common/EmptyState";
 import { styles } from "../styles";
 import { usePersistedScrollView, type ScrollOffset } from "../../../hooks/usePersistedScrollView";
 import type { Setlist } from "../../../types";
@@ -29,9 +30,11 @@ export function SetlistListView({
       contentContainerStyle={styles.libraryScrollContent}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.inputRow}>
-        <Button label={t("library.createSetlist")} onPress={onCreate} />
-      </View>
+      {setlists.length > 0 ? (
+        <View style={styles.inputRow}>
+          <Button label={t("library.createSetlist")} onPress={onCreate} />
+        </View>
+      ) : null}
 
       <View style={styles.listContent}>
         {setlists.map((setlist) => (
@@ -48,16 +51,19 @@ export function SetlistListView({
               <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
             </View>
             <Text style={styles.cardMeta}>
-              {setlist.entries.length} {setlist.entries.length === 1 ? "song" : "songs"}
+              {t("library.songs", { count: setlist.entries.length })}
             </Text>
           </Pressable>
         ))}
 
         {setlists.length === 0 ? (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>{t("library.noSetlists")}</Text>
-            <Text style={styles.cardMeta}>{t("library.setlistEmptyBody")}</Text>
-          </View>
+          <EmptyState
+            icon="albums-outline"
+            title={t("library.noSetlists")}
+            body={t("library.setlistEmptyBody")}
+            actionLabel={t("library.createSetlist")}
+            onAction={onCreate}
+          />
         ) : null}
       </View>
     </ScrollView>

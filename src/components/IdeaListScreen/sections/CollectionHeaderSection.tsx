@@ -15,6 +15,7 @@ import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
 import { radii, colors } from "../../../design/tokens";
 import { formatLastEdited } from "../../../utils";
+import { getCollectionLastWorkedAt } from "../../../domain/libraryNavigation";
 import { UserText } from "../../../i18n";
 import { useTranslation } from "react-i18next";
 
@@ -146,7 +147,14 @@ export function CollectionCollapsibleIdentity() {
 
   const eyebrowText = screen.breadcrumbs.join("  ›  ");
   const ideaMeta = screen.ideasHeaderMeta;
-  const lastEditedMeta = formatLastEdited(collection.updatedAt);
+  // "Edited" means the newest work anywhere in the collection's scope — saving a
+  // clip doesn't touch the collection object itself, so its own updatedAt alone
+  // goes stale the moment recording is the only activity (2026-08-26 audit B12).
+  const lastEditedMeta = formatLastEdited(
+    workspace
+      ? Math.max(collection.updatedAt, getCollectionLastWorkedAt(workspace, collection.id))
+      : collection.updatedAt
+  );
   const metaLine = [ideaMeta, lastEditedMeta].filter(Boolean).join("  ·  ");
 
   return (

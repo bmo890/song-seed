@@ -1,9 +1,12 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { PageIntro } from "../../common/PageIntro";
 import { AppAlert } from "../../common/AppAlert";
+import { HelpButton } from "../../common/HelpButton";
+import { HelpSheet } from "../../common/HelpSheet";
+import { SEND_HELP } from "../../common/helpContent";
 import { styles } from "../styles";
 import { useSentLinksStore } from "../../../state/useSentLinksStore";
 import { isSentLinkExpired, type SentLink } from "../../../domain/sentLinks";
@@ -38,6 +41,7 @@ function statusLabel(link: SentLink, now: number, t: TFunction): string {
  */
 export function SettingsSharingView() {
   const { t } = useTranslation();
+  const [helpVisible, setHelpVisible] = useState(false);
   const links = useSentLinksStore((s) => s.links);
   const forgetLink = useSentLinksStore((s) => s.forgetLink);
 
@@ -70,10 +74,12 @@ export function SettingsSharingView() {
       contentContainerStyle={sharingStyles.content}
       showsVerticalScrollIndicator={false}
     >
-      <PageIntro
-        title={t("sharing.title")}
-        subtitle={t("sharing.subtitle")}
-      />
+      <View style={sharingStyles.introRow}>
+        <View style={styles.flexFill}>
+          <PageIntro title={t("sharing.title")} subtitle={t("sharing.subtitle")} />
+        </View>
+        <HelpButton onPress={() => setHelpVisible(true)} />
+      </View>
 
       <View style={sharingStyles.list}>
         {sorted.map((link) => {
@@ -132,11 +138,23 @@ export function SettingsSharingView() {
           </Text>
         </View>
       ) : null}
+      <HelpSheet
+        visible={helpVisible}
+        onClose={() => setHelpVisible(false)}
+        title={SEND_HELP.title}
+        intro={SEND_HELP.intro}
+        items={SEND_HELP.items}
+      />
     </ScrollView>
   );
 }
 
 const sharingStyles = StyleSheet.create({
+  introRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
   content: {
     paddingHorizontal: 16,
     paddingBottom: 120,

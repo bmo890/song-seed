@@ -3,6 +3,8 @@ import * as FileSystem from "expo-file-system/legacy";
 import { importRecordedAudioAsset } from "./audioStorage";
 import { useStore } from "../state/useStore";
 import { appActions } from "../state/actions";
+import { i18n } from "../i18n/instance";
+import { buildDefaultIdeaTitle } from "../utils";
 
 const PENDING_RECORDING_KEY = "songnook-pending-recording";
 
@@ -19,14 +21,10 @@ export type RecordingRecoveryResult =
     | { status: "failed"; message: string };
 
 function buildRecoveredRecordingTitle(startedAt: number) {
-    return `Recovered Recording ${new Date(startedAt).toLocaleString("en-US", {
-        month: "2-digit",
-        day: "2-digit",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-    })}`;
+    // Same auto-name convention every fresh capture gets ("11:45AM Aug 26th"),
+    // with a short recovered marker — the old "Recovered Recording 07/29/2026,
+    // 7:51 PM" format truncated on cards and mixed date styles (audit B12).
+    return i18n.t("defaults.recoveredClipTitle", { name: buildDefaultIdeaTitle(startedAt) });
 }
 
 async function readPendingRecordingSession(): Promise<PendingRecordingSession | null> {

@@ -3,6 +3,7 @@ import { colors } from "../../../design/tokens";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
 import { Button } from "../../common/Button";
+import { EmptyState } from "../../common/EmptyState";
 import { styles } from "../styles";
 import { usePersistedScrollView, type ScrollOffset } from "../../../hooks/usePersistedScrollView";
 import type { Songbook } from "../../../types";
@@ -29,9 +30,11 @@ export function SongbookListView({
       contentContainerStyle={styles.libraryScrollContent}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.inputRow}>
-        <Button label={t("library.createSongbook")} onPress={onCreate} />
-      </View>
+      {songbooks.length > 0 ? (
+        <View style={styles.inputRow}>
+          <Button label={t("library.createSongbook")} onPress={onCreate} />
+        </View>
+      ) : null}
 
       <View style={styles.listContent}>
         {songbooks.map((songbook) => (
@@ -48,16 +51,19 @@ export function SongbookListView({
               <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
             </View>
             <Text style={styles.cardMeta}>
-              {songbook.items.length} {songbook.items.length === 1 ? "chart" : "charts"}
+              {t("library.charts", { count: songbook.items.length })}
             </Text>
           </Pressable>
         ))}
 
         {songbooks.length === 0 ? (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>{t("library.noSongbooks")}</Text>
-            <Text style={styles.cardMeta}>{t("library.songbookEmptyBody")}</Text>
-          </View>
+          <EmptyState
+            icon="book-outline"
+            title={t("library.noSongbooks")}
+            body={t("library.songbookEmptyBody")}
+            actionLabel={t("library.createSongbook")}
+            onAction={onCreate}
+          />
         ) : null}
       </View>
     </ScrollView>
