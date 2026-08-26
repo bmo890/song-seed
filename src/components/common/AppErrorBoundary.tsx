@@ -1,7 +1,19 @@
 import React from "react";
 import { Pressable, Text, View } from "react-native";
 import { colors, radii } from "../../design/tokens";
+import { i18n } from "../../i18n/instance";
 import { recordCrash } from "../../services/crashLog";
+
+/** This screen renders outside every provider and must survive a broken i18n —
+ *  translate when possible, fall back to the English literal when not. */
+function safeT(key: string, fallback: string): string {
+    try {
+        const value = i18n.t(key);
+        return typeof value === "string" && value.length > 0 && value !== key ? value : fallback;
+    } catch {
+        return fallback;
+    }
+}
 
 /**
  * Root error boundary: a render exception anywhere below this renders a calm,
@@ -55,7 +67,7 @@ export class AppErrorBoundary extends React.Component<
                             textAlign: "center",
                         }}
                     >
-                        Something went wrong
+                        {safeT("recovery.errorTitle", "Something went wrong")}
                     </Text>
                     <Text
                         style={{
@@ -66,15 +78,17 @@ export class AppErrorBoundary extends React.Component<
                             textAlign: "center",
                         }}
                     >
-                        SongNook hit an unexpected error. Your recordings and library are safe on
-                        this device — restarting will bring everything back.
+                        {safeT(
+                            "recovery.errorBody",
+                            "SongNook hit an unexpected error. Your clips and library are safe on this device — restarting brings everything back."
+                        )}
                     </Text>
                     <Pressable
                         onPress={this.handleRestart}
                         style={({ pressed }) => ({
                             marginTop: 10,
                             backgroundColor: colors.primary,
-                            borderRadius: radii.round,
+                            borderRadius: radii.lg,
                             paddingVertical: 13,
                             paddingHorizontal: 28,
                             opacity: pressed ? 0.85 : 1,
@@ -87,7 +101,7 @@ export class AppErrorBoundary extends React.Component<
                                 color: colors.onPrimary,
                             }}
                         >
-                            Restart SongNook
+                            {safeT("recovery.restartApp", "Restart SongNook")}
                         </Text>
                     </Pressable>
                     <Text

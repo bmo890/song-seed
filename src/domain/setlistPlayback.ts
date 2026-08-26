@@ -3,6 +3,7 @@ import {
   getPlayableClipForIdea,
   hasClipPlaybackSource,
 } from "./clipPresentation";
+import { i18n } from "../i18n/instance";
 import type {
   ClipVersion,
   PlaybackQueueItem,
@@ -84,7 +85,7 @@ export function resolveSetlistEntries(workspaces: Workspace[], setlist: Setlist)
         entry,
         idea: null,
         workspaceId: null,
-        title: "Unavailable song",
+        title: i18n.t("library.unavailableSong"),
         available: false,
         parts: [],
         lyricVersionIds: [],

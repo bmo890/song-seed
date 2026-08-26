@@ -137,10 +137,10 @@ export function WordLadderScreenContent() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
       <View style={contentStyles.header}>
-        <IconBtn icon="chevron-back" label="Back" onPress={model.goBack} />
+        <IconBtn icon="chevron-back" label={t("common.back")} onPress={model.goBack} />
         <Text style={contentStyles.headerTitle}>{t("wordSparks.wordLadder")}</Text>
         <SparkTextSizeButton />
-        <IconBtn icon="trash-outline" label="Delete" onPress={model.deleteExercise} muted />
+        <IconBtn icon="trash-outline" label={t("common.delete")} onPress={model.deleteExercise} muted />
       </View>
 
       <StepRail step={model.step} onHelpPress={openHelp} />

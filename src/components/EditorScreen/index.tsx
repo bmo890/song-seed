@@ -813,7 +813,7 @@ export function EditorScreen() {
                     </>
                 ) : (
                     <Text style={{ textAlign: "center", marginTop: 40, color: colors.textSecondary }}>
-                        No file available to edit.
+                        {t("editor.noFile")}
                     </Text>
                 )}
             </TransportLayout>

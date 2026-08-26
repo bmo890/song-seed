@@ -1,4 +1,5 @@
 import { getActivityEventsWithHistory, startOfActivityDay } from "./activity";
+import { i18n } from "../i18n/instance";
 import { getIdeaCreatedAt, getIdeaUpdatedAt } from "./ideaSort";
 import type { ActivityEvent, ClipVersion, SongIdea, Workspace } from "../types";
 import { getCollectionAncestors, getCollectionById, getCollectionScopeIds } from "../utils";
@@ -949,14 +950,15 @@ export function buildRevisitModel({
         subtitle: "From this date in past years",
         items: aroundItems,
         totalCount: aroundSnapshotItems.length,
-        actionLabel: aroundSnapshotItems.length > aroundItems.length ? "See snapshot" : undefined,
+        actionLabel:
+          aroundSnapshotItems.length > aroundItems.length ? i18n.t("revisit.seeSnapshot") : undefined,
         emptyTitle: "Nothing seasonal yet",
         emptySubtitle: "Check back later.",
       },
     ],
     aroundSnapshot: {
-      title: "Around This Time",
-      subtitle: "A seasonal snapshot from around this point in past years.",
+      title: i18n.t("revisit.aroundTitle"),
+      subtitle: i18n.t("revisit.aroundSnapshotSubtitle"),
       windowLabel: formatAroundSnapshotWindowLabel(now),
       year: aroundSnapshotWindow.year,
       startTs: aroundSnapshotWindow.startTs,

@@ -59,6 +59,7 @@ import {
     upsertPendingWorkspaceArchiveOperation,
 } from "../services/workspaceArchiveRecovery";
 import { authorizeIntentionalEmptyStateWrite } from "../services/stateIntegrity";
+import { i18n } from "../i18n";
 import { relocateActivityEvents, relocatePlaylists } from "./relocationMetadata";
 import { SONG_NOOK_PREVIEW_AUDIO_DIR } from "../services/storagePaths";
 
@@ -3081,13 +3082,17 @@ export const appActions = {
                 ?? freshState.workspaces[0];
 
             if (activeWs) {
-                let recoveredCollection = activeWs.collections.find((c) => c.title === "Recovered");
+                const recoveredTitle = i18n.t("defaults.recoveredCollection");
+                // Match either language's name so recovery never splits across two collections.
+                let recoveredCollection = activeWs.collections.find(
+                    (c) => c.title === recoveredTitle || c.title === "Recovered"
+                );
                 if (!recoveredCollection) {
                     const collectionId = genId("collection");
                     const now = Date.now();
                     recoveredCollection = {
                         id: collectionId,
-                        title: "Recovered",
+                        title: recoveredTitle,
                         workspaceId: activeWs.id,
                         parentCollectionId: null,
                         createdAt: now,

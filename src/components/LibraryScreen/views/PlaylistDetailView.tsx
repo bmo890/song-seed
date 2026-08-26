@@ -176,9 +176,7 @@ export function PlaylistDetailView({
           <View style={detailStyles.emptyWrap}>
             <Ionicons name="musical-notes-outline" size={26} color={colors.textMuted} />
             <Text style={detailStyles.emptyTitle}>{t("library.noTracks")}</Text>
-            <Text style={detailStyles.emptyBody}>
-              Browse your library, preview clips, and add the keepers here.
-            </Text>
+            <Text style={detailStyles.emptyBody}>{t("library.noTracksBody")}</Text>
             <Pressable
               style={({ pressed }) => [detailStyles.emptyAddBtn, pressed ? styles.pressDown : null]}
               onPress={onAddItems}
@@ -200,7 +198,7 @@ export function PlaylistDetailView({
                   onPress={() => onRemoveItem(track.itemId)}
                   hitSlop={8}
                   accessibilityRole="button"
-                  accessibilityLabel={`Remove ${track.title}`}
+                  accessibilityLabel={t("library.removeItemA11y", { title: track.title })}
                 >
                   <Ionicons name="remove-circle-outline" size={19} color="#B4574A" />
                 </Pressable>
@@ -260,7 +258,7 @@ export function PlaylistDetailView({
                   onLongPress={drag}
                   delayLongPress={120}
                   accessibilityRole="button"
-                  accessibilityLabel={`Reorder ${track.title}`}
+                  accessibilityLabel={t("common.reorderItem", { title: track.title })}
                 >
                   <Ionicons name="reorder-three" size={18} color={colors.textSecondary} />
                 </Pressable>

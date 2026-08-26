@@ -209,7 +209,7 @@ function Header({
       <Pressable style={({ pressed }) => [styles.iconBtn, pressed ? appStyles.pressDown : null]} onPress={onSize} hitSlop={6} accessibilityLabel={t("magpie.textSize")}>
         <Text style={styles.iconBtnText}>Aa</Text>
       </Pressable>
-      <Pressable style={({ pressed }) => [styles.iconBtn, pressed ? appStyles.pressDown : null]} onPress={onHelp} hitSlop={6} accessibilityLabel="How this works">
+      <Pressable style={({ pressed }) => [styles.iconBtn, pressed ? appStyles.pressDown : null]} onPress={onHelp} hitSlop={6} accessibilityLabel={t("wordSparks.howThisWorks")}>
         <Ionicons name="help-circle-outline" size={20} color={colors.textStrong} />
       </Pressable>
     </View>

@@ -56,10 +56,7 @@ export function SetlistListView({
         {setlists.length === 0 ? (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{t("library.noSetlists")}</Text>
-            <Text style={styles.cardMeta}>
-              Build an ordered set of songs — pick the clips and charts each one needs — then share it as a
-              ready-to-play file for your band.
-            </Text>
+            <Text style={styles.cardMeta}>{t("library.setlistEmptyBody")}</Text>
           </View>
         ) : null}
       </View>

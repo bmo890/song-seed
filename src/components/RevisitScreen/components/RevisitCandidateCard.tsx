@@ -1,5 +1,6 @@
 import React from "react";
 import { Pressable, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import { Ionicons } from "@expo/vector-icons";
 import { InlineIdeaCard } from "../../common/InlineIdeaCard";
 import { styles } from "../../../styles";
@@ -40,6 +41,7 @@ export function RevisitCandidateCard({
   onOpenMenu,
   onViewInCollection,
 }: RevisitCandidateCardProps) {
+  const { t } = useTranslation();
   const durationMs = candidate.primaryClip.durationMs ?? 0;
 
   // Reason on the left, the standardized "view in collection" icon on the right —
@@ -61,7 +63,7 @@ export function RevisitCandidateCard({
         }}
         hitSlop={8}
         accessibilityRole="button"
-        accessibilityLabel={`View ${candidate.title} in collection`}
+        accessibilityLabel={t("shelf.viewInCollection", { title: candidate.title })}
       >
         <Ionicons name="open-outline" size={15} color={colors.textMuted} />
       </Pressable>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AppAlert } from "../../common/AppAlert";
 import type { Collection, Workspace } from "../../../types";
 import { appActions } from "../../../state/actions";
@@ -52,6 +53,7 @@ export function useWorkspaceCollectionSelection({
   ) => { ok: boolean; error?: string };
   deleteCollection: (collectionId: string) => void;
 }) {
+  const { t } = useTranslation();
   const [managedCollectionId, setManagedCollectionId] = useState<string | null>(null);
   const [collectionRenameModalOpen, setCollectionRenameModalOpen] = useState(false);
   const [collectionDraft, setCollectionDraft] = useState("");
@@ -125,8 +127,8 @@ export function useWorkspaceCollectionSelection({
     if (collectionIds.length === 0) return;
     if (moveDestinations.length === 0) {
       AppAlert.info(
-        mode === "copy" ? "No copy targets" : "No move targets",
-        "There are no valid collection destinations available right now."
+        mode === "copy" ? t("workspaceBrowse.noCopyTargets") : t("workspaceBrowse.noMoveTargets"),
+        t("workspaceBrowse.noDestinationsBody")
       );
       return;
     }
@@ -152,8 +154,13 @@ export function useWorkspaceCollectionSelection({
 
       if (!result.ok) {
         AppAlert.info(
-          collectionDestinationMode === "move" ? "Move failed" : "Copy failed",
-          result.error ?? `Could not ${collectionDestinationMode} this collection.`
+          collectionDestinationMode === "move"
+            ? t("workspaceBrowse.moveFailed")
+            : t("workspaceBrowse.copyFailed"),
+          result.error ??
+            (collectionDestinationMode === "move"
+              ? t("workspaceBrowse.couldNotMove")
+              : t("workspaceBrowse.couldNotCopy"))
         );
         return;
       }
@@ -180,8 +187,12 @@ export function useWorkspaceCollectionSelection({
     );
 
     AppAlert.destructive(
-      "Delete collections?",
-      `${collapsedSelectedCollectionIds.length} collection${collapsedSelectedCollectionIds.length === 1 ? "" : "s"} will be removed${scope.childCollectionCount > 0 ? ` along with ${scope.childCollectionCount} subcollection${scope.childCollectionCount === 1 ? "" : "s"}` : ""} and ${scope.itemCount} item${scope.itemCount === 1 ? "" : "s"}.`,
+      t("workspaceBrowse.deleteCollectionsTitle"),
+      t("workspaceBrowse.deleteCollectionsBody", { count: collapsedSelectedCollectionIds.length }) +
+        (scope.childCollectionCount > 0
+          ? t("workspaceBrowse.deleteCollectionsSub", { count: scope.childCollectionCount })
+          : "") +
+        t("workspaceBrowse.deleteCollectionsItems", { count: scope.itemCount }),
       () => {
         for (const collectionId of collapsedSelectedCollectionIds) {
           deleteCollection(collectionId);
@@ -189,14 +200,14 @@ export function useWorkspaceCollectionSelection({
         setSelectedCollectionIds([]);
         setSelectionMoreVisible(false);
       },
-      { confirmLabel: "Delete" }
+      { confirmLabel: t("common.delete") }
     );
   };
 
   const selectionDockActions: SelectionAction[] = [
     {
       key: "edit",
-      label: "Edit",
+      label: t("common.edit"),
       icon: "create-outline",
       disabled: !singleSelectedCollection,
       onPress: () => {
@@ -205,7 +216,7 @@ export function useWorkspaceCollectionSelection({
     },
     {
       key: "set-primary",
-      label: "Primary",
+      label: t("common.primary"),
       icon: "star-outline",
       disabled: !singleSelectedCollection || singleSelectedCollection.id === primaryCollectionId,
       onPress: () => {
@@ -216,14 +227,14 @@ export function useWorkspaceCollectionSelection({
     },
     {
       key: "delete",
-      label: "Delete",
+      label: t("common.delete"),
       icon: "trash-outline",
       tone: "danger",
       onPress: confirmDeleteSelectedCollections,
     },
     {
       key: "more",
-      label: "More",
+      label: t("common.more"),
       icon: "ellipsis-horizontal",
       onPress: () => setSelectionMoreVisible(true),
     },
@@ -232,7 +243,7 @@ export function useWorkspaceCollectionSelection({
   const selectionSheetActions: SelectionAction[] = [
     {
       key: "copy",
-      label: "Copy",
+      label: t("common.copyAction"),
       icon: "copy-outline",
       onPress: () => {
         setSelectionMoreVisible(false);
@@ -241,7 +252,7 @@ export function useWorkspaceCollectionSelection({
     },
     {
       key: "move",
-      label: "Move",
+      label: t("common.moveAction"),
       icon: "swap-horizontal-outline",
       onPress: () => {
         setSelectionMoreVisible(false);

@@ -104,7 +104,10 @@ export function SongClipFilterMenu({
 
   const allOptions: { key: string; label: string }[] = [
     { key: "untagged", label: t("songDetail.untagged") },
-    ...SONG_CLIP_TAG_OPTIONS,
+    ...SONG_CLIP_TAG_OPTIONS.map((tag) => ({
+      key: tag.key,
+      label: t(`clipTags.${tag.key}`, { defaultValue: tag.label }),
+    })),
     ...projectCustomTags.map((t) => ({ key: t.key, label: t.label })),
     ...globalCustomTags.map((t) => ({ key: t.key, label: t.label })),
   ];

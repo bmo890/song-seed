@@ -81,10 +81,7 @@ export function PlaylistListView({
         <View style={listStyles.emptyWrap}>
           <Ionicons name="musical-notes-outline" size={24} color={colors.textMuted} />
           <Text style={listStyles.emptyTitle}>{t("library.playlistEmpty")}</Text>
-          <Text style={listStyles.emptyBody}>
-            A playlist is an ordered listening queue — pull clips and songs from anywhere in your
-            library and play them back to back.
-          </Text>
+          <Text style={listStyles.emptyBody}>{t("library.playlistEmptyBody")}</Text>
         </View>
       ) : null}
     </ScrollView>

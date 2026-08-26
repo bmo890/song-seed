@@ -397,6 +397,7 @@ export function CollapsedDayRow({
     compact?: boolean;
     onExpand?: () => void;
 }) {
+    const { t } = useTranslation();
     return (
         <View style={styles.ideasListItemWrap}>
             <Pressable
@@ -407,7 +408,7 @@ export function CollapsedDayRow({
                 ]}
                 onPress={onExpand}
                 accessibilityRole="button"
-                accessibilityLabel={`Expand ${label}, ${count} hidden`}
+                accessibilityLabel={t("common.expandDayA11y", { label, count })}
             >
                 <View style={styles.ideasDayDividerLine} />
                 <Ionicons name={dirIcon("chevron-forward")} size={12} color="#84736f" />

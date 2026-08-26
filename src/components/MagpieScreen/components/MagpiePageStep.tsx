@@ -298,10 +298,11 @@ function Header({
   onSize: () => void;
   onHelp: () => void;
 }) {
+  const { t } = useTranslation();
   const title = !book ? fallbackTitle : book.title || book.author || fallbackTitle;
   return (
     <View style={styles.header}>
-      <IconBtn icon="chevron-back" label="Back" onPress={onBack} />
+      <IconBtn icon="chevron-back" label={t("common.back")} onPress={onBack} />
       <Pressable
         style={({ pressed }) => [styles.credit, pressed ? appStyles.pressDown : null]}
         onPress={onSource}
@@ -320,8 +321,8 @@ function Header({
         </View>
         <Ionicons name="chevron-down" size={15} color={colors.textMuted} />
       </Pressable>
-      <IconBtn text="Aa" label="Text size" onPress={onSize} />
-      <IconBtn icon="help-circle-outline" label="How this works" onPress={onHelp} />
+      <IconBtn text="Aa" label={t("magpie.textSize")} onPress={onSize} />
+      <IconBtn icon="help-circle-outline" label={t("wordSparks.howThisWorks")} onPress={onHelp} />
     </View>
   );
 }

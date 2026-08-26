@@ -187,10 +187,10 @@ export function useRevisitScreenModel() {
 
   function confirmHideCandidate(candidate: RevisitCandidate) {
     AppAlert.destructive(
-      "Hide from Revisit?",
-      "This idea won't resurface in Revisit again. It stays right where it is in your collection — you can bring it back anytime from Customize → Restore hidden.",
+      t("revisit.hideTitle"),
+      t("revisit.hideBody"),
       () => hideCandidate(candidate.key),
-      { confirmLabel: "Okay", icon: "eye-off-outline" }
+      { confirmLabel: t("common.ok"), icon: "eye-off-outline" }
     );
   }
 
@@ -211,13 +211,13 @@ export function useRevisitScreenModel() {
         },
       },
       {
-        label: "Hide",
+        label: t("common.hide"),
         style: "destructive",
         icon: "eye-off-outline",
         onPress: () => confirmHideCandidate(candidate),
       },
       {
-        label: "Cancel",
+        label: t("common.cancel"),
         style: "cancel",
       },
     ]);

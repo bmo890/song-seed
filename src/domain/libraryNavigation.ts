@@ -1,4 +1,5 @@
 import { getIdeaUpdatedAt } from "./ideaSort";
+import { i18n } from "../i18n/instance";
 import {
   Collection,
   Playlist,
@@ -261,14 +262,14 @@ export function isWorkspaceListOrder(value: unknown): value is WorkspaceListOrde
 export function getWorkspaceListOrderState(order: WorkspaceListOrder) {
   switch (order) {
     case "title-az":
-      return { direction: "asc" as const, icon: "text-outline", label: "Title A-Z" };
+      return { direction: "asc" as const, icon: "text-outline", label: i18n.t("workspaceBrowse.sortTitleAz") };
     case "title-za":
-      return { direction: "desc" as const, icon: "text-outline", label: "Title Z-A" };
+      return { direction: "desc" as const, icon: "text-outline", label: i18n.t("workspaceBrowse.sortTitleZa") };
     case "least-recent":
-      return { direction: "asc" as const, icon: "time-outline", label: "Least recent" };
+      return { direction: "asc" as const, icon: "time-outline", label: i18n.t("workspaceBrowse.sortLeastRecent") };
     case "last-worked":
     default:
-      return { direction: "desc" as const, icon: "time-outline", label: "Last worked" };
+      return { direction: "desc" as const, icon: "time-outline", label: i18n.t("workspaceBrowse.sortLastWorked") };
   }
 }
 

@@ -1,4 +1,5 @@
 import type { MagpieBook, MagpieFragment, MagpieSource, MagpieSpark, MagpieStep } from "../types";
+import { i18n } from "../i18n/instance";
 import type { MagpieHeGenre } from "../config/magpieService";
 import { gutenbergCoverUrl, gutenbergSourceUrl, randomCuratedBook } from "./magpieBooks";
 import { fetchBenYehudaPage } from "./magpieBenYehuda";
@@ -478,7 +479,7 @@ export function deriveMagpieTitle(spark: Pick<MagpieSpark, "draft" | "fragments"
     .map((line) => line.trim())
     .find((line) => line.length > 0);
   const source = draftLine ?? spark.fragments[0]?.text ?? "";
-  if (!source) return "Untitled Magpie";
+  if (!source) return i18n.t("magpie.untitledSpark");
   const words = source.split(/\s+/).slice(0, 6).join(" ");
   return words.length < source.length ? `${words}…` : words;
 }
@@ -488,7 +489,7 @@ export function createMagpieSpark(): MagpieSpark {
   return {
     id: randomId("magpie"),
     type: "magpie",
-    title: "Untitled Magpie",
+    title: i18n.t("magpie.untitledSpark"),
     createdAt: now,
     updatedAt: now,
     step: "page",
@@ -568,7 +569,7 @@ export function sanitizeMagpieSpark(raw: unknown): MagpieSpark | null {
   return {
     id: obj.id,
     type: "magpie",
-    title: isString(obj.title) && obj.title.trim() ? obj.title : "Untitled Magpie",
+    title: isString(obj.title) && obj.title.trim() ? obj.title : i18n.t("magpie.untitledSpark"),
     createdAt: typeof obj.createdAt === "number" ? obj.createdAt : Date.now(),
     updatedAt: typeof obj.updatedAt === "number" ? obj.updatedAt : Date.now(),
     step: sanitizeStep(obj.step),

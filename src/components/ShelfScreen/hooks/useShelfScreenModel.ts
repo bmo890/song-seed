@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { useShelfStore } from "../../../state/useShelfStore";
@@ -32,6 +33,7 @@ export type ShelfDepartedRowData = {
 };
 
 export function useShelfScreenModel() {
+  const { t } = useTranslation();
   const navigation = useNavigation<any>();
   const isFocused = useIsFocused();
   const rootNavigation = navigation.getParent?.();
@@ -174,19 +176,19 @@ export function useShelfScreenModel() {
   function keepRowLonger(row: ShelfRow) {
     useShelfStore.getState().keepLonger(row.entry.key);
     haptic.light();
-    toast("Kept for 7 more days", "checkmark-outline");
+    toast(t("shelf.keptToast"), "checkmark-outline");
   }
 
   function letRowLeave(row: ShelfRow) {
     useShelfStore.getState().leaveShelf(row.entry.key);
     haptic.light();
-    toast("Left the shelf — still in its collection", "checkmark-outline");
+    toast(t("shelf.leftToast"), "checkmark-outline");
   }
 
   function reshelveDeparted(rowData: ShelfDepartedRowData) {
     useShelfStore.getState().reshelve(rowData.departure.key);
     haptic.light();
-    toast("Back on the shelf for 7 days", "checkmark-outline");
+    toast(t("shelf.reshelvedToast"), "checkmark-outline");
   }
 
   function isRowActive(row: ShelfRow) {

@@ -150,7 +150,12 @@ export function ClipTagEditorFields({
       <Text style={styles.tagPickerSectionLabel}>{t("songDetail.tags")}</Text>
       <View style={styles.tagPickerChipsWrap}>
         {SONG_CLIP_TAG_OPTIONS.map((tag) =>
-          renderChip(tag.key, tag.label, { bg: tag.bg, text: tag.text }, false)
+          renderChip(
+            tag.key,
+            t(`clipTags.${tag.key}`, { defaultValue: tag.label }),
+            { bg: tag.bg, text: tag.text },
+            false
+          )
         )}
       </View>
 

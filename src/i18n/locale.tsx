@@ -27,6 +27,12 @@ function detectInitialLanguage(): AppLanguage {
   return getLocales()[0]?.languageCode === "he" ? "he" : "en";
 }
 
+/** The device's language, for defaults created before the i18n bootstrap has run
+ *  (e.g. the first-run starter library, built at store-module init). */
+export function deviceLanguage(): AppLanguage {
+  return detectInitialLanguage();
+}
+
 export async function readOrCreateLanguage(): Promise<AppLanguage> {
   const stored = await AsyncStorage.getItem(LANGUAGE_KEY);
   if (isAppLanguage(stored)) return stored;

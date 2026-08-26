@@ -65,10 +65,10 @@ export function CutUpScreenContent() {
     <SafeAreaView style={[styles.shell, { backgroundColor: KRAFT_BG }]} edges={["top", "bottom"]}>
       <KeyboardAvoidingView style={styles.keyboardView} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <View style={styles.header}>
-          <IconBtn icon="chevron-back" label="Back" onPress={model.goBack} />
+          <IconBtn icon="chevron-back" label={t("common.back")} onPress={model.goBack} />
           <Text style={styles.headerTitle}>{t("wordSparks.cutUp")}</Text>
           <SparkTextSizeButton />
-          <IconBtn icon="trash-outline" label="Delete" onPress={model.deleteSpark} muted />
+          <IconBtn icon="trash-outline" label={t("common.delete")} onPress={model.deleteSpark} muted />
         </View>
 
         <StepRail step={model.step} onHelpPress={openHelp} />

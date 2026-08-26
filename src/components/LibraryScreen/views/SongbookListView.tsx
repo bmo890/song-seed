@@ -56,10 +56,7 @@ export function SongbookListView({
         {songbooks.length === 0 ? (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{t("library.noSongbooks")}</Text>
-            <Text style={styles.cardMeta}>
-              Collect lyric and chord charts from any workspace into a songbook to keep your written music
-              together.
-            </Text>
+            <Text style={styles.cardMeta}>{t("library.songbookEmptyBody")}</Text>
           </View>
         ) : null}
       </View>

@@ -68,7 +68,10 @@ export function SectionEdgeAdjuster({
           disabled={!canPin}
           hitSlop={6}
           accessibilityRole="button"
-          accessibilityLabel={`Set ${edge} to playhead (${fmtDuration(playheadMs)})`}
+          accessibilityLabel={t("player.setEdgePlayheadA11y", {
+            edge: isStart ? t("player.start") : t("player.end"),
+            time: fmtDuration(playheadMs),
+          })}
         >
           <PlayheadCursorIcon color={canPin ? PLAYHEAD_COLOR : colors.textMuted} />
         </Pressable>
@@ -79,7 +82,9 @@ export function SectionEdgeAdjuster({
           onPress={() => stepBy(-1000)}
           hitSlop={6}
           accessibilityRole="button"
-          accessibilityLabel={`Nudge ${edge} back one second`}
+          accessibilityLabel={t("player.nudgeEdgeBackA11y", {
+            edge: isStart ? t("player.start") : t("player.end"),
+          })}
         >
           <Ionicons name={dirIcon("chevron-back")} size={16} color={colors.textStrong} />
         </Pressable>
@@ -109,7 +114,9 @@ export function SectionEdgeAdjuster({
           onPress={() => stepBy(1000)}
           hitSlop={6}
           accessibilityRole="button"
-          accessibilityLabel={`Nudge ${edge} forward one second`}
+          accessibilityLabel={t("player.nudgeEdgeForwardA11y", {
+            edge: isStart ? t("player.start") : t("player.end"),
+          })}
         >
           <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textStrong} />
         </Pressable>
@@ -150,10 +157,12 @@ export function SectionPickerModal({
                   style={s.sectionChip}
                   onPress={() => onPickPreset(kind)}
                   accessibilityRole="button"
-                  accessibilityLabel={preset.label}
+                  accessibilityLabel={t(`chordChart.presets.${preset.label}`, { defaultValue: preset.label })}
                 >
                   <View style={[s.sectionSwatch, { backgroundColor: preset.color }]} />
-                  <Text style={s.sectionChipText}>{preset.label}</Text>
+                  <Text style={s.sectionChipText}>
+                    {t(`chordChart.presets.${preset.label}`, { defaultValue: preset.label })}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -308,7 +317,7 @@ export function LoopSectionPickerModal({
           style={s.loopSectionRow}
           onPress={() => onPick(section)}
           accessibilityRole="button"
-          accessibilityLabel={`Loop ${section.label}`}
+          accessibilityLabel={t("player.loopSectionA11y", { label: section.label })}
         >
           <View style={[s.sectionSwatch, { backgroundColor: getSectionColor(section) }]} />
           <Text style={s.loopSectionLabel} numberOfLines={1}>

@@ -72,12 +72,12 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
   // ── Delete confirmation ───────────────────────────────────────────────────
   const handleDeletePress = useCallback(() => {
     AppAlert.destructive(
-      "Delete page?",
-      "This can't be undone.",
+      t("notepad.deletePageTitle"),
+      t("notepad.deletePageBody"),
       () => onDelete(note.id),
-      { confirmLabel: "Delete" }
+      { confirmLabel: t("common.delete") }
     );
-  }, [note.id, onDelete]);
+  }, [note.id, onDelete, t]);
 
   // ── Auto-focus new blank notes ────────────────────────────────────────────
   useEffect(() => {

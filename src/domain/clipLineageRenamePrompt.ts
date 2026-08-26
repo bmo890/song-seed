@@ -1,5 +1,6 @@
 import { useStore } from "../state/useStore";
 import { AppAlert } from "../components/common/AppAlert";
+import { i18n } from "../i18n/instance";
 import type { LineageRenameTarget } from "./clipLineageTitles";
 
 export type LineageRenamePromptInfo = {
@@ -10,13 +11,16 @@ export type LineageRenamePromptInfo = {
 export function showLineageRenamePrompt(info: LineageRenamePromptInfo) {
   const { ideaId, renames } = info;
   const n = renames.length;
-  const clipWord = n === 1 ? "clip" : "clips";
   const example = renames[0];
-  const moreLine = n > 1 ? `, and ${n - 1} more` : "";
 
   AppAlert.confirm(
-    "Update thread names?",
-    `Rename ${n} other ${clipWord} in this thread to match?\n\n"${example.clip.title}" -> "${example.nextTitle}"${moreLine}`,
+    i18n.t("clipLineage.updateThreadTitle"),
+    i18n.t("clipLineage.updateThreadBody", {
+      count: n,
+      from: example.clip.title,
+      to: example.nextTitle,
+      more: n - 1,
+    }),
     () => {
       useStore.getState().updateIdeas((ideas) =>
         ideas.map((idea) =>
@@ -33,6 +37,6 @@ export function showLineageRenamePrompt(info: LineageRenamePromptInfo) {
         )
       );
     },
-    { confirmLabel: `Update ${n} ${clipWord}`, cancelLabel: "Keep existing" }
+    { confirmLabel: i18n.t("clipLineage.updateCount", { count: n }), cancelLabel: i18n.t("clipLineage.keepExisting") }
   );
 }

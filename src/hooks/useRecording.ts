@@ -751,10 +751,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
           await deleteManagedAudioUris([managedAudioUriToCleanup]).catch(() => {});
           managedAudioUriToCleanup = null;
         }
-        AppAlert.info(
-          "Recording kept for recovery",
-          "We couldn't attach this take to its project, so it's been saved safely. Reopen SongNook to restore it."
-        );
+        AppAlert.info(t("recording.keptForRecoveryTitle"), t("recording.keptAttachBody"));
         return false;
       }
 
@@ -785,10 +782,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       if (trimTempUriToCleanup) {
         await FileSystem.deleteAsync(trimTempUriToCleanup, { idempotent: true }).catch(() => {});
       }
-      AppAlert.info(
-        "Recording kept for recovery",
-        "We couldn't finish saving this take (your device may be low on storage), so it's been kept safely. Reopen SongNook to restore it."
-      );
+      AppAlert.info(t("recording.keptForRecoveryTitle"), t("recording.keptSaveBody"));
       return false;
     } finally {
       await releaseRecordingAudioSession().catch((error) => {

@@ -8,6 +8,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
 import { styles } from "../../../styles";
 import { colors } from "../../../design/tokens";
 
@@ -44,6 +45,7 @@ export function ClipTagBadges({
   onApplySuggestion,
   containerStyle,
 }: ClipTagBadgesProps) {
+  const { t } = useTranslation();
   const hasSuggestions = !disabled && !!suggestions && suggestions.length > 0;
   const showTapZone = tags.length > 0 || showAddButton;
   if (!showTapZone && !hasSuggestions) {
@@ -61,7 +63,9 @@ export function ClipTagBadges({
         >
           {tags.map((tag) => (
             <View key={tag.key} style={[styles.clipCardTagBadge, { backgroundColor: tag.backgroundColor }]}>
-              <Text style={[styles.clipCardTagBadgeText, { color: tag.textColor }]}>{tag.label}</Text>
+              <Text style={[styles.clipCardTagBadgeText, { color: tag.textColor }]}>
+                {t(`clipTags.${tag.key}`, { defaultValue: tag.label })}
+              </Text>
             </View>
           ))}
           {showAddButton ? (
@@ -90,11 +94,13 @@ export function ClipTagBadges({
               onPress={() => onApplySuggestion?.(suggestion.key)}
               hitSlop={{ top: 2, bottom: 2 }}
               accessibilityRole="button"
-              accessibilityLabel={`Add ${suggestion.label} tag`}
+              accessibilityLabel={t("clipTags.addTagA11y", {
+                label: t(`clipTags.${suggestion.key}`, { defaultValue: suggestion.label }),
+              })}
             >
               <Ionicons name="add" size={11} color={suggestion.textColor} />
               <Text style={[localStyles.suggestChipText, { color: suggestion.textColor }]}>
-                {suggestion.label}
+                {t(`clipTags.${suggestion.key}`, { defaultValue: suggestion.label })}
               </Text>
             </Pressable>
           ))

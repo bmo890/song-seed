@@ -1,4 +1,5 @@
 import { Collection, Workspace } from "../types";
+import { i18n } from "../i18n/instance";
 import { getCollectionAncestors, getCollectionDescendantIds } from "../utils";
 import { getCollectionLastWorkedAt } from "./libraryNavigation";
 
@@ -97,8 +98,8 @@ export function buildCollectionMoveDestinations(
         workspaceId: workspace.id,
         workspaceTitle: workspace.title,
         parentCollectionId: null,
-        label: "Top level",
-        subtitle: "Place this collection directly in the workspace.",
+        label: i18n.t("workspaceBrowse.topLevel"),
+        subtitle: i18n.t("workspaceBrowse.topLevelHint"),
       });
     }
 
@@ -123,7 +124,7 @@ export function buildCollectionMoveDestinations(
         workspaceTitle: workspace.title,
         parentCollectionId: candidate.id,
         label: candidate.title,
-        subtitle: "Move into this collection as a subcollection.",
+        subtitle: i18n.t("workspaceBrowse.intoCollectionHint"),
       });
     }
 
