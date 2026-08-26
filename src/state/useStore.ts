@@ -236,6 +236,9 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
         // empty/missing workspace shards would re-show the intro to a returning user.
         hasSeenWelcome:
             typeof state?.hasSeenWelcome === "boolean" ? state.hasSeenWelcome : state != null,
+        seenHints: Array.isArray(state?.seenHints)
+            ? state.seenHints.filter((hint): hint is string => typeof hint === "string")
+            : [],
         firstLaunchAt:
             typeof state?.firstLaunchAt === "number" && Number.isFinite(state.firstLaunchAt)
                 ? state.firstLaunchAt

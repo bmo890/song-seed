@@ -40,6 +40,7 @@ export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppSto
         promptForClipName: state.promptForClipName,
         nameLanguage: state.nameLanguage,
         hasSeenWelcome: state.hasSeenWelcome,
+        seenHints: state.seenHints,
         firstLaunchAt: state.firstLaunchAt,
         reviewPromptShownAt: state.reviewPromptShownAt,
         lastSuccessfulBackupAt: state.lastSuccessfulBackupAt,

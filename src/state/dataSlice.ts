@@ -118,6 +118,11 @@ export type DataSlice = {
     /** First-run: false until the welcome intro has been shown once. Defaults true for
      *  existing users (data present at hydration) so an upgrade never re-shows it. */
     hasSeenWelcome: boolean;
+    /** One-shot teaching hints already acknowledged (stable string ids; presence =
+     *  seen). Drives the first-visit emphasis on help affordances — e.g. the Takes
+     *  "?" glows until opened once ("takesHelp"), and re-lights once when a sketch
+     *  gains its second take ("takesHelpSecondTake"). */
+    seenHints: string[];
     /** Epoch of the very first launch — anchors the store-review timing rule. */
     firstLaunchAt: number | null;
     /** Epoch the store-review prompt was last requested (never re-ask too soon). */
@@ -183,6 +188,7 @@ export type DataSlice = {
     setPromptForClipName: (value: boolean) => void;
     setNameLanguage: (value: "auto" | "en" | "he") => void;
     setHasSeenWelcome: (value: boolean) => void;
+    markHintSeen: (hintId: string) => void;
     markFirstLaunch: () => void;
     setReviewPromptShownAt: (timestamp: number) => void;
     setLastSuccessfulBackupAt: (timestamp: number | null) => void;
@@ -1240,6 +1246,7 @@ export const createDataSlice: StateCreator<
     promptForClipName: true,
     nameLanguage: "auto",
     hasSeenWelcome: false,
+    seenHints: [],
     firstLaunchAt: null,
     reviewPromptShownAt: null,
     lastSuccessfulBackupAt: null,
@@ -1464,6 +1471,10 @@ export const createDataSlice: StateCreator<
     setNameLanguage: (value) =>
         set({ nameLanguage: value === "he" ? "he" : value === "en" ? "en" : "auto" }),
     setHasSeenWelcome: (value) => set({ hasSeenWelcome: value }),
+    markHintSeen: (hintId) => {
+        if (get().seenHints.includes(hintId)) return;
+        set((state) => ({ seenHints: [...state.seenHints, hintId] }));
+    },
     markFirstLaunch: () => {
         if (get().firstLaunchAt != null) return;
         set({ firstLaunchAt: Date.now() });

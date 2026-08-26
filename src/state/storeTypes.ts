@@ -36,6 +36,7 @@ export type PersistedAppStore = Pick<
     | "promptForClipName"
     | "nameLanguage"
     | "hasSeenWelcome"
+    | "seenHints"
     | "firstLaunchAt"
     | "reviewPromptShownAt"
     | "lastSuccessfulBackupAt"
