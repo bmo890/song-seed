@@ -49,11 +49,34 @@ export function LibraryActionCard({
   meta: string;
   busy?: boolean;
   rightAccessory?: ReactNode;
-  onPress: () => void;
+  /** Omit for a STATIC row — same anatomy, no press affordance. Used for
+   *  truthful "coming later" entries that must not read as tappable. */
+  onPress?: () => void;
   disabled?: boolean;
   /** Render without its own card fill, for use inside a SettingsGroup. */
   flat?: boolean;
 }) {
+  if (!onPress) {
+    return (
+      <View
+        style={[
+          settingsScreenStyles.libraryCard,
+          flat ? settingsScreenStyles.libraryCardFlat : null,
+        ]}
+      >
+        <View style={settingsScreenStyles.libraryCardIcon}>
+          <Ionicons name={icon} size={20} color={LIBRARY_DEEP} />
+        </View>
+        <View style={settingsScreenStyles.libraryCardCopy}>
+          <Text style={settingsScreenStyles.libraryCardTitle}>{title}</Text>
+          <Text style={settingsScreenStyles.libraryCardMeta} numberOfLines={1}>
+            {meta}
+          </Text>
+        </View>
+        {rightAccessory ?? null}
+      </View>
+    );
+  }
   return (
     <Pressable
       testID={`settings-card-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`}
