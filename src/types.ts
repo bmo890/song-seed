@@ -1,5 +1,6 @@
 import type { MetronomeMeterId } from "./domain/metronome";
 import type { TempoMap } from "./domain/tempoMap";
+import type { SharedValue } from "react-native-reanimated";
 
 export type IdeaStatus = "seed" | "sprout" | "stem" | "song" | "clip";
 
@@ -749,8 +750,26 @@ export type InlinePlayerSnapshot = {
   isInlinePlaying: boolean;
 };
 
+/**
+ * The inline preview's VISUAL clock — position straight from the audio engine as
+ * shared values, bypassing React. The store's inlinePositionMs commits once per
+ * displayed second (by design: a React commit mid-animation unglues Skia from the
+ * views above it), which is far too coarse for a playhead. Surfaces that draw the
+ * playhead read these on the UI thread instead.
+ */
+export type InlinePlayerClock = {
+  sharedPositionMs: SharedValue<number>;
+  sharedDurationMs: SharedValue<number>;
+  sharedIsPlaying: SharedValue<boolean>;
+  /** Move the visual playhead NOW (scrub release) and ignore the engine's stale
+   *  "where I came from" reports until it lands there. */
+  setDisplayPositionMs: (ms: number) => void;
+};
+
 export type InlinePlayerControls = {
   getSnapshot: () => InlinePlayerSnapshot;
+  /** Stable for the provider's lifetime — safe to hand to leaf renderers. */
+  clock: InlinePlayerClock;
   toggleInlinePlayback: (ideaId: string, clip: ClipVersion) => Promise<void>;
   beginInlineScrub: () => Promise<void>;
   endInlineScrub: (ms: number) => Promise<void>;

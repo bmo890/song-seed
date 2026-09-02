@@ -5,7 +5,13 @@ import { useNavigation } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
-import { getClipOverdubStemCount, getClipPlaybackDurationMs, hasClipPlaybackSource, isClipTitleAutoNamed } from "../../../domain/clipPresentation";
+import {
+  getClipOverdubStemCount,
+  getClipPlaybackDurationMs,
+  hasClipPlaybackSource,
+  isClipTitleAutoNamed,
+  isClipWaveformSynthetic,
+} from "../../../domain/clipPresentation";
 import { fmtCardDuration, formatClipCardTime, formatClipDate } from "../../../utils";
 import { type EvolutionListClipEntry, type TimelineClipEntry } from "../../../domain/clipGraph";
 import { type SongIdea, type ClipVersion, type CustomTagDefinition, type InlinePlayerControls } from "../../../types";
@@ -340,6 +346,7 @@ export const ClipCard = React.memo(function ClipCard({
         title={clip.title}
         titleIsAuto={titleIsAuto}
         waveformPeaks={clip.waveformPeaks ?? null}
+        waveformSynthetic={isClipWaveformSynthetic(clip)}
         trailing={
           <>
             <ClipCardPrimaryIndicator
@@ -416,6 +423,7 @@ export const ClipCard = React.memo(function ClipCard({
           inlineTotalMs > 0 ? Math.min(1, inlinePositionMs / inlineTotalMs) : 0
         }
         inlineElapsedLabel={fmtCardDuration(inlinePositionMs)}
+        inlineClock={inlinePlayer.clock}
         onInlineScrubStart={
           displayOnly
             ? undefined

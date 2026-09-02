@@ -9,6 +9,7 @@ import { getDateBucket, getDateBucketLabel } from "../../../domain/dateBuckets";
 import { useNavigation } from "@react-navigation/native";
 import { getIdeaCreatedAt, getIdeaUpdatedAt, type IdeaSortMetric } from "../../../domain/ideaSort";
 import { getHierarchyIconName } from "../../../domain/hierarchy";
+import { isClipWaveformSynthetic } from "../../../domain/clipPresentation";
 import { buildIdeaListItemMeta } from "../ideaListItemMeta";
 import type { IdeaListItemMeta } from "../types";
 
@@ -314,6 +315,7 @@ function IdeaListItemInner({
                             titleSemiBold={item.kind === "project"}
                             titleIsAuto={titleIsAuto}
                             waveformPeaks={playClip?.waveformPeaks ?? null}
+                            waveformSynthetic={playClip ? isClipWaveformSynthetic(playClip) : undefined}
                             searchNeedle={searchNeedle}
                             // Stage rides the title row (like PRIMARY on a clip) — the
                             // most-read line, so it lands without adding a surface.
@@ -351,6 +353,7 @@ function IdeaListItemInner({
                                 inlineTotalMs > 0 ? Math.min(1, inlinePositionMs / inlineTotalMs) : 0
                             }
                             inlineElapsedLabel={fmtCardDuration(inlinePositionMs)}
+                            inlineClock={inlinePlayer.clock}
                             onInlineScrubStart={() => {
                                 void inlinePlayer.beginInlineScrub();
                             }}

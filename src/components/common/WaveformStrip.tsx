@@ -1,10 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { PanResponder, View, type LayoutChangeEvent } from "react-native";
-import { Canvas, Path, Skia } from "@shopify/react-native-skia";
+import { Canvas, Group, Path, Rect, Skia } from "@shopify/react-native-skia";
+import { useDerivedValue, useSharedValue } from "react-native-reanimated";
 import { colors } from "../../design/tokens";
+import { computeStripBarAmps } from "../../domain/cardWaveform";
+import type { InlinePlayerClock } from "../../types";
 
-/** ≤ 36 sparse bars reads as "a waveform" at card scale without becoming noise. */
-const BAR_COUNT = 36;
+/** ≤ 56 hairline bars (~3.5pt pitch at card width) — enough to show the envelope's
+ *  phrases and pauses while still reading as texture, not a meter. */
+const BAR_COUNT = 56;
 /** Hairline bars — the strip is identity, not chrome. */
 const BAR_STROKE_WIDTH = 1.5;
 /** colors.textPrimary (#1b1c1a) at 0.20 opacity — quiet identity ink,
@@ -17,14 +21,21 @@ const MIN_BAR_HALF_HEIGHT = 0.75;
 const PLAYHEAD_STROKE_WIDTH = 1.5;
 /** Placeholder dots when no peaks exist yet (analysis pending / legacy clip). */
 const PLACEHOLDER_DOTS = Array.from({ length: 28 }, (_, index) => `wave-dot-${index}`);
+/** Sentinel for "no finger down" in the drag shared value. */
+const NOT_DRAGGING = -1;
 
 type WaveformStripProps = {
     peaks?: number[] | null;
+    /** True when `peaks` are synthetic (pending placeholder / past the analysis
+     *  cap). Synthetic peaks are drawn as-is — never contrast-stretched, or the
+     *  seeded jitter would become a convincing fake performance. */
+    synthetic?: boolean;
     height?: number;
     color?: string;
-    /** 0..1 — while set, bars left of the position tint terracotta and a thin
-     *  playhead line marks the position (the strip is the live inline player). */
-    progress?: number;
+    /** While set, the strip is the live inline player: bars left of the position
+     *  tint terracotta and a thin playhead marks it. Read on the UI thread — the
+     *  playhead glides at the engine's report rate with no React commit per tick. */
+    clock?: InlinePlayerClock;
     /** Drag-to-scrub commit: called on release with the final 0..1 fraction.
      *  When provided the strip becomes interactive (no pointer pass-through). */
     onScrub?: (fraction: number) => void;
@@ -42,23 +53,26 @@ type WaveformStripProps = {
  */
 export const WaveformStrip = React.memo(function WaveformStrip({
     peaks,
-    height = 14,
+    synthetic = false,
+    height = 18,
     color = DEFAULT_BAR_COLOR,
-    progress,
+    clock,
     onScrub,
     onScrubStart,
     onScrubCancel,
 }: WaveformStripProps) {
     const [width, setWidth] = useState(0);
-    /** Local drag position while the finger is down (and until the engine's
-     *  reported position catches up, so releasing never snaps back). */
-    const [dragFraction, setDragFraction] = useState<number | null>(null);
-    const [isCommitPending, setIsCommitPending] = useState(false);
+    // Mirrors `width` for the UI-thread playhead math.
+    const widthValue = useSharedValue(0);
+    // Finger position while dragging (0..1), NOT_DRAGGING otherwise. Written from the
+    // PanResponder on the JS thread; the playhead follows it without a render.
+    const dragFraction = useSharedValue(NOT_DRAGGING);
 
     const interactive = !!onScrub;
 
     const onLayout = (evt: LayoutChangeEvent) => {
         const nextWidth = evt.nativeEvent.layout.width;
+        widthValue.value = nextWidth;
         setWidth((prev) => (prev === nextWidth ? prev : nextWidth));
     };
 
@@ -66,14 +80,11 @@ export const WaveformStrip = React.memo(function WaveformStrip({
     const scrubRef = useRef({ width: 0, onScrub, onScrubStart, onScrubCancel });
     scrubRef.current = { width, onScrub, onScrubStart, onScrubCancel };
 
-    // Same commit-pending trick as MiniProgress: hold the drag position after
-    // release until the live position lands near it, then hand back to `progress`.
+    // A finger that is still down when the strip stops being the player must not
+    // leave the drag value parked.
     useEffect(() => {
-        if (dragFraction === null || !isCommitPending) return;
-        if (progress === undefined || Math.abs(progress - dragFraction) > 0.04) return;
-        setDragFraction(null);
-        setIsCommitPending(false);
-    }, [progress, dragFraction, isCommitPending]);
+        if (!interactive) dragFraction.value = NOT_DRAGGING;
+    }, [interactive, dragFraction]);
 
     const panResponder = useMemo(() => {
         const fractionAt = (locationX: number) => {
@@ -89,72 +100,92 @@ export const WaveformStrip = React.memo(function WaveformStrip({
             onPanResponderTerminationRequest: () => false,
             onShouldBlockNativeResponder: () => true,
             onPanResponderGrant: (evt) => {
-                setIsCommitPending(false);
                 scrubRef.current.onScrubStart?.();
-                setDragFraction(fractionAt(evt.nativeEvent.locationX));
+                dragFraction.value = fractionAt(evt.nativeEvent.locationX);
             },
             onPanResponderMove: (evt) => {
-                setDragFraction(fractionAt(evt.nativeEvent.locationX));
+                dragFraction.value = fractionAt(evt.nativeEvent.locationX);
             },
             onPanResponderRelease: (evt) => {
                 const fraction = fractionAt(evt.nativeEvent.locationX);
-                setDragFraction(fraction);
-                setIsCommitPending(true);
+                // The commit lands the shared clock on the release position
+                // synchronously (setDisplayPositionMs) — so handing the playhead
+                // back to the clock on the next line never snaps it backwards.
                 scrubRef.current.onScrub?.(fraction);
+                dragFraction.value = NOT_DRAGGING;
             },
             onPanResponderTerminate: () => {
-                setDragFraction(null);
-                setIsCommitPending(false);
+                dragFraction.value = NOT_DRAGGING;
                 scrubRef.current.onScrubCancel?.();
             },
         });
-    }, []);
+    }, [dragFraction]);
 
     const hasPeaks = !!peaks && peaks.length > 0;
-    const displayFraction = dragFraction ?? progress;
 
-    // Stroked paths of vertical ticks — same mechanism as the app's other Skia
-    // waveforms (MinimapVisualizer), downsampled by max-per-bucket. Bars start
-    // at the strip's left edge so the first tick shares the title's start x.
-    const { basePath, playedPath } = useMemo(() => {
-        if (!hasPeaks || !peaks || width <= 0) return { basePath: null, playedPath: null };
-        const numBars = Math.min(BAR_COUNT, peaks.length);
+    // Bar amplitudes — see computeStripBarAmps for the per-clip contrast stretch.
+    // Independent of width so a re-layout doesn't re-bucket.
+    const barAmps = useMemo(
+        () => (hasPeaks && peaks ? computeStripBarAmps(peaks, BAR_COUNT, synthetic) : null),
+        [hasPeaks, peaks, synthetic]
+    );
+
+    // One stroked path of vertical ticks (same mechanism as the app's other Skia
+    // waveforms). Bars start at the strip's left edge so the first tick shares the
+    // title's start x. The played tint is the SAME path under a clip, not a second
+    // path split at the playhead — so playback never rebuilds geometry.
+    const barsPath = useMemo(() => {
+        if (!barAmps || width <= 0) return null;
+        const numBars = barAmps.length;
         const step = width / numBars;
-        const peaksPerBar = peaks.length / numBars;
         const centerY = height / 2;
         const maxHalfHeight = height / 2 - 1;
-        const base = Skia.Path.Make();
-        const played = Skia.Path.Make();
-        const progressX = displayFraction !== undefined ? displayFraction * width : null;
+        const path = Skia.Path.Make();
         for (let i = 0; i < numBars; i++) {
-            const startIdx = Math.floor(i * peaksPerBar);
-            const endIdx = Math.min(Math.floor((i + 1) * peaksPerBar), peaks.length);
-            let maxAmp = 0;
-            for (let j = startIdx; j < endIdx; j++) {
-                if (peaks[j] > maxAmp) maxAmp = peaks[j];
-            }
-            const amp = Math.max(0, Math.min(1, maxAmp));
-            const halfHeight = Math.max(MIN_BAR_HALF_HEIGHT, amp * maxHalfHeight);
+            const halfHeight = Math.max(MIN_BAR_HALF_HEIGHT, barAmps[i] * maxHalfHeight);
             // Left-aligned pitch: first bar hugs the left edge (title start x).
             const x = i * step + BAR_STROKE_WIDTH / 2;
-            const target = progressX !== null && x <= progressX ? played : base;
-            target.moveTo(x, centerY - halfHeight);
-            target.lineTo(x, centerY + halfHeight);
+            path.moveTo(x, centerY - halfHeight);
+            path.lineTo(x, centerY + halfHeight);
         }
-        return { basePath: base, playedPath: played };
-    }, [hasPeaks, peaks, width, height, displayFraction]);
+        return path;
+    }, [barAmps, width, height]);
 
-    const playheadPath = useMemo(() => {
-        if (displayFraction === undefined || width <= 0) return null;
-        const x = Math.max(
-            PLAYHEAD_STROKE_WIDTH / 2,
-            Math.min(width - PLAYHEAD_STROKE_WIDTH / 2, displayFraction * width)
-        );
-        const line = Skia.Path.Make();
-        line.moveTo(x, 0);
-        line.lineTo(x, height);
-        return line;
-    }, [displayFraction, width, height]);
+    // ── UI-thread playhead ────────────────────────────────────────────────────
+    // Hooks must run unconditionally, so a resting strip reads inert fallbacks.
+    const idlePosition = useSharedValue(0);
+    const idleDuration = useSharedValue(0);
+    const positionMs = clock?.sharedPositionMs ?? idlePosition;
+    const durationMs = clock?.sharedDurationMs ?? idleDuration;
+    const live = !!clock;
+
+    /** Playhead x in strip pixels, or -1 when there is nothing to draw. */
+    const headX = useDerivedValue(() => {
+        if (!live) return -1;
+        const w = widthValue.value;
+        if (w <= 0) return -1;
+        const drag = dragFraction.value;
+        let fraction: number;
+        if (drag >= 0) {
+            fraction = drag;
+        } else {
+            const duration = durationMs.value;
+            if (duration <= 0) return -1;
+            fraction = Math.max(0, Math.min(1, positionMs.value / duration));
+        }
+        return fraction * w;
+    }, [live]);
+
+    const playedClip = useDerivedValue(
+        () => Skia.XYWHRect(0, 0, Math.max(0, headX.value), height),
+        [height]
+    );
+    const playheadX = useDerivedValue(() => {
+        const w = widthValue.value;
+        const x = headX.value;
+        if (x < 0) return -PLAYHEAD_STROKE_WIDTH * 2; // parked off-canvas
+        return Math.max(0, Math.min(w - PLAYHEAD_STROKE_WIDTH, x - PLAYHEAD_STROKE_WIDTH / 2));
+    });
 
     return (
         <View
@@ -165,32 +196,34 @@ export const WaveformStrip = React.memo(function WaveformStrip({
             hitSlop={interactive ? { top: 10, bottom: 10 } : undefined}
             {...(interactive ? panResponder.panHandlers : null)}
         >
-            {hasPeaks && basePath != null ? (
+            {hasPeaks && barsPath != null ? (
                 <Canvas style={{ width: "100%", height }}>
                     <Path
-                        path={basePath}
+                        path={barsPath}
                         color={color}
                         style="stroke"
                         strokeWidth={BAR_STROKE_WIDTH}
                         strokeCap="round"
                     />
-                    {playedPath != null && displayFraction !== undefined ? (
-                        <Path
-                            path={playedPath}
-                            color={colors.primary}
-                            style="stroke"
-                            strokeWidth={BAR_STROKE_WIDTH}
-                            strokeCap="round"
-                        />
-                    ) : null}
-                    {playheadPath != null ? (
-                        <Path
-                            path={playheadPath}
-                            color={colors.playhead}
-                            style="stroke"
-                            strokeWidth={PLAYHEAD_STROKE_WIDTH}
-                            strokeCap="butt"
-                        />
+                    {live ? (
+                        <>
+                            <Group clip={playedClip}>
+                                <Path
+                                    path={barsPath}
+                                    color={colors.primary}
+                                    style="stroke"
+                                    strokeWidth={BAR_STROKE_WIDTH}
+                                    strokeCap="round"
+                                />
+                            </Group>
+                            <Rect
+                                x={playheadX}
+                                y={0}
+                                width={PLAYHEAD_STROKE_WIDTH}
+                                height={height}
+                                color={colors.playhead}
+                            />
+                        </>
                     ) : null}
                 </Canvas>
             ) : (

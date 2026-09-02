@@ -64,6 +64,9 @@ export function FullPlayerProvider({ children }: { children: React.ReactNode }) 
 
     return {
       getSnapshot: snapshot,
+      // Shared values — one object for the provider's lifetime, so capturing it
+      // here (deps: []) is exact, not stale.
+      clock: mini.inlineClock,
       toggleInlinePlayback: async (...args: Parameters<MiniPlayerValue["toggleInlinePlayback"]>) => {
         await miniRef.current?.toggleInlinePlayback(...args);
       },

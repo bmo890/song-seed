@@ -9,6 +9,7 @@ import { WaveformStrip } from "./WaveformStrip";
 import { ScrubBar } from "./ScrubBar";
 import { IconButton } from "./IconButton";
 import { UserText } from "../../i18n";
+import type { InlinePlayerClock } from "../../types";
 
 /** Renders title text with optional search-needle highlighting */
 function HighlightedText({
@@ -140,6 +141,9 @@ export type IdeaCardProps = {
      *  a control). Pass null to show the aligned placeholder while peaks are
      *  pending; omit entirely to render no strip. Skipped in compact/denseRow. */
     waveformPeaks?: number[] | null;
+    /** True when `waveformPeaks` are synthetic (placeholder / past the analysis
+     *  cap): the strip then draws them as-is instead of stretching their contrast. */
+    waveformSynthetic?: boolean;
     /** Contextual tags shown below title (search match badges) */
     searchTagsContent?: ReactNode;
     /** Search match: the matched line (windowed). When set, the comfortable card
@@ -170,8 +174,12 @@ export type IdeaCardProps = {
     // inlineActive AND onInlineScrub is provided, the waveform strip itself is
     // the player (progress tint + drag-to-scrub) and the footer position shows
     // a compact control row: elapsed time left · ✕ close right. Nothing else.
-    /** Live inline position as a 0..1 fraction of the clip. */
+    /** Live inline position as a 0..1 fraction of the clip — the once-per-second
+     *  React value. Drives the dense row's scrub line only; the full card's strip
+     *  reads `inlineClock` on the UI thread instead. */
     inlineProgress?: number;
+    /** Engine-fed shared clock for the strip's playhead + played tint. */
+    inlineClock?: InlinePlayerClock;
     /** Elapsed-time caption for the compact inline control row ("0:12"). */
     inlineElapsedLabel?: string;
     /** Scrub commit — final fraction on drag release. */
@@ -223,6 +231,7 @@ export function IdeaCard({
     searchNeedle,
     trailing,
     waveformPeaks,
+    waveformSynthetic,
     searchTagsContent,
     matchSnippet,
     matchField,
@@ -232,6 +241,7 @@ export function IdeaCard({
     footerRightContent,
     footerContent,
     inlineProgress,
+    inlineClock,
     inlineElapsedLabel,
     onInlineScrub,
     onInlineScrubStart,
@@ -496,11 +506,8 @@ export function IdeaCard({
                                     <View style={styles.ideaCardStripFlex}>
                                         <WaveformStrip
                                             peaks={waveformPeaks}
-                                            progress={
-                                                inlineActive && inlineProgress != null
-                                                    ? Math.max(0, Math.min(1, inlineProgress))
-                                                    : undefined
-                                            }
+                                            synthetic={waveformSynthetic}
+                                            clock={stripIsInlinePlayer ? inlineClock : undefined}
                                             onScrub={stripIsInlinePlayer ? onInlineScrub : undefined}
                                             onScrubStart={stripIsInlinePlayer ? onInlineScrubStart : undefined}
                                             onScrubCancel={stripIsInlinePlayer ? onInlineScrubCancel : undefined}

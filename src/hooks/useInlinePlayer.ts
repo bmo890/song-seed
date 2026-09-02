@@ -1,8 +1,10 @@
 import { useAudioPlayer } from "expo-audio";
 import { useThrottledAudioPlayerStatus } from "./useThrottledAudioPlayerStatus";
+import { useTransportClock } from "./useTransportClock";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ClipVersion, InlineTarget } from "../types";
+import { ClipVersion, InlinePlayerClock, InlineTarget } from "../types";
 import { getClipPlaybackUri } from "../domain/clipPresentation";
+import { createTransportPositionChannel } from "../domain/transportPosition";
 import { activateAndPlay, replacePlaybackSource } from "../services/transportPlayback";
 import { getLockScreenArtworkUrl } from "../services/lockScreenArtwork";
 import { buildClipLockScreenMetadata } from "../services/lockScreenMetadata";
@@ -53,16 +55,51 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
 
   const playerOptions = useMemo(() => ({ updateInterval: 100, keepAudioSessionActive: true }), []);
   const player = useAudioPlayer(null, playerOptions);
-  // Throttled: state transitions (incl. playbackState, which gates source switches)
-  // commit immediately; pure position ticks at ~5Hz instead of 10Hz. The whole app
-  // re-renders under the root provider on these commits, so cadence matters.
-  const { status } = useThrottledAudioPlayerStatus(player, { positionIntervalMs: 200 });
+  // Position for the VISUAL playhead travels engine → channel → shared value with no
+  // render in between (the same path the reel uses). React only commits on transitions
+  // and once per displayed second — the whole app re-renders under the root provider
+  // on these commits, so cadence matters.
+  const positionChannel = useMemo(createTransportPositionChannel, []);
+  const { status } = useThrottledAudioPlayerStatus(player, {
+    positionIntervalMs: 200,
+    onRawStatus: (raw) => {
+      // While a source switch is held the engine still reports the OUTGOING clip's
+      // position; publish the reset (0) the React override shows, not that.
+      const held = sourceSwitchHoldRef.current !== null;
+      positionChannel.publish({
+        positionMs: held ? 0 : Math.round((raw.currentTime ?? 0) * 1000),
+        isPlaying: !!raw.playing && !raw.didJustFinish,
+        playbackRate: 1,
+      });
+    },
+  });
   const rawInlinePosition = Math.round((status.currentTime ?? 0) * 1000);
   const rawInlineDuration = Math.round((status.duration ?? 0) * 1000);
   const inlinePosition = inlinePositionOverrideMs ?? rawInlinePosition;
   const inlineDuration = inlineDurationOverrideMs ?? rawInlineDuration;
   const nativeInlinePlaying = !!status.playing && !status.didJustFinish;
   const isInlinePlaying = inlinePlayingOverride ?? nativeInlinePlaying;
+
+  const transportClock = useTransportClock({
+    positionMs: inlinePosition,
+    durationMs: inlineDuration,
+    isPlaying: isInlinePlaying,
+    playbackRate: 1,
+    // A new target parks the visual playhead at 0 and holds off the outgoing clip's
+    // stale reports while the source settles.
+    resetKey: inlineTarget ? `${inlineTarget.ideaId}:${inlineTarget.clipId}` : null,
+    positionChannel,
+    channelDriven: true,
+  });
+  const inlineClock = useMemo<InlinePlayerClock>(
+    () => ({
+      sharedPositionMs: transportClock.sharedCurrentTimeMs,
+      sharedDurationMs: transportClock.sharedDurationMs,
+      sharedIsPlaying: transportClock.sharedIsPlaying,
+      setDisplayPositionMs: transportClock.setDisplayPositionMs,
+    }),
+    [transportClock]
+  );
 
   // Latest player-load state, read by the source-switch timeout below (whose
   // closure would otherwise capture stale values when it fires).
@@ -412,6 +449,9 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
   async function beginInlineScrub() {}
 
   async function endInlineScrub(ms: number) {
+    // Land the visual playhead on release, before the engine gets there — and veto
+    // the reports that still read as the position we came from.
+    transportClock.setDisplayPositionMs(ms);
     await seekInline(ms);
   }
 
@@ -433,6 +473,7 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
     inlinePosition,
     inlineDuration,
     isInlinePlaying,
+    inlineClock,
     toggleInlinePlayback,
     beginInlineScrub,
     endInlineScrub,

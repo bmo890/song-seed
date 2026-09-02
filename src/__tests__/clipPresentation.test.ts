@@ -2,6 +2,7 @@ import {
   getClipPlaybackWaveformPeaksOrFallback,
   getClipReelWaveformPeaks,
   isClipWaveformPending,
+  isClipWaveformSynthetic,
 } from "../domain/clipPresentation";
 import type { ClipVersion } from "../types";
 
@@ -130,5 +131,27 @@ describe("isClipWaveformPending", () => {
       } as unknown as ClipVersion["overdub"],
     });
     expect(isClipWaveformPending(clip)).toBe(false);
+  });
+});
+
+describe("isClipWaveformSynthetic", () => {
+  const realPeaks = Array.from({ length: 256 }, (_, i) => (i % 7) / 10);
+
+  it("real full-resolution peaks are the shape of the audio", () => {
+    expect(isClipWaveformSynthetic(buildClip({ waveformPeaks: realPeaks }))).toBe(false);
+  });
+
+  it("a sub-resolution import placeholder is synthetic", () => {
+    expect(isClipWaveformSynthetic(buildClip({ waveformPeaks: realPeaks.slice(0, 128) }))).toBe(true);
+  });
+
+  it("no peaks at all is synthetic (the card draws the aligned placeholder)", () => {
+    expect(isClipWaveformSynthetic(buildClip())).toBe(true);
+  });
+
+  it("a clip past the analysis cap is synthetic even at full resolution — settled, but still not the audio's shape", () => {
+    expect(
+      isClipWaveformSynthetic(buildClip({ waveformPeaks: realPeaks, detailedWaveformUnavailable: true }))
+    ).toBe(true);
   });
 });

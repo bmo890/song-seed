@@ -132,6 +132,20 @@ export function isClipWaveformPending(clip: ClipVersion): boolean {
   return true;
 }
 
+/**
+ * Are the peaks any renderer gets back for this clip SYNTHETIC — a pending
+ * placeholder or the permanent stylized wave of a clip past the analysis cap?
+ * Broader than isClipWaveformPending: it answers "is this the shape of the
+ * audio?", not "will it change?". Surfaces that amplify a waveform's contrast
+ * (the card strip) must skip synthetic peaks, or seeded jitter would be stretched
+ * into a convincing fake performance.
+ */
+export function isClipWaveformSynthetic(clip: ClipVersion): boolean {
+  const storedPeaks = getClipPlaybackWaveformPeaks(clip);
+  const hasRealPeaks = (storedPeaks?.length ?? 0) >= REAL_WAVEFORM_MIN_PEAK_COUNT;
+  return !hasRealPeaks || !!clip.detailedWaveformUnavailable;
+}
+
 export function getClipOverdubStemCount(clip: ClipVersion): number {
   return clip.overdub?.stems.length ?? 0;
 }
