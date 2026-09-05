@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Animated, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -6,8 +6,10 @@ import { ScreenHeader } from "../../common/ScreenHeader";
 import { HelpButton } from "../../common/HelpButton";
 import { HelpSheet } from "../../common/HelpSheet";
 import { METRONOME_HELP } from "../../common/helpContent";
+import { AnimatedCollapse } from "../../common/AnimatedCollapse";
 import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
+import { durations } from "../../../design/motion";
 import { METRONOME_METER_PRESETS, getTempoMarking } from "../../../domain/metronome";
 import {
   CueLevels,
@@ -15,6 +17,7 @@ import {
   GroupingChips,
   MeterChips,
   SubdivisionControl,
+  SUBDIVISION_LABEL_KEYS,
   TempoBlock,
   ms,
 } from "../../common/metronome/MetronomeBlocks";
@@ -22,6 +25,141 @@ import { MetronomeBeatBar } from "../../common/metronome/MetronomeBeatBar";
 import { styles as s } from "../styles";
 import { useMetronomeScreenModel } from "../hooks/useMetronomeScreenModel";
 import { useTranslation } from "react-i18next";
+
+/**
+ * A section that can be folded away once its choice is made. The chevron is the
+ * whole affordance — the header row is the target, so no button competes with
+ * the page's one primary action. The current value stays on the row while
+ * collapsed, so folding hides the controls, never the state.
+ */
+function SectionDisclosure({
+  label,
+  value,
+  expanded,
+  onToggle,
+}: {
+  label: string;
+  value?: string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <Pressable
+      style={ms.quietRow}
+      onPress={() => {
+        // Haptics vocabulary: `tap` — "accordion open/close".
+        haptic.tap();
+        onToggle();
+      }}
+      accessibilityRole="button"
+      accessibilityState={{ expanded }}
+      accessibilityLabel={label}
+    >
+      <Text style={ms.quietLabel}>{label}</Text>
+      <View style={s.disclosureRight}>
+        {value ? (
+          <View style={ms.valuePill}>
+            <Text style={ms.valueText}>{value}</Text>
+          </View>
+        ) : null}
+        <Ionicons
+          name={expanded ? "chevron-up" : "chevron-down"}
+          size={16}
+          color={colors.textMuted}
+        />
+      </View>
+    </Pressable>
+  );
+}
+
+/**
+ * Start / Stop. The label and the fill used to swap in the same instant — three
+ * words of different widths over an inverting background — which read as a
+ * flicker rather than a state change. Both now crossfade (fade only, per the
+ * motion vocabulary), and the word is held until its fade-out completes so the
+ * text never changes while it is fully visible.
+ */
+function TransportButton({
+  isRunning,
+  label,
+  disabled,
+  accessibilityLabel,
+  onPress,
+}: {
+  isRunning: boolean;
+  label: string;
+  disabled: boolean;
+  accessibilityLabel: string;
+  onPress: () => void;
+}) {
+  const fill = useRef(new Animated.Value(isRunning ? 1 : 0)).current;
+  const labelOpacity = useRef(new Animated.Value(1)).current;
+  const [shownLabel, setShownLabel] = useState(label);
+
+  useEffect(() => {
+    Animated.timing(fill, {
+      toValue: isRunning ? 1 : 0,
+      duration: durations.base,
+      // Colour interpolation is not natively drivable.
+      useNativeDriver: false,
+    }).start();
+  }, [isRunning, fill]);
+
+  useEffect(() => {
+    if (label === shownLabel) return;
+    Animated.timing(labelOpacity, {
+      toValue: 0,
+      duration: durations.fast,
+      useNativeDriver: false,
+    }).start(({ finished }) => {
+      if (!finished) return;
+      setShownLabel(label);
+      Animated.timing(labelOpacity, {
+        toValue: 1,
+        duration: durations.fast,
+        useNativeDriver: false,
+      }).start();
+    });
+  }, [label, shownLabel, labelOpacity]);
+
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      style={({ pressed }) => [pressed ? ms.pressed : null]}
+    >
+      <Animated.View
+        style={[
+          s.primaryAction,
+          disabled ? s.primaryActionDisabled : null,
+          {
+            backgroundColor: fill.interpolate({
+              inputRange: [0, 1],
+              outputRange: [colors.primaryDeep, colors.surfaceContainer],
+            }),
+          },
+        ]}
+      >
+        <Animated.Text
+          style={[
+            s.primaryActionText,
+            {
+              opacity: labelOpacity,
+              color: fill.interpolate({
+                inputRange: [0, 1],
+                outputRange: [colors.onPrimary, colors.primaryDeep],
+              }),
+            },
+          ]}
+        >
+          {shownLabel}
+        </Animated.Text>
+      </Animated.View>
+    </Pressable>
+  );
+}
 
 /**
  * Standalone metronome — the in-recorder sheet's control vocabulary on a full
@@ -33,6 +171,10 @@ export function MetronomeScreenContent() {
   const { t } = useTranslation();
   const model = useMetronomeScreenModel();
   const [helpVisible, setHelpVisible] = useState(false);
+  // Both open by default: the page reads exactly as before until the user folds
+  // something away. Session-local — a metronome is set and left, not configured.
+  const [subdivisionOpen, setSubdivisionOpen] = useState(true);
+  const [meterOpen, setMeterOpen] = useState(true);
   const isRunning = model.isRunning;
   const beatBarActive = isRunning && model.outputs.visual;
   const meterLabel =
@@ -90,25 +232,22 @@ export function MetronomeScreenContent() {
             variant="hero"
           />
 
-          <Pressable
-            style={({ pressed }) => [
-              s.primaryAction,
-              isRunning ? s.primaryActionStop : null,
-              model.isPreparing || !model.isNativeAvailable ? s.primaryActionDisabled : null,
-              pressed ? ms.pressed : null,
-            ]}
+          <TransportButton
+            isRunning={isRunning}
+            label={
+              model.isPreparing
+                ? t("metronome.preparing")
+                : isRunning
+                  ? t("metronome.stop")
+                  : t("metronome.start")
+            }
+            disabled={model.isPreparing || !model.isNativeAvailable}
+            accessibilityLabel={isRunning ? t("metronome.stopA11y") : t("metronome.startA11y")}
             onPress={() => {
               haptic.tap();
               model.toggleRunning();
             }}
-            disabled={model.isPreparing || !model.isNativeAvailable}
-            accessibilityRole="button"
-            accessibilityLabel={isRunning ? t("metronome.stopA11y") : t("metronome.startA11y")}
-          >
-            <Text style={[s.primaryActionText, isRunning ? s.primaryActionTextStop : null]}>
-              {model.isPreparing ? t("metronome.preparing") : isRunning ? t("metronome.stop") : t("metronome.start")}
-            </Text>
-          </Pressable>
+          />
 
           {statusLabel ? <Text style={s.statusLabel}>{statusLabel}</Text> : null}
         </View>
@@ -123,26 +262,44 @@ export function MetronomeScreenContent() {
             onSetBpmValue={model.setBpmValue}
             onTapTempo={model.tapTempo}
           />
-          {model.supportsClickStyle ? (
-            <SubdivisionControl value={model.subdivision} onChange={model.setSubdivisionValue} />
-          ) : null}
         </View>
 
-        {/* Meter — sheet's quiet row, chips promoted to always-visible (a page has room) */}
-        <View style={[ms.divider, s.sectionGap]}>
-          <View style={ms.quietRow}>
-            <Text style={ms.quietLabel}>{t("metronome.meter")}</Text>
-            <View style={ms.valuePill}>
-              <Text style={ms.valueText}>{meterLabel}</Text>
-            </View>
+        {/* Subdivision — foldable once chosen; the row keeps showing which one. */}
+        {model.supportsClickStyle ? (
+          <View style={[ms.divider, s.sectionGap]}>
+            <SectionDisclosure
+              label={t("metronome.subdivision")}
+              value={t(SUBDIVISION_LABEL_KEYS[model.subdivision])}
+              expanded={subdivisionOpen}
+              onToggle={() => setSubdivisionOpen((open) => !open)}
+            />
+            <AnimatedCollapse visible={subdivisionOpen}>
+              <SubdivisionControl
+                hideLabel
+                value={model.subdivision}
+                onChange={model.setSubdivisionValue}
+              />
+            </AnimatedCollapse>
           </View>
-          <MeterChips meterId={model.meterId} onSelectMeter={model.setMeterIdValue} />
-          {/* How the bar is felt — only shown when the meter offers a choice. */}
-          <GroupingChips
-            meterId={model.meterId}
-            grouping={model.grouping}
-            onSelectGrouping={model.setGrouping}
+        ) : null}
+
+        {/* Meter — same disclosure; the value pill carries the choice when folded. */}
+        <View style={[ms.divider, s.sectionGap]}>
+          <SectionDisclosure
+            label={t("metronome.meter")}
+            value={meterLabel}
+            expanded={meterOpen}
+            onToggle={() => setMeterOpen((open) => !open)}
           />
+          <AnimatedCollapse visible={meterOpen}>
+            <MeterChips meterId={model.meterId} onSelectMeter={model.setMeterIdValue} />
+            {/* How the bar is felt — only shown when the meter offers a choice. */}
+            <GroupingChips
+              meterId={model.meterId}
+              grouping={model.grouping}
+              onSelectGrouping={model.setGrouping}
+            />
+          </AnimatedCollapse>
         </View>
 
         {/* Cues — shared tiles + conditional level controls */}

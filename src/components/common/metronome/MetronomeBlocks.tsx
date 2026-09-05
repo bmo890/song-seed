@@ -42,7 +42,8 @@ export const HAPTIC_STRENGTH_PRESETS: { id: HapticStrengthId; level: number }[] 
 /** Meter chips sit four to a row: the simple meters, then the compound and odd ones. */
 const METER_CHIPS_PER_ROW = 4;
 
-const SUBDIVISION_LABEL_KEYS: Record<MetronomeSubdivision, string> = {
+/** Exported so a collapsed disclosure can show the current choice as its value. */
+export const SUBDIVISION_LABEL_KEYS: Record<MetronomeSubdivision, string> = {
   1: "metronome.beat",
   2: "metronome.halves",
   3: "metronome.thirds",
@@ -186,15 +187,19 @@ export function SubdivisionControl({
   value,
   disabled,
   onChange,
+  /** The standalone page gives this its own disclosure header, which already
+   *  names the section — a second label would just repeat it. */
+  hideLabel = false,
 }: {
   value: MetronomeSubdivision;
   disabled?: boolean;
   onChange: (value: MetronomeSubdivision) => void;
+  hideLabel?: boolean;
 }) {
   const { t } = useTranslation();
   return (
     <View style={disabled ? ms.dimmed : null} pointerEvents={disabled ? "none" : "auto"}>
-      <Text style={ms.subLabel}>{t("metronome.subdivision")}</Text>
+      {hideLabel ? null : <Text style={ms.subLabel}>{t("metronome.subdivision")}</Text>}
       <View style={ms.segmentWrap}>
         <SegmentedControl
           options={METRONOME_SUBDIVISION_OPTIONS.map((option) => ({

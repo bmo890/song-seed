@@ -85,8 +85,11 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.primaryDeep,
   },
-  primaryActionStop: {
-    backgroundColor: colors.surfaceContainer,
+  /** The disclosure chevron sits beside the value pill, not out at the edge. */
+  disclosureRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
   },
   primaryActionDisabled: {
     opacity: 0.45,
@@ -94,11 +97,7 @@ export const styles = StyleSheet.create({
   primaryActionText: {
     fontSize: 14,
     fontFamily: "PlusJakartaSans_700Bold",
-    color: colors.onPrimary,
     letterSpacing: 0.3,
-  },
-  primaryActionTextStop: {
-    color: colors.primaryDeep,
   },
   statusLabel: {
     marginTop: spacing.md,
