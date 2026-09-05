@@ -17,29 +17,558 @@ index 4af295f..e08847a 100644
  include_directories(
              ../cpp
 diff --git a/node_modules/react-native-pitchy/android/cpp-adapter.cpp b/node_modules/react-native-pitchy/android/cpp-adapter.cpp
-index 8af86ff..a24ea5c 100644
+index 8af86ff..b2b3b67 100644
 --- a/node_modules/react-native-pitchy/android/cpp-adapter.cpp
 +++ b/node_modules/react-native-pitchy/android/cpp-adapter.cpp
-@@ -13,7 +13,13 @@ Java_com_pitchy_PitchyModuleImpl_nativeAutoCorrelate(JNIEnv *env, jobject thiz,
-     // Convert jshortArray to std::vector<double>
+@@ -6,17 +6,30 @@
+ #include <numeric>
+ #include <limits>
+ 
+-extern "C" JNIEXPORT jdouble JNICALL
+-Java_com_pitchy_PitchyModuleImpl_nativeAutoCorrelate(JNIEnv *env, jobject thiz, jshortArray buffer, jint sampleRate, jdouble minVolume)
++// Returns [pitch, clarity, level]. pitch is -1 when nothing usable was found.
++extern "C" JNIEXPORT jdoubleArray JNICALL
++Java_com_pitchy_PitchyModuleImpl_nativeDetectPitch(JNIEnv *env, jobject thiz, jshortArray buffer, jint sampleRate, jdouble minVolume, jint analysisSize)
+ {
+-    // pitchy::autoCorrelate(const std::vector<double> &buf, double sampleRate, double minVolume)
+-    // Convert jshortArray to std::vector<double>
      jshort *buf = env->GetShortArrayElements(buffer, 0);
      jsize size = env->GetArrayLength(buffer);
 -    std::vector<double> vec(buf, buf + size);
-+    // Normalize 16-bit PCM to ±1.0 so the minVolume dBFS gate (and the 0.2 edge-trim
-+    // threshold in autoCorrelate) behave the same as iOS float buffers. Raw shorts
-+    // made the volume gate a no-op on Android.
+-    env->ReleaseShortArrayElements(buffer, buf, 0);
++    // Normalize 16-bit PCM to ±1.0 so the minVolume dBFS gate behaves the same as
++    // iOS float buffers.
 +    std::vector<double> vec(size);
 +    for (jsize i = 0; i < size; ++i) {
 +        vec[i] = buf[i] / 32768.0;
 +    }
-     env->ReleaseShortArrayElements(buffer, buf, 0);
++    env->ReleaseShortArrayElements(buffer, buf, JNI_ABORT);
  
-     // Call pitchy::autoCorrelate
+-    // Call pitchy::autoCorrelate
+-    double result = pitchy::autoCorrelate(vec, sampleRate, minVolume);
+-    return result;
++    pitchy::PitchResult result = pitchy::detectPitch(vec, sampleRate, minVolume, analysisSize);
++
++    jdouble values[3];
++    values[0] = result.pitch;
++    values[1] = result.clarity;
++    values[2] = std::isfinite(result.level) ? result.level : -160.0;
++
++    jdoubleArray out = env->NewDoubleArray(3);
++    if (out != nullptr) {
++        env->SetDoubleArrayRegion(out, 0, 3, values);
++    }
++    return out;
+ }
+diff --git a/node_modules/react-native-pitchy/android/src/main/java/com/pitchy/PitchyModuleImpl.kt b/node_modules/react-native-pitchy/android/src/main/java/com/pitchy/PitchyModuleImpl.kt
+index 2345928..ffc55c4 100644
+--- a/node_modules/react-native-pitchy/android/src/main/java/com/pitchy/PitchyModuleImpl.kt
++++ b/node_modules/react-native-pitchy/android/src/main/java/com/pitchy/PitchyModuleImpl.kt
+@@ -7,36 +7,45 @@ import com.facebook.react.bridge.Arguments
+ import com.facebook.react.bridge.WritableMap
+ import com.facebook.react.modules.core.DeviceEventManagerModule
+ 
+-import android.media.AudioRecord
++import android.content.Context
+ import android.media.AudioFormat
++import android.media.AudioManager
++import android.media.AudioRecord
+ import android.media.MediaRecorder
++import android.os.Build
++import android.os.Process
+ 
+ import kotlin.concurrent.thread
+ 
+ class PitchyModuleImpl(private val reactContext: ReactApplicationContext) {
+ 
+-  private var isRecording = false
++  @Volatile private var isRecording = false
+   private var isInitialized = false
+ 
+   private var audioRecord: AudioRecord? = null
+   private var recordingThread: Thread? = null
+ 
+-  private var sampleRate: Int = 44100
++  private val sampleRate: Int = 44100
+ 
+   private var minVolume: Double = 0.0
+-  private var bufferSize: Int = 0
++  /** Frames read per detection pass (the event cadence). */
++  private var hopSize: Int = DEFAULT_HOP_SIZE
+ 
+   fun configure(config: ReadableMap) {
+-    minVolume = config.getDouble("minVolume")
+-    bufferSize = config.getInt("bufferSize")
+-
+-    audioRecord = AudioRecord(MediaRecorder.AudioSource.MIC, sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufferSize)
+-
++    if (config.hasKey("minVolume")) {
++      minVolume = config.getDouble("minVolume")
++    }
++    if (config.hasKey("bufferSize")) {
++      hopSize = config.getInt("bufferSize").coerceIn(MIN_HOP_SIZE, ANALYSIS_WINDOW)
++    }
+     isInitialized = true
+   }
+ 
+   fun isRecording(promise: Promise) {
+-    promise.resolve(isRecording)
++    val record = audioRecord
++    promise.resolve(
++      isRecording && record != null && record.recordingState == AudioRecord.RECORDSTATE_RECORDING
++    )
+   }
+ 
+   fun start(promise: Promise) {
+@@ -50,8 +59,14 @@ class PitchyModuleImpl(private val reactContext: ReactApplicationContext) {
+       return
+     }
+ 
+-    startRecording()
+-    promise.resolve(true)
++    try {
++      startRecording()
++      promise.resolve(true)
++    } catch (error: Exception) {
++      releaseRecorder()
++      isRecording = false
++      promise.reject("E_START_FAILED", error.message ?: "Could not start audio capture", error)
++    }
+   }
+ 
+   fun stop(promise: Promise) {
+@@ -64,41 +79,131 @@ class PitchyModuleImpl(private val reactContext: ReactApplicationContext) {
+     promise.resolve(true)
+   }
+ 
++  private fun pickAudioSource(): Int {
++    // UNPROCESSED skips the platform's voice-call AGC/noise suppression when the
++    // device supports it — those chew up sustained instrument tones.
++    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
++      val manager = reactContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
++      val supported = manager?.getProperty(AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED)
++      if (supported == "true") {
++        return MediaRecorder.AudioSource.UNPROCESSED
++      }
++    }
++    return MediaRecorder.AudioSource.MIC
++  }
++
++  private fun createRecorder(): AudioRecord {
++    val minBytes = AudioRecord.getMinBufferSize(
++      sampleRate,
++      AudioFormat.CHANNEL_IN_MONO,
++      AudioFormat.ENCODING_PCM_16BIT
++    )
++    // AudioRecord sizes its buffer in BYTES; 16-bit mono is 2 bytes per frame. Keep
++    // several hops of headroom so a slow detection pass never drops audio.
++    val wantedBytes = hopSize * 2 * 4
++    val bufferBytes = maxOf(if (minBytes > 0) minBytes else 0, wantedBytes)
++
++    val record = AudioRecord(
++      pickAudioSource(),
++      sampleRate,
++      AudioFormat.CHANNEL_IN_MONO,
++      AudioFormat.ENCODING_PCM_16BIT,
++      bufferBytes
++    )
++    if (record.state != AudioRecord.STATE_INITIALIZED) {
++      record.release()
++      throw IllegalStateException("AudioRecord failed to initialize")
++    }
++    return record
++  }
++
++  private fun releaseRecorder() {
++    try {
++      audioRecord?.stop()
++    } catch (ignored: Exception) {
++    }
++    try {
++      audioRecord?.release()
++    } catch (ignored: Exception) {
++    }
++    audioRecord = null
++  }
++
+   private fun startRecording() {
+-    audioRecord?.startRecording()
++    releaseRecorder()
++    val record = createRecorder()
++    audioRecord = record
++    record.startRecording()
++    if (record.recordingState != AudioRecord.RECORDSTATE_RECORDING) {
++      throw IllegalStateException("AudioRecord did not start")
++    }
+     isRecording = true
+ 
+-    recordingThread = thread(start = true) {
+-      val buffer = ShortArray(bufferSize)
++    val hop = hopSize
++    recordingThread = thread(start = true, name = "pitchy-capture") {
++      Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
++      // Sliding analysis window: every hop we read `hop` new frames and analyse the
++      // most recent ANALYSIS_WINDOW frames, so the event cadence is short while low
++      // strings still get enough periods to resolve.
++      val window = ShortArray(ANALYSIS_WINDOW)
++      var filled = 0
++      val chunk = ShortArray(hop)
+       while (isRecording) {
+-        val read = audioRecord?.read(buffer, 0, bufferSize)
+-        if (read != null && read > 0) {
+-          detectPitch(buffer)
++        val current = audioRecord ?: break
++        val read = current.read(chunk, 0, hop)
++        if (read <= 0) {
++          if (!isRecording) break
++          // Recorder went away (route change, permission revoked): let JS restart us.
++          if (read == AudioRecord.ERROR_INVALID_OPERATION || read == AudioRecord.ERROR_DEAD_OBJECT) {
++            isRecording = false
++            break
++          }
++          continue
+         }
++        if (read >= ANALYSIS_WINDOW) {
++          System.arraycopy(chunk, read - ANALYSIS_WINDOW, window, 0, ANALYSIS_WINDOW)
++          filled = ANALYSIS_WINDOW
++        } else {
++          val keep = minOf(filled, ANALYSIS_WINDOW - read)
++          if (keep > 0) {
++            System.arraycopy(window, filled - keep, window, 0, keep)
++          }
++          System.arraycopy(chunk, 0, window, keep, read)
++          filled = keep + read
++        }
++        if (filled < hop) continue
++        detectPitch(window, filled)
+       }
+     }
+   }
+ 
+   private fun stopRecording() {
+     isRecording = false
+-    audioRecord?.stop()
+-    audioRecord?.release()
+-    audioRecord = null
+-    recordingThread?.interrupt()
++    releaseRecorder()
++    val worker = recordingThread
+     recordingThread = null
++    worker?.interrupt()
+   }
+ 
+-  private external fun nativeAutoCorrelate(buffer: ShortArray, sampleRate: Int, minVolume: Double): Double
++  private external fun nativeDetectPitch(buffer: ShortArray, sampleRate: Int, minVolume: Double, analysisSize: Int): DoubleArray
+ 
+-  private fun detectPitch(buffer: ShortArray) {
+-    val pitch = nativeAutoCorrelate(buffer, sampleRate, minVolume)
++  private fun detectPitch(window: ShortArray, filled: Int) {
++    val frames = if (filled >= window.size) window else window.copyOf(filled)
++    val result = nativeDetectPitch(frames, sampleRate, minVolume, ANALYSIS_WINDOW)
++    if (result.size < 3 || !reactContext.hasActiveReactInstance()) return
+     val params: WritableMap = Arguments.createMap()
+-    params.putDouble("pitch", pitch)
++    params.putDouble("pitch", result[0])
++    params.putDouble("clarity", result[1])
++    params.putDouble("level", result[2])
+     reactContext.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java).emit("onPitchDetected", params)
+   }
+ 
+   companion object {
+     const val NAME = "Pitchy"
++    /** Frames analysed per pass; resolves down to 5-string bass at 44.1 kHz. */
++    const val ANALYSIS_WINDOW = 4096
++    const val DEFAULT_HOP_SIZE = 2048
++    const val MIN_HOP_SIZE = 512
+     init {
+       System.loadLibrary("react-native-pitchy")
+     }
+diff --git a/node_modules/react-native-pitchy/cpp/react-native-pitchy.cpp b/node_modules/react-native-pitchy/cpp/react-native-pitchy.cpp
+index 6500faf..a5848cb 100644
+--- a/node_modules/react-native-pitchy/cpp/react-native-pitchy.cpp
++++ b/node_modules/react-native-pitchy/cpp/react-native-pitchy.cpp
+@@ -3,75 +3,181 @@
+ #include <vector>
+ #include <cmath>
+ #include <algorithm>
+-#include <numeric>
+ #include <limits>
+ 
+ namespace pitchy
+ {
+-	double getVolumeDecibel(double rms)
++	namespace
+ 	{
+-		return 20 * std::log10(rms);
++		// A candidate NSDF peak must reach this fraction of the tallest peak to be
++		// chosen; picking the FIRST such peak (shortest lag) is what suppresses
++		// octave-down errors while still rejecting spurious early bumps.
++		const double PEAK_PICK_RATIO = 0.90;
++
++		double toDecibel(double rms)
++		{
++			if (rms <= 0)
++				return -std::numeric_limits<double>::infinity();
++			return 20 * std::log10(rms);
++		}
++
++		PitchResult silent(double level)
++		{
++			PitchResult result;
++			result.pitch = -1;
++			result.clarity = 0;
++			result.level = level;
++			return result;
++		}
+ 	}
+ 
+-	double autoCorrelate(const std::vector<double> &buf, double sampleRate, double minVolume)
++	PitchResult detectPitch(const std::vector<double> &buf,
++	                        double sampleRate,
++	                        double minVolume,
++	                        int analysisSize,
++	                        double minFrequency,
++	                        double maxFrequency)
+ 	{
+-		int SIZE = buf.size();
+-		double rms = 0;
++		const int total = (int)buf.size();
++		if (total < 64 || sampleRate <= 0)
++			return silent(-std::numeric_limits<double>::infinity());
++
++		// Analyse the newest samples so the estimate trails the instrument as little
++		// as the delivered buffer allows.
++		const int size = std::min(total, std::max(analysisSize, 64));
++		const int offset = total - size;
+ 
+-		for (int i = 0; i < SIZE; ++i)
++		// Remove DC so a mic offset or slow rumble doesn't masquerade as a period.
++		double mean = 0;
++		for (int i = 0; i < size; ++i)
++			mean += buf[offset + i];
++		mean /= size;
++
++		std::vector<double> x(size);
++		double energy = 0;
++		for (int i = 0; i < size; ++i)
+ 		{
+-			double val = buf[i];
+-			rms += val * val;
++			const double v = buf[offset + i] - mean;
++			x[i] = v;
++			energy += v * v;
+ 		}
+-		rms = std::sqrt(rms / SIZE);
+-		double decibel = getVolumeDecibel(rms);
+-		if (decibel < minVolume)
+-			return -1;
+-
+-		int r1 = 0, r2 = SIZE - 1;
+-		double thres = 0.2;
+-		for (int i = 0; i < SIZE / 2; ++i)
+-			if (std::abs(buf[i]) < thres)
+-			{
+-				r1 = i;
++
++		const double rms = std::sqrt(energy / size);
++		const double level = toDecibel(rms);
++		if (!(level >= minVolume))
++			return silent(level);
++
++		// Prefix sums of x^2 give the NSDF denominator in O(1) per lag.
++		std::vector<double> cumulative(size + 1, 0.0);
++		for (int i = 0; i < size; ++i)
++			cumulative[i + 1] = cumulative[i] + x[i] * x[i];
++
++		int minLag = (int)std::floor(sampleRate / maxFrequency);
++		int maxLag = (int)std::ceil(sampleRate / minFrequency);
++		minLag = std::max(minLag, 2);
++		// Keep at least half the window overlapping so the correlation stays meaningful.
++		maxLag = std::min(maxLag, size / 2);
++		if (maxLag <= minLag + 2)
++			return silent(level);
++
++		// nsdf[tau] = 2 * r(tau) / m(tau)
++		std::vector<double> nsdf(maxLag + 2, 0.0);
++		for (int tau = minLag - 1; tau <= maxLag + 1; ++tau)
++		{
++			if (tau < 1 || tau >= size)
++				continue;
++			const int count = size - tau;
++			double acf = 0;
++			const double *a = x.data();
++			const double *b = x.data() + tau;
++			for (int j = 0; j < count; ++j)
++				acf += a[j] * b[j];
++			const double m = cumulative[count] + (cumulative[size] - cumulative[tau]);
++			nsdf[tau] = m > 0 ? (2.0 * acf) / m : 0.0;
++		}
++
++		// Key maxima: the highest point between each positive-going zero crossing
++		// and the following negative-going one.
++		struct Peak
++		{
++			int lag;
++			double value;
++		};
++		std::vector<Peak> peaks;
++		int tau = minLag;
++		// Skip the initial lobe around lag 0 if we are still inside it.
++		while (tau <= maxLag && nsdf[tau] > 0)
++			tau++;
++		while (tau <= maxLag)
++		{
++			while (tau <= maxLag && nsdf[tau] <= 0)
++				tau++;
++			if (tau > maxLag)
+ 				break;
+-			}
+-		for (int i = 1; i < SIZE / 2; ++i)
+-			if (std::abs(buf[SIZE - i]) < thres)
++			Peak best = {tau, nsdf[tau]};
++			while (tau <= maxLag && nsdf[tau] > 0)
+ 			{
+-				r2 = SIZE - i;
+-				break;
++				if (nsdf[tau] > best.value)
++					best = {tau, nsdf[tau]};
++				tau++;
+ 			}
++			peaks.push_back(best);
++		}
+ 
+-		std::vector<double> slicedBuf(buf.begin() + r1, buf.begin() + r2);
+-		SIZE = slicedBuf.size();
++		if (peaks.empty())
++			return silent(level);
+ 
+-		std::vector<double> c(SIZE, 0);
+-		for (int i = 0; i < SIZE; ++i)
+-			for (int j = 0; j < SIZE - i; ++j)
+-				c[i] += slicedBuf[j] * slicedBuf[j + i];
++		double tallest = 0;
++		for (const Peak &peak : peaks)
++			tallest = std::max(tallest, peak.value);
++		if (tallest <= 0)
++			return silent(level);
+ 
+-		int d = 0;
+-		while (c[d] > c[d + 1])
+-			d++;
+-		double maxval = -1, maxpos = -1;
+-		for (int i = d; i < SIZE; ++i)
++		const double threshold = tallest * PEAK_PICK_RATIO;
++		Peak chosen = peaks.front();
++		for (const Peak &peak : peaks)
+ 		{
+-			if (c[i] > maxval)
++			if (peak.value >= threshold)
+ 			{
+-				maxval = c[i];
+-				maxpos = i;
++				chosen = peak;
++				break;
+ 			}
+ 		}
+-		double T0 = maxpos;
+ 
+-		double x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1];
+-		double a = (x1 + x3 - 2 * x2) / 2;
+-		double b = (x3 - x1) / 2;
+-		if (a)
+-			T0 = T0 - b / (2 * a);
++		// Parabolic interpolation around the chosen lag for sub-sample precision.
++		double refinedLag = chosen.lag;
++		double clarity = chosen.value;
++		if (chosen.lag - 1 >= 1 && chosen.lag + 1 <= maxLag + 1)
++		{
++			const double y1 = nsdf[chosen.lag - 1];
++			const double y2 = nsdf[chosen.lag];
++			const double y3 = nsdf[chosen.lag + 1];
++			const double denominator = y1 - 2 * y2 + y3;
++			if (std::abs(denominator) > 1e-12)
++			{
++				const double shift = 0.5 * (y1 - y3) / denominator;
++				if (std::abs(shift) <= 1)
++				{
++					refinedLag = chosen.lag + shift;
++					clarity = y2 - 0.25 * (y1 - y3) * shift;
++				}
++			}
++		}
++
++		if (refinedLag <= 0)
++			return silent(level);
+ 
+-		return sampleRate / T0;
++		PitchResult result;
++		result.pitch = sampleRate / refinedLag;
++		result.clarity = std::min(1.0, std::max(0.0, clarity));
++		result.level = level;
++		if (!std::isfinite(result.pitch) || result.pitch < minFrequency || result.pitch > maxFrequency)
++			return silent(level);
++		return result;
+ 	}
+ 
++	double autoCorrelate(const std::vector<double> &buf, double sampleRate, double minVolume)
++	{
++		return detectPitch(buf, sampleRate, minVolume).pitch;
++	}
+ }
+diff --git a/node_modules/react-native-pitchy/cpp/react-native-pitchy.h b/node_modules/react-native-pitchy/cpp/react-native-pitchy.h
+index fd45398..a46e72f 100644
+--- a/node_modules/react-native-pitchy/cpp/react-native-pitchy.h
++++ b/node_modules/react-native-pitchy/cpp/react-native-pitchy.h
+@@ -5,6 +5,29 @@
+ 
+ namespace pitchy
+ {
++  struct PitchResult
++  {
++    /** Fundamental in Hz, or -1 when nothing usable was found. */
++    double pitch;
++    /** Normalized periodicity of the chosen peak, 0..1 (1 = perfectly periodic). */
++    double clarity;
++    /** Input level in dBFS (RMS of the analysed window). */
++    double level;
++  };
++
++  /**
++   * McLeod Pitch Method (normalized square difference) over the most recent
++   * `analysisSize` samples of `buf`. Returns pitch = -1 with clarity 0 when the
++   * window is below `minVolume` dBFS or contains no periodic peak.
++   */
++  PitchResult detectPitch(const std::vector<double> &buf,
++                          double sampleRate,
++                          double minVolume,
++                          int analysisSize = 4096,
++                          double minFrequency = 27.5,
++                          double maxFrequency = 2000.0);
++
++  /** Legacy entry point: pitch only, -1 when nothing usable was found. */
+   double autoCorrelate(const std::vector<double> &buf, double sampleRate, double minVolume);
+ }
+ 
 diff --git a/node_modules/react-native-pitchy/ios/Pitchy.mm b/node_modules/react-native-pitchy/ios/Pitchy.mm
-index be6062a..f9499c1 100644
+index be6062a..46e9e15 100644
 --- a/node_modules/react-native-pitchy/ios/Pitchy.mm
 +++ b/node_modules/react-native-pitchy/ios/Pitchy.mm
-@@ -33,23 +33,40 @@ - (void)stopObserving {
+@@ -1,6 +1,14 @@
+ #import "Pitchy.h"
+ #import <AVFoundation/AVFoundation.h>
+ #import <React/RCTLog.h>
++#include <cmath>
++#include <vector>
++
++// Newest samples of each delivered buffer that feed the detector. iOS taps
++// deliver ~100 ms (4410/4800 frames) regardless of the requested size; a 4096
++// window keeps low bass strings resolvable while trailing the instrument by
++// as little as the tap allows.
++static const int kAnalysisWindowFrames = 4096;
+ 
+ @implementation Pitchy {
+     AVAudioEngine *audioEngine;
+@@ -33,23 +41,43 @@ RCT_EXPORT_METHOD(removeListeners:(double)count) {
      // Required for RCTEventEmitter
  }
  
@@ -74,6 +603,9 @@ index be6062a..f9499c1 100644
 +}
 +
  RCT_EXPORT_METHOD(configure:(NSDictionary *)config) {
++    // Volume gate may be retuned on every configure, even after the tap exists.
++    minVolume = [config[@"minVolume"] doubleValue];
++
      if (!isInitialized) {
          @try {
 -            AVAudioSession *session = [AVAudioSession sharedInstance];
@@ -94,7 +626,48 @@ index be6062a..f9499c1 100644
                  return;
              }
  
-@@ -89,6 +106,8 @@ - (void)stopObserving {
+@@ -58,10 +86,17 @@ RCT_EXPORT_METHOD(configure:(NSDictionary *)config) {
+ 
+             AVAudioFormat *format = [inputNode inputFormatForBus:0];
+             sampleRate = format.sampleRate;
+-            minVolume = [config[@"minVolume"] doubleValue];
+ 
+-            [inputNode installTapOnBus:0 bufferSize:[config[@"bufferSize"] unsignedIntValue] format:format block:^(AVAudioPCMBuffer * _Nonnull buffer, AVAudioTime * _Nonnull when) {
+-                [self detectPitch:buffer];
++            // The tap honours a minimum of ~100 ms; asking for the analysis window
++            // keeps the request honest on platforms that do deliver smaller buffers.
++            AVAudioFrameCount requested = [config[@"bufferSize"] unsignedIntValue];
++            if (requested < (AVAudioFrameCount)kAnalysisWindowFrames) {
++                requested = kAnalysisWindowFrames;
++            }
++
++            __weak Pitchy *weakSelf = self;
++            [inputNode installTapOnBus:0 bufferSize:requested format:format block:^(AVAudioPCMBuffer * _Nonnull buffer, AVAudioTime * _Nonnull when) {
++                [weakSelf detectPitch:buffer];
+             }];
+ 
+             isInitialized = YES;
+@@ -73,7 +108,11 @@ RCT_EXPORT_METHOD(configure:(NSDictionary *)config) {
+ 
+ RCT_EXPORT_METHOD(isRecording:(RCTPromiseResolveBlock)resolve
+                   reject:(RCTPromiseRejectBlock)reject) {
+-    resolve([NSNumber numberWithBool:isRecording]);
++    // A route change or interruption can stop the engine underneath us; report
++    // what the engine is actually doing so JS can restart instead of waiting on
++    // a heartbeat timeout.
++    BOOL running = isRecording && audioEngine != nil && audioEngine.isRunning;
++    resolve([NSNumber numberWithBool:running]);
+ }
+ 
+ RCT_EXPORT_METHOD(start:(RCTPromiseResolveBlock)resolve
+@@ -83,21 +122,25 @@ RCT_EXPORT_METHOD(start:(RCTPromiseResolveBlock)resolve
+         return;
+     }
+ 
+-    if(isRecording){
++    if (isRecording && audioEngine.isRunning) {
+         reject(@"already_recording", @"Already recording", nil);
+         return;
      }
  
      @try {
@@ -103,14 +676,42 @@ index be6062a..f9499c1 100644
          NSError *error = nil;
          [audioEngine startAndReturnError:&error];
          if (error) {
-@@ -119,7 +138,9 @@ - (void)detectPitch:(AVAudioPCMBuffer *)buffer {
++            isRecording = NO;
+             reject(@"start_error", @"Failed to start audio engine", error);
+         } else {
+             isRecording = YES;
+             resolve(@(YES));
+         }
+     } @catch (NSException *exception) {
++        isRecording = NO;
+         reject(@"start_error", [NSString stringWithFormat:@"Failed to start: %@", exception.reason], nil);
+     }
+ }
+@@ -116,14 +159,23 @@ RCT_EXPORT_METHOD(stop:(RCTPromiseResolveBlock)resolve
+ }
+ 
+ - (void)detectPitch:(AVAudioPCMBuffer *)buffer {
++    if (!hasListeners || !isRecording || buffer.floatChannelData == NULL || buffer.frameLength == 0) {
++        return;
++    }
++
      float *channelData = buffer.floatChannelData[0];
      std::vector<double> buf(channelData, channelData + buffer.frameLength);
  
 -    double detectedPitch = pitchy::autoCorrelate(buf, sampleRate, minVolume);
 +    // Session reconfiguration can change the hardware sample rate after configure
 +    // cached it; trust the buffer's own format so pitches don't come out scaled.
-+    double detectedPitch = pitchy::autoCorrelate(buf, buffer.format.sampleRate, minVolume);
++    pitchy::PitchResult result = pitchy::detectPitch(buf, buffer.format.sampleRate, minVolume, kAnalysisWindowFrames);
  
-     if (hasListeners) {
-         [self sendEventWithName:@"onPitchDetected" body:@{@"pitch": @(detectedPitch)}];
+-    if (hasListeners) {
+-        [self sendEventWithName:@"onPitchDetected" body:@{@"pitch": @(detectedPitch)}];
+-    }
++    double level = std::isfinite(result.level) ? result.level : -160.0;
++    [self sendEventWithName:@"onPitchDetected" body:@{
++        @"pitch": @(result.pitch),
++        @"clarity": @(result.clarity),
++        @"level": @(level),
++    }];
+ }
+ 
+ #ifdef RCT_NEW_ARCH_ENABLED

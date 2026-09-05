@@ -94,6 +94,16 @@ export const colors = {
   /** Blush behind destructive chrome (danger buttons, "unavailable" pills). */
   dangerSurface: "#FBEFEC",
 
+  // Tuner meter — the one place the app speaks in three states. Muted, earthy
+  // relatives of the palette; every coloured element on the tuner screen
+  // (needle, cents box, status dot and label, arc) reads from these three.
+  /** Far off (more than 16 cents): muted earthy red. */
+  tuneFar:  "#A04545",
+  /** Almost there (5–16 cents): earthy amber. */
+  tuneNear: "#C07840",
+  /** In tune (within 5 cents): muted sage. */
+  tuneIn:   "#4A7C5E",
+
   // Technical lines (graph paper feel)
   borderSubtle: "#E8E4DF",
   borderMuted:  "#D7C2BD",
