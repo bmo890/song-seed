@@ -187,6 +187,15 @@ what you see can never disagree with what you hear.
 - **Customising is additive.** Picking the meter's default grouping stores
   nothing, so the presets keep their hand-tuned click weights; only a genuine
   override derives a new pattern.
+- **Subdivision is audio only (2026-09-05).** Halves / thirds / quarters render
+  quiet weak-voice sub-clicks between pulses in the native engines; the dots, the
+  haptic, the count-in math and a take's grid all stay on the beat. The same goes
+  for the click voice (click / wood). Both are user preferences on the metronome
+  store, never fields on `RecordingGrid`, and both controls are hidden on binaries
+  without `supportsClickStyle`.
+- **Eight meters, two rows of four** (2/4 3/4 4/4 5/4 · 6/8 7/8 9/8 12/8). Above
+  eight pulses the beat row switches to a dense dot tier so 12/8 fits a phone;
+  the three accent tiers keep their ratio.
 
 ### Direction policy — RTL (locked 2026-07-27)
 

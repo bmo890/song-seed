@@ -861,8 +861,9 @@ export function useRecordingScreenModel() {
         console.log(
           `[timing] take grid change: bar ${segment.atBar} → ${segment.bpm} · ${segment.meterId}`
         );
-        // Partial configure: both engines keep absent keys (volume, cues, latency)
-        // from the running config, so only the structure changes.
+        // Partial configure: both engines keep absent keys (volume, cues, latency,
+        // subdivision, click voice) from the running config, so only the structure
+        // changes — the take keeps the voice it started with.
         void SongNookMetronomeModule?.configure({
           bpm: segment.bpm,
           meterId: segment.meterId,
@@ -1312,7 +1313,10 @@ export function useRecordingScreenModel() {
     [recordingIdea, recordingOverdubClip, recordingParentClipId]
   );
   const restoredGridLabel = takeGridSourceClip?.recordingGrid
-    ? `Original take: ${takeGridSourceClip.recordingGrid.bpm} BPM · ${takeGridSourceClip.recordingGrid.meterId}`
+    ? t("recording.originalTake", {
+        bpm: takeGridSourceClip.recordingGrid.bpm,
+        meter: takeGridSourceClip.recordingGrid.meterId,
+      })
     : null;
 
   // The sketch's programmed tempo/meter changes — editable only for fresh takes into a

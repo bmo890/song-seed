@@ -5,6 +5,10 @@ the whole chain: programmed change → native map-engine count-in/record → hea
 trim → ruler; playback click runs the native map path across boundaries).
 Remaining: F (shared transport, rides the next audio-engine opening), plus the
 DEVICE listening tests and an Android build — see the checklist notes.
+**Feature pass 2026-09-05 (UNVERIFIED pending rebuild):** meters 2/4 · 7/8 · 9/8 ·
+12/8, count-in 4 bars fixed, native `subdivision` + `clickVoice` (probe
+`supportsClickStyle`), tempo marking, keep-awake on the standalone page, practice
+click haptic. See §0a items 5–6 for what the rebuild must confirm.
 Owner intent: turn the metronome from a well-engineered sibling feature into the
 app's musical timebase — DAW-trustworthy, grid-tied recording *and* playback,
 pre-programmable tempo/meter changes, bars on the reel.
@@ -37,6 +41,19 @@ and none of it blocks further code work.
    - click voice quality: per-click renderer (map mode) vs the loop buffer.
 4. Also riding this rebuild: waveform probe, lock-screen, tuner (older
    pending-rebuild items from other efforts).
+5. **Click style (2026-09-05, both engines, never compiled here)** — new
+   `subdivision` (1–4) and `clickVoice` ("click" | "wood") config keys, probe
+   `supportsClickStyle()`. Compile Kotlin + Swift, then listen: with Halves /
+   Thirds / Quarters the sub-clicks fall evenly BETWEEN beats and never move a
+   dot, a haptic, or the count-in; the wood voice sounds on both platforms, in
+   loop mode AND along a programmed-changes take (map mode); a rest pulse in the
+   Bluetooth calibration pattern still stays silent (calibration pins the stock
+   click, one per beat). Record a count-in take with Quarters on and confirm the
+   `[timing] head trim` log is unchanged versus Beat — sub-clicks are pure PCM.
+6. **Practice click haptic** — enable Haptic under the Click tile, play a
+   metronome take on speaker and over Bluetooth: the buzz lands with the click
+   (native scheduled cues with the latency model's signed lead). Hidden on
+   binaries without `supportsScheduledCues`.
 
 ### Remote static review of the Kotlin map engine (2026-07-29)
 

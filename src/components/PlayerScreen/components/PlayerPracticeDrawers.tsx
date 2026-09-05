@@ -127,6 +127,10 @@ type PlayerPracticeDrawersProps = {
   clickAvailable: boolean;
   clickEnabled: boolean;
   onSetClickEnabled: (enabled: boolean) => void;
+  /** The click's own haptic switch; hidden (not disabled) where the engine can't buzz. */
+  clickHapticAvailable: boolean;
+  clickHaptic: boolean;
+  onSetClickHaptic: (enabled: boolean) => void;
 
   // Record a layer
   onRecordOverdub: (playheadMs: number) => void;
@@ -263,6 +267,9 @@ export function PlayerPracticeDrawers({
   clickAvailable,
   clickEnabled,
   onSetClickEnabled,
+  clickHapticAvailable,
+  clickHaptic,
+  onSetClickHaptic,
   onRecordOverdub,
 }: PlayerPracticeDrawersProps) {
   const { t } = useTranslation();
@@ -982,6 +989,24 @@ export function PlayerPracticeDrawers({
                 accessibilityLabel={t("player.clickVolume")}
               />
               <Ionicons name="volume-high-outline" size={16} color={colors.textMuted} />
+            </View>
+          ) : null}
+          {/* A tap in the hand along with the click — the same quiet row recipe. */}
+          {clickEnabled && clickHapticAvailable ? (
+            <View style={pd.row}>
+              <Text style={pd.rowLabel}>{t("player.clickHaptic")}</Text>
+              <Pressable
+                style={[s.switchShell, clickHaptic ? s.switchShellActive : null]}
+                onPress={() => {
+                  haptic.tap();
+                  onSetClickHaptic(!clickHaptic);
+                }}
+                accessibilityRole="switch"
+                accessibilityState={{ checked: clickHaptic }}
+                accessibilityLabel={t("player.clickHaptic")}
+              >
+                <View style={[s.switchKnob, clickHaptic ? s.switchKnobActive : null]} />
+              </Pressable>
             </View>
           ) : null}
         </>

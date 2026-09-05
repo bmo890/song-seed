@@ -30,6 +30,9 @@ declare class SongNookMetronomeModule extends NativeModule<SongNookMetronomeModu
   /** Optional: true on binaries whose engines schedule clicks along a tempo map
    *  (seamless bar-anchored tempo/meter changes). */
   supportsTempoMap?(): boolean;
+  /** Optional: true on binaries whose engines honor `subdivision` and `clickVoice` in
+   *  configure(). Absent on older binaries — call with `?.`; hide the controls then. */
+  supportsClickStyle?(): boolean;
   /** Optional: true on binaries whose engines render an accent weight of 0 as a true
    *  rest (no click at all) instead of a quiet click — the calibration gap pattern
    *  depends on this. Absent on older binaries — call with `?.`. */

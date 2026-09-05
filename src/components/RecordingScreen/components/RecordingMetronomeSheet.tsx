@@ -9,15 +9,19 @@ import {
   CueTiles,
   GroupingChips,
   MeterChips,
+  SubdivisionControl,
   TempoBlock,
   ms,
 } from "../../common/metronome/MetronomeBlocks";
 import {
   clampMetronomeBpm,
+  METRONOME_COUNT_IN_BAR_OPTIONS,
   METRONOME_METER_PRESETS,
+  type MetronomeClickVoice,
   type MetronomeMeterId,
   type MetronomeOutputKey,
   type MetronomeOutputs,
+  type MetronomeSubdivision,
 } from "../../../domain/metronome";
 import {
   normalizeTempoMap,
@@ -27,7 +31,9 @@ import {
 } from "../../../domain/tempoMap";
 import { useTranslation } from "react-i18next";
 
-const COUNT_IN_OPTIONS = [0, 1, 2, 4];
+// The domain owns the option list, so the picker can never offer a value the
+// store clamps away (4 bars used to be exactly that).
+const COUNT_IN_OPTIONS: readonly number[] = METRONOME_COUNT_IN_BAR_OPTIONS;
 
 function countInLabel(bars: number, t: (key: string, options?: any) => string) {
   return bars === 0 ? t("recording.off") : t("recording.barCount", { count: bars });
@@ -76,6 +82,12 @@ type Props = {
   beepLevel: number;
   hapticLevel: number;
   tapCount: number;
+  /** Sub-clicks per beat and click timbre — both structural on the engine, so they
+   *  lock mid-take like tempo and meter. Omitted when the binary can't render them. */
+  subdivision?: MetronomeSubdivision;
+  onSelectSubdivision?: (value: MetronomeSubdivision) => void;
+  clickVoice?: MetronomeClickVoice;
+  onSelectClickVoice?: (voice: MetronomeClickVoice) => void;
   /** "Original take: 92 BPM · 4/4" when the target clip carries a saved recording grid
    *  (the metronome was preset to it on entry). Null when there's nothing to restore. */
   restoredGridLabel?: string | null;
@@ -111,6 +123,10 @@ export function RecordingMetronomeSheet({
   beepLevel,
   hapticLevel,
   tapCount,
+  subdivision,
+  onSelectSubdivision,
+  clickVoice,
+  onSelectClickVoice,
   restoredGridLabel,
   onTogglePreview,
   onNudgeBpm,
@@ -232,6 +248,9 @@ export function RecordingMetronomeSheet({
             onSetBpmValue={onSetBpmValue}
             onTapTempo={onTapTempo}
           />
+          {subdivision != null && onSelectSubdivision ? (
+            <SubdivisionControl value={subdivision} disabled={disabled} onChange={onSelectSubdivision} />
+          ) : null}
 
           {/* Count-in — pronounced, self-explaining row (recording-only concept) */}
           <Pressable
@@ -427,6 +446,9 @@ export function RecordingMetronomeSheet({
             hapticLevel={hapticLevel}
             onChangeBeepLevel={onChangeBeepLevel}
             onChangeHapticLevel={onChangeHapticLevel}
+            clickVoice={clickVoice}
+            onChangeClickVoice={onSelectClickVoice}
+            voiceDisabled={disabled}
           />
         </ScrollView>
       )}

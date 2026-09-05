@@ -7,15 +7,19 @@ import { colors, radii } from "../../../design/tokens";
 import {
   MAX_METRONOME_BPM,
   MAX_METRONOME_LEVEL,
+  METRONOME_CLICK_VOICES,
   METRONOME_METER_PRESETS,
+  METRONOME_SUBDIVISION_OPTIONS,
   MIN_METRONOME_BPM,
   MIN_METRONOME_LEVEL,
   formatGrouping,
   getMetronomeMeterPreset,
   isSameGrouping,
+  type MetronomeClickVoice,
   type MetronomeMeterId,
   type MetronomeOutputKey,
   type MetronomeOutputs,
+  type MetronomeSubdivision,
 } from "../../../domain/metronome";
 import { SegmentedControl } from "../SegmentedControl";
 import { useTranslation } from "react-i18next";
@@ -29,11 +33,26 @@ import { useTranslation } from "react-i18next";
 
 export type HapticStrengthId = "light" | "medium" | "strong";
 
-export const HAPTIC_STRENGTH_PRESETS: { id: HapticStrengthId; label: string; level: number }[] = [
-  { id: "light", label: "Light", level: 20 },
-  { id: "medium", label: "Medium", level: 55 },
-  { id: "strong", label: "Strong", level: 90 },
+export const HAPTIC_STRENGTH_PRESETS: { id: HapticStrengthId; level: number }[] = [
+  { id: "light", level: 20 },
+  { id: "medium", level: 55 },
+  { id: "strong", level: 90 },
 ];
+
+/** Meter chips sit four to a row: the simple meters, then the compound and odd ones. */
+const METER_CHIPS_PER_ROW = 4;
+
+const SUBDIVISION_LABEL_KEYS: Record<MetronomeSubdivision, string> = {
+  1: "metronome.beat",
+  2: "metronome.halves",
+  3: "metronome.thirds",
+  4: "metronome.quarters",
+};
+
+const CLICK_VOICE_LABEL_KEYS: Record<MetronomeClickVoice, string> = {
+  click: "metronome.voiceClick",
+  wood: "metronome.voiceWood",
+};
 
 export function nearestHapticStrengthId(level: number): HapticStrengthId {
   return HAPTIC_STRENGTH_PRESETS.reduce((closest, preset) =>
@@ -128,32 +147,72 @@ export function MeterChips({
   onSelectMeter: (meterId: MetronomeMeterId) => void;
 }) {
   const { t } = useTranslation();
+  const rows: (typeof METRONOME_METER_PRESETS)[number][][] = [];
+  for (let index = 0; index < METRONOME_METER_PRESETS.length; index += METER_CHIPS_PER_ROW) {
+    rows.push(METRONOME_METER_PRESETS.slice(index, index + METER_CHIPS_PER_ROW));
+  }
   return (
-    <View style={ms.chipsRow}>
-      {METRONOME_METER_PRESETS.map((preset) => {
-        const active = preset.id === meterId;
-        return (
-          <Pressable
-            key={preset.id}
-            style={({ pressed }) => [ms.chip, active ? ms.chipActive : null, pressed ? ms.pressed : null]}
-            onPress={() => onSelectMeter(preset.id)}
-            disabled={disabled}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
-            accessibilityLabel={t("metronome.meterTime", { label: preset.label })}
-          >
-            <Text style={[ms.chipText, active ? ms.chipTextActive : null]}>{preset.label}</Text>
-          </Pressable>
-        );
-      })}
+    <>
+      {rows.map((row) => (
+        <View key={row[0].id} style={ms.chipsRow}>
+          {row.map((preset) => {
+            const active = preset.id === meterId;
+            return (
+              <Pressable
+                key={preset.id}
+                style={({ pressed }) => [ms.chip, active ? ms.chipActive : null, pressed ? ms.pressed : null]}
+                onPress={() => onSelectMeter(preset.id)}
+                disabled={disabled}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={t("metronome.meterTime", { label: preset.label })}
+              >
+                <Text style={[ms.chipText, active ? ms.chipTextActive : null]}>{preset.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ))}
+    </>
+  );
+}
+
+/**
+ * How finely each beat is split — an audio-only ornament. The dots, the haptic and
+ * the grid stay on the beat, so this never changes what a take records. Rendered only
+ * on binaries whose engine renders it (callers gate on `supportsClickStyle`).
+ */
+export function SubdivisionControl({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: MetronomeSubdivision;
+  disabled?: boolean;
+  onChange: (value: MetronomeSubdivision) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <View style={disabled ? ms.dimmed : null} pointerEvents={disabled ? "none" : "auto"}>
+      <Text style={ms.subLabel}>{t("metronome.subdivision")}</Text>
+      <View style={ms.segmentWrap}>
+        <SegmentedControl
+          options={METRONOME_SUBDIVISION_OPTIONS.map((option) => ({
+            key: String(option),
+            label: t(SUBDIVISION_LABEL_KEYS[option]),
+          }))}
+          value={String(value)}
+          onChange={(key) => onChange(Number(key) as MetronomeSubdivision)}
+        />
+      </View>
     </View>
   );
 }
 
-const CUES: { key: MetronomeOutputKey; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: "beep", label: "Beep", icon: "volume-high-outline" },
-  { key: "visual", label: "Visual", icon: "pulse-outline" },
-  { key: "haptic", label: "Haptic", icon: "phone-portrait-outline" },
+const CUES: { key: MetronomeOutputKey; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: "beep", icon: "volume-high-outline" },
+  { key: "visual", icon: "pulse-outline" },
+  { key: "haptic", icon: "phone-portrait-outline" },
 ];
 
 export function CueTiles({
@@ -202,12 +261,21 @@ export function CueLevels({
   hapticLevel,
   onChangeBeepLevel,
   onChangeHapticLevel,
+  clickVoice,
+  onChangeClickVoice,
+  voiceDisabled,
 }: {
   outputs: MetronomeOutputs;
   beepLevel: number;
   hapticLevel: number;
   onChangeBeepLevel: (level: number) => void;
   onChangeHapticLevel: (level: number) => void;
+  /** The click's timbre. Omitted on binaries that can't render a second voice — the
+   *  picker then simply isn't there. */
+  clickVoice?: MetronomeClickVoice;
+  onChangeClickVoice?: (voice: MetronomeClickVoice) => void;
+  /** Voice is structural on the engine, so unlike the levels it locks mid-take. */
+  voiceDisabled?: boolean;
 }) {
   const { t } = useTranslation();
   if (!outputs.beep && !outputs.haptic) return null;
@@ -217,6 +285,21 @@ export function CueLevels({
         <View>
           <Text style={ms.subLabel}>{t("metronome.beepVolume")}</Text>
           <BeepLevelControl beepLevel={beepLevel} onChangeBeepLevel={onChangeBeepLevel} />
+          {clickVoice && onChangeClickVoice ? (
+            <View style={voiceDisabled ? ms.dimmed : null} pointerEvents={voiceDisabled ? "none" : "auto"}>
+              <Text style={ms.subLabel}>{t("metronome.sound")}</Text>
+              <View style={ms.segmentWrap}>
+                <SegmentedControl
+                  options={METRONOME_CLICK_VOICES.map((voice) => ({
+                    key: voice,
+                    label: t(CLICK_VOICE_LABEL_KEYS[voice]),
+                  }))}
+                  value={clickVoice}
+                  onChange={onChangeClickVoice}
+                />
+              </View>
+            </View>
+          ) : null}
         </View>
       ) : null}
       {outputs.haptic ? (
@@ -482,6 +565,11 @@ export const ms = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
+  },
+  // Structural controls lock while a take rolls; the same quiet dim the disabled
+  // chips already use, applied to a whole block.
+  dimmed: {
+    opacity: 0.45,
   },
 });
 

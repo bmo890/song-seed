@@ -1,8 +1,19 @@
 import { Animated } from "react-native";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useFocusEffect } from "@react-navigation/native";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useMetronome } from "../../../hooks/useMetronome";
 import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandler";
+
+const KEEP_AWAKE_TAG = "metronome";
+
+function releaseKeepAwake() {
+  try {
+    void deactivateKeepAwake(KEEP_AWAKE_TAG);
+  } catch {
+    // no-op where keep-awake is unavailable (web)
+  }
+}
 
 export function useMetronomeScreenModel() {
   useBrowseRootBackHandler();
@@ -26,9 +37,22 @@ export function useMetronomeScreenModel() {
         if (isActiveRef.current) {
           void stopRef.current();
         }
+        releaseKeepAwake();
       };
     }, [])
   );
+
+  // A running metronome lives on a music stand: the screen must not dim under it.
+  // Held only while the click runs, released on stop and on leaving the page.
+  const isBeating = metronome.isRunning || metronome.isCountIn;
+  useEffect(() => {
+    if (!isBeating) {
+      releaseKeepAwake();
+      return;
+    }
+    activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {});
+    return releaseKeepAwake;
+  }, [isBeating]);
 
   const activeOutputCount = useMemo(
     () => Object.values(metronome.outputs).filter(Boolean).length,

@@ -1,5 +1,13 @@
 import * as FileSystem from "expo-file-system/legacy";
-import { clampMetronomeBpm, getMetronomeBeatIntervalMs, METRONOME_LOOP_BEAT_COUNT } from "../domain/metronome";
+import {
+  clampMetronomeBpm,
+  clampMetronomeSubdivision,
+  getMetronomeBeatIntervalMs,
+  METRONOME_LOOP_BEAT_COUNT,
+  SUBDIVISION_CLICK_ACCENT,
+  type MetronomeClickVoice,
+  type MetronomeSubdivision,
+} from "../domain/metronome";
 
 const SAMPLE_RATE = 44100;
 const CHANNEL_COUNT = 1;
@@ -7,8 +15,6 @@ const BITS_PER_SAMPLE = 16;
 const BYTES_PER_SAMPLE = BITS_PER_SAMPLE / 8;
 const BYTE_RATE = SAMPLE_RATE * CHANNEL_COUNT * BYTES_PER_SAMPLE;
 const BLOCK_ALIGN = CHANNEL_COUNT * BYTES_PER_SAMPLE;
-const CLICK_DURATION_MS = 34;
-const ATTACK_MS = 3;
 const METRONOME_DIR = `${FileSystem.cacheDirectory ?? FileSystem.documentDirectory ?? ""}songnook/metronome`;
 
 function clampSample(value: number) {
@@ -75,22 +81,72 @@ type ClickLoopOptions = {
   accentDownbeat?: boolean;
   /** Per-beat played/silent mask (calibration gap patterns). Missing entries play. */
   beatPattern?: boolean[];
+  /** Sub-clicks per beat (audio only) — 1 = beats only. */
+  subdivision?: MetronomeSubdivision;
+  clickVoice?: MetronomeClickVoice;
 };
+
+/**
+ * One click timbre. The same table lives in both native engines — keep the three
+ * verbatim so every surface sounds identical. (This renderer's MAIN-click amplitudes
+ * stay at the legacy 0.62/0.42 levels it has always used.)
+ */
+type ClickVoiceSpec = {
+  baseFrequency: number;
+  overtoneFrequency: number;
+  decayPower: number;
+  mixBase: number;
+  mixOvertone: number;
+  durationMs: number;
+  attackMs: number;
+  amplitudeBase: number;
+  amplitudeScale: number;
+};
+
+const CLICK_VOICES: Record<MetronomeClickVoice, { downbeat: ClickVoiceSpec; weak: ClickVoiceSpec }> = {
+  click: {
+    downbeat: { baseFrequency: 1960, overtoneFrequency: 2940, decayPower: 2.8, mixBase: 0.78, mixOvertone: 0.22, durationMs: 34, attackMs: 3, amplitudeBase: 0.22, amplitudeScale: 0.46 },
+    weak: { baseFrequency: 1560, overtoneFrequency: 2350, decayPower: 2.4, mixBase: 0.78, mixOvertone: 0.22, durationMs: 34, attackMs: 3, amplitudeBase: 0.22, amplitudeScale: 0.46 },
+  },
+  wood: {
+    downbeat: { baseFrequency: 1180, overtoneFrequency: 1770, decayPower: 3.2, mixBase: 0.7, mixOvertone: 0.3, durationMs: 46, attackMs: 1.5, amplitudeBase: 0.26, amplitudeScale: 0.5 },
+    weak: { baseFrequency: 880, overtoneFrequency: 1320, decayPower: 2.9, mixBase: 0.7, mixOvertone: 0.3, durationMs: 46, attackMs: 1.5, amplitudeBase: 0.26, amplitudeScale: 0.5 },
+  },
+};
+
+/** Additively mix one click into `pcm` at `onset`, truncated at `totalFrames`. */
+function mixClick(pcm: Float32Array, onset: number, spec: ClickVoiceSpec, amplitude: number, totalFrames: number) {
+  const clickFrameCount = Math.min(totalFrames, Math.max(1, Math.round((SAMPLE_RATE * spec.durationMs) / 1000)));
+  const attackFrameCount = Math.max(1, Math.round((SAMPLE_RATE * spec.attackMs) / 1000));
+  for (let frameIndex = 0; frameIndex < clickFrameCount; frameIndex += 1) {
+    const absoluteFrame = onset + frameIndex;
+    if (absoluteFrame >= totalFrames) {
+      break;
+    }
+    const sampleTime = frameIndex / SAMPLE_RATE;
+    const attack = Math.min(1, frameIndex / attackFrameCount);
+    const decay = Math.pow(1 - frameIndex / clickFrameCount, spec.decayPower);
+    const sample =
+      (Math.sin(2 * Math.PI * spec.baseFrequency * sampleTime) * spec.mixBase +
+        Math.sin(2 * Math.PI * spec.overtoneFrequency * sampleTime) * spec.mixOvertone) *
+      amplitude *
+      attack *
+      decay;
+    pcm[absoluteFrame] = clampSample(pcm[absoluteFrame] + sample);
+  }
+}
 
 function buildClickLoopBytes(bpm: number, options: ClickLoopOptions = {}) {
   const beatCount = Math.max(1, options.beatCount ?? METRONOME_LOOP_BEAT_COUNT);
   const accentDownbeat = options.accentDownbeat ?? true;
   const beatPattern = options.beatPattern ?? null;
+  const subdivision = clampMetronomeSubdivision(options.subdivision ?? 1);
+  const voices = CLICK_VOICES[options.clickVoice ?? "click"];
   const beatIntervalMs = getMetronomeBeatIntervalMs(bpm);
   const beatFrames = Math.max(1, Math.round((SAMPLE_RATE * beatIntervalMs) / 1000));
   const totalFrames = beatFrames * beatCount;
   const totalSamples = totalFrames * CHANNEL_COUNT;
   const pcm = new Float32Array(totalSamples);
-  const clickFrameCount = Math.min(
-    totalFrames,
-    Math.max(1, Math.round((SAMPLE_RATE * CLICK_DURATION_MS) / 1000))
-  );
-  const attackFrameCount = Math.max(1, Math.round((SAMPLE_RATE * ATTACK_MS) / 1000));
 
   for (let beatIndex = 0; beatIndex < beatCount; beatIndex += 1) {
     if (beatPattern && beatPattern[beatIndex] === false) {
@@ -98,27 +154,10 @@ function buildClickLoopBytes(bpm: number, options: ClickLoopOptions = {}) {
     }
     const startFrame = beatIndex * beatFrames;
     const isDownbeat = accentDownbeat && beatIndex === 0;
-    const baseFrequency = isDownbeat ? 1960 : 1560;
-    const overtoneFrequency = isDownbeat ? 2940 : 2350;
-    const amplitude = isDownbeat ? 0.62 : 0.42;
-
-    for (let frameIndex = 0; frameIndex < clickFrameCount; frameIndex += 1) {
-      const absoluteFrame = startFrame + frameIndex;
-      if (absoluteFrame >= totalFrames) {
-        break;
-      }
-
-      const sampleTime = frameIndex / SAMPLE_RATE;
-      const attack = Math.min(1, frameIndex / attackFrameCount);
-      const decay = Math.pow(1 - frameIndex / clickFrameCount, isDownbeat ? 2.8 : 2.4);
-      const envelope = attack * decay;
-      const sample =
-        (Math.sin(2 * Math.PI * baseFrequency * sampleTime) * 0.78 +
-          Math.sin(2 * Math.PI * overtoneFrequency * sampleTime) * 0.22) *
-        amplitude *
-        envelope;
-
-      pcm[absoluteFrame] = clampSample(pcm[absoluteFrame] + sample);
+    mixClick(pcm, startFrame, isDownbeat ? voices.downbeat : voices.weak, isDownbeat ? 0.62 : 0.42, totalFrames);
+    for (let step = 1; step < subdivision; step += 1) {
+      const subFrame = startFrame + Math.round((step * beatFrames) / subdivision);
+      mixClick(pcm, subFrame, voices.weak, voices.weak.amplitudeBase + SUBDIVISION_CLICK_ACCENT * voices.weak.amplitudeScale, totalFrames);
     }
   }
 
@@ -148,18 +187,27 @@ async function ensureMetronomeDirectory() {
   }
 }
 
-export async function ensureMetronomeLoopFile(bpm: number) {
+export async function ensureMetronomeLoopFile(
+  bpm: number,
+  options: { subdivision?: MetronomeSubdivision; clickVoice?: MetronomeClickVoice } = {}
+) {
   const normalizedBpm = clampMetronomeBpm(bpm);
+  const subdivision = clampMetronomeSubdivision(options.subdivision ?? 1);
+  const clickVoice = options.clickVoice ?? "click";
   const beatIntervalMs = getMetronomeBeatIntervalMs(normalizedBpm);
   const durationMs = beatIntervalMs * METRONOME_LOOP_BEAT_COUNT;
-  const filename = `loop-${normalizedBpm}-${METRONOME_LOOP_BEAT_COUNT}.wav`;
+  // The ornament is baked into the samples, so it is baked into the name too; the stock
+  // click keeps its old filename so existing cached loops stay valid.
+  const filename =
+    `loop-${normalizedBpm}-${METRONOME_LOOP_BEAT_COUNT}` +
+    `${subdivision > 1 ? `-s${subdivision}` : ""}${clickVoice !== "click" ? `-${clickVoice}` : ""}.wav`;
 
   await ensureMetronomeDirectory();
 
   const uri = `${METRONOME_DIR}/${filename}`;
   const info = await FileSystem.getInfoAsync(uri);
   if (!info.exists) {
-    const wavBytes = buildClickLoopBytes(normalizedBpm);
+    const wavBytes = buildClickLoopBytes(normalizedBpm, { subdivision, clickVoice });
     await FileSystem.writeAsStringAsync(uri, bytesToBase64(wavBytes), {
       encoding: FileSystem.EncodingType.Base64,
     });

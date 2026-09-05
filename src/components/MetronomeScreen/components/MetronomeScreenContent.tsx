@@ -8,12 +8,13 @@ import { HelpSheet } from "../../common/HelpSheet";
 import { METRONOME_HELP } from "../../common/helpContent";
 import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
-import { METRONOME_METER_PRESETS } from "../../../domain/metronome";
+import { METRONOME_METER_PRESETS, getTempoMarking } from "../../../domain/metronome";
 import {
   CueLevels,
   CueTiles,
   GroupingChips,
   MeterChips,
+  SubdivisionControl,
   TempoBlock,
   ms,
 } from "../../common/metronome/MetronomeBlocks";
@@ -76,6 +77,8 @@ export function MetronomeScreenContent() {
 
           <Text style={s.bpmValue}>{model.bpm}</Text>
           <Text style={s.bpmUnit}>{t("metronome.bpm")}</Text>
+          {/* The classical marking — a musician's word for the number above it. */}
+          <Text style={s.tempoMarking}>{t(`metronome.marking.${getTempoMarking(model.bpm)}`)}</Text>
 
           <MetronomeBeatBar
             beatsPerBar={model.meterPreset.pulsesPerBar}
@@ -120,6 +123,9 @@ export function MetronomeScreenContent() {
             onSetBpmValue={model.setBpmValue}
             onTapTempo={model.tapTempo}
           />
+          {model.supportsClickStyle ? (
+            <SubdivisionControl value={model.subdivision} onChange={model.setSubdivisionValue} />
+          ) : null}
         </View>
 
         {/* Meter — sheet's quiet row, chips promoted to always-visible (a page has room) */}
@@ -149,6 +155,8 @@ export function MetronomeScreenContent() {
             hapticLevel={model.hapticLevel}
             onChangeBeepLevel={model.setBeepLevelValue}
             onChangeHapticLevel={model.setHapticLevelValue}
+            clickVoice={model.supportsClickStyle ? model.clickVoice : undefined}
+            onChangeClickVoice={model.supportsClickStyle ? model.setClickVoiceValue : undefined}
           />
         </View>
       </ScrollView>

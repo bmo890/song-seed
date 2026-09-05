@@ -18,7 +18,45 @@ private struct MetronomeConfig {
   var hapticEnabled: Bool = false
   var hapticStrength: Double = 0.6
   var hapticOffsetMs: Int = 0
+  /// Audio-only ornament: each pulse is split into `subdivision` equal parts and the extra
+  /// onsets sound as quiet weak-voice sub-clicks. Beat events, the grid anchor, count-in
+  /// math and haptics never see them — they are pure PCM.
+  var subdivision: Int = 1
+  /// Click timbre: "click" (bright stock voice) or "wood" (softer wood-block voice).
+  var clickVoice: String = "click"
 }
+
+/// One click timbre. The same table lives in the Android engine and the JS WAV fallback —
+/// keep the three verbatim so every surface sounds identical.
+private struct ClickVoiceSpec {
+  let baseFrequency: Double
+  let overtoneFrequency: Double
+  let decayPower: Double
+  let mixBase: Double
+  let mixOvertone: Double
+  let durationSec: Double
+  let attackSec: Double
+  let amplitudeBase: Double
+  let amplitudeScale: Double
+
+  func amplitude(forAccent accent: Double) -> Double {
+    return amplitudeBase + accent * amplitudeScale
+  }
+
+  static func resolve(voice: String, isDownbeat: Bool) -> ClickVoiceSpec {
+    if voice == "wood" {
+      return isDownbeat
+        ? ClickVoiceSpec(baseFrequency: 1180, overtoneFrequency: 1770, decayPower: 3.2, mixBase: 0.70, mixOvertone: 0.30, durationSec: 0.046, attackSec: 0.0015, amplitudeBase: 0.26, amplitudeScale: 0.50)
+        : ClickVoiceSpec(baseFrequency: 880, overtoneFrequency: 1320, decayPower: 2.9, mixBase: 0.70, mixOvertone: 0.30, durationSec: 0.046, attackSec: 0.0015, amplitudeBase: 0.26, amplitudeScale: 0.50)
+    }
+    return isDownbeat
+      ? ClickVoiceSpec(baseFrequency: 1960, overtoneFrequency: 2940, decayPower: 2.8, mixBase: 0.78, mixOvertone: 0.22, durationSec: 0.034, attackSec: 0.003, amplitudeBase: 0.22, amplitudeScale: 0.46)
+      : ClickVoiceSpec(baseFrequency: 1560, overtoneFrequency: 2350, decayPower: 2.4, mixBase: 0.78, mixOvertone: 0.22, durationSec: 0.034, attackSec: 0.003, amplitudeBase: 0.22, amplitudeScale: 0.46)
+  }
+}
+
+/// Weight of every sub-click: quiet and present, well under a weak beat.
+private let subClickAccent = 0.18
 
 /// One constant-tempo stretch of a tempo map, precomputed in grid frames.
 /// Grid zero = the downbeat of bar 1; count-in pulses live at negative grid frames.
@@ -119,7 +157,13 @@ final class SongNookMetronomeEngine {
       previous.pulsesPerBar != config.pulsesPerBar ||
       previous.denominator != config.denominator ||
       previous.accentPattern != config.accentPattern ||
-      previous.clickEnabled != config.clickEnabled
+      previous.clickEnabled != config.clickEnabled ||
+      previous.subdivision != config.subdivision ||
+      previous.clickVoice != config.clickVoice
+
+    if previous.clickVoice != config.clickVoice {
+      clickCache.removeAll()
+    }
 
     if !structuralChange {
       player.volume = Float(config.clickVolume)
@@ -403,10 +447,23 @@ final class SongNookMetronomeEngine {
       let runPulse = scheduledUntilRunPulse
       let gridPulse = firstRunGridPulse + runPulse
       let position = mapFrame(ofGridPulse: gridPulse) - runStartGridFrame
-      let (_, _, accent, _) = mapPulseMeta(gridPulse: gridPulse)
-      if let click = clickBuffer(accent: accent, isDownbeat: mapPulseMeta(gridPulse: gridPulse).0 == 1) {
+      let (beatInBar, _, accent, _) = mapPulseMeta(gridPulse: gridPulse)
+      if let click = clickBuffer(accent: accent, isDownbeat: beatInBar == 1) {
         let when = AVAudioTime(sampleTime: AVAudioFramePosition(max(0, position.rounded())), atRate: sampleRate)
         player.scheduleBuffer(click, at: when, options: [], completionHandler: nil)
+      }
+      // Sub-clicks ride the pulse's own segment spacing: segments are bar-aligned, so the
+      // gap to the next pulse always equals this segment's spacing — including the last
+      // pulse before a tempo change. A rest pulse (accent 0) has no sub-clicks either.
+      if accent > 0, config.subdivision > 1, let sub = clickBuffer(accent: subClickAccent, isDownbeat: false) {
+        let framesPerPulse = gridPulse < 0
+          ? mapSegments![0].exactFramesPerPulse
+          : mapSegment(forGridPulse: gridPulse).exactFramesPerPulse
+        for step in 1..<config.subdivision {
+          let subPosition = position + Double(step) * framesPerPulse / Double(config.subdivision)
+          let when = AVAudioTime(sampleTime: AVAudioFramePosition(max(0, subPosition.rounded())), atRate: sampleRate)
+          player.scheduleBuffer(sub, at: when, options: [], completionHandler: nil)
+        }
       }
       scheduledUntilRunPulse += 1
     }
@@ -420,32 +477,49 @@ final class SongNookMetronomeEngine {
     if accent <= 0 {
       return nil
     }
-    let key = "\(isDownbeat ? "d" : "w")-\(Int((accent * 100).rounded()))"
+    let key = "\(config.clickVoice)-\(isDownbeat ? "d" : "w")-\(Int((accent * 100).rounded()))"
     if let cached = clickCache[key] {
       return cached
     }
-    let clickFrames = max(1, Int((sampleRate * 0.034).rounded()))
-    let attackFrames = max(1, Int((sampleRate * 0.003).rounded()))
+    let spec = ClickVoiceSpec.resolve(voice: config.clickVoice, isDownbeat: isDownbeat)
+    let clickFrames = max(1, Int((sampleRate * spec.durationSec).rounded()))
     guard let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1),
           let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(clickFrames)),
           let channel = buffer.floatChannelData?[0] else {
       return nil
     }
     buffer.frameLength = AVAudioFrameCount(clickFrames)
-    let baseFrequency = isDownbeat ? 1960.0 : 1560.0
-    let overtoneFrequency = isDownbeat ? 2940.0 : 2350.0
-    let amplitude = Float(0.22 + accent * 0.46)
-    for frameIndex in 0..<clickFrames {
-      let sampleTime = Double(frameIndex) / sampleRate
-      let attack = min(1.0, Double(frameIndex) / Double(attackFrames))
-      let decay = pow(1.0 - Double(frameIndex) / Double(clickFrames), isDownbeat ? 2.8 : 2.4)
-      channel[frameIndex] =
-        Float(sin(2.0 * .pi * baseFrequency * sampleTime) * 0.78 +
-          sin(2.0 * .pi * overtoneFrequency * sampleTime) * 0.22) *
-        amplitude * Float(attack * decay)
-    }
+    renderClick(into: channel, at: 0, spec: spec, amplitude: spec.amplitude(forAccent: accent), totalFrames: clickFrames)
     clickCache[key] = buffer
     return buffer
+  }
+
+  /// Additively mix one click (voice + amplitude) into `channel` starting at `onset`,
+  /// truncated at `totalFrames`. Shared by the loop buffer and the per-click cache so the
+  /// two modes can never drift apart in timbre.
+  private func renderClick(
+    into channel: UnsafeMutablePointer<Float>,
+    at onset: Int,
+    spec: ClickVoiceSpec,
+    amplitude: Double,
+    totalFrames: Int
+  ) {
+    let clickFrames = min(totalFrames, max(1, Int((sampleRate * spec.durationSec).rounded())))
+    let attackFrames = max(1, Int((sampleRate * spec.attackSec).rounded()))
+    for frameIndex in 0..<clickFrames {
+      let absoluteFrame = onset + frameIndex
+      if absoluteFrame >= totalFrames {
+        break
+      }
+      let sampleTime = Double(frameIndex) / sampleRate
+      let attack = min(1.0, Double(frameIndex) / Double(attackFrames))
+      let decay = pow(1.0 - Double(frameIndex) / Double(clickFrames), spec.decayPower)
+      let sample =
+        Float(sin(2.0 * .pi * spec.baseFrequency * sampleTime) * spec.mixBase +
+          sin(2.0 * .pi * spec.overtoneFrequency * sampleTime) * spec.mixOvertone) *
+        Float(amplitude) * Float(attack * decay)
+      channel[absoluteFrame] = max(-1, min(1, channel[absoluteFrame] + sample))
+    }
   }
 
   func getState() -> [String: Any] {
@@ -459,6 +533,8 @@ final class SongNookMetronomeEngine {
       "denominator": config.denominator,
       "clickEnabled": config.clickEnabled,
       "clickVolume": config.clickVolume,
+      "subdivision": config.subdivision,
+      "clickVoice": config.clickVoice,
       "beatIntervalMs": beatIntervalMs(for: config.bpm),
       "beatInBar": beatInBar,
       "barNumber": barNumber,
@@ -847,6 +923,17 @@ final class SongNookMetronomeEngine {
       next.hapticOffsetMs = min(1000, max(-200, hapticOffsetMs.intValue))
     }
 
+    if let subdivision = rawConfig["subdivision"] as? Int {
+      next.subdivision = min(4, max(1, subdivision))
+    } else if let subdivision = rawConfig["subdivision"] as? NSNumber {
+      next.subdivision = min(4, max(1, subdivision.intValue))
+    }
+
+    // A present-but-unknown voice falls back to the stock click; absent keeps running.
+    if let clickVoice = rawConfig["clickVoice"] as? String {
+      next.clickVoice = clickVoice == "wood" ? "wood" : "click"
+    }
+
     return next
   }
 
@@ -862,8 +949,8 @@ final class SongNookMetronomeEngine {
     }
 
     buffer.frameLength = AVAudioFrameCount(totalFrames)
-    let clickFrameCount = min(totalFrames, max(1, Int(round(sampleRate * 0.034))))
-    let attackFrames = max(1, Int(round(sampleRate * 0.003)))
+    let weakSpec = ClickVoiceSpec.resolve(voice: config.clickVoice, isDownbeat: false)
+    let subdivision = max(1, config.subdivision)
 
     for pulseIndex in 0..<config.pulsesPerBar {
       let accent = config.accentPattern[min(pulseIndex, max(config.accentPattern.count - 1, 0))]
@@ -871,28 +958,17 @@ final class SongNookMetronomeEngine {
       if accent <= 0 {
         continue
       }
+      // Bresenham onsets: round(k · exact) for the beat AND its sub-clicks, so the
+      // ornament rides the same sample-exact bar as the grid.
       let startFrame = Int(round(Double(pulseIndex) * exactFramesPerPulse))
-      let baseFrequency = pulseIndex == 0 ? 1960.0 : 1560.0
-      let overtoneFrequency = pulseIndex == 0 ? 2940.0 : 2350.0
-      let amplitude = Float(0.22 + accent * 0.46)
+      let spec = ClickVoiceSpec.resolve(voice: config.clickVoice, isDownbeat: pulseIndex == 0)
+      renderClick(into: channel, at: startFrame, spec: spec, amplitude: spec.amplitude(forAccent: accent), totalFrames: totalFrames)
 
-      for frameIndex in 0..<clickFrameCount {
-        let absoluteFrame = startFrame + frameIndex
-        if absoluteFrame >= totalFrames {
-          break
+      if subdivision > 1 {
+        for step in 1..<subdivision {
+          let subFrame = Int(round((Double(pulseIndex) + Double(step) / Double(subdivision)) * exactFramesPerPulse))
+          renderClick(into: channel, at: subFrame, spec: weakSpec, amplitude: weakSpec.amplitude(forAccent: subClickAccent), totalFrames: totalFrames)
         }
-
-        let sampleTime = Double(frameIndex) / sampleRate
-        let attack = min(1.0, Double(frameIndex) / Double(attackFrames))
-        let decay = pow(1.0 - Double(frameIndex) / Double(clickFrameCount), pulseIndex == 0 ? 2.8 : 2.4)
-        let envelope = Float(attack * decay)
-        let sample =
-          Float(sin(2.0 * .pi * baseFrequency * sampleTime) * 0.78 +
-            sin(2.0 * .pi * overtoneFrequency * sampleTime) * 0.22) *
-          amplitude *
-          envelope
-
-        channel[absoluteFrame] = max(-1, min(1, channel[absoluteFrame] + sample))
       }
     }
 

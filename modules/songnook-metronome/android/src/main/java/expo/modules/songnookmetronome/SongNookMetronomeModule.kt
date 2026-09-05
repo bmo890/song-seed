@@ -83,6 +83,10 @@ class SongNookMetronomeModule : Module() {
       true
     }
 
+    Function("supportsClickStyle") {
+      true
+    }
+
     AsyncFunction("configureTempoMap") { segments: List<Map<String, Any?>> ->
       engine.configureTempoMap(segments)
     }

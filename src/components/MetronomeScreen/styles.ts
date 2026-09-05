@@ -63,6 +63,14 @@ export const styles = StyleSheet.create({
     color: colors.textMuted,
     letterSpacing: 2.4,
     textTransform: "uppercase",
+  },
+  // Metadata under the readout, not a title: Jakarta, muted, one word.
+  tempoMarking: {
+    fontSize: 12,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    color: colors.textMuted,
+    letterSpacing: 0.4,
+    marginTop: 2,
     marginBottom: spacing.md,
   },
   // Soft key like every other text button; it keeps its size and solid fill

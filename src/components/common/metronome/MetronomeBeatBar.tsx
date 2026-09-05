@@ -21,6 +21,8 @@ import { getGroupGapIndices } from "../../../domain/metronome";
  */
 
 const MAX_BEATS = 12;
+/** Above this many pulses the row switches to its dense sizing. */
+const DENSE_FROM_BEATS = 8;
 
 type Accent = "downbeat" | "secondary" | "weak";
 
@@ -58,6 +60,9 @@ export function MetronomeBeatBar({
   variant = "hero",
 }: Props) {
   const hero = variant === "hero";
+  // Nine or twelve pulses need smaller dots to fit a phone's width — the tiers keep
+  // their ratio, the row just tightens.
+  const dense = beatsPerBar > DENSE_FROM_BEATS;
   const gapIndices = useMemo(
     () => new Set(grouping ? getGroupGapIndices(grouping) : []),
     [grouping]
@@ -88,7 +93,7 @@ export function MetronomeBeatBar({
   }, [active, dotAnims]);
 
   return (
-    <View style={[s.row, hero ? s.rowHero : s.rowCompact]}>
+    <View style={[s.row, hero ? s.rowHero : s.rowCompact, dense ? (hero ? s.rowHeroDense : s.rowCompactDense) : null]}>
       {beats.map((beat) => {
         const accent = accentPattern ? accentOf(accentPattern[beat - 1]) : beat === 1 ? "downbeat" : "weak";
         const isDownbeat = accent === "downbeat";
@@ -96,15 +101,19 @@ export function MetronomeBeatBar({
         const isCurrent = active && beat === currentBeat;
         const anim = dotAnims[beat - 1];
         const base = hero
-          ? accent === "downbeat" ? 18 : accent === "secondary" ? 15 : 12
-          : accent === "downbeat" ? 12 : accent === "secondary" ? 10 : 8;
+          ? dense
+            ? accent === "downbeat" ? 14 : accent === "secondary" ? 12 : 9
+            : accent === "downbeat" ? 18 : accent === "secondary" ? 15 : 12
+          : dense
+            ? accent === "downbeat" ? 9 : accent === "secondary" ? 8 : 6
+            : accent === "downbeat" ? 12 : accent === "secondary" ? 10 : 8;
         return (
           <View
             key={beat}
             style={[
               s.dotSlot,
-              { width: base + (hero ? 10 : 6) },
-              gapIndices.has(beat - 1) ? (hero ? s.groupGapHero : s.groupGap) : null,
+              { width: base + (hero ? (dense ? 6 : 10) : dense ? 4 : 6) },
+              gapIndices.has(beat - 1) ? (hero ? (dense ? s.groupGapHeroDense : s.groupGapHero) : s.groupGap) : null,
             ]}
           >
             {/* Pulse ring — flares out from the dot on its beat */}
@@ -166,6 +175,12 @@ const s = StyleSheet.create({
     gap: 4,
     minHeight: 16,
   },
+  rowHeroDense: {
+    gap: 4,
+  },
+  rowCompactDense: {
+    gap: 3,
+  },
   dotSlot: {
     alignItems: "center",
     justifyContent: "center",
@@ -176,6 +191,9 @@ const s = StyleSheet.create({
   },
   groupGapHero: {
     marginLeft: 13,
+  },
+  groupGapHeroDense: {
+    marginLeft: 9,
   },
   ring: {
     position: "absolute",

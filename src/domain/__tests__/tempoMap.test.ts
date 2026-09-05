@@ -17,8 +17,10 @@ import {
 } from "../tempoMap";
 import type { MetronomeMeterId } from "../metronome";
 
-const METER_IDS: MetronomeMeterId[] = ["3/4", "4/4", "5/4", "6/8"];
-const PULSES: Record<MetronomeMeterId, number> = { "3/4": 3, "4/4": 4, "5/4": 5, "6/8": 6 };
+const METER_IDS: MetronomeMeterId[] = ["2/4", "3/4", "4/4", "5/4", "6/8", "7/8", "9/8", "12/8"];
+const PULSES: Record<MetronomeMeterId, number> = {
+  "2/4": 2, "3/4": 3, "4/4": 4, "5/4": 5, "6/8": 6, "7/8": 7, "9/8": 9, "12/8": 12,
+};
 
 function map(...segments: TempoSegment[]): TempoMap {
   return { schemaVersion: TEMPO_MAP_SCHEMA_VERSION, segments };

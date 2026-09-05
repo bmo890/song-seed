@@ -463,6 +463,8 @@ export function PlayerScreen({
   });
   const playbackClickLevel = useStore((s) => s.playbackClickLevel);
   const setPlaybackClickLevel = useStore((s) => s.setPlaybackClickLevel);
+  const playbackClickHaptic = useStore((s) => s.playbackClickHaptic);
+  const setPlaybackClickHaptic = useStore((s) => s.setPlaybackClickHaptic);
   // The reel takes position straight off the engine, with no render in between — a React
   // commit landing mid-animation is what pulled its overlays off the tape. The channel is
   // only allowed to drive when the full player genuinely owns the transport AND the engine
@@ -1738,6 +1740,9 @@ export function PlayerScreen({
               clickAvailable={playbackClick.isAvailable}
               clickEnabled={playbackClick.enabled}
               onSetClickEnabled={playbackClick.setEnabled}
+              clickHapticAvailable={playbackClick.supportsHaptic}
+              clickHaptic={playbackClickHaptic}
+              onSetClickHaptic={setPlaybackClickHaptic}
               onRecordOverdub={handleAddOverdub}
             />
           ) : ui.mode === "layers" ? (

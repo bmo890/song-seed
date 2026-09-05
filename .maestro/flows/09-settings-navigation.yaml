@@ -21,10 +21,11 @@ appId: com.bmostudio.songnook.dev
 # --- Recording defaults sub-view ---
 - tapOn:
     id: "settings-card-recording-defaults"
+# The metronome no longer lives in Settings (it moved to the recording and metronome
+# surfaces); the sub-view carries naming + devices now.
 - extendedWaitUntil:
-    visible: ".*METRONOME.*"
+    visible: ".*Devices.*|.*DEVICES.*|.*Bluetooth.*"
     timeout: 10000
-- assertVisible: ".*Count-in.*"
 - tapOn: "Back"
 - extendedWaitUntil:
     visible: ".*STARTUP.*"

@@ -42,6 +42,10 @@ public class SongNookMetronomeModule: Module {
       true
     }
 
+    Function("supportsClickStyle") {
+      true
+    }
+
     AsyncFunction("configureTempoMap") { (segments: [[String: Any]]) -> [String: Any] in
       return self.engine.configureTempoMap(segments)
     }

@@ -23,11 +23,11 @@ appId: com.bmostudio.songnook.dev
 - extendedWaitUntil:
     visible: ".*92 BPM.*"
     timeout: 5000
-# Meter change 4/4 → 3/4 → back.
+# Meter change 4/4 → 7/8 (second chip row) → back.
 - assertVisible: "4/4"
-- tapOn: "3/4 time"
+- tapOn: "7/8 time"
 - extendedWaitUntil:
-    visible: "3/4"
+    visible: "7/8"
     timeout: 5000
 - tapOn: "4/4 time"
 - extendedWaitUntil:

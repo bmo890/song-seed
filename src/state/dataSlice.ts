@@ -80,9 +80,15 @@ import {
     DEFAULT_METRONOME_METER_ID,
     isValidGrouping,
     DEFAULT_METRONOME_OUTPUTS,
+    DEFAULT_METRONOME_CLICK_VOICE,
+    DEFAULT_METRONOME_SUBDIVISION,
+    clampMetronomeSubdivision,
+    isMetronomeClickVoice,
     isMetronomeMeterId,
+    type MetronomeClickVoice,
     type MetronomeMeterId,
     type MetronomeOutputs,
+    type MetronomeSubdivision,
 } from "../domain/metronome";
 import {
     normalizeBluetoothMonitoringCalibration,
@@ -139,10 +145,17 @@ export type DataSlice = {
     metronomeBeepLevel: number;
     metronomeHapticLevel: number;
     metronomeCountInBars: number;
+    /** Audio-only ornament for the standalone/recording click: sub-clicks per beat.
+     *  Never part of a take's grid — the grid stays on the beat. */
+    metronomeSubdivision: MetronomeSubdivision;
+    metronomeClickVoice: MetronomeClickVoice;
     /** Volume of the PLAYBACK click (a take's own grid, in the player) — its own
      *  dial, deliberately not the standalone metronome's beep level: a muted
      *  metronome must never silently mute the playback click. */
     playbackClickLevel: number;
+    /** The playback click's own haptic switch — deliberately not the metronome's
+     *  `outputs.haptic`, for the same reason the volume dial is separate. */
+    playbackClickHaptic: boolean;
     setActiveWorkspaceId: (id: string) => void;
     setPrimaryWorkspaceId: (id: string | null) => void;
     setPrimaryCollectionId: (workspaceId: string, collectionId: string | null) => void;
@@ -168,6 +181,9 @@ export type DataSlice = {
     setPlaybackClickLevel: (value: number) => void;
     setMetronomeHapticLevel: (value: number) => void;
     setMetronomeCountInBars: (value: number) => void;
+    setMetronomeSubdivision: (value: MetronomeSubdivision) => void;
+    setMetronomeClickVoice: (value: MetronomeClickVoice) => void;
+    setPlaybackClickHaptic: (value: boolean) => void;
     notes: Note[];
     addNote: () => string;
     updateNote: (id: string, updates: { title?: string; body?: string; isPinned?: boolean; textDirection?: ContentDirection }) => void;
@@ -1242,6 +1258,9 @@ export const createDataSlice: StateCreator<
     playbackClickLevel: DEFAULT_METRONOME_BEEP_LEVEL,
     metronomeHapticLevel: DEFAULT_METRONOME_HAPTIC_LEVEL,
     metronomeCountInBars: DEFAULT_METRONOME_COUNT_IN_BARS,
+    metronomeSubdivision: DEFAULT_METRONOME_SUBDIVISION,
+    metronomeClickVoice: DEFAULT_METRONOME_CLICK_VOICE,
+    playbackClickHaptic: false,
     globalCustomClipTags: [],
     notes: [],
     wordLadders: [],
@@ -1410,6 +1429,10 @@ export const createDataSlice: StateCreator<
     setPlaybackClickLevel: (value) => set({ playbackClickLevel: clampMetronomeLevel(value) }),
     setMetronomeHapticLevel: (value) => set({ metronomeHapticLevel: clampMetronomeLevel(value) }),
     setMetronomeCountInBars: (value) => set({ metronomeCountInBars: clampMetronomeCountInBars(value) }),
+    setMetronomeSubdivision: (value) => set({ metronomeSubdivision: clampMetronomeSubdivision(value) }),
+    setMetronomeClickVoice: (value) =>
+        set({ metronomeClickVoice: isMetronomeClickVoice(value) ? value : DEFAULT_METRONOME_CLICK_VOICE }),
+    setPlaybackClickHaptic: (value) => set({ playbackClickHaptic: Boolean(value) }),
     addNote: () => {
         const id = `note-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         const now = Date.now();

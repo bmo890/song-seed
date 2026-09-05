@@ -416,6 +416,10 @@ export function BluetoothCalibrationScreen() {
             hapticEnabled: false,
             hapticStrength: 0,
             hapticOffsetMs: 0,
+            // Same merge hazard for the click itself: the onset analysis expects the
+            // stock click, one per beat — never a sub-click or the wood voice.
+            subdivision: 1,
+            clickVoice: "click",
           });
           await SongNookMetronomeModule!.start();
 

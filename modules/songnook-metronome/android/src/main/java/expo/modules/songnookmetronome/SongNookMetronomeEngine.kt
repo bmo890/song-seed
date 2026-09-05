@@ -30,8 +30,78 @@ private data class MetronomeConfig(
    *  audible click (signed: route latency − motor spin-up; may be negative). */
   val hapticEnabled: Boolean = false,
   val hapticStrength: Double = 0.6,
-  val hapticOffsetMs: Int = 0
+  val hapticOffsetMs: Int = 0,
+  /** Audio-only ornament: each pulse is split into `subdivision` equal parts and the extra
+   *  onsets sound as quiet weak-voice sub-clicks. Beat events, the grid anchor, count-in
+   *  math and haptics never see them — they are pure PCM. */
+  val subdivision: Int = 1,
+  /** Click timbre: "click" (bright stock voice) or "wood" (softer wood-block voice). */
+  val clickVoice: String = "click"
 )
+
+/** One click timbre. The same table lives in the iOS engine and the JS WAV fallback —
+ *  keep the three verbatim so every surface sounds identical. */
+private data class ClickVoiceSpec(
+  val baseFrequency: Double,
+  val overtoneFrequency: Double,
+  val decayPower: Double,
+  val mixBase: Double,
+  val mixOvertone: Double,
+  val durationSec: Double,
+  val attackSec: Double,
+  val amplitudeBase: Double,
+  val amplitudeScale: Double
+) {
+  fun amplitude(accent: Double): Double = amplitudeBase + accent * amplitudeScale
+}
+
+private fun clickVoiceSpec(voice: String, isDownbeat: Boolean): ClickVoiceSpec {
+  if (voice == "wood") {
+    return if (isDownbeat) {
+      ClickVoiceSpec(1180.0, 1770.0, 3.2, 0.70, 0.30, 0.046, 0.0015, 0.26, 0.50)
+    } else {
+      ClickVoiceSpec(880.0, 1320.0, 2.9, 0.70, 0.30, 0.046, 0.0015, 0.26, 0.50)
+    }
+  }
+  return if (isDownbeat) {
+    ClickVoiceSpec(1960.0, 2940.0, 2.8, 0.78, 0.22, 0.034, 0.003, 0.22, 0.46)
+  } else {
+    ClickVoiceSpec(1560.0, 2350.0, 2.4, 0.78, 0.22, 0.034, 0.003, 0.22, 0.46)
+  }
+}
+
+/** Weight of every sub-click: quiet and present, well under a weak beat. */
+private const val SUB_CLICK_ACCENT = 0.18
+
+private fun clickFramesFor(spec: ClickVoiceSpec, sampleRate: Int): Int =
+  max(1, (sampleRate * spec.durationSec).roundToInt())
+
+/** Additively mix one click (voice + amplitude) into `pcm` at `onset`, truncated at `totalFrames`. */
+private fun mixClick(
+  pcm: ShortArray,
+  onset: Int,
+  spec: ClickVoiceSpec,
+  amplitude: Double,
+  totalFrames: Int,
+  sampleRate: Int
+) {
+  val clickFrames = min(totalFrames, clickFramesFor(spec, sampleRate))
+  val attackFrames = max(1, (sampleRate * spec.attackSec).roundToInt())
+  for (frameIndex in 0 until clickFrames) {
+    val absoluteFrame = onset + frameIndex
+    if (absoluteFrame < 0) continue
+    if (absoluteFrame >= totalFrames) break
+    val sampleTime = frameIndex.toDouble() / sampleRate.toDouble()
+    val attack = min(1.0, frameIndex.toDouble() / attackFrames.toDouble())
+    val decay = Math.pow(1.0 - frameIndex.toDouble() / clickFrames.toDouble(), spec.decayPower)
+    val sample =
+      (sin(2.0 * Math.PI * spec.baseFrequency * sampleTime) * spec.mixBase +
+        sin(2.0 * Math.PI * spec.overtoneFrequency * sampleTime) * spec.mixOvertone) *
+        amplitude * attack * decay
+    val mixed = (pcm[absoluteFrame] / Short.MAX_VALUE.toDouble()) + sample
+    pcm[absoluteFrame] = (mixed.coerceIn(-1.0, 1.0) * Short.MAX_VALUE).roundToInt().toShort()
+  }
+}
 
 /** One constant-tempo stretch of a tempo map, precomputed in grid frames.
  *  Grid zero = the downbeat of bar 1; count-in pulses live at negative grid frames. */
@@ -86,7 +156,9 @@ class SongNookMetronomeEngine(
   private var mapWriteFrame = 0L
   private val mapChunkFrames = 2048
   private val mapAheadFrames = 6615 // ~150ms of schedule-ahead
-  private val mapClickFrames = (44_100 * 0.034).roundToInt()
+  /** Longest click the current voice renders — the chunk lookback must cover it. */
+  private val mapClickFrames: Int
+    get() = clickFramesFor(clickVoiceSpec(config.clickVoice, isDownbeat = true), sampleRate)
 
   private val mapWriterRunnable = object : Runnable {
     override fun run() {
@@ -133,7 +205,9 @@ class SongNookMetronomeEngine(
         previous.pulsesPerBar != config.pulsesPerBar ||
         previous.denominator != config.denominator ||
         previous.accentPattern != config.accentPattern ||
-        previous.clickEnabled != config.clickEnabled
+        previous.clickEnabled != config.clickEnabled ||
+        previous.subdivision != config.subdivision ||
+        previous.clickVoice != config.clickVoice
 
     if (!structuralChange) {
       try {
@@ -340,10 +414,13 @@ class SongNookMetronomeEngine(
     val pcm = ShortArray(frames)
     val chunkGridStart = runStartGridFrame + startFrame
     val chunkGridEnd = chunkGridStart + frames
-    // Pulses whose click could overlap this chunk (click length back from the start).
-    var pulse = mapGridPulseAtFrame(chunkGridStart - mapClickFrames)
+    // Pulses whose click could overlap this chunk (click length back from the start). A
+    // pulse's sub-clicks all lie before the NEXT pulse's onset, so this range covers them too.
+    val clickFrames = mapClickFrames
+    var pulse = mapGridPulseAtFrame(chunkGridStart - clickFrames)
     val lastPulse = mapGridPulseAtFrame(chunkGridEnd) + 1
-    val attackFrames = max(1, (sampleRate * 0.003).roundToInt())
+    val weakSpec = clickVoiceSpec(config.clickVoice, isDownbeat = false)
+    val subdivision = max(1, config.subdivision)
     while (pulse <= lastPulse) {
       if (pulse < firstRunGridPulse) {
         pulse += 1
@@ -353,32 +430,44 @@ class SongNookMetronomeEngine(
       val isDownbeat = meta[0] as Int == 1
       val accent = meta[2] as Double
       // Accent 0 is a rest, not a quiet click — the calibration screen leans on this to
-      // render gap patterns on the real click pipeline.
+      // render gap patterns on the real click pipeline. A rest has no sub-clicks either.
       if (accent <= 0.0) {
         pulse += 1
         continue
       }
       val clickGridStart = mapFrameOfGridPulse(pulse)
-      val baseFrequency = if (isDownbeat) 1960.0 else 1560.0
-      val overtoneFrequency = if (isDownbeat) 2940.0 else 2350.0
-      val amplitude = 0.22 + accent * 0.46
-      var frameIndex = max(0, (chunkGridStart - clickGridStart).toInt())
-      while (frameIndex < mapClickFrames) {
-        val absoluteGridFrame = clickGridStart + frameIndex
-        if (absoluteGridFrame >= chunkGridEnd) break
-        val chunkIndex = (absoluteGridFrame - chunkGridStart).toInt()
-        if (chunkIndex in 0 until frames) {
-          val sampleTime = frameIndex.toDouble() / sampleRate
-          val attack = min(1.0, frameIndex.toDouble() / attackFrames)
-          val decay = Math.pow(1.0 - frameIndex.toDouble() / mapClickFrames, if (isDownbeat) 2.8 else 2.4)
-          val sample =
-            (sin(2.0 * Math.PI * baseFrequency * sampleTime) * 0.78 +
-              sin(2.0 * Math.PI * overtoneFrequency * sampleTime) * 0.22) *
-              amplitude * attack * decay
-          val mixed = (pcm[chunkIndex] / Short.MAX_VALUE.toDouble()) + sample
-          pcm[chunkIndex] = (mixed.coerceIn(-1.0, 1.0) * Short.MAX_VALUE).roundToInt().toShort()
+      val mainSpec = clickVoiceSpec(config.clickVoice, isDownbeat)
+      // Sub-clicks ride the pulse's own segment spacing: segments are bar-aligned, so the
+      // gap to the next pulse always equals this segment's spacing — including the last
+      // pulse before a tempo change.
+      val framesPerPulse =
+        if (pulse < 0) mapSegments!![0].exactFramesPerPulse
+        else mapSegmentForGridPulse(pulse).exactFramesPerPulse
+      for (step in 0 until subdivision) {
+        val onset = clickGridStart + step * framesPerPulse / subdivision
+        val spec = if (step == 0) mainSpec else weakSpec
+        val amplitude = if (step == 0) mainSpec.amplitude(accent) else weakSpec.amplitude(SUB_CLICK_ACCENT)
+        val onsetFrames = clickFramesFor(spec, sampleRate)
+        val attackFrames = max(1, (sampleRate * spec.attackSec).roundToInt())
+        // Straddle-safe: start at the chunk edge if the onset is behind it, stop at its end.
+        var frameIndex = max(0, (chunkGridStart - onset).toInt())
+        while (frameIndex < onsetFrames) {
+          val absoluteGridFrame = onset + frameIndex
+          if (absoluteGridFrame >= chunkGridEnd) break
+          val chunkIndex = (absoluteGridFrame - chunkGridStart).toInt()
+          if (chunkIndex in 0 until frames) {
+            val sampleTime = frameIndex.toDouble() / sampleRate
+            val attack = min(1.0, frameIndex.toDouble() / attackFrames)
+            val decay = Math.pow(1.0 - frameIndex.toDouble() / onsetFrames, spec.decayPower)
+            val sample =
+              (sin(2.0 * Math.PI * spec.baseFrequency * sampleTime) * spec.mixBase +
+                sin(2.0 * Math.PI * spec.overtoneFrequency * sampleTime) * spec.mixOvertone) *
+                amplitude * attack * decay
+            val mixed = (pcm[chunkIndex] / Short.MAX_VALUE.toDouble()) + sample
+            pcm[chunkIndex] = (mixed.coerceIn(-1.0, 1.0) * Short.MAX_VALUE).roundToInt().toShort()
+          }
+          frameIndex += 1
         }
-        frameIndex += 1
       }
       pulse += 1
     }
@@ -581,6 +670,8 @@ class SongNookMetronomeEngine(
       "denominator" to config.denominator,
       "clickEnabled" to config.clickEnabled,
       "clickVolume" to config.clickVolume,
+      "subdivision" to config.subdivision,
+      "clickVoice" to config.clickVoice,
       "beatIntervalMs" to beatIntervalMsForBpm(config.bpm),
       "beatInBar" to beatInBar,
       "barNumber" to barNumber,
@@ -804,6 +895,11 @@ class SongNookMetronomeEngine(
       ?: config.hapticStrength
     val hapticOffsetMs = (rawConfig["hapticOffsetMs"] as? Number)?.toInt()?.coerceIn(-200, 1000)
       ?: config.hapticOffsetMs
+    val subdivision = (rawConfig["subdivision"] as? Number)?.toInt()?.coerceIn(1, 4)
+      ?: config.subdivision
+    // A present-but-unknown voice falls back to the stock click; absent keeps running.
+    val clickVoice = (rawConfig["clickVoice"] as? String)?.let { if (it == "wood") "wood" else "click" }
+      ?: config.clickVoice
 
     return MetronomeConfig(
       bpm = bpm,
@@ -816,7 +912,9 @@ class SongNookMetronomeEngine(
       outputLatencyMs = outputLatencyMs,
       hapticEnabled = hapticEnabled,
       hapticStrength = hapticStrength,
-      hapticOffsetMs = hapticOffsetMs
+      hapticOffsetMs = hapticOffsetMs,
+      subdivision = subdivision,
+      clickVoice = clickVoice
     )
   }
 
@@ -897,9 +995,9 @@ private fun buildLoopPcm16(
   totalFrames: Int,
   sampleRate: Int
 ): ByteArray {
-  val clickDurationFrames = min(totalFrames, max(1, (sampleRate * 0.034).roundToInt()))
-  val attackFrames = max(1, (sampleRate * 0.003).roundToInt())
   val pcm = ShortArray(totalFrames)
+  val weakSpec = clickVoiceSpec(config.clickVoice, isDownbeat = false)
+  val subdivision = max(1, config.subdivision)
 
   for (pulseIndex in 0 until config.pulsesPerBar) {
     val accent = config.accentPattern[pulseIndex.coerceAtMost(config.accentPattern.lastIndex)]
@@ -907,30 +1005,14 @@ private fun buildLoopPcm16(
     if (accent <= 0.0) {
       continue
     }
+    // Bresenham onsets: round(k · exact) for the beat AND its sub-clicks, so the ornament
+    // rides the same sample-exact bar as the grid.
     val startFrame = (pulseIndex * exactFramesPerPulse).roundToInt()
-    val baseFrequency = if (pulseIndex == 0) 1960.0 else 1560.0
-    val overtoneFrequency = if (pulseIndex == 0) 2940.0 else 2350.0
-    val amplitude = 0.22 + accent * 0.46
-
-    for (frameIndex in 0 until clickDurationFrames) {
-      val absoluteFrame = startFrame + frameIndex
-      if (absoluteFrame >= totalFrames) {
-        break
-      }
-
-      val sampleTime = frameIndex.toDouble() / sampleRate.toDouble()
-      val attack = min(1.0, frameIndex.toDouble() / attackFrames.toDouble())
-      val decay = Math.pow(1.0 - frameIndex.toDouble() / clickDurationFrames.toDouble(), if (pulseIndex == 0) 2.8 else 2.4)
-      val envelope = attack * decay
-      val sample =
-        (sin(2.0 * Math.PI * baseFrequency * sampleTime) * 0.78 +
-          sin(2.0 * Math.PI * overtoneFrequency * sampleTime) * 0.22) *
-          amplitude *
-          envelope
-
-      val mixed = (pcm[absoluteFrame] / Short.MAX_VALUE.toDouble()) + sample
-      val clamped = min(1.0, max(-1.0, mixed))
-      pcm[absoluteFrame] = (clamped * Short.MAX_VALUE).roundToInt().toShort()
+    val spec = clickVoiceSpec(config.clickVoice, isDownbeat = pulseIndex == 0)
+    mixClick(pcm, startFrame, spec, spec.amplitude(accent), totalFrames, sampleRate)
+    for (step in 1 until subdivision) {
+      val subFrame = ((pulseIndex + step.toDouble() / subdivision) * exactFramesPerPulse).roundToInt()
+      mixClick(pcm, subFrame, weakSpec, weakSpec.amplitude(SUB_CLICK_ACCENT), totalFrames, sampleRate)
     }
   }
 

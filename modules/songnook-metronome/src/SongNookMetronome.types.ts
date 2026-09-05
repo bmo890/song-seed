@@ -1,3 +1,5 @@
+export type NativeClickVoice = "click" | "wood";
+
 export type NativeMetronomeConfig = {
   bpm: number;
   meterId: string;
@@ -18,6 +20,13 @@ export type NativeMetronomeConfig = {
   hapticEnabled?: boolean;
   hapticStrength?: number;
   hapticOffsetMs?: number;
+  /** Audio-only ornament: split every pulse into 1–4 equal parts and render the extra
+   *  onsets as quiet weak-voice sub-clicks. Beat events, the grid anchor, count-in math
+   *  and haptics are untouched. Structural (rebuilds the click). Default 1. Only honored
+   *  on binaries with supportsClickStyle — older engines ignore the key. */
+  subdivision?: number;
+  /** Click timbre. Structural. Default "click". Only honored with supportsClickStyle. */
+  clickVoice?: NativeClickVoice;
 };
 
 /** One bar-anchored constant-tempo stretch handed to the map-mode engines. */
@@ -67,6 +76,9 @@ export type NativeMetronomeState = {
   barNumber: number;
   absolutePulse: number;
   countInBarsRemaining: number;
+  /** Present on binaries with supportsClickStyle. */
+  subdivision?: number;
+  clickVoice?: NativeClickVoice;
 };
 
 /** Snapshot of the running beat grid: everything derives from one anchor instead of a

@@ -42,6 +42,9 @@ import {
     DEFAULT_METRONOME_METER_ID,
     isValidGrouping,
     DEFAULT_METRONOME_OUTPUTS,
+    DEFAULT_METRONOME_CLICK_VOICE,
+    clampMetronomeSubdivision,
+    isMetronomeClickVoice,
     isMetronomeMeterId,
 } from "../domain/metronome";
 import { normalizeBluetoothMonitoringCalibrations } from "../domain/bluetoothMonitoring";
@@ -213,6 +216,11 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
             typeof state?.metronomeCountInBars === "number" && Number.isFinite(state.metronomeCountInBars)
                 ? clampMetronomeCountInBars(state.metronomeCountInBars)
                 : DEFAULT_METRONOME_COUNT_IN_BARS,
+        metronomeSubdivision: clampMetronomeSubdivision(state?.metronomeSubdivision),
+        metronomeClickVoice: isMetronomeClickVoice(state?.metronomeClickVoice)
+            ? state.metronomeClickVoice
+            : DEFAULT_METRONOME_CLICK_VOICE,
+        playbackClickHaptic: state?.playbackClickHaptic === true,
         globalCustomClipTags: Array.isArray(state?.globalCustomClipTags) ? state.globalCustomClipTags : [],
         notes: Array.isArray(state?.notes) ? state.notes : [],
         wordLadders: sanitizeWordLadders(state?.wordLadders),

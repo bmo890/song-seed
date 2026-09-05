@@ -11,9 +11,12 @@ import {
 } from "../domain/playbackClick";
 import {
   MAX_METRONOME_BPM,
+  MAX_METRONOME_LEVEL,
   MIN_METRONOME_BPM,
+  clampMetronomeLevel,
   getMetronomeBeepVolume,
 } from "../domain/metronome";
+import { resolveCurrentRouteLatencyProfile } from "../services/latencyModel";
 import { useStore } from "../state/useStore";
 
 /**
@@ -61,6 +64,8 @@ export type PlaybackClickApi = {
   cancelCountIn: () => void;
   /** Call after any committed position jump (seek, loop wrap) with the target ms. */
   notifySeek: (targetMs: number) => void;
+  /** The engine can buzz the beat natively (scheduled cues); older binaries can't. */
+  supportsHaptic: boolean;
 };
 
 export function usePlaybackClick(args: UsePlaybackClickArgs): PlaybackClickApi {
@@ -80,6 +85,7 @@ function usePlaybackClickInert(): PlaybackClickApi {
     playWithCountIn: async () => false,
     cancelCountIn: () => {},
     notifySeek: () => {},
+    supportsHaptic: false,
   };
 }
 
@@ -93,6 +99,11 @@ function usePlaybackClickNative({
   // which a musician may keep muted (haptic-only) without meaning to silence
   // the playback click too.
   const beepLevel = useStore((s) => s.playbackClickLevel);
+  // Its own haptic switch too (same reasoning); strength shares the metronome's dial,
+  // which is a feel setting rather than a per-surface one.
+  const hapticEnabled = useStore((s) => s.playbackClickHaptic);
+  const hapticLevel = useStore((s) => s.metronomeHapticLevel);
+  const bluetoothMonitoringCalibrations = useStore((s) => s.bluetoothMonitoringCalibrations);
 
   const [enabled, setEnabledState] = useState(false);
   const [isCountingIn, setIsCountingIn] = useState(false);
@@ -107,6 +118,14 @@ function usePlaybackClickNative({
   enabledRef.current = enabled;
   const beepLevelRef = useRef(beepLevel);
   beepLevelRef.current = beepLevel;
+  const hapticRef = useRef(hapticEnabled);
+  hapticRef.current = hapticEnabled;
+  const hapticLevelRef = useRef(hapticLevel);
+  hapticLevelRef.current = hapticLevel;
+  const calibrationsRef = useRef(bluetoothMonitoringCalibrations);
+  calibrationsRef.current = bluetoothMonitoringCalibrations;
+  /** Signed haptic lead for the current route (latency model), refreshed per sync. */
+  const hapticLeadMsRef = useRef(0);
   const getPositionRef = useRef(getPositionMs);
   getPositionRef.current = getPositionMs;
 
@@ -119,6 +138,9 @@ function usePlaybackClickNative({
   const isCountingInRef = useRef(false);
 
   const supportsPhaseStart = !!SongNookMetronomeModule?.supportsPhaseStart?.();
+  // Haptics only where the engine schedules them itself with the signed lead. No JS
+  // event fallback here: a late buzz against a moving take is worse than none.
+  const nativeCuesSupported = !!SongNookMetronomeModule?.supportsScheduledCues?.();
 
   const clearTimers = useCallback(() => {
     for (const timer of timersRef.current) {
@@ -147,7 +169,27 @@ function usePlaybackClickNative({
     }
   }, [clearTimers]);
 
+  /** Resolve the route's haptic lead the same way the metronome does at start. */
+  const refreshHapticLead = useCallback(async (params: PlaybackClickEngineParams) => {
+    if (!nativeCuesSupported || !hapticRef.current) {
+      hapticLeadMsRef.current = 0;
+      return;
+    }
+    try {
+      const profile = await resolveCurrentRouteLatencyProfile({
+        calibrations: calibrationsRef.current,
+        activeOutputs: { beep: true, visual: false, haptic: true },
+        clickLoopBarMs: params.barWallMs,
+      });
+      hapticLeadMsRef.current = Math.round(profile.hapticLeadMs);
+    } catch (error) {
+      console.warn("[timing] playback click haptic lead resolution failed", error);
+      hapticLeadMsRef.current = 0;
+    }
+  }, [nativeCuesSupported]);
+
   const configureForParams = useCallback(async (params: PlaybackClickEngineParams) => {
+    await refreshHapticLead(params);
     await SongNookMetronomeModule!.configure({
       bpm: params.bpm,
       meterId: params.meterId,
@@ -159,11 +201,15 @@ function usePlaybackClickNative({
       // Click and song share the output route — both delayed equally, aligned at the
       // ear. No cue-lead correction here; playback surfaces have no beat UI yet.
       outputLatencyMs: 0,
-      hapticEnabled: false,
-      hapticStrength: 0,
-      hapticOffsetMs: 0,
+      hapticEnabled: nativeCuesSupported && hapticRef.current,
+      hapticStrength: clampMetronomeLevel(hapticLevelRef.current) / MAX_METRONOME_LEVEL,
+      hapticOffsetMs: hapticLeadMsRef.current,
+      // The engine MERGES configs: pin the ornaments so a subdivision or wood voice
+      // left by the standalone metronome never leaks into the practice click.
+      subdivision: 1,
+      clickVoice: "click",
     });
-  }, []);
+  }, [nativeCuesSupported, refreshHapticLead]);
 
   /** (Re)start the click phase-aligned at the given (or current) position. */
   const syncClick = useCallback(
@@ -310,7 +356,7 @@ function usePlaybackClickNative({
     } else if (!isCountingInRef.current) {
       void stopEngine();
     }
-  }, [enabled, isPlaying, playbackRate, grid, beepLevel, syncClick, stopEngine]);
+  }, [enabled, isPlaying, playbackRate, grid, beepLevel, hapticEnabled, hapticLevel, syncClick, stopEngine]);
 
   useEffect(() => {
     return () => {
@@ -421,5 +467,6 @@ function usePlaybackClickNative({
     playWithCountIn,
     cancelCountIn,
     notifySeek,
+    supportsHaptic: nativeCuesSupported,
   };
 }

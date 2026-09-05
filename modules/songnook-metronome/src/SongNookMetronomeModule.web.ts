@@ -36,6 +36,10 @@ class SongNookMetronomeModule extends NativeModule<SongNookMetronomeModuleEvents
     return false;
   }
 
+  supportsClickStyle(): boolean {
+    return false;
+  }
+
   async configure(config: NativeMetronomeConfig): Promise<NativeMetronomeState> {
     this.state = {
       ...this.state,

@@ -118,6 +118,22 @@ I wrote these from the code; you know the real behavior. Open the **?** on each 
 
 - [ ] Nothing prompts for a review prematurely (by design it needs 10+ saved clips AND 5+ days installed — so on a fresh test it should stay silent).
 
+## 13b. 🟡 Metronome feature pass (2026-09-05 — native rebuild required)
+
+Both engines gained `subdivision` + `clickVoice`; nothing here was compiled or heard
+remotely. Rebuild first (`npm run ios` / `npm run android`).
+
+- [ ] Drawer → Metronome: eight meter chips in two rows; 7/8 shows groupings 2+2+3 / 3+2+2 / 2+3+2; 12/8 dots fit the width at every accent size.
+- [ ] Tempo marking under the BPM readout tracks the slider (59 Largo → 60 Adagio → 120 Allegro → 200 Prestissimo); Hebrew shows the transliterations.
+- [ ] Subdivision: Beat / Halves / Thirds / Quarters — sub-clicks sit evenly between beats, quieter than a weak beat; the dots and the haptic stay on the beat only.
+- [ ] Sound: Click / Wood — the wood voice is lower and softer; switching while running restarts the phase exactly like a tempo change (accepted).
+- [ ] Start the metronome and leave the phone alone past its auto-lock time: the screen stays awake; Stop or leaving the page lets it dim again.
+- [ ] Recording sheet: Count-in "4 bars" stays 4 after reopening and the count-in really runs four bars (progress label total); Subdivision and Sound lock while the take rolls, levels stay live.
+- [ ] Record a count-in take with Quarters + Wood on, then compare the `[timing] head trim` log against a Beat/Click take — identical class of values (sub-clicks never touch the grid).
+- [ ] Programmed-changes take (map mode) with Halves on: sub-clicks continue across the tempo change without a seam or a doubled click at the bar line.
+- [ ] Bluetooth calibration click pass still renders its gap pattern with one stock click per beat (pinned), regardless of the metronome's subdivision/voice.
+- [ ] Player → Tools → Click: Haptic row appears (only on scheduled-cue binaries); on, the buzz lands with the click on speaker and after a fresh BT calibration; off, nothing buzzes.
+
 ## 14. 🟡 Cross-cutting QA (device pass essentials)
 
 - [ ] **Airplane mode**: Word Finder, Magpie, Cut-Up degrade with friendly in-app messages — no infinite spinners or raw errors.
