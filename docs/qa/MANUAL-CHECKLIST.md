@@ -201,6 +201,9 @@ See `docs/qa/RUN-LOG.md` for the automation status of each.
 
 - iOS ☐  Android ☐ — Tuner opens; grant mic permission → "LISTENING" state shows. **[AUTO: 07]**
 - iOS ☐  Android ☐ — Tuner detects pitch from a real instrument/voice (needle moves, note reads). **[HUMAN]**
+- iOS ☐  Android ☐ — Tuner registers a plucked string within one or two readings (well under half a second), the needle glides rather than steps, and the note name holds steady while the string decays. **[HUMAN]**
+- iOS ☐  Android ☐ — Tuner: low E then high e reads E2 then E4 (no octave folding); a string tuned to the edge of a note does not flicker between names. **[HUMAN]**
+- iOS ☐  Android ☐ — Tuner releases the mic when the app is backgrounded (no recording indicator) and resumes on return. **[HUMAN]**
 - iOS ☐  Android ☐ — Metronome: BPM ± changes the value; meter 4/4↔3/4; Start/Stop toggles. **[AUTO: 11]**
 - iOS ☐  Android ☐ — Metronome **click is audible** and on-tempo; tap-tempo works. **[HUMAN]**
 - iOS ☐  Android ☐ — Metronome cues (Beep / Haptic / Visual) each do what they say. **[HUMAN]**

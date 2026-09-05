@@ -1,15 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useIsFocused } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import { ExpoAudioStreamModule } from "@siteed/audio-studio";
 import { AppState, type EmitterSubscription } from "react-native";
 import { haptic } from "../../../design/haptics";
 import {
-  buildTunerReading,
-  getTunerMeterPercent,
-  normalizePitchAgainstHistory,
-  summarizePitchSamples,
-} from "../../../domain/tuner";
+  TRACKER_CONFIG,
+  createTrackerState,
+  isTrackerStale,
+  trackPitchFrame,
+  type TrackerOutput,
+  type TrackerState,
+} from "../../../domain/tunerTracker";
 
 type PitchyConfig = {
   bufferSize?: number;
@@ -17,58 +19,39 @@ type PitchyConfig = {
   algorithm?: "ACF2+";
 };
 
+type PitchEvent = {
+  pitch: number;
+  /** Periodicity 0..1 from the patched native detector; absent on older builds. */
+  clarity?: number;
+  /** Input level in dBFS. */
+  level?: number;
+};
+
 type PitchyModule = {
   init(config?: PitchyConfig): void;
   start(): Promise<boolean>;
   stop(): Promise<boolean>;
   isRecording(): Promise<boolean>;
-  addListener(callback: ({ pitch }: { pitch: number }) => void): EmitterSubscription;
+  addListener(callback: (event: PitchEvent) => void): EmitterSubscription;
 };
 
-type NoteCandidate = {
-  eventCount: number;
-  frequency: number;
-  noteKey: string;
-  samples: number[];
-  startedAt: number;
-};
-
-const MAX_RECENT_PITCHES = 3;
-const STALE_PITCH_MS = 700;
-const PITCH_MIN_HZ = 40;
-const PITCH_MAX_HZ = 1500;
-const PITCHY_BUFFER_SIZE = 2048;
+/**
+ * Frames per detection pass. On Android this is the read hop (~46 ms at
+ * 44.1 kHz); iOS taps deliver ~100 ms regardless and the native side analyses
+ * the newest 4096 frames of each buffer.
+ */
+const PITCHY_HOP_FRAMES = 2048;
 // Measurement mode disables iOS input AGC, so raw mic levels run low — a decaying
-// pluck falls below -46 dBFS mid-note. Candidate stability filtering (spread gate)
-// already rejects noise-derived pitches, so the native volume gate can sit lower.
+// pluck sits well under -46 dBFS mid-note. The detector's clarity gate rejects
+// noise-derived pitches, so the level gate only needs to drop true silence.
 const PITCHY_MIN_VOLUME_DB = -60;
-const INITIAL_LOCK_EVENT_COUNT = 2;
-const SWITCH_LOCK_EVENT_COUNT = 3;
-const INITIAL_LOCK_MS = 70;
-const SWITCH_LOCK_MS = 135;
-const DISPLAY_SMOOTHING_ALPHA = 0.10;
-const DISPLAY_FAST_ALPHA = 0.22;
-const IN_TUNE_GUIDE_CENTS = 5;
+const STALE_CHECK_MS = 100;
 const IN_TUNE_HOLD_MS = 480;
 /** After leaving in-tune, wait this long before the lock haptic can fire again. */
 const IN_TUNE_HAPTIC_REARM_MS = 300;
 const IN_TUNE_EXIT_CENTS = 10;
-const MIN_DISPLAY_DELTA_HZ = 0.04;
-const CANDIDATE_SAMPLE_WINDOW = 5;
-const CANDIDATE_MAX_SPREAD_CENTS = 18;
-const MAX_TRACKING_JUMP_CENTS = 42;
-const ACTIVE_CENTS_WINDOW = 14;
-const SIGN_SWITCH_HYSTERESIS_CENTS = 4;
-const DRAMATIC_CHANGE_CENTS = 18;
 const ENGINE_EVENT_TIMEOUT_MS = 2200;
 const ENGINE_HEALTHCHECK_MS = 1600;
-
-const ARC_STAGE_WIDTH = 300;
-const ARC_TRACK_SIZE = 240;
-const ARC_TRACK_STROKE = 4;
-const ARC_TRACK_TOP = 20;
-const ARC_TRACK_LEFT = (ARC_STAGE_WIDTH - ARC_TRACK_SIZE) / 2;
-const ARC_INDICATOR_SIZE = 16;
 
 function loadPitchy(): PitchyModule | null {
   try {
@@ -100,87 +83,8 @@ function formatDetuneBadge(centsOff: number | null, side: "flat" | "sharp") {
   return centsOff > 0 ? `+${rounded}` : "--";
 }
 
-function getReadingKey(noteName: string, octave: number) {
-  return `${noteName}${octave}`;
-}
-
-function centsDistance(frequency: number, referenceFrequency: number) {
-  return Math.abs(1200 * Math.log2(frequency / referenceFrequency));
-}
-
-function clampValue(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
-
-function frequencyFromCents(referenceFrequency: number, centsOff: number) {
-  return referenceFrequency * Math.pow(2, centsOff / 1200);
-}
-
-function smoothDisplayedCents(current: number | null, target: number) {
-  const adjustedTarget = clampValue(target, -50, 50);
-
-  if (current === null) {
-    return adjustedTarget;
-  }
-
-  if (
-    Math.sign(current) !== 0 &&
-    Math.sign(adjustedTarget) !== 0 &&
-    Math.sign(current) !== Math.sign(adjustedTarget) &&
-    Math.abs(adjustedTarget) < SIGN_SWITCH_HYSTERESIS_CENTS
-  ) {
-    const decayed = current * 0.82;
-    return Math.abs(decayed) < 0.35 ? adjustedTarget : decayed;
-  }
-
-  const delta = Math.abs(adjustedTarget - current);
-  let alpha = delta > DRAMATIC_CHANGE_CENTS ? DISPLAY_FAST_ALPHA : DISPLAY_SMOOTHING_ALPHA;
-
-  // Center gravity — extra smoothing when both values are near in-tune
-  if (
-    Math.abs(current) <= IN_TUNE_GUIDE_CENTS + 3 &&
-    Math.abs(adjustedTarget) <= IN_TUNE_GUIDE_CENTS + 3
-  ) {
-    alpha *= 0.4;
-  }
-
-  const next = current + (adjustedTarget - current) * alpha;
-
-  return Math.abs(adjustedTarget - next) <= 0.2
-    ? adjustedTarget
-    : clampValue(next, -50, 50);
-}
-
-function isCandidateStable(candidate: NoteCandidate) {
-  const center = summarizePitchSamples(candidate.samples);
-  if (!center) {
-    return false;
-  }
-
-  const maxSpread = candidate.samples.reduce((largestSpread, sample) => {
-    return Math.max(largestSpread, centsDistance(sample, center));
-  }, 0);
-
-  return maxSpread <= CANDIDATE_MAX_SPREAD_CENTS;
-}
-
-function getArcIndicatorPosition(centsOff: number) {
-  const progress = getTunerMeterPercent(centsOff) / 100;
-  const angle = Math.PI - progress * Math.PI;
-  const centerX = ARC_TRACK_LEFT + ARC_TRACK_SIZE / 2;
-  const centerY = ARC_TRACK_TOP + ARC_TRACK_SIZE / 2;
-  const radius = ARC_TRACK_SIZE / 2 - ARC_TRACK_STROKE / 2;
-
-  // `start` (not `left`) so the needle resolves against the LTR-pinned arc stage
-  // and deflects flat→sharp correctly even under a Hebrew (RTL) UI.
-  return {
-    start: centerX + radius * Math.cos(angle) - ARC_INDICATOR_SIZE / 2,
-    top: centerY - radius * Math.sin(angle) - ARC_INDICATOR_SIZE / 2,
-  };
-}
-
 function getDetuneTone(absCents: number) {
-  if (absCents <= IN_TUNE_GUIDE_CENTS) {
+  if (absCents <= TRACKER_CONFIG.inTuneCents) {
     return "in_tune";
   }
   if (absCents <= 16) {
@@ -201,26 +105,17 @@ export function useTunerScreenModel() {
   const isStoppingRef = useRef(false);
   const isRestartingRef = useRef(false);
   const isListeningRef = useRef(false);
-  const recentPitchWindowRef = useRef<number[]>([]);
-  const lastPitchTsRef = useRef(0);
+  const trackerRef = useRef<TrackerState>(createTrackerState());
   const lastEngineEventTsRef = useRef(0);
-  const displayFrequencyRef = useRef<number | null>(null);
-  const activeNoteKeyRef = useRef<string | null>(null);
-  const candidateNoteRef = useRef<NoteCandidate | null>(null);
-  const activeReferenceFrequencyRef = useRef<number | null>(null);
-  const displayCentsRef = useRef<number | null>(null);
-  const activeCentsWindowRef = useRef<number[]>([]);
   const lastInTuneTsRef = useRef(0);
   const wasInTuneRef = useRef(false);
   const leftInTuneTsRef = useRef(0);
 
-  const [frequency, setFrequency] = useState<number | null>(null);
+  const [output, setOutput] = useState<TrackerOutput | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [signalActive, setSignalActive] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [permissionBlocked, setPermissionBlocked] = useState(false);
-
-  const reading = useMemo(() => buildTunerReading(frequency), [frequency]);
 
   useEffect(() => {
     isFocusedRef.current = isFocused;
@@ -239,27 +134,20 @@ export function useTunerScreenModel() {
     };
   }, []);
 
+  // Hold the last reading briefly after the string stops sounding, then clear.
   useEffect(() => {
     const intervalId = setInterval(() => {
-      const isFresh = Date.now() - lastPitchTsRef.current <= STALE_PITCH_MS;
-
-      if (isMountedRef.current) {
-        setSignalActive((current) => (current === isFresh ? current : isFresh));
+      if (!isMountedRef.current) {
+        return;
       }
-
-      if (!isFresh) {
-        recentPitchWindowRef.current = [];
-        candidateNoteRef.current = null;
-        activeNoteKeyRef.current = null;
-        displayFrequencyRef.current = null;
-        activeReferenceFrequencyRef.current = null;
-        displayCentsRef.current = null;
-        activeCentsWindowRef.current = [];
-        if (isMountedRef.current) {
-          setFrequency((current) => (current === null ? current : null));
+      if (isTrackerStale(trackerRef.current, Date.now())) {
+        if (trackerRef.current.activeNoteKey !== null || trackerRef.current.pending) {
+          trackerRef.current = createTrackerState();
         }
+        setOutput((current) => (current === null ? current : null));
+        setSignalActive((current) => (current ? false : current));
       }
-    }, 80);
+    }, STALE_CHECK_MS);
 
     return () => clearInterval(intervalId);
   }, []);
@@ -285,28 +173,22 @@ export function useTunerScreenModel() {
         lastEngineEventTsRef.current > 0 &&
         Date.now() - lastEngineEventTsRef.current > ENGINE_EVENT_TIMEOUT_MS;
 
+      const canRestart = () =>
+        isFocusedRef.current &&
+        isListeningRef.current &&
+        !isStartingRef.current &&
+        !isStoppingRef.current &&
+        !isRestartingRef.current;
+
       void pitchy
         .isRecording()
         .then((isRecording) => {
-          if (
-            (!isRecording || engineTimedOut) &&
-            isFocusedRef.current &&
-            isListeningRef.current &&
-            !isStartingRef.current &&
-            !isStoppingRef.current &&
-            !isRestartingRef.current
-          ) {
+          if ((!isRecording || engineTimedOut) && canRestart()) {
             void restartListening();
           }
         })
         .catch(() => {
-          if (
-            isFocusedRef.current &&
-            isListeningRef.current &&
-            !isStartingRef.current &&
-            !isStoppingRef.current &&
-            !isRestartingRef.current
-          ) {
+          if (canRestart()) {
             void restartListening();
           }
         });
@@ -334,185 +216,34 @@ export function useTunerScreenModel() {
   }
 
   function resetLiveState() {
-    recentPitchWindowRef.current = [];
-    lastPitchTsRef.current = 0;
+    trackerRef.current = createTrackerState();
     lastEngineEventTsRef.current = 0;
-    displayFrequencyRef.current = null;
-    activeNoteKeyRef.current = null;
-    candidateNoteRef.current = null;
-    activeReferenceFrequencyRef.current = null;
-    displayCentsRef.current = null;
-    activeCentsWindowRef.current = [];
     lastInTuneTsRef.current = 0;
 
     if (isMountedRef.current) {
-      setFrequency(null);
+      setOutput(null);
       setSignalActive(false);
     }
   }
 
-  function publishFrequency(nextFrequency: number | null) {
-    displayFrequencyRef.current = nextFrequency;
-
-    if (nextFrequency !== null) {
-      lastPitchTsRef.current = Date.now();
-    }
-
-    if (!isMountedRef.current) {
-      return;
-    }
-
-    if (nextFrequency !== null) {
-      setSignalActive((current) => (current ? current : true));
-    }
-
-    setFrequency((current) => {
-      if (nextFrequency === null) {
-        return current === null ? current : null;
-      }
-      if (current !== null && Math.abs(current - nextFrequency) <= MIN_DISPLAY_DELTA_HZ) {
-        return current;
-      }
-      return nextFrequency;
-    });
-  }
-
-  function publishSettledPitch(referenceFrequency: number, centsOff: number | null) {
-    displayCentsRef.current = centsOff;
-    if (centsOff === null) {
-      publishFrequency(null);
-      return;
-    }
-    publishFrequency(frequencyFromCents(referenceFrequency, centsOff));
-  }
-
-  function updateCandidate(noteKey: string, nextFrequency: number, now: number) {
-    const currentCandidate = candidateNoteRef.current;
-    if (currentCandidate?.noteKey === noteKey) {
-      const updatedCandidate = {
-        ...currentCandidate,
-        eventCount: currentCandidate.eventCount + 1,
-        frequency:
-          currentCandidate.frequency + (nextFrequency - currentCandidate.frequency) * 0.35,
-        samples: [
-          ...currentCandidate.samples.slice(-(CANDIDATE_SAMPLE_WINDOW - 1)),
-          nextFrequency,
-        ],
-      };
-
-      candidateNoteRef.current = updatedCandidate;
-      return updatedCandidate;
-    }
-
-    const nextCandidate = {
-      noteKey,
-      frequency: nextFrequency,
-      eventCount: 1,
-      samples: [nextFrequency],
-      startedAt: now,
-    };
-
-    candidateNoteRef.current = nextCandidate;
-    return nextCandidate;
-  }
-
-  function handlePitchDetected({ pitch }: { pitch: number }) {
-    lastEngineEventTsRef.current = Date.now();
-
-    if (!Number.isFinite(pitch) || pitch < PITCH_MIN_HZ || pitch > PITCH_MAX_HZ) {
-      return;
-    }
-
-    const normalizedPitch = normalizePitchAgainstHistory(
-      pitch,
-      recentPitchWindowRef.current
-    );
-    recentPitchWindowRef.current = [
-      ...recentPitchWindowRef.current.slice(-(MAX_RECENT_PITCHES - 1)),
-      normalizedPitch,
-    ];
-
-    const stabilizedPitch = summarizePitchSamples(recentPitchWindowRef.current);
-    if (!stabilizedPitch) {
-      return;
-    }
-
-    const nextReading = buildTunerReading(stabilizedPitch);
-    if (!nextReading) {
-      return;
-    }
-
+  function handlePitchDetected(event: PitchEvent) {
     const now = Date.now();
-    const noteKey = getReadingKey(nextReading.noteName, nextReading.octave);
-    const activeNoteKey = activeNoteKeyRef.current;
+    lastEngineEventTsRef.current = now;
 
-    if (!activeNoteKey) {
-      const candidate = updateCandidate(noteKey, stabilizedPitch, now);
+    const result = trackPitchFrame(trackerRef.current, {
+      pitch: event.pitch,
+      clarity: event.clarity,
+      level: event.level,
+      timestamp: now,
+    });
+    trackerRef.current = result.state;
 
-      if (
-        candidate.eventCount < INITIAL_LOCK_EVENT_COUNT ||
-        now - candidate.startedAt < INITIAL_LOCK_MS ||
-        !isCandidateStable(candidate)
-      ) {
-        return;
-      }
-
-      activeNoteKeyRef.current = noteKey;
-      candidateNoteRef.current = null;
-      activeReferenceFrequencyRef.current = nextReading.nearestNoteFrequency;
-      activeCentsWindowRef.current = [nextReading.centsOff];
-      publishSettledPitch(
-        nextReading.nearestNoteFrequency,
-        smoothDisplayedCents(null, nextReading.centsOff)
-      );
+    if (!isMountedRef.current || result.state.lastUpdateAt !== now) {
       return;
     }
 
-    if (noteKey !== activeNoteKey) {
-      const candidate = updateCandidate(noteKey, stabilizedPitch, now);
-
-      if (
-        candidate.eventCount < SWITCH_LOCK_EVENT_COUNT ||
-        now - candidate.startedAt < SWITCH_LOCK_MS ||
-        !isCandidateStable(candidate)
-      ) {
-        return;
-      }
-
-      activeNoteKeyRef.current = noteKey;
-      candidateNoteRef.current = null;
-      activeReferenceFrequencyRef.current = nextReading.nearestNoteFrequency;
-      activeCentsWindowRef.current = [nextReading.centsOff];
-      publishSettledPitch(
-        nextReading.nearestNoteFrequency,
-        smoothDisplayedCents(null, nextReading.centsOff)
-      );
-      return;
-    }
-
-    candidateNoteRef.current = null;
-    const referenceFrequency =
-      activeReferenceFrequencyRef.current ?? nextReading.nearestNoteFrequency;
-    activeReferenceFrequencyRef.current = referenceFrequency;
-    activeCentsWindowRef.current = [
-      ...activeCentsWindowRef.current.slice(-(ACTIVE_CENTS_WINDOW - 1)),
-      nextReading.centsOff,
-    ];
-    const targetCents =
-      summarizePitchSamples(activeCentsWindowRef.current) ?? nextReading.centsOff;
-    const currentDisplayCents = displayCentsRef.current;
-
-    if (
-      currentDisplayCents !== null &&
-      Math.abs(targetCents - currentDisplayCents) > MAX_TRACKING_JUMP_CENTS
-    ) {
-      return;
-    }
-
-    publishSettledPitch(
-      referenceFrequency,
-      smoothDisplayedCents(currentDisplayCents, targetCents)
-    );
+    setSignalActive((current) => (current ? current : true));
+    setOutput(result.output);
   }
 
   async function startListening() {
@@ -530,9 +261,7 @@ export function useTunerScreenModel() {
 
       const pitchy = loadPitchy();
       if (!pitchy) {
-        setErrorMessage(
-          t("tuner.detectorUnavailable")
-        );
+        setErrorMessage(t("tuner.detectorUnavailable"));
         return;
       }
 
@@ -544,7 +273,7 @@ export function useTunerScreenModel() {
       subscriptionRef.current?.remove();
       subscriptionRef.current = pitchy.addListener(handlePitchDetected);
       pitchy.init({
-        bufferSize: PITCHY_BUFFER_SIZE,
+        bufferSize: PITCHY_HOP_FRAMES,
         minVolume: PITCHY_MIN_VOLUME_DB,
         algorithm: "ACF2+",
       });
@@ -568,6 +297,8 @@ export function useTunerScreenModel() {
         setIsListening(false);
         setErrorMessage(t("tuner.startFailed"));
       }
+      // Failure surfaced to the user: docs/haptics-vocabulary.md → error.
+      haptic.error();
     } finally {
       isStartingRef.current = false;
     }
@@ -590,10 +321,8 @@ export function useTunerScreenModel() {
       subscriptionRef.current = null;
 
       if (pitchy) {
-        const isRecording = await pitchy.isRecording().catch(() => false);
-        if (isRecording) {
-          await pitchy.stop().catch(() => {});
-        }
+        // stop() rejects when the engine already died; that is the state we want.
+        await pitchy.stop().catch(() => {});
       }
 
       isListeningRef.current = false;
@@ -619,10 +348,7 @@ export function useTunerScreenModel() {
 
       const pitchy = pitchyRef.current;
       if (pitchy) {
-        const isRecording = await pitchy.isRecording().catch(() => false);
-        if (isRecording) {
-          await pitchy.stop().catch(() => {});
-        }
+        await pitchy.stop().catch(() => {});
       }
     } finally {
       isListeningRef.current = false;
@@ -642,21 +368,27 @@ export function useTunerScreenModel() {
     }
   }, [isFocused]);
 
-  // Returning from system Settings (e.g. after enabling the mic there) doesn't re-fire
-  // navigation focus, so the screen would otherwise stay stuck on the permission error and
-  // never start listening. Re-attempt on foreground; startListening re-requests permission
-  // and no-ops when already listening.
+  // The mic belongs to the foreground. Backgrounding releases it (no orange
+  // recording pip while the phone sits in a pocket); returning re-arms. This
+  // also covers coming back from system Settings after enabling the mic there,
+  // which never re-fires navigation focus.
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active" && isFocusedRef.current && !isListeningRef.current) {
-        void startListening();
+      if (state === "active") {
+        if (isFocusedRef.current && !isListeningRef.current) {
+          void startListening();
+        }
+      } else if (state === "background") {
+        if (isListeningRef.current || isStartingRef.current) {
+          void stopListening();
+        }
       }
     });
     return () => subscription.remove();
   }, []);
 
+  const reading = output;
   const centsOff = reading?.centsOff ?? 0;
-  const indicatorPosition = getArcIndicatorPosition(centsOff);
   const rawDetuneTone = reading ? getDetuneTone(Math.abs(centsOff)) : "idle";
 
   // In-tune hold — once locked green, stay green briefly even if cents drift
@@ -673,8 +405,8 @@ export function useTunerScreenModel() {
     effectiveTone = "in_tune";
   }
 
-  const showFlatDetune = Boolean(reading && reading.centsOff < -IN_TUNE_GUIDE_CENTS);
-  const showSharpDetune = Boolean(reading && reading.centsOff > IN_TUNE_GUIDE_CENTS);
+  const showFlatDetune = Boolean(reading && reading.centsOff < -TRACKER_CONFIG.inTuneCents);
+  const showSharpDetune = Boolean(reading && reading.centsOff > TRACKER_CONFIG.inTuneCents);
 
   // In-tune buzz: one success pulse when the needle locks green — the canonical
   // tuner delight. Fires on the TRANSITION only and re-arms after the tone has
@@ -703,7 +435,8 @@ export function useTunerScreenModel() {
     // Retry affordance for the re-askable denial (canAskAgain): tapping the error
     // re-runs the permission request rather than dead-ending.
     retry: startListening,
-    indicatorPosition,
+    /** Needle target in cents (−50…50); 0 when idle so the needle rests centered. */
+    needleCents: centsOff,
     meterTone: signalActive && !reading ? "active" : effectiveTone,
     showFlatDetune,
     showSharpDetune,
@@ -711,6 +444,6 @@ export function useTunerScreenModel() {
     sharpDetuneValue: formatDetuneBadge(reading?.centsOff ?? null, "sharp"),
     noteText: reading ? reading.noteName : "--",
     octaveText: reading ? String(reading.octave) : "",
-    frequencyLabel: reading ? formatFrequency(reading.detectedFrequency) : "--",
+    frequencyLabel: reading ? formatFrequency(reading.frequency) : "--",
   };
 }

@@ -1,5 +1,9 @@
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"] as const;
 
+/** Detectable range: 5-string bass B0 up to well past a violin's E string harmonics. */
+export const TUNER_MIN_HZ = 27.5;
+export const TUNER_MAX_HZ = 2000;
+
 export type TunerReading = {
   detectedFrequency: number;
   noteName: string;
@@ -27,7 +31,12 @@ function clamp(value: number, min: number, max: number) {
 }
 
 export function buildTunerReading(frequency: number | null): TunerReading | null {
-  if (!frequency || !Number.isFinite(frequency) || frequency < 40 || frequency > 1500) {
+  if (
+    !frequency ||
+    !Number.isFinite(frequency) ||
+    frequency < TUNER_MIN_HZ ||
+    frequency > TUNER_MAX_HZ
+  ) {
     return null;
   }
 
@@ -51,37 +60,4 @@ export function buildTunerReading(frequency: number | null): TunerReading | null
 
 export function getTunerMeterPercent(centsOff: number) {
   return 50 + clamp(centsOff, -50, 50);
-}
-
-export function summarizePitchSamples(samples: number[]) {
-  if (samples.length === 0) {
-    return null;
-  }
-
-  const sorted = [...samples].sort((a, b) => a - b);
-  const middleIndex = Math.floor(sorted.length / 2);
-
-  if (sorted.length % 2 === 0) {
-    return (sorted[middleIndex - 1] + sorted[middleIndex]) / 2;
-  }
-
-  return sorted[middleIndex];
-}
-
-export function normalizePitchAgainstHistory(pitch: number, history: number[]) {
-  const reference = summarizePitchSamples(history);
-  if (!reference) {
-    return pitch;
-  }
-
-  let normalized = pitch;
-  while (normalized < reference / 1.6) {
-    normalized *= 2;
-  }
-
-  while (normalized > reference * 1.6) {
-    normalized /= 2;
-  }
-
-  return normalized;
 }

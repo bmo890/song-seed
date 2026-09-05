@@ -1,5 +1,7 @@
-import { Text, View } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, Text, View } from "react-native";
 import { styles } from "../styles";
+import { springs } from "../../../design/motion";
 import type { useTunerScreenModel } from "../hooks/useTunerScreenModel";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -29,6 +31,25 @@ export function TunerDial({ model }: { model: TunerModel }) {
   const detuneToneStyle = getMeterToneStyle(model);
   const detuneTextStyle =
     model.meterTone === "far" ? styles.detuneChipValueFar : styles.detuneChipValueNear;
+
+  // The detector reports ~10–20× a second; the needle glides between readings
+  // on the `handle` spring (a needle tracks the string the way a handle tracks
+  // a finger) instead of stepping, so the eye reads motion, not frames.
+  const needleCents = useRef(new Animated.Value(model.needleCents)).current;
+  useEffect(() => {
+    Animated.spring(needleCents, {
+      toValue: model.needleCents,
+      ...springs.handle,
+      overshootClamping: true,
+      useNativeDriver: true,
+    }).start();
+  }, [model.needleCents, needleCents]);
+
+  const needleRotation = needleCents.interpolate({
+    inputRange: [-50, 50],
+    outputRange: ["0deg", "180deg"],
+    extrapolate: "clamp",
+  });
 
   const isInTune = model.meterTone === "in_tune";
   const statusLabel = getStatusLabel(model, t);
@@ -70,9 +91,11 @@ export function TunerDial({ model }: { model: TunerModel }) {
           </View>
         ) : null}
 
-        <View
-          style={[styles.arcIndicator, detuneToneStyle, model.indicatorPosition]}
-        />
+        <Animated.View
+          style={[styles.needlePivot, { transform: [{ rotate: needleRotation }] }]}
+        >
+          <View style={[styles.arcIndicator, detuneToneStyle]} />
+        </Animated.View>
 
         <View style={styles.noteBlock}>
           <View style={styles.noteRow}>

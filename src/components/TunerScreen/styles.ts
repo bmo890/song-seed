@@ -70,8 +70,20 @@ export const styles = {
     arcTrackInTune: {
       borderColor: "#4a7c5e",
     },
+    // Needle: an invisible pivot square centred on the arc, rotated by the
+    // cents reading; the dot sits on its left edge so 0°→♭ end, 180°→♯ end.
+    needlePivot: {
+      position: "absolute",
+      start: ARC_TRACK_LEFT + ARC_TRACK_STROKE / 2,
+      top: ARC_TRACK_TOP + ARC_TRACK_STROKE / 2,
+      width: ARC_TRACK_SIZE - ARC_TRACK_STROKE,
+      height: ARC_TRACK_SIZE - ARC_TRACK_STROKE,
+      pointerEvents: "none",
+    },
     arcIndicator: {
       position: "absolute",
+      start: -ARC_INDICATOR_SIZE / 2,
+      top: (ARC_TRACK_SIZE - ARC_TRACK_STROKE) / 2 - ARC_INDICATOR_SIZE / 2,
       width: ARC_INDICATOR_SIZE,
       height: ARC_INDICATOR_SIZE,
       borderRadius: ARC_INDICATOR_SIZE / 2,
