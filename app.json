@@ -7,6 +7,12 @@
     "scheme": "songnook",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "updates": {
+      "url": "https://u.expo.dev/5bf8abdf-8811-41d2-963d-96ebd0744b80"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "extra": {

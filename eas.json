@@ -12,7 +12,8 @@
       },
       "android": {
         "gradleCommand": ":app:assembleDevelopmentDebug"
-      }
+      },
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
@@ -22,7 +23,8 @@
       "android": {
         "buildType": "apk",
         "gradleCommand": ":app:assembleProductionRelease"
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
@@ -32,7 +34,8 @@
       "android": {
         "buildType": "app-bundle",
         "gradleCommand": ":app:bundleProductionRelease"
-      }
+      },
+      "channel": "production"
     }
   },
   "submit": {
