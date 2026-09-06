@@ -3,8 +3,12 @@ main = "src/index.ts"
 compatibility_date = "2026-07-01"
 compatibility_flags = ["nodejs_compat"]
 
-# The service lives ONLY on the branded custom domain (no workers.dev).
-routes = [{ pattern = "send.songnook.app", custom_domain = true }]
+# Branded custom domains only (no workers.dev). The apex is the public face —
+# landing + /privacy + /terms; send.* is the transfer service. Same Worker.
+routes = [
+  { pattern = "send.songnook.app", custom_domain = true },
+  { pattern = "songnook.app", custom_domain = true },
+]
 workers_dev = false
 
 # ── Public, non-secret config (safe to commit) ───────────────────────────────

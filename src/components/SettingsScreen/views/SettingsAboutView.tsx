@@ -10,6 +10,7 @@ import { useStore } from "../../../state/useStore";
 import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
 import { toast } from "../../common/toastStore";
+import { PRIVACY_POLICY_URL, TERMS_OF_USE_URL } from "../../../config/legalLinks";
 
 const FEEDBACK_EMAIL = "bmostudio.dev@gmail.com";
 
@@ -20,7 +21,12 @@ const FEEDBACK_EMAIL = "bmostudio.dev@gmail.com";
 export function SettingsAboutView() {
   const { t } = useTranslation();
   const version = Constants.expoConfig?.version ?? "—";
-  const planned = () => toast(t("settingsAccount.comingSoon"), "time-outline");
+  // Real pages now — hosted on songnook.app, generated from the same docs the
+  // stores link to. A failed open is the only thing left to toast.
+  const openLegal = (url: string) => {
+    haptic.tap();
+    void Linking.openURL(url).catch(() => toast(t("settingsAbout.linkFailed"), "alert-circle-outline"));
+  };
 
   const sendFeedback = () => {
     const subject = encodeURIComponent(`SongNook feedback (v${version})`);
@@ -95,8 +101,8 @@ export function SettingsAboutView() {
           {t("settingsAbout.privacyBody")}
         </Text>
         <SettingsGroup>
-          <AboutLinkRow label={t("settingsAbout.privacyPolicy")} icon="shield-checkmark-outline" onPress={planned} />
-          <AboutLinkRow label={t("settingsAbout.terms")} icon="document-text-outline" onPress={planned} />
+          <AboutLinkRow label={t("settingsAbout.privacyPolicy")} icon="shield-checkmark-outline" onPress={() => openLegal(PRIVACY_POLICY_URL)} />
+          <AboutLinkRow label={t("settingsAbout.terms")} icon="document-text-outline" onPress={() => openLegal(TERMS_OF_USE_URL)} />
         </SettingsGroup>
       </View>
     </ScrollView>

@@ -471,6 +471,7 @@ export const resources = {
         hapticPulseHint: "Feel each beat as a tap while recording.",
       },
       settingsAbout: {
+        linkFailed: "Couldn't open the page",
         subtitle: "Version, a way to reach us, and where your work lives.",
         version: "Version",
         sendFeedback: "Send feedback",
@@ -1917,6 +1918,7 @@ export const resources = {
         hapticPulseHint: "להרגיש כל פעמה כרטט בזמן ההקלטה.",
       },
       settingsAbout: {
+        linkFailed: "לא ניתן לפתוח את הדף",
         subtitle: "גרסה, דרך ליצור איתנו קשר והסבר על מיקום העבודה שלכם.",
         version: "גרסה",
         sendFeedback: "שליחת משוב",

@@ -12,6 +12,7 @@ import { toTransferPayload } from "./lib/serialize";
 import { sweepExpired } from "./lib/sweep";
 import { detectPlatform, renderRecipientPage } from "./pages/recipient";
 import { renderSenderPage } from "./pages/sender";
+import { renderLandingPage, renderLegalPage } from "./pages/legal";
 import { escapeHtml, htmlPage, page } from "./pages/shell";
 import { api } from "./routes/api";
 import { download } from "./routes/download";
@@ -39,8 +40,16 @@ app.route("/.well-known", wellKnown);
 // ── Ranged download proxy (/t/:id/dl/:itemId) ────────────────────────────────
 app.route("/t", download);
 
-// ── Web sender page ──────────────────────────────────────────────────────────
-app.get("/", () => htmlPage(renderSenderPage()));
+// ── The bare domain (songnook.app) vs the send host ──────────────────────────
+// One Worker serves both. The apex is the app's public face; send.* is the tool.
+const isApex = (host: string | undefined) => (host ?? "").replace(/^www\./, "").split(":")[0] === "songnook.app";
+
+// ── Web sender page — or the landing page on the bare domain ─────────────────
+app.get("/", (c) => htmlPage(isApex(c.req.header("host")) ? renderLandingPage() : renderSenderPage()));
+
+// ── Legal pages (the store listings link here; the app's Settings→About does too)
+app.get("/privacy", () => htmlPage(renderLegalPage("privacy")));
+app.get("/terms", () => htmlPage(renderLegalPage("terms")));
 
 // ── Recipient page (/t/:id) — content-negotiated ─────────────────────────────
 app.get("/t/:id", async (c) => {
@@ -82,8 +91,11 @@ app.get("/report/:id", (c) => {
 });
 
 // ── robots.txt — nothing here should be indexed ──────────────────────────────
-app.get("/robots.txt", () =>
-  new Response("User-agent: *\nDisallow: /\n", { headers: { "content-type": "text/plain" } })
+app.get("/robots.txt", (c) =>
+  new Response(
+    isApex(c.req.header("host")) ? "User-agent: *\nAllow: /\n" : "User-agent: *\nDisallow: /\n",
+    { headers: { "content-type": "text/plain" } }
+  )
 );
 
 app.get("/healthz", (c) => c.json({ ok: true }));
