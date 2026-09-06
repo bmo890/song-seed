@@ -2,6 +2,7 @@
   "expo": {
     "name": "SongNook",
     "slug": "songnook",
+    "owner": "bmostudio",
     "version": "1.0.0",
     "scheme": "songnook",
     "orientation": "portrait",
