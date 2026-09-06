@@ -197,7 +197,11 @@ export function page(opts: {
   /** When set, the footer carries a quiet "Report" link to the abuse funnel —
    *  every page that shows someone else's content must offer one. */
   reportHref?: string;
+  /** "send" (default) wears the Send masthead and transfer footer; "site" is the
+   *  bare domain — SongNook itself, with the legal links in the footer. */
+  variant?: "send" | "site";
 }): string {
+  const site = opts.variant === "site";
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -215,12 +219,12 @@ ${opts.noindex ? '<meta name="robots" content="noindex,nofollow">' : ""}
 <body>
 <div class="wrap">
 <header class="masthead rise">
-  <a class="brand" href="/">Song<b>Nook</b> · Send</a>
-  <span class="tag">Music, passed along</span>
+  <a class="brand" href="/">Song<b>Nook</b>${site ? "" : " · Send"}</a>
+  <span class="tag">${site ? "A quiet place to finish creative work" : "Music, passed along"}</span>
 </header>
 ${opts.body}
 <footer class="foot">
-  <span>Files are held for a limited time, then quietly let go.</span>
+  <span>${site ? '<a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>' : "Files are held for a limited time, then quietly let go."}</span>
   <span>SongNook — a home for song ideas${
     opts.reportHref ? ` · <a href="${escapeHtml(opts.reportHref)}">Report</a>` : ""
   }</span>

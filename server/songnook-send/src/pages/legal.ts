@@ -18,13 +18,14 @@ const LEGAL_CSS = `
 .legal li{margin-bottom:8px;line-height:1.6}
 .legal strong{color:var(--ink)}
 .legal nav{margin-top:40px;padding-top:16px;border-top:1px solid var(--rule);font-size:13px}
-.legal nav a{color:var(--ink-faint);margin-inline-end:16px}
+.legal nav a{color:var(--ink-faint);margin-inline-end:16px;text-decoration:none;border-bottom:1px solid var(--rule)}
 .land{max-width:44ch;margin:8vh auto 0;text-align:center}
 .land h1{font-size:clamp(34px,7vw,52px);line-height:1.05;margin:0 0 14px}
 .land p{font-size:17px;line-height:1.55;margin:0 0 10px}
 .land .quiet{color:var(--ink-faint);font-size:14px;margin-top:26px}
 .land nav{margin-top:34px;font-size:14px}
-.land nav a{margin:0 10px}
+.land nav a{margin:0 10px;color:var(--terra-deep);text-decoration:none;border-bottom:1px solid var(--rule)}
+.land nav a:hover{border-color:var(--terra-deep)}
 `;
 
 type LegalKind = keyof typeof LEGAL;
@@ -34,6 +35,7 @@ export function renderLegalPage(kind: LegalKind): string {
   const other = kind === "privacy" ? { href: "/terms", label: LEGAL.terms.title } : { href: "/privacy", label: LEGAL.privacy.title };
   return page({
     title: doc.title,
+    variant: "site",
     extraStyle: LEGAL_CSS,
     body: `<article class="legal rise">
   <h1>${escapeHtml(doc.title)}</h1>
@@ -48,6 +50,7 @@ export function renderLegalPage(kind: LegalKind): string {
 export function renderLandingPage(): string {
   return page({
     title: "SongNook",
+    variant: "site",
     extraStyle: LEGAL_CSS,
     body: `<section class="land rise">
   <h1>A quiet place to finish creative work.</h1>
