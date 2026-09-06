@@ -10,7 +10,10 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "extra": {
-      "supportsRTL": true
+      "supportsRTL": true,
+      "eas": {
+        "projectId": "5bf8abdf-8811-41d2-963d-96ebd0744b80"
+      }
     },
     "splash": {
       "image": "./assets/splash-icon.png",
