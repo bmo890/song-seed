@@ -105,6 +105,15 @@ Pixels can't be unit-tested; a scroll-through is the real check.
 - [ ] After that crash: Settings → About → **"Share diagnostic log"** has an entry to share.
 - [ ] The 4 formerly-native alerts (empty-library restore, recovered/failed recording, backup reminder) render as **styled** in-app dialogs, not OS popups. (Backup reminder is the easiest to trigger.)
 
+## 11b. 🔴 Saves survive a swipe-away (2026-09-07 field report)
+
+- [ ] Record a take, name it, turn it into a sketch, add a second take → swipe the app away in the app switcher → relaunch: the sketch is there with both takes and its name (no 0:00 card, no title revert).
+- [ ] Settings → About → **Share diagnostic log** produces one file containing `persist` entries (`boot`, `hydrate.ok`, `write.sqlite`, `recording.attached`).
+- [ ] If a **"Saving in backup mode"** / **"Saving is paused"** bar ever appears, note what you were doing and share the log — it now names the cause.
+- [ ] Settings → Data & storage → **Recover audio files** puts a stray take back onto its empty 0:00 idea instead of a "Recovered —" copy (when the idea still exists).
+- [ ] Backup reminder: never on install day; at most once a month afterwards; **Later** keeps it away for a month.
+- [ ] Settings → Data & storage → **Erase everything**: two red dialogs, then the phone's lock (Face ID / fingerprint / PIN) when one is set → app relaunches to the welcome screen with an empty library and no leftover files.
+
 ## 12. 🟡 Help-sheet accuracy — I need your eyes here (Phase 4)
 
 I wrote these from the code; you know the real behavior. Open the **?** on each and confirm every claim is true:

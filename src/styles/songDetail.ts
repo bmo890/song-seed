@@ -17,9 +17,40 @@ export const songDetailStyles = {
   songDetailNavLead: {
     flex: 1,
     minWidth: 0,
+    minHeight: 36,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 6,
+  },
+  // WHERE · WHAT label riding in the back button ("‹ IDEAS · SKETCH").
+  songDetailNavEyebrowWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    minWidth: 0,
+  },
+  songDetailNavEyebrow: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 11,
+    lineHeight: 16,
+    color: colors.eyebrow,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+    flexShrink: 1,
+  },
+  // The compact title shares the eyebrow's slot and crossfades in over it.
+  songDetailNavSlotOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+  },
+  songDetailMetaLine: {
+    flexShrink: 1,
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 12,
+    lineHeight: 18,
+    color: colors.textSecondary,
   },
   songDetailInlineBreadcrumbs: {
     flex: 1,

@@ -104,6 +104,11 @@ export const colors = {
   /** In tune (within 5 cents): muted sage. */
   tuneIn:   "#4A7C5E",
 
+  /** The "where am I" line above a page title (workspace hub, collection, sketch):
+   *  moss ink, one shade cooler than the warm palette so it reads as wayfinding, not
+   *  content. Lived as a bare literal in two headers before it had a name (2026-09-07). */
+  eyebrow: "#526351",
+
   // Technical lines (graph paper feel)
   borderSubtle: "#E8E4DF",
   borderMuted:  "#D7C2BD",

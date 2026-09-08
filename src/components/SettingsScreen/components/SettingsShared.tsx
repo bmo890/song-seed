@@ -43,6 +43,7 @@ export function LibraryActionCard({
   onPress,
   disabled,
   flat = false,
+  tone = "default",
 }: {
   icon: ComponentProps<typeof Ionicons>["name"];
   title: string;
@@ -55,7 +56,14 @@ export function LibraryActionCard({
   disabled?: boolean;
   /** Render without its own card fill, for use inside a SettingsGroup. */
   flat?: boolean;
+  /** `danger` = a destructive row (erase everything): icon + title in danger ink,
+   *  danger-surface icon disc. Colour is the only difference — same anatomy. */
+  tone?: "default" | "danger";
 }) {
+  const accent = tone === "danger" ? colors.danger : LIBRARY_DEEP;
+  const iconDiscStyle =
+    tone === "danger" ? { backgroundColor: colors.dangerSurface } : null;
+  const titleStyle = tone === "danger" ? { color: colors.danger } : null;
   if (!onPress) {
     return (
       <View
@@ -64,11 +72,11 @@ export function LibraryActionCard({
           flat ? settingsScreenStyles.libraryCardFlat : null,
         ]}
       >
-        <View style={settingsScreenStyles.libraryCardIcon}>
-          <Ionicons name={icon} size={20} color={LIBRARY_DEEP} />
+        <View style={[settingsScreenStyles.libraryCardIcon, iconDiscStyle]}>
+          <Ionicons name={icon} size={20} color={accent} />
         </View>
         <View style={settingsScreenStyles.libraryCardCopy}>
-          <Text style={settingsScreenStyles.libraryCardTitle}>{title}</Text>
+          <Text style={[settingsScreenStyles.libraryCardTitle, titleStyle]}>{title}</Text>
           <Text style={settingsScreenStyles.libraryCardMeta} numberOfLines={1}>
             {meta}
           </Text>
@@ -90,17 +98,17 @@ export function LibraryActionCard({
       onPress={onPress}
       disabled={disabled}
     >
-      <View style={settingsScreenStyles.libraryCardIcon}>
-        <Ionicons name={icon} size={20} color={LIBRARY_DEEP} />
+      <View style={[settingsScreenStyles.libraryCardIcon, iconDiscStyle]}>
+        <Ionicons name={icon} size={20} color={accent} />
       </View>
       <View style={settingsScreenStyles.libraryCardCopy}>
-        <Text style={settingsScreenStyles.libraryCardTitle}>{title}</Text>
+        <Text style={[settingsScreenStyles.libraryCardTitle, titleStyle]}>{title}</Text>
         <Text style={settingsScreenStyles.libraryCardMeta} numberOfLines={1}>
           {meta}
         </Text>
       </View>
       {busy ? (
-        <ActivityIndicator size="small" color={LIBRARY_DEEP} />
+        <ActivityIndicator size="small" color={accent} />
       ) : (
         rightAccessory ?? <Ionicons name={dirIcon("chevron-forward")} size={18} color={colors.textMuted} />
       )}

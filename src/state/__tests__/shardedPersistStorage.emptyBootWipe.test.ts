@@ -8,6 +8,7 @@ let mockSqliteDown = false;
 let mockListDown = false;
 
 jest.mock("../db/storage", () => ({
+    replayPendingFallbackWrites: jest.fn(async () => ({ status: "none" })),
     // The adapter throws this on damaged stores; the class must live inside the
     // factory (jest.mock hoists above top-level declarations).
     KvReadFailedError: class KvReadFailedError extends Error {},

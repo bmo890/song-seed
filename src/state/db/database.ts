@@ -1,4 +1,4 @@
-import { openDatabaseSync, type SQLiteDatabase } from "expo-sqlite";
+import { deleteDatabaseAsync, openDatabaseSync, type SQLiteDatabase } from "expo-sqlite";
 import * as FileSystem from "expo-file-system/legacy";
 
 /**
@@ -144,4 +144,26 @@ async function deleteFileQuiet(uri: string) {
     } catch {
         // ignore
     }
+}
+
+/**
+ * Close the connection and remove the database files (main + WAL + SHM). Only the
+ * deliberate "erase everything" wipe calls this; the app reloads right after, so the
+ * dropped singleton is never reused.
+ */
+export async function deleteDatabaseFiles(): Promise<void> {
+    const open = db;
+    db = null;
+    if (open) {
+        try {
+            await open.closeAsync();
+        } catch {
+            // Already closed or unusable — deleting still proceeds.
+        }
+    }
+    await deleteDatabaseAsync(DB_NAME);
+    for (const suffix of ["", "-wal", "-shm", "-journal"]) {
+        await deleteFileQuiet(`${DB_PATH}${suffix}`);
+    }
+    await deleteFileQuiet(MIGRATION_SNAPSHOT_PATH);
 }

@@ -81,7 +81,12 @@ export const selectionStyles = {
     // Above the search/filter chrome it replaces — the filter bar carries its own
     // high zIndex for dropdown menus, so this must clear that too.
     zIndex: 200,
+    // Android orders siblings by elevation, so the bar needs one to win — but every
+    // elevation casts a Material shadow, which drew a hard line under this quiet
+    // chrome swap on Android only (iOS ignores elevation). Keep the stacking,
+    // drop the shadow: a transparent shadow colour is honoured on Android 9+.
     elevation: 20,
+    shadowColor: "transparent",
   },
   // Overlay variant: stretches over the chrome it replaces (search/filter rows)
   // instead of inserting itself into the flow.

@@ -13,6 +13,8 @@ type SearchFieldProps = {
   /** Quiet tonal fill (surfaceContainer, borderless) for toolbar rows where the
    *  field shares a line with icon glyphs. Default keeps the outlined look. */
   tonal?: boolean;
+  /** Focus on mount — for a field that appears on demand (the hub's in-place search). */
+  autoFocus?: boolean;
   testID?: string;
 };
 
@@ -23,6 +25,7 @@ export function SearchField({
   onFocus,
   containerStyle,
   tonal,
+  autoFocus,
   testID,
 }: SearchFieldProps) {
   return (
@@ -38,6 +41,7 @@ export function SearchField({
         onChangeText={onChangeText}
         autoCapitalize="none"
         autoCorrect={false}
+        autoFocus={autoFocus}
         returnKeyType="search"
       />
       {value ? (

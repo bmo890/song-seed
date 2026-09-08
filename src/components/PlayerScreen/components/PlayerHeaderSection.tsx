@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { GestureDetector, type PanGesture } from "react-native-gesture-handler";
 import { IconButton } from "../../common/IconButton";
 import { fmtDuration, formatClipDate } from "../../../utils";
@@ -20,6 +20,8 @@ type PlayerHeaderSectionProps = {
   /** Finger-tracking drag-to-collapse — bound to the HEADER ONLY so it never
    *  contests the reel scrub, loop handles, sliders, or lyric scrolling below. */
   dragGesture: PanGesture;
+  /** Tapping the grabber closes the sheet — the card's handle is also its exit. */
+  onDismiss: () => void;
   onOverflow: () => void;
 };
 
@@ -32,9 +34,21 @@ export function PlayerHeaderSection({
   displayDuration,
   collapsed,
   dragGesture,
+  onDismiss,
   onOverflow,
 }: PlayerHeaderSectionProps) {
   const { t } = useTranslation();
+  const grabber = (
+    <Pressable
+      style={grabberStyles.grabberRow}
+      onPress={onDismiss}
+      hitSlop={{ top: 8, bottom: 10, left: 40, right: 40 }}
+      accessibilityRole="button"
+      accessibilityLabel={t("common.closePlayer")}
+    >
+      <View style={grabberStyles.grabber} />
+    </Pressable>
+  );
   // The player is a now-playing sheet, not a destination: the grabber (drag
   // down) and the footer ✕ are its exits — no chevron doubling them. The
   // overflow ⋯ shares the title row as a quiet warm-gray bare glyph.
@@ -55,9 +69,7 @@ export function PlayerHeaderSection({
     return (
       <GestureDetector gesture={dragGesture}>
         <View style={playerScreenStyles.headerBlock}>
-          <View style={grabberStyles.grabberRow}>
-            <View style={grabberStyles.grabber} />
-          </View>
+          {grabber}
           <View style={playerScreenStyles.navRow}>
             <Text style={playerScreenStyles.navTitle} numberOfLines={1}>
               {clipTitle}
@@ -73,9 +85,7 @@ export function PlayerHeaderSection({
   return (
     <GestureDetector gesture={dragGesture}>
       <View style={playerScreenStyles.headerBlock}>
-        <View style={grabberStyles.grabberRow}>
-          <View style={grabberStyles.grabber} />
-        </View>
+        {grabber}
       <View style={playerScreenStyles.titleBlock}>
         <View style={playerScreenStyles.titleRow}>
           <Text style={[playerScreenStyles.title, playerScreenStyles.titleFlex]}>
@@ -116,10 +126,12 @@ const grabberStyles = StyleSheet.create({
     paddingTop: 6,
     paddingBottom: 2,
   },
+  // Visible on paper: the old borderMuted sliver all but vanished, which is how a
+  // draggable sheet got mistaken for a page (2026-09-07).
   grabber: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.borderMuted,
+    width: 40,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.textMuted,
   },
 });

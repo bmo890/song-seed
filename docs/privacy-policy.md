@@ -42,7 +42,7 @@ These requests contain no account information and nothing from your library beyo
 
 **Nothing.** SongNook contains no analytics, no advertising SDKs, and no trackers. We do not collect usage data, personal information, or telemetry of any kind.
 
-If the app crashes, a diagnostic log is written **locally on your device only**. It is never transmitted automatically — you can choose to share it with us from Settings → About when reporting a problem, and you can see exactly what it contains before sending it.
+If the app crashes, a diagnostic log is written **locally on your device only**. The app also keeps a short local journal of whether each save of your library succeeded (timestamps and outcomes, never your recordings or lyrics). Neither is ever transmitted automatically — you can choose to share them with us from Settings → About when reporting a problem, and you can see exactly what they contain before sending them.
 
 ## Permissions
 

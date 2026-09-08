@@ -316,6 +316,7 @@ describe("prepareDisasterRecoverySnapshot", () => {
             hapticsEnabled: true,
             lastSuccessfulBackupAt: 1720000000000,
             lastSuccessfulBackupFileName: "SongNook Backup.zip",
+            backupReminderLastPromptedAt: null,
             notes: [{ id: "note-1", text: "Lyric idea", createdAt: 0, updatedAt: 0 }],
             wordLadders: [{ id: "wl-1", words: ["seed"] }],
             cutUpSparks: [{ id: "cs-1", fragments: ["chorus"] }],

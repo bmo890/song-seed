@@ -75,6 +75,7 @@ function snapshot(overrides: Partial<Record<keyof PersistedAppStore, unknown>>):
         hapticsEnabled: true,
         lastSuccessfulBackupAt: null,
         lastSuccessfulBackupFileName: null,
+        backupReminderLastPromptedAt: null,
         notes: [],
         wordLadders: [],
         cutUpSparks: [],

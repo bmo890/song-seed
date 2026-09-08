@@ -33,6 +33,9 @@ export function TransportLayout({
         floating ? styles.transportScrollContentWithFloating : null,
       ]}
       showsVerticalScrollIndicator={false}
+      // A short page must not rubber-band: the bounce is a scroll, and a scroll
+      // cancels the sheet's drag-down on the empty paper below the content.
+      alwaysBounceVertical={false}
     >
       {children}
     </ScrollView>

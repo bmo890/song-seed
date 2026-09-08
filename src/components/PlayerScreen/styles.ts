@@ -5,6 +5,10 @@ export const playerScreenStyles = StyleSheet.create({
   screen: {
     backgroundColor: colors.page,
   },
+  /** Drag-down target: the blank paper below the doors on a short player page. */
+  dismissSpacer: {
+    flexGrow: 1,
+  },
   headerBlock: {
     gap: 10,
     paddingHorizontal: 16,
@@ -267,6 +271,7 @@ export const playerScreenStyles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   content: {
+    flexGrow: 1, // fills the sheet so the dismiss spacer below the doors has height
     paddingHorizontal: 14,
     paddingTop: 4,
     paddingBottom: 8,

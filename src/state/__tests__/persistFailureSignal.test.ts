@@ -51,3 +51,40 @@ describe("persist write-failure signal (2026-08-26 audit F5)", () => {
         unsubscribe();
     });
 });
+
+describe("persist health (2026-09-07: no silent write outcome)", () => {
+    const runtime = require("../persistRuntime") as typeof import("../persistRuntime");
+
+    beforeEach(() => {
+        runtime.reportPersistWriteSuccess();
+        runtime.clearPersistBlockedSignal();
+    });
+
+    it("turns degraded after repeated fallback-only writes and clears on a SQLite write", () => {
+        runtime.reportPersistWriteFallback();
+        runtime.reportPersistWriteFallback();
+        expect(runtime.getPersistHealth()).toBe("ok");
+        runtime.reportPersistWriteFallback();
+        expect(runtime.getPersistHealth()).toBe("degraded");
+        runtime.reportPersistWriteSuccess();
+        expect(runtime.getPersistHealth()).toBe("ok");
+    });
+
+    it("blocked outranks everything and stays until deliberately cleared", () => {
+        runtime.reportPersistBlocked("guard");
+        runtime.reportPersistWriteSuccess();
+        expect(runtime.getPersistHealth()).toBe("blocked");
+        runtime.clearPersistBlockedSignal();
+        expect(runtime.getPersistHealth()).toBe("ok");
+    });
+
+    it("notifies health listeners once per transition", () => {
+        const seen: string[] = [];
+        const unsubscribe = runtime.onPersistHealthChange((health) => seen.push(health));
+        for (let i = 0; i < 4; i += 1) runtime.reportPersistWriteFallback();
+        runtime.reportPersistBlocked("authority");
+        runtime.clearPersistBlockedSignal();
+        expect(seen).toEqual(["ok", "degraded", "blocked", "degraded"]);
+        unsubscribe();
+    });
+});

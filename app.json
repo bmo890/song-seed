@@ -30,6 +30,7 @@
       "supportsTablet": false,
       "infoPlist": {
         "NSMicrophoneUsageDescription": "SongNook needs microphone access so you can record song ideas and voice memos.",
+        "NSFaceIDUsageDescription": "SongNook asks for Face ID only to confirm erasing all data.",
         "ITSAppUsesNonExemptEncryption": false,
         "UTExportedTypeDeclarations": [
           {
@@ -144,7 +145,13 @@
       ],
       "./plugins/withSongNookAndroidVariants",
       "expo-font",
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "SongNook asks for Face ID only to confirm erasing all data."
+        }
+      ]
     ],
     "web": {
       "favicon": "./assets/favicon.png"

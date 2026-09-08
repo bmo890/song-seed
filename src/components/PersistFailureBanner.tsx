@@ -4,27 +4,41 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { useStore } from "../state/useStore";
-import { isPersistFailing, onPersistFailingChange } from "../state/persistRuntime";
+import { getPersistHealth, onPersistHealthChange, type PersistHealth } from "../state/persistRuntime";
 import { colors, radii } from "../design/tokens";
 import { haptic } from "../design/haptics";
 
+const COPY: Record<Exclude<PersistHealth, "ok">, { title: string; hint: string }> = {
+    // Both stores refused several writes in a row — nothing is landing.
+    failing: { title: "recovery.cantSave", hint: "recovery.cantSaveHint" },
+    // SQLite refused; writes are parked in the fallback and replayed when it recovers.
+    degraded: { title: "recovery.saveDegraded", hint: "recovery.saveDegradedHint" },
+    // A safety gate refuses every write for the rest of the session.
+    blocked: { title: "recovery.saveLocked", hint: "recovery.saveLockedHint" },
+};
+
 /**
- * Persistent "SongNook can't save" bar (2026-08-26 audit F5): shows only after
- * several consecutive writes failed BOTH stores — the user is otherwise editing
- * an in-memory library with nothing landing on disk, invisibly. Clears itself
- * the moment any write lands. Mirrors ImportProgressBanner's shell so the two
- * bars read as one vocabulary.
+ * Persistent persistence-health bar (2026-08-26 audit F5; widened 2026-09-07): shows
+ * whenever the user is editing a library that is not reaching the authoritative
+ * store — writes failing both stores, writes landing only in the fallback, or a
+ * safety gate freezing the session. Silent variants of all three cost a take, its
+ * title, and its sketch in the field. Clears itself the moment a write lands in
+ * SQLite (blocked stays until the gate is deliberately lifted). Mirrors
+ * ImportProgressBanner's shell so the two bars read as one vocabulary.
  */
 export function PersistFailureBanner({ hidden = false }: { hidden?: boolean }) {
     const { t } = useTranslation();
     const insets = useSafeAreaInsets();
     const playerDockHeight = useStore((s) => s.playerDockHeight);
-    const failing = useSyncExternalStore(
-        (onStoreChange) => onPersistFailingChange(onStoreChange),
-        isPersistFailing,
-        isPersistFailing
+    const health = useSyncExternalStore(
+        (onStoreChange) => onPersistHealthChange(onStoreChange),
+        getPersistHealth,
+        getPersistHealth
     );
-    const visible = failing && !hidden;
+    const visible = health !== "ok" && !hidden;
+    const lastShown = useRef<Exclude<PersistHealth, "ok">>("failing");
+    if (health !== "ok") lastShown.current = health;
+    const copy = COPY[lastShown.current];
 
     const slideAnim = useRef(new Animated.Value(0)).current;
     const wasVisible = useRef(false);
@@ -82,7 +96,7 @@ export function PersistFailureBanner({ hidden = false }: { hidden?: boolean }) {
                             lineHeight: 17,
                         }}
                     >
-                        {t("recovery.cantSave")}
+                        {t(copy.title)}
                     </Text>
                     <Text
                         style={{
@@ -92,7 +106,7 @@ export function PersistFailureBanner({ hidden = false }: { hidden?: boolean }) {
                             lineHeight: 15,
                         }}
                     >
-                        {t("recovery.cantSaveHint")}
+                        {t(copy.hint)}
                     </Text>
                 </View>
             </View>

@@ -8,7 +8,12 @@ import { getCollectionAncestors } from "../../../utils";
 import { getDateBucket, getDateBucketLabel } from "../../../domain/dateBuckets";
 import { compareIdeas, getIdeaCreatedAt, getIdeaSortState, getIdeaSortTimestamp, getIdeaUpdatedAt, usesIdeaTimelineDividers } from "../../../domain/ideaSort";
 import { extractSnippet } from "../../../domain/search";
-import { getRootNavigation, goBackFromParentStack, openWorkspaceBrowseRoot } from "../../../navigation";
+import {
+  getRootNavigation,
+  goBackFromParentStack,
+  openCollectionInBrowse,
+  openWorkspaceBrowseRoot,
+} from "../../../navigation";
 import { getFloatingActionDockBottomOffset, getFloatingActionDockContentClearance } from "../../common/FloatingActionDock";
 import { buildIdeaListItemMeta, projectHasLyrics } from "../ideaListItemMeta";
 import type { IdeaListEntry, IdeaListItemMeta, SearchMeta } from "../types";
@@ -452,6 +457,30 @@ export function useCollectionScreenModel() {
     ...(activeWorkspace ? [activeWorkspace.title] : []),
     ...collectionAncestors.map((collection) => collection.title),
   ];
+  // WHERE · WHAT (2026-09-07): the nav row's eyebrow names the container this
+  // collection sits in and is a single up-link to it — the parent collection, or
+  // the workspace hub for a top-level one. Not the breadcrumb TRAIL that was
+  // retired: one hop, one label.
+  const parentCollection = collectionAncestors[collectionAncestors.length - 1] ?? null;
+  const upLink =
+    parentCollection
+      ? {
+          label: parentCollection.title,
+          onPress: () => {
+            openCollectionInBrowse(navigation, {
+              collectionId: parentCollection.id,
+              workspaceId: activeWorkspace?.id,
+            });
+          },
+        }
+      : activeWorkspace
+        ? {
+            label: activeWorkspace.title,
+            onPress: () => {
+              openWorkspaceBrowseRoot(rootNavigation ?? navigation, activeWorkspace.id);
+            },
+          }
+        : null;
 
   const hasActivityRangeFilter = typeof activityRangeStartTs === "number" && typeof activityRangeEndTs === "number";
   const visibleIdeasCount = listIdeas.filter((idea) => !hiddenIdeaIdsSet.has(idea.id)).length;
@@ -557,6 +586,7 @@ export function useCollectionScreenModel() {
     clipClipboard,
     searchNeedle,
     breadcrumbs,
+    upLink,
     collectionRouteParams,
     scrollY,
     collapsibleHeaderHeight,

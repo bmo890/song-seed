@@ -4,7 +4,7 @@ import { PageIntro } from "../../common/PageIntro";
 import { settingsScreenStyles, styles } from "../styles";
 import { AboutLinkRow, SettingsGroup } from "../components/SettingsShared";
 import { AppAlert } from "../../common/AppAlert";
-import { getCrashLogUri } from "../../../services/crashLog";
+import { buildDiagnosticsBundle } from "../../../services/diagnosticsBundle";
 import { shareFileUri } from "../../../services/audioStorage";
 import { useStore } from "../../../state/useStore";
 import { haptic } from "../../../design/haptics";
@@ -36,15 +36,10 @@ export function SettingsAboutView() {
   };
 
   const shareDiagnosticLog = async () => {
-    const uri = await getCrashLogUri();
-    if (!uri) {
-      AppAlert.info(
-        t("settingsAbout.noDiagnostics"),
-        t("settingsAbout.noDiagnosticsBody")
-      );
-      return;
-    }
+    // Crash log + persistence journal in one file — the journal always has entries
+    // (every boot and library write), so there is always something to share.
     try {
+      const uri = await buildDiagnosticsBundle();
       await shareFileUri(uri, "SongNook diagnostic log", "application/json");
     } catch {
       AppAlert.info(t("settingsAbout.couldNotShare"), t("settingsAbout.couldNotShareBody"));

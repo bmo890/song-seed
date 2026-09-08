@@ -12,11 +12,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { WorkspaceThemeProvider, useWorkspaceTheme } from "../../../context/WorkspaceThemeContext";
-import { SearchField } from "../../common/SearchField";
 import { QuickNameModal } from "../../modals/QuickNameModal";
 import { CollectionMoveModal } from "../../modals/CollectionMoveModal";
 import { SelectionDock } from "../../common/SelectionDock";
 import { SelectionTopBar } from "../../common/SelectionTopBar";
+import { SearchField } from "../../common/SearchField";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { CollapsingHeaderOverlay } from "../../common/CollapsingHeaderOverlay";
 import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandler";
@@ -39,6 +39,7 @@ function WorkspaceBrowseInner() {
   const playerDockHeight = useStore((s) => s.playerDockHeight);
   const navigation = useNavigation<any>();
   const collectionsModel = useWorkspaceCollectionsModel();
+  const [searchOpen, setSearchOpen] = useState(false);
   const selectionModel = useWorkspaceCollectionSelection({
     navigation,
     workspaces: collectionsModel.workspaces,
@@ -103,8 +104,6 @@ function WorkspaceBrowseInner() {
     );
   }
 
-  const collectionCount = collectionsModel.topLevelCollections.length;
-
   return (
     <SafeAreaView style={[browseStyles.screen, { backgroundColor: theme.bg }]}>
       {/* Fixed nav row — compact workspace identity fades in here as the block collapses */}
@@ -131,8 +130,27 @@ function WorkspaceBrowseInner() {
           </UserText>
         </ReAnimated.View>
 
-        {/* Right spacer to balance the hamburger and keep compact title centred */}
-        <View style={browseStyles.navBtn} />
+        {/* Search stays ON this page: the glyph opens a field in place and the
+            collection list filters live beneath it, so the scope (this workspace)
+            is shown, not explained. Closed by default so the hub doesn't wear a
+            second search bar and read as another collection page. */}
+        <Pressable
+          testID="workspace-search"
+          accessibilityRole="button"
+          accessibilityLabel={searchOpen ? t("common.cancel") : t("workspaceBrowse.searchLibrary")}
+          style={({ pressed }) => [browseStyles.navBtn, pressed ? styles.pressDown : null]}
+          onPress={() => {
+            if (searchOpen) {
+              collectionsModel.setSearchQuery("");
+              setSearchOpen(false);
+            } else {
+              setSearchOpen(true);
+            }
+          }}
+          hitSlop={8}
+        >
+          <Ionicons name={searchOpen ? "close" : "search-outline"} size={22} color={colors.textSecondary} />
+        </Pressable>
       </View>
 
       {/* Stage: clips the identity block as it slides under the nav */}
@@ -155,9 +173,7 @@ function WorkspaceBrowseInner() {
           {/* Section label or breathing room */}
           {!selectionModel.selectionMode ? (
             <View style={browseStyles.sectionRow}>
-              <Text style={browseStyles.sectionLabel}>
-                {t("workspaceBrowse.activeCollections", { count: collectionCount })}
-              </Text>
+              <Text style={browseStyles.sectionLabel}>{t("workspaceBrowse.collections")}</Text>
             </View>
           ) : (
             <View style={{ height: 16 }} />
@@ -210,17 +226,22 @@ function WorkspaceBrowseInner() {
           }
           pinned={
             <View style={{ backgroundColor: theme.bg }} pointerEvents="box-none">
-              <View style={browseStyles.searchWrapper}>
-                <SearchField
-                  value={collectionsModel.searchQuery}
-                  placeholder={t("workspaceBrowse.searchPlaceholder")}
-                  onChangeText={collectionsModel.setSearchQuery}
-                />
-                {/* Overlays the search row in place — the header keeps its
-                    height, so entering selection never pushes the list down. */}
-                {selectionModel.selectionMode ? (
+              {/* On-demand search field, pinned under the nav so the filtered list
+                  scrolls beneath it. */}
+              {searchOpen && !selectionModel.selectionMode ? (
+                <View style={browseStyles.searchWrapper}>
+                  <SearchField
+                    testID="workspace-search-field"
+                    value={collectionsModel.searchQuery}
+                    placeholder={t("workspaceBrowse.searchPlaceholder")}
+                    onChangeText={collectionsModel.setSearchQuery}
+                    autoFocus
+                  />
+                </View>
+              ) : null}
+              {selectionModel.selectionMode ? (
+                <View style={browseStyles.searchWrapper}>
                   <SelectionTopBar
-                    overlay
                     style={{ backgroundColor: theme.bg }}
                     count={selectionModel.selectedCollectionIds.length}
                     allSelected={selectionModel.canDeselectAll}
@@ -229,8 +250,8 @@ function WorkspaceBrowseInner() {
                     }
                     onCancel={() => selectionModel.setSelectedCollectionIds([])}
                   />
-                ) : null}
-              </View>
+                </View>
+              ) : null}
             </View>
           }
         />

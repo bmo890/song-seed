@@ -1,6 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { SurfaceCard } from "../../common/SurfaceCard";
+import { dirIcon } from "../../../design/directionalIcons";
+import { colors, radii } from "../../../design/tokens";
+import { styles } from "../../../styles";
 import type { CollectionSearchMatchKind } from "../../../domain/libraryNavigation";
 import type { Collection } from "../../../types";
 import { formatLastEdited } from "../../../utils";
@@ -18,6 +20,8 @@ type WorkspaceCollectionCardProps = {
   searchQuery: string;
   selectionMode: boolean;
   isSelected: boolean;
+  /** Draws the hairline above this row (every row but the first in a group). */
+  divided?: boolean;
   onPress: () => void;
   onLongPress: () => void;
 };
@@ -48,18 +52,26 @@ function HighlightedText({ value, query }: { value: string; query: string }) {
   return (
     <>
       {before}
-      <Text style={cardStyles.matchHighlight}>{match}</Text>
+      <Text style={rowStyles.matchHighlight}>{match}</Text>
       {after}
     </>
   );
 }
 
+/**
+ * A collection as a STRUCTURAL row (2026-09-07): folder glyph, name, count, and a
+ * chevron, grouped in one flat surface. It used to wear the content-card recipe,
+ * which made the workspace hub read as another collection page — the container
+ * and its contents looked the same. Everything the card carried is still here:
+ * selection dot, primary badge, description, and search-match badges.
+ */
 export function WorkspaceCollectionCard({
   entry,
   isPrimary,
   searchQuery,
   selectionMode,
   isSelected,
+  divided = false,
   onPress,
   onLongPress,
 }: WorkspaceCollectionCardProps) {
@@ -75,140 +87,169 @@ export function WorkspaceCollectionCard({
   ].filter(Boolean).join("  ·  ");
 
   return (
-    <SurfaceCard
+    <Pressable
       testID={`collection-card-${collection.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`}
+      accessibilityRole="button"
+      accessibilityState={selectionMode ? { selected: isSelected } : undefined}
+      style={({ pressed }) => [
+        rowStyles.row,
+        divided ? rowStyles.rowDivided : null,
+        isSelected ? rowStyles.rowSelected : null,
+        pressed ? styles.pressDown : null,
+      ]}
       onPress={onPress}
       onLongPress={onLongPress}
-      selected={isSelected}
+      delayLongPress={250}
     >
-      {/* Title row */}
-      <View style={cardStyles.cardTop}>
-        {selectionMode ? (
-          <View style={[cardStyles.selectionDot, isSelected ? cardStyles.selectionDotActive : null]}>
-            {isSelected ? <Ionicons name="checkmark" size={10} color="#FFFFFF" /> : null}
-          </View>
+      {/* Leading glyph: the folder, or the selection dot while selecting */}
+      {selectionMode ? (
+        <View style={[rowStyles.selectionDot, isSelected ? rowStyles.selectionDotActive : null]}>
+          {isSelected ? <Ionicons name="checkmark" size={10} color={colors.onPrimary} /> : null}
+        </View>
+      ) : (
+        <Ionicons name="folder-outline" size={22} color={colors.primaryDeep} />
+      )}
+
+      <View style={rowStyles.copy}>
+        <View style={rowStyles.titleRow}>
+          <UserText value={collection.title} style={rowStyles.title} numberOfLines={1}>
+            <HighlightedText value={collection.title} query={searchQuery} />
+          </UserText>
+          {isPrimary ? (
+            <View style={rowStyles.primaryBadge}>
+              <Ionicons name="star" size={10} color={colors.primary} />
+              <Text style={rowStyles.primaryLabel}>{t("workspaceBrowse.primary")}</Text>
+            </View>
+          ) : null}
+        </View>
+        <Text style={rowStyles.meta} numberOfLines={1}>{metaParts}</Text>
+        {collection.description ? (
+          <UserText value={collection.description} style={rowStyles.description} numberOfLines={2}>
+            {collection.description}
+          </UserText>
         ) : null}
-
-        <UserText value={collection.title} style={cardStyles.title} numberOfLines={1}>
-          <HighlightedText value={collection.title} query={searchQuery} />
-        </UserText>
-
-        {isPrimary ? (
-          <View style={cardStyles.primaryBadge}>
-            <Ionicons name="star" size={10} color="#B87D6B" />
-            <Text style={cardStyles.primaryLabel}>{t("workspaceBrowse.primary")}</Text>
+        {searchQuery.trim().length > 0 && matches.length > 0 ? (
+          <View style={rowStyles.matchRow}>
+            {matches.map((match, index) => (
+              <View key={`${match.kind}-${match.label}-${index}`} style={rowStyles.matchBadge}>
+                <Text style={rowStyles.matchText} numberOfLines={1}>
+                  {getMatchLabel(match.kind)}{" "}
+                  <HighlightedText value={match.label} query={searchQuery} />
+                  {match.context ? (
+                    <Text style={rowStyles.matchContext}> in {match.context}</Text>
+                  ) : null}
+                </Text>
+              </View>
+            ))}
           </View>
         ) : null}
       </View>
 
-      {/* Meta row */}
-      <Text style={cardStyles.meta}>{metaParts}</Text>
-
-      {/* Description */}
-      {collection.description ? (
-        <UserText value={collection.description} style={cardStyles.description} numberOfLines={2}>
-          {collection.description}
-        </UserText>
-      ) : null}
-
-      {/* Search match badges */}
-      {searchQuery.trim().length > 0 && matches.length > 0 ? (
-        <View style={cardStyles.matchRow}>
-          {matches.map((match, index) => (
-            <View key={`${match.kind}-${match.label}-${index}`} style={cardStyles.matchBadge}>
-              <Text style={cardStyles.matchText} numberOfLines={1}>
-                {getMatchLabel(match.kind)}{" "}
-                <HighlightedText value={match.label} query={searchQuery} />
-                {match.context ? (
-                  <Text style={cardStyles.matchContext}> in {match.context}</Text>
-                ) : null}
-              </Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
-
-    </SurfaceCard>
+      {selectionMode ? null : (
+        <Ionicons name={dirIcon("chevron-forward")} size={18} color={colors.textMuted} />
+      )}
+    </Pressable>
   );
 }
 
-const cardStyles = StyleSheet.create({
-  cardTop: {
+const rowStyles = StyleSheet.create({
+  row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    minHeight: 60,
+  },
+  rowDivided: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderSubtle,
+  },
+  rowSelected: {
+    backgroundColor: colors.primarySurface,
   },
   selectionDot: {
     width: 18,
     height: 18,
-    borderRadius: 9,
+    borderRadius: radii.round,
     borderWidth: 1.5,
-    borderColor: "#D7C2BD",
+    borderColor: colors.borderMuted,
     backgroundColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
   },
   selectionDotActive: {
-    backgroundColor: "#B87D6B",
-    borderColor: "#B87D6B",
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  copy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   title: {
-    flex: 1,
+    flexShrink: 1,
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 16,
-    lineHeight: 22,
-    color: "#1C1C19",
-  },
-  primaryBadge: {
-    alignItems: "center",
-    gap: 2,
-    flexShrink: 0,
-  },
-  primaryLabel: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 7,
-    color: "#B87D6B",
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-    opacity: 0.85,
+    lineHeight: 20,
+    color: colors.textPrimary,
   },
   meta: {
     fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 12,
-    lineHeight: 18,
-    color: "#84736f",
-    marginTop: 6,
+    lineHeight: 16,
+    color: colors.textSecondary,
   },
   description: {
     fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 13,
-    lineHeight: 20,
-    color: "#524440",
-    marginTop: 6,
+    lineHeight: 18,
+    color: colors.textStrong,
+    marginTop: 2,
+  },
+  primaryBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    flexShrink: 0,
+  },
+  primaryLabel: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 9,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    color: colors.primary,
   },
   matchRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 6,
-    marginTop: 10,
+    marginTop: 4,
   },
   matchBadge: {
-    backgroundColor: "#F4F1ED",
-    borderRadius: 4,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 3,
+    maxWidth: "100%",
   },
   matchText: {
-    fontFamily: "PlusJakartaSans_400Regular",
+    fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 11,
-    color: "#524440",
+    color: colors.textStrong,
+  },
+  matchContext: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    color: colors.textSecondary,
   },
   matchHighlight: {
     fontFamily: "PlusJakartaSans_700Bold",
-    color: "#1C1C19",
-  },
-  matchContext: {
-    color: "#84736f",
+    color: colors.primaryDeep,
   },
 });

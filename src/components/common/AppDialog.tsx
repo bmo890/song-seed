@@ -32,6 +32,12 @@ export function AppDialogHost() {
   if (!config) return null;
 
   const dismiss = () => dialogStore.dismiss();
+  // Scrim / hardware back: no button was chosen, so the dialog's own dismiss hook runs.
+  const dismissWithoutChoice = () => {
+    const { onDismiss } = config;
+    dismiss();
+    onDismiss?.();
+  };
   const handleButton = (onPress?: () => void) => {
     haptic.tap();
     dismiss();
@@ -47,8 +53,8 @@ export function AppDialogHost() {
     style === "destructive" ? "#a83232" : style === "cancel" ? colors.textSecondary : colors.textStrong;
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={hasCancel ? dismiss : undefined}>
-      <Pressable style={s.scrim} onPress={hasCancel ? dismiss : undefined} />
+    <Modal visible transparent animationType="fade" onRequestClose={hasCancel ? dismissWithoutChoice : undefined}>
+      <Pressable style={s.scrim} onPress={hasCancel ? dismissWithoutChoice : undefined} />
       <View style={s.centring} pointerEvents="box-none">
         <Animated.View style={s.card} entering={popIn}>
           {/* Header */}

@@ -25,22 +25,29 @@ export function WorkspaceCollectionList({
   const { t } = useTranslation();
   return (
     <View style={listStyles.list}>
-      {collectionEntries.map((entry) => {
-        const collection = entry.collection;
-        const isSelected = selectedCollectionIds.includes(collection.id);
-        return (
-          <WorkspaceCollectionCard
-            key={collection.id}
-            entry={entry}
-            isPrimary={primaryCollectionId === collection.id}
-            searchQuery={searchQuery}
-            selectionMode={selectionMode}
-            isSelected={isSelected}
-            onPress={() => onPressCollection(collection.id)}
-            onLongPress={() => onLongPressCollection(collection.id)}
-          />
-        );
-      })}
+      {collectionEntries.length > 0 ? (
+        // One flat structural group (SurfaceCard's r8 shell, no padding) — the
+        // rows inside carry their own insets and hairlines.
+        <SurfaceCard style={listStyles.group}>
+          {collectionEntries.map((entry, index) => {
+            const collection = entry.collection;
+            const isSelected = selectedCollectionIds.includes(collection.id);
+            return (
+              <WorkspaceCollectionCard
+                key={collection.id}
+                entry={entry}
+                isPrimary={primaryCollectionId === collection.id}
+                searchQuery={searchQuery}
+                selectionMode={selectionMode}
+                isSelected={isSelected}
+                divided={index > 0}
+                onPress={() => onPressCollection(collection.id)}
+                onLongPress={() => onLongPressCollection(collection.id)}
+              />
+            );
+          })}
+        </SurfaceCard>
+      ) : null}
 
       {collectionEntries.length === 0 ? (
         <SurfaceCard>
@@ -61,6 +68,11 @@ export function WorkspaceCollectionList({
 const listStyles = StyleSheet.create({
   list: {
     gap: 12,
+  },
+  group: {
+    padding: 0,
+    gap: 0,
+    overflow: "hidden",
   },
   emptyTitle: {
     fontFamily: "PlusJakartaSans_600SemiBold",

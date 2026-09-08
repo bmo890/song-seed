@@ -7,6 +7,8 @@ import { STAGE_INK, StageMark } from "../../common/StageMark";
 import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../../i18n";
+import { formatLastEdited } from "../../../utils";
+import { buildClipLineages } from "../../../domain/clipGraph";
 
 const SONG_TABS = [
   { key: "takes", labelKey: "screens.takes" },
@@ -33,7 +35,9 @@ export function SongCollapsibleHeader({ extra }: SongCollapsibleHeaderProps) {
   if (!selectedIdea) return null;
 
   const isProject = selectedIdea.kind === "project";
-  const titleLabel = t(isProject ? "brand.sketch" : "screens.clip");
+  // Takes = lineages (a take and its re-recordings count once), matching the
+  // TAKES label on the list below — not raw clip versions.
+  const takeCount = isProject ? buildClipLineages(selectedIdea.clips).length : 0;
   // In edit mode the title is edited in the fixed nav header, so the collapsible
   // title block + tabs are suppressed here to avoid a duplicate title.
   // Songs edit via a sheet, so their title + tabs stay visible while editing.
@@ -47,12 +51,14 @@ export function SongCollapsibleHeader({ extra }: SongCollapsibleHeaderProps) {
     <View pointerEvents="box-none">
       {showTitle ? (
         <View style={styles.songDetailTitleBlock} pointerEvents="none">
-          <Text style={styles.songDetailTypeEyebrow}>{titleLabel}</Text>
+          {/* The type now rides in the nav row's back label ("‹ IDEAS · SKETCH"), so
+              the title stands alone here (2026-09-07). */}
           <UserText style={styles.songDetailPageTitleLarge}>{selectedIdea.title}</UserText>
           {isProject ? (
             <View style={styles.songDetailProgressStrip}>
               {/* Stage as editorial ink (dial + word in the stage's warm hue) —
-                  display-only here; the stage is changed in the edit sheet. */}
+                  display-only here; the stage is changed in the edit sheet. It
+                  leads a quiet meta line: stage · takes · last edit. */}
               <View style={styles.songDetailStageInk}>
                 <StageMark status={selectedIdea.status} size={12} />
                 <Text
@@ -64,6 +70,13 @@ export function SongCollapsibleHeader({ extra }: SongCollapsibleHeaderProps) {
                   {t(`stages.${selectedIdea.status}`)}
                 </Text>
               </View>
+              <Text style={styles.songDetailMetaLine} numberOfLines={1}>
+                {"·  " +
+                  [
+                    t("brand.takeCount", { count: takeCount }),
+                    formatLastEdited(selectedIdea.lastActivityAt),
+                  ].join("  ·  ")}
+              </Text>
             </View>
           ) : null}
         </View>

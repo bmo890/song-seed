@@ -1,6 +1,8 @@
 import { useEffect, useMemo } from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import Animated, {
+  Extrapolation,
+  interpolate,
   runOnJS,
   useAnimatedStyle,
   withTiming,
@@ -8,9 +10,10 @@ import Animated, {
 import { PlayerScreen, type PlayerSheetNavigation } from "./PlayerScreen";
 import { useStore } from "../state/useStore";
 import { usePlayerSheetPosition } from "../hooks/PlayerSheetPositionProvider";
-import { colors } from "../design/tokens";
+import { colors, radii } from "../design/tokens";
 import { haptic } from "../design/haptics";
 import { shouldObscurePlayerSheet } from "./playerSheetVisibility";
+import { useTranslation } from "react-i18next";
 
 const OPEN_DURATION = 300;
 const CLOSE_DURATION = 240;
@@ -35,10 +38,12 @@ type PlayerSheetProps = {
  * drag-down (header) move one value.
  */
 export function PlayerSheet({ activeRouteName, isDrawerOpen, navigateRoot }: PlayerSheetProps) {
+  const { t } = useTranslation();
   const expanded = useStore((s) => s.isPlayerScreenMounted);
   const hasSession = useStore((s) => !!s.playerTarget && s.playerQueue.length > 0);
   const present = expanded || hasSession;
-  const { dragY, dockedY, openedByDrag, inMotion, setInMotion } = usePlayerSheetPosition();
+  const { dragY, dockedY, openedByDrag, inMotion, setInMotion, sheetTopInset } =
+    usePlayerSheetPosition();
 
   // A selection toolbar lifts the media dock off the screen bottom to sit above it.
   // The DOCKED sheet cannot follow: it's a full-height view whose top hides behind the
@@ -106,6 +111,11 @@ export function PlayerSheet({ activeRouteName, isDrawerOpen, navigateRoot }: Pla
   const translateStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: dragY.value }],
   }));
+  // The page underneath dims as the card rises and clears as it docks — the
+  // "this is laid over where you were" cue that a full-bleed sheet never gave.
+  const scrimStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(dragY.value, [0, Math.max(1, dockedY.value)], [SCRIM_OPACITY, 0], Extrapolation.CLAMP),
+  }));
 
   return (
     // zIndex BELOW the media dock (50): the sheet rests behind the dock and lifts
@@ -114,8 +124,23 @@ export function PlayerSheet({ activeRouteName, isDrawerOpen, navigateRoot }: Pla
     <View style={sheetStyles.host} pointerEvents={isActive ? "auto" : "none"}>
       {present ? (
         <Animated.View
+          style={[sheetStyles.scrim, scrimStyle, obscured ? sheetStyles.sheetHidden : null]}
+          pointerEvents={isActive ? "auto" : "none"}
+        >
+          {/* The sliver of page above the card: tapping it closes, like any sheet. */}
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={sheetNavigation.goBack}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.closePlayer")}
+          />
+        </Animated.View>
+      ) : null}
+      {present ? (
+        <Animated.View
           style={[
             sheetStyles.sheet,
+            { top: sheetTopInset },
             translateStyle,
             // Keep mounted but invisible while an editing route or the drawer
             // sits on top — state and audio survive; it reappears on return.
@@ -134,14 +159,29 @@ export function PlayerSheet({ activeRouteName, isDrawerOpen, navigateRoot }: Pla
   );
 }
 
+const SCRIM_OPACITY = 0.32;
+
 const sheetStyles = StyleSheet.create({
   host: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 40,
   },
+  scrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.textPrimary,
+  },
+  // A card, not a page: rounded top, a whisper of shadow, the page peeking above.
   sheet: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: colors.page,
+    borderTopLeftRadius: radii.drawer,
+    borderTopRightRadius: radii.drawer,
+    overflow: "hidden",
+    shadowColor: colors.textPrimary,
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: -6 },
+    shadowRadius: 18,
+    elevation: 8,
   },
   sheetHidden: {
     opacity: 0,

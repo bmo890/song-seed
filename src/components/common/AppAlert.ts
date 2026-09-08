@@ -56,8 +56,14 @@ export const AppAlert = {
     });
   },
 
-  /** Fully custom button set (icons / descriptions supported). */
-  custom(title: string, message: string | undefined, buttons: DialogButton[]): void {
-    dialogStore.show({ title, message, buttons });
+  /** Fully custom button set (icons / descriptions supported). `onDismiss` runs when the
+   *  dialog is closed by scrim tap or Android back instead of a button. */
+  custom(
+    title: string,
+    message: string | undefined,
+    buttons: DialogButton[],
+    opts?: { onDismiss?: () => void }
+  ): void {
+    dialogStore.show({ title, message, buttons, onDismiss: opts?.onDismiss });
   },
 };

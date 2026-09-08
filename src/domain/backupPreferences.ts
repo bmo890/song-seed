@@ -1,4 +1,5 @@
 import type { BackupReminderFrequency } from "../types";
+import { i18n } from "../i18n/instance";
 
 export const DEFAULT_BACKUP_REMINDER_FREQUENCY: BackupReminderFrequency = "monthly";
 
@@ -17,43 +18,15 @@ export function isBackupReminderFrequency(value: unknown): value is BackupRemind
 }
 
 export function getBackupReminderLabel(frequency: BackupReminderFrequency) {
-    switch (frequency) {
-        case "off":
-            return "Off";
-        case "weekly":
-            return "Weekly";
-        case "quarterly":
-            return "Every 3 months";
-        case "monthly":
-        default:
-            return "Monthly";
-    }
+    return i18n.t(`backupReminder.frequency.${frequency}.label`);
 }
 
 export function getBackupReminderWindowLabel(frequency: BackupReminderFrequency) {
-    switch (frequency) {
-        case "weekly":
-            return "week";
-        case "quarterly":
-            return "3 months";
-        case "monthly":
-        default:
-            return "month";
-    }
+    return i18n.t(`backupReminder.frequency.${frequency === "off" ? "monthly" : frequency}.window`);
 }
 
 export function getBackupReminderDescription(frequency: BackupReminderFrequency) {
-    switch (frequency) {
-        case "off":
-            return "Do not remind me to create a backup.";
-        case "weekly":
-            return "Prompt me once a week if I have not saved a backup.";
-        case "quarterly":
-            return "Prompt me every 3 months if my library has not been backed up.";
-        case "monthly":
-        default:
-            return "Prompt me once a month if I have not saved a backup.";
-    }
+    return i18n.t(`backupReminder.frequency.${frequency}.description`);
 }
 
 export function getBackupReminderIntervalMs(frequency: BackupReminderFrequency) {
@@ -70,26 +43,51 @@ export function getBackupReminderIntervalMs(frequency: BackupReminderFrequency) 
     }
 }
 
-export function isBackupOverdue(
-    lastSuccessfulBackupAt: number | null | undefined,
-    frequency: BackupReminderFrequency,
-    now = Date.now()
-) {
+export type BackupReminderInputs = {
+    frequency: BackupReminderFrequency;
+    /** Epoch of the last completed backup (null = never). */
+    lastSuccessfulBackupAt: number | null | undefined;
+    /** Epoch of the very first launch (null until recorded). */
+    firstLaunchAt: number | null | undefined;
+    /** Epoch the reminder was last shown, whichever button was tapped. */
+    lastPromptedAt: number | null | undefined;
+    now?: number;
+};
+
+/**
+ * Whether the backup reminder is due. The setting reads "prompt me once a
+ * week/month/quarter if I haven't backed up", so that is literally the rule:
+ *
+ * - the clock starts at the last backup, or at install for a library that was
+ *   never backed up (never on day one — 2026-09-07 field report: it used to fire on
+ *   every cold launch from the moment the app was installed);
+ * - once shown, it waits a full interval before asking again, "Later" included.
+ */
+export function isBackupReminderDue({
+    frequency,
+    lastSuccessfulBackupAt,
+    firstLaunchAt,
+    lastPromptedAt,
+    now = Date.now(),
+}: BackupReminderInputs) {
     const intervalMs = getBackupReminderIntervalMs(frequency);
-    if (intervalMs == null) {
-        return false;
-    }
+    if (intervalMs == null) return false;
 
-    if (!Number.isFinite(lastSuccessfulBackupAt)) {
-        return true;
-    }
+    const anchor = Number.isFinite(lastSuccessfulBackupAt)
+        ? Number(lastSuccessfulBackupAt)
+        : Number.isFinite(firstLaunchAt)
+            ? Number(firstLaunchAt)
+            : null;
+    if (anchor == null) return false;
+    if (now - anchor < intervalMs) return false;
 
-    return now - Number(lastSuccessfulBackupAt) >= intervalMs;
+    if (Number.isFinite(lastPromptedAt) && now - Number(lastPromptedAt) < intervalMs) return false;
+    return true;
 }
 
 export function formatBackupTimestamp(timestamp: number | null | undefined) {
     if (!Number.isFinite(timestamp)) {
-        return "Never";
+        return i18n.t("backupReminder.never");
     }
 
     try {

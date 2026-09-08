@@ -860,15 +860,18 @@ export function PlayerScreen({
   const frozenTreeRef = useRef<React.ReactElement | null>(null);
   const cachedClipIdRef = useRef<string | null>(null);
 
-  // Header drag-to-dismiss: the whole sheet tracks the thumb via dragY. Released
-  // past a distance/velocity threshold it hands off to minimizePlayer (which
-  // animates the rest of the way + applies the audition rule); otherwise it
-  // springs back to fully open. Vertical + downward only, so it never contests
-  // horizontal scrub or upward flicks.
-  const dismissGesture = useRef(
+  // Drag-to-dismiss: the whole sheet tracks the thumb via dragY. Released past a
+  // distance/velocity threshold it hands off to minimizePlayer (which animates the
+  // rest of the way + applies the audition rule); otherwise it springs back to
+  // fully open. Vertical + downward only, so it never contests horizontal scrub or
+  // upward flicks. One instance per region — the header and the footer — because
+  // a gesture object binds to a single detector; the reel keeps its own gestures
+  // (2026-09-07: a card you can only drag from its top edge reads as a page).
+  const buildDismissGesture = () =>
     Gesture.Pan()
       .activeOffsetY(12)
       .failOffsetY(-12)
+      .failOffsetX([-16, 16])
       .onStart(() => {
         "worklet";
         dismissedInGesture.value = false;
@@ -905,8 +908,15 @@ export function PlayerScreen({
             if (finished) runOnJS(setSheetDragActive)(false);
           }
         );
-      })
-  ).current;
+      });
+  const dismissGesture = useRef(buildDismissGesture()).current;
+  const footerDismissGesture = useRef(buildDismissGesture()).current;
+  // The whole body wrapper in plain player mode. Inside the body ScrollView, so
+  // when the content is taller than the viewport the native scroll takes the
+  // touch and this pan is cancelled — it only dismisses when there is nothing to
+  // scroll. Off in reading/practice/layers modes, which own their vertical gestures.
+  const bodyDismissGesture = useRef(buildDismissGesture()).current;
+  bodyDismissGesture.enabled(ui.mode === "player" && !isReading);
 
   const handleLoopRangeChange = useCallback(
     (start: number, end: number) => setPracticeLoopRange({ start, end }),
@@ -1105,7 +1115,7 @@ export function PlayerScreen({
     // cold open with nothing cached yet.
     if (frozenTreeRef.current) return frozenTreeRef.current;
     return (
-      <SafeAreaView style={styles.screen}>
+      <SafeAreaView style={styles.screen} edges={["left", "right", "bottom"]}>
         <Text style={styles.subtitle}>{t("player.loading")}</Text>
       </SafeAreaView>
     );
@@ -1121,7 +1131,9 @@ export function PlayerScreen({
   // 25ms nudge freeze playback for the length of a full-clip render.
 
   const renderedTree = (
-    <SafeAreaView style={[styles.screen, playerScreenStyles.screen]}>
+    // The card already sits below the status bar (PlayerSheet's top inset), so
+    // no top safe-area padding here — it would open a blank band under the grabber.
+    <SafeAreaView style={[styles.screen, playerScreenStyles.screen]} edges={["left", "right", "bottom"]}>
       <TransportLayout
         scrollable={!isReading}
         footerDivider={!isFullView}
@@ -1135,6 +1147,7 @@ export function PlayerScreen({
             displayDuration={effectivePlayerDuration}
             collapsed={ui.mode !== "player" || isReading}
             dragGesture={dismissGesture}
+            onDismiss={runMinimize}
             onOverflow={lifecycle.handleOverflowMenu}
           />
         }
@@ -1548,7 +1561,8 @@ export function PlayerScreen({
           </View>
         }
         footer={
-          <>
+          <GestureDetector gesture={footerDismissGesture}>
+          <View>
             {isFullView ? (
               <ProgressThread
                 sharedCurrentTimeMs={transportClock.sharedCurrentTimeMs}
@@ -1579,9 +1593,16 @@ export function PlayerScreen({
             onToggleQueueExpanded={() => ui.setQueueExpanded((value) => !value)}
             onClose={lifecycle.stopSessionAndClose}
           />
-          </>
+          </View>
+          </GestureDetector>
         }
       >
+        {/* Anywhere that is just card drags the sheet down: the body wrapper carries
+            the pan in plain player mode (side padding, the gap beside Tools, the
+            paper under the doors). Horizontal movement still fails it, so the reel
+            and minimap keep their scrubs; reading and practice modes disable it and
+            keep their own scrolling. */}
+        <GestureDetector gesture={bodyDismissGesture}>
         <View style={isReading ? playerScreenStyles.followContent : playerScreenStyles.content}>
           {isWriting ? (
             <PlayerLyricsWriter
@@ -1804,7 +1825,11 @@ export function PlayerScreen({
               }}
             />
           )}
+          {ui.mode === "player" && !isReading ? (
+            <View style={playerScreenStyles.dismissSpacer} />
+          ) : null}
         </View>
+        </GestureDetector>
       </TransportLayout>
 
       <PlayerPinSheets

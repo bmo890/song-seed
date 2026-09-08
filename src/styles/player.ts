@@ -143,6 +143,8 @@ export const playerStyles = {
   },
   transportScrollContent: {
     paddingBottom: 12,
+    // Lets a trailing spacer take exactly the leftover height on a short page.
+    flexGrow: 1,
   },
   transportScrollContentWithFloating: {
     paddingBottom: 220,

@@ -3,7 +3,14 @@ import { colors } from "../../../design/tokens";
 import { PageIntro } from "../../common/PageIntro";
 import { Button } from "../../common/Button";
 import { styles } from "../styles";
-import { AccordionSection, StorageMetricRow, StoragePathRow } from "../components/SettingsShared";
+import {
+  AccordionSection,
+  LibraryActionCard,
+  SettingsGroup,
+  StorageMetricRow,
+  StoragePathRow,
+} from "../components/SettingsShared";
+import { useEraseAllData } from "../hooks/useEraseAllData";
 import type { useStorageDiagnostics } from "../hooks/useStorageDiagnostics";
 import { summarizeIntegrityReport } from "../../../services/integrityScanner";
 import { formatBytes } from "../../../utils";
@@ -13,6 +20,7 @@ type StorageDiagnostics = ReturnType<typeof useStorageDiagnostics>;
 
 export function SettingsStorageView({ diagnostics }: { diagnostics: StorageDiagnostics }) {
   const { t } = useTranslation();
+  const eraseAll = useEraseAllData();
   return (
     <ScrollView
       style={styles.flexFill}
@@ -222,6 +230,27 @@ export function SettingsStorageView({ diagnostics }: { diagnostics: StorageDiagn
           </AccordionSection>
         </>
       ) : null}
+
+      {/* Fresh slate. Last thing on the last page — rare and destructive, so it lives at
+          the bottom of the storage details rather than anywhere it could be tapped in
+          passing. Two confirmations + the device lock stand between the tap and the wipe. */}
+      <View style={styles.settingsSection}>
+        <View style={styles.settingsSectionHeaderRow}>
+          <Text style={styles.settingsSectionLabel}>{t("eraseAll.section")}</Text>
+        </View>
+        <SettingsGroup>
+          <LibraryActionCard
+            flat
+            tone="danger"
+            icon="trash-outline"
+            title={t("eraseAll.row")}
+            meta={t("eraseAll.rowHint")}
+            busy={eraseAll.isErasing}
+            disabled={eraseAll.isErasing}
+            onPress={eraseAll.confirmErase}
+          />
+        </SettingsGroup>
+      </View>
     </ScrollView>
   );
 }

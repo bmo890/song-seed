@@ -7,6 +7,7 @@ import {
     listKvKeysWithPrefix,
     listKvKeysWithPrefixOrThrow,
     readManyKv,
+    replayPendingFallbackWrites,
     sqliteStringStorage,
 } from "./db/storage";
 import {
@@ -18,7 +19,12 @@ import {
     type PersistStorageValue,
 } from "./persistSharding";
 import { KvReadFailedError } from "./db/storage";
-import { setHydrationDegradedWorkspaceIds, setHydrationReadOutcome } from "./persistRuntime";
+import {
+    reportPersistBlocked,
+    setHydrationDegradedWorkspaceIds,
+    setHydrationReadOutcome,
+} from "./persistRuntime";
+import { describeError, persistLog } from "../services/persistLog";
 
 /**
  * zustand persist storage that shards the library across per-workspace SQLite rows so an
@@ -91,14 +97,38 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
     return {
         getItem: async (name): Promise<StorageValue<PersistedAppStore> | null> => {
             const startedAt = Date.now();
+
+            // Rows a previous session could only park in the AsyncStorage fallback are
+            // NEWER than SQLite's. Bring them home before reading; if SQLite still refuses,
+            // read through them as an overlay so the library never silently rewinds.
+            let overlay: Map<string, string> | null = null;
+            let overlayDeleted: Set<string> | null = null;
+            try {
+                const replay = await replayPendingFallbackWrites();
+                if (replay.status === "replayed") {
+                    persistLog("hydrate.replayed", `${replay.keys} rows, ${replay.deletedKeys} deletes`);
+                } else if (replay.status === "overlay") {
+                    overlay = replay.rows;
+                    overlayDeleted = replay.deletedKeys;
+                    persistLog("hydrate.overlay", `${overlay.size} rows`);
+                }
+            } catch (err) {
+                persistLog("write.failed", `fallback replay threw: ${describeError(err)}`);
+            }
+            const overlayRead = (key: string, fromDisk: string | null | undefined) => {
+                if (overlayDeleted?.has(key)) return null;
+                return overlay?.get(key) ?? fromDisk;
+            };
+
             let metaRaw: string | null | undefined;
             try {
-                metaRaw = await sqliteStringStorage.getItem(name);
+                metaRaw = overlayRead(name, await sqliteStringStorage.getItem(name));
             } catch (err) {
                 // Unknown disk state: fail hydration so the app retries instead of
                 // booting a writable empty library. Writes stay gated meanwhile.
                 readOutcome = "failed";
                 setHydrationReadOutcome("failed");
+                persistLog("hydrate.failed", describeError(err));
                 throw err;
             }
             const meta = parseMetaRow(metaRaw);
@@ -129,6 +159,7 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
                 }
                 readOutcome = "empty";
                 setHydrationReadOutcome("empty");
+                persistLog("hydrate.empty", { ms: Date.now() - startedAt });
                 return null;
             }
 
@@ -139,6 +170,7 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
                 console.warn(`[PersistTelemetry] meta row for "${name}" is unparseable — starting empty`);
                 readOutcome = "failed";
                 setHydrationReadOutcome("failed");
+                persistLog("hydrate.failed", "meta row unparseable");
                 return null;
             }
 
@@ -150,6 +182,7 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
                 console.log(`[PersistTelemetry] hydrated "${name}" (monolithic): ${kb}KB in ${Date.now() - startedAt}ms`);
                 readOutcome = "data";
                 setHydrationReadOutcome("data");
+                persistLog("hydrate.ok", { ms: Date.now() - startedAt, detail: `monolithic ${kb}KB` });
                 return meta.value as StorageValue<PersistedAppStore>;
             }
 
@@ -161,7 +194,15 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
             } catch (err) {
                 readOutcome = "failed";
                 setHydrationReadOutcome("failed");
+                persistLog("hydrate.failed", describeError(err));
                 throw err;
+            }
+            if (overlay || overlayDeleted) {
+                for (const key of workspaceKeys) {
+                    const value = overlayRead(key, workspaceValues.get(key));
+                    if (value == null) workspaceValues.delete(key);
+                    else workspaceValues.set(key, value);
+                }
             }
             const { value: assembled, missingIds, corrupt } = assembleShardedSnapshot(
                 name,
@@ -190,6 +231,7 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
                 );
             }
             setHydrationDegradedWorkspaceIds(degradedIds);
+            if (degradedIds.length > 0) persistLog("hydrate.degraded", degradedIds.join(", "));
 
             readOutcome = "data";
             setHydrationReadOutcome("data");
@@ -200,6 +242,10 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
                 `[PersistTelemetry] hydrated "${name}" (sharded, ${meta.workspaceIds.length} workspaces): ` +
                     `${Math.round(bytes / 1024)}KB in ${Date.now() - startedAt}ms`
             );
+            persistLog("hydrate.ok", {
+                ms: Date.now() - startedAt,
+                detail: `sharded ${meta.workspaceIds.length} ws, ${Math.round(bytes / 1024)}KB`,
+            });
 
             // We successfully read the sharded format — the one-boot legacy backup has done its
             // job. Retire it (best-effort) and mark it handled for this session.
@@ -221,6 +267,9 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
                             `read the on-disk library (readOutcome=${readOutcome}) and the write ` +
                             `would orphan on-disk workspaces. Keeping disk untouched.`
                     );
+                    // Never silent: the user is editing a library that is not reaching disk.
+                    persistLog("authority.refused", `readOutcome=${readOutcome}`);
+                    reportPersistBlocked("authority");
                     return;
                 }
                 readOutcome = "data";

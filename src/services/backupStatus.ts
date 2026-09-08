@@ -1,35 +1,35 @@
-import { getBackupReminderWindowLabel, isBackupOverdue } from "../domain/backupPreferences";
+import { getBackupReminderWindowLabel, isBackupReminderDue } from "../domain/backupPreferences";
+import { i18n } from "../i18n/instance";
 import type { BackupReminderFrequency, Workspace } from "../types";
-
-let hasShownBackupReminderThisSession = false;
 
 function countTotalIdeas(workspaces: Workspace[]) {
     return workspaces.reduce((sum, workspace) => sum + workspace.ideas.length, 0);
 }
 
+/**
+ * Boot-time decision for the backup nag. Pure over persisted fields — the "shown
+ * this session" memory that used to live here reset on every cold start, which is
+ * why the prompt came back on every launch (2026-09-07 field report).
+ */
 export function shouldPromptForBackupReminder(args: {
     workspaces: Workspace[];
     backupReminderFrequency: BackupReminderFrequency;
     lastSuccessfulBackupAt: number | null;
+    firstLaunchAt: number | null;
+    backupReminderLastPromptedAt: number | null;
     now?: number;
 }) {
-    if (hasShownBackupReminderThisSession) {
-        return false;
-    }
-
     if (countTotalIdeas(args.workspaces) === 0) {
         return false;
     }
 
-    return isBackupOverdue(
-        args.lastSuccessfulBackupAt,
-        args.backupReminderFrequency,
-        args.now
-    );
-}
-
-export function markBackupReminderPromptShown() {
-    hasShownBackupReminderThisSession = true;
+    return isBackupReminderDue({
+        frequency: args.backupReminderFrequency,
+        lastSuccessfulBackupAt: args.lastSuccessfulBackupAt,
+        firstLaunchAt: args.firstLaunchAt,
+        lastPromptedAt: args.backupReminderLastPromptedAt,
+        now: args.now,
+    });
 }
 
 export function buildBackupReminderPromptMessage(args: {
@@ -37,10 +37,10 @@ export function buildBackupReminderPromptMessage(args: {
     lastSuccessfulBackupAt: number | null;
 }) {
     if (!Number.isFinite(args.lastSuccessfulBackupAt)) {
-        return "You haven’t backed up this library yet. Back up now?";
+        return i18n.t("backupReminder.bodyNever");
     }
 
-    return `It’s been over a ${getBackupReminderWindowLabel(
-        args.backupReminderFrequency
-    )} since your last backup. Back up now?`;
+    return i18n.t("backupReminder.bodyOverdue", {
+        window: getBackupReminderWindowLabel(args.backupReminderFrequency),
+    });
 }

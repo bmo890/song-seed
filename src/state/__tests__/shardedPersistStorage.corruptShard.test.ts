@@ -7,6 +7,7 @@
 const mockKv = new Map<string, string>();
 
 jest.mock("../db/storage", () => ({
+    replayPendingFallbackWrites: jest.fn(async () => ({ status: "none" })),
     sqliteStringStorage: {
         getItem: jest.fn(async (name: string) => mockKv.get(name) ?? null),
     },

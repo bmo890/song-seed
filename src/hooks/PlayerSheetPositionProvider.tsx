@@ -1,9 +1,12 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { Dimensions } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSharedValue, type SharedValue } from "react-native-reanimated";
 import { useStore } from "../state/useStore";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
+/** Breathing room between the status bar and the card's top edge. */
+const SHEET_TOP_GAP = 8;
 
 type PlayerSheetPosition = {
   /** Sheet vertical offset. 0 = fully open at the top, SCREEN_HEIGHT = docked
@@ -23,6 +26,10 @@ type PlayerSheetPosition = {
   inMotion: boolean;
   setInMotion: (value: boolean) => void;
   screenHeight: number;
+  /** Where the sheet's top edge rests when fully open: below the status bar, so
+   *  the page underneath peeks out and the player reads as a card laid over it,
+   *  not as another page (2026-09-07). */
+  sheetTopInset: number;
 };
 
 const PlayerSheetPositionContext = createContext<PlayerSheetPosition | null>(null);
@@ -46,16 +53,29 @@ export function PlayerSheetPositionProvider({ children }: { children: React.Reac
   // the sheet is RESTING at the docked offset when the dock height changes, move it in
   // the same frame; an expanded or mid-drag sheet only retargets.
   const playerDockHeight = useStore((s) => s.playerDockHeight);
+  const insets = useSafeAreaInsets();
+  const sheetTopInset = insets.top + SHEET_TOP_GAP;
   useEffect(() => {
-    const next = Math.max(0, SCREEN_HEIGHT - playerDockHeight);
+    // The sheet is laid out `sheetTopInset` below the screen top, so its docked
+    // offset shrinks by the same amount — the top edge still lands exactly at the
+    // dock's top edge.
+    const next = Math.max(0, SCREEN_HEIGHT - playerDockHeight - sheetTopInset);
     const wasResting = dragY.value === dockedY.value;
     dockedY.value = next;
     if (wasResting) dragY.value = next;
-  }, [dockedY, dragY, playerDockHeight]);
+  }, [dockedY, dragY, playerDockHeight, sheetTopInset]);
 
   const value = useMemo<PlayerSheetPosition>(
-    () => ({ dragY, dockedY, openedByDrag, inMotion, setInMotion, screenHeight: SCREEN_HEIGHT }),
-    [dragY, dockedY, openedByDrag, inMotion]
+    () => ({
+      dragY,
+      dockedY,
+      openedByDrag,
+      inMotion,
+      setInMotion,
+      screenHeight: SCREEN_HEIGHT,
+      sheetTopInset,
+    }),
+    [dragY, dockedY, openedByDrag, inMotion, sheetTopInset]
   );
 
   return (

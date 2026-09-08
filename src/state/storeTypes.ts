@@ -44,6 +44,7 @@ export type PersistedAppStore = Pick<
     | "reviewPromptShownAt"
     | "lastSuccessfulBackupAt"
     | "lastSuccessfulBackupFileName"
+    | "backupReminderLastPromptedAt"
     | "notes"
     | "wordLadders"
     | "cutUpSparks"

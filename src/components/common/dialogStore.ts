@@ -25,6 +25,10 @@ export type DialogConfig = {
   title: string;
   message?: string;
   buttons: DialogButton[];
+  /** Runs when the dialog is dismissed WITHOUT a button — scrim tap or Android back.
+   *  A dialog whose cancel button carries state ("Not now" lifting a persist freeze)
+   *  must pass the same handler here, or a back-press leaves that state stuck. */
+  onDismiss?: () => void;
 };
 
 type Listener = (config: DialogConfig | null) => void;

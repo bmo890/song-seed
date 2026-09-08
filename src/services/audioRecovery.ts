@@ -429,3 +429,68 @@ function buildRecoveredTitle(baseName: string): string {
         .replace(/\s+/g, " ")
         .trim() || "Recovered Clip";
 }
+
+/* ── Orphan ↔ placeholder matching ─────────────────────────────── */
+
+/** Longest take we will pair with a placeholder idea (record start → save). */
+export const ORPHAN_PLACEHOLDER_MAX_GAP_MS = 30 * 60 * 1000;
+
+export type OrphanAttachment = { workspaceId: string; ideaId: string; clip: RecoveredClip };
+
+function timestampFromId(id: string, prefix: string): number | null {
+    if (!id.startsWith(prefix)) return null;
+    const value = Number(id.slice(prefix.length).split(/[^0-9]/)[0]);
+    return Number.isFinite(value) && value > 1e12 ? value : null;
+}
+
+/**
+ * Quick Record inserts a placeholder idea (`idea-<record start>`, no clips) before the
+ * take exists, and the recorder saves its file as `clip-<save time>`. When only the
+ * placeholder made it to disk (2026-09-07: the store writes after record start never
+ * landed), the library shows a dead 0:00 idea and the file turns up here as an orphan.
+ * Pair each orphan with the nearest earlier empty placeholder within one take's reach
+ * so recovery puts the take back on its idea instead of minting a "Recovered —" copy.
+ * Heuristic by design — a wrong pairing is a take on a same-minute empty idea, which
+ * the user can move; the alternative is a dead idea plus a nameless copy.
+ */
+export function matchOrphansToEmptyIdeas(
+    orphans: RecoveredClip[],
+    workspaces: Workspace[]
+): { attachments: OrphanAttachment[]; remaining: RecoveredClip[] } {
+    const placeholders: { workspaceId: string; ideaId: string; at: number }[] = [];
+    for (const workspace of workspaces) {
+        for (const idea of workspace.ideas) {
+            if (idea.kind !== "clip" || idea.clips.length > 0) continue;
+            const at = timestampFromId(idea.id, "idea-") ?? idea.createdAt;
+            if (Number.isFinite(at)) placeholders.push({ workspaceId: workspace.id, ideaId: idea.id, at });
+        }
+    }
+    if (placeholders.length === 0) return { attachments: [], remaining: orphans };
+
+    const attachments: OrphanAttachment[] = [];
+    const attachedClipIds = new Set<string>();
+    const used = new Set<string>();
+    // Oldest orphan first so each placeholder pairs with the take recorded right after it.
+    const ordered = [...orphans].sort((a, b) => (a.fileModifiedAt ?? 0) - (b.fileModifiedAt ?? 0));
+    for (const orphan of ordered) {
+        const filename = orphan.audioUri.split("/").pop() ?? "";
+        const savedAt = timestampFromId(filename, "clip-") ?? orphan.fileModifiedAt ?? null;
+        let best: { workspaceId: string; ideaId: string; at: number } | null = null;
+        if (savedAt != null) {
+            for (const placeholder of placeholders) {
+                if (used.has(placeholder.ideaId)) continue;
+                const gap = savedAt - placeholder.at;
+                if (gap < 0 || gap > ORPHAN_PLACEHOLDER_MAX_GAP_MS) continue;
+                if (!best || placeholder.at > best.at) best = placeholder;
+            }
+        }
+        if (best) {
+            used.add(best.ideaId);
+            attachedClipIds.add(orphan.clipId);
+            attachments.push({ workspaceId: best.workspaceId, ideaId: best.ideaId, clip: orphan });
+        }
+    }
+    // Keep the caller's (newest-first) order for what still goes to the Recovered collection.
+    const remaining = orphans.filter((orphan) => !attachedClipIds.has(orphan.clipId));
+    return { attachments, remaining };
+}

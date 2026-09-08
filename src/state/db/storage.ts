@@ -1,6 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getDb } from "./database";
-import { reportPersistWriteFailure, reportPersistWriteSuccess } from "../persistRuntime";
+import {
+    reportPersistWriteFailure,
+    reportPersistWriteFallback,
+    reportPersistWriteSuccess,
+} from "../persistRuntime";
+import { describeError, persistLog } from "../../services/persistLog";
 
 /**
  * A string key/value `StateStorage` backed by SQLite, used as the base for zustand's
@@ -15,7 +20,13 @@ import { reportPersistWriteFailure, reportPersistWriteSuccess } from "../persist
  * - On first read, a legacy AsyncStorage blob is imported into SQLite once (seamless
  *   migration) and the legacy blob is left in place as an emergency fallback.
  * - If SQLite is ever unavailable, every operation falls back to AsyncStorage, so a SQLite
- *   failure degrades gracefully instead of losing access to the library.
+ *   failure degrades gracefully instead of losing access to the library. Fallback rows are
+ *   RECORDED (see `FALLBACK_MARKER_KEY`) and replayed into SQLite on the next boot or the
+ *   next healthy write — a fallback write used to be invisible to the next launch, whose
+ *   SQLite read succeeded and never looked at AsyncStorage (2026-09-07 field report).
+ * - No native call may wedge the write queue: every SQLite statement races a deadline, and
+ *   a timed-out statement is treated as a failed one (fallback + log), so a hung native
+ *   promise can no longer silently swallow every later write of the session.
  */
 
 /**
@@ -33,16 +44,203 @@ export class KvReadFailedError extends Error {
     }
 }
 
+export class PersistWriteTimeoutError extends Error {
+    constructor(label: string, ms: number) {
+        super(`${label} did not complete within ${ms}ms`);
+        this.name = "PersistWriteTimeoutError";
+    }
+}
+
+/** Ceiling for one SQLite statement/transaction before it is treated as failed. */
+export const SQLITE_CALL_TIMEOUT_MS = 10_000;
+/** Ceiling for one whole queued operation (SQLite attempt + fallback) — unwedges the queue. */
+const QUEUE_OPERATION_TIMEOUT_MS = 20_000;
+
+/**
+ * AsyncStorage key recording which kv rows were written to the fallback because SQLite
+ * refused them. Present ⇒ AsyncStorage holds rows NEWER than SQLite for those keys.
+ */
+export const FALLBACK_MARKER_KEY = "songnook-kv-fallback-pending";
+
+type FallbackMarker = { keys: string[]; deletedKeys: string[]; at: number };
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const deadline = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new PersistWriteTimeoutError(label, ms)), ms);
+    });
+    return Promise.race([promise, deadline]).finally(() => {
+        if (timer) clearTimeout(timer);
+    }) as Promise<T>;
+}
+
+/** Run one SQLite call against the deadline. */
+function sqliteCall<T>(label: string, run: () => Promise<T>): Promise<T> {
+    return withTimeout(run(), SQLITE_CALL_TIMEOUT_MS, label);
+}
+
+function logWriteFailure(error: unknown, label: string) {
+    persistLog(
+        error instanceof PersistWriteTimeoutError ? "write.timeout" : "write.fallback",
+        `${label}: ${describeError(error)}`
+    );
+}
+
 // Last value successfully written per key, so unchanged snapshots skip the DB entirely.
 const lastWritten = new Map<string, string>();
 let writeQueue: Promise<void> = Promise.resolve();
 
 function enqueueWrite(operation: () => Promise<void>) {
-    const result = writeQueue.then(operation, operation);
+    // The queue itself is also bounded: a fallback that never settles must not become
+    // the new head-of-line blocker.
+    const run = () => withTimeout(operation(), QUEUE_OPERATION_TIMEOUT_MS, "queued write");
+    const result = writeQueue.then(run, run);
     // Keep the queue usable after a failed write while still returning the failure to its caller.
     writeQueue = result.catch(() => undefined);
     return result;
 }
+
+/** Resolves once every write queued so far has settled. A deliberate wipe must wait for
+ *  this before closing the database — a statement reaching a closed connection is a
+ *  native crash, not an error (seen 2026-09-07 in the simulator). */
+export function waitForWriteQueueIdle(): Promise<void> {
+    return writeQueue.then(() => undefined, () => undefined);
+}
+
+/* ── Fallback bookkeeping ────────────────────────────────────────────────────── */
+
+// null = not yet checked this session; false = known clear; object = pending.
+let fallbackMarkerCache: FallbackMarker | false | null = null;
+
+async function readFallbackMarker(): Promise<FallbackMarker | null> {
+    if (fallbackMarkerCache === false) return null;
+    if (fallbackMarkerCache) return fallbackMarkerCache;
+    try {
+        const raw = await AsyncStorage.getItem(FALLBACK_MARKER_KEY);
+        if (!raw) {
+            fallbackMarkerCache = false;
+            return null;
+        }
+        const parsed = JSON.parse(raw) as Partial<FallbackMarker>;
+        const marker: FallbackMarker = {
+            keys: Array.isArray(parsed.keys) ? parsed.keys.filter((k): k is string => typeof k === "string") : [],
+            deletedKeys: Array.isArray(parsed.deletedKeys)
+                ? parsed.deletedKeys.filter((k): k is string => typeof k === "string")
+                : [],
+            at: typeof parsed.at === "number" ? parsed.at : 0,
+        };
+        fallbackMarkerCache = marker;
+        return marker;
+    } catch {
+        // Unreadable marker: assume nothing pending (the rows, if any, still sit in
+        // AsyncStorage and the read-side fallback can still find them).
+        fallbackMarkerCache = false;
+        return null;
+    }
+}
+
+async function recordFallbackWrite(writtenKeys: string[], deletedKeys: string[]): Promise<void> {
+    const existing = (await readFallbackMarker()) ?? { keys: [], deletedKeys: [], at: 0 };
+    const keys = new Set(existing.keys);
+    const deleted = new Set(existing.deletedKeys);
+    for (const key of writtenKeys) {
+        keys.add(key);
+        deleted.delete(key);
+    }
+    for (const key of deletedKeys) {
+        deleted.add(key);
+        keys.delete(key);
+    }
+    const marker: FallbackMarker = { keys: [...keys], deletedKeys: [...deleted], at: Date.now() };
+    fallbackMarkerCache = marker;
+    try {
+        await AsyncStorage.setItem(FALLBACK_MARKER_KEY, JSON.stringify(marker));
+    } catch {
+        // The rows themselves landed; a missing marker only costs the boot replay.
+    }
+}
+
+/** Test hook — forget the session's marker cache so suites don't leak into each other. */
+export function resetFallbackMarkerCache() {
+    fallbackMarkerCache = null;
+}
+
+async function clearFallbackMarker(): Promise<void> {
+    fallbackMarkerCache = false;
+    try {
+        await AsyncStorage.removeItem(FALLBACK_MARKER_KEY);
+    } catch {
+        // ignore
+    }
+}
+
+export type FallbackReplayResult =
+    | { status: "none" }
+    | { status: "replayed"; keys: number; deletedKeys: number }
+    /** SQLite still refuses: hydrate through this overlay (newer than the SQLite rows). */
+    | { status: "overlay"; rows: Map<string, string>; deletedKeys: Set<string> };
+
+/**
+ * Move rows that only reached the AsyncStorage fallback into SQLite. Called before the
+ * boot read and after any healthy SQLite commit. Returns an overlay for hydration when
+ * SQLite still refuses to take them.
+ */
+export async function replayPendingFallbackWrites(): Promise<FallbackReplayResult> {
+    const marker = await readFallbackMarker();
+    if (!marker || (marker.keys.length === 0 && marker.deletedKeys.length === 0)) {
+        return { status: "none" };
+    }
+
+    const rows = new Map<string, string>();
+    for (const key of marker.keys) {
+        try {
+            const value = await AsyncStorage.getItem(key);
+            if (value != null) rows.set(key, value);
+        } catch {
+            // Skip an unreadable row; the marker keeps it for the next attempt.
+        }
+    }
+    const deletedKeys = new Set(marker.deletedKeys);
+
+    try {
+        await enqueueWrite(async () => {
+            const db = getDb();
+            const now = Date.now();
+            await sqliteCall("replay fallback rows", () =>
+                db.withTransactionAsync(async () => {
+                    for (const [key, value] of rows) {
+                        await db.runAsync(
+                            "INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, ?)",
+                            key,
+                            value,
+                            now
+                        );
+                    }
+                    for (const key of deletedKeys) {
+                        await db.runAsync("DELETE FROM kv WHERE key = ?", key);
+                    }
+                })
+            );
+        });
+    } catch (err) {
+        persistLog("write.failed", `fallback replay: ${describeError(err)}`);
+        return { status: "overlay", rows, deletedKeys };
+    }
+
+    for (const [key, value] of rows) lastWritten.set(key, value);
+    for (const key of deletedKeys) lastWritten.delete(key);
+    await clearFallbackMarker();
+    // The mirror copies are stale from here on; drop them so a later read-side
+    // fallback can never resurrect an older library.
+    for (const key of rows.keys()) {
+        await AsyncStorage.removeItem(key).catch(() => {});
+    }
+    persistLog("fallback.replayed", `${rows.size} rows, ${deletedKeys.size} deletes`);
+    reportPersistWriteSuccess();
+    return { status: "replayed", keys: rows.size, deletedKeys: deletedKeys.size };
+}
+
+/* ── kv access ───────────────────────────────────────────────────────────────── */
 
 export const sqliteStringStorage = {
     getItem: async (name: string): Promise<string | null> => {
@@ -94,26 +292,33 @@ export const sqliteStringStorage = {
     setItem: (name: string, value: string): Promise<void> =>
         enqueueWrite(async () => {
             if (lastWritten.get(name) === value) return; // unchanged — skip the write
+            const startedAt = Date.now();
             try {
-                await getDb().runAsync(
-                    "INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, ?)",
-                    name,
-                    value,
-                    Date.now()
+                await sqliteCall("setItem", () =>
+                    getDb().runAsync(
+                        "INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, ?)",
+                        name,
+                        value,
+                        Date.now()
+                    )
                 );
                 lastWritten.set(name, value);
+                persistLog("write.sqlite", { ms: Date.now() - startedAt, detail: name });
                 reportPersistWriteSuccess();
             } catch (err) {
                 // Last-resort durability: keep the write in AsyncStorage if SQLite failed. Do NOT
                 // update lastWritten, so the next attempt retries the SQLite write.
                 console.warn("[sqliteStorage] setItem fell back to AsyncStorage:", err);
+                logWriteFailure(err, "setItem");
                 try {
                     await AsyncStorage.setItem(name, value);
+                    await recordFallbackWrite([name], []);
                     // Degraded but durable — the library still landed somewhere.
-                    reportPersistWriteSuccess();
-                } catch {
+                    reportPersistWriteFallback();
+                } catch (fallbackErr) {
                     // Both stores failed — the in-memory store is intact, but nothing is
                     // landing on disk. Count it so a sustained outage surfaces a banner.
+                    persistLog("write.failed", `setItem: ${describeError(fallbackErr)}`);
                     reportPersistWriteFailure();
                 }
             }
@@ -123,10 +328,11 @@ export const sqliteStringStorage = {
         enqueueWrite(async () => {
             lastWritten.delete(name);
             try {
-                await getDb().runAsync("DELETE FROM kv WHERE key = ?", name);
+                await sqliteCall("removeItem", () => getDb().runAsync("DELETE FROM kv WHERE key = ?", name));
             } catch (err) {
                 console.warn("[sqliteStorage] removeItem fell back to AsyncStorage:", err);
                 await AsyncStorage.removeItem(name);
+                await recordFallbackWrite([], [name]);
             }
         }),
 };
@@ -175,11 +381,35 @@ export async function readManyKv(keys: string[]): Promise<Map<string, string>> {
 }
 
 /**
+ * Newest `updated_at` across the given exact keys and prefixes — the moment SQLite last
+ * accepted any part of the library. Used to compare against the shadow manifest's own
+ * timestamp at boot. Null when nothing matches or the query fails.
+ */
+export async function getKvNewestUpdatedAt(exactKeys: string[], prefixes: string[]): Promise<number | null> {
+    try {
+        const clauses = [
+            ...exactKeys.map(() => "key = ?"),
+            ...prefixes.map(() => "key LIKE ?"),
+        ];
+        if (clauses.length === 0) return null;
+        const row = await getDb().getFirstAsync<{ newest: number | null }>(
+            `SELECT MAX(updated_at) AS newest FROM kv WHERE ${clauses.join(" OR ")}`,
+            ...exactKeys,
+            ...prefixes.map((prefix) => `${prefix}%`)
+        );
+        return typeof row?.newest === "number" && Number.isFinite(row.newest) ? row.newest : null;
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Commit a sharded snapshot write atomically: all row writes + deletions in ONE SQLite
  * transaction, so a crash can never leave the meta row's workspaceIds pointing at a
  * workspace row that was never written. Rows whose value is byte-identical to the last
  * write are skipped. On SQLite failure, degrades to best-effort per-key AsyncStorage
- * (weaker atomicity, same fallback contract as the rest of this module).
+ * (weaker atomicity, same fallback contract as the rest of this module) and records the
+ * rows for replay.
  */
 export async function commitShardedWrite(
     writes: { key: string; value: string }[],
@@ -190,49 +420,83 @@ export async function commitShardedWrite(
     const pendingDeletes = deletes;
     if (pendingWrites.length === 0 && pendingDeletes.length === 0) return;
 
-    await enqueueWrite(async () => {
+    let landedInSqlite = false;
+    try {
+        await enqueueWrite(async () => {
+        const startedAt = Date.now();
         try {
             const db = getDb();
             const now = Date.now();
-            await db.withTransactionAsync(async () => {
-                for (const row of pendingWrites) {
-                    await db.runAsync(
-                        "INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, ?)",
-                        row.key,
-                        row.value,
-                        now
-                    );
-                }
-                for (const key of pendingDeletes) {
-                    await db.runAsync("DELETE FROM kv WHERE key = ?", key);
-                }
-            });
+            await sqliteCall("commitShardedWrite", () =>
+                db.withTransactionAsync(async () => {
+                    for (const row of pendingWrites) {
+                        await db.runAsync(
+                            "INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, ?)",
+                            row.key,
+                            row.value,
+                            now
+                        );
+                    }
+                    for (const key of pendingDeletes) {
+                        await db.runAsync("DELETE FROM kv WHERE key = ?", key);
+                    }
+                })
+            );
             for (const row of pendingWrites) lastWritten.set(row.key, row.value);
             for (const key of pendingDeletes) lastWritten.delete(key);
+            persistLog("write.sqlite", {
+                ms: Date.now() - startedAt,
+                detail: `${pendingWrites.length} rows, ${pendingDeletes.length} deletes`,
+            });
+            landedInSqlite = true;
             reportPersistWriteSuccess();
         } catch (err) {
             // Do NOT update lastWritten on failure, so the next write retries SQLite.
             console.warn("[sqliteStorage] commitShardedWrite fell back to AsyncStorage:", err);
+            logWriteFailure(err, "commitShardedWrite");
             let anyRowLost = false;
+            const landed: string[] = [];
             for (const row of pendingWrites) {
                 try {
                     await AsyncStorage.setItem(row.key, row.value);
+                    landed.push(row.key);
                 } catch {
                     // Both stores failed for this row — the in-memory store is still intact.
                     anyRowLost = true;
                 }
             }
-            if (anyRowLost) reportPersistWriteFailure();
-            else reportPersistWriteSuccess();
+            const removed: string[] = [];
             for (const key of pendingDeletes) {
                 try {
                     await AsyncStorage.removeItem(key);
+                    removed.push(key);
                 } catch {
                     // ignore
                 }
             }
+            if (landed.length > 0 || removed.length > 0) {
+                await recordFallbackWrite(landed, removed);
+            }
+            if (anyRowLost) {
+                persistLog("write.failed", `commitShardedWrite: ${pendingWrites.length - landed.length} rows lost`);
+                reportPersistWriteFailure();
+            } else {
+                reportPersistWriteFallback();
+            }
         }
-    });
+        });
+    } catch (err) {
+        // Only the queue-level deadline lands here (the op's own failures are handled
+        // above): both stores hung. Nothing landed; say so.
+        persistLog("write.failed", `commitShardedWrite queue: ${describeError(err)}`);
+        reportPersistWriteFailure();
+        return;
+    }
+
+    // SQLite took this write: anything still parked in the fallback can come home now.
+    if (landedInSqlite && fallbackMarkerCache) {
+        await replayPendingFallbackWrites().catch(() => undefined);
+    }
 }
 
 /**
@@ -269,7 +533,7 @@ export async function deleteKv(key: string): Promise<void> {
     await enqueueWrite(async () => {
         lastWritten.delete(key);
         try {
-            await getDb().runAsync("DELETE FROM kv WHERE key = ?", key);
+            await sqliteCall("deleteKv", () => getDb().runAsync("DELETE FROM kv WHERE key = ?", key));
         } catch {
             try {
                 await AsyncStorage.removeItem(key);
@@ -287,20 +551,27 @@ export async function deleteKv(key: string): Promise<void> {
  */
 export async function persistRawSnapshot(name: string, value: string): Promise<void> {
     await enqueueWrite(async () => {
+        const startedAt = Date.now();
         try {
-            await getDb().runAsync(
-                "INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, ?)",
-                name,
-                value,
-                Date.now()
+            await sqliteCall("persistRawSnapshot", () =>
+                getDb().runAsync(
+                    "INSERT OR REPLACE INTO kv (key, value, updated_at) VALUES (?, ?, ?)",
+                    name,
+                    value,
+                    Date.now()
+                )
             );
             lastWritten.set(name, value);
+            persistLog("flush.ok", { ms: Date.now() - startedAt });
+            reportPersistWriteSuccess();
         } catch (error) {
             // A fallback copy is still useful for manual recovery, but it is not authoritative
             // while a readable SQLite row exists. Surface the failure so callers never delete
             // media or report a restore as successful without committing SQLite first.
+            persistLog("flush.failed", describeError(error));
             try {
                 await AsyncStorage.setItem(name, value);
+                await recordFallbackWrite([name], []);
             } catch {
                 // Preserve the authoritative SQLite error below.
             }

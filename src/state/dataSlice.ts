@@ -136,6 +136,9 @@ export type DataSlice = {
     reviewPromptShownAt: number | null;
     lastSuccessfulBackupAt: number | null;
     lastSuccessfulBackupFileName: string | null;
+    /** Epoch the backup reminder was last shown — it asks at most once per interval,
+     *  whichever button was tapped ("Later" included). */
+    backupReminderLastPromptedAt: number | null;
     metronomeBpm: number;
     metronomeMeterId: MetronomeMeterId;
     /** Per-meter pulse grouping override — 5/4 felt as 3+2 instead of 2+3.
@@ -210,6 +213,7 @@ export type DataSlice = {
     setReviewPromptShownAt: (timestamp: number) => void;
     setLastSuccessfulBackupAt: (timestamp: number | null) => void;
     setLastSuccessfulBackupFileName: (fileName: string | null) => void;
+    setBackupReminderLastPromptedAt: (timestamp: number | null) => void;
     addWorkspace: (title: string, description?: string, avatarKey?: number) => void;
     updateWorkspace: (id: string, updates: { title?: string; description?: string; color?: string; avatarKey?: number }) => void;
     deleteWorkspace: (id: string) => void;
@@ -1275,6 +1279,7 @@ export const createDataSlice: StateCreator<
     firstLaunchAt: null,
     reviewPromptShownAt: null,
     lastSuccessfulBackupAt: null,
+    backupReminderLastPromptedAt: null,
     lastSuccessfulBackupFileName: null,
 
     setActiveWorkspaceId: (id) =>
@@ -1511,6 +1516,7 @@ export const createDataSlice: StateCreator<
     setReviewPromptShownAt: (timestamp) => set({ reviewPromptShownAt: timestamp }),
     setLastSuccessfulBackupAt: (timestamp) => set({ lastSuccessfulBackupAt: timestamp }),
     setLastSuccessfulBackupFileName: (fileName) => set({ lastSuccessfulBackupFileName: fileName }),
+    setBackupReminderLastPromptedAt: (timestamp) => set({ backupReminderLastPromptedAt: timestamp }),
 
     addWorkspace: (title, description, avatarKey) => {
         const workspaceId = `ws-${Date.now()}`;

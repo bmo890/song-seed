@@ -2,7 +2,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Constants from "expo-constants";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, Platform, View } from "react-native";
 import { useFonts } from "expo-font";
 import {
   Lora_500Medium,
@@ -99,7 +99,6 @@ import { readManifest } from "./src/services/manifestSync";
 import { appActions } from "./src/state/actions";
 import {
   buildBackupReminderPromptMessage,
-  markBackupReminderPromptShown,
   shouldPromptForBackupReminder,
 } from "./src/services/backupStatus";
 import { resumePendingWorkspaceArchiveOperations } from "./src/services/workspaceArchiveRecovery";
@@ -115,6 +114,7 @@ import { onHydrationResult, useStore } from "./src/state/useStore";
 import {
   getHydrationDegradedWorkspaceIds,
   isHydrationReadAuthoritative,
+  isPersistBlocked,
   setPersistBlocked,
 } from "./src/state/persistRuntime";
 import { authorizeIntentionalEmptyStateWrite } from "./src/services/stateIntegrity";
@@ -130,6 +130,8 @@ import { ToastHost } from "./src/components/common/ToastHost";
 import { ProUpsellHost } from "./src/components/common/ProUpsellSheet";
 import { WelcomeFlow } from "./src/components/common/WelcomeFlow";
 import { installGlobalCrashHandler } from "./src/services/crashLog";
+import { describeError, persistLog } from "./src/services/persistLog";
+import { detectNewerManifest } from "./src/services/manifestFreshness";
 import { RestoreRestartGate } from "./src/components/common/RestoreRestartGate";
 import { FullPlayerProvider } from "./src/hooks/FullPlayerProvider";
 import { i18n, LocaleProvider, useLocale, useLocaleBootstrap } from "./src/i18n";
@@ -145,6 +147,7 @@ installWordLookupCache();
 
 // Record fatal JS errors to the on-device diagnostic log (Settings → About → share).
 installGlobalCrashHandler();
+persistLog("boot", `v${Constants.expoConfig?.version ?? "?"} ${Platform.OS}`);
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Drawer = createDrawerNavigator<HomeDrawerParamList>();
@@ -1178,6 +1181,19 @@ export default function App() {
           // first-run intro so WelcomeFlow never renders over the data-loss recovery
           // prompt (recoverOrphanedAudio doesn't touch hasSeenWelcome, so this sticks).
           useStore.getState().setHasSeenWelcome(true);
+          // The user chose to continue with the empty library — that explicit
+          // decision (not the empty hydration itself) authorizes the store and
+          // manifest to catch up to empty. Re-verify emptiness at press time:
+          // if a late hydration landed the real library behind this dialog,
+          // an empty-write authorization would let the manifest guard clobber
+          // the recovery copy over a healthy store.
+          const continueWithEmptyLibrary = () => {
+            if (countLiveIdeas() === 0) {
+              authorizeIntentionalEmptyStateWrite();
+            }
+            setPersistBlocked(false);
+            useStore.getState().markFirstLaunch();
+          };
           AppAlert.custom(
             "Restore your library?",
             `SongNook opened with an empty library, but a backup with ${manifestIdeaCount} item${manifestIdeaCount === 1 ? "" : "s"} was found on this device. Restore it now?`,
@@ -1185,19 +1201,7 @@ export default function App() {
               {
                 label: "Not now",
                 style: "cancel",
-                onPress: () => {
-                  // The user chose to continue with the empty library — that explicit
-                  // decision (not the empty hydration itself) authorizes the store and
-                  // manifest to catch up to empty. Re-verify emptiness at press time:
-                  // if a late hydration landed the real library behind this dialog,
-                  // an empty-write authorization would let the manifest guard clobber
-                  // the recovery copy over a healthy store.
-                  if (countLiveIdeas() === 0) {
-                    authorizeIntentionalEmptyStateWrite();
-                  }
-                  setPersistBlocked(false);
-                  useStore.getState().markFirstLaunch();
-                },
+                onPress: continueWithEmptyLibrary,
               },
               {
                 label: "Restore",
@@ -1208,7 +1212,10 @@ export default function App() {
                   void appActions.recoverOrphanedAudio();
                 },
               },
-            ]
+            ],
+            // Android back / scrim tap used to close this dialog with the persist freeze
+            // still on — every edit for the rest of the session then stayed in memory.
+            { onDismiss: continueWithEmptyLibrary }
           );
           return;
         }
@@ -1233,6 +1240,38 @@ export default function App() {
       // Anchor the store-review timing rule on the very first launch. Runs after the
       // recovery check so a pending restore prompt never races a persist write.
       useStore.getState().markFirstLaunch();
+
+      // A shadow manifest NEWER than the store, holding work the store lacks, means the
+      // previous session's store writes stopped landing while the mirror kept up
+      // (2026-09-07). Offer it — never adopt it silently.
+      if (liveIdeaCount > 0 && !isPersistBlocked()) {
+        const newer = await detectNewerManifest(useStore.getState().workspaces).catch(() => null);
+        if (newer && countLiveIdeas() > 0) {
+          persistLog(
+            "manifest.newer",
+            `manifest ${new Date(newer.manifestAt).toISOString()} vs store ${new Date(newer.storeAt).toISOString()}: ` +
+              `${newer.missingIdeas} ideas, ${newer.missingClips} clips missing`
+          );
+          AppAlert.custom(
+            i18n.t("recovery.newerCopyTitle"),
+            i18n.t("recovery.newerCopyBody"),
+            [
+              { label: i18n.t("recovery.newerCopyKeep"), style: "cancel" },
+              {
+                label: i18n.t("recovery.newerCopyRestore"),
+                style: "default",
+                icon: "refresh-outline",
+                onPress: () => {
+                  void appActions.restoreLibraryFromNewerManifest().catch((error) => {
+                    persistLog("flush.failed", `manifest restore: ${describeError(error)}`);
+                  });
+                },
+              },
+            ]
+          );
+          return;
+        }
+      }
 
       const recordingRecovery = await recoverPendingRecordingSession();
       if (recordingRecovery.status === "recovered") {
@@ -1277,12 +1316,16 @@ export default function App() {
           workspaces: state.workspaces,
           backupReminderFrequency: state.backupReminderFrequency,
           lastSuccessfulBackupAt: state.lastSuccessfulBackupAt,
+          firstLaunchAt: state.firstLaunchAt,
+          backupReminderLastPromptedAt: state.backupReminderLastPromptedAt,
         })
       ) {
         return;
       }
 
-      markBackupReminderPromptShown();
+      // Showing it IS the event that starts the next interval — whichever button is
+      // tapped (or none), it does not come back until a full interval has passed.
+      state.setBackupReminderLastPromptedAt(Date.now());
       // Descriptions turn these into RICH rows (icon in a tinted circle + bold label +
       // subtitle) instead of plain centered buttons — every row then shares the same
       // left-aligned layout regardless of icon/label length, which plain centering
@@ -1290,15 +1333,15 @@ export default function App() {
       // "Later" stays a plain button below a divider, matching the app's other
       // rich-dialogs (see promptForImportDatePreference): options first, dismiss last.
       AppAlert.custom(
-        "Back up your library?",
+        i18n.t("backupReminder.title"),
         buildBackupReminderPromptMessage({
           backupReminderFrequency: state.backupReminderFrequency,
           lastSuccessfulBackupAt: state.lastSuccessfulBackupAt,
         }),
         [
           {
-            label: "Turn Off Reminders",
-            description: "Stop asking about backups",
+            label: i18n.t("backupReminder.turnOff"),
+            description: i18n.t("backupReminder.turnOffHint"),
             style: "default",
             icon: "notifications-off-outline",
             onPress: () => {
@@ -1306,10 +1349,10 @@ export default function App() {
             },
           },
           {
-            label: "Backup Settings",
+            label: i18n.t("backupReminder.settings"),
             // Not "Open Settings" — that phrase is reserved elsewhere for the OS
             // settings app (mic/notification permissions); this stays in-app.
-            description: "Change reminders, or back up now",
+            description: i18n.t("backupReminder.settingsHint"),
             style: "default",
             icon: "settings-outline",
             onPress: () => {
@@ -1322,7 +1365,7 @@ export default function App() {
               });
             },
           },
-          { label: "Later", style: "cancel" },
+          { label: i18n.t("backupReminder.later"), style: "cancel" },
         ]
       );
     })();

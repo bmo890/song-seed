@@ -9,7 +9,9 @@
  */
 
 import * as FileSystem from "expo-file-system/legacy";
+import { AppState } from "react-native";
 import { createSnapshotChangeDetector } from "../state/persistChangeDetection";
+import { describeError, persistLog } from "./persistLog";
 import {
     SONG_NOOK_ROOT,
     SONG_NOOK_MANIFEST_PATH,
@@ -104,7 +106,10 @@ async function writeManifestToDisk(state: PersistedAppStore): Promise<void> {
         // When persistence is locked (suspected corruption, or a completed restore awaiting
         // restart), do not let the stale in-memory state overwrite the shadow manifest — it is
         // a recovery copy and must not be clobbered while the primary store is frozen.
-        if (isPersistBlocked()) return;
+        if (isPersistBlocked()) {
+            persistLog("manifest.blocked", "persist locked");
+            return;
+        }
 
         // Ensure root directory exists
         const rootInfo = await FileSystem.getInfoAsync(SONG_NOOK_ROOT);
@@ -135,6 +140,7 @@ async function writeManifestToDisk(state: PersistedAppStore): Promise<void> {
                             `over existing manifest with ${existingIdeaCount} ideas. ` +
                             `This looks like a state corruption event.`
                         );
+                        persistLog("manifest.blocked", `empty over ${existingIdeaCount} ideas`);
                         return;
                     }
                 }
@@ -156,6 +162,7 @@ async function writeManifestToDisk(state: PersistedAppStore): Promise<void> {
                     `[ManifestSync] BLOCKED: refusing to write manifest with ${newIdeaCount} ideas, ` +
                     `${lost} fewer than the last known ${lastCount}, without an authorized bulk delete.`
                 );
+                persistLog("manifest.blocked", `${lastCount} → ${newIdeaCount}`);
                 return;
             }
         }
@@ -193,9 +200,11 @@ async function writeManifestToDisk(state: PersistedAppStore): Promise<void> {
 
         // Clean up backup after successful write
         await FileSystem.deleteAsync(backupPath, { idempotent: true });
+        persistLog("manifest.ok", `${newIdeaCount} ideas`);
     } catch (err) {
         // Never crash the app — manifest is a safety net, not critical path
         console.warn("[ManifestSync] Failed to write manifest:", err);
+        persistLog("manifest.failed", describeError(err));
     }
 }
 
@@ -203,12 +212,22 @@ async function writeManifestToDisk(state: PersistedAppStore): Promise<void> {
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingState: PersistedAppStore | null = null;
+let pendingFirstScheduledAt: number | null = null;
 let isWriting = false;
 let unsubscribe: (() => void) | null = null;
 
 const DEBOUNCE_MS = 5000;
+// A pure trailing debounce starved under steady editing — the shadow copy could lag
+// the store indefinitely, which is exactly when it is needed (2026-09-07). Cap the
+// postponement like the store's own passive persist does.
+const MAX_WAIT_MS = 15_000;
 
 function flushPendingWrite() {
+    if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        debounceTimer = null;
+    }
+    pendingFirstScheduledAt = null;
     if (isWriting || !pendingState) return;
 
     const state = pendingState;
@@ -226,12 +245,32 @@ function flushPendingWrite() {
 
 function scheduleWrite(state: PersistedAppStore) {
     pendingState = state;
+    const now = Date.now();
+    if (pendingFirstScheduledAt == null) pendingFirstScheduledAt = now;
 
     if (debounceTimer) {
         clearTimeout(debounceTimer);
     }
 
-    debounceTimer = setTimeout(flushPendingWrite, DEBOUNCE_MS);
+    const maxWaitRemainingMs = Math.max(0, pendingFirstScheduledAt + MAX_WAIT_MS - now);
+    debounceTimer = setTimeout(flushPendingWrite, Math.min(DEBOUNCE_MS, maxWaitRemainingMs));
+}
+
+// Don't sit on a pending shadow copy while the app leaves the foreground.
+AppState.addEventListener("change", (nextState) => {
+    if (nextState !== "active") flushPendingWrite();
+});
+
+/** Stop mirroring the store (a deliberate wipe is about to delete the manifest). */
+export function stopManifestSync(): void {
+    if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        debounceTimer = null;
+    }
+    pendingState = null;
+    pendingFirstScheduledAt = null;
+    unsubscribe?.();
+    unsubscribe = null;
 }
 
 /**
@@ -283,5 +322,6 @@ export async function forceManifestWrite(state: PersistedAppStore): Promise<void
         debounceTimer = null;
     }
     pendingState = null;
+    pendingFirstScheduledAt = null;
     await writeManifestToDisk(state);
 }

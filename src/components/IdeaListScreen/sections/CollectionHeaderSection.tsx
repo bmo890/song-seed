@@ -47,6 +47,26 @@ export function CollectionHeaderSection() {
       ),
     };
   });
+  // The WHERE · WHAT eyebrow owns the same slot and yields it to the compact
+  // title over the same window.
+  const eyebrowStyle = useAnimatedStyle(() => {
+    const h = collapsibleHeaderHeight.value;
+    if (h <= 0) return { opacity: 1 };
+    return {
+      opacity: interpolate(
+        scrollY.value,
+        [h * 0.45, h * 0.95],
+        [1, 0],
+        Extrapolation.CLAMP
+      ),
+    };
+  });
+  // The container this collection sits in — the workspace's own mark + name, no
+  // type word (the page's type is the page you are on) and no chevron next to the
+  // hamburger. The avatar is the affordance: the same mark the hub and the drawer
+  // wear, so it reads as "inside My Songs" and taps through to it.
+  const upLink = screen.upLink;
+  const eyebrowText = upLink?.label ?? "";
 
   return (
     <View style={collStyles.navRow}>
@@ -65,20 +85,44 @@ export function CollectionHeaderSection() {
         )}
       </Pressable>
 
-      {/* Compact identity: fades in when the identity block scrolls away */}
-      <ReAnimated.View style={[collStyles.navCompact, compactTitleStyle]} pointerEvents="none">
-        {workspace ? (
-          <WorkspaceAvatar
-            color={workspace.color}
-            name={workspace.title}
-            size={16}
-            avatarKey={workspace.avatarKey}
-          />
-        ) : null}
-        <Text style={collStyles.navCompactTitle} numberOfLines={1}>
-          {collection?.title ?? ""}
-        </Text>
-      </ReAnimated.View>
+      {/* One slot, two occupants: the "‹ MY SONGS · COLLECTION" up-link while the
+          identity block is on screen; the compact title once it has scrolled away. */}
+      <View style={collStyles.navSlot}>
+        <ReAnimated.View style={[collStyles.navEyebrowRow, eyebrowStyle]}>
+          <Pressable
+            testID="collection-up-link"
+            accessibilityRole="button"
+            accessibilityLabel={upLink ? t("common.backTo", { label: upLink.label }) : eyebrowText}
+            disabled={!upLink || screen.showBack}
+            onPress={upLink?.onPress}
+            hitSlop={8}
+            style={({ pressed }) => [collStyles.navEyebrowPress, pressed ? styles.pressDown : null]}
+          >
+            {workspace ? (
+              <WorkspaceAvatar
+                color={workspace.color}
+                name={workspace.title}
+                size={16}
+                avatarKey={workspace.avatarKey}
+              />
+            ) : null}
+            <Text style={collStyles.navEyebrow} numberOfLines={1}>{eyebrowText}</Text>
+          </Pressable>
+        </ReAnimated.View>
+        <ReAnimated.View style={[collStyles.navCompact, collStyles.navSlotOverlay, compactTitleStyle]} pointerEvents="none">
+          {workspace ? (
+            <WorkspaceAvatar
+              color={workspace.color}
+              name={workspace.title}
+              size={16}
+              avatarKey={workspace.avatarKey}
+            />
+          ) : null}
+          <Text style={collStyles.navCompactTitle} numberOfLines={1}>
+            {collection?.title ?? ""}
+          </Text>
+        </ReAnimated.View>
+      </View>
 
       {!screen.listSelectionMode ? (
         <IconButton
@@ -145,7 +189,6 @@ export function CollectionCollapsibleIdentity() {
   const workspace = screen.activeWorkspace;
   if (!collection) return null;
 
-  const eyebrowText = screen.breadcrumbs.join("  ›  ");
   const ideaMeta = screen.ideasHeaderMeta;
   // "Edited" means the newest work anywhere in the collection's scope — saving a
   // clip doesn't touch the collection object itself, so its own updatedAt alone
@@ -160,19 +203,7 @@ export function CollectionCollapsibleIdentity() {
   return (
     // Non-interactive: drags on the title fall through to the list beneath.
     <View style={collStyles.identityBlock} pointerEvents="none">
-      {eyebrowText ? (
-        <View style={collStyles.eyebrowRow}>
-          {workspace ? (
-            <WorkspaceAvatar
-              color={workspace.color}
-              name={workspace.title}
-              size={18}
-              avatarKey={workspace.avatarKey}
-            />
-          ) : null}
-          <Text style={collStyles.eyebrow} numberOfLines={1}>{eyebrowText}</Text>
-        </View>
-      ) : null}
+      {/* The eyebrow now rides in the nav row as the up-link (2026-09-07). */}
       <UserText value={collection.title} style={collStyles.collectionTitle} numberOfLines={2}>
         {collection.title}
       </UserText>
@@ -228,6 +259,42 @@ const collStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  navSlot: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 36,
+    justifyContent: "center",
+  },
+  navSlotOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+  },
+  navEyebrowRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    minWidth: 0,
+  },
+  navEyebrowPress: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    minHeight: 36,
+    minWidth: 0,
+    flexShrink: 1,
+    paddingHorizontal: 4,
+  },
+  navEyebrow: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 11,
+    lineHeight: 16,
+    color: colors.eyebrow,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+    flexShrink: 1,
+  },
   navCompact: {
     flex: 1,
     flexDirection: "row",
@@ -277,21 +344,6 @@ const collStyles = StyleSheet.create({
     paddingBottom: 20,
     gap: 4,
     backgroundColor: "#FDFBF7",
-  },
-  eyebrowRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 4,
-  },
-  eyebrow: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 11,
-    lineHeight: 16,
-    color: "#526351",
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
-    flexShrink: 1,
   },
   collectionTitle: {
     fontFamily: "Lora_500Medium",

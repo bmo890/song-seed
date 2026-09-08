@@ -55,10 +55,12 @@ import {
     getLastPersistedIdeaCount,
     isHydrationComplete,
     isPersistBlocked,
+    reportPersistBlocked,
     setHydrationComplete,
     setLastPersistedIdeaCount,
     setPersistBlocked,
 } from "./persistRuntime";
+import { describeError, persistLog } from "../services/persistLog";
 import { persistedSnapshotChanged } from "./persistChangeDetection";
 import {
     buildPersistedAppStoreSnapshot,
@@ -264,6 +266,11 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
             state.lastSuccessfulBackupFileName.trim().length > 0
                 ? state.lastSuccessfulBackupFileName
                 : null,
+        backupReminderLastPromptedAt:
+            typeof state?.backupReminderLastPromptedAt === "number" &&
+            Number.isFinite(state.backupReminderLastPromptedAt)
+                ? state.backupReminderLastPromptedAt
+                : null,
         ideasFilter: state?.ideasFilter ?? "all",
         ideasSort: isIdeaSort(state?.ideasSort) ? state.ideasSort : "newest",
         primaryFilter: state?.primaryFilter ?? "all",
@@ -311,8 +318,17 @@ function schedulePendingPersistWrite(run: () => unknown) {
         pendingPersistWriteFirstScheduledAt = null;
         const write = pendingPersistWrite;
         pendingPersistWrite = null;
-        write?.();
+        runPassiveWrite(write);
     }, Math.min(PERSIST_WRITE_DEBOUNCE_MS, maxWaitRemainingMs));
+}
+
+/** The storage layer reports its own outcomes; a rejection here (queue timeout) must
+ *  never surface as an unhandled promise — it is logged and the health signal carries it. */
+function runPassiveWrite(write: (() => unknown) | null) {
+    if (!write) return;
+    void Promise.resolve()
+        .then(write)
+        .catch((err) => persistLog("write.failed", `passive write: ${describeError(err)}`));
 }
 
 /** Run any coalesced passive write NOW (app going to background — don't sit on data). */
@@ -324,17 +340,20 @@ function flushPendingPersistWrite() {
     pendingPersistWriteFirstScheduledAt = null;
     const write = pendingPersistWrite;
     pendingPersistWrite = null;
-    write?.();
+    runPassiveWrite(write);
 }
 
-/** Drop the coalesced passive write — a direct full-state flush supersedes it. */
-function discardPendingPersistWrite() {
+/** Take the coalesced passive write off the timer without running it — a direct
+ *  full-state flush supersedes it; the caller re-schedules it if that flush fails. */
+function takePendingPersistWrite(): (() => unknown) | null {
     if (pendingPersistWriteTimer) {
         clearTimeout(pendingPersistWriteTimer);
         pendingPersistWriteTimer = null;
     }
     pendingPersistWriteFirstScheduledAt = null;
+    const write = pendingPersistWrite;
     pendingPersistWrite = null;
+    return write;
 }
 
 function createGuardedStorage() {
@@ -351,7 +370,8 @@ function createGuardedStorage() {
             console.warn(
                 `[PersistGuard] BLOCKED write to "${name}" — persist is locked due to suspected data corruption.`
             );
-            return; // Silently skip the write
+            persistLog("write.blocked");
+            return; // The lock itself was announced when it was set (banner + log).
         }
 
         // Inspect the idea count before writing
@@ -373,6 +393,9 @@ function createGuardedStorage() {
                                 `[PersistGuard] BLOCKED and LOCKED: attempted to write 0 ideas when last known count was ${lastCount}. ` +
                                 `All future writes blocked until app restart.`
                             );
+                            // A session-long freeze must never be silent (2026-09-07).
+                            persistLog("guard.locked", `0 ideas, last known ${lastCount}`);
+                            reportPersistBlocked("guard");
                             return; // Block the write
                         }
                     } else {
@@ -391,6 +414,8 @@ function createGuardedStorage() {
                                 `[PersistGuard] BLOCKED and LOCKED: idea count dropped from ${lastCount} to ${newIdeaCount} (−${lost}) ` +
                                 `without an authorized bulk delete. All future writes blocked until app restart.`
                             );
+                            persistLog("guard.locked", `${lastCount} → ${newIdeaCount}`);
+                            reportPersistBlocked("guard");
                             return; // Block the write
                         }
                     }
@@ -546,8 +571,18 @@ useStore.subscribe((state) => setIdeaNameLanguage(resolveNameLanguage(state.name
  */
 export async function flushPersistedSnapshot(): Promise<void> {
     // The direct write below is built from the CURRENT state, so it supersedes any
-    // coalesced passive write still waiting on the debounce — drop it so a stale
-    // snapshot can't land after (and overwrite) this newer one.
-    discardPendingPersistWrite();
-    await persistAppStoreSnapshot(useStore.getState());
+    // coalesced passive write still waiting on the debounce — take it off the timer so
+    // a stale snapshot can't land after (and overwrite) this newer one.
+    const pending = takePendingPersistWrite();
+    try {
+        await persistAppStoreSnapshot(useStore.getState());
+    } catch (err) {
+        // The flush was refused or failed. The edit it carried must still reach disk
+        // the ordinary way — a discarded passive write used to mean the edit only
+        // landed if some later, unrelated set() happened to schedule a new one. A
+        // newer passive write scheduled while we awaited supersedes it.
+        if (pending && pendingPersistWrite == null) schedulePendingPersistWrite(pending);
+        persistLog("flush.failed", describeError(err));
+        throw err;
+    }
 }
