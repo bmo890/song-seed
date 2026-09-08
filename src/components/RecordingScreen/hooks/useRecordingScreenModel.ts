@@ -952,10 +952,9 @@ export function useRecordingScreenModel() {
       await stopRecordingMetronome();
       await recording.discardRecording();
     }
-    if (recordingIdea.kind === "clip" && recordingIdea.clips.length === 0) {
-      updateIdeas((prevIdeas) => prevIdeas.filter((idea) => idea.id !== recordingIdea.id));
+    if (!appActions.discardEmptyRecordingIdea()) {
+      clearRecordingContext();
     }
-    clearRecordingContext();
   }
 
   /** Scrap the in-flight take and reset to Ready WITHOUT leaving the screen: the file is
@@ -996,10 +995,27 @@ export function useRecordingScreenModel() {
     );
   }
 
+  // Swipe-back and the Android back button pop this screen with no handler. If no
+  // take was in flight at that moment, the placeholder idea goes with the screen.
+  // (Mid-take, the recovery marker owns the file — nothing is deleted here.)
+  const takeInFlightRef = useRef(false);
+  takeInFlightRef.current =
+    isArmingRecording || recording.isRecording || recording.isPaused || recording.elapsedMs > 0;
+  useEffect(
+    () => () => {
+      if (takeInFlightRef.current) return;
+      appActions.discardEmptyRecordingIdea();
+    },
+    []
+  );
+
   function confirmDiscardAndExit() {
     const hasRecordingToDiscard =
       isArmingRecording || recording.isRecording || recording.isPaused || recording.elapsedMs > 0;
     if (!hasRecordingToDiscard) {
+      // Nothing was recorded: the placeholder idea quick-record made for this
+      // session must not survive as an empty 00:00 card (2026-09-08).
+      appActions.discardEmptyRecordingIdea();
       navigation.goBack();
       return;
     }

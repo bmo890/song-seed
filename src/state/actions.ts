@@ -22,6 +22,7 @@ import { buildChordDisplay, clampChordIndex, graphemeCount, graphemeIndexToStrin
 import type { ChordPlacement, ChordSheet, ContentDirection, LyricsDocument, LyricsLine, RecordingGrid } from "../types";
 import { applyClipMetadataBatch, type ClipMetadataEntry } from "./clipMetadataBatch";
 import { buildLyricsTextFromNote } from "../domain/notepad";
+import { removeEmptyRecordingPlaceholder } from "../domain/recordingPlaceholder";
 import { buildDefaultIdeaTitle, ensureUniqueCountedTitle, ensureUniqueIdeaTitle, genId } from "../utils";
 import { archiveWorkspaceToDevice, restoreWorkspaceFromDevice } from "../services/workspaceArchive";
 import { saveArchiveToUserLocation } from "../services/archiveSave";
@@ -822,6 +823,23 @@ export const appActions = {
         );
         const createdId = state.quickRecordIdea(fallbackTitle, collectionId);
         state.setRecordingIdeaId(createdId);
+    },
+
+    /** The recorder was left without a take: drop the empty clip-kind idea that
+     * quickRecordIdea created for it and forget the recording context. Safe to call
+     * on every exit path (it is a no-op after a save or once a take exists), which
+     * is what keeps the "00:00 idea" from ever reaching the collection. */
+    discardEmptyRecordingIdea: () => {
+        const state = useStore.getState();
+        const recordingIdeaId = state.recordingIdeaId;
+        if (!recordingIdeaId) return false;
+        const activeWs = state.workspaces.find((workspace) => workspace.id === state.activeWorkspaceId);
+        const before = activeWs?.ideas ?? [];
+        const after = removeEmptyRecordingPlaceholder(before, recordingIdeaId);
+        if (after === before) return false;
+        state.updateIdeas((ideas) => removeEmptyRecordingPlaceholder(ideas, recordingIdeaId));
+        state.clearRecordingContext();
+        return true;
     },
 
     /** Relocates a single, just-created idea to a different collection, possibly in a
