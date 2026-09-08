@@ -1,5 +1,5 @@
 import { useMemo, type ComponentProps } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../design/directionalIcons";
@@ -123,18 +123,13 @@ export function SideNav({
     <SafeAreaView style={sideNavStyles.shell}>
 
       {/* ── Brand + global search ─────────────────────────────────────── */}
-      {/* Left: the mark from the app icon beside the wordmark. Right: a
+      {/* Left: the wordmark alone — the workspace avatar below is the drawer's
+          only mark, since the workspace is the thing you switch (2026-09-08). Right: a
           global search action. It's a NEUTRAL icon on purpose — untinted, it
           reads as app-level, signalling it searches your whole library and not
           just the current workspace. */}
       <View style={sideNavStyles.header}>
         <View style={sideNavStyles.brand}>
-          <Image
-            source={require("../../assets/brand-mark.png")}
-            style={sideNavStyles.brandMark}
-            resizeMode="contain"
-            accessible={false}
-          />
           <Text style={sideNavStyles.brandName}>SongNook</Text>
         </View>
         <Pressable
@@ -357,10 +352,6 @@ const sideNavStyles = StyleSheet.create({
     flexShrink: 1,
   },
   // Placeholder mark — swap for the real logo asset when it lands.
-  brandMark: {
-    width: 30,
-    height: 30,
-  },
   brandName: {
     fontFamily: "Lora_600SemiBold",
     fontSize: 18,

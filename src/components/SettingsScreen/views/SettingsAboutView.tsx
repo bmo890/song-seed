@@ -1,4 +1,4 @@
-import { Linking, ScrollView, Text, View } from "react-native";
+import { Image, Linking, ScrollView, Text, View } from "react-native";
 import Constants from "expo-constants";
 import { PageIntro } from "../../common/PageIntro";
 import { settingsScreenStyles, styles } from "../styles";
@@ -54,13 +54,17 @@ export function SettingsAboutView() {
     >
       <PageIntro title={t("settings.about")} />
 
-      <View style={styles.settingsSection}>
-        <View style={styles.settingsSectionHeaderRow}>
-          <Text style={styles.settingsSectionLabel}>{t("settings.app")}</Text>
-        </View>
-        <SettingsGroup>
-          <AboutLinkRow label={t("settingsAbout.version")} value={version} />
-        </SettingsGroup>
+      {/* Colophon: the one place the mark lives in the app (the drawer carries the
+          wordmark alone). Mark, name, version — the line to quote in a bug report. */}
+      <View style={settingsScreenStyles.colophon}>
+        <Image
+          source={require("../../../../assets/brand-mark.png")}
+          style={settingsScreenStyles.colophonMark}
+          resizeMode="contain"
+          accessible={false}
+        />
+        <Text style={settingsScreenStyles.colophonName}>SongNook</Text>
+        <Text style={settingsScreenStyles.colophonVersion}>{`${t("settingsAbout.version")} ${version}`}</Text>
       </View>
 
       <View style={styles.settingsSection}>

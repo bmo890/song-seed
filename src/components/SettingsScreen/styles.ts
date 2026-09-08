@@ -1,9 +1,34 @@
 import { StyleSheet } from "react-native";
-import { colors, radii } from "../../design/tokens";
+import { colors, radii, spacing } from "../../design/tokens";
 
 export { styles } from "../../styles";
 
 export const settingsScreenStyles = StyleSheet.create({
+  // ── About colophon ─────────────────────────────────────────────────────
+  colophon: {
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xxl,
+  },
+  colophonMark: {
+    width: 56,
+    height: 56,
+    marginBottom: spacing.xs,
+  },
+  colophonName: {
+    fontFamily: "Lora_600SemiBold",
+    fontSize: 20,
+    lineHeight: 26,
+    color: colors.textPrimary,
+  },
+  colophonVersion: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textSecondary,
+    fontVariant: ["tabular-nums"],
+  },
   scrollContent: {
     paddingBottom: 40,
     gap: 22,
