@@ -1,5 +1,5 @@
 import { useMemo, type ComponentProps } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../design/directionalIcons";
@@ -123,13 +123,18 @@ export function SideNav({
     <SafeAreaView style={sideNavStyles.shell}>
 
       {/* ── Brand + global search ─────────────────────────────────────── */}
-      {/* Left: app wordmark (placeholder until the real logo lands). Right: a
+      {/* Left: the mark from the app icon beside the wordmark. Right: a
           global search action. It's a NEUTRAL icon on purpose — untinted, it
           reads as app-level, signalling it searches your whole library and not
           just the current workspace. */}
       <View style={sideNavStyles.header}>
         <View style={sideNavStyles.brand}>
-          <View style={sideNavStyles.brandMark} />
+          <Image
+            source={require("../../assets/brand-mark.png")}
+            style={sideNavStyles.brandMark}
+            resizeMode="contain"
+            accessible={false}
+          />
           <Text style={sideNavStyles.brandName}>SongNook</Text>
         </View>
         <Pressable
@@ -353,10 +358,8 @@ const sideNavStyles = StyleSheet.create({
   },
   // Placeholder mark — swap for the real logo asset when it lands.
   brandMark: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    backgroundColor: colors.primary,
+    width: 30,
+    height: 30,
   },
   brandName: {
     fontFamily: "Lora_600SemiBold",
