@@ -1,8 +1,6 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { styles as appStyles } from "../../../../styles";
-import { colors, radii, spacing } from "../../../../design/tokens";
+import { StyleSheet, View } from "react-native";
+import { colors, spacing } from "../../../../design/tokens";
 import { sortedPalette } from "../../../../domain/chords";
 import type { LyricsVersion, SongChordPaletteItem } from "../../../../types";
 import { styles as screenStyles } from "../../styles";
@@ -11,6 +9,7 @@ import { ChordZoomBar } from "./ChordZoomBar";
 import { ChordPaletteBar } from "./ChordPaletteBar";
 import { ChordPickerSheet } from "./ChordPickerSheet";
 import { HelpSheet, type HelpItem } from "../../../common/HelpSheet";
+import { HelpButton } from "../../../common/HelpButton";
 import { useChordEditing } from "./useChordEditing";
 import { useTranslation } from "react-i18next";
 
@@ -25,11 +24,12 @@ type Props = {
  * lives in the header. */
 export function ChordChartEditor({ ideaId, version, palette }: Props) {
   const { t } = useTranslation();
+  // Invisible rules only: the three gestures the chart accepts. Zoom is a
+  // visible slider on the chart and explains itself.
   const helpItems: HelpItem[] = [
     { icon: "add", label: t("chordEditor.helpAdd"), description: t("chordEditor.helpAddDesc") },
     { icon: "swap-horizontal-outline", label: t("chordEditor.helpMove"), description: t("chordEditor.helpMoveDesc") },
     { icon: "create-outline", label: t("chordEditor.helpEdit"), description: t("chordEditor.helpEditDesc") },
-    { icon: "text", label: t("chordEditor.helpZoom"), description: t("chordEditor.helpZoomDesc") },
   ];
   const editing = useChordEditing(ideaId, version.id);
   const sorted = sortedPalette(palette);
@@ -39,14 +39,7 @@ export function ChordChartEditor({ ideaId, version, palette }: Props) {
   return (
     <View style={screenStyles.flexFill}>
       <View style={chartControls.row}>
-        <Pressable
-          style={({ pressed }) => [chartControls.iconBtn, pressed ? appStyles.pressDown : null]}
-          onPress={() => setHelpVisible(true)}
-          hitSlop={6}
-          accessibilityLabel={t("common.help")}
-        >
-          <Ionicons name="help-circle-outline" size={18} color={colors.textSecondary} />
-        </Pressable>
+        <HelpButton onPress={() => setHelpVisible(true)} size={18} />
       </View>
 
       <ChordPaletteBar palette={sorted} armedId={editing.armed?.id ?? null} onToggleArmed={editing.toggleArmed} />
@@ -77,8 +70,7 @@ export function ChordChartEditor({ ideaId, version, palette }: Props) {
       <HelpSheet
         visible={helpVisible}
         onClose={() => setHelpVisible(false)}
-        title={t("chordEditor.helpTitle")}
-        intro={t("chordEditor.helpIntro")}
+        thesis={t("chordEditor.helpThesis")}
         items={helpItems}
       />
     </View>
@@ -91,14 +83,6 @@ const chartControls = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
     marginBottom: spacing.sm,
-  },
-  iconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
-    alignItems: "center",
-    justifyContent: "center",
   },
 });
 

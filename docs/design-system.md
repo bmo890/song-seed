@@ -320,6 +320,7 @@ is fixed: the **title** takes the room and ellipsizes first, down to a floor of
 | Shelf ledger | `common/Ledger.tsx` | The Shelf's signature: a hairline with two end brackets and a whisper lip — a shelf edge, not a divider. Carries the Shelf's section labels and its empty state (`EmptyState variant="ledger"`). Shelf only; every other page stays on the canon so the one special place stays special. |
 | Toasts | `toastStore` / `ToastHost` | Every background `success` haptic pairs with a toast, never a dialog. |
 | Dialogs | `AppDialog` / `WarmModal` | Confirmation only — never for information that could be a toast. |
+| Help | `common/HelpButton.tsx` → `common/HelpSheet.tsx` | The ONLY `?` (default in headers, `compact` beside one control, `emphasized` on first visit where there is a real learning curve: Takes, Overdub, Recording). The sheet has no title (the page is the title): a Lora thesis, muted icon rows, scroll as a safety net. The word tools' step sheets (diagram + three points + one credit per tool) are the tutorial grammar; the page keeps only placeholders and state-driven feedback, never a hint line that repeats the sheet. |
 | Waveform | `common/AudioReel.tsx` | Tap = play/pause, drag = scrub. Everywhere. |
 
 ### Button language (locked 2026-07-24)
@@ -419,7 +420,7 @@ not narrate them.
 | Settings row hint | ≤ 12 words — describe the effect, never justify the feature |
 | Alert/confirm body | ≤ 20 words: what happens + what's at stake. No triple-clause paragraphs |
 | Toast | ≤ 5 words |
-| Help sheets (`helpContent`) | The one place longer prose is allowed |
+| Help sheet | Thesis ≤ 10 words · ≤ 4 rows · row body ≤ 12 words. A sheet explains **invisible rules only** — a row that restates a visible label, placeholder, disabled or empty state is deleted, and a page whose rules are all visible has no `?` at all (help law, 2026-09-08) |
 
 If a string needs more words to be understood, the *design* is unclear — fix the
 design, not the copy.

@@ -753,18 +753,12 @@ export function PlayerPracticeDrawers({
       <HelpSheet
         visible={stepUpHelpOpen}
         onClose={() => setStepUpHelpOpen(false)}
-        title={t("player.stepUp")}
-        intro={t("player.stepUpHelpIntro")}
+        thesis={t("player.stepUpHelpThesis")}
         items={[
           {
             icon: "layers-outline",
             label: t("player.stepUpHelpStepsLabel"),
             description: t("player.stepUpHelpStepsBody"),
-          },
-          {
-            icon: "infinite",
-            label: t("player.stepUpHelpLoopLabel"),
-            description: t("player.stepUpHelpLoopBody"),
           },
           {
             icon: "options-outline",

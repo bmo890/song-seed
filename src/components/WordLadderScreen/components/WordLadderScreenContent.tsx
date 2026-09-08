@@ -23,6 +23,7 @@ import { useWordLadderScreenModel } from "../hooks/useWordLadderScreenModel";
 import { WordLadderColumnEditor } from "./WordLadderColumnEditor";
 import { WordLadderPairingBoard } from "./WordLadderPairingBoard";
 import { WordLadderHelpSheet } from "./WordLadderHelpSheet";
+import { HelpButton } from "../../common/HelpButton";
 import {
   pairingSeedWords,
 } from "../../../domain/wordLadder";
@@ -486,7 +487,7 @@ function StepRail({ step, onHelpPress }: { step: WordLadderStep; onHelpPress: ()
               accessibilityLabel={t("wordSparks.howThisWorks")}
             >
               <Text style={[contentStyles.railLabel, contentStyles.railLabelCurrent]}>{labelFor(item)}</Text>
-              <Ionicons name="help-circle-outline" size={14} color={colors.primaryDeep} />
+              <HelpButton compact onPress={onHelpPress} />
             </Pressable>
           ) : (
             <Text

@@ -821,8 +821,7 @@ export function EditorScreen() {
             <HelpSheet
                 visible={helpVisible}
                 onClose={() => setHelpVisible(false)}
-                title={EDITOR_HELP.title}
-                intro={EDITOR_HELP.intro}
+                thesis={EDITOR_HELP.thesis}
                 items={EDITOR_HELP.items}
             />
 

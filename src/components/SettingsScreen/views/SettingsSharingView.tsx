@@ -142,8 +142,7 @@ export function SettingsSharingView() {
       <HelpSheet
         visible={helpVisible}
         onClose={() => setHelpVisible(false)}
-        title={SEND_HELP.title}
-        intro={SEND_HELP.intro}
+        thesis={SEND_HELP.thesis}
         items={SEND_HELP.items}
       />
     </ScrollView>

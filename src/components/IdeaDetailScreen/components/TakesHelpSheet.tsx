@@ -4,8 +4,9 @@ import { HelpSheet } from "../../common/HelpSheet";
 /**
  * The Takes tab legend — versioning is taught here, where it happens, not in
  * the welcome wizard (the wizard carries the nouns; the verbs live in help
- * sheets). Claims describe real behavior — verify against the takes flow when
- * it changes.
+ * sheets). Only the invisible rules: what a version thread is, which take
+ * speaks for the song, what the two views sort by, what Branch and Split do.
+ * Claims describe real behavior — verify against the takes flow when it changes.
  */
 export function TakesHelpSheet({
   visible,
@@ -19,14 +20,8 @@ export function TakesHelpSheet({
     <HelpSheet
       visible={visible}
       onClose={onClose}
-      title={t("takesHelp.title")}
-      intro={t("takesHelp.intro")}
+      thesis={t("takesHelp.thesis")}
       items={[
-        {
-          icon: "mic-outline",
-          label: t("takesHelp.takesLabel"),
-          description: t("takesHelp.takesBody"),
-        },
         {
           icon: "git-branch-outline",
           label: t("takesHelp.versionsLabel"),

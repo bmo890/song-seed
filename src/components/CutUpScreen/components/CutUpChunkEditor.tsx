@@ -82,8 +82,6 @@ export function CutUpChunkEditor({ model, spark }: { model: Model; spark: CutUpS
         </Pressable>
       </View>
 
-      <Text style={styles.hint}>{t("cutUp.cutHint")}</Text>
-
       <ScrollView style={styles.scroll} contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
         {rows.rows.map((row) => (
           <View
@@ -185,7 +183,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceHigh,
   },
   resetText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 12, color: colors.textSecondary },
-  hint: { ...textTokens.supporting, fontSize: 11.5, marginBottom: spacing.xs },
 
   scroll: { flex: 1 },
   page: { paddingBottom: spacing.md },

@@ -63,8 +63,6 @@ type UsePlayerScreenLifecycleArgs = {
   handleTransportToggle: () => Promise<void>;
   setSpeedPanelVisible: (visible: boolean) => void;
   prepareTransportForClose: () => void;
-  /** Opens a help sheet from the overflow menu. */
-  onShowHelp: (topic: "overdub") => void;
 };
 
 export function usePlayerScreenLifecycle({
@@ -104,7 +102,6 @@ export function usePlayerScreenLifecycle({
   handleTransportToggle,
   setSpeedPanelVisible,
   prepareTransportForClose,
-  onShowHelp,
 }: UsePlayerScreenLifecycleArgs) {
   const { t } = useTranslation();
   const handledToggleTokenRef = useRef(playerToggleRequestToken);
@@ -524,16 +521,6 @@ export function usePlayerScreenLifecycle({
               },
             },
           ]),
-      ...(hasOverdubs
-        ? [
-            {
-              label: t("player.overdubHelp"),
-              style: "default" as const,
-              icon: "help-circle-outline" as const,
-              onPress: () => onShowHelp("overdub"),
-            },
-          ]
-        : []),
       {
         label: t("player.share"),
         style: "default",
@@ -629,7 +616,7 @@ export function usePlayerScreenLifecycle({
       },
       { label: t("common.cancel"), style: "cancel" },
     ]);
-  }, [displayDuration, isPlayerPlaying, navigation, onShowHelp, pausePlayer, playerClip, playerIdea, stopSessionAndClose, t]);
+  }, [displayDuration, isPlayerPlaying, navigation, pausePlayer, playerClip, playerIdea, stopSessionAndClose, t]);
 
   return {
     /** True while THIS clip's waveform decode is actually in flight. */

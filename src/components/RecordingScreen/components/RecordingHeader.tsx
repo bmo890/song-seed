@@ -1,6 +1,7 @@
 import React from "react";
 import { I18nManager, StyleSheet, Text, View } from "react-native";
 import { IconButton } from "../../common/IconButton";
+import { HelpButton } from "../../common/HelpButton";
 import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 import { UserText, physicalTextAlign } from "../../../i18n";
@@ -90,13 +91,7 @@ export function RecordingHeader({
         {/* Glyphs, not tinted circles — the record button is the only circle on
             this page (see docs/design-system.md, recording screen). */}
         <View style={localStyles.actionRow}>
-          <IconButton
-            icon="help-circle-outline"
-            tone="muted"
-            size={19}
-            onPress={onHelp}
-            accessibilityLabel={t("recording.help")}
-          />
+          <HelpButton onPress={onHelp} size={19} />
           <IconButton
             icon="remove"
             tone="muted"

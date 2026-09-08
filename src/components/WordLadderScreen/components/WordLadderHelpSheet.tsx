@@ -13,34 +13,12 @@ type Props = {
 };
 
 /** Tweedy's own example from How to Write One Song (2020): two columns in his
- * listed order, plus the unexpected connections he drew between them. The links
- * map a verb's row index to its connected noun's row index. */
-const TWEEDY_VERBS = [
-  "examine",
-  "thump",
-  "prescribe",
-  "listen",
-  "write",
-  "scan",
-  "touch",
-  "wait",
-  "charge",
-  "heal",
-];
-// Noun column is reordered (Tweedy's pairings unchanged) so connected words sit
-// near each other — a gentle braid rather than a tangle of full-height lines.
-const TWEEDY_NOUNS = [
-  "cushion",
-  "lightbulb",
-  "microphone",
-  "window",
-  "sunlight",
-  "turntable",
-  "carpet",
-  "drum",
-  "guitar",
-  "wall",
-];
+ * listed order, plus the unexpected connections he drew between them. The words
+ * live in i18n (`wordLadderHelp.exampleVerbs` / `exampleNouns`, comma-separated,
+ * ten each, in this order). The noun column is reordered (Tweedy's pairings
+ * unchanged) so connected words sit near each other — a gentle braid rather than
+ * a tangle of full-height lines. The links map a verb's row index to its
+ * connected noun's row index. */
 const TWEEDY_LINKS: Array<[number, number]> = [
   [0, 1], // examine → lightbulb
   [1, 2], // thump → microphone
@@ -79,7 +57,9 @@ export function WordLadderHelpSheet({ visible, step, onClose }: Props) {
  * echoing the Words-step graphic. Pure illustration — never the user's words. */
 function SparkDiagram() {
   const { t } = useTranslation();
-  const height = SPARK_ROW_H * TWEEDY_VERBS.length;
+  const verbs = t("wordLadderHelp.exampleVerbs").split(", ");
+  const nouns = t("wordLadderHelp.exampleNouns").split(", ");
+  const height = SPARK_ROW_H * verbs.length;
   return (
     <View>
       <View style={helpStyles.sparkHeaderRow}>
@@ -89,8 +69,8 @@ function SparkDiagram() {
       </View>
       <View style={helpStyles.sparkBody}>
         <View style={helpStyles.sparkColumn}>
-          {TWEEDY_VERBS.map((verb) => (
-            <View key={verb} style={[helpStyles.sparkCell, helpStyles.sparkCellLeft]}>
+          {verbs.map((verb, i) => (
+            <View key={i} style={[helpStyles.sparkCell, helpStyles.sparkCellLeft]}>
               <Text style={helpStyles.sparkWord} numberOfLines={1}>
                 {verb}
               </Text>
@@ -113,8 +93,8 @@ function SparkDiagram() {
         </Svg>
 
         <View style={helpStyles.sparkColumn}>
-          {TWEEDY_NOUNS.map((noun) => (
-            <View key={noun} style={helpStyles.sparkCell}>
+          {nouns.map((noun, i) => (
+            <View key={i} style={helpStyles.sparkCell}>
               <Text style={helpStyles.sparkWord} numberOfLines={1}>
                 {noun}
               </Text>
@@ -262,7 +242,6 @@ function ReviseHelp() {
       <View style={helpStyles.example}>
         <Text style={helpStyles.exampleLabel}>{t("wordLadderHelp.revisedLabel")}</Text>
         <Text style={helpStyles.exampleText}>{t("wordLadderHelp.revisedExample")}</Text>
-        <Text style={helpStyles.exampleCredit}>{t("wordLadderHelp.credit")}</Text>
       </View>
 
       <View style={helpStyles.points}>

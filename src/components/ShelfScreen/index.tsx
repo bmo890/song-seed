@@ -5,9 +5,6 @@ import { ScreenHeader } from "../common/ScreenHeader";
 import { EmptyState } from "../common/EmptyState";
 import { Ledger } from "../common/Ledger";
 import { AppAlert } from "../common/AppAlert";
-import { HelpButton } from "../common/HelpButton";
-import { HelpSheet } from "../common/HelpSheet";
-import { SHELF_HELP } from "../common/helpContent";
 import { useBrowseRootBackHandler } from "../../hooks/useBrowseRootBackHandler";
 import { useShelfScreenModel, type ShelfRow } from "./hooks/useShelfScreenModel";
 import { ShelfItemCard } from "./components/ShelfItemCard";
@@ -19,7 +16,6 @@ import { useTranslation } from "react-i18next";
 export function ShelfScreen() {
   const { t } = useTranslation();
   const screen = useShelfScreenModel();
-  const [helpVisible, setHelpVisible] = useState(false);
 
   useBrowseRootBackHandler();
 
@@ -72,7 +68,6 @@ export function ShelfScreen() {
       <ScreenHeader
         title={t("screens.shelf")}
         leftIcon="hamburger"
-        rightElement={<HelpButton onPress={() => setHelpVisible(true)} />}
       />
 
       <ScrollView
@@ -145,13 +140,6 @@ export function ShelfScreen() {
         ) : null}
       </ScrollView>
 
-      <HelpSheet
-        visible={helpVisible}
-        onClose={() => setHelpVisible(false)}
-        title={SHELF_HELP.title}
-        intro={SHELF_HELP.intro}
-        items={SHELF_HELP.items}
-      />
     </SafeAreaView>
   );
 }

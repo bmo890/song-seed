@@ -21,6 +21,7 @@ import type { MagpieFragment, MagpieSpark } from "../../../types";
 import type { useMagpieScreenModel } from "../hooks/useMagpieScreenModel";
 import { useTranslation } from "react-i18next";
 import { UndoRedoButtons } from "../../common/useUndoHistory";
+import { HelpButton } from "../../common/HelpButton";
 
 type Model = ReturnType<typeof useMagpieScreenModel>;
 
@@ -209,9 +210,7 @@ function Header({
       <Pressable style={({ pressed }) => [styles.iconBtn, pressed ? appStyles.pressDown : null]} onPress={onSize} hitSlop={6} accessibilityLabel={t("magpie.textSize")}>
         <Text style={styles.iconBtnText}>Aa</Text>
       </Pressable>
-      <Pressable style={({ pressed }) => [styles.iconBtn, pressed ? appStyles.pressDown : null]} onPress={onHelp} hitSlop={6} accessibilityLabel={t("wordSparks.howThisWorks")}>
-        <Ionicons name="help-circle-outline" size={20} color={colors.textStrong} />
-      </Pressable>
+      <HelpButton size={20} onPress={onHelp} />
     </View>
   );
 }
@@ -307,7 +306,6 @@ function Palette({
           />
         ))}
       </ScrollView>
-      <Text style={styles.paletteTip}>{t("magpie.scrapTip")}</Text>
     </View>
   );
 }
@@ -453,7 +451,6 @@ const styles = StyleSheet.create({
   },
   chipUsed: { opacity: 0.55 },
   chipText: { fontFamily: "Lora_500Medium", fontSize: 14, color: colors.textStrong, flexShrink: 1 },
-  paletteTip: { fontFamily: "PlusJakartaSans_400Regular", fontSize: 11, color: colors.textMuted, marginTop: spacing.sm },
 
   saveBtn: {
     flexDirection: "row",

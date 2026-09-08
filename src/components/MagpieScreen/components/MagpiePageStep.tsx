@@ -31,6 +31,7 @@ import type { MagpieBook, MagpieLanguage, MagpieSpark } from "../../../types";
 import type { useMagpieScreenModel } from "../hooks/useMagpieScreenModel";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../../i18n";
+import { HelpButton } from "../../common/HelpButton";
 
 type Model = ReturnType<typeof useMagpieScreenModel>;
 
@@ -218,7 +219,6 @@ export function MagpiePageStep({
         ) : busy && !spark.pageText ? (
           <View style={styles.center}>
             <ActivityIndicator color={colors.primary} />
-            <UserText style={styles.loadCaption}>{t("magpie.pageCaption")}</UserText>
           </View>
         ) : (
           <>
@@ -322,7 +322,7 @@ function Header({
         <Ionicons name="chevron-down" size={15} color={colors.textMuted} />
       </Pressable>
       <IconBtn text="Aa" label={t("magpie.textSize")} onPress={onSize} />
-      <IconBtn icon="help-circle-outline" label={t("wordSparks.howThisWorks")} onPress={onHelp} />
+      <HelpButton size={20} onPress={onHelp} />
     </View>
   );
 }
@@ -810,13 +810,6 @@ const styles = StyleSheet.create({
     ...shadows.control,
   },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.sm, padding: spacing.xl },
-  loadCaption: {
-    fontFamily: "Lora_500Medium",
-    fontStyle: "italic",
-    fontSize: 14,
-    color: colors.textMuted,
-    textAlign: "center",
-  },
   errorTitle: { fontFamily: "Lora_600SemiBold", fontSize: 17, color: colors.textPrimary, textAlign: "center" },
   errorBody: { fontFamily: "PlusJakartaSans_400Regular", fontSize: 13, color: colors.textSecondary, textAlign: "center" },
   errorActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },

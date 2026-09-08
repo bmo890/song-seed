@@ -1,8 +1,7 @@
-import { StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "./BottomSheet";
-import { styles } from "../../styles";
-import { colors, radii } from "../../design/tokens";
+import { colors, radii, spacing } from "../../design/tokens";
 
 export type HelpItem = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -10,30 +9,40 @@ export type HelpItem = {
   description: string;
 };
 
-/** A "?" popup that explains a screen and its icon buttons — the legend that
- * lets us keep buttons icon-only instead of wordy. Keep copy short. */
+/**
+ * The "?" sheet — help law (2026-09-08): it explains INVISIBLE rules only.
+ * Visible controls explain themselves through labels, placeholders, disabled
+ * states and empty states; a sheet that restates them is noise and gets removed.
+ *
+ * One grammar: no title (the sheet opens on the page, so the page is the title),
+ * a one-line thesis in Lora, then at most four rows whose bodies stay ≤ 12 words.
+ * Icons are muted — colour is scarce and a legend is not an action. The list
+ * scrolls as a safety net; a sheet that needs it has too many rows.
+ */
 export function HelpSheet({
   visible,
   onClose,
-  title,
-  intro,
+  thesis,
   items,
 }: {
   visible: boolean;
   onClose: () => void;
-  title: string;
-  intro?: string;
+  thesis: string;
   items: HelpItem[];
 }) {
   return (
     <BottomSheet visible={visible} onClose={onClose}>
-      <Text style={styles.selectionSheetTitle}>{title}</Text>
-      {intro ? <Text style={helpStyles.intro}>{intro}</Text> : null}
-      <View style={helpStyles.list}>
+      <Text style={helpStyles.thesis}>{thesis}</Text>
+      <ScrollView
+        style={helpStyles.scroll}
+        contentContainerStyle={helpStyles.list}
+        bounces={false}
+        showsVerticalScrollIndicator={false}
+      >
         {items.map((item) => (
           <View key={item.label} style={helpStyles.row}>
             <View style={helpStyles.iconWrap}>
-              <Ionicons name={item.icon} size={16} color={colors.primary} />
+              <Ionicons name={item.icon} size={16} color={colors.textSecondary} />
             </View>
             <View style={helpStyles.text}>
               <Text style={helpStyles.label}>{item.label}</Text>
@@ -41,21 +50,25 @@ export function HelpSheet({
             </View>
           </View>
         ))}
-      </View>
+      </ScrollView>
     </BottomSheet>
   );
 }
 
 const helpStyles = StyleSheet.create({
-  intro: {
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 13,
-    lineHeight: 19,
-    color: colors.textSecondary,
-    marginBottom: 16,
+  thesis: {
+    fontFamily: "Lora_600SemiBold",
+    fontSize: 19,
+    lineHeight: 26,
+    color: colors.textPrimary,
+    marginBottom: spacing.lg,
+  },
+  scroll: {
+    maxHeight: 420,
   },
   list: {
     gap: 14,
+    paddingBottom: spacing.xs,
   },
   row: {
     flexDirection: "row",

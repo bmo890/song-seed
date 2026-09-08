@@ -282,8 +282,7 @@ export function RecordingScreen() {
       <HelpSheet
         visible={helpVisible}
         onClose={() => setHelpVisible(false)}
-        title={RECORDING_HELP.title}
-        intro={RECORDING_HELP.intro}
+        thesis={RECORDING_HELP.thesis}
         items={RECORDING_HELP.items}
       />
     </SafeAreaView>

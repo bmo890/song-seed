@@ -13,6 +13,7 @@ import { CutUpBoard } from "./CutUpBoard";
 import { CutUpDraftEditor } from "./CutUpDraftEditor";
 import { CutUpHelpSheet } from "./CutUpHelpSheet";
 import { SparkTextSizeButton } from "../../common/sparkTextScale";
+import { HelpButton } from "../../common/HelpButton";
 import type { CutUpStep } from "../../../types";
 import { useTranslation } from "react-i18next";
 
@@ -148,7 +149,7 @@ function StepRail({ step, onHelpPress }: { step: CutUpStep; onHelpPress: () => v
               accessibilityLabel={t("wordSparks.howThisWorks")}
             >
               <Text style={[styles.railLabel, styles.railLabelCurrent]}>{labels[key]}</Text>
-              <Ionicons name="help-circle-outline" size={14} color={colors.primaryDeep} />
+              <HelpButton compact onPress={onHelpPress} />
             </Pressable>
           ) : (
             <Text key={key} style={[styles.railLabel, i < currentIndex ? styles.railLabelDone : null]}>

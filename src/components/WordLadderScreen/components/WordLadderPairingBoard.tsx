@@ -50,11 +50,7 @@ export function WordLadderPairingBoard({
     <ScrollView style={boardStyles.root} showsVerticalScrollIndicator={false}>
       <View style={boardStyles.toolbar}>
         <Text style={boardStyles.hint}>
-          {hasUnpaired
-            ? armedWord
-              ? t("wordLadder.pairAcross")
-              : t("wordLadder.pairHint")
-            : t("wordLadder.allPairedHint")}
+          {hasUnpaired ? (armedWord ? t("wordLadder.pairAcross") : "") : t("wordLadder.allPairedHint")}
         </Text>
         <Pressable
           style={({ pressed }) => [

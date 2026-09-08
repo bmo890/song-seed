@@ -3,9 +3,6 @@ import { Animated, Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenHeader } from "../../common/ScreenHeader";
-import { HelpButton } from "../../common/HelpButton";
-import { HelpSheet } from "../../common/HelpSheet";
-import { METRONOME_HELP } from "../../common/helpContent";
 import { AnimatedCollapse } from "../../common/AnimatedCollapse";
 import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
@@ -170,7 +167,6 @@ function TransportButton({
 export function MetronomeScreenContent() {
   const { t } = useTranslation();
   const model = useMetronomeScreenModel();
-  const [helpVisible, setHelpVisible] = useState(false);
   // Both open by default: the page reads exactly as before until the user folds
   // something away. Session-local — a metronome is set and left, not configured.
   const [subdivisionOpen, setSubdivisionOpen] = useState(true);
@@ -190,7 +186,6 @@ export function MetronomeScreenContent() {
       <ScreenHeader
         title={t("screens.metronome")}
         leftIcon="hamburger"
-        rightElement={<HelpButton onPress={() => setHelpVisible(true)} />}
       />
 
       <ScrollView
@@ -318,13 +313,6 @@ export function MetronomeScreenContent() {
         </View>
       </ScrollView>
 
-      <HelpSheet
-        visible={helpVisible}
-        onClose={() => setHelpVisible(false)}
-        title={METRONOME_HELP.title}
-        intro={METRONOME_HELP.intro}
-        items={METRONOME_HELP.items}
-      />
     </SafeAreaView>
   );
 }

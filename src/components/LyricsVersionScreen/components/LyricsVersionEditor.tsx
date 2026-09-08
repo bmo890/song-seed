@@ -11,7 +11,6 @@ import { dirIcon } from "../../../design/directionalIcons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing } from "../../../design/tokens";
 import { styles } from "../styles";
-import { HelpSheet, type HelpItem } from "../../common/HelpSheet";
 import { WordFinderSheet } from "../../common/WordFinderSheet";
 import { applyPickedWord, extractWordRange } from "../../../domain/wordTools";
 import { UserTextInput, type ContentDirection } from "../../../i18n";
@@ -55,7 +54,6 @@ export function LyricsVersionEditor({
   scrollIndicator,
 }: LyricsVersionEditorProps) {
   const { t } = useTranslation();
-  const [helpVisible, setHelpVisible] = useState(false);
   const [directionMenuVisible, setDirectionMenuVisible] = useState(false);
   const [wordFinderVisible, setWordFinderVisible] = useState(false);
   const [wordFinderSeed, setWordFinderSeed] = useState("");
@@ -82,30 +80,6 @@ export function LyricsVersionEditor({
     selectionRef.current = { start: next.caret, end: next.caret };
     setWordFinderVisible(false);
   };
-
-  const helpItems: HelpItem[] = [
-    { icon: "checkmark", label: t("lyrics.save"), description: t("lyrics.saveHelp") },
-    {
-      icon: "arrow-undo-outline",
-      label: t("lyrics.undoRedo"),
-      description: t("lyrics.undoRedoHelp"),
-    },
-    ...(showSaveAsNew
-      ? [
-          {
-            icon: "git-branch-outline" as const,
-            label: t("lyrics.saveAsNew"),
-            description: t("lyrics.saveAsNewHelp"),
-          },
-        ]
-      : []),
-    {
-      icon: "book-outline",
-      label: t("lyrics.wordFinder"),
-      description: t("lyrics.wordFinderHelp"),
-    },
-    { icon: "arrow-back", label: t("lyrics.back"), description: t("lyrics.backHelp") },
-  ];
 
   return (
     <View style={styles.flexFill}>
@@ -168,14 +142,6 @@ export function LyricsVersionEditor({
           >
             <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
           </Pressable>
-          <Pressable
-            style={({ pressed }) => [editorControls.iconBtn, pressed ? appStyles.pressDown : null]}
-            onPress={() => setHelpVisible(true)}
-            hitSlop={6}
-            accessibilityLabel={t("lyrics.help")}
-          >
-            <Ionicons name="help-circle-outline" size={18} color={colors.textSecondary} />
-          </Pressable>
         </View>
         <Pressable
           style={({ pressed }) => [
@@ -234,14 +200,6 @@ export function LyricsVersionEditor({
           </View>
         </View>
       </View>
-
-      <HelpSheet
-        visible={helpVisible}
-        onClose={() => setHelpVisible(false)}
-        title={t("lyrics.editingTitle")}
-        intro="Type your lyrics, then save — over this version, or as a new one."
-        items={helpItems}
-      />
 
       <WordFinderSheet
         visible={wordFinderVisible}

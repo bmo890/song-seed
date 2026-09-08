@@ -3,9 +3,6 @@ import { useRoute } from "@react-navigation/native";
 import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenHeader } from "../../common/ScreenHeader";
-import { HelpButton } from "../../common/HelpButton";
-import { HelpSheet } from "../../common/HelpSheet";
-import { COMPILATIONS_HELP } from "../../common/helpContent";
 import { SegmentedControl, useSegmentedThumb } from "../../common/SegmentedControl";
 import type { ScrollOffset } from "../../../hooks/usePersistedScrollView";
 import { QuickNameModal } from "../../modals/QuickNameModal";
@@ -42,10 +39,6 @@ export function LibraryScreenContent() {
   const { t } = useTranslation();
   useBrowseRootBackHandler();
   const [section, setSection] = useState<Section>("playlists");
-  const [helpVisible, setHelpVisible] = useState(false);
-  // One help sheet for all three tabs — it explains the trio, so it mounts here
-  // and each section's list header carries the same "?" (2026-08-26 audit B11).
-  const helpButton = <HelpButton onPress={() => setHelpVisible(true)} />;
   // Switching tabs swaps the whole section subtree, so the SegmentedControl
   // remounts. Own its thumb state here (this screen doesn't remount) so the
   // pill slides from the previous tab instead of jumping in from the left.
@@ -88,20 +81,13 @@ export function LibraryScreenContent() {
   return (
     <SafeAreaView style={styles.screen}>
       {section === "songbook" ? (
-        <SongbookSection tabs={tabs} scroll={listScroll.songbook} headerRight={helpButton} />
+        <SongbookSection tabs={tabs} scroll={listScroll.songbook} />
       ) : section === "setlists" ? (
-        <SetlistsSection tabs={tabs} scroll={listScroll.setlists} headerRight={helpButton} />
+        <SetlistsSection tabs={tabs} scroll={listScroll.setlists} />
       ) : (
-        <PlaylistsSection tabs={tabs} scroll={listScroll.playlists} headerRight={helpButton} />
+        <PlaylistsSection tabs={tabs} scroll={listScroll.playlists} />
       )}
 
-      <HelpSheet
-        visible={helpVisible}
-        onClose={() => setHelpVisible(false)}
-        title={COMPILATIONS_HELP.title}
-        intro={COMPILATIONS_HELP.intro}
-        items={COMPILATIONS_HELP.items}
-      />
     </SafeAreaView>
   );
 }

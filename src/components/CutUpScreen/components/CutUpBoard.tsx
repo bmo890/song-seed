@@ -560,7 +560,6 @@ function StripSplitSheet({
       {item ? (
         <>
           <Text style={styles.splitTitle}>{t("cutUp.cutStrip")}</Text>
-          <Text style={styles.splitHint}>{t("cutUp.cutStripHint")}</Text>
           <View style={styles.splitPaper}>
             <CutSeamRow words={words} isCut={(seam) => cuts.has(seam)} onToggle={toggleCut} rtl={rtl} size={size} />
           </View>
@@ -694,8 +693,7 @@ const styles = StyleSheet.create({
   menuRowText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 14.5, color: colors.textPrimary },
   menuRowDanger: { color: colors.danger },
 
-  splitTitle: { fontFamily: "Lora_600SemiBold", fontSize: 19, color: colors.textPrimary, marginBottom: 4 },
-  splitHint: { ...textTokens.supporting, marginBottom: spacing.md },
+  splitTitle: { fontFamily: "Lora_600SemiBold", fontSize: 19, color: colors.textPrimary, marginBottom: spacing.md },
   splitPaper: { backgroundColor: SCRAP_BG, borderRadius: radii.lg, padding: spacing.lg, marginBottom: spacing.lg, ...shadows.card },
   splitCta: {
     flexDirection: "row",

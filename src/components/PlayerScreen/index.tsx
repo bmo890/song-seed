@@ -39,6 +39,7 @@ import { PlayerPracticeDrawers } from "./components/PlayerPracticeDrawers";
 import { PlayerSupportSections } from "./components/PlayerSupportSections";
 import { PlayerLayersBench, BENCH_ROOT_LANE_ID } from "./components/PlayerLayersBench";
 import { HelpSheet } from "../common/HelpSheet";
+import { HelpButton } from "../common/HelpButton";
 import { BottomSheet } from "../common/BottomSheet";
 import { ChordZoomBar } from "../LyricsVersionScreen/components/chords/ChordZoomBar";
 import { OVERDUB_HELP } from "../common/helpContent";
@@ -761,10 +762,6 @@ export function PlayerScreen({
     handleTransportToggle: handleTransportToggleWithDisplaySync,
     setSpeedPanelVisible,
     prepareTransportForClose: practicePitchTransport.prepareForPlayerClose,
-    // Defer a frame so the overflow AppDialog Modal finishes dismissing before the
-    // HelpSheet Modal presents — avoids the iOS present-while-dismissing race that
-    // can swallow the first tap.
-    onShowHelp: (topic) => requestAnimationFrame(() => setHelpTopic(topic)),
   });
 
   // Count-in intercepts only a play START; pausing (and tapping during the count-in
@@ -1489,18 +1486,7 @@ export function PlayerScreen({
                     >
                       <Ionicons name="add" size={18} color={colors.primaryDeep} />
                     </Pressable>
-                    <Pressable
-                      style={({ pressed }) => [
-                        playerScreenStyles.bareGlyphButton,
-                        pressed ? playerScreenStyles.overflowButtonPressed : null,
-                      ]}
-                      onPress={() => setHelpTopic("overdub")}
-                      hitSlop={6}
-                      accessibilityRole="button"
-                      accessibilityLabel={t("common.help")}
-                    >
-                      <Ionicons name="help-circle-outline" size={16} color={colors.textSecondary} />
-                    </Pressable>
+                    <HelpButton compact onPress={() => setHelpTopic("overdub")} />
                   </View>
                 </>
               ) : (
@@ -1858,8 +1844,7 @@ export function PlayerScreen({
       <HelpSheet
         visible={helpTopic !== null}
         onClose={() => setHelpTopic(null)}
-        title={OVERDUB_HELP.title}
-        intro={OVERDUB_HELP.intro}
+        thesis={OVERDUB_HELP.thesis}
         items={OVERDUB_HELP.items}
       />
 
