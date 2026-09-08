@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
 import { styles } from "../styles";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
+import { EmptyState } from "../../common/EmptyState";
 import { SentLinkChip } from "../../common/SentLinkChip";
 import { NowPlayingIndicator } from "../../common/NowPlayingIndicator";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
@@ -153,18 +154,14 @@ export function SongbookDetailView({
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={header}
         ListEmptyComponent={
-          <View style={bookStyles.emptyWrap}>
-            <Ionicons name="book-outline" size={26} color={colors.textMuted} />
-            <Text style={bookStyles.emptyTitle}>{t("library.bookEmpty")}</Text>
-            <Text style={bookStyles.emptyBody}>{t("library.bookEmptyBody")}</Text>
-            <Pressable
-              style={({ pressed }) => [bookStyles.emptyAddBtn, pressed ? styles.pressDown : null]}
-              onPress={onAddSongs}
-            >
-              <Ionicons name="add" size={15} color={colors.onPrimary} />
-              <Text style={bookStyles.emptyAddLabel}>{t("library.addSongs")}</Text>
-            </Pressable>
-          </View>
+          <EmptyState
+            compact
+            icon="book-outline"
+            title={t("library.bookEmpty")}
+            body={t("library.bookEmptyBody")}
+            actionLabel={t("library.addSongs")}
+            onAction={onAddSongs}
+          />
         }
         renderItem={({ item: song, drag, isActive }: RenderItemParams<SongbookSong>) => {
           const isNowPlaying = song.ideaId === nowPlayingIdeaId;
@@ -470,37 +467,5 @@ const bookStyles = StyleSheet.create({
   dragHandle: {
     paddingHorizontal: 4,
     paddingVertical: 6,
-  },
-  emptyWrap: {
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 36,
-    paddingHorizontal: 24,
-  },
-  emptyTitle: {
-    fontFamily: "Lora_600SemiBold",
-    fontSize: 19,
-    color: colors.textPrimary,
-  },
-  emptyBody: {
-    ...textTokens.supporting,
-    color: colors.textSecondary,
-    textAlign: "center",
-    lineHeight: 19,
-  },
-  emptyAddBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.primary,
-    borderRadius: radii.round,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    marginTop: 8,
-  },
-  emptyAddLabel: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13,
-    color: colors.onPrimary,
   },
 });

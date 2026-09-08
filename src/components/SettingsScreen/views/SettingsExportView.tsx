@@ -20,10 +20,7 @@ export function SettingsExportView({ flow, onCancel }: { flow: ExportFlow; onCan
       contentContainerStyle={styles.settingsScrollContent}
       showsVerticalScrollIndicator={false}
     >
-      <PageIntro
-        title={t("settingsExport.title")}
-        subtitle={t("settingsExport.subtitle")}
-      />
+      <PageIntro title={t("settingsExport.title")} />
 
       <AccordionSection
         step="1"

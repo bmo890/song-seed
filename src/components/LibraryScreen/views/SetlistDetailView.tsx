@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
 import { styles } from "../styles";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
+import { EmptyState } from "../../common/EmptyState";
 import { SentLinkChip } from "../../common/SentLinkChip";
 import { NowPlayingIndicator } from "../../common/NowPlayingIndicator";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
@@ -150,18 +151,14 @@ export function SetlistDetailView({
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={header}
         ListEmptyComponent={
-          <View style={setStyles.emptyWrap}>
-            <Ionicons name="albums-outline" size={26} color={colors.textMuted} />
-            <Text style={setStyles.emptyTitle}>{t("library.setEmpty")}</Text>
-            <Text style={setStyles.emptyBody}>{t("library.setEmptyBody")}</Text>
-            <Pressable
-              style={({ pressed }) => [setStyles.emptyAddBtn, pressed ? styles.pressDown : null]}
-              onPress={onAddSong}
-            >
-              <Ionicons name="add" size={15} color={colors.onPrimary} />
-              <Text style={setStyles.emptyAddLabel}>{t("library.addSongShort")}</Text>
-            </Pressable>
-          </View>
+          <EmptyState
+            compact
+            icon="albums-outline"
+            title={t("library.setEmpty")}
+            body={t("library.setEmptyBody")}
+            actionLabel={t("library.addSongShort")}
+            onAction={onAddSong}
+          />
         }
         renderItem={({ item: entry, drag, isActive, getIndex }: RenderItemParams<ResolvedSetlistEntry>) => {
           const isNowPlaying = entry.entryId === nowPlayingEntryId;
@@ -473,37 +470,5 @@ const setStyles = StyleSheet.create({
   dragHandle: {
     paddingHorizontal: 4,
     paddingVertical: 6,
-  },
-  emptyWrap: {
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 36,
-    paddingHorizontal: 24,
-  },
-  emptyTitle: {
-    fontFamily: "Lora_600SemiBold",
-    fontSize: 19,
-    color: colors.textPrimary,
-  },
-  emptyBody: {
-    ...textTokens.supporting,
-    color: colors.textSecondary,
-    textAlign: "center",
-    lineHeight: 19,
-  },
-  emptyAddBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.primary,
-    borderRadius: radii.round,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    marginTop: 8,
-  },
-  emptyAddLabel: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13,
-    color: colors.onPrimary,
   },
 });

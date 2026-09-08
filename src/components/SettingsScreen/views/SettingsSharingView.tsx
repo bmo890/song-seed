@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { PageIntro } from "../../common/PageIntro";
 import { AppAlert } from "../../common/AppAlert";
+import { EmptyState } from "../../common/EmptyState";
 import { HelpButton } from "../../common/HelpButton";
 import { HelpSheet } from "../../common/HelpSheet";
 import { SEND_HELP } from "../../common/helpContent";
@@ -76,7 +77,7 @@ export function SettingsSharingView() {
     >
       <View style={sharingStyles.introRow}>
         <View style={styles.flexFill}>
-          <PageIntro title={t("sharing.title")} subtitle={t("sharing.subtitle")} />
+          <PageIntro title={t("sharing.title")} />
         </View>
         <HelpButton onPress={() => setHelpVisible(true)} />
       </View>
@@ -130,13 +131,13 @@ export function SettingsSharingView() {
       </View>
 
       {sorted.length === 0 ? (
-        <View style={sharingStyles.emptyWrap}>
-          <Ionicons name="link-outline" size={24} color={colors.textMuted} />
-          <Text style={sharingStyles.emptyTitle}>{t("sharing.emptyTitle")}</Text>
-          <Text style={sharingStyles.emptyBody}>
-            {t("sharing.emptyBody")}
-          </Text>
-        </View>
+        <EmptyState
+          icon="link-outline"
+          title={t("sharing.emptyTitle")}
+          body={t("sharing.emptyBody")}
+          compact
+          testID="sharing-empty"
+        />
       ) : null}
       <HelpSheet
         visible={helpVisible}
@@ -212,22 +213,5 @@ const sharingStyles = StyleSheet.create({
     backgroundColor: colors.surfaceContainer,
     alignItems: "center",
     justifyContent: "center",
-  },
-  emptyWrap: {
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 36,
-    paddingHorizontal: 24,
-  },
-  emptyTitle: {
-    fontFamily: "Lora_600SemiBold",
-    fontSize: 18,
-    color: colors.textPrimary,
-  },
-  emptyBody: {
-    ...textTokens.supporting,
-    color: colors.textSecondary,
-    textAlign: "center",
-    lineHeight: 19,
   },
 });

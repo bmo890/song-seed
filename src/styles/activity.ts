@@ -394,19 +394,6 @@ export const activityStyles = {
   activityResultsList: {
     gap: 8,
   },
-  activityResultEmptyCard: {
-    gap: 6,
-    backgroundColor: "#efeeea",
-    borderWidth: 0,
-    borderRadius: 4,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  activityResultEmptyTitle: {
-    fontSize: 14,
-    color: "#1b1c1a",
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
   activityResultEmptyText: {
     fontSize: 12,
     lineHeight: 18,

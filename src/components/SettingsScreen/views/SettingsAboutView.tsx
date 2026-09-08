@@ -52,7 +52,7 @@ export function SettingsAboutView() {
       contentContainerStyle={settingsScreenStyles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      <PageIntro title={t("settings.about")} subtitle={t("settingsAbout.subtitle")} />
+      <PageIntro title={t("settings.about")} />
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>

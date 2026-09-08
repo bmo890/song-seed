@@ -6,6 +6,7 @@ import { SerifChordLines } from "./SerifChordChart";
 import { LYRIC_FONT_SIZE, MEASURE_SAMPLE, MONO_FONT, chordChartColors } from "./chordChartStyle";
 import { chordGraphemeAnchor, graphemeCount } from "../../../../domain/chords";
 import { detectTextDirection, resolveContentDirection } from "../../../../i18n";
+import { useTranslation } from "react-i18next";
 
 type LinesProps = {
   lines: LyricsLine[];
@@ -123,12 +124,13 @@ type Props = LinesProps & { emptyLabel?: string };
 /** Standalone chord chart with its own vertical scroll + empty state, used as the
  * lyric sheet's read/edit surface. */
 export function ChordChart({ emptyLabel, ...lineProps }: Props) {
+  const { t } = useTranslation();
   const hasLyrics = lineProps.lines.length > 0;
 
   if (!hasLyrics) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyText}>{emptyLabel ?? "No lyrics in this version yet."}</Text>
+        <Text style={styles.emptyText}>{emptyLabel ?? t("chordChart.noLyrics")}</Text>
       </View>
     );
   }

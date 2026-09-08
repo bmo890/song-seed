@@ -17,36 +17,15 @@ export const shelfStyles = {
       gap: 4,
     },
 
-    pageDescription: {
-      fontSize: 13,
-      lineHeight: 18,
-      color: colors.textSecondary,
-      marginBottom: 14,
-    },
-
-    sectionLabel: {
-      fontSize: 11,
-      fontFamily: "PlusJakartaSans_700Bold",
-      letterSpacing: 0.6,
-      textTransform: "uppercase",
-      color: colors.textSecondary,
+    // Section labels rest on a shelf edge (Ledger) — the page's signature.
+    ledger: {
       marginTop: 18,
-      marginBottom: 10,
-    },
-    sectionLabelCount: {
-      color: colors.textMuted,
-      letterSpacing: 0,
+      marginBottom: 12,
+      marginHorizontal: 4,
     },
 
     feedList: {
       gap: 10,
-    },
-
-    emptyLine: {
-      fontSize: 13,
-      lineHeight: 19,
-      color: "#b4a79f",
-      paddingTop: 4,
     },
 
     // ── Item footer (source · countdown) ─────────────────────────────────

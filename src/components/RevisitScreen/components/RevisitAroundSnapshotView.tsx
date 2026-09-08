@@ -5,6 +5,7 @@ import { styles } from "../../../styles";
 import type { SongIdea } from "../../../types";
 import type { RevisitAroundSnapshot, RevisitCandidate } from "../../../domain/revisit";
 import { revisitStyles } from "../styles";
+import { EmptyState } from "../../common/EmptyState";
 import { RevisitCandidateCard } from "./RevisitCandidateCard";
 import { useTranslation } from "react-i18next";
 
@@ -66,9 +67,7 @@ export function RevisitAroundSnapshotView({
       </View>
 
       {snapshot.items.length === 0 ? (
-        <View style={[styles.card, revisitStyles.emptyStateCard]}>
-          <Text style={styles.cardTitle}>{t("revisit.nothingSeasonal")}</Text>
-        </View>
+        <EmptyState compact icon="calendar-outline" title={t("revisit.nothingSeasonal")} />
       ) : (
         snapshot.items.map(({ candidate, reason }) => (
           <RevisitCandidateCard

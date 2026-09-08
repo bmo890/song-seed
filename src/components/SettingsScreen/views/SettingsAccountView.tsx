@@ -21,7 +21,7 @@ export function SettingsAccountView() {
       contentContainerStyle={settingsScreenStyles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      <PageIntro title={t("settings.account")} subtitle={t("settingsAccount.subtitle")} />
+      <PageIntro title={t("settings.account")} />
 
       <View style={settingsScreenStyles.accountIdentity}>
         <View style={settingsScreenStyles.accountMark}>

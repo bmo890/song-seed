@@ -1,8 +1,8 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { SurfaceCard } from "../../common/SurfaceCard";
+import { EmptyState } from "../../common/EmptyState";
 import type { WorkspaceCollectionBrowseEntry } from "../../../domain/libraryNavigation";
 import { WorkspaceCollectionCard } from "./WorkspaceCollectionCard";
-import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 
 export function WorkspaceCollectionList({
@@ -50,16 +50,21 @@ export function WorkspaceCollectionList({
       ) : null}
 
       {collectionEntries.length === 0 ? (
-        <SurfaceCard>
-          <Text style={listStyles.emptyTitle}>
-            {t(searchQuery.trim().length > 0 ? "workspaceBrowse.noMatches" : "workspaceBrowse.noCollections")}
-          </Text>
-          <Text style={listStyles.emptyMeta}>
-            {searchQuery.trim().length > 0
-              ? t("workspaceBrowse.trySearch")
-              : t("workspaceBrowse.createHint")}
-          </Text>
-        </SurfaceCard>
+        searchQuery.trim().length > 0 ? (
+          <EmptyState
+            compact
+            icon="search-outline"
+            title={t("workspaceBrowse.noMatches")}
+            body={t("workspaceBrowse.trySearch")}
+          />
+        ) : (
+          <EmptyState
+            compact
+            icon="folder-outline"
+            title={t("workspaceBrowse.noCollections")}
+            body={t("workspaceBrowse.createHint")}
+          />
+        )
       ) : null}
     </View>
   );
@@ -73,16 +78,5 @@ const listStyles = StyleSheet.create({
     padding: 0,
     gap: 0,
     overflow: "hidden",
-  },
-  emptyTitle: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 15,
-    color: "#1C1C19",
-  },
-  emptyMeta: {
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 4,
   },
 });

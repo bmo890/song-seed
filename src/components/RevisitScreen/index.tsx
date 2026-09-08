@@ -3,6 +3,7 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenHeader } from "../common/ScreenHeader";
+import { EmptyState } from "../common/EmptyState";
 import { styles } from "../../styles";
 import { useBrowseRootBackHandler } from "../../hooks/useBrowseRootBackHandler";
 import { useRevisitScreenModel } from "./hooks/useRevisitScreenModel";
@@ -83,26 +84,26 @@ export function RevisitScreen() {
           />
         ) : (
           <>
-            <View style={revisitStyles.pageHeader}>
-              <View style={revisitStyles.todayRow}>
-                <Text style={revisitStyles.todayEyebrow}>
-                  {screen.dailyRefresh ? t("revisit.today", { date: dateLabel }) : t("revisit.toRevisit")}
-                </Text>
-                {shownCount > 0 ? (
+            {populatedSections.length > 0 ? (
+              <View style={revisitStyles.pageHeader}>
+                <View style={revisitStyles.todayRow}>
+                  <Text style={revisitStyles.todayEyebrow}>
+                    {screen.dailyRefresh ? t("revisit.today", { date: dateLabel }) : t("revisit.toRevisit")}
+                  </Text>
                   <Text style={revisitStyles.todayCount}>
                     {t("revisit.ideaCount", { count: shownCount })}
                   </Text>
-                ) : null}
+                </View>
               </View>
-              <Text style={revisitStyles.pageDescription}>
-                {t("revisit.description")}
-              </Text>
-            </View>
+            ) : null}
 
             {populatedSections.length === 0 ? (
-              <Text style={[revisitStyles.sectionEmptyLine, { paddingTop: 16 }]}>
-                {t("revisit.empty")}
-              </Text>
+              <EmptyState
+                icon="time-outline"
+                title={t("revisit.emptyTitle")}
+                body={t("revisit.empty")}
+                testID="revisit-empty"
+              />
             ) : (
               populatedSections.map((section, index) => (
                 <React.Fragment key={section.key}>

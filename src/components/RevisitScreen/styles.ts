@@ -80,15 +80,6 @@ export const revisitStyles = {
       color: INK,
     },
 
-    // ── Empty states (override styles.card) ──────────────────────────────
-    emptyStateCard: {
-      backgroundColor: SURFACE,
-      borderWidth: 0,
-      borderRadius: 6,
-      shadowOpacity: 0,
-      elevation: 0,
-    },
-
     // ── Header help + sources chip (redesign) ────────────────────────────
     headerHelpBtn: {
       width: 34,
@@ -140,11 +131,6 @@ export const revisitStyles = {
       fontFamily: "PlusJakartaSans_700Bold",
       color: TERRACOTTA,
     },
-    sectionEmptyLine: {
-      fontSize: 13,
-      color: "#b4a79f",
-      paddingLeft: 1,
-    },
 
     // ── Feed card detail row ──────────────────────────────────────────────
     cardTagDetail: {
@@ -156,11 +142,6 @@ export const revisitStyles = {
     // ── "Today" hook ──────────────────────────────────────────────────────
     pageHeader: {
       gap: 6,
-    },
-    pageDescription: {
-      fontSize: 13,
-      lineHeight: 18,
-      color: MUTED,
     },
     todayRow: {
       flexDirection: "row",

@@ -1,5 +1,5 @@
 import { Text, View } from "react-native";
-import { SurfaceCard } from "../common/SurfaceCard";
+import { EmptyState } from "../common/EmptyState";
 import { styles } from "../../styles";
 import { ActivityItemResult } from "./helpers";
 import { ActivityResultCard } from "./components/ActivityResultCard";
@@ -68,12 +68,12 @@ function ActivityResultsList({
   const { t } = useTranslation();
   if (results.length === 0) {
     return (
-      <SurfaceCard style={styles.activityResultEmptyCard}>
-        <Text style={styles.activityResultEmptyTitle}>{t("activity.noWork")}</Text>
-        <Text style={styles.activityResultEmptyText}>
-          {t("activity.noWorkHint")}
-        </Text>
-      </SurfaceCard>
+      <EmptyState
+        compact
+        icon="calendar-outline"
+        title={t("activity.noWork")}
+        body={t("activity.noWorkHint")}
+      />
     );
   }
 

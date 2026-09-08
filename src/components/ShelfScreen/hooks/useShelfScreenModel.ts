@@ -153,6 +153,24 @@ export function useShelfScreenModel() {
     navigateRoot("IdeaDetail", { ideaId: row.idea.id });
   }
 
+  // The empty shelf's way onward: the active workspace's primary collection
+  // (else its first), where Add to Shelf lives. Back returns here.
+  const primaryCollectionIdByWorkspace = useStore((state) => state.primaryCollectionIdByWorkspace);
+  function browseIdeas() {
+    const workspace =
+      workspaces.find((ws) => ws.id === activeWorkspaceId) ?? workspaces[0];
+    if (!workspace) return;
+    const collectionId =
+      primaryCollectionIdByWorkspace[workspace.id] ?? workspace.collections[0]?.id;
+    if (!collectionId) return;
+    openCollectionFromContext(navigation, {
+      collectionId,
+      workspaceId: workspace.id,
+      source: "detail",
+      backLabel: "Shelf",
+    });
+  }
+
   // Contextual jump, like Revisit/Activity: back from the collection returns
   // HERE (backLabel names the origin), with the target card flash-highlighted.
   function viewRowInCollection(row: ShelfRow) {
@@ -215,6 +233,7 @@ export function useShelfScreenModel() {
     departedRows,
     openRow,
     viewRowInCollection,
+    browseIdeas,
     keepRowLonger,
     letRowLeave,
     reshelveDeparted,

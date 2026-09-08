@@ -316,7 +316,8 @@ is fixed: the **title** takes the room and ellipsizes first, down to a floor of
 | Sheets | `common/BottomSheet.tsx` | The only sheet primitive. |
 | Action sheets | `common/SelectionActionSheet.tsx` / `modals/ClipActionsSheet.tsx` pattern | **Max ~6 rows.** More than that means the screen's information architecture is wrong — split by intent or promote the top 1–2 actions inline. |
 | Overflow | `IconButton` `ellipsis-horizontal` → action sheet | |
-| Empty states | `common/EmptyState.tsx` | |
+| Empty states | `common/EmptyState.tsx` | The ONLY "nothing here yet" surface (2026-09-08): icon ring · Lora title · one Jakarta line · at most one tonal soft key + one quiet ink link. `compact` inside a screen. No page carries a permanent intro paragraph — the empty state teaches once, the help sheet keeps the details. |
+| Shelf ledger | `common/Ledger.tsx` | The Shelf's signature: a hairline with two end brackets and a whisper lip — a shelf edge, not a divider. Carries the Shelf's section labels and its empty state (`EmptyState variant="ledger"`). Shelf only; every other page stays on the canon so the one special place stays special. |
 | Toasts | `toastStore` / `ToastHost` | Every background `success` haptic pairs with a toast, never a dialog. |
 | Dialogs | `AppDialog` / `WarmModal` | Confirmation only — never for information that could be a toast. |
 | Waveform | `common/AudioReel.tsx` | Tap = play/pause, drag = scrub. Everywhere. |
@@ -451,7 +452,7 @@ Any PR touching UI passes ALL of these before merge:
 4. Every interactive element: `pressDown` + a cited haptic verb from the table.
 5. All motion uses `durations`/`springs`/presets; nothing pops in or out.
 6. Copy within budgets, terminology canon respected, everything through `t()`, checked in RTL.
-7. Empty state exists and is quiet (≤ 6 + ≤ 14 words).
+7. Empty state is the canon `EmptyState` and quiet (≤ 6 + ≤ 14 words); no permanent page intro.
 8. Screen passes the music-stand test.
 
 ---

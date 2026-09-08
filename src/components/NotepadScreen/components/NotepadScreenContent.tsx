@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { SearchField } from "../../common/SearchField";
-import { Button } from "../../common/Button";
+import { EmptyState } from "../../common/EmptyState";
 import { SelectionTopBar } from "../../common/SelectionTopBar";
 import { SelectionDock, type SelectionAction } from "../../common/SelectionDock";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
@@ -457,24 +457,13 @@ export function NotepadScreenContent() {
       ) : null}
 
       {pageEmpty ? (
-        <View style={listStyles.emptyState}>
-          <View style={listStyles.emptyIconWrap}>
-            <Ionicons
-              name={isSparkPage ? "sparkles-outline" : "document-text-outline"}
-              size={26}
-              color={colors.primary}
-            />
-          </View>
-          <Text style={listStyles.emptyTitle}>
-            {t(isSparkPage ? "notepad.noSparks" : "notepad.blankPage")}
-          </Text>
-          <Text style={listStyles.emptyBody}>
-            {t(isSparkPage ? "notepad.noSparksHint" : "notepad.looseLines")}
-          </Text>
-          <Button
-            label={t(isSparkPage ? "notepad.startSpark" : "notepad.writeSomething")}
-            onPress={isSparkPage ? () => setSparkSheetVisible(true) : handleNewNote}
-            style={listStyles.emptyAction}
+        <View style={listStyles.emptyFill}>
+          <EmptyState
+            icon={isSparkPage ? "sparkles-outline" : "document-text-outline"}
+            title={t(isSparkPage ? "notepad.noSparks" : "notepad.blankPage")}
+            body={t(isSparkPage ? "notepad.noSparksHint" : "notepad.looseLines")}
+            actionLabel={t(isSparkPage ? "notepad.startSpark" : "notepad.writeSomething")}
+            onAction={isSparkPage ? () => setSparkSheetVisible(true) : handleNewNote}
           />
         </View>
       ) : (
@@ -502,27 +491,19 @@ export function NotepadScreenContent() {
           </View>
 
           {sections.length === 0 && isSearching ? (
-            <View style={listStyles.emptyState}>
-              <Ionicons name="search-outline" size={26} color={colors.textMuted} />
-              <Text style={listStyles.emptyTitle}>{t("notepad.noMatches")}</Text>
-              <Text style={listStyles.emptyBody}>{t("notepad.searchHint")}</Text>
-            </View>
+            <EmptyState
+              compact
+              icon="search-outline"
+              title={t("notepad.noMatches")}
+              body={t("notepad.searchHint")}
+            />
           ) : sections.length === 0 ? (
-            <View style={listStyles.emptyState}>
-              <Ionicons
-                name={activeTab === "sparks" ? "sparkles-outline" : "document-text-outline"}
-                size={26}
-                color={colors.textMuted}
-              />
-              <Text style={listStyles.emptyTitle}>
-                {t(activeTab === "sparks" ? "notepad.noSparks" : "notepad.noLyrics")}
-              </Text>
-              <Text style={listStyles.emptyBody}>
-                {activeTab === "sparks"
-                  ? t("notepad.noSparksHint")
-                  : t("notepad.noLyricsHint")}
-              </Text>
-            </View>
+            <EmptyState
+              compact
+              icon={activeTab === "sparks" ? "sparkles-outline" : "document-text-outline"}
+              title={t(activeTab === "sparks" ? "notepad.noSparks" : "notepad.noLyrics")}
+              body={t(activeTab === "sparks" ? "notepad.noSparksHint" : "notepad.noLyricsHint")}
+            />
           ) : (
             <ScrollView
               style={listStyles.scroll}
@@ -673,35 +654,12 @@ const listStyles = StyleSheet.create({
   sectionStack: {
     gap: spacing.sm,
   },
-  emptyState: {
+  // Whole-page empty: the canon EmptyState sits in the vertical middle of the
+  // room, lifted a touch above true center so it reads as settled, not sunk.
+  emptyFill: {
     flex: 1,
-    alignItems: "center",
     justifyContent: "center",
-    gap: spacing.sm,
-    paddingHorizontal: 36,
     paddingBottom: 60,
-  },
-  emptyIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceContainer,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.xs,
-  },
-  emptyTitle: {
-    fontFamily: "Lora_600SemiBold",
-    fontSize: 20,
-    color: colors.textPrimary,
-  },
-  emptyBody: {
-    ...textTokens.supporting,
-    textAlign: "center",
-    lineHeight: 19,
-  },
-  emptyAction: {
-    marginTop: spacing.md,
   },
 });
 

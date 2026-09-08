@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenHeader } from "../common/ScreenHeader";
+import { EmptyState } from "../common/EmptyState";
+import { Ledger } from "../common/Ledger";
 import { AppAlert } from "../common/AppAlert";
 import { HelpButton } from "../common/HelpButton";
 import { HelpSheet } from "../common/HelpSheet";
@@ -77,10 +79,6 @@ export function ShelfScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={shelfStyles.scrollContent}
       >
-        <Text style={shelfStyles.pageDescription}>
-          {t("screens.shelfIntro")}
-        </Text>
-
         {screen.decidingRows.length > 0 ? (
           <View style={shelfStyles.feedList}>
             {screen.decidingRows.map((row) => (
@@ -98,10 +96,11 @@ export function ShelfScreen() {
 
         {screen.restingRows.length > 0 ? (
           <>
-            <Text style={shelfStyles.sectionLabel}>
-              {t("shelf.onShelf")}{" "}
-              <Text style={shelfStyles.sectionLabelCount}>· {screen.restingRows.length}</Text>
-            </Text>
+            <Ledger
+              label={t("shelf.onShelf")}
+              count={screen.restingRows.length}
+              style={shelfStyles.ledger}
+            />
             <View style={shelfStyles.feedList}>
               {screen.restingRows.map((row) => (
                 <ShelfItemCard
@@ -116,14 +115,19 @@ export function ShelfScreen() {
         ) : null}
 
         {isEmpty ? (
-          <Text style={shelfStyles.emptyLine}>
-            {t("shelf.emptyBody")}
-          </Text>
+          <EmptyState
+            variant="ledger"
+            title={t("shelf.emptyTitle")}
+            body={t("shelf.emptyBody")}
+            linkLabel={t("shelf.browseIdeas")}
+            onLink={screen.browseIdeas}
+            testID="shelf-empty"
+          />
         ) : null}
 
         {screen.departedRows.length > 0 ? (
           <>
-            <Text style={shelfStyles.sectionLabel}>{t("shelf.recentlyLeft")}</Text>
+            <Ledger label={t("shelf.recentlyLeft")} lip={false} style={shelfStyles.ledger} />
             <View style={shelfStyles.feedList}>
               {screen.departedRows.map((rowData) => (
                 <ShelfDepartedRow

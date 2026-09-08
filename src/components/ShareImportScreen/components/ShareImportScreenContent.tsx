@@ -28,10 +28,7 @@ export function ShareImportScreenContent({
     return (
       <SafeAreaView style={styles.screen}>
         <ScreenHeader title={t("shareImport.title")} leftIcon="back" onLeftPress={model.closeScreen} />
-        <PageIntro
-          title={t("shareImport.sentMusic")}
-          subtitle={t("shareImport.archiveIntro")}
-        />
+        <PageIntro title={t("shareImport.sentMusic")} />
         <View style={archiveStyles.card}>
           <View style={archiveStyles.fileRow}>
             <View style={archiveStyles.fileIcon}>

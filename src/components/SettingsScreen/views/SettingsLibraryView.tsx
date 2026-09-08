@@ -37,10 +37,7 @@ export function SettingsLibraryView({
       contentContainerStyle={settingsScreenStyles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      <PageIntro
-        title={t("settingsLibrary.title")}
-        subtitle={t("settingsLibrary.subtitle")}
-      />
+      <PageIntro title={t("settingsLibrary.title")} />
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>

@@ -19,10 +19,7 @@ export function SettingsImportView({
     const { t } = useTranslation();
     return (
         <ScrollView style={styles.flexFill} contentContainerStyle={settingsScreenStyles.scrollContent}>
-            <PageIntro
-                title={t("settingsImport.title")}
-                subtitle={t("settingsImport.subtitle")}
-            />
+            <PageIntro title={t("settingsImport.title")} />
 
             <Pressable
                 style={({ pressed }) => [

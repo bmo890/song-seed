@@ -145,14 +145,6 @@ export const styles = StyleSheet.create({
   listContent: {
     gap: 16,
   },
-  emptyText: {
-    marginTop: 32,
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: "center",
-  },
-
   // ── Archived section ──────────────────────────────────────────────────────
   archivedSection: {
     marginTop: 64,

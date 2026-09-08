@@ -7,6 +7,7 @@ import { haptic } from "../../../design/haptics";
 import { styles } from "../styles";
 import { fmtDuration } from "../../../utils";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
+import { EmptyState } from "../../common/EmptyState";
 import { NowPlayingIndicator } from "../../common/NowPlayingIndicator";
 import { useStore } from "../../../state/useStore";
 import type { Playlist } from "../../../types";
@@ -173,18 +174,14 @@ export function PlaylistDetailView({
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={header}
         ListEmptyComponent={
-          <View style={detailStyles.emptyWrap}>
-            <Ionicons name="musical-notes-outline" size={26} color={colors.textMuted} />
-            <Text style={detailStyles.emptyTitle}>{t("library.noTracks")}</Text>
-            <Text style={detailStyles.emptyBody}>{t("library.noTracksBody")}</Text>
-            <Pressable
-              style={({ pressed }) => [detailStyles.emptyAddBtn, pressed ? styles.pressDown : null]}
-              onPress={onAddItems}
-            >
-              <Ionicons name="add" size={15} color={colors.onPrimary} />
-              <Text style={detailStyles.emptyAddLabel}>{t("library.addTracks")}</Text>
-            </Pressable>
-          </View>
+          <EmptyState
+            compact
+            icon="musical-notes-outline"
+            title={t("library.noTracks")}
+            body={t("library.noTracksBody")}
+            actionLabel={t("library.addTracks")}
+            onAction={onAddItems}
+          />
         }
         renderItem={({ item: track, drag, isActive, getIndex }) => {
           const isNowPlaying = track.itemId === nowPlayingItemId;
@@ -419,36 +416,5 @@ const detailStyles = StyleSheet.create({
     height: 30,
     alignItems: "center",
     justifyContent: "center",
-  },
-  emptyWrap: {
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 40,
-    paddingHorizontal: 30,
-  },
-  emptyTitle: {
-    ...textTokens.sectionTitle,
-    color: colors.textPrimary,
-  },
-  emptyBody: {
-    ...textTokens.supporting,
-    color: colors.textSecondary,
-    textAlign: "center",
-    lineHeight: 20,
-  },
-  emptyAddBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.primary,
-    borderRadius: radii.round,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    marginTop: 6,
-  },
-  emptyAddLabel: {
-    ...textTokens.caption,
-    color: colors.onPrimary,
-    fontFamily: "PlusJakartaSans_700Bold",
   },
 });

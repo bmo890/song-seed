@@ -39,7 +39,7 @@ export function SettingsOverviewView({
       contentContainerStyle={settingsScreenStyles.overviewContent}
       showsVerticalScrollIndicator={false}
     >
-      <PageIntro title={t("settings.title")} subtitle={t("settings.subtitle")} />
+      <PageIntro title={t("settings.title")} />
 
       <View style={settingsScreenStyles.overviewSection}>
         <Text style={styles.settingsSectionLabel}>{t("settings.yourSongNook")}</Text>

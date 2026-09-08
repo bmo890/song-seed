@@ -62,10 +62,6 @@ export function ActivityScreenContent() {
         scrollEventThrottle={16}
         onScroll={model.onHeaderScroll}
       >
-        <Text style={styles.intro}>
-          {t("screens.activityIntro")}
-        </Text>
-
         <View>
           <ActivityHeatmapGrid
             year={model.year}

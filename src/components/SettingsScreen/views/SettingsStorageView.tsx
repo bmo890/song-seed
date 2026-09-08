@@ -27,10 +27,7 @@ export function SettingsStorageView({ diagnostics }: { diagnostics: StorageDiagn
       contentContainerStyle={styles.settingsScrollContent}
       showsVerticalScrollIndicator={false}
     >
-      <PageIntro
-        title={t("settingsStorage.title")}
-        subtitle={t("settingsStorage.subtitle")}
-      />
+      <PageIntro title={t("settingsStorage.title")} />
 
       <View style={styles.settingsSummaryPanel}>
         <Text style={styles.settingsSummaryTitle}>{t("settingsStorage.health")}</Text>

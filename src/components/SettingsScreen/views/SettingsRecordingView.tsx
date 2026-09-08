@@ -24,10 +24,7 @@ export function SettingsRecordingView() {
       contentContainerStyle={settingsScreenStyles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      <PageIntro
-        title={t("settings.recordingAudio")}
-        subtitle={t("settingsRecording.subtitle")}
-      />
+      <PageIntro title={t("settings.recordingAudio")} />
 
       <View style={styles.settingsSection}>
         <View style={styles.settingsSectionHeaderRow}>

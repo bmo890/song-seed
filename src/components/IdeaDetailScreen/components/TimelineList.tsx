@@ -12,6 +12,7 @@ import { type ClipCardContextProps } from "./ClipCard";
 import { SongClipCard } from "./SongClipCard";
 import { SongClipListShell } from "./SongClipListShell";
 import { useSongScreen } from "../provider/SongScreenProvider";
+import { useTranslation } from "react-i18next";
 
 type TimelineListProps = {
   lineages: ClipLineage[];
@@ -34,6 +35,7 @@ export function TimelineList({
   contentPaddingTop,
   contentPaddingHorizontal,
 }: TimelineListProps) {
+  const { t } = useTranslation();
   const { screen } = useSongScreen();
 
   const contentRows = useMemo(
@@ -52,7 +54,7 @@ export function TimelineList({
       summaryContent={summaryContent}
       footerSpacerHeight={footerSpacerHeight}
       primaryEntry={primaryEntry}
-      emptyLabel={primaryEntry ? "No idea clips yet." : "No clips yet."}
+      emptyLabel={primaryEntry ? t("songDetail.noIdeaClips") : t("songDetail.noClips")}
       scrollY={scrollY}
       contentPaddingTop={contentPaddingTop}
       contentPaddingHorizontal={contentPaddingHorizontal}

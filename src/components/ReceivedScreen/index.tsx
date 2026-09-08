@@ -8,6 +8,7 @@ import { ScreenHeader } from "../common/ScreenHeader";
 import { SelectionActionSheet } from "../common/SelectionActionSheet";
 import { InlineIdeaCard } from "../common/InlineIdeaCard";
 import { AppAlert } from "../common/AppAlert";
+import { EmptyState } from "../common/EmptyState";
 import { useStore } from "../../state/useStore";
 import { useMiniPlayerContext } from "../../hooks/FullPlayerProvider";
 import { receivedPackages } from "../../domain/workspaceVisibility";
@@ -233,8 +234,6 @@ export function ReceivedScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={receivedStyles.scrollContent}
       >
-        <Text style={receivedStyles.pageDescription}>{t("received.intro")}</Text>
-
         <View style={receivedStyles.list}>
           {packages.map((pkg) => {
             const kind = pkg.received?.shareKind ?? "library";
@@ -267,11 +266,12 @@ export function ReceivedScreen() {
         </View>
 
         {packages.length === 0 ? (
-          <View style={receivedStyles.emptyWrap}>
-            <Ionicons name="mail-open-outline" size={26} color={colors.textMuted} />
-            <Text style={receivedStyles.emptyTitle}>{t("received.empty")}</Text>
-            <Text style={receivedStyles.emptyBody}>{t("received.emptyBody")}</Text>
-          </View>
+          <EmptyState
+            icon="mail-open-outline"
+            title={t("received.empty")}
+            body={t("received.emptyBody")}
+            testID="received-empty"
+          />
         ) : null}
       </ScrollView>
     </SafeAreaView>
@@ -294,12 +294,6 @@ const receivedStyles = StyleSheet.create({
     backgroundColor: colors.surfaceContainer,
     alignItems: "center",
     justifyContent: "center",
-  },
-  pageDescription: {
-    ...textTokens.supporting,
-    color: colors.textSecondary,
-    lineHeight: 18,
-    marginBottom: 14,
   },
   list: {
     gap: 8,
@@ -373,23 +367,6 @@ const receivedStyles = StyleSheet.create({
   detailMeta: {
     ...textTokens.supporting,
     color: colors.textSecondary,
-  },
-  emptyWrap: {
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 40,
-    paddingHorizontal: 24,
-  },
-  emptyTitle: {
-    fontFamily: "Lora_600SemiBold",
-    fontSize: 19,
-    color: colors.textPrimary,
-  },
-  emptyBody: {
-    ...textTokens.supporting,
-    color: colors.textSecondary,
-    textAlign: "center",
-    lineHeight: 19,
   },
   emptyLine: {
     ...textTokens.supporting,

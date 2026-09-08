@@ -10,6 +10,7 @@ import { WorkspaceModal } from "../../modals/WorkspaceModal";
 import { ClipboardBanner } from "../../ClipboardBanner";
 import { SongTargetPickerBanner } from "../../SongTargetPickerBanner";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
+import { EmptyState } from "../../common/EmptyState";
 import { WorkspaceList } from "./WorkspaceList";
 import { AppAlert } from "../../common/AppAlert";
 import { colors } from "../../../design/tokens";
@@ -176,7 +177,12 @@ export function WorkspaceListScreenContent() {
         />
 
         {model.data.activeWorkspaces.length === 0 ? (
-          <Text style={styles.emptyText}>{t("workspaceList.empty")}</Text>
+          <EmptyState
+            compact
+            icon="albums-outline"
+            title={t("workspaceList.emptyTitle")}
+            body={t("workspaceList.empty")}
+          />
         ) : null}
 
         {/* ── From others — work imported from other people ──────────────── */}

@@ -35,7 +35,7 @@ export function SettingsGeneralView() {
       contentContainerStyle={settingsScreenStyles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      <PageIntro title={t("settings.general")} subtitle={t("settingsGeneral.subtitle")} />
+      <PageIntro title={t("settings.general")} />
 
       <View style={styles.settingsSection}>
         <Text style={styles.settingsSectionLabel}>{t("settings.language")}</Text>
