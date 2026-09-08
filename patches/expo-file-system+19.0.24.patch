@@ -40,7 +40,7 @@ index 58bee04..a76e02d 100644
        throw UnableToWriteHandleException(e.message ?: "unknown error")
      }
 diff --git a/node_modules/expo-file-system/expo-module.config.json b/node_modules/expo-file-system/expo-module.config.json
-index 58e26fa..61c6eb9 100644
+index c64e298..61c6eb9 100644
 --- a/node_modules/expo-file-system/expo-module.config.json
 +++ b/node_modules/expo-file-system/expo-module.config.json
 @@ -8,12 +8,6 @@
@@ -51,7 +51,7 @@ index 58e26fa..61c6eb9 100644
 -    "publication": {
 -      "groupId": "host.exp.exponent",
 -      "artifactId": "expo.modules.filesystem",
--      "version": "19.0.21",
+-      "version": "19.0.24",
 -      "repository": "local-maven-repo"
 -    }
 +    ]
