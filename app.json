@@ -32,6 +32,7 @@
         "NSMicrophoneUsageDescription": "SongNook needs microphone access so you can record song ideas and voice memos.",
         "NSFaceIDUsageDescription": "SongNook asks for Face ID only to confirm erasing all data.",
         "ITSAppUsesNonExemptEncryption": false,
+      "LSSupportsOpeningDocumentsInPlace": false,
         "UTExportedTypeDeclarations": [
           {
             "UTTypeIdentifier": "com.bmostudio.songnook.archive",
