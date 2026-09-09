@@ -30,7 +30,7 @@ ALLOWED_WEB_ORIGINS = ""
 RATE_CREATE_PER_HOUR = "30"
 RATE_ITEMS_PER_HOUR = "300"
 # Store links for the mobile-without-app install funnel.
-IOS_APP_STORE_URL = "https://apps.apple.com/app/songnook/id0000000000"
+IOS_APP_STORE_URL = "https://apps.apple.com/app/id6810435199"
 ANDROID_PACKAGE = "com.bmostudio.songnook"
 # Universal / App Link association (.well-known). Apple Team ID is public by
 # nature (it is in every AASA on the internet); the Android value is the SHA-256

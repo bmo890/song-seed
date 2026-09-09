@@ -39,6 +39,14 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "bmostudio.dev@gmail.com",
+        "appleTeamId": "PMJJ7Q9UXD",
+        "sku": "songnook-ios",
+        "language": "en-US",
+        "ascAppId": "6810435199"
+      }
+    }
   }
 }
