@@ -14,6 +14,7 @@ import { buildIdeaListItemMeta } from "../ideaListItemMeta";
 import type { IdeaListItemMeta } from "../types";
 
 import { useStore } from "../../../state/useStore";
+import { useFullPlayerControls } from "../../../hooks/FullPlayerProvider";
 import { appActions } from "../../../state/actions";
 import { StageInk } from "../../common/StageMark";
 import { IdeaCard } from "../../common/IdeaCard";
@@ -111,6 +112,16 @@ function IdeaListItemInner({
     // idea-level, so a song card lights up whichever take is playing.
     const sessionActive = useStore((s) => s.playerTarget?.ideaId === item.id);
     const sessionPlaying = useStore((s) => s.playerIsPlaying);
+    // Clip-precise: the session is on THIS card's play clip. Then the lead glyph
+    // mirrors and drives the session (pause/resume the dock) instead of starting
+    // a second, competing inline preview of the same clip from 0:00.
+    const sessionOnPlayClip = useStore(
+        (s) =>
+            !!playClip &&
+            s.playerTarget?.ideaId === item.id &&
+            s.playerTarget.clipId === playClip.id
+    );
+    const { togglePlayer } = useFullPlayerControls();
     // "Now playing" (EQ indicator + terracotta title) is reserved for the durable
     // dock / full-player session. A clip-card inline PREVIEW keeps its own plain
     // presentation (its own play/pause button + scrubber) — it must not borrow the
@@ -265,6 +276,7 @@ function IdeaListItemInner({
                             ]}
                             highlightValue={highlightMapRef.current[item.id] ?? null}
                             canPlay={!!playClip}
+                            sessionLead={sessionOnPlayClip ? (sessionPlaying ? "playing" : "paused") : null}
                             durationLabel={item.kind === "project" ? projectPrimaryDurationLabel : clipDurationLabel}
                             onPressLead={() => {
                                 if (listSelectionMode) {
@@ -275,6 +287,11 @@ function IdeaListItemInner({
                                     return;
                                 }
                                 haptic.tap();
+                                if (sessionOnPlayClip) {
+                                    // The dock already owns this clip — drive it.
+                                    void togglePlayer();
+                                    return;
+                                }
                                 void playIdeaFromList(item.id, playClip);
                             }}
                             onLongPressLead={() => {

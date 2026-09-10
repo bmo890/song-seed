@@ -20,6 +20,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { styles } from "../../styles";
 import { haptic } from "../../design/haptics";
+import { AppDialogHost } from "./AppDialog";
+import { dialogStore } from "./dialogStore";
 
 export type BottomSheetRef = { close: () => void };
 
@@ -46,6 +48,8 @@ export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
     ref
   ) {
     const insets = useSafeAreaInsets();
+    // While open, this sheet hosts any app dialog (iOS cannot stack Modals from the root).
+    useEffect(() => (visible ? dialogStore.registerSheetHost() : undefined), [visible]);
     const { height: windowHeight } = useWindowDimensions();
     const translateY = useRef(new Animated.Value(0)).current;
     const keyboardOffset = useRef(new Animated.Value(0)).current;
@@ -235,6 +239,8 @@ export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
     return (
       <Modal visible={visible} transparent animationType="fade" onRequestClose={closeWithSlide}>
         <View style={styles.bottomSheetBackdrop}>
+          {/* Dialogs raised while this sheet is open draw here — see AppDialogHost. */}
+          <AppDialogHost nested />
           <Pressable style={styles.bottomSheetOverlay} onPress={closeWithSlide} />
           <Animated.View
             style={[

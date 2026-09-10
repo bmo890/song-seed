@@ -333,7 +333,7 @@ export function IdeaSelectionBar({
         {
           key: "unhide",
           label: hideActionLabel,
-          icon: hideActionLabel === "Unhide" ? "eye-outline" : "eye-off-outline",
+          icon: selectedHiddenOnly ? "eye-outline" : "eye-off-outline",
           onPress: onToggleHideSelected,
           disabled: hideActionDisabled,
         },
@@ -360,7 +360,7 @@ export function IdeaSelectionBar({
       {
         key: "hide",
         label: hideActionLabel,
-        icon: hideActionLabel === "Unhide" ? "eye-outline" : "eye-off-outline",
+        icon: selectedHiddenOnly ? "eye-outline" : "eye-off-outline",
         onPress: onToggleHideSelected,
         disabled: hideActionDisabled,
       },

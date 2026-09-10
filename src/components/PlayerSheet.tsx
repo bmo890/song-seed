@@ -122,9 +122,12 @@ export function PlayerSheet({ activeRouteName, isDrawerOpen, navigateRoot }: Pla
     // out from its top edge, so a swipe-up reveals it immediately. When fully
     // expanded the dock is unmounted, so nothing sits over the player.
     <View style={sheetStyles.host} pointerEvents={isActive ? "auto" : "none"}>
-      {present ? (
+      {/* Not rendered while obscured: the scrim's opacity is animated, and an
+          animated opacity always wins over a static 0 on Fabric, so "hidden"
+          would still dim the editing route underneath (2026-09-10). */}
+      {present && !obscured ? (
         <Animated.View
-          style={[sheetStyles.scrim, scrimStyle, obscured ? sheetStyles.sheetHidden : null]}
+          style={[sheetStyles.scrim, scrimStyle]}
           pointerEvents={isActive ? "auto" : "none"}
         >
           {/* The sliver of page above the card: tapping it closes, like any sheet. */}

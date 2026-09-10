@@ -49,9 +49,11 @@ export function usePlayerSections({
     [displayDuration, onBeforeChange, playerClipId, playerIdeaId]
   );
 
+  /** Returns the new section's id (null when nothing was added) so the drawer can
+   *  hold and reveal it; `normalizeSections` only re-clamps times, never ids. */
   const handleAddSection = useCallback(
-    (kind: ClipSectionKind, custom?: SectionCustomInput) => {
-      if (!playerIdeaId || !playerClipId) return;
+    (kind: ClipSectionKind, custom?: SectionCustomInput): string | null => {
+      if (!playerIdeaId || !playerClipId) return null;
       const preset = getSectionPreset(kind);
       const duration = Math.max(0, Math.round(displayDuration || playerPosition));
       const playhead = Math.round(Math.max(0, Math.min(duration || playerPosition, playerPosition)));
@@ -66,7 +68,7 @@ export function usePlayerSections({
         const lastStartMs = sections.reduce((max, section) => Math.max(max, section.startMs), 0);
         startMs = Math.round((lastStartMs + duration) / 2);
       }
-      if (isOccupied(startMs)) return;
+      if (isOccupied(startMs)) return null;
 
       const section: ClipSection = {
         id: `sec-${Date.now()}`,
@@ -77,6 +79,7 @@ export function usePlayerSections({
         color: kind === "custom" ? custom?.color ?? preset.color : undefined,
       };
       persist([...sections, section]);
+      return section.id;
     },
     [displayDuration, persist, playerClipId, playerIdeaId, playerPosition, sections]
   );

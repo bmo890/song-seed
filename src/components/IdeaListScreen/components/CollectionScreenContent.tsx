@@ -18,8 +18,6 @@ import { CollectionModals } from "./CollectionModals";
 import { IdeaListNestedCollectionsSection } from "./IdeaListNestedCollectionsSection";
 import { styles } from "../../../styles";
 import { goBackFromParentStack, openCollectionInBrowse } from "../../../navigation";
-import { SelectionTopBar } from "../../common/SelectionTopBar";
-import { useStore } from "../../../state/useStore";
 import { useStickyDayLabel, useStickyDayChipVisible } from "../stickyDayStore";
 import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
@@ -65,13 +63,6 @@ export function CollectionScreenContent() {
   const { t } = useTranslation();
   const { screen } = useCollectionScreen();
   const [headerHeight, setHeaderHeight] = useState(DEFAULT_HEADER_HEIGHT);
-  const selectedListIdeaIds = useStore((s) => s.selectedListIdeaIds);
-  const selectableListIdeaIds = screen.listEntries
-    .filter((e): e is Extract<typeof e, { type: "idea" }> => e.type === "idea")
-    .map((e) => e.idea.id);
-  const allListSelected =
-    selectableListIdeaIds.length > 0 &&
-    selectableListIdeaIds.every((id) => selectedListIdeaIds.includes(id));
 
   if (!screen.activeWorkspace || !screen.collectionId || !screen.currentCollection) {
     // The screen model redirects to Browse when the collection is gone; this is a
@@ -132,21 +123,11 @@ export function CollectionScreenContent() {
             <View style={{ backgroundColor: colors.page }} pointerEvents="box-none">
               <View style={{ paddingHorizontal: 14 }}>
                 <CollectionSearchSection />
+                {/* Selection swaps the filter/sort glyphs for count · All · Cancel
+                    inside the toolbar row (CollectionFilterSection) — the search
+                    field stays live and the banners stay put, so the header keeps
+                    its height and the list never jumps on entering selection. */}
                 <CollectionFilterSection />
-                {/* Selection controls overlay the search/filter chrome in place
-                    (the sketch page's law) — the header keeps its height, so the
-                    list never gets pushed down on entering selection. */}
-                {screen.listSelectionMode ? (
-                  <SelectionTopBar
-                    overlay
-                    count={selectedListIdeaIds.length}
-                    allSelected={allListSelected}
-                    onSelectAll={() =>
-                      useStore.getState().replaceListSelection(selectableListIdeaIds)
-                    }
-                    onCancel={() => useStore.getState().cancelListSelection()}
-                  />
-                ) : null}
               </View>
               {/* Floating day chip: hangs just below the pinned block (top: "100%"). */}
               <StickyDayChip visible={screen.showDateDividers} />

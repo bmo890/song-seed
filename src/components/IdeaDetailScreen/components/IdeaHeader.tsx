@@ -233,6 +233,9 @@ export function IdeaHeader() {
                     setHeaderMenuOpen(false);
                     haptic.tap();
                     appActions.convertSelectedClipIdeaToProject();
+                    // Same step the other two sketch entry points take: name and
+                    // stage it now, while the intent is fresh (2026-09-10).
+                    screen.setIsEditMode(true);
                   }}
                 >
                   <Text style={styles.ideasSortMenuItemText}>{t("songDetail.makeSong")}</Text>

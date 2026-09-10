@@ -88,7 +88,12 @@ export function useSongScreenModel() {
 
   useEffect(() => {
     if (routeIdeaId && routeIdeaId !== selectedIdeaId) {
-      setSelectedIdeaId(routeIdeaId);
+      // Only re-select an idea that still exists: after a draft is discarded
+      // the route param outlives the idea, and writing it back would point the
+      // store at a deleted id (2026-09-10).
+      const s = useStore.getState();
+      const exists = s.workspaces.some((ws) => ws.ideas.some((idea) => idea.id === routeIdeaId));
+      if (exists) setSelectedIdeaId(routeIdeaId);
     }
   }, [routeIdeaId, selectedIdeaId, setSelectedIdeaId]);
 

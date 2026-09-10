@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { PracticeMarker } from "../../../types";
 import { useStore } from "../../../state/useStore";
 import { haptic } from "../../../design/haptics";
@@ -25,6 +26,7 @@ export function usePlayerPins({
   playerPosition,
   onBeforeChange,
 }: UsePlayerPinsArgs) {
+  const { t } = useTranslation();
   const [newPinLabel, setNewPinLabel] = useState("");
   const [pinModalVisible, setPinModalVisible] = useState(false);
   const [pinActionsTarget, setPinActionsTarget] = useState<PracticeMarker | null>(null);
@@ -47,13 +49,14 @@ export function usePlayerPins({
 
       onBeforeChange?.();
       useStore.getState().addClipPracticeMarker(playerIdeaId, playerClipId, newMarker);
+      // Haptics: `light` — a small state flip that should land (a mark dropped).
       haptic.light();
-      toast(`Pin added at ${fmtDuration(playerPosition)}`, "pin-outline");
+      toast(t("player.pinAddedAt", { time: fmtDuration(playerPosition) }), "pin-outline");
       setNewPinLabel("");
       setPinModalVisible(false);
       return newMarker.id;
     },
-    [newPinLabel, onBeforeChange, playerClipId, playerIdeaId, playerPosition]
+    [newPinLabel, onBeforeChange, playerClipId, playerIdeaId, playerPosition, t]
   );
 
   const handleRepositionMarker = useCallback(

@@ -46,6 +46,12 @@ export const pd = StyleSheet.create({
     ...text.supporting,
     fontVariant: ["tabular-nums"],
   },
+  // Unheld row's end: the time and the play glyph, read as one quiet cluster.
+  markTrailing: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
   markDivider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.borderSubtle,

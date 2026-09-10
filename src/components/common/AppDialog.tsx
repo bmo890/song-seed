@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,7 +9,10 @@ import { colors, radii } from "../../design/tokens";
 
 /**
  * Styled in-app dialog that replaces native Alert.alert.
- * Mount exactly one <AppDialogHost /> near the root of the app.
+ * Mount one <AppDialogHost /> near the root of the app. BottomSheet mounts a
+ * second, `nested`, inside its own Modal: while a sheet is open the root host
+ * stands down (iOS cannot present a Modal over a Modal from the root) and the
+ * nested one draws the dialog as a plain overlay above the sheet (2026-09-10).
  *
  * Visual language: Nocturne Paper — warm scrim, warm paper card,
  * PlusJakartaSans typography, hairline dividers, action icons.
@@ -19,17 +22,23 @@ import { colors, radii } from "../../design/tokens";
  *   (tinted icon · bold label · description) — for choice dialogs.
  * - Otherwise: 2 plain buttons sit side-by-side; 1 or 3+ stack vertically.
  */
-export function AppDialogHost() {
+export function AppDialogHost({ nested = false }: { nested?: boolean } = {}) {
   const [config, setConfig] = useState<DialogConfig | null>(null);
+  const [sheetHosts, setSheetHosts] = useState(0);
 
   useEffect(() => dialogStore.subscribe(setConfig), []);
+  useEffect(() => (nested ? undefined : dialogStore.subscribeSheetHosts(setSheetHosts)), [nested]);
 
-  // A destructive ask should be felt before it's read.
+  // The root host yields to an open sheet's nested host.
+  const standingDown = !nested && sheetHosts > 0;
+
+  // A destructive ask should be felt before it's read — once, by the host that shows it.
   useEffect(() => {
+    if (standingDown) return;
     if (config?.buttons.some((b) => b.style === "destructive")) haptic.warning();
-  }, [config]);
+  }, [config, standingDown]);
 
-  if (!config) return null;
+  if (!config || standingDown) return null;
 
   const dismiss = () => dialogStore.dismiss();
   // Scrim / hardware back: no button was chosen, so the dialog's own dismiss hook runs.
@@ -52,8 +61,9 @@ export function AppDialogHost() {
   const iconColor = (style?: string) =>
     style === "destructive" ? "#a83232" : style === "cancel" ? colors.textSecondary : colors.textStrong;
 
+  const Frame = nested ? NestedFrame : Modal;
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={hasCancel ? dismissWithoutChoice : undefined}>
+    <Frame visible transparent animationType="fade" onRequestClose={hasCancel ? dismissWithoutChoice : undefined}>
       <Pressable style={s.scrim} onPress={hasCancel ? dismissWithoutChoice : undefined} />
       <View style={s.centring} pointerEvents="box-none">
         <Animated.View style={s.card} entering={popIn}>
@@ -120,7 +130,17 @@ export function AppDialogHost() {
           )}
         </Animated.View>
       </View>
-    </Modal>
+    </Frame>
+  );
+}
+
+/** Inside a sheet's Modal there is nothing to present over, so the dialog is a
+ *  plain overlay filling the sheet's window. Same props as Modal for symmetry. */
+function NestedFrame({ children }: { children: React.ReactNode; visible?: boolean; transparent?: boolean; animationType?: string; onRequestClose?: () => void }) {
+  return (
+    <View style={s.nestedFrame} pointerEvents="box-none">
+      {children}
+    </View>
   );
 }
 
@@ -161,6 +181,11 @@ function dialogBtnTestID(label: string) {
 }
 
 const s = StyleSheet.create({
+  nestedFrame: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1000,
+    elevation: 1000,
+  },
   scrim: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(28,28,25,0.45)",

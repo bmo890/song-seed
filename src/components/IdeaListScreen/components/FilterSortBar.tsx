@@ -22,6 +22,8 @@ type FilterSortBarProps = {
   /** Leading stretch of the toolbar row (the search field). */
   leadingSlot?: ReactNode;
   rightSlot?: ReactNode;
+  /** Selection mode: replaces the filter/sort glyphs in place (see FilterSortControls). */
+  controlsOverride?: ReactNode;
   /** Mutual-exclusivity with the overflow menu (see FilterSortControls). */
   closeSignal?: number;
   onMenuOpen?: () => void;
@@ -66,6 +68,7 @@ export function FilterSortBar({
   onLyricsFilterModeChange,
   leadingSlot,
   rightSlot,
+  controlsOverride,
   closeSignal,
   onMenuOpen,
 }: FilterSortBarProps) {
@@ -317,6 +320,7 @@ export function FilterSortBar({
       }}
       leadingSlot={leadingSlot}
       rightSlot={rightSlot}
+      controlsOverride={controlsOverride}
       closeSignal={closeSignal}
       onMenuOpen={onMenuOpen}
     />

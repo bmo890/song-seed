@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Pressable, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
@@ -19,6 +20,9 @@ type IdeaListFilterSectionProps = {
   onClearProjectStages: () => void;
   onLyricsFilterModeChange: (mode: LyricsFilterMode) => void;
   onShowAll: () => void;
+  /** Selection mode swaps the filter/sort controls for these, in place; the
+   *  search field stays live so you can narrow the list while picking. */
+  selectionControls?: ReactNode;
   /** Mutual-exclusivity with the collection overflow menu. */
   filterSortCloseSignal?: number;
   onFilterSortMenuOpen?: () => void;
@@ -34,6 +38,7 @@ export function IdeaListFilterSection({
   onClearProjectStages,
   onLyricsFilterModeChange,
   onShowAll,
+  selectionControls,
   filterSortCloseSignal,
   onFilterSortMenuOpen,
 }: IdeaListFilterSectionProps) {
@@ -47,6 +52,7 @@ export function IdeaListFilterSection({
       onLyricsFilterModeChange={onLyricsFilterModeChange}
       closeSignal={filterSortCloseSignal}
       onMenuOpen={onFilterSortMenuOpen}
+      controlsOverride={selectionControls}
       leadingSlot={
         <SearchField
           testID="collection-search"

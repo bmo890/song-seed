@@ -5,6 +5,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
+import { useFullPlayerControls } from "../../../hooks/FullPlayerProvider";
 import {
   getClipOverdubStemCount,
   getClipPlaybackDurationMs,
@@ -146,6 +147,7 @@ export const ClipCard = React.memo(function ClipCard({
     (s) => s.playerTarget?.ideaId === idea.id && s.playerTarget.clipId === clip.id
   );
   const sessionPlaying = useStore((s) => s.playerIsPlaying);
+  const { togglePlayer } = useFullPlayerControls();
   // Live inline preview position — subscribed only while this card is the
   // active preview target, so 5Hz position commits re-render one card.
   const inlinePositionMs = useStore((s) => (inlineActive ? s.inlinePositionMs : 0));
@@ -333,11 +335,18 @@ export const ClipCard = React.memo(function ClipCard({
           clip.isBookmarked ? <Ionicons name="bookmark" size={15} color={colors.primary} /> : undefined
         }
         canPlay={hasClipPlaybackSource(clip)}
+        // Session sits on this exact take → the lead mirrors/drives the dock
+        // rather than starting a second inline preview of the same clip.
+        sessionLead={sessionActive ? (sessionPlaying ? "playing" : "paused") : null}
         durationLabel={durationLabel}
         onPressLead={() => {
           if (!canToggleInlinePlayback) return;
           if (!hasClipPlaybackSource(clip)) return;
           haptic.tap();
+          if (sessionActive) {
+            void togglePlayer();
+            return;
+          }
           void inlinePlayer.toggleInlinePlayback(idea.id, clip);
         }}
         onLongPressLead={displayOnly ? undefined : handleLongPress}

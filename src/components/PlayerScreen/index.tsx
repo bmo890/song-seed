@@ -9,7 +9,7 @@ import { styles } from "../../styles";
 import { colors } from "../../design/tokens";
 import { useFullPlayerContext } from "../../hooks/FullPlayerProvider";
 import { fmtDuration, formatClipDate } from "../../utils";
-import { TransportLayout } from "../common/TransportLayout";
+import { TransportLayout, type TransportLayoutHandle } from "../common/TransportLayout";
 import { useTransportScrubbing } from "../../hooks/useTransportScrubbing";
 import { usePlayerTransportClock } from "./hooks/usePlayerTransportClock";
 import { usePlaybackClick } from "../../hooks/usePlaybackClick";
@@ -764,6 +764,30 @@ export function PlayerScreen({
     prepareTransportForClose: practicePitchTransport.prepareForPlayerClose,
   });
 
+  const countInBars = ui.countInOption === "1b" ? 1 : ui.countInOption === "2b" ? 2 : 0;
+  // Start playback behind a bar count-in (none → plain start). Shared by the
+  // transport button and the Marks drawer's play-from glyph.
+  const startPlaybackBehindCountIn = useCallback(
+    (bars: number) => {
+      if (bars <= 0) {
+        lifecycle.handleTogglePlayPress();
+        return;
+      }
+      void playbackClick
+        .playWithCountIn(bars, () => lifecycle.handleTogglePlayPress())
+        .then((ran) => {
+          if (!ran) {
+            lifecycle.handleTogglePlayPress();
+          }
+        })
+        .catch(() => {
+          // A failed count-in must never eat the play press — start playback plain.
+          lifecycle.handleTogglePlayPress();
+        });
+    },
+    [lifecycle, playbackClick]
+  );
+
   // Count-in intercepts only a play START; pausing (and tapping during the count-in
   // itself) never counts. Falls through to a plain toggle whenever it can't run.
   const handleTogglePlayWithCountIn = useCallback(() => {
@@ -781,28 +805,18 @@ export function PlayerScreen({
       })();
       return;
     }
-    const bars = ui.countInOption === "1b" ? 1 : ui.countInOption === "2b" ? 2 : 0;
-    if (effectiveIsPlaying || bars <= 0) {
+    if (effectiveIsPlaying) {
       lifecycle.handleTogglePlayPress();
       return;
     }
-    void playbackClick
-      .playWithCountIn(bars, () => lifecycle.handleTogglePlayPress())
-      .then((ran) => {
-        if (!ran) {
-          lifecycle.handleTogglePlayPress();
-        }
-      })
-      .catch(() => {
-        // A failed count-in must never eat the play press — start playback plain.
-        lifecycle.handleTogglePlayPress();
-      });
+    startPlaybackBehindCountIn(countInBars);
   }, [
+    countInBars,
     effectiveIsPlaying,
     effectivePlayerPosition,
     handleLoopAwareSeek,
     lifecycle,
-    playbackClick,
+    startPlaybackBehindCountIn,
     ui.countInOption,
   ]);
 
@@ -814,6 +828,37 @@ export function PlayerScreen({
       playbackClick.notifySeek(timeMs);
     },
     [handleLoopAwareSeek, playbackClick]
+  );
+
+  // The Marks drawer's row play glyph: cue the mark, then roll. The loop-aware seek
+  // flags a manual jump, so the transport resumes from the mark rather than snapping
+  // to the loop start, and a mark outside the loop simply re-arms it. While already
+  // playing this is just the jump; otherwise the count-in choice applies exactly as
+  // it does to the transport button (the 3s run-up backs up from the mark).
+  const handlePlayFromMark = useCallback(
+    async (ms: number) => {
+      if (playbackClick.isCountingIn) playbackClick.cancelCountIn();
+      if (effectiveIsPlaying) {
+        await handleSeekWithClick(ms);
+        return;
+      }
+      if (ui.countInOption === "3s") {
+        await handleSeekWithClick(Math.max(0, ms - 3000));
+        lifecycle.handleTogglePlayPress();
+        return;
+      }
+      await handleSeekWithClick(ms);
+      startPlaybackBehindCountIn(countInBars);
+    },
+    [
+      countInBars,
+      effectiveIsPlaying,
+      handleSeekWithClick,
+      lifecycle,
+      playbackClick,
+      startPlaybackBehindCountIn,
+      ui.countInOption,
+    ]
   );
 
   // As a sheet (not a route) there's nothing for the system back to pop —
@@ -927,6 +972,9 @@ export function PlayerScreen({
     [setPracticeLoopRange, practiceLoopEnabled, handlePracticeLoopToggle]
   );
   const handleRequestAddPin = useCallback(() => handleAddPin(""), [handleAddPin]);
+  // The body's scroll handle — the Marks drawer asks it to bring a new mark into view.
+  const transportRef = useRef<TransportLayoutHandle>(null);
+  const handleRevealRow = useCallback((node: View) => transportRef.current?.reveal(node), []);
   const handleAddOverdub = useCallback(async (punchInMs: number) => {
     if (!playerIdea || !playerClip) return;
     // First overdub layer is free; stacking more is Pro. Existing multi-layer clips stay
@@ -1132,6 +1180,7 @@ export function PlayerScreen({
     // no top safe-area padding here — it would open a blank band under the grabber.
     <SafeAreaView style={[styles.screen, playerScreenStyles.screen]} edges={["left", "right", "bottom"]}>
       <TransportLayout
+        ref={transportRef}
         scrollable={!isReading}
         footerDivider={!isFullView}
         header={
@@ -1674,6 +1723,9 @@ export function PlayerScreen({
               durationMs={effectivePlayerDuration}
               playheadMs={effectivePlayerPosition}
               onSeek={handleSeekWithClick}
+              onPlayFrom={(ms) => void handlePlayFromMark(ms)}
+              isPlaying={effectiveIsPlaying}
+              onRevealRow={handleRevealRow}
               zoomMultiple={ui.practiceZoomMultiple}
               practiceLoopEnabled={practiceLoopEnabled}
               practiceLoopRange={practiceLoopRange}

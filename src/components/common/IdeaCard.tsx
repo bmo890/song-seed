@@ -113,6 +113,11 @@ export type IdeaCardProps = {
     // Lead column (play button + duration)
     canPlay: boolean;
     isInlinePlaying?: boolean;
+    /** When the dock / full-player session's current clip IS this card's play
+     *  clip, the lead glyph mirrors and drives THAT session instead of the inline
+     *  preview: "playing" → pause glyph, "paused" → play glyph. The caller routes
+     *  `onPressLead` to the session toggle. Null/undefined → inline-preview lead. */
+    sessionLead?: "playing" | "paused" | null;
     durationLabel: string;
     /** Called when the play/pause button is pressed */
     onPressLead: () => void;
@@ -218,6 +223,7 @@ export function IdeaCard({
     cornerBadge,
     canPlay,
     isInlinePlaying,
+    sessionLead,
     durationLabel,
     onPressLead,
     onLongPressLead,
@@ -253,6 +259,14 @@ export function IdeaCard({
     // The strip is the inline player only when the caller wired the new props;
     // otherwise (InlineIdeaCard et al.) the legacy slider row still renders.
     const stripIsInlinePlayer = inlineActive && onInlineScrub != null;
+    // One glyph, two engines: while the dock/full-player session sits on this
+    // exact clip the lead mirrors the session (so a minimized dock never shows an
+    // enabled "play" that would start a second, competing preview); otherwise it
+    // mirrors the card's own inline preview.
+    const leadShowsPause = sessionLead != null
+        ? sessionLead === "playing"
+        : !!inlineActive && !!isInlinePlaying;
+    const leadA11yLabel = leadShowsPause ? t("common.pause") : t("common.play");
     if (denseRow) {
         // Compact exists to scan and audition many clips fast — subtraction, but
         // still a real player: while this row is the active preview it EXTENDS to
@@ -296,12 +310,14 @@ export function IdeaCard({
                         }}
                         onLongPress={onLongPressLead}
                         hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
+                        accessibilityRole="button"
+                        accessibilityLabel={leadA11yLabel}
                     >
                         <Ionicons
-                            name={inlineActive && isInlinePlaying ? "pause" : "play"}
+                            name={leadShowsPause ? "pause" : "play"}
                             size={15}
                             color={!canPlay ? colors.textMuted : colors.textStrong}
-                            style={inlineActive && isInlinePlaying ? undefined : { marginStart: 2 }}
+                            style={leadShowsPause ? undefined : { marginStart: 2 }}
                         />
                     </Pressable>
                     {/* The main pressable spans title AND the meta cluster: the meta
@@ -434,12 +450,14 @@ export function IdeaCard({
                         onLongPress={onLongPressLead}
                         // 32pt glyph box + 6pt slop = 44pt effective target.
                         hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        accessibilityRole="button"
+                        accessibilityLabel={leadA11yLabel}
                     >
                         <Ionicons
-                            name={inlineActive && isInlinePlaying ? "pause" : "play"}
+                            name={leadShowsPause ? "pause" : "play"}
                             size={18}
                             color={!canPlay ? colors.textMuted : colors.textStrong}
-                            style={inlineActive && isInlinePlaying ? undefined : { marginStart: 2 }}
+                            style={leadShowsPause ? undefined : { marginStart: 2 }}
                         />
                     </Pressable>
                     {leadAccessory ?? null}

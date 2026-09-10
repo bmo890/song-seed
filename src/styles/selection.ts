@@ -97,6 +97,17 @@ export const selectionStyles = {
     left: 0,
     right: 0,
   },
+  // Inline variant: sits in the trailing stretch of a toolbar row (the
+  // collection page swaps only its filter/sort glyphs for these controls so the
+  // search field beside them stays live). No fill, no padding — the row owns both.
+  selectionTopBarInline: {
+    gap: 12,
+    minHeight: 0,
+    paddingHorizontal: 0,
+    backgroundColor: "transparent",
+    flexShrink: 0,
+    elevation: 0,
+  },
   selectionTopBarCount: {
     fontSize: 13,
     fontFamily: "PlusJakartaSans_600SemiBold",

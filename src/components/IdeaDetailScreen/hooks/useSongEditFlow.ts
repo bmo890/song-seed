@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect , useRef } from "react";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
 import { useStore } from "../../../state/useStore";
@@ -100,6 +100,11 @@ export function useSongEditFlow({
     workspaces,
   ]);
 
+  // Set while a confirmed draft discard is leaving the screen, so the
+  // beforeRemove guard below lets that one removal through instead of
+  // re-prompting against the stale closure (2026-09-10).
+  const discardingDraftRef = useRef(false);
+
   const handleCancel = useCallback((onDiscardAction?: () => void) => {
     const isDraft = selectedIdea?.isDraft;
     if (!hasChanges() && !isDraft) {
@@ -114,16 +119,27 @@ export function useSongEditFlow({
       () => {
         setIsEditMode(false);
         if (isDraft) {
+          // A discarded draft has no page to stay on: leave first, then drop
+          // it, so the sketch screen never renders "not found" for an idea
+          // that was deleted underneath it.
+          discardingDraftRef.current = true;
           appActions.deleteSelectedIdea(true);
+          if (onDiscardAction) {
+            onDiscardAction();
+          } else if (navigation.canGoBack?.()) {
+            navigation.goBack();
+          }
+          return;
         }
         onDiscardAction?.();
       },
       { confirmLabel: isDraft ? t("songDetail.yesRemove") : t("songDetail.yesDiscard"), icon: actionIcons.discard }
     );
-  }, [hasChanges, selectedIdea?.isDraft, setIsEditMode]);
+  }, [hasChanges, navigation, selectedIdea?.isDraft, setIsEditMode]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener("beforeRemove", (event: any) => {
+      if (discardingDraftRef.current) return;
       if (!isEditMode && !selectedIdea?.isDraft) return;
       event.preventDefault();
       handleCancel(() => navigation.dispatch(event.data.action));

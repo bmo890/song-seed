@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import Slider from "@react-native-community/slider";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,6 +9,7 @@ import { getCustomSectionOptions, getSectionColor, MIN_SECTION_LENGTH_MS } from 
 import type { SectionCustomInput } from "../hooks/usePlayerSections";
 import { formatBpmLabel, hasAnalysisResult, isTempoSteady } from "../../../domain/clipAnalysis";
 import { playerScreenStyles as s } from "../styles";
+import { styles } from "../../../styles";
 import { pd } from "./practiceDrawerStyles";
 import type { CountInOption } from "../hooks/usePlayerScreenUi";
 import type { ClipAnalysis, ClipSection, ClipSectionKind, PracticeMarker } from "../../../types";
@@ -38,7 +39,11 @@ import { UndoRedoButtons } from "../../common/useUndoHistory";
  * Selection replaces per-row controls: one mark at a time is "held", and only it
  * shows the inspector (edge chips, drag slider, zoom-scaled nudges, use-playhead).
  * Tapping a row or an edge chip also CUES the playhead there — deliberate, decided
- * 2026-07-31: no separate cue button, and no play control inside the editor.
+ * 2026-07-31: no separate cue button. That ruling also kept play controls out of the
+ * editor; SUPERSEDED 2026-09-10 by founder request — every row now carries one quiet
+ * trailing play glyph (cue + start, through the loop-aware seek), pinned at the row's
+ * end so it never moves between the held and unheld states. A newly added mark is
+ * held straight away and scrolled into view.
  *
  * RTL: rows tied to the tape's time axis are pinned LTR ("left = earlier" must
  * agree with the reel); language rows mirror normally. See `ltrRow`.
@@ -66,13 +71,19 @@ type PlayerPracticeDrawersProps = {
   playheadMs: number;
   /** Cue the playhead (does not start playback). */
   onSeek: (ms: number) => void;
+  /** Cue the playhead AND start playback there (the row's play glyph). */
+  onPlayFrom: (ms: number) => void;
+  isPlaying: boolean;
+  /** Scroll the enclosing body so `node` is fully visible (a just-added mark). */
+  onRevealRow?: (node: View) => void;
   /** Reel zoom multiple — scales the nudge step so carets stay micro-adjust. */
   zoomMultiple: number;
 
   // Marks
   sections: ClipSection[];
   practiceMarkers: PracticeMarker[];
-  onAddSection: (kind: ClipSectionKind, custom?: SectionCustomInput) => void;
+  /** Returns the new section's id (null when the spot was taken). */
+  onAddSection: (kind: ClipSectionKind, custom?: SectionCustomInput) => string | null;
   onEditSection: (sectionId: string, edits: { label: string; color: string }) => void;
   onRepositionSectionEdge: (sectionId: string, edge: "start" | "end", ms: number) => void;
   onSectionPreview: (preview: { id: string; startMs?: number; endMs?: number } | null) => void;
@@ -219,6 +230,9 @@ export function PlayerPracticeDrawers({
   durationMs,
   playheadMs,
   onSeek,
+  onPlayFrom,
+  isPlaying,
+  onRevealRow,
   zoomMultiple,
   sections,
   practiceMarkers,
@@ -275,6 +289,29 @@ export function PlayerPracticeDrawers({
   const { t } = useTranslation();
   const [drawer, setDrawer] = useState<Drawer>("marks");
   const [selected, setSelected] = useState<SelectedMark>(null);
+  // The mark whose play glyph started the current playback — it wears the accent
+  // only while the tape rolls; a pause or a cue elsewhere lets it go.
+  const [playFromId, setPlayFromId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isPlaying) setPlayFromId(null);
+  }, [isPlaying]);
+  // A just-added mark: held (selected) and, once its card has laid out, revealed.
+  const [pendingRevealId, setPendingRevealId] = useState<string | null>(null);
+  const pendingRevealNodeRef = useRef<View | null>(null);
+  const handlePendingRevealLayout = useCallback(() => {
+    const node = pendingRevealNodeRef.current;
+    if (node) onRevealRow?.(node);
+    setPendingRevealId(null);
+  }, [onRevealRow]);
+  const holdNewMark = useCallback(
+    (mark: NonNullable<SelectedMark>) => {
+      setSelected(mark);
+      setPendingRevealId(mark.id);
+      onSectionPreview(null);
+      onPinPreview(null);
+    },
+    [onPinPreview, onSectionPreview]
+  );
   const [loopEdge, setLoopEdge] = useState<"start" | "end">("start");
   const [stepUpSheetOpen, setStepUpSheetOpen] = useState(false);
   const [stepUpHelpOpen, setStepUpHelpOpen] = useState(false);
@@ -351,6 +388,33 @@ export function PlayerPracticeDrawers({
     const isSelected = selected != null && selected.kind === entry.kind && selected.id === id;
     const color = isSection ? getSectionColor(entry.section) : colors.primaryDeep;
     const name = isSection ? entry.section.label : entry.marker.label || t("player.pin");
+    const isPlayingFrom = isPlaying && playFromId === id;
+
+    // Cue + start from this mark. Holding the row is part of the gesture, so the
+    // inspector and the playhead agree about which mark is "the one".
+    const playButton = (
+      <Pressable
+        style={({ pressed }) => [pd.headIconBtn, pressed ? styles.pressDown : null]}
+        onPress={() => {
+          // Haptics: `tap` — an acknowledged button press.
+          haptic.tap();
+          if (!isSelected) {
+            setSelected(isSection ? { kind: "section", id, edge: "start" } : { kind: "pin", id });
+          }
+          setPlayFromId(id);
+          onPlayFrom(entry.atMs);
+        }}
+        hitSlop={6}
+        accessibilityRole="button"
+        accessibilityLabel={t("player.playFrom", { name })}
+      >
+        <Ionicons
+          name="play"
+          size={15}
+          color={isPlayingFrom ? colors.primaryDeep : colors.textSecondary}
+        />
+      </Pressable>
+    );
 
     const row = (
       <Pressable
@@ -368,6 +432,7 @@ export function PlayerPracticeDrawers({
             isSection ? { kind: "section", id, edge: "start" } : { kind: "pin", id }
           );
           // Selecting a mark cues the playhead to it — the whole point of holding it.
+          setPlayFromId(null);
           onSeek(entry.atMs);
         }}
         accessibilityRole="button"
@@ -397,10 +462,12 @@ export function PlayerPracticeDrawers({
             </Text>
           ) : null}
         </View>
+        {/* Trailing cluster: the play glyph keeps the end seat in both states; the
+            time (unheld) and the overflow (held) trade the seat beside it. */}
         {isSelected ? (
           <View style={pd.selectedHeadActions}>
             <Pressable
-              style={pd.headIconBtn}
+              style={({ pressed }) => [pd.headIconBtn, pressed ? styles.pressDown : null]}
               onPress={() =>
                 isSection ? setDetailModal({ mode: "edit", section: entry.section }) : setPinEditModal(entry.marker)
               }
@@ -414,13 +481,17 @@ export function PlayerPracticeDrawers({
             >
               <Ionicons name="ellipsis-horizontal" size={16} color={colors.primaryDeep} />
             </Pressable>
+            {playButton}
           </View>
         ) : (
-          <Text style={pd.markTime}>
-            {isSection
-              ? `${fmtDuration(entry.section.startMs)}–${fmtDuration(entry.section.endMs)}`
-              : fmtDuration(entry.atMs)}
-          </Text>
+          <View style={pd.markTrailing}>
+            <Text style={pd.markTime}>
+              {isSection
+                ? `${fmtDuration(entry.section.startMs)}–${fmtDuration(entry.section.endMs)}`
+                : fmtDuration(entry.atMs)}
+            </Text>
+            {playButton}
+          </View>
         )}
       </Pressable>
     );
@@ -470,8 +541,14 @@ export function PlayerPracticeDrawers({
         : null;
     })();
 
+    const isPendingReveal = pendingRevealId === id;
     return (
-      <View key={`${entry.kind}-${id}`} style={pd.selectedCard}>
+      <View
+        key={`${entry.kind}-${id}`}
+        style={pd.selectedCard}
+        ref={isPendingReveal ? pendingRevealNodeRef : undefined}
+        onLayout={isPendingReveal ? handlePendingRevealLayout : undefined}
+      >
         {row}
         <MarkInspector
           startMs={section ? section.startMs : entry.atMs}
@@ -561,7 +638,12 @@ export function PlayerPracticeDrawers({
         </Pressable>
         <Pressable
           style={({ pressed }) => [pd.inkLink, pressed ? s.toolHeaderPressed : null]}
-          onPress={() => setNamingPinId(onAddPin())}
+          onPress={() => {
+            const id = onAddPin();
+            if (!id) return;
+            holdNewMark({ kind: "pin", id });
+            setNamingPinId(id);
+          }}
           accessibilityRole="button"
           accessibilityLabel={t("player.addPin")}
         >
@@ -1076,11 +1158,13 @@ export function PlayerPracticeDrawers({
         title={t("player.addSection")}
         customOptions={customSectionOptions}
         onPickPreset={(kind) => {
-          onAddSection(kind);
+          const id = onAddSection(kind);
+          if (id) holdNewMark({ kind: "section", id, edge: "start" });
           setPickerOpen(false);
         }}
         onPickCustom={(custom) => {
-          onAddSection("custom", custom);
+          const id = onAddSection("custom", custom);
+          if (id) holdNewMark({ kind: "section", id, edge: "start" });
           setPickerOpen(false);
         }}
         onCreateNew={() => {
@@ -1098,8 +1182,12 @@ export function PlayerPracticeDrawers({
           detailModal?.mode === "edit" ? getSectionColor(detailModal.section) : colors.sectionCustom
         }
         onConfirm={(custom) => {
-          if (detailModal?.mode === "edit") onEditSection(detailModal.section.id, custom);
-          else onAddSection("custom", custom);
+          if (detailModal?.mode === "edit") {
+            onEditSection(detailModal.section.id, custom);
+          } else {
+            const id = onAddSection("custom", custom);
+            if (id) holdNewMark({ kind: "section", id, edge: "start" });
+          }
           setDetailModal(null);
         }}
         onDelete={

@@ -32,6 +32,10 @@ type FilterSortControlsProps = {
    *  screen); the filter/sort glyphs sit quietly to its right. */
   leadingSlot?: ReactNode;
   rightSlot?: ReactNode;
+  /** Swaps the filter/sort glyphs (and rightSlot) for this node IN PLACE —
+   *  selection mode's count · All · Cancel — while the leading slot (search)
+   *  stays mounted and live. The row keeps its height; nothing below moves. */
+  controlsOverride?: ReactNode;
   /** Mutual-exclusivity signal: when this value changes, both popovers close
    *  (e.g. an overflow menu elsewhere just opened). */
   closeSignal?: number;
@@ -46,7 +50,15 @@ type FilterSortControlsProps = {
  * told by the filled glyph + terracotta ink, never by a border or fill. Both
  * popover menus hang from the row's trailing edge.
  */
-export function FilterSortControls({ filter, sort, leadingSlot, rightSlot, closeSignal, onMenuOpen }: FilterSortControlsProps) {
+export function FilterSortControls({
+  filter,
+  sort,
+  leadingSlot,
+  rightSlot,
+  controlsOverride,
+  closeSignal,
+  onMenuOpen,
+}: FilterSortControlsProps) {
   const { t } = useTranslation();
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
@@ -63,6 +75,14 @@ export function FilterSortControls({ filter, sort, leadingSlot, rightSlot, close
     setSortMenuOpen(false);
   }, [closeSignal]);
 
+  // The controls a popover hangs from are gone while overridden — fold it away.
+  const overridden = !!controlsOverride;
+  useEffect(() => {
+    if (!overridden) return;
+    setFilterMenuOpen(false);
+    setSortMenuOpen(false);
+  }, [overridden]);
+
   return (
     <View style={styles.ideasToolbar}>
       {filterMenuOpen || sortMenuOpen ? (
@@ -72,48 +92,54 @@ export function FilterSortControls({ filter, sort, leadingSlot, rightSlot, close
       <View style={styles.ideasUtilityRow}>
         {leadingSlot ? <View style={styles.ideasUtilityRowLead}>{leadingSlot}</View> : null}
 
-        {filter ? (
-          <IconButton
-            icon={filter.active || filterMenuOpen ? "funnel" : "funnel-outline"}
-            tone="muted"
-            color={filter.active ? colors.primaryDeep : undefined}
-            size={18}
-            onPress={() => {
-              if (!filterMenuOpen) onMenuOpen?.();
-              setFilterMenuOpen((prev) => !prev);
-              setSortMenuOpen(false);
-            }}
-            accessibilityLabel={t("common.filtersMenu")}
-          />
-        ) : null}
+        {controlsOverride ? (
+          controlsOverride
+        ) : (
+          <>
+            {filter ? (
+              <IconButton
+                icon={filter.active || filterMenuOpen ? "funnel" : "funnel-outline"}
+                tone="muted"
+                color={filter.active ? colors.primaryDeep : undefined}
+                size={18}
+                onPress={() => {
+                  if (!filterMenuOpen) onMenuOpen?.();
+                  setFilterMenuOpen((prev) => !prev);
+                  setSortMenuOpen(false);
+                }}
+                accessibilityLabel={t("common.filtersMenu")}
+              />
+            ) : null}
 
-        {filter?.active && filter.onClear ? (
-          <IconButton
-            icon="close"
-            tone="muted"
-            size={14}
-            hitSlop={13}
-            onPress={filter.onClear}
-            accessibilityLabel={t("common.clearFilters")}
-          />
-        ) : null}
+            {filter?.active && filter.onClear ? (
+              <IconButton
+                icon="close"
+                tone="muted"
+                size={14}
+                hitSlop={13}
+                onPress={filter.onClear}
+                accessibilityLabel={t("common.clearFilters")}
+              />
+            ) : null}
 
-        {sort ? (
-          <IconButton
-            icon="swap-vertical"
-            tone="muted"
-            color={sort.active || sortMenuOpen ? colors.primaryDeep : undefined}
-            size={18}
-            onPress={() => {
-              if (!sortMenuOpen) onMenuOpen?.();
-              setSortMenuOpen((prev) => !prev);
-              setFilterMenuOpen(false);
-            }}
-            accessibilityLabel={t("common.sortMenu")}
-          />
-        ) : null}
+            {sort ? (
+              <IconButton
+                icon="swap-vertical"
+                tone="muted"
+                color={sort.active || sortMenuOpen ? colors.primaryDeep : undefined}
+                size={18}
+                onPress={() => {
+                  if (!sortMenuOpen) onMenuOpen?.();
+                  setSortMenuOpen((prev) => !prev);
+                  setFilterMenuOpen(false);
+                }}
+                accessibilityLabel={t("common.sortMenu")}
+              />
+            ) : null}
 
-        {rightSlot ? <View style={styles.ideasUtilityRowRight}>{rightSlot}</View> : null}
+            {rightSlot ? <View style={styles.ideasUtilityRowRight}>{rightSlot}</View> : null}
+          </>
+        )}
       </View>
 
       {filter && filterMenuOpen ? (
