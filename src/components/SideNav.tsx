@@ -21,6 +21,7 @@ type IoniconName = ComponentProps<typeof Ionicons>["name"];
 // glyph's hue never competes with a signal. One muted tone for every row.
 const NAV_ICON_COLOR = colors.textSecondary;
 const NAV_ICONS = {
+  collection: "folder-outline",
   notepad: "journal-outline",
   shelf: "file-tray-outline",
   compilations: "library-outline",
@@ -97,7 +98,6 @@ export function SideNav({
   onOpenCollection,
 }: Props) {
   const { t } = useTranslation();
-  const mostRecent = recentCollections[0] ?? null;
   const workspaceTheme = getWorkspaceTheme(workspaceColor);
 
   // The Shelf's one honest signal: a small count of items in their final stretch,
@@ -191,39 +191,24 @@ export function SideNav({
           </View>
 
           {/* Collections — the door to everything in this workspace. Plain row,
-              sitting directly on the tint (no boxed surface). */}
+              sitting directly on the tint (no boxed surface). The count rides
+              inside the label ("Collections · 3") as quiet inventory, not a badge.
+              The card ends here: it names where you are and offers the one door;
+              shortcuts into particular collections live in RECENT below, where a
+              section label can explain them (2026-09-10). */}
           {workspaceTitle ? (
             <Pressable
               style={({ pressed }) => [sideNavStyles.cardRow, pressed ? styles.pressDown : null]}
               onPress={onGoWorkspace}
             >
               <Ionicons name="albums-outline" size={17} color={colors.primaryDeep} />
-              <Text style={sideNavStyles.cardRowLabel}>{t("navigation.collections")}</Text>
-              {collectionsCount > 0 ? (
-                <Text style={sideNavStyles.cardRowCount}>{collectionsCount}</Text>
-              ) : null}
+              <Text style={sideNavStyles.cardRowLabel} numberOfLines={1}>
+                {t("navigation.collections")}
+                {collectionsCount > 0 ? (
+                  <Text style={sideNavStyles.cardRowCount}>{` · ${collectionsCount}`}</Text>
+                ) : null}
+              </Text>
               <Ionicons name={dirIcon("chevron-forward")} size={14} color={colors.textMuted} />
-            </Pressable>
-          ) : null}
-
-          {/* Most recent collection — indented one level, because it lives INSIDE
-              Collections: this is a shortcut into one of them, not a sibling. */}
-          {mostRecent ? (
-            <Pressable
-              style={({ pressed }) => [
-                sideNavStyles.cardRow,
-                sideNavStyles.recentRow,
-                pressed ? styles.pressDown : null,
-              ]}
-              onPress={() => onOpenCollection(mostRecent.id)}
-              accessibilityLabel={`${t("navigation.recent")} · ${mostRecent.title}`}
-            >
-              <Ionicons name="folder-outline" size={16} color={colors.textSecondary} />
-              <UserText value={mostRecent.title} style={sideNavStyles.recentLabel} numberOfLines={1}>
-                {mostRecent.title}
-              </UserText>
-              {/* A clock glyph marks recency; the label already names the place. */}
-              <Ionicons name="time-outline" size={14} color={colors.textMuted} />
             </Pressable>
           ) : null}
         </View>
@@ -234,9 +219,36 @@ export function SideNav({
         contentContainerStyle={sideNavStyles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Recent — shortcuts into the collections you were last inside. Sits
+            directly under the workspace card because, like the card, it is
+            scoped to THIS workspace; everything after the divider is global.
+            Absent entirely (no label, no divider) until something has been
+            opened, so a fresh workspace's drawer stays quiet. */}
+        {recentCollections.length > 0 ? (
+          <>
+            <Text style={sideNavStyles.sectionLabelScroll}>{t("navigation.recent")}</Text>
+            {recentCollections.map((entry) => (
+              <NavRow
+                key={entry.id}
+                testID={`nav-recent-${entry.id}`}
+                icon={NAV_ICONS.collection}
+                iconColor={NAV_ICON_COLOR}
+                label={entry.title}
+                supporting={entry.meta}
+                userLabel
+                active={entry.active === true}
+                onPress={() => onOpenCollection(entry.id)}
+                accessibilityLabel={`${t("navigation.recent")} · ${entry.title}`}
+              />
+            ))}
+            <View style={sideNavStyles.divider} />
+          </>
+        ) : null}
+
         {/* Act-now — the two things you DO: capture a line, and clear ideas
-            waiting on a decision. Unlabelled on purpose; their position (first,
-            right under the workspace) is what marks them as primary. */}
+            waiting on a decision. Unlabelled on purpose; their position (first
+            global rows, right under the workspace context) is what marks them
+            as primary. */}
         <NavRow
           icon={NAV_ICONS.notepad}
           iconColor={NAV_ICON_COLOR}
@@ -436,24 +448,13 @@ const sideNavStyles = StyleSheet.create({
     lineHeight: 20,
     color: colors.textPrimary,
   },
-  // Quiet inventory count — information, not a badge asking for action.
+  // Quiet inventory count — information, not a badge asking for action. Nested
+  // inside the label's Text so it reads as part of the phrase ("Collections · 3").
   cardRowCount: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 12,
     fontVariant: ["tabular-nums"],
     color: colors.textMuted,
-  },
-  // The recent collection is nested under Collections — indented one level.
-  recentRow: {
-    paddingStart: 26,
-  },
-  recentLabel: {
-    flex: 1,
-    minWidth: 0,
-    fontFamily: "PlusJakartaSans_500Medium",
-    fontSize: 14,
-    lineHeight: 19,
-    color: colors.textPrimary,
   },
 
   // Scrollable sections

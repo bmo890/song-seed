@@ -35,7 +35,7 @@ function ActionRow({ icon, label, destructive = false, onPress }: ActionRowProps
         <Ionicons
           name={icon}
           size={16}
-          color={destructive ? colors.danger : "#334155"}
+          color={destructive ? colors.danger : colors.textSecondary}
         />
         <Text
           style={[
@@ -49,7 +49,7 @@ function ActionRow({ icon, label, destructive = false, onPress }: ActionRowProps
       <Ionicons
         name={destructive ? "alert-circle-outline" : "chevron-forward"}
         size={15}
-        color={destructive ? colors.danger : "#94a3b8"}
+        color={destructive ? colors.danger : colors.textMuted}
       />
     </Pressable>
   );
@@ -74,7 +74,7 @@ export function CollectionActionsModal({
             <View style={styles.collectionActionsOptionList}>
               <ActionRow icon="create-outline" label={t("modals.rename")} onPress={onRename} />
               <ActionRow icon="copy-outline" label={t("common.copy")} onPress={onCopy} />
-              <ActionRow icon="swap-horizontal-outline" label={t("modals.move")} onPress={onMove} />
+              <ActionRow icon="swap-horizontal-outline" label={t("common.move")} onPress={onMove} />
               <ActionRow icon="trash-outline" label={t("common.delete")} destructive onPress={onDelete} />
             </View>
           </Pressable>

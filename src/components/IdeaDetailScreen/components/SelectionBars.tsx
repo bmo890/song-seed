@@ -30,6 +30,9 @@ export function SelectionBars() {
   const replaceClipSelection = useStore((s) => s.replaceClipSelection);
   const [isSharing, setIsSharing] = useState(false);
   const [moreVisible, setMoreVisible] = useState(false);
+  // Second-level sheets under "More" — the overflow lists intents, each intent
+  // opens its own short sheet (same close-then-open handoff the group sheet uses).
+  const [subSheet, setSubSheet] = useState<"copyMove" | "share" | "thread" | null>(null);
   const [tagSheetVisible, setTagSheetVisible] = useState(false);
   const [groupSheetVisible, setGroupSheetVisible] = useState(false);
   const globalCustomClipTags = useStore((s) => s.globalCustomClipTags);
@@ -356,7 +359,7 @@ export function SelectionBars() {
           },
           {
             key: "more",
-            label: t("chordChart.more"),
+            label: t("common.more"),
             icon: "ellipsis-horizontal",
             onPress: () => setMoreVisible(true),
           },
@@ -384,13 +387,13 @@ export function SelectionBars() {
           },
           {
             key: "more",
-            label: t("chordChart.more"),
+            label: t("common.more"),
             icon: "ellipsis-horizontal",
             onPress: () => setMoreVisible(true),
           },
         ];
 
-  const sheetActions: SelectionAction[] = [
+  const copyMoveActions: SelectionAction[] = [
     {
       key: "copy",
       label: t("common.copy"),
@@ -399,18 +402,23 @@ export function SelectionBars() {
     },
     {
       key: "move",
-      label: t("songDetail.move"),
+      label: t("common.move"),
       icon: "arrow-forward-outline",
       onPress: () => handleClipboardAction("move"),
     },
-    {
-      key: "share",
-      label: isSharing ? t("songDetail.sharing") : t("songDetail.shareCount", { count: shareableClips.length }),
-      icon: "share-social-outline",
-      onPress: () => { void handleShareSelected(); },
-      disabled: isSharing || shareableClips.length === 0,
-    },
-    ...(__DEV__ || isSendServiceConfigured()
+  ];
+
+  const shareAction: SelectionAction = {
+    key: "share",
+    label: isSharing ? t("songDetail.sharing") : t("songDetail.shareCount", { count: shareableClips.length }),
+    icon: "share-social-outline",
+    onPress: () => { void handleShareSelected(); },
+    disabled: isSharing || shareableClips.length === 0,
+  };
+  const linkAvailable = __DEV__ || isSendServiceConfigured();
+  const shareActions: SelectionAction[] = [
+    shareAction,
+    ...(linkAvailable
       ? [
           {
             key: "get-link",
@@ -421,6 +429,9 @@ export function SelectionBars() {
           },
         ]
       : []),
+  ];
+
+  const threadActions: SelectionAction[] = [
     {
       key: "set-parent",
       label: t("songDetail.setParent"),
@@ -444,6 +455,49 @@ export function SelectionBars() {
           },
         ]
       : []),
+    ...(selectedIdea && selectedLineageRootIds.length > 0
+      ? [
+          {
+            key: "assign-group",
+            label:
+              selectedLineageRootIds.length === 1 ? t("songDetail.assignGroup") : t("songDetail.assignGroupSelected"),
+            icon: "folder-open-outline" as const,
+            onPress: () => setGroupSheetVisible(true),
+          },
+        ]
+      : []),
+  ];
+
+  // The overflow lists four intents at most; each "…" row hands off to a
+  // second-level sheet (the SelectionActionSheet already closes itself before
+  // running onPress, so the next sheet opens cleanly).
+  const sheetActions: SelectionAction[] = [
+    {
+      key: "copy-or-move",
+      label: t("selection.copyOrMove"),
+      icon: "copy-outline",
+      onPress: () => setSubSheet("copyMove"),
+    },
+    // Without a link service there is nothing to choose between — keep the
+    // direct Share row instead of a one-row second level.
+    linkAvailable
+      ? {
+          key: "share-menu",
+          label: t("selection.shareMenu"),
+          icon: "share-social-outline",
+          onPress: () => setSubSheet("share"),
+        }
+      : shareAction,
+    ...(threadActions.length > 0
+      ? [
+          {
+            key: "thread",
+            label: t("selection.thread"),
+            icon: "git-branch-outline" as const,
+            onPress: () => setSubSheet("thread"),
+          },
+        ]
+      : []),
     ...(selectedClips.length === 1 && selectedIdea && singleSelectedClip
       ? [
           {
@@ -453,17 +507,6 @@ export function SelectionBars() {
               ? "bookmark"
               : "bookmark-outline") as SelectionAction["icon"],
             onPress: handleToggleBookmark,
-          },
-        ]
-      : []),
-    ...(selectedIdea && selectedLineageRootIds.length > 0
-      ? [
-          {
-            key: "assign-group",
-            label:
-              selectedLineageRootIds.length === 1 ? t("songDetail.assignGroup") : t("songDetail.assignGroupSelected"),
-            icon: "folder-open-outline" as const,
-            onPress: () => setGroupSheetVisible(true),
           },
         ]
       : []),
@@ -487,6 +530,27 @@ export function SelectionBars() {
         title={t("songDetail.songActions")}
         actions={sheetActions}
         onClose={() => setMoreVisible(false)}
+      />
+
+      <SelectionActionSheet
+        visible={subSheet === "copyMove"}
+        title={t("selection.copyOrMoveTitle")}
+        actions={copyMoveActions}
+        onClose={() => setSubSheet(null)}
+      />
+
+      <SelectionActionSheet
+        visible={subSheet === "share"}
+        title={t("selection.shareTitle")}
+        actions={shareActions}
+        onClose={() => setSubSheet(null)}
+      />
+
+      <SelectionActionSheet
+        visible={subSheet === "thread"}
+        title={t("selection.threadTitle")}
+        actions={threadActions}
+        onClose={() => setSubSheet(null)}
       />
 
       <SelectionActionSheet

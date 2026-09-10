@@ -33,7 +33,7 @@ export function CollectionMoveModal({
 }: Props) {
   const { t } = useTranslation();
   const resolvedTitle = title ?? t("collection.moveCollection");
-  const resolvedConfirmLabel = confirmLabel ?? t("modals.move");
+  const resolvedConfirmLabel = confirmLabel ?? t("common.move");
   const groupedDestinations = destinations.reduce<Record<string, CollectionMoveDestination[]>>((acc, destination) => {
     if (!acc[destination.workspaceId]) {
       acc[destination.workspaceId] = [];

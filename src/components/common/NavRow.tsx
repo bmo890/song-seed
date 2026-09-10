@@ -2,13 +2,21 @@ import type { ComponentProps, ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
-import { colors } from "../../design/tokens";
+import { colors, text } from "../../design/tokens";
+import { UserText } from "../../i18n";
 
 type NavRowProps = {
   icon: ComponentProps<typeof Ionicons>["name"];
   iconColor: string;
   label: string;
   eyebrow?: string;
+  // A quiet second line under the title — a path, never a sentence.
+  supporting?: string;
+  // The label (and supporting line) is user-authored text: render it through
+  // UserText so its direction follows the content, not the app language.
+  userLabel?: boolean;
+  testID?: string;
+  accessibilityLabel?: string;
   active?: boolean;
   nested?: boolean;
   disabled?: boolean;
@@ -21,6 +29,10 @@ export function NavRow({
   iconColor,
   label,
   eyebrow,
+  supporting,
+  userLabel = false,
+  testID,
+  accessibilityLabel,
   active = false,
   nested = false,
   disabled = false,
@@ -29,8 +41,9 @@ export function NavRow({
 }: NavRowProps) {
   return (
     <Pressable
-      testID={`nav-row-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`}
+      testID={testID ?? `nav-row-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`}
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       style={({ pressed }) => [
         navRowStyles.row,
         active ? navRowStyles.rowActive : null,
@@ -45,9 +58,26 @@ export function NavRow({
         <Ionicons name={icon} size={16} color={iconColor} />
         <View style={navRowStyles.copy}>
           {eyebrow ? <Text style={navRowStyles.eyebrow}>{eyebrow}</Text> : null}
-          <Text style={eyebrow ? navRowStyles.titleStrong : navRowStyles.title} numberOfLines={1}>
-            {label}
-          </Text>
+          {userLabel ? (
+            <UserText value={label} style={eyebrow ? navRowStyles.titleStrong : navRowStyles.title} numberOfLines={1}>
+              {label}
+            </UserText>
+          ) : (
+            <Text style={eyebrow ? navRowStyles.titleStrong : navRowStyles.title} numberOfLines={1}>
+              {label}
+            </Text>
+          )}
+          {supporting ? (
+            userLabel ? (
+              <UserText value={supporting} style={navRowStyles.supporting} numberOfLines={1}>
+                {supporting}
+              </UserText>
+            ) : (
+              <Text style={navRowStyles.supporting} numberOfLines={1}>
+                {supporting}
+              </Text>
+            )
+          ) : null}
         </View>
       </View>
       {accessory}
@@ -106,5 +136,9 @@ const navRowStyles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 20,
     color: colors.textPrimary,
+  },
+  supporting: {
+    ...text.supporting,
+    lineHeight: 17,
   },
 });

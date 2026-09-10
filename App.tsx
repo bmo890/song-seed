@@ -547,7 +547,7 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
                 : null;
 
   const recentCollections = activeWorkspace
-    ? getRecentCollectionsForWorkspace(activeWorkspace, collectionLastOpenedAt, 1).map((entry) => ({
+    ? getRecentCollectionsForWorkspace(activeWorkspace, collectionLastOpenedAt, 2).map((entry) => ({
         id: entry.collection.id,
         title: entry.collection.title,
         level: entry.level,

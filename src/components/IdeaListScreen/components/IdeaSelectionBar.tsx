@@ -49,6 +49,9 @@ export function IdeaSelectionBar({
   const { t } = useTranslation();
   const [isSharing, setIsSharing] = useState(false);
   const [moreVisible, setMoreVisible] = useState(false);
+  // Second-level "Copy or move" sheet under More (More closes itself before
+  // handing off, so the next sheet opens cleanly).
+  const [copyMoveVisible, setCopyMoveVisible] = useState(false);
   const navigation = useNavigation<any>();
 
   const selectedListIdeaIds = useStore((s) => s.selectedListIdeaIds);
@@ -321,7 +324,7 @@ export function IdeaSelectionBar({
         collectorAction,
         {
           key: "more",
-          label: t("common.moreOptions"),
+          label: t("common.more"),
           icon: "ellipsis-horizontal",
           onPress: () => setMoreVisible(true),
         },
@@ -346,7 +349,7 @@ export function IdeaSelectionBar({
         },
         {
           key: "more",
-          label: t("common.moreOptions"),
+          label: t("common.more"),
           icon: "ellipsis-horizontal",
           onPress: () => setMoreVisible(true),
         },
@@ -373,7 +376,7 @@ export function IdeaSelectionBar({
       },
       {
         key: "more",
-        label: t("common.moreOptions"),
+        label: t("common.more"),
         icon: "ellipsis-horizontal",
         onPress: () => setMoreVisible(true),
       },
@@ -419,18 +422,7 @@ export function IdeaSelectionBar({
         onPress: handleToggleBookmarks,
         disabled: interactiveSelectedIdeas.length === 0,
       });
-      actions.push({
-        key: "copy",
-        label: t("common.copyAction"),
-        icon: "copy-outline",
-        onPress: () => handleClipboardAction("copy"),
-      });
-      actions.push({
-        key: "move",
-        label: t("common.moveAction"),
-        icon: "arrow-forward-outline",
-        onPress: () => handleClipboardAction("move"),
-      });
+      // Bookmark and Shelf sit together — both are "keep this for later".
       actions.push({
         key: "set-aside",
         label:
@@ -441,6 +433,12 @@ export function IdeaSelectionBar({
         icon: "timer-outline",
         onPress: handleSetAsideSelection,
         disabled: interactiveSelectedIdeas.length === 0,
+      });
+      actions.push({
+        key: "copy-or-move",
+        label: t("selection.copyOrMove"),
+        icon: "copy-outline",
+        onPress: () => setCopyMoveVisible(true),
       });
     }
 
@@ -463,13 +461,30 @@ export function IdeaSelectionBar({
     shareableClips.length,
   ]);
 
+  const copyMoveActions: SelectionAction[] = [
+    {
+      key: "copy",
+      label: t("common.copy"),
+      icon: "copy-outline",
+      onPress: () => handleClipboardAction("copy"),
+    },
+    {
+      key: "move",
+      label: t("common.move"),
+      icon: "arrow-forward-outline",
+      onPress: () => handleClipboardAction("move"),
+    },
+  ];
+
   // Choosing an action is terminal: selection mode ends the moment it's tapped,
   // for EVERY action (play, add-to-queue, hide, delete, edit, share, copy, move,
-  // make-song…). The one exception is "More", which just opens the overflow sheet
-  // and must keep the selection alive for the actions inside it. Wrapping here
-  // guarantees consistency no matter what each handler does internally.
+  // make-song…). The exceptions are "More" and "Copy or move…", which only open
+  // a sheet and must keep the selection alive for the actions inside it.
+  // Wrapping here guarantees consistency no matter what each handler does
+  // internally.
+  const OPENS_SHEET = new Set(["more", "copy-or-move"]);
   const endsSelection = (action: SelectionAction): SelectionAction =>
-    action.key === "more"
+    OPENS_SHEET.has(action.key)
       ? action
       : {
           ...action,
@@ -491,6 +506,13 @@ export function IdeaSelectionBar({
         title={t("selection.collectionActions")}
         actions={sheetActions.map(endsSelection)}
         onClose={() => setMoreVisible(false)}
+      />
+
+      <SelectionActionSheet
+        visible={copyMoveVisible}
+        title={t("selection.copyOrMoveTitle")}
+        actions={copyMoveActions.map(endsSelection)}
+        onClose={() => setCopyMoveVisible(false)}
       />
     </>
   );

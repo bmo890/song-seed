@@ -243,7 +243,7 @@ export function useWorkspaceCollectionSelection({
   const selectionSheetActions: SelectionAction[] = [
     {
       key: "copy",
-      label: t("common.copyAction"),
+      label: t("common.copy"),
       icon: "copy-outline",
       onPress: () => {
         setSelectionMoreVisible(false);
@@ -252,7 +252,7 @@ export function useWorkspaceCollectionSelection({
     },
     {
       key: "move",
-      label: t("common.moveAction"),
+      label: t("common.move"),
       icon: "swap-horizontal-outline",
       onPress: () => {
         setSelectionMoreVisible(false);
