@@ -3,10 +3,17 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
+import { dirIcon } from "../../../design/directionalIcons";
+import { haptic } from "../../../design/haptics";
+import { getHierarchyIconName } from "../../../domain/hierarchy";
 import { SurfaceCard } from "../../common/SurfaceCard";
+import { useStore } from "../../../state/useStore";
 import type { ChordSheet, LyricsLine } from "../../../types";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../../i18n";
+
+/** `seenHints` id — the Sketch door's first-visit wash settles once tapped. */
+export const SKETCH_DOOR_HINT = "sketchDoor";
 
 /** Distinct chords in playing order, for a door handle like "Am · C · F". */
 function summarizeChords(symbols: string[], max = 4): string {
@@ -112,9 +119,56 @@ function Door({
   );
 }
 
+/**
+ * The ghost door: a standalone clip has no Lyrics or Chart yet, so the slot
+ * where a sketch's doors sit holds the one door that isn't built — Sketch.
+ * Tonal, shadowless (nothing behind it yet). Until the first tap, and only
+ * while the library has no sketch at all, it wears the terracotta wash so
+ * the first clip ever recorded learns where sketches come from.
+ */
+function SketchDoor({ onPress }: { onPress: () => void }) {
+  const { t } = useTranslation();
+  const seen = useStore((s) => s.seenHints.includes(SKETCH_DOOR_HINT));
+  const anySketch = useStore((s) =>
+    s.workspaces.some((workspace) => workspace.ideas.some((idea) => idea.kind === "project"))
+  );
+  const firstVisit = !seen && !anySketch;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t("songDetail.makeSong")}
+      testID="player-sketch-door"
+      style={({ pressed }) => [
+        doorStyles.sketchDoor,
+        firstVisit ? doorStyles.sketchDoorFirstVisit : null,
+        pressed ? appStyles.pressDown : null,
+      ]}
+      onPress={() => {
+        // Haptic row: tap — "any acknowledged press". The commit itself
+        // (grow into a sketch) fires `success` in the lifecycle handler.
+        haptic.tap();
+        onPress();
+      }}
+    >
+      <View style={doorStyles.sketchKindRow}>
+        <Ionicons name={getHierarchyIconName("song")} size={14} color={colors.textSecondary} />
+        <Text style={doorStyles.kind}>{t("brand.sketch")}</Text>
+      </View>
+      <Text style={doorStyles.sketchTitle}>{t("player.sketchDoorTitle")}</Text>
+      <Text style={doorStyles.sketchBody}>{t("player.sketchDoorBody")}</Text>
+      <View style={doorStyles.sketchLinkRow}>
+        <Text style={doorStyles.sketchLink}>{t("songDetail.makeSong")}</Text>
+        <Ionicons name={dirIcon("chevron-forward")} size={14} color={colors.primaryDeep} />
+      </View>
+    </Pressable>
+  );
+}
+
 type Props = {
-  /** Only sketches carry artifacts; loose clips render no doors at all. */
+  /** Only sketches carry artifacts; a standalone clip gets the Sketch door instead. */
   canAuthor: boolean;
+  /** Set for a standalone clip idea: the ghost door's tap (grow into a sketch). */
+  onGrowSketch?: () => void;
   hasLyrics: boolean;
   lyricsPreviewLine: string;
   lyricsChordSummary: string;
@@ -137,6 +191,7 @@ type Props = {
  */
 export function PlayerArtifactDoors({
   canAuthor,
+  onGrowSketch,
   hasLyrics,
   lyricsPreviewLine,
   lyricsChordSummary,
@@ -150,7 +205,14 @@ export function PlayerArtifactDoors({
   onBuildChart,
 }: Props) {
   const { t } = useTranslation();
-  if (!canAuthor) return null;
+  if (!canAuthor) {
+    if (!onGrowSketch) return null;
+    return (
+      <View style={doorStyles.stack}>
+        <SketchDoor onPress={onGrowSketch} />
+      </View>
+    );
+  }
   return (
     <View style={doorStyles.stack}>
       <Door
@@ -242,6 +304,47 @@ const doorStyles = StyleSheet.create({
   cta: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 13,
+    color: colors.primaryDeep,
+  },
+  // The ghost door: tonal, no shadow. The hairline is reserved at rest
+  // (transparent) so the first-visit wash is a colour change, not a resize.
+  sketchDoor: {
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: "transparent",
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    gap: 2,
+  },
+  sketchDoorFirstVisit: {
+    backgroundColor: colors.primarySurface,
+    borderColor: colors.borderMuted,
+  },
+  sketchKindRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  sketchTitle: {
+    fontFamily: "Lora_500Medium",
+    fontSize: 19,
+    lineHeight: 25,
+    color: colors.textPrimary,
+    marginTop: 2,
+  },
+  sketchBody: {
+    ...textTokens.supporting,
+  },
+  sketchLinkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    marginTop: spacing.sm,
+  },
+  sketchLink: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 14,
     color: colors.primaryDeep,
   },
 });

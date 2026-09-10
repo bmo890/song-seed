@@ -18,7 +18,6 @@ import { buildGridRulerModel, snapToGrid, type GridRulerGrid } from "../../domai
 import { MinimapVisualizer } from "../visualizers/MinimapVisualizer";
 import type { SectionBand } from "../../domain/playerSections";
 import { fmt } from "../../utils";
-import { ltrRow } from "../../i18n/direction";
 import { colors } from "../../design/tokens";
 import { durations } from "../../design/motion";
 import { haptic } from "../../design/haptics";
@@ -66,11 +65,6 @@ type ReelPalette = {
     wavePlayedColor: string;
     rulerColor: string;
     playheadColor: string;
-    transportButtonColor: string;
-    transportButtonBorderColor: string;
-    transportIconColor: string;
-    playButtonColor: string;
-    playIconColor: string;
     expandButtonColor: string;
 };
 const LIGHT_REEL_PALETTE: ReelPalette = {
@@ -85,11 +79,6 @@ const LIGHT_REEL_PALETTE: ReelPalette = {
     // Record-red: the head is the one thing that MOVES, and on a reel that is the
     // colour the eye already hunts for. Brown sat inside the waveform's own family.
     playheadColor: colors.record,
-    transportButtonColor: colors.surface,
-    transportButtonBorderColor: colors.borderSubtle,
-    transportIconColor: colors.textStrong,
-    playButtonColor: colors.primary,
-    playIconColor: colors.surface,
     expandButtonColor: colors.page,
 };
 const DARK_REEL_PALETTE: ReelPalette = {
@@ -102,11 +91,6 @@ const DARK_REEL_PALETTE: ReelPalette = {
     wavePlayedColor: "#D89A85",
     rulerColor: "#5A473F",
     playheadColor: "#E8B865",
-    transportButtonColor: "#3A2D28",
-    transportButtonBorderColor: "#4A3A34",
-    transportIconColor: "#F5EDE7",
-    playButtonColor: colors.primary,
-    playIconColor: colors.surface,
     expandButtonColor: "rgba(0,0,0,0.4)",
 };
 
@@ -209,9 +193,15 @@ type Props = {
     zoomPlacement?: "top" | "bottom" | "overlay";
     topLeftContent?: ReactNode;
     onSeek: (timeMs: number) => void | Promise<void>;
-    onTogglePlay: () => void;
-    onSeekToStart: () => void | Promise<void>;
-    onSeekToEnd: () => void | Promise<void>;
+    /** @deprecated The reel no longer draws a transport (2026-09-10) — every host
+     *  renders the canon `TransportBar` beside it. Accepted so the remaining callers
+     *  (PlayerTimeline, RecordingOverdubGuide) keep compiling until they are next
+     *  touched; the values are ignored. */
+    onTogglePlay?: () => void;
+    /** @deprecated See `onTogglePlay`. */
+    onSeekToStart?: () => void | Promise<void>;
+    /** @deprecated See `onTogglePlay`. */
+    onSeekToEnd?: () => void | Promise<void>;
     onScrubStateChange?: (scrubbing: boolean) => void;
     selectedRanges?: Range[];
     practiceMarkers?: PracticeMarkerPreview[];
@@ -229,6 +219,7 @@ type Props = {
     renderBelowSurface?: (args: OverlayArgs) => ReactNode;
     renderBelowOverlay?: (args: OverlayArgs) => ReactNode;
     chrome?: ReelChrome;
+    /** @deprecated See `onTogglePlay` — there is no transport to show. */
     showTransportControls?: boolean;
     showExpandToggle?: boolean;
     showZoomControls?: boolean;
@@ -274,9 +265,6 @@ export function AudioReel({
     zoomPlacement = "bottom",
     topLeftContent,
     onSeek,
-    onTogglePlay,
-    onSeekToStart,
-    onSeekToEnd,
     onScrubStateChange,
     selectedRanges,
     practiceMarkers,
@@ -291,7 +279,6 @@ export function AudioReel({
     renderBelowSurface,
     renderBelowOverlay,
     chrome = "dark",
-    showTransportControls = true,
     showExpandToggle = true,
     showZoomControls = true,
     showTimingRow = true,
@@ -500,15 +487,6 @@ export function AudioReel({
                 }
             }
             await onSeek(targetMs);
-        } finally {
-            handleInteractionStateChange(false);
-        }
-    };
-
-    const handleTransportSeek = async (action: () => void | Promise<void>) => {
-        handleInteractionStateChange(true);
-        try {
-            await action();
         } finally {
             handleInteractionStateChange(false);
         }
@@ -977,47 +955,6 @@ export function AudioReel({
             ) : null}
 
             {showZoomControls && zoomPlacement === "bottom" ? zoomControls : null}
-
-            {showTransportControls ? (
-                <View style={[audioReelStyles.transportRow, ltrRow, compact ? audioReelStyles.transportRowCompact : null]}>
-                    <TouchableOpacity
-                        onPress={() => void handleTransportSeek(onSeekToStart)}
-                        style={[
-                            audioReelStyles.transportButton,
-                            compact ? audioReelStyles.transportButtonCompact : null,
-                            {
-                                backgroundColor: palette.transportButtonColor,
-                                borderColor: palette.transportButtonBorderColor,
-                            },
-                        ]}
-                    >
-                        <Feather name="skip-back" size={compact ? 20 : 24} color={palette.transportIconColor} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        onPress={onTogglePlay}
-                        style={[
-                            audioReelStyles.playButton,
-                            compact ? audioReelStyles.playButtonCompact : null,
-                            { backgroundColor: palette.playButtonColor },
-                        ]}
-                    >
-                        <Feather name={isPlaying ? "pause" : "play"} size={compact ? 22 : 24} color={palette.playIconColor} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        onPress={() => void handleTransportSeek(onSeekToEnd)}
-                        style={[
-                            audioReelStyles.transportButton,
-                            compact ? audioReelStyles.transportButtonCompact : null,
-                            {
-                                backgroundColor: palette.transportButtonColor,
-                                borderColor: palette.transportButtonBorderColor,
-                            },
-                        ]}
-                    >
-                        <Feather name="skip-forward" size={compact ? 20 : 24} color={palette.transportIconColor} />
-                    </TouchableOpacity>
-                </View>
-            ) : null}
         </>
     );
 }

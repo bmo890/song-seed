@@ -1,18 +1,14 @@
 import React from "react";
-import { colors, radii } from "../../../design/tokens";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { haptic } from "../../../design/haptics";
-import { PITCH_SHIFT_MAX_SEMITONES, PITCH_SHIFT_MIN_SEMITONES } from "../../../domain/pitchShift";
+import { StyleSheet, Text, View } from "react-native";
+import { colors, spacing, text } from "../../../design/tokens";
+import { SpeedPitchDials } from "../../common/SpeedPitchDials";
 import { useTranslation } from "react-i18next";
 
-const MIN_PLAYBACK_RATE = 0.5;
-const MAX_PLAYBACK_RATE = 2.0;
-const PLAYBACK_RATE_STEP = 0.1;
-
-function formatPlaybackRate(value: number) {
-  return `${value.toFixed(2)}x`;
-}
+/** The editor bakes the change into a new clip, so it reaches further than the
+ *  player's practice range: half speed to double. */
+const EDITOR_SPEED_MIN = 0.5;
+const EDITOR_SPEED_MAX = 2.0;
+const EDITOR_SPEED_PRESETS = [0.5, 0.75, 1, 1.5, 2] as const;
 
 type EditorTransformSectionProps = {
   playbackRate: number;
@@ -20,224 +16,52 @@ type EditorTransformSectionProps = {
   supportsPitchPreview: boolean;
   onAdjustPlaybackRate: (value: number) => void;
   onAdjustPitchShift: (value: number) => void;
-  onResetTransforms: () => void;
 };
 
+/** Speed & pitch — the player's own dials (SpeedPitchDials), so bending a take reads
+ *  the same in both rooms. Here the values are auditioned live and then baked into a
+ *  new clip by the footer's save; each dial resets from its own label. */
 export function EditorTransformSection({
   playbackRate,
   pitchShiftSemitones,
   supportsPitchPreview,
   onAdjustPlaybackRate,
   onAdjustPitchShift,
-  onResetTransforms,
 }: EditorTransformSectionProps) {
   const { t } = useTranslation();
-  const canDecreasePitch = supportsPitchPreview && pitchShiftSemitones > PITCH_SHIFT_MIN_SEMITONES;
-  const canIncreasePitch = supportsPitchPreview && pitchShiftSemitones < PITCH_SHIFT_MAX_SEMITONES;
-  const canDecreaseSpeed = playbackRate > MIN_PLAYBACK_RATE;
-  const canIncreaseSpeed = playbackRate < MAX_PLAYBACK_RATE;
-  const transformsActive = pitchShiftSemitones !== 0 || Math.abs(playbackRate - 1) > 0.001;
 
   return (
-    <View style={editorTransformStyles.section}>
-      <View style={editorTransformStyles.headerRow}>
-        <View>
-          <Text style={editorTransformStyles.label}>{t("editor.speedPitch")}</Text>
-          <Text style={editorTransformStyles.meta}>
-            {t("editor.transformHint")}
-          </Text>
-        </View>
-        <Pressable
-          style={[
-            editorTransformStyles.resetButton,
-            !transformsActive ? editorTransformStyles.resetButtonDisabled : null,
-          ]}
-          onPress={() => {
-            haptic.tap();
-            onResetTransforms();
-          }}
-          disabled={!transformsActive}
-        >
-          <Text
-            style={[
-              editorTransformStyles.resetButtonText,
-              !transformsActive ? editorTransformStyles.resetButtonTextDisabled : null,
-            ]}
-          >
-            {t("editor.reset")}
-          </Text>
-        </Pressable>
-      </View>
-
-      <View style={editorTransformStyles.row}>
-        <Text style={editorTransformStyles.rowLabel}>{t("editor.speed")}</Text>
-        <View style={editorTransformStyles.controlGroup}>
-          <Pressable
-            style={[
-              editorTransformStyles.stepButton,
-              !canDecreaseSpeed ? editorTransformStyles.stepButtonDisabled : null,
-            ]}
-            onPress={() => {
-              if (!canDecreaseSpeed) return;
-              haptic.light();
-              onAdjustPlaybackRate(playbackRate - PLAYBACK_RATE_STEP);
-            }}
-            disabled={!canDecreaseSpeed}
-          >
-            <Ionicons name="remove" size={16} color={canDecreaseSpeed ? colors.textStrong : colors.textMuted} />
-          </Pressable>
-          <View style={editorTransformStyles.valuePill}>
-            <Text style={editorTransformStyles.valueText}>{formatPlaybackRate(playbackRate)}</Text>
-          </View>
-          <Pressable
-            style={[
-              editorTransformStyles.stepButton,
-              !canIncreaseSpeed ? editorTransformStyles.stepButtonDisabled : null,
-            ]}
-            onPress={() => {
-              if (!canIncreaseSpeed) return;
-              haptic.light();
-              onAdjustPlaybackRate(playbackRate + PLAYBACK_RATE_STEP);
-            }}
-            disabled={!canIncreaseSpeed}
-          >
-            <Ionicons name="add" size={16} color={canIncreaseSpeed ? colors.textStrong : colors.textMuted} />
-          </Pressable>
-        </View>
-      </View>
-
-      <View style={editorTransformStyles.row}>
-        <Text style={editorTransformStyles.rowLabel}>{t("editor.pitch")}</Text>
-        <View style={editorTransformStyles.controlGroup}>
-          <Pressable
-            style={[
-              editorTransformStyles.stepButton,
-              !canDecreasePitch ? editorTransformStyles.stepButtonDisabled : null,
-            ]}
-            onPress={() => {
-              if (!canDecreasePitch) return;
-              haptic.light();
-              onAdjustPitchShift(pitchShiftSemitones - 1);
-            }}
-            disabled={!canDecreasePitch}
-          >
-            <Ionicons name="remove" size={16} color={canDecreasePitch ? colors.textStrong : colors.textMuted} />
-          </Pressable>
-          <View style={[editorTransformStyles.valuePill, !supportsPitchPreview ? editorTransformStyles.valuePillDisabled : null]}>
-            <Text style={editorTransformStyles.valueText}>
-              {supportsPitchPreview
-                ? `${pitchShiftSemitones > 0 ? "+" : ""}${pitchShiftSemitones} ${t("player.semitones")}`
-                : t("editor.unavailable")}
-            </Text>
-          </View>
-          <Pressable
-            style={[
-              editorTransformStyles.stepButton,
-              !canIncreasePitch ? editorTransformStyles.stepButtonDisabled : null,
-            ]}
-            onPress={() => {
-              if (!canIncreasePitch) return;
-              haptic.light();
-              onAdjustPitchShift(pitchShiftSemitones + 1);
-            }}
-            disabled={!canIncreasePitch}
-          >
-            <Ionicons name="add" size={16} color={canIncreasePitch ? colors.textStrong : colors.textMuted} />
-          </Pressable>
-        </View>
-      </View>
+    <View style={s.section}>
+      <SpeedPitchDials
+        playbackSpeed={playbackRate}
+        speedPresets={EDITOR_SPEED_PRESETS}
+        speedMin={EDITOR_SPEED_MIN}
+        speedMax={EDITOR_SPEED_MAX}
+        onSpeedTap={onAdjustPlaybackRate}
+        onSpeedSliding={onAdjustPlaybackRate}
+        onSpeedSlideEnd={onAdjustPlaybackRate}
+        pitchShiftSemitones={pitchShiftSemitones}
+        supportsPitchShift={supportsPitchPreview}
+        onAdjustPitchShift={onAdjustPitchShift}
+      />
+      <Text style={s.note}>
+        {supportsPitchPreview ? t("editor.transformHint") : t("editor.pitchUnavailable")}
+      </Text>
     </View>
   );
 }
 
-const editorTransformStyles = StyleSheet.create({
+const s = StyleSheet.create({
   section: {
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 4,
-    gap: 14,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
+    gap: spacing.md,
   },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontFamily: "PlusJakartaSans_700Bold",
-    color: colors.textPrimary,
-  },
-  meta: {
-    marginTop: 4,
+  note: {
+    ...text.supporting,
     fontSize: 12,
-    lineHeight: 18,
-    color: colors.textSecondary,
-    maxWidth: 260,
-  },
-  resetButton: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surfaceContainer,
-  },
-  resetButtonDisabled: {
-    backgroundColor: colors.surfaceContainer,
-  },
-  resetButtonText: {
-    fontSize: 12,
-    fontFamily: "PlusJakartaSans_700Bold",
-    color: colors.textStrong,
-  },
-  resetButtonTextDisabled: {
     color: colors.textMuted,
-  },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 16,
-  },
-  rowLabel: {
-    fontSize: 13,
-    fontFamily: "PlusJakartaSans_700Bold",
-    color: colors.textStrong,
-    paddingTop: 8,
-    minWidth: 48,
-  },
-  controlGroup: {
-    flex: 1,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    gap: 8,
-  },
-  stepButton: {
-    width: 36,
-    height: 34,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surfaceContainer,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepButtonDisabled: {
-    backgroundColor: colors.surfaceContainer,
-  },
-  valuePill: {
-    minWidth: 74,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surface,
-    alignItems: "center",
-  },
-  valuePillDisabled: {
-    backgroundColor: colors.surface,
-  },
-  valueText: {
-    fontSize: 13,
-    fontFamily: "PlusJakartaSans_700Bold",
-    color: colors.textPrimary,
+    paddingHorizontal: 10,
   },
 });

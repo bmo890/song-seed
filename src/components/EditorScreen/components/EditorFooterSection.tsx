@@ -1,7 +1,6 @@
 import React from "react";
-import { Pressable, StyleSheet, Text } from "react-native";
-import { colors, radii } from "../../../design/tokens";
-import { styles as appStyles } from "../../../styles";
+import { StyleSheet } from "react-native";
+import { Button } from "../../common/Button";
 import { useTranslation } from "react-i18next";
 
 type EditorFooterSectionProps = {
@@ -17,7 +16,9 @@ type EditorFooterSectionProps = {
 };
 
 /** One contextual primary action — the editor always has a single obvious next
- * step depending on the mode and intent. */
+ * step depending on the mode and intent. It opens the save step rather than
+ * committing, so it wears the tonal primary; solid primary is reserved for the
+ * confirm in the sheet that actually writes the clips. */
 export function EditorFooterSection({
   editorMode,
   intent,
@@ -53,38 +54,17 @@ export function EditorFooterSection({
   }
 
   return (
-    <Pressable
-      onPress={enabled ? onPress : undefined}
+    <Button
+      variant="primary"
+      label={label}
       disabled={!enabled}
-      style={({ pressed }) => [
-        s.cta,
-        !enabled ? s.ctaDisabled : null,
-        pressed && enabled ? appStyles.pressDown : null,
-      ]}
-      accessibilityRole="button"
+      onPress={onPress}
+      style={s.cta}
       accessibilityState={{ disabled: !enabled }}
-    >
-      <Text style={[s.ctaText, !enabled ? s.ctaTextDisabled : null]}>{label}</Text>
-    </Pressable>
+    />
   );
 }
 
 const s = StyleSheet.create({
-  /** Soft key, not a stadium pill (button language locked 2026-07-24). This opens the
-   *  save step rather than committing, so it wears the tonal terracotta wash; solid
-   *  primary is reserved for the confirm that actually writes the clips. */
-  cta: {
-    backgroundColor: colors.primarySurface,
-    borderRadius: radii.lg,
-    paddingVertical: 11,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ctaDisabled: { backgroundColor: colors.surfaceHigh },
-  ctaText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 15,
-    color: colors.primaryDeep,
-  },
-  ctaTextDisabled: { color: colors.textMuted },
+  cta: { alignSelf: "stretch" },
 });

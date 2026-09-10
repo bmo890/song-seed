@@ -15,6 +15,8 @@ import { useShelfStore } from "../../../state/useShelfStore";
 import { openShelf } from "../../../navigation";
 import { toast } from "../../common/toastStore";
 import { haptic } from "../../../design/haptics";
+import { getHierarchyIconName } from "../../../domain/hierarchy";
+import { SKETCH_DOOR_HINT } from "../components/PlayerArtifactDoors";
 import type { ClipVersion } from "../../../types";
 import { useTranslation } from "react-i18next";
 
@@ -429,8 +431,32 @@ export function usePlayerScreenLifecycle({
     useStore.getState().advancePlayerQueue("next", true);
   }, []);
 
+  // The Sketch door and the overflow's "Make sketch" share one commit: grow
+  // the standalone clip into a sketch, then land on its page in the naming
+  // step so it gets a title while the intent is fresh (same step the sketch
+  // page's own "Make sketch" takes).
+  const handleMakeSketch = useCallback(() => {
+    if (!playerIdea) return;
+    const ideaId = playerIdea.id;
+    if (!appActions.convertClipIdeaToProject(ideaId)) return;
+    const store = useStore.getState();
+    store.markHintSeen(SKETCH_DOOR_HINT);
+    store.setSelectedIdeaId(ideaId);
+    // Haptic row: success — "a meaningful completion: save landed". The sketch
+    // page arriving underneath is the confirmation; no toast.
+    haptic.success();
+    minimizePlayer();
+    navigation.navigate("IdeaDetail", { ideaId, startInEdit: true });
+  }, [minimizePlayer, navigation, playerIdea]);
+
   const handleOverflowMenu = useCallback(() => {
     const hasOverdubs = !!playerClip && clipHasOverdubs(playerClip);
+    const isStandaloneClip =
+      !!playerIdea &&
+      useStore
+        .getState()
+        .workspaces.flatMap((workspace) => workspace.ideas)
+        .find((idea) => idea.id === playerIdea.id)?.kind === "clip";
 
     const openFlattenedEditor = async () => {
       if (!playerIdea || !playerClip) return;
@@ -521,6 +547,17 @@ export function usePlayerScreenLifecycle({
               },
             },
           ]),
+      ...(isStandaloneClip
+        ? [
+            {
+              label: t("songDetail.makeSong"),
+              style: "default" as const,
+              // The sketch glyph — the same one the door's eyebrow wears.
+              icon: getHierarchyIconName("song"),
+              onPress: handleMakeSketch,
+            },
+          ]
+        : []),
       {
         label: t("player.share"),
         style: "default",
@@ -616,7 +653,7 @@ export function usePlayerScreenLifecycle({
       },
       { label: t("common.cancel"), style: "cancel" },
     ]);
-  }, [displayDuration, isPlayerPlaying, navigation, pausePlayer, playerClip, playerIdea, stopSessionAndClose, t]);
+  }, [displayDuration, handleMakeSketch, isPlayerPlaying, navigation, pausePlayer, playerClip, playerIdea, stopSessionAndClose, t]);
 
   return {
     /** True while THIS clip's waveform decode is actually in flight. */
@@ -628,5 +665,6 @@ export function usePlayerScreenLifecycle({
     handlePreviousTrack,
     handleNextTrack,
     handleOverflowMenu,
+    handleMakeSketch,
   };
 }

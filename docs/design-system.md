@@ -314,6 +314,7 @@ is fixed: the **title** takes the room and ellipsizes first, down to a floor of
 | Tabs/modes | `common/SegmentedControl.tsx` | Sliding thumb; pass `persist` (useSegmentedThumb) when the control survives subtree swaps. |
 | Screen header | `common/ScreenHeader.tsx` | Secondary screens: back + title (+ subtitle). Main screens: editorial `pageTitle`. There is no `AppHeader`; breadcrumbs component was removed — quiet `A › B` eyebrow text only. |
 | Sheets | `common/BottomSheet.tsx` | The only sheet primitive. |
+| Speed & pitch dials | `common/SpeedPitchDials.tsx` | The one speed/pitch idiom (slider + presets + serif value + per-dial reset + pitch tick rail). Player Sound drawer and the clip editor both use it; never re-implement ± steppers. |
 | Action sheets | `common/SelectionActionSheet.tsx` / `modals/ClipActionsSheet.tsx` pattern | **Max ~6 rows.** More than that means the screen's information architecture is wrong — split by intent or promote the top 1–2 actions inline. |
 | Overflow | `IconButton` `ellipsis-horizontal` → action sheet | |
 | Empty states | `common/EmptyState.tsx` | The ONLY "nothing here yet" surface (2026-09-08): icon ring · Lora title · one Jakarta line · at most one tonal soft key + one quiet ink link. `compact` inside a screen. No page carries a permanent intro paragraph — the empty state teaches once, the help sheet keeps the details. |

@@ -1,6 +1,6 @@
 import React from "react";
 import { ActivityIndicator, Modal, StyleSheet, Text, View } from "react-native";
-import { colors, radii, spacing } from "../../../design/tokens";
+import { colors, radii, spacing, text } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 
 type EditorExportProgressModalProps = {
@@ -11,7 +11,9 @@ export function EditorExportProgressModal({ visible }: EditorExportProgressModal
   const { t } = useTranslation();
   return (
     <Modal visible={visible} transparent animationType="fade">
-      <View style={styles.backdrop}>
+      <View style={styles.fill}>
+        {/* The scrim is its own layer so its opacity never dims the card. */}
+        <View style={styles.scrim} />
         <View style={styles.card}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.title}>{t("editor.exporting")}</Text>
@@ -23,11 +25,15 @@ export function EditorExportProgressModal({ visible }: EditorExportProgressModal
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
+  fill: {
     flex: 1,
-    backgroundColor: "rgba(27,28,26,0.45)",
     justifyContent: "center",
     alignItems: "center",
+  },
+  scrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.textPrimary,
+    opacity: 0.45,
   },
   card: {
     backgroundColor: colors.surface,
@@ -38,16 +44,14 @@ const styles = StyleSheet.create({
     maxWidth: 280,
   },
   title: {
+    ...text.caption,
     marginTop: spacing.md,
-    fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 16,
     color: colors.textPrimary,
   },
   subtitle: {
+    ...text.supporting,
     marginTop: spacing.xs,
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 13,
-    color: colors.textSecondary,
     textAlign: "center",
   },
 });

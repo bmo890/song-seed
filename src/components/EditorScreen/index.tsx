@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { colors, radii } from "../../design/tokens";
+import { colors, radii, spacing, text } from "../../design/tokens";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { View, Text, ActivityIndicator, TouchableOpacity, Pressable, StyleSheet } from "react-native";
+import { View, Text, ActivityIndicator, Pressable, StyleSheet } from "react-native";
 import { StackActions, useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useAudioPlayer } from "expo-audio";
@@ -10,11 +10,11 @@ import { MultiTimeRangeSelector } from "../common/TimeRangeSelector";
 import { AudioAnalysis } from "@siteed/audio-studio";
 import { styles } from "../../styles";
 import { RootStackParamList } from "../../navigation";
-import { Ionicons } from "@expo/vector-icons";
 import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
-import { Button } from "../common/Button";
 import { AudioReel } from "../common/AudioReel";
+import { TransportBar } from "../common/TransportBar";
+import { EmptyState } from "../common/EmptyState";
 import { useClipWaveform } from "../../hooks/useClipWaveform";
 import { loadAudioDurationMs } from "../../services/audioStorage";
 import { activatePlaybackAudioSession } from "../../services/audioSession";
@@ -64,44 +64,18 @@ const editorLocalStyles = StyleSheet.create({
         marginBottom: 4,
     },
     regionsLabel: {
-        fontFamily: "PlusJakartaSans_700Bold",
-        fontSize: 11,
-        letterSpacing: 1,
-        textTransform: "uppercase",
-        color: colors.textSecondary,
+        ...text.sectionTitle,
     },
+    /** Quiet ink link (tertiary tier): deep terracotta text, no chrome. */
     addLink: {
-        fontFamily: "PlusJakartaSans_600SemiBold",
-        fontSize: 13,
-        color: colors.primary,
+        ...text.caption,
+        color: colors.primaryDeep,
     },
-    overdubGate: {
-        gap: 20,
-        paddingTop: 40,
-        paddingHorizontal: 16,
-        alignItems: "center",
-    },
-    overdubGateIconRing: {
-        width: 56,
-        height: 56,
-        borderRadius: radii.round,
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: colors.primarySurface,
-    },
-    overdubGateTitle: {
-        fontFamily: "Lora_600SemiBold",
-        fontSize: 24,
-        lineHeight: 30,
-        color: colors.textPrimary,
-        textAlign: "center",
-    },
-    overdubGateBody: {
-        fontFamily: "PlusJakartaSans_400Regular",
-        fontSize: 14,
-        lineHeight: 21,
-        color: colors.textSecondary,
-        textAlign: "center",
+    /** The canon transport sits directly under the tape, at the dock's compact
+     *  size — the tape's own control, not a second headline. */
+    transportRow: {
+        paddingTop: spacing.md,
+        paddingBottom: spacing.xs,
     },
     inspectorWrap: {
         marginHorizontal: 16,
@@ -111,10 +85,13 @@ const editorLocalStyles = StyleSheet.create({
         backgroundColor: colors.surfaceContainer,
     },
     loadingText: {
-        marginTop: 12,
-        fontFamily: "PlusJakartaSans_400Regular",
-        fontSize: 13,
-        color: colors.textSecondary,
+        ...text.supporting,
+        marginTop: spacing.md,
+    },
+    noFile: {
+        ...text.supporting,
+        textAlign: "center",
+        marginTop: 40,
     },
 });
 
@@ -587,28 +564,16 @@ export function EditorScreen() {
                 scrollable
             >
                 {sourceClipHasOverdubs ? (
-                    <View style={editorLocalStyles.overdubGate}>
-                        <View style={editorLocalStyles.overdubGateIconRing}>
-                            <Ionicons name="layers-outline" size={26} color={colors.primary} />
-                        </View>
-                        <View style={{ gap: 8 }}>
-                            <Text style={editorLocalStyles.overdubGateTitle}>
-                                {t("editor.flattenFirst")}
-                            </Text>
-                            <Text style={editorLocalStyles.overdubGateBody}>
-                                {t("editor.flattenReason")}
-                            </Text>
-                        </View>
-
-                        <Button
-                            label={isFlatteningOverdub ? t("editor.savingCombined") : t("editor.saveCombinedContinue")}
-                            disabled={isFlatteningOverdub}
-                            onPress={() => {
-                                void handleFlattenOverdubAndContinue();
-                            }}
-                            style={{ alignSelf: "stretch" }}
-                        />
-                    </View>
+                    <EmptyState
+                        icon="layers-outline"
+                        title={t("editor.flattenFirst")}
+                        body={t("editor.flattenReason")}
+                        actionLabel={isFlatteningOverdub ? t("editor.savingCombined") : t("editor.saveCombinedContinue")}
+                        actionDisabled={isFlatteningOverdub}
+                        onAction={() => {
+                            void handleFlattenOverdubAndContinue();
+                        }}
+                    />
                 ) : isLoading ? (
                     <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
                         <ActivityIndicator size="large" color={colors.primary} />
@@ -653,9 +618,6 @@ export function EditorScreen() {
                             sharedPlaybackRate={transportClock.sharedPlaybackRate}
                             isScrubbing={transportScrub.isScrubbing}
                             onSeek={transportScrub.scrubTo}
-                            onTogglePlay={togglePlay}
-                            onSeekToStart={() => transportScrub.scrubTo(0)}
-                            onSeekToEnd={() => transportScrub.scrubTo(analysisData.durationMs)}
                             onScrubStateChange={(scrubbing) => {
                                 if (scrubbing) {
                                     void transportScrub.beginScrub();
@@ -704,6 +666,22 @@ export function EditorScreen() {
                             }
                         />
 
+                        {/* The skips go to the clip's ends: pause-seek-settle-resume, the
+                            same round trip the reel's own scrub makes (seekAndSettle). */}
+                        <View style={editorLocalStyles.transportRow}>
+                            <TransportBar
+                                size="compact"
+                                isPlaying={previewTransport.effectiveIsPlaying}
+                                canGoPrevious
+                                canGoNext
+                                onPrevious={() => void transportScrub.seekAndSettle(0)}
+                                onTogglePlay={togglePlay}
+                                onNext={() => void transportScrub.seekAndSettle(analysisData.durationMs)}
+                                previousLabel={t("editor.toStart")}
+                                nextLabel={t("editor.toEnd")}
+                            />
+                        </View>
+
                         {editorMode === "trim" ? (
                             <>
                                 <EditorTrimIntent
@@ -747,10 +725,7 @@ export function EditorScreen() {
                                         selectRange(range.id, "start");
                                         void transportScrub.seekAndSettle(range.start);
                                     }}
-                                    onRemoveRange={(rangeId) => {
-                                        haptic.tap();
-                                        removeRange(rangeId);
-                                    }}
+                                    onRemoveRange={removeRange}
                                 />
 
                                 {selectedRange ? (
@@ -807,14 +782,11 @@ export function EditorScreen() {
                                 supportsPitchPreview={previewTransport.isPitchPreviewAvailable}
                                 onAdjustPlaybackRate={transformState.setPlaybackRate}
                                 onAdjustPitchShift={transformState.setPitchShiftSemitones}
-                                onResetTransforms={transformState.resetTransforms}
                             />
                         )}
                     </>
                 ) : (
-                    <Text style={{ textAlign: "center", marginTop: 40, color: colors.textSecondary }}>
-                        {t("editor.noFile")}
-                    </Text>
+                    <Text style={editorLocalStyles.noFile}>{t("editor.noFile")}</Text>
                 )}
             </TransportLayout>
 

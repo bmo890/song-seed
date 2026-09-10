@@ -18,6 +18,8 @@ type QueueEntry = {
 type PlayerSupportSectionsProps = {
   /** Doors — only sketches carry readable artifacts. */
   canAuthor: boolean;
+  /** Standalone clip: the Sketch door's tap (grow this clip into a sketch). */
+  onGrowSketch?: () => void;
   hasLyrics: boolean;
   lyricsPreviewLine: string;
   lyricsChordSummary: string;
@@ -40,6 +42,7 @@ type PlayerSupportSectionsProps = {
 
 export function PlayerSupportSections({
   canAuthor,
+  onGrowSketch,
   hasLyrics,
   lyricsPreviewLine,
   lyricsChordSummary,
@@ -82,6 +85,7 @@ export function PlayerSupportSections({
       {/* Closed rung of the reading ladder: one door per artifact. */}
       <PlayerArtifactDoors
         canAuthor={canAuthor}
+        onGrowSketch={onGrowSketch}
         hasLyrics={hasLyrics}
         lyricsPreviewLine={lyricsPreviewLine}
         lyricsChordSummary={lyricsChordSummary}

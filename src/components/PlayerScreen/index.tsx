@@ -1834,6 +1834,9 @@ export function PlayerScreen({
           ) : (
             <PlayerSupportSections
               canAuthor={playerIdea.kind === "project"}
+              // Only a standalone clip gets the ghost door; takes inside a
+              // sketch already live in one.
+              onGrowSketch={playerIdea.kind === "clip" ? lifecycle.handleMakeSketch : undefined}
               hasLyrics={data.hasProjectLyrics}
               lyricsPreviewLine={lyricsPreviewLine}
               lyricsChordSummary={doorChordSummary}

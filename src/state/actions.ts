@@ -2125,25 +2125,52 @@ export const appActions = {
             });
     },
 
-    convertSelectedClipIdeaToProject: () => {
+    /**
+     * Grow a standalone clip idea into a sketch, wherever it lives: the clip
+     * becomes the primary take and the idea gains an empty lyrics page. The
+     * caller opens the naming step; nothing here navigates.
+     */
+    convertClipIdeaToProject: (ideaId: string): boolean => {
         const state = useStore.getState();
-        const selectedIdea = state.workspaces.find(w => w.id === state.activeWorkspaceId)?.ideas.find(i => i.id === state.selectedIdeaId);
-        if (!selectedIdea || selectedIdea.kind !== "clip") return;
+        const workspace = state.workspaces.find((w) => w.ideas.some((i) => i.id === ideaId));
+        const clipIdea = workspace?.ideas.find((i) => i.id === ideaId);
+        if (!workspace || !clipIdea || clipIdea.kind !== "clip") return false;
 
         const converted: SongIdea = {
-            ...selectedIdea,
+            ...clipIdea,
             kind: "project",
             status: "seed",
             completionPct: 0,
-            clips: selectedIdea.clips.map((c, idx) => ({ ...c, isPrimary: idx === 0 })),
+            clips: clipIdea.clips.map((c, idx) => ({ ...c, isPrimary: idx === 0 })),
             lyrics: createEmptyProjectLyrics(),
         };
 
-        state.updateIdeas((prev) => prev.map((idea) => (idea.id === selectedIdea.id ? converted : idea)));
-        state.logIdeaActivity(selectedIdea.id, "created", "song-save");
+        const swapIn = (prev: SongIdea[]) => prev.map((idea) => (idea.id === clipIdea.id ? converted : idea));
+        if (workspace.id === state.activeWorkspaceId) {
+            state.updateIdeas(swapIn);
+        } else {
+            // The player resolves clips across workspaces (queues, Received
+            // packages), so the door may grow an idea that isn't in the active
+            // one — patch its home workspace directly.
+            useStore.setState((store) => ({
+                workspaces: normalizeWorkspaces(
+                    store.workspaces.map((ws) =>
+                        ws.id === workspace.id ? { ...ws, ideas: swapIn(ws.ideas) } : ws
+                    )
+                ),
+            }));
+        }
+        state.logIdeaActivity(clipIdea.id, "created", "song-save");
 
-        state.setEditingIdeaId(selectedIdea.id);
+        state.setEditingIdeaId(clipIdea.id);
         state.setPendingPrimaryClipId(converted.clips[0]?.id ?? null);
+        return true;
+    },
+
+    convertSelectedClipIdeaToProject: () => {
+        const { selectedIdeaId } = useStore.getState();
+        if (!selectedIdeaId) return;
+        appActions.convertClipIdeaToProject(selectedIdeaId);
     },
 
     backToIdeas: () => {

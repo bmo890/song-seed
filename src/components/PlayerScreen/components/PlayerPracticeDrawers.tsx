@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Pressable, Text, View } from "react-native";
 import Slider from "@react-native-community/slider";
 import { Ionicons } from "@expo/vector-icons";
-import { PITCH_SHIFT_MAX_SEMITONES, PITCH_SHIFT_MIN_SEMITONES } from "../../../domain/pitchShift";
 import { fmtDuration } from "../../../utils";
 import { colors } from "../../../design/tokens";
 import { getCustomSectionOptions, getSectionColor, MIN_SECTION_LENGTH_MS } from "../../../domain/playerSections";
@@ -28,7 +27,8 @@ import { HelpSheet } from "../../common/HelpSheet";
 import { AnimatedCollapse } from "../../common/AnimatedCollapse";
 import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
-import { ltrRow, MarkInspector, nudgeStepMsForZoom } from "../../common/MarkInspector";
+import { MarkInspector, nudgeStepMsForZoom } from "../../common/MarkInspector";
+import { SpeedPitchDials } from "../../common/SpeedPitchDials";
 import { UndoRedoButtons } from "../../common/useUndoHistory";
 
 /**
@@ -371,9 +371,6 @@ export function PlayerPracticeDrawers({
       pitchShiftSemitones !== 0 ||
       (clickAvailable && clickEnabled),
   };
-
-  const canDecreasePitch = supportsPitchShift && pitchShiftSemitones > PITCH_SHIFT_MIN_SEMITONES;
-  const canIncreasePitch = supportsPitchShift && pitchShiftSemitones < PITCH_SHIFT_MAX_SEMITONES;
 
   const clampSectionEdge = (section: ClipSection, edge: "start" | "end", ms: number) => {
     const minMs = edge === "start" ? 0 : Math.min(section.startMs + MIN_SECTION_LENGTH_MS, Math.max(1, durationMs));
@@ -896,138 +893,23 @@ export function PlayerPracticeDrawers({
   );
 
   // ---------------------------------------------------------------- sound
-  const speedIsPreset = (preset: number) => Math.abs(playbackSpeed - preset) < 0.01;
-  // "Bent away from original" — drives both the reset affordance and the value's
-  // colour, so the two can never disagree about whether anything changed.
-  const speedIsChanged = Math.abs(playbackSpeed - 1) > 0.01;
-  const pitchIsChanged = supportsPitchShift && pitchShiftSemitones !== 0;
   const detectedLabel = hasAnalysisResult(analysis) ? formatBpmLabel(analysis) : null;
 
   const soundDrawer = (
     <View style={pd.wrap}>
-      {/* Each dial resets from its own label — the reset lives with the thing it
-          resets, and only appears once there is something to undo. */}
-      <View style={pd.dialHead}>
-        <View style={pd.dialLabelGroup}>
-          <Text style={pd.rowLabel}>{t("player.speed")}</Text>
-          {speedIsChanged ? (
-            <Pressable
-              style={({ pressed }) => [pd.dialResetBtn, pressed ? s.toolHeaderPressed : null]}
-              onPress={() => {
-                haptic.tap();
-                onSpeedTap(1);
-              }}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={t("player.resetSpeed")}
-            >
-              <Ionicons name="refresh" size={14} color={colors.primaryDeep} />
-            </Pressable>
-          ) : null}
-        </View>
-        <Text style={[pd.dialValue, speedIsChanged ? pd.dialValueChanged : null]}>
-          {`${Math.round(playbackSpeed * 100) / 100}×`}
-        </Text>
-      </View>
-      <Slider
-        style={pd.soundSlider}
-        minimumValue={speedMin}
-        maximumValue={speedMax}
-        step={0.05}
-        value={playbackSpeed}
-        onValueChange={onSpeedSliding}
-        onSlidingStart={onSpeedSlideStart}
-        onSlidingComplete={(value) => {
-          haptic.tap();
-          onSpeedSlideEnd(value);
-        }}
-        minimumTrackTintColor={colors.primary}
-        maximumTrackTintColor={colors.surfaceHigh}
-        thumbTintColor={colors.primary}
+      <SpeedPitchDials
+        playbackSpeed={playbackSpeed}
+        speedPresets={speedPresets}
+        speedMin={speedMin}
+        speedMax={speedMax}
+        onSpeedTap={onSpeedTap}
+        onSpeedSlideStart={onSpeedSlideStart}
+        onSpeedSliding={onSpeedSliding}
+        onSpeedSlideEnd={onSpeedSlideEnd}
+        pitchShiftSemitones={pitchShiftSemitones}
+        supportsPitchShift={supportsPitchShift}
+        onAdjustPitchShift={onAdjustPitchShift}
       />
-      <View style={pd.tickLabelRow}>
-        {speedPresets.map((preset) => (
-          <Pressable
-            key={preset}
-            onPress={() => {
-              haptic.tap();
-              onSpeedTap(preset);
-            }}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={`${preset}×`}
-          >
-            <Text style={[pd.tickLabel, speedIsPreset(preset) ? pd.tickLabelOn : null]}>{`${preset}`}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <View style={pd.dialHead}>
-        <View style={pd.dialLabelGroup}>
-          <Text style={pd.rowLabel}>{t("player.pitch")}</Text>
-          {pitchIsChanged ? (
-            <Pressable
-              style={({ pressed }) => [pd.dialResetBtn, pressed ? s.toolHeaderPressed : null]}
-              onPress={() => {
-                haptic.tap();
-                onAdjustPitchShift(0);
-              }}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={t("player.resetPitch")}
-            >
-              <Ionicons name="refresh" size={14} color={colors.primaryDeep} />
-            </Pressable>
-          ) : null}
-        </View>
-        <Text style={[pd.dialValue, pitchIsChanged ? pd.dialValueChanged : null]}>
-          {supportsPitchShift ? `${pitchShiftSemitones > 0 ? "+" : ""}${pitchShiftSemitones}` : "—"}
-          {supportsPitchShift ? (
-            <Text style={[pd.dialUnit, pitchIsChanged ? pd.dialUnitChanged : null]}>
-              {" "}
-              {t("player.semitones")}
-            </Text>
-          ) : null}
-        </Text>
-      </View>
-      <View style={[pd.pitchRow, ltrRow]}>
-        <Pressable
-          style={[pd.nudgeBtn, !canDecreasePitch ? { opacity: 0.4 } : null]}
-          onPress={() => canDecreasePitch && onAdjustPitchShift(pitchShiftSemitones - 1)}
-          disabled={!canDecreasePitch}
-          hitSlop={6}
-          accessibilityRole="button"
-          accessibilityLabel={t("player.lowerPitch")}
-        >
-          <Ionicons name="remove" size={16} color={canDecreasePitch ? colors.textStrong : colors.textMuted} />
-        </Pressable>
-        <View style={pd.pitchRail}>
-          {Array.from({ length: PITCH_SHIFT_MAX_SEMITONES - PITCH_SHIFT_MIN_SEMITONES + 1 }, (_, i) => {
-            const semitone = PITCH_SHIFT_MIN_SEMITONES + i;
-            const isCurrent = supportsPitchShift && semitone === pitchShiftSemitones;
-            return (
-              <View
-                key={semitone}
-                style={[
-                  pd.pitchTick,
-                  semitone === 0 ? pd.pitchTickZero : null,
-                  isCurrent ? pd.pitchTickOn : null,
-                ]}
-              />
-            );
-          })}
-        </View>
-        <Pressable
-          style={[pd.nudgeBtn, !canIncreasePitch ? { opacity: 0.4 } : null]}
-          onPress={() => canIncreasePitch && onAdjustPitchShift(pitchShiftSemitones + 1)}
-          disabled={!canIncreasePitch}
-          hitSlop={6}
-          accessibilityRole="button"
-          accessibilityLabel={t("player.raisePitch")}
-        >
-          <Ionicons name="add" size={16} color={canIncreasePitch ? colors.textStrong : colors.textMuted} />
-        </Pressable>
-      </View>
 
       {clickAvailable ? (
         <>

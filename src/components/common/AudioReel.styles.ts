@@ -188,40 +188,4 @@ export const audioReelStyles = StyleSheet.create({
         marginTop: 12,
         paddingHorizontal: 20,
     },
-    transportRow: {
-        flexDirection: "row",
-        justifyContent: "center",
-        alignItems: "center",
-        marginTop: 16,
-        gap: 16,
-    },
-    transportRowCompact: {
-        marginTop: 12,
-        gap: 12,
-    },
-    transportButton: {
-        padding: 12,
-        borderRadius: radii.round,
-        justifyContent: "center",
-        alignItems: "center",
-        borderWidth: 1,
-    },
-    transportButtonCompact: {
-        padding: 10,
-        borderRadius: 20,
-    },
-    /** A circle, not a stadium — round is reserved for genuinely circular icon buttons
-     *  (button language locked 2026-07-24), and this is the transport's play key. */
-    playButton: {
-        height: 56,
-        width: 56,
-        borderRadius: radii.round,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    playButtonCompact: {
-        height: 48,
-        width: 48,
-        borderRadius: radii.round,
-    },
 });

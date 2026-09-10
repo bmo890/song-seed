@@ -14,6 +14,10 @@ type TransportBarProps = {
   onPrevious: () => void;
   onTogglePlay: () => void;
   onNext: () => void;
+  /** What the skips mean here, for assistive tech — the editor's skips go to the
+   *  clip's start and end rather than to another take. Defaults: Previous / Next. */
+  previousLabel?: string;
+  nextLabel?: string;
   /** "full" = the player sheet's footer; "compact" = the mini dock. Same layout
    *  and language, scaled. */
   size?: "full" | "compact";
@@ -46,6 +50,8 @@ function TransportBarInner({
   onPrevious,
   onTogglePlay,
   onNext,
+  previousLabel,
+  nextLabel,
   size = "full",
   onClose,
   trailingIcon,
@@ -127,7 +133,7 @@ function TransportBarInner({
         }}
         disabled={!canGoPrevious}
         accessibilityRole="button"
-        accessibilityLabel={t("common.previous")}
+        accessibilityLabel={previousLabel ?? t("common.previous")}
       >
         <Ionicons
           name="play-skip-back"
@@ -170,7 +176,7 @@ function TransportBarInner({
         }}
         disabled={!canGoNext}
         accessibilityRole="button"
-        accessibilityLabel={t("common.next")}
+        accessibilityLabel={nextLabel ?? t("common.next")}
       >
         <Ionicons
           name="play-skip-forward"

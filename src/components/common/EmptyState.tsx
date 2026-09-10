@@ -26,6 +26,7 @@ export function EmptyState({
   body,
   actionLabel,
   onAction,
+  actionDisabled = false,
   linkLabel,
   onLink,
   compact = false,
@@ -38,6 +39,8 @@ export function EmptyState({
   /** The one primary action. Rendered as the canon tonal soft key. */
   actionLabel?: string;
   onAction?: () => void;
+  /** While the action is already underway (a gate that is saving on your behalf). */
+  actionDisabled?: boolean;
   /** A quiet ink link — a way onward, never a second button. */
   linkLabel?: string;
   onLink?: () => void;
@@ -70,7 +73,7 @@ export function EmptyState({
         <Ledger />
         {body ? <Text style={s.ledgerBody}>{body}</Text> : null}
         {actionLabel && onAction ? (
-          <Button label={actionLabel} onPress={onAction} style={s.ledgerAction} />
+          <Button label={actionLabel} onPress={onAction} disabled={actionDisabled} style={s.ledgerAction} />
         ) : null}
         {link ? <View style={s.ledgerLink}>{link}</View> : null}
       </View>
@@ -87,7 +90,7 @@ export function EmptyState({
       <Text style={[s.title, compact ? s.titleCompact : null]}>{title}</Text>
       {body ? <Text style={s.body}>{body}</Text> : null}
       {actionLabel && onAction ? (
-        <Button label={actionLabel} onPress={onAction} style={s.action} />
+        <Button label={actionLabel} onPress={onAction} disabled={actionDisabled} style={s.action} />
       ) : null}
       {link ? <View style={actionLabel && onAction ? null : s.action}>{link}</View> : null}
     </View>

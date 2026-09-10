@@ -168,13 +168,13 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   dotText: {
-    fontFamily: "PlusJakartaSans_700Bold",
+    ...text.caption,
     fontSize: 11,
     color: colors.onPrimary,
   },
   /** A name the musician gave earns the serif; a suggested one stays quiet. */
   name: { ...text.supporting, flex: 1, color: colors.textSecondary },
-  nameGiven: { fontFamily: "Lora_500Medium", fontSize: 15, color: colors.textPrimary },
+  nameGiven: { ...text.cardTitle, fontSize: 15, lineHeight: 20 },
   duration: { ...text.caption, color: colors.textMuted, fontVariant: ["tabular-nums"] },
   gridRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   gridText: { ...text.caption, color: colors.textMuted },
@@ -189,7 +189,7 @@ const s = StyleSheet.create({
   },
   dangerRowArmed: { backgroundColor: colors.dangerSurface },
   dangerCopy: { flex: 1, gap: 2 },
-  dangerLabel: { ...text.body, fontFamily: "PlusJakartaSans_600SemiBold", color: colors.danger },
+  dangerLabel: { ...text.caption, fontSize: 14, color: colors.danger },
   dangerHint: { ...text.supporting, fontSize: 12, color: colors.textSecondary },
   actions: { flexDirection: "row", justifyContent: "flex-end", gap: spacing.sm },
 });

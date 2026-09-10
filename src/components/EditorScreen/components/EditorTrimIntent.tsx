@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, radii, spacing } from "../../../design/tokens";
+import { colors, radii, spacing, text } from "../../../design/tokens";
 import { SegmentedControl } from "../../common/SegmentedControl";
 import { styles as appStyles } from "../../../styles";
 import { haptic } from "../../../design/haptics";
@@ -89,10 +89,9 @@ const s = StyleSheet.create({
   },
   pip: { width: 8, height: 8, borderRadius: radii.round },
   outcomeText: {
+    ...text.supporting,
     flexShrink: 1,
-    fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 12,
-    color: colors.textSecondary,
   },
   /** Editorial ink, not a chip or a switch — the house pattern for an on/off choice
    *  (word + leading dot, hollow to terracotta). */
@@ -114,8 +113,7 @@ const s = StyleSheet.create({
     borderColor: colors.primaryDeep,
   },
   gridToggleText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 12,
+    ...text.caption,
     color: colors.textMuted,
   },
   gridToggleTextOn: {

@@ -1,10 +1,10 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { Feather } from "@expo/vector-icons";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 import { fmt, fmtDuration } from "../../../utils";
-import { colors, radii } from "../../../design/tokens";
-import { styles as appStyles } from "../../../styles";
-import { hexToRgba } from "../../../domain/playerSections";
+import { colors, radii, spacing, text } from "../../../design/tokens";
+import { SurfaceCard } from "../../common/SurfaceCard";
+import { IconButton } from "../../common/IconButton";
+import { EmptyState } from "../../common/EmptyState";
 import { CUT_COLOR, KEEP_COLOR, type EditableSelection } from "../helpers";
 import { useTranslation } from "react-i18next";
 
@@ -21,9 +21,10 @@ type EditorSelectionListProps = {
   onRemoveRange: (id: string) => void;
 };
 
-/** The parts of the clip, in time order. Tapping one selects it — which cues the
- * playhead and opens the inspector beneath — so the row itself is the control; the
- * accent and index colour carry the current keep/remove intent. */
+/** The parts of the clip, in time order, as structural rows (`SurfaceCard`). Tapping
+ * one selects it — which cues the playhead and opens the inspector beneath — so the
+ * row itself is the control; the numbered dot carries the current keep/remove intent
+ * and the canon selected outline says which part the inspector is holding. */
 export function EditorSelectionList({
   selectedRanges,
   intent,
@@ -36,12 +37,7 @@ export function EditorSelectionList({
 }: EditorSelectionListProps) {
   const { t } = useTranslation();
   if (selectedRanges.length === 0) {
-    return (
-      <View style={s.empty}>
-        <Text style={s.emptyTitle}>{t("editor.noPartsTitle")}</Text>
-        <Text style={s.emptyText}>{t("editor.noPartsBody")}</Text>
-      </View>
-    );
+    return <EmptyState compact title={t("editor.noPartsTitle")} body={t("editor.noPartsBody")} />;
   }
 
   const accent = intent === "keep" ? KEEP_COLOR : CUT_COLOR;
@@ -52,17 +48,11 @@ export function EditorSelectionList({
       {ordered.map((range, index) => {
         const selected = range.id === selectedRangeId;
         return (
-          <Pressable
+          <SurfaceCard
             key={range.id}
+            style={s.row}
+            selected={selected}
             onPress={() => onSelectRange(range)}
-            style={({ pressed }) => [
-              s.row,
-              { borderLeftColor: accent },
-              selected
-                ? { backgroundColor: hexToRgba(accent, 0.08), borderColor: hexToRgba(accent, 0.35) }
-                : null,
-              pressed ? appStyles.pressDown : null,
-            ]}
             accessibilityRole="button"
             accessibilityState={{ selected }}
           >
@@ -88,15 +78,18 @@ export function EditorSelectionList({
                 />
               ) : null}
             </View>
-            <Pressable
+            {/* Removing a part is destruction, so the glyph wears danger; the tick
+                comes from IconButton (haptic `tap`, any acknowledged press). */}
+            <IconButton
+              icon="trash-outline"
+              size={18}
+              color={colors.danger}
+              hitSlop={10}
+              stopPropagation
               onPress={() => onRemoveRange(range.id)}
-              hitSlop={8}
-              style={s.iconBtn}
               accessibilityLabel={t("editor.deletePart")}
-            >
-              <Feather name="trash-2" size={16} color={CUT_COLOR} />
-            </Pressable>
-          </Pressable>
+            />
+          </SurfaceCard>
         );
       })}
     </View>
@@ -104,18 +97,14 @@ export function EditorSelectionList({
 }
 
 const s = StyleSheet.create({
-  wrap: { paddingHorizontal: 16, gap: 6 },
+  wrap: { paddingHorizontal: spacing.lg, gap: 6 },
+  // Layout only — the shell (fill, radius, hairline, whisper shadow) is the card's.
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    borderLeftWidth: 3,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
   idx: {
     width: 20,
@@ -125,20 +114,18 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   idxText: {
-    fontFamily: "PlusJakartaSans_700Bold",
+    ...text.caption,
     fontSize: 11,
     color: colors.onPrimary,
   },
   copy: { flex: 1, gap: 1 },
   timeRow: { flexDirection: "row", alignItems: "baseline", gap: 8 },
   times: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 14,
-    color: colors.textPrimary,
+    ...text.body,
     fontVariant: ["tabular-nums"],
   },
   dur: {
-    fontFamily: "PlusJakartaSans_400Regular",
+    ...text.supporting,
     fontSize: 12,
     color: colors.textMuted,
     fontVariant: ["tabular-nums"],
@@ -146,39 +133,18 @@ const s = StyleSheet.create({
   /** Named parts earn the serif; an unnamed one shows its suggested name quietly, so a
    *  list of timestamps stays calm. */
   nameInput: {
+    ...text.supporting,
     padding: 0,
     // Explicit height: a bare TextInput reports a taller intrinsic size than its text
     // and was pushing its own baseline past the row's rounded edge.
     height: 22,
     lineHeight: 16,
-    fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 12.5,
-    color: colors.textSecondary,
   },
   nameInputFilled: {
+    ...text.cardTitle,
     height: 24,
     lineHeight: 18,
-    fontFamily: "Lora_500Medium",
     fontSize: 14,
-    color: colors.textPrimary,
-  },
-  iconBtn: { padding: 2 },
-  empty: {
-    paddingHorizontal: 16,
-    paddingVertical: 18,
-    gap: 4,
-  },
-  emptyTitle: {
-    fontFamily: "Lora_500Medium",
-    fontSize: 17,
-    color: colors.textStrong,
-    textAlign: "center",
-  },
-  emptyText: {
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 13,
-    lineHeight: 19,
-    color: colors.textMuted,
-    textAlign: "center",
   },
 });

@@ -2,7 +2,7 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { HelpButton } from "../../common/HelpButton";
-import { colors, spacing } from "../../../design/tokens";
+import { colors, spacing, text } from "../../../design/tokens";
 import { fmtDuration } from "../../../utils";
 import type { ClipVersion } from "../../../types";
 import { useTranslation } from "react-i18next";
@@ -64,13 +64,11 @@ const s = StyleSheet.create({
   },
   spacer: { flex: 1 },
   clipName: {
+    ...text.supporting,
     flex: 1,
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 13,
-    color: colors.textSecondary,
   },
   time: {
-    fontFamily: "PlusJakartaSans_700Bold",
+    ...text.caption,
     fontSize: 14,
     color: colors.textPrimary,
     fontVariant: ["tabular-nums"],
