@@ -920,6 +920,13 @@ export const ideasStyles = {
     height: 18,
     borderWidth: 1.25,
   },
+  // Trailing pick column (picker mode): the ring rides the card's end edge so the
+  // play glyph keeps the lead slot and a clip can still be auditioned while picked.
+  ideaCardPickCol: {
+    width: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   ideaCardLeadCol: {
     // Play-glyph column: the glyph sits vertically centered on the whole card
     // (approved 2026-07-23 — replaces the old top-seated optical lift).

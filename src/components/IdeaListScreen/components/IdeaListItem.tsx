@@ -308,15 +308,9 @@ function IdeaListItemInner({
                             sessionLead={sessionOnPlayClip ? (sessionPlaying ? "playing" : "paused") : null}
                             durationLabel={item.kind === "project" ? projectPrimaryDurationLabel : clipDurationLabel}
                             onPressLead={() => {
-                                if (pickingSongTarget) {
-                                    if (item.kind === "project") confirmPickAsSongTarget();
-                                    return;
-                                }
-                                if (collecting) {
-                                    togglePick();
-                                    return;
-                                }
-                                if (listSelectionMode) {
+                                // The lead is always the preview, picker or not: hearing the
+                                // clip is how you know you picked the right one (2026-09-11).
+                                if (listSelectionMode && !collecting && !pickingSongTarget) {
                                     useStore.getState().toggleListSelection(item.id);
                                     return;
                                 }

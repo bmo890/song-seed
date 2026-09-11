@@ -280,8 +280,9 @@ export function IdeaCard({
     const pickDisabled = pick === "disabled";
     // The ring is a checkbox named by the card; `checked` carries the pick.
     const pickA11yLabel = pickDisabled && pickNote ? `${title} — ${pickNote}` : title;
-    // The ring replaces the play glyph in the lead slot; the box keeps the
-    // glyph's size so nothing on the card shifts when a page becomes a picker.
+    // The ring sits in a trailing column of its own, so the play glyph stays in
+    // the lead slot: you can still audition a clip while picking it (founder
+    // ruling 2026-09-11 — preview is the point of selecting from cards).
     const renderPickRing = (dense: boolean) => (
         <View
             style={[
@@ -332,7 +333,7 @@ export function IdeaCard({
                     <Pressable
                         style={({ pressed }) => [
                             styles.ideaDensePlay,
-                            pressed && (picking ? !pickDisabled : canPlay) ? styles.pressDown : null,
+                            pressed && canPlay ? styles.pressDown : null,
                         ]}
                         onPress={(evt) => {
                             evt.stopPropagation();
@@ -340,21 +341,16 @@ export function IdeaCard({
                         }}
                         onLongPress={onLongPressLead}
                         hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
-                        accessibilityRole={picking ? "checkbox" : "button"}
-                        accessibilityState={picking ? { checked: !!selected, disabled: pickDisabled } : undefined}
-                        accessibilityLabel={picking ? pickA11yLabel : leadA11yLabel}
-                        disabled={pickDisabled}
+                        accessibilityRole="button"
+                        accessibilityLabel={leadA11yLabel}
+                        disabled={!canPlay}
                     >
-                        {picking ? (
-                            renderPickRing(true)
-                        ) : (
-                            <Ionicons
-                                name={leadShowsPause ? "pause" : "play"}
-                                size={15}
-                                color={!canPlay ? colors.textMuted : colors.textStrong}
-                                style={leadShowsPause ? undefined : { marginStart: 2 }}
-                            />
-                        )}
+                        <Ionicons
+                            name={leadShowsPause ? "pause" : "play"}
+                            size={15}
+                            color={!canPlay ? colors.textMuted : colors.textStrong}
+                            style={leadShowsPause ? undefined : { marginStart: 2 }}
+                        />
                     </Pressable>
                     {/* The main pressable spans title AND the meta cluster: the meta
                         (duration/badges) used to sit outside every pressable, so
@@ -401,6 +397,16 @@ export function IdeaCard({
                             </View>
                         )}
                     </Pressable>
+                    {picking ? (
+                        <View
+                            style={styles.ideaCardPickCol}
+                            accessibilityRole="checkbox"
+                            accessibilityState={{ checked: !!selected, disabled: pickDisabled }}
+                            accessibilityLabel={pickA11yLabel}
+                        >
+                            {renderPickRing(true)}
+                        </View>
+                    ) : null}
                 </View>
                 {denseScrubActive ? (
                     // The extend: the row grows to hold a real, draggable scrub line.
@@ -482,7 +488,7 @@ export function IdeaCard({
                     <Pressable
                         style={({ pressed }) => [
                             styles.ideasInlinePlayBtn,
-                            pressed && (picking ? !pickDisabled : canPlay) ? styles.pressDown : null,
+                            pressed && canPlay ? styles.pressDown : null,
                         ]}
                         onPress={(evt) => {
                             evt.stopPropagation();
@@ -491,21 +497,16 @@ export function IdeaCard({
                         onLongPress={onLongPressLead}
                         // 32pt glyph box + 6pt slop = 44pt effective target.
                         hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                        accessibilityRole={picking ? "checkbox" : "button"}
-                        accessibilityState={picking ? { checked: !!selected, disabled: pickDisabled } : undefined}
-                        accessibilityLabel={picking ? pickA11yLabel : leadA11yLabel}
-                        disabled={pickDisabled}
+                        accessibilityRole="button"
+                        accessibilityLabel={leadA11yLabel}
+                        disabled={!canPlay}
                     >
-                        {picking ? (
-                            renderPickRing(false)
-                        ) : (
-                            <Ionicons
-                                name={leadShowsPause ? "pause" : "play"}
-                                size={18}
-                                color={!canPlay ? colors.textMuted : colors.textStrong}
-                                style={leadShowsPause ? undefined : { marginStart: 2 }}
-                            />
-                        )}
+                        <Ionicons
+                            name={leadShowsPause ? "pause" : "play"}
+                            size={18}
+                            color={!canPlay ? colors.textMuted : colors.textStrong}
+                            style={leadShowsPause ? undefined : { marginStart: 2 }}
+                        />
                     </Pressable>
                     {leadAccessory ?? null}
                 </View>
@@ -639,6 +640,16 @@ export function IdeaCard({
                         </>
                     )}
                 </Pressable>
+                    {picking ? (
+                        <View
+                            style={styles.ideaCardPickCol}
+                            accessibilityRole="checkbox"
+                            accessibilityState={{ checked: !!selected, disabled: pickDisabled }}
+                            accessibilityLabel={pickA11yLabel}
+                        >
+                            {renderPickRing(false)}
+                        </View>
+                    ) : null}
             </View>
         </View>
     );
