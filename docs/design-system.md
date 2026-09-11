@@ -365,11 +365,13 @@ wears exactly ONE chrome, never a banner + count bar + dock together:
   (muted) left, primary soft key `Add N` right (`Add`, disabled, at zero). Pages
   that only host the picker (hub, Workspaces) show ✕ plus a quiet supporting line.
   Publishes its height like `SelectionDock` so the media dock lifts and lists clear it.
-- **Cards read as pickable** via `IdeaCard pick="on" | "disabled"`: the lead play
-  glyph becomes a 22pt `borderMuted` ring, filled terracotta + white check when
-  picked; ineligible cards dim (`btnDisabled`) and their meta line says why
-  (`No chart yet` / `No audio yet`). Tap anywhere toggles (`tap`); long-press is
-  just a tap. Commit = `success` + toast; nothing addable = `error` + info alert.
+- **Cards read as pickable** via `IdeaCard pick="on" | "disabled"`: a 22pt
+  `borderMuted` ring rides the card's TRAILING edge, filled terracotta + white
+  check when picked. The play glyph keeps the lead slot — previewing a clip is
+  the point of picking from cards (founder ruling 2026-09-11), so play auditions
+  and the card toggles. Ineligible cards dim (`btnDisabled`) and their meta line
+  says why (`No chart yet` / `No audio yet`). Long-press is just a tap. Commit =
+  `success` + toast; nothing addable = `error` + info alert.
 - While picking: no `SelectionTopBar`, no `SelectionDock`, no record FAB, no
   overflow ⋯; search + filter/sort stay live.
 
