@@ -4,26 +4,11 @@ import { useNavigation } from "@react-navigation/native";
 import { styles } from "../../../styles";
 import { ClipboardBanner } from "../../ClipboardBanner";
 import { SongTargetPickerBanner } from "../../SongTargetPickerBanner";
-import { LibraryCollectorBanner } from "../../LibraryCollectorBanner";
+import { LibraryCollectorBanner, useLibraryCollectorHandlers } from "../../LibraryCollectorBanner";
 import { ClipClipboard } from "../../../types";
 import { useStore } from "../../../state/useStore";
 import { AppAlert } from "../../common/AppAlert";
 import { useTranslation } from "react-i18next";
-
-/** Walks up the navigator tree to reach a route registered on an ancestor
- *  (e.g. the drawer's LibraryHome from inside the workspace stack). */
-function navigateToAncestorRoute(navigation: any, routeName: string, params?: Record<string, unknown>) {
-  let current = navigation;
-  while (current) {
-    const routeNames = current.getState?.()?.routeNames;
-    if (Array.isArray(routeNames) && routeNames.includes(routeName)) {
-      current.navigate(routeName, params);
-      return true;
-    }
-    current = current.getParent?.();
-  }
-  return false;
-}
 
 type IdeaListHeaderSectionProps = {
   hasActivityRangeFilter: boolean;
@@ -51,6 +36,7 @@ export function IdeaListHeaderSection({
   const songTargetPicker = useStore((s) => s.songTargetPicker);
   const cancelSongTargetPicking = useStore((s) => s.cancelSongTargetPicking);
   const libraryCollector = useStore((s) => s.libraryCollector);
+  const collectorHandlers = useLibraryCollectorHandlers(navigation);
 
   return (
     <>
@@ -63,16 +49,8 @@ export function IdeaListHeaderSection({
           kind={libraryCollector.kind}
           targetTitle={libraryCollector.targetTitle}
           addedCount={libraryCollector.addedCount}
-          onDone={() => {
-            const { kind, targetId } = libraryCollector;
-            useStore.getState().cancelLibraryCollecting();
-            navigateToAncestorRoute(navigation, "LibraryHome", {
-              openCollectionKind: kind,
-              openCollectionId: targetId,
-              openToken: Date.now(),
-            });
-          }}
-          onCancel={() => useStore.getState().cancelLibraryCollecting()}
+          onDone={collectorHandlers.onDone}
+          onCancel={collectorHandlers.onCancel}
         />
       ) : null}
 

@@ -74,6 +74,9 @@ function IdeaListItemInner({
 }: IdeaListItemProps) {
     const { t } = useTranslation();
     const listSelectionMode = useStore((s) => s.listSelectionMode);
+    // A compilation is collecting: the collection is a picker. Cards show their
+    // check from the first tap and a tap selects instead of opening (2026-09-11).
+    const collecting = useStore((s) => !!s.libraryCollector);
     const songTargetPicker = useStore((s) => s.songTargetPicker);
     const setSelectedIdeaId = useStore((s) => s.setSelectedIdeaId);
 
@@ -131,7 +134,7 @@ function IdeaListItemInner({
     const inlineTotalMs = inlineDurationMs || playClip?.durationMs || 0;
 
     const isSelected = useStore((s) => s.selectedListIdeaIds.includes(item.id));
-    const showSelectionIndicator = listSelectionMode;
+    const showSelectionIndicator = listSelectionMode || collecting;
     const compact = listDensity === "compact";
     const sortTs = sortMetric === "updated" ? getIdeaUpdatedAt(item) : getIdeaCreatedAt(item);
     // Rebuilt from stable pieces here (not passed as a closure) so memo props stay flat.
@@ -279,7 +282,7 @@ function IdeaListItemInner({
                             sessionLead={sessionOnPlayClip ? (sessionPlaying ? "playing" : "paused") : null}
                             durationLabel={item.kind === "project" ? projectPrimaryDurationLabel : clipDurationLabel}
                             onPressLead={() => {
-                                if (listSelectionMode) {
+                                if (listSelectionMode || collecting) {
                                     useStore.getState().toggleListSelection(item.id);
                                     return;
                                 }
@@ -303,7 +306,7 @@ function IdeaListItemInner({
                                     if (item.kind === "project") confirmPickAsSongTarget();
                                     return;
                                 }
-                                if (listSelectionMode) {
+                                if (listSelectionMode || collecting) {
                                     useStore.getState().toggleListSelection(item.id);
                                     return;
                                 }
@@ -322,7 +325,7 @@ function IdeaListItemInner({
                                     if (item.kind === "project") confirmPickAsSongTarget();
                                     return;
                                 }
-                                if (listSelectionMode) {
+                                if (listSelectionMode || collecting) {
                                     useStore.getState().toggleListSelection(item.id);
                                     return;
                                 }

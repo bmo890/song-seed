@@ -17,6 +17,7 @@ import { CollectionMoveModal } from "../../modals/CollectionMoveModal";
 import { SelectionDock } from "../../common/SelectionDock";
 import { SelectionTopBar } from "../../common/SelectionTopBar";
 import { SearchField } from "../../common/SearchField";
+import { LibraryCollectorBanner, useLibraryCollectorHandlers } from "../../LibraryCollectorBanner";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { CollapsingHeaderOverlay } from "../../common/CollapsingHeaderOverlay";
 import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandler";
@@ -38,6 +39,8 @@ function WorkspaceBrowseInner() {
   const insets = useSafeAreaInsets();
   const playerDockHeight = useStore((s) => s.playerDockHeight);
   const navigation = useNavigation<any>();
+  const libraryCollector = useStore((s) => s.libraryCollector);
+  const collectorHandlers = useLibraryCollectorHandlers(navigation);
   const collectionsModel = useWorkspaceCollectionsModel();
   const [searchOpen, setSearchOpen] = useState(false);
   const selectionModel = useWorkspaceCollectionSelection({
@@ -170,6 +173,17 @@ function WorkspaceBrowseInner() {
           ]}
           showsVerticalScrollIndicator={false}
         >
+          {/* A compilation is collecting: say so before the user picks a collection. */}
+          {libraryCollector ? (
+            <LibraryCollectorBanner
+              kind={libraryCollector.kind}
+              targetTitle={libraryCollector.targetTitle}
+              addedCount={libraryCollector.addedCount}
+              onDone={collectorHandlers.onDone}
+              onCancel={collectorHandlers.onCancel}
+            />
+          ) : null}
+
           {/* Section label or breathing room */}
           {!selectionModel.selectionMode ? (
             <View style={browseStyles.sectionRow}>

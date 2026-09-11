@@ -4,6 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import { AppAlert } from "../../common/AppAlert";
 import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
+import { addIdeasToLibraryCollector } from "../../../state/libraryCollectorActions";
 import { shareAudioClips } from "../../../services/audioStorage";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { SelectionDock, type SelectionAction } from "../../common/SelectionDock";
@@ -158,68 +159,19 @@ export function IdeaSelectionBar({
   // per idea (primary clip + latest lyrics + chord chart).
   const addSelectionToCollector = () => {
     const state = useStore.getState();
-    const collector = state.libraryCollector;
-    if (!collector || !activeWorkspace || interactiveSelectedIdeas.length === 0) return;
-
-    let added = 0;
-    if (collector.kind === "playlist") {
-      state.addItemsToPlaylist(
-        collector.targetId,
-        interactiveSelectedIdeas.map((idea) => ({
-          kind: idea.kind === "project" ? ("song" as const) : ("clip" as const),
-          workspaceId: activeWorkspace.id,
-          collectionId: idea.collectionId,
-          ideaId: idea.id,
-          clipId: idea.kind === "project" ? null : getPlayableClipForIdea(idea)?.id ?? null,
-        }))
-      );
-      added = interactiveSelectedIdeas.length;
-    } else if (collector.kind === "songbook") {
-      for (const idea of interactiveSelectedIdeas) {
-        const defaults = buildDefaultSongbookItemsForIdea(idea);
-        if (defaults.length === 0) continue;
-        state.addItemsToSongbook(
-          collector.targetId,
-          defaults.map((choice) => ({
-            kind: choice.kind,
-            workspaceId: activeWorkspace.id,
-            ideaId: idea.id,
-            versionId: choice.versionId,
-          }))
-        );
-        added += 1;
-      }
-      if (added === 0) {
-        AppAlert.info(
-          t("selection.noCharts"),
-          t("selection.noChartsBody")
-        );
-        return;
-      }
-    } else {
-      for (const idea of interactiveSelectedIdeas) {
-        const primary = getPlayableClipForIdea(idea);
-        const latestVersion = idea.lyrics?.versions[idea.lyrics.versions.length - 1];
-        state.addSetlistEntry(collector.targetId, {
-          workspaceId: activeWorkspace.id,
-          ideaId: idea.id,
-          clipIds: primary ? [primary.id] : [],
-          lyricVersionIds: latestVersion ? [latestVersion.id] : [],
-          includeChordSheet: !!idea.chordSheet && idea.chordSheet.sections.length > 0,
-          includeSongNotes: false,
-        });
-        added += 1;
-      }
+    if (!state.libraryCollector || !activeWorkspace || interactiveSelectedIdeas.length === 0) return;
+    const result = addIdeasToLibraryCollector(interactiveSelectedIdeas.map((idea) => idea.id));
+    if (result.noCharts) {
+      AppAlert.info(t("selection.noCharts"), t("selection.noChartsBody"));
+      return;
     }
-
-    state.noteLibraryCollectorAdded(added);
     state.cancelListSelection();
     haptic.success();
   };
   const collectorKind = useStore((s) => s.libraryCollector?.kind ?? null);
-  // One-word destination noun; the collector banner above already says "Adding to <title>".
-  const collectorNoun =
-    collectorKind === "songbook" ? t("selection.book") : collectorKind === "setlist" ? t("selection.set") : t("selection.playlist");
+  // The verb, not the destination: the banner above already says "Adding to <title>",
+  // and the kind glyph on the key says what it is (2026-09-11).
+  const collectorNoun = t("selection.add");
   const collectorIcon: SelectionAction["icon"] =
     collectorKind === "songbook"
       ? "book-outline"

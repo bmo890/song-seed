@@ -2,6 +2,10 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radii, spacing, text as textTokens } from "../design/tokens";
 import { useTranslation } from "react-i18next";
+import { useStore } from "../state/useStore";
+import { addIdeasToLibraryCollector } from "../state/libraryCollectorActions";
+import { AppAlert } from "./common/AppAlert";
+import { haptic } from "../design/haptics";
 import { UserText } from "../i18n";
 
 type Props = {
@@ -22,6 +26,60 @@ const KIND_ICONS = {
  * items to a playlist, songbook, or setlist. Same solid-terracotta mode language
  * as the song-target picker banner: you're in a mode, and the two exits are
  * explicit — Done returns to the collection, ✕ ends collecting in place. */
+/** Walks up the navigator tree to reach a route registered on an ancestor
+ *  (the drawer's LibraryHome from inside the workspace stack). */
+function navigateToAncestorRoute(navigation: any, routeName: string, params?: Record<string, unknown>) {
+  let current = navigation;
+  while (current) {
+    const routeNames = current.getState?.()?.routeNames;
+    if (Array.isArray(routeNames) && routeNames.includes(routeName)) {
+      current.navigate(routeName, params);
+      return true;
+    }
+    current = current.getParent?.();
+  }
+  return false;
+}
+
+/**
+ * The banner's two verbs, shared by every page that shows it (hub + collection).
+ * Done means "I'm finished picking": anything still selected is added first,
+ * then the compilation that started the session reopens. ✕ ends collecting
+ * in place and keeps nothing (2026-09-11 — Done used to add nothing, so a
+ * selection made with Done in mind silently vanished).
+ */
+export function useLibraryCollectorHandlers(navigation: any) {
+  const { t } = useTranslation();
+  const onDone = () => {
+    const state = useStore.getState();
+    const collector = state.libraryCollector;
+    if (!collector) return;
+    const pending = state.selectedListIdeaIds;
+    if (pending.length > 0) {
+      const result = addIdeasToLibraryCollector(pending);
+      if (result.noCharts) {
+        AppAlert.info(t("selection.noCharts"), t("selection.noChartsBody"));
+        return;
+      }
+      state.cancelListSelection();
+      haptic.success();
+    }
+    const { kind, targetId } = collector;
+    state.cancelLibraryCollecting();
+    navigateToAncestorRoute(navigation, "LibraryHome", {
+      openCollectionKind: kind,
+      openCollectionId: targetId,
+      openToken: Date.now(),
+    });
+  };
+  const onCancel = () => {
+    const state = useStore.getState();
+    state.cancelListSelection();
+    state.cancelLibraryCollecting();
+  };
+  return { onDone, onCancel };
+}
+
 export function LibraryCollectorBanner({ kind, targetTitle, addedCount, onDone, onCancel }: Props) {
   const { t } = useTranslation();
   return (
