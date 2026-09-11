@@ -420,7 +420,7 @@ export const playerStyles = {
   miniMediaDockRow: {
     // The dock is a media surface: transport (prev/play/next) and progress read
     // left→right, so the whole row is pinned LTR rather than mirrored. The title
-    // still aligns to its own script via UserText.
+    // still keeps its own writing direction via UserText, aligned to the UI edge.
     direction: "ltr",
     flexDirection: "row",
     alignItems: "center",

@@ -13,7 +13,7 @@ type NavRowProps = {
   // A quiet second line under the title — a path, never a sentence.
   supporting?: string;
   // The label (and supporting line) is user-authored text: render it through
-  // UserText so its direction follows the content, not the app language.
+  // UserText so its writing direction follows the content; alignment follows the app.
   userLabel?: boolean;
   testID?: string;
   accessibilityLabel?: string;

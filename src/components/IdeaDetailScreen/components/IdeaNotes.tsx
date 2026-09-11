@@ -85,7 +85,7 @@ export function IdeaNotes({
                             <Ionicons name={dirIcon("chevron-forward")} size={14} color={colors.textMuted} />
                         </View>
                     </View>
-                    <UserText value={notes.trim()} style={styles.songNotesTabBody}>{notes.trim()}</UserText>
+                    <UserText align="content" value={notes.trim()} style={styles.songNotesTabBody}>{notes.trim()}</UserText>
                 </Pressable>
                 {editor}
             </>
@@ -120,7 +120,7 @@ export function IdeaNotes({
                             ) : null}
                         </View>
                     </View>
-                    <UserText value={notes.trim()} style={styles.songDetailSummaryLinkBody} numberOfLines={1}>
+                    <UserText align="content" value={notes.trim()} style={styles.songDetailSummaryLinkBody} numberOfLines={1}>
                         {notes.trim() || t("songDetail.noNotes")}
                     </UserText>
                 </Pressable>
@@ -154,7 +154,7 @@ export function IdeaNotes({
                         ) : null}
                     </View>
                 </View>
-                <UserText value={notes.trim()} style={styles.songDetailMiniCardBody} numberOfLines={previewLines}>
+                <UserText align="content" value={notes.trim()} style={styles.songDetailMiniCardBody} numberOfLines={previewLines}>
                     {notes.trim() || t("songDetail.noNotesPeriod")}
                 </UserText>
             </Pressable>

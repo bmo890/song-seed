@@ -145,7 +145,7 @@ export function PlayerArtifactReader({
       chordSheet && chordSheet.sections.length > 0 ? (
         chordSheet.sections.map((section) =>
           section.kind === "text" ? (
-            <UserText key={section.id} value={section.text ?? ""} style={styles.chartText}>
+            <UserText align="content" key={section.id} value={section.text ?? ""} style={styles.chartText}>
               {section.text ?? ""}
             </UserText>
           ) : (

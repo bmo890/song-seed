@@ -209,18 +209,22 @@ mirrors for free. Three things do NOT follow the app's language:
    left/right swap, which then fights the content alignment inside it).
 2. **Notation.** A chord staff is music, not prose: bars run left → right in
    every language, and the barlines that open and close them are physical.
-3. **Content.** A Hebrew note in an English app right-aligns; an English lyric
-   in a Hebrew app left-aligns. Direction comes from the STRING (`UserText`,
-   `UserTextInput`, `resolveContentDirection`), never from the UI. The chord
+3. **Content.** Writing direction comes from the STRING (`UserText`,
+   `UserTextInput`, `resolveContentDirection`), never from the UI — a Hebrew
+   title's runs read correctly inside an English app and vice versa. The chord
    chart takes this per line — a chart can hold both — and anchors each line's
    chords to the edge that line starts at.
 
-**Alignment ≠ reading order.** These are two decisions and RTL forces you to make
-them separately. A machine-written label (an auto title like "10:58 AM Jul 28th")
-should sit on the same edge as the chrome around it, but forcing its writing
-direction to RTL also re-orders its Latin runs — "AM Jul 28th 10:58". So let the
-STRING keep its own writing direction and override only `textAlign`, through
-`physicalTextAlign`. Content the user actually typed keeps both from the string.
+**Alignment ≠ reading order (founder ruling 2026-09-11).** These are two decisions
+and RTL forces you to make them separately. ALIGNMENT follows the UI's start edge
+by default: a Hebrew collection name in the English app sits on the left with the
+chrome around it, an English title in the Hebrew app sits on the right
+(`UserText align="ui"`, the default; single-line `UserTextInput` likewise). Only
+paragraphs a reader actually reads — lyrics, notes, a book page, chart text — and
+multi-line editors keep CONTENT alignment (`align="content"`; multiline inputs
+default to it), because a right-to-left paragraph pinned to the left edge is wrong
+typography. The string always keeps its own writing direction: forcing an auto
+title like "10:58 AM Jul 28th" to RTL would re-order its Latin runs.
 
 **The RN trap.** `I18nManager.doLeftAndRightSwapInRTL` is on by default, so RN
 rewrites `left`/`right` — including `textAlign` and absolute insets — under RTL.

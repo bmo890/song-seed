@@ -104,7 +104,7 @@ function NoteListItem({
           </UserText>
         )}
         {bodySegments ? (
-          <UserText value={note.body} style={noteStyles.cardPreview} numberOfLines={2}>
+          <UserText align="content" value={note.body} style={noteStyles.cardPreview} numberOfLines={2}>
             {bodySegments.map((seg, i) => (
               <Text key={i} style={seg.kind === "match" ? noteStyles.matchText : undefined}>
                 {seg.value}
@@ -112,7 +112,7 @@ function NoteListItem({
             ))}
           </UserText>
         ) : fallbackPreview ? (
-          <UserText value={fallbackPreview} style={noteStyles.cardPreview} numberOfLines={2}>
+          <UserText align="content" value={fallbackPreview} style={noteStyles.cardPreview} numberOfLines={2}>
             {fallbackPreview}
           </UserText>
         ) : (

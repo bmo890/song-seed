@@ -165,7 +165,7 @@ export const ideasListStyles = {
   ideasListCardRow: {
     // A clip card is a media surface: play control leads on the left, scrubber
     // runs left→right. Pinned LTR so the whole card never mirrors under a Hebrew
-    // UI (the title still aligns to its own script via UserText).
+    // UI (the title keeps its own writing direction via UserText, aligned to the UI edge).
     direction: "ltr",
     flexDirection: "row",
     alignItems: "stretch",

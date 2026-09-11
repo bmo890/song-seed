@@ -112,7 +112,7 @@ export function PlayerSupportSections({
           {hasNotes ? t("player.notesAttached") : t("player.noNotesSaved")}
         </Text>
         <ScrollView style={chipStyles.sheetScroll} showsVerticalScrollIndicator={false}>
-          <UserText value={clipNotes.trim()} style={hasNotes ? chipStyles.notesText : chipStyles.notesPlaceholder}>
+          <UserText align="content" value={clipNotes.trim()} style={hasNotes ? chipStyles.notesText : chipStyles.notesPlaceholder}>
             {hasNotes ? clipNotes.trim() : t("player.noNotesBody")}
           </UserText>
         </ScrollView>

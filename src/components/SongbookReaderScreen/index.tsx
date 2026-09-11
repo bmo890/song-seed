@@ -96,7 +96,7 @@ export function SongbookReaderScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={t(candidate === "lyrics" ? "library.lyricsView" : candidate === "chart" ? "library.chartView" : "library.gridView")}
               >
-                <UserText
+                <UserText align="content"
                   style={[
                     readerStyles.segLabel,
                     reader.view === candidate ? readerStyles.segLabelOn : null,

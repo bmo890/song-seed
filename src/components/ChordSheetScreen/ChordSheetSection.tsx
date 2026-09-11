@@ -88,7 +88,7 @@ export function ChordSheetSection({
         <View style={styles.headerRow}>
           <UserText value={section.label} style={styles.label}>{section.label}</UserText>
           {section.notes.trim() ? (
-            <UserText value={section.notes.trim()} style={styles.noteInline} numberOfLines={2}>
+            <UserText align="content" value={section.notes.trim()} style={styles.noteInline} numberOfLines={2}>
               {section.notes.trim()}
             </UserText>
           ) : null}

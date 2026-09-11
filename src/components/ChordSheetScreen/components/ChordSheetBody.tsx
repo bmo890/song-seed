@@ -413,7 +413,7 @@ function ChordTextBlock({
         <View style={styles.textBlockHeader}>
           <Ionicons name="document-text-outline" size={13} color={colors.textMuted} />
         </View>
-        <UserText value={text.trim()} style={styles.textBlockText}>{text.trim()}</UserText>
+        <UserText align="content" value={text.trim()} style={styles.textBlockText}>{text.trim()}</UserText>
       </View>
     );
   }

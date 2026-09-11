@@ -1,4 +1,5 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { UserTextInput } from "../../i18n/direction";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../design/directionalIcons";
 import { WarmModal } from "../common/WarmModal";
@@ -89,7 +90,7 @@ export function QuickNameModal({
         <WarmModal visible={visible} onRequestClose={onCancel} title={resolvedTitle}>
             {/* ── Name input with sparkle + clear ── */}
             <View style={qStyles.inputWrap}>
-                <TextInput
+                <UserTextInput
                     testID="quickname-input"
                     style={qStyles.input}
                     value={draftValue}
@@ -138,7 +139,7 @@ export function QuickNameModal({
 
             {/* ── Optional description input ── */}
             {onChangeDescription !== undefined ? (
-                <TextInput
+                <UserTextInput
                     style={[qStyles.input, qStyles.descriptionInput]}
                     value={descriptionValue ?? ""}
                     onChangeText={onChangeDescription}

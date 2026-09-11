@@ -1,5 +1,6 @@
 import React, { useCallback, useRef } from "react";
-import { ScrollView, Text, TextInput, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
+import { UserTextInput } from "../../i18n/direction";
 import { styles } from "../../styles";
 import { TitleInput } from "../common/TitleInput";
 import { Button } from "../common/Button";
@@ -60,7 +61,7 @@ export function ClipNotesSheet({
           <Text style={styles.clipNotesSheetSubtitle}>{clipSubtitle}</Text>
         ) : null}
 
-        <TextInput
+        <UserTextInput
           testID="clip-notes-input"
           style={styles.clipNotesSheetTextInput}
           multiline

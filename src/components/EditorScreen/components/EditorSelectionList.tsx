@@ -1,5 +1,6 @@
 import React from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { UserTextInput } from "../../../i18n/direction";
 import { fmt, fmtDuration } from "../../../utils";
 import { colors, radii, spacing, text } from "../../../design/tokens";
 import { SurfaceCard } from "../../common/SurfaceCard";
@@ -67,7 +68,7 @@ export function EditorSelectionList({
                 <Text style={s.dur}>{fmtDuration(range.end - range.start)}</Text>
               </View>
               {showNames ? (
-                <TextInput
+                <UserTextInput
                   style={[s.nameInput, range.title ? s.nameInputFilled : null]}
                   value={range.title ?? ""}
                   onChangeText={(value) => onRenameRange(range.id, value)}

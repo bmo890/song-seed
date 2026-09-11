@@ -329,7 +329,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
                     </View>
 
                     {isLatest && !isExpanded ? (
-                      <UserText value={previewText} style={panelStyles.preview} numberOfLines={2}>
+                      <UserText align="content" value={previewText} style={panelStyles.preview} numberOfLines={2}>
                         {previewText || t("lyrics.noLyricsVersion")}
                       </UserText>
                     ) : null}
@@ -361,7 +361,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
                     {chordVersionIds.includes(version.id) && hasChords ? (
                       <ChordChartLines lines={version.document.lines} editable={false} />
                     ) : (
-                      <UserText value={previewText} style={styles.lyricsPreviewText}>{previewText || t("lyrics.noLyricsVersion")}</UserText>
+                      <UserText align="content" value={previewText} style={styles.lyricsPreviewText}>{previewText || t("lyrics.noLyricsVersion")}</UserText>
                     )}
                   </ScrollView>
                 </Animated.View>

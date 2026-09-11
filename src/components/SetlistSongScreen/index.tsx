@@ -217,7 +217,7 @@ export function SetlistSongScreen() {
           <>
             <Text style={folderStyles.sectionLabel}>{t("setlistSong.notesTitle")}</Text>
             <View style={folderStyles.notesCard}>
-              <UserText style={folderStyles.notesText}>{entry.songNotes}</UserText>
+              <UserText align="content" style={folderStyles.notesText}>{entry.songNotes}</UserText>
             </View>
           </>
         ) : null}

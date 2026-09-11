@@ -106,7 +106,7 @@ const Paragraph = memo(
   function Paragraph({ paragraph, selectedSet, fontSize, lineHeight, onToggle, onLongPress }: ParagraphProps) {
     const highlighted = computeHighlight(paragraph.tokens, selectedSet);
     return (
-      <UserText value={paragraph.text} style={[styles.pageText, { fontSize, lineHeight }]}>
+      <UserText align="content" value={paragraph.text} style={[styles.pageText, { fontSize, lineHeight }]}>
         {paragraph.tokens.map((token) => (
           <Tok
             key={token.index}

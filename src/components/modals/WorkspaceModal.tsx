@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { UserTextInput } from "../../i18n/direction";
 import { Ionicons } from "@expo/vector-icons";
 import { genIdea } from "../../utils";
 import { WorkspaceAvatar } from "../common/WorkspaceAvatar";
@@ -96,7 +97,7 @@ export function WorkspaceModal({
 
       {/* ── Name input ──────────────────────────────────────────────────── */}
       <View style={wsStyles.inputWrap}>
-        <TextInput
+        <UserTextInput
           testID="workspace-name-input"
           style={wsStyles.input}
           value={name}
@@ -126,7 +127,7 @@ export function WorkspaceModal({
       </View>
 
       {/* ── Description input ───────────────────────────────────────────── */}
-      <TextInput
+      <UserTextInput
         style={[wsStyles.input, wsStyles.descriptionInput]}
         value={description}
         onChangeText={setDescription}

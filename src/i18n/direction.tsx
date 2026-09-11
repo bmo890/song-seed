@@ -74,9 +74,28 @@ export function physicalTextAlign(edge: "left" | "right"): "left" | "right" {
   return physical(edge);
 }
 
-export function contentDirectionStyle(direction: UiDirection): TextStyle {
+/**
+ * Which edge user content sits on (founder ruling 2026-09-11).
+ *
+ * - `"ui"` — the app's start edge. A Hebrew collection name in an English app
+ *   sits on the left with the chrome around it; an English title in the Hebrew
+ *   app sits on the right. The STRING keeps its own writing direction, so its
+ *   runs still read correctly. This is the default: titles, names, chips, rows,
+ *   single-line fields.
+ * - `"content"` — the edge the script starts at. For paragraphs a reader
+ *   actually reads (lyrics, notes, a book page, chart text) and multi-line
+ *   editors, where a right-to-left paragraph pinned to the left edge is wrong
+ *   typography.
+ */
+export type ContentAlign = "ui" | "content";
+
+export function contentDirectionStyle(direction: UiDirection, align: ContentAlign = "content"): TextStyle {
+  const edge =
+    align === "content"
+      ? direction === "rtl" ? "right" : "left"
+      : I18nManager.isRTL ? "right" : "left";
   return {
-    textAlign: physicalTextAlign(direction === "rtl" ? "right" : "left"),
+    textAlign: physicalTextAlign(edge),
     writingDirection: direction,
   };
 }
@@ -85,24 +104,29 @@ type UserTextProps = TextProps & {
   value?: string;
   direction?: ContentDirection;
   fallbackDirection?: UiDirection;
+  /** Defaults to `"ui"`; pass `"content"` for paragraphs. */
+  align?: ContentAlign;
 };
 
-export function UserText({ value, direction = "auto", fallbackDirection, style, children, ...props }: UserTextProps) {
+export function UserText({ value, direction = "auto", fallbackDirection, align = "ui", style, children, ...props }: UserTextProps) {
   const source = value ?? (typeof children === "string" ? children : "");
   const resolved = resolveContentDirection(source, direction, fallbackDirection);
-  return <Text {...props} style={[contentDirectionStyle(resolved), style]}>{children}</Text>;
+  return <Text {...props} style={[contentDirectionStyle(resolved, align), style]}>{children}</Text>;
 }
 
 type UserTextInputProps = TextInputProps & {
   direction?: ContentDirection;
   fallbackDirection?: UiDirection;
+  /** Defaults to `"content"` for multiline editors and `"ui"` for single-line fields. */
+  align?: ContentAlign;
 };
 
 export const UserTextInput = React.forwardRef<TextInput, UserTextInputProps>(function UserTextInput(
-  { value, defaultValue, direction = "auto", fallbackDirection, style, ...props },
+  { value, defaultValue, direction = "auto", fallbackDirection, align, style, ...props },
   ref
 ) {
   const source = value ?? defaultValue ?? "";
   const resolved = resolveContentDirection(source, direction, fallbackDirection);
-  return <TextInput ref={ref} {...props} value={value} defaultValue={defaultValue} style={[contentDirectionStyle(resolved), style]} />;
+  const resolvedAlign: ContentAlign = align ?? (props.multiline ? "content" : "ui");
+  return <TextInput ref={ref} {...props} value={value} defaultValue={defaultValue} style={[contentDirectionStyle(resolved, resolvedAlign), style]} />;
 });

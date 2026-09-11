@@ -340,7 +340,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
                 {/* Ghost mirror of the body: transparent text so only the wash
                     behind the inserted word shows. Reuses editorStyles.body so
                     font/size/line-height/width match the input exactly. */}
-                <Text style={[editorStyles.body, contentDirectionStyle(bodyDirection)]}>
+                <Text style={[editorStyles.body, contentDirectionStyle(bodyDirection, "content")]}>
                   <Text style={editorStyles.flashHidden}>{note.body.slice(0, flash.start)}</Text>
                   <Text style={editorStyles.flashWord}>{note.body.slice(flash.start, flash.end)}</Text>
                   <Text style={editorStyles.flashHidden}>{note.body.slice(flash.end)}</Text>

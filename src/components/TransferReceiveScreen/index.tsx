@@ -304,7 +304,7 @@ export function TransferReceiveScreen() {
 
             {transfer.message ? (
               <View style={parcelStyles.noteCard}>
-                <UserText style={parcelStyles.noteText}>{transfer.message}</UserText>
+                <UserText align="content" style={parcelStyles.noteText}>{transfer.message}</UserText>
               </View>
             ) : null}
 

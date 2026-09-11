@@ -109,7 +109,7 @@ export function LyricsVersionPreview({
                 onScroll={(event) => onScroll(event.nativeEvent.contentOffset.y)}
                 scrollEventThrottle={16}
               >
-                <UserText value={sourceText} direction={textDirection} style={styles.lyricsPreviewText}>
+                <UserText align="content" value={sourceText} direction={textDirection} style={styles.lyricsPreviewText}>
                   {sourceText || "No lyrics in this version."}
                 </UserText>
               </ScrollView>
