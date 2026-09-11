@@ -68,3 +68,30 @@ export const collapseOut = () => {
     },
   };
 };
+
+/**
+ * Sticky-footer entrance (picker footer): fade + a 6px settle from below —
+ * the mirror of `collapseIn`, for chrome that belongs to the screen's bottom
+ * edge. Pair with `riseOut`.
+ */
+export const riseIn = () => {
+  "worklet";
+  return {
+    initialValues: { opacity: 0, transform: [{ translateY: 6 }] },
+    animations: {
+      opacity: withTiming(1, { duration: durations.gentle }),
+      transform: [{ translateY: withTiming(0, { duration: durations.gentle }) }],
+    },
+  };
+};
+
+/** Sticky-footer exit: quick fade, no motion. */
+export const riseOut = () => {
+  "worklet";
+  return {
+    initialValues: { opacity: 1 },
+    animations: {
+      opacity: withTiming(0, { duration: durations.fast }),
+    },
+  };
+};

@@ -32,7 +32,8 @@ export function CollectionFilterSection() {
 
   return (
     <IdeaListFilterSection
-      selectionControls={screen.listSelectionMode ? <CollectionSelectionControls /> : undefined}
+      // A picker keeps the filter/sort glyphs: its count lives on the footer.
+      selectionControls={screen.listSelectionMode && !screen.pickerMode ? <CollectionSelectionControls /> : undefined}
       searchQuery={screen.searchQuery}
       onSearchQueryChange={screen.setSearchQuery}
       selectedProjectStages={screen.selectedProjectStages}

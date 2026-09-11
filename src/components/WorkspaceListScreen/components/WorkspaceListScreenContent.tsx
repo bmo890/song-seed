@@ -8,7 +8,8 @@ import { useWorkspaceListScreenModel } from "../hooks/useWorkspaceListScreenMode
 import { useStore } from "../../../state/useStore";
 import { WorkspaceModal } from "../../modals/WorkspaceModal";
 import { ClipboardBanner } from "../../ClipboardBanner";
-import { SongTargetPickerBanner } from "../../SongTargetPickerBanner";
+import { PickerEyebrow } from "../../common/PickerEyebrow";
+import { PickerFooter } from "../../common/PickerFooter";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { EmptyState } from "../../common/EmptyState";
 import { WorkspaceList } from "./WorkspaceList";
@@ -48,10 +49,6 @@ export function WorkspaceListScreenContent() {
   return (
     <SafeAreaView style={styles.screen}>
 
-      {songTargetPicker ? (
-        <SongTargetPickerBanner count={songTargetPicker.noteIds.length} onCancel={cancelSongTargetPicking} />
-      ) : null}
-
       {model.clipClipboard ? (
         <ClipboardBanner
           count={model.clipClipboard.clipIds.length}
@@ -83,7 +80,13 @@ export function WorkspaceListScreenContent() {
           >
             <Ionicons name="menu-outline" size={22} color={colors.textSecondary} />
           </Pressable>
-          <Text style={styles.eyebrow}>{t("workspaceList.eyebrow")}</Text>
+          {/* Choosing a song for lyrics: the picker eyebrow takes the title's
+              eyebrow slot, and a ✕ footer is the way out (2026-09-11). */}
+          {songTargetPicker ? (
+            <PickerEyebrow testID="picker-eyebrow" icon="document-text-outline" label={t("selection.pickingSongFor")} />
+          ) : (
+            <Text style={styles.eyebrow}>{t("workspaceList.eyebrow")}</Text>
+          )}
           <Text style={styles.pageTitle}>{t("workspaceList.title")}</Text>
         </View>
 
@@ -227,7 +230,13 @@ export function WorkspaceListScreenContent() {
 
       </ScrollView>
 
+      {/* ── Picker footer (choosing a song for lyrics): ✕ is the way out ──── */}
+      {songTargetPicker ? (
+        <PickerFooter onCancel={cancelSongTargetPicking} cancelLabel={t("common.cancel")} />
+      ) : null}
+
       {/* ── FAB ────────────────────────────────────────────────────────────── */}
+      {songTargetPicker ? null : (
       <Pressable
         testID="workspace-add"
         accessibilityRole="button"
@@ -244,6 +253,7 @@ export function WorkspaceListScreenContent() {
       >
         <Ionicons name="add" size={26} color={colors.surface} />
       </Pressable>
+      )}
 
       {/* ── Workspace action sheet (ellipsis) ──────────────────────────────── */}
       <SelectionActionSheet

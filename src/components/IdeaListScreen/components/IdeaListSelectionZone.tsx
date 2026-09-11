@@ -1,8 +1,12 @@
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ActionButtons } from "./ActionButtons";
 import { IdeaSelectionBar } from "./IdeaSelectionBar";
 
 type IdeaListSelectionZoneProps = {
+  /** While the page is a picker, the footer is the zone's only occupant —
+   *  no selection dock, no record FAB. */
+  pickerFooter?: ReactNode;
   listSelectionMode: boolean;
   selectedHiddenIdeaIds: string[];
   selectedClipIdeasCount: number;
@@ -21,6 +25,7 @@ type IdeaListSelectionZoneProps = {
 };
 
 export function IdeaListSelectionZone({
+  pickerFooter,
   listSelectionMode,
   selectedHiddenIdeaIds,
   selectedClipIdeasCount,
@@ -38,6 +43,7 @@ export function IdeaListSelectionZone({
   onSelectionDockLayout,
 }: IdeaListSelectionZoneProps) {
   const { t } = useTranslation();
+  if (pickerFooter) return <>{pickerFooter}</>;
   return (
     <>
       {listSelectionMode ? (

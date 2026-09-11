@@ -17,7 +17,10 @@ import { CollectionMoveModal } from "../../modals/CollectionMoveModal";
 import { SelectionDock } from "../../common/SelectionDock";
 import { SelectionTopBar } from "../../common/SelectionTopBar";
 import { SearchField } from "../../common/SearchField";
-import { LibraryCollectorBanner, useLibraryCollectorHandlers } from "../../LibraryCollectorBanner";
+import { PickerEyebrow } from "../../common/PickerEyebrow";
+import { PickerFooter } from "../../common/PickerFooter";
+import { useLibraryCollectorHandlers } from "../../../hooks/useLibraryCollectorHandlers";
+import { getLibraryCollectorIcon } from "../../../domain/libraryCollectorPresentation";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { CollapsingHeaderOverlay } from "../../common/CollapsingHeaderOverlay";
 import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandler";
@@ -40,7 +43,13 @@ function WorkspaceBrowseInner() {
   const playerDockHeight = useStore((s) => s.playerDockHeight);
   const navigation = useNavigation<any>();
   const libraryCollector = useStore((s) => s.libraryCollector);
+  const pickingSongTarget = useStore((s) => s.songTargetPicker != null);
   const collectorHandlers = useLibraryCollectorHandlers(navigation);
+  // The hub hosts a picker (a compilation collecting, or the Lyrics Pad choosing
+  // a song): one eyebrow where the section label sat, one ✕ footer. Nothing to
+  // commit here — the picking happens inside a collection.
+  const pickerActive = libraryCollector != null || pickingSongTarget;
+  const [pickerFooterHeight, setPickerFooterHeight] = useState(0);
   const collectionsModel = useWorkspaceCollectionsModel();
   const [searchOpen, setSearchOpen] = useState(false);
   const selectionModel = useWorkspaceCollectionSelection({
@@ -168,24 +177,29 @@ function WorkspaceBrowseInner() {
               paddingTop: headerHeight,
               paddingBottom: selectionModel.selectionMode
                 ? selectionModel.selectionDockHeight + 32
-                : 32,
+                : pickerActive
+                  ? pickerFooterHeight + 32
+                  : 32,
             },
           ]}
           showsVerticalScrollIndicator={false}
         >
-          {/* A compilation is collecting: say so before the user picks a collection. */}
+          {/* Section label — or, while a picker is active, its eyebrow in the
+              same slot: "ADDING TO SETLIST 1" says what these collections are for. */}
           {libraryCollector ? (
-            <LibraryCollectorBanner
-              kind={libraryCollector.kind}
-              targetTitle={libraryCollector.targetTitle}
-              addedCount={libraryCollector.addedCount}
-              onDone={collectorHandlers.onDone}
-              onCancel={collectorHandlers.onCancel}
-            />
-          ) : null}
-
-          {/* Section label or breathing room */}
-          {!selectionModel.selectionMode ? (
+            <View style={browseStyles.sectionRow}>
+              <PickerEyebrow
+                testID="picker-eyebrow"
+                icon={getLibraryCollectorIcon(libraryCollector.kind)}
+                label={t("selection.addingTo", { title: libraryCollector.targetTitle })}
+                userValue={libraryCollector.targetTitle}
+              />
+            </View>
+          ) : pickingSongTarget ? (
+            <View style={browseStyles.sectionRow}>
+              <PickerEyebrow testID="picker-eyebrow" icon="document-text-outline" label={t("selection.pickingSongFor")} />
+            </View>
+          ) : !selectionModel.selectionMode ? (
             <View style={browseStyles.sectionRow}>
               <Text style={browseStyles.sectionLabel}>{t("workspaceBrowse.collections")}</Text>
             </View>
@@ -211,7 +225,8 @@ function WorkspaceBrowseInner() {
               collectionsModel.openCollection(collectionId);
             }}
             onLongPressCollection={(collectionId) => {
-              if (selectionModel.selectionMode) return;
+              // A picker has one chrome; collection multi-select waits its turn.
+              if (selectionModel.selectionMode || pickerActive) return;
               selectionModel.setSelectedCollectionIds([collectionId]);
             }}
           />
@@ -283,8 +298,22 @@ function WorkspaceBrowseInner() {
         />
       ) : null}
 
+      {/* Picker footer: ✕ plus a quiet pointer to where the picking happens. */}
+      {pickerActive && !selectionModel.selectionMode ? (
+        <PickerFooter
+          onCancel={
+            libraryCollector
+              ? collectorHandlers.onCancel
+              : () => useStore.getState().cancelSongTargetPicking()
+          }
+          cancelLabel={t(libraryCollector ? "common.stopAdding" : "common.cancel")}
+          supportingText={libraryCollector ? t("selection.pickCollection") : undefined}
+          onLayout={(height) => setPickerFooterHeight((prev) => (Math.abs(prev - height) < 1 ? prev : height))}
+        />
+      ) : null}
+
       {/* FAB */}
-      {!selectionModel.selectionMode ? (
+      {!selectionModel.selectionMode && !pickerActive ? (
         <Pressable
           testID="workspace-add-collection"
           accessibilityRole="button"

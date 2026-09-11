@@ -894,6 +894,32 @@ export const ideasStyles = {
     lineHeight: 15,
     color: "#524440",
     },
+  // Pick ring (2026-09-11): while a page is a picker the lead slot swaps the
+  // play glyph for a check circle — hollow borderMuted ring at rest, filled
+  // terracotta with a white check when picked. Same 32pt box as the play glyph
+  // so the card's geometry never moves between modes.
+  ideaCardPickRing: {
+    width: 22,
+    height: 22,
+    borderRadius: radii.round,
+    borderWidth: 1.5,
+    borderColor: colors.borderMuted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ideaCardPickRingOn: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  ideaCardPickRingDisabled: {
+    borderColor: colors.borderSubtle,
+  },
+  // Dense rows keep a 20pt lead box, so the ring shrinks to fit the line.
+  ideaCardPickRingDense: {
+    width: 18,
+    height: 18,
+    borderWidth: 1.25,
+  },
   ideaCardLeadCol: {
     // Play-glyph column: the glyph sits vertically centered on the whole card
     // (approved 2026-07-23 — replaces the old top-seated optical lift).

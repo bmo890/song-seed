@@ -4,7 +4,6 @@ import { useNavigation } from "@react-navigation/native";
 import { AppAlert } from "../../common/AppAlert";
 import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
-import { addIdeasToLibraryCollector } from "../../../state/libraryCollectorActions";
 import { shareAudioClips } from "../../../services/audioStorage";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { SelectionDock, type SelectionAction } from "../../common/SelectionDock";
@@ -12,7 +11,6 @@ import { DockAddBadgeIcon } from "../../common/dockIcons";
 import { getHierarchyIconName } from "../../../domain/hierarchy";
 import type { SongIdea } from "../../../types";
 import { buildPlayableQueueFromIdeas, getPlayableClipForIdea } from "../../../domain/clipPresentation";
-import { buildDefaultSongbookItemsForIdea } from "../../../domain/songbookGrouping";
 import { haptic } from "../../../design/haptics";
 import { useShelfStore } from "../../../state/useShelfStore";
 import { openShelf } from "../../../navigation";
@@ -59,7 +57,6 @@ export function IdeaSelectionBar({
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const workspaces = useStore((s) => s.workspaces);
   const replaceListSelection = useStore((s) => s.replaceListSelection);
-  const libraryCollectorActive = useStore((s) => !!s.libraryCollector);
   // A running session turns the dock's primary action from "Play" into
   // "Add to queue" — the way to grow the queue you already have going.
   const sessionActive = useStore((s) => s.playerQueue.length > 0);
@@ -152,43 +149,6 @@ export function IdeaSelectionBar({
       ? { key: "edit", label: t("selection.edit"), icon: "create-outline", onPress: onEditSelected }
       : null;
 
-  // While a library-collecting session is active (playlist / songbook /
-  // setlist), adding the selection to that target is THE primary intent — it
-  // leads the dock. Playlists: songs as song items, clips pin their clip.
-  // Songbooks: each song's default charts. Setlists: a default-packed entry
-  // per idea (primary clip + latest lyrics + chord chart).
-  const addSelectionToCollector = () => {
-    const state = useStore.getState();
-    if (!state.libraryCollector || !activeWorkspace || interactiveSelectedIdeas.length === 0) return;
-    const result = addIdeasToLibraryCollector(interactiveSelectedIdeas.map((idea) => idea.id));
-    if (result.noCharts) {
-      AppAlert.info(t("selection.noCharts"), t("selection.noChartsBody"));
-      return;
-    }
-    state.cancelListSelection();
-    haptic.success();
-  };
-  const collectorKind = useStore((s) => s.libraryCollector?.kind ?? null);
-  // The verb, not the destination: the banner above already says "Adding to <title>",
-  // and the kind glyph on the key says what it is (2026-09-11).
-  const collectorNoun = t("selection.add");
-  const collectorIcon: SelectionAction["icon"] =
-    collectorKind === "songbook"
-      ? "book-outline"
-      : collectorKind === "setlist"
-        ? "albums-outline"
-        : "musical-notes-outline";
-  const collectorAction: SelectionAction = {
-    key: "add-to-collector",
-    label: collectorNoun,
-    icon: collectorIcon,
-    renderIcon: ({ color, size, disabled }) => (
-      <DockAddBadgeIcon base={collectorIcon} color={color} size={size} disabled={disabled} />
-    ),
-    onPress: addSelectionToCollector,
-    disabled: interactiveSelectedIdeas.length === 0,
-  };
-
   async function handleShareSelected() {
     if (shareableClips.length === 0 || isSharing) return;
 
@@ -268,21 +228,10 @@ export function IdeaSelectionBar({
     AppAlert.destructive(t("selection.deleteSelected"), message, onDeleteSelected, { confirmLabel: t("common.delete") });
   }
 
+  // Collecting no longer lives here: while a compilation is collecting, the
+  // collection page is a picker with its own footer (PickerFooter, 2026-09-11)
+  // and this dock never mounts.
   const dockActions: SelectionAction[] = useMemo(() => {
-    // Collecting mode: the dock is about one thing — adding to the playlist.
-    // Everything else stays reachable through More.
-    if (libraryCollectorActive && !selectedHiddenOnly) {
-      return [
-        collectorAction,
-        {
-          key: "more",
-          label: t("common.more"),
-          icon: "ellipsis-horizontal",
-          onPress: () => setMoreVisible(true),
-        },
-      ];
-    }
-
     if (selectedHiddenOnly) {
       return [
         {
@@ -335,14 +284,12 @@ export function IdeaSelectionBar({
     ];
   }, [
     canMakeSong,
-    collectorAction,
     makeSongAction,
     playOrQueueAction,
     confirmDeleteSelection,
     hideActionDisabled,
     hideActionLabel,
     onToggleHideSelected,
-    libraryCollectorActive,
     selectedHiddenOnly,
   ]);
 

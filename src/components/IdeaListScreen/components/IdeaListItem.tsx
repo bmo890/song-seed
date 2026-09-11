@@ -9,7 +9,8 @@ import { getDateBucket, getDateBucketLabel } from "../../../domain/dateBuckets";
 import { useNavigation } from "@react-navigation/native";
 import { getIdeaCreatedAt, getIdeaUpdatedAt, type IdeaSortMetric } from "../../../domain/ideaSort";
 import { getHierarchyIconName } from "../../../domain/hierarchy";
-import { isClipWaveformSynthetic } from "../../../domain/clipPresentation";
+import { getPlayableClipForIdea, isClipWaveformSynthetic } from "../../../domain/clipPresentation";
+import { buildDefaultSongbookItemsForIdea } from "../../../domain/songbookGrouping";
 import { buildIdeaListItemMeta } from "../ideaListItemMeta";
 import type { IdeaListItemMeta } from "../types";
 
@@ -74,10 +75,13 @@ function IdeaListItemInner({
 }: IdeaListItemProps) {
     const { t } = useTranslation();
     const listSelectionMode = useStore((s) => s.listSelectionMode);
-    // A compilation is collecting: the collection is a picker. Cards show their
-    // check from the first tap and a tap selects instead of opening (2026-09-11).
-    const collecting = useStore((s) => !!s.libraryCollector);
+    // A compilation is collecting: the collection is a picker. Cards wear a
+    // pick ring, a tap picks instead of opening, and eligibility is visible —
+    // a card the compilation can't take is dimmed with the reason (2026-09-11).
+    const collectorKind = useStore((s) => s.libraryCollector?.kind ?? null);
+    const collecting = collectorKind != null;
     const songTargetPicker = useStore((s) => s.songTargetPicker);
+    const pickingSongTarget = songTargetPicker != null;
     const setSelectedIdeaId = useStore((s) => s.setSelectedIdeaId);
 
     const navigation = useNavigation();
@@ -134,8 +138,31 @@ function IdeaListItemInner({
     const inlineTotalMs = inlineDurationMs || playClip?.durationMs || 0;
 
     const isSelected = useStore((s) => s.selectedListIdeaIds.includes(item.id));
-    const showSelectionIndicator = listSelectionMode || collecting;
     const compact = listDensity === "compact";
+    // Eligibility per compilation kind: a songbook takes charts, a setlist takes
+    // audio, a playlist takes anything. The song-target picker takes sketches.
+    const pickEligible = React.useMemo(() => {
+        if (pickingSongTarget) return item.kind === "project";
+        if (collectorKind === "songbook") return buildDefaultSongbookItemsForIdea(item).length > 0;
+        if (collectorKind === "setlist") return getPlayableClipForIdea(item) != null;
+        return true;
+    }, [collectorKind, item, pickingSongTarget]);
+    const pick: "on" | "disabled" | undefined =
+        collecting || pickingSongTarget ? (pickEligible ? "on" : "disabled") : undefined;
+    const pickNote =
+        pick === "disabled" && collecting
+            ? collectorKind === "songbook"
+                ? t("selection.noChartYet")
+                : collectorKind === "setlist"
+                    ? t("selection.noAudioYet")
+                    : null
+            : null;
+    const togglePick = () => {
+        if (!pickEligible) return;
+        // haptics vocabulary: `tap` — an acknowledged press.
+        haptic.tap();
+        useStore.getState().toggleListSelection(item.id);
+    };
     const sortTs = sortMetric === "updated" ? getIdeaUpdatedAt(item) : getIdeaCreatedAt(item);
     // Rebuilt from stable pieces here (not passed as a closure) so memo props stay flat.
     // Grouped timeline entries always carry dayStartTs; the sortTs bucket is a fallback.
@@ -274,15 +301,22 @@ function IdeaListItemInner({
                             accentBorderColor={item.kind === "project" ? colors.primary : null}
                             compact={compact}
                             denseRow={compact}
-                            containerStyle={[
-                                songTargetPicker && item.kind !== "project" ? { opacity: 0.4 } : null,
-                            ]}
+                            pick={pick}
+                            pickNote={pickNote}
                             highlightValue={highlightMapRef.current[item.id] ?? null}
                             canPlay={!!playClip}
                             sessionLead={sessionOnPlayClip ? (sessionPlaying ? "playing" : "paused") : null}
                             durationLabel={item.kind === "project" ? projectPrimaryDurationLabel : clipDurationLabel}
                             onPressLead={() => {
-                                if (listSelectionMode || collecting) {
+                                if (pickingSongTarget) {
+                                    if (item.kind === "project") confirmPickAsSongTarget();
+                                    return;
+                                }
+                                if (collecting) {
+                                    togglePick();
+                                    return;
+                                }
+                                if (listSelectionMode) {
                                     useStore.getState().toggleListSelection(item.id);
                                     return;
                                 }
@@ -298,15 +332,19 @@ function IdeaListItemInner({
                                 void playIdeaFromList(item.id, playClip);
                             }}
                             onLongPressLead={() => {
-                                if (listSelectionMode || songTargetPicker) return;
+                                if (listSelectionMode || pickingSongTarget || collecting) return;
                                 beginSelection();
                             }}
                             onPress={async () => {
-                                if (songTargetPicker) {
+                                if (pickingSongTarget) {
                                     if (item.kind === "project") confirmPickAsSongTarget();
                                     return;
                                 }
-                                if (listSelectionMode || collecting) {
+                                if (collecting) {
+                                    togglePick();
+                                    return;
+                                }
+                                if (listSelectionMode) {
                                     useStore.getState().toggleListSelection(item.id);
                                     return;
                                 }
@@ -321,11 +359,16 @@ function IdeaListItemInner({
                                 navigateRoot("IdeaDetail", { ideaId: item.id });
                             }}
                             onLongPress={() => {
-                                if (songTargetPicker) {
+                                // Pickers have no long-press mode: it's a tap.
+                                if (pickingSongTarget) {
                                     if (item.kind === "project") confirmPickAsSongTarget();
                                     return;
                                 }
-                                if (listSelectionMode || collecting) {
+                                if (collecting) {
+                                    togglePick();
+                                    return;
+                                }
+                                if (listSelectionMode) {
                                     useStore.getState().toggleListSelection(item.id);
                                     return;
                                 }

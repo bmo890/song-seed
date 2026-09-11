@@ -91,6 +91,9 @@ export function useCollectionScreenModel() {
   const ideasSort = useStore((s) => s.ideasSort);
   const listSelectionMode = useStore((s) => s.listSelectionMode);
   const selectedListIdeaIds = useStore((s) => s.selectedListIdeaIds);
+  // The page is a picker: a compilation is collecting, or the Lyrics Pad is
+  // choosing a song. One footer replaces the selection chrome and the record FAB.
+  const pickerMode = useStore((s) => s.libraryCollector != null || s.songTargetPicker != null);
   const recentlyAddedItemIds = useStore((s) => s.recentlyAddedItemIds);
   const clearRecentlyAdded = useStore((s) => s.clearRecentlyAdded);
   const markRecentlyAdded = useStore((s) => s.markRecentlyAdded);
@@ -514,7 +517,8 @@ export function useCollectionScreenModel() {
   const floatingStripBottom = floatingBaseBottom + 70;
   const selectionDockBottom = 12 + Math.max(insets.bottom, 12) + playerDockHeight;
   const bottomToolbarAllowance = 18;
-  const activeDockHeight = listSelectionMode ? selectionDockHeight : floatingDockHeight;
+  const bottomChromeIsDock = listSelectionMode || pickerMode;
+  const activeDockHeight = bottomChromeIsDock ? selectionDockHeight : floatingDockHeight;
   // The footer only has to lift the last row clear of whatever floats over the list's
   // bottom edge — nothing more. Both branches derive from the MEASURED dock heights, so
   // the space tracks what's actually on screen (media dock, import bar, selection bar)
@@ -523,7 +527,7 @@ export function useCollectionScreenModel() {
   // This used to add a flat 152px "scroll past" pad in normal mode, and to count
   // selectionDockHeight twice in selection mode (once via the clearance, once via
   // activeDockHeight) — together ~300px of dead scroll below the last clip.
-  const listFooterSpacerHeight = listSelectionMode
+  const listFooterSpacerHeight = bottomChromeIsDock
     ? selectionDockBottom + selectionDockHeight + bottomToolbarAllowance
     : getFloatingActionDockContentClearance(insets.bottom, { playerDockHeight, importBannerHeight });
 
@@ -544,6 +548,7 @@ export function useCollectionScreenModel() {
     listIdeas,
     selectedListIdeaIds,
     listSelectionMode,
+    pickerMode,
     searchQuery,
     setSearchQuery,
     selectedProjectStages,

@@ -2,6 +2,8 @@ import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { styles } from "../../../styles";
 import { IdeaListSelectionZone } from "../components/IdeaListSelectionZone";
+import { PickerFooter } from "../../common/PickerFooter";
+import { useLibraryCollectorHandlers } from "../../../hooks/useLibraryCollectorHandlers";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import { appActions } from "../../../state/actions";
 import { createEmptyProjectLyrics } from "../../../state/dataSlice";
@@ -104,6 +106,35 @@ function deleteManagedAudioUrisIfStillUnreferenced(candidateUris: string[]) {
   void deleteManagedAudioUris(urisToDelete).catch((error) => {
     console.warn("[Collection] Deferred managed audio cleanup failed", error);
   });
+}
+
+/** The picker's one chrome on a collection page: ✕ + "Add N" while a
+ *  compilation is collecting; ✕ alone while the Lyrics Pad is choosing a song
+ *  (a sketch card confirms on tap, so there is nothing to commit down here). */
+function CollectionPickerFooter({ onLayout }: { onLayout: (height: number) => void }) {
+  const { t } = useTranslation();
+  const { screen } = useCollectionScreen();
+  const collecting = useStore((s) => s.libraryCollector != null);
+  const pickedCount = useStore((s) => s.selectedListIdeaIds.length);
+  const collectorHandlers = useLibraryCollectorHandlers(screen.navigation);
+  if (collecting) {
+    return (
+      <PickerFooter
+        count={pickedCount}
+        onAdd={collectorHandlers.onAdd}
+        onCancel={collectorHandlers.onCancel}
+        cancelLabel={t("common.stopAdding")}
+        onLayout={onLayout}
+      />
+    );
+  }
+  return (
+    <PickerFooter
+      onCancel={() => useStore.getState().cancelSongTargetPicking()}
+      cancelLabel={t("common.cancel")}
+      onLayout={onLayout}
+    />
+  );
 }
 
 export function CollectionFloatingActions() {
@@ -336,6 +367,15 @@ export function CollectionFloatingActions() {
   return (
     <>
       <IdeaListSelectionZone
+        pickerFooter={
+          screen.pickerMode ? (
+            <CollectionPickerFooter
+              onLayout={(height) => {
+                screen.setSelectionDockHeight((prev) => (Math.abs(prev - height) < 1 ? prev : height));
+              }}
+            />
+          ) : null
+        }
         listSelectionMode={screen.listSelectionMode}
         selectedHiddenIdeaIds={selectedHiddenIdeaIds}
         selectedClipIdeasCount={selectedClipIdeasInList.length}

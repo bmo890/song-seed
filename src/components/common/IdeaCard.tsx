@@ -109,6 +109,13 @@ export type IdeaCardProps = {
     containerStyle?: StyleProp<ViewStyle>;
     /** Non-interactive marker pinned to the card corner, e.g. bookmarked clip. */
     cornerBadge?: ReactNode;
+    /** Picker mode (2026-09-11): "on" swaps the lead play glyph for a check
+     *  circle (filled when `selected`); "disabled" dims the whole card and mutes
+     *  the ring — the card can't be picked. Omit / "off" for the normal card. */
+    pick?: "off" | "on" | "disabled";
+    /** Why a card can't be picked ("No chart yet") — rides the meta line in
+     *  place of the date (comfortable) or beside the duration (dense). */
+    pickNote?: string | null;
 
     // Lead column (play button + duration)
     canPlay: boolean;
@@ -221,6 +228,8 @@ export function IdeaCard({
     highlightValue,
     containerStyle,
     cornerBadge,
+    pick,
+    pickNote,
     canPlay,
     isInlinePlaying,
     sessionLead,
@@ -267,6 +276,26 @@ export function IdeaCard({
         ? sessionLead === "playing"
         : !!inlineActive && !!isInlinePlaying;
     const leadA11yLabel = leadShowsPause ? t("common.pause") : t("common.play");
+    const picking = pick === "on" || pick === "disabled";
+    const pickDisabled = pick === "disabled";
+    // The ring is a checkbox named by the card; `checked` carries the pick.
+    const pickA11yLabel = pickDisabled && pickNote ? `${title} — ${pickNote}` : title;
+    // The ring replaces the play glyph in the lead slot; the box keeps the
+    // glyph's size so nothing on the card shifts when a page becomes a picker.
+    const renderPickRing = (dense: boolean) => (
+        <View
+            style={[
+                styles.ideaCardPickRing,
+                dense ? styles.ideaCardPickRingDense : null,
+                pickDisabled ? styles.ideaCardPickRingDisabled : null,
+                selected && !pickDisabled ? styles.ideaCardPickRingOn : null,
+            ]}
+        >
+            {selected && !pickDisabled ? (
+                <Ionicons name="checkmark" size={dense ? 12 : 14} color={colors.onPrimary} />
+            ) : null}
+        </View>
+    );
     if (denseRow) {
         // Compact exists to scan and audition many clips fast — subtraction, but
         // still a real player: while this row is the active preview it EXTENDS to
@@ -287,6 +316,7 @@ export function IdeaCard({
                         : null,
                     (selected || isActive) ? styles.ideaDenseRowSelected : null,
                     nowPlaying ? styles.ideaDenseRowNowPlaying : null,
+                    pickDisabled ? styles.btnDisabled : null,
                     containerStyle ?? null,
                 ]}
             >
@@ -302,7 +332,7 @@ export function IdeaCard({
                     <Pressable
                         style={({ pressed }) => [
                             styles.ideaDensePlay,
-                            pressed && canPlay ? styles.pressDown : null,
+                            pressed && (picking ? !pickDisabled : canPlay) ? styles.pressDown : null,
                         ]}
                         onPress={(evt) => {
                             evt.stopPropagation();
@@ -310,15 +340,21 @@ export function IdeaCard({
                         }}
                         onLongPress={onLongPressLead}
                         hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
-                        accessibilityRole="button"
-                        accessibilityLabel={leadA11yLabel}
+                        accessibilityRole={picking ? "checkbox" : "button"}
+                        accessibilityState={picking ? { checked: !!selected, disabled: pickDisabled } : undefined}
+                        accessibilityLabel={picking ? pickA11yLabel : leadA11yLabel}
+                        disabled={pickDisabled}
                     >
-                        <Ionicons
-                            name={leadShowsPause ? "pause" : "play"}
-                            size={15}
-                            color={!canPlay ? colors.textMuted : colors.textStrong}
-                            style={leadShowsPause ? undefined : { marginStart: 2 }}
-                        />
+                        {picking ? (
+                            renderPickRing(true)
+                        ) : (
+                            <Ionicons
+                                name={leadShowsPause ? "pause" : "play"}
+                                size={15}
+                                color={!canPlay ? colors.textMuted : colors.textStrong}
+                                style={leadShowsPause ? undefined : { marginStart: 2 }}
+                            />
+                        )}
                     </Pressable>
                     {/* The main pressable spans title AND the meta cluster: the meta
                         (duration/badges) used to sit outside every pressable, so
@@ -331,6 +367,7 @@ export function IdeaCard({
                         onLongPress={onLongPress}
                         delayLongPress={delayLongPress}
                         hitSlop={{ top: 4, bottom: 4 }}
+                        disabled={pickDisabled}
                     >
                         {nowPlaying ? (
                             <View style={{ marginRight: 6 }}>
@@ -355,6 +392,9 @@ export function IdeaCard({
                             // the bookmark (when set), a small dot divider, then the
                             // clip length — all other metadata is dropped for density.
                             <View style={styles.ideaDenseMeta}>
+                                {pickNote ? (
+                                    <Text style={styles.ideaDenseDuration} numberOfLines={1}>{pickNote}</Text>
+                                ) : null}
                                 {trailing ?? null}
                                 {trailing != null ? <View style={styles.ideaDenseDot} /> : null}
                                 <Text style={styles.ideaDenseDuration}>{durationLabel}</Text>
@@ -407,6 +447,7 @@ export function IdeaCard({
                 nowPlaying ? styles.ideasListCardNowPlaying : null,
                 isInsideTarget ? styles.cardInsideHover : null,
                 isDragActiveInside ? styles.cardActiveInside : null,
+                pickDisabled ? styles.btnDisabled : null,
                 containerStyle ?? null,
             ]}
         >
@@ -441,7 +482,7 @@ export function IdeaCard({
                     <Pressable
                         style={({ pressed }) => [
                             styles.ideasInlinePlayBtn,
-                            pressed && canPlay ? styles.pressDown : null,
+                            pressed && (picking ? !pickDisabled : canPlay) ? styles.pressDown : null,
                         ]}
                         onPress={(evt) => {
                             evt.stopPropagation();
@@ -450,15 +491,21 @@ export function IdeaCard({
                         onLongPress={onLongPressLead}
                         // 32pt glyph box + 6pt slop = 44pt effective target.
                         hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                        accessibilityRole="button"
-                        accessibilityLabel={leadA11yLabel}
+                        accessibilityRole={picking ? "checkbox" : "button"}
+                        accessibilityState={picking ? { checked: !!selected, disabled: pickDisabled } : undefined}
+                        accessibilityLabel={picking ? pickA11yLabel : leadA11yLabel}
+                        disabled={pickDisabled}
                     >
-                        <Ionicons
-                            name={leadShowsPause ? "pause" : "play"}
-                            size={18}
-                            color={!canPlay ? colors.textMuted : colors.textStrong}
-                            style={leadShowsPause ? undefined : { marginStart: 2 }}
-                        />
+                        {picking ? (
+                            renderPickRing(false)
+                        ) : (
+                            <Ionicons
+                                name={leadShowsPause ? "pause" : "play"}
+                                size={18}
+                                color={!canPlay ? colors.textMuted : colors.textStrong}
+                                style={leadShowsPause ? undefined : { marginStart: 2 }}
+                            />
+                        )}
                     </Pressable>
                     {leadAccessory ?? null}
                 </View>
@@ -469,6 +516,7 @@ export function IdeaCard({
                     onPress={() => { void onPress(); }}
                     onLongPress={onLongPress}
                     delayLongPress={delayLongPress}
+                    disabled={pickDisabled}
                 >
                     {editContent != null ? (
                         editContent
@@ -572,11 +620,11 @@ export function IdeaCard({
                                 ) : (
                                     footerContent
                                 )
-                            ) : (footerDate != null || footerRightContent != null || trailing != null) ? (
+                            ) : (pickNote || footerDate != null || footerRightContent != null || trailing != null) ? (
                                 <View style={styles.ideasListMetaRow}>
-                                    {footerDate != null ? (
+                                    {pickNote || footerDate != null ? (
                                         <Text style={styles.ideasListCreatedAtText} numberOfLines={1}>
-                                            {footerDate}
+                                            {pickNote || footerDate}
                                         </Text>
                                     ) : (
                                         // Keeps the right cluster pinned right when dateless.

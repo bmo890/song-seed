@@ -9,6 +9,8 @@ import { dirIcon } from "../../../design/directionalIcons";
 import { IdeaListHeaderSection } from "../components/IdeaListHeaderSection";
 import { WorkspaceAvatar } from "../../common/WorkspaceAvatar";
 import { IconButton } from "../../common/IconButton";
+import { PickerEyebrow } from "../../common/PickerEyebrow";
+import { getLibraryCollectorIcon } from "../../../domain/libraryCollectorPresentation";
 import { styles } from "../../../styles";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import { appActions } from "../../../state/actions";
@@ -124,7 +126,10 @@ export function CollectionHeaderSection() {
         </ReAnimated.View>
       </View>
 
-      {!screen.listSelectionMode ? (
+      {/* Hidden while selecting AND while the page is a picker — a picker has
+          exactly one chrome (the footer), so the overflow never flickers in
+          and out as the first card is picked. */}
+      {!screen.listSelectionMode && !screen.pickerMode ? (
         <IconButton
           testID="collection-overflow"
           icon="ellipsis-horizontal"
@@ -184,9 +189,12 @@ export function CollectionContextReturnChip() {
  * it slides up and clips away under the nav on scroll.
  */
 export function CollectionCollapsibleIdentity() {
+  const { t } = useTranslation();
   const { screen } = useCollectionScreen();
   const collection = screen.currentCollection;
   const workspace = screen.activeWorkspace;
+  const libraryCollector = useStore((s) => s.libraryCollector);
+  const pickingSongTarget = useStore((s) => s.songTargetPicker != null);
   if (!collection) return null;
 
   const ideaMeta = screen.ideasHeaderMeta;
@@ -203,7 +211,19 @@ export function CollectionCollapsibleIdentity() {
   return (
     // Non-interactive: drags on the title fall through to the list beneath.
     <View style={collStyles.identityBlock} pointerEvents="none">
-      {/* The eyebrow now rides in the nav row as the up-link (2026-09-07). */}
+      {/* The WHERE eyebrow rides in the nav row as the up-link (2026-09-07). The
+          picker eyebrow (2026-09-11) sits here, above the title: this page is
+          the place you are picking FROM, and the line says what for. */}
+      {libraryCollector ? (
+        <PickerEyebrow
+          testID="picker-eyebrow"
+          icon={getLibraryCollectorIcon(libraryCollector.kind)}
+          label={t("selection.addingTo", { title: libraryCollector.targetTitle })}
+          userValue={libraryCollector.targetTitle}
+        />
+      ) : pickingSongTarget ? (
+        <PickerEyebrow testID="picker-eyebrow" icon="document-text-outline" label={t("selection.pickingSongFor")} />
+      ) : null}
       <UserText value={collection.title} style={collStyles.collectionTitle} numberOfLines={2}>
         {collection.title}
       </UserText>

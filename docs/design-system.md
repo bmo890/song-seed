@@ -352,6 +352,27 @@ buttons are **soft keys: `radii.lg` (8)**, refined proportions (~38px tall, neve
 - Never a row of equal-weight text buttons; prefer an icon row with one accented member.
 - Advanced/destructive/rare actions live in overflow.
 
+### The picker (locked 2026-09-11)
+
+When a page is acting as a picker — a compilation is collecting ("Add songs" /
+"Add items" / "Browse collections"), or the Lyrics Pad is choosing a song — it
+wears exactly ONE chrome, never a banner + count bar + dock together:
+
+- **`PickerEyebrow`** — kind glyph + uppercase eyebrow (WHERE-eyebrow style) sitting
+  above the page title: `ADDING TO SETLIST 1`, `CHOOSING A SONG FOR LYRICS`. On the
+  hub it takes the COLLECTIONS section-label slot. Non-interactive.
+- **`PickerFooter`** — sticky footer where the selection dock sits: ✕ `IconButton`
+  (muted) left, primary soft key `Add N` right (`Add`, disabled, at zero). Pages
+  that only host the picker (hub, Workspaces) show ✕ plus a quiet supporting line.
+  Publishes its height like `SelectionDock` so the media dock lifts and lists clear it.
+- **Cards read as pickable** via `IdeaCard pick="on" | "disabled"`: the lead play
+  glyph becomes a 22pt `borderMuted` ring, filled terracotta + white check when
+  picked; ineligible cards dim (`btnDisabled`) and their meta line says why
+  (`No chart yet` / `No audio yet`). Tap anywhere toggles (`tap`); long-press is
+  just a tap. Commit = `success` + toast; nothing addable = `error` + info alert.
+- While picking: no `SelectionTopBar`, no `SelectionDock`, no record FAB, no
+  overflow ⋯; search + filter/sort stay live.
+
 ### Selection controls (locked 2026-07-24)
 
 Two treatments, used everywhere so single vs. multi reads at a glance:

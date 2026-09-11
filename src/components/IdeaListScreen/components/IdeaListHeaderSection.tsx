@@ -1,12 +1,8 @@
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
 import { styles } from "../../../styles";
 import { ClipboardBanner } from "../../ClipboardBanner";
-import { SongTargetPickerBanner } from "../../SongTargetPickerBanner";
-import { LibraryCollectorBanner, useLibraryCollectorHandlers } from "../../LibraryCollectorBanner";
 import { ClipClipboard } from "../../../types";
-import { useStore } from "../../../state/useStore";
 import { AppAlert } from "../../common/AppAlert";
 import { useTranslation } from "react-i18next";
 
@@ -32,28 +28,11 @@ export function IdeaListHeaderSection({
   onCancelClipboard,
 }: IdeaListHeaderSectionProps) {
   const { t } = useTranslation();
-  const navigation = useNavigation<any>();
-  const songTargetPicker = useStore((s) => s.songTargetPicker);
-  const cancelSongTargetPicking = useStore((s) => s.cancelSongTargetPicking);
-  const libraryCollector = useStore((s) => s.libraryCollector);
-  const collectorHandlers = useLibraryCollectorHandlers(navigation);
 
+  // Picker modes (collector / song target) show no banner here: their eyebrow
+  // rides above the title and their verbs live on the PickerFooter (2026-09-11).
   return (
     <>
-      {songTargetPicker ? (
-        <SongTargetPickerBanner count={songTargetPicker.noteIds.length} onCancel={cancelSongTargetPicking} />
-      ) : null}
-
-      {libraryCollector ? (
-        <LibraryCollectorBanner
-          kind={libraryCollector.kind}
-          targetTitle={libraryCollector.targetTitle}
-          addedCount={libraryCollector.addedCount}
-          onDone={collectorHandlers.onDone}
-          onCancel={collectorHandlers.onCancel}
-        />
-      ) : null}
-
       {hasActivityRangeFilter ? (
         <View style={styles.activityRangeBanner}>
           <View style={styles.activityRangeBannerCopy}>

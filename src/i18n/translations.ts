@@ -48,7 +48,7 @@ export const resources = {
         fullBackupTitle: "That’s a full backup", fullBackupBody: "This file is a full SongNook backup, not a shareable archive. Restore it from Library & Backups → Restore.", songbookImported: "Songbook imported", setlistImported: "Setlist imported", packageReceived: "Package received", archiveReadFailed: "Could not read this SongNook Archive.", importFailed: "Import failed", individualClips: "Individual clips", individualClipsDesc: "Each file becomes its own clip", songProject: "Sketch", songProjectDesc: "Combine all files into one sketch",
         closeCreateMenu: "Close create menu",
         playItem: "Play {{title}}", removeFromQueue: "Remove {{title}} from queue", reorderItem: "Reorder {{title}}", goToItem: "Go to {{title}}",
-        copyReady: "{{count}} copy ready", moveReady: "{{count}} move ready", pickSongLyrics: "Pick a song to add lyrics to", addingTo: "Adding to {{title}}", doneBackTo: "Done — back to {{title}}", stopAdding: "Stop adding",
+        copyReady: "{{count}} copy ready", moveReady: "{{count}} move ready", stopAdding: "Stop adding",
         record: "Record",
         selectionActions: "Selection actions",
         lyrics: "Lyrics",
@@ -1268,6 +1268,9 @@ export const resources = {
       },
       selection: {
         add: "Add",
+        // Picker chrome (2026-09-11): one eyebrow above the title, one footer.
+        addCount: "Add {{count}}", addingTo: "Adding to {{title}}", pickCollection: "Choose a collection to add from", addedCount: "{{count}} added",
+        noChartYet: "No chart yet", noAudioYet: "No audio yet", pickingSongFor: "Choosing a song for lyrics",
         book: "Book", set: "Set", playlist: "Playlist", queue: "Queue", edit: "Edit", noCharts: "No charts to add", noChartsBody: "None of the selected songs have lyrics or a chord chart yet.", sharing: "Sharing…", shareCount: "Share ({{count}})", workspaceSelection: "{{title}} Selection", defaultSelection: "SongNook Selection", shareFailed: "Share failed", shareFailedBody: "Could not share the selected items.", copyReadyBody: "Tap \"Paste items here\" in this or another collection to finish copying these items.", moveReadyBody: "Open the destination collection and tap \"Paste items here\" to finish moving these items.", shelfOne: "On the shelf for 7 days", shelfCount: "{{count}} items on the shelf for 7 days", viewShelf: "View shelf", setAside: "Add to Shelf", setAsideCount: "Add to Shelf ({{count}})", songs: "Songs", deleteSongs_one: "This will delete {{count}} song and all contained clips.", deleteSongs_two: "This will delete {{count}} songs and all contained clips.", deleteSongs_other: "This will delete {{count}} songs and all contained clips.", deleteClips_one: "It will also delete {{count}} standalone clip", deleteClips_two: "It will also delete {{count}} standalone clips", deleteClips_other: "It will also delete {{count}} standalone clips", deleteSelectedClips_one: "Are you sure you want to delete {{count}} selected clip?", deleteSelectedClips_two: "Are you sure you want to delete {{count}} selected clips?", deleteSelectedClips_other: "Are you sure you want to delete {{count}} selected clips?", deleteSelected: "Delete selected items?", collectionActions: "Collection actions", bookmark: "Bookmark", removeBookmark: "Remove bookmark",
         copyOrMove: "Copy or move…", copyOrMoveTitle: "Copy or move", shareMenu: "Share…", shareTitle: "Share", thread: "Thread…", threadTitle: "Thread",
       },
@@ -1459,7 +1462,7 @@ export const resources = {
         fullBackupTitle: "זהו גיבוי מלא", fullBackupBody: "הקובץ הזה הוא גיבוי מלא של SongNook ולא ארכיון לשיתוף. שחזרו אותו דרך ספרייה וגיבויים ← שחזור.", songbookImported: "ספר השירים יובא", setlistImported: "הסטליסט יובא", packageReceived: "החבילה התקבלה", archiveReadFailed: "לא ניתן לקרוא את ארכיון SongNook.", importFailed: "הייבוא נכשל", individualClips: "קטעים נפרדים", individualClipsDesc: "כל קובץ הופך לקטע נפרד", songProject: "סקיצה", songProjectDesc: "שילוב כל הקבצים לסקיצה אחת",
         closeCreateMenu: "סגירת תפריט היצירה",
         playItem: "ניגון {{title}}", removeFromQueue: "הסרת {{title}} מהתור", reorderItem: "שינוי המיקום של {{title}}", goToItem: "מעבר אל {{title}}",
-        copyReady: "{{count}} מוכנים להעתקה", moveReady: "{{count}} מוכנים להעברה", pickSongLyrics: "בחרו שיר להוספת מילים", addingTo: "מוסיף אל {{title}}", doneBackTo: "סיום — חזרה אל {{title}}", stopAdding: "הפסקת ההוספה",
+        copyReady: "{{count}} מוכנים להעתקה", moveReady: "{{count}} מוכנים להעברה", stopAdding: "הפסקת ההוספה",
         record: "הקלטה",
         selectionActions: "פעולות על הבחירה",
         lyrics: "מילים",
@@ -2714,6 +2717,8 @@ export const resources = {
       },
       selection: {
         add: "הוספה",
+        addCount: "הוספת {{count}}", addingTo: "מוסיפים אל {{title}}", pickCollection: "בחרו אוסף להוסיף ממנו", addedCount: "{{count}} נוספו",
+        noChartYet: "אין תרשים עדיין", noAudioYet: "אין שמע עדיין", pickingSongFor: "בחירת שיר למילים",
         book: "ספר", set: "סט", playlist: "פלייליסט", queue: "לתור", edit: "עריכה", noCharts: "אין תרשימים להוספה", noChartsBody: "לאף אחד מהשירים שנבחרו עדיין אין מילים או תרשים אקורדים.", sharing: "משתפים…", shareCount: "שיתוף ({{count}})", workspaceSelection: "בחירה מ־{{title}}", defaultSelection: "בחירה מ־SongNook", shareFailed: "השיתוף נכשל", shareFailedBody: "לא ניתן לשתף את הפריטים שנבחרו.", copyReadyBody: "לחצו על „הדבקת פריטים כאן” באוסף הזה או באוסף אחר כדי לסיים את ההעתקה.", moveReadyBody: "פתחו את אוסף היעד ולחצו על „הדבקת פריטים כאן” כדי לסיים את ההעברה.", shelfOne: "נשמר במדף ל־7 ימים", shelfCount: "{{count}} פריטים נשמרו במדף ל־7 ימים", viewShelf: "למדף", setAside: "הוספה למדף", setAsideCount: "הוספה למדף ({{count}})", songs: "שירים", deleteSongs_one: "פעולה זו תמחק שיר אחד ואת כל הקטעים שבו.", deleteSongs_two: "פעולה זו תמחק שני שירים ואת כל הקטעים שבהם.", deleteSongs_other: "פעולה זו תמחק {{count}} שירים ואת כל הקטעים שבהם.", deleteClips_one: "היא תמחק גם קטע נפרד אחד", deleteClips_two: "היא תמחק גם שני קטעים נפרדים", deleteClips_other: "היא תמחק גם {{count}} קטעים נפרדים", deleteSelectedClips_one: "למחוק את הקטע שנבחר?", deleteSelectedClips_two: "למחוק את שני הקטעים שנבחרו?", deleteSelectedClips_other: "למחוק את {{count}} הקטעים שנבחרו?", deleteSelected: "למחוק את הפריטים שנבחרו?", collectionActions: "פעולות אוסף", bookmark: "סימון", removeBookmark: "הסרת סימון",
         copyOrMove: "העתקה או העברה…", copyOrMoveTitle: "העתקה או העברה", shareMenu: "שיתוף…", shareTitle: "שיתוף", thread: "שרשור…", threadTitle: "שרשור",
       },
