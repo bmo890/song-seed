@@ -37,6 +37,7 @@ function StemVersionRow({
   versionNumber,
   ideaId,
   isFirst,
+  isLast,
   context,
   shellRef,
   onRowLayout,
@@ -46,6 +47,8 @@ function StemVersionRow({
   ideaId: string;
   /** Bleeds the segment up through the stem's padding to meet the head card. */
   isFirst: boolean;
+  /** The origin of the thread: the stem terminates at its node. */
+  isLast: boolean;
   context: ClipCardContextProps;
   shellRef: React.RefObject<View | null>;
   onRowLayout?: (clipId: string, y: number) => void;
@@ -138,8 +141,8 @@ function StemVersionRow({
           ]}
           pointerEvents="none"
         />
-        {/* History always continues down to the stem row's terminal node. */}
-        <View style={styles.songDetailStemSegmentOn} pointerEvents="none" />
+        {/* The stem runs newest → oldest and terminates at the origin (v1). */}
+        {!isLast ? <View style={styles.songDetailStemSegmentOn} pointerEvents="none" /> : null}
         <View
           style={[
             styles.songDetailStemNode,
@@ -292,32 +295,22 @@ export const EvolutionThread = React.memo(function EvolutionThread({
       />
 
       <View style={styles.songDetailStem}>
-        {expanded
-          ? olderClips.map((clip, index) => (
-              <StemVersionRow
-                key={clip.id}
-                clip={clip}
-                versionNumber={versionNumberById.get(clip.id) ?? 1}
-                ideaId={ideaId}
-                isFirst={index === 0}
-                context={context}
-                shellRef={shellRef}
-                onRowLayout={onVersionRowLayout}
-              />
-            ))
-          : null}
-
-        {/* The stem's one row: terminal node + history count on the left (tap
-            to fold/unfold), the forward action on the right. */}
+        {/* The hinge sits at the fold, directly under the head: history opens
+            BELOW it, newest first, and the stem terminates at v1 — the origin.
+            A hinge glyph, not a node, so it never reads as a third version. */}
         <View style={styles.songDetailStemFoot}>
           <View
-            style={[
-              styles.songDetailStemSegmentIn,
-              { top: expanded ? 0 : -10, height: expanded ? 20 : 30 },
-            ]}
+            style={[styles.songDetailStemSegmentIn, { top: -10, height: 30 }]}
             pointerEvents="none"
           />
-          <View style={styles.songDetailStemNode} pointerEvents="none" />
+          {expanded ? <View style={styles.songDetailStemSegmentOn} pointerEvents="none" /> : null}
+          <View style={styles.songDetailStemHinge} pointerEvents="none">
+            <Ionicons
+              name={expanded ? "chevron-up" : "chevron-down"}
+              size={11}
+              color={colors.textSecondary}
+            />
+          </View>
           <Pressable
             style={({ pressed }) => [
               styles.songDetailStemFootToggle,
@@ -330,22 +323,12 @@ export const EvolutionThread = React.memo(function EvolutionThread({
             }}
             accessibilityRole="button"
             accessibilityState={{ expanded }}
-            accessibilityLabel={`${t("clipLineage.versionTag", { number: versionCount })} · ${t(
-              "clipLineage.olderVersions",
-              { count: olderClips.length }
-            )}`}
           >
             <Text style={styles.songDetailStemFoldText} numberOfLines={1}>
-              {`${t("clipLineage.versionTag", { number: versionCount })} · ${t(
-                "clipLineage.olderVersions",
-                { count: olderClips.length }
-              )}`}
+              {expanded
+                ? t("clipLineage.hideOlderVersions", { count: olderClips.length })
+                : t("clipLineage.olderVersions", { count: olderClips.length })}
             </Text>
-            <Ionicons
-              name={expanded ? "chevron-up" : "chevron-down"}
-              size={11}
-              color={colors.textSecondary}
-            />
           </Pressable>
           {!clipSelectionMode ? (
             <Pressable
@@ -363,6 +346,22 @@ export const EvolutionThread = React.memo(function EvolutionThread({
             </Pressable>
           ) : null}
         </View>
+
+        {expanded
+          ? olderClips.map((clip, index) => (
+              <StemVersionRow
+                key={clip.id}
+                clip={clip}
+                versionNumber={versionNumberById.get(clip.id) ?? 1}
+                ideaId={ideaId}
+                isFirst={false}
+                isLast={index === olderClips.length - 1}
+                context={context}
+                shellRef={shellRef}
+                onRowLayout={onVersionRowLayout}
+              />
+            ))
+          : null}
       </View>
     </View>
   );

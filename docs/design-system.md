@@ -331,6 +331,14 @@ is fixed: the **title** takes the room and ellipsizes first, down to a floor of
 | Help | `common/HelpButton.tsx` → `common/HelpSheet.tsx` | The ONLY `?` (default in headers, `compact` beside one control, `emphasized` on first visit where there is a real learning curve: Takes, Overdub, Recording). The sheet has no title (the page is the title): a Lora thesis, muted icon rows, scroll as a safety net. The word tools' step sheets (diagram + three points + one credit per tool) are the tutorial grammar; the page keeps only placeholders and state-driven feedback, never a hint line that repeats the sheet. |
 | Waveform | `common/AudioReel.tsx` | Tap = play/pause, drag = scrub. Everywhere. |
 
+**Fold geometry (founder ruling 2026-09-14).** The stem runs newest → oldest and
+terminates at v1, the origin. The hinge row ("2 older versions" / "Hide 2 older
+versions", with New version on its trailing edge) sits DIRECTLY UNDER the head
+card in both states and history opens BELOW it; the hinge is a chevron on the
+stem line, never a node, so an expanded thread with two versions shows exactly
+two nodes. The old layout put the fold row after the history with a node of its
+own and a repeated "v2", which read as three versions in the order v2 · v1 · v2.
+
 ### Button language (locked 2026-07-24)
 
 **The stadium pill is retired.** `radius: round` (999) is banned on text buttons —

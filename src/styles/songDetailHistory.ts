@@ -389,6 +389,17 @@ export const songDetailHistoryStyles = {
     borderWidth: 2,
     borderColor: "rgba(184,125,107,0.6)",
   },
+  // The fold hinge: a chevron centred on the stem line where a node would sit,
+  // so the toggle row is read as a hinge in the line, never as a version.
+  songDetailStemHinge: {
+    position: "absolute",
+    left: -20,
+    top: 14,
+    width: 12,
+    height: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   songDetailStemNodeActive: {
     backgroundColor: "#B87D6B",
     borderColor: "#B87D6B",
