@@ -304,11 +304,14 @@ export const EvolutionThread = React.memo(function EvolutionThread({
             pointerEvents="none"
           />
           {expanded ? <View style={styles.songDetailStemSegmentOn} pointerEvents="none" /> : null}
+          {/* The hinge is a small round key on the stem line — a control, not a
+              node and not a bare arrowhead — so the fold reads as tappable in
+              both states (founder ruling 2026-09-14). */}
           <View style={styles.songDetailStemHinge} pointerEvents="none">
             <Ionicons
               name={expanded ? "chevron-up" : "chevron-down"}
-              size={11}
-              color={colors.textSecondary}
+              size={12}
+              color={colors.textStrong}
             />
           </View>
           <Pressable
@@ -323,12 +326,18 @@ export const EvolutionThread = React.memo(function EvolutionThread({
             }}
             accessibilityRole="button"
             accessibilityState={{ expanded }}
-          >
-            <Text style={styles.songDetailStemFoldText} numberOfLines={1}>
-              {expanded
+            accessibilityLabel={
+              expanded
                 ? t("clipLineage.hideOlderVersions", { count: olderClips.length })
-                : t("clipLineage.olderVersions", { count: olderClips.length })}
-            </Text>
+                : t("clipLineage.olderVersions", { count: olderClips.length })
+            }
+          >
+            {/* Open, the history speaks for itself: the key alone collapses it. */}
+            {!expanded ? (
+              <Text style={styles.songDetailStemFoldText} numberOfLines={1}>
+                {t("clipLineage.olderVersions", { count: olderClips.length })}
+              </Text>
+            ) : null}
           </Pressable>
           {!clipSelectionMode ? (
             <Pressable

@@ -393,10 +393,14 @@ export const songDetailHistoryStyles = {
   // so the toggle row is read as a hinge in the line, never as a version.
   songDetailStemHinge: {
     position: "absolute",
-    left: -20,
-    top: 14,
-    width: 12,
-    height: 12,
+    left: -25,
+    top: 9,
+    width: 22,
+    height: 22,
+    borderRadius: radii.round,
+    backgroundColor: colors.surfaceHigh,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
     alignItems: "center",
     justifyContent: "center",
   },
