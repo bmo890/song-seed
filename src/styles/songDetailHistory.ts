@@ -301,9 +301,8 @@ export const songDetailHistoryStyles = {
   // with it — history reads as hanging off the card, not as a second column.
   songDetailStem: {
     position: "relative",
-    marginTop: 2,
     marginHorizontal: 6,
-    paddingTop: 10,
+    paddingTop: 4,
     paddingLeft: 34,
   },
   // The stem is drawn per row, never as one span: each row carries a segment
@@ -322,7 +321,7 @@ export const songDetailHistoryStyles = {
     position: "absolute",
     left: -14.75,
     top: 20,
-    bottom: 0,
+    bottom: -1.5,
     width: 1.5,
     backgroundColor: "rgba(184,125,107,0.35)",
   },
@@ -393,7 +392,7 @@ export const songDetailHistoryStyles = {
   // so the toggle row is read as a hinge in the line, never as a version.
   songDetailStemHinge: {
     position: "absolute",
-    left: -25,
+    left: 3,
     top: 9,
     width: 22,
     height: 22,
@@ -455,6 +454,7 @@ export const songDetailHistoryStyles = {
     borderWidth: 1.5,
     borderColor: "transparent",
   },
+  // Reaches back into the stem gutter so the round key is inside the press target.
   songDetailStemFootToggle: {
     flex: 1,
     minWidth: 0,
@@ -462,6 +462,8 @@ export const songDetailHistoryStyles = {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    marginStart: -34,
+    paddingStart: 34,
   },
   songDetailStemFootAction: {
     flexDirection: "row",

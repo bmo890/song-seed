@@ -137,7 +137,7 @@ function StemVersionRow({
         <View
           style={[
             styles.songDetailStemSegmentIn,
-            { top: isFirst ? -10 : 0, height: isFirst ? 30 : 20 },
+            { top: isFirst ? -5.5 : -1.5, height: isFirst ? 25.5 : 21.5 },
           ]}
           pointerEvents="none"
         />
@@ -300,25 +300,16 @@ export const EvolutionThread = React.memo(function EvolutionThread({
             A hinge glyph, not a node, so it never reads as a third version. */}
         <View style={styles.songDetailStemFoot}>
           <View
-            style={[styles.songDetailStemSegmentIn, { top: -10, height: 30 }]}
+            style={[styles.songDetailStemSegmentIn, { top: -5.5, height: 25.5 }]}
             pointerEvents="none"
           />
           {expanded ? <View style={styles.songDetailStemSegmentOn} pointerEvents="none" /> : null}
-          {/* The hinge is a small round key on the stem line — a control, not a
-              node and not a bare arrowhead — so the fold reads as tappable in
-              both states (founder ruling 2026-09-14). */}
-          <View style={styles.songDetailStemHinge} pointerEvents="none">
-            <Ionicons
-              name={expanded ? "chevron-up" : "chevron-down"}
-              size={12}
-              color={colors.textStrong}
-            />
-          </View>
           <Pressable
             style={({ pressed }) => [
               styles.songDetailStemFootToggle,
               pressed ? styles.pressDown : null,
             ]}
+            hitSlop={{ top: 4, bottom: 4 }}
             onPress={() => {
               // haptics.ts: light → small state flips (fold/unfold).
               haptic.light();
@@ -332,6 +323,16 @@ export const EvolutionThread = React.memo(function EvolutionThread({
                 : t("clipLineage.olderVersions", { count: olderClips.length })
             }
           >
+            {/* The hinge is a small round key on the stem line — a control, not a
+                node and not a bare arrowhead — inside the press target so tapping
+                the key itself folds the thread (founder ruling 2026-09-14). */}
+            <View style={styles.songDetailStemHinge} pointerEvents="none">
+              <Ionicons
+                name={expanded ? "chevron-up" : "chevron-down"}
+                size={12}
+                color={colors.textStrong}
+              />
+            </View>
             {/* Open, the history speaks for itself: the key alone collapses it. */}
             {!expanded ? (
               <Text style={styles.songDetailStemFoldText} numberOfLines={1}>
