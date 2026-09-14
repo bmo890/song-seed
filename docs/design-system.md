@@ -281,14 +281,17 @@ is fixed: the **title** takes the room and ellipsizes first, down to a floor of
 - **The stem is only the past.** A warm line descends from the card through
   hollow nodes (v1, v2…), tap to audition (node fills terracotta while playing),
   long-press to select. The stem never contains the future — actions are not
-  timeline events. One older version always shows; ≥2 fold behind
-  "N older versions".
+  timeline events. History folds behind ONE 40pt stem row (2026-09-14): a
+  terminal node + "v3 · 2 older versions" + chevron; tap to unfold the older
+  rows between the card and that row. The shell is slim (4pt inset) — a thread
+  beside plain cards, not a box.
 - **Version notes** are the clip's own notes field, shown as one italic Lora
   line under the node (`Lora_500Medium_Italic` — a real face, never
   `fontStyle`). Content you wrote earns the serif.
 - **"New version" is the thread's action**, labeled in words (mic + two words)
-  in the thread footer. Single-version cards carry the same labeled soft key on
-  the card itself. The bare unlabeled mic is retired.
+  on the stem row's trailing edge. A take with no older versions is just a card
+  — no shell, no stem — and carries a small ink `+` in its footer instead. The
+  bare unlabeled mic is retired.
 - **The recorder names the path:** arriving via "New version" shows
   "NEW VERSION OF ‹take›"; the FAB path keeps "Recording into ‹sketch›".
 - **Primary wears a CROWN, never a spine** (locked 2026-07-27): a terracotta

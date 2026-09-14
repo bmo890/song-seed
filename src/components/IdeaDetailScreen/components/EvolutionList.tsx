@@ -1,4 +1,4 @@
-import React, { ReactNode, useMemo, useState } from "react";
+import React, { ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { type SharedValue } from "react-native-reanimated";
@@ -17,7 +17,7 @@ import { EvolutionThread } from "./EvolutionThread";
 import { SongClipCard } from "./SongClipCard";
 import { SongClipListShell } from "./SongClipListShell";
 import { haptic } from "../../../design/haptics";
-import { colors } from "../../../design/tokens";
+import { colors, spacing } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 
 type EvolutionListProps = {
@@ -34,9 +34,16 @@ type EvolutionListProps = {
   contentPaddingHorizontal?: number;
   /** Clip to scroll into view (with a fresh nonce per locate request). */
   locateTarget?: { clipId: string; nonce: number } | null;
+  /** Px from the viewport's top a located row should settle at — the pinned
+   *  header's height plus breathing room. Read at scroll time (the pinned
+   *  header grows a "Collapse all" row the moment a thread unfolds). */
+  getLocateTopInset?: () => number;
 };
 
 type EvolutionContentRow = EvolutionListRow;
+
+/** Minimum height of a version row on the stem (see `songDetailStemRow`). */
+const STEM_ROW_HEIGHT = 40;
 
 
 function EvolutionMoreRow({
@@ -144,6 +151,7 @@ export function EvolutionList({
   contentPaddingTop,
   contentPaddingHorizontal,
   locateTarget,
+  getLocateTopInset,
 }: EvolutionListProps) {
   const { t } = useTranslation();
   const ideaId = clipCardContext.mode.idea.id;
@@ -166,16 +174,42 @@ export function EvolutionList({
     [lineages, direction, expandedLineageIds, groupAssignments, groups]
   );
 
+  // Where each unfolded older version sits inside its thread (y from the shell's
+  // top), reported by the rows themselves as they lay out. A locate request for
+  // an older version scrolls to the THREAD's index, offset by this — otherwise
+  // a long history leaves the target below the fold.
+  const versionRowYRef = useRef<Record<string, number>>({});
+  const onVersionRowLayout = useCallback((clipId: string, y: number) => {
+    versionRowYRef.current[clipId] = y;
+  }, []);
+  const getLocateTopInsetRef = useRef(getLocateTopInset);
+  getLocateTopInsetRef.current = getLocateTopInset;
+
   const scrollTarget = useMemo(() => {
     if (!locateTarget) return null;
+    const { clipId } = locateTarget;
     const index = contentRows.findIndex(
       (row) =>
-        (row.kind === "clip" && row.entry.clip.id === locateTarget.clipId) ||
+        (row.kind === "clip" && row.entry.clip.id === clipId) ||
         (row.kind === "thread" &&
-          row.lineage.clipsOldestToNewest.some((clip) => clip.id === locateTarget.clipId))
+          row.lineage.clipsOldestToNewest.some((clip) => clip.id === clipId))
     );
     if (index < 0) return null;
-    return { index, nonce: locateTarget.nonce };
+    const row = contentRows[index];
+    const isOlderVersion = row.kind === "thread" && row.lineage.latestClip.id !== clipId;
+    return {
+      index,
+      nonce: locateTarget.nonce,
+      getViewOffset: (viewportHeight: number) => {
+        const inset = getLocateTopInsetRef.current?.() ?? 0;
+        const rowY = isOlderVersion ? versionRowYRef.current[clipId] ?? 0 : 0;
+        // Keep the head card in view when the row fits beneath it; only when
+        // the history runs past the fold does the row itself take the top.
+        const rowFitsUnderHead =
+          rowY + STEM_ROW_HEIGHT + spacing.xl <= viewportHeight - inset;
+        return rowFitsUnderHead ? inset : inset - rowY;
+      },
+    };
   }, [locateTarget?.clipId, locateTarget?.nonce, contentRows]);
 
   return (
@@ -221,6 +255,7 @@ export function EvolutionList({
                 }))
               }
               context={clipCardContext}
+              onVersionRowLayout={onVersionRowLayout}
             />
           );
         }

@@ -228,8 +228,8 @@ export const ClipCard = React.memo(function ClipCard({
   const canShowTrailingAction =
     !displayOnly && !clipSelectionMode && !isEditMode && !isDraftProject && !isParentPicking;
   // Reply (record a new version) belongs to single-version evolution cards only.
-  // Thread heads hand the action to the thread footer's labeled "New version",
-  // and indented children are part of one thread, so neither shows the mic here.
+  // Thread heads hand the action to the stem row's labeled "New version", and
+  // indented children are part of one thread, so neither shows the "+" here.
   const showReplyButton =
     canShowTrailingAction &&
     entry.kind === "evolution" &&
@@ -383,12 +383,8 @@ export const ClipCard = React.memo(function ClipCard({
               </Pressable>
             ) : null}
             {/* History lives on the thread's stem now — no per-card history glyph. */}
-            {/* Record-a-new-take (mic) stays farthest right — the primary forward action. */}
-            <ClipCardReplyButton
-              visible={showReplyButton}
-              compact={compactDensity}
-              onPress={handleReply}
-            />
+            {/* New version ("+") stays farthest right — the forward action. */}
+            <ClipCardReplyButton visible={showReplyButton} onPress={handleReply} />
           </>
         }
         bodyContent={

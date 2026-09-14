@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type ReactElement, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, type ReactElement, type ReactNode } from "react";
 import { FlatList, Text, View } from "react-native";
 import Animated, {
   useAnimatedScrollHandler,
@@ -24,8 +24,16 @@ type SongClipListShellProps<T> = {
   contentPaddingTop?: number;
   /** Horizontal inset compensating for an edge-to-edge stage (selection bar bleed). */
   contentPaddingHorizontal?: number;
-  /** When set (with a fresh nonce), scroll the content row at `index` into view. */
-  scrollTarget?: { index: number; nonce: number } | null;
+  /** When set (with a fresh nonce), scroll the content row at `index` into view.
+   *  `getViewOffset` (resolved at scroll time, after layout, given the list's
+   *  viewport height) pins the row's top that many px below the viewport's top
+   *  — negative values reach INTO a tall row (an older version inside an
+   *  unfolded thread). Without it the row settles at 30% of the viewport. */
+  scrollTarget?: {
+    index: number;
+    nonce: number;
+    getViewOffset?: (viewportHeight: number) => number;
+  } | null;
   contentKeyExtractor: (item: T, index: number) => string;
   renderContentRow: (item: T, index: number) => ReactElement | null;
 };
@@ -84,30 +92,49 @@ export function SongClipListShell<T>({
   });
 
   // Scroll the targeted content row into view when a fresh locate request arrives.
+  // The offset resolves inside the timeout so a row that mounted with this
+  // request (an unfolded thread's older version) has reported its layout.
+  const scrollToRow = useCallback(
+    (index: number) => {
+      const getViewOffset = scrollTargetRef.current?.getViewOffset;
+      listRef.current?.scrollToIndex(
+        getViewOffset
+          ? {
+              index,
+              animated: true,
+              viewPosition: 0,
+              viewOffset: getViewOffset(viewportHeightRef.current),
+            }
+          : { index, animated: true, viewPosition: 0.3 }
+      );
+    },
+    []
+  );
+  const scrollTargetRef = useRef(scrollTarget);
+  scrollTargetRef.current = scrollTarget;
+  const viewportHeightRef = useRef(0);
+
   useEffect(() => {
     if (!scrollTarget) return;
     if (scrollTarget.index < 0 || scrollTarget.index >= contentRows.length) return;
     const rowIndex = leadingRowCount + scrollTarget.index;
-    const id = setTimeout(() => {
-      listRef.current?.scrollToIndex({ index: rowIndex, animated: true, viewPosition: 0.3 });
-    }, 60);
+    const id = setTimeout(() => scrollToRow(rowIndex), 60);
     return () => clearTimeout(id);
-  }, [scrollTarget?.nonce, contentRows.length, leadingRowCount]);
+  }, [scrollTarget?.nonce, contentRows.length, leadingRowCount, scrollToRow]);
 
   return (
     <AnimatedFlatList
       ref={listRef}
       data={listRows}
+      onLayout={(e) => {
+        viewportHeightRef.current = e.nativeEvent.layout.height;
+      }}
       onScrollToIndexFailed={(info) => {
         if (scrollRetryTimerRef.current) {
           clearTimeout(scrollRetryTimerRef.current);
         }
         scrollRetryTimerRef.current = setTimeout(() => {
-          listRef.current?.scrollToIndex({
-            index: info.index,
-            animated: true,
-            viewPosition: 0.3,
-          });
+          scrollToRow(info.index);
           scrollRetryTimerRef.current = null;
         }, 250);
       }}

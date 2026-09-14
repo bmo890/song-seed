@@ -176,28 +176,14 @@ export const songDetailHistoryStyles = {
     color: "#524440",
     fontFamily: "PlusJakartaSans_700Bold",
   },
-  // "New version" — labeled soft key (mic + words); the affordance says what it
-  // does instead of miming the record FAB.
+  // "New version" on a single-take card: a bare ink "+" in the footer's
+  // trailing slot (the thread's labeled action lives on the stem row).
   songDetailVersionReplyBtn: {
-    flexDirection: "row",
+    width: 26,
+    height: 26,
+    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
-    minHeight: 26,
-    paddingHorizontal: 8,
-    borderRadius: radii.lg,
-    backgroundColor: "#F3E4DE",
-  },
-  songDetailVersionReplyText: {
-    fontSize: 10.5,
-    color: colors.primaryDeep,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-  },
-  songDetailVersionReplyBtnCompact: {
-    width: 24,
-    height: 24,
-    paddingHorizontal: 0,
-    borderRadius: 12,
   },
   songDetailVersionHistoryBtn: {
     width: 26,
@@ -303,12 +289,13 @@ export const songDetailHistoryStyles = {
     color: "#84736f",
   },
   // ── Stemmed thread (Evolution v2) ─────────────────────────────────────────
-  // One tinted shell per multi-version lineage: head card on top, history stem
-  // below, the thread's "New version" action in the footer.
+  // One slim tinted shell per multi-version lineage: head card on top, then the
+  // stem — older versions (when unfolded) ending in ONE 40pt row that names the
+  // history and carries the thread's "New version" action.
   songDetailThreadShell: {
     backgroundColor: "rgba(232,228,223,0.42)",
     borderRadius: 14,
-    padding: 6,
+    padding: 4,
   },
   // Indented so the stem sits INSIDE the head card's edge rather than flush
   // with it — history reads as hanging off the card, not as a second column.
@@ -323,8 +310,8 @@ export const songDetailHistoryStyles = {
   // into its node, and only a row with history below it continues past. That
   // way the line always TERMINATES at the last node instead of running on to
   // the container's floor (which overshot whenever a row grew, e.g. with a note).
-  // Node centre sits 13.5 below the row top (node top 9 + half of 9);
-  // x = -13.75 centres the 1.5px line on the 9px node.
+  // Rows are 40pt: node centre sits 20 below the row top (padding 11 + half
+  // of the 18pt first line); x = -14.75 centres the 1.5px line on the 9px node.
   songDetailStemSegmentIn: {
     position: "absolute",
     left: -14.75,
@@ -334,7 +321,7 @@ export const songDetailHistoryStyles = {
   songDetailStemSegmentOn: {
     position: "absolute",
     left: -14.75,
-    top: 13.5,
+    top: 20,
     bottom: 0,
     width: 1.5,
     backgroundColor: "rgba(184,125,107,0.35)",
@@ -347,11 +334,25 @@ export const songDetailHistoryStyles = {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 9,
-    paddingVertical: 5,
+    minHeight: 40,
+    paddingVertical: 11,
     paddingHorizontal: 6,
-    borderRadius: 8,
+    borderRadius: radii.lg,
     borderWidth: 1.5,
     borderColor: "transparent",
+  },
+  // "View in context" flash — the row's own selected language (wash + terracotta
+  // edge), faded in and out by the same Animated.Value the head card reads.
+  songDetailStemRowHighlight: {
+    position: "absolute",
+    top: -1.5,
+    bottom: -1.5,
+    left: -1.5,
+    right: -1.5,
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySurface,
   },
   // Transport sits before the copy and owns its own hit area, so it keeps
   // working in selection mode (audition a candidate before committing).
@@ -360,7 +361,6 @@ export const songDetailHistoryStyles = {
     height: 18,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 1,
     flexShrink: 0,
   },
   songDetailStemScrubRow: {
@@ -381,7 +381,7 @@ export const songDetailHistoryStyles = {
   songDetailStemNode: {
     position: "absolute",
     left: -18.5,
-    top: 9,
+    top: 15.5,
     width: 9,
     height: 9,
     borderRadius: radii.round,
@@ -401,6 +401,7 @@ export const songDetailHistoryStyles = {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    minHeight: 18,
   },
   songDetailStemVn: {
     fontFamily: "PlusJakartaSans_700Bold",
@@ -427,25 +428,34 @@ export const songDetailHistoryStyles = {
     fontSize: 11,
     color: "#84736f",
   },
-  songDetailStemHideRow: {
+  // The stem's one row (40pt): terminal node + "vN · k older versions" toggle
+  // on the left, the thread's forward action on the right. Same horizontal
+  // geometry as a version row so the node lands on the same line.
+  songDetailStemFoot: {
+    position: "relative",
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingVertical: 4,
+    minHeight: 40,
+    paddingHorizontal: 6,
+    borderWidth: 1.5,
+    borderColor: "transparent",
   },
-  // Thread footer: the one forward action, labeled in words.
-  songDetailThreadFoot: {
+  songDetailStemFootToggle: {
+    flex: 1,
+    minWidth: 0,
+    alignSelf: "stretch",
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginTop: 4,
-    marginHorizontal: 6,
-    paddingTop: 8,
-    paddingBottom: 4,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(215,194,189,0.4)",
   },
-  songDetailThreadFootText: {
+  songDetailStemFootAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "stretch",
+    gap: 6,
+    paddingLeft: 12,
+  },
+  songDetailStemFootActionText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 11.5,
     color: colors.primaryDeep,

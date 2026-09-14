@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../styles";
@@ -13,7 +13,7 @@ import { SongClipListSummary } from "./SongClipListSummary";
 import { SongClipListHeader } from "./songClipToolbar/SongClipListHeader";
 import { CollapsingHeaderOverlay } from "../../common/CollapsingHeaderOverlay";
 import { SongCollapsibleHeader } from "./SongCollapsibleHeader";
-import { colors } from "../../../design/tokens";
+import { colors, spacing } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 
 type SongClipListContentProps = {
@@ -107,8 +107,25 @@ export function SongClipListContent({
 
   // The derived per-view contexts must keep referential stability (ClipCard is memo'd
   // on them), so the added callbacks are stable wrappers over a latest-impl ref.
-  const latestRef = useRef({ focusClipInEvolution, openLineageHistory: actions.openLineageHistory });
-  latestRef.current = { focusClipInEvolution, openLineageHistory: actions.openLineageHistory };
+  const latestRef = useRef({
+    focusClipInEvolution,
+    openLineageHistory: actions.openLineageHistory,
+    headerHeight,
+  });
+  latestRef.current = {
+    focusClipInEvolution,
+    openLineageHistory: actions.openLineageHistory,
+    headerHeight,
+  };
+
+  // A located row settles just under the pinned part of the header (total
+  // minus the collapsible group), with a breathing line of space.
+  const collapsibleHeaderHeight = screen.collapsibleHeaderHeight;
+  const getLocateTopInset = useCallback(
+    () =>
+      latestRef.current.headerHeight - Math.round(collapsibleHeaderHeight.value) + spacing.md,
+    [collapsibleHeaderHeight]
+  );
 
   const timelineClipCardContext = useMemo<ClipCardContextProps>(
     () => ({
@@ -160,6 +177,7 @@ export function SongClipListContent({
         contentPaddingTop={headerHeight}
         contentPaddingHorizontal={16}
         locateTarget={locateTarget}
+        getLocateTopInset={getLocateTopInset}
       />
     );
 

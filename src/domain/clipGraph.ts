@@ -301,12 +301,12 @@ export function buildEvolutionListRowsFromLineages(
         return;
       }
 
-      // Multi-version lineage → one thread shell. A lone older version is always
-      // visible; longer histories fold behind the expand toggle.
+      // Multi-version lineage → one thread shell. History folds behind the
+      // stem row ("vN · k older versions") until the thread is opened.
       rows.push({
         kind: "thread",
         lineage,
-        expanded: olderClips.length === 1 || !!expandedLineageIds[lineage.root.id],
+        expanded: !!expandedLineageIds[lineage.root.id],
       });
   };
 

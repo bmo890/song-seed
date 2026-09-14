@@ -1,42 +1,36 @@
-import { Pressable, Text } from "react-native";
+import { Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { styles } from "../../styles";
+import { haptic } from "../../../../design/haptics";
 import { colors } from "../../../../design/tokens";
 
 type ClipCardReplyButtonProps = {
   visible: boolean;
-  compact: boolean;
   onPress: () => void | Promise<void>;
 };
 
-export function ClipCardReplyButton({
-  visible,
-  compact,
-  onPress,
-}: ClipCardReplyButtonProps) {
+/** "New version" on a take with no history: a small ink "+" in the card's
+ *  footer. The labeled mic belongs to a thread's stem row; a lone take is just
+ *  a card, so its affordance stays a glyph. */
+export function ClipCardReplyButton({ visible, onPress }: ClipCardReplyButtonProps) {
   const { t } = useTranslation();
   if (!visible) return null;
 
   return (
     <Pressable
-      style={({ pressed }) => [
-        styles.songDetailVersionReplyBtn,
-        compact ? styles.songDetailVersionReplyBtnCompact : null,
-        pressed ? styles.pressDown : null,
-      ]}
+      style={({ pressed }) => [styles.songDetailVersionReplyBtn, pressed ? styles.pressDown : null]}
       onPress={async (event) => {
         event.stopPropagation();
+        // haptics.ts: tap → any acknowledged press.
+        haptic.tap();
         await onPress();
       }}
+      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
       accessibilityRole="button"
       accessibilityLabel={t("clipLineage.recordTakeA11y")}
     >
-      <Ionicons name="mic-outline" size={13} color={colors.primaryDeep} />
-      {/* Two words so the affordance says what it does — bare glyph only in compact. */}
-      {!compact ? (
-        <Text style={styles.songDetailVersionReplyText}>{t("clipLineage.newVersion")}</Text>
-      ) : null}
+      <Ionicons name="add" size={16} color={colors.primaryDeep} />
     </Pressable>
   );
 }

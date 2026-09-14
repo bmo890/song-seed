@@ -1,5 +1,6 @@
-import React from "react";
-import { Pressable, Text, View } from "react-native";
+import React, { useCallback, useRef } from "react";
+import { Animated as RNAnimated, Pressable, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
@@ -15,6 +16,7 @@ import { SongClipCard } from "./SongClipCard";
 import { ClipNoteLine } from "../../common/clip/ClipNoteLine";
 import { ScrubBar } from "../../common/ScrubBar";
 import { haptic } from "../../../design/haptics";
+import { collapseIn } from "../../../design/motion";
 import { colors } from "../../../design/tokens";
 
 type EvolutionThreadProps = {
@@ -22,6 +24,9 @@ type EvolutionThreadProps = {
   expanded: boolean;
   onToggleExpanded: (lineageRootId: string) => void;
   context: ClipCardContextProps;
+  /** Reports where an older version's row sits (y from the thread's top edge)
+   *  so a locate request can scroll that row — not just the thread — into view. */
+  onVersionRowLayout?: (clipId: string, y: number) => void;
 };
 
 /** One quiet history row on the thread's stem: hollow node, version number,
@@ -32,20 +37,22 @@ function StemVersionRow({
   versionNumber,
   ideaId,
   isFirst,
-  isLast,
   context,
+  shellRef,
+  onRowLayout,
 }: {
   clip: ClipVersion;
   versionNumber: number;
   ideaId: string;
   /** Bleeds the segment up through the stem's padding to meet the head card. */
   isFirst: boolean;
-  /** The stem stops here — no segment continues past the last node. */
-  isLast: boolean;
   context: ClipCardContextProps;
+  shellRef: React.RefObject<View | null>;
+  onRowLayout?: (clipId: string, y: number) => void;
 }) {
   const { t } = useTranslation();
-  const { inlinePlayer } = context.playback;
+  const { inlinePlayer, getHighlightValue } = context.playback;
+  const rowRef = useRef<View>(null);
   const clipSelectionMode = useStore((s) => s.clipSelectionMode);
   const isSelected = useStore((s) => s.selectedClipIds.includes(clip.id));
   const toggleClipSelection = useStore((s) => s.toggleClipSelection);
@@ -62,6 +69,9 @@ function StemVersionRow({
   const durationMs = getClipPlaybackDurationMs(clip);
   const canPlay = hasClipPlaybackSource(clip);
   const note = (clip.notes ?? "").trim();
+  // Same "view in context" flash the head card wears — the value is allocated
+  // eagerly for every clip in the lineage, so an older version lights up too.
+  const highlightValue = getHighlightValue(clip.id);
 
   const inlinePositionMs = useStore((s) => (inlineActive ? s.inlinePositionMs : 0));
   const inlineDurationMs = useStore((s) => (inlineActive ? s.inlineDurationMs : 0));
@@ -90,139 +100,160 @@ function StemVersionRow({
     startClipSelection(clip.id);
   };
 
+  // Measured against the thread shell (a host instance, so Fabric is happy),
+  // not summed from parent layouts — the head card's height varies.
+  const reportLayout = useCallback(() => {
+    const shell = shellRef.current;
+    const row = rowRef.current;
+    if (!shell || !row || !onRowLayout) return;
+    row.measureLayout(shell, (_x, y) => onRowLayout(clip.id, y));
+  }, [clip.id, onRowLayout, shellRef]);
+
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.songDetailStemRow,
-        isSelected ? styles.songDetailStemRowSelected : null,
-        pressed ? styles.pressDown : null,
-      ]}
-      onPress={handlePress}
-      onLongPress={handleLongPress}
-      delayLongPress={300}
-      accessibilityRole="button"
-      accessibilityLabel={t("clipLineage.versionA11y", { number: versionNumber })}
-    >
-      <View
-        style={[
-          styles.songDetailStemSegmentIn,
-          { top: isFirst ? -10 : 0, height: isFirst ? 23.5 : 13.5 },
-        ]}
-        pointerEvents="none"
-      />
-      {!isLast ? (
-        <View style={styles.songDetailStemSegmentOn} pointerEvents="none" />
-      ) : null}
-      <View
-        style={[
-          styles.songDetailStemNode,
-          inlineActive ? styles.songDetailStemNodeActive : null,
-        ]}
-      />
-      {/* Bare glyph transport — same lead treatment as every card in the app. */}
+    <Animated.View entering={collapseIn}>
       <Pressable
+        ref={rowRef}
+        onLayout={reportLayout}
         style={({ pressed }) => [
-          styles.songDetailStemPlay,
-          pressed && canPlay ? styles.pressDown : null,
+          styles.songDetailStemRow,
+          isSelected ? styles.songDetailStemRowSelected : null,
+          pressed ? styles.pressDown : null,
         ]}
-        onPress={(e) => {
-          e.stopPropagation();
-          togglePlayback();
-        }}
-        hitSlop={{ top: 6, bottom: 6, left: 6, right: 4 }}
+        onPress={handlePress}
+        onLongPress={handleLongPress}
+        delayLongPress={300}
         accessibilityRole="button"
-        accessibilityLabel={t(
-          inlineActive && isInlinePlaying ? "common.pause" : "common.play"
-        )}
+        accessibilityLabel={t("clipLineage.versionA11y", { number: versionNumber })}
       >
-        <Ionicons
-          name={inlineActive && isInlinePlaying ? "pause" : "play"}
-          size={13}
-          color={
-            !canPlay
-              ? colors.textMuted
-              : inlineActive
-                ? colors.primaryDeep
-                : colors.textStrong
-          }
-        />
-      </Pressable>
-
-      <View style={styles.songDetailStemRowBody}>
-        <View style={styles.songDetailStemRowTop}>
-          <Text style={styles.songDetailStemVn}>{t("clipLineage.versionTag", { number: versionNumber })}</Text>
-          <Text style={styles.songDetailStemWhen}>{formatClipDate(clip.createdAt)}</Text>
-          {clip.isBookmarked ? (
-            <Ionicons name="bookmark" size={11} color={colors.primary} />
-          ) : null}
-          {/* The primary take isn't always the newest — when an older version is
-              the sketch's face, the mark travels down to it. */}
-          {clip.isPrimary ? <PrimaryInk label={t("common.primary")} /> : null}
-          <View style={{ flex: 1 }} />
-          <Text style={styles.songDetailStemDur}>
-            {durationMs ? fmtCardDuration(durationMs) : "0:00"}
-          </Text>
-        </View>
-
-        {note ? (
-          <ClipNoteLine
-            notes={note}
-            disabled={clipSelectionMode}
-            onOpen={() => context.actions.onOpenNotesSheet?.(clip)}
-            onLongPress={handleLongPress}
+        {highlightValue != null ? (
+          <RNAnimated.View
+            style={[styles.songDetailStemRowHighlight, { opacity: highlightValue }]}
+            pointerEvents="none"
           />
         ) : null}
+        <View
+          style={[
+            styles.songDetailStemSegmentIn,
+            { top: isFirst ? -10 : 0, height: isFirst ? 30 : 20 },
+          ]}
+          pointerEvents="none"
+        />
+        {/* History always continues down to the stem row's terminal node. */}
+        <View style={styles.songDetailStemSegmentOn} pointerEvents="none" />
+        <View
+          style={[
+            styles.songDetailStemNode,
+            inlineActive ? styles.songDetailStemNodeActive : null,
+          ]}
+        />
+        {/* Bare glyph transport — same lead treatment as every card in the app. */}
+        <Pressable
+          style={({ pressed }) => [
+            styles.songDetailStemPlay,
+            pressed && canPlay ? styles.pressDown : null,
+          ]}
+          onPress={(e) => {
+            e.stopPropagation();
+            togglePlayback();
+          }}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 4 }}
+          accessibilityRole="button"
+          accessibilityLabel={t(
+            inlineActive && isInlinePlaying ? "common.pause" : "common.play"
+          )}
+        >
+          <Ionicons
+            name={inlineActive && isInlinePlaying ? "pause" : "play"}
+            size={13}
+            color={
+              !canPlay
+                ? colors.textMuted
+                : inlineActive
+                  ? colors.primaryDeep
+                  : colors.textStrong
+            }
+          />
+        </Pressable>
 
-        {/* Active preview extends the row into a scrubber — the same on-brand
-            track the compact collection rows use. */}
-        {inlineActive ? (
-          <View style={styles.songDetailStemScrubRow}>
-            <Text style={styles.songDetailStemDur}>{fmtCardDuration(inlinePositionMs)}</Text>
-            <View style={styles.songDetailStemScrubTrack}>
-              <ScrubBar
-                progress={inlineTotalMs > 0 ? Math.min(1, inlinePositionMs / inlineTotalMs) : 0}
-                onScrubStart={() => void inlinePlayer.beginInlineScrub()}
-                onScrub={(fraction) => void inlinePlayer.endInlineScrub(fraction * inlineTotalMs)}
-                onScrubCancel={() => void inlinePlayer.cancelInlineScrub()}
-              />
-            </View>
+        <View style={styles.songDetailStemRowBody}>
+          <View style={styles.songDetailStemRowTop}>
+            <Text style={styles.songDetailStemVn}>{t("clipLineage.versionTag", { number: versionNumber })}</Text>
+            <Text style={styles.songDetailStemWhen}>{formatClipDate(clip.createdAt)}</Text>
+            {clip.isBookmarked ? (
+              <Ionicons name="bookmark" size={11} color={colors.primary} />
+            ) : null}
+            {/* The primary take isn't always the newest — when an older version is
+                the sketch's face, the mark travels down to it. */}
+            {clip.isPrimary ? <PrimaryInk label={t("common.primary")} /> : null}
+            <View style={{ flex: 1 }} />
             <Text style={styles.songDetailStemDur}>
               {durationMs ? fmtCardDuration(durationMs) : "0:00"}
             </Text>
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                void inlinePlayer.resetInlinePlayer();
-              }}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityRole="button"
-              accessibilityLabel={t("common.close")}
-            >
-              <Ionicons name="close" size={13} color={colors.textSecondary} />
-            </Pressable>
           </View>
-        ) : null}
-      </View>
 
-    </Pressable>
+          {note ? (
+            <ClipNoteLine
+              notes={note}
+              disabled={clipSelectionMode}
+              onOpen={() => context.actions.onOpenNotesSheet?.(clip)}
+              onLongPress={handleLongPress}
+            />
+          ) : null}
+
+          {/* Active preview extends the row into a scrubber — the same on-brand
+              track the compact collection rows use. */}
+          {inlineActive ? (
+            <View style={styles.songDetailStemScrubRow}>
+              <Text style={styles.songDetailStemDur}>{fmtCardDuration(inlinePositionMs)}</Text>
+              <View style={styles.songDetailStemScrubTrack}>
+                <ScrubBar
+                  progress={inlineTotalMs > 0 ? Math.min(1, inlinePositionMs / inlineTotalMs) : 0}
+                  onScrubStart={() => void inlinePlayer.beginInlineScrub()}
+                  onScrub={(fraction) => void inlinePlayer.endInlineScrub(fraction * inlineTotalMs)}
+                  onScrubCancel={() => void inlinePlayer.cancelInlineScrub()}
+                />
+              </View>
+              <Text style={styles.songDetailStemDur}>
+                {durationMs ? fmtCardDuration(durationMs) : "0:00"}
+              </Text>
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  void inlinePlayer.resetInlinePlayer();
+                }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel={t("common.close")}
+              >
+                <Ionicons name="close" size={13} color={colors.textSecondary} />
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+      </Pressable>
+    </Animated.View>
   );
 }
 
 /**
- * A multi-version lineage rendered as one object: tinted shell, the head card
- * playing the current version, a stem of older versions descending into the
- * past, and the thread's one forward action — "New version" — in the footer.
- * The stem never contains the future; actions aren't timeline events.
+ * A multi-version lineage rendered as one object: a slim tinted shell, the head
+ * card playing the current version, and ONE stem row beneath it — the terminal
+ * node that names the history ("v3 · 2 older versions", tap to unfold) and, on
+ * its trailing edge, the thread's one forward action, "New version". Unfolded,
+ * the older versions hang between the card and that row. The stem never
+ * contains the future; actions aren't timeline events.
  */
 export const EvolutionThread = React.memo(function EvolutionThread({
   lineage,
   expanded,
   onToggleExpanded,
   context,
+  onVersionRowLayout,
 }: EvolutionThreadProps) {
   const { t } = useTranslation();
   const navigation = useNavigation();
   const ideaId = context.mode.idea.id;
+  const shellRef = useRef<View>(null);
   const clipSelectionMode = useStore((s) => s.clipSelectionMode);
   const setRecordingParentClipId = useStore((s) => s.setRecordingParentClipId);
   const setRecordingIdeaId = useStore((s) => s.setRecordingIdeaId);
@@ -234,7 +265,6 @@ export const EvolutionThread = React.memo(function EvolutionThread({
   const versionNumberById = new Map(
     lineage.clipsOldestToNewest.map((clip, index) => [clip.id, index + 1])
   );
-  const folded = olderClips.length > 1 && !expanded;
 
   const handleNewVersion = async () => {
     await context.playback.inlinePlayer.resetInlinePlayer();
@@ -245,7 +275,7 @@ export const EvolutionThread = React.memo(function EvolutionThread({
   };
 
   return (
-    <View style={styles.songDetailThreadShell}>
+    <View ref={shellRef} style={styles.songDetailThreadShell}>
       <SongClipCard
         entry={{
           kind: "evolution",
@@ -262,71 +292,78 @@ export const EvolutionThread = React.memo(function EvolutionThread({
       />
 
       <View style={styles.songDetailStem}>
-        {folded ? (
-          <Pressable
-            style={({ pressed }) => [styles.songDetailStemRow, pressed ? styles.pressDown : null]}
-            onPress={() => {
-              haptic.light();
-              onToggleExpanded(lineage.root.id);
-            }}
-            accessibilityRole="button"
-          >
-            {/* Folded history is one terminal node — segment in, nothing past it. */}
-            <View
-              style={[styles.songDetailStemSegmentIn, { top: -10, height: 23.5 }]}
-              pointerEvents="none"
-            />
-            <View style={styles.songDetailStemNode} />
-            <View style={styles.songDetailStemRowBody}>
-              <View style={styles.songDetailStemRowTop}>
-                <Text style={styles.songDetailStemFoldText}>
-                  {t("clipLineage.olderVersions", { count: olderClips.length })}
-                </Text>
-                <Ionicons name="chevron-down" size={11} color={colors.textSecondary} />
-              </View>
-            </View>
-          </Pressable>
-        ) : (
-          <>
-            {olderClips.map((clip, index) => (
+        {expanded
+          ? olderClips.map((clip, index) => (
               <StemVersionRow
                 key={clip.id}
                 clip={clip}
                 versionNumber={versionNumberById.get(clip.id) ?? 1}
                 ideaId={ideaId}
                 isFirst={index === 0}
-                isLast={index === olderClips.length - 1}
                 context={context}
+                shellRef={shellRef}
+                onRowLayout={onVersionRowLayout}
               />
-            ))}
-            {olderClips.length > 1 ? (
-              <Pressable
-                style={({ pressed }) => [styles.songDetailStemHideRow, pressed ? styles.pressDown : null]}
-                onPress={() => {
-                  haptic.light();
-                  onToggleExpanded(lineage.root.id);
-                }}
-                accessibilityRole="button"
-              >
-                <Ionicons name="chevron-up" size={11} color={colors.textSecondary} />
-                <Text style={styles.songDetailStemFoldText}>{t("clipLineage.hideOlderVersions")}</Text>
-              </Pressable>
-            ) : null}
-          </>
-        )}
-      </View>
+            ))
+          : null}
 
-      {!clipSelectionMode ? (
-        <Pressable
-          style={({ pressed }) => [styles.songDetailThreadFoot, pressed ? styles.pressDown : null]}
-          onPress={() => void handleNewVersion()}
-          accessibilityRole="button"
-          accessibilityLabel={t("clipLineage.newVersionA11y", { title: head.title })}
-        >
-          <Ionicons name="mic-outline" size={13} color={colors.primaryDeep} />
-          <Text style={styles.songDetailThreadFootText}>{t("clipLineage.newVersion")}</Text>
-        </Pressable>
-      ) : null}
+        {/* The stem's one row: terminal node + history count on the left (tap
+            to fold/unfold), the forward action on the right. */}
+        <View style={styles.songDetailStemFoot}>
+          <View
+            style={[
+              styles.songDetailStemSegmentIn,
+              { top: expanded ? 0 : -10, height: expanded ? 20 : 30 },
+            ]}
+            pointerEvents="none"
+          />
+          <View style={styles.songDetailStemNode} pointerEvents="none" />
+          <Pressable
+            style={({ pressed }) => [
+              styles.songDetailStemFootToggle,
+              pressed ? styles.pressDown : null,
+            ]}
+            onPress={() => {
+              // haptics.ts: light → small state flips (fold/unfold).
+              haptic.light();
+              onToggleExpanded(lineage.root.id);
+            }}
+            accessibilityRole="button"
+            accessibilityState={{ expanded }}
+            accessibilityLabel={`${t("clipLineage.versionTag", { number: versionCount })} · ${t(
+              "clipLineage.olderVersions",
+              { count: olderClips.length }
+            )}`}
+          >
+            <Text style={styles.songDetailStemFoldText} numberOfLines={1}>
+              {`${t("clipLineage.versionTag", { number: versionCount })} · ${t(
+                "clipLineage.olderVersions",
+                { count: olderClips.length }
+              )}`}
+            </Text>
+            <Ionicons
+              name={expanded ? "chevron-up" : "chevron-down"}
+              size={11}
+              color={colors.textSecondary}
+            />
+          </Pressable>
+          {!clipSelectionMode ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.songDetailStemFootAction,
+                pressed ? styles.pressDown : null,
+              ]}
+              onPress={() => void handleNewVersion()}
+              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+              accessibilityRole="button"
+              accessibilityLabel={t("clipLineage.newVersionA11y", { title: head.title })}
+            >
+              <Ionicons name="mic-outline" size={13} color={colors.primaryDeep} />
+              <Text style={styles.songDetailStemFootActionText}>{t("clipLineage.newVersion")}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
     </View>
   );
 });
