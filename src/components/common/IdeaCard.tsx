@@ -107,8 +107,6 @@ export type IdeaCardProps = {
     highlightValue?: Animated.Value | null;
     /** Extra styles on the outer container (e.g. parent-pick tints) */
     containerStyle?: StyleProp<ViewStyle>;
-    /** Non-interactive marker pinned to the card corner, e.g. bookmarked clip. */
-    cornerBadge?: ReactNode;
     /** Picker mode (2026-09-11): "on" swaps the lead play glyph for a check
      *  circle (filled when `selected`); "disabled" dims the whole card and mutes
      *  the ring — the card can't be picked. Omit / "off" for the normal card. */
@@ -227,7 +225,6 @@ export function IdeaCard({
     denseRow,
     highlightValue,
     containerStyle,
-    cornerBadge,
     pick,
     pickNote,
     canPlay,
@@ -475,11 +472,6 @@ export function IdeaCard({
                     ]}
                     pointerEvents="none"
                 />
-            ) : null}
-            {cornerBadge != null ? (
-                <View style={styles.ideasListCardCornerBadge} pointerEvents="none">
-                    {cornerBadge}
-                </View>
             ) : null}
 
             <View style={styles.ideasListCardRow}>

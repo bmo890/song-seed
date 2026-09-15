@@ -1,3 +1,4 @@
+import { softenStartLevels } from "../domain/liveWaveform";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   useSharedAudioRecorder,
@@ -752,8 +753,12 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
           : ANALYSIS_SEGMENT_MS;
       const headDropCount = headTrimmedMs > 0 ? Math.round(headTrimmedMs / analysisSegmentMs) : 0;
       const dataPoints = (recordingData.analysisData?.dataPoints ?? []).slice(headDropCount);
-      const levelsAsDb = dataPoints.map((p) =>
-        Number.isFinite(p.dB) ? p.dB : p.amplitude > 0 ? 20 * Math.log10(p.amplitude) : -60
+      // Same start guard the live tape applies — the switch-on transient must not
+      // survive into the card and reel waveforms either.
+      const levelsAsDb = softenStartLevels(
+        dataPoints.map((p) =>
+          Number.isFinite(p.dB) ? p.dB : p.amplitude > 0 ? 20 * Math.log10(p.amplitude) : -60
+        )
       );
       const capturePeaks = levelsAsDb.length
         ? metersToWaveformPeaks(levelsAsDb, MANAGED_WAVEFORM_PEAK_COUNT)

@@ -93,4 +93,33 @@ describe("appendLiveWaveform", () => {
     expect(quiet.points[0].silent).toBe(true);
     expect(loud.points[0].silent).toBe(false);
   });
+
+  it("holds the first segment down to its neighbour (switch-on transient)", () => {
+    // A loud first 40 ms — the pop as the input opens — followed by a quiet segment.
+    let state = feed(emptyLiveWaveformState(), segment(0.9));
+    expect(state.points).toHaveLength(1);
+    state = feed(state, segment(0.1));
+    expect(state.points).toHaveLength(2);
+    expect(state.points[0].dB).toBeCloseTo(state.points[1].dB, 6);
+    expect(state.startSettled).toBe(true);
+
+    // A genuinely louder later segment is left alone.
+    state = feed(state, segment(0.8));
+    expect(state.points[2].dB).toBeGreaterThan(state.points[1].dB);
+  });
+
+  it("does not raise a quiet first segment", () => {
+    const state = feed(feed(emptyLiveWaveformState(), segment(0.1)), segment(0.6));
+    expect(state.points[0].dB).toBeLessThan(state.points[1].dB);
+  });
+
+  it("re-arms the guard after a count-in drops the picture", () => {
+    let state = feed(emptyLiveWaveformState(), segment(0.5, 2));
+    expect(state.startSettled).toBe(true);
+    state = feed(state, segment(0.5), false);
+    expect(state.points).toHaveLength(0);
+    state = feed(state, segment(0.9));
+    state = feed(state, segment(0.1));
+    expect(state.points[0].dB).toBeCloseTo(state.points[1].dB, 6);
+  });
 });

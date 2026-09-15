@@ -180,12 +180,25 @@ export const selectionStyles = {
   selectionToolbarActionLabelDisabled: {
     color: "#b8a9a5",
   },
+  selectionSheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 10,
+  },
+  selectionSheetBack: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginStart: -6,
+  },
   selectionSheetTitle: {
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 14,
     lineHeight: 20,
     color: "#1C1C19",
-    marginBottom: 10,
   },
   selectionSheetActionList: {
     gap: 8,

@@ -25,6 +25,9 @@ export type SelectionAction = {
    *  surface that itself stays LTR, e.g. "add bar before/after" on the chord
    *  staff, where before really does mean to the left. */
   noMirror?: boolean;
+  /** The row hands off to another sheet or picker instead of finishing the
+   *  job — that is what earns the trailing chevron. Terminal rows carry none. */
+  opens?: boolean;
 };
 
 type SelectionDockProps = {

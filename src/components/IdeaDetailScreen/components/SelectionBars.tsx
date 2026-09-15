@@ -13,7 +13,7 @@ import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { SelectionDock, type SelectionAction } from "../../common/SelectionDock";
 import { ClipNotesSheet } from "../../modals/ClipNotesSheet";
 import { ClipTagPicker } from "./ClipTagPicker";
-import { fmtDuration, formatDate } from "../../../utils";
+import { fmtDuration, formatClipDate } from "../../../utils";
 import { getLineageRootId } from "../../../domain/clipGraph";
 import {
   buildLineageTitlePlan,
@@ -325,6 +325,14 @@ export function SelectionBars() {
     );
   }
 
+  const groupDockAction: SelectionAction = {
+    key: "group",
+    label: t("songDetail.groupShort"),
+    icon: "folder-open-outline",
+    onPress: () => setGroupSheetVisible(true),
+    disabled: !selectedIdea || selectedLineageRootIds.length === 0,
+  };
+
   const dockActions: SelectionAction[] =
     selectedClips.length === 1
       ? [
@@ -341,15 +349,9 @@ export function SelectionBars() {
             icon: "create-outline",
             onPress: handleEditSingleClip,
           },
-          // Tags live on the clip card itself for a single clip, so the dock offers
-          // Primary here instead (disabled when this take is already primary).
-          {
-            key: "primary",
-            label: t("common.primary"),
-            icon: "star-outline",
-            onPress: handleMakePrimary,
-            disabled: !!singleSelectedClip?.isPrimary,
-          },
+          // Group is the organising move on this page, so it sits on the dock;
+          // Primary is rarer and lives in the overflow (founder ruling 2026-09-15).
+          groupDockAction,
           {
             key: "delete",
             label: t("common.delete"),
@@ -378,6 +380,7 @@ export function SelectionBars() {
             icon: "pricetag-outline",
             onPress: () => setTagSheetVisible(true),
           },
+          groupDockAction,
           {
             key: "delete",
             label: t("common.delete"),
@@ -455,17 +458,6 @@ export function SelectionBars() {
           },
         ]
       : []),
-    ...(selectedIdea && selectedLineageRootIds.length > 0
-      ? [
-          {
-            key: "assign-group",
-            label:
-              selectedLineageRootIds.length === 1 ? t("songDetail.assignGroup") : t("songDetail.assignGroupSelected"),
-            icon: "folder-open-outline" as const,
-            onPress: () => setGroupSheetVisible(true),
-          },
-        ]
-      : []),
   ];
 
   // The overflow lists four intents at most; each "…" row hands off to a
@@ -477,6 +469,7 @@ export function SelectionBars() {
       label: t("selection.copyOrMove"),
       icon: "copy-outline",
       onPress: () => setSubSheet("copyMove"),
+      opens: true,
     },
     // Without a link service there is nothing to choose between — keep the
     // direct Share row instead of a one-row second level.
@@ -486,6 +479,7 @@ export function SelectionBars() {
           label: t("selection.shareMenu"),
           icon: "share-social-outline",
           onPress: () => setSubSheet("share"),
+          opens: true,
         }
       : shareAction,
     ...(threadActions.length > 0
@@ -495,6 +489,18 @@ export function SelectionBars() {
             label: t("selection.thread"),
             icon: "git-branch-outline" as const,
             onPress: () => setSubSheet("thread"),
+            opens: true,
+          },
+        ]
+      : []),
+    ...(selectedClips.length === 1 && singleSelectedClip
+      ? [
+          {
+            key: "primary",
+            label: t("songDetail.makePrimary"),
+            icon: "star-outline" as const,
+            onPress: handleMakePrimary,
+            disabled: !!singleSelectedClip.isPrimary,
           },
         ]
       : []),
@@ -534,6 +540,7 @@ export function SelectionBars() {
 
       <SelectionActionSheet
         visible={subSheet === "copyMove"}
+        onBack={() => setMoreVisible(true)}
         title={t("selection.copyOrMoveTitle")}
         actions={copyMoveActions}
         onClose={() => setSubSheet(null)}
@@ -541,6 +548,7 @@ export function SelectionBars() {
 
       <SelectionActionSheet
         visible={subSheet === "share"}
+        onBack={() => setMoreVisible(true)}
         title={t("selection.shareTitle")}
         actions={shareActions}
         onClose={() => setSubSheet(null)}
@@ -548,6 +556,7 @@ export function SelectionBars() {
 
       <SelectionActionSheet
         visible={subSheet === "thread"}
+        onBack={() => setMoreVisible(true)}
         title={t("selection.threadTitle")}
         actions={threadActions}
         onClose={() => setSubSheet(null)}
@@ -604,7 +613,7 @@ export function SelectionBars() {
         visible={editVisible}
         clipSubtitle={
           singleSelectedClip
-            ? `${singleSelectedClip.durationMs ? fmtDuration(singleSelectedClip.durationMs) : "0:00"} • ${formatDate(singleSelectedClip.createdAt)}`
+            ? `${singleSelectedClip.durationMs ? fmtDuration(singleSelectedClip.durationMs) : "0:00"} • ${formatClipDate(singleSelectedClip.createdAt)}`
             : ""
         }
         titleDraft={editTitleDraft}

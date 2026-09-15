@@ -303,6 +303,9 @@ export const ClipCard = React.memo(function ClipCard({
     onOpenNotesSheet?.(clip);
   };
 
+  const showPrimaryInk =
+    !displayOnly && (displayPrimary || isPrimaryCandidate || clip.isPrimary);
+
   // Compute container extra style for parent-picking visual states
   const parentPickContainerStyle = isValidParentTarget
     ? styles.songDetailVersionCardParentTarget
@@ -320,8 +323,15 @@ export const ClipCard = React.memo(function ClipCard({
         // reads first. No spine, no crown: a rare status earns visibility from
         // placement, not from another surface on an already-layered page.
         titleAccessory={
-          !displayOnly && (displayPrimary || isPrimaryCandidate || clip.isPrimary) ? (
-            <PrimaryInk label={t("common.primary")} />
+          clip.isBookmarked || showPrimaryInk ? (
+            <>
+              {/* Bookmark is a mark, not a badge: it sits in the reading line
+                  like the stem rows' glyph, never on top of the duration. */}
+              {clip.isBookmarked ? (
+                <Ionicons name="bookmark" size={12} color={colors.primary} />
+              ) : null}
+              {showPrimaryInk ? <PrimaryInk label={t("common.primary")} /> : null}
+            </>
           ) : undefined
         }
         selected={isSelected || isMoving || isParentPickSource}
@@ -331,9 +341,6 @@ export const ClipCard = React.memo(function ClipCard({
         nowPlayingIsPlaying={nowPlayingIsPlaying}
         compact={compactDensity}
         highlightValue={highlightValue ?? null}
-        cornerBadge={
-          clip.isBookmarked ? <Ionicons name="bookmark" size={15} color={colors.primary} /> : undefined
-        }
         canPlay={hasClipPlaybackSource(clip)}
         // Session sits on this exact take → the lead mirrors/drives the dock
         // rather than starting a second inline preview of the same clip.

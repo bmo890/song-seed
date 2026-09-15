@@ -23,6 +23,8 @@ export type LiveWaveformState = {
   streamDurationMs: number;
   nextPointId: number;
   points: DataPoint[];
+  /** The start guard has run for this stretch of retained points. */
+  startSettled: boolean;
 };
 
 export type LiveWaveformShape = {
@@ -40,7 +42,28 @@ export function emptyLiveWaveformState(): LiveWaveformState {
     streamDurationMs: 0,
     nextPointId: 1,
     points: [],
+    startSettled: false,
   };
+}
+
+/**
+ * The first segment of a capture carries the input's switch-on transient — the
+ * pop/DC step as the session opens — and drew every take with a full-height
+ * first candle. Once its neighbour exists, the first bin is held down to that
+ * neighbour's level. A real downbeat loses at most one 40 ms bin of exaggeration
+ * and nothing of its timing.
+ */
+function holdStartToNeighbour(first: DataPoint, next: DataPoint): DataPoint {
+  if (!(first.dB > next.dB)) return first;
+  return { ...first, amplitude: next.amplitude, rms: next.rms, dB: next.dB, silent: next.silent };
+}
+
+/** Same guard for a flat dB series (the saved peaks are built from one). */
+export function softenStartLevels(levelsDb: number[]): number[] {
+  if (levelsDb.length < 2 || !(levelsDb[0] > levelsDb[1])) return levelsDb;
+  const next = [...levelsDb];
+  next[0] = levelsDb[1];
+  return next;
 }
 
 function concatFloat32(a: Float32Array, b: Float32Array): Float32Array {
@@ -119,12 +142,20 @@ export function appendLiveWaveform(
     (point) => (point.endTime ?? 0) >= streamDurationMs - windowDurationMs
   );
 
+  // Dropping the picture (count-in) restarts the tape, so the guard re-arms.
+  let startSettled = retainPoints ? state.startSettled : false;
+  if (!startSettled && kept.length >= 2) {
+    kept[0] = holdStartToNeighbour(kept[0], kept[1]);
+    startSettled = true;
+  }
+
   return {
     state: {
       pendingSamples: merged.slice(completeSegmentCount * samplesPerSegment),
       streamDurationMs,
       nextPointId,
       points: kept,
+      startSettled,
     },
     changed: true,
   };

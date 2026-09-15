@@ -2,7 +2,7 @@ import { Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { clipLineageStyles, styles } from "../styles";
-import { fmtDuration, formatDate } from "../../../utils";
+import { fmtDuration, formatClipDate } from "../../../utils";
 import { ClipActionsSheet } from "../../modals/ClipActionsSheet";
 import { ClipNotesSheet } from "../../modals/ClipNotesSheet";
 import { AppAlert } from "../../common/AppAlert";
@@ -45,7 +45,7 @@ export function ClipLineageScreenContent() {
         title={model.actionsClip?.title ?? t("clipLineage.actions")}
         subtitle={
           model.actionsClip
-            ? `${model.actionsClip.durationMs ? fmtDuration(model.actionsClip.durationMs) : "0:00"} · ${formatDate(model.actionsClip.createdAt)}`
+            ? `${model.actionsClip.durationMs ? fmtDuration(model.actionsClip.durationMs) : "0:00"} · ${formatClipDate(model.actionsClip.createdAt)}`
             : undefined
         }
         onCancel={() => model.setActionsClipId(null)}
@@ -101,7 +101,7 @@ export function ClipLineageScreenContent() {
         visible={!!model.notesSheetClip}
         clipSubtitle={
           model.notesSheetClip
-            ? `${model.notesSheetClip.durationMs ? fmtDuration(model.notesSheetClip.durationMs) : "0:00"} · ${formatDate(model.notesSheetClip.createdAt)}`
+            ? `${model.notesSheetClip.durationMs ? fmtDuration(model.notesSheetClip.durationMs) : "0:00"} · ${formatClipDate(model.notesSheetClip.createdAt)}`
             : ""
         }
         titleDraft={model.editingClipDraft}

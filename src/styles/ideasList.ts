@@ -84,18 +84,6 @@ export const ideasListStyles = {
     borderColor: "#B87D6B",
     backgroundColor: "#FDF5F2",
   },
-  ideasListCardCornerBadge: {
-    position: "absolute",
-    top: 7,
-    right: 8,
-    zIndex: 2,
-    width: 20,
-    height: 20,
-    borderRadius: radii.round,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.9)",
-  },
   ideasListCardHighlightOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(184,125,107,0.22)",

@@ -13,6 +13,9 @@ type SelectionActionSheetProps = {
   title?: string;
   actions: SelectionAction[];
   onClose: () => void;
+  /** A second-level sheet names its parent: the back key closes this sheet and
+   *  reopens that one, so drilling in is never a one-way door. */
+  onBack?: () => void;
 };
 
 export function SelectionActionSheet({
@@ -20,11 +23,29 @@ export function SelectionActionSheet({
   title,
   actions,
   onClose,
+  onBack,
 }: SelectionActionSheetProps) {
   const { t } = useTranslation();
   return (
     <BottomSheet visible={visible} onClose={onClose}>
-      <Text style={styles.selectionSheetTitle}>{title ?? t("common.selectionActions")}</Text>
+      <View style={styles.selectionSheetHeader}>
+        {onBack ? (
+          <Pressable
+            style={({ pressed }) => [styles.selectionSheetBack, pressed ? styles.pressDown : null]}
+            onPress={() => {
+              haptic.tap();
+              onClose();
+              onBack();
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.back")}
+          >
+            <Ionicons name={dirIcon("chevron-back")} size={18} color={colors.textSecondary} />
+          </Pressable>
+        ) : null}
+        <Text style={styles.selectionSheetTitle}>{title ?? t("common.selectionActions")}</Text>
+      </View>
       <View style={styles.selectionSheetActionList}>
         {actions.map((action) => {
           const dangerous = action.tone === "danger";
@@ -59,11 +80,12 @@ export function SelectionActionSheet({
                   {action.label}
                 </Text>
               </View>
-              <Ionicons
-                name={dangerous ? "alert-circle-outline" : dirIcon("chevron-forward")}
-                size={15}
-                color={dangerous ? colors.danger : colors.textMuted}
-              />
+              {/* Only a row that opens somewhere else points onward. */}
+              {dangerous ? (
+                <Ionicons name="alert-circle-outline" size={15} color={colors.danger} />
+              ) : action.opens ? (
+                <Ionicons name={dirIcon("chevron-forward")} size={15} color={colors.textMuted} />
+              ) : null}
             </Pressable>
           );
         })}

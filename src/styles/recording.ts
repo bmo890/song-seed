@@ -386,13 +386,6 @@ export const recordingStyles = {
   recordingControlsBarCompact: {
     gap: 12,
   },
-  recordingControlsSpacer: {
-    width: 64,
-  },
-  recordingControlsSaveColumn: {
-    width: 64,
-    alignItems: "center",
-  },
   recordingOutputRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -427,12 +420,10 @@ export const recordingStyles = {
   // the secondary actions read as ink and can't compete with it. Fixed height
   // so waking them up (once there's a take) never moves the dock.
   circleControlBtn: {
-    // Share the column rather than claim a fixed width. With a hard minWidth the
-    // lead column's two controls (discard + redo) needed more room than the
-    // column had, and the second one slid under the record button — visible in
-    // English, worse in Hebrew. Labels are single-line and truncate instead.
-    flex: 1,
-    minWidth: 0,
+    // A fixed key width so the side columns can space their keys evenly; the
+    // dock is edge to edge now, so two keys and their breathing room fit beside
+    // the record button in English and Hebrew. Labels stay single-line.
+    width: 60,
     minHeight: 48,
     alignItems: "center",
     justifyContent: "center",
@@ -581,8 +572,12 @@ export const recordingStyles = {
     color: colors.danger,
     fontFamily: "PlusJakartaSans_600SemiBold",
   },
+  // Edge to edge: the screen shell insets 16 and the dock reaches back out of
+  // it, so the transport rests on the page's floor instead of floating as a
+  // card inside it.
   recordingBottomDock: {
-    paddingHorizontal: 26,
+    marginHorizontal: -16,
+    paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 10,
     backgroundColor: "rgba(253,251,247,0.98)",

@@ -5,7 +5,7 @@ import { QuickNameModal } from "../../modals/QuickNameModal";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import { buildImportHelperText } from "../../../domain/importDates";
 import { buildImportedTitle } from "../../../services/audioStorage";
-import { ensureUniqueCountedTitle, fmtDuration, formatDate } from "../../../utils";
+import { ensureUniqueCountedTitle, fmtDuration, formatClipDate } from "../../../utils";
 import { useTranslation } from "react-i18next";
 
 function buildImportedProjectTitle(name?: string) {
@@ -49,7 +49,7 @@ export function CollectionModals() {
         visible={editModal.editModalOpen && editModal.editTargetIdea?.kind === "clip"}
         clipSubtitle={
           editModal.editTargetClip
-            ? `${editModal.editTargetClip.durationMs ? fmtDuration(editModal.editTargetClip.durationMs) : "0:00"} • ${formatDate(editModal.editTargetClip.createdAt)}`
+            ? `${editModal.editTargetClip.durationMs ? fmtDuration(editModal.editTargetClip.durationMs) : "0:00"} • ${formatClipDate(editModal.editTargetClip.createdAt)}`
             : ""
         }
         titleDraft={editModal.editClipDraft}

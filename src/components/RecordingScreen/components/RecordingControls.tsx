@@ -179,20 +179,15 @@ const local = StyleSheet.create({
     },
     // Both side columns flex equally so the record button sits dead centre
     // whatever the left one is carrying (discard alone, or discard + redo).
-    // Centring INSIDE each half looked lopsided — two controls packed on one
-    // side and one floating mid-air on the other. Pushing each cluster to its
-    // outer edge gives the row matching margins, which is what reads as
-    // balanced. Logical alignment, so it mirrors correctly in RTL.
+    // Keys are spread evenly through their column — with the dock edge to
+    // edge there is room for that, and it stops discard and redo huddling
+    // against the record button. Logical alignment, so it mirrors in RTL.
     sideColumn: {
         flex: 1,
         flexDirection: "row",
         alignItems: "center",
-        gap: 6,
+        justifyContent: "space-evenly",
     },
-    sideColumnLead: {
-        justifyContent: "flex-start",
-    },
-    sideColumnTrail: {
-        justifyContent: "flex-end",
-    },
+    sideColumnLead: {},
+    sideColumnTrail: {},
 });

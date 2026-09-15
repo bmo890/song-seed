@@ -4,6 +4,10 @@ import { Pressable, StyleProp, TextInputProps, View, ViewStyle } from "react-nat
 import { styles } from "../../styles";
 import { genIdea } from "../../utils";
 import { UserTextInput } from "../../i18n";
+import { colors } from "../../design/tokens";
+
+/** One 26pt key plus its gap; the field's trailing padding grows by this per visible key. */
+const TRAILING_KEY_WIDTH = 32;
 
 export const DEFAULT_TITLE_MAX_LENGTH = 80;
 const DEFAULT_TITLE_MAX_LINES = 2;
@@ -39,13 +43,15 @@ export function TitleInput({
     containerStyle,
     showGenerator = true,
     showClear = true,
-    minHeight = 34,
+    minHeight = 44,
     maxHeight = 120,
     maxLength = DEFAULT_TITLE_MAX_LENGTH,
     maxLines = DEFAULT_TITLE_MAX_LINES,
     ...inputProps
 }: Props) {
     const [inputHeight, setInputHeight] = useState(minHeight);
+    const showClearKey = showClear && value.length > 0;
+    const trailingKeys = (showGenerator ? 1 : 0) + (showClearKey ? 1 : 0);
 
     useEffect(() => {
         setInputHeight(minHeight);
@@ -58,6 +64,7 @@ export function TitleInput({
                     styles.titleInlineInput,
                     !value ? styles.titleInlineInputPlaceholder : null,
                     { minHeight: Math.max(minHeight, inputHeight), maxHeight },
+                    trailingKeys > 0 ? { paddingEnd: 14 + trailingKeys * TRAILING_KEY_WIDTH } : null,
                 ]}
                 value={value}
                 onChangeText={(nextValue) => {
@@ -67,7 +74,7 @@ export function TitleInput({
                     onChangeText(sanitizeTitleValue(value, maxLength, maxLines, true));
                 }}
                 placeholder={placeholder}
-                placeholderTextColor="#6b7280"
+                placeholderTextColor={colors.textMuted}
                 autoFocus={autoFocus}
                 multiline={multiline}
                 scrollEnabled={false}
@@ -79,22 +86,22 @@ export function TitleInput({
                 }}
                 {...inputProps}
             />
-            {(showGenerator || (showClear && value.length > 0)) ? (
+            {trailingKeys > 0 ? (
                 <View style={styles.titleInlineBtns}>
                     {showGenerator ? (
                         <Pressable
                             style={({ pressed }) => [styles.titleClearBtn, pressed ? styles.pressDown : null]}
                             onPress={() => onChangeText(sanitizeTitleValue(genIdea(), maxLength, maxLines, true))}
                         >
-                            <Ionicons name="sparkles" size={14} color="#6b7280" />
+                            <Ionicons name="sparkles" size={14} color={colors.textSecondary} />
                         </Pressable>
                     ) : null}
-                    {showClear && value.length > 0 ? (
+                    {showClearKey ? (
                         <Pressable
                             style={({ pressed }) => [styles.titleClearBtn, pressed ? styles.pressDown : null]}
                             onPress={() => onChangeText("")}
                         >
-                            <Ionicons name="close" size={14} color="#6b7280" />
+                            <Ionicons name="close" size={14} color={colors.textSecondary} />
                         </Pressable>
                     ) : null}
                 </View>

@@ -169,6 +169,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
       label: t("lyrics.fromPad"),
       icon: "clipboard-outline",
       onPress: () => setNotePickerVisible(true),
+      opens: true,
     },
   ];
 

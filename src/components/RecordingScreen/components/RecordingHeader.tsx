@@ -92,8 +92,10 @@ export function RecordingHeader({
             this page (see docs/design-system.md, recording screen). */}
         <View style={localStyles.actionRow}>
           <HelpButton onPress={onHelp} size={19} />
+          {/* Minimize keeps the take rolling and steps back to the library;
+              a down chevron says "tuck this away", a bare dash said nothing. */}
           <IconButton
-            icon="remove"
+            icon="chevron-down"
             tone="muted"
             size={20}
             onPress={onMinimize}

@@ -338,6 +338,7 @@ export function IdeaSelectionBar({
         label: t("selection.copyOrMove"),
         icon: "copy-outline",
         onPress: () => setCopyMoveVisible(true),
+        opens: true,
       });
     }
 
@@ -409,6 +410,7 @@ export function IdeaSelectionBar({
 
       <SelectionActionSheet
         visible={copyMoveVisible}
+        onBack={() => setMoreVisible(true)}
         title={t("selection.copyOrMoveTitle")}
         actions={copyMoveActions.map(endsSelection)}
         onClose={() => setCopyMoveVisible(false)}
