@@ -331,6 +331,13 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   // grayed out natively via nextTrackEnabled).
   useEffect(() => {
     const subscription = player.addListener("lockScreenCommand", ({ command }) => {
+      // Android ended the session on its own (task swiped away, service killed):
+      // the native slot is gone, so the next play must claim it again.
+      if (command === "sessionEnded") {
+        isLockScreenActiveRef.current = false;
+        return;
+      }
+
       const { playerQueue, playerQueueIndex } = useStore.getState();
 
       if (command === "previousTrack") {

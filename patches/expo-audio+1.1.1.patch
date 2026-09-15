@@ -1,8 +1,18 @@
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
-index 49a53af..3b134c8 100644
+index 49a53af..f173744 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
-@@ -428,6 +428,12 @@ class AudioModule : Module() {
+@@ -178,6 +178,9 @@ class AudioModule : Module() {
+     Name("ExpoAudio")
+ 
+     OnCreate {
++      // A media card can outlive the process that posted it; clear it before
++      // this process claims the lock screen with a card of its own.
++      appContext.reactContext?.let { AudioControlsService.cancelStaleNotification(it) }
+       audioManager = appContext.reactContext?.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+     }
+ 
+@@ -428,6 +431,12 @@ class AudioModule : Module() {
          }
        }
  
@@ -56,7 +66,7 @@ index 092af43..9f21b2f 100644
  
  enum class InterruptionMode(val value: String) : Enumerable {
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
-index 04486e2..720b375 100644
+index 04486e2..8abbda0 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 @@ -17,11 +17,13 @@ import android.os.IBinder
@@ -73,7 +83,39 @@ index 04486e2..720b375 100644
  import androidx.media3.session.MediaStyleNotificationHelper
  import androidx.media3.session.SessionCommand
  import expo.modules.audio.AudioLockScreenOptions
-@@ -136,6 +138,9 @@ class AudioControlsService : MediaSessionService() {
+@@ -44,7 +46,12 @@ class AudioControlsService : MediaSessionService() {
+   private var currentArtworkUrl: URL? = null
+   private var currentArtwork: Bitmap? = null
+   private val notificationId: Int
+-    get() = currentPlayer?.hashCode() ?: CHANNEL_ID.hashCode()
++    get() = NOTIFICATION_ID
++
++  // True while the session is being torn down: the pause media3 performs on
++  // task removal fires the playback listener, which must not re-post the card
++  // we are about to remove.
++  private var isTearingDown = false
+ 
+   private var playbackListener: Player.Listener? = null
+ 
+@@ -80,10 +87,15 @@ class AudioControlsService : MediaSessionService() {
+     instance = this
+     createNotificationChannelIfNeeded()
+ 
+-    pendingPlayer?.let { player ->
++    val player = pendingPlayer
++    pendingPlayer = null
++    if (player != null) {
+       setActivePlayerInternal(player, pendingMetadata, pendingOptions)
+-      pendingPlayer = null
+       pendingMetadata = null
++    } else {
++      // Started with nothing to show: stop before the foreground-start deadline
++      // instead of letting Android raise ForegroundServiceDidNotStartInTime.
++      stopSelf()
+     }
+   }
+ 
+@@ -136,6 +148,9 @@ class AudioControlsService : MediaSessionService() {
      val session = mediaSession ?: return
      val customLayout = mutableListOf<CommandButton>()
  
@@ -83,8 +125,19 @@ index 04486e2..720b375 100644
      // Add seek backward button if enabled
      if (currentOptions?.showSeekBackward == true) {
        customLayout.add(
-@@ -222,8 +227,14 @@ class AudioControlsService : MediaSessionService() {
+@@ -171,6 +186,7 @@ class AudioControlsService : MediaSessionService() {
+   }
+ 
+   private fun postOrStartForegroundNotification(startInForeground: Boolean) {
++    if (isTearingDown) return
+     val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+     val notification = buildNotification() ?: return
+ 
+@@ -220,10 +236,17 @@ class AudioControlsService : MediaSessionService() {
+     player?.isActiveForLockScreen = true
+ 
      if (player != null) {
++      isTearingDown = false
        mediaSession?.release()
  
 -      val session = MediaSession.Builder(this, player.ref)
@@ -99,7 +152,44 @@ index 04486e2..720b375 100644
          .build()
  
        addSession(session)
-@@ -284,6 +295,74 @@ class AudioControlsService : MediaSessionService() {
+@@ -268,6 +291,7 @@ class AudioControlsService : MediaSessionService() {
+   }
+ 
+   private fun clearSessionInternal() {
++    isTearingDown = true
+     currentPlayer?.isActiveForLockScreen = false
+     playbackListener?.let { listener ->
+       currentPlayer?.ref?.removeListener(listener)
+@@ -278,12 +302,103 @@ class AudioControlsService : MediaSessionService() {
+     mediaSession?.release()
+     mediaSession = null
+     stopForeground(STOP_FOREGROUND_REMOVE)
++    // The card is posted with notify() after the first update, so it is no
++    // longer the foreground notification — stopForeground alone leaves it up.
++    hideNotification()
++    isTearingDown = false
++  }
++
++  // The session is ending for a reason JS did not ask for (the task was swiped
++  // away, or the system destroyed the service). Tell the player so the JS side
++  // stops believing the lock screen is still claimed, then take everything down.
++  private fun endSessionFromSystem() {
++    if (currentPlayer == null && mediaSession == null) return
++    isTearingDown = true
++    currentPlayer?.emitLockScreenCommand("sessionEnded")
++    withPlayerOnAppThread { it.pause() }
++    clearSessionInternal()
++  }
++
++  override fun onTaskRemoved(rootIntent: Intent?) {
++    // The user swiped the app away: stop the audio and remove the card with it.
++    // media3 would pause and stop us anyway, but its pause re-posts the card
++    // through our listener and its stop never cancels a notify()-posted card.
++    endSessionFromSystem()
++    super.onTaskRemoved(rootIntent)
+   }
+ 
+   override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
      return mediaSession
    }
  
@@ -174,7 +264,30 @@ index 04486e2..720b375 100644
    private fun withPlayerOnAppThread(block: (Player) -> Unit) {
      val player = currentPlayer?.ref ?: return
      val looper: Looper = player.applicationLooper
-@@ -351,6 +430,10 @@ class AudioControlsService : MediaSessionService() {
+@@ -320,19 +435,19 @@ class AudioControlsService : MediaSessionService() {
+   }
+ 
+   override fun onDestroy() {
+-    super.onDestroy()
+     instance = null
+     try {
+       scope.cancel()
+     } catch (e: Exception) {
+       //
+     }
+-    mediaSession?.release()
+-    currentPlayer = null
++    endSessionFromSystem()
++    super.onDestroy()
+   }
+ 
+   companion object {
+     private const val CHANNEL_ID = "expo_audio_channel"
++    const val NOTIFICATION_ID = 0x534E4D43 // "SNMC": one media card per app
+     private const val ACTION_PLAY = "expo.modules.audio.action.PLAY"
+     private const val ACTION_PAUSE = "expo.modules.audio.action.PAUSE"
+     private const val ACTION_TOGGLE = "expo.modules.audio.action.TOGGLE"
+@@ -351,6 +466,10 @@ class AudioControlsService : MediaSessionService() {
  
      fun getInstance(): AudioControlsService? = instance
  
@@ -185,6 +298,31 @@ index 04486e2..720b375 100644
      fun setActivePlayer(
        context: Context,
        player: AudioPlayer?,
+@@ -360,6 +479,10 @@ class AudioControlsService : MediaSessionService() {
+       val service = getInstance()
+       if (service != null) {
+         service.setActivePlayerInternal(player, metadata, options)
++      } else if (player == null) {
++        // Nothing is showing; starting a foreground service just to clear it
++        // would trip the foreground-start deadline.
++        return
+       } else {
+         val intent = Intent(context, AudioControlsService::class.java)
+         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+@@ -381,5 +504,13 @@ class AudioControlsService : MediaSessionService() {
+     fun clearSession() {
+       getInstance()?.clearSessionInternal()
+     }
++
++    // A card can outlive the process that posted it (the service was killed
++    // before it could cancel). A fresh process clears it before playing anything.
++    fun cancelStaleNotification(context: Context) {
++      val notificationManager =
++        context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
++      notificationManager.cancel(NOTIFICATION_ID)
++    }
+   }
+ }
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
 index 839aaef..0efb6d3 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
@@ -243,7 +381,7 @@ index a290f9a..f200c27 100644
  //# sourceMappingURL=AudioConstants.d.ts.map
 \ No newline at end of file
 diff --git a/node_modules/expo-audio/build/AudioModule.types.d.ts b/node_modules/expo-audio/build/AudioModule.types.d.ts
-index b30a75a..1352879 100644
+index b30a75a..b081bab 100644
 --- a/node_modules/expo-audio/build/AudioModule.types.d.ts
 +++ b/node_modules/expo-audio/build/AudioModule.types.d.ts
 @@ -164,7 +164,14 @@ export declare class AudioPlayer extends SharedObject<AudioEvents> {
@@ -267,7 +405,7 @@ index b30a75a..1352879 100644
      /** Fired when audio sampling is enabled and new sample data is available. */
      audioSampleUpdate(data: AudioSample): void;
 +    /** Fired when a next/previous track button is pressed on the lock screen or media notification. */
-+    lockScreenCommand(event: { command: 'nextTrack' | 'previousTrack' }): void;
++    lockScreenCommand(event: { command: 'nextTrack' | 'previousTrack' | 'sessionEnded' }): void;
  };
  export declare class AudioRecorder extends SharedObject<RecordingEvents> {
      /**
@@ -325,7 +463,7 @@ index f1759cd..3034363 100644
  
  enum BitRateStrategy: String, Enumerable {
 diff --git a/node_modules/expo-audio/ios/MediaController.swift b/node_modules/expo-audio/ios/MediaController.swift
-index 2dd3fb2..ea10031 100644
+index 2dd3fb2..c38b7f2 100644
 --- a/node_modules/expo-audio/ios/MediaController.swift
 +++ b/node_modules/expo-audio/ios/MediaController.swift
 @@ -173,6 +173,24 @@ class MediaController {
@@ -385,7 +523,7 @@ index 2dd3fb2..ea10031 100644
      remoteCommandCenter.skipBackwardCommand.isEnabled = false
 +    remoteCommandCenter.nextTrackCommand.isEnabled = false
 +    remoteCommandCenter.previousTrackCommand.isEnabled = false
- 
+     
      // Remove event targets
      remoteCommandCenter.playCommand.removeTarget(self);
 @@ -224,5 +263,7 @@ class MediaController {
@@ -422,7 +560,7 @@ index 72a157c..7ead1a2 100644
 +  previousTrackEnabled?: boolean;
  };
 diff --git a/node_modules/expo-audio/src/AudioModule.types.ts b/node_modules/expo-audio/src/AudioModule.types.ts
-index 376f638..fc10173 100644
+index 376f638..c2d40e9 100644
 --- a/node_modules/expo-audio/src/AudioModule.types.ts
 +++ b/node_modules/expo-audio/src/AudioModule.types.ts
 @@ -209,6 +209,13 @@ export declare class AudioPlayer extends SharedObject<AudioEvents> {
@@ -444,7 +582,7 @@ index 376f638..fc10173 100644
    /** Fired when audio sampling is enabled and new sample data is available. */
    audioSampleUpdate(data: AudioSample): void;
 +  /** Fired when a next/previous track button is pressed on the lock screen or media notification. */
-+  lockScreenCommand(event: { command: 'nextTrack' | 'previousTrack' }): void;
++  lockScreenCommand(event: { command: 'nextTrack' | 'previousTrack' | 'sessionEnded' }): void;
  };
  
  export declare class AudioRecorder extends SharedObject<RecordingEvents> {
