@@ -66,7 +66,7 @@ index 092af43..9f21b2f 100644
  
  enum class InterruptionMode(val value: String) : Enumerable {
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
-index 04486e2..8abbda0 100644
+index 04486e2..db1391d 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 @@ -17,11 +17,13 @@ import android.os.IBinder
@@ -160,7 +160,13 @@ index 04486e2..8abbda0 100644
      currentPlayer?.isActiveForLockScreen = false
      playbackListener?.let { listener ->
        currentPlayer?.ref?.removeListener(listener)
-@@ -278,12 +302,103 @@ class AudioControlsService : MediaSessionService() {
+@@ -275,15 +299,109 @@ class AudioControlsService : MediaSessionService() {
+     playbackListener = null
+     currentPlayer = null
+     currentMetadata = null
++    // Drop the session from the service's list before releasing it, so media3's
++    // own task-removal handling finds nothing left to pause or stop.
++    mediaSession?.let { removeSession(it) }
      mediaSession?.release()
      mediaSession = null
      stopForeground(STOP_FOREGROUND_REMOVE)
@@ -264,7 +270,7 @@ index 04486e2..8abbda0 100644
    private fun withPlayerOnAppThread(block: (Player) -> Unit) {
      val player = currentPlayer?.ref ?: return
      val looper: Looper = player.applicationLooper
-@@ -320,19 +435,19 @@ class AudioControlsService : MediaSessionService() {
+@@ -320,19 +438,19 @@ class AudioControlsService : MediaSessionService() {
    }
  
    override fun onDestroy() {
@@ -287,7 +293,7 @@ index 04486e2..8abbda0 100644
      private const val ACTION_PLAY = "expo.modules.audio.action.PLAY"
      private const val ACTION_PAUSE = "expo.modules.audio.action.PAUSE"
      private const val ACTION_TOGGLE = "expo.modules.audio.action.TOGGLE"
-@@ -351,6 +466,10 @@ class AudioControlsService : MediaSessionService() {
+@@ -351,6 +469,10 @@ class AudioControlsService : MediaSessionService() {
  
      fun getInstance(): AudioControlsService? = instance
  
@@ -298,7 +304,7 @@ index 04486e2..8abbda0 100644
      fun setActivePlayer(
        context: Context,
        player: AudioPlayer?,
-@@ -360,6 +479,10 @@ class AudioControlsService : MediaSessionService() {
+@@ -360,6 +482,10 @@ class AudioControlsService : MediaSessionService() {
        val service = getInstance()
        if (service != null) {
          service.setActivePlayerInternal(player, metadata, options)
@@ -309,7 +315,7 @@ index 04486e2..8abbda0 100644
        } else {
          val intent = Intent(context, AudioControlsService::class.java)
          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-@@ -381,5 +504,13 @@ class AudioControlsService : MediaSessionService() {
+@@ -381,5 +507,13 @@ class AudioControlsService : MediaSessionService() {
      fun clearSession() {
        getInstance()?.clearSessionInternal()
      }
