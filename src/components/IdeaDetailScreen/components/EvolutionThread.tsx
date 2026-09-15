@@ -30,8 +30,9 @@ type EvolutionThreadProps = {
 };
 
 /** One quiet history row on the thread's stem: hollow node, version number,
- *  relative time, duration — tap to audition, long-press to select. The note
- *  (a clip's own notes field) hangs under it in earned serif. */
+ *  relative time, duration. Same law as the head card: the play glyph auditions
+ *  inline, tapping the row opens the version in the full player, long-press
+ *  selects. The note (a clip's own notes field) hangs under it in earned serif. */
 function StemVersionRow({
   clip,
   versionNumber,
@@ -60,6 +61,7 @@ function StemVersionRow({
   const isSelected = useStore((s) => s.selectedClipIds.includes(clip.id));
   const toggleClipSelection = useStore((s) => s.toggleClipSelection);
   const startClipSelection = useStore((s) => s.startClipSelection);
+  const setPlayerQueueForScreen = useStore((s) => s.setPlayerQueueForScreen);
   const inlineActive = useStore(
     (s) => s.inlineTarget?.ideaId === ideaId && s.inlineTarget.clipId === clip.id
   );
@@ -87,12 +89,19 @@ function StemVersionRow({
     haptic.tap();
     void inlinePlayer.toggleInlinePlayback(ideaId, clip);
   };
+  // Row tap opens this version in the full player — the same door the head
+  // card opens — so an older take gets its lyrics, chart, and practice tools too.
+  const openPlayer = async () => {
+    if (!canPlay) return;
+    await inlinePlayer.resetInlinePlayer();
+    setPlayerQueueForScreen([{ ideaId, clipId: clip.id }], 0, true);
+  };
   const handlePress = () => {
     if (clipSelectionMode) {
       toggleClipSelection(clip.id);
       return;
     }
-    togglePlayback();
+    void openPlayer();
   };
   const handleLongPress = () => {
     if (clipSelectionMode) {

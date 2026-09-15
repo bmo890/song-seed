@@ -279,8 +279,9 @@ is fixed: the **title** takes the room and ellipsizes first, down to a floor of
   shell; the head card plays the current version and wears its version tag
   ("v2 · Just now") plus its own note. No duplicate row for the current version.
 - **The stem is only the past.** A warm line descends from the card through
-  hollow nodes (v1, v2…), tap to audition (node fills terracotta while playing),
-  long-press to select. The stem never contains the future — actions are not
+  hollow nodes (v1, v2…). Each row obeys the clip-card law (2026-09-14): the
+  play glyph auditions inline (node fills terracotta while playing), tapping
+  the row opens that version in the full player, long-press selects. The stem never contains the future — actions are not
   timeline events. History folds behind ONE 40pt stem row (2026-09-14): a
   terminal node + "v3 · 2 older versions" + chevron; tap to unfold the older
   rows between the card and that row. The shell is slim (4pt inset) — a thread
