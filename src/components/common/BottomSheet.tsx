@@ -246,7 +246,10 @@ export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
             style={[
               styles.modalCard,
               styles.bottomSheetCard,
-              { paddingBottom: 14 + insets.bottom, transform: [{ translateY: combinedTranslateY }] },
+              // Cap the card at the expandable ceiling so a tall body (the metronome
+              // sheet with a section open) scrolls inside instead of pushing the
+              // handle and title off the top of the screen.
+              { maxHeight: expandedTotal, paddingBottom: 14 + insets.bottom, transform: [{ translateY: combinedTranslateY }] },
             ]}
           >
             <View style={styles.bottomSheetDragZone} {...handlePanResponder.panHandlers}>
