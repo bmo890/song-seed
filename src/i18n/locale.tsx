@@ -8,7 +8,10 @@ import { i18n } from "./instance";
 export type AppLanguage = "en" | "he";
 export type UiDirection = "ltr" | "rtl";
 
-const LANGUAGE_KEY = "songnook-ui-language-v1";
+/** AsyncStorage key holding the chosen UI language. Exported so the exact backup can
+ *  carry it (see services/satelliteSnapshot.ts). */
+export const UI_LANGUAGE_STORAGE_KEY = "songnook-ui-language-v1";
+const LANGUAGE_KEY = UI_LANGUAGE_STORAGE_KEY;
 
 type LocaleContextValue = {
   language: AppLanguage;

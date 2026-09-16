@@ -1,4 +1,5 @@
 import type { PersistedAppStore } from "../state/storeTypes";
+import { DrRestoreError } from "./disasterRecoveryErrors";
 import type { ClipOverdubState, ClipVersion, Workspace } from "../types";
 import type {
     DrBackupFileRecord,
@@ -40,14 +41,14 @@ function isRecord(value: unknown): value is UnknownRecord {
 
 function requireString(value: unknown, label: string) {
     if (typeof value !== "string" || value.length === 0) {
-        throw new Error(`Backup ${label} is invalid.`);
+        throw new DrRestoreError("integrity", `Backup ${label} is invalid.`);
     }
     return value;
 }
 
 function requireNonNegativeInteger(value: unknown, label: string) {
     if (!Number.isSafeInteger(value) || Number(value) < 0) {
-        throw new Error(`Backup ${label} is invalid.`);
+        throw new DrRestoreError("integrity", `Backup ${label} is invalid.`);
     }
     return Number(value);
 }
@@ -61,19 +62,19 @@ export function assertSafeBackupMediaPath(value: unknown): string {
         path.split("/").some((segment) => segment === "" || segment === "." || segment === "..") ||
         !SAFE_MEDIA_PREFIXES.some((prefix) => path.startsWith(prefix))
     ) {
-        throw new Error(`Backup media path is unsafe: ${path}`);
+        throw new DrRestoreError("integrity", `Backup media path is unsafe: ${path}`);
     }
     return path;
 }
 
 function validateFileRecord(value: unknown): DrBackupFileRecord {
     if (!isRecord(value)) {
-        throw new Error("Backup file manifest is invalid.");
+        throw new DrRestoreError("integrity", "Backup file manifest is invalid.");
     }
     const path = assertSafeBackupMediaPath(value.path);
     const sha256 = requireString(value.sha256, `checksum for ${path}`);
     if (!SHA256_HEX.test(sha256)) {
-        throw new Error(`Backup checksum is invalid for ${path}.`);
+        throw new DrRestoreError("integrity", `Backup checksum is invalid for ${path}.`);
     }
     return {
         path,
@@ -88,18 +89,19 @@ const MEDIA_KINDS = new Set<DrMediaKind>([
     "overdub-stem",
     "overdub-mix",
     "workspace-archive",
+    "waveform-sidecar",
 ]);
 
 function validateMissingRecord(value: unknown): DrBackupMissingRecord {
     if (!isRecord(value)) {
-        throw new Error("Backup missing-file manifest is invalid.");
+        throw new DrRestoreError("integrity", "Backup missing-file manifest is invalid.");
     }
     const kind = requireString(value.kind, "missing-file kind") as DrMediaKind;
     if (!MEDIA_KINDS.has(kind)) {
-        throw new Error(`Backup missing-file kind is unsupported: ${kind}`);
+        throw new DrRestoreError("integrity", `Backup missing-file kind is unsupported: ${kind}`);
     }
     if (typeof value.critical !== "boolean") {
-        throw new Error("Backup missing-file critical flag is invalid.");
+        throw new DrRestoreError("integrity", "Backup missing-file critical flag is invalid.");
     }
     return {
         path: requireString(value.path, "missing-file path"),
@@ -115,56 +117,58 @@ export function validateDisasterRecoveryManifest(
     supportedStoreVersion: number
 ): DrBackupManifest {
     if (!isRecord(value)) {
-        throw new Error("Backup manifest is invalid.");
+        throw new DrRestoreError("notBackup", "Backup manifest is invalid.");
     }
     if (value.formatVersion !== supportedFormatVersion) {
         if (typeof value.formatVersion === "number" && value.formatVersion > supportedFormatVersion) {
-            throw new Error(
+            throw new DrRestoreError("newerApp", 
                 `Backup was made by a newer app version (format ${value.formatVersion}). Update the app to restore it.`
             );
         }
-        throw new Error(`Backup format ${String(value.formatVersion)} is unsupported.`);
+        throw new DrRestoreError("unsupported", `Backup format ${String(value.formatVersion)} is unsupported.`);
     }
 
     const storeVersion = requireNonNegativeInteger(value.storeVersion, "store version");
-    if (storeVersion < 1 || storeVersion > supportedStoreVersion) {
-        throw new Error(
-            storeVersion > supportedStoreVersion
-                ? `Backup was made by a newer app data version (${storeVersion}). Update the app to restore it.`
-                : `Backup data version ${storeVersion} is unsupported.`
+    if (storeVersion > supportedStoreVersion) {
+        throw new DrRestoreError(
+            "newerApp",
+            `Backup was made by a newer app data version (${storeVersion}). Update the app to restore it.`
         );
     }
+    if (storeVersion < 1) {
+        throw new DrRestoreError("unsupported", `Backup data version ${storeVersion} is unsupported.`);
+    }
     if (value.status !== "complete" && value.status !== "incomplete") {
-        throw new Error("Backup completion status is invalid.");
+        throw new DrRestoreError("integrity", "Backup completion status is invalid.");
     }
     if (!isRecord(value.counts)) {
-        throw new Error("Backup counts are invalid.");
+        throw new DrRestoreError("integrity", "Backup counts are invalid.");
     }
     if (!Array.isArray(value.files) || !Array.isArray(value.missing)) {
-        throw new Error("Backup file lists are invalid.");
+        throw new DrRestoreError("integrity", "Backup file lists are invalid.");
     }
 
     const files = value.files.map(validateFileRecord);
     const seenPaths = new Set<string>();
     for (const file of files) {
         if (seenPaths.has(file.path)) {
-            throw new Error(`Backup lists the same media file more than once: ${file.path}`);
+            throw new DrRestoreError("integrity", `Backup lists the same media file more than once: ${file.path}`);
         }
         seenPaths.add(file.path);
     }
     const missing = value.missing.map(validateMissingRecord);
     const hasCriticalMissing = missing.some((entry) => entry.critical);
     if ((value.status === "incomplete") !== hasCriticalMissing) {
-        throw new Error("Backup completion status does not match its missing-file manifest.");
+        throw new DrRestoreError("integrity", "Backup completion status does not match its missing-file manifest.");
     }
 
     const snapshotSha256 = requireString(value.snapshotSha256, "snapshot checksum");
     if (!SHA256_HEX.test(snapshotSha256)) {
-        throw new Error("Backup snapshot checksum is invalid.");
+        throw new DrRestoreError("integrity", "Backup snapshot checksum is invalid.");
     }
     const createdAt = requireString(value.createdAt, "creation date");
     if (!Number.isFinite(Date.parse(createdAt))) {
-        throw new Error("Backup creation date is invalid.");
+        throw new DrRestoreError("integrity", "Backup creation date is invalid.");
     }
 
     return {
@@ -187,7 +191,7 @@ export function validateDisasterRecoveryManifest(
 
 function validateSnapshotShape(value: unknown, manifest: DrBackupManifest): PersistedAppStore {
     if (!isRecord(value) || !Array.isArray(value.workspaces)) {
-        throw new Error("Backup snapshot does not contain a valid workspace library.");
+        throw new DrRestoreError("notBackup", "Backup snapshot does not contain a valid workspace library.");
     }
 
     let collections = 0;
@@ -200,17 +204,17 @@ function validateSnapshotShape(value: unknown, manifest: DrBackupManifest): Pers
             !Array.isArray(workspace.collections) ||
             !Array.isArray(workspace.ideas)
         ) {
-            throw new Error("Backup contains an invalid workspace.");
+            throw new DrRestoreError("integrity", "Backup contains an invalid workspace.");
         }
         collections += workspace.collections.length;
         ideas += workspace.ideas.length;
         for (const idea of workspace.ideas) {
             if (!isRecord(idea) || typeof idea.id !== "string" || !Array.isArray(idea.clips)) {
-                throw new Error("Backup contains an invalid song or idea.");
+                throw new DrRestoreError("integrity", "Backup contains an invalid song or idea.");
             }
             clips += idea.clips.length;
             if (idea.clips.some((clip) => !isRecord(clip) || typeof clip.id !== "string")) {
-                throw new Error("Backup contains an invalid clip.");
+                throw new DrRestoreError("integrity", "Backup contains an invalid clip.");
             }
         }
     }
@@ -227,7 +231,7 @@ function validateSnapshotShape(value: unknown, manifest: DrBackupManifest): Pers
         actualCounts.ideas !== manifest.counts.ideas ||
         actualCounts.clips !== manifest.counts.clips
     ) {
-        throw new Error("Backup entity counts do not match its snapshot.");
+        throw new DrRestoreError("integrity", "Backup entity counts do not match its snapshot.");
     }
     return value as unknown as PersistedAppStore;
 }
@@ -238,7 +242,7 @@ function buildDestinationPath(sourcePath: string, restoreToken: string) {
     // for any prefix the validator accepts but this mapping forgot.
     const prefix = SAFE_MEDIA_PREFIXES.find((candidate) => sourcePath.startsWith(candidate));
     if (!prefix) {
-        throw new Error(`Backup media path is unsafe: ${sourcePath}`);
+        throw new DrRestoreError("integrity", `Backup media path is unsafe: ${sourcePath}`);
     }
     return `${prefix}restored-${restoreToken}/${sourcePath.slice(prefix.length)}`;
 }
@@ -320,7 +324,7 @@ export function prepareDisasterRecoverySnapshot(
     }
 ): PreparedDisasterRecoverySnapshot {
     if (!RESTORE_TOKEN.test(restoreToken)) {
-        throw new Error("Restore destination token is invalid.");
+        throw new DrRestoreError("internal", "Restore destination token is invalid.");
     }
     const snapshot = validateSnapshotShape(value, manifest);
     const destinationPathBySourcePath = new Map(
@@ -332,7 +336,7 @@ export function prepareDisasterRecoverySnapshot(
         const sourcePath = assertSafeBackupMediaPath(uri);
         const destination = destinationPathBySourcePath.get(sourcePath);
         if (!destination) {
-            throw new Error(`Backup is missing critical audio for ${label}: ${sourcePath}`);
+            throw new DrRestoreError("missingAudio", `Backup is missing critical audio for ${label}: ${sourcePath}`);
         }
         return destination;
     };

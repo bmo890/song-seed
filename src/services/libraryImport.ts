@@ -14,6 +14,7 @@ import type {
     BluetoothMonitoringCalibration,
     ClipVersion,
     Collection,
+    IdeasListState,
     Note,
     ProjectLyrics,
     Setlist,
@@ -33,6 +34,21 @@ import {
 } from "./libraryArchiveManifest";
 import { normalizeBluetoothMonitoringCalibrations } from "../domain/bluetoothMonitoring";
 import { sanitizeTempoMap } from "../domain/tempoMap";
+
+/** Pre-edit source files already extracted, by archive path → managed uri (shared sources). */
+type SourceAudioDestinations = Map<string, string>;
+
+/** Remap a hidden-idea list onto the freshly minted idea ids; hidden days copy as-is. */
+function remapIdeasListState(
+    state: IdeasListState | undefined,
+    ideaIdMap: Map<string, string>
+): IdeasListState {
+    const hiddenIdeaIds = (state?.hiddenIdeaIds ?? [])
+        .map((sourceId) => ideaIdMap.get(sourceId))
+        .filter((id): id is string => !!id);
+    const hiddenDays = Array.isArray(state?.hiddenDays) ? state.hiddenDays : [];
+    return { hiddenIdeaIds, hiddenDays };
+}
 
 export type PickedLibraryArchiveFile = {
     uri: string;
@@ -178,6 +194,82 @@ async function extractManagedArchiveAudio(
     return destinationUri;
 }
 
+/**
+ * One take: master audio, pre-edit source (shared across derived clips), overdubs and every
+ * creative field the archive carries. Lineage (`parentClipId`) is remapped by the caller.
+ */
+async function materializeArchiveClip(
+    clipManifest: ArchiveClipManifest,
+    parsed: ParsedSongNookArchive,
+    clipId: string,
+    warnings: string[],
+    clipLabel: string,
+    sourceDestinations: SourceAudioDestinations
+): Promise<ClipVersion> {
+    let audioUri: string | undefined;
+    if (clipManifest.audioPath) {
+        audioUri =
+            (await extractManagedArchiveAudio(
+                parsed,
+                clipManifest.audioPath,
+                clipId,
+                getPathExtension(clipManifest.audioPath)
+            )) ?? undefined;
+        if (!audioUri) {
+            warnings.push(`Missing archived audio for ${clipLabel}.`);
+        }
+    }
+
+    let sourceAudioUri: string | undefined;
+    if (clipManifest.sourceAudioPath) {
+        const shared = sourceDestinations.get(clipManifest.sourceAudioPath);
+        if (shared) {
+            sourceAudioUri = shared;
+        } else {
+            sourceAudioUri =
+                (await extractManagedArchiveAudio(
+                    parsed,
+                    clipManifest.sourceAudioPath,
+                    `${clipId}-source`,
+                    getPathExtension(clipManifest.sourceAudioPath)
+                )) ?? undefined;
+            if (sourceAudioUri) {
+                sourceDestinations.set(clipManifest.sourceAudioPath, sourceAudioUri);
+            } else {
+                warnings.push(`Missing archived source audio for ${clipLabel}.`);
+            }
+        }
+    }
+
+    const overdub = await materializeArchiveClipOverdub(clipManifest.overdub, parsed, clipId, warnings, clipLabel);
+
+    return {
+        id: clipId,
+        title: clipManifest.title,
+        notes: clipManifest.notes ?? "",
+        createdAt: clipManifest.createdAt,
+        isPrimary: clipManifest.isPrimary,
+        parentClipId: clipManifest.parentClipId ?? undefined,
+        audioUri,
+        sourceAudioUri,
+        durationMs: clipManifest.durationMs,
+        waveformPeaks: resolveArchiveWaveform(clipManifest, clipId),
+        overdub,
+        isBookmarked: clipManifest.isBookmarked,
+        ...readFullClipMetadata(clipManifest),
+    };
+}
+
+/** Remap lineage onto the new ids and guarantee exactly one primary take. */
+function finalizeImportedClips(clips: ClipVersion[], clipIdMap: Map<string, string>): ClipVersion[] {
+    const hasPrimary = clips.some((candidate) => candidate.isPrimary);
+    return clips.map((clip, index) => ({
+        ...clip,
+        parentClipId: clip.parentClipId ? clipIdMap.get(clip.parentClipId) : undefined,
+        isPrimary: hasPrimary ? clip.isPrimary : index === 0,
+    }));
+}
+
 async function materializeArchiveClipOverdub(
     overdubManifest: ArchiveClipOverdubManifest | undefined,
     parsed: ParsedSongNookArchive,
@@ -231,7 +323,8 @@ async function materializeArchiveClipOverdub(
             durationMs: stemManifest.durationMs,
             waveformPeaks: stemManifest.waveformPeaks,
             recordingGrid: stemManifest.recordingGrid,
-            createdAt: Date.now(),
+            color: stemManifest.color,
+            createdAt: stemManifest.createdAt ?? Date.now(),
         });
     }
 
@@ -349,6 +442,10 @@ export async function materializeSongNookArchiveMerge(
     const workspaceIdMap = new Map<string, string>();
     const ideaIdMap = new Map<string, string>();
     const clipIdMapGlobal = new Map<string, string>();
+    // Lyric version ids per imported song, so songbook/setlist chart references that point
+    // at a version this archive did not carry are dropped instead of dangling.
+    const lyricVersionIdsByIdea = new Map<string, Set<string>>();
+    const sourceDestinations: SourceAudioDestinations = new Map();
     const suggestedPrimaryCollectionIdByWorkspace: Record<string, string> = {};
     const bluetoothMonitoringCalibrations = normalizeBluetoothMonitoringCalibrations(
         parsed.manifest.libraryPreferences?.bluetoothMonitoringCalibrations
@@ -366,6 +463,7 @@ export async function materializeSongNookArchiveMerge(
             createdAt: noteManifest.createdAt,
             updatedAt: noteManifest.updatedAt,
             isPinned: !!noteManifest.isPinned,
+            textDirection: noteManifest.textDirection,
         });
     }
 
@@ -444,52 +542,19 @@ export async function materializeSongNookArchiveMerge(
                     const clipId = buildClipId();
                     clipIdMap.set(clipManifest.id, clipId);
                     clipIdMapGlobal.set(clipManifest.id, clipId);
-                    let audioUri: string | undefined;
-
-                    if (clipManifest.audioPath) {
-                        audioUri =
-                            (await extractManagedArchiveAudio(
-                                parsed,
-                                clipManifest.audioPath,
-                                clipId,
-                                getPathExtension(clipManifest.audioPath)
-                            )) ?? undefined;
-                        if (!audioUri) {
-                            warnings.push(`Missing archived audio for ${songManifest.title} / ${clipManifest.title}.`);
-                        }
-                    }
-
-                    const overdub = await materializeArchiveClipOverdub(
-                        clipManifest.overdub,
-                        parsed,
-                        clipId,
-                        warnings,
-                        `${songManifest.title} / ${clipManifest.title}`
+                    clips.push(
+                        await materializeArchiveClip(
+                            clipManifest,
+                            parsed,
+                            clipId,
+                            warnings,
+                            `${songManifest.title} / ${clipManifest.title}`,
+                            sourceDestinations
+                        )
                     );
-
-                    clips.push({
-                        id: clipId,
-                        title: clipManifest.title,
-                        notes: clipManifest.notes ?? "",
-                        createdAt: clipManifest.createdAt,
-                        isPrimary: clipManifest.isPrimary,
-                        parentClipId: clipManifest.parentClipId ?? undefined,
-                        audioUri,
-                        durationMs: clipManifest.durationMs,
-                        waveformPeaks: resolveArchiveWaveform(clipManifest, clipId),
-                        overdub,
-                        isBookmarked: clipManifest.isBookmarked,
-                        ...readFullClipMetadata(clipManifest),
-                    });
                 }
 
-                const remappedClips = clips.map((clip, index) => ({
-                    ...clip,
-                    parentClipId: clip.parentClipId ? clipIdMap.get(clip.parentClipId) : undefined,
-                    isPrimary: clips.some((candidate) => candidate.isPrimary)
-                        ? clip.isPrimary
-                        : index === 0,
-                }));
+                const remappedClips = finalizeImportedClips(clips, clipIdMap);
 
                 // Re-id clip groups and remap their assignments (root clip id -> group id) onto the
                 // freshly minted ids, so the store normalizer keeps them. Full-fidelity only.
@@ -522,6 +587,7 @@ export async function materializeSongNookArchiveMerge(
                     : songManifest.lyrics
                         ? { versions: [createLyricsVersion(lyricsTextToDocument(songManifest.lyrics))] }
                         : createEmptyProjectLyrics();
+                lyricVersionIdsByIdea.set(ideaId, new Set(lyrics.versions.map((version) => version.id)));
 
                 ideas.push({
                     id: ideaId,
@@ -533,6 +599,7 @@ export async function materializeSongNookArchiveMerge(
                     collectionId,
                     clips: remappedClips,
                     lyrics,
+                    isTitleAutoGenerated: songManifest.isTitleAutoGenerated,
                     chordPalette: songManifest.chordPalette,
                     chordSheet: songManifest.chordSheet,
                     songGrid: sanitizeTempoMap(songManifest.songGrid),
@@ -551,57 +618,61 @@ export async function materializeSongNookArchiveMerge(
 
             for (const clipManifest of collectionManifest.standaloneClips) {
                 const ideaId = buildIdeaId();
-                const clipId = buildClipId();
+                ideaIdMap.set(clipManifest.id, ideaId);
                 importedIdeaIds.push(ideaId);
 
-                let audioUri: string | undefined;
-                if (clipManifest.audioPath) {
-                    audioUri =
-                        (await extractManagedArchiveAudio(
-                            parsed,
-                            clipManifest.audioPath,
-                            clipId,
-                            getPathExtension(clipManifest.audioPath)
-                        )) ?? undefined;
-                    if (!audioUri) {
-                        warnings.push(`Missing archived audio for ${clipManifest.title}.`);
+                let clips: ClipVersion[];
+                if (clipManifest.takes?.length) {
+                    // v7 full fidelity: every take of the clip idea, with lineage.
+                    const takeIdMap = new Map<string, string>();
+                    const takes: ClipVersion[] = [];
+                    for (const takeManifest of clipManifest.takes) {
+                        const takeId = buildClipId();
+                        takeIdMap.set(takeManifest.id, takeId);
+                        clipIdMapGlobal.set(takeManifest.id, takeId);
+                        takes.push(
+                            await materializeArchiveClip(
+                                takeManifest,
+                                parsed,
+                                takeId,
+                                warnings,
+                                `${clipManifest.title} / ${takeManifest.title}`,
+                                sourceDestinations
+                            )
+                        );
                     }
+                    clips = finalizeImportedClips(takes, takeIdMap);
+                } else {
+                    // Pre-v7 (or standard) archives: the entry IS the primary take.
+                    const clipId = buildClipId();
+                    const primary = await materializeArchiveClip(
+                        { ...clipManifest, parentClipId: undefined },
+                        parsed,
+                        clipId,
+                        warnings,
+                        clipManifest.title,
+                        sourceDestinations
+                    );
+                    clips = [{ ...primary, isPrimary: true, isBookmarked: undefined }];
                 }
 
-                const overdub = await materializeArchiveClipOverdub(
-                    clipManifest.overdub,
-                    parsed,
-                    clipId,
-                    warnings,
-                    clipManifest.title
-                );
-
+                const ideaMeta = clipManifest.idea;
                 ideas.push({
                     id: ideaId,
                     title: clipManifest.title,
                     notes: clipManifest.notes ?? "",
-                    status: "clip",
-                    completionPct: 0,
+                    status: ideaMeta?.status ?? "clip",
+                    completionPct: ideaMeta?.completionPct ?? 0,
                     kind: "clip",
                     collectionId,
-                    clips: [
-                        {
-                            id: clipId,
-                            title: clipManifest.title,
-                            notes: clipManifest.notes ?? "",
-                            createdAt: clipManifest.createdAt,
-                            isPrimary: true,
-                            audioUri,
-                            durationMs: clipManifest.durationMs,
-                            waveformPeaks: resolveArchiveWaveform(clipManifest, clipId),
-                            overdub,
-                            ...readFullClipMetadata(clipManifest),
-                        },
-                    ],
-                    importedAt: clipManifest.importedAt,
-                    sourceCreatedAt: clipManifest.sourceCreatedAt,
+                    clips,
+                    customTags: ideaMeta?.customTags,
+                    isDraft: ideaMeta?.isDraft,
+                    isTitleAutoGenerated: ideaMeta?.isTitleAutoGenerated,
+                    importedAt: ideaMeta?.importedAt ?? clipManifest.importedAt,
+                    sourceCreatedAt: ideaMeta?.sourceCreatedAt ?? clipManifest.sourceCreatedAt,
                     createdAt: clipManifest.createdAt,
-                    lastActivityAt: clipManifest.createdAt,
+                    lastActivityAt: ideaMeta?.lastActivityAt ?? clipManifest.createdAt,
                     isBookmarked: !!clipManifest.isBookmarked,
                 });
             }
@@ -610,6 +681,15 @@ export async function materializeSongNookArchiveMerge(
                 parsed.manifest.libraryPreferences?.primaryCollectionIdByWorkspace?.[workspaceManifest.id];
             if (importedPrimaryCollectionSourceId === collectionManifest.id) {
                 suggestedPrimaryCollectionIdByWorkspace[workspaceId] = collectionId;
+            }
+        }
+
+        // Hidden-idea state (full fidelity) references idea ids, which only exist now.
+        for (const collectionManifest of workspaceManifest.collections) {
+            const collectionId = collectionIdMap.get(collectionManifest.id);
+            const collection = collections.find((candidate) => candidate.id === collectionId);
+            if (collection && collectionManifest.ideasListState) {
+                collection.ideasListState = remapIdeasListState(collectionManifest.ideasListState, ideaIdMap);
             }
         }
 
@@ -623,6 +703,9 @@ export async function materializeSongNookArchiveMerge(
             isArchived: false,
             collections,
             ideas,
+            ...(workspaceManifest.ideasListState
+                ? { ideasListState: remapIdeasListState(workspaceManifest.ideasListState, ideaIdMap) }
+                : null),
             // Round-trip received provenance (device migration keeps packages
             // as packages). The ShareImport path overrides this downstream.
             origin: workspaceManifest.origin,
@@ -647,6 +730,10 @@ export async function materializeSongNookArchiveMerge(
                     const workspaceId = workspaceIdMap.get(item.workspaceId);
                     const ideaId = ideaIdMap.get(item.ideaId);
                     if (!workspaceId || !ideaId) return null;
+                    // A lyric chart needs its version to have travelled with the song.
+                    if (item.kind === "lyricChart" && item.versionId && !lyricVersionIdsByIdea.get(ideaId)?.has(item.versionId)) {
+                        return null;
+                    }
                     return { ...item, id: buildEntityId("songbook-item"), workspaceId, ideaId };
                 })
                 .filter((item): item is Songbook["items"][number] => item !== null),
@@ -672,6 +759,9 @@ export async function materializeSongNookArchiveMerge(
                         clipIds: (entry.clipIds ?? [])
                             .map((clipId) => clipIdMapGlobal.get(clipId))
                             .filter((clipId): clipId is string => !!clipId),
+                        lyricVersionIds: (entry.lyricVersionIds ?? []).filter((versionId) =>
+                            lyricVersionIdsByIdea.get(ideaId)?.has(versionId)
+                        ),
                     };
                 })
                 .filter((entry): entry is Setlist["entries"][number] => entry !== null),

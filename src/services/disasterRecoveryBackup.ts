@@ -3,7 +3,8 @@ import { i18n } from "../i18n/instance";
 import { File } from "expo-file-system";
 import { buildTimestampSlug } from "./audioStorage";
 import { createZipArchive, type ZipArchiveEntry } from "./zipArchive";
-import { SONG_NOOK_ROOT, toRelativeManagedPath } from "./storagePaths";
+import { SONG_NOOK_ROOT, toRelativeManagedPath, waveformSidecarUri } from "./storagePaths";
+import type { DrSatelliteSnapshot } from "./satelliteSnapshot";
 import {
     ensureBackupDiskSpace,
     reportBackupProgress,
@@ -30,9 +31,14 @@ import type { Workspace } from "../types";
  * can fully reconstruct the library on a fresh install or new device.
  *
  * Archive layout:
- *   snapshot.json          exact PersistedAppStore (media URIs stored relative)
+ *   snapshot.json          exact PersistedAppStore (media URIs stored relative), plus an
+ *                          optional `satellites` block — the small AsyncStorage stores
+ *                          (Shelf, transposition, filters, …) and the UI language
  *   manifest.json          format/version, per-file SHA-256, counts, status
- *   media/<relativePath>   each managed audio file at its container-independent path
+ *   media/<relativePath>   each managed audio file at its container-independent path,
+ *                          and each clip's detail-waveform sidecar (`<audio>.waveform`)
+ *                          when present — regenerable, but restoring it saves a full
+ *                          re-analysis pass on a new device
  */
 
 export const DR_BACKUP_FORMAT_VERSION = 1;
@@ -51,7 +57,11 @@ export type DrMediaKind =
     | "clip-source"
     | "overdub-stem"
     | "overdub-mix"
-    | "workspace-archive";
+    | "workspace-archive"
+    | "waveform-sidecar";
+
+/** The exact backup's snapshot.json: the persisted library plus the satellite block. */
+export type DrBackupSnapshot = PersistedAppStore & { satellites?: DrSatelliteSnapshot };
 
 export type DrBackupFileRecord = { path: string; sha256: string; sizeBytes: number };
 export type DrBackupMissingRecord = { path: string; kind: DrMediaKind; critical: boolean; ref: string };
@@ -84,6 +94,9 @@ type MediaRef = {
     critical: boolean;
     /** Human-readable reference for diagnostics (e.g. song / clip id). */
     ref: string;
+    /** Derived data that may legitimately not exist yet (waveform sidecars): absence is
+     *  neither recorded as missing nor does it affect the backup's status. */
+    optional?: boolean;
 };
 
 async function inspectFileIntegrity(
@@ -143,6 +156,19 @@ function pushManagedRef(
 ) {
     if (!uri) return;
     refs.push({ relativePath: toRelativeManagedPath(uri), absUri: uri, kind, critical, ref });
+    if (kind !== "workspace-archive") {
+        // The detail waveform lives right next to its audio and restores to the same
+        // token-scoped folder, so `waveformSidecarUri(restoredAudio)` keeps resolving.
+        const sidecar = waveformSidecarUri(uri);
+        refs.push({
+            relativePath: toRelativeManagedPath(sidecar),
+            absUri: sidecar,
+            kind: "waveform-sidecar",
+            critical: false,
+            ref,
+            optional: true,
+        });
+    }
 }
 
 /** Every canonical audio file referenced by the (absolute, in-memory) library. */
@@ -248,7 +274,11 @@ export async function estimateDisasterRecoveryBackup(state: AppStore): Promise<D
  */
 export async function buildDisasterRecoveryBackup(
     state: AppStore,
-    opts?: BackupOperationOptions & { appVersion?: string }
+    opts?: BackupOperationOptions & {
+        appVersion?: string;
+        /** Satellite stores + UI language, gathered by the caller (see satelliteSnapshot.ts). */
+        satellites?: DrSatelliteSnapshot;
+    }
 ): Promise<DrBackupResult> {
     throwIfBackupCancelled(opts?.signal);
     reportBackupProgress(opts, {
@@ -260,9 +290,10 @@ export async function buildDisasterRecoveryBackup(
     const snapshotAbs = buildPersistedAppStoreSnapshot(state);
 
     // Snapshot stores RELATIVE media paths so it restores onto any container/device.
-    const snapshot: PersistedAppStore = {
+    const snapshot: DrBackupSnapshot = {
         ...snapshotAbs,
         workspaces: toRelativeWorkspacesManagedMedia(snapshotAbs.workspaces),
+        ...(opts?.satellites ? { satellites: opts.satellites } : null),
     };
     const snapshotJson = JSON.stringify(snapshot);
     const snapshotSha256 = await sha256OfString(snapshotJson);
@@ -274,6 +305,8 @@ export async function buildDisasterRecoveryBackup(
 
     for (const ref of collectMediaRefs(snapshotAbs.workspaces)) {
         if (!ref.relativePath) {
+            // A sidecar of a non-managed file has no stable identity either — skip it.
+            if (ref.optional) continue;
             // A referenced file outside managed storage cannot be reliably backed up.
             missing.push({
                 path: ref.absUri,
@@ -295,7 +328,9 @@ export async function buildDisasterRecoveryBackup(
 
         const info = await FileSystem.getInfoAsync(ref.absUri);
         if (!info.exists) {
-            missing.push({ path: ref.relativePath!, kind: ref.kind, critical: ref.critical, ref: ref.ref });
+            if (!ref.optional) {
+                missing.push({ path: ref.relativePath!, kind: ref.kind, critical: ref.critical, ref: ref.ref });
+            }
             continue;
         }
         const sizeBytes = typeof info.size === "number" ? info.size : new File(ref.absUri).size;
@@ -313,7 +348,7 @@ export async function buildDisasterRecoveryBackup(
         );
     }
     // Fail before an expensive checksum pass when the temporary archive cannot fit.
-    await ensureBackupDiskSpace(totalMediaBytes, "create this backup");
+    await ensureBackupDiskSpace(totalMediaBytes, "backup");
     throwIfBackupCancelled(opts?.signal);
     const totalMediaMb = totalMediaBytes / (1024 * 1024);
     console.log(
@@ -420,7 +455,7 @@ export async function buildDisasterRecoveryBackup(
     // manifest) must stay under 4 GB, not just the media. A library a few MB under the
     // limit can otherwise produce an archive whose uint32 offsets overflow and which the
     // restore reader then rejects as unreadable.
-    await ensureBackupDiskSpace(projectedArchiveBytes, "create this backup");
+    await ensureBackupDiskSpace(projectedArchiveBytes, "backup");
     throwIfBackupCancelled(opts?.signal);
 
     const dirInfo = await FileSystem.getInfoAsync(DR_TEMP_DIR);

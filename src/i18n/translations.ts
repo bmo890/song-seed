@@ -555,6 +555,25 @@ export const resources = {
       settingsBackup: {
         estimate: "{{count}} clips · {{size}} · {{duration}}", confirmTitle: "Back up your library?", confirmBody: "{{estimate}}You can minimize the backup and keep using the app while it runs.", notNow: "Not Now", backUp: "Back Up", yourLibrary: "Your library", saveTitle: "Save this backup?", saveBody: "“{{title}}” is built and ready, but hasn’t been saved yet. Choose where to save it, or discard it.", discard: "Discard Backup", chooseLocation: "Choose Location", incompleteTitle: "Backup saved, but incomplete", incompleteBody: "Saved {{name}}, but {{count}} clips are missing from storage:{{list}}Review in Library & Backups → Storage details, then back up again.", moreMissing: "…and {{count}} more", ready: "Backup ready", readyBody: "Saved {{name}} to the location you chose.", copyName: "Copy Name", confirmSaved: "Confirm backup saved", confirmSavedBody: "The system share sheet cannot tell SongNook whether you completed Save to Files. Only confirm if the backup now appears in Files, iCloud Drive, or another location.", notSaved: "Not Saved", savedIt: "I Saved It", lowStorage: "Your device is low on storage. Free up some space, then try the backup again.", failedBody: "The library backup could not be completed. Please try again.", failed: "Backup failed", finishRecording: "Finish recording first", finishRecordingBody: "Save or discard the active recording before replacing the library from a backup.", merging: "Merging a backup", fromBackup: "From a backup", restoredMissing: "Restored without {{count}} missing items. Restarting…", restored: "Restored. Restarting…", incompleteRestore: "Backup is incomplete", incompleteRestoreBody: "This backup recorded {{count}} clips as missing when it was created — they cannot be recovered from this file. You can still restore everything else it contains.", restoreAnyway: "Restore Anyway", restoreAnywayDesc: "Restore the library without the {{count}} missing clips.", restoreFailedBody: "The backup could not be restored.", restoreFailed: "Restore failed", pickerFailed: "Could not open the file picker.", shareArchiveTitle: "That’s a shareable archive", shareArchiveBody: "This file is a SongNook Archive (an export for sharing), not a full backup. To bring it into your library, use Library & Backups → Import an archive.", restoreSize: " Restoring {{size}} takes {{duration}}.", restoreTitle: "Restore from backup?", restoreBody: "How should this backup be restored? The app restarts afterward.{{size}}", keepNewer: "Keep Newer Items", keepNewerDesc: "Merge: bring back everything in the backup while keeping songs, clips, and edits made since it was saved.", replaceEverything: "Replace Everything", replaceDesc: "The backup becomes your entire library. Anything not in it is removed (clips are kept in the trash for 14 days).", copied: "Backup file name copied", archivedWorkspace: "Archived workspace “{{title}}”", overdubLayer: " (overdub layer)",
       },
+      backupRestoreError: {
+        fileMissing: "The backup file could not be found.",
+        unreadable: "This backup is corrupt or unreadable.",
+        notBackup: "This file is not a SongNook backup.",
+        newerApp: "This backup needs a newer SongNook. Update the app to restore it.",
+        unsupported: "This backup format is no longer supported.",
+        integrity: "This backup failed its integrity check. It may be damaged or altered.",
+        missingAudio: "This backup is missing recordings it lists.",
+        mergeNeedsReplace: "An older backup can’t be merged. Use Replace Everything instead.",
+        destinationConflict: "Restore could not write its files. Try again.",
+        verifyFailed: "Restored recordings failed verification. Nothing was changed.",
+        internal: "The backup could not be restored.",
+      },
+      backupOperation: {
+        action: { backup: "create this backup", restore: "restore this backup", export: "export your library", archive: "archive this workspace" },
+        estimateFailed: "Could not work out the storage needed to {{action}}.",
+        spaceUnknown: "Could not read free device storage to {{action}}.",
+        lowStorage: "Not enough free device storage to {{action}}. SongNook needs about {{required}} MB, but only {{available}} MB is free.",
+      },
       settingsImport: {
         fullBackupTitle: "That’s a full backup", fullBackupBody: "This file is a full SongNook backup, not a shareable archive. Restore it from Library & Backups → Restore.", readFailed: "Could not read this SongNook Archive.", importFailed: "Import failed", warningsTitle: "Import finished with warnings", complete: "Import complete", completeBody: "{{workspaces}} workspaces, {{items}} items, and {{notes}} notepad notes were imported into your library.", archiveFailed: "The archive could not be imported.",
         title: "Import Archive",
@@ -1982,6 +2001,25 @@ export const resources = {
       },
       settingsBackup: {
         estimate: "{{count}} קטעים · {{size}} · {{duration}}", confirmTitle: "לגבות את הספרייה?", confirmBody: "{{estimate}}אפשר למזער את הגיבוי ולהמשיך להשתמש ביישום בזמן שהוא פועל.", notNow: "לא עכשיו", backUp: "גיבוי", yourLibrary: "הספרייה שלך", saveTitle: "לשמור את הגיבוי?", saveBody: "„{{title}}” נבנה ומוכן, אך עדיין לא נשמר. בחרו היכן לשמור אותו או מחקו אותו.", discard: "מחיקת הגיבוי", chooseLocation: "בחירת מיקום", incompleteTitle: "הגיבוי נשמר, אך אינו מלא", incompleteBody: "{{name}} נשמר, אך {{count}} קטעים חסרים באחסון:{{list}}עברו על ספרייה וגיבויים ← פרטי אחסון ואז גבו שוב.", moreMissing: "…ועוד {{count}}", ready: "הגיבוי מוכן", readyBody: "{{name}} נשמר במיקום שבחרתם.", copyName: "העתקת השם", confirmSaved: "אישור שהגיבוי נשמר", confirmSavedBody: "גיליון השיתוף של המערכת אינו יכול לדווח ל־SongNook אם השלמתם שמירה לקבצים. אשרו רק אם הגיבוי מופיע כעת בקבצים, ב־iCloud Drive או במיקום אחר.", notSaved: "לא נשמר", savedIt: "שמרתי", lowStorage: "האחסון במכשיר נמוך. פנו מקום ונסו לגבות שוב.", failedBody: "לא ניתן להשלים את גיבוי הספרייה. נסו שוב.", failed: "הגיבוי נכשל", finishRecording: "יש לסיים קודם את ההקלטה", finishRecordingBody: "שמרו או בטלו את ההקלטה הפעילה לפני החלפת הספרייה מגיבוי.", merging: "ממזג גיבוי", fromBackup: "שחזור מגיבוי", restoredMissing: "שוחזר ללא {{count}} פריטים חסרים. מפעיל מחדש…", restored: "השחזור הושלם. מפעיל מחדש…", incompleteRestore: "הגיבוי אינו מלא", incompleteRestoreBody: "בעת יצירת הגיבוי תועדו בו {{count}} קטעים כחסרים — לא ניתן לשחזר אותן מהקובץ. עדיין אפשר לשחזר את כל שאר התוכן.", restoreAnyway: "שחזור בכל זאת", restoreAnywayDesc: "שחזור הספרייה ללא {{count}} הקטעים החסרים.", restoreFailedBody: "לא ניתן לשחזר את הגיבוי.", restoreFailed: "השחזור נכשל", pickerFailed: "לא ניתן לפתוח את בורר הקבצים.", shareArchiveTitle: "זהו ארכיון לשיתוף", shareArchiveBody: "הקובץ הזה הוא ארכיון SongNook לייצוא ושיתוף, ולא גיבוי מלא. כדי להכניס אותו לספרייה, השתמשו בספרייה וגיבויים ← ייבוא ארכיון.", restoreSize: " שחזור {{size}} יימשך {{duration}}.", restoreTitle: "לשחזר מגיבוי?", restoreBody: "איך לשחזר את הגיבוי? היישום יופעל מחדש לאחר מכן.{{size}}", keepNewer: "שמירת פריטים חדשים יותר", keepNewerDesc: "מיזוג: החזרת כל מה שבגיבוי תוך שמירת שירים, קטעים ועריכות שנוצרו לאחר שמירתו.", replaceEverything: "החלפת הכול", replaceDesc: "הגיבוי יהפוך לכל הספרייה. כל מה שאינו בו יוסר (קטעים נשמרים בפח למשך 14 יום).", copied: "שם קובץ הגיבוי הועתק", archivedWorkspace: "מרחב העבודה „{{title}}” שבארכיון", overdubLayer: " (שכבת הקלטה)",
+      },
+      backupRestoreError: {
+        fileMissing: "קובץ הגיבוי לא נמצא.",
+        unreadable: "הגיבוי פגום או שלא ניתן לקרוא אותו.",
+        notBackup: "הקובץ הזה אינו גיבוי של SongNook.",
+        newerApp: "הגיבוי דורש גרסה חדשה יותר של SongNook. עדכנו את היישום כדי לשחזר אותו.",
+        unsupported: "פורמט הגיבוי הזה כבר אינו נתמך.",
+        integrity: "הגיבוי נכשל בבדיקת התקינות. ייתכן שהוא פגום או שונה.",
+        missingAudio: "בגיבוי חסרות הקלטות שהוא מציין.",
+        mergeNeedsReplace: "אי אפשר למזג גיבוי ישן. השתמשו ב„החלף הכול” במקום.",
+        destinationConflict: "השחזור לא הצליח לכתוב את הקבצים. נסו שוב.",
+        verifyFailed: "ההקלטות ששוחזרו נכשלו באימות. שום דבר לא השתנה.",
+        internal: "לא ניתן היה לשחזר את הגיבוי.",
+      },
+      backupOperation: {
+        action: { backup: "ליצור את הגיבוי", restore: "לשחזר את הגיבוי", export: "לייצא את הספרייה", archive: "לארכב את סביבת העבודה" },
+        estimateFailed: "לא ניתן לחשב את שטח האחסון הדרוש כדי {{action}}.",
+        spaceUnknown: "לא ניתן לקרוא את שטח האחסון הפנוי כדי {{action}}.",
+        lowStorage: "אין מספיק שטח אחסון פנוי כדי {{action}}. SongNook צריך כ־{{required}} MB, אך פנויים רק {{available}} MB.",
       },
       settingsImport: {
         fullBackupTitle: "זהו גיבוי מלא", fullBackupBody: "הקובץ הזה הוא גיבוי מלא של SongNook ולא ארכיון לשיתוף. שחזרו אותו מתוך ספרייה וגיבויים ← שחזור.", readFailed: "לא ניתן לקרוא את ארכיון SongNook הזה.", importFailed: "הייבוא נכשל", warningsTitle: "הייבוא הושלם עם אזהרות", complete: "הייבוא הושלם", completeBody: "יובאו לספרייה {{workspaces}} מרחבי עבודה, {{items}} פריטים ו־{{notes}} רשומות בפנקס.", archiveFailed: "לא ניתן לייבא את הארכיון.",

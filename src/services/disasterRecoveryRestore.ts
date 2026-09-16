@@ -37,6 +37,12 @@ import {
     markDisasterRecoveryRestoreCommitted,
 } from "./disasterRecoveryTemp";
 import { collectManagedLibraryFilePathsFromWorkspaces } from "./managedMedia";
+import {
+    DrRestoreError,
+    DrRestoreIncompleteError,
+    toDrRestoreError,
+} from "./disasterRecoveryErrors";
+import { sanitizeSatelliteSnapshot, writeSatelliteSnapshot } from "./satelliteSnapshot";
 import { mergeRestoredLibrary } from "./libraryMergeRestore";
 import { toRelativeWorkspacesManagedMedia } from "../state/rebaseManagedMedia";
 import type { PersistedAppStore } from "../state/storeTypes";
@@ -91,27 +97,9 @@ export type DisasterRecoveryRestoreOptions = BackupOperationOptions & {
     allowIncomplete?: boolean;
 };
 
-export class DrRestoreError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = "DrRestoreError";
-    }
-}
-
-/**
- * The backup itself recorded missing critical recordings. Callers can catch this and
- * re-run with `allowIncomplete: true` (salvage) after the user explicitly opts in —
- * in a real disaster an incomplete backup beats no restore at all.
- */
-export class DrRestoreIncompleteError extends DrRestoreError {
-    readonly missingCriticalCount: number;
-
-    constructor(message: string, missingCriticalCount: number) {
-        super(message);
-        this.name = "DrRestoreIncompleteError";
-        this.missingCriticalCount = missingCriticalCount;
-    }
-}
+// Error classes live in disasterRecoveryErrors.ts (shared with the validator); re-exported
+// so existing importers keep working.
+export { DrRestoreError, DrRestoreIncompleteError } from "./disasterRecoveryErrors";
 
 function parentDirOf(uri: string): string {
     const idx = uri.lastIndexOf("/");
@@ -149,7 +137,7 @@ export async function restoreFromDisasterRecoveryBackup(
     throwIfBackupCancelled(options?.signal);
     const info = await FileSystem.getInfoAsync(archiveUri);
     if (!info.exists) {
-        throw new DrRestoreError("Backup file could not be found.");
+        throw new DrRestoreError("fileMissing", "Backup file could not be found.");
     }
 
     let archiveIndex;
@@ -158,6 +146,7 @@ export async function restoreFromDisasterRecoveryBackup(
     } catch (err) {
         if (isBackupOperationCancelled(err)) throw err;
         throw new DrRestoreError(
+            "unreadable",
             `Backup archive is corrupt or unreadable: ${err instanceof Error ? err.message : String(err)}`
         );
     }
@@ -165,7 +154,7 @@ export async function restoreFromDisasterRecoveryBackup(
     const snapshotEntry = archiveIndex.entries.get(SNAPSHOT_ENTRY);
     const manifestEntry = archiveIndex.entries.get(MANIFEST_ENTRY);
     if (!snapshotEntry || !manifestEntry) {
-        throw new DrRestoreError("Backup is missing its snapshot or manifest — not a SongNook backup.");
+        throw new DrRestoreError("notBackup", "Backup is missing its snapshot or manifest — not a SongNook backup.");
     }
 
     let manifestJson: string;
@@ -176,6 +165,7 @@ export async function restoreFromDisasterRecoveryBackup(
     } catch (error) {
         if (isBackupOperationCancelled(error)) throw error;
         throw new DrRestoreError(
+            "unreadable",
             error instanceof Error ? error.message : "Backup metadata is unreadable."
         );
     }
@@ -184,7 +174,7 @@ export async function restoreFromDisasterRecoveryBackup(
     try {
         manifestValue = JSON.parse(manifestJson);
     } catch {
-        throw new DrRestoreError("Backup manifest is unreadable.");
+        throw new DrRestoreError("unreadable", "Backup manifest is unreadable.");
     }
     let manifest;
     try {
@@ -194,7 +184,7 @@ export async function restoreFromDisasterRecoveryBackup(
             STORE_VERSION
         );
     } catch (error) {
-        throw new DrRestoreError(error instanceof Error ? error.message : "Backup manifest is invalid.");
+        throw toDrRestoreError(error, "integrity");
     }
     const missingCritical = manifest.missing.filter((entry) => entry.critical);
     const incomplete = missingCritical.length > 0 || manifest.status === "incomplete";
@@ -210,13 +200,14 @@ export async function restoreFromDisasterRecoveryBackup(
     const mergeMode = options?.mode === "merge";
     if (mergeMode) {
         if (!options?.currentSnapshot) {
-            throw new DrRestoreError("Merge restore requires the current library snapshot.");
+            throw new DrRestoreError("internal", "Merge restore requires the current library snapshot.");
         }
         // A merged snapshot mixes current-shape data with the backup's, so it is committed
         // at the CURRENT store version — which is only safe when the backup's data shape
         // already matches. Older backups must migrate first via a full replace.
         if (manifest.storeVersion !== STORE_VERSION) {
             throw new DrRestoreError(
+                "mergeNeedsReplace",
                 "This backup was made by an older app version and can't be merged. Use Replace Everything to restore it."
             );
         }
@@ -230,6 +221,7 @@ export async function restoreFromDisasterRecoveryBackup(
     } catch (error) {
         if (isBackupOperationCancelled(error)) throw error;
         throw new DrRestoreError(
+            "unreadable",
             error instanceof Error ? error.message : "Backup snapshot is unreadable."
         );
     }
@@ -237,14 +229,23 @@ export async function restoreFromDisasterRecoveryBackup(
     // ── Verify EVERYTHING before writing anything ──
     const snapshotSha = await sha256OfString(snapshotJson);
     if (snapshotSha !== manifest.snapshotSha256) {
-        throw new DrRestoreError("Backup metadata failed its integrity check (snapshot checksum mismatch).");
+        throw new DrRestoreError("integrity", "Backup metadata failed its integrity check (snapshot checksum mismatch).");
     }
 
     let snapshotValue: unknown;
     try {
         snapshotValue = JSON.parse(snapshotJson);
     } catch {
-        throw new DrRestoreError("Backup snapshot is unreadable.");
+        throw new DrRestoreError("unreadable", "Backup snapshot is unreadable.");
+    }
+    // The satellite block (Shelf, transposition, filters, UI language) rides inside
+    // snapshot.json but is NOT part of the library store: peel it off before validation
+    // so the committed store snapshot stays exactly the persisted shape.
+    let rawSatellites: unknown;
+    if (snapshotValue && typeof snapshotValue === "object" && !Array.isArray(snapshotValue)) {
+        const { satellites, ...librarySnapshot } = snapshotValue as Record<string, unknown>;
+        rawSatellites = satellites;
+        snapshotValue = librarySnapshot;
     }
 
     const restoreToken = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -254,7 +255,7 @@ export async function restoreFromDisasterRecoveryBackup(
             salvage,
         });
     } catch (error) {
-        throw new DrRestoreError(error instanceof Error ? error.message : "Backup snapshot is invalid.");
+        throw toDrRestoreError(error, "integrity");
     }
     if (salvage && prepared.skipped.length > 0) {
         console.log(
@@ -272,10 +273,10 @@ export async function restoreFromDisasterRecoveryBackup(
         (entry) => !expectedEntries.has(entry)
     );
     if (unexpectedEntry) {
-        throw new DrRestoreError(`Backup contains an unexpected archive entry: ${unexpectedEntry}`);
+        throw new DrRestoreError("integrity", `Backup contains an unexpected archive entry: ${unexpectedEntry}`);
     }
     if (archiveIndex.entries.size !== expectedEntries.size) {
-        throw new DrRestoreError("Backup archive entry count does not match its manifest.");
+        throw new DrRestoreError("integrity", "Backup archive entry count does not match its manifest.");
     }
 
     let totalMediaBytes = 0;
@@ -283,20 +284,22 @@ export async function restoreFromDisasterRecoveryBackup(
         const entry = archiveIndex.entries.get(`${MEDIA_PREFIX}${record.path}`);
         if (!entry) {
             throw new DrRestoreError(
+                "integrity",
                 `Backup is missing audio file listed in its manifest: ${record.path}`
             );
         }
         if (entry.sizeBytes !== record.sizeBytes) {
             throw new DrRestoreError(
+                "integrity",
                 `Audio file size does not match the backup manifest: ${record.path}`
             );
         }
         totalMediaBytes += record.sizeBytes;
         if (!Number.isSafeInteger(totalMediaBytes) || totalMediaBytes > archiveIndex.archiveSizeBytes) {
-            throw new DrRestoreError("Backup media sizes are invalid.");
+            throw new DrRestoreError("integrity", "Backup media sizes are invalid.");
         }
     }
-    await ensureBackupDiskSpace(totalMediaBytes, "restore this backup");
+    await ensureBackupDiskSpace(totalMediaBytes, "restore");
     throwIfBackupCancelled(options?.signal);
 
     // Write every restored file to a unique managed destination. Existing live files are
@@ -332,7 +335,7 @@ export async function restoreFromDisasterRecoveryBackup(
             throwIfBackupCancelled(options?.signal);
             const destinationPath = prepared.destinationPathBySourcePath.get(record.path);
             if (!destinationPath) {
-                throw new DrRestoreError(`Backup restore destination is missing for ${record.path}`);
+                throw new DrRestoreError("internal", `Backup restore destination is missing for ${record.path}`);
             }
             const targetUri = resolveManagedUri(destinationPath);
             const dir = parentDirOf(targetUri);
@@ -345,12 +348,12 @@ export async function restoreFromDisasterRecoveryBackup(
             }
             const existingTarget = await FileSystem.getInfoAsync(targetUri);
             if (existingTarget.exists) {
-                throw new DrRestoreError(`Restore destination already exists for ${record.path}`);
+                throw new DrRestoreError("destinationConflict", `Restore destination already exists for ${record.path}`);
             }
 
             const entry = archiveIndex.entries.get(`${MEDIA_PREFIX}${record.path}`);
             if (!entry) {
-                throw new DrRestoreError(`Backup is missing audio file listed in its manifest: ${record.path}`);
+                throw new DrRestoreError("integrity", `Backup is missing audio file listed in its manifest: ${record.path}`);
             }
             const targetFile = new File(targetUri);
             targetFile.create({ intermediates: true, overwrite: false });
@@ -366,14 +369,14 @@ export async function restoreFromDisasterRecoveryBackup(
                         phase: "restoring",
                         progressOffsetBytes: restoredBytes,
                         progressTotalBytes: totalMediaBytes,
-                        progressMessage: "Restoring recordings",
+                        progressMessage: i18n.t("process.restoringClips"),
                     }
                 );
             } finally {
                 targetHandle.close();
             }
             if (!targetFile.exists || targetFile.size !== record.sizeBytes) {
-                throw new DrRestoreError(`Could not verify restored audio file: ${record.path}`);
+                throw new DrRestoreError("verifyFailed", `Could not verify restored audio file: ${record.path}`);
             }
             restoredBytes += record.sizeBytes;
             reportBackupProgress(options, {
@@ -398,7 +401,7 @@ export async function restoreFromDisasterRecoveryBackup(
             throwIfBackupCancelled(options?.signal);
             const destinationPath = prepared.destinationPathBySourcePath.get(record.path);
             if (!destinationPath) {
-                throw new DrRestoreError(`Backup restore destination is missing for ${record.path}`);
+                throw new DrRestoreError("internal", `Backup restore destination is missing for ${record.path}`);
             }
             const targetUri = resolveManagedUri(destinationPath);
             let sha: string;
@@ -407,13 +410,14 @@ export async function restoreFromDisasterRecoveryBackup(
             } catch (error) {
                 if (isBackupOperationCancelled(error)) throw error;
                 throw new DrRestoreError(
+                    "verifyFailed",
                     error instanceof Error
                         ? error.message
                         : `Could not verify restored audio file: ${record.path}`
                 );
             }
             if (sha !== record.sha256) {
-                throw new DrRestoreError(`Audio file failed its integrity check: ${record.path}`);
+                throw new DrRestoreError("verifyFailed", `Audio file failed its integrity check: ${record.path}`);
             }
             verifiedBytes += record.sizeBytes;
             reportBackupProgress(options, {
@@ -459,15 +463,26 @@ export async function restoreFromDisasterRecoveryBackup(
         if (isBackupOperationCancelled(error)) {
             throw error;
         }
-        throw error instanceof DrRestoreError
-            ? error
-            : new DrRestoreError(error instanceof Error ? error.message : "Backup restore failed.");
+        throw toDrRestoreError(error);
     }
 
     // Lock persistence so the still-loaded (pre-restore) in-memory store cannot write back
     // over the restored snapshot before the app reloads. Publish the blocking runtime state
     // before any best-effort journal bookkeeping so there is no interactive stale-state gap.
     recordLibraryOperationThroughput("restore", totalMediaBytes, Date.now() - restoreStartedAt);
+
+    // Satellite stores (Shelf, transposition, filters, UI language): written under their
+    // own persist keys AFTER the library commit and BEFORE the restart. Best-effort — the
+    // library is already durable, so a failure here must not fail the restore.
+    const satellites = sanitizeSatelliteSnapshot(rawSatellites);
+    if (satellites) {
+        try {
+            await writeSatelliteSnapshot(satellites, mergeMode ? "merge" : "replace");
+        } catch (error) {
+            console.warn("[Backup] Failed to restore satellite stores", error);
+        }
+    }
+
     const result: DrRestoreResult = {
         status: manifest.status,
         counts: manifest.counts,

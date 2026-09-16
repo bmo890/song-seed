@@ -26,18 +26,20 @@ import type { ArchiveExportOptions, ExportSectionKey, StandardExportOptions } fr
 import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
 
+// Hidden ideas are included by default: a library export should be the whole library, and
+// (since archive v7) the hidden state itself travels, so they arrive hidden on import.
 const DEFAULT_ARCHIVE_OPTIONS: ArchiveExportOptions = {
   includeFullSongHistory: true,
   includeNotes: true,
   includeLyrics: true,
-  includeHiddenItems: false,
+  includeHiddenItems: true,
   preserveAllMetadata: true,
 };
 
 const DEFAULT_STANDARD_OPTIONS: StandardExportOptions = {
   includeNotesAsText: true,
   includeLyricsAsText: true,
-  includeHiddenItems: false,
+  includeHiddenItems: true,
 };
 
 export function useLibraryExportFlow() {

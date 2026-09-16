@@ -275,7 +275,7 @@ export async function archiveWorkspaceToDevice(workspace: Workspace): Promise<Wo
 
     // Fail early with a friendly storage message instead of a raw native write error
     // partway through packaging (mirrors the disaster-recovery backup guard).
-    await ensureBackupDiskSpace(originalAudioBytes, "archive this workspace");
+    await ensureBackupDiskSpace(originalAudioBytes, "archive");
     await createZipArchive(archiveUri, archiveEntries);
     const archiveInfo = await FileSystem.getInfoAsync(archiveUri);
     const packageSizeBytes =

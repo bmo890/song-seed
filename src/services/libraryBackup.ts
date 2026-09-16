@@ -1,4 +1,6 @@
+import Constants from "expo-constants";
 import { cleanupShareTempFile } from "./managedMedia";
+import { collectSatelliteSnapshot } from "./satelliteSnapshot";
 import {
     buildDisasterRecoveryBackup,
     type DrBackupManifest,
@@ -48,7 +50,12 @@ export async function buildExactLibraryBackup(
     state: AppStore,
     options?: BackupOperationOptions
 ): Promise<BuiltExactBackup> {
-    const result = await buildDisasterRecoveryBackup(state, options);
+    const satellites = await collectSatelliteSnapshot();
+    const result = await buildDisasterRecoveryBackup(state, {
+        ...options,
+        appVersion: Constants.expoConfig?.version ?? undefined,
+        satellites,
+    });
     return {
         archiveUri: result.archiveUri,
         archiveTitle: result.archiveTitle,

@@ -20,6 +20,7 @@ import {
     restoreFromDisasterRecoveryBackup,
 } from "../../../services/disasterRecoveryRestore";
 import { detectPickedArchiveKind } from "../../../services/archiveKind";
+import { describeDrRestoreError } from "../../../services/disasterRecoveryErrors";
 import {
     isBackupOperationCancelled,
     type BackupOperationProgress,
@@ -389,8 +390,10 @@ export function useLibraryBackupFlow() {
                 );
                 return;
             }
-            const message =
-                error instanceof Error ? error.message : t("settingsBackup.restoreFailedBody");
+            // The precise (English) reason stays in the log for support; the alert shows
+            // the translated, code-mapped copy.
+            console.warn("[restore] failed", error);
+            const message = describeDrRestoreError(error);
             useProcessStore.getState().setStatus("error", message);
             AppAlert.info(t("settingsBackup.restoreFailed"), message);
         }

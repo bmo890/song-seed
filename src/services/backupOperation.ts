@@ -1,4 +1,5 @@
 import * as FileSystem from "expo-file-system/legacy";
+import { i18n } from "../i18n/instance";
 
 export const BACKUP_OPERATION_CANCELLED_MESSAGE = "Backup operation was cancelled.";
 
@@ -63,14 +64,18 @@ export async function yieldToBackupUi(signal?: AbortSignal) {
 
 const MIN_FREE_SPACE_RESERVE_BYTES = 64 * 1024 * 1024;
 
-export async function ensureBackupDiskSpace(requiredBytes: number, operationLabel: string) {
+/** Which library operation needs the space — phrased for the user by `backupOperation.action.*`. */
+export type BackupSpaceOperation = "backup" | "restore" | "export" | "archive";
+
+export async function ensureBackupDiskSpace(requiredBytes: number, operation: BackupSpaceOperation) {
+    const action = i18n.t(`backupOperation.action.${operation}`);
     if (!Number.isFinite(requiredBytes) || requiredBytes < 0) {
-        throw new Error(`Could not calculate storage required to ${operationLabel}.`);
+        throw new Error(i18n.t("backupOperation.estimateFailed", { action }));
     }
 
     const availableBytes = await FileSystem.getFreeDiskStorageAsync();
     if (!Number.isFinite(availableBytes) || availableBytes < 0) {
-        throw new Error(`Could not determine free device storage to ${operationLabel}.`);
+        throw new Error(i18n.t("backupOperation.spaceUnknown", { action }));
     }
     const reserveBytes = Math.max(
         MIN_FREE_SPACE_RESERVE_BYTES,
@@ -82,8 +87,7 @@ export async function ensureBackupDiskSpace(requiredBytes: number, operationLabe
         const requiredMb = Math.ceil(totalRequiredBytes / (1024 * 1024));
         const availableMb = Math.floor(availableBytes / (1024 * 1024));
         throw new Error(
-            `Not enough free device storage to ${operationLabel}. ` +
-                `SongNook needs about ${requiredMb} MB available, but only ${availableMb} MB is free.`
+            i18n.t("backupOperation.lowStorage", { action, required: requiredMb, available: availableMb })
         );
     }
 }

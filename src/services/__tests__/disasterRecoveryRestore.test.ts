@@ -6,6 +6,7 @@ const mockDirectories = new Set<string>(["file:///doc/"]);
 const mockPersistRawSnapshot = jest.fn<Promise<void>, [string, string]>();
 const mockSetPersistBlocked = jest.fn();
 const mockRequireRestoreRestart = jest.fn();
+const mockWriteSatelliteSnapshot = jest.fn(async (_snapshot: unknown, _mode: unknown) => ({ written: [], skipped: [] }));
 const mockGetFreeDiskStorageAsync = jest.fn(async () => 10 * 1024 * 1024 * 1024);
 let mockFailRestoreDeletes = false;
 let mockFailTrashMoves = false;
@@ -160,6 +161,16 @@ jest.mock("../disasterRecoveryBackup", () => ({
     DR_BACKUP_FORMAT_VERSION: 1,
 }));
 
+// The satellite stores pull in zustand + AsyncStorage; the restore only needs the two
+// functions, so stub the writer and keep the real sanitizer.
+jest.mock("../satelliteSnapshot", () => ({
+    sanitizeSatelliteSnapshot: (value: unknown) =>
+        value && typeof value === "object" && (value as { schemaVersion?: number }).schemaVersion === 1
+            ? value
+            : undefined,
+    writeSatelliteSnapshot: (snapshot: unknown, mode: unknown) => mockWriteSatelliteSnapshot(snapshot, mode),
+}));
+
 import { restoreFromDisasterRecoveryBackup } from "../disasterRecoveryRestore";
 import { cleanupInterruptedDisasterRecoveryRestores } from "../disasterRecoveryTemp";
 
@@ -175,8 +186,17 @@ function sha256(value: string) {
     return createHash("sha256").update(value).digest("hex");
 }
 
-function snapshot(options?: { previewMix?: boolean }) {
+const SATELLITES = {
+    schemaVersion: 1,
+    stores: {
+        shelf: { name: "songnook-shelf-store", version: 1, state: { entries: [], departed: [] } },
+    },
+    uiLanguage: "he",
+};
+
+function snapshot(options?: { previewMix?: boolean; satellites?: boolean }) {
     return {
+        ...(options?.satellites ? { satellites: SATELLITES } : null),
         workspaces: [
             {
                 id: "ws-1",
@@ -237,8 +257,11 @@ function installArchive(options?: {
     compressionLevel?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
     corruptMediaSha?: boolean;
     previewMix?: boolean;
+    satellites?: boolean;
 }) {
-    const snapshotJson = JSON.stringify(snapshot({ previewMix: options?.previewMix }));
+    const snapshotJson = JSON.stringify(
+        snapshot({ previewMix: options?.previewMix, satellites: options?.satellites })
+    );
     const mediaPath = options?.unsafePath ?? MEDIA_PATH;
     const mediaBase64 = Buffer.from(MEDIA_BYTES).toString("base64");
     const mediaSha = options?.corruptMediaSha
@@ -306,6 +329,7 @@ beforeEach(() => {
     mockGetFreeDiskStorageAsync.mockResolvedValue(10 * 1024 * 1024 * 1024);
     mockFailRestoreDeletes = false;
     mockFailTrashMoves = false;
+    mockWriteSatelliteSnapshot.mockClear();
 });
 
 describe("restoreFromDisasterRecoveryBackup", () => {
@@ -337,6 +361,38 @@ describe("restoreFromDisasterRecoveryBackup", () => {
         expect(
             Array.from(mockFiles.keys()).some((uri) => uri.includes("restore-journals"))
         ).toBe(true);
+    });
+
+    it("writes the satellite stores after the library commit and keeps them out of the store snapshot", async () => {
+        installArchive({ satellites: true });
+
+        await restoreFromDisasterRecoveryBackup(ARCHIVE_URI);
+
+        const persisted = JSON.parse(mockPersistRawSnapshot.mock.calls[0][1]);
+        expect(persisted.state.satellites).toBeUndefined();
+        expect(persisted.state.workspaces).toHaveLength(1);
+        expect(mockWriteSatelliteSnapshot).toHaveBeenCalledWith(SATELLITES, "replace");
+        // Library first, satellites second — the store must already be durable.
+        expect(mockPersistRawSnapshot.mock.invocationCallOrder[0]).toBeLessThan(
+            mockWriteSatelliteSnapshot.mock.invocationCallOrder[0]
+        );
+    });
+
+    it("merge mode hands the satellites to the merge writer", async () => {
+        installArchive({ satellites: true });
+
+        await restoreFromDisasterRecoveryBackup(ARCHIVE_URI, {
+            mode: "merge",
+            currentSnapshot: snapshot() as never,
+        });
+
+        expect(mockWriteSatelliteSnapshot).toHaveBeenCalledWith(SATELLITES, "merge");
+    });
+
+    it("restores a backup without a satellite block (older backups)", async () => {
+        installArchive();
+        await restoreFromDisasterRecoveryBackup(ARCHIVE_URI);
+        expect(mockWriteSatelliteSnapshot).not.toHaveBeenCalled();
     });
 
     it("rejects incomplete backups before writing or committing anything", async () => {

@@ -163,6 +163,26 @@ describe("mergeRestoredLibrary", () => {
         expect(merged.playlists.map((p) => p.id).sort()).toEqual(["pl-lost", "pl-new"]);
     });
 
+    it("brings back backup-only Lyrics Sparks of every kind (regression: magpie sparks were dropped)", () => {
+        const spark = (id: string, type: "cut-up" | "magpie") => ({ id, type, title: id, createdAt: 0, updatedAt: 0 });
+        const restored = snapshot({
+            wordLadders: [{ id: "wl-lost", title: "Lost ladder" }],
+            cutUpSparks: [spark("cu-lost", "cut-up")],
+            magpieSparks: [spark("mg-lost", "magpie"), spark("mg-1", "magpie")],
+        });
+        const current = snapshot({
+            wordLadders: [],
+            cutUpSparks: [],
+            magpieSparks: [{ ...spark("mg-1", "magpie"), title: "Kept edits" }],
+        });
+
+        const merged = mergeRestoredLibrary(restored, current);
+        expect(merged.wordLadders.map((w) => w.id)).toEqual(["wl-lost"]);
+        expect(merged.cutUpSparks.map((c) => c.id)).toEqual(["cu-lost"]);
+        expect(merged.magpieSparks.map((m) => m.id).sort()).toEqual(["mg-1", "mg-lost"]);
+        expect(merged.magpieSparks.find((m) => m.id === "mg-1")!.title).toBe("Kept edits");
+    });
+
     it("keeps current scalar settings and merges keyed records per key", () => {
         const restored = snapshot({
             metronomeBpm: 90,

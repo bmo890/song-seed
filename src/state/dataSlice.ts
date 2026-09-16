@@ -7,6 +7,8 @@ import {
     SongIdea,
     ClipVersion,
     ClipGroup,
+    ClipSectionKind,
+    EditRegion,
     CustomTagDefinition,
     ActivityEvent,
     ActivityMetric,
@@ -775,6 +777,110 @@ function mergeClipOverdubState(
     });
 }
 
+const CLIP_SECTION_KINDS = new Set<ClipSectionKind>([
+    "intro", "verse", "prechorus", "chorus", "bridge", "solo", "outro", "custom",
+]);
+
+function isNonEmptyString(value: unknown): value is string {
+    return typeof value === "string" && value.length > 0;
+}
+
+function finiteNumber(value: unknown): number | undefined {
+    return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+/**
+ * Structural guards for the per-clip creative fields. These arrive from OUTSIDE the app
+ * too — a received `.songnook` archive is authored by someone else's device — and used to
+ * be spread into the store untouched. Each guard keeps well-formed entries, drops the rest,
+ * and returns `undefined` for an empty or absent list so the field stays absent.
+ *   Sections: a legacy section may lack `endMs` (backfilled by the player's normalizeSections),
+ *   so only `id`/`startMs` are required; an unknown kind becomes "custom".
+ */
+function normalizeClipSections(value: unknown): ClipSection[] | undefined {
+    if (!Array.isArray(value)) return undefined;
+    const sections = value.flatMap((section): ClipSection[] => {
+        if (!section || typeof section !== "object") return [];
+        const candidate = section as Partial<ClipSection>;
+        const startMs = finiteNumber(candidate.startMs);
+        if (!isNonEmptyString(candidate.id) || startMs === undefined) return [];
+        const endMs = finiteNumber(candidate.endMs);
+        const kind = CLIP_SECTION_KINDS.has(candidate.kind as ClipSectionKind)
+            ? (candidate.kind as ClipSectionKind)
+            : "custom";
+        return [{
+            ...candidate,
+            id: candidate.id,
+            startMs: Math.max(0, startMs),
+            // Preserve "absent" for legacy sections so the player can backfill it.
+            endMs: endMs === undefined ? (candidate.endMs as number) : Math.max(0, endMs),
+            label: typeof candidate.label === "string" ? candidate.label : "",
+            kind,
+            ...(typeof candidate.color === "string" ? { color: candidate.color } : { color: undefined }),
+        }];
+    });
+    return sections.length > 0 ? sections : undefined;
+}
+
+function normalizePracticeMarkers(value: unknown): PracticeMarker[] | undefined {
+    if (!Array.isArray(value)) return undefined;
+    const markers = value.flatMap((marker): PracticeMarker[] => {
+        if (!marker || typeof marker !== "object") return [];
+        const candidate = marker as Partial<PracticeMarker>;
+        const atMs = finiteNumber(candidate.atMs);
+        if (!isNonEmptyString(candidate.id) || atMs === undefined) return [];
+        return [{
+            id: candidate.id,
+            label: typeof candidate.label === "string" ? candidate.label : "",
+            atMs: Math.max(0, atMs),
+            ...(typeof candidate.note === "string" ? { note: candidate.note } : null),
+        }];
+    });
+    return markers.length > 0 ? markers : undefined;
+}
+
+function normalizeEditRegions(value: unknown): EditRegion[] | undefined {
+    if (!Array.isArray(value)) return undefined;
+    const regions = value.flatMap((region): EditRegion[] => {
+        if (!region || typeof region !== "object") return [];
+        const candidate = region as Partial<EditRegion>;
+        const startMs = finiteNumber(candidate.startMs);
+        const endMs = finiteNumber(candidate.endMs);
+        if (!isNonEmptyString(candidate.id) || startMs === undefined || endMs === undefined) return [];
+        if (candidate.type !== "keep" && candidate.type !== "remove") return [];
+        return [{ id: candidate.id, startMs: Math.max(0, startMs), endMs: Math.max(0, endMs), type: candidate.type }];
+    });
+    return regions.length > 0 ? regions : undefined;
+}
+
+function normalizeClipAnalysis(value: unknown): ClipAnalysis | undefined {
+    if (!value || typeof value !== "object") return undefined;
+    const candidate = value as Partial<ClipAnalysis>;
+    const schemaVersion = finiteNumber(candidate.schemaVersion);
+    const analyzedAt = finiteNumber(candidate.analyzedAt);
+    if (schemaVersion === undefined || analyzedAt === undefined) return undefined;
+    const bpm = finiteNumber(candidate.bpm);
+    return {
+        ...candidate,
+        schemaVersion,
+        analyzedAt,
+        key: typeof candidate.key === "string" ? candidate.key : null,
+        mode: candidate.mode === "major" || candidate.mode === "minor" ? candidate.mode : null,
+        keyConfidence: finiteNumber(candidate.keyConfidence) ?? 0,
+        bpm: bpm === undefined ? null : bpm,
+        bpmSteadiness: finiteNumber(candidate.bpmSteadiness) ?? 0,
+        bpmConfidence: finiteNumber(candidate.bpmConfidence),
+        bpmAlternative: finiteNumber(candidate.bpmAlternative) ?? (candidate.bpmAlternative === null ? null : undefined),
+        confirmed: typeof candidate.confirmed === "boolean" ? candidate.confirmed : undefined,
+    };
+}
+
+function normalizeClipTags(value: unknown): string[] | undefined {
+    if (!Array.isArray(value)) return undefined;
+    const tags = Array.from(new Set(value.filter(isNonEmptyString)));
+    return tags.length > 0 ? tags : undefined;
+}
+
 function normalizeClip(clip: ClipVersion): ClipVersion {
     return {
         ...clip,
@@ -782,6 +888,12 @@ function normalizeClip(clip: ClipVersion): ClipVersion {
         sourceCreatedAt: normalizeOptionalTimestamp(clip.sourceCreatedAt),
         isBookmarked: Boolean(clip.isBookmarked),
         recordingGrid: normalizeRecordingGrid(clip.recordingGrid),
+        sections: normalizeClipSections(clip.sections),
+        practiceMarkers: normalizePracticeMarkers(clip.practiceMarkers),
+        editRegions: normalizeEditRegions(clip.editRegions),
+        analysis: normalizeClipAnalysis(clip.analysis),
+        tags: normalizeClipTags(clip.tags),
+        lyricsVersionId: isNonEmptyString(clip.lyricsVersionId) ? clip.lyricsVersionId : undefined,
         overdub: cleanupClipOverdubState(clip.overdub),
     };
 }

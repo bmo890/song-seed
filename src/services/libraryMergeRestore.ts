@@ -9,7 +9,7 @@ import type { ClipVersion, SongIdea, Workspace } from "../types";
  * created since the backup:
  * - Union by ID at every level (workspace → collection / idea → clip, plus the top-level
  *   collections: notes, playlists, songbooks, setlists, word ladders, cut-up sparks,
- *   activity events).
+ *   magpie sparks, activity events).
  * - On an ID collision the CURRENT version wins — a collision means the same item exists
  *   in both (IDs are random at creation), and the current copy is the newer state. We
  *   still recurse into collided containers so backup-only children come back (e.g. a clip
@@ -52,6 +52,7 @@ export function mergeRestoredLibrary(
         notes: unionById(current.notes, restored.notes),
         wordLadders: unionById(current.wordLadders, restored.wordLadders),
         cutUpSparks: unionById(current.cutUpSparks, restored.cutUpSparks),
+        magpieSparks: unionById(current.magpieSparks, restored.magpieSparks),
     };
 }
 
