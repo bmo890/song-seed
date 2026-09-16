@@ -70,21 +70,28 @@ import { deviceLanguage, i18n } from "../i18n";
 import { persistAppStoreSnapshot } from "./persistedSnapshot";
 import { relocateActivityEvents, relocatePlaylists } from "./relocationMetadata";
 import {
-    clampMetronomeBpm,
-    clampMetronomeCountInBars,
-    clampMetronomeLevel,
     DEFAULT_METRONOME_BEEP_LEVEL,
     DEFAULT_METRONOME_BPM,
+    DEFAULT_METRONOME_CLICK_VOICE,
     DEFAULT_METRONOME_COUNT_IN_BARS,
     DEFAULT_METRONOME_HAPTIC_LEVEL,
     DEFAULT_METRONOME_METER_ID,
-    isValidGrouping,
     DEFAULT_METRONOME_OUTPUTS,
-    DEFAULT_METRONOME_CLICK_VOICE,
     DEFAULT_METRONOME_SUBDIVISION,
+    METRONOME_FEEL_CUSTOM,
+    clampMetronomeBpm,
+    clampMetronomeCountInBars,
+    clampMetronomeLevel,
     clampMetronomeSubdivision,
+    getMetronomeFeel,
+    getMetronomeFeelParams,
+    getMetronomeMeterPreset,
     isMetronomeClickVoice,
     isMetronomeMeterId,
+    isSameGrouping,
+    isValidAccentPattern,
+    isValidGrouping,
+    resolveMetronomeFeelId,
     type MetronomeClickVoice,
     type MetronomeMeterId,
     type MetronomeOutputs,
@@ -151,6 +158,12 @@ export type DataSlice = {
     /** Audio-only ornament for the standalone/recording click: sub-clicks per beat.
      *  Never part of a take's grid — the grid stays on the beat. */
     metronomeSubdivision: MetronomeSubdivision;
+    /** "Click on" per meter — the feel that folds subdivision + grouping into one
+     *  choice (see domain/metronome getMetronomeFeels). Absent = read back from the
+     *  legacy subdivision/grouping fields, so an update never changes the click. */
+    metronomeFeelByMeterId: Partial<Record<MetronomeMeterId, string>>;
+    /** The Custom feel's per-pulse weights, per meter (accent 1 · click 0.44 · rest 0). */
+    metronomeCustomPatternByMeterId: Partial<Record<MetronomeMeterId, number[]>>;
     metronomeClickVoice: MetronomeClickVoice;
     /** Volume of the PLAYBACK click (a take's own grid, in the player) — its own
      *  dial, deliberately not the standalone metronome's beep level: a muted
@@ -185,6 +198,10 @@ export type DataSlice = {
     setMetronomeHapticLevel: (value: number) => void;
     setMetronomeCountInBars: (value: number) => void;
     setMetronomeSubdivision: (value: MetronomeSubdivision) => void;
+    /** Pick a feel for a meter. Also writes the legacy subdivision/grouping fields
+     *  so every older reader (take grids, playback click) sees the same click. */
+    setMetronomeFeel: (meterId: MetronomeMeterId, feelId: string) => void;
+    setMetronomeCustomPattern: (meterId: MetronomeMeterId, pattern: number[]) => void;
     setMetronomeClickVoice: (value: MetronomeClickVoice) => void;
     setPlaybackClickHaptic: (value: boolean) => void;
     notes: Note[];
@@ -663,12 +680,14 @@ function normalizeRecordingGrid(grid: RecordingGrid | undefined | null): Recordi
     // The grouping must fit the meter it rides on; a mismatched one is dropped, never
     // guessed (readers fall back to the meter's default feel).
     const grouping = isValidGrouping(meterId, grid.grouping) ? [...grid.grouping!] : undefined;
+    const accentPattern = isValidAccentPattern(meterId, grid.accentPattern) ? [...grid.accentPattern!] : undefined;
 
     return {
         bpm: firstSegment ? firstSegment.bpm : clampMetronomeBpm(grid.bpm),
         meterId,
         ...(tempoMap ? { tempoMap } : {}),
         ...(grouping ? { grouping } : {}),
+        ...(accentPattern ? { accentPattern } : {}),
         countInBars: Number.isFinite(grid.countInBars) ? Math.max(0, Math.round(grid.countInBars)) : 0,
         clickThroughTake: Boolean(grid.clickThroughTake),
         firstDownbeatMs:
@@ -1263,6 +1282,8 @@ export const createDataSlice: StateCreator<
     metronomeHapticLevel: DEFAULT_METRONOME_HAPTIC_LEVEL,
     metronomeCountInBars: DEFAULT_METRONOME_COUNT_IN_BARS,
     metronomeSubdivision: DEFAULT_METRONOME_SUBDIVISION,
+    metronomeFeelByMeterId: {},
+    metronomeCustomPatternByMeterId: {},
     metronomeClickVoice: DEFAULT_METRONOME_CLICK_VOICE,
     playbackClickHaptic: false,
     globalCustomClipTags: [],
@@ -1435,6 +1456,47 @@ export const createDataSlice: StateCreator<
     setMetronomeHapticLevel: (value) => set({ metronomeHapticLevel: clampMetronomeLevel(value) }),
     setMetronomeCountInBars: (value) => set({ metronomeCountInBars: clampMetronomeCountInBars(value) }),
     setMetronomeSubdivision: (value) => set({ metronomeSubdivision: clampMetronomeSubdivision(value) }),
+    setMetronomeFeel: (meterId, feelId) =>
+        set((state) => {
+            if (!getMetronomeFeel(meterId, feelId)) return state;
+            const params = getMetronomeFeelParams(meterId, feelId, {
+                customPattern: state.metronomeCustomPatternByMeterId[meterId],
+                currentGrouping: state.metronomeGroupingByMeterId[meterId],
+            });
+            const preset = getMetronomeMeterPreset(meterId);
+            const nextGrouping = { ...state.metronomeGroupingByMeterId };
+            if (isSameGrouping(params.grouping, preset.defaultGrouping)) delete nextGrouping[meterId];
+            else nextGrouping[meterId] = [...params.grouping];
+            const nextCustom = { ...state.metronomeCustomPatternByMeterId };
+            // Entering Custom starts from what you hear now — the feel you're leaving —
+            // so the first tap edits a bar you recognise instead of a blank one.
+            if (feelId === METRONOME_FEEL_CUSTOM && !isValidAccentPattern(meterId, nextCustom[meterId])) {
+                const leavingFeelId = resolveMetronomeFeelId(meterId, state.metronomeFeelByMeterId[meterId], {
+                    subdivision: state.metronomeSubdivision,
+                    grouping: state.metronomeGroupingByMeterId[meterId],
+                });
+                nextCustom[meterId] = [
+                    ...getMetronomeFeelParams(meterId, leavingFeelId, {
+                        currentGrouping: state.metronomeGroupingByMeterId[meterId],
+                    }).accentPattern,
+                ];
+            }
+            return {
+                metronomeFeelByMeterId: { ...state.metronomeFeelByMeterId, [meterId]: feelId },
+                metronomeGroupingByMeterId: nextGrouping,
+                metronomeCustomPatternByMeterId: nextCustom,
+                metronomeSubdivision: params.subdivision,
+            };
+        }),
+    setMetronomeCustomPattern: (meterId, pattern) =>
+        set((state) => {
+            if (!isValidAccentPattern(meterId, pattern)) return state;
+            return {
+                metronomeCustomPatternByMeterId: { ...state.metronomeCustomPatternByMeterId, [meterId]: [...pattern] },
+                metronomeFeelByMeterId: { ...state.metronomeFeelByMeterId, [meterId]: METRONOME_FEEL_CUSTOM },
+                metronomeSubdivision: 1,
+            };
+        }),
     setMetronomeClickVoice: (value) =>
         set({ metronomeClickVoice: isMetronomeClickVoice(value) ? value : DEFAULT_METRONOME_CLICK_VOICE }),
     setPlaybackClickHaptic: (value) => set({ playbackClickHaptic: Boolean(value) }),

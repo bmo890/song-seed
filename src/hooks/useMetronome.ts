@@ -8,27 +8,30 @@ import {
   releaseAudioSessionOwner,
 } from "../services/audioSession";
 import {
-  clampMetronomeBpm,
-  clampMetronomeLevel,
   DEFAULT_METRONOME_BEEP_LEVEL,
   DEFAULT_METRONOME_BPM,
   DEFAULT_METRONOME_CLICK_VOICE,
   DEFAULT_METRONOME_COUNT_IN_BARS,
-  DEFAULT_METRONOME_SUBDIVISION,
   DEFAULT_METRONOME_HAPTIC_LEVEL,
   DEFAULT_METRONOME_METER_ID,
   DEFAULT_METRONOME_OUTPUTS,
-  deriveTapTempoBpm,
-  getMetronomeAndroidVibrationDuration,
-  getMetronomeBeepVolume,
-  getMetronomeBeatIntervalMs,
-  getMetronomeHapticFallbackDuration,
-  getMetronomeMeterPreset,
-  getMetronomeGrouping,
-  getMetronomeAccentPattern,
+  DEFAULT_METRONOME_SUBDIVISION,
   MAX_METRONOME_LEVEL,
   MAX_TAP_HISTORY,
   METRONOME_LOOP_BEAT_COUNT,
+  clampMetronomeBpm,
+  clampMetronomeLevel,
+  deriveTapTempoBpm,
+  getMetronomeAccentPattern,
+  getMetronomeAndroidVibrationDuration,
+  getMetronomeBeatIntervalMs,
+  getMetronomeBeepVolume,
+  getMetronomeFeelParams,
+  getMetronomeGrouping,
+  getMetronomeHapticFallbackDuration,
+  getMetronomeMeterPreset,
+  resolveMetronomeFeelId,
+  shouldResetTapTempo,
   type MetronomeBeepLevel,
   type MetronomeClickVoice,
   type MetronomeHapticLevel,
@@ -36,7 +39,6 @@ import {
   type MetronomeOutputKey,
   type MetronomeOutputs,
   type MetronomeSubdivision,
-  shouldResetTapTempo,
 } from "../domain/metronome";
 import { ensureMetronomeLoopFile } from "../services/metronomeLoop";
 import { resolveCurrentRouteLatencyProfile } from "../services/latencyModel";
@@ -87,7 +89,9 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   const beepLevel = useStore((s) => s.metronomeBeepLevel);
   const hapticLevel = useStore((s) => s.metronomeHapticLevel);
   const countInBars = useStore((s) => s.metronomeCountInBars);
-  const subdivision = useStore((s) => s.metronomeSubdivision);
+  const legacySubdivision = useStore((s) => s.metronomeSubdivision);
+  const feelByMeterId = useStore((s) => s.metronomeFeelByMeterId);
+  const customPatternByMeterId = useStore((s) => s.metronomeCustomPatternByMeterId);
   const clickVoice = useStore((s) => s.metronomeClickVoice);
   const setMetronomeBpm = useStore((s) => s.setMetronomeBpm);
   const setMetronomeMeterId = useStore((s) => s.setMetronomeMeterId);
@@ -97,6 +101,8 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   const setMetronomeHapticLevel = useStore((s) => s.setMetronomeHapticLevel);
   const setMetronomeCountInBars = useStore((s) => s.setMetronomeCountInBars);
   const setMetronomeSubdivision = useStore((s) => s.setMetronomeSubdivision);
+  const setMetronomeFeel = useStore((s) => s.setMetronomeFeel);
+  const setMetronomeCustomPattern = useStore((s) => s.setMetronomeCustomPattern);
   const setMetronomeClickVoice = useStore((s) => s.setMetronomeClickVoice);
 
   const [pulseToken, setPulseToken] = useState(0);
@@ -123,6 +129,9 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   // Binaries whose engines render sub-clicks and the wood voice. Older ones ignore the
   // keys, so the controls are hidden there rather than lying.
   const supportsClickStyle = !!SongNookMetronomeModule?.supportsClickStyle?.();
+  // Binaries whose engines keep a zero-weight pulse silent — what the rest-based
+  // feels ("in two") and custom rests need. Older ones would click every pulse.
+  const supportsRests = !!SongNookMetronomeModule?.supportsSilentBeats?.();
 
   // Live-route cue timing (latency model output), refreshed at every start. outputMs
   // delays visual/haptic beat EVENTS on the engine (matters on Bluetooth); the signed
@@ -275,16 +284,30 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   const effectiveMeterId = configuredRef.current ? meterId : DEFAULT_METRONOME_METER_ID;
   const effectiveCountInBars = configuredRef.current ? countInBars : DEFAULT_METRONOME_COUNT_IN_BARS;
   const meterPreset = useMemo(() => getMetronomeMeterPreset(effectiveMeterId), [effectiveMeterId]);
-  // Grouping is the single source: the click's accents, the beat dots and the
-  // visual pulse all read the same weights, so they can never disagree.
-  const grouping = useMemo(
-    () => getMetronomeGrouping(effectiveMeterId, groupingByMeterId[effectiveMeterId]),
-    [effectiveMeterId, groupingByMeterId]
+  // The feel is the single source: sub-clicks, the click's accents, the beat dots
+  // and the visual pulse all derive from it, so they can never disagree.
+  const feelId = useMemo(
+    () =>
+      resolveMetronomeFeelId(effectiveMeterId, feelByMeterId[effectiveMeterId], {
+        subdivision: legacySubdivision,
+        grouping: groupingByMeterId[effectiveMeterId],
+      }),
+    [effectiveMeterId, feelByMeterId, groupingByMeterId, legacySubdivision]
   );
-  const accentPattern = useMemo(
-    () => getMetronomeAccentPattern(effectiveMeterId, groupingByMeterId[effectiveMeterId]),
-    [effectiveMeterId, groupingByMeterId]
+  const customPattern = customPatternByMeterId[effectiveMeterId];
+  const feelParams = useMemo(
+    () =>
+      getMetronomeFeelParams(effectiveMeterId, feelId, {
+        customPattern,
+        currentGrouping: groupingByMeterId[effectiveMeterId],
+      }),
+    [customPattern, effectiveMeterId, feelId, groupingByMeterId]
   );
+  const grouping = feelParams.grouping;
+  const accentPattern = feelParams.accentPattern;
+  // Sub-clicks only render on binaries that know the key; the feel still names
+  // them so the choice survives until the next build.
+  const subdivision = supportsClickStyle ? feelParams.subdivision : 1;
   const beatIntervalMs = useMemo(() => getMetronomeBeatIntervalMs(effectiveBpm), [effectiveBpm]);
   const loopDurationMs = beatIntervalMs * meterPreset.pulsesPerBar;
   const activeOutputCount = useMemo(
@@ -655,10 +678,16 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     meterPreset,
     grouping,
     accentPattern,
+    /** True when the pattern carries rests or a custom edit — a take must store
+     *  it (RecordingGrid.accentPattern) to replay the same feel. */
+    explicitAccentPattern: feelParams.explicitPattern,
     countInBars: effectiveCountInBars,
     subdivision,
+    feelId,
+    customPattern: feelParams.accentPattern,
     clickVoice,
     supportsClickStyle,
+    supportsRests,
     // Beat position derives from the SAME onBeat event stream that pulses the UI ring
     // (beatCount), not the separate onStateChange snapshot — the two streams desync
     // under load (recording), which pinned the "big" downbeat accent to random pulses.
@@ -689,6 +718,8 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     setGrouping: setMetronomeGrouping,
     setCountInBarsValue: setMetronomeCountInBars,
     setSubdivisionValue: setMetronomeSubdivision,
+    setFeel: setMetronomeFeel,
+    setCustomPattern: setMetronomeCustomPattern,
     setClickVoiceValue: setMetronomeClickVoice,
   };
 }
@@ -1087,6 +1118,10 @@ function useLegacyMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     accentPattern: getMetronomeAccentPattern(DEFAULT_METRONOME_METER_ID),
     countInBars: DEFAULT_METRONOME_COUNT_IN_BARS,
     subdivision: DEFAULT_METRONOME_SUBDIVISION as MetronomeSubdivision,
+    explicitAccentPattern: false,
+    feelId: "beats",
+    customPattern: getMetronomeAccentPattern(DEFAULT_METRONOME_METER_ID),
+    supportsRests: false,
     clickVoice: DEFAULT_METRONOME_CLICK_VOICE as MetronomeClickVoice,
     // The WAV fallback renders one stock click per beat; the controls stay hidden here.
     supportsClickStyle: false,
@@ -1116,6 +1151,8 @@ function useLegacyMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     setGrouping: () => {},
     setCountInBarsValue: () => {},
     setSubdivisionValue: () => {},
+    setFeel: () => {},
+    setCustomPattern: () => {},
     setClickVoiceValue: () => {},
   };
 }

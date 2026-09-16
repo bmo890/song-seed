@@ -8,16 +8,7 @@ import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
 import { durations } from "../../../design/motion";
 import { METRONOME_METER_PRESETS, getTempoMarking } from "../../../domain/metronome";
-import {
-  CueLevels,
-  CueTiles,
-  GroupingChips,
-  MeterChips,
-  SubdivisionControl,
-  SUBDIVISION_LABEL_KEYS,
-  TempoBlock,
-  ms,
-} from "../../common/metronome/MetronomeBlocks";
+import { CueRows, FeelControl, MeterRow, TempoBlock, ms } from "../../common/metronome/MetronomeBlocks";
 import { MetronomeBeatBar } from "../../common/metronome/MetronomeBeatBar";
 import { styles as s } from "../styles";
 import { useMetronomeScreenModel } from "../hooks/useMetronomeScreenModel";
@@ -169,7 +160,6 @@ export function MetronomeScreenContent() {
   const model = useMetronomeScreenModel();
   // Both open by default: the page reads exactly as before until the user folds
   // something away. Session-local — a metronome is set and left, not configured.
-  const [subdivisionOpen, setSubdivisionOpen] = useState(true);
   const [meterOpen, setMeterOpen] = useState(true);
   const isRunning = model.isRunning;
   const beatBarActive = isRunning && model.outputs.visual;
@@ -251,6 +241,7 @@ export function MetronomeScreenContent() {
         <View style={ms.divider}>
           <Text style={ms.label}>{t("metronome.tempo")}</Text>
           <TempoBlock
+            showMarking={false}
             bpm={model.bpm}
             tapCount={model.tapCount}
             onNudgeBpm={model.nudgeBpm}
@@ -259,26 +250,7 @@ export function MetronomeScreenContent() {
           />
         </View>
 
-        {/* Subdivision — foldable once chosen; the row keeps showing which one. */}
-        {model.supportsClickStyle ? (
-          <View style={[ms.divider, s.sectionGap]}>
-            <SectionDisclosure
-              label={t("metronome.subdivision")}
-              value={t(SUBDIVISION_LABEL_KEYS[model.subdivision])}
-              expanded={subdivisionOpen}
-              onToggle={() => setSubdivisionOpen((open) => !open)}
-            />
-            <AnimatedCollapse visible={subdivisionOpen}>
-              <SubdivisionControl
-                hideLabel
-                value={model.subdivision}
-                onChange={model.setSubdivisionValue}
-              />
-            </AnimatedCollapse>
-          </View>
-        ) : null}
-
-        {/* Meter — same disclosure; the value pill carries the choice when folded. */}
+        {/* Meter + click on — one disclosure; the value pill carries the meter when folded. */}
         <View style={[ms.divider, s.sectionGap]}>
           <SectionDisclosure
             label={t("metronome.meter")}
@@ -287,24 +259,28 @@ export function MetronomeScreenContent() {
             onToggle={() => setMeterOpen((open) => !open)}
           />
           <AnimatedCollapse visible={meterOpen}>
-            <MeterChips meterId={model.meterId} onSelectMeter={model.setMeterIdValue} />
-            {/* How the bar is felt — only shown when the meter offers a choice. */}
-            <GroupingChips
+            <MeterRow meterId={model.meterId} onSelectMeter={model.setMeterIdValue} />
+            <FeelControl
               meterId={model.meterId}
-              grouping={model.grouping}
-              onSelectGrouping={model.setGrouping}
+              feelId={model.feelId}
+              accentPattern={model.accentPattern}
+              subdivision={model.subdivision}
+              supportsRests={model.supportsRests}
+              supportsSubdivision={model.supportsClickStyle}
+              onSelectFeel={(feelId) => model.setFeel(model.meterId, feelId)}
+              onChangeCustomPattern={(pattern) => model.setCustomPattern(model.meterId, pattern)}
             />
           </AnimatedCollapse>
         </View>
 
-        {/* Cues — shared tiles + conditional level controls */}
+        {/* Cues — a list of ink toggles, each with its own settings on its row */}
         <View style={[ms.divider, s.sectionGap]}>
           <Text style={ms.label}>{t("metronome.cues")}</Text>
-          <CueTiles outputs={model.outputs} onToggleOutput={model.toggleOutput} />
-          <CueLevels
+          <CueRows
             outputs={model.outputs}
             beepLevel={model.beepLevel}
             hapticLevel={model.hapticLevel}
+            onToggleOutput={model.toggleOutput}
             onChangeBeepLevel={model.setBeepLevelValue}
             onChangeHapticLevel={model.setHapticLevelValue}
             clickVoice={model.supportsClickStyle ? model.clickVoice : undefined}

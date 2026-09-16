@@ -31,6 +31,8 @@ export type PersistedAppStore = Pick<
     | "metronomeHapticLevel"
     | "metronomeCountInBars"
     | "metronomeSubdivision"
+    | "metronomeFeelByMeterId"
+    | "metronomeCustomPatternByMeterId"
     | "metronomeClickVoice"
     | "playbackClickHaptic"
     | "globalCustomClipTags"

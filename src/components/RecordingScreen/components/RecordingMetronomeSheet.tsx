@@ -4,19 +4,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../../common/BottomSheet";
 import { IconButton } from "../../common/IconButton";
 import { colors, radii } from "../../../design/tokens";
-import {
-  CueLevels,
-  CueTiles,
-  GroupingChips,
-  MeterChips,
-  SubdivisionControl,
-  TempoBlock,
-  ms,
-} from "../../common/metronome/MetronomeBlocks";
+import { CueRows, FeelControl, MeterRow, TempoBlock, ms } from "../../common/metronome/MetronomeBlocks";
 import {
   clampMetronomeBpm,
   METRONOME_COUNT_IN_BAR_OPTIONS,
-  METRONOME_METER_PRESETS,
   type MetronomeClickVoice,
   type MetronomeMeterId,
   type MetronomeOutputKey,
@@ -76,16 +67,22 @@ type Props = {
   previewPlaying: boolean;
   bpm: number;
   meterId: MetronomeMeterId;
-  grouping: readonly number[];
+  /** "Click on": the feel in force for this meter, its weights, and what the
+   *  binary can render (rests, sub-clicks). Structural, so it locks mid-take. */
+  feelId: string;
+  accentPattern: readonly number[];
+  subdivision: MetronomeSubdivision;
+  supportsRests: boolean;
+  supportsSubdivision: boolean;
+  onSelectFeel: (feelId: string) => void;
+  onChangeCustomPattern: (pattern: number[]) => void;
   countInBars: number;
   outputs: MetronomeOutputs;
   beepLevel: number;
   hapticLevel: number;
   tapCount: number;
-  /** Sub-clicks per beat and click timbre — both structural on the engine, so they
-   *  lock mid-take like tempo and meter. Omitted when the binary can't render them. */
-  subdivision?: MetronomeSubdivision;
-  onSelectSubdivision?: (value: MetronomeSubdivision) => void;
+  /** Click timbre — structural on the engine, so it locks mid-take like tempo and
+   *  meter. Omitted when the binary can't render it. */
   clickVoice?: MetronomeClickVoice;
   onSelectClickVoice?: (voice: MetronomeClickVoice) => void;
   /** "Original take: 92 BPM · 4/4" when the target clip carries a saved recording grid
@@ -96,7 +93,6 @@ type Props = {
   onSetBpmValue: (value: number) => void;
   onTapTempo: () => number | null;
   onSelectMeter: (meterId: MetronomeMeterId) => void;
-  onSelectGrouping: (meterId: MetronomeMeterId, grouping: number[] | null) => void;
   /** The sketch's programmed tempo/meter changes. Undefined callback hides the whole
    *  section (overdubs and variations follow the master's frozen grid instead). */
   songGrid?: TempoMap | null;
@@ -117,14 +113,18 @@ export function RecordingMetronomeSheet({
   previewPlaying,
   bpm,
   meterId,
-  grouping,
+  feelId,
+  accentPattern,
+  subdivision,
+  supportsRests,
+  supportsSubdivision,
+  onSelectFeel,
+  onChangeCustomPattern,
   countInBars,
   outputs,
   beepLevel,
   hapticLevel,
   tapCount,
-  subdivision,
-  onSelectSubdivision,
   clickVoice,
   onSelectClickVoice,
   restoredGridLabel,
@@ -133,7 +133,6 @@ export function RecordingMetronomeSheet({
   onSetBpmValue,
   onTapTempo,
   onSelectMeter,
-  onSelectGrouping,
   songGrid,
   onChangeSongGrid,
   onSelectCountInBars,
@@ -142,9 +141,8 @@ export function RecordingMetronomeSheet({
   onChangeHapticLevel,
 }: Props) {
   const { t } = useTranslation();
-  const meterLabel = METRONOME_METER_PRESETS.find((p) => p.id === meterId)?.label ?? "";
-  const [expanded, setExpanded] = useState<"meter" | "countin" | "changes" | null>(null);
-  const toggleSection = (section: "meter" | "countin" | "changes") =>
+  const [expanded, setExpanded] = useState<"countin" | "changes" | null>(null);
+  const toggleSection = (section: "countin" | "changes") =>
     setExpanded((prev) => (prev === section ? null : section));
 
   // ── Programmed changes (the sketch's plan) ────────────────────────────────
@@ -248,9 +246,24 @@ export function RecordingMetronomeSheet({
             onSetBpmValue={onSetBpmValue}
             onTapTempo={onTapTempo}
           />
-          {subdivision != null && onSelectSubdivision ? (
-            <SubdivisionControl value={subdivision} disabled={disabled} onChange={onSelectSubdivision} />
-          ) : null}
+
+          {/* Meter — all eight on one line, no disclosure needed to see them. */}
+          <Text style={ms.label}>{t("recording.meter")}</Text>
+          <MeterRow meterId={meterId} disabled={disabled} onSelectMeter={onSelectMeter} />
+
+          {/* Click on — the feel for this meter; the strip shows the bar you'll hear. */}
+          <FeelControl
+            meterId={meterId}
+            feelId={feelId}
+            accentPattern={accentPattern}
+            subdivision={subdivision}
+            supportsRests={supportsRests}
+            supportsSubdivision={supportsSubdivision}
+            disabled={disabled}
+            onSelectFeel={onSelectFeel}
+            onChangeCustomPattern={onChangeCustomPattern}
+          />
+          <View style={s.feelGap} />
 
           {/* Count-in — pronounced, self-explaining row (recording-only concept) */}
           <Pressable
@@ -292,37 +305,6 @@ export function RecordingMetronomeSheet({
                 );
               })}
             </View>
-          ) : null}
-
-          {/* Meter — quiet row, chips disclosed on demand (sheet stays compact) */}
-          <Pressable
-            style={({ pressed }) => [ms.quietRow, ms.divider, pressed ? ms.pressed : null]}
-            onPress={() => toggleSection("meter")}
-            disabled={disabled}
-          >
-            <Text style={ms.quietLabel}>{t("recording.meter")}</Text>
-            <View style={ms.valuePill}>
-              {expanded === "meter" ? null : <Text style={ms.valueText}>{meterLabel}</Text>}
-              <Ionicons name={expanded === "meter" ? "chevron-up" : "chevron-down"} size={13} color={colors.textMuted} />
-            </View>
-          </Pressable>
-          {expanded === "meter" ? (
-            <>
-              <MeterChips
-                meterId={meterId}
-                disabled={disabled}
-                onSelectMeter={onSelectMeter}
-              />
-              {/* Grouping sits with the meter it belongs to. The section no
-                  longer auto-closes on pick: choosing 5/4 and then 3+2 is one
-                  decision, and closing between the two halves fought it. */}
-              <GroupingChips
-                meterId={meterId}
-                grouping={grouping}
-                disabled={disabled}
-                onSelectGrouping={onSelectGrouping}
-              />
-            </>
           ) : null}
 
           {/* Programmed changes — the sketch's plan. A tempo/meter change takes effect
@@ -410,7 +392,7 @@ export function RecordingMetronomeSheet({
                                 />
                               </View>
                             </View>
-                            <MeterChips
+                            <MeterRow
                               meterId={segment.meterId}
                               disabled={disabled}
                               onSelectMeter={(nextMeterId) => updateChange(segment.atBar, { meterId: nextMeterId })}
@@ -433,17 +415,17 @@ export function RecordingMetronomeSheet({
             </>
           ) : null}
 
-          {/* Cues — shared square toggles */}
+          {/* Cues — ink toggles with their settings on the row. Levels stay adjustable
+              mid-take: volume is a live param on the native engine (no restart, no phase
+              reset) and haptic strength is JS-side only. The toggles and the click voice
+              are structural and lock while recording. */}
           <Text style={[ms.label, ms.divider, { paddingTop: 14 }]}>{t("recording.cues")}</Text>
-          <CueTiles outputs={outputs} disabled={disabled} onToggleOutput={onToggleOutput} />
-
-          {/* Levels stay adjustable mid-take: volume is a live param on the native engine
-              (no restart, no phase reset) and haptic strength is JS-side only. Structural
-              controls (tempo/meter/count-in/cue toggles) stay locked while recording. */}
-          <CueLevels
+          <CueRows
             outputs={outputs}
             beepLevel={beepLevel}
             hapticLevel={hapticLevel}
+            disabled={disabled}
+            onToggleOutput={onToggleOutput}
             onChangeBeepLevel={onChangeBeepLevel}
             onChangeHapticLevel={onChangeHapticLevel}
             clickVoice={clickVoice}
@@ -457,6 +439,9 @@ export function RecordingMetronomeSheet({
 }
 
 const s = StyleSheet.create({
+  feelGap: {
+    height: 8,
+  },
   titleRow: {
     flexDirection: "row",
     alignItems: "center",

@@ -32,20 +32,22 @@ import { rebaseWorkspacesManagedMedia } from "./rebaseManagedMedia";
 import { createShardedPersistStorage } from "./shardedPersistStorage";
 import { consumeIntentionalEmptyStateWrite } from "../services/stateIntegrity";
 import {
-    clampMetronomeBpm,
-    clampMetronomeCountInBars,
-    clampMetronomeLevel,
     DEFAULT_METRONOME_BEEP_LEVEL,
     DEFAULT_METRONOME_BPM,
+    DEFAULT_METRONOME_CLICK_VOICE,
     DEFAULT_METRONOME_COUNT_IN_BARS,
     DEFAULT_METRONOME_HAPTIC_LEVEL,
     DEFAULT_METRONOME_METER_ID,
-    isValidGrouping,
     DEFAULT_METRONOME_OUTPUTS,
-    DEFAULT_METRONOME_CLICK_VOICE,
+    clampMetronomeBpm,
+    clampMetronomeCountInBars,
+    clampMetronomeLevel,
     clampMetronomeSubdivision,
+    getMetronomeFeel,
     isMetronomeClickVoice,
     isMetronomeMeterId,
+    isValidAccentPattern,
+    isValidGrouping,
 } from "../domain/metronome";
 import { normalizeBluetoothMonitoringCalibrations } from "../domain/bluetoothMonitoring";
 import { sanitizeWordLadders } from "../domain/wordLadder";
@@ -219,6 +221,18 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
                 ? clampMetronomeCountInBars(state.metronomeCountInBars)
                 : DEFAULT_METRONOME_COUNT_IN_BARS,
         metronomeSubdivision: clampMetronomeSubdivision(state?.metronomeSubdivision),
+        // Feels and custom patterns are re-validated per meter like groupings.
+        metronomeFeelByMeterId: Object.fromEntries(
+            Object.entries(state?.metronomeFeelByMeterId ?? {}).filter(
+                ([meterId, feelId]) =>
+                    isMetronomeMeterId(meterId) && typeof feelId === "string" && !!getMetronomeFeel(meterId, feelId)
+            )
+        ),
+        metronomeCustomPatternByMeterId: Object.fromEntries(
+            Object.entries(state?.metronomeCustomPatternByMeterId ?? {}).filter(
+                ([meterId, pattern]) => isMetronomeMeterId(meterId) && isValidAccentPattern(meterId, pattern)
+            )
+        ),
         metronomeClickVoice: isMetronomeClickVoice(state?.metronomeClickVoice)
             ? state.metronomeClickVoice
             : DEFAULT_METRONOME_CLICK_VOICE,

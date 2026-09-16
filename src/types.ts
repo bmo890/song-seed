@@ -410,6 +410,10 @@ export type RecordingGrid = {
    *  metronome's grouping so overdubs and the playback click accent the same beats the
    *  take was played to. Absent = the meter's default grouping. */
   grouping?: number[];
+  /** Per-pulse click weights when the feel can't be described by the grouping
+   *  alone — rests ("in two" in 6/8) or a custom pattern. Absent = derive from
+   *  the grouping. Same length as the meter's pulses. */
+  accentPattern?: number[];
   /** Count-in bars used for this take (0 = none). Kept for re-record parity. */
   countInBars: number;
   /** Whether the click sounded through the take (vs count-in only). */

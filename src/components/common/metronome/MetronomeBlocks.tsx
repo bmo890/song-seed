@@ -8,14 +8,16 @@ import {
   MAX_METRONOME_BPM,
   MAX_METRONOME_LEVEL,
   METRONOME_CLICK_VOICES,
+  METRONOME_FEEL_CUSTOM,
   METRONOME_METER_PRESETS,
-  METRONOME_SUBDIVISION_OPTIONS,
   MIN_METRONOME_BPM,
   MIN_METRONOME_LEVEL,
-  formatGrouping,
+  cyclePulseWeight,
+  getMetronomeFeels,
   getMetronomeMeterPreset,
-  isSameGrouping,
+  getTempoMarking,
   type MetronomeClickVoice,
+  type MetronomeFeel,
   type MetronomeMeterId,
   type MetronomeOutputKey,
   type MetronomeOutputs,
@@ -26,9 +28,9 @@ import { useTranslation } from "react-i18next";
 
 /**
  * Shared metronome control blocks — the single source for the tempo stepper/tap/
- * slider, meter chips, cue tiles, and level sub-controls. Rendered by both the
- * in-recorder sheet (RecordingMetronomeSheet) and the standalone Metronome page,
- * so the two surfaces stay pixel-identical as they evolve.
+ * slider, the meter row, the "click on" feel control with its bar strip, and the
+ * cue rows. Rendered by both the in-recorder sheet (RecordingMetronomeSheet) and
+ * the standalone Metronome page, so the two surfaces stay identical as they evolve.
  */
 
 export type HapticStrengthId = "light" | "medium" | "strong";
@@ -38,17 +40,6 @@ export const HAPTIC_STRENGTH_PRESETS: { id: HapticStrengthId; level: number }[] 
   { id: "medium", level: 55 },
   { id: "strong", level: 90 },
 ];
-
-/** Meter chips sit four to a row: the simple meters, then the compound and odd ones. */
-const METER_CHIPS_PER_ROW = 4;
-
-/** Exported so a collapsed disclosure can show the current choice as its value. */
-export const SUBDIVISION_LABEL_KEYS: Record<MetronomeSubdivision, string> = {
-  1: "metronome.beat",
-  2: "metronome.halves",
-  3: "metronome.thirds",
-  4: "metronome.quarters",
-};
 
 const CLICK_VOICE_LABEL_KEYS: Record<MetronomeClickVoice, string> = {
   click: "metronome.voiceClick",
@@ -61,6 +52,10 @@ export function nearestHapticStrengthId(level: number): HapticStrengthId {
   ).id;
 }
 
+export function feelLabel(feel: MetronomeFeel, t: (key: string) => string) {
+  return feel.label ?? (feel.labelKey ? t(feel.labelKey) : feel.id);
+}
+
 export function TempoBlock({
   bpm,
   tapCount,
@@ -68,6 +63,8 @@ export function TempoBlock({
   onNudgeBpm,
   onSetBpmValue,
   onTapTempo,
+  /** The standalone page's hero already names the marking under its big readout. */
+  showMarking = true,
 }: {
   bpm: number;
   tapCount: number;
@@ -75,6 +72,7 @@ export function TempoBlock({
   onNudgeBpm: (delta: number) => void;
   onSetBpmValue: (value: number) => void;
   onTapTempo: () => unknown;
+  showMarking?: boolean;
 }) {
   const { t } = useTranslation();
   return (
@@ -90,7 +88,12 @@ export function TempoBlock({
           >
             <Ionicons name="remove" size={15} color={colors.primary} />
           </Pressable>
-          <Text style={ms.bpm}>{bpm} BPM</Text>
+          <View style={ms.bpmStack}>
+            <Text style={ms.bpm}>{bpm} BPM</Text>
+            {showMarking ? (
+              <Text style={ms.bpmMarking}>{t(`metronome.marking.${getTempoMarking(bpm)}`)}</Text>
+            ) : null}
+          </View>
           <Pressable
             style={({ pressed }) => [ms.step, pressed ? ms.pressed : null]}
             onPress={() => onNudgeBpm(1)}
@@ -138,7 +141,8 @@ export function TempoBlock({
   );
 }
 
-export function MeterChips({
+/** The eight meters on one line — small tabular keys, the chosen one in a tonal wash. */
+export function MeterRow({
   meterId,
   disabled,
   onSelectMeter,
@@ -148,104 +152,21 @@ export function MeterChips({
   onSelectMeter: (meterId: MetronomeMeterId) => void;
 }) {
   const { t } = useTranslation();
-  const rows: (typeof METRONOME_METER_PRESETS)[number][][] = [];
-  for (let index = 0; index < METRONOME_METER_PRESETS.length; index += METER_CHIPS_PER_ROW) {
-    rows.push(METRONOME_METER_PRESETS.slice(index, index + METER_CHIPS_PER_ROW));
-  }
   return (
-    <>
-      {rows.map((row) => (
-        <View key={row[0].id} style={ms.chipsRow}>
-          {row.map((preset) => {
-            const active = preset.id === meterId;
-            return (
-              <Pressable
-                key={preset.id}
-                style={({ pressed }) => [ms.chip, active ? ms.chipActive : null, pressed ? ms.pressed : null]}
-                onPress={() => onSelectMeter(preset.id)}
-                disabled={disabled}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                accessibilityLabel={t("metronome.meterTime", { label: preset.label })}
-              >
-                <Text style={[ms.chipText, active ? ms.chipTextActive : null]}>{preset.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      ))}
-    </>
-  );
-}
-
-/**
- * How finely each beat is split — an audio-only ornament. The dots, the haptic and
- * the grid stay on the beat, so this never changes what a take records. Rendered only
- * on binaries whose engine renders it (callers gate on `supportsClickStyle`).
- */
-export function SubdivisionControl({
-  value,
-  disabled,
-  onChange,
-  /** The standalone page gives this its own disclosure header, which already
-   *  names the section — a second label would just repeat it. */
-  hideLabel = false,
-}: {
-  value: MetronomeSubdivision;
-  disabled?: boolean;
-  onChange: (value: MetronomeSubdivision) => void;
-  hideLabel?: boolean;
-}) {
-  const { t } = useTranslation();
-  return (
-    <View style={disabled ? ms.dimmed : null} pointerEvents={disabled ? "none" : "auto"}>
-      {hideLabel ? null : <Text style={ms.subLabel}>{t("metronome.subdivision")}</Text>}
-      <View style={ms.segmentWrap}>
-        <SegmentedControl
-          options={METRONOME_SUBDIVISION_OPTIONS.map((option) => ({
-            key: String(option),
-            label: t(SUBDIVISION_LABEL_KEYS[option]),
-          }))}
-          value={String(value)}
-          onChange={(key) => onChange(Number(key) as MetronomeSubdivision)}
-        />
-      </View>
-    </View>
-  );
-}
-
-const CUES: { key: MetronomeOutputKey; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: "beep", icon: "volume-high-outline" },
-  { key: "visual", icon: "pulse-outline" },
-  { key: "haptic", icon: "phone-portrait-outline" },
-];
-
-export function CueTiles({
-  outputs,
-  disabled,
-  onToggleOutput,
-}: {
-  outputs: MetronomeOutputs;
-  disabled?: boolean;
-  onToggleOutput: (key: MetronomeOutputKey) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <View style={ms.cuesRow}>
-      {CUES.map((cue) => {
-        const active = outputs[cue.key];
+    <View style={[ms.meterRow, disabled ? ms.dimmed : null]}>
+      {METRONOME_METER_PRESETS.map((preset) => {
+        const active = preset.id === meterId;
         return (
           <Pressable
-            key={cue.key}
-            style={({ pressed }) => [ms.cue, active ? ms.cueActive : null, pressed ? ms.pressed : null]}
-            onPress={() => onToggleOutput(cue.key)}
+            key={preset.id}
+            style={({ pressed }) => [ms.meterKey, active ? ms.meterKeyActive : null, pressed ? ms.pressed : null]}
+            onPress={() => onSelectMeter(preset.id)}
             disabled={disabled}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
-            accessibilityLabel={t(`metronome.${cue.key}`)}
+            accessibilityLabel={t("metronome.meterTime", { label: preset.label })}
           >
-            <Ionicons name={cue.icon} size={20} color={active ? colors.primaryDeep : colors.textMuted} />
-            <Text style={[ms.cueLabel, active ? ms.cueLabelActive : null]}>{t(`metronome.${cue.key}`)}</Text>
+            <Text style={[ms.meterKeyText, active ? ms.meterKeyTextActive : null]}>{preset.label}</Text>
           </Pressable>
         );
       })}
@@ -254,120 +175,279 @@ export function CueTiles({
 }
 
 /**
- * The level controls for whichever cues are ON, each named. Two unlabelled
- * controls stacked under the tiles (a bare slider, then a bare three-way) gave
- * no way to tell which belonged to which — and turning a cue off silently
- * removed one of them, so the remaining control looked like it had changed
- * meaning. A cue's level now says whose it is, and appears only with its cue.
+ * "Click on" — the one question after the meter. Folds sub-clicks and grouping
+ * into the feels players actually set for that meter, plus Custom, which edits
+ * the bar's pulses in the strip below. The strip always shows the bar you'll
+ * hear; in Custom it becomes the editor.
  */
-export function CueLevels({
+export function FeelControl({
+  meterId,
+  feelId,
+  accentPattern,
+  subdivision,
+  supportsRests,
+  supportsSubdivision,
+  disabled,
+  onSelectFeel,
+  onChangeCustomPattern,
+  hideLabel = false,
+}: {
+  meterId: MetronomeMeterId;
+  feelId: string;
+  /** The weights currently in force (custom or derived). */
+  accentPattern: readonly number[];
+  subdivision: MetronomeSubdivision;
+  supportsRests: boolean;
+  /** Older engines ignore sub-clicks, so feels that need them are not offered. */
+  supportsSubdivision: boolean;
+  disabled?: boolean;
+  onSelectFeel: (feelId: string) => void;
+  onChangeCustomPattern: (pattern: number[]) => void;
+  hideLabel?: boolean;
+}) {
+  const { t } = useTranslation();
+  const feels = getMetronomeFeels(meterId, supportsRests).filter(
+    (feel) => supportsSubdivision || feel.subdivision === 1
+  );
+  const editing = feelId === METRONOME_FEEL_CUSTOM;
+  const options = feels.map((feel) => ({ key: feel.id, label: feelLabel(feel, t), glyph: feel.glyph }));
+  return (
+    <View style={disabled ? ms.dimmed : null} pointerEvents={disabled ? "none" : "auto"}>
+      {hideLabel ? null : <Text style={ms.label}>{t("metronome.clickOn")}</Text>}
+      <SegmentedControl options={options} value={feelId} onChange={onSelectFeel} />
+      <BarStrip
+        meterId={meterId}
+        accentPattern={accentPattern}
+        subdivision={subdivision}
+        editing={editing}
+        onTapPulse={(index) => {
+          const next = [...accentPattern];
+          next[index] = cyclePulseWeight(next[index] ?? 0, supportsRests);
+          onChangeCustomPattern(next);
+        }}
+      />
+    </View>
+  );
+}
+
+type PulseTier = "accent" | "click" | "rest";
+
+function pulseTier(weight: number | undefined): PulseTier {
+  if (weight == null || weight <= 0) return "rest";
+  if (weight >= 0.65) return "accent";
+  return "click";
+}
+
+/** The bar as dots: filled for an accent, hollow for a click, small for a rest,
+ *  ticks between beats for sub-clicks. Tap a dot to cycle it while editing. */
+export function BarStrip({
+  meterId,
+  accentPattern,
+  subdivision,
+  editing,
+  onTapPulse,
+}: {
+  meterId: MetronomeMeterId;
+  accentPattern: readonly number[];
+  subdivision: MetronomeSubdivision;
+  editing: boolean;
+  onTapPulse: (index: number) => void;
+}) {
+  const { t } = useTranslation();
+  const preset = getMetronomeMeterPreset(meterId);
+  const pulses = Array.from({ length: preset.pulsesPerBar }, (_, index) => index);
+  const ticks = Array.from({ length: Math.max(0, subdivision - 1) }, (_, index) => index);
+  return (
+    <>
+      <View style={[ms.bar, editing ? ms.barEditing : null]}>
+        {pulses.map((index) => {
+          const tier = pulseTier(accentPattern[index]);
+          const downbeat = index === 0 && tier === "accent";
+          return (
+            <View key={index} style={ms.beat}>
+              <Pressable
+                style={({ pressed }) => [ms.pulseHit, pressed && editing ? ms.pressed : null]}
+                onPress={() => {
+                  if (!editing) return;
+                  // Haptics vocabulary: `tap` — a control changed value.
+                  haptic.tap();
+                  onTapPulse(index);
+                }}
+                disabled={!editing}
+                hitSlop={4}
+                accessibilityRole={editing ? "button" : undefined}
+                accessibilityLabel={t("metronome.pulse.a11y", {
+                  number: index + 1,
+                  state: t(`metronome.pulse.${tier}`),
+                })}
+              >
+                <View
+                  style={[
+                    ms.dot,
+                    tier === "accent" ? (downbeat ? ms.dotDownbeat : ms.dotAccent) : null,
+                    tier === "rest" ? ms.dotRest : null,
+                  ]}
+                />
+              </Pressable>
+              {ticks.map((tick) => (
+                <View key={tick} style={ms.tick} />
+              ))}
+            </View>
+          );
+        })}
+        {editing ? (
+          <Text style={ms.barTrail}>{t("metronome.pulse.beatCount", { count: preset.pulsesPerBar })}</Text>
+        ) : null}
+      </View>
+      {editing ? (
+        <View style={ms.legend}>
+          <View style={[ms.dot, ms.dotAccent, ms.legendDot]} />
+          <Text style={ms.legendText}>{t("metronome.pulse.accent")}</Text>
+          <View style={[ms.dot, ms.legendDot]} />
+          <Text style={ms.legendText}>{t("metronome.pulse.click")}</Text>
+          <View style={[ms.dot, ms.dotRest, ms.legendDot]} />
+          <Text style={ms.legendText}>{t("metronome.pulse.rest")}</Text>
+          <Text style={[ms.legendText, ms.legendHint]}>{t("metronome.pulse.edit")}</Text>
+        </View>
+      ) : null}
+    </>
+  );
+}
+
+/** A soft key that steps through a short list on tap — for two- and three-way
+ *  choices that live on a row (click voice, haptic strength). */
+function CycleKey<T extends string>({
+  options,
+  value,
+  disabled,
+  onChange,
+  accessibilityLabel,
+}: {
+  options: { key: T; label: string }[];
+  value: T;
+  disabled?: boolean;
+  onChange: (key: T) => void;
+  accessibilityLabel: string;
+}) {
+  const index = Math.max(0, options.findIndex((option) => option.key === value));
+  const current = options[index] ?? options[0];
+  return (
+    <Pressable
+      style={({ pressed }) => [ms.valuePill, disabled ? ms.dimmed : null, pressed ? ms.pressed : null]}
+      onPress={() => {
+        haptic.tap();
+        onChange(options[(index + 1) % options.length].key);
+      }}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityValue={{ text: current.label }}
+    >
+      <Text style={ms.valueText}>{current.label}</Text>
+      <Ionicons name="chevron-expand-outline" size={12} color={colors.textMuted} />
+    </Pressable>
+  );
+}
+
+const CUE_KEYS: MetronomeOutputKey[] = ["beep", "visual", "haptic"];
+
+/**
+ * The cues as a list of ink toggles (word + leading dot), each carrying its own
+ * settings on its row: Beep has its volume and sound, Haptic its strength. A cue
+ * that is off keeps its row and drops its controls, so the list never reflows.
+ */
+export function CueRows({
   outputs,
   beepLevel,
   hapticLevel,
+  clickVoice,
+  voiceDisabled,
+  disabled,
+  onToggleOutput,
   onChangeBeepLevel,
   onChangeHapticLevel,
-  clickVoice,
   onChangeClickVoice,
-  voiceDisabled,
 }: {
   outputs: MetronomeOutputs;
   beepLevel: number;
   hapticLevel: number;
-  onChangeBeepLevel: (level: number) => void;
-  onChangeHapticLevel: (level: number) => void;
-  /** The click's timbre. Omitted on binaries that can't render a second voice — the
-   *  picker then simply isn't there. */
+  /** Omitted on binaries that can't render a second voice — the key isn't there. */
   clickVoice?: MetronomeClickVoice;
-  onChangeClickVoice?: (voice: MetronomeClickVoice) => void;
   /** Voice is structural on the engine, so unlike the levels it locks mid-take. */
   voiceDisabled?: boolean;
-}) {
-  const { t } = useTranslation();
-  if (!outputs.beep && !outputs.haptic) return null;
-  return (
-    <View style={ms.cueLevels}>
-      {outputs.beep ? (
-        <View>
-          <Text style={ms.subLabel}>{t("metronome.beepVolume")}</Text>
-          <BeepLevelControl beepLevel={beepLevel} onChangeBeepLevel={onChangeBeepLevel} />
-          {clickVoice && onChangeClickVoice ? (
-            <View style={voiceDisabled ? ms.dimmed : null} pointerEvents={voiceDisabled ? "none" : "auto"}>
-              <Text style={ms.subLabel}>{t("metronome.sound")}</Text>
-              <View style={ms.segmentWrap}>
-                <SegmentedControl
-                  options={METRONOME_CLICK_VOICES.map((voice) => ({
-                    key: voice,
-                    label: t(CLICK_VOICE_LABEL_KEYS[voice]),
-                  }))}
-                  value={clickVoice}
-                  onChange={onChangeClickVoice}
-                />
-              </View>
-            </View>
-          ) : null}
-        </View>
-      ) : null}
-      {outputs.haptic ? (
-        <View>
-          <Text style={ms.subLabel}>{t("metronome.hapticLevel")}</Text>
-          <HapticStrengthControl hapticLevel={hapticLevel} onChangeHapticLevel={onChangeHapticLevel} />
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-export function BeepLevelControl({
-  beepLevel,
-  onChangeBeepLevel,
-}: {
-  beepLevel: number;
+  /** Locks the on/off toggles (structural); the level controls stay live. */
+  disabled?: boolean;
+  onToggleOutput: (key: MetronomeOutputKey) => void;
   onChangeBeepLevel: (level: number) => void;
-}) {
-  return (
-    <View style={ms.subControl}>
-      <Ionicons name="volume-low-outline" size={14} color={colors.textMuted} />
-      <Slider
-        onSlidingComplete={() => haptic.tap()}
-        style={ms.subSlider}
-        minimumValue={MIN_METRONOME_LEVEL}
-        maximumValue={MAX_METRONOME_LEVEL}
-        step={1}
-        minimumTrackTintColor={colors.primary}
-        maximumTrackTintColor={colors.borderSubtle}
-        thumbTintColor={colors.primary}
-        value={beepLevel}
-        onValueChange={onChangeBeepLevel}
-      />
-      <Ionicons name="volume-high-outline" size={14} color={colors.textMuted} />
-    </View>
-  );
-}
-
-export function HapticStrengthControl({
-  hapticLevel,
-  onChangeHapticLevel,
-}: {
-  hapticLevel: number;
   onChangeHapticLevel: (level: number) => void;
+  onChangeClickVoice?: (voice: MetronomeClickVoice) => void;
 }) {
   const { t } = useTranslation();
-  const activeId = nearestHapticStrengthId(hapticLevel);
-  // Canon single-select: the sliding thumb, not a hand-rolled row of filled
-  // chips that made the same interaction look different from every other one.
   return (
-    <View style={ms.segmentWrap}>
-      <SegmentedControl
-        options={HAPTIC_STRENGTH_PRESETS.map((preset) => ({
-          key: preset.id,
-          label: t(`metronome.${preset.id}`),
-        }))}
-        value={activeId}
-        onChange={(id) => {
-          const preset = HAPTIC_STRENGTH_PRESETS.find((option) => option.id === id);
-          if (preset) onChangeHapticLevel(preset.level);
-        }}
-      />
+    <View>
+      {CUE_KEYS.map((key, rowIndex) => {
+        const on = outputs[key];
+        return (
+          <View key={key} style={[ms.cueRow, rowIndex > 0 ? ms.cueRowRule : null]}>
+            <Pressable
+              style={({ pressed }) => [ms.cueToggle, pressed ? ms.pressed : null]}
+              onPress={() => onToggleOutput(key)}
+              disabled={disabled}
+              hitSlop={{ top: 8, bottom: 8 }}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: on }}
+              accessibilityLabel={t(`metronome.${key}`)}
+            >
+              <View style={[ms.inkDot, on ? ms.inkDotOn : null]} />
+              <Text style={[ms.cueWord, on ? ms.cueWordOn : null]}>{t(`metronome.${key}`)}</Text>
+            </Pressable>
+            {key === "beep" && on ? (
+              <>
+                <Slider
+                  onSlidingComplete={() => haptic.tap()}
+                  style={ms.cueSlider}
+                  minimumValue={MIN_METRONOME_LEVEL}
+                  maximumValue={MAX_METRONOME_LEVEL}
+                  step={1}
+                  minimumTrackTintColor={colors.primary}
+                  maximumTrackTintColor={colors.borderSubtle}
+                  thumbTintColor={colors.primary}
+                  value={beepLevel}
+                  onValueChange={onChangeBeepLevel}
+                  accessibilityLabel={t("metronome.beepVolume")}
+                />
+                {clickVoice && onChangeClickVoice ? (
+                  <CycleKey
+                    options={METRONOME_CLICK_VOICES.map((voice) => ({
+                      key: voice,
+                      label: t(CLICK_VOICE_LABEL_KEYS[voice]),
+                    }))}
+                    value={clickVoice}
+                    disabled={disabled || voiceDisabled}
+                    onChange={onChangeClickVoice}
+                    accessibilityLabel={t("metronome.sound")}
+                  />
+                ) : null}
+              </>
+            ) : null}
+            {key === "visual" && on ? <Text style={ms.cueHint}>{t("metronome.visualHint")}</Text> : null}
+            {key === "haptic" && on ? (
+              <CycleKey
+                options={HAPTIC_STRENGTH_PRESETS.map((preset) => ({
+                  key: preset.id,
+                  label: t(`metronome.${preset.id}`),
+                }))}
+                value={nearestHapticStrengthId(hapticLevel)}
+                onChange={(id) => {
+                  const preset = HAPTIC_STRENGTH_PRESETS.find((option) => option.id === id);
+                  if (preset) onChangeHapticLevel(preset.level);
+                }}
+                accessibilityLabel={t("metronome.hapticLevel")}
+              />
+            ) : null}
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -385,7 +465,7 @@ export const ms = StyleSheet.create({
   },
   divider: {
     borderTopWidth: 1,
-    borderTopColor: "#EFE8E2",
+    borderTopColor: colors.borderSubtle,
   },
   tempoRow: {
     flexDirection: "row",
@@ -406,11 +486,22 @@ export const ms = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.surfaceContainer,
   },
+  bpmStack: {
+    alignItems: "center",
+    minWidth: 84,
+  },
   bpm: {
     fontSize: 17,
     fontFamily: "PlusJakartaSans_700Bold",
     color: colors.primary,
     fontVariant: ["tabular-nums"],
+  },
+  // The classical marking — a musician's word for the number above it.
+  bpmMarking: {
+    fontSize: 11,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    color: colors.textMuted,
+    marginTop: 1,
   },
   // Soft keys at r8 — stadium was retired on text buttons (2026-07-24).
   tap: {
@@ -486,87 +577,157 @@ export const ms = StyleSheet.create({
   segmentTextActive: {
     color: colors.onPrimary,
   },
-  chipsRow: {
+  // ── Meter row ──
+  meterRow: {
     flexDirection: "row",
-    gap: 8,
-    marginBottom: 6,
+    gap: 5,
   },
-  chip: {
+  meterKey: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 38,
-    paddingHorizontal: 16,
+    minHeight: 34,
     borderRadius: radii.lg,
     backgroundColor: colors.surfaceContainer,
   },
-  chipActive: {
-    backgroundColor: colors.primary,
-  },
-  chipText: {
-    fontSize: 13,
-    fontFamily: "PlusJakartaSans_700Bold",
-    color: colors.textSecondary,
-  },
-  chipTextActive: {
-    color: colors.onPrimary,
-  },
-  cuesRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  cue: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: radii.xl,
-    backgroundColor: colors.surfaceContainer,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-  },
-  cueActive: {
+  meterKeyActive: {
     backgroundColor: colors.primarySurface,
   },
-  cueLabel: {
-    fontSize: 12,
+  meterKeyText: {
+    fontSize: 12.5,
+    fontFamily: "PlusJakartaSans_700Bold",
+    color: colors.textStrong,
+    fontVariant: ["tabular-nums"],
+  },
+  meterKeyTextActive: {
+    color: colors.primaryDeep,
+  },
+  // ── Bar strip ──
+  bar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  barEditing: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySurface,
+  },
+  beat: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  pulseHit: {
+    width: 18,
+    height: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dot: {
+    width: 13,
+    height: 13,
+    borderRadius: radii.round,
+    borderWidth: 2,
+    borderColor: colors.primaryDeep,
+  },
+  dotDownbeat: {
+    width: 15,
+    height: 15,
+    backgroundColor: colors.primaryDeep,
+  },
+  dotAccent: {
+    backgroundColor: colors.primaryDeep,
+  },
+  dotRest: {
+    width: 7,
+    height: 7,
+    borderWidth: 1.5,
+    borderColor: colors.borderMuted,
+  },
+  tick: {
+    width: 3,
+    height: 6,
+    borderRadius: 2,
+    backgroundColor: colors.borderMuted,
+  },
+  barTrail: {
+    marginStart: "auto",
+    fontSize: 11,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    color: colors.textMuted,
+    fontVariant: ["tabular-nums"],
+  },
+  legend: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 8,
+    paddingHorizontal: 4,
+  },
+  legendDot: {
+    transform: [{ scale: 0.8 }],
+    marginStart: 6,
+  },
+  legendText: {
+    fontSize: 11.5,
+    fontFamily: "PlusJakartaSans_500Medium",
+    color: colors.textSecondary,
+  },
+  legendHint: {
+    marginStart: "auto",
+    color: colors.textMuted,
+  },
+  // ── Cue rows ──
+  cueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minHeight: 46,
+  },
+  cueRowRule: {
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+  },
+  cueToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    width: 84,
+    paddingVertical: 8,
+  },
+  inkDot: {
+    width: 10,
+    height: 10,
+    borderRadius: radii.round,
+    borderWidth: 1.5,
+    borderColor: colors.textStrong,
+  },
+  inkDotOn: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  cueWord: {
+    fontSize: 14,
     fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.textSecondary,
   },
-  cueLabelActive: {
-    color: colors.primaryDeep,
+  cueWordOn: {
+    color: colors.textPrimary,
   },
-  // Grouping is subordinate to meter, so its active state is a tonal wash rather
-  // than the solid fill — one glance tells you which row is the primary choice.
-  chipActiveSoft: {
-    backgroundColor: "#F3E4DE",
-  },
-  chipTextActiveSoft: {
-    color: colors.primaryDeep,
-  },
-  subLabel: {
-    fontSize: 9.5,
-    fontFamily: "PlusJakartaSans_700Bold",
-    letterSpacing: 0.9,
-    textTransform: "uppercase",
-    color: colors.textMuted,
-    marginTop: 12,
-    marginBottom: 6,
-  },
-  cueLevels: {
-    gap: 4,
-  },
-  segmentWrap: {
-    marginBottom: 6,
-  },
-  subControl: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  subSlider: {
+  cueSlider: {
     flex: 1,
+  },
+  cueHint: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: "PlusJakartaSans_400Regular",
+    color: colors.textMuted,
   },
   pressed: {
     opacity: 0.7,
@@ -577,53 +738,3 @@ export const ms = StyleSheet.create({
     opacity: 0.45,
   },
 });
-
-/**
- * How the bar is FELT, not how many pulses it has: 5/4 as 2 + 3 or 3 + 2. Only
- * rendered when the meter offers a real choice, so 3/4 never shows a row with
- * one option in it.
- */
-export function GroupingChips({
-  meterId,
-  grouping,
-  disabled,
-  onSelectGrouping,
-}: {
-  meterId: MetronomeMeterId;
-  grouping: readonly number[];
-  disabled?: boolean;
-  onSelectGrouping: (meterId: MetronomeMeterId, grouping: number[] | null) => void;
-}) {
-  const { t } = useTranslation();
-  const preset = getMetronomeMeterPreset(meterId);
-  if (preset.groupings.length < 2) return null;
-  return (
-    <>
-      {/* Named, because meter and grouping are different questions: without this
-          the two chip rows read as one list of eight options. */}
-      <Text style={ms.subLabel}>{t("metronome.grouping")}</Text>
-      <View style={ms.chipsRow}>
-      {preset.groupings.map((option) => {
-        const active = isSameGrouping(option, grouping);
-        const isDefault = isSameGrouping(option, preset.defaultGrouping);
-        const label = option.length === 1 ? t("metronome.groupingEven") : formatGrouping(option);
-        return (
-          <Pressable
-            key={label}
-            style={({ pressed }) => [ms.chip, active ? ms.chipActiveSoft : null, pressed ? ms.pressed : null]}
-            // Storing the default would freeze the preset's hand-tuned click
-            // weights; passing null keeps them.
-            onPress={() => onSelectGrouping(meterId, isDefault ? null : [...option])}
-            disabled={disabled}
-            accessibilityRole="button"
-            accessibilityState={{ selected: active }}
-            accessibilityLabel={t("metronome.groupingA11y", { label })}
-          >
-            <Text style={[ms.chipText, active ? ms.chipTextActiveSoft : null]}>{label}</Text>
-          </Pressable>
-        );
-      })}
-      </View>
-    </>
-  );
-}

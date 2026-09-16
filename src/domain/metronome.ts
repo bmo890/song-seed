@@ -340,3 +340,225 @@ export function getGroupGapIndices(grouping: readonly number[]): number[] {
 export function formatGrouping(grouping: readonly number[]): string {
   return grouping.join(" + ");
 }
+
+// ── Feel ────────────────────────────────────────────────────────────────────
+// "Click on" is the one question the metronome asks after the meter: what to
+// click and how the bar is felt. It folds subdivision (sub-clicks per pulse) and
+// grouping (which pulses are accented) into a short list of feels per meter — the
+// ones players actually set — plus Custom, which edits the bar's pulses directly.
+
+export type MetronomeFeel = {
+  id: string;
+  /** Note glyph shown above the word. */
+  glyph: string;
+  /** i18n key for the word; groups carry a literal label ("3 + 2") instead. */
+  labelKey?: string;
+  label?: string;
+  subdivision: MetronomeSubdivision;
+  /** The grouping this feel sets. undefined = leave the meter's current grouping
+   *  alone (5/4 "Eighths" keeps 3 + 2 or 2 + 3); null = the preset default. */
+  grouping?: number[] | null;
+  /** Rest-based feels (compound meters felt on the dotted beat) need an engine
+   *  that treats a zero weight as silence. */
+  usesRests: boolean;
+};
+
+export const METRONOME_FEEL_CUSTOM = "custom";
+export const METRONOME_FEEL_IN_GROUPS = "in-groups";
+
+/** The three weights a custom pattern cycles through: accent → click → rest. */
+export const METRONOME_PULSE_WEIGHTS = {
+  accent: GROUP_ACCENT_DOWNBEAT,
+  click: GROUP_ACCENT_WEAK,
+  rest: 0,
+} as const;
+
+const SIMPLE_FEELS: MetronomeFeel[] = [
+  { id: "beats", glyph: "♩", labelKey: "metronome.feel.beats", subdivision: 1, grouping: null, usesRests: false },
+  { id: "eighths", glyph: "♫", labelKey: "metronome.feel.eighths", subdivision: 2, grouping: null, usesRests: false },
+  { id: "triplets", glyph: "♪³", labelKey: "metronome.feel.triplets", subdivision: 3, grouping: null, usesRests: false },
+  { id: "sixteenths", glyph: "♬", labelKey: "metronome.feel.sixteenths", subdivision: 4, grouping: null, usesRests: false },
+];
+
+function groupFeel(grouping: number[], glyph: string): MetronomeFeel {
+  return {
+    id: `group:${grouping.join("+")}`,
+    glyph,
+    label: formatGrouping(grouping),
+    subdivision: 1,
+    grouping,
+    usesRests: false,
+  };
+}
+
+const IN_GROUPS_LABEL_KEYS: Record<number, string> = {
+  2: "metronome.feel.inTwo",
+  3: "metronome.feel.inThree",
+  4: "metronome.feel.inFour",
+};
+
+function compoundFeels(preset: MetronomeMeterPreset): MetronomeFeel[] {
+  return [
+    {
+      id: METRONOME_FEEL_IN_GROUPS,
+      glyph: "♩.",
+      labelKey: IN_GROUPS_LABEL_KEYS[preset.defaultGrouping.length] ?? "metronome.feel.inTwo",
+      subdivision: 1,
+      grouping: null,
+      usesRests: true,
+    },
+    { id: "eighths", glyph: "♪", labelKey: "metronome.feel.eighths", subdivision: 1, grouping: null, usesRests: false },
+  ];
+}
+
+const CUSTOM_FEEL: MetronomeFeel = {
+  id: METRONOME_FEEL_CUSTOM,
+  glyph: "✎\uFE0E",
+  labelKey: "metronome.feel.custom",
+  subdivision: 1,
+  grouping: null,
+  usesRests: true,
+};
+
+function feelsForMeter(meterId: MetronomeMeterId): MetronomeFeel[] {
+  const preset = getMetronomeMeterPreset(meterId);
+  switch (preset.id) {
+    case "5/4":
+      return [
+        groupFeel([3, 2], "♩"),
+        groupFeel([2, 3], "♩"),
+        { id: "eighths", glyph: "♫", labelKey: "metronome.feel.eighths", subdivision: 2, usesRests: false },
+      ];
+    case "7/8":
+      return preset.groupings.map((grouping) => groupFeel([...grouping], "♪"));
+    case "6/8":
+    case "9/8":
+    case "12/8":
+      return compoundFeels(preset);
+    default:
+      return SIMPLE_FEELS;
+  }
+}
+
+/**
+ * The feels offered for a meter, Custom last. Rest-based feels are dropped on
+ * binaries that can't keep a pulse silent (the control would lie otherwise).
+ */
+export function getMetronomeFeels(meterId: MetronomeMeterId, supportsRests = true): MetronomeFeel[] {
+  const feels = feelsForMeter(meterId).filter((feel) => supportsRests || !feel.usesRests);
+  return [...feels, CUSTOM_FEEL];
+}
+
+export function getMetronomeFeel(meterId: MetronomeMeterId, feelId: string): MetronomeFeel | null {
+  return getMetronomeFeels(meterId).find((feel) => feel.id === feelId) ?? null;
+}
+
+/** Group starts click, everything between them rests — the compound meters
+ *  felt on the dotted beat ("in two" for 6/8). */
+export function buildRestPattern(grouping: readonly number[]): number[] {
+  return buildAccentPattern(grouping).map((weight, index) =>
+    index === 0 ? GROUP_ACCENT_DOWNBEAT : weight === GROUP_ACCENT_SECONDARY ? GROUP_ACCENT_SECONDARY : 0
+  );
+}
+
+/** A stored custom pattern is only trusted when it fits the meter exactly. */
+export function isValidAccentPattern(meterId: MetronomeMeterId, pattern: unknown): pattern is number[] {
+  if (!Array.isArray(pattern)) return false;
+  const preset = getMetronomeMeterPreset(meterId);
+  return (
+    pattern.length === preset.pulsesPerBar &&
+    pattern.every((weight) => typeof weight === "number" && Number.isFinite(weight) && weight >= 0 && weight <= 1)
+  );
+}
+
+export function isSameAccentPattern(a: readonly number[], b: readonly number[]) {
+  return a.length === b.length && a.every((value, index) => Math.abs(value - b[index]) < 0.001);
+}
+
+/**
+ * The feel a meter is currently in. An explicit choice wins; otherwise the
+ * legacy subdivision + grouping fields (installs from before feels existed) are
+ * read back into the nearest feel so nobody's click changes on update.
+ */
+export function resolveMetronomeFeelId(
+  meterId: MetronomeMeterId,
+  feelId: string | undefined,
+  legacy: { subdivision: MetronomeSubdivision; grouping?: readonly number[] | null }
+): string {
+  const feels = getMetronomeFeels(meterId);
+  if (feelId && feels.some((feel) => feel.id === feelId)) return feelId;
+  const grouping = getMetronomeGrouping(meterId, legacy.grouping);
+  const groupMatch = feels.find((feel) => feel.grouping && isSameGrouping(feel.grouping, grouping));
+  if (legacy.subdivision > 1) {
+    const bySubdivision = feels.find((feel) => feel.subdivision === legacy.subdivision);
+    if (bySubdivision) return bySubdivision.id;
+  }
+  if (groupMatch) return groupMatch.id;
+  const preset = getMetronomeMeterPreset(meterId);
+  const defaultFeel =
+    preset.denominator === 8
+      ? feels.find((feel) => feel.id === "eighths")
+      : feels.find((feel) => feel.subdivision === 1 && feel.id !== METRONOME_FEEL_CUSTOM);
+  return (defaultFeel ?? feels[0]).id;
+}
+
+export type MetronomeFeelParams = {
+  subdivision: MetronomeSubdivision;
+  grouping: number[];
+  accentPattern: number[];
+  /** True when the pattern can't be described by the grouping alone (rests or a
+   *  custom edit) — what a take must store to replay the same feel. */
+  explicitPattern: boolean;
+};
+
+/** Everything the engine and visuals need for a feel. */
+export function getMetronomeFeelParams(
+  meterId: MetronomeMeterId,
+  feelId: string,
+  options: { customPattern?: readonly number[] | null; currentGrouping?: readonly number[] | null } = {}
+): MetronomeFeelParams {
+  const preset = getMetronomeMeterPreset(meterId);
+  const feel = getMetronomeFeel(meterId, feelId) ?? getMetronomeFeels(meterId)[0];
+  const grouping =
+    feel.grouping === undefined
+      ? getMetronomeGrouping(meterId, options.currentGrouping)
+      : getMetronomeGrouping(meterId, feel.grouping);
+  if (feel.id === METRONOME_FEEL_CUSTOM) {
+    const pattern = isValidAccentPattern(meterId, options.customPattern)
+      ? [...options.customPattern]
+      : [...preset.accentPattern];
+    return { subdivision: 1, grouping, accentPattern: pattern, explicitPattern: true };
+  }
+  if (feel.id === METRONOME_FEEL_IN_GROUPS) {
+    return { subdivision: 1, grouping, accentPattern: buildRestPattern(grouping), explicitPattern: true };
+  }
+  return {
+    subdivision: feel.subdivision,
+    grouping,
+    accentPattern: getMetronomeAccentPattern(meterId, grouping),
+    explicitPattern: false,
+  };
+}
+
+/** The next weight when a custom pulse is tapped: accent → click → rest → accent.
+ *  Without rest support the cycle skips silence. */
+export function cyclePulseWeight(weight: number, supportsRests = true): number {
+  if (weight >= 0.95) return METRONOME_PULSE_WEIGHTS.click;
+  if (weight > 0) return supportsRests ? METRONOME_PULSE_WEIGHTS.rest : METRONOME_PULSE_WEIGHTS.accent;
+  return METRONOME_PULSE_WEIGHTS.accent;
+}
+
+/** The feel a saved take's grid describes — used to preset the metronome on return. */
+export function feelIdForGrid(
+  meterId: MetronomeMeterId,
+  grouping?: readonly number[] | null,
+  accentPattern?: readonly number[] | null
+): string {
+  if (accentPattern && isValidAccentPattern(meterId, accentPattern)) {
+    const resolvedGrouping = getMetronomeGrouping(meterId, grouping);
+    return isSameAccentPattern(accentPattern, buildRestPattern(resolvedGrouping))
+      ? METRONOME_FEEL_IN_GROUPS
+      : METRONOME_FEEL_CUSTOM;
+  }
+  return resolveMetronomeFeelId(meterId, undefined, { subdivision: 1, grouping });
+}

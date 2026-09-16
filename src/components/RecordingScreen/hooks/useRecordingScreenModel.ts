@@ -24,6 +24,7 @@ import { useStore } from "../../../state/useStore";
 import type { ClipVersion, RecordingGrid } from "../../../types";
 import { getDefaultOverdubStemTitle, getRecordingGridBarMs } from "../../../domain/overdub";
 import {
+  feelIdForGrid,
   getMetronomeAccentPattern,
   getMetronomeMeterPreset,
   isSameGrouping,
@@ -852,7 +853,7 @@ export function useRecordingScreenModel() {
       const preset = getMetronomeMeterPreset(segment.meterId);
       const accentPattern =
         segment.meterId === grid.meterId
-          ? getMetronomeAccentPattern(segment.meterId, grid.grouping ?? null)
+          ? grid.accentPattern ?? getMetronomeAccentPattern(segment.meterId, grid.grouping ?? null)
           : getMetronomeAccentPattern(segment.meterId);
       const handle = setTimeout(() => {
         takeGridChangeTimersRef.current = takeGridChangeTimersRef.current.filter(
@@ -1365,6 +1366,8 @@ export function useRecordingScreenModel() {
     // The take's FEEL travels too: a 5/4 master recorded 3+2 must click 3+2 under
     // the overdub. No stored grouping = restore the meter's default feel.
     metronome.setGrouping(grid.meterId, grid.grouping ?? null);
+    if (grid.accentPattern) metronome.setCustomPattern(grid.meterId, [...grid.accentPattern]);
+    metronome.setFeel(grid.meterId, feelIdForGrid(grid.meterId, grid.grouping, grid.accentPattern));
     setRecordingMetronomeEnabled(grid.clickThroughTake);
   }, [metronome, takeGridSourceClip]);
 
@@ -1624,6 +1627,8 @@ export function useRecordingScreenModel() {
             ...(isSameGrouping(metronome.grouping, metronome.meterPreset.defaultGrouping)
               ? {}
               : { grouping: [...metronome.grouping] }),
+            // Rests and custom edits can't be rebuilt from the grouping alone.
+            ...(metronome.explicitAccentPattern ? { accentPattern: [...metronome.accentPattern] } : {}),
           }
         : null;
 

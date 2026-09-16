@@ -25,7 +25,7 @@ import type { RecordingGrid } from "../types";
 
 export type PlaybackClickGrid = Pick<
     RecordingGrid,
-    "bpm" | "meterId" | "tempoMap" | "firstDownbeatMs" | "gridValidToMs" | "grouping"
+    "bpm" | "meterId" | "tempoMap" | "firstDownbeatMs" | "gridValidToMs" | "grouping" | "accentPattern"
 >;
 
 export type PlaybackClickEngineParams = {
@@ -95,7 +95,7 @@ export function clickEngineParamsAt(args: {
     // the segment that shares the take's meter; other segments use their meter's default.
     const accentPattern =
         segment.meterId === grid!.meterId
-            ? getMetronomeAccentPattern(segment.meterId, grid!.grouping ?? null)
+            ? grid!.accentPattern ?? getMetronomeAccentPattern(segment.meterId, grid!.grouping ?? null)
             : getMetronomeAccentPattern(segment.meterId);
 
     // Phase within the CURRENT bar, converted content → wall. Positions before the
@@ -190,7 +190,7 @@ export function nativeTempoMapSegments(
             denominator: preset.denominator,
             accentPattern:
                 segment.meterId === grid.meterId
-                    ? getMetronomeAccentPattern(segment.meterId, grid.grouping ?? null)
+                    ? grid.accentPattern ?? getMetronomeAccentPattern(segment.meterId, grid.grouping ?? null)
                     : getMetronomeAccentPattern(segment.meterId),
         });
     }

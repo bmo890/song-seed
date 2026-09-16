@@ -243,8 +243,13 @@ export function RecordingScreen() {
         bpm={screen.metronome.bpm}
         onToggleEnabled={(next) => screen.setMetronomeEnabledForTake(next)}
         meterId={screen.metronome.meterId}
-        grouping={screen.metronome.grouping}
-        onSelectGrouping={screen.metronome.setGrouping}
+        feelId={screen.metronome.feelId}
+        accentPattern={screen.metronome.accentPattern}
+        subdivision={screen.metronome.subdivision}
+        supportsRests={screen.metronome.supportsRests}
+        supportsSubdivision={screen.metronome.supportsClickStyle}
+        onSelectFeel={(feelId) => screen.metronome.setFeel(screen.metronome.meterId, feelId)}
+        onChangeCustomPattern={(pattern) => screen.metronome.setCustomPattern(screen.metronome.meterId, pattern)}
         songGrid={screen.songGrid}
         onChangeSongGrid={screen.canEditSongGrid ? screen.handleSongGridChange : undefined}
         countInBars={screen.metronome.countInBars}
@@ -252,8 +257,6 @@ export function RecordingScreen() {
         beepLevel={screen.metronome.beepLevel}
         hapticLevel={screen.metronome.hapticLevel}
         tapCount={screen.metronome.tapCount}
-        subdivision={screen.metronome.supportsClickStyle ? screen.metronome.subdivision : undefined}
-        onSelectSubdivision={screen.metronome.supportsClickStyle ? screen.metronome.setSubdivisionValue : undefined}
         clickVoice={screen.metronome.supportsClickStyle ? screen.metronome.clickVoice : undefined}
         onSelectClickVoice={screen.metronome.supportsClickStyle ? screen.metronome.setClickVoiceValue : undefined}
         restoredGridLabel={screen.restoredGridLabel}

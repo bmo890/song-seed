@@ -13,6 +13,9 @@ type SegmentedOption<T extends string> = {
    *  ON". For tab-like controls whose panes hide state (the player's practice
    *  drawers); plain selectors leave it unset. */
   dot?: boolean;
+  /** A glyph set above the word (the metronome's note values). Every option in a
+   *  control should carry one or none, so the segments stay the same height. */
+  glyph?: string;
 };
 
 /**
@@ -134,10 +137,21 @@ export function SegmentedControl<T extends string>({
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
           >
-            <View style={segmentedControlStyles.segmentInner}>
+            <View style={[segmentedControlStyles.segmentInner, option.glyph ? segmentedControlStyles.segmentInnerStacked : null]}>
+              {option.glyph ? (
+                <Text
+                  style={[
+                    segmentedControlStyles.segmentGlyph,
+                    active ? segmentedControlStyles.segmentGlyphActive : null,
+                  ]}
+                >
+                  {option.glyph}
+                </Text>
+              ) : null}
               <Text
                 style={[
                   segmentedControlStyles.segmentLabel,
+                  option.glyph ? segmentedControlStyles.segmentLabelSmall : null,
                   active ? segmentedControlStyles.segmentLabelActive : null,
                 ]}
               >
@@ -180,6 +194,24 @@ const segmentedControlStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
+  },
+  segmentInnerStacked: {
+    flexDirection: "column",
+    gap: 1,
+  },
+  // Note values: the serif face carries the music symbols (the system falls
+  // back per glyph where a face lacks one), a size up so they read as notes.
+  segmentGlyph: {
+    fontFamily: "Lora_500Medium",
+    fontSize: 18,
+    lineHeight: 20,
+    color: colors.textSecondary,
+  },
+  segmentGlyphActive: {
+    color: colors.primaryDeep,
+  },
+  segmentLabelSmall: {
+    fontSize: 11.5,
   },
   segmentDot: {
     width: 5,
