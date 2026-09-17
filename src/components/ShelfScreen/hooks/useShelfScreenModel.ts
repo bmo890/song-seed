@@ -12,7 +12,7 @@ import {
   type ShelfDeparture,
   type ShelfEntry,
 } from "../../../domain/shelf";
-import { openCollectionFromContext } from "../../../navigation";
+import { visitCollection } from "../../../navigation";
 import { toast } from "../../common/toastStore";
 import { haptic } from "../../../design/haptics";
 import type { ClipVersion, SongIdea } from "../../../types";
@@ -163,11 +163,9 @@ export function useShelfScreenModel() {
     const collectionId =
       primaryCollectionIdByWorkspace[workspace.id] ?? workspace.collections[0]?.id;
     if (!collectionId) return;
-    openCollectionFromContext(navigation, {
+    visitCollection(navigation, {
       collectionId,
       workspaceId: workspace.id,
-      source: "detail",
-      backLabel: "Shelf",
     });
   }
 
@@ -177,13 +175,11 @@ export function useShelfScreenModel() {
     void inlinePlayer.resetInlinePlayer();
     syncWorkspaceContext(row);
     if (row.idea.collectionId) {
-      openCollectionFromContext(navigation, {
+      visitCollection(navigation, {
         collectionId: row.idea.collectionId,
         workspaceId: row.workspaceId,
         focusIdeaId: row.idea.id,
         focusToken: Date.now(),
-        source: "detail",
-        backLabel: "Shelf",
       });
       return;
     }

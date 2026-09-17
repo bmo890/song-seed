@@ -1,3 +1,4 @@
+import { returnHome } from "../../navigation";
 import { useNavigation } from "@react-navigation/native";
 import { SelectionActionSheet } from "./SelectionActionSheet";
 import { useStore } from "../../state/useStore";
@@ -42,9 +43,7 @@ export function SongbookChooserSheet({
       action: {
         label: t("songbookChooser.openBook"),
         onPress: () => {
-          let current: any = navigation;
-          while (current?.getParent?.()) current = current.getParent();
-          current?.navigate?.("Home", {
+          returnHome(navigation, {
             screen: "LibraryHome",
             params: {
               openCollectionKind: "songbook",

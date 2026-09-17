@@ -25,7 +25,7 @@ import { useShelfStore } from "../../../state/useShelfStore";
 import { toast } from "../../common/toastStore";
 import { haptic } from "../../../design/haptics";
 import { getDateBucketLabel } from "../../../domain/dateBuckets";
-import { openCollectionFromContext, openShelf } from "../../../navigation";
+import { openShelf, visitCollection } from "../../../navigation";
 import { getPlayableClipForIdea } from "../../../domain/clipPresentation";
 import { useTranslation } from "react-i18next";
 
@@ -334,25 +334,20 @@ export function useActivityScreenModel() {
     openIdea(item.ideaId, item.workspaceId);
   };
 
-  function openCollectionFromActivityContext(collectionId: string, focusIdeaId?: string) {
-    // Open the clip in its full collection context — scrolled to and highlighted,
-    // surrounded by its neighbors — rather than filtering the collection down to
-    // the clip's activity date (which just re-shows what Activity already did).
-    openCollectionFromContext(navigation, {
-      collectionId,
-      focusIdeaId,
-      focusToken: focusIdeaId ? Date.now() : undefined,
-      source: "activity",
-      backLabel: t("screens.activity"),
-    });
-  }
-
+  // Open the clip in its full collection context — scrolled to and highlighted,
+  // surrounded by its neighbors — as a VISIT: back returns here, the page reads
+  // "‹ ACTIVITY".
   const viewItemInCollection = async (item: ActivityCollectionRef) => {
     if (activeWorkspaceId !== item.workspaceId) {
       setActiveWorkspaceId(item.workspaceId);
     }
     await inlinePlayer.resetInlinePlayer();
-    openCollectionFromActivityContext(item.collectionId, item.ideaId);
+    visitCollection(navigation, {
+      collectionId: item.collectionId,
+      workspaceId: item.workspaceId,
+      focusIdeaId: item.ideaId,
+      focusToken: Date.now(),
+    });
   };
 
   const updateStickyDayLabel = (scrollY: number) => {

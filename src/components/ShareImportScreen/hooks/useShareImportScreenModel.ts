@@ -4,7 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useShareIntentContext } from "expo-share-intent";
 import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
-import { openCollectionAsBrowseRoot } from "../../../navigation";
+import { openCollectionAsBrowseRoot, returnHome } from "../../../navigation";
 import { resolveImportedEntityRoute } from "../../../domain/receiveRouting";
 import {
   buildImportedTitle,
@@ -147,14 +147,14 @@ export function useShareImportScreenModel({
           t(openKind === "songbook" ? "common.songbookImported" : "common.setlistImported"),
           openKind === "songbook" ? "book-outline" : "albums-outline"
         );
-        (navigation as any).navigate("Home", {
+        returnHome(navigation, {
           screen: "LibraryHome",
           params: { openCollectionKind: openKind, openCollectionId: openId, openToken: Date.now() },
         });
       } else {
         // Everything else landed as a Received package — go look at it.
         toast(t("common.packageReceived"), "mail-open-outline");
-        (navigation as any).navigate("Home", { screen: "ReceivedHome" });
+        returnHome(navigation, { screen: "ReceivedHome" });
       }
     } catch (error) {
       AppAlert.info(t("common.importFailed"), t("common.archiveReadFailed"));
@@ -169,7 +169,7 @@ export function useShareImportScreenModel({
       navigation.goBack();
       return;
     }
-    navigation.navigate("Home" as never);
+    returnHome(navigation);
   }
 
   function finishToCollection(workspaceId: string, collectionId: string) {

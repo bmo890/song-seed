@@ -12,7 +12,7 @@ import { buildClipLockScreenMetadata } from "../../../services/lockScreenMetadat
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
 import { useShelfStore } from "../../../state/useShelfStore";
-import { openShelf } from "../../../navigation";
+import { openShelf, returnHome } from "../../../navigation";
 import { toast } from "../../common/toastStore";
 import { haptic } from "../../../design/haptics";
 import { getHierarchyIconName } from "../../../domain/hierarchy";
@@ -396,7 +396,7 @@ export function usePlayerScreenLifecycle({
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
-      navigation.navigate("Home", { screen: "Workspaces" });
+      returnHome(navigation, { screen: "Workspaces" });
     }
   }, [navigation]);
 

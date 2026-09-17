@@ -77,6 +77,19 @@ The hard rules below are non-negotiable.
 - Every user-facing string through `t()` (`src/i18n/translations.ts`), including
   `label=`/`accessibilityLabel=`. Check RTL (fonts auto-remap to Hebrew faces).
 
+## Navigation
+
+- Law (2026-09-16): **back follows history, up follows hierarchy, never label one
+  as the other, one Home ever.** The root stack holds a single `Home` (drawer);
+  everything else is a pushed page whose back pops to where it was opened from.
+- "View in collection" from Activity / Search / Shelf / Revisit / the player queue
+  is a VISIT (`visitCollection` → root `CollectionVisit`), never a second Home. A
+  pushed page's chevron label is derived from the route beneath it
+  (`useOriginLabel`), never passed as a param.
+- Landing in the drawer world goes through `returnHome` (popTo). RN7 `navigate`
+  pushes duplicates — never `navigate("Home", …)` from a root page. Child
+  collections push; the up-link pops (`openParentCollection`) or `pop: true`.
+
 ## Redesign guardrail
 
 A restyle may never silently remove or degrade functionality (grouping, hiding,

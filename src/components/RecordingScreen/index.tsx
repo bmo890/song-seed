@@ -1,3 +1,4 @@
+import { returnHome } from "../../navigation";
 import React from "react";
 import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -44,7 +45,7 @@ export function RecordingScreen() {
       if (navigation.canGoBack()) {
         navigation.goBack();
       } else {
-        navigation.navigate("Home" as never);
+        returnHome(navigation);
       }
       return true;
     } finally {

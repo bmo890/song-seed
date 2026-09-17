@@ -33,6 +33,7 @@ import {
   createNavigationContainerRef,
   type LinkingOptions,
   type NavigatorScreenParams,
+  StackActions,
   getStateFromPath as getNavigationStateFromPath,
 } from "@react-navigation/native";
 import * as Linking from "expo-linking";
@@ -178,6 +179,7 @@ const ROOT_STACK_ROUTE_NAMES: Array<keyof RootStackParamList> = [
   "Home",
   "Activity",
   "IdeaDetail",
+  "CollectionVisit",
   "Recording",
   "BluetoothCalibration",
   "ShareImport",
@@ -304,6 +306,8 @@ function isValidRestorableRootRoute(route: any) {
       return true;
     case "IdeaDetail":
       return typeof route.params?.ideaId === "string" && route.params.ideaId.length > 0;
+    case "CollectionVisit":
+      return typeof route.params?.collectionId === "string" && route.params.collectionId.length > 0;
     case "Editor":
       return (
         typeof route.params?.ideaId === "string" &&
@@ -519,7 +523,9 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
   const currentRoute =
     deepestRouteName === "Workspaces"
       ? "home"
-      : deepestRouteName === "Browse" || deepestRouteName === "CollectionDetail"
+      : deepestRouteName === "Browse" ||
+          deepestRouteName === "CollectionDetail" ||
+          deepestRouteName === "CollectionVisit"
         ? "browse"
       : deepestRouteName === "SearchHome"
         ? "search"
@@ -991,7 +997,7 @@ function AppContent() {
         onResetShareIntent: () => {
           if (!navigationRef.isReady()) return;
           if (navigationRef.getCurrentRoute()?.name === "ShareImport") {
-            navigationRef.navigate("Home");
+            navigationRef.dispatch(StackActions.popTo("Home"));
           }
         },
       }}
@@ -1021,6 +1027,9 @@ function AppContent() {
           <Stack.Screen name="Home" component={DrawerRoutes} />
           <Stack.Screen name="Activity" component={ActivityScreen} />
           <Stack.Screen name="IdeaDetail" component={IdeaDetailScreen} />
+          {/* A collection opened as a visit from Activity/Search/Shelf/Revisit — same
+              screen as CollectionDetail, pushed here so back returns to the origin. */}
+          <Stack.Screen name="CollectionVisit" component={IdeaListScreen} />
           <Stack.Screen name="Recording" component={RecordingScreen} />
           <Stack.Screen name="BluetoothCalibration" component={BluetoothCalibrationScreen} />
           {/* The full player is NOT a route — it's the PlayerSheet overlay below,
@@ -1359,10 +1368,12 @@ export default function App() {
               if (!navigationRef.isReady()) return;
               // Deep-links straight to Library & Backups (not just the Settings
               // overview) so the button does exactly what its subtitle promises.
-              navigationRef.navigate("Home", {
-                screen: "SettingsHome",
-                params: { initialView: "library", openToken: Date.now() },
-              });
+              navigationRef.dispatch(
+                StackActions.popTo("Home", {
+                  screen: "SettingsHome",
+                  params: { initialView: "library", openToken: Date.now() },
+                })
+              );
             },
           },
           { label: i18n.t("backupReminder.later"), style: "cancel" },

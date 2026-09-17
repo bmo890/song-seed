@@ -15,7 +15,7 @@ import { styles } from "../../../styles";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
-import { radii, colors } from "../../../design/tokens";
+import { colors } from "../../../design/tokens";
 import { formatLastEdited } from "../../../utils";
 import { getCollectionLastWorkedAt } from "../../../domain/libraryNavigation";
 import { UserText } from "../../../i18n";
@@ -70,32 +70,93 @@ export function CollectionHeaderSection() {
   const upLink = screen.upLink;
   const eyebrowText = upLink?.label ?? "";
 
+  const compactTitle = (
+    <ReAnimated.View
+      style={[collStyles.navCompact, collStyles.navSlotOverlay, screen.isVisit ? collStyles.navVisitSlot : null, compactTitleStyle]}
+      pointerEvents="none"
+    >
+      {workspace ? (
+        <WorkspaceAvatar
+          color={workspace.color}
+          name={workspace.title}
+          size={16}
+          avatarKey={workspace.avatarKey}
+        />
+      ) : null}
+      <Text style={collStyles.navCompactTitle} numberOfLines={1}>
+        {collection?.title ?? ""}
+      </Text>
+    </ReAnimated.View>
+  );
+
+  // Hidden while selecting AND while the page is a picker — a picker has
+  // exactly one chrome (the footer), so the overflow never flickers in
+  // and out as the first card is picked.
+  const overflowButton =
+    !screen.listSelectionMode && !screen.pickerMode ? (
+      <IconButton
+        testID="collection-overflow"
+        icon="ellipsis-horizontal"
+        tone="muted"
+        size={20}
+        onPress={() => (screen.headerMenuOpen ? screen.closeHeaderMenu() : screen.openHeaderMenu())}
+        accessibilityLabel={t("collection.options")}
+      />
+    ) : (
+      <View style={styles.ideasHeaderMenuBtnPlaceholder} />
+    );
+
+  if (screen.isVisit) {
+    // A visit (pushed from Activity / Search / Shelf / Revisit): the whole lead is
+    // ONE back button labelled with where back actually lands — the sketch page's
+    // "‹ IDEAS" grammar. No hamburger here; the drawer world is one pop away, and
+    // the workspace up-link waits in the overflow.
+    const originLabel = screen.originLabel ?? "";
+    return (
+      <View style={collStyles.navRow}>
+        <Pressable
+          testID="header-back"
+          accessibilityRole="button"
+          accessibilityLabel={originLabel ? t("common.backTo", { label: originLabel }) : t("common.back")}
+          style={({ pressed }) => [collStyles.navLead, pressed ? styles.pressDown : null]}
+          onPress={screen.onBack}
+          hitSlop={8}
+        >
+          <Ionicons name={dirIcon("chevron-back")} size={22} color={colors.textStrong} />
+          <View style={collStyles.navSlot}>
+            <ReAnimated.View style={[collStyles.navEyebrowRow, collStyles.navVisitSlot, eyebrowStyle]} pointerEvents="none">
+              <Text style={collStyles.navEyebrow} numberOfLines={1}>{originLabel}</Text>
+            </ReAnimated.View>
+            {compactTitle}
+          </View>
+        </Pressable>
+        {overflowButton}
+      </View>
+    );
+  }
+
   return (
     <View style={collStyles.navRow}>
       <Pressable
-        testID={screen.showBack ? "header-back" : "header-menu"}
+        testID="header-menu"
         style={({ pressed }) => [collStyles.navBtn, pressed ? styles.pressDown : null]}
-        onPress={screen.showBack ? screen.onBack : screen.openDrawer}
+        onPress={screen.openDrawer}
         hitSlop={8}
         accessibilityRole="button"
-        accessibilityLabel={screen.showBack ? t("common.back") : t("workspaceBrowse.openMenu")}
+        accessibilityLabel={t("workspaceBrowse.openMenu")}
       >
-        {screen.showBack ? (
-          <Ionicons name={dirIcon("chevron-back")} size={20} color="#84736f" />
-        ) : (
-          <Ionicons name="menu-outline" size={22} color="#84736f" />
-        )}
+        <Ionicons name="menu-outline" size={22} color="#84736f" />
       </Pressable>
 
-      {/* One slot, two occupants: the "‹ MY SONGS · COLLECTION" up-link while the
-          identity block is on screen; the compact title once it has scrolled away. */}
+      {/* One slot, two occupants: the "◐ MY SONGS" up-link while the identity
+          block is on screen; the compact title once it has scrolled away. */}
       <View style={collStyles.navSlot}>
         <ReAnimated.View style={[collStyles.navEyebrowRow, eyebrowStyle]}>
           <Pressable
             testID="collection-up-link"
             accessibilityRole="button"
             accessibilityLabel={upLink ? t("common.backTo", { label: upLink.label }) : eyebrowText}
-            disabled={!upLink || screen.showBack}
+            disabled={!upLink}
             onPress={upLink?.onPress}
             hitSlop={8}
             style={({ pressed }) => [collStyles.navEyebrowPress, pressed ? styles.pressDown : null]}
@@ -111,74 +172,10 @@ export function CollectionHeaderSection() {
             <Text style={collStyles.navEyebrow} numberOfLines={1}>{eyebrowText}</Text>
           </Pressable>
         </ReAnimated.View>
-        <ReAnimated.View style={[collStyles.navCompact, collStyles.navSlotOverlay, compactTitleStyle]} pointerEvents="none">
-          {workspace ? (
-            <WorkspaceAvatar
-              color={workspace.color}
-              name={workspace.title}
-              size={16}
-              avatarKey={workspace.avatarKey}
-            />
-          ) : null}
-          <Text style={collStyles.navCompactTitle} numberOfLines={1}>
-            {collection?.title ?? ""}
-          </Text>
-        </ReAnimated.View>
+        {compactTitle}
       </View>
 
-      {/* Hidden while selecting AND while the page is a picker — a picker has
-          exactly one chrome (the footer), so the overflow never flickers in
-          and out as the first card is picked. */}
-      {!screen.listSelectionMode && !screen.pickerMode ? (
-        <IconButton
-          testID="collection-overflow"
-          icon="ellipsis-horizontal"
-          tone="muted"
-          size={20}
-          onPress={() => (screen.headerMenuOpen ? screen.closeHeaderMenu() : screen.openHeaderMenu())}
-          accessibilityLabel={t("collection.options")}
-        />
-      ) : (
-        <View style={styles.ideasHeaderMenuBtnPlaceholder} />
-      )}
-    </View>
-  );
-}
-
-/**
- * Dismissible "‹ Back to {origin}" chip for a contextual open (from Search,
- * Activity, or Revisit). Tapping the chip jumps back to that origin; ✕ dismisses
- * it. The system back button is left alone — it always steps up the hierarchy.
- */
-export function CollectionContextReturnChip() {
-  const { t } = useTranslation();
-  const { screen } = useCollectionScreen();
-  const contextualReturn = screen.contextualReturn;
-  if (!contextualReturn) return null;
-
-  return (
-    <View style={collStyles.returnChipRow} pointerEvents="box-none">
-      <Pressable
-        style={({ pressed }) => [collStyles.returnChip, pressed ? styles.pressDown : null]}
-        onPress={contextualReturn.onReturn}
-        hitSlop={6}
-        accessibilityRole="button"
-        accessibilityLabel={t("common.backTo", { label: contextualReturn.label })}
-      >
-        <Ionicons name={dirIcon("arrow-back")} size={13} color={colors.primaryDeep} />
-        <Text style={collStyles.returnChipText} numberOfLines={1}>
-          {t("common.backTo", { label: contextualReturn.label })}
-        </Text>
-        <Pressable
-          onPress={contextualReturn.onDismiss}
-          hitSlop={10}
-          accessibilityRole="button"
-          accessibilityLabel={t("collection.dismiss")}
-          style={({ pressed }) => [collStyles.returnChipClose, pressed ? styles.pressDown : null]}
-        >
-          <Ionicons name="close" size={13} color="#a89994" />
-        </Pressable>
-      </Pressable>
+      {overflowButton}
     </View>
   );
 }
@@ -323,35 +320,20 @@ const collStyles = StyleSheet.create({
     paddingHorizontal: 8,
     overflow: "hidden",
   },
-  returnChipRow: {
-    flexDirection: "row",
-    paddingHorizontal: 14,
-    marginBottom: 8,
-  },
-  returnChip: {
+  // A visit's lead: chevron + origin label as ONE back button, mirroring the
+  // sketch page's nav lead so sibling pushed pages share a grammar.
+  navLead: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 36,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    alignSelf: "flex-start",
-    maxWidth: "100%",
-    backgroundColor: "#F4ECE9",
-    borderRadius: 999,
-    paddingLeft: 12,
-    paddingRight: 6,
-    paddingVertical: 6,
   },
-  returnChipText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 12,
-    color: colors.primaryDeep,
-    flexShrink: 1,
-  },
-  returnChipClose: {
-    width: 20,
-    height: 20,
-    borderRadius: radii.round,
-    alignItems: "center",
-    justifyContent: "center",
+  // On a visit the label hugs the chevron exactly as the sketch page's does, and
+  // the compact title that crossfades over it shares the same left edge.
+  navVisitSlot: {
+    paddingHorizontal: 2,
   },
   navCompactTitle: {
     flex: 1,

@@ -1,3 +1,4 @@
+import { returnHome } from "../../navigation";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -91,8 +92,7 @@ export function TransferReceiveScreen() {
     };
   }, [alreadyReceived, transferId, t]);
 
-  const goToReceived = () =>
-    navigation.navigate("Home", { screen: "ReceivedHome" });
+  const goToReceived = () => returnHome(navigation, { screen: "ReceivedHome" });
 
   async function save(transfer: TransferPayload) {
     if (startedRef.current) return;
@@ -192,7 +192,7 @@ export function TransferReceiveScreen() {
           t(entityRoute.kind === "songbook" ? "transferReceive.songbookSaved" : "transferReceive.setlistSaved"),
           entityRoute.kind === "songbook" ? "book-outline" : "albums-outline"
         );
-        navigation.navigate("Home", {
+        returnHome(navigation, {
           screen: "LibraryHome",
           params: {
             openCollectionKind: entityRoute.kind,

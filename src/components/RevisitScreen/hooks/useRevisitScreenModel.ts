@@ -13,7 +13,7 @@ import {
   buildRevisitModel,
   type RevisitCandidate,
 } from "../../../domain/revisit";
-import { openCollectionFromContext, openShelf } from "../../../navigation";
+import { openShelf, visitCollection } from "../../../navigation";
 
 const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
 const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
@@ -159,13 +159,11 @@ export function useRevisitScreenModel() {
     if (activeWorkspaceId !== candidate.workspaceId) {
       setActiveWorkspaceId(candidate.workspaceId);
     }
-    openCollectionFromContext(navigation, {
+    visitCollection(navigation, {
       collectionId: candidate.collectionId,
       workspaceId: candidate.workspaceId,
       focusIdeaId: candidate.ideaId,
       focusToken: Date.now(),
-      source: "detail",
-      backLabel: "Revisit",
     });
   }
 

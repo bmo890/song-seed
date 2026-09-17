@@ -6,7 +6,6 @@ import { CollapsingHeaderOverlay } from "../../common/CollapsingHeaderOverlay";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import {
   CollectionHeaderSection,
-  CollectionContextReturnChip,
   CollectionCollapsibleIdentity,
   CollectionSearchSection,
 } from "../sections/CollectionHeaderSection";
@@ -17,7 +16,7 @@ import { CollectionHeaderMenu } from "./CollectionHeaderMenu";
 import { CollectionModals } from "./CollectionModals";
 import { IdeaListNestedCollectionsSection } from "./IdeaListNestedCollectionsSection";
 import { styles } from "../../../styles";
-import { goBackFromParentStack, openCollectionInBrowse } from "../../../navigation";
+import { goBackFromParentStack, openCollectionInBrowse, openWorkspaceBrowseRoot } from "../../../navigation";
 import { useStickyDayLabel, useStickyDayChipVisible } from "../stickyDayStore";
 import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
@@ -71,10 +70,7 @@ export function CollectionScreenContent() {
     // so the user is never stranded here.
     const goToLibrary = () => {
       if (!goBackFromParentStack(screen.navigation)) {
-        screen.navigateRoot("Home", {
-          screen: "WorkspaceStack",
-          params: { screen: "Browse" },
-        });
+        openWorkspaceBrowseRoot(screen.navigation);
       }
     };
     return (
@@ -102,9 +98,6 @@ export function CollectionScreenContent() {
     <SafeAreaView style={[styles.screen, styles.screenIdeas]}>
       {/* Fixed nav row — compact identity fades in here as the block collapses */}
       <CollectionHeaderSection />
-
-      {/* Dismissible "‹ Back to Search/Activity/Revisit" chip for contextual opens */}
-      <CollectionContextReturnChip />
 
       {/* Stage: clips the identity block as it slides up under the nav. Bleeds out
           to the screen's true edges so the selection bar can render full width;

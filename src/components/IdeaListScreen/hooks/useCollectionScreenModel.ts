@@ -9,11 +9,12 @@ import { getDateBucket, getDateBucketLabel } from "../../../domain/dateBuckets";
 import { compareIdeas, getIdeaCreatedAt, getIdeaSortState, getIdeaSortTimestamp, getIdeaUpdatedAt, usesIdeaTimelineDividers } from "../../../domain/ideaSort";
 import { extractSnippet } from "../../../domain/search";
 import {
-  getRootNavigation,
   goBackFromParentStack,
   openCollectionInBrowse,
+  openParentCollection,
   openWorkspaceBrowseRoot,
 } from "../../../navigation";
+import { useOriginLabel } from "../../../hooks/useOriginLabel";
 import { getFloatingActionDockBottomOffset, getFloatingActionDockContentClearance } from "../../common/FloatingActionDock";
 import { buildIdeaListItemMeta, projectHasLyrics } from "../ideaListItemMeta";
 import type { IdeaListEntry, IdeaListItemMeta, SearchMeta } from "../types";
@@ -38,37 +39,13 @@ export function useCollectionScreenModel() {
   const routeWorkspaceId = route.params?.workspaceId as string | undefined;
   const focusIdeaId = route.params?.focusIdeaId as string | undefined;
   const focusToken = route.params?.focusToken as number | undefined;
-  const showBack = route.params?.showBack === true;
-  const collectionSource = route.params?.source as "activity" | "detail" | "search" | undefined;
-  const backLabel = route.params?.backLabel as string | undefined;
-  // A "contextual" open (view-in-collection from Activity/Revisit) carries a
-  // source. Those are pushed as a fresh Home over the origin, so "back" should
-  // return to that origin — not fall through to the Browse root beneath this
-  // WorkspaceStack.
-  const isContextualOpen = collectionSource != null;
-
-  // Pop the whole pushed Home off the ROOT stack to land back on the origin
-  // (Activity/Revisit) with its scroll and selection intact. The ref guards
-  // against re-entrancy when our own root pop unmounts this screen.
-  const originBackHandledRef = useRef(false);
-  const popBackToOrigin = useCallback(() => {
-    if (originBackHandledRef.current) return;
-    originBackHandledRef.current = true;
-    const root = getRootNavigation(navigation);
-    if (root?.canGoBack?.()) {
-      root.goBack();
-    } else if (!goBackFromParentStack(navigation)) {
-      (root ?? navigation).navigate("Home" as never);
-    }
-  }, [navigation]);
-
-  // Contextual opens no longer hijack the back button — back always steps up the
-  // hierarchy (to Browse), same as a normal collection. The jump back to the origin
-  // (Search/Activity/Revisit) lives in a dismissible chip instead. Dismissing it
-  // clears the source/backLabel params so the chip stays gone for this screen.
-  const dismissContextualReturn = useCallback(() => {
-    (navigation as any).setParams({ source: undefined, backLabel: undefined });
-  }, [navigation]);
+  // A VISIT: this collection was pushed on the root stack from Activity / Search /
+  // Shelf / Revisit / the player queue. Back pops to that origin and the nav row
+  // is labelled with it (navigation law 2026-09-16: back follows history, up
+  // follows hierarchy, never label one as the other).
+  const isVisit = route.name === "CollectionVisit";
+  const showBack = isVisit;
+  const originLabel = useOriginLabel(isVisit);
 
   const workspaces = useStore((s) => s.workspaces);
   const storeActiveWorkspaceId = useStore((s) => s.activeWorkspaceId);
@@ -450,8 +427,6 @@ export function useCollectionScreenModel() {
     activityRangeEndTs,
     activityMetricFilter,
     activityLabel,
-    showBack: showBack || undefined,
-    source: collectionSource,
   };
 
   // Just the label trail for the header eyebrow (Workspace › Parent › …).
@@ -470,7 +445,7 @@ export function useCollectionScreenModel() {
       ? {
           label: parentCollection.title,
           onPress: () => {
-            openCollectionInBrowse(navigation, {
+            openParentCollection(navigation, {
               collectionId: parentCollection.id,
               workspaceId: activeWorkspace?.id,
             });
@@ -601,25 +576,19 @@ export function useCollectionScreenModel() {
     activityRangeStartTs,
     activityRangeEndTs,
     activityMetricFilter,
-    collectionSource,
-    backLabel,
-    // The dismissible "‹ Back to {origin}" chip, shown only for a contextual open.
-    // Tapping it jumps back to where you came from; ✕ dismisses it. Back stays normal.
-    contextualReturn: isContextualOpen
-      ? {
-          label: backLabel ?? "results",
-          onReturn: popBackToOrigin,
-          onDismiss: dismissContextualReturn,
-        }
-      : null,
-    onBack:
-      showBack
-        ? () => {
-            if (!goBackFromParentStack(navigation)) {
-              openWorkspaceBrowseRoot(rootNavigation ?? navigation, activeWorkspace?.id);
-            }
+    isVisit,
+    // Where back lands from a visit — the nav row's label. Null on a plain
+    // collection page (the hamburger row has no back).
+    originLabel,
+    onBack: showBack
+      ? () => {
+          if (!goBackFromParentStack(navigation)) {
+            openWorkspaceBrowseRoot(navigation, activeWorkspace?.id);
           }
-        : undefined,
+        }
+      : undefined,
+    // "Up" from a visit: leave the visit and land on the workspace hub inside Home.
+    goToWorkspaceHub: () => openWorkspaceBrowseRoot(navigation, activeWorkspace?.id),
     // Root of the collection screen shows the hamburger — walk up to the drawer
     // navigator and open it (same pattern as the other drawer-root screens).
     openDrawer: () => {

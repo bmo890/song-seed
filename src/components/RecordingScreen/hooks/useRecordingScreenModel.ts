@@ -1,3 +1,4 @@
+import { returnHome } from "../../../navigation";
 import { useNavigation } from "@react-navigation/native";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { audioDeviceManager, type AudioDevice } from "@siteed/audio-studio";
@@ -2106,7 +2107,7 @@ export function useRecordingScreenModel() {
       navigation.goBack();
       return;
     }
-    navigation.navigate("Home" as never);
+    returnHome(navigation);
   }
 
   // Keep an always-current cleanup closure so the unmount effect (which runs with empty deps)

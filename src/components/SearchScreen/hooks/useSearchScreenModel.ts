@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { personalWorkspaces } from "../../../domain/workspaceVisibility";
-import { openCollectionFromContext } from "../../../navigation";
+import { visitCollection } from "../../../navigation";
 import {
   buildGlobalSearchResults,
   getSearchMatchFilter,
@@ -142,16 +142,14 @@ export function useSearchScreenModel() {
       case "song":
       case "clip":
         // Open the idea's *home* — its collection, scrolled to and highlighting the
-        // card — rather than dropping straight into the item's detail page. Opened
-        // contextually so a "‹ Search" back button returns to these results intact.
+        // card — rather than dropping straight into the item's detail page. A
+        // visit: the "‹ SEARCH" back button returns to these results intact.
         if (result.collectionId) {
-          openCollectionFromContext(navigation, {
+          visitCollection(navigation, {
             collectionId: result.collectionId,
             workspaceId: result.workspaceId,
             focusIdeaId: result.ideaId,
             focusToken: Date.now(),
-            source: "search",
-            backLabel: t("search.title"),
           });
         } else {
           navigateToRoute(navigation, "IdeaDetail", { ideaId: result.ideaId });

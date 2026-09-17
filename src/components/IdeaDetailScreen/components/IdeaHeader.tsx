@@ -19,7 +19,7 @@ import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../../i18n";
-import { useShallow } from "zustand/react/shallow";
+import { useOriginLabel } from "../../../hooks/useOriginLabel";
 
 export function IdeaHeader() {
   const { t } = useTranslation();
@@ -30,14 +30,10 @@ export function IdeaHeader() {
   const isSelectingClips = useStore((s) => s.selectedClipIds.length > 0);
 
   const selectedIdea = screen.selectedIdea;
-  // WHERE · WHAT: the back button is labelled with the collection this idea lives
-  // in and the page's type, so the hierarchy reads in one row (2026-09-07).
-  const collectionTitle = useStore(
-    useShallow((s) => {
-      const ws = s.workspaces.find((w) => w.id === s.activeWorkspaceId);
-      return ws?.collections.find((c) => c.id === selectedIdea?.collectionId)?.title ?? null;
-    })
-  );
+  // The back button is labelled with where back actually lands (2026-09-16): the
+  // collection when this idea was opened from it, else the origin — Activity,
+  // Search, the Shelf… Read from the route beneath, so label and action agree.
+  const originLabel = useOriginLabel();
 
   if (!selectedIdea) return null;
 
@@ -76,9 +72,8 @@ export function IdeaHeader() {
       ),
     };
   });
-  // The back button is labelled with the container this idea lives in — the
-  // collection — and nothing else: the page's own type is the page you are on.
-  const eyebrowText = collectionTitle ?? "";
+  // Just the destination, nothing else: the page's own type is the page you are on.
+  const eyebrowText = originLabel ?? "";
 
   return (
     <View style={styles.songDetailHeader}>
@@ -87,7 +82,7 @@ export function IdeaHeader() {
         <Pressable
           testID="song-header-back"
           accessibilityRole="button"
-          accessibilityLabel={collectionTitle ? t("common.backTo", { label: collectionTitle }) : t("common.back")}
+          accessibilityLabel={originLabel ? t("common.backTo", { label: originLabel }) : t("common.back")}
           style={({ pressed }) => [styles.songDetailNavLead, pressed ? styles.pressDown : null]}
           onPress={actions.handleBackToIdeas}
           hitSlop={8}

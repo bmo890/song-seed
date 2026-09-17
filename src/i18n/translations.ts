@@ -69,6 +69,7 @@ export const resources = {
       },
       navigation: {
         workspace: "Workspace",
+        workspaces: "Workspaces",
         collections: "Collections",
         recent: "Recent",
         explore: "Explore",
@@ -261,7 +262,7 @@ export const resources = {
         importSamplesDev: "Import samples (dev)",
         importSongDev: "Import as sketch (dev)",
         options: "Collection options",
-        dismiss: "Dismiss",
+        goToWorkspace: "Go to {{title}}",
         addToSongTitle: "Add to this song?",
         addToSongBody_one: "Add {{count}} page of lyrics to “{{title}}” as a new lyrics version?",
         addToSongBody_other: "Add {{count}} pages of lyrics to “{{title}}” as new lyrics versions?",
@@ -1504,6 +1505,7 @@ export const resources = {
       },
       navigation: {
         workspace: "מרחב עבודה",
+        workspaces: "מרחבי עבודה",
         collections: "אוספים",
         recent: "לאחרונה",
         explore: "גילוי",
@@ -1699,7 +1701,7 @@ export const resources = {
         importSamplesDev: "ייבוא דוגמאות (פיתוח)",
         importSongDev: "ייבוא כסקיצה (פיתוח)",
         options: "אפשרויות האוסף",
-        dismiss: "סגירה",
+        goToWorkspace: "מעבר אל {{title}}",
         addToSongTitle: "להוסיף לשיר הזה?",
         addToSongBody_one: "להוסיף עמוד מילים אחד אל „{{title}}” כגרסת מילים חדשה?",
         addToSongBody_two: "להוסיף שני עמודי מילים אל „{{title}}” כשתי גרסאות מילים חדשות?",
