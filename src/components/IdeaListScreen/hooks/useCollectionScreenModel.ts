@@ -587,8 +587,6 @@ export function useCollectionScreenModel() {
           }
         }
       : undefined,
-    // "Up" from a visit: leave the visit and land on the workspace hub inside Home.
-    goToWorkspaceHub: () => openWorkspaceBrowseRoot(navigation, activeWorkspace?.id),
     // Root of the collection screen shows the hamburger — walk up to the drawer
     // navigator and open it (same pattern as the other drawer-root screens).
     openDrawer: () => {

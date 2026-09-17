@@ -1,3 +1,5 @@
+import { useRoute } from "@react-navigation/native";
+import { SideMenuButton } from "../../common/SideMenuButton";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -17,6 +19,9 @@ export function ActivityScreenContent() {
   useBrowseRootBackHandler();
   const model = useActivityScreenModel();
   const [customizeOpen, setCustomizeOpen] = useState(false);
+  // Root-pushed Activity (collection-scoped, or Revisit's "around this time") has
+  // a back button where the hamburger would be, so the menu opens from the mark.
+  const isPushedPage = useRoute().name === "Activity";
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -24,7 +29,11 @@ export function ActivityScreenContent() {
         title={t("screens.activity")}
         leftIcon="hamburger"
         rightElement={
-          model.isCollectionScoped ? undefined : (
+          model.isCollectionScoped ? (
+            isPushedPage ? <SideMenuButton /> : undefined
+          ) : (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            {isPushedPage ? <SideMenuButton /> : null}
             <Pressable
               style={({ pressed }) => [styles.customizeBtn, pressed ? styles.pressDown : null]}
               onPress={() => setCustomizeOpen(true)}
@@ -33,6 +42,7 @@ export function ActivityScreenContent() {
             >
               <Ionicons name="options-outline" size={18} color={colors.textSecondary} />
             </Pressable>
+            </View>
           )
         }
       />

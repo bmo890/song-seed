@@ -90,6 +90,14 @@ The hard rules below are non-negotiable.
   pushes duplicates — never `navigate("Home", …)` from a root page. Child
   collections push; the up-link pops (`openParentCollection`) or `pop: true`.
 
+- Side menu (2026-09-17): places get the menu, tasks don't. Top-level pages use
+  Home's drawer (hamburger + edge swipe). Pushed places (sketch, visited
+  collection, pushed Activity) keep the honest back chevron and open the
+  app-level menu layer through the workspace mark beside the overflow
+  (`SideMenuButton`). Recorder, editor, full player, lyric/chart editors and
+  readers never carry it. `open-outline` means "view in collection" only
+  (`ViewInCollectionButton`): the card opens the thing, the glyph opens where it lives.
+
 ## Redesign guardrail
 
 A restyle may never silently remove or degrade functionality (grouping, hiding,

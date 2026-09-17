@@ -2,7 +2,10 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Constants from "expo-constants";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { ActivityIndicator, Platform, View } from "react-native";
+import { ActivityIndicator, BackHandler, Platform, View } from "react-native";
+import { Drawer as DrawerLayout } from "react-native-drawer-layout";
+import { useSideMenuStore } from "./src/components/common/sideMenuStore";
+import { colors } from "./src/design/tokens";
 import { useFonts } from "expo-font";
 import {
   Lora_500Medium,
@@ -149,6 +152,13 @@ installWordLookupCache();
 // Record fatal JS errors to the on-device diagnostic log (Settings → About → share).
 installGlobalCrashHandler();
 persistLog("boot", `v${Constants.expoConfig?.version ?? "?"} ${Platform.OS}`);
+
+// Mirror the drawer navigator's own defaults so both menus move identically.
+const SIDE_MENU_DRAWER_TYPE = Platform.select({ ios: "slide", default: "front" } as const);
+const sideMenuDrawerStyle = [
+  { backgroundColor: colors.surface },
+  Platform.OS === "ios" ? null : { borderTopRightRadius: 16, borderBottomRightRadius: 16 },
+];
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Drawer = createDrawerNavigator<HomeDrawerParamList>();
@@ -500,16 +510,27 @@ function getActiveWorkspaceRouteContext(args: {
   };
 }
 
-function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
+/**
+ * The side menu's content + wiring, hosted twice with one behaviour: inside
+ * Home's drawer (top-level pages) and in the app-level menu layer that pushed
+ * pages open through the workspace mark. `go` lands on a drawer destination;
+ * `close` shuts whichever host is showing it.
+ */
+function SideNavHost({
+  getRootState,
+  close,
+  go,
+}: {
+  getRootState: () => any;
+  close: () => void;
+  go: (screen: keyof HomeDrawerParamList, params?: object) => void;
+}) {
   const workspaces = useStore((s) => s.workspaces);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const collectionLastOpenedAt = useStore((s) => s.collectionLastOpenedAt);
   const selectedIdeaId = useStore((s) => s.selectedIdeaId);
   const playerTarget = useStore((s) => s.playerTarget);
-  const rootNavigation = (navigation as any).getParent?.();
-  const navigateRoot = (route: string, params?: object) =>
-    (rootNavigation ?? navigation).navigate(route as never, params as never);
-  const deepestRoute = getDeepestRoute((rootNavigation ?? navigation).getState?.() ?? state);
+  const deepestRoute = getDeepestRoute(getRootState());
   const deepestRouteName = deepestRoute.name;
   const deepestParams = deepestRoute.params ?? {};
   const { activeWorkspace, currentCollectionRootId } = getActiveWorkspaceRouteContext({
@@ -562,8 +583,9 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
       }))
     : [];
 
-  const closeDrawer = () => {
-    navigation.closeDrawer();
+  const leave = (screen: keyof HomeDrawerParamList, params?: object) => {
+    close();
+    go(screen, params);
   };
 
   return (
@@ -574,66 +596,62 @@ function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
       workspaceAvatarKey={activeWorkspace?.avatarKey}
       collectionsCount={activeWorkspace?.collections.length ?? 0}
       recentCollections={recentCollections}
-      onGoHome={() => {
-        closeDrawer();
-        navigation.navigate("Workspaces");
-      }}
-      onGoWorkspace={() => {
-        closeDrawer();
-        navigation.navigate("WorkspaceStack", {
+      onGoHome={() => leave("Workspaces")}
+      onGoWorkspace={() =>
+        leave("WorkspaceStack", {
           screen: "Browse",
           params: activeWorkspace?.id ? { workspaceId: activeWorkspace.id } : undefined,
-        });
-      }}
-      onGoRevisit={() => {
-        closeDrawer();
-        navigation.navigate("RevisitHome");
-      }}
-      onGoShelf={() => {
-        closeDrawer();
-        navigation.navigate("ShelfHome");
-      }}
-      onGoSearch={() => {
-        closeDrawer();
-        navigation.navigate("SearchHome");
-      }}
-      onGoActivity={() => {
-        closeDrawer();
-        navigation.navigate("ActivityHome");
-      }}
-      onGoTuner={() => {
-        closeDrawer();
-        navigation.navigate("TunerHome");
-      }}
-      onGoMetronome={() => {
-        closeDrawer();
-        navigation.navigate("MetronomeHome");
-      }}
-      onGoLibrary={() => {
-        closeDrawer();
-        navigation.navigate("LibraryHome");
-      }}
-      onGoSettings={() => {
-        closeDrawer();
-        // Settings is a single drawer screen with internal view state, so without
-        // an explicit target it re-opens on whatever subview it was left on. The
-        // sidebar row always means "take me to Settings", i.e. the overview.
-        navigation.navigate("SettingsHome", { initialView: "overview", openToken: Date.now() });
-      }}
-      onGoNotepad={() => {
-        closeDrawer();
-        navigation.navigate("NotepadHome", { openToken: Date.now() });
-      }}
-      onGoSparks={() => {
-        closeDrawer();
-        navigation.navigate("SparkHome", { openToken: Date.now() });
-      }}
-      onOpenCollection={(collectionId) => {
-        closeDrawer();
-        navigation.navigate("WorkspaceStack", {
+        })
+      }
+      onGoRevisit={() => leave("RevisitHome")}
+      onGoShelf={() => leave("ShelfHome")}
+      onGoSearch={() => leave("SearchHome")}
+      onGoActivity={() => leave("ActivityHome")}
+      onGoTuner={() => leave("TunerHome")}
+      onGoMetronome={() => leave("MetronomeHome")}
+      onGoLibrary={() => leave("LibraryHome")}
+      // Settings is a single drawer screen with internal view state, so without
+      // an explicit target it re-opens on whatever subview it was left on. The
+      // sidebar row always means "take me to Settings", i.e. the overview.
+      onGoSettings={() => leave("SettingsHome", { initialView: "overview", openToken: Date.now() })}
+      onGoNotepad={() => leave("NotepadHome", { openToken: Date.now() })}
+      onGoSparks={() => leave("SparkHome", { openToken: Date.now() })}
+      onOpenCollection={(collectionId) =>
+        leave("WorkspaceStack", {
           screen: "CollectionDetail",
           params: { collectionId, workspaceId: activeWorkspace?.id },
-        });
+        })
+      }
+    />
+  );
+}
+
+/** Home's own drawer: the menu for top-level pages. */
+function DrawerContent({ navigation, state }: DrawerContentComponentProps) {
+  const rootNavigation = (navigation as any).getParent?.();
+  return (
+    <SideNavHost
+      getRootState={() => (rootNavigation ?? navigation).getState?.() ?? state}
+      close={() => navigation.closeDrawer()}
+      go={(screen, params) => (navigation as any).navigate(screen, params)}
+    />
+  );
+}
+
+/**
+ * The app-level menu layer's content: the same SideNav, opened from a pushed page
+ * through the workspace mark. Choosing a destination pops to the one Home and
+ * goes there (navigation law); closing it leaves the page beneath untouched.
+ */
+function OverlaySideNav() {
+  const closeMenu = useSideMenuStore((s) => s.closeMenu);
+  return (
+    <SideNavHost
+      getRootState={() => (navigationRef.isReady() ? navigationRef.getRootState() : undefined)}
+      close={closeMenu}
+      go={(screen, params) => {
+        if (!navigationRef.isReady()) return;
+        navigationRef.dispatch(StackActions.popTo("Home", { screen, params }));
       }}
     />
   );
@@ -813,6 +831,25 @@ function AppContent() {
 
   const [activeRouteName, setActiveRouteName] = useState<string>("Home");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  // The app-level menu layer (pushed pages). Its content mounts on first open.
+  const sideMenuOpen = useSideMenuStore((s) => s.open);
+  const openSideMenu = useSideMenuStore((s) => s.openMenu);
+  const closeSideMenu = useSideMenuStore((s) => s.closeMenu);
+  const [sideMenuEverOpened, setSideMenuEverOpened] = useState(false);
+  useEffect(() => {
+    if (sideMenuOpen) setSideMenuEverOpened(true);
+  }, [sideMenuOpen]);
+  // Android back closes the menu first. Registered last, so it wins over the
+  // page beneath while the menu is open.
+  useEffect(() => {
+    if (!sideMenuOpen) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      closeSideMenu();
+      return true;
+    });
+    return () => sub.remove();
+  }, [closeSideMenu, sideMenuOpen]);
+  const anyMenuOpen = isDrawerOpen || sideMenuOpen;
   const [lastCollectionContextId, setLastCollectionContextId] = useState<string | null>(null);
   const [initialNavigationState, setInitialNavigationState] = useState<InitialState | undefined>(undefined);
   const [navigationStateReady, setNavigationStateReady] = useState(false);
@@ -1023,6 +1060,20 @@ function AppContent() {
         onReady={syncNavigationState}
         onStateChange={syncNavigationState}
       >
+        {/* App-level menu layer: the side menu for PUSHED pages (sketch, visited
+            collection, scoped Activity), opened by their workspace mark. No edge
+            swipe while closed — iOS back owns that edge — but it swipes shut. */}
+        <DrawerLayout
+          open={sideMenuOpen}
+          onOpen={openSideMenu}
+          onClose={closeSideMenu}
+          swipeEnabled={sideMenuOpen}
+          drawerType={SIDE_MENU_DRAWER_TYPE}
+          direction={direction}
+          drawerPosition={direction === "rtl" ? "right" : "left"}
+          drawerStyle={sideMenuDrawerStyle}
+          renderDrawerContent={() => (sideMenuEverOpened ? <OverlaySideNav key={activeRouteName} /> : null)}
+        >
         <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Home">
           <Stack.Screen name="Home" component={DrawerRoutes} />
           <Stack.Screen name="Activity" component={ActivityScreen} />
@@ -1046,10 +1097,11 @@ function AppContent() {
           <Stack.Screen name="SetlistSong" component={SetlistSongScreen} />
           <Stack.Screen name="TransferReceive" component={TransferReceiveScreen} />
         </Stack.Navigator>
+        </DrawerLayout>
         <PlayerSheetPositionProvider>
         <GlobalMediaDock
           activeRouteName={activeRouteName}
-          hidden={isDrawerOpen}
+          hidden={anyMenuOpen}
           onOpenPlayer={() => {
             // Expanding is a state change, not navigation: the PlayerSheet
             // mounts over whatever screen is showing.
@@ -1068,17 +1120,17 @@ function AppContent() {
         />
         <PlayerSheet
           activeRouteName={activeRouteName}
-          isDrawerOpen={isDrawerOpen}
+          isDrawerOpen={anyMenuOpen}
           navigateRoot={(routeName, params) => {
             if (!navigationRef.isReady()) return;
             (navigationRef.navigate as (route: string, params?: object) => void)(routeName, params);
           }}
         />
         </PlayerSheetPositionProvider>
-        <ImportProgressBanner hidden={isDrawerOpen} />
-        <PersistFailureBanner hidden={isDrawerOpen} />
+        <ImportProgressBanner hidden={anyMenuOpen} />
+        <PersistFailureBanner hidden={anyMenuOpen} />
         <DuplicateReviewSheet />
-        <LibraryProcessHost drawerOpen={isDrawerOpen} />
+        <LibraryProcessHost drawerOpen={anyMenuOpen} />
         {/* Quiet confirmations — above the dock, below AppDialogHost (which mounts
             at the root, outside the navigator). */}
         <ToastHost />

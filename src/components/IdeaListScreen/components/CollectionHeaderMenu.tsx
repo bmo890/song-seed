@@ -12,8 +12,6 @@ import { colors } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
-import { WorkspaceAvatar } from "../../common/WorkspaceAvatar";
-import { UserText } from "../../../i18n";
 
 // Nav-row height below the safe-area inset — drops the menu just under the ⋯.
 const HEADER_ROW_HEIGHT = 46;
@@ -52,35 +50,6 @@ export function CollectionHeaderMenu() {
         ]}
         entering={FadeIn.duration(durations.fast)}
       >
-        {screen.isVisit && screen.activeWorkspace ? (
-          <>
-            {/* On a visit the nav row belongs to the origin ("‹ ACTIVITY"), so the
-                workspace up-link lives here — the same mark + name the hub wears.
-                Tapping it leaves the visit and lands on the workspace hub. */}
-            <Pressable
-              testID="collection-menu-workspace"
-              style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
-              accessibilityRole="button"
-              accessibilityLabel={t("collection.goToWorkspace", { title: screen.activeWorkspace.title })}
-              onPress={() => {
-                haptic.tap();
-                screen.setHeaderMenuOpen(false);
-                screen.goToWorkspaceHub();
-              }}
-            >
-              <UserText value={screen.activeWorkspace.title} style={styles.ideasSortMenuItemText} numberOfLines={1}>
-                {screen.activeWorkspace.title}
-              </UserText>
-              <WorkspaceAvatar
-                color={screen.activeWorkspace.color}
-                name={screen.activeWorkspace.title}
-                size={15}
-                avatarKey={screen.activeWorkspace.avatarKey}
-              />
-            </Pressable>
-            <View style={styles.ideasDropdownDivider} />
-          </>
-        ) : null}
         <Pressable
           style={({ pressed }) => [
             styles.ideasToggleRow,

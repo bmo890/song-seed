@@ -9,6 +9,7 @@ import { dirIcon } from "../../../design/directionalIcons";
 import { IdeaListHeaderSection } from "../components/IdeaListHeaderSection";
 import { WorkspaceAvatar } from "../../common/WorkspaceAvatar";
 import { IconButton } from "../../common/IconButton";
+import { SideMenuButton } from "../../common/SideMenuButton";
 import { PickerEyebrow } from "../../common/PickerEyebrow";
 import { getLibraryCollectorIcon } from "../../../domain/libraryCollectorPresentation";
 import { styles } from "../../../styles";
@@ -109,8 +110,8 @@ export function CollectionHeaderSection() {
   if (screen.isVisit) {
     // A visit (pushed from Activity / Search / Shelf / Revisit): the whole lead is
     // ONE back button labelled with where back actually lands — the sketch page's
-    // "‹ IDEAS" grammar. No hamburger here; the drawer world is one pop away, and
-    // the workspace up-link waits in the overflow.
+    // "‹ IDEAS" grammar. No hamburger here: the side menu opens from the
+    // workspace mark beside the overflow.
     const originLabel = screen.originLabel ?? "";
     return (
       <View style={collStyles.navRow}>
@@ -130,7 +131,12 @@ export function CollectionHeaderSection() {
             {compactTitle}
           </View>
         </Pressable>
-        {overflowButton}
+        <View style={collStyles.navTrail}>
+          {/* The side menu's door on a pushed page — hidden while selecting or
+              picking, when leaving would abandon the task. */}
+          {!screen.listSelectionMode && !screen.pickerMode ? <SideMenuButton /> : null}
+          {overflowButton}
+        </View>
       </View>
     );
   }
@@ -322,6 +328,11 @@ const collStyles = StyleSheet.create({
   },
   // A visit's lead: chevron + origin label as ONE back button, mirroring the
   // sketch page's nav lead so sibling pushed pages share a grammar.
+  navTrail: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   navLead: {
     flex: 1,
     minWidth: 0,
