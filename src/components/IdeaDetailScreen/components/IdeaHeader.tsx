@@ -19,7 +19,8 @@ import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../../i18n";
-import { useOriginLabel } from "../../../hooks/useOriginLabel";
+import { useOriginLabel, useOriginRoute } from "../../../hooks/useOriginLabel";
+import { openIdeaInCollection } from "../../../navigation";
 
 export function IdeaHeader() {
   const { t } = useTranslation();
@@ -34,6 +35,14 @@ export function IdeaHeader() {
   // collection when this idea was opened from it, else the origin — Activity,
   // Search, the Shelf… Read from the route beneath, so label and action agree.
   const originLabel = useOriginLabel();
+  // "View in collection" earns a row only when back does NOT already land on this
+  // idea's collection — i.e. the sketch was opened from Activity, Search, the
+  // Shelf, a playlist… From its own collection the chevron is that action.
+  const originRoute = useOriginRoute();
+  const canViewInCollection =
+    !!selectedIdea?.collectionId &&
+    !selectedIdea.isDraft &&
+    originRoute?.params?.collectionId !== selectedIdea.collectionId;
 
   if (!selectedIdea) return null;
 
@@ -238,6 +247,25 @@ export function IdeaHeader() {
                 </Pressable>
               </>
             )}
+            {canViewInCollection ? (
+              <>
+                <View style={styles.ideasDropdownDivider} />
+                {/* Same glyph, same meaning as the cards' button: open this idea's
+                    collection as a visit, scrolled to and highlighting its card.
+                    Navigation is silent — no haptic. */}
+                <Pressable
+                  testID="song-menu-view-in-collection"
+                  style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
+                  onPress={() => {
+                    setHeaderMenuOpen(false);
+                    openIdeaInCollection(screen.navigation, selectedIdea.id);
+                  }}
+                >
+                  <Text style={styles.ideasSortMenuItemText}>{t("songDetail.viewInCollection")}</Text>
+                  <Ionicons name="open-outline" size={15} color={colors.textStrong} />
+                </Pressable>
+              </>
+            ) : null}
             {!isNewProjectDraft ? (
               <>
                 <View style={styles.ideasDropdownDivider} />

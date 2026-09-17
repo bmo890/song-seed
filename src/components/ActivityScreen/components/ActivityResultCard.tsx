@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { InlineIdeaCard } from "../../common/InlineIdeaCard";
+import { ViewInCollectionButton } from "../../common/ViewInCollectionButton";
 import { styles } from "../styles";
 import type { ActivityItemResult } from "../helpers";
 import { getDateBucket } from "../../../domain/dateBuckets";
@@ -59,18 +60,11 @@ export function ActivityResultCard({
       ) : (
         <View />
       )}
-      <Pressable
-        style={({ pressed }) => [cardStyles.viewBtn, pressed ? { opacity: 0.6 } : null]}
-        onPress={(event) => {
-          event.stopPropagation();
-          onViewInCollection();
-        }}
-        hitSlop={8}
-        accessibilityRole="button"
+      <ViewInCollectionButton
+        testID="activity-view-in-collection"
+        onPress={onViewInCollection}
         accessibilityLabel={t("activity.viewInCollection", { title: result.ideaTitle })}
-      >
-        <Ionicons name="open-outline" size={15} color={colors.textMuted} />
-      </Pressable>
+      />
     </View>
   );
 
@@ -135,9 +129,5 @@ const cardStyles = StyleSheet.create({
     fontSize: 11,
     fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.textSecondary,
-  },
-  viewBtn: {
-    alignItems: "center",
-    justifyContent: "center",
   },
 });

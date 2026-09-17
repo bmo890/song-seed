@@ -60,10 +60,10 @@ export function PrimaryTakeStrip({ entry, onLocate }: PrimaryTakeStripProps) {
         accessibilityRole="button"
         accessibilityLabel={t("songDetail.findPrimaryTake")}
       >
-        {/* "Show me where this is" — the same open-outline glyph the Queue,
-            Activity, Shelf and Revisit use for view-in-context. One question,
-            one icon. */}
-        <Ionicons name="open-outline" size={15} color={colors.textMuted} />
+        {/* "Find it in the list below." Its own glyph: open-outline is reserved
+            for "view in collection" everywhere (2026-09-17) — one icon, one
+            meaning. */}
+        <Ionicons name="locate-outline" size={15} color={colors.textMuted} />
       </Pressable>
     </View>
   );

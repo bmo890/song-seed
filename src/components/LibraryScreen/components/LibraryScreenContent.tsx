@@ -129,6 +129,7 @@ function PlaylistsSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scro
           onRename={model.openRenamePlaylist}
           onDelete={model.confirmDeletePlaylist}
           onRemoveItem={(itemId) => model.removePlaylistItem(model.activePlaylist!.id, itemId)}
+          onLocateTrack={model.openTrackLocation}
           onReorderItems={(orderedItemIds) =>
             model.reorderPlaylistItems(model.activePlaylist!.id, orderedItemIds)
           }

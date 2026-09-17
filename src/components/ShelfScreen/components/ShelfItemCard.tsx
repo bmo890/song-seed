@@ -1,5 +1,6 @@
+import { ViewInCollectionButton } from "../../common/ViewInCollectionButton";
 import React from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { InlineIdeaCard } from "../../common/InlineIdeaCard";
 import { shelfStyles } from "../styles";
@@ -61,21 +62,11 @@ export function ShelfItemCard({
         >
           {stayCountdownLabel(row.entry, now)}
         </Text>
-        <Pressable
-          style={({ pressed }) => [
-            { alignItems: "center", justifyContent: "center" },
-            pressed ? { opacity: 0.6 } : null,
-          ]}
-          onPress={(event) => {
-            event.stopPropagation();
-            onViewInCollection();
-          }}
-          hitSlop={8}
-          accessibilityRole="button"
+        <ViewInCollectionButton
+          testID="shelf-view-in-collection"
+          onPress={onViewInCollection}
           accessibilityLabel={t("shelf.viewInCollection", { title: row.idea.title })}
-        >
-          <Ionicons name="open-outline" size={15} color={colors.textMuted} />
-        </Pressable>
+        />
       </View>
     </View>
   ) : undefined;

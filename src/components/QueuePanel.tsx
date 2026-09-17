@@ -1,3 +1,4 @@
+import { ViewInCollectionButton } from "./common/ViewInCollectionButton";
 import { memo, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import DraggableFlatList from "react-native-draggable-flatlist";
@@ -91,7 +92,6 @@ function QueuePanelInner({
       state.setActiveWorkspaceId(row.workspaceId);
     }
     state.setSelectedIdeaId(row.ideaId);
-    haptic.tap();
     onOpenIdea(row.ideaId);
   };
 
@@ -210,18 +210,13 @@ function QueuePanelInner({
                 <Ionicons name="reorder-three" size={18} color={colors.textSecondary} />
               </Pressable>
             ) : row.ideaId ? (
-              <Pressable
-                style={({ pressed }) => [panelStyles.goToBtn, pressed ? { opacity: 0.6 } : null]}
-                onPress={(evt) => {
-                  evt.stopPropagation();
-                  goToSong(row);
-                }}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={t("common.goToItem", { title: row.subtitle || row.title })}
-              >
-                <Ionicons name="open-outline" size={15} color={colors.textMuted} />
-              </Pressable>
+              <View style={panelStyles.goToBtn}>
+                <ViewInCollectionButton
+                  testID="queue-view-in-collection"
+                  onPress={() => goToSong(row)}
+                  accessibilityLabel={t("common.viewInCollection", { title: row.subtitle || row.title })}
+                />
+              </View>
             ) : null}
           </Pressable>
         )}

@@ -1,3 +1,4 @@
+import { ViewInCollectionButton } from "../../common/ViewInCollectionButton";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import DraggableFlatList from "react-native-draggable-flatlist";
@@ -55,6 +56,7 @@ export function PlaylistDetailView({
   onDelete,
   onRemoveItem,
   onReorderItems,
+  onLocateTrack,
 }: {
   playlist: Playlist;
   tracks: PlaylistTrack[];
@@ -70,6 +72,8 @@ export function PlaylistDetailView({
   onDelete: () => void;
   onRemoveItem: (itemId: string) => void;
   onReorderItems: (orderedItemIds: string[]) => void;
+  /** Show where a track lives: its collection, card highlighted. */
+  onLocateTrack: (track: PlaylistTrack) => void;
 }) {
   const { t } = useTranslation();
   const { formatLocale } = useLocale();
@@ -247,6 +251,14 @@ export function PlaylistDetailView({
                 <Text style={[detailStyles.trackDuration, isNowPlaying ? detailStyles.trackDurationActive : null]}>
                   {fmtDuration(track.durationMs)}
                 </Text>
+              ) : null}
+
+              {!editMode && track.available && track.ideaId ? (
+                <ViewInCollectionButton
+                  testID="playlist-view-in-collection"
+                  onPress={() => onLocateTrack(track)}
+                  accessibilityLabel={t("common.viewInCollection", { title: track.title })}
+                />
               ) : null}
 
               {editMode ? (

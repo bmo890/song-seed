@@ -1,3 +1,4 @@
+import { openIdeaInCollection } from "../../../navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
@@ -21,9 +22,6 @@ export function useLibraryScreenModel() {
   // stay active on every tab, not just while the playlists model is mounted).
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const rootNavigation = navigation.getParent?.();
-  const navigateRoot = (routeName: string, params?: object) =>
-    (rootNavigation ?? navigation).navigate(routeName as never, params as never);
 
   const workspaces = useStore((state) => state.workspaces);
   const playlists = useStore((state) => state.playlists);
@@ -36,7 +34,6 @@ export function useLibraryScreenModel() {
   const renamePlaylistAction = useStore((state) => state.renamePlaylist);
   const deletePlaylistAction = useStore((state) => state.deletePlaylist);
   const setActiveWorkspaceId = useStore((state) => state.setActiveWorkspaceId);
-  const setSelectedIdeaId = useStore((state) => state.setSelectedIdeaId);
   const startLibraryCollecting = useStore((state) => state.startLibraryCollecting);
 
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
@@ -126,8 +123,9 @@ export function useLibraryScreenModel() {
     if (activeWorkspaceId !== track.workspaceId) {
       setActiveWorkspaceId(track.workspaceId);
     }
-    setSelectedIdeaId(track.ideaId);
-    navigateRoot("IdeaDetail", { ideaId: track.ideaId });
+    // The row plays; this shows where the track lives — its collection as a
+    // visit, card highlighted (falls back to the idea page when unfiled).
+    openIdeaInCollection(navigation, track.ideaId);
   };
 
   const confirmDeletePlaylist = () => {

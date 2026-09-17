@@ -1,10 +1,9 @@
+import { ViewInCollectionButton } from "../../common/ViewInCollectionButton";
 import React from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Ionicons } from "@expo/vector-icons";
 import { InlineIdeaCard } from "../../common/InlineIdeaCard";
 import { styles } from "../../../styles";
-import { colors } from "../../../design/tokens";
 import type { SongIdea } from "../../../types";
 import type { RevisitCandidate } from "../../../domain/revisit";
 
@@ -55,18 +54,11 @@ export function RevisitCandidateCard({
       ) : (
         <View />
       )}
-      <Pressable
-        style={({ pressed }) => [{ alignItems: "center", justifyContent: "center" }, pressed ? { opacity: 0.6 } : null]}
-        onPress={(event) => {
-          event.stopPropagation();
-          onViewInCollection();
-        }}
-        hitSlop={8}
-        accessibilityRole="button"
-        accessibilityLabel={t("shelf.viewInCollection", { title: candidate.title })}
-      >
-        <Ionicons name="open-outline" size={15} color={colors.textMuted} />
-      </Pressable>
+      <ViewInCollectionButton
+        testID="revisit-view-in-collection"
+        onPress={onViewInCollection}
+        accessibilityLabel={t("common.viewInCollection", { title: candidate.title })}
+      />
     </View>
   );
 
