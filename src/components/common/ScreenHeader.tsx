@@ -2,8 +2,10 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
-import { colors, radii, text as textTokens } from "../../design/tokens";
+import { colors, text as textTokens } from "../../design/tokens";
 import { useTranslation } from "react-i18next";
+import { dirIcon } from "../../design/directionalIcons";
+import { useOriginLabel } from "../../hooks/useOriginLabel";
 
 type Props = {
     title: string;
@@ -37,6 +39,10 @@ export function ScreenHeader({
         leftIcon === "hamburger" && !drawerNavigation && navigation.canGoBack()
             ? "back"
             : leftIcon;
+    // Back wears the name of where it lands (navigation law 2026-09-16) — the
+    // route beneath this page in its stack. Pages that only switch an internal
+    // view (Settings, Compilations) live in the drawer and get the bare chevron.
+    const originLabel = useOriginLabel(effectiveLeftIcon === "back");
 
     function handleLeftPress() {
         if (onLeftPress) {
@@ -59,11 +65,29 @@ export function ScreenHeader({
                         pressed ? styles.pressDown : null,
                     ]}
                     onPress={handleLeftPress}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                        effectiveLeftIcon === "hamburger"
+                            ? t("workspaceBrowse.openMenu")
+                            : originLabel
+                              ? t("common.backTo", { label: originLabel })
+                              : t("common.back")
+                    }
                 >
                     {effectiveLeftIcon === "hamburger" ? (
                         <Ionicons name="menu-outline" size={22} color={colors.textStrong} />
                     ) : (
-                        <Text style={headerStyles.backBtnText}>{t("common.back")}</Text>
+                        <>
+                            {/* Same grammar as the sketch and visited-collection nav rows:
+                                chevron + the origin's name, no pill. */}
+                            <Ionicons name={dirIcon("chevron-back")} size={22} color={colors.textStrong} />
+                            {originLabel ? (
+                                <Text style={headerStyles.backLabel} numberOfLines={1}>
+                                    {originLabel}
+                                </Text>
+                            ) : null}
+                        </>
                     )}
                 </Pressable>
             ) : (
@@ -99,18 +123,21 @@ const headerStyles = StyleSheet.create({
     backBtn: {
         flexDirection: "row",
         alignItems: "center",
-        justifyContent: "center",
-        minHeight: 36,
-        paddingHorizontal: 14,
-        borderRadius: radii.round,
-        borderWidth: 0.5,
-        borderColor: colors.borderSubtle,
-        backgroundColor: colors.surface,
+        gap: 6,
+        minHeight: 44,
+        minWidth: 44,
+        // Room for a name, never for a sentence — the title keeps the row.
+        maxWidth: "38%",
+        paddingEnd: 4,
     },
-    backBtnText: {
+    backLabel: {
         fontFamily: "PlusJakartaSans_600SemiBold",
-        fontSize: 14,
-        color: colors.textStrong,
+        fontSize: 11,
+        lineHeight: 16,
+        color: colors.eyebrow,
+        letterSpacing: 1.4,
+        textTransform: "uppercase",
+        flexShrink: 1,
     },
     title: {
         ...textTokens.headerTitle,

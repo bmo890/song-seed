@@ -24,7 +24,9 @@ export function useOriginRoute(enabled: boolean = true): OriginRoute | null {
 function useOriginKey(enabled: boolean): string | null {
   const route = useRoute();
   return useNavigationState((state) => {
-    if (!enabled || !state?.routes?.length) return null;
+    // Only a STACK has a "route beneath" in the history sense. Inside the drawer
+    // the sibling tab is not where back lands, so no label there.
+    if (!enabled || state?.type !== "stack" || !state?.routes?.length) return null;
     const index = state.routes.findIndex((candidate) => candidate.key === route.key);
     if (index <= 0) return null;
     const previous = state.routes[index - 1];
