@@ -53,7 +53,8 @@ export type PersistLogEvent =
     // Recording
     | "recording.attached"
     | "recording.flushFailed"
-    | "recording.recovered";
+    | "recording.recovered"
+    | "step.slow";
 
 export type PersistLogEntry = {
     at: string;

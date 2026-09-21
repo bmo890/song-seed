@@ -1,4 +1,5 @@
-import { Image, Linking, ScrollView, Text, View } from "react-native";
+import { Image, Linking, Platform, ScrollView, Text, View } from "react-native";
+import * as FileSystem from "expo-file-system/legacy";
 import Constants from "expo-constants";
 import { PageIntro } from "../../common/PageIntro";
 import { settingsScreenStyles, styles } from "../styles";
@@ -35,7 +36,7 @@ export function SettingsAboutView() {
     });
   };
 
-  const shareDiagnosticLog = async () => {
+  const sendDiagnosticLog = async () => {
     // Crash log + persistence journal in one file — the journal always has entries
     // (every boot and library write), so there is always something to share.
     try {
@@ -44,6 +45,40 @@ export function SettingsAboutView() {
     } catch {
       AppAlert.info(t("settingsAbout.couldNotShare"), t("settingsAbout.couldNotShareBody"));
     }
+  };
+
+  // Android's share sheet has no "save a copy" of its own, so a tester with no mail
+  // app set up had no way to get the file off the phone (2026-09-21).
+  const saveDiagnosticLogToPhone = async () => {
+    try {
+      const uri = await buildDiagnosticsBundle();
+      const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+      if (!permissions.granted) return;
+      const contents = await FileSystem.readAsStringAsync(uri);
+      const targetUri = await FileSystem.StorageAccessFramework.createFileAsync(
+        permissions.directoryUri,
+        `songnook-diagnostics-${new Date().toISOString().slice(0, 10)}`,
+        "application/json"
+      );
+      await FileSystem.StorageAccessFramework.writeAsStringAsync(targetUri, contents);
+      haptic.success(); // vocabulary: success — a save the user asked for landed
+      toast(t("settingsAbout.diagnosticsSaved"), "checkmark-circle-outline");
+    } catch {
+      haptic.error(); // vocabulary: error — failures must fire it
+      AppAlert.info(t("settingsAbout.couldNotSaveLog"));
+    }
+  };
+
+  const shareDiagnosticLog = async () => {
+    if (Platform.OS !== "android") {
+      await sendDiagnosticLog();
+      return;
+    }
+    AppAlert.custom(t("settingsAbout.shareDiagnostics"), undefined, [
+      { label: t("settingsAbout.saveToPhone"), style: "default", onPress: () => void saveDiagnosticLogToPhone() },
+      { label: t("settingsAbout.shareFile"), style: "default", onPress: () => void sendDiagnosticLog() },
+      { label: t("common.cancel"), style: "cancel" },
+    ]);
   };
 
   return (

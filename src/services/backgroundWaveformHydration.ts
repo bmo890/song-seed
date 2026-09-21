@@ -5,8 +5,13 @@ import {
     MANAGED_WAVEFORM_PEAK_COUNT,
 } from "./audioStorage";
 import { ensureWaveformSidecar } from "./waveformSidecar";
-import { getWaveformCancelEpoch } from "./waveformAnalysis";
-import { isForegroundAudioBusy, waitForForegroundAudioIdle } from "./audioForegroundActivity";
+import { cancelActiveWaveformDecode, getWaveformCancelEpoch } from "./waveformAnalysis";
+import {
+    isForegroundAudioBusy,
+    isRecordingActive,
+    onRecordingActivityChange,
+    waitForForegroundAudioIdle,
+} from "./audioForegroundActivity";
 import { appActions } from "../state/actions";
 import { useStore } from "../state/useStore";
 import { buildStaticWaveform } from "../utils";
@@ -81,7 +86,10 @@ type HydrationWrite = {
     waveformPeaks?: number[];
 };
 const pendingHydrationWrites: HydrationWrite[] = [];
-const HYDRATION_WRITE_FLUSH_SIZE = 12;
+// Each flush re-renders every library subscriber, so its cost is per FLUSH, not per
+// clip. 48 keeps a long backlog to one brief hitch every minute or two instead of one
+// every 25 seconds; the queue still flushes whatever is left when it drains.
+const HYDRATION_WRITE_FLUSH_SIZE = 48;
 
 function bufferHydrationWrite(entry: HydrationWrite) {
     pendingHydrationWrites.push(entry);
@@ -90,8 +98,23 @@ function bufferHydrationWrite(entry: HydrationWrite) {
     }
 }
 
+// The recorder opening preempts the decode already inside the native decoder — the
+// idle gate only stops the NEXT one, and a multi-minute memo can hold the shared
+// native queue for seconds. A cancelled decode returns empty and retries when idle.
+onRecordingActivityChange((active) => {
+    if (active) {
+        cancelActiveWaveformDecode();
+    } else {
+        // Land whatever the take held back.
+        setTimeout(flushHydrationWrites, 0);
+    }
+});
+
 function flushHydrationWrites() {
     if (pendingHydrationWrites.length === 0) return;
+    // A flush re-renders every library subscriber; hold it while a take is live and
+    // let the next idle flush carry the batch.
+    if (isRecordingActive()) return;
     const batch = pendingHydrationWrites.splice(0, pendingHydrationWrites.length);
     appActions.hydrateClipsAudioMetadata(batch);
 }

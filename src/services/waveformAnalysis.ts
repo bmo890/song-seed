@@ -1,6 +1,6 @@
 import { extractPreview } from "@siteed/audio-studio";
 import SongNookPitchShiftModule from "../../modules/songnook-pitch-shift";
-import { isForegroundAudioBusy, waitForForegroundAudioIdle } from "./audioForegroundActivity";
+import { isForegroundAudioBusy, isRecordingActive, waitForForegroundAudioIdle } from "./audioForegroundActivity";
 import { metersToWaveformPeaks, quantizeWaveformPeak } from "../utils";
 
 function clamp01(value: number) {
@@ -137,6 +137,10 @@ function enqueueDecode<T>(
   const gatedTask = async (): Promise<T> => {
     let epoch: number | undefined = UNCANCELLABLE_EPOCH;
     if (mode === "background") {
+      // A take can run for an hour. Waiting it out HERE would park this job at the head
+      // of the serial queue and hold every decode behind it — including the interactive
+      // one a save may need. Skip at once; callers treat empty as "retry when idle".
+      if (isRecordingActive()) return emptyResult;
       // Gate at START, not enqueue: never begin a background decode while the
       // foreground player is loading or playing (the enqueue-time state can be
       // minutes stale by the time the queue reaches this job). If the idle wait
@@ -182,6 +186,7 @@ async function computeWaveformPeaksUnserialized(
   const native = SongNookPitchShiftModule;
   if (native?.computeWaveform) {
     try {
+      const decodeStartedAt = Date.now();
       const result = await native.computeWaveform({
         inputUri: audioUri,
         numberOfPoints,
@@ -189,6 +194,9 @@ async function computeWaveformPeaksUnserialized(
         endTimeMs: durationMs,
         epoch,
       });
+      if (__DEV__) {
+        console.log(`[Step] decode ${numberOfPoints}pt of ${Math.round(durationMs / 1000)}s audio ${Date.now() - decodeStartedAt}ms`);
+      }
       if (result?.peaks?.length) {
         console.log("[waveform] decoder=native", { rawPoints: result.peaks.length, requested: numberOfPoints });
         return result.peaks.map(clamp01);

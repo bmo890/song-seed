@@ -7,6 +7,11 @@ type Args = {
 };
 
 const REANCHOR_THRESHOLD_MS = 48;
+// The readout shows whole seconds and the lyric follow needs ~tenths. Committing React
+// state every animation frame re-rendered the entire recorder (and the dock) 60 times a
+// second for the length of a take, so taps waited behind renders (2026-09-21). The
+// clock still reads the wall time every frame; it only RE-RENDERS when the tenth changes.
+const COMMIT_STEP_MS = 100;
 
 export function useRecordingDisplayElapsed({
   durationMs,
@@ -20,9 +25,15 @@ export function useRecordingDisplayElapsed({
   const anchorDurationRef = useRef(normalizedDurationMs);
   const anchorStartedAtRef = useRef<number | null>(null);
 
-  const setDisplayElapsed = (nextMs: number) => {
+  const setDisplayElapsed = (nextMs: number, ticking = false) => {
     lastDisplayRef.current = nextMs;
-    setDisplayElapsedMs((prev) => (Math.abs(prev - nextMs) < 4 ? prev : nextMs));
+    setDisplayElapsedMs((prev) => {
+      if (ticking) {
+        return Math.floor(prev / COMMIT_STEP_MS) === Math.floor(nextMs / COMMIT_STEP_MS) ? prev : nextMs;
+      }
+      // Settled values (pause, stop, re-anchor) land exactly.
+      return Math.abs(prev - nextMs) < 4 ? prev : nextMs;
+    });
   };
 
   useEffect(() => {
@@ -57,7 +68,7 @@ export function useRecordingDisplayElapsed({
           normalizedDurationMs,
           anchorDurationRef.current + elapsedSinceAnchor
         );
-        setDisplayElapsed(nextElapsedMs);
+        setDisplayElapsed(nextElapsedMs, true);
         frameRef.current = requestAnimationFrame(tick);
       };
 

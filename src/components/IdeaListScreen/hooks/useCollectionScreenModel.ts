@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useStableArray } from "../../../hooks/useStableArray";
 import { Animated } from "react-native";
 import { useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -77,9 +78,11 @@ export function useCollectionScreenModel() {
   const markCollectionOpened = useStore((s) => s.markCollectionOpened);
   const clipClipboard = useStore((s) => s.clipClipboard);
 
-  const ideas = useMemo(
-    () => activeWorkspace?.ideas.filter((idea) => idea.collectionId === collectionId) ?? [],
-    [activeWorkspace?.ideas, collectionId]
+  const ideas = useStableArray(
+    useMemo(
+      () => activeWorkspace?.ideas.filter((idea) => idea.collectionId === collectionId) ?? [],
+      [activeWorkspace?.ideas, collectionId]
+    )
   );
   const childCollections = useMemo(
     () => activeWorkspace?.collections.filter((collection) => collection.parentCollectionId === collectionId) ?? [],
@@ -237,7 +240,7 @@ export function useCollectionScreenModel() {
     return map;
   }, [ideas, searchNeedle]);
 
-  const listIdeas = useMemo(
+  const listIdeas = useStableArray(useMemo(
     () =>
       filteredIdeas.filter((idea) => {
         if (idea.id === recordingIdeaId && idea.clips.length === 0) return false;
@@ -256,7 +259,7 @@ export function useCollectionScreenModel() {
         return true;
       }),
     [filteredIdeas, lyricsFilterMode, recordingIdeaId, searchMetaByIdeaId, selectedProjectStages]
-  );
+  ));
 
   // Meta is cached BY IDEA IDENTITY (ideas update immutably, so an untouched idea
   // keeps its object across store writes). Rebuilding fresh meta objects for every
@@ -396,6 +399,28 @@ export function useCollectionScreenModel() {
     }
   }
 
+  // A batch import highlights 25 rows whose animations all end on the same frame.
+  // Clearing them one store write at a time meant 25 notifications back to back —
+  // seconds of blocked JS on a large library (2026-09-21). Collect, then clear once.
+  const finishedHighlightIdsRef = useRef<string[]>([]);
+  const finishedHighlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearHighlightSoon = useCallback(
+    (id: string) => {
+      finishedHighlightIdsRef.current.push(id);
+      if (finishedHighlightTimerRef.current) return;
+      finishedHighlightTimerRef.current = setTimeout(() => {
+        finishedHighlightTimerRef.current = null;
+        const ids = finishedHighlightIdsRef.current;
+        finishedHighlightIdsRef.current = [];
+        // Released together with the store clear — freeing an id earlier let the effect
+        // re-run in between and flash the same row a second time.
+        ids.forEach((finishedId) => animatingHighlightIdsRef.current.delete(finishedId));
+        clearRecentlyAdded(ids);
+      }, 0);
+    },
+    [clearRecentlyAdded]
+  );
+
   useEffect(() => {
     const idsToAnimate = recentlyAddedItemIds.filter(
       (id) => visibleListIds.has(id) && !animatingHighlightIdsRef.current.has(id)
@@ -410,11 +435,10 @@ export function useCollectionScreenModel() {
         Animated.timing(animatedValue, { toValue: 0, duration: 900, useNativeDriver: true }),
       ]).start(() => {
         animatedValue.setValue(0);
-        animatingHighlightIdsRef.current.delete(id);
-        clearRecentlyAdded([id]);
+        clearHighlightSoon(id);
       });
     });
-  }, [clearRecentlyAdded, visibleListIds, recentlyAddedItemIds]);
+  }, [clearHighlightSoon, visibleListIds, recentlyAddedItemIds]);
 
   const collectionAncestors = useMemo(
     () => (activeWorkspace && currentCollection ? getCollectionAncestors(activeWorkspace, currentCollection.id) : []),

@@ -19,6 +19,7 @@ import { useRecordingScreenModel } from "./hooks/useRecordingScreenModel";
 import { HelpSheet } from "../common/HelpSheet";
 import { RECORDING_HELP } from "../common/helpContent";
 import { useTranslation } from "react-i18next";
+import { setRecorderScreenOpen } from "../../services/audioForegroundActivity";
 
 export function RecordingScreen() {
   const { t } = useTranslation();
@@ -58,6 +59,13 @@ export function RecordingScreen() {
   // visible means the save target is committed, so saveQuickClipName runs with fresh state
   // and picks up the suggested name from an empty draft. Fires once per session; a failure
   // reveals the modal instead of retrying blindly.
+  // While this screen is up, background waveform decoding stands down (it shares a
+  // native queue with the recorder). Tied to mount so it can never outlive the screen.
+  React.useEffect(() => {
+    setRecorderScreenOpen(true);
+    return () => setRecorderScreenOpen(false);
+  }, []);
+
   const isOverdubSession = !!screen.recordingOverdubClip;
   const autoNameActive =
     screen.quickNameModalVisible && !promptForClipName && !isOverdubSession && !autoNameFailed;

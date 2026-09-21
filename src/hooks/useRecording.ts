@@ -1,4 +1,5 @@
 import { softenStartLevels } from "../domain/liveWaveform";
+import { timedStep } from "../services/stepTiming";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   useSharedAudioRecorder,
@@ -24,6 +25,7 @@ import {
   clearPendingRecordingSession,
   persistAttachedRecordingJournal,
   persistPendingRecordingSession,
+  recoverPendingRecordingSession,
 } from "../services/recordingRecovery";
 import { trimAudioRanges } from "../services/audioTrim";
 import { colors } from "../design/tokens";
@@ -100,6 +102,23 @@ function getErrorMessage(error: unknown) {
 function isNotificationPermissionError(error: unknown) {
   const message = getErrorMessage(error).toLowerCase();
   return message.includes("notification permission") || message.includes("post_notifications");
+}
+
+// There is ONE pending-take marker. After a save that ended in "kept for recovery" the
+// take lives only as the recorder's temp file plus that marker — and starting another
+// take would overwrite the marker, orphaning the first one for good. Recover it into
+// the library before a new take can claim the slot.
+let unrecoveredTakeThisSession = false;
+
+async function recoverKeptTakeBeforeNewOne() {
+  if (!unrecoveredTakeThisSession) return;
+  unrecoveredTakeThisSession = false;
+  try {
+    const result = await recoverPendingRecordingSession({ lightweight: true });
+    if (result.status === "failed") persistLog("recording.flushFailed", `in-session recovery: ${result.message}`);
+  } catch (error) {
+    persistLog("recording.flushFailed", `in-session recovery: ${describeError(error)}`);
+  }
 }
 
 export function useRecording(onRecorded: OnRecorded, preferredInputId: string | null) {
@@ -514,9 +533,9 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         return false;
       }
 
-      await applyPreferredInput();
+      await timedStep("record.input", applyPreferredInput());
 
-      await claimRecordingAudioSession();
+      await timedStep("record.session", claimRecordingAudioSession());
       persistedSessionRef.current = false;
       recordingStartedAtRef.current = null;
       resetCaptureStartEstimate();
@@ -549,6 +568,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       if (!hasPermission) {
         return false;
       }
+      await recoverKeptTakeBeforeNewOne();
 
       // A full disk mid-take is the worst place to find out (2026-08-26 audit
       // F5): refuse to START when free space is below the same 64MB reserve the
@@ -556,7 +576,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       // never block a take.
       try {
         const MIN_RECORDING_FREE_BYTES = 64 * 1024 * 1024;
-        const freeBytes = await FileSystem.getFreeDiskStorageAsync();
+        const freeBytes = await timedStep("record.diskCheck", FileSystem.getFreeDiskStorageAsync());
         if (Number.isFinite(freeBytes) && freeBytes >= 0 && freeBytes < MIN_RECORDING_FREE_BYTES) {
           // Haptics vocabulary `error`: "Something failed" — the take can't start.
           haptic.error();
@@ -575,9 +595,9 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         }
       } catch {}
 
-      await applyPreferredInput();
+      await timedStep("record.input", applyPreferredInput());
 
-      await claimRecordingAudioSession();
+      await timedStep("record.session", claimRecordingAudioSession());
       audioSessionClaimed = true;
       persistedSessionRef.current = false;
       preparedRecordingRef.current = false;
@@ -590,7 +610,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       const recordingStartedAt = Date.now();
       recordingStartedAtRef.current = recordingStartedAt;
       nativeStartAttempted = true;
-      const startResult = await recorder.startRecording(buildRecordingConfig());
+      const startResult = await timedStep("record.start", recorder.startRecording(buildRecordingConfig()));
       if (startResult?.fileUri) {
         persistedSessionRef.current = true;
         await persistPendingRecordingSession(startResult.fileUri, recordingStartedAt);
@@ -615,6 +635,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       if (!(await requestRecordingPermissions())) {
         return false;
       }
+      await recoverKeptTakeBeforeNewOne();
       if (!preparedRecordingRef.current) {
         const prepared = await prepareRecording();
         if (!prepared) {
@@ -628,7 +649,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       resetCaptureStartEstimate();
       setHeadTrim({ pending: false, ms: 0 });
       nativeStartAttempted = true;
-      const startResult = await recorder.startRecording(buildRecordingConfig());
+      const startResult = await timedStep("record.start", recorder.startRecording(buildRecordingConfig()));
       preparedRecordingRef.current = false;
       if (startResult?.fileUri) {
         persistedSessionRef.current = true;
@@ -691,7 +712,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     let trimTempUriToCleanup: string | null = null;
     try {
       expectedStopReasonRef.current = true;
-      const recordingData = await recorder.stopRecording();
+      const recordingData = await timedStep("stopRecording", recorder.stopRecording(), { timeoutMs: 15_000 });
       preparedRecordingRef.current = false;
       recordingStartedAtRef.current = null;
       // Take the onset envelope before anything resets it — the head trim it has to be
@@ -734,10 +755,6 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         );
       }
 
-      const clipId = `clip-${Date.now()}`;
-      const managedAudio = await importRecordedAudioAsset(sourceAudioUri, clipId);
-      managedAudioUriToCleanup = managedAudio.audioUri;
-
       // Prefer the capture-time analysis (real RMS/peak per ~75ms segment of the
       // actual take) over a post-hoc re-decode — the re-decode path can fall back
       // to the synthetic placeholder waveform, which is what made stored waveforms
@@ -763,6 +780,27 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       const capturePeaks = levelsAsDb.length
         ? metersToWaveformPeaks(levelsAsDb, MANAGED_WAVEFORM_PEAK_COUNT)
         : null;
+      // The recorder already measured this take (levels + length), so the save only
+      // copies the file. Re-decoding it here queued the save behind every background
+      // waveform job and then threw the result away (2026-09-21). With no capture
+      // analysis, decode now — the user is waiting, so it must not idle-gate.
+      const clipId = `clip-${Date.now()}`;
+      const managedAudio = await timedStep(
+        "save.importAsset",
+        importRecordedAudioAsset(
+          sourceAudioUri,
+          clipId,
+          capturePeaks ? { lightweight: true } : { decodeMode: "interactive" }
+        ),
+        {
+          timeoutMs: 30_000,
+          // Nobody is waiting for this copy any more — the take recovers from the
+          // recorder temp file, so a late managed copy would only be an orphan.
+          onLateResult: (late) => void deleteManagedAudioUris([late.audioUri]).catch(() => {}),
+        }
+      );
+      managedAudioUriToCleanup = managedAudio.audioUri;
+
       const waveformPeaks = capturePeaks ?? managedAudio.waveformPeaks;
 
       // Persist the high-res detail sidecar from the SAME capture data, so the
@@ -770,10 +808,15 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       // (which produced a squished/low-detail waveform). Keyed to the managed audio
       // path the clip will reference.
       if (levelsAsDb.length) {
-        await writeWaveformSidecar(managedAudio.audioUri, metersToWaveformPeaks(levelsAsDb, WAVEFORM_DETAIL_BINS));
+        // Derived data: a slow disk must not hold the save. The reel rebuilds a missing sidecar.
+        await timedStep(
+          "save.sidecar",
+          writeWaveformSidecar(managedAudio.audioUri, metersToWaveformPeaks(levelsAsDb, WAVEFORM_DETAIL_BINS)),
+          { timeoutMs: 5_000 }
+        ).catch(() => {});
       }
 
-      const attached = await onRecorded({
+      const attached = await timedStep("save.attach", async () => onRecorded({
         audioUri: managedAudio.audioUri,
         durationMs:
           managedAudio.durationMs ??
@@ -783,7 +826,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         waveformPeaks,
         headTrimmedMs,
         onsetEnvelope: finishOnsetEnvelope(capturedOnsetState, headTrimmedMs),
-      });
+      }));
 
       if (attached === false) {
         // The take could not be attached (e.g. its project was removed mid-recording).
@@ -794,6 +837,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
           await deleteManagedAudioUris([managedAudioUriToCleanup]).catch(() => {});
           managedAudioUriToCleanup = null;
         }
+        unrecoveredTakeThisSession = true;
         AppAlert.info(t("recording.keptForRecoveryTitle"), t("recording.keptAttachBody"));
         return false;
       }
@@ -807,7 +851,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       // showing a dead 0:00 idea.
       let durable = false;
       try {
-        await flushPersistedSnapshot();
+        await timedStep("save.flush", flushPersistedSnapshot());
         durable = true;
         persistLog("recording.attached");
       } catch (flushError) {
@@ -831,10 +875,11 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       if (recordingData.fileUri && recordingData.fileUri !== managedAudio.audioUri) {
         // The managed import succeeded, so the recorder temp output is now redundant and should
         // be removed instead of silently accumulating across saves.
-        await FileSystem.deleteAsync(recordingData.fileUri, { idempotent: true }).catch(() => {});
+        // Housekeeping never holds the save sheet open.
+        void FileSystem.deleteAsync(recordingData.fileUri, { idempotent: true }).catch(() => {});
       }
       if (trimTempUriToCleanup && trimTempUriToCleanup !== managedAudio.audioUri) {
-        await FileSystem.deleteAsync(trimTempUriToCleanup, { idempotent: true }).catch(() => {});
+        void FileSystem.deleteAsync(trimTempUriToCleanup, { idempotent: true }).catch(() => {});
         trimTempUriToCleanup = null;
       }
       // The marker now either is gone (durable) or points at the managed file (journal).
@@ -855,6 +900,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       if (trimTempUriToCleanup) {
         await FileSystem.deleteAsync(trimTempUriToCleanup, { idempotent: true }).catch(() => {});
       }
+      unrecoveredTakeThisSession = true;
       AppAlert.info(t("recording.keptForRecoveryTitle"), t("recording.keptSaveBody"));
       return false;
     } finally {
@@ -867,7 +913,13 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   async function discardRecording() {
     try {
       expectedStopReasonRef.current = true;
-      const recordingData = await recorder.stopRecording();
+      const recordingData = await timedStep("stopRecording", recorder.stopRecording(), {
+        timeoutMs: 15_000,
+        // The user threw this take away; if the stop lands late, finish the job.
+        onLateResult: (late) => {
+          if (late?.fileUri) void FileSystem.deleteAsync(late.fileUri, { idempotent: true }).catch(() => {});
+        },
+      });
       preparedRecordingRef.current = false;
       recordingStartedAtRef.current = null;
       abortHeadTrim();
@@ -881,7 +933,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       await clearPendingRecordingSession();
     } catch {
       expectedStopReasonRef.current = false;
-      // ignore
+      // A discarded take must not come back as "recovered" on the next launch.
+      await clearPendingRecordingSession().catch(() => {});
     } finally {
       await releaseRecordingAudioSession().catch((error) => {
         console.warn("Recording audio session release after discard failed", error);

@@ -2789,37 +2789,75 @@ export const createDataSlice: StateCreator<
             if (!activeWorkspaceId) return state;
 
             const now = Date.now();
-            return {
-                workspaces: workspaces.map((ws) =>
+            const nextWorkspaces = workspaces.map((ws) =>
                     ws.id === activeWorkspaceId
                         ? (() => {
                             const prevIdeas = ws.ideas;
                             const prevIdeaMap = new Map(prevIdeas.map((idea) => [idea.id, idea]));
-                            const normalizedNextIdeas = normalizeIdeas(updater(prevIdeas)).map((idea) => {
+                            // Collections whose MEMBERSHIP changed (idea added, removed or
+                            // moved) — the only thing their list state depends on.
+                            const touchedCollectionIds = new Set<string>();
+                            const seenIds = new Set<string>();
+                            const nextIdeas = updater(prevIdeas).map((idea) => {
+                                seenIds.add(idea.id);
                                 const prevIdea = prevIdeaMap.get(idea.id);
-                                if (!prevIdea) return idea;
-                                if (idea === prevIdea) return idea;
-                                if (idea.kind !== "project") return idea;
-                                if (options?.preserveActivity) return idea;
-                                if (idea.lastActivityAt > prevIdea.lastActivityAt) return idea;
-                                return { ...idea, lastActivityAt: now };
+                                // Untouched ideas keep their identity: stored ideas are already
+                                // normalized (hydration and every write normalize), and a fresh
+                                // object per idea per edit re-rendered the whole library and
+                                // stamped every sketch "active now" (2026-09-21).
+                                if (idea === prevIdea) return prevIdea;
+                                const normalized = normalizeIdea(idea);
+                                if (!prevIdea) {
+                                    touchedCollectionIds.add(normalized.collectionId);
+                                    return normalized;
+                                }
+                                if (prevIdea.collectionId !== normalized.collectionId) {
+                                    touchedCollectionIds.add(prevIdea.collectionId);
+                                    touchedCollectionIds.add(normalized.collectionId);
+                                }
+                                if (normalized.kind !== "project") return normalized;
+                                if (options?.preserveActivity) return normalized;
+                                if (normalized.lastActivityAt > prevIdea.lastActivityAt) return normalized;
+                                return { ...normalized, lastActivityAt: now };
                             });
+                            for (const prevIdea of prevIdeas) {
+                                if (!seenIds.has(prevIdea.id)) touchedCollectionIds.add(prevIdea.collectionId);
+                            }
+
+                            // Nothing changed: keep the workspace (and so the whole state)
+                            // identical, and no subscriber is notified at all.
+                            if (
+                                touchedCollectionIds.size === 0 &&
+                                nextIdeas.length === prevIdeas.length &&
+                                nextIdeas.every((idea, index) => idea === prevIdeas[index])
+                            ) {
+                                return ws;
+                            }
 
                             return {
                                 ...ws,
-                                ideas: normalizedNextIdeas,
-                                collections: ws.collections.map((collection) => ({
-                                    ...collection,
-                                    ideasListState: normalizeWorkspaceIdeasListState(
-                                        collection.ideasListState,
-                                        normalizedNextIdeas.filter((idea) => idea.collectionId === collection.id)
-                                    ),
-                                })),
+                                ideas: nextIdeas,
+                                collections:
+                                    touchedCollectionIds.size === 0
+                                        ? ws.collections
+                                        : ws.collections.map((collection) =>
+                                              touchedCollectionIds.has(collection.id)
+                                                  ? {
+                                                        ...collection,
+                                                        ideasListState: normalizeWorkspaceIdeasListState(
+                                                            collection.ideasListState,
+                                                            nextIdeas.filter((idea) => idea.collectionId === collection.id)
+                                                        ),
+                                                    }
+                                                  : collection
+                                          ),
                             };
                         })()
                         : ws
-                ),
-            };
+                );
+            return nextWorkspaces.every((ws, index) => ws === workspaces[index])
+                ? state
+                : { workspaces: nextWorkspaces };
         });
     },
 

@@ -98,8 +98,6 @@ function IdeaListItemInner({
         hasProjectLyrics,
         hasProjectClipCount,
         hasExpandedProjectIndicators,
-        createdAtLabel,
-        updatedAtLabel,
     } = fallbackMeta;
     const inlineActive = useStore(
         (s) => !!playClip && s.inlineTarget?.ideaId === item.id && s.inlineTarget.clipId === playClip.id

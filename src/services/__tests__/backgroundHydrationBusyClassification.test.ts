@@ -81,6 +81,8 @@ jest.mock("../waveformAnalysis", () => ({
 jest.mock("../audioForegroundActivity", () => ({
     isForegroundAudioBusy: () => mockBusyCallCount++ % 2 === 1,
     waitForForegroundAudioIdle: () => Promise.resolve(),
+    isRecordingActive: () => false,
+    onRecordingActivityChange: () => () => {},
 }));
 jest.mock("../../state/actions", () => ({
     appActions: {

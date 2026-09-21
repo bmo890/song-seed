@@ -17,6 +17,8 @@ jest.mock("../waveformAnalysis", () => ({ getWaveformCancelEpoch: () => 1 }));
 jest.mock("../audioForegroundActivity", () => ({
     isForegroundAudioBusy: () => false,
     waitForForegroundAudioIdle: () => Promise.resolve(),
+    isRecordingActive: () => false,
+    onRecordingActivityChange: () => () => {},
 }));
 jest.mock("../../state/actions", () => ({ appActions: {} }));
 jest.mock("../../state/useStore", () => ({

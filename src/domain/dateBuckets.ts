@@ -1,4 +1,5 @@
 import { i18n } from "../i18n/instance";
+import { getMonthName } from "./dateNames";
 
 /**
  * Smart date bucketing for chronological list dividers.
@@ -35,24 +36,48 @@ export type DateBucket = {
   startTs: number;
 };
 
+// Boundaries depend only on "today", and month names only on the language — yet a list
+// asks for a bucket per idea, several times per render. Computing both per call cost
+// ~6 Date objects and (for anything older than last month) an Intl month lookup per
+// idea; on Android that lookup alone is milliseconds. Cache per day and per language.
+type BucketBoundaries = {
+  todayStart: number;
+  yesterdayStart: number;
+  weekAgoStart: number;
+  thisMonthStart: number;
+  lastMonthStart: number;
+  currentYear: number;
+};
+
+let cachedBoundaries: BucketBoundaries | null = null;
+
+function getBoundaries(now: number): BucketBoundaries {
+  const todayStart = startOfDay(now);
+  if (cachedBoundaries && cachedBoundaries.todayStart === todayStart) return cachedBoundaries;
+
+  const thisMonthStart = startOfMonth(now);
+  const lastMonthDate = new Date(thisMonthStart);
+  lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
+
+  cachedBoundaries = {
+    todayStart,
+    yesterdayStart: todayStart - DAY_MS,
+    weekAgoStart: todayStart - 6 * DAY_MS,
+    thisMonthStart,
+    lastMonthStart: lastMonthDate.getTime(),
+    currentYear: new Date(now).getFullYear(),
+  };
+  return cachedBoundaries;
+}
+
 /**
  * Assign a timestamp to its smart date bucket.
  *
- * The bucket boundaries are computed relative to `Date.now()` so they stay
- * current across session usage without caching.
+ * The bucket boundaries are relative to today and refresh when the day changes.
  */
 export function getDateBucket(ts: number): DateBucket {
-  const now = Date.now();
-  const todayStart = startOfDay(now);
-  const yesterdayStart = todayStart - DAY_MS;
-  const weekAgoStart = todayStart - 6 * DAY_MS;
-  const thisMonthStart = startOfMonth(now);
-
-  const lastMonthDate = new Date(thisMonthStart);
-  lastMonthDate.setMonth(lastMonthDate.getMonth() - 1);
-  const lastMonthStart = lastMonthDate.getTime();
-
-  const currentYear = new Date(now).getFullYear();
+  const { todayStart, yesterdayStart, weekAgoStart, thisMonthStart, lastMonthStart, currentYear } =
+    getBoundaries(Date.now());
 
   if (ts >= todayStart) {
     return { key: "today", label: i18n.t("time.today"), startTs: todayStart };
@@ -73,7 +98,7 @@ export function getDateBucket(ts: number): DateBucket {
   // Group by calendar month
   const d = new Date(ts);
   const monthStart = startOfMonth(ts);
-  const monthName = d.toLocaleDateString(i18n.language === "he" ? "he-IL" : "en-US", { month: "long" });
+  const monthName = getMonthName(i18n.language === "he" ? "he-IL" : "en-US", d.getMonth(), "long");
 
   if (d.getFullYear() === currentYear) {
     return { key: `month-${d.getMonth()}`, label: monthName, startTs: monthStart };

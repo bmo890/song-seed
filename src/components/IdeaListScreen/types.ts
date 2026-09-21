@@ -46,8 +46,6 @@ export type IdeaListItemMeta = {
   hasProjectLyrics: boolean;
   hasProjectClipCount: boolean;
   hasExpandedProjectIndicators: boolean;
-  createdAtLabel: string;
-  updatedAtLabel: string;
 };
 
 export type CollectionListModel = {

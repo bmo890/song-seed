@@ -5,6 +5,8 @@ import { useStore } from "../state/useStore";
  * audio work (waveform decodes, duration probes during library hydration) can stand down
  * and never contend with it.
  *
+ * Recording counts as busy too: capture must never queue behind derived-data work.
+ *
  * On Android the decoder and the audio player share the MediaCodec pool and audio focus,
  * so running a background decode — or worse, spinning up a native player to probe a
  * duration — while the full player is loading or playing stalls foreground playback. The
@@ -23,10 +25,54 @@ export function endForegroundAudioLoad() {
   foregroundLoadDepth = Math.max(0, foregroundLoadDepth - 1);
 }
 
+// Recording activity is tracked HERE, not read off the store's recording ids: those
+// ids can outlive the recorder (open it on a sketch, back out without a take), and a
+// "busy" that never clears would switch off every background decode for the session.
+// Both inputs below are driven by mounted components, so they end when the UI does.
+let recorderScreensOpen = 0;
+let recorderCapturing = false;
+const recordingActivityListeners = new Set<(active: boolean) => void>();
+
+/** True while the recorder screen is open, or a take is running/paused (minimized
+ *  included). The recorder, the file system and the metronome share one native queue
+ *  with the waveform decoder, so a background decode in flight makes Record, Redo and
+ *  Save wait out the whole file (2026-09-21). */
+export function isRecordingActive(): boolean {
+  return recorderScreensOpen > 0 || recorderCapturing;
+}
+
+function updateRecordingActivity(change: () => void) {
+  const before = isRecordingActive();
+  change();
+  const after = isRecordingActive();
+  if (before !== after) [...recordingActivityListeners].forEach((listener) => listener(after));
+}
+
+/** Call with true on recorder-screen mount and false on unmount. */
+export function setRecorderScreenOpen(open: boolean) {
+  updateRecordingActivity(() => {
+    recorderScreensOpen = Math.max(0, recorderScreensOpen + (open ? 1 : -1));
+  });
+}
+
+/** Mirrors the shared recorder's recording/paused state (it outlives the screen). */
+export function setRecorderCapturing(capturing: boolean) {
+  updateRecordingActivity(() => {
+    recorderCapturing = capturing;
+  });
+}
+
+export function onRecordingActivityChange(listener: (active: boolean) => void): () => void {
+  recordingActivityListeners.add(listener);
+  return () => {
+    recordingActivityListeners.delete(listener);
+  };
+}
+
 export function isForegroundAudioBusy(): boolean {
   if (foregroundLoadDepth > 0) return true;
   const state = useStore.getState();
-  return state.playerIsPlaying || state.inlineIsPlaying;
+  return state.playerIsPlaying || state.inlineIsPlaying || isRecordingActive();
 }
 
 /**

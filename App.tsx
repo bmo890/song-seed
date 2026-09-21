@@ -140,6 +140,11 @@ import { RestoreRestartGate } from "./src/components/common/RestoreRestartGate";
 import { FullPlayerProvider } from "./src/hooks/FullPlayerProvider";
 import { i18n, LocaleProvider, useLocale, useLocaleBootstrap } from "./src/i18n";
 
+// Dev-only measurement; required lazily so the module never enters a release bundle.
+if (__DEV__) {
+  (require("./src/dev/jsStallMonitor") as typeof import("./src/dev/jsStallMonitor")).startJsStallMonitor();
+}
+
 // Hold the native splash until fonts + store hydration + navigation restore are ready, so
 // the app opens in one continuous motion instead of flashing a bare spinner. Hidden in
 // AppContent once every gate passes; the fade is a cosmetic polish.
@@ -887,14 +892,19 @@ function AppContent() {
       }),
     [lastUsedWorkspaceId, primaryWorkspaceId, workspaceStartupPreference, workspaces]
   );
+  // Startup state is consumed once, at mount (the store is already hydrated by then).
+  // Rebuilding it on every library write re-ran the effect below — a native
+  // getInitialURL call plus a second render of the whole app root per write (2026-09-21).
   const startupNavigationState = useMemo(
     () =>
-      buildStartupNavigationState({
-        workspaces,
-        startupWorkspaceId,
-        primaryCollectionIdByWorkspace,
-      }),
-    [primaryCollectionIdByWorkspace, startupWorkspaceId, workspaces]
+      navigationStateReady
+        ? undefined
+        : buildStartupNavigationState({
+            workspaces,
+            startupWorkspaceId,
+            primaryCollectionIdByWorkspace,
+          }),
+    [navigationStateReady, primaryCollectionIdByWorkspace, startupWorkspaceId, workspaces]
   );
 
   const linking = useMemo<LinkingOptions<RootStackParamList>>(
@@ -971,6 +981,7 @@ function AppContent() {
   );
 
   useEffect(() => {
+    if (navigationStateReady) return;
     let cancelled = false;
 
     void (async () => {
@@ -994,7 +1005,7 @@ function AppContent() {
     return () => {
       cancelled = true;
     };
-  }, [linking, startupNavigationState]);
+  }, [linking, navigationStateReady, startupNavigationState]);
 
   const syncNavigationState = () => {
     const rootState = navigationRef.getRootState();

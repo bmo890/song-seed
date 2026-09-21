@@ -3,6 +3,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { Collection, SongIdea, Workspace } from "./types";
 import { collectClipAudioUris } from "./services/managedMedia";
 import { i18n } from "./i18n/instance";
+import { getMonthName, getWeekdayName } from "./domain/dateNames";
 
 const aestheticWords = [
   "echo", "chorus", "harmony", "static", "pulse", "midnight", "neon", "velvet",
@@ -139,9 +140,9 @@ export const formatClipDate = (ts: number, sectionLabel?: string): string => {
   } else if (dayDiff === 1) {
     label = i18n.t("time.yesterday");
   } else if (dayDiff < 7) {
-    label = date.toLocaleDateString(i18n.language === "he" ? "he-IL" : "en-US", { weekday: "short" });
+    label = getWeekdayName(i18n.language === "he" ? "he-IL" : "en-US", date.getDay(), "short");
   } else {
-    const month = date.toLocaleDateString(i18n.language === "he" ? "he-IL" : "en-US", { month: "short" });
+    const month = getMonthName(i18n.language === "he" ? "he-IL" : "en-US", date.getMonth(), "short");
     const sameYear = date.getFullYear() === new Date(now).getFullYear();
     label = sameYear ? `${month} ${date.getDate()}` : `${month} ${date.getDate()} ${date.getFullYear()}`;
   }

@@ -1,22 +1,7 @@
 import { fmtCardDuration } from "../../utils";
-import { getIdeaCreatedAt, getIdeaUpdatedAt } from "../../domain/ideaSort";
 import { getPlayableClipForIdea } from "../../domain/clipPresentation";
 import type { SongIdea } from "../../types";
 import type { IdeaListItemMeta } from "./types";
-
-const formatIdeaTimestamp = (timestamp: number) => {
-  const dateValue = new Date(timestamp);
-  const date = dateValue.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-  const time = dateValue.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-  return `${date} • ${time}`;
-};
 
 export const projectHasLyrics = (idea: SongIdea) =>
   idea.kind === "project" &&
@@ -40,7 +25,5 @@ export const buildIdeaListItemMeta = (idea: SongIdea): IdeaListItemMeta => {
     hasProjectLyrics,
     hasProjectClipCount,
     hasExpandedProjectIndicators: idea.kind === "project" && (hasProjectLyrics || hasProjectClipCount),
-    createdAtLabel: formatIdeaTimestamp(getIdeaCreatedAt(idea)),
-    updatedAtLabel: formatIdeaTimestamp(getIdeaUpdatedAt(idea)),
   };
 };

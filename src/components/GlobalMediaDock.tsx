@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { useSharedAudioRecorder } from "@siteed/audio-studio";
 import { Pressable, Text, View } from "react-native";
@@ -18,6 +18,7 @@ import { colors } from "../design/tokens";
 import { fmtDuration, getCollectionById } from "../utils";
 import { haptic } from "../design/haptics";
 import { useTranslation } from "react-i18next";
+import { setRecorderCapturing } from "../services/audioForegroundActivity";
 import { UserText } from "../i18n";
 
 type GlobalMediaDockProps = {
@@ -93,10 +94,24 @@ export function GlobalMediaDock({
     isPaused: recorder.isPaused,
   });
 
-  const allIdeas = workspaces.flatMap((workspace) => workspace.ideas);
-  const recordingIdea = recordingIdeaId
-    ? allIdeas.find((idea) => idea.id === recordingIdeaId) ?? null
-    : null;
+  // The dock is always mounted and the shared recorder outlives the recorder screen
+  // (a minimized take), so this is where "a take is running" is reported from.
+  const recorderCapturing = recorder.isRecording || recorder.isPaused;
+  useEffect(() => {
+    setRecorderCapturing(recorderCapturing);
+    return () => setRecorderCapturing(false);
+  }, [recorderCapturing]);
+
+  // Looked up when the library or the target changes — not on every dock render,
+  // which during a take is every clock tick.
+  const recordingIdea = useMemo(() => {
+    if (!recordingIdeaId) return null;
+    for (const workspace of workspaces) {
+      const found = workspace.ideas.find((idea) => idea.id === recordingIdeaId);
+      if (found) return found;
+    }
+    return null;
+  }, [recordingIdeaId, workspaces]);
   const hasRecordingSession =
     !!recordingIdea && (recorder.isRecording || recorder.isPaused);
 

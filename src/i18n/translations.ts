@@ -486,6 +486,10 @@ export const resources = {
         noDiagnostics: "No diagnostics recorded",
         noDiagnosticsBody: "No crashes logged on this device.",
         couldNotShare: "Could not share",
+        saveToPhone: "Save file",
+        couldNotSaveLog: "Could not save",
+        shareFile: "Share",
+        diagnosticsSaved: "Diagnostic log saved",
         couldNotShareBody: "The diagnostic log could not be shared on this device.",
       },
       eraseAll: {
@@ -1934,6 +1938,10 @@ export const resources = {
         noDiagnostics: "לא נרשמו נתוני אבחון",
         noDiagnosticsBody: "לא נרשמו קריסות במכשיר הזה.",
         couldNotShare: "השיתוף לא הצליח",
+        saveToPhone: "שמירת קובץ",
+        couldNotSaveLog: "השמירה לא הצליחה",
+        shareFile: "שיתוף",
+        diagnosticsSaved: "יומן האבחון נשמר",
         couldNotShareBody: "לא ניתן לשתף את יומן האבחון במכשיר הזה.",
       },
       eraseAll: {

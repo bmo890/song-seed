@@ -566,7 +566,11 @@ export async function importAudioAssets(
     return { imported, failed };
 }
 
-export async function importRecordedAudioAsset(recordingUri: string, targetId: string): Promise<ManagedAudioResult> {
+export async function importRecordedAudioAsset(
+    recordingUri: string,
+    targetId: string,
+    options?: AudioMetadataLoadOptions
+): Promise<ManagedAudioResult> {
     const filename = recordingUri.split("/").pop() || `${targetId}.m4a`;
     return importAudioAsset(
         {
@@ -574,7 +578,8 @@ export async function importRecordedAudioAsset(recordingUri: string, targetId: s
             name: filename,
             mimeType: "audio/mp4",
         },
-        targetId
+        targetId,
+        options
     );
 }
 

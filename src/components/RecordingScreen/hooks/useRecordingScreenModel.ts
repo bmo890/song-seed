@@ -522,27 +522,29 @@ export function useRecordingScreenModel() {
 
   const fallbackClipTitle = () => buildDefaultIdeaTitle();
 
-  const recordingPlaceholderTitle =
-    recordingOverdubClip
-      ? getDefaultOverdubStemTitle(recordingOverdubClip)
-      : recordingIdea
-      ? recordingIdea.kind === "project"
-        ? (() => {
-            const parentClip = recordingParentClipId
-              ? recordingIdea.clips.find((c) => c.id === recordingParentClipId) ?? null
-              : null;
-            const suggested = parentClip
-              ? genChildClipTitle(recordingIdea.clips, parentClip)
-              : genRootClipTitle(recordingIdea.clips);
-            return ensureUniqueCountedTitle(suggested, recordingIdea.clips.map((c) => c.title));
-          })()
-        : ensureUniqueCountedTitle(
-            recordingIdea.title || fallbackClipTitle(),
-            (workspaces.find((w) => w.id === activeWorkspaceId)?.ideas ?? [])
-              .filter((idea) => idea.kind === "clip" && idea.id !== recordingIdea.id)
-              .map((idea) => idea.title)
-          )
-      : fallbackClipTitle();
+  // Memoized: this model re-renders on the take clock, and the clip branch walks
+  // every idea title in the workspace.
+  const recordingPlaceholderTitle = useMemo(() => {
+    if (recordingOverdubClip) return getDefaultOverdubStemTitle(recordingOverdubClip);
+    if (!recordingIdea) return fallbackClipTitle();
+    if (recordingIdea.kind === "project") {
+      const parentClip = recordingParentClipId
+        ? recordingIdea.clips.find((c) => c.id === recordingParentClipId) ?? null
+        : null;
+      const suggested = parentClip
+        ? genChildClipTitle(recordingIdea.clips, parentClip)
+        : genRootClipTitle(recordingIdea.clips);
+      return ensureUniqueCountedTitle(suggested, recordingIdea.clips.map((c) => c.title));
+    }
+    return ensureUniqueCountedTitle(
+      recordingIdea.title || fallbackClipTitle(),
+      (workspaces.find((w) => w.id === activeWorkspaceId)?.ideas ?? [])
+        .filter((idea) => idea.kind === "clip" && idea.id !== recordingIdea.id)
+        .map((idea) => idea.title)
+    );
+    // fallbackClipTitle is a stable local; a timestamp title only needs to be fresh per take.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recordingOverdubClip, recordingIdea, recordingParentClipId, workspaces, activeWorkspaceId]);
 
   function clearMonitoringDelayTimer() {
     if (monitoringDelayTimeoutRef.current) {
