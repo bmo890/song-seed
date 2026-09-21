@@ -15,6 +15,15 @@ public class SongNookPitchShiftModule: Module {
   )
   private lazy var renderer = SongNookPitchShiftRenderer()
 
+  // Expo runs every AsyncFunction without its own queue on ONE serial queue shared by all
+  // modules — the recorder, the file system and the metronome included. A full-file decode
+  // there made Record, Redo and Save wait out the whole file (2026-09-21). The renderer is
+  // stateless (its cancel flag is lock-guarded), so its long jobs get queues of their own:
+  // background waveform decodes at utility priority, and renders the user is waiting on
+  // (trim, mix, pitch) separately so an export never queues behind a backlog decode.
+  private let waveformQueue = DispatchQueue(label: "app.songnook.pitchshift.waveform", qos: .utility)
+  private let renderQueue = DispatchQueue(label: "app.songnook.pitchshift.render", qos: .userInitiated)
+
   public func definition() -> ModuleDefinition {
     Name("SongNookPitchShift")
 
@@ -66,19 +75,19 @@ public class SongNookPitchShiftModule: Module {
 
     AsyncFunction("renderPitchShiftedFile") { (request: [String: Any]) -> [String: Any] in
       return try self.renderer.renderFile(request)
-    }
+    }.runOnQueue(renderQueue)
 
     AsyncFunction("renderMixedFile") { (request: [String: Any]) -> [String: Any] in
       return try self.renderer.renderMixedFile(request)
-    }
+    }.runOnQueue(renderQueue)
 
     AsyncFunction("renderTrim") { (request: [String: Any]) -> [String: Any] in
       return try self.renderer.renderTrim(request)
-    }
+    }.runOnQueue(renderQueue)
 
     AsyncFunction("computeWaveform") { (request: [String: Any]) -> [String: Any] in
       return try self.renderer.computeWaveform(request)
-    }
+    }.runOnQueue(waveformQueue)
 
     // Cheap container-metadata duration probe (no decode). Import uses it to fill
     // every clip's length at import time; feature-detected in JS.

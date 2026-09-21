@@ -1,7 +1,11 @@
 package expo.modules.songnookpitchshift
 
+import expo.modules.kotlin.functions.Coroutine
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import java.util.concurrent.Executors
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.withContext
 
 class SongNookPitchShiftModule : Module() {
   private val engine by lazy {
@@ -23,6 +27,20 @@ class SongNookPitchShiftModule : Module() {
       context = appContext.reactContext ?: throw IllegalStateException("React context unavailable"),
     )
   }
+
+  // Expo runs every plain AsyncFunction on ONE shared thread for all modules — the recorder,
+  // the file system and the metronome included. A full-file decode there made Record, Redo
+  // and Save wait out the whole file (2026-09-21). The renderer is stateless (its cancel flag
+  // is atomic), so its long jobs get threads of their own: background waveform decodes at
+  // low priority, and renders the user is waiting on (trim, mix, pitch) separately so an
+  // export never queues behind a backlog decode. One thread each keeps the old
+  // one-at-a-time behaviour within each kind, which the MediaCodec pool relies on.
+  private val waveformDispatcher = Executors.newSingleThreadExecutor { runnable ->
+    Thread(runnable, "songnook-waveform").apply { priority = Thread.MIN_PRIORITY + 1 }
+  }.asCoroutineDispatcher()
+  private val renderDispatcher = Executors.newSingleThreadExecutor { runnable ->
+    Thread(runnable, "songnook-render")
+  }.asCoroutineDispatcher()
 
   override fun definition() = ModuleDefinition {
     Name("SongNookPitchShift")
@@ -73,20 +91,20 @@ class SongNookPitchShiftModule : Module() {
       engine.setPitchShiftSemitones(semitones)
     }
 
-    AsyncFunction("renderPitchShiftedFile") { request: Map<String, Any?> ->
-      renderer.renderFile(request)
+    AsyncFunction("renderPitchShiftedFile") Coroutine { request: Map<String, Any?> ->
+      withContext(renderDispatcher) { renderer.renderFile(request) }
     }
 
-    AsyncFunction("renderMixedFile") { request: Map<String, Any?> ->
-      renderer.renderMixedFile(request)
+    AsyncFunction("renderMixedFile") Coroutine { request: Map<String, Any?> ->
+      withContext(renderDispatcher) { renderer.renderMixedFile(request) }
     }
 
-    AsyncFunction("renderTrim") { request: Map<String, Any?> ->
-      renderer.renderTrim(request)
+    AsyncFunction("renderTrim") Coroutine { request: Map<String, Any?> ->
+      withContext(renderDispatcher) { renderer.renderTrim(request) }
     }
 
-    AsyncFunction("computeWaveform") { request: Map<String, Any?> ->
-      renderer.computeWaveform(request)
+    AsyncFunction("computeWaveform") Coroutine { request: Map<String, Any?> ->
+      withContext(waveformDispatcher) { renderer.computeWaveform(request) }
     }
 
     // Cheap container-metadata duration probe (no decode). Import uses it to fill
@@ -103,6 +121,8 @@ class SongNookPitchShiftModule : Module() {
 
     OnDestroy {
       engine.unload()
+      waveformDispatcher.close()
+      renderDispatcher.close()
     }
   }
 }
