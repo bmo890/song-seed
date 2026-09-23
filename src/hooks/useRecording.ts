@@ -1,11 +1,10 @@
 import { softenStartLevels } from "../domain/liveWaveform";
 import { timedStep } from "../services/stepTiming";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   useSharedAudioRecorder,
   ExpoAudioStreamModule,
   audioDeviceManager,
-  type RecordingInterruptionEvent,
   type RecordingConfig,
   type SampleRate,
 } from "@siteed/audio-studio";
@@ -30,13 +29,13 @@ import {
 import { trimAudioRanges } from "../services/audioTrim";
 import { colors } from "../design/tokens";
 import { useRecordingDisplayElapsed } from "./useRecordingDisplayElapsed";
-import { useLiveRecordingWaveform } from "./useLiveRecordingWaveform";
 import {
-  appendOnsetSamples,
-  createOnsetEnvelopeState,
-  finishOnsetEnvelope,
-  type OnsetEnvelope,
-} from "../domain/onsetEnvelope";
+  getRecordingTakeSession,
+  useTakeHeadTrim,
+  useTakeInterruption,
+  useTakeLiveWaveform,
+} from "../services/recordingTakeSession";
+import { finishOnsetEnvelope, type OnsetEnvelope } from "../domain/onsetEnvelope";
 import { flushPersistedSnapshot, useStore } from "../state/useStore";
 import { deleteManagedAudioUris } from "../services/managedMedia";
 import { describeError, persistLog } from "../services/persistLog";
@@ -121,34 +120,26 @@ async function recoverKeptTakeBeforeNewOne() {
   }
 }
 
+// One owner for the recording role app-wide: the take outlives the screen that
+// started it, and the instance that saves it must release the SAME claim.
+const RECORDING_AUDIO_SESSION_OWNER = createAudioSessionOwner("recording");
+const TAKE_SHAPE = {
+  channels: CAPTURE_CHANNELS,
+  sampleRate: CAPTURE_SAMPLE_RATE,
+  segmentDurationMs: LIVE_WAVEFORM_SEGMENT_MS,
+  windowDurationMs: 12000,
+};
+
 export function useRecording(onRecorded: OnRecorded, preferredInputId: string | null) {
   const { t } = useTranslation();
   const recorder = useSharedAudioRecorder();
-  const audioSessionOwnerIdRef = useRef(createAudioSessionOwner("recording"));
-  const persistedSessionRef = useRef(false);
-  const preparedRecordingRef = useRef(false);
-  const expectedStopReasonRef = useRef(false);
-  const recordingStartedAtRef = useRef<number | null>(null);
-  // Head-trim state for record-through-count-in takes: capture starts BEFORE the
-  // count-in, the screen model measures where the musical start (downbeat / guide start)
-  // landed, and the head is cut at save. While `pending`, the take's elapsed time reads 0
-  // (capture is rolling but the take hasn't musically started).
-  const [headTrim, setHeadTrim] = useState<{ pending: boolean; ms: number }>({ pending: false, ms: 0 });
-  const headTrimRef = useRef(headTrim);
-  headTrimRef.current = headTrim;
-  // Estimate of when capture actually started (epoch ms), derived from the recorder's
-  // reported captured duration: candidate = now − durationMs, min over early updates
-  // (delivery latency is always ≥ 0, so the minimum converges on the true start).
-  const captureStartEstimateRef = useRef<{ epochMs: number | null; samples: number }>({
-    epochMs: null,
-    samples: 0,
-  });
-  // Onset envelope of the take being captured — 1ms, high-passed. Reset with every take.
-  const onsetEnvelopeRef = useRef(createOnsetEnvelopeState(CAPTURE_SAMPLE_RATE, CAPTURE_CHANNELS));
-  // Exact capture start reported by the patched native recorder (projected from
-  // AudioRecord.getTimestamp / the first tap buffer's AVAudioTime). Preferred over the
-  // estimator; null on unpatched binaries.
-  const captureStartNativeRef = useRef<{ epochMs: number; source: string } | null>(null);
+  // Every per-take fact (live tape, onset envelope, head trim, capture start, flags)
+  // lives in the app-wide take session, not in this instance: the recorder screen can
+  // be minimized and reopened mid-take, and the dock reads the same take.
+  const take = getRecordingTakeSession(TAKE_SHAPE);
+  const headTrim = useTakeHeadTrim(take);
+  const liveWaveformData = useTakeLiveWaveform(take);
+  const { token: interruptionToken, reason: lastInterruptionReason } = useTakeInterruption(take);
   const permissionRequestRef = useRef<Promise<boolean> | null>(null);
   const prepareInFlightRef = useRef(false);
   const startInFlightRef = useRef(false);
@@ -166,43 +157,21 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     if (!recorder.isRecording || recorder.isPaused) {
       return;
     }
-    const estimate = captureStartEstimateRef.current;
-    // Only the first ~2s of updates matter; freeze afterwards so pauses can't skew it.
-    if (estimate.samples >= 50) {
-      return;
-    }
-    const durationMs = recorder.durationMs;
-    if (!Number.isFinite(durationMs) || durationMs <= 0 || durationMs > 2500) {
-      return;
-    }
-    const candidate = Date.now() - durationMs;
-    estimate.epochMs = estimate.epochMs === null ? candidate : Math.min(estimate.epochMs, candidate);
-    estimate.samples += 1;
-  }, [recorder.durationMs, recorder.isPaused, recorder.isRecording]);
+    take.observeDuration(recorder.durationMs);
+  }, [recorder.durationMs, recorder.isPaused, recorder.isRecording, take]);
 
-  function resetOnsetEnvelope() {
-    onsetEnvelopeRef.current = createOnsetEnvelopeState(CAPTURE_SAMPLE_RATE, CAPTURE_CHANNELS);
-  }
-
-  function resetCaptureStartEstimate() {
-    captureStartEstimateRef.current = { epochMs: null, samples: 0 };
-    captureStartNativeRef.current = null;
-  }
+  const resetOnsetEnvelope = take.resetOnsetEnvelope;
+  const resetLiveWaveform = take.resetLiveWaveform;
+  const resetCaptureStartEstimate = take.resetCaptureStart;
 
   /** When capture began (epoch ms): the native recorder's measured sample-0 time when
    *  the patched binary reports one, else the duration-based estimate, else the JS-side
    *  stamp taken just before the native start call. Null when nothing is recording. */
-  function getCaptureStartEpochMs() {
-    return (
-      captureStartNativeRef.current?.epochMs ??
-      captureStartEstimateRef.current.epochMs ??
-      recordingStartedAtRef.current
-    );
-  }
+  const getCaptureStartEpochMs = take.getCaptureStartEpochMs;
 
   /** Mark the in-flight take as record-through: elapsed reads 0 until the head is known. */
   function armHeadTrim() {
-    setHeadTrim({ pending: true, ms: 0 });
+    take.headTrim.set({ pending: true, ms: 0 });
   }
 
   /** Fix the head length (ms of pre-roll to cut at save). Ends the pending state, so the
@@ -215,19 +184,13 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
    *  by rewinding the clock. */
   function commitHeadTrim(ms: number) {
     const safeMs = Number.isFinite(ms) && ms > 0 && ms <= MAX_HEAD_TRIM_MS ? Math.round(ms) : 0;
-    setHeadTrim({ pending: false, ms: safeMs });
+    take.headTrim.set({ pending: false, ms: safeMs });
   }
 
   /** Drop any head-trim bookkeeping (interruption/cancel paths). */
   function abortHeadTrim() {
-    setHeadTrim({ pending: false, ms: 0 });
+    take.headTrim.set({ pending: false, ms: 0 });
   }
-  const { waveform: liveWaveformData, appendAudioStream, reset: resetLiveWaveform } =
-    useLiveRecordingWaveform({
-      channels: CAPTURE_CHANNELS,
-      sampleRate: CAPTURE_SAMPLE_RATE,
-      segmentDurationMs: LIVE_WAVEFORM_SEGMENT_MS,
-    });
   const recordingIdea = useMemo(
     () =>
       workspaces
@@ -237,16 +200,12 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   );
   // Single-line card by design: "● Recording… • 0:42". One fixed title.
   const recordingNotificationTitle = "Recording…";
-  const [lastInterruptionReason, setLastInterruptionReason] =
-    useState<RecordingInterruptionEvent["reason"] | null>(null);
-  const [interruptionToken, setInterruptionToken] = useState(0);
-
   async function claimRecordingAudioSession() {
-    await activateRecordingAudioSession({ ownerId: audioSessionOwnerIdRef.current });
+    await activateRecordingAudioSession({ ownerId: RECORDING_AUDIO_SESSION_OWNER });
   }
 
   async function releaseRecordingAudioSession() {
-    await releaseAudioSessionOwner(audioSessionOwnerIdRef.current);
+    await releaseAudioSessionOwner(RECORDING_AUDIO_SESSION_OWNER);
   }
 
   async function applyPreferredInput() {
@@ -386,16 +345,16 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     nativeStartAttempted: boolean,
     audioSessionClaimed: boolean
   ) {
-    preparedRecordingRef.current = false;
-    recordingStartedAtRef.current = null;
-    persistedSessionRef.current = false;
+    take.facts.prepared = false;
+    take.facts.recordingStartedAt = null;
+    take.facts.sessionPersisted = false;
 
     if (nativeStartAttempted || recorder.isRecording || recorder.isPaused) {
       try {
-        expectedStopReasonRef.current = true;
+        take.facts.expectedStop = true;
         await recorder.stopRecording();
       } catch (stopError) {
-        expectedStopReasonRef.current = false;
+        take.facts.expectedStop = false;
         console.warn("Recording rollback stop failed", stopError);
       }
     }
@@ -468,19 +427,19 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         // file doesn't have. The clock keeps running through it, so the tape and the beat
         // grid stay in one axis (capture ms); dropping these deliveries entirely is what
         // used to break that.
-        appendAudioStream(event, { retainPoints: !headTrimRef.current.pending });
+        take.appendAudioStream(event, { retainPoints: !take.headTrim.get().pending });
         // The click bleed's onset envelope, accumulated from the same buffers. This is the
         // signal the beat grid is verified against at save; measured against the waveform
         // sidecar the app used to comb, a click under real playing does not exist at all
         // (docs/qa/grid-truth.md). Built here because it costs one subtract per sample and
         // the samples are already in hand — nothing to decode, nothing to be preempted.
         if (event.streamFormat === "float32" && event.data instanceof Float32Array) {
-          appendOnsetSamples(onsetEnvelopeRef.current, event.data);
+          take.appendOnset(event.data);
         }
         const nativeCaptureStart = (event as { captureStartTimeEpochMs?: unknown })
           .captureStartTimeEpochMs;
         if (
-          captureStartNativeRef.current === null &&
+          take.facts.captureStartNative === null &&
           typeof nativeCaptureStart === "number" &&
           Number.isFinite(nativeCaptureStart) &&
           nativeCaptureStart > 0
@@ -489,8 +448,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
             typeof (event as { captureStartSource?: unknown }).captureStartSource === "string"
               ? ((event as { captureStartSource?: string }).captureStartSource as string)
               : "native";
-          captureStartNativeRef.current = { epochMs: nativeCaptureStart, source };
-          const estimated = captureStartEstimateRef.current.epochMs;
+          take.facts.captureStartNative = { epochMs: nativeCaptureStart, source };
+          const estimated = take.facts.captureStartEstimate.epochMs;
           console.log(
             `[timing] captureStart native=${Math.round(nativeCaptureStart)} (${source})` +
               (estimated !== null
@@ -498,25 +457,24 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
                 : "")
           );
         }
-        if (!event.fileUri || persistedSessionRef.current) return;
-        persistedSessionRef.current = true;
-        const recordingStartedAt = recordingStartedAtRef.current ?? Date.now();
+        if (!event.fileUri || take.facts.sessionPersisted) return;
+        take.facts.sessionPersisted = true;
+        const recordingStartedAt = take.facts.recordingStartedAt ?? Date.now();
         void persistPendingRecordingSession(event.fileUri, recordingStartedAt);
       },
       onRecordingInterrupted: (event) => {
         const isExpectedStoppedEvent =
-          event.reason === "recordingStopped" && expectedStopReasonRef.current;
-        expectedStopReasonRef.current = false;
+          event.reason === "recordingStopped" && take.facts.expectedStop;
+        take.facts.expectedStop = false;
         if (isExpectedStoppedEvent) {
           return;
         }
-        preparedRecordingRef.current = false;
+        take.facts.prepared = false;
         // A committed head stays valid (the front of the file is unchanged); only a
         // mid-count-in interruption leaves an unmeasurable pending head to drop.
-        setHeadTrim((current) => (current.pending ? { pending: false, ms: 0 } : current));
-        setLastInterruptionReason(event.reason);
-        setInterruptionToken((current) => current + 1);
-        void releaseAudioSessionOwner(audioSessionOwnerIdRef.current).catch((error) => {
+        if (take.headTrim.get().pending) take.headTrim.set({ pending: false, ms: 0 });
+        take.noteInterruption(event.reason);
+        void releaseAudioSessionOwner(RECORDING_AUDIO_SESSION_OWNER).catch((error) => {
           console.warn("Recording audio session release after interruption failed", error);
         });
       },
@@ -536,14 +494,9 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       await timedStep("record.input", applyPreferredInput());
 
       await timedStep("record.session", claimRecordingAudioSession());
-      persistedSessionRef.current = false;
-      recordingStartedAtRef.current = null;
-      resetCaptureStartEstimate();
-      setHeadTrim({ pending: false, ms: 0 });
-      resetLiveWaveform();
-      resetOnsetEnvelope();
+      take.beginTake();
       await recorder.prepareRecording(buildRecordingConfig());
-      preparedRecordingRef.current = true;
+      take.facts.prepared = true;
       return true;
     } catch (err) {
       await releaseRecordingAudioSession().catch((error) => {
@@ -589,7 +542,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
 
       try {
         if (recorder.isRecording || recorder.isPaused) {
-          expectedStopReasonRef.current = true;
+          take.facts.expectedStop = true;
           await recorder.stopRecording();
           await new Promise(r => setTimeout(r, 150));
         }
@@ -599,20 +552,15 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
 
       await timedStep("record.session", claimRecordingAudioSession());
       audioSessionClaimed = true;
-      persistedSessionRef.current = false;
-      preparedRecordingRef.current = false;
-      recordingStartedAtRef.current = null;
-      resetCaptureStartEstimate();
-      setHeadTrim({ pending: false, ms: 0 });
-      resetLiveWaveform();
-      resetOnsetEnvelope();
+      take.facts.prepared = false;
+      take.beginTake();
 
       const recordingStartedAt = Date.now();
-      recordingStartedAtRef.current = recordingStartedAt;
+      take.facts.recordingStartedAt = recordingStartedAt;
       nativeStartAttempted = true;
       const startResult = await timedStep("record.start", recorder.startRecording(buildRecordingConfig()));
       if (startResult?.fileUri) {
-        persistedSessionRef.current = true;
+        take.facts.sessionPersisted = true;
         await persistPendingRecordingSession(startResult.fileUri, recordingStartedAt);
       }
       return true;
@@ -630,13 +578,13 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     if (recorder.isRecording || recorder.isPaused || startInFlightRef.current) return false;
     startInFlightRef.current = true;
     let nativeStartAttempted = false;
-    let audioSessionClaimed = preparedRecordingRef.current;
+    let audioSessionClaimed = take.facts.prepared;
     try {
       if (!(await requestRecordingPermissions())) {
         return false;
       }
       await recoverKeptTakeBeforeNewOne();
-      if (!preparedRecordingRef.current) {
+      if (!take.facts.prepared) {
         const prepared = await prepareRecording();
         if (!prepared) {
           return false;
@@ -645,14 +593,14 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       }
 
       const recordingStartedAt = Date.now();
-      recordingStartedAtRef.current = recordingStartedAt;
+      take.facts.recordingStartedAt = recordingStartedAt;
       resetCaptureStartEstimate();
-      setHeadTrim({ pending: false, ms: 0 });
+      take.headTrim.set({ pending: false, ms: 0 });
       nativeStartAttempted = true;
       const startResult = await timedStep("record.start", recorder.startRecording(buildRecordingConfig()));
-      preparedRecordingRef.current = false;
+      take.facts.prepared = false;
       if (startResult?.fileUri) {
-        persistedSessionRef.current = true;
+        take.facts.sessionPersisted = true;
         await persistPendingRecordingSession(startResult.fileUri, recordingStartedAt);
       }
       return true;
@@ -667,17 +615,17 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   }
 
   async function cancelPreparedRecording() {
-    preparedRecordingRef.current = false;
-    recordingStartedAtRef.current = null;
-    persistedSessionRef.current = false;
+    take.facts.prepared = false;
+    take.facts.recordingStartedAt = null;
+    take.facts.sessionPersisted = false;
     abortHeadTrim();
     resetLiveWaveform();
       resetOnsetEnvelope();
     try {
-      expectedStopReasonRef.current = true;
+      take.facts.expectedStop = true;
       await recorder.stopRecording();
     } catch {
-      expectedStopReasonRef.current = false;
+      take.facts.expectedStop = false;
       // Ignore cleanup failures when a prepared recorder is canceled before capture begins.
     }
     await clearPendingRecordingSession();
@@ -711,13 +659,13 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     let managedAudioUriToCleanup: string | null = null;
     let trimTempUriToCleanup: string | null = null;
     try {
-      expectedStopReasonRef.current = true;
+      take.facts.expectedStop = true;
       const recordingData = await timedStep("stopRecording", recorder.stopRecording(), { timeoutMs: 15_000 });
-      preparedRecordingRef.current = false;
-      recordingStartedAtRef.current = null;
+      take.facts.prepared = false;
+      take.facts.recordingStartedAt = null;
       // Take the onset envelope before anything resets it — the head trim it has to be
       // shifted by isn't known yet, so keep the raw capture-axis state for now.
-      const capturedOnsetState = onsetEnvelopeRef.current;
+      const capturedOnsetState = take.getOnsetEnvelope();
       resetLiveWaveform();
       resetOnsetEnvelope();
       if (!recordingData || !recordingData.fileUri) {
@@ -730,8 +678,9 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       // pending-session marker stay in place until the trimmed attach succeeds, so a
       // failure at any point still recovers the full take.
       const rawDurationMs = recordingData.durationMs ?? 0;
-      const headTrimMs = headTrimRef.current.pending ? 0 : headTrimRef.current.ms;
-      setHeadTrim({ pending: false, ms: 0 });
+      const currentHeadTrim = take.headTrim.get();
+      const headTrimMs = currentHeadTrim.pending ? 0 : currentHeadTrim.ms;
+      take.headTrim.set({ pending: false, ms: 0 });
       let sourceAudioUri = recordingData.fileUri;
       let headTrimmedMs = 0;
       if (headTrimMs >= MIN_HEAD_TRIM_MS && rawDurationMs > headTrimMs + 250) {
@@ -886,7 +835,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       if (durable) await clearPendingRecordingSession();
       return true;
     } catch {
-      expectedStopReasonRef.current = false;
+      take.facts.expectedStop = false;
       // Roll back the PARTIAL artifacts (the managed copy and the intermediate trim temp),
       // but PRESERVE the recorder temp file AND the pending-session marker — together they
       // are the recoverable take that recoverPendingRecordingSession restores on next
@@ -912,7 +861,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
 
   async function discardRecording() {
     try {
-      expectedStopReasonRef.current = true;
+      take.facts.expectedStop = true;
       const recordingData = await timedStep("stopRecording", recorder.stopRecording(), {
         timeoutMs: 15_000,
         // The user threw this take away; if the stop lands late, finish the job.
@@ -920,8 +869,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
           if (late?.fileUri) void FileSystem.deleteAsync(late.fileUri, { idempotent: true }).catch(() => {});
         },
       });
-      preparedRecordingRef.current = false;
-      recordingStartedAtRef.current = null;
+      take.facts.prepared = false;
+      take.facts.recordingStartedAt = null;
       abortHeadTrim();
       resetLiveWaveform();
       resetOnsetEnvelope();
@@ -932,7 +881,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       }
       await clearPendingRecordingSession();
     } catch {
-      expectedStopReasonRef.current = false;
+      take.facts.expectedStop = false;
       // A discarded take must not come back as "recovered" on the next launch.
       await clearPendingRecordingSession().catch(() => {});
     } finally {
