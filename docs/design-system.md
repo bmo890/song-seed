@@ -63,10 +63,14 @@ Fonts: **Lora** (serif — decided 2026-07-23, replacing Playfair Display app-wi
 FrankRuhlLibre/Heebo in `App.tsx` — always use the Latin family keys or `text.*`
 tokens, never the Hebrew keys directly.
 
-**The earned serif (decided 2026-07-23):** the serif belongs to what the user
-made *and named*. Named clips/songs render titles in Lora; auto-named clips show
-their timestamp name in quiet tabular Jakarta until the user claims them with a
-name. Chrome, buttons, and metadata are always Jakarta — a serif button is a bug.
+**The earned serif (decided 2026-07-23, revised 2026-09-23):** the serif belongs
+to what the user made *and named*. A title earns Lora by reading as a name,
+wherever it was typed — in SongNook, or in the app the file came from. Machine
+names stay in quiet tabular Jakarta: our own timestamp titles, recorder
+filenames ("New Recording 7", "Voice 001", bare dates), default take titles
+("Idea 3"), recovered and nameless imports. An in-app rename always counts.
+The one rule lives in `src/domain/titleNaming.ts`. Chrome, buttons, and
+metadata are always Jakarta — a serif button is a bug.
 
 | Token | Face | Size/LH | Use |
 |---|---|---|---|

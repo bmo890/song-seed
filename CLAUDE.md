@@ -20,8 +20,9 @@ The hard rules below are non-negotiable.
 - Never `fontWeight` without `fontFamily` (RN silently renders the system font).
 - Lora = editorial identity/content titles (Playfair retired 2026-07-23 — never
   re-add it). Plus Jakarta Sans = every control, button, and metadata line. A
-  serif button is a bug. Earned-serif rule: only *named* clips get Lora titles;
-  auto-named clips show timestamp names in quiet tabular Jakarta.
+  serif button is a bug. Earned-serif rule: titles that *read as a name* get Lora, wherever they
+  were typed; machine names (timestamps, recorder filenames, "Idea 3") stay in
+  quiet tabular Jakarta (`src/domain/titleNaming.ts`).
 - Card shells: content = `IdeaCard` recipe (r12), structural = `SurfaceCard` (r8).
   The radius-4 `card` in `styles/base.ts` is deprecated. Never invent a card.
 - No pure black. Shadows are whispers (opacity ≤ 0.08); depth via tonal layering.
