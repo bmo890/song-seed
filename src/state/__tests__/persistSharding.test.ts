@@ -174,3 +174,72 @@ describe("round trip: plan → apply → assemble", () => {
         expect(assembled.missingIds).toEqual(["w2"]);
     });
 });
+
+describe("activity history row", () => {
+    const events = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `e${i}` })) as any[];
+
+    it("moves activityEvents out of the meta row into its own row, written only when changed", () => {
+        const w1 = ws("w1");
+        const history = events(3);
+        const first = planShardedWrite(STORE, snapshot([w1], { activityEvents: history }), new Map(), null);
+        const meta = JSON.parse(first.metaRow.value);
+        expect(meta.activityRow).toBe(true);
+        expect(meta.state.activityEvents).toBeUndefined();
+        expect(first.activityRow?.key).toBe(`${STORE}::activity`);
+        expect(JSON.parse(first.activityRow!.value)).toHaveLength(3);
+        expect(first.nextActivityRef).toBe(history);
+
+        // Same history reference (a "last opened" stamp): the activity row is not rewritten.
+        const second = planShardedWrite(
+            STORE,
+            snapshot([w1], { activityEvents: history, collectionLastOpenedAt: { c: 1 } }),
+            first.nextWorkspaceRefs,
+            first.nextActivityRef
+        );
+        expect(second.activityRow).toBeNull();
+
+        // A new history reference is.
+        const third = planShardedWrite(STORE, snapshot([w1], { activityEvents: events(4) }), first.nextWorkspaceRefs, history);
+        expect(third.activityRow).not.toBeNull();
+    });
+
+    it("a snapshot without a history keeps its meta row whole", () => {
+        const plan = planShardedWrite(STORE, snapshot([ws("w1")]), new Map(), null);
+        expect(JSON.parse(plan.metaRow.value).activityRow).toBeUndefined();
+        expect(plan.activityRow).toBeNull();
+        expect(plan.nextActivityRef).toBeNull();
+    });
+
+    it("assembles the history from its row, and reads a pre-split meta inline", () => {
+        const w1 = ws("w1");
+        const value = snapshot([w1], { activityEvents: events(2) });
+        const plan = planShardedWrite(STORE, value, new Map(), null);
+        const meta = parseMetaRow(plan.metaRow.value);
+        if (meta.format !== "sharded") throw new Error("expected sharded");
+        expect(meta.activityRow).toBe(true);
+        const wsValues = new Map<string, string>(plan.dirtyWorkspaceRows.map((r) => [r.key, r.value]));
+        const assembled = assembleShardedSnapshot(STORE, meta, wsValues, plan.activityRow!.value);
+        expect(assembled.value).toEqual(value);
+        expect(assembled.activityDegraded).toBe(false);
+
+        // Pre-split sharded meta: events inline, no flag — unchanged read.
+        const inline = JSON.stringify({ [SHARD_MARKER]: true, version: 11, workspaceIds: ["w1"], state: { activeWorkspaceId: "w1", activityEvents: events(2) } });
+        const inlineMeta = parseMetaRow(inline);
+        if (inlineMeta.format !== "sharded") throw new Error("expected sharded");
+        expect(inlineMeta.activityRow).toBe(false);
+        expect(assembleShardedSnapshot(STORE, inlineMeta, wsValues).value.state.activityEvents).toHaveLength(2);
+    });
+
+    it("a missing or corrupt activity row starts the history empty and reports it", () => {
+        const plan = planShardedWrite(STORE, snapshot([ws("w1")], { activityEvents: events(2) }), new Map(), null);
+        const meta = parseMetaRow(plan.metaRow.value);
+        if (meta.format !== "sharded") throw new Error("expected sharded");
+        const wsValues = new Map<string, string>(plan.dirtyWorkspaceRows.map((r) => [r.key, r.value]));
+        const missing = assembleShardedSnapshot(STORE, meta, wsValues, null);
+        expect(missing.value.state.activityEvents).toEqual([]);
+        expect(missing.activityDegraded).toBe(true);
+        const corrupt = assembleShardedSnapshot(STORE, meta, wsValues, "{not json");
+        expect(corrupt.value.state.activityEvents).toEqual([]);
+        expect(corrupt.activityDegraded).toBe(true);
+    });
+});

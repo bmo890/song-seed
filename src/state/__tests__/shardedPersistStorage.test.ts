@@ -139,3 +139,40 @@ describe("shardedPersistStorage", () => {
         expect(mockKv.has(`${STORE}::legacy-blob`)).toBe(false);
     });
 });
+
+describe("activity history row (adapter)", () => {
+    const events = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `e${i}` })) as any[];
+
+    it("writes the history once, then leaves it alone while the meta row keeps changing", async () => {
+        const storage = createShardedPersistStorage();
+        const w1 = ws("w1");
+        const history = events(3);
+        await storage.setItem(STORE, value([w1], { activityEvents: history }) as any);
+        expect(mockKv.has(`${STORE}::activity`)).toBe(true);
+        expect(JSON.parse(mockKv.get(STORE)!).state.activityEvents).toBeUndefined();
+        jest.clearAllMocks();
+
+        // A "last opened" stamp: meta row only.
+        await storage.setItem(STORE, value([w1], { activityEvents: history, collectionLastOpenedAt: { c: 1 } }) as any);
+        const call = (commitShardedWrite as jest.Mock).mock.calls[0];
+        expect((call[0] as { key: string }[]).map((r) => r.key)).toEqual([STORE]);
+
+        // Read back: the history comes from its row.
+        const readBack = await storage.getItem(STORE);
+        expect(readBack?.state.activityEvents).toHaveLength(3);
+        expect((readBack?.state as any).collectionLastOpenedAt).toEqual({ c: 1 });
+    });
+
+    it("removeItem drops the activity row too", async () => {
+        const storage = createShardedPersistStorage();
+        await storage.setItem(STORE, value([ws("w1")], { activityEvents: events(1) }) as any);
+        await storage.removeItem(STORE);
+        expect(mockKv.has(`${STORE}::activity`)).toBe(false);
+    });
+
+    it("a stray activity row without a meta row is still a fresh install", async () => {
+        mockKv.set(`${STORE}::activity`, "[]");
+        const storage = createShardedPersistStorage();
+        expect(await storage.getItem(STORE)).toBeNull();
+    });
+});

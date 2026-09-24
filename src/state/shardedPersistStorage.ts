@@ -1,5 +1,5 @@
 import type { PersistStorage, StorageValue } from "zustand/middleware";
-import type { Workspace } from "../types";
+import type { ActivityEvent, Workspace } from "../types";
 import type { PersistedAppStore } from "./storeTypes";
 import {
     commitShardedWrite,
@@ -11,6 +11,7 @@ import {
     sqliteStringStorage,
 } from "./db/storage";
 import {
+    activityRowKey,
     assembleShardedSnapshot,
     parseMetaRow,
     planShardedWrite,
@@ -57,6 +58,9 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
     // launch, so the first write after hydration shards every workspace once (their identities
     // are freshly created by sanitize/merge anyway); subsequent edits are incremental.
     let lastWorkspaceRefs = new Map<string, Workspace>();
+    // Last-written activity-events reference; null until this session's first write, which
+    // writes the activity row unconditionally (the meta it commits says the row exists).
+    let lastActivityRef: ActivityEvent[] | null = null;
     // Whether we've already stashed the pre-sharding monolithic blob this session.
     let legacyBackedUp = false;
     // Whether we've swept orphaned workspace rows (left by a restore or the legacy→sharded
@@ -157,6 +161,8 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
                         `meta row missing but ${strays.length} workspace row(s) exist for "${name}"`
                     );
                 }
+                // The activity row alone is not a library — it is swept by the next write's
+                // orphan pass, and never a reason to refuse a fresh boot.
                 readOutcome = "empty";
                 setHydrationReadOutcome("empty");
                 persistLog("hydrate.empty", { ms: Date.now() - startedAt });
@@ -186,11 +192,12 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
                 return meta.value as StorageValue<PersistedAppStore>;
             }
 
-            // Sharded: read the referenced workspace rows and reassemble.
+            // Sharded: read the referenced workspace rows (+ the activity row) and reassemble.
             const workspaceKeys = shardedWorkspaceRowKeys(name, meta.workspaceIds);
+            const activityKey = activityRowKey(name);
             let workspaceValues: Map<string, string>;
             try {
-                workspaceValues = await readManyKv(workspaceKeys);
+                workspaceValues = await readManyKv(meta.activityRow ? [...workspaceKeys, activityKey] : workspaceKeys);
             } catch (err) {
                 readOutcome = "failed";
                 setHydrationReadOutcome("failed");
@@ -198,17 +205,21 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
                 throw err;
             }
             if (overlay || overlayDeleted) {
-                for (const key of workspaceKeys) {
+                for (const key of meta.activityRow ? [...workspaceKeys, activityKey] : workspaceKeys) {
                     const value = overlayRead(key, workspaceValues.get(key));
                     if (value == null) workspaceValues.delete(key);
                     else workspaceValues.set(key, value);
                 }
             }
-            const { value: assembled, missingIds, corrupt } = assembleShardedSnapshot(
+            const activityRaw = workspaceValues.get(activityKey);
+            workspaceValues.delete(activityKey);
+            const { value: assembled, missingIds, corrupt, activityDegraded } = assembleShardedSnapshot(
                 name,
                 meta,
-                workspaceValues
+                workspaceValues,
+                activityRaw
             );
+            if (activityDegraded) persistLog("hydrate.degraded", "activity row missing or corrupt");
 
             // A referenced row that won't load is a real (partial) data incident, never a
             // silent skip: preserve corrupt bytes where the orphan sweep can't reach them,
@@ -236,7 +247,7 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
             readOutcome = "data";
             setHydrationReadOutcome("data");
 
-            let bytes = metaRaw?.length ?? 0;
+            let bytes = (metaRaw?.length ?? 0) + (activityRaw?.length ?? 0);
             for (const value of workspaceValues.values()) bytes += value.length;
             console.log(
                 `[PersistTelemetry] hydrated "${name}" (sharded, ${meta.workspaceIds.length} workspaces): ` +
@@ -288,7 +299,7 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
             }
 
             const startedAt = Date.now();
-            const plan = planShardedWrite(name, value as PersistStorageValue, lastWorkspaceRefs);
+            const plan = planShardedWrite(name, value as PersistStorageValue, lastWorkspaceRefs, lastActivityRef);
 
             // First write of the session: sweep any workspace rows on disk that this snapshot
             // no longer references — orphans from a restore or the legacy→sharded transition,
@@ -304,13 +315,17 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
                 if (orphans.length > 0) extraDeletes = [...plan.deleteKeys, ...orphans];
             }
 
-            await commitShardedWrite([plan.metaRow, ...plan.dirtyWorkspaceRows], extraDeletes);
+            await commitShardedWrite(
+                [plan.metaRow, ...(plan.activityRow ? [plan.activityRow] : []), ...plan.dirtyWorkspaceRows],
+                extraDeletes
+            );
             // Adopt the new reference set only after a successful commit.
             lastWorkspaceRefs = plan.nextWorkspaceRefs;
+            lastActivityRef = plan.nextActivityRef;
 
             const ms = Date.now() - startedAt;
             if (ms >= SLOW_WRITE_WARN_MS) {
-                let bytes = plan.metaRow.value.length;
+                let bytes = plan.metaRow.value.length + (plan.activityRow?.value.length ?? 0);
                 for (const row of plan.dirtyWorkspaceRows) bytes += row.value.length;
                 console.warn(
                     `[PersistTelemetry] slow library write: ${plan.dirtyWorkspaceRows.length} workspace(s), ` +
@@ -326,8 +341,15 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
             // deliberate wipe means the user is done with those bytes too.
             const workspaceRows = await listKvKeysWithPrefix(`${name}::ws::`);
             const quarantineRows = await listKvKeysWithPrefix(`${name}::quarantine::`);
-            await commitShardedWrite([], [name, legacyBackupKey(name), ...workspaceRows, ...quarantineRows]);
+            await commitShardedWrite([], [
+                name,
+                legacyBackupKey(name),
+                activityRowKey(name),
+                ...workspaceRows,
+                ...quarantineRows,
+            ]);
             lastWorkspaceRefs = new Map();
+            lastActivityRef = null;
             legacyBackedUp = false;
             orphansSwept = false;
             // The wipe was deliberate (persist.clearStorage) — disk is now known-empty.

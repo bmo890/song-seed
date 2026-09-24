@@ -1,4 +1,4 @@
-import type { Workspace } from "../types";
+import type { ActivityEvent, Workspace } from "../types";
 import type { PersistedAppStore } from "./storeTypes";
 
 /**
@@ -12,9 +12,17 @@ import type { PersistedAppStore } from "./storeTypes";
  * one workspace's row instead of the entire library.
  *
  * Storage layout, all in the existing `kv` table:
- *   key = STORE_NAME              → meta row: everything EXCEPT workspaces, + the ordered
- *                                    workspaceIds list, tagged with SHARD_MARKER.
+ *   key = STORE_NAME              → meta row: everything EXCEPT workspaces and the activity
+ *                                    history, + the ordered workspaceIds list, tagged with
+ *                                    SHARD_MARKER (and `activityRow: true` once split).
  *   key = STORE_NAME::ws::<id>    → one workspace's full subtree.
+ *   key = STORE_NAME::activity    → the activity history (activityEvents). It was the bulk
+ *                                    of the meta row (117 KB of 113 KB compressed, 2026-09-24)
+ *                                    and the meta row is rewritten on EVERY write — opening a
+ *                                    collection stamps "last opened" — so it gets its own row,
+ *                                    rewritten only when the events array reference changes.
+ *                                    A sharded meta WITHOUT the flag still carries the events
+ *                                    inline (installs from before the split) and reads as-is.
  *
  * A monolithic blob at STORE_NAME (pre-sharding installs, or a disaster-recovery restore,
  * which writes the whole snapshot straight to STORE_NAME) has NO marker and carries its
@@ -35,9 +43,15 @@ type ShardedMeta = {
     [SHARD_MARKER]: true;
     version?: number;
     workspaceIds: string[];
-    /** Everything in PersistedAppStore except `workspaces`. */
-    state: Omit<PersistedAppStore, "workspaces">;
+    /** The activity history lives in its own row (STORE_NAME::activity). */
+    activityRow?: true;
+    /** Everything in PersistedAppStore except `workspaces` (and `activityEvents` once split). */
+    state: Omit<PersistedAppStore, "workspaces" | "activityEvents"> & { activityEvents?: ActivityEvent[] };
 };
+
+export function activityRowKey(storeName: string): string {
+    return `${storeName}::activity`;
+}
 
 export function workspaceRowKey(storeName: string, workspaceId: string): string {
     return `${storeName}::ws::${workspaceId}`;
@@ -46,12 +60,16 @@ export function workspaceRowKey(storeName: string, workspaceId: string): string 
 export type ShardedWritePlan = {
     /** The meta row — always written (it carries the authoritative workspaceIds order). */
     metaRow: { key: string; value: string };
+    /** The activity row — only when the events array reference changed since the last write. */
+    activityRow: { key: string; value: string } | null;
     /** Only the workspace rows whose object reference changed since the last write. */
     dirtyWorkspaceRows: { key: string; value: string }[];
     /** Rows for workspaces that no longer exist — deleted in the same transaction. */
     deleteKeys: string[];
     /** The new "last written" workspace-reference map, adopted after a successful commit. */
     nextWorkspaceRefs: Map<string, Workspace>;
+    /** The new "last written" activity-events reference, adopted after a successful commit. */
+    nextActivityRef: ActivityEvent[] | null;
 };
 
 /**
@@ -62,20 +80,31 @@ export type ShardedWritePlan = {
 export function planShardedWrite(
     storeName: string,
     value: PersistStorageValue,
-    lastWorkspaceRefs: Map<string, Workspace>
+    lastWorkspaceRefs: Map<string, Workspace>,
+    /** `null` = nothing written yet this session: the activity row is written once regardless. */
+    lastActivityRef: ActivityEvent[] | null = null
 ): ShardedWritePlan {
     const workspaces = Array.isArray(value.state.workspaces) ? value.state.workspaces : [];
     const workspaceIds = workspaces.map((workspace) => workspace.id);
+    // A snapshot without a history (older shapes, tests) keeps its meta row as-is.
+    const activityEvents = Array.isArray(value.state.activityEvents) ? value.state.activityEvents : null;
 
     const metaState = { ...value.state } as Partial<PersistedAppStore>;
     delete metaState.workspaces;
+    if (activityEvents) delete metaState.activityEvents;
 
     const meta: ShardedMeta = {
         [SHARD_MARKER]: true,
         version: value.version,
         workspaceIds,
-        state: metaState as Omit<PersistedAppStore, "workspaces">,
+        ...(activityEvents ? { activityRow: true as const } : null),
+        state: metaState as ShardedMeta["state"],
     };
+
+    const activityRow =
+        activityEvents && lastActivityRef !== activityEvents
+            ? { key: activityRowKey(storeName), value: JSON.stringify(activityEvents) }
+            : null;
 
     const dirtyWorkspaceRows: { key: string; value: string }[] = [];
     const nextWorkspaceRefs = new Map<string, Workspace>();
@@ -99,9 +128,11 @@ export function planShardedWrite(
 
     return {
         metaRow: { key: storeName, value: JSON.stringify(meta) },
+        activityRow,
         dirtyWorkspaceRows,
         deleteKeys,
         nextWorkspaceRefs,
+        nextActivityRef: activityEvents,
     };
 }
 
@@ -109,7 +140,14 @@ export type ParsedMeta =
     | { format: "empty" }
     | { format: "corrupt" }
     | { format: "legacy"; value: PersistStorageValue }
-    | { format: "sharded"; version?: number; workspaceIds: string[]; metaState: Record<string, unknown> };
+    | {
+          format: "sharded";
+          version?: number;
+          workspaceIds: string[];
+          /** True when the activity history lives in STORE_NAME::activity (else inline in metaState). */
+          activityRow: boolean;
+          metaState: Record<string, unknown>;
+      };
 
 /** Classify a meta-row string: fresh install, sharded, or a legacy/restored monolithic blob. */
 export function parseMetaRow(metaValue: string | null | undefined): ParsedMeta {
@@ -130,6 +168,7 @@ export function parseMetaRow(metaValue: string | null | undefined): ParsedMeta {
             format: "sharded",
             version: typeof record.version === "number" ? record.version : undefined,
             workspaceIds: Array.isArray(record.workspaceIds) ? (record.workspaceIds as string[]) : [],
+            activityRow: record.activityRow === true,
             metaState: (record.state as Record<string, unknown>) ?? {},
         };
     }
@@ -155,6 +194,8 @@ export type AssembledShardedSnapshot = {
     missingIds: string[];
     /** Referenced ids whose row exists but won't parse — raw bytes preserved for quarantine. */
     corrupt: { id: string; raw: string }[];
+    /** The meta referenced an activity row that was missing or unparseable: history starts empty. */
+    activityDegraded: boolean;
 };
 
 /**
@@ -167,8 +208,25 @@ export type AssembledShardedSnapshot = {
 export function assembleShardedSnapshot(
     storeName: string,
     meta: Extract<ParsedMeta, { format: "sharded" }>,
-    workspaceRowValues: Map<string, string>
+    workspaceRowValues: Map<string, string>,
+    activityRaw: string | null | undefined = undefined
 ): AssembledShardedSnapshot {
+    // The activity history: its own row once split, inline in the meta before that.
+    let activityEvents: ActivityEvent[] | undefined;
+    let activityDegraded = false;
+    if (meta.activityRow) {
+        try {
+            const parsed = activityRaw == null ? null : (JSON.parse(activityRaw) as unknown);
+            if (Array.isArray(parsed)) activityEvents = parsed as ActivityEvent[];
+            else activityDegraded = true;
+        } catch {
+            activityDegraded = true;
+        }
+        if (activityDegraded) {
+            console.warn(`[persistSharding] activity row ${activityRaw == null ? "missing" : "corrupt"} — history starts empty`);
+            activityEvents = [];
+        }
+    }
     const workspaces: Workspace[] = [];
     const missingIds: string[] = [];
     const corrupt: { id: string; raw: string }[] = [];
@@ -189,10 +247,15 @@ export function assembleShardedSnapshot(
 
     return {
         value: {
-            state: { ...(meta.metaState as object), workspaces } as PersistedAppStore,
+            state: {
+                ...(meta.metaState as object),
+                ...(activityEvents ? { activityEvents } : null),
+                workspaces,
+            } as PersistedAppStore,
             version: meta.version,
         },
         missingIds,
         corrupt,
+        activityDegraded,
     };
 }
