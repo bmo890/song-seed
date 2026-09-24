@@ -232,7 +232,10 @@ function IdeaListContentInner(
       }
       onViewableItemsChanged={onViewableItemsChanged}
       viewabilityConfig={viewabilityConfig}
-      initialNumToRender={12}
+      // First frame: one screen of cards. Twelve full cards (waveform, meta,
+      // badges) before the collection could appear was most of its mount cost on a
+      // large library; the rest fill in on the following frames.
+      initialNumToRender={6}
       maxToRenderPerBatch={10}
       windowSize={7}
       onScrollToIndexFailed={(info) => {
