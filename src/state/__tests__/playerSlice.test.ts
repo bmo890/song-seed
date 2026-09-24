@@ -127,3 +127,66 @@ describe("playback numbers follow the target", () => {
         expect(store.getState()).toMatchObject({ playerTarget: q(3), playerDurationMs: 0 });
     });
 });
+
+describe("no-op requests do not notify", () => {
+    const q = (n: number) => ({ ideaId: `idea-${n}`, clipId: `clip-${n}` });
+
+    it("requestPlayerClose with no session leaves the state object untouched", () => {
+        const store = createStore<PlayerSlice>()(createPlayerSlice);
+        const before = store.getState();
+        store.getState().requestPlayerClose();
+        expect(store.getState()).toBe(before);
+    });
+
+    it("requestPlayerClose with a session bumps the token", () => {
+        const store = createStore<PlayerSlice>()(createPlayerSlice);
+        store.getState().setPlayerQueue([q(1)], 0, false);
+        const token = store.getState().playerCloseRequestToken;
+        store.getState().requestPlayerClose();
+        expect(store.getState().playerCloseRequestToken).toBe(token + 1);
+    });
+
+    it("requestPlayerClose with the screen mounted but no target still bumps the token", () => {
+        const store = createStore<PlayerSlice>()(createPlayerSlice);
+        store.getState().setPlayerScreenMounted(true);
+        const token = store.getState().playerCloseRequestToken;
+        store.getState().requestPlayerClose();
+        expect(store.getState().playerCloseRequestToken).toBe(token + 1);
+    });
+
+    it("requestInlineStop with nothing previewing leaves the state object untouched", () => {
+        const store = createStore<PlayerSlice>()(createPlayerSlice);
+        const before = store.getState();
+        store.getState().requestInlineStop();
+        expect(store.getState()).toBe(before);
+    });
+
+    it("requestInlineStop with a preview clears it and bumps the token", () => {
+        const store = createStore<PlayerSlice>()(createPlayerSlice);
+        store.getState().setInlineTarget(q(1));
+        store.getState().setInlinePlaybackState({ positionMs: 500, durationMs: 1000, isPlaying: true });
+        const token = store.getState().inlineStopRequestToken;
+        store.getState().requestInlineStop();
+        expect(store.getState()).toMatchObject({
+            inlineStopRequestToken: token + 1,
+            inlineTarget: null,
+            inlinePositionMs: 0,
+            inlineIsPlaying: false,
+        });
+    });
+
+    it("setInlineTarget with an equal target leaves the state object untouched", () => {
+        const store = createStore<PlayerSlice>()(createPlayerSlice);
+        store.getState().setInlineTarget(q(1));
+        const before = store.getState();
+        store.getState().setInlineTarget({ ...q(1) });
+        expect(store.getState()).toBe(before);
+        store.getState().setInlineTarget(q(2));
+        expect(store.getState().inlineTarget).toEqual(q(2));
+        store.getState().setInlineTarget(null);
+        expect(store.getState().inlineTarget).toBeNull();
+        const cleared = store.getState();
+        store.getState().setInlineTarget(null);
+        expect(store.getState()).toBe(cleared);
+    });
+});

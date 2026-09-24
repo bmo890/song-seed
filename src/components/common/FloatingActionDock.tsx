@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useIsFocused } from "@react-navigation/native";
 import { Pressable, Text, View, StyleProp, ViewStyle } from "react-native";
 import Animated, { FadeInDown, FadeOut } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
@@ -45,6 +46,22 @@ export function FloatingActionDock({
 }: FloatingActionDockProps) {
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
+  // Armed: the record key stays pressed from the tap until the recorder has taken
+  // over (this screen loses focus). Creating the take's idea and mounting the
+  // recorder is real work on a large library; the key holding its pressed state is
+  // what makes that beat read as "taken" rather than "missed" — no spinner, no copy.
+  const [armed, setArmed] = useState(false);
+  const isFocused = useIsFocused();
+  useEffect(() => {
+    if (!armed) return;
+    if (!isFocused) {
+      setArmed(false);
+      return;
+    }
+    // Safety: never stay armed if the navigation never happened.
+    const timer = setTimeout(() => setArmed(false), 1500);
+    return () => clearTimeout(timer);
+  }, [armed, isFocused]);
   const insets = useSafeAreaInsets();
   // Ride above the global media dock and the import bar when they're present. Shared
   // with every list's footer spacer, so content clearance always matches reality.
@@ -105,10 +122,11 @@ export function FloatingActionDock({
         <Pressable
           testID="fab-record"
           accessibilityLabel={t("common.record")}
-          style={({ pressed }) => [styles.ideasRecordFab, pressed ? styles.pressDownStrong : null]}
+          style={({ pressed }) => [styles.ideasRecordFab, pressed || armed ? styles.pressDownStrong : null]}
           onPress={() => {
             haptic.grab();
             setMenuOpen(false);
+            setArmed(true);
             onRecord();
           }}
         >

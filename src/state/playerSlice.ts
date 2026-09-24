@@ -102,10 +102,14 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
             playerToggleRequestToken: state.playerToggleRequestToken + 1,
         })),
     playerCloseRequestToken: 0,
+    // A request with nothing to close is a no-op (no notify): the record key fires
+    // one on every tap, and each needless set re-ran every subscriber in the app.
     requestPlayerClose: () =>
-        set((state) => ({
-            playerCloseRequestToken: state.playerCloseRequestToken + 1,
-        })),
+        set((state) =>
+            state.playerTarget == null && state.playerQueue.length === 0 && !state.isPlayerScreenMounted
+                ? state
+                : { playerCloseRequestToken: state.playerCloseRequestToken + 1 }
+        ),
     setPlayerQueue: (queue, startIndex, shouldAutoplay = false) => {
         const clampedIndex = Math.max(0, Math.min(startIndex, Math.max(queue.length - 1, 0)));
         const nextTarget = queue[clampedIndex] ?? null;
@@ -222,7 +226,16 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
     setActiveSelectionDockHeight: (height) => set({ activeSelectionDockHeight: height }),
 
     inlineTarget: null,
-    setInlineTarget: (target) => set({ inlineTarget: target }),
+    setInlineTarget: (target) =>
+        set((state) =>
+            state.inlineTarget === target ||
+            (state.inlineTarget != null &&
+                target != null &&
+                state.inlineTarget.ideaId === target.ideaId &&
+                state.inlineTarget.clipId === target.clipId)
+                ? state
+                : { inlineTarget: target }
+        ),
     inlinePositionMs: 0,
     inlineDurationMs: 0,
     inlineIsPlaying: false,
@@ -243,11 +256,16 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
         }),
     inlineStopRequestToken: 0,
     requestInlineStop: () =>
-        set((state) => ({
-            inlineStopRequestToken: state.inlineStopRequestToken + 1,
-            inlineTarget: null,
-            inlinePositionMs: 0,
-            inlineDurationMs: 0,
-            inlineIsPlaying: false,
-        })),
+        set((state) =>
+            // Nothing previewing: nothing to stop, nobody to notify.
+            state.inlineTarget == null && !state.inlineIsPlaying
+                ? state
+                : {
+                      inlineStopRequestToken: state.inlineStopRequestToken + 1,
+                      inlineTarget: null,
+                      inlinePositionMs: 0,
+                      inlineDurationMs: 0,
+                      inlineIsPlaying: false,
+                  }
+        ),
 });
