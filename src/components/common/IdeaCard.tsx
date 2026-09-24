@@ -236,7 +236,7 @@ export function IdeaCard({
     leadAccessory,
     onPress,
     onLongPress,
-    delayLongPress = 250,
+    delayLongPress = 450,
     title,
     titleSemiBold,
     titleIsAuto,

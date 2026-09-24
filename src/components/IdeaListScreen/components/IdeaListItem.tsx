@@ -253,7 +253,7 @@ function IdeaListItemInner({
                 <Pressable
                     style={[styles.ideasDayDividerRow, compact ? styles.ideasDayDividerRowDense : null]}
                     onLongPress={onHideDay ? collapseSection : undefined}
-                    delayLongPress={350}
+                    delayLongPress={450}
                 >
                     <View style={styles.ideasDayDividerLine} />
                     <Text style={styles.ideasDayDividerText}>{dayDividerLabel}</Text>

@@ -1,0 +1,42 @@
+diff --git a/node_modules/expo-haptics/android/src/main/java/expo/modules/haptics/HapticsModule.kt b/node_modules/expo-haptics/android/src/main/java/expo/modules/haptics/HapticsModule.kt
+index 6102727..300fbc2 100644
+--- a/node_modules/expo-haptics/android/src/main/java/expo/modules/haptics/HapticsModule.kt
++++ b/node_modules/expo-haptics/android/src/main/java/expo/modules/haptics/HapticsModule.kt
+@@ -11,6 +11,7 @@ import expo.modules.haptics.arguments.HapticsNotificationType
+ import expo.modules.haptics.arguments.HapticsSelectionType
+ import expo.modules.haptics.arguments.HapticsVibrationType
+ import expo.modules.kotlin.exception.Exceptions
++import expo.modules.kotlin.functions.Queues
+ import expo.modules.kotlin.modules.Module
+ import expo.modules.kotlin.modules.ModuleDefinition
+ 
+@@ -28,22 +29,25 @@ class HapticsModule : Module() {
+   override fun definition() = ModuleDefinition {
+     Name("ExpoHaptics")
+ 
++    // SongNook: run on the main queue, not the shared Expo module thread. Behind a
++    // slow module call (audio, file system) a queued vibrate landed hundreds of
++    // milliseconds after the tap — a buzz nobody pressed for.
+     AsyncFunction("notificationAsync") { type: String ->
+       vibrate(HapticsNotificationType.fromString(type))
+-    }
++    }.runOnQueue(Queues.MAIN)
+ 
+     AsyncFunction<Unit>("selectionAsync") {
+       vibrate(HapticsSelectionType)
+-    }
++    }.runOnQueue(Queues.MAIN)
+ 
+     AsyncFunction("impactAsync") { style: String ->
+       vibrate(HapticsImpactType.fromString(style))
+-    }
++    }.runOnQueue(Queues.MAIN)
+ 
+     AsyncFunction("performHapticsAsync") { type: HapticType ->
+       val view = appContext.currentActivity?.findViewById<View>(android.R.id.content)
+       view?.performHapticFeedback(type.toHapticFeedbackType())
+-    }
++    }.runOnQueue(Queues.MAIN)
+   }
+ 
+   private fun vibrate(type: HapticsVibrationType) {

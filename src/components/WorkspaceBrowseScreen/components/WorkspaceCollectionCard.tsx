@@ -99,7 +99,7 @@ export function WorkspaceCollectionCard({
       ]}
       onPress={onPress}
       onLongPress={onLongPress}
-      delayLongPress={250}
+      delayLongPress={450}
     >
       {/* Leading glyph: the folder, or the selection dot while selecting */}
       {selectionMode ? (

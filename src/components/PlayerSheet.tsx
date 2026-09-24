@@ -73,9 +73,10 @@ export function PlayerSheet({ activeRouteName, isDrawerOpen, navigateRoot }: Pla
     setInMotion(true);
     dragY.value = withTiming(0, { duration: OPEN_DURATION }, (finished) => {
       if (finished) {
-        // The sheet just landed fully expanded — the app's signature gesture gets
-        // a physical full stop (docs/haptics-vocabulary.md: grab = settle).
-        runOnJS(haptic.grab)();
+        // The sheet just landed fully expanded: sheet settle = light (haptics
+        // vocabulary). It used to be grab — the heaviest verb, landing a beat after
+        // the tap that opened it, which reads as a buzz from nowhere.
+        runOnJS(haptic.light)();
         runOnJS(setInMotion)(false);
       }
     });
@@ -97,7 +98,8 @@ export function PlayerSheet({ activeRouteName, isDrawerOpen, navigateRoot }: Pla
         // so the next swipe-up lifts straight out from there.
         dragY.value = withTiming(dockedY.value, { duration: CLOSE_DURATION }, (finished) => {
           if (finished) {
-            runOnJS(haptic.grab)();
+            // No settle buzz on the way down: the chevron or drag that started the
+            // close already gave its feedback, and navigation is silent.
             runOnJS(collapse)();
             runOnJS(clearMotion)();
           }

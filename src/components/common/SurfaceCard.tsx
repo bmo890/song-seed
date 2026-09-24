@@ -47,7 +47,7 @@ export function SurfaceCard({
         ]}
         onPress={onPress}
         onLongPress={onLongPress}
-        delayLongPress={250}
+        delayLongPress={450}
         accessibilityRole={accessibilityRole}
         accessibilityState={accessibilityState}
         accessibilityLabel={accessibilityLabel}

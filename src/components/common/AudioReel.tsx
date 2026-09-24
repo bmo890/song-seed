@@ -454,18 +454,23 @@ export function AudioReel({
     const palette = chrome === "light" ? LIGHT_REEL_PALETTE : DARK_REEL_PALETTE;
 
     const scrubbingRef = React.useRef(false);
-    const handleInteractionStateChange = (scrubbing: boolean) => {
+    const handleInteractionStateChange = (scrubbing: boolean, options?: { silent?: boolean }) => {
         // Grab/release ticks on the transition only — the reel is the app's most
         // tactile surface and deserves physical detents (per docs/haptics-vocabulary.md).
         if (scrubbing !== scrubbingRef.current) {
             scrubbingRef.current = scrubbing;
-            haptic.tap();
+            if (!options?.silent) haptic.tap();
         }
         onScrubStateChange?.(scrubbing);
     };
 
     const handleSeekCommit = async (timeMs: number) => {
-        handleInteractionStateChange(true);
+        // ONE tick per commit, fired at the finger-up itself. The state transitions
+        // around the engine's seek are silent: a tap-seek used to tick once before
+        // the (async) seek and once after it — the second one landing late, as a
+        // buzz nobody pressed for. The detent tick below stands in for it on a snap.
+        handleInteractionStateChange(true, { silent: true });
+        let ticked = false;
         try {
             // Assistive bar magnet: a scrub that lands CLOSE to a bar line settles on it
             // (fine scrubbing anywhere else is untouched). Tolerance is visual — a fixed
@@ -484,11 +489,13 @@ export function AudioReel({
                     targetMs = snapped;
                     // Detent tick — the reel's physical vocabulary (grab/release/detents).
                     haptic.tap();
+                    ticked = true;
                 }
             }
+            if (!ticked) haptic.tap();
             await onSeek(targetMs);
         } finally {
-            handleInteractionStateChange(false);
+            handleInteractionStateChange(false, { silent: true });
         }
     };
 

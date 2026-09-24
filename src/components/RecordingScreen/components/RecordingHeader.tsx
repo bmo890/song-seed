@@ -63,6 +63,7 @@ export function RecordingHeader({
           tone="strong"
           size={22}
           onPress={onBack}
+          noHaptic // navigation is silent
           accessibilityLabel={t("recording.back")}
         />
 
@@ -99,6 +100,7 @@ export function RecordingHeader({
             tone="muted"
             size={20}
             onPress={onMinimize}
+            noHaptic // navigation is silent
             accessibilityLabel={t("recording.minimize")}
           />
           <IconButton
