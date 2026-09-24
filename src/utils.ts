@@ -3,7 +3,10 @@ import * as FileSystem from "expo-file-system/legacy";
 import { Collection, SongIdea, Workspace } from "./types";
 import { collectClipAudioUris } from "./services/managedMedia";
 import { i18n } from "./i18n/instance";
-import { isTitleAutoNamed } from "./domain/titleNaming";
+// The default-title helpers live with the naming rule (a utils <-> titleNaming
+// require cycle otherwise).
+import { buildDefaultIdeaTitle, isDefaultIdeaTitle, isTitleAutoNamed } from "./domain/titleNaming";
+export { buildDefaultIdeaTitle, isDefaultIdeaTitle };
 import { getMonthName, getWeekdayName } from "./domain/dateNames";
 
 const aestheticWords = [
@@ -220,47 +223,6 @@ export function genChildClipTitle(
   const depth = getLineageDepth(clips, parentClip.id);
   const baseTitle = getBaseClipTitle(parentClip.title);
   return `${baseTitle} v${depth + 2}`;
-}
-
-function buildDefaultIdeaTitleIn(language: "en" | "he", timestamp: number) {
-  const date = new Date(timestamp);
-  const day = date.getDate();
-  if (language === "he") {
-    // Hebrew has no ordinal suffix and reads 24-hour: "10:58 · 28 ביולי".
-    const time = date.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false });
-    const month = date.toLocaleDateString("he-IL", { month: "long" });
-    return `${time} ${day} ב${month}`;
-  }
-  const suffix = day === 1 || day === 21 || day === 31 ? "st"
-    : day === 2 || day === 22 ? "nd"
-    : day === 3 || day === 23 ? "rd"
-    : "th";
-  const time = date.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  }).replace(" ", "");
-  const month = date.toLocaleDateString("en-US", { month: "short" });
-  return `${time} ${month} ${day}${suffix}`;
-}
-
-/** The auto title a new capture gets, in the app's current language. */
-export const buildDefaultIdeaTitle = (timestamp = Date.now()) =>
-  buildDefaultIdeaTitleIn(i18n.language === "he" ? "he" : "en", timestamp);
-
-/**
- * True when `title` is still the unedited auto-generated timestamp.
- *
- * Checks BOTH languages on purpose: a title written in English and then read
- * after the user switches to Hebrew is still machine-supplied, and comparing
- * against only the current language would silently promote every old capture to
- * a "named" one — earning it a serif it never earned.
- */
-export function isDefaultIdeaTitle(title: string, createdAt: number) {
-  return (
-    title === buildDefaultIdeaTitleIn("en", createdAt) ||
-    title === buildDefaultIdeaTitleIn("he", createdAt)
-  );
 }
 
 /**
