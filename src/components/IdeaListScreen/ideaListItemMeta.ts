@@ -9,8 +9,9 @@ export const projectHasLyrics = (idea: SongIdea) =>
     version.document.lines.some((line) => line.text.trim().length > 0 || line.chords.length > 0)
   );
 
-/** The precomputed row model for an idea-list entry. The list model builds these in
- *  bulk; IdeaListItem falls back to building one itself when handed a bare idea. */
+/** The precomputed row model for an idea-list entry. Rows read it through
+ *  getIdeaListItemMeta, which caches by idea identity: an untouched idea keeps its
+ *  object across library writes, so its meta is built once. */
 export const buildIdeaListItemMeta = (idea: SongIdea): IdeaListItemMeta => {
   const primaryClip = idea.clips.find((clip) => clip.isPrimary) ?? null;
   const playClip = getPlayableClipForIdea(idea) ?? null;
@@ -27,3 +28,14 @@ export const buildIdeaListItemMeta = (idea: SongIdea): IdeaListItemMeta => {
     hasExpandedProjectIndicators: idea.kind === "project" && (hasProjectLyrics || hasProjectClipCount),
   };
 };
+
+const metaByIdea = new WeakMap<SongIdea, IdeaListItemMeta>();
+
+export function getIdeaListItemMeta(idea: SongIdea): IdeaListItemMeta {
+  let meta = metaByIdea.get(idea);
+  if (!meta) {
+    meta = buildIdeaListItemMeta(idea);
+    metaByIdea.set(idea, meta);
+  }
+  return meta;
+}

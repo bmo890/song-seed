@@ -4,7 +4,6 @@ import type {
   IdeaSort,
   IdeasTimelineMetric,
   InlinePlayerControls,
-  SongIdea,
 } from "../../types";
 import type { MutableRefObject, ReactNode } from "react";
 import type { Animated } from "react-native";
@@ -20,11 +19,16 @@ export type SearchMeta = {
   snippetField: "notes" | "lyrics" | null;
 };
 
+/** A list entry names its idea; the row reads the idea itself from the store. The
+ *  entries array is rebuilt only when the ORDER or MEMBERSHIP of the list changes
+ *  (or a label), so an edit to one idea wakes one row, never the list. */
 export type IdeaListEntry =
   | {
       key: string;
       type: "idea";
-      idea: SongIdea;
+      ideaId: string;
+      /** The day-bucket label of this row's sort timestamp (sticky chip source). */
+      dayLabel: string;
       dayDividerLabel?: string | null;
       dayStartTs?: number | null;
     }
@@ -51,7 +55,6 @@ export type IdeaListItemMeta = {
 export type CollectionListModel = {
   listRef?: MutableRefObject<any>;
   listEntries: IdeaListEntry[];
-  itemMetaByIdeaId: Map<string, IdeaListItemMeta>;
   topContent?: ReactNode;
   listDensity: "comfortable" | "compact";
   showDateDividers: boolean;
@@ -65,7 +68,6 @@ export type CollectionListModel = {
   rowLayoutsRef: MutableRefObject<Record<string, { y: number; height: number }>>;
   highlightMapRef: MutableRefObject<Record<string, Animated.Value>>;
   viewabilityConfig: { itemVisiblePercentThreshold: number };
-  searchMetaByIdeaId: Map<string, SearchMeta>;
   onViewableItemsChanged: (info: { viewableItems: Array<{ item: IdeaListEntry }> }) => void;
   onItemCellLayout?: (key: string, y: number) => void;
   playIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;

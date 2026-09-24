@@ -3,7 +3,7 @@ import { Pressable, Text, View, Animated } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
 import { styles } from "../../../styles";
-import { SongIdea, ClipVersion, InlinePlayerControls } from "../../../types";
+import { ClipVersion, InlinePlayerControls } from "../../../types";
 import { fmtCardDuration, formatClipCardTime, formatClipDate, isIdeaTitleAutoNamed } from "../../../utils";
 import { getDateBucket, getDateBucketLabel } from "../../../domain/dateBuckets";
 import { useNavigation } from "@react-navigation/native";
@@ -11,8 +11,20 @@ import { getIdeaCreatedAt, getIdeaUpdatedAt, type IdeaSortMetric } from "../../.
 import { getHierarchyIconName } from "../../../domain/hierarchy";
 import { getPlayableClipForIdea, isClipWaveformSynthetic } from "../../../domain/clipPresentation";
 import { buildDefaultSongbookItemsForIdea } from "../../../domain/songbookGrouping";
-import { buildIdeaListItemMeta } from "../ideaListItemMeta";
+import { getIdeaListItemMeta } from "../ideaListItemMeta";
+import { computeIdeaSearchMeta, EMPTY_SEARCH_META } from "../ideaSearchMeta";
+import { selectIdeaById } from "../../../state/librarySelectors";
 import type { IdeaListItemMeta } from "../types";
+
+const EMPTY_ITEM_META: IdeaListItemMeta = {
+    playClip: null,
+    clipDurationLabel: "0:00",
+    projectPrimaryDurationLabel: "0:00",
+    projectClipCount: 0,
+    hasProjectLyrics: false,
+    hasProjectClipCount: false,
+    hasExpandedProjectIndicators: false,
+};
 
 import { useStore } from "../../../state/useStore";
 import { useFullPlayerControls } from "../../../hooks/FullPlayerProvider";
@@ -26,8 +38,9 @@ import { toast } from "../../common/toastStore";
 import { useTranslation } from "react-i18next";
 
 type IdeaListItemProps = {
-    item: SongIdea;
-    itemMeta?: IdeaListItemMeta;
+    /** The row reads its own idea from the store by id, so a library write that
+     *  leaves this idea untouched never reaches it (its idea keeps its identity). */
+    ideaId: string;
     rowLayoutsRef: React.MutableRefObject<Record<string, { y: number; height: number }>>;
     highlightMapRef: React.MutableRefObject<Record<string, Animated.Value>>;
     inlinePlayer: InlinePlayerControls,
@@ -40,11 +53,6 @@ type IdeaListItemProps = {
     dayStartTs?: number | null,
     dayDividerLabel?: string | null,
     searchNeedle: string,
-    notesMatched: boolean,
-    lyricsMatched: boolean,
-    /** The matched line to show under the card (glyph + snippet), null for title-only. */
-    matchSnippet: string | null,
-    matchField: "notes" | "lyrics" | null,
     listDensity: "comfortable" | "compact",
     showDateDividers: boolean,
     sortMetric: IdeaSortMetric,
@@ -52,8 +60,7 @@ type IdeaListItemProps = {
 };
 
 function IdeaListItemInner({
-    item,
-    itemMeta,
+    ideaId,
     rowLayoutsRef,
     highlightMapRef,
     inlinePlayer,
@@ -64,16 +71,14 @@ function IdeaListItemInner({
     dayStartTs,
     dayDividerLabel,
     searchNeedle,
-    notesMatched,
-    lyricsMatched,
-    matchSnippet,
-    matchField,
     listDensity,
     showDateDividers,
     sortMetric,
     lyricsFilterMode,
 }: IdeaListItemProps) {
     const { t } = useTranslation();
+    // Null only for the frame between a deletion and the list dropping the row.
+    const item = useStore((s) => selectIdeaById(s.workspaces, ideaId));
     const listSelectionMode = useStore((s) => s.listSelectionMode);
     // A compilation is collecting: the collection is a picker. Cards wear a
     // pick ring, a tap picks instead of opening, and eligibility is visible —
@@ -89,7 +94,6 @@ function IdeaListItemInner({
     const navigateRoot = (route: string, params?: object) =>
         (rootNavigation ?? navigation).navigate(route as never, params as never);
 
-    const fallbackMeta = itemMeta ?? buildIdeaListItemMeta(item);
     const {
         playClip,
         clipDurationLabel,
@@ -98,14 +102,22 @@ function IdeaListItemInner({
         hasProjectLyrics,
         hasProjectClipCount,
         hasExpandedProjectIndicators,
-    } = fallbackMeta;
+    } = item ? getIdeaListItemMeta(item) : EMPTY_ITEM_META;
+    // The matched line under the card — computed here for this idea only, and only
+    // when the idea or the needle changes.
+    const searchMeta = React.useMemo(
+        () => (item ? computeIdeaSearchMeta(item, searchNeedle) : EMPTY_SEARCH_META),
+        [item, searchNeedle]
+    );
+    const matchSnippet = searchMeta.snippet;
+    const matchField = searchMeta.snippetField;
     const inlineActive = useStore(
-        (s) => !!playClip && s.inlineTarget?.ideaId === item.id && s.inlineTarget.clipId === playClip.id
+        (s) => !!playClip && s.inlineTarget?.ideaId === ideaId && s.inlineTarget.clipId === playClip.id
     );
     const isInlinePlaying = useStore(
         (s) =>
             !!playClip &&
-            s.inlineTarget?.ideaId === item.id &&
+            s.inlineTarget?.ideaId === ideaId &&
             s.inlineTarget.clipId === playClip.id &&
             s.inlineIsPlaying
     );
@@ -115,7 +127,7 @@ function IdeaListItemInner({
     const inlineDurationMs = useStore((s) => (inlineActive ? s.inlineDurationMs : 0));
     // This idea is the active dock / full-player session (any of its clips) —
     // idea-level, so a song card lights up whichever take is playing.
-    const sessionActive = useStore((s) => s.playerTarget?.ideaId === item.id);
+    const sessionActive = useStore((s) => s.playerTarget?.ideaId === ideaId);
     const sessionPlaying = useStore((s) => s.playerIsPlaying);
     // Clip-precise: the session is on THIS card's play clip. Then the lead glyph
     // mirrors and drives the session (pause/resume the dock) instead of starting
@@ -123,7 +135,7 @@ function IdeaListItemInner({
     const sessionOnPlayClip = useStore(
         (s) =>
             !!playClip &&
-            s.playerTarget?.ideaId === item.id &&
+            s.playerTarget?.ideaId === ideaId &&
             s.playerTarget.clipId === playClip.id
     );
     const { togglePlayer } = useFullPlayerControls();
@@ -135,16 +147,19 @@ function IdeaListItemInner({
     const nowPlayingIsPlaying = sessionActive && sessionPlaying;
     const inlineTotalMs = inlineDurationMs || playClip?.durationMs || 0;
 
-    const isSelected = useStore((s) => s.selectedListIdeaIds.includes(item.id));
+    const isSelected = useStore((s) => s.selectedListIdeaIds.includes(ideaId));
     const compact = listDensity === "compact";
     // Eligibility per compilation kind: a songbook takes charts, a setlist takes
     // audio, a playlist takes anything. The song-target picker takes sketches.
     const pickEligible = React.useMemo(() => {
+        if (!item) return false;
         if (pickingSongTarget) return item.kind === "project";
         if (collectorKind === "songbook") return buildDefaultSongbookItemsForIdea(item).length > 0;
         if (collectorKind === "setlist") return getPlayableClipForIdea(item) != null;
         return true;
     }, [collectorKind, item, pickingSongTarget]);
+    // Every hook above runs unconditionally; nothing below is a hook.
+    if (!item) return null;
     const pick: "on" | "disabled" | undefined =
         collecting || pickingSongTarget ? (pickEligible ? "on" : "disabled") : undefined;
     const pickNote =
@@ -159,7 +174,7 @@ function IdeaListItemInner({
         if (!pickEligible) return;
         // haptics vocabulary: `tap` — an acknowledged press.
         haptic.tap();
-        useStore.getState().toggleListSelection(item.id);
+        useStore.getState().toggleListSelection(ideaId);
     };
     const sortTs = sortMetric === "updated" ? getIdeaUpdatedAt(item) : getIdeaCreatedAt(item);
     // Rebuilt from stable pieces here (not passed as a closure) so memo props stay flat.
@@ -191,7 +206,7 @@ function IdeaListItemInner({
         : formatClipCardTime(sortTs, showDateDividers ? getDateBucketLabel(sortTs) : undefined);
     const beginSelection = () => {
         haptic.grab();
-        useStore.getState().startListSelection(item.id);
+        useStore.getState().startListSelection(ideaId);
     };
 
     const confirmPickAsSongTarget = () => {
@@ -202,7 +217,7 @@ function IdeaListItemInner({
             t("collection.addToSongTitle"),
             t("collection.addToSongBody", { count, title: item.title }),
             () => {
-                const result = appActions.completeSongTargetPicking(item.id);
+                const result = appActions.completeSongTargetPicking(ideaId);
                 haptic.success();
                 toast(
                     t("collection.pagesAdded", { count: result.count, title: result.songTitle }),
@@ -281,7 +296,7 @@ function IdeaListItemInner({
             {(
                 <View
                     onLayout={(evt) => {
-                        rowLayoutsRef.current[item.id] = {
+                        rowLayoutsRef.current[ideaId] = {
                             y: evt.nativeEvent.layout.y,
                             height: evt.nativeEvent.layout.height,
                         };
@@ -301,7 +316,7 @@ function IdeaListItemInner({
                             denseRow={compact}
                             pick={pick}
                             pickNote={pickNote}
-                            highlightValue={highlightMapRef.current[item.id] ?? null}
+                            highlightValue={highlightMapRef.current[ideaId] ?? null}
                             canPlay={!!playClip}
                             sessionLead={sessionOnPlayClip ? (sessionPlaying ? "playing" : "paused") : null}
                             durationLabel={item.kind === "project" ? projectPrimaryDurationLabel : clipDurationLabel}
@@ -309,7 +324,7 @@ function IdeaListItemInner({
                                 // The lead is always the preview, picker or not: hearing the
                                 // clip is how you know you picked the right one (2026-09-11).
                                 if (listSelectionMode && !collecting && !pickingSongTarget) {
-                                    useStore.getState().toggleListSelection(item.id);
+                                    useStore.getState().toggleListSelection(ideaId);
                                     return;
                                 }
                                 if (!playClip) {
@@ -321,7 +336,7 @@ function IdeaListItemInner({
                                     void togglePlayer();
                                     return;
                                 }
-                                void playIdeaFromList(item.id, playClip);
+                                void playIdeaFromList(ideaId, playClip);
                             }}
                             onLongPressLead={() => {
                                 if (listSelectionMode || pickingSongTarget || collecting) return;
@@ -337,18 +352,18 @@ function IdeaListItemInner({
                                     return;
                                 }
                                 if (listSelectionMode) {
-                                    useStore.getState().toggleListSelection(item.id);
+                                    useStore.getState().toggleListSelection(ideaId);
                                     return;
                                 }
                                 if (item.kind === "clip") {
                                     if (playClip) {
-                                        await openIdeaFromList(item.id, playClip);
+                                        await openIdeaFromList(ideaId, playClip);
                                     }
                                     return;
                                 }
                                 await inlinePlayer.resetInlinePlayer();
-                                setSelectedIdeaId(item.id);
-                                navigateRoot("IdeaDetail", { ideaId: item.id });
+                                setSelectedIdeaId(ideaId);
+                                navigateRoot("IdeaDetail", { ideaId });
                             }}
                             onLongPress={() => {
                                 // Pickers have no long-press mode: it's a tap.
@@ -361,7 +376,7 @@ function IdeaListItemInner({
                                     return;
                                 }
                                 if (listSelectionMode) {
-                                    useStore.getState().toggleListSelection(item.id);
+                                    useStore.getState().toggleListSelection(ideaId);
                                     return;
                                 }
                                 beginSelection();
@@ -434,8 +449,8 @@ function IdeaListItemInner({
  * change, and re-rendering every mounted row (each with ~8 store subscriptions
  * and a heavy card tree) made selection taps visibly lag on large libraries.
  * All props are stable refs, stable callbacks, or primitives; per-row live state
- * (selected, now-playing, inline preview) comes from the row's own store
- * subscriptions, which re-render just that row.
+ * (selected, now-playing, inline preview, and since 2026-09-24 the idea itself)
+ * comes from the row's own store subscriptions, which re-render just that row.
  */
 export const IdeaListItem = React.memo(IdeaListItemInner);
 

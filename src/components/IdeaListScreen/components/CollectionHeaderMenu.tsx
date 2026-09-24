@@ -23,9 +23,12 @@ export function CollectionHeaderMenu() {
 
   if (!screen.headerMenuOpen) return null;
 
+  // In rendered order (entries), resolved to ideas through the model's list.
+  const ideaById = new Map(screen.listIdeas.map((idea) => [idea.id, idea]));
   const playableIdeas = screen.listEntries
     .filter((entry): entry is Extract<(typeof screen.listEntries)[number], { type: "idea" }> => entry.type === "idea")
-    .map((entry) => entry.idea);
+    .map((entry) => ideaById.get(entry.ideaId))
+    .filter((idea): idea is NonNullable<typeof idea> => idea != null);
 
   const playAllIdeas = async () => {
     const queue = buildPlayableQueueFromIdeas(playableIdeas);

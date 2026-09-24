@@ -8,7 +8,7 @@ import { useStore } from "../../../state/useStore";
 import { getCollectionAncestors } from "../../../utils";
 import { getDateBucket, getDateBucketLabel } from "../../../domain/dateBuckets";
 import { compareIdeas, getIdeaCreatedAt, getIdeaSortState, getIdeaSortTimestamp, getIdeaUpdatedAt, usesIdeaTimelineDividers } from "../../../domain/ideaSort";
-import { extractSnippet } from "../../../domain/search";
+import { computeIdeaSearchMeta } from "../ideaSearchMeta";
 import {
   goBackFromParentStack,
   openCollectionInBrowse,
@@ -17,7 +17,7 @@ import {
 } from "../../../navigation";
 import { useOriginLabel } from "../../../hooks/useOriginLabel";
 import { getFloatingActionDockBottomOffset, getFloatingActionDockContentClearance } from "../../common/FloatingActionDock";
-import { buildIdeaListItemMeta, projectHasLyrics } from "../ideaListItemMeta";
+import { getIdeaListItemMeta, projectHasLyrics } from "../ideaListItemMeta";
 import type { IdeaListEntry, IdeaListItemMeta, SearchMeta } from "../types";
 import { stickyDayStore } from "../stickyDayStore";
 import type { SongIdea } from "../../../types";
@@ -177,59 +177,7 @@ export function useCollectionScreenModel() {
 
   const searchMetaByIdeaId = useMemo(() => {
     const map = new Map<string, SearchMeta>();
-    const hasNeedle = searchNeedle.length > 0;
-    for (const idea of ideas) {
-      if (!hasNeedle) {
-        map.set(idea.id, { matches: true, title: false, notes: false, lyrics: false, snippet: null, snippetField: null });
-        continue;
-      }
-      const titleMatch = idea.title.toLowerCase().includes(searchNeedle);
-      const notesMatch =
-        idea.notes.toLowerCase().includes(searchNeedle) ||
-        idea.clips.some((clip) => clip.notes.toLowerCase().includes(searchNeedle));
-      let lyricsMatch = false;
-      if (idea.kind === "project" && idea.lyrics?.versions?.length) {
-        lyricsMatch = idea.lyrics.versions.some((version) =>
-          version.document.lines.some(
-            (line) =>
-              line.text.toLowerCase().includes(searchNeedle) ||
-              line.chords.some((chord) => chord.chord.toLowerCase().includes(searchNeedle))
-          )
-        );
-      }
-      // Pull the matched line so the card can show WHY it surfaced — lyrics
-      // first (most meaningful for a songwriter), then notes. Title matches
-      // need no snippet: the highlighted title is the match.
-      let snippet: string | null = null;
-      let snippetField: "notes" | "lyrics" | null = null;
-      if (lyricsMatch && idea.kind === "project" && idea.lyrics?.versions?.length) {
-        for (const version of idea.lyrics.versions) {
-          const line = version.document.lines.find((l) => l.text.toLowerCase().includes(searchNeedle));
-          if (line) {
-            snippet = extractSnippet(line.text, searchNeedle);
-            snippetField = "lyrics";
-            break;
-          }
-        }
-      }
-      if (!snippet && notesMatch) {
-        const src = idea.notes.toLowerCase().includes(searchNeedle)
-          ? idea.notes
-          : idea.clips.find((clip) => clip.notes.toLowerCase().includes(searchNeedle))?.notes ?? "";
-        if (src) {
-          snippet = extractSnippet(src, searchNeedle);
-          snippetField = "notes";
-        }
-      }
-      map.set(idea.id, {
-        matches: titleMatch || notesMatch || lyricsMatch,
-        title: titleMatch,
-        notes: notesMatch,
-        lyrics: lyricsMatch,
-        snippet,
-        snippetField,
-      });
-    }
+    for (const idea of ideas) map.set(idea.id, computeIdeaSearchMeta(idea, searchNeedle));
     return map;
   }, [ideas, searchNeedle]);
 
@@ -259,17 +207,9 @@ export function useCollectionScreenModel() {
   // idea on any workspaces change broke the row memo for all mounted cards — e.g.
   // during post-import waveform hydration, every per-clip write re-rendered the
   // whole visible list and re-ran the lyric scans/timestamp formatting per idea.
-  const ideaMetaCacheRef = useRef(new WeakMap<object, IdeaListItemMeta>());
   const itemMetaByIdeaId = useMemo(() => {
     const map = new Map<string, IdeaListItemMeta>();
-    for (const idea of listIdeas) {
-      let meta = ideaMetaCacheRef.current.get(idea);
-      if (!meta) {
-        meta = buildIdeaListItemMeta(idea);
-        ideaMetaCacheRef.current.set(idea, meta);
-      }
-      map.set(idea.id, meta);
-    }
+    for (const idea of listIdeas) map.set(idea.id, getIdeaListItemMeta(idea));
     return map;
   }, [listIdeas]);
 
@@ -289,11 +229,12 @@ export function useCollectionScreenModel() {
   );
 
   const showDateDividers = usesIdeaTimelineDividers(ideasSort);
-  const listEntries = useMemo<IdeaListEntry[]>(() => {
-    const buildIdeaEntry = (idea: any, dayDividerLabel?: string | null, dayStartTsValue?: number | null): IdeaListEntry => ({
+  const builtListEntries = useMemo<IdeaListEntry[]>(() => {
+    const buildIdeaEntry = (idea: SongIdea, dayDividerLabel?: string | null, dayStartTsValue?: number | null): IdeaListEntry => ({
       key: `idea:${idea.id}`,
       type: "idea",
-      idea,
+      ideaId: idea.id,
+      dayLabel: getDateBucketLabel(getIdeaSortTimestamp(idea, ideasSort)),
       dayDividerLabel,
       dayStartTs: dayStartTsValue ?? null,
     });
@@ -352,6 +293,31 @@ export function useCollectionScreenModel() {
     }
     return entries;
   }, [activeTimelineMetric, hiddenDayKeySet, hiddenIdeaIdsSet, ideasSort, listIdeas, showDateDividers]);
+  // The entries array keeps its identity while the list SHOWS the same thing: same
+  // rows, same order, same labels. An edit to one idea (a pin, a tag, a bookmark)
+  // rebuilds the ideas array above but changes none of that — so the FlatList gets
+  // the same data and only the edited row re-renders (it reads its own idea from the
+  // store). Sort-key edits and membership changes change the fingerprint. Derived in
+  // render, never from an effect.
+  const listEntriesFingerprint = useMemo(
+    () =>
+      builtListEntries
+        .map((entry) =>
+          entry.type === "idea"
+            ? `${entry.key}|${entry.dayLabel}|${entry.dayDividerLabel ?? ""}|${entry.dayStartTs ?? ""}`
+            : `${entry.key}|${entry.label}|${entry.count}`
+        )
+        .join("\n"),
+    [builtListEntries]
+  );
+  const listEntriesRef = useRef<{ fingerprint: string; entries: IdeaListEntry[] }>({
+    fingerprint: listEntriesFingerprint,
+    entries: builtListEntries,
+  });
+  if (listEntriesRef.current.fingerprint !== listEntriesFingerprint) {
+    listEntriesRef.current = { fingerprint: listEntriesFingerprint, entries: builtListEntries };
+  }
+  const listEntries = listEntriesRef.current.entries;
 
   useEffect(() => {
     if (!showDateDividers || listEntries.length === 0) {
@@ -363,7 +329,7 @@ export function useCollectionScreenModel() {
     const firstLabel =
       firstEntry.type === "collapsedDay"
         ? firstEntry.label
-        : getDateBucketLabel(getIdeaSortTimestamp(firstEntry.idea, ideasSort));
+        : firstEntry.dayLabel;
     stickyDayStore.set(firstLabel);
     stickyDayStore.setTopLabel(firstLabel);
   }, [ideasSort, listEntries, showDateDividers]);

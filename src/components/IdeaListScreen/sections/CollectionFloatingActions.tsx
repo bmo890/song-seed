@@ -138,6 +138,7 @@ function CollectionPickerFooter({ onLayout }: { onLayout: (height: number) => vo
 }
 
 export function CollectionFloatingActions() {
+
   const { t } = useTranslation();
   const { screen, selection, editModal, inlinePlayer, store } = useCollectionScreen();
 
@@ -157,9 +158,11 @@ export function CollectionFloatingActions() {
   // Play/queue order must match what's on screen (the sorted, day-grouped list),
   // not raw storage order — "select all → play" should march down the list as
   // shown. listEntries is exactly the rendered order.
+  const listIdeaById = new Map(screen.listIdeas.map((idea) => [idea.id, idea]));
   const orderedSelectedInteractiveIdeas = screen.listEntries
     .filter((entry): entry is Extract<(typeof screen.listEntries)[number], { type: "idea" }> => entry.type === "idea")
-    .map((entry) => entry.idea)
+    .map((entry) => listIdeaById.get(entry.ideaId))
+    .filter((idea): idea is NonNullable<typeof idea> => idea != null)
     .filter((idea) => screen.selectedListIdeaIds.includes(idea.id) && !isIdeaEffectivelyHidden(idea));
   const selectedClipIdeasInList = selectedInteractiveIdeas.filter((idea) => idea.kind === "clip");
   const selectedProjectsInList = selectedIdeasInList.filter((idea) => idea.kind === "project");
@@ -168,7 +171,7 @@ export function CollectionFloatingActions() {
     selectedIdeasInList.every((idea) => screen.hiddenIdeaIdsSet.has(idea.id));
   const selectableIdeaIds = screen.listEntries
     .filter((entry): entry is Extract<(typeof screen.listEntries)[number], { type: "idea" }> => entry.type === "idea")
-    .map((entry) => entry.idea.id);
+    .map((entry) => entry.ideaId);
 
   const playQueueInPlayer = async (queue: Array<{ ideaId: string; clipId: string }>) => {
     if (queue.length === 0) return;

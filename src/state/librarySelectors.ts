@@ -30,6 +30,32 @@ export function findIdeaInLibrary(
   return null;
 }
 
+// One index per library write, shared by every row on screen: a WeakMap keyed by
+// the workspaces array itself, so a new library (any write) builds a new index once
+// and an unchanged library never rebuilds it. This is what lets each list row read
+// its own idea from the store in O(1) instead of the list handing every row its idea.
+const ideaIndexByWorkspaces = new WeakMap<Workspace[], Map<string, SongIdea>>();
+
+export function getIdeaIndex(workspaces: Workspace[]): Map<string, SongIdea> {
+  let index = ideaIndexByWorkspaces.get(workspaces);
+  if (!index) {
+    index = new Map();
+    for (const workspace of workspaces) {
+      for (const idea of workspace.ideas) {
+        if (!index.has(idea.id)) index.set(idea.id, idea);
+      }
+    }
+    ideaIndexByWorkspaces.set(workspaces, index);
+  }
+  return index;
+}
+
+/** The idea by id — the same object while the idea is untouched, so a row subscribed
+ *  through this re-renders only when ITS idea changes. */
+export function selectIdeaById(workspaces: Workspace[], ideaId: string): SongIdea | null {
+  return getIdeaIndex(workspaces).get(ideaId) ?? null;
+}
+
 export function findWorkspaceOfIdea(workspaces: Workspace[], ideaId: string | null | undefined): Workspace | null {
   if (!ideaId) return null;
   return workspaces.find((workspace) => workspace.ideas.some((idea) => idea.id === ideaId)) ?? null;

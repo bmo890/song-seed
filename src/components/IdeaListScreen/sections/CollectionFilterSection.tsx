@@ -11,7 +11,7 @@ function CollectionSelectionControls() {
   const selectedListIdeaIds = useStore((s) => s.selectedListIdeaIds);
   const selectableListIdeaIds = screen.listEntries
     .filter((e): e is Extract<typeof e, { type: "idea" }> => e.type === "idea")
-    .map((e) => e.idea.id);
+    .map((e) => e.ideaId);
   const allListSelected =
     selectableListIdeaIds.length > 0 &&
     selectableListIdeaIds.every((id) => selectedListIdeaIds.includes(id));
@@ -28,6 +28,7 @@ function CollectionSelectionControls() {
 }
 
 export function CollectionFilterSection() {
+
   const { screen, store } = useCollectionScreen();
 
   return (

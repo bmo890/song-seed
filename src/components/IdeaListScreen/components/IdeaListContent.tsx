@@ -5,10 +5,9 @@ import ReAnimated, { useAnimatedScrollHandler, type SharedValue } from "react-na
 import { styles } from "../../../styles";
 import { IdeaSort, InlinePlayerControls } from "../../../types";
 import { IdeaListItem, CollapsedDayRow } from "./IdeaListItem";
-import { CollectionListModel, IdeaListEntry, IdeaListItemMeta } from "../types";
+import { CollectionListModel, IdeaListEntry } from "../types";
 import { getIdeaSortTimestamp, type IdeaSortMetric } from "../../../domain/ideaSort";
 import { getDateBucket } from "../../../domain/dateBuckets";
-import type { SearchMeta } from "../types";
 import { EmptyState } from "../../common/EmptyState";
 import { useTranslation } from "react-i18next";
 
@@ -17,7 +16,6 @@ const AnimatedFlatList = ReAnimated.FlatList as unknown as typeof FlatList;
 type IdeaListContentProps = {
   listRef?: MutableRefObject<any>;
   listEntries: IdeaListEntry[];
-  itemMetaByIdeaId: Map<string, IdeaListItemMeta>;
   topContent?: ReactNode;
   listDensity: "comfortable" | "compact";
   showDateDividers: boolean;
@@ -31,7 +29,6 @@ type IdeaListContentProps = {
   rowLayoutsRef: MutableRefObject<Record<string, { y: number; height: number }>>;
   highlightMapRef: MutableRefObject<Record<string, Animated.Value>>;
   viewabilityConfig: { itemVisiblePercentThreshold: number };
-  searchMetaByIdeaId: Map<string, SearchMeta>;
   onViewableItemsChanged: (info: { viewableItems: Array<{ item: IdeaListEntry }> }) => void;
   onItemCellLayout?: (key: string, y: number) => void;
   playIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
@@ -52,7 +49,6 @@ function IdeaListContentInner(
   const {
     listRef,
     listEntries,
-    itemMetaByIdeaId,
     topContent,
     listDensity,
     showDateDividers,
@@ -66,7 +62,6 @@ function IdeaListContentInner(
     rowLayoutsRef,
     highlightMapRef,
     viewabilityConfig,
-    searchMetaByIdeaId,
     onViewableItemsChanged,
     playIdeaFromList,
     openIdeaFromList,
@@ -146,19 +141,9 @@ function IdeaListContentInner(
           );
         }
 
-        const searchMeta = searchMetaByIdeaId.get(entry.idea.id) ?? {
-          matches: true,
-          title: false,
-          notes: false,
-          lyrics: false,
-          snippet: null,
-          snippetField: null,
-        };
-
         return (
           <IdeaListItem
-            item={entry.idea}
-            itemMeta={itemMetaByIdeaId.get(entry.idea.id)}
+            ideaId={entry.ideaId}
             rowLayoutsRef={rowLayoutsRef}
             highlightMapRef={highlightMapRef}
             inlinePlayer={inlinePlayer}
@@ -171,10 +156,6 @@ function IdeaListContentInner(
             dayStartTs={entry.dayStartTs ?? null}
             dayDividerLabel={entry.dayDividerLabel}
             searchNeedle={searchNeedle}
-            notesMatched={!!searchMeta.notes}
-            lyricsMatched={!!searchMeta.lyrics}
-            matchSnippet={searchMeta.snippet}
-            matchField={searchMeta.snippetField}
             listDensity={listDensity}
             showDateDividers={showDateDividers}
             sortMetric={activeSortMetric}
@@ -186,8 +167,6 @@ function IdeaListContentInner(
       listDensity,
       activeTimelineMetric,
       expandTimelineDay,
-      searchMetaByIdeaId,
-      itemMetaByIdeaId,
       rowLayoutsRef,
       highlightMapRef,
       inlinePlayer,

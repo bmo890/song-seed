@@ -5,7 +5,7 @@ import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import type { ClipVersion } from "../../../types";
 import type { IdeaListEntry } from "../types";
 import type { ReactNode } from "react";
-import { getDateBucket, getDateBucketLabel } from "../../../domain/dateBuckets";
+import { getDateBucket } from "../../../domain/dateBuckets";
 import { getIdeaSortTimestamp } from "../../../domain/ideaSort";
 import { useStore } from "../../../state/useStore";
 import { stickyDayStore } from "../stickyDayStore";
@@ -61,7 +61,7 @@ export function CollectionListSection({
     }
 
     const targetIndex = screen.listEntries.findIndex(
-      (entry) => entry.type === "idea" && entry.idea.id === screen.focusIdeaId
+      (entry) => entry.type === "idea" && entry.ideaId === screen.focusIdeaId
     );
 
     if (targetIndex === -1) {
@@ -222,10 +222,7 @@ export function CollectionListSection({
   useEffect(() => {
     stickyEntriesRef.current = screen.listEntries.map((entry) => ({
       key: entry.key,
-      label:
-        entry.type === "collapsedDay"
-          ? entry.label
-          : getDateBucketLabel(getIdeaSortTimestamp(entry.idea, ideasSortRef.current)),
+      label: entry.type === "collapsedDay" ? entry.label : entry.dayLabel,
     }));
   }, [screen.listEntries, ideasSort]);
   const contentPaddingTopRef = useRef(contentPaddingTop);
@@ -285,7 +282,6 @@ export function CollectionListSection({
       collapseScrollY: screen.scrollY,
       contentPaddingTop,
       listEntries: screen.listEntries,
-      itemMetaByIdeaId: screen.itemMetaByIdeaId,
       topContent,
       listDensity: screen.listDensity,
       showDateDividers: screen.showDateDividers,
@@ -299,7 +295,6 @@ export function CollectionListSection({
       rowLayoutsRef: screen.rowLayoutsRef,
       highlightMapRef: screen.highlightMapRef,
       viewabilityConfig: screen.viewabilityConfigRef.current,
-      searchMetaByIdeaId: screen.searchMetaByIdeaId,
       onViewableItemsChanged,
       onItemCellLayout,
       playIdeaFromList,
@@ -312,7 +307,6 @@ export function CollectionListSection({
       screen.scrollY,
       contentPaddingTop,
       screen.listEntries,
-      screen.itemMetaByIdeaId,
       topContent,
       screen.listDensity,
       screen.showDateDividers,
@@ -326,7 +320,6 @@ export function CollectionListSection({
       screen.rowLayoutsRef,
       screen.highlightMapRef,
       screen.viewabilityConfigRef,
-      screen.searchMetaByIdeaId,
       onViewableItemsChanged,
       onItemCellLayout,
       playIdeaFromList,
