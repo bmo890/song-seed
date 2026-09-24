@@ -32,11 +32,17 @@ export type PlayerQueueEntry = {
 
 type UsePlayerScreenDataArgs = {
   playerDuration: number;
+  /** The file the engine has loaded. Its duration is only this clip's when they match. */
+  currentPlaybackSourceUri?: string | null;
   /** Active playback of this clip — holds off the sidecar decode so it can't stall the track. */
   isPlaying?: boolean;
 };
 
-export function usePlayerScreenData({ playerDuration, isPlaying = false }: UsePlayerScreenDataArgs) {
+export function usePlayerScreenData({
+  playerDuration,
+  currentPlaybackSourceUri = null,
+  isPlaying = false,
+}: UsePlayerScreenDataArgs) {
   const { t } = useTranslation();
   const playerTarget = useStore((s) => s.playerTarget);
   const playerQueue = useStore((s) => s.playerQueue);
@@ -112,7 +118,11 @@ export function usePlayerScreenData({ playerDuration, isPlaying = false }: UsePl
   const playerCollection =
     playerIdea && activeWorkspace ? getCollectionById(activeWorkspace, playerIdea.collectionId) : null;
   const playbackAudioUri = playerClip ? getClipPlaybackUri(playerClip) ?? null : null;
-  const displayDuration = playerDuration || (playerClip ? getClipPlaybackDurationMs(playerClip) : 0) || 0;
+  // The engine is one shared player: while it still holds the previous clip's file,
+  // its duration is the previous clip's. Derived here, never assigned from an effect.
+  const engineHoldsThisClip = !!playbackAudioUri && currentPlaybackSourceUri === playbackAudioUri;
+  const displayDuration =
+    (engineHoldsThisClip ? playerDuration : 0) || (playerClip ? getClipPlaybackDurationMs(playerClip) : 0) || 0;
   const thumbnailWaveformPeaks = useMemo(
     () => (playerClip ? getClipReelWaveformPeaks(playerClip) : []),
     [playerClip]

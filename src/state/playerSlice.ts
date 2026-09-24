@@ -62,6 +62,16 @@ export type PlayerSlice = {
     requestInlineStop: () => void;
 };
 
+/** The engine's position/duration describe the file it has loaded. When the target
+ *  changes ahead of the load — opening a card, next/previous — those numbers still
+ *  belong to the previous clip, and the header showed a 34-minute memo's length over
+ *  a ten-second clip (2026-09-24). Clear them with the target; the engine republishes
+ *  once the new file is in, and every readout falls back to the clip's own length. */
+function playbackStateForTarget(prev: PlayerTarget, next: PlayerTarget) {
+    const same = !!prev && !!next && prev.ideaId === next.ideaId && prev.clipId === next.clipId;
+    return same ? {} : { playerPositionMs: 0, playerDurationMs: 0 };
+}
+
 export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
     playerTarget: null,
     setPlayerTarget: (target) => set({ playerTarget: target }),
@@ -98,23 +108,27 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
         })),
     setPlayerQueue: (queue, startIndex, shouldAutoplay = false) => {
         const clampedIndex = Math.max(0, Math.min(startIndex, Math.max(queue.length - 1, 0)));
-        set({
+        const nextTarget = queue[clampedIndex] ?? null;
+        set((state) => ({
+            ...playbackStateForTarget(state.playerTarget, nextTarget),
             playerQueue: queue,
             playerQueueIndex: clampedIndex,
-            playerTarget: queue[clampedIndex] ?? null,
+            playerTarget: nextTarget,
             playerShouldAutoplay: shouldAutoplay && queue.length > 0,
-        });
+        }));
     },
     setPlayerQueueForScreen: (queue, startIndex, shouldAutoplay = false) => {
         const clampedIndex = Math.max(0, Math.min(startIndex, Math.max(queue.length - 1, 0)));
-        set({
+        const nextTarget = queue[clampedIndex] ?? null;
+        set((state) => ({
+            ...playbackStateForTarget(state.playerTarget, nextTarget),
             playerQueue: queue,
             playerQueueIndex: clampedIndex,
-            playerTarget: queue[clampedIndex] ?? null,
+            playerTarget: nextTarget,
             playerShouldAutoplay: shouldAutoplay && queue.length > 0,
             isPlayerScreenMounted: true,
             playerDockPresentationHold: false,
-        });
+        }));
     },
     clearPlayerQueue: () =>
         set({
@@ -171,10 +185,12 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
                 nextIndex = Math.min(state.playerQueueIndex, nextQueue.length - 1);
                 shouldAutoplay = state.playerIsPlaying;
             }
+            const nextTarget = nextQueue[nextIndex] ?? null;
             return {
+                ...playbackStateForTarget(state.playerTarget, nextTarget),
                 playerQueue: nextQueue,
                 playerQueueIndex: nextIndex,
-                playerTarget: nextQueue[nextIndex] ?? null,
+                playerTarget: nextTarget,
                 playerShouldAutoplay: shouldAutoplay,
             };
         }),
@@ -184,9 +200,11 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
             const delta = direction === "next" ? 1 : -1;
             const nextIndex = state.playerQueueIndex + delta;
             if (nextIndex < 0 || nextIndex >= state.playerQueue.length) return state;
+            const nextTarget = state.playerQueue[nextIndex] ?? null;
             return {
+                ...playbackStateForTarget(state.playerTarget, nextTarget),
                 playerQueueIndex: nextIndex,
-                playerTarget: state.playerQueue[nextIndex] ?? null,
+                playerTarget: nextTarget,
                 playerShouldAutoplay: shouldAutoplay,
             };
         }),

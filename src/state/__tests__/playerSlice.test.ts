@@ -89,3 +89,41 @@ describe("queue mutation actions", () => {
         expect(store.getState().playerShouldAutoplay).toBe(false);
     });
 });
+
+describe("playback numbers follow the target", () => {
+    const q = (n: number) => ({ ideaId: `idea-${n}`, clipId: `clip-${n}` });
+    const loaded = { positionMs: 12_000, durationMs: 34 * 60_000, isPlaying: false };
+
+    it("clears the previous clip's position and duration when a different clip is opened", () => {
+        const store = createStore<PlayerSlice>()(createPlayerSlice);
+        store.getState().setPlayerQueue([q(1)], 0, true);
+        store.getState().setPlayerPlaybackState(loaded);
+
+        store.getState().setPlayerQueueForScreen([q(2)], 0, true);
+
+        expect(store.getState()).toMatchObject({ playerTarget: q(2), playerPositionMs: 0, playerDurationMs: 0 });
+    });
+
+    it("keeps them when the queue changes around the same clip", () => {
+        const store = createStore<PlayerSlice>()(createPlayerSlice);
+        store.getState().setPlayerQueue([q(1)], 0, true);
+        store.getState().setPlayerPlaybackState(loaded);
+
+        store.getState().setPlayerQueue([q(1), q(2)], 0, false);
+
+        expect(store.getState()).toMatchObject({ playerTarget: q(1), playerPositionMs: 12_000, playerDurationMs: 34 * 60_000 });
+    });
+
+    it("clears them on next/previous and when the playing item is removed", () => {
+        const store = createStore<PlayerSlice>()(createPlayerSlice);
+        store.getState().setPlayerQueue([q(1), q(2), q(3)], 0, true);
+        store.getState().setPlayerPlaybackState(loaded);
+
+        store.getState().advancePlayerQueue("next");
+        expect(store.getState()).toMatchObject({ playerTarget: q(2), playerDurationMs: 0 });
+
+        store.getState().setPlayerPlaybackState(loaded);
+        store.getState().removeFromPlayerQueue(1);
+        expect(store.getState()).toMatchObject({ playerTarget: q(3), playerDurationMs: 0 });
+    });
+});

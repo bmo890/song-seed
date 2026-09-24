@@ -215,6 +215,7 @@ export function PlayerScreen({
   } = fullPlayer;
   const data = usePlayerScreenData({
     playerDuration,
+    currentPlaybackSourceUri,
     isPlaying: isPlayerPlaying,
   });
   const playerIdea = data.playerIdea;
