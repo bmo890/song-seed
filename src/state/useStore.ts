@@ -63,7 +63,7 @@ import {
     setPersistBlocked,
 } from "./persistRuntime";
 import { describeError, persistLog } from "../services/persistLog";
-import { runAfterInteractionsWithDeadline } from "../services/interactionGate";
+import { createPassivePersistScheduler } from "./passivePersistScheduler";
 import { persistedSnapshotChanged } from "./persistChangeDetection";
 import {
     buildPersistedAppStoreSnapshot,
@@ -311,66 +311,21 @@ const PERSIST_WRITE_DEBOUNCE_MS = 800;
 // can be postponed so passive persistence can't starve during playback.
 const PERSIST_WRITE_MAX_WAIT_MS = 4_000;
 
-let pendingPersistWrite: (() => unknown) | null = null;
-let pendingPersistWriteTimer: ReturnType<typeof setTimeout> | null = null;
-let pendingPersistWriteFirstScheduledAt: number | null = null;
-
-function schedulePendingPersistWrite(run: () => unknown) {
-    pendingPersistWrite = run;
-    const now = Date.now();
-    if (pendingPersistWriteFirstScheduledAt == null) {
-        pendingPersistWriteFirstScheduledAt = now;
-    }
-    if (pendingPersistWriteTimer) {
-        clearTimeout(pendingPersistWriteTimer);
-    }
-    const maxWaitRemainingMs = Math.max(
-        0,
-        pendingPersistWriteFirstScheduledAt + PERSIST_WRITE_MAX_WAIT_MS - now
-    );
-    pendingPersistWriteTimer = setTimeout(() => {
-        pendingPersistWriteTimer = null;
-        pendingPersistWriteFirstScheduledAt = null;
-        const write = pendingPersistWrite;
-        pendingPersistWrite = null;
-        // The serialization runs on the JS thread; let a gesture in flight finish first.
-        runAfterInteractionsWithDeadline(() => runPassiveWrite(write));
-    }, Math.min(PERSIST_WRITE_DEBOUNCE_MS, maxWaitRemainingMs));
-}
-
 /** The storage layer reports its own outcomes; a rejection here (queue timeout) must
  *  never surface as an unhandled promise — it is logged and the health signal carries it. */
-function runPassiveWrite(write: (() => unknown) | null) {
-    if (!write) return;
+function runPassiveWrite(write: () => unknown) {
     void Promise.resolve()
         .then(write)
         .catch((err) => persistLog("write.failed", `passive write: ${describeError(err)}`));
 }
 
-/** Run any coalesced passive write NOW (app going to background — don't sit on data). */
-function flushPendingPersistWrite() {
-    if (pendingPersistWriteTimer) {
-        clearTimeout(pendingPersistWriteTimer);
-        pendingPersistWriteTimer = null;
-    }
-    pendingPersistWriteFirstScheduledAt = null;
-    const write = pendingPersistWrite;
-    pendingPersistWrite = null;
-    runPassiveWrite(write);
-}
-
-/** Take the coalesced passive write off the timer without running it — a direct
- *  full-state flush supersedes it; the caller re-schedules it if that flush fails. */
-function takePendingPersistWrite(): (() => unknown) | null {
-    if (pendingPersistWriteTimer) {
-        clearTimeout(pendingPersistWriteTimer);
-        pendingPersistWriteTimer = null;
-    }
-    pendingPersistWriteFirstScheduledAt = null;
-    const write = pendingPersistWrite;
-    pendingPersistWrite = null;
-    return write;
-}
+// Ordering (a stale snapshot can never land after a newer one) is the scheduler's
+// invariant — see passivePersistScheduler.ts and its tests.
+const passivePersist = createPassivePersistScheduler({
+    debounceMs: PERSIST_WRITE_DEBOUNCE_MS,
+    maxWaitMs: PERSIST_WRITE_MAX_WAIT_MS,
+    run: runPassiveWrite,
+});
 
 function createGuardedStorage() {
     // Sharded storage: the library persists as a small meta row + one row per workspace, so
@@ -454,7 +409,7 @@ function createGuardedStorage() {
             // persisted field reference-identical — skip them entirely so playback
             // never touches the serializer or SQLite.
             if (!persistedSnapshotChanged(value)) return;
-            schedulePendingPersistWrite(() => runGuardedWrite(name, value));
+            passivePersist.schedule(() => runGuardedWrite(name, value));
         },
     };
 }
@@ -463,7 +418,7 @@ function createGuardedStorage() {
 // backgrounded/killed app keeps everything up to the last edit.
 AppState.addEventListener("change", (nextState) => {
     if (nextState !== "active") {
-        flushPendingPersistWrite();
+        passivePersist.flushNow();
     }
 });
 
@@ -589,7 +544,7 @@ export async function flushPersistedSnapshot(): Promise<void> {
     // The direct write below is built from the CURRENT state, so it supersedes any
     // coalesced passive write still waiting on the debounce — take it off the timer so
     // a stale snapshot can't land after (and overwrite) this newer one.
-    const pending = takePendingPersistWrite();
+    const pending = passivePersist.take();
     try {
         await persistAppStoreSnapshot(useStore.getState());
     } catch (err) {
@@ -597,7 +552,7 @@ export async function flushPersistedSnapshot(): Promise<void> {
         // the ordinary way — a discarded passive write used to mean the edit only
         // landed if some later, unrelated set() happened to schedule a new one. A
         // newer passive write scheduled while we awaited supersedes it.
-        if (pending && pendingPersistWrite == null) schedulePendingPersistWrite(pending);
+        if (pending && !passivePersist.hasPending()) passivePersist.schedule(pending);
         persistLog("flush.failed", describeError(err));
         throw err;
     }
