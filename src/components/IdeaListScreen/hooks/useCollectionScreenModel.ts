@@ -90,8 +90,8 @@ export function useCollectionScreenModel() {
   );
 
   const [nestedCollectionsExpanded, setNestedCollectionsExpanded] = useState(false);
+  // Already settled by the search field (it debounces keystrokes locally).
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [selectedProjectStages, setSelectedProjectStages] = useState<Array<"seed" | "sprout" | "stem" | "song">>([]);
   const [lyricsFilterMode, setLyricsFilterMode] = useState<"all" | "with" | "without">("all");
   const [listDensity, setListDensity] = useState<"comfortable" | "compact">("comfortable");
@@ -145,13 +145,6 @@ export function useCollectionScreenModel() {
   }, [collectionId, scrollY]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery);
-    }, 160);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
-
-  useEffect(() => {
     if (listSelectionMode) setHeaderMenuOpen(false);
   }, [listSelectionMode]);
 
@@ -180,7 +173,7 @@ export function useCollectionScreenModel() {
     return filteredByActivityRange;
   }, [activityMetricFilter, activityRangeEndTs, activityRangeStartTs, ideas, ideasFilter, ideasSort]);
 
-  const searchNeedle = debouncedSearchQuery.trim().toLowerCase();
+  const searchNeedle = searchQuery.trim().toLowerCase();
 
   const searchMetaByIdeaId = useMemo(() => {
     const map = new Map<string, SearchMeta>();

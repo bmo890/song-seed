@@ -179,7 +179,10 @@ export function CollectionListSection({
   listIdeasRef.current = screen.listIdeas;
 
   const openIdeaFromList = useCallback(async (ideaId: string, clip: ClipVersion) => {
-    await inlinePlayer.resetInlinePlayer();
+    // The preview's state (and its lock-screen slot) clears synchronously; only the
+    // native pause is not awaited — the card tap used to wait on it before the
+    // player could even begin to open.
+    await inlinePlayer.resetInlinePlayer({ awaitPause: false });
     useStore.getState().setPlayerQueueForScreen([{ ideaId, clipId: clip.id }], 0);
   }, [inlinePlayer]);
 

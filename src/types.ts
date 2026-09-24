@@ -779,7 +779,9 @@ export type InlinePlayerControls = {
   endInlineScrub: (ms: number) => Promise<void>;
   cancelInlineScrub: () => Promise<void>;
   seekInline: (ms: number) => Promise<void>;
-  resetInlinePlayer: () => Promise<void>;
+  /** `awaitPause: false` resolves once the preview's state is cleared, without
+   *  waiting on the native pause — for a caller that is about to open the player. */
+  resetInlinePlayer: (options?: { awaitPause?: boolean }) => Promise<void>;
 };
 
 export type IdeasFilter = "all" | "clips" | "projects" | "bookmarked";

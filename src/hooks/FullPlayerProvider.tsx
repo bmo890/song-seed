@@ -82,8 +82,8 @@ export function FullPlayerProvider({ children }: { children: React.ReactNode }) 
       seekInline: async (...args: Parameters<MiniPlayerValue["seekInline"]>) => {
         await miniRef.current?.seekInline(...args);
       },
-      resetInlinePlayer: async () => {
-        await miniRef.current?.resetInlinePlayer();
+      resetInlinePlayer: async (...args: Parameters<MiniPlayerValue["resetInlinePlayer"]>) => {
+        await miniRef.current?.resetInlinePlayer(...args);
       },
     };
   }, []);

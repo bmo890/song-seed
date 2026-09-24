@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Pressable, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
@@ -43,6 +43,34 @@ export function IdeaListFilterSection({
   onFilterSortMenuOpen,
 }: IdeaListFilterSectionProps) {
   const { t } = useTranslation();
+  // Keystrokes stay in this field. Each one used to go through the screen model
+  // (a provider render + the filter pipeline over every idea); the model now hears
+  // the settled value, 160 ms after typing pauses. A clear is immediate. The draft
+  // re-derives when the model's value changes from elsewhere (focus-idea clears it).
+  const [draft, setDraft] = useState(searchQuery);
+  const [settled, setSettled] = useState(searchQuery);
+  if (searchQuery !== settled) {
+    setSettled(searchQuery);
+    setDraft(searchQuery);
+  }
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+  }, []);
+  const handleSearchChange = (value: string) => {
+    setDraft(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (value.length === 0) {
+      setSettled(value);
+      onSearchQueryChange(value);
+      return;
+    }
+    debounceRef.current = setTimeout(() => {
+      debounceRef.current = null;
+      setSettled(value);
+      onSearchQueryChange(value);
+    }, 160);
+  };
   return (
     <FilterSortBar
       selectedProjectStages={selectedProjectStages}
@@ -56,9 +84,9 @@ export function IdeaListFilterSection({
       leadingSlot={
         <SearchField
           testID="collection-search"
-          value={searchQuery}
+          value={draft}
           placeholder={t("collection.searchPlaceholder")}
-          onChangeText={onSearchQueryChange}
+          onChangeText={handleSearchChange}
           tonal
         />
       }
