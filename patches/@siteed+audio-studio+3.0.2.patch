@@ -1,5 +1,5 @@
 diff --git a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioNotificationsManager.kt b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioNotificationsManager.kt
-index 12d30a2..a350156 100644
+index 12d30a2..1ad8772 100644
 --- a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioNotificationsManager.kt
 +++ b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioNotificationsManager.kt
 @@ -7,6 +7,8 @@ import android.app.PendingIntent
@@ -311,7 +311,7 @@ index 12d30a2..a350156 100644
  
              lastSuccessfulUpdate = currentTime
 @@ -355,13 +540,15 @@ class AudioNotificationManager private constructor(context: Context) {
- 
+             
              notificationManager.notify(
                  recordingConfig.notification.notificationId,
 -                notificationBuilder
@@ -396,7 +396,7 @@ index 12d30a2..a350156 100644
      }
  
 diff --git a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
-index 6f93aa4..ac90d2f 100644
+index 6f93aa4..ae67393 100644
 --- a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
 +++ b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
 @@ -7,6 +7,7 @@ import android.content.Context
@@ -551,7 +551,7 @@ index 6f93aa4..ac90d2f 100644
                  // Clean up accumulated audio data
                  accumulatedAudioData?.close()
 diff --git a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecordingService.kt b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecordingService.kt
-index a6c1d5a..d93783b 100644
+index a6c1d5a..c5211c8 100644
 --- a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecordingService.kt
 +++ b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecordingService.kt
 @@ -39,6 +39,15 @@ class AudioRecordingService : Service() {
@@ -572,7 +572,7 @@ index a6c1d5a..d93783b 100644
                  val channel = NotificationChannel(
 diff --git a/node_modules/@siteed/audio-studio/android/src/main/res/layout/songnook_notification_simple.xml b/node_modules/@siteed/audio-studio/android/src/main/res/layout/songnook_notification_simple.xml
 new file mode 100644
-index 0000000..082c5a2
+index 0000000..bb3b5b9
 --- /dev/null
 +++ b/node_modules/@siteed/audio-studio/android/src/main/res/layout/songnook_notification_simple.xml
 @@ -0,0 +1,46 @@
@@ -624,7 +624,7 @@ index 0000000..082c5a2
 +</LinearLayout>
 diff --git a/node_modules/@siteed/audio-studio/android/src/main/res/values-night/songnook_notification_colors.xml b/node_modules/@siteed/audio-studio/android/src/main/res/values-night/songnook_notification_colors.xml
 new file mode 100644
-index 0000000..550bbff
+index 0000000..ef9cea8
 --- /dev/null
 +++ b/node_modules/@siteed/audio-studio/android/src/main/res/values-night/songnook_notification_colors.xml
 @@ -0,0 +1,6 @@
@@ -636,7 +636,7 @@ index 0000000..550bbff
 +</resources>
 diff --git a/node_modules/@siteed/audio-studio/android/src/main/res/values/songnook_notification_colors.xml b/node_modules/@siteed/audio-studio/android/src/main/res/values/songnook_notification_colors.xml
 new file mode 100644
-index 0000000..370e32f
+index 0000000..258c81a
 --- /dev/null
 +++ b/node_modules/@siteed/audio-studio/android/src/main/res/values/songnook_notification_colors.xml
 @@ -0,0 +1,6 @@
@@ -647,11 +647,20 @@ index 0000000..370e32f
 +    <color name="songnook_notification_muted">#84736F</color>
 +</resources>
 diff --git a/node_modules/@siteed/audio-studio/build/cjs/useAudioRecorder.js b/node_modules/@siteed/audio-studio/build/cjs/useAudioRecorder.js
-index 1fee40c..4002b73 100644
+index 1fee40c..348252a 100644
 --- a/node_modules/@siteed/audio-studio/build/cjs/useAudioRecorder.js
 +++ b/node_modules/@siteed/audio-studio/build/cjs/useAudioRecorder.js
-@@ -193,7 +193,7 @@ function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl, } = {}
-         });
+@@ -186,14 +186,11 @@ function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl, } = {}
+         }
+         // Update the ref
+         analysisRef.current = savedAnalysisData;
+-        // Dispatch the updated analysis data to state to trigger re-render
+-        dispatch({
+-            type: 'UPDATE_ANALYSIS',
+-            payload: { ...savedAnalysisData },
+-        });
++        // SongNook patch (2026-09-24): no per-interval React dispatch; the full analysis
++        // still accumulates in fullAnalysisRef and is returned by stopRecording.
      }, [dispatch]);
      const handleAudioEvent = (0, react_1.useCallback)(async (eventData) => {
 -        const { fileUri, deltaSize, totalSize, lastEmittedSize, position, streamUuid, encoded, pcmFloat32, mimeType, buffer, compression, } = eventData;
@@ -659,7 +668,7 @@ index 1fee40c..4002b73 100644
          logger?.debug(`[handleAudioEvent] Received audio event:`, {
              fileUri,
              deltaSize,
-@@ -237,6 +237,8 @@ function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl, } = {}
+@@ -237,6 +234,8 @@ function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl, } = {}
                          eventDataSize: deltaSize,
                          totalSize,
                          compression: compressionPayload,
@@ -668,7 +677,7 @@ index 1fee40c..4002b73 100644
                      });
                  }
                  else {
-@@ -251,6 +253,8 @@ function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl, } = {}
+@@ -251,6 +250,8 @@ function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl, } = {}
                          eventDataSize: deltaSize,
                          totalSize,
                          compression: compressionPayload,
@@ -678,11 +687,20 @@ index 1fee40c..4002b73 100644
                  }
              }
 diff --git a/node_modules/@siteed/audio-studio/build/esm/useAudioRecorder.js b/node_modules/@siteed/audio-studio/build/esm/useAudioRecorder.js
-index 14f363e..fac92f0 100644
+index 14f363e..3b98492 100644
 --- a/node_modules/@siteed/audio-studio/build/esm/useAudioRecorder.js
 +++ b/node_modules/@siteed/audio-studio/build/esm/useAudioRecorder.js
-@@ -187,7 +187,7 @@ export function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl,
-         });
+@@ -180,14 +180,11 @@ export function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl,
+         }
+         // Update the ref
+         analysisRef.current = savedAnalysisData;
+-        // Dispatch the updated analysis data to state to trigger re-render
+-        dispatch({
+-            type: 'UPDATE_ANALYSIS',
+-            payload: { ...savedAnalysisData },
+-        });
++        // SongNook patch (2026-09-24): no per-interval React dispatch; the full analysis
++        // still accumulates in fullAnalysisRef and is returned by stopRecording.
      }, [dispatch]);
      const handleAudioEvent = useCallback(async (eventData) => {
 -        const { fileUri, deltaSize, totalSize, lastEmittedSize, position, streamUuid, encoded, pcmFloat32, mimeType, buffer, compression, } = eventData;
@@ -690,7 +708,7 @@ index 14f363e..fac92f0 100644
          logger?.debug(`[handleAudioEvent] Received audio event:`, {
              fileUri,
              deltaSize,
-@@ -231,6 +231,8 @@ export function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl,
+@@ -231,6 +228,8 @@ export function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl,
                          eventDataSize: deltaSize,
                          totalSize,
                          compression: compressionPayload,
@@ -699,7 +717,7 @@ index 14f363e..fac92f0 100644
                      });
                  }
                  else {
-@@ -245,6 +247,8 @@ export function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl,
+@@ -245,6 +244,8 @@ export function useAudioRecorder({ logger, audioWorkletUrl, featuresExtratorUrl,
                          eventDataSize: deltaSize,
                          totalSize,
                          compression: compressionPayload,
@@ -709,7 +727,7 @@ index 14f363e..fac92f0 100644
                  }
              }
 diff --git a/node_modules/@siteed/audio-studio/ios/AudioStreamManager.swift b/node_modules/@siteed/audio-studio/ios/AudioStreamManager.swift
-index deec895..192b989 100644
+index deec895..b7f0113 100644
 --- a/node_modules/@siteed/audio-studio/ios/AudioStreamManager.swift
 +++ b/node_modules/@siteed/audio-studio/ios/AudioStreamManager.swift
 @@ -65,6 +65,10 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
@@ -816,7 +834,7 @@ index df7fccc..136ab2b 100644
              let sampleCount = data.count / 2
              var floatArray = [Float](repeating: 0, count: sampleCount)
 diff --git a/node_modules/@siteed/audio-studio/src/AudioStudio.types.ts b/node_modules/@siteed/audio-studio/src/AudioStudio.types.ts
-index 5c52d35..bcd518d 100644
+index 5c52d35..eb4456b 100644
 --- a/node_modules/@siteed/audio-studio/src/AudioStudio.types.ts
 +++ b/node_modules/@siteed/audio-studio/src/AudioStudio.types.ts
 @@ -47,6 +47,10 @@ interface AudioDataEventBase {
@@ -831,7 +849,7 @@ index 5c52d35..bcd518d 100644
      compression?: CompressionInfo & {
          /** Base64 (native) or Blob (web) encoded compressed data chunk */
 diff --git a/node_modules/@siteed/audio-studio/src/events.ts b/node_modules/@siteed/audio-studio/src/events.ts
-index bb2554b..d8c2a76 100644
+index bb2554b..c67eb7f 100644
 --- a/node_modules/@siteed/audio-studio/src/events.ts
 +++ b/node_modules/@siteed/audio-studio/src/events.ts
 @@ -22,6 +22,10 @@ export interface AudioEventPayload {
@@ -846,10 +864,26 @@ index bb2554b..d8c2a76 100644
          data?: string | Blob // Base64 (native) or Float32Array (web) encoded compressed data chunk
          position: number
 diff --git a/node_modules/@siteed/audio-studio/src/useAudioRecorder.tsx b/node_modules/@siteed/audio-studio/src/useAudioRecorder.tsx
-index 5414481..4244d6a 100644
+index 5414481..30589e4 100644
 --- a/node_modules/@siteed/audio-studio/src/useAudioRecorder.tsx
 +++ b/node_modules/@siteed/audio-studio/src/useAudioRecorder.tsx
-@@ -329,6 +329,8 @@ export function useAudioRecorder({
+@@ -306,11 +306,10 @@ export function useAudioRecorder({
+             // Update the ref
+             analysisRef.current = savedAnalysisData
+ 
+-            // Dispatch the updated analysis data to state to trigger re-render
+-            dispatch({
+-                type: 'UPDATE_ANALYSIS',
+-                payload: { ...savedAnalysisData },
+-            })
++            // SongNook patch (2026-09-24): no per-interval React dispatch. The app draws
++            // its live tape from the raw stream and reads the full analysis only from
++            // stopRecording (fullAnalysisRef above, untouched). Dispatching here
++            // re-rendered every useSharedAudioRecorder consumer ~13x/s during a take.
+         },
+         [dispatch]
+     )
+@@ -329,6 +328,8 @@ export function useAudioRecorder({
                  mimeType,
                  buffer,
                  compression,
@@ -858,7 +892,7 @@ index 5414481..4244d6a 100644
              } = eventData
              logger?.debug(`[handleAudioEvent] Received audio event:`, {
                  fileUri,
-@@ -377,6 +379,8 @@ export function useAudioRecorder({
+@@ -377,6 +378,8 @@ export function useAudioRecorder({
                              eventDataSize: deltaSize,
                              totalSize,
                              compression: compressionPayload,
@@ -867,7 +901,7 @@ index 5414481..4244d6a 100644
                          })
                      } else {
                          if (!encoded) {
-@@ -390,6 +394,8 @@ export function useAudioRecorder({
+@@ -390,6 +393,8 @@ export function useAudioRecorder({
                              eventDataSize: deltaSize,
                              totalSize,
                              compression: compressionPayload,

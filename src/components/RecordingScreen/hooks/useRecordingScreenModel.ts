@@ -2065,7 +2065,7 @@ export function useRecordingScreenModel() {
       const liveGrid = liveTakeGridRef.current;
       const phase = liveGrid
         ? resolveResumeClickPhase({
-            captureMs: recording.captureDurationMs,
+            captureMs: recording.getCaptureDurationMs(),
             firstBeatCaptureMs: liveGrid.firstBeatCaptureMs,
             beatMs: liveGrid.beatMs,
             pulsesPerBar: liveGrid.pulsesPerBar,
@@ -2075,7 +2075,7 @@ export function useRecordingScreenModel() {
         : null;
       const at = liveGrid
         ? describeGridPosition({
-            captureMs: recording.captureDurationMs,
+            captureMs: recording.getCaptureDurationMs(),
             firstBeatCaptureMs: liveGrid.firstBeatCaptureMs,
             beatMs: liveGrid.beatMs,
             pulsesPerBar: liveGrid.pulsesPerBar,

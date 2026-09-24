@@ -75,7 +75,9 @@ export function startJsStallMonitor() {
     }, TICK_MS);
 
     setInterval(() => {
-        if (stalls.length === 0 && sets === 0) return;
+        const g = globalThis as any;
+        const renders = (g.__tlRenders ?? 0) + (g.__reelRenders ?? 0) + (g.__recRenders ?? 0);
+        if (stalls.length === 0 && sets === 0 && renders === 0) return;
         const total = stalls.reduce((a, b) => a + b, 0);
         const worst = stalls.length ? Math.max(...stalls) : 0;
         const keys = [...changedKeys.entries()]
@@ -83,7 +85,6 @@ export function startJsStallMonitor() {
             .slice(0, 6)
             .map(([k, n]) => `${k}×${n}`)
             .join(" ");
-        const g = globalThis as any;
         console.log(`[Renders] timeline ${g.__tlRenders ?? 0} reel ${g.__reelRenders ?? 0} recorder ${g.__recRenders ?? 0} in ${REPORT_MS / 1000}s`);
         g.__tlRenders = 0; g.__reelRenders = 0; g.__recRenders = 0;
         console.log(

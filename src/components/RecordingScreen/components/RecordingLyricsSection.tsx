@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { PlayerLyricsPanel } from "../../PlayerScreen/PlayerLyricsPanel";
 import { formatClipDate } from "../../../utils";
@@ -37,6 +37,12 @@ export function RecordingLyricsSection({
   onAutoscrollInterrupted,
   onSelectAutoscrollSpeedMultiplier,
 }: RecordingLyricsSectionProps) {
+  // One object per (mode, tenth of a second): PlayerLyricsPanel is memoized and a
+  // fresh literal here defeated that memo on every recorder render.
+  const autoscrollState = useMemo(
+    () => ({ mode: autoscrollMode, currentTimeMs: elapsedMs, durationMs: elapsedMs, activeLineId: null }),
+    [autoscrollMode, elapsedMs]
+  );
   const { t } = useTranslation();
   return (
     <PlayerLyricsPanel
@@ -47,12 +53,7 @@ export function RecordingLyricsSection({
       // toLocaleString's "27/07/2026, 16:08:48" — a machine stamp is the one
       // voice this app never uses.
       updatedAtLabel={formatClipDate(updatedAt)}
-      autoscrollState={{
-        mode: autoscrollMode,
-        currentTimeMs: elapsedMs,
-        durationMs: elapsedMs,
-        activeLineId: null,
-      }}
+      autoscrollState={autoscrollState}
       variant="recording"
       expanded={expanded}
       defaultExpanded={false}

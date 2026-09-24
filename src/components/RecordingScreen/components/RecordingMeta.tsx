@@ -5,8 +5,8 @@ import { styles } from "../../../styles";
 import type { TempoMap } from "../../../domain/tempoMap";
 import { fmtDuration } from "../../../utils";
 import { haptic } from "../../../design/haptics";
-import { AudioAnalysis } from "@siteed/audio-studio";
 import { LiveTapeVisualizer } from "../../visualizers/LiveTapeVisualizer";
+import { getActiveRecordingTakeSession, useTakeLiveWaveform } from "../../../services/recordingTakeSession";
 import { MetronomeIcon } from "../../common/MetronomeIcon";
 import { radii, colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
@@ -21,7 +21,6 @@ type Props = {
     countInCurrentBar?: number;
     countInCurrentBeat?: number;
     countInBeatsPerBar?: number;
-    waveformData?: Pick<AudioAnalysis, "dataPoints" | "segmentDurationMs" | "durationMs">;
     compact?: boolean;
     /** Let the meta section grow to fill (and center within) the leftover space. */
     fill?: boolean;
@@ -62,7 +61,6 @@ export function RecordingMeta({
     countInCurrentBar = 1,
     countInCurrentBeat = 0,
     countInBeatsPerBar = 0,
-    waveformData,
     compact = false,
     fill = false,
     hasLyrics = false,
@@ -255,15 +253,7 @@ export function RecordingMeta({
                         : styles.liveWaveWrapDefault,
                 ]}
             >
-                {waveformData ? (
-                    <LiveTapeVisualizer
-                        liveGrid={liveTakeGrid}
-                        dataPoints={waveformData.dataPoints || []}
-                        captureNowMs={waveformData.durationMs ?? null}
-                        intervalMs={waveformData.segmentDurationMs || 50}
-                        theme={liveTapeTheme}
-                    />
-                ) : null}
+                <LiveTakeTape liveGrid={liveTakeGrid} theme={liveTapeTheme} />
             </View>
         </View>
     );
@@ -333,4 +323,27 @@ const metaStyles = StyleSheet.create({
         minHeight: 30,
         justifyContent: "center",
     },
+});
+
+type LiveTakeTapeProps = {
+    liveGrid: React.ComponentProps<typeof LiveTapeVisualizer>["liveGrid"];
+    theme: React.ComponentProps<typeof LiveTapeVisualizer>["theme"];
+};
+
+/**
+ * The one leaf that follows the take's live waveform. It subscribes to the take
+ * session directly, so a new 40 ms segment re-renders this component and the tape
+ * beneath it — not the recorder screen around it (2026-09-24).
+ */
+const LiveTakeTape = React.memo(function LiveTakeTape({ liveGrid, theme }: LiveTakeTapeProps) {
+    const waveform = useTakeLiveWaveform(getActiveRecordingTakeSession());
+    return (
+        <LiveTapeVisualizer
+            liveGrid={liveGrid}
+            dataPoints={waveform.dataPoints || []}
+            captureNowMs={waveform.durationMs ?? null}
+            intervalMs={waveform.segmentDurationMs || 50}
+            theme={theme}
+        />
+    );
 });

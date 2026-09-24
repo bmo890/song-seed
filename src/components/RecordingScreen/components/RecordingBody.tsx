@@ -1,6 +1,5 @@
 import React from "react";
 import { ScrollView, View } from "react-native";
-import type { AudioAnalysis } from "@siteed/audio-studio";
 import type { SongIdea } from "../../../types";
 import { styles } from "../../../styles";
 import { getLatestLyricsVersion } from "../../../domain/lyrics";
@@ -31,7 +30,6 @@ type RecordingBodyProps = {
   countInCurrentBeat: number;
   countInBeatsPerBar: number;
   guideJoin?: { joinAtEpochMs: number; beatMs: number } | null;
-  waveformData?: Pick<AudioAnalysis, "dataPoints" | "segmentDurationMs" | "durationMs">;
   metronomeEnabled: boolean;
   metronomeSummary: string;
   metronomeToggleDisabled?: boolean;
@@ -66,7 +64,6 @@ export function RecordingBody({
   countInCurrentBeat,
   countInBeatsPerBar,
   guideJoin,
-  waveformData,
   metronomeEnabled,
   metronomeSummary,
   metronomeToggleDisabled,
@@ -119,7 +116,6 @@ export function RecordingBody({
           countInCurrentBeat={countInCurrentBeat}
           countInBeatsPerBar={countInBeatsPerBar}
           guideJoin={guideJoin}
-          waveformData={waveformData}
           compact={lyricsExpanded}
           fill={!lyricsExpanded}
           hasLyrics={hasProjectLyrics}

@@ -190,6 +190,20 @@ export function getRecordingTakeSession(shape: LiveWaveformShape): RecordingTake
   return activeSession;
 }
 
+/** The capture format every take uses (mono 44.1k, 40 ms tape segments, 12 s window). */
+export const RECORDING_TAKE_SHAPE: LiveWaveformShape = {
+  channels: 1,
+  sampleRate: 44100,
+  segmentDurationMs: 40,
+  windowDurationMs: 12000,
+};
+
+/** The app-wide take session, for leaves that draw it (the live tape) without going
+ *  through the recorder hook. */
+export function getActiveRecordingTakeSession(): RecordingTakeSession {
+  return getRecordingTakeSession(RECORDING_TAKE_SHAPE);
+}
+
 export function useTakeLiveWaveform(session: RecordingTakeSession): AudioAnalysis {
   return useSyncExternalStore(session.liveWaveform.subscribe, session.liveWaveform.get, session.liveWaveform.get);
 }

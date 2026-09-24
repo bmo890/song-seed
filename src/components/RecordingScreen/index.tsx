@@ -143,7 +143,6 @@ export function RecordingScreen() {
           countInCurrentBeat={screen.metronome.currentBeatInBar}
           countInBeatsPerBar={screen.metronome.meterPreset.pulsesPerBar}
           guideJoin={screen.guideJoinInfo}
-          waveformData={screen.recording.liveWaveformData ?? screen.recording.analysisData}
           metronomeEnabled={screen.recordingMetronomeEnabled}
           liveTakeGrid={screen.liveTakeGrid}
           metronomeSummary={metronomeSummary}

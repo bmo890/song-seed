@@ -31,9 +31,9 @@ import { colors } from "../design/tokens";
 import { useRecordingDisplayElapsed } from "./useRecordingDisplayElapsed";
 import {
   getRecordingTakeSession,
+  RECORDING_TAKE_SHAPE,
   useTakeHeadTrim,
   useTakeInterruption,
-  useTakeLiveWaveform,
 } from "../services/recordingTakeSession";
 import { finishOnsetEnvelope, type OnsetEnvelope } from "../domain/onsetEnvelope";
 import { flushPersistedSnapshot, useStore } from "../state/useStore";
@@ -66,9 +66,9 @@ type OnRecorded = (
 /** Capture format. The onset envelope's bin duration is derived from this, so a mismatch
  *  between what the recorder is configured with and what the envelope assumes would put a
  *  proportional error into every beat grid — named once, used everywhere. */
-const CAPTURE_SAMPLE_RATE = 44100;
-const CAPTURE_CHANNELS = 1;
-const LIVE_WAVEFORM_SEGMENT_MS = 40;
+const CAPTURE_SAMPLE_RATE = RECORDING_TAKE_SHAPE.sampleRate;
+const CAPTURE_CHANNELS = RECORDING_TAKE_SHAPE.channels;
+const LIVE_WAVEFORM_SEGMENT_MS = RECORDING_TAKE_SHAPE.segmentDurationMs;
 const LIVE_STREAM_INTERVAL_MS = 40;
 const ANALYSIS_SEGMENT_MS = 75;
 /** Below this the head trim is noise, not a count-in — skip the re-render. */
@@ -123,12 +123,6 @@ async function recoverKeptTakeBeforeNewOne() {
 // One owner for the recording role app-wide: the take outlives the screen that
 // started it, and the instance that saves it must release the SAME claim.
 const RECORDING_AUDIO_SESSION_OWNER = createAudioSessionOwner("recording");
-const TAKE_SHAPE = {
-  channels: CAPTURE_CHANNELS,
-  sampleRate: CAPTURE_SAMPLE_RATE,
-  segmentDurationMs: LIVE_WAVEFORM_SEGMENT_MS,
-  windowDurationMs: 12000,
-};
 
 export function useRecording(onRecorded: OnRecorded, preferredInputId: string | null) {
   const { t } = useTranslation();
@@ -136,9 +130,11 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   // Every per-take fact (live tape, onset envelope, head trim, capture start, flags)
   // lives in the app-wide take session, not in this instance: the recorder screen can
   // be minimized and reopened mid-take, and the dock reads the same take.
-  const take = getRecordingTakeSession(TAKE_SHAPE);
+  const take = getRecordingTakeSession(RECORDING_TAKE_SHAPE);
   const headTrim = useTakeHeadTrim(take);
-  const liveWaveformData = useTakeLiveWaveform(take);
+  // The live tape is NOT subscribed here: it re-renders ~25×/s during a take, and
+  // subscribing the whole recorder to it re-rendered the entire screen at that rate.
+  // The tape leaf subscribes to the session itself (LiveTakeTape).
   const { token: interruptionToken, reason: lastInterruptionReason } = useTakeInterruption(take);
   const permissionRequestRef = useRef<Promise<boolean> | null>(null);
   const prepareInFlightRef = useRef(false);
@@ -898,8 +894,6 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     // during the count-in and the head is subtracted once measured. Downstream consumers
     // (display clock, overdub auto-stop threshold) then need no head awareness.
     elapsedMs: headTrim.pending ? 0 : Math.max(0, displayElapsedMs - headTrim.ms),
-    analysisData: recorder.analysisData,
-    liveWaveformData,
     lastInterruptionReason,
     interruptionToken,
     prepareRecording,
@@ -917,7 +911,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     claimAudioSession: claimRecordingAudioSession,
     /** Raw captured audio in ms — the same axis the beat grid is stamped in, and frozen
      *  while paused, which is what makes it the right thing to phase a resumed click to. */
-    captureDurationMs: liveWaveformData.durationMs,
+    getCaptureDurationMs: () => take.liveWaveform.get().durationMs,
     armHeadTrim,
     commitHeadTrim,
     abortHeadTrim,
