@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { PracticeMarker } from "../../../types";
 import { useStore } from "../../../state/useStore";
@@ -35,28 +35,35 @@ export function usePlayerPins({
   const [expandedPinId, setExpandedPinId] = useState<string | null>(null);
   const [pinNoteDraft, setPinNoteDraft] = useState("");
 
+  // Read at call time through a ref: the value is the same the render had, but the
+  // callback keeps its identity across the once-a-second position commit — which is
+  // what lets the timeline (and the reel under it) skip that commit (2026-09-24).
+  const playerPositionRef = useRef(playerPosition);
+  playerPositionRef.current = playerPosition;
+
   /** Returns the new pin's id so the caller can offer to name it immediately. */
   const handleAddPin = useCallback(
     (label?: string) => {
       if (!playerIdeaId || !playerClipId) return null;
       const resolvedLabel = clampPinLabel(label ?? newPinLabel);
 
+      const atMs = playerPositionRef.current;
       const newMarker: PracticeMarker = {
         id: `pin-${Date.now()}`,
         label: resolvedLabel,
-        atMs: playerPosition,
+        atMs,
       };
 
       onBeforeChange?.();
       useStore.getState().addClipPracticeMarker(playerIdeaId, playerClipId, newMarker);
       // Haptics: `light` — a small state flip that should land (a mark dropped).
       haptic.light();
-      toast(t("player.pinAddedAt", { time: fmtDuration(playerPosition) }), "pin-outline");
+      toast(t("player.pinAddedAt", { time: fmtDuration(atMs) }), "pin-outline");
       setNewPinLabel("");
       setPinModalVisible(false);
       return newMarker.id;
     },
-    [newPinLabel, onBeforeChange, playerClipId, playerIdeaId, playerPosition, t]
+    [newPinLabel, onBeforeChange, playerClipId, playerIdeaId, t]
   );
 
   const handleRepositionMarker = useCallback(

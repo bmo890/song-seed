@@ -1207,7 +1207,30 @@ export const appActions = {
         )
             return;
 
-        useStore.setState((store) => ({
+        useStore.setState((store) => {
+            // No-op guard: re-marking a clip with what it already has must not
+            // notify every library subscriber (a stuck give-up mark did, every
+            // few seconds, at 130–370 ms a time — 2026-09-24).
+            const existing = store.workspaces
+                .find((workspace) => workspace.id === workspaceId)
+                ?.ideas.find((idea) => idea.id === ideaId)
+                ?.clips.find((clip) => clip.id === clipId);
+            if (existing) {
+                const nextDuration = payload.durationMs ?? existing.durationMs;
+                const peaksLand = !!payload.waveformPeaks?.length;
+                const nextUnavailable =
+                    (payload.waveformPeaks?.length ?? 0) >= MANAGED_WAVEFORM_PEAK_COUNT
+                        ? false
+                        : payload.detailedWaveformUnavailable ?? existing.detailedWaveformUnavailable;
+                if (
+                    nextDuration === existing.durationMs &&
+                    !peaksLand &&
+                    nextUnavailable === existing.detailedWaveformUnavailable
+                ) {
+                    return {};
+                }
+            }
+            return {
             workspaces: store.workspaces.map((workspace) => {
                 if (workspace.id !== workspaceId) return workspace;
 
@@ -1239,7 +1262,8 @@ export const appActions = {
                     }),
                 };
             }),
-        }));
+        };
+        });
     },
 
     /**

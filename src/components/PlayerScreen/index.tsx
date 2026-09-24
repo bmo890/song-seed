@@ -355,6 +355,13 @@ export function PlayerScreen({
     data.overdubStemEntries.some((stem) => stem.id === ui.benchLayerId)
       ? ui.benchLayerId
       : data.overdubStemEntries[0]?.id ?? BENCH_ROOT_LANE_ID;
+  const handlePressLane = useCallback(
+    (laneId: string) => {
+      haptic.tap();
+      ui.setBenchLayerId(laneId);
+    },
+    [ui.setBenchLayerId]
+  );
   const openLayersBench = useCallback(() => {
     ui.setBenchLayerId(data.overdubStemEntries[0]?.id ?? BENCH_ROOT_LANE_ID);
     ui.setMode("layers");
@@ -766,34 +773,41 @@ export function PlayerScreen({
   });
 
   const countInBars = ui.countInOption === "1b" ? 1 : ui.countInOption === "2b" ? 2 : 0;
+  // `lifecycle` and `playbackClick` are rebuilt every render; reading them through
+  // refs keeps the transport callbacks below identity-stable, which is what lets
+  // PlayerTimeline's memo hold across the once-a-second status commit (2026-09-24).
+  // The refs are assigned in render, so a callback always sees the current objects.
+  const lifecycleRef = useRef(lifecycle);
+  lifecycleRef.current = lifecycle;
+  const playbackClickRef = useRef(playbackClick);
+  playbackClickRef.current = playbackClick;
   // Start playback behind a bar count-in (none → plain start). Shared by the
   // transport button and the Marks drawer's play-from glyph.
-  const startPlaybackBehindCountIn = useCallback(
-    (bars: number) => {
-      if (bars <= 0) {
-        lifecycle.handleTogglePlayPress();
-        return;
-      }
-      void playbackClick
-        .playWithCountIn(bars, () => lifecycle.handleTogglePlayPress())
-        .then((ran) => {
-          if (!ran) {
-            lifecycle.handleTogglePlayPress();
-          }
-        })
-        .catch(() => {
-          // A failed count-in must never eat the play press — start playback plain.
-          lifecycle.handleTogglePlayPress();
-        });
-    },
-    [lifecycle, playbackClick]
-  );
+  const startPlaybackBehindCountIn = useCallback((bars: number) => {
+    const togglePlay = () => lifecycleRef.current.handleTogglePlayPress();
+    if (bars <= 0) {
+      togglePlay();
+      return;
+    }
+    void playbackClickRef.current
+      .playWithCountIn(bars, togglePlay)
+      .then((ran) => {
+        if (!ran) {
+          togglePlay();
+        }
+      })
+      .catch(() => {
+        // A failed count-in must never eat the play press — start playback plain.
+        togglePlay();
+      });
+  }, []);
 
   // Count-in intercepts only a play START; pausing (and tapping during the count-in
   // itself) never counts. Falls through to a plain toggle whenever it can't run.
   const handleTogglePlayWithCountIn = useCallback(() => {
-    if (playbackClick.isCountingIn) {
-      playbackClick.cancelCountIn();
+    const click = playbackClickRef.current;
+    if (click.isCountingIn) {
+      click.cancelCountIn();
       return;
     }
     // "3s" is a run-up of the SONG itself: back the playhead up three seconds and
@@ -801,34 +815,27 @@ export function PlayerScreen({
     // deserves, and the one that works for punching into a loop.
     if (ui.countInOption === "3s" && !effectiveIsPlaying) {
       void (async () => {
-        await handleLoopAwareSeek(Math.max(0, effectivePlayerPosition - 3000));
-        lifecycle.handleTogglePlayPress();
+        // Position at press time, read from the ref the readout keeps current.
+        await handleLoopAwareSeek(Math.max(0, playerPositionMsRef.current - 3000));
+        lifecycleRef.current.handleTogglePlayPress();
       })();
       return;
     }
     if (effectiveIsPlaying) {
-      lifecycle.handleTogglePlayPress();
+      lifecycleRef.current.handleTogglePlayPress();
       return;
     }
     startPlaybackBehindCountIn(countInBars);
-  }, [
-    countInBars,
-    effectiveIsPlaying,
-    effectivePlayerPosition,
-    handleLoopAwareSeek,
-    lifecycle,
-    startPlaybackBehindCountIn,
-    ui.countInOption,
-  ]);
+  }, [countInBars, effectiveIsPlaying, handleLoopAwareSeek, startPlaybackBehindCountIn, ui.countInOption]);
 
   // Committed position jumps re-phase the click immediately (drift checks are the
   // backstop, not the mechanism).
   const handleSeekWithClick = useCallback(
     async (timeMs: number) => {
       await handleLoopAwareSeek(timeMs);
-      playbackClick.notifySeek(timeMs);
+      playbackClickRef.current.notifySeek(timeMs);
     },
-    [handleLoopAwareSeek, playbackClick]
+    [handleLoopAwareSeek]
   );
 
   // The Marks drawer's row play glyph: cue the mark, then roll. The loop-aware seek
@@ -1248,10 +1255,7 @@ export function PlayerScreen({
                   }
                   layerMixerAccessibilityLabel={t("player.layers")}
                   selectedLaneId={benchSelectedLaneId}
-                  onPressLane={(laneId) => {
-                    haptic.tap();
-                    ui.setBenchLayerId(laneId);
-                  }}
+                  onPressLane={handlePressLane}
                   onLaneDragEnd={handleLaneDragEnd}
                   laneDragResetToken={laneDragResetToken}
                   draggingMarkerId={draggingMarkerId}

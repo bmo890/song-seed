@@ -1,5 +1,6 @@
 import { ViewInCollectionButton } from "./common/ViewInCollectionButton";
 import { memo, useMemo, useState } from "react";
+import { findClipInIdea, findIdeaInLibrary, findWorkspaceOfIdea, queueListingKey } from "../state/librarySelectors";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import DraggableFlatList from "react-native-draggable-flatlist";
 import { Ionicons } from "@expo/vector-icons";
@@ -47,36 +48,34 @@ function QueuePanelInner({
   const playerQueue = useStore((s) => s.playerQueue);
   const playerQueueIndex = useStore((s) => s.playerQueueIndex);
   const playerIsPlaying = useStore((s) => s.playerIsPlaying);
-  const workspaces = useStore((s) => s.workspaces);
+  // Re-renders only when a listed title or length changes, not on every library write.
+  const queueKey = useStore((s) => queueListingKey(s.workspaces, playerQueue));
   const [editMode, setEditMode] = useState(false);
 
   // Memoized with an id-index: the naive per-row workspace scan was O(queue × library)
   // and re-ran on EVERY render — noticeable once the library passed ~100 clips.
   const rows: QueueRow[] = useMemo(() => {
-    const ideaIndex = new Map<string, { workspaceId: string; idea: (typeof workspaces)[number]["ideas"][number] }>();
-    for (const workspace of workspaces) {
-      for (const idea of workspace.ideas) {
-        ideaIndex.set(idea.id, { workspaceId: workspace.id, idea });
-      }
-    }
+    const workspaces = useStore.getState().workspaces;
     return playerQueue.map((item, index) => {
-      const entry = ideaIndex.get(item.ideaId) ?? null;
-      const idea = entry?.idea ?? null;
-      const clip = idea?.clips.find((candidate) => candidate.id === item.clipId) ?? null;
+      const idea = findIdeaInLibrary(workspaces, item.ideaId);
+      const workspaceId = findWorkspaceOfIdea(workspaces, item.ideaId)?.id ?? null;
+      const clip = findClipInIdea(idea, item.clipId);
       return {
         // Value-keyed (not index-keyed) so a drag reorder doesn't reshuffle keys.
         key: `${item.ideaId}:${item.clipId}`,
         queueItem: item,
         index,
         ideaId: idea?.id ?? null,
-        workspaceId: entry?.workspaceId ?? null,
+        workspaceId,
         title: clip?.title || idea?.title || "Unknown clip",
         subtitle: idea?.title ?? "",
         durationMs: clip ? getClipPlaybackDurationMs(clip) ?? null : null,
         isCurrent: index === playerQueueIndex,
       };
     });
-  }, [playerQueue, playerQueueIndex, workspaces]);
+    // queueKey fingerprints everything read from the library above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playerQueue, playerQueueIndex, queueKey]);
 
   const jumpTo = (index: number) => {
     const state = useStore.getState();

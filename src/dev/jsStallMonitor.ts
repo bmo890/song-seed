@@ -83,6 +83,9 @@ export function startJsStallMonitor() {
             .slice(0, 6)
             .map(([k, n]) => `${k}×${n}`)
             .join(" ");
+        const g = globalThis as any;
+        console.log(`[Renders] timeline ${g.__tlRenders ?? 0} reel ${g.__reelRenders ?? 0} recorder ${g.__recRenders ?? 0} in ${REPORT_MS / 1000}s`);
+        g.__tlRenders = 0; g.__reelRenders = 0; g.__recRenders = 0;
         console.log(
             `[StallReport] ${REPORT_MS / 1000}s: blocked ${total}ms in ${stalls.length} stalls (worst ${worst}ms) · ` +
                 `${sets} store sets, set→idle ${subscriberMs}ms · ${keys}`

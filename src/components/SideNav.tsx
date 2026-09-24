@@ -105,19 +105,24 @@ export function SideNav({
   // Entries whose idea was deleted from the library are excluded: the Shelf screen
   // can't show them, so counting them would light a badge with no way to clear it.
   const shelfEntries = useShelfStore((state) => state.entries);
-  const shelfWorkspaces = useStore((state) => state.workspaces);
-  const shelfDecisionCount = useMemo(() => {
-    const existingIdeaIds = new Set<string>();
-    for (const workspace of shelfWorkspaces) {
-      for (const idea of workspace.ideas) existingIdeaIds.add(idea.id);
+  // A primitive key of which shelf entries still exist in the library, so the
+  // drawer re-renders on membership changes only — not on every library write.
+  const existingShelfIdsKey = useStore((state) => {
+    const ids: string[] = [];
+    for (const entry of shelfEntries) {
+      if (state.workspaces.some((workspace) => workspace.ideas.some((idea) => idea.id === entry.id))) ids.push(entry.id);
     }
+    return ids.join(",");
+  });
+  const shelfDecisionCount = useMemo(() => {
+    const existingIdeaIds = new Set(existingShelfIdsKey ? existingShelfIdsKey.split(",") : []);
     const now = Date.now();
     return shelfEntries.filter(
       (entry) =>
         existingIdeaIds.has(entry.id) &&
         (isEntryInDecisionWindow(entry, now) || isEntryExpired(entry, now))
     ).length;
-  }, [shelfEntries, shelfWorkspaces]);
+  }, [shelfEntries, existingShelfIdsKey]);
 
   return (
     <SafeAreaView style={sideNavStyles.shell}>

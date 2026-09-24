@@ -15,6 +15,7 @@ import { useClipWaveform } from "../../../hooks/useClipWaveform";
 import { getLatestLyricsVersion, lyricsDocumentToText, resolveClipLyricsVersion } from "../../../domain/lyrics";
 import { normalizeSections } from "../../../domain/playerSections";
 import { useStore } from "../../../state/useStore";
+import { findClipInIdea, findIdeaInLibrary, findWorkspaceOfIdea, queueListingKey } from "../../../state/librarySelectors";
 import type { SongIdea } from "../../../types";
 import { getCollectionById } from "../../../utils";
 import { extractLyricsMarkers, getNoteSummary } from "../helpers";
@@ -51,50 +52,44 @@ export function usePlayerScreenData({
   const playerToggleRequestToken = useStore((s) => s.playerToggleRequestToken);
   const playerCloseRequestToken = useStore((s) => s.playerCloseRequestToken);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
-  const workspaces = useStore((s) => s.workspaces);
   const isOverdubPreviewRendering = useStore((s) =>
     playerTarget ? !!s.overdubPreviewRenderActiveByClipKey[`${playerTarget.ideaId}:${playerTarget.clipId}`] : false
   );
-
-  const activeWorkspace = useMemo(
-    () => workspaces.find((workspace) => workspace.id === activeWorkspaceId) ?? null,
-    [activeWorkspaceId, workspaces]
+  // Subscribed by identity, never to the whole library: the player is mounted
+  // whenever a session exists, and re-rendering it on every unrelated write cost
+  // 34–61 ms per write under the collection (2026-09-24).
+  const playerIdea = useStore((s) =>
+    playerTarget ? findIdeaInLibrary(s.workspaces, playerTarget.ideaId, s.activeWorkspaceId) : null
   );
-  const ideas = activeWorkspace?.ideas ?? EMPTY_IDEAS;
-
-  const playerIdea = useMemo(() => {
-    if (!playerTarget) return null;
-    // Active workspace first, then ALL workspaces — the player is a resolution
-    // surface (queues can span workspaces; Received-package clips play here).
-    const inActive = ideas.find((idea) => idea.id === playerTarget.ideaId) ?? null;
-    if (inActive) return inActive;
-    for (const workspace of workspaces) {
-      const idea = workspace.ideas.find((candidate) => candidate.id === playerTarget.ideaId);
-      if (idea) return idea;
-    }
-    return null;
-  }, [ideas, playerTarget, workspaces]);
   const playerClip = useMemo(
-    () => (playerIdea && playerTarget ? playerIdea.clips.find((clip) => clip.id === playerTarget.clipId) ?? null : null),
+    () => (playerTarget ? findClipInIdea(playerIdea, playerTarget.clipId) : null),
     [playerIdea, playerTarget]
   );
-  const queueEntries = useMemo(
-    () =>
-      playerQueue
-        .map((item) => {
-          const idea = ideas.find((candidate) => candidate.id === item.ideaId);
-          const clip = idea?.clips.find((candidate) => candidate.id === item.clipId);
-          if (!idea || !clip) return null;
-          return {
-            ideaId: item.ideaId,
-            clipId: item.clipId,
-            title: clip.title,
-            subtitle: idea.title,
-          };
-        })
-        .filter((entry): entry is PlayerQueueEntry => !!entry),
-    [ideas, playerQueue]
-  );
+  const playerCollection = useStore((s) => {
+    if (!playerIdea) return null;
+    const workspace = findWorkspaceOfIdea(s.workspaces, playerIdea.id);
+    return workspace ? getCollectionById(workspace, playerIdea.collectionId) ?? null : null;
+  });
+  // The queue listing re-renders only when a shown title or length changes.
+  const queueKey = useStore((s) => queueListingKey(s.workspaces, playerQueue));
+  const queueEntries = useMemo(() => {
+    const workspaces = useStore.getState().workspaces;
+    return playerQueue
+      .map((item) => {
+        const idea = findIdeaInLibrary(workspaces, item.ideaId);
+        const clip = findClipInIdea(idea, item.clipId);
+        if (!idea || !clip) return null;
+        return {
+          ideaId: item.ideaId,
+          clipId: item.clipId,
+          title: clip.title,
+          subtitle: idea.title,
+        };
+      })
+      .filter((entry): entry is PlayerQueueEntry => !!entry);
+    // queueKey is the fingerprint of everything read above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playerQueue, queueKey]);
   const latestLyricsVersion = useMemo(
     () => (playerIdea?.kind === "project" ? getLatestLyricsVersion(playerIdea) : null),
     [playerIdea]
@@ -115,8 +110,6 @@ export function usePlayerScreenData({
     [clipLyrics.version?.document]
   );
   const hasProjectLyrics = playerIdea?.kind === "project" && latestLyricsText.trim().length > 0;
-  const playerCollection =
-    playerIdea && activeWorkspace ? getCollectionById(activeWorkspace, playerIdea.collectionId) : null;
   const playbackAudioUri = playerClip ? getClipPlaybackUri(playerClip) ?? null : null;
   // The engine is one shared player: while it still holds the previous clip's file,
   // its duration is the previous clip's. Derived here, never assigned from an effect.
@@ -183,7 +176,6 @@ export function usePlayerScreenData({
   );
 
   return {
-    activeWorkspace,
     activeWorkspaceId,
     playerTarget,
     playerQueue,

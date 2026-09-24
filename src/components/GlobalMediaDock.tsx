@@ -12,6 +12,8 @@ import { useFullPlayerControls } from "../hooks/FullPlayerProvider";
 import { usePlayerSheetPosition } from "../hooks/PlayerSheetPositionProvider";
 import { shouldLiftDockAboveSelectionBar } from "./playerSheetVisibility";
 import { useStore } from "../state/useStore";
+import { useShallow } from "zustand/react/shallow";
+import { findClipInIdea, findIdeaInLibrary, findWorkspaceOfIdea } from "../state/librarySelectors";
 import { resolvePreviousAction } from "../domain/transportPrevious";
 import { styles } from "../styles";
 import { colors } from "../design/tokens";
@@ -77,7 +79,6 @@ export function GlobalMediaDock({
   const [queueOpen, setQueueOpen] = useState(false);
   const recorder = useSharedAudioRecorder();
   const recordingIdeaId = useStore((s) => s.recordingIdeaId);
-  const workspaces = useStore((s) => s.workspaces);
   const playerTarget = useStore((s) => s.playerTarget);
   // NOTE: position/duration are deliberately NOT subscribed here — they tick at
   // ~20Hz during playback and would re-render the whole dock (including the
@@ -102,16 +103,8 @@ export function GlobalMediaDock({
     return () => setRecorderCapturing(false);
   }, [recorderCapturing]);
 
-  // Looked up when the library or the target changes — not on every dock render,
-  // which during a take is every clock tick.
-  const recordingIdea = useMemo(() => {
-    if (!recordingIdeaId) return null;
-    for (const workspace of workspaces) {
-      const found = workspace.ideas.find((idea) => idea.id === recordingIdeaId);
-      if (found) return found;
-    }
-    return null;
-  }, [recordingIdeaId, workspaces]);
+  // By identity, not the whole library — the dock is always mounted.
+  const recordingIdea = useStore((s) => findIdeaInLibrary(s.workspaces, recordingIdeaId));
   const hasRecordingSession =
     !!recordingIdea && (recorder.isRecording || recorder.isPaused);
 
@@ -219,6 +212,27 @@ export function GlobalMediaDock({
     useStore.getState().advancePlayerQueue("previous", true);
   };
 
+  // The strings the dock shows, selected shallowly: an unrelated library write
+  // leaves them equal and the dock does not re-render.
+  const dockLabels = useStore(
+    useShallow((s) => {
+      const target = s.playerTarget;
+      if (!target) return null;
+      const workspace = findWorkspaceOfIdea(s.workspaces, target.ideaId);
+      const idea = workspace ? findIdeaInLibrary([workspace], target.ideaId) : null;
+      const clip = findClipInIdea(idea, target.clipId);
+      if (!workspace || !idea || !clip) return null;
+      // Context line (the "artist" slot): song title when the clip belongs to
+      // a song project, then the collection — so standalone clips aren't bare.
+      const collectionTitle = getCollectionById(workspace, idea.collectionId)?.title;
+      const subtitle =
+        idea.kind === "project"
+          ? [idea.title, collectionTitle].filter(Boolean).join(" · ")
+          : collectionTitle ?? idea.title;
+      return { ideaId: idea.id, clipId: clip.id, title: clip.title, subtitle, durationMs: clip.durationMs || 0 };
+    })
+  );
+
   // The dock only represents the durable full-player queue/session. Clip-card
   // preview playback is separate and does not take over the dock UI.
   const activePlayback: PlaybackDockState | null = (() => {
@@ -226,29 +240,15 @@ export function GlobalMediaDock({
     // swipe-up drag "expanded" stays false until release, so the dock naturally
     // stays mounted behind the rising sheet, keeping its gesture alive.
     const shouldShowPlaybackDock = !isPlayerScreenMounted;
-    if (playerTarget && playerQueue.length > 0 && shouldShowPlaybackDock) {
-      const workspace = workspaces.find((ws) =>
-        ws.ideas.some((item) => item.id === playerTarget.ideaId)
-      );
-      const idea = workspace?.ideas.find((item) => item.id === playerTarget.ideaId);
-      const clip = idea?.clips.find((item) => item.id === playerTarget.clipId);
-      if (workspace && idea && clip) {
-        // Context line (the "artist" slot): song title when the clip belongs to
-        // a song project, then the collection — so standalone clips aren't bare.
-        const collectionTitle = getCollectionById(workspace, idea.collectionId)?.title;
-        const subtitle =
-          idea.kind === "project"
-            ? [idea.title, collectionTitle].filter(Boolean).join(" · ")
-            : collectionTitle ?? idea.title;
-        return {
-          ideaId: idea.id,
-          clipId: clip.id,
-          title: clip.title,
-          subtitle,
-          isPlaying: playerIsPlaying,
-          fallbackDurationMs: clip.durationMs || 0,
-        } satisfies PlaybackDockState;
-      }
+    if (playerTarget && playerQueue.length > 0 && shouldShowPlaybackDock && dockLabels) {
+      return {
+        ideaId: dockLabels.ideaId,
+        clipId: dockLabels.clipId,
+        title: dockLabels.title,
+        subtitle: dockLabels.subtitle,
+        isPlaying: playerIsPlaying,
+        fallbackDurationMs: dockLabels.durationMs,
+      } satisfies PlaybackDockState;
     }
     return null;
   })();
