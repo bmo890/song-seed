@@ -1010,6 +1010,35 @@ function normalizeIdea(idea: SongIdea): SongIdea {
     return normalizedIdea;
 }
 
+/**
+ * Rewrite ONE idea in place. The containing workspace and the idea get new identity;
+ * every other workspace, idea and clip keeps its own. The sixteen small edit actions
+ * (bookmark, tags, groups, markers, sections, analysis, song grid) used to rebuild
+ * every workspace and every ideas array on each call — which marked every shard dirty
+ * (the whole library re-serialized 0.8 s after a bookmark tap) and re-rendered every
+ * library subscriber (2026-09-24). An updater that returns the same idea is a no-op:
+ * the state object itself is returned, so nobody is notified and nothing persists.
+ */
+function updateIdeaInState<S extends { workspaces: Workspace[] }>(
+    state: S,
+    ideaId: string,
+    update: (idea: SongIdea) => SongIdea
+): S | { workspaces: Workspace[] } {
+    let changed = false;
+    const workspaces = state.workspaces.map((workspace) => {
+        const index = workspace.ideas.findIndex((idea) => idea.id === ideaId);
+        if (index === -1) return workspace;
+        const idea = workspace.ideas[index]!;
+        const next = update(idea);
+        if (next === idea) return workspace;
+        changed = true;
+        const ideas = workspace.ideas.slice();
+        ideas[index] = next;
+        return { ...workspace, ideas };
+    });
+    return changed ? { workspaces } : state;
+}
+
 function normalizeWorkspaceIdeasListState(
     ideasListState: IdeasListState | undefined,
     ideas: SongIdea[]
@@ -1949,36 +1978,28 @@ export const createDataSlice: StateCreator<
     },
 
     toggleIdeaBookmark: (ideaId) => {
-        set((state) => ({
-            workspaces: state.workspaces.map((workspace) => ({
-                ...workspace,
-                ideas: workspace.ideas.map((idea) =>
+        set((state) =>
+            updateIdeaInState(state, ideaId, (idea) =>
                     idea.id === ideaId ? { ...idea, isBookmarked: !idea.isBookmarked } : idea
-                ),
-            })),
-        }));
+            )
+        );
     },
 
     setSongGrid: (ideaId, songGrid) => {
         const nextGrid = songGrid ? normalizeTempoMap(songGrid) : undefined;
-        set((state) => ({
-            workspaces: state.workspaces.map((workspace) => ({
-                ...workspace,
-                ideas: workspace.ideas.map((idea) => {
+        set((state) =>
+            updateIdeaInState(state, ideaId, (idea) => {
                     if (idea.id !== ideaId || tempoMapEquals(idea.songGrid, nextGrid)) {
                         return idea;
                     }
                     return { ...idea, songGrid: nextGrid, songGridUpdatedAt: Date.now() };
-                }),
-            })),
-        }));
+            })
+        );
     },
 
     toggleClipBookmark: (ideaId, clipId) => {
-        set((state) => ({
-            workspaces: state.workspaces.map((workspace) => ({
-                ...workspace,
-                ideas: workspace.ideas.map((idea) =>
+        set((state) =>
+            updateIdeaInState(state, ideaId, (idea) =>
                     idea.id === ideaId
                         ? {
                               ...idea,
@@ -1989,16 +2010,13 @@ export const createDataSlice: StateCreator<
                               ),
                           }
                         : idea
-                ),
-            })),
-        }));
+            )
+        );
     },
 
     setClipTags: (ideaId, clipId, tags) => {
-        set((state) => ({
-            workspaces: state.workspaces.map((workspace) => ({
-                ...workspace,
-                ideas: workspace.ideas.map((idea) =>
+        set((state) =>
+            updateIdeaInState(state, ideaId, (idea) =>
                     idea.id === ideaId
                         ? {
                               ...idea,
@@ -2007,19 +2025,16 @@ export const createDataSlice: StateCreator<
                               ),
                           }
                         : idea
-                ),
-            })),
-        }));
+            )
+        );
     },
 
     createClipGroup: (ideaId, name) => {
         const now = Date.now();
         const groupId = `clip-group-${now}`;
         let didCreate = false;
-        set((state) => ({
-            workspaces: state.workspaces.map((workspace) => ({
-                ...workspace,
-                ideas: workspace.ideas.map((idea) => {
+        set((state) =>
+            updateIdeaInState(state, ideaId, (idea) => {
                     if (idea.id !== ideaId || idea.kind !== "project") return idea;
                     const groupCount = idea.clipGroups?.length ?? 0;
                     const groupName = name?.trim() || `Group ${groupCount + 1}`;
@@ -2037,19 +2052,16 @@ export const createDataSlice: StateCreator<
                             },
                         ],
                     };
-                }),
-            })),
-        }));
+            })
+        );
         return didCreate ? groupId : null;
     },
 
     renameClipGroup: (ideaId, groupId, name) => {
         const nextName = name.trim();
         if (!nextName) return;
-        set((state) => ({
-            workspaces: state.workspaces.map((workspace) => ({
-                ...workspace,
-                ideas: workspace.ideas.map((idea) =>
+        set((state) =>
+            updateIdeaInState(state, ideaId, (idea) =>
                     idea.id === ideaId
                         ? {
                               ...idea,
@@ -2060,16 +2072,13 @@ export const createDataSlice: StateCreator<
                               ),
                           }
                         : idea
-                ),
-            })),
-        }));
+            )
+        );
     },
 
     deleteClipGroup: (ideaId, groupId) => {
-        set((state) => ({
-            workspaces: state.workspaces.map((workspace) => ({
-                ...workspace,
-                ideas: workspace.ideas.map((idea) => {
+        set((state) =>
+            updateIdeaInState(state, ideaId, (idea) => {
                     if (idea.id !== ideaId) return idea;
                     const nextAssignments = { ...(idea.clipGroupAssignments ?? {}) };
                     Object.entries(nextAssignments).forEach(([rootClipId, assignedGroupId]) => {
@@ -2081,16 +2090,13 @@ export const createDataSlice: StateCreator<
                         clipGroupAssignments:
                             Object.keys(nextAssignments).length > 0 ? nextAssignments : undefined,
                     };
-                }),
-            })),
-        }));
+            })
+        );
     },
 
     setClipGroupCollapsed: (ideaId, groupId, collapsed) => {
-        set((state) => ({
-            workspaces: state.workspaces.map((workspace) => ({
-                ...workspace,
-                ideas: workspace.ideas.map((idea) =>
+        set((state) =>
+            updateIdeaInState(state, ideaId, (idea) =>
                     idea.id === ideaId
                         ? {
                               ...idea,
@@ -2101,16 +2107,13 @@ export const createDataSlice: StateCreator<
                               ),
                           }
                         : idea
-                ),
-            })),
-        }));
+            )
+        );
     },
 
     assignLineageToClipGroup: (ideaId, lineageRootClipId, groupId) => {
-        set((state) => ({
-            workspaces: state.workspaces.map((workspace) => ({
-                ...workspace,
-                ideas: workspace.ideas.map((idea) => {
+        set((state) =>
+            updateIdeaInState(state, ideaId, (idea) => {
                     if (idea.id !== ideaId) return idea;
                     const rootIds = new Set(buildClipGraph(idea.clips).roots.map((clip) => clip.id));
                     if (!rootIds.has(lineageRootClipId)) return idea;
@@ -2127,41 +2130,34 @@ export const createDataSlice: StateCreator<
                         clipGroupAssignments:
                             Object.keys(nextAssignments).length > 0 ? nextAssignments : undefined,
                     };
-                }),
-            })),
-        }));
+            })
+        );
     },
 
     addProjectCustomTag: (ideaId, tag) => {
-        set((state) => ({
-            workspaces: state.workspaces.map((workspace) => ({
-                ...workspace,
-                ideas: workspace.ideas.map((idea) =>
+        set((state) =>
+            updateIdeaInState(state, ideaId, (idea) =>
                     idea.id === ideaId
                         ? {
                               ...idea,
                               customTags: [...(idea.customTags ?? []), tag],
                           }
                         : idea
-                ),
-            })),
-        }));
+            )
+        );
     },
 
     removeProjectCustomTag: (ideaId, tagKey) => {
-        set((state) => ({
-            workspaces: state.workspaces.map((workspace) => ({
-                ...workspace,
-                ideas: workspace.ideas.map((idea) =>
+        set((state) =>
+            updateIdeaInState(state, ideaId, (idea) =>
                     idea.id === ideaId
                         ? {
                               ...idea,
                               customTags: (idea.customTags ?? []).filter((t) => t.key !== tagKey),
                           }
                         : idea
-                ),
-            })),
-        }));
+            )
+        );
     },
 
     addGlobalCustomClipTag: (tag) => {
@@ -2177,10 +2173,8 @@ export const createDataSlice: StateCreator<
     },
 
     addClipPracticeMarker: (ideaId, clipId, marker) => {
-        set((state) => ({
-            workspaces: state.workspaces.map((workspace) => ({
-                ...workspace,
-                ideas: workspace.ideas.map((idea) =>
+        set((state) =>
+            updateIdeaInState(state, ideaId, (idea) =>
                     idea.id === ideaId
                         ? {
                               ...idea,
@@ -2194,16 +2188,13 @@ export const createDataSlice: StateCreator<
                               ),
                           }
                         : idea
-                ),
-            })),
-        }));
+            )
+        );
     },
 
     removeClipPracticeMarker: (ideaId, clipId, markerId) => {
-        set((state) => ({
-            workspaces: state.workspaces.map((workspace) => ({
-                ...workspace,
-                ideas: workspace.ideas.map((idea) =>
+        set((state) =>
+            updateIdeaInState(state, ideaId, (idea) =>
                     idea.id === ideaId
                         ? {
                               ...idea,
@@ -2217,16 +2208,13 @@ export const createDataSlice: StateCreator<
                               ),
                           }
                         : idea
-                ),
-            })),
-        }));
+            )
+        );
     },
 
     setClipPracticeMarkers: (ideaId, clipId, markers) => {
-        set((state) => ({
-            workspaces: state.workspaces.map((workspace) => ({
-                ...workspace,
-                ideas: workspace.ideas.map((idea) =>
+        set((state) =>
+            updateIdeaInState(state, ideaId, (idea) =>
                     idea.id === ideaId
                         ? {
                               ...idea,
@@ -2235,16 +2223,13 @@ export const createDataSlice: StateCreator<
                               ),
                           }
                         : idea
-                ),
-            })),
-        }));
+            )
+        );
     },
 
     setClipSections: (ideaId, clipId, sections) => {
-        set((state) => ({
-            workspaces: state.workspaces.map((workspace) => ({
-                ...workspace,
-                ideas: workspace.ideas.map((idea) =>
+        set((state) =>
+            updateIdeaInState(state, ideaId, (idea) =>
                     idea.id === ideaId
                         ? {
                               ...idea,
@@ -2253,16 +2238,13 @@ export const createDataSlice: StateCreator<
                               ),
                           }
                         : idea
-                ),
-            })),
-        }));
+            )
+        );
     },
 
     setClipAnalysis: (ideaId, clipId, analysis) => {
-        set((state) => ({
-            workspaces: state.workspaces.map((workspace) => ({
-                ...workspace,
-                ideas: workspace.ideas.map((idea) =>
+        set((state) =>
+            updateIdeaInState(state, ideaId, (idea) =>
                     idea.id === ideaId
                         ? {
                               ...idea,
@@ -2271,9 +2253,8 @@ export const createDataSlice: StateCreator<
                               ),
                           }
                         : idea
-                ),
-            })),
-        }));
+            )
+        );
     },
 
     addClipOverdubStem: (ideaId, clipId, stem) => {

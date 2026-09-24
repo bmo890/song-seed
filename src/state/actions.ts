@@ -1227,7 +1227,8 @@ export const appActions = {
                     !peaksLand &&
                     nextUnavailable === existing.detailedWaveformUnavailable
                 ) {
-                    return {};
+                    // The state object itself: zustand skips the notify only for that.
+                    return store;
                 }
             }
             return {

@@ -1,4 +1,5 @@
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import type { Workspace } from "./src/types";
 import Constants from "expo-constants";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
@@ -165,6 +166,8 @@ const sideMenuDrawerStyle = [
   Platform.OS === "ios" ? null : { borderTopRightRadius: 16, borderBottomRightRadius: 16 },
 ];
 
+const EMPTY_WORKSPACES: Workspace[] = [];
+const EMPTY_PRIMARY_COLLECTIONS: Record<string, string> = {};
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Drawer = createDrawerNavigator<HomeDrawerParamList>();
 const WorkspaceStack = createNativeStackNavigator<WorkspaceStackParamList>();
@@ -868,14 +871,18 @@ function AppContent() {
       void SplashScreen.hideAsync().catch(() => {});
     }
   }, [appShellReady]);
-  const workspaces = useStore((s) => s.workspaces);
-  const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
-  const primaryWorkspaceId = useStore((s) => s.primaryWorkspaceId);
-  const lastUsedWorkspaceId = useStore((s) => s.lastUsedWorkspaceId);
+  // The app root subscribed to the whole library (and the selected idea, and the
+  // player target) only to compute the startup navigation state once and to feed a
+  // navigation-change callback. Every library write and every card tap re-rendered the
+  // entire root tree for that (2026-09-24). Startup inputs are subscribed only until
+  // navigation is ready; the callback reads the store at call time.
+  const workspaces = useStore((s) => (navigationStateReady ? EMPTY_WORKSPACES : s.workspaces));
+  const primaryWorkspaceId = useStore((s) => (navigationStateReady ? null : s.primaryWorkspaceId));
+  const lastUsedWorkspaceId = useStore((s) => (navigationStateReady ? null : s.lastUsedWorkspaceId));
   const workspaceStartupPreference = useStore((s) => s.workspaceStartupPreference);
-  const primaryCollectionIdByWorkspace = useStore((s) => s.primaryCollectionIdByWorkspace);
-  const selectedIdeaId = useStore((s) => s.selectedIdeaId);
-  const playerTarget = useStore((s) => s.playerTarget);
+  const primaryCollectionIdByWorkspace = useStore((s) =>
+    navigationStateReady ? EMPTY_PRIMARY_COLLECTIONS : s.primaryCollectionIdByWorkspace
+  );
   const appScheme = getScheme() ?? Constants.expoConfig?.scheme ?? "songnook";
   const shareExtensionKey = getShareExtensionKey();
   const packageName =
@@ -1024,13 +1031,14 @@ function AppContent() {
     setIsDrawerOpen((prev) => (prev === drawerOpen ? prev : drawerOpen));
     if (nextRoute === "ShareImport") return;
 
+    const store = useStore.getState();
     const routeContext = getActiveWorkspaceRouteContext({
       deepestRouteName: deepestRoute.name,
       deepestParams: deepestRoute.params ?? {},
-      workspaces,
-      activeWorkspaceId,
-      selectedIdeaId,
-      playerTarget,
+      workspaces: store.workspaces,
+      activeWorkspaceId: store.activeWorkspaceId,
+      selectedIdeaId: store.selectedIdeaId,
+      playerTarget: store.playerTarget,
     });
     setLastCollectionContextId((prev) =>
       prev === routeContext.currentCollectionId ? prev : routeContext.currentCollectionId

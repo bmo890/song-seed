@@ -63,6 +63,7 @@ import {
     setPersistBlocked,
 } from "./persistRuntime";
 import { describeError, persistLog } from "../services/persistLog";
+import { runAfterInteractionsWithDeadline } from "../services/interactionGate";
 import { persistedSnapshotChanged } from "./persistChangeDetection";
 import {
     buildPersistedAppStoreSnapshot,
@@ -332,7 +333,8 @@ function schedulePendingPersistWrite(run: () => unknown) {
         pendingPersistWriteFirstScheduledAt = null;
         const write = pendingPersistWrite;
         pendingPersistWrite = null;
-        runPassiveWrite(write);
+        // The serialization runs on the JS thread; let a gesture in flight finish first.
+        runAfterInteractionsWithDeadline(() => runPassiveWrite(write));
     }, Math.min(PERSIST_WRITE_DEBOUNCE_MS, maxWaitRemainingMs));
 }
 

@@ -1,4 +1,5 @@
 import { InteractionManager } from "react-native";
+import { runAfterInteractionsWithDeadline } from "./interactionGate";
 import {
     IMPORT_PLACEHOLDER_WAVEFORM_PEAK_COUNT,
     loadManagedAudioMetadata,
@@ -94,7 +95,8 @@ const HYDRATION_WRITE_FLUSH_SIZE = 48;
 function bufferHydrationWrite(entry: HydrationWrite) {
     pendingHydrationWrites.push(entry);
     if (pendingHydrationWrites.length >= HYDRATION_WRITE_FLUSH_SIZE) {
-        flushHydrationWrites();
+        // A flush re-renders every library subscriber; not mid-scroll.
+        runAfterInteractionsWithDeadline(flushHydrationWrites);
     }
 }
 

@@ -9,6 +9,7 @@
  */
 
 import * as FileSystem from "expo-file-system/legacy";
+import { runAfterInteractionsWithDeadline } from "./interactionGate";
 import { AppState } from "react-native";
 import { createSnapshotChangeDetector } from "../state/persistChangeDetection";
 import { describeError, persistLog } from "./persistLog";
@@ -222,12 +223,22 @@ const DEBOUNCE_MS = 5000;
 // postponement like the store's own passive persist does.
 const MAX_WAIT_MS = 15_000;
 
-function flushPendingWrite() {
+function flushPendingWrite(immediate = false) {
     if (debounceTimer) {
         clearTimeout(debounceTimer);
         debounceTimer = null;
     }
     pendingFirstScheduledAt = null;
+    if (isWriting || !pendingState) return;
+    if (immediate) {
+        flushPendingWriteNow();
+        return;
+    }
+    // Whole-library stringify on the JS thread: never mid-gesture (deadline-capped).
+    runAfterInteractionsWithDeadline(flushPendingWriteNow);
+}
+
+function flushPendingWriteNow() {
     if (isWriting || !pendingState) return;
 
     const state = pendingState;
@@ -258,7 +269,7 @@ function scheduleWrite(state: PersistedAppStore) {
 
 // Don't sit on a pending shadow copy while the app leaves the foreground.
 AppState.addEventListener("change", (nextState) => {
-    if (nextState !== "active") flushPendingWrite();
+    if (nextState !== "active") flushPendingWrite(true);
 });
 
 /** Stop mirroring the store (a deliberate wipe is about to delete the manifest). */

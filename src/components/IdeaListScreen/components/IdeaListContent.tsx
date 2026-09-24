@@ -1,4 +1,4 @@
-import { MutableRefObject, ReactNode, useCallback, useEffect, useRef } from "react";
+import { MutableRefObject, ReactNode, memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { Animated, FlatList, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ReAnimated, { useAnimatedScrollHandler, type SharedValue } from "react-native-reanimated";
@@ -45,7 +45,7 @@ type IdeaListContentProps = {
 };
 
 
-export function IdeaListContent(
+function IdeaListContentInner(
   props: IdeaListContentProps | { listModel: CollectionListModel }
 ) {
   const { t } = useTranslation();
@@ -114,65 +114,21 @@ export function IdeaListContent(
     },
   });
 
-  return (
-    <AnimatedFlatList<IdeaListEntry>
-      ref={listRef}
-      data={listEntries}
-      keyExtractor={(item) => item.key}
-      CellRendererComponent={CellRendererComponent}
-      onScroll={scrollHandler}
-      scrollEventThrottle={16}
-      contentContainerStyle={[
-        styles.listContent,
-        listDensity === "compact" ? styles.listContentCompact : null,
-        showDateDividers ? styles.listContentTimeline : null,
-        { paddingHorizontal: 14, paddingBottom: 12 },
-        contentPaddingTop ? { paddingTop: contentPaddingTop } : null,
-      ]}
-      ListHeaderComponent={topContent ? <>{topContent}</> : null}
-      ListFooterComponent={<View style={{ height: listFooterSpacerHeight }} />}
-      ListEmptyComponent={
-        listEntries.length === 0 ? (
-          searchNeedle ? (
-            <EmptyState
-              icon="search-outline"
-              title={t("collection.noMatches")}
-              body={t("collection.noMatchesBody")}
-              compact
-            />
-          ) : (
-            <EmptyState
-              icon="mic-outline"
-              title={t("collection.empty")}
-              body={t("collection.emptyBody")}
-            />
-          )
-        ) : null
-      }
-      onViewableItemsChanged={onViewableItemsChanged}
-      viewabilityConfig={viewabilityConfig}
-      initialNumToRender={12}
-      maxToRenderPerBatch={10}
-      windowSize={7}
-      onScrollToIndexFailed={(info) => {
-        if (scrollRetryTimerRef.current) {
-          clearTimeout(scrollRetryTimerRef.current);
-        }
-        listRef?.current?.scrollToOffset?.({
-          offset: Math.max(0, info.averageItemLength * info.index),
-          animated: true,
-        });
-        scrollRetryTimerRef.current = setTimeout(() => {
-          listRef?.current?.scrollToIndex?.({
-            index: info.index,
-            animated: true,
-            viewPosition: 0.35,
-          });
-          scrollRetryTimerRef.current = null;
-        }, 120);
-      }}
-      removeClippedSubviews
-      renderItem={(props) => {
+  const contentContainerStyle = useMemo(
+    () => [
+      styles.listContent,
+      listDensity === "compact" ? styles.listContentCompact : null,
+      showDateDividers ? styles.listContentTimeline : null,
+      { paddingHorizontal: 14, paddingBottom: 12 },
+      contentPaddingTop ? { paddingTop: contentPaddingTop } : null,
+    ],
+    [listDensity, showDateDividers, contentPaddingTop]
+  );
+  const listFooter = useMemo(() => <View style={{ height: listFooterSpacerHeight }} />, [listFooterSpacerHeight]);
+  // Stable per set of inputs, so a re-render for an unrelated reason does not make
+  // VirtualizedList re-invoke it for every mounted cell.
+  const renderItem = useCallback(
+    (props: { item: IdeaListEntry }) => {
         const entry = props.item;
 
         if (entry.type === "collapsedDay") {
@@ -225,7 +181,85 @@ export function IdeaListContent(
             lyricsFilterMode={lyricsFilterMode}
           />
         );
+    },
+    [
+      listDensity,
+      activeTimelineMetric,
+      expandTimelineDay,
+      searchMetaByIdeaId,
+      itemMetaByIdeaId,
+      rowLayoutsRef,
+      highlightMapRef,
+      inlinePlayer,
+      playIdeaFromList,
+      openIdeaFromList,
+      hideTimelineDay,
+      searchNeedle,
+      showDateDividers,
+      activeSortMetric,
+      lyricsFilterMode,
+    ]
+  );
+
+  return (
+    <AnimatedFlatList<IdeaListEntry>
+      ref={listRef}
+      data={listEntries}
+      keyExtractor={keyExtractor}
+      CellRendererComponent={CellRendererComponent}
+      onScroll={scrollHandler}
+      scrollEventThrottle={16}
+      contentContainerStyle={contentContainerStyle}
+      ListHeaderComponent={topContent ? <>{topContent}</> : null}
+      ListFooterComponent={listFooter}
+      ListEmptyComponent={
+        listEntries.length === 0 ? (
+          searchNeedle ? (
+            <EmptyState
+              icon="search-outline"
+              title={t("collection.noMatches")}
+              body={t("collection.noMatchesBody")}
+              compact
+            />
+          ) : (
+            <EmptyState
+              icon="mic-outline"
+              title={t("collection.empty")}
+              body={t("collection.emptyBody")}
+            />
+          )
+        ) : null
+      }
+      onViewableItemsChanged={onViewableItemsChanged}
+      viewabilityConfig={viewabilityConfig}
+      initialNumToRender={12}
+      maxToRenderPerBatch={10}
+      windowSize={7}
+      onScrollToIndexFailed={(info) => {
+        if (scrollRetryTimerRef.current) {
+          clearTimeout(scrollRetryTimerRef.current);
+        }
+        listRef?.current?.scrollToOffset?.({
+          offset: Math.max(0, info.averageItemLength * info.index),
+          animated: true,
+        });
+        scrollRetryTimerRef.current = setTimeout(() => {
+          listRef?.current?.scrollToIndex?.({
+            index: info.index,
+            animated: true,
+            viewPosition: 0.35,
+          });
+          scrollRetryTimerRef.current = null;
+        }, 120);
       }}
+      removeClippedSubviews
+      renderItem={renderItem}
     />
   );
 }
+
+
+/** Memoized: with a memoized model it re-renders only when something it shows changed. */
+export const IdeaListContent = memo(IdeaListContentInner);
+
+const keyExtractor = (item: IdeaListEntry) => item.key;

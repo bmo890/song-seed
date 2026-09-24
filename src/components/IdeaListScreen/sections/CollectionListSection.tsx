@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useAnimatedReaction, useSharedValue, runOnJS } from "react-native-reanimated";
 import { IdeaListContent } from "../components/IdeaListContent";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
@@ -273,35 +273,65 @@ export function CollectionListSection({
   // No-op — sticky label is now driven by the scroll reaction above.
   const onViewableItemsChanged = useCallback(() => {}, []);
 
-  return (
-    <IdeaListContent
-      listModel={{
-        listRef: screen.listRef,
-        collapseScrollY: screen.scrollY,
-        contentPaddingTop,
-        listEntries: screen.listEntries,
-        itemMetaByIdeaId: screen.itemMetaByIdeaId,
-        topContent,
-        listDensity: screen.listDensity,
-        showDateDividers: screen.showDateDividers,
-        listFooterSpacerHeight: screen.listFooterSpacerHeight,
-        searchNeedle: screen.searchNeedle,
-        ideasSort,
-        activeTimelineMetric: screen.activeTimelineMetric,
-        activeSortMetric: screen.activeSortMetric,
-        lyricsFilterMode: screen.lyricsFilterMode,
-        inlinePlayer,
-        rowLayoutsRef: screen.rowLayoutsRef,
-        highlightMapRef: screen.highlightMapRef,
-        viewabilityConfig: screen.viewabilityConfigRef.current,
-        searchMetaByIdeaId: screen.searchMetaByIdeaId,
-        onViewableItemsChanged,
-        onItemCellLayout,
-        playIdeaFromList,
-        openIdeaFromList,
-        hideTimelineDay,
-        expandTimelineDay,
-      }}
-    />
+  // One model object per real change. A fresh literal here handed the FlatList new
+  // props on every provider render — a full list pass (~90 ms at 325 ideas) for a
+  // library write that changed nothing on screen (2026-09-24).
+  const listModel = useMemo(
+    () => ({
+      listRef: screen.listRef,
+      collapseScrollY: screen.scrollY,
+      contentPaddingTop,
+      listEntries: screen.listEntries,
+      itemMetaByIdeaId: screen.itemMetaByIdeaId,
+      topContent,
+      listDensity: screen.listDensity,
+      showDateDividers: screen.showDateDividers,
+      listFooterSpacerHeight: screen.listFooterSpacerHeight,
+      searchNeedle: screen.searchNeedle,
+      ideasSort,
+      activeTimelineMetric: screen.activeTimelineMetric,
+      activeSortMetric: screen.activeSortMetric,
+      lyricsFilterMode: screen.lyricsFilterMode,
+      inlinePlayer,
+      rowLayoutsRef: screen.rowLayoutsRef,
+      highlightMapRef: screen.highlightMapRef,
+      viewabilityConfig: screen.viewabilityConfigRef.current,
+      searchMetaByIdeaId: screen.searchMetaByIdeaId,
+      onViewableItemsChanged,
+      onItemCellLayout,
+      playIdeaFromList,
+      openIdeaFromList,
+      hideTimelineDay,
+      expandTimelineDay,
+    }),
+    [
+      screen.listRef,
+      screen.scrollY,
+      contentPaddingTop,
+      screen.listEntries,
+      screen.itemMetaByIdeaId,
+      topContent,
+      screen.listDensity,
+      screen.showDateDividers,
+      screen.listFooterSpacerHeight,
+      screen.searchNeedle,
+      ideasSort,
+      screen.activeTimelineMetric,
+      screen.activeSortMetric,
+      screen.lyricsFilterMode,
+      inlinePlayer,
+      screen.rowLayoutsRef,
+      screen.highlightMapRef,
+      screen.viewabilityConfigRef,
+      screen.searchMetaByIdeaId,
+      onViewableItemsChanged,
+      onItemCellLayout,
+      playIdeaFromList,
+      openIdeaFromList,
+      hideTimelineDay,
+      expandTimelineDay,
+    ]
   );
+
+  return <IdeaListContent listModel={listModel} />;
 }

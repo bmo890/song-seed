@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenHeader } from "../../common/ScreenHeader";
@@ -59,6 +59,9 @@ function CollectionNestedCollectionsContent() {
 }
 
 export function CollectionScreenContent() {
+  // One element for the list's life: a fresh <CollectionNestedCollectionsContent /> per
+  // render was a new prop for the FlatList on every provider render.
+  const nestedCollectionsContent = useMemo(() => <CollectionNestedCollectionsContent />, []);
   const { t } = useTranslation();
   const { screen } = useCollectionScreen();
   const [headerHeight, setHeaderHeight] = useState(DEFAULT_HEADER_HEIGHT);
@@ -105,7 +108,7 @@ export function CollectionScreenContent() {
       <View style={{ flex: 1, overflow: "hidden", marginHorizontal: -14 }}>
         <CollectionListSection
           contentPaddingTop={headerHeight}
-          topContent={<CollectionNestedCollectionsContent />}
+          topContent={nestedCollectionsContent}
         />
         <CollapsingHeaderOverlay
           scrollY={screen.scrollY}
