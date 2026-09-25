@@ -11,6 +11,7 @@ describe("selectIdeaById", () => {
         expect(selectIdeaById(workspaces, "a")).toBe(a);
         expect(selectIdeaById(workspaces, "a")).toBe(a);
         expect(getIdeaIndex(workspaces)).toBe(getIdeaIndex(workspaces));
+        expect(getIdeaIndex(workspaces).all.get("a")).toBe(a);
     });
 
     it("an untouched idea keeps its identity across a write that changed another idea", () => {
@@ -29,5 +30,14 @@ describe("selectIdeaById", () => {
         const workspaces = [ws("w1", [idea("a")]), ws("w2", [c])];
         expect(selectIdeaById(workspaces, "c")).toBe(c);
         expect(selectIdeaById([ws("w1", [idea("a")])], "c")).toBeNull();
+    });
+
+    it("prefers the workspace's own copy when two workspaces share an id", () => {
+        const first = idea("dup", "first");
+        const second = idea("dup", "second");
+        const workspaces = [ws("w1", [first]), ws("w2", [second])];
+        expect(selectIdeaById(workspaces, "dup")).toBe(first);
+        expect(selectIdeaById(workspaces, "dup", "w2")).toBe(second);
+        expect(selectIdeaById(workspaces, "dup", "w9")).toBe(first);
     });
 });

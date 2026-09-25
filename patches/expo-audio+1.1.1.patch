@@ -26,7 +26,7 @@ index 49a53af..f173744 100644
          runOnMain {
            ref.updateLockScreenMetadata(metadata)
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
-index 320062e..778e346 100644
+index 320062e..28b9e4f 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
 @@ -32,6 +32,7 @@ import java.util.UUID
@@ -37,10 +37,17 @@ index 320062e..778e346 100644
  private const val SEEK_JUMP_INTERVAL_MS: Long = 10_000
  
  @UnstableApi
-@@ -122,10 +123,14 @@ class AudioPlayer(
+@@ -122,10 +123,21 @@ class AudioPlayer(
      }
    }
  
++  /** Is the app's activity on screen right now? (The media service asks before
++   *  ending a paused session for inactivity.) */
++  fun isAppResumed(): Boolean {
++    val reactContext = appContext?.reactContext as? com.facebook.react.bridge.ReactContext ?: return false
++    return reactContext.lifecycleState == com.facebook.react.common.LifecycleState.RESUMED
++  }
++
 +  // The status loop runs only while audio plays. It used to tick every
 +  // updateInterval for the player's whole life — a paused player woke the process
 +  // 20 times a second all night for nothing (SongNook, 2026-09-25). One update is
@@ -53,7 +60,7 @@ index 320062e..778e346 100644
          emit(Unit)
          delay(updateInterval.toLong())
        }
-@@ -144,6 +149,12 @@ class AudioPlayer(
+@@ -144,6 +156,12 @@ class AudioPlayer(
    private fun addPlayerListeners() = ref.addListener(object : Player.Listener {
      override fun onIsPlayingChanged(isPlaying: Boolean) {
        playing = isPlaying
@@ -66,7 +73,7 @@ index 320062e..778e346 100644
        playerScope.launch {
          sendPlayerUpdate(mapOf("playing" to isPlaying))
        }
-@@ -222,6 +233,10 @@ class AudioPlayer(
+@@ -222,6 +240,10 @@ class AudioPlayer(
      )
    }
  
@@ -95,7 +102,7 @@ index 092af43..9f21b2f 100644
  
  enum class InterruptionMode(val value: String) : Enumerable {
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
-index 04486e2..ffc5e73 100644
+index 04486e2..d1fc4a9 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 @@ -17,11 +17,13 @@ import android.os.IBinder
@@ -191,15 +198,50 @@ index 04486e2..ffc5e73 100644
      // Add seek backward button if enabled
      if (currentOptions?.showSeekBackward == true) {
        customLayout.add(
-@@ -171,6 +202,7 @@ class AudioControlsService : MediaSessionService() {
+@@ -170,19 +201,34 @@ class AudioControlsService : MediaSessionService() {
+     session.setCustomLayout(customLayout)
    }
  
++  // Whether this service currently holds foreground status (startForeground since
++  // the last stopForeground). Foreground = audio is playing; a paused card is a
++  // plain notification the user can swipe away and that holds no wake lock.
++  private var isForeground = false
++
    private fun postOrStartForegroundNotification(startInForeground: Boolean) {
 +    if (isTearingDown) return
      val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
      val notification = buildNotification() ?: return
  
-@@ -220,10 +252,17 @@ class AudioControlsService : MediaSessionService() {
+     if (startInForeground) {
+-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+-        startForeground(
+-          notificationId,
+-          notification,
+-          ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+-        )
+-      } else {
+-        startForeground(notificationId, notification)
++      try {
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
++          startForeground(
++            notificationId,
++            notification,
++            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
++          )
++        } else {
++          startForeground(notificationId, notification)
++        }
++        isForeground = true
++      } catch (e: Exception) {
++        // Android 12+ refuses a foreground start from a background process without an
++        // exemption (e.g. playback auto-resumed after an audio-focus loss while the
++        // screen was off). Playback carries on; the card stays a plain notification.
++        isForeground = false
++        notificationManager.notify(notificationId, notification)
+       }
+     } else {
+       notificationManager.notify(notificationId, notification)
+@@ -220,10 +266,17 @@ class AudioControlsService : MediaSessionService() {
      player?.isActiveForLockScreen = true
  
      if (player != null) {
@@ -218,35 +260,60 @@ index 04486e2..ffc5e73 100644
          .build()
  
        addSession(session)
-@@ -238,7 +277,20 @@ class AudioControlsService : MediaSessionService() {
+@@ -238,7 +291,22 @@ class AudioControlsService : MediaSessionService() {
        val listener = object : Player.Listener {
          override fun onIsPlayingChanged(isPlaying: Boolean) {
            updateSessionCustomLayout(isPlaying)
 -          postOrStartForegroundNotification(startInForeground = false)
 +          if (isPlaying) {
 +            // Back in foreground for as long as audio actually plays.
++            cancelLeaveForeground()
 +            cancelIdleTimeout()
 +            postOrStartForegroundNotification(startInForeground = true)
 +          } else {
-+            // Paused (or ended): repost the card, then step out of foreground the way
-+            // stock media apps do — the card stays for resume but can be swiped away,
-+            // and the process is no longer held awake. Left alone long enough, the
-+            // session releases itself (SongNook: a queue that ended overnight used to
-+            // hold a foreground service until morning).
 +            postOrStartForegroundNotification(startInForeground = false)
-+            stopForeground(STOP_FOREGROUND_DETACH)
-+            scheduleIdleTimeout()
++            // playWhenReady still true = a transition, not a pause: buffering, or the
++            // end of a clip with the queue about to advance. Stay in foreground — a
++            // later startForeground from a background process would be refused.
++            // A real pause steps out of foreground after a short grace (the card stays
++            // for resume but can be swiped away, and the process is no longer held
++            // awake); left alone long enough the session releases itself — a queue
++            // that ended overnight used to hold a foreground service until morning.
++            if (currentPlayer?.ref?.playWhenReady != true) scheduleLeaveForeground()
 +          }
          }
  
          override fun onPlaybackStateChanged(playbackState: Int) {
-@@ -267,7 +319,22 @@ class AudioControlsService : MediaSessionService() {
+@@ -267,7 +335,47 @@ class AudioControlsService : MediaSessionService() {
      } ?: postOrStartForegroundNotification(startInForeground = false)
    }
  
-+  // A paused session that nobody touches for this long ends on its own.
 +  private val idleHandler = Handler(Looper.getMainLooper())
-+  private val idleTimeoutRunnable = Runnable { endSessionFromSystem() }
++
++  // A pause leaves foreground after a short grace: an immediate resume (or a
++  // play→pause→play mash) never bounces the service out and back in.
++  private val leaveForegroundRunnable = Runnable {
++    if (isTearingDown || currentPlayer?.ref?.isPlaying == true) return@Runnable
++    stopForeground(STOP_FOREGROUND_DETACH)
++    isForeground = false
++    scheduleIdleTimeout()
++  }
++
++  private fun scheduleLeaveForeground() {
++    idleHandler.removeCallbacks(leaveForegroundRunnable)
++    idleHandler.postDelayed(leaveForegroundRunnable, LEAVE_FOREGROUND_GRACE_MS)
++  }
++
++  private fun cancelLeaveForeground() {
++    idleHandler.removeCallbacks(leaveForegroundRunnable)
++  }
++
++  // A paused session that nobody touches for this long ends on its own — unless
++  // the app is on screen (the musician paused the take to edit lyrics): then the
++  // card is theirs to keep, and the check runs again later.
++  private val idleTimeoutRunnable = Runnable {
++    if (currentPlayer?.isAppResumed() == true) scheduleIdleTimeout() else endSessionFromSystem()
++  }
 +
 +  private fun scheduleIdleTimeout() {
 +    idleHandler.removeCallbacks(idleTimeoutRunnable)
@@ -258,12 +325,14 @@ index 04486e2..ffc5e73 100644
 +  }
 +
    private fun clearSessionInternal() {
++    cancelLeaveForeground()
 +    cancelIdleTimeout()
++    isForeground = false
 +    isTearingDown = true
      currentPlayer?.isActiveForLockScreen = false
      playbackListener?.let { listener ->
        currentPlayer?.ref?.removeListener(listener)
-@@ -275,15 +342,123 @@ class AudioControlsService : MediaSessionService() {
+@@ -275,15 +383,123 @@ class AudioControlsService : MediaSessionService() {
      playbackListener = null
      currentPlayer = null
      currentMetadata = null
@@ -387,7 +456,7 @@ index 04486e2..ffc5e73 100644
    private fun withPlayerOnAppThread(block: (Player) -> Unit) {
      val player = currentPlayer?.ref ?: return
      val looper: Looper = player.applicationLooper
-@@ -320,22 +495,24 @@ class AudioControlsService : MediaSessionService() {
+@@ -320,22 +536,25 @@ class AudioControlsService : MediaSessionService() {
    }
  
    override fun onDestroy() {
@@ -412,10 +481,11 @@ index 04486e2..ffc5e73 100644
      private const val ACTION_TOGGLE = "expo.modules.audio.action.TOGGLE"
 +    private const val ACTION_DISMISS = "expo.modules.audio.action.DISMISS"
 +    private const val PAUSED_SESSION_IDLE_MS = 10L * 60L * 1000L
++    private const val LEAVE_FOREGROUND_GRACE_MS = 1500L
  
      const val ACTION_SEEK_FORWARD = "expo.modules.audio.action.SEEK_FORWARD"
      const val ACTION_SEEK_BACKWARD = "expo.modules.audio.action.SEEK_REWIND"
-@@ -351,6 +528,10 @@ class AudioControlsService : MediaSessionService() {
+@@ -351,6 +570,10 @@ class AudioControlsService : MediaSessionService() {
  
      fun getInstance(): AudioControlsService? = instance
  
@@ -426,7 +496,7 @@ index 04486e2..ffc5e73 100644
      fun setActivePlayer(
        context: Context,
        player: AudioPlayer?,
-@@ -360,6 +541,10 @@ class AudioControlsService : MediaSessionService() {
+@@ -360,6 +583,10 @@ class AudioControlsService : MediaSessionService() {
        val service = getInstance()
        if (service != null) {
          service.setActivePlayerInternal(player, metadata, options)
@@ -437,7 +507,7 @@ index 04486e2..ffc5e73 100644
        } else {
          val intent = Intent(context, AudioControlsService::class.java)
          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-@@ -381,5 +566,13 @@ class AudioControlsService : MediaSessionService() {
+@@ -381,5 +608,13 @@ class AudioControlsService : MediaSessionService() {
      fun clearSession() {
        getInstance()?.clearSessionInternal()
      }

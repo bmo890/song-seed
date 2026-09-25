@@ -1,4 +1,5 @@
 import type { ClipVersion, SongIdea, Workspace } from "../types";
+import { getClipPlaybackDurationMs } from "../domain/clipPresentation";
 
 /**
  * Narrow library selectors for always-mounted surfaces (dock, player, side nav,
@@ -34,26 +35,42 @@ export function findIdeaInLibrary(
 // the workspaces array itself, so a new library (any write) builds a new index once
 // and an unchanged library never rebuilds it. This is what lets each list row read
 // its own idea from the store in O(1) instead of the list handing every row its idea.
-const ideaIndexByWorkspaces = new WeakMap<Workspace[], Map<string, SongIdea>>();
+type IdeaIndex = { all: Map<string, SongIdea>; byWorkspace: Map<string, Map<string, SongIdea>> };
+const ideaIndexByWorkspaces = new WeakMap<Workspace[], IdeaIndex>();
 
-export function getIdeaIndex(workspaces: Workspace[]): Map<string, SongIdea> {
+export function getIdeaIndex(workspaces: Workspace[]): IdeaIndex {
   let index = ideaIndexByWorkspaces.get(workspaces);
   if (!index) {
-    index = new Map();
+    const all = new Map<string, SongIdea>();
+    const byWorkspace = new Map<string, Map<string, SongIdea>>();
     for (const workspace of workspaces) {
+      const own = new Map<string, SongIdea>();
       for (const idea of workspace.ideas) {
-        if (!index.has(idea.id)) index.set(idea.id, idea);
+        own.set(idea.id, idea);
+        if (!all.has(idea.id)) all.set(idea.id, idea);
       }
+      byWorkspace.set(workspace.id, own);
     }
+    index = { all, byWorkspace };
     ideaIndexByWorkspaces.set(workspaces, index);
   }
   return index;
 }
 
 /** The idea by id — the same object while the idea is untouched, so a row subscribed
- *  through this re-renders only when ITS idea changes. */
-export function selectIdeaById(workspaces: Workspace[], ideaId: string): SongIdea | null {
-  return getIdeaIndex(workspaces).get(ideaId) ?? null;
+ *  through this re-renders only when ITS idea changes. With `preferWorkspaceId` the
+ *  workspace's own copy wins should the same id exist in two workspaces. */
+export function selectIdeaById(
+  workspaces: Workspace[],
+  ideaId: string,
+  preferWorkspaceId?: string | null
+): SongIdea | null {
+  const index = getIdeaIndex(workspaces);
+  if (preferWorkspaceId) {
+    const own = index.byWorkspace.get(preferWorkspaceId)?.get(ideaId);
+    if (own) return own;
+  }
+  return index.all.get(ideaId) ?? null;
 }
 
 export function findWorkspaceOfIdea(workspaces: Workspace[], ideaId: string | null | undefined): Workspace | null {
@@ -79,7 +96,9 @@ export function queueListingKey(
     const idea = findIdeaInLibrary(workspaces, item.ideaId);
     const clip = findClipInIdea(idea, item.clipId);
     const workspaceId = findWorkspaceOfIdea(workspaces, item.ideaId)?.id ?? "";
-    parts.push(`${item.ideaId}:${item.clipId}:${workspaceId}:${idea?.title ?? ""}:${clip?.title ?? ""}:${clip?.durationMs ?? ""}`);
+    // The playable length (a rendered overdub mix outranks the raw take) is what the row shows.
+    const lengthMs = clip ? getClipPlaybackDurationMs(clip) ?? clip.durationMs ?? "" : "";
+    parts.push(`${item.ideaId}:${item.clipId}:${workspaceId}:${idea?.title ?? ""}:${clip?.title ?? ""}:${lengthMs}`);
   }
   return parts.join("\n");
 }

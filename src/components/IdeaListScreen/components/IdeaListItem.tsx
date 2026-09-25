@@ -78,7 +78,7 @@ function IdeaListItemInner({
 }: IdeaListItemProps) {
     const { t } = useTranslation();
     // Null only for the frame between a deletion and the list dropping the row.
-    const item = useStore((s) => selectIdeaById(s.workspaces, ideaId));
+    const item = useStore((s) => selectIdeaById(s.workspaces, ideaId, s.activeWorkspaceId));
     const listSelectionMode = useStore((s) => s.listSelectionMode);
     // A compilation is collecting: the collection is a picker. Cards wear a
     // pick ring, a tap picks instead of opening, and eligibility is visible —

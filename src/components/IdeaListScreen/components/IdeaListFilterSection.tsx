@@ -49,11 +49,17 @@ export function IdeaListFilterSection({
   // re-derives when the model's value changes from elsewhere (focus-idea clears it).
   const [draft, setDraft] = useState(searchQuery);
   const [settled, setSettled] = useState(searchQuery);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   if (searchQuery !== settled) {
+    // The model's value wins over a keystroke still on the timer — otherwise the
+    // timer would re-apply the old draft 160 ms after the model cleared it.
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
     setSettled(searchQuery);
     setDraft(searchQuery);
   }
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
   }, []);
