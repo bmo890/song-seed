@@ -1,3 +1,85 @@
+diff --git a/node_modules/expo-audio/android/build/generated/source/buildConfig/release/expo/modules/audio/BuildConfig.java b/node_modules/expo-audio/android/build/generated/source/buildConfig/release/expo/modules/audio/BuildConfig.java
+new file mode 100644
+index 0000000..a95b6c0
+--- /dev/null
++++ b/node_modules/expo-audio/android/build/generated/source/buildConfig/release/expo/modules/audio/BuildConfig.java
+@@ -0,0 +1,10 @@
++/**
++ * Automatically generated file. DO NOT MODIFY
++ */
++package expo.modules.audio;
++
++public final class BuildConfig {
++  public static final boolean DEBUG = false;
++  public static final String LIBRARY_PACKAGE_NAME = "expo.modules.audio";
++  public static final String BUILD_TYPE = "release";
++}
+diff --git a/node_modules/expo-audio/android/build/intermediates/compile_r_class_jar/release/generateReleaseRFile/R.jar b/node_modules/expo-audio/android/build/intermediates/compile_r_class_jar/release/generateReleaseRFile/R.jar
+new file mode 100644
+index 0000000..74ffd25
+Binary files /dev/null and b/node_modules/expo-audio/android/build/intermediates/compile_r_class_jar/release/generateReleaseRFile/R.jar differ
+diff --git a/node_modules/expo-audio/android/build/intermediates/compile_symbol_list/release/generateReleaseRFile/R.txt b/node_modules/expo-audio/android/build/intermediates/compile_symbol_list/release/generateReleaseRFile/R.txt
+new file mode 100644
+index 0000000..e69de29
+diff --git a/node_modules/expo-audio/android/build/intermediates/incremental/release/packageReleaseResources/compile-file-map.properties b/node_modules/expo-audio/android/build/intermediates/incremental/release/packageReleaseResources/compile-file-map.properties
+new file mode 100644
+index 0000000..e2e01d2
+--- /dev/null
++++ b/node_modules/expo-audio/android/build/intermediates/incremental/release/packageReleaseResources/compile-file-map.properties
+@@ -0,0 +1 @@
++#Fri Sep 25 17:47:21 CDT 2026
+diff --git a/node_modules/expo-audio/android/build/intermediates/incremental/release/packageReleaseResources/merger.xml b/node_modules/expo-audio/android/build/intermediates/incremental/release/packageReleaseResources/merger.xml
+new file mode 100644
+index 0000000..731a4f9
+--- /dev/null
++++ b/node_modules/expo-audio/android/build/intermediates/incremental/release/packageReleaseResources/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/benmogerman/Projects/song-seed/node_modules/expo-audio/android/src/main/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main" generated-set="main$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/benmogerman/Projects/song-seed/node_modules/expo-audio/android/src/main/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="release$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/benmogerman/Projects/song-seed/node_modules/expo-audio/android/src/release/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="release" generated-set="release$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/benmogerman/Projects/song-seed/node_modules/expo-audio/android/src/release/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/benmogerman/Projects/song-seed/node_modules/expo-audio/android/build/generated/res/resValues/release"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated" generated-set="generated$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/benmogerman/Projects/song-seed/node_modules/expo-audio/android/build/generated/res/resValues/release"/></dataSet><mergedItems/></merger>
+\ No newline at end of file
+diff --git a/node_modules/expo-audio/android/build/intermediates/local_only_symbol_list/release/parseReleaseLocalResources/R-def.txt b/node_modules/expo-audio/android/build/intermediates/local_only_symbol_list/release/parseReleaseLocalResources/R-def.txt
+new file mode 100644
+index 0000000..78ac5b8
+--- /dev/null
++++ b/node_modules/expo-audio/android/build/intermediates/local_only_symbol_list/release/parseReleaseLocalResources/R-def.txt
+@@ -0,0 +1,2 @@
++R_DEF: Internal format may change without notice
++local
+diff --git a/node_modules/expo-audio/android/build/intermediates/nested_resources_validation_report/release/generateReleaseResources/nestedResourcesValidationReport.txt b/node_modules/expo-audio/android/build/intermediates/nested_resources_validation_report/release/generateReleaseResources/nestedResourcesValidationReport.txt
+new file mode 100644
+index 0000000..08f4ebe
+--- /dev/null
++++ b/node_modules/expo-audio/android/build/intermediates/nested_resources_validation_report/release/generateReleaseResources/nestedResourcesValidationReport.txt
+@@ -0,0 +1 @@
++0 Warning/Error
+\ No newline at end of file
+diff --git a/node_modules/expo-audio/android/build/intermediates/symbol_list_with_package_name/release/generateReleaseRFile/package-aware-r.txt b/node_modules/expo-audio/android/build/intermediates/symbol_list_with_package_name/release/generateReleaseRFile/package-aware-r.txt
+new file mode 100644
+index 0000000..cf3d90f
+--- /dev/null
++++ b/node_modules/expo-audio/android/build/intermediates/symbol_list_with_package_name/release/generateReleaseRFile/package-aware-r.txt
+@@ -0,0 +1 @@
++expo.modules.audio
+diff --git a/node_modules/expo-audio/android/build/kotlin/compileReleaseKotlin/cacheable/dirty-sources.txt b/node_modules/expo-audio/android/build/kotlin/compileReleaseKotlin/cacheable/dirty-sources.txt
+new file mode 100644
+index 0000000..fe51fa8
+--- /dev/null
++++ b/node_modules/expo-audio/android/build/kotlin/compileReleaseKotlin/cacheable/dirty-sources.txt
+@@ -0,0 +1,9 @@
++/Users/benmogerman/Projects/song-seed/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioExceptions.kt
++/Users/benmogerman/Projects/song-seed/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
++/Users/benmogerman/Projects/song-seed/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecorder.kt
++/Users/benmogerman/Projects/song-seed/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioRecordingService.kt
++/Users/benmogerman/Projects/song-seed/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
++/Users/benmogerman/Projects/song-seed/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
++/Users/benmogerman/Projects/song-seed/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
++/Users/benmogerman/Projects/song-seed/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecords.kt
++/Users/benmogerman/Projects/song-seed/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioUtils.kt
+\ No newline at end of file
+diff --git a/node_modules/expo-audio/android/build/kotlin/compileReleaseKotlin/local-state/build-history.bin b/node_modules/expo-audio/android/build/kotlin/compileReleaseKotlin/local-state/build-history.bin
+new file mode 100644
+index 0000000..e18332a
+Binary files /dev/null and b/node_modules/expo-audio/android/build/kotlin/compileReleaseKotlin/local-state/build-history.bin differ
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
 index 49a53af..f173744 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
@@ -26,7 +108,7 @@ index 49a53af..f173744 100644
          runOnMain {
            ref.updateLockScreenMetadata(metadata)
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
-index 320062e..28b9e4f 100644
+index 320062e..778e346 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
 @@ -32,6 +32,7 @@ import java.util.UUID
@@ -37,17 +119,10 @@ index 320062e..28b9e4f 100644
  private const val SEEK_JUMP_INTERVAL_MS: Long = 10_000
  
  @UnstableApi
-@@ -122,10 +123,21 @@ class AudioPlayer(
+@@ -122,10 +123,14 @@ class AudioPlayer(
      }
    }
  
-+  /** Is the app's activity on screen right now? (The media service asks before
-+   *  ending a paused session for inactivity.) */
-+  fun isAppResumed(): Boolean {
-+    val reactContext = appContext?.reactContext as? com.facebook.react.bridge.ReactContext ?: return false
-+    return reactContext.lifecycleState == com.facebook.react.common.LifecycleState.RESUMED
-+  }
-+
 +  // The status loop runs only while audio plays. It used to tick every
 +  // updateInterval for the player's whole life — a paused player woke the process
 +  // 20 times a second all night for nothing (SongNook, 2026-09-25). One update is
@@ -60,7 +135,7 @@ index 320062e..28b9e4f 100644
          emit(Unit)
          delay(updateInterval.toLong())
        }
-@@ -144,6 +156,12 @@ class AudioPlayer(
+@@ -144,6 +149,12 @@ class AudioPlayer(
    private fun addPlayerListeners() = ref.addListener(object : Player.Listener {
      override fun onIsPlayingChanged(isPlaying: Boolean) {
        playing = isPlaying
@@ -73,7 +148,7 @@ index 320062e..28b9e4f 100644
        playerScope.launch {
          sendPlayerUpdate(mapOf("playing" to isPlaying))
        }
-@@ -222,6 +240,10 @@ class AudioPlayer(
+@@ -222,6 +233,10 @@ class AudioPlayer(
      )
    }
  
@@ -102,7 +177,7 @@ index 092af43..9f21b2f 100644
  
  enum class InterruptionMode(val value: String) : Enumerable {
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
-index 04486e2..d1fc4a9 100644
+index 04486e2..d72c703 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
 @@ -17,11 +17,13 @@ import android.os.IBinder
@@ -284,7 +359,7 @@ index 04486e2..d1fc4a9 100644
          }
  
          override fun onPlaybackStateChanged(playbackState: Int) {
-@@ -267,7 +335,47 @@ class AudioControlsService : MediaSessionService() {
+@@ -267,7 +335,55 @@ class AudioControlsService : MediaSessionService() {
      } ?: postOrStartForegroundNotification(startInForeground = false)
    }
  
@@ -312,7 +387,15 @@ index 04486e2..d1fc4a9 100644
 +  // the app is on screen (the musician paused the take to edit lyrics): then the
 +  // card is theirs to keep, and the check runs again later.
 +  private val idleTimeoutRunnable = Runnable {
-+    if (currentPlayer?.isAppResumed() == true) scheduleIdleTimeout() else endSessionFromSystem()
++    if (isAppOnScreen()) scheduleIdleTimeout() else endSessionFromSystem()
++  }
++
++  /** Is our process in the foreground (an activity on screen)? Plain Android, no
++   *  React dependency: this module cannot see the React lifecycle classes. */
++  private fun isAppOnScreen(): Boolean {
++    val info = android.app.ActivityManager.RunningAppProcessInfo()
++    android.app.ActivityManager.getMyMemoryState(info)
++    return info.importance <= android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
 +  }
 +
 +  private fun scheduleIdleTimeout() {
@@ -332,7 +415,7 @@ index 04486e2..d1fc4a9 100644
      currentPlayer?.isActiveForLockScreen = false
      playbackListener?.let { listener ->
        currentPlayer?.ref?.removeListener(listener)
-@@ -275,15 +383,123 @@ class AudioControlsService : MediaSessionService() {
+@@ -275,15 +391,123 @@ class AudioControlsService : MediaSessionService() {
      playbackListener = null
      currentPlayer = null
      currentMetadata = null
@@ -456,7 +539,7 @@ index 04486e2..d1fc4a9 100644
    private fun withPlayerOnAppThread(block: (Player) -> Unit) {
      val player = currentPlayer?.ref ?: return
      val looper: Looper = player.applicationLooper
-@@ -320,22 +536,25 @@ class AudioControlsService : MediaSessionService() {
+@@ -320,22 +544,25 @@ class AudioControlsService : MediaSessionService() {
    }
  
    override fun onDestroy() {
@@ -485,7 +568,7 @@ index 04486e2..d1fc4a9 100644
  
      const val ACTION_SEEK_FORWARD = "expo.modules.audio.action.SEEK_FORWARD"
      const val ACTION_SEEK_BACKWARD = "expo.modules.audio.action.SEEK_REWIND"
-@@ -351,6 +570,10 @@ class AudioControlsService : MediaSessionService() {
+@@ -351,6 +578,10 @@ class AudioControlsService : MediaSessionService() {
  
      fun getInstance(): AudioControlsService? = instance
  
@@ -496,7 +579,7 @@ index 04486e2..d1fc4a9 100644
      fun setActivePlayer(
        context: Context,
        player: AudioPlayer?,
-@@ -360,6 +583,10 @@ class AudioControlsService : MediaSessionService() {
+@@ -360,6 +591,10 @@ class AudioControlsService : MediaSessionService() {
        val service = getInstance()
        if (service != null) {
          service.setActivePlayerInternal(player, metadata, options)
@@ -507,7 +590,7 @@ index 04486e2..d1fc4a9 100644
        } else {
          val intent = Intent(context, AudioControlsService::class.java)
          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-@@ -381,5 +608,13 @@ class AudioControlsService : MediaSessionService() {
+@@ -381,5 +616,13 @@ class AudioControlsService : MediaSessionService() {
      fun clearSession() {
        getInstance()?.clearSessionInternal()
      }
