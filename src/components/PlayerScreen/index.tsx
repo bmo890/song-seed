@@ -746,6 +746,7 @@ export function PlayerScreen({
     finishedPlaybackToken: practicePitchTransport.isOwningNativeTransport
       ? practicePitchTransport.finishedPlaybackToken
       : finishedPlaybackToken,
+    releaseLockScreenSession: fullPlayer.releaseLockScreenSession,
     finishedPlaybackClipId: practicePitchTransport.isOwningNativeTransport
       ? practicePitchTransport.finishedPlaybackClipId
       : finishedPlaybackClipId,

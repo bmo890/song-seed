@@ -823,5 +823,10 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     seekBy,
     setPlaybackRate,
     updateLockScreenMetadata,
+    /** The queue ran out (last clip finished, repeat off): release the lock-screen
+     *  session so the OS card goes and, on Android, the media foreground service
+     *  ends. The dock stays with the clip at rest; the next play claims the card
+     *  again (see the activate-while-playing effect above). */
+    releaseLockScreenSession: clearLockScreenControls,
   };
 }
