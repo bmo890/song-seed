@@ -66,8 +66,9 @@ export function findClipInIdea(idea: SongIdea | null, clipId: string | null | un
   return idea.clips.find((clip) => clip.id === clipId) ?? null;
 }
 
-/** A primitive fingerprint of what a queue listing shows — titles and lengths — so a
- *  component can re-render only when one of them changes, not on every library write. */
+/** A primitive fingerprint of what a queue listing shows — titles, lengths and the
+ *  workspace each item lives in ("view in collection" needs it) — so a component
+ *  re-renders only when one of them changes, not on every library write. */
 export function queueListingKey(
   workspaces: Workspace[],
   queue: ReadonlyArray<{ ideaId: string; clipId: string }>
@@ -77,7 +78,8 @@ export function queueListingKey(
   for (const item of queue) {
     const idea = findIdeaInLibrary(workspaces, item.ideaId);
     const clip = findClipInIdea(idea, item.clipId);
-    parts.push(`${item.ideaId}:${item.clipId}:${idea?.title ?? ""}:${clip?.title ?? ""}:${clip?.durationMs ?? ""}`);
+    const workspaceId = findWorkspaceOfIdea(workspaces, item.ideaId)?.id ?? "";
+    parts.push(`${item.ideaId}:${item.clipId}:${workspaceId}:${idea?.title ?? ""}:${clip?.title ?? ""}:${clip?.durationMs ?? ""}`);
   }
   return parts.join("\n");
 }

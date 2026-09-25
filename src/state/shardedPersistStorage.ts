@@ -219,7 +219,15 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
                 workspaceValues,
                 activityRaw
             );
-            if (activityDegraded) persistLog("hydrate.degraded", "activity row missing or corrupt");
+            if (activityDegraded) {
+                persistLog("hydrate.degraded", activityRaw == null ? "activity row missing" : "activity row corrupt");
+                // Corrupt bytes are kept where the next write cannot overwrite them
+                // (the first write of the session rewrites the activity row from the
+                // now-empty history), mirroring the workspace-row quarantine.
+                if (activityRaw != null) {
+                    await commitShardedWrite([{ key: `${name}::quarantine::activity`, value: activityRaw }], []);
+                }
+            }
 
             // A referenced row that won't load is a real (partial) data incident, never a
             // silent skip: preserve corrupt bytes where the orphan sweep can't reach them,

@@ -706,6 +706,14 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     const storeTarget = useStore.getState().playerTarget;
     if (!storeTarget) return false;
     const engineClipId = playerTargetRef.current?.clipId ?? null;
+    // An IDLE engine has no prepared source (something called stop() — the OS
+    // does on Android when a media card is swiped away): play() would be a
+    // silent no-op. Forget the source so the reload below actually reloads.
+    const engineIdle = statusRef.current.playbackState === "idle";
+    if (engineIdle && currentSourceUriRef.current) {
+      console.warn("[playback] engine is idle with a target — reloading before play");
+      currentSourceUriRef.current = null;
+    }
     if (engineClipId === storeTarget.clipId && currentSourceUriRef.current) return false;
     const idea = useStore
       .getState()
