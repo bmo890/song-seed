@@ -241,11 +241,10 @@ export function FullPlayerProvider({ children }: { children: React.ReactNode }) 
     if (state.playerQueue.length === 0) return;
     if (state.playerQueueIndex < state.playerQueue.length - 1) {
       state.advancePlayerQueue("next", true);
-      return;
     }
-    // The queue ended while docked: nothing is playing any more, so the OS card
-    // (and Android's media foreground service) has no reason to stay up all night.
-    rawDockRef.current?.releaseLockScreenSession();
+    // At the end of the queue the session stays: the card remains (headset play
+    // restarts it), and on Android the media service leaves foreground on its own
+    // and ends the session after an idle period — see the expo-audio patch.
   }, [finishedToken, isPlayerScreenMounted]);
 
   return (

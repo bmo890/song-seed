@@ -39,7 +39,6 @@ type UsePlayerScreenLifecycleArgs = {
   finishedPlaybackToken: number;
   finishedPlaybackClipId: string | null;
   hasNextTrack: boolean;
-  releaseLockScreenSession: () => void;
   repeatEnabled: boolean;
   replayClip: () => Promise<void>;
   playerQueue: { ideaId: string; clipId: string }[];
@@ -85,7 +84,6 @@ export function usePlayerScreenLifecycle({
   finishedPlaybackToken,
   finishedPlaybackClipId,
   hasNextTrack,
-  releaseLockScreenSession,
   repeatEnabled,
   replayClip,
   playerQueue,
@@ -345,12 +343,10 @@ export function usePlayerScreenLifecycle({
     }
     if (hasNextTrack) {
       useStore.getState().advancePlayerQueue("next", true);
-      return;
     }
-    // Last clip, repeat off: the session is at rest. Release the OS card so Android's
-    // media foreground service ends; the reel stays put and play re-claims it.
-    releaseLockScreenSession();
-  }, [finishedPlaybackClipId, finishedPlaybackToken, hasNextTrack, isFocused, playerClip?.id, releaseLockScreenSession, repeatEnabled, replayClip]);
+    // Last clip, repeat off: paused at the end. The session (and the headset/lock
+    // screen controls) stays; a play from anywhere restarts from the top.
+  }, [finishedPlaybackClipId, finishedPlaybackToken, hasNextTrack, isFocused, playerClip?.id, repeatEnabled, replayClip]);
 
   useEffect(() => {
     if (mode !== "practice" && speedPanelVisible) {
