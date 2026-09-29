@@ -184,6 +184,16 @@ export function GlobalMediaDock({
     if (queueEmpty) useStore.getState().setPlayerDockHeight(0);
   }, [queueEmpty]);
 
+  // A stable identity for the memoized panel: an inline arrow here would hand it
+  // a new prop on every dock render and re-run the whole row list each time.
+  const onOpenIdeaRef = useRef(onOpenIdea);
+  onOpenIdeaRef.current = onOpenIdea;
+  const openIdeaFromQueue = useCallback((ideaId: string) => {
+    // Close the panel so the song page is visible underneath the dock.
+    setQueueOpen(false);
+    onOpenIdeaRef.current(ideaId);
+  }, []);
+
   // The queue panel is transient — never leave it open across a session end or
   // while the dock is hidden behind the drawer.
   useEffect(() => {
@@ -384,15 +394,7 @@ export function GlobalMediaDock({
       {/* Queue extends upward from the dock — same surface, stays open while
           skipping around. Rendered above the base dock inside the same
           bottom-anchored wrap so extra height grows toward the top. */}
-      {queueOpen ? (
-        <QueuePanel
-          onOpenIdea={(ideaId) => {
-            // Close the panel so the song page is visible underneath the dock.
-            setQueueOpen(false);
-            onOpenIdea(ideaId);
-          }}
-        />
-      ) : null}
+      {queueOpen ? <QueuePanel onOpenIdea={openIdeaFromQueue} /> : null}
 
       <GestureDetector gesture={expandGesture}>
       <View

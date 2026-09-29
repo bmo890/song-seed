@@ -1,14 +1,22 @@
 import { ViewInCollectionButton } from "./common/ViewInCollectionButton";
-import { memo, useMemo, useState } from "react";
+import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { findClipInIdea, findIdeaInLibrary, findWorkspaceOfIdea, queueListingKey } from "../state/librarySelectors";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import DraggableFlatList from "react-native-draggable-flatlist";
+import type { FlatList } from "react-native-gesture-handler";
+import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radii, spacing, text as textTokens } from "../design/tokens";
 import { haptic } from "../design/haptics";
 import { useStore } from "../state/useStore";
 import { fmtDuration } from "../utils";
 import { getClipPlaybackDurationMs } from "../domain/clipPresentation";
+import {
+  QUEUE_ROW_HEIGHT,
+  buildQueueRowKeys,
+  queueScrollTargetIndex,
+  shouldFollowQueueIndex,
+  visibleQueueRows,
+} from "../domain/queueListing";
 import { NowPlayingIndicator } from "./common/NowPlayingIndicator";
 import type { PlaybackQueueItem } from "../types";
 import { useTranslation } from "react-i18next";
@@ -23,8 +31,127 @@ type QueueRow = {
   title: string;
   subtitle: string;
   durationMs: number | null;
-  isCurrent: boolean;
 };
+
+/** What a row needs from the panel. Held in context (not closed over by the
+ *  row template) so the list's row renderer stays one stable function and a
+ *  panel re-render never re-runs every mounted row. */
+type QueueRowActions = {
+  editMode: boolean;
+  jumpTo: (index: number) => void;
+  removeAt: (index: number) => void;
+  goToSong: (row: QueueRow) => void;
+};
+
+const QueueRowContext = createContext<QueueRowActions>({
+  editMode: false,
+  jumpTo: () => {},
+  removeAt: () => {},
+  goToSong: () => {},
+});
+
+/**
+ * One queue row. Subscribes to the store for its own "is this the playing
+ * row" bit, so a track change re-renders exactly two rows: the one that
+ * stopped being current and the one that became it.
+ */
+const QueueRowItem = memo(function QueueRowItem({
+  row,
+  drag,
+  isActive,
+}: {
+  row: QueueRow;
+  drag: () => void;
+  isActive: boolean;
+}) {
+  const { t } = useTranslation();
+  const { editMode, jumpTo, removeAt, goToSong } = useContext(QueueRowContext);
+  const isCurrent = useStore((s) => s.playerQueueIndex === row.index);
+  const playing = useStore((s) => isCurrent && s.playerIsPlaying);
+
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        panelStyles.row,
+        isCurrent ? panelStyles.rowCurrent : null,
+        isActive ? panelStyles.rowDragging : null,
+        pressed && !editMode ? { opacity: 0.75 } : null,
+      ]}
+      onPress={() => {
+        if (editMode) return;
+        jumpTo(row.index);
+      }}
+      disabled={editMode}
+      accessibilityRole="button"
+      accessibilityLabel={t("common.playItem", { title: row.title })}
+    >
+      {editMode ? (
+        <Pressable
+          style={({ pressed }) => [panelStyles.removeBtn, pressed ? { opacity: 0.6 } : null]}
+          onPress={() => removeAt(row.index)}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t("common.removeFromQueue", { title: row.title })}
+        >
+          <Ionicons name="remove-circle-outline" size={19} color="#B4574A" />
+        </Pressable>
+      ) : (
+        <View style={panelStyles.rowNum}>
+          {isCurrent ? (
+            <NowPlayingIndicator playing={playing} color={colors.primary} />
+          ) : (
+            <Text style={panelStyles.rowNumText}>{row.index + 1}</Text>
+          )}
+        </View>
+      )}
+      <View style={panelStyles.rowCopy}>
+        <UserText
+          style={[panelStyles.rowTitle, isCurrent ? panelStyles.rowTitleCurrent : null]}
+          numberOfLines={1}
+        >
+          {row.title}
+        </UserText>
+        {row.subtitle && row.subtitle !== row.title ? (
+          <UserText style={panelStyles.rowSubtitle} numberOfLines={1}>
+            {row.subtitle}
+          </UserText>
+        ) : null}
+      </View>
+      {row.durationMs != null ? (
+        <Text style={panelStyles.rowDuration}>{fmtDuration(row.durationMs)}</Text>
+      ) : null}
+      {editMode ? (
+        <Pressable
+          style={({ pressed }) => [panelStyles.trailingBtn, pressed ? { opacity: 0.6 } : null]}
+          onLongPress={drag}
+          delayLongPress={120}
+          accessibilityRole="button"
+          accessibilityLabel={t("common.reorderItem", { title: row.title })}
+        >
+          <Ionicons name="reorder-three" size={18} color={colors.textSecondary} />
+        </Pressable>
+      ) : row.ideaId ? (
+        <View style={panelStyles.trailingBtn}>
+          <ViewInCollectionButton
+            testID="queue-view-in-collection"
+            onPress={() => goToSong(row)}
+            accessibilityLabel={t("common.viewInCollection", { title: row.subtitle || row.title })}
+          />
+        </View>
+      ) : null}
+    </Pressable>
+  );
+});
+
+const keyExtractor = (row: QueueRow) => row.key;
+const getItemLayout = (_: ArrayLike<QueueRow> | null | undefined, index: number) => ({
+  length: QUEUE_ROW_HEIGHT,
+  offset: QUEUE_ROW_HEIGHT * index,
+  index,
+});
+const renderQueueRow = ({ item, drag, isActive }: RenderItemParams<QueueRow>) => (
+  <QueueRowItem row={item} drag={drag} isActive={isActive} />
+);
 
 /**
  * The playback queue as a panel that extends UP from the media dock (not a
@@ -32,6 +159,9 @@ type QueueRow = {
  * never blocks the transport controls beneath it. Tapping a row jumps playback
  * and keeps the panel open. Edit mode reveals drag-to-reorder + remove, exactly
  * like the playlist editor. Works identically for playlist and ad-hoc queues.
+ *
+ * Opens resting on the playing row (one row of history above it) and follows
+ * the playing row when the track changes, unless the list was scrolled away.
  */
 function QueuePanelInner({
   onOpenIdea,
@@ -47,22 +177,26 @@ function QueuePanelInner({
   const { t } = useTranslation();
   const playerQueue = useStore((s) => s.playerQueue);
   const playerQueueIndex = useStore((s) => s.playerQueueIndex);
-  const playerIsPlaying = useStore((s) => s.playerIsPlaying);
   // Re-renders only when a listed title or length changes, not on every library write.
   const queueKey = useStore((s) => queueListingKey(s.workspaces, playerQueue));
   const [editMode, setEditMode] = useState(false);
+  const listRef = useRef<FlatList<QueueRow>>(null);
 
   // Memoized with an id-index: the naive per-row workspace scan was O(queue × library)
   // and re-ran on EVERY render — noticeable once the library passed ~100 clips.
+  // The playing index is NOT part of a row (each row reads it from the store), so
+  // a track change hands the list the same row objects.
   const rows: QueueRow[] = useMemo(() => {
     const workspaces = useStore.getState().workspaces;
+    const keys = buildQueueRowKeys(playerQueue);
     return playerQueue.map((item, index) => {
       const idea = findIdeaInLibrary(workspaces, item.ideaId);
       const workspaceId = findWorkspaceOfIdea(workspaces, item.ideaId)?.id ?? null;
       const clip = findClipInIdea(idea, item.clipId);
       return {
-        // Value-keyed (not index-keyed) so a drag reorder doesn't reshuffle keys.
-        key: `${item.ideaId}:${item.clipId}`,
+        // Value-keyed (not index-keyed) so a drag reorder doesn't reshuffle keys;
+        // a repeated clip gets an occurrence suffix so keys never collide.
+        key: keys[index],
         queueItem: item,
         index,
         ideaId: idea?.id ?? null,
@@ -70,31 +204,33 @@ function QueuePanelInner({
         title: clip?.title || idea?.title || "Unknown clip",
         subtitle: idea?.title ?? "",
         durationMs: clip ? getClipPlaybackDurationMs(clip) ?? null : null,
-        isCurrent: index === playerQueueIndex,
       };
     });
     // queueKey fingerprints everything read from the library above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playerQueue, playerQueueIndex, queueKey]);
+  }, [playerQueue, queueKey]);
 
-  const jumpTo = (index: number) => {
+  const onOpenIdeaRef = useRef(onOpenIdea);
+  onOpenIdeaRef.current = onOpenIdea;
+
+  const jumpTo = useCallback((index: number) => {
     const state = useStore.getState();
     state.requestInlineStop();
     state.setPlayerQueue(state.playerQueue, index, true);
     haptic.tap();
-  };
+  }, []);
 
-  const goToSong = (row: QueueRow) => {
+  const goToSong = useCallback((row: QueueRow) => {
     if (!row.ideaId || !row.workspaceId) return;
     const state = useStore.getState();
     if (state.activeWorkspaceId !== row.workspaceId) {
       state.setActiveWorkspaceId(row.workspaceId);
     }
     state.setSelectedIdeaId(row.ideaId);
-    onOpenIdea(row.ideaId);
-  };
+    onOpenIdeaRef.current(row.ideaId);
+  }, []);
 
-  const removeAt = (index: number) => {
+  const removeAt = useCallback((index: number) => {
     const before = useStore.getState().playerQueue.length;
     useStore.getState().removeFromPlayerQueue(index);
     haptic.light();
@@ -104,12 +240,46 @@ function QueuePanelInner({
       useStore.getState().requestPlayerClose();
       setEditMode(false);
     }
-  };
+  }, []);
 
-  const onReorder = (data: QueueRow[]) => {
+  const onDragEnd = useCallback(({ data }: { data: QueueRow[] }) => {
     useStore.getState().reorderPlayerQueue(data.map((r) => r.queueItem));
     haptic.tap();
-  };
+  }, []);
+
+  const rowActions = useMemo<QueueRowActions>(
+    () => ({ editMode, jumpTo, removeAt, goToSong }),
+    [editMode, jumpTo, removeAt, goToSong]
+  );
+
+  // ── Resting on the playing row ────────────────────────────────────────────
+  // Fixed row height + getItemLayout: the list places the first frame on the
+  // playing row without measuring anything (no flash of row 1, no jump).
+  const initialScrollIndex = useRef(queueScrollTargetIndex(playerQueueIndex, playerQueue.length)).current;
+  const scrollOffsetRef = useRef(0);
+  const viewportHeightRef = useRef(0);
+  const onScrollOffsetChange = useCallback((offset: number) => {
+    scrollOffsetRef.current = offset;
+  }, []);
+  const onContainerLayout = useCallback(({ layout }: { layout: { height: number } }) => {
+    viewportHeightRef.current = layout.height;
+  }, []);
+
+  // Follow the playing row on a track change only when it was on screen and the
+  // new one is not: a list you scrolled elsewhere is left where you put it.
+  const previousIndexRef = useRef(playerQueueIndex);
+  useEffect(() => {
+    const previousIndex = previousIndexRef.current;
+    previousIndexRef.current = playerQueueIndex;
+    const length = playerQueue.length;
+    if (length === 0 || playerQueueIndex < 0 || playerQueueIndex >= length) return;
+    const visible = visibleQueueRows(scrollOffsetRef.current, viewportHeightRef.current, length);
+    if (!shouldFollowQueueIndex({ previousIndex, nextIndex: playerQueueIndex, visible })) return;
+    listRef.current?.scrollToIndex({
+      index: queueScrollTargetIndex(playerQueueIndex, length),
+      animated: true,
+    });
+  }, [playerQueueIndex, playerQueue.length]);
 
   return (
     <View style={framed ? panelStyles.panel : null}>
@@ -138,95 +308,31 @@ function QueuePanelInner({
         </View>
       </View>
 
-      <DraggableFlatList
-        data={rows}
-        keyExtractor={(row) => row.key}
-        style={panelStyles.list}
-        contentContainerStyle={panelStyles.listContent}
-        showsVerticalScrollIndicator={false}
-        activationDistance={14}
-        onDragBegin={haptic.grab}
-        onDragEnd={({ data }) => onReorder(data)}
-        renderItem={({ item: row, drag, isActive }) => (
-          <Pressable
-            style={({ pressed }) => [
-              panelStyles.row,
-              row.isCurrent ? panelStyles.rowCurrent : null,
-              isActive ? panelStyles.rowDragging : null,
-              pressed && !editMode ? { opacity: 0.75 } : null,
-            ]}
-            onPress={() => {
-              if (editMode) return;
-              jumpTo(row.index);
-            }}
-            disabled={editMode}
-            accessibilityRole="button"
-            accessibilityLabel={t("common.playItem", { title: row.title })}
-          >
-            {editMode ? (
-              <Pressable
-                style={({ pressed }) => [panelStyles.removeBtn, pressed ? { opacity: 0.6 } : null]}
-                onPress={() => removeAt(row.index)}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={t("common.removeFromQueue", { title: row.title })}
-              >
-                <Ionicons name="remove-circle-outline" size={19} color="#B4574A" />
-              </Pressable>
-            ) : (
-              <View style={panelStyles.rowNum}>
-                {row.isCurrent ? (
-                  <NowPlayingIndicator playing={playerIsPlaying} color={colors.primary} />
-                ) : (
-                  <Text style={panelStyles.rowNumText}>{row.index + 1}</Text>
-                )}
-              </View>
-            )}
-            <View style={panelStyles.rowCopy}>
-              <UserText
-                style={[panelStyles.rowTitle, row.isCurrent ? panelStyles.rowTitleCurrent : null]}
-                numberOfLines={1}
-              >
-                {row.title}
-              </UserText>
-              {row.subtitle && row.subtitle !== row.title ? (
-                <UserText style={panelStyles.rowSubtitle} numberOfLines={1}>
-                  {row.subtitle}
-                </UserText>
-              ) : null}
-            </View>
-            {row.durationMs != null ? (
-              <Text style={panelStyles.rowDuration}>{fmtDuration(row.durationMs)}</Text>
-            ) : null}
-            {editMode ? (
-              <Pressable
-                style={({ pressed }) => [panelStyles.dragHandle, pressed ? { opacity: 0.6 } : null]}
-                onLongPress={drag}
-                delayLongPress={120}
-                accessibilityRole="button"
-                accessibilityLabel={t("common.reorderItem", { title: row.title })}
-              >
-                <Ionicons name="reorder-three" size={18} color={colors.textSecondary} />
-              </Pressable>
-            ) : row.ideaId ? (
-              <View style={panelStyles.goToBtn}>
-                <ViewInCollectionButton
-                  testID="queue-view-in-collection"
-                  onPress={() => goToSong(row)}
-                  accessibilityLabel={t("common.viewInCollection", { title: row.subtitle || row.title })}
-                />
-              </View>
-            ) : null}
-          </Pressable>
-        )}
-      />
+      <QueueRowContext.Provider value={rowActions}>
+        <DraggableFlatList
+          ref={listRef}
+          data={rows}
+          keyExtractor={keyExtractor}
+          getItemLayout={getItemLayout}
+          initialScrollIndex={initialScrollIndex}
+          style={panelStyles.list}
+          contentContainerStyle={panelStyles.listContent}
+          showsVerticalScrollIndicator={false}
+          activationDistance={14}
+          onDragBegin={haptic.grab}
+          onDragEnd={onDragEnd}
+          onScrollOffsetChange={onScrollOffsetChange}
+          onContainerLayout={onContainerLayout}
+          renderItem={renderQueueRow}
+        />
+      </QueueRowContext.Provider>
     </View>
   );
 }
 
 // Memoized: hosts re-render on playback ticks; the panel's own store subscriptions
-// (queue, index, isPlaying) are what should drive its updates — with stable props,
-// host renders no longer cascade into the row list at playback cadence.
+// (queue, index) are what should drive its updates — with stable props, host
+// renders no longer cascade into the row list at playback cadence.
 export const QueuePanel = memo(QueuePanelInner);
 
 const panelStyles = StyleSheet.create({
@@ -279,16 +385,18 @@ const panelStyles = StyleSheet.create({
     color: colors.primary,
   },
   list: {
-    maxHeight: 264,
+    maxHeight: QUEUE_ROW_HEIGHT * 6,
   },
   listContent: {
     paddingBottom: 6,
   },
+  // One fixed height in both modes: the row's controls swap without the row
+  // (or anything beneath it) moving.
   row: {
+    height: QUEUE_ROW_HEIGHT,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-    paddingVertical: 9,
     paddingHorizontal: 6,
     borderRadius: radii.sm,
   },
@@ -335,14 +443,9 @@ const panelStyles = StyleSheet.create({
     color: colors.textMuted,
     fontVariant: ["tabular-nums"],
   },
-  goToBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: radii.round,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dragHandle: {
+  // Shared box for the trailing control (view-in-collection glyph or the drag
+  // handle) so the two modes lay out identically.
+  trailingBtn: {
     width: 30,
     height: 30,
     alignItems: "center",

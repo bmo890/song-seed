@@ -1061,6 +1061,18 @@ export function PlayerScreen({
       { label: t("common.cancel"), style: "cancel" as const },
     ]);
   }, [data.latestLyricsText, playerIdea, t, ui]);
+  // Stable for the memoized queue panel: the player re-renders on the playback
+  // clock, and an inline arrow here re-ran every queue row each time.
+  const queueOpenIdeaRef = useRef({ minimizePlayer: lifecycle.minimizePlayer, navigation });
+  queueOpenIdeaRef.current = { minimizePlayer: lifecycle.minimizePlayer, navigation };
+  const handleQueueOpenIdea = useCallback((ideaId: string) => {
+    const { minimizePlayer, navigation: nav } = queueOpenIdeaRef.current;
+    minimizePlayer();
+    // Same "view in collection" jump as the dock queue: land on the
+    // clip's home collection with its card highlighted.
+    openIdeaInCollection(nav, ideaId);
+  }, []);
+
   const handleSaveAsOneClip = useCallback(
     async (mode: "copy" | "replace") => {
       if (!playerIdea || !playerClip) return;
@@ -1863,12 +1875,7 @@ export function PlayerScreen({
               queueExpanded={ui.queueExpanded}
               onToggleNotesExpanded={ui.setNotesExpanded}
               onToggleQueueExpanded={ui.setQueueExpanded}
-              onQueueOpenIdea={(ideaId) => {
-                lifecycle.minimizePlayer();
-                // Same "view in collection" jump as the dock queue: land on the
-                // clip's home collection with its card highlighted.
-                openIdeaInCollection(navigation, ideaId);
-              }}
+              onQueueOpenIdea={handleQueueOpenIdea}
             />
           )}
           {ui.mode === "player" && !isReading ? (
