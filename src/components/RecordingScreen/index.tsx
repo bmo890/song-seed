@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { styles } from "../../styles";
 import { QuickNameModal } from "../modals/QuickNameModal";
+import { useDraftText } from "../../hooks/useDraftText";
 import { RecordingHeader } from "./components/RecordingHeader";
 import { RecordingBody } from "./components/RecordingBody";
 import { RecordingBeatBreath } from "./components/RecordingBeatBreath";
@@ -191,7 +192,7 @@ export function RecordingScreen() {
         />
       </View>
 
-      <QuickNameModal
+      <DraftedQuickNameModal
         visible={screen.quickNameModalVisible && !autoNameActive}
         // Inside a sketch the object is a take; elsewhere it stays a clip.
         title={screen.recordingIdea?.kind === "project" ? t("modals.saveTakeAs") : undefined}
@@ -297,5 +298,36 @@ export function RecordingScreen() {
         items={RECORDING_HELP.items}
       />
     </SafeAreaView>
+  );
+}
+
+type DraftedQuickNameModalProps = React.ComponentProps<typeof QuickNameModal>;
+
+/**
+ * The take-name sheet keeps its own draft and commits to the store on a pause
+ * (useDraftText). Each keystroke used to `setQuickNameDraft` — a store notify
+ * for every mounted selector and a re-render of the whole recorder model while
+ * the take is still armed. Save and cancel flush first, and the save path
+ * reads the store afterwards rather than a closure from the last render.
+ */
+function DraftedQuickNameModal({ draftValue, onChangeDraft, onSave, onCancel, ...rest }: DraftedQuickNameModalProps) {
+  const field = useDraftText(draftValue, onChangeDraft);
+  const flush = field.flush;
+  const handleSave = React.useCallback(() => {
+    flush();
+    onSave();
+  }, [flush, onSave]);
+  const handleCancel = React.useCallback(() => {
+    flush();
+    onCancel();
+  }, [flush, onCancel]);
+  return (
+    <QuickNameModal
+      {...rest}
+      draftValue={field.draft}
+      onChangeDraft={field.onChangeText}
+      onSave={handleSave}
+      onCancel={handleCancel}
+    />
   );
 }

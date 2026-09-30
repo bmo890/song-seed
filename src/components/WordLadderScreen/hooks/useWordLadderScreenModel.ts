@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { BackHandler } from "react-native";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
+import { useDraftText } from "../../../hooks/useDraftText";
 import { AppAlert } from "../../common/AppAlert";
 import { toast } from "../../common/toastStore";
 import { sparkSaveTitle } from "../../../domain/notepad";
@@ -56,12 +57,39 @@ export function useWordLadderScreenModel() {
     return t("wordLadder.untitled");
   }, [t]);
 
+  // The poem fields commit on a pause, not per keystroke (useDraftText): a
+  // character used to write the whole ladder into the store and notify every
+  // mounted selector. Every other write lands the pending drafts first, so a
+  // later commit can never overwrite what an action just wrote; the actions
+  // that read the text read the local drafts, which are always current.
+  const commitDraft = useCallback(
+    (draft: string) => {
+      if (exerciseId) updateWordLadder(exerciseId, { draft });
+    },
+    [exerciseId, updateWordLadder]
+  );
+  const commitRevision = useCallback(
+    (revision: string) => {
+      if (exerciseId) updateWordLadder(exerciseId, { revision });
+    },
+    [exerciseId, updateWordLadder]
+  );
+  const draftField = useDraftText(exercise?.draft ?? "", commitDraft);
+  const revisionField = useDraftText(exercise?.revision ?? "", commitRevision);
+  const flushDraft = draftField.flush;
+  const flushRevision = revisionField.flush;
+  const flushDrafts = useCallback(() => {
+    flushDraft();
+    flushRevision();
+  }, [flushDraft, flushRevision]);
+
   const apply = useCallback(
     (updates: Parameters<typeof updateWordLadder>[1]) => {
       if (!exerciseId) return;
+      flushDrafts();
       updateWordLadder(exerciseId, updates);
     },
-    [exerciseId, updateWordLadder]
+    [exerciseId, updateWordLadder, flushDrafts]
   );
 
   // Undo/redo over the pairing board (connect, unpair, shuffle).
@@ -227,12 +255,6 @@ export function useWordLadderScreenModel() {
     apply({ pairings: shufflePairings(exercise) });
   }, [apply, exercise, pairingHistory]);
 
-  const setDraft = useCallback(
-    (draft: string) => {
-      apply({ draft });
-    },
-    [apply]
-  );
 
   const toggleSparkUsed = useCallback(
     (pairingId: string) => {
@@ -245,12 +267,6 @@ export function useWordLadderScreenModel() {
     [apply, exercise]
   );
 
-  const setRevision = useCallback(
-    (revision: string) => {
-      apply({ revision });
-    },
-    [apply]
-  );
 
   const deleteExercise = useCallback(() => {
     if (!exerciseId) return;
@@ -267,9 +283,12 @@ export function useWordLadderScreenModel() {
 
   /** Saves the revision (falling back to the draft) as a new page in the global
    * Lyrics Pad, then opens it there. */
+  const draftText = draftField.draft;
+  const revisionText = revisionField.draft;
   const saveAsLyrics = useCallback(() => {
     if (!exercise) return;
-    const text = (exercise.revision.trim() ? exercise.revision : exercise.draft).trim();
+    flushDrafts();
+    const text = (revisionText.trim() ? revisionText : draftText).trim();
     if (!text) {
       AppAlert.info(t("wordSparks.nothingSave"), t("wordLadder.nothingBody"));
       return;
@@ -281,7 +300,7 @@ export function useWordLadderScreenModel() {
     toast(t("wordSparks.savedToPad"), "checkmark-outline");
     navigation.navigate("NotepadHome", { noteId, openToken: Date.now() });
     if (exerciseId) deleteWordLadder(exerciseId);
-  }, [exercise, exerciseId, notes, addNote, updateNote, deleteWordLadder, navigation, t]);
+  }, [exercise, exerciseId, notes, addNote, updateNote, deleteWordLadder, navigation, t, flushDrafts, draftText, revisionText]);
 
   const hasContent =
     !!exercise &&
@@ -289,8 +308,8 @@ export function useWordLadderScreenModel() {
       exercise.placeSeed.trim().length > 0 ||
       exercise.columnA.length > 0 ||
       exercise.columnB.length > 0 ||
-      exercise.draft.trim().length > 0 ||
-      exercise.revision.trim().length > 0);
+      draftText.trim().length > 0 ||
+      revisionText.trim().length > 0);
 
   const goBack = useCallback(() => {
     // Already saved to the Lyrics Pad → just leave (the exercise stays for resuming).
@@ -373,9 +392,9 @@ export function useWordLadderScreenModel() {
     unpairWord,
     toggleLockPairing,
     shuffle,
-    setDraft,
+    draftField,
     toggleSparkUsed,
-    setRevision,
+    revisionField,
     deleteExercise,
     saveAsLyrics,
     goBack,

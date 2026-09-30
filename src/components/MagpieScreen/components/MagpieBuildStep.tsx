@@ -72,7 +72,8 @@ export function MagpieBuildStep({
     return [...byOrder.filter((f) => !used.has(f.id)), ...byOrder.filter((f) => used.has(f.id))];
   }, [spark.fragments, used]);
 
-  const draftBlank = spark.draft.trim().length === 0;
+  const draftText = model.draftField.draft;
+  const draftBlank = draftText.trim().length === 0;
   const fontSize = BASE_FONT * zoom;
   const lineHeight = BASE_LINE * zoom;
 
@@ -80,7 +81,7 @@ export function MagpieBuildStep({
   // of a non-empty line), with smart spacing. Marks the scrap used.
   const insertScrap = (fragment: MagpieFragment) => {
     haptic.light();
-    const current = spark.draft;
+    const current = draftText;
     const pos = Math.min(caretRef.current.start, current.length);
     const before = current.slice(0, pos);
     const after = current.slice(pos);
@@ -108,8 +109,9 @@ export function MagpieBuildStep({
         <UserTextInput
           ref={draftRef}
           style={[styles.draftInput, { fontSize, lineHeight }]}
-          value={spark.draft}
-          onChangeText={model.setDraft}
+          value={draftText}
+          onChangeText={model.draftField.onChangeText}
+          onBlur={model.draftField.flush}
           selection={pendingSel}
           onSelectionChange={(e) => {
             caretRef.current = e.nativeEvent.selection;

@@ -1089,6 +1089,9 @@ export function useRecordingScreenModel() {
 
   async function saveQuickClipName() {
     if (!quickNamingIdeaId) return false;
+    // The name sheet commits its draft on a pause and flushes before Save; read
+    // the store now rather than the value this render closed over.
+    const quickNameDraft = useStore.getState().quickNameDraft;
     const targetIdea = recordingIdea;
     const isStandaloneClipRecording = targetIdea?.kind === "clip";
     const overdubSaveTarget =

@@ -106,8 +106,8 @@ export function WordLadderScreenContent() {
     })
     .filter((spark): spark is { id: string; seedA: string; seedB: string } => spark !== null);
   const usedSparks = new Set(exercise.usedSparkIds);
-  const hasDraft = exercise.draft.trim().length > 0;
-  const hasRevision = exercise.revision.trim().length > 0;
+  const hasDraft = model.draftField.draft.trim().length > 0;
+  const hasRevision = model.revisionField.draft.trim().length > 0;
 
   const setupMissing: string[] = [];
   if (!hasRole) setupMissing.push(t("wordLadder.missingRole"));
@@ -325,8 +325,9 @@ export function WordLadderScreenContent() {
           <View style={contentStyles.poemCard}>
             <UserTextInput
               style={[contentStyles.poemInput, scaledPoem]}
-              value={exercise.draft}
-              onChangeText={model.setDraft}
+              value={model.draftField.draft}
+              onChangeText={model.draftField.onChangeText}
+              onBlur={model.draftField.flush}
               multiline
               textAlignVertical="top"
               placeholder={t("wordLadder.draftPlaceholder")}
@@ -408,8 +409,9 @@ export function WordLadderScreenContent() {
           <View style={contentStyles.poemCard}>
             <UserTextInput
               style={[contentStyles.poemInput, scaledPoem]}
-              value={exercise.revision}
-              onChangeText={model.setRevision}
+              value={model.revisionField.draft}
+              onChangeText={model.revisionField.onChangeText}
+              onBlur={model.revisionField.flush}
               multiline
               textAlignVertical="top"
               placeholder={t("wordLadder.revisionPlaceholder")}

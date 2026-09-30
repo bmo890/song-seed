@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { BackHandler, Dimensions } from "react-native";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
+import { useDraftText } from "../../../hooks/useDraftText";
 import { AppAlert } from "../../common/AppAlert";
 import { toast } from "../../common/toastStore";
 import { sparkSaveTitle } from "../../../domain/notepad";
@@ -76,13 +77,56 @@ export function useCutUpScreenModel() {
     [cutUpSparks, sparkId]
   );
 
-  const apply = useCallback(
-    (updates: Parameters<typeof updateCutUpSpark>[1]) => {
+  // The source lyric and the draft commit on a pause, not per keystroke
+  // (useDraftText): a character used to write the whole spark into the store and
+  // notify every mounted selector. Every other write lands the pending drafts
+  // first, so a later commit can never overwrite what an action just wrote
+  // (a remix, a picked page); actions that read the text while a field is
+  // mounted read the local field or `freshSpark()`, never the stale closure.
+  const commitSource = useCallback(
+    (sourceText: string) => {
       if (!sparkId) return;
-      updateCutUpSpark(sparkId, updates);
+      // Manual edits break the link to a source lyric page and re-seed the cut.
+      updateCutUpSpark(sparkId, {
+        sourceText,
+        title: deriveCutUpTitle(sourceText),
+        sourceLyricId: undefined,
+        cutSeams: undefined,
+      });
     },
     [sparkId, updateCutUpSpark]
   );
+  const commitDraft = useCallback(
+    (assembledDraftText: string) => {
+      if (sparkId) updateCutUpSpark(sparkId, { assembledDraftText });
+    },
+    [sparkId, updateCutUpSpark]
+  );
+  const sourceField = useDraftText(spark?.sourceText ?? "", commitSource);
+  const draftField = useDraftText(spark?.assembledDraftText ?? "", commitDraft);
+  const sourceText = sourceField.draft;
+  const draftText = draftField.draft;
+  const flushSource = sourceField.flush;
+  const flushDraft = draftField.flush;
+  const flushDrafts = useCallback(() => {
+    flushSource();
+    flushDraft();
+  }, [flushSource, flushDraft]);
+
+  const apply = useCallback(
+    (updates: Parameters<typeof updateCutUpSpark>[1]) => {
+      if (!sparkId) return;
+      flushDrafts();
+      updateCutUpSpark(sparkId, updates);
+    },
+    [sparkId, updateCutUpSpark, flushDrafts]
+  );
+
+  /** The spark as the store holds it once the pending drafts have landed. */
+  const freshSpark = useCallback(() => {
+    flushDrafts();
+    return useStore.getState().cutUpSparks.find((item) => item.id === sparkId) ?? null;
+  }, [flushDrafts, sparkId]);
 
   const step: CutUpStep = spark?.step ?? "source";
   const { size: scrapFontSize } = useSparkTextScale();
@@ -104,6 +148,7 @@ export function useCutUpScreenModel() {
   // ── Wizard navigation ──────────────────────────────────────────────────────
   const goToStep = useCallback(
     (next: CutUpStep) => {
+      const spark = freshSpark();
       if (!spark) return;
       if (next === "chunk") {
         // First entry into the Cut surface: seed the seams from phrase breaks.
@@ -145,7 +190,7 @@ export function useCutUpScreenModel() {
         apply({ step: next });
       }
     },
-    [apply, spark]
+    [apply, freshSpark] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const markHelpSeen = useCallback(
@@ -157,19 +202,6 @@ export function useCutUpScreenModel() {
   );
 
   // ── Source step ────────────────────────────────────────────────────────────
-  const setSourceText = useCallback(
-    (sourceText: string) => {
-      // Manual edits break the link to a source lyric page and re-seed the cut.
-      apply({
-        sourceText,
-        title: deriveCutUpTitle(sourceText),
-        sourceLyricId: undefined,
-        cutSeams: undefined,
-      });
-    },
-    [apply]
-  );
-
   const pickSourceNote = useCallback(
     (note: Note, text?: string) => {
       const sourceText = text ?? note.body;
@@ -418,13 +450,6 @@ export function useCutUpScreenModel() {
   );
 
   // ── Draft step ─────────────────────────────────────────────────────────────
-  const setDraft = useCallback(
-    (assembledDraftText: string) => {
-      apply({ assembledDraftText });
-    },
-    [apply]
-  );
-
   const rebuildDraftFromBoard = useCallback(() => {
     if (!spark) return;
     apply({ assembledDraftText: assembleDraftFromCanvas(spark.boardItems, makeTextOf(spark), canvasRtl(spark)) });
@@ -442,9 +467,10 @@ export function useCutUpScreenModel() {
   // ── Save / delete ──────────────────────────────────────────────────────────
   const saveAsLyrics = useCallback(() => {
     if (!spark) return;
+    flushDrafts();
     const text = (
-      spark.assembledDraftText.trim()
-        ? spark.assembledDraftText
+      draftText.trim()
+        ? draftText
         : assembleDraftFromCanvas(spark.boardItems, makeTextOf(spark), canvasRtl(spark))
     ).trim();
     if (!text) {
@@ -458,7 +484,7 @@ export function useCutUpScreenModel() {
     toast(t("wordSparks.savedToPad"), "checkmark-outline");
     navigation.navigate("NotepadHome", { noteId, openToken: Date.now() });
     if (sparkId) deleteCutUpSpark(sparkId);
-  }, [spark, sparkId, notes, addNote, updateNote, deleteCutUpSpark, navigation, t]);
+  }, [spark, sparkId, notes, addNote, updateNote, deleteCutUpSpark, navigation, t, flushDrafts, draftText]);
 
   const deleteSpark = useCallback(() => {
     if (!sparkId) return;
@@ -475,9 +501,9 @@ export function useCutUpScreenModel() {
 
   const hasContent =
     !!spark &&
-    (spark.sourceText.trim().length > 0 ||
+    (sourceText.trim().length > 0 ||
       spark.chunks.length > 0 ||
-      spark.assembledDraftText.trim().length > 0);
+      draftText.trim().length > 0);
 
   const goBack = useCallback(() => {
     // Already saved to the Lyrics Pad → just leave (the spark stays for resuming).
@@ -546,7 +572,7 @@ export function useCutUpScreenModel() {
     notes,
     goToStep,
     markHelpSeen,
-    setSourceText,
+    sourceField,
     pickSourceNote,
     currentSeams,
     toggleSeamAt,
@@ -575,7 +601,7 @@ export function useCutUpScreenModel() {
     restoreStrip,
     editStripText,
     splitStrip,
-    setDraft,
+    draftField,
     rebuildDraftFromBoard,
     composeDraft,
     saveAsLyrics,

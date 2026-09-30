@@ -55,7 +55,7 @@ export function CutUpDraftEditor({
 
   const pickRemix = (option: RemixOption) => {
     setMenuOpen(false);
-    const dirty = spark.assembledDraftText.trim().length > 0 && editedRef.current;
+    const dirty = model.draftField.draft.trim().length > 0 && editedRef.current;
     if (dirty) {
       AppAlert.destructive(t("cutUp.rebuildTitle"), t("cutUp.rebuildBody"), () => runRemix(option), {
         confirmLabel: t("cutUp.rebuild"),
@@ -67,7 +67,7 @@ export function CutUpDraftEditor({
 
   const onChangeText = (value: string) => {
     editedRef.current = true;
-    model.setDraft(value);
+    model.draftField.onChangeText(value);
   };
 
   return (
@@ -94,8 +94,9 @@ export function CutUpDraftEditor({
       <View style={styles.card}>
         <UserTextInput
           style={[styles.input, { fontSize: size, lineHeight }]}
-          value={spark.assembledDraftText}
+          value={model.draftField.draft}
           onChangeText={onChangeText}
+          onBlur={model.draftField.flush}
           multiline
           textAlignVertical="top"
           placeholder={t("cutUp.draftPlaceholder")}

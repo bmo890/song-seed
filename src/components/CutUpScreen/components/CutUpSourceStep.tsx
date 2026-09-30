@@ -54,8 +54,9 @@ export function CutUpSourceStep({ model, spark }: { model: Model; spark: CutUpSp
       <View style={styles.card}>
         <UserTextInput
           style={[styles.input, { fontSize: size, lineHeight }]}
-          value={spark.sourceText}
-          onChangeText={model.setSourceText}
+          value={model.sourceField.draft}
+          onChangeText={model.sourceField.onChangeText}
+          onBlur={model.sourceField.flush}
           multiline
           textAlignVertical="top"
           placeholder={t("cutUp.sourcePlaceholder")}

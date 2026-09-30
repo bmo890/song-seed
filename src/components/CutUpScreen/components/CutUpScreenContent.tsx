@@ -57,10 +57,10 @@ export function CutUpScreenContent() {
   }
 
   const activeCount = spark.boardItems.filter((item) => !item.removed).length;
-  const canLeaveSource = spark.sourceText.trim().length > 0;
-  const canLeaveChunk = spark.sourceText.trim().length > 0;
+  const canLeaveSource = model.sourceField.draft.trim().length > 0;
+  const canLeaveChunk = model.sourceField.draft.trim().length > 0;
   const canLeaveBoard = activeCount > 0;
-  const hasDraft = spark.assembledDraftText.trim().length > 0;
+  const hasDraft = model.draftField.draft.trim().length > 0;
 
   return (
     <SafeAreaView style={[styles.shell, { backgroundColor: KRAFT_BG }]} edges={["top", "bottom"]}>

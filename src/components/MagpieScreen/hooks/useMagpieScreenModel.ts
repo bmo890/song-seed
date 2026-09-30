@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { BackHandler } from "react-native";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
+import { useDraftText } from "../../../hooks/useDraftText";
 import { AppAlert } from "../../common/AppAlert";
 import { toast } from "../../common/toastStore";
 import { sparkSaveTitle } from "../../../domain/notepad";
@@ -51,12 +52,31 @@ export function useMagpieScreenModel() {
   const requestSeq = useRef(0);
   const autoLoadedRef = useRef(false);
 
+  // The draft commits on a pause, not per keystroke (useDraftText): a character
+  // used to write the whole spark into the store and notify every mounted
+  // selector. Every other write lands the pending draft first, so a later commit
+  // can never overwrite what an action just wrote (pour, rebuild); the actions
+  // that read the draft read the local field, which is always current.
+  const commitDraft = useCallback(
+    (draft: string) => {
+      if (!sparkId) return;
+      const current = useStore.getState().magpieSparks.find((item) => item.id === sparkId);
+      if (!current) return;
+      updateMagpieSpark(sparkId, { draft, title: deriveMagpieTitle({ draft, fragments: current.fragments }) });
+    },
+    [sparkId, updateMagpieSpark]
+  );
+  const draftField = useDraftText(spark?.draft ?? "", commitDraft);
+  const draftText = draftField.draft;
+  const flushDraft = draftField.flush;
+
   const apply = useCallback(
     (updates: Parameters<typeof updateMagpieSpark>[1]) => {
       if (!sparkId) return;
+      flushDraft();
       updateMagpieSpark(sparkId, updates);
     },
-    [sparkId, updateMagpieSpark]
+    [sparkId, updateMagpieSpark, flushDraft]
   );
 
   // ── Fetching a page ─────────────────────────────────────────────────────────
@@ -149,9 +169,9 @@ export function useMagpieScreenModel() {
       if (!spark || phrases.length === 0) return;
       fragmentHistory.record(spark.fragments);
       const fragments = addFragments(spark.fragments, phrases, spark.book);
-      apply({ fragments, title: deriveMagpieTitle({ draft: spark.draft, fragments }) });
+      apply({ fragments, title: deriveMagpieTitle({ draft: draftText, fragments }) });
     },
-    [spark, apply, fragmentHistory]
+    [spark, apply, fragmentHistory, draftText]
   );
 
   const removeFragment = useCallback(
@@ -245,12 +265,14 @@ export function useMagpieScreenModel() {
     [spark, apply]
   );
 
+  /** A programmatic draft change (a scrap dropped in at the caret) lands at once. */
+  const setDraftNow = draftField.onChangeText;
   const setDraft = useCallback(
     (draft: string) => {
-      if (!spark) return;
-      apply({ draft, title: deriveMagpieTitle({ draft, fragments: spark.fragments }) });
+      setDraftNow(draft);
+      flushDraft();
     },
-    [spark, apply]
+    [setDraftNow, flushDraft]
   );
 
   const rebuildDraft = useCallback(() => {
@@ -270,7 +292,8 @@ export function useMagpieScreenModel() {
   // ── Save / delete ───────────────────────────────────────────────────────────
   const saveAsLyrics = useCallback(() => {
     if (!spark) return;
-    const text = (spark.draft.trim() ? spark.draft : assembleDraft(spark.fragments)).trim();
+    flushDraft();
+    const text = (draftText.trim() ? draftText : assembleDraft(spark.fragments)).trim();
     if (!text) {
       AppAlert.info(t("wordSparks.nothingSave"), t("magpie.nothingBody"));
       return;
@@ -282,7 +305,7 @@ export function useMagpieScreenModel() {
     toast(t("wordSparks.savedToPad"), "checkmark-outline");
     navigation.navigate("NotepadHome", { noteId, openToken: Date.now() });
     if (sparkId) deleteMagpieSpark(sparkId);
-  }, [spark, sparkId, notes, addNote, updateNote, deleteMagpieSpark, navigation, t]);
+  }, [spark, sparkId, notes, addNote, updateNote, deleteMagpieSpark, navigation, t, flushDraft, draftText]);
 
   const deleteSpark = useCallback(() => {
     if (!sparkId) return;
@@ -298,7 +321,7 @@ export function useMagpieScreenModel() {
   }, [deleteMagpieSpark, sparkId, navigation, t]);
 
   const hasContent =
-    !!spark && (spark.fragments.length > 0 || spark.draft.trim().length > 0);
+    !!spark && (spark.fragments.length > 0 || draftText.trim().length > 0);
 
   const goBack = useCallback(() => {
     if (spark?.savedLyricId) {
@@ -374,6 +397,7 @@ export function useMagpieScreenModel() {
     reorder,
     goToStep,
     markHelpSeen,
+    draftField,
     setDraft,
     rebuildDraft,
     pourScraps,
