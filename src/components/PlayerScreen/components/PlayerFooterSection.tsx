@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import { View } from "react-native";
 import { TransportBar } from "../../common/TransportBar";
 import { useStore } from "../../../state/useStore";
@@ -21,7 +21,9 @@ type PlayerFooterSectionProps = {
   onClose: () => void;
 };
 
-export function PlayerFooterSection({
+export const PlayerFooterSection = memo(PlayerFooterSectionInner);
+
+function PlayerFooterSectionInner({
   mode,
   playDisabled = false,
   isPlaying,

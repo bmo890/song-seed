@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { memo, useCallback } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { PlayerArtifactDoors } from "./PlayerArtifactDoors";
 import { QueuePanel } from "../../QueuePanel";
@@ -38,7 +38,9 @@ type PlayerSupportSectionsProps = {
   onQueueOpenIdea: (ideaId: string) => void;
 };
 
-export function PlayerSupportSections({
+export const PlayerSupportSections = memo(PlayerSupportSectionsInner);
+
+function PlayerSupportSectionsInner({
   canAuthor,
   onGrowSketch,
   hasLyrics,

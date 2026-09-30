@@ -910,8 +910,10 @@ function PlayerScreenInner({
       void handleSeekWithClick(0);
       return;
     }
-    lifecycle.handlePreviousTrack();
-  }, [handleSeekWithClick, hasPreviousTrack, lifecycle]);
+    // Through the ref: `lifecycle` is a fresh object every render, and it gave
+    // the footer a new handler (and a render) on every readout tick.
+    lifecycleRef.current.handlePreviousTrack();
+  }, [handleSeekWithClick, hasPreviousTrack]);
 
   // Stable JS entry point for the gesture worklet (reads the live ref at call time).
   const runMinimize = useCallback(() => minimizePlayerRef.current(), []);
@@ -1083,6 +1085,22 @@ function PlayerScreenInner({
   // clock, and an inline arrow here re-ran every queue row each time.
   const queueOpenIdeaRef = useRef({ minimizePlayer: lifecycle.minimizePlayer, navigation });
   queueOpenIdeaRef.current = { minimizePlayer: lifecycle.minimizePlayer, navigation };
+  const playerIdeaIdRef = useRef(playerIdea?.id ?? "");
+  playerIdeaIdRef.current = playerIdea?.id ?? "";
+  // Stable handlers for the memoized footer, shelf and support sections: the
+  // root renders once a second for the readout, and inline arrows here made
+  // those subtrees (five bottom sheets among them) render with it.
+  const { setRepeatEnabled, setQueueExpanded, setNotesExpanded, openReading } = ui;
+  const toggleRepeat = useCallback(() => setRepeatEnabled((value) => !value), [setRepeatEnabled]);
+  const toggleQueueExpanded = useCallback(() => setQueueExpanded((value) => !value), [setQueueExpanded]);
+  const openNotes = useCallback(() => setNotesExpanded(true), [setNotesExpanded]);
+  const openLyricsReading = useCallback(() => openReading("lyrics"), [openReading]);
+  const openChartReading = useCallback(() => openReading("chart"), [openReading]);
+  const openChartBuilder = useCallback(() => {
+    const { minimizePlayer, navigation: nav } = queueOpenIdeaRef.current;
+    minimizePlayer();
+    nav.navigate("IdeaDetail", { ideaId: playerIdeaIdRef.current, initialSongTab: "chart" });
+  }, []);
   const handleQueueOpenIdea = useCallback((ideaId: string) => {
     const { minimizePlayer, navigation: nav } = queueOpenIdeaRef.current;
     minimizePlayer();
@@ -1650,7 +1668,7 @@ function PlayerScreenInner({
             {ui.mode === "player" && !isReading ? (
               <PlayerShelf
                 hasNotes={data.clipNotes.trim().length > 0}
-                onOpenNotes={() => ui.setNotesExpanded(true)}
+                onOpenNotes={openNotes}
               />
             ) : null}
           <PlayerFooterSection
@@ -1664,8 +1682,8 @@ function PlayerScreenInner({
             onPreviousTrack={handlePreviousPress}
             onTogglePlay={handleTogglePlayWithCountIn}
             onNextTrack={lifecycle.handleNextTrack}
-            onToggleRepeat={() => ui.setRepeatEnabled((value) => !value)}
-            onToggleQueueExpanded={() => ui.setQueueExpanded((value) => !value)}
+            onToggleRepeat={toggleRepeat}
+            onToggleQueueExpanded={toggleQueueExpanded}
             onClose={lifecycle.stopSessionAndClose}
           />
           </View>
@@ -1884,14 +1902,11 @@ function PlayerScreenInner({
               lyricsEditedSinceTake={lyricsEditedSinceTake}
               hasChart={hasChart}
               chartHandle={chartHandle}
-              onOpenLyrics={() => ui.openReading("lyrics")}
-              onOpenChart={() => ui.openReading("chart")}
+              onOpenLyrics={openLyricsReading}
+              onOpenChart={openChartReading}
               // "Write" opens against the tape — the whole point of the door.
               onWriteLyrics={ui.openWriting}
-              onBuildChart={() => {
-                lifecycle.minimizePlayer();
-                navigation.navigate("IdeaDetail", { ideaId: playerIdea.id, initialSongTab: "chart" });
-              }}
+              onBuildChart={openChartBuilder}
               clipNotes={data.clipNotes}
               notesExpanded={ui.notesExpanded}
               hasQueue={data.playerQueue.length > 0}

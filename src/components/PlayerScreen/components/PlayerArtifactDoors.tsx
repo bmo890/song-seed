@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
@@ -189,7 +189,9 @@ type Props = {
  * has. The handle is the content itself (first lyric line / chord run); an
  * empty door carries its call to action instead of dead-ending.
  */
-export function PlayerArtifactDoors({
+export const PlayerArtifactDoors = memo(PlayerArtifactDoorsInner);
+
+function PlayerArtifactDoorsInner({
   canAuthor,
   onGrowSketch,
   hasLyrics,

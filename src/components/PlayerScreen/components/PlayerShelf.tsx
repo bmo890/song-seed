@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing } from "../../../design/tokens";
@@ -10,7 +10,9 @@ import { useTranslation } from "react-i18next";
  * Notes (terracotta dot = something's inside); it renders only when there is
  * something to open, so an empty clip keeps an empty shelf line off the page.
  */
-export function PlayerShelf({
+export const PlayerShelf = memo(PlayerShelfInner);
+
+function PlayerShelfInner({
   hasNotes,
   onOpenNotes,
 }: {
