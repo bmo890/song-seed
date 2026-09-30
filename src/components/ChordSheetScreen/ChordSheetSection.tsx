@@ -4,6 +4,7 @@ import { styles as appStyles } from "../../styles";
 import { IconButton } from "../common/IconButton";
 import { colors, spacing, text as textTokens } from "../../design/tokens";
 import { useScrollIntoViewOnFocus } from "./components/chartScroll";
+import { useDraftText } from "../../hooks/useDraftText";
 import type { ChordSheetMeasure, ChordSheetSection as Section } from "../../types";
 import { useTranslation } from "react-i18next";
 import { UserText, UserTextInput } from "../../i18n";
@@ -50,6 +51,8 @@ export function ChordSheetSection({
   const { t } = useTranslation();
   const selectedSet = new Set(selectedMeasureIds);
   const noteField = useScrollIntoViewOnFocus();
+  // Commits on a pause, like the text blocks (see ChordTextBlock).
+  const notesDraft = useDraftText(section.notes, onNotes);
 
   const showAdd = editable && !selectionActive;
   // The add affordance is a faint "ghost" bar that flows in the staff where the
@@ -69,8 +72,9 @@ export function ChordSheetSection({
             ref={noteField.ref}
             onFocus={noteField.onFocus}
             style={styles.noteInlineInput}
-            value={section.notes}
-            onChangeText={onNotes}
+            value={notesDraft.draft}
+            onChangeText={notesDraft.onChangeText}
+            onBlur={notesDraft.flush}
             placeholder={t("chordChart.notePlaceholder")}
             placeholderTextColor={colors.textMuted}
             multiline

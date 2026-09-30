@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useDraftText } from "../../../hooks/useDraftText";
 
 const EMPTY_SUGGESTIONS: string[] = [];
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -408,6 +409,9 @@ function ChordTextBlock({
 }) {
   const { t } = useTranslation();
   const field = useScrollIntoViewOnFocus();
+  // Commits on a pause: a keystroke used to write the chart into the library
+  // (a full store notify, an activity event and an undo step per letter).
+  const draft = useDraftText(text, onChangeText);
   if (!editable) {
     if (!text.trim()) return null;
     return (
@@ -436,8 +440,9 @@ function ChordTextBlock({
         ref={field.ref}
         onFocus={field.onFocus}
         style={styles.textBlockInput}
-        value={text}
-        onChangeText={onChangeText}
+        value={draft.draft}
+        onChangeText={draft.onChangeText}
+        onBlur={draft.flush}
         placeholder={t("chordChart.textBlockPlaceholder")}
         placeholderTextColor={colors.textMuted}
         multiline

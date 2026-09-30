@@ -24,6 +24,7 @@ import { AppAlert } from "../../common/AppAlert";
 import { WordFinderSheet } from "../../common/WordFinderSheet";
 import { applyPickedWord, extractWordRange } from "../../../domain/wordTools";
 import { useEditHistory } from "../../../hooks/useEditHistory";
+import { useDraftText } from "../../../hooks/useDraftText";
 import { useTranslation } from "react-i18next";
 
 type Props = {
@@ -69,6 +70,37 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
     resetHistory({ title: note.title, body: note.body });
   }, [note.id, resetHistory]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Both fields commit on a pause, not per keystroke: a character used to
+  // write the whole notes array into the store, notify every mounted selector
+  // (the spark tools and Search included) and re-arm the manifest. The history
+  // push moves to the commit, so undo steps are per pause and read a store
+  // that already holds the text. Drafts are flushed before back and before a
+  // word-tool apply, which both read the committed body.
+  const commitTitle = useCallback(
+    (title: string) => {
+      onUpdate({ title });
+      scheduleHistoryPush();
+    },
+    [onUpdate, scheduleHistoryPush]
+  );
+  const commitBody = useCallback(
+    (body: string) => {
+      onUpdate({ body });
+      scheduleHistoryPush();
+    },
+    [onUpdate, scheduleHistoryPush]
+  );
+  const titleDraft = useDraftText(note.title, commitTitle);
+  const bodyDraft = useDraftText(note.body, commitBody);
+  const flushDrafts = useCallback(() => {
+    titleDraft.flush();
+    bodyDraft.flush();
+  }, [titleDraft, bodyDraft]);
+  const handleBack = useCallback(() => {
+    flushDrafts();
+    onBack();
+  }, [flushDrafts, onBack]);
+
   // ── Delete confirmation ───────────────────────────────────────────────────
   const handleDeletePress = useCallback(() => {
     AppAlert.destructive(
@@ -96,11 +128,11 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
   useEffect(() => {
     if (!isFocused) return;
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      onBack();
+      handleBack();
       return true;
     });
     return () => sub.remove();
-  }, [isFocused, onBack]);
+  }, [isFocused, handleBack]);
 
   // ── Keyboard-on-selection ─────────────────────────────────────────────────
   const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -129,7 +161,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
   // wrong on mixed-script notes (e.g. a Hebrew note that opens with an English
   // label). An explicit override — mirroring the song lyrics editor — is the fix.
   const noteDirection = note.textDirection ?? "auto";
-  const bodyDirection = resolveContentDirection(note.body, noteDirection);
+  const bodyDirection = resolveContentDirection(bodyDraft.draft, noteDirection);
   const [directionMenuVisible, setDirectionMenuVisible] = useState(false);
 
   // ── Word Finder (rhymes / thesaurus) ──────────────────────────────────────
@@ -161,22 +193,24 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
 
   const openWordFinder = useCallback(() => {
     const { start, end } = selectionRef.current;
-    const range = extractWordRange(note.body, start, end);
+    // The selection was made in the draft, which may run ahead of the store.
+    const range = extractWordRange(bodyDraft.draft, start, end);
     setWordFinderSeed(range?.word ?? "");
     setWordFinderVisible(true);
-  }, [note.body]);
+  }, [bodyDraft.draft]);
 
   const handlePickWord = useCallback(
     (word: string) => {
       const { start, end } = selectionRef.current;
-      const next = applyPickedWord(note.body, start, end, word);
-      onUpdate({ body: next.text });
-      scheduleHistoryPush();
+      // The draft is the text the selection was made in.
+      const next = applyPickedWord(bodyDraft.draft, start, end, word);
+      bodyDraft.onChangeText(next.text);
+      bodyDraft.flush();
       selectionRef.current = { start: next.caret, end: next.caret };
       setFlash({ start: next.wordStart, end: next.wordEnd, nonce: Date.now() });
       setWordFinderVisible(false);
     },
-    [note.body, onUpdate, scheduleHistoryPush]
+    [bodyDraft]
   );
 
   const handleSetDirection = useCallback(
@@ -198,7 +232,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
           {/* Back */}
           <Pressable
             style={({ pressed }) => [editorStyles.backBtn, pressed ? styles.pressDown : null]}
-            onPress={onBack}
+            onPress={handleBack}
           >
             <Ionicons name={dirIcon("chevron-back")} size={20} color={colors.textStrong} />
             <Text style={editorStyles.backLabel}>{t("screens.lyricsPad")}</Text>
@@ -299,12 +333,10 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
         >
           <UserTextInput
             style={editorStyles.title}
-            value={note.title}
+            value={titleDraft.draft}
             direction={noteDirection}
-            onChangeText={(text) => {
-              onUpdate({ title: text });
-              scheduleHistoryPush();
-            }}
+            onChangeText={titleDraft.onChangeText}
+            onBlur={titleDraft.flush}
             placeholder={t("notepad.titlePlaceholder")}
             placeholderTextColor={colors.textMuted}
             multiline={false}
@@ -320,14 +352,14 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
             <UserTextInput
               ref={bodyRef}
               style={editorStyles.body}
-              value={note.body}
+              value={bodyDraft.draft}
               direction={noteDirection}
               onChangeText={(text) => {
-                onUpdate({ body: text });
-                scheduleHistoryPush();
+                bodyDraft.onChangeText(text);
                 // The word moved; drop the highlight if it's still up.
                 setFlash((current) => (current ? null : current));
               }}
+              onBlur={bodyDraft.flush}
               onSelectionChange={handleSelectionChange}
               placeholder={t("notepad.writePlaceholder")}
               placeholderTextColor={colors.textMuted}
@@ -341,9 +373,9 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
                     behind the inserted word shows. Reuses editorStyles.body so
                     font/size/line-height/width match the input exactly. */}
                 <Text style={[editorStyles.body, contentDirectionStyle(bodyDirection, "content")]}>
-                  <Text style={editorStyles.flashHidden}>{note.body.slice(0, flash.start)}</Text>
-                  <Text style={editorStyles.flashWord}>{note.body.slice(flash.start, flash.end)}</Text>
-                  <Text style={editorStyles.flashHidden}>{note.body.slice(flash.end)}</Text>
+                  <Text style={editorStyles.flashHidden}>{bodyDraft.draft.slice(0, flash.start)}</Text>
+                  <Text style={editorStyles.flashWord}>{bodyDraft.draft.slice(flash.start, flash.end)}</Text>
+                  <Text style={editorStyles.flashHidden}>{bodyDraft.draft.slice(flash.end)}</Text>
                 </Text>
               </Animated.View>
             ) : null}
