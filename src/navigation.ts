@@ -38,7 +38,8 @@ export type HomeDrawerParamList = {
   SearchHome: undefined;
   RevisitHome: undefined;
   ShelfHome: undefined;
-  ReceivedHome: undefined;
+  /** packageId opens straight into one package (from the workspace switcher). */
+  ReceivedHome: { packageId?: string; openToken?: number } | undefined;
   ActivityHome: undefined;
   TunerHome: undefined;
   MetronomeHome: undefined;

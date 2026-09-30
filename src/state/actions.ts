@@ -13,6 +13,7 @@ import {
     ClipOverdubState,
     ClipOverdubRootSettings,
     ClipOverdubStem,
+    ReceivedMeta,
 } from "../types";
 import { useStore } from "./useStore";
 import { createEmptyProjectLyrics, createEmptyWorkspaceIdeasListState, normalizeWorkspaces } from "./dataSlice";
@@ -3283,21 +3284,33 @@ export const appActions = {
         );
 
         const share = parsedArchive.manifest.share;
+        const receivedAt = Date.now();
+        const provenance = (title: string): ReceivedMeta => ({
+            senderName: opts?.receivedOverrides?.senderName ?? share?.sender?.name ?? null,
+            senderUserId: share?.sender?.userId ?? null,
+            transferId: opts?.receivedOverrides?.transferId ?? share?.transferId ?? null,
+            receivedAt,
+            shareKind: share?.kind ?? "library",
+            shareTitle: share?.title ?? title,
+        });
         const importedWorkspaces =
             opts?.origin === "received"
                 ? merge.importedWorkspaces.map((workspace) => ({
                       ...workspace,
                       origin: "received" as const,
-                      received: {
-                          senderName: opts?.receivedOverrides?.senderName ?? share?.sender?.name ?? null,
-                          senderUserId: share?.sender?.userId ?? null,
-                          transferId: opts?.receivedOverrides?.transferId ?? share?.transferId ?? null,
-                          receivedAt: Date.now(),
-                          shareKind: share?.kind ?? "library",
-                          shareTitle: share?.title ?? workspace.title,
-                      },
+                      received: provenance(workspace.title),
                   }))
                 : merge.importedWorkspaces;
+        // Compilations carry the same provenance so Compilations can tag them
+        // "from <sender>" and fold them away; a personal import stays untagged.
+        const importedSongbooks =
+            opts?.origin === "received"
+                ? merge.importedSongbooks.map((songbook) => ({ ...songbook, received: provenance(songbook.title) }))
+                : merge.importedSongbooks;
+        const importedSetlists =
+            opts?.origin === "received"
+                ? merge.importedSetlists.map((setlist) => ({ ...setlist, received: provenance(setlist.title) }))
+                : merge.importedSetlists;
 
         const nextWorkspaces = normalizeWorkspaces([...store.workspaces, ...importedWorkspaces]);
         const nextPrimaryCollectionIdByWorkspace = {
@@ -3323,8 +3336,8 @@ export const appActions = {
         useStore.setState({
             workspaces: nextWorkspaces,
             notes: nextNotes,
-            songbooks: [...merge.importedSongbooks, ...store.songbooks],
-            setlists: [...merge.importedSetlists, ...store.setlists],
+            songbooks: [...importedSongbooks, ...store.songbooks],
+            setlists: [...importedSetlists, ...store.setlists],
             primaryWorkspaceId: nextPrimaryWorkspaceId,
             primaryCollectionIdByWorkspace: nextPrimaryCollectionIdByWorkspace,
             bluetoothMonitoringCalibrations: nextBluetoothMonitoringCalibrations,

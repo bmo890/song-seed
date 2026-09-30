@@ -10,6 +10,7 @@ import {
   type ImportedAudioAsset,
 } from "../../../services/audioStorage";
 import { useImportStore } from "../../../state/useImportStore";
+import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
 import { enqueueBackgroundWaveformHydration } from "../../../services/backgroundWaveformHydration";
 import { createClipImportBatcher } from "../../../services/clipImportBatcher";
@@ -199,6 +200,70 @@ export function useCollectionImportFlow({
       return;
     }
     importAssetsAsIndividualClips(assets, "import");
+  };
+
+  // __DEV__ only: land the dev samples as if someone SENT them — a received
+  // package ("From Dana") plus a received setlist over its clips. Exercises the
+  // Received page, the drawer badge and the Compilations "from" tag without a
+  // transfer service. Mirrors TransferReceiveScreen's loose-files path.
+  const openDevSampleReceive = async () => {
+    if (!__DEV__) return;
+    const assets = await listDevSampleAudioAssets();
+    if (assets.length === 0) {
+      AppAlert.info(
+        "No dev samples",
+        "Push audio files to the app's Documents/dev-samples/ folder first."
+      );
+      return;
+    }
+    const receivedAt = Date.now();
+    const received = {
+      senderName: "Dana",
+      senderUserId: null,
+      transferId: `dev-${receivedAt}`,
+      receivedAt,
+      shareKind: "setlist" as const,
+      shareTitle: "Rooftop show — Oct 4",
+    };
+    const { workspaceId, collectionId: packageCollectionId } = useStore
+      .getState()
+      .addReceivedFilesPackage(received.shareTitle, received);
+    const batcher = createClipImportBatcher({ collectionId: packageCollectionId, workspaceId });
+    await importAudioAssets(
+      assets,
+      (_asset, index) => `audio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`,
+      undefined,
+      {
+        lightweight: true,
+        onImported: (asset) =>
+          batcher.add({
+            title: buildImportedTitle(asset.name),
+            audioUri: asset.audioUri,
+            durationMs: asset.durationMs,
+            waveformPeaks: asset.waveformPeaks,
+            importedAt: receivedAt,
+          }),
+      }
+    );
+    batcher.flush();
+    const store = useStore.getState();
+    const packageIdeas = store.workspaces.find((ws) => ws.id === workspaceId)?.ideas ?? [];
+    const setlistId = store.addSetlist(received.shareTitle);
+    for (const idea of packageIdeas) {
+      store.addSetlistEntry(setlistId, {
+        workspaceId,
+        ideaId: idea.id,
+        clipIds: idea.clips.map((clip) => clip.id),
+        lyricVersionIds: [],
+        includeChordSheet: false,
+        includeSongNotes: false,
+      });
+    }
+    useStore.setState((state) => ({
+      setlists: state.setlists.map((setlist) =>
+        setlist.id === setlistId ? { ...setlist, received } : setlist
+      ),
+    }));
   };
 
   // __DEV__ only: import the dev samples as ONE song project (multiple clips in a
@@ -408,6 +473,7 @@ export function useCollectionImportFlow({
     openImportAudioFlow,
     openDevSampleImport,
     openDevSampleImportAsSong,
+    openDevSampleReceive,
     saveImportedAudio,
   };
 }

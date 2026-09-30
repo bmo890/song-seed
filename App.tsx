@@ -99,6 +99,7 @@ import type {
   WorkspaceStackParamList,
 } from "./src/navigation";
 import { openIdeaInCollection } from "./src/navigation";
+import { receivedPackages, unopenedReceivedCount } from "./src/domain/workspaceVisibility";
 import { cleanupStaleShareTempFiles, purgeExpiredTrash } from "./src/services/managedMedia";
 import { readManifest } from "./src/services/manifestSync";
 import { appActions } from "./src/state/actions";
@@ -536,6 +537,8 @@ function SideNavHost({
   const workspaces = useStore((s) => s.workspaces);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const collectionLastOpenedAt = useStore((s) => s.collectionLastOpenedAt);
+  const receivedCount = useStore((s) => receivedPackages(s.workspaces).length);
+  const unopenedCount = useStore((s) => unopenedReceivedCount(s.workspaces));
   const selectedIdeaId = useStore((s) => s.selectedIdeaId);
   const playerTarget = useStore((s) => s.playerTarget);
   const deepestRoute = getDeepestRoute(getRootState());
@@ -570,6 +573,8 @@ function SideNavHost({
         ? "metronome"
       : deepestRouteName === "LibraryHome"
           ? "library"
+      : deepestRouteName === "ReceivedHome"
+          ? "received"
           : deepestRouteName === "SettingsHome"
             ? "settings"
             : deepestRouteName === "NotepadHome"
@@ -613,6 +618,9 @@ function SideNavHost({
       }
       onGoRevisit={() => leave("RevisitHome")}
       onGoShelf={() => leave("ShelfHome")}
+      receivedCount={receivedCount}
+      unopenedReceivedCount={unopenedCount}
+      onGoReceived={() => leave("ReceivedHome", { openToken: Date.now() })}
       onGoSearch={() => leave("SearchHome")}
       onGoActivity={() => leave("ActivityHome")}
       onGoTuner={() => leave("TunerHome")}

@@ -6,6 +6,7 @@ import {
   isReceivedWorkspace,
   personalWorkspaces,
   receivedPackages,
+  unopenedReceivedCount,
 } from "../workspaceVisibility";
 import { normalizeWorkspaces } from "../../state/dataSlice";
 import type { Workspace } from "../../types";
@@ -61,5 +62,28 @@ describe("workspace visibility choke point", () => {
     expect(normalized[2]!.received?.shareKind).toBe("collection");
     // Personal-by-default: absent origin means personal everywhere.
     expect(personalWorkspaces(normalized).map((w) => w.id)).toEqual(["bad", "orphan-meta"]);
+  });
+});
+
+describe("unopenedReceivedCount", () => {
+  const meta = {
+    senderName: "Dana",
+    senderUserId: null,
+    transferId: "t9",
+    receivedAt: 5,
+    shareKind: "clips" as const,
+    shareTitle: "Riffs",
+  };
+  it("counts received packages without an openedAt stamp", () => {
+    const list = [
+      ws("mine"),
+      ws("new", { origin: "received", received: meta }),
+      ws("seen", { origin: "received", received: { ...meta, openedAt: 9 } }),
+    ];
+    expect(unopenedReceivedCount(list)).toBe(1);
+  });
+
+  it("is zero with no packages", () => {
+    expect(unopenedReceivedCount([ws("mine")])).toBe(0);
   });
 });

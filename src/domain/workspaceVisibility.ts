@@ -28,3 +28,10 @@ export function receivedPackages(workspaces: Workspace[]): Workspace[] {
     .slice()
     .sort((a, b) => (b.received?.receivedAt ?? 0) - (a.received?.receivedAt ?? 0));
 }
+
+/** Received packages the recipient has not opened yet — the drawer's badge. */
+export function unopenedReceivedCount(workspaces: Workspace[]): number {
+  return workspaces.filter(
+    (workspace) => isReceivedWorkspace(workspace) && workspace.received?.openedAt == null
+  ).length;
+}

@@ -46,6 +46,13 @@ export function WorkspaceList({
               onOpenWorkspaceActions(workspace.id);
               return;
             }
+            if (workspace.origin === "received") {
+              // A package is something you look at, keep, or discard — never
+              // "where you work". It opens on the Received page, not as the
+              // active workspace (which would point the recorder at it).
+              navigation.navigate("ReceivedHome", { packageId: workspace.id, openToken: Date.now() });
+              return;
+            }
             setActiveWorkspaceId(workspace.id);
             navigation.navigate("WorkspaceStack", {
               screen: "Browse",

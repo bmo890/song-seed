@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../design/directionalIcons";
-import { useIsFocused, useNavigation } from "@react-navigation/native";
+import { useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import { ScreenHeader } from "../common/ScreenHeader";
 import { SelectionActionSheet } from "../common/SelectionActionSheet";
 import { InlineIdeaCard } from "../common/InlineIdeaCard";
@@ -11,7 +11,7 @@ import { AppAlert } from "../common/AppAlert";
 import { EmptyState } from "../common/EmptyState";
 import { useStore } from "../../state/useStore";
 import { useMiniPlayerContext } from "../../hooks/FullPlayerProvider";
-import { receivedPackages } from "../../domain/workspaceVisibility";
+import { receivedPackages, unopenedReceivedCount } from "../../domain/workspaceVisibility";
 import { getPlayableClipForIdea } from "../../domain/clipPresentation";
 import { useBrowseRootBackHandler } from "../../hooks/useBrowseRootBackHandler";
 import { toast } from "../common/toastStore";
@@ -64,17 +64,20 @@ export function ReceivedScreen() {
   const { t } = useTranslation();
   const { formatLocale } = useLocale();
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const isFocused = useIsFocused();
   useBrowseRootBackHandler();
 
   const workspaces = useStore((s) => s.workspaces);
   const adoptReceivedWorkspace = useStore((s) => s.adoptReceivedWorkspace);
+  const markReceivedPackageOpened = useStore((s) => s.markReceivedPackageOpened);
   const deleteWorkspace = useStore((s) => s.deleteWorkspace);
   const inlinePlayer = useMiniPlayerContext();
   const inlineTarget = useStore((s) => s.inlineTarget);
   const isInlinePlaying = useStore((s) => s.inlineIsPlaying);
 
   const packages = useMemo(() => receivedPackages(workspaces), [workspaces]);
+  const unopenedCount = useMemo(() => unopenedReceivedCount(workspaces), [workspaces]);
 
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -84,6 +87,19 @@ export function ReceivedScreen() {
   useEffect(() => {
     if (selectedPackageId && !selectedPackage) setSelectedPackageId(null);
   }, [selectedPackage, selectedPackageId]);
+
+  // The workspace switcher's "From others" cards land straight on their
+  // package; the drawer row (no packageId) lands on the list.
+  const routePackageId = route.params?.packageId as string | undefined;
+  const routeOpenToken = route.params?.openToken as number | undefined;
+  useEffect(() => {
+    setSelectedPackageId(routePackageId ?? null);
+  }, [routePackageId, routeOpenToken]);
+
+  // Opening a package is what clears it from the drawer's "new" count.
+  useEffect(() => {
+    if (selectedPackageId) markReceivedPackageOpened(selectedPackageId);
+  }, [markReceivedPackageOpened, selectedPackageId]);
 
   const resetInlineRef = useRef(inlinePlayer.resetInlinePlayer);
   useEffect(() => {
@@ -234,9 +250,16 @@ export function ReceivedScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={receivedStyles.scrollContent}
       >
+        {packages.length > 0 ? (
+          <Text style={receivedStyles.countLine}>
+            {t("received.packages", { count: packages.length })}
+            {unopenedCount > 0 ? ` · ${t("received.newCount", { count: unopenedCount })}` : ""}
+          </Text>
+        ) : null}
         <View style={receivedStyles.list}>
           {packages.map((pkg) => {
             const kind = pkg.received?.shareKind ?? "library";
+            const unopened = pkg.received?.openedAt == null;
             return (
               <Pressable
                 key={pkg.id}
@@ -259,6 +282,12 @@ export function ReceivedScreen() {
                     {t(`received.${kind}`)} · {formatReceivedLine(pkg, t, formatLocale)}
                   </Text>
                 </View>
+                {unopened ? (
+                  <View
+                    style={receivedStyles.unopenedDot}
+                    accessibilityLabel={t("received.unopened")}
+                  />
+                ) : null}
                 <Ionicons name={dirIcon("chevron-forward")} size={14} color={colors.textMuted} />
               </Pressable>
             );
@@ -273,6 +302,20 @@ export function ReceivedScreen() {
             testID="received-empty"
           />
         ) : null}
+        {/* The outbox lives in Settings; a quiet ink link so inbox and outbox
+            point at each other. */}
+        <Pressable
+          style={({ pressed }) => [receivedStyles.sentLink, pressed ? { opacity: 0.6 } : null]}
+          onPress={() =>
+            navigation.navigate("SettingsHome", { initialView: "sharing", openToken: Date.now() })
+          }
+          hitSlop={8}
+          accessibilityRole="link"
+          accessibilityLabel={t("received.linksYouSent")}
+        >
+          <Ionicons name="link-outline" size={14} color={colors.primaryDeep} />
+          <Text style={receivedStyles.sentLinkText}>{t("received.linksYouSent")}</Text>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -297,6 +340,32 @@ const receivedStyles = StyleSheet.create({
   },
   list: {
     gap: 8,
+  },
+  countLine: {
+    ...textTokens.supporting,
+    color: colors.textSecondary,
+    paddingTop: 2,
+    paddingBottom: 12,
+    fontVariant: ["tabular-nums"],
+  },
+  unopenedDot: {
+    width: 7,
+    height: 7,
+    borderRadius: radii.round,
+    backgroundColor: colors.primary,
+  },
+  sentLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    paddingVertical: 10,
+    marginTop: 12,
+  },
+  sentLinkText: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 13,
+    color: colors.primaryDeep,
   },
   packageRow: {
     flexDirection: "row",

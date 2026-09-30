@@ -238,6 +238,8 @@ export type DataSlice = {
     deleteWorkspace: (id: string) => void;
     /** Flip a received package into a personal workspace ("Move to my workspaces"). */
     adoptReceivedWorkspace: (id: string) => void;
+    /** Stamp a received package as opened (clears it from the drawer's "new" count). */
+    markReceivedPackageOpened: (id: string) => void;
     /** Create an empty received package (one "Files" collection) for a loose-files
      *  parcel; the caller imports the downloaded audio into it. */
     addReceivedFilesPackage: (
@@ -1249,7 +1251,14 @@ export function normalizeSongbooks(songbooks: Songbook[] | undefined) {
             ...songbook,
             title: songbook.title.trim() || "Untitled Songbook",
             items: normalizeSongbookItems(songbook.items),
+            received: normalizeCompilationProvenance(songbook.received),
         }));
+}
+
+/** Provenance survives only as a well-formed object; anything else means "mine". */
+function normalizeCompilationProvenance(received: ReceivedMeta | undefined): ReceivedMeta | undefined {
+    if (!received || typeof received !== "object" || !Number.isFinite(received.receivedAt)) return undefined;
+    return received;
 }
 
 function normalizeSetlistEntries(entries: SetlistEntry[] | undefined) {
@@ -1294,6 +1303,7 @@ export function normalizeSetlists(setlists: Setlist[] | undefined) {
             ...setlist,
             title: setlist.title.trim() || "Untitled Setlist",
             entries: normalizeSetlistEntries(setlist.entries),
+            received: normalizeCompilationProvenance(setlist.received),
         }));
 }
 
@@ -2520,6 +2530,23 @@ export const createDataSlice: StateCreator<
                     : ws
             ),
         }));
+    },
+
+    markReceivedPackageOpened: (id) => {
+        set((state) => {
+            const target = state.workspaces.find((ws) => ws.id === id);
+            // Idempotent: only the first open writes, so re-opening never persists.
+            if (!target || target.origin !== "received" || !target.received || target.received.openedAt != null) {
+                return state;
+            }
+            return {
+                workspaces: state.workspaces.map((ws) =>
+                    ws.id === id && ws.received
+                        ? { ...ws, received: { ...ws.received, openedAt: Date.now() } }
+                        : ws
+                ),
+            };
+        });
     },
 
     deleteWorkspace: (id) => {

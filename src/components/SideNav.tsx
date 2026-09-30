@@ -31,6 +31,7 @@ const NAV_ICONS = {
   tuner: "speedometer-outline",
   metronome: "pulse-outline",
   settings: "settings-outline",
+  received: "mail-open-outline",
 } satisfies Record<string, IoniconName>;
 
 type RecentCollectionLite = {
@@ -52,6 +53,7 @@ type Props = {
     | "tuner"
     | "metronome"
     | "library"
+    | "received"
     | "settings"
     | "notepad"
     | "sparks"
@@ -66,6 +68,10 @@ type Props = {
   onGoSearch: () => void;
   onGoRevisit: () => void;
   onGoShelf: () => void;
+  /** Received packages exist → the row shows; badge = packages not opened yet. */
+  receivedCount: number;
+  unopenedReceivedCount: number;
+  onGoReceived: () => void;
   onGoActivity: () => void;
   onGoTuner: () => void;
   onGoMetronome: () => void;
@@ -88,6 +94,9 @@ export function SideNav({
   onGoSearch,
   onGoRevisit,
   onGoShelf,
+  receivedCount,
+  unopenedReceivedCount,
+  onGoReceived,
   onGoActivity,
   onGoTuner,
   onGoMetronome,
@@ -300,6 +309,27 @@ export function SideNav({
           active={currentRoute === "activity"}
           onPress={onGoActivity}
         />
+        {/* Received — other people's work, kept apart from yours. Like Recent,
+            the row exists only once something has arrived, so a quiet library
+            never carries an empty destination. The badge counts packages not
+            yet opened, the Shelf's idiom. */}
+        {receivedCount > 0 ? (
+          <NavRow
+            testID="nav-received"
+            icon={NAV_ICONS.received}
+            iconColor={NAV_ICON_COLOR}
+            label={t("navigation.received")}
+            active={currentRoute === "received"}
+            onPress={onGoReceived}
+            accessory={
+              unopenedReceivedCount > 0 ? (
+                <View style={sideNavStyles.countBadge}>
+                  <Text style={sideNavStyles.countBadgeText}>{unopenedReceivedCount}</Text>
+                </View>
+              ) : undefined
+            }
+          />
+        ) : null}
 
         {/* Tools — grab-and-go utilities. Lyric Spark (Word Ladder / Cut-Up /
             Borrowed Words) has its own page now, apart from the Lyric Pad. */}

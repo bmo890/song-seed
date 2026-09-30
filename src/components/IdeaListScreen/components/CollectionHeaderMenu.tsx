@@ -127,6 +127,19 @@ export function CollectionHeaderMenu() {
               <Text style={styles.ideasSortMenuItemText} numberOfLines={1}>{t("collection.importSongDev")}</Text>
               <Ionicons name="flask-outline" size={15} color={colors.textSecondary} />
             </Pressable>
+            <View style={styles.ideasDropdownDivider} />
+            <Pressable
+              testID="collection-menu-dev-receive"
+              style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
+              onPress={() => {
+                haptic.tap();
+                screen.setHeaderMenuOpen(false);
+                void importFlow.openDevSampleReceive();
+              }}
+            >
+              <Text style={styles.ideasSortMenuItemText} numberOfLines={1}>{t("collection.receiveSamplesDev")}</Text>
+              <Ionicons name="flask-outline" size={15} color={colors.textSecondary} />
+            </Pressable>
           </>
         ) : null}
         <View style={styles.ideasDropdownDivider} />

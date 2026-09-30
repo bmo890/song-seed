@@ -323,6 +323,8 @@ export const baseStyles = {
   cardTitleRow: { flex: 1, flexDirection: "row", alignItems: "center", gap: 6 },
   cardTitle: { flex: 1, fontSize: 16, fontFamily: "PlusJakartaSans_600SemiBold", color: colors.textPrimary },
   cardMeta: { fontSize: 12, color: colors.textSecondary, fontFamily: "PlusJakartaSans_400Regular" },
+  /** Meta line that may lead with a chip (a compilation's "from <sender>"). */
+  cardMetaRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   cardMetaWarning: { color: "#b45309" },
   badge: {
     fontSize: 10,

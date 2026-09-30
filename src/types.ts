@@ -652,6 +652,9 @@ export type ReceivedMeta = {
   receivedAt: number;
   shareKind: ShareKind;
   shareTitle: string;
+  /** When the recipient first opened the package. Absent = still "new" (the
+   *  drawer's Received badge counts these). */
+  openedAt?: number;
 };
 
 export type Workspace = {
@@ -718,6 +721,9 @@ export type Songbook = {
   createdAt: number;
   updatedAt: number;
   items: SongbookItem[];
+  /** Present when this songbook arrived from someone else (Songnook Send or a
+   *  shared file): Compilations tags it "from <sender>" and can hide it. */
+  received?: ReceivedMeta;
 };
 
 /** One song in a setlist, trimmed to just what the band needs: the chosen clips
@@ -745,6 +751,8 @@ export type Setlist = {
   createdAt: number;
   updatedAt: number;
   entries: SetlistEntry[];
+  /** Present when this setlist arrived from someone else — see Songbook. */
+  received?: ReceivedMeta;
 };
 
 export type InlinePlayerSnapshot = {

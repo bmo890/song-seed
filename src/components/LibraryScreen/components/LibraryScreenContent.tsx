@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRoute } from "@react-navigation/native";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { SegmentedControl, useSegmentedThumb } from "../../common/SegmentedControl";
@@ -26,8 +26,48 @@ import { SetlistListView } from "../views/SetlistListView";
 import { SetlistDetailView } from "../views/SetlistDetailView";
 import { SetlistEntryBuilderView } from "../views/SetlistEntryBuilderView";
 import { useTranslation } from "react-i18next";
+import { useStore } from "../../../state/useStore";
+import { useReceivedPrefsStore } from "../../../state/useReceivedPrefsStore";
+import { hasFromOthers, visibleCompilations } from "../../../domain/compilationsProvenance";
+import { haptic } from "../../../design/haptics";
 
 type Section = "playlists" | "songbook" | "setlists";
+
+/**
+ * "From others" — one editorial-ink toggle that folds compilations received
+ * from other people in or out of the Songbook and Setlists lists. Shown only
+ * once such a compilation exists, so a library that has never received
+ * anything carries no control for it. The Received page ignores it.
+ */
+function FromOthersToggle() {
+  const { t } = useTranslation();
+  const includeFromOthers = useReceivedPrefsStore((s) => s.includeFromOthers);
+  const setIncludeFromOthers = useReceivedPrefsStore((s) => s.setIncludeFromOthers);
+  return (
+    <Pressable
+      testID="library-from-others-toggle"
+      style={({ pressed }) => [styles.ideasStageInk, local.fromOthers, pressed ? styles.pressDown : null]}
+      onPress={() => {
+        haptic.tap(); // vocabulary row: tap — a light control flip
+        setIncludeFromOthers(!includeFromOthers);
+      }}
+      hitSlop={{ top: 6, bottom: 6 }}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: includeFromOthers }}
+      accessibilityLabel={t("library.fromOthersA11y")}
+    >
+      <View
+        style={[
+          styles.ideasStageInkDot,
+          includeFromOthers ? { backgroundColor: colors.primary, borderColor: colors.primary } : null,
+        ]}
+      />
+      <Text style={[styles.ideasStageInkText, includeFromOthers ? styles.ideasStageInkTextActive : null]}>
+        {t("library.fromOthers")}
+      </Text>
+    </Pressable>
+  );
+}
 
 /**
  * Each tab is its own component so ONLY the active tab's model hook runs. Previously all
@@ -62,6 +102,9 @@ export function LibraryScreenContent() {
     else if (openCollectionKind === "playlist") setSection("playlists");
   }, [openCollectionKind, route.params?.openToken]);
 
+  // The toggle exists only while a received songbook or setlist exists, and
+  // only on the two tabs it governs (playlists are never received).
+  const anyFromOthers = useStore((s) => hasFromOthers(s.songbooks) || hasFromOthers(s.setlists));
   const tabs = (
     <View style={local.tabsWrap}>
       <SegmentedControl options={[
@@ -69,7 +112,10 @@ export function LibraryScreenContent() {
         { key: "songbook", label: t("library.songbook") },
         { key: "setlists", label: t("library.setlists") },
       ]} value={section} onChange={setSection} persist={segThumb} />
-      <Text style={local.desc}>{t(`library.${section}Hint`)}</Text>
+      <View style={local.descRow}>
+        <Text style={[local.desc, local.descGrow]}>{t(`library.${section}Hint`)}</Text>
+        {anyFromOthers && section !== "playlists" ? <FromOthersToggle /> : null}
+      </View>
     </View>
   );
 
@@ -171,6 +217,7 @@ function PlaylistsSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scro
 function SongbookSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scroll: ScrollOffset; headerRight?: ReactNode }) {
   const { t } = useTranslation();
   const songbook = useSongbookModel();
+  const includeFromOthers = useReceivedPrefsStore((s) => s.includeFromOthers);
 
   const headerTitle = songbook.activeSongbook?.title ?? t("library.title");
 
@@ -204,7 +251,7 @@ function SongbookSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scrol
         />
       ) : (
         <SongbookListView
-          songbooks={songbook.sortedSongbooks}
+          songbooks={visibleCompilations(songbook.sortedSongbooks, includeFromOthers)}
           onCreate={songbook.openCreate}
           onOpen={songbook.openSongbook}
           scroll={scroll}
@@ -246,6 +293,7 @@ function SongbookSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scrol
 function SetlistsSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scroll: ScrollOffset; headerRight?: ReactNode }) {
   const { t } = useTranslation();
   const setlist = useSetlistModel();
+  const includeFromOthers = useReceivedPrefsStore((s) => s.includeFromOthers);
 
   const headerTitle = setlist.builder
     ? setlist.builder.editingEntryId
@@ -304,7 +352,7 @@ function SetlistsSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scrol
         />
       ) : (
         <SetlistListView
-          setlists={setlist.sortedSetlists}
+          setlists={visibleCompilations(setlist.sortedSetlists, includeFromOthers)}
           onCreate={setlist.openCreate}
           onOpen={setlist.openSetlist}
           scroll={scroll}
@@ -353,5 +401,18 @@ const local = StyleSheet.create({
     lineHeight: 18,
     color: colors.textSecondary,
     marginBottom: spacing.md,
+  },
+  descRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.md,
+  },
+  descGrow: {
+    flex: 1,
+    minWidth: 0,
+  },
+  fromOthers: {
+    paddingVertical: 0,
+    paddingTop: 1,
   },
 });

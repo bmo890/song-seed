@@ -725,6 +725,8 @@ export async function materializeSongNookArchiveMerge(
             title: songbook.title,
             createdAt: songbook.createdAt,
             updatedAt: songbook.updatedAt,
+            // Provenance rides along so a backup restore keeps "from <sender>".
+            received: songbook.received,
             items: (songbook.items ?? [])
                 .map((item) => {
                     const workspaceId = workspaceIdMap.get(item.workspaceId);
@@ -746,6 +748,7 @@ export async function materializeSongNookArchiveMerge(
             title: setlist.title,
             createdAt: setlist.createdAt,
             updatedAt: setlist.updatedAt,
+            received: setlist.received,
             entries: (setlist.entries ?? [])
                 .map((entry) => {
                     const workspaceId = workspaceIdMap.get(entry.workspaceId);

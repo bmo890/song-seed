@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
 import { Button } from "../../common/Button";
 import { EmptyState } from "../../common/EmptyState";
+import { ProvenanceChip } from "../../common/ProvenanceChip";
 import { styles } from "../styles";
 import { usePersistedScrollView, type ScrollOffset } from "../../../hooks/usePersistedScrollView";
 import type { Songbook } from "../../../types";
@@ -50,9 +51,12 @@ export function SongbookListView({
               </View>
               <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
             </View>
-            <Text style={styles.cardMeta}>
-              {t("library.charts", { count: songbook.items.length })}
-            </Text>
+            <View style={styles.cardMetaRow}>
+              {songbook.received ? <ProvenanceChip received={songbook.received} /> : null}
+              <Text style={styles.cardMeta}>
+                {t("library.charts", { count: songbook.items.length })}
+              </Text>
+            </View>
           </Pressable>
         ))}
 
