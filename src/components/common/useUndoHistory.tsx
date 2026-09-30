@@ -38,7 +38,12 @@ export function useUndoHistory<T>(current: T, restore: (value: T) => void) {
     restore(next);
   }, [hist, restore, current]);
 
-  const clear = useCallback(() => setHist({ undo: [], redo: [] }), []);
+  // Returns the same state when already empty: a clip switch clears history,
+  // and a fresh object there was one more render for nothing.
+  const clear = useCallback(
+    () => setHist((h) => (h.undo.length === 0 && h.redo.length === 0 ? h : { undo: [], redo: [] })),
+    []
+  );
 
   return { record, undo, redo, clear, canUndo: hist.undo.length > 0, canRedo: hist.redo.length > 0 };
 }

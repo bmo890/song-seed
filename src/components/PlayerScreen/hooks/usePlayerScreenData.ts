@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import {
   clipHasOverdubs,
   getClipOverdubStemCount,
@@ -16,7 +16,7 @@ import { getLatestLyricsVersion, lyricsDocumentToText, resolveClipLyricsVersion 
 import { normalizeSections } from "../../../domain/playerSections";
 import { useStore } from "../../../state/useStore";
 import { findClipInIdea, findIdeaInLibrary } from "../../../state/librarySelectors";
-import type { SongIdea } from "../../../types";
+import type { PracticeMarker, SongIdea } from "../../../types";
 import { extractLyricsMarkers } from "../helpers";
 import { useTranslation } from "react-i18next";
 
@@ -30,6 +30,9 @@ type UsePlayerScreenDataArgs = {
   /** Active playback of this clip — holds off the sidecar decode so it can't stall the track. */
   isPlaying?: boolean;
 };
+
+const DURATION_TOLERANCE_MS = 50;
+const EMPTY_MARKERS: PracticeMarker[] = [];
 
 export function usePlayerScreenData({
   playerDuration,
@@ -81,8 +84,16 @@ export function usePlayerScreenData({
   // The engine is one shared player: while it still holds the previous clip's file,
   // its duration is the previous clip's. Derived here, never assigned from an effect.
   const engineHoldsThisClip = !!playbackAudioUri && currentPlaybackSourceUri === playbackAudioUri;
+  // The engine's duration, once it holds this clip, usually differs from the
+  // stored one by a few ms. Treating that as a change rebuilt the reel (wave
+  // path, grid, pin and section paragraphs) a second time on every clip switch
+  // and reset the practice loop; within a small tolerance the stored value stands.
+  const storedDuration = playerClip ? getClipPlaybackDurationMs(playerClip) ?? 0 : 0;
+  const engineDuration = engineHoldsThisClip ? playerDuration : 0;
   const displayDuration =
-    (engineHoldsThisClip ? playerDuration : 0) || (playerClip ? getClipPlaybackDurationMs(playerClip) : 0) || 0;
+    (engineDuration && storedDuration && Math.abs(engineDuration - storedDuration) <= DURATION_TOLERANCE_MS
+      ? storedDuration
+      : engineDuration) || storedDuration || 0;
   const thumbnailWaveformPeaks = useMemo(
     () => (playerClip ? getClipReelWaveformPeaks(playerClip) : []),
     [playerClip]
@@ -108,11 +119,22 @@ export function usePlayerScreenData({
   // also clears pending the moment the reel has a true shape to draw.
   const waveformPending = playerClip ? isClipWaveformPending(playerClip) && !clipWaveform.isDetail : false;
   const waveformResolving = clipWaveform.isResolvingDetail;
+  // Lyric-heading markers keep their identity while value-equal: every lyrics
+  // autosave (700 ms while writing against the tape) re-extracted them and the
+  // fresh array reached the memoized reel.
+  const lastExtractedMarkersRef = useRef<PracticeMarker[]>(EMPTY_MARKERS);
   const practiceMarkers = useMemo(() => {
     if (playerClip?.practiceMarkers && playerClip.practiceMarkers.length > 0) {
       return playerClip.practiceMarkers;
     }
-    return extractLyricsMarkers(latestLyricsText, displayDuration);
+    const next = extractLyricsMarkers(latestLyricsText, displayDuration);
+    const prev = lastExtractedMarkersRef.current;
+    const same =
+      next.length === prev.length &&
+      next.every((m, i) => m.id === prev[i]!.id && m.label === prev[i]!.label && m.atMs === prev[i]!.atMs);
+    if (same) return prev;
+    lastExtractedMarkersRef.current = next.length === 0 ? EMPTY_MARKERS : next;
+    return lastExtractedMarkersRef.current;
   }, [displayDuration, latestLyricsText, playerClip?.practiceMarkers]);
   const sections = useMemo(
     () => normalizeSections(playerClip?.sections ?? [], displayDuration),

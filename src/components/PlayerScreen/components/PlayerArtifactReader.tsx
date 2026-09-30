@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+const NO_SELECTION: string[] = [];
 import {
   LayoutChangeEvent,
   Pressable,
@@ -105,9 +107,11 @@ export function PlayerArtifactReader({
     }
   }, [followEnabled]);
 
-  // One rAF loop for the component's life. It only moves the scroll while
-  // tracking; a manual takeover or a closed follow leaves it untouched.
+  // The rAF loop runs only while follow can move the scroll (follow on and not
+  // taken over by a drag). It used to run for the component's whole life,
+  // waking the JS thread every frame with follow off.
   useEffect(() => {
+    if (!followEnabled || !tracking) return;
     let raf = 0;
     const tick = () => {
       raf = requestAnimationFrame(tick);
@@ -127,7 +131,7 @@ export function PlayerArtifactReader({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [followEnabled, tracking]);
 
   const handleViewportLayout = (e: LayoutChangeEvent) =>
     setViewportHeight(e.nativeEvent.layout.height);
@@ -140,7 +144,9 @@ export function PlayerArtifactReader({
     setTracking(true);
   }, []);
 
-  const body =
+  // The body is the whole chart or lyric: memoized so the once-a-second position
+  // prop (a ref read for the loop) no longer rebuilds every section and line.
+  const body = useMemo(() => (
     artifact === "chart" ? (
       chordSheet && chordSheet.sections.length > 0 ? (
         chordSheet.sections.map((section) =>
@@ -154,7 +160,7 @@ export function PlayerArtifactReader({
               section={section}
               editable={false}
               selectionActive={false}
-              selectedMeasureIds={[]}
+              selectedMeasureIds={NO_SELECTION}
               onTapMeasure={noop}
               onLongPressMeasure={noop}
               onAddMeasure={noop}
@@ -179,7 +185,8 @@ export function PlayerArtifactReader({
           <View key={i} style={styles.blankLine} />
         )
       )
-    );
+    )
+  ), [artifact, chordSheet, showLyricChart, chordLines, zoom, lines]);
 
   return (
     <View style={styles.root}>

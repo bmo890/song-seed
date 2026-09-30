@@ -35,7 +35,12 @@ export function findIdeaInLibrary(
 // the workspaces array itself, so a new library (any write) builds a new index once
 // and an unchanged library never rebuilds it. This is what lets each list row read
 // its own idea from the store in O(1) instead of the list handing every row its idea.
-type IdeaIndex = { all: Map<string, SongIdea>; byWorkspace: Map<string, Map<string, SongIdea>> };
+type IdeaIndex = {
+  all: Map<string, SongIdea>;
+  byWorkspace: Map<string, Map<string, SongIdea>>;
+  /** The workspace an idea lives in (first match wins, like `all`). */
+  workspaceIdByIdeaId: Map<string, string>;
+};
 const ideaIndexByWorkspaces = new WeakMap<Workspace[], IdeaIndex>();
 
 export function getIdeaIndex(workspaces: Workspace[]): IdeaIndex {
@@ -43,15 +48,19 @@ export function getIdeaIndex(workspaces: Workspace[]): IdeaIndex {
   if (!index) {
     const all = new Map<string, SongIdea>();
     const byWorkspace = new Map<string, Map<string, SongIdea>>();
+    const workspaceIdByIdeaId = new Map<string, string>();
     for (const workspace of workspaces) {
       const own = new Map<string, SongIdea>();
       for (const idea of workspace.ideas) {
         own.set(idea.id, idea);
-        if (!all.has(idea.id)) all.set(idea.id, idea);
+        if (!all.has(idea.id)) {
+          all.set(idea.id, idea);
+          workspaceIdByIdeaId.set(idea.id, workspace.id);
+        }
       }
       byWorkspace.set(workspace.id, own);
     }
-    index = { all, byWorkspace };
+    index = { all, byWorkspace, workspaceIdByIdeaId };
     ideaIndexByWorkspaces.set(workspaces, index);
   }
   return index;
@@ -75,7 +84,12 @@ export function selectIdeaById(
 
 export function findWorkspaceOfIdea(workspaces: Workspace[], ideaId: string | null | undefined): Workspace | null {
   if (!ideaId) return null;
-  return workspaces.find((workspace) => workspace.ideas.some((idea) => idea.id === ideaId)) ?? null;
+  // O(1) through the per-library index: this runs inside store selectors on
+  // every write (the dock's labels, the queue listing), where a linear scan of
+  // every idea's clips per call added up (2026-09-30).
+  const workspaceId = getIdeaIndex(workspaces).workspaceIdByIdeaId.get(ideaId);
+  if (workspaceId == null) return null;
+  return workspaces.find((workspace) => workspace.id === workspaceId) ?? null;
 }
 
 export function findClipInIdea(idea: SongIdea | null, clipId: string | null | undefined): ClipVersion | null {
@@ -86,19 +100,33 @@ export function findClipInIdea(idea: SongIdea | null, clipId: string | null | un
 /** A primitive fingerprint of what a queue listing shows — titles, lengths and the
  *  workspace each item lives in ("view in collection" needs it) — so a component
  *  re-renders only when one of them changes, not on every library write. */
+// Memoized on (library, queue) identity: a playback tick changes neither, so the
+// selector that reads this stops rebuilding a queue-sized string every second.
+const queueKeyByLibrary = new WeakMap<Workspace[], WeakMap<object, string>>();
+
 export function queueListingKey(
   workspaces: Workspace[],
   queue: ReadonlyArray<{ ideaId: string; clipId: string }>
 ): string {
   if (queue.length === 0) return "";
+  let byQueue = queueKeyByLibrary.get(workspaces);
+  if (!byQueue) {
+    byQueue = new WeakMap();
+    queueKeyByLibrary.set(workspaces, byQueue);
+  }
+  const cached = byQueue.get(queue);
+  if (cached != null) return cached;
+  const index = getIdeaIndex(workspaces);
   const parts: string[] = [];
   for (const item of queue) {
-    const idea = findIdeaInLibrary(workspaces, item.ideaId);
+    const idea = index.all.get(item.ideaId) ?? null;
     const clip = findClipInIdea(idea, item.clipId);
-    const workspaceId = findWorkspaceOfIdea(workspaces, item.ideaId)?.id ?? "";
+    const workspaceId = index.workspaceIdByIdeaId.get(item.ideaId) ?? "";
     // The playable length (a rendered overdub mix outranks the raw take) is what the row shows.
     const lengthMs = clip ? getClipPlaybackDurationMs(clip) ?? clip.durationMs ?? "" : "";
     parts.push(`${item.ideaId}:${item.clipId}:${workspaceId}:${idea?.title ?? ""}:${clip?.title ?? ""}:${lengthMs}`);
   }
-  return parts.join("\n");
+  const key = parts.join("\n");
+  byQueue.set(queue, key);
+  return key;
 }

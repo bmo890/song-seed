@@ -737,10 +737,18 @@ function PlayerScreenInner({
     await practicePitchTransport.seekTo(0);
     await practicePitchTransport.play();
   }, [practicePitchTransport]);
+  // One object per id/title change: a fresh literal per render re-ran the
+  // lifecycle's open/sync effects and recreated its handlers every second.
+  const lifecycleIdeaId = playerIdea?.id;
+  const lifecycleIdeaTitle = playerIdea?.title;
+  const lifecycleIdea = useMemo(
+    () => (lifecycleIdeaId ? { id: lifecycleIdeaId, title: lifecycleIdeaTitle ?? "" } : null),
+    [lifecycleIdeaId, lifecycleIdeaTitle]
+  );
   const lifecycle = usePlayerScreenLifecycle({
     navigation,
     isFocused,
-    playerIdea: playerIdea ? { id: playerIdea.id, title: playerIdea.title } : null,
+    playerIdea: lifecycleIdea,
     playerClip,
     playbackAudioUri: data.playbackAudioUri,
     currentPlaybackSourceUri,
@@ -967,8 +975,10 @@ function PlayerScreenInner({
           }
         );
       });
-  const dismissGesture = useRef(buildDismissGesture()).current;
-  const footerDismissGesture = useRef(buildDismissGesture()).current;
+  // Built once: `useRef(build())` evaluated the builder (three Pan gestures, four
+  // worklets each) on every render and threw the result away.
+  const [dismissGesture] = useState(() => buildDismissGesture());
+  const [footerDismissGesture] = useState(() => buildDismissGesture());
   // The whole body wrapper in plain player mode. Inside the body ScrollView, so
   // when the content is taller than the viewport the native scroll takes the
   // touch and this pan is cancelled — it only dismisses when there is nothing to
@@ -1111,6 +1121,11 @@ function PlayerScreenInner({
   // Every layer-mix control shares one shape: guard on a loaded clip, fire the action
   // with (ideaId, clipId, ...args), and surface failures as a "Layer update failed"
   // alert — preferring the action's own error message over the control-specific fallback.
+  // Keyed on the ids, not the objects: every write to the idea (a lyrics autosave
+  // while writing against the tape) gave these new identities, which reached the
+  // memoized reel through the lane-drag handler and re-rendered it.
+  const layerIdeaId = playerIdea?.id;
+  const layerClipId = playerClip?.id;
   const layerHandlers = useMemo(() => {
     const wrap =
       <A extends unknown[]>(
@@ -1118,8 +1133,8 @@ function PlayerScreenInner({
         fallbackMessage: string
       ) =>
       (...args: A) => {
-        if (!playerIdea || !playerClip) return;
-        void action(playerIdea.id, playerClip.id, ...args).catch((error) => {
+        if (!layerIdeaId || !layerClipId) return;
+        void action(layerIdeaId, layerClipId, ...args).catch((error) => {
           const message = error instanceof Error ? error.message : fallbackMessage;
           AppAlert.info(t("player.layerUpdateFailed"), message);
         });
@@ -1135,7 +1150,7 @@ function PlayerScreenInner({
       toggleStemToneFlag: wrap(appActions.toggleClipOverdubStemToneFlag, t("player.layerToneFailed")),
       removeStem: wrap(appActions.removeClipOverdubStem, t("player.removeLayerFailed")),
     };
-  }, [playerClip, playerIdea, t]);
+  }, [layerClipId, layerIdeaId, t]);
   const {
     renameStem: handleRenameStem,
     changeStemColor: handleChangeStemColor,

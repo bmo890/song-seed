@@ -210,7 +210,12 @@ export function usePracticeLoopController({
   }, [clearWrapTimer, setLoopState, suppressLoopBriefly]);
 
   useEffect(() => {
-    setPracticeLoopRange(buildDefaultLoopRegion(durationMs));
+    const next = buildDefaultLoopRegion(durationMs);
+    // Same range → same object: the engine's duration settling a few ms away
+    // from the stored one used to reset the loop (and everything keyed on it).
+    setPracticeLoopRange((current) =>
+      current.start === next.start && current.end === next.end ? current : next
+    );
   }, [clipId, durationMs]);
 
   useEffect(() => {
