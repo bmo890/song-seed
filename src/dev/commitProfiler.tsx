@@ -44,6 +44,16 @@ function onRender(
     if (!reportTimer) reportTimer = setTimeout(flush, REPORT_MS);
 }
 
+// Effect phases: layout effects (onCommit) and passive effects (onPostCommit) of
+// the whole subtree per commit. Render time alone under-reports a mount whose
+// hooks do their work in effects (native handles, subscriptions, engine loads).
+function onCommit(_id: string, phase: "mount" | "update" | "nested-update", effectDuration: number) {
+    if (effectDuration >= 8) console.log(`[Effects] ${routeOf()}: layout ${effectDuration.toFixed(0)} ms (${phase})`);
+}
+function onPostCommit(_id: string, phase: "mount" | "update" | "nested-update", passiveEffectDuration: number) {
+    if (passiveEffectDuration >= 8) console.log(`[Effects] ${routeOf()}: passive ${passiveEffectDuration.toFixed(0)} ms (${phase})`);
+}
+
 export function CommitProfiler({
     children,
     currentRoute,
@@ -53,7 +63,12 @@ export function CommitProfiler({
 }) {
     routeOf = currentRoute;
     return (
-        <Profiler id="root" onRender={onRender}>
+        <Profiler
+            id="root"
+            onRender={onRender}
+            // Effect-phase hooks exist in React's dev/profiling builds; the typings omit them.
+            {...({ onCommit, onPostCommit } as Record<string, unknown>)}
+        >
             {children}
         </Profiler>
     );
