@@ -1,7 +1,7 @@
 import { ViewInCollectionButton } from "./common/ViewInCollectionButton";
 import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { findClipInIdea, findIdeaInLibrary, findWorkspaceOfIdea, queueListingKey } from "../state/librarySelectors";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import type { FlatList } from "react-native-gesture-handler";
 import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import { Ionicons } from "@expo/vector-icons";
@@ -38,6 +38,9 @@ type QueueRow = {
  *  panel re-render never re-runs every mounted row. */
 type QueueRowActions = {
   editMode: boolean;
+  /** The dock panel sits on paper (surfaceContainer); the sheet on a white
+   *  card. The playing row lifts one tone off whichever it is on. */
+  framed: boolean;
   jumpTo: (index: number) => void;
   removeAt: (index: number) => void;
   goToSong: (row: QueueRow) => void;
@@ -45,6 +48,7 @@ type QueueRowActions = {
 
 const QueueRowContext = createContext<QueueRowActions>({
   editMode: false,
+  framed: true,
   jumpTo: () => {},
   removeAt: () => {},
   goToSong: () => {},
@@ -65,7 +69,7 @@ const QueueRowItem = memo(function QueueRowItem({
   isActive: boolean;
 }) {
   const { t } = useTranslation();
-  const { editMode, jumpTo, removeAt, goToSong } = useContext(QueueRowContext);
+  const { editMode, framed, jumpTo, removeAt, goToSong } = useContext(QueueRowContext);
   const isCurrent = useStore((s) => s.playerQueueIndex === row.index);
   const playing = useStore((s) => isCurrent && s.playerIsPlaying);
 
@@ -73,7 +77,7 @@ const QueueRowItem = memo(function QueueRowItem({
     <Pressable
       style={({ pressed }) => [
         panelStyles.row,
-        isCurrent ? panelStyles.rowCurrent : null,
+        isCurrent ? (framed ? panelStyles.rowCurrent : panelStyles.rowCurrentOnCard) : null,
         isActive ? panelStyles.rowDragging : null,
         pressed && !editMode ? { opacity: 0.75 } : null,
       ]}
@@ -170,8 +174,9 @@ function QueuePanelInner({
   /** Navigate to a song/clip's own page ("go to song") — the rehearsal jump from
    *  hearing a track to working on it. Provided by the host, which owns nav. */
   onOpenIdea: (ideaId: string) => void;
-  /** framed = standalone panel chrome (dock). false = bare content for hosts
-   *  that provide their own container (the full player's bottom sheet). */
+  /** framed = standalone panel chrome (dock): a six-row window above the
+   *  transport. false = bare content that FILLS the host's container (the full
+   *  player's bottom sheet, which the listener resizes). */
   framed?: boolean;
 }) {
   const { t } = useTranslation();
@@ -248,14 +253,25 @@ function QueuePanelInner({
   }, []);
 
   const rowActions = useMemo<QueueRowActions>(
-    () => ({ editMode, jumpTo, removeAt, goToSong }),
-    [editMode, jumpTo, removeAt, goToSong]
+    () => ({ editMode, framed, jumpTo, removeAt, goToSong }),
+    [editMode, framed, jumpTo, removeAt, goToSong]
   );
 
   // ── Resting on the playing row ────────────────────────────────────────────
-  // Fixed row height + getItemLayout: the list places the first frame on the
-  // playing row without measuring anything (no flash of row 1, no jump).
+  // Fixed row height + getItemLayout: the list renders its first rows AT the
+  // playing row. How the viewport gets there differs per platform:
+  // - iOS: the list's own one-shot scroll (a JS round trip) lands before the
+  //   sheet's first drawn frame, and its scroll event is what lets the list
+  //   grow past its first ten rows. A native `contentOffset` there is applied
+  //   before the view can emit events, so the list would freeze at ten rows.
+  // - Android: the dialog draws as soon as it is shown, so the round trip
+  //   shows the top of the list for a frame or two, then jumps. A native
+  //   `contentOffset` is deferred until the content is laid out and emits a
+  //   scroll event when it lands, so the first drawn frame is already right.
   const initialScrollIndex = useRef(queueScrollTargetIndex(playerQueueIndex, playerQueue.length)).current;
+  const initialContentOffset = useRef(
+    Platform.OS === "android" ? { x: 0, y: initialScrollIndex * QUEUE_ROW_HEIGHT } : undefined
+  ).current;
   const scrollOffsetRef = useRef(0);
   const viewportHeightRef = useRef(0);
   const onScrollOffsetChange = useCallback((offset: number) => {
@@ -264,6 +280,18 @@ function QueuePanelInner({
   const onContainerLayout = useCallback(({ layout }: { layout: { height: number } }) => {
     viewportHeightRef.current = layout.height;
   }, []);
+
+  // Android safety net for the native offset: if the list has laid out and no
+  // scroll has been reported after a few frames, the deferred offset never
+  // landed — scroll there explicitly (which does emit the event).
+  useEffect(() => {
+    if (!initialContentOffset || initialContentOffset.y === 0) return;
+    const timer = setTimeout(() => {
+      if (scrollOffsetRef.current !== 0) return;
+      listRef.current?.scrollToOffset({ offset: initialContentOffset.y, animated: false });
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [initialContentOffset]);
 
   // Follow the playing row on a track change only when it was on screen and the
   // new one is not: a list you scrolled elsewhere is left where you put it.
@@ -282,7 +310,7 @@ function QueuePanelInner({
   }, [playerQueueIndex, playerQueue.length]);
 
   return (
-    <View style={framed ? panelStyles.panel : null}>
+    <View style={framed ? panelStyles.panel : panelStyles.fill}>
       <View style={panelStyles.headerRow}>
         <Text style={panelStyles.title}>{t("mediaDock.queue")}</Text>
         <View style={panelStyles.headerRight}>
@@ -315,7 +343,9 @@ function QueuePanelInner({
           keyExtractor={keyExtractor}
           getItemLayout={getItemLayout}
           initialScrollIndex={initialScrollIndex}
-          style={panelStyles.list}
+          contentOffset={initialContentOffset}
+          containerStyle={framed ? undefined : panelStyles.fill}
+          style={framed ? panelStyles.list : panelStyles.fill}
           contentContainerStyle={panelStyles.listContent}
           showsVerticalScrollIndicator={false}
           activationDistance={14}
@@ -387,6 +417,10 @@ const panelStyles = StyleSheet.create({
   list: {
     maxHeight: QUEUE_ROW_HEIGHT * 6,
   },
+  // Sheet host: the panel and its list fill whatever height the sheet is at.
+  fill: {
+    flex: 1,
+  },
   listContent: {
     paddingBottom: 6,
   },
@@ -402,6 +436,10 @@ const panelStyles = StyleSheet.create({
   },
   rowCurrent: {
     backgroundColor: colors.surface,
+  },
+  // On the sheet's white card `surface` would vanish: wash down a tone instead.
+  rowCurrentOnCard: {
+    backgroundColor: colors.surfaceContainer,
   },
   rowDragging: {
     backgroundColor: colors.surfaceHigh,

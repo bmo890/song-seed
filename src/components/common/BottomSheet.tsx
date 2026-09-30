@@ -55,9 +55,11 @@ export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
     const keyboardOffset = useRef(new Animated.Value(0)).current;
     const isClosingRef = useRef(false);
 
-    // translateY must be consistently JS-driven in expandable mode (it shares a
-    // node with the JS-driven body height); native elsewhere for smoothness.
-    const useNative = !expandable;
+    // The card's slide (translateY) is native-driven in every mode so the
+    // entrance and dismissal never stutter while JS is busy mounting a heavy
+    // body (the queue list). Only the body HEIGHT is JS-driven — it is a layout
+    // prop — and it is a separate Animated node, so the two never conflict.
+    const useNative = true;
 
     // ── Expandable resize geometry ──────────────────────────────────────────
     // The children area height animates between collapsed and expanded; the card

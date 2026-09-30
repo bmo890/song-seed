@@ -8,6 +8,10 @@ import { playerScreenStyles } from "../styles";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../../i18n";
 
+/** Total sheet height at rest: handle + queue header + eight rows + bottom
+ *  inset on a standard phone. The sheet caps this at 72% of the window. */
+const QUEUE_SHEET_COLLAPSED_HEIGHT = 470;
+
 type QueueEntry = {
   ideaId: string;
   clipId: string;
@@ -119,9 +123,16 @@ export function PlayerSupportSections({
       </BottomSheet>
 
       {/* Queue — the SAME surface as the dock's queue panel (jump on tap,
-          go-to-song), hosted in a bottom sheet here. */}
+          go-to-song), hosted in a bottom sheet here. Opens at half height
+          (about eight rows), pulls up to the full screen, drags down to close —
+          the resizable queue sheet of the music players people already know. */}
       {hasQueue ? (
-        <BottomSheet visible={queueExpanded} onClose={closeQueueSheet}>
+        <BottomSheet
+          visible={queueExpanded}
+          onClose={closeQueueSheet}
+          expandable
+          collapsedHeight={QUEUE_SHEET_COLLAPSED_HEIGHT}
+        >
           <QueuePanel framed={false} onOpenIdea={openIdeaFromQueue} />
         </BottomSheet>
       ) : null}
