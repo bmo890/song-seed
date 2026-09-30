@@ -49,6 +49,9 @@ import { useStore } from "../state/useStore";
 type UseMetronomeArgs = {
   initialBpm?: number;
   initialOutputs?: Partial<MetronomeOutputs>;
+  /** Publish `pulseToken` on every pulse. Off for a consumer that draws its beats
+   *  from `beatCount` (the recorder), so each pulse costs it one render, not two. */
+  visualPulse?: boolean;
 };
 
 type MetronomeStartOptions = {
@@ -73,15 +76,17 @@ type MetronomeStartOptions = {
 
 const METRONOME_AUDIO_SESSION_OWNER_ID = "metronome";
 
-export function useMetronome({ initialBpm = DEFAULT_METRONOME_BPM, initialOutputs }: UseMetronomeArgs = {}) {
+export function useMetronome({ initialBpm = DEFAULT_METRONOME_BPM, initialOutputs, visualPulse = true }: UseMetronomeArgs = {}) {
   if (SongNookMetronomeModule) {
-    return useNativeMetronomeImpl({ initialBpm, initialOutputs });
+    return useNativeMetronomeImpl({ initialBpm, initialOutputs, visualPulse });
   }
 
-  return useLegacyMetronomeImpl({ initialBpm, initialOutputs });
+  return useLegacyMetronomeImpl({ initialBpm, initialOutputs, visualPulse });
 }
 
-function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOutputs }: UseMetronomeArgs = {}) {
+function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOutputs, visualPulse = true }: UseMetronomeArgs = {}) {
+  const visualPulseRef = useRef(visualPulse);
+  visualPulseRef.current = visualPulse;
   const bpm = useStore((s) => s.metronomeBpm);
   const meterId = useStore((s) => s.metronomeMeterId);
   const groupingByMeterId = useStore((s) => s.metronomeGroupingByMeterId);
@@ -243,7 +248,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
           if (scheduler.token !== token) {
             return;
           }
-          if (outputsRef.current.visual && Date.now() >= cueActivationAtRef.current) {
+          if (visualPulseRef.current && outputsRef.current.visual && Date.now() >= cueActivationAtRef.current) {
             setPulseToken((current) => current + 1);
           }
           pulsesSinceAnchorRefresh += 1;
@@ -345,7 +350,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     const activeOutputs = outputsRef.current;
     // The anchor-aligned scheduler owns the pulse when it's running; event-driven pulses
     // are the fallback for engines with no grid anchor.
-    if (activeOutputs.visual && !visualSchedulerRef.current.active) {
+    if (visualPulseRef.current && activeOutputs.visual && !visualSchedulerRef.current.active) {
       setPulseToken((current) => current + 1);
     }
 
@@ -490,7 +495,23 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     if (!state.isRunning) {
       ownsActiveRunRef.current = false;
     }
-    setNativeState(state);
+    // The engine emits this on EVERY beat, and every mounted instance hears it
+    // (the recorder, the metronome page, the songbook reader). Only a real
+    // transition re-renders; the beat position rides on beatCount for the run's
+    // owner and on the last snapshot's fields for everyone else (2026-09-30).
+    setNativeState((prev) => {
+      if (!prev) return state;
+      const transition =
+        prev.isRunning !== state.isRunning ||
+        prev.isCountIn !== state.isCountIn ||
+        prev.isAvailable !== state.isAvailable;
+      if (transition) return state;
+      // The run's owner reads its beat position from onBeat (beatCount); a
+      // snapshot that only moved the beat is redundant for it.
+      if (ownsActiveRunRef.current) return prev;
+      const beatMoved = prev.beatInBar !== state.beatInBar || prev.barNumber !== state.barNumber;
+      return beatMoved ? state : prev;
+    });
   });
 
   useEventListener(SongNookMetronomeModule!, "onBeat", (event: BeatEventPayload) => {
@@ -724,7 +745,9 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   };
 }
 
-function useLegacyMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOutputs }: UseMetronomeArgs = {}) {
+function useLegacyMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOutputs, visualPulse = true }: UseMetronomeArgs = {}) {
+  const visualPulseRef = useRef(visualPulse);
+  visualPulseRef.current = visualPulse;
   const [bpm, setBpm] = useState(() => clampMetronomeBpm(initialBpm));
   const [isRunning, setIsRunning] = useState(false);
   const [outputs, setOutputs] = useState<MetronomeOutputs>({
@@ -807,7 +830,7 @@ function useLegacyMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   const triggerBeatCue = useCallback(() => {
     const activeOutputs = outputsRef.current;
 
-    if (activeOutputs.visual) {
+    if (visualPulseRef.current && activeOutputs.visual) {
       setPulseToken((current) => current + 1);
     }
 

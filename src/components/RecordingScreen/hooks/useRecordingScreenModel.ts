@@ -261,7 +261,9 @@ export function useRecordingScreenModel() {
   const pendingOverdubSaveRef = useRef<{ ideaId: string; clipId: string; title: string } | null>(null);
   const autoStoppingOverdubRef = useRef(false);
   const abandonedPlaceholderCleanupRef = useRef<() => void>(() => {});
-  const metronome = useMetronome();
+  // The recorder's beat bar and breath draw from `beatCount` (the onBeat stream);
+  // the pulse token was a second render per pulse it never read.
+  const metronome = useMetronome({ visualPulse: false });
   const monitoringDelayTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Phase-locked guide start scheduled during the count-in (overdubs). The token
   // invalidates an in-flight schedule when the guide is stopped/cancelled; the promise
@@ -1230,10 +1232,10 @@ export function useRecordingScreenModel() {
   }, [recordingSaveRequestToken]);
 
   // Latest take state for the device-change listener (it outlives renders).
-  const takeStateRef = useRef({ capturing: false, elapsedMs: 0 });
+  const takeStateRef = useRef({ capturing: false, readElapsedMs: recording.readElapsedMs });
   takeStateRef.current = {
     capturing: recording.isRecording || recording.isPaused,
-    elapsedMs: recording.elapsedMs,
+    readElapsedMs: recording.readElapsedMs,
   };
   const lastMonitoringRouteKeyRef = useRef<string | null>(null);
 
@@ -1259,7 +1261,7 @@ export function useRecordingScreenModel() {
             routeKey !== previousRouteKey &&
             takeStateRef.current.capturing
           ) {
-            const atMs = Math.max(0, Math.round(takeStateRef.current.elapsedMs));
+            const atMs = Math.max(0, Math.round(takeStateRef.current.readElapsedMs()));
             console.warn(`[timing] audio route changed mid-take at ${atMs}ms — grid marked`);
             setMidTakeRouteChangeMs((current) => current ?? atMs);
             if (takeGridRef.current) {
@@ -1289,6 +1291,12 @@ export function useRecordingScreenModel() {
     };
   }, []);
 
+  // The overdub stops itself when the master ends. Armed as a timer from the
+  // exact elapsed time (not polled on the readout's commits, which now land once
+  // a second): it fires within a frame of the master's end, and re-arms on
+  // resume.
+  const requestSaveRecordingRef = useRef(requestSaveRecording);
+  requestSaveRecordingRef.current = requestSaveRecording;
   useEffect(() => {
     if (!recordingOverdubClip) {
       return;
@@ -1299,25 +1307,33 @@ export function useRecordingScreenModel() {
     if (!guideMixDurationMs || guideMixDurationMs <= 0) {
       return;
     }
-    if (recording.elapsedMs < guideMixDurationMs) {
-      return;
-    }
-    if (autoStoppingOverdubRef.current) {
-      return;
-    }
-
-    autoStoppingOverdubRef.current = true;
-    setOverdubReviewLocked(true);
-    void requestSaveRecording().finally(() => {
-      autoStoppingOverdubRef.current = false;
-    });
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const stopAtEnd = () => {
+      const remainingMs = guideMixDurationMs - recording.readElapsedMs();
+      if (remainingMs > 0) {
+        timer = setTimeout(stopAtEnd, Math.min(remainingMs, 1000));
+        return;
+      }
+      if (autoStoppingOverdubRef.current) {
+        return;
+      }
+      autoStoppingOverdubRef.current = true;
+      setOverdubReviewLocked(true);
+      void requestSaveRecordingRef.current().finally(() => {
+        autoStoppingOverdubRef.current = false;
+      });
+    };
+    stopAtEnd();
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [
     guideMixDurationMs,
     isArmingRecording,
     quickNameModalVisible,
-    recording.elapsedMs,
     recording.isPaused,
     recording.isRecording,
+    recording.readElapsedMs,
     recordingOverdubClip,
   ]);
 

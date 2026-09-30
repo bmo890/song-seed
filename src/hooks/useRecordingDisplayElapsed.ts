@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MutableRefObject } from "react";
 
 type Args = {
   durationMs: number;
@@ -6,18 +6,25 @@ type Args = {
   isRecording: boolean;
 };
 
+type Options = {
+  /** Kept current every frame without a render, for readers that need the exact
+   *  elapsed time at an instant (a route-change stamp, the overdub auto-stop). */
+  liveRef?: MutableRefObject<number>;
+};
+
 const REANCHOR_THRESHOLD_MS = 48;
-// The readout shows whole seconds and the lyric follow needs ~tenths. Committing React
-// state every animation frame re-rendered the entire recorder (and the dock) 60 times a
-// second for the length of a take, so taps waited behind renders (2026-09-21). The
-// clock still reads the wall time every frame; it only RE-RENDERS when the tenth changes.
-const COMMIT_STEP_MS = 100;
+// The readout shows whole seconds. Committing React state every animation frame
+// re-rendered the entire recorder (and the dock) 60 times a second for the length
+// of a take (2026-09-21); a tenth-of-a-second step still re-rendered it ten times a
+// second (2026-09-30). The clock reads the wall time every frame and keeps `liveRef`
+// exact; it only RE-RENDERS when the displayed second changes.
+const COMMIT_STEP_MS = 1000;
 
 export function useRecordingDisplayElapsed({
   durationMs,
   isPaused,
   isRecording,
-}: Args) {
+}: Args, options?: Options) {
   const normalizedDurationMs = Number.isFinite(durationMs) ? Math.max(0, durationMs) : 0;
   const [displayElapsedMs, setDisplayElapsedMs] = useState(normalizedDurationMs);
   const frameRef = useRef<number | null>(null);
@@ -25,8 +32,10 @@ export function useRecordingDisplayElapsed({
   const anchorDurationRef = useRef(normalizedDurationMs);
   const anchorStartedAtRef = useRef<number | null>(null);
 
+  const liveRef = options?.liveRef;
   const setDisplayElapsed = (nextMs: number, ticking = false) => {
     lastDisplayRef.current = nextMs;
+    if (liveRef) liveRef.current = nextMs;
     setDisplayElapsedMs((prev) => {
       if (ticking) {
         return Math.floor(prev / COMMIT_STEP_MS) === Math.floor(nextMs / COMMIT_STEP_MS) ? prev : nextMs;

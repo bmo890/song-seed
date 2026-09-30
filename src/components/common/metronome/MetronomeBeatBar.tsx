@@ -74,6 +74,18 @@ export function MetronomeBeatBar({
     () => Array.from({ length: Math.min(MAX_BEATS, Math.max(1, beatsPerBar)) }, (_, i) => i + 1),
     [beatsPerBar]
   );
+  // Native-driven interpolations, built once per variant: a fresh `interpolate`
+  // per dot per render detached and re-attached native animated nodes on every
+  // recorder render (about 12 nodes × 10+ renders a second during a take).
+  const dotStyles = useMemo(
+    () =>
+      dotAnims.map((anim) => ({
+        ringOpacity: anim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.45] }),
+        ringScale: anim.interpolate({ inputRange: [0, 1], outputRange: [1, hero ? 2.6 : 2.2] }),
+        dotScale: anim.interpolate({ inputRange: [0, 1], outputRange: [1, hero ? 1.35 : 1.3] }),
+      })),
+    [dotAnims, hero]
+  );
 
   useEffect(() => {
     if (!active || pulseToken === 0) return;
@@ -99,7 +111,7 @@ export function MetronomeBeatBar({
         const isDownbeat = accent === "downbeat";
         const isAccented = accent !== "weak";
         const isCurrent = active && beat === currentBeat;
-        const anim = dotAnims[beat - 1];
+        const dotStyle = dotStyles[beat - 1]!;
         const base = hero
           ? dense
             ? accent === "downbeat" ? 14 : accent === "secondary" ? 12 : 9
@@ -126,10 +138,8 @@ export function MetronomeBeatBar({
                   height: base,
                   borderRadius: radii.round,
                   backgroundColor: isDownbeat ? colors.primaryDeep : colors.primary,
-                  opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.45] }),
-                  transform: [
-                    { scale: anim.interpolate({ inputRange: [0, 1], outputRange: [1, hero ? 2.6 : 2.2] }) },
-                  ],
+                  opacity: dotStyle.ringOpacity,
+                  transform: [{ scale: dotStyle.ringScale }],
                 },
               ]}
             />
@@ -145,9 +155,7 @@ export function MetronomeBeatBar({
                       ? colors.primaryDeep
                       : colors.primary
                     : colors.borderSubtle,
-                  transform: [
-                    { scale: anim.interpolate({ inputRange: [0, 1], outputRange: [1, hero ? 1.35 : 1.3] }) },
-                  ],
+                  transform: [{ scale: dotStyle.dotScale }],
                 },
               ]}
             />

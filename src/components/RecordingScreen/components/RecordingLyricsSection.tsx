@@ -37,11 +37,12 @@ export function RecordingLyricsSection({
   onAutoscrollInterrupted,
   onSelectAutoscrollSpeedMultiplier,
 }: RecordingLyricsSectionProps) {
-  // One object per (mode, tenth of a second): PlayerLyricsPanel is memoized and a
-  // fresh literal here defeated that memo on every recorder render.
+  // One object per mode: the panel never reads the time fields (its follow
+  // scroll runs on its own interval), so the tick used to defeat the panel's
+  // memo for nothing.
   const autoscrollState = useMemo(
-    () => ({ mode: autoscrollMode, currentTimeMs: elapsedMs, durationMs: elapsedMs, activeLineId: null }),
-    [autoscrollMode, elapsedMs]
+    () => ({ mode: autoscrollMode, currentTimeMs: 0, durationMs: 0, activeLineId: null }),
+    [autoscrollMode]
   );
   const { t } = useTranslation();
   return (

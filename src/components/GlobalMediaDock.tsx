@@ -51,6 +51,25 @@ type PlaybackDockState = {
  * lookups) or its swipe gesture. This is what keeps drags/scrolls/the drawer
  * smooth while audio plays.
  */
+/**
+ * The minimized take's elapsed readout. Its own leaf so the clock's commits
+ * (once a second) never re-render the dock shell, and it mounts only while the
+ * recording pill is shown — the dock renders nothing on the recorder route,
+ * where the screen runs its own clock (2026-09-30).
+ */
+const DockRecordingClock = memo(function DockRecordingClock({
+  durationMs,
+  isRecording,
+  isPaused,
+}: {
+  durationMs: number;
+  isRecording: boolean;
+  isPaused: boolean;
+}) {
+  const elapsedMs = useRecordingDisplayElapsed({ durationMs, isRecording, isPaused });
+  return <Text style={styles.miniMediaDockRecordingTime}>{fmtDuration(elapsedMs)}</Text>;
+});
+
 const DockProgressTrack = memo(function DockProgressTrack({
   fallbackDurationMs,
 }: {
@@ -89,12 +108,6 @@ export function GlobalMediaDock({
   const isPlayerScreenMounted = useStore((s) => s.isPlayerScreenMounted);
   const inlineTarget = useStore((s) => s.inlineTarget);
   const inlineIsPlaying = useStore((s) => s.inlineIsPlaying);
-  const recordingElapsedMs = useRecordingDisplayElapsed({
-    durationMs: recorder.durationMs,
-    isRecording: recorder.isRecording,
-    isPaused: recorder.isPaused,
-  });
-
   // The dock is always mounted and the shared recorder outlives the recorder screen
   // (a minimized take), so this is where "a take is running" is reported from.
   const recorderCapturing = recorder.isRecording || recorder.isPaused;
@@ -346,7 +359,11 @@ export function GlobalMediaDock({
             </View>
 
             <View style={styles.miniMediaDockRecordingFooter}>
-              <Text style={styles.miniMediaDockRecordingTime}>{fmtDuration(recordingElapsedMs)}</Text>
+              <DockRecordingClock
+                durationMs={recorder.durationMs}
+                isRecording={recorder.isRecording}
+                isPaused={recorder.isPaused}
+              />
               <Text style={styles.miniMediaDockHintText}>{t("mediaDock.reopenControls")}</Text>
             </View>
           </View>

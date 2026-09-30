@@ -1,6 +1,6 @@
 import { softenStartLevels } from "../domain/liveWaveform";
 import { timedStep } from "../services/stepTiming";
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   useSharedAudioRecorder,
   ExpoAudioStreamModule,
@@ -141,11 +141,24 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   const startInFlightRef = useRef(false);
   const recordingIdeaId = useStore((s) => s.recordingIdeaId);
   const setPreferredRecordingInputId = useStore((s) => s.setPreferredRecordingInputId);
-  const displayElapsedMs = useRecordingDisplayElapsed({
-    durationMs: recorder.durationMs,
-    isRecording: recorder.isRecording,
-    isPaused: recorder.isPaused,
-  });
+  const elapsedLiveRef = useRef(0);
+  const displayElapsedMs = useRecordingDisplayElapsed(
+    {
+      durationMs: recorder.durationMs,
+      isRecording: recorder.isRecording,
+      isPaused: recorder.isPaused,
+    },
+    { liveRef: elapsedLiveRef }
+  );
+  const headTrimRef = useRef(headTrim);
+  headTrimRef.current = headTrim;
+  /** The exact elapsed time right now (no render), with the head trim applied
+   *  like `elapsedMs`. For the moments that need precision between the
+   *  once-a-second readout commits. */
+  const readElapsedMs = useCallback(() => {
+    const trim = headTrimRef.current;
+    return trim.pending ? 0 : Math.max(0, elapsedLiveRef.current - trim.ms);
+  }, []);
 
   useEffect(() => {
     if (!recorder.isRecording || recorder.isPaused) {
@@ -885,6 +898,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     // during the count-in and the head is subtracted once measured. Downstream consumers
     // (display clock, overdub auto-stop threshold) then need no head awareness.
     elapsedMs: headTrim.pending ? 0 : Math.max(0, displayElapsedMs - headTrim.ms),
+    readElapsedMs,
     lastInterruptionReason,
     interruptionToken,
     prepareRecording,
