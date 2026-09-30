@@ -9,6 +9,7 @@ import { NavRow } from "./common/NavRow";
 import { WorkspaceAvatar } from "./common/WorkspaceAvatar";
 import { getWorkspaceTheme } from "../domain/workspaceTheme";
 import { useShelfStore } from "../state/useShelfStore";
+import { getIdeaIndex } from "../state/librarySelectors";
 import { useStore } from "../state/useStore";
 import { isEntryInDecisionWindow, isEntryExpired } from "../domain/shelf";
 import { useTranslation } from "react-i18next";
@@ -117,9 +118,12 @@ export function SideNav({
   // A primitive key of which shelf entries still exist in the library, so the
   // drawer re-renders on membership changes only — not on every library write.
   const existingShelfIdsKey = useStore((state) => {
+    // The index is cached per library array, so this is O(shelf entries) per write
+    // instead of O(entries × ideas).
+    const index = getIdeaIndex(state.workspaces);
     const ids: string[] = [];
     for (const entry of shelfEntries) {
-      if (state.workspaces.some((workspace) => workspace.ideas.some((idea) => idea.id === entry.id))) ids.push(entry.id);
+      if (index.all.has(entry.id)) ids.push(entry.id);
     }
     return ids.join(",");
   });

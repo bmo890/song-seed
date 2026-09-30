@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { View } from "react-native";
 import Svg, { Circle, Ellipse, Polygon, Rect, Defs, RadialGradient, Stop, G } from "react-native-svg";
 import { getWorkspaceTheme } from "../../domain/workspaceTheme";
@@ -35,7 +36,9 @@ function rng(key: number, slot: number, min: number, max: number): number {
  * workspace title changes, and can be independently randomized via refresh.
  * Falls back to a name-derived hash for workspaces that predate avatarKey.
  */
-export function WorkspaceAvatar({ color, name, size = 36, borderRadius, avatarKey }: Props) {
+// Memoized: ~10 SVG nodes with transform strings parsed in JS, rebuilt on every
+// parent render otherwise (the side menu, the workspace lists). Props are primitives.
+export const WorkspaceAvatar = memo(function WorkspaceAvatar({ color, name, size = 36, borderRadius, avatarKey }: Props) {
   const theme = getWorkspaceTheme(color);
   const r = size / 2;
   const br = borderRadius ?? r;
@@ -159,4 +162,4 @@ export function WorkspaceAvatar({ color, name, size = 36, borderRadius, avatarKe
       </Svg>
     </View>
   );
-}
+});

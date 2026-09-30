@@ -35,3 +35,10 @@ export function unopenedReceivedCount(workspaces: Workspace[]): number {
     (workspace) => isReceivedWorkspace(workspace) && workspace.received?.openedAt == null
   ).length;
 }
+
+/** How many received packages exist — a count, so a selector stays O(n) with no allocation. */
+export function countReceivedPackages(workspaces: Workspace[]): number {
+  let count = 0;
+  for (const workspace of workspaces) if (isReceivedWorkspace(workspace)) count += 1;
+  return count;
+}

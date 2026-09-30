@@ -100,7 +100,7 @@ import type {
 } from "./src/navigation";
 import { openIdeaInCollection } from "./src/navigation";
 import { beginUiActivity, endUiActivity } from "./src/services/interactionGate";
-import { receivedPackages, unopenedReceivedCount } from "./src/domain/workspaceVisibility";
+import { countReceivedPackages, unopenedReceivedCount } from "./src/domain/workspaceVisibility";
 import { cleanupStaleShareTempFiles, purgeExpiredTrash } from "./src/services/managedMedia";
 import { readManifest } from "./src/services/manifestSync";
 import { appActions } from "./src/state/actions";
@@ -176,6 +176,13 @@ const sideMenuDrawerStyle = [
 const EMPTY_WORKSPACES: Workspace[] = [];
 // Hoisted so a root render never hands the navigators fresh option objects.
 const ROOT_STACK_SCREEN_OPTIONS = { headerShown: false } as const;
+// Drawer pages are destinations you teleport between and every visited one stays
+// mounted. `freezeOnBlur` stops the hidden ones from rendering (and from re-running
+// their library-sized derivations) on every store write; a page catches up with
+// one render when it is shown again. Effects that must run on blur still get one
+// render after the blur (react-native-screens delays the freeze by a frame).
+const DRAWER_SCREEN_OPTIONS = { headerShown: false, freezeOnBlur: true } as const;
+const renderDrawerContent = (props: DrawerContentComponentProps) => <DrawerContent {...props} />;
 // Root-level handlers for the dock and the player sheet. Module-level on purpose:
 // they only touch the module-level navigationRef and the store, and a fresh arrow
 // per root render used to hand the (memoized) player a new navigation object on
@@ -510,7 +517,6 @@ function getActiveWorkspaceRouteContext(args: {
   workspaces: ReturnType<typeof useStore.getState>["workspaces"];
   activeWorkspaceId: string | null;
   selectedIdeaId: string | null;
-  playerTarget: ReturnType<typeof useStore.getState>["playerTarget"];
 }) {
   const routeCollectionId = args.deepestParams.collectionId as string | undefined;
   const routeWorkspaceId = args.deepestParams.workspaceId as string | undefined;
@@ -573,10 +579,9 @@ function SideNavHost({
   const workspaces = useStore((s) => s.workspaces);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const collectionLastOpenedAt = useStore((s) => s.collectionLastOpenedAt);
-  const receivedCount = useStore((s) => receivedPackages(s.workspaces).length);
+  const receivedCount = useStore((s) => countReceivedPackages(s.workspaces));
   const unopenedCount = useStore((s) => unopenedReceivedCount(s.workspaces));
   const selectedIdeaId = useStore((s) => s.selectedIdeaId);
-  const playerTarget = useStore((s) => s.playerTarget);
   const deepestRoute = getDeepestRoute(getRootState());
   const deepestRouteName = deepestRoute.name;
   const deepestParams = deepestRoute.params ?? {};
@@ -586,7 +591,6 @@ function SideNavHost({
     workspaces,
     activeWorkspaceId,
     selectedIdeaId,
-    playerTarget,
   });
   const currentRoute =
     deepestRouteName === "Workspaces"
@@ -710,10 +714,14 @@ function OverlaySideNav() {
 }
 
 function DrawerRoutes() {
-  const workspaces = useStore((s) => s.workspaces);
+  const [startupApplied, setStartupApplied] = useState(false);
+  // The library is needed once, to pick the startup workspace. Subscribing to it
+  // for the whole session re-rendered the drawer navigator (16 descriptors) on
+  // every library write (2026-09-29).
+  const workspaces = useStore((s) => (startupApplied ? EMPTY_WORKSPACES : s.workspaces));
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
-  const primaryWorkspaceId = useStore((s) => s.primaryWorkspaceId);
-  const lastUsedWorkspaceId = useStore((s) => s.lastUsedWorkspaceId);
+  const primaryWorkspaceId = useStore((s) => (startupApplied ? null : s.primaryWorkspaceId));
+  const lastUsedWorkspaceId = useStore((s) => (startupApplied ? null : s.lastUsedWorkspaceId));
   const workspaceStartupPreference = useStore((s) => s.workspaceStartupPreference);
   const setActiveWorkspaceId = useStore((s) => s.setActiveWorkspaceId);
   const startupWorkspaceId = useMemo(
@@ -726,7 +734,10 @@ function DrawerRoutes() {
       }),
     [lastUsedWorkspaceId, primaryWorkspaceId, workspaceStartupPreference, workspaces]
   );
-  const [startupApplied, setStartupApplied] = useState(false);
+  // Frozen once applied: the memo above would otherwise recompute a null id after
+  // the subscriptions release the library, and the initial route must not change.
+  const startupWorkspaceIdRef = useRef<string | null>(null);
+  if (!startupApplied) startupWorkspaceIdRef.current = startupWorkspaceId;
 
   useEffect(() => {
     if (startupApplied) return;
@@ -742,9 +753,9 @@ function DrawerRoutes() {
 
   return (
     <Drawer.Navigator
-      screenOptions={{ headerShown: false }}
-      drawerContent={(props) => <DrawerContent {...props} />}
-      initialRouteName={startupWorkspaceId ? "WorkspaceStack" : "Workspaces"}
+      screenOptions={DRAWER_SCREEN_OPTIONS}
+      drawerContent={renderDrawerContent}
+      initialRouteName={startupWorkspaceIdRef.current ? "WorkspaceStack" : "Workspaces"}
       // Hub-and-spoke: drawer pages are DESTINATIONS you teleport between, not a
       // stack — so back from any of them returns to the hub (the open collection),
       // and back from the hub backgrounds the app. The previous "history" behavior
@@ -1082,7 +1093,6 @@ function AppContent() {
       workspaces: store.workspaces,
       activeWorkspaceId: store.activeWorkspaceId,
       selectedIdeaId: store.selectedIdeaId,
-      playerTarget: store.playerTarget,
     });
     setLastCollectionContextId((prev) =>
       prev === routeContext.currentCollectionId ? prev : routeContext.currentCollectionId
@@ -1136,7 +1146,7 @@ function AppContent() {
           direction={direction}
           drawerPosition={direction === "rtl" ? "right" : "left"}
           drawerStyle={sideMenuDrawerStyle}
-          renderDrawerContent={() => (sideMenuEverOpened ? <OverlaySideNav key={activeRouteName} /> : null)}
+          renderDrawerContent={() => (sideMenuEverOpened ? <OverlaySideNav /> : null)}
         >
         <Stack.Navigator screenOptions={ROOT_STACK_SCREEN_OPTIONS} screenListeners={TRANSITION_LISTENERS} initialRouteName="Home">
           <Stack.Screen name="Home" component={DrawerRoutes} />
