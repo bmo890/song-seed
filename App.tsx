@@ -146,6 +146,11 @@ import { i18n, LocaleProvider, useLocale, useLocaleBootstrap } from "./src/i18n"
 if (__DEV__) {
   (require("./src/dev/jsStallMonitor") as typeof import("./src/dev/jsStallMonitor")).startJsStallMonitor();
 }
+// Dev-only render-cost meter (React.Profiler at the root); a passthrough in release.
+const RootCommitProfiler: React.ComponentType<{ children: React.ReactNode; currentRoute: () => string }> = __DEV__
+  ? (require("./src/dev/commitProfiler") as typeof import("./src/dev/commitProfiler")).CommitProfiler
+  : ({ children }) => <>{children}</>;
+const currentRouteName = () => navigationRef.isReady() ? navigationRef.getCurrentRoute()?.name ?? "?" : "boot";
 
 // Hold the native splash until fonts + store hydration + navigation restore are ready, so
 // the app opens in one continuous motion instead of flashing a bare spinner. Hidden in
@@ -1078,6 +1083,7 @@ function AppContent() {
           <ActivityIndicator color="#B87D6B" />
         </View>
       ) : (
+      <RootCommitProfiler currentRoute={currentRouteName}>
       <FullPlayerProvider>
       <NavigationContainer
         ref={navigationRef}
@@ -1165,6 +1171,7 @@ function AppContent() {
       <RestoreRestartGate />
       <WelcomeGate />
       </FullPlayerProvider>
+      </RootCommitProfiler>
       )}
     </ShareIntentProvider>
   );
