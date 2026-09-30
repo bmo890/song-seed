@@ -15,20 +15,12 @@ import { useClipWaveform } from "../../../hooks/useClipWaveform";
 import { getLatestLyricsVersion, lyricsDocumentToText, resolveClipLyricsVersion } from "../../../domain/lyrics";
 import { normalizeSections } from "../../../domain/playerSections";
 import { useStore } from "../../../state/useStore";
-import { findClipInIdea, findIdeaInLibrary, findWorkspaceOfIdea, queueListingKey } from "../../../state/librarySelectors";
+import { findClipInIdea, findIdeaInLibrary } from "../../../state/librarySelectors";
 import type { SongIdea } from "../../../types";
-import { getCollectionById } from "../../../utils";
-import { extractLyricsMarkers, getNoteSummary } from "../helpers";
+import { extractLyricsMarkers } from "../helpers";
 import { useTranslation } from "react-i18next";
 
 const EMPTY_IDEAS: SongIdea[] = [];
-
-export type PlayerQueueEntry = {
-  ideaId: string;
-  clipId: string;
-  title: string;
-  subtitle: string;
-};
 
 
 type UsePlayerScreenDataArgs = {
@@ -65,31 +57,6 @@ export function usePlayerScreenData({
     () => (playerTarget ? findClipInIdea(playerIdea, playerTarget.clipId) : null),
     [playerIdea, playerTarget]
   );
-  const playerCollection = useStore((s) => {
-    if (!playerIdea) return null;
-    const workspace = findWorkspaceOfIdea(s.workspaces, playerIdea.id);
-    return workspace ? getCollectionById(workspace, playerIdea.collectionId) ?? null : null;
-  });
-  // The queue listing re-renders only when a shown title or length changes.
-  const queueKey = useStore((s) => queueListingKey(s.workspaces, playerQueue));
-  const queueEntries = useMemo(() => {
-    const workspaces = useStore.getState().workspaces;
-    return playerQueue
-      .map((item) => {
-        const idea = findIdeaInLibrary(workspaces, item.ideaId);
-        const clip = findClipInIdea(idea, item.clipId);
-        if (!idea || !clip) return null;
-        return {
-          ideaId: item.ideaId,
-          clipId: item.clipId,
-          title: clip.title,
-          subtitle: idea.title,
-        };
-      })
-      .filter((entry): entry is PlayerQueueEntry => !!entry);
-    // queueKey is the fingerprint of everything read above.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playerQueue, queueKey]);
   const latestLyricsVersion = useMemo(
     () => (playerIdea?.kind === "project" ? getLatestLyricsVersion(playerIdea) : null),
     [playerIdea]
@@ -153,7 +120,6 @@ export function usePlayerScreenData({
   );
   const analysis = playerClip?.analysis ?? null;
   const clipNotes = playerClip?.notes ?? "";
-  const clipNotesSummary = getNoteSummary(clipNotes, t("player.noNotes"));
   const clipOverdubStemCount = playerClip ? getClipOverdubStemCount(playerClip) : 0;
   const hasClipOverdubs = playerClip ? clipHasOverdubs(playerClip) : false;
   const overdubRootSettings = playerClip ? getClipOverdubRootSettings(playerClip) : null;
@@ -185,13 +151,11 @@ export function usePlayerScreenData({
     playerCloseRequestToken,
     playerIdea,
     playerClip,
-    queueEntries,
     latestLyricsVersion,
     latestLyricsText,
     clipLyrics,
     clipLyricsText,
     hasProjectLyrics,
-    playerCollection,
     playbackAudioUri,
     waveformPeaks,
     waveformPending,
@@ -201,7 +165,6 @@ export function usePlayerScreenData({
     sections,
     analysis,
     clipNotes,
-    clipNotesSummary,
     hasClipOverdubs,
     clipOverdubStemCount,
     overdubRootSettings,

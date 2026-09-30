@@ -270,9 +270,6 @@ export function CollectionListSection({
     itemCellLayoutsRef.current[key] = y;
   }, []);
 
-  // No-op — sticky label is now driven by the scroll reaction above.
-  const onViewableItemsChanged = useCallback(() => {}, []);
-
   // One model object per real change. A fresh literal here handed the FlatList new
   // props on every provider render — a full list pass (~90 ms at 325 ideas) for a
   // library write that changed nothing on screen (2026-09-24).
@@ -294,8 +291,6 @@ export function CollectionListSection({
       inlinePlayer,
       rowLayoutsRef: screen.rowLayoutsRef,
       highlightMapRef: screen.highlightMapRef,
-      viewabilityConfig: screen.viewabilityConfigRef.current,
-      onViewableItemsChanged,
       onItemCellLayout,
       playIdeaFromList,
       openIdeaFromList,
@@ -319,8 +314,6 @@ export function CollectionListSection({
       inlinePlayer,
       screen.rowLayoutsRef,
       screen.highlightMapRef,
-      screen.viewabilityConfigRef,
-      onViewableItemsChanged,
       onItemCellLayout,
       playIdeaFromList,
       openIdeaFromList,

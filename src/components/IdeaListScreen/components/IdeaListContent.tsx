@@ -1,4 +1,5 @@
 import { MutableRefObject, ReactNode, memo, useCallback, useEffect, useMemo, useRef } from "react";
+import { beginUiActivity, endUiActivity } from "../../../services/interactionGate";
 import { Animated, FlatList, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ReAnimated, { useAnimatedScrollHandler, type SharedValue } from "react-native-reanimated";
@@ -10,6 +11,9 @@ import { getIdeaSortTimestamp, type IdeaSortMetric } from "../../../domain/ideaS
 import { getDateBucket } from "../../../domain/dateBuckets";
 import { EmptyState } from "../../common/EmptyState";
 import { useTranslation } from "react-i18next";
+
+const onListActivityBegin = () => beginUiActivity("list-scroll");
+const onListActivityEnd = () => endUiActivity("list-scroll");
 
 const AnimatedFlatList = ReAnimated.FlatList as unknown as typeof FlatList;
 
@@ -28,8 +32,6 @@ type IdeaListContentProps = {
   inlinePlayer: InlinePlayerControls;
   rowLayoutsRef: MutableRefObject<Record<string, { y: number; height: number }>>;
   highlightMapRef: MutableRefObject<Record<string, Animated.Value>>;
-  viewabilityConfig: { itemVisiblePercentThreshold: number };
-  onViewableItemsChanged: (info: { viewableItems: Array<{ item: IdeaListEntry }> }) => void;
   onItemCellLayout?: (key: string, y: number) => void;
   playIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
   openIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
@@ -61,8 +63,6 @@ function IdeaListContentInner(
     inlinePlayer,
     rowLayoutsRef,
     highlightMapRef,
-    viewabilityConfig,
-    onViewableItemsChanged,
     playIdeaFromList,
     openIdeaFromList,
     hideTimelineDay,
@@ -188,6 +188,11 @@ function IdeaListContentInner(
       CellRendererComponent={CellRendererComponent}
       onScroll={scrollHandler}
       scrollEventThrottle={16}
+      // The idle gate (persist, manifest, hydration flushes) waits for these.
+      onScrollBeginDrag={onListActivityBegin}
+      onScrollEndDrag={onListActivityEnd}
+      onMomentumScrollBegin={onListActivityBegin}
+      onMomentumScrollEnd={onListActivityEnd}
       contentContainerStyle={contentContainerStyle}
       ListHeaderComponent={topContent ? <>{topContent}</> : null}
       ListFooterComponent={listFooter}
@@ -209,8 +214,6 @@ function IdeaListContentInner(
           )
         ) : null
       }
-      onViewableItemsChanged={onViewableItemsChanged}
-      viewabilityConfig={viewabilityConfig}
       // First frame: one screen of cards. Twelve full cards (waveform, meta,
       // badges) before the collection could appear was most of its mount cost on a
       // large library; the rest fill in on the following frames.

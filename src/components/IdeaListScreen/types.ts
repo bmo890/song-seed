@@ -67,8 +67,6 @@ export type CollectionListModel = {
   inlinePlayer: InlinePlayerControls;
   rowLayoutsRef: MutableRefObject<Record<string, { y: number; height: number }>>;
   highlightMapRef: MutableRefObject<Record<string, Animated.Value>>;
-  viewabilityConfig: { itemVisiblePercentThreshold: number };
-  onViewableItemsChanged: (info: { viewableItems: Array<{ item: IdeaListEntry }> }) => void;
   onItemCellLayout?: (key: string, y: number) => void;
   playIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
   openIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;

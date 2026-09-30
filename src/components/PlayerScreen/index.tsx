@@ -1871,7 +1871,7 @@ export function PlayerScreen({
               }}
               clipNotes={data.clipNotes}
               notesExpanded={ui.notesExpanded}
-              queueEntries={data.queueEntries}
+              hasQueue={data.playerQueue.length > 0}
               queueExpanded={ui.queueExpanded}
               onToggleNotesExpanded={ui.setNotesExpanded}
               onToggleQueueExpanded={ui.setQueueExpanded}

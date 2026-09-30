@@ -1541,10 +1541,16 @@ export function useRecordingScreenModel() {
     recordingOverdubClip,
   ]);
 
+  // Each interruption is handled ONCE. The token lives for the whole app session,
+  // so without this guard every later recorder mount (and every count-in state
+  // change) re-ran the stop, killing the click and guide at the next take.
+  const handledInterruptionTokenRef = useRef(0);
   useEffect(() => {
     if (recording.interruptionToken === 0) {
       return;
     }
+    if (handledInterruptionTokenRef.current === recording.interruptionToken) return;
+    handledInterruptionTokenRef.current = recording.interruptionToken;
 
     countInPendingRef.current = false;
     setIsArmingRecording(false);

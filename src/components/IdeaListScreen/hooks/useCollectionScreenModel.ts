@@ -113,10 +113,6 @@ export function useCollectionScreenModel() {
   const listRef = useRef<any>(null);
   const handledFocusTokenRef = useRef<number | null>(null);
   const focusScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Low threshold so the sticky day chip swaps labels the instant a new
-  // cohort's divider/row crosses under it at the top of the list — not after
-  // it's already well into view.
-  const viewabilityConfigRef = useRef({ itemVisiblePercentThreshold: 1 });
 
   // Collapsing header (same mechanism as the song page): the list's UI-thread
   // scroll offset drives an absolute overlay that translates up via transform.
@@ -201,17 +197,6 @@ export function useCollectionScreenModel() {
       }),
     [filteredIdeas, lyricsFilterMode, recordingIdeaId, searchMetaByIdeaId, selectedProjectStages]
   ));
-
-  // Meta is cached BY IDEA IDENTITY (ideas update immutably, so an untouched idea
-  // keeps its object across store writes). Rebuilding fresh meta objects for every
-  // idea on any workspaces change broke the row memo for all mounted cards — e.g.
-  // during post-import waveform hydration, every per-clip write re-rendered the
-  // whole visible list and re-ran the lyric scans/timestamp formatting per idea.
-  const itemMetaByIdeaId = useMemo(() => {
-    const map = new Map<string, IdeaListItemMeta>();
-    for (const idea of listIdeas) map.set(idea.id, getIdeaListItemMeta(idea));
-    return map;
-  }, [listIdeas]);
 
   // Hidden state is split into two gestures that share one count:
   //   • one-off hidden items (hiddenIdeaIds) — collapse out of the list silently.
@@ -502,7 +487,6 @@ export function useCollectionScreenModel() {
     childCollections,
     ideas,
     listEntries,
-    itemMetaByIdeaId,
     listIdeas,
     selectedListIdeaIds,
     listSelectionMode,
@@ -528,7 +512,6 @@ export function useCollectionScreenModel() {
     setSelectionDockHeight,
     rowLayoutsRef,
     highlightMapRef,
-    viewabilityConfigRef,
     listRef,
     focusIdeaId,
     focusToken,

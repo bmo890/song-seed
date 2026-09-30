@@ -1,5 +1,4 @@
-import { InteractionManager } from "react-native";
-import { runAfterInteractionsWithDeadline } from "./interactionGate";
+import { runAfterInteractionsWithDeadline, waitForIdleInteractions } from "./interactionGate";
 import {
     IMPORT_PLACEHOLDER_WAVEFORM_PEAK_COUNT,
     loadManagedAudioMetadata,
@@ -57,14 +56,6 @@ function findClip(job: HydrationJob) {
 // and every touch in the app feels delayed. Yielding between jobs keeps the app
 // responsive; the waveforms still land, just spread out.
 const INTER_JOB_YIELD_MS = 250;
-
-/** Wait for any running animations/gestures to finish, so hydration work never
- *  competes with an active interaction (scroll, drag, navigation transition). */
-function waitForIdleInteractions(): Promise<void> {
-    return new Promise((resolve) => {
-        InteractionManager.runAfterInteractions(() => resolve());
-    });
-}
 
 type JobOutcome =
     /** Clip fully hydrated (or no longer relevant) — release its claim. */

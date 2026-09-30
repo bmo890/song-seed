@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { buildWorkspaceBrowseEntries } from "../../../domain/libraryNavigation";
-import { getCollectionSizeBytes } from "../../../utils";
 import { openCollectionInBrowse } from "../../../navigation";
 
 export function useWorkspaceCollectionsModel() {
@@ -19,7 +18,6 @@ export function useWorkspaceCollectionsModel() {
   const setPrimaryCollectionId = useStore((state) => state.setPrimaryCollectionId);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [sizeMap, setSizeMap] = useState<Record<string, number>>({});
 
   const routeWorkspaceId = route.params?.workspaceId as string | undefined;
   const routeWorkspace = routeWorkspaceId
@@ -46,36 +44,6 @@ export function useWorkspaceCollectionsModel() {
     [activeWorkspace, primaryCollectionIdByWorkspace, searchQuery]
   );
 
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      if (!activeWorkspace) return;
-      const entries = await Promise.all(
-        topLevelCollections.map(async (collection) => [
-          collection.id,
-          await getCollectionSizeBytes(activeWorkspace, collection.id),
-        ] as const)
-      );
-
-      if (cancelled) return;
-      setSizeMap((prev) => {
-        let changed = false;
-        const next = { ...prev };
-        for (const [collectionId, bytes] of entries) {
-          if (next[collectionId] !== bytes) {
-            next[collectionId] = bytes;
-            changed = true;
-          }
-        }
-        return changed ? next : prev;
-      });
-    };
-
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [activeWorkspace, topLevelCollections]);
 
   return {
     navigation,
@@ -86,7 +54,6 @@ export function useWorkspaceCollectionsModel() {
     collectionEntries,
     searchQuery,
     setSearchQuery,
-    sizeMap,
     addCollection,
     updateCollection,
     moveCollection,

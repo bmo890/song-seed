@@ -219,17 +219,22 @@ export function useActivityScreenModel() {
   const hasSourceOverrides =
     excludedWorkspaceIds.length > 0 || excludedCollectionIds.length > 0;
 
+  // Reset the selected range only when the scope or year changes. `filteredEvents`
+  // is rebuilt on every library write, so depending on it snapped a chosen day back
+  // to today whenever anything wrote (a hydration flush included).
+  const filteredEventsRef = useRef(filteredEvents);
+  filteredEventsRef.current = filteredEvents;
   useEffect(() => {
     if (isRouteRangeActive) {
       return;
     }
     const fallbackTs = year === currentYear
       ? Date.now()
-      : filteredEvents[0]?.at ?? new Date(year, 0, 1).getTime();
+      : filteredEventsRef.current[0]?.at ?? new Date(year, 0, 1).getTime();
     const fallbackDay = startOfActivityDay(fallbackTs);
     setRangeStartTs(fallbackDay);
     setRangeEndTs(fallbackDay);
-  }, [currentYear, effectiveCollectionFilterId, effectiveWorkspaceId, filteredEvents, isRouteRangeActive, year]);
+  }, [currentYear, effectiveCollectionFilterId, effectiveWorkspaceId, isRouteRangeActive, year]);
 
   const countsByDay = useMemo(() => buildActivityCountsByDay(filteredEvents), [filteredEvents]);
   const maxDailyCount = useMemo(() => Math.max(0, ...Array.from(countsByDay.values())), [countsByDay]);

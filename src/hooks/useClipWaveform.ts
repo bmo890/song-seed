@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { InteractionManager } from "react-native";
 import { cancelActiveWaveformDecode } from "../services/waveformAnalysis";
+import { runAfterInteractionsWithDeadline } from "../services/interactionGate";
 import {
   generateWaveformSidecar,
   peekWaveformSidecar,
@@ -148,7 +148,8 @@ export function useClipWaveform({
     let cancelled = false;
     let decodeInFlight = false;
     let dwellTimer: ReturnType<typeof setTimeout> | null = null;
-    const interaction = InteractionManager.runAfterInteractions(() => {
+    runAfterInteractionsWithDeadline(() => {
+      if (cancelled) return;
       dwellTimer = setTimeout(() => {
         if (cancelled) return;
         decodeInFlight = true;
@@ -167,7 +168,6 @@ export function useClipWaveform({
 
     return () => {
       cancelled = true;
-      interaction?.cancel?.();
       if (dwellTimer) clearTimeout(dwellTimer);
       if (decodeInFlight) setIsGenerating(false);
       if (decodeInFlight) {

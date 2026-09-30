@@ -139,8 +139,6 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   const permissionRequestRef = useRef<Promise<boolean> | null>(null);
   const prepareInFlightRef = useRef(false);
   const startInFlightRef = useRef(false);
-  const workspaces = useStore((s) => s.workspaces);
-  const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const recordingIdeaId = useStore((s) => s.recordingIdeaId);
   const setPreferredRecordingInputId = useStore((s) => s.setPreferredRecordingInputId);
   const displayElapsedMs = useRecordingDisplayElapsed({
@@ -187,13 +185,6 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   function abortHeadTrim() {
     take.headTrim.set({ pending: false, ms: 0 });
   }
-  const recordingIdea = useMemo(
-    () =>
-      workspaces
-        .find((workspace) => workspace.id === activeWorkspaceId)
-        ?.ideas.find((idea) => idea.id === recordingIdeaId) ?? null,
-    [activeWorkspaceId, recordingIdeaId, workspaces]
-  );
   // Single-line card by design: "● Recording… • 0:42". One fixed title.
   const recordingNotificationTitle = "Recording…";
   async function claimRecordingAudioSession() {

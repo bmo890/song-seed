@@ -99,6 +99,7 @@ import type {
   WorkspaceStackParamList,
 } from "./src/navigation";
 import { openIdeaInCollection } from "./src/navigation";
+import { beginUiActivity, endUiActivity } from "./src/services/interactionGate";
 import { receivedPackages, unopenedReceivedCount } from "./src/domain/workspaceVisibility";
 import { cleanupStaleShareTempFiles, purgeExpiredTrash } from "./src/services/managedMedia";
 import { readManifest } from "./src/services/manifestSync";
@@ -173,6 +174,13 @@ const sideMenuDrawerStyle = [
 ];
 
 const EMPTY_WORKSPACES: Workspace[] = [];
+// Hoisted so a root render never hands the navigators fresh option objects.
+const ROOT_STACK_SCREEN_OPTIONS = { headerShown: false } as const;
+// Screen transitions close the idle gate (persist, manifest, hydration flushes).
+const TRANSITION_LISTENERS = {
+  transitionStart: () => beginUiActivity("nav-transition"),
+  transitionEnd: () => endUiActivity("nav-transition"),
+} as const;
 const EMPTY_PRIMARY_COLLECTIONS: Record<string, string> = {};
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Drawer = createDrawerNavigator<HomeDrawerParamList>();
@@ -744,7 +752,7 @@ function DrawerRoutes() {
 
 function WorkspaceRoutes() {
   return (
-    <WorkspaceStack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Browse">
+    <WorkspaceStack.Navigator screenOptions={ROOT_STACK_SCREEN_OPTIONS} screenListeners={TRANSITION_LISTENERS} initialRouteName="Browse">
       <WorkspaceStack.Screen name="Browse" component={WorkspaceBrowseScreen} />
       <WorkspaceStack.Screen name="CollectionDetail" component={IdeaListScreen} />
     </WorkspaceStack.Navigator>
@@ -1107,7 +1115,7 @@ function AppContent() {
           drawerStyle={sideMenuDrawerStyle}
           renderDrawerContent={() => (sideMenuEverOpened ? <OverlaySideNav key={activeRouteName} /> : null)}
         >
-        <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Home">
+        <Stack.Navigator screenOptions={ROOT_STACK_SCREEN_OPTIONS} screenListeners={TRANSITION_LISTENERS} initialRouteName="Home">
           <Stack.Screen name="Home" component={DrawerRoutes} />
           <Stack.Screen name="Activity" component={ActivityScreen} />
           <Stack.Screen name="IdeaDetail" component={IdeaDetailScreen} />

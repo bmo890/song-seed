@@ -1284,7 +1284,9 @@ export const appActions = {
             const next = applyClipMetadataBatch(store.workspaces, entries);
             // Reference-identity short-circuit: nothing relevant → don't touch the store
             // (avoids a needless notify + persist).
-            return next === store.workspaces ? {} : { workspaces: next };
+            // `{}` is NOT a no-op for zustand (it still assigns and notifies) —
+            // returning the state itself is.
+            return next === store.workspaces ? store : { workspaces: next };
         });
     },
 

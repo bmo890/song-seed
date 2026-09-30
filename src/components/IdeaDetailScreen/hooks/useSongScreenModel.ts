@@ -105,18 +105,31 @@ export function useSongScreenModel() {
     }
   }, [selectedIdea?.id, selectedIdea?.isDraft, startInEdit]);
 
+  // Seed the edit sheet when it OPENS (or the idea changes underneath it), not on
+  // every write to the idea: a background write while typing used to overwrite
+  // the draft title and stage.
+  const selectedIdeaRef = useRef(selectedIdea);
+  selectedIdeaRef.current = selectedIdea;
   useEffect(() => {
-    if (isEditMode && selectedIdea) {
-      setDraftTitle(selectedIdea.title);
-      setDraftStatus(selectedIdea.status);
-      setDraftCompletion(selectedIdea.completionPct);
+    const idea = selectedIdeaRef.current;
+    if (isEditMode && idea) {
+      setDraftTitle(idea.title);
+      setDraftStatus(idea.status);
+      setDraftCompletion(idea.completionPct);
     }
-  }, [isEditMode, selectedIdea]);
+  }, [isEditMode, selectedIdea?.id]);
 
+  // Per-idea view state resets when the screen moves to ANOTHER idea. On first
+  // mount the initial state already holds it (including `initialSongTab`, which
+  // this reset used to override); functional setters keep an already-empty
+  // filter's identity so the reset doesn't cost a second render.
+  const resetForIdeaRef = useRef(selectedIdea?.id);
   useEffect(() => {
+    if (resetForIdeaRef.current === selectedIdea?.id) return;
+    resetForIdeaRef.current = selectedIdea?.id;
     setSongTab("takes");
-    setClipTagFilter([]);
-    setClipGroupFilter([]);
+    setClipTagFilter((prev) => (prev.length === 0 ? prev : []));
+    setClipGroupFilter((prev) => (prev.length === 0 ? prev : []));
     setClipBookmarkedOnly(false);
     setTimelineSortMetric("created");
     setTimelineSortDirection("desc");

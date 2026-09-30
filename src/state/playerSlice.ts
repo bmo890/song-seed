@@ -214,16 +214,22 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
         }),
     consumePlayerAutoplay: () => set({ playerShouldAutoplay: false }),
     isPlayerScreenMounted: false,
-    setPlayerScreenMounted: (mounted) => set({ isPlayerScreenMounted: mounted }),
+    // Layout/presence setters skip identical values: a no-op `set` still runs every
+    // selector in the app and the persist partialize (2026-09-29).
+    setPlayerScreenMounted: (mounted) =>
+        set((state) => (state.isPlayerScreenMounted === mounted ? state : { isPlayerScreenMounted: mounted })),
     playerDockHeight: 0,
-    setPlayerDockHeight: (height) => set({ playerDockHeight: height }),
+    setPlayerDockHeight: (height) =>
+        set((state) => (state.playerDockHeight === height ? state : { playerDockHeight: height })),
     importBannerHeight: 0,
     setImportBannerHeight: (height) =>
         set((state) => (state.importBannerHeight === height ? state : { importBannerHeight: height })),
     playerDockPresentationHold: false,
-    setPlayerDockPresentationHold: (hold) => set({ playerDockPresentationHold: hold }),
+    setPlayerDockPresentationHold: (hold) =>
+        set((state) => (state.playerDockPresentationHold === hold ? state : { playerDockPresentationHold: hold })),
     activeSelectionDockHeight: 0,
-    setActiveSelectionDockHeight: (height) => set({ activeSelectionDockHeight: height }),
+    setActiveSelectionDockHeight: (height) =>
+        set((state) => (state.activeSelectionDockHeight === height ? state : { activeSelectionDockHeight: height })),
 
     inlineTarget: null,
     setInlineTarget: (target) =>

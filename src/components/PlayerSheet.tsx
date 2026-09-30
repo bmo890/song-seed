@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from "react";
+import { beginUiActivity, endUiActivity } from "../services/interactionGate";
 import { Pressable, StyleSheet, View } from "react-native";
 import Animated, {
   Extrapolation,
@@ -81,6 +82,14 @@ export function PlayerSheet({ activeRouteName, isDrawerOpen, navigateRoot }: Pla
       }
     });
   }, [dragY, expanded, openedByDrag, setInMotion]);
+
+  // The sheet's slide is the one animation that runs while the whole list beneath
+  // is on screen; background writes wait for it.
+  useEffect(() => {
+    if (!inMotion) return;
+    beginUiActivity("player-sheet");
+    return () => endUiActivity("player-sheet");
+  }, [inMotion]);
 
   const sheetNavigation = useMemo<PlayerSheetNavigation>(() => {
     // Plain JS callbacks so the withTiming worklet only ever calls runOnJS(these),

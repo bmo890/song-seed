@@ -12,13 +12,6 @@ import { UserText } from "../../../i18n";
  *  inset on a standard phone. The sheet caps this at 72% of the window. */
 const QUEUE_SHEET_COLLAPSED_HEIGHT = 470;
 
-type QueueEntry = {
-  ideaId: string;
-  clipId: string;
-  title: string;
-  subtitle: string;
-};
-
 type PlayerSupportSectionsProps = {
   /** Doors — only sketches carry readable artifacts. */
   canAuthor: boolean;
@@ -37,7 +30,8 @@ type PlayerSupportSectionsProps = {
   onBuildChart: () => void;
   clipNotes: string;
   notesExpanded: boolean;
-  queueEntries: QueueEntry[];
+  /** A queue exists (even one item): the footer's queue button is never a dead tap. */
+  hasQueue: boolean;
   queueExpanded: boolean;
   onToggleNotesExpanded: (value: boolean) => void;
   onToggleQueueExpanded: (value: boolean) => void;
@@ -60,7 +54,7 @@ export function PlayerSupportSections({
   onBuildChart,
   clipNotes,
   notesExpanded,
-  queueEntries,
+  hasQueue,
   queueExpanded,
   onToggleNotesExpanded,
   onToggleQueueExpanded,
@@ -68,9 +62,6 @@ export function PlayerSupportSections({
 }: PlayerSupportSectionsProps) {
   const { t } = useTranslation();
 
-  // The queue sheet renders for ANY active queue (even a single item) so the
-  // always-present footer queue button is never a dead tap.
-  const hasQueue = queueEntries.length > 0;
   const hasNotes = clipNotes.trim().length > 0;
 
   // Stable identities so the memoized QueuePanel isn't re-rendered by this

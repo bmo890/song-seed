@@ -12,6 +12,8 @@ import * as FileSystem from "expo-file-system/legacy";
 import { runAfterInteractionsWithDeadline } from "./interactionGate";
 import { AppState } from "react-native";
 import { createSnapshotChangeDetector } from "../state/persistChangeDetection";
+import { getKvNewestUpdatedAt } from "../state/db/storage";
+import { STORE_NAME } from "../state/persistedSnapshot";
 import { describeError, persistLog } from "./persistLog";
 import {
     SONG_NOOK_ROOT,
@@ -217,11 +219,15 @@ let pendingFirstScheduledAt: number | null = null;
 let isWriting = false;
 let unsubscribe: (() => void) | null = null;
 
-const DEBOUNCE_MS = 5000;
+// The shadow copy is a crash-safety net behind SQLite, not the primary store, and
+// each write stringifies the whole library (~1 MB at 337 ideas, ~25 ms on Hermes).
+// A quieter cadence: the app-background flush still lands immediately, and the
+// freshness detector's threshold (60 s) stays above the longest postponement.
+const DEBOUNCE_MS = 15_000;
 // A pure trailing debounce starved under steady editing — the shadow copy could lag
 // the store indefinitely, which is exactly when it is needed (2026-09-07). Cap the
 // postponement like the store's own passive persist does.
-const MAX_WAIT_MS = 15_000;
+const MAX_WAIT_MS = 45_000;
 
 function flushPendingWrite(immediate = false) {
     if (debounceTimer) {
@@ -252,6 +258,23 @@ function flushPendingWriteNow() {
             flushPendingWrite();
         }
     });
+}
+
+/** The manifest on disk is at least as new as the newest persisted row. */
+async function manifestIsCurrent(): Promise<boolean> {
+    try {
+        const info = await FileSystem.getInfoAsync(SONG_NOOK_MANIFEST_PATH);
+        if (!info.exists) return false;
+        const mtime = "modificationTime" in info && typeof info.modificationTime === "number"
+            ? info.modificationTime > 1e12 ? info.modificationTime : info.modificationTime * 1000
+            : null;
+        if (mtime == null) return false;
+        const storeAt = await getKvNewestUpdatedAt([STORE_NAME], [`${STORE_NAME}::ws::`]);
+        if (storeAt == null) return false;
+        return mtime >= storeAt;
+    } catch {
+        return false;
+    }
 }
 
 function scheduleWrite(state: PersistedAppStore) {
@@ -303,9 +326,13 @@ export function startManifestSync(
         return;
     }
 
-    // Write initial manifest immediately (in case it doesn't exist yet)
+    // Write the initial manifest only when it is missing or older than the store:
+    // rewriting ~1 MB on every launch for a copy that already matches cost every
+    // boot a whole-library stringify.
     const initialSnapshot = buildSnapshot(store.getState());
-    writeManifestToDisk(initialSnapshot);
+    void manifestIsCurrent().then((current) => {
+        if (!current) writeManifestToDisk(initialSnapshot);
+    });
 
     // Only schedule when persisted CONTENT actually changed. The store also emits
     // transient updates (playback position several times a second), and because the
