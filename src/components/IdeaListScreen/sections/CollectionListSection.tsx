@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
-import { useAnimatedReaction, useSharedValue, runOnJS } from "react-native-reanimated";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { IdeaListContent } from "../components/IdeaListContent";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import type { ClipVersion } from "../../../types";
@@ -9,6 +8,9 @@ import { getDateBucket } from "../../../domain/dateBuckets";
 import { getIdeaSortTimestamp } from "../../../domain/ideaSort";
 import { useStore } from "../../../state/useStore";
 import { stickyDayStore } from "../stickyDayStore";
+import { createListGeometry } from "../listGeometry";
+import { StyleSheet } from "react-native";
+import { styles } from "../../../styles";
 
 export function CollectionListSection({
   contentPaddingTop,
@@ -211,64 +213,75 @@ export function CollectionListSection({
     setTimelineDaysHidden(collectionIdRef.current, [{ metric, dayStartTs }], true);
   }, [maybeResetInlineForIdeaIds, setTimelineDaysHidden]);
 
-  // Tracks the absolute content-y of each FlatList cell (keyed by entry.key).
-  // Populated by the CellRendererComponent's onLayout, which fires with the cell's
-  // y relative to the FlatList content container — i.e., the true scroll-content offset.
-  const itemCellLayoutsRef = useRef<Record<string, number>>({});
-  // Entry keys + PRECOMPUTED labels: the sticky-chip resolver runs during scrolling,
-  // so it must not re-derive date buckets per entry per call — at 100+ entries that
-  // per-frame work made list swipes visibly stutter.
-  const stickyEntriesRef = useRef<{ key: string; label: string }[]>([]);
+  // The floating day chip and the scrubber readout follow the first row that is
+  // mostly on screen, reported by the list's viewability callback (RN's own cell
+  // metrics). Labels are precomputed per entry so the callback does no date work:
+  // the day label under date sorts, the first letter under title sorts, nothing
+  // under length/progress sorts (the chip reads the day label regardless).
+  const entryLabelsRef = useRef<Map<string, { label: string; scrub: string | null }>>(new Map());
   useEffect(() => {
-    stickyEntriesRef.current = screen.listEntries.map((entry) => ({
-      key: entry.key,
-      label: entry.type === "collapsedDay" ? entry.label : entry.dayLabel,
-    }));
-  }, [screen.listEntries, ideasSort]);
-  const contentPaddingTopRef = useRef(contentPaddingTop);
-  useEffect(() => { contentPaddingTopRef.current = contentPaddingTop; }, [contentPaddingTop]);
-
-  // Called from the Reanimated UI thread via runOnJS to update the sticky day chip.
-  // effectiveTop is the content-coordinate of the visible-area boundary:
-  //   effectiveTop = contentPaddingTop + max(0, scrollY - collapsibleHeaderHeight)
-  // Labels are sourced by finding the last entry whose cell top <= effectiveTop.
-  const updateStickyLabel = useCallback((scrollYVal: number, colHVal: number) => {
-    const entries = stickyEntriesRef.current;
-    const paddingTop = contentPaddingTopRef.current;
-    const effectiveTop = paddingTop + Math.max(0, scrollYVal - colHVal);
-    let foundLabel: string | null = null;
-    for (const entry of entries) {
-      const cellY = itemCellLayoutsRef.current[entry.key];
-      if (cellY === undefined) continue;
-      if (cellY > effectiveTop) break;
-      foundLabel = entry.label;
+    const metric = screen.activeSortMetric;
+    const titleById = new Map<string, string>();
+    if (metric === "title") {
+      for (const idea of screen.ideas) titleById.set(idea.id, idea.title);
     }
-    if (foundLabel !== null) stickyDayStore.set(foundLabel);
+    const next = new Map<string, { label: string; scrub: string | null }>();
+    for (const entry of screen.listEntries) {
+      const label = entry.type === "collapsedDay" ? entry.label : entry.dayLabel;
+      let scrub: string | null = null;
+      if (screen.showDateDividers) scrub = label;
+      else if (metric === "title" && entry.type === "idea") {
+        const first = (titleById.get(entry.ideaId) ?? "").trim().slice(0, 1);
+        scrub = first ? first.toLocaleUpperCase() : null;
+      }
+      next.set(entry.key, { label, scrub });
+    }
+    entryLabelsRef.current = next;
+  }, [screen.listEntries, screen.ideas, screen.activeSortMetric, screen.showDateDividers, ideasSort]);
+
+  const onFirstViewableEntry = useCallback((entry: IdeaListEntry | null) => {
+    const labels = entry ? entryLabelsRef.current.get(entry.key) : undefined;
+    if (labels) stickyDayStore.set(labels.label);
+    stickyDayStore.setScrubLabel(labels?.scrub ?? null);
   }, []);
 
-  // Capture the SharedValues as locals so the worklet closure only serializes those
-  // (SharedValues are made to be shared). Referencing `screen.*` here would pull the whole
-  // `screen` context into the worklet, and Reanimated deep-freezes captured plain objects —
-  // freezing screen.rowLayoutsRef.current and crashing later onLayout writes on Hermes
-  // ("cannot add a new property"). See CollectionHeaderSection's "Locals only" note.
-  const scrollYValue = screen.scrollY;
-  const collapsibleHeaderHeight = screen.collapsibleHeaderHeight;
-  // Dispatch to JS at position granularity, not per frame: a 60Hz runOnJS stream
-  // during swipes competed with touch handling on large lists. The chip only needs
-  // to know when the top row has moved meaningfully.
-  const lastStickyDispatchY = useSharedValue(-10000);
-  useAnimatedReaction(
-    () => scrollYValue.value,
-    (scrollYVal) => {
-      if (Math.abs(scrollYVal - lastStickyDispatchY.value) < 16) return;
-      lastStickyDispatchY.value = scrollYVal;
-      runOnJS(updateStickyLabel)(scrollYVal, collapsibleHeaderHeight.value);
-    }
+  // Exact row geometry for getItemLayout: rows report their measured heights,
+  // the list re-lays its spacers when a measurement changes what follows it.
+  const [geometry] = useState(() => createListGeometry());
+  const [layoutVersion, setLayoutVersion] = useState(0);
+  const listGap = useMemo(
+    () =>
+      (StyleSheet.flatten([styles.listContent, screen.listDensity === "compact" ? styles.listContentCompact : null]) as { gap?: number })
+        .gap ?? 0,
+    [screen.listDensity]
   );
-
-  const onItemCellLayout = useCallback((key: string, y: number) => {
-    itemCellLayoutsRef.current[key] = y;
-  }, []);
+  const headerLengthRef = useRef(0);
+  // Derived in render, never from an effect: the list reads getItemLayout in
+  // the same render that hands it these entries.
+  geometry.configure({
+    entries: screen.listEntries,
+    density: screen.listDensity,
+    paddingTop: contentPaddingTop,
+    headerLength: headerLengthRef.current,
+    gap: listGap,
+  });
+  const getItemLayout = useCallback(
+    (_data: ArrayLike<IdeaListEntry> | null | undefined, index: number) => geometry.getItemLayout(index),
+    [geometry]
+  );
+  const onRowHeight = useCallback(
+    (entryKey: string, kind: string, height: number) => {
+      if (geometry.report(entryKey, kind, height)) setLayoutVersion((v) => v + 1);
+    },
+    [geometry]
+  );
+  const onHeaderLength = useCallback(
+    (length: number) => {
+      headerLengthRef.current = Math.round(length);
+      if (geometry.setHeaderLength(length)) setLayoutVersion((v) => v + 1);
+    },
+    [geometry]
+  );
 
   // One model object per real change. A fresh literal here handed the FlatList new
   // props on every provider render — a full list pass (~90 ms at 325 ideas) for a
@@ -276,6 +289,8 @@ export function CollectionListSection({
   const listModel = useMemo(
     () => ({
       listRef: screen.listRef,
+      contentHeightValue: screen.listContentHeight,
+      viewportHeightValue: screen.listViewportHeight,
       collapseScrollY: screen.scrollY,
       contentPaddingTop,
       listEntries: screen.listEntries,
@@ -291,7 +306,11 @@ export function CollectionListSection({
       inlinePlayer,
       rowLayoutsRef: screen.rowLayoutsRef,
       highlightMapRef: screen.highlightMapRef,
-      onItemCellLayout,
+      onFirstViewableEntry,
+      getItemLayout,
+      onRowHeight,
+      onHeaderLength,
+      layoutVersion,
       playIdeaFromList,
       openIdeaFromList,
       hideTimelineDay,
@@ -299,6 +318,8 @@ export function CollectionListSection({
     }),
     [
       screen.listRef,
+      screen.listContentHeight,
+      screen.listViewportHeight,
       screen.scrollY,
       contentPaddingTop,
       screen.listEntries,
@@ -314,7 +335,11 @@ export function CollectionListSection({
       inlinePlayer,
       screen.rowLayoutsRef,
       screen.highlightMapRef,
-      onItemCellLayout,
+      onFirstViewableEntry,
+      getItemLayout,
+      onRowHeight,
+      onHeaderLength,
+      layoutVersion,
       playIdeaFromList,
       openIdeaFromList,
       hideTimelineDay,

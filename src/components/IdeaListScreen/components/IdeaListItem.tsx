@@ -34,6 +34,7 @@ import { IdeaCard } from "../../common/IdeaCard";
 import { AppAlert } from "../../common/AppAlert";
 import { colors } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
+import { rowKind } from "../listGeometry";
 import { toast } from "../../common/toastStore";
 import { useTranslation } from "react-i18next";
 
@@ -57,6 +58,8 @@ type IdeaListItemProps = {
     showDateDividers: boolean,
     sortMetric: IdeaSortMetric,
     lyricsFilterMode: "all" | "with" | "without",
+    /** The row's measured height, for the list's exact geometry (listGeometry). */
+    onRowHeight?: (entryKey: string, kind: string, height: number) => void,
 };
 
 function IdeaListItemInner({
@@ -75,6 +78,7 @@ function IdeaListItemInner({
     showDateDividers,
     sortMetric,
     lyricsFilterMode,
+    onRowHeight,
 }: IdeaListItemProps) {
     const { t } = useTranslation();
     // Null only for the frame between a deletion and the list dropping the row.
@@ -267,7 +271,19 @@ function IdeaListItemInner({
     };
 
     return (
-        <View style={styles.ideasListItemWrap}>
+        <View
+            style={styles.ideasListItemWrap}
+            onLayout={
+                onRowHeight
+                    ? (evt) =>
+                          onRowHeight(
+                              `idea:${ideaId}`,
+                              rowKind("idea", listDensity, !!dayDividerLabel),
+                              evt.nativeEvent.layout.height
+                          )
+                    : undefined
+            }
+        >
             {dayDividerLabel ? (
                 <Pressable
                     style={[styles.ideasDayDividerRow, compact ? styles.ideasDayDividerRowDense : null]}
@@ -464,19 +480,35 @@ export const IdeaListItem = React.memo(IdeaListItemInner);
  * the list. Atomic — there's no reaching inside a collapsed day.
  */
 export function CollapsedDayRow({
+    entryKey,
     label,
     count,
     compact,
     onExpand,
+    onRowHeight,
 }: {
+    entryKey: string;
     label: string;
     count: number;
     compact?: boolean;
     onExpand?: () => void;
+    onRowHeight?: (entryKey: string, kind: string, height: number) => void;
 }) {
     const { t } = useTranslation();
     return (
-        <View style={styles.ideasListItemWrap}>
+        <View
+            style={styles.ideasListItemWrap}
+            onLayout={
+                onRowHeight
+                    ? (evt) =>
+                          onRowHeight(
+                              entryKey,
+                              rowKind("collapsedDay", compact ? "compact" : "comfortable", false),
+                              evt.nativeEvent.layout.height
+                          )
+                    : undefined
+            }
+        >
             <Pressable
                 style={({ pressed }) => [
                     styles.ideasDayDividerRow,

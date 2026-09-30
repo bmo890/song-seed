@@ -1,6 +1,6 @@
 import { MutableRefObject, ReactNode, memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { beginUiActivity, endUiActivity } from "../../../services/interactionGate";
-import { Animated, FlatList, Pressable, Text, View } from "react-native";
+import { Animated, FlatList, Pressable, Text, View, type ViewToken } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ReAnimated, { useAnimatedScrollHandler, type SharedValue } from "react-native-reanimated";
 import { styles } from "../../../styles";
@@ -17,6 +17,10 @@ const onListActivityEnd = () => endUiActivity("list-scroll");
 
 const AnimatedFlatList = ReAnimated.FlatList as unknown as typeof FlatList;
 
+// The floating day chip and the scrubber's readout follow the first row that is
+// at least half on screen. A module constant: FlatList throws if this changes.
+const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 50, waitForInteraction: false } as const;
+
 type IdeaListContentProps = {
   listRef?: MutableRefObject<any>;
   listEntries: IdeaListEntry[];
@@ -32,7 +36,14 @@ type IdeaListContentProps = {
   inlinePlayer: InlinePlayerControls;
   rowLayoutsRef: MutableRefObject<Record<string, { y: number; height: number }>>;
   highlightMapRef: MutableRefObject<Record<string, Animated.Value>>;
-  onItemCellLayout?: (key: string, y: number) => void;
+  /** The first mostly-visible row changed (drives the day chip and the scrubber readout). */
+  onFirstViewableEntry?: (entry: IdeaListEntry | null) => void;
+  /** Exact row geometry (listGeometry): the list is full-length from the first frame. */
+  getItemLayout?: (data: ArrayLike<IdeaListEntry> | null | undefined, index: number) => { length: number; offset: number; index: number };
+  onRowHeight?: (entryKey: string, kind: string, height: number) => void;
+  onHeaderLength?: (length: number) => void;
+  /** Bumps when measured geometry changes, so the list re-lays its spacers. */
+  layoutVersion?: number;
   playIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
   openIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
   hideTimelineDay: (metric: "created" | "updated", dayStartTs: number) => Promise<void>;
@@ -41,6 +52,9 @@ type IdeaListContentProps = {
   collapseScrollY?: SharedValue<number>;
   /** Top inset reserving space for the absolute collapsing header overlay. */
   contentPaddingTop?: number;
+  /** Content and viewport heights, written from the list for the scrubber's track. */
+  contentHeightValue?: SharedValue<number>;
+  viewportHeightValue?: SharedValue<number>;
 };
 
 
@@ -69,29 +83,36 @@ function IdeaListContentInner(
     expandTimelineDay,
     collapseScrollY,
     contentPaddingTop,
-    onItemCellLayout,
+    onFirstViewableEntry,
+    getItemLayout,
+    onRowHeight,
+    onHeaderLength,
+    layoutVersion,
+    contentHeightValue,
+    viewportHeightValue,
   } = "listModel" in props ? props.listModel : props;
+  const onListLayout = useCallback(
+    (event: { nativeEvent: { layout: { height: number } } }) => {
+      if (viewportHeightValue) viewportHeightValue.value = event.nativeEvent.layout.height;
+    },
+    [viewportHeightValue]
+  );
+  const onContentSizeChange = useCallback(
+    (_width: number, height: number) => {
+      if (contentHeightValue) contentHeightValue.value = height;
+    },
+    [contentHeightValue]
+  );
   const scrollRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Stable CellRendererComponent so FlatList doesn't remount all cells on re-render.
-  // Reads the latest onItemCellLayout via a ref to avoid stale closures.
-  const onItemCellLayoutRef = useRef(onItemCellLayout);
-  useEffect(() => { onItemCellLayoutRef.current = onItemCellLayout; }, [onItemCellLayout]);
-  const CellRendererComponent = useCallback(
-    ({ cellKey, children, onLayout: origOnLayout, ...rest }: any) => (
-      <View
-        {...rest}
-        onLayout={(e: any) => {
-          onItemCellLayoutRef.current?.(cellKey, e.nativeEvent.layout.y);
-          origOnLayout?.(e);
-        }}
-      >
-        {children}
-      </View>
-    ),
-    []
-  );
-
+  // Viewability is the one place RN reports which rows are on screen with its own
+  // cell metrics. (A custom CellRendererComponent does not work here: Reanimated's
+  // FlatList replaces it with its own, so a per-cell onLayout never fires.)
+  const onFirstViewableEntryRef = useRef(onFirstViewableEntry);
+  useEffect(() => { onFirstViewableEntryRef.current = onFirstViewableEntry; }, [onFirstViewableEntry]);
+  const onViewableItemsChanged = useCallback((info: { viewableItems: ViewToken<IdeaListEntry>[] }) => {
+    onFirstViewableEntryRef.current?.(info.viewableItems[0]?.item ?? null);
+  }, []);
   useEffect(() => {
     return () => {
       if (scrollRetryTimerRef.current) {
@@ -120,6 +141,16 @@ function IdeaListContentInner(
     [listDensity, showDateDividers, contentPaddingTop]
   );
   const listFooter = useMemo(() => <View style={{ height: listFooterSpacerHeight }} />, [listFooterSpacerHeight]);
+  // The header cell's height feeds the geometry (it is a cell even when empty).
+  const onHeaderLengthRef = useRef(onHeaderLength);
+  useEffect(() => { onHeaderLengthRef.current = onHeaderLength; }, [onHeaderLength]);
+  const listHeader = useMemo(
+    () =>
+      topContent ? (
+        <View onLayout={(event) => onHeaderLengthRef.current?.(event.nativeEvent.layout.height)}>{topContent}</View>
+      ) : null,
+    [topContent]
+  );
   // Stable per set of inputs, so a re-render for an unrelated reason does not make
   // VirtualizedList re-invoke it for every mounted cell.
   const renderItem = useCallback(
@@ -129,6 +160,8 @@ function IdeaListContentInner(
         if (entry.type === "collapsedDay") {
           return (
             <CollapsedDayRow
+              entryKey={entry.key}
+              onRowHeight={onRowHeight}
               label={entry.label}
               count={entry.count}
               compact={listDensity === "compact"}
@@ -160,10 +193,12 @@ function IdeaListContentInner(
             showDateDividers={showDateDividers}
             sortMetric={activeSortMetric}
             lyricsFilterMode={lyricsFilterMode}
+            onRowHeight={onRowHeight}
           />
         );
     },
     [
+      onRowHeight,
       listDensity,
       activeTimelineMetric,
       expandTimelineDay,
@@ -184,8 +219,13 @@ function IdeaListContentInner(
     <AnimatedFlatList<IdeaListEntry>
       ref={listRef}
       data={listEntries}
+      onLayout={onListLayout}
+      onContentSizeChange={onContentSizeChange}
       keyExtractor={keyExtractor}
-      CellRendererComponent={CellRendererComponent}
+      getItemLayout={getItemLayout}
+      extraData={layoutVersion}
+      viewabilityConfig={VIEWABILITY_CONFIG}
+      onViewableItemsChanged={onViewableItemsChanged}
       onScroll={scrollHandler}
       scrollEventThrottle={16}
       // The idle gate (persist, manifest, hydration flushes) waits for these.
@@ -194,7 +234,7 @@ function IdeaListContentInner(
       onMomentumScrollBegin={onListActivityBegin}
       onMomentumScrollEnd={onListActivityEnd}
       contentContainerStyle={contentContainerStyle}
-      ListHeaderComponent={topContent ? <>{topContent}</> : null}
+      ListHeaderComponent={listHeader}
       ListFooterComponent={listFooter}
       ListEmptyComponent={
         listEntries.length === 0 ? (

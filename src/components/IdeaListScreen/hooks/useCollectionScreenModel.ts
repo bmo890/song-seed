@@ -119,6 +119,9 @@ export function useCollectionScreenModel() {
   // collapsibleHeaderHeight is measured by the overlay.
   const scrollY = useSharedValue(0);
   const collapsibleHeaderHeight = useSharedValue(0);
+  // The fast-scroll scrubber sizes its track from these; the list writes them.
+  const listContentHeight = useSharedValue(0);
+  const listViewportHeight = useSharedValue(0);
 
   const hiddenIdeaIds = currentCollection?.ideasListState.hiddenIdeaIds ?? [];
   const hiddenDays = currentCollection?.ideasListState.hiddenDays ?? [];
@@ -536,6 +539,8 @@ export function useCollectionScreenModel() {
     collectionRouteParams,
     scrollY,
     collapsibleHeaderHeight,
+    listContentHeight,
+    listViewportHeight,
     floatingStripBottom,
     listFooterSpacerHeight,
     activityLabel,

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenHeader } from "../../common/ScreenHeader";
@@ -13,6 +13,7 @@ import { CollectionFilterSection } from "../sections/CollectionFilterSection";
 import { CollectionListSection } from "../sections/CollectionListSection";
 import { CollectionFloatingActions } from "../sections/CollectionFloatingActions";
 import { CollectionHeaderMenu } from "./CollectionHeaderMenu";
+import { ListScrubber } from "./ListScrubber";
 import { CollectionModals } from "./CollectionModals";
 import { IdeaListNestedCollectionsSection } from "./IdeaListNestedCollectionsSection";
 import { styles } from "../../../styles";
@@ -65,6 +66,11 @@ export function CollectionScreenContent() {
   const { t } = useTranslation();
   const { screen } = useCollectionScreen();
   const [headerHeight, setHeaderHeight] = useState(DEFAULT_HEADER_HEIGHT);
+  const listRef = screen.listRef;
+  const scrollListTo = useCallback(
+    (offset: number) => listRef.current?.scrollToOffset?.({ offset, animated: false }),
+    [listRef]
+  );
 
   if (!screen.activeWorkspace || !screen.collectionId || !screen.currentCollection) {
     // The screen model redirects to Browse when the collection is gone; this is a
@@ -129,6 +135,16 @@ export function CollectionScreenContent() {
               <StickyDayChip visible={screen.showDateDividers} />
             </View>
           }
+        />
+        {/* Fast-scroll handle at the trailing edge; shows only while the list moves. */}
+        <ListScrubber
+          scrollY={screen.scrollY}
+          contentHeight={screen.listContentHeight}
+          viewportHeight={screen.listViewportHeight}
+          collapsibleHeaderHeight={screen.collapsibleHeaderHeight}
+          headerHeight={headerHeight}
+          bottomInset={screen.listFooterSpacerHeight + 8}
+          onScrollTo={scrollListTo}
         />
       </View>
 

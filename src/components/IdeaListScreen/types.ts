@@ -67,7 +67,14 @@ export type CollectionListModel = {
   inlinePlayer: InlinePlayerControls;
   rowLayoutsRef: MutableRefObject<Record<string, { y: number; height: number }>>;
   highlightMapRef: MutableRefObject<Record<string, Animated.Value>>;
-  onItemCellLayout?: (key: string, y: number) => void;
+  /** The first mostly-visible row changed (drives the day chip and the scrubber readout). */
+  onFirstViewableEntry?: (entry: IdeaListEntry | null) => void;
+  /** Exact row geometry (listGeometry): the list is full-length from the first frame. */
+  getItemLayout?: (data: ArrayLike<IdeaListEntry> | null | undefined, index: number) => { length: number; offset: number; index: number };
+  onRowHeight?: (entryKey: string, kind: string, height: number) => void;
+  onHeaderLength?: (length: number) => void;
+  /** Bumps when measured geometry changes, so the list re-lays its spacers. */
+  layoutVersion?: number;
   playIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
   openIdeaFromList: (ideaId: string, clip: any) => Promise<void> | void;
   hideTimelineDay: (metric: "created" | "updated", dayStartTs: number) => Promise<void>;
@@ -77,4 +84,7 @@ export type CollectionListModel = {
   collapseScrollY?: SharedValue<number>;
   /** Top inset reserving space for the absolute collapsing header overlay. */
   contentPaddingTop?: number;
+  /** Content and viewport heights, written from the list for the scrubber's track. */
+  contentHeightValue?: SharedValue<number>;
+  viewportHeightValue?: SharedValue<number>;
 };

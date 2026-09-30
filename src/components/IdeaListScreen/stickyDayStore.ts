@@ -13,6 +13,11 @@ let currentLabel: string | null = null;
 // current label still matches this, the chip is suppressed — it only appears
 // once scrolling has passed into an older cohort.
 let topLabel: string | null = null;
+// The fast-scroll scrubber's readout for the row under the visible-area top:
+// the day label under date sorts, the first letter under title sorts, nothing
+// under the rest. Kept here (not in the screen model) for the same reason as
+// the chip: it changes per scroll position and must re-render only its reader.
+let scrubLabel: string | null = null;
 const listeners = new Set<() => void>();
 
 export const stickyDayStore = {
@@ -26,7 +31,13 @@ export const stickyDayStore = {
     topLabel = label;
     listeners.forEach((l) => l());
   },
+  setScrubLabel(label: string | null) {
+    if (label === scrubLabel) return;
+    scrubLabel = label;
+    listeners.forEach((l) => l());
+  },
   get: () => currentLabel,
+  getScrubLabel: () => scrubLabel,
   getTopLabel: () => topLabel,
   subscribe(listener: () => void) {
     listeners.add(listener);
@@ -44,4 +55,9 @@ export function useStickyDayChipVisible(): boolean {
     stickyDayStore.subscribe,
     () => currentLabel !== null && currentLabel !== topLabel
   );
+}
+
+/** The scrubber's readout for the current scroll position. */
+export function useScrubLabel(): string | null {
+  return useSyncExternalStore(stickyDayStore.subscribe, stickyDayStore.getScrubLabel);
 }
