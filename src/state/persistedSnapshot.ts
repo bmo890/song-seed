@@ -1,4 +1,5 @@
 import { persistRawSnapshot } from "./db/storage";
+import { persistLog } from "../services/persistLog";
 import {
     isHydrationReadAuthoritative,
     isPersistBlocked,
@@ -76,6 +77,22 @@ export class PersistSkippedError extends Error {
     }
 }
 
+type SnapshotFlusher = (value: { state: PersistedAppStore; version: number }) => Promise<void>;
+let snapshotFlusher: SnapshotFlusher | null = null;
+
+/** The store registers its guarded, sharded flush here at module init. Until then
+ *  (tests, tooling) the durable flush falls back to the raw monolithic write. */
+export function setSnapshotFlusher(flusher: SnapshotFlusher | null): void {
+    snapshotFlusher = flusher;
+}
+
+/**
+ * The durable flush behind a take save and a delete: resolves only once SQLite took
+ * the snapshot, rejects when the write was refused or failed. It goes through the
+ * sharded planner, so it writes the meta row plus the workspaces that changed —
+ * it used to write the whole library as one legacy blob (≈1 MB at 337 ideas),
+ * which the next passive write then re-sharded in full (2026-09-30).
+ */
 export async function persistAppStoreSnapshot(state: AppStore): Promise<void> {
     if (isPersistBlocked()) throw new PersistSkippedError("persist is blocked");
     // Raw writes bypass the sharded adapter's write-authority gate — apply the same
@@ -85,6 +102,12 @@ export async function persistAppStoreSnapshot(state: AppStore): Promise<void> {
         throw new PersistSkippedError("hydration never read the disk");
     }
     const snapshot = buildPersistedAppStoreSnapshot(state);
+    if (snapshotFlusher) {
+        const startedAt = Date.now();
+        await snapshotFlusher({ state: snapshot, version: STORE_VERSION });
+        persistLog("flush.ok", { ms: Date.now() - startedAt });
+        return;
+    }
     await persistRawSnapshot(STORE_NAME, JSON.stringify({ state: snapshot, version: STORE_VERSION }));
 }
 

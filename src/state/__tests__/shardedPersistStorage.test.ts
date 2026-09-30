@@ -176,3 +176,40 @@ describe("activity history row (adapter)", () => {
         expect(await storage.getItem(STORE)).toBeNull();
     });
 });
+
+describe("flushNow (the durable flush)", () => {
+    it("writes through the sharded planner and leaves the next passive write a meta-only no-op", async () => {
+        const storage = createShardedPersistStorage();
+        const w1 = ws("w1");
+        const w2 = ws("w2");
+        await storage.setItem(STORE, value([w1, w2]) as any);
+        jest.clearAllMocks();
+
+        const edited = value([w1, ws("w2", "edited")]);
+        await storage.flushNow(STORE, edited as any);
+        const flushCall = (commitShardedWrite as jest.Mock).mock.calls[0];
+        expect((flushCall[0] as { key: string }[]).map((r) => r.key)).toEqual([STORE, workspaceRowKey(STORE, "w2")]);
+        expect(flushCall[2]).toEqual({ strict: true });
+        jest.clearAllMocks();
+
+        // The passive write that follows carries the same snapshot: the meta row only.
+        await storage.setItem(STORE, edited as any);
+        const passiveCall = (commitShardedWrite as jest.Mock).mock.calls[0];
+        expect((passiveCall[0] as { key: string }[]).map((r) => r.key)).toEqual([STORE]);
+    });
+
+    it("rejects when the commit fails, and keeps the old references so the next write retries", async () => {
+        const storage = createShardedPersistStorage();
+        const w1 = ws("w1");
+        await storage.setItem(STORE, value([w1]) as any);
+        jest.clearAllMocks();
+
+        (commitShardedWrite as jest.Mock).mockRejectedValueOnce(new Error("disk full"));
+        await expect(storage.flushNow(STORE, value([ws("w1", "edited")]) as any)).rejects.toThrow("disk full");
+        jest.clearAllMocks();
+
+        await storage.setItem(STORE, value([ws("w1", "edited")]) as any);
+        const retry = (commitShardedWrite as jest.Mock).mock.calls[0];
+        expect((retry[0] as { key: string }[]).map((r) => r.key)).toEqual([STORE, workspaceRowKey(STORE, "w1")]);
+    });
+});

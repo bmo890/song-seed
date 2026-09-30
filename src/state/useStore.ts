@@ -68,6 +68,8 @@ import { persistedSnapshotChanged } from "./persistChangeDetection";
 import {
     buildPersistedAppStoreSnapshot,
     persistAppStoreSnapshot,
+    PersistSkippedError,
+    setSnapshotFlusher,
     STORE_NAME,
     STORE_VERSION,
 } from "./persistedSnapshot";
@@ -335,13 +337,15 @@ function createGuardedStorage() {
     const baseStorage = createShardedPersistStorage();
 
     // Guard + serialize + write. Runs when the debounced write fires (with the LATEST
-    // value), so the corruption checks always inspect exactly what hits disk.
-    const runGuardedWrite = (name: string, value: any) => {
+    // value), so the corruption checks always inspect exactly what hits disk. A
+    // strict run (the durable flush) rejects where the passive one returns silently.
+    const runGuardedWrite = (name: string, value: any, strict = false) => {
         if (isPersistBlocked()) {
             console.warn(
                 `[PersistGuard] BLOCKED write to "${name}" — persist is locked due to suspected data corruption.`
             );
             persistLog("write.blocked");
+            if (strict) throw new PersistSkippedError("persist is blocked");
             return; // The lock itself was announced when it was set (banner + log).
         }
 
@@ -367,6 +371,7 @@ function createGuardedStorage() {
                             // A session-long freeze must never be silent (2026-09-07).
                             persistLog("guard.locked", `0 ideas, last known ${lastCount}`);
                             reportPersistBlocked("guard");
+                            if (strict) throw new PersistSkippedError("guard: empty write");
                             return; // Block the write
                         }
                     } else {
@@ -387,18 +392,20 @@ function createGuardedStorage() {
                             );
                             persistLog("guard.locked", `${lastCount} → ${newIdeaCount}`);
                             reportPersistBlocked("guard");
+                            if (strict) throw new PersistSkippedError("guard: partial loss");
                             return; // Block the write
                         }
                     }
 
                     setLastPersistedIdeaCount(newIdeaCount);
                 }
-            } catch {
+            } catch (err) {
+                if (err instanceof PersistSkippedError) throw err;
                 // If we can't parse it, let it through — better than blocking valid writes
             }
         }
 
-        return baseStorage.setItem(name, value as any);
+        return strict ? baseStorage.flushNow(name, value as any) : baseStorage.setItem(name, value as any);
     };
 
     return {
@@ -411,8 +418,18 @@ function createGuardedStorage() {
             if (!persistedSnapshotChanged(value)) return;
             passivePersist.schedule(() => runGuardedWrite(name, value));
         },
+        /** The durable flush: same guard, same sharded planner, but it rejects when
+         *  the write cannot land and it lands NOW. Feeds the change detector so the
+         *  passive write that follows an identical snapshot is skipped. */
+        flushNow: async (name: string, value: any) => {
+            persistedSnapshotChanged(value);
+            await runGuardedWrite(name, value, true);
+        },
     };
 }
+
+const guardedStorage = createGuardedStorage();
+setSnapshotFlusher((value) => guardedStorage.flushNow(STORE_NAME, value));
 
 // Don't sit on a coalesced write while the app leaves the foreground — flush it so a
 // backgrounded/killed app keeps everything up to the last edit.
@@ -465,7 +482,7 @@ export const useStore = create<AppStore>()(
         {
             name: STORE_NAME,
             version: STORE_VERSION,
-            storage: createGuardedStorage(),
+            storage: guardedStorage,
             migrate: (persistedState) =>
                 sanitizePersistedState(persistedState as Partial<PersistedAppStore> | undefined),
             partialize: (state) => {

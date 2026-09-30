@@ -26,6 +26,7 @@ import {
     setHydrationReadOutcome,
 } from "./persistRuntime";
 import { describeError, persistLog } from "../services/persistLog";
+import { PersistSkippedError } from "./persistedSnapshot";
 
 /**
  * zustand persist storage that shards the library across per-workspace SQLite rows so an
@@ -53,7 +54,14 @@ export function quarantinedWorkspaceRowKey(storeName: string, workspaceId: strin
     return `${storeName}::quarantine::${workspaceId}`;
 }
 
-export function createShardedPersistStorage(): PersistStorage<PersistedAppStore> {
+export type ShardedPersistStorage = PersistStorage<PersistedAppStore> & {
+    /** Write the snapshot through the sharded planner NOW and only resolve once SQLite
+     *  took it (a refused or failed write rejects). Adopts the written references, so
+     *  the next passive write is a meta-only no-op instead of a re-shard. */
+    flushNow: (name: string, value: PersistStorageValue) => Promise<void>;
+};
+
+export function createShardedPersistStorage(): ShardedPersistStorage {
     // Last-written workspace object references, for reference-based dirty detection. Empty at
     // launch, so the first write after hydration shards every workspace once (their identities
     // are freshly created by sanitize/merge anyway); subsequent edits are incremental.
@@ -274,7 +282,37 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
             return assembled as StorageValue<PersistedAppStore>;
         },
 
-        setItem: async (name, value): Promise<void> => {
+        setItem: (name, value): Promise<void> => writeSnapshot(name, value as PersistStorageValue, false),
+
+        flushNow: (name, value): Promise<void> => writeSnapshot(name, value, true),
+
+        removeItem: async (name): Promise<void> => {
+            // Drop the meta row, the legacy backup, EVERY workspace row on disk (swept by
+            // prefix, not just this session's known refs), and any quarantined rows — a
+            // deliberate wipe means the user is done with those bytes too.
+            const workspaceRows = await listKvKeysWithPrefix(`${name}::ws::`);
+            const quarantineRows = await listKvKeysWithPrefix(`${name}::quarantine::`);
+            await commitShardedWrite([], [
+                name,
+                legacyBackupKey(name),
+                activityRowKey(name),
+                ...workspaceRows,
+                ...quarantineRows,
+            ]);
+            lastWorkspaceRefs = new Map();
+            lastActivityRef = null;
+            legacyBackedUp = false;
+            orphansSwept = false;
+            // The wipe was deliberate (persist.clearStorage) — disk is now known-empty.
+            readOutcome = "empty";
+            setHydrationReadOutcome("empty");
+        },
+    };
+
+    /** The one write path: the passive debounced write (lenient) and the durable
+     *  flush (strict) differ only in what happens when the write cannot land. */
+    async function writeSnapshot(name: string, value: PersistStorageValue, strict: boolean): Promise<void> {
+        {
             // Write-authority gate: a session that never successfully read the on-disk
             // library must not overwrite it. The meta rewrite + first-write orphan sweep
             // below would otherwise permanently erase every workspace row.
@@ -289,6 +327,7 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
                     // Never silent: the user is editing a library that is not reaching disk.
                     persistLog("authority.refused", `readOutcome=${readOutcome}`);
                     reportPersistBlocked("authority");
+                    if (strict) throw new PersistSkippedError("write authority refused");
                     return;
                 }
                 readOutcome = "data";
@@ -325,7 +364,8 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
 
             await commitShardedWrite(
                 [plan.metaRow, ...(plan.activityRow ? [plan.activityRow] : []), ...plan.dirtyWorkspaceRows],
-                extraDeletes
+                extraDeletes,
+                { strict }
             );
             // Adopt the new reference set only after a successful commit.
             lastWorkspaceRefs = plan.nextWorkspaceRefs;
@@ -341,28 +381,7 @@ export function createShardedPersistStorage(): PersistStorage<PersistedAppStore>
                         `(docs/incremental-persistence-plan.md)`
                 );
             }
-        },
+        }
+    }
 
-        removeItem: async (name): Promise<void> => {
-            // Drop the meta row, the legacy backup, EVERY workspace row on disk (swept by
-            // prefix, not just this session's known refs), and any quarantined rows — a
-            // deliberate wipe means the user is done with those bytes too.
-            const workspaceRows = await listKvKeysWithPrefix(`${name}::ws::`);
-            const quarantineRows = await listKvKeysWithPrefix(`${name}::quarantine::`);
-            await commitShardedWrite([], [
-                name,
-                legacyBackupKey(name),
-                activityRowKey(name),
-                ...workspaceRows,
-                ...quarantineRows,
-            ]);
-            lastWorkspaceRefs = new Map();
-            lastActivityRef = null;
-            legacyBackedUp = false;
-            orphansSwept = false;
-            // The wipe was deliberate (persist.clearStorage) — disk is now known-empty.
-            readOutcome = "empty";
-            setHydrationReadOutcome("empty");
-        },
-    };
 }

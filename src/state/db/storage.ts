@@ -413,7 +413,13 @@ export async function getKvNewestUpdatedAt(exactKeys: string[], prefixes: string
  */
 export async function commitShardedWrite(
     writes: { key: string; value: string }[],
-    deletes: string[]
+    deletes: string[],
+    options?: {
+        /** A flush the caller must be able to trust (a take save): the AsyncStorage
+         *  fallback is still recorded for recovery, but the failure is rethrown
+         *  instead of resolving as if the rows had landed. */
+        strict?: boolean;
+    }
 ): Promise<void> {
     const pendingWrites = writes.filter((row) => lastWritten.get(row.key) !== row.value);
     // DELETE is idempotent, so no need to dedupe deletes against the cache.
@@ -421,6 +427,7 @@ export async function commitShardedWrite(
     if (pendingWrites.length === 0 && pendingDeletes.length === 0) return;
 
     let landedInSqlite = false;
+    let sqliteError: unknown = null;
     try {
         await enqueueWrite(async () => {
         const startedAt = Date.now();
@@ -483,6 +490,7 @@ export async function commitShardedWrite(
             } else {
                 reportPersistWriteFallback();
             }
+            sqliteError = err;
         }
         });
     } catch (err) {
@@ -490,7 +498,11 @@ export async function commitShardedWrite(
         // above): both stores hung. Nothing landed; say so.
         persistLog("write.failed", `commitShardedWrite queue: ${describeError(err)}`);
         reportPersistWriteFailure();
+        if (options?.strict) throw err;
         return;
+    }
+    if (options?.strict && !landedInSqlite) {
+        throw sqliteError instanceof Error ? sqliteError : new Error("commitShardedWrite: SQLite write failed");
     }
 
     // SQLite took this write: anything still parked in the fallback can come home now.
