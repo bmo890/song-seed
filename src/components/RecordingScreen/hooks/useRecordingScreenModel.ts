@@ -229,6 +229,12 @@ export function useRecordingScreenModel() {
     saveDestinationOverride?.label ??
     defaultDestinationLabel?.collectionLabel ??
     undefined;
+  const effectiveDestinationWorkspaceColor = saveDestinationOverride
+    ? saveDestinationOverride.workspaceColor
+    : defaultDestinationLabel?.workspaceColor;
+  const effectiveDestinationWorkspaceAvatarKey = saveDestinationOverride
+    ? saveDestinationOverride.workspaceAvatarKey
+    : defaultDestinationLabel?.workspaceAvatarKey;
 
   const handledSaveRequestRef = useRef<number | null>(null);
   // Beat grid the in-flight take is being recorded against, snapshotted when the take
@@ -2246,6 +2252,8 @@ export function useRecordingScreenModel() {
     saveDestinationOverride,
     effectiveDestinationWorkspaceTitle,
     effectiveDestinationCollectionLabel,
+    effectiveDestinationWorkspaceColor,
+    effectiveDestinationWorkspaceAvatarKey,
     setSaveDestinationPickerVisible,
     handleSelectSaveDestination,
     setQuickNameDraft,

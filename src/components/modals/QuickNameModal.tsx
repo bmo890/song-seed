@@ -1,8 +1,9 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
-import { UserTextInput } from "../../i18n/direction";
+import { UserText, UserTextInput } from "../../i18n/direction";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../design/directionalIcons";
 import { WarmModal } from "../common/WarmModal";
+import { WorkspaceAvatar } from "../common/WorkspaceAvatar";
 import { genIdea } from "../../utils";
 import { colors, radii } from "../../design/tokens";
 import { useTranslation } from "react-i18next";
@@ -34,6 +35,10 @@ type Props = {
     saving?: boolean;
     destinationWorkspaceTitle?: string;
     destinationCollectionLabel?: string;
+    /** Destination workspace identity — the row wears its avatar so you can tell
+     *  workspaces apart at a glance, not just by reading. */
+    destinationWorkspaceColor?: string;
+    destinationWorkspaceAvatarKey?: number;
     onPressDestination?: () => void;
 };
 
@@ -60,6 +65,8 @@ export function QuickNameModal({
     saving = false,
     destinationWorkspaceTitle,
     destinationCollectionLabel,
+    destinationWorkspaceColor,
+    destinationWorkspaceAvatarKey,
     onPressDestination,
 }: Props) {
     const { t } = useTranslation();
@@ -162,10 +169,21 @@ export function QuickNameModal({
                         ]}
                         onPress={onPressDestination}
                     >
-                        <Ionicons name="folder-outline" size={18} color={colors.primary} />
+                        {destinationWorkspaceTitle ? (
+                            <WorkspaceAvatar
+                                color={destinationWorkspaceColor}
+                                name={destinationWorkspaceTitle}
+                                avatarKey={destinationWorkspaceAvatarKey}
+                                size={22}
+                            />
+                        ) : (
+                            <Ionicons name="folder-outline" size={18} color={colors.primary} />
+                        )}
                         <View style={qStyles.destinationCopy}>
                             {destinationWorkspaceTitle ? (
-                                <Text style={qStyles.destinationWorkspace}>{destinationWorkspaceTitle}</Text>
+                                <UserText style={qStyles.destinationWorkspace} numberOfLines={1}>
+                                    {destinationWorkspaceTitle}
+                                </UserText>
                             ) : null}
                             <Text style={qStyles.destinationCollection} numberOfLines={1}>
                                 {destinationCollectionLabel ?? t("modals.chooseCollection")}

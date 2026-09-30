@@ -14,15 +14,24 @@ export type CollectionMoveDestination = {
 export type SaveDestination = {
   workspaceId: string;
   workspaceTitle: string;
+  /** Workspace identity, so the picker can wear the same avatar as the side menu. */
+  workspaceColor?: string;
+  workspaceAvatarKey?: number;
   collectionId: string;
   label: string;
   /** Set when the collection is nested, e.g. "Band stuff / Rehearsals". */
   pathLabel?: string;
+  /** Nesting depth (0 = top level). Destinations are emitted in tree order, so a
+   *  child always follows its parent and the picker can indent instead of joining paths. */
+  depth: number;
+  /** Ideas filed directly in this collection (children count their own). */
+  itemCount: number;
+  lastWorkedAt: number;
 };
 
-/** Every collection across every workspace, grouped by workspace, most recently worked first
- * within each workspace. Used to let a fresh recording be saved somewhere other than the
- * collection it was started from. */
+/** Every collection across every workspace, grouped by workspace, in tree order: most
+ * recently worked first among siblings, each child directly under its parent. Used to let
+ * a fresh recording be saved somewhere other than the collection it was started from. */
 export function buildSaveDestinations(
   workspaces: Workspace[],
   activeWorkspaceId: string | null
@@ -34,23 +43,59 @@ export function buildSaveDestinations(
   });
 
   return orderedWorkspaces.flatMap((workspace) => {
-    const collections = [...workspace.collections].sort(
-      (a, b) => getCollectionLastWorkedAt(workspace, b.id) - getCollectionLastWorkedAt(workspace, a.id)
+    const collectionIds = new Set(workspace.collections.map((collection) => collection.id));
+    const lastWorked = new Map(
+      workspace.collections.map((collection) => [
+        collection.id,
+        getCollectionLastWorkedAt(workspace, collection.id),
+      ])
     );
+    const directCounts = new Map<string, number>();
+    for (const idea of workspace.ideas) {
+      directCounts.set(idea.collectionId, (directCounts.get(idea.collectionId) ?? 0) + 1);
+    }
+    const childrenOf = new Map<string | null, Collection[]>();
+    for (const collection of workspace.collections) {
+      // An orphan (parent missing) surfaces at the top level rather than vanishing.
+      const parentId =
+        collection.parentCollectionId && collectionIds.has(collection.parentCollectionId)
+          ? collection.parentCollectionId
+          : null;
+      const siblings = childrenOf.get(parentId);
+      if (siblings) siblings.push(collection);
+      else childrenOf.set(parentId, [collection]);
+    }
 
-    return collections.map((collection) => {
-      const ancestors = getCollectionAncestors(workspace, collection.id);
-      return {
-        workspaceId: workspace.id,
-        workspaceTitle: workspace.title,
-        collectionId: collection.id,
-        label: collection.title,
-        pathLabel:
-          ancestors.length > 0
-            ? [...ancestors.map((item) => item.title), collection.title].join(" / ")
-            : undefined,
-      } satisfies SaveDestination;
-    });
+    const result: SaveDestination[] = [];
+    const visited = new Set<string>();
+    const visit = (parentId: string | null, depth: number) => {
+      const siblings = [...(childrenOf.get(parentId) ?? [])].sort(
+        (a, b) => (lastWorked.get(b.id) ?? 0) - (lastWorked.get(a.id) ?? 0)
+      );
+      for (const collection of siblings) {
+        if (visited.has(collection.id)) continue; // guard against a corrupt parent cycle
+        visited.add(collection.id);
+        const ancestors = getCollectionAncestors(workspace, collection.id);
+        result.push({
+          workspaceId: workspace.id,
+          workspaceTitle: workspace.title,
+          workspaceColor: workspace.color,
+          workspaceAvatarKey: workspace.avatarKey,
+          collectionId: collection.id,
+          label: collection.title,
+          pathLabel:
+            ancestors.length > 0
+              ? [...ancestors.map((item) => item.title), collection.title].join(" / ")
+              : undefined,
+          depth,
+          itemCount: directCounts.get(collection.id) ?? 0,
+          lastWorkedAt: lastWorked.get(collection.id) ?? 0,
+        });
+        visit(collection.id, depth + 1);
+      }
+    };
+    visit(null, 0);
+    return result;
   });
 }
 
@@ -65,6 +110,8 @@ export function resolveSaveDestinationLabel(
   if (!workspace || !collection) return null;
   return {
     workspaceTitle: workspace.title,
+    workspaceColor: workspace.color,
+    workspaceAvatarKey: workspace.avatarKey,
     collectionLabel: collection.title,
   };
 }

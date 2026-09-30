@@ -211,6 +211,12 @@ export function RecordingScreen() {
         destinationCollectionLabel={
           screen.canPickSaveDestination ? screen.effectiveDestinationCollectionLabel : undefined
         }
+        destinationWorkspaceColor={
+          screen.canPickSaveDestination ? screen.effectiveDestinationWorkspaceColor : undefined
+        }
+        destinationWorkspaceAvatarKey={
+          screen.canPickSaveDestination ? screen.effectiveDestinationWorkspaceAvatarKey : undefined
+        }
         onPressDestination={
           screen.canPickSaveDestination ? () => screen.setSaveDestinationPickerVisible(true) : undefined
         }
@@ -222,6 +228,7 @@ export function RecordingScreen() {
         selectedCollectionId={
           screen.saveDestinationOverride?.collectionId ?? screen.recordingIdea?.collectionId ?? null
         }
+        originCollectionId={screen.recordingIdea?.collectionId ?? null}
         onClose={() => screen.setSaveDestinationPickerVisible(false)}
         onSelect={screen.handleSelectSaveDestination}
       />
