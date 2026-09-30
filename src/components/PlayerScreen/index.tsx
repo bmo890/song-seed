@@ -160,7 +160,15 @@ export type PlayerSheetNavigation = {
   navigate: (routeName: string, params?: object) => void;
 };
 
-export function PlayerScreen({
+/**
+ * Memoized: the sheet renders this with a stable navigation object, a shared
+ * value and two booleans, so a root re-render (navigation, drawer toggle) no
+ * longer re-runs the player's hooks while it is docked. Its own updates come
+ * from its store subscriptions and the full-player context.
+ */
+export const PlayerScreen = React.memo(PlayerScreenInner);
+
+function PlayerScreenInner({
   navigation,
   isActive,
   dragY,

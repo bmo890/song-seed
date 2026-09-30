@@ -79,7 +79,9 @@ function IdeaListItemInner({
     const { t } = useTranslation();
     // Null only for the frame between a deletion and the list dropping the row.
     const item = useStore((s) => selectIdeaById(s.workspaces, ideaId, s.activeWorkspaceId));
-    const listSelectionMode = useStore((s) => s.listSelectionMode);
+    // Selection mode is only consulted inside press handlers, so the row reads it
+    // from the store at press time instead of re-rendering every mounted card
+    // when the mode flips (2026-09-29).
     // A compilation is collecting: the collection is a picker. Cards wear a
     // pick ring, a tap picks instead of opening, and eligibility is visible —
     // a card the compilation can't take is dimmed with the reason (2026-09-11).
@@ -128,7 +130,9 @@ function IdeaListItemInner({
     // This idea is the active dock / full-player session (any of its clips) —
     // idea-level, so a song card lights up whichever take is playing.
     const sessionActive = useStore((s) => s.playerTarget?.ideaId === ideaId);
-    const sessionPlaying = useStore((s) => s.playerIsPlaying);
+    // Scoped to THIS idea: a play/pause flip anywhere (every track change, every
+    // inline preview start) used to re-render every mounted card.
+    const sessionPlaying = useStore((s) => s.playerTarget?.ideaId === ideaId && s.playerIsPlaying);
     // Clip-precise: the session is on THIS card's play clip. Then the lead glyph
     // mirrors and drives the session (pause/resume the dock) instead of starting
     // a second, competing inline preview of the same clip from 0:00.
@@ -323,7 +327,7 @@ function IdeaListItemInner({
                             onPressLead={() => {
                                 // The lead is always the preview, picker or not: hearing the
                                 // clip is how you know you picked the right one (2026-09-11).
-                                if (listSelectionMode && !collecting && !pickingSongTarget) {
+                                if (useStore.getState().listSelectionMode && !collecting && !pickingSongTarget) {
                                     useStore.getState().toggleListSelection(ideaId);
                                     return;
                                 }
@@ -339,7 +343,7 @@ function IdeaListItemInner({
                                 void playIdeaFromList(ideaId, playClip);
                             }}
                             onLongPressLead={() => {
-                                if (listSelectionMode || pickingSongTarget || collecting) return;
+                                if (useStore.getState().listSelectionMode || pickingSongTarget || collecting) return;
                                 beginSelection();
                             }}
                             onPress={async () => {
@@ -351,7 +355,7 @@ function IdeaListItemInner({
                                     togglePick();
                                     return;
                                 }
-                                if (listSelectionMode) {
+                                if (useStore.getState().listSelectionMode) {
                                     useStore.getState().toggleListSelection(ideaId);
                                     return;
                                 }
@@ -375,7 +379,7 @@ function IdeaListItemInner({
                                     togglePick();
                                     return;
                                 }
-                                if (listSelectionMode) {
+                                if (useStore.getState().listSelectionMode) {
                                     useStore.getState().toggleListSelection(ideaId);
                                     return;
                                 }

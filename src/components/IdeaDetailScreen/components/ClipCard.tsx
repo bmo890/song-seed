@@ -146,7 +146,10 @@ export const ClipCard = React.memo(function ClipCard({
   const sessionActive = useStore(
     (s) => s.playerTarget?.ideaId === idea.id && s.playerTarget.clipId === clip.id
   );
-  const sessionPlaying = useStore((s) => s.playerIsPlaying);
+  // Scoped to this clip: a global play/pause flip used to re-render every take card.
+  const sessionPlaying = useStore(
+    (s) => s.playerTarget?.ideaId === idea.id && s.playerTarget.clipId === clip.id && s.playerIsPlaying
+  );
   const { togglePlayer } = useFullPlayerControls();
   // Live inline preview position — subscribed only while this card is the
   // active preview target, so 5Hz position commits re-render one card.

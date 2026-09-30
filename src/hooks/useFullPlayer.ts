@@ -808,28 +808,58 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     }
   }, [player]);
 
-  return {
-    playerTarget,
-    playerPosition,
-    /** Position at the engine's own cadence, delivered without a render. */
-    positionChannel,
-    playerDuration,
-    isPlayerPlaying,
-    didPlayerJustFinish,
-    playbackRate,
-    finishedPlaybackToken,
-    finishedPlaybackClipId,
-    engineOpNonce,
-    currentPlaybackSourceUri: currentSourceUriRef.current,
-    syncPlayerSource,
-    openPlayer,
-    closePlayer,
-    togglePlayer,
-    pausePlayer,
-    playPlayer,
-    seekTo,
-    seekBy,
-    setPlaybackRate,
-    updateLockScreenMetadata,
-  };
+  // One object per real change. The provider's context value is built from this,
+  // and every consumer (the always-mounted PlayerScreen above all) re-renders when
+  // it changes — a fresh literal per render made every provider render, including
+  // inline-preview commits and root re-renders on navigation, a player render.
+  const currentPlaybackSourceUri = currentSourceUriRef.current;
+  return useMemo(
+    () => ({
+      playerTarget,
+      playerPosition,
+      /** Position at the engine's own cadence, delivered without a render. */
+      positionChannel,
+      playerDuration,
+      isPlayerPlaying,
+      didPlayerJustFinish,
+      playbackRate,
+      finishedPlaybackToken,
+      finishedPlaybackClipId,
+      engineOpNonce,
+      currentPlaybackSourceUri,
+      syncPlayerSource,
+      openPlayer,
+      closePlayer,
+      togglePlayer,
+      pausePlayer,
+      playPlayer,
+      seekTo,
+      seekBy,
+      setPlaybackRate,
+      updateLockScreenMetadata,
+    }),
+    [
+      playerTarget,
+      playerPosition,
+      positionChannel,
+      playerDuration,
+      isPlayerPlaying,
+      didPlayerJustFinish,
+      playbackRate,
+      finishedPlaybackToken,
+      finishedPlaybackClipId,
+      engineOpNonce,
+      currentPlaybackSourceUri,
+      syncPlayerSource,
+      openPlayer,
+      closePlayer,
+      togglePlayer,
+      pausePlayer,
+      playPlayer,
+      seekTo,
+      seekBy,
+      setPlaybackRate,
+      updateLockScreenMetadata,
+    ]
+  );
 }

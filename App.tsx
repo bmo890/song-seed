@@ -176,6 +176,29 @@ const sideMenuDrawerStyle = [
 const EMPTY_WORKSPACES: Workspace[] = [];
 // Hoisted so a root render never hands the navigators fresh option objects.
 const ROOT_STACK_SCREEN_OPTIONS = { headerShown: false } as const;
+// Root-level handlers for the dock and the player sheet. Module-level on purpose:
+// they only touch the module-level navigationRef and the store, and a fresh arrow
+// per root render used to hand the (memoized) player a new navigation object on
+// every route change and drawer toggle, re-running all of its hooks while docked.
+const openPlayerSheet = () => {
+  // Expanding is a state change, not navigation: the PlayerSheet mounts over
+  // whatever screen is showing.
+  useStore.getState().setPlayerScreenMounted(true);
+};
+const openRecordingFromDock = () => {
+  if (!navigationRef.isReady()) return;
+  navigationRef.navigate("Recording");
+};
+const openIdeaFromDock = (ideaId: string) => {
+  if (!navigationRef.isReady()) return;
+  // The queue arrow jumps to the clip's home collection and highlights its
+  // card — the same "view in collection" treatment as Search.
+  openIdeaInCollection(navigationRef, ideaId);
+};
+const navigateRoot = (routeName: string, params?: object) => {
+  if (!navigationRef.isReady()) return;
+  (navigationRef.navigate as (route: string, params?: object) => void)(routeName, params);
+};
 // Screen transitions close the idle gate (persist, manifest, hydration flushes).
 const TRANSITION_LISTENERS = {
   transitionStart: () => beginUiActivity("nav-transition"),
@@ -1143,29 +1166,14 @@ function AppContent() {
         <GlobalMediaDock
           activeRouteName={activeRouteName}
           hidden={anyMenuOpen}
-          onOpenPlayer={() => {
-            // Expanding is a state change, not navigation: the PlayerSheet
-            // mounts over whatever screen is showing.
-            useStore.getState().setPlayerScreenMounted(true);
-          }}
-          onOpenRecording={() => {
-            if (!navigationRef.isReady()) return;
-            navigationRef.navigate("Recording");
-          }}
-          onOpenIdea={(ideaId) => {
-            if (!navigationRef.isReady()) return;
-            // The queue arrow jumps to the clip's home collection and highlights
-            // its card — the same "view in collection" treatment as Search.
-            openIdeaInCollection(navigationRef, ideaId);
-          }}
+          onOpenPlayer={openPlayerSheet}
+          onOpenRecording={openRecordingFromDock}
+          onOpenIdea={openIdeaFromDock}
         />
         <PlayerSheet
           activeRouteName={activeRouteName}
           isDrawerOpen={anyMenuOpen}
-          navigateRoot={(routeName, params) => {
-            if (!navigationRef.isReady()) return;
-            (navigationRef.navigate as (route: string, params?: object) => void)(routeName, params);
-          }}
+          navigateRoot={navigateRoot}
         />
         </PlayerSheetPositionProvider>
         <ImportProgressBanner hidden={anyMenuOpen} />

@@ -138,9 +138,9 @@ export function FullPlayerProvider({ children }: { children: React.ReactNode }) 
     []
   );
 
-  // `dock` identity changes each render so live playback state (position,
-  // isPlaying, waveform) still reaches the few live consumers (player screen +
-  // dock). Only the control functions above are held stable.
+  // `dock` changes when the engine's committed state changes (rawDock is itself
+  // memoized on its fields) so live playback state still reaches the few live
+  // consumers (player screen + dock); the control functions are held stable.
   const dock = useMemo<FullPlayerValue>(
     () => ({
       ...rawDock,
@@ -152,7 +152,7 @@ export function FullPlayerProvider({ children }: { children: React.ReactNode }) 
       closePlayer,
       seekTo,
     }),
-    [rawDock, openPlayer, syncPlayerSource, togglePlayer, playPlayer, pausePlayer, closePlayer]
+    [rawDock, openPlayer, syncPlayerSource, togglePlayer, playPlayer, pausePlayer, closePlayer, seekTo]
   );
 
   // Stable controls object — identity never changes on a playback tick, so the
