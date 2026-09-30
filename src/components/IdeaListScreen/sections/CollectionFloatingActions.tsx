@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { styles } from "../../../styles";
@@ -142,36 +143,77 @@ export function CollectionFloatingActions() {
   const { t } = useTranslation();
   const { screen, selection, editModal, inlinePlayer, store } = useCollectionScreen();
 
-  const isIdeaHiddenByDay = (idea: SongIdea) =>
-    screen.activeTimelineMetric
-      ? screen.hiddenDayKeySet.has(
-          `${screen.activeTimelineMetric}:${getDateBucket(getIdeaSortTimestamp(idea, store.ideasSort)).startTs}`
-        )
-      : false;
-  const isIdeaEffectivelyHidden = (idea: SongIdea) =>
-    screen.hiddenIdeaIdsSet.has(idea.id) || isIdeaHiddenByDay(idea);
-  const selectedIdeasInList = screen.ideas.filter((idea) => screen.selectedListIdeaIds.includes(idea.id));
-  const selectedHiddenIdeaIds = selectedIdeasInList
-    .filter((idea) => screen.hiddenIdeaIdsSet.has(idea.id))
-    .map((idea) => idea.id);
-  const selectedInteractiveIdeas = selectedIdeasInList.filter((idea) => !isIdeaEffectivelyHidden(idea));
-  // Play/queue order must match what's on screen (the sorted, day-grouped list),
-  // not raw storage order — "select all → play" should march down the list as
-  // shown. listEntries is exactly the rendered order.
-  const listIdeaById = new Map(screen.listIdeas.map((idea) => [idea.id, idea]));
-  const orderedSelectedInteractiveIdeas = screen.listEntries
-    .filter((entry): entry is Extract<(typeof screen.listEntries)[number], { type: "idea" }> => entry.type === "idea")
-    .map((entry) => listIdeaById.get(entry.ideaId))
-    .filter((idea): idea is NonNullable<typeof idea> => idea != null)
-    .filter((idea) => screen.selectedListIdeaIds.includes(idea.id) && !isIdeaEffectivelyHidden(idea));
-  const selectedClipIdeasInList = selectedInteractiveIdeas.filter((idea) => idea.kind === "clip");
-  const selectedProjectsInList = selectedIdeasInList.filter((idea) => idea.kind === "project");
-  const selectedHiddenOnly =
-    selectedIdeasInList.length > 0 &&
-    selectedIdeasInList.every((idea) => screen.hiddenIdeaIdsSet.has(idea.id));
-  const selectableIdeaIds = screen.listEntries
-    .filter((entry): entry is Extract<(typeof screen.listEntries)[number], { type: "idea" }> => entry.type === "idea")
-    .map((entry) => entry.ideaId);
+  // The selection derivations ran on every render of this component (every
+  // store write reaching the screen), as O(ideas × selected) `includes` scans,
+  // even with nothing selected. Now: a Set, memoized on their inputs, and empty
+  // work while nothing is selected (2026-09-30).
+  const {
+    selectedHiddenIdeaIds,
+    selectedInteractiveIdeas,
+    orderedSelectedInteractiveIdeas,
+    selectedClipIdeasInList,
+    selectedProjectsInList,
+    selectedHiddenOnly,
+    selectableIdeaIds,
+  } = useMemo(() => {
+    const selectedSet = new Set(screen.selectedListIdeaIds);
+    const isIdeaHiddenByDay = (idea: SongIdea) =>
+      screen.activeTimelineMetric
+        ? screen.hiddenDayKeySet.has(
+            `${screen.activeTimelineMetric}:${getDateBucket(getIdeaSortTimestamp(idea, store.ideasSort)).startTs}`
+          )
+        : false;
+    const isIdeaEffectivelyHidden = (idea: SongIdea) =>
+      screen.hiddenIdeaIdsSet.has(idea.id) || isIdeaHiddenByDay(idea);
+    const selectableIdeaIds = screen.listEntries
+      .filter((entry): entry is Extract<(typeof screen.listEntries)[number], { type: "idea" }> => entry.type === "idea")
+      .map((entry) => entry.ideaId);
+    if (selectedSet.size === 0) {
+      return {
+        selectedHiddenIdeaIds: [] as string[],
+        selectedInteractiveIdeas: [] as SongIdea[],
+        orderedSelectedInteractiveIdeas: [] as SongIdea[],
+        selectedClipIdeasInList: [] as SongIdea[],
+        selectedProjectsInList: [] as SongIdea[],
+        selectedHiddenOnly: false,
+        selectableIdeaIds,
+      };
+    }
+    const selectedIdeasInList = screen.ideas.filter((idea) => selectedSet.has(idea.id));
+    const selectedHiddenIdeaIds = selectedIdeasInList
+      .filter((idea) => screen.hiddenIdeaIdsSet.has(idea.id))
+      .map((idea) => idea.id);
+    const selectedInteractiveIdeas = selectedIdeasInList.filter((idea) => !isIdeaEffectivelyHidden(idea));
+    // Play/queue order must match what's on screen (the sorted, day-grouped list),
+    // not raw storage order — "select all → play" should march down the list as
+    // shown. listEntries is exactly the rendered order.
+    const listIdeaById = new Map(screen.listIdeas.map((idea) => [idea.id, idea]));
+    const orderedSelectedInteractiveIdeas = screen.listEntries
+      .filter((entry): entry is Extract<(typeof screen.listEntries)[number], { type: "idea" }> => entry.type === "idea")
+      .map((entry) => listIdeaById.get(entry.ideaId))
+      .filter((idea): idea is NonNullable<typeof idea> => idea != null)
+      .filter((idea) => selectedSet.has(idea.id) && !isIdeaEffectivelyHidden(idea));
+    return {
+      selectedHiddenIdeaIds,
+      selectedInteractiveIdeas,
+      orderedSelectedInteractiveIdeas,
+      selectedClipIdeasInList: selectedInteractiveIdeas.filter((idea) => idea.kind === "clip"),
+      selectedProjectsInList: selectedIdeasInList.filter((idea) => idea.kind === "project"),
+      selectedHiddenOnly:
+        selectedIdeasInList.length > 0 &&
+        selectedIdeasInList.every((idea) => screen.hiddenIdeaIdsSet.has(idea.id)),
+      selectableIdeaIds,
+    };
+  }, [
+    screen.activeTimelineMetric,
+    screen.hiddenDayKeySet,
+    screen.hiddenIdeaIdsSet,
+    screen.ideas,
+    screen.listEntries,
+    screen.listIdeas,
+    screen.selectedListIdeaIds,
+    store.ideasSort,
+  ]);
 
   const playQueueInPlayer = async (queue: Array<{ ideaId: string; clipId: string }>) => {
     if (queue.length === 0) return;

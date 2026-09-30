@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import ReAnimated, {
   Extrapolation,
   interpolate,
@@ -198,17 +199,22 @@ export function CollectionCollapsibleIdentity() {
   const workspace = screen.activeWorkspace;
   const libraryCollector = useStore((s) => s.libraryCollector);
   const pickingSongTarget = useStore((s) => s.songTargetPicker != null);
-  if (!collection) return null;
-
-  const ideaMeta = screen.ideasHeaderMeta;
   // "Edited" means the newest work anywhere in the collection's scope — saving a
   // clip doesn't touch the collection object itself, so its own updatedAt alone
   // goes stale the moment recording is the only activity (2026-08-26 audit B12).
-  const lastEditedMeta = formatLastEdited(
-    workspace
-      ? Math.max(collection.updatedAt, getCollectionLastWorkedAt(workspace, collection.id))
-      : collection.updatedAt
-  );
+  // Memoized on the workspace object: the scope walk over every idea's clips ran
+  // on every render of this header (every store write reaching the screen).
+  const lastEditedMeta = useMemo(() => {
+    if (!collection) return "";
+    return formatLastEdited(
+      workspace
+        ? Math.max(collection.updatedAt, getCollectionLastWorkedAt(workspace, collection.id))
+        : collection.updatedAt
+    );
+  }, [workspace, collection]);
+  if (!collection) return null;
+
+  const ideaMeta = screen.ideasHeaderMeta;
   const metaLine = [ideaMeta, lastEditedMeta].filter(Boolean).join("  ·  ");
 
   return (

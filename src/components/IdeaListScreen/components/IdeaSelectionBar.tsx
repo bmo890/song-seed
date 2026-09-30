@@ -55,14 +55,15 @@ export function IdeaSelectionBar({
 
   const selectedListIdeaIds = useStore((s) => s.selectedListIdeaIds);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
-  const workspaces = useStore((s) => s.workspaces);
   const replaceListSelection = useStore((s) => s.replaceListSelection);
   // A running session turns the dock's primary action from "Play" into
   // "Add to queue" — the way to grow the queue you already have going.
   const sessionActive = useStore((s) => s.playerQueue.length > 0);
   const disabledIdeaIdSet = useMemo(() => new Set(disabledIdeaIds), [disabledIdeaIds]);
 
-  const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
+  // One workspace, not the library: `find` returns the same object while the
+  // workspace is untouched, so writes elsewhere don't re-render the bar.
+  const activeWorkspace = useStore((s) => s.workspaces.find((workspace) => workspace.id === activeWorkspaceId));
   const selectedIdeas = useMemo(
     () => (activeWorkspace?.ideas ?? []).filter((idea) => selectedListIdeaIds.includes(idea.id)),
     [activeWorkspace?.ideas, selectedListIdeaIds]

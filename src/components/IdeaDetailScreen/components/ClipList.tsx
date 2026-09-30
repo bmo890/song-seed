@@ -58,10 +58,12 @@ export function ClipList() {
   });
 
   const { getHighlightValue } = useSongClipHighlights(visibleClipEntries);
-  const inlineTarget = useStore((s) => s.inlineTarget);
+  // Only "is there a preview" matters here (the back-button gate); subscribing
+  // to the target object re-rendered the whole list on every preview change.
+  const hasInlineTarget = useStore((s) => s.inlineTarget != null);
 
   useSongClipListEffects({
-    inlineTarget,
+    hasInlineTarget,
     resetInlinePlayer: inlinePlayer.resetInlinePlayer,
     isParentPicking: !!parentPicking.parentPickState,
     clipViewMode: screen.clipViewMode,

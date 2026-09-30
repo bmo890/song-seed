@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+
+const EMPTY_SUGGESTIONS: string[] = [];
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Slider from "@react-native-community/slider";
@@ -238,7 +240,7 @@ export function ChordSheetBody({
         draftValue={renameDraft}
         placeholderValue={renameTarget?.label}
         onChangeDraft={setRenameDraft}
-        suggestions={model.labelSuggestions}
+        suggestions={renameTarget ? model.getLabelSuggestions() : EMPTY_SUGGESTIONS}
         onSelectSuggestion={(value) => {
           if (renameTarget) model.renameSection(renameTarget.id, value);
           setRenameTarget(null);

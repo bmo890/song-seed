@@ -54,7 +54,6 @@ export function SongScreenProvider({ children }: { children: ReactNode }) {
     selectedIdea: screen.selectedIdea,
     selectedIdeaId: screen.selectedIdeaId,
     activeWorkspaceId: screen.activeWorkspaceId,
-    workspaces: screen.workspaces,
     isEditMode: screen.isEditMode,
     setIsEditMode: screen.setIsEditMode,
     draftTitle: screen.draftTitle,

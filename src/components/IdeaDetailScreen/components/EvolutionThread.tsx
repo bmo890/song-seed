@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import { Animated as RNAnimated, Pressable, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
@@ -271,11 +271,30 @@ export const EvolutionThread = React.memo(function EvolutionThread({
   const setRecordingIdeaId = useStore((s) => s.setRecordingIdeaId);
 
   const head = lineage.latestClip;
-  const olderClips = lineage.clipsNewestToOldest.filter((clip) => clip.id !== head.id);
+  const olderClips = useMemo(
+    () => lineage.clipsNewestToOldest.filter((clip) => clip.id !== head.id),
+    [lineage.clipsNewestToOldest, head.id]
+  );
   const versionCount = lineage.clipsOldestToNewest.length;
   // v1 = oldest; the head is always vN.
-  const versionNumberById = new Map(
-    lineage.clipsOldestToNewest.map((clip, index) => [clip.id, index + 1])
+  const versionNumberById = useMemo(
+    () => new Map(lineage.clipsOldestToNewest.map((clip, index) => [clip.id, index + 1])),
+    [lineage.clipsOldestToNewest]
+  );
+  // The head card is memoized on its entry; a fresh literal per render defeated it.
+  const headEntry = useMemo(
+    () => ({
+      kind: "evolution" as const,
+      clip: head,
+      lineageRootId: lineage.root.id,
+      compactPreview: false,
+      indented: false,
+      continuesThreadBelow: false,
+      hasOlderVersions: true,
+      versionNumber: versionNumberById.get(head.id),
+      versionCount,
+    }),
+    [head, lineage.root.id, versionNumberById, versionCount]
   );
 
   const handleNewVersion = async () => {
@@ -288,20 +307,7 @@ export const EvolutionThread = React.memo(function EvolutionThread({
 
   return (
     <View ref={shellRef} style={styles.songDetailThreadShell}>
-      <SongClipCard
-        entry={{
-          kind: "evolution",
-          clip: head,
-          lineageRootId: lineage.root.id,
-          compactPreview: false,
-          indented: false,
-          continuesThreadBelow: false,
-          hasOlderVersions: true,
-          versionNumber: versionNumberById.get(head.id),
-          versionCount,
-        }}
-        context={context}
-      />
+      <SongClipCard entry={headEntry} context={context} />
 
       <View style={styles.songDetailStem}>
         {/* The hinge sits at the fold, directly under the head: history opens

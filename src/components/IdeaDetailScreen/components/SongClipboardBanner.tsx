@@ -1,4 +1,5 @@
 import { ClipboardBanner } from "../../ClipboardBanner";
+import { useStore } from "../../../state/useStore";
 import { AppAlert } from "../../common/AppAlert";
 import { appActions } from "../../../state/actions";
 import { useSongScreen } from "../provider/SongScreenProvider";
@@ -17,7 +18,9 @@ export function SongClipboardBanner() {
   const duplicateWarningText = (() => {
     if (clipClipboard.sourceIdeaId !== selectedIdea.id) return "";
     let itemNames: string[] = [];
-    const sourceWorkspace = screen.workspaces.find((workspace) => workspace.id === clipClipboard.sourceWorkspaceId);
+    const sourceWorkspace = useStore
+      .getState()
+      .workspaces.find((workspace) => workspace.id === clipClipboard.sourceWorkspaceId);
     if (!sourceWorkspace) return "";
 
     if (clipClipboard.from === "list") {

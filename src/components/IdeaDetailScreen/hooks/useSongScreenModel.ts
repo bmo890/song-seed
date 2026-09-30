@@ -3,6 +3,7 @@ import { useIsFocused, useNavigation, useRoute } from "@react-navigation/native"
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSharedValue } from "react-native-reanimated";
 import { useStore } from "../../../state/useStore";
+import { selectIdeaById } from "../../../state/librarySelectors";
 import { getFloatingActionDockBottomOffset, getFloatingActionDockContentClearance } from "../../common/FloatingActionDock";
 import type { IdeaStatus } from "../../../types";
 import type { SongTimelineSortDirection, SongTimelineSortMetric } from "../../../domain/clipGraph";
@@ -23,25 +24,19 @@ export function useSongScreenModel() {
   const selectedIdeaId = useStore((s) => s.selectedIdeaId);
   const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const setSelectedIdeaId = useStore((s) => s.setSelectedIdeaId);
-  const workspaces = useStore((s) => s.workspaces);
+  // The page subscribes to ITS idea, not the library: `selectIdeaById` hands back
+  // the same object while the idea is untouched (index cached per library array),
+  // so a write elsewhere no longer re-renders the 22 context consumers here.
+  // Active workspace first, then any workspace — ideas opened from a Received
+  // package live outside the active one.
+  const selectedIdea = useStore((s) =>
+    selectedIdeaId ? selectIdeaById(s.workspaces, selectedIdeaId, activeWorkspaceId) ?? undefined : undefined
+  );
   const navigation = useNavigation();
   const rootNavigation = (navigation as any).getParent?.();
   const navigateRoot = (routeName: string, params?: object) =>
     (rootNavigation ?? navigation).navigate(routeName as never, params as never);
 
-  const selectedIdea = useMemo(() => {
-    // Active workspace first (the overwhelmingly common case), then ALL
-    // workspaces — the song page is a resolution surface, and ideas opened
-    // from a Received package live outside the active workspace.
-    const ws = workspaces.find((w) => w.id === activeWorkspaceId);
-    const inActive = ws?.ideas.find((i) => i.id === selectedIdeaId);
-    if (inActive) return inActive;
-    for (const candidate of workspaces) {
-      const idea = candidate.ideas.find((i) => i.id === selectedIdeaId);
-      if (idea) return idea;
-    }
-    return undefined;
-  }, [workspaces, activeWorkspaceId, selectedIdeaId]);
   const songClips = useMemo(() => selectedIdea?.clips ?? [], [selectedIdea?.clips]);
   const songClipTitles = useMemo(() => songClips.map((clip) => clip.title), [songClips]);
   const isProject = selectedIdea?.kind === "project";
@@ -157,7 +152,6 @@ export function useSongScreenModel() {
     routeIdeaId,
     selectedIdeaId,
     activeWorkspaceId,
-    workspaces,
     selectedIdea,
     songClips,
     songClipTitles,

@@ -20,6 +20,15 @@ import { haptic } from "../../../design/haptics";
 import { colors, spacing } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 
+const EMPTY_GROUPS: NonNullable<ClipCardContextProps["mode"]["idea"]["clipGroups"]> = [];
+const EMPTY_ASSIGNMENTS: NonNullable<ClipCardContextProps["mode"]["idea"]["clipGroupAssignments"]> = {};
+const evolutionRowKey = (row: EvolutionContentRow, index: number) => {
+  if (row.kind === "clip") return `evolution-clip:${row.entry.clip.id}:${index}`;
+  if (row.kind === "thread") return `evolution-thread:${row.lineage.root.id}`;
+  if (row.kind === "group") return `evolution-group:${row.groupId}`;
+  return `evolution-more:${row.lineageRootId}`;
+};
+
 type EvolutionListProps = {
   lineages: ClipLineage[];
   expandedLineageIds: Record<string, boolean>;
@@ -159,8 +168,12 @@ export function EvolutionList({
   const [renameTarget, setRenameTarget] = useState<{ groupId: string; name: string } | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
 
-  const groups = clipCardContext.mode.idea.clipGroups ?? [];
-  const groupAssignments = clipCardContext.mode.idea.clipGroupAssignments ?? {};
+  // Stable empties: `?? []` / `?? {}` made fresh values every render, which
+  // rebuilt every content row (and so every take card's `entry`) on any
+  // sketch-page render — a preview start, a keystroke in the edit sheet, a
+  // background waveform flush (2026-09-30).
+  const groups = clipCardContext.mode.idea.clipGroups ?? EMPTY_GROUPS;
+  const groupAssignments = clipCardContext.mode.idea.clipGroupAssignments ?? EMPTY_ASSIGNMENTS;
   // "Collapse all" is lifted out of the FlatList into the sticky pinned overlay
   // so it stays visible when the header is collapsed — not rendered here.
   const contentRows = useMemo<EvolutionContentRow[]>(() =>
@@ -178,6 +191,17 @@ export function EvolutionList({
   // top), reported by the rows themselves as they lay out. A locate request for
   // an older version scrolls to the THREAD's index, offset by this — otherwise
   // a long history leaves the target below the fold.
+  const toggleLineage = useCallback((lineageRootId: string) => {
+    setExpandedLineageIds((prev) => ({
+      ...prev,
+      [lineageRootId]: !prev[lineageRootId],
+    }));
+  }, [setExpandedLineageIds]);
+  const onRenameGroup = useCallback((groupId: string, name: string) => {
+    setRenameTarget({ groupId, name });
+    setRenameDraft(name);
+  }, []);
+
   const versionRowYRef = useRef<Record<string, number>>({});
   const onVersionRowLayout = useCallback((clipId: string, y: number) => {
     versionRowYRef.current[clipId] = y;
@@ -212,6 +236,37 @@ export function EvolutionList({
     };
   }, [locateTarget?.clipId, locateTarget?.nonce, contentRows]);
 
+  const renderContentRow = useCallback(
+    (row: EvolutionContentRow) => {
+      if (row.kind === "group") {
+        return <EvolutionGroupHeaderRow row={row} onRename={onRenameGroup} />;
+      }
+      if (row.kind === "thread") {
+        return (
+          <EvolutionThread
+            lineage={row.lineage}
+            expanded={row.expanded}
+            onToggleExpanded={toggleLineage}
+            context={clipCardContext}
+            onVersionRowLayout={onVersionRowLayout}
+          />
+        );
+      }
+      if (row.kind === "more") {
+        return (
+          <EvolutionMoreRow
+            lineageRootId={row.lineageRootId}
+            hiddenCount={row.hiddenCount}
+            expanded={row.expanded}
+            onToggle={toggleLineage}
+          />
+        );
+      }
+      return <SongClipCard entry={row.entry} context={clipCardContext} />;
+    },
+    [clipCardContext, onRenameGroup, onVersionRowLayout, toggleLineage]
+  );
+
   return (
     <>
     <SongClipListShell
@@ -224,60 +279,8 @@ export function EvolutionList({
       contentPaddingTop={contentPaddingTop}
       contentPaddingHorizontal={contentPaddingHorizontal}
       scrollTarget={scrollTarget}
-      contentKeyExtractor={(row, index) => {
-        if (row.kind === "clip") return `evolution-clip:${row.entry.clip.id}:${index}`;
-        if (row.kind === "thread") return `evolution-thread:${row.lineage.root.id}`;
-        if (row.kind === "group") return `evolution-group:${row.groupId}`;
-        return `evolution-more:${row.lineageRootId}`;
-      }}
-      renderContentRow={(row) => {
-        if (row.kind === "group") {
-          return (
-            <EvolutionGroupHeaderRow
-              row={row}
-              onRename={(groupId, name) => {
-                setRenameTarget({ groupId, name });
-                setRenameDraft(name);
-              }}
-            />
-          );
-        }
-
-        if (row.kind === "thread") {
-          return (
-            <EvolutionThread
-              lineage={row.lineage}
-              expanded={row.expanded}
-              onToggleExpanded={(lineageRootId) =>
-                setExpandedLineageIds((prev) => ({
-                  ...prev,
-                  [lineageRootId]: !prev[lineageRootId],
-                }))
-              }
-              context={clipCardContext}
-              onVersionRowLayout={onVersionRowLayout}
-            />
-          );
-        }
-
-        if (row.kind === "more") {
-          return (
-            <EvolutionMoreRow
-              lineageRootId={row.lineageRootId}
-              hiddenCount={row.hiddenCount}
-              expanded={row.expanded}
-              onToggle={(lineageRootId) =>
-                setExpandedLineageIds((prev) => ({
-                  ...prev,
-                  [lineageRootId]: !prev[lineageRootId],
-                }))
-              }
-            />
-          );
-        }
-
-        return <SongClipCard entry={row.entry} context={clipCardContext} />;
-      }}
+      contentKeyExtractor={evolutionRowKey}
+      renderContentRow={renderContentRow}
     />
     <QuickNameModal
       visible={!!renameTarget}

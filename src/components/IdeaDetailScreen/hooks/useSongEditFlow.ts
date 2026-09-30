@@ -12,7 +12,6 @@ type UseSongEditFlowParams = {
   selectedIdea: SongIdea | null | undefined;
   selectedIdeaId: string | null;
   activeWorkspaceId: string | null;
-  workspaces: Workspace[];
   isEditMode: boolean;
   setIsEditMode: (value: boolean) => void;
   draftTitle: string;
@@ -25,7 +24,6 @@ export function useSongEditFlow({
   selectedIdea,
   selectedIdeaId,
   activeWorkspaceId,
-  workspaces,
   isEditMode,
   setIsEditMode,
   draftTitle,
@@ -45,7 +43,9 @@ export function useSongEditFlow({
   const handleSave = useCallback(() => {
     if (!selectedIdeaId || !selectedIdea) return;
     const state = useStore.getState();
-    const activeWorkspace = workspaces.find((workspace) => workspace.id === activeWorkspaceId);
+    // Read at save time: subscribing the page to the whole library for this one
+    // title-uniqueness check re-rendered it on every write anywhere.
+    const activeWorkspace = state.workspaces.find((workspace) => workspace.id === activeWorkspaceId);
     const fallbackTitle = ensureUniqueIdeaTitle(
       buildDefaultIdeaTitle(),
       activeWorkspace?.ideas.filter((idea) => idea.id !== selectedIdeaId).map((idea) => idea.title) ?? []
@@ -97,7 +97,6 @@ export function useSongEditFlow({
     selectedIdea,
     selectedIdeaId,
     setIsEditMode,
-    workspaces,
   ]);
 
   // Set while a confirmed draft discard is leaving the screen, so the

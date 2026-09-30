@@ -3,7 +3,7 @@ import { BackHandler } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 
 type UseSongClipListEffectsArgs = {
-  inlineTarget: { ideaId: string; clipId: string } | null;
+  hasInlineTarget: boolean;
   resetInlinePlayer: () => Promise<void>;
   isParentPicking: boolean;
   clipViewMode: "timeline" | "evolution";
@@ -12,7 +12,7 @@ type UseSongClipListEffectsArgs = {
 };
 
 export function useSongClipListEffects({
-  inlineTarget,
+  hasInlineTarget,
   resetInlinePlayer,
   isParentPicking,
   clipViewMode,
@@ -30,7 +30,7 @@ export function useSongClipListEffects({
   }, [resetInlinePlayer]);
 
   useEffect(() => {
-    if (!inlineTarget || !isFocused) return;
+    if (!hasInlineTarget || !isFocused) return;
 
     const handler = BackHandler.addEventListener("hardwareBackPress", () => {
       void inlineResetRef.current();
@@ -38,7 +38,7 @@ export function useSongClipListEffects({
     });
 
     return () => handler.remove();
-  }, [inlineTarget, isFocused]);
+  }, [hasInlineTarget, isFocused]);
 
   useEffect(() => {
     if (isParentPicking && clipViewMode !== "evolution") {

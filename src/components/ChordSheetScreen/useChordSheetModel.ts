@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Share } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../state/useStore";
+import { selectIdeaById } from "../../state/librarySelectors";
 import { appActions } from "../../state/actions";
 import { AppAlert } from "../common/AppAlert";
 import { formatDate } from "../../utils";
@@ -30,48 +31,54 @@ import { useTranslation } from "react-i18next";
 type PickerTarget = { sectionId: string; measureId: string; index: number | null };
 type BarEditorTarget = { sectionId: string; measureId: string };
 
+const labelSuggestionsCache = new WeakMap<object, string[]>();
+function labelSuggestionsFor(workspaces: ReturnType<typeof useStore.getState>["workspaces"]): string[] {
+  const cached = labelSuggestionsCache.get(workspaces);
+  if (cached) return cached;
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const add = (label: string) => {
+    const trimmed = label.trim();
+    const key = trimmed.toLowerCase();
+    if (!trimmed || seen.has(key)) return;
+    seen.add(key);
+    out.push(trimmed);
+  };
+  SECTION_PRESETS.forEach(add);
+  for (const workspace of workspaces) {
+    for (const idea of workspace.ideas) {
+      if (idea.kind !== "project") continue;
+      for (const section of idea.chordSheet?.sections ?? []) {
+        if (section.kind !== "text") add(section.label);
+      }
+    }
+  }
+  labelSuggestionsCache.set(workspaces, out);
+  return out;
+}
+
 export function useChordSheetModel(ideaIdOverride?: string) {
   const { t } = useTranslation();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const ideaId = ideaIdOverride ?? (route.params?.ideaId as string | undefined);
 
-  const workspaces = useStore((s) => s.workspaces);
-
-  const projectIdea = useMemo<SongIdea | null>(() => {
-    for (const workspace of workspaces) {
-      const idea = workspace.ideas.find((candidate) => candidate.id === ideaId);
-      if (idea) return idea.kind === "project" ? idea : null;
-    }
-    return null;
-  }, [workspaces, ideaId]);
+  // Subscribed to the one idea (same object while untouched), not the library:
+  // this hook is mounted on every sketch tab, and re-rendering it on every
+  // write elsewhere was one of the sketch page's fan-out sources.
+  const projectIdea = useStore((s): SongIdea | null => {
+    const idea = ideaId ? selectIdeaById(s.workspaces, ideaId) : null;
+    return idea?.kind === "project" ? idea : null;
+  });
 
   const sheet = projectIdea?.chordSheet ?? createChordSheet();
   const palette = useMemo(() => sortedPalette(projectIdea?.chordPalette), [projectIdea?.chordPalette]);
 
   // Autocomplete corpus for renaming sections: the presets plus every section
   // label the writer has actually used across their charts (custom names too).
-  const labelSuggestions = useMemo(() => {
-    const seen = new Set<string>();
-    const out: string[] = [];
-    const add = (label: string) => {
-      const trimmed = label.trim();
-      const key = trimmed.toLowerCase();
-      if (!trimmed || seen.has(key)) return;
-      seen.add(key);
-      out.push(trimmed);
-    };
-    SECTION_PRESETS.forEach(add);
-    for (const workspace of workspaces) {
-      for (const idea of workspace.ideas) {
-        if (idea.kind !== "project") continue;
-        for (const section of idea.chordSheet?.sections ?? []) {
-          if (section.kind !== "text") add(section.label);
-        }
-      }
-    }
-    return out;
-  }, [workspaces]);
+  // Built on demand (the rename modal), cached per library array — not on every
+  // render of every sketch tab.
+  const getLabelSuggestions = useCallback(() => labelSuggestionsFor(useStore.getState().workspaces), []);
 
   const [isEditing, setIsEditing] = useState(false);
   const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
@@ -415,7 +422,7 @@ export function useChordSheetModel(ideaIdOverride?: string) {
     projectIdea,
     sheet,
     palette,
-    labelSuggestions,
+    getLabelSuggestions,
     isEditing,
     setIsEditing,
     pickerTarget,
