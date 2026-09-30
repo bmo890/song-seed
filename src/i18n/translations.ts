@@ -836,6 +836,7 @@ export const resources = {
         makePrimaryTake: "Make primary take",
         saving: "Saving…",
         chooseDestination: "Choose destination",
+        startedHere: "Started here",
         workspaceName: "Workspace name",
       },
       lyrics: {
@@ -2312,6 +2313,7 @@ export const resources = {
         makePrimaryTake: "הגדרה כטייק ראשי",
         saving: "מתבצעת שמירה…",
         chooseDestination: "בחירת יעד",
+        startedHere: "נקודת ההתחלה",
         workspaceName: "שם מרחב העבודה",
       },
       lyrics: {
