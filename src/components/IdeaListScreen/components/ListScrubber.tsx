@@ -18,6 +18,7 @@ import { haptic } from "../../../design/haptics";
 import { stickyDayStore, useScrubLabel } from "../stickyDayStore";
 
 const setScrubReadout = (label: string | null) => stickyDayStore.setScrubLabel(label);
+const setScrubbing = (held: boolean) => stickyDayStore.setScrubbing(held);
 
 /**
  * Fast-scroll scrubber for a long collection (2026-09-30).
@@ -30,14 +31,16 @@ const setScrubReadout = (label: string | null) => stickyDayStore.setScrubLabel(l
  * and wrong for a date-sorted list) and not the native scrollbar drag (not
  * discoverable, and Android's is not exposed to React Native).
  *
- * While held, nothing scrolls: the handle follows the thumb and the chip
- * names the row under it, both resolved on the UI thread from the list's row
- * geometry (listGeometry). The list jumps once on release. Scrolling live
- * under the thumb mounted a screen of cards at every position a fast drag
- * passed — a second of JS for rows nobody saw — and the chip, fed by the
- * viewability callback, lagged behind it. Founder's call (2026-09-30): the
- * chip does the navigating, the way an index rail does. Between drags the
- * handle follows the list's own scroll offset.
+ * While held, the handle follows the thumb and the chip names the row under
+ * it, both resolved on the UI thread from the list's row geometry
+ * (listGeometry), and the list scrolls live underneath (founder's call,
+ * 2026-09-30: see the cards go by). Live scrolling is kept cheap by the
+ * list itself: while the handle is held only the visible rows stay mounted
+ * and cards draw a hairline for their waveform (`stickyDayStore.scrubbing`),
+ * so a drag that passes a hundred rows mounts a handful of light cards per
+ * position instead of three screens of Skia canvases; the waveforms return
+ * on release. Scroll requests go out at most every 40 ms, plus once on
+ * release. Between drags the handle follows the list's own scroll offset.
  *
  * Haptics: `grab` on lift (picking the list up), `light` per section change
  * while held (the tick of an index rail), silent on release.
@@ -58,6 +61,8 @@ const HIT_END_INSET = 4;
 // The scrubber only earns its place on a list that takes real effort to scroll.
 const MIN_CONTENT_TO_VIEWPORT = 1.8;
 const HIDE_AFTER_MS = 1400;
+/** A held drag asks the list to scroll at most this often (plus once on release). */
+const DRAG_DISPATCH_MS = 40;
 // Where the wrapper parks once invisible: past the stage's clipped edge.
 const PARKED_OFFSET = 80;
 
@@ -114,6 +119,7 @@ function ListScrubberInner({
   const dragTarget = useSharedValue(0);
   const dragTop = useSharedValue(0);
   const readoutIndex = useSharedValue(-1);
+  const lastDispatchAt = useSharedValue(0);
 
   // Show while the list moves; hide a beat after it stops, unless held.
   useAnimatedReaction(
@@ -149,6 +155,8 @@ function ListScrubberInner({
           dragTop.value = dragStartTop.value;
           dragTarget.value = scrollY.value;
           readoutIndex.value = -1;
+          lastDispatchAt.value = 0;
+          runOnJS(setScrubbing)(true);
           runOnJS(haptic.grab)();
         })
         .onUpdate((event) => {
@@ -174,10 +182,17 @@ function ListScrubberInner({
               runOnJS(setScrubReadout)(rowLabels.value[index] ?? null);
             }
           }
+          const now = Date.now();
+          if (now - lastDispatchAt.value < DRAG_DISPATCH_MS) return;
+          lastDispatchAt.value = now;
+          runOnJS(onScrollTo)(dragTarget.value);
         })
         .onFinalize(() => {
           "worklet";
-          if (grabbed.value === 1) runOnJS(onScrollTo)(dragTarget.value);
+          if (grabbed.value === 1) {
+            runOnJS(onScrollTo)(dragTarget.value);
+            runOnJS(setScrubbing)(false);
+          }
           grabbed.value = 0;
           visible.value = withDelay(HIDE_AFTER_MS, withTiming(0, { duration: durations.base }));
         }),
@@ -189,6 +204,7 @@ function ListScrubberInner({
       dragTarget,
       dragTop,
       readoutIndex,
+      lastDispatchAt,
       rowLabels,
       rowOffsets,
       grabbed,

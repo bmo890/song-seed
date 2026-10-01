@@ -154,6 +154,8 @@ export type IdeaCardProps = {
     /** True when `waveformPeaks` are synthetic (placeholder / past the analysis
      *  cap): the strip then draws them as-is instead of stretching their contrast. */
     waveformSynthetic?: boolean;
+    /** The strip draws a hairline, not a canvas (list is being fast-scrolled). */
+    waveformLightweight?: boolean;
     /** Contextual tags shown below title (search match badges) */
     searchTagsContent?: ReactNode;
     /** Search match: the matched line (windowed). When set, the comfortable card
@@ -244,6 +246,7 @@ export function IdeaCard({
     trailing,
     waveformPeaks,
     waveformSynthetic,
+    waveformLightweight,
     searchTagsContent,
     matchSnippet,
     matchField,
@@ -566,6 +569,7 @@ export function IdeaCard({
                                         <WaveformStrip
                                             peaks={waveformPeaks}
                                             synthetic={waveformSynthetic}
+                                            lightweight={!!waveformLightweight && !stripIsInlinePlayer}
                                             clock={stripIsInlinePlayer ? inlineClock : undefined}
                                             onScrub={stripIsInlinePlayer ? onInlineScrub : undefined}
                                             onScrubStart={stripIsInlinePlayer ? onInlineScrubStart : undefined}

@@ -11,6 +11,7 @@ import { getIdeaSortTimestamp, type IdeaSortMetric } from "../../../domain/ideaS
 import { getDateBucket } from "../../../domain/dateBuckets";
 import { EmptyState } from "../../common/EmptyState";
 import { useTranslation } from "react-i18next";
+import { useListScrubbing } from "../stickyDayStore";
 
 const onListActivityBegin = () => beginUiActivity("list-scroll");
 const onListActivityEnd = () => endUiActivity("list-scroll");
@@ -104,6 +105,10 @@ function IdeaListContentInner(
     [contentHeightValue]
   );
   const scrollRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // While the fast-scroll handle is held: only the visible rows stay mounted and
+  // cards draw a hairline for their waveform, so each position the drag passes
+  // mounts a handful of cheap cards instead of three screens of canvases.
+  const scrubbing = useListScrubbing();
 
   // Viewability is the one place RN reports which rows are on screen with its own
   // cell metrics. (A custom CellRendererComponent does not work here: Reanimated's
@@ -194,11 +199,13 @@ function IdeaListContentInner(
             sortMetric={activeSortMetric}
             lyricsFilterMode={lyricsFilterMode}
             onRowHeight={onRowHeight}
+            listScrubbing={scrubbing}
           />
         );
     },
     [
       onRowHeight,
+      scrubbing,
       listDensity,
       activeTimelineMetric,
       expandTimelineDay,
@@ -259,7 +266,7 @@ function IdeaListContentInner(
       // large library; the rest fill in on the following frames.
       initialNumToRender={6}
       maxToRenderPerBatch={10}
-      windowSize={7}
+      windowSize={scrubbing ? 1 : 7}
       onScrollToIndexFailed={(info) => {
         if (scrollRetryTimerRef.current) {
           clearTimeout(scrollRetryTimerRef.current);

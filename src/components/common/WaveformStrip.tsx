@@ -41,6 +41,10 @@ type WaveformStripProps = {
     onScrub?: (fraction: number) => void;
     onScrubStart?: () => void;
     onScrubCancel?: () => void;
+    /** Draw a single hairline instead of the Skia strip (same height). For
+     *  cards mounted while the list is fast-scrolled: a drag passes a hundred
+     *  rows, and a canvas per card is most of what a card costs to mount. */
+    lightweight?: boolean;
 };
 
 /**
@@ -58,6 +62,7 @@ export const WaveformStrip = React.memo(function WaveformStrip({
     color = DEFAULT_BAR_COLOR,
     clock,
     onScrub,
+    lightweight = false,
     onScrubStart,
     onScrubCancel,
 }: WaveformStripProps) {
@@ -196,7 +201,9 @@ export const WaveformStrip = React.memo(function WaveformStrip({
             hitSlop={interactive ? { top: 10, bottom: 10 } : undefined}
             {...(interactive ? panResponder.panHandlers : null)}
         >
-            {hasPeaks && barsPath != null ? (
+            {lightweight && !live ? (
+                <View style={{ height: 2, borderRadius: 1, backgroundColor: color, opacity: 0.4 }} />
+            ) : hasPeaks && barsPath != null ? (
                 <Canvas style={{ width: "100%", height }}>
                     <Path
                         path={barsPath}

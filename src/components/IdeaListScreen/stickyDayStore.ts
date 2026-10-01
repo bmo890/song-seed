@@ -18,6 +18,10 @@ let topLabel: string | null = null;
 // under the rest. Kept here (not in the screen model) for the same reason as
 // the chip: it changes per scroll position and must re-render only its reader.
 let scrubLabel: string | null = null;
+// True while the fast-scroll handle is held: the list keeps only the visible
+// rows mounted and cards draw a hairline instead of a waveform, so a drag
+// that passes a hundred rows mounts cheap cards, not Skia canvases.
+let scrubbing = false;
 const listeners = new Set<() => void>();
 
 export const stickyDayStore = {
@@ -36,8 +40,14 @@ export const stickyDayStore = {
     scrubLabel = label;
     listeners.forEach((l) => l());
   },
+  setScrubbing(next: boolean) {
+    if (next === scrubbing) return;
+    scrubbing = next;
+    listeners.forEach((l) => l());
+  },
   get: () => currentLabel,
   getScrubLabel: () => scrubLabel,
+  getScrubbing: () => scrubbing,
   getTopLabel: () => topLabel,
   subscribe(listener: () => void) {
     listeners.add(listener);
@@ -60,4 +70,9 @@ export function useStickyDayChipVisible(): boolean {
 /** The scrubber's readout for the current scroll position. */
 export function useScrubLabel(): string | null {
   return useSyncExternalStore(stickyDayStore.subscribe, stickyDayStore.getScrubLabel);
+}
+
+/** True while the fast-scroll handle is held. */
+export function useListScrubbing(): boolean {
+  return useSyncExternalStore(stickyDayStore.subscribe, stickyDayStore.getScrubbing);
 }

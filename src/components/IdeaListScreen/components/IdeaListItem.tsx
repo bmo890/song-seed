@@ -60,6 +60,8 @@ type IdeaListItemProps = {
     lyricsFilterMode: "all" | "with" | "without",
     /** The row's measured height, for the list's exact geometry (listGeometry). */
     onRowHeight?: (entryKey: string, kind: string, height: number) => void,
+    /** The fast-scroll handle is held: draw cheaply (hairline for the waveform). */
+    listScrubbing?: boolean,
 };
 
 function IdeaListItemInner({
@@ -79,6 +81,7 @@ function IdeaListItemInner({
     sortMetric,
     lyricsFilterMode,
     onRowHeight,
+    listScrubbing = false,
 }: IdeaListItemProps) {
     const { t } = useTranslation();
     // Null only for the frame between a deletion and the list dropping the row.
@@ -406,6 +409,7 @@ function IdeaListItemInner({
                             titleIsAuto={titleIsAuto}
                             waveformPeaks={playClip?.waveformPeaks ?? null}
                             waveformSynthetic={playClip ? isClipWaveformSynthetic(playClip) : undefined}
+                            waveformLightweight={listScrubbing}
                             searchNeedle={searchNeedle}
                             // Stage rides the title row (like PRIMARY on a clip) — the
                             // most-read line, so it lands without adding a surface.
