@@ -64,6 +64,8 @@ export type ListGeometry = {
   getItemLayout: (index: number) => { length: number; offset: number; index: number };
   /** Content offset of a row's top edge. */
   offsetOf: (index: number) => number;
+  /** Every row's top edge, in order (the scrubber's readout searches it). */
+  offsets: () => number[];
   /** Total content length, footer excluded. */
   contentLength: () => number;
 };
@@ -134,6 +136,7 @@ export function createListGeometry(estimates: Record<string, number> = DEFAULT_E
     },
     getItemLayout: (index) => ({ length: lengthOf(index), offset: ensureOffsets()[index] ?? 0, index }),
     offsetOf: (index) => ensureOffsets()[index] ?? 0,
+    offsets: () => ensureOffsets(),
     contentLength: () => {
       const all = ensureOffsets();
       const last = all.length - 1;

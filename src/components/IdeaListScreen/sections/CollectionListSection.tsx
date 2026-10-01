@@ -219,6 +219,7 @@ export function CollectionListSection({
   // the day label under date sorts, the first letter under title sorts, nothing
   // under length/progress sorts (the chip reads the day label regardless).
   const entryLabelsRef = useRef<Map<string, { label: string; scrub: string | null }>>(new Map());
+  const scrubLabelsRef = useRef<(string | null)[]>([]);
   useEffect(() => {
     const metric = screen.activeSortMetric;
     const titleById = new Map<string, string>();
@@ -237,7 +238,9 @@ export function CollectionListSection({
       next.set(entry.key, { label, scrub });
     }
     entryLabelsRef.current = next;
-  }, [screen.listEntries, screen.ideas, screen.activeSortMetric, screen.showDateDividers, ideasSort]);
+    scrubLabelsRef.current = screen.listEntries.map((entry) => next.get(entry.key)?.scrub ?? null);
+    screen.scrubRowLabels.value = scrubLabelsRef.current;
+  }, [screen.listEntries, screen.ideas, screen.activeSortMetric, screen.showDateDividers, ideasSort, screen.scrubRowLabels]);
 
   const onFirstViewableEntry = useCallback((entry: IdeaListEntry | null) => {
     const labels = entry ? entryLabelsRef.current.get(entry.key) : undefined;
@@ -269,6 +272,11 @@ export function CollectionListSection({
     (_data: ArrayLike<IdeaListEntry> | null | undefined, index: number) => geometry.getItemLayout(index),
     [geometry]
   );
+  // The scrubber reads row tops on the UI thread; republish when anything moved.
+  const scrubRowOffsets = screen.scrubRowOffsets;
+  useEffect(() => {
+    scrubRowOffsets.value = geometry.offsets().slice();
+  }, [geometry, layoutVersion, screen.listEntries, contentPaddingTop, screen.listDensity, scrubRowOffsets]);
   const onRowHeight = useCallback(
     (entryKey: string, kind: string, height: number) => {
       if (geometry.report(entryKey, kind, height)) setLayoutVersion((v) => v + 1);

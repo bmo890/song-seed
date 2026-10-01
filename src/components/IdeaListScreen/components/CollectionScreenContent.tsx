@@ -144,6 +144,8 @@ export function CollectionScreenContent() {
           collapsibleHeaderHeight={screen.collapsibleHeaderHeight}
           headerHeight={headerHeight}
           bottomInset={screen.listFooterSpacerHeight + 8}
+          rowOffsets={screen.scrubRowOffsets}
+          rowLabels={screen.scrubRowLabels}
           onScrollTo={scrollListTo}
         />
       </View>

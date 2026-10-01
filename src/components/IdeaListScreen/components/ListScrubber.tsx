@@ -15,7 +15,9 @@ import { useTranslation } from "react-i18next";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
 import { durations } from "../../../design/motion";
 import { haptic } from "../../../design/haptics";
-import { useScrubLabel } from "../stickyDayStore";
+import { stickyDayStore, useScrubLabel } from "../stickyDayStore";
+
+const setScrubReadout = (label: string | null) => stickyDayStore.setScrubLabel(label);
 
 /**
  * Fast-scroll scrubber for a long collection (2026-09-30).
@@ -28,11 +30,14 @@ import { useScrubLabel } from "../stickyDayStore";
  * and wrong for a date-sorted list) and not the native scrollbar drag (not
  * discoverable, and Android's is not exposed to React Native).
  *
- * The handle follows the list's shared scroll offset on the UI thread. A drag
- * asks the list to scroll (`scrollToOffset`, one call per gesture event); with
- * exact row geometry (listGeometry) the content is full-length, so the offset
- * lands anywhere in the list. The chip's text comes from the viewability
- * callback the sticky-day chip already uses.
+ * While held, nothing scrolls: the handle follows the thumb and the chip
+ * names the row under it, both resolved on the UI thread from the list's row
+ * geometry (listGeometry). The list jumps once on release. Scrolling live
+ * under the thumb mounted a screen of cards at every position a fast drag
+ * passed — a second of JS for rows nobody saw — and the chip, fed by the
+ * viewability callback, lagged behind it. Founder's call (2026-09-30): the
+ * chip does the navigating, the way an index rail does. Between drags the
+ * handle follows the list's own scroll offset.
  *
  * Haptics: `grab` on lift (picking the list up), `light` per section change
  * while held (the tick of an index rail), silent on release.
@@ -53,10 +58,6 @@ const HIT_END_INSET = 4;
 // The scrubber only earns its place on a list that takes real effort to scroll.
 const MIN_CONTENT_TO_VIEWPORT = 1.8;
 const HIDE_AFTER_MS = 1400;
-// A drag asks the list to scroll at most this often (plus once on release):
-// every intermediate position mounts a screen of cards, so a full-list sweep
-// at 60 Hz spent a second of JS on rows nobody saw.
-const DRAG_DISPATCH_MS = 50;
 // Where the wrapper parks once invisible: past the stage's clipped edge.
 const PARKED_OFFSET = 80;
 
@@ -70,9 +71,30 @@ type Props = {
   headerHeight: number;
   /** Space kept clear at the bottom for the floating dock and record button. */
   bottomInset: number;
-  /** Scroll the list to a content offset (unanimated). */
+  /** Row tops in content coordinates and the readout per row (listGeometry). */
+  rowOffsets: SharedValue<number[]>;
+  rowLabels: SharedValue<(string | null)[]>;
+  /** Scroll the list to a content offset (unanimated); called once on release. */
   onScrollTo: (offset: number) => void;
 };
+
+/** Index of the last row whose top is at or above `contentY`. */
+function rowAt(offsets: number[], contentY: number): number {
+  "worklet";
+  let low = 0;
+  let high = offsets.length - 1;
+  let found = 0;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    if (offsets[mid]! <= contentY) {
+      found = mid;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+  return found;
+}
 
 function ListScrubberInner({
   scrollY,
@@ -81,6 +103,8 @@ function ListScrubberInner({
   collapsibleHeaderHeight,
   headerHeight,
   bottomInset,
+  rowOffsets,
+  rowLabels,
   onScrollTo,
 }: Props) {
   const { t } = useTranslation();
@@ -88,7 +112,8 @@ function ListScrubberInner({
   const grabbed = useSharedValue(0);
   const dragStartTop = useSharedValue(0);
   const dragTarget = useSharedValue(0);
-  const lastDispatchAt = useSharedValue(0);
+  const dragTop = useSharedValue(0);
+  const readoutIndex = useSharedValue(-1);
 
   // Show while the list moves; hide a beat after it stops, unless held.
   useAnimatedReaction(
@@ -121,8 +146,9 @@ function ListScrubberInner({
           );
           const progress = Math.min(1, Math.max(0, scrollY.value / range));
           dragStartTop.value = trackTop + progress * trackLength;
+          dragTop.value = dragStartTop.value;
           dragTarget.value = scrollY.value;
-          lastDispatchAt.value = 0;
+          readoutIndex.value = -1;
           runOnJS(haptic.grab)();
         })
         .onUpdate((event) => {
@@ -137,11 +163,17 @@ function ListScrubberInner({
             1,
             Math.max(0, (dragStartTop.value + event.translationY - trackTop) / trackLength)
           );
+          dragTop.value = trackTop + progress * trackLength;
           dragTarget.value = progress * range;
-          const now = Date.now();
-          if (now - lastDispatchAt.value < DRAG_DISPATCH_MS) return;
-          lastDispatchAt.value = now;
-          runOnJS(onScrollTo)(dragTarget.value);
+          // The row that will sit under the pinned header after the jump.
+          const offsets = rowOffsets.value;
+          if (offsets.length > 0) {
+            const index = rowAt(offsets, dragTarget.value + trackTop + 1);
+            if (index !== readoutIndex.value) {
+              readoutIndex.value = index;
+              runOnJS(setScrubReadout)(rowLabels.value[index] ?? null);
+            }
+          }
         })
         .onFinalize(() => {
           "worklet";
@@ -155,7 +187,10 @@ function ListScrubberInner({
       contentHeight,
       dragStartTop,
       dragTarget,
-      lastDispatchAt,
+      dragTop,
+      readoutIndex,
+      rowLabels,
+      rowOffsets,
       grabbed,
       headerHeight,
       onScrollTo,
@@ -170,9 +205,11 @@ function ListScrubberInner({
     const trackTop = headerHeight - collapsibleHeaderHeight.value;
     const trackLength = Math.max(0, viewportHeight.value - bottomInset - trackTop - HANDLE_HEIGHT);
     const progress = Math.min(1, Math.max(0, scrollY.value / range));
+    // Held: under the thumb. Otherwise: where the list is.
+    const top = grabbed.value === 1 ? dragTop.value : trackTop + progress * trackLength;
     return {
       transform: [
-        { translateY: trackTop + progress * trackLength },
+        { translateY: top },
         // Parked off the clipped edge only once fully faded, so the step is never seen.
         { translateX: visible.value === 0 ? PARKED_OFFSET : 0 },
       ],

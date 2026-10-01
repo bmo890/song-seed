@@ -122,6 +122,10 @@ export function useCollectionScreenModel() {
   // The fast-scroll scrubber sizes its track from these; the list writes them.
   const listContentHeight = useSharedValue(0);
   const listViewportHeight = useSharedValue(0);
+  // Row tops and readout labels (listGeometry), so a drag names where it is
+  // from the UI thread without scrolling anything.
+  const scrubRowOffsets = useSharedValue<number[]>([]);
+  const scrubRowLabels = useSharedValue<(string | null)[]>([]);
 
   const hiddenIdeaIds = currentCollection?.ideasListState.hiddenIdeaIds ?? [];
   const hiddenDays = currentCollection?.ideasListState.hiddenDays ?? [];
@@ -541,6 +545,8 @@ export function useCollectionScreenModel() {
     collapsibleHeaderHeight,
     listContentHeight,
     listViewportHeight,
+    scrubRowOffsets,
+    scrubRowLabels,
     floatingStripBottom,
     listFooterSpacerHeight,
     activityLabel,
