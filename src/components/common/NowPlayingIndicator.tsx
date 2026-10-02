@@ -1,15 +1,17 @@
 import { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import Animated, {
+import { Canvas, RoundedRect } from "@shopify/react-native-skia";
+import {
   cancelAnimation,
   Easing,
-  useAnimatedStyle,
+  useDerivedValue,
   useSharedValue,
   withDelay,
   withRepeat,
   withSequence,
   withTiming,
+  type SharedValue,
 } from "react-native-reanimated";
 import { useAppInForeground } from "../../hooks/useAppForeground";
 
@@ -25,28 +27,21 @@ const BARS = [
   { peak: 0.9, trough: 0.42, phase: (CYCLE_MS * 2) / 3 },
 ];
 
-function IndicatorBar({
-  color,
-  maxHeight,
-  peak,
-  trough,
-  phaseMs,
-}: {
-  color: string;
-  maxHeight: number;
-  peak: number;
-  trough: number;
-  phaseMs: number;
-}) {
-  const level = useSharedValue(trough);
-  // A repeating animation asks for a frame, every frame, screen on or off.
-  const foreground = useAppInForeground();
+const BAR_WIDTH = 3;
+const BAR_GAP = 2;
+const BARS_WIDTH = BARS.length * BAR_WIDTH + (BARS.length - 1) * BAR_GAP;
+
+/** One bar's level, 0..1 of the full height, looping while the app is on screen. */
+function useBarLevel(bar: (typeof BARS)[number], foreground: boolean): SharedValue<number> {
+  const level = useSharedValue(bar.trough);
+  const { peak, trough, phase } = bar;
 
   useEffect(() => {
+    // A repeating animation asks for a frame, every frame, screen on or off.
     if (!foreground) return;
     const half = CYCLE_MS / 2;
     level.value = withDelay(
-      phaseMs,
+      phase,
       withRepeat(
         withSequence(
           withTiming(peak, { duration: half, easing: Easing.inOut(Easing.sin) }),
@@ -57,13 +52,47 @@ function IndicatorBar({
       )
     );
     return () => cancelAnimation(level);
-  }, [foreground, level, peak, trough, phaseMs]);
+  }, [foreground, level, peak, trough, phase]);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    height: Math.max(2, maxHeight * level.value),
-  }));
+  return level;
+}
 
-  return <Animated.View style={[indicatorStyles.bar, { backgroundColor: color }, animatedStyle]} />;
+function useBarGeometry(level: SharedValue<number>, maxHeight: number) {
+  const height = useDerivedValue(() => Math.max(2, maxHeight * level.value));
+  const y = useDerivedValue(() => maxHeight - height.value);
+  return { height, y };
+}
+
+/**
+ * The bars are drawn in one small Skia canvas rather than as three animated views.
+ * A Reanimated style that moves every frame is committed through the whole view
+ * tree every frame (and an animated HEIGHT re-lays it out as well); the bars run
+ * for as long as anything plays, so that was most of the cost of playback with
+ * the player docked (2026-10-02). A canvas redraws itself and nothing else.
+ */
+function PlayingBars({ color, size }: { color: string; size: number }) {
+  const foreground = useAppInForeground();
+  const first = useBarGeometry(useBarLevel(BARS[0]!, foreground), size);
+  const second = useBarGeometry(useBarLevel(BARS[1]!, foreground), size);
+  const third = useBarGeometry(useBarLevel(BARS[2]!, foreground), size);
+  const width = size + 2;
+  const left = (width - BARS_WIDTH) / 2;
+
+  return (
+    <Canvas style={{ width, height: size }}>
+      {[first, second, third].map((bar, index) => (
+        <RoundedRect
+          key={index}
+          x={left + index * (BAR_WIDTH + BAR_GAP)}
+          y={bar.y}
+          width={BAR_WIDTH}
+          height={bar.height}
+          r={BAR_WIDTH / 2}
+          color={color}
+        />
+      ))}
+    </Canvas>
+  );
 }
 
 /**
@@ -89,20 +118,7 @@ export function NowPlayingIndicator({
     );
   }
 
-  return (
-    <View style={[indicatorStyles.wrap, { height: size, width: size + 2 }]}>
-      {BARS.map((bar, index) => (
-        <IndicatorBar
-          key={index}
-          color={color}
-          maxHeight={size}
-          peak={bar.peak}
-          trough={bar.trough}
-          phaseMs={bar.phase}
-        />
-      ))}
-    </View>
-  );
+  return <PlayingBars color={color} size={size} />;
 }
 
 const indicatorStyles = StyleSheet.create({
@@ -114,9 +130,5 @@ const indicatorStyles = StyleSheet.create({
   },
   wrapCentered: {
     alignItems: "center",
-  },
-  bar: {
-    width: 3,
-    borderRadius: 1.5,
   },
 });
