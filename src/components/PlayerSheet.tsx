@@ -6,6 +6,8 @@ import Animated, {
   interpolate,
   runOnJS,
   useAnimatedStyle,
+  useDerivedValue,
+  useSharedValue,
   withTiming,
 } from "react-native-reanimated";
 import { PlayerScreen, type PlayerSheetNavigation } from "./PlayerScreen";
@@ -14,6 +16,7 @@ import { usePlayerSheetPosition } from "../hooks/PlayerSheetPositionProvider";
 import { colors, radii } from "../design/tokens";
 import { haptic } from "../design/haptics";
 import { shouldObscurePlayerSheet } from "./playerSheetVisibility";
+import { ReelStageVisibleContext } from "./visualizers/reelStage";
 import { useTranslation } from "react-i18next";
 
 const OPEN_DURATION = 300;
@@ -62,6 +65,17 @@ export function PlayerSheet({ activeRouteName, isDrawerOpen, navigateRoot }: Pla
     inMotion,
   });
   const isActive = expanded && !obscured;
+
+  // The reel inside only runs its frame loop while some of the sheet shows: risen
+  // above its docked rest (open, opening or mid-drag) and not hidden under an
+  // editing route or the drawer. Read on the UI thread — see reelStage.ts.
+  const obscuredValue = useSharedValue(obscured);
+  useEffect(() => {
+    obscuredValue.value = obscured;
+  }, [obscured, obscuredValue]);
+  const reelStageVisible = useDerivedValue(
+    () => !obscuredValue.value && dragY.value < dockedY.value - 1
+  );
 
   // Expanding: slide up from wherever the sheet is (docked, or mid-drag). Skipped
   // when a dock drag-up already drove dragY there (openedByDrag).
@@ -161,12 +175,14 @@ export function PlayerSheet({ activeRouteName, isDrawerOpen, navigateRoot }: Pla
             obscured ? sheetStyles.sheetHidden : null,
           ]}
         >
-          <PlayerScreen
-            navigation={sheetNavigation}
-            isActive={isActive}
-            dragY={dragY}
-            sheetInMotion={inMotion}
-          />
+          <ReelStageVisibleContext.Provider value={reelStageVisible}>
+            <PlayerScreen
+              navigation={sheetNavigation}
+              isActive={isActive}
+              dragY={dragY}
+              sheetInMotion={inMotion}
+            />
+          </ReelStageVisibleContext.Provider>
         </Animated.View>
       ) : null}
     </View>

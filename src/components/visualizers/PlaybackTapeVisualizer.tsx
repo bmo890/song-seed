@@ -27,6 +27,7 @@ import type { SectionBand } from "../../domain/playerSections";
 import type { GridRulerModel } from "../../domain/gridRuler";
 import { advanceTracker } from "../../domain/motionTracking";
 import { useForegroundFrameCallback } from "../../hooks/useAppForeground";
+import { useReelStageVisible } from "./reelStage";
 import {
     assignPinRows,
     estimatePinBadgeWidth,
@@ -197,6 +198,13 @@ const MAX_CATCHUP_VELOCITY_FACTOR = 2.5;
  * it is invisible; smearing it is not.
  */
 const TRACKING_RESYNC_MS = 80;
+/**
+ * A gap between frames this long means the reel was not being drawn — the app was in the
+ * background, or the frame loop was stood down — and whatever the tracker believed before
+ * the gap is history. The first frame back lands on the engine's position instead of
+ * reasoning from it. Far above any stall the tracker is meant to ride through.
+ */
+const FRAME_GAP_RESYNC_MS = 1000;
 // The bar numbers are drawn INSIDE the canvas, under the same transform as the tape, so
 // they are part of the same picture rather than RN views chasing it. Two renderers painting
 // one moving scene can never be kept in step — measured, on iOS, with no React commits at
@@ -767,6 +775,9 @@ export function PlaybackTapeVisualizer({
     const pauseHoldProgress = useSharedValue(0);
     const pauseAnchorActive = useSharedValue(false);
     const lastSeenPauseHoldToken = useSharedValue(0);
+    // Docked behind the media dock (or otherwise off screen): the frame loop idles.
+    const stageVisible = useReelStageVisible();
+    const stageWasHidden = useSharedValue(false);
 
     const contentWidth = useDerivedValue(() => baseContentWidth * scale.value);
 
@@ -837,6 +848,11 @@ export function PlaybackTapeVisualizer({
 
     useForegroundFrameCallback((frameInfo) => {
         "worklet";
+        if (stageVisible && !stageVisible.value) {
+            stageWasHidden.value = true;
+            return;
+        }
+        const previousFrameAt = frameNow.value;
         // Stamped before the duration guard: gesture worklets schedule against this
         // clock, and a scrub that settles while the duration is still unknown would
         // otherwise anchor its settle window to zero and never hold.
@@ -844,6 +860,40 @@ export function PlaybackTapeVisualizer({
 
         const duration = durationMsValue.value;
         if (duration <= 0) return;
+
+        // First frame after the reel was out of sight (docked, or the app in the
+        // background): land on where the engine is. Everything below reasons from the
+        // frame before — a pause that happened meanwhile would anchor the tape to the
+        // position it was showing when it was last drawn, and with no reports arriving
+        // while paused it would stay there.
+        const resumedAfterGap =
+            stageWasHidden.value ||
+            (previousFrameAt > 0 && frameInfo.timestamp - previousFrameAt > FRAME_GAP_RESYNC_MS);
+        stageWasHidden.value = false;
+        if (resumedAfterGap && !isDragging.value && !isScrubbingShared.value) {
+            const landedProgress = Math.max(0, Math.min(1, currentTimeMsValue.value / duration));
+            const playingNow = isPlayingShared.value;
+            cancelAnimation(audioProgress);
+            audioProgress.value = landedProgress;
+            reportBaseProgress.value = landedProgress;
+            reportFrameTimestamp.value = frameInfo.timestamp;
+            lastSeenTransportUpdate.value = transportUpdateToken.value;
+            lastSeenSeekLanded.value = seekLandedToken.value;
+            lastPlayingState.value = playingNow;
+            if (sharedPauseHoldToken) {
+                lastSeenPauseHoldToken.value = sharedPauseHoldToken.value;
+            }
+            awaitingPlayStartClock.value = false;
+            pauseAnchorActive.value = false;
+            pauseHoldUntil.value = 0;
+            scrubSettleUntil.value = 0;
+            trackingSuspended.value = false;
+            progressVelocity.value = playingNow ? playbackRateShared.value / duration : 0;
+            // The position just landed on is the last report, up to one report old.
+            // The next one is where the audio actually is: take it outright.
+            adoptNextReport.value = playingNow;
+            return;
+        }
 
         // The post-scrub hold exists to cover the native seek latency, and the engine tells
         // us when that is over: the source-position gate publishes the seek TARGET until the
@@ -1190,6 +1240,7 @@ export function PlaybackTapeVisualizer({
     // has a different cause — see docs/product-plan/reel-smoothness-findings.md. This closes the hazard, nothing more.
     useForegroundFrameCallback(() => {
         "worklet";
+        if (stageVisible && !stageVisible.value) return;
         if (canvasWidth === 0) return;
         // Read from the raw inputs rather than the `contentWidth`/`targetX` mappers, which
         // have not run yet this frame.
