@@ -1,5 +1,5 @@
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
-index 49a53af..f173744 100644
+index 49a53af..d8d785a 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
 @@ -178,6 +178,9 @@ class AudioModule : Module() {
@@ -12,7 +12,26 @@ index 49a53af..f173744 100644
        audioManager = appContext.reactContext?.getSystemService(Context.AUDIO_SERVICE) as AudioManager
      }
  
-@@ -428,6 +431,12 @@ class AudioModule : Module() {
+@@ -215,6 +218,7 @@ class AudioModule : Module() {
+     }
+ 
+     OnActivityEntersBackground {
++      AudioPlayer.appInBackground = true
+       if (!staysActiveInBackground) {
+         releaseAudioFocus()
+         players.values.forEach { player ->
+@@ -233,6 +237,10 @@ class AudioModule : Module() {
+     }
+ 
+     OnActivityEntersForeground {
++      AudioPlayer.appInBackground = false
++      appContext.mainQueue.launch {
++        players.values.forEach { it.refreshUpdateCadence() }
++      }
+       if (!staysActiveInBackground) {
+         val hasPlayersToResume = players.values.any { it.isPaused }
+         if (hasPlayersToResume) {
+@@ -428,6 +436,12 @@ class AudioModule : Module() {
          }
        }
  
@@ -25,8 +44,22 @@ index 49a53af..f173744 100644
        Function("updateLockScreenMetadata") { ref: AudioPlayer, metadata: Metadata ->
          runOnMain {
            ref.updateLockScreenMetadata(metadata)
+@@ -450,6 +464,13 @@ class AudioModule : Module() {
+         player.seekTo(seekTime)
+       }.runOnQueue(Queues.MAIN)
+ 
++      Function("setBackgroundUpdateInterval") { player: AudioPlayer, intervalMs: Double ->
++        appContext.mainQueue.launch {
++          player.backgroundUpdateInterval = intervalMs.toLong()
++          player.refreshUpdateCadence()
++        }
++      }
++
+       Function("setPlaybackRate") { player: AudioPlayer, rate: Float ->
+         appContext.mainQueue.launch {
+           val playbackRate = if (rate <= 0) 0.1f else min(rate, 2.0f)
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
-index 320062e..778e346 100644
+index 320062e..215928f 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
 @@ -32,6 +32,7 @@ import java.util.UUID
@@ -37,7 +70,21 @@ index 320062e..778e346 100644
  private const val SEEK_JUMP_INTERVAL_MS: Long = 10_000
  
  @UnstableApi
-@@ -122,10 +123,14 @@ class AudioPlayer(
+@@ -56,6 +57,13 @@ class AudioPlayer(
+   var previousVolume = 1f
+   var onPlaybackStateChange: ((Boolean) -> Unit)? = null
+ 
++  // How often to report status while the app is off screen; 0 = same as on screen.
++  // With the screen locked nothing draws from the position, and every report wakes
++  // the JS thread: the full player asks for one a second (SongNook, 2026-10-02).
++  // Play, pause, the end of a clip and a new source are sent as they happen either way.
++  @Volatile
++  var backgroundUpdateInterval: Long = 0
++
+   // Lock screen controls
+   var isActiveForLockScreen = false
+   private var metadata: Metadata? = null
+@@ -122,12 +130,16 @@ class AudioPlayer(
      }
    }
  
@@ -51,9 +98,29 @@ index 320062e..778e346 100644
 -      while (true) {
 +      while (playing) {
          emit(Unit)
-         delay(updateInterval.toLong())
+-        delay(updateInterval.toLong())
++        delay(currentUpdateDelay())
        }
-@@ -144,6 +149,12 @@ class AudioPlayer(
+     }
+       .onStart {
+@@ -141,9 +153,29 @@ class AudioPlayer(
+       .launchIn(playerScope)
+   }
+ 
++  private fun currentUpdateDelay(): Long {
++    val onScreen = updateInterval.toLong()
++    val offScreen = backgroundUpdateInterval
++    return if (appInBackground && offScreen > onScreen) offScreen else onScreen
++  }
++
++  // The cadence changed (app came back, or the background interval was set): restart
++  // the loop so it applies now rather than after the delay already in flight.
++  fun refreshUpdateCadence() {
++    if (playing) {
++      startUpdating()
++    }
++  }
++
    private fun addPlayerListeners() = ref.addListener(object : Player.Listener {
      override fun onIsPlayingChanged(isPlaying: Boolean) {
        playing = isPlaying
@@ -66,7 +133,7 @@ index 320062e..778e346 100644
        playerScope.launch {
          sendPlayerUpdate(mapOf("playing" to isPlaying))
        }
-@@ -222,6 +233,10 @@ class AudioPlayer(
+@@ -222,6 +254,10 @@ class AudioPlayer(
      )
    }
  
@@ -77,6 +144,16 @@ index 320062e..778e346 100644
    private suspend fun sendPlayerUpdate(map: Map<String, Any?>? = null) =
      withContext(Dispatchers.Main) {
        val data = currentStatus()
+@@ -290,5 +326,9 @@ class AudioPlayer(
+ 
+   companion object {
+     val TAG = AudioPlayer::class.simpleName
++
++    // Set by AudioModule from the activity's background/foreground events.
++    @Volatile
++    var appInBackground = false
+   }
+ }
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecords.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecords.kt
 index 092af43..9f21b2f 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioRecords.kt
@@ -626,7 +703,7 @@ index 938f985..bd3dabb 100644
          if player.isActiveForLockScreen {
            player.metadata = metadata
 diff --git a/node_modules/expo-audio/ios/AudioPlayer.swift b/node_modules/expo-audio/ios/AudioPlayer.swift
-index 1dbce09..4705f43 100644
+index 1dbce09..1327b3b 100644
 --- a/node_modules/expo-audio/ios/AudioPlayer.swift
 +++ b/node_modules/expo-audio/ios/AudioPlayer.swift
 @@ -4,6 +4,7 @@ import Combine
@@ -648,6 +725,15 @@ index 1dbce09..4705f43 100644
    func updateStatus(with dict: [String: Any]) {
      var arguments = currentStatus()
      arguments.merge(dict) { _, new in
+@@ -125,7 +130,7 @@ public class AudioPlayer: SharedRef<AVPlayer> {
+     self.emit(event: AudioConstants.playbackStatus, arguments: arguments)
+ 
+     if isActiveForLockScreen {
+-      MediaController.shared.updateNowPlayingInfo(for: self)
++      MediaController.shared.updateNowPlayingInfoIfChanged(for: self)
+     }
+   }
+ 
 diff --git a/node_modules/expo-audio/ios/AudioRecords.swift b/node_modules/expo-audio/ios/AudioRecords.swift
 index f1759cd..3034363 100644
 --- a/node_modules/expo-audio/ios/AudioRecords.swift
@@ -664,10 +750,107 @@ index f1759cd..3034363 100644
  
  enum BitRateStrategy: String, Enumerable {
 diff --git a/node_modules/expo-audio/ios/MediaController.swift b/node_modules/expo-audio/ios/MediaController.swift
-index 2dd3fb2..c38b7f2 100644
+index 2dd3fb2..6a81140 100644
 --- a/node_modules/expo-audio/ios/MediaController.swift
 +++ b/node_modules/expo-audio/ios/MediaController.swift
-@@ -173,6 +173,24 @@ class MediaController {
+@@ -12,6 +12,16 @@ class MediaController {
+   private var currentArtworkUrl: URL?
+   private var cachedArtwork: MPMediaItemArtwork?
+ 
++  // What the card was last told. The system advances the elapsed time itself from
++  // the rate, so a status tick that changes nothing has nothing to push — and every
++  // push re-encodes the artwork (SongNook, 2026-10-02: 20 pushes a second while
++  // playing, each with a fresh artwork download).
++  private var lastPushedPlaying: Bool?
++  private var lastPushedRate: Float = 0
++  private var lastPushedDuration: Double = 0
++  private var lastPushedElapsed: Double = 0
++  private var lastPushedAt: CFTimeInterval = 0
++  
+   func setActivePlayer(_ player: AudioPlayer?, options: LockScreenOptions? = nil) {
+     if let previous = activePlayer, previous.id != player?.id {
+       previous.isActiveForLockScreen = false
+@@ -31,10 +41,37 @@ class MediaController {
+     }
+   }
+ 
++  /// The per-tick entry point: pushes only when the card would show something
++  /// different — play/pause, rate, duration, or a position the system could not
++  /// have predicted (a seek, a new source, a stall).
++  func updateNowPlayingInfoIfChanged(for player: AudioPlayer) {
++    guard player.id == activePlayer?.id else {
++      return
++    }
++    let playing = player.isPlaying
++    let rate = player.ref.rate
++    let duration = player.duration.isFinite ? player.duration : 0
++    let elapsed = player.currentTime.isFinite ? player.currentTime : 0
++    let advance = lastPushedPlaying == true ? Double(lastPushedRate) : 0
++    let predicted = lastPushedElapsed + (CACurrentMediaTime() - lastPushedAt) * advance
++    let changed = lastPushedPlaying != playing
++      || lastPushedRate != rate
++      || abs(duration - lastPushedDuration) > 0.05
++      || abs(elapsed - predicted) > 0.5
++    if changed {
++      updateNowPlayingInfo(for: player)
++    }
++  }
++
+   func updateNowPlayingInfo(for player: AudioPlayer) {
+     guard player.id == activePlayer?.id else {
+       return
+     }
++    lastPushedPlaying = player.isPlaying
++    lastPushedRate = player.ref.rate
++    lastPushedDuration = player.duration.isFinite ? player.duration : 0
++    lastPushedElapsed = player.currentTime.isFinite ? player.currentTime : 0
++    lastPushedAt = CACurrentMediaTime()
+     var nowPlayingInfo = nowPlayingInfoCenter.nowPlayingInfo ?? [String: Any]()
+ 
+     nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = player.duration
+@@ -53,19 +90,21 @@ class MediaController {
+         nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = album
+       }
+       if let artworkUrl = userMetadata.artworkUrl {
+-        if currentArtworkUrl != artworkUrl {
+-          currentArtworkUrl = artworkUrl
++        if currentArtworkUrl == artworkUrl, let cachedArtwork {
++          // Same artwork as last time: reuse it. It used to be downloaded and
++          // decoded again on every call.
++          nowPlayingInfo[MPMediaItemPropertyArtwork] = cachedArtwork
+         } else {
+-          if let cachedArtwork {
+-            nowPlayingInfo[MPMediaItemPropertyArtwork] = cachedArtwork
+-            self.nowPlayingInfoCenter.nowPlayingInfo = nowPlayingInfo
+-          }
+-        }
+-        loadArtworkFromURL(url: artworkUrl) { [weak self] artwork in
+-          if let artwork {
+-            self?.cachedArtwork = artwork
+-            nowPlayingInfo[MPMediaItemPropertyArtwork] = artwork
+-            self?.nowPlayingInfoCenter.nowPlayingInfo = nowPlayingInfo
++          currentArtworkUrl = artworkUrl
++          loadArtworkFromURL(url: artworkUrl) { [weak self] artwork in
++            guard let self, let artwork, self.currentArtworkUrl == artworkUrl else {
++              return
++            }
++            self.cachedArtwork = artwork
++            // Onto whatever the card says by now, not the snapshot from before the load.
++            var latest = self.nowPlayingInfoCenter.nowPlayingInfo ?? [String: Any]()
++            latest[MPMediaItemPropertyArtwork] = artwork
++            self.nowPlayingInfoCenter.nowPlayingInfo = latest
+           }
+         }
+       }
+@@ -105,6 +144,7 @@ class MediaController {
+   }
+ 
+   func clearNowPlayingInfo() {
++    lastPushedPlaying = nil
+     nowPlayingInfoCenter.nowPlayingInfo = nil
+     activePlayer = nil
+   }
+@@ -173,6 +213,24 @@ class MediaController {
        return .success
      }
  
@@ -692,7 +875,7 @@ index 2dd3fb2..c38b7f2 100644
      remoteCommandCenter.skipForwardCommand.preferredIntervals = [10.0]
      remoteCommandCenter.skipForwardCommand.addTarget { [weak self] event in
        guard let player = self?.activePlayer,
-@@ -207,6 +225,25 @@ class MediaController {
+@@ -207,6 +265,25 @@ class MediaController {
      remoteCommandCenter.changePlaybackPositionCommand.isEnabled = true
      remoteCommandCenter.skipForwardCommand.isEnabled = options?.showSeekForward ?? false
      remoteCommandCenter.skipBackwardCommand.isEnabled = options?.showSeekBackward ?? false
@@ -718,7 +901,7 @@ index 2dd3fb2..c38b7f2 100644
    }
  
    private func disableRemoteCommands() {
-@@ -216,6 +253,8 @@ class MediaController {
+@@ -216,6 +293,8 @@ class MediaController {
      remoteCommandCenter.changePlaybackPositionCommand.isEnabled = false
      remoteCommandCenter.skipForwardCommand.isEnabled = false
      remoteCommandCenter.skipBackwardCommand.isEnabled = false
@@ -727,7 +910,7 @@ index 2dd3fb2..c38b7f2 100644
      
      // Remove event targets
      remoteCommandCenter.playCommand.removeTarget(self);
-@@ -224,5 +263,7 @@ class MediaController {
+@@ -224,5 +303,7 @@ class MediaController {
      remoteCommandCenter.changePlaybackPositionCommand.removeTarget(self);
      remoteCommandCenter.skipForwardCommand.removeTarget(self);
      remoteCommandCenter.skipBackwardCommand.removeTarget(self);

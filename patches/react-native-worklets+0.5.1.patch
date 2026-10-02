@@ -1,0 +1,52 @@
+diff --git a/node_modules/react-native-worklets/android/src/experimentalBundling/com/swmansion/worklets/WorkletsModule.java b/node_modules/react-native-worklets/android/src/experimentalBundling/com/swmansion/worklets/WorkletsModule.java
+index bd0696b..71214ba 100644
+--- a/node_modules/react-native-worklets/android/src/experimentalBundling/com/swmansion/worklets/WorkletsModule.java
++++ b/node_modules/react-native-worklets/android/src/experimentalBundling/com/swmansion/worklets/WorkletsModule.java
+@@ -76,6 +76,13 @@ public class WorkletsModule extends NativeWorkletsModuleSpec
+ 
+     mAndroidUIScheduler = new AndroidUIScheduler(reactContext);
+     mAnimationFrameQueue = new AnimationFrameQueue(reactContext);
++
++    // The module implements LifecycleEventListener (onHostPause pauses the frame
++    // queue) but was never registered for it, so every frame callback and running
++    // animation kept asking for frames after the activity stopped — with the display
++    // off Android still hands them out at ~60 Hz (SongNook, 2026-10-02; upstream
++    // registers in later releases).
++    reactContext.addLifecycleEventListener(this);
+   }
+ 
+   @OptIn(markerClass = FrameworkAPI.class)
+@@ -123,6 +130,7 @@ public class WorkletsModule extends NativeWorkletsModuleSpec
+     if (mInvalidated.getAndSet(true)) {
+       return;
+     }
++    getReactApplicationContext().removeLifecycleEventListener(this);
+     if (mHybridData != null && mHybridData.isValid()) {
+       // We have to destroy extra runtimes when invalidate is called. If we clean
+       // it up later instead there's a chance the runtime will retain references
+diff --git a/node_modules/react-native-worklets/android/src/legacyBundling/com/swmansion/worklets/WorkletsModule.java b/node_modules/react-native-worklets/android/src/legacyBundling/com/swmansion/worklets/WorkletsModule.java
+index 3c83e00..f18b8f7 100644
+--- a/node_modules/react-native-worklets/android/src/legacyBundling/com/swmansion/worklets/WorkletsModule.java
++++ b/node_modules/react-native-worklets/android/src/legacyBundling/com/swmansion/worklets/WorkletsModule.java
+@@ -57,6 +57,13 @@ public class WorkletsModule extends NativeWorkletsModuleSpec implements Lifecycl
+ 
+     mAndroidUIScheduler = new AndroidUIScheduler(reactContext);
+     mAnimationFrameQueue = new AnimationFrameQueue(reactContext);
++
++    // The module implements LifecycleEventListener (onHostPause pauses the frame
++    // queue) but was never registered for it, so every frame callback and running
++    // animation kept asking for frames after the activity stopped — with the display
++    // off Android still hands them out at ~60 Hz (SongNook, 2026-10-02; upstream
++    // registers in later releases).
++    reactContext.addLifecycleEventListener(this);
+   }
+ 
+   @OptIn(markerClass = FrameworkAPI.class)
+@@ -96,6 +103,7 @@ public class WorkletsModule extends NativeWorkletsModuleSpec implements Lifecycl
+     if (mInvalidated.getAndSet(true)) {
+       return;
+     }
++    getReactApplicationContext().removeLifecycleEventListener(this);
+     if (mHybridData != null && mHybridData.isValid()) {
+       // We have to destroy extra runtimes when invalidate is called. If we clean
+       // it up later instead there's a chance the runtime will retain references
