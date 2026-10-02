@@ -17,6 +17,7 @@ import { ChordSheetSection } from "../../ChordSheetScreen/ChordSheetSection";
 import type { ChordSheet, LyricsLine } from "../../../types";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../../i18n";
+import { scheduleFrameOrBackgroundTick } from "../../../services/backgroundPosition";
 
 const noop = () => {};
 
@@ -112,9 +113,10 @@ export function PlayerArtifactReader({
   // waking the JS thread every frame with follow off.
   useEffect(() => {
     if (!followEnabled || !tracking) return;
-    let raf = 0;
+    // A frame while on screen, a slow timer in the background (nothing to scroll for).
+    let cancel = () => {};
     const tick = () => {
-      raf = requestAnimationFrame(tick);
+      cancel = scheduleFrameOrBackgroundTick(tick, 1000);
       if (!trackingRef.current) return;
       const duration = durationRef.current;
       const maxOffset = maxOffsetRef.current;
@@ -129,8 +131,8 @@ export function PlayerArtifactReader({
       lastTargetRef.current = target;
       scrollRef.current?.scrollTo({ y: target, animated: false });
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    cancel = scheduleFrameOrBackgroundTick(tick, 1000);
+    return () => cancel();
   }, [followEnabled, tracking]);
 
   const handleViewportLayout = (e: LayoutChangeEvent) =>

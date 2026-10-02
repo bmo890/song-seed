@@ -3,12 +3,12 @@ import { View, StyleSheet, LayoutChangeEvent } from "react-native";
 import { Canvas, Group, Path, Skia } from "@shopify/react-native-skia";
 import {
     useDerivedValue,
-    useFrameCallback,
     useSharedValue,
     withTiming,
 } from "react-native-reanimated";
 import { DataPoint } from "@siteed/audio-studio";
 import { advanceTracker } from "../../domain/motionTracking";
+import { useForegroundFrameCallback } from "../../hooks/useAppForeground";
 import { beatAtMs, msAtPulse, type TempoMap } from "../../domain/tempoMap";
 import { colors } from "../../design/tokens";
 import { durations } from "../../design/motion";
@@ -121,7 +121,10 @@ function LiveTapeVisualizerImpl({
         deliveryToken.value += 1;
     }, [latestDataMs, targetDataMs, deliveryToken]);
 
-    useFrameCallback((frameInfo) => {
+    // Foreground only: with the screen locked mid-take there is no tape to draw, and
+    // the tracker below jumps to the audio on the first frame back (resyncDistance).
+    useForegroundFrameCallback((frameInfo) => {
+        "worklet";
         const frameDeltaMs = frameInfo.timeSincePreviousFrame ?? 16;
         if (frameDeltaMs <= 0) return;
 

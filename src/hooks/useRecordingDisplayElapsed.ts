@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
+import { scheduleFrameOrBackgroundTick } from "../services/backgroundPosition";
 
 type Args = {
   durationMs: number;
@@ -27,7 +28,8 @@ export function useRecordingDisplayElapsed({
 }: Args, options?: Options) {
   const normalizedDurationMs = Number.isFinite(durationMs) ? Math.max(0, durationMs) : 0;
   const [displayElapsedMs, setDisplayElapsedMs] = useState(normalizedDurationMs);
-  const frameRef = useRef<number | null>(null);
+  /** Cancels the pending tick (a frame on screen, a slow timer in the background). */
+  const frameRef = useRef<(() => void) | null>(null);
   const lastDisplayRef = useRef(normalizedDurationMs);
   const anchorDurationRef = useRef(normalizedDurationMs);
   const anchorStartedAtRef = useRef<number | null>(null);
@@ -50,7 +52,7 @@ export function useRecordingDisplayElapsed({
 
     if (!isActive) {
       if (frameRef.current !== null) {
-        cancelAnimationFrame(frameRef.current);
+        frameRef.current();
         frameRef.current = null;
       }
 
@@ -78,10 +80,10 @@ export function useRecordingDisplayElapsed({
           anchorDurationRef.current + elapsedSinceAnchor
         );
         setDisplayElapsed(nextElapsedMs, true);
-        frameRef.current = requestAnimationFrame(tick);
+        frameRef.current = scheduleFrameOrBackgroundTick(tick);
       };
 
-      frameRef.current = requestAnimationFrame(tick);
+      frameRef.current = scheduleFrameOrBackgroundTick(tick);
     };
 
     anchorDurationRef.current = Math.max(lastDisplayRef.current, normalizedDurationMs);
@@ -90,7 +92,7 @@ export function useRecordingDisplayElapsed({
 
     return () => {
       if (frameRef.current !== null) {
-        cancelAnimationFrame(frameRef.current);
+        frameRef.current();
         frameRef.current = null;
       }
     };
