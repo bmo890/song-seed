@@ -198,6 +198,8 @@ export type IdeaCardProps = {
     onInlineScrub?: (fraction: number) => void;
     onInlineScrubStart?: () => void;
     onInlineScrubCancel?: () => void;
+    /** 0..1 fraction under the finger while the scrub line is held, `null` when the drag ends. */
+    onInlineScrubPreview?: (fraction: number | null) => void;
     /** ✕ — stop the preview. */
     onInlineClose?: () => void;
 
@@ -261,6 +263,7 @@ export function IdeaCard({
     onInlineScrub,
     onInlineScrubStart,
     onInlineScrubCancel,
+    onInlineScrubPreview,
     onInlineClose,
     inlinePlayerContent,
 }: IdeaCardProps) {
@@ -418,6 +421,7 @@ export function IdeaCard({
                                 onScrub={onInlineScrub}
                                 onScrubStart={onInlineScrubStart}
                                 onScrubCancel={onInlineScrubCancel}
+                                onScrubPreview={onInlineScrubPreview}
                             />
                         </View>
                         <Text style={styles.ideaDenseDuration}>{durationLabel}</Text>
@@ -574,6 +578,7 @@ export function IdeaCard({
                                             onScrub={stripIsInlinePlayer ? onInlineScrub : undefined}
                                             onScrubStart={stripIsInlinePlayer ? onInlineScrubStart : undefined}
                                             onScrubCancel={stripIsInlinePlayer ? onInlineScrubCancel : undefined}
+                                            onScrubPreview={stripIsInlinePlayer ? onInlineScrubPreview : undefined}
                                         />
                                     </View>
                                     <View style={styles.ideaCardStripCloseSlot}>

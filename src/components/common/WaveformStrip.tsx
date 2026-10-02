@@ -1,10 +1,12 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { PanResponder, View, type LayoutChangeEvent } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { StyleSheet, View, type LayoutChangeEvent } from "react-native";
 import { Canvas, Group, Path, Rect, Skia } from "@shopify/react-native-skia";
-import { useDerivedValue, useSharedValue } from "react-native-reanimated";
+import { GestureDetector } from "react-native-gesture-handler";
+import { runOnJS, useDerivedValue, useSharedValue } from "react-native-reanimated";
 import { colors } from "../../design/tokens";
 import { computeStripBarAmps } from "../../domain/cardWaveform";
 import type { InlinePlayerClock } from "../../types";
+import { useHeldScrubGesture } from "./useHeldScrubGesture";
 
 /** ≤ 56 hairline bars (~3.5pt pitch at card width) — enough to show the envelope's
  *  phrases and pauses while still reading as texture, not a meter. */
@@ -19,6 +21,8 @@ const DEFAULT_BAR_COLOR = "rgba(27,28,26,0.20)";
 const MIN_BAR_HALF_HEIGHT = 0.75;
 /** Playhead line width while the strip is the live inline player. */
 const PLAYHEAD_STROKE_WIDTH = 1.5;
+/** …and while a finger holds it, so it reads past the thumb that moved it. */
+const PLAYHEAD_HELD_STROKE_WIDTH = 3;
 /** Placeholder dots when no peaks exist yet (analysis pending / legacy clip). */
 const PLACEHOLDER_DOTS = Array.from({ length: 28 }, (_, index) => `wave-dot-${index}`);
 /** Sentinel for "no finger down" in the drag shared value. */
@@ -41,6 +45,10 @@ type WaveformStripProps = {
     onScrub?: (fraction: number) => void;
     onScrubStart?: () => void;
     onScrubCancel?: () => void;
+    /** The 0..1 fraction under the finger while it is held — called when the
+     *  whole second it stands for changes, and with `null` when the drag ends
+     *  either way. Lets the card's elapsed caption follow the thumb. */
+    onScrubPreview?: (fraction: number | null) => void;
     /** Draw a single hairline instead of the Skia strip (same height). For
      *  cards mounted while the list is fast-scrolled: a drag passes a hundred
      *  rows, and a canvas per card is most of what a card costs to mount. */
@@ -53,7 +61,11 @@ type WaveformStripProps = {
  * Pressables (settled interaction law: tapping the waveform behaves like
  * tapping the card). While the card is the active inline preview the SAME
  * strip goes live: progress tint + playhead + drag-to-scrub (the one place a
- * card waveform is interactive, mirroring MiniProgress's PanResponder drag).
+ * card waveform is interactive).
+ *
+ * The drag holds once grabbed, wherever the thumb goes — see useHeldScrubGesture.
+ * While held the playhead thickens and the caller is told the position under the
+ * thumb, so the card's elapsed caption can follow it.
  */
 export const WaveformStrip = React.memo(function WaveformStrip({
     peaks,
@@ -65,13 +77,16 @@ export const WaveformStrip = React.memo(function WaveformStrip({
     lightweight = false,
     onScrubStart,
     onScrubCancel,
+    onScrubPreview,
 }: WaveformStripProps) {
     const [width, setWidth] = useState(0);
     // Mirrors `width` for the UI-thread playhead math.
     const widthValue = useSharedValue(0);
-    // Finger position while dragging (0..1), NOT_DRAGGING otherwise. Written from the
-    // PanResponder on the JS thread; the playhead follows it without a render.
+    // Finger position while dragging (0..1), NOT_DRAGGING otherwise. Written by the
+    // pan on the UI thread; the playhead follows it without a render.
     const dragFraction = useSharedValue(NOT_DRAGGING);
+    /** Whole second last reported to `onScrubPreview`, so it is told once per second. */
+    const previewedSecond = useSharedValue(-1);
 
     const interactive = !!onScrub;
 
@@ -81,9 +96,9 @@ export const WaveformStrip = React.memo(function WaveformStrip({
         setWidth((prev) => (prev === nextWidth ? prev : nextWidth));
     };
 
-    // Latest values for the (stable) PanResponder callbacks.
-    const scrubRef = useRef({ width: 0, onScrub, onScrubStart, onScrubCancel });
-    scrubRef.current = { width, onScrub, onScrubStart, onScrubCancel };
+    // Latest values for the (stable) gesture callbacks.
+    const scrubRef = useRef({ onScrub, onScrubStart, onScrubCancel, onScrubPreview });
+    scrubRef.current = { onScrub, onScrubStart, onScrubCancel, onScrubPreview };
 
     // A finger that is still down when the strip stops being the player must not
     // leave the drag value parked.
@@ -91,40 +106,49 @@ export const WaveformStrip = React.memo(function WaveformStrip({
         if (!interactive) dragFraction.value = NOT_DRAGGING;
     }, [interactive, dragFraction]);
 
-    const panResponder = useMemo(() => {
-        const fractionAt = (locationX: number) => {
-            const w = scrubRef.current.width;
-            if (w <= 0) return 0;
-            return Math.max(0, Math.min(1, locationX / w));
-        };
-        return PanResponder.create({
-            onStartShouldSetPanResponder: () => !!scrubRef.current.onScrub,
-            onMoveShouldSetPanResponder: () => !!scrubRef.current.onScrub,
-            onStartShouldSetPanResponderCapture: () => !!scrubRef.current.onScrub,
-            onMoveShouldSetPanResponderCapture: () => !!scrubRef.current.onScrub,
-            onPanResponderTerminationRequest: () => false,
-            onShouldBlockNativeResponder: () => true,
-            onPanResponderGrant: (evt) => {
-                scrubRef.current.onScrubStart?.();
-                dragFraction.value = fractionAt(evt.nativeEvent.locationX);
-            },
-            onPanResponderMove: (evt) => {
-                dragFraction.value = fractionAt(evt.nativeEvent.locationX);
-            },
-            onPanResponderRelease: (evt) => {
-                const fraction = fractionAt(evt.nativeEvent.locationX);
-                // The commit lands the shared clock on the release position
-                // synchronously (setDisplayPositionMs) — so handing the playhead
-                // back to the clock on the next line never snaps it backwards.
-                scrubRef.current.onScrub?.(fraction);
-                dragFraction.value = NOT_DRAGGING;
-            },
-            onPanResponderTerminate: () => {
-                dragFraction.value = NOT_DRAGGING;
-                scrubRef.current.onScrubCancel?.();
-            },
-        });
-    }, [dragFraction]);
+    const startScrub = useCallback(() => scrubRef.current.onScrubStart?.(), []);
+    const previewScrub = useCallback((fraction: number) => scrubRef.current.onScrubPreview?.(fraction), []);
+    const commitScrub = useCallback(
+        (fraction: number) => {
+            // The commit lands the shared clock on the release position
+            // synchronously (setDisplayPositionMs) — so handing the playhead
+            // back to the clock on the next line never snaps it backwards.
+            scrubRef.current.onScrub?.(fraction);
+            dragFraction.value = NOT_DRAGGING;
+            previewedSecond.value = -1;
+            scrubRef.current.onScrubPreview?.(null);
+        },
+        [dragFraction, previewedSecond]
+    );
+    const cancelScrub = useCallback(() => {
+        dragFraction.value = NOT_DRAGGING;
+        previewedSecond.value = -1;
+        scrubRef.current.onScrubCancel?.();
+        scrubRef.current.onScrubPreview?.(null);
+    }, [dragFraction, previewedSecond]);
+
+    const idleDuration = useSharedValue(0);
+    const durationMs = clock?.sharedDurationMs ?? idleDuration;
+
+    const trackScrub = useCallback(
+        (fraction: number) => {
+            "worklet";
+            dragFraction.value = fraction;
+            const second = Math.floor((fraction * durationMs.value) / 1000);
+            if (second !== previewedSecond.value) {
+                previewedSecond.value = second;
+                runOnJS(previewScrub)(fraction);
+            }
+        },
+        [dragFraction, durationMs, previewScrub, previewedSecond]
+    );
+    const pan = useHeldScrubGesture({
+        width: widthValue,
+        onTrack: trackScrub,
+        onGrab: startScrub,
+        onCommit: commitScrub,
+        onCancel: cancelScrub,
+    });
 
     const hasPeaks = !!peaks && peaks.length > 0;
 
@@ -159,9 +183,7 @@ export const WaveformStrip = React.memo(function WaveformStrip({
     // ── UI-thread playhead ────────────────────────────────────────────────────
     // Hooks must run unconditionally, so a resting strip reads inert fallbacks.
     const idlePosition = useSharedValue(0);
-    const idleDuration = useSharedValue(0);
     const positionMs = clock?.sharedPositionMs ?? idlePosition;
-    const durationMs = clock?.sharedDurationMs ?? idleDuration;
     const live = !!clock;
 
     /** Playhead x in strip pixels, or -1 when there is nothing to draw. */
@@ -185,11 +207,15 @@ export const WaveformStrip = React.memo(function WaveformStrip({
         () => Skia.XYWHRect(0, 0, Math.max(0, headX.value), height),
         [height]
     );
+    const playheadWidth = useDerivedValue(() =>
+        dragFraction.value >= 0 ? PLAYHEAD_HELD_STROKE_WIDTH : PLAYHEAD_STROKE_WIDTH
+    );
     const playheadX = useDerivedValue(() => {
         const w = widthValue.value;
         const x = headX.value;
-        if (x < 0) return -PLAYHEAD_STROKE_WIDTH * 2; // parked off-canvas
-        return Math.max(0, Math.min(w - PLAYHEAD_STROKE_WIDTH, x - PLAYHEAD_STROKE_WIDTH / 2));
+        const stroke = playheadWidth.value;
+        if (x < 0) return -stroke * 2; // parked off-canvas
+        return Math.max(0, Math.min(w - stroke, x - stroke / 2));
     });
 
     return (
@@ -198,8 +224,6 @@ export const WaveformStrip = React.memo(function WaveformStrip({
             // Only the resting strip is pass-through; the live strip owns its drags.
             pointerEvents={interactive ? "auto" : "none"}
             onLayout={onLayout}
-            hitSlop={interactive ? { top: 10, bottom: 10 } : undefined}
-            {...(interactive ? panResponder.panHandlers : null)}
         >
             {lightweight && !live ? (
                 <View style={{ height: 2, borderRadius: 1, backgroundColor: color, opacity: 0.4 }} />
@@ -226,7 +250,7 @@ export const WaveformStrip = React.memo(function WaveformStrip({
                             <Rect
                                 x={playheadX}
                                 y={0}
-                                width={PLAYHEAD_STROKE_WIDTH}
+                                width={playheadWidth}
                                 height={height}
                                 color={colors.playhead}
                             />
@@ -258,6 +282,17 @@ export const WaveformStrip = React.memo(function WaveformStrip({
                     ))}
                 </View>
             )}
+            {/* The touch surface is its own layer, mounted only while the strip is the
+                player: the picture underneath is the same tree at rest and live, so
+                going live never remounts the canvas. It claims the JS responder too,
+                or the card's Pressable would show a press under every scrub. */}
+            {interactive ? (
+                <GestureDetector gesture={pan}>
+                    <View style={StyleSheet.absoluteFill} onStartShouldSetResponder={claimResponder} />
+                </GestureDetector>
+            ) : null}
         </View>
     );
 });
+
+const claimResponder = () => true;

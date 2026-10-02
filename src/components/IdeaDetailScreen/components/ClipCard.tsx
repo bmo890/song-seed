@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -154,6 +154,8 @@ export const ClipCard = React.memo(function ClipCard({
   // Live inline preview position — subscribed only while this card is the
   // active preview target, so 5Hz position commits re-render one card.
   const inlinePositionMs = useStore((s) => (inlineActive ? s.inlinePositionMs : 0));
+  // While the strip is held, the elapsed caption reads the position under the thumb.
+  const [scrubPreviewMs, setScrubPreviewMs] = useState<number | null>(null);
   const inlineDurationMs = useStore((s) => (inlineActive ? s.inlineDurationMs : 0));
   // Now-playing treatment is reserved for the durable dock / full-player session.
   // A clip-card inline preview keeps its own plain look (its play/pause + scrubber).
@@ -437,7 +439,17 @@ export const ClipCard = React.memo(function ClipCard({
         inlineProgress={
           inlineTotalMs > 0 ? Math.min(1, inlinePositionMs / inlineTotalMs) : 0
         }
-        inlineElapsedLabel={fmtCardDuration(inlinePositionMs)}
+        inlineElapsedLabel={fmtCardDuration(scrubPreviewMs ?? inlinePositionMs)}
+        onInlineScrubPreview={
+          displayOnly
+            ? undefined
+            : (fraction) => {
+                // Whole seconds: the same second again is the same state, no render.
+                setScrubPreviewMs(
+                  fraction == null ? null : Math.floor((fraction * inlineTotalMs) / 1000) * 1000
+                );
+              }
+        }
         inlineClock={inlinePlayer.clock}
         onInlineScrubStart={
           displayOnly

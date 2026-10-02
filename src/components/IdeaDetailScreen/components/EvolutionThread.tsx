@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Animated as RNAnimated, Pressable, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
@@ -79,6 +79,8 @@ function StemVersionRow({
   const highlightValue = getHighlightValue(clip.id);
 
   const inlinePositionMs = useStore((s) => (inlineActive ? s.inlinePositionMs : 0));
+  // While the scrub line is held, the elapsed caption reads the position under the thumb.
+  const [scrubPreviewMs, setScrubPreviewMs] = useState<number | null>(null);
   const inlineDurationMs = useStore((s) => (inlineActive ? s.inlineDurationMs : 0));
   const inlineTotalMs = inlineDurationMs || durationMs || 0;
 
@@ -216,13 +218,18 @@ function StemVersionRow({
               track the compact collection rows use. */}
           {inlineActive ? (
             <View style={styles.songDetailStemScrubRow}>
-              <Text style={styles.songDetailStemDur}>{fmtCardDuration(inlinePositionMs)}</Text>
+              <Text style={styles.songDetailStemDur}>{fmtCardDuration(scrubPreviewMs ?? inlinePositionMs)}</Text>
               <View style={styles.songDetailStemScrubTrack}>
                 <ScrubBar
                   progress={inlineTotalMs > 0 ? Math.min(1, inlinePositionMs / inlineTotalMs) : 0}
                   onScrubStart={() => void inlinePlayer.beginInlineScrub()}
                   onScrub={(fraction) => void inlinePlayer.endInlineScrub(fraction * inlineTotalMs)}
                   onScrubCancel={() => void inlinePlayer.cancelInlineScrub()}
+                  onScrubPreview={(fraction) =>
+                    setScrubPreviewMs(
+                      fraction == null ? null : Math.floor((fraction * inlineTotalMs) / 1000) * 1000
+                    )
+                  }
                 />
               </View>
               <Text style={styles.songDetailStemDur}>

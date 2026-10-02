@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Pressable, Text, View, Animated } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
@@ -133,6 +133,8 @@ function IdeaListItemInner({
     // Live inline preview position — subscribed only while this card is the
     // active preview target, so the 5Hz position commits re-render one row.
     const inlinePositionMs = useStore((s) => (inlineActive ? s.inlinePositionMs : 0));
+    // While the strip is held, the elapsed caption reads the position under the thumb.
+    const [scrubPreviewMs, setScrubPreviewMs] = useState<number | null>(null);
     const inlineDurationMs = useStore((s) => (inlineActive ? s.inlineDurationMs : 0));
     // This idea is the active dock / full-player session (any of its clips) —
     // idea-level, so a song card lights up whichever take is playing.
@@ -446,7 +448,13 @@ function IdeaListItemInner({
                             inlineProgress={
                                 inlineTotalMs > 0 ? Math.min(1, inlinePositionMs / inlineTotalMs) : 0
                             }
-                            inlineElapsedLabel={fmtCardDuration(inlinePositionMs)}
+                            inlineElapsedLabel={fmtCardDuration(scrubPreviewMs ?? inlinePositionMs)}
+                            onInlineScrubPreview={(fraction) => {
+                                // Whole seconds: the same second again is the same state, no render.
+                                setScrubPreviewMs(
+                                    fraction == null ? null : Math.floor((fraction * inlineTotalMs) / 1000) * 1000
+                                );
+                            }}
                             inlineClock={inlinePlayer.clock}
                             onInlineScrubStart={() => {
                                 void inlinePlayer.beginInlineScrub();

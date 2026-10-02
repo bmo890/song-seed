@@ -1,6 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { PanResponder, View, type LayoutChangeEvent } from "react-native";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { View, type LayoutChangeEvent } from "react-native";
+import { GestureDetector } from "react-native-gesture-handler";
+import { runOnJS, useSharedValue } from "react-native-reanimated";
 import { colors } from "../../design/tokens";
+import { useHeldScrubGesture } from "./useHeldScrubGesture";
 
 type ScrubBarProps = {
     /** 0..1 playback position. */
@@ -9,6 +12,9 @@ type ScrubBarProps = {
     onScrub?: (fraction: number) => void;
     onScrubStart?: () => void;
     onScrubCancel?: () => void;
+    /** The 0..1 fraction under the finger while it is held; `null` when the drag
+     *  ends either way. Lets the row's elapsed caption follow the thumb. */
+    onScrubPreview?: (fraction: number | null) => void;
 };
 
 const TRACK_HEIGHT = 3;
@@ -18,26 +24,30 @@ const THUMB = 11;
  * A thin, warm, draggable playback line — the compact card's inline scrubber.
  * Comfortable cards scrub on the waveform itself; compact has no waveform, so
  * the row extends to reveal this on-brand track (terracotta played fill + thumb
- * on a quiet technical-line rail), mirroring WaveformStrip / MiniProgress's
- * commit-pending PanResponder so releasing never snaps back.
+ * on a quiet technical-line rail). The drag holds once grabbed, wherever the
+ * thumb goes (useHeldScrubGesture), and the released position stays shown until
+ * playback catches up to it, so releasing never snaps back.
  */
 export const ScrubBar = React.memo(function ScrubBar({
     progress,
     onScrub,
     onScrubStart,
     onScrubCancel,
+    onScrubPreview,
 }: ScrubBarProps) {
     const [width, setWidth] = useState(0);
+    const widthValue = useSharedValue(0);
     const [dragFraction, setDragFraction] = useState<number | null>(null);
     const [isCommitPending, setIsCommitPending] = useState(false);
 
     const onLayout = (evt: LayoutChangeEvent) => {
         const next = evt.nativeEvent.layout.width;
+        widthValue.value = next;
         setWidth((prev) => (prev === next ? prev : next));
     };
 
-    const scrubRef = useRef({ width, onScrub, onScrubStart, onScrubCancel });
-    scrubRef.current = { width, onScrub, onScrubStart, onScrubCancel };
+    const scrubRef = useRef({ onScrub, onScrubStart, onScrubCancel, onScrubPreview });
+    scrubRef.current = { onScrub, onScrubStart, onScrubCancel, onScrubPreview };
 
     useEffect(() => {
         if (dragFraction === null || !isCommitPending) return;
@@ -46,50 +56,52 @@ export const ScrubBar = React.memo(function ScrubBar({
         setIsCommitPending(false);
     }, [progress, dragFraction, isCommitPending]);
 
-    const panResponder = useMemo(() => {
-        const fractionAt = (locationX: number) => {
-            const w = scrubRef.current.width;
-            if (w <= 0) return 0;
-            return Math.max(0, Math.min(1, locationX / w));
-        };
-        return PanResponder.create({
-            onStartShouldSetPanResponder: () => !!scrubRef.current.onScrub,
-            onMoveShouldSetPanResponder: () => !!scrubRef.current.onScrub,
-            onStartShouldSetPanResponderCapture: () => !!scrubRef.current.onScrub,
-            onMoveShouldSetPanResponderCapture: () => !!scrubRef.current.onScrub,
-            onPanResponderTerminationRequest: () => false,
-            onShouldBlockNativeResponder: () => true,
-            onPanResponderGrant: (evt) => {
-                setIsCommitPending(false);
-                scrubRef.current.onScrubStart?.();
-                setDragFraction(fractionAt(evt.nativeEvent.locationX));
-            },
-            onPanResponderMove: (evt) => {
-                setDragFraction(fractionAt(evt.nativeEvent.locationX));
-            },
-            onPanResponderRelease: (evt) => {
-                const fraction = fractionAt(evt.nativeEvent.locationX);
-                setDragFraction(fraction);
-                setIsCommitPending(true);
-                scrubRef.current.onScrub?.(fraction);
-            },
-            onPanResponderTerminate: () => {
-                setDragFraction(null);
-                setIsCommitPending(false);
-                scrubRef.current.onScrubCancel?.();
-            },
-        });
+    const grab = useCallback(() => {
+        setIsCommitPending(false);
+        scrubRef.current.onScrubStart?.();
     }, []);
+    const follow = useCallback((next: number) => {
+        setDragFraction(next);
+        scrubRef.current.onScrubPreview?.(next);
+    }, []);
+    const track = useCallback(
+        (next: number) => {
+            "worklet";
+            runOnJS(follow)(next);
+        },
+        [follow]
+    );
+    const commit = useCallback((next: number) => {
+        setDragFraction(next);
+        setIsCommitPending(true);
+        scrubRef.current.onScrub?.(next);
+        scrubRef.current.onScrubPreview?.(null);
+    }, []);
+    const cancel = useCallback(() => {
+        setDragFraction(null);
+        setIsCommitPending(false);
+        scrubRef.current.onScrubCancel?.();
+        scrubRef.current.onScrubPreview?.(null);
+    }, []);
+    const pan = useHeldScrubGesture({
+        width: widthValue,
+        onTrack: track,
+        onGrab: grab,
+        onCommit: commit,
+        onCancel: cancel,
+    });
 
     const fraction = Math.max(0, Math.min(1, dragFraction ?? progress ?? 0));
     const filledWidth = width > 0 ? fraction * width : 0;
 
     return (
+        <GestureDetector gesture={pan}>
         <View
             style={{ height: THUMB + 8, justifyContent: "center" }}
-            hitSlop={{ top: 10, bottom: 10 }}
             onLayout={onLayout}
-            {...panResponder.panHandlers}
+            // Claims the JS responder too, or the card's Pressable would show a
+            // press under every scrub.
+            onStartShouldSetResponder={claimResponder}
         >
             <View
                 style={{
@@ -125,5 +137,8 @@ export const ScrubBar = React.memo(function ScrubBar({
                 }}
             />
         </View>
+        </GestureDetector>
     );
 });
+
+const claimResponder = () => true;
