@@ -11,6 +11,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from "react-native-reanimated";
+import { useAppInForeground } from "../../hooks/useAppForeground";
 
 // One fixed cycle length shared by every bar, so the three run a single steady
 // rolling loop forever — no per-bar period differences to make them drift, and
@@ -38,8 +39,11 @@ function IndicatorBar({
   phaseMs: number;
 }) {
   const level = useSharedValue(trough);
+  // A repeating animation asks for a frame, every frame, screen on or off.
+  const foreground = useAppInForeground();
 
   useEffect(() => {
+    if (!foreground) return;
     const half = CYCLE_MS / 2;
     level.value = withDelay(
       phaseMs,
@@ -53,7 +57,7 @@ function IndicatorBar({
       )
     );
     return () => cancelAnimation(level);
-  }, [level, peak, trough, phaseMs]);
+  }, [foreground, level, peak, trough, phaseMs]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     height: Math.max(2, maxHeight * level.value),

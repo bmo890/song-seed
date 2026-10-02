@@ -19,7 +19,6 @@ import {
     runOnJS,
     SharedValue,
     cancelAnimation,
-    useFrameCallback,
 } from "react-native-reanimated";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
 import type { SkParagraph } from "@shopify/react-native-skia";
@@ -27,6 +26,7 @@ import type { PracticeMarker } from "../../types";
 import type { SectionBand } from "../../domain/playerSections";
 import type { GridRulerModel } from "../../domain/gridRuler";
 import { advanceTracker } from "../../domain/motionTracking";
+import { useForegroundFrameCallback } from "../../hooks/useAppForeground";
 import {
     assignPinRows,
     estimatePinBadgeWidth,
@@ -835,7 +835,8 @@ export function PlaybackTapeVisualizer({
         }
     }, [canvasWidth, baseContentWidth]);
 
-    useFrameCallback((frameInfo) => {
+    useForegroundFrameCallback((frameInfo) => {
+        "worklet";
         // Stamped before the duration guard: gesture worklets schedule against this
         // clock, and a scrub that settles while the duration is still unknown would
         // otherwise anchor its settle window to zero and never hold.
@@ -1187,7 +1188,8 @@ export function PlaybackTapeVisualizer({
     //
     // Measured neutral on the overlay jitter (2026-07-29, iOS sim, frame-by-frame): that
     // has a different cause — see docs/product-plan/reel-smoothness-findings.md. This closes the hazard, nothing more.
-    useFrameCallback(() => {
+    useForegroundFrameCallback(() => {
+        "worklet";
         if (canvasWidth === 0) return;
         // Read from the raw inputs rather than the `contentWidth`/`targetX` mappers, which
         // have not run yet this frame.
