@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { AppState } from "react-native";
 import type { AudioPlayer, AudioStatus } from "expo-audio";
+import { arePositionTicksWanted, isAppOnScreen } from "../services/backgroundPosition";
 
 /**
  * Drop-in replacement for expo-audio's `useAudioPlayerStatus` that decouples the
@@ -23,7 +25,10 @@ import type { AudioPlayer, AudioStatus } from "expo-audio";
  *  - a plain position tick commits only when the displayed SECOND changes, which is the
  *    finest granularity any mm:ss readout can render — one commit per second, not twenty;
  *  - `positionIntervalMs` is a floor under that, not a target;
- *  - `statusRef` always holds the freshest event for imperative readers.
+ *  - `statusRef` always holds the freshest event for imperative readers;
+ *  - off screen there is no readout to show, so position alone commits nothing at all
+ *    (see services/backgroundPosition) — only real changes of state do — and the
+ *    status is read fresh and committed on the way back.
  */
 
 export type StatusCommitInput = {
@@ -32,6 +37,9 @@ export type StatusCommitInput = {
   lastCommitAtMs: number;
   nowMs: number;
   positionIntervalMs: number;
+  /** False when nothing can show or use a position (app off screen, no loop or click
+   *  holding it open): only changes of state commit. Defaults to true. */
+  positionTicksWanted?: boolean;
 };
 
 /** Whether this status event is worth a render. Pure, so the rule is testable. */
@@ -41,19 +49,29 @@ export function shouldCommitStatus({
   lastCommitAtMs,
   nowMs,
   positionIntervalMs,
+  positionTicksWanted = true,
 }: StatusCommitInput): boolean {
-  const isTransition =
+  const isStateChange =
     previous.playing !== next.playing ||
     previous.didJustFinish !== next.didJustFinish ||
     previous.isLoaded !== next.isLoaded ||
     previous.playbackState !== next.playbackState ||
     (previous.playbackRate ?? 1) !== (next.playbackRate ?? 1) ||
-    (previous.duration ?? 0) !== (next.duration ?? 0) ||
-    // A jump far beyond tick spacing (seek/source swap) should render now, not
-    // up to a throttle window later.
-    Math.abs((next.currentTime ?? 0) - (previous.currentTime ?? 0)) > 1.5;
+    (previous.duration ?? 0) !== (next.duration ?? 0);
 
-  if (isTransition) {
+  if (isStateChange) {
+    return true;
+  }
+
+  // Compared against the last COMMIT, so with ticks unwanted the distance below only
+  // grows — it would read every other report as a seek.
+  if (!positionTicksWanted) {
+    return false;
+  }
+
+  // A jump far beyond tick spacing (seek/source swap) should render now, not
+  // up to a throttle window later.
+  if (Math.abs((next.currentTime ?? 0) - (previous.currentTime ?? 0)) > 1.5) {
     return true;
   }
 
@@ -107,6 +125,7 @@ export function useThrottledAudioPlayerStatus(
           lastCommitAtMs: lastCommitAtRef.current,
           nowMs: now,
           positionIntervalMs,
+          positionTicksWanted: arePositionTicksWanted(),
         })
       ) {
         lastCommitAtRef.current = now;
@@ -115,8 +134,27 @@ export function useThrottledAudioPlayerStatus(
       }
     });
 
+    // Back on screen: the last thing React saw may be minutes old, and the engine may
+    // be reporting slowly (or, paused, not at all). Read it now rather than wait.
+    const appState = AppState.addEventListener("change", () => {
+      if (!isAppOnScreen()) return;
+      let fresh: AudioStatus;
+      try {
+        fresh = player.currentStatus;
+      } catch {
+        // A released player has nothing to report.
+        return;
+      }
+      statusRef.current = fresh;
+      onRawStatusRef.current?.(fresh);
+      lastCommitAtRef.current = Date.now();
+      lastCommittedRef.current = fresh;
+      setStatus(fresh);
+    });
+
     return () => {
       subscription.remove();
+      appState.remove();
     };
   }, [player, positionIntervalMs]);
 

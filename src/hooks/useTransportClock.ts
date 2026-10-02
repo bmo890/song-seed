@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { AppState } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import {
   resolveClockPosition,
   type PendingDisplaySeek,
   type TransportPositionChannel,
+  type TransportPositionReport,
 } from "../domain/transportPosition";
+import { isAppOnScreen } from "../services/backgroundPosition";
 
 type Args = {
   positionMs: number;
@@ -134,9 +137,30 @@ export function useTransportClock({
     if (!channelDriven || !positionChannel) {
       return;
     }
-    return positionChannel.subscribe((report) => {
+    // Off screen nothing draws from the visual clock, and every write to it is a hop to
+    // the UI thread: keep only the newest report and hand it over on the way back.
+    let heldReport: TransportPositionReport | null = null;
+    const apply = (report: TransportPositionReport) =>
       applyReport(report.positionMs, report.isPlaying, report.playbackRate, report.seekLanded);
+    const unsubscribe = positionChannel.subscribe((report) => {
+      if (!isAppOnScreen()) {
+        // A landing must not be lost under a later plain report.
+        heldReport = { ...report, seekLanded: report.seekLanded || heldReport?.seekLanded };
+        return;
+      }
+      heldReport = null;
+      apply(report);
     });
+    const appState = AppState.addEventListener("change", () => {
+      if (!isAppOnScreen() || !heldReport) return;
+      const report = heldReport;
+      heldReport = null;
+      apply(report);
+    });
+    return () => {
+      unsubscribe();
+      appState.remove();
+    };
   }, [applyReport, channelDriven, positionChannel]);
 
   useEffect(() => {

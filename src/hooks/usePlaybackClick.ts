@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEventListener } from "expo";
 import SongNookMetronomeModule from "../../modules/songnook-metronome";
+import { holdBackgroundPosition } from "../services/backgroundPosition";
 import {
   clickEngineParamsAt,
   isPlaybackClickAvailable,
@@ -357,6 +358,12 @@ function usePlaybackClickNative({
       void stopEngine();
     }
   }, [enabled, isPlaying, playbackRate, grid, beepLevel, hapticEnabled, hapticLevel, syncClick, stopEngine]);
+
+  // The click re-syncs the beat against the playback position, screen on or off.
+  useEffect(() => {
+    if (!enabled || !isPlaying) return;
+    return holdBackgroundPosition();
+  }, [enabled, isPlaying]);
 
   useEffect(() => {
     return () => {

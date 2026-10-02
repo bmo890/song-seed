@@ -17,6 +17,11 @@ import {
 import { activateAndPlay, replacePlaybackSource } from "../services/transportPlayback";
 import { getLockScreenArtworkUrl, prefetchLockScreenArtwork } from "../services/lockScreenArtwork";
 import { beginForegroundAudioLoad, endForegroundAudioLoad } from "../services/audioForegroundActivity";
+import {
+  BACKGROUND_STATUS_INTERVAL_MS,
+  isBackgroundPositionHeld,
+  subscribeBackgroundPositionHold,
+} from "../services/backgroundPosition";
 import { appActions } from "../state/actions";
 import { useStore } from "../state/useStore";
 
@@ -215,6 +220,23 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     positionIntervalMs: 200,
     onRawStatus: handleRawStatus,
   });
+  // Android: with the app off screen the engine reports once a second instead of
+  // twenty times, unless a loop or the click still reads the position. The setter
+  // exists only in builds carrying the expo-audio patch that adds it — hence `?.`.
+  useEffect(() => {
+    const apply = () => {
+      try {
+        (
+          player as unknown as { setBackgroundUpdateInterval?: (intervalMs: number) => void }
+        ).setBackgroundUpdateInterval?.(isBackgroundPositionHeld() ? 0 : BACKGROUND_STATUS_INTERVAL_MS);
+      } catch {
+        // ignore released player cleanup races
+      }
+    };
+    apply();
+    return subscribeBackgroundPositionHold(apply);
+  }, [player]);
+
   const rawPlayerPosition = Math.round((status.currentTime ?? 0) * 1000);
   const playerDuration = Math.round((status.duration ?? 0) * 1000);
   // Read-only against the hold: `handleRawStatus` owns accepting it.

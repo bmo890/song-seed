@@ -123,6 +123,44 @@ describe("shouldCommitStatus", () => {
     ).toBe(true);
   });
 
+  describe("with no reader for position (app off screen)", () => {
+    const offScreen = { ...BASE, positionTicksWanted: false };
+
+    it("does not commit when the second changes", () => {
+      expect(
+        shouldCommitStatus({
+          ...offScreen,
+          previous: status({ currentTime: 3.95 }),
+          next: status({ currentTime: 4.01 }),
+        })
+      ).toBe(false);
+    });
+
+    it("does not read the growing distance from the last commit as a seek", () => {
+      // Nothing commits for minutes, so every report is far from the last commit.
+      expect(
+        shouldCommitStatus({
+          ...offScreen,
+          previous: status({ currentTime: 3 }),
+          next: status({ currentTime: 240 }),
+        })
+      ).toBe(false);
+    });
+
+    it("still commits the end of a clip, a pause and a new source", () => {
+      const previous = status({ currentTime: 3 });
+      expect(
+        shouldCommitStatus({ ...offScreen, previous, next: status({ currentTime: 60, didJustFinish: true }) })
+      ).toBe(true);
+      expect(
+        shouldCommitStatus({ ...offScreen, previous, next: status({ currentTime: 3.1, playing: false }) })
+      ).toBe(true);
+      expect(
+        shouldCommitStatus({ ...offScreen, previous, next: status({ currentTime: 0, duration: 120 }) })
+      ).toBe(true);
+    });
+  });
+
   it("commits once per second rather than once per event during steady playback", () => {
     // Walk a second of 20Hz reports through the real decision path.
     let lastCommitted = status({ currentTime: 3.0 });

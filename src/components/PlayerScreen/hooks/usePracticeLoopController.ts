@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { holdBackgroundPosition } from "../../../services/backgroundPosition";
 
 type LoopTransportState = "idle" | "armed" | "looping" | "seeking_to_start";
 
@@ -329,6 +330,13 @@ export function usePracticeLoopController({
   );
 
   useEffect(() => clearWrapTimer, [clearWrapTimer]);
+
+  // The wrap is timed from the playback position, screen on or off: keep it coming
+  // while a loop is set on an open loop surface.
+  useEffect(() => {
+    if (!loopSurfaceActive || !practiceLoopEnabled) return;
+    return holdBackgroundPosition();
+  }, [loopSurfaceActive, practiceLoopEnabled]);
 
   useEffect(() => {
     if (
