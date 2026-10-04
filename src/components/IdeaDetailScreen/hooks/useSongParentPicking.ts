@@ -45,18 +45,16 @@ export function useSongParentPicking(selectedIdea: SongIdea | null | undefined, 
   const { t } = useTranslation();
   const [parentPickState, setParentPickState] = useState<ParentPickState | null>(null);
   const clipMap = useMemo(() => buildClipMap(songClips), [songClips]);
-  const primaryClipId = useMemo(
-    () => songClips.find((clip) => clip.isPrimary)?.id ?? null,
-    [songClips]
-  );
+  // The primary take is an ordinary member of the tree (2026-10-03): it can be
+  // linked as a version of another take and be the parent of one. Only a clip's
+  // own descendants (and itself) are off limits as parents.
   const parentPickInvalidTargetIds = useMemo(() => {
     if (!parentPickState) return [];
     const invalidTargetIds = new Set(parentPickState.sourceClipIds);
     const descendantIds = collectDescendantClipIds(songClips, parentPickState.appliedClipIds);
     descendantIds.forEach((clipId) => invalidTargetIds.add(clipId));
-    if (primaryClipId) invalidTargetIds.add(primaryClipId);
     return Array.from(invalidTargetIds);
-  }, [parentPickState, primaryClipId, songClips]);
+  }, [parentPickState, songClips]);
 
   const parentPickPrompt = parentPickState
     ? t("songDetail.parentPrompt", { count: parentPickState.appliedClipIds.length })
@@ -93,10 +91,6 @@ export function useSongParentPicking(selectedIdea: SongIdea | null | undefined, 
     if (!selectedIdea || selectedIdea.kind !== "project") return null;
     const uniqueClipIds = Array.from(new Set(rawClipIds)).filter((clipId) => clipMap.has(clipId));
     if (uniqueClipIds.length === 0) return null;
-    if (primaryClipId && uniqueClipIds.includes(primaryClipId)) {
-      AppAlert.info(t("songDetail.primaryUnavailable"), t("songDetail.primaryUnavailableBody"));
-      return null;
-    }
     return { sourceClipIds: uniqueClipIds, appliedClipIds: uniqueClipIds };
   }
 
@@ -164,7 +158,6 @@ export function useSongParentPicking(selectedIdea: SongIdea | null | undefined, 
     const invalidTargetIds = new Set(source.sourceClipIds);
     const descendantIds = collectDescendantClipIds(songClips, source.appliedClipIds);
     descendantIds.forEach((clipId) => invalidTargetIds.add(clipId));
-    if (primaryClipId) invalidTargetIds.add(primaryClipId);
     const hasValidTarget = songClips.some((clip) => !invalidTargetIds.has(clip.id));
     if (!hasValidTarget) {
       AppAlert.info(t("songDetail.noValidParents"), t("songDetail.noValidParentsBody"));
@@ -221,6 +214,5 @@ export function useSongParentPicking(selectedIdea: SongIdea | null | undefined, 
     handleMakeRoot,
     handlePickParentTarget,
     clipMap,
-    primaryClipId,
   };
 }

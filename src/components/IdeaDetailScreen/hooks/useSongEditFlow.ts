@@ -4,6 +4,7 @@ import { actionIcons } from "../../common/actionIcons";
 import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
 import { buildDefaultIdeaTitle, ensureUniqueIdeaTitle } from "../../../utils";
+import { buildDraftThreadRenames } from "../../../domain/clipLineageTitles";
 import type { IdeaStatus, SongIdea, Workspace } from "../../../types";
 import { useTranslation } from "react-i18next";
 
@@ -56,6 +57,15 @@ export function useSongEditFlow({
     const completionChanged = draftCompletion !== selectedIdea.completionPct;
     const meaningfulSongChange = statusChanged || completionChanged;
 
+    // A draft made from several clips carries one thread titled after the
+    // draft's placeholder name; naming the sketch names the thread too —
+    // "Title", "Title v2", … (founder, 2026-10-03). Only on the draft's first
+    // save: after that, take titles are the takes' own business.
+    const threadRenames =
+      selectedIdea.isDraft && titleChanged && draftTitle.trim()
+        ? buildDraftThreadRenames(selectedIdea.clips, finalTitle)
+        : null;
+
     if (titleChanged && !meaningfulSongChange && !selectedIdea.isDraft) {
       state.renameIdeaPreservingActivity(selectedIdeaId, finalTitle);
     } else {
@@ -65,6 +75,11 @@ export function useSongEditFlow({
             ? {
                 ...idea,
                 title: finalTitle,
+                clips: threadRenames
+                  ? idea.clips.map((clip) =>
+                      threadRenames.has(clip.id) ? { ...clip, title: threadRenames.get(clip.id)! } : clip
+                    )
+                  : idea.clips,
                 // Only an actual title CHANGE counts as naming it. Saving the
                 // sheet to change the stage must not silently claim the title
                 // was chosen — that would promote an untouched import to serif.
