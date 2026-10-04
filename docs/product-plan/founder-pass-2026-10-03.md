@@ -397,12 +397,12 @@ preview --platform android` once per batch · update
 
 ## Status
 
-- [ ] 1 Updated sort ignores import time
-- [ ] 2 Sketch ⋯ menu dismisses on outside tap
-- [ ] 3 Scrub needs horizontal intent or a hold
-- [ ] 4 Play works in selection mode
-- [ ] 5 "New sketch" glyph + label
-- [ ] 6 Sounding card stands out
+- [x] 1 Updated sort ignores import time (b6b2caf3)
+- [x] 2 Sketch ⋯ menu dismisses on outside tap (1e40c688)
+- [x] 3 Scrub needs horizontal intent or a hold (4883c186)
+- [x] 4 Play works in selection mode (9110e535; + blank-strip-after-preview fix 39b5d21e)
+- [x] 5 "New sketch" glyph + label (b5e2233b)
+- [x] 6 Sounding card stands out (0a5c6cfe) — batch 1 preview OTA c3bac93c, Android unverified
 - [ ] 7 Waveforms: per-job flush, one decode, visible-first
 - [ ] 12 Lyrics tab transport (Q5)
 - [ ] Threads: primary allowed, combine selection (Q1, Q2)
