@@ -12,6 +12,7 @@ import { getDateBucket } from "../../../domain/dateBuckets";
 import { EmptyState } from "../../common/EmptyState";
 import { useTranslation } from "react-i18next";
 import { useListScrubbing } from "../stickyDayStore";
+import { prioritizeBackgroundWaveformHydration } from "../../../services/backgroundWaveformHydration";
 
 const onListActivityBegin = () => beginUiActivity("list-scroll");
 const onListActivityEnd = () => endUiActivity("list-scroll");
@@ -21,6 +22,7 @@ const AnimatedFlatList = ReAnimated.FlatList as unknown as typeof FlatList;
 // The floating day chip and the scrubber's readout follow the first row that is
 // at least half on screen. A module constant: FlatList throws if this changes.
 const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 50, waitForInteraction: false } as const;
+const VISIBLE_PRIORITY_DEBOUNCE_MS = 300;
 
 type IdeaListContentProps = {
   listRef?: MutableRefObject<any>;
@@ -115,14 +117,30 @@ function IdeaListContentInner(
   // FlatList replaces it with its own, so a per-cell onLayout never fires.)
   const onFirstViewableEntryRef = useRef(onFirstViewableEntry);
   useEffect(() => { onFirstViewableEntryRef.current = onFirstViewableEntry; }, [onFirstViewableEntry]);
+  // The rows on screen also jump the background waveform queue (2026-10-03) —
+  // debounced so a scroll settles before the queue is reordered.
+  const prioritizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onViewableItemsChanged = useCallback((info: { viewableItems: ViewToken<IdeaListEntry>[] }) => {
     onFirstViewableEntryRef.current?.(info.viewableItems[0]?.item ?? null);
+    const visibleIdeaIds = info.viewableItems
+      .map((token) => token.item)
+      .filter((entry): entry is Extract<IdeaListEntry, { type: "idea" }> => entry?.type === "idea")
+      .map((entry) => entry.ideaId);
+    if (prioritizeTimerRef.current) clearTimeout(prioritizeTimerRef.current);
+    prioritizeTimerRef.current = setTimeout(() => {
+      prioritizeTimerRef.current = null;
+      prioritizeBackgroundWaveformHydration(visibleIdeaIds);
+    }, VISIBLE_PRIORITY_DEBOUNCE_MS);
   }, []);
   useEffect(() => {
     return () => {
       if (scrollRetryTimerRef.current) {
         clearTimeout(scrollRetryTimerRef.current);
         scrollRetryTimerRef.current = null;
+      }
+      if (prioritizeTimerRef.current) {
+        clearTimeout(prioritizeTimerRef.current);
+        prioritizeTimerRef.current = null;
       }
     };
   }, []);

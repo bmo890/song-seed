@@ -56,3 +56,26 @@ export function computeStripBarAmps(
     Math.pow(Math.max(0, Math.min(1, (amp - floor) / range)), STRIP_STRETCH_GAMMA)
   );
 }
+
+/**
+ * The card thumbnail derived from the detail waveform — one decode serves both.
+ * Peaks are max-dB-per-bucket (metersToWaveformPeaks) and the normalisation is
+ * monotonic, so the max over each window of detail bins is what a native decode
+ * straight to `count` bins would have produced (2026-10-03).
+ */
+export function deriveThumbnailPeaks(detail: number[], count: number): number[] {
+  if (detail.length === 0 || count <= 0) return [];
+  if (detail.length <= count) return detail.slice();
+  const peaks: number[] = new Array(count);
+  for (let i = 0; i < count; i++) {
+    const start = Math.floor((i * detail.length) / count);
+    const end = i === count - 1 ? detail.length : Math.floor(((i + 1) * detail.length) / count);
+    let max = 0;
+    for (let j = start; j < end; j++) {
+      const value = detail[j];
+      if (value > max) max = value;
+    }
+    peaks[i] = max;
+  }
+  return peaks;
+}

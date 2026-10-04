@@ -3,8 +3,10 @@ import {
     IMPORT_PLACEHOLDER_WAVEFORM_PEAK_COUNT,
     loadManagedAudioMetadata,
     MANAGED_WAVEFORM_PEAK_COUNT,
+    MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS,
 } from "./audioStorage";
 import { ensureWaveformSidecar } from "./waveformSidecar";
+import { deriveThumbnailPeaks } from "../domain/cardWaveform";
 import { cancelActiveWaveformDecode, getWaveformCancelEpoch } from "./waveformAnalysis";
 import {
     isForegroundAudioBusy,
@@ -78,16 +80,30 @@ type HydrationWrite = {
     waveformPeaks?: number[];
 };
 const pendingHydrationWrites: HydrationWrite[] = [];
-// Each flush re-renders every library subscriber, so its cost is per FLUSH, not per
-// clip. 48 keeps a long backlog to one brief hitch every minute or two instead of one
-// every 25 seconds; the queue still flushes whatever is left when it drains.
-const HYDRATION_WRITE_FLUSH_SIZE = 48;
+// A flush used to wait for 48 clips: computed waveforms sat in memory for minutes
+// while their cards kept the placeholder — "waveforms only appear once I open the
+// player" (2026-10-03). Rows are id-keyed and hydrateClipsAudioMetadata keeps every
+// untouched idea's identity, so a small batch re-renders only the rows it lands on.
+const HYDRATION_WRITE_FLUSH_SIZE = 4;
+const HYDRATION_WRITE_FLUSH_DELAY_MS = 1500;
+let scheduledFlush: ReturnType<typeof setTimeout> | null = null;
 
 function bufferHydrationWrite(entry: HydrationWrite) {
     pendingHydrationWrites.push(entry);
     if (pendingHydrationWrites.length >= HYDRATION_WRITE_FLUSH_SIZE) {
-        // A flush re-renders every library subscriber; not mid-scroll.
+        if (scheduledFlush) {
+            clearTimeout(scheduledFlush);
+            scheduledFlush = null;
+        }
+        // Not mid-scroll.
         runAfterInteractionsWithDeadline(flushHydrationWrites);
+        return;
+    }
+    if (!scheduledFlush) {
+        scheduledFlush = setTimeout(() => {
+            scheduledFlush = null;
+            runAfterInteractionsWithDeadline(flushHydrationWrites);
+        }, HYDRATION_WRITE_FLUSH_DELAY_MS);
     }
 }
 
@@ -104,6 +120,10 @@ onRecordingActivityChange((active) => {
 });
 
 function flushHydrationWrites() {
+    if (scheduledFlush) {
+        clearTimeout(scheduledFlush);
+        scheduledFlush = null;
+    }
     if (pendingHydrationWrites.length === 0) return;
     // A flush re-renders every library subscriber; hold it while a take is live and
     // let the next idle flush carry the batch.
@@ -134,6 +154,36 @@ async function hydrateJob(job: HydrationJob): Promise<JobOutcome> {
     // detailedWaveformUnavailable PERMANENTLY, and background hydration never
     // touched them again (the "waveforms only load when I open the player" bug).
     const epochAtStart = getWaveformCancelEpoch();
+
+    // One decode per clip (2026-10-03): when the duration is already known, build
+    // the detail sidecar (2048 bins — the reel's waveform) and derive the card's
+    // 256 from it. This used to be two full native decodes per clip, which doubled
+    // the time until later clips' cards filled in. A sidecar that already exists
+    // (the player opened this clip once) is read, not decoded.
+    const knownClipDurationMs = clip.durationMs && clip.durationMs > 0 ? clip.durationMs : undefined;
+    if (knownClipDurationMs && knownClipDurationMs <= MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS) {
+        const detail = await ensureWaveformSidecar(job.audioUri, knownClipDurationMs, { mode: "background" });
+        const latestClip = findClip(job).clip;
+        if (!latestClip?.audioUri || latestClip.audioUri !== job.audioUri) {
+            return "done";
+        }
+        if (detail && detail.length >= MANAGED_WAVEFORM_PEAK_COUNT) {
+            bufferHydrationWrite({
+                workspaceId: job.workspaceId,
+                ideaId: job.ideaId,
+                clipId: job.clipId,
+                durationMs: knownClipDurationMs,
+                waveformPeaks: deriveThumbnailPeaks(detail, MANAGED_WAVEFORM_PEAK_COUNT),
+            });
+            return "done";
+        }
+        // Skipped at the idle gate or cancelled by a play press: not a failure.
+        if (isForegroundAudioBusy() || getWaveformCancelEpoch() !== epochAtStart) {
+            return "busy";
+        }
+        // A genuine sidecar failure falls through to the thumbnail decode below,
+        // which classifies retry/busy exactly as before.
+    }
 
     const metadata = await loadManagedAudioMetadata(
         job.audioUri,
@@ -311,6 +361,26 @@ function scheduleProcessQueue(delayMs = HYDRATION_START_DELAY_MS) {
         scheduledProcess = null;
         void processQueue();
     }, delayMs);
+}
+
+/**
+ * Visible first (2026-10-03): the queue is a plain FIFO over the whole library, so a
+ * clip on screen could wait behind hundreds that are not. The collection reports
+ * its visible rows; their queued jobs move to the front, in the order given. The
+ * job already running finishes first; nothing is decoded twice.
+ */
+export function prioritizeBackgroundWaveformHydration(ideaIds: string[]) {
+    if (queue.length === 0 || ideaIds.length === 0) return;
+    const rank = new Map(ideaIds.map((id, index) => [id, index]));
+    const front: HydrationJob[] = [];
+    const rest: HydrationJob[] = [];
+    for (const job of queue) {
+        (rank.has(job.ideaId) ? front : rest).push(job);
+    }
+    if (front.length === 0) return;
+    front.sort((a, b) => rank.get(a.ideaId)! - rank.get(b.ideaId)!);
+    queue.length = 0;
+    queue.push(...front, ...rest);
 }
 
 export function enqueueBackgroundWaveformHydration(job: HydrationJob) {
