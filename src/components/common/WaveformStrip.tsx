@@ -236,26 +236,25 @@ export const WaveformStrip = React.memo(function WaveformStrip({
                         strokeWidth={BAR_STROKE_WIDTH}
                         strokeCap="round"
                     />
-                    {live ? (
-                        <>
-                            <Group clip={playedClip}>
-                                <Path
-                                    path={barsPath}
-                                    color={colors.primary}
-                                    style="stroke"
-                                    strokeWidth={BAR_STROKE_WIDTH}
-                                    strokeCap="round"
-                                />
-                            </Group>
-                            <Rect
-                                x={playheadX}
-                                y={0}
-                                width={playheadWidth}
-                                height={height}
-                                color={colors.playhead}
-                            />
-                        </>
-                    ) : null}
+                    {/* Always mounted: at rest the clip is zero-wide and the playhead
+                        parked off-canvas (headX = -1). Unmounting them when the preview
+                        closed left the canvas blank until its next redraw (2026-10-03). */}
+                    <Group clip={playedClip}>
+                        <Path
+                            path={barsPath}
+                            color={colors.primary}
+                            style="stroke"
+                            strokeWidth={BAR_STROKE_WIDTH}
+                            strokeCap="round"
+                        />
+                    </Group>
+                    <Rect
+                        x={playheadX}
+                        y={0}
+                        width={playheadWidth}
+                        height={height}
+                        color={colors.playhead}
+                    />
                 </Canvas>
             ) : (
                 // Flat hairline of dots at the same height so cards stay aligned
