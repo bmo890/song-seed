@@ -7,6 +7,8 @@ import { getIdeaSortState, getIdeaSortValue, IdeaSortMetric } from "../../../dom
 import { getHierarchyIconName } from "../../../domain/hierarchy";
 import { FilterSortControls } from "../../common/FilterSortControls";
 import { STAGE_INK } from "../../common/StageMark";
+import { getTagColor, getTagLabel } from "../../IdeaDetailScreen/songClipControls";
+import { UNTAGGED_FILTER_KEY } from "../../../domain/ideaTags";
 import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 
@@ -19,6 +21,8 @@ type FilterSortBarProps = {
   onClearProjectStages: () => void;
   lyricsFilterMode: LyricsFilterMode;
   onLyricsFilterModeChange: (value: LyricsFilterMode) => void;
+  /** Clip tags in use in this collection — the tag filter's rows. */
+  tagsInUse: string[];
   /** Leading stretch of the toolbar row (the search field). */
   leadingSlot?: ReactNode;
   rightSlot?: ReactNode;
@@ -66,6 +70,7 @@ export function FilterSortBar({
   onClearProjectStages,
   lyricsFilterMode,
   onLyricsFilterModeChange,
+  tagsInUse,
   leadingSlot,
   rightSlot,
   controlsOverride,
@@ -77,6 +82,23 @@ export function FilterSortBar({
   const ideasSort = useStore((s) => s.ideasSort);
   const setIdeasFilter = useStore((s) => s.setIdeasFilter);
   const setIdeasSort = useStore((s) => s.setIdeasSort);
+  const ideasTagFilter = useStore((s) => s.ideasTagFilter);
+  const setIdeasTagFilter = useStore((s) => s.setIdeasTagFilter);
+  const globalCustomTags = useStore((s) => s.globalCustomClipTags);
+  // Tags a clip could be narrowed to: the ones in use here, then custom tags
+  // not yet used, then "untagged". Clip tags only (founder, 2026-10-03).
+  const tagOptions = [
+    ...tagsInUse,
+    ...globalCustomTags.map((tag) => tag.key).filter((key) => !tagsInUse.includes(key)),
+  ].map((key) => ({
+    key,
+    label: t(`clipTags.${key}`, { defaultValue: getTagLabel(key, undefined, globalCustomTags) }),
+    ink: getTagColor(key, undefined, globalCustomTags).text,
+  }));
+  const toggleTag = (key: string) =>
+    setIdeasTagFilter(
+      ideasTagFilter.includes(key) ? ideasTagFilter.filter((item) => item !== key) : [...ideasTagFilter, key]
+    );
   const { metric: activeSortMetric, direction: activeSortDirection } = getIdeaSortState(ideasSort);
   const sortMetricOptions: Array<{ key: IdeaSortMetric; label: string; icon: string }> = [
     { key: "created", label: t("filters.created"), icon: "calendar-outline" },
@@ -99,14 +121,32 @@ export function FilterSortBar({
     { key: "song" as const, label: t("stages.song") },
   ];
   const showProjectFilters = ideasFilter !== "clips" && ideasFilter !== "bookmarked";
+  const showTagFilters = ideasFilter !== "projects" && (tagOptions.length > 0 || ideasTagFilter.length > 0);
   const hasActiveFilters =
-    ideasFilter !== "all" || selectedProjectStages.length > 0 || lyricsFilterMode !== "all";
+    ideasFilter !== "all" ||
+    selectedProjectStages.length > 0 ||
+    lyricsFilterMode !== "all" ||
+    ideasTagFilter.length > 0;
   const hasCustomSort = ideasSort !== "newest";
   const clearFilters = () => {
     setIdeasFilter("all");
     onClearProjectStages();
     onLyricsFilterModeChange("all");
+    setIdeasTagFilter([]);
   };
+  const tagSummary = (() => {
+    if (ideasTagFilter.length === 0) return t("filters.all");
+    if (ideasTagFilter.length <= 2) {
+      return ideasTagFilter
+        .map((key) =>
+          key === UNTAGGED_FILTER_KEY
+            ? t("filters.untagged")
+            : t(`clipTags.${key}`, { defaultValue: getTagLabel(key, undefined, globalCustomTags) })
+        )
+        .join(", ");
+    }
+    return t("filters.selected", { count: ideasTagFilter.length });
+  })();
   const stageSummary = (() => {
     if (selectedProjectStages.length === 0) return t("filters.all");
     if (selectedProjectStages.length <= 2) {
@@ -143,6 +183,7 @@ export function FilterSortBar({
                       onClearProjectStages();
                       onLyricsFilterModeChange("all");
                     }
+                    if (option.key === "projects") setIdeasTagFilter([]);
                     close();
                   }}
                 >
@@ -226,6 +267,71 @@ export function FilterSortBar({
                       </Pressable>
                     );
                   })}
+                </View>
+              </View>
+            </>
+          ) : null}
+
+          {showTagFilters ? (
+            <>
+              <View style={styles.ideasDropdownDivider} />
+              <View style={styles.ideasDropdownSectionStack}>
+                <View style={styles.ideasDropdownSectionToggle}>
+                  <Text style={styles.ideasDropdownSectionToggleText}>{t("filters.tags")}</Text>
+                  <View style={styles.ideasDropdownSectionMeta}>
+                    <Text style={styles.ideasDropdownSectionMetaText}>{tagSummary}</Text>
+                  </View>
+                </View>
+                {/* Same editorial ink as the stages: word + leading dot, the
+                    dot filled in the tag's own ink when it is on. */}
+                <View style={styles.ideasStageInkWrap}>
+                  <Pressable
+                    style={({ pressed }) => [styles.ideasStageInk, pressed ? styles.pressDown : null]}
+                    onPress={() => setIdeasTagFilter([])}
+                    hitSlop={{ top: 6, bottom: 6 }}
+                  >
+                    <View
+                      style={[
+                        styles.ideasStageInkDot,
+                        ideasTagFilter.length === 0
+                          ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                          : null,
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.ideasStageInkText,
+                        ideasTagFilter.length === 0 ? styles.ideasStageInkTextActive : null,
+                      ]}
+                    >
+                      {t("filters.all")}
+                    </Text>
+                  </Pressable>
+                  {[...tagOptions, { key: UNTAGGED_FILTER_KEY, label: t("filters.untagged"), ink: colors.textMuted }].map(
+                    (option) => {
+                      const active = ideasTagFilter.includes(option.key);
+                      return (
+                        <Pressable
+                          key={option.key}
+                          style={({ pressed }) => [styles.ideasStageInk, pressed ? styles.pressDown : null]}
+                          onPress={() => toggleTag(option.key)}
+                          hitSlop={{ top: 6, bottom: 6 }}
+                        >
+                          <View
+                            style={[
+                              styles.ideasStageInkDot,
+                              active ? { backgroundColor: option.ink, borderColor: option.ink } : null,
+                            ]}
+                          />
+                          <Text
+                            style={[styles.ideasStageInkText, active ? styles.ideasStageInkTextActive : null]}
+                          >
+                            {option.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    }
+                  )}
                 </View>
               </View>
             </>

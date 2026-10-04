@@ -37,6 +37,8 @@ import { haptic } from "../../../design/haptics";
 import { rowKind } from "../listGeometry";
 import { toast } from "../../common/toastStore";
 import { useTranslation } from "react-i18next";
+import { getClipIdeaTags } from "../../../domain/ideaTags";
+import { getTagColor, getTagLabel } from "../../IdeaDetailScreen/songClipControls";
 
 type IdeaListItemProps = {
     /** The row reads its own idea from the store by id, so a library write that
@@ -93,6 +95,7 @@ function IdeaListItemInner({
     // pick ring, a tap picks instead of opening, and eligibility is visible —
     // a card the compilation can't take is dimmed with the reason (2026-09-11).
     const collectorKind = useStore((s) => s.libraryCollector?.kind ?? null);
+    const globalCustomTags = useStore((s) => s.globalCustomClipTags);
     const collecting = collectorKind != null;
     const songTargetPicker = useStore((s) => s.songTargetPicker);
     const pickingSongTarget = songTargetPicker != null;
@@ -217,6 +220,18 @@ function IdeaListItemInner({
     const dateLabel = titleIsAuto
         ? formatClipDate(sortTs, showDateDividers ? getDateBucketLabel(sortTs) : undefined)
         : formatClipCardTime(sortTs, showDateDividers ? getDateBucketLabel(sortTs) : undefined);
+    // A clip's tags, as quiet words in the meta row (comfortable density only;
+    // compact drops all metadata). Three at most — the filter sees them all.
+    const clipTagWords =
+        !compact && item.kind === "clip"
+            ? getClipIdeaTags(item)
+                  .slice(0, 3)
+                  .map((key) => ({
+                      key,
+                      label: t(`clipTags.${key}`, { defaultValue: getTagLabel(key, undefined, globalCustomTags) }),
+                      ink: getTagColor(key, undefined, globalCustomTags).text,
+                  }))
+            : [];
     const beginSelection = () => {
         haptic.grab();
         useStore.getState().startListSelection(ideaId);
@@ -438,7 +453,21 @@ function IdeaListItemInner({
                                 // take-count and other metadata are dropped for density.
                                 !compact && hasExpandedProjectIndicators
                                     ? renderProjectRightMeta()
-                                    : null
+                                    : clipTagWords.length > 0
+                                      ? (
+                                          <View style={styles.ideasListTagRow}>
+                                              {clipTagWords.map((tag) => (
+                                                  <Text
+                                                      key={tag.key}
+                                                      style={[styles.ideasListTagWord, { color: tag.ink }]}
+                                                      numberOfLines={1}
+                                                  >
+                                                      {tag.label}
+                                                  </Text>
+                                              ))}
+                                          </View>
+                                      )
+                                      : null
                             }
                             // The waveform strip is the inline player (full card):
                             // progress + scrub map straight onto the existing inline

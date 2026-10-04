@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../styles";
@@ -30,20 +30,38 @@ type ClipTagPickerProps = {
   onClose: () => void;
 };
 
+/** A clip to tag, with the idea it belongs to. */
+export type ClipTagTarget = { ideaId: string; clip: ClipVersion };
+
 type ClipTagEditorFieldsProps = {
-  clips: ClipVersion[];
-  idea: SongIdea;
   globalCustomTags: CustomTagDefinition[];
-};
+} & (
+  | {
+      /** Inside one sketch: its clips; a new custom tag belongs to the sketch. */
+      clips: ClipVersion[];
+      idea: SongIdea;
+      targets?: undefined;
+    }
+  | {
+      /** Across the collection (2026-10-03): clips of several ideas; a new
+       *  custom tag is global. */
+      targets: ClipTagTarget[];
+      clips?: undefined;
+      idea?: undefined;
+    }
+);
 
 /** Edits tags across one or more clips. With multiple, a chip is "all" (every
  * clip has it), "some", or "none"; tapping applies to all, or removes from all
  * when every clip already has it. */
-export function ClipTagEditorFields({
-  clips,
-  idea,
-  globalCustomTags,
-}: ClipTagEditorFieldsProps) {
+export function ClipTagEditorFields(props: ClipTagEditorFieldsProps) {
+  const { globalCustomTags } = props;
+  const idea = props.idea;
+  const targets = useMemo<ClipTagTarget[]>(
+    () => props.targets ?? (props.clips ?? []).map((clip) => ({ ideaId: props.idea!.id, clip })),
+    [props.targets, props.clips, props.idea]
+  );
+  const clips = useMemo(() => targets.map((target) => target.clip), [targets]);
   const { t } = useTranslation();
   const [newTagLabel, setNewTagLabel] = useState("");
   const [newTagColor, setNewTagColor] = useState(randomTagColor);
@@ -65,32 +83,32 @@ export function ClipTagEditorFields({
 
   const applyToAll = useCallback(
     (key: string) => {
-      clips.forEach((clip) => {
+      targets.forEach(({ ideaId, clip }) => {
         const current = clip.tags ?? [];
         if (!current.includes(key)) {
-          useStore.getState().setClipTags(idea.id, clip.id, [...current, key]);
+          useStore.getState().setClipTags(ideaId, clip.id, [...current, key]);
         }
       });
     },
-    [clips, idea.id]
+    [targets]
   );
 
   const toggleTag = useCallback(
     (key: string) => {
-      if (clips.length === 0) return;
+      if (targets.length === 0) return;
       haptic.tap();
       const removing = tagState(key) === "all";
-      clips.forEach((clip) => {
+      targets.forEach(({ ideaId, clip }) => {
         const current = clip.tags ?? [];
         const has = current.includes(key);
         if (removing && has) {
-          useStore.getState().setClipTags(idea.id, clip.id, current.filter((k) => k !== key));
+          useStore.getState().setClipTags(ideaId, clip.id, current.filter((k) => k !== key));
         } else if (!removing && !has) {
-          useStore.getState().setClipTags(idea.id, clip.id, [...current, key]);
+          useStore.getState().setClipTags(ideaId, clip.id, [...current, key]);
         }
       });
     },
-    [clips, idea.id, tagState]
+    [targets, tagState]
   );
 
   const addCustomTag = useCallback(() => {
@@ -100,7 +118,7 @@ export function ClipTagEditorFields({
 
     const alreadyExists =
       SONG_CLIP_TAG_OPTIONS.some((t) => t.key === key) ||
-      idea.customTags?.some((t) => t.key === key) ||
+      idea?.customTags?.some((t) => t.key === key) ||
       globalCustomTags.some((t) => t.key === key);
 
     if (alreadyExists) {
@@ -109,14 +127,18 @@ export function ClipTagEditorFields({
       return;
     }
 
-    useStore.getState().addProjectCustomTag(idea.id, { key, label, color: newTagColor });
+    if (idea) {
+      useStore.getState().addProjectCustomTag(idea.id, { key, label, color: newTagColor });
+    } else {
+      useStore.getState().addGlobalCustomClipTag({ key, label, color: newTagColor });
+    }
     haptic.tap();
     applyToAll(key);
     setNewTagLabel("");
     setNewTagColor(randomTagColor());
-  }, [newTagLabel, newTagColor, clips.length, idea.id, idea.customTags, globalCustomTags, applyToAll]);
+  }, [newTagLabel, newTagColor, clips.length, idea, globalCustomTags, applyToAll]);
 
-  const projectCustomTags = idea.customTags ?? [];
+  const projectCustomTags = idea?.customTags ?? [];
 
   if (clips.length === 0) return null;
 
@@ -181,7 +203,9 @@ export function ClipTagEditorFields({
         </>
       ) : null}
 
-      <Text style={[styles.tagPickerSectionLabel, { marginTop: 14 }]}>{t("songDetail.addProjectTag")}</Text>
+      <Text style={[styles.tagPickerSectionLabel, { marginTop: 14 }]}>
+        {idea ? t("songDetail.addProjectTag") : t("songDetail.addGlobalTag")}
+      </Text>
       <View style={styles.tagPickerAddRow}>
         <UserTextInput
           style={styles.tagPickerAddInput}

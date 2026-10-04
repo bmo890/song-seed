@@ -356,6 +356,20 @@ export const ideasListStyles = {
     gap: 8,
     minHeight: 26,
   },
+  // A clip's tags in the meta row (2026-10-03): quiet words in each tag's own
+  // ink, no capsules — the same register as the date beside them.
+  ideasListTagRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexShrink: 1,
+  },
+  ideasListTagWord: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 10,
+    lineHeight: 12,
+    letterSpacing: 0.3,
+  },
   ideasListMetaLeftCluster: {
     flexDirection: "row",
     alignItems: "center",

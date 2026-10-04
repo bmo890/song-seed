@@ -289,6 +289,9 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
                 ? state.backupReminderLastPromptedAt
                 : null,
         ideasFilter: state?.ideasFilter ?? "all",
+        ideasTagFilter: Array.isArray(state?.ideasTagFilter)
+            ? state.ideasTagFilter.filter((tag: unknown): tag is string => typeof tag === "string")
+            : [],
         ideasSort: isIdeaSort(state?.ideasSort) ? state.ideasSort : "newest",
         primaryFilter: state?.primaryFilter ?? "all",
         primarySort: isIdeaSort(state?.primarySort) ? state.primarySort : "newest",

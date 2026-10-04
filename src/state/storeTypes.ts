@@ -52,6 +52,7 @@ export type PersistedAppStore = Pick<
     | "cutUpSparks"
     | "magpieSparks"
     | "ideasFilter"
+    | "ideasTagFilter"
     | "ideasSort"
     | "primaryFilter"
     | "primarySort"

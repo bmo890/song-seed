@@ -8,6 +8,7 @@ import { useStore } from "../../../state/useStore";
 import { getCollectionAncestors } from "../../../utils";
 import { getDateBucket, getDateBucketLabel } from "../../../domain/dateBuckets";
 import { compareIdeas, getIdeaCreatedAt, getIdeaSortState, getIdeaSortTimestamp, getIdeaUpdatedAt, usesIdeaTimelineDividers } from "../../../domain/ideaSort";
+import { collectClipIdeaTagsInUse, ideaMatchesTagFilter } from "../../../domain/ideaTags";
 import { computeIdeaSearchMeta } from "../ideaSearchMeta";
 import {
   goBackFromParentStack,
@@ -66,6 +67,7 @@ export function useCollectionScreenModel() {
   const currentCollection = activeWorkspace?.collections.find((collection) => collection.id === collectionId) ?? null;
   const recordingIdeaId = useStore((s) => s.recordingIdeaId);
   const ideasFilter = useStore((s) => s.ideasFilter);
+  const ideasTagFilter = useStore((s) => s.ideasTagFilter);
   const ideasSort = useStore((s) => s.ideasSort);
   const listSelectionMode = useStore((s) => s.listSelectionMode);
   const selectedListIdeaIds = useStore((s) => s.selectedListIdeaIds);
@@ -177,6 +179,8 @@ export function useCollectionScreenModel() {
   }, [activityMetricFilter, activityRangeEndTs, activityRangeStartTs, ideas, ideasFilter, ideasSort]);
 
   const searchNeedle = searchQuery.trim().toLowerCase();
+  // The tags the filter popover offers: what this collection's clips actually carry.
+  const tagsInUse = useMemo(() => collectClipIdeaTagsInUse(ideas), [ideas]);
 
   const searchMetaByIdeaId = useMemo(() => {
     const map = new Map<string, SearchMeta>();
@@ -200,9 +204,10 @@ export function useCollectionScreenModel() {
           if (idea.kind !== "project") return false;
           if (!selectedProjectStages.includes(idea.status as any)) return false;
         }
+        if (!ideaMatchesTagFilter(idea, ideasTagFilter)) return false;
         return true;
       }),
-    [filteredIdeas, lyricsFilterMode, recordingIdeaId, searchMetaByIdeaId, selectedProjectStages]
+    [filteredIdeas, ideasTagFilter, lyricsFilterMode, recordingIdeaId, searchMetaByIdeaId, selectedProjectStages]
   ));
 
   // Hidden state is split into two gestures that share one count:
@@ -504,6 +509,7 @@ export function useCollectionScreenModel() {
     setSelectedProjectStages,
     lyricsFilterMode,
     setLyricsFilterMode,
+    tagsInUse,
     listDensity,
     setListDensity,
     headerMenuOpen,

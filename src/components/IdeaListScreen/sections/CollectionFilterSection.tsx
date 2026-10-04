@@ -39,6 +39,7 @@ export function CollectionFilterSection() {
       onSearchQueryChange={screen.setSearchQuery}
       selectedProjectStages={screen.selectedProjectStages}
       lyricsFilterMode={screen.lyricsFilterMode}
+      tagsInUse={screen.tagsInUse}
       hiddenItemsCount={screen.effectivelyHiddenCount}
       onToggleProjectStage={(stage) => {
         screen.setSelectedProjectStages((prev) =>

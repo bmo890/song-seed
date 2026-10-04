@@ -15,6 +15,10 @@ import { haptic } from "../../../design/haptics";
 import { useShelfStore } from "../../../state/useShelfStore";
 import { openShelf } from "../../../navigation";
 import { toast } from "../../common/toastStore";
+import { BottomSheet } from "../../common/BottomSheet";
+import { ClipTagEditorFields, type ClipTagTarget } from "../../IdeaDetailScreen/components/ClipTagPicker";
+import { styles } from "../../../styles";
+import { View } from "react-native";
 
 type IdeaSelectionBarProps = {
   selectableIdeaIds: string[];
@@ -51,6 +55,8 @@ export function IdeaSelectionBar({
   // Second-level "Copy or move" sheet under More (More closes itself before
   // handing off, so the next sheet opens cleanly).
   const [copyMoveVisible, setCopyMoveVisible] = useState(false);
+  const [tagsVisible, setTagsVisible] = useState(false);
+  const globalCustomTags = useStore((s) => s.globalCustomClipTags);
   const navigation = useNavigation<any>();
 
   const selectedListIdeaIds = useStore((s) => s.selectedListIdeaIds);
@@ -75,6 +81,15 @@ export function IdeaSelectionBar({
   const selectedClipIdeas = useMemo(
     () => selectedIdeas.filter((idea) => idea.kind === "clip"),
     [selectedIdeas]
+  );
+  // Tags live on clips (founder, 2026-10-03): the sheet tags every clip of
+  // the selected clip ideas, read live so the chips follow each toggle.
+  const tagTargets = useMemo<ClipTagTarget[]>(
+    () =>
+      selectedClipIdeas
+        .filter((idea) => !disabledIdeaIdSet.has(idea.id))
+        .flatMap((idea) => idea.clips.map((clip) => ({ ideaId: idea.id, clip }))),
+    [disabledIdeaIdSet, selectedClipIdeas]
   );
   const selectedProjects = useMemo(
     () => selectedIdeas.filter((idea) => idea.kind === "project"),
@@ -337,6 +352,18 @@ export function IdeaSelectionBar({
         onPress: handleSetAsideSelection,
         disabled: interactiveSelectedIdeas.length === 0,
       });
+      if (tagTargets.length > 0) {
+        actions.push({
+          key: "tag-clips",
+          label: t("selection.tagClips"),
+          icon: "pricetag-outline",
+          onPress: () => {
+            setMoreVisible(false);
+            setTagsVisible(true);
+          },
+          opens: true,
+        });
+      }
       actions.push({
         key: "copy-or-move",
         label: t("selection.copyOrMove"),
@@ -363,6 +390,7 @@ export function IdeaSelectionBar({
     selectedHiddenOnly,
     selectedProjects.length,
     shareableClips.length,
+    tagTargets.length,
   ]);
 
   const copyMoveActions: SelectionAction[] = [
@@ -386,7 +414,7 @@ export function IdeaSelectionBar({
   // a sheet and must keep the selection alive for the actions inside it.
   // Wrapping here guarantees consistency no matter what each handler does
   // internally.
-  const OPENS_SHEET = new Set(["more", "copy-or-move"]);
+  const OPENS_SHEET = new Set(["more", "copy-or-move", "tag-clips"]);
   const endsSelection = (action: SelectionAction): SelectionAction =>
     OPENS_SHEET.has(action.key)
       ? action
@@ -419,6 +447,14 @@ export function IdeaSelectionBar({
         actions={copyMoveActions.map(endsSelection)}
         onClose={() => setCopyMoveVisible(false)}
       />
+
+      {/* The sketch's tag picker, pointed at the selected clips. Closing keeps
+          the selection, like the other sheets. */}
+      <BottomSheet visible={tagsVisible} onClose={() => setTagsVisible(false)} dismissDistance={420} keyboardAvoiding>
+        <View style={styles.tagPickerContent}>
+          <ClipTagEditorFields targets={tagTargets} globalCustomTags={globalCustomTags} />
+        </View>
+      </BottomSheet>
     </>
   );
 }

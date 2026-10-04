@@ -57,6 +57,7 @@ export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppSto
         cutUpSparks: state.cutUpSparks,
         magpieSparks: state.magpieSparks,
         ideasFilter: state.ideasFilter,
+        ideasTagFilter: state.ideasTagFilter,
         ideasSort: state.ideasSort,
         primaryFilter: state.primaryFilter,
         primarySort: state.primarySort,

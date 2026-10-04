@@ -15,6 +15,8 @@ type IdeaListFilterSectionProps = {
   onSearchQueryChange: (value: string) => void;
   selectedProjectStages: ProjectStage[];
   lyricsFilterMode: LyricsFilterMode;
+  /** Clip tags in use in this collection — the tag filter's rows. */
+  tagsInUse: string[];
   hiddenItemsCount: number;
   onToggleProjectStage: (stage: ProjectStage) => void;
   onClearProjectStages: () => void;
@@ -33,6 +35,7 @@ export function IdeaListFilterSection({
   onSearchQueryChange,
   selectedProjectStages,
   lyricsFilterMode,
+  tagsInUse,
   hiddenItemsCount,
   onToggleProjectStage,
   onClearProjectStages,
@@ -84,6 +87,7 @@ export function IdeaListFilterSection({
       onClearProjectStages={onClearProjectStages}
       lyricsFilterMode={lyricsFilterMode}
       onLyricsFilterModeChange={onLyricsFilterModeChange}
+      tagsInUse={tagsInUse}
       closeSignal={filterSortCloseSignal}
       onMenuOpen={onFilterSortMenuOpen}
       controlsOverride={selectionControls}

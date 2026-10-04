@@ -308,6 +308,11 @@ export type DataSlice = {
 
     ideasFilter: IdeasFilter;
     setIdeasFilter: (v: IdeasFilter) => void;
+    /** Clip tags the collection is narrowed to (empty = all). "untagged" is a
+     *  member for clips that carry no tag. Persisted, like the type filter
+     *  (2026-10-03). */
+    ideasTagFilter: string[];
+    setIdeasTagFilter: (v: string[]) => void;
     ideasSort: IdeaSort;
     setIdeasSort: (v: IdeaSort) => void;
 
@@ -2048,6 +2053,8 @@ export const createDataSlice: StateCreator<
                               clips: idea.clips.map((clip) =>
                                   clip.id === clipId ? { ...clip, tags } : clip
                               ),
+                              // Tagging is editing (founder, 2026-10-03).
+                              lastActivityAt: Date.now(),
                           }
                         : idea
             )
@@ -2661,6 +2668,8 @@ export const createDataSlice: StateCreator<
 
     ideasFilter: "all",
     setIdeasFilter: (v) => set({ ideasFilter: v }),
+    ideasTagFilter: [],
+    setIdeasTagFilter: (v) => set({ ideasTagFilter: v }),
     ideasSort: "newest",
     setIdeasSort: (v) => set({ ideasSort: v }),
 
