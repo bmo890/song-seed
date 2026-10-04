@@ -13,6 +13,8 @@ import { colors } from "../../../design/tokens";
 import { useOriginRoute } from "../../../hooks/useOriginLabel";
 import { openIdeaInCollection } from "../../../navigation";
 import { useSongScreen } from "../provider/SongScreenProvider";
+import { DockAddBadgeIcon } from "../../common/dockIcons";
+import { getHierarchyIconName } from "../../../domain/hierarchy";
 
 // Nav-row height below the safe-area inset — drops the menu just under the ⋯
 // (the header's 2 pt top margin + its nav row), same anchor as the collection.
@@ -124,7 +126,9 @@ export function SongHeaderMenu() {
               }}
             >
               <Text style={styles.ideasSortMenuItemText}>{t("songDetail.makeSong")}</Text>
-              <Ionicons name="albums-outline" size={15} color={colors.textStrong} />
+              {/* The sketch disc with the "+" badge — the one glyph for "make a
+                  sketch", shared with the collection's selection dock. */}
+              <DockAddBadgeIcon base={getHierarchyIconName("song")} color={colors.textStrong} size={16} />
             </Pressable>
           </>
         )}

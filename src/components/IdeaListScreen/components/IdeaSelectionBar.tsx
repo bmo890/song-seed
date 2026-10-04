@@ -116,12 +116,15 @@ export function IdeaSelectionBar({
     !!onCreateProjectFromSelection;
   const makeSongAction: SelectionAction = {
     key: "make-song",
-    // "Sketch" (verb + noun) — gather the selected takes into a sketch. The count
-    // lives in the top bar ("N selected"), so the button label stays a clean word.
-    label: t("brand.sketch"),
-    // Standard disc glyph (matches how a sketch/song reads everywhere else),
-    // replacing the bespoke merge-box icon.
+    // "New sketch": this makes something. The count lives in the top bar
+    // ("N selected"), so the label stays two words.
+    label: t("selection.newSketch"),
+    // The sketch disc wearing the "+" badge — same family as Play → Queue, so
+    // "creates a new one" reads at a glance (founder, 2026-10-03).
     icon: getHierarchyIconName("song"),
+    renderIcon: ({ color, size, disabled }) => (
+      <DockAddBadgeIcon base={getHierarchyIconName("song")} color={color} size={size} disabled={disabled} />
+    ),
     onPress: () => onCreateProjectFromSelection?.(),
   };
 

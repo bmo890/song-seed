@@ -38,7 +38,7 @@ export function DockAddBadgeIcon({ base, color, size, disabled }: BadgeProps) {
           justifyContent: "center",
         }}
       >
-        <Ionicons name="add" size={Math.round(badge * 0.82)} color="#FBF6EE" />
+        <Ionicons name="add" size={Math.round(badge * 0.82)} color={colors.page} />
       </View>
     </View>
   );
