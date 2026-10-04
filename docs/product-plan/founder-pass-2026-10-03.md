@@ -364,7 +364,7 @@ its own as debt reduction and makes either route cheaper later.
 
 ## Founder's answers (2026-10-03)
 
-- Q1: **always one thread** (oldest = v1) when several clips become a sketch.
+- Q1: ~~always one thread~~ → **2026-10-04 reversed**: a new sketch keeps its clips as separate takes; threads are combined explicitly inside the sketch (select ≥ 2 → Thread… → Combine into thread).
 - Q2: not decided by the founder; default = **newest clip is the primary take**
   (the version you would play). Flip in one line if asked.
 - Q3: tags on **clips only** — reuse the existing clip tags in the collection.
@@ -405,7 +405,7 @@ preview --platform android` once per batch · update
 - [x] 6 Sounding card stands out (0a5c6cfe) — batch 1 preview OTA c3bac93c, Android unverified
 - [x] 7 Waveforms: per-job flush, one decode, visible-first (c6066bbc)
 - [x] 12 Lyrics tab → full player into writing (c1803d93) — batch 2 preview OTA, Android unverified
-- [x] Threads: primary allowed, combine selection (709084f8)
+- [x] Threads: primary allowed (709084f8); auto-thread on New sketch REVERTED 2026-10-04 (6334de04) — takes arrive separate, "Combine into thread" inside the sketch; edit sheet Save/Discard only + stranded-draft recovery (2c7eead7), OTA 130e5d9a
 - [x] Tags in the collection (7cc1195f) — batch 3 preview OTA, Android unverified
 - [ ] Dock vs card — SET ASIDE by the founder (Q4)
 - [ ] Dark mode — SET ASIDE, post-launch (Q6)
