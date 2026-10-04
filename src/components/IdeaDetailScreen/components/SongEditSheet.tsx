@@ -40,7 +40,10 @@ export function SongEditSheet({
 }: Props) {
   const { t } = useTranslation();
   return (
-    <BottomSheet visible={visible} onClose={onCancel} keyboardAvoiding>
+    // Every exit is a decision — Save, Cancel or Discard — never a swipe: a
+    // dismissed sheet left the page stranded in edit mode, and a draft left
+    // behind that way hid its clips from the collection (2026-10-04).
+    <BottomSheet visible={visible} onClose={onCancel} keyboardAvoiding dismissible={false}>
       <Text style={styles.heading}>{isDraft ? t("songDetail.newSong") : t("songDetail.editSongTitle")}</Text>
 
       <Text style={styles.label}>{t("songDetail.title")}</Text>

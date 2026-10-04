@@ -1,4 +1,5 @@
 import * as FileSystem from "expo-file-system/legacy";
+import { recoverStrandedDraftIdeas } from "../domain/draftRecovery";
 import {
     IdeaStatus,
     SongIdea,
@@ -2196,6 +2197,21 @@ export const appActions = {
         state.setEditingIdeaId(clipIdea.id);
         state.setPendingPrimaryClipId(converted.clips[0]?.id ?? null);
         return true;
+    },
+
+    /**
+     * A draft sketch is hidden from the collection until its edit sheet is saved
+     * or discarded. Killed mid-edit, it stayed a draft forever — and the clips
+     * gathered into it were "gone" (2026-10-04). On launch nothing is being
+     * edited, so a leftover draft with clips becomes a real sketch under its
+     * placeholder name, and an empty one is removed.
+     */
+    recoverStrandedDrafts: () => {
+        const { workspaces, recovered, removed } = recoverStrandedDraftIdeas(useStore.getState().workspaces);
+        if (recovered === 0 && removed === 0) return { recovered, removed };
+        useStore.setState({ workspaces });
+        console.warn(`[drafts] recovered ${recovered} stranded draft sketch(es), removed ${removed} empty`);
+        return { recovered, removed };
     },
 
     convertSelectedClipIdeaToProject: () => {

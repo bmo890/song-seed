@@ -29,6 +29,11 @@ type BottomSheetProps = {
   visible: boolean;
   onClose: () => void;
   dismissDistance?: number;
+  /** False: the scrim, a downward drag and Android back do not close the sheet —
+   *  only its own buttons do. For a form whose every exit must be a decision
+   *  (the sketch's edit sheet: Save or Discard), so a stray swipe can never
+   *  leave the page stranded in edit mode (2026-10-04). Default true. */
+  dismissible?: boolean;
   keyboardAvoiding?: boolean;
   /** Opt in to drag-to-expand: the sheet rests at a collapsed height, pulls up
    * to near-fullscreen, and dismisses on a downward drag past the collapsed
@@ -44,7 +49,7 @@ const HANDLE_ZONE = 30; // drag zone height (padding 10+10 + handle)
 
 export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
   function BottomSheet(
-    { visible, onClose, dismissDistance = 320, keyboardAvoiding = false, expandable = false, collapsedHeight, children },
+    { visible, onClose, dismissDistance = 320, dismissible = true, keyboardAvoiding = false, expandable = false, collapsedHeight, children },
     ref
   ) {
     const insets = useSafeAreaInsets();
@@ -120,9 +125,26 @@ export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
       };
     }, [keyboardAvoiding, visible, keyboardOffset, insets.bottom, useNative]);
 
+    // Non-expandable: simple drag-down-to-dismiss (unchanged behavior).
+    const snapBack = useCallback(() => {
+      isClosingRef.current = false;
+      Animated.spring(translateY, {
+        toValue: 0,
+        damping: 20,
+        stiffness: 240,
+        mass: 0.85,
+        useNativeDriver: useNative,
+      }).start();
+    }, [translateY, useNative]);
+
     const closeWithSlide = useCallback(() => {
       if (isClosingRef.current) return;
       isClosingRef.current = true;
+      if (!dismissible) {
+        // Not ours to close: settle back where it was.
+        snapBack();
+        return;
+      }
       Keyboard.dismiss();
       Animated.timing(translateY, {
         toValue: Math.max(dismissDistance, 700),
@@ -135,7 +157,7 @@ export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
         }
         onClose();
       });
-    }, [dismissDistance, onClose, translateY, useNative]);
+    }, [dismissDistance, dismissible, onClose, snapBack, translateY, useNative]);
 
     const snapBody = useCallback(
       (target: number) => {
@@ -153,18 +175,6 @@ export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
     );
 
     const settleTranslate = useCallback(() => {
-      Animated.spring(translateY, {
-        toValue: 0,
-        damping: 20,
-        stiffness: 240,
-        mass: 0.85,
-        useNativeDriver: useNative,
-      }).start();
-    }, [translateY, useNative]);
-
-    // Non-expandable: simple drag-down-to-dismiss (unchanged behavior).
-    const snapBack = useCallback(() => {
-      isClosingRef.current = false;
       Animated.spring(translateY, {
         toValue: 0,
         damping: 20,

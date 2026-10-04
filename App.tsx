@@ -1269,6 +1269,8 @@ export default function App() {
       // all leave clips stuck at "0:00" until played). Queued work is paced and
       // yields to foreground audio, so this is safe to fire on every launch.
       enqueueMissingMetadataBackfill(useStore.getState().workspaces);
+      // A draft sketch left behind by a kill mid-edit would stay hidden forever.
+      appActions.recoverStrandedDrafts();
 
       // Recovery mode: if the library hydrated empty but the shadow manifest still holds
       // data, surface a restore prompt instead of silently presenting an empty, writable
