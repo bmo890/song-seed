@@ -362,12 +362,31 @@ structural change but still needs the literal cleanup and a full dark palette.
 its own as debt reduction and makes either route cheaper later.
 **Q6.** Is dark mode a launch requirement for you, or a post-launch item?
 
+## Founder's answers (2026-10-03)
+
+- Q1: **always one thread** (oldest = v1) when several clips become a sketch.
+- Q2: not decided by the founder; default = **newest clip is the primary take**
+  (the version you would play). Flip in one line if asked.
+- Q3: tags on **clips only** — reuse the existing clip tags in the collection.
+- Q4: dock vs card is a bigger issue — **set aside** for its own exploration
+  later. Item 6 (sounding card) still ships; option A's dock changes do NOT.
+- Q5: **full player**, opened straight into writing from the sketch's Lyrics
+  tab — but only as an opt-in for someone who wants to hear the audio; the tab
+  itself stays as it is. "Make sure it looks good."
+- Q6: dark mode is **post-launch** — set aside.
+- Clip rename counts as editing → stamp `lastActivityAt` for clip-kind title
+  changes too.
+
 ## Order of work
 
-1. Batch 1 (items 1–6 above), one commit each, one preview OTA, memory note.
-2. Batch 2 (7, 12) once Q5 is answered (7 does not depend on an answer).
-3. Batch 3 in the order 2 → 7 → 11-A, each after its question is answered.
-4. 11-B and dark mode are separate projects with their own plans.
+1. Batch 1 (items 1–6 above, plus clip-rename stamping in item 1), one
+   commit each, one preview OTA, memory note.
+2. Batch 2: 7 (waveforms), 12 (Lyrics tab → full player into writing, via a
+   store intent consumed by `usePlayerScreenUi`; the tab gains one quiet
+   "Write with the tape" ink link — not a transport row).
+3. Batch 3: threads (primary allowed; multi-select always threads, newest =
+   primary), then tags (clips only).
+4. Set aside: dock vs card unification (Q4), dark mode (Q6).
 
 ## Verification checklist per item
 
