@@ -556,11 +556,26 @@ function deriveIdeaLastActivityTimestamp(idea: SongIdea) {
         }
     }
 
-    if (typeof idea.lastActivityAt === "number") {
+    // An import stamps lastActivityAt with the import time. Importing is not
+    // editing: a library brought in on one day must not sort as "updated" that
+    // day (founder, 2026-10-03). Every real edit stamps Date.now() with ms
+    // precision, so "still equal to importedAt" means untouched since import —
+    // which also repairs ideas imported before this rule.
+    if (typeof idea.lastActivityAt === "number" && idea.lastActivityAt !== idea.importedAt) {
         lastTs = Math.max(lastTs, idea.lastActivityAt);
     }
 
     return lastTs;
+}
+
+/** Rename or notes edit on a clip idea — the edits that count as activity on it. */
+function clipIdeaWordsChanged(prev: SongIdea, next: SongIdea) {
+    if (prev.title !== next.title || prev.notes !== next.notes) return true;
+    if (prev.clips.length !== next.clips.length) return false;
+    return next.clips.some((clip, index) => {
+        const prevClip = prev.clips[index];
+        return prevClip.id === clip.id && (prevClip.title !== clip.title || prevClip.notes !== clip.notes);
+    });
 }
 
 function normalizeChordPlacement(chord: ChordPlacement | undefined, lineIndex: number, chordIndex: number): ChordPlacement {
@@ -2823,8 +2838,14 @@ export const createDataSlice: StateCreator<
                                     touchedCollectionIds.add(prevIdea.collectionId);
                                     touchedCollectionIds.add(normalized.collectionId);
                                 }
-                                if (normalized.kind !== "project") return normalized;
                                 if (options?.preserveActivity) return normalized;
+                                // A clip idea counts as edited only when its words change
+                                // (rename, notes) — founder's call 2026-10-03. Everything
+                                // else that passes through here (moves, metadata) is not
+                                // activity on the clip itself.
+                                if (normalized.kind !== "project" && !clipIdeaWordsChanged(prevIdea, normalized)) {
+                                    return normalized;
+                                }
                                 if (normalized.lastActivityAt > prevIdea.lastActivityAt) return normalized;
                                 return { ...normalized, lastActivityAt: now };
                             });

@@ -917,7 +917,8 @@ export const appActions = {
             createdAt,
             importedAt,
             sourceCreatedAt: payload.sourceCreatedAt,
-            lastActivityAt: importedAt,
+            // Importing is not editing — the clip's own date is its activity.
+            lastActivityAt: createdAt,
             clips: [
                 {
                     id: clipId,
@@ -1007,7 +1008,8 @@ export const appActions = {
                 createdAt,
                 importedAt,
                 sourceCreatedAt: payload.sourceCreatedAt,
-                lastActivityAt: importedAt,
+                // Importing is not editing — the clip's own date is its activity.
+                lastActivityAt: createdAt,
                 clips: [
                     {
                         id: clipId,
@@ -1116,7 +1118,8 @@ export const appActions = {
             createdAt,
             importedAt,
             sourceCreatedAt: payload.sourceCreatedAt,
-            lastActivityAt: importedAt,
+            // Importing is not editing — the clip's own date is its activity.
+            lastActivityAt: createdAt,
             clips,
             lyrics: createEmptyProjectLyrics(),
         };

@@ -129,6 +129,61 @@ describe("updateIdeas", () => {
     });
 });
 
+describe("activity on clip ideas (2026-10-03)", () => {
+    it("a rename counts as editing the clip", () => {
+        const store = makeStore();
+        const before = ideaOf(store, "clip-c").lastActivityAt;
+
+        store.getState().updateIdeas((ideas) =>
+            ideas.map((idea) => (idea.id === "clip-c" ? { ...idea, title: "Porch riff" } : idea))
+        );
+
+        expect(ideaOf(store, "clip-c").lastActivityAt).toBeGreaterThan(before);
+    });
+
+    it("a move between collections does not", () => {
+        const store = makeStore();
+        const before = ideaOf(store, "clip-c").lastActivityAt;
+
+        store.getState().updateIdeas((ideas) =>
+            ideas.map((idea) => (idea.id === "clip-c" ? { ...idea, collectionId: "col-b" } : idea))
+        );
+
+        expect(ideaOf(store, "clip-c").lastActivityAt).toBe(before);
+    });
+});
+
+describe("importing is not editing (2026-10-03)", () => {
+    const SOURCE = OLD - 400 * 24 * 60 * 60 * 1000;
+    const IMPORTED = OLD;
+
+    const importedClip = (id: string, lastActivityAt: number) => {
+        const idea = makeIdea(id, "clip") as unknown as Record<string, unknown>;
+        const clip = (idea.clips as Array<Record<string, unknown>>)[0]!;
+        return {
+            ...idea,
+            createdAt: SOURCE,
+            importedAt: IMPORTED,
+            sourceCreatedAt: SOURCE,
+            lastActivityAt,
+            clips: [{ ...clip, createdAt: SOURCE, importedAt: IMPORTED }],
+        } as never;
+    };
+
+    it("an idea still stamped with its import time sorts by its own date", () => {
+        const store = makeStore();
+        store.getState().updateIdeas((ideas) => [...ideas, importedClip("imp", IMPORTED)], { preserveActivity: true });
+        expect(ideaOf(store, "imp").lastActivityAt).toBe(SOURCE);
+    });
+
+    it("an imported idea edited afterwards keeps the edit as its activity", () => {
+        const store = makeStore();
+        const EDITED = IMPORTED + 5000;
+        store.getState().updateIdeas((ideas) => [...ideas, importedClip("imp", EDITED)], { preserveActivity: true });
+        expect(ideaOf(store, "imp").lastActivityAt).toBe(EDITED);
+    });
+});
+
 describe("updateIdeas no-op", () => {
     it("notifies nobody when the updater changes nothing", () => {
         const store = makeStore();
