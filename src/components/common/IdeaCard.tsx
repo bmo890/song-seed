@@ -271,6 +271,9 @@ export function IdeaCard({
     // The strip is the inline player only when the caller wired the new props;
     // otherwise (InlineIdeaCard et al.) the legacy slider row still renders.
     const stripIsInlinePlayer = inlineActive && onInlineScrub != null;
+    // Whatever is making sound — the dock's session or this card's own preview —
+    // wears one look, so the ear and the eye agree on which card it is.
+    const sounding = !!nowPlaying || !!inlineActive;
     // One glyph, two engines: while the dock/full-player session sits on this
     // exact clip the lead mirrors the session (so a minimized dock never shows an
     // enabled "play" that would start a second, competing preview); otherwise it
@@ -319,7 +322,7 @@ export function IdeaCard({
                         ? { borderLeftWidth: 3, borderLeftColor: accentBorderColor, paddingLeft: 8 }
                         : null,
                     (selected || isActive) ? styles.ideaDenseRowSelected : null,
-                    nowPlaying ? styles.ideaDenseRowNowPlaying : null,
+                    sounding ? styles.ideaDenseRowNowPlaying : null,
                     pickDisabled ? styles.btnDisabled : null,
                     containerStyle ?? null,
                 ]}
@@ -454,7 +457,7 @@ export function IdeaCard({
                 accentBorderColor ? styles.ideasListProjectCard : null,
                 accentBorderColor ? { borderLeftColor: accentBorderColor } : null,
                 (selected || isActive) ? styles.ideasListCardSelected : null,
-                nowPlaying ? styles.ideasListCardNowPlaying : null,
+                sounding ? styles.ideasListCardSounding : null,
                 isInsideTarget ? styles.cardInsideHover : null,
                 isDragActiveInside ? styles.cardActiveInside : null,
                 pickDisabled ? styles.btnDisabled : null,
@@ -541,7 +544,7 @@ export function IdeaCard({
                                             ? styles.ideasListCardTitleAuto
                                             : styles.ideasListCardTitleSerif,
                                         compact ? styles.ideasListCardTitleCompact : null,
-                                        nowPlaying ? { color: colors.primary } : null,
+                                        sounding ? { color: colors.primary } : null,
                                     ]}
                                     hitStyle={styles.ideasListCardTitleHighlight}
                                     numberOfLines={1}

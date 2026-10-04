@@ -1,6 +1,6 @@
 import { StyleSheet } from "react-native";
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
-import { colors, radii } from "../design/tokens";
+import { colors, radii, shadows } from "../design/tokens";
 
 // Ideas list rows, cards and list chrome.
 // Raw style objects — merged and registered once via StyleSheet.create in ../styles.ts.
@@ -75,10 +75,13 @@ export const ideasListStyles = {
   ideasListProjectCard: {
     borderLeftWidth: 3.5,
   },
-  ideasListCardNowPlaying: {
-    // Colour only — the shell already reserves the 2px border, so states may
-    // never change its width or the card resizes underneath the content.
+  ideasListCardSounding: {
+    // The card that is sounding — dock session or inline preview, one look
+    // (2026-10-03). Colour and lift only: the shell already reserves the 2px
+    // border, so states may never change its width or the card resizes
+    // underneath the content.
     borderColor: "rgba(184,125,107,0.4)",
+    ...shadows.cardActive,
   },
   ideasListCardSelected: {
     borderColor: "#B87D6B",
