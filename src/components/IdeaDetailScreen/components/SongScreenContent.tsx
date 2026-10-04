@@ -15,6 +15,7 @@ import { SongImportModal } from "./SongImportModal";
 import { SongParentPickBanner } from "./SongParentPickBanner";
 import { SongUndoBanner } from "./SongUndoBanner";
 import { SongEditSheet } from "./SongEditSheet";
+import { SongHeaderMenu } from "./SongHeaderMenu";
 import { useTranslation } from "react-i18next";
 
 export function SongScreenContent() {
@@ -88,6 +89,8 @@ export function SongScreenContent() {
           onCancel={() => editFlow.handleCancel()}
         />
       ) : null}
+      {/* Last child: its backdrop must sit over everything above. */}
+      <SongHeaderMenu />
     </SafeAreaView>
   );
 }

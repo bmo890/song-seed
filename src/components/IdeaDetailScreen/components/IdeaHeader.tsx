@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { View, Text, Pressable } from "react-native";
 import Animated, {
   Extrapolation,
@@ -8,48 +7,29 @@ import Animated, {
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
 import { styles } from "../styles";
-import { appActions } from "../../../state/actions";
 import { TitleInput } from "../../common/TitleInput";
 import { IconButton } from "../../common/IconButton";
 import { SideMenuButton } from "../../common/SideMenuButton";
 import { useSongScreen } from "../provider/SongScreenProvider";
 import { COMPACT_TITLE_FADE_IN_END, COMPACT_TITLE_FADE_IN_START } from "../headerCollapse";
-import { AppAlert } from "../../common/AppAlert";
-import { useStore } from "../../../state/useStore";
 import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../../i18n";
-import { useOriginLabel, useOriginRoute } from "../../../hooks/useOriginLabel";
-import { openIdeaInCollection } from "../../../navigation";
+import { useOriginLabel } from "../../../hooks/useOriginLabel";
 
 export function IdeaHeader() {
   const { t } = useTranslation();
-  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
-  const { screen, editFlow, actions, importFlow } = useSongScreen();
-  // While clips are selected, the bottom bar already offers a clip "Delete". Disable
-  // the song-level delete here so it can't be tapped by mistake mid-selection.
-  const isSelectingClips = useStore((s) => s.selectedClipIds.length > 0);
+  const { screen, editFlow, actions } = useSongScreen();
 
   const selectedIdea = screen.selectedIdea;
   // The back button is labelled with where back actually lands (2026-09-16): the
   // collection when this idea was opened from it, else the origin — Activity,
   // Search, the Shelf… Read from the route beneath, so label and action agree.
   const originLabel = useOriginLabel();
-  // "View in collection" earns a row only when back does NOT already land on this
-  // idea's collection — i.e. the sketch was opened from Activity, Search, the
-  // Shelf, a playlist… From its own collection the chevron is that action.
-  const originRoute = useOriginRoute();
-  const canViewInCollection =
-    !!selectedIdea?.collectionId &&
-    !selectedIdea.isDraft &&
-    originRoute?.params?.collectionId !== selectedIdea.collectionId;
-
   if (!selectedIdea) return null;
 
   const isEditMode = screen.isEditMode;
-  const playAllDisabled = !screen.isProject || actions.buildProjectQueue().length === 0;
-  const isNewProjectDraft = selectedIdea.isDraft;
   const titleLabel = selectedIdea.kind === "project" ? t("songDetail.song") : t("songDetail.clip");
   const isProject = selectedIdea.kind === "project";
   const scrollY = screen.scrollY;
@@ -155,7 +135,7 @@ export function IdeaHeader() {
               icon="ellipsis-horizontal"
               tone="muted"
               size={20}
-              onPress={() => setHeaderMenuOpen((prev) => !prev)}
+              onPress={() => screen.setHeaderMenuOpen(!screen.headerMenuOpen)}
               accessibilityLabel={t("common.moreOptions")}
             />
           </View>
@@ -176,134 +156,6 @@ export function IdeaHeader() {
             maxHeight={92}
             showGenerator={false}
           />
-        </View>
-      ) : null}
-
-      {/* Overflow menu */}
-      {headerMenuOpen ? (
-        <View style={styles.ideasHeaderMenuLayer} pointerEvents="box-none">
-          <Pressable
-            style={styles.ideasHeaderMenuBackdrop}
-            onPress={() => setHeaderMenuOpen(false)}
-          />
-          <View style={[styles.ideasSortMenu, styles.ideasHeaderOverflowMenu]}>
-            <Pressable
-              style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
-              onPress={() => {
-                setHeaderMenuOpen(false);
-                haptic.tap();
-                screen.setIsEditMode(true);
-              }}
-            >
-              <Text style={styles.ideasSortMenuItemText}>
-                {isProject ? t("songDetail.editSong") : t("songDetail.editClip")}
-              </Text>
-              <Ionicons name="create-outline" size={15} color={colors.textStrong} />
-            </Pressable>
-            {isProject ? (
-              <>
-                <View style={styles.ideasDropdownDivider} />
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.ideasToggleRow,
-                    playAllDisabled ? styles.btnDisabled : null,
-                    pressed ? styles.pressDown : null,
-                  ]}
-                  disabled={playAllDisabled}
-                  onPress={() => {
-                    setHeaderMenuOpen(false);
-                    haptic.tap();
-                    actions.playProjectQueue();
-                  }}
-                >
-                  <Text style={styles.ideasSortMenuItemText}>{t("songDetail.playAll")}</Text>
-                  <Ionicons name="play-outline" size={15} color={colors.textStrong} />
-                </Pressable>
-                <View style={styles.ideasDropdownDivider} />
-                {/* Import moved here from the "+" FAB — record stands alone. */}
-                <Pressable
-                  style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
-                  onPress={() => {
-                    setHeaderMenuOpen(false);
-                    haptic.tap();
-                    void importFlow.openImportAudioFlow();
-                  }}
-                >
-                  <Text style={styles.ideasSortMenuItemText}>{t("songDetail.import")}</Text>
-                  <Ionicons name="download-outline" size={15} color={colors.textStrong} />
-                </Pressable>
-              </>
-            ) : (
-              <>
-                <View style={styles.ideasDropdownDivider} />
-                <Pressable
-                  style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
-                  onPress={() => {
-                    setHeaderMenuOpen(false);
-                    haptic.tap();
-                    appActions.convertSelectedClipIdeaToProject();
-                    // Same step the other two sketch entry points take: name and
-                    // stage it now, while the intent is fresh (2026-09-10).
-                    screen.setIsEditMode(true);
-                  }}
-                >
-                  <Text style={styles.ideasSortMenuItemText}>{t("songDetail.makeSong")}</Text>
-                  <Ionicons name="albums-outline" size={15} color={colors.textStrong} />
-                </Pressable>
-              </>
-            )}
-            {canViewInCollection ? (
-              <>
-                <View style={styles.ideasDropdownDivider} />
-                {/* Same glyph, same meaning as the cards' button: open this idea's
-                    collection as a visit, scrolled to and highlighting its card.
-                    Navigation is silent — no haptic. */}
-                <Pressable
-                  testID="song-menu-view-in-collection"
-                  style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
-                  onPress={() => {
-                    setHeaderMenuOpen(false);
-                    openIdeaInCollection(screen.navigation, selectedIdea.id);
-                  }}
-                >
-                  <Text style={styles.ideasSortMenuItemText}>{t("songDetail.viewInCollection")}</Text>
-                  <Ionicons name="open-outline" size={15} color={colors.textStrong} />
-                </Pressable>
-              </>
-            ) : null}
-            {!isNewProjectDraft ? (
-              <>
-                <View style={styles.ideasDropdownDivider} />
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.ideasToggleRow,
-                    isSelectingClips ? styles.btnDisabled : null,
-                    pressed && !isSelectingClips ? styles.pressDown : null,
-                  ]}
-                  disabled={isSelectingClips}
-                  onPress={() => {
-                    setHeaderMenuOpen(false);
-                    AppAlert.destructive(
-                      isProject ? t("songDetail.deleteSongTitle") : t("songDetail.deleteClipTitle"),
-                      isProject
-                        ? t("songDetail.deleteSongBody", { title: selectedIdea.title })
-                        : t("songDetail.deleteClipBody", { title: selectedIdea.title }),
-                      () => {
-                        appActions.deleteSelectedIdea();
-                        screen.navigation.goBack();
-                      },
-                      { confirmLabel: t("common.delete") }
-                    );
-                  }}
-                >
-                  <Text style={isSelectingClips ? styles.ideasSortMenuItemText : styles.songDetailDangerMenuText}>
-                    {isProject ? t("songDetail.deleteSong") : t("songDetail.deleteClip")}
-                  </Text>
-                  <Ionicons name="trash-outline" size={15} color={isSelectingClips ? "#a89a96" : colors.danger} />
-                </Pressable>
-              </>
-            ) : null}
-          </View>
         </View>
       ) : null}
     </View>

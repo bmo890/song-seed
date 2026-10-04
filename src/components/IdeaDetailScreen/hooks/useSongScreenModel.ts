@@ -42,6 +42,9 @@ export function useSongScreenModel() {
   const isProject = selectedIdea?.kind === "project";
 
   const [isEditMode, setIsEditMode] = useState(false);
+  // The header's ⋯ menu lives at screen level (SongHeaderMenu) so its backdrop
+  // covers the whole page — a tap anywhere closes it (2026-10-03).
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   const [clipViewMode, setClipViewMode] = useState<"timeline" | "evolution">("evolution");
   const [timelineSortMetric, setTimelineSortMetric] = useState<SongTimelineSortMetric>("created");
   const [timelineSortDirection, setTimelineSortDirection] = useState<SongTimelineSortDirection>("desc");
@@ -160,6 +163,8 @@ export function useSongScreenModel() {
     navigateRoot,
     isEditMode,
     setIsEditMode,
+    headerMenuOpen,
+    setHeaderMenuOpen,
     clipViewMode,
     setClipViewMode,
     timelineSortMetric,
