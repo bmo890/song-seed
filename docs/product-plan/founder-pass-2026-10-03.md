@@ -403,8 +403,8 @@ preview --platform android` once per batch · update
 - [x] 4 Play works in selection mode (9110e535; + blank-strip-after-preview fix 39b5d21e)
 - [x] 5 "New sketch" glyph + label (b5e2233b)
 - [x] 6 Sounding card stands out (0a5c6cfe) — batch 1 preview OTA c3bac93c, Android unverified
-- [ ] 7 Waveforms: per-job flush, one decode, visible-first
-- [ ] 12 Lyrics tab transport (Q5)
+- [x] 7 Waveforms: per-job flush, one decode, visible-first (c6066bbc)
+- [x] 12 Lyrics tab → full player into writing (c1803d93) — batch 2 preview OTA, Android unverified
 - [ ] Threads: primary allowed, combine selection (Q1, Q2)
 - [ ] Tags in the collection (Q3)
 - [ ] Dock vs card: option A (Q4 for B)
