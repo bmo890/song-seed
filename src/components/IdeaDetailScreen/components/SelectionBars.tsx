@@ -448,6 +448,19 @@ export function SelectionBars() {
           screen.setClipViewMode("evolution");
         }),
     },
+    ...(selectedClips.length >= 2
+      ? [
+          {
+            key: "combine-thread",
+            label: t("songDetail.combineThread"),
+            icon: "git-commit-outline" as const,
+            onPress: () =>
+              parentPicking.handleCombineIntoThread(selectedClipIds, (nextUndo, message) => {
+                undo.showUndo(message, nextUndo);
+              }),
+          },
+        ]
+      : []),
     ...(selectedClips.length === 1
       ? [
           {

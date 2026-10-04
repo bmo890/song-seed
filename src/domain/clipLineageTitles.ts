@@ -86,49 +86,19 @@ export function buildLineageTitlePlan(
 
 /**
  * Chain clips into one lineage, oldest first (2026-10-03): v1 is the root,
- * every later clip a version of the one before it, the newest the head and the
- * primary take. `parentAssignedAt` carries each clip's own createdAt so the
- * thread keeps that order even if a clip was linked before it was recorded.
- * Titles become `base`, `base v2`, … so the thread reads as one at once.
+ * every later clip a version of the one before it, the newest the head.
+ * Titles are left alone — they are the writer's. `parentAssignedAt` is strictly
+ * increasing from the root's createdAt: clips imported in one batch can share a
+ * createdAt, and a tie would let the lineage sort them in any order.
  */
-export function threadClipsOldestToNewest(clips: ClipVersion[], baseTitle: string): ClipVersion[] {
+export function threadClipsOldestToNewest(clips: ClipVersion[]): ClipVersion[] {
   const ordered = [...clips].sort((a, b) =>
     a.createdAt !== b.createdAt ? a.createdAt - b.createdAt : a.id.localeCompare(b.id)
   );
-  const base = getBaseClipTitle(baseTitle) || baseTitle;
   const rootCreatedAt = ordered[0]?.createdAt ?? 0;
   return ordered.map((clip, index) => ({
     ...clip,
-    title: ordered.length > 1 ? buildLineageTitle(base, index) : clip.title,
     parentClipId: index === 0 ? undefined : ordered[index - 1].id,
-    // Strictly increasing from the root's createdAt: clips imported in one batch
-    // can share a createdAt, and a tie would let the lineage sort them in any
-    // order (v-numbers, primary mark and titles then disagreed).
     parentAssignedAt: index === 0 ? undefined : Math.max(clip.createdAt, rootCreatedAt + index),
-    isPrimary: index === ordered.length - 1,
   }));
-}
-
-/**
- * Titles for a draft sketch's thread once the sketch is named: every lineage of
- * more than one clip is retitled `base`, `base v2`, … Returns clipId → title for
- * the clips that change.
- */
-export function buildDraftThreadRenames(clips: ClipVersion[], sketchTitle: string): Map<string, string> {
-  const renames = new Map<string, string>();
-  const base = getBaseClipTitle(sketchTitle) || sketchTitle;
-  const seen = new Set<string>();
-  for (const clip of clips) {
-    if (seen.has(clip.id)) continue;
-    const lineage = findLineageForClip(clips, clip.id);
-    if (!lineage) continue;
-    const ordered = getLineageVersionClips(lineage);
-    ordered.forEach((member) => seen.add(member.id));
-    if (ordered.length < 2) continue;
-    ordered.forEach((member, index) => {
-      const nextTitle = buildLineageTitle(base, index);
-      if (member.title !== nextTitle) renames.set(member.id, nextTitle);
-    });
-  }
-  return renames;
 }

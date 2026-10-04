@@ -21,7 +21,6 @@ import type { ActivityEvent, IdeasHiddenDay, IdeasListState, Playlist, SongIdea,
 import { useStore } from "../../../state/useStore";
 import { getDateBucket } from "../../../domain/dateBuckets";
 import { getIdeaSortTimestamp } from "../../../domain/ideaSort";
-import { threadClipsOldestToNewest } from "../../../domain/clipLineageTitles";
 import { buildPlayableQueueFromIdeas } from "../../../domain/clipPresentation";
 import { haptic } from "../../../design/haptics";
 
@@ -325,12 +324,15 @@ export function CollectionFloatingActions() {
       getBaseClipTitle(targetClips[0].title) || buildDefaultIdeaTitle(),
       screen.ideas.filter((idea) => !convertingIds.has(idea.id)).map((idea) => idea.title)
     );
+    // The clips arrive as SEPARATE takes, newest first, the newest primary —
+    // never threaded on their own (founder, 2026-10-04: a sketch may gather a
+    // chorus's versions AND a verse AND a C part; which ones become one thread is
+    // the writer's call, made inside the sketch: select → Thread… → Combine).
+    const allClips = targetClips
+      .flatMap((idea) => idea.clips)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map((clip, index) => ({ ...clip, isPrimary: index === 0 }));
     const now = Date.now();
-    // Several clips become ONE thread (founder, 2026-10-03): oldest is v1, each
-    // later clip a version of the one before, the newest the head and the
-    // primary take. Titles read as a thread at once — "Title", "Title v2", … —
-    // and follow the sketch's name when it is given one (useSongEditFlow).
-    const allClips = threadClipsOldestToNewest(targetClips.flatMap((idea) => idea.clips), generatedTitle);
 
     const mergedProject: SongIdea = {
       id: projectId,

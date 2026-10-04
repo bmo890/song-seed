@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { threadClipsOldestToNewest } from "../../../domain/clipLineageTitles";
 import { AppAlert } from "../../common/AppAlert";
 import { useStore } from "../../../state/useStore";
 import type { ClipVersion, SongIdea } from "../../../types";
@@ -182,6 +183,37 @@ export function useSongParentPicking(selectedIdea: SongIdea | null | undefined, 
     setParentPickState(null);
   }
 
+  /**
+   * Several selected takes become ONE thread, oldest first (2026-10-04): each a
+   * version of the one before it, the newest the head. Titles stay the writer's.
+   * The explicit way to build a thread inside a sketch — a new sketch never
+   * threads its clips on its own.
+   */
+  function handleCombineIntoThread(rawClipIds: string[], onUndo: (undo: () => void, message: string) => void) {
+    const source = resolveParentEditingSource(rawClipIds);
+    if (!source || source.appliedClipIds.length < 2 || !selectedIdea) return;
+    const clips = source.appliedClipIds
+      .map((clipId) => clipMap.get(clipId))
+      .filter((clip): clip is ClipVersion => !!clip);
+    const threaded = threadClipsOldestToNewest(clips);
+    const previousParentByClipId = new Map<string, ParentChange>();
+    const nextParentByClipId = new Map<string, ParentChange>();
+    threaded.forEach((clip) => {
+      const before = clipMap.get(clip.id)!;
+      previousParentByClipId.set(clip.id, {
+        parentId: before.parentClipId ?? null,
+        parentAssignedAt: before.parentAssignedAt,
+      });
+      nextParentByClipId.set(clip.id, {
+        parentId: clip.parentClipId ?? null,
+        parentAssignedAt: clip.parentAssignedAt,
+      });
+    });
+    updateClipParents(selectedIdea.id, nextParentByClipId);
+    onUndo(() => updateClipParents(selectedIdea.id, previousParentByClipId), t("songDetail.combinedThread"));
+    setParentPickState(null);
+  }
+
   function handlePickParentTarget(targetClipId: string, onUndo: (undo: () => void, message: string) => void) {
     if (!selectedIdea || selectedIdea.kind !== "project" || !parentPickState) return;
     const targetClip = clipMap.get(targetClipId);
@@ -212,6 +244,7 @@ export function useSongParentPicking(selectedIdea: SongIdea | null | undefined, 
     parentPickMeta,
     handleStartSetParent,
     handleMakeRoot,
+    handleCombineIntoThread,
     handlePickParentTarget,
     clipMap,
   };
