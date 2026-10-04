@@ -228,6 +228,17 @@ function PlayerScreenInner({
   });
   const playerIdea = data.playerIdea;
   const playerClip = data.playerClip;
+  // Opened with an intent (the sketch's Lyrics tab: "write with the tape") —
+  // land straight in the writer once the sketch is the target, then clear it so
+  // the next plain open starts at the reel (2026-10-03).
+  const playerOpenIntent = useStore((s) => s.playerOpenIntent);
+  const openWriting = ui.openWriting;
+  useEffect(() => {
+    if (playerOpenIntent !== "write") return;
+    if (!playerIdea) return;
+    useStore.getState().setPlayerOpenIntent(null);
+    if (playerIdea.kind === "project") openWriting();
+  }, [playerOpenIntent, playerIdea, openWriting]);
   const resolvedDisplayDuration = data.displayDuration;
   const isMixUpdating = data.isOverdubPreviewRendering;
   // The Sound drawer's click summary — the take's whole grid, tempo changes included.

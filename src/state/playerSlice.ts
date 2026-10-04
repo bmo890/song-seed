@@ -36,6 +36,11 @@ export type PlayerSlice = {
      *  to the dock), the root provider drives queue auto-advance + source loading. */
     isPlayerScreenMounted: boolean;
     setPlayerScreenMounted: (mounted: boolean) => void;
+    /** What the full player should open into once it mounts — "write" lands it in
+     *  the lyrics writer against the slim reel (the sketch's Lyrics tab asks for
+     *  this, 2026-10-03). The player clears it on consumption. */
+    playerOpenIntent: "write" | null;
+    setPlayerOpenIntent: (intent: "write" | null) => void;
     /** Measured height of the media dock surface (0 when not visible). Used by
      *  SelectionDock and other bottom-anchored UI to avoid being covered. */
     playerDockHeight: number;
@@ -214,8 +219,11 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
         }),
     consumePlayerAutoplay: () => set({ playerShouldAutoplay: false }),
     isPlayerScreenMounted: false,
+    playerOpenIntent: null,
     // Layout/presence setters skip identical values: a no-op `set` still runs every
     // selector in the app and the persist partialize (2026-09-29).
+    setPlayerOpenIntent: (intent) =>
+        set((state) => (state.playerOpenIntent === intent ? state : { playerOpenIntent: intent })),
     setPlayerScreenMounted: (mounted) =>
         set((state) => (state.isPlayerScreenMounted === mounted ? state : { isPlayerScreenMounted: mounted })),
     playerDockHeight: 0,

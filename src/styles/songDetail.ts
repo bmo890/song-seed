@@ -312,6 +312,13 @@ export const songDetailStyles = {
   songDetailTabPanelWrap: {
     gap: 10,
   },
+  // A tab's one quiet way onward (the Lyrics tab's "Write with the tape"), set
+  // on the title's start x and kept clear of the panel beneath.
+  songDetailTabLinkRow: {
+    flexDirection: "row",
+    paddingHorizontal: 2,
+    marginBottom: -4,
+  },
   songDetailTabPanelCard: {
     width: "100%",
   },

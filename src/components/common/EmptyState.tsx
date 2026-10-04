@@ -1,10 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radii, spacing } from "../../design/tokens";
-import { dirIcon } from "../../design/directionalIcons";
-import { haptic } from "../../design/haptics";
-import { styles } from "../../styles";
 import { Button } from "./Button";
+import { InkLink } from "./InkLink";
 import { Ledger } from "./Ledger";
 
 /**
@@ -49,22 +47,7 @@ export function EmptyState({
   variant?: "default" | "ledger";
   testID?: string;
 }) {
-  const link =
-    linkLabel && onLink ? (
-      <Pressable
-        onPress={() => {
-          haptic.tap();
-          onLink();
-        }}
-        style={({ pressed }) => [s.link, pressed ? styles.pressDown : null]}
-        accessibilityRole="link"
-        accessibilityLabel={linkLabel}
-        hitSlop={8}
-      >
-        <Text style={s.linkText}>{linkLabel}</Text>
-        <Ionicons name={dirIcon("chevron-forward")} size={14} color={colors.primaryDeep} />
-      </Pressable>
-    ) : null;
+  const link = linkLabel && onLink ? <InkLink label={linkLabel} onPress={onLink} /> : null;
 
   if (variant === "ledger") {
     return (
@@ -142,18 +125,6 @@ const s = StyleSheet.create({
   },
   action: {
     marginTop: spacing.md,
-  },
-  link: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    minHeight: 36,
-  },
-  linkText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13.5,
-    color: colors.primaryDeep,
-    letterSpacing: 0.2,
   },
 
   // ── Ledger variant (Shelf only) ──────────────────────────────────────────
