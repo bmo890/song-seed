@@ -442,6 +442,10 @@ export function SelectionBars() {
       : []),
   ];
 
+  const allSongClips = selectedIdea?.clips ?? [];
+  const anySelectedInThread = selectedClips.some(
+    (clip) => !!clip.parentClipId || allSongClips.some((other) => other.parentClipId === clip.id)
+  );
   const threadActions: SelectionAction[] = [
     {
       key: "set-parent",
@@ -476,6 +480,22 @@ export function SelectionBars() {
             label: t("songDetail.startThread"),
             icon: "radio-button-on-outline" as const,
             onPress: handleStartNewThread,
+          },
+        ]
+      : []),
+    // Several takes: no Branch/Split choice (copying several files is not a
+    // thing anyone asks for) — straight to taking them out, offered only when
+    // at least one of them is actually in a thread (founder, 2026-10-05).
+    ...(selectedClips.length >= 2 && anySelectedInThread
+      ? [
+          {
+            key: "make-root",
+            label: t("songDetail.startThread"),
+            icon: "radio-button-on-outline" as const,
+            onPress: () =>
+              parentPicking.handleMakeRoot(selectedClipIds, (nextUndo, message) => {
+                undo.showUndo(message, nextUndo);
+              }),
           },
         ]
       : []),
