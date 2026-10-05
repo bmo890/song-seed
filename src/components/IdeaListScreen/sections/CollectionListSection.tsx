@@ -12,6 +12,9 @@ import { createListGeometry } from "../listGeometry";
 import { StyleSheet } from "react-native";
 import { styles } from "../../../styles";
 
+/** Room left above a card scrolled into view: the sticky day chip and a breath. */
+const FOCUS_SCROLL_INSET = 112;
+
 export function CollectionListSection({
   contentPaddingTop,
   topContent,
@@ -34,6 +37,10 @@ export function CollectionListSection({
   useEffect(() => {
     ideasSortRef.current = ideasSort;
   }, [ideasSort]);
+
+  // Exact row geometry for getItemLayout: rows report their measured heights,
+  // the list re-lays its spacers when a measurement changes what follows it.
+  const [geometry] = useState(() => createListGeometry());
 
   useEffect(() => {
     if (screen.isFocused) return;
@@ -111,35 +118,36 @@ export function CollectionListSection({
     }
 
     screen.handledFocusTokenRef.current = screen.focusToken;
-    screen.markRecentlyAdded([screen.focusIdeaId]);
     if (screen.focusScrollTimerRef.current) {
       clearTimeout(screen.focusScrollTimerRef.current);
       screen.focusScrollTimerRef.current = null;
     }
 
+    // Where the card sits in the LIST: its row's offset from the list geometry
+    // (the same numbers getItemLayout hands the list), plus where the card sits
+    // inside its row (a day divider can sit above it). The per-row onLayout y
+    // alone is local to the row — scrolling to it went back to the top, and the
+    // highlight played off screen (queue go-to, 2026-10-05).
+    const focusIdeaId = screen.focusIdeaId!;
+    const offsetOfFocus = () => {
+      const index = screen.listEntries.findIndex((entry) => entry.type === "idea" && entry.ideaId === focusIdeaId);
+      if (index < 0) return null;
+      const inRow = screen.rowLayoutsRef.current[focusIdeaId]?.y ?? 0;
+      return Math.max(0, geometry.offsetOf(index) + inRow - FOCUS_SCROLL_INSET);
+    };
     const scrollToFocusedIdea = (attempt: number) => {
-      const layout = screen.rowLayoutsRef.current[screen.focusIdeaId!];
-      if (layout) {
-        screen.listRef.current?.scrollToOffset?.({
-          offset: Math.max(0, layout.y - 112),
-          animated: attempt > 0,
-        });
+      const offset = offsetOfFocus();
+      if (offset == null) return;
+      screen.listRef.current?.scrollToOffset?.({ offset, animated: false });
+      // Rows near the target measure themselves once mounted, which can move
+      // it from the estimate; one settle pass lands it exactly.
+      if (attempt >= 2) {
+        // Flash only once the card has landed in view: the flash lasts about a
+        // second, and starting it with the jump spent most of it off screen.
+        screen.markRecentlyAdded([focusIdeaId]);
         return;
       }
-
-      if (attempt === 0) {
-        screen.listRef.current?.scrollToIndex?.({
-          index: targetIndex,
-          animated: false,
-          viewPosition: 0.35,
-        });
-      }
-
-      if (attempt >= 3) return;
-
-      screen.focusScrollTimerRef.current = setTimeout(() => {
-        scrollToFocusedIdea(attempt + 1);
-      }, 90);
+      screen.focusScrollTimerRef.current = setTimeout(() => scrollToFocusedIdea(attempt + 1), 120);
     };
 
     scrollToFocusedIdea(0);
@@ -149,6 +157,7 @@ export function CollectionListSection({
     ideasSort,
     screen.activeTimelineMetric,
     screen.collectionId,
+    geometry,
     screen.focusIdeaId,
     screen.focusToken,
     screen.focusScrollTimerRef,
@@ -248,9 +257,7 @@ export function CollectionListSection({
     stickyDayStore.setScrubLabel(labels?.scrub ?? null);
   }, []);
 
-  // Exact row geometry for getItemLayout: rows report their measured heights,
-  // the list re-lays its spacers when a measurement changes what follows it.
-  const [geometry] = useState(() => createListGeometry());
+  // (Row geometry is declared at the top: the focus effect reads it.)
   const [layoutVersion, setLayoutVersion] = useState(0);
   const listGap = useMemo(
     () =>

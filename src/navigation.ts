@@ -102,10 +102,24 @@ export type RootStackParamList = {
 /** Nested params for `Home` that open a screen inside the drawer. */
 export type HomeNestedParams = NavigatorScreenParams<HomeDrawerParamList>;
 
+/** The app's navigation container, registered once by App. The full player is a
+ *  root-level sheet, not a screen: it hands its children a three-method shim
+ *  (goBack/canGoBack/navigate) with no parent, state or dispatch — so a root
+ *  helper given that shim used to resolve the shim as the "root" and quietly do
+ *  nothing (the queue's go-to only minimized the player, 2026-10-05). */
+let registeredRootNavigation: any = null;
+
+export function registerRootNavigation(container: any) {
+  registeredRootNavigation = container;
+}
+
 export function getRootNavigation(navigation: any) {
   let currentNavigation = navigation;
   while (currentNavigation?.getParent?.()) {
     currentNavigation = currentNavigation.getParent();
+  }
+  if (!currentNavigation?.dispatch && registeredRootNavigation?.isReady?.()) {
+    return registeredRootNavigation;
   }
   return currentNavigation;
 }

@@ -98,7 +98,7 @@ import type {
   RootStackParamList,
   WorkspaceStackParamList,
 } from "./src/navigation";
-import { openIdeaInCollection } from "./src/navigation";
+import { openIdeaInCollection, registerRootNavigation } from "./src/navigation";
 import { beginUiActivity, endUiActivity } from "./src/services/interactionGate";
 import { countReceivedPackages, unopenedReceivedCount } from "./src/domain/workspaceVisibility";
 import { cleanupStaleShareTempFiles, purgeExpiredTrash } from "./src/services/managedMedia";
@@ -117,6 +117,9 @@ import { checkClipboardForTransfer } from "./src/services/clipboardTransferCheck
 
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
+// Root helpers given a navigation with no parent (the player sheet's shim) fall
+// back to this container.
+registerRootNavigation(navigationRef);
 import { onHydrationResult, useStore } from "./src/state/useStore";
 import {
   getHydrationDegradedWorkspaceIds,

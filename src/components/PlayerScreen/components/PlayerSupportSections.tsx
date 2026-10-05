@@ -72,7 +72,11 @@ function PlayerSupportSectionsInner({
   const openIdeaFromQueue = useCallback(
     (ideaId: string) => {
       onToggleQueueExpanded(false);
-      onQueueOpenIdea(ideaId);
+      // Minimize on the NEXT frame: the minimize starts the sheet's motion, and the
+      // player's freeze wall returns its last frame while the sheet moves — closing
+      // and minimizing in one render left the queue sheet frozen open over the
+      // collection it had just jumped to (2026-10-05). One frame lets the close land.
+      requestAnimationFrame(() => onQueueOpenIdea(ideaId));
     },
     [onQueueOpenIdea, onToggleQueueExpanded]
   );
