@@ -33,6 +33,9 @@ export function SelectionBars() {
   // Second-level sheets under "More" — the overflow lists intents, each intent
   // opens its own short sheet (same close-then-open handoff the group sheet uses).
   const [subSheet, setSubSheet] = useState<"copyMove" | "share" | "thread" | null>(null);
+  // The thread sheet opens from the dock (several takes) or from More (one take);
+  // its back chevron only exists when there is a More to go back to.
+  const [threadFromDock, setThreadFromDock] = useState(false);
   const [tagSheetVisible, setTagSheetVisible] = useState(false);
   const [groupSheetVisible, setGroupSheetVisible] = useState(false);
   const globalCustomClipTags = useStore((s) => s.globalCustomClipTags);
@@ -374,11 +377,16 @@ export function SelectionBars() {
             onPress: handlePlaySelected,
             disabled: playableSelectedCount === 0,
           },
+          // Threading several takes is the common move here; tags are rarer and
+          // live in More (founder, 2026-10-05).
           {
-            key: "tags",
-            label: t("songDetail.tags"),
-            icon: "pricetag-outline",
-            onPress: () => setTagSheetVisible(true),
+            key: "thread",
+            label: t("selection.threadTitle"),
+            icon: "git-branch-outline",
+            onPress: () => {
+              setThreadFromDock(true);
+              setSubSheet("thread");
+            },
           },
           groupDockAction,
           {
@@ -495,17 +503,28 @@ export function SelectionBars() {
           opens: true,
         }
       : shareAction,
-    ...(threadActions.length > 0
+    // Several takes reach Thread from the dock; one take reaches it here.
+    ...(selectedClips.length === 1 && threadActions.length > 0
       ? [
           {
             key: "thread",
             label: t("selection.thread"),
             icon: "git-branch-outline" as const,
-            onPress: () => setSubSheet("thread"),
+            onPress: () => {
+              setThreadFromDock(false);
+              setSubSheet("thread");
+            },
             opens: true,
           },
         ]
       : []),
+    {
+      key: "tags",
+      label: t("selection.tagClips"),
+      icon: "pricetag-outline",
+      onPress: () => setTagSheetVisible(true),
+      opens: true,
+    },
     ...(selectedClips.length === 1 && singleSelectedClip
       ? [
           {
@@ -569,7 +588,7 @@ export function SelectionBars() {
 
       <SelectionActionSheet
         visible={subSheet === "thread"}
-        onBack={() => setMoreVisible(true)}
+        onBack={threadFromDock ? undefined : () => setMoreVisible(true)}
         title={t("selection.threadTitle")}
         actions={threadActions}
         onClose={() => setSubSheet(null)}
