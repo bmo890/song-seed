@@ -6,7 +6,7 @@ export function SongClipListParentPickHint() {
   const { t } = useTranslation();
   return (
     <View style={styles.songDetailParentPickInlineHint}>
-      <Text style={styles.songDetailParentPickInlineTitle}>{t("songDetail.chooseParent")}</Text>
+      {/* The banner above already names the action; here, just where to tap. */}
       <Text style={styles.songDetailParentPickInlineText}>{t("songDetail.chooseParentHint")}</Text>
     </View>
   );
