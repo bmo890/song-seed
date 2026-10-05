@@ -7,8 +7,10 @@ founder's answer, and one deferral. Everything below is code-verified
 
 ## Handoff rules (read first)
 
-- Standing constraints: **preview channel only — production OTA is HELD until
-  the founder confirms on Android.** Publish with
+- Standing constraints: the production hold was LIFTED by the founder on
+  2026-10-05 — everything through 52104038 is on production (Android c181cc35,
+  iOS 96d26995). New work goes to preview first again until the founder says
+  otherwise. Publish with
   `eas update --channel preview --platform android -m "<msg>"` (never
   `--platform all`; expo-sqlite web breaks the bundle). JS-only changes reach
   the installed APK (build 5ad14560, runtime 1.0.0) on the second cold launch.
