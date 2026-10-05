@@ -40,6 +40,9 @@ export const colors = {
    *  the button language, paired with primaryDeep text or icon. Was written out as a bare
    *  #F2E4DF in six places before it had a name. */
   primarySurface: "#F2E4DF",
+  /** Terracotta at 40% — the outline of the card that is sounding. Sits on the
+   *  card's reserved 2px border so the state never changes its size. */
+  primaryOutline: "rgba(184,125,107,0.4)",
 
   /**
    * Section ink (locked 2026-08-01) — one colour per structural role, stable across every

@@ -80,7 +80,7 @@ export const ideasListStyles = {
     // (2026-10-03). Colour and lift only: the shell already reserves the 2px
     // border, so states may never change its width or the card resizes
     // underneath the content.
-    borderColor: "rgba(184,125,107,0.4)",
+    borderColor: colors.primaryOutline,
     ...shadows.cardActive,
   },
   ideasListCardSelected: {
