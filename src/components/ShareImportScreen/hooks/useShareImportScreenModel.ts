@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AppAlert } from "../../common/AppAlert";
+import { reportUnsupportedImports } from "../../common/importFeedback";
 import { useNavigation } from "@react-navigation/native";
 import { useShareIntentContext } from "expo-share-intent";
 import { useStore } from "../../../state/useStore";
@@ -318,6 +319,7 @@ export function useShareImportScreenModel({
             }
           );
           clipBatcher.flush();
+          reportUnsupportedImports(failed);
 
           if (imported.length === 0) {
             useImportStore.getState().updateJob(jobId, { status: "error" });
@@ -524,6 +526,7 @@ export function useShareImportScreenModel({
             }
           );
           batcher.flush();
+          reportUnsupportedImports(failed);
 
           if (imported.length === 0) {
             deleteCollection(collectionId);

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { appActions } from "../../../state/actions";
+import { reportUnsupportedImports } from "../../common/importFeedback";
 import { buildCollectionMoveDestinations } from "../../../domain/collectionManagement";
 import { ensureUniqueCountedTitle } from "../../../utils";
 import {
@@ -145,6 +146,7 @@ export function useWorkspaceCollectionImportFlow({
             }
           );
           batcher.flush();
+          reportUnsupportedImports(failed);
 
           if (imported.length === 0) {
             deleteCollection(collectionId);

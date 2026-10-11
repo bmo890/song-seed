@@ -7,6 +7,8 @@ import { buildDefaultIdeaTitle, buildStaticWaveform } from "../utils";
 import { SONG_NOOK_AUDIO_DIR, SONG_NOOK_PREVIEW_AUDIO_DIR, SONG_NOOK_SHARE_DIR } from "./storagePaths";
 import { cleanupShareTempFile } from "./managedMedia";
 import { createZipArchive, type ZipArchiveEntry } from "./zipArchive";
+import SongNookPitchShiftModule from "../../modules/songnook-pitch-shift";
+import { UnsupportedAudioFormatError, isAiffExtension } from "./audioImportFormat";
 
 export const MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS = 30 * 60 * 1000;
 export const MANAGED_WAVEFORM_PEAK_COUNT = 256;
@@ -473,6 +475,28 @@ export async function listDevSampleAudioAssets(): Promise<ImportedAudioAsset[]> 
     }
 }
 
+/**
+ * AIFF → M4A on iOS: a full-range pass through the native trim renderer (an
+ * AVAssetExportSession, which reads AIFF and writes AAC). Returns the temp file
+ * to copy from. Anything short of a clean render is refused as unsupported —
+ * the alternative is a clip that imports and then never plays.
+ */
+async function convertAiffToM4a(sourceUri: string, targetId: string): Promise<string> {
+    const native = SongNookPitchShiftModule;
+    const durationMs = await getNativeAudioDurationMs(sourceUri).catch(() => undefined);
+    if (!native?.renderTrim || !durationMs) throw new UnsupportedAudioFormatError("aiff");
+    try {
+        const result = await native.renderTrim({
+            inputUri: sourceUri,
+            ranges: [{ startTimeMs: 0, endTimeMs: durationMs }],
+            outputFileName: `${targetId}-import.m4a`,
+        });
+        return result.outputUri;
+    } catch (error) {
+        throw new UnsupportedAudioFormatError("aiff", error instanceof Error ? error.message : undefined);
+    }
+}
+
 export async function importAudioAsset(
     asset: ImportedAudioAsset,
     targetId: string,
@@ -480,13 +504,26 @@ export async function importAudioAsset(
 ): Promise<ManagedAudioResult> {
     await ensureAudioDirectory();
 
-    const extension = getFileExtension(asset.name, asset.mimeType);
+    let sourceUri = asset.uri;
+    let extension = getFileExtension(asset.name, asset.mimeType);
+    let convertedTempUri: string | null = null;
+    if (isAiffExtension(extension)) {
+        // Android can't decode AIFF at all (see audioImportFormat.ts); iOS keeps
+        // the import by converting it. Either way the library never holds an AIFF.
+        if (Platform.OS !== "ios") throw new UnsupportedAudioFormatError(extension);
+        convertedTempUri = await convertAiffToM4a(asset.uri, targetId);
+        sourceUri = convertedTempUri;
+        extension = "m4a";
+    }
     const destinationUri = `${SONG_NOOK_AUDIO_DIR}/${targetId}.${extension}`;
-    const copiedToManagedStorage = asset.uri !== destinationUri;
+    const copiedToManagedStorage = sourceUri !== destinationUri;
 
     try {
         if (copiedToManagedStorage) {
-            await FileSystem.copyAsync({ from: asset.uri, to: destinationUri });
+            await FileSystem.copyAsync({ from: sourceUri, to: destinationUri });
+        }
+        if (convertedTempUri) {
+            await FileSystem.deleteAsync(convertedTempUri, { idempotent: true }).catch(() => {});
         }
 
         const metadata = await loadManagedAudioMetadata(

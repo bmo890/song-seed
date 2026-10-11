@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AppAlert } from "../../common/AppAlert";
+import { reportUnsupportedImports } from "../../common/importFeedback";
 import {
   buildImportedTitle,
   importAudioAsset,
@@ -158,6 +159,7 @@ export function useCollectionImportFlow({
             }
           );
           batcher.flush();
+          reportUnsupportedImports(failed);
 
           useImportStore.getState().updateJob(jobId, {
             current: imported.length,
@@ -390,6 +392,7 @@ export function useCollectionImportFlow({
             },
             { lightweight: true }
           );
+          reportUnsupportedImports(imported.failed);
           const projectClipTitles: string[] = [];
           const projectTitle = draftSnapshot.trim() || buildImportedProjectTitle(assets);
           const importedProject = appActions.importProjectToCollection(targetCollectionId, {

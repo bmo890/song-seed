@@ -1311,7 +1311,7 @@ export const resources = {
         creating: "Creating link…", copied: "Link copied — expires soon", share: "Share", emptyTitle: "Nothing to share", failureTitle: "Couldn't create link", retry: "Please try again.",
       },
       collectionImport: {
-        chooseCollection: "Choose a collection", chooseCollectionBody: "Open a collection before importing audio.", title: "Import audio", chooseBody: "Choose how to add {{count}} files into {{title}}.",
+        chooseCollection: "Choose a collection", chooseCollectionBody: "Open a collection before importing audio.", unsupportedFormatTitle: "AIFF isn’t supported on Android", unsupportedFormatBody: "Export it as WAV or M4A from your DAW, then import again.", title: "Import audio", chooseBody: "Choose how to add {{count}} files into {{title}}.",
       },
       selection: {
         add: "Add",
@@ -2811,7 +2811,7 @@ export const resources = {
         creating: "יוצרים קישור…", copied: "הקישור הועתק — הוא יפוג בקרוב", share: "שיתוף", emptyTitle: "אין מה לשתף", failureTitle: "לא הצלחנו ליצור קישור", retry: "נסו שוב.",
       },
       collectionImport: {
-        chooseCollection: "בחירת אוסף", chooseCollectionBody: "פתחו אוסף לפני ייבוא שמע.", title: "ייבוא שמע", chooseBody: "איך להוסיף {{count}} קבצים אל {{title}}?",
+        chooseCollection: "בחירת אוסף", chooseCollectionBody: "פתחו אוסף לפני ייבוא שמע.", unsupportedFormatTitle: "AIFF לא נתמך באנדרואיד", unsupportedFormatBody: "ייצאו אותו כ־WAV או M4A מה־DAW, ואז ייבאו שוב.", title: "ייבוא שמע", chooseBody: "איך להוסיף {{count}} קבצים אל {{title}}?",
       },
       selection: {
         add: "הוספה",

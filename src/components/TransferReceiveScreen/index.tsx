@@ -1,4 +1,5 @@
 import { returnHome } from "../../navigation";
+import { reportUnsupportedImports } from "../common/importFeedback";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -169,6 +170,7 @@ export function TransferReceiveScreen() {
           }
         );
         batcher.flush();
+        reportUnsupportedImports(audioImport.failed);
         if (audioImport.failed.length > 0) {
           throw new Error(
             t("transferReceive.importFailed", { count: audioImport.failed.length })
