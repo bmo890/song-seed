@@ -20,6 +20,8 @@ type IdeaListSelectionZoneProps = {
   onDeleteSelected: () => void;
   onEditSelected: () => void;
   onQuickRecord: () => void;
+  /** A received package has no record key — nothing is created inside it. */
+  hideRecord?: boolean;
   onFloatingDockLayout: (height: number) => void;
   onSelectionDockLayout: (height: number) => void;
 };
@@ -39,6 +41,7 @@ export function IdeaListSelectionZone({
   onDeleteSelected,
   onEditSelected,
   onQuickRecord,
+  hideRecord = false,
   onFloatingDockLayout,
   onSelectionDockLayout,
 }: IdeaListSelectionZoneProps) {
@@ -65,7 +68,7 @@ export function IdeaListSelectionZone({
           selectedClipIdeasCount={selectedClipIdeasCount}
           onDockLayout={onSelectionDockLayout}
         />
-      ) : (
+      ) : hideRecord ? null : (
         <ActionButtons
           onQuickRecord={onQuickRecord}
           onDockLayout={onFloatingDockLayout}

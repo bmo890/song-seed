@@ -10,6 +10,8 @@ import { getHierarchyIconName } from "../../../domain/hierarchy";
 import { durations } from "../../../design/motion";
 import { colors } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
+import { AppAlert } from "../../common/AppAlert";
+import { toast } from "../../common/toastStore";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 
@@ -69,6 +71,65 @@ export function CollectionHeaderMenu() {
           <Text style={styles.ideasSortMenuItemText} numberOfLines={1}>{t("collection.playAll")}</Text>
           <Ionicons name="play" size={15} color={colors.textSecondary} />
         </Pressable>
+        {screen.isReceivedWorkspace ? (
+          // A received package is looked at, kept, or discarded — its two
+          // exits live here, and nothing is created inside it.
+          <>
+            <View style={styles.ideasDropdownDivider} />
+            <Pressable
+              testID="collection-menu-adopt-package"
+              style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
+              onPress={() => {
+                haptic.tap();
+                screen.setHeaderMenuOpen(false);
+                const pkg = screen.activeWorkspace;
+                if (!pkg) return;
+                AppAlert.confirm(
+                  t("received.adoptTitle"),
+                  t("received.adoptBody", { title: pkg.title }),
+                  () => {
+                    useStore.getState().adoptReceivedWorkspace(pkg.id);
+                    // haptics vocabulary: `success` — a meaningful completion, paired with a toast.
+                    haptic.success();
+                    toast(t("received.adopted"), "checkmark-outline");
+                  },
+                  { confirmLabel: t("received.move") }
+                );
+              }}
+            >
+              <Text style={styles.ideasSortMenuItemText} numberOfLines={1}>{t("received.moveWorkspaces")}</Text>
+              <Ionicons name="arrow-forward-outline" size={15} color={colors.textSecondary} />
+            </Pressable>
+            <View style={styles.ideasDropdownDivider} />
+            <Pressable
+              testID="collection-menu-delete-package"
+              style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
+              onPress={() => {
+                haptic.tap();
+                screen.setHeaderMenuOpen(false);
+                const pkg = screen.activeWorkspace;
+                if (!pkg) return;
+                AppAlert.destructive(
+                  t("received.deleteTitle"),
+                  t("received.deleteBody", { title: pkg.title, items: t("received.items", { count: pkg.ideas.length }) }),
+                  () => {
+                    useStore.getState().deleteWorkspace(pkg.id);
+                    haptic.success();
+                    screen.onBack?.();
+                  },
+                  { confirmLabel: t("common.delete") }
+                );
+              }}
+            >
+              <Text style={[styles.ideasSortMenuItemText, { color: colors.danger }]} numberOfLines={1}>
+                {t("received.deletePackage")}
+              </Text>
+              <Ionicons name="trash-outline" size={15} color={colors.danger} />
+            </Pressable>
+          </>
+        ) : null}
+        {!screen.isReceivedWorkspace ? (
+        <>
         <View style={styles.ideasDropdownDivider} />
         {/* Creation rows — moved here from the "+" FAB (single-FAB rule): the
             record FAB stays THE action; new-song and import are overflow work.
@@ -99,6 +160,8 @@ export function CollectionHeaderMenu() {
           <Text style={styles.ideasSortMenuItemText} numberOfLines={1}>{t("collection.import")}</Text>
           <Ionicons name="download-outline" size={15} color={colors.textSecondary} />
         </Pressable>
+        </>
+        ) : null}
         {__DEV__ ? (
           <>
             <View style={styles.ideasDropdownDivider} />

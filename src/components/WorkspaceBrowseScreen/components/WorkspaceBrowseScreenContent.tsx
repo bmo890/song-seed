@@ -20,7 +20,7 @@ import { SearchField } from "../../common/SearchField";
 import { PickerEyebrow } from "../../common/PickerEyebrow";
 import { PickerFooter } from "../../common/PickerFooter";
 import { WorkspacePickSheet } from "../../common/WorkspacePickSheet";
-import { personalWorkspaces } from "../../../domain/workspaceVisibility";
+import { personalWorkspaces, receivedPackages } from "../../../domain/workspaceVisibility";
 import { dirIcon } from "../../../design/directionalIcons";
 import { useLibraryCollectorHandlers } from "../../../hooks/useLibraryCollectorHandlers";
 import { getLibraryCollectorIcon } from "../../../domain/libraryCollectorPresentation";
@@ -59,7 +59,10 @@ function WorkspaceBrowseInner() {
   const pickCount = libraryCollector?.picks.length ?? 0;
   const collectionsModel = useWorkspaceCollectionsModel();
   const pickFromWorkspace = (workspaceId: string) => {
-    useStore.getState().setActiveWorkspaceId(workspaceId);
+    // A received package is browsed by route param only — it never becomes
+    // the active workspace (that would point the recorder at it).
+    const picked = useStore.getState().workspaces.find((workspace) => workspace.id === workspaceId);
+    if (picked?.origin !== "received") useStore.getState().setActiveWorkspaceId(workspaceId);
     navigation.setParams({ workspaceId });
   };
   const [searchOpen, setSearchOpen] = useState(false);
@@ -368,6 +371,7 @@ function WorkspaceBrowseInner() {
       <WorkspacePickSheet
         visible={workspaceSheetOpen}
         workspaces={personalWorkspaces(collectionsModel.workspaces).filter((workspace) => !workspace.isArchived)}
+        receivedWorkspaces={receivedPackages(collectionsModel.workspaces)}
         currentWorkspaceId={collectionsModel.activeWorkspace.id}
         onPick={pickFromWorkspace}
         onClose={() => setWorkspaceSheetOpen(false)}

@@ -15,6 +15,7 @@ import {
   openCollectionInBrowse,
   openParentCollection,
   openWorkspaceBrowseRoot,
+  returnHome,
 } from "../../../navigation";
 import { useOriginLabel } from "../../../hooks/useOriginLabel";
 import { getFloatingActionDockBottomOffset, getFloatingActionDockContentClearance } from "../../common/FloatingActionDock";
@@ -23,6 +24,7 @@ import type { IdeaListEntry, IdeaListItemMeta, SearchMeta } from "../types";
 import { stickyDayStore } from "../stickyDayStore";
 import type { SongIdea } from "../../../types";
 import { useTranslation } from "react-i18next";
+import type { IdeaSort } from "../../../types";
 
 export function useCollectionScreenModel() {
   const { t } = useTranslation();
@@ -68,7 +70,10 @@ export function useCollectionScreenModel() {
   const recordingIdeaId = useStore((s) => s.recordingIdeaId);
   const ideasFilter = useStore((s) => s.ideasFilter);
   const ideasTagFilter = useStore((s) => s.ideasTagFilter);
-  const ideasSort = useStore((s) => s.ideasSort);
+  const storeIdeasSort = useStore((s) => s.ideasSort);
+  // A received package reads in the sender's order — oldest stamp first —
+  // whatever sort the rest of the library is on (2026-10-11).
+  const ideasSort: IdeaSort = activeWorkspace?.origin === "received" ? "oldest" : storeIdeasSort;
   const listSelectionMode = useStore((s) => s.listSelectionMode);
   const selectedListIdeaIds = useStore((s) => s.selectedListIdeaIds);
   // The page is a picker: a compilation is collecting, or the Lyrics Pad is
@@ -420,6 +425,9 @@ export function useCollectionScreenModel() {
   // the workspace hub for a top-level one. Not the breadcrumb TRAIL that was
   // retired: one hop, one label.
   const parentCollection = collectionAncestors[collectionAncestors.length - 1] ?? null;
+  // A received package's collection sits under Received, not under a workspace
+  // hub: a package is looked at, kept or discarded, never "where you work".
+  const isReceivedWorkspace = activeWorkspace?.origin === "received";
   const upLink =
     parentCollection
       ? {
@@ -431,14 +439,21 @@ export function useCollectionScreenModel() {
             });
           },
         }
-      : activeWorkspace
+      : isReceivedWorkspace
         ? {
-            label: activeWorkspace.title,
+            label: t("navigation.received"),
             onPress: () => {
-              openWorkspaceBrowseRoot(rootNavigation ?? navigation, activeWorkspace.id);
+              returnHome(rootNavigation ?? navigation, { screen: "ReceivedHome" });
             },
           }
-        : null;
+        : activeWorkspace
+          ? {
+              label: activeWorkspace.title,
+              onPress: () => {
+                openWorkspaceBrowseRoot(rootNavigation ?? navigation, activeWorkspace.id);
+              },
+            }
+          : null;
 
   const hasActivityRangeFilter = typeof activityRangeStartTs === "number" && typeof activityRangeEndTs === "number";
   const visibleIdeasCount = listIdeas.filter((idea) => !hiddenIdeaIdsSet.has(idea.id)).length;
@@ -560,6 +575,7 @@ export function useCollectionScreenModel() {
     activityRangeEndTs,
     activityMetricFilter,
     isVisit,
+    isReceivedWorkspace,
     // Where back lands from a visit — the nav row's label. Null on a plain
     // collection page (the hamburger row has no back).
     originLabel,

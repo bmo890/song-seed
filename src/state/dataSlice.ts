@@ -2524,7 +2524,9 @@ export const createDataSlice: StateCreator<
         // touches the primary workspace (received packages can't become home).
         const workspaceId = genId("ws");
         const now = Date.now();
-        const collection = createCollection(workspaceId, "Files", null);
+        // The one collection wears the parcel's name: it opens as the real
+        // collection page, and "Files" told the receiver nothing.
+        const collection = createCollection(workspaceId, title, null);
         set((state) => ({
             workspaces: [
                 {

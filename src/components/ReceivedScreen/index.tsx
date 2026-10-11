@@ -1,23 +1,18 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../design/directionalIcons";
-import { useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
 import { ScreenHeader } from "../common/ScreenHeader";
-import { SelectionActionSheet } from "../common/SelectionActionSheet";
-import { InlineIdeaCard } from "../common/InlineIdeaCard";
-import { AppAlert } from "../common/AppAlert";
 import { EmptyState } from "../common/EmptyState";
 import { useStore } from "../../state/useStore";
-import { useMiniPlayerContext } from "../../hooks/FullPlayerProvider";
 import { receivedPackages, unopenedReceivedCount } from "../../domain/workspaceVisibility";
-import { getPlayableClipForIdea } from "../../domain/clipPresentation";
 import { useBrowseRootBackHandler } from "../../hooks/useBrowseRootBackHandler";
-import { toast } from "../common/toastStore";
+import { visitCollection } from "../../navigation";
 import { haptic } from "../../design/haptics";
 import { colors, radii, spacing, text as textTokens } from "../../design/tokens";
-import type { ShareKind, SongIdea, Workspace } from "../../types";
+import type { ShareKind, Workspace } from "../../types";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { useLocale } from "../../i18n";
@@ -47,194 +42,52 @@ function formatReceivedLine(pkg: Workspace, t: TFunction, locale: string): strin
 
 /**
  * The Received page — snapshots people sent you (or you sent yourself), kept
- * apart from your own creative work. One row per package; a package opens to
- * its items, playable in place. Adoption ("Move to my workspaces") or deletion
- * are the exits. Nothing here ever mixes into personal workspaces on its own.
+ * apart from your own creative work. One row per package; a package OPENS AS
+ * THE REAL COLLECTION PAGE (a visit, labelled Received), with every card,
+ * play, select and search a collection has — and "Move to my workspaces" /
+ * "Delete package" in that page's overflow (2026-10-11). Nothing here ever
+ * mixes into personal workspaces on its own.
  */
 export function ReceivedScreen() {
   const { t } = useTranslation();
   const { formatLocale } = useLocale();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  const isFocused = useIsFocused();
   useBrowseRootBackHandler();
 
   const workspaces = useStore((s) => s.workspaces);
-  const adoptReceivedWorkspace = useStore((s) => s.adoptReceivedWorkspace);
   const markReceivedPackageOpened = useStore((s) => s.markReceivedPackageOpened);
-  const deleteWorkspace = useStore((s) => s.deleteWorkspace);
-  const inlinePlayer = useMiniPlayerContext();
-  const inlineTarget = useStore((s) => s.inlineTarget);
-  const isInlinePlaying = useStore((s) => s.inlineIsPlaying);
+  const updateCollection = useStore((s) => s.updateCollection);
 
   const packages = useMemo(() => receivedPackages(workspaces), [workspaces]);
   const unopenedCount = useMemo(() => unopenedReceivedCount(workspaces), [workspaces]);
 
-  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
-  const [menuVisible, setMenuVisible] = useState(false);
-  const selectedPackage = packages.find((pkg) => pkg.id === selectedPackageId) ?? null;
+  const openPackage = (pkg: Workspace) => {
+    const collection = pkg.collections[0];
+    if (!collection) return;
+    // Opening is what clears it from the drawer's "new" count.
+    markReceivedPackageOpened(pkg.id);
+    // Packages saved before 2026-10-11 named their one collection "Files";
+    // it opens as a real page now, so it wears the parcel's name.
+    const parcelTitle = pkg.received?.shareTitle ?? pkg.title;
+    if (collection.title === "Files" && pkg.collections.length === 1 && parcelTitle) {
+      updateCollection(pkg.id, collection.id, { title: parcelTitle });
+    }
+    visitCollection(navigation, { collectionId: collection.id, workspaceId: pkg.id });
+  };
 
-  // A package that was adopted or deleted while open falls back to the list.
-  useEffect(() => {
-    if (selectedPackageId && !selectedPackage) setSelectedPackageId(null);
-  }, [selectedPackage, selectedPackageId]);
-
-  // The workspace switcher's "From others" cards land straight on their
-  // package; the drawer row (no packageId) lands on the list.
+  // The workspace switcher's "From others" cards and a just-saved parcel land
+  // straight inside their package; the drawer row (no packageId) lands here.
   const routePackageId = route.params?.packageId as string | undefined;
   const routeOpenToken = route.params?.openToken as number | undefined;
   useEffect(() => {
-    setSelectedPackageId(routePackageId ?? null);
+    if (!routePackageId) return;
+    const pkg = packages.find((candidate) => candidate.id === routePackageId);
+    if (pkg) openPackage(pkg);
+    navigation.setParams({ packageId: undefined, openToken: undefined });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routePackageId, routeOpenToken]);
 
-  // Opening a package is what clears it from the drawer's "new" count.
-  useEffect(() => {
-    if (selectedPackageId) markReceivedPackageOpened(selectedPackageId);
-  }, [markReceivedPackageOpened, selectedPackageId]);
-
-  const resetInlineRef = useRef(inlinePlayer.resetInlinePlayer);
-  useEffect(() => {
-    resetInlineRef.current = inlinePlayer.resetInlinePlayer;
-  }, [inlinePlayer.resetInlinePlayer]);
-  useEffect(() => {
-    if (isFocused) return;
-    void resetInlineRef.current();
-  }, [isFocused]);
-
-  const rootNavigation = navigation.getParent?.() ?? navigation;
-
-  function openIdea(idea: SongIdea) {
-    void inlinePlayer.resetInlinePlayer();
-    if (idea.kind === "project") {
-      rootNavigation.navigate("IdeaDetail", { ideaId: idea.id });
-      return;
-    }
-    const clip = getPlayableClipForIdea(idea);
-    if (!clip) return;
-    useStore.getState().setPlayerQueueForScreen([{ ideaId: idea.id, clipId: clip.id }], 0);
-  }
-
-  function confirmAdopt(pkg: Workspace) {
-    AppAlert.confirm(
-      t("received.adoptTitle"),
-      t("received.adoptBody", { title: pkg.title }),
-      () => {
-        adoptReceivedWorkspace(pkg.id);
-        haptic.success();
-        toast(t("received.adopted"), "checkmark-outline");
-        setSelectedPackageId(null);
-      },
-      { confirmLabel: t("received.move") }
-    );
-  }
-
-  function confirmDelete(pkg: Workspace) {
-    AppAlert.destructive(
-      t("received.deleteTitle"),
-      t("received.deleteBody", { title: pkg.title, items: t("received.items", { count: pkg.ideas.length }) }),
-      () => {
-        deleteWorkspace(pkg.id);
-        haptic.success();
-        setSelectedPackageId(null);
-      },
-      { confirmLabel: t("common.delete") }
-    );
-  }
-
-  // ── Package detail ────────────────────────────────────────────────────────
-  if (selectedPackage) {
-    const kind = selectedPackage.received?.shareKind ?? "library";
-    return (
-      <SafeAreaView style={receivedStyles.screen}>
-        <ScreenHeader
-          title={t("screens.received")}
-          leftIcon="back"
-          onLeftPress={() => setSelectedPackageId(null)}
-          rightElement={
-            <Pressable
-              style={({ pressed }) => [receivedStyles.headerBtn, pressed ? { opacity: 0.7 } : null]}
-              onPress={() => setMenuVisible(true)}
-              hitSlop={6}
-              accessibilityLabel={t("received.packageOptions")}
-            >
-              <Ionicons name="ellipsis-horizontal" size={16} color={colors.textStrong} />
-            </Pressable>
-          }
-        />
-
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={receivedStyles.scrollContent}
-        >
-          <View style={receivedStyles.detailHeader}>
-            <View style={receivedStyles.kindChip}>
-              <Ionicons name={KIND_ICONS[kind]} size={11} color={colors.primaryDeep} />
-              <Text style={receivedStyles.kindChipText}>{t(`received.${kind}`)}</Text>
-            </View>
-            <Text style={receivedStyles.detailTitle} numberOfLines={2}>
-              {selectedPackage.received?.shareTitle ?? selectedPackage.title}
-            </Text>
-            <Text style={receivedStyles.detailMeta}>{formatReceivedLine(selectedPackage, t, formatLocale)}</Text>
-          </View>
-
-          <View style={receivedStyles.list}>
-            {/* Parcel order (the sender's), oldest stamp first — never the
-                collection's newest-first. */}
-            {[...selectedPackage.ideas].sort((a, b) => a.createdAt - b.createdAt).map((idea) => {
-              const clip = getPlayableClipForIdea(idea);
-              const isActive = !!clip && inlineTarget?.ideaId === idea.id && inlineTarget.clipId === clip.id;
-              return (
-                <InlineIdeaCard
-                  key={idea.id}
-                  title={idea.title}
-                  isProject={idea.kind === "project"}
-                  status={idea.kind === "project" ? idea.status : null}
-                  durationMs={clip?.durationMs ?? 0}
-                  canPlay={!!clip}
-                  isActive={isActive}
-                  isPlaying={isActive && isInlinePlaying}
-                  onOpen={() => openIdea(idea)}
-                  onTogglePlay={() => {
-                    if (clip) void inlinePlayer.toggleInlinePlayback(idea.id, clip);
-                  }}
-                  onStopPlay={() => void inlinePlayer.resetInlinePlayer()}
-                  onSeekStart={() => void inlinePlayer.beginInlineScrub()}
-                  onSeek={(ms) => void inlinePlayer.endInlineScrub(ms)}
-                  onSeekCancel={() => void inlinePlayer.cancelInlineScrub()}
-                />
-              );
-            })}
-            {selectedPackage.ideas.length === 0 ? (
-              <Text style={receivedStyles.emptyLine}>{t("received.noPlayable")}</Text>
-            ) : null}
-          </View>
-        </ScrollView>
-
-        <SelectionActionSheet
-          visible={menuVisible}
-          title={t("received.packageOptions")}
-          onClose={() => setMenuVisible(false)}
-          actions={[
-            {
-              key: "adopt",
-              label: t("received.moveWorkspaces"),
-              icon: "arrow-forward-outline",
-              onPress: () => confirmAdopt(selectedPackage),
-            },
-            {
-              key: "delete",
-              label: t("received.deletePackage"),
-              icon: "trash-outline",
-              tone: "danger",
-              onPress: () => confirmDelete(selectedPackage),
-            },
-          ]}
-        />
-      </SafeAreaView>
-    );
-  }
-
-  // ── Package list ──────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={receivedStyles.screen}>
       <ScreenHeader title={t("screens.received")} leftIcon="hamburger" />
@@ -259,7 +112,7 @@ export function ReceivedScreen() {
                 style={({ pressed }) => [receivedStyles.packageRow, pressed ? { opacity: 0.8 } : null]}
                 onPress={() => {
                   haptic.tap();
-                  setSelectedPackageId(pkg.id);
+                  openPackage(pkg);
                 }}
                 accessibilityRole="button"
                 accessibilityLabel={t("received.openPackage", { title: pkg.received?.shareTitle ?? pkg.title })}
@@ -317,33 +170,24 @@ export function ReceivedScreen() {
 const receivedStyles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#fbf9f5",
+    backgroundColor: colors.page,
   },
   scrollContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
     paddingBottom: 120,
   },
-  headerBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceContainer,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   list: {
-    gap: 8,
+    gap: spacing.sm,
   },
   countLine: {
     ...textTokens.supporting,
     color: colors.textSecondary,
-    paddingTop: 2,
-    paddingBottom: 12,
+    marginBottom: spacing.md,
     fontVariant: ["tabular-nums"],
   },
   unopenedDot: {
-    width: 7,
-    height: 7,
+    width: 8,
+    height: 8,
     borderRadius: radii.round,
     backgroundColor: colors.primary,
   },
@@ -352,87 +196,43 @@ const receivedStyles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     alignSelf: "flex-start",
-    paddingVertical: 10,
-    marginTop: 12,
+    marginTop: spacing.xl,
   },
   sentLinkText: {
-    fontFamily: "PlusJakartaSans_500Medium",
-    fontSize: 13,
+    ...textTokens.supporting,
     color: colors.primaryDeep,
   },
   packageRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: spacing.md,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
     borderRadius: radii.lg,
     paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
   },
   packageIcon: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: radii.md,
-    backgroundColor: "#FDF5F2",
-    borderWidth: 1,
-    borderColor: "#EBD3CE",
+    backgroundColor: colors.primarySurface,
     alignItems: "center",
     justifyContent: "center",
   },
   packageMain: {
     flex: 1,
     minWidth: 0,
-    gap: 3,
+    gap: 2,
   },
   packageTitle: {
     fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 14,
+    fontSize: 15,
     color: colors.textPrimary,
   },
   packageMeta: {
     ...textTokens.caption,
-    fontSize: 11,
     color: colors.textSecondary,
-  },
-  detailHeader: {
-    paddingTop: 6,
-    paddingBottom: 16,
-    gap: 6,
-  },
-  kindChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    alignSelf: "flex-start",
-    backgroundColor: "#FDF5F2",
-    borderWidth: 1,
-    borderColor: "#EBD3CE",
-    borderRadius: 4,
-    paddingVertical: 2.5,
-    paddingHorizontal: 8,
-  },
-  kindChipText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 9,
-    letterSpacing: 0.7,
-    textTransform: "uppercase",
-    color: colors.primaryDeep,
-  },
-  detailTitle: {
-    fontFamily: "Lora_500Medium",
-    fontSize: 28,
-    lineHeight: 34,
-    color: colors.textPrimary,
-  },
-  detailMeta: {
-    ...textTokens.supporting,
-    color: colors.textSecondary,
-  },
-  emptyLine: {
-    ...textTokens.supporting,
-    color: colors.textMuted,
-    paddingVertical: 12,
   },
 });
