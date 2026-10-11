@@ -574,3 +574,31 @@ setters, `renameIdea` (was `renameIdeaPreservingActivity`), take deletion and
 paste-into-a-sketch stamp explicitly because they bypass `updateIdeas`. No
 migration: existing timestamps stay. Table-driven test in
 `state/__tests__/updateIdeasIdentity.test.ts` walks the table for both kinds.
+
+## Sketch flows (founder, 2026-10-12)
+
+- **Hidden marks say so.** The reel's eye toggle flipped between two grey
+  glyphs; hidden marks looked like no marks. Hidden now wears the active chip
+  Loop uses: crossed eye + "Marks hidden". Visible stays a bare eye (20aa1131).
+- **Folded sketch door** = sketch glyph · Make sketch · chevron, one row
+  (4e61fb75). The three-line "SKETCH · No sketch yet · Make sketch" is gone.
+- **Make sketch is a draft everywhere.** From the full player and the clip
+  page, "Make sketch" converted in place with no `isDraft`, so the sheet
+  opened as "Edit sketch" with Cancel and nothing could undo the conversion.
+  Now `convertClipIdeaToProject` marks the idea `isDraft` +
+  `draftFromClipIdea`; the sheet is "New sketch" with Discard; Discard turns
+  the idea back into its clip in place (`revertDraftToClipIdea`, same id,
+  same activity); launch recovery does the same for a stranded one; Save
+  stamps the activity and clears the flag. The player no longer passes
+  `startInEdit` (it re-opened the sheet after Save). Entry points audited:
+  collection multi-select (draft already), collection ⋯ New sketch (draft
+  already), player door + overflow, clip page ⋯ — all land in the same
+  draft sheet now. Import-as-sketch stays a direct create (no sheet).
+- **Delete sketch offers Keep takes.** The sketch page's Delete now asks
+  "Keep its takes as clips, or delete everything?" — Keep takes
+  (`dissolveSketch`) releases every take as its own clip idea in the
+  collection, carrying audio, marks, tags, activity and playlist entries,
+  and removes the sketch (lyrics and chart go with it); Delete all is the
+  old path. Selected takes can already leave a sketch one by one through
+  Move → paste in the collection. Multi-select delete in a collection is
+  unchanged.
