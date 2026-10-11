@@ -30,7 +30,10 @@ ALLOWED_WEB_ORIGINS = ""
 RATE_CREATE_PER_HOUR = "30"
 RATE_ITEMS_PER_HOUR = "300"
 # Store links for the mobile-without-app install funnel.
-IOS_APP_STORE_URL = "https://apps.apple.com/app/id6810435199"
+# BETA (2026-10-11): the App Store listing (apps.apple.com/app/id6810435199) is a
+# 404 until launch, so the iOS button points at the TestFlight public link for
+# the "Beta Production" group. Swap back to the App Store URL at launch.
+IOS_APP_STORE_URL = "https://testflight.apple.com/join/wY6azj3Z"
 ANDROID_PACKAGE = "com.bmostudio.songnook"
 # Universal / App Link association (.well-known). Apple Team ID is public by
 # nature (it is in every AASA on the internet); the Android value is the SHA-256
