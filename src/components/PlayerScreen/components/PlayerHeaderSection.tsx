@@ -1,8 +1,10 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { GestureDetector, type PanGesture } from "react-native-gesture-handler";
+import type { SharedValue } from "react-native-reanimated";
 import { IconButton } from "../../common/IconButton";
-import { fmtDuration, formatClipDate } from "../../../utils";
+import { LiveTimeReadout } from "../../common/LiveTimeReadout";
+import { formatClipDate } from "../../../utils";
 import { colors } from "../../../design/tokens";
 import { playerScreenStyles } from "../styles";
 import { useTranslation } from "react-i18next";
@@ -12,7 +14,10 @@ type PlayerHeaderSectionProps = {
   projectTitle?: string | null;
   createdAt: number;
   overdubLayerCount?: number;
-  playerPosition: number;
+  /** The reel's playhead (0..1) and duration, read on the UI thread so the
+   *  readout follows a drag live instead of waiting for the seek to land. */
+  sharedProgress: SharedValue<number>;
+  sharedDurationMs: SharedValue<number>;
   displayDuration: number;
   /** Collapsed (practice / reading): title tucks into the nav row so the reel
    *  and the open surface get the vertical room. */
@@ -30,7 +35,8 @@ export function PlayerHeaderSection({
   projectTitle,
   createdAt,
   overdubLayerCount = 0,
-  playerPosition,
+  sharedProgress,
+  sharedDurationMs,
   displayDuration,
   collapsed,
   dragGesture,
@@ -110,9 +116,12 @@ export function PlayerHeaderSection({
             </>
           ) : null}
           <View style={playerScreenStyles.metaSpacer} />
-          <Text style={playerScreenStyles.timingText}>
-            {fmtDuration(playerPosition)} / {fmtDuration(displayDuration)}
-          </Text>
+          <LiveTimeReadout
+            sharedProgress={sharedProgress}
+            sharedDurationMs={sharedDurationMs}
+            durationMs={displayDuration}
+            style={playerScreenStyles.timingText}
+          />
         </View>
       </View>
       </View>

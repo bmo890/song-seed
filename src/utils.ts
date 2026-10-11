@@ -84,6 +84,9 @@ export const fmt = (ms = 0) => {
 };
 
 export const fmtDuration = (ms = 0) => {
+  // A worklet so the full player's live readout can format on the UI thread,
+  // straight from the tape's shared progress — no React render per frame.
+  "worklet";
   const isNegative = ms < 0;
   ms = Math.abs(ms);
   const hrs = Math.floor(ms / 3600000);

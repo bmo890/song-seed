@@ -1265,7 +1265,8 @@ function PlayerScreenInner({
             projectTitle={playerIdea.kind === "project" ? playerIdea.title : null}
             createdAt={playerClip.createdAt}
             overdubLayerCount={data.clipOverdubStemCount}
-            playerPosition={effectivePlayerPosition}
+            sharedProgress={timelineAudioProgress}
+            sharedDurationMs={transportClock.sharedDurationMs}
             displayDuration={effectivePlayerDuration}
             collapsed={ui.mode !== "player" || isReading}
             dragGesture={dismissGesture}
