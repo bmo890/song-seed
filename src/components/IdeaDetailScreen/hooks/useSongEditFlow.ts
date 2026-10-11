@@ -57,7 +57,7 @@ export function useSongEditFlow({
     const meaningfulSongChange = statusChanged || completionChanged;
 
     if (titleChanged && !meaningfulSongChange && !selectedIdea.isDraft) {
-      state.renameIdeaPreservingActivity(selectedIdeaId, finalTitle);
+      state.renameIdea(selectedIdeaId, finalTitle);
     } else {
       state.updateIdeas((ideas) =>
         ideas.map((idea) =>

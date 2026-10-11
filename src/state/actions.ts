@@ -1678,7 +1678,7 @@ export const appActions = {
 
     saveEditIdea: (id: string, nextTitle: string) => {
         const state = useStore.getState();
-        state.renameIdeaPreservingActivity(id, nextTitle);
+        state.renameIdea(id, nextTitle);
         state.setEditingIdeaId(null);
     },
 
@@ -2025,7 +2025,7 @@ export const appActions = {
                         if (kept.length > 0 && !kept.some((clip) => clip.isPrimary)) {
                             kept[0] = { ...kept[0], isPrimary: true };
                         }
-                        return { ...idea, clips: kept };
+                        return { ...idea, clips: kept, lastActivityAt: Date.now() };
                     }),
                 };
             });
@@ -2105,7 +2105,7 @@ export const appActions = {
                         if (kept.length > 0 && !kept.some((clip) => clip.isPrimary)) {
                             kept[0] = { ...kept[0], isPrimary: true };
                         }
-                        return { ...idea, clips: kept };
+                        return { ...idea, clips: kept, lastActivityAt: Date.now() };
                     }),
                 };
             });
@@ -2265,7 +2265,7 @@ export const appActions = {
                                 [movingClipId]
                             )
                         );
-                        return { ...idea, clips: kept };
+                        return { ...idea, clips: kept, lastActivityAt: Date.now() };
                     }
 
                     if (idea.id === targetProjectId) {
@@ -2546,7 +2546,7 @@ export const appActions = {
                                     removedClipIds
                                 )
                             );
-                            return [{ ...idea, clips: kept }];
+                            return [{ ...idea, clips: kept, lastActivityAt: Date.now() }];
                         }
                         return [idea];
                     });
@@ -2566,7 +2566,7 @@ export const appActions = {
                                 removedClipIds
                             )
                         );
-                        return { ...idea, clips: kept };
+                        return { ...idea, clips: kept, lastActivityAt: Date.now() };
                     });
 
                     return normalizeWorkspaceCollectionVisibility({
@@ -2674,7 +2674,8 @@ export const appActions = {
                                 return clip;
                             });
 
-                            return { ...idea, clips: [...nextCopiedClips, ...idea.clips] };
+                            // Takes arriving is work on the sketch.
+                            return { ...idea, clips: [...nextCopiedClips, ...idea.clips], lastActivityAt: Date.now() };
                         }),
                     });
                 }),
@@ -2726,7 +2727,7 @@ export const appActions = {
                                         sourceClipIds
                                     )
                                 );
-                                return { ...idea, clips: kept };
+                                return { ...idea, clips: kept, lastActivityAt: Date.now() };
                             }
 
                             const movedPrimaryClipId = movedProjectPrimaryClipIds.get(idea.id);
@@ -2737,7 +2738,7 @@ export const appActions = {
                                         [movedPrimaryClipId]
                                     )
                                 );
-                                return { ...idea, clips: kept };
+                                return { ...idea, clips: kept, lastActivityAt: Date.now() };
                             }
 
                             return idea;
@@ -2757,7 +2758,7 @@ export const appActions = {
                             return clip;
                         });
 
-                        return { ...idea, clips: [...nextMovedClips, ...idea.clips] };
+                        return { ...idea, clips: [...nextMovedClips, ...idea.clips], lastActivityAt: Date.now() };
                     });
                 }
 
