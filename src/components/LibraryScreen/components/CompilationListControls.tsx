@@ -1,92 +1,140 @@
-import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
-import { BottomSheet } from "../../common/BottomSheet";
-import { IconButton } from "../../common/IconButton";
-import { SegmentedControl } from "../../common/SegmentedControl";
+import { FilterSortControls } from "../../common/FilterSortControls";
+import { SearchField } from "../../common/SearchField";
 import { styles } from "../../../styles";
-import { colors, spacing } from "../../../design/tokens";
+import { colors } from "../../../design/tokens";
 import { useReceivedPrefsStore } from "../../../state/useReceivedPrefsStore";
-import {
-  COMPILATION_FILTERS,
-  COMPILATION_SORTS,
-  type CompilationFilter,
-  type CompilationSort,
-} from "../../../domain/compilationListing";
+import type { CompilationFilter, CompilationSort } from "../../../domain/compilationListing";
+
+const FILTER_ICONS: Record<CompilationFilter, keyof typeof Ionicons.glyphMap> = {
+  all: "layers-outline",
+  mine: "person-outline",
+  received: "mail-open-outline",
+};
+const SORT_ICONS: Record<CompilationSort, keyof typeof Ionicons.glyphMap> = {
+  updated: "refresh-outline",
+  name: "text-outline",
+  created: "calendar-outline",
+};
+
+/** One row of the popover menu — the collection's `FilterSortBar` recipe
+ *  (glyph + word, terracotta + check when it is the one in force). */
+function MenuRow({
+  icon,
+  label,
+  active,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.ideasSortMenuItem,
+        active ? styles.ideasSortMenuItemActive : null,
+        pressed ? styles.pressDown : null,
+      ]}
+      onPress={onPress}
+    >
+      <View style={styles.ideasMenuItemLead}>
+        <Ionicons name={icon} size={15} color={active ? colors.primary : colors.textSecondary} />
+        <Text style={[styles.ideasSortMenuItemText, active ? styles.ideasSortMenuItemTextActive : null]}>{label}</Text>
+      </View>
+      {active ? <Ionicons name="checkmark" size={15} color={colors.primary} /> : null}
+    </Pressable>
+  );
+}
 
 /**
- * The hub's filter + sort glyphs, the pair a collection page carries, sitting
- * where the tab hint used to be. Each opens a small sheet with one
- * single-select (SegmentedControl, per the selection law). The funnel reads
- * terracotta while a filter is narrowing the list — the only colour here.
+ * The hub's filter + sort — the SAME control a collection page carries
+ * (`FilterSortControls`: bare glyphs, anchored popovers, the menu-row recipe),
+ * fed the options that mean something for a compilation. Consistency is the
+ * design (founder, 2026-10-11): never a second look for the same job.
  */
-export function CompilationListControls({ showFilter = true }: { showFilter?: boolean }) {
+export function CompilationListControls({
+  showFilter = true,
+  searchQuery,
+  onSearchQueryChange,
+  searchPlaceholder,
+}: {
+  showFilter?: boolean;
+  searchQuery: string;
+  onSearchQueryChange: (value: string) => void;
+  searchPlaceholder: string;
+}) {
   const { t } = useTranslation();
   const filter = useReceivedPrefsStore((s) => s.compilationFilter);
   const sort = useReceivedPrefsStore((s) => s.compilationSort);
   const setFilter = useReceivedPrefsStore((s) => s.setCompilationFilter);
   const setSort = useReceivedPrefsStore((s) => s.setCompilationSort);
-  const [open, setOpen] = useState<"filter" | "sort" | null>(null);
+
+  const filterOptions: CompilationFilter[] = ["all", "mine", "received"];
+  const sortOptions: CompilationSort[] = ["updated", "name", "created"];
 
   return (
-    <View style={local.row}>
-      {/* IconButton ticks on press — haptics vocabulary: `tap`. */}
-      {showFilter ? (
-        <IconButton
-          testID="compilations-filter"
-          icon="filter-outline"
-          tone="muted"
-          color={filter === "all" ? undefined : colors.primary}
-          size={20}
-          onPress={() => setOpen("filter")}
-          accessibilityLabel={t("library.filterA11y")}
+    <FilterSortControls
+      leadingSlot={
+        <SearchField
+          testID="compilations-search"
+          value={searchQuery}
+          placeholder={searchPlaceholder}
+          onChangeText={onSearchQueryChange}
+          tonal
         />
-      ) : null}
-      <IconButton
-        testID="compilations-sort"
-        icon="swap-vertical-outline"
-        tone="muted"
-        size={20}
-        onPress={() => setOpen("sort")}
-        accessibilityLabel={t("library.sortA11y")}
-      />
-
-      <BottomSheet visible={open === "filter"} onClose={() => setOpen(null)}>
-        <View style={styles.selectionSheetHeader}>
-          <Text style={styles.selectionSheetTitle}>{t("library.showTitle")}</Text>
-        </View>
-        <SegmentedControl<CompilationFilter>
-          options={COMPILATION_FILTERS.map((key) => ({ key, label: t(`library.show_${key}`) }))}
-          value={filter}
-          onChange={(value) => {
-            setFilter(value);
-            setOpen(null);
-          }}
-        />
-      </BottomSheet>
-
-      <BottomSheet visible={open === "sort"} onClose={() => setOpen(null)}>
-        <View style={styles.selectionSheetHeader}>
-          <Text style={styles.selectionSheetTitle}>{t("library.sortTitle")}</Text>
-        </View>
-        <SegmentedControl<CompilationSort>
-          options={COMPILATION_SORTS.map((key) => ({ key, label: t(`library.sort_${key}`) }))}
-          value={sort}
-          onChange={(value) => {
-            setSort(value);
-            setOpen(null);
-          }}
-        />
-      </BottomSheet>
-    </View>
+      }
+      filter={
+        showFilter
+          ? {
+              active: filter !== "all",
+              valueIcon: FILTER_ICONS[filter],
+              onClear: () => setFilter("all"),
+              renderMenu: ({ close }) => (
+                <View style={styles.ideasDropdownSectionStack}>
+                  <Text style={styles.ideasDropdownSectionToggleText}>{t("library.showTitle")}</Text>
+                  {filterOptions.map((key) => (
+                    <MenuRow
+                      key={key}
+                      icon={FILTER_ICONS[key]}
+                      label={t(`library.show_${key}`)}
+                      active={key === filter}
+                      onPress={() => {
+                        setFilter(key);
+                        close();
+                      }}
+                    />
+                  ))}
+                </View>
+              ),
+            }
+          : undefined
+      }
+      sort={{
+        active: sort !== "updated",
+        valueIcon: SORT_ICONS[sort],
+        direction: "desc",
+        renderMenu: ({ close }) => (
+          <View style={styles.ideasDropdownSectionStack}>
+            <Text style={styles.ideasDropdownSectionToggleText}>{t("library.sortTitle")}</Text>
+            {sortOptions.map((key) => (
+              <MenuRow
+                key={key}
+                icon={SORT_ICONS[key]}
+                label={t(`library.sort_${key}`)}
+                active={key === sort}
+                onPress={() => {
+                  setSort(key);
+                  close();
+                }}
+              />
+            ))}
+          </View>
+        ),
+      }}
+    />
   );
 }
-
-const local = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
-    gap: spacing.xs,
-  },
-});

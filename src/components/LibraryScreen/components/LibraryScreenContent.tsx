@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRoute } from "@react-navigation/native";
 import { StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -32,8 +32,16 @@ import { SetlistEntryBuilderView } from "../views/SetlistEntryBuilderView";
 import { useTranslation } from "react-i18next";
 import { useReceivedPrefsStore } from "../../../state/useReceivedPrefsStore";
 import { listCompilations } from "../../../domain/compilationListing";
+import { buildIdeaTitleIndex, matchesCompilationSearch } from "../../../domain/compilationSearch";
+import { useStore } from "../../../state/useStore";
 
 type Section = "playlists" | "songbook" | "setlists";
+
+const SEARCH_PLACEHOLDER: Record<Section, string> = {
+  playlists: "library.searchPlaylists",
+  songbook: "library.searchSongbooks",
+  setlists: "library.searchSetlists",
+};
 
 /**
  * Each tab is its own component so ONLY the active tab's model hook runs. Previously all
@@ -72,6 +80,9 @@ export function LibraryScreenContent() {
   // not a caption under every tab); the row under the tabs carries the same
   // filter + sort pair a collection has (founder, 2026-10-11).
   const [helpOpen, setHelpOpen] = useState(false);
+  // One search for the hub, scoped to the tab in front: it looks inside each
+  // compilation the way a collection's search looks inside its ideas.
+  const [searchQuery, setSearchQuery] = useState("");
   const tabs = (
     <View style={local.tabsWrap}>
       <SegmentedControl options={[
@@ -80,7 +91,12 @@ export function LibraryScreenContent() {
         { key: "setlists", label: t("library.setlists") },
       ]} value={section} onChange={setSection} persist={segThumb} />
       {/* Playlists are never received, so the filter has nothing to say there. */}
-      <CompilationListControls showFilter={section !== "playlists"} />
+      <CompilationListControls
+        showFilter={section !== "playlists"}
+        searchQuery={searchQuery}
+        onSearchQueryChange={setSearchQuery}
+        searchPlaceholder={t(SEARCH_PLACEHOLDER[section])}
+      />
     </View>
   );
   // IconButton ticks on press — haptics vocabulary: `tap`.
@@ -115,22 +131,24 @@ export function LibraryScreenContent() {
   return (
     <SafeAreaView style={styles.screen}>
       {section === "songbook" ? (
-        <SongbookSection tabs={tabs} scroll={listScroll.songbook} headerRight={headerRight} />
+        <SongbookSection tabs={tabs} scroll={listScroll.songbook} headerRight={headerRight} searchQuery={searchQuery} />
       ) : section === "setlists" ? (
-        <SetlistsSection tabs={tabs} scroll={listScroll.setlists} headerRight={headerRight} />
+        <SetlistsSection tabs={tabs} scroll={listScroll.setlists} headerRight={headerRight} searchQuery={searchQuery} />
       ) : (
-        <PlaylistsSection tabs={tabs} scroll={listScroll.playlists} headerRight={headerRight} />
+        <PlaylistsSection tabs={tabs} scroll={listScroll.playlists} headerRight={headerRight} searchQuery={searchQuery} />
       )}
       {helpSheet}
     </SafeAreaView>
   );
 }
 
-function PlaylistsSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scroll: ScrollOffset; headerRight?: ReactNode }) {
+function PlaylistsSection({ tabs, scroll, headerRight, searchQuery }: { tabs: ReactNode; scroll: ScrollOffset; headerRight?: ReactNode; searchQuery: string }) {
   const { t } = useTranslation();
   const model = useLibraryScreenModel();
   // Playlists are never received, so only the sort applies here.
   const sort = useReceivedPrefsStore((s) => s.compilationSort);
+  const workspaces = useStore((s) => s.workspaces);
+  const ideaTitles = useMemo(() => buildIdeaTitleIndex(workspaces), [workspaces]);
 
   return (
     <>
@@ -145,7 +163,9 @@ function PlaylistsSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scro
 
       {!model.activePlaylist ? (
         <PlaylistListView
-          playlists={listCompilations(model.sortedPlaylists, "all", sort)}
+          playlists={listCompilations(model.sortedPlaylists, "all", sort).filter((playlist) =>
+            matchesCompilationSearch(searchQuery, { title: playlist.title, ideaIds: playlist.items.map((item) => item.ideaId) }, ideaTitles)
+          )}
           onCreatePlaylist={model.openCreatePlaylist}
           onOpenPlaylist={model.openPlaylist}
           scroll={scroll}
@@ -212,11 +232,13 @@ function PlaylistsSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scro
   );
 }
 
-function SongbookSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scroll: ScrollOffset; headerRight?: ReactNode }) {
+function SongbookSection({ tabs, scroll, headerRight, searchQuery }: { tabs: ReactNode; scroll: ScrollOffset; headerRight?: ReactNode; searchQuery: string }) {
   const { t } = useTranslation();
   const songbook = useSongbookModel();
   const filter = useReceivedPrefsStore((s) => s.compilationFilter);
   const sort = useReceivedPrefsStore((s) => s.compilationSort);
+  const workspaces = useStore((s) => s.workspaces);
+  const ideaTitles = useMemo(() => buildIdeaTitleIndex(workspaces), [workspaces]);
 
   const headerTitle = songbook.activeSongbook?.title ?? t("library.title");
 
@@ -250,7 +272,9 @@ function SongbookSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scrol
         />
       ) : (
         <SongbookListView
-          songbooks={listCompilations(songbook.sortedSongbooks, filter, sort)}
+          songbooks={listCompilations(songbook.sortedSongbooks, filter, sort).filter((book) =>
+            matchesCompilationSearch(searchQuery, { title: book.title, ideaIds: book.items.map((item) => item.ideaId) }, ideaTitles)
+          )}
           onCreate={songbook.openCreate}
           onOpen={songbook.openSongbook}
           scroll={scroll}
@@ -293,11 +317,13 @@ function SongbookSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scrol
   );
 }
 
-function SetlistsSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scroll: ScrollOffset; headerRight?: ReactNode }) {
+function SetlistsSection({ tabs, scroll, headerRight, searchQuery }: { tabs: ReactNode; scroll: ScrollOffset; headerRight?: ReactNode; searchQuery: string }) {
   const { t } = useTranslation();
   const setlist = useSetlistModel();
   const filter = useReceivedPrefsStore((s) => s.compilationFilter);
   const sort = useReceivedPrefsStore((s) => s.compilationSort);
+  const workspaces = useStore((s) => s.workspaces);
+  const ideaTitles = useMemo(() => buildIdeaTitleIndex(workspaces), [workspaces]);
 
   const headerTitle = setlist.builder
     ? t("library.editSong")
@@ -349,7 +375,13 @@ function SetlistsSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scrol
         />
       ) : (
         <SetlistListView
-          setlists={listCompilations(setlist.sortedSetlists, filter, sort)}
+          setlists={listCompilations(setlist.sortedSetlists, filter, sort).filter((set) =>
+            matchesCompilationSearch(
+              searchQuery,
+              { title: set.title, description: set.description, ideaIds: set.entries.map((entry) => entry.ideaId) },
+              ideaTitles
+            )
+          )}
           onCreate={setlist.openCreate}
           onOpen={setlist.openSetlist}
           scroll={scroll}
@@ -399,5 +431,7 @@ const local = StyleSheet.create({
   tabsWrap: {
     marginBottom: spacing.sm,
     gap: spacing.xs,
+    // The filter/sort popovers hang from this row over the list below.
+    zIndex: 30,
   },
 });
