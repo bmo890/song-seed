@@ -143,6 +143,7 @@ const SENDER_JS = `
     if(AUDIO_EXT.indexOf(ext)>=0) return true;
     return (f.type||'').indexOf('audio/')===0;
   }
+  function pretty(name){ return String(name).replace(/\\.[a-z0-9]{1,8}$/i,'') || name; }
   function esc(s){ return String(s).replace(/[<>&"]/g, function(c){ return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]; }); }
   function fmt(n){var u=['B','KB','MB','GB'],i=n?Math.min(3,Math.floor(Math.log(n)/Math.log(1024))):0;
     return (n/Math.pow(1024,i)).toFixed(i?1:0)+' '+u[i];}
@@ -154,7 +155,7 @@ const SENDER_JS = `
     list.innerHTML = files.map(function(f,idx){
       return '<li class="draggable" draggable="true" data-i="'+idx+'">'+
         '<span class="trk-grip" aria-hidden="true">⋮⋮</span>'+
-        '<span class="trk-name">'+esc(f.name)+'</span>'+
+        '<span class="trk-name">'+esc(pretty(f.name))+'</span>'+
         '<span class="trk-size" data-size="'+idx+'">'+fmt(f.size)+'</span>'+
         '<span class="trk-move">'+
           '<button type="button" data-up="'+idx+'" aria-label="Move up"'+(idx===0?' disabled':'')+'>▲</button>'+

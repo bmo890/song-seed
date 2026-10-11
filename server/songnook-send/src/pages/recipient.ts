@@ -48,6 +48,11 @@ const FUNNEL_CSS = `
 .grab .tracklist{text-align:left;margin-top:16px}
 `;
 
+/** "A War In Me.wav" reads as a song, not a file. The download keeps the real name. */
+function displayName(fileName: string): string {
+  return fileName.replace(/\.[a-z0-9]{1,8}$/i, "") || fileName;
+}
+
 function expiresLabel(expiresAtIso: string): string {
   const days = Math.max(0, Math.ceil((Date.parse(expiresAtIso) - Date.now()) / 86400000));
   if (days <= 0) return "expiring today";
@@ -66,7 +71,7 @@ function tracklist(t: TransferPayload): string {
   return t.items
     .map(
       (it) => `<li>
-        <span class="trk-name">${escapeHtml(it.fileName)}</span>
+        <span class="trk-name">${escapeHtml(displayName(it.fileName))}</span>
         <span class="trk-size">${formatBytes(it.size)}</span>
         <a class="trk-dl" href="${escapeHtml(it.downloadUrl)}">Download</a>
       </li>`
