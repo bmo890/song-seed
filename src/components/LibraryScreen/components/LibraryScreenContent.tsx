@@ -430,7 +430,7 @@ function SetlistsSection({ tabs, scroll, headerRight, searchQuery }: { tabs: Rea
 const local = StyleSheet.create({
   tabsWrap: {
     marginBottom: spacing.sm,
-    gap: spacing.xs,
+    gap: spacing.lg,
     // The filter/sort popovers hang from this row over the list below.
     zIndex: 30,
   },
