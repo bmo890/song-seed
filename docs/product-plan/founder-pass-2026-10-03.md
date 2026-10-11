@@ -487,10 +487,14 @@ in Received; received packages open as the real collection page.
   builds a Setlist (one take per entry) or Playlist from the package in
   parcel order and lands on it. `ShareKind` gains "playlist". Verified in the
   sim with a setlist-kind parcel.
-- [ ] E2 (not built): sending a PLAYLIST from inside the app (archive kind
-  "playlist", mirror setlistShare.ts) — today the app sends takes, setlists
-  and chart books; a playlist goes out as a Playlist-kind parcel from the web
-  page only.
+- [x] E2: in-app playlist send — `domain/playlistExport.ts` +
+  `services/playlistShare.ts` (mirror of setlist), manifest/export/import
+  carry `playlists`, `Playlist.received`, receiveRouting kind "playlist",
+  Share playlist / Get a link on the playlist overflow, SentLinkChip.
+  Verified: the app sealed t_6O81iomlJLHwdppCPeeZA0 ("Playlist 1") via Get a
+  link. NOT yet verified: opening that link on the receiving side (usage
+  limit hit) — next session: open the link in the sim, expect "Saves to your
+  Compilations", Save → Playlist 1 in Compilations, "Playlist imported".
 - Production OTAs android/ios + preview android published 2026-10-11 (see
   memory for ids). Not verified on a real device; cross-workspace picking
   verified by test only (the sim has one workspace).
