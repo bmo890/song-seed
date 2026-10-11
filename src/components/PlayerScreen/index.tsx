@@ -45,6 +45,7 @@ import { ChordZoomBar } from "../LyricsVersionScreen/components/chords/ChordZoom
 import { OVERDUB_HELP } from "../common/helpContent";
 import { PlayerArtifactReader, FollowSpeedControl } from "./components/PlayerArtifactReader";
 import { chartSummary, lyricChordSummary } from "./components/PlayerArtifactDoors";
+import { MarksToggle } from "./components/MarksToggle";
 import { PlayerPinSheets } from "./components/PlayerPinSheets";
 import { PlayerShelf } from "./components/PlayerShelf";
 import { PlayerLyricsWriter } from "./components/PlayerLyricsWriter";
@@ -1390,23 +1391,10 @@ function PlayerScreenInner({
                   {/* Same reel, only thinner — so the same eye. Full view has no
                       reel, so the toggle would govern nothing there. */}
                   {hasMarks && !isFullView ? (
-                    <Pressable
-                      style={({ pressed }) => [
-                        playerScreenStyles.readingIconButton,
-                        pressed ? playerScreenStyles.overflowButtonPressed : null,
-                      ]}
-                      onPress={() => ui.setMarkersVisible((value) => !value)}
-                      hitSlop={6}
-                      accessibilityRole="button"
-                      accessibilityState={{ checked: ui.markersVisible }}
-                      accessibilityLabel={ui.markersVisible ? t("player.hideMarkers") : t("player.showMarkers")}
-                    >
-                      <Ionicons
-                        name={ui.markersVisible ? "eye-outline" : "eye-off-outline"}
-                        size={15}
-                        color={colors.textSecondary}
-                      />
-                    </Pressable>
+                    <MarksToggle
+                      visible={ui.markersVisible}
+                      onToggle={() => ui.setMarkersVisible((value) => !value)}
+                    />
                   ) : null}
                   </View>
                   {isWriting ? (
@@ -1619,23 +1607,10 @@ function PlayerScreenInner({
                       stand-in keeps Tools pinned to the trailing edge. */}
                   {!hasMarks ? <View /> : null}
                   {hasMarks ? (
-                    <Pressable
-                      style={({ pressed }) => [
-                        playerScreenStyles.readingIconButton,
-                        pressed ? playerScreenStyles.overflowButtonPressed : null,
-                      ]}
-                      onPress={() => ui.setMarkersVisible((value) => !value)}
-                      hitSlop={6}
-                      accessibilityRole="button"
-                      accessibilityState={{ checked: ui.markersVisible }}
-                      accessibilityLabel={ui.markersVisible ? t("player.hideMarkers") : t("player.showMarkers")}
-                    >
-                      <Ionicons
-                        name={ui.markersVisible ? "eye-outline" : "eye-off-outline"}
-                        size={15}
-                        color={colors.textSecondary}
-                      />
-                    </Pressable>
+                    <MarksToggle
+                      visible={ui.markersVisible}
+                      onToggle={() => ui.setMarkersVisible((value) => !value)}
+                    />
                   ) : null}
                   <View style={playerScreenStyles.reelToolbarRight}>
                     <Pressable
