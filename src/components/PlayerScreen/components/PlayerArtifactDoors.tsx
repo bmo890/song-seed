@@ -54,7 +54,9 @@ function Door({
   emptyLabel,
   ctaLabel,
   onCta,
+  emptyIcon = "create-outline",
   accessibilityLabel,
+  testID,
 }: {
   /** Small caps artifact name — "Lyrics" / "Chart". */
   kind: string;
@@ -71,7 +73,10 @@ function Door({
   emptyLabel?: string;
   ctaLabel?: string;
   onCta?: () => void;
+  /** Glyph beside an empty door's CTA; the pencil (opens an editor) by default. */
+  emptyIcon?: React.ComponentProps<typeof Ionicons>["name"];
   accessibilityLabel: string;
+  testID?: string;
 }) {
   const isEmpty = !preview;
   return (
@@ -83,6 +88,7 @@ function Door({
         style={doorStyles.doorInner}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
+        testID={testID}
       >
         <View style={doorStyles.doorBody}>
           <View style={doorStyles.kindRow}>
@@ -110,7 +116,7 @@ function Door({
           )}
         </View>
         <Ionicons
-          name={isEmpty ? "create-outline" : "chevron-down"}
+          name={isEmpty ? emptyIcon : "chevron-down"}
           size={16}
           color={colors.textMuted}
         />
@@ -122,9 +128,17 @@ function Door({
 /**
  * The ghost door: a standalone clip has no Lyrics or Chart yet, so the slot
  * where a sketch's doors sit holds the one door that isn't built — Sketch.
- * Tonal, shadowless (nothing behind it yet). Until the first tap, and only
- * while the library has no sketch at all, it wears the terracotta wash so
- * the first clip ever recorded learns where sketches come from.
+ *
+ * Two sizes, decided by whether the library has learned what a sketch is:
+ * - No sketch anywhere yet: the full card (title, one line of body, link),
+ *   tonal and shadowless (nothing behind it yet). Until the first tap it
+ *   also wears the terracotta wash, so the first clip ever recorded learns
+ *   where sketches come from.
+ * - Any sketch exists: the lesson landed, so the card folds into the same
+ *   quiet one-line door an empty Lyrics or Chart door uses — "No sketch
+ *   yet · Make a sketch". Founder's call 2026-10-12: the explanation earns
+ *   its space exactly once; after that it is noise on every clip.
+ * "Make a sketch" also lives in the player's overflow, so nothing is lost.
  */
 function SketchDoor({ onPress }: { onPress: () => void }) {
   const { t } = useTranslation();
@@ -133,6 +147,26 @@ function SketchDoor({ onPress }: { onPress: () => void }) {
     s.workspaces.some((workspace) => workspace.ideas.some((idea) => idea.kind === "project"))
   );
   const firstVisit = !seen && !anySketch;
+  // Haptic row: tap — "any acknowledged press". The commit itself (grow into
+  // a sketch) fires `success` in the lifecycle handler.
+  const handlePress = () => {
+    haptic.tap();
+    onPress();
+  };
+  if (anySketch) {
+    return (
+      <Door
+        kind={t("brand.sketch")}
+        onOpen={handlePress}
+        emptyLabel={t("player.noSketchYet")}
+        ctaLabel={t("songDetail.makeSong")}
+        onCta={handlePress}
+        emptyIcon={dirIcon("chevron-forward")}
+        accessibilityLabel={t("songDetail.makeSong")}
+        testID="player-sketch-door"
+      />
+    );
+  }
   return (
     <Pressable
       accessibilityRole="button"
@@ -143,12 +177,7 @@ function SketchDoor({ onPress }: { onPress: () => void }) {
         firstVisit ? doorStyles.sketchDoorFirstVisit : null,
         pressed ? appStyles.pressDown : null,
       ]}
-      onPress={() => {
-        // Haptic row: tap — "any acknowledged press". The commit itself
-        // (grow into a sketch) fires `success` in the lifecycle handler.
-        haptic.tap();
-        onPress();
-      }}
+      onPress={handlePress}
     >
       <View style={doorStyles.sketchKindRow}>
         <Ionicons name={getHierarchyIconName("song")} size={14} color={colors.textSecondary} />
