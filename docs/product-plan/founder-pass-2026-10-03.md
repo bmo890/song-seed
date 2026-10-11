@@ -411,3 +411,33 @@ preview --platform android` once per batch · update
 - [x] Tags in the collection (7cc1195f) — batch 3 preview OTA, Android unverified
 - [ ] Dock vs card — SET ASIDE by the founder (Q4)
 - [ ] Dark mode — SET ASIDE, post-launch (Q6)
+- [x] 2026-10-05 follow-ups: "Take out of thread" for a multi-select (2ecc001d); queue go-to lands on the card and flashes it (a5386ae8: `registerRootNavigation` for the player sheet's shim, rAF after minimize, geometry scroll + highlight after settle) — production OTAs 32002e6c / b1e6f872
+
+## Compilations pass (founder, 2026-10-11)
+
+**Report:** ✕ while adding to a playlist left you in the collection; back and
+hardware back wandered (the session was a drawer switch with no spine; Android
+`backBehavior="initialRoute"`); the session outlived the flow; no way to pick
+from another workspace; three different add flows (setlist had its own
+builder); "Songbook" confused.
+
+**Decisions:** a setlist takes anything (a lyrics-only sketch is a valid
+entry) and gets its own description; Songbook → **Charts** tab / **chart book**
+object.
+
+- [x] A. Session spine (01519a62): Add and ✕ both return to the compilation;
+  hub shows a back chevron (no menu — tasks don't carry it), drawer swipe off
+  while picking; `LIBRARY_COLLECTOR_ROUTES` in App.tsx ends a session that
+  lands anywhere but Browse/CollectionDetail; basket lives on
+  `libraryCollector.picks` ({workspaceId, ideaId}) — accumulates across
+  collections and workspaces, hub footer offers "Add N"; identity block →
+  `WorkspacePickSheet` ("PICKING FROM ▾"); workspace stack pops to the hub
+  after the session; `resolveCollectorPicks` (domain/libraryCollectorPicks.ts).
+- [x] B. Setlist on the shared picker (0fc7adb7): Add Song = `startCollecting`;
+  `SetlistEntryBuilderView` only repacks an entry (edit mode → row);
+  `Setlist.description` via `renameSetlist(id, title, description)`, "Set
+  details" sheet, shown under the meta, carried in the shared archive.
+- [x] C. Rename (9d37a859): label-only, EN+HE; data kind stays `songbook`.
+- Production OTAs android/ios + preview android published 2026-10-11 (see
+  memory for ids). Not verified on a real device; cross-workspace picking
+  verified by test only (the sim has one workspace).
