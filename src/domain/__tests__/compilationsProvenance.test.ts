@@ -1,4 +1,4 @@
-import { hasFromOthers, isFromOthers, visibleCompilations } from "../compilationsProvenance";
+import { hasFromOthers, isFromOthers } from "../compilationsProvenance";
 
 const meta = {
   senderName: "Dana",
@@ -18,10 +18,5 @@ describe("compilations provenance", () => {
     expect(isFromOthers(theirs)).toBe(true);
     expect(hasFromOthers([mine])).toBe(false);
     expect(hasFromOthers([mine, theirs])).toBe(true);
-  });
-
-  it("folds received compilations away when the preference is off", () => {
-    expect(visibleCompilations([mine, theirs], true).map((c) => c.id)).toEqual(["a", "b"]);
-    expect(visibleCompilations([mine, theirs], false).map((c) => c.id)).toEqual(["a"]);
   });
 });

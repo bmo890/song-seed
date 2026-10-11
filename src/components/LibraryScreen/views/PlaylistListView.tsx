@@ -8,7 +8,6 @@ import { usePersistedScrollView, type ScrollOffset } from "../../../hooks/usePer
 import type { Playlist } from "../../../types";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../../../i18n/instance";
-import { Button } from "../../common/Button";
 import { EmptyState } from "../../common/EmptyState";
 
 function formatPlaylistUpdatedAt(timestamp: number) {
@@ -47,15 +46,8 @@ export function PlaylistListView({
       contentContainerStyle={[styles.libraryScrollContent, { paddingBottom: 36 + playerDockHeight }]}
       showsVerticalScrollIndicator={false}
     >
-      {/* One creation affordance per state: the soft key when there's a list,
-          the empty state's own action when there isn't — same law as the other
-          two Compilations tabs (2026-08-26 audit B10). */}
-      {playlists.length > 0 ? (
-        <View style={styles.inputRow}>
-          <Button label={t("library.newPlaylistShort")} onPress={onCreatePlaylist} />
-        </View>
-      ) : null}
-
+      {/* One creation affordance per state: the hub's + key when there's a
+          list, the empty state's own action when there isn't (2026-10-11). */}
       <View style={listStyles.listStack}>
         {playlists.map((playlist) => (
           <Pressable

@@ -2,7 +2,6 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { colors } from "../../../design/tokens";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
-import { Button } from "../../common/Button";
 import { EmptyState } from "../../common/EmptyState";
 import { ProvenanceChip } from "../../common/ProvenanceChip";
 import { styles } from "../styles";
@@ -31,12 +30,6 @@ export function SongbookListView({
       contentContainerStyle={styles.libraryScrollContent}
       showsVerticalScrollIndicator={false}
     >
-      {songbooks.length > 0 ? (
-        <View style={styles.inputRow}>
-          <Button label={t("library.createSongbook")} onPress={onCreate} />
-        </View>
-      ) : null}
-
       <View style={styles.listContent}>
         {songbooks.map((songbook) => (
           <Pressable

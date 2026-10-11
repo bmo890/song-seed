@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRoute } from "@react-navigation/native";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { SegmentedControl, useSegmentedThumb } from "../../common/SegmentedControl";
+import { IconButton } from "../../common/IconButton";
+import { HelpSheet } from "../../common/HelpSheet";
+import { CompilationListControls } from "./CompilationListControls";
+import { CreateFab } from "./CreateFab";
 import type { ScrollOffset } from "../../../hooks/usePersistedScrollView";
 import { QuickNameModal } from "../../modals/QuickNameModal";
-import { colors, spacing } from "../../../design/tokens";
+import { spacing } from "../../../design/tokens";
 import { styles } from "../styles";
 import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandler";
 import { isSendServiceConfigured } from "../../../config/sendService";
@@ -26,48 +30,10 @@ import { SetlistListView } from "../views/SetlistListView";
 import { SetlistDetailView } from "../views/SetlistDetailView";
 import { SetlistEntryBuilderView } from "../views/SetlistEntryBuilderView";
 import { useTranslation } from "react-i18next";
-import { useStore } from "../../../state/useStore";
 import { useReceivedPrefsStore } from "../../../state/useReceivedPrefsStore";
-import { hasFromOthers, visibleCompilations } from "../../../domain/compilationsProvenance";
-import { haptic } from "../../../design/haptics";
+import { listCompilations } from "../../../domain/compilationListing";
 
 type Section = "playlists" | "songbook" | "setlists";
-
-/**
- * "From others" — one editorial-ink toggle that folds compilations received
- * from other people in or out of the Songbook and Setlists lists. Shown only
- * once such a compilation exists, so a library that has never received
- * anything carries no control for it. The Received page ignores it.
- */
-function FromOthersToggle() {
-  const { t } = useTranslation();
-  const includeFromOthers = useReceivedPrefsStore((s) => s.includeFromOthers);
-  const setIncludeFromOthers = useReceivedPrefsStore((s) => s.setIncludeFromOthers);
-  return (
-    <Pressable
-      testID="library-from-others-toggle"
-      style={({ pressed }) => [styles.ideasStageInk, local.fromOthers, pressed ? styles.pressDown : null]}
-      onPress={() => {
-        haptic.tap(); // vocabulary row: tap — a light control flip
-        setIncludeFromOthers(!includeFromOthers);
-      }}
-      hitSlop={{ top: 6, bottom: 6 }}
-      accessibilityRole="switch"
-      accessibilityState={{ checked: includeFromOthers }}
-      accessibilityLabel={t("library.fromOthersA11y")}
-    >
-      <View
-        style={[
-          styles.ideasStageInkDot,
-          includeFromOthers ? { backgroundColor: colors.primary, borderColor: colors.primary } : null,
-        ]}
-      />
-      <Text style={[styles.ideasStageInkText, includeFromOthers ? styles.ideasStageInkTextActive : null]}>
-        {t("library.fromOthers")}
-      </Text>
-    </Pressable>
-  );
-}
 
 /**
  * Each tab is its own component so ONLY the active tab's model hook runs. Previously all
@@ -102,9 +68,10 @@ export function LibraryScreenContent() {
     else if (openCollectionKind === "playlist") setSection("playlists");
   }, [openCollectionKind, route.params?.openToken]);
 
-  // The toggle exists only while a received songbook or setlist exists, and
-  // only on the two tabs it governs (playlists are never received).
-  const anyFromOthers = useStore((s) => hasFromOthers(s.songbooks) || hasFromOthers(s.setlists));
+  // What each tab is for lives behind the header's "?" (help law: the sheet,
+  // not a caption under every tab); the row under the tabs carries the same
+  // filter + sort pair a collection has (founder, 2026-10-11).
+  const [helpOpen, setHelpOpen] = useState(false);
   const tabs = (
     <View style={local.tabsWrap}>
       <SegmentedControl options={[
@@ -112,11 +79,32 @@ export function LibraryScreenContent() {
         { key: "songbook", label: t("library.songbook") },
         { key: "setlists", label: t("library.setlists") },
       ]} value={section} onChange={setSection} persist={segThumb} />
-      <View style={local.descRow}>
-        <Text style={[local.desc, local.descGrow]}>{t(`library.${section}Hint`)}</Text>
-        {anyFromOthers && section !== "playlists" ? <FromOthersToggle /> : null}
-      </View>
+      {/* Playlists are never received, so the filter has nothing to say there. */}
+      <CompilationListControls showFilter={section !== "playlists"} />
     </View>
+  );
+  // IconButton ticks on press — haptics vocabulary: `tap`.
+  const headerRight = (
+    <IconButton
+      testID="library-help"
+      icon="help-circle-outline"
+      tone="muted"
+      onPress={() => setHelpOpen(true)}
+      accessibilityLabel={t("library.helpA11y")}
+    />
+  );
+  const helpSheet = (
+    <HelpSheet
+      visible={helpOpen}
+      onClose={() => setHelpOpen(false)}
+      thesis={t("library.helpThesis")}
+      items={[
+        { icon: "musical-notes-outline", label: t("library.playlists"), description: t("library.helpPlaylists") },
+        { icon: "book-outline", label: t("library.songbook"), description: t("library.helpCharts") },
+        { icon: "albums-outline", label: t("library.setlists"), description: t("library.helpSetlists") },
+        { icon: "mail-open-outline", label: t("library.show_received"), description: t("library.helpReceived") },
+      ]}
+    />
   );
 
   // One stable SafeAreaView wraps every section. Previously each section
@@ -127,13 +115,13 @@ export function LibraryScreenContent() {
   return (
     <SafeAreaView style={styles.screen}>
       {section === "songbook" ? (
-        <SongbookSection tabs={tabs} scroll={listScroll.songbook} />
+        <SongbookSection tabs={tabs} scroll={listScroll.songbook} headerRight={headerRight} />
       ) : section === "setlists" ? (
-        <SetlistsSection tabs={tabs} scroll={listScroll.setlists} />
+        <SetlistsSection tabs={tabs} scroll={listScroll.setlists} headerRight={headerRight} />
       ) : (
-        <PlaylistsSection tabs={tabs} scroll={listScroll.playlists} />
+        <PlaylistsSection tabs={tabs} scroll={listScroll.playlists} headerRight={headerRight} />
       )}
-
+      {helpSheet}
     </SafeAreaView>
   );
 }
@@ -141,6 +129,8 @@ export function LibraryScreenContent() {
 function PlaylistsSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scroll: ScrollOffset; headerRight?: ReactNode }) {
   const { t } = useTranslation();
   const model = useLibraryScreenModel();
+  // Playlists are never received, so only the sort applies here.
+  const sort = useReceivedPrefsStore((s) => s.compilationSort);
 
   return (
     <>
@@ -155,7 +145,7 @@ function PlaylistsSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scro
 
       {!model.activePlaylist ? (
         <PlaylistListView
-          playlists={model.sortedPlaylists}
+          playlists={listCompilations(model.sortedPlaylists, "all", sort)}
           onCreatePlaylist={model.openCreatePlaylist}
           onOpenPlaylist={model.openPlaylist}
           scroll={scroll}
@@ -181,6 +171,14 @@ function PlaylistsSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scro
           }
         />
       )}
+
+      {!model.showBack ? (
+        <CreateFab
+          testID="library-new-playlist"
+          onPress={model.openCreatePlaylist}
+          accessibilityLabel={t("library.createPlaylistA11y")}
+        />
+      ) : null}
 
       <QuickNameModal
         visible={model.playlistModalOpen}
@@ -217,7 +215,8 @@ function PlaylistsSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scro
 function SongbookSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scroll: ScrollOffset; headerRight?: ReactNode }) {
   const { t } = useTranslation();
   const songbook = useSongbookModel();
-  const includeFromOthers = useReceivedPrefsStore((s) => s.includeFromOthers);
+  const filter = useReceivedPrefsStore((s) => s.compilationFilter);
+  const sort = useReceivedPrefsStore((s) => s.compilationSort);
 
   const headerTitle = songbook.activeSongbook?.title ?? t("library.title");
 
@@ -251,12 +250,16 @@ function SongbookSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scrol
         />
       ) : (
         <SongbookListView
-          songbooks={visibleCompilations(songbook.sortedSongbooks, includeFromOthers)}
+          songbooks={listCompilations(songbook.sortedSongbooks, filter, sort)}
           onCreate={songbook.openCreate}
           onOpen={songbook.openSongbook}
           scroll={scroll}
         />
       )}
+
+      {!songbook.showBack ? (
+        <CreateFab testID="library-new-songbook" onPress={songbook.openCreate} accessibilityLabel={t("library.createSongbook")} />
+      ) : null}
 
       <QuickNameModal
         visible={songbook.createModalOpen}
@@ -293,7 +296,8 @@ function SongbookSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scrol
 function SetlistsSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scroll: ScrollOffset; headerRight?: ReactNode }) {
   const { t } = useTranslation();
   const setlist = useSetlistModel();
-  const includeFromOthers = useReceivedPrefsStore((s) => s.includeFromOthers);
+  const filter = useReceivedPrefsStore((s) => s.compilationFilter);
+  const sort = useReceivedPrefsStore((s) => s.compilationSort);
 
   const headerTitle = setlist.builder
     ? t("library.editSong")
@@ -345,12 +349,16 @@ function SetlistsSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scrol
         />
       ) : (
         <SetlistListView
-          setlists={visibleCompilations(setlist.sortedSetlists, includeFromOthers)}
+          setlists={listCompilations(setlist.sortedSetlists, filter, sort)}
           onCreate={setlist.openCreate}
           onOpen={setlist.openSetlist}
           scroll={scroll}
         />
       )}
+
+      {!setlist.showBack ? (
+        <CreateFab testID="library-new-setlist" onPress={setlist.openCreate} accessibilityLabel={t("library.createSetlist")} />
+      ) : null}
 
       <QuickNameModal
         visible={setlist.createModalOpen}
@@ -389,26 +397,7 @@ function SetlistsSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scrol
 
 const local = StyleSheet.create({
   tabsWrap: {
-    marginBottom: spacing.md,
-  },
-  desc: {
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.textSecondary,
-    marginBottom: spacing.md,
-  },
-  descRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: spacing.md,
-  },
-  descGrow: {
-    flex: 1,
-    minWidth: 0,
-  },
-  fromOthers: {
-    paddingVertical: 0,
-    paddingTop: 1,
+    marginBottom: spacing.sm,
+    gap: spacing.xs,
   },
 });

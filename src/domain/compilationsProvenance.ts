@@ -14,11 +14,3 @@ export function isFromOthers(item: WithProvenance): boolean {
 export function hasFromOthers(items: readonly WithProvenance[]): boolean {
   return items.some(isFromOthers);
 }
-
-/** The compilations a list shows given the "include from others" preference. */
-export function visibleCompilations<T extends WithProvenance>(
-  items: readonly T[],
-  includeFromOthers: boolean
-): T[] {
-  return includeFromOthers ? items.slice() : items.filter((item) => !isFromOthers(item));
-}
