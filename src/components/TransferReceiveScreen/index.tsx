@@ -153,21 +153,26 @@ export function TransferReceiveScreen() {
           )
         );
         const batcher = createClipImportBatcher({ collectionId, workspaceId });
+        // Four downloads run at once and finish in any order; the parcel's
+        // order is the sender's order (a set, a running order), so clips are
+        // added by parcel index after the batch, each stamped one tick apart —
+        // a whole chunk used to share one millisecond and land shuffled.
         const audioImport = await importAudioAssets(
           assets,
           (_asset, idx) => `audio-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 9)}`,
           undefined,
-          {
-            lightweight: true,
-            onImported: (asset) =>
-              batcher.add({
-                title: asset.name ?? t("transferReceive.receivedClip"),
-                audioUri: asset.audioUri,
-                durationMs: asset.durationMs,
-                waveformPeaks: asset.waveformPeaks,
-                importedAt: Date.now(),
-              }),
-          }
+          { lightweight: true }
+        );
+        const receivedAt = Date.now();
+        audioImport.imported.forEach((asset, index) =>
+          batcher.add({
+            title: asset.name ?? t("transferReceive.receivedClip"),
+            audioUri: asset.audioUri,
+            durationMs: asset.durationMs,
+            waveformPeaks: asset.waveformPeaks,
+            createdAt: receivedAt + index,
+            importedAt: receivedAt + index,
+          })
         );
         batcher.flush();
         reportUnsupportedImports(audioImport.failed);

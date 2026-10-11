@@ -178,7 +178,9 @@ export function ReceivedScreen() {
           </View>
 
           <View style={receivedStyles.list}>
-            {selectedPackage.ideas.map((idea) => {
+            {/* Parcel order (the sender's), oldest stamp first — never the
+                collection's newest-first. */}
+            {[...selectedPackage.ideas].sort((a, b) => a.createdAt - b.createdAt).map((idea) => {
               const clip = getPlayableClipForIdea(idea);
               const isActive = !!clip && inlineTarget?.ideaId === idea.id && inlineTarget.clipId === clip.id;
               return (
