@@ -1,4 +1,5 @@
 import { ViewInCollectionButton } from "../../common/ViewInCollectionButton";
+import { SentLinkChip } from "../../common/SentLinkChip";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import DraggableFlatList from "react-native-draggable-flatlist";
@@ -53,6 +54,8 @@ export function PlaylistDetailView({
   onPlayFromTrack,
   onAddItems,
   onRename,
+  onShare,
+  onGetLink,
   onDelete,
   onRemoveItem,
   onReorderItems,
@@ -69,6 +72,8 @@ export function PlaylistDetailView({
   onPlayFromTrack: (startItemId?: string) => void;
   onAddItems: () => void;
   onRename: () => void;
+  onShare: () => void;
+  onGetLink?: () => void;
   onDelete: () => void;
   onRemoveItem: (itemId: string) => void;
   onReorderItems: (orderedItemIds: string[]) => void;
@@ -96,6 +101,9 @@ export function PlaylistDetailView({
         {playlist.title}
       </Text>
       <Text style={detailStyles.meta}>{metaParts.join("  ·  ")}</Text>
+      <View style={detailStyles.linkChipRow}>
+        <SentLinkChip entityId={playlist.id} />
+      </View>
 
       <View style={detailStyles.actionRow}>
         <Pressable
@@ -289,6 +297,22 @@ export function PlaylistDetailView({
             onPress: onRename,
           },
           {
+            key: "share",
+            label: t("library.sharePlaylist"),
+            icon: "share-outline",
+            onPress: onShare,
+          },
+          ...(onGetLink
+            ? [
+                {
+                  key: "get-link",
+                  label: t("library.getLink"),
+                  icon: "link-outline" as const,
+                  onPress: onGetLink,
+                },
+              ]
+            : []),
+          {
             key: "delete",
             label: t("library.deletePlaylist"),
             icon: "trash-outline",
@@ -302,6 +326,9 @@ export function PlaylistDetailView({
 }
 
 const detailStyles = StyleSheet.create({
+  linkChipRow: {
+    marginTop: 12,
+  },
   header: {
     paddingTop: 2,
     paddingBottom: 14,

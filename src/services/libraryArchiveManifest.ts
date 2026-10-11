@@ -12,6 +12,7 @@ import type {
     LyricsVersion,
     PracticeMarker,
     RecordingGrid,
+    Playlist,
     ReceivedMeta,
     Setlist,
     ShareKind,
@@ -264,6 +265,7 @@ export type ArchiveManifest = {
     /** Global songbooks/setlists (full fidelity); references remapped on import. */
     songbooks?: Songbook[];
     setlists?: Setlist[];
+    playlists?: Playlist[];
     /** What this archive declares itself to be — stamped by the SHARE flows at
      *  export and trusted over any inference on the receiving side. Absent on
      *  older archives and on full library exports made before this field. */

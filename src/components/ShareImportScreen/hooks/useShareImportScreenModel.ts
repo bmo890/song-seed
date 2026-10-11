@@ -138,6 +138,7 @@ export function useShareImportScreenModel({
         shareKind: parsed.manifest.share?.kind,
         importedSongbookIds: result.importedSongbookIds,
         importedSetlistIds: result.importedSetlistIds,
+        importedPlaylistIds: result.importedPlaylistIds,
       });
       const openKind = route?.kind ?? null;
       const openId = route?.id ?? null;
@@ -145,8 +146,14 @@ export function useShareImportScreenModel({
       resetShareIntent();
       if (openKind && openId) {
         toast(
-          t(openKind === "songbook" ? "common.songbookImported" : "common.setlistImported"),
-          openKind === "songbook" ? "book-outline" : "albums-outline"
+          t(
+            openKind === "songbook"
+              ? "common.songbookImported"
+              : openKind === "playlist"
+                ? "common.playlistImported"
+                : "common.setlistImported"
+          ),
+          openKind === "songbook" ? "book-outline" : openKind === "playlist" ? "musical-notes-outline" : "albums-outline"
         );
         returnHome(navigation, {
           screen: "LibraryHome",

@@ -7,6 +7,7 @@ import type {
     ClipVersion,
     Collection,
     Note,
+    Playlist,
     Setlist,
     Songbook,
     SongIdea,
@@ -82,6 +83,7 @@ export type ExportLibraryArgs =
           libraryPreferences?: SongNookArchiveLibraryPreferences;
           songbooks?: Songbook[];
           setlists?: Setlist[];
+          playlists?: Playlist[];
           /** Declares what this archive IS (setlist/songbook/collection/…) —
            *  the receiving side trusts this over inference. */
           share?: ArchiveShareDeclaration;
@@ -399,6 +401,7 @@ function buildSongNookArchive(args: Extract<ExportLibraryArgs, { format: "songno
     if (preserveAllMetadata) {
         if (args.songbooks?.length) manifest.songbooks = args.songbooks;
         if (args.setlists?.length) manifest.setlists = args.setlists;
+        if (args.playlists?.length) manifest.playlists = args.playlists;
     }
     if (args.format === "songnook-archive" && args.share) {
         manifest.share = args.share;

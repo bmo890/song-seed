@@ -16,6 +16,7 @@ import type {
     Collection,
     IdeasListState,
     Note,
+    Playlist,
     ProjectLyrics,
     Setlist,
     Songbook,
@@ -85,6 +86,7 @@ export type MaterializedSongNookArchiveMerge = {
     importedNotes: Note[];
     importedSongbooks: Songbook[];
     importedSetlists: Setlist[];
+    importedPlaylists: Playlist[];
     suggestedPrimaryWorkspaceId: string | null;
     suggestedPrimaryCollectionIdByWorkspace: Record<string, string>;
     bluetoothMonitoringCalibrations: BluetoothMonitoringCalibration[];
@@ -442,6 +444,7 @@ export async function materializeSongNookArchiveMerge(
     const workspaceIdMap = new Map<string, string>();
     const ideaIdMap = new Map<string, string>();
     const clipIdMapGlobal = new Map<string, string>();
+    const collectionIdMapGlobal = new Map<string, string>();
     // Lyric version ids per imported song, so songbook/setlist chart references that point
     // at a version this archive did not carry are dropped instead of dangling.
     const lyricVersionIdsByIdea = new Map<string, Set<string>>();
@@ -500,6 +503,7 @@ export async function materializeSongNookArchiveMerge(
 
             const collectionId = buildCollectionId();
             collectionIdMap.set(collectionManifest.id, collectionId);
+            collectionIdMapGlobal.set(collectionManifest.id, collectionId);
             collectionDrafts.push({
                 sourceId: collectionManifest.id,
                 collectionId,
@@ -771,11 +775,39 @@ export async function materializeSongNookArchiveMerge(
         }))
         .filter((setlist) => setlist.entries.length > 0);
 
+    const importedPlaylists: Playlist[] = (parsed.manifest.playlists ?? [])
+        .map((playlist) => ({
+            id: buildEntityId("playlist"),
+            title: playlist.title,
+            createdAt: playlist.createdAt,
+            updatedAt: playlist.updatedAt,
+            received: playlist.received,
+            items: (playlist.items ?? [])
+                .map((item) => {
+                    const workspaceId = workspaceIdMap.get(item.workspaceId);
+                    const ideaId = ideaIdMap.get(item.ideaId);
+                    const collectionId = collectionIdMapGlobal.get(item.collectionId);
+                    if (!workspaceId || !ideaId || !collectionId) return null;
+                    const remapped: Playlist["items"][number] = {
+                        ...item,
+                        id: buildEntityId("playlist-item"),
+                        workspaceId,
+                        collectionId,
+                        ideaId,
+                        clipId: item.clipId ? clipIdMapGlobal.get(item.clipId) ?? null : null,
+                    };
+                    return remapped;
+                })
+                .filter((item): item is Playlist["items"][number] => item !== null),
+        }))
+        .filter((playlist) => playlist.items.length > 0);
+
     return {
         importedWorkspaces,
         importedNotes,
         importedSongbooks,
         importedSetlists,
+        importedPlaylists,
         suggestedPrimaryWorkspaceId,
         suggestedPrimaryCollectionIdByWorkspace,
         bluetoothMonitoringCalibrations,

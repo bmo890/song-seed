@@ -699,6 +699,8 @@ export type Playlist = {
   createdAt: number;
   updatedAt: number;
   items: PlaylistItem[];
+  /** Present when this playlist arrived from someone else — see Songbook. */
+  received?: ReceivedMeta;
 };
 
 /** A chart collected into a global Songbook. References its source song live

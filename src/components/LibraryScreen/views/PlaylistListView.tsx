@@ -9,6 +9,7 @@ import type { Playlist } from "../../../types";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../../../i18n/instance";
 import { EmptyState } from "../../common/EmptyState";
+import { ProvenanceChip } from "../../common/ProvenanceChip";
 
 function formatPlaylistUpdatedAt(timestamp: number) {
   const now = Date.now();
@@ -62,10 +63,13 @@ export function PlaylistListView({
               <Text style={listStyles.playlistTitle} numberOfLines={1}>
                 {playlist.title}
               </Text>
-              <Text style={listStyles.playlistMeta} numberOfLines={1}>
-                {t("library.tracks", { count: playlist.items.length })} ·{" "}
-                {formatPlaylistUpdatedAt(playlist.updatedAt)}
-              </Text>
+              <View style={listStyles.playlistMetaRow}>
+                {playlist.received ? <ProvenanceChip received={playlist.received} /> : null}
+                <Text style={listStyles.playlistMeta} numberOfLines={1}>
+                  {t("library.tracks", { count: playlist.items.length })} ·{" "}
+                  {formatPlaylistUpdatedAt(playlist.updatedAt)}
+                </Text>
+              </View>
             </View>
             <Ionicons name={dirIcon("chevron-forward")} size={15} color={colors.textMuted} />
           </Pressable>
@@ -116,6 +120,11 @@ const listStyles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 24,
     color: colors.textPrimary,
+  },
+  playlistMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
   },
   playlistMeta: {
     ...textTokens.caption,

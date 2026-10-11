@@ -11,6 +11,8 @@ import {
   type PlaylistTrack,
 } from "../../../domain/playlistPlayback";
 import { useTranslation } from "react-i18next";
+import { createPlaylistShareLink, sharePlaylist } from "../../../services/playlistShare";
+import { presentShareLink } from "../../../services/shareLinkFlow";
 
 function buildDefaultPlaylistTitle(count: number) {
   return `Playlist ${count + 1}`;
@@ -188,6 +190,22 @@ export function useLibraryScreenModel() {
       setRenameDraftTitle("");
     },
     confirmDeletePlaylist,
+    /** Share as an importable .songnook archive — the receiver gets a real playlist, in order. */
+    shareActivePlaylist: async () => {
+      if (!activePlaylist) return;
+      try {
+        const ok = await sharePlaylist(activePlaylist, workspaces);
+        if (!ok) AppAlert.info(t("library.nothingShare"), t("library.addPlaylistSongFirst"));
+      } catch {
+        AppAlert.info(t("songDetail.shareFailed"), t("library.playlistShareFailed"));
+      }
+    },
+    getLinkForActivePlaylist: async () => {
+      if (!activePlaylist) return;
+      await presentShareLink(() => createPlaylistShareLink(activePlaylist, workspaces), {
+        emptyMessage: t("library.addPlaylistSongFirst"),
+      });
+    },
     playFromTrack,
     togglePlayback: () => useStore.getState().requestPlayerToggle(),
     startCollecting,

@@ -3332,6 +3332,10 @@ export const appActions = {
             opts?.origin === "received"
                 ? merge.importedSetlists.map((setlist) => ({ ...setlist, received: provenance(setlist.title) }))
                 : merge.importedSetlists;
+        const importedPlaylists =
+            opts?.origin === "received"
+                ? merge.importedPlaylists.map((playlist) => ({ ...playlist, received: provenance(playlist.title) }))
+                : merge.importedPlaylists;
 
         const nextWorkspaces = normalizeWorkspaces([...store.workspaces, ...importedWorkspaces]);
         const nextPrimaryCollectionIdByWorkspace = {
@@ -3359,6 +3363,7 @@ export const appActions = {
             notes: nextNotes,
             songbooks: [...importedSongbooks, ...store.songbooks],
             setlists: [...importedSetlists, ...store.setlists],
+            playlists: [...importedPlaylists, ...store.playlists],
             primaryWorkspaceId: nextPrimaryWorkspaceId,
             primaryCollectionIdByWorkspace: nextPrimaryCollectionIdByWorkspace,
             bluetoothMonitoringCalibrations: nextBluetoothMonitoringCalibrations,
@@ -3386,6 +3391,7 @@ export const appActions = {
             // collections (a shared songbook/setlist archive).
             importedSongbookIds: merge.importedSongbooks.map((songbook) => songbook.id),
             importedSetlistIds: merge.importedSetlists.map((setlist) => setlist.id),
+            importedPlaylistIds: merge.importedPlaylists.map((playlist) => playlist.id),
             importedWorkspaceIds: merge.importedWorkspaceIds,
         };
     },

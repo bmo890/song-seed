@@ -90,9 +90,7 @@ export function LibraryScreenContent() {
         { key: "songbook", label: t("library.songbook") },
         { key: "setlists", label: t("library.setlists") },
       ]} value={section} onChange={setSection} persist={segThumb} />
-      {/* Playlists are never received, so the filter has nothing to say there. */}
       <CompilationListControls
-        showFilter={section !== "playlists"}
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
         searchPlaceholder={t(SEARCH_PLACEHOLDER[section])}
@@ -145,7 +143,7 @@ export function LibraryScreenContent() {
 function PlaylistsSection({ tabs, scroll, headerRight, searchQuery }: { tabs: ReactNode; scroll: ScrollOffset; headerRight?: ReactNode; searchQuery: string }) {
   const { t } = useTranslation();
   const model = useLibraryScreenModel();
-  // Playlists are never received, so only the sort applies here.
+  const filter = useReceivedPrefsStore((s) => s.compilationFilter);
   const sort = useReceivedPrefsStore((s) => s.compilationSort);
   const workspaces = useStore((s) => s.workspaces);
   const ideaTitles = useMemo(() => buildIdeaTitleIndex(workspaces), [workspaces]);
@@ -163,7 +161,7 @@ function PlaylistsSection({ tabs, scroll, headerRight, searchQuery }: { tabs: Re
 
       {!model.activePlaylist ? (
         <PlaylistListView
-          playlists={listCompilations(model.sortedPlaylists, "all", sort).filter((playlist) =>
+          playlists={listCompilations(model.sortedPlaylists, filter, sort).filter((playlist) =>
             matchesCompilationSearch(searchQuery, { title: playlist.title, ideaIds: playlist.items.map((item) => item.ideaId) }, ideaTitles)
           )}
           onCreatePlaylist={model.openCreatePlaylist}
@@ -183,6 +181,8 @@ function PlaylistsSection({ tabs, scroll, headerRight, searchQuery }: { tabs: Re
           onPlayFromTrack={model.playFromTrack}
           onAddItems={model.startCollecting}
           onRename={model.openRenamePlaylist}
+          onShare={model.shareActivePlaylist}
+          onGetLink={SHOW_GET_LINK ? model.getLinkForActivePlaylist : undefined}
           onDelete={model.confirmDeletePlaylist}
           onRemoveItem={(itemId) => model.removePlaylistItem(model.activePlaylist!.id, itemId)}
           onLocateTrack={model.openTrackLocation}

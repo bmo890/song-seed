@@ -188,6 +188,7 @@ export function TransferReceiveScreen() {
               shareKind: parsed.manifest.share?.kind,
               importedSongbookIds: result.importedSongbookIds,
               importedSetlistIds: result.importedSetlistIds,
+              importedPlaylistIds: result.importedPlaylistIds,
             });
         } else {
           audioUris.push({ uri: localUri, name: item.fileName, mimeType: item.mimeType });
