@@ -446,6 +446,10 @@ object.
   Founder: reuse the collection's row, not a new look → rebuilt on
   `FilterSortControls` with the tonal search field; search is per tab and
   looks inside (title · note · song titles, `domain/compilationSearch.ts`).
+- [x] E. AIFF import: iOS converts to M4A via `renderTrim` over the full range
+  (`convertAiffToM4a` in audioStorage.ts); Android refuses with
+  `UnsupportedAudioFormatError` and one alert (`reportUnsupportedImports`,
+  `collectionImport.unsupportedFormat*`). Founder's Logic bounces: use WAV.
 - Production OTAs android/ios + preview android published 2026-10-11 (see
   memory for ids). Not verified on a real device; cross-workspace picking
   verified by test only (the sim has one workspace).
