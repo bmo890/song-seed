@@ -73,6 +73,11 @@ export function SetlistDetailView({
         {setlist.title}
       </UserText>
       <Text style={setStyles.meta}>{metaParts.join("  ·  ")}</Text>
+      {setlist.description ? (
+        <UserText value={setlist.description} style={setStyles.description} numberOfLines={3}>
+          {setlist.description}
+        </UserText>
+      ) : null}
 
       <View style={setStyles.linkChipRow}>
         <SentLinkChip entityId={setlist.id} />
@@ -286,8 +291,8 @@ export function SetlistDetailView({
         onClose={() => setMenuVisible(false)}
         actions={[
           {
-            key: "rename",
-            label: t("library.renameSet"),
+            key: "details",
+            label: t("library.setDetails"),
             icon: "pencil-outline",
             onPress: onRename,
           },
@@ -341,6 +346,11 @@ const setStyles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 6,
     fontVariant: ["tabular-nums"],
+  },
+  description: {
+    ...textTokens.body,
+    color: colors.textSecondary,
+    marginTop: 10,
   },
   linkChipRow: {
     marginTop: 12,

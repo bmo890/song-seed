@@ -4,7 +4,6 @@ import { useStore } from "../../../state/useStore";
 import { AppAlert } from "../../common/AppAlert";
 import { createSetlistShareLink, shareSetlist } from "../../../services/setlistShare";
 import { presentShareLink } from "../../../services/shareLinkFlow";
-import { personalWorkspaces } from "../../../domain/workspaceVisibility";
 import {
   buildSetlistQueue,
   getSetlistDurationMs,
@@ -47,7 +46,6 @@ export function useSetlistModel() {
   const workspaces = useStore((s) => s.workspaces);
   const setlists = useStore((s) => s.setlists);
   const addSetlist = useStore((s) => s.addSetlist);
-  const addSetlistEntry = useStore((s) => s.addSetlistEntry);
   const updateSetlistEntry = useStore((s) => s.updateSetlistEntry);
   const removeSetlistEntry = useStore((s) => s.removeSetlistEntry);
   const reorderSetlistEntries = useStore((s) => s.reorderSetlistEntries);
@@ -57,10 +55,13 @@ export function useSetlistModel() {
   const isPlayerPlaying = useStore((s) => s.playerIsPlaying);
 
   const [selectedSetlistId, setSelectedSetlistId] = useState<string | null>(null);
+  // The builder only ever REPACKS an entry already in the set (edit mode → tap a
+  // row). Adding a song is the shared picker, same as a playlist's (2026-10-11).
   const [builder, setBuilder] = useState<BuilderState | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [renameModalOpen, setRenameModalOpen] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
+  const [draftDescription, setDraftDescription] = useState("");
 
   const sortedSetlists = useMemo(
     () => setlists.slice().sort((a, b) => b.updatedAt - a.updatedAt || a.title.localeCompare(b.title)),
@@ -135,10 +136,6 @@ export function useSetlistModel() {
   }, [builder?.ideaId, workspaces]);
 
   const handleBack = () => {
-    if (builder?.ideaId && !builder.editingEntryId) {
-      setBuilder((cur) => (cur ? { ...cur, ideaId: null, workspaceId: null } : cur));
-      return;
-    }
     if (builder) {
       setBuilder(null);
       return;
@@ -155,14 +152,6 @@ export function useSetlistModel() {
     isPlayerPlaying,
     builder,
     builderSong,
-    pickerWorkspaces: useMemo(
-      () =>
-        personalWorkspaces(workspaces)
-          .filter((w) => !w.isArchived)
-          .map((w) => ({ id: w.id, title: w.title, songs: w.ideas.filter((i) => i.kind === "project") }))
-          .filter((w) => w.songs.length > 0),
-      [workspaces]
-    ),
     showBack: !!activeSetlist || !!builder,
     createModalOpen,
     setCreateModalOpen,
@@ -170,6 +159,8 @@ export function useSetlistModel() {
     setRenameModalOpen,
     draftTitle,
     setDraftTitle,
+    draftDescription,
+    setDraftDescription,
     defaultTitle: `Setlist ${setlists.length + 1}`,
     handleBack,
     openSetlist: (id: string) => setSelectedSetlistId(id),
@@ -183,24 +174,29 @@ export function useSetlistModel() {
       setDraftTitle("");
       setSelectedSetlistId(id);
     },
+    /** "Set details" — the title and the set's own note, one sheet. */
     openRename: () => {
       if (!activeSetlist) return;
       setDraftTitle(activeSetlist.title);
+      setDraftDescription(activeSetlist.description ?? "");
       setRenameModalOpen(true);
     },
     renameActiveSetlist: () => {
       if (!activeSetlist) return;
       const title = draftTitle.trim();
-      if (title) renameSetlist(activeSetlist.id, title);
+      renameSetlist(activeSetlist.id, title || activeSetlist.title, draftDescription);
       setRenameModalOpen(false);
       setDraftTitle("");
+      setDraftDescription("");
     },
 
     /** Play the whole set (or from one entry) into the dock. */
     playAll: () => playFromEntry(),
     playFromEntry,
 
-    /** Multi-select from the real collections: default-packed entries per song. */
+    /** "Add a song": the shared picker out in the real collections — browse,
+     *  preview, pick across collections and workspaces; each pick lands as a
+     *  default-packed entry (primary take + latest lyrics + chart). */
     startCollecting: () => {
       if (!activeSetlist) return;
       useStore.getState().startLibraryCollecting("setlist", activeSetlist.id, activeSetlist.title);
@@ -214,39 +210,7 @@ export function useSetlistModel() {
       navigateRoot("SetlistSong", { setlistId: activeSetlist.id, entryId });
     },
 
-    // ── Package builder ─────────────────────────────────────────────────────
-    openBuilder: () => {
-      if (!activeSetlist) return;
-      setBuilder({
-        setlistId: activeSetlist.id,
-        workspaceId: null,
-        ideaId: null,
-        editingEntryId: null,
-        clipIds: [],
-        lyricVersionIds: [],
-        includeChordSheet: false,
-        includeSongNotes: false,
-      });
-    },
-    builderSelectSong: (workspaceId: string, ideaId: string) => {
-      const resolved = findIdea(workspaces, ideaId);
-      const idea = resolved?.idea;
-      const primary = idea?.clips.find((c) => c.isPrimary) ?? idea?.clips[0];
-      const latestVersion = idea?.lyrics?.versions[idea.lyrics.versions.length - 1];
-      setBuilder((cur) =>
-        cur
-          ? {
-              ...cur,
-              workspaceId,
-              ideaId,
-              clipIds: primary ? [primary.id] : [],
-              lyricVersionIds: latestVersion ? [latestVersion.id] : [],
-              includeChordSheet: !!idea?.chordSheet && idea.chordSheet.sections.length > 0,
-              includeSongNotes: false,
-            }
-          : cur
-      );
-    },
+    // ── Package builder (repack an entry) ───────────────────────────────────
     builderToggleClip: (clipId: string) =>
       setBuilder((cur) => (cur ? { ...cur, clipIds: toggle(cur.clipIds, clipId) } : cur)),
     builderToggleVersion: (versionId: string) =>
@@ -275,20 +239,13 @@ export function useSetlistModel() {
       );
     },
     confirmBuilder: () => {
-      if (!builder || !builder.ideaId || !builder.workspaceId) return;
-      const payload = {
-        workspaceId: builder.workspaceId,
-        ideaId: builder.ideaId,
+      if (!builder?.editingEntryId) return;
+      updateSetlistEntry(builder.setlistId, builder.editingEntryId, {
         clipIds: builder.clipIds,
         lyricVersionIds: builder.lyricVersionIds,
         includeChordSheet: builder.includeChordSheet,
         includeSongNotes: builder.includeSongNotes,
-      };
-      if (builder.editingEntryId) {
-        updateSetlistEntry(builder.setlistId, builder.editingEntryId, payload);
-      } else {
-        addSetlistEntry(builder.setlistId, payload);
-      }
+      });
       setBuilder(null);
     },
     editEntry: (entryId: string) => {

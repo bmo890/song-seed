@@ -748,6 +748,8 @@ export type SetlistEntry = {
 export type Setlist = {
   id: string;
   title: string;
+  /** A note for the set itself — the venue, the night, what to remember. */
+  description?: string;
   createdAt: number;
   updatedAt: number;
   entries: SetlistEntry[];

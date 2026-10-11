@@ -1,6 +1,5 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { dirIcon } from "../../../design/directionalIcons";
 import { Button } from "../../common/Button";
 import { styles } from "../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
@@ -8,7 +7,6 @@ import { fmtDuration } from "../../../utils";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../../i18n";
 
-type PickerWorkspace = { id: string; title: string; songs: Array<{ id: string; title: string }> };
 type BuilderSong = {
   title: string;
   clips: Array<{
@@ -69,20 +67,17 @@ function CheckRow({
   );
 }
 
-/** "Add a song" as packing a folder: choose the takes/parts, the charts, and
- *  the song notes — or grab Everything. A chosen take always brings its reel
- *  (sections, pins, take notes) along; version history stays home. */
+/** Repacking a song already in the set: choose the takes/parts, the charts,
+ *  and the song notes — or grab Everything. A chosen take always brings its
+ *  reel (sections, pins, take notes) along; version history stays home.
+ *  Adding a song is no longer done here — that is the shared picker, like a
+ *  playlist's (2026-10-11); this view opens from a row in edit mode. */
 export function SetlistEntryBuilderView({
-  ideaId,
-  isEditing,
   song,
-  workspaces,
   clipIds,
   lyricVersionIds,
   includeChordSheet,
   includeSongNotes,
-  onSelectSong,
-  onBrowseCollections,
   onToggleClip,
   onToggleVersion,
   onToggleChordSheet,
@@ -90,16 +85,11 @@ export function SetlistEntryBuilderView({
   onSelectEverything,
   onConfirm,
 }: {
-  ideaId: string | null;
-  isEditing: boolean;
   song: BuilderSong | null;
-  workspaces: PickerWorkspace[];
   clipIds: string[];
   lyricVersionIds: string[];
   includeChordSheet: boolean;
   includeSongNotes: boolean;
-  onSelectSong: (workspaceId: string, ideaId: string) => void;
-  onBrowseCollections?: () => void;
   onToggleClip: (clipId: string) => void;
   onToggleVersion: (versionId: string) => void;
   onToggleChordSheet: () => void;
@@ -108,68 +98,7 @@ export function SetlistEntryBuilderView({
   onConfirm: () => void;
 }) {
   const { t } = useTranslation();
-  if (!ideaId || !song) {
-    return (
-      <ScrollView
-        style={styles.flexFill}
-        contentContainerStyle={styles.libraryScrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Text style={styles.cardMeta}>{t("library.pickSong")}</Text>
-        <View style={styles.listContent}>
-          {onBrowseCollections ? (
-            <Pressable
-              style={({ pressed }) => [styles.card, pressed ? styles.pressDown : null]}
-              onPress={onBrowseCollections}
-              accessibilityRole="button"
-              accessibilityLabel={t("library.browseCollections")}
-            >
-              <View style={styles.cardTop}>
-                <View style={styles.cardTitleRow}>
-                  <Ionicons name="albums-outline" size={16} color={colors.primaryDeep} />
-                  <Text style={[styles.cardTitle, { color: colors.primaryDeep }]} numberOfLines={1}>
-                    {t("library.browseInstead")}
-                  </Text>
-                </View>
-                <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
-              </View>
-            </Pressable>
-          ) : null}
-          {workspaces.map((workspace) => (
-            <View key={workspace.id}>
-              <Text style={[styles.cardMeta, { marginTop: 12, marginBottom: 4 }]}>{workspace.title}</Text>
-              {workspace.songs.map((s) => (
-                <Pressable
-                  key={s.id}
-                  style={({ pressed }) => [styles.card, pressed ? styles.pressDown : null]}
-                  onPress={() => onSelectSong(workspace.id, s.id)}
-                >
-                  <View style={styles.cardTop}>
-                    <View style={styles.cardTitleRow}>
-                      <Ionicons name="musical-notes-outline" size={16} color={colors.textPrimary} />
-                      <UserText value={s.title} style={styles.cardTitle} numberOfLines={1}>
-                        {s.title}
-                      </UserText>
-                    </View>
-                    <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-          ))}
-          {workspaces.length === 0 ? (
-            <View style={styles.card}>
-              <Text style={styles.cardMeta}>{t("library.noSongs")}</Text>
-            </View>
-          ) : null}
-        </View>
-      </ScrollView>
-    );
-  }
-
-  const partCount = clipIds.length;
-  const extraCount =
-    lyricVersionIds.length + (includeChordSheet ? 1 : 0) + (includeSongNotes ? 1 : 0);
+  if (!song) return null;
 
   return (
     <View style={styles.flexFill}>
@@ -249,16 +178,7 @@ export function SetlistEntryBuilderView({
         </Text>
       </ScrollView>
       <View style={styles.inputRow}>
-        <Button
-          label={
-            isEditing
-              ? t("common.save")
-              : partCount > 0 || extraCount > 0
-                ? t("library.addSummary", { parts: t("library.parts", { count: partCount }), extras: extraCount > 0 ? t("library.extras", { count: extraCount }) : "" })
-                : t("songDetail.add")
-          }
-          onPress={onConfirm}
-        />
+        <Button label={t("common.save")} onPress={onConfirm} />
       </View>
     </View>
   );

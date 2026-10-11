@@ -296,9 +296,7 @@ function SetlistsSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scrol
   const includeFromOthers = useReceivedPrefsStore((s) => s.includeFromOthers);
 
   const headerTitle = setlist.builder
-    ? setlist.builder.editingEntryId
-      ? t("library.editSong")
-      : t("library.addSong")
+    ? t("library.editSong")
     : setlist.activeSetlist?.title ?? t("library.title");
 
   return (
@@ -314,16 +312,11 @@ function SetlistsSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scrol
 
       {setlist.builder ? (
         <SetlistEntryBuilderView
-          ideaId={setlist.builder.ideaId}
-          isEditing={!!setlist.builder.editingEntryId}
           song={setlist.builderSong}
-          workspaces={setlist.pickerWorkspaces}
           clipIds={setlist.builder.clipIds}
           lyricVersionIds={setlist.builder.lyricVersionIds}
           includeChordSheet={setlist.builder.includeChordSheet}
           includeSongNotes={setlist.builder.includeSongNotes}
-          onSelectSong={setlist.builderSelectSong}
-          onBrowseCollections={setlist.startCollecting}
           onToggleClip={setlist.builderToggleClip}
           onToggleVersion={setlist.builderToggleVersion}
           onToggleChordSheet={setlist.builderToggleChordSheet}
@@ -342,7 +335,7 @@ function SetlistsSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scrol
           onPlayEntry={setlist.playFromEntry}
           onOpenEntry={setlist.openEntryFolder}
           onEditEntry={setlist.editEntry}
-          onAddSong={setlist.openBuilder}
+          onAddSong={setlist.startCollecting}
           onReorder={setlist.reorderEntries}
           onRemoveEntry={setlist.removeEntry}
           onRename={setlist.openRename}
@@ -376,13 +369,16 @@ function SetlistsSection({ tabs, scroll, headerRight }: { tabs: ReactNode; scrol
 
       <QuickNameModal
         visible={setlist.renameModalOpen}
-        title={t("library.renameSetlist")}
+        title={t("library.setDetails")}
         draftValue={setlist.draftTitle}
         placeholderValue={setlist.activeSetlist?.title ?? ""}
         onChangeDraft={setlist.setDraftTitle}
+        descriptionValue={setlist.draftDescription}
+        onChangeDescription={setlist.setDraftDescription}
         onCancel={() => {
           setlist.setRenameModalOpen(false);
           setlist.setDraftTitle("");
+          setlist.setDraftDescription("");
         }}
         onSave={setlist.renameActiveSetlist}
         saveLabel={t("common.save")}

@@ -360,7 +360,7 @@ export type DataSlice = {
     ) => void;
     removeSetlistEntry: (setlistId: string, entryId: string) => void;
     reorderSetlistEntries: (setlistId: string, orderedEntryIds: string[]) => void;
-    renameSetlist: (setlistId: string, title: string) => void;
+    renameSetlist: (setlistId: string, title: string, description?: string) => void;
     deleteSetlist: (setlistId: string) => void;
     deleteIdea: (ideaId: string) => void;
 };
@@ -3196,12 +3196,14 @@ export const createDataSlice: StateCreator<
         }));
     },
 
-    renameSetlist: (setlistId, title) => {
+    renameSetlist: (setlistId, title, description) => {
         set((state) => ({
             setlists: updateEntityList(state.setlists, setlistId, (setlist) => ({
                 ...setlist,
                 updatedAt: Date.now(),
                 title: title.trim() || setlist.title,
+                // Only the details sheet passes a description; a bare rename keeps it.
+                ...(description === undefined ? {} : { description: description.trim() || undefined }),
             })),
         }));
     },

@@ -119,6 +119,7 @@ export function buildSetlistArchive(setlist: Setlist, workspaces: Workspace[]): 
     setlist: {
       id: `setlist-${base}-${suffix}`,
       title: setlist.title,
+      ...(setlist.description ? { description: setlist.description } : {}),
       createdAt: base,
       updatedAt: base,
       entries: remappedEntries,
