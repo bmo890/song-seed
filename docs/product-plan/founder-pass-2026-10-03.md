@@ -450,6 +450,32 @@ object.
   (`convertAiffToM4a` in audioStorage.ts); Android refuses with
   `UnsupportedAudioFormatError` and one alert (`reportUnsupportedImports`,
   `collectionImport.unsupportedFormat*`). Founder's Logic bounces: use WAV.
+
+## Send & receive pass (founder, 2026-10-11)
+
+**Report:** can't drop a folder on the sender page; no reorder; a set
+arrived shuffled in the app; the receive screen is a one-off (own rows,
+stadium button, "where did it go" only in a footnote); Received package page
+uses a non-canon card and can't feed a playlist/setlist. **Decisions:** the
+sender decides what a parcel is (Files · Playlist · Setlist); a parcel with
+an entity lands on it in Compilations, loose files land inside their package
+in Received; received packages open as the real collection page.
+
+- [x] B. Order bug (d90a3371): clips added by parcel index after the batch,
+  stamped `receivedAt + index`; Received package lists oldest-stamp first.
+- [x] A. Sender page (e8e6165b, worker 54efa019): folder drop
+  (`webkitGetAsEntry` walk) + "choose a folder" (`webkitdirectory`), dotfiles
+  skipped, folder → title, drag/▲▼/A→Z/Clear, XHR per-file progress, inline
+  errors, "From" remembered, frozen receipt. `.claude/launch.json` runs the
+  worker from its own folder (the app-root `wrangler.jsonc` gotcha).
+- [ ] C. Receive screen on canon: ScreenHeader back, eyebrow meta, note,
+  SurfaceCard rows with a streaming play lead, destination named above one
+  soft key, cellular/size confirm, land inside the package.
+- [ ] D. Received package opens as a CollectionVisit; packages in the
+  picker's workspace sheet under "Received".
+- [ ] E. Parcel kind (Files · Playlist · Setlist) on the sender page →
+  `kind` on the transfer → app builds the compilation; playlist send/receive
+  in the app (archive kind "playlist", mirror setlistShare.ts).
 - Production OTAs android/ios + preview android published 2026-10-11 (see
   memory for ids). Not verified on a real device; cross-workspace picking
   verified by test only (the sim has one workspace).
