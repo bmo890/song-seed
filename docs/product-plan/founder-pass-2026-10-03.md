@@ -498,3 +498,23 @@ in Received; received packages open as the real collection page.
 - Production OTAs android/ios + preview android published 2026-10-11 (see
   memory for ids). Not verified on a real device; cross-workspace picking
   verified by test only (the sim has one workspace).
+
+## Founder follow-ups (2026-10-11, batch 2)
+
+- [x] E2 receive side verified (Playlist 1 arrived in order, "Playlist imported").
+- [x] Parcel key pinned under a scrolling list; archive rows named after the
+  parcel; empty sender → "someone" (081dc03e).
+- [x] Web pages show names without extensions, wire unchanged (c2fbd5e8).
+- [x] Picker: ring only when picked; count · All · Clear in the toolbar row
+  via SelectionTopBar + `setLibraryCollectorPicks` (caf2f3ba).
+- [x] Section/pin arrows step 1–5 s scaled to the clip; preview runs through
+  `resolveSectionEdit` so a pushed neighbour visibly moves (0da485af).
+- [x] Received: "Keep this…" InkLink on the package page (identity block now
+  box-none), ⋯ keeps only Delete; `ReceivedPackageMoveModal` (own workspace ·
+  workspace top level · under a collection) backed by
+  `adoptReceivedPackageInto` = moveCollection + deleteWorkspace; list
+  long-press multi-select with Keep… / Delete (61421ae0). The collection keeps
+  the parcel's name (founder suggested "Collection 1"; parcel name chosen).
+- [x] Playlist… in the collection and sketch selection More sheets, Save on
+  the queue header, all through `PlaylistChooserSheet`; the dock's queue is
+  the full player's expandable BottomSheet (c9b6208c).
