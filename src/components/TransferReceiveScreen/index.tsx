@@ -343,14 +343,15 @@ export function TransferReceiveScreen() {
     );
   };
 
-  const renderItem = (item: TransferItemPayload, index: number) => {
+  const renderItem = (transfer: TransferPayload, item: TransferItemPayload, index: number) => {
     const saving = phase.kind === "saving";
     const done = phase.kind === "done";
     const active = saving && phase.itemIndex === index;
     const complete = done || (saving && phase.itemIndex > index);
     const archive = isArchiveItem(item);
     const previewing = preview.activeItemId === item.itemId;
-    const name = archive ? item.fileName : displayName(item.fileName);
+    // An archive row wears the parcel's name, not its timestamped file name.
+    const name = archive ? transfer.title || t("transferReceive.songnookFile") : displayName(item.fileName);
     const meta = active
       ? t("transferReceive.downloading", { percent: Math.round(phase.itemFraction * 100) })
       : archive
@@ -466,7 +467,7 @@ export function TransferReceiveScreen() {
         const hasArchive = transfer.items.some(isArchiveItem);
         const title = transfer.title || t("transferReceive.sentMusic");
         const metaLine = [
-          t("transferReceive.from", { name: transfer.sender.name ?? t("transferReceive.someone") }),
+          t("transferReceive.from", { name: transfer.sender.name || t("transferReceive.someone") }),
           t("transferReceive.fileCount", { count: transfer.items.length }),
           formatBytes(totalBytes),
           t("transferReceive.daysLeft", { count: daysUntil(transfer.expiresAt) }),
@@ -480,6 +481,7 @@ export function TransferReceiveScreen() {
               : t("transferReceive.save");
 
         return (
+          <View style={local.fill}>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={local.scrollContent}>
             <View style={local.header}>
               <Text style={local.eyebrow}>{t("transferReceive.parcel")}</Text>
@@ -497,8 +499,11 @@ export function TransferReceiveScreen() {
               </SurfaceCard>
             ) : null}
 
-            <View style={local.list}>{transfer.items.map(renderItem)}</View>
+            <View style={local.list}>{transfer.items.map((item, index) => renderItem(transfer, item, index))}</View>
+          </ScrollView>
 
+          {/* The key never scrolls away: the list scrolls, the decision stays. */}
+          <View style={local.footer}>
             {/* Where it lands — said before the tap, not after. */}
             <Text style={local.destination}>
               {hasArchive
@@ -517,7 +522,8 @@ export function TransferReceiveScreen() {
               hapticFeedback={false}
               accessibilityLabel={keyLabel}
             />
-          </ScrollView>
+          </View>
+          </View>
         );
       }
     }
@@ -536,9 +542,19 @@ const local = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.page,
   },
+  fill: {
+    flex: 1,
+  },
   scrollContent: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: 120,
+    paddingBottom: spacing.lg,
+  },
+  footer: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+    backgroundColor: colors.page,
   },
   header: {
     paddingTop: spacing.sm,
@@ -614,7 +630,7 @@ const local = StyleSheet.create({
     ...textTokens.supporting,
     color: colors.textSecondary,
     textAlign: "center",
-    marginTop: spacing.xl,
+    marginTop: spacing.md,
     marginBottom: spacing.sm,
   },
   centerWrap: {
