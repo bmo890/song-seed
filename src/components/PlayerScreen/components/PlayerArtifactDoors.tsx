@@ -154,17 +154,20 @@ function SketchDoor({ onPress }: { onPress: () => void }) {
     onPress();
   };
   if (anySketch) {
+    // Folded: the sketch glyph says what, the ink says the one action.
     return (
-      <Door
-        kind={t("brand.sketch")}
-        onOpen={handlePress}
-        emptyLabel={t("player.noSketchYet")}
-        ctaLabel={t("songDetail.makeSong")}
-        onCta={handlePress}
-        emptyIcon={dirIcon("chevron-forward")}
-        accessibilityLabel={t("songDetail.makeSong")}
-        testID="player-sketch-door"
-      />
+      <SurfaceCard style={doorStyles.door} onPress={handlePress}>
+        <View
+          style={doorStyles.doorInner}
+          accessibilityRole="button"
+          accessibilityLabel={t("songDetail.makeSong")}
+          testID="player-sketch-door"
+        >
+          <Ionicons name={getHierarchyIconName("song")} size={16} color={colors.textSecondary} />
+          <Text style={[doorStyles.cta, doorStyles.foldedCta]}>{t("songDetail.makeSong")}</Text>
+          <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
+        </View>
+      </SurfaceCard>
     );
   }
   return (
@@ -336,6 +339,11 @@ const doorStyles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 13,
     color: colors.primaryDeep,
+  },
+  foldedCta: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
   },
   // The ghost door: tonal, no shadow. The hairline is reserved at rest
   // (transparent) so the first-visit wash is a colour change, not a resize.
