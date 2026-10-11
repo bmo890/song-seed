@@ -22,15 +22,6 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { useLocale } from "../../i18n";
 
-const KIND_LABELS: Record<ShareKind, string> = {
-  setlist: "Setlist",
-  songbook: "Songbook",
-  collection: "Collection",
-  workspace: "Workspace",
-  clips: "Clips",
-  library: "Library",
-};
-
 const KIND_ICONS: Record<ShareKind, React.ComponentProps<typeof Ionicons>["name"]> = {
   setlist: "albums-outline",
   songbook: "book-outline",

@@ -137,7 +137,7 @@ describe("songbooks", () => {
     it("full CRUD round-trip with the songbook rename semantics (blank keeps title, bumps updatedAt)", () => {
         const store = makeStore();
         const id = store.getState().addSongbook("   ");
-        expect(store.getState().songbooks[0]?.title).toBe("Untitled Songbook");
+        expect(store.getState().songbooks[0]?.title).toBe("Untitled chart book");
 
         store.getState().addItemsToSongbook(id, [{ ideaId: "idea-1" } as never, { ideaId: "idea-2" } as never]);
         const before = store.getState().songbooks[0]!;
@@ -145,7 +145,7 @@ describe("songbooks", () => {
 
         store.getState().renameSongbook(id, "   ");
         const after = store.getState().songbooks[0]!;
-        expect(after.title).toBe("Untitled Songbook");
+        expect(after.title).toBe("Untitled chart book");
         expect(after).not.toBe(before); // songbook rename always rewrites (bumps updatedAt)
 
         const ids = after.items.map((i) => i.id);

@@ -1269,7 +1269,7 @@ export function normalizeSongbooks(songbooks: Songbook[] | undefined) {
         })
         .map((songbook) => ({
             ...songbook,
-            title: songbook.title.trim() || "Untitled Songbook",
+            title: songbook.title.trim() || "Untitled chart book",
             items: normalizeSongbookItems(songbook.items),
             received: normalizeCompilationProvenance(songbook.received),
         }));
@@ -3064,7 +3064,7 @@ export const createDataSlice: StateCreator<
         const id = buildSongbookId();
         set((state) => ({
             songbooks: [
-                { id, title: title.trim() || "Untitled Songbook", createdAt: now, updatedAt: now, items: [] },
+                { id, title: title.trim() || "Untitled chart book", createdAt: now, updatedAt: now, items: [] },
                 ...state.songbooks,
             ],
         }));

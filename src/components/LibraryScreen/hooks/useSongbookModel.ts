@@ -140,14 +140,16 @@ export function useSongbookModel() {
     setCreateModalOpen,
     draftTitle,
     setDraftTitle,
-    defaultTitle: `Songbook ${songbooks.length + 1}`,
+    defaultTitle: t("songbookChooser.defaultTitle", { number: songbooks.length + 1 }),
     openSongbook: (id: string) => setSelectedSongbookId(id),
     openCreate: () => {
       setDraftTitle("");
       setCreateModalOpen(true);
     },
     createSongbook: () => {
-      const id = addSongbook(draftTitle.trim() || `Songbook ${songbooks.length + 1}`);
+      const id = addSongbook(
+        draftTitle.trim() || t("songbookChooser.defaultTitle", { number: songbooks.length + 1 })
+      );
       setCreateModalOpen(false);
       setDraftTitle("");
       setSelectedSongbookId(id);
