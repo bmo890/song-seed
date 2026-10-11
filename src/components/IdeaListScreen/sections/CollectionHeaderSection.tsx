@@ -144,16 +144,32 @@ export function CollectionHeaderSection() {
 
   return (
     <View style={collStyles.navRow}>
-      <Pressable
-        testID="header-menu"
-        style={({ pressed }) => [collStyles.navBtn, pressed ? styles.pressDown : null]}
-        onPress={screen.openDrawer}
-        hitSlop={8}
-        accessibilityRole="button"
-        accessibilityLabel={t("workspaceBrowse.openMenu")}
-      >
-        <Ionicons name="menu-outline" size={22} color="#84736f" />
-      </Pressable>
+      {screen.pickerMode && upLink ? (
+        // A picker is a task, not a place (side-menu law): no hamburger. The
+        // lead is an honest back chevron up to the hub, where the next
+        // collection to pick from is chosen.
+        <Pressable
+          testID="header-back"
+          style={({ pressed }) => [collStyles.navBtn, pressed ? styles.pressDown : null]}
+          onPress={upLink.onPress}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t("common.backTo", { label: upLink.label })}
+        >
+          <Ionicons name={dirIcon("chevron-back")} size={22} color={colors.textStrong} />
+        </Pressable>
+      ) : (
+        <Pressable
+          testID="header-menu"
+          style={({ pressed }) => [collStyles.navBtn, pressed ? styles.pressDown : null]}
+          onPress={screen.openDrawer}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t("workspaceBrowse.openMenu")}
+        >
+          <Ionicons name="menu-outline" size={22} color={colors.textSecondary} />
+        </Pressable>
+      )}
 
       {/* One slot, two occupants: the "◐ MY SONGS" up-link while the identity
           block is on screen; the compact title once it has scrolled away. */}

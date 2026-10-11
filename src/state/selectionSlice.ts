@@ -1,6 +1,7 @@
 import { StateCreator } from "zustand";
 import { ClipClipboard, SongIdea, ClipVersion, IdeaStatus } from "../types";
 import { DataSlice } from "./dataSlice";
+import type { LibraryCollectorPick } from "../domain/libraryCollectorPicks";
 
 export type SelectionSlice = {
     selectedIdeaId: string | null;
@@ -23,23 +24,27 @@ export type SelectionSlice = {
     startSongTargetPicking: (noteIds: string[]) => void;
     cancelSongTargetPicking: () => void;
 
-    /** Active "add to a library collection" collecting session — playlist,
-     *  songbook, or setlist. Set from that collection's Add action, then the
-     *  user browses the real app: collection screens show a collector banner
-     *  and the selection dock gains a kind-aware add action. `addedCount`
-     *  feeds the banner's running tally. Session-only. */
+    /** Active "add to a compilation" picking session — playlist, songbook, or
+     *  setlist. Set from that compilation's Add action, then the user browses
+     *  the real collections as a picker: cards wear a pick ring and tapping one
+     *  picks it. `picks` is the session's whole basket — it accumulates across
+     *  collections AND workspaces (each pick remembers its workspace, so a
+     *  session that wanders is committed correctly, 2026-10-11). Session-only;
+     *  ends on Add, on ✕, or when navigation leaves the picker pages. */
     libraryCollector: {
         kind: "playlist" | "songbook" | "setlist";
         targetId: string;
         targetTitle: string;
-        addedCount: number;
+        picks: LibraryCollectorPick[];
     } | null;
     startLibraryCollecting: (
         kind: "playlist" | "songbook" | "setlist",
         targetId: string,
         targetTitle: string
     ) => void;
-    noteLibraryCollectorAdded: (count: number) => void;
+    /** Pick or un-pick an idea; its workspace is looked up here so the card
+     *  doesn't need to know where it lives. */
+    toggleLibraryCollectorPick: (ideaId: string) => void;
     cancelLibraryCollecting: () => void;
 
     clipClipboard: ClipClipboard | null;
@@ -99,18 +104,19 @@ export const createSelectionSlice: StateCreator<
 
     libraryCollector: null,
     startLibraryCollecting: (kind, targetId, targetTitle) =>
-        set({ libraryCollector: { kind, targetId, targetTitle, addedCount: 0 } }),
-    noteLibraryCollectorAdded: (count) =>
-        set((state) =>
-            state.libraryCollector
-                ? {
-                      libraryCollector: {
-                          ...state.libraryCollector,
-                          addedCount: state.libraryCollector.addedCount + count,
-                      },
-                  }
-                : state
-        ),
+        set({ libraryCollector: { kind, targetId, targetTitle, picks: [] } }),
+    toggleLibraryCollectorPick: (ideaId) =>
+        set((state) => {
+            const collector = state.libraryCollector;
+            if (!collector) return state;
+            const workspace = state.workspaces.find((ws) => ws.ideas.some((idea) => idea.id === ideaId));
+            if (!workspace) return state;
+            const already = collector.picks.some((pick) => pick.ideaId === ideaId);
+            const picks = already
+                ? collector.picks.filter((pick) => pick.ideaId !== ideaId)
+                : [...collector.picks, { workspaceId: workspace.id, ideaId }];
+            return { libraryCollector: { ...collector, picks } };
+        }),
     cancelLibraryCollecting: () => set({ libraryCollector: null }),
 
     clipClipboard: null,

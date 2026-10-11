@@ -116,7 +116,9 @@ function CollectionPickerFooter({ onLayout }: { onLayout: (height: number) => vo
   const { t } = useTranslation();
   const { screen } = useCollectionScreen();
   const collecting = useStore((s) => s.libraryCollector != null);
-  const pickedCount = useStore((s) => s.selectedListIdeaIds.length);
+  // The whole basket, not this page's share of it: picks accumulate across
+  // collections, and "Add 4" must mean four.
+  const pickedCount = useStore((s) => s.libraryCollector?.picks.length ?? 0);
   const collectorHandlers = useLibraryCollectorHandlers(screen.navigation);
   if (collecting) {
     return (

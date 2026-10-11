@@ -1,49 +1,50 @@
 import { useStore } from "./useStore";
 import { getPlayableClipForIdea } from "../domain/clipPresentation";
 import { buildDefaultSongbookItemsForIdea } from "../domain/songbookGrouping";
+import { resolveCollectorPicks } from "../domain/libraryCollectorPicks";
 
 /**
- * Add ideas from the active workspace to whatever compilation is collecting
- * (`libraryCollector`). One place for the three kinds, so the selection dock's
- * Add and the banner's Done put the same things in the same shape:
+ * Commit the collecting session's basket to whatever compilation is collecting
+ * (`libraryCollector`). One place for the three kinds, so the same picks land in
+ * the same shape wherever Add was pressed:
  *  - playlist: songs as song items, clips pin their playable clip;
  *  - songbook: each song's default charts (ideas without charts are skipped);
  *  - setlist: a default-packed entry per idea (primary clip + latest lyrics +
- *    chord chart when present).
- * Returns how many ideas landed, and `noCharts` when a songbook add found none.
+ *    chord chart when present). A setlist takes anything — a lyrics-only
+ *    sketch is a valid set entry (founder, 2026-10-11).
+ * Picks resolve in their own workspace, so a basket gathered across workspaces
+ * commits whole. Returns how many ideas landed, and `noCharts` when a songbook
+ * add found none.
  */
-export function addIdeasToLibraryCollector(ideaIds: string[]): { added: number; noCharts: boolean } {
+export function addLibraryCollectorPicks(): { added: number; noCharts: boolean } {
     const state = useStore.getState();
     const collector = state.libraryCollector;
-    const activeWorkspace = state.workspaces.find((ws) => ws.id === state.activeWorkspaceId);
-    if (!collector || !activeWorkspace || ideaIds.length === 0) return { added: 0, noCharts: false };
-    const ideas = ideaIds
-        .map((id) => activeWorkspace.ideas.find((idea) => idea.id === id))
-        .filter((idea): idea is NonNullable<typeof idea> => !!idea);
-    if (ideas.length === 0) return { added: 0, noCharts: false };
+    if (!collector || collector.picks.length === 0) return { added: 0, noCharts: false };
+    const resolved = resolveCollectorPicks(state.workspaces, collector.picks);
+    if (resolved.length === 0) return { added: 0, noCharts: false };
 
     let added = 0;
     if (collector.kind === "playlist") {
         state.addItemsToPlaylist(
             collector.targetId,
-            ideas.map((idea) => ({
+            resolved.map(({ workspace, idea }) => ({
                 kind: idea.kind === "project" ? ("song" as const) : ("clip" as const),
-                workspaceId: activeWorkspace.id,
+                workspaceId: workspace.id,
                 collectionId: idea.collectionId,
                 ideaId: idea.id,
                 clipId: idea.kind === "project" ? null : getPlayableClipForIdea(idea)?.id ?? null,
             }))
         );
-        added = ideas.length;
+        added = resolved.length;
     } else if (collector.kind === "songbook") {
-        for (const idea of ideas) {
+        for (const { workspace, idea } of resolved) {
             const defaults = buildDefaultSongbookItemsForIdea(idea);
             if (defaults.length === 0) continue;
             state.addItemsToSongbook(
                 collector.targetId,
                 defaults.map((choice) => ({
                     kind: choice.kind,
-                    workspaceId: activeWorkspace.id,
+                    workspaceId: workspace.id,
                     ideaId: idea.id,
                     versionId: choice.versionId,
                 }))
@@ -52,11 +53,11 @@ export function addIdeasToLibraryCollector(ideaIds: string[]): { added: number; 
         }
         if (added === 0) return { added: 0, noCharts: true };
     } else {
-        for (const idea of ideas) {
+        for (const { workspace, idea } of resolved) {
             const primary = getPlayableClipForIdea(idea);
             const latestVersion = idea.lyrics?.versions[idea.lyrics.versions.length - 1];
             state.addSetlistEntry(collector.targetId, {
-                workspaceId: activeWorkspace.id,
+                workspaceId: workspace.id,
                 ideaId: idea.id,
                 clipIds: primary ? [primary.id] : [],
                 lyricVersionIds: latestVersion ? [latestVersion.id] : [],
@@ -66,6 +67,5 @@ export function addIdeasToLibraryCollector(ideaIds: string[]): { added: number; 
             added += 1;
         }
     }
-    state.noteLibraryCollectorAdded(added);
     return { added, noCharts: false };
 }

@@ -19,6 +19,9 @@ import { SelectionTopBar } from "../../common/SelectionTopBar";
 import { SearchField } from "../../common/SearchField";
 import { PickerEyebrow } from "../../common/PickerEyebrow";
 import { PickerFooter } from "../../common/PickerFooter";
+import { WorkspacePickSheet } from "../../common/WorkspacePickSheet";
+import { personalWorkspaces } from "../../../domain/workspaceVisibility";
+import { dirIcon } from "../../../design/directionalIcons";
 import { useLibraryCollectorHandlers } from "../../../hooks/useLibraryCollectorHandlers";
 import { getLibraryCollectorIcon } from "../../../domain/libraryCollectorPresentation";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
@@ -50,7 +53,15 @@ function WorkspaceBrowseInner() {
   // commit here — the picking happens inside a collection.
   const pickerActive = libraryCollector != null || pickingSongTarget;
   const [pickerFooterHeight, setPickerFooterHeight] = useState(0);
+  // While collecting, the identity block is the workspace switcher (the drawer
+  // is closed to a picker): it opens this sheet, and a pick re-points the hub.
+  const [workspaceSheetOpen, setWorkspaceSheetOpen] = useState(false);
+  const pickCount = libraryCollector?.picks.length ?? 0;
   const collectionsModel = useWorkspaceCollectionsModel();
+  const pickFromWorkspace = (workspaceId: string) => {
+    useStore.getState().setActiveWorkspaceId(workspaceId);
+    navigation.setParams({ workspaceId });
+  };
   const [searchOpen, setSearchOpen] = useState(false);
   const selectionModel = useWorkspaceCollectionSelection({
     navigation,
@@ -91,10 +102,15 @@ function WorkspaceBrowseInner() {
     };
   });
 
+  // Back on the hub while collecting = ✕: the session ends and the compilation
+  // that started it comes back (the drawer's own back would wander off to the
+  // app's start route instead).
   useBrowseRootBackHandler(
     selectionModel.selectedCollectionIds.length > 0
       ? { onBack: () => selectionModel.setSelectedCollectionIds([]) }
-      : true
+      : libraryCollector
+        ? { onBack: collectorHandlers.onCancel }
+        : true
   );
 
   function openDrawer() {
@@ -120,15 +136,30 @@ function WorkspaceBrowseInner() {
     <SafeAreaView style={[browseStyles.screen, { backgroundColor: theme.bg }]}>
       {/* Fixed nav row — compact workspace identity fades in here as the block collapses */}
       <View style={browseStyles.navRow}>
-        <Pressable
-          testID="header-menu"
-          accessibilityLabel={t("workspaceBrowse.openMenu")}
-          style={({ pressed }) => [browseStyles.navBtn, pressed ? styles.pressDown : null]}
-          onPress={openDrawer}
-          hitSlop={8}
-        >
-          <Ionicons name="menu-outline" size={22} color={colors.textSecondary} />
-        </Pressable>
+        {libraryCollector ? (
+          // A picker is a task, not a place: no menu. The lead is a back chevron
+          // to the compilation this session is adding to — the same exit as ✕.
+          <Pressable
+            testID="header-back"
+            accessibilityRole="button"
+            accessibilityLabel={t("common.backTo", { label: libraryCollector.targetTitle })}
+            style={({ pressed }) => [browseStyles.navBtn, pressed ? styles.pressDown : null]}
+            onPress={collectorHandlers.onCancel}
+            hitSlop={8}
+          >
+            <Ionicons name={dirIcon("chevron-back")} size={22} color={colors.textStrong} />
+          </Pressable>
+        ) : (
+          <Pressable
+            testID="header-menu"
+            accessibilityLabel={t("workspaceBrowse.openMenu")}
+            style={({ pressed }) => [browseStyles.navBtn, pressed ? styles.pressDown : null]}
+            onPress={openDrawer}
+            hitSlop={8}
+          >
+            <Ionicons name="menu-outline" size={22} color={colors.textSecondary} />
+          </Pressable>
+        )}
 
         <ReAnimated.View style={[browseStyles.navCompact, compactTitleStyle]} pointerEvents="none">
           <WorkspaceAvatar
@@ -238,8 +269,23 @@ function WorkspaceBrowseInner() {
           collapsibleHeight={collapsibleHeaderHeight}
           onHeaderHeight={setHeaderHeight}
           collapsible={
-            <View style={[browseStyles.identityBlock, { backgroundColor: theme.bg }]}>
-              <Text style={browseStyles.eyebrow}>{t("workspaceBrowse.currentWorkspace")}</Text>
+            // While collecting, the identity block is the workspace switcher:
+            // "PICKING FROM ▾ My Songs" — tap to pick from another workspace.
+            <Pressable
+              testID="workspace-identity"
+              disabled={!libraryCollector}
+              onPress={() => setWorkspaceSheetOpen(true)}
+              accessibilityRole={libraryCollector ? "button" : undefined}
+              accessibilityLabel={libraryCollector ? t("selection.pickFromWorkspace") : undefined}
+              style={({ pressed }) => [
+                browseStyles.identityBlock,
+                { backgroundColor: theme.bg },
+                pressed && libraryCollector ? styles.pressDown : null,
+              ]}
+            >
+              <Text style={browseStyles.eyebrow}>
+                {t(libraryCollector ? "workspaceBrowse.pickingFrom" : "workspaceBrowse.currentWorkspace")}
+              </Text>
               <View style={browseStyles.titleRow}>
                 <WorkspaceAvatar
                   name={collectionsModel.activeWorkspace.title}
@@ -250,8 +296,11 @@ function WorkspaceBrowseInner() {
                 <UserText value={collectionsModel.activeWorkspace.title} style={browseStyles.pageTitle} numberOfLines={2}>
                   {collectionsModel.activeWorkspace.title}
                 </UserText>
+                {libraryCollector ? (
+                  <Ionicons name="chevron-down" size={18} color={colors.textSecondary} style={browseStyles.switchGlyph} />
+                ) : null}
               </View>
-            </View>
+            </Pressable>
           }
           pinned={
             <View style={{ backgroundColor: theme.bg }} pointerEvents="box-none">
@@ -298,7 +347,9 @@ function WorkspaceBrowseInner() {
         />
       ) : null}
 
-      {/* Picker footer: ✕ plus a quiet pointer to where the picking happens. */}
+      {/* Picker footer: ✕ plus a quiet pointer to where the picking happens —
+          or, once the basket holds something from an earlier collection, the
+          same "Add N" key the collection page shows. */}
       {pickerActive && !selectionModel.selectionMode ? (
         <PickerFooter
           onCancel={
@@ -307,10 +358,20 @@ function WorkspaceBrowseInner() {
               : () => useStore.getState().cancelSongTargetPicking()
           }
           cancelLabel={t(libraryCollector ? "common.stopAdding" : "common.cancel")}
-          supportingText={libraryCollector ? t("selection.pickCollection") : undefined}
+          count={pickCount}
+          onAdd={libraryCollector && pickCount > 0 ? collectorHandlers.onAdd : undefined}
+          supportingText={libraryCollector && pickCount === 0 ? t("selection.pickCollection") : undefined}
           onLayout={(height) => setPickerFooterHeight((prev) => (Math.abs(prev - height) < 1 ? prev : height))}
         />
       ) : null}
+
+      <WorkspacePickSheet
+        visible={workspaceSheetOpen}
+        workspaces={personalWorkspaces(collectionsModel.workspaces).filter((workspace) => !workspace.isArchived)}
+        currentWorkspaceId={collectionsModel.activeWorkspace.id}
+        onPick={pickFromWorkspace}
+        onClose={() => setWorkspaceSheetOpen(false)}
+      />
 
       {/* FAB */}
       {!selectionModel.selectionMode && !pickerActive ? (
@@ -493,6 +554,10 @@ const browseStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+  },
+  // The "this opens a switcher" glyph beside the title while collecting.
+  switchGlyph: {
+    marginTop: 6,
   },
   pageTitle: {
     flex: 1,

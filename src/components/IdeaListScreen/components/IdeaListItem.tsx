@@ -9,7 +9,7 @@ import { getDateBucket, getDateBucketLabel } from "../../../domain/dateBuckets";
 import { useNavigation } from "@react-navigation/native";
 import { getIdeaCreatedAt, getIdeaUpdatedAt, type IdeaSortMetric } from "../../../domain/ideaSort";
 import { getHierarchyIconName } from "../../../domain/hierarchy";
-import { getPlayableClipForIdea, isClipWaveformSynthetic } from "../../../domain/clipPresentation";
+import { isClipWaveformSynthetic } from "../../../domain/clipPresentation";
 import { buildDefaultSongbookItemsForIdea } from "../../../domain/songbookGrouping";
 import { getIdeaListItemMeta } from "../ideaListItemMeta";
 import { computeIdeaSearchMeta, EMPTY_SEARCH_META } from "../ideaSearchMeta";
@@ -163,34 +163,34 @@ function IdeaListItemInner({
     const nowPlayingIsPlaying = sessionActive && sessionPlaying;
     const inlineTotalMs = inlineDurationMs || playClip?.durationMs || 0;
 
-    const isSelected = useStore((s) => s.selectedListIdeaIds.includes(ideaId));
+    // While a compilation is collecting, "selected" means "in the session's
+    // basket" — the basket outlives this page (it spans collections and
+    // workspaces), so it lives on the collector, not in the list selection.
+    const isSelected = useStore((s) =>
+        s.libraryCollector
+            ? s.libraryCollector.picks.some((pick) => pick.ideaId === ideaId)
+            : s.selectedListIdeaIds.includes(ideaId)
+    );
     const compact = listDensity === "compact";
-    // Eligibility per compilation kind: a songbook takes charts, a setlist takes
-    // audio, a playlist takes anything. The song-target picker takes sketches.
+    // Eligibility per compilation kind: a songbook takes charts; a playlist and
+    // a setlist take anything (a set packages whatever the song has — a
+    // lyrics-only sketch is a valid entry). The song-target picker takes sketches.
     const pickEligible = React.useMemo(() => {
         if (!item) return false;
         if (pickingSongTarget) return item.kind === "project";
         if (collectorKind === "songbook") return buildDefaultSongbookItemsForIdea(item).length > 0;
-        if (collectorKind === "setlist") return getPlayableClipForIdea(item) != null;
         return true;
     }, [collectorKind, item, pickingSongTarget]);
     // Every hook above runs unconditionally; nothing below is a hook.
     if (!item) return null;
     const pick: "on" | "disabled" | undefined =
         collecting || pickingSongTarget ? (pickEligible ? "on" : "disabled") : undefined;
-    const pickNote =
-        pick === "disabled" && collecting
-            ? collectorKind === "songbook"
-                ? t("selection.noChartYet")
-                : collectorKind === "setlist"
-                    ? t("selection.noAudioYet")
-                    : null
-            : null;
+    const pickNote = pick === "disabled" && collectorKind === "songbook" ? t("selection.noChartYet") : null;
     const togglePick = () => {
         if (!pickEligible) return;
         // haptics vocabulary: `tap` — an acknowledged press.
         haptic.tap();
-        useStore.getState().toggleListSelection(ideaId);
+        useStore.getState().toggleLibraryCollectorPick(ideaId);
     };
     const sortTs = sortMetric === "updated" ? getIdeaUpdatedAt(item) : getIdeaCreatedAt(item);
     // Rebuilt from stable pieces here (not passed as a closure) so memo props stay flat.

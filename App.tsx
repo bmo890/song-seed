@@ -185,6 +185,11 @@ const ROOT_STACK_SCREEN_OPTIONS = { headerShown: false } as const;
 // one render when it is shown again. Effects that must run on blur still get one
 // render after the blur (react-native-screens delays the freeze by a frame).
 const DRAWER_SCREEN_OPTIONS = { headerShown: false, freezeOnBlur: true } as const;
+// While a compilation is collecting, the drawer's edge swipe is off too: a
+// picker carries no menu, and leaving mid-pick would end the session unseen.
+const DRAWER_SCREEN_OPTIONS_PICKING = { ...DRAWER_SCREEN_OPTIONS, swipeEnabled: false } as const;
+/** The only pages a compilation's picking session may rest on. */
+const LIBRARY_COLLECTOR_ROUTES = new Set(["Browse", "CollectionDetail"]);
 const renderDrawerContent = (props: DrawerContentComponentProps) => <DrawerContent {...props} />;
 // Root-level handlers for the dock and the player sheet. Module-level on purpose:
 // they only touch the module-level navigationRef and the store, and a fresh arrow
@@ -727,6 +732,7 @@ function DrawerRoutes() {
   const lastUsedWorkspaceId = useStore((s) => (startupApplied ? null : s.lastUsedWorkspaceId));
   const workspaceStartupPreference = useStore((s) => s.workspaceStartupPreference);
   const setActiveWorkspaceId = useStore((s) => s.setActiveWorkspaceId);
+  const collecting = useStore((s) => s.libraryCollector != null);
   const startupWorkspaceId = useMemo(
     () =>
       resolveStartupWorkspaceId({
@@ -756,7 +762,7 @@ function DrawerRoutes() {
 
   return (
     <Drawer.Navigator
-      screenOptions={DRAWER_SCREEN_OPTIONS}
+      screenOptions={collecting ? DRAWER_SCREEN_OPTIONS_PICKING : DRAWER_SCREEN_OPTIONS}
       drawerContent={renderDrawerContent}
       initialRouteName={startupWorkspaceIdRef.current ? "WorkspaceStack" : "Workspaces"}
       // Hub-and-spoke: drawer pages are DESTINATIONS you teleport between, not a
@@ -1087,6 +1093,14 @@ function AppContent() {
       homeRoute?.state?.type === "drawer" &&
       getDrawerStatusFromState(homeRoute.state) === "open";
     setIsDrawerOpen((prev) => (prev === drawerOpen ? prev : drawerOpen));
+
+    // A compilation's picking session lives on exactly two pages: the workspace
+    // hub and a collection. Land anywhere else (a queue "go to", a deep link, a
+    // drawer swipe) and the session is over — it must never outlive the flow
+    // and arm the next collection opened hours later (2026-10-11).
+    if (useStore.getState().libraryCollector && !LIBRARY_COLLECTOR_ROUTES.has(nextRoute)) {
+      useStore.getState().cancelLibraryCollecting();
+    }
     if (nextRoute === "ShareImport") return;
 
     const store = useStore.getState();
