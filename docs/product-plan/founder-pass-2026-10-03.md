@@ -474,8 +474,13 @@ in Received; received packages open as the real collection page.
   above one soft key (Save / Save all), >150 MB asks first, back mid-save asks
   and aborts cleanly, Save lands INSIDE the package; file names lose their
   extension; the pasteboard offer goes through t(). Tokens only.
-- [ ] D. Received package opens as a CollectionVisit; packages in the
-  picker's workspace sheet under "Received".
+- [x] D. (799f68f2) Received package opens as a CollectionVisit (back
+  "Received", up-link → Received, no record key, overflow gains Move to my
+  workspaces / Delete package, New sketch + Import hidden); the package's
+  collection wears the parcel's name (legacy "Files" renamed on open) and
+  reads oldest-first (`ideasSort` forced for `origin === "received"`);
+  `WorkspacePickSheet` lists packages under Received (picked by route param
+  only — never the active workspace). Picker group verified by code only.
 - [ ] E. Parcel kind (Files · Playlist · Setlist) on the sender page →
   `kind` on the transfer → app builds the compilation; playlist send/receive
   in the app (archive kind "playlist", mirror setlistShare.ts).
