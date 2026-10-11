@@ -6,6 +6,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { ScreenHeader } from "../common/ScreenHeader";
+import { SurfaceCard } from "../common/SurfaceCard";
+import { Button } from "../common/Button";
+import { AppAlert } from "../common/AppAlert";
 import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
 import {
@@ -14,6 +17,7 @@ import {
   fetchTransfer,
   isArchiveItem,
   TransferGoneError,
+  type TransferItemPayload,
   type TransferPayload,
 } from "../../services/receiveTransfer";
 import { readSongNookArchive } from "../../services/libraryImport";
@@ -21,9 +25,11 @@ import { enrichImportedAudioAsset, importAudioAssets } from "../../services/audi
 import { createClipImportBatcher } from "../../services/clipImportBatcher";
 import { enqueueMissingMetadataBackfill } from "../../services/backgroundWaveformHydration";
 import { resolveImportedEntityRoute } from "../../domain/receiveRouting";
+import { useParcelPreview } from "../../hooks/useParcelPreview";
 import { toast } from "../common/toastStore";
 import { haptic } from "../../design/haptics";
-import { colors, radii, text as textTokens } from "../../design/tokens";
+import { styles } from "../../styles";
+import { colors, radii, spacing, text as textTokens } from "../../design/tokens";
 import type { ShareKind } from "../../types";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../i18n";
@@ -37,8 +43,11 @@ type Phase =
   | { kind: "saving"; transfer: TransferPayload; itemIndex: number; itemFraction: number }
   | { kind: "done"; transfer: TransferPayload };
 
+/** Above this, saving asks first — a phone on cellular deserves the number. */
+const BIG_PARCEL_BYTES = 150 * 1024 * 1024;
+
 function formatBytes(size: number): string {
-  if (size >= 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  if (size >= 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(size >= 100 * 1024 * 1024 ? 0 : 1)} MB`;
   if (size >= 1024) return `${Math.round(size / 1024)} KB`;
   return `${size} B`;
 }
@@ -47,11 +56,17 @@ function daysUntil(iso: string): number {
   return Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000));
 }
 
+/** "A War In Me.wav" reads as a song, not a file. */
+function displayName(fileName: string): string {
+  return fileName.replace(/\.[a-z0-9]{1,8}$/i, "") || fileName;
+}
+
 /**
- * The in-app landing for a Songnook Send link: the parcel — sender, note,
- * items — with one Save action. Archives run the received-import pipeline;
- * loose audio becomes a received "files" package. Deduped by transferId.
- * Tone follows the web pages' letterpress-parcel look, in app tokens.
+ * The in-app landing for a SongNook Send link: the parcel — who, what, how
+ * big, how long it lasts — each file playable before anything is saved, where
+ * it will land said above the one key. Archives (a setlist, a chart book) run
+ * the received-import pipeline and land on the thing they are; loose audio
+ * becomes a received package and lands inside it. Deduped by transferId.
  */
 export function TransferReceiveScreen() {
   const { t } = useTranslation();
@@ -60,7 +75,11 @@ export function TransferReceiveScreen() {
   const transferId = route.params?.transferId as string | undefined;
 
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
   const startedRef = useRef(false);
+  const abortRef = useRef(false);
+  const preview = useParcelPreview();
 
   const alreadyReceived = useCallback(
     (id: string) =>
@@ -70,6 +89,10 @@ export function TransferReceiveScreen() {
 
   useEffect(() => {
     let cancelled = false;
+    // A second link opens in the same mounted screen (navigate to the same
+    // route swaps params) — the guards belong to the parcel, not the screen.
+    startedRef.current = false;
+    abortRef.current = false;
     (async () => {
       if (!transferId) {
         setPhase({ kind: "gone" });
@@ -93,11 +116,35 @@ export function TransferReceiveScreen() {
     };
   }, [alreadyReceived, transferId, t]);
 
-  const goToReceived = () => returnHome(navigation, { screen: "ReceivedHome" });
+  // Leaving mid-save is a decision, not a slip: back asks, and a yes aborts
+  // the download loop so nothing half-saved survives.
+  useEffect(() => {
+    return navigation.addListener("beforeRemove", (event: any) => {
+      if (phaseRef.current.kind !== "saving") return;
+      event.preventDefault();
+      AppAlert.confirm(
+        t("transferReceive.stopSavingTitle"),
+        t("transferReceive.stopSavingBody"),
+        () => {
+          abortRef.current = true;
+          navigation.dispatch(event.data.action);
+        },
+        { confirmLabel: t("transferReceive.stop") }
+      );
+    });
+  }, [navigation, t]);
+
+  const goToReceived = (packageId?: string) =>
+    returnHome(navigation, {
+      screen: "ReceivedHome",
+      params: packageId ? { packageId, openToken: Date.now() } : undefined,
+    });
 
   async function save(transfer: TransferPayload) {
     if (startedRef.current) return;
     startedRef.current = true;
+    abortRef.current = false;
+    preview.stop();
     haptic.tap();
 
     const receivedMeta = {
@@ -113,6 +160,7 @@ export function TransferReceiveScreen() {
       const audioUris: Array<{ uri: string; name: string; mimeType: string }> = [];
       let entityRoute: ReturnType<typeof resolveImportedEntityRoute> = null;
       let importedAnything = false;
+      let packageId: string | null = null;
 
       for (let index = 0; index < transfer.items.length; index++) {
         const item = transfer.items[index]!;
@@ -120,6 +168,7 @@ export function TransferReceiveScreen() {
         const localUri = await downloadTransferItem(item, (fraction) =>
           setPhase({ kind: "saving", transfer, itemIndex: index, itemFraction: fraction })
         );
+        if (abortRef.current) throw new Error("aborted");
 
         if (isArchiveItem(item)) {
           const parsed = await readSongNookArchive(localUri, item.fileName);
@@ -147,6 +196,7 @@ export function TransferReceiveScreen() {
         const { workspaceId, collectionId } = useStore
           .getState()
           .addReceivedFilesPackage(receivedMeta.shareTitle, receivedMeta);
+        packageId = workspaceId;
         const assets = await Promise.all(
           audioUris.map((file) =>
             enrichImportedAudioAsset({ uri: file.uri, name: file.name, mimeType: file.mimeType })
@@ -166,7 +216,7 @@ export function TransferReceiveScreen() {
         const receivedAt = Date.now();
         audioImport.imported.forEach((asset, index) =>
           batcher.add({
-            title: asset.name ?? t("transferReceive.receivedClip"),
+            title: displayName(asset.name ?? t("transferReceive.receivedClip")),
             audioUri: asset.audioUri,
             durationMs: asset.durationMs,
             waveformPeaks: asset.waveformPeaks,
@@ -191,8 +241,13 @@ export function TransferReceiveScreen() {
 
       enqueueMissingMetadataBackfill(useStore.getState().workspaces);
       await cleanupReceiveCache();
+      // haptics vocabulary: `success` — a meaningful completion, paired with a toast.
       haptic.success();
-      setPhase({ kind: "done", transfer });
+      const donePhase: Phase = { kind: "done", transfer };
+      setPhase(donePhase);
+      // The leave below runs before React re-renders; the back guard reads the
+      // ref, so it must already say "done" or it would ask "Stop saving?".
+      phaseRef.current = donePhase;
 
       if (entityRoute) {
         toast(
@@ -209,7 +264,7 @@ export function TransferReceiveScreen() {
         });
       } else {
         toast(t("transferReceive.savedReceived"), "mail-open-outline");
-        goToReceived();
+        goToReceived(packageId ?? undefined);
       }
     } catch (error) {
       startedRef.current = false;
@@ -223,49 +278,122 @@ export function TransferReceiveScreen() {
       for (const workspaceId of partialIds) {
         useStore.getState().deleteWorkspace(workspaceId);
       }
-      setPhase({
-        kind: "error",
-        message: t("transferReceive.saveFailed"),
-      });
+      if (abortRef.current) return; // the user chose to leave; no failure to report
+      // haptics vocabulary: `error` — a failure the user must hear about.
+      haptic.error();
+      setPhase({ kind: "error", message: t("transferReceive.saveFailed") });
     }
   }
+
+  const confirmThenSave = (transfer: TransferPayload) => {
+    const totalBytes = transfer.items.reduce((sum, item) => sum + item.size, 0);
+    if (totalBytes < BIG_PARCEL_BYTES) {
+      void save(transfer);
+      return;
+    }
+    AppAlert.confirm(
+      t("transferReceive.bigParcelTitle", { size: formatBytes(totalBytes) }),
+      t("transferReceive.bigParcelBody"),
+      () => void save(transfer),
+      { confirmLabel: t("transferReceive.save") }
+    );
+  };
+
+  const renderItem = (item: TransferItemPayload, index: number) => {
+    const saving = phase.kind === "saving";
+    const done = phase.kind === "done";
+    const active = saving && phase.itemIndex === index;
+    const complete = done || (saving && phase.itemIndex > index);
+    const archive = isArchiveItem(item);
+    const previewing = preview.activeItemId === item.itemId;
+    const name = archive ? item.fileName : displayName(item.fileName);
+    const meta = active
+      ? t("transferReceive.downloading", { percent: Math.round(phase.itemFraction * 100) })
+      : archive
+        ? `${t("transferReceive.songnookFile")} · ${formatBytes(item.size)}`
+        : formatBytes(item.size);
+    return (
+      <SurfaceCard key={item.itemId} style={local.row}>
+        {archive ? (
+          <View style={local.lead}>
+            <Ionicons name="albums-outline" size={16} color={colors.textStrong} />
+          </View>
+        ) : (
+          // The lead plays the file from the link — hear it before you keep it.
+          <Pressable
+            style={({ pressed }) => [local.lead, previewing ? local.leadActive : null, pressed ? styles.pressDown : null]}
+            onPress={() => {
+              // haptics vocabulary: `tap` — an acknowledged press.
+              haptic.tap();
+              preview.toggle(item);
+            }}
+            disabled={saving || done}
+            accessibilityRole="button"
+            accessibilityLabel={t(previewing && preview.playing ? "transferReceive.pause" : "transferReceive.play", { name })}
+          >
+            {previewing && preview.loading ? (
+              <ActivityIndicator size="small" color={colors.onPrimary} />
+            ) : (
+              <Ionicons
+                name={previewing && preview.playing ? "pause" : "play"}
+                size={16}
+                color={previewing ? colors.onPrimary : colors.textStrong}
+                style={previewing && preview.playing ? undefined : local.playGlyph}
+              />
+            )}
+          </Pressable>
+        )}
+        <View style={local.rowMain}>
+          <UserText value={name} style={local.rowTitle} numberOfLines={1}>
+            {name}
+          </UserText>
+          <Text style={local.rowMeta}>{meta}</Text>
+        </View>
+        {complete ? (
+          <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+        ) : active ? (
+          <ActivityIndicator size="small" color={colors.primary} />
+        ) : null}
+      </SurfaceCard>
+    );
+  };
 
   const renderBody = () => {
     switch (phase.kind) {
       case "loading":
         return (
-          <View style={parcelStyles.centerWrap}>
+          <View style={local.centerWrap}>
             <ActivityIndicator color={colors.primary} />
-            <Text style={parcelStyles.centerText}>{t("transferReceive.opening")}</Text>
+            <Text style={local.centerText}>{t("transferReceive.opening")}</Text>
           </View>
         );
       case "gone":
         return (
-          <View style={parcelStyles.centerWrap}>
+          <View style={local.centerWrap}>
             <Ionicons name="time-outline" size={26} color={colors.textMuted} />
-            <Text style={parcelStyles.centerTitle}>{t("transferReceive.expired")}</Text>
-            <Text style={parcelStyles.centerText}>{t("transferReceive.expiredBody")}</Text>
+            <Text style={local.centerTitle}>{t("transferReceive.expired")}</Text>
+            <Text style={local.centerText}>{t("transferReceive.expiredBody")}</Text>
           </View>
         );
       case "already-saved":
         return (
-          <View style={parcelStyles.centerWrap}>
+          <View style={local.centerWrap}>
             <Ionicons name="checkmark-circle-outline" size={26} color={colors.primary} />
-            <Text style={parcelStyles.centerTitle}>{t("transferReceive.alreadySaved")}</Text>
-            <Text style={parcelStyles.centerText}>{t("transferReceive.alreadySavedBody")}</Text>
-            <Pressable style={parcelStyles.primaryBtn} onPress={goToReceived}>
-              <Text style={parcelStyles.primaryLabel}>{t("transferReceive.openReceived")}</Text>
-            </Pressable>
+            <Text style={local.centerTitle}>{t("transferReceive.alreadySaved")}</Text>
+            <Text style={local.centerText}>{t("transferReceive.alreadySavedBody")}</Text>
+            <Button label={t("transferReceive.openReceived")} onPress={() => goToReceived()} style={local.centerKey} />
           </View>
         );
       case "error":
         return (
-          <View style={parcelStyles.centerWrap}>
+          <View style={local.centerWrap}>
             <Ionicons name="cloud-offline-outline" size={26} color={colors.textMuted} />
-            <Text style={parcelStyles.centerTitle}>{t("transferReceive.openFailed")}</Text>
-            <Text style={parcelStyles.centerText}>{phase.message}</Text>
-            <Pressable
-              style={parcelStyles.primaryBtn}
+            <Text style={local.centerTitle}>{t("transferReceive.openFailed")}</Text>
+            <Text style={local.centerText}>{phase.message}</Text>
+            <Button
+              label={t("transferReceive.tryAgain")}
+              variant="secondary"
+              style={local.centerKey}
               onPress={() => {
                 startedRef.current = false;
                 setPhase({ kind: "loading" });
@@ -281,9 +409,7 @@ export function TransferReceiveScreen() {
                     );
                 }
               }}
-            >
-              <Text style={parcelStyles.primaryLabel}>{t("transferReceive.tryAgain")}</Text>
-            </Pressable>
+            />
           </View>
         );
       case "ready":
@@ -292,78 +418,55 @@ export function TransferReceiveScreen() {
         const transfer = phase.transfer;
         const saving = phase.kind === "saving";
         const done = phase.kind === "done";
-        const senderLine = [
+        const totalBytes = transfer.items.reduce((sum, item) => sum + item.size, 0);
+        const hasArchive = transfer.items.some(isArchiveItem);
+        const title = transfer.title || t("transferReceive.sentMusic");
+        const metaLine = [
           t("transferReceive.from", { name: transfer.sender.name ?? t("transferReceive.someone") }),
-          t("transferReceive.itemCount", { count: transfer.items.length }),
-          t("transferReceive.expires", { count: daysUntil(transfer.expiresAt) }),
-        ].join(" · ");
+          t("transferReceive.fileCount", { count: transfer.items.length }),
+          formatBytes(totalBytes),
+          t("transferReceive.daysLeft", { count: daysUntil(transfer.expiresAt) }),
+        ].join("  ·  ");
+        const keyLabel = done
+          ? t("transferReceive.saved")
+          : saving
+            ? t("transferReceive.saving")
+            : transfer.items.length > 1
+              ? t("transferReceive.saveAll")
+              : t("transferReceive.save");
 
         return (
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={parcelStyles.scrollContent}
-          >
-            <View style={parcelStyles.header}>
-              <Text style={parcelStyles.eyebrow}>{t("transferReceive.parcel")}</Text>
-              <UserText style={parcelStyles.title} numberOfLines={2}>{transfer.title || t("transferReceive.sentMusic")}</UserText>
-              <Text style={parcelStyles.meta}>{senderLine}</Text>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={local.scrollContent}>
+            <View style={local.header}>
+              <Text style={local.eyebrow}>{t("transferReceive.parcel")}</Text>
+              <UserText value={title} style={local.title} numberOfLines={2}>
+                {title}
+              </UserText>
+              <Text style={local.meta}>{metaLine}</Text>
             </View>
 
             {transfer.message ? (
-              <View style={parcelStyles.noteCard}>
-                <UserText align="content" style={parcelStyles.noteText}>{transfer.message}</UserText>
-              </View>
+              <SurfaceCard style={local.noteCard}>
+                <UserText value={transfer.message} align="content" style={local.noteText}>
+                  {transfer.message}
+                </UserText>
+              </SurfaceCard>
             ) : null}
 
-            <View style={parcelStyles.list}>
-              {transfer.items.map((item, index) => {
-                const active = saving && phase.itemIndex === index;
-                const complete = done || (saving && phase.itemIndex > index);
-                return (
-                  <View key={item.itemId} style={parcelStyles.itemRow}>
-                    <View style={parcelStyles.itemIcon}>
-                      <Ionicons
-                        name={isArchiveItem(item) ? "albums-outline" : "musical-notes-outline"}
-                        size={16}
-                        color={colors.primaryDeep}
-                      />
-                    </View>
-                    <View style={parcelStyles.itemMain}>
-                      <UserText style={parcelStyles.itemName} numberOfLines={1}>
-                        {item.fileName}
-                      </UserText>
-                      <Text style={parcelStyles.itemMeta}>
-                        {active
-                          ? t("transferReceive.downloading", { percent: Math.round(phase.itemFraction * 100) })
-                          : formatBytes(item.size)}
-                      </Text>
-                    </View>
-                    {complete ? (
-                      <Ionicons name="checkmark-circle" size={17} color={colors.primary} />
-                    ) : active ? (
-                      <ActivityIndicator size="small" color={colors.primary} />
-                    ) : null}
-                  </View>
-                );
-              })}
-            </View>
+            <View style={local.list}>{transfer.items.map(renderItem)}</View>
 
-            <Pressable
-              style={({ pressed }) => [
-                parcelStyles.primaryBtn,
-                saving || done ? parcelStyles.primaryBtnDisabled : null,
-                pressed && !saving && !done ? { opacity: 0.85 } : null,
-              ]}
-              onPress={() => void save(transfer)}
+            {/* Where it lands — said before the tap, not after. */}
+            <Text style={local.destination}>
+              {hasArchive ? t("transferReceive.savesToCompilations") : t("transferReceive.savesToReceived", { title })}
+            </Text>
+            <Button
+              testID="transfer-save"
+              label={keyLabel}
+              onPress={() => confirmThenSave(transfer)}
               disabled={saving || done}
-              accessibilityRole="button"
-              accessibilityLabel={t("transferReceive.save")}
-            >
-              <Text style={parcelStyles.primaryLabel}>
-                {t(done ? "transferReceive.saved" : saving ? "transferReceive.saving" : "transferReceive.save")}
-              </Text>
-            </Pressable>
-            <Text style={parcelStyles.footnote}>{t("transferReceive.footnote")}</Text>
+              hapticFeedback={false}
+              accessibilityLabel={keyLabel}
+            />
           </ScrollView>
         );
       }
@@ -371,36 +474,37 @@ export function TransferReceiveScreen() {
   };
 
   return (
-    <SafeAreaView style={parcelStyles.screen}>
+    <SafeAreaView style={local.screen}>
       <ScreenHeader title={t("transferReceive.header")} leftIcon="back" />
       {renderBody()}
     </SafeAreaView>
   );
 }
 
-const parcelStyles = StyleSheet.create({
+const local = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#fbf9f5",
+    backgroundColor: colors.page,
   },
   scrollContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.lg,
     paddingBottom: 120,
   },
   header: {
-    paddingTop: 10,
-    paddingBottom: 14,
-    gap: 6,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
+    gap: spacing.xs,
   },
   eyebrow: {
     ...textTokens.annotation,
-    color: colors.primaryDeep,
+    color: colors.eyebrow,
+    marginBottom: spacing.xs,
   },
+  // The setlist page's title size — a parcel is a peer of a set, not a hub.
   title: {
-    fontFamily: "Lora_500Medium",
-    fontSize: 30,
-    lineHeight: 36,
-    color: colors.textPrimary,
+    ...textTokens.pageTitle,
+    fontSize: 32,
+    lineHeight: 38,
   },
   meta: {
     ...textTokens.supporting,
@@ -408,13 +512,8 @@ const parcelStyles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   noteCard: {
-    backgroundColor: "#FDF5F2",
-    borderWidth: 1,
-    borderColor: "#EBD3CE",
-    borderRadius: radii.lg,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginBottom: 12,
+    backgroundColor: colors.primarySurface,
+    marginBottom: spacing.md,
   },
   noteText: {
     fontFamily: "Lora_500Medium",
@@ -423,71 +522,56 @@ const parcelStyles = StyleSheet.create({
     color: colors.textStrong,
   },
   list: {
-    gap: 8,
+    gap: spacing.sm,
   },
-  itemRow: {
+  row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    borderRadius: radii.lg,
-    paddingVertical: 11,
-    paddingHorizontal: 12,
+    gap: spacing.md,
+    paddingVertical: 10,
+    paddingHorizontal: spacing.md,
   },
-  itemIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: radii.md,
+  lead: {
+    width: 38,
+    height: 38,
+    borderRadius: radii.round,
     backgroundColor: colors.surfaceContainer,
     alignItems: "center",
     justifyContent: "center",
   },
-  itemMain: {
+  leadActive: {
+    backgroundColor: colors.primary,
+  },
+  playGlyph: {
+    marginLeft: 2,
+  },
+  rowMain: {
     flex: 1,
     minWidth: 0,
     gap: 2,
   },
-  itemName: {
+  rowTitle: {
     fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13.5,
+    fontSize: 14,
     color: colors.textPrimary,
   },
-  itemMeta: {
+  rowMeta: {
     ...textTokens.caption,
-    fontSize: 11,
     color: colors.textMuted,
     fontVariant: ["tabular-nums"],
   },
-  primaryBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: radii.round,
-    paddingVertical: 13,
-    alignItems: "center",
-    marginTop: 18,
-  },
-  primaryBtnDisabled: {
-    opacity: 0.6,
-  },
-  primaryLabel: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 14,
-    color: colors.onPrimary,
-  },
-  footnote: {
-    ...textTokens.caption,
-    fontSize: 11,
-    lineHeight: 16,
-    color: colors.textMuted,
+  destination: {
+    ...textTokens.supporting,
+    color: colors.textSecondary,
     textAlign: "center",
-    marginTop: 10,
+    marginTop: spacing.xl,
+    marginBottom: spacing.sm,
   },
   centerWrap: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
+    gap: spacing.sm,
     paddingHorizontal: 36,
   },
   centerTitle: {
@@ -500,5 +584,8 @@ const parcelStyles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: "center",
     lineHeight: 19,
+  },
+  centerKey: {
+    marginTop: spacing.sm,
   },
 });

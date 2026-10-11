@@ -468,9 +468,12 @@ in Received; received packages open as the real collection page.
   skipped, folder → title, drag/▲▼/A→Z/Clear, XHR per-file progress, inline
   errors, "From" remembered, frozen receipt. `.claude/launch.json` runs the
   worker from its own folder (the app-root `wrangler.jsonc` gotcha).
-- [ ] C. Receive screen on canon: ScreenHeader back, eyebrow meta, note,
-  SurfaceCard rows with a streaming play lead, destination named above one
-  soft key, cellular/size confirm, land inside the package.
+- [x] C. Receive screen on canon: SurfaceCard rows with a streaming play
+  lead (`useParcelPreview`, yields to the dock, never during a recording),
+  meta line FROM · N FILES · SIZE · DAYS LEFT, "Saves to Received › title"
+  above one soft key (Save / Save all), >150 MB asks first, back mid-save asks
+  and aborts cleanly, Save lands INSIDE the package; file names lose their
+  extension; the pasteboard offer goes through t(). Tokens only.
 - [ ] D. Received package opens as a CollectionVisit; packages in the
   picker's workspace sheet under "Received".
 - [ ] E. Parcel kind (Files · Playlist · Setlist) on the sender page →

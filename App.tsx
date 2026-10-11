@@ -1438,14 +1438,14 @@ export default function App() {
         navigationRef.getCurrentRoute()?.name !== "TransferReceive"
       ) {
         AppAlert.confirm(
-          "Open the parcel?",
-          "There's a Songnook Send link on your clipboard — someone sent you music.",
+          i18n.t("transferReceive.clipboardTitle"),
+          i18n.t("transferReceive.clipboardBody"),
           () => {
             if (navigationRef.isReady()) {
               navigationRef.navigate("TransferReceive", { transferId: pendingTransferId });
             }
           },
-          { confirmLabel: "Open", icon: "mail-open-outline" }
+          { confirmLabel: i18n.t("transferReceive.open"), icon: "mail-open-outline" }
         );
         return;
       }
