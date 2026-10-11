@@ -163,6 +163,32 @@ export function SongHeaderMenu() {
               disabled={isSelectingClips}
               onPress={() => {
                 close();
+                if (isProject && selectedIdea.clips.length > 0) {
+                  // A sketch with takes: the frame can come off without the
+                  // takes going with it (founder, 2026-10-12).
+                  AppAlert.custom(t("songDetail.deleteSongTitle"), t("songDetail.deleteSongChoiceBody"), [
+                    { label: t("common.cancel"), style: "cancel" },
+                    {
+                      label: t("songDetail.deleteSongKeepTakes"),
+                      style: "default",
+                      icon: getHierarchyIconName("clip"),
+                      onPress: () => {
+                        appActions.dissolveSketch(selectedIdea.id);
+                        screen.navigation.goBack();
+                      },
+                    },
+                    {
+                      label: t("songDetail.deleteSongDeleteAll"),
+                      style: "destructive",
+                      icon: "trash-outline",
+                      onPress: () => {
+                        appActions.deleteSelectedIdea();
+                        screen.navigation.goBack();
+                      },
+                    },
+                  ]);
+                  return;
+                }
                 AppAlert.destructive(
                   isProject ? t("songDetail.deleteSongTitle") : t("songDetail.deleteClipTitle"),
                   isProject

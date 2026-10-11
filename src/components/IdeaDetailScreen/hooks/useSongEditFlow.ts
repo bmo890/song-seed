@@ -74,6 +74,9 @@ export function useSongEditFlow({
                 status: draftStatus,
                 completionPct: draftCompletion,
                 isDraft: false,
+                draftFromClipIdea: undefined,
+                // Saving a new sketch is the work; the draft itself was not.
+                lastActivityAt: selectedIdea.isDraft ? Date.now() : idea.lastActivityAt,
               }
             : idea
         )

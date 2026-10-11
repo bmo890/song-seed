@@ -448,7 +448,9 @@ export function usePlayerScreenLifecycle({
     // page arriving underneath is the confirmation; no toast.
     haptic.success();
     minimizePlayer();
-    navigation.navigate("IdeaDetail", { ideaId, startInEdit: true });
+    // The page opens in edit mode because the idea is a draft now — not via
+    // `startInEdit`, which would re-open the sheet after Save or Discard.
+    navigation.navigate("IdeaDetail", { ideaId });
   }, [minimizePlayer, navigation, playerIdea]);
 
   const handleOverflowMenu = useCallback(() => {

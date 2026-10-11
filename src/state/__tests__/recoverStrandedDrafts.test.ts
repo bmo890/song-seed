@@ -40,6 +40,22 @@ describe("recoverStrandedDraftIdeas (2026-10-04)", () => {
         expect(result.workspaces[1]).toBe(workspaces[1]);
     });
 
+    it("a stranded 'Make sketch' draft goes back to being its clip (2026-10-12)", () => {
+        const growing = { ...(idea("grown", true, 1) as unknown as Record<string, unknown>), draftFromClipIdea: true, lyrics: { versions: [] }, lastActivityAt: 7 } as never;
+        const workspaces = [{ id: "ws", title: "W", collections: [], ideas: [growing] }] as unknown as Workspace[];
+
+        const result = recoverStrandedDraftIdeas(workspaces);
+        const [clip] = result.workspaces[0]!.ideas;
+        expect(result.recovered).toBe(1);
+        expect(clip!.kind).toBe("clip");
+        expect(clip!.id).toBe("grown");
+        expect(clip!.isDraft).toBeUndefined();
+        expect(clip!.draftFromClipIdea).toBeUndefined();
+        expect(clip!.lyrics).toBeUndefined();
+        expect(clip!.lastActivityAt).toBe(7);
+        expect(clip!.clips[0]!.isPrimary).toBe(true);
+    });
+
     it("is a no-op without drafts", () => {
         const workspaces = [{ id: "ws", title: "W", collections: [], ideas: [idea("a", false, 1)] }] as unknown as Workspace[];
         expect(recoverStrandedDraftIdeas(workspaces).workspaces).toBe(workspaces);

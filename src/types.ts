@@ -550,6 +550,9 @@ export type SongIdea = {
   sourceCreatedAt?: number;
   lastActivityAt: number;
   isDraft?: boolean;
+  /** This draft sketch IS a clip idea mid-conversion ("Make sketch"): discarding
+   *  it turns the idea back into that clip, in place. Cleared on save. */
+  draftFromClipIdea?: boolean;
   isBookmarked?: boolean;
 };
 

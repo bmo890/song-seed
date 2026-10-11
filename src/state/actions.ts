@@ -1,5 +1,5 @@
 import * as FileSystem from "expo-file-system/legacy";
-import { recoverStrandedDraftIdeas } from "../domain/draftRecovery";
+import { recoverStrandedDraftIdeas, revertDraftToClipIdea } from "../domain/draftRecovery";
 import {
     IdeaStatus,
     SongIdea,
@@ -1981,17 +1981,17 @@ export const appActions = {
         const activeWs = state.workspaces.find(w => w.id === state.activeWorkspaceId);
         const selectedIdea = activeWs?.ideas.find(i => i.id === state.selectedIdeaId);
 
-        if (selectedIdea?.isDraft && selectedIdea.clips.length > 0) {
-            // If discarding a draft project that was created by merging clips,
-            // we must extract those clips back into the main list so they aren't lost!
-            const extractedClipsAsIdeas: SongIdea[] = selectedIdea.clips.map((clip) =>
-                createStandaloneClipIdeaFromMove(
-                    { clip, sourceIdea: selectedIdea.kind === "clip" ? selectedIdea : null },
-                    selectedIdea.collectionId
-                )
+        if (selectedIdea?.isDraft && selectedIdea.draftFromClipIdea) {
+            // "Make sketch" discarded: the idea goes back to being the clip it
+            // was, in place — same id, same activity, nothing was saved.
+            state.updateIdeas(
+                (prev) => prev.map((idea) => (idea.id === selectedIdea.id ? revertDraftToClipIdea(idea) : idea)),
+                { preserveActivity: true }
             );
-
-            state.updateIdeas((prev) => [...extractedClipsAsIdeas, ...prev.filter(i => i.id !== state.selectedIdeaId)]);
+        } else if (selectedIdea?.isDraft && selectedIdea.clips.length > 0) {
+            // Discarding a draft gathered from clips: the clips go back to the
+            // collection as their own ideas so nothing is lost.
+            appActions.dissolveSketch(selectedIdea.id);
         } else {
             state.deleteIdea(state.selectedIdeaId);
         }
@@ -2162,12 +2162,60 @@ export const appActions = {
      * becomes the primary take and the idea gains an empty lyrics page. The
      * caller opens the naming step; nothing here navigates.
      */
+    /**
+     * Take the sketch frame off: every take becomes its own clip idea in the
+     * sketch's collection, keeping its audio, marks, tags and the activity and
+     * playlist entries that point at it; the sketch (with its lyrics and chart)
+     * is removed. Nothing is deleted from disk. Founder, 2026-10-12: deleting
+     * a sketch should offer this beside "delete everything".
+     */
+    dissolveSketch: (ideaId: string): string[] => {
+        const state = useStore.getState();
+        const workspace = state.workspaces.find((w) => w.ideas.some((i) => i.id === ideaId));
+        const sketch = workspace?.ideas.find((i) => i.id === ideaId);
+        if (!workspace || !sketch || sketch.kind !== "project") return [];
+
+        const released = sketch.clips.map((clip) =>
+            createStandaloneClipIdeaFromMove({ clip, sourceIdea: sketch }, sketch.collectionId)
+        );
+        const clipRelocations = released.map((idea) =>
+            buildClipRelocation(idea.clips[0]!, idea, workspace.id)
+        );
+
+        useStore.setState((store) => ({
+            workspaces: store.workspaces.map((ws) =>
+                ws.id !== workspace.id
+                    ? ws
+                    : normalizeWorkspaceCollectionVisibility({
+                          ...ws,
+                          ideas: [...released, ...ws.ideas.filter((idea) => idea.id !== ideaId)],
+                      })
+            ),
+            // The sketch's own events (created / stage) go with it; take events follow the takes.
+            activityEvents: relocateActivityEvents(
+                store.activityEvents.filter((event) => !(event.ideaId === ideaId && !event.clipId)),
+                { clips: clipRelocations }
+            ),
+            playlists: relocatePlaylists(store.playlists, { clips: clipRelocations }),
+        }));
+
+        if (state.selectedIdeaId === ideaId) {
+            state.cancelClipSelection();
+            state.setPendingPrimaryClipId(null);
+            state.setSelectedIdeaId(null);
+        }
+        return released.map((idea) => idea.id);
+    },
+
     convertClipIdeaToProject: (ideaId: string): boolean => {
         const state = useStore.getState();
         const workspace = state.workspaces.find((w) => w.ideas.some((i) => i.id === ideaId));
         const clipIdea = workspace?.ideas.find((i) => i.id === ideaId);
         if (!workspace || !clipIdea || clipIdea.kind !== "clip") return false;
 
+        // A draft, like every other new sketch (founder, 2026-10-12): the edit
+        // sheet opens as "New sketch" with Discard, and Discard turns the clip
+        // back into a clip. Save stamps the activity and logs "created".
         const converted: SongIdea = {
             ...clipIdea,
             kind: "project",
@@ -2175,11 +2223,13 @@ export const appActions = {
             completionPct: 0,
             clips: clipIdea.clips.map((c, idx) => ({ ...c, isPrimary: idx === 0 })),
             lyrics: createEmptyProjectLyrics(),
+            isDraft: true,
+            draftFromClipIdea: true,
         };
 
         const swapIn = (prev: SongIdea[]) => prev.map((idea) => (idea.id === clipIdea.id ? converted : idea));
         if (workspace.id === state.activeWorkspaceId) {
-            state.updateIdeas(swapIn);
+            state.updateIdeas(swapIn, { preserveActivity: true });
         } else {
             // The player resolves clips across workspaces (queues, Received
             // packages), so the door may grow an idea that isn't in the active
@@ -2192,8 +2242,6 @@ export const appActions = {
                 ),
             }));
         }
-        state.logIdeaActivity(clipIdea.id, "created", "song-save");
-
         state.setEditingIdeaId(clipIdea.id);
         state.setPendingPrimaryClipId(converted.clips[0]?.id ?? null);
         return true;
