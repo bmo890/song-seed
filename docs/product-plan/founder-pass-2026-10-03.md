@@ -543,3 +543,34 @@ doors use — SKETCH · No sketch yet · Make sketch ›. The slot keeps its sha
 (a clip honestly shows it has no sketch) and nothing is lost: Make sketch also
 lives in the player's overflow. Sim-verified the folded state on a standalone
 clip; the full card is unchanged code.
+
+## Updated means work (founder, 2026-10-12)
+
+Founder added sections and pins to a standalone clip and it did not move under
+the Updated sort; asked what should count. Audit found two rules that disagreed:
+a clip counted only rename / notes / tags; a sketch counted almost any write,
+including layers-bench knob turns, the background mix re-render after them and
+even playback healing a missing mix file, while a title-only rename, pins,
+sections, bookmarks and groups did not.
+
+Decision: one rule for both kinds. "Updated" moves when the idea's CONTENT
+changed — something a listener or reader would notice, something you'd lose if
+the edit were undone. Practising, organising and housekeeping don't count.
+
+| Counts | Does not count |
+|---|---|
+| Rename, notes, tags | Bookmark, hide, move to another collection / workspace |
+| Sections added / moved / renamed / deleted | Groups created / renamed / collapsed |
+| Pins added / moved / renamed / annotated | Loop, speed, pitch, step-up, transpose, metronome |
+| Lyrics, chords, chart | Tempo detection |
+| Take recorded / imported / trimmed / deleted / set primary / threaded | Mix re-render, playback healing a mix, grid self-align |
+| Layer recorded / deleted / nudged / gain / tone, base-take gain / tone | Layer colour, name, mute |
+| Stage change | Importing a library (already excluded) |
+
+Built: `domain/ideaActivity.ts` `ideaWorkChanged(prev, next)` — a value diff of
+the fields that count, used by `updateIdeas` for both kinds (replaces the
+clip-words rule and the sketch "anything stamps" rule). Section and pin
+setters, `renameIdea` (was `renameIdeaPreservingActivity`), take deletion and
+paste-into-a-sketch stamp explicitly because they bypass `updateIdeas`. No
+migration: existing timestamps stay. Table-driven test in
+`state/__tests__/updateIdeasIdentity.test.ts` walks the table for both kinds.
