@@ -13,6 +13,7 @@ import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { SelectionDock, type SelectionAction } from "../../common/SelectionDock";
 import { ClipNotesSheet } from "../../modals/ClipNotesSheet";
 import { ClipTagPicker } from "./ClipTagPicker";
+import { PlaylistChooserSheet } from "../../common/PlaylistChooserSheet";
 import { fmtDuration, formatClipDate } from "../../../utils";
 import { getLineageRootId } from "../../../domain/clipGraph";
 import {
@@ -37,6 +38,7 @@ export function SelectionBars() {
   // its back chevron only exists when there is a More to go back to.
   const [threadFromDock, setThreadFromDock] = useState(false);
   const [tagSheetVisible, setTagSheetVisible] = useState(false);
+  const [playlistSheetVisible, setPlaylistSheetVisible] = useState(false);
   const [groupSheetVisible, setGroupSheetVisible] = useState(false);
   const globalCustomClipTags = useStore((s) => s.globalCustomClipTags);
   const [editVisible, setEditVisible] = useState(false);
@@ -545,6 +547,15 @@ export function SelectionBars() {
       onPress: () => setTagSheetVisible(true),
       opens: true,
     },
+    // Keep these takes for listening — same door the collection has.
+    {
+      key: "playlist",
+      label: t("selection.addToPlaylist"),
+      icon: "musical-notes-outline",
+      onPress: () => setPlaylistSheetVisible(true),
+      opens: true,
+      disabled: selectedClips.length === 0,
+    },
     ...(selectedClips.length === 1 && singleSelectedClip
       ? [
           {
@@ -650,6 +661,15 @@ export function SelectionBars() {
         ]}
         onClose={() => setGroupSheetVisible(false)}
       />
+
+      {selectedIdea ? (
+        <PlaylistChooserSheet
+          visible={playlistSheetVisible}
+          onClose={() => setPlaylistSheetVisible(false)}
+          items={selectedClips.map((clip) => ({ ideaId: selectedIdea.id, clipId: clip.id }))}
+          label={selectedClips.length === 1 ? selectedClips[0]!.title : t("playlistChooser.items", { count: selectedClips.length })}
+        />
+      ) : null}
 
       {selectedIdea ? (
         <ClipTagPicker

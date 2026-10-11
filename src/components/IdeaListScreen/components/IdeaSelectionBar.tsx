@@ -17,6 +17,7 @@ import { openShelf } from "../../../navigation";
 import { toast } from "../../common/toastStore";
 import { BottomSheet } from "../../common/BottomSheet";
 import { ClipTagEditorFields, type ClipTagTarget } from "../../IdeaDetailScreen/components/ClipTagPicker";
+import { PlaylistChooserSheet } from "../../common/PlaylistChooserSheet";
 import { styles } from "../../../styles";
 import { View } from "react-native";
 
@@ -56,6 +57,7 @@ export function IdeaSelectionBar({
   // handing off, so the next sheet opens cleanly).
   const [copyMoveVisible, setCopyMoveVisible] = useState(false);
   const [tagsVisible, setTagsVisible] = useState(false);
+  const [playlistVisible, setPlaylistVisible] = useState(false);
   const globalCustomTags = useStore((s) => s.globalCustomClipTags);
   const navigation = useNavigation<any>();
 
@@ -364,6 +366,18 @@ export function IdeaSelectionBar({
           opens: true,
         });
       }
+      // Keep these for listening: into a playlist, existing or new.
+      actions.push({
+        key: "playlist",
+        label: t("selection.addToPlaylist"),
+        icon: "musical-notes-outline",
+        onPress: () => {
+          setMoreVisible(false);
+          setPlaylistVisible(true);
+        },
+        opens: true,
+        disabled: interactiveSelectedIdeas.length === 0,
+      });
       actions.push({
         key: "copy-or-move",
         label: t("selection.copyOrMove"),
@@ -446,6 +460,17 @@ export function IdeaSelectionBar({
         title={t("selection.copyOrMoveTitle")}
         actions={copyMoveActions.map(endsSelection)}
         onClose={() => setCopyMoveVisible(false)}
+      />
+
+      <PlaylistChooserSheet
+        visible={playlistVisible}
+        onClose={() => setPlaylistVisible(false)}
+        items={interactiveSelectedIdeas.map((idea) => ({ ideaId: idea.id }))}
+        label={
+          interactiveSelectedIdeas.length === 1
+            ? interactiveSelectedIdeas[0]!.title
+            : t("playlistChooser.items", { count: interactiveSelectedIdeas.length })
+        }
       />
 
       {/* The sketch's tag picker, pointed at the selected clips. Closing keeps

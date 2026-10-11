@@ -20,6 +20,7 @@ import {
 import { NowPlayingIndicator } from "./common/NowPlayingIndicator";
 import type { PlaybackQueueItem } from "../types";
 import { useTranslation } from "react-i18next";
+import { PlaylistChooserSheet } from "./common/PlaylistChooserSheet";
 import { UserText } from "../i18n";
 
 type QueueRow = {
@@ -167,6 +168,10 @@ const renderQueueRow = ({ item, drag, isActive }: RenderItemParams<QueueRow>) =>
  * Opens resting on the playing row (one row of history above it) and follows
  * the playing row when the track changes, unless the list was scrolled away.
  */
+/** The queue sheet's resting height (about eight rows) — shared by the dock and
+ *  the full player so the queue is one surface everywhere. */
+export const QUEUE_SHEET_COLLAPSED_HEIGHT = 470;
+
 function QueuePanelInner({
   onOpenIdea,
   framed = true,
@@ -185,6 +190,7 @@ function QueuePanelInner({
   // Re-renders only when a listed title or length changes, not on every library write.
   const queueKey = useStore((s) => queueListingKey(s.workspaces, playerQueue));
   const [editMode, setEditMode] = useState(false);
+  const [saveVisible, setSaveVisible] = useState(false);
   const listRef = useRef<FlatList<QueueRow>>(null);
 
   // Memoized with an id-index: the naive per-row workspace scan was O(queue × library)
@@ -318,6 +324,21 @@ function QueuePanelInner({
             {t("mediaDock.position", { current: Math.min(playerQueueIndex + 1, playerQueue.length), total: playerQueue.length })}
           </Text>
           {playerQueue.length > 0 ? (
+            // Keep what you're hearing: the queue, in this order, as a playlist.
+            <Pressable
+              style={({ pressed }) => [panelStyles.editBtn, pressed ? { opacity: 0.6 } : null]}
+              onPress={() => {
+                haptic.tap();
+                setSaveVisible(true);
+              }}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t("mediaDock.savePlaylistA11y")}
+            >
+              <Text style={panelStyles.editBtnText}>{t("mediaDock.savePlaylist")}</Text>
+            </Pressable>
+          ) : null}
+          {playerQueue.length > 0 ? (
             <Pressable
               style={({ pressed }) => [panelStyles.editBtn, pressed ? { opacity: 0.6 } : null]}
               onPress={() => {
@@ -356,6 +377,12 @@ function QueuePanelInner({
           renderItem={renderQueueRow}
         />
       </QueueRowContext.Provider>
+      <PlaylistChooserSheet
+        visible={saveVisible}
+        onClose={() => setSaveVisible(false)}
+        items={playerQueue.map((item) => ({ ideaId: item.ideaId, clipId: item.clipId }))}
+        label={t("mediaDock.queue")}
+      />
     </View>
   );
 }

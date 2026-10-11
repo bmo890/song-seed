@@ -1,7 +1,7 @@
 import React, { memo, useCallback } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { PlayerArtifactDoors } from "./PlayerArtifactDoors";
-import { QueuePanel } from "../../QueuePanel";
+import { QUEUE_SHEET_COLLAPSED_HEIGHT, QueuePanel } from "../../QueuePanel";
 import { BottomSheet } from "../../common/BottomSheet";
 import { colors, spacing, text as textTokens } from "../../../design/tokens";
 import { playerScreenStyles } from "../styles";
@@ -10,7 +10,6 @@ import { UserText } from "../../../i18n";
 
 /** Total sheet height at rest: handle + queue header + eight rows + bottom
  *  inset on a standard phone. The sheet caps this at 72% of the window. */
-const QUEUE_SHEET_COLLAPSED_HEIGHT = 470;
 
 type PlayerSupportSectionsProps = {
   /** Doors — only sketches carry readable artifacts. */

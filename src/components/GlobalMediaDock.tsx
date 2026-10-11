@@ -4,7 +4,8 @@ import { useSharedAudioRecorder } from "@siteed/audio-studio";
 import { Pressable, Text, View } from "react-native";
 import Animated, { FadeInDown, FadeOut, runOnJS, withTiming } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { QueuePanel } from "./QueuePanel";
+import { QUEUE_SHEET_COLLAPSED_HEIGHT, QueuePanel } from "./QueuePanel";
+import { BottomSheet } from "./common/BottomSheet";
 import { CloseButton } from "./common/CloseButton";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRecordingDisplayElapsed } from "../hooks/useRecordingDisplayElapsed";
@@ -408,10 +409,17 @@ export function GlobalMediaDock({
       style={[styles.miniMediaDockWrap, dockBottomOffset]}
       entering={FadeInDown.duration(200)}
     >
-      {/* Queue extends upward from the dock — same surface, stays open while
-          skipping around. Rendered above the base dock inside the same
-          bottom-anchored wrap so extra height grows toward the top. */}
-      {queueOpen ? <QueuePanel onOpenIdea={openIdeaFromQueue} /> : null}
+      {/* The queue is the SAME sheet the full player shows: half height, pulls
+          up to the full screen, drags down to close (founder, 2026-10-11 — it
+          used to be a fixed six-row panel grown out of the dock). */}
+      <BottomSheet
+        visible={queueOpen}
+        onClose={() => setQueueOpen(false)}
+        expandable
+        collapsedHeight={QUEUE_SHEET_COLLAPSED_HEIGHT}
+      >
+        <QueuePanel framed={false} onOpenIdea={openIdeaFromQueue} />
+      </BottomSheet>
 
       <GestureDetector gesture={expandGesture}>
       <View
