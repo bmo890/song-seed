@@ -45,6 +45,9 @@ export type SelectionSlice = {
     /** Pick or un-pick an idea; its workspace is looked up here so the card
      *  doesn't need to know where it lives. */
     toggleLibraryCollectorPick: (ideaId: string) => void;
+    /** Pick or un-pick a whole page at once (the picker's All / Clear). Picks
+     *  from other pages in the basket are left alone. */
+    setLibraryCollectorPicks: (ideaIds: string[], picked: boolean) => void;
     cancelLibraryCollecting: () => void;
 
     clipClipboard: ClipClipboard | null;
@@ -116,6 +119,24 @@ export const createSelectionSlice: StateCreator<
                 ? collector.picks.filter((pick) => pick.ideaId !== ideaId)
                 : [...collector.picks, { workspaceId: workspace.id, ideaId }];
             return { libraryCollector: { ...collector, picks } };
+        }),
+    setLibraryCollectorPicks: (ideaIds, picked) =>
+        set((state) => {
+            const collector = state.libraryCollector;
+            if (!collector) return state;
+            const ids = new Set(ideaIds);
+            if (!picked) {
+                return { libraryCollector: { ...collector, picks: collector.picks.filter((pick) => !ids.has(pick.ideaId)) } };
+            }
+            const already = new Set(collector.picks.map((pick) => pick.ideaId));
+            const additions = ideaIds
+                .filter((ideaId) => !already.has(ideaId))
+                .map((ideaId) => {
+                    const workspace = state.workspaces.find((ws) => ws.ideas.some((idea) => idea.id === ideaId));
+                    return workspace ? { workspaceId: workspace.id, ideaId } : null;
+                })
+                .filter((pick): pick is { workspaceId: string; ideaId: string } => pick !== null);
+            return { libraryCollector: { ...collector, picks: [...collector.picks, ...additions] } };
         }),
     cancelLibraryCollecting: () => set({ libraryCollector: null }),
 

@@ -914,6 +914,10 @@ export const ideasStyles = {
   ideaCardPickRingDisabled: {
     borderColor: colors.borderSubtle,
   },
+  // Unpicked: the ring is there for layout, not for the eye.
+  ideaCardPickRingHidden: {
+    opacity: 0,
+  },
   // Dense rows keep a 20pt lead box, so the ring shrinks to fit the line.
   ideaCardPickRingDense: {
     width: 18,

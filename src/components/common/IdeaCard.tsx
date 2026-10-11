@@ -296,6 +296,10 @@ export function IdeaCard({
                 dense ? styles.ideaCardPickRingDense : null,
                 pickDisabled ? styles.ideaCardPickRingDisabled : null,
                 selected && !pickDisabled ? styles.ideaCardPickRingOn : null,
+                // The ring only appears once picked (founder, 2026-10-11): an
+                // empty circle on every card was noise. The column keeps its
+                // width so titles don't shift when the check lands.
+                !selected ? styles.ideaCardPickRingHidden : null,
             ]}
         >
             {selected && !pickDisabled ? (
