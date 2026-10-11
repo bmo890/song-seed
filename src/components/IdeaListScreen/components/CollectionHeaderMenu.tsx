@@ -72,34 +72,9 @@ export function CollectionHeaderMenu() {
           <Ionicons name="play" size={15} color={colors.textSecondary} />
         </Pressable>
         {screen.isReceivedWorkspace ? (
-          // A received package is looked at, kept, or discarded — its two
-          // exits live here, and nothing is created inside it.
+          // A received package: 'Keep this…' sits in the open on the page;
+          // only the destructive exit lives here, and nothing is created inside it.
           <>
-            <View style={styles.ideasDropdownDivider} />
-            <Pressable
-              testID="collection-menu-adopt-package"
-              style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
-              onPress={() => {
-                haptic.tap();
-                screen.setHeaderMenuOpen(false);
-                const pkg = screen.activeWorkspace;
-                if (!pkg) return;
-                AppAlert.confirm(
-                  t("received.adoptTitle"),
-                  t("received.adoptBody", { title: pkg.title }),
-                  () => {
-                    useStore.getState().adoptReceivedWorkspace(pkg.id);
-                    // haptics vocabulary: `success` — a meaningful completion, paired with a toast.
-                    haptic.success();
-                    toast(t("received.adopted"), "checkmark-outline");
-                  },
-                  { confirmLabel: t("received.move") }
-                );
-              }}
-            >
-              <Text style={styles.ideasSortMenuItemText} numberOfLines={1}>{t("received.moveWorkspaces")}</Text>
-              <Ionicons name="arrow-forward-outline" size={15} color={colors.textSecondary} />
-            </Pressable>
             <View style={styles.ideasDropdownDivider} />
             <Pressable
               testID="collection-menu-delete-package"

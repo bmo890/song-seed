@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -6,6 +6,10 @@ import { dirIcon } from "../../design/directionalIcons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { ScreenHeader } from "../common/ScreenHeader";
 import { EmptyState } from "../common/EmptyState";
+import { SelectionTopBar } from "../common/SelectionTopBar";
+import { SelectionDock } from "../common/SelectionDock";
+import { AppAlert } from "../common/AppAlert";
+import { ReceivedPackageMoveModal } from "../common/ReceivedPackageMoveModal";
 import { useStore } from "../../state/useStore";
 import { receivedPackages, unopenedReceivedCount } from "../../domain/workspaceVisibility";
 import { useBrowseRootBackHandler } from "../../hooks/useBrowseRootBackHandler";
@@ -44,24 +48,34 @@ function formatReceivedLine(pkg: Workspace, t: TFunction, locale: string): strin
 /**
  * The Received page — snapshots people sent you (or you sent yourself), kept
  * apart from your own creative work. One row per package; a package OPENS AS
- * THE REAL COLLECTION PAGE (a visit, labelled Received), with every card,
- * play, select and search a collection has — and "Move to my workspaces" /
- * "Delete package" in that page's overflow (2026-10-11). Nothing here ever
- * mixes into personal workspaces on its own.
+ * THE REAL COLLECTION PAGE (a visit, labelled Received). Long-press selects:
+ * several packages can be kept (moved somewhere) or deleted at once. Nothing
+ * here ever mixes into personal workspaces on its own.
  */
 export function ReceivedScreen() {
   const { t } = useTranslation();
   const { formatLocale } = useLocale();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
-  useBrowseRootBackHandler();
 
   const workspaces = useStore((s) => s.workspaces);
   const markReceivedPackageOpened = useStore((s) => s.markReceivedPackageOpened);
   const updateCollection = useStore((s) => s.updateCollection);
+  const deleteWorkspace = useStore((s) => s.deleteWorkspace);
 
   const packages = useMemo(() => receivedPackages(workspaces), [workspaces]);
   const unopenedCount = useMemo(() => unopenedReceivedCount(workspaces), [workspaces]);
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [moveOpen, setMoveOpen] = useState(false);
+  const selecting = selectedIds.length > 0;
+  const clearSelection = () => setSelectedIds([]);
+  useBrowseRootBackHandler(selecting ? { onBack: clearSelection } : true);
+
+  // Packages deleted or moved out from under a selection drop out of it.
+  useEffect(() => {
+    setSelectedIds((prev) => prev.filter((id) => packages.some((pkg) => pkg.id === id)));
+  }, [packages]);
 
   const openPackage = (pkg: Workspace) => {
     const collection = pkg.collections[0];
@@ -89,15 +103,45 @@ export function ReceivedScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routePackageId, routeOpenToken]);
 
+  const confirmDeleteSelected = () => {
+    const targets = packages.filter((pkg) => selectedIds.includes(pkg.id));
+    if (targets.length === 0) return;
+    const one = targets.length === 1 ? targets[0] : null;
+    AppAlert.destructive(
+      one ? t("received.deleteTitle") : t("received.deleteManyTitle", { count: targets.length }),
+      one
+        ? t("received.deleteBody", { title: one.title, items: t("received.items", { count: one.ideas.length }) })
+        : t("received.deleteManyBody"),
+      () => {
+        for (const pkg of targets) deleteWorkspace(pkg.id);
+        haptic.success();
+        clearSelection();
+      },
+      { confirmLabel: t("common.delete") }
+    );
+  };
+
   return (
     <SafeAreaView style={receivedStyles.screen}>
       <ScreenHeader title={t("screens.received")} leftIcon="hamburger" />
 
+      {selecting ? (
+        <View style={receivedStyles.topBar}>
+          <SelectionTopBar
+            inline
+            count={selectedIds.length}
+            allSelected={selectedIds.length === packages.length}
+            onSelectAll={() => setSelectedIds(packages.map((pkg) => pkg.id))}
+            onCancel={clearSelection}
+          />
+        </View>
+      ) : null}
+
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={receivedStyles.scrollContent}
+        contentContainerStyle={[receivedStyles.scrollContent, selecting ? receivedStyles.scrollContentSelecting : null]}
       >
-        {packages.length > 0 ? (
+        {packages.length > 0 && !selecting ? (
           <Text style={receivedStyles.countLine}>
             {t("received.packages", { count: packages.length })}
             {unopenedCount > 0 ? ` · ${t("received.newCount", { count: unopenedCount })}` : ""}
@@ -107,19 +151,38 @@ export function ReceivedScreen() {
           {packages.map((pkg) => {
             const kind = pkg.received?.shareKind ?? "library";
             const unopened = pkg.received?.openedAt == null;
+            const selected = selectedIds.includes(pkg.id);
+            const toggle = () =>
+              setSelectedIds((prev) => (prev.includes(pkg.id) ? prev.filter((id) => id !== pkg.id) : [...prev, pkg.id]));
             return (
               <Pressable
                 key={pkg.id}
-                style={({ pressed }) => [receivedStyles.packageRow, pressed ? { opacity: 0.8 } : null]}
+                style={({ pressed }) => [
+                  receivedStyles.packageRow,
+                  selected ? receivedStyles.packageRowSelected : null,
+                  pressed ? { opacity: 0.8 } : null,
+                ]}
                 onPress={() => {
                   haptic.tap();
+                  if (selecting) {
+                    toggle();
+                    return;
+                  }
                   openPackage(pkg);
                 }}
+                onLongPress={() => {
+                  // haptics vocabulary: `grab` — entering selection mode.
+                  haptic.grab();
+                  if (!selecting) setSelectedIds([pkg.id]);
+                  else toggle();
+                }}
+                delayLongPress={450}
                 accessibilityRole="button"
+                accessibilityState={{ selected }}
                 accessibilityLabel={t("received.openPackage", { title: pkg.received?.shareTitle ?? pkg.title })}
               >
                 <View style={receivedStyles.packageIcon}>
-                  <Ionicons name={KIND_ICONS[kind]} size={18} color={colors.primaryDeep} />
+                  <Ionicons name={selected ? "checkmark" : KIND_ICONS[kind]} size={18} color={colors.primaryDeep} />
                 </View>
                 <View style={receivedStyles.packageMain}>
                   <Text style={receivedStyles.packageTitle} numberOfLines={1}>
@@ -129,13 +192,15 @@ export function ReceivedScreen() {
                     {t(`received.${kind}`)} · {formatReceivedLine(pkg, t, formatLocale)}
                   </Text>
                 </View>
-                {unopened ? (
+                {unopened && !selecting ? (
                   <View
                     style={receivedStyles.unopenedDot}
                     accessibilityLabel={t("received.unopened")}
                   />
                 ) : null}
-                <Ionicons name={dirIcon("chevron-forward")} size={14} color={colors.textMuted} />
+                {!selecting ? (
+                  <Ionicons name={dirIcon("chevron-forward")} size={14} color={colors.textMuted} />
+                ) : null}
               </Pressable>
             );
           })}
@@ -151,19 +216,54 @@ export function ReceivedScreen() {
         ) : null}
         {/* The outbox lives in Settings; a quiet ink link so inbox and outbox
             point at each other. */}
-        <Pressable
-          style={({ pressed }) => [receivedStyles.sentLink, pressed ? { opacity: 0.6 } : null]}
-          onPress={() =>
-            navigation.navigate("SettingsHome", { initialView: "sharing", openToken: Date.now() })
-          }
-          hitSlop={8}
-          accessibilityRole="link"
-          accessibilityLabel={t("received.linksYouSent")}
-        >
-          <Ionicons name="link-outline" size={14} color={colors.primaryDeep} />
-          <Text style={receivedStyles.sentLinkText}>{t("received.linksYouSent")}</Text>
-        </Pressable>
+        {!selecting ? (
+          <Pressable
+            style={({ pressed }) => [receivedStyles.sentLink, pressed ? { opacity: 0.6 } : null]}
+            onPress={() =>
+              navigation.navigate("SettingsHome", { initialView: "sharing", openToken: Date.now() })
+            }
+            hitSlop={8}
+            accessibilityRole="link"
+            accessibilityLabel={t("received.linksYouSent")}
+          >
+            <Ionicons name="link-outline" size={14} color={colors.primaryDeep} />
+            <Text style={receivedStyles.sentLinkText}>{t("received.linksYouSent")}</Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
+
+      {selecting ? (
+        <SelectionDock
+          actions={[
+            {
+              key: "keep",
+              label: t("received.moveSelected"),
+              icon: "arrow-forward-outline",
+              onPress: () => setMoveOpen(true),
+              opens: true,
+            },
+            {
+              key: "delete",
+              label: t("common.delete"),
+              icon: "trash-outline",
+              tone: "danger",
+              onPress: confirmDeleteSelected,
+            },
+          ]}
+        />
+      ) : null}
+
+      <ReceivedPackageMoveModal
+        packageIds={selectedIds}
+        visible={moveOpen}
+        onClose={() => setMoveOpen(false)}
+        onDone={(result) => {
+          clearSelection();
+          if (result.kind === "moved" && result.collectionIds.length === 1) {
+            visitCollection(navigation, { collectionId: result.collectionIds[0]!, workspaceId: result.workspaceId });
+          }
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -173,9 +273,16 @@ const receivedStyles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.page,
   },
+  topBar: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
   scrollContent: {
     paddingHorizontal: spacing.lg,
     paddingBottom: 120,
+  },
+  scrollContentSelecting: {
+    paddingBottom: 160,
   },
   list: {
     gap: spacing.sm,
@@ -213,6 +320,10 @@ const receivedStyles = StyleSheet.create({
     borderRadius: radii.lg,
     paddingVertical: 12,
     paddingHorizontal: 14,
+  },
+  packageRowSelected: {
+    backgroundColor: colors.primarySurface,
+    borderColor: colors.primary,
   },
   packageIcon: {
     width: 44,

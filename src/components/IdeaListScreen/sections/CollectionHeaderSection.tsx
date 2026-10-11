@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import ReAnimated, {
   Extrapolation,
   interpolate,
@@ -13,6 +13,9 @@ import { IconButton } from "../../common/IconButton";
 import { SideMenuButton } from "../../common/SideMenuButton";
 import { PickerEyebrow } from "../../common/PickerEyebrow";
 import { getLibraryCollectorIcon } from "../../../domain/libraryCollectorPresentation";
+import { InkLink } from "../../common/InkLink";
+import { ReceivedPackageMoveModal } from "../../common/ReceivedPackageMoveModal";
+import { visitCollection } from "../../../navigation";
 import { styles } from "../../../styles";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import { appActions } from "../../../state/actions";
@@ -228,14 +231,16 @@ export function CollectionCollapsibleIdentity() {
         : collection.updatedAt
     );
   }, [workspace, collection]);
+  const [keepOpen, setKeepOpen] = useState(false);
   if (!collection) return null;
 
   const ideaMeta = screen.ideasHeaderMeta;
   const metaLine = [ideaMeta, lastEditedMeta].filter(Boolean).join("  ·  ");
 
   return (
-    // Non-interactive: drags on the title fall through to the list beneath.
-    <View style={collStyles.identityBlock} pointerEvents="none">
+    // Non-interactive (box-none): drags on the title fall through to the list
+    // beneath; only the "Keep this…" link on a received package takes touches.
+    <View style={collStyles.identityBlock} pointerEvents="box-none">
       {/* The WHERE eyebrow rides in the nav row as the up-link (2026-09-07). The
           picker eyebrow (2026-09-11) sits here, above the title: this page is
           the place you are picking FROM, and the line says what for. */}
@@ -257,6 +262,30 @@ export function CollectionCollapsibleIdentity() {
         <UserText value={collection.description} style={collStyles.description} numberOfLines={2}>
           {collection.description}
         </UserText>
+      ) : null}
+      {/* A received package's one real decision, in the open: where it lives
+          (founder, 2026-10-11 — not behind the ⋯). */}
+      {screen.isReceivedWorkspace && workspace ? (
+        <>
+          <View style={collStyles.keepRow}>
+            <InkLink icon="arrow-forward-outline" label={t("received.movePackage")} onPress={() => setKeepOpen(true)} testID="collection-keep" />
+          </View>
+          <ReceivedPackageMoveModal
+            packageIds={[workspace.id]}
+            visible={keepOpen}
+            onClose={() => setKeepOpen(false)}
+            onDone={(result) => {
+              if (result.kind === "moved" && result.collectionIds[0]) {
+                // The collection kept its id; it now lives in the destination —
+                // open it there, so the next thing you see is where it went.
+                visitCollection(screen.navigation, {
+                  collectionId: result.collectionIds[0],
+                  workspaceId: result.workspaceId,
+                });
+              }
+            }}
+          />
+        </>
       ) : null}
     </View>
   );
@@ -291,6 +320,11 @@ export function CollectionSearchSection() {
 }
 
 const collStyles = StyleSheet.create({
+  // The received package's Keep link, under the identity text.
+  keepRow: {
+    marginTop: 10,
+    alignSelf: "flex-start",
+  },
   navRow: {
     flexDirection: "row",
     alignItems: "center",

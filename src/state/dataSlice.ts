@@ -238,6 +238,13 @@ export type DataSlice = {
     deleteWorkspace: (id: string) => void;
     /** Flip a received package into a personal workspace ("Move to my workspaces"). */
     adoptReceivedWorkspace: (id: string) => void;
+    /** Move a received package's collections into a workspace (top level or under a
+     *  collection) and drop the emptied package. Returns the moved collection ids. */
+    adoptReceivedPackageInto: (
+        packageId: string,
+        targetWorkspaceId: string,
+        targetParentCollectionId?: string | null
+    ) => { ok: boolean; error?: string; collectionIds: string[] };
     /** Stamp a received package as opened (clears it from the drawer's "new" count). */
     markReceivedPackageOpened: (id: string) => void;
     /** Create an empty received package (one "Files" collection) for a loose-files
@@ -2542,6 +2549,24 @@ export const createDataSlice: StateCreator<
             ],
         }));
         return { workspaceId, collectionId: collection.id };
+    },
+
+    adoptReceivedPackageInto: (packageId, targetWorkspaceId, targetParentCollectionId = null) => {
+        // "Move to…" a destination: the package's collection(s) move into the
+        // chosen workspace (top level, or under a collection) exactly as a
+        // collection move does, then the emptied package is removed. The moved
+        // ideas keep their audio — it is referenced from the destination now.
+        const state = get();
+        const pkg = state.workspaces.find((ws) => ws.id === packageId);
+        if (!pkg || pkg.origin !== "received") return { ok: false, error: "Package not found.", collectionIds: [] };
+        const collectionIds: string[] = [];
+        for (const collection of pkg.collections.filter((c) => !c.parentCollectionId)) {
+            const result = get().moveCollection(collection.id, targetWorkspaceId, targetParentCollectionId);
+            if (!result.ok) return { ok: false, error: result.error, collectionIds };
+            collectionIds.push(collection.id);
+        }
+        get().deleteWorkspace(packageId);
+        return { ok: true, collectionIds };
     },
 
     adoptReceivedWorkspace: (id) => {
