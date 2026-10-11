@@ -481,9 +481,16 @@ in Received; received packages open as the real collection page.
   reads oldest-first (`ideasSort` forced for `origin === "received"`);
   `WorkspacePickSheet` lists packages under Received (picked by route param
   only — never the active workspace). Picker group verified by code only.
-- [ ] E. Parcel kind (Files · Playlist · Setlist) on the sender page →
-  `kind` on the transfer → app builds the compilation; playlist send/receive
-  in the app (archive kind "playlist", mirror setlistShare.ts).
+- [x] E. Parcel kind: sender page segmented Files · Playlist · Setlist →
+  `kind` on create → `transfers.share_kind` (migration 0003, applied remote)
+  → payload `kind` → recipient page "N songs · a setlist, in order" → app
+  builds a Setlist (one take per entry) or Playlist from the package in
+  parcel order and lands on it. `ShareKind` gains "playlist". Verified in the
+  sim with a setlist-kind parcel.
+- [ ] E2 (not built): sending a PLAYLIST from inside the app (archive kind
+  "playlist", mirror setlistShare.ts) — today the app sends takes, setlists
+  and chart books; a playlist goes out as a Playlist-kind parcel from the web
+  page only.
 - Production OTAs android/ios + preview android published 2026-10-11 (see
   memory for ids). Not verified on a real device; cross-workspace picking
   verified by test only (the sim has one workspace).
