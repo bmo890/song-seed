@@ -438,6 +438,11 @@ object.
   `Setlist.description` via `renameSetlist(id, title, description)`, "Set
   details" sheet, shown under the meta, carried in the shared archive.
 - [x] C. Rename (9d37a859): label-only, EN+HE; data kind stays `songbook`.
+- [x] D. Hub polish (1f661a7d): tab captions → header `?` (HelpSheet, 4 rows);
+  "From others" toggle → `CompilationListControls` (Show All · Mine ·
+  Received / Sort by Updated · Name · Created, persisted in
+  `useReceivedPrefsStore` v2, `listCompilations` in domain/compilationListing.ts;
+  funnel hidden on Playlists); the three "New …" soft keys → `CreateFab`.
 - Production OTAs android/ios + preview android published 2026-10-11 (see
   memory for ids). Not verified on a real device; cross-workspace picking
   verified by test only (the sim has one workspace).
