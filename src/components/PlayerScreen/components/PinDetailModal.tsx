@@ -34,6 +34,9 @@ export function PinTimingAdjuster({
   const maxMs = Math.max(1, durationMs);
   const displayMs = dragMs ?? current;
   const clamp = (ms: number) => Math.max(0, Math.min(maxMs, ms));
+  // The arrows are coarse travel (the slider is the fine control): a step you
+  // can SEE on the reel — 1 s on a short clip, up to 5 s on a long one.
+  const nudgeMs = Math.max(1000, Math.min(5000, Math.round(durationMs / 60 / 500) * 500));
   const stepBy = (deltaMs: number) => onReposition(marker.id, clamp(current + deltaMs));
   return (
     <View style={s.sectionAdjuster}>
@@ -54,7 +57,7 @@ export function PinTimingAdjuster({
       <View style={s.pinTrayRow}>
         <Pressable
           style={s.pinStepButton}
-          onPress={() => stepBy(-1000)}
+          onPress={() => stepBy(-nudgeMs)}
           hitSlop={6}
           accessibilityRole="button"
           accessibilityLabel={t("player.nudgePinBack")}
@@ -84,7 +87,7 @@ export function PinTimingAdjuster({
         />
         <Pressable
           style={s.pinStepButton}
-          onPress={() => stepBy(1000)}
+          onPress={() => stepBy(nudgeMs)}
           hitSlop={6}
           accessibilityRole="button"
           accessibilityLabel={t("player.nudgePinForward")}

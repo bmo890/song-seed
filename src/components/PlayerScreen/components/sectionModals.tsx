@@ -48,6 +48,9 @@ export function SectionEdgeAdjuster({
     ? Math.max(0, section.endMs - MIN_SECTION_LENGTH_MS)
     : Math.max(1, durationMs);
   const clamp = (ms: number) => Math.max(minMs, Math.min(maxMs, ms));
+  // The arrows are coarse travel (the slider is the fine control): a step you
+  // can SEE on the reel — 1 s on a short clip, up to 5 s on a long one.
+  const nudgeMs = Math.max(1000, Math.min(5000, Math.round(durationMs / 60 / 500) * 500));
   const stepBy = (deltaMs: number) => onReposition(section.id, edge, clamp(current + deltaMs));
   // Pinning the active edge to the playhead only makes sense when it stays on its own side of
   // the section (start before end, end after start). Crossing neighbours is fine — the resolver
@@ -79,7 +82,7 @@ export function SectionEdgeAdjuster({
       <View style={s.pinTrayRow}>
         <Pressable
           style={s.pinStepButton}
-          onPress={() => stepBy(-1000)}
+          onPress={() => stepBy(-nudgeMs)}
           hitSlop={6}
           accessibilityRole="button"
           accessibilityLabel={t("player.nudgeEdgeBackA11y", {
@@ -111,7 +114,7 @@ export function SectionEdgeAdjuster({
         />
         <Pressable
           style={s.pinStepButton}
-          onPress={() => stepBy(1000)}
+          onPress={() => stepBy(nudgeMs)}
           hitSlop={6}
           accessibilityRole="button"
           accessibilityLabel={t("player.nudgeEdgeForwardA11y", {

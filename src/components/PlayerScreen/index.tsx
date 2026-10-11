@@ -58,6 +58,7 @@ import { canAddOverdubLayer, isPracticeToolPro, type PracticeTool } from "../../
 import { hasProAccess } from "../../domain/entitlements";
 import { ensurePro, openProUpsell } from "../common/proUpsell";
 import { useTranslation } from "react-i18next";
+import { resolveSectionEdit } from "../../domain/playerSections";
 
 const PRACTICE_SPEED_PRESETS = [0.5, 0.75, 1, 1.25, 1.5] as const;
 const PRACTICE_SPEED_MIN = 0.5;
@@ -327,18 +328,21 @@ function PlayerScreenInner({
     );
   }, [data.practiceMarkers, pinPreview]);
   // Same live-override trick for a section boundary while its slider is dragged.
+  // The preview runs through the same resolver the commit uses, so dragging an
+  // end into the next section visibly pushes that section instead of sliding
+  // under it with no sign of movement (founder, 2026-10-11).
   const previewedSections = useMemo(() => {
     if (!sectionPreview) return data.sections;
-    return data.sections.map((section) =>
-      section.id === sectionPreview.id
-        ? {
-            ...section,
-            ...(sectionPreview.startMs != null ? { startMs: sectionPreview.startMs } : null),
-            ...(sectionPreview.endMs != null ? { endMs: sectionPreview.endMs } : null),
-          }
-        : section
+    return resolveSectionEdit(
+      data.sections,
+      sectionPreview.id,
+      {
+        ...(sectionPreview.startMs != null ? { startMs: sectionPreview.startMs } : null),
+        ...(sectionPreview.endMs != null ? { endMs: sectionPreview.endMs } : null),
+      },
+      resolvedDisplayDuration || 0
     );
-  }, [data.sections, sectionPreview]);
+  }, [data.sections, sectionPreview, resolvedDisplayDuration]);
   // Slim lanes under the reel marking where each un-flattened layer sits on the master.
   // In layers mode the lanes fatten into the bench's selector, and the base take joins
   // them as a selectable lane of its own (fewer controls — it IS the timeline).
