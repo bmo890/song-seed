@@ -443,6 +443,9 @@ object.
   Received / Sort by Updated · Name · Created, persisted in
   `useReceivedPrefsStore` v2, `listCompilations` in domain/compilationListing.ts;
   funnel hidden on Playlists); the three "New …" soft keys → `CreateFab`.
+  Founder: reuse the collection's row, not a new look → rebuilt on
+  `FilterSortControls` with the tonal search field; search is per tab and
+  looks inside (title · note · song titles, `domain/compilationSearch.ts`).
 - Production OTAs android/ios + preview android published 2026-10-11 (see
   memory for ids). Not verified on a real device; cross-workspace picking
   verified by test only (the sim has one workspace).
