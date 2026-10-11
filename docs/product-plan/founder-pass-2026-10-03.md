@@ -518,3 +518,15 @@ in Received; received packages open as the real collection page.
 - [x] Playlist… in the collection and sketch selection More sheets, Save on
   the queue header, all through `PlaylistChooserSheet`; the dock's queue is
   the full player's expandable BottomSheet (c9b6208c).
+
+## Live scrub readout (founder, 2026-10-11)
+
+Founder: while dragging the reel, the header's mm:ss only caught up on
+release. Cause: the readout rendered React state, which moves only when the
+engine reports; the tape moves on the UI thread through `timelineAudioProgress`
+and commits one seek at release. Fix (d10f5017): `LiveTimeReadout` — a
+non-editable text input whose text is an animated prop derived from the same
+shared progress × `sharedDurationMs`, `fmtDuration` made a worklet. No React
+render per frame (the reel-overlay desync rule holds). Sim-verified: mid-hold
+screenshot shows the readout at the dragged time while playback is paused for
+the scrub; release resumes from there and the readout keeps ticking.
