@@ -8,6 +8,8 @@
 import { page, waveformStrip } from "./shell";
 
 const SENDER_CSS = `
+/* The brand classes set display:flex/inline-flex, which beats the UA's [hidden]. */
+.btn[hidden],.list-tools[hidden]{display:none}
 .drop .alt{display:block;margin-top:10px;font-size:12.5px;color:var(--ink-faint)}
 .drop .alt button{background:none;border:none;padding:0;color:var(--terra);font:inherit;cursor:pointer;
   border-bottom:1px solid transparent}
@@ -28,6 +30,16 @@ const SENDER_CSS = `
 .trk-move button:hover{color:var(--terra)}
 .trk-move button:disabled{opacity:.3;cursor:default}
 .trk-prog{font-size:12.5px;color:var(--terra);font-variant-numeric:tabular-nums;white-space:nowrap}
+.kind-row{margin-top:22px}
+.kind-row .kind-label{display:block;font-size:11px;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--ink-faint);margin-bottom:8px;font-weight:700}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:4px;overflow:hidden}
+.seg-btn{background:transparent;border:none;color:var(--ink-soft);font:inherit;font-size:13.5px;
+  padding:8px 16px;cursor:pointer;border-right:1px solid var(--rule)}
+.seg-btn:last-child{border-right:none}
+.seg-btn.on{background:var(--card);color:var(--ink);font-weight:600}
+.seg-btn:hover{color:var(--ink)}
+.kind-hint{display:block;margin-top:8px;font-size:12.5px;color:var(--ink-faint)}
 .inline-notice{margin-top:14px;font-size:13.5px;color:var(--terra-deep)}
 .inline-notice[hidden]{display:none}
 `;
@@ -57,7 +69,17 @@ on the other end.</p>
   <ul id="items" class="tracklist" style="margin-top:4px"></ul>
   <p id="notice" class="inline-notice" hidden></p>
 
-  <div style="margin-top:26px">
+  <div class="kind-row">
+    <span class="kind-label">What is this?</span>
+    <div class="seg" role="radiogroup" aria-label="What this parcel is">
+      <button type="button" class="seg-btn on" data-kind="clips" role="radio" aria-checked="true">Files</button>
+      <button type="button" class="seg-btn" data-kind="playlist" role="radio" aria-checked="false">Playlist</button>
+      <button type="button" class="seg-btn" data-kind="setlist" role="radio" aria-checked="false">Setlist</button>
+    </div>
+    <span class="kind-hint" id="kind-hint">Loose files — the receiver keeps them as they are.</span>
+  </div>
+
+  <div style="margin-top:22px">
     <div class="field"><label for="sender">From</label>
       <input id="sender" placeholder="Your name, as the receiver knows it" maxlength="80"></div>
     <div class="field"><label for="title">Title</label>
@@ -93,6 +115,22 @@ const SENDER_JS = `
   var drop=$('drop'), picker=$('picker'), folderPicker=$('folder-picker'), list=$('items'),
       sendBtn=$('send'), tools=$('list-tools'), notice=$('notice'), titleEl=$('title'), senderEl=$('sender');
 
+  var kind = 'clips';
+  var KIND_HINT = {
+    clips: 'Loose files — the receiver keeps them as they are.',
+    playlist: 'Arrives in SongNook as a playlist, in this order.',
+    setlist: 'Arrives in SongNook as a setlist, in this order — ready for the band.'
+  };
+  Array.prototype.forEach.call(document.querySelectorAll('.seg-btn'), function(btn){
+    btn.addEventListener('click', function(){
+      if(sealing) return;
+      kind = btn.getAttribute('data-kind');
+      Array.prototype.forEach.call(document.querySelectorAll('.seg-btn'), function(b){
+        var on = b === btn; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
+      });
+      $('kind-hint').textContent = KIND_HINT[kind];
+    });
+  });
   try { senderEl.value = localStorage.getItem('songnook-send-from') || ''; } catch(_){}
   senderEl.addEventListener('change', function(){ try{ localStorage.setItem('songnook-send-from', senderEl.value); }catch(_){} });
 
@@ -246,7 +284,7 @@ const SENDER_JS = `
     var total=files.reduce(function(s,f){return s+f.size;},0), doneBytes=0;
     try{
       var create = await fetch('/api/transfers',{method:'POST',headers:{'content-type':'application/json'},
-        body:JSON.stringify({ senderName:senderEl.value, title:titleEl.value, message:$('message').value })});
+        body:JSON.stringify({ senderName:senderEl.value, title:titleEl.value, message:$('message').value, kind:kind })});
       if(!create.ok) throw new Error('could not start the parcel ('+create.status+')');
       var t = await create.json();
 

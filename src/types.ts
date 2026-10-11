@@ -635,6 +635,7 @@ export type Collection = {
  *  the archive manifest's `share` block, trusted over any inference. */
 export type ShareKind =
   | "setlist"
+  | "playlist"
   | "songbook"
   | "collection"
   | "workspace"

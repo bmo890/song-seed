@@ -14,6 +14,8 @@ export interface TransferRow {
   created_at: number;
   expires_at: number;
   upload_token_hash: string | null;
+  /** "clips" (loose files), or a running order the app rebuilds: "playlist" | "setlist". */
+  share_kind: "clips" | "playlist" | "setlist";
 }
 
 export interface ItemRow {
@@ -31,8 +33,8 @@ export interface ItemRow {
 export async function insertTransfer(env: Env, t: TransferRow): Promise<void> {
   await env.DB.prepare(
     `INSERT INTO transfers
-      (transfer_id, title, sender_name, sender_user_id, message, status, size_total, created_at, expires_at, upload_token_hash)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      (transfer_id, title, sender_name, sender_user_id, message, status, size_total, created_at, expires_at, upload_token_hash, share_kind)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
       t.transfer_id,
@@ -44,7 +46,8 @@ export async function insertTransfer(env: Env, t: TransferRow): Promise<void> {
       t.size_total,
       t.created_at,
       t.expires_at,
-      t.upload_token_hash
+      t.upload_token_hash,
+      t.share_kind
     )
     .run();
 }

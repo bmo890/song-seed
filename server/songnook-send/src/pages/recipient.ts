@@ -55,7 +55,11 @@ function expiresLabel(expiresAtIso: string): string {
 }
 
 function songCount(t: TransferPayload): string {
-  return `${t.items.length} ${t.items.length === 1 ? "song" : "songs"}`;
+  const count = `${t.items.length} ${t.items.length === 1 ? "song" : "songs"}`;
+  // The sender's intent, named: a running order arrives in SongNook as that.
+  if (t.kind === "playlist") return `${count} · a playlist, in order`;
+  if (t.kind === "setlist") return `${count} · a setlist, in order`;
+  return count;
 }
 
 function tracklist(t: TransferPayload): string {

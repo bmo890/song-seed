@@ -21,6 +21,7 @@ import { UserText } from "../../../i18n";
 
 const KIND_ICONS: Record<ShareKind, React.ComponentProps<typeof Ionicons>["name"]> = {
   setlist: "albums-outline",
+  playlist: "musical-notes-outline",
   songbook: "book-outline",
   collection: "folder-outline",
   workspace: "file-tray-stacked-outline",

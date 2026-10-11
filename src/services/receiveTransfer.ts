@@ -20,6 +20,9 @@ export type TransferPayload = {
   title: string | null;
   sender: { name: string | null; userId: string | null };
   message: string | null;
+  /** What the sender said this is: loose files, or a running order the app
+   *  rebuilds as a playlist or a setlist. Older parcels carry no kind. */
+  kind: "clips" | "playlist" | "setlist";
   createdAt: string;
   expiresAt: string;
   items: TransferItemPayload[];
@@ -145,6 +148,7 @@ export function validateTransferPayload(value: unknown, expectedTransferId: stri
       userId: optionalText(sender.userId, 120),
     },
     message: optionalText(value.message, 1000),
+    kind: value.kind === "playlist" || value.kind === "setlist" ? value.kind : "clips",
     createdAt,
     expiresAt,
     items,

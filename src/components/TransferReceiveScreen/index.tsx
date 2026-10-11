@@ -25,6 +25,7 @@ import { enrichImportedAudioAsset, importAudioAssets } from "../../services/audi
 import { createClipImportBatcher } from "../../services/clipImportBatcher";
 import { enqueueMissingMetadataBackfill } from "../../services/backgroundWaveformHydration";
 import { resolveImportedEntityRoute } from "../../domain/receiveRouting";
+import { getPlayableClipForIdea } from "../../domain/clipPresentation";
 import { useParcelPreview } from "../../hooks/useParcelPreview";
 import { toast } from "../common/toastStore";
 import { haptic } from "../../design/haptics";
@@ -152,13 +153,14 @@ export function TransferReceiveScreen() {
       senderUserId: transfer.sender.userId,
       transferId: transfer.transferId,
       receivedAt: Date.now(),
-      shareKind: "clips" as ShareKind,
+      shareKind: (transfer.kind === "playlist" || transfer.kind === "setlist" ? transfer.kind : "clips") as ShareKind,
       shareTitle: transfer.title ?? t("transferReceive.receivedFiles"),
     };
 
     try {
       const audioUris: Array<{ uri: string; name: string; mimeType: string }> = [];
-      let entityRoute: ReturnType<typeof resolveImportedEntityRoute> = null;
+      // Where Save lands: the entity it made (a setlist, a chart book, a playlist), else the package.
+      let entityRoute: { kind: "songbook" | "setlist" | "playlist"; id: string } | null = null;
       let importedAnything = false;
       let packageId: string | null = null;
 
@@ -235,6 +237,41 @@ export function TransferReceiveScreen() {
           throw new Error(t("transferReceive.noAudio"));
         }
         importedAnything = true;
+
+        // The sender said what this is: a running order arrives as that.
+        if (transfer.kind === "playlist" || transfer.kind === "setlist") {
+          const state = useStore.getState();
+          const pkg = state.workspaces.find((workspace) => workspace.id === workspaceId);
+          const ideas = [...(pkg?.ideas ?? [])].sort((a, b) => a.createdAt - b.createdAt);
+          if (transfer.kind === "playlist") {
+            const playlistId = state.addPlaylist(receivedMeta.shareTitle);
+            state.addItemsToPlaylist(
+              playlistId,
+              ideas.map((idea) => ({
+                kind: "clip" as const,
+                workspaceId,
+                collectionId,
+                ideaId: idea.id,
+                clipId: getPlayableClipForIdea(idea)?.id ?? null,
+              }))
+            );
+            entityRoute = { kind: "playlist", id: playlistId };
+          } else {
+            const setlistId = state.addSetlist(receivedMeta.shareTitle);
+            for (const idea of ideas) {
+              const clip = getPlayableClipForIdea(idea);
+              state.addSetlistEntry(setlistId, {
+                workspaceId,
+                ideaId: idea.id,
+                clipIds: clip ? [clip.id] : [],
+                lyricVersionIds: [],
+                includeChordSheet: false,
+                includeSongNotes: false,
+              });
+            }
+            entityRoute = { kind: "setlist", id: setlistId };
+          }
+        }
       }
 
       if (!importedAnything) throw new Error(t("transferReceive.nothingImported"));
@@ -251,8 +288,14 @@ export function TransferReceiveScreen() {
 
       if (entityRoute) {
         toast(
-          t(entityRoute.kind === "songbook" ? "transferReceive.songbookSaved" : "transferReceive.setlistSaved"),
-          entityRoute.kind === "songbook" ? "book-outline" : "albums-outline"
+          t(
+            entityRoute.kind === "songbook"
+              ? "transferReceive.songbookSaved"
+              : entityRoute.kind === "playlist"
+                ? "transferReceive.playlistSaved"
+                : "transferReceive.setlistSaved"
+          ),
+          entityRoute.kind === "songbook" ? "book-outline" : entityRoute.kind === "playlist" ? "musical-notes-outline" : "albums-outline"
         );
         returnHome(navigation, {
           screen: "LibraryHome",
@@ -457,7 +500,13 @@ export function TransferReceiveScreen() {
 
             {/* Where it lands — said before the tap, not after. */}
             <Text style={local.destination}>
-              {hasArchive ? t("transferReceive.savesToCompilations") : t("transferReceive.savesToReceived", { title })}
+              {hasArchive
+                ? t("transferReceive.savesToCompilations")
+                : transfer.kind === "playlist"
+                  ? t("transferReceive.savesToPlaylist")
+                  : transfer.kind === "setlist"
+                    ? t("transferReceive.savesToSetlist")
+                    : t("transferReceive.savesToReceived", { title })}
             </Text>
             <Button
               testID="transfer-save"

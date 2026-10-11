@@ -59,7 +59,7 @@ async function deleteDraftAndObjects(
 }
 
 // ── 1. Create ───────────────────────────────────────────────────────────────
-// POST /api/transfers  { title?, senderName?, message? } → { transferId, expiresAt }
+// POST /api/transfers  { title?, senderName?, message?, kind? } → { transferId, expiresAt }
 api.post("/transfers", async (c) => {
   const cfg = loadConfig(c.env);
   if (!webOriginAllowed(c, cfg)) return errorResponse(403, "origin not allowed");
@@ -79,6 +79,7 @@ api.post("/transfers", async (c) => {
     sender_name: clampText(body.senderName, 80),
     sender_user_id: null, // v1: always null (accounts fill this later, no wire change)
     message: clampText(body.message, 1000),
+    share_kind: body.kind === "playlist" || body.kind === "setlist" ? body.kind : "clips",
     status: "draft",
     size_total: 0,
     created_at: now,

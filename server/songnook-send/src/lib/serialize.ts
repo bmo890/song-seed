@@ -18,6 +18,8 @@ export interface TransferPayload {
   title: string;
   sender: { name: string; userId: string | null };
   message: string;
+  /** What the sender said this is — loose files, or a running order. */
+  kind: "clips" | "playlist" | "setlist";
   createdAt: string;
   expiresAt: string;
   items: TransferItemPayload[];
@@ -33,6 +35,7 @@ export function toTransferPayload(
     title: transfer.title,
     sender: { name: transfer.sender_name, userId: transfer.sender_user_id ?? null },
     message: transfer.message,
+    kind: transfer.share_kind ?? "clips",
     createdAt: new Date(transfer.created_at).toISOString(),
     expiresAt: new Date(transfer.expires_at).toISOString(),
     items: items.map((it) => ({
