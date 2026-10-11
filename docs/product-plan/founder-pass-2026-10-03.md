@@ -530,3 +530,16 @@ shared progress × `sharedDurationMs`, `fmtDuration` made a worklet. No React
 render per frame (the reel-overlay desync rule holds). Sim-verified: mid-hold
 screenshot shows the readout at the dragged time while playback is paused for
 the scrub; release resumes from there and the readout keeps ticking.
+
+## Sketch door folds after the first sketch (founder, 2026-10-12)
+
+Founder: "Grow this into a sketch" on every clip's full player is right for a
+new user and busy afterwards; how long should it stay? Decision: not a clock.
+The door folds the moment the library holds its first sketch — the exact
+moment the lesson landed — using the `anySketch` check that already gated the
+terracotta wash, so no new persisted state. Before: the full card (Lora title,
+one-line body, link). After: the canon empty-door line the Lyrics and Chart
+doors use — SKETCH · No sketch yet · Make sketch ›. The slot keeps its shape
+(a clip honestly shows it has no sketch) and nothing is lost: Make sketch also
+lives in the player's overflow. Sim-verified the folded state on a standalone
+clip; the full card is unchanged code.
