@@ -340,6 +340,35 @@ The bar as checkable standards:
 is not applied at the detent level and the controls that would carry it are
 still generic.
 
+#### Manifest reality check (grep, 2026-10-13)
+
+The founder doubted whether the haptic and motion manifests are actually
+applied everywhere. Measured in `src/`:
+
+| Rule | Measured |
+|---|---|
+| Haptics only via `haptics.ts` | Held. Direct `expo-haptics` only in `haptics.ts` and `useMetronome.ts` (the allowed exception). |
+| Haptics present where things are tapped | 109 of 166 files with a Pressable call a haptic verb. 57 do not. |
+| Verb spread | tap 185 · light 49 · success 30 · grab 14 · error 13 · warning 1 |
+| Every tappable uses `pressDown` | 45 of 166 tappable files do not. `IconButton` has its own pressed style (opacity 0.5, scale 0.9) and the practice panel header has another. At least three press languages exist. |
+| Motion only via `motion.ts` | 24 numeric duration literals across 15 files, plus 16 inline spring configs. `{ damping: 20, stiffness: 300 }` is repeated six times in `TimeRangeSelector` and twice in `PlayerTimeline`: a missing token. |
+| Colours only from tokens | 794 hex literals, nearly all in `src/styles/*`, `PlayerScreen/styles.ts`, `IdeaDetailScreen/songClipControls.ts`, `domain/hierarchy.ts`. The legacy palette is a second source of truth beside tokens. |
+| `fontWeight` never without `fontFamily` | 1 file: `CollectionScreenContent.tsx`. |
+| No stock RN widgets | Community `Slider` in 9 files, including `MarkInspector`, `PlayerPracticeDrawers`, `PinDetailModal`, `sectionModals`, `SpeedPitchDials`, `MetronomeBlocks`. Stock `Switch` in 4. `ActivityIndicator` in 14. `Alert.alert` in 0. |
+
+Reading: the vocabulary is respected where it is used. It is used in roughly
+two thirds of the places, with three press languages, two colour palettes,
+and a stock slider under every mark, loop, speed and tempo control. That is
+the mechanism behind "feels thrown together": not bad screens, but controls
+that each made their own small decisions.
+
+Implication for the method: build a control kit first, then migrate by grep.
+The kit, in likely order: Slider with a drawn thumb and track and haptic
+detents; a single Pressable wrapper that owns the one press language and its
+haptic; Switch; progress and spinner; Stepper for nudges with a tick per
+step. `SegmentedControl` already exists. Then retire the second press styles
+and fold the eight inline springs into `motion.ts`.
+
 Proposed method, not started:
 
 - Audit by component, not by screen. One control fixed lifts every screen
