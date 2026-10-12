@@ -41,6 +41,10 @@ type Props = {
     } | null;
     onToggleMetronome?: () => void;
     onOpenMetronome?: () => void;
+    /** Pins dropped so far in this take (capture ms), drawn on the tape, and the
+     *  one-tap drop. Absent on screens that can't pin (an overdub guide). */
+    livePins?: { atMs: number }[];
+    onAddPin?: () => void;
     /** No-count-in overdub: the master joins at the next bar line. Non-null while that
      * wait is pending; drives a visible beat countdown so the implicit lead-in reads as
      * intentional instead of a ghost count-in. */
@@ -70,6 +74,8 @@ export function RecordingMeta({
     liveTakeGrid = null,
     onToggleMetronome,
     onOpenMetronome,
+    livePins,
+    onAddPin,
     guideJoin = null,
 }: Props) {
     const { t } = useTranslation();
@@ -83,9 +89,13 @@ export function RecordingMeta({
             // Full record-red once the tape is moving; quieter while parked, so an idle
             // page doesn't announce something that isn't happening yet.
             playheadColor: isRecording ? colors.record : "rgba(192,69,59,0.45)",
+            pinColor: colors.textStrong,
         }),
         [isRecording]
     );
+    // Stable for the same set of pins — the tape memoises on it.
+    const pinTimes = React.useMemo(() => livePins?.map((pin) => pin.atMs) ?? [], [livePins]);
+    const pinCount = pinTimes.length;
 
     const [joinBeatsLeft, setJoinBeatsLeft] = useState<number | null>(null);
     useEffect(() => {
@@ -135,8 +145,35 @@ export function RecordingMeta({
     // Bare glyphs, not tinted circles: the record button is the only circle on
     // this page. The metronome's ON state reads from the terracotta glyph + its
     // summary, not from a pill around it.
+    // One tap marks the moment; the count beside the flag is the whole readout.
+    // Nothing to type until the name sheet, so the hands stay on the instrument.
+    const canPin = isRecording && !isPaused && !isCountIn;
+    const pinButton = onAddPin ? (
+        <Pressable
+            style={({ pressed }) => [
+                metaStyles.metroToggle,
+                !canPin ? metaStyles.metroChipDisabled : null,
+                pressed && canPin ? styles.pressDown : null,
+            ]}
+            onPress={onAddPin}
+            disabled={!canPin}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t("recording.dropPin")}
+            testID="recording-drop-pin"
+        >
+            <Ionicons
+                name={pinCount > 0 ? "flag" : "flag-outline"}
+                size={18}
+                color={pinCount > 0 ? colors.textStrong : colors.textMuted}
+            />
+            {pinCount > 0 ? <Text style={metaStyles.pinCountText}>{pinCount}</Text> : null}
+        </Pressable>
+    ) : null;
+
     const metronomeChip = onOpenMetronome ? (
         <View style={metaStyles.metroGroup}>
+            {pinButton}
             <Pressable
                 style={({ pressed }) => [
                     metaStyles.metroToggle,
@@ -253,7 +290,7 @@ export function RecordingMeta({
                         : styles.liveWaveWrapDefault,
                 ]}
             >
-                <LiveTakeTape liveGrid={liveTakeGrid} theme={liveTapeTheme} />
+                <LiveTakeTape liveGrid={liveTakeGrid} theme={liveTapeTheme} pins={pinTimes} />
             </View>
         </View>
     );
@@ -305,6 +342,12 @@ const metaStyles = StyleSheet.create({
         color: colors.primaryDeep,
         fontVariant: ["tabular-nums"],
     },
+    pinCountText: {
+        fontFamily: "PlusJakartaSans_700Bold",
+        fontSize: 11,
+        color: colors.textStrong,
+        fontVariant: ["tabular-nums"],
+    },
     metroGroup: {
         flexDirection: "row",
         alignItems: "center",
@@ -328,6 +371,7 @@ const metaStyles = StyleSheet.create({
 type LiveTakeTapeProps = {
     liveGrid: React.ComponentProps<typeof LiveTapeVisualizer>["liveGrid"];
     theme: React.ComponentProps<typeof LiveTapeVisualizer>["theme"];
+    pins: number[];
 };
 
 /**
@@ -335,7 +379,7 @@ type LiveTakeTapeProps = {
  * session directly, so a new 40 ms segment re-renders this component and the tape
  * beneath it — not the recorder screen around it (2026-09-24).
  */
-const LiveTakeTape = React.memo(function LiveTakeTape({ liveGrid, theme }: LiveTakeTapeProps) {
+const LiveTakeTape = React.memo(function LiveTakeTape({ liveGrid, theme, pins }: LiveTakeTapeProps) {
     const waveform = useTakeLiveWaveform(getActiveRecordingTakeSession());
     return (
         <LiveTapeVisualizer
@@ -343,6 +387,7 @@ const LiveTakeTape = React.memo(function LiveTakeTape({ liveGrid, theme }: LiveT
             dataPoints={waveform.dataPoints || []}
             captureNowMs={waveform.durationMs ?? null}
             intervalMs={waveform.segmentDurationMs || 50}
+            pins={pins}
             theme={theme}
         />
     );

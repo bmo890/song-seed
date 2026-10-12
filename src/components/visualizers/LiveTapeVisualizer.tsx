@@ -34,13 +34,20 @@ type Props = {
         tempoMap?: TempoMap | null;
     } | null;
     intervalMs?: number; // Usually 40
+    /** Pins dropped during the take, in capture-file ms: a hairline with a small
+     *  flag at the top, the same mark the player draws for a saved pin. */
+    pins?: number[];
     theme?: {
         waveColor?: string;
         rulerColor?: string;
         playheadColor?: string;
+        pinColor?: string;
         backgroundColor?: string;
     };
 };
+
+const PIN_FLAG_WIDTH = 9;
+const PIN_FLAG_HEIGHT = 7;
 
 const CANDLE_WIDTH = 2;
 const CANDLE_SPACE = 1;
@@ -89,6 +96,7 @@ function LiveTapeVisualizerImpl({
     captureNowMs = null,
     liveGrid = null,
     intervalMs = 50,
+    pins,
     theme,
 }: Props) {
     const [canvasWidth, setCanvasWidth] = useState(0);
@@ -373,6 +381,24 @@ function LiveTapeVisualizerImpl({
 
     const outgoingRulerOpacity = useDerivedValue(() => 1 - rulerFade.value);
 
+    // Pins ride the tape like the ruler does: built once per drop, scrolled on the
+    // UI thread. A hairline the full height plus a filled flag hanging off its top.
+    const { pinLinePath, pinFlagPath } = useMemo(() => {
+        const line = Skia.Path.Make();
+        const flag = Skia.Path.Make();
+        if (pins && pins.length > 0 && canvasHeight > 0) {
+            for (const atMs of pins) {
+                const x = atMs * pixelsPerMs;
+                line.moveTo(x, 0);
+                line.lineTo(x, canvasHeight);
+                flag.addRRect(
+                    Skia.RRectXY(Skia.XYWHRect(x, 0, PIN_FLAG_WIDTH, PIN_FLAG_HEIGHT), 2, 2)
+                );
+            }
+        }
+        return { pinLinePath: line, pinFlagPath: flag };
+    }, [canvasHeight, pins, pixelsPerMs]);
+
     const centerLinePath = useMemo(() => {
         const centerLine = Skia.Path.Make();
         const centerY = canvasHeight > 0 ? canvasHeight / 2 : 70;
@@ -391,6 +417,7 @@ function LiveTapeVisualizerImpl({
     const waveColor = theme?.waveColor || colors.textMuted;
     const rulerColor = theme?.rulerColor || colors.borderMuted;
     const playheadColor = theme?.playheadColor || "#B5483A";
+    const pinColor = theme?.pinColor || colors.textStrong;
     const backgroundColor = theme?.backgroundColor || "transparent";
 
     return (
@@ -430,6 +457,12 @@ function LiveTapeVisualizerImpl({
                                 strokeWidth={CANDLE_WIDTH}
                             />
                         </Group>
+                        {pins && pins.length > 0 ? (
+                            <>
+                                <Path path={pinLinePath} color={pinColor} style="stroke" strokeWidth={1.5} opacity={0.85} />
+                                <Path path={pinFlagPath} color={pinColor} style="fill" opacity={0.85} />
+                            </>
+                        ) : null}
                     </Group>
                 </Canvas>
             )}

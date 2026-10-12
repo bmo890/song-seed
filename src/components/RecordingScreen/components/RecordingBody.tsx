@@ -36,6 +36,9 @@ type RecordingBodyProps = {
   liveTakeGrid?: { firstBeatCaptureMs: number; beatMs: number; pulsesPerBar: number } | null;
   onToggleMetronome?: () => void;
   onOpenMetronome: () => void;
+  /** Pins dropped so far in this take (capture ms) and the one-tap drop. */
+  livePins?: { atMs: number }[];
+  onAddPin?: () => void;
   onToggleLyricsExpanded: (value: boolean) => void;
   onToggleLyricsAutoscroll: (enabled: boolean) => void;
   onLyricsAutoscrollInterrupted: () => void;
@@ -70,6 +73,8 @@ export function RecordingBody({
   liveTakeGrid,
   onToggleMetronome,
   onOpenMetronome,
+  livePins,
+  onAddPin,
   onToggleLyricsExpanded,
   onToggleLyricsAutoscroll,
   onLyricsAutoscrollInterrupted,
@@ -125,6 +130,8 @@ export function RecordingBody({
           liveTakeGrid={liveTakeGrid}
           onToggleMetronome={onToggleMetronome}
           onOpenMetronome={onOpenMetronome}
+          livePins={livePins}
+          onAddPin={onAddPin}
         />
 
         {hasProjectLyrics && latestLyricsUpdatedAt !== null ? (

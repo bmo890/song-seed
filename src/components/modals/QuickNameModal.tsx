@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../design/directionalIcons";
 import { WarmModal } from "../common/WarmModal";
 import { WorkspaceAvatar } from "../common/WorkspaceAvatar";
-import { genIdea } from "../../utils";
+import { fmtDuration, genIdea } from "../../utils";
 import { colors, radii } from "../../design/tokens";
 import { useTranslation } from "react-i18next";
 
@@ -40,6 +40,9 @@ type Props = {
     destinationWorkspaceColor?: string;
     destinationWorkspaceAvatarKey?: number;
     onPressDestination?: () => void;
+    /** Pins dropped during the take: named here, or left as plain pins. */
+    pins?: { id: string; atMs: number; label: string }[];
+    onChangePinLabel?: (pinId: string, label: string) => void;
 };
 
 export function QuickNameModal({
@@ -68,6 +71,8 @@ export function QuickNameModal({
     destinationWorkspaceColor,
     destinationWorkspaceAvatarKey,
     onPressDestination,
+    pins,
+    onChangePinLabel,
 }: Props) {
     const { t } = useTranslation();
     const resolvedTitle = title ?? t("modals.saveClipAs");
@@ -158,6 +163,29 @@ export function QuickNameModal({
             ) : null}
 
             <Text style={qStyles.helperText}>{resolvedHelperText}</Text>
+
+            {/* ── Pins dropped during the take: a time and a name, nothing else ── */}
+            {pins && pins.length > 0 && onChangePinLabel ? (
+                <>
+                    <Text style={qStyles.destinationLabel}>{t("modals.pinsDropped", { count: pins.length })}</Text>
+                    <View style={qStyles.pinList}>
+                        {pins.map((pin) => (
+                            <View key={pin.id} style={qStyles.pinRow}>
+                                <Ionicons name="flag" size={13} color={colors.textStrong} />
+                                <Text style={qStyles.pinTime}>{fmtDuration(pin.atMs)}</Text>
+                                <UserTextInput
+                                    style={qStyles.pinInput}
+                                    value={pin.label}
+                                    onChangeText={(value) => onChangePinLabel(pin.id, value)}
+                                    placeholder={t("modals.pinNamePlaceholder")}
+                                    placeholderTextColor="#B8A8A3"
+                                    returnKeyType="done"
+                                />
+                            </View>
+                        ))}
+                    </View>
+                </>
+            ) : null}
 
             {onPressDestination ? (
                 <>
@@ -313,6 +341,34 @@ const qStyles = StyleSheet.create({
         lineHeight: 18,
         color: colors.textSecondary,
         marginTop: 8,
+    },
+    pinList: {
+        gap: 6,
+    },
+    pinRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 8,
+    },
+    pinTime: {
+        fontFamily: "PlusJakartaSans_600SemiBold",
+        fontSize: 12,
+        color: colors.textSecondary,
+        fontVariant: ["tabular-nums"],
+        minWidth: 40,
+    },
+    pinInput: {
+        flex: 1,
+        borderWidth: 1,
+        borderColor: "rgba(215,194,189,0.6)",
+        backgroundColor: colors.surface,
+        borderRadius: radii.lg,
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+        fontFamily: "PlusJakartaSans_500Medium",
+        fontSize: 14,
+        lineHeight: 20,
+        color: "#1C1C19",
     },
     destinationLabel: {
         fontFamily: "PlusJakartaSans_600SemiBold",

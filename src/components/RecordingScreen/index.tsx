@@ -158,6 +158,8 @@ export function RecordingScreen() {
             screen.setMetronomeEnabledForTake(!screen.recordingMetronomeEnabled)
           }
           onOpenMetronome={() => screen.setMetronomeSheetVisible(true)}
+          livePins={screen.livePins}
+          onAddPin={screen.addLivePin}
           onToggleLyricsExpanded={screen.setLyricsExpanded}
           onToggleLyricsAutoscroll={(enabled) =>
             screen.setLyricsAutoscrollMode(enabled ? "follow" : "off")
@@ -205,6 +207,8 @@ export function RecordingScreen() {
         onCancel={screen.handleQuickNameCancel}
         saving={isSavingClip}
         onSave={finishSave}
+        pins={screen.livePins}
+        onChangePinLabel={screen.setLivePinLabel}
         destinationWorkspaceTitle={
           screen.canPickSaveDestination ? screen.effectiveDestinationWorkspaceTitle : undefined
         }
