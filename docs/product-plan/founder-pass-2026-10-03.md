@@ -624,3 +624,21 @@ migration: existing timestamps stay. Table-driven test in
   centred on it; the bounds latch for the length of a drag so the track never
   re-maps under the thumb. At rest zoom nothing changes. Same rule for the
   loop edges.
+
+## Pins while recording (founder, 2026-10-12)
+
+Founder: in a rehearsal, long takes hold several decisions; a pin dropped at
+the moment saves hunting for it later. Shape agreed: ONE tap, no typing until
+Save. Built:
+- A flag glyph beside the metronome and settings glyphs, live only while the
+  tape rolls (not Ready, paused or count-in). Tap = pin at the newest captured
+  audio (`liveWaveform.durationMs`, not the wall clock, which runs a delivery
+  latency ahead) + `light` haptic. The glyph fills and a count sits beside it.
+- The live tape draws each pin as a hairline with a small flag at the top,
+  built once per drop and scrolled on the UI thread with the ruler
+  (`LiveTapeVisualizer` `pins`).
+- The name sheet gains a "N pins" section: flag · mm:ss · name field per pin.
+  Unnamed pins save as plain pins. Names land through `saveQuickClipName`.
+- Pins travel with the take as `practiceMarkers`, so the player's Marks
+  drawer owns them from then on. Cleared on start, discard and save.
+Not built: pin-with-note during the take, splitting a take at pins.
