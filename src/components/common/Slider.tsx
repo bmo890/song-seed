@@ -257,13 +257,15 @@ const s = StyleSheet.create({
   disabled: {
     opacity: 0.4,
   },
+  // A warm line, not a surface tone: it has to read on the page AND on the
+  // terracotta wash the loop and marks cards sit on.
   track: {
     position: "absolute",
     left: THUMB / 2,
     right: THUMB / 2,
     height: TRACK_HEIGHT,
     borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
+    backgroundColor: colors.borderMuted,
   },
   fill: {
     position: "absolute",
