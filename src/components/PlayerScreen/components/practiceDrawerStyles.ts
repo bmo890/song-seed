@@ -205,6 +205,10 @@ export const pd = StyleSheet.create({
   },
   clickVolumeSlider: { flex: 1, height: 30 },
   // Leading the list: the divider moves under the row instead of above it.
+  // Pinned over the list once it scrolls: opaque, so rows pass beneath.
+  addRowSticky: {
+    backgroundColor: colors.page,
+  },
   addRowLead: {
     borderTopWidth: 0,
     borderBottomWidth: StyleSheet.hairlineWidth,

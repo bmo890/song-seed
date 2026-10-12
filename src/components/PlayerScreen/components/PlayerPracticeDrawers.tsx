@@ -13,6 +13,8 @@ import { pd } from "./practiceDrawerStyles";
 import type { CountInOption } from "../hooks/usePlayerScreenUi";
 import type { ClipAnalysis, ClipSection, ClipSectionKind, PracticeMarker } from "../../../types";
 import { SegmentedControl } from "../../common/SegmentedControl";
+import { StickyInScroll } from "../../common/StickyInScroll";
+import { windowedSliderBounds } from "../../../domain/markSliderWindow";
 import { PinDetailModal } from "./PinDetailModal";
 import { SectionDetailModal, SectionPickerModal } from "./sectionModals";
 import { StepUpSequenceSheet } from "./StepUpSequenceSheet";
@@ -27,7 +29,7 @@ import { HelpSheet } from "../../common/HelpSheet";
 import { AnimatedCollapse } from "../../common/AnimatedCollapse";
 import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
-import { MarkInspector, nudgeStepMsForZoom } from "../../common/MarkInspector";
+import { MARK_NUDGE_BASE_MS, MARK_NUDGE_MIN_MS, MarkInspector, nudgeStepMsForZoom } from "../../common/MarkInspector";
 import { SpeedPitchDials } from "../../common/SpeedPitchDials";
 import { UndoRedoButtons } from "../../common/useUndoHistory";
 
@@ -78,6 +80,9 @@ type PlayerPracticeDrawersProps = {
   onRevealRow?: (node: View) => void;
   /** Reel zoom multiple — scales the nudge step so carets stay micro-adjust. */
   zoomMultiple: number;
+  /** The reel's visible range at the current zoom — the slider spans this. */
+  visibleWindowStartMs: number;
+  visibleWindowEndMs: number;
 
   // Marks
   sections: ClipSection[];
@@ -234,6 +239,8 @@ export function PlayerPracticeDrawers({
   isPlaying,
   onRevealRow,
   zoomMultiple,
+  visibleWindowStartMs,
+  visibleWindowEndMs,
   sections,
   practiceMarkers,
   onAddSection,
@@ -348,7 +355,7 @@ export function PlayerPracticeDrawers({
 
   const customSectionOptions = useMemo(() => getCustomSectionOptions(sections), [sections]);
 
-  const nudgeStepMs = nudgeStepMsForZoom(zoomMultiple);
+  const nudgeStepMs = nudgeStepMsForZoom(zoomMultiple, MARK_NUDGE_BASE_MS, MARK_NUDGE_MIN_MS);
 
   type MarkEntry =
     | { kind: "section"; atMs: number; section: ClipSection }
@@ -504,12 +511,20 @@ export function PlayerPracticeDrawers({
 
     const section = isSection ? entry.section : null;
     const edge = selected!.kind === "section" ? selected!.edge : "start";
-    const sliderMin = section ? (edge === "start" ? 0 : Math.min(section.startMs + MIN_SECTION_LENGTH_MS, durationMs)) : 0;
-    const sliderMax = section
+    const legalMin = section ? (edge === "start" ? 0 : Math.min(section.startMs + MIN_SECTION_LENGTH_MS, durationMs)) : 0;
+    const legalMax = section
       ? edge === "start"
         ? Math.max(0, section.endMs - MIN_SECTION_LENGTH_MS)
         : Math.max(1, durationMs)
       : Math.max(1, durationMs);
+    const currentEdgeMs = section ? (edge === "start" ? section.startMs : section.endMs) : entry.atMs;
+    const { min: sliderMin, max: sliderMax } = windowedSliderBounds(
+      legalMin,
+      legalMax,
+      currentEdgeMs,
+      visibleWindowStartMs,
+      visibleWindowEndMs
+    );
     const canUsePlayhead = section
       ? edge === "start"
         ? playheadMs <= section.endMs - MIN_SECTION_LENGTH_MS
@@ -620,10 +635,10 @@ export function PlayerPracticeDrawers({
 
   const marksDrawer = (
     <View style={pd.wrap}>
-      {/* The add row leads the list rather than trailing it: on a well-marked
-          take the tail scrolls behind the transport, and adding a mark (or
-          undoing one) must never need a scroll to reach. */}
-      <View style={[pd.addRow, pd.addRowLead]}>
+      {/* The add row leads the list and pins to the top of the body once the
+          list scrolls under it (founder, 2026-10-12): adding a mark, and
+          undoing or redoing an edit, must never need a scroll to reach. */}
+      <StickyInScroll style={[pd.addRow, pd.addRowLead, pd.addRowSticky]}>
         <Pressable
           style={({ pressed }) => [pd.inkLink, pressed ? s.toolHeaderPressed : null]}
           onPress={() => setPickerOpen(true)}
@@ -656,7 +671,7 @@ export function PlayerPracticeDrawers({
             onRedo={onRedoMarks}
           />
         </View>
-      </View>
+      </StickyInScroll>
       {marks.length === 0 ? (
         <Text style={pd.emptyText}>{t("player.noMarks")}</Text>
       ) : (
@@ -667,8 +682,15 @@ export function PlayerPracticeDrawers({
 
   // ---------------------------------------------------------------- loop
   const loop = practiceLoopRange;
-  const loopSliderMin = loopEdge === "start" ? 0 : Math.min(loop.start + MIN_LOOP_LENGTH_MS, durationMs);
-  const loopSliderMax = loopEdge === "start" ? Math.max(0, loop.end - MIN_LOOP_LENGTH_MS) : Math.max(1, durationMs);
+  const loopLegalMin = loopEdge === "start" ? 0 : Math.min(loop.start + MIN_LOOP_LENGTH_MS, durationMs);
+  const loopLegalMax = loopEdge === "start" ? Math.max(0, loop.end - MIN_LOOP_LENGTH_MS) : Math.max(1, durationMs);
+  const { min: loopSliderMin, max: loopSliderMax } = windowedSliderBounds(
+    loopLegalMin,
+    loopLegalMax,
+    loopEdge === "start" ? loop.start : loop.end,
+    visibleWindowStartMs,
+    visibleWindowEndMs
+  );
   const clampLoopEdge = (ms: number) => Math.max(loopSliderMin, Math.min(loopSliderMax, ms));
   const setLoopEdgeMs = (ms: number) => {
     if (loopEdge === "start") onSetLoopRange(clampLoopEdge(ms), loop.end);

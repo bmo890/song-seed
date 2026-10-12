@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { I18nManager, Pressable, StyleSheet, Text, View } from "react-native";
 import Slider from "@react-native-community/slider";
 import { Ionicons } from "@expo/vector-icons";
@@ -26,10 +26,17 @@ import { ltrRow } from "../../i18n/direction";
 export { ltrRow };
 
 /** Zoom in, nudge finer: the caret step shrinks as the reel magnifies, so a nudge is
- *  always a small move at whatever scale the musician is actually looking at. */
-export function nudgeStepMsForZoom(zoomMultiple: number): number {
-  return Math.max(10, Math.round(100 / Math.max(1, zoomMultiple)));
+ *  always a small move at whatever scale the musician is actually looking at.
+ *  `baseMs` is the step at the reel's resting zoom; `minMs` the floor it shrinks to. */
+export function nudgeStepMsForZoom(zoomMultiple: number, baseMs = 100, minMs = 10): number {
+  return Math.max(minMs, Math.round(baseMs / Math.max(1, zoomMultiple)));
 }
+
+/** Pins and sections are placed by ear, not to the millisecond: a tap moves a
+ *  whole second at rest (founder, 2026-10-12), halving as the reel zooms in,
+ *  never finer than 50 ms. The slider and "use playhead" cover the rest. */
+export const MARK_NUDGE_BASE_MS = 1000;
+export const MARK_NUDGE_MIN_MS = 50;
 
 function EdgeChip({
   label,
@@ -113,6 +120,10 @@ export function MarkInspector({
   const [dragMs, setDragMs] = useState<number | null>(null);
   const current = edge === "start" || endMs == null ? startMs : endMs;
   const displayMs = dragMs ?? current;
+  // The bounds follow the reel's view between drags; DURING a drag they hold
+  // still, or the track would re-map under the thumb as the preview moves.
+  const latchedBoundsRef = useRef<{ min: number; max: number } | null>(null);
+  const bounds = latchedBoundsRef.current ?? { min: minMs, max: Math.max(minMs + 1, maxMs) };
   return (
     <View style={mi.inspector}>
       <View style={[mi.edgesRow, ltrRow]}>
@@ -147,10 +158,13 @@ export function MarkInspector({
         <Slider
           style={mi.dragSlider}
           inverted={I18nManager.isRTL}
-          minimumValue={minMs}
-          maximumValue={Math.max(minMs + 1, maxMs)}
+          minimumValue={bounds.min}
+          maximumValue={bounds.max}
           step={50}
-          value={Math.max(minMs, Math.min(maxMs, current))}
+          value={Math.max(bounds.min, Math.min(bounds.max, current))}
+          onSlidingStart={() => {
+            latchedBoundsRef.current = { min: minMs, max: Math.max(minMs + 1, maxMs) };
+          }}
           onValueChange={(value) => {
             const next = Math.round(value);
             setDragMs(next);
@@ -160,6 +174,7 @@ export function MarkInspector({
             haptic.tap();
             onSlideCommit(Math.round(value));
             setDragMs(null);
+            latchedBoundsRef.current = null;
           }}
           minimumTrackTintColor={colors.primary}
           maximumTrackTintColor={colors.surfaceHigh}

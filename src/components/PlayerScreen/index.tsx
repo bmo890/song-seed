@@ -1776,6 +1776,8 @@ function PlayerScreenInner({
               isPlaying={effectiveIsPlaying}
               onRevealRow={handleRevealRow}
               zoomMultiple={ui.practiceZoomMultiple}
+              visibleWindowStartMs={visiblePracticeRange.start}
+              visibleWindowEndMs={visiblePracticeRange.end}
               practiceLoopEnabled={practiceLoopEnabled}
               practiceLoopRange={practiceLoopRange}
               onSetLoopRange={(start, end) => {

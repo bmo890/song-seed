@@ -1,4 +1,13 @@
-import React, { ReactNode, forwardRef, useCallback, useImperativeHandle, useRef } from "react";
+import React, {
+  ReactNode,
+  createContext,
+  forwardRef,
+  useCallback,
+  useContext,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+} from "react";
 import { View, type LayoutChangeEvent } from "react-native";
 import Animated, {
   Easing,
@@ -8,7 +17,23 @@ import Animated, {
   useScrollViewOffset,
   useSharedValue,
   withTiming,
+  type SharedValue,
 } from "react-native-reanimated";
+
+export type TransportScroll = {
+  /** The body's scroll offset, read on the UI thread. */
+  scrollOffset: SharedValue<number>;
+  /** `node`'s top in scroll-content coordinates, measured natively. */
+  measureContentTop: (node: View, onMeasured: (contentY: number) => void) => void;
+};
+
+const TransportScrollContext = createContext<TransportScroll | null>(null);
+
+/** The enclosing TransportLayout's scroll, for blocks inside the body that
+ *  follow it (StickyInScroll). `null` outside a scrollable layout. */
+export function useTransportScroll(): TransportScroll | null {
+  return useContext(TransportScrollContext);
+}
 import { styles } from "../../styles";
 import { durations } from "../../design/motion";
 
@@ -58,12 +83,23 @@ export const TransportLayout = forwardRef<TransportLayoutHandle, Props>(function
     }
   );
 
-  const reveal = useCallback(
-    (node: View) => {
+  const measureContentTop = useCallback(
+    (node: View, onMeasured: (contentY: number) => void) => {
       const scroll = scrollRef.current;
       // Fabric measures against a host instance, not a node handle — the content
       // container ref, so `contentY` is in scroll-content space on both platforms.
       // (`getInnerViewRef` is a real ScrollView method the TS typings omit.)
+      const inner = (scroll as unknown as { getInnerViewRef?: () => View | null } | null)
+        ?.getInnerViewRef?.();
+      if (!scroll || !inner) return;
+      node.measureLayout(inner, (_x, contentY) => onMeasured(contentY));
+    },
+    [scrollRef]
+  );
+
+  const reveal = useCallback(
+    (node: View) => {
+      const scroll = scrollRef.current;
       const inner = (scroll as unknown as { getInnerViewRef?: () => View | null } | null)
         ?.getInnerViewRef?.();
       if (!scroll || !inner) return;
@@ -94,6 +130,11 @@ export const TransportLayout = forwardRef<TransportLayoutHandle, Props>(function
 
   useImperativeHandle(ref, () => ({ reveal }), [reveal]);
 
+  const transportScroll = useMemo<TransportScroll>(
+    () => ({ scrollOffset, measureContentTop }),
+    [measureContentTop, scrollOffset]
+  );
+
   const handleViewportLayout = useCallback((event: LayoutChangeEvent) => {
     viewportHeightRef.current = event.nativeEvent.layout.height;
   }, []);
@@ -117,7 +158,7 @@ export const TransportLayout = forwardRef<TransportLayoutHandle, Props>(function
       onLayout={handleViewportLayout}
       onContentSizeChange={handleContentSizeChange}
     >
-      {children}
+      <TransportScrollContext.Provider value={transportScroll}>{children}</TransportScrollContext.Provider>
     </Animated.ScrollView>
   ) : (
     <View style={surfaceStyle}>{children}</View>
