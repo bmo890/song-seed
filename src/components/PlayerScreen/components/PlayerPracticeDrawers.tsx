@@ -595,7 +595,6 @@ export function PlayerPracticeDrawers({
             }
           }}
           onNudge={(deltaMs) => {
-            haptic.tap();
             if (section) {
               const current = edge === "start" ? section.startMs : section.endMs;
               onRepositionSectionEdge(id, edge, clampSectionEdge(section, edge, current + deltaMs));
@@ -604,7 +603,6 @@ export function PlayerPracticeDrawers({
             }
           }}
           onUsePlayhead={() => {
-            haptic.tap();
             if (section) {
               onRepositionSectionEdge(id, edge, clampSectionEdge(section, edge, Math.round(playheadMs)));
             } else {
@@ -623,7 +621,6 @@ export function PlayerPracticeDrawers({
           onUseNeighbor={
             neighborMs != null && section
               ? () => {
-                  haptic.tap();
                   onRepositionSectionEdge(id, edge, clampSectionEdge(section, edge, neighborMs));
                 }
               : undefined
@@ -735,11 +732,9 @@ export function PlayerPracticeDrawers({
             onSlide={setLoopEdgeMs}
             onSlideCommit={setLoopEdgeMs}
             onNudge={(deltaMs) => {
-              haptic.tap();
               setLoopEdgeMs((loopEdge === "start" ? loop.start : loop.end) + deltaMs);
             }}
             onUsePlayhead={() => {
-              haptic.tap();
               setLoopEdgeMs(Math.round(playheadMs));
             }}
             usePlayheadDisabled={!canLoopUsePlayhead}

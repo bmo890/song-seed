@@ -1,13 +1,12 @@
 import React, { useRef, useState } from "react";
-import { I18nManager, Pressable, StyleSheet, Text, View } from "react-native";
-import Slider from "@react-native-community/slider";
+import { I18nManager, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radii, text } from "../../design/tokens";
-import { haptic } from "../../design/haptics";
-import { styles as appStyles } from "../../styles";
 import { fmtDuration } from "../../utils";
 import { useTranslation } from "react-i18next";
 import { ltrRow } from "../../i18n/direction";
+import { Press } from "./Press";
+import { Slider } from "./Slider";
 
 /**
  * The one editor for anything that sits at a position on the reel — a pin, a section
@@ -50,14 +49,10 @@ function EdgeChip({
   onPress: () => void;
 }) {
   return (
-    <Pressable
-      style={({ pressed }) => [
-        mi.edgeChip,
-        // Only ONE edge is being edited at a time; the other chip recedes so
-        // there is never a question of which end the slider and nudges move.
-        active ? mi.edgeChipActive : mi.edgeChipIdle,
-        pressed ? appStyles.pressDown : null,
-      ]}
+    <Press
+      // Only ONE edge is being edited at a time; the other chip recedes so
+      // there is never a question of which end the slider and nudges move.
+      style={[mi.edgeChip, active ? mi.edgeChipActive : mi.edgeChipIdle]}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
@@ -67,7 +62,7 @@ function EdgeChip({
       <Text style={[mi.edgeChipTime, active ? null : mi.edgeChipTimeIdle]}>
         {fmtDuration(timeMs)}
       </Text>
-    </Pressable>
+    </Press>
   );
 }
 
@@ -146,7 +141,9 @@ export function MarkInspector({
         ) : null}
       </View>
       <View style={[mi.dragRow, ltrRow]}>
-        <Pressable
+        {/* The nudge carets tick (Press: `tap`) — a detent you feel, the same
+            tick the slider gives at every second. Callers no longer fire one. */}
+        <Press
           style={mi.nudgeBtn}
           onPress={() => onNudge(-nudgeStepMs)}
           hitSlop={6}
@@ -154,13 +151,17 @@ export function MarkInspector({
           accessibilityLabel={t("player.nudgeEarlier")}
         >
           <Ionicons name="chevron-back" size={15} color={colors.textStrong} />
-        </Pressable>
+        </Press>
+        {/* A position slider: no fill, since "how much" means nothing here. It
+            ticks once a second so a drag across the window is felt, not buzzed. */}
         <Slider
           style={mi.dragSlider}
+          fill={false}
           inverted={I18nManager.isRTL}
           minimumValue={bounds.min}
           maximumValue={bounds.max}
           step={50}
+          detent={1000}
           value={Math.max(bounds.min, Math.min(bounds.max, current))}
           onSlidingStart={() => {
             latchedBoundsRef.current = { min: minMs, max: Math.max(minMs + 1, maxMs) };
@@ -171,16 +172,13 @@ export function MarkInspector({
             onSlide(next);
           }}
           onSlidingComplete={(value) => {
-            haptic.tap();
             onSlideCommit(Math.round(value));
             setDragMs(null);
             latchedBoundsRef.current = null;
           }}
-          minimumTrackTintColor={colors.primary}
-          maximumTrackTintColor={colors.surfaceHigh}
-          thumbTintColor={colors.primary}
+          accessibilityLabel={edge === "start" || endMs == null ? startLabel : endLabel}
         />
-        <Pressable
+        <Press
           style={mi.nudgeBtn}
           onPress={() => onNudge(nudgeStepMs)}
           hitSlop={6}
@@ -188,15 +186,11 @@ export function MarkInspector({
           accessibilityLabel={t("player.nudgeLater")}
         >
           <Ionicons name="chevron-forward" size={15} color={colors.textStrong} />
-        </Pressable>
+        </Press>
         {/* Use-playhead rides the slider row it acts on — icon-only, since the
             row's job is already "move this edge". */}
-        <Pressable
-          style={({ pressed }) => [
-            mi.nudgeBtn,
-            usePlayheadDisabled ? { opacity: 0.4 } : null,
-            pressed ? appStyles.pressDown : null,
-          ]}
+        <Press
+          style={mi.nudgeBtn}
           onPress={onUsePlayhead}
           disabled={usePlayheadDisabled}
           hitSlop={6}
@@ -204,7 +198,7 @@ export function MarkInspector({
           accessibilityLabel={t("player.usePlayhead")}
         >
           <Ionicons name="locate-outline" size={15} color={colors.primaryDeep} />
-        </Pressable>
+        </Press>
       </View>
       {/* Only rendered when there is something to SAY — a snap hint from the
           editor or a neighbor to meet. "Drag is live" told nobody anything. */}
@@ -218,15 +212,15 @@ export function MarkInspector({
             <View style={mi.hintSpacer} />
           )}
           {neighborLabel && onUseNeighbor ? (
-            <Pressable
-              style={({ pressed }) => [mi.usePlayheadBtn, pressed ? appStyles.pressDown : null]}
+            <Press
+              style={mi.usePlayheadBtn}
               onPress={onUseNeighbor}
               accessibilityRole="button"
               accessibilityLabel={neighborLabel}
             >
               <Ionicons name="magnet-outline" size={13} color={colors.primaryDeep} />
               <Text style={mi.usePlayheadText}>{neighborLabel}</Text>
-            </Pressable>
+            </Press>
           ) : null}
         </View>
       ) : null}
