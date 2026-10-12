@@ -602,3 +602,25 @@ migration: existing timestamps stay. Table-driven test in
   old path. Selected takes can already leave a sketch one by one through
   Move → paste in the collection. Multi-select delete in a collection is
   unchanged.
+
+## Editing marks (founder, 2026-10-12)
+
+- **Sticky add row.** "+ Section · + Pin · at mm:ss · undo · redo" pins to
+  the top of the body once the marks list scrolls under it, so undo/redo are
+  always in reach while editing a mark. ScrollView's own sticky headers only
+  reach direct children, so `StickyInScroll` (components/common) translates
+  the row on the UI thread from `TransportLayout`'s scroll offset, exposed
+  through `useTransportScroll`. No render per frame.
+- **Nudge step = 1 s.** The arrows moved a mark 100 ms at rest zoom (10 ms
+  zoomed in) — too fine to feel. Marks are placed by ear: 1 s at rest,
+  halving as the reel zooms, never under 50 ms (`MARK_NUDGE_BASE_MS`,
+  `MARK_NUDGE_MIN_MS`). The editor's trim step is unchanged.
+- **Slider spans the reel's view.** The thumb's track mapped everything the
+  edge could legally reach (a section end: from its start to the END OF THE
+  CLIP), so an end a few seconds after its start sat at the far left with no
+  room, while the zoomed reel showed plenty. Now the track spans the reel's
+  visible window at the current zoom (`domain/markSliderWindow.ts`), clipped
+  to the legal range; an edge off-window gets a window of the same width
+  centred on it; the bounds latch for the length of a drag so the track never
+  re-maps under the thumb. At rest zoom nothing changes. Same rule for the
+  loop edges.
