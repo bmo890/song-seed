@@ -228,6 +228,106 @@ Zapier, shuffle. These serve Samply's market, not SongNook's.
 Free, no account, works offline, your recordings stay on your phone. None of
 the three rivals can copy that claim.
 
+## Open notes from the founder conversation (2026-10-12/13)
+
+Nothing in this section is decided. It records where the thinking stands so
+it is not lost.
+
+### The share link, reconsidered
+
+- A web listen page with comments is Samply's product. Its benefits are reach
+  and acquisition only. The listener gets none of what makes SongNook worth
+  using: the loop, sections, chart, pins. Those need the app, and the app is
+  free with no account, so install is a small ask.
+- Alternative shape under discussion:
+  - Free: what Send does today. A snapshot by link, opens in SongNook, expires.
+  - Premium: hosting. The material lives on the server, stays available, and
+    updates when the sender changes a chord or moves a pin. This is the
+    "synced" side of the wall in `sharing-and-received-architecture.md`.
+  - Web page stays thin: plays the audio, shows the chart read-only, one
+    "Open in SongNook" button. No comments, no web product to maintain.
+- Business shape: one leader pays, four to six players install free. Every
+  band is a growth loop and the need recurs every gig.
+- Comments between people wait for accounts.
+
+### Two spaces, one object
+
+- The writing side only ever produces a sketch. SongNook is not a DAW. The
+  album is finished elsewhere. Finished recordings then come back in to be
+  learned. Two flows, both starting and ending outside the app, sometimes
+  intersecting, sometimes not. That is fine.
+- What the two spaces share is not a flow but an object: a recording with
+  musical structure on it. Sketch you made, mix you were sent, rehearsal you
+  taped. The tools and gestures are identical across all three. The reel is
+  the product.
+- Consequence for the pitch: describe the object and a few situations, not a
+  user type and not a journey. "Teach it to the band" was rejected as corny
+  because it narrates a hand-off that does not exist.
+- Planning vocabulary only, never shown in the app: the sides are **writing**
+  and **rehearsal**, the people are **writers** and **players**. Musicians'
+  own words for the rehearsal side: learning the set, gig prep, the book,
+  bandleader or MD, players and subs.
+
+### Positioning line, candidates
+
+"Working" is the preferred adjective. It does what "evolving" and "active"
+try to do without announcing it, and musicians already use it: working
+musician, work in progress, working tape. Hebrew: מחברת עבודה is an ordinary
+phrase.
+
+| Candidate | Note |
+|---|---|
+| A working notebook for musicians. | Current favourite. Plain, both sides. |
+| The musician's working notebook. | More ownership, stiffer. |
+| A notebook you can hear. | Says what paper cannot. Risks cute. |
+| Notes you can play. | Shorter. Could read as sheet music. |
+| For the songs you're writing and the songs you're learning. | Honest, long. Fits a store listing's first sentence. |
+| Where musicians work on songs by ear. | Names the difference from a DAW and from a chart app. |
+
+Noun check: notebook carries both sides; workbook reads as school exercises;
+sketchbook undersells rehearsal; songbook is already a feature name.
+
+Store listing shape under consideration: the line, then three moments (a
+melody at 2 a.m., the six songs you need by Friday, last night's rehearsal
+with the bridge marked), then the tools as proof.
+
+### Open fork: which side is the wedge
+
+The doc above proposed the voice-memo songwriter. The conversation suggested
+the band side may be the stronger commercial wedge, with writing as the free
+on-ramp. Undecided. This decides what the store listing leads with.
+
+### Not yet researched
+
+The rehearsal-side rivals: BandHelper, OnSong, Setlist Helper, Planning
+Center (worship teams, a large weekly-rehearsal market). The founder's claim
+that they stop at "here are the songs, in a downloadable format" has not been
+tested.
+
+### Premium feel gap
+
+Founder's observation: next to the rivals the app does not feel premium.
+Not a call for sleek motion or endless interaction. Certain controls look
+like basic components and feel thrown together: pins, the looper, some
+buttons, and more beneath. Reads like a simple JS app by an indie developer
+rather than a well-built quiet place to finish work. Past facelifts helped
+but were not enough. The founder does not want to drive this alone.
+
+Proposed method, not started:
+
+- Audit by component, not by screen. One control fixed lifts every screen
+  that uses it.
+- Walk every screen in the simulator with screenshots and score each control
+  against a craft checklist: shared control heights and radii, visible
+  pressed and disabled states, baseline alignment, tabular numerals,
+  hairlines and tonal layering instead of borders, one icon set at one
+  stroke weight and optical size, custom slider thumb and track, custom
+  switch, no RN default widgets visible (Slider, Switch, ActivityIndicator,
+  Alert, default text selection), state changes that fade rather than swap,
+  hit areas that match visual bounds, copy that fits without truncation.
+- Produce a ranked list of the ten worst offenders with before screenshots,
+  then fix them in order, each verified against the same screenshot.
+
 ## Sources
 
 - Samply: https://samply.app/ and https://samply.app/pricing
