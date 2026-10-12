@@ -313,6 +313,33 @@ buttons, and more beneath. Reads like a simple JS app by an indie developer
 rather than a well-built quiet place to finish work. Past facelifts helped
 but were not enough. The founder does not want to drive this alone.
 
+The bar, in the founder's words: minimalist and intuitive, calm and beautiful,
+smooth like Apple Voice Memos, haptics that match the interaction, quick small
+interaction animations. Not sleek motion for its own sake.
+
+Reference apps and what each contributes:
+
+| App | Contributes |
+|---|---|
+| Apple Voice Memos | The reel feel. Waveform as interface, scrub inertia, no chrome, no layout shift. |
+| Flighty | Information hierarchy. Dense data, one reading order, tabular numerals, colour once per screen. |
+| Things 3 | Interaction choreography. Every gesture has a short specific animation and a matching haptic. Nothing bounces. |
+| Halide | Physical controls. Dials with haptic detents at each stop. Model for looper edges, nudges, the mark slider, the tempo wheel. |
+
+The bar as checkable standards:
+
+| Founder's words | Per control |
+|---|---|
+| Smooth | No layout shift on state change. Scrub and drag track the finger in the same frame. Lists never jump. |
+| Haptics match | A tick at every discrete boundary: segmented thumb landing, each nudge step, loop edge snapping to a section, pin drop. Nothing on continuous motion. |
+| Quick small animations | Under 200 ms. Fade or a slide of 6 px or less. Thumbs slide, counts tick, nothing bounces or pops. |
+| Minimalist, intuitive | One primary action per screen. Icons only where unambiguous. Controls look like what they do. |
+| Calm, beautiful | Hairlines and tonal layers instead of borders. Shared baselines. Scarce colour. |
+
+`motion.ts` and `haptics.ts` already state most of this. The gap is that it
+is not applied at the detent level and the controls that would carry it are
+still generic.
+
 Proposed method, not started:
 
 - Audit by component, not by screen. One control fixed lifts every screen
