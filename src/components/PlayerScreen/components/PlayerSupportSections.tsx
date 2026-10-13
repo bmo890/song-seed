@@ -1,5 +1,7 @@
 import React, { memo, useCallback } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Press } from "../../common/Press";
+import type { ChordSheet } from "../../../types";
 import { PlayerArtifactDoors } from "./PlayerArtifactDoors";
 import { QUEUE_SHEET_COLLAPSED_HEIGHT, QueuePanel } from "../../QueuePanel";
 import { BottomSheet } from "../../common/BottomSheet";
@@ -17,12 +19,12 @@ type PlayerSupportSectionsProps = {
   /** Standalone clip: the Sketch door's tap (grow this clip into a sketch). */
   onGrowSketch?: () => void;
   hasLyrics: boolean;
-  lyricsPreviewLine: string;
+  lyricsPreview: string;
   lyricsChordSummary: string;
   lyricsMeta: string | null;
   lyricsEditedSinceTake?: boolean;
   hasChart: boolean;
-  chartHandle: string;
+  chordSheet: ChordSheet | null | undefined;
   onOpenLyrics: () => void;
   onOpenChart: () => void;
   onWriteLyrics: () => void;
@@ -43,12 +45,12 @@ function PlayerSupportSectionsInner({
   canAuthor,
   onGrowSketch,
   hasLyrics,
-  lyricsPreviewLine,
+  lyricsPreview,
   lyricsChordSummary,
   lyricsMeta,
   lyricsEditedSinceTake,
   hasChart,
-  chartHandle,
+  chordSheet,
   onOpenLyrics,
   onOpenChart,
   onWriteLyrics,
@@ -81,18 +83,41 @@ function PlayerSupportSectionsInner({
   );
 
   return (
-    <View style={playerScreenStyles.supportStack}>
-      {/* Closed rung of the reading ladder: one door per artifact. */}
+    <View style={playerScreenStyles.listenStack}>
+      {/* The take's note, where a margin note goes: under the tape, in the
+          hand it was written in. It is its own door — tap for the whole note. */}
+      {hasNotes ? (
+        <Press
+          // Haptics: none here — the sheet it opens settles with `light`.
+          haptic="none"
+          style={chipStyles.marginNote}
+          onPress={() => onToggleNotesExpanded(true)}
+          accessibilityRole="button"
+          accessibilityLabel={t("player.clipNotes")}
+          testID="player-note"
+        >
+          <Text style={chipStyles.marginNoteEyebrow}>{t("player.noteEyebrow")}</Text>
+          <UserText value={clipNotes.trim()} style={chipStyles.marginNoteText} numberOfLines={2}>
+            {clipNotes.trim()}
+          </UserText>
+        </Press>
+      ) : null}
+
+      {/* The page is composed from the thumb up: the air sits between the tape
+          and the pages, never under them. */}
+      <View style={chipStyles.air} />
+
+      {/* Closed rung of the reading ladder: the pages, anchored above the transport. */}
       <PlayerArtifactDoors
         canAuthor={canAuthor}
         onGrowSketch={onGrowSketch}
         hasLyrics={hasLyrics}
-        lyricsPreviewLine={lyricsPreviewLine}
+        lyricsPreview={lyricsPreview}
         lyricsChordSummary={lyricsChordSummary}
         lyricsMeta={lyricsMeta}
         lyricsEditedSinceTake={lyricsEditedSinceTake}
         hasChart={hasChart}
-        chartHandle={chartHandle}
+        chordSheet={chordSheet}
         onOpenLyrics={onOpenLyrics}
         onOpenChart={onOpenChart}
         onWriteLyrics={onWriteLyrics}
@@ -100,8 +125,8 @@ function PlayerSupportSectionsInner({
       />
 
       {/* No chip row: the layer lane under the reel is the bench's door, the
-          Notes shelf above the transport is the notes door, and the transport
-          bar's list button is the queue's. Doors live where their subjects do.
+          margin note above is the notes door, and the transport bar's list
+          button is the queue's. Doors live where their subjects do.
           Layer editing itself moved to the bench (layers mode) — the sheet died
           with the mixer metaphor (2026-08-07). */}
 
@@ -137,6 +162,29 @@ function PlayerSupportSectionsInner({
 }
 
 const chipStyles = StyleSheet.create({
+  marginNote: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: spacing.sm,
+    // Lines up with the "Marks" ink in the bar above.
+    paddingHorizontal: spacing.xs,
+    paddingTop: 2,
+  },
+  marginNoteEyebrow: {
+    ...textTokens.annotation,
+    letterSpacing: 1.2,
+  },
+  marginNoteText: {
+    flex: 1,
+    fontFamily: "Lora_500Medium_Italic",
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.textStrong,
+  },
+  air: {
+    flex: 1,
+    minHeight: spacing.sm,
+  },
   sheetTitle: {
     fontFamily: "Lora_600SemiBold",
     fontSize: 19,

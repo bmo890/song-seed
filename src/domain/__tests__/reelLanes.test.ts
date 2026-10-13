@@ -96,18 +96,22 @@ describe("lane heights", () => {
 });
 
 describe("reelHeightForFlow", () => {
-    it("gives the listening reel the page on a tall phone", () => {
-        // iPhone 17: 874 window, 62 + 34 insets.
-        expect(reelHeightForFlow("listening", 874 - 62 - 34)).toBe(306);
+    // iPhone 17: 874 window, 62 + 34 insets.
+    const tall = 874 - 62 - 34;
+    it("gives the reel what the pages and the note leave", () => {
+        expect(reelHeightForFlow("listening", tall, { pages: "tiles", note: true })).toBe(254);
+        expect(reelHeightForFlow("listening", tall, { pages: "tiles", note: false })).toBe(308);
+        expect(reelHeightForFlow("listening", tall, { pages: "slots", note: true })).toBe(326);
     });
-    it("never drops the listening reel under its old height on a short phone", () => {
-        expect(reelHeightForFlow("listening", 667 - 20)).toBe(184);
+    it("caps the reel so it stays a reel, not a wall", () => {
+        expect(reelHeightForFlow("listening", tall)).toBe(400);
+        expect(reelHeightForFlow("listening", 1200, { pages: "tiles", note: true })).toBe(400);
     });
-    it("caps the listening reel so it stays a reel, not a wall", () => {
-        expect(reelHeightForFlow("listening", 1200)).toBe(320);
+    it("never drops the listening reel under its floor on a short phone", () => {
+        expect(reelHeightForFlow("listening", 568 - 20, { pages: "tiles", note: true })).toBe(120);
     });
     it("pays rent once something opens beneath it", () => {
-        expect(reelHeightForFlow("tools", 778)).toBe(112);
-        expect(reelHeightForFlow("reading", 778)).toBe(64);
+        expect(reelHeightForFlow("tools", tall)).toBe(112);
+        expect(reelHeightForFlow("reading", tall)).toBe(64);
     });
 });

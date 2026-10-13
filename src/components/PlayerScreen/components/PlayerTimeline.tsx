@@ -14,7 +14,7 @@ import { buildSectionBands, sectionMoveBounds, sectionPushBounds } from "../../.
 import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
 import { useStore } from "../../../state/useStore";
-import { laneDensityForHeight, reelHeightForFlow } from "../../../domain/reelLanes";
+import { laneDensityForHeight, reelHeightForFlow, type ListeningBelow } from "../../../domain/reelLanes";
 import { springs } from "../../../design/motion";
 
 type Range = {
@@ -283,6 +283,8 @@ type Props = {
   /** Reading rung of the ladder: the SAME reel, only thinner — bands, pins,
    *  scrub and pinch-zoom all keep working while an artifact holds the page. */
   readingSlim?: boolean;
+  /** What the listening page holds beneath the reel; the reel takes the rest. */
+  listeningBelow?: ListeningBelow;
   waveformPeaks: number[];
   /** Peaks are a synthetic placeholder — draw the pending line instead of a fake wave. */
   waveformPending?: boolean;
@@ -460,6 +462,7 @@ function LoopMoveHandle({
 function PlayerTimelineInner({
   mode,
   readingSlim,
+  listeningBelow,
   waveformPeaks,
   waveformPending,
   waveformAnalyzing,
@@ -537,7 +540,7 @@ function PlayerTimelineInner({
       ? lanes
         ? reelHeightForFlow("tools", usableHeight)
         : CLASSIC_PRACTICE_REEL_HEIGHT
-      : reelHeightForFlow("listening", usableHeight);
+      : reelHeightForFlow("listening", usableHeight, listeningBelow);
   const previewRange = practiceLoopSelection[0];
   const sharedLoopPreviewStartMs = useSharedValue(previewRange?.start ?? 0);
   const sharedLoopPreviewEndMs = useSharedValue(previewRange?.end ?? Math.max(1000, durationMs));
