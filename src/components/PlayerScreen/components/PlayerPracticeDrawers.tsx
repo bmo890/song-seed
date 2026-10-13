@@ -35,6 +35,7 @@ import { pinPhase, sectionPhase } from "../../../domain/markPhase";
 import { Press } from "../../common/Press";
 import { SpeedPitchDials } from "../../common/SpeedPitchDials";
 import { UndoRedoButtons } from "../../common/useUndoHistory";
+import { PIN_ICON } from "../../../design/markIcons";
 
 /**
  * The practice tools as three drawers — Marks / Loop / Sound — replacing the old
@@ -466,7 +467,7 @@ export function PlayerPracticeDrawers({
           {isSection ? (
             <SpanGlyph color={color} />
           ) : (
-            <Ionicons name="flag" size={13} color={color} />
+            <Ionicons name={PIN_ICON} size={14} color={color} />
           )}
         </View>
         {/* A pin's note is the reason it exists — "watch the turnaround" is worth more

@@ -824,6 +824,8 @@ export const appActions = {
             activeWs?.ideas.map((idea) => idea.title) ?? []
         );
         const createdId = state.quickRecordIdea(fallbackTitle, collectionId);
+        // A fresh quick take: no parent, and no layer set-up left from before.
+        state.setRecordingParentClipId(null);
         state.setRecordingIdeaId(createdId);
     },
 

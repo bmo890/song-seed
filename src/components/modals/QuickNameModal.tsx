@@ -8,6 +8,7 @@ import { WorkspaceAvatar } from "../common/WorkspaceAvatar";
 import { fmtDuration, genIdea } from "../../utils";
 import { colors, radii } from "../../design/tokens";
 import { useTranslation } from "react-i18next";
+import { PIN_ICON } from "../../design/markIcons";
 
 type Props = {
     visible: boolean;
@@ -172,7 +173,7 @@ export function QuickNameModal({
                     <View style={qStyles.pinList}>
                         {pins.map((pin) => (
                             <View key={pin.id} style={qStyles.pinRow}>
-                                <Ionicons name="flag" size={13} color={colors.textStrong} />
+                                <Ionicons name={PIN_ICON} size={14} color={colors.textStrong} />
                                 <Text style={qStyles.pinTime}>{fmtDuration(pin.atMs)}</Text>
                                 <UserTextInput
                                     style={qStyles.pinInput}

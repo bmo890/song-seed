@@ -10,6 +10,7 @@ import { getActiveRecordingTakeSession, useTakeLiveWaveform } from "../../../ser
 import { MetronomeIcon } from "../../common/MetronomeIcon";
 import { radii, colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
+import { PIN_ICON, PIN_ICON_OUTLINE } from "../../../design/markIcons";
 
 type Props = {
     ideaTitle: string;
@@ -145,7 +146,7 @@ export function RecordingMeta({
     // Bare glyphs, not tinted circles: the record button is the only circle on
     // this page. The metronome's ON state reads from the terracotta glyph + its
     // summary, not from a pill around it.
-    // One tap marks the moment; the count beside the flag is the whole readout.
+    // One tap marks the moment; the count beside the pin is the whole readout.
     // Nothing to type until the name sheet, so the hands stay on the instrument.
     const canPin = isRecording && !isPaused && !isCountIn;
     const pinButton = onAddPin ? (
@@ -163,7 +164,7 @@ export function RecordingMeta({
             testID="recording-drop-pin"
         >
             <Ionicons
-                name={pinCount > 0 ? "flag" : "flag-outline"}
+                name={pinCount > 0 ? PIN_ICON : PIN_ICON_OUTLINE}
                 size={18}
                 color={pinCount > 0 ? colors.textStrong : colors.textMuted}
             />

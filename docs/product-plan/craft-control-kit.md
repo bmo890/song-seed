@@ -484,6 +484,39 @@ readout. Screenshot: `docs/product-plan/reel-lanes/marks-timeline.png`.
 NOT verified: how it reads on a long song with many marks, and at the very
 end of a clip, where every row is "past".
 
+**Layer recording, three bugs (founder report, 2026-10-13).**
+1. *"Record layer at playhead" recorded over the whole track.* Reproduced: with
+   the player paused, jump to a pin; the reel moves but the React position
+   (`effectivePlayerPosition`, which the Layer key read) stays at 0, so the
+   punch-in was 0. The key now reads the playhead AS DRAWN
+   (`getVisiblePlayheadMs` in `PlayerScreen/index.tsx`: the reel's shared
+   progress × duration). KNOWN AND NOT FIXED: the same stale number still
+   feeds the "at 00:00" readout, + Pin, and the new Marks timeline highlight
+   in that state (paused seek before the engine has this clip). Worth its own
+   look at `practicePitchTransport.effectivePositionMs`.
+2. *The recorder looked like a full-length layer even when punched in.* The
+   guide sat at 0:00 until the take started. Before the take it now parks at
+   the punch point.
+3. *Backing out left the layer waiting in the next recording.* Leaving an
+   unrecorded layer now clears the recording context (unmount cleanup in
+   `useRecordingScreenModel`), and arming ANY take
+   (`setRecordingParentClipId`, which every entry point calls) clears layer
+   fields (`recordingArming.test.ts`).
+Discard / Redo / Save stay dimmed before anything is recorded; the back
+chevron is the way out and now leaves nothing behind.
+
+**One pin glyph (founder, 2026-10-13).** `src/design/markIcons.ts`:
+`PIN_ICON` ("pin") and `PIN_ICON_OUTLINE`. The flag is gone from the Marks
+list, the recorder's drop-pin key, and the Save sheet's pin rows; the toast
+already used the outline. The recorder's live tape draws a pin as the reel
+does (dot head on a hairline), not a flag tab. Notepad's "Pin" action is a
+different thing (pin a note to the top) and keeps its bookmark.
+
+Verified in the simulator: paused jump to 0:08 then Layer opened "LAYER ·
+FROM 00:08" with the guide parked there; back, then the sketch's record
+button opened a plain "Recording into" with no guide. NOT verified: an actual
+layer take from a punch point, the pin glyph on a phone, Android.
+
 ## State at handoff
 
 Branch `craft/control-kit`, pushed. Commits:

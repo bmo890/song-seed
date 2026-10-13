@@ -484,8 +484,23 @@ function PlayerScreenInner({
   // at call time without re-creating on every playback tick.
   const playerPositionMsRef = React.useRef(0);
   playerPositionMsRef.current = effectivePlayerPosition;
+  // The playhead AS DRAWN. The reel's own shared progress is what the musician
+  // is looking at; the React position above can lag it (a seek made while paused,
+  // or before the engine has loaded this clip, moves the reel but not that
+  // number). "Record a layer at the playhead" must mean the one on screen
+  // (founder, 2026-10-13: it punched in at 0:00 after a paused scrub).
+  const effectivePlayerDurationRef = React.useRef(0);
+  const getVisiblePlayheadMs = useCallback(() => {
+    const durationMs = effectivePlayerDurationRef.current;
+    const drawn = timelineAudioProgress.value;
+    if (durationMs > 0 && Number.isFinite(drawn) && drawn > 0) {
+      return Math.round(Math.max(0, Math.min(1, drawn)) * durationMs);
+    }
+    return playerPositionMsRef.current;
+  }, [timelineAudioProgress]);
   const effectivePlayerDuration =
     practicePitchTransport.effectiveDurationMs || resolvedDisplayDuration;
+  effectivePlayerDurationRef.current = effectivePlayerDuration;
   const effectivePlaybackRate = practicePitchTransport.effectivePlaybackRate;
   const effectiveIsPlaying = practicePitchTransport.effectiveIsPlaying;
   // The take's own beat grid, clicking along with playback (and counting in). Reads
@@ -1592,7 +1607,7 @@ function PlayerScreenInner({
                       ]}
                       onPress={() => {
                         ui.setMode("player");
-                        void handleAddOverdub(playerPositionMsRef.current);
+                        void handleAddOverdub(getVisiblePlayheadMs());
                       }}
                       hitSlop={6}
                       accessibilityRole="button"
@@ -1622,7 +1637,7 @@ function PlayerScreenInner({
                     {ui.mode === "practice" ? (
                       <Press
                         style={playerScreenStyles.layerKey}
-                        onPress={() => void handleAddOverdub(playerPositionMsRef.current)}
+                        onPress={() => void handleAddOverdub(getVisiblePlayheadMs())}
                         hitSlop={6}
                         accessibilityRole="button"
                         accessibilityLabel={t("player.recordLayerAtPlayhead")}
