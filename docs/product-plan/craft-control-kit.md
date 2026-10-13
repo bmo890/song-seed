@@ -22,6 +22,17 @@ the work up cold. Read it top to bottom before touching anything.
   comment, motion only via `src/design/motion.ts`, copy budgets, canon
   components, `npx tsc --noEmit` and `npx jest` green, UI verified in the iOS
   simulator with screenshots.
+- PREVIEW CHANNEL RULE (2026-10-13): preview is shared with the SongNook Send
+  work (branch `ccr-5dfc9b11-j5yr58`, cut from main, no kit or reel). The
+  channel shows only its latest update, so publish preview from
+  `preview/craft-plus-send`, never from `craft/control-kit` directly, or Send
+  vanishes from the founder's phone:
+  `git checkout preview/craft-plus-send && git merge craft/control-kit`,
+  run `tsc` and `jest`, publish android (and ios if asked), then
+  `git checkout craft/control-kit`. Drop this rule when Send reaches main and
+  craft is rebased on it. `craft-lint` reports drift on the merge branch
+  (Send code predates the kit: at least one stock spinner); that is expected
+  there and gets cleaned when the two branches meet for real.
 - Do not touch: recording while backgrounded (`useRecording`), the reel
   (`PlaybackTapeVisualizer`, `AudioReel` internals), the practice loop and
   step-up engines, the background CPU work. The reel's loop handles are the

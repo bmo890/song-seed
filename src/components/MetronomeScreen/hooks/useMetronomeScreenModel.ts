@@ -4,6 +4,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useMetronome } from "../../../hooks/useMetronome";
 import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandler";
+import { durations } from "../../../design/motion";
 
 const KEEP_AWAKE_TAG = "metronome";
 
@@ -83,7 +84,7 @@ export function useMetronomeScreenModel() {
     Animated.sequence([
       Animated.timing(pulseAnim, {
         toValue: 1,
-        duration: 120,
+        duration: durations.fast,
         useNativeDriver: true,
       }),
       Animated.timing(pulseAnim, {

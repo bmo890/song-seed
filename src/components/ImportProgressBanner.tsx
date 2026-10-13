@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type ImportJob, useImportStore } from "../state/useImportStore";
 import { useStore } from "../state/useStore";
 import { colors, radii } from "../design/tokens";
+import { durations } from "../design/motion";
 
 function ImportJobRow({ job }: { job: ImportJob }) {
     const progressAnim = useRef(new Animated.Value(0)).current;
@@ -12,7 +13,7 @@ function ImportJobRow({ job }: { job: ImportJob }) {
         const target = job.total > 0 ? job.current / job.total : 0;
         Animated.timing(progressAnim, {
             toValue: target,
-            duration: 300,
+            duration: durations.slow,
             useNativeDriver: false,
         }).start();
     }, [job.current, job.total, progressAnim]);

@@ -60,6 +60,7 @@ import { hasProAccess } from "../../domain/entitlements";
 import { ensurePro, openProUpsell } from "../common/proUpsell";
 import { useTranslation } from "react-i18next";
 import { resolveSectionEdit } from "../../domain/playerSections";
+import { durations } from "../../design/motion";
 
 const PRACTICE_SPEED_PRESETS = [0.5, 0.75, 1, 1.25, 1.5] as const;
 const PRACTICE_SPEED_MIN = 0.5;
@@ -987,7 +988,7 @@ function PlayerScreenInner({
         // animation doesn't stutter against playback commits.
         dragY.value = withTiming(
           0,
-          { duration: 220, easing: Easing.out(Easing.cubic) },
+          { duration: durations.gentle, easing: Easing.out(Easing.cubic) },
           (finished) => {
             if (finished) runOnJS(setSheetDragActive)(false);
           }

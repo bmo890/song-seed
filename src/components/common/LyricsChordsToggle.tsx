@@ -5,6 +5,7 @@ import { colors, radii, shadows } from "../../design/tokens";
 import { haptic } from "../../design/haptics";
 import { useTranslation } from "react-i18next";
 import { physicalEdge } from "../../i18n";
+import { durations } from "../../design/motion";
 
 export type LyricsChordsValue = "lyrics" | "chords";
 
@@ -36,7 +37,7 @@ export function LyricsChordsToggle({
   useEffect(() => {
     Animated.timing(translateX, {
       toValue: physicalSlot * SEG_W,
-      duration: 180,
+      duration: durations.base,
       useNativeDriver: true,
     }).start();
   }, [translateX, physicalSlot]);

@@ -25,6 +25,7 @@ import { stickyDayStore } from "../stickyDayStore";
 import type { SongIdea } from "../../../types";
 import { useTranslation } from "react-i18next";
 import type { IdeaSort } from "../../../types";
+import { durations } from "../../../design/motion";
 
 export function useCollectionScreenModel() {
   const { t } = useTranslation();
@@ -392,7 +393,7 @@ export function useCollectionScreenModel() {
       animatingHighlightIdsRef.current.add(id);
       animatedValue.setValue(0);
       Animated.sequence([
-        Animated.timing(animatedValue, { toValue: 0.9, duration: 180, useNativeDriver: true }),
+        Animated.timing(animatedValue, { toValue: 0.9, duration: durations.base, useNativeDriver: true }),
         Animated.timing(animatedValue, { toValue: 0, duration: 900, useNativeDriver: true }),
       ]).start(() => {
         animatedValue.setValue(0);

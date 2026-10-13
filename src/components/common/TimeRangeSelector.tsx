@@ -4,6 +4,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { haptic } from "../../design/haptics";
 import { colors, radii } from "../../design/tokens";
 import { hexToRgba } from "../../domain/playerSections";
+import { springs } from "../../design/motion";
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -330,7 +331,7 @@ function TimeRegionNode({
     const leftLineStyle = useAnimatedStyle(() => {
         const active = isLeftActive.value;
         return {
-            width: withSpring(active ? 3 : 2, { damping: 20, stiffness: 300 }),
+            width: withSpring(active ? 3 : 2, springs.handle),
             backgroundColor: active ? ink : edgeIdle,
             opacity: visualOpacity,
         };
@@ -338,9 +339,9 @@ function TimeRegionNode({
 
     const leftGrabStyle = useAnimatedStyle(() => ({
         opacity: showVisuals
-            ? withSpring(isLeftActive.value ? 1 : 0.7, { damping: 20, stiffness: 300 })
+            ? withSpring(isLeftActive.value ? 1 : 0.7, springs.handle)
             : 0,
-        transform: [{ scale: withSpring(isLeftActive.value ? 1.15 : 1, { damping: 20, stiffness: 300 }) }],
+        transform: [{ scale: withSpring(isLeftActive.value ? 1.15 : 1, springs.handle) }],
     }));
 
     const rightStyle = useAnimatedStyle(() => {
@@ -351,7 +352,7 @@ function TimeRegionNode({
     const rightLineStyle = useAnimatedStyle(() => {
         const active = isRightActive.value;
         return {
-            width: withSpring(active ? 3 : 2, { damping: 20, stiffness: 300 }),
+            width: withSpring(active ? 3 : 2, springs.handle),
             backgroundColor: active ? ink : edgeIdle,
             opacity: visualOpacity,
         };
@@ -359,9 +360,9 @@ function TimeRegionNode({
 
     const rightGrabStyle = useAnimatedStyle(() => ({
         opacity: showVisuals
-            ? withSpring(isRightActive.value ? 1 : 0.7, { damping: 20, stiffness: 300 })
+            ? withSpring(isRightActive.value ? 1 : 0.7, springs.handle)
             : 0,
-        transform: [{ scale: withSpring(isRightActive.value ? 1.15 : 1, { damping: 20, stiffness: 300 }) }],
+        transform: [{ scale: withSpring(isRightActive.value ? 1.15 : 1, springs.handle) }],
     }));
 
     const trackStyle = useAnimatedStyle(() => {

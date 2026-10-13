@@ -13,6 +13,7 @@ import { buildSectionBands } from "../../../domain/playerSections";
 import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
 import { useStore } from "../../../state/useStore";
+import { springs } from "../../../design/motion";
 
 type Range = {
   id: string;
@@ -281,12 +282,12 @@ function LoopMoveHandle({
 
     return {
       transform: [{ translateX: centerX - LOOP_MOVE_HITBOX_WIDTH / 2 }],
-      opacity: withSpring(isDragging.value ? 1 : 0.92, { damping: 20, stiffness: 300 }),
+      opacity: withSpring(isDragging.value ? 1 : 0.92, springs.handle),
     };
   });
 
   const pillStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: withSpring(isDragging.value ? 1.06 : 1, { damping: 20, stiffness: 300 }) }],
+    transform: [{ scale: withSpring(isDragging.value ? 1.06 : 1, springs.handle) }],
   }));
 
   return (

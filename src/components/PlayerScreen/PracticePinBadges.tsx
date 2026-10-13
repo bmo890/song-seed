@@ -11,6 +11,7 @@ import Animated, {
 import type { PracticeMarker } from "../../types";
 import { colors } from "../../design/tokens";
 import { haptic } from "../../design/haptics";
+import { springs } from "../../design/motion";
 import {
   assignPinRows,
   estimatePinBadgeWidth,
@@ -44,7 +45,7 @@ type LanePlacement = {
   laneHeight: number;
 };
 
-const PIN_LIFT_SPRING = { damping: 20, stiffness: 300 };
+const PIN_LIFT_SPRING = springs.handle;
 
 type Props = {
   markers: PracticeMarker[];
