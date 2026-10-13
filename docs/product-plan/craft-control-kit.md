@@ -490,10 +490,22 @@ end of a clip, where every row is "past".
    (`effectivePlayerPosition`, which the Layer key read) stays at 0, so the
    punch-in was 0. The key now reads the playhead AS DRAWN
    (`getVisiblePlayheadMs` in `PlayerScreen/index.tsx`: the reel's shared
-   progress × duration). KNOWN AND NOT FIXED: the same stale number still
-   feeds the "at 00:00" readout, + Pin, and the new Marks timeline highlight
-   in that state (paused seek before the engine has this clip). Worth its own
-   look at `practicePitchTransport.effectivePositionMs`.
+   progress × duration).
+   CORRECTION (same day, after a clean-session test): the stale number was a
+   SIMULATOR ARTIFACT. `effectivePlayerPosition` is zeroed on purpose whenever
+   the engine's loaded target is not the on-screen clip (the stale-position
+   invariant), and hot reloading with the player open leaves exactly that
+   desync (the known "refresh with the player open kills play" gotcha). In a
+   freshly launched app, with a temporary on-screen readout of
+   `engineMatchesScreenClip`, `playerPosition` and `effectivePositionMs`: a
+   take opened from its card matched and tracked (13000 / 13000), and a jump
+   to a pin WHILE PAUSED updated all of it at once (28000 / 28000, readout
+   00:28, "at 00:28", Chorus lit in the Marks list). Nothing to fix in the
+   transport; do not touch the invariant. What the founder most likely saw as
+   "records over the whole track" was item 2. Reading the reel for the Layer
+   key stays: it is correct in a normal session and, in a real desync, agrees
+   with what is drawn. RULE FOR THIS FILE'S READERS: relaunch the app before
+   judging any player position behaviour in the simulator.
 2. *The recorder looked like a full-length layer even when punched in.* The
    guide sat at 0:00 until the take started. Before the take it now parks at
    the punch point.
