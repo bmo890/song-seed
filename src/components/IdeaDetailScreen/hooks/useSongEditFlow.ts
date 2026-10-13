@@ -6,6 +6,8 @@ import { appActions } from "../../../state/actions";
 import { buildDefaultIdeaTitle, ensureUniqueIdeaTitle } from "../../../utils";
 import type { IdeaStatus, SongIdea, Workspace } from "../../../types";
 import { useTranslation } from "react-i18next";
+import { planSketchTakeRenames } from "../../../domain/sketchTakeRenames";
+import { showSketchTakeRenamePrompt } from "../../../domain/clipLineageRenamePrompt";
 
 type UseSongEditFlowParams = {
   navigation: any;
@@ -81,6 +83,15 @@ export function useSongEditFlow({
             : idea
         )
       );
+    }
+
+    // A rename of a saved sketch: takes that are copies of its old name (the
+    // exact name, the name + ".wav" from a received file, or "Name v2" in a
+    // thread) are offered the new one. Typed names only — a cleared title
+    // falls back to a timestamp, which no take should be renamed to.
+    if (selectedIdea.kind === "project" && !selectedIdea.isDraft && titleChanged && draftTitle.trim()) {
+      const renames = planSketchTakeRenames(selectedIdea.clips, selectedIdea.title, finalTitle);
+      if (renames.length > 0) showSketchTakeRenamePrompt({ ideaId: selectedIdeaId, renames });
     }
 
     if (selectedIdea.kind === "project") {

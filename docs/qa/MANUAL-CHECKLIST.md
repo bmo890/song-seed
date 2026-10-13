@@ -270,6 +270,11 @@ Sending (app → link):
   Send** present (disabled with two selected); the selection ends after. **[HUMAN]**
 - iOS ☐  Android ☐ — Full player ⋯ → **Share…** → *Share audio* opens the OS sheet with the
   take; *SongNook Send* opens the Send sheet with the take's title. **[HUMAN]**
+- iOS ☐  Android ☐ — Receive a link with `Song.wav`: the clip is titled "Song". **[HUMAN]**
+- iOS ☐  Android ☐ — Sketch "Old" with takes "Old", "Old v2", "Old.wav", "Bridge riff" →
+  edit sheet → rename to "New" → Save → "Rename 3 takes to match?" → *Update 3 takes*:
+  "New", "New v2", "New"; "Bridge riff" untouched. *Keep existing* changes nothing. A
+  sketch whose takes are all named otherwise shows no prompt. **[AUTO-able]**
 - iOS ☐  Android ☐ — Songbook detail → menu → **Share…** holds *Share as file · SongNook
   Send · Share as text*; back chevron returns to the menu. **[HUMAN]**
 - iOS ☐  Android ☐ — Clip selection bar → **Share…** → **SongNook Send** with 1 and with 3
