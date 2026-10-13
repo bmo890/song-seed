@@ -1337,6 +1337,7 @@ function PlayerScreenInner({
                   onTogglePlay={handleTogglePlayWithCountIn}
                   onScrubStateChange={lifecycle.handleScrubStateChange}
                   onRepositionMarker={handleRepositionMarker}
+                  onMoveSection={sectionsApi.handleMoveSection}
                   onRequestPinActions={handlePinActions}
                   onRequestAddPin={handleRequestAddPin}
                   onPinDragStateChange={handlePinDragStateChange}

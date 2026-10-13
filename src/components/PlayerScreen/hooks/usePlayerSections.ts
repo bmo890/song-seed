@@ -8,6 +8,7 @@ import {
   MIN_SECTION_LENGTH_MS,
   normalizeSections,
   resolveSectionEdit,
+  moveSection,
 } from "../../../domain/playerSections";
 
 type UsePlayerSectionsArgs = {
@@ -82,6 +83,14 @@ export function usePlayerSections({
       return section.id;
     },
     [displayDuration, persist, playerClipId, playerIdeaId, playerPosition, sections]
+  );
+
+  /** Slide a section whole to a new start (the reel's hold-and-drag). */
+  const handleMoveSection = useCallback(
+    (sectionId: string, startMs: number) => {
+      persist(moveSection(sections, sectionId, startMs, displayDuration));
+    },
+    [displayDuration, persist, sections]
   );
 
   const handleRepositionSectionEdge = useCallback(
@@ -161,6 +170,7 @@ export function usePlayerSections({
     draftLabel,
     setDraftLabel,
     handleAddSection,
+    handleMoveSection,
     handleRepositionSectionEdge,
     handleToggleEdit,
     handleChangeSectionKind,
