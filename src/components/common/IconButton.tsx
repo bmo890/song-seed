@@ -1,9 +1,9 @@
 import React from "react";
-import { Pressable, StyleSheet, type GestureResponderEvent } from "react-native";
+import { StyleSheet, type GestureResponderEvent } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { haptic } from "../../design/haptics";
 import { dirIcon } from "../../design/directionalIcons";
 import { colors } from "../../design/tokens";
+import { Press } from "./Press";
 
 /**
  * The app's bare icon button — a glyph sitting directly on the surface, no
@@ -65,16 +65,13 @@ function IconButtonInner({
   testID,
 }: IconButtonProps) {
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.base,
-        pressed && !disabled ? styles.pressed : null,
-        disabled ? styles.disabled : null,
-      ]}
+    <Press
+      // The glyph dip and the `tap` are Press's: one press language app-wide.
+      feel="glyph"
+      haptic={noHaptic ? "none" : "tap"}
+      style={styles.base}
       onPress={(event: GestureResponderEvent) => {
         if (stopPropagation) event.stopPropagation();
-        if (disabled) return;
-        if (!noHaptic) haptic.tap();
         onPress();
       }}
       onLongPress={onLongPress}
@@ -86,7 +83,7 @@ function IconButtonInner({
     >
       {/* A back chevron must point at "back", which is right in Hebrew. */}
       <Ionicons name={noMirror ? icon : dirIcon(icon)} size={size} color={color ?? TONE_COLOR[tone]} />
-    </Pressable>
+    </Press>
   );
 }
 
@@ -96,13 +93,5 @@ const styles = StyleSheet.create({
   base: {
     alignItems: "center",
     justifyContent: "center",
-  },
-  // No fill to darken, so the glyph itself dims and dips — keeps the tap felt.
-  pressed: {
-    opacity: 0.5,
-    transform: [{ scale: 0.9 }],
-  },
-  disabled: {
-    opacity: 0.35,
   },
 });

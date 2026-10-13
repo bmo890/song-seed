@@ -1,11 +1,11 @@
 import React from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../design/tokens";
 import { AnimatedCollapse } from "../../common/AnimatedCollapse";
 import { playerScreenStyles as s } from "../styles";
 import type { PracticeTool } from "../hooks/usePlayerScreenUi";
-import { haptic } from "../../../design/haptics";
+import { Press } from "../../common/Press";
 
 export function Chip({
   label,
@@ -19,15 +19,15 @@ export function Chip({
   onPress: () => void;
 }) {
   return (
-    <Pressable
-      style={[s.toolChip, active ? s.toolChipActive : null, disabled ? s.toolChipDisabled : null]}
+    <Press
+      style={[s.toolChip, active ? s.toolChipActive : null]}
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
     >
       <Text style={[s.toolChipText, active ? s.toolChipTextActive : null]}>{label}</Text>
-    </Pressable>
+    </Press>
   );
 }
 
@@ -56,12 +56,9 @@ export function AccordionRow({
 }) {
   return (
     <View style={s.toolCard}>
-      <Pressable
-        style={({ pressed }) => [s.toolHeader, pressed ? s.toolHeaderPressed : null]}
-        onPress={() => {
-          haptic.tap();
-          onToggle(tool);
-        }}
+      <Press
+        style={s.toolHeader}
+        onPress={() => onToggle(tool)}
         accessibilityRole="button"
         accessibilityState={{ expanded }}
         accessibilityLabel={`${label}: ${value}`}
@@ -80,7 +77,7 @@ export function AccordionRow({
           {headerAccessory}
           <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={16} color={colors.textMuted} />
         </View>
-      </Pressable>
+      </Press>
       <AnimatedCollapse visible={expanded} style={s.toolBody}>
         {children}
       </AnimatedCollapse>

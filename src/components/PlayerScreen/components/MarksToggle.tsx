@@ -1,9 +1,10 @@
 import React from "react";
-import { Pressable, Text } from "react-native";
+import { Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { colors } from "../../../design/tokens";
 import { playerScreenStyles } from "../styles";
+import { Press } from "../../common/Press";
 
 type MarksToggleProps = {
   visible: boolean;
@@ -21,11 +22,10 @@ export function MarksToggle({ visible, onToggle }: MarksToggleProps) {
   const { t } = useTranslation();
   if (visible) {
     return (
-      <Pressable
-        style={({ pressed }) => [
-          playerScreenStyles.readingIconButton,
-          pressed ? playerScreenStyles.overflowButtonPressed : null,
-        ]}
+      <Press
+        // Haptics (Press): `light` — a small state flip, the marks show or hide.
+        haptic="light"
+        style={playerScreenStyles.readingIconButton}
         onPress={onToggle}
         hitSlop={6}
         accessibilityRole="button"
@@ -33,16 +33,13 @@ export function MarksToggle({ visible, onToggle }: MarksToggleProps) {
         accessibilityLabel={t("player.hideMarkers")}
       >
         <Ionicons name="eye-outline" size={15} color={colors.textSecondary} />
-      </Pressable>
+      </Press>
     );
   }
   return (
-    <Pressable
-      style={({ pressed }) => [
-        playerScreenStyles.readingChip,
-        playerScreenStyles.readingChipActive,
-        pressed ? playerScreenStyles.overflowButtonPressed : null,
-      ]}
+    <Press
+      haptic="light"
+      style={[playerScreenStyles.readingChip, playerScreenStyles.readingChipActive]}
       onPress={onToggle}
       hitSlop={6}
       accessibilityRole="button"
@@ -53,6 +50,6 @@ export function MarksToggle({ visible, onToggle }: MarksToggleProps) {
       <Text style={[playerScreenStyles.readingChipText, playerScreenStyles.readingChipTextActive]}>
         {t("player.marksHidden")}
       </Text>
-    </Pressable>
+    </Press>
   );
 }

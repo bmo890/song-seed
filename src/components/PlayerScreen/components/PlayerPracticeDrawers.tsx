@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { Slider } from "../../common/Slider";
 import { Ionicons } from "@expo/vector-icons";
 import { fmtDuration } from "../../../utils";
@@ -8,7 +8,6 @@ import { getCustomSectionOptions, getSectionColor, MIN_SECTION_LENGTH_MS } from 
 import type { SectionCustomInput } from "../hooks/usePlayerSections";
 import { formatBpmLabel, hasAnalysisResult, isTempoSteady } from "../../../domain/clipAnalysis";
 import { playerScreenStyles as s } from "../styles";
-import { styles } from "../../../styles";
 import { pd } from "./practiceDrawerStyles";
 import type { CountInOption } from "../hooks/usePlayerScreenUi";
 import type { ClipAnalysis, ClipSection, ClipSectionKind, PracticeMarker } from "../../../types";
@@ -27,10 +26,10 @@ import {
 import { HelpButton } from "../../common/HelpButton";
 import { HelpSheet } from "../../common/HelpSheet";
 import { AnimatedCollapse } from "../../common/AnimatedCollapse";
-import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
 import { MARK_NUDGE_BASE_MS, MARK_NUDGE_MIN_MS, MarkInspector, nudgeStepMsForZoom } from "../../common/MarkInspector";
 import { Switch } from "../../common/Switch";
+import { Press } from "../../common/Press";
 import { SpeedPitchDials } from "../../common/SpeedPitchDials";
 import { UndoRedoButtons } from "../../common/useUndoHistory";
 
@@ -398,11 +397,10 @@ export function PlayerPracticeDrawers({
     // Cue + start from this mark. Holding the row is part of the gesture, so the
     // inspector and the playhead agree about which mark is "the one".
     const playButton = (
-      <Pressable
-        style={({ pressed }) => [pd.headIconBtn, pressed ? styles.pressDown : null]}
+      <Press
+        feel="glyph"
+        style={pd.headIconBtn}
         onPress={() => {
-          // Haptics: `tap` — an acknowledged button press.
-          haptic.tap();
           if (!isSelected) {
             setSelected(isSection ? { kind: "section", id, edge: "start" } : { kind: "pin", id });
           }
@@ -418,15 +416,14 @@ export function PlayerPracticeDrawers({
           size={15}
           color={isPlayingFrom ? colors.primaryDeep : colors.textSecondary}
         />
-      </Pressable>
+      </Press>
     );
 
     const row = (
-      <Pressable
+      <Press
         key={`${entry.kind}-${id}-row`}
-        style={({ pressed }) => [pd.markRow, pressed && !isSelected ? s.toolHeaderPressed : null]}
+        style={pd.markRow}
         onPress={() => {
-          haptic.tap();
           if (isSelected) {
             setSelected(null);
             onSectionPreview(null);
@@ -471,8 +468,9 @@ export function PlayerPracticeDrawers({
             time (unheld) and the overflow (held) trade the seat beside it. */}
         {isSelected ? (
           <View style={pd.selectedHeadActions}>
-            <Pressable
-              style={({ pressed }) => [pd.headIconBtn, pressed ? styles.pressDown : null]}
+            <Press
+              feel="glyph"
+        style={pd.headIconBtn}
               onPress={() =>
                 isSection ? setDetailModal({ mode: "edit", section: entry.section }) : setPinEditModal(entry.marker)
               }
@@ -485,7 +483,7 @@ export function PlayerPracticeDrawers({
               }
             >
               <Ionicons name="ellipsis-horizontal" size={16} color={colors.primaryDeep} />
-            </Pressable>
+            </Press>
             {playButton}
           </View>
         ) : (
@@ -498,7 +496,7 @@ export function PlayerPracticeDrawers({
             {playButton}
           </View>
         )}
-      </Pressable>
+      </Press>
     );
 
     if (!isSelected) {
@@ -637,17 +635,19 @@ export function PlayerPracticeDrawers({
           list scrolls under it (founder, 2026-10-12): adding a mark, and
           undoing or redoing an edit, must never need a scroll to reach. */}
       <StickyInScroll style={[pd.addRow, pd.addRowLead, pd.addRowSticky]}>
-        <Pressable
-          style={({ pressed }) => [pd.inkLink, pressed ? s.toolHeaderPressed : null]}
+        <Press
+          feel="glyph"
+          style={pd.inkLink}
           onPress={() => setPickerOpen(true)}
           accessibilityRole="button"
           accessibilityLabel={t("player.addSection")}
         >
           <Ionicons name="add" size={14} color={colors.primaryDeep} />
           <Text style={pd.inkLinkText}>{t("player.sectionShort")}</Text>
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [pd.inkLink, pressed ? s.toolHeaderPressed : null]}
+        </Press>
+        <Press
+          feel="glyph"
+          style={pd.inkLink}
           onPress={() => {
             const id = onAddPin();
             if (!id) return;
@@ -659,7 +659,7 @@ export function PlayerPracticeDrawers({
         >
           <Ionicons name="add" size={14} color={colors.primaryDeep} />
           <Text style={pd.inkLinkText}>{t("player.pinShort")}</Text>
-        </Pressable>
+        </Press>
         <Text style={pd.addHint}>{t("player.atTime", { time: fmtDuration(playheadMs) })}</Text>
         <View style={pd.undoRedoRow}>
           <UndoRedoButtons
@@ -749,11 +749,11 @@ export function PlayerPracticeDrawers({
                 Math.abs(loop.start - section.startMs) < 60 &&
                 Math.abs(loop.end - section.endMs) < 60;
               return (
-                <Pressable
+                <Press
                   key={section.id}
-                  style={({ pressed }) => [pd.partInk, pressed ? s.toolHeaderPressed : null]}
+                  feel="glyph"
+                  style={pd.partInk}
                   onPress={() => {
-                    haptic.tap();
                     onLoopSection(section);
                   }}
                   accessibilityRole="button"
@@ -762,7 +762,7 @@ export function PlayerPracticeDrawers({
                 >
                   <View style={[pd.partInkBar, { backgroundColor: getSectionColor(section) }]} />
                   <Text style={[pd.partInkText, active ? pd.partInkTextOn : null]}>{section.label}</Text>
-                </Pressable>
+                </Press>
               );
             })}
           </View>
@@ -789,17 +789,19 @@ export function PlayerPracticeDrawers({
         </View>
         {/* Restarting only means something while a drill is running. */}
         {stepUpEnabled ? (
-          <Pressable
-            style={pd.headIconBtn}
+          <Press
+            feel="glyph"
+          style={pd.headIconBtn}
             onPress={onRestartStepUp}
             hitSlop={6}
             accessibilityRole="button"
             accessibilityLabel={t("player.stepUpRestart")}
           >
             <Ionicons name="refresh" size={16} color={colors.textMuted} />
-          </Pressable>
+          </Press>
         ) : null}
-        <Pressable
+        <Press
+          feel="glyph"
           style={pd.headIconBtn}
           onPress={() => setStepUpSheetOpen(true)}
           hitSlop={6}
@@ -807,7 +809,7 @@ export function PlayerPracticeDrawers({
           accessibilityLabel={t("player.stepUpEdit")}
         >
           <Ionicons name="options-outline" size={16} color={colors.textMuted} />
-        </Pressable>
+        </Press>
         {/* Step up counts loop passes, so it can only run while the loop does — the
             session hook ends one the moment the loop goes off. Disabled rather than
             silently self-cancelling. */}
@@ -877,11 +879,11 @@ export function PlayerPracticeDrawers({
           ).map((option) => {
               const active = countInOption === option.key;
               return (
-                <Pressable
+                <Press
                   key={option.key}
-                  style={({ pressed }) => [pd.inkOption, pressed ? s.toolHeaderPressed : null]}
+                  feel="glyph"
+                  style={pd.inkOption}
                   onPress={() => {
-                    haptic.tap();
                     onSelectCountIn(option.key);
                   }}
                   accessibilityRole="button"
@@ -890,7 +892,7 @@ export function PlayerPracticeDrawers({
                 >
                   {active ? <View style={pd.inkOptionDot} /> : null}
                   <Text style={[pd.inkOptionText, active ? pd.inkOptionTextOn : null]}>{option.label}</Text>
-                </Pressable>
+                </Press>
               );
             })}
         </View>
@@ -966,8 +968,9 @@ export function PlayerPracticeDrawers({
               ? `${detectedLabel}${analysis && analysis.bpm != null && !isTempoSteady(analysis) ? ` · ${t("player.loose")}` : ""}`
               : t("player.noTempoYet")}
           </Text>
-          <Pressable
-            style={({ pressed }) => [pd.inkLink, pressed ? s.toolHeaderPressed : null]}
+          <Press
+            feel="glyph"
+          style={pd.inkLink}
             onPress={onDetectAnalysis}
             disabled={isAnalyzing}
             accessibilityRole="button"
@@ -979,7 +982,7 @@ export function PlayerPracticeDrawers({
               color={colors.primaryDeep}
             />
             <Text style={pd.inkLinkText}>{isAnalyzing ? t("player.analyzing") : t("player.detect")}</Text>
-          </Pressable>
+          </Press>
         </View>
       )}
       {analysisError ? <Text style={pd.note}>{analysisError}</Text> : null}
@@ -991,8 +994,9 @@ export function PlayerPracticeDrawers({
     <View style={s.toolList}>
       {/* Above the tabs: recording a layer is a constant of the Tools room, not a
           fact of any one drawer, so it never moves when the tabs do. */}
-      <Pressable
-        style={({ pressed }) => [pd.recordLayerRow, pressed ? s.toolHeaderPressed : null]}
+      <Press
+        feel="glyph"
+        style={pd.recordLayerRow}
         onPress={() => onRecordOverdub(playheadMs)}
         accessibilityRole="button"
         accessibilityLabel={
@@ -1005,7 +1009,7 @@ export function PlayerPracticeDrawers({
         <Text style={pd.recordLayerText}>
           {playheadMs > 1000 ? t("player.recordLayerAtPlayhead") : t("player.recordLayer")}
         </Text>
-      </Pressable>
+      </Press>
 
       <SegmentedControl<Drawer>
         options={[
