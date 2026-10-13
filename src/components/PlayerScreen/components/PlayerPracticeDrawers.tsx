@@ -693,6 +693,29 @@ export function PlayerPracticeDrawers({
     </View>
   );
 
+  // ---------------------------------------------------------------- count-in
+  const countInLengths: Exclude<CountInOption, "off">[] = clickAvailable ? ["3s", "1b", "2b"] : ["3s"];
+  const countInOn = countInOption !== "off";
+  // The length shown while the switch is off is the one it will come on with:
+  // the last one used, falling back to seconds when bars are no longer on offer.
+  const lastCountInLengthRef = useRef<Exclude<CountInOption, "off">>("3s");
+  if (countInOption !== "off") lastCountInLengthRef.current = countInOption;
+  const [countInLengthPick, setCountInLengthPick] = useState<Exclude<CountInOption, "off"> | null>(null);
+  const preferredLength = countInOn ? countInOption : (countInLengthPick ?? lastCountInLengthRef.current);
+  const countInLength = countInLengths.includes(preferredLength as Exclude<CountInOption, "off">)
+    ? (preferredLength as Exclude<CountInOption, "off">)
+    : "3s";
+  const labelForCountIn = (length: Exclude<CountInOption, "off">) =>
+    length === "3s"
+      ? t("player.countInSeconds", { count: 3 })
+      : t("player.bars", { count: length === "1b" ? 1 : 2 });
+  const countInLengthLabel = labelForCountIn(countInLength);
+  const cycleCountInLength = () => {
+    const next = countInLengths[(countInLengths.indexOf(countInLength) + 1) % countInLengths.length];
+    setCountInLengthPick(next);
+    if (countInOn) onSelectCountIn(next);
+  };
+
   // ---------------------------------------------------------------- loop
   const loop = practiceLoopRange;
   const loopLegalMin = loopEdge === "start" ? 0 : Math.min(loop.start + MIN_LOOP_LENGTH_MS, durationMs);
@@ -804,20 +827,12 @@ export function PlayerPracticeDrawers({
       <View style={[pd.row, pd.rowDivider]}>
         <View style={pd.stepUpLabelRow}>
           <Text style={pd.rowLabel}>{t("player.stepUp")}</Text>
-          <View style={pd.stepUpHelpNudge}>
-            <HelpButton compact onPress={() => setStepUpHelpOpen(true)} />
-          </View>
+          <HelpButton compact onPress={() => setStepUpHelpOpen(true)} />
         </View>
-        {/* The row states which plan is loaded; the live progression gets its own line
-            below, which keeps room here for the controls. A named plan carries its
-            speeds in its name, so the range is only spelled out for a custom one. */}
-        {/* The row states which plan is loaded — just its name. A custom plan's
-            actual speeds live in the step-up sheet, not on this line. */}
-        <View style={pd.stepUpValueRow}>
-          <Text style={pd.stepUpPlanName} numberOfLines={1}>
-            {stepUpPlanName}
-          </Text>
-        </View>
+        {/* The plan's name is not on this row (founder, 2026-10-13): it said
+            nothing while the drill was off and crowded the controls. It lives
+            in the plan sheet behind the sliders glyph. */}
+        <View style={pd.rowSpacer} />
         {/* Restarting only means something while a drill is running. */}
         {stepUpEnabled ? (
           <Press
@@ -872,67 +887,43 @@ export function PlayerPracticeDrawers({
         visible={stepUpHelpOpen}
         onClose={() => setStepUpHelpOpen(false)}
         thesis={t("player.stepUpHelpThesis")}
-        items={[
-          {
-            icon: "layers-outline",
-            label: t("player.stepUpHelpStepsLabel"),
-            description: t("player.stepUpHelpStepsBody"),
-          },
-          {
-            icon: "options-outline",
-            label: t("player.stepUpHelpPresetsLabel"),
-            description: t("player.stepUpHelpPresetsBody"),
-          },
-          {
-            icon: "speedometer-outline",
-            label: t("player.stepUpHelpSpeedLabel"),
-            description: t("player.stepUpHelpSpeedBody"),
-          },
-        ]}
+        items={[{ icon: "options-outline", description: t("player.stepUpHelpPlan") }]}
       />
       <View style={[pd.row, pd.rowDivider]}>
-        <Text style={pd.rowLabel}>{t("player.countIn")}</Text>
-        {/* Seconds are always offered — a run-up of the SONG ITSELF needs no
-            grid, and it's the honest count-in for a take that never had one.
-            Bar counts only exist where a trustworthy click does. */}
-        <View style={pd.inkOptionRow}>
-          {(
-            [
-              { key: "off" as const, label: t("player.off") },
-              { key: "3s" as const, label: t("player.countInSeconds", { count: 3 }) },
-              ...(clickAvailable
-                ? [
-                    { key: "1b" as const, label: t("player.bars", { count: 1 }) },
-                    { key: "2b" as const, label: t("player.bars", { count: 2 }) },
-                  ]
-                : []),
-            ]
-          ).map((option) => {
-              const active = countInOption === option.key;
-              return (
-                <Press
-                  key={option.key}
-                  feel="glyph"
-                  style={pd.inkOption}
-                  onPress={() => {
-                    onSelectCountIn(option.key);
-                  }}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  accessibilityLabel={`${t("player.countIn")}: ${option.label}`}
-                >
-                  {active ? <View style={pd.inkOptionDot} /> : null}
-                  <Text style={[pd.inkOptionText, active ? pd.inkOptionTextOn : null]}>{option.label}</Text>
-                </Press>
-              );
-            })}
+        {/* Label, how long, and one switch (founder, 2026-10-13): on or off must
+            read at a glance. Seconds are always offered — a run-up of the SONG
+            ITSELF needs no grid. Bar counts exist only where a trustworthy click
+            does; there the length is a key that steps through the choices. */}
+        <View style={pd.countInLabelRow}>
+          <Text style={pd.rowLabel}>{t("player.countIn")}</Text>
+          {countInLengths.length > 1 ? (
+            <Press
+              feel="glyph"
+              haptic="light"
+              style={pd.countInLengthKey}
+              onPress={cycleCountInLength}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={`${t("player.countIn")}: ${countInLengthLabel}`}
+            >
+              <Text style={[pd.countInLength, countInOn ? pd.countInLengthOn : null]}>{countInLengthLabel}</Text>
+              <Ionicons name="chevron-expand-outline" size={12} color={colors.textMuted} />
+            </Press>
+          ) : (
+            <Text style={[pd.countInLength, countInOn ? pd.countInLengthOn : null]}>{countInLengthLabel}</Text>
+          )}
         </View>
+        <View style={pd.rowSpacer} />
+        <Switch
+          value={countInOn}
+          onValueChange={(next) => onSelectCountIn(next ? countInLength : "off")}
+          accessibilityLabel={t("player.countIn")}
+        />
       </View>
     </View>
   );
 
   // ---------------------------------------------------------------- sound
-  const detectedLabel = hasAnalysisResult(analysis) ? formatBpmLabel(analysis) : null;
 
   const soundDrawer = (
     <View style={pd.wrap}>
@@ -991,57 +982,21 @@ export function PlayerPracticeDrawers({
             </View>
           ) : null}
         </>
-      ) : (
-        <View style={pd.ghostRow}>
-          <Text style={pd.rowLabel}>{t("player.click")}</Text>
-          <Text style={pd.rowValue}>
-            {detectedLabel
-              ? `${detectedLabel}${analysis && analysis.bpm != null && !isTempoSteady(analysis) ? ` · ${t("player.loose")}` : ""}`
-              : t("player.noTempoYet")}
-          </Text>
-          <Press
-            feel="glyph"
-          style={pd.inkLink}
-            onPress={onDetectAnalysis}
-            disabled={isAnalyzing}
-            accessibilityRole="button"
-            accessibilityLabel={detectedLabel ? t("player.redetect") : t("player.detect")}
-          >
-            <Ionicons
-              name={isAnalyzing ? "sync" : "sparkles-outline"}
-              size={13}
-              color={colors.primaryDeep}
-            />
-            <Text style={pd.inkLinkText}>{isAnalyzing ? t("player.analyzing") : t("player.detect")}</Text>
-          </Press>
-        </View>
-      )}
-      {analysisError ? <Text style={pd.note}>{analysisError}</Text> : null}
+      ) : null}
+      {/* With no grid on the take there is no Click row at all (founder,
+          2026-10-13): tempo detection is not trustworthy yet, so its "Detect
+          tempo" door is hidden rather than offered. The detect plumbing
+          (onDetectAnalysis, analysis, analysisError) is still passed in and
+          comes back with the row. */}
     </View>
   );
 
   // ---------------------------------------------------------------- shell
   return (
     <View style={s.toolList}>
-      {/* Above the tabs: recording a layer is a constant of the Tools room, not a
-          fact of any one drawer, so it never moves when the tabs do. */}
-      <Press
-        feel="glyph"
-        style={pd.recordLayerRow}
-        onPress={() => onRecordOverdub(playheadMs)}
-        accessibilityRole="button"
-        accessibilityLabel={
-          playheadMs > 1000 ? t("player.recordLayerAtPlayhead") : t("player.recordLayerOver")
-        }
-      >
-        <View style={pd.recordLayerDot} />
-        {/* Static label on purpose — a ticking mm:ss here made the row feel live
-            and urgent; "at playhead" says the same thing without the clock. */}
-        <Text style={pd.recordLayerText}>
-          {playheadMs > 1000 ? t("player.recordLayerAtPlayhead") : t("player.recordLayer")}
-        </Text>
-      </Press>
-
+      {/* Recording a layer left this list (founder, 2026-10-13): a full row above
+          the tabs cost the drawers their room. It is the "Layer" key beside
+          Tools in the reel's toolbar now. */}
       <SegmentedControl<Drawer>
         options={[
           // The dot means "something is RUNNING in there" — a loop looping, a

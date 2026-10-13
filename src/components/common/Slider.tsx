@@ -56,6 +56,10 @@ export type SliderProps = {
 const TRACK_HEIGHT = 3;
 const THUMB = 18;
 const TOUCH_HEIGHT = 32;
+/** Sideways travel that means "I am sliding". */
+const SLIDE_INTENT_PX = 6;
+/** Vertical travel that means "I am scrolling the page" — the slider lets go. */
+const SCROLL_INTENT_PX = 10;
 
 function quantise(value: number, step: number) {
   "worklet";
@@ -111,6 +115,17 @@ export function Slider({
     },
     [onSlidingComplete]
   );
+  // A tap on the track: one move, begun and finished at once.
+  const jump = useCallback(
+    (next: number) => {
+      // Haptics: `light` — the value is set.
+      haptic.light();
+      onSlidingStart?.();
+      onValueChange?.(next);
+      onSlidingComplete?.(next);
+    },
+    [onSlidingComplete, onSlidingStart, onValueChange]
+  );
   const tick = useCallback(() => {
     // Haptics: `tick` — a detent crossed under a moving thumb.
     haptic.tick();
@@ -148,16 +163,17 @@ export function Slider({
         }
       }
     };
-    return Gesture.Pan()
+    // The value follows a SIDEWAYS drag only (founder, 2026-10-13: a slider in a
+    // scrolling page moved while the page was being scrolled). The pan waits for
+    // horizontal travel and gives up on vertical travel, so the page keeps its
+    // scroll; a tap on the track still sets the value directly.
+    const pan = Gesture.Pan()
       .enabled(!disabled)
       .maxPointers(1)
       .shouldCancelWhenOutside(false)
-      .manualActivation(true)
+      .activeOffsetX([-SLIDE_INTENT_PX, SLIDE_INTENT_PX])
+      .failOffsetY([-SCROLL_INTENT_PX, SCROLL_INTENT_PX])
       .hitSlop({ top: 8, bottom: 8 })
-      .onTouchesDown((_e, state) => {
-        "worklet";
-        state.activate();
-      })
       .onStart((e) => {
         "worklet";
         dragging.value = true;
@@ -185,7 +201,19 @@ export function Slider({
         dragging.value = false;
         runOnJS(complete)(lastReported.value);
       });
+    const tap = Gesture.Tap()
+      .enabled(!disabled)
+      .hitSlop({ top: 8, bottom: 8 })
+      .onEnd((e, success) => {
+        "worklet";
+        if (!success) return;
+        const next = valueAt(fractionAt(e.x));
+        lastReported.value = next;
+        runOnJS(jump)(next);
+      });
+    return Gesture.Exclusive(pan, tap);
   }, [
+    jump,
     complete,
     detent,
     disabled,

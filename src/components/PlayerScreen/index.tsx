@@ -46,6 +46,7 @@ import { OVERDUB_HELP } from "../common/helpContent";
 import { PlayerArtifactReader, FollowSpeedControl } from "./components/PlayerArtifactReader";
 import { chartSummary, lyricChordSummary } from "./components/PlayerArtifactDoors";
 import { MarksToggle } from "./components/MarksToggle";
+import { Press } from "../common/Press";
 import { PlayerPinSheets } from "./components/PlayerPinSheets";
 import { PlayerShelf } from "./components/PlayerShelf";
 import { PlayerLyricsWriter } from "./components/PlayerLyricsWriter";
@@ -1614,6 +1615,21 @@ function PlayerScreenInner({
                     />
                   ) : null}
                   <View style={playerScreenStyles.reelToolbarRight}>
+                    {/* Record a layer at the playhead. It was a full row above the
+                        Tools tabs; here it costs the drawers nothing and sits by
+                        the tape it records onto. Only while Tools is open. */}
+                    {ui.mode === "practice" ? (
+                      <Press
+                        style={playerScreenStyles.layerKey}
+                        onPress={() => void handleAddOverdub(playerPositionMsRef.current)}
+                        hitSlop={6}
+                        accessibilityRole="button"
+                        accessibilityLabel={t("player.recordLayerAtPlayhead")}
+                      >
+                        <View style={playerScreenStyles.layerKeyDot} />
+                        <Text style={playerScreenStyles.toolsPillText}>{t("player.layerKey")}</Text>
+                      </Press>
+                    ) : null}
                     <Pressable
                       style={({ pressed }) => [
                         playerScreenStyles.toolsPill,

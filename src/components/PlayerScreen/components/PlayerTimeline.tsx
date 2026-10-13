@@ -13,6 +13,7 @@ import { buildSectionBands } from "../../../domain/playerSections";
 import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
 import { useStore } from "../../../state/useStore";
+import { laneDensityForHeight } from "../../../domain/reelLanes";
 import { springs } from "../../../design/motion";
 
 type Range = {
@@ -78,6 +79,8 @@ function SectionJumpHitbox({
   const tapGesture = React.useMemo(
     () =>
       Gesture.Tap().onEnd(() => {
+        // Haptics vocabulary: `tap` — an acknowledged press (the jump lands).
+        runOnJS(haptic.tap)();
         runOnJS(handleJump)();
       }),
     [handleJump]
@@ -108,9 +111,9 @@ const sectionJumpStyles = StyleSheet.create({
   },
 });
 
-/** With lanes the marks have rooms of their own above and below the wave, so the
- *  practice reel gets a little more height to keep the wave itself legible. */
-const LANES_PRACTICE_REEL_HEIGHT = 146;
+/** The reel while Tools is open (founder, 2026-10-13): short, so the drawers have
+ *  room to work. At this height the lanes keep ONE row of pin names. */
+const LANES_PRACTICE_REEL_HEIGHT = 112;
 const LOOP_MOVE_PILL_WIDTH = 34;
 const LOOP_MOVE_PILL_HEIGHT = 10;
 const LOOP_MOVE_HITBOX_WIDTH = 52;
@@ -358,6 +361,15 @@ function PlayerTimelineInner({
     },
     [onRequestPinActions, practiceMarkers]
   );
+  const reelHeight = readingSlim
+    ? 64
+    : reelExpanded
+      ? 250
+      : mode !== "player"
+        ? lanes
+          ? LANES_PRACTICE_REEL_HEIGHT
+          : 128
+        : 184;
   const previewRange = practiceLoopSelection[0];
   const sharedLoopPreviewStartMs = useSharedValue(previewRange?.start ?? 0);
   const sharedLoopPreviewEndMs = useSharedValue(previewRange?.end ?? Math.max(1000, durationMs));
@@ -403,7 +415,9 @@ function PlayerTimelineInner({
       // and pinch alike; the minimap halves instead so navigation stays cheap.
       // The bench halves it too: three stacked waveforms is one too many.
       showZoomControls
-      minimapCompact={readingSlim || mode === "layers"}
+      // The map halves whenever the page below needs the room: reading, the
+      // bench, and Tools.
+      minimapCompact={readingSlim || mode !== "player"}
       zoomPlacement="overlay"
       showTimingRow={false}
       defaultExpanded={false}
@@ -412,9 +426,7 @@ function PlayerTimelineInner({
       // Bigger reel in the default listening view (waveform as hero); smaller when Tools
       // are open to leave room for the practice console; slimmest while an artifact is
       // open for reading — the tape stays a live instrument, it just pays rent.
-      collapsedHeightOverride={
-        readingSlim ? 64 : reelExpanded ? 250 : mode !== "player" ? (lanes ? LANES_PRACTICE_REEL_HEIGHT : 128) : 184
-      }
+      collapsedHeightOverride={reelHeight}
       // Practice mode is controlled (parent owns the zoom). The normal player runs
       // UNCONTROLLED so the zoom buttons work and the duration-aware follow-window
       // (initialZoomMultiple) applies — long songs open as a scrolling tape.
@@ -493,7 +505,7 @@ function PlayerTimelineInner({
                 editable={mode === "practice"}
                 lanes={lanes}
                 labelScale={scale}
-                laneDensity={readingSlim ? "slim" : "full"}
+                laneDensity={laneDensityForHeight(reelHeight)}
               />
             </>
           ) : null}

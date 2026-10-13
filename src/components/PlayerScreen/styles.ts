@@ -43,6 +43,22 @@ export const playerScreenStyles = StyleSheet.create({
   toolsPillActive: {
     backgroundColor: colors.primarySurface,
   },
+  // "Layer": the same key as Tools, led by the record dot.
+  layerKey: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    height: 34,
+    paddingHorizontal: 12,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surfaceContainer,
+  },
+  layerKeyDot: {
+    width: 8,
+    height: 8,
+    borderRadius: radii.round,
+    backgroundColor: colors.record,
+  },
   toolsPillText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 13,

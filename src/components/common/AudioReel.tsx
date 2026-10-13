@@ -20,6 +20,7 @@ import type { SectionBand } from "../../domain/playerSections";
 import { fmt } from "../../utils";
 import { colors } from "../../design/tokens";
 import { useStore } from "../../state/useStore";
+import { laneDensityForHeight } from "../../domain/reelLanes";
 import { durations } from "../../design/motion";
 import { haptic } from "../../design/haptics";
 import { audioReelStyles } from "./AudioReel.styles";
@@ -107,9 +108,6 @@ const DARK_REEL_PALETTE: ReelPalette = {
     markInk: colors.surfaceHigh,
     loopInk: colors.primary,
 };
-
-/** Below this the reel is the reading-slim one: lanes keep their marks, drop their names. */
-const SLIM_REEL_MAX_HEIGHT = 96;
 
 /** How many display bars the canvas asks for at this zoom: capacity (floored at 48
  *  bars, 96 when the canvas is unmeasured) times the zoom multiple. */
@@ -871,7 +869,7 @@ export function AudioReel({
                             sharedSurfaceHeight={visualizerHeight}
                             lanes={lanes}
                             // The reading-height reel has no room for names: heads and rules only.
-                            laneDensity={collapsedHeight < SLIM_REEL_MAX_HEIGHT ? "slim" : "full"}
+                            laneDensity={laneDensityForHeight(collapsedHeight)}
                             theme={{
                                 waveColor: palette.waveColor,
                                 wavePlayedColor: lanes ? palette.wavePlayedQuietColor : palette.wavePlayedColor,

@@ -164,6 +164,8 @@ function PinBadge({
     });
 
   const tapGesture = Gesture.Tap().onEnd(() => {
+    // Haptics vocabulary: `tap` — an acknowledged press (the playhead jumps here).
+    runOnJS(haptic.tap)();
     runOnJS(handleSeek)();
   });
 

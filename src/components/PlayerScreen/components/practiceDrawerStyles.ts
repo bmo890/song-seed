@@ -317,8 +317,29 @@ export const pd = StyleSheet.create({
     alignItems: "center",
     gap: 5,
   },
-  stepUpHelpNudge: {
-    marginTop: -1,
+  // Pushes a row's controls to its trailing edge.
+  rowSpacer: {
+    flex: 1,
+  },
+  countInLabelRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 8,
+  },
+  countInLengthKey: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+  },
+  countInLength: {
+    ...text.supporting,
+    color: colors.textMuted,
+    fontVariant: ["tabular-nums"],
+  },
+  // On: the length takes the action ink, so the row agrees with its switch.
+  countInLengthOn: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    color: colors.primaryDeep,
   },
   stepUpValueRow: {
     flexDirection: "row",
