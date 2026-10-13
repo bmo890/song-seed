@@ -369,6 +369,18 @@ haptic; Switch; progress and spinner; Stepper for nudges with a tick per
 step. `SegmentedControl` already exists. Then retire the second press styles
 and fold the eight inline springs into `motion.ts`.
 
+Built so far (branch `craft/control-kit`, 2026-10-13): `Slider` (drawn
+track and thumb, `grab` on land, `tick` per detent, `light` on lift),
+`Press` (one press language), both under `MarkInspector`. New `tick` verb in
+`haptics.ts`: selection on iOS, light impact on Android, after the founder
+felt the lift and the release on Android but not the drag.
+
+Founder's note, set aside for now: every drag should feel the same, the reel's
+loop handles included. Those live on the tape and the reel is protected, so
+they are the last migration target, after the kit has settled everywhere
+else. The verbs to carry over: `grab` on land, `tick` per detent, `light`
+on lift.
+
 Proposed method, not started:
 
 - Audit by component, not by screen. One control fixed lifts every screen
