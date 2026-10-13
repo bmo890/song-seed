@@ -1,13 +1,13 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import Slider from "@react-native-community/slider";
+import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { PITCH_SHIFT_MAX_SEMITONES, PITCH_SHIFT_MIN_SEMITONES } from "../../domain/pitchShift";
 import { colors, radii, text } from "../../design/tokens";
-import { haptic } from "../../design/haptics";
-import { styles } from "../../styles";
 import { ltrRow } from "../../i18n/direction";
+import { Press } from "./Press";
+import { Slider } from "./Slider";
+import { Stepper } from "./Stepper";
 
 type SpeedPitchDialsProps = {
   playbackSpeed: number;
@@ -31,9 +31,9 @@ type SpeedPitchDialsProps = {
  * Each dial carries its own reset, which only appears once there is something to
  * undo; the value goes terracotta when bent so a glance says "played differently".
  *
- * Haptics (docs/design-system.md §4): slider release, preset tap and reset = `tap`
- * (acknowledged press / slider release); the pitch carets are step controls, so each
- * detent = `light`.
+ * Haptics are owned by the kit controls: the Slider (grab, tick per detent, light on
+ * lift), the Stepper (tick per semitone), and Press (tap) on the resets and presets.
+ * Nothing here fires its own.
  *
  * The caller owns the semantics: the player applies live practice values; the editor
  * bakes them into a new clip. This component only knows the numbers.
@@ -69,55 +69,46 @@ export function SpeedPitchDials({
         <View style={d.dialLabelGroup}>
           <Text style={d.rowLabel}>{t("player.speed")}</Text>
           {speedIsChanged ? (
-            <Pressable
-              style={({ pressed }) => [d.dialResetBtn, pressed ? styles.pressDown : null]}
-              onPress={() => {
-                haptic.tap();
-                onSpeedTap(1);
-              }}
+            <Press
+              style={d.dialResetBtn}
+              onPress={() => onSpeedTap(1)}
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel={t("player.resetSpeed")}
             >
               <Ionicons name="refresh" size={14} color={colors.primaryDeep} />
-            </Pressable>
+            </Press>
           ) : null}
         </View>
         <Text style={[d.dialValue, speedIsChanged ? d.dialValueChanged : null]}>
           {`${Math.round(playbackSpeed * 100) / 100}×`}
         </Text>
       </View>
+      {/* Ticks every tenth: a drag from 0.5× to 1.5× is ten felt stops, a dial. */}
       <Slider
         style={d.soundSlider}
         minimumValue={speedMin}
         maximumValue={speedMax}
         step={0.05}
+        detent={0.1}
         value={playbackSpeed}
         onValueChange={onSpeedSliding}
-        onSlidingStart={onSpeedSlideStart}
-        onSlidingComplete={(value) => {
-          haptic.tap();
-          onSpeedSlideEnd(value);
-        }}
-        minimumTrackTintColor={colors.primary}
-        maximumTrackTintColor={colors.surfaceHigh}
-        thumbTintColor={colors.primary}
+        onSlidingStart={() => onSpeedSlideStart?.(playbackSpeed)}
+        onSlidingComplete={onSpeedSlideEnd}
+        accessibilityLabel={t("player.speed")}
       />
       <View style={d.tickLabelRow}>
         {speedPresets.map((preset) => (
-          <Pressable
+          <Press
             key={preset}
-            onPress={() => {
-              haptic.tap();
-              onSpeedTap(preset);
-            }}
+            feel="glyph"
+            onPress={() => onSpeedTap(preset)}
             hitSlop={8}
-            style={({ pressed }) => (pressed ? styles.pressDown : null)}
             accessibilityRole="button"
             accessibilityLabel={`${preset}×`}
           >
             <Text style={[d.tickLabel, speedIsPreset(preset) ? d.tickLabelOn : null]}>{`${preset}`}</Text>
-          </Pressable>
+          </Press>
         ))}
       </View>
 
@@ -125,18 +116,15 @@ export function SpeedPitchDials({
         <View style={d.dialLabelGroup}>
           <Text style={d.rowLabel}>{t("player.pitch")}</Text>
           {pitchIsChanged ? (
-            <Pressable
-              style={({ pressed }) => [d.dialResetBtn, pressed ? styles.pressDown : null]}
-              onPress={() => {
-                haptic.tap();
-                onAdjustPitchShift(0);
-              }}
+            <Press
+              style={d.dialResetBtn}
+              onPress={() => onAdjustPitchShift(0)}
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel={t("player.resetPitch")}
             >
               <Ionicons name="refresh" size={14} color={colors.primaryDeep} />
-            </Pressable>
+            </Press>
           ) : null}
         </View>
         <Text style={[d.dialValue, pitchIsChanged ? d.dialValueChanged : null]}>
@@ -151,60 +139,32 @@ export function SpeedPitchDials({
       </View>
       {/* The rail maps onto pitch, low to high, so it is pinned LTR like the tape. */}
       <View style={[d.pitchRow, ltrRow]}>
-        <Pressable
-          style={({ pressed }) => [
-            d.nudgeBtn,
-            !canDecreasePitch ? styles.btnDisabled : null,
-            pressed && canDecreasePitch ? styles.pressDown : null,
-          ]}
-          onPress={() => {
-            if (!canDecreasePitch) return;
-            haptic.light();
-            onAdjustPitchShift(pitchShiftSemitones - 1);
-          }}
-          disabled={!canDecreasePitch}
-          hitSlop={6}
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !canDecreasePitch }}
-          accessibilityLabel={t("player.lowerPitch")}
+        <Stepper
+          style={d.pitchStepper}
+          glyphs="plusMinus"
+          onStep={(direction) => onAdjustPitchShift(pitchShiftSemitones + direction)}
+          canDecrement={canDecreasePitch}
+          canIncrement={canIncreasePitch}
+          decrementLabel={t("player.lowerPitch")}
+          incrementLabel={t("player.raisePitch")}
         >
-          <Ionicons name="remove" size={16} color={canDecreasePitch ? colors.textStrong : colors.textMuted} />
-        </Pressable>
-        <View style={d.pitchRail}>
-          {Array.from({ length: PITCH_SHIFT_MAX_SEMITONES - PITCH_SHIFT_MIN_SEMITONES + 1 }, (_, i) => {
-            const semitone = PITCH_SHIFT_MIN_SEMITONES + i;
-            const isCurrent = supportsPitchShift && semitone === pitchShiftSemitones;
-            return (
-              <View
-                key={semitone}
-                style={[
-                  d.pitchTick,
-                  semitone === 0 ? d.pitchTickZero : null,
-                  isCurrent ? d.pitchTickOn : null,
-                ]}
-              />
-            );
-          })}
-        </View>
-        <Pressable
-          style={({ pressed }) => [
-            d.nudgeBtn,
-            !canIncreasePitch ? styles.btnDisabled : null,
-            pressed && canIncreasePitch ? styles.pressDown : null,
-          ]}
-          onPress={() => {
-            if (!canIncreasePitch) return;
-            haptic.light();
-            onAdjustPitchShift(pitchShiftSemitones + 1);
-          }}
-          disabled={!canIncreasePitch}
-          hitSlop={6}
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !canIncreasePitch }}
-          accessibilityLabel={t("player.raisePitch")}
-        >
-          <Ionicons name="add" size={16} color={canIncreasePitch ? colors.textStrong : colors.textMuted} />
-        </Pressable>
+          <View style={d.pitchRail}>
+            {Array.from({ length: PITCH_SHIFT_MAX_SEMITONES - PITCH_SHIFT_MIN_SEMITONES + 1 }, (_, i) => {
+              const semitone = PITCH_SHIFT_MIN_SEMITONES + i;
+              const isCurrent = supportsPitchShift && semitone === pitchShiftSemitones;
+              return (
+                <View
+                  key={semitone}
+                  style={[
+                    d.pitchTick,
+                    semitone === 0 ? d.pitchTickZero : null,
+                    isCurrent ? d.pitchTickOn : null,
+                  ]}
+                />
+              );
+            })}
+          </View>
+        </Stepper>
       </View>
     </View>
   );
@@ -285,16 +245,10 @@ const d = StyleSheet.create({
   },
   pitchRow: {
     alignItems: "center",
-    gap: 10,
     paddingHorizontal: 10,
   },
-  nudgeBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: radii.round,
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
+  pitchStepper: {
+    flex: 1,
   },
   pitchRail: {
     flex: 1,

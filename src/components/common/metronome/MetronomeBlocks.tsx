@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import Slider from "@react-native-community/slider";
+import { Slider } from "../Slider";
 import { haptic } from "../../../design/haptics";
 import { colors, radii } from "../../../design/tokens";
 import {
@@ -125,17 +125,16 @@ export function TempoBlock({
           </Text>
         </Pressable>
       </View>
+      {/* Ticks every 10 bpm: the whole range is a score of felt stops, not a buzz. */}
       <Slider
-        onSlidingComplete={() => haptic.tap()}
         minimumValue={MIN_METRONOME_BPM}
         maximumValue={MAX_METRONOME_BPM}
         step={1}
-        minimumTrackTintColor={colors.primary}
-        maximumTrackTintColor={colors.borderSubtle}
-        thumbTintColor={colors.primary}
+        detent={10}
         value={bpm}
         onValueChange={onSetBpmValue}
         disabled={disabled}
+        accessibilityLabel={t("metronome.bpm")}
       />
     </>
   );
@@ -404,14 +403,11 @@ export function CueRows({
             {key === "beep" && on ? (
               <>
                 <Slider
-                  onSlidingComplete={() => haptic.tap()}
                   style={ms.cueSlider}
                   minimumValue={MIN_METRONOME_LEVEL}
                   maximumValue={MAX_METRONOME_LEVEL}
                   step={1}
-                  minimumTrackTintColor={colors.primary}
-                  maximumTrackTintColor={colors.borderSubtle}
-                  thumbTintColor={colors.primary}
+                  detent={MAX_METRONOME_LEVEL - MIN_METRONOME_LEVEL > 20 ? 10 : 1}
                   value={beepLevel}
                   onValueChange={onChangeBeepLevel}
                   accessibilityLabel={t("metronome.beepVolume")}
