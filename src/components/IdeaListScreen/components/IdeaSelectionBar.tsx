@@ -18,6 +18,11 @@ import { toast } from "../../common/toastStore";
 import { BottomSheet } from "../../common/BottomSheet";
 import { ClipTagEditorFields, type ClipTagTarget } from "../../IdeaDetailScreen/components/ClipTagPicker";
 import { PlaylistChooserSheet } from "../../common/PlaylistChooserSheet";
+import { openSendSheet } from "../../../state/useSendSheetStore";
+import { createClipsShareLink } from "../../../services/clipShareLink";
+import { createIdeasShareLink, ideasShareKind, shareIdeasFile } from "../../../services/ideasShare";
+import { orderByKeys } from "../../../domain/parcelOrder";
+import { isSendServiceConfigured } from "../../../config/sendService";
 import { styles } from "../../../styles";
 import { View } from "react-native";
 
@@ -56,6 +61,11 @@ export function IdeaSelectionBar({
   // Second-level "Copy or move" sheet under More (More closes itself before
   // handing off, so the next sheet opens cleanly).
   const [copyMoveVisible, setCopyMoveVisible] = useState(false);
+  // Share… is the same two-step door as everywhere else: the row opens a
+  // chooser of exits. With a sketch among the cards one question comes first
+  // (founder, 2026-10-13): its primary take as audio, or the whole sketch as a
+  // package.  scope → audio | whole.
+  const [shareSheet, setShareSheet] = useState<null | "scope" | "audio" | "whole">(null);
   const [tagsVisible, setTagsVisible] = useState(false);
   const [playlistVisible, setPlaylistVisible] = useState(false);
   const globalCustomTags = useStore((s) => s.globalCustomClipTags);
@@ -169,6 +179,56 @@ export function IdeaSelectionBar({
     canEditSelection && onEditSelected
       ? { key: "edit", label: t("selection.edit"), icon: "create-outline", onPress: onEditSelected }
       : null;
+
+  const selectionLabel = activeWorkspace?.title
+    ? t("selection.workspaceSelection", { title: activeWorkspace.title })
+    : t("selection.defaultSelection");
+  const linkAvailable = __DEV__ || isSendServiceConfigured();
+  const selectedSketchCount = interactiveSelectedIdeas.filter((idea) => idea.kind === "project").length;
+
+  /** Loose audio by SongNook Send: each card's lead take, reorderable in the sheet. */
+  function handleSendAudio() {
+    if (shareableClips.length === 0) return;
+    // Keyed by position: two takes may share a title, and a key must never drop one.
+    const clips = shareableClips.map((clip, index) => ({ key: String(index), clip }));
+    const label = clips.length === 1 ? clips[0].clip.title : selectionLabel;
+    openSendSheet({
+      title: label,
+      kind: "clips",
+      emptyMessage: t("songDetail.selectAudioFirst"),
+      items: clips.map(({ key, clip }) => ({ key, title: clip.title })),
+      create: (parcel) =>
+        createClipsShareLink(
+          orderByKeys(clips, parcel.order, (entry) => entry.key).map((entry) => entry.clip),
+          label,
+          parcel
+        ),
+    });
+  }
+
+  /** The whole selection as one package: every take, words, charts, notes, marks. */
+  const wholeTitle = interactiveSelectedIdeas.length === 1 ? interactiveSelectedIdeas[0].title : selectionLabel;
+  async function handleExportWhole() {
+    const ideas = interactiveSelectedIdeas;
+    try {
+      const shared = await shareIdeasFile(ideas, wholeTitle);
+      if (!shared) AppAlert.info(t("collection.nothingShare"), t("selection.nothingWholeBody"));
+    } catch (error) {
+      console.warn("Selection export error", error);
+      // Haptics: `error` — a failure must be felt.
+      haptic.error();
+      AppAlert.info(t("selection.shareFailed"), t("selection.shareFailedBody"));
+    }
+  }
+  function handleSendWhole() {
+    const ideas = interactiveSelectedIdeas;
+    openSendSheet({
+      title: wholeTitle,
+      kind: ideasShareKind(ideas),
+      emptyMessage: t("selection.nothingWholeBody"),
+      create: (parcel) => createIdeasShareLink(ideas, wholeTitle, parcel),
+    });
+  }
 
   async function handleShareSelected() {
     if (shareableClips.length === 0 || isSharing) return;
@@ -314,6 +374,48 @@ export function IdeaSelectionBar({
     selectedHiddenOnly,
   ]);
 
+  const shareAudioAction: SelectionAction = {
+    key: "share",
+    label: isSharing ? t("selection.sharing") : t("selection.shareCount", { count: shareableClips.length }),
+    icon: "share-social-outline",
+    onPress: () => {
+      void handleShareSelected();
+    },
+    disabled: isSharing || shareableClips.length === 0,
+  };
+  const sendRow = (onPress: () => void): SelectionAction[] =>
+    linkAvailable
+      ? [{ key: "songnook-send", label: t("collection.getLink"), icon: "paper-plane-outline", onPress }]
+      : [];
+  // Exits in one fixed order wherever they appear: Share, Export, SongNook Send.
+  const shareScopeActions: SelectionAction[] = [
+    {
+      key: "share-primary",
+      label: t("selection.sharePrimary", { count: selectedSketchCount }),
+      icon: "musical-note-outline",
+      onPress: () => setShareSheet("audio"),
+      opens: true,
+      disabled: shareableClips.length === 0,
+    },
+    {
+      key: "share-whole",
+      label: t("selection.shareWhole", { count: selectedSketchCount }),
+      icon: getHierarchyIconName("song"),
+      onPress: () => setShareSheet("whole"),
+      opens: true,
+    },
+  ];
+  const shareAudioActions: SelectionAction[] = [shareAudioAction, ...sendRow(handleSendAudio)];
+  const shareWholeActions: SelectionAction[] = [
+    {
+      key: "export",
+      label: t("selection.exportRow"),
+      icon: "folder-open-outline",
+      onPress: () => void handleExportWhole(),
+    },
+    ...sendRow(handleSendWhole),
+  ];
+
   const sheetActions: SelectionAction[] = useMemo(() => {
     const actions: SelectionAction[] = [];
 
@@ -322,16 +424,21 @@ export function IdeaSelectionBar({
       actions.push(editAction);
     }
 
-    if (!selectedHiddenOnly && shareableClips.length > 0) {
-      actions.push({
-        key: "share",
-        label: isSharing ? t("selection.sharing") : t("selection.shareCount", { count: shareableClips.length }),
-        icon: "share-social-outline",
-        onPress: () => {
-          void handleShareSelected();
-        },
-        disabled: isSharing,
-      });
+    // One Share… row that opens the chooser, as on every other door. With no
+    // link service and no sketch there is nothing to choose between, so the
+    // row shares the audio directly instead of opening a one-row sheet.
+    if (!selectedHiddenOnly && (shareableClips.length > 0 || selectedSketchCount > 0)) {
+      if (linkAvailable || selectedSketchCount > 0) {
+        actions.push({
+          key: "share-menu",
+          label: t("selection.shareMenu"),
+          icon: "share-social-outline",
+          onPress: () => setShareSheet(selectedSketchCount > 0 ? "scope" : "audio"),
+          opens: true,
+        });
+      } else {
+        actions.push(shareAudioAction);
+      }
     }
 
     if (!selectedHiddenOnly) {
@@ -405,6 +512,8 @@ export function IdeaSelectionBar({
     selectedProjects.length,
     shareableClips.length,
     tagTargets.length,
+    linkAvailable,
+    selectedSketchCount,
   ]);
 
   const copyMoveActions: SelectionAction[] = [
@@ -430,7 +539,15 @@ export function IdeaSelectionBar({
   // internally.
   // "playlist" was missing here (2026-10-13): the chooser opened with the
   // selection already cleared and quietly filed nothing.
-  const OPENS_SHEET = new Set(["more", "copy-or-move", "tag-clips", "playlist"]);
+  const OPENS_SHEET = new Set([
+    "more",
+    "copy-or-move",
+    "tag-clips",
+    "playlist",
+    "share-menu",
+    "share-primary",
+    "share-whole",
+  ]);
   const endsSelection = (action: SelectionAction): SelectionAction =>
     OPENS_SHEET.has(action.key)
       ? action
@@ -462,6 +579,30 @@ export function IdeaSelectionBar({
         title={t("selection.copyOrMoveTitle")}
         actions={copyMoveActions.map(endsSelection)}
         onClose={() => setCopyMoveVisible(false)}
+      />
+
+      {/* Share…: (a sketch among the cards → what to share) → the exits. Each
+          level's back key returns one step, so drilling in is never one-way. */}
+      <SelectionActionSheet
+        visible={shareSheet === "scope"}
+        onBack={() => setMoreVisible(true)}
+        title={t("selection.shareScopeTitle")}
+        actions={shareScopeActions.map(endsSelection)}
+        onClose={() => setShareSheet(null)}
+      />
+      <SelectionActionSheet
+        visible={shareSheet === "audio"}
+        onBack={() => (selectedSketchCount > 0 ? setShareSheet("scope") : setMoreVisible(true))}
+        title={t("selection.shareSheetTitle")}
+        actions={shareAudioActions.map(endsSelection)}
+        onClose={() => setShareSheet(null)}
+      />
+      <SelectionActionSheet
+        visible={shareSheet === "whole"}
+        onBack={() => setShareSheet("scope")}
+        title={t("selection.shareSheetTitle")}
+        actions={shareWholeActions.map(endsSelection)}
+        onClose={() => setShareSheet(null)}
       />
 
       <PlaylistChooserSheet

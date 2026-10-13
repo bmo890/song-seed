@@ -471,6 +471,14 @@ function WorkspaceBrowseInner() {
         actions={selectionModel.selectionSheetActions}
         onClose={() => selectionModel.setSelectionMoreVisible(false)}
       />
+      {/* Share… on one selected collection: Export · SongNook Send. */}
+      <SelectionActionSheet
+        visible={selectionModel.selectionShareVisible}
+        onBack={() => selectionModel.setSelectionMoreVisible(true)}
+        title={t("collection.shareTitle")}
+        actions={selectionModel.selectionShareActions}
+        onClose={() => selectionModel.setSelectionShareVisible(false)}
+      />
 
     </SafeAreaView>
   );
