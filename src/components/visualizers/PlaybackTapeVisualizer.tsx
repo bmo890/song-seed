@@ -1723,7 +1723,7 @@ export function PlaybackTapeVisualizer({
     const pinLane = useMemo(() => {
         if (!lanes || !practiceMarkers || practiceMarkers.length === 0) return null;
         const measured = new Map<string, { width: number; paragraph: SkParagraph; height: number }>();
-        if (sectionFontProvider && laneDensity === "full") {
+        if (sectionFontProvider && laneDensity !== "slim") {
             for (const marker of practiceMarkers) {
                 if (!marker.label) continue;
                 const paragraph = Skia.ParagraphBuilder.Make({ maxLines: 1, ellipsis: "\u2026" }, sectionFontProvider)

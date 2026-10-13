@@ -36,7 +36,24 @@ export const SECTION_RULE_HEIGHT = 2;
 export const SECTION_NAME_FONT_SIZE = 10.5;
 export const SECTION_NAME_ROW_HEIGHT = 14;
 
-export type ReelLaneDensity = "full" | "slim";
+/** `full`: two name rows. `compact`: one — the short reel that makes room for the
+ *  Tools drawers. `slim`: none, heads and rules only (the reading-height reel). */
+export type ReelLaneDensity = "full" | "compact" | "slim";
+
+/** Name rows a density allows. */
+export function pinLaneMaxRows(density: ReelLaneDensity): number {
+    return density === "full" ? PIN_LANE_MAX_ROWS : density === "compact" ? 1 : 0;
+}
+
+/** Reels shorter than this drop pin names entirely. */
+export const SLIM_REEL_MAX_HEIGHT = 96;
+/** Reels shorter than this keep one row of pin names. */
+export const COMPACT_REEL_MAX_HEIGHT = 130;
+
+/** The one rule both the canvas and the hitboxes use to pick a density. */
+export function laneDensityForHeight(height: number): ReelLaneDensity {
+    return height < SLIM_REEL_MAX_HEIGHT ? "slim" : height < COMPACT_REEL_MAX_HEIGHT ? "compact" : "full";
+}
 
 export type PinLanePlacement<M> = {
     marker: M;
@@ -70,12 +87,13 @@ export function layoutPinLane<M extends Pick<PracticeMarker, "atMs"> & { label?:
     if (markers.length === 0) return [];
     const sorted = [...markers].sort((a, b) => a.atMs - b.atMs);
     const contentWidth = durationMs * pixelsPerMs * scale;
-    const rowRight: number[] = Array.from({ length: PIN_LANE_MAX_ROWS }, () => -Infinity);
-    const rowLeft: number[] = Array.from({ length: PIN_LANE_MAX_ROWS }, () => Infinity);
+    const maxRows = pinLaneMaxRows(density);
+    const rowRight: number[] = Array.from({ length: maxRows }, () => -Infinity);
+    const rowLeft: number[] = Array.from({ length: maxRows }, () => Infinity);
 
     return sorted.map((marker) => {
         const hidden: PinLanePlacement<M> = { marker, row: -1, anchor: "start", nameWidth: 0 };
-        if (density === "slim" || !marker.label) return hidden;
+        if (maxRows === 0 || !marker.label) return hidden;
 
         const x = marker.atMs * pixelsPerMs * scale;
         const nameWidth = resolveNameWidth(marker);
@@ -84,11 +102,11 @@ export function layoutPinLane<M extends Pick<PracticeMarker, "atMs"> & { label?:
         const left = anchor === "start" ? x - PIN_HEAD_RADIUS : x - reach;
         const right = anchor === "start" ? x + reach : x + PIN_HEAD_RADIUS;
 
-        for (let row = 0; row < PIN_LANE_MAX_ROWS; row += 1) {
+        for (let row = 0; row < maxRows; row += 1) {
             const clearOnRow = left >= rowRight[row] + PIN_NAME_CLEARANCE || right <= rowLeft[row] - PIN_NAME_CLEARANCE;
             // The stem drops from this row through every row beneath it.
             let stemClear = true;
-            for (let below = row + 1; below < PIN_LANE_MAX_ROWS; below += 1) {
+            for (let below = row + 1; below < maxRows; below += 1) {
                 if (x < rowRight[below] + PIN_STEM_CLEARANCE && x > rowLeft[below] - PIN_STEM_CLEARANCE) stemClear = false;
             }
             if (clearOnRow && stemClear) {

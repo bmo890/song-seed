@@ -382,6 +382,50 @@ ends (same one-line fix), the software number pad (the sim uses a hardware
 keyboard, and there the first tap on Set only dismissed the keyboard; check
 on a phone that one tap sets), Android.
 
+## Tools room tidy-up (2026-10-13, founder list)
+
+- **Reel while Tools is open:** 112 pt (was 146), and an expanded reel folds
+  back when Tools or the bench opens (`usePlayerScreenUi.setMode`). At that
+  height the lanes keep ONE row of pin names: new density `compact`
+  (`laneDensityForHeight` in `domain/reelLanes`, used by the canvas and the
+  hitboxes alike; full ≥ 130, compact ≥ 96, slim below).
+- **Minimap:** 30 pt (was 40), 18 in compact; compact now also while Tools is
+  open.
+- **Record a layer** left the drawers (it was a full row above the tabs). It is
+  the "Layer" key, record dot + one word, beside Tools in the reel toolbar,
+  shown only while Tools is open. Same handler, at the playhead.
+- **Step up row:** the plan name is gone from the row; "?" sits level with
+  the label. Help is one thesis and one untitled line (`HelpItem.label` is
+  optional now): "Loop a part slowly. It speeds up as you repeat."
+- **Count-in:** label, the length in words ("3 seconds"), one Switch. The
+  length takes the action ink when on. Where the take has a grid the length is
+  a key that steps 3 seconds → 1 bar → 2 bars; the switch comes on with the
+  last length used.
+- **Click row hidden when the take has no grid.** Tempo detection is not
+  trustworthy yet, so the "Detect tempo" door is gone for now. The plumbing
+  (`onDetectAnalysis`, `analysis`, `analysisError`) is still passed to the
+  drawers; restore the row from git history at this commit's parent.
+- **Slider:** follows a SIDEWAYS drag only (6 px to engage, lets go after
+  10 px of vertical travel), so scrolling the page over it no longer moves the
+  value. A tap on the track still sets it. The thumb no longer lifts on
+  touch-down, only once the drag engages.
+- **Haptic** `tap` on tapping a pin (and a section's name) on the reel to jump.
+
+Screenshot: `docs/product-plan/reel-lanes/tools-room.png`.
+
+Verified in the simulator: the short reel with one name row, the Layer key,
+the Loop drawer rows, count-in switching on, the new help thesis, a vertical
+swipe over the speed slider leaving it at 1× and a sideways drag moving it.
+NOT verified: the Layer key actually starting a layer, the count-in length
+key on a take with a grid, the minimap at its new heights (it hides at 1×
+zoom), the reel folding back from expanded, Hebrew, Android.
+
+Open question for the founder: dragging a SECTION on the reel. Not built.
+Recommended shape if wanted: hold a section's name or rule and drag to move
+the whole section at its length, stopping at its neighbours; edges stay on
+the inspector. Whole-section move avoids the hard part (two neighbours
+resizing under one finger).
+
 ## State at handoff
 
 Branch `craft/control-kit`, pushed. Commits:

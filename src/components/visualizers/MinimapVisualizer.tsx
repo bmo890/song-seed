@@ -58,7 +58,8 @@ export function MinimapVisualizer({
     lanes = false,
 }: Props) {
     const [containerWidth, setContainerWidth] = useState(0);
-    const containerHeight = compact ? 20 : 40; // Fixed height minimap (halved in compact)
+    // A navigator, not a second waveform: short by default, shorter in compact.
+    const containerHeight = compact ? 18 : 30;
 
     const baseContentWidth = waveformPeaks.length * 3;
 

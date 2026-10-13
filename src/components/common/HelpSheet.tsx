@@ -5,7 +5,8 @@ import { colors, radii, spacing } from "../../design/tokens";
 
 export type HelpItem = {
   icon: keyof typeof Ionicons.glyphMap;
-  label: string;
+  /** Optional: a row that needs no heading is just its one line. */
+  label?: string;
   description: string;
 };
 
@@ -40,12 +41,12 @@ export function HelpSheet({
         showsVerticalScrollIndicator={false}
       >
         {items.map((item) => (
-          <View key={item.label} style={helpStyles.row}>
+          <View key={item.label ?? item.description} style={helpStyles.row}>
             <View style={helpStyles.iconWrap}>
               <Ionicons name={item.icon} size={16} color={colors.textSecondary} />
             </View>
             <View style={helpStyles.text}>
-              <Text style={helpStyles.label}>{item.label}</Text>
+              {item.label ? <Text style={helpStyles.label}>{item.label}</Text> : null}
               <Text style={helpStyles.desc}>{item.description}</Text>
             </View>
           </View>
@@ -83,9 +84,12 @@ const helpStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  // Tall as the icon and centred, so a one-line row sits level with its glyph.
   text: {
     flex: 1,
     gap: 1,
+    minHeight: 32,
+    justifyContent: "center",
   },
   label: {
     fontFamily: "PlusJakartaSans_600SemiBold",

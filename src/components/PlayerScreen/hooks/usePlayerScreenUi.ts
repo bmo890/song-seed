@@ -55,6 +55,8 @@ export function usePlayerScreenUi() {
   // back at height, and returning to "player" reopens at the doors.
   const setMode = useCallback((next: PlayerMode) => {
     setModeState(next);
+    // Tools and the bench need the page: an expanded reel folds back on the way in.
+    if (next !== "player") setReelExpanded(false);
     if (next !== "player") {
       setReadingArtifact(null);
       setReadingAltitude("reading");
