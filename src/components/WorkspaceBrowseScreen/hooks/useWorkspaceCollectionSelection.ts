@@ -77,6 +77,7 @@ export function useWorkspaceCollectionSelection({
   );
   const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>([]);
   const [selectionMoreVisible, setSelectionMoreVisible] = useState(false);
+  const [selectionShareVisible, setSelectionShareVisible] = useState(false);
   const [selectionDockHeight, setSelectionDockHeight] = useState(120);
 
   useEffect(() => {
@@ -304,6 +305,22 @@ export function useWorkspaceCollectionSelection({
         openCollectionDestination("move", collapsedSelectedCollectionIds);
       },
     },
+    // One Share… row that opens the chooser — the same door the collection's
+    // own page has, instead of the exits lying flat in this menu.
+    {
+      key: "share-menu",
+      label: t("selection.shareMenu"),
+      icon: "share-social-outline",
+      disabled: !singleSelectedCollection || sharingCollection,
+      onPress: () => {
+        setSelectionMoreVisible(false);
+        setSelectionShareVisible(true);
+      },
+      opens: true,
+    },
+  ];
+  // Exits in the app-wide order: Export, then SongNook Send.
+  const selectionShareActions: SelectionAction[] = [
     {
       key: "export",
       label: t("collection.shareFile"),
@@ -346,6 +363,9 @@ export function useWorkspaceCollectionSelection({
     setSelectionDockHeight,
     selectionDockActions,
     selectionSheetActions,
+    selectionShareVisible,
+    setSelectionShareVisible,
+    selectionShareActions,
     collectionRenameModalOpen,
     setCollectionRenameModalOpen,
     collectionDraft,

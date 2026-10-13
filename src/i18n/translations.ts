@@ -1344,6 +1344,16 @@ export const resources = {
       },
       selection: {
         add: "Add",
+        // Share… from a selection: with a sketch among the cards the sender chooses
+        // between its lead take as audio and the whole sketch as a package.
+        shareSheetTitle: "Share",
+        shareScopeTitle: "Share what?",
+        sharePrimary_one: "Primary take",
+        sharePrimary_other: "Primary takes",
+        shareWhole_one: "Whole sketch",
+        shareWhole_other: "Whole sketches",
+        exportRow: "Export",
+        nothingWholeBody: "Record a take or write a line first.",
         // Picker chrome (2026-09-11): one eyebrow above the title, one footer.
         addCount: "Add {{count}}", addingTo: "Adding to {{title}}", pickCollection: "Choose a collection to add from", addedCount: "{{count}} added",
         pickFromWorkspace: "Pick from another workspace",
@@ -2874,6 +2884,16 @@ export const resources = {
       },
       selection: {
         add: "הוספה",
+        shareSheetTitle: "שיתוף",
+        shareScopeTitle: "מה לשתף?",
+        sharePrimary_one: "הטייק הראשי",
+        sharePrimary_two: "הטייקים הראשיים",
+        sharePrimary_other: "הטייקים הראשיים",
+        shareWhole_one: "הסקיצה כולה",
+        shareWhole_two: "הסקיצות כולן",
+        shareWhole_other: "הסקיצות כולן",
+        exportRow: "ייצוא",
+        nothingWholeBody: "הקליטו טייק או כתבו שורה קודם.",
         addCount: "הוספת {{count}}", addingTo: "מוסיפים אל {{title}}", pickCollection: "בחרו אוסף להוסיף ממנו", addedCount: "{{count}} נוספו",
         pickFromWorkspace: "בחירה ממרחב עבודה אחר",
         noChartYet: "אין תרשים עדיין", pickingSongFor: "בחירת שיר למילים",

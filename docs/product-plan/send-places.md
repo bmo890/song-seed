@@ -184,6 +184,47 @@ app, and lands as a package presenting as that one sketch.
   only: renaming a take never renames the sketch. Compilations already show the
   new sketch name (they resolve by id); sent links keep theirs (snapshots).
 
+### One door everywhere, and the sketch question (2026-10-13, founder pass)
+
+Founder, after multi-selecting cards in a collection: Share went straight to
+the system share sheet. Everywhere else it is **Share… → a chooser of exits**.
+The rule, now true at every door:
+
+1. The menu carries ONE row, **Share…**, with a chevron. It never shares on
+   tap, and the exits never lie flat in a menu beside Copy and Move.
+2. The chooser lists the exits that apply, always in this order:
+   **Share** (the audio, by the OS sheet) · **Export** (a `.songnook` file) ·
+   **SongNook Send** (a link). Audio things offer Share and Send; packages
+   offer Export and Send; a chart book adds Share as text.
+3. Each level has a back key to the one before it.
+
+| Door | Was | Now |
+|---|---|---|
+| Collection: selected cards → More | **Share (N)**, straight to the OS sheet, no Send | **Share…** → Share (N) · SongNook Send |
+| Hub: one selected collection → More | Export and SongNook Send flat in the menu | **Share…** → Export · SongNook Send |
+| Sketch takes selection, collection ⋯, workspace ⋯, sketch ⋯, setlist / playlist / chart book ⋯ | already Share… → chooser | unchanged |
+| Full player ⋯ | Share… → Share audio · SongNook Send, as a dialog | unchanged; the player's own menu is a dialog list, so its chooser is one too |
+
+**A sketch among the selected cards asks one question first** — *Share what?*
+**Primary take** (its lead take as audio, with the other cards' audio: Share ·
+SongNook Send) or **Whole sketch** (everything selected as ONE package: every
+take, lyrics with chords, chart, notes, marks, sections, tags: Export ·
+SongNook Send). A lone sketch sent whole is kind `sketch`; a mix is lifted
+into a one-collection package, kind `collection`, and lands on the receiver as
+a received collection (`src/services/ideasShare.ts`, tested). Plural labels
+when more than one sketch is selected. With no sketch selected there is no
+question.
+
+Selection ends when an exit is chosen, not when Share… is opened, so the
+chooser never opens on an emptied selection (the Playlist… bug from earlier
+today could not recur here).
+
+Verified in the simulator: a clip and a sketch selected → More → Share… →
+Share what? → Whole sketch → Export · SongNook Send → the Send sheet, titled
+"My Songs Selection". Not sealed (it would upload to the live service). Not
+verified: the Primary take branch end to end, Export writing the file, the hub
+chooser, and a real receive of a mixed package.
+
 ## Edge cases accounted for
 
 | Edge | Behaviour |
