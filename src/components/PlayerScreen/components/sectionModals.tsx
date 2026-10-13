@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Modal, Pressable, Text, TextInput, View } from "react-native";
-import Slider from "@react-native-community/slider";
+import { Slider } from "../../common/Slider";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
 import { fmtDuration } from "../../../utils";
@@ -17,7 +17,6 @@ import type { SectionCustomInput } from "../hooks/usePlayerSections";
 import { WarmModal } from "../../common/WarmModal";
 import { playerScreenStyles as s } from "../styles";
 import type { ClipSection, ClipSectionKind } from "../../../types";
-import { haptic } from "../../../design/haptics";
 import { PLAYHEAD_COLOR, PlayheadCursorIcon } from "./practicePanelPrimitives";
 import { useTranslation } from "react-i18next";
 import { UserText, UserTextInput } from "../../../i18n";
@@ -103,14 +102,12 @@ export function SectionEdgeAdjuster({
             onPreview({ id: section.id, [isStart ? "startMs" : "endMs"]: next });
           }}
           onSlidingComplete={(value) => {
-            haptic.tap();
             onReposition(section.id, edge, Math.round(value));
             onPreview(null);
             setDragMs(null);
           }}
-          minimumTrackTintColor={colors.primary}
-          maximumTrackTintColor={colors.surfaceHigh}
-          thumbTintColor={colors.primary}
+          fill={false}
+          detent={1000}
         />
         <Pressable
           style={s.pinStepButton}

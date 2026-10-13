@@ -1,9 +1,8 @@
 import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import Slider from "@react-native-community/slider";
+import { Slider } from "../../../common/Slider";
 import { colors, radii, spacing } from "../../../../design/tokens";
 import { styles as appStyles } from "../../../../styles";
-import { haptic } from "../../../../design/haptics";
 import { useTranslation } from "react-i18next";
 
 export const CHORD_ZOOM_MIN = 0.5;
@@ -26,15 +25,13 @@ export function ChordZoomBar({
     <View style={[styles.zoomBar, compact ? styles.zoomBarCompact : null]}>
       <Ionicons name="text" size={13} color={colors.textMuted} />
       <Slider
-        onSlidingComplete={() => haptic.tap()}
         style={styles.slider}
         minimumValue={CHORD_ZOOM_MIN}
         maximumValue={CHORD_ZOOM_MAX}
+        step={0.05}
+        detent={0.1}
         value={zoom}
         onValueChange={onChange}
-        minimumTrackTintColor={colors.primary}
-        maximumTrackTintColor={colors.borderMuted}
-        thumbTintColor={colors.primary}
       />
       <Ionicons name="text" size={20} color={colors.textMuted} />
       <Pressable

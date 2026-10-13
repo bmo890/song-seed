@@ -957,6 +957,7 @@ export const resources = {
       },
       chordChart: {
         title: "Chord Chart",
+        textSize: "Text size",
         unavailable: "This song is no longer available.",
         noLyrics: "No lyrics in this version yet.",
         undo: "Undo",
@@ -2465,6 +2466,7 @@ export const resources = {
       },
       chordChart: {
         title: "תרשים אקורדים",
+        textSize: "גודל טקסט",
         unavailable: "השיר הזה כבר לא זמין.",
         noLyrics: "עדיין אין מילים בגרסה הזו.",
         undo: "ביטול",

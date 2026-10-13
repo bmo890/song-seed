@@ -4,7 +4,7 @@ import { useDraftText } from "../../../hooks/useDraftText";
 const EMPTY_SUGGESTIONS: string[] = [];
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Slider from "@react-native-community/slider";
+import { Slider } from "../../common/Slider";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
@@ -20,7 +20,6 @@ import { ChordSheetSection } from "../ChordSheetSection";
 import { BarEditorSheet } from "./BarEditorSheet";
 import { useScrollIntoViewOnFocus } from "./chartScroll";
 import type { useChordSheetModel } from "../useChordSheetModel";
-import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
 import { UserText, UserTextInput } from "../../../i18n";
 
@@ -337,15 +336,14 @@ export function ChordSheetFullView({
         <View style={fullView.zoomBar}>
           <Ionicons name="text" size={13} color={colors.textMuted} />
           <Slider
-            onSlidingComplete={() => haptic.tap()}
             style={appStyles.flexFill}
             minimumValue={0.5}
             maximumValue={1.6}
+            step={0.05}
+            detent={0.1}
             value={scale}
             onValueChange={setScale}
-            minimumTrackTintColor={colors.primary}
-            maximumTrackTintColor={colors.borderMuted}
-            thumbTintColor={colors.primary}
+            accessibilityLabel={t("chordChart.textSize")}
           />
           <Ionicons name="text" size={20} color={colors.textMuted} />
           <Pressable

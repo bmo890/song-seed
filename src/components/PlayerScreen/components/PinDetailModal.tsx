@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
-import Slider from "@react-native-community/slider";
+import { Slider } from "../../common/Slider";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
 import { fmtDuration } from "../../../utils";
@@ -9,7 +9,6 @@ import { MAX_PIN_LABEL_LENGTH } from "../../../domain/practicePinLayout";
 import { WarmModal } from "../../common/WarmModal";
 import { playerScreenStyles as s } from "../styles";
 import type { PracticeMarker } from "../../../types";
-import { haptic } from "../../../design/haptics";
 import { PLAYHEAD_COLOR, PlayheadCursorIcon } from "./practicePanelPrimitives";
 import { useTranslation } from "react-i18next";
 import { UserTextInput } from "../../../i18n";
@@ -76,14 +75,12 @@ export function PinTimingAdjuster({
             onPreview({ id: marker.id, atMs: next });
           }}
           onSlidingComplete={(value) => {
-            haptic.tap();
             onReposition(marker.id, Math.round(value));
             onPreview(null);
             setDragMs(null);
           }}
-          minimumTrackTintColor={colors.primary}
-          maximumTrackTintColor={colors.surfaceHigh}
-          thumbTintColor={colors.primary}
+          fill={false}
+          detent={1000}
         />
         <Pressable
           style={s.pinStepButton}

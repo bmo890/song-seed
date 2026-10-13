@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
-import Slider from "@react-native-community/slider";
+import { Slider } from "../../common/Slider";
 import { Ionicons } from "@expo/vector-icons";
 import { useAudioPlayer } from "expo-audio";
 import type { AudioStatus } from "expo-audio";
@@ -229,9 +229,7 @@ function GainSliderRow({
           const delta = Math.round(value) - gainDb;
           if (delta !== 0) onCommitGain(delta);
         }}
-        minimumTrackTintColor={colors.primaryDeep}
-        maximumTrackTintColor={colors.surfaceHigh}
-        thumbTintColor={colors.primaryDeep}
+        detent={3}
       />
       <Text style={benchStyles.gainReadout}>{`${shownDb > 0 ? "+" : ""}${shownDb} dB`}</Text>
     </View>
@@ -733,9 +731,7 @@ export function PlayerLayersBench({
                   // Stale native handle — ignore.
                 }
               }}
-              minimumTrackTintColor={colors.primaryDeep}
-              maximumTrackTintColor={colors.surfaceHigh}
-              thumbTintColor={colors.primaryDeep}
+              fill={false}
               accessibilityLabel={t("player.scrubLayer")}
             />
           ) : null}
