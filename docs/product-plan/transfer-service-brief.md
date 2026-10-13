@@ -29,6 +29,7 @@ A **transfer** = one send event = (on the receiving phone) one "received package
     "userId": null                     // ALWAYS present, null in v1 — reserved for accounts (see §8)
   },
   "message": "Learn track 2 first",   // optional sender note
+  "kind": "workspace",                 // what the sender said it is: clips | playlist | setlist | songbook | collection | workspace | library (2026-10-13; missing/unknown reads as "clips")
   "createdAt": "2026-07-18T18:20:00Z",
   "expiresAt": "2026-08-01T18:20:00Z",
   "items": [
@@ -61,7 +62,7 @@ Key points:
 
 Exact paths/shapes are yours to design; these are the required capabilities:
 
-1. **Create transfer** — `POST /api/transfers` with `{title?, senderName?, message?}` → `{transferId, uploadUrls | uploadEndpoint}`. Presigned-URL-per-file or direct multipart both fine; the app will upload from a background-capable HTTP client, so uploads must be resumable-friendly or at least tolerate retries per file.
+1. **Create transfer** — `POST /api/transfers` with `{title?, senderName?, message?, kind?}` → `{transferId, uploadUrls | uploadEndpoint}`. Presigned-URL-per-file or direct multipart both fine; the app will upload from a background-capable HTTP client, so uploads must be resumable-friendly or at least tolerate retries per file.
 2. **Upload items** — per-file, with fileName + mimeType preserved.
 3. **Finalize** — `POST /api/transfers/{id}/finalize` → `{shareUrl}`. Nothing is fetchable until finalized (prevents half-uploaded links).
 4. **Fetch metadata** — the JSON above. Must be callable by the app without cookies/session (the link is the capability).

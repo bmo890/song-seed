@@ -2,6 +2,7 @@
  * Thin typed helpers over D1. No ORM — the schema is two tables.
  */
 import type { Env } from "../env";
+import type { ShareKind } from "./shareKind";
 
 export interface TransferRow {
   transfer_id: string;
@@ -14,8 +15,8 @@ export interface TransferRow {
   created_at: number;
   expires_at: number;
   upload_token_hash: string | null;
-  /** "clips" (loose files), or a running order the app rebuilds: "playlist" | "setlist". */
-  share_kind: "clips" | "playlist" | "setlist";
+  /** What the sender said the parcel is — see lib/shareKind.ts. */
+  share_kind: ShareKind;
 }
 
 export interface ItemRow {

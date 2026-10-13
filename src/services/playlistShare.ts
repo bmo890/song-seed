@@ -1,7 +1,7 @@
 import { buildPlaylistArchive } from "../domain/playlistExport";
 import { exportLibrary, type ExportLibraryArgs } from "./libraryExport";
 import { createShareLink } from "./shareLink";
-import type { ShareArgsOverrides } from "./setlistShare";
+import type { ShareArgsOverrides, ShareLinkParcel } from "./setlistShare";
 import type { Playlist, Workspace } from "../types";
 
 /** Builds the library-export args for a playlist share (one clip per row, in
@@ -23,7 +23,7 @@ export function buildPlaylistExportArgs(
     playlists: [built.playlist],
     share: {
       kind: "playlist",
-      title: playlist.title,
+      title: overrides?.title || playlist.title,
       sender: { name: overrides?.senderName ?? null, userId: null },
       transferId: overrides?.transferId ?? null,
       createdAt: Date.now(),
@@ -50,17 +50,14 @@ export async function sharePlaylist(playlist: Playlist, workspaces: Workspace[])
 }
 
 /** Uploads a playlist to SongNook Send and returns the hosted share link record. */
-export function createPlaylistShareLink(
-  playlist: Playlist,
-  workspaces: Workspace[],
-  opts?: { senderName?: string | null }
-) {
+export function createPlaylistShareLink(playlist: Playlist, workspaces: Workspace[], opts?: ShareLinkParcel) {
   return createShareLink({
-    title: playlist.title,
+    title: opts?.title || playlist.title,
     kind: "playlist",
     entityId: playlist.id,
     senderName: opts?.senderName,
+    message: opts?.message ?? undefined,
     buildArgs: (transferId) =>
-      buildPlaylistExportArgs(playlist, workspaces, { transferId, senderName: opts?.senderName }),
+      buildPlaylistExportArgs(playlist, workspaces, { transferId, senderName: opts?.senderName, title: opts?.title }),
   });
 }

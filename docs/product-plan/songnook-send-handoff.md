@@ -30,9 +30,19 @@ Worker secrets — **never put any credential in app code**.
   transfer FIRST so the `transferId` is stamped into the manifest `share` block
   before upload) and `createFilesShareLink` (raw files). `EmptyShareError` /
   `SendTransferError` for UX branching.
-- `src/services/shareLinkFlow.ts` — `presentShareLink`: progress toast → clipboard
-  copy → success toast with Share tap-through; error dialogs.
+- `src/services/shareLinkFlow.ts` — `describeShareLinkError`: one explanation per
+  failure. (The toast-driven `presentShareLink` was retired 2026-10-13 for the Send
+  sheet: `src/components/common/SendLinkSheet.tsx` + `useSendSheetStore` /
+  `useSendPrefsStore` — title, remembered From name, note, seal, link with Copy/Share.
+  Every "SongNook Send" row — the former "Get a link" — opens it. Loose-clip parcels
+  can be reordered in the sheet (nudges + Sort A–Z) like the desktop page; the file
+  action is called **Export** app-wide.)
 - `src/services/clipShareLink.ts` — clips → files-link.
+- `src/services/placeShare.ts` (2026-10-13) — a **collection** or a **whole workspace**
+  as a file or a link, full fidelity, nested collections kept, compilations inside the
+  scope riding along; `kind` now travels on the wire for every link and the service
+  accepts all seven kinds. Receive side names the landing per kind, opens the package it
+  made, lists a workspace package's collections. See `send-places.md`.
 - Entry points wired: Setlist detail menu "Get a link", Songbook detail menu
   "Get a link", clip SelectionBars "Get link" (`useSetlistModel.getLinkForActiveSetlist`,
   `useSongbookModel.getLinkForActiveSongbook`, `SelectionBars.handleGetLinkSelected`).

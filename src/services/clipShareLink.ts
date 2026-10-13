@@ -11,11 +11,12 @@ import {
 } from "./audioStorage";
 import { createFilesShareLink, type ShareFileInput } from "./shareLink";
 import type { SentLink } from "../domain/sentLinks";
+import type { ShareLinkParcel } from "./setlistShare";
 
 export function createClipsShareLink(
   clips: ShareableAudioClip[],
   bundleLabel: string,
-  opts?: { senderName?: string | null }
+  opts?: ShareLinkParcel
 ): Promise<SentLink> {
   const usedNames = new Set<string>();
   const files: ShareFileInput[] = clips.map((clip) => {
@@ -32,9 +33,10 @@ export function createClipsShareLink(
   });
 
   return createFilesShareLink({
-    title: bundleLabel,
+    title: opts?.title || bundleLabel,
     kind: "clips",
     senderName: opts?.senderName,
+    message: opts?.message ?? undefined,
     files,
   });
 }

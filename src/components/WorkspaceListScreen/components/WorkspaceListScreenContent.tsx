@@ -262,6 +262,14 @@ export function WorkspaceListScreenContent() {
         actions={model.actionSheet.actions}
         onClose={model.actionSheet.close}
       />
+      {/* Share… drills here: a file, or SongNook Send. */}
+      <SelectionActionSheet
+        visible={model.shareSheet.visible}
+        title={t("workspaceList.shareTitle")}
+        actions={model.shareSheet.actions}
+        onClose={model.shareSheet.close}
+        onBack={model.shareSheet.back}
+      />
 
       {/* ── Workspace edit modal ────────────────────────────────────────────── */}
       <WorkspaceModal

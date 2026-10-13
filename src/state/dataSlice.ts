@@ -2565,8 +2565,23 @@ export const createDataSlice: StateCreator<
         const state = get();
         const pkg = state.workspaces.find((ws) => ws.id === packageId);
         if (!pkg || pkg.origin !== "received") return { ok: false, error: "Package not found.", collectionIds: [] };
+        const topLevel = pkg.collections.filter((c) => !c.parentCollectionId);
+        // Decide before touching anything: a collection that carries nested
+        // collections can only move to the top level (sub-collections never
+        // nest twice). Failing on the second of three collections would leave
+        // a package half moved.
+        if (
+            targetParentCollectionId &&
+            topLevel.some((collection) => pkg.collections.some((c) => c.parentCollectionId === collection.id))
+        ) {
+            return {
+                ok: false,
+                error: "A collection with subcollections can only be moved to the top level.",
+                collectionIds: [],
+            };
+        }
         const collectionIds: string[] = [];
-        for (const collection of pkg.collections.filter((c) => !c.parentCollectionId)) {
+        for (const collection of topLevel) {
             const result = get().moveCollection(collection.id, targetWorkspaceId, targetParentCollectionId);
             if (!result.ok) return { ok: false, error: result.error, collectionIds };
             collectionIds.push(collection.id);

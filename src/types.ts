@@ -640,6 +640,7 @@ export type ShareKind =
   | "setlist"
   | "playlist"
   | "songbook"
+  | "sketch"
   | "collection"
   | "workspace"
   | "clips"

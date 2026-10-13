@@ -1,4 +1,4 @@
-import { createShareLink, EmptyShareError } from "../shareLink";
+import { createFilesShareLink, createShareLink, EmptyShareError, TooLargeShareError } from "../shareLink";
 import * as transport from "../sendTransfer";
 import * as libraryExport from "../libraryExport";
 import { useSentLinksStore } from "../../state/useSentLinksStore";
@@ -63,10 +63,13 @@ describe("createShareLink", () => {
     });
 
     // transferId is known at create and handed to the archive builder.
+    // The declared kind rides on the wire too, so the recipient page and the
+    // receive screen can name the parcel before any file is opened.
     expect(mocked.createTransfer).toHaveBeenCalledWith({
       title: "Set",
       senderName: "Ben",
       message: undefined,
+      kind: "setlist",
     });
     expect(buildArgs).toHaveBeenCalledWith("t_ABC");
 
@@ -110,5 +113,57 @@ describe("createShareLink", () => {
     expect(mocked.prepare).not.toHaveBeenCalled();
     expect(mocked.registerAndUploadFile).not.toHaveBeenCalled();
     expect(mocked.finalizeTransfer).not.toHaveBeenCalled();
+  });
+
+  it("refuses an archive past the per-file cap before any byte is uploaded", async () => {
+    mocked.getState.mockReturnValue({ recordLink: jest.fn() });
+    mocked.fileSize.mockResolvedValue(600 * 1024 * 1024); // a workspace of stems
+
+    await expect(
+      createShareLink({ title: "Big", kind: "workspace", buildArgs: () => fakeArgs })
+    ).rejects.toBeInstanceOf(TooLargeShareError);
+
+    // The draft is left unfinalized (swept at expiry); nothing was uploaded.
+    expect(mocked.registerAndUploadFile).not.toHaveBeenCalled();
+    expect(mocked.finalizeTransfer).not.toHaveBeenCalled();
+  });
+});
+
+describe("createFilesShareLink", () => {
+  it("checks sizes before creating the transfer, and refuses a parcel past the total cap", async () => {
+    mocked.getState.mockReturnValue({ recordLink: jest.fn() });
+    mocked.fileSize.mockResolvedValue(400 * 1024 * 1024); // three of these pass the 1 GB line
+
+    await expect(
+      createFilesShareLink({
+        title: "Stems",
+        kind: "clips",
+        files: [1, 2, 3].map((n) => ({ fileUri: `file:///c/${n}.wav`, fileName: `${n}.wav`, mimeType: "audio/wav" })),
+      })
+    ).rejects.toBeInstanceOf(TooLargeShareError);
+
+    expect(mocked.createTransfer).not.toHaveBeenCalled();
+    expect(mocked.registerAndUploadFile).not.toHaveBeenCalled();
+  });
+
+  it("uploads every file with its measured size and the declared kind", async () => {
+    const recordLink = jest.fn();
+    mocked.getState.mockReturnValue({ recordLink });
+    mocked.fileSize.mockResolvedValueOnce(10).mockResolvedValueOnce(20);
+
+    const record = await createFilesShareLink({
+      title: "Two takes",
+      kind: "clips",
+      files: [
+        { fileUri: "file:///c/a.wav", fileName: "a.wav", mimeType: "audio/wav" },
+        { fileUri: "file:///c/b.wav", fileName: "b.wav", mimeType: "audio/wav" },
+      ],
+    });
+
+    expect(mocked.createTransfer).toHaveBeenCalledWith(expect.objectContaining({ kind: "clips" }));
+    expect(mocked.registerAndUploadFile).toHaveBeenNthCalledWith(1, "t_ABC", "ut_SECRET", expect.objectContaining({ fileName: "a.wav", size: 10 }));
+    expect(mocked.registerAndUploadFile).toHaveBeenNthCalledWith(2, "t_ABC", "ut_SECRET", expect.objectContaining({ fileName: "b.wav", size: 20 }));
+    expect(record.itemCount).toBe(2);
+    expect(recordLink).toHaveBeenCalledTimes(1);
   });
 });

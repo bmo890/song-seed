@@ -137,6 +137,7 @@ import { AppAlert } from "./src/components/common/AppAlert";
 import { AppDialogHost } from "./src/components/common/AppDialog";
 import { AppErrorBoundary } from "./src/components/common/AppErrorBoundary";
 import { ToastHost } from "./src/components/common/ToastHost";
+import { SendLinkHost } from "./src/components/common/SendLinkSheet";
 import { ProUpsellHost } from "./src/components/common/ProUpsellSheet";
 import { WelcomeFlow } from "./src/components/common/WelcomeFlow";
 import { installGlobalCrashHandler } from "./src/services/crashLog";
@@ -1210,6 +1211,8 @@ function AppContent() {
         {/* Quiet confirmations — above the dock, below AppDialogHost (which mounts
             at the root, outside the navigator). */}
         <ToastHost />
+        {/* The SongNook Send sheet — one host, every "SongNook Send" row opens it. */}
+        <SendLinkHost />
       </NavigationContainer>
       <RestoreRestartGate />
       <WelcomeGate />

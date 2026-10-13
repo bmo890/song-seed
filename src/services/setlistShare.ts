@@ -4,8 +4,12 @@ import { createShareLink } from "./shareLink";
 import type { Setlist, Workspace } from "../types";
 
 /** Optional share-block overrides — set by the transfer-link path so the manifest
- *  carries the transferId (stamped at create) and the sender's name. */
-export type ShareArgsOverrides = { transferId?: string | null; senderName?: string | null };
+ *  carries the transferId (stamped at create), the sender's name and the parcel
+ *  title they typed (falls back to the entity's own title). */
+export type ShareArgsOverrides = { transferId?: string | null; senderName?: string | null; title?: string };
+
+/** What the Send sheet collects: the same three lines as the desktop page. */
+export type ShareLinkParcel = { title?: string; senderName?: string | null; message?: string | null };
 
 /** Builds the library-export args for a setlist share (selected clips + chosen
  *  charts per song, ordered, no version history). Returns null if nothing is
@@ -29,7 +33,7 @@ export function buildSetlistExportArgs(
     setlists: [built.setlist],
     share: {
       kind: "setlist",
-      title: setlist.title,
+      title: overrides?.title || setlist.title,
       sender: { name: overrides?.senderName ?? null, userId: null },
       transferId: overrides?.transferId ?? null,
       createdAt: Date.now(),
@@ -59,17 +63,14 @@ export async function shareSetlist(setlist: Setlist, workspaces: Workspace[]): P
 
 /** Uploads a setlist to SongNook Send and returns the hosted share link record.
  *  Throws EmptyShareError if nothing is exportable, SendTransferError on network. */
-export function createSetlistShareLink(
-  setlist: Setlist,
-  workspaces: Workspace[],
-  opts?: { senderName?: string | null }
-) {
+export function createSetlistShareLink(setlist: Setlist, workspaces: Workspace[], opts?: ShareLinkParcel) {
   return createShareLink({
-    title: setlist.title,
+    title: opts?.title || setlist.title,
     kind: "setlist",
     entityId: setlist.id,
     senderName: opts?.senderName,
+    message: opts?.message ?? undefined,
     buildArgs: (transferId) =>
-      buildSetlistExportArgs(setlist, workspaces, { transferId, senderName: opts?.senderName }),
+      buildSetlistExportArgs(setlist, workspaces, { transferId, senderName: opts?.senderName, title: opts?.title }),
   });
 }
