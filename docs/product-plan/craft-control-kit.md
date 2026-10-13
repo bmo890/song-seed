@@ -22,17 +22,21 @@ the work up cold. Read it top to bottom before touching anything.
   comment, motion only via `src/design/motion.ts`, copy budgets, canon
   components, `npx tsc --noEmit` and `npx jest` green, UI verified in the iOS
   simulator with screenshots.
-- PREVIEW CHANNEL RULE (2026-10-13): preview is shared with the SongNook Send
-  work (branch `ccr-5dfc9b11-j5yr58`, cut from main, no kit or reel). The
-  channel shows only its latest update, so publish preview from
-  `preview/craft-plus-send`, never from `craft/control-kit` directly, or Send
-  vanishes from the founder's phone:
-  `git checkout preview/craft-plus-send && git merge craft/control-kit`,
-  run `tsc` and `jest`, publish android (and ios if asked), then
-  `git checkout craft/control-kit`. Drop this rule when Send reaches main and
-  craft is rebased on it. `craft-lint` reports drift on the merge branch
-  (Send code predates the kit: at least one stock spinner); that is expected
-  there and gets cleaned when the two branches meet for real.
+- PREVIEW (updated 2026-10-13, later the same day): SongNook Send reached
+  main as PR #6, and main is merged into `craft/control-kit` (26283b7a), so
+  craft now CONTAINS Send. `preview/craft-plus-send` is kept as the branch the
+  preview channel is published from, because a remote session publishes from
+  it too; keep it equal to craft: `git checkout preview/craft-plus-send &&
+  git merge craft/control-kit`, `tsc` + `jest`, publish android and ios, then
+  back to craft. The Send worker is deployed with
+  `npx wrangler deploy --config wrangler.toml` from `server/songnook-send`
+  (never without `--config`); skip the deploy when `git diff <last deployed
+  commit> -- server` is empty.
+- Send's sheet (`SendLinkSheet.tsx`) is on Press and Spinner. Three menu rows
+  that arrived with Send (`SongHeaderMenu`, `CollectionHeaderMenu`,
+  `ReceivedScreen`) copy their unconverted neighbours and wait for the hand
+  pass with them; the baseline rose by exactly those three (pressable_raw
+  422 to 425, press_adhoc 250 to 253).
 - Do not touch: recording while backgrounded (`useRecording`), the reel
   (`PlaybackTapeVisualizer`, `AudioReel` internals), the practice loop and
   step-up engines, the background CPU work. The reel's loop handles are the

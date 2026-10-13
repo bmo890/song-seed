@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "./BottomSheet";
 import { Button } from "./Button";
+import { Press } from "./Press";
+import { Spinner } from "./Spinner";
 import { AppAlert } from "./AppAlert";
 import { toast } from "./toastStore";
 import { UserText, UserTextInput } from "../../i18n/direction";
@@ -12,7 +14,6 @@ import { SENDER_NAME_MAX, useSendPrefsStore } from "../../state/useSendPrefsStor
 import { describeShareLinkError } from "../../services/shareLinkFlow";
 import type { SentLink } from "../../domain/sentLinks";
 import { moveParcelItem, sortParcelItemsAz, type ParcelItem } from "../../domain/parcelOrder";
-import { styles } from "../../styles";
 import { haptic } from "../../design/haptics";
 import { colors, radii, spacing, text as textTokens } from "../../design/tokens";
 import { useTranslation } from "react-i18next";
@@ -158,18 +159,17 @@ function SendLinkSheet({ request }: { request: SendRequest }) {
               <>
                 <View style={local.orderHead}>
                   <Text style={local.label}>{t("sendSheet.orderLabel")}</Text>
-                  <Pressable
-                    onPress={() => {
-                      haptic.light();
-                      setItems((prev) => sortParcelItemsAz(prev));
-                    }}
+                  {/* Haptics (Press): `light` — the order changed, a small state flip. */}
+                  <Press
+                    feel="glyph"
+                    haptic="light"
+                    onPress={() => setItems((prev) => sortParcelItemsAz(prev))}
                     disabled={sealing}
                     hitSlop={8}
                     accessibilityRole="button"
-                    style={({ pressed }) => [pressed ? styles.pressDown : null]}
                   >
                     <Text style={local.sortLink}>{t("sendSheet.sortAz")}</Text>
-                  </Pressable>
+                  </Press>
                 </View>
                 <ScrollView style={local.orderList} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                   {items.map((item, index) => (
@@ -178,32 +178,29 @@ function SendLinkSheet({ request }: { request: SendRequest }) {
                       <UserText value={item.title} style={local.orderTitle} numberOfLines={1}>
                         {item.title}
                       </UserText>
-                      <Pressable
-                        onPress={() => {
-                          haptic.light();
-                          setItems((prev) => moveParcelItem(prev, index, index - 1));
-                        }}
+                      {/* Press dims a disabled key itself: no btnDisabled on top. */}
+                      <Press
+                        haptic="light"
+                        onPress={() => setItems((prev) => moveParcelItem(prev, index, index - 1))}
                         disabled={sealing || index === 0}
                         hitSlop={6}
                         accessibilityRole="button"
                         accessibilityLabel={t("sendSheet.moveUp", { title: item.title })}
-                        style={({ pressed }) => [local.nudge, index === 0 ? styles.btnDisabled : null, pressed ? styles.pressDown : null]}
+                        style={local.nudge}
                       >
                         <Ionicons name="chevron-up" size={15} color={colors.textStrong} />
-                      </Pressable>
-                      <Pressable
-                        onPress={() => {
-                          haptic.light();
-                          setItems((prev) => moveParcelItem(prev, index, index + 1));
-                        }}
+                      </Press>
+                      <Press
+                        haptic="light"
+                        onPress={() => setItems((prev) => moveParcelItem(prev, index, index + 1))}
                         disabled={sealing || index === items.length - 1}
                         hitSlop={6}
                         accessibilityRole="button"
                         accessibilityLabel={t("sendSheet.moveDown", { title: item.title })}
-                        style={({ pressed }) => [local.nudge, index === items.length - 1 ? styles.btnDisabled : null, pressed ? styles.pressDown : null]}
+                        style={local.nudge}
                       >
                         <Ionicons name="chevron-down" size={15} color={colors.textStrong} />
-                      </Pressable>
+                      </Press>
                     </View>
                   ))}
                 </ScrollView>
@@ -266,7 +263,7 @@ function SendLinkSheet({ request }: { request: SendRequest }) {
             </View>
             {sealing ? (
               <View style={local.sealingRow} pointerEvents="none">
-                <ActivityIndicator size="small" color={colors.primary} />
+                <Spinner size="small" color={colors.primary} />
               </View>
             ) : null}
           </>
