@@ -8,6 +8,9 @@ import { colors, radii, text } from "../../../design/tokens";
  * drag slider, nudge carets) are pinned LTR by the component so "left = earlier"
  * always agrees with the reel above; everything else mirrors normally.
  */
+/** Space between two Marks rows: the list's gap either side of the hairline. */
+const MARK_ROW_PITCH_GAP = 10 + 1 + 10;
+
 export const pd = StyleSheet.create({
   wrap: {
     gap: 10,
@@ -52,6 +55,42 @@ export const pd = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     borderRadius: radii.lg,
     backgroundColor: colors.surfaceHigh,
+  },
+  // A section and the pins inside it share one wash: only the group's outer
+  // corners are round, and each pin's wash reaches up over the gap and the
+  // hairline above it, so the block is unbroken.
+  markNowWashHead: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  markNowWashMid: {
+    borderRadius: 0,
+    top: -MARK_ROW_PITCH_GAP,
+  },
+  markNowWashTail: {
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    top: -MARK_ROW_PITCH_GAP,
+  },
+  // The rail that ties a section to its pins: one unbroken line from the
+  // section's row to the last pin inside it.
+  markGroupRail: {
+    position: "absolute",
+    left: 0,
+    top: -MARK_ROW_PITCH_GAP,
+    bottom: 0,
+    width: 2,
+  },
+  // Round only the rail's two ends, so the joins between rows are seamless.
+  markGroupRailHead: {
+    top: 10,
+    borderTopLeftRadius: 1,
+    borderTopRightRadius: 1,
+  },
+  markGroupRailTail: {
+    bottom: 10,
+    borderBottomLeftRadius: 1,
+    borderBottomRightRadius: 1,
   },
   markNameNow: {
     fontFamily: "PlusJakartaSans_700Bold",

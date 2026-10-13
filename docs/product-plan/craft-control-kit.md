@@ -529,6 +529,21 @@ FROM 00:08" with the guide parked there; back, then the sketch's record
 button opened a plain "Recording into" with no guide. NOT verified: an actual
 layer take from a punch point, the pin glyph on a phone, Android.
 
+**Pins inside a section are grouped with it (founder, 2026-10-13).** On a
+real song a pin at 1:16 inside Verse 1 (0:49 to 1:38) showed as "played"
+while Verse 1 was lit. Now (`markGroupPositions`, `markRowTimeline` in
+`domain/markPhase`, tested): a pin whose time falls in a section (start ≤ at <
+end) is a member of that section's group. The group shares ONE wash while the
+section plays, a member is never faded until the whole section has passed,
+and it only goes a weight up as the playhead reaches it. A 2 px rail in the
+section's own ink runs down the left from the section's row to its last pin
+(40% at rest, 20% once passed, full while playing); sections with no pins get
+no rail. Pins outside every section keep their own one-second clock. The list
+sort puts a section ahead of a pin on the same instant. The rail and wash
+bridge the 21 pt between rows (`MARK_ROW_PITCH_GAP`). Screenshot:
+`docs/product-plan/reel-lanes/marks-group.png`. NOT verified: a held (open)
+row in the middle of a group, where the rail and wash skip that row.
+
 ## State at handoff
 
 Branch `craft/control-kit`, pushed. Commits:
