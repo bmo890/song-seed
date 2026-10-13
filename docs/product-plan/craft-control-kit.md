@@ -260,11 +260,12 @@ Branch `craft/control-kit`, pushed. Commits:
 | 1388c70e | Plan note: reel loop handles set aside |
 | 5e409548 | This handoff doc |
 | 11fa41c9 | Switch and Stepper, under every switch and the mark carets |
-| (next) | craft-lint script and baseline, dead switch styles removed |
+| 5f22d1de | craft-lint script and baseline, dead switch styles removed |
+| d74e0ee4 | Migrate: speed and pitch dials, metronome sliders (baseline tightened) |
 
 Preview android updates from this branch: 2e84979d, 967db10b (Slider and
-tick), 1d4b44f2 (Switch and Stepper). `tsc` clean, jest 135 suites / 1208
-tests at 11fa41c9.
+tick), 1d4b44f2 (Switch and Stepper), b3a12472 (dials). `tsc` clean, jest
+135 suites / 1208 tests at 11fa41c9; `npm run lint:craft` clean at d74e0ee4.
 
 Founder, 2026-10-13, after Slider and Press: "Feels good." Also: "the design
 of the whole loop options component is still not there 100%". That is move

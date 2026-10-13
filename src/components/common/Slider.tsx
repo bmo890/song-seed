@@ -16,7 +16,7 @@ import { durations, springs } from "../../design/motion";
 /**
  * The app's slider — a drawn track and thumb in place of the platform widget.
  *
- * Why not `@react-native-community/slider`: its thumb is the system's, it cannot
+ * Why not the community slider package: its thumb is the system's, it cannot
  * tick, and it sat under every mark, loop, speed and tempo control looking like
  * a form field. This one is the same object everywhere: a hairline track, a
  * paper thumb that lifts under the finger, and a detent you can feel.
