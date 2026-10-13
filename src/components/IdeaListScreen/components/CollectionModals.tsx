@@ -29,9 +29,9 @@ export function CollectionModals() {
         onClose={() => management.setShareSheetOpen(false)}
         actions={[
           {
-            key: "share-file",
+            key: "export",
             label: t("collection.shareFile"),
-            icon: "share-outline",
+            icon: "folder-open-outline",
             onPress: () => void management.shareCurrentCollectionFile(),
           },
           ...(SHOW_GET_LINK

@@ -249,6 +249,18 @@ Sending (app → link):
   opens the OS sheet; **Done** closes. Recipient page shows the From name and the note.
   **[HUMAN — network]**
 - iOS ☐  Android ☐ — Second parcel: From is prefilled with the remembered name. **[HUMAN]**
+- iOS ☐  Android ☐ — Clip selection → Share… → SongNook Send with 3 clips: the sheet lists
+  them numbered; nudge one down, tap **Sort A–Z**; the recipient page lists them in the
+  sheet's final order. A setlist/playlist parcel shows no list. **[HUMAN]**
+- iOS ☐  Android ☐ — Every Share… sub-sheet reads **Export · SongNook Send** (chart book adds
+  *Share as text*); Export on Android opens the folder picker, on iOS the share sheet.
+  Nothing in the app calls that action "Share". **[HUMAN]**
+- iOS ☐  Android ☐ — Collection → select 3 → ⋯ → **Playlist…** → the chooser lists 3 items;
+  *New playlist…* asks for a name (prefilled "Playlist N") → Create → lands on that
+  playlist with the 3 items. An existing playlist → "Added to …" toast with *Open playlist*.
+  **[AUTO-able]**
+- iOS ☐  Android ☐ — Queue → **Playlist…** (was "Save") → same chooser; a new playlist asks
+  for its name and opens, in queue order. **[HUMAN]**
 - iOS ☐  Android ☐ — Songbook detail → menu → **Share…** holds *Share as file · SongNook
   Send · Share as text*; back chevron returns to the menu. **[HUMAN]**
 - iOS ☐  Android ☐ — Clip selection bar → **Share…** → **SongNook Send** with 1 and with 3

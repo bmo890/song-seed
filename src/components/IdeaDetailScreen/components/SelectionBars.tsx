@@ -7,6 +7,7 @@ import { appActions } from "../../../state/actions";
 import { shareAudioClips, buildTimestampSlug } from "../../../services/audioStorage";
 import { createClipsShareLink } from "../../../services/clipShareLink";
 import { openSendSheet } from "../../../state/useSendSheetStore";
+import { orderByKeys } from "../../../domain/parcelOrder";
 import { isSendServiceConfigured } from "../../../config/sendService";
 import { SONG_NOOK_AUDIO_DIR } from "../../../services/storagePaths";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
@@ -125,13 +126,20 @@ export function SelectionBars() {
   function handleGetLinkSelected() {
     if (shareableClips.length === 0 || isSharing) return;
     const label = selectedIdea ? t("songDetail.clipsLabel", { title: selectedIdea.title }) : t("songDetail.appClipsLabel");
-    const clips = shareableClips;
-    // The SongNook Send sheet takes it from here: title, from, note, seal.
+    // Keyed by position: two takes may share a title, and a key must never drop one.
+    const clips = shareableClips.map((clip, index) => ({ key: String(index), clip }));
+    // The SongNook Send sheet takes it from here: order, title, from, note, seal.
     openSendSheet({
       title: label,
       kind: "clips",
       emptyMessage: t("songDetail.selectAudioFirst"),
-      create: (parcel) => createClipsShareLink(clips, label, parcel),
+      items: clips.map(({ key, clip }) => ({ key, title: clip.title })),
+      create: (parcel) =>
+        createClipsShareLink(
+          orderByKeys(clips, parcel.order, (entry) => entry.key).map((entry) => entry.clip),
+          label,
+          parcel
+        ),
     });
   }
 

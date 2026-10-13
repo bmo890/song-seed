@@ -175,9 +175,9 @@ export function useWorkspaceListScreenModel() {
     const target = shareSheetWorkspace;
     const rows: SelectionAction[] = [
       {
-        key: "share-file",
+        key: "export",
         label: t("workspaceList.shareFile"),
-        icon: "share-outline",
+        icon: "folder-open-outline",
         disabled: sharingWorkspaceId != null,
         onPress: () => void shareWorkspaceAsFile(target),
       },

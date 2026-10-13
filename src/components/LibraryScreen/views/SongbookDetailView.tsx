@@ -310,7 +310,7 @@ export function SongbookDetailView({
         onBack={() => setMenuVisible(true)}
         actions={[
           ...(onShareFile
-            ? [{ key: "share-file", label: t("library.shareFile"), icon: "share-outline" as const, onPress: onShareFile }]
+            ? [{ key: "export", label: t("library.shareFile"), icon: "folder-open-outline" as const, onPress: onShareFile }]
             : []),
           ...(onGetLink
             ? [{ key: "songnook-send", label: t("library.getLink"), icon: "paper-plane-outline" as const, onPress: onGetLink }]

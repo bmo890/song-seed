@@ -34,7 +34,9 @@ Worker secrets — **never put any credential in app code**.
   failure. (The toast-driven `presentShareLink` was retired 2026-10-13 for the Send
   sheet: `src/components/common/SendLinkSheet.tsx` + `useSendSheetStore` /
   `useSendPrefsStore` — title, remembered From name, note, seal, link with Copy/Share.
-  Every "SongNook Send" row — the former "Get a link" — opens it.)
+  Every "SongNook Send" row — the former "Get a link" — opens it. Loose-clip parcels
+  can be reordered in the sheet (nudges + Sort A–Z) like the desktop page; the file
+  action is called **Export** app-wide.)
 - `src/services/clipShareLink.ts` — clips → files-link.
 - `src/services/placeShare.ts` (2026-10-13) — a **collection** or a **whole workspace**
   as a file or a link, full fidelity, nested collections kept, compilations inside the

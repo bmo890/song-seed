@@ -7,6 +7,7 @@
  */
 import { create } from "zustand";
 import type { SentLink } from "../domain/sentLinks";
+import type { ParcelItem } from "../domain/parcelOrder";
 import type { ShareKind } from "../types";
 
 /** What the sender typed on the sheet — the same three lines as the desktop page. */
@@ -14,6 +15,9 @@ export type SendParcel = {
   title: string;
   senderName: string | null;
   message: string | null;
+  /** The items' keys in the order the sender chose (only when the request
+   *  listed items). The creator applies it with orderByKeys. */
+  order?: string[];
 };
 
 export type SendRequest = {
@@ -22,6 +26,10 @@ export type SendRequest = {
   kind: ShareKind;
   /** Shown when there was nothing to send (EmptyShareError). */
   emptyMessage: string;
+  /** Loose items (clips) the sender may reorder before sealing — the desktop
+   *  page's drag-to-reorder and Sort A→Z. A compilation keeps its own order
+   *  and a place has none, so those requests list nothing. */
+  items?: ParcelItem[];
   /** Builds, uploads and finalizes; throws EmptyShareError / TooLargeShareError /
    *  SendTransferError. The transferId is minted inside. */
   create: (parcel: SendParcel) => Promise<SentLink>;
@@ -29,13 +37,16 @@ export type SendRequest = {
 
 type SendSheetStore = {
   request: SendRequest | null;
+  /** Bumps per open so the host mounts a fresh sheet even for the same parcel twice. */
+  seq: number;
   open: (request: SendRequest) => void;
   close: () => void;
 };
 
 export const useSendSheetStore = create<SendSheetStore>((set) => ({
   request: null,
-  open: (request) => set({ request }),
+  seq: 0,
+  open: (request) => set((state) => ({ request, seq: state.seq + 1 })),
   close: () => set({ request: null }),
 }));
 

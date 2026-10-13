@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Share, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "./BottomSheet";
@@ -11,6 +11,8 @@ import { useSendSheetStore, type SendRequest } from "../../state/useSendSheetSto
 import { SENDER_NAME_MAX, useSendPrefsStore } from "../../state/useSendPrefsStore";
 import { describeShareLinkError } from "../../services/shareLinkFlow";
 import type { SentLink } from "../../domain/sentLinks";
+import { moveParcelItem, sortParcelItemsAz, type ParcelItem } from "../../domain/parcelOrder";
+import { styles } from "../../styles";
 import { haptic } from "../../design/haptics";
 import { colors, radii, spacing, text as textTokens } from "../../design/tokens";
 import { useTranslation } from "react-i18next";
@@ -33,9 +35,10 @@ function daysUntil(expiresAt: number): number {
  */
 export function SendLinkHost() {
   const request = useSendSheetStore((s) => s.request);
+  const seq = useSendSheetStore((s) => s.seq);
   if (!request) return null;
-  // Keyed by request so a new parcel always starts from a fresh form.
-  return <SendLinkSheet key={request.title + request.kind} request={request} />;
+  // Keyed per open so a new parcel always starts from a fresh form.
+  return <SendLinkSheet key={seq} request={request} />;
 }
 
 function SendLinkSheet({ request }: { request: SendRequest }) {
@@ -47,6 +50,7 @@ function SendLinkSheet({ request }: { request: SendRequest }) {
   const [title, setTitle] = useState(request.title);
   const [from, setFrom] = useState(rememberedName);
   const [message, setMessage] = useState("");
+  const [items, setItems] = useState<ParcelItem[]>(request.items ?? []);
   const [phase, setPhase] = useState<Phase>({ kind: "form" });
   const [visible, setVisible] = useState(true);
 
@@ -77,6 +81,7 @@ function SendLinkSheet({ request }: { request: SendRequest }) {
         title: parcelTitle,
         senderName,
         message: message.trim().slice(0, MESSAGE_MAX) || null,
+        order: items.length > 0 ? items.map((item) => item.key) : undefined,
       });
       await Clipboard.setStringAsync(link.shareUrl).catch(() => {});
       setPhase({ kind: "done", link });
@@ -147,6 +152,63 @@ function SendLinkSheet({ request }: { request: SendRequest }) {
           </View>
         ) : (
           <>
+            {items.length > 1 ? (
+              // The parcel's running order: the receiver gets the clips in this
+              // order, so it is decided here, not by how they were tapped.
+              <>
+                <View style={local.orderHead}>
+                  <Text style={local.label}>{t("sendSheet.orderLabel")}</Text>
+                  <Pressable
+                    onPress={() => {
+                      haptic.light();
+                      setItems((prev) => sortParcelItemsAz(prev));
+                    }}
+                    disabled={sealing}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    style={({ pressed }) => [pressed ? styles.pressDown : null]}
+                  >
+                    <Text style={local.sortLink}>{t("sendSheet.sortAz")}</Text>
+                  </Pressable>
+                </View>
+                <ScrollView style={local.orderList} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                  {items.map((item, index) => (
+                    <View key={item.key} style={local.orderRow}>
+                      <Text style={local.orderIndex}>{index + 1}</Text>
+                      <UserText value={item.title} style={local.orderTitle} numberOfLines={1}>
+                        {item.title}
+                      </UserText>
+                      <Pressable
+                        onPress={() => {
+                          haptic.light();
+                          setItems((prev) => moveParcelItem(prev, index, index - 1));
+                        }}
+                        disabled={sealing || index === 0}
+                        hitSlop={6}
+                        accessibilityRole="button"
+                        accessibilityLabel={t("sendSheet.moveUp", { title: item.title })}
+                        style={({ pressed }) => [local.nudge, index === 0 ? styles.btnDisabled : null, pressed ? styles.pressDown : null]}
+                      >
+                        <Ionicons name="chevron-up" size={15} color={colors.textStrong} />
+                      </Pressable>
+                      <Pressable
+                        onPress={() => {
+                          haptic.light();
+                          setItems((prev) => moveParcelItem(prev, index, index + 1));
+                        }}
+                        disabled={sealing || index === items.length - 1}
+                        hitSlop={6}
+                        accessibilityRole="button"
+                        accessibilityLabel={t("sendSheet.moveDown", { title: item.title })}
+                        style={({ pressed }) => [local.nudge, index === items.length - 1 ? styles.btnDisabled : null, pressed ? styles.pressDown : null]}
+                      >
+                        <Ionicons name="chevron-down" size={15} color={colors.textStrong} />
+                      </Pressable>
+                    </View>
+                  ))}
+                </ScrollView>
+              </>
+            ) : null}
             <Text style={local.label}>{t("sendSheet.titleLabel")}</Text>
             <UserTextInput
               testID="send-title"
@@ -254,6 +316,45 @@ const local = StyleSheet.create({
     minHeight: 72,
     maxHeight: 160,
     textAlignVertical: "top",
+  },
+  orderHead: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  sortLink: {
+    ...textTokens.caption,
+    color: colors.primaryDeep,
+  },
+  orderList: {
+    maxHeight: 176,
+    marginTop: 2,
+  },
+  orderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingVertical: 6,
+  },
+  orderIndex: {
+    ...textTokens.caption,
+    color: colors.textMuted,
+    width: 18,
+    textAlign: "right",
+    fontVariant: ["tabular-nums"],
+  },
+  orderTitle: {
+    ...textTokens.body,
+    flex: 1,
+    minWidth: 0,
+  },
+  nudge: {
+    width: 30,
+    height: 30,
+    borderRadius: radii.round,
+    backgroundColor: colors.surfaceContainer,
+    alignItems: "center",
+    justifyContent: "center",
   },
   hint: {
     ...textTokens.supporting,

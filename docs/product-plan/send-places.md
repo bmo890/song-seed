@@ -120,6 +120,30 @@ The From name answers the earlier "Someone" question for in-app links: the
 sender types it once and every later parcel carries it (still `userId: null`
 until accounts).
 
+### Ordering, Export, and two fixes (2026-10-13, founder pass)
+
+- **Ordering on the phone.** The desktop page lets a sender drag the rows and
+  Sort A→Z before sealing. The Send sheet now carries the same two tools for a
+  parcel of loose clips: the list above the title, numbered, with up/down
+  nudges per row and a quiet *Sort A–Z* ink link; the clips upload in that
+  order and the receiver gets them in it. A setlist or playlist keeps its own
+  order (reorder it on its page); a collection or workspace has none.
+- **Export, not Share, for the file.** The row that writes a `.songnook` to the
+  phone (a folder picker on Android, the share sheet on iOS) was called "Share
+  as file" and read as a second share. It is **Export** now, with a folder
+  glyph, everywhere it appears: setlist, playlist, chart book, collection,
+  workspace. The *Share…* umbrella stays, holding Export · SongNook Send
+  (· Share as text). Settings already said Export.
+- **Fix: "Playlist…" from a collection selection filed nothing.** The
+  selection sheet ends the selection after every row except the ones that
+  open another sheet, and the playlist row was missing from that list — the
+  chooser opened with an empty selection and did nothing. Added to the list.
+- **The queue's "Save" is "Playlist…"**, the same door as everywhere else, and
+  a **new playlist asks for its name** (prefilled "Playlist N") and then opens
+  the playlist page — you made a thing, you land on it. Adding to an existing
+  playlist keeps the toast with *Open playlist*. The chooser snapshots its
+  items at open, so an ending selection can never empty it again.
+
 ## Edge cases accounted for
 
 | Edge | Behaviour |

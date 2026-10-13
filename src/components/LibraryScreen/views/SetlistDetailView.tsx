@@ -320,7 +320,7 @@ export function SetlistDetailView({
         onClose={() => setShareMenuVisible(false)}
         onBack={() => setMenuVisible(true)}
         actions={[
-          { key: "share-file", label: t("library.shareFile"), icon: "share-outline", onPress: onShare },
+          { key: "export", label: t("library.shareFile"), icon: "folder-open-outline", onPress: onShare },
           ...(onGetLink
             ? [{ key: "songnook-send", label: t("library.getLink"), icon: "paper-plane-outline" as const, onPress: onGetLink }]
             : []),
