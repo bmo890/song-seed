@@ -275,6 +275,55 @@ Gotchas that cost time on 2026-10-13:
   card → sketch page → primary take play → full player → Tools → Marks / Loop
   / Sound. A pin cannot be added at a clip's end; skip back first.
 
+## The reel in lanes (2026-10-13, founder's priority 1)
+
+Founder, on a screenshot of a zoomed-out practice reel: crowded and cluttered;
+pins look like a standard component; text in pins and sections clunky and off
+brand; colours too similar, hard to tell the playhead, worst in the minimap.
+After the proposal: "Go ahead and do it all", thinner and more hairline,
+especially the pins, and unsure about the flag shape.
+
+Diagnosis: five roles in one terracotta family; seven full-height lines of
+similar weight; labels as filled boxes laid over the audio.
+
+Built, default ON, with a comparison switch (Settings, General, Interaction,
+"Classic reel"; store pref `classicReel`, default false):
+
+| Thing | Lanes look |
+|---|---|
+| Pin | A 2 pt head on a 1 px stem at 40% ink, name beside the head in plain ink (Jakarta 500, 10.5). No badge. Names take the top row, stagger DOWN to a second, then give way; a pin with no name drawn keeps its head in a strip above the wave. A note shows as a small trailing dot. |
+| Section | A 2 px rule along the reel's bottom edge in the section's ink, name in the same ink sitting on it. No wash over the audio. |
+| Loop | 12% terracotta wash, 1 px edges, 5×22 grips centred on the wave. Move bar below is a 28×4 terracotta bar. |
+| Playhead | 2 px record-red line under a 9×6 cap. The only red. |
+| Wave | Played half goes neutral (`textSecondary`), so terracotta means the loop only. Inset between the lanes. |
+| Minimap | Silhouette, a neutral lens for the window, pins as 5 px ticks, sections as a bottom rule, playhead 2 px with a round cap, drawn above the lens. |
+
+Where: geometry in `src/domain/reelLanes.ts` (tested, 11 cases); drawing in
+`PlaybackTapeVisualizer.tsx` (`lanes`, `laneDensity`, `theme.markInk`,
+`theme.loopInk`; overlays `PinLaneOverlay`, `SectionRuleOverlay`);
+`MinimapVisualizer.tsx` (`lanes`); palettes and the switch in `AudioReel.tsx`;
+hitboxes in `PracticePinBadges.tsx` laid out from the same geometry;
+`PlayerTimeline.tsx` raises the practice reel from 128 to 146 with lanes.
+
+Not touched: the position feed, gestures, the loop engine, recording. The
+classic drawing is intact behind the switch; delete it and the pref once the
+founder has lived with lanes.
+
+Verified in the simulator on a seeded clip (six pins incl. Hebrew, three
+sections, a loop): player and practice views; a tap on a pin's name seeks to
+that pin. NOT verified: dragging a pin (the mid-drag twin), the classic switch
+flipped back, the clip editor and the overdub guide (they share the reel and
+now draw lanes too), the dark palette, RTL, the reading-slim reel, Android.
+
+Dropped from the proposal: "the held pin and the one nearest the playhead
+always keep their names". The reel does not know which mark is held, and
+re-laying names out as the playhead moves would re-render the canvas during
+playback. Names are placed first-come by time.
+
+Open with the founder: the head shape (now a dot; the flag was disliked),
+whether the practice reel's extra 18 pt is welcome, pin names running under
+the expand button at the reel's top-right.
+
 ## State at handoff
 
 Branch `craft/control-kit`, pushed. Commits:

@@ -126,6 +126,9 @@ export type DataSlice = {
     backupReminderFrequency: BackupReminderFrequency;
     /** Master switch for UI haptic feedback (src/design/haptics.ts). */
     hapticsEnabled: boolean;
+    /** Draw the reel the way it was before the 2026-10-13 lanes redesign. A
+     *  comparison switch while the new reel settles; remove it with the old drawing. */
+    classicReel: boolean;
     /** When true, saving a recording asks for a name; when false it auto-names from the suggestion. */
     promptForClipName: boolean;
     /** Language the sparkle "surprise me" name generator draws from. "auto" (the
@@ -225,6 +228,7 @@ export type DataSlice = {
     deleteMagpieSpark: (id: string) => void;
     setBackupReminderFrequency: (value: BackupReminderFrequency) => void;
     setHapticsEnabled: (value: boolean) => void;
+    setClassicReel: (value: boolean) => void;
     setPromptForClipName: (value: boolean) => void;
     setNameLanguage: (value: "auto" | "en" | "he") => void;
     setHasSeenWelcome: (value: boolean) => void;
@@ -1463,6 +1467,7 @@ export const createDataSlice: StateCreator<
     magpieSparks: [],
     backupReminderFrequency: "monthly",
     hapticsEnabled: true,
+    classicReel: false,
     promptForClipName: true,
     nameLanguage: "auto",
     hasSeenWelcome: false,
@@ -1733,6 +1738,7 @@ export const createDataSlice: StateCreator<
         set((state) => ({ magpieSparks: state.magpieSparks.filter((spark) => spark.id !== id) })),
     setBackupReminderFrequency: (value) => set({ backupReminderFrequency: value }),
     setHapticsEnabled: (value) => set({ hapticsEnabled: value }),
+    setClassicReel: (value) => set({ classicReel: value }),
     setPromptForClipName: (value) => set({ promptForClipName: value }),
     setNameLanguage: (value) =>
         set({ nameLanguage: value === "he" ? "he" : value === "en" ? "en" : "auto" }),

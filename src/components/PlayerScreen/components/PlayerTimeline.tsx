@@ -12,6 +12,7 @@ import type { PracticeMarker, ClipSection, RecordingGrid } from "../../../types"
 import { buildSectionBands } from "../../../domain/playerSections";
 import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
+import { useStore } from "../../../state/useStore";
 
 type Range = {
   id: string;
@@ -106,6 +107,9 @@ const sectionJumpStyles = StyleSheet.create({
   },
 });
 
+/** With lanes the marks have rooms of their own above and below the wave, so the
+ *  practice reel gets a little more height to keep the wave itself legible. */
+const LANES_PRACTICE_REEL_HEIGHT = 146;
 const LOOP_MOVE_PILL_WIDTH = 34;
 const LOOP_MOVE_PILL_HEIGHT = 10;
 const LOOP_MOVE_HITBOX_WIDTH = 52;
@@ -210,6 +214,7 @@ function LoopMoveHandle({
   sharedPreviewEndMs,
   onLoopRangeChange,
   onScrubStateChange,
+  quiet = false,
 }: {
   range: Range;
   durationMs: number;
@@ -220,6 +225,8 @@ function LoopMoveHandle({
   sharedPreviewEndMs: SharedValue<number>;
   onLoopRangeChange: (start: number, end: number) => void;
   onScrubStateChange: (scrubbing: boolean) => void;
+  /** Lanes look: a slim terracotta bar, no shadow and no inner grip. */
+  quiet?: boolean;
 }) {
   const dragStartStartMs = useSharedValue(range.start);
   const dragStartEndMs = useSharedValue(range.end);
@@ -286,8 +293,10 @@ function LoopMoveHandle({
     <View style={timelineStyles.loopMoveRow} pointerEvents="box-none">
       <GestureDetector gesture={panGesture}>
         <Animated.View style={[timelineStyles.loopMoveHitbox, handleStyle]}>
-          <Animated.View style={[timelineStyles.loopMovePill, pillStyle]}>
-            <View style={timelineStyles.loopMoveGrip} />
+          <Animated.View
+            style={[quiet ? timelineStyles.loopMoveBar : timelineStyles.loopMovePill, pillStyle]}
+          >
+            {quiet ? null : <View style={timelineStyles.loopMoveGrip} />}
           </Animated.View>
         </Animated.View>
       </GestureDetector>
@@ -339,6 +348,8 @@ function PlayerTimelineInner({
   practiceZoomMultiple,
   onPracticeZoomMultipleChange,
 }: Props) {
+  // Lanes are the reel's default look; the hitboxes below follow the same geometry.
+  const lanes = !useStore((state) => state.classicReel);
   const previewRange = practiceLoopSelection[0];
   const sharedLoopPreviewStartMs = useSharedValue(previewRange?.start ?? 0);
   const sharedLoopPreviewEndMs = useSharedValue(previewRange?.end ?? Math.max(1000, durationMs));
@@ -394,7 +405,7 @@ function PlayerTimelineInner({
       // are open to leave room for the practice console; slimmest while an artifact is
       // open for reading — the tape stays a live instrument, it just pays rent.
       collapsedHeightOverride={
-        readingSlim ? 64 : reelExpanded ? 250 : mode !== "player" ? 128 : 184
+        readingSlim ? 64 : reelExpanded ? 250 : mode !== "player" ? (lanes ? LANES_PRACTICE_REEL_HEIGHT : 128) : 184
       }
       // Practice mode is controlled (parent owns the zoom). The normal player runs
       // UNCONTROLLED so the zoom buttons work and the duration-aware follow-window
@@ -466,6 +477,9 @@ function PlayerTimelineInner({
                 draggingMarkerId={draggingMarkerId}
                 draggingMarkerX={draggingMarkerX}
                 editable={mode === "practice"}
+                lanes={lanes}
+                labelScale={scale}
+                laneDensity={readingSlim ? "slim" : "full"}
               />
             </>
           ) : null}
@@ -498,6 +512,7 @@ function PlayerTimelineInner({
               sharedPreviewEndMs={sharedLoopPreviewEndMs}
               onLoopRangeChange={onLoopRangeChange}
               onScrubStateChange={onScrubStateChange}
+              quiet={lanes}
             />
           ) : null}
         </>
@@ -540,6 +555,12 @@ const timelineStyles = StyleSheet.create({
     shadowOpacity: 0.16,
     shadowRadius: 2,
     elevation: 2,
+  },
+  loopMoveBar: {
+    width: 28,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.primary,
   },
   loopMoveGrip: {
     width: 12,

@@ -4,7 +4,7 @@ import { Canvas, Path, Rect as SkiaRect, Skia } from "@shopify/react-native-skia
 import Animated, { useAnimatedStyle, SharedValue, useDerivedValue, runOnJS, useSharedValue } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import type { PracticeMarker } from "../../types";
-import type { SectionBand } from "../../domain/playerSections";
+import { hexToRgba, type SectionBand } from "../../domain/playerSections";
 import { colors } from "../../design/tokens";
 
 type Props = {
@@ -29,6 +29,10 @@ type Props = {
     /** Half-height variant for the reading state's slim reel — the map stays a
      *  navigator without out-weighing the tape it serves. */
     compact?: boolean;
+    /** The lanes look (2026-10-13): the map shows the silhouette, a neutral lens for
+     *  the visible window, and a playhead that is the only red — marks shrink to
+     *  ticks and rules so the head is never lost among them. */
+    lanes?: boolean;
 };
 
 export function MinimapVisualizer({
@@ -51,6 +55,7 @@ export function MinimapVisualizer({
     chrome = "dark",
     interactive = true,
     compact = false,
+    lanes = false,
 }: Props) {
     const [containerWidth, setContainerWidth] = useState(0);
     const containerHeight = compact ? 20 : 40; // Fixed height minimap (halved in compact)
@@ -97,7 +102,7 @@ export function MinimapVisualizer({
         return { wavePath: wave, barCount: numBars };
     }, [waveformPeaks, containerWidth]);
 
-    const palette = chrome === "light"
+    const classicPalette = chrome === "light"
         ? {
             backgroundColor: colors.surfaceHigh,
             waveColor: "#C7B9AF",
@@ -116,6 +121,17 @@ export function MinimapVisualizer({
             keepFill: "rgba(216, 154, 133, 0.32)",
             removeFill: "rgba(200, 120, 100, 0.40)",
         };
+    const palette =
+        lanes && chrome === "light"
+            ? {
+                ...classicPalette,
+                // A lens, not a tint: the window brightens the stretch you are looking at.
+                windowFill: hexToRgba(colors.surface, 0.62),
+                windowBorder: colors.textMuted,
+                keepFill: hexToRgba(colors.primary, 0.2),
+                removeFill: hexToRgba(colors.danger, 0.2),
+            }
+            : classicPalette;
 
     const rangeRects = useMemo(() => {
         if (
@@ -270,26 +286,48 @@ export function MinimapVisualizer({
                     <View style={StyleSheet.absoluteFill}>
                         <Canvas style={{ flex: 1 }}>
                             {/* Section bands sit lowest; the loop range and waveform draw over them. */}
-                            {sectionRects.map(sec => (
-                                <React.Fragment key={sec.id}>
-                                    <SkiaRect x={sec.x} y={0} width={sec.w} height={containerHeight} color={sec.fill} />
-                                    <SkiaRect x={sec.x} y={0} width={Math.min(2, sec.w)} height={containerHeight} color={sec.rail} />
-                                </React.Fragment>
-                            ))}
+                            {sectionRects.map(sec =>
+                                lanes ? (
+                                    <SkiaRect
+                                        key={sec.id}
+                                        x={sec.x}
+                                        y={containerHeight - 2}
+                                        width={Math.max(1, sec.w - 1)}
+                                        height={2}
+                                        color={sec.rail}
+                                    />
+                                ) : (
+                                    <React.Fragment key={sec.id}>
+                                        <SkiaRect x={sec.x} y={0} width={sec.w} height={containerHeight} color={sec.fill} />
+                                        <SkiaRect x={sec.x} y={0} width={Math.min(2, sec.w)} height={containerHeight} color={sec.rail} />
+                                    </React.Fragment>
+                                )
+                            )}
                             {rangeRects.map(r => (
                                 <SkiaRect key={r.id} x={r.x} y={0} width={r.w} height={containerHeight} color={r.fill} />
                             ))}
                             <Path path={wavePath} color={palette.waveColor} style="stroke" strokeWidth={Math.max(1, containerWidth / barCount * 0.7)} strokeCap="round" />
-                            {practiceMarkers?.map((marker) => (
-                                <SkiaRect
-                                    key={marker.id}
-                                    x={(marker.atMs / durationMs) * containerWidth}
-                                    y={6}
-                                    width={2}
-                                    height={containerHeight - 12}
-                                    color="rgba(139, 79, 59, 0.9)"
-                                />
-                            ))}
+                            {practiceMarkers?.map((marker) =>
+                                lanes ? (
+                                    <SkiaRect
+                                        key={marker.id}
+                                        x={(marker.atMs / durationMs) * containerWidth}
+                                        y={2}
+                                        width={1}
+                                        height={5}
+                                        color={colors.textStrong}
+                                    />
+                                ) : (
+                                    <SkiaRect
+                                        key={marker.id}
+                                        x={(marker.atMs / durationMs) * containerWidth}
+                                        y={6}
+                                        width={2}
+                                        height={containerHeight - 12}
+                                        color="rgba(139, 79, 59, 0.9)"
+                                    />
+                                )
+                            )}
                         </Canvas>
 
                         {sharedSelectedRangeStartMs && sharedSelectedRangeEndMs && selectedRangeType ? (
@@ -302,11 +340,24 @@ export function MinimapVisualizer({
                             />
                         ) : null}
 
-                        {/* Playhead indicator */}
-                        <Animated.View style={[styles.playhead, playheadStyle, { backgroundColor: palette.playheadColor }]} />
-
-                        {/* Visible window indicator */}
+                        {/* Visible window indicator. Under the playhead: the head must
+                            never sit behind the lens that frames it. */}
                         <Animated.View style={[styles.windowOverlay, overlayStyle]} pointerEvents="none" />
+
+                        {/* Playhead indicator */}
+                        <Animated.View
+                            style={[
+                                styles.playhead,
+                                lanes ? styles.playheadLanes : null,
+                                playheadStyle,
+                                { backgroundColor: palette.playheadColor },
+                            ]}
+                            pointerEvents="none"
+                        >
+                            {lanes ? (
+                                <View style={[styles.playheadCap, { backgroundColor: palette.playheadColor }]} />
+                            ) : null}
+                        </Animated.View>
                     </View>
                 </GestureDetector>
             )}
@@ -330,6 +381,18 @@ const styles = StyleSheet.create({
         bottom: 0,
         width: 1,
         backgroundColor: colors.playhead,
+    },
+    playheadLanes: {
+        width: 2,
+        marginLeft: -1,
+    },
+    playheadCap: {
+        position: "absolute",
+        top: 0,
+        left: -2.5,
+        width: 7,
+        height: 7,
+        borderRadius: 3.5,
     },
     windowOverlay: {
         position: "absolute",

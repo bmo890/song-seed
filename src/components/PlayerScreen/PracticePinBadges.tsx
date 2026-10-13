@@ -19,6 +19,30 @@ import {
   PIN_BADGE_HEIGHT,
   PIN_EDGE_GUARD_PX,
 } from "../../domain/practicePinLayout";
+import {
+  PIN_HEAD_RADIUS,
+  PIN_NAME_FONT_SIZE,
+  PIN_NAME_GAP,
+  layoutPinLane,
+  pinHeadY,
+  pinLaneHeight,
+  pinLaneRowCount,
+  type ReelLaneDensity,
+} from "../../domain/reelLanes";
+
+/** Lanes: the touch target around a pin's head and name. Taller than the row it
+ *  sits in, since the thing being grabbed is now a hairline, not a badge. */
+const LANE_HIT_HEIGHT = 24;
+/** Head centre to the hitbox's near edge. */
+const LANE_HIT_HEAD_PAD = PIN_HEAD_RADIUS + 5;
+const LANE_HIT_BARE_WIDTH = 28;
+
+type LanePlacement = {
+  row: number;
+  anchor: "start" | "end";
+  nameWidth: number;
+  laneHeight: number;
+};
 
 const PIN_LIFT_SPRING = { damping: 20, stiffness: 300 };
 
@@ -37,11 +61,18 @@ type Props = {
   /** Practice owns pin editing. When false (plain player), a pin is a jump
    *  target only: tap seeks, no drag, no actions sheet. */
   editable?: boolean;
+  /** The reel draws its marks in lanes (domain/reelLanes): lay the hitboxes out
+   *  from the same geometry. */
+  lanes?: boolean;
+  /** The reel's label scale, so rows here match the rows the canvas drew. */
+  labelScale?: number;
+  laneDensity?: ReelLaneDensity;
 };
 
 function PinBadge({
   marker,
   row,
+  lane,
   pixelsPerMs,
   timelineTranslateX,
   timelineScale,
@@ -56,6 +87,7 @@ function PinBadge({
 }: {
   marker: PracticeMarker;
   row: number;
+  lane?: LanePlacement;
   pixelsPerMs: number;
   timelineTranslateX: SharedValue<number>;
   timelineScale: SharedValue<number>;
@@ -69,6 +101,11 @@ function PinBadge({
   editable: boolean;
 }) {
   const badgeW = estimatePinBadgeWidth(marker.label);
+  const laneHitWidth = lane
+    ? lane.row >= 0
+      ? LANE_HIT_HEAD_PAD + PIN_NAME_GAP + lane.nameWidth + 6
+      : LANE_HIT_BARE_WIDTH
+    : 0;
   const dragTimeMs = useSharedValue(marker.atMs);
   const dragStartMs = useSharedValue(0);
   const isDragging = useSharedValue(false);
@@ -129,14 +166,24 @@ function PinBadge({
   });
 
   const composed = editable ? Gesture.Exclusive(panGesture, tapGesture) : tapGesture;
-  const topOffset = pinRowTop(row);
+  const topOffset = lane ? pinHeadY(lane.row, lane.laneHeight) - LANE_HIT_HEIGHT / 2 : pinRowTop(row);
 
   const animatedStyle = useAnimatedStyle(() => {
     const timeMs = isDragging.value ? dragTimeMs.value : marker.atMs;
     const x = timeMs * pixelsPerMs * timelineScale.value + timelineTranslateX.value;
     const contentWidth = durationMs * pixelsPerMs * timelineScale.value;
     const badgeAnchor = x + badgeW > contentWidth - PIN_EDGE_GUARD_PX ? "end" : "start";
-    const anchorOffset = badgeAnchor === "end" ? -badgeW : 0;
+    // Lanes: the head sits a fixed pad inside the hitbox on the side the name
+    // flies from; a pin with no name drawn is centred on its head.
+    const anchorOffset = lane
+      ? lane.row < 0
+        ? -laneHitWidth / 2
+        : lane.anchor === "end"
+          ? -(laneHitWidth - LANE_HIT_HEAD_PAD)
+          : -LANE_HIT_HEAD_PAD
+      : badgeAnchor === "end"
+        ? -badgeW
+        : 0;
     return {
       transform: [
         { translateX: x },
@@ -157,9 +204,32 @@ function PinBadge({
 
   return (
     <GestureDetector gesture={composed}>
-      <Animated.View style={[badgeStyles.badgeWrap, { top: topOffset }, animatedStyle]}>
+      <Animated.View
+        style={[
+          badgeStyles.badgeWrap,
+          lane ? [badgeStyles.laneWrap, { width: laneHitWidth }] : null,
+          { top: topOffset },
+          animatedStyle,
+        ]}
+      >
         <Animated.View style={contentStyle}>
-          {marker.label ? (
+          {lane ? (
+            // Mid-drag twin of the canvas's pin: a head and its name in ink, no badge.
+            <View
+              style={[
+                badgeStyles.laneRow,
+                lane.row < 0 ? badgeStyles.laneRowBare : null,
+                lane.anchor === "end" ? badgeStyles.laneRowEnd : null,
+              ]}
+            >
+              <View style={badgeStyles.laneHead} />
+              {lane.row >= 0 && marker.label ? (
+                <Text style={badgeStyles.laneName} numberOfLines={1}>
+                  {marker.label}
+                </Text>
+              ) : null}
+            </View>
+          ) : marker.label ? (
             <View style={badgeStyles.badge}>
               <Text style={badgeStyles.badgeText} numberOfLines={1}>
                 {marker.label}
@@ -188,11 +258,25 @@ export function PracticePinBadges({
   draggingMarkerId,
   draggingMarkerX,
   editable = true,
+  lanes = false,
+  labelScale = 1,
+  laneDensity = "full",
 }: Props) {
   const rowAssignments = useMemo(
     () => assignPinRows(markers, pixelsPerMs, 1, durationMs),
     [durationMs, markers, pixelsPerMs]
   );
+  const lanePlacements = useMemo(() => {
+    if (!lanes) return null;
+    const placements = layoutPinLane(markers, pixelsPerMs, labelScale, durationMs, laneDensity);
+    const laneHeight = pinLaneHeight(markers.length, pinLaneRowCount(placements));
+    return new Map(
+      placements.map((placement) => [
+        placement.marker.id,
+        { row: placement.row, anchor: placement.anchor, nameWidth: placement.nameWidth, laneHeight },
+      ])
+    );
+  }, [durationMs, labelScale, laneDensity, lanes, markers, pixelsPerMs]);
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
@@ -201,6 +285,7 @@ export function PracticePinBadges({
           key={marker.id}
           marker={marker}
           row={row}
+          lane={lanePlacements?.get(marker.id)}
           pixelsPerMs={pixelsPerMs}
           timelineTranslateX={timelineTranslateX}
           timelineScale={timelineScale}
@@ -225,6 +310,34 @@ const badgeStyles = StyleSheet.create({
     // Touch target at least as wide as the drawn badge — the RN dot for an
     // unlabeled pin is narrower than its Skia twin.
     minWidth: MIN_PIN_BADGE_WIDTH,
+  },
+  laneWrap: {
+    height: LANE_HIT_HEIGHT,
+    minWidth: 0,
+    justifyContent: "center",
+  },
+  laneRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: PIN_NAME_GAP - PIN_HEAD_RADIUS,
+    paddingHorizontal: LANE_HIT_HEAD_PAD - PIN_HEAD_RADIUS,
+  },
+  laneRowEnd: {
+    flexDirection: "row-reverse",
+  },
+  laneRowBare: {
+    justifyContent: "center",
+  },
+  laneHead: {
+    width: PIN_HEAD_RADIUS * 2,
+    height: PIN_HEAD_RADIUS * 2,
+    borderRadius: PIN_HEAD_RADIUS,
+    backgroundColor: colors.textStrong,
+  },
+  laneName: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: PIN_NAME_FONT_SIZE,
+    color: colors.textStrong,
   },
   badge: {
     flexDirection: "row",

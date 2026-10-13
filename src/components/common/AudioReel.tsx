@@ -19,6 +19,7 @@ import { MinimapVisualizer } from "../visualizers/MinimapVisualizer";
 import type { SectionBand } from "../../domain/playerSections";
 import { fmt } from "../../utils";
 import { colors } from "../../design/tokens";
+import { useStore } from "../../state/useStore";
 import { durations } from "../../design/motion";
 import { haptic } from "../../design/haptics";
 import { audioReelStyles } from "./AudioReel.styles";
@@ -66,6 +67,13 @@ type ReelPalette = {
     rulerColor: string;
     playheadColor: string;
     expandButtonColor: string;
+    /** Lanes: the played half of the wave goes neutral, so terracotta is free to
+     *  mean one thing on the reel — the loop. */
+    wavePlayedQuietColor: string;
+    /** Lanes: ink for pins. */
+    markInk: string;
+    /** Lanes: the loop's colour. */
+    loopInk: string;
 };
 const LIGHT_REEL_PALETTE: ReelPalette = {
     surfaceColor: "#F0EBE4",
@@ -80,6 +88,9 @@ const LIGHT_REEL_PALETTE: ReelPalette = {
     // colour the eye already hunts for. Brown sat inside the waveform's own family.
     playheadColor: colors.record,
     expandButtonColor: colors.page,
+    wavePlayedQuietColor: colors.textSecondary,
+    markInk: colors.textStrong,
+    loopInk: colors.primary,
 };
 const DARK_REEL_PALETTE: ReelPalette = {
     surfaceColor: "#2B211D",
@@ -92,7 +103,13 @@ const DARK_REEL_PALETTE: ReelPalette = {
     rulerColor: "#5A473F",
     playheadColor: "#E8B865",
     expandButtonColor: "rgba(0,0,0,0.4)",
+    wavePlayedQuietColor: colors.borderMuted,
+    markInk: colors.surfaceHigh,
+    loopInk: colors.primary,
 };
+
+/** Below this the reel is the reading-slim one: lanes keep their marks, drop their names. */
+const SLIM_REEL_MAX_HEIGHT = 96;
 
 /** How many display bars the canvas asks for at this zoom: capacity (floored at 48
  *  bars, 96 when the canvas is unmeasured) times the zoom multiple. */
@@ -452,6 +469,9 @@ export function AudioReel({
                 ? false
                 : zoomMultiple > 1.01 && (!compact || isExpanded);
     const palette = chrome === "light" ? LIGHT_REEL_PALETTE : DARK_REEL_PALETTE;
+    // The lanes redesign (2026-10-13) is the default; Settings keeps the earlier
+    // drawing one switch away while the new one settles.
+    const lanes = !useStore((state) => state.classicReel);
 
     const scrubbingRef = React.useRef(false);
     const handleInteractionStateChange = (scrubbing: boolean, options?: { silent?: boolean }) => {
@@ -833,12 +853,17 @@ export function AudioReel({
                             sharedPauseHoldMs={sharedPauseHoldMs}
                             sharedPauseHoldToken={sharedPauseHoldToken}
                             sharedSurfaceHeight={visualizerHeight}
+                            lanes={lanes}
+                            // The reading-height reel has no room for names: heads and rules only.
+                            laneDensity={collapsedHeight < SLIM_REEL_MAX_HEIGHT ? "slim" : "full"}
                             theme={{
                                 waveColor: palette.waveColor,
-                                wavePlayedColor: palette.wavePlayedColor,
+                                wavePlayedColor: lanes ? palette.wavePlayedQuietColor : palette.wavePlayedColor,
                                 rulerColor: palette.rulerColor,
                                 playheadColor: palette.playheadColor,
                                 backgroundColor: "transparent",
+                                markInk: palette.markInk,
+                                loopInk: palette.loopInk,
                             }}
                         />
                     </AnimatedView>
@@ -949,6 +974,7 @@ export function AudioReel({
                             chrome={chrome}
                             interactive={minimapInteractive}
                             compact={minimapCompact}
+                            lanes={lanes}
                             sharedAudioProgress={sharedAudioProgress}
                         />
                     ) : null}

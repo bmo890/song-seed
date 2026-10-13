@@ -7,6 +7,7 @@ import {
     Skia,
     Rect,
     RoundedRect,
+    Circle,
     Text as SkiaText,
     Paragraph,
     useFont,
@@ -40,6 +41,21 @@ import {
     PIN_BADGE_HEIGHT,
 } from "../../domain/practicePinLayout";
 import { colors, radii } from "../../design/tokens";
+import { hexToRgba } from "../../domain/playerSections";
+import {
+    PIN_HEAD_RADIUS,
+    PIN_NAME_FONT_SIZE,
+    PIN_NAME_GAP,
+    SECTION_NAME_FONT_SIZE,
+    SECTION_RULE_HEIGHT,
+    layoutPinLane,
+    pinHeadY,
+    pinLaneHeight,
+    pinLaneRowCenterY,
+    pinLaneRowCount,
+    sectionLaneHeight,
+    type ReelLaneDensity,
+} from "../../domain/reelLanes";
 
 /**
  * Pin ink: deep terracotta, the app's original accent. It is a shade DOWN from the
@@ -93,7 +109,16 @@ type Props = {
         rulerColor?: string;
         playheadColor?: string;
         backgroundColor?: string;
+        /** Lanes: ink for pins (head, stem, name). */
+        markInk?: string;
+        /** Lanes: the loop's colour — the reel's one "active" hue. */
+        loopInk?: string;
     };
+    /** Draw marks in lanes (2026-10-13): pin names above the wave, section names on
+     *  a rule below it, the wave alone in the middle. Off = the classic overlaid look. */
+    lanes?: boolean;
+    /** `slim` (the reading-height reel) keeps heads and rules but drops the names. */
+    laneDensity?: ReelLaneDensity;
     sharedTranslateX?: SharedValue<number>;
     sharedScale?: SharedValue<number>;
     /** Live surface height (animated by AudioReel on expand/compact). When provided,
@@ -128,11 +153,25 @@ type LoopRangeOverlayProps = {
     sharedStartMs: SharedValue<number>;
     sharedEndMs: SharedValue<number>;
     rangeType: "keep" | "remove";
+    /** Lanes look: hairline edges, slim grips centred on the wave, a lighter wash. */
+    lanes?: boolean;
+    loopInk?: string;
+    waveTopInset?: number;
+    waveBottomInset?: number;
 };
 
 const LOOP_HANDLE_WIDTH = 2;
 const LOOP_PILL_WIDTH = 14;
 const LOOP_PILL_HEIGHT = 28;
+const LANES_LOOP_LINE_WIDTH = 1;
+const LANES_LOOP_GRIP_WIDTH = 5;
+const LANES_LOOP_GRIP_HEIGHT = 22;
+/** Lanes playhead: a 2px line under a small cap, the only red on the reel. */
+const LANES_PLAYHEAD_WIDTH = 2;
+const LANES_PLAYHEAD_CAP_HALF = 4.5;
+const LANES_PLAYHEAD_CAP_HEIGHT = 6;
+/** The wave may run closer to its lane edges than it could to the canvas edge. */
+const LANES_WAVE_EDGE_MARGIN_PX = 2;
 const PLAY_START_STATUS_GRACE_MS = 450;
 const PLAY_START_CORRECTION_FACTOR = 0.06;
 const PLAY_START_STALE_FORWARD_MS = 40;
@@ -234,11 +273,23 @@ function LoopRangeOverlay({
     sharedStartMs,
     sharedEndMs,
     rangeType,
+    lanes = false,
+    loopInk = colors.primary,
+    waveTopInset = 0,
+    waveBottomInset = 0,
 }: LoopRangeOverlayProps) {
     // Looper sits above section bands. Terracotta for a keep loop, muted rust for a
     // remove range — both read clearly over a tinted section underneath.
-    const fillColor = rangeType === "keep" ? "rgba(184, 125, 107, 0.28)" : "rgba(161, 92, 74, 0.16)";
-    const lineColor = rangeType === "keep" ? "rgba(139, 79, 59, 0.95)" : "rgba(161, 92, 74, 0.85)";
+    const classicFill = rangeType === "keep" ? "rgba(184, 125, 107, 0.28)" : "rgba(161, 92, 74, 0.16)";
+    const classicLine = rangeType === "keep" ? "rgba(139, 79, 59, 0.95)" : "rgba(161, 92, 74, 0.85)";
+    // Lanes: the loop is the reel's only terracotta, so it can afford to whisper —
+    // a pale wash, hairline edges, and grips a third the mass of the old ovals.
+    const lanesInk = rangeType === "keep" ? loopInk : colors.danger;
+    const fillColor = lanes ? hexToRgba(lanesInk, 0.12) : classicFill;
+    const lineColor = lanes ? lanesInk : classicLine;
+    const lineWidth = lanes ? LANES_LOOP_LINE_WIDTH : LOOP_HANDLE_WIDTH;
+    const pillWidth = lanes ? LANES_LOOP_GRIP_WIDTH : LOOP_PILL_WIDTH;
+    const pillHeight = lanes ? LANES_LOOP_GRIP_HEIGHT : LOOP_PILL_HEIGHT;
 
     const leftX = useDerivedValue(() => {
         if (durationMs <= 0) return 0;
@@ -253,30 +304,34 @@ function LoopRangeOverlay({
     });
 
     const fillWidth = useDerivedValue(() => Math.max(1, rightX.value - leftX.value));
-    const rightLineX = useDerivedValue(() => rightX.value - LOOP_HANDLE_WIDTH);
-    const leftPillX = useDerivedValue(() => leftX.value - LOOP_PILL_WIDTH / 2 + 1);
-    const rightPillX = useDerivedValue(() => rightX.value - LOOP_PILL_WIDTH / 2 - 1);
-    const pillY = useDerivedValue(() => heightValue.value / 2 - LOOP_PILL_HEIGHT / 2);
+    const rightLineX = useDerivedValue(() => rightX.value - lineWidth, [lineWidth]);
+    const leftPillX = useDerivedValue(() => leftX.value - pillWidth / 2 + lineWidth / 2, [pillWidth, lineWidth]);
+    const rightPillX = useDerivedValue(() => rightX.value - pillWidth / 2 - lineWidth / 2, [pillWidth, lineWidth]);
+    // Centred on the WAVE, which the lanes inset from the canvas's top and bottom.
+    const pillY = useDerivedValue(
+        () => waveTopInset + (heightValue.value - waveTopInset - waveBottomInset) / 2 - pillHeight / 2,
+        [waveTopInset, waveBottomInset, pillHeight]
+    );
 
     return (
         <>
             <Rect x={leftX} y={0} width={fillWidth} height={heightValue} color={fillColor} />
-            <Rect x={leftX} y={0} width={LOOP_HANDLE_WIDTH} height={heightValue} color={lineColor} />
-            <Rect x={rightLineX} y={0} width={LOOP_HANDLE_WIDTH} height={heightValue} color={lineColor} />
+            <Rect x={leftX} y={0} width={lineWidth} height={heightValue} color={lineColor} />
+            <Rect x={rightLineX} y={0} width={lineWidth} height={heightValue} color={lineColor} />
             <RoundedRect
                 x={leftPillX}
                 y={pillY}
-                width={LOOP_PILL_WIDTH}
-                height={LOOP_PILL_HEIGHT}
-                r={LOOP_PILL_WIDTH / 2}
+                width={pillWidth}
+                height={pillHeight}
+                r={pillWidth / 2}
                 color={lineColor}
             />
             <RoundedRect
                 x={rightPillX}
                 y={pillY}
-                width={LOOP_PILL_WIDTH}
-                height={LOOP_PILL_HEIGHT}
-                r={LOOP_PILL_WIDTH / 2}
+                width={pillWidth}
+                height={pillHeight}
+                r={pillWidth / 2}
                 color={lineColor}
             />
         </>
@@ -428,6 +483,9 @@ const SECTION_CHIP_PAD_X = 5;
 const SECTION_CHIP_EDGE_PAD = 2;
 const SECTION_CHIP_BOTTOM_INSET = 3;
 const SECTION_CHIP_FONT_SIZE = 9.5;
+/** Lanes: a section name stands this far in from its rule's start, clear of a loop edge
+ *  or a neighbour's rule ending on the same instant. */
+const SECTION_NAME_INSET_X = 3;
 
 /**
  * Section name chips, drawn INSIDE the canvas so they are part of the same picture as the
@@ -448,6 +506,7 @@ function SectionLabelChipsOverlay({
     translateX,
     heightValue,
     fontProvider,
+    ink = false,
 }: {
     bands: SectionBand[];
     pixelsPerMs: number;
@@ -455,6 +514,9 @@ function SectionLabelChipsOverlay({
     translateX: SharedValue<number>;
     heightValue: SharedValue<number>;
     fontProvider: NonNullable<ReturnType<typeof useFonts>>;
+    /** Lanes: the name is plain text in the section's own ink, sitting on its rule —
+     *  no filled chip. */
+    ink?: boolean;
 }) {
     const chips = useMemo(
         () =>
@@ -467,9 +529,9 @@ function SectionLabelChipsOverlay({
                 )
                     .pushStyle({
                         fontFamilies: ["Plus Jakarta Sans", "Heebo"],
-                        fontSize: SECTION_CHIP_FONT_SIZE,
-                        fontStyle: { weight: 600 },
-                        color: Skia.Color(colors.surface),
+                        fontSize: ink ? SECTION_NAME_FONT_SIZE : SECTION_CHIP_FONT_SIZE,
+                        fontStyle: { weight: ink ? 500 : 600 },
+                        color: Skia.Color(ink ? band.railColor : colors.surface),
                     })
                     .addText(band.label)
                     .build();
@@ -482,13 +544,19 @@ function SectionLabelChipsOverlay({
                 );
                 return { band, startX, bandWidth, paragraph, chipWidth, textHeight };
             }),
-        [bands, pixelsPerMs, labelScale, fontProvider]
+        [bands, pixelsPerMs, labelScale, fontProvider, ink]
     );
 
     return (
         <>
             {chips.map((chip) => (
-                <SectionLabelChip key={chip.band.id} chip={chip} translateX={translateX} heightValue={heightValue} />
+                <SectionLabelChip
+                    key={chip.band.id}
+                    chip={chip}
+                    translateX={translateX}
+                    heightValue={heightValue}
+                    ink={ink}
+                />
             ))}
         </>
     );
@@ -498,6 +566,7 @@ function SectionLabelChip({
     chip,
     translateX,
     heightValue,
+    ink = false,
 }: {
     chip: {
         band: SectionBand;
@@ -509,6 +578,7 @@ function SectionLabelChip({
     };
     translateX: SharedValue<number>;
     heightValue: SharedValue<number>;
+    ink?: boolean;
 }) {
     const { band, startX, bandWidth, paragraph, chipWidth, textHeight } = chip;
     // Slide along the band so the chip holds the reel's left edge while the band scrolls
@@ -525,19 +595,27 @@ function SectionLabelChip({
     const chipY = useDerivedValue(
         () => heightValue.value - SECTION_CHIP_BOTTOM_INSET - SECTION_CHIP_HEIGHT
     );
-    const textY = useDerivedValue(() => chipY.value + (SECTION_CHIP_HEIGHT - textHeight) / 2);
+    const textY = useDerivedValue(
+        () =>
+            ink
+                ? heightValue.value - SECTION_RULE_HEIGHT - 2 - textHeight
+                : chipY.value + (SECTION_CHIP_HEIGHT - textHeight) / 2,
+        [ink, textHeight]
+    );
 
     return (
         <Group transform={transform} opacity={opacity}>
-            <RoundedRect
-                x={0}
-                y={chipY}
-                width={chipWidth}
-                height={SECTION_CHIP_HEIGHT}
-                r={3}
-                color={band.railColor}
-            />
-            <Paragraph paragraph={paragraph} x={SECTION_CHIP_PAD_X} y={textY} width={chipWidth} />
+            {ink ? null : (
+                <RoundedRect
+                    x={0}
+                    y={chipY}
+                    width={chipWidth}
+                    height={SECTION_CHIP_HEIGHT}
+                    r={3}
+                    color={band.railColor}
+                />
+            )}
+            <Paragraph paragraph={paragraph} x={ink ? SECTION_NAME_INSET_X : SECTION_CHIP_PAD_X} y={textY} width={chipWidth} />
         </Group>
     );
 }
@@ -660,6 +738,138 @@ function PinMarkerOverlay({
     );
 }
 
+/**
+ * Lanes: a section is a thin rule along the reel's bottom edge in its own ink — no
+ * wash over the audio. A 1px gap at each end lets two neighbours read as two.
+ */
+function SectionRuleOverlay({
+    heightValue,
+    bands,
+    pixelsPerMs,
+}: {
+    heightValue: SharedValue<number>;
+    bands: SectionBand[];
+    pixelsPerMs: number;
+}) {
+    const ruleY = useDerivedValue(() => Math.max(0, heightValue.value - SECTION_RULE_HEIGHT));
+    return (
+        <>
+            {bands.map((band) => {
+                const x = band.startMs * pixelsPerMs;
+                const width = Math.max(0, (band.endMs - band.startMs) * pixelsPerMs - 1);
+                if (width <= 0) return null;
+                return (
+                    <Rect
+                        key={band.id}
+                        x={x}
+                        y={ruleY}
+                        width={width}
+                        height={SECTION_RULE_HEIGHT}
+                        color={band.railColor}
+                    />
+                );
+            })}
+        </>
+    );
+}
+
+type PinLaneItem = {
+    marker: Pick<PracticeMarker, "id" | "atMs"> & { label?: string; note?: string };
+    x: number;
+    row: number;
+    anchor: "start" | "end";
+    nameWidth: number;
+    paragraph: SkParagraph | null;
+    textHeight: number;
+};
+
+/**
+ * Lanes: a pin is a small head on a hairline, with its name as plain ink beside the
+ * head — no filled badge over the audio. Drawn in the tape's translate group (outside
+ * the scale) so the hairline stays a hairline at any zoom.
+ */
+function PinLaneOverlay({
+    items,
+    laneHeight,
+    bottomInset,
+    heightValue,
+    ink,
+    sharedDraggingMarkerId,
+}: {
+    items: PinLaneItem[];
+    laneHeight: number;
+    bottomInset: number;
+    heightValue: SharedValue<number>;
+    ink: string;
+    sharedDraggingMarkerId?: SharedValue<string>;
+}) {
+    return (
+        <>
+            {items.map((item) => (
+                <PinLaneMark
+                    key={item.marker.id}
+                    item={item}
+                    laneHeight={laneHeight}
+                    bottomInset={bottomInset}
+                    heightValue={heightValue}
+                    ink={ink}
+                    sharedDraggingMarkerId={sharedDraggingMarkerId}
+                />
+            ))}
+        </>
+    );
+}
+
+function PinLaneMark({
+    item,
+    laneHeight,
+    bottomInset,
+    heightValue,
+    ink,
+    sharedDraggingMarkerId,
+}: {
+    item: PinLaneItem;
+    laneHeight: number;
+    bottomInset: number;
+    heightValue: SharedValue<number>;
+    ink: string;
+    sharedDraggingMarkerId?: SharedValue<string>;
+}) {
+    const { marker, x, row, anchor, nameWidth, paragraph, textHeight } = item;
+    const headY = pinHeadY(row, laneHeight);
+    const opacity = useDerivedValue(() =>
+        sharedDraggingMarkerId && sharedDraggingMarkerId.value === marker.id ? 0 : 1
+    );
+    const stemHeight = useDerivedValue(
+        () => Math.max(0, heightValue.value - bottomInset - headY),
+        [bottomInset, headY]
+    );
+    const nameX =
+        anchor === "start"
+            ? x + PIN_HEAD_RADIUS + PIN_NAME_GAP
+            : x - PIN_HEAD_RADIUS - PIN_NAME_GAP - nameWidth;
+    const showName = row >= 0 && paragraph != null;
+    // A pin carrying a note keeps its tell: a second, smaller dot trailing the name.
+    const noteDotX = anchor === "start" ? nameX + nameWidth + 4 : nameX - 4;
+    return (
+        <Group opacity={opacity}>
+            <Rect x={x - 0.5} y={headY} width={1} height={stemHeight} color={ink} opacity={0.4} />
+            <Circle cx={x} cy={headY} r={PIN_HEAD_RADIUS} color={ink} />
+            {showName ? (
+                <Paragraph
+                    paragraph={paragraph}
+                    x={nameX}
+                    y={pinLaneRowCenterY(row) - textHeight / 2}
+                    width={nameWidth + 2}
+                />
+            ) : null}
+            {showName && marker.note ? (
+                <Circle cx={noteDotX} cy={pinLaneRowCenterY(row)} r={1.2} color={ink} opacity={0.7} />
+            ) : null}
+        </Group>
+    );
+}
+
 // Display-only waveform shaping (purely visual — the stored peaks are unchanged).
 // Stored amplitudes for typical material cluster in a compressed mid band, which
 // reads flat. We expand that window across the full bar height so quiet→loud
@@ -699,6 +909,8 @@ export function PlaybackTapeVisualizer({
     sharedSelectedRangeEndMs,
     selectedRangeType = "keep",
     theme,
+    lanes = false,
+    laneDensity = "full",
     sharedTranslateX,
     sharedScale,
     sharedAudioProgress,
@@ -1322,7 +1534,11 @@ export function PlaybackTapeVisualizer({
         }
     });
 
-    const playheadRectX = useDerivedValue(() => playheadX.value - 2);
+    const playheadRectX = useDerivedValue(
+        () => playheadX.value - (lanes ? LANES_PLAYHEAD_WIDTH / 2 : 2),
+        [lanes]
+    );
+    const playheadCapTransform = useDerivedValue(() => [{ translateX: playheadX.value }]);
 
     // Same face the RN labels used (text.annotation). Null until loaded — the labels
     // simply aren't drawn for those first frames rather than popping in at a wrong size.
@@ -1337,9 +1553,80 @@ export function PlaybackTapeVisualizer({
     const sectionFontProvider = useFonts({
         "Plus Jakarta Sans": [
             require("@expo-google-fonts/plus-jakarta-sans/600SemiBold/PlusJakartaSans_600SemiBold.ttf"),
+            require("@expo-google-fonts/plus-jakarta-sans/500Medium/PlusJakartaSans_500Medium.ttf"),
         ],
-        Heebo: [require("@expo-google-fonts/heebo/600SemiBold/Heebo_600SemiBold.ttf")],
+        Heebo: [
+            require("@expo-google-fonts/heebo/600SemiBold/Heebo_600SemiBold.ttf"),
+            require("@expo-google-fonts/heebo/500Medium/Heebo_500Medium.ttf"),
+        ],
     });
+
+    // ---- lanes geometry ------------------------------------------------------
+    // Everything here is plain numbers decided in React: the lanes inset the wave by a
+    // fixed amount, so the UI thread only ever adds two constants to its transforms.
+    const markInk = theme?.markInk || colors.textStrong;
+    const loopInk = theme?.loopInk || colors.primary;
+    const pinLane = useMemo(() => {
+        if (!lanes || !practiceMarkers || practiceMarkers.length === 0) return null;
+        const measured = new Map<string, { width: number; paragraph: SkParagraph; height: number }>();
+        if (sectionFontProvider && laneDensity === "full") {
+            for (const marker of practiceMarkers) {
+                if (!marker.label) continue;
+                const paragraph = Skia.ParagraphBuilder.Make({ maxLines: 1, ellipsis: "\u2026" }, sectionFontProvider)
+                    .pushStyle({
+                        fontFamilies: ["Plus Jakarta Sans", "Heebo"],
+                        fontSize: PIN_NAME_FONT_SIZE,
+                        fontStyle: { weight: 500 },
+                        color: Skia.Color(markInk),
+                    })
+                    .addText(marker.label)
+                    .build();
+                paragraph.layout(10000);
+                const width = Math.min(MAX_PIN_BADGE_WIDTH, Math.ceil(paragraph.getLongestLine?.() ?? 0));
+                paragraph.layout(width + 2);
+                measured.set(marker.id, { width, paragraph, height: paragraph.getHeight() });
+            }
+        }
+        const placements = layoutPinLane(
+            practiceMarkers,
+            gridLabelPixelsPerMs,
+            gridLabelScale,
+            durationMs,
+            // Until the faces load there is nothing to measure or draw: heads only.
+            sectionFontProvider ? laneDensity : "slim",
+            (marker) => measured.get(marker.id)?.width ?? 0
+        );
+        const items: PinLaneItem[] = placements.map(({ marker, row, anchor, nameWidth }) => ({
+            marker,
+            x: marker.atMs * gridLabelPixelsPerMs * gridLabelScale,
+            row,
+            anchor,
+            nameWidth,
+            paragraph: measured.get(marker.id)?.paragraph ?? null,
+            textHeight: measured.get(marker.id)?.height ?? 0,
+        }));
+        return { items, height: pinLaneHeight(practiceMarkers.length, pinLaneRowCount(placements)) };
+    }, [
+        lanes,
+        practiceMarkers,
+        sectionFontProvider,
+        laneDensity,
+        gridLabelPixelsPerMs,
+        gridLabelScale,
+        durationMs,
+        markInk,
+    ]);
+    const waveTopInset = pinLane?.height ?? 0;
+    const waveBottomInset = lanes ? sectionLaneHeight(sectionBands?.length ?? 0, laneDensity) : 0;
+    const waveEdgeMargin = lanes ? LANES_WAVE_EDGE_MARGIN_PX : WAVEFORM_EDGE_MARGIN_PX;
+    const playheadCapPath = useMemo(() => {
+        const cap = Skia.Path.Make();
+        cap.moveTo(-LANES_PLAYHEAD_CAP_HALF, 0);
+        cap.lineTo(LANES_PLAYHEAD_CAP_HALF, 0);
+        cap.lineTo(0, LANES_PLAYHEAD_CAP_HEIGHT);
+        cap.close();
+        return cap;
+    }, []);
 
     const translateTransform = useDerivedValue(() => {
         return [{ translateX: translateX.value }];
@@ -1356,12 +1643,17 @@ export function PlaybackTapeVisualizer({
     // Vertical geometry lives in a normalized space (amplitude -1..1 around y=0) and is
     // mapped to pixels by this transform. A height change is therefore a pure UI-thread
     // transform — it never rebuilds the wave path or re-renders the component.
+    // The lanes (if any) inset the wave from the canvas's top and bottom by two
+    // constants; with none, both are 0 and this is the old full-height geometry.
     const waveVerticalTransform = useDerivedValue(() => {
-        const centerY = heightSV.value / 2;
-        const waveMaxHeight = Math.max(10, (centerY - WAVEFORM_EDGE_MARGIN_PX) * WAVEFORM_HEADROOM);
-        return [{ translateY: centerY }, { scaleY: waveMaxHeight }];
-    });
-    const baselineY = useDerivedValue(() => heightSV.value / 2 - 0.5);
+        const halfRegion = Math.max(0, heightSV.value - waveTopInset - waveBottomInset) / 2;
+        const waveMaxHeight = Math.max(10, (halfRegion - waveEdgeMargin) * WAVEFORM_HEADROOM);
+        return [{ translateY: waveTopInset + halfRegion }, { scaleY: waveMaxHeight }];
+    }, [waveTopInset, waveBottomInset, waveEdgeMargin]);
+    const baselineY = useDerivedValue(
+        () => waveTopInset + Math.max(0, heightSV.value - waveTopInset - waveBottomInset) / 2 - 0.5,
+        [waveTopInset, waveBottomInset]
+    );
     // Reveals only the played (behind-the-playhead) portion, in content coordinates so
     // the two-tone split lands exactly under the playhead at any zoom/scroll.
     const playedClip = useDerivedValue(
@@ -1442,11 +1734,19 @@ export function PlaybackTapeVisualizer({
                             <Group transform={translateTransform}>
                                 <Group transform={scaleTransform}>
                                     {sectionBands && sectionBands.length > 0 ? (
-                                        <SectionBandOverlay
-                                            heightValue={heightSV}
-                                            bands={sectionBands}
-                                            pixelsPerMs={durationMs > 0 ? baseContentWidth / durationMs : 0}
-                                        />
+                                        lanes ? (
+                                            <SectionRuleOverlay
+                                                heightValue={heightSV}
+                                                bands={sectionBands}
+                                                pixelsPerMs={durationMs > 0 ? baseContentWidth / durationMs : 0}
+                                            />
+                                        ) : (
+                                            <SectionBandOverlay
+                                                heightValue={heightSV}
+                                                bands={sectionBands}
+                                                pixelsPerMs={durationMs > 0 ? baseContentWidth / durationMs : 0}
+                                            />
+                                        )
                                     ) : null}
                                     {gridRuler ? (
                                         <GridRulerOverlay
@@ -1485,7 +1785,7 @@ export function PlaybackTapeVisualizer({
                                             />
                                         </Group>
                                     </Group>
-                                    {practiceMarkers && practiceMarkers.length > 0 ? (
+                                    {!lanes && practiceMarkers && practiceMarkers.length > 0 ? (
                                         <PinMarkerOverlay
                                             heightValue={heightSV}
                                             markers={practiceMarkers}
@@ -1524,7 +1824,10 @@ export function PlaybackTapeVisualizer({
                                         </Group>
                                     </>
                                 ) : null}
-                                {sectionBands && sectionBands.length > 0 && sectionFontProvider ? (
+                                {sectionBands &&
+                                sectionBands.length > 0 &&
+                                sectionFontProvider &&
+                                !(lanes && laneDensity === "slim") ? (
                                     <SectionLabelChipsOverlay
                                         bands={sectionBands}
                                         pixelsPerMs={durationMs > 0 ? baseContentWidth / durationMs : 0}
@@ -1532,9 +1835,20 @@ export function PlaybackTapeVisualizer({
                                         translateX={translateX}
                                         heightValue={heightSV}
                                         fontProvider={sectionFontProvider}
+                                        ink={lanes}
                                     />
                                 ) : null}
-                                {practiceMarkers && practiceMarkers.length > 0 && sectionFontProvider ? (
+                                {pinLane ? (
+                                    <PinLaneOverlay
+                                        items={pinLane.items}
+                                        laneHeight={pinLane.height}
+                                        bottomInset={waveBottomInset}
+                                        heightValue={heightSV}
+                                        ink={markInk}
+                                        sharedDraggingMarkerId={sharedDraggingMarkerId}
+                                    />
+                                ) : null}
+                                {!lanes && practiceMarkers && practiceMarkers.length > 0 && sectionFontProvider ? (
                                     <PinBadgeChipsOverlay
                                         markers={practiceMarkers}
                                         pixelsPerMs={durationMs > 0 ? baseContentWidth / durationMs : 0}
@@ -1555,15 +1869,24 @@ export function PlaybackTapeVisualizer({
                                     sharedStartMs={sharedSelectedRangeStartMs}
                                     sharedEndMs={sharedSelectedRangeEndMs}
                                     rangeType={selectedRangeType}
+                                    lanes={lanes}
+                                    loopInk={loopInk}
+                                    waveTopInset={waveTopInset}
+                                    waveBottomInset={waveBottomInset}
                                 />
                             ) : null}
                             <Rect
                                 x={playheadRectX}
                                 y={0}
-                                width={4}
+                                width={lanes ? LANES_PLAYHEAD_WIDTH : 4}
                                 height={heightSV}
                                 color={playheadColor}
                             />
+                            {lanes ? (
+                                <Group transform={playheadCapTransform}>
+                                    <Path path={playheadCapPath} color={playheadColor} />
+                                </Group>
+                            ) : null}
                         </Canvas>
                     )}
                 </View>

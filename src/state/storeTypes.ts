@@ -38,6 +38,7 @@ export type PersistedAppStore = Pick<
     | "globalCustomClipTags"
     | "backupReminderFrequency"
     | "hapticsEnabled"
+    | "classicReel"
     | "promptForClipName"
     | "nameLanguage"
     | "hasSeenWelcome"

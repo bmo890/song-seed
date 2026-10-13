@@ -43,6 +43,7 @@ export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppSto
         globalCustomClipTags: state.globalCustomClipTags,
         backupReminderFrequency: state.backupReminderFrequency,
         hapticsEnabled: state.hapticsEnabled,
+        classicReel: state.classicReel,
         promptForClipName: state.promptForClipName,
         nameLanguage: state.nameLanguage,
         hasSeenWelcome: state.hasSeenWelcome,

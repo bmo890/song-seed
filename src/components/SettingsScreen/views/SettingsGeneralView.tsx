@@ -17,6 +17,8 @@ export function SettingsGeneralView() {
   const workspaceStartupPreference = useStore((state) => state.workspaceStartupPreference);
   const setWorkspaceStartupPreference = useStore((state) => state.setWorkspaceStartupPreference);
   const hapticsEnabled = useStore((state) => state.hapticsEnabled);
+  const classicReel = useStore((state) => state.classicReel);
+  const setClassicReel = useStore((state) => state.setClassicReel);
   const setHapticsEnabled = useStore((state) => state.setHapticsEnabled);
   const nameLanguage = useStore((state) => state.nameLanguage);
   const setNameLanguage = useStore((state) => state.setNameLanguage);
@@ -106,6 +108,13 @@ export function SettingsGeneralView() {
               setHapticsEnabled(next);
               if (next) haptic.tap();
             }}
+          />
+          <ToggleRow
+            flat
+            title={t("settings.classicReel")}
+            subtitle={t("settings.classicReelHint")}
+            value={classicReel}
+            onPress={() => setClassicReel(!classicReel)}
           />
         </SettingsGroup>
       </View>
