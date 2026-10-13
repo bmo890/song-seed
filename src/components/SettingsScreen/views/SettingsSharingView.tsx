@@ -10,6 +10,7 @@ import { HelpSheet } from "../../common/HelpSheet";
 import { SEND_HELP } from "../../common/helpContent";
 import { styles } from "../styles";
 import { useSentLinksStore } from "../../../state/useSentLinksStore";
+import { getHierarchyIconName } from "../../../domain/hierarchy";
 import { isSentLinkExpired, type SentLink } from "../../../domain/sentLinks";
 import { toast } from "../../common/toastStore";
 import { haptic } from "../../../design/haptics";
@@ -23,6 +24,7 @@ const KIND_ICONS: Record<ShareKind, React.ComponentProps<typeof Ionicons>["name"
   setlist: "albums-outline",
   playlist: "musical-notes-outline",
   songbook: "book-outline",
+  sketch: getHierarchyIconName("song"),
   collection: "folder-outline",
   workspace: "file-tray-stacked-outline",
   clips: "musical-notes-outline",

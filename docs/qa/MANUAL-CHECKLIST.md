@@ -243,16 +243,57 @@ See `docs/qa/RUN-LOG.md` for the automation status of each.
 ## 16. Songnook Send — transfer links  (service is LIVE at send.songnook.app)
 
 Sending (app → link):
-- iOS ☐  Android ☐ — Setlist detail → menu → **Get a link**: progress toast → "Link copied"
-  toast with a Share tap-through; link is on the clipboard. **[HUMAN — network]**
-- iOS ☐  Android ☐ — Songbook detail → menu → **Get a link**: same flow. **[HUMAN]**
-- iOS ☐  Android ☐ — Clip selection bar → **Get link** with 1 and with 3 clips selected;
-  receiver page lists each clip as its own numbered row. **[HUMAN]**
+- iOS ☐  Android ☐ — Setlist detail → menu → **Share…** → **SongNook Send**: the Send sheet
+  opens with Title prefilled; type From + a note → **Get link** → sealing stays in the sheet
+  (cannot swipe it away) → link shown, already on the clipboard; **Copy** toasts, **Share**
+  opens the OS sheet; **Done** closes. Recipient page shows the From name and the note.
+  **[HUMAN — network]**
+- iOS ☐  Android ☐ — Second parcel: From is prefilled with the remembered name. **[HUMAN]**
+- iOS ☐  Android ☐ — Clip selection → Share… → SongNook Send with 3 clips: the sheet lists
+  them numbered; nudge one down, tap **Sort A–Z**; the recipient page lists them in the
+  sheet's final order. A setlist/playlist parcel shows no list. **[HUMAN]**
+- iOS ☐  Android ☐ — Every Share… sub-sheet reads **Export · SongNook Send** (chart book adds
+  *Share as text*); Export on Android opens the folder picker, on iOS the share sheet.
+  Nothing in the app calls that action "Share". **[HUMAN]**
+- iOS ☐  Android ☐ — Collection → select 3 → ⋯ → **Playlist…** → the chooser lists 3 items;
+  *New playlist…* asks for a name (prefilled "Playlist N") → Create → lands on that
+  playlist with the 3 items. An existing playlist → "Added to …" toast with *Open playlist*.
+  **[AUTO-able]**
+- iOS ☐  Android ☐ — Queue → **Playlist…** (was "Save") → same chooser; a new playlist asks
+  for its name and opens, in queue order. **[HUMAN]**
+- iOS ☐  Android ☐ — Sketch page ⋯ → **Share…** → *SongNook Send*: the parcel arrives as a
+  package holding that one sketch with every take (lineage kept), all lyric versions with
+  chords, the chord sheet, notes and marks; recipient page reads "a sketch — takes, lyrics,
+  chords, notes". *Export* writes the `.songnook`. A sketch with lyrics but no take still
+  sends; an empty sketch says "Nothing to share". **[HUMAN — network]**
+- iOS ☐  Android ☐ — Workspace hub → long-press one collection → ⋯ → **Export** / **SongNook
+  Send** present (disabled with two selected); the selection ends after. **[HUMAN]**
+- iOS ☐  Android ☐ — Full player ⋯ → **Share…** → *Share audio* opens the OS sheet with the
+  take; *SongNook Send* opens the Send sheet with the take's title. **[HUMAN]**
+- iOS ☐  Android ☐ — Receive a link with `Song.wav`: the clip is titled "Song". **[HUMAN]**
+- iOS ☐  Android ☐ — Sketch "Old" with takes "Old", "Old v2", "Old.wav", "Bridge riff" →
+  edit sheet → rename to "New" → Save → "Rename 3 takes to match?" → *Update 3 takes*:
+  "New", "New v2", "New"; "Bridge riff" untouched. *Keep existing* changes nothing. A
+  sketch whose takes are all named otherwise shows no prompt. **[AUTO-able]**
+- iOS ☐  Android ☐ — Songbook detail → menu → **Share…** holds *Share as file · SongNook
+  Send · Share as text*; back chevron returns to the menu. **[HUMAN]**
+- iOS ☐  Android ☐ — Clip selection bar → **Share…** → **SongNook Send** with 1 and with 3
+  clips selected; receiver page lists each clip as its own numbered row. **[HUMAN]**
 - iOS ☐  Android ☐ — After creating a link, the entity header shows the **"Link active ·
   N days left · Copy"** chip; Copy puts the URL on the clipboard. **[HUMAN]**
-- iOS ☐  Android ☐ — Airplane mode → Get a link fails with the friendly "Couldn't create
-  link" dialog (no crash, no half-created chip). **[HUMAN]**
-- iOS ☐  Android ☐ — Empty setlist → Get a link shows "Nothing to share". **[HUMAN]**
+- iOS ☐  Android ☐ — Send sheet in RTL (Hebrew): labels right-aligned, inputs honour the
+  text direction, keys mirrored. **[HUMAN]**
+- iOS ☐  Android ☐ — Airplane mode → Get link fails with the friendly "Couldn't create
+  link" dialog; the sheet returns to its form with the typed title/note intact. **[HUMAN]**
+- iOS ☐  Android ☐ — Empty setlist → Get link shows "Nothing to share". **[HUMAN]**
+- iOS ☐  Android ☐ — Collection page → ⋯ → **Share…** → *SongNook Send*: link created; the
+  collection header shows the "Link active" chip. *Share as file* hands a `.songnook` to
+  the share sheet. **[HUMAN — network]**
+- iOS ☐  Android ☐ — Workspaces page → card ⋯ → **Share…** → *Share as file* / *SongNook
+  Send* (the Share… row is absent on an archived workspace). **[HUMAN]**
+- iOS ☐  Android ☐ — Empty collection / empty workspace → "Nothing to share". **[HUMAN]**
+- ☐ — A workspace whose archive is over 512 MB → "Too large to link" dialog, no upload
+  (airplane mode not needed; the check runs before any byte leaves). **[HUMAN]**
 
 Receiving (link → phone/desktop):
 - Desktop ☐ — Open a sent link in a desktop browser: letterpress page, sender name, note,
@@ -264,6 +305,20 @@ Receiving (link → phone/desktop):
   (same transferId → no duplicate). **[HUMAN]**
 - Desktop ☐ — send.songnook.app sender page: drag-drop an audio file → link; dropping a
   video/PDF is rejected client-side AND a curl attempt returns 415. **[HUMAN]**
+- Desktop ☐ — A collection link's page reads "1 SongNook package · a collection"; a
+  workspace link's "… · a whole workspace" (never "1 song"). **[HUMAN]**
+- iOS ☐  Android ☐ — Open a **collection** link in the app: destination line reads
+  "Saves to Received · Collection"; Save opens the package AS that collection, nested
+  collection inside, marks / chords / lyrics / notes present; a setlist built only from
+  that collection sits under Compilations "from <sender>". **[HUMAN — network]**
+- iOS ☐  Android ☐ — Open a **workspace** link: "Saves to Received · Workspace"; the
+  Received row lists every top-level collection and each opens. **Keep this… → As its own
+  workspace** → it appears among Workspaces with title + colour; **Keep → into a
+  workspace** moves its collections there. **[HUMAN]**
+- iOS ☐  Android ☐ — Keep a package whose collection has a nested collection: the chooser
+  offers only *own workspace* and *top level* (hint says why); no half-moved package. **[HUMAN]**
+- iOS ☐  Android ☐ — Received page RTL: the collection rows under a workspace package
+  indent from the right. **[HUMAN]**
 - ☐ — Expiry: after 7 days the link shows the "isn't available" page (spot-check an old link). **[HUMAN]**
 
 Universal links (BLOCKED until Apple Team ID + Android fingerprints + native rebuild):

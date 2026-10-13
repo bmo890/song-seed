@@ -1,7 +1,7 @@
 import { buildSongbookArchive } from "../domain/songbookExport";
 import { exportLibrary, type ExportLibraryArgs } from "./libraryExport";
 import { createShareLink } from "./shareLink";
-import type { ShareArgsOverrides } from "./setlistShare";
+import type { ShareArgsOverrides, ShareLinkParcel } from "./setlistShare";
 import type { Songbook, Workspace } from "../types";
 
 /** Builds the library-export args for a songbook share (charts-only, no audio,
@@ -23,7 +23,7 @@ export function buildSongbookExportArgs(
     songbooks: [built.songbook],
     share: {
       kind: "songbook",
-      title: songbook.title,
+      title: overrides?.title || songbook.title,
       sender: { name: overrides?.senderName ?? null, userId: null },
       transferId: overrides?.transferId ?? null,
       createdAt: Date.now(),
@@ -52,17 +52,14 @@ export async function shareSongbookFile(songbook: Songbook, workspaces: Workspac
 
 /** Uploads a songbook to SongNook Send and returns the hosted share link record.
  *  Throws EmptyShareError if nothing is exportable, SendTransferError on network. */
-export function createSongbookShareLink(
-  songbook: Songbook,
-  workspaces: Workspace[],
-  opts?: { senderName?: string | null }
-) {
+export function createSongbookShareLink(songbook: Songbook, workspaces: Workspace[], opts?: ShareLinkParcel) {
   return createShareLink({
-    title: songbook.title,
+    title: opts?.title || songbook.title,
     kind: "songbook",
     entityId: songbook.id,
     senderName: opts?.senderName,
+    message: opts?.message ?? undefined,
     buildArgs: (transferId) =>
-      buildSongbookExportArgs(songbook, workspaces, { transferId, senderName: opts?.senderName }),
+      buildSongbookExportArgs(songbook, workspaces, { transferId, senderName: opts?.senderName, title: opts?.title }),
   });
 }

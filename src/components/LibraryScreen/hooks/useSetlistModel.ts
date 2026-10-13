@@ -3,7 +3,7 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { AppAlert } from "../../common/AppAlert";
 import { createSetlistShareLink, shareSetlist } from "../../../services/setlistShare";
-import { presentShareLink } from "../../../services/shareLinkFlow";
+import { openSendSheet } from "../../../state/useSendSheetStore";
 import {
   buildSetlistQueue,
   getSetlistDurationMs,
@@ -280,10 +280,14 @@ export function useSetlistModel() {
         AppAlert.info(t("songDetail.shareFailed"), t("library.setlistShareFailed"));
       }
     },
-    getLinkForActiveSetlist: async () => {
+    getLinkForActiveSetlist: () => {
       if (!activeSetlist) return;
-      await presentShareLink(() => createSetlistShareLink(activeSetlist, workspaces), {
+      const setlist = activeSetlist;
+      openSendSheet({
+        title: setlist.title,
+        kind: "setlist",
         emptyMessage: t("library.addSetSongFirst"),
+        create: (parcel) => createSetlistShareLink(setlist, workspaces, parcel),
       });
     },
   };

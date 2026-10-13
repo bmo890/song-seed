@@ -16,11 +16,16 @@ import { SongParentPickBanner } from "./SongParentPickBanner";
 import { SongUndoBanner } from "./SongUndoBanner";
 import { SongEditSheet } from "./SongEditSheet";
 import { SongHeaderMenu } from "./SongHeaderMenu";
+import { SelectionActionSheet } from "../../common/SelectionActionSheet";
+import { isSendServiceConfigured } from "../../../config/sendService";
+
+// "SongNook Send" needs a real transfer endpoint — same gate as the Library views.
+const SHOW_SEND = __DEV__ || isSendServiceConfigured();
 import { useTranslation } from "react-i18next";
 
 export function SongScreenContent() {
   const { t } = useTranslation();
-  const { screen, parentPicking, store, actions, editFlow } = useSongScreen();
+  const { screen, parentPicking, store, actions, editFlow, share } = useSongScreen();
 
   if (!screen.selectedIdea) {
     return (
@@ -89,6 +94,18 @@ export function SongScreenContent() {
           onCancel={() => editFlow.handleCancel()}
         />
       ) : null}
+      {/* Share… from the ⋯: Export (a file) · SongNook Send (a link). */}
+      <SelectionActionSheet
+        visible={share.sheetOpen}
+        title={t("songDetail.shareSketchTitle")}
+        onClose={() => share.setSheetOpen(false)}
+        actions={[
+          { key: "export", label: t("songDetail.exportSketch"), icon: "folder-open-outline", onPress: () => void share.exportSketch() },
+          ...(SHOW_SEND
+            ? [{ key: "songnook-send", label: t("songDetail.getLink"), icon: "paper-plane-outline" as const, onPress: share.sendSketch }]
+            : []),
+        ]}
+      />
       {/* Last child: its backdrop must sit over everything above. */}
       <SongHeaderMenu />
     </SafeAreaView>

@@ -6,6 +6,11 @@ import { appActions } from "../../../state/actions";
 import { buildCollectionMoveDestinations, getCollectionDeleteScope } from "../../../domain/collectionManagement";
 import { personalWorkspaces } from "../../../domain/workspaceVisibility";
 import type { SelectionAction } from "../../common/SelectionDock";
+import { useStore } from "../../../state/useStore";
+import { openSendSheet } from "../../../state/useSendSheetStore";
+import { createCollectionShareLink, shareCollectionFile } from "../../../services/placeShare";
+import { isSendServiceConfigured } from "../../../config/sendService";
+import { haptic } from "../../../design/haptics";
 
 function collapseSelectedCollectionIds(
   collections: Array<{ id: string; parentCollectionId?: string | null }>,
@@ -25,6 +30,9 @@ function collapseSelectedCollectionIds(
     return true;
   });
 }
+
+// "SongNook Send" needs a real transfer endpoint — same gate as the Library views.
+const SHOW_SEND = __DEV__ || isSendServiceConfigured();
 
 export function useWorkspaceCollectionSelection({
   navigation,
@@ -55,6 +63,7 @@ export function useWorkspaceCollectionSelection({
 }) {
   const { t } = useTranslation();
   const [managedCollectionId, setManagedCollectionId] = useState<string | null>(null);
+  const [sharingCollection, setSharingCollection] = useState(false);
   const [collectionRenameModalOpen, setCollectionRenameModalOpen] = useState(false);
   const [collectionDraft, setCollectionDraft] = useState("");
   const [collectionDescriptionDraft, setCollectionDescriptionDraft] = useState("");
@@ -240,6 +249,42 @@ export function useWorkspaceCollectionSelection({
     },
   ];
 
+  // Export / SongNook Send for ONE selected collection — the same two exits the
+  // collection's own page offers, reachable from the hub without opening it.
+  const libraryNow = () => {
+    const state = useStore.getState();
+    return { setlists: state.setlists, songbooks: state.songbooks, playlists: state.playlists };
+  };
+  const exportSelectedCollection = async () => {
+    if (!singleSelectedCollection || !activeWorkspace || sharingCollection) return;
+    setSelectionMoreVisible(false);
+    setSharingCollection(true);
+    try {
+      const ok = await shareCollectionFile(singleSelectedCollection, activeWorkspace, libraryNow());
+      if (!ok) AppAlert.info(t("collection.nothingShare"), t("collection.nothingShareBody"));
+      else setSelectedCollectionIds([]);
+    } catch {
+      // haptics vocabulary: `error` — a failure the user must hear about.
+      haptic.error();
+      AppAlert.info(t("collection.shareFailed"), t("collection.shareFailedBody"));
+    } finally {
+      setSharingCollection(false);
+    }
+  };
+  const sendSelectedCollection = () => {
+    if (!singleSelectedCollection || !activeWorkspace || sharingCollection) return;
+    const collection = singleSelectedCollection;
+    const workspace = activeWorkspace;
+    setSelectionMoreVisible(false);
+    setSelectedCollectionIds([]);
+    openSendSheet({
+      title: collection.title,
+      kind: "collection",
+      emptyMessage: t("collection.nothingShareBody"),
+      create: (parcel) => createCollectionShareLink(collection, workspace, libraryNow(), parcel),
+    });
+  };
+
   const selectionSheetActions: SelectionAction[] = [
     {
       key: "copy",
@@ -259,6 +304,24 @@ export function useWorkspaceCollectionSelection({
         openCollectionDestination("move", collapsedSelectedCollectionIds);
       },
     },
+    {
+      key: "export",
+      label: t("collection.shareFile"),
+      icon: "folder-open-outline",
+      disabled: !singleSelectedCollection || sharingCollection,
+      onPress: () => void exportSelectedCollection(),
+    },
+    ...(SHOW_SEND
+      ? [
+          {
+            key: "songnook-send",
+            label: t("collection.getLink"),
+            icon: "paper-plane-outline" as const,
+            disabled: !singleSelectedCollection || sharingCollection,
+            onPress: sendSelectedCollection,
+          },
+        ]
+      : []),
   ];
 
   /** Open the rename modal pre-filled for a specific collection (used by per-card ellipsis). */

@@ -21,7 +21,7 @@ const HEADER_ROW_HEIGHT = 46;
 export function CollectionHeaderMenu() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { screen, inlinePlayer, importFlow } = useCollectionScreen();
+  const { screen, inlinePlayer, importFlow, management } = useCollectionScreen();
 
   if (!screen.headerMenuOpen) return null;
 
@@ -70,6 +70,27 @@ export function CollectionHeaderMenu() {
         >
           <Text style={styles.ideasSortMenuItemText} numberOfLines={1}>{t("collection.playAll")}</Text>
           <Ionicons name="play" size={15} color={colors.textSecondary} />
+        </Pressable>
+        {/* Share this place — as a SongNook file or a Send link. One row; the
+            sheet it opens holds the two exits (CollectionModals). A received
+            package can be passed along the same way. */}
+        <View style={styles.ideasDropdownDivider} />
+        <Pressable
+          testID="collection-menu-share"
+          style={({ pressed }) => [
+            styles.ideasToggleRow,
+            management.isSharingCollection ? styles.btnDisabled : null,
+            pressed ? styles.pressDown : null,
+          ]}
+          onPress={() => {
+            haptic.tap();
+            screen.setHeaderMenuOpen(false);
+            management.setShareSheetOpen(true);
+          }}
+          disabled={management.isSharingCollection}
+        >
+          <Text style={styles.ideasSortMenuItemText} numberOfLines={1}>{t("collection.share")}</Text>
+          <Ionicons name="share-outline" size={15} color={colors.textSecondary} />
         </Pressable>
         {screen.isReceivedWorkspace ? (
           // A received package: 'Keep this…' sits in the open on the page;

@@ -15,6 +15,7 @@ import { PickerEyebrow } from "../../common/PickerEyebrow";
 import { getLibraryCollectorIcon } from "../../../domain/libraryCollectorPresentation";
 import { InkLink } from "../../common/InkLink";
 import { ReceivedPackageMoveModal } from "../../common/ReceivedPackageMoveModal";
+import { SentLinkChip } from "../../common/SentLinkChip";
 import { visitCollection } from "../../../navigation";
 import { styles } from "../../../styles";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
@@ -263,6 +264,11 @@ export function CollectionCollapsibleIdentity() {
           {collection.description}
         </UserText>
       ) : null}
+      {/* A link this device made for this collection: "Link active · N days
+          left · Copy" (the same chip a setlist wears). Renders nothing otherwise. */}
+      <View style={collStyles.linkRow} pointerEvents="box-none">
+        <SentLinkChip entityId={collection.id} />
+      </View>
       {/* A received package's one real decision, in the open: where it lives
           (founder, 2026-10-11 — not behind the ⋯). */}
       {screen.isReceivedWorkspace && workspace ? (
@@ -323,6 +329,10 @@ const collStyles = StyleSheet.create({
   // The received package's Keep link, under the identity text.
   keepRow: {
     marginTop: 10,
+    alignSelf: "flex-start",
+  },
+  linkRow: {
+    marginTop: 8,
     alignSelf: "flex-start",
   },
   navRow: {

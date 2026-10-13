@@ -25,6 +25,7 @@ import { enrichImportedAudioAsset, importAudioAssets } from "../../services/audi
 import { createClipImportBatcher } from "../../services/clipImportBatcher";
 import { enqueueMissingMetadataBackfill } from "../../services/backgroundWaveformHydration";
 import { resolveImportedEntityRoute } from "../../domain/receiveRouting";
+import { titleFromFileName } from "../../domain/fileTitle";
 import { getPlayableClipForIdea } from "../../domain/clipPresentation";
 import { useParcelPreview } from "../../hooks/useParcelPreview";
 import { toast } from "../common/toastStore";
@@ -33,6 +34,7 @@ import { styles } from "../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../design/tokens";
 import type { ShareKind } from "../../types";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { UserText } from "../../i18n";
 
 type Phase =
@@ -43,6 +45,38 @@ type Phase =
   | { kind: "ready"; transfer: TransferPayload }
   | { kind: "saving"; transfer: TransferPayload; itemIndex: number; itemFraction: number }
   | { kind: "done"; transfer: TransferPayload };
+
+/** Kinds whose .songnook file lands as a received package (vs. a compilation). */
+const PACKAGE_KINDS: ReadonlySet<ShareKind> = new Set<ShareKind>(["sketch", "collection", "workspace", "library"]);
+
+/** Where Save lands, said before the tap. A running order or a chart book
+ *  becomes a compilation; a collection or a workspace becomes a package in
+ *  Received; loose files become a package named after the parcel. */
+function destinationLine(
+  transfer: TransferPayload,
+  hasArchive: boolean,
+  title: string,
+  t: TFunction
+): string {
+  switch (transfer.kind) {
+    case "playlist":
+      return t("transferReceive.savesToPlaylist");
+    case "setlist":
+      return t("transferReceive.savesToSetlist");
+    case "songbook":
+      return hasArchive ? t("transferReceive.savesToSongbook") : t("transferReceive.savesToReceived", { title });
+    case "sketch":
+    case "collection":
+    case "workspace":
+      return hasArchive
+        ? t("transferReceive.savesToReceivedKind", { kind: t(`received.${transfer.kind}`) })
+        : t("transferReceive.savesToReceived", { title });
+    default:
+      // A .songnook file with no declared kind: its manifest decides on save,
+      // so promise only the safe landing.
+      return hasArchive ? t("transferReceive.savesToReceivedPlain") : t("transferReceive.savesToReceived", { title });
+  }
+}
 
 /** Above this, saving asks first — a phone on cellular deserves the number. */
 const BIG_PARCEL_BYTES = 150 * 1024 * 1024;
@@ -57,10 +91,8 @@ function daysUntil(iso: string): number {
   return Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000));
 }
 
-/** "A War In Me.wav" reads as a song, not a file. */
-function displayName(fileName: string): string {
-  return fileName.replace(/\.[a-z0-9]{1,8}$/i, "") || fileName;
-}
+/** "A War In Me.wav" reads as a song, not a file (domain/fileTitle). */
+const displayName = titleFromFileName;
 
 /**
  * The in-app landing for a SongNook Send link: the parcel — who, what, how
@@ -153,6 +185,8 @@ export function TransferReceiveScreen() {
       senderUserId: transfer.sender.userId,
       transferId: transfer.transferId,
       receivedAt: Date.now(),
+      // Loose audio: the parcel's declared running order (or plain clips). A
+      // .songnook item carries its own manifest, which the importer trusts instead.
       shareKind: (transfer.kind === "playlist" || transfer.kind === "setlist" ? transfer.kind : "clips") as ShareKind,
       shareTitle: transfer.title ?? t("transferReceive.receivedFiles"),
     };
@@ -182,6 +216,8 @@ export function TransferReceiveScreen() {
             },
           });
           importedAnything = true;
+          // A collection or a workspace lands as a package: Save opens it, not the list.
+          packageId = packageId ?? result.importedWorkspaceIds[0] ?? null;
           entityRoute =
             entityRoute ??
             resolveImportedEntityRoute({
@@ -350,12 +386,16 @@ export function TransferReceiveScreen() {
     const complete = done || (saving && phase.itemIndex > index);
     const archive = isArchiveItem(item);
     const previewing = preview.activeItemId === item.itemId;
-    // An archive row wears the parcel's name, not its timestamped file name.
+    // An archive row wears the parcel's name, not its timestamped file name,
+    // and says what it is when the sender said so (a collection, a workspace).
     const name = archive ? transfer.title || t("transferReceive.songnookFile") : displayName(item.fileName);
+    const archiveLabel = PACKAGE_KINDS.has(transfer.kind)
+      ? t(`received.${transfer.kind}`)
+      : t("transferReceive.songnookFile");
     const meta = active
       ? t("transferReceive.downloading", { percent: Math.round(phase.itemFraction * 100) })
       : archive
-        ? `${t("transferReceive.songnookFile")} · ${formatBytes(item.size)}`
+        ? `${archiveLabel} · ${formatBytes(item.size)}`
         : formatBytes(item.size);
     return (
       <SurfaceCard key={item.itemId} style={local.row}>
@@ -505,15 +545,7 @@ export function TransferReceiveScreen() {
           {/* The key never scrolls away: the list scrolls, the decision stays. */}
           <View style={local.footer}>
             {/* Where it lands — said before the tap, not after. */}
-            <Text style={local.destination}>
-              {hasArchive
-                ? t("transferReceive.savesToCompilations")
-                : transfer.kind === "playlist"
-                  ? t("transferReceive.savesToPlaylist")
-                  : transfer.kind === "setlist"
-                    ? t("transferReceive.savesToSetlist")
-                    : t("transferReceive.savesToReceived", { title })}
-            </Text>
+            <Text style={local.destination}>{destinationLine(transfer, hasArchive, title, t)}</Text>
             <Button
               testID="transfer-save"
               label={keyLabel}

@@ -44,6 +44,14 @@ export function ReceivedPackageMoveModal({
     [packageIds, workspaces]
   );
 
+  // A package whose collection carries nested collections can only land at a
+  // workspace's top level (sub-collections never nest twice) — so "under a
+  // collection" rows are not offered for it, instead of failing on confirm.
+  const hasNested = useMemo(
+    () => packages.some((pkg) => pkg.collections.some((collection) => !!collection.parentCollectionId)),
+    [packages]
+  );
+
   const destinations = useMemo<CollectionMoveDestination[]>(() => {
     const own: CollectionMoveDestination = {
       workspaceId: OWN_WORKSPACE,
@@ -64,6 +72,7 @@ export function ReceivedPackageMoveModal({
             subtitle: t("workspaceBrowse.topLevelHint"),
           },
         ];
+        if (hasNested) return rows;
         for (const collection of ws.collections.filter((c) => !c.parentCollectionId)) {
           rows.push({
             workspaceId: ws.id,
@@ -76,7 +85,7 @@ export function ReceivedPackageMoveModal({
         return rows;
       });
     return [own, ...targets];
-  }, [packages.length, t, workspaces]);
+  }, [hasNested, packages.length, t, workspaces]);
 
   const reset = () => {
     setSelectedWorkspaceId(null);
@@ -121,7 +130,7 @@ export function ReceivedPackageMoveModal({
           ? t("received.moveManyTitle", { count: packages.length })
           : t("received.moveOneTitle", { title: packages[0]?.received?.shareTitle ?? packages[0]?.title ?? "" })
       }
-      helperText={t("received.moveHint")}
+      helperText={hasNested ? t("received.moveNestedHint") : t("received.moveHint")}
       confirmLabel={t("received.move")}
       destinations={destinations}
       selectedWorkspaceId={selectedWorkspaceId}
