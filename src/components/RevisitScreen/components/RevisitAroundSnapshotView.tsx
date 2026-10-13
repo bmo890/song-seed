@@ -1,5 +1,6 @@
 import React from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { PageIntro } from "../../common/PageIntro";
 import { styles } from "../../../styles";
 import type { SongIdea } from "../../../types";
@@ -51,15 +52,13 @@ export function RevisitAroundSnapshotView({
       <View style={[styles.card, revisitStyles.snapshotHeaderCard]}>
         <View style={revisitStyles.snapshotHeaderTopRow}>
           <Text style={revisitStyles.snapshotWindowText}>{snapshot.windowLabel}</Text>
-          <Pressable
-            style={({ pressed }) => [
-              revisitStyles.sectionActionButton,
-              pressed ? styles.pressDown : null,
-            ]}
+          <Press
+            haptic="none"
+            style={revisitStyles.sectionActionButton}
             onPress={onOpenInActivity}
           >
             <Text style={revisitStyles.sectionActionText}>{t("revisit.openActivity")}</Text>
-          </Pressable>
+          </Press>
         </View>
         <Text style={styles.settingsSectionMeta}>
           {t("revisit.itemCount", { count: snapshot.items.length })}

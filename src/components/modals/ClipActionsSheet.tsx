@@ -1,5 +1,6 @@
 import React, { useRef } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { Press } from "../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { BottomSheet, type BottomSheetRef } from "../common/BottomSheet";
@@ -24,13 +25,11 @@ type ClipActionsSheetProps = {
 
 function SheetActionRow({ label, icon, destructive = false, onPress }: ClipActionItem) {
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.collectionActionsOption,
+    <Press
+      haptic="none"
+      style={[styles.collectionActionsOption,
         styles.clipActionsOption,
-        destructive ? styles.collectionActionsOptionDestructive : null,
-        pressed ? styles.pressDown : null,
-      ]}
+        destructive ? styles.collectionActionsOptionDestructive : null]}
       onPress={onPress}
     >
       <View style={styles.collectionActionsOptionLead}>
@@ -49,7 +48,7 @@ function SheetActionRow({ label, icon, destructive = false, onPress }: ClipActio
         size={15}
         color={destructive ? colors.danger : colors.textMuted}
       />
-    </Pressable>
+    </Press>
   );
 }
 
@@ -73,19 +72,17 @@ export function ClipActionsSheet({
         {actions.map(({ key, ...action }) => (
           <SheetActionRow key={key} {...action} />
         ))}
-        <Pressable
-          style={({ pressed }) => [
-            styles.collectionActionsOption,
-            styles.clipActionsOption,
-            pressed ? styles.pressDown : null,
-          ]}
+        <Press
+          haptic="none"
+          style={[styles.collectionActionsOption,
+            styles.clipActionsOption]}
           onPress={() => sheetRef.current?.close()}
         >
           <View style={styles.collectionActionsOptionLead}>
             <Ionicons name="close-outline" size={16} color={colors.textStrong} />
             <Text style={styles.collectionActionsOptionText}>{t("common.cancel")}</Text>
           </View>
-        </Pressable>
+        </Press>
       </View>
     </BottomSheet>
   );

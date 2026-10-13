@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Press } from "../../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../../design/tokens";
@@ -25,18 +26,16 @@ export function ChordPaletteBar({ palette, armedId, onToggleArmed }: Props) {
         {palette.map((item) => {
           const active = item.id === armedId;
           return (
-            <Pressable
+            <Press
+              haptic="none"
               key={item.id}
-              style={({ pressed }) => [
-                styles.chip,
-                active ? styles.chipActive : null,
-                pressed ? appStyles.pressDown : null,
-              ]}
+              style={[styles.chip,
+                active ? styles.chipActive : null]}
               onPress={() => onToggleArmed(item)}
             >
               {active ? <Ionicons name="close" size={12} color={colors.onPrimary} /> : null}
               <Text style={[styles.chipText, active ? styles.chipTextActive : null]}>{item.displayText}</Text>
-            </Pressable>
+            </Press>
           );
         })}
       </ScrollView>

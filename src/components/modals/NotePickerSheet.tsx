@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Press } from "../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../design/directionalIcons";
 import { BottomSheet } from "../common/BottomSheet";
@@ -59,12 +60,10 @@ export function NotePickerSheet({
                   const noteTitle = deriveNotePreviewTitle(note);
                   const preview = deriveNotePreviewBody(note);
                   return (
-                    <Pressable
+                    <Press
+                      haptic="none"
                       key={note.id}
-                      style={({ pressed }) => [
-                        pickerStyles.option,
-                        pressed ? styles.pressDown : null,
-                      ]}
+                      style={pickerStyles.option}
                       onPress={() => onSelect(note)}
                     >
                       <Ionicons name="document-text-outline" size={18} color={colors.textSecondary} />
@@ -79,7 +78,7 @@ export function NotePickerSheet({
                         ) : null}
                       </View>
                       <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
-                    </Pressable>
+                    </Press>
                   );
                 })}
               </View>

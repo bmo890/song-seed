@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Press } from "../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../common/BottomSheet";
 import { WorkspaceAvatar } from "../common/WorkspaceAvatar";
@@ -95,18 +96,16 @@ export function SaveDestinationPickerSheet({
                   .filter(Boolean)
                   .join("  ·  ");
                 return (
-                  <Pressable
+                  <Press
+                    haptic="none"
                     key={destination.collectionId}
                     accessibilityRole="button"
                     accessibilityState={{ selected: isSelected }}
                     accessibilityLabel={`${destination.pathLabel ?? destination.label}, ${meta}`}
-                    style={({ pressed }) => [
-                      localStyles.row,
+                    style={[localStyles.row,
                       { paddingStart: 14 + destination.depth * INDENT_STEP },
                       index > 0 ? localStyles.rowDivided : null,
-                      isSelected ? localStyles.rowSelected : null,
-                      pressed ? styles.pressDown : null,
-                    ]}
+                      isSelected ? localStyles.rowSelected : null]}
                     onPress={() => onSelect(destination)}
                   >
                     <Ionicons
@@ -138,7 +137,7 @@ export function SaveDestinationPickerSheet({
                     {isSelected ? (
                       <Ionicons name="checkmark" size={18} color={colors.primaryDeep} />
                     ) : null}
-                  </Pressable>
+                  </Press>
                 );
               })}
             </View>

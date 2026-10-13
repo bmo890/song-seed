@@ -1,4 +1,5 @@
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../styles";
 import { type TimelineClipEntry } from "../../../domain/clipGraph";
@@ -25,18 +26,16 @@ export function PrimaryTakeStrip({ entry, onLocate }: PrimaryTakeStripProps) {
     <View style={styles.songDetailPrimaryStrip}>
       <View style={styles.songDetailPrimaryStripAccent} />
       {/* Bare play glyph — same lead treatment as the clip card, no circle. */}
-      <Pressable
-        style={({ pressed }) => [
-          styles.ideasInlinePlayBtn,
-          pressed ? styles.pressDown : null,
-        ]}
+      <Press
+        haptic="none"
+        style={styles.ideasInlinePlayBtn}
         hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
         onPress={() => actions.playProjectQueue([clip.id])}
         accessibilityRole="button"
         accessibilityLabel={t("songDetail.playPrimaryTake")}
       >
         <Ionicons name="play" size={18} color={colors.textStrong} style={{ marginStart: 2 }} />
-      </Pressable>
+      </Press>
       <View style={styles.songDetailPrimaryStripCopy}>
         <Text style={styles.songDetailPrimaryStripLabel}>{t("songDetail.primaryTake")}</Text>
         <UserText
@@ -51,11 +50,9 @@ export function PrimaryTakeStrip({ entry, onLocate }: PrimaryTakeStripProps) {
           {clip.title || t("common.untitled")}
         </UserText>
       </View>
-      <Pressable
-        style={({ pressed }) => [
-          styles.songDetailPrimaryStripLocate,
-          pressed ? styles.pressDown : null,
-        ]}
+      <Press
+        haptic="none"
+        style={styles.songDetailPrimaryStripLocate}
         onPress={onLocate}
         accessibilityRole="button"
         accessibilityLabel={t("songDetail.findPrimaryTake")}
@@ -64,7 +61,7 @@ export function PrimaryTakeStrip({ entry, onLocate }: PrimaryTakeStripProps) {
             for "view in collection" everywhere (2026-09-17) — one icon, one
             meaning. */}
         <Ionicons name="locate-outline" size={15} color={colors.textMuted} />
-      </Pressable>
+      </Press>
     </View>
   );
 }

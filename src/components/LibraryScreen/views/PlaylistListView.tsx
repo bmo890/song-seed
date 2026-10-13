@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
@@ -51,9 +52,10 @@ export function PlaylistListView({
           list, the empty state's own action when there isn't (2026-10-11). */}
       <View style={listStyles.listStack}>
         {playlists.map((playlist) => (
-          <Pressable
+          <Press
+            haptic="none"
             key={playlist.id}
-            style={({ pressed }) => [listStyles.playlistRow, pressed ? styles.pressDown : null]}
+            style={listStyles.playlistRow}
             onPress={() => onOpenPlaylist(playlist.id)}
           >
             <View style={listStyles.playlistArt}>
@@ -72,7 +74,7 @@ export function PlaylistListView({
               </View>
             </View>
             <Ionicons name={dirIcon("chevron-forward")} size={15} color={colors.textMuted} />
-          </Pressable>
+          </Press>
         ))}
       </View>
 

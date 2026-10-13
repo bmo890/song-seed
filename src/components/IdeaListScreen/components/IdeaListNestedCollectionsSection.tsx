@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
 import { Collection } from "../../../types";
@@ -27,12 +28,10 @@ export function IdeaListNestedCollectionsSection({
 
   return (
     <View style={nestedCollectionStyles.wrap}>
-      <Pressable
-        style={({ pressed }) => [
-          nestedCollectionStyles.toggleRow,
-          expanded ? nestedCollectionStyles.toggleRowOpen : null,
-          pressed ? styles.pressDown : null,
-        ]}
+      <Press
+        haptic="none"
+        style={[nestedCollectionStyles.toggleRow,
+          expanded ? nestedCollectionStyles.toggleRowOpen : null]}
         onPress={onToggleExpanded}
       >
         <View style={nestedCollectionStyles.toggleCopy}>
@@ -46,17 +45,15 @@ export function IdeaListNestedCollectionsSection({
           size={15}
           color={colors.textSecondary}
         />
-      </Pressable>
+      </Press>
 
       {expanded ? (
         <View style={nestedCollectionStyles.list}>
           {childCollections.map((collection) => (
             <View key={collection.id} style={nestedCollectionStyles.itemRow}>
-              <Pressable
-                style={({ pressed }) => [
-                  nestedCollectionStyles.itemMain,
-                  pressed ? styles.pressDown : null,
-                ]}
+              <Press
+                haptic="none"
+                style={nestedCollectionStyles.itemMain}
                 onPress={() => onOpenCollection(collection.id)}
                 onLongPress={() => onOpenCollectionActions(collection.id)}
               >
@@ -68,17 +65,15 @@ export function IdeaListNestedCollectionsSection({
                 <UserText style={nestedCollectionStyles.itemTitle} numberOfLines={1}>
                   {collection.title}
                 </UserText>
-              </Pressable>
+              </Press>
 
-              <Pressable
-                style={({ pressed }) => [
-                  nestedCollectionStyles.chevronBtn,
-                  pressed ? styles.pressDown : null,
-                ]}
+              <Press
+                haptic="none"
+                style={nestedCollectionStyles.chevronBtn}
                 onPress={() => onOpenCollection(collection.id)}
               >
                 <Ionicons name={dirIcon("chevron-forward")} size={13} color="#B8A8A3" />
-              </Pressable>
+              </Press>
             </View>
           ))}
         </View>

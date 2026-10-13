@@ -1,5 +1,6 @@
 import React, { memo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
@@ -171,15 +172,13 @@ function SketchDoor({ onPress }: { onPress: () => void }) {
     );
   }
   return (
-    <Pressable
+    <Press
+      haptic="none"
       accessibilityRole="button"
       accessibilityLabel={t("songDetail.makeSong")}
       testID="player-sketch-door"
-      style={({ pressed }) => [
-        doorStyles.sketchDoor,
-        firstVisit ? doorStyles.sketchDoorFirstVisit : null,
-        pressed ? appStyles.pressDown : null,
-      ]}
+      style={[doorStyles.sketchDoor,
+        firstVisit ? doorStyles.sketchDoorFirstVisit : null]}
       onPress={handlePress}
     >
       <View style={doorStyles.sketchKindRow}>
@@ -192,7 +191,7 @@ function SketchDoor({ onPress }: { onPress: () => void }) {
         <Text style={doorStyles.sketchLink}>{t("songDetail.makeSong")}</Text>
         <Ionicons name={dirIcon("chevron-forward")} size={14} color={colors.primaryDeep} />
       </View>
-    </Pressable>
+    </Press>
   );
 }
 

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
+import { Press } from "../common/Press";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenHeader } from "../common/ScreenHeader";
@@ -53,14 +54,15 @@ export function RevisitScreen() {
         onLeftPress={screen.isAroundSnapshotOpen ? screen.closeAroundSnapshot : undefined}
         rightElement={
           screen.isAroundSnapshotOpen ? undefined : (
-            <Pressable
-              style={({ pressed }) => [revisitStyles.headerHelpBtn, pressed ? styles.pressDown : null]}
+            <Press
+              haptic="none"
+              style={revisitStyles.headerHelpBtn}
               onPress={() => setCustomizeOpen(true)}
               hitSlop={6}
               accessibilityLabel={t("revisit.customize")}
             >
               <Ionicons name="options-outline" size={18} color={colors.textSecondary} />
-            </Pressable>
+            </Press>
           )
         }
       />

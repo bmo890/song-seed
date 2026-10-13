@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { colors, radii, spacing, text } from "../../../design/tokens";
 import { SegmentedControl } from "../../common/SegmentedControl";
 import { styles as appStyles } from "../../../styles";
@@ -58,10 +59,9 @@ export function EditorTrimIntent({
           {outcome}
         </Text>
         {gridAvailable ? (
-          <Pressable
-            style={({ pressed }) => [s.gridToggle, pressed ? appStyles.pressDown : null]}
+          <Press
+            style={s.gridToggle}
             onPress={() => {
-              haptic.tap();
               onToggleKeepToGrid();
             }}
             accessibilityRole="switch"
@@ -72,7 +72,7 @@ export function EditorTrimIntent({
             <Text style={[s.gridToggleText, keepToGrid ? s.gridToggleTextOn : null]}>
               {t("editor.keepToGrid")}
             </Text>
-          </Pressable>
+          </Press>
         ) : null}
       </View>
     </View>

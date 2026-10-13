@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
-import { Pressable, StyleProp, TextInputProps, View, ViewStyle } from "react-native";
+import { StyleProp, TextInputProps, View, ViewStyle } from "react-native";
+import { Press } from "./Press";
 import { styles } from "../../styles";
 import { genIdea } from "../../utils";
 import { UserTextInput } from "../../i18n";
@@ -89,20 +90,22 @@ export function TitleInput({
             {trailingKeys > 0 ? (
                 <View style={styles.titleInlineBtns}>
                     {showGenerator ? (
-                        <Pressable
-                            style={({ pressed }) => [styles.titleClearBtn, pressed ? styles.pressDown : null]}
+                        <Press
+                            haptic="none"
+                            style={styles.titleClearBtn}
                             onPress={() => onChangeText(sanitizeTitleValue(genIdea(), maxLength, maxLines, true))}
                         >
                             <Ionicons name="sparkles" size={14} color={colors.textSecondary} />
-                        </Pressable>
+                        </Press>
                     ) : null}
                     {showClearKey ? (
-                        <Pressable
-                            style={({ pressed }) => [styles.titleClearBtn, pressed ? styles.pressDown : null]}
+                        <Press
+                            haptic="none"
+                            style={styles.titleClearBtn}
                             onPress={() => onChangeText("")}
                         >
                             <Ionicons name="close" size={14} color={colors.textSecondary} />
-                        </Pressable>
+                        </Press>
                     ) : null}
                 </View>
             ) : null}

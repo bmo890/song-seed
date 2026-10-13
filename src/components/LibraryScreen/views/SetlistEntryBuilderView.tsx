@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../../common/Button";
 import { styles } from "../styles";
@@ -35,12 +36,10 @@ function CheckRow({
   onPress: () => void;
 }) {
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.card,
-        checked ? builderStyles.cardChecked : null,
-        pressed ? styles.pressDown : null,
-      ]}
+    <Press
+      haptic="none"
+      style={[styles.card,
+        checked ? builderStyles.cardChecked : null]}
       onPress={onPress}
       accessibilityRole="checkbox"
       accessibilityState={{ checked }}
@@ -63,7 +62,7 @@ function CheckRow({
           color={checked ? colors.primary : colors.borderMuted}
         />
       </View>
-    </Pressable>
+    </Press>
   );
 }
 
@@ -111,14 +110,15 @@ export function SetlistEntryBuilderView({
           <UserText value={song.title} style={[styles.cardTitle, { flex: 1 }]} numberOfLines={1}>
             {song.title}
           </UserText>
-          <Pressable
-            style={({ pressed }) => [builderStyles.everythingBtn, pressed ? styles.pressDown : null]}
+          <Press
+            haptic="none"
+            style={builderStyles.everythingBtn}
             onPress={onSelectEverything}
             accessibilityRole="button"
             accessibilityLabel={t("library.includeEverything")}
           >
             <Text style={builderStyles.everythingLabel}>{t("library.everything")}</Text>
-          </Pressable>
+          </Press>
         </View>
 
         <Text style={builderStyles.sectionLabel}>{t("library.takesParts")}</Text>

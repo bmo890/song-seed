@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Press } from "../../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../../../common/BottomSheet";
 import { styles as appStyles } from "../../../../styles";
@@ -73,8 +74,9 @@ function Option({
   onPress: () => void;
 }) {
   return (
-    <Pressable
-      style={({ pressed }) => [sheetStyles.option, pressed ? appStyles.pressDown : null]}
+    <Press
+      haptic="none"
+      style={sheetStyles.option}
       onPress={onPress}
     >
       <View style={sheetStyles.iconWrap}>
@@ -84,7 +86,7 @@ function Option({
         <Text style={sheetStyles.optionTitle}>{title}</Text>
         <Text style={sheetStyles.optionBody}>{body}</Text>
       </View>
-    </Pressable>
+    </Press>
   );
 }
 

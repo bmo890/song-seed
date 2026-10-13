@@ -1,5 +1,6 @@
 import { useMemo, type ComponentProps } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Press } from "./common/Press";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../design/directionalIcons";
@@ -150,13 +151,11 @@ export function SideNav({
         <View style={sideNavStyles.brand}>
           <Text style={sideNavStyles.brandName}>SongNook</Text>
         </View>
-        <Pressable
+        <Press
+          haptic="none"
           testID="global-search"
-          style={({ pressed }) => [
-            sideNavStyles.searchBtn,
-            currentRoute === "search" ? sideNavStyles.searchBtnActive : null,
-            pressed ? styles.pressDown : null,
-          ]}
+          style={[sideNavStyles.searchBtn,
+            currentRoute === "search" ? sideNavStyles.searchBtnActive : null]}
           onPress={onGoSearch}
           hitSlop={8}
           accessibilityRole="button"
@@ -167,7 +166,7 @@ export function SideNav({
             size={19}
             color={currentRoute === "search" ? colors.textPrimary : colors.textSecondary}
           />
-        </Pressable>
+        </Press>
       </View>
 
       {/* ── Workspace card — the one tinted island ─────────────────────── */}
@@ -196,16 +195,17 @@ export function SideNav({
                 {workspaceTitle ?? t("navigation.noWorkspace")}
               </UserText>
             </View>
-            <Pressable
+            <Press
+              haptic="none"
               testID="workspace-switch"
               accessibilityRole="button"
               accessibilityLabel={t("navigation.switchWorkspace")}
-              style={({ pressed }) => [sideNavStyles.switchBtn, pressed ? styles.pressDown : null]}
+              style={sideNavStyles.switchBtn}
               onPress={onGoHome}
               hitSlop={10}
             >
               <Ionicons name="swap-horizontal" size={17} color={colors.primaryDeep} />
-            </Pressable>
+            </Press>
           </View>
 
           {/* Collections — the door to everything in this workspace. Plain row,
@@ -215,8 +215,9 @@ export function SideNav({
               shortcuts into particular collections live in RECENT below, where a
               section label can explain them (2026-09-10). */}
           {workspaceTitle ? (
-            <Pressable
-              style={({ pressed }) => [sideNavStyles.cardRow, pressed ? styles.pressDown : null]}
+            <Press
+              haptic="none"
+              style={sideNavStyles.cardRow}
               onPress={onGoWorkspace}
             >
               <Ionicons name="albums-outline" size={17} color={colors.primaryDeep} />
@@ -227,7 +228,7 @@ export function SideNav({
                 ) : null}
               </Text>
               <Ionicons name={dirIcon("chevron-forward")} size={14} color={colors.textMuted} />
-            </Pressable>
+            </Press>
           ) : null}
         </View>
       </View>

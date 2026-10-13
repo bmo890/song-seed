@@ -1,4 +1,5 @@
-import { Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { Modal, ScrollView, Text, View } from "react-native";
+import { Press } from "../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../design/directionalIcons";
 import { styles } from "../../styles";
@@ -63,13 +64,11 @@ export function CollectionMoveModal({
                       (selectedParentCollectionId ?? null) === (destination.parentCollectionId ?? null);
 
                     return (
-                      <Pressable
+                      <Press
+                        haptic="none"
                         key={`${destination.workspaceId}:${destination.parentCollectionId ?? "root"}`}
-                        style={({ pressed }) => [
-                          styles.collectionMoveOption,
-                          selected ? styles.collectionMoveOptionSelected : null,
-                          pressed ? styles.pressDown : null,
-                        ]}
+                        style={[styles.collectionMoveOption,
+                          selected ? styles.collectionMoveOptionSelected : null]}
                         onPress={() =>
                           onSelectDestination(destination.workspaceId, destination.parentCollectionId)
                         }
@@ -92,7 +91,7 @@ export function CollectionMoveModal({
                         ) : (
                           <Ionicons name={dirIcon("chevron-forward")} size={15} color="#94a3b8" />
                         )}
-                      </Pressable>
+                      </Press>
                     );
                   })}
                 </View>

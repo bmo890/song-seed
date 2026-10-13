@@ -1,4 +1,5 @@
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { Press } from "./Press";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { BottomSheet } from "./BottomSheet";
@@ -39,13 +40,11 @@ export function WorkspacePickSheet({
   const row = (workspace: Workspace) => {
     const current = workspace.id === currentWorkspaceId;
     return (
-      <Pressable
+      <Press
         key={workspace.id}
         testID={`workspace-pick-${workspace.id}`}
-        style={({ pressed }) => [styles.selectionSheetAction, pressed ? styles.pressDown : null]}
+        style={styles.selectionSheetAction}
         onPress={() => {
-          // haptics vocabulary: `tap` — an acknowledged press.
-          haptic.tap();
           onClose();
           if (!current) onPick(workspace.id);
         }}
@@ -60,7 +59,7 @@ export function WorkspacePickSheet({
           </UserText>
         </View>
         {current ? <Ionicons name="checkmark" size={16} color={colors.primary} /> : null}
-      </Pressable>
+      </Press>
     );
   };
   return (

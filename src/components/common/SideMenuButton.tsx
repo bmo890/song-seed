@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
+import { Press } from "./Press";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { useStore } from "../../state/useStore";
@@ -28,9 +29,10 @@ export function SideMenuButton({ testID = "side-menu-mark" }: { testID?: string 
   );
 
   return (
-    <Pressable
+    <Press
+      haptic="none"
       testID={testID}
-      style={({ pressed }) => [buttonStyles.base, pressed ? styles.pressDown : null]}
+      style={buttonStyles.base}
       onPress={openMenu}
       hitSlop={10}
       accessibilityRole="button"
@@ -41,7 +43,7 @@ export function SideMenuButton({ testID = "side-menu-mark" }: { testID?: string 
       ) : (
         <Ionicons name="menu-outline" size={20} color={colors.textSecondary} />
       )}
-    </Pressable>
+    </Press>
   );
 }
 

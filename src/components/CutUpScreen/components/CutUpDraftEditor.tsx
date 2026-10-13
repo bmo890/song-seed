@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { UserTextInput } from "../../../i18n";
 import { Ionicons } from "@expo/vector-icons";
 import { AppAlert } from "../../common/AppAlert";
@@ -76,17 +77,16 @@ export function CutUpDraftEditor({
         <View style={styles.headerRow}>
           <Text style={styles.label}>{t("cutUp.yourDraft")}</Text>
           <View style={styles.headerActions}>
-            <Pressable
-              style={({ pressed }) => [styles.remixBtn, pressed ? appStyles.pressDown : null]}
+            <Press
+              style={styles.remixBtn}
               onPress={() => {
-                haptic.tap();
                 setMenuOpen(true);
               }}
               hitSlop={6}
             >
               <Ionicons name="shuffle" size={14} color={colors.primaryDeep} />
               <Text style={styles.remixText}>{t("cutUp.remixDraft")}</Text>
-            </Pressable>
+            </Press>
           </View>
         </View>
       )}
@@ -109,9 +109,10 @@ export function CutUpDraftEditor({
         <Text style={styles.sheetSubtitle}>{t("cutUp.remixSubtitle")}</Text>
         <View style={styles.optionList}>
           {REMIX_OPTIONS.map((option) => (
-            <Pressable
+            <Press
+              haptic="none"
               key={option.key}
-              style={({ pressed }) => [styles.optionRow, pressed ? appStyles.pressDown : null]}
+              style={styles.optionRow}
               onPress={() => pickRemix(option)}
             >
               <View style={styles.optionIcon}>
@@ -123,7 +124,7 @@ export function CutUpDraftEditor({
                 </Text>
                 <Text style={styles.optionDesc}>{t(`cutUp.${option.key}Desc`)}</Text>
               </View>
-            </Pressable>
+            </Press>
           ))}
         </View>
       </BottomSheet>

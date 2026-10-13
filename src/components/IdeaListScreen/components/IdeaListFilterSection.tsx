@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Pressable, Text } from "react-native";
+import { Text } from "react-native";
+import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { styles } from "../../../styles";
@@ -102,11 +103,9 @@ export function IdeaListFilterSection({
       }
       rightSlot={
         hiddenItemsCount > 0 ? (
-          <Pressable
-            style={({ pressed }) => [
-              styles.ideasUnhideAllPill,
-              pressed ? styles.pressDown : null,
-            ]}
+          <Press
+            haptic="none"
+            style={styles.ideasUnhideAllPill}
             onPress={onShowAll}
             accessibilityRole="button"
             accessibilityLabel={t("common.showAllHidden", { count: hiddenItemsCount })}
@@ -115,7 +114,7 @@ export function IdeaListFilterSection({
             <Text style={styles.ideasUnhideAllPillText}>
               {t("common.showAllHidden", { count: hiddenItemsCount })}
             </Text>
-          </Pressable>
+          </Press>
         ) : null
       }
     />

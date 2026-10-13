@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { Press } from "./Press";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
 import { colors, radii, spacing, text } from "../../design/tokens";
@@ -45,12 +46,13 @@ export function SearchField({
         returnKeyType="search"
       />
       {value ? (
-        <Pressable
-          style={({ pressed }) => [searchFieldStyles.clearBtn, pressed ? styles.pressDown : null]}
+        <Press
+          haptic="none"
+          style={searchFieldStyles.clearBtn}
           onPress={() => onChangeText("")}
         >
           <Ionicons name="close" size={14} color={colors.textSecondary} />
-        </Pressable>
+        </Press>
       ) : null}
     </View>
   );

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
@@ -78,13 +79,11 @@ function NoteListItem({
   const showTimestamp = sectionKey === "thisWeek" || sectionKey === "earlier";
 
   return (
-    <Pressable
-      style={({ pressed }) => [
-        noteStyles.card,
+    <Press
+      haptic="none"
+      style={[noteStyles.card,
         note.isPinned ? noteStyles.cardPinned : null,
-        isSelected ? noteStyles.cardSelected : null,
-        pressed ? styles.pressDown : null,
-      ]}
+        isSelected ? noteStyles.cardSelected : null]}
       onPress={() => onPress(note)}
       onLongPress={() => (selectionMode ? onToggleSelect(note.id) : onBeginSelection(note.id))}
       delayLongPress={250}
@@ -128,8 +127,9 @@ function NoteListItem({
           {isSelected ? <Ionicons name="checkmark" size={13} color={colors.onPrimary} /> : null}
         </View>
       ) : (
-        <Pressable
-          style={({ pressed }) => [noteStyles.pinBtn, pressed ? styles.pressDown : null]}
+        <Press
+          haptic="none"
+          style={noteStyles.pinBtn}
           onPress={() => onTogglePin(note.id)}
           hitSlop={8}
         >
@@ -138,9 +138,9 @@ function NoteListItem({
             size={16}
             color={note.isPinned ? colors.primary : colors.textMuted}
           />
-        </Pressable>
+        </Press>
       )}
-    </Pressable>
+    </Press>
   );
 }
 
@@ -163,13 +163,11 @@ function WordLadderListItem({
 }: WordLadderItemProps) {
   const { t } = useTranslation();
   return (
-    <Pressable
-      style={({ pressed }) => [
-        noteStyles.card,
+    <Press
+      haptic="none"
+      style={[noteStyles.card,
         noteStyles.ladderCard,
-        isSelected ? noteStyles.cardSelected : null,
-        pressed ? styles.pressDown : null,
-      ]}
+        isSelected ? noteStyles.cardSelected : null]}
       onPress={() => onPress(exercise)}
       onLongPress={() => (selectionMode ? onToggleSelect(exercise.id) : onBeginSelection(exercise.id))}
       delayLongPress={250}
@@ -190,7 +188,7 @@ function WordLadderListItem({
       ) : (
         <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
       )}
-    </Pressable>
+    </Press>
   );
 }
 
@@ -213,13 +211,11 @@ function CutUpListItem({
 }: CutUpItemProps) {
   const { t } = useTranslation();
   return (
-    <Pressable
-      style={({ pressed }) => [
-        noteStyles.card,
+    <Press
+      haptic="none"
+      style={[noteStyles.card,
         noteStyles.ladderCard,
-        isSelected ? noteStyles.cardSelected : null,
-        pressed ? styles.pressDown : null,
-      ]}
+        isSelected ? noteStyles.cardSelected : null]}
       onPress={() => onPress(spark)}
       onLongPress={() => (selectionMode ? onToggleSelect(spark.id) : onBeginSelection(spark.id))}
       delayLongPress={250}
@@ -240,7 +236,7 @@ function CutUpListItem({
       ) : (
         <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
       )}
-    </Pressable>
+    </Press>
   );
 }
 
@@ -263,13 +259,11 @@ function MagpieListItem({
 }: MagpieItemProps) {
   const { t } = useTranslation();
   return (
-    <Pressable
-      style={({ pressed }) => [
-        noteStyles.card,
+    <Press
+      haptic="none"
+      style={[noteStyles.card,
         noteStyles.ladderCard,
-        isSelected ? noteStyles.cardSelected : null,
-        pressed ? styles.pressDown : null,
-      ]}
+        isSelected ? noteStyles.cardSelected : null]}
       onPress={() => onPress(spark)}
       onLongPress={() => (selectionMode ? onToggleSelect(spark.id) : onBeginSelection(spark.id))}
       delayLongPress={250}
@@ -290,7 +284,7 @@ function MagpieListItem({
       ) : (
         <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
       )}
-    </Pressable>
+    </Press>
   );
 }
 
@@ -442,16 +436,17 @@ export function NotepadScreenContent() {
           rightElement={
             // One + per room: on the pad it writes a page; on the spark page it
             // opens the chooser for the three word tools.
-            <Pressable
+            <Press
+              haptic="none"
               testID={isSparkPage ? "lyrics-spark-open" : undefined}
               accessibilityRole="button"
               accessibilityLabel={t(isSparkPage ? "notepad.lyricsSpark" : "notepad.newPage")}
-              style={({ pressed }) => [listStyles.newBtn, pressed ? styles.pressDown : null]}
+              style={listStyles.newBtn}
               onPress={isSparkPage ? () => setSparkSheetVisible(true) : handleNewNote}
               hitSlop={4}
             >
               <Ionicons name="add" size={22} color={colors.primary} />
-            </Pressable>
+            </Press>
           }
         />
       ) : null}

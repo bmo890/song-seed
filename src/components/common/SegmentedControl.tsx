@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Animated, I18nManager, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, I18nManager, StyleSheet, Text, View } from "react-native";
+import { Press } from "./Press";
 import { styles } from "../../styles";
 import { colors, radii, shadows } from "../../design/tokens";
 import { durations } from "../../design/motion";
@@ -127,12 +128,10 @@ export function SegmentedControl<T extends string>({
       {options.map((option) => {
         const active = option.key === activeKey;
         return (
-          <Pressable
+          <Press
+            haptic="none"
             key={option.key}
-            style={({ pressed }) => [
-              segmentedControlStyles.segment,
-              pressed ? styles.pressDown : null,
-            ]}
+            style={segmentedControlStyles.segment}
             onPress={() => handleSelect(option.key)}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
@@ -159,7 +158,7 @@ export function SegmentedControl<T extends string>({
               </Text>
               {option.dot ? <View style={segmentedControlStyles.segmentDot} /> : null}
             </View>
-          </Pressable>
+          </Press>
         );
       })}
     </View>

@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { colors, radii, spacing, text } from "../../design/tokens";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { View, Text, ActivityIndicator, Pressable, StyleSheet } from "react-native";
+import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
+import { Press } from "../common/Press";
 import { StackActions, useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useAudioPlayer } from "expo-audio";
@@ -699,18 +700,18 @@ export function EditorScreen() {
 
                                 <View style={editorLocalStyles.regionsHead}>
                                     <Text style={editorLocalStyles.regionsLabel}>{t("editor.parts")}</Text>
-                                    <Pressable
+                                    <Press
+                                        haptic="none"
                                         onPress={() => {
                                             haptic.light();
                                             addRange();
                                         }}
                                         hitSlop={6}
-                                        style={({ pressed }) => (pressed ? styles.pressDown : null)}
                                     >
                                         <Text style={editorLocalStyles.addLink}>
                                             {playheadSplitsPart ? t("editor.splitHere") : t("editor.addPlayhead")}
                                         </Text>
-                                    </Pressable>
+                                    </Press>
                                 </View>
 
                                 <EditorSelectionList

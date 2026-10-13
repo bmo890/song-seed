@@ -1,5 +1,6 @@
 import React from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { Switch } from "../../common/Switch";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../../common/BottomSheet";
@@ -127,12 +128,13 @@ export function RevisitCustomizeSheet({
         <View style={revisitStyles.sheetHeader}>
           <Text style={revisitStyles.sheetSectionLabel}>{t("revisit.sources")}</Text>
           {hasSourceOverrides ? (
-            <Pressable
-              style={({ pressed }) => [revisitStyles.utilityButton, pressed ? styles.pressDown : null]}
+            <Press
+              haptic="none"
+              style={revisitStyles.utilityButton}
               onPress={resetSourceFilters}
             >
               <Text style={revisitStyles.utilityButtonText}>{t("revisit.reset")}</Text>
-            </Pressable>
+            </Press>
           ) : null}
         </View>
         <Text style={revisitStyles.sheetSectionDesc}>
@@ -157,17 +159,15 @@ export function RevisitCustomizeSheet({
         </View>
 
         {hasHiddenItems ? (
-          <Pressable
-            style={({ pressed }) => [
-              revisitStyles.hiddenResetRow,
-              { marginTop: 16 },
-              pressed ? styles.pressDown : null,
-            ]}
+          <Press
+            haptic="none"
+            style={[revisitStyles.hiddenResetRow,
+              { marginTop: 16 }]}
             onPress={restoreHiddenCandidates}
           >
             <Ionicons name="refresh-outline" size={16} color={colors.primaryDeep} />
             <Text style={revisitStyles.hiddenResetText}>{t("revisit.restoreHidden", { count: hiddenCount })}</Text>
-          </Pressable>
+          </Press>
         ) : null}
       </ScrollView>
     </BottomSheet>

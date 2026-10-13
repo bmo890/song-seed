@@ -1,7 +1,8 @@
 import { useRoute } from "@react-navigation/native";
 import { SideMenuButton } from "../../common/SideMenuButton";
 import { useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenHeader } from "../../common/ScreenHeader";
@@ -34,14 +35,15 @@ export function ActivityScreenContent() {
           ) : (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
             {isPushedPage ? <SideMenuButton /> : null}
-            <Pressable
-              style={({ pressed }) => [styles.customizeBtn, pressed ? styles.pressDown : null]}
+            <Press
+              haptic="none"
+              style={styles.customizeBtn}
               onPress={() => setCustomizeOpen(true)}
               hitSlop={6}
               accessibilityLabel={t("activity.customize")}
             >
               <Ionicons name="options-outline" size={18} color={colors.textSecondary} />
-            </Pressable>
+            </Press>
             </View>
           )
         }

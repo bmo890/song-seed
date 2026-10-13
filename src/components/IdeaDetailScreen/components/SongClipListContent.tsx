@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
@@ -223,16 +224,14 @@ function CollapseAllPill({ onPress }: { onPress: () => void }) {
   const { t } = useTranslation();
   return (
     <View style={styles.songDetailEvolutionCollapseAllRow}>
-      <Pressable
-        style={({ pressed }) => [
-          styles.songDetailCollapseAllChip,
-          pressed ? styles.pressDown : null,
-        ]}
+      <Press
+        haptic="none"
+        style={styles.songDetailCollapseAllChip}
         onPress={onPress}
       >
         <Ionicons name="chevron-collapse-outline" size={13} color={colors.textSecondary} />
         <Text style={styles.songDetailEvolutionCollapseAllText}>{t("songDetail.collapseAll")}</Text>
-      </Pressable>
+      </Press>
     </View>
   );
 }

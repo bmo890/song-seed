@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
+import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { styles } from "../../../styles";
@@ -15,19 +16,17 @@ export function CreateFab({ onPress, accessibilityLabel, testID }: { onPress: ()
   const insets = useSafeAreaInsets();
   const playerDockHeight = useStore((s) => s.playerDockHeight);
   return (
-    <Pressable
+    <Press
+      haptic="none"
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      style={({ pressed }) => [
-        local.fab,
-        { bottom: playerDockHeight > 0 ? playerDockHeight + 12 : Math.max(32, insets.bottom + 16) },
-        pressed ? styles.pressDown : null,
-      ]}
+      style={[local.fab,
+        { bottom: playerDockHeight > 0 ? playerDockHeight + 12 : Math.max(32, insets.bottom + 16) }]}
       onPress={onPress}
     >
       <Ionicons name="add" size={26} color={colors.onPrimary} />
-    </Pressable>
+    </Press>
   );
 }
 

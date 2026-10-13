@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { colors } from "../../../design/tokens";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
@@ -32,9 +33,10 @@ export function SetlistListView({
     >
       <View style={styles.listContent}>
         {setlists.map((setlist) => (
-          <Pressable
+          <Press
+            haptic="none"
             key={setlist.id}
-            style={({ pressed }) => [styles.card, pressed ? styles.pressDown : null]}
+            style={styles.card}
             onPress={() => onOpen(setlist.id)}
           >
             <View style={styles.cardTop}>
@@ -50,7 +52,7 @@ export function SetlistListView({
                 {t("library.songs", { count: setlist.entries.length })}
               </Text>
             </View>
-          </Pressable>
+          </Press>
         ))}
 
         {setlists.length === 0 ? (

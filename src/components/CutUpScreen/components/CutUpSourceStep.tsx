@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { UserTextInput } from "../../../i18n";
 import { Ionicons } from "@expo/vector-icons";
 import { NotePickerSheet } from "../../modals/NotePickerSheet";
@@ -30,17 +31,16 @@ export function CutUpSourceStep({ model, spark }: { model: Model; spark: CutUpSp
       <View style={styles.headerRow}>
         <Text style={styles.label}>{t("cutUp.startingLyric")}</Text>
         <View style={styles.headerActions}>
-          <Pressable
-            style={({ pressed }) => [styles.pickBtn, pressed ? appStyles.pressDown : null]}
+          <Press
+            style={styles.pickBtn}
             onPress={() => {
-              haptic.tap();
               setPickerVisible(true);
             }}
             hitSlop={6}
           >
             <Ionicons name="document-text-outline" size={14} color={colors.primaryDeep} />
             <Text style={styles.pickBtnText}>{t("cutUp.fromPad")}</Text>
-          </Pressable>
+          </Press>
         </View>
       </View>
 

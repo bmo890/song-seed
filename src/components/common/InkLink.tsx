@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text } from "react-native";
+import { StyleSheet, Text } from "react-native";
+import { Press } from "./Press";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../design/directionalIcons";
 import { haptic } from "../../design/haptics";
@@ -20,12 +21,11 @@ type Props = {
  */
 export function InkLink({ label, onPress, icon, testID }: Props) {
   return (
-    <Pressable
+    <Press
       onPress={() => {
-        haptic.tap();
         onPress();
       }}
-      style={({ pressed }) => [s.link, pressed ? styles.pressDown : null]}
+      style={s.link}
       accessibilityRole="link"
       accessibilityLabel={label}
       hitSlop={8}
@@ -34,7 +34,7 @@ export function InkLink({ label, onPress, icon, testID }: Props) {
       {icon ? <Ionicons name={icon} size={14} color={colors.primaryDeep} /> : null}
       <Text style={s.text}>{label}</Text>
       <Ionicons name={dirIcon("chevron-forward")} size={14} color={colors.primaryDeep} />
-    </Pressable>
+    </Press>
   );
 }
 

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text } from "react-native";
+import { StyleSheet, Text } from "react-native";
+import { Press } from "./Press";
 import { styles as appStyles } from "../../styles";
 import { colors, radii } from "../../design/tokens";
 import { haptic } from "../../design/haptics";
@@ -50,10 +51,9 @@ export function SparkTextSizeButton() {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Pressable
-        style={({ pressed }) => [styles.btn, pressed ? appStyles.pressDown : null]}
+      <Press
+        style={styles.btn}
         onPress={() => {
-          haptic.tap();
           setOpen(true);
         }}
         hitSlop={6}
@@ -61,7 +61,7 @@ export function SparkTextSizeButton() {
         accessibilityLabel={t("wordSparks.textSize")}
       >
         <Text style={styles.glyph}>Aa</Text>
-      </Pressable>
+      </Press>
       <BottomSheet visible={open} onClose={() => setOpen(false)}>
         <Text style={styles.sheetLabel}>{t("wordSparks.textSize")}</Text>
         <ChordZoomBar zoom={zoom} onChange={setZoom} />

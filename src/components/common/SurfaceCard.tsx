@@ -1,13 +1,6 @@
 import type { ReactNode } from "react";
-import {
-  Pressable,
-  StyleSheet,
-  View,
-  type AccessibilityRole,
-  type AccessibilityState,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import { StyleSheet, View, type AccessibilityRole, type AccessibilityState, type StyleProp, type ViewStyle } from "react-native";
+import { Press } from "./Press";
 import { styles } from "../../styles";
 import { colors, radii, shadows } from "../../design/tokens";
 
@@ -37,14 +30,12 @@ export function SurfaceCard({
 }: SurfaceCardProps) {
   if (onPress || onLongPress) {
     return (
-      <Pressable
+      <Press
+        haptic="none"
         testID={testID}
-        style={({ pressed }) => [
-          surfaceCardStyles.card,
+        style={[surfaceCardStyles.card,
           selected ? surfaceCardStyles.cardSelected : null,
-          style,
-          pressed ? styles.pressDown : null,
-        ]}
+          style]}
         onPress={onPress}
         onLongPress={onLongPress}
         delayLongPress={450}
@@ -53,7 +44,7 @@ export function SurfaceCard({
         accessibilityLabel={accessibilityLabel}
       >
         {children}
-      </Pressable>
+      </Press>
     );
   }
 

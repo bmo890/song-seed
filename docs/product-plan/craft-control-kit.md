@@ -115,10 +115,13 @@ are now unreferenced and can be deleted.
 
 | Control | Replaces | Spec |
 |---|---|---|
-| `Chip` | `edgeChip`, `inkOption`, `partInk`, `toolChip`. One chip with `active` and `tone`. | Height 34, `radii.lg`. Active = `primarySurface` fill + `primaryDeep` text, never a border. Uses `Press`. |
+| `Chip` | `edgeChip` (MarkInspector), `toolChip` (practice primitives, Magpie, chord picker). One chip with `active`. | Height 34, `radii.lg`. On the page: active = `primarySurface` fill + `primaryDeep` text. On the terracotta wash: active = `surface`, idle = translucent. Never a border. Uses `Press`. This one changes how things look, so build it in one room and show the founder before migrating. |
+| `InkOption` | `inkOption` and `partInk` in the practice drawers, the ink dots in `MetronomeBlocks`, `StepUpSequenceSheet`, `ProUpsellSheet`. | NOT a chip. CLAUDE.md: multi-select is editorial ink, a word with a leading dot, hollow to terracotta. One component: `label`, `active`, optional `barColor` for a section part. `Press feel="glyph"`. |
 | `Row` | `pd.row`, `toolBodyRow`, settings rows. Label · value · control. | Min height 46, horizontal 10 inside cards and 16 on pages, hairline below, never a border. Label `text.body` semibold, value `text.supporting` tabular. |
-| `Spinner` | `ActivityIndicator` (14 files). | A hairline arc in `primary` rotating at `durations.slow`; or, where progress is known, a thin bar. Never the platform spinner. |
-| `IconButton` | Keep the component; make it a `Press feel="glyph"` so the dip is the one language. | No visual change beyond the shared dip. |
+| `Spinner` | `ActivityIndicator` (14 files, 20 uses). | A hairline arc in `primary` rotating at `durations.slow`; or, where progress is known, a thin bar. Never the platform spinner. |
+
+DONE: `IconButton` is a `Press feel="glyph"` (6da03d6c). Its 26 users share
+the one press language with no visual change.
 
 Existing canon that stays: `SegmentedControl`, `Button`, `IdeaCard`,
 `SurfaceCard`, `BottomSheet`, `AppDialog`, `EmptyState`, `ToastHost`.
@@ -149,6 +152,30 @@ for f in $(grep -rl "fontWeight" src --include='*.ts' --include='*.tsx'); do gre
 # colours (slow lane; retire src/styles/* file by file)
 grep -rnoE "\"#[0-9a-fA-F]{3,8}\"" src --include='*.ts' --include='*.tsx' | grep -vE "design/tokens.ts|domain/workspaceTheme.ts|__tests__|i18n/" | cut -d: -f1 | sort | uniq -c | sort -rn
 ```
+
+### The Press codemod (safe lane, run 2026-10-13)
+
+`scripts/craft-codemod-press.py` converts a file only when EVERY `<Pressable>`
+in it uses the shared `pressDown` style and none has a `disabled` attribute.
+`Press feel="surface"` is exactly `pressDown`, so the look does not change.
+Behaviour is preserved too: a leading `haptic.tap();` is dropped in favour of
+Press's own tap; every other converted press gets `haptic="none"`.
+
+First run: 88 presses in 54 files. Re-running prints 0, so it is idempotent.
+It will pick up more files as hand edits make them uniform.
+
+`haptic="none"` is now a lint count (`press_haptic_none`, 82). Each is a
+press owed a decision: `tap`, `light`, or silent because it navigates
+(CLAUDE.md: navigation is silent). Burn that count down by hand, a screen
+at a time. Do not bulk-replace it.
+
+What the codemod will NOT touch, and why (the hand pass, 422 raw Pressables):
+- files where some Pressable has its own pressed style (`toolHeaderPressed`,
+  an opacity literal, `overflowButtonPressed`): pick `feel` per control;
+- files with a `disabled` Pressable: remove the call site's own dim
+  (`btnDisabled`, an inline opacity) when moving to Press, or it doubles;
+- Pressables with a static style and no feedback: many are scrims and
+  backdrops, which must NOT dip. Use `feel="still"` for those.
 
 Exceptions to leave alone: `Pressable` inside gesture hosts that need raw
 responder control (`AudioReel`, `TimeRangeSelector`, `ListScrubber`, the
@@ -261,20 +288,41 @@ Branch `craft/control-kit`, pushed. Commits:
 | 5e409548 | This handoff doc |
 | 11fa41c9 | Switch and Stepper, under every switch and the mark carets |
 | 5f22d1de | craft-lint script and baseline, dead switch styles removed |
-| d74e0ee4 | Migrate: speed and pitch dials, metronome sliders (baseline tightened) |
+| d74e0ee4 | Migrate: speed and pitch dials, metronome sliders |
+| aec70350 | Migrate: the last stock sliders (pin and section modals, layer bench, chord sheets) |
+| 6da03d6c | Migrate: IconButton and the player's practice drawers onto Press |
+| (next) | Press codemod: 88 presses in 54 files, `press_haptic_none` lint rule |
 
-Preview android updates from this branch: 2e84979d, 967db10b (Slider and
-tick), 1d4b44f2 (Switch and Stepper), b3a12472 (dials). `tsc` clean, jest
-135 suites / 1208 tests at 11fa41c9; `npm run lint:craft` clean at d74e0ee4.
+Baseline now: haptics_direct 0 · slider_stock 0 · switch_stock 0 ·
+spinner_stock 20 · alert_native 0 · pressable_raw 422 · press_adhoc 250 ·
+press_haptic_none 82 · motion_duration 23 · motion_spring 17 ·
+font_weight_bare 1 · color_literal 876.
+
+Preview android updates from this branch: 2e84979d, 967db10b, 1d4b44f2,
+b3a12472, and the one published with the codemod commit. `tsc` clean, jest
+135 suites / 1208 tests, `npm run lint:craft` clean.
+
+Simulator-verified: marks, loop and sound drawers on the kit (Switch on and
+off, Stepper nudge, slider drag); after the codemod, the sketch page, its
+segmented control, the full player and the pin modal all render and respond.
+NOT photographed: the pin and section edit modals' sliders, the layer bench,
+the chord sheet sliders, and most of the 54 codemod files. They are the same
+controls already seen elsewhere, type-checked and lint-checked.
 
 Founder, 2026-10-13, after Slider and Press: "Feels good." Also: "the design
 of the whole loop options component is still not there 100%". That is move
 4 (compose), after the kit and the migration.
 
-Next action: move 2, the migration, in the file order above. Start with
-`SpeedPitchDials.tsx` (kit Slider with `detent`, Stepper with
-`glyphs="plusMinus"` around the pitch rail, Press on the resets and preset
-labels, remove its own haptics) and `MetronomeBlocks.tsx`. Run
-`npm run lint:craft` before each commit and tighten the baseline as counts
-fall. Then `Chip`, `Row`, `Spinner`, IconButton on Press. Then the states
-sheet in Claude Design. Then move 4.
+Next action, in order:
+1. `Spinner` (replaces 20 `ActivityIndicator` uses; no visual judgment needed
+   beyond the first one).
+2. `InkOption`, then `Chip` in ONE room with a before and after for the
+   founder.
+3. Fold the 17 inline springs and 23 durations into `motion.ts`
+   (`springs.handle` already equals the pasted `{ damping: 20, stiffness: 300 }`).
+4. The hand pass on raw Pressables, a screen at a time, in the file order
+   above, clearing `press_haptic_none` for that screen in the same commit.
+5. The states sheet in Claude Design, then move 4 (compose), starting with
+   the loop drawer the founder flagged.
+Run `npm run lint:craft` before each commit and tighten the baseline as
+counts fall.

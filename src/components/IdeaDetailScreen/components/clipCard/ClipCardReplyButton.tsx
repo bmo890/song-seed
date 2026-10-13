@@ -1,4 +1,4 @@
-import { Pressable } from "react-native";
+import { Press } from "../../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { styles } from "../../styles";
@@ -18,8 +18,9 @@ export function ClipCardReplyButton({ visible, onPress }: ClipCardReplyButtonPro
   if (!visible) return null;
 
   return (
-    <Pressable
-      style={({ pressed }) => [styles.songDetailVersionReplyBtn, pressed ? styles.pressDown : null]}
+    <Press
+      haptic="none"
+      style={styles.songDetailVersionReplyBtn}
       onPress={async (event) => {
         event.stopPropagation();
         // haptics.ts: tap → any acknowledged press.
@@ -31,6 +32,6 @@ export function ClipCardReplyButton({ visible, onPress }: ClipCardReplyButtonPro
       accessibilityLabel={t("clipLineage.recordTakeA11y")}
     >
       <Ionicons name="add" size={16} color={colors.primaryDeep} />
-    </Pressable>
+    </Press>
   );
 }

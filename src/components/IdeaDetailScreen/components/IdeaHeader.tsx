@@ -1,4 +1,5 @@
-import { View, Text, Pressable } from "react-native";
+import { View, Text } from "react-native";
+import { Press } from "../../common/Press";
 import Animated, {
   Extrapolation,
   interpolate,
@@ -69,11 +70,12 @@ export function IdeaHeader() {
     <View style={styles.songDetailHeader}>
       {/* Nav row: chevron back | (spacer or compact title) | ellipsis/edit actions */}
       <View style={styles.songDetailNavRow}>
-        <Pressable
+        <Press
+          haptic="none"
           testID="song-header-back"
           accessibilityRole="button"
           accessibilityLabel={originLabel ? t("common.backTo", { label: originLabel }) : t("common.back")}
-          style={({ pressed }) => [styles.songDetailNavLead, pressed ? styles.pressDown : null]}
+          style={styles.songDetailNavLead}
           onPress={actions.handleBackToIdeas}
           hitSlop={8}
         >
@@ -95,37 +97,29 @@ export function IdeaHeader() {
               </UserText>
             </Animated.View>
           </View>
-        </Pressable>
+        </Press>
 
         {isEditMode && !isProject ? (
           <View style={styles.songDetailNavEditActions}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.songDetailNavTextAction,
-                pressed ? styles.pressDown : null,
-              ]}
+            <Press
+              style={styles.songDetailNavTextAction}
               onPress={() => {
-                haptic.tap();
                 editFlow.handleCancel();
               }}
             >
               <Text style={styles.songDetailNavTextActionText}>
                 {selectedIdea.isDraft ? t("songDetail.discard") : t("common.cancel")}
               </Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [
-                styles.songDetailNavTextAction,
-                styles.songDetailNavTextActionPrimary,
-                pressed ? styles.pressDown : null,
-              ]}
+            </Press>
+            <Press
+              style={[styles.songDetailNavTextAction,
+                styles.songDetailNavTextActionPrimary]}
               onPress={() => {
-                haptic.tap();
                 editFlow.handleSave();
               }}
             >
               <Text style={styles.songDetailNavTextActionPrimaryText}>{t("common.save")}</Text>
-            </Pressable>
+            </Press>
           </View>
         ) : (
           <View style={styles.songDetailNavTrail}>

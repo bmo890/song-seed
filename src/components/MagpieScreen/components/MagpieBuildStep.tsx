@@ -1,14 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Keyboard,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  type TextInput,
-  View,
-} from "react-native";
+import { Keyboard, Platform, ScrollView, StyleSheet, Text, type TextInput, View } from "react-native";
+import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
 import { UserText, UserTextInput } from "../../../i18n";
@@ -144,13 +136,14 @@ export function MagpieBuildStep({
       />
 
       {!keyboardVisible ? (
-        <Pressable
-          style={({ pressed }) => [styles.saveBtn, pressed ? appStyles.pressDown : null]}
+        <Press
+          haptic="none"
+          style={styles.saveBtn}
           onPress={model.saveAsLyrics}
         >
           <Ionicons name="bookmark-outline" size={16} color={colors.onPrimary} />
           <Text style={styles.saveBtnText}>{t("wordSparks.saveLyrics")}</Text>
-        </Pressable>
+        </Press>
       ) : null}
 
       <BottomSheet visible={sizeOpen} onClose={() => setSizeOpen(false)}>
@@ -195,23 +188,24 @@ function Header({
   const { t } = useTranslation();
   return (
     <View style={styles.header}>
-      <Pressable
-        style={({ pressed }) => [styles.backBtn, pressed ? appStyles.pressDown : null]}
+      <Press
+        haptic="none"
+        style={styles.backBtn}
         onPress={onBack}
         hitSlop={6}
       >
         <Ionicons name={dirIcon("chevron-back")} size={20} color={colors.textStrong} />
         <Text style={styles.backText}>{t("wordSparks.page")}</Text>
-      </Pressable>
+      </Press>
       <View style={styles.titleCol}>
         <Text style={styles.titleOver}>{t("magpie.yourDraft")}</Text>
         <UserText style={styles.titleText} numberOfLines={1}>
           {title}
         </UserText>
       </View>
-      <Pressable style={({ pressed }) => [styles.iconBtn, pressed ? appStyles.pressDown : null]} onPress={onSize} hitSlop={6} accessibilityLabel={t("magpie.textSize")}>
+      <Press haptic="none" style={styles.iconBtn} onPress={onSize} hitSlop={6} accessibilityLabel={t("magpie.textSize")}>
         <Text style={styles.iconBtnText}>Aa</Text>
-      </Pressable>
+      </Press>
       <HelpButton size={20} onPress={onHelp} />
     </View>
   );
@@ -230,8 +224,9 @@ const Chip = memo(function Chip({
   onLongPress: (fragment: MagpieFragment) => void;
 }) {
   return (
-    <Pressable
-      style={({ pressed }) => [styles.chip, isUsed ? styles.chipUsed : null, pressed ? appStyles.pressDown : null]}
+    <Press
+      haptic="none"
+      style={[styles.chip, isUsed ? styles.chipUsed : null]}
       onPress={() => onInsert(fragment)}
       onLongPress={() => onLongPress(fragment)}
       delayLongPress={230}
@@ -242,7 +237,7 @@ const Chip = memo(function Chip({
       <UserText style={styles.chipText} numberOfLines={1}>
         {fragment.text}
       </UserText>
-    </Pressable>
+    </Press>
   );
 });
 
@@ -281,15 +276,15 @@ function Palette({
         <Text style={styles.paletteLabel}>{t("magpie.yourScraps", { count })}</Text>
         <UndoRedoButtons canUndo={history.canUndo} canRedo={history.canRedo} onUndo={history.undo} onRedo={history.redo} />
         {showPour ? (
-          <Pressable style={({ pressed }) => [styles.pourBtn, pressed ? appStyles.pressDown : null]} onPress={onPour}>
+          <Press haptic="none" style={styles.pourBtn} onPress={onPour}>
             <Ionicons name="arrow-down" size={13} color={colors.onPrimary} />
             <Text style={styles.pourText}>{t("magpie.pourInOrder")}</Text>
-          </Pressable>
+          </Press>
         ) : (
-          <Pressable style={({ pressed }) => [styles.expandBtn, pressed ? appStyles.pressDown : null]} onPress={onExpand} hitSlop={6}>
+          <Press haptic="none" style={styles.expandBtn} onPress={onExpand} hitSlop={6}>
             <Ionicons name="grid-outline" size={13} color={colors.textSecondary} />
             <Text style={styles.expandText}>{t("magpie.seeAll")}</Text>
-          </Pressable>
+          </Press>
         )}
       </View>
       <ScrollView
@@ -409,10 +404,10 @@ function MenuRow({
   onPress: () => void;
 }) {
   return (
-    <Pressable style={({ pressed }) => [styles.menuRow, pressed ? appStyles.pressDown : null]} onPress={onPress}>
+    <Press haptic="none" style={styles.menuRow} onPress={onPress}>
       <Ionicons name={icon} size={18} color={danger ? colors.danger : colors.textStrong} />
       <Text style={[styles.menuRowText, danger ? styles.menuRowDanger : null]}>{label}</Text>
-    </Pressable>
+    </Press>
   );
 }
 

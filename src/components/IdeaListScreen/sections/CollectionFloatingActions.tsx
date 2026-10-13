@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { useTranslation } from "react-i18next";
 import { styles } from "../../../styles";
 import { IdeaListSelectionZone } from "../components/IdeaListSelectionZone";
@@ -482,12 +483,13 @@ export function CollectionFloatingActions() {
             <Text style={styles.ideasUndoText} numberOfLines={1}>
               {selection.undoState.message}
             </Text>
-            <Pressable
-              style={({ pressed }) => [styles.ideasUndoBtn, pressed ? styles.pressDown : null]}
+            <Press
+              haptic="none"
+              style={styles.ideasUndoBtn}
               onPress={selection.triggerUndo}
             >
               <Text style={styles.ideasUndoBtnText}>{t("collectionActions.undo")}</Text>
-            </Pressable>
+            </Press>
           </View>
         </View>
       ) : null}

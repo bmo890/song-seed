@@ -1,4 +1,5 @@
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { FilterSortControls } from "../../common/FilterSortControls";
@@ -33,12 +34,10 @@ function MenuRow({
   onPress: () => void;
 }) {
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.ideasSortMenuItem,
-        active ? styles.ideasSortMenuItemActive : null,
-        pressed ? styles.pressDown : null,
-      ]}
+    <Press
+      haptic="none"
+      style={[styles.ideasSortMenuItem,
+        active ? styles.ideasSortMenuItemActive : null]}
       onPress={onPress}
     >
       <View style={styles.ideasMenuItemLead}>
@@ -46,7 +45,7 @@ function MenuRow({
         <Text style={[styles.ideasSortMenuItemText, active ? styles.ideasSortMenuItemTextActive : null]}>{label}</Text>
       </View>
       {active ? <Ionicons name="checkmark" size={15} color={colors.primary} /> : null}
-    </Pressable>
+    </Press>
   );
 }
 

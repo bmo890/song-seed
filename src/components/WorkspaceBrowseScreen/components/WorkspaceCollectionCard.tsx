@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
 import { colors, radii } from "../../../design/tokens";
@@ -87,16 +88,14 @@ export function WorkspaceCollectionCard({
   ].filter(Boolean).join("  ·  ");
 
   return (
-    <Pressable
+    <Press
+      haptic="none"
       testID={`collection-card-${collection.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`}
       accessibilityRole="button"
       accessibilityState={selectionMode ? { selected: isSelected } : undefined}
-      style={({ pressed }) => [
-        rowStyles.row,
+      style={[rowStyles.row,
         divided ? rowStyles.rowDivided : null,
-        isSelected ? rowStyles.rowSelected : null,
-        pressed ? styles.pressDown : null,
-      ]}
+        isSelected ? rowStyles.rowSelected : null]}
       onPress={onPress}
       onLongPress={onLongPress}
       delayLongPress={450}
@@ -148,7 +147,7 @@ export function WorkspaceCollectionCard({
       {selectionMode ? null : (
         <Ionicons name={dirIcon("chevron-forward")} size={18} color={colors.textMuted} />
       )}
-    </Pressable>
+    </Press>
   );
 }
 

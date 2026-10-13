@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
-import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Animated, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
@@ -126,11 +127,9 @@ function SearchResultCard({
 
   return (
     <Animated.View style={animatedStyle}>
-    <Pressable
-      style={({ pressed }) => [
-        searchScreenStyles.resultCard,
-        pressed ? styles.pressDown : null,
-      ]}
+    <Press
+      haptic="none"
+      style={searchScreenStyles.resultCard}
       onPress={onPress}
     >
       <View style={searchScreenStyles.resultHeaderRow}>
@@ -175,7 +174,7 @@ function SearchResultCard({
           <Ionicons name={dirIcon("chevron-forward")} size={13} color={colors.primary} />
         </View>
       ) : null}
-    </Pressable>
+    </Press>
     </Animated.View>
   );
 }
@@ -194,12 +193,10 @@ function FilterPill({
   onPress: () => void;
 }) {
   return (
-    <Pressable
-      style={({ pressed }) => [
-        searchScreenStyles.filterPill,
-        active ? searchScreenStyles.filterPillActive : null,
-        pressed ? styles.pressDown : null,
-      ]}
+    <Press
+      haptic="none"
+      style={[searchScreenStyles.filterPill,
+        active ? searchScreenStyles.filterPillActive : null]}
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
@@ -210,7 +207,7 @@ function FilterPill({
       <Text style={[searchScreenStyles.filterPillCount, active ? searchScreenStyles.filterPillCountActive : null]}>
         {count}
       </Text>
-    </Pressable>
+    </Press>
   );
 }
 

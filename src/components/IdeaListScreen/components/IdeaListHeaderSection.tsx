@@ -1,4 +1,5 @@
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
 import { ClipboardBanner } from "../../ClipboardBanner";
@@ -41,12 +42,13 @@ export function IdeaListHeaderSection({
               {activityLabel ?? t("collection.activityRange")}
             </Text>
           </View>
-          <Pressable
-            style={({ pressed }) => [styles.activityRangeBannerClear, pressed ? styles.pressDown : null]}
+          <Press
+            haptic="none"
+            style={styles.activityRangeBannerClear}
             onPress={onClearActivityRange}
           >
             <Ionicons name="close" size={14} color="#64748b" />
-          </Pressable>
+          </Press>
         </View>
       ) : null}
 

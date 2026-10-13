@@ -1,5 +1,6 @@
 import React, { ReactNode, useCallback, useMemo, useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { type SharedValue } from "react-native-reanimated";
 import { useStore } from "../../../state/useStore";
@@ -78,8 +79,9 @@ function EvolutionMoreRow({
           <View style={[styles.songDetailThreadCurve, { height: 16 }]} />
         )}
       </View>
-      <Pressable
-        style={({ pressed }) => [styles.songDetailEvolutionExpandRow, pressed ? styles.pressDown : null]}
+      <Press
+        haptic="none"
+        style={styles.songDetailEvolutionExpandRow}
         onPress={() => {
           haptic.light();
           onToggle(lineageRootId);
@@ -95,7 +97,7 @@ function EvolutionMoreRow({
             ? t("songDetail.hideOlderTakes")
             : t("songDetail.olderTakes", { count: hiddenCount })}
         </Text>
-      </Pressable>
+      </Press>
     </View>
   );
 }
@@ -113,11 +115,9 @@ function EvolutionGroupHeaderRow({
 
   return (
     <View style={styles.songDetailEvolutionGroupRow}>
-      <Pressable
-        style={({ pressed }) => [
-          styles.songDetailEvolutionGroupContent,
-          pressed ? styles.pressDown : null,
-        ]}
+      <Press
+        haptic="none"
+        style={styles.songDetailEvolutionGroupContent}
         onPress={() => {
           if (!ideaId) return;
           setClipGroupCollapsed(ideaId, row.groupId, !row.collapsed);
@@ -142,7 +142,7 @@ function EvolutionGroupHeaderRow({
             <Text style={styles.songDetailEvolutionGroupMeta}>{row.lineageCount}</Text>
           </View>
         </View>
-      </Pressable>
+      </Press>
     </View>
   );
 }

@@ -45,6 +45,10 @@ rules() {
     "src_files | grep -vE 'common/(Press|IconButton|AudioReel|TimeRangeSelector|ListScrubber|WaveformStrip|ScrubBar)\.tsx' | xargs grep -nE '<(Pressable|TouchableOpacity)\b'"
   count press_adhoc \
     "src_files | xargs grep -nE 'pressed \? 0\.[0-9]|pressDownStrong|styles\.pressDown|appStyles\.pressDown'"
+  # Presses moved onto Press with their old silence kept: each is owed a
+  # decision (a tap, a light, or silent because it navigates).
+  count press_haptic_none \
+    "src_files | xargs grep -n 'haptic=\"none\"'"
   # Motion only via motion.ts.
   count motion_duration \
     "src_files | grep -v 'design/motion.ts' | xargs grep -nE 'duration: ?[0-9]{2,4}\b' | grep -v durationMs"

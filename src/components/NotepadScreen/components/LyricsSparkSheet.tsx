@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../../common/BottomSheet";
 import { styles as appStyles } from "../../../styles";
@@ -20,8 +21,9 @@ export function LyricsSparkSheet({ visible, onClose, onNewWordLadder, onNewCutUp
       <Text style={sheetStyles.title}>{t("brand.lyricsSpark")}</Text>
       <Text style={sheetStyles.subtitle}>{t("notepad.sparkSubtitle")}</Text>
 
-      <Pressable
-        style={({ pressed }) => [sheetStyles.option, pressed ? appStyles.pressDown : null]}
+      <Press
+        haptic="none"
+        style={sheetStyles.option}
         onPress={onNewWordLadder}
       >
         <View style={sheetStyles.iconWrap}>
@@ -31,10 +33,11 @@ export function LyricsSparkSheet({ visible, onClose, onNewWordLadder, onNewCutUp
           <Text style={sheetStyles.optionTitle}>{t("brand.wordLadder")}</Text>
           <Text style={sheetStyles.optionBody}>{t("wordSparks.wordLadderDesc")}</Text>
         </View>
-      </Pressable>
+      </Press>
 
-      <Pressable
-        style={({ pressed }) => [sheetStyles.option, pressed ? appStyles.pressDown : null]}
+      <Press
+        haptic="none"
+        style={sheetStyles.option}
         onPress={onNewCutUp}
       >
         <View style={sheetStyles.iconWrap}>
@@ -44,10 +47,11 @@ export function LyricsSparkSheet({ visible, onClose, onNewWordLadder, onNewCutUp
           <Text style={sheetStyles.optionTitle}>{t("brand.cutUp")}</Text>
           <Text style={sheetStyles.optionBody}>{t("wordSparks.cutUpDesc")}</Text>
         </View>
-      </Pressable>
+      </Press>
 
-      <Pressable
-        style={({ pressed }) => [sheetStyles.option, pressed ? appStyles.pressDown : null]}
+      <Press
+        haptic="none"
+        style={sheetStyles.option}
         onPress={onNewMagpie}
       >
         <View style={sheetStyles.iconWrap}>
@@ -57,7 +61,7 @@ export function LyricsSparkSheet({ visible, onClose, onNewWordLadder, onNewCutUp
           <Text style={sheetStyles.optionTitle}>{t("brand.magpie")}</Text>
           <Text style={sheetStyles.optionBody}>{t("wordSparks.magpieDesc")}</Text>
         </View>
-      </Pressable>
+      </Press>
     </BottomSheet>
   );
 }

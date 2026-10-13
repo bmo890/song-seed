@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Alert, Pressable, View } from "react-native";
+import { Alert, View } from "react-native";
+import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
@@ -379,11 +380,9 @@ export const ClipCard = React.memo(function ClipCard({
               onSetPrimary={handleSetPrimary}
             />
             {showLocateButton ? (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.songDetailVersionHistoryBtn,
-                  pressed ? styles.pressDown : null,
-                ]}
+              <Press
+                haptic="none"
+                style={styles.songDetailVersionHistoryBtn}
                 onPress={(e) => {
                   e.stopPropagation();
                   onLocateClip?.(clip.id);
@@ -392,7 +391,7 @@ export const ClipCard = React.memo(function ClipCard({
                 accessibilityLabel={t("clipLineage.findEvolution")}
               >
                 <Ionicons name="git-branch-outline" size={14} color={colors.textMuted} />
-              </Pressable>
+              </Press>
             ) : null}
             {/* History lives on the thread's stem now — no per-card history glyph. */}
             {/* New version ("+") stays farthest right — the forward action. */}

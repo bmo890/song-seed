@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { BottomSheet } from "../../common/BottomSheet";
 import { Button } from "../../common/Button";
 import { STAGE_INK } from "../../common/StageMark";
@@ -69,9 +70,10 @@ export function SongEditSheet({
           const active = stage === status;
           const ink = STAGE_INK[stage] ?? colors.textMuted;
           return (
-            <Pressable
+            <Press
+              haptic="none"
               key={stage}
-              style={({ pressed }) => [appStyles.ideasStageInk, pressed ? appStyles.pressDown : null]}
+              style={appStyles.ideasStageInk}
               onPress={() => {
                 if (active) return;
                 haptic.tap();
@@ -100,7 +102,7 @@ export function SongEditSheet({
               >
                 {t(`stages.${stage}`)}
               </Text>
-            </Pressable>
+            </Press>
           );
         })}
       </View>

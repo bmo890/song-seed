@@ -1,5 +1,6 @@
 import React from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
 import type { SongIdea } from "../../../types";
@@ -74,13 +75,14 @@ export function RevisitSectionBlock({
           <Text style={revisitStyles.sectionSubShort}>{t(copy.subtitle)}</Text>
         </View>
         {section.actionLabel && onOpenSection ? (
-          <Pressable
-            style={({ pressed }) => [revisitStyles.sectionGoBtn, pressed ? styles.pressDown : null]}
+          <Press
+            haptic="none"
+            style={revisitStyles.sectionGoBtn}
             onPress={onOpenSection}
             hitSlop={6}
           >
             <Text style={revisitStyles.sectionGoText}>{t("revisit.seeSnapshot")} ›</Text>
-          </Pressable>
+          </Press>
         ) : null}
       </View>
 

@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Press } from "./Press";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../styles";
@@ -59,11 +60,9 @@ export function ScreenHeader({
     return (
         <View style={headerStyles.row}>
             {leftIcon !== "none" ? (
-                <Pressable
-                    style={({ pressed }) => [
-                        effectiveLeftIcon === "hamburger" ? headerStyles.hamburgerBtn : headerStyles.backBtn,
-                        pressed ? styles.pressDown : null,
-                    ]}
+                <Press
+                    haptic="none"
+                    style={effectiveLeftIcon === "hamburger" ? headerStyles.hamburgerBtn : headerStyles.backBtn}
                     onPress={handleLeftPress}
                     hitSlop={8}
                     accessibilityRole="button"
@@ -89,7 +88,7 @@ export function ScreenHeader({
                             ) : null}
                         </>
                     )}
-                </Pressable>
+                </Press>
             ) : (
                 <View style={{ width: 44, height: 44 }} />
             )}

@@ -1,4 +1,5 @@
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
 import { clipLineageStyles, styles } from "../styles";
@@ -12,12 +13,13 @@ type ClipLineageHeaderProps = {
 export function ClipLineageHeader({ title, subtitle, onBack }: ClipLineageHeaderProps) {
   return (
     <View style={clipLineageStyles.header}>
-      <Pressable
-        style={({ pressed }) => [styles.backBtn, pressed ? styles.pressDown : null]}
+      <Press
+        haptic="none"
+        style={styles.backBtn}
         onPress={onBack}
       >
         <Ionicons name={dirIcon("chevron-back")} size={22} color="#0f172a" />
-      </Pressable>
+      </Press>
       <View style={clipLineageStyles.headerTitleWrap}>
         <Text style={clipLineageStyles.headerTitle} numberOfLines={1}>
           {title}

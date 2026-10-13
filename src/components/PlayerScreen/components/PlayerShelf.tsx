@@ -1,5 +1,6 @@
 import React, { memo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
@@ -23,8 +24,9 @@ function PlayerShelfInner({
   if (!hasNotes) return null;
   return (
     <View style={shelfStyles.row}>
-      <Pressable
-        style={({ pressed }) => [shelfStyles.ink, pressed ? appStyles.pressDown : null]}
+      <Press
+        haptic="none"
+        style={shelfStyles.ink}
         onPress={onOpenNotes}
         hitSlop={8}
         accessibilityRole="button"
@@ -32,7 +34,7 @@ function PlayerShelfInner({
       >
         <View style={shelfStyles.dot} />
         <Text style={shelfStyles.inkText}>{t("songDetail.notes")}</Text>
-      </Pressable>
+      </Press>
     </View>
   );
 }

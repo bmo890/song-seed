@@ -1,4 +1,5 @@
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { styles } from "../styles";
 import { useSongScreen } from "../provider/SongScreenProvider";
 import { useTranslation } from "react-i18next";
@@ -17,15 +18,16 @@ export function SongUndoBanner() {
         <Text style={styles.ideasUndoText} numberOfLines={1}>
           {undo.undoState.message}
         </Text>
-        <Pressable
-          style={({ pressed }) => [styles.ideasUndoBtn, pressed ? styles.pressDown : null]}
+        <Press
+          haptic="none"
+          style={styles.ideasUndoBtn}
           onPress={() => {
             undo.undoState?.undo();
             undo.clearUndo();
           }}
         >
           <Text style={styles.ideasUndoBtnText}>{t("chordChart.undo")}</Text>
-        </Pressable>
+        </Press>
       </View>
     </View>
   );

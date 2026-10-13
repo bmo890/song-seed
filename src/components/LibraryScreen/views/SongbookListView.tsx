@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { colors } from "../../../design/tokens";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
@@ -32,9 +33,10 @@ export function SongbookListView({
     >
       <View style={styles.listContent}>
         {songbooks.map((songbook) => (
-          <Pressable
+          <Press
+            haptic="none"
             key={songbook.id}
-            style={({ pressed }) => [styles.card, pressed ? styles.pressDown : null]}
+            style={styles.card}
             onPress={() => onOpen(songbook.id)}
           >
             <View style={styles.cardTop}>
@@ -50,7 +52,7 @@ export function SongbookListView({
                 {t("library.charts", { count: songbook.items.length })}
               </Text>
             </View>
-          </Pressable>
+          </Press>
         ))}
 
         {songbooks.length === 0 ? (

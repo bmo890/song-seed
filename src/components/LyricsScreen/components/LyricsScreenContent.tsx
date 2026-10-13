@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
@@ -37,8 +38,9 @@ export function LyricsScreenContent() {
       <UserText value={projectIdea.title} style={styles.subtitle}>{projectIdea.title}</UserText>
 
       <ScrollView contentContainerStyle={styles.lyricsScreenContent}>
-        <Pressable
-          style={({ pressed }) => [chordSheetLink.card, pressed ? styles.pressDown : null]}
+        <Press
+          haptic="none"
+          style={chordSheetLink.card}
           onPress={() => navigation.navigate("ChordSheet", { ideaId: projectIdea.id })}
         >
           <View style={chordSheetLink.iconWrap}>
@@ -51,7 +53,7 @@ export function LyricsScreenContent() {
             </Text>
           </View>
           <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
-        </Pressable>
+        </Press>
 
         <LyricsVersionsPanel projectIdea={projectIdea} />
       </ScrollView>

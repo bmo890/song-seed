@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { KeyboardAvoidingView, Pressable, StyleSheet, Text } from "react-native";
+import { KeyboardAvoidingView, StyleSheet, Text } from "react-native";
+import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
@@ -73,14 +74,15 @@ export function LyricsVersionScreenContent() {
         onLeftPress={handleBack}
         rightElement={
           canExport ? (
-            <Pressable
-              style={({ pressed }) => [headerStyles.exportBtn, pressed ? styles.pressDown : null]}
+            <Press
+              haptic="none"
+              style={headerStyles.exportBtn}
               onPress={() => setExportVisible(true)}
               hitSlop={6}
               accessibilityLabel={t("chordChart.export")}
             >
               <Ionicons name="share-outline" size={20} color={colors.textSecondary} />
-            </Pressable>
+            </Press>
           ) : undefined
         }
       />

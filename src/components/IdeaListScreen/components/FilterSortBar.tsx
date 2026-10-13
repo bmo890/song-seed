@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
 import { useStore } from "../../../state/useStore";
@@ -170,13 +171,11 @@ export function FilterSortBar({
             {filterOptions.map((option) => {
               const active = option.key === ideasFilter;
               return (
-                <Pressable
+                <Press
+                  haptic="none"
                   key={option.key}
-                  style={({ pressed }) => [
-                    styles.ideasSortMenuItem,
-                    active ? styles.ideasSortMenuItemActive : null,
-                    pressed ? styles.pressDown : null,
-                  ]}
+                  style={[styles.ideasSortMenuItem,
+                    active ? styles.ideasSortMenuItemActive : null]}
                   onPress={() => {
                     setIdeasFilter(option.key);
                     if (option.key === "clips") {
@@ -199,7 +198,7 @@ export function FilterSortBar({
                     </Text>
                   </View>
                   {active ? <Ionicons name="checkmark" size={15} color={colors.primary} /> : null}
-                </Pressable>
+                </Press>
               );
             })}
           </View>
@@ -217,8 +216,9 @@ export function FilterSortBar({
                 {/* Multi-select = editorial ink: word + leading dot (hollow →
                     filled in the stage's own warm ink), never a capsule. */}
                 <View style={styles.ideasStageInkWrap}>
-                  <Pressable
-                    style={({ pressed }) => [styles.ideasStageInk, pressed ? styles.pressDown : null]}
+                  <Press
+                    haptic="none"
+                    style={styles.ideasStageInk}
                     onPress={onClearProjectStages}
                     hitSlop={{ top: 6, bottom: 6 }}
                   >
@@ -238,15 +238,16 @@ export function FilterSortBar({
                     >
                       {t("filters.all")}
                     </Text>
-                  </Pressable>
+                  </Press>
 
                   {stageOptions.map((option) => {
                     const active = selectedProjectStages.includes(option.key);
                     const ink = STAGE_INK[option.key] ?? colors.primary;
                     return (
-                      <Pressable
+                      <Press
+                        haptic="none"
                         key={option.key}
-                        style={({ pressed }) => [styles.ideasStageInk, pressed ? styles.pressDown : null]}
+                        style={styles.ideasStageInk}
                         onPress={() => onToggleProjectStage(option.key)}
                         hitSlop={{ top: 6, bottom: 6 }}
                       >
@@ -264,7 +265,7 @@ export function FilterSortBar({
                         >
                           {option.label}
                         </Text>
-                      </Pressable>
+                      </Press>
                     );
                   })}
                 </View>
@@ -285,8 +286,9 @@ export function FilterSortBar({
                 {/* Same editorial ink as the stages: word + leading dot, the
                     dot filled in the tag's own ink when it is on. */}
                 <View style={styles.ideasStageInkWrap}>
-                  <Pressable
-                    style={({ pressed }) => [styles.ideasStageInk, pressed ? styles.pressDown : null]}
+                  <Press
+                    haptic="none"
+                    style={styles.ideasStageInk}
                     onPress={() => setIdeasTagFilter([])}
                     hitSlop={{ top: 6, bottom: 6 }}
                   >
@@ -306,14 +308,15 @@ export function FilterSortBar({
                     >
                       {t("filters.all")}
                     </Text>
-                  </Pressable>
+                  </Press>
                   {[...tagOptions, { key: UNTAGGED_FILTER_KEY, label: t("filters.untagged"), ink: colors.textMuted }].map(
                     (option) => {
                       const active = ideasTagFilter.includes(option.key);
                       return (
-                        <Pressable
+                        <Press
+                          haptic="none"
                           key={option.key}
-                          style={({ pressed }) => [styles.ideasStageInk, pressed ? styles.pressDown : null]}
+                          style={styles.ideasStageInk}
                           onPress={() => toggleTag(option.key)}
                           hitSlop={{ top: 6, bottom: 6 }}
                         >
@@ -328,7 +331,7 @@ export function FilterSortBar({
                           >
                             {option.label}
                           </Text>
-                        </Pressable>
+                        </Press>
                       );
                     }
                   )}
@@ -348,12 +351,10 @@ export function FilterSortBar({
             <View style={styles.ideasSortDirectionRow}>
               <Text style={styles.ideasDropdownSectionToggleText}>{t("filters.direction")}</Text>
               <View style={styles.ideasSortDirectionControls}>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.ideasSortDirectionChip,
-                    activeSortDirection === "asc" ? styles.ideasSortDirectionChipActive : null,
-                    pressed ? styles.pressDown : null,
-                  ]}
+                <Press
+                  haptic="none"
+                  style={[styles.ideasSortDirectionChip,
+                    activeSortDirection === "asc" ? styles.ideasSortDirectionChipActive : null]}
                   onPress={() => {
                     setIdeasSort(getIdeaSortValue(activeSortMetric, "asc"));
                   }}
@@ -367,13 +368,11 @@ export function FilterSortBar({
                   >
                     {t("filters.asc")}
                   </Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.ideasSortDirectionChip,
-                    activeSortDirection === "desc" ? styles.ideasSortDirectionChipActive : null,
-                    pressed ? styles.pressDown : null,
-                  ]}
+                </Press>
+                <Press
+                  haptic="none"
+                  style={[styles.ideasSortDirectionChip,
+                    activeSortDirection === "desc" ? styles.ideasSortDirectionChipActive : null]}
                   onPress={() => {
                     setIdeasSort(getIdeaSortValue(activeSortMetric, "desc"));
                   }}
@@ -387,20 +386,18 @@ export function FilterSortBar({
                   >
                     {t("filters.desc")}
                   </Text>
-                </Pressable>
+                </Press>
               </View>
             </View>
             <View style={styles.ideasDropdownDivider} />
             {sortMetricOptions.map((option) => {
               const active = option.key === activeSortMetric;
               return (
-                <Pressable
+                <Press
+                  haptic="none"
                   key={option.key}
-                  style={({ pressed }) => [
-                    styles.ideasSortMenuItem,
-                    active ? styles.ideasSortMenuItemActive : null,
-                    pressed ? styles.pressDown : null,
-                  ]}
+                  style={[styles.ideasSortMenuItem,
+                    active ? styles.ideasSortMenuItemActive : null]}
                   onPress={() => {
                     setIdeasSort(getIdeaSortValue(option.key, activeSortDirection));
                     close();
@@ -418,7 +415,7 @@ export function FilterSortBar({
                     </Text>
                   </View>
                   {active ? <Ionicons name="checkmark" size={15} color={colors.primary} /> : null}
-                </Pressable>
+                </Press>
               );
             })}
           </>
