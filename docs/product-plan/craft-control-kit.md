@@ -678,12 +678,18 @@ in one small area; and the layout changed shape with content.
 
 | Below the reel | Reel on an iPhone 17 |
 |---|---|
-| tiles + note | 254 |
-| tiles | 308 |
-| slots | 380 |
+| tiles + note | 260 |
+| tiles | 314 |
+| slots | 386 |
 | nothing | 400 (the ceiling) |
 
-Floor 120. `LISTENING_BASE_RESERVE` 286 was tuned by eye on that one phone:
+(2026-10-14: the minimap went from 30 to 24 pt, 18 to 16 compact, and the
+reserve from 286 to 280, so the reel took the 6 pt. Same day, a real bug: the
+minimap's wave path memo did not depend on the strip's height, so after Tools
+or reading the wave stayed drawn for the short strip and sat in the top half
+of the tall one. `containerHeight` is now a dependency.)
+
+Floor 120. `LISTENING_BASE_RESERVE` 280 was tuned by eye on that one phone:
 with a one-line note the air between note and tiles is about 50 pt. Tiles can
 shrink (`flexShrink`) if a short phone runs out of room.
 

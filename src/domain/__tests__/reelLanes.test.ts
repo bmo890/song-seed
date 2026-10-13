@@ -99,9 +99,9 @@ describe("reelHeightForFlow", () => {
     // iPhone 17: 874 window, 62 + 34 insets.
     const tall = 874 - 62 - 34;
     it("gives the reel what the pages and the note leave", () => {
-        expect(reelHeightForFlow("listening", tall, { pages: "tiles", note: true })).toBe(254);
-        expect(reelHeightForFlow("listening", tall, { pages: "tiles", note: false })).toBe(308);
-        expect(reelHeightForFlow("listening", tall, { pages: "slots", note: true })).toBe(326);
+        expect(reelHeightForFlow("listening", tall, { pages: "tiles", note: true })).toBe(260);
+        expect(reelHeightForFlow("listening", tall, { pages: "tiles", note: false })).toBe(314);
+        expect(reelHeightForFlow("listening", tall, { pages: "slots", note: true })).toBe(332);
     });
     it("caps the reel so it stays a reel, not a wall", () => {
         expect(reelHeightForFlow("listening", tall)).toBe(400);
