@@ -59,7 +59,8 @@ export function MinimapVisualizer({
 }: Props) {
     const [containerWidth, setContainerWidth] = useState(0);
     // A navigator, not a second waveform: short by default, shorter in compact.
-    const containerHeight = compact ? 18 : 30;
+    // (2026-10-14: 30 → 24 and 18 → 16; founder asked for a thinner strip.)
+    const containerHeight = compact ? MINIMAP_COMPACT_HEIGHT : MINIMAP_HEIGHT;
 
     const baseContentWidth = waveformPeaks.length * 3;
 
@@ -101,7 +102,10 @@ export function MinimapVisualizer({
             wave.lineTo(x, centerY + h);
         }
         return { wavePath: wave, barCount: numBars };
-    }, [waveformPeaks, containerWidth]);
+        // The height is a dependency: the strip changes height between listening
+        // and Tools/reading, and a wave built for the short strip sat in the top
+        // half of the tall one (founder screenshot, 2026-10-14).
+    }, [waveformPeaks, containerWidth, containerHeight]);
 
     const classicPalette = chrome === "light"
         ? {
@@ -365,6 +369,10 @@ export function MinimapVisualizer({
         </View>
     );
 }
+
+/** Strip heights. The listening page's reel budget counts on the full one. */
+export const MINIMAP_HEIGHT = 24;
+export const MINIMAP_COMPACT_HEIGHT = 16;
 
 const styles = StyleSheet.create({
     container: {

@@ -170,7 +170,7 @@ export const TOOLS_REEL_HEIGHT = 112;
 export const READING_REEL_HEIGHT = 64;
 /** Everything on the listening page that is always there and is not the reel:
  *  title block, minimap, the toolbar row and the transport, with a little air. */
-export const LISTENING_BASE_RESERVE = 286;
+export const LISTENING_BASE_RESERVE = 280;
 /** Height of a written page tile, and of an empty slot. */
 export const PAGE_TILE_HEIGHT = 168;
 export const PAGE_SLOT_HEIGHT = 96;
