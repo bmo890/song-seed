@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useRoute } from "@react-navigation/native";
 import { styles as appStyles } from "../../../styles";
 import { spacing } from "../../../design/tokens";
 import { useChordSheetModel } from "../../ChordSheetScreen/useChordSheetModel";
@@ -19,7 +19,13 @@ export function SongChartSection() {
   const { t } = useTranslation();
   const { screen } = useSongScreen();
   const idea = screen.selectedIdea;
-  const model = useChordSheetModel(idea?.kind === "project" ? idea.id : undefined);
+  // The player's chart pencil asks for the editor, not the reader: the token
+  // seeds edit mode on a fresh mount and flips it on a page already open.
+  const route = useRoute<any>();
+  const chartEditToken = route.params?.chartEditToken as number | undefined;
+  const model = useChordSheetModel(idea?.kind === "project" ? idea.id : undefined, {
+    startEditing: !!chartEditToken && route.params?.initialSongTab === "chart",
+  });
   const [exportVisible, setExportVisible] = useState(false);
   const [fullViewOpen, setFullViewOpen] = useState(false);
   const { setIsEditing, isEditing } = model;
@@ -44,6 +50,13 @@ export function SongChartSection() {
       return () => setIsEditing(false);
     }, [setIsEditing])
   );
+
+  const seenEditToken = useRef(chartEditToken);
+  useEffect(() => {
+    if (!chartEditToken || chartEditToken === seenEditToken.current) return;
+    seenEditToken.current = chartEditToken;
+    setIsEditing(true);
+  }, [chartEditToken, setIsEditing]);
 
   if (idea?.kind !== "project" || screen.songTab !== "chart") {
     return null;

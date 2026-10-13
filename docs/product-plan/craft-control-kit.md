@@ -129,12 +129,15 @@ Founder verdict on the register (2026-10-13): "Feels good."
 The hand-made `switchShell`/`switchKnob` styles in `PlayerScreen/styles.ts`
 are now unreferenced and can be deleted.
 
+| Control | File | Notes |
+|---|---|---|
+| `InkOption` | `InkOption.tsx` | Editorial ink: a word led by a dot, hollow to terracotta. Built 2026-10-13 for the player's "Marks" toggle. `Press`, `light` on flip. Migration list is in "Under the reel". |
+
 ### To build, in order
 
 | Control | Replaces | Spec |
 |---|---|---|
 | `Chip` | `edgeChip` (MarkInspector), `toolChip` (practice primitives, Magpie, chord picker). One chip with `active`. | Height 34, `radii.lg`. On the page: active = `primarySurface` fill + `primaryDeep` text. On the terracotta wash: active = `surface`, idle = translucent. Never a border. Uses `Press`. This one changes how things look, so build it in one room and show the founder before migrating. |
-| `InkOption` | `inkOption` and `partInk` in the practice drawers, the ink dots in `MetronomeBlocks`, `StepUpSequenceSheet`, `ProUpsellSheet`. | NOT a chip. CLAUDE.md: multi-select is editorial ink, a word with a leading dot, hollow to terracotta. One component: `label`, `active`, optional `barColor` for a section part. `Press feel="glyph"`. |
 | `Row` | `pd.row`, `toolBodyRow`, settings rows. Label · value · control. | Min height 46, horizontal 10 inside cards and 16 on pages, hairline below, never a border. Label `text.body` semibold, value `text.supporting` tabular. |
 | `Spinner` | `ActivityIndicator` (14 files, 20 uses). | A hairline arc in `primary` rotating at `durations.slow`; or, where progress is known, a thin bar. Never the platform spinner. |
 
@@ -544,6 +547,85 @@ bridge the 21 pt between rows (`MARK_ROW_PITCH_GAP`). Screenshot:
 `docs/product-plan/reel-lanes/marks-group.png`. NOT verified: a held (open)
 row in the middle of a group, where the rail and wash skip that row.
 
+## Under the reel (2026-10-13, founder list)
+
+Founder, with a screenshot of the listening page: the reel should take the
+big size by itself when nothing is open; the eye button is not obvious and
+reads backwards; "Marks hidden" is the wrong wording; the empty Lyrics and
+Chart rows are noisy and wordy; leaving the in-player lyric editor takes two
+presses; an open chart needs a way to its editor.
+
+**One reel height per flow.** `reelHeightForFlow` in `src/domain/reelLanes.ts`
+is the only place a height is decided (tested).
+
+| Flow | Height | Why |
+|---|---|---|
+| Listening, nothing open | 184 to 320, whatever the page allows | The reel is the page. `usable height − 472`, where 472 is everything else on a fully filled page (title, minimap, toolbar, two doors, notes shelf, transport), measured on an iPhone 17 (306 there). |
+| Tools or the layers bench | 112 | The drawers need the page. |
+| Lyrics or chart open, or writing | 64 | The slim tape. |
+| Full view | none | Hairline thread only. |
+
+The corner expand button is GONE: it existed to reach the size the reel now
+takes on its own, and it sat on top of pin names. `reelExpanded` state, its
+style and its two strings were deleted. Nothing else used them.
+
+**"Marks", not an eye.** The eye lit up when the marks were HIDDEN, which is
+the opposite of every other toggle in the app. `MarksToggle` is now the word
+"Marks" in editorial ink: dot lit while marks are on the reel, hollow while
+they are off. Same width both ways. On the slim reading and writing bars
+there is no room for a word, so `compact` shows the app's pin glyph (filled
+when shown, outline and muted when hidden). `player.marksHidden` deleted.
+
+**`InkOption` is built** (`common/InkOption.tsx`): dot + word, hollow to
+terracotta, `light` on flip, `accessibilityRole="switch"`. The word names the
+thing, never the state. Used by `MarksToggle` and the chords toggle in the
+text-size sheet. STILL TO MIGRATE onto it: `inkOption` / `partInk` in the
+practice drawers, the ink dots in `MetronomeBlocks`, `StepUpSequenceSheet`,
+`PlayerLayersBench` (`toneInkDot`), the stage filter in `FilterSortBar`.
+
+**Doors and ghost keys** (`PlayerArtifactDoors.tsx`). The grammar under the
+reel is now two things only:
+- A thing that EXISTS is a card (`SurfaceCard`) whose face is its content:
+  the first lyric line, the chord run.
+- A thing that does NOT exist is a ghost key: tonal `surfaceContainer`, r8,
+  38 tall, a plus and one word ("Lyrics", "Chart"). Keys share one row, half
+  the page each; a lone key keeps its half.
+"No lyrics yet", "No chart yet" and the visible "Write lyrics" / "Build
+chart" labels are gone from the page (the last two remain as accessibility
+labels). The folded sketch door on a standalone clip ("Make sketch") became
+the same key, so every empty slot on this page looks alike. The full
+first-visit sketch card is unchanged.
+
+**The Notes door wears a glyph, not a dot** (`PlayerShelf.tsx`): a dot beside
+a word now means on/off on this page, and a door must not look like a switch.
+
+**One press folds the surface.** The bar's chevron called `stopWriting` while
+writing, which only dropped to a reader nobody had opened. It now always
+calls `closeReading`. The writer still commits pending words on unmount.
+Trade: from reader, pencil, write, chevron now lands on the listening page,
+not back in the reader. The door reopens the reader in one tap.
+
+**Chart pencil.** The reading bar's pencil used to exist for lyrics only. On
+a chart it now minimises the player and opens the sketch's Chart tab already
+in its editor: route param `chartEditToken` (a fresh number per request),
+seeded into `useChordSheetModel(id, { startEditing })` on a fresh mount and
+flipped by an effect in `SongChartSection` on a page already open. The empty
+"Chart" key takes the same route.
+
+Screenshots: `docs/product-plan/under-reel/` (listening-empty, -chart-only,
+-filled). The empty and chart-only shots were taken at reserve 464 (reel 314);
+the shipped reserve is 472 (306).
+
+Simulator-verified after a clean relaunch: all three listening states, the
+standalone clip's key, Marks on and off (reel and minimap both clear), one
+press out of the writer, chart reader pencil landing in the editor with the
+player docked and still playing.
+NOT verified: Android; a short phone (the 184 floor is by arithmetic and
+test, not by eye); Hebrew labels in the keys and the Marks toggle; the
+compact pin toggle's hidden state inside the reading bar on a real lyric
+page; whether pins named near the reel's top right now read cleanly on a
+founder library.
+
 ## State at handoff
 
 Branch `craft/control-kit`, pushed. Commits:
@@ -588,8 +670,8 @@ Next action, in order:
    `durations.spin` = 900 ms). NOT yet seen on screen: every use is a
    transient busy state. First thing to do is catch one (Settings, Storage
    while it loads; the welcome import; an editor export) and photograph it.
-2. `InkOption`, then `Chip` in ONE room with a before and after for the
-   founder.
+2. `InkOption` is BUILT (see "Under the reel"); migrate the listed ink dots
+   onto it, then `Chip` in ONE room with a before and after for the founder.
 3. Fold the 17 inline springs and 23 durations into `motion.ts`
    (`springs.handle` already equals the pasted `{ damping: 20, stiffness: 300 }`).
 4. The hand pass on raw Pressables, a screen at a time, in the file order

@@ -57,7 +57,7 @@ function labelSuggestionsFor(workspaces: ReturnType<typeof useStore.getState>["w
   return out;
 }
 
-export function useChordSheetModel(ideaIdOverride?: string) {
+export function useChordSheetModel(ideaIdOverride?: string, options?: { startEditing?: boolean }) {
   const { t } = useTranslation();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
@@ -80,7 +80,9 @@ export function useChordSheetModel(ideaIdOverride?: string) {
   // render of every sketch tab.
   const getLabelSuggestions = useCallback(() => labelSuggestionsFor(useStore.getState().workspaces), []);
 
-  const [isEditing, setIsEditing] = useState(false);
+  // `startEditing` seeds the first frame (a page opened straight into the
+  // editor must not flash the reader first).
+  const [isEditing, setIsEditing] = useState(options?.startEditing ?? false);
   const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
   const [barEditor, setBarEditor] = useState<BarEditorTarget | null>(null);
 

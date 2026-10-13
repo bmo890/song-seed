@@ -52,10 +52,6 @@ function Door({
   meta,
   metaEdited,
   onOpen,
-  emptyLabel,
-  ctaLabel,
-  onCta,
-  emptyIcon = "create-outline",
   accessibilityLabel,
   testID,
 }: {
@@ -64,27 +60,17 @@ function Door({
   /** Trailing detail beside the kind (chord summary / version whisper). */
   summary?: string;
   /** The handle: first lyric line (serif) or the chart's chord run. */
-  preview?: string;
+  preview: string;
   previewSerif?: boolean;
   meta?: string;
   /** The page moved on after this clip's take — a tiny pencil beside the meta. */
   metaEdited?: boolean;
   onOpen: () => void;
-  /** Empty-door state: quiet label + one ink CTA (opens the editor). */
-  emptyLabel?: string;
-  ctaLabel?: string;
-  onCta?: () => void;
-  /** Glyph beside an empty door's CTA; the pencil (opens an editor) by default. */
-  emptyIcon?: React.ComponentProps<typeof Ionicons>["name"];
   accessibilityLabel: string;
   testID?: string;
 }) {
-  const isEmpty = !preview;
   return (
-    <SurfaceCard
-      style={doorStyles.door}
-      onPress={isEmpty ? onCta ?? onOpen : onOpen}
-    >
+    <SurfaceCard style={doorStyles.door} onPress={onOpen}>
       <View
         style={doorStyles.doorInner}
         accessibilityRole="button"
@@ -101,28 +87,66 @@ function Door({
             ) : null}
             {meta ? <Text style={doorStyles.meta}>{meta}</Text> : null}
           </View>
-          {isEmpty ? (
-            <View style={doorStyles.emptyRow}>
-              <Text style={doorStyles.emptyLabel}>{emptyLabel}</Text>
-              {ctaLabel ? <Text style={doorStyles.cta}>{ctaLabel}</Text> : null}
-            </View>
-          ) : (
-            <UserText
-              value={preview!}
-              style={previewSerif ? doorStyles.previewSerif : doorStyles.preview}
-              numberOfLines={1}
-            >
-              {preview}
-            </UserText>
-          )}
+          <UserText
+            value={preview}
+            style={previewSerif ? doorStyles.previewSerif : doorStyles.preview}
+            numberOfLines={1}
+          >
+            {preview}
+          </UserText>
         </View>
-        <Ionicons
-          name={isEmpty ? emptyIcon : "chevron-down"}
-          size={16}
-          color={colors.textMuted}
-        />
+        <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
       </View>
     </SurfaceCard>
+  );
+}
+
+/**
+ * What a sketch does not have yet (founder, 2026-10-13: a full row saying
+ * "LYRICS · No lyrics yet · Write lyrics" was three ways of saying nothing).
+ * A thing that exists is a card with its content as the handle; a thing that
+ * does not is a ghost key — tonal, shadowless, a plus and ONE word. Keys share
+ * a row, half the page each, so an empty sketch costs the page one short line.
+ */
+function GhostKey({
+  label,
+  icon = "add",
+  onPress,
+  accessibilityLabel,
+  testID,
+}: {
+  label: string;
+  icon?: React.ComponentProps<typeof Ionicons>["name"];
+  onPress: () => void;
+  accessibilityLabel: string;
+  testID?: string;
+}) {
+  return (
+    <Press
+      // Haptics (Press default): `tap` — an acknowledged press.
+      style={doorStyles.ghostKey}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      testID={testID}
+    >
+      <Ionicons name={icon} size={16} color={colors.textSecondary} />
+      <Text style={doorStyles.ghostKeyText} numberOfLines={1}>
+        {label}
+      </Text>
+    </Press>
+  );
+}
+
+/** One row of ghost keys. A lone key keeps its half: it is a key, not a row. */
+function GhostKeyRow({ children }: { children: React.ReactNode }) {
+  const keys = React.Children.toArray(children);
+  if (keys.length === 0) return null;
+  return (
+    <View style={doorStyles.ghostRow}>
+      {keys}
+      {keys.length === 1 ? <View style={doorStyles.ghostSlot} /> : null}
+    </View>
   );
 }
 
@@ -136,9 +160,9 @@ function Door({
  *   also wears the terracotta wash, so the first clip ever recorded learns
  *   where sketches come from.
  * - Any sketch exists: the lesson landed, so the card folds into the same
- *   quiet one-line door an empty Lyrics or Chart door uses — "No sketch
- *   yet · Make a sketch". Founder's call 2026-10-12: the explanation earns
- *   its space exactly once; after that it is noise on every clip.
+ *   ghost key an empty Lyrics or Chart uses. Founder's call 2026-10-12: the
+ *   explanation earns its space exactly once; after that it is noise on
+ *   every clip. (2026-10-13: the fold became a key, not a full-width row.)
  * "Make a sketch" also lives in the player's overflow, so nothing is lost.
  */
 function SketchDoor({ onPress }: { onPress: () => void }) {
@@ -155,20 +179,18 @@ function SketchDoor({ onPress }: { onPress: () => void }) {
     onPress();
   };
   if (anySketch) {
-    // Folded: the sketch glyph says what, the ink says the one action.
+    // Folded: the sketch glyph says what, the words say the one action. The
+    // key fires its own `tap`, so the handler's is not doubled.
     return (
-      <SurfaceCard style={doorStyles.door} onPress={handlePress}>
-        <View
-          style={doorStyles.doorInner}
-          accessibilityRole="button"
+      <GhostKeyRow>
+        <GhostKey
+          icon={getHierarchyIconName("song")}
+          label={t("songDetail.makeSong")}
+          onPress={onPress}
           accessibilityLabel={t("songDetail.makeSong")}
           testID="player-sketch-door"
-        >
-          <Ionicons name={getHierarchyIconName("song")} size={16} color={colors.textSecondary} />
-          <Text style={[doorStyles.cta, doorStyles.foldedCta]}>{t("songDetail.makeSong")}</Text>
-          <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
-        </View>
-      </SurfaceCard>
+        />
+      </GhostKeyRow>
     );
   }
   return (
@@ -246,30 +268,51 @@ function PlayerArtifactDoorsInner({
       </View>
     );
   }
+  // A door needs a handle: with nothing to show on its face it is a key.
+  const lyricsFilled = hasLyrics && lyricsPreviewLine.length > 0;
+  const chartFilled = hasChart && chartHandle.length > 0;
   return (
     <View style={doorStyles.stack}>
-      <Door
-        kind={t("common.lyrics")}
-        summary={hasLyrics ? lyricsChordSummary : undefined}
-        preview={hasLyrics ? lyricsPreviewLine : undefined}
-        previewSerif
-        meta={hasLyrics ? lyricsMeta ?? undefined : undefined}
-        metaEdited={hasLyrics ? lyricsEditedSinceTake : undefined}
-        onOpen={onOpenLyrics}
-        emptyLabel={t("player.noLyricsYet")}
-        ctaLabel={t("player.writeLyrics")}
-        onCta={onWriteLyrics}
-        accessibilityLabel={hasLyrics ? t("player.openLyrics") : t("player.writeLyrics")}
-      />
-      <Door
-        kind={t("screens.chart")}
-        preview={hasChart ? chartHandle : undefined}
-        onOpen={onOpenChart}
-        emptyLabel={t("player.noChartYet")}
-        ctaLabel={t("player.buildChart")}
-        onCta={onBuildChart}
-        accessibilityLabel={hasChart ? t("player.openChart") : t("player.buildChart")}
-      />
+      {lyricsFilled ? (
+        <Door
+          kind={t("common.lyrics")}
+          summary={lyricsChordSummary}
+          preview={lyricsPreviewLine}
+          previewSerif
+          meta={lyricsMeta ?? undefined}
+          metaEdited={lyricsEditedSinceTake}
+          onOpen={onOpenLyrics}
+          accessibilityLabel={t("player.openLyrics")}
+          testID="player-lyrics-door"
+        />
+      ) : null}
+      {chartFilled ? (
+        <Door
+          kind={t("screens.chart")}
+          preview={chartHandle}
+          onOpen={onOpenChart}
+          accessibilityLabel={t("player.openChart")}
+          testID="player-chart-door"
+        />
+      ) : null}
+      <GhostKeyRow>
+        {!lyricsFilled ? (
+          <GhostKey
+            label={t("common.lyrics")}
+            onPress={onWriteLyrics}
+            accessibilityLabel={t("player.writeLyrics")}
+            testID="player-write-lyrics"
+          />
+        ) : null}
+        {!chartFilled ? (
+          <GhostKey
+            label={t("screens.chart")}
+            onPress={onBuildChart}
+            accessibilityLabel={t("player.buildChart")}
+            testID="player-build-chart"
+          />
+        ) : null}
+      </GhostKeyRow>
     </View>
   );
 }
@@ -325,24 +368,29 @@ const doorStyles = StyleSheet.create({
     lineHeight: 20,
     color: colors.textSecondary,
   },
-  emptyRow: {
+  ghostRow: {
     flexDirection: "row",
-    alignItems: "baseline",
     gap: spacing.sm,
   },
-  emptyLabel: {
-    ...textTokens.supporting,
-    color: colors.textMuted,
+  ghostSlot: {
+    flex: 1,
   },
-  cta: {
+  // A soft key (design-system button language): r8, ~38 tall, tonal fill, ink.
+  ghostKey: {
+    flex: 1,
+    height: 38,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surfaceContainer,
+  },
+  ghostKeyText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 13,
-    color: colors.primaryDeep,
-  },
-  foldedCta: {
-    flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
+    color: colors.textStrong,
   },
   // The ghost door: tonal, no shadow. The hairline is reserved at rest
   // (transparent) so the first-visit wash is a colour change, not a resize.

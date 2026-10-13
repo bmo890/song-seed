@@ -198,24 +198,12 @@ export const playerScreenStyles = StyleSheet.create({
   },
   // Chords toggle in the same sheet — editorial ink (word + leading dot).
   chordsInk: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    paddingVertical: 4,
     marginTop: 10,
-    alignSelf: "flex-start",
   },
-  chordsInkDot: {
-    width: 8,
-    height: 8,
-    borderRadius: radii.round,
-    borderWidth: 1.5,
-    borderColor: colors.textMuted,
-  },
-  chordsInkText: {
-    fontSize: 13,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    color: colors.textSecondary,
+  // "Marks" in the listening bar: lines up with the reel's leading edge.
+  marksInk: {
+    height: 34,
+    paddingHorizontal: 4,
   },
   // Full view's hairline stand-in for the reel: position as a quiet thread.
   // The thread IS the footer's top border (the zone's own hairline stands down
@@ -246,18 +234,6 @@ export const playerScreenStyles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
     fontVariant: ["tabular-nums"],
-  },
-  reelCornerButton: {
-    position: "absolute",
-    top: 6,
-    right: 6,
-    width: 28,
-    height: 28,
-    borderRadius: radii.round,
-    backgroundColor: "rgba(244, 241, 237, 0.86)",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 5,
   },
   metaRow: {
     flexDirection: "row",
