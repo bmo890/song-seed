@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Keyboard,
   Pressable,
   ScrollView,
   Text,
   View,
 } from "react-native";
+import { Spinner } from "./Spinner";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../design/directionalIcons";
@@ -638,7 +638,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
       <View style={finderStyles.previewBody}>
         {state.status === "loading" ? (
           <View style={finderStyles.stateCenter}>
-            <ActivityIndicator size="small" color={colors.textMuted} />
+            <Spinner size="small" color={colors.textMuted} />
           </View>
         ) : state.status === "offline" ? (
           <Text style={finderStyles.previewMeta}>{t("wordFinderUi.definitionOffline")}</Text>
@@ -798,7 +798,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
                 <Text style={finderStyles.stateText}>{t("wordFinderUi.idle")}</Text>
               ) : lookup.status === "loading" ? (
                 <View style={finderStyles.stateCenter}>
-                  <ActivityIndicator size="small" color={colors.textMuted} />
+                  <Spinner size="small" color={colors.textMuted} />
                 </View>
               ) : lookup.status === "needsTrigger" ? (
                 renderTrigger()

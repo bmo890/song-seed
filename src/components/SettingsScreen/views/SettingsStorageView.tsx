@@ -1,4 +1,5 @@
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
+import { Spinner } from "../../common/Spinner";
 import { colors } from "../../../design/tokens";
 import { PageIntro } from "../../common/PageIntro";
 import { Button } from "../../common/Button";
@@ -54,7 +55,7 @@ export function SettingsStorageView({ diagnostics }: { diagnostics: StorageDiagn
       {diagnostics.isStorageLoading && !diagnostics.storageReport ? (
         <View style={styles.settingsSummaryPanel}>
           <View style={styles.settingsBusyRow}>
-            <ActivityIndicator size="small" color={colors.textPrimary} />
+            <Spinner size="small" color={colors.textPrimary} />
             <Text style={styles.settingsBusyText}>{t("settingsStorage.measuring")}</Text>
           </View>
         </View>

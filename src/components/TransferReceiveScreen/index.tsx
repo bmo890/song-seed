@@ -1,7 +1,8 @@
 import { returnHome } from "../../navigation";
 import { reportUnsupportedImports } from "../common/importFeedback";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Spinner } from "../common/Spinner";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -377,7 +378,7 @@ export function TransferReceiveScreen() {
             accessibilityLabel={t(previewing && preview.playing ? "transferReceive.pause" : "transferReceive.play", { name })}
           >
             {previewing && preview.loading ? (
-              <ActivityIndicator size="small" color={colors.onPrimary} />
+              <Spinner size="small" color={colors.onPrimary} />
             ) : (
               <Ionicons
                 name={previewing && preview.playing ? "pause" : "play"}
@@ -397,7 +398,7 @@ export function TransferReceiveScreen() {
         {complete ? (
           <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
         ) : active ? (
-          <ActivityIndicator size="small" color={colors.primary} />
+          <Spinner size="small" color={colors.primary} />
         ) : null}
       </SurfaceCard>
     );
@@ -408,7 +409,7 @@ export function TransferReceiveScreen() {
       case "loading":
         return (
           <View style={local.centerWrap}>
-            <ActivityIndicator color={colors.primary} />
+            <Spinner color={colors.primary} />
             <Text style={local.centerText}>{t("transferReceive.opening")}</Text>
           </View>
         );

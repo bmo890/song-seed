@@ -1,4 +1,5 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Spinner } from "../common/Spinner";
 import { UserText, UserTextInput } from "../../i18n/direction";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../design/directionalIcons";
@@ -265,7 +266,7 @@ export function QuickNameModal({
                 >
                     {saving ? (
                         <View style={qStyles.saveBtnBusy}>
-                            <ActivityIndicator size="small" color={colors.surface} />
+                            <Spinner size="small" color={colors.surface} />
                             <Text style={qStyles.saveBtnText}>{t("modals.saving")}</Text>
                         </View>
                     ) : (

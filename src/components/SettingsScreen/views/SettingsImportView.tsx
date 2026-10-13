@@ -1,4 +1,5 @@
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
+import { Spinner } from "../../common/Spinner";
 import { colors } from "../../../design/tokens";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
@@ -38,7 +39,7 @@ export function SettingsImportView({
                     </Text>
                 </View>
                 {flow.isPicking ? (
-                    <ActivityIndicator size="small" color={colors.textSecondary} />
+                    <Spinner size="small" color={colors.textSecondary} />
                 ) : (
                     <Ionicons name="folder-open-outline" size={18} color={colors.textSecondary} />
                 )}
@@ -105,7 +106,7 @@ export function SettingsImportView({
                                 </Text>
                             </View>
                             {flow.isImporting ? (
-                                <ActivityIndicator size="small" color={colors.textSecondary} />
+                                <Spinner size="small" color={colors.textSecondary} />
                             ) : (
                                 <Ionicons name="download-outline" size={18} color={colors.textSecondary} />
                             )}

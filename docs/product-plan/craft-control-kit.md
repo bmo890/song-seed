@@ -291,10 +291,11 @@ Branch `craft/control-kit`, pushed. Commits:
 | d74e0ee4 | Migrate: speed and pitch dials, metronome sliders |
 | aec70350 | Migrate: the last stock sliders (pin and section modals, layer bench, chord sheets) |
 | 6da03d6c | Migrate: IconButton and the player's practice drawers onto Press |
-| (next) | Press codemod: 88 presses in 54 files, `press_haptic_none` lint rule |
+| 33edc065 | Press codemod: 88 presses in 54 files, `press_haptic_none` lint rule |
+| (next) | Spinner replaces every ActivityIndicator (14 files, 20 uses); `durations.spin` |
 
 Baseline now: haptics_direct 0 · slider_stock 0 · switch_stock 0 ·
-spinner_stock 20 · alert_native 0 · pressable_raw 422 · press_adhoc 250 ·
+spinner_stock 0 · alert_native 0 · pressable_raw 422 · press_adhoc 250 ·
 press_haptic_none 82 · motion_duration 23 · motion_spring 17 ·
 font_weight_bare 1 · color_literal 876.
 
@@ -314,8 +315,10 @@ of the whole loop options component is still not there 100%". That is move
 4 (compose), after the kit and the migration.
 
 Next action, in order:
-1. `Spinner` (replaces 20 `ActivityIndicator` uses; no visual judgment needed
-   beyond the first one).
+1. DONE: `Spinner` (`common/Spinner.tsx`, a hairline arc, one turn per
+   `durations.spin` = 900 ms). NOT yet seen on screen: every use is a
+   transient busy state. First thing to do is catch one (Settings, Storage
+   while it loads; the welcome import; an editor export) and photograph it.
 2. `InkOption`, then `Chip` in ONE room with a before and after for the
    founder.
 3. Fold the 17 inline springs and 23 durations into `motion.ts`

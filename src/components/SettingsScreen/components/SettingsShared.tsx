@@ -1,6 +1,7 @@
 import { Children, Fragment, type ComponentProps, type ReactNode } from "react";
 import { colors } from "../../../design/tokens";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
+import { Spinner } from "../../common/Spinner";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
 import type { Collection, Workspace } from "../../../types";
@@ -108,7 +109,7 @@ export function LibraryActionCard({
         </Text>
       </View>
       {busy ? (
-        <ActivityIndicator size="small" color={accent} />
+        <Spinner size="small" color={accent} />
       ) : (
         rightAccessory ?? <Ionicons name={dirIcon("chevron-forward")} size={18} color={colors.textMuted} />
       )}

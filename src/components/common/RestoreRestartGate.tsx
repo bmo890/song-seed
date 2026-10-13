@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { reloadAppAsync } from "expo";
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Spinner } from "./Spinner";
 import { Ionicons } from "@expo/vector-icons";
 import { useFullPlayerContext, useMiniPlayerContext } from "../../hooks/FullPlayerProvider";
 import { colors, radii, shadows, spacing } from "../../design/tokens";
@@ -106,7 +107,7 @@ export function RestoreRestartGate() {
                         </>
                     ) : (
                         <View style={styles.restartingRow}>
-                            <ActivityIndicator color={colors.primary} />
+                            <Spinner color={colors.primary} />
                             <Text style={styles.restartingText}>{t("settings.restarting")}</Text>
                         </View>
                     )}

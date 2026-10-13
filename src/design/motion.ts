@@ -17,6 +17,8 @@ export const durations = {
   gentle: 220,
   /** Expansive changes: panel expand/collapse, progress. */
   slow: 300,
+  /** One turn of the Spinner. Slow enough to read as waiting, not as hurry. */
+  spin: 900,
 } as const;
 
 /** Spring for surfaces sliding into place (sheets, docks). */

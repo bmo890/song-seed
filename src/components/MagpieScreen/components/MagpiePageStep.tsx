@@ -1,6 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Image,
   Linking,
   Pressable,
@@ -9,6 +8,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { Spinner } from "../../common/Spinner";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
@@ -218,7 +218,7 @@ export function MagpiePageStep({
           <ErrorState kind={model.status.error} onRetry={model.retry} onNewBook={model.newBook} />
         ) : busy && !spark.pageText ? (
           <View style={styles.center}>
-            <ActivityIndicator color={colors.primary} />
+            <Spinner color={colors.primary} />
           </View>
         ) : (
           <>
@@ -246,7 +246,7 @@ export function MagpiePageStep({
             </ScrollView>
             {busy ? (
               <View style={styles.turning} pointerEvents="none">
-                <ActivityIndicator color={colors.primary} />
+                <Spinner color={colors.primary} />
               </View>
             ) : null}
           </>

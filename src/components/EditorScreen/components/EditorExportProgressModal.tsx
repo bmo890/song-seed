@@ -1,5 +1,6 @@
 import React from "react";
-import { ActivityIndicator, Modal, StyleSheet, Text, View } from "react-native";
+import { Modal, StyleSheet, Text, View } from "react-native";
+import { Spinner } from "../../common/Spinner";
 import { colors, radii, spacing, text } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 
@@ -15,7 +16,7 @@ export function EditorExportProgressModal({ visible }: EditorExportProgressModal
         {/* The scrim is its own layer so its opacity never dims the card. */}
         <View style={styles.scrim} />
         <View style={styles.card}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <Spinner size="large" color={colors.primary} />
           <Text style={styles.title}>{t("editor.exporting")}</Text>
           <Text style={styles.subtitle}>{t("editor.onDevice")}</Text>
         </View>

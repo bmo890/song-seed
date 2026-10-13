@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Spinner } from "../../common/Spinner";
 import { Slider } from "../../common/Slider";
 import { Ionicons } from "@expo/vector-icons";
 import { useAudioPlayer } from "expo-audio";
@@ -642,7 +643,7 @@ export function PlayerLayersBench({
             <View style={[benchStyles.laneDot, { backgroundColor: colors.textMuted }]} />
             <Text style={benchStyles.title}>{t("player.baseTake")}</Text>
             {isRendering ? (
-              <ActivityIndicator size="small" color={colors.primaryDeep} accessibilityLabel={t("player.updatingMix")} />
+              <Spinner size="small" color={colors.primaryDeep} accessibilityLabel={t("player.updatingMix")} />
             ) : null}
             <Text style={benchStyles.duration}>{fmtDuration(rootDurationMs)}</Text>
           </View>
@@ -661,7 +662,7 @@ export function PlayerLayersBench({
               {selectedStem.title}
             </UserText>
             {isRendering ? (
-              <ActivityIndicator size="small" color={colors.primaryDeep} accessibilityLabel={t("player.updatingMix")} />
+              <Spinner size="small" color={colors.primaryDeep} accessibilityLabel={t("player.updatingMix")} />
             ) : null}
             <Text style={benchStyles.duration}>{fmtDuration(selectedStem.durationMs)}</Text>
             <Pressable

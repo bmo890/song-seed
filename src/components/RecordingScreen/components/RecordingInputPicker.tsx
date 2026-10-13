@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
+import { Spinner } from "../../common/Spinner";
 import { Ionicons } from "@expo/vector-icons";
 import { useAudioDevices } from "@siteed/audio-studio";
 import { styles } from "../../../styles";
@@ -127,7 +128,7 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
                     disabled={loading || isApplying}
                 >
                     {loading || isApplying ? (
-                        <ActivityIndicator size="small" color={colors.textStrong} />
+                        <Spinner size="small" color={colors.textStrong} />
                     ) : (
                         <Ionicons name="refresh" size={16} color={colors.textStrong} />
                     )}

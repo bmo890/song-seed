@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { colors, radii, spacing, text } from "../../design/tokens";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
+import { Spinner } from "../common/Spinner";
 import { Press } from "../common/Press";
 import { StackActions, useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -577,7 +578,7 @@ export function EditorScreen() {
                     />
                 ) : isLoading ? (
                     <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-                        <ActivityIndicator size="large" color={colors.primary} />
+                        <Spinner size="large" color={colors.primary} />
                         <Text style={editorLocalStyles.loadingText}>{t("editor.analyzing")}</Text>
                     </View>
                 ) : analysisData ? (

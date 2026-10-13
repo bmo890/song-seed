@@ -1,6 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
 import {
-  ActivityIndicator,
   I18nManager,
   PanResponder,
   Pressable,
@@ -8,6 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { Spinner } from "./Spinner";
 import ReAnimated from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -205,7 +205,7 @@ function ImportPane({
       >
         {progress?.phase === "importing" ? (
           <>
-            <ActivityIndicator size="small" color={colors.primaryDeep} />
+            <Spinner size="small" color={colors.primaryDeep} />
             <Text style={s.importButtonText}>
               {t("welcome.importing", {
                 current: Math.min(progress.current + 1, progress.total),

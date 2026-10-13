@@ -2,13 +2,13 @@ import { useNavigation } from "@react-navigation/native";
 import { useAudioPlayer } from "expo-audio";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   SafeAreaView,
   ScrollView,
   Text,
   View,
 } from "react-native";
+import { Spinner } from "../common/Spinner";
 import { Ionicons } from "@expo/vector-icons";
 import { audioDeviceManager, type AudioDevice } from "@siteed/audio-studio";
 import { PageIntro } from "../common/PageIntro";
@@ -777,7 +777,7 @@ export function BluetoothCalibrationScreen() {
 
             {isPreparingAudio ? (
               <View style={screenStyles.loadingRow}>
-                <ActivityIndicator size="small" color={colors.primaryDeep} />
+                <Spinner size="small" color={colors.primaryDeep} />
                 <Text style={screenStyles.loadingText}>{t("bluetoothCalibration.preparing")}</Text>
               </View>
             ) : null}
