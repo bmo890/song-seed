@@ -9,7 +9,7 @@ import { MultiTimeRangeSelector } from "../../common/TimeRangeSelector";
 import { OverdubLayerLanes, type OverdubLayerLane } from "../../common/OverdubLayerLanes";
 import { PracticePinBadges } from "../PracticePinBadges";
 import type { PracticeMarker, ClipSection, RecordingGrid } from "../../../types";
-import { buildSectionBands } from "../../../domain/playerSections";
+import { buildSectionBands, sectionMoveBounds } from "../../../domain/playerSections";
 import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
 import { useStore } from "../../../state/useStore";
@@ -27,21 +27,37 @@ type Range = {
  *  the Skia label chip rides. Kept shallow so taps higher on the tape still scrub. */
 const SECTION_JUMP_RAIL_HEIGHT = 30;
 
-/** Invisible tap rails over the section bands: tapping a section's label strip
- *  jumps the playhead to its start. The visible chip is Skia (glued to the
- *  tape); these are hitboxes only, same pattern as the pin badges. */
+/** How far a held section must travel before the drag counts as a move. */
+const SECTION_MOVE_MIN_MS = 150;
+
+type JumpBand = { id: string; label: string; startMs: number; endMs: number };
+type MoveBounds = { minStartMs: number; maxStartMs: number };
+
+/** Invisible rails over the section bands. A tap on a section's label strip jumps
+ *  the playhead to its start; with `onMove`, holding it and dragging slides the
+ *  whole section (its length kept, its neighbours as walls). The visible rule and
+ *  name are Skia, glued to the tape; these are hitboxes only, same pattern as the
+ *  pin badges. The canvas reads the two shared values to draw the drag. */
 function SectionJumpHitboxes({
   bands,
   pixelsPerMs,
   timelineTranslateX,
   timelineScale,
   onSeek,
+  moveBounds,
+  onMove,
+  draggingSectionId,
+  draggingSectionDeltaMs,
 }: {
-  bands: { id: string; label: string; startMs: number; endMs: number }[];
+  bands: JumpBand[];
   pixelsPerMs: number;
   timelineTranslateX: SharedValue<number>;
   timelineScale: SharedValue<number>;
   onSeek: (timeMs: number) => void;
+  moveBounds?: Map<string, MoveBounds>;
+  onMove?: (sectionId: string, startMs: number) => void;
+  draggingSectionId: SharedValue<string>;
+  draggingSectionDeltaMs: SharedValue<number>;
 }) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
@@ -53,6 +69,10 @@ function SectionJumpHitboxes({
           timelineTranslateX={timelineTranslateX}
           timelineScale={timelineScale}
           onSeek={onSeek}
+          bounds={moveBounds?.get(band.id)}
+          onMove={onMove}
+          draggingSectionId={draggingSectionId}
+          draggingSectionDeltaMs={draggingSectionDeltaMs}
         />
       ))}
     </View>
@@ -65,26 +85,75 @@ function SectionJumpHitbox({
   timelineTranslateX,
   timelineScale,
   onSeek,
+  bounds,
+  onMove,
+  draggingSectionId,
+  draggingSectionDeltaMs,
 }: {
-  band: { id: string; label: string; startMs: number; endMs: number };
+  band: JumpBand;
   pixelsPerMs: number;
   timelineTranslateX: SharedValue<number>;
   timelineScale: SharedValue<number>;
   onSeek: (timeMs: number) => void;
+  bounds?: MoveBounds;
+  onMove?: (sectionId: string, startMs: number) => void;
+  draggingSectionId: SharedValue<string>;
+  draggingSectionDeltaMs: SharedValue<number>;
 }) {
   const handleJump = React.useCallback(
     () => onSeek(band.startMs),
     [band.startMs, onSeek]
   );
-  const tapGesture = React.useMemo(
-    () =>
-      Gesture.Tap().onEnd(() => {
-        // Haptics vocabulary: `tap` — an acknowledged press (the jump lands).
-        runOnJS(haptic.tap)();
-        runOnJS(handleJump)();
-      }),
-    [handleJump]
+  const handleMove = React.useCallback(
+    (startMs: number) => onMove?.(band.id, startMs),
+    [band.id, onMove]
   );
+  const canMove = !!onMove && !!bounds;
+  const minDeltaMs = bounds ? bounds.minStartMs - band.startMs : 0;
+  const maxDeltaMs = bounds ? bounds.maxStartMs - band.startMs : 0;
+  const gesture = React.useMemo(() => {
+    const tap = Gesture.Tap().onEnd(() => {
+      // Haptics vocabulary: `tap` — an acknowledged press (the jump lands).
+      runOnJS(haptic.tap)();
+      runOnJS(handleJump)();
+    });
+    if (!canMove) return tap;
+    const pan = Gesture.Pan()
+      .activateAfterLongPress(300)
+      .onStart(() => {
+        draggingSectionDeltaMs.value = 0;
+        draggingSectionId.value = band.id;
+        // Haptics vocabulary: `grab` — picking something up (drag lift).
+        runOnJS(haptic.grab)();
+      })
+      .onChange((event) => {
+        if (pixelsPerMs <= 0 || timelineScale.value <= 0) return;
+        const deltaMs = event.translationX / (pixelsPerMs * timelineScale.value);
+        draggingSectionDeltaMs.value = Math.max(minDeltaMs, Math.min(maxDeltaMs, deltaMs));
+      })
+      .onEnd(() => {
+        const deltaMs = draggingSectionDeltaMs.value;
+        if (Math.abs(deltaMs) >= SECTION_MOVE_MIN_MS) {
+          runOnJS(handleMove)(Math.round(band.startMs + deltaMs));
+        }
+      })
+      .onFinalize(() => {
+        if (draggingSectionId.value === band.id) draggingSectionId.value = "";
+      });
+    return Gesture.Exclusive(pan, tap);
+  }, [
+    band.id,
+    band.startMs,
+    canMove,
+    draggingSectionDeltaMs,
+    draggingSectionId,
+    handleJump,
+    handleMove,
+    maxDeltaMs,
+    minDeltaMs,
+    pixelsPerMs,
+    timelineScale,
+  ]);
   const animatedStyle = useAnimatedStyle(() => {
     const scale = timelineScale.value;
     const left = band.startMs * pixelsPerMs * scale + timelineTranslateX.value;
@@ -92,7 +161,7 @@ function SectionJumpHitbox({
     return { transform: [{ translateX: left }], width };
   });
   return (
-    <GestureDetector gesture={tapGesture}>
+    <GestureDetector gesture={gesture}>
       <Animated.View
         style={[sectionJumpStyles.rail, animatedStyle]}
         accessibilityRole="button"
@@ -180,6 +249,8 @@ type Props = {
   onTogglePlay: () => void;
   onScrubStateChange: (scrubbing: boolean) => void;
   onRepositionMarker: (markerId: string, newAtMs: number) => void;
+  /** Slide a section whole to a new start (hold its name or rule, then drag). */
+  onMoveSection?: (sectionId: string, startMs: number) => void;
   onRequestPinActions: (marker: PracticeMarker) => void;
   onRequestAddPin: () => void;
   onPinDragStateChange: (dragging: boolean) => void;
@@ -346,6 +417,7 @@ function PlayerTimelineInner({
   onTogglePlay,
   onScrubStateChange,
   onRepositionMarker,
+  onMoveSection,
   onRequestPinActions,
   onRequestAddPin,
   onPinDragStateChange,
@@ -354,6 +426,18 @@ function PlayerTimelineInner({
 }: Props) {
   // Lanes are the reel's default look; the hitboxes below follow the same geometry.
   const lanes = !useStore((state) => state.classicReel);
+  // A section being dragged whole: which one, and how far. The hitbox writes
+  // them on the UI thread; the canvas draws from them. No React state moves.
+  const draggingSectionId = useSharedValue("");
+  const draggingSectionDeltaMs = useSharedValue(0);
+  const sectionMoveBoundsById = React.useMemo(() => {
+    const map = new Map<string, { minStartMs: number; maxStartMs: number }>();
+    for (const section of sections) {
+      const bounds = sectionMoveBounds(sections, section.id, durationMs);
+      if (bounds) map.set(section.id, bounds);
+    }
+    return map;
+  }, [sections, durationMs]);
   const handleMarkerLongPress = React.useCallback(
     (markerId: string) => {
       const marker = practiceMarkers.find((candidate) => candidate.id === markerId);
@@ -450,6 +534,8 @@ function PlayerTimelineInner({
       onMarkerDragStateChange={onPinDragStateChange}
       onMarkerDragEnd={onRepositionMarker}
       onMarkerLongPress={handleMarkerLongPress}
+      sharedDraggingSectionId={draggingSectionId}
+      sharedDraggingSectionDeltaMs={draggingSectionDeltaMs}
       sectionBands={sectionBands}
       grid={recordingGrid}
       sharedSelectedRangeStartMs={loopActive ? sharedLoopPreviewStartMs : undefined}
@@ -489,6 +575,11 @@ function PlayerTimelineInner({
                 timelineTranslateX={timelineTranslateX}
                 timelineScale={timelineScale}
                 onSeek={(timeMs) => void onSeek(timeMs)}
+                // Practice owns editing, as with pins: elsewhere a section only jumps.
+                moveBounds={mode === "practice" ? sectionMoveBoundsById : undefined}
+                onMove={mode === "practice" ? onMoveSection : undefined}
+                draggingSectionId={draggingSectionId}
+                draggingSectionDeltaMs={draggingSectionDeltaMs}
               />
               <PracticePinBadges
                 markers={practiceMarkers}

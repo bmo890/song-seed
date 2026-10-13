@@ -102,6 +102,9 @@ type Props = {
     onMarkerDragEnd?: (markerId: string, atMs: number) => void;
     /** A hold on a pin's line that never moved: open that pin's actions. */
     onMarkerLongPress?: (markerId: string) => void;
+    /** A section being dragged whole (id, and how far in ms): its rule and name follow. */
+    sharedDraggingSectionId?: SharedValue<string>;
+    sharedDraggingSectionDeltaMs?: SharedValue<number>;
     sectionBands?: SectionBand[];
     /** Beat-grid ruler primitives (file-ms space) — manuscript lines under the wave. */
     gridRuler?: GridRulerModel | null;
@@ -525,6 +528,8 @@ function SectionLabelChipsOverlay({
     heightValue,
     fontProvider,
     ink = false,
+    sharedDraggingSectionId,
+    sharedDraggingSectionDeltaMs,
 }: {
     bands: SectionBand[];
     pixelsPerMs: number;
@@ -535,6 +540,8 @@ function SectionLabelChipsOverlay({
     /** Lanes: the name is plain text in the section's own ink, sitting on its rule —
      *  no filled chip. */
     ink?: boolean;
+    sharedDraggingSectionId?: SharedValue<string>;
+    sharedDraggingSectionDeltaMs?: SharedValue<number>;
 }) {
     const chips = useMemo(
         () =>
@@ -574,6 +581,9 @@ function SectionLabelChipsOverlay({
                     translateX={translateX}
                     heightValue={heightValue}
                     ink={ink}
+                    dragPxPerMs={pixelsPerMs * labelScale}
+                    sharedDraggingSectionId={sharedDraggingSectionId}
+                    sharedDraggingSectionDeltaMs={sharedDraggingSectionDeltaMs}
                 />
             ))}
         </>
@@ -585,6 +595,9 @@ function SectionLabelChip({
     translateX,
     heightValue,
     ink = false,
+    dragPxPerMs = 0,
+    sharedDraggingSectionId,
+    sharedDraggingSectionDeltaMs,
 }: {
     chip: {
         band: SectionBand;
@@ -597,6 +610,9 @@ function SectionLabelChip({
     translateX: SharedValue<number>;
     heightValue: SharedValue<number>;
     ink?: boolean;
+    dragPxPerMs?: number;
+    sharedDraggingSectionId?: SharedValue<string>;
+    sharedDraggingSectionDeltaMs?: SharedValue<number>;
 }) {
     const { band, startX, bandWidth, paragraph, chipWidth, textHeight } = chip;
     // Slide along the band so the chip holds the reel's left edge while the band scrolls
@@ -605,7 +621,13 @@ function SectionLabelChip({
         const offscreen = SECTION_CHIP_EDGE_PAD - (startX + translateX.value);
         return Math.max(0, Math.min(offscreen, bandWidth - chipWidth - SECTION_CHIP_EDGE_PAD));
     });
-    const transform = useDerivedValue(() => [{ translateX: startX + SECTION_CHIP_EDGE_PAD + slide.value }]);
+    // The name travels with its rule while the section is being dragged.
+    const transform = useDerivedValue(() => {
+        const dragging =
+            !!sharedDraggingSectionId && !!sharedDraggingSectionDeltaMs && sharedDraggingSectionId.value === band.id;
+        const dragPx = dragging ? sharedDraggingSectionDeltaMs.value * dragPxPerMs : 0;
+        return [{ translateX: startX + SECTION_CHIP_EDGE_PAD + slide.value + dragPx }];
+    }, [dragPxPerMs, band.id, startX]);
     const opacity = useDerivedValue(() => {
         const offscreen = SECTION_CHIP_EDGE_PAD - (startX + translateX.value);
         return offscreen <= bandWidth - chipWidth - SECTION_CHIP_EDGE_PAD ? 1 : 0;
@@ -764,30 +786,66 @@ function SectionRuleOverlay({
     heightValue,
     bands,
     pixelsPerMs,
+    sharedDraggingSectionId,
+    sharedDraggingSectionDeltaMs,
 }: {
     heightValue: SharedValue<number>;
     bands: SectionBand[];
     pixelsPerMs: number;
+    sharedDraggingSectionId?: SharedValue<string>;
+    sharedDraggingSectionDeltaMs?: SharedValue<number>;
 }) {
-    const ruleY = useDerivedValue(() => Math.max(0, heightValue.value - SECTION_RULE_HEIGHT));
     return (
         <>
-            {bands.map((band) => {
-                const x = band.startMs * pixelsPerMs;
-                const width = Math.max(0, (band.endMs - band.startMs) * pixelsPerMs - 1);
-                if (width <= 0) return null;
-                return (
-                    <Rect
-                        key={band.id}
-                        x={x}
-                        y={ruleY}
-                        width={width}
-                        height={SECTION_RULE_HEIGHT}
-                        color={band.railColor}
-                    />
-                );
-            })}
+            {bands.map((band) => (
+                <SectionRule
+                    key={band.id}
+                    band={band}
+                    heightValue={heightValue}
+                    pixelsPerMs={pixelsPerMs}
+                    sharedDraggingSectionId={sharedDraggingSectionId}
+                    sharedDraggingSectionDeltaMs={sharedDraggingSectionDeltaMs}
+                />
+            ))}
         </>
+    );
+}
+
+function SectionRule({
+    band,
+    heightValue,
+    pixelsPerMs,
+    sharedDraggingSectionId,
+    sharedDraggingSectionDeltaMs,
+}: {
+    band: SectionBand;
+    heightValue: SharedValue<number>;
+    pixelsPerMs: number;
+    sharedDraggingSectionId?: SharedValue<string>;
+    sharedDraggingSectionDeltaMs?: SharedValue<number>;
+}) {
+    const x = band.startMs * pixelsPerMs;
+    const width = Math.max(0, (band.endMs - band.startMs) * pixelsPerMs - 1);
+    // A held section rides the finger: its rule shifts by the drag, and thickens so
+    // the one being moved is unmistakable.
+    const transform = useDerivedValue(() => {
+        const dragging =
+            !!sharedDraggingSectionId && !!sharedDraggingSectionDeltaMs && sharedDraggingSectionId.value === band.id;
+        return [{ translateX: dragging ? sharedDraggingSectionDeltaMs.value * pixelsPerMs : 0 }];
+    }, [pixelsPerMs, band.id]);
+    const ruleHeight = useDerivedValue(
+        () =>
+            sharedDraggingSectionId && sharedDraggingSectionId.value === band.id
+                ? SECTION_RULE_HEIGHT * 2
+                : SECTION_RULE_HEIGHT,
+        [band.id]
+    );
+    const ruleY = useDerivedValue(() => Math.max(0, heightValue.value - ruleHeight.value));
+    if (width <= 0) return null;
+    return (
+        <Group transform={transform}>
+            <Rect x={x} y={ruleY} width={width} height={ruleHeight} color={band.railColor} />
+        </Group>
     );
 }
 
@@ -946,6 +1004,8 @@ export function PlaybackTapeVisualizer({
     onMarkerDragStateChange,
     onMarkerDragEnd,
     onMarkerLongPress,
+    sharedDraggingSectionId,
+    sharedDraggingSectionDeltaMs,
     sharedSelectedRangeStartMs,
     sharedSelectedRangeEndMs,
     selectedRangeType = "keep",
@@ -1893,6 +1953,8 @@ export function PlaybackTapeVisualizer({
                                                 heightValue={heightSV}
                                                 bands={sectionBands}
                                                 pixelsPerMs={durationMs > 0 ? baseContentWidth / durationMs : 0}
+                                                sharedDraggingSectionId={sharedDraggingSectionId}
+                                                sharedDraggingSectionDeltaMs={sharedDraggingSectionDeltaMs}
                                             />
                                         ) : (
                                             <SectionBandOverlay
@@ -1990,6 +2052,8 @@ export function PlaybackTapeVisualizer({
                                         heightValue={heightSV}
                                         fontProvider={sectionFontProvider}
                                         ink={lanes}
+                                        sharedDraggingSectionId={sharedDraggingSectionId}
+                                        sharedDraggingSectionDeltaMs={sharedDraggingSectionDeltaMs}
                                     />
                                 ) : null}
                                 {pinLane ? (

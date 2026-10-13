@@ -273,6 +273,47 @@ export function resolveSectionEdit(
   return list;
 }
 
+/**
+ * How far a section may slide WHOLE, keeping its length: its neighbours are walls
+ * (founder, 2026-10-13: dragging a section on the reel moves it, it never shoves
+ * or resizes the ones beside it). Returns the legal range for its start.
+ */
+export function sectionMoveBounds(
+  sections: ClipSection[],
+  id: string,
+  durationMs: number
+): { minStartMs: number; maxStartMs: number } | null {
+  const list = normalizeSections(sections, durationMs);
+  const idx = list.findIndex((section) => section.id === id);
+  if (idx < 0) return null;
+  const self = list[idx];
+  const length = self.endMs - self.startMs;
+  const ceiling = durationMs > 0 ? Math.round(durationMs) : self.endMs;
+  const floor = idx > 0 ? list[idx - 1].endMs : 0;
+  const wall = idx < list.length - 1 ? list[idx + 1].startMs : ceiling;
+  const minStartMs = Math.min(floor, self.startMs);
+  const maxStartMs = Math.max(wall - length, self.startMs);
+  return { minStartMs, maxStartMs: Math.max(minStartMs, maxStartMs) };
+}
+
+/** Slide a section to a new start at the same length, stopping at its neighbours. */
+export function moveSection(
+  sections: ClipSection[],
+  id: string,
+  startMs: number,
+  durationMs: number
+): ClipSection[] {
+  const list = normalizeSections(sections, durationMs);
+  const bounds = sectionMoveBounds(list, id, durationMs);
+  if (!bounds) return list;
+  return list.map((section) => {
+    if (section.id !== id) return section;
+    const length = section.endMs - section.startMs;
+    const nextStart = Math.max(bounds.minStartMs, Math.min(bounds.maxStartMs, Math.round(startMs)));
+    return { ...section, startMs: nextStart, endMs: nextStart + length };
+  });
+}
+
 /** A new section's default length when the clip offers no better hint: about a
  *  sung verse, not a whole song. */
 const DEFAULT_SECTION_SPAN_MS = 30000;

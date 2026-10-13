@@ -420,11 +420,26 @@ NOT verified: the Layer key actually starting a layer, the count-in length
 key on a take with a grid, the minimap at its new heights (it hides at 1×
 zoom), the reel folding back from expanded, Hebrew, Android.
 
-Open question for the founder: dragging a SECTION on the reel. Not built.
-Recommended shape if wanted: hold a section's name or rule and drag to move
-the whole section at its length, stopping at its neighbours; edges stay on
-the inspector. Whole-section move avoids the hard part (two neighbours
-resizing under one finger).
+**Dragging a section (founder chose whole-section move, 2026-10-13).** Hold
+a section's name or rule on the reel for 300 ms, then drag: the section slides
+at its length and stops at its neighbours or the clip's edges. It never pushes
+or resizes another section; edges stay on the inspector (drag, nudge, typed
+time). Rule: `sectionMoveBounds` / `moveSection` in `domain/playerSections`
+(tested, 6 cases). Gesture: a `Pan().activateAfterLongPress(300)` on the
+existing `SectionJumpHitbox` in `PlayerTimeline` (the RN rail over each band's
+bottom 30 pt, which already owned the tap-to-jump), `Exclusive` with the tap.
+It writes two shared values (`draggingSectionId`, `draggingSectionDeltaMs`);
+the canvas's `SectionRule` and section name read them, so the mark itself
+rides the finger and no React state moves during the drag. The held rule
+doubles in thickness. Practice mode only, like pins. Haptic `grab` on lift.
+Gotcha met: a `useDerivedValue` given a deps array must list every captured
+plain value, or it keeps the old one (the name stayed behind after a move
+until `startX` was added).
+
+Verified in the simulator: Chorus dragged right and stopped at the clip's
+end, then back, name and rule together, list times following. NOT verified:
+stopping against a neighbouring section (rule is unit-tested), zoomed reels,
+Android.
 
 ## State at handoff
 
