@@ -11,6 +11,7 @@ export const SHARE_KINDS = [
   "playlist",
   "setlist",
   "songbook",
+  "sketch",
   "collection",
   "workspace",
   "library",
@@ -39,6 +40,8 @@ export function describeKind(kind: ShareKind): string | null {
       return "a setlist, in order";
     case "songbook":
       return "a chart book";
+    case "sketch":
+      return "a sketch — takes, lyrics, chords, notes";
     case "collection":
       return "a collection";
     case "workspace":

@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import { AppAlert } from "../../common/AppAlert";
 import { hasClipPlaybackSource } from "../../../domain/clipPresentation";
 import { useStore } from "../../../state/useStore";
@@ -9,6 +9,9 @@ import { useSongParentPicking } from "../hooks/useSongParentPicking";
 import { useSongScreenEffects } from "../hooks/useSongScreenEffects";
 import { useSongScreenModel } from "../hooks/useSongScreenModel";
 import { useSongUndo } from "../hooks/useSongUndo";
+import { createSketchShareLink, shareSketchFile } from "../../../services/sketchShare";
+import { openSendSheet } from "../../../state/useSendSheetStore";
+import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
 
 type SongScreenContextValue = {
@@ -23,6 +26,14 @@ type SongScreenContextValue = {
     clipSelectionMode: boolean;
     setRecordingIdeaId: (ideaId: string | null) => void;
     setRecordingParentClipId: (clipId: string | null) => void;
+  };
+  /** The sketch's Share… — Export (a file) or SongNook Send (a link). */
+  share: {
+    sheetOpen: boolean;
+    setSheetOpen: (open: boolean) => void;
+    busy: boolean;
+    exportSketch: () => Promise<void>;
+    sendSketch: () => void;
   };
   actions: {
     buildProjectQueue: (clipIds?: string[]) => Array<{ ideaId: string; clipId: string }>;
@@ -78,6 +89,46 @@ export function SongScreenProvider({ children }: { children: ReactNode }) {
     setSongTab: screen.setSongTab,
     setParentPickState: parentPicking.setParentPickState,
   });
+
+  // Share… on the sketch's ⋯: one sheet, two exits. The whole sketch travels —
+  // every take, lyrics with chords, chord sheet, notes, marks (sketchShare).
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
+  const [shareBusy, setShareBusy] = useState(false);
+  const share = useMemo(
+    () => ({
+      sheetOpen: shareSheetOpen,
+      setSheetOpen: setShareSheetOpen,
+      busy: shareBusy,
+      exportSketch: async () => {
+        const idea = screen.selectedIdea;
+        if (!idea || shareBusy) return;
+        setShareSheetOpen(false);
+        setShareBusy(true);
+        try {
+          const ok = await shareSketchFile(idea);
+          if (!ok) AppAlert.info(t("songDetail.nothingShare"), t("songDetail.nothingShareBody"));
+        } catch {
+          // haptics vocabulary: `error` — a failure the user must hear about.
+          haptic.error();
+          AppAlert.info(t("songDetail.shareFailed"), t("songDetail.shareSketchFailedBody"));
+        } finally {
+          setShareBusy(false);
+        }
+      },
+      sendSketch: () => {
+        const idea = screen.selectedIdea;
+        if (!idea || shareBusy) return;
+        setShareSheetOpen(false);
+        openSendSheet({
+          title: idea.title,
+          kind: "sketch",
+          emptyMessage: t("songDetail.nothingShareBody"),
+          create: (parcel) => createSketchShareLink(idea, parcel),
+        });
+      },
+    }),
+    [screen.selectedIdea, shareBusy, shareSheetOpen, t]
+  );
 
   const actions = useMemo(() => {
     function buildProjectQueue(clipIds?: string[]) {
@@ -140,6 +191,7 @@ export function SongScreenProvider({ children }: { children: ReactNode }) {
         parentPicking,
         editFlow,
         undo,
+        share,
         store: {
           clipClipboard,
           cancelClipboard,

@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../design/directionalIcons";
+import { getHierarchyIconName } from "../../domain/hierarchy";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { ScreenHeader } from "../common/ScreenHeader";
 import { EmptyState } from "../common/EmptyState";
@@ -26,6 +27,7 @@ const KIND_ICONS: Record<ShareKind, React.ComponentProps<typeof Ionicons>["name"
   setlist: "albums-outline",
   playlist: "musical-notes-outline",
   songbook: "book-outline",
+  sketch: getHierarchyIconName("song"),
   collection: "folder-outline",
   workspace: "file-tray-stacked-outline",
   clips: "musical-notes-outline",

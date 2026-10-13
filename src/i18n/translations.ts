@@ -626,7 +626,7 @@ export const resources = {
       },
       received: {
         openCollection: "Open collection {{title}}", moveNestedHint: "Nested collections keep to the top level.",
-        setlist: "Setlist", playlist: "Playlist", songbook: "Chart book", collection: "Collection", workspace: "Workspace", clips: "Clips", library: "Library",
+        setlist: "Setlist", playlist: "Playlist", songbook: "Chart book", sketch: "Sketch", collection: "Collection", workspace: "Workspace", clips: "Clips", library: "Library",
         from: "From {{name}}",
         items_one: "{{count}} item",
         items_other: "{{count}} items",
@@ -704,9 +704,10 @@ export const resources = {
         tracks_one: "{{count}} item", tracks_other: "{{count}} items", lessMinute: "<1 min", minutes: "{{count}} min", hoursMinutes: "{{hours}} hr {{minutes}} min", hours: "{{count}} hr", updatedNow: "updated just now", updatedHours: "updated {{count}}h ago", updatedDays: "updated {{count}}d ago", updatedDate: "updated {{date}}",
       },
       player: {
+        shareTitle: "Share", shareAudio: "Share audio", songnookSend: "SongNook Send",
         tools: "Tools",
         sketchDoorTitle: "Grow this into a sketch", sketchDoorBody: "Takes, lyrics, and chords, kept together.",
-        saveCombinedNew: "Save combined as new clip", combinedSaved: "Combined clip saved", combinedSavedBody: "The flattened mix was added as a new clip.", combinedSaveFailed: "Save combined failed", combinedSaveBody: "Could not save a combined clip.", saveCombinedEdit: "Save combined and edit", combinedOpenFailed: "Could not open the combined clip.", trimAudio: "Trim audio", share: "Share", clip: "Clip", versionOf: "v{{index}} of {{total}}", takesPage: "Take's words · v{{index}} of {{total}}", latestPage: "Latest words · v{{total}}", showLatest: "Show latest", showTakes: "Show take's", stampDeleted: "Take's words were deleted — showing latest", editedSinceTake: "Words edited since this take", shareFailed: "Share failed", shareAudioFailed: "Could not share this audio file.", setAside: "Add to Shelf", onShelf: "On the shelf for 7 days", viewShelf: "View shelf", deleteClip: "Delete clip", deleteClipTitle: "Delete clip?", deleteSongTitle: "Delete song?", deleteSong: "Delete song", deleteOnlySongBody: "This is the only clip in “{{title}}”, so deleting it removes the whole song. Its audio moves to Trash.", deleteOnlyClipBody: "Delete “{{title}}”? Its audio moves to Trash.", removeClipBody: "Remove this clip from the song? Its audio moves to Trash.",
+        saveCombinedNew: "Save combined as new clip", combinedSaved: "Combined clip saved", combinedSavedBody: "The flattened mix was added as a new clip.", combinedSaveFailed: "Save combined failed", combinedSaveBody: "Could not save a combined clip.", saveCombinedEdit: "Save combined and edit", combinedOpenFailed: "Could not open the combined clip.", trimAudio: "Trim audio", share: "Share…", clip: "Clip", versionOf: "v{{index}} of {{total}}", takesPage: "Take's words · v{{index}} of {{total}}", latestPage: "Latest words · v{{total}}", showLatest: "Show latest", showTakes: "Show take's", stampDeleted: "Take's words were deleted — showing latest", editedSinceTake: "Words edited since this take", shareFailed: "Share failed", shareAudioFailed: "Could not share this audio file.", setAside: "Add to Shelf", onShelf: "On the shelf for 7 days", viewShelf: "View shelf", deleteClip: "Delete clip", deleteClipTitle: "Delete clip?", deleteSongTitle: "Delete song?", deleteSong: "Delete song", deleteOnlySongBody: "This is the only clip in “{{title}}”, so deleting it removes the whole song. Its audio moves to Trash.", deleteOnlyClipBody: "Delete “{{title}}”? Its audio moves to Trash.", removeClipBody: "Remove this clip from the song? Its audio moves to Trash.",
         loading: "Loading player…", noLoop: "No loop", chords: "Chords", hideChords: "Hide chords", showChords: "Show chords", pauseAutoscroll: "Pause autoscroll", startAutoscroll: "Start autoscroll", autoscrollSpeed: "Autoscroll speed", lyricSize: "Adjust lyric size", shrinkWaveform: "Shrink waveform", expandWaveform: "Expand waveform", follow: "Follow", hideMarkers: "Hide markers", showMarkers: "Show markers", marksHidden: "Marks hidden", followA11y: "Follow playback", closePractice: "Close practice tools", openPractice: "Open practice tools",
         noLyricsYet: "No lyrics yet", writeLyrics: "Write lyrics", noChartYet: "No chart yet", buildChart: "Build chart", openLyrics: "Open lyrics", openChart: "Open chart", closeReading: "Close reading", fullView: "Full view", exitFullView: "Exit full view", chartBars_one: "{{count}} bar", chartBars_other: "{{count}} bars",
         closeLayers: "Close layers", playHere: "Play here", solo: "Solo", mute: "Mute", levels: "Levels", hiCut: "Hi cut", midBoost: "Mid boost", adjustA11y: "Adjust levels and timing",
@@ -1031,6 +1032,7 @@ export const resources = {
         },
       },
       songDetail: {
+        share: "Share…", shareSketchTitle: "Share sketch", exportSketch: "Export", nothingShare: "Nothing to share", nothingShareBody: "Record a take or write a line first.", shareSketchFailedBody: "Could not share this sketch.",
         song: "Song",
         clip: "Clip",
         editing: "Editing {{type}}",
@@ -2127,7 +2129,7 @@ export const resources = {
       },
       received: {
         openCollection: "פתיחת האוסף {{title}}", moveNestedHint: "אוספים מקוננים נשארים ברמה העליונה.",
-        setlist: "סטליסט", playlist: "פלייליסט", songbook: "ספר תרשימים", collection: "אוסף", workspace: "מרחב עבודה", clips: "קטעים", library: "ספרייה",
+        setlist: "סטליסט", playlist: "פלייליסט", songbook: "ספר תרשימים", sketch: "סקיצה", collection: "אוסף", workspace: "מרחב עבודה", clips: "קטעים", library: "ספרייה",
         from: "מאת {{name}}",
         items_one: "פריט אחד",
         items_two: "שני פריטים",
@@ -2209,9 +2211,10 @@ export const resources = {
         tracks_one: "פריט אחד", tracks_two: "שני פריטים", tracks_other: "{{count}} פריטים", lessMinute: "פחות מדקה", minutes: "{{count}} דק׳", hoursMinutes: "{{hours}} שע׳ {{minutes}} דק׳", hours: "{{count}} שע׳", updatedNow: "עודכן עכשיו", updatedHours: "עודכן לפני {{count}} שעות", updatedDays: "עודכן לפני {{count}} ימים", updatedDate: "עודכן ב־{{date}}",
       },
       player: {
+        shareTitle: "שיתוף", shareAudio: "שיתוף השמע", songnookSend: "SongNook Send",
         tools: "כלים",
         sketchDoorTitle: "להצמיח את זה לסקיצה", sketchDoorBody: "טייקים, מילים ואקורדים, שמורים יחד.",
-        saveCombinedNew: "שמירת האיחוד כקטע חדש", combinedSaved: "הקטע המאוחד נשמר", combinedSavedBody: "המיקס המאוחד נוסף כקטע חדש.", combinedSaveFailed: "שמירת האיחוד נכשלה", combinedSaveBody: "לא ניתן לשמור קטע מאוחד.", saveCombinedEdit: "שמירת האיחוד ועריכה", combinedOpenFailed: "לא ניתן לפתוח את הקטע המאוחד.", trimAudio: "חיתוך שמע", share: "שיתוף", clip: "קטע", versionOf: "גרסה {{index}} מתוך {{total}}", takesPage: "מילות הטייק · גרסה {{index}} מתוך {{total}}", latestPage: "המילים העדכניות · גרסה {{total}}", showLatest: "הצגת העדכניות", showTakes: "חזרה לטייק", stampDeleted: "מילות הטייק נמחקו — מוצגות העדכניות", editedSinceTake: "המילים נערכו אחרי הטייק הזה", shareFailed: "השיתוף נכשל", shareAudioFailed: "לא ניתן לשתף את קובץ השמע.", setAside: "הוספה למדף", onShelf: "על המדף ל־7 ימים", viewShelf: "פתיחת המדף", deleteClip: "מחיקת קטע", deleteClipTitle: "למחוק את הקטע?", deleteSongTitle: "למחוק את השיר?", deleteSong: "מחיקת השיר", deleteOnlySongBody: "זה הקטע היחיד ב־„{{title}}”, ולכן מחיקתו תסיר את כל השיר. השמע יעבור לפח.", deleteOnlyClipBody: "למחוק את „{{title}}”? השמע יעבור לפח.", removeClipBody: "להסיר את הקטע הזה מהשיר? השמע יעבור לפח.",
+        saveCombinedNew: "שמירת האיחוד כקטע חדש", combinedSaved: "הקטע המאוחד נשמר", combinedSavedBody: "המיקס המאוחד נוסף כקטע חדש.", combinedSaveFailed: "שמירת האיחוד נכשלה", combinedSaveBody: "לא ניתן לשמור קטע מאוחד.", saveCombinedEdit: "שמירת האיחוד ועריכה", combinedOpenFailed: "לא ניתן לפתוח את הקטע המאוחד.", trimAudio: "חיתוך שמע", share: "שיתוף…", clip: "קטע", versionOf: "גרסה {{index}} מתוך {{total}}", takesPage: "מילות הטייק · גרסה {{index}} מתוך {{total}}", latestPage: "המילים העדכניות · גרסה {{total}}", showLatest: "הצגת העדכניות", showTakes: "חזרה לטייק", stampDeleted: "מילות הטייק נמחקו — מוצגות העדכניות", editedSinceTake: "המילים נערכו אחרי הטייק הזה", shareFailed: "השיתוף נכשל", shareAudioFailed: "לא ניתן לשתף את קובץ השמע.", setAside: "הוספה למדף", onShelf: "על המדף ל־7 ימים", viewShelf: "פתיחת המדף", deleteClip: "מחיקת קטע", deleteClipTitle: "למחוק את הקטע?", deleteSongTitle: "למחוק את השיר?", deleteSong: "מחיקת השיר", deleteOnlySongBody: "זה הקטע היחיד ב־„{{title}}”, ולכן מחיקתו תסיר את כל השיר. השמע יעבור לפח.", deleteOnlyClipBody: "למחוק את „{{title}}”? השמע יעבור לפח.", removeClipBody: "להסיר את הקטע הזה מהשיר? השמע יעבור לפח.",
         loading: "טוען נגן…", noLoop: "ללא לולאה", chords: "אקורדים", hideChords: "הסתרת אקורדים", showChords: "הצגת אקורדים", pauseAutoscroll: "השהיית גלילה אוטומטית", startAutoscroll: "הפעלת גלילה אוטומטית", autoscrollSpeed: "מהירות גלילה אוטומטית", lyricSize: "התאמת גודל המילים", shrinkWaveform: "הקטנת צורת הגל", expandWaveform: "הגדלת צורת הגל", follow: "מעקב", hideMarkers: "הסתרת סמנים", showMarkers: "הצגת סמנים", marksHidden: "סימונים מוסתרים", followA11y: "מעקב אחר הניגון", closePractice: "סגירת כלי התרגול", openPractice: "פתיחת כלי התרגול",
         noLyricsYet: "אין עדיין מילים", writeLyrics: "כתיבת מילים", noChartYet: "אין עדיין תרשים", buildChart: "בניית תרשים", openLyrics: "פתיחת מילים", openChart: "פתיחת תרשים", closeReading: "סגירת קריאה", fullView: "תצוגה מלאה", exitFullView: "יציאה מתצוגה מלאה", chartBars_one: "תיבה אחת", chartBars_two: "{{count}} תיבות", chartBars_other: "{{count}} תיבות",
         closeLayers: "סגירת שכבות", playHere: "ניגון כאן", solo: "סולו", mute: "השתקה", levels: "עוצמה", hiCut: "חיתוך גבוהים", midBoost: "הגברת אמצע", adjustA11y: "כוונון עוצמה ותזמון",
@@ -2549,6 +2552,7 @@ export const resources = {
         },
       },
       songDetail: {
+        share: "שיתוף…", shareSketchTitle: "שיתוף הסקיצה", exportSketch: "ייצוא", nothingShare: "אין מה לשתף", nothingShareBody: "הקליטו טייק או כתבו שורה קודם.", shareSketchFailedBody: "לא ניתן לשתף את הסקיצה הזו.",
         song: "שיר",
         clip: "קטע",
         editing: "עריכת {{type}}",

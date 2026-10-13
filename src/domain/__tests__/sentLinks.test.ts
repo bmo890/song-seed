@@ -52,7 +52,7 @@ describe("sentLinks", () => {
   });
 
   it("keeps a link of every kind the app can mint across a relaunch", () => {
-    const kinds = ["setlist", "playlist", "songbook", "collection", "workspace", "clips", "library"] as const;
+    const kinds = ["setlist", "playlist", "songbook", "sketch", "collection", "workspace", "clips", "library"] as const;
     const out = sanitizeSentLinks(kinds.map((kind, i) => link({ transferId: `t_${i}`, kind })));
     expect(out.map((l) => l.kind)).toEqual([...kinds]);
   });

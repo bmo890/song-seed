@@ -51,6 +51,7 @@ const SHARE_KINDS: ReadonlySet<string> = new Set<ShareKind>([
   "setlist",
   "playlist",
   "songbook",
+  "sketch",
   "collection",
   "workspace",
   "clips",

@@ -144,6 +144,32 @@ until accounts).
   playlist keeps the toast with *Open playlist*. The chooser snapshots its
   items at open, so an ending selection can never empty it again.
 
+### Audit: every door, every surface (2026-10-13, "is it everywhere?")
+
+| Surface | Door | Exits |
+|---|---|---|
+| Setlist / playlist / chart book page ⋯ | Share… | Export · SongNook Send (· Share as text) |
+| Collection page ⋯ | Share… | Export · SongNook Send |
+| Workspaces card ⋯ (live workspace) | Share… | Export · SongNook Send |
+| Hub: a selected collection → ⋯ | — | Copy · Move · **Export · SongNook Send** (new) |
+| **Sketch page ⋯** | **Share…** (new) | Export · SongNook Send — the whole sketch: every take, lyrics with chords, chord sheet, notes, marks, sections, tags (`sketchShare`, kind `sketch`) |
+| Clip selection (collection / sketch takes) | Share… | Share (audio, OS sheet) · SongNook Send (ordered) |
+| Full player ⋯ | Share… | **Share audio · SongNook Send** (was a straight link) |
+| Queue | Playlist… | existing playlist · new, named, opened |
+| Settings → Library | Export | the whole library, no share block (a backup-style archive) |
+| Chart / chord editor | Export | a PDF or text by the OS sheet (produces a document — Export is the right word) |
+| Notepad | Share | notes as text by the OS sheet |
+
+Received packages, Shelf, Search, Revisit and Activity are discovery surfaces
+and carry no sending door of their own: you open the thing, then send it from
+its page. A received package's collection page keeps Share…, so a parcel can
+be passed along.
+
+A `sketch` kind was added end to end (types, outbox, receive validation,
+icons, labels, service) so a sent sketch reads as "a sketch — takes, lyrics,
+chords, notes" on the recipient page and "Saves to Received · Sketch" in the
+app, and lands as a package presenting as that one sketch.
+
 ## Edge cases accounted for
 
 | Edge | Behaviour |

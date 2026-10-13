@@ -261,6 +261,15 @@ Sending (app → link):
   **[AUTO-able]**
 - iOS ☐  Android ☐ — Queue → **Playlist…** (was "Save") → same chooser; a new playlist asks
   for its name and opens, in queue order. **[HUMAN]**
+- iOS ☐  Android ☐ — Sketch page ⋯ → **Share…** → *SongNook Send*: the parcel arrives as a
+  package holding that one sketch with every take (lineage kept), all lyric versions with
+  chords, the chord sheet, notes and marks; recipient page reads "a sketch — takes, lyrics,
+  chords, notes". *Export* writes the `.songnook`. A sketch with lyrics but no take still
+  sends; an empty sketch says "Nothing to share". **[HUMAN — network]**
+- iOS ☐  Android ☐ — Workspace hub → long-press one collection → ⋯ → **Export** / **SongNook
+  Send** present (disabled with two selected); the selection ends after. **[HUMAN]**
+- iOS ☐  Android ☐ — Full player ⋯ → **Share…** → *Share audio* opens the OS sheet with the
+  take; *SongNook Send* opens the Send sheet with the take's title. **[HUMAN]**
 - iOS ☐  Android ☐ — Songbook detail → menu → **Share…** holds *Share as file · SongNook
   Send · Share as text*; back chevron returns to the menu. **[HUMAN]**
 - iOS ☐  Android ☐ — Clip selection bar → **Share…** → **SongNook Send** with 1 and with 3

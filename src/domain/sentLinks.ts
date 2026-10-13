@@ -44,6 +44,7 @@ const VALID_KINDS: ShareKind[] = [
   "setlist",
   "playlist",
   "songbook",
+  "sketch",
   "collection",
   "workspace",
   "clips",

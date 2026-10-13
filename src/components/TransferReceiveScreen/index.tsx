@@ -46,7 +46,7 @@ type Phase =
   | { kind: "done"; transfer: TransferPayload };
 
 /** Kinds whose .songnook file lands as a received package (vs. a compilation). */
-const PACKAGE_KINDS: ReadonlySet<ShareKind> = new Set<ShareKind>(["collection", "workspace", "library"]);
+const PACKAGE_KINDS: ReadonlySet<ShareKind> = new Set<ShareKind>(["sketch", "collection", "workspace", "library"]);
 
 /** Where Save lands, said before the tap. A running order or a chart book
  *  becomes a compilation; a collection or a workspace becomes a package in
@@ -64,6 +64,7 @@ function destinationLine(
       return t("transferReceive.savesToSetlist");
     case "songbook":
       return hasArchive ? t("transferReceive.savesToSongbook") : t("transferReceive.savesToReceived", { title });
+    case "sketch":
     case "collection":
     case "workspace":
       return hasArchive

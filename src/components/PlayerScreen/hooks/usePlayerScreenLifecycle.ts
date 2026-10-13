@@ -566,29 +566,43 @@ export function usePlayerScreenLifecycle({
         label: t("player.share"),
         style: "default",
         icon: actionIcons.share,
-        onPress: async () => {
+        onPress: () => {
           const playbackUri = playerClip ? getClipPlaybackUri(playerClip) : null;
           if (!playbackUri) return;
           const clipTitle = playerClip?.title ?? t("player.clip");
-          // Share = a link (SongNook Send): uploads the take, copies the URL,
-          // offers the OS sheet — the receiving end needs nothing installed.
-          // Without the service (fresh checkout, no env) fall back to the file.
-          if (__DEV__ || isSendServiceConfigured()) {
-            openSendSheet({
-              title: clipTitle,
-              kind: "clips",
-              emptyMessage: t("player.shareAudioFailed"),
-              create: (parcel) => createClipsShareLink([{ title: clipTitle, audioUri: playbackUri }], clipTitle, parcel),
-            });
+          const shareAudio = async () => {
+            try {
+              await shareAudioFile(playbackUri, clipTitle);
+            } catch (error) {
+              console.warn("Share audio error", error);
+              const message = error instanceof Error ? error.message : t("player.shareAudioFailed");
+              AppAlert.info(t("player.shareFailed"), message);
+            }
+          };
+          // Share… holds the same two exits as everywhere else: the audio by the
+          // OS share sheet, or a SongNook Send link. Without the service (fresh
+          // checkout, no env) the audio share is the only exit, so go straight there.
+          if (!(__DEV__ || isSendServiceConfigured())) {
+            void shareAudio();
             return;
           }
-          try {
-            await shareAudioFile(playbackUri, clipTitle);
-          } catch (error) {
-            console.warn("Share audio error", error);
-            const message = error instanceof Error ? error.message : t("player.shareAudioFailed");
-            AppAlert.info(t("player.shareFailed"), message);
-          }
+          AppAlert.custom(t("player.shareTitle"), clipTitle, [
+            { label: t("common.cancel"), style: "cancel" },
+            { label: t("player.shareAudio"), style: "default", icon: "share-outline", onPress: () => void shareAudio() },
+            {
+              label: t("player.songnookSend"),
+              style: "default",
+              icon: "paper-plane-outline",
+              onPress: () =>
+                openSendSheet({
+                  title: clipTitle,
+                  kind: "clips",
+                  emptyMessage: t("player.shareAudioFailed"),
+                  create: (parcel) =>
+                    createClipsShareLink([{ title: clipTitle, audioUri: playbackUri }], clipTitle, parcel),
+                }),
+            },
+          ]);
         },
       },
       {

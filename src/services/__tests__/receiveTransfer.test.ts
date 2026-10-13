@@ -95,7 +95,7 @@ describe("validateTransferPayload", () => {
 
 describe("transfer kind", () => {
   it("accepts every ShareKind the app can send, and reads anything else as clips", () => {
-    for (const kind of ["setlist", "playlist", "songbook", "collection", "workspace", "clips", "library"]) {
+    for (const kind of ["setlist", "playlist", "songbook", "sketch", "collection", "workspace", "clips", "library"]) {
       expect(validateTransferPayload(payload({ kind }), transferId).kind).toBe(kind);
     }
     // Older parcels carry no kind; a web sender can't declare a package kind.
