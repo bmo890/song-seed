@@ -6,7 +6,7 @@ import { buildCollectionMoveDestinations, getCollectionDeleteScope } from "../..
 import { personalWorkspaces } from "../../../domain/workspaceVisibility";
 import { useStore } from "../../../state/useStore";
 import { createCollectionShareLink, shareCollectionFile } from "../../../services/placeShare";
-import { presentShareLink } from "../../../services/shareLinkFlow";
+import { openSendSheet } from "../../../state/useSendSheetStore";
 import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
 
@@ -186,18 +186,18 @@ export function useCollectionManagement({
     }
   };
 
-  const getLinkForCurrentCollection = async () => {
+  const getLinkForCurrentCollection = () => {
     if (!currentCollection || !activeWorkspace || isSharingCollection) return;
     setShareSheetOpen(false);
-    setIsSharingCollection(true);
-    try {
-      await presentShareLink(
-        () => createCollectionShareLink(currentCollection, activeWorkspace, libraryNow()),
-        { emptyMessage: t("collection.nothingShareBody") }
-      );
-    } finally {
-      setIsSharingCollection(false);
-    }
+    const collection = currentCollection;
+    const workspace = activeWorkspace;
+    // The SongNook Send sheet takes it from here: title, from, note, seal.
+    openSendSheet({
+      title: collection.title,
+      kind: "collection",
+      emptyMessage: t("collection.nothingShareBody"),
+      create: (parcel) => createCollectionShareLink(collection, workspace, libraryNow(), parcel),
+    });
   };
 
   return {

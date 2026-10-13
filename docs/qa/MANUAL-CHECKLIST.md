@@ -243,21 +243,28 @@ See `docs/qa/RUN-LOG.md` for the automation status of each.
 ## 16. Songnook Send — transfer links  (service is LIVE at send.songnook.app)
 
 Sending (app → link):
-- iOS ☐  Android ☐ — Setlist detail → menu → **Get a link**: progress toast → "Link copied"
-  toast with a Share tap-through; link is on the clipboard. **[HUMAN — network]**
-- iOS ☐  Android ☐ — Songbook detail → menu → **Get a link**: same flow. **[HUMAN]**
-- iOS ☐  Android ☐ — Clip selection bar → **Get link** with 1 and with 3 clips selected;
-  receiver page lists each clip as its own numbered row. **[HUMAN]**
+- iOS ☐  Android ☐ — Setlist detail → menu → **Share…** → **SongNook Send**: the Send sheet
+  opens with Title prefilled; type From + a note → **Get link** → sealing stays in the sheet
+  (cannot swipe it away) → link shown, already on the clipboard; **Copy** toasts, **Share**
+  opens the OS sheet; **Done** closes. Recipient page shows the From name and the note.
+  **[HUMAN — network]**
+- iOS ☐  Android ☐ — Second parcel: From is prefilled with the remembered name. **[HUMAN]**
+- iOS ☐  Android ☐ — Songbook detail → menu → **Share…** holds *Share as file · SongNook
+  Send · Share as text*; back chevron returns to the menu. **[HUMAN]**
+- iOS ☐  Android ☐ — Clip selection bar → **Share…** → **SongNook Send** with 1 and with 3
+  clips selected; receiver page lists each clip as its own numbered row. **[HUMAN]**
 - iOS ☐  Android ☐ — After creating a link, the entity header shows the **"Link active ·
   N days left · Copy"** chip; Copy puts the URL on the clipboard. **[HUMAN]**
-- iOS ☐  Android ☐ — Airplane mode → Get a link fails with the friendly "Couldn't create
-  link" dialog (no crash, no half-created chip). **[HUMAN]**
-- iOS ☐  Android ☐ — Empty setlist → Get a link shows "Nothing to share". **[HUMAN]**
-- iOS ☐  Android ☐ — Collection page → ⋯ → **Share…** → *Get a link*: link created; the
+- iOS ☐  Android ☐ — Send sheet in RTL (Hebrew): labels right-aligned, inputs honour the
+  text direction, keys mirrored. **[HUMAN]**
+- iOS ☐  Android ☐ — Airplane mode → Get link fails with the friendly "Couldn't create
+  link" dialog; the sheet returns to its form with the typed title/note intact. **[HUMAN]**
+- iOS ☐  Android ☐ — Empty setlist → Get link shows "Nothing to share". **[HUMAN]**
+- iOS ☐  Android ☐ — Collection page → ⋯ → **Share…** → *SongNook Send*: link created; the
   collection header shows the "Link active" chip. *Share as file* hands a `.songnook` to
   the share sheet. **[HUMAN — network]**
-- iOS ☐  Android ☐ — Workspaces page → card ⋯ → **Share as file** / **Get a link** (rows
-  absent on an archived workspace). **[HUMAN]**
+- iOS ☐  Android ☐ — Workspaces page → card ⋯ → **Share…** → *Share as file* / *SongNook
+  Send* (the Share… row is absent on an archived workspace). **[HUMAN]**
 - iOS ☐  Android ☐ — Empty collection / empty workspace → "Nothing to share". **[HUMAN]**
 - ☐ — A workspace whose archive is over 512 MB → "Too large to link" dialog, no upload
   (airplane mode not needed; the check runs before any byte leaves). **[HUMAN]**

@@ -6,7 +6,7 @@ import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
 import { shareAudioClips, buildTimestampSlug } from "../../../services/audioStorage";
 import { createClipsShareLink } from "../../../services/clipShareLink";
-import { presentShareLink } from "../../../services/shareLinkFlow";
+import { openSendSheet } from "../../../state/useSendSheetStore";
 import { isSendServiceConfigured } from "../../../config/sendService";
 import { SONG_NOOK_AUDIO_DIR } from "../../../services/storagePaths";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
@@ -122,17 +122,17 @@ export function SelectionBars() {
     }
   }
 
-  async function handleGetLinkSelected() {
+  function handleGetLinkSelected() {
     if (shareableClips.length === 0 || isSharing) return;
-    setIsSharing(true);
-    try {
-      const label = selectedIdea ? t("songDetail.clipsLabel", { title: selectedIdea.title }) : t("songDetail.appClipsLabel");
-      await presentShareLink(() => createClipsShareLink(shareableClips, label), {
-        emptyMessage: t("songDetail.selectAudioFirst"),
-      });
-    } finally {
-      setIsSharing(false);
-    }
+    const label = selectedIdea ? t("songDetail.clipsLabel", { title: selectedIdea.title }) : t("songDetail.appClipsLabel");
+    const clips = shareableClips;
+    // The SongNook Send sheet takes it from here: title, from, note, seal.
+    openSendSheet({
+      title: label,
+      kind: "clips",
+      emptyMessage: t("songDetail.selectAudioFirst"),
+      create: (parcel) => createClipsShareLink(clips, label, parcel),
+    });
   }
 
   function handleClipboardAction(mode: "copy" | "move") {
@@ -434,10 +434,10 @@ export function SelectionBars() {
     ...(linkAvailable
       ? [
           {
-            key: "get-link",
+            key: "songnook-send",
             label: t("songDetail.getLink"),
-            icon: "link-outline" as const,
-            onPress: () => { void handleGetLinkSelected(); },
+            icon: "paper-plane-outline" as const,
+            onPress: handleGetLinkSelected,
             disabled: isSharing || shareableClips.length === 0,
           },
         ]

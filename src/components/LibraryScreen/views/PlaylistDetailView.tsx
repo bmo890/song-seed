@@ -83,6 +83,8 @@ export function PlaylistDetailView({
   const { t } = useTranslation();
   const { formatLocale } = useLocale();
   const [menuVisible, setMenuVisible] = useState(false);
+  // Share… drills into a second sheet: a file, or SongNook Send.
+  const [shareMenuVisible, setShareMenuVisible] = useState(false);
   // Keep the last tracks scrollable above the media dock once playback starts.
   const playerDockHeight = useStore((s) => s.playerDockHeight);
   const isPlaylistActive = nowPlayingItemId != null;
@@ -298,20 +300,11 @@ export function PlaylistDetailView({
           },
           {
             key: "share",
-            label: t("library.sharePlaylist"),
+            label: t("library.share"),
             icon: "share-outline",
-            onPress: onShare,
+            opens: true,
+            onPress: () => setShareMenuVisible(true),
           },
-          ...(onGetLink
-            ? [
-                {
-                  key: "get-link",
-                  label: t("library.getLink"),
-                  icon: "link-outline" as const,
-                  onPress: onGetLink,
-                },
-              ]
-            : []),
           {
             key: "delete",
             label: t("library.deletePlaylist"),
@@ -319,6 +312,18 @@ export function PlaylistDetailView({
             tone: "danger",
             onPress: onDelete,
           },
+        ]}
+      />
+      <SelectionActionSheet
+        visible={shareMenuVisible}
+        title={t("library.shareTitle")}
+        onClose={() => setShareMenuVisible(false)}
+        onBack={() => setMenuVisible(true)}
+        actions={[
+          { key: "share-file", label: t("library.shareFile"), icon: "share-outline", onPress: onShare },
+          ...(onGetLink
+            ? [{ key: "songnook-send", label: t("library.getLink"), icon: "paper-plane-outline" as const, onPress: onGetLink }]
+            : []),
         ]}
       />
     </>

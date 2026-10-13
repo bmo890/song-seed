@@ -104,6 +104,16 @@ describe("buildCollectionExportArgs", () => {
     expect(args.format === "songnook-archive" && args.share?.sender.name).toBe("Ben");
   });
 
+  it("the title typed on the Send sheet becomes the parcel's title; the file keeps the place's name", () => {
+    const args = buildCollectionExportArgs(workspace.collections[0]!, workspace, library, {
+      transferId: "t_2",
+      title: "Spring show stems",
+    })!;
+    if (args.format !== "songnook-archive") throw new Error("unreachable");
+    expect(args.share?.title).toBe("Spring show stems");
+    expect(args.archiveLabel).toBe("songs");
+  });
+
   it("returns null for a collection with nothing in it, or one from another workspace", () => {
     expect(buildCollectionExportArgs(workspace.collections[3]!, workspace, library)).toBeNull();
     expect(buildCollectionExportArgs(collection("foreign"), workspace, library)).toBeNull();
@@ -151,5 +161,12 @@ describe("file and link paths share one definition", () => {
     const call = (shareLink.createShareLink as jest.Mock).mock.calls[1]![0];
     const args = call.buildArgs("t_9");
     expect(args.share.transferId).toBe("t_9");
+    // The Send sheet's parcel (title / from / note) rides through to the link.
+    void createWorkspaceShareLink(workspace, library, { title: "Band, March", senderName: "Ben", message: "Rough mixes" });
+    expect(shareLink.createShareLink).toHaveBeenLastCalledWith(
+      expect.objectContaining({ title: "Band, March", senderName: "Ben", message: "Rough mixes" })
+    );
+    const parcelArgs = (shareLink.createShareLink as jest.Mock).mock.calls[2]![0].buildArgs("t_10");
+    expect(parcelArgs.share).toMatchObject({ title: "Band, March", sender: { name: "Ben", userId: null } });
   });
 });

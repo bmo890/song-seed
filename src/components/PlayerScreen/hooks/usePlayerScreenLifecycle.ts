@@ -5,7 +5,7 @@ import { actionIcons } from "../../common/actionIcons";
 import { clipHasOverdubs, getClipPlaybackUri } from "../../../domain/clipPresentation";
 import { MANAGED_WAVEFORM_PEAK_COUNT, loadManagedAudioMetadata, shareAudioFile } from "../../../services/audioStorage";
 import { createClipsShareLink } from "../../../services/clipShareLink";
-import { presentShareLink } from "../../../services/shareLinkFlow";
+import { openSendSheet } from "../../../state/useSendSheetStore";
 import { isSendServiceConfigured } from "../../../config/sendService";
 import { isForegroundAudioBusy, waitForForegroundAudioIdle } from "../../../services/audioForegroundActivity";
 import { buildClipLockScreenMetadata } from "../../../services/lockScreenMetadata";
@@ -574,8 +574,11 @@ export function usePlayerScreenLifecycle({
           // offers the OS sheet — the receiving end needs nothing installed.
           // Without the service (fresh checkout, no env) fall back to the file.
           if (__DEV__ || isSendServiceConfigured()) {
-            await presentShareLink(() => createClipsShareLink([{ title: clipTitle, audioUri: playbackUri }], clipTitle), {
+            openSendSheet({
+              title: clipTitle,
+              kind: "clips",
               emptyMessage: t("player.shareAudioFailed"),
+              create: (parcel) => createClipsShareLink([{ title: clipTitle, audioUri: playbackUri }], clipTitle, parcel),
             });
             return;
           }

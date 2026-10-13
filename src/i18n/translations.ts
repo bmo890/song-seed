@@ -209,7 +209,7 @@ export const resources = {
         lastWorkedMonths: "Last worked: {{count}} months ago",
       },
       workspaceList: {
-        shareFile: "Share as file", getLink: "Get a link", nothingShare: "Nothing to share", nothingShareBody: "Add an idea to this workspace first.", shareFailed: "Share failed", shareFailedBody: "Could not share this workspace.",
+        shareFile: "Share as file", getLink: "SongNook Send", share: "Share…", shareTitle: "Share workspace", nothingShare: "Nothing to share", nothingShareBody: "Add an idea to this workspace first.", shareFailed: "Share failed", shareFailedBody: "Could not share this workspace.",
         eyebrow: "Creative Overview",
         title: "Your Workspaces",
         order: "Order",
@@ -236,7 +236,7 @@ export const resources = {
         deletePermanently: "Delete permanently",
       },
       collection: {
-        share: "Share…", shareTitle: "Share collection", shareFile: "Share as file", getLink: "Get a link", nothingShare: "Nothing to share", nothingShareBody: "Add an idea to this collection first.", shareFailed: "Share failed", shareFailedBody: "Could not share this collection.",
+        share: "Share…", shareTitle: "Share collection", shareFile: "Share as file", getLink: "SongNook Send", nothingShare: "Nothing to share", nothingShareBody: "Add an idea to this collection first.", shareFailed: "Share failed", shareFailedBody: "Could not share this collection.",
         title: "Collection",
         missing: "This collection isn’t here anymore.",
         goToLibrary: "Go to your library",
@@ -687,7 +687,7 @@ export const resources = {
         newSetlist: "New Setlist", setlistHint: "Setlists hold an ordered set of songs (clips + charts) to share with your band.",
         createPlaylistA11y: "Create a new playlist", newPlaylistShort: "New playlist", playlistEmpty: "Nothing to listen to yet",
         playlist: "Playlist", playPlaylist: "Play playlist", addTracksA11y: "Add items — browse your library", doneEditing: "Done editing", editPlaylist: "Edit playlist", playlistOptions: "Playlist options", reorderHint: "Drag the handle to reorder · tap − to remove", noTracks: "No items yet", addTracks: "Add items", unavailableTrack: "Unavailable — skipped during playback", renamePlaylistAction: "Rename playlist", deletePlaylist: "Delete playlist",
-        createSongbook: "New chart book", noSongbooks: "No chart books yet", openBook: "Open the book", addBookSongs: "Add songs to this book", editBook: "Edit book", songbookOptions: "Chart book options", bookEmpty: "Nothing in this book yet", addSongs: "Add songs", missing: "No longer in the library", renameBook: "Rename book", shareFile: "Share as file", getLink: "Get a link", shareText: "Share as text", deleteBook: "Delete book",
+        createSongbook: "New chart book", noSongbooks: "No chart books yet", openBook: "Open the book", addBookSongs: "Add songs to this book", editBook: "Edit book", songbookOptions: "Chart book options", bookEmpty: "Nothing in this book yet", addSongs: "Add songs", missing: "No longer in the library", renameBook: "Rename book", shareFile: "Share as file", getLink: "SongNook Send", share: "Share…", shareTitle: "Share", shareText: "Share as text", deleteBook: "Delete book",
         createSetlist: "New setlist", noSetlists: "No setlists yet", playSet: "Play the whole set", addSetSong: "Add a song to this set", editSet: "Edit set", setlistOptions: "Setlist options", setEmpty: "No songs in this set", addSongShort: "Add a song", setDetails: "Set details", shareSet: "Share set", deleteSet: "Delete set", sharePlaylist: "Share playlist", addPlaylistSongFirst: "Add at least one item to the playlist first.", playlistShareFailed: "Couldn’t build the playlist file. Please try again.",
         includeEverything: "Include everything from this song", everything: "Everything", takesParts: "Takes & parts", noClips: "No clips recorded for this song.", chartsNotes: "Charts & notes", chordChart: "Chord chart", songNotes: "Song notes", noCharts: "No charts on this song yet.",
         songs_one: "{{count}} song", songs_other: "{{count}} songs", charts_one: "{{count}} chart", charts_other: "{{count}} charts", withChords: "{{count}} with chords", bookEmptyBody: "Add finished songs — their final lyrics and chords live here, read like a book.", removeBookSong: "Remove {{title}} from the book", playTitle: "Play {{title}}", openBookTitle: "Open {{title}} in the book", unavailableTitle: "{{title}} (unavailable)", reorderTitle: "Reorder {{title}}",
@@ -1130,7 +1130,7 @@ export const resources = {
         deleteClipsBody_other: "Are you sure you want to remove these clips from the song?",
         sharing: "Sharing…",
         shareCount: "Share ({{count}})",
-        getLink: "Get link",
+        getLink: "SongNook Send",
         setParent: "Add to a thread…",
         combineThread: "New thread",
         combinedThread: "New thread made",
@@ -1326,6 +1326,8 @@ export const resources = {
         branchLabel: "Branch or split",
         branchBody: "Branch copies a take into a new thread; Split sets it apart.",
       },
+      // The Send sheet: the desktop sender page, folded into the phone.
+      sendSheet: { title: "SongNook Send", titleLabel: "Title", fromLabel: "From", fromPlaceholder: "Your name, as they know it", noteLabel: "A note", notePlaceholder: "Learn track two first…", seal: "Get link", sealing: "Sealing…", sealingHint: "Packing and uploading. Keep this open.", expiryHint: "Anyone with the link can download for 7 days.", ready: "Link ready, copied", share: "Share", copied: "Link copied" },
       shareLink: {
         tooLargeTitle: "Too large to link", tooLargeBody: "Links carry up to {{limit}}. Share as a file instead.",
         creating: "Creating link…", copied: "Link copied — expires soon", share: "Share", emptyTitle: "Nothing to share", failureTitle: "Couldn't create link", retry: "Please try again.",
@@ -1694,7 +1696,7 @@ export const resources = {
         lastWorkedMonths: "עבודה אחרונה: לפני {{count}} חודשים",
       },
       workspaceList: {
-        shareFile: "שיתוף כקובץ", getLink: "קבלת קישור", nothingShare: "אין מה לשתף", nothingShareBody: "הוסיפו קודם רעיון למרחב העבודה הזה.", shareFailed: "השיתוף נכשל", shareFailedBody: "לא ניתן לשתף את מרחב העבודה הזה.",
+        shareFile: "שיתוף כקובץ", getLink: "SongNook Send", share: "שיתוף…", shareTitle: "שיתוף מרחב העבודה", nothingShare: "אין מה לשתף", nothingShareBody: "הוסיפו קודם רעיון למרחב העבודה הזה.", shareFailed: "השיתוף נכשל", shareFailedBody: "לא ניתן לשתף את מרחב העבודה הזה.",
         eyebrow: "מבט על היצירה",
         title: "מרחבי העבודה שלך",
         order: "סדר",
@@ -1721,7 +1723,7 @@ export const resources = {
         deletePermanently: "מחיקה לצמיתות",
       },
       collection: {
-        share: "שיתוף…", shareTitle: "שיתוף האוסף", shareFile: "שיתוף כקובץ", getLink: "קבלת קישור", nothingShare: "אין מה לשתף", nothingShareBody: "הוסיפו קודם רעיון לאוסף הזה.", shareFailed: "השיתוף נכשל", shareFailedBody: "לא ניתן לשתף את האוסף הזה.",
+        share: "שיתוף…", shareTitle: "שיתוף האוסף", shareFile: "שיתוף כקובץ", getLink: "SongNook Send", nothingShare: "אין מה לשתף", nothingShareBody: "הוסיפו קודם רעיון לאוסף הזה.", shareFailed: "השיתוף נכשל", shareFailedBody: "לא ניתן לשתף את האוסף הזה.",
         title: "אוסף",
         missing: "האוסף הזה כבר לא נמצא כאן.",
         goToLibrary: "מעבר לספרייה",
@@ -2189,7 +2191,7 @@ export const resources = {
         newSetlist: "סטליסט חדש", setlistHint: "סטליסטים מחזיקים מערך מסודר של שירים, קטעים ותרשימים לשיתוף עם הלהקה.",
         createPlaylistA11y: "יצירת פלייליסט חדש", newPlaylistShort: "פלייליסט חדש", playlistEmpty: "עדיין אין מה לשמוע",
         playlist: "פלייליסט", playPlaylist: "ניגון הפלייליסט", addTracksA11y: "הוספת פריטים — עיון בספרייה", doneEditing: "סיום עריכה", editPlaylist: "עריכת הפלייליסט", playlistOptions: "אפשרויות הפלייליסט", reorderHint: "גררו את הידית לשינוי הסדר · לחצו על − להסרה", noTracks: "עדיין אין פריטים", addTracks: "הוספת פריטים", unavailableTrack: "לא זמין — ידולג בניגון", renamePlaylistAction: "שינוי שם הפלייליסט", deletePlaylist: "מחיקת הפלייליסט",
-        createSongbook: "ספר תרשימים חדש", noSongbooks: "עדיין אין ספרי תרשימים", openBook: "פתיחת הספר", addBookSongs: "הוספת שירים לספר", editBook: "עריכת הספר", songbookOptions: "אפשרויות ספר התרשימים", bookEmpty: "הספר עדיין ריק", addSongs: "הוספת שירים", missing: "כבר לא נמצא בספרייה", renameBook: "שינוי שם הספר", shareFile: "שיתוף כקובץ", getLink: "קבלת קישור", shareText: "שיתוף כטקסט", deleteBook: "מחיקת הספר",
+        createSongbook: "ספר תרשימים חדש", noSongbooks: "עדיין אין ספרי תרשימים", openBook: "פתיחת הספר", addBookSongs: "הוספת שירים לספר", editBook: "עריכת הספר", songbookOptions: "אפשרויות ספר התרשימים", bookEmpty: "הספר עדיין ריק", addSongs: "הוספת שירים", missing: "כבר לא נמצא בספרייה", renameBook: "שינוי שם הספר", shareFile: "שיתוף כקובץ", getLink: "SongNook Send", share: "שיתוף…", shareTitle: "שיתוף", shareText: "שיתוף כטקסט", deleteBook: "מחיקת הספר",
         createSetlist: "סטליסט חדש", noSetlists: "עדיין אין סטליסטים", playSet: "ניגון כל הסט", addSetSong: "הוספת שיר לסט", editSet: "עריכת הסט", setlistOptions: "אפשרויות הסטליסט", setEmpty: "אין שירים בסט הזה", addSongShort: "הוספת שיר", setDetails: "פרטי הסט", shareSet: "שיתוף הסט", deleteSet: "מחיקת הסט", sharePlaylist: "שיתוף הפלייליסט", addPlaylistSongFirst: "הוסיפו קודם לפחות פריט אחד לפלייליסט.", playlistShareFailed: "לא ניתן ליצור את קובץ הפלייליסט. נסו שוב.",
         includeEverything: "הכללת כל תוכן השיר", everything: "הכול", takesParts: "טייקים וחלקים", noClips: "אין קטעים מוקלטים בשיר.", chartsNotes: "תרשימים והערות", chordChart: "תרשים אקורדים", songNotes: "הערות לשיר", noCharts: "עדיין אין תרשימים בשיר.",
         songs_one: "שיר אחד", songs_two: "שני שירים", songs_other: "{{count}} שירים", charts_one: "תרשים אחד", charts_two: "שני תרשימים", charts_other: "{{count}} תרשימים", withChords: "{{count}} עם אקורדים", bookEmptyBody: "הוסיפו שירים גמורים — המילים והאקורדים הסופיים שלהם יחיו כאן, לקריאה כמו ספר.", removeBookSong: "הסרת {{title}} מהספר", playTitle: "ניגון {{title}}", openBookTitle: "פתיחת {{title}} בספר", unavailableTitle: "{{title}} (לא זמין)", reorderTitle: "שינוי המיקום של {{title}}",
@@ -2648,7 +2650,7 @@ export const resources = {
         deleteClipsBody_other: "להסיר את הקטעים האלה מהשיר?",
         sharing: "משתף…",
         shareCount: "שיתוף ({{count}})",
-        getLink: "קבלת קישור",
+        getLink: "SongNook Send",
         setParent: "הוספה לשרשור…",
         combineThread: "שרשור חדש",
         combinedThread: "נוצר שרשור חדש",
@@ -2848,6 +2850,7 @@ export const resources = {
         branchLabel: "הסתעפות או פיצול",
         branchBody: "הסתעפות מעתיקה טייק לשרשור חדש; פיצול מוציא אותו לעמוד לבדו.",
       },
+      sendSheet: { title: "SongNook Send", titleLabel: "כותרת", fromLabel: "מאת", fromPlaceholder: "השם שלך, כפי שמכירים אותו", noteLabel: "הערה", notePlaceholder: "קודם ללמוד את שיר שתיים…", seal: "קבלת קישור", sealing: "חותמים…", sealingHint: "אורזים ומעלים. השאירו פתוח.", expiryHint: "כל מי שיש לו את הקישור יוכל להוריד במשך 7 ימים.", ready: "הקישור מוכן והועתק", share: "שיתוף", copied: "הקישור הועתק" },
       shareLink: {
         tooLargeTitle: "גדול מדי לקישור", tooLargeBody: "קישור נושא עד {{limit}}. שתפו כקובץ במקום.",
         creating: "יוצרים קישור…", copied: "הקישור הועתק — הוא יפוג בקרוב", share: "שיתוף", emptyTitle: "אין מה לשתף", failureTitle: "לא הצלחנו ליצור קישור", retry: "נסו שוב.",

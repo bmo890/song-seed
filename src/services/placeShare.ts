@@ -20,7 +20,7 @@ import { getCollectionScopeIds } from "../utils";
 import { exportLibrary, type ExportLibraryArgs } from "./libraryExport";
 import type { SongNookArchiveOptions } from "./libraryArchiveManifest";
 import { createShareLink } from "./shareLink";
-import type { ShareArgsOverrides } from "./setlistShare";
+import type { ShareArgsOverrides, ShareLinkParcel } from "./setlistShare";
 import type { Collection, Playlist, Setlist, Songbook, Workspace } from "../types";
 
 export type ShareLibrary = {
@@ -41,7 +41,7 @@ const PLACE_SHARE_OPTIONS: SongNookArchiveOptions = {
 function shareBlock(kind: "collection" | "workspace", title: string, overrides?: ShareArgsOverrides) {
   return {
     kind,
-    title,
+    title: overrides?.title || title,
     sender: { name: overrides?.senderName ?? null, userId: null },
     transferId: overrides?.transferId ?? null,
     createdAt: Date.now(),
@@ -132,30 +132,32 @@ export function createCollectionShareLink(
   collection: Collection,
   workspace: Workspace,
   library: ShareLibrary,
-  opts?: { senderName?: string | null }
+  opts?: ShareLinkParcel
 ) {
   return createShareLink({
-    title: collection.title,
+    title: opts?.title || collection.title,
     kind: "collection",
     entityId: collection.id,
     senderName: opts?.senderName,
+    message: opts?.message ?? undefined,
     buildArgs: (transferId) =>
-      buildCollectionExportArgs(collection, workspace, library, { transferId, senderName: opts?.senderName }),
+      buildCollectionExportArgs(collection, workspace, library, {
+        transferId,
+        senderName: opts?.senderName,
+        title: opts?.title,
+      }),
   });
 }
 
 /** Uploads a whole workspace to SongNook Send and returns the link record. */
-export function createWorkspaceShareLink(
-  workspace: Workspace,
-  library: ShareLibrary,
-  opts?: { senderName?: string | null }
-) {
+export function createWorkspaceShareLink(workspace: Workspace, library: ShareLibrary, opts?: ShareLinkParcel) {
   return createShareLink({
-    title: workspace.title,
+    title: opts?.title || workspace.title,
     kind: "workspace",
     entityId: workspace.id,
     senderName: opts?.senderName,
+    message: opts?.message ?? undefined,
     buildArgs: (transferId) =>
-      buildWorkspaceExportArgs(workspace, library, { transferId, senderName: opts?.senderName }),
+      buildWorkspaceExportArgs(workspace, library, { transferId, senderName: opts?.senderName, title: opts?.title }),
   });
 }

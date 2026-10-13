@@ -37,10 +37,10 @@ export function CollectionModals() {
           ...(SHOW_GET_LINK
             ? [
                 {
-                  key: "get-link",
+                  key: "songnook-send",
                   label: t("collection.getLink"),
-                  icon: "link-outline" as const,
-                  onPress: () => void management.getLinkForCurrentCollection(),
+                  icon: "paper-plane-outline" as const,
+                  onPress: management.getLinkForCurrentCollection,
                 },
               ]
             : []),

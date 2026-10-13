@@ -91,6 +91,35 @@ level**, or **under one of its collections**. Two edges closed:
   resolving after a keep: setlists and chart books resolve songs by id across
   every workspace; playlists are relocated by the move.
 
+## One Share… row, and the Send sheet (2026-10-13, founder ask)
+
+**"Get a link" is gone as a label; the row is "SongNook Send".** Everywhere a
+menu had both a file row and a link row, it now has one **Share…** row that
+drills into a second sheet (back chevron returns to the menu): *Share as file* ·
+*SongNook Send* (· *Share as text* on a chart book). Setlist, playlist and chart
+book menus drop from five rows to four; the workspace card's sheet likewise; the
+collection ⋯ and the clip selection's Share… already worked this way.
+
+**The Send sheet mimics the desktop page.** Tapping *SongNook Send* opens one
+bottom sheet (`SendLinkSheet`, mounted once at the root like ToastHost, fed by
+`useSendSheetStore`): **Title** (prefilled with the thing's name), **From**
+(remembered after the first parcel in `useSendPrefsStore`, exactly as the web
+page remembers it in the browser), **A note**, then one key, *Get link*. Sealing
+happens inside the sheet, which cannot be swiped away mid-upload; the finished
+link stays there, already on the clipboard, with *Copy* and *Share* (OS sheet)
+and a quiet *Done*. Failures (nothing to send, too large, offline) return the
+sheet to its form with one dialog, so nothing typed is lost.
+
+Why a sheet, not a modal form: a sheet is how every other decision in the app is
+taken (keep, move, tag), it keeps the page you are sending from in view, and the
+keyboard-avoiding `BottomSheet` already exists. The three lines are the whole
+desktop form; the desktop's "What is this?" switch is not needed on the phone
+because the app always knows what it is sending.
+
+The From name answers the earlier "Someone" question for in-app links: the
+sender types it once and every later parcel carries it (still `userId: null`
+until accounts).
+
 ## Edge cases accounted for
 
 | Edge | Behaviour |
@@ -120,6 +149,6 @@ Desktop: the link's page reads "1 SongNook package · a whole workspace".
 
 ## Open (founder calls)
 
-1. Sender name is still `null` ("Someone") — unchanged open decision.
+1. ~~Sender name~~ — now typed on the Send sheet and remembered (above).
 2. A workspace link over 1 GB has no link path at all (service cap); the file
    path has no cap. Raise the cap (Pro?) or leave.

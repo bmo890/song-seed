@@ -5,7 +5,7 @@ import { getWorkspaceListOrderState, sortWorkspacesWithPrimary } from "../../../
 import type { WorkspaceListOrder } from "../../../types";
 import { useWorkspaceArchiveActions } from "./useWorkspaceArchiveActions";
 import { createWorkspaceShareLink, shareWorkspaceFile } from "../../../services/placeShare";
-import { presentShareLink } from "../../../services/shareLinkFlow";
+import { openSendSheet } from "../../../state/useSendSheetStore";
 import { isSendServiceConfigured } from "../../../config/sendService";
 import { AppAlert } from "../../common/AppAlert";
 import { haptic } from "../../../design/haptics";
@@ -154,17 +154,46 @@ export function useWorkspaceListScreenModel() {
       setSharingWorkspaceId(null);
     }
   };
-  const getLinkForWorkspace = async (workspace: Workspace) => {
+  const getLinkForWorkspace = (workspace: Workspace) => {
     if (sharingWorkspaceId) return;
-    setSharingWorkspaceId(workspace.id);
-    try {
-      await presentShareLink(() => createWorkspaceShareLink(workspace, libraryNow()), {
-        emptyMessage: t("workspaceList.nothingShareBody"),
-      });
-    } finally {
-      setSharingWorkspaceId(null);
-    }
+    openSendSheet({
+      title: workspace.title,
+      kind: "workspace",
+      emptyMessage: t("workspaceList.nothingShareBody"),
+      create: (parcel) => createWorkspaceShareLink(workspace, libraryNow(), parcel),
+    });
   };
+  // "Share…" on the card's sheet drills into a second sheet: a file, or SongNook
+  // Send. Back reopens the card's sheet, so drilling in is never a one-way door.
+  const [shareSheetWorkspaceId, setShareSheetWorkspaceId] = useState<string | null>(null);
+  const shareSheetWorkspace = useMemo(
+    () => allWorkspaces.find((workspace) => workspace.id === shareSheetWorkspaceId) ?? null,
+    [allWorkspaces, shareSheetWorkspaceId]
+  );
+  const shareSheetActions: SelectionAction[] = useMemo(() => {
+    if (!shareSheetWorkspace) return [];
+    const target = shareSheetWorkspace;
+    const rows: SelectionAction[] = [
+      {
+        key: "share-file",
+        label: t("workspaceList.shareFile"),
+        icon: "share-outline",
+        disabled: sharingWorkspaceId != null,
+        onPress: () => void shareWorkspaceAsFile(target),
+      },
+    ];
+    if (SHOW_GET_LINK) {
+      rows.push({
+        key: "songnook-send",
+        label: t("workspaceList.getLink"),
+        icon: "paper-plane-outline",
+        disabled: sharingWorkspaceId != null,
+        onPress: () => getLinkForWorkspace(target),
+      });
+    }
+    return rows;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shareSheetWorkspace, sharingWorkspaceId, t]);
 
   // Actions shown in the ellipsis action sheet — computed for the target workspace
   const workspaceActionSheetActions: SelectionAction[] = useMemo(() => {
@@ -192,31 +221,21 @@ export function useWorkspaceListScreenModel() {
       });
     }
 
-    // Share the place. An archived workspace's audio is packed away, so only a
-    // live one can be shared as it is.
+    // Share the place — one row; the sheet it opens holds the two exits (a
+    // file, SongNook Send). An archived workspace's audio is packed away, so
+    // only a live one can be shared as it is.
     if (!actionSheetWorkspace.isArchived) {
       actions.push({
-        key: "share-file",
-        label: t("workspaceList.shareFile"),
+        key: "share",
+        label: t("workspaceList.share"),
         icon: "share-outline",
         disabled: sharingWorkspaceId != null,
+        opens: true,
         onPress: () => {
           closeActionSheet();
-          void shareWorkspaceAsFile(actionSheetWorkspace);
+          setShareSheetWorkspaceId(actionSheetWorkspace.id);
         },
       });
-      if (SHOW_GET_LINK) {
-        actions.push({
-          key: "get-link",
-          label: t("workspaceList.getLink"),
-          icon: "link-outline",
-          disabled: sharingWorkspaceId != null,
-          onPress: () => {
-            closeActionSheet();
-            void getLinkForWorkspace(actionSheetWorkspace);
-          },
-        });
-      }
     }
 
     // Archiving is shelved (2026-08-04) until the recent persistence plumbing is
@@ -309,6 +328,15 @@ export function useWorkspaceListScreenModel() {
       workspace: actionSheetWorkspace,
       actions: workspaceActionSheetActions,
       close: closeActionSheet,
+    },
+    shareSheet: {
+      visible: !!shareSheetWorkspaceId,
+      workspace: shareSheetWorkspace,
+      actions: shareSheetActions,
+      close: () => setShareSheetWorkspaceId(null),
+      back: () => {
+        if (shareSheetWorkspaceId) openWorkspaceActions(shareSheetWorkspaceId);
+      },
     },
     actions: {
       setWorkspaceListOrder,

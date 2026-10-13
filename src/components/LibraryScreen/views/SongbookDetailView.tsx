@@ -56,6 +56,8 @@ export function SongbookDetailView({
   const { t } = useTranslation();
   const [editMode, setEditMode] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  // Share… drills into a second sheet: a file, SongNook Send, or plain text.
+  const [shareMenuVisible, setShareMenuVisible] = useState(false);
 
   // "Readable" = the reader can actually show something for it (a live chart),
   // not merely that the song still exists — keeps the row and the reader in
@@ -285,31 +287,12 @@ export function SongbookDetailView({
             icon: "pencil-outline",
             onPress: onRename,
           },
-          ...(onShareFile
-            ? [
-                {
-                  key: "share-file",
-                  label: t("library.shareFile"),
-                  icon: "share-outline" as const,
-                  onPress: onShareFile,
-                },
-              ]
-            : []),
-          ...(onGetLink
-            ? [
-                {
-                  key: "get-link",
-                  label: t("library.getLink"),
-                  icon: "link-outline" as const,
-                  onPress: onGetLink,
-                },
-              ]
-            : []),
           {
-            key: "share-text",
-            label: t("library.shareText"),
-            icon: "document-text-outline",
-            onPress: onShareText,
+            key: "share",
+            label: t("library.share"),
+            icon: "share-outline",
+            opens: true,
+            onPress: () => setShareMenuVisible(true),
           },
           {
             key: "delete",
@@ -318,6 +301,21 @@ export function SongbookDetailView({
             tone: "danger",
             onPress: onDelete,
           },
+        ]}
+      />
+      <SelectionActionSheet
+        visible={shareMenuVisible}
+        title={t("library.shareTitle")}
+        onClose={() => setShareMenuVisible(false)}
+        onBack={() => setMenuVisible(true)}
+        actions={[
+          ...(onShareFile
+            ? [{ key: "share-file", label: t("library.shareFile"), icon: "share-outline" as const, onPress: onShareFile }]
+            : []),
+          ...(onGetLink
+            ? [{ key: "songnook-send", label: t("library.getLink"), icon: "paper-plane-outline" as const, onPress: onGetLink }]
+            : []),
+          { key: "share-text", label: t("library.shareText"), icon: "document-text-outline", onPress: onShareText },
         ]}
       />
     </>

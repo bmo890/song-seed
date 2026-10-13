@@ -59,6 +59,8 @@ export function SetlistDetailView({
   const { t } = useTranslation();
   const [editMode, setEditMode] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  // Share… drills into a second sheet: a file, or SongNook Send.
+  const [shareMenuVisible, setShareMenuVisible] = useState(false);
 
   const playableCount = entries.filter((entry) => entry.available).length;
   const metaParts = [
@@ -298,20 +300,11 @@ export function SetlistDetailView({
           },
           {
             key: "share",
-            label: t("library.shareSet"),
+            label: t("library.share"),
             icon: "share-outline",
-            onPress: onShare,
+            opens: true,
+            onPress: () => setShareMenuVisible(true),
           },
-          ...(onGetLink
-            ? [
-                {
-                  key: "get-link",
-                  label: t("library.getLink"),
-                  icon: "link-outline" as const,
-                  onPress: onGetLink,
-                },
-              ]
-            : []),
           {
             key: "delete",
             label: t("library.deleteSet"),
@@ -319,6 +312,18 @@ export function SetlistDetailView({
             tone: "danger",
             onPress: onDelete,
           },
+        ]}
+      />
+      <SelectionActionSheet
+        visible={shareMenuVisible}
+        title={t("library.shareTitle")}
+        onClose={() => setShareMenuVisible(false)}
+        onBack={() => setMenuVisible(true)}
+        actions={[
+          { key: "share-file", label: t("library.shareFile"), icon: "share-outline", onPress: onShare },
+          ...(onGetLink
+            ? [{ key: "songnook-send", label: t("library.getLink"), icon: "paper-plane-outline" as const, onPress: onGetLink }]
+            : []),
         ]}
       />
     </>
