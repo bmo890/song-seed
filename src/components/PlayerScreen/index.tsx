@@ -44,12 +44,13 @@ import { BottomSheet } from "../common/BottomSheet";
 import { ChordZoomBar } from "../LyricsVersionScreen/components/chords/ChordZoomBar";
 import { OVERDUB_HELP } from "../common/helpContent";
 import { PlayerArtifactReader, FollowSpeedControl } from "./components/PlayerArtifactReader";
-import { chartSummary, lyricChordSummary } from "./components/PlayerArtifactDoors";
+import { lyricChordSummary, selectAnySketch } from "./components/PlayerArtifactDoors";
+import { buildLyricPreview } from "../../domain/pagePreview";
+import type { ListeningBelow } from "../../domain/reelLanes";
 import { MarksToggle } from "./components/MarksToggle";
 import { InkOption } from "../common/InkOption";
 import { Press } from "../common/Press";
 import { PlayerPinSheets } from "./components/PlayerPinSheets";
-import { PlayerShelf } from "./components/PlayerShelf";
 import { PlayerLyricsWriter } from "./components/PlayerLyricsWriter";
 import { playerScreenStyles } from "./styles";
 import { getVisibleTimelineRange } from "./helpers";
@@ -299,18 +300,9 @@ function PlayerScreenInner({
       ),
     [chordSheet]
   );
-  const lyricsPreviewLine = useMemo(() => {
-    const firstLine = displayedLyricsText
-      .split("\n")
-      .map((line) => line.trim())
-      .find((line) => line.length > 0);
-    return firstLine ?? "";
-  }, [displayedLyricsText]);
+  // The top of the lyric page, as the listening page's Lyrics tile prints it.
+  const lyricsPreview = useMemo(() => buildLyricPreview(displayedLyricsText), [displayedLyricsText]);
   const doorChordSummary = useMemo(() => lyricChordSummary(lyricsChordLines), [lyricsChordLines]);
-  const chartHandle = useMemo(
-    () => chartSummary(chordSheet, (count) => t("player.chartBars", { count })),
-    [chordSheet, t]
-  );
   // Whispered version meta — the IDENTITY of the page on display ("v2 of 4"),
   // not a tally. Never a second-precision timestamp.
   const lyricsMeta = useMemo(() => {
@@ -321,6 +313,22 @@ function PlayerScreenInner({
     const identity = total > 1 ? t("player.versionOf", { index, total }) : "v1";
     return `${identity} · ${formatClipDate(updatedAt)}`;
   }, [displayedLyricsVersion?.updatedAt, data.clipLyrics.total, data.clipLyrics.index, readingStampedLyrics, t]);
+  // What sits above the transport on the listening page, so the reel can take
+  // exactly the room that is left (domain/reelLanes).
+  const anySketch = useStore(selectAnySketch);
+  const listeningBelow = useMemo<ListeningBelow>(() => {
+    const pages: ListeningBelow["pages"] =
+      playerIdea?.kind === "project"
+        ? (data.hasProjectLyrics && lyricsPreview.length > 0) || hasChart
+          ? "tiles"
+          : "slots"
+        : playerIdea?.kind === "clip"
+          ? anySketch
+            ? "slots"
+            : "tiles"
+          : "none";
+    return { pages, note: data.clipNotes.trim().length > 0 };
+  }, [anySketch, data.clipNotes, data.hasProjectLyrics, hasChart, lyricsPreview, playerIdea?.kind]);
   // Marker visibility only matters when the clip has marks to show or hide.
   const hasMarks = data.practiceMarkers.length > 0 || data.sections.length > 0;
   // While a pin is dragged/nudged we override its position locally so the reel moves live,
@@ -1124,10 +1132,9 @@ function PlayerScreenInner({
   // Stable handlers for the memoized footer, shelf and support sections: the
   // root renders once a second for the readout, and inline arrows here made
   // those subtrees (five bottom sheets among them) render with it.
-  const { setRepeatEnabled, setQueueExpanded, setNotesExpanded, openReading } = ui;
+  const { setRepeatEnabled, setQueueExpanded, openReading } = ui;
   const toggleRepeat = useCallback(() => setRepeatEnabled((value) => !value), [setRepeatEnabled]);
   const toggleQueueExpanded = useCallback(() => setQueueExpanded((value) => !value), [setQueueExpanded]);
-  const openNotes = useCallback(() => setNotesExpanded(true), [setNotesExpanded]);
   const openLyricsReading = useCallback(() => openReading("lyrics"), [openReading]);
   const openChartReading = useCallback(() => openReading("chart"), [openReading]);
   const openChartBuilder = useCallback(() => {
@@ -1358,6 +1365,7 @@ function PlayerScreenInner({
                   onTogglePlay={handleTogglePlayWithCountIn}
                   onScrubStateChange={lifecycle.handleScrubStateChange}
                   onRepositionMarker={handleRepositionMarker}
+                  listeningBelow={listeningBelow}
                   onMoveSection={sectionsApi.handleMoveSection}
                   onRequestPinActions={handlePinActions}
                   onRequestAddPin={handleRequestAddPin}
@@ -1679,14 +1687,6 @@ function PlayerScreenInner({
                 onSeek={(timeMs) => void handleSeekWithClick(timeMs)}
               />
             ) : null}
-            {/* The shelf anchors the page's bottom in the base listening state —
-                doors for what the clip has, nothing when it has nothing. */}
-            {ui.mode === "player" && !isReading ? (
-              <PlayerShelf
-                hasNotes={data.clipNotes.trim().length > 0}
-                onOpenNotes={openNotes}
-              />
-            ) : null}
           <PlayerFooterSection
             mode={ui.mode}
             playDisabled={false}
@@ -1914,12 +1914,12 @@ function PlayerScreenInner({
               // sketch already live in one.
               onGrowSketch={playerIdea.kind === "clip" ? lifecycle.handleMakeSketch : undefined}
               hasLyrics={data.hasProjectLyrics}
-              lyricsPreviewLine={lyricsPreviewLine}
+              lyricsPreview={lyricsPreview}
               lyricsChordSummary={doorChordSummary}
               lyricsMeta={lyricsMeta}
               lyricsEditedSinceTake={lyricsEditedSinceTake}
               hasChart={hasChart}
-              chartHandle={chartHandle}
+              chordSheet={chordSheet}
               onOpenLyrics={openLyricsReading}
               onOpenChart={openChartReading}
               // "Write" opens against the tape — the whole point of the door.
@@ -1934,9 +1934,6 @@ function PlayerScreenInner({
               onQueueOpenIdea={handleQueueOpenIdea}
             />
           )}
-          {ui.mode === "player" && !isReading ? (
-            <View style={playerScreenStyles.dismissSpacer} />
-          ) : null}
         </View>
         </GestureDetector>
       </TransportLayout>

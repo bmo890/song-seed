@@ -7,6 +7,9 @@ import { colors, radii, shadows } from "../../design/tokens";
 type SurfaceCardProps = {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
+  /** `structural` (default, r8) frames controls and rows. `content` (r12, the
+   *  IdeaCard recipe's radius) is for a card that IS a piece of the user's work. */
+  variant?: "structural" | "content";
   selected?: boolean;
   onPress?: () => void;
   onLongPress?: () => void;
@@ -20,6 +23,7 @@ type SurfaceCardProps = {
 export function SurfaceCard({
   children,
   style,
+  variant = "structural",
   selected,
   onPress,
   onLongPress,
@@ -34,6 +38,7 @@ export function SurfaceCard({
         haptic="none"
         testID={testID}
         style={[surfaceCardStyles.card,
+          variant === "content" ? surfaceCardStyles.cardContent : null,
           selected ? surfaceCardStyles.cardSelected : null,
           style]}
         onPress={onPress}
@@ -49,7 +54,14 @@ export function SurfaceCard({
   }
 
   return (
-    <View style={[surfaceCardStyles.card, selected ? surfaceCardStyles.cardSelected : null, style]}>
+    <View
+      style={[
+        surfaceCardStyles.card,
+        variant === "content" ? surfaceCardStyles.cardContent : null,
+        selected ? surfaceCardStyles.cardSelected : null,
+        style,
+      ]}
+    >
       {children}
     </View>
   );
@@ -65,6 +77,9 @@ const surfaceCardStyles = StyleSheet.create({
     gap: 6,
     position: "relative",
     ...shadows.card,
+  },
+  cardContent: {
+    borderRadius: radii.xl,
   },
   cardSelected: {
     backgroundColor: "#FDF5F2",

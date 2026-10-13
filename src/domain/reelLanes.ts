@@ -152,26 +152,49 @@ export function sectionLaneHeight(sectionCount: number, density: ReelLaneDensity
  * page when nothing else is asking for it, and pays rent the moment something
  * opens beneath it.
  *
- *   listening  nothing open — as tall as the page allows, never under the old
- *              184 and never so tall the doors beneath it leave the screen
+ *   listening  nothing open — as tall as the page allows once the things that
+ *              sit beneath it (the take's note, the page tiles) have their room
  *   tools      Tools drawers or the layers bench need the page
  *   reading    lyrics or a chart open (or being written): the slim tape
  */
 export type ReelFlow = "listening" | "tools" | "reading";
 
-export const LISTENING_REEL_MIN_HEIGHT = 184;
-export const LISTENING_REEL_MAX_HEIGHT = 320;
+/** What sits above the transport on the listening page. `tiles`: at least one
+ *  written page (or the first-visit sketch card). `slots`: only empty slots. */
+export type ListeningPages = "none" | "slots" | "tiles";
+export type ListeningBelow = { pages: ListeningPages; note: boolean };
+
+export const LISTENING_REEL_MIN_HEIGHT = 120;
+export const LISTENING_REEL_MAX_HEIGHT = 400;
 export const TOOLS_REEL_HEIGHT = 112;
 export const READING_REEL_HEIGHT = 64;
-/** Everything on the listening page that is not the reel: title block, minimap,
- *  the toolbar row, two filled doors, the notes shelf and the transport —
- *  measured on an iPhone 17 with all of them present, plus a little air. */
-export const LISTENING_PAGE_RESERVE = 472;
+/** Everything on the listening page that is always there and is not the reel:
+ *  title block, minimap, the toolbar row and the transport, with a little air. */
+export const LISTENING_BASE_RESERVE = 286;
+/** Height of a written page tile, and of an empty slot. */
+export const PAGE_TILE_HEIGHT = 168;
+export const PAGE_SLOT_HEIGHT = 96;
+/** Space the tile row keeps beneath itself. */
+export const PAGE_ROW_GAP = 16;
+/** The take's note under the toolbar: two lines of margin script. */
+export const LISTENING_NOTE_RESERVE = 54;
 
 /** `usableHeight` is the window's height less its top and bottom safe insets. */
-export function reelHeightForFlow(flow: ReelFlow, usableHeight: number): number {
+export function reelHeightForFlow(
+    flow: ReelFlow,
+    usableHeight: number,
+    below: ListeningBelow = { pages: "none", note: false }
+): number {
     if (flow === "reading") return READING_REEL_HEIGHT;
     if (flow === "tools") return TOOLS_REEL_HEIGHT;
-    const room = Math.round(usableHeight - LISTENING_PAGE_RESERVE);
+    const pages =
+        below.pages === "tiles"
+            ? PAGE_TILE_HEIGHT + PAGE_ROW_GAP
+            : below.pages === "slots"
+              ? PAGE_SLOT_HEIGHT + PAGE_ROW_GAP
+              : 0;
+    const room = Math.round(
+        usableHeight - LISTENING_BASE_RESERVE - pages - (below.note ? LISTENING_NOTE_RESERVE : 0)
+    );
     return Math.max(LISTENING_REEL_MIN_HEIGHT, Math.min(LISTENING_REEL_MAX_HEIGHT, room));
 }

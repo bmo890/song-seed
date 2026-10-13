@@ -308,9 +308,10 @@ export const playerScreenStyles = StyleSheet.create({
   waveformShell: {
     position: "relative",
   },
-  supportStack: {
-    gap: 8,
-    flexShrink: 1,
+  // The listening page under the toolbar: note, air, then the pages on the
+  // floor of the body, just above the transport.
+  listenStack: {
+    flex: 1,
   },
   practiceContent: {
     gap: 8,

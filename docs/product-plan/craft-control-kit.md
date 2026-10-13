@@ -626,6 +626,85 @@ compact pin toggle's hidden state inside the reading bar on a real lyric
 page; whether pins named near the reel's top right now read cleanly on a
 founder library.
 
+## Pages above the transport (2026-10-14, supersedes the ghost keys)
+
+Founder, a day after the ghost keys shipped: "The bland sketch/lyrics/chords
+buttons do NOT look like a premium app. They're poorly placed." Two directions
+were mocked on a canvas (https://claude.ai/artifact/5fV1Bg687Asv8eyMJz1iVM):
+A "Pages" and B "Rooms" (one segmented control: Listen, Tools, Lyrics, Chart).
+The founder chose **A**. B is not built and would replace the August doors
+design; do not start it without a new yes.
+
+Why the keys failed, for the next person tempted by a grey box: grey on grey
+(reel, minimap, Tools and keys were one tone); hung from the top of the page
+with the bottom unowned; a plus in a box is a form control; four vocabularies
+in one small area; and the layout changed shape with content.
+
+**What A is** (`PlayerArtifactDoors.tsx`, `PlayerSupportSections.tsx`):
+- The listening page is composed from the thumb up. Under the toolbar: the
+  take's note, then air, then the pages on the floor of the body, directly
+  above the transport. The air is the only thing that flexes.
+- **Lyrics is always on the leading side, Chart on the trailing side.** They
+  never trade places or disappear.
+- **A written page is a tile**: `SurfaceCard variant="content"` (new variant,
+  r12, the IdeaCard radius), 168 tall. Its face is the top of the real page.
+  Lyrics: the first lines in Lora 12, one printed line each, never wrapped
+  (a wrapped miniature reads as a different poem), stanza breaks kept, the
+  lyric's chords as one terracotta line over the fade. Chart: section names
+  and two-bar systems, bars always left to right, bar count in the corner.
+  The last lines sink into the paper (`PageFade`, an SVG gradient on
+  `colors.surface`).
+- **An unwritten page is a slot**: dashed `borderMuted` outline, a plus, one
+  word. 96 tall when both are empty; beside a tile it stands as tall as the
+  tile. Slot and tile carry the same side padding on purpose: Yoga shares a
+  row by what is left AFTER padding, so an unpadded slot came out 28 pt
+  narrower than its neighbour.
+- **Standalone clip**: once any sketch exists in the library it shows the
+  same two slots. Tapping either asks "Make sketch" (body: "Lyrics and charts
+  live in a sketch. This clip becomes its first take."), then runs the same
+  `handleMakeSketch` as the overflow item, which stays. With no sketch
+  anywhere yet, the first-visit sketch card still shows. THIS WAS ASSUMED:
+  the founder answered "A" and the approved mock showed a clip with the two
+  slots, but the question was not answered in words. To revert, render one
+  slot labelled `songDetail.makeSong` in the `!canAuthor` branch.
+- **The note** replaced the Notes door (`PlayerShelf.tsx` deleted): the
+  eyebrow NOTE and the note itself in Lora italic, two lines at most, lined
+  up with "Marks". Tap opens the same notes sheet.
+- Builders live in `src/domain/pagePreview.ts` (tested): `buildLyricPreview`,
+  `buildChartPreview`, `countChartBars`.
+
+**Reel height is now content-aware.** `reelHeightForFlow("listening", usable,
+{ pages, note })` in `domain/reelLanes.ts`:
+
+| Below the reel | Reel on an iPhone 17 |
+|---|---|
+| tiles + note | 254 |
+| tiles | 308 |
+| slots | 380 |
+| nothing | 400 (the ceiling) |
+
+Floor 120. `LISTENING_BASE_RESERVE` 286 was tuned by eye on that one phone:
+with a one-line note the air between note and tiles is about 50 pt. Tiles can
+shrink (`flexShrink`) if a short phone runs out of room.
+
+Screenshots: `docs/product-plan/under-reel/` pages-filled, pages-mixed,
+pages-empty. The ghost-key sections above ("Doors and ghost keys", "The Notes
+door wears a glyph") describe code that no longer exists; the rest of that
+section (Marks ink, one press to fold, chart pencil, InkOption) still holds.
+
+Simulator-verified after clean relaunches: both tiles, tile beside slot at
+equal widths, both slots on a sketch and on a clip, the Make sketch dialog,
+a tile opening the reader.
+NOT verified: Android (dashed borders with a radius, the SVG fade, Lora
+italic); Hebrew lyrics in a tile and the Hebrew dialog copy; a short phone;
+a lyric with chords (the terracotta footer line); a chart made only of text
+blocks; a long note wrapping to two lines; the first-visit sketch card in its
+new bottom position; confirming the Make sketch dialog end to end.
+
+**Sim gotcha (cost a stray idea in the dev library):** never tap blind to
+close the LogBox strip. Its close button sits over the record FAB, so a second
+tap after the strip is gone starts a quick record. Screenshot, then tap once.
+
 ## State at handoff
 
 Branch `craft/control-kit`, pushed. Commits:
