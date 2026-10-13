@@ -1335,7 +1335,7 @@ export const resources = {
         branchBody: "Branch copies a take into a new thread; Split sets it apart.",
       },
       // The Send sheet: the desktop sender page, folded into the phone.
-      sendSheet: { title: "SongNook Send", titleLabel: "Title", fromLabel: "From", fromPlaceholder: "Your name, as they know it", noteLabel: "A note", notePlaceholder: "Learn track two first…", seal: "Get link", sealing: "Sealing…", sealingHint: "Packing and uploading. Keep this open.", expiryHint: "Anyone with the link can download for 7 days.", ready: "Link ready, copied", share: "Share", copied: "Link copied", orderLabel: "In this order", sortAz: "Sort A–Z", moveUp: "Move {{title}} up", moveDown: "Move {{title}} down" },
+      sendSheet: { title: "SongNook Send", titleLabel: "Title", fromLabel: "From", fromPlaceholder: "Name", noteLabel: "A note", notePlaceholder: "ex: Learn track two first…", seal: "Get link", sealing: "Sealing…", sealingHint: "Packing and uploading. Keep this open.", expiryHint: "Anyone with the link can download for 7 days.", ready: "Link ready, copied", share: "Share", copied: "Link copied", orderLabel: "In this order", sortAz: "Sort A–Z", moveUp: "Move {{title}} up", moveDown: "Move {{title}} down" },
       shareLink: {
         tooLargeTitle: "Too large to link", tooLargeBody: "Links carry up to {{limit}}. Share as a file instead.",
         creating: "Creating link…", copied: "Link copied — expires soon", share: "Share", emptyTitle: "Nothing to share", failureTitle: "Couldn't create link", retry: "Please try again.",
@@ -2882,7 +2882,7 @@ export const resources = {
         branchLabel: "הסתעפות או פיצול",
         branchBody: "הסתעפות מעתיקה טייק לשרשור חדש; פיצול מוציא אותו לעמוד לבדו.",
       },
-      sendSheet: { title: "SongNook Send", titleLabel: "כותרת", fromLabel: "מאת", fromPlaceholder: "השם שלך, כפי שמכירים אותו", noteLabel: "הערה", notePlaceholder: "קודם ללמוד את שיר שתיים…", seal: "קבלת קישור", sealing: "חותמים…", sealingHint: "אורזים ומעלים. השאירו פתוח.", expiryHint: "כל מי שיש לו את הקישור יוכל להוריד במשך 7 ימים.", ready: "הקישור מוכן והועתק", share: "שיתוף", copied: "הקישור הועתק", orderLabel: "בסדר הזה", sortAz: "מיון א–ת", moveUp: "הזזת {{title}} למעלה", moveDown: "הזזת {{title}} למטה" },
+      sendSheet: { title: "SongNook Send", titleLabel: "כותרת", fromLabel: "מאת", fromPlaceholder: "שם", noteLabel: "הערה", notePlaceholder: "לדוגמה: קודם ללמוד את שיר שתיים…", seal: "קבלת קישור", sealing: "חותמים…", sealingHint: "אורזים ומעלים. השאירו פתוח.", expiryHint: "כל מי שיש לו את הקישור יוכל להוריד במשך 7 ימים.", ready: "הקישור מוכן והועתק", share: "שיתוף", copied: "הקישור הועתק", orderLabel: "בסדר הזה", sortAz: "מיון א–ת", moveUp: "הזזת {{title}} למעלה", moveDown: "הזזת {{title}} למטה" },
       shareLink: {
         tooLargeTitle: "גדול מדי לקישור", tooLargeBody: "קישור נושא עד {{limit}}. שתפו כקובץ במקום.",
         creating: "יוצרים קישור…", copied: "הקישור הועתק — הוא יפוג בקרוב", share: "שיתוף", emptyTitle: "אין מה לשתף", failureTitle: "לא הצלחנו ליצור קישור", retry: "נסו שוב.",
