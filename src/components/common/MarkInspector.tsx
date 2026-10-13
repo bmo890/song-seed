@@ -5,8 +5,10 @@ import { colors, radii, text } from "../../design/tokens";
 import { fmtDuration } from "../../utils";
 import { useTranslation } from "react-i18next";
 import { ltrRow } from "../../i18n/direction";
+import { haptic } from "../../design/haptics";
 import { Press } from "./Press";
 import { Slider } from "./Slider";
+import { TimeEntryModal } from "./TimeEntryModal";
 import { Stepper } from "./Stepper";
 
 /**
@@ -43,11 +45,16 @@ function EdgeChip({
   timeMs,
   active,
   onPress,
+  onLongPress,
+  longPressHint,
 }: {
   label: string;
   timeMs: number;
   active: boolean;
   onPress: () => void;
+  /** Hold the box to type its time. */
+  onLongPress?: () => void;
+  longPressHint?: string;
 }) {
   return (
     <Press
@@ -55,9 +62,12 @@ function EdgeChip({
       // there is never a question of which end the slider and nudges move.
       style={[mi.edgeChip, active ? mi.edgeChipActive : mi.edgeChipIdle]}
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={350}
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
       accessibilityLabel={`${label} ${fmtDuration(timeMs)}`}
+      accessibilityHint={onLongPress ? longPressHint : undefined}
     >
       <Text style={[mi.edgeChipLabel, active ? mi.edgeChipLabelActive : null]}>{label}</Text>
       <Text style={[mi.edgeChipTime, active ? null : mi.edgeChipTimeIdle]}>
@@ -91,6 +101,11 @@ export type MarkInspectorProps = {
    *  start". Rendered only when both label and handler are given. */
   neighborLabel?: string | null;
   onUseNeighbor?: () => void;
+  /** Holding an edge box opens a dialog to TYPE its time. The owner applies the
+   *  value (and its own rules); `typeRangeFor` is the span the dialog states and
+   *  clamps to. Both, or neither. */
+  onTypeTime?: (edge: "start" | "end", ms: number) => void;
+  typeRangeFor?: (edge: "start" | "end") => { minMs: number; maxMs: number };
 };
 
 export function MarkInspector({
@@ -111,9 +126,20 @@ export function MarkInspector({
   hint,
   neighborLabel,
   onUseNeighbor,
+  onTypeTime,
+  typeRangeFor,
 }: MarkInspectorProps) {
   const { t } = useTranslation();
   const [dragMs, setDragMs] = useState<number | null>(null);
+  const [typingEdge, setTypingEdge] = useState<"start" | "end" | null>(null);
+  const canType = !!onTypeTime && !!typeRangeFor;
+  const openTyping = (which: "start" | "end") => {
+    // Haptics vocabulary: `grab` — a long-press into a heavier mode.
+    haptic.grab();
+    onPickEdge(which);
+    setTypingEdge(which);
+  };
+  const typingRange = typingEdge && typeRangeFor ? typeRangeFor(typingEdge) : null;
   const current = edge === "start" || endMs == null ? startMs : endMs;
   const displayMs = dragMs ?? current;
   // The bounds follow the reel's view between drags; DURING a drag they hold
@@ -128,6 +154,8 @@ export function MarkInspector({
           timeMs={edge === "start" ? displayMs : startMs}
           active={edge === "start" || endMs == null}
           onPress={() => onPickEdge("start")}
+          onLongPress={canType ? () => openTyping("start") : undefined}
+          longPressHint={t("player.typeTimeHint")}
         />
         {endMs != null ? (
           <>
@@ -137,6 +165,8 @@ export function MarkInspector({
               timeMs={edge === "end" ? displayMs : endMs}
               active={edge === "end"}
               onPress={() => onPickEdge("end")}
+              onLongPress={canType ? () => openTyping("end") : undefined}
+              longPressHint={t("player.typeTimeHint")}
             />
           </>
         ) : null}
@@ -212,6 +242,20 @@ export function MarkInspector({
             </Press>
           ) : null}
         </View>
+      ) : null}
+      {canType ? (
+        <TimeEntryModal
+          visible={typingEdge != null}
+          title={typingEdge === "end" ? endLabel : startLabel}
+          initialMs={typingEdge === "end" && endMs != null ? endMs : startMs}
+          minMs={typingRange?.minMs ?? 0}
+          maxMs={typingRange?.maxMs ?? 0}
+          onConfirm={(ms) => {
+            if (typingEdge) onTypeTime?.(typingEdge, ms);
+            setTypingEdge(null);
+          }}
+          onClose={() => setTypingEdge(null)}
+        />
       ) : null}
     </View>
   );

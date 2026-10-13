@@ -344,6 +344,44 @@ Open with the founder: whether the centred wave is tall enough (the levers are a
 whether the practice reel's extra 18 pt is welcome, pin names running under
 the expand button at the reel's top-right.
 
+## Founder pass on the lanes reel (2026-10-13, after production)
+
+- **"I can't drag a pin on the reel at all."** It did drag, but only from
+  the 4 pt head and its name; the line, which is most of the pin, did nothing.
+  Now: hold a pin's LINE anywhere along its height (300 ms), then drag. Built
+  as a manually activated Pan on the tape (`markerDrag` in
+  `PlaybackTapeVisualizer`, raced with pinch and scrub): it fails on touch-down
+  unless the finger is within 14 px of a pin, and fails if the finger travels
+  before the hold is up, so scrubbing is unchanged everywhere, including on a
+  pin. A hold released without moving opens the pin's actions. The canvas pin
+  itself follows the finger (`sharedDraggingMarkerX`), so there is no RN twin
+  in lanes. Practice mode only, as before. A LongPress gesture was tried first
+  and lost its touch to the re-render the drag's state change causes; do not
+  go back to it. Head/name hit target raised to 30 pt tall. Haptic: `grab` on
+  lift (was `tap`).
+- **Type a time.** Hold the At / Start / End box: `TimeEntryModal` (a
+  `WarmModal`, so it centres itself above the keyboard) with the figure in the
+  dials' serif on a ruled line, the legal range beneath, Cancel and Set. The
+  figure fills from the right like a timer (`domain/timeEntry`, tested):
+  "123" is 1:23, a dot adds tenths. It opens showing the current time in
+  resting ink and the first key replaces it. The keys land in an invisible
+  field over the figure whose text is never rewritten, so fast typing cannot
+  race a reformat (the first, controlled version did). Marks and loop both.
+- **Compilation lists ran off the bottom.** `DraggableFlatList` in the
+  playlist, setlist and chart book detail views had no bounded height, so the
+  list was taller than the screen and its end sat under the bottom edge.
+  `containerStyle={styles.flexFill}` on all three. Seen in the sim on a
+  30-item playlist: before, row 30 at the very edge with its padding cut off;
+  after, row 30 clear with room beneath.
+
+Verified in the simulator: line drag moved a pin 9 s to 10 s and scrub still
+works from a pin's line when the finger moves at once; typed 9.5 set a pin to
+0:09.5; the playlist end. NOT verified: the hold-without-moving path opening
+pin actions, typed times on a section and on the loop, setlist and chart book
+ends (same one-line fix), the software number pad (the sim uses a hardware
+keyboard, and there the first tap on Set only dismissed the keyboard; check
+on a phone that one tap sets), Android.
+
 ## State at handoff
 
 Branch `craft/control-kit`, pushed. Commits:

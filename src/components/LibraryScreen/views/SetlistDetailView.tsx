@@ -150,6 +150,10 @@ export function SetlistDetailView({
   return (
     <>
       <DraggableFlatList
+        // The list must be given the screen's remaining height: without it the
+        // wrapper grows to its content and a long list runs off the bottom
+        // with nothing to scroll (founder, 2026-10-13).
+        containerStyle={styles.flexFill}
         data={entries}
         keyExtractor={(entry) => entry.entryId}
         onDragBegin={haptic.grab}
