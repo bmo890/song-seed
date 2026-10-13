@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { Animated } from "react-native";
 import { useStore } from "../../../state/useStore";
 import { type EvolutionListClipEntry, type TimelineClipEntry } from "../../../domain/clipGraph";
+import { durations } from "../../../design/motion";
 
 export function useSongClipHighlights(
   visibleClipEntries: Array<TimelineClipEntry | EvolutionListClipEntry>
@@ -49,7 +50,7 @@ export function useSongClipHighlights(
         // Fast fade-in so the highlight is visible immediately.
         Animated.timing(animatedValue, {
           toValue: 0.9,
-          duration: 180,
+          duration: durations.base,
           useNativeDriver: true,
         }),
         // Hold at full brightness for a moment, then fade out slowly.

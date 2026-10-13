@@ -345,7 +345,7 @@ export function AudioReel({
     const expandedHeight = expandedHeightOverride ?? (compact ? 220 : 320);
 
     React.useEffect(() => {
-        visualizerHeight.value = withTiming(isExpanded ? expandedHeight : collapsedHeight, { duration: 300 });
+        visualizerHeight.value = withTiming(isExpanded ? expandedHeight : collapsedHeight, { duration: durations.slow });
     }, [collapsedHeight, expandedHeight, isExpanded, visualizerHeight]);
 
     const animatedHeightStyle = useAnimatedStyle(() => ({
@@ -540,7 +540,7 @@ export function AudioReel({
         prevOverscaleSourceRef.current = { resetKey, peaksLength: waveformPeaks.length };
 
         if (!sourceChanged) {
-            timelineScale.value = withTiming(overscaleFactor, { duration: 180 });
+            timelineScale.value = withTiming(overscaleFactor, { duration: durations.base });
             return;
         }
         timelineScale.value = overscaleFactor;

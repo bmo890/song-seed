@@ -23,6 +23,7 @@ import { haptic } from "../design/haptics";
 import { useTranslation } from "react-i18next";
 import { setRecorderCapturing } from "../services/audioForegroundActivity";
 import { UserText } from "../i18n";
+import { durations } from "../design/motion";
 
 type GlobalMediaDockProps = {
   activeRouteName: string;
@@ -181,7 +182,7 @@ export function GlobalMediaDock({
           // Tell the sheet the finger already positioned it, so its expand effect
           // doesn't re-animate from the top.
           openedByDrag.value = true;
-          dragY.value = withTiming(0, { duration: 220 }, (finished) => {
+          dragY.value = withTiming(0, { duration: durations.gentle }, (finished) => {
             if (finished) runOnJS(finishSwipeUpOpen)();
           });
         } else {

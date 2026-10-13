@@ -22,6 +22,7 @@ import { styles } from "../../styles";
 import { haptic } from "../../design/haptics";
 import { AppDialogHost } from "./AppDialog";
 import { dialogStore } from "./dialogStore";
+import { durations } from "../../design/motion";
 
 export type BottomSheetRef = { close: () => void };
 
@@ -148,7 +149,7 @@ export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
       Keyboard.dismiss();
       Animated.timing(translateY, {
         toValue: Math.max(dismissDistance, 700),
-        duration: 220,
+        duration: durations.gentle,
         useNativeDriver: useNative,
       }).start(({ finished }) => {
         if (!finished) {
