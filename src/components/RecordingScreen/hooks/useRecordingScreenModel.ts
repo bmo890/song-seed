@@ -456,7 +456,13 @@ export function useRecordingScreenModel() {
     Math.round((guideMixStatus.duration ?? 0) * 1000) ||
     (recordingOverdubClip ? getClipPlaybackDurationMs(recordingOverdubClip) ?? 0 : 0);
   const rawGuideMixPositionMs = Math.round((guideMixStatus.currentTime ?? 0) * 1000);
-  const guideMixPositionMs = Math.max(0, rawGuideMixPositionMs - guideMonitoringLeadInMs);
+  // Before the take starts, a punched-in layer shows the guide parked AT the
+  // punch point (founder, 2026-10-13): parked at 0:00 it read as a layer over
+  // the whole track, with only the eyebrow saying otherwise.
+  const guideWaiting =
+    !recording.isRecording && !recording.isPaused && !isArmingRecording && rawGuideMixPositionMs === 0;
+  const guideMixPositionMs =
+    guideWaiting && punchInMs > 0 ? punchInMs : Math.max(0, rawGuideMixPositionMs - guideMonitoringLeadInMs);
   const guideMixWaveformPeaks = recordingOverdubClip
     ? getClipPlaybackWaveformPeaks(recordingOverdubClip)
     : undefined;
@@ -2205,11 +2211,18 @@ export function useRecordingScreenModel() {
       // back, or swipe gesture), remove that placeholder so it doesn't linger in the collection
       // as a ghost clip. Guarded to only touch an empty standalone-clip placeholder with no take
       // in progress — never a project or an idea that already has clips.
-      if (!recordingIdea) return;
-      if (recordingIdea.kind !== "clip" || recordingIdea.clips.length > 0) return;
-      if (recording.isRecording || recording.isPaused || isArmingRecording || recording.elapsedMs > 0) {
+      const nothingCaptured =
+        !recording.isRecording && !recording.isPaused && !isArmingRecording && recording.elapsedMs <= 0;
+      // A layer that was opened and left before anything was recorded: forget the
+      // set-up (founder, 2026-10-13: backing out left the layer card waiting in
+      // the next recording). The sketch and its takes are untouched.
+      if (recordingOverdubClipId && nothingCaptured && !quickNameModalVisible) {
+        clearRecordingContext();
         return;
       }
+      if (!recordingIdea) return;
+      if (recordingIdea.kind !== "clip" || recordingIdea.clips.length > 0) return;
+      if (!nothingCaptured) return;
       if (quickNameModalVisible) return;
 
       // This can legitimately take the library from one idea to zero (e.g. the user's very

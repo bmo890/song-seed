@@ -6,6 +6,7 @@ import { haptic } from "../../../design/haptics";
 import { toast } from "../../common/toastStore";
 import { clampPinLabel } from "../../../domain/practicePinLayout";
 import { fmtDuration } from "../../../utils";
+import { PIN_ICON_OUTLINE } from "../../../design/markIcons";
 
 type UsePlayerPinsArgs = {
   playerIdeaId: string | null | undefined;
@@ -58,7 +59,7 @@ export function usePlayerPins({
       useStore.getState().addClipPracticeMarker(playerIdeaId, playerClipId, newMarker);
       // Haptics: `light` — a small state flip that should land (a mark dropped).
       haptic.light();
-      toast(t("player.pinAddedAt", { time: fmtDuration(atMs) }), "pin-outline");
+      toast(t("player.pinAddedAt", { time: fmtDuration(atMs) }), PIN_ICON_OUTLINE);
       setNewPinLabel("");
       setPinModalVisible(false);
       return newMarker.id;

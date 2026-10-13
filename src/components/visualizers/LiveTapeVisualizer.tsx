@@ -35,7 +35,7 @@ type Props = {
     } | null;
     intervalMs?: number; // Usually 40
     /** Pins dropped during the take, in capture-file ms: a hairline with a small
-     *  flag at the top, the same mark the player draws for a saved pin. */
+     *  dot head at the top, the same mark the player draws for a saved pin. */
     pins?: number[];
     theme?: {
         waveColor?: string;
@@ -46,8 +46,9 @@ type Props = {
     };
 };
 
-const PIN_FLAG_WIDTH = 9;
-const PIN_FLAG_HEIGHT = 7;
+/** A pin's head on the live tape: the same small dot the player's reel draws. */
+const PIN_HEAD_RADIUS = 2.5;
+const PIN_HEAD_Y = 6;
 
 const CANDLE_WIDTH = 2;
 const CANDLE_SPACE = 1;
@@ -382,18 +383,17 @@ function LiveTapeVisualizerImpl({
     const outgoingRulerOpacity = useDerivedValue(() => 1 - rulerFade.value);
 
     // Pins ride the tape like the ruler does: built once per drop, scrolled on the
-    // UI thread. A hairline the full height plus a filled flag hanging off its top.
+    // UI thread. A hairline the full height under a small dot head — the mark the
+    // player's reel draws for a saved pin, so a pin looks the same before and after.
     const { pinLinePath, pinFlagPath } = useMemo(() => {
         const line = Skia.Path.Make();
         const flag = Skia.Path.Make();
         if (pins && pins.length > 0 && canvasHeight > 0) {
             for (const atMs of pins) {
                 const x = atMs * pixelsPerMs;
-                line.moveTo(x, 0);
+                line.moveTo(x, PIN_HEAD_Y);
                 line.lineTo(x, canvasHeight);
-                flag.addRRect(
-                    Skia.RRectXY(Skia.XYWHRect(x, 0, PIN_FLAG_WIDTH, PIN_FLAG_HEIGHT), 2, 2)
-                );
+                flag.addCircle(x, PIN_HEAD_Y, PIN_HEAD_RADIUS);
             }
         }
         return { pinLinePath: line, pinFlagPath: flag };
@@ -459,8 +459,8 @@ function LiveTapeVisualizerImpl({
                         </Group>
                         {pins && pins.length > 0 ? (
                             <>
-                                <Path path={pinLinePath} color={pinColor} style="stroke" strokeWidth={1.5} opacity={0.85} />
-                                <Path path={pinFlagPath} color={pinColor} style="fill" opacity={0.85} />
+                                <Path path={pinLinePath} color={pinColor} style="stroke" strokeWidth={1} opacity={0.4} />
+                                <Path path={pinFlagPath} color={pinColor} style="fill" />
                             </>
                         ) : null}
                     </Group>

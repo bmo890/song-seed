@@ -30,7 +30,17 @@ export const createRecordingSlice: StateCreator<RecordingSlice> = (set) => ({
     recordingIdeaId: null,
     setRecordingIdeaId: (id) => set({ recordingIdeaId: id }),
     recordingParentClipId: null,
-    setRecordingParentClipId: (id) => set({ recordingParentClipId: id }),
+    // Every take is armed through here (a new take, a reply, a variation), and so
+    // is a layer, which sets its own fields straight after. Arming therefore
+    // clears any layer set-up left behind: a layer that was opened and backed out
+    // of must never ride along into the next plain recording.
+    setRecordingParentClipId: (id) =>
+        set({
+            recordingParentClipId: id,
+            recordingOverdubClipId: null,
+            recordingGuideMixUri: null,
+            recordingPunchInMs: null,
+        }),
     recordingOverdubClipId: null,
     setRecordingOverdubClipId: (id) => set({ recordingOverdubClipId: id }),
     recordingGuideMixUri: null,
