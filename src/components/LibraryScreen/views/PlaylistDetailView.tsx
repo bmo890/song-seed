@@ -11,6 +11,7 @@ import { fmtDuration } from "../../../utils";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { EmptyState } from "../../common/EmptyState";
 import { NowPlayingIndicator } from "../../common/NowPlayingIndicator";
+import { Press } from "../../common/Press";
 import { useStore } from "../../../state/useStore";
 import type { Playlist } from "../../../types";
 import type { PlaylistTrack } from "../../../domain/playlistPlayback";
@@ -38,9 +39,10 @@ function formatUpdatedAt(timestamp: number, t: TFunction, locale: string) {
 }
 
 /**
- * The playlist page as a media player: editorial header with one primary Play,
- * then simple numbered track rows — tap a row to play the playlist from there
- * (playback runs in the global mini dock). Reorder/remove live behind Edit.
+ * The playlist page as a media player: editorial header with one primary Play
+ * and a quiet shuffle key beside it, then simple numbered track rows — tap a
+ * row to play the playlist from there (playback runs in the global mini dock).
+ * Reorder/remove live behind Edit.
  */
 export function PlaylistDetailView({
   playlist,
@@ -52,6 +54,7 @@ export function PlaylistDetailView({
   onToggleEditMode,
   onTogglePlayback,
   onPlayFromTrack,
+  onShuffle,
   onAddItems,
   onRename,
   onShare,
@@ -70,6 +73,8 @@ export function PlaylistDetailView({
   onToggleEditMode: () => void;
   onTogglePlayback: () => void;
   onPlayFromTrack: (startItemId?: string) => void;
+  /** Shuffle play — or, while this playlist plays, shuffle on/off. */
+  onShuffle: () => void;
   onAddItems: () => void;
   onRename: () => void;
   onShare: () => void;
@@ -88,6 +93,9 @@ export function PlaylistDetailView({
   // Keep the last tracks scrollable above the media dock once playback starts.
   const playerDockHeight = useStore((s) => s.playerDockHeight);
   const isPlaylistActive = nowPlayingItemId != null;
+  // Lit only while THIS playlist is the one playing shuffled.
+  const queueShuffled = useStore((s) => s.playerQueueUnshuffled != null);
+  const shuffleOn = isPlaylistActive && queueShuffled;
   const playableCount = tracks.filter((track) => track.available).length;
 
   const metaParts = [
@@ -132,6 +140,20 @@ export function PlaylistDetailView({
             style={isPlaylistActive && isPlaying ? null : detailStyles.playIconNudge}
           />
         </Pressable>
+
+        <Press
+          // A mode flip that should land (haptics.ts: light).
+          haptic="light"
+          style={[detailStyles.quietBtn, shuffleOn ? detailStyles.quietBtnActive : null]}
+          onPress={onShuffle}
+          disabled={playableCount < 2}
+          accessibilityRole="button"
+          accessibilityState={{ selected: shuffleOn, disabled: playableCount < 2 }}
+          accessibilityLabel={t("library.shufflePlaylist")}
+          testID="playlist-shuffle"
+        >
+          <Ionicons name="shuffle" size={18} color={shuffleOn ? colors.onPrimary : colors.textStrong} />
+        </Press>
 
         <Pressable
           style={({ pressed }) => [detailStyles.quietBtn, pressed ? styles.pressDown : null]}

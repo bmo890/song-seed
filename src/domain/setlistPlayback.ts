@@ -154,7 +154,11 @@ export function buildSetlistQueue(
         )
       )
     : 0;
-  return { queue: flat.map((item) => item.queueItem), startIndex };
+  // A multi-part entry's parts share a group so shuffle keeps the song whole.
+  return {
+    queue: flat.map((item) => ({ ...item.queueItem, groupId: item.entryId })),
+    startIndex,
+  };
 }
 
 /** Sum of known entry durations — null when nothing is measured, so callers can
