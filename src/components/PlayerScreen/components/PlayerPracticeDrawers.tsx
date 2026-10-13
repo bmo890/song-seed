@@ -400,10 +400,9 @@ export function PlayerPracticeDrawers({
       <Press
         feel="glyph"
         style={pd.headIconBtn}
+        // Going to a mark and opening its controls are two separate wishes
+        // (founder, 2026-10-13): this glyph only goes there and plays.
         onPress={() => {
-          if (!isSelected) {
-            setSelected(isSection ? { kind: "section", id, edge: "start" } : { kind: "pin", id });
-          }
           setPlayFromId(id);
           onPlayFrom(entry.atMs);
         }}
@@ -430,21 +429,19 @@ export function PlayerPracticeDrawers({
             onPinPreview(null);
             return;
           }
+          // Selecting never moves the playhead: you may have parked it exactly
+          // where this mark's edge should go. The play glyph, or a tap on the
+          // mark on the reel, is how you go there.
           setSelected(
             isSection ? { kind: "section", id, edge: "start" } : { kind: "pin", id }
           );
-          // Selecting a mark cues the playhead to it — the whole point of holding it.
-          setPlayFromId(null);
-          onSeek(entry.atMs);
         }}
         accessibilityRole="button"
-        accessibilityState={{ selected: isSelected }}
-        accessibilityLabel={
-          isSection
-            ? t("player.jumpSection", { title: name, time: fmtDuration(entry.atMs) })
-            : t("player.jumpPin", { title: name, time: fmtDuration(entry.atMs) })
-        }
+        accessibilityState={{ selected: isSelected, expanded: isSelected }}
+        accessibilityLabel={`${name}, ${fmtDuration(entry.atMs)}`}
       >
+        {/* The play glyph leads the row, as it leads every card in the app. */}
+        {playButton}
         <View style={pd.markGlyph}>
           {isSection ? (
             <SpanGlyph color={color} />
@@ -464,8 +461,7 @@ export function PlayerPracticeDrawers({
             </Text>
           ) : null}
         </View>
-        {/* Trailing cluster: the play glyph keeps the end seat in both states; the
-            time (unheld) and the overflow (held) trade the seat beside it. */}
+        {/* Trailing seat: the time (unheld) and the overflow (held) trade it. */}
         {isSelected ? (
           <View style={pd.selectedHeadActions}>
             <Press
@@ -484,7 +480,6 @@ export function PlayerPracticeDrawers({
             >
               <Ionicons name="ellipsis-horizontal" size={16} color={colors.primaryDeep} />
             </Press>
-            {playButton}
           </View>
         ) : (
           <View style={pd.markTrailing}>
@@ -493,7 +488,6 @@ export function PlayerPracticeDrawers({
                 ? `${fmtDuration(entry.section.startMs)}–${fmtDuration(entry.section.endMs)}`
                 : fmtDuration(entry.atMs)}
             </Text>
-            {playButton}
           </View>
         )}
       </Press>
@@ -583,12 +577,8 @@ export function PlayerPracticeDrawers({
               : { minMs: 0, maxMs: Math.max(0, durationMs) }
           }
           onPickEdge={(nextEdge) => {
-            if (section) {
-              setSelected({ kind: "section", id, edge: nextEdge });
-              onSeek(nextEdge === "start" ? section.startMs : section.endMs);
-            } else {
-              onSeek(entry.atMs);
-            }
+            // Choosing which edge the slider and nudges act on; the playhead stays.
+            if (section) setSelected({ kind: "section", id, edge: nextEdge });
           }}
           minMs={sliderMin}
           maxMs={sliderMax}
@@ -774,10 +764,7 @@ export function PlayerPracticeDrawers({
                 ? { minMs: 0, maxMs: Math.max(0, loop.end - MIN_LOOP_LENGTH_MS) }
                 : { minMs: Math.min(loop.start + MIN_LOOP_LENGTH_MS, durationMs), maxMs: Math.max(1, durationMs) }
             }
-            onPickEdge={(nextEdge) => {
-              setLoopEdge(nextEdge);
-              onSeek(nextEdge === "start" ? loop.start : loop.end);
-            }}
+            onPickEdge={(nextEdge) => setLoopEdge(nextEdge)}
             minMs={loopSliderMin}
             maxMs={loopSliderMax}
             onSlide={setLoopEdgeMs}

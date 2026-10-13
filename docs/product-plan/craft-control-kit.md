@@ -441,6 +441,34 @@ end, then back, name and rule together, list times following. NOT verified:
 stopping against a neighbouring section (rule is unit-tested), zoomed reels,
 Android.
 
+**Leaning a section through its neighbour (2026-10-13).** The founder asked
+for "lift and quickly drag again to push"; agreed instead on one continuous
+gesture guarded by distance, not time. Dragged into a neighbour the section
+stops (`tick`). Lean a further 28 px (`SECTION_PUSH_LEAN_PX`) and the
+neighbour's touching edge gives way (`grab`) and follows: only that edge, only
+until the neighbour is at `MIN_SECTION_LENGTH_MS`, never cascading to a third
+section. `sectionPushBounds` and `moveSection(..., { push: true })` in
+`domain/playerSections` (tested); the hitbox reports whether the drag ended
+in the push zone. The canvas draws the neighbour giving ground from
+`sharedPushedSectionId` / `sharedPushedSectionDeltaMs` (signed: positive moves
+its start later, negative its end earlier). Undo in the Marks row reverses it.
+
+**Selecting never moves the playhead (2026-10-13).** Founder: tapping a
+section to adjust it threw away a playhead parked on the exact spot. Now a tap
+on a Marks row only opens or closes its control, and tapping Start / End (marks
+and loop) only chooses which edge the slider and nudges act on. Going there is
+separate: the play glyph, which now LEADS each row (as on every card) and no
+longer opens the control, or a tap on the mark on the reel. Considered and
+dropped: "tap the chosen Start/End box again to jump" (the founder questioned
+it; the play glyph covers the start, and a hidden second-tap rule was not
+worth it). There is no one-tap jump to a section's END from the list.
+
+Verified in the simulator: tapping the Verse row opened its control with the
+playhead still at 00:16; leaning Verse into Chorus moved Verse to 6-11 s and
+Chorus's start to 11 s with its end and the Intro untouched. NOT verified:
+pushing an earlier neighbour's end on screen (unit-tested), the two haptics,
+the loop's Start/End no longer seeking, Android.
+
 ## State at handoff
 
 Branch `craft/control-kit`, pushed. Commits:

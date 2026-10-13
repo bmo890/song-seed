@@ -14,12 +14,15 @@ export const pd = StyleSheet.create({
   },
 
   // ---- marks list ----
+  // The play glyph leads in its own 30 pt seat, so the row's left padding is
+  // lighter and the gap after it is the glyph's own breathing room.
   markRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 11,
+    gap: 8,
     minHeight: 42,
-    paddingHorizontal: 10,
+    paddingLeft: 2,
+    paddingRight: 10,
     borderRadius: radii.lg,
   },
   markGlyph: {
