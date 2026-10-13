@@ -17,6 +17,7 @@
 import type { Config } from "../env";
 import type { TransferPayload } from "../lib/serialize";
 import { qrSvgPath } from "../lib/qr";
+import { describeKind } from "../lib/shareKind";
 import { escapeHtml, formatBytes, page } from "./shell";
 import { GALLERY_CSS, GALLERY_HTML, GALLERY_SCRIPT, GALLERY_SPRITE } from "./appPreviewGallery";
 
@@ -59,12 +60,22 @@ function expiresLabel(expiresAtIso: string): string {
   return days === 1 ? "1 day left" : `${days} days left`;
 }
 
+function isPackageFile(fileName: string): boolean {
+  return /\.songnook$/i.test(fileName);
+}
+
+/** "3 songs", "1 SongNook package", "3 songs · 1 SongNook package" — then the
+ *  sender's intent, named: a running order, a chart book, a collection or a
+ *  whole workspace arrives in SongNook as exactly that. */
 function songCount(t: TransferPayload): string {
-  const count = `${t.items.length} ${t.items.length === 1 ? "song" : "songs"}`;
-  // The sender's intent, named: a running order arrives in SongNook as that.
-  if (t.kind === "playlist") return `${count} · a playlist, in order`;
-  if (t.kind === "setlist") return `${count} · a setlist, in order`;
-  return count;
+  const packages = t.items.filter((it) => isPackageFile(it.fileName)).length;
+  const songs = t.items.length - packages;
+  const parts: string[] = [];
+  if (songs > 0) parts.push(`${songs} ${songs === 1 ? "song" : "songs"}`);
+  if (packages > 0) parts.push(`${packages} SongNook ${packages === 1 ? "package" : "packages"}`);
+  const described = describeKind(t.kind);
+  if (described) parts.push(described);
+  return parts.join(" · ");
 }
 
 function tracklist(t: TransferPayload): string {

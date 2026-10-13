@@ -4,9 +4,18 @@ import { personalWorkspaces, receivedPackages } from "../../../domain/workspaceV
 import { getWorkspaceListOrderState, sortWorkspacesWithPrimary } from "../../../domain/libraryNavigation";
 import type { WorkspaceListOrder } from "../../../types";
 import { useWorkspaceArchiveActions } from "./useWorkspaceArchiveActions";
+import { createWorkspaceShareLink, shareWorkspaceFile } from "../../../services/placeShare";
+import { openSendSheet } from "../../../state/useSendSheetStore";
+import { isSendServiceConfigured } from "../../../config/sendService";
+import { AppAlert } from "../../common/AppAlert";
+import { haptic } from "../../../design/haptics";
+import type { Workspace } from "../../../types";
 import type { SelectionAction } from "../../common/SelectionDock";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
+
+// "Get a link" needs a real transfer endpoint — same gate as the Library views.
+const SHOW_GET_LINK = __DEV__ || isSendServiceConfigured();
 
 function defaultWorkspaceTitle(t: TFunction) {
   const now = new Date();
@@ -124,6 +133,68 @@ export function useWorkspaceListScreenModel() {
     viewingArchived: false,
   });
 
+  // Sharing a whole workspace — as a SongNook file or a Send link. Compilations
+  // that sit entirely inside it travel too (placeShare).
+  const [sharingWorkspaceId, setSharingWorkspaceId] = useState<string | null>(null);
+  const libraryNow = () => {
+    const state = useStore.getState();
+    return { setlists: state.setlists, songbooks: state.songbooks, playlists: state.playlists };
+  };
+  const shareWorkspaceAsFile = async (workspace: Workspace) => {
+    if (sharingWorkspaceId) return;
+    setSharingWorkspaceId(workspace.id);
+    try {
+      const ok = await shareWorkspaceFile(workspace, libraryNow());
+      if (!ok) AppAlert.info(t("workspaceList.nothingShare"), t("workspaceList.nothingShareBody"));
+    } catch {
+      // haptics vocabulary: `error` — a failure the user must hear about.
+      haptic.error();
+      AppAlert.info(t("workspaceList.shareFailed"), t("workspaceList.shareFailedBody"));
+    } finally {
+      setSharingWorkspaceId(null);
+    }
+  };
+  const getLinkForWorkspace = (workspace: Workspace) => {
+    if (sharingWorkspaceId) return;
+    openSendSheet({
+      title: workspace.title,
+      kind: "workspace",
+      emptyMessage: t("workspaceList.nothingShareBody"),
+      create: (parcel) => createWorkspaceShareLink(workspace, libraryNow(), parcel),
+    });
+  };
+  // "Share…" on the card's sheet drills into a second sheet: a file, or SongNook
+  // Send. Back reopens the card's sheet, so drilling in is never a one-way door.
+  const [shareSheetWorkspaceId, setShareSheetWorkspaceId] = useState<string | null>(null);
+  const shareSheetWorkspace = useMemo(
+    () => allWorkspaces.find((workspace) => workspace.id === shareSheetWorkspaceId) ?? null,
+    [allWorkspaces, shareSheetWorkspaceId]
+  );
+  const shareSheetActions: SelectionAction[] = useMemo(() => {
+    if (!shareSheetWorkspace) return [];
+    const target = shareSheetWorkspace;
+    const rows: SelectionAction[] = [
+      {
+        key: "export",
+        label: t("workspaceList.shareFile"),
+        icon: "folder-open-outline",
+        disabled: sharingWorkspaceId != null,
+        onPress: () => void shareWorkspaceAsFile(target),
+      },
+    ];
+    if (SHOW_GET_LINK) {
+      rows.push({
+        key: "songnook-send",
+        label: t("workspaceList.getLink"),
+        icon: "paper-plane-outline",
+        disabled: sharingWorkspaceId != null,
+        onPress: () => getLinkForWorkspace(target),
+      });
+    }
+    return rows;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shareSheetWorkspace, sharingWorkspaceId, t]);
+
   // Actions shown in the ellipsis action sheet — computed for the target workspace
   const workspaceActionSheetActions: SelectionAction[] = useMemo(() => {
     if (!actionSheetWorkspace) return [];
@@ -146,6 +217,23 @@ export function useWorkspaceListScreenModel() {
         onPress: () => {
           setPrimaryWorkspaceId(actionSheetWorkspace.id);
           closeActionSheet();
+        },
+      });
+    }
+
+    // Share the place — one row; the sheet it opens holds the two exits (a
+    // file, SongNook Send). An archived workspace's audio is packed away, so
+    // only a live one can be shared as it is.
+    if (!actionSheetWorkspace.isArchived) {
+      actions.push({
+        key: "share",
+        label: t("workspaceList.share"),
+        icon: "share-outline",
+        disabled: sharingWorkspaceId != null,
+        opens: true,
+        onPress: () => {
+          closeActionSheet();
+          setShareSheetWorkspaceId(actionSheetWorkspace.id);
         },
       });
     }
@@ -196,7 +284,7 @@ export function useWorkspaceListScreenModel() {
 
     return actions;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [actionSheetWorkspace, primaryWorkspaceId, t]);
+  }, [actionSheetWorkspace, primaryWorkspaceId, sharingWorkspaceId, t]);
 
   function saveWorkspace(name: string, description: string, color: string, avatarKey: number) {
     if (archiveActions.busyWorkspaceId) return;
@@ -240,6 +328,15 @@ export function useWorkspaceListScreenModel() {
       workspace: actionSheetWorkspace,
       actions: workspaceActionSheetActions,
       close: closeActionSheet,
+    },
+    shareSheet: {
+      visible: !!shareSheetWorkspaceId,
+      workspace: shareSheetWorkspace,
+      actions: shareSheetActions,
+      close: () => setShareSheetWorkspaceId(null),
+      back: () => {
+        if (shareSheetWorkspaceId) openWorkspaceActions(shareSheetWorkspaceId);
+      },
     },
     actions: {
       setWorkspaceListOrder,

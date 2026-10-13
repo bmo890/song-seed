@@ -13,6 +13,7 @@
  * file are the same bytes — only the destination differs.
  */
 import { prepareLibraryExportArchive, type ExportLibraryArgs } from "./libraryExport";
+import { SEND_MAX_ITEM_BYTES, SEND_MAX_TRANSFER_BYTES } from "../config/sendService";
 import type { ShareKind } from "../types";
 import {
   SendTransferError,
@@ -33,7 +34,23 @@ export class EmptyShareError extends Error {
   }
 }
 
+/** Thrown before any upload when the parcel is past the service caps — a
+ *  whole workspace can be gigabytes. Callers point at "Share as file" instead. */
+export class TooLargeShareError extends Error {
+  constructor(readonly bytes: number, readonly limitBytes: number) {
+    super("Too large to link.");
+    this.name = "TooLargeShareError";
+  }
+}
+
 export { SendTransferError };
+
+function assertWithinCaps(itemBytes: number[]): void {
+  const biggest = Math.max(0, ...itemBytes);
+  if (biggest > SEND_MAX_ITEM_BYTES) throw new TooLargeShareError(biggest, SEND_MAX_ITEM_BYTES);
+  const total = itemBytes.reduce((sum, size) => sum + size, 0);
+  if (total > SEND_MAX_TRANSFER_BYTES) throw new TooLargeShareError(total, SEND_MAX_TRANSFER_BYTES);
+}
 
 export interface CreateShareLinkInput {
   title: string;
@@ -53,6 +70,7 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
     title: input.title,
     senderName: input.senderName ?? undefined,
     message: input.message,
+    kind: input.kind,
   });
 
   // 2. Build the archive with the transferId already in the share block.
@@ -65,6 +83,9 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
   const prepared = await prepareLibraryExportArchive(args);
   const fileName = `${prepared.archiveTitle}.${prepared.archiveExtension}`;
   const size = await fileSize(prepared.archiveUri);
+  // Past the cap the draft is simply never finalized (swept at expiry) — no
+  // bytes leave the device.
+  assertWithinCaps([size]);
 
   // 3. Upload the single .songnook file. Opaque to the server.
   await registerAndUploadFile(transfer.transferId, transfer.uploadToken, {
@@ -115,19 +136,23 @@ export async function createFilesShareLink(input: {
 }): Promise<SentLink> {
   if (input.files.length === 0) throw new EmptyShareError();
 
+  // Sizes first: a parcel past the caps is refused before a transfer exists.
+  const sizes = await Promise.all(input.files.map((file) => fileSize(file.fileUri)));
+  assertWithinCaps(sizes);
+
   const transfer = await createTransfer({
     title: input.title,
     senderName: input.senderName ?? undefined,
     message: input.message,
+    kind: input.kind,
   });
 
-  for (const file of input.files) {
-    const size = await fileSize(file.fileUri);
+  for (const [index, file] of input.files.entries()) {
     await registerAndUploadFile(transfer.transferId, transfer.uploadToken, {
       fileUri: file.fileUri,
       fileName: file.fileName,
       mimeType: file.mimeType,
-      size,
+      size: sizes[index]!,
     });
   }
 

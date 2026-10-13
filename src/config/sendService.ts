@@ -16,6 +16,12 @@ export const SEND_SERVICE_BASE_URL = (
   process.env.EXPO_PUBLIC_SEND_BASE_URL || (__DEV__ ? DEFAULT_LOCAL_BASE_URL : PRODUCTION_BASE_URL)
 ).replace(/\/$/, "");
 
+/** Service caps (server/songnook-send/wrangler.toml, settled v1): one file may
+ *  be 512 MB, one transfer 1 GB. Checked on device before any byte is uploaded
+ *  so a workspace that is too big fails in a sentence, not after a long upload. */
+export const SEND_MAX_ITEM_BYTES = 512 * 1024 * 1024;
+export const SEND_MAX_TRANSFER_BYTES = 1024 * 1024 * 1024;
+
 /** True once a real (non-localhost) endpoint is configured — gate UI on this so
  *  "Get a link" doesn't appear pointing at a dev box in shipped builds. */
 export const isSendServiceConfigured = (): boolean =>

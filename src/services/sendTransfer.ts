@@ -11,6 +11,7 @@
  */
 import * as FileSystem from "expo-file-system/legacy";
 import { SEND_SERVICE_BASE_URL } from "../config/sendService";
+import type { ShareKind } from "../types";
 
 export class SendTransferError extends Error {
   constructor(message: string, readonly status?: number) {
@@ -66,11 +67,16 @@ export function createTransfer(input: {
   title?: string;
   senderName?: string | null;
   message?: string;
+  /** What the parcel is. The service echoes it to the recipient page and the
+   *  receive screen, so a collection or a workspace reads as one before any
+   *  file is opened (the .songnook manifest stays the authority on device). */
+  kind?: ShareKind;
 }): Promise<CreatedTransfer> {
   return postJson<CreatedTransfer>("/api/transfers", {
     title: input.title,
     senderName: input.senderName ?? undefined,
     message: input.message,
+    kind: input.kind,
   });
 }
 

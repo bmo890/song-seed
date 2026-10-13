@@ -428,7 +428,9 @@ export function IdeaSelectionBar({
   // a sheet and must keep the selection alive for the actions inside it.
   // Wrapping here guarantees consistency no matter what each handler does
   // internally.
-  const OPENS_SHEET = new Set(["more", "copy-or-move", "tag-clips"]);
+  // "playlist" was missing here (2026-10-13): the chooser opened with the
+  // selection already cleared and quietly filed nothing.
+  const OPENS_SHEET = new Set(["more", "copy-or-move", "tag-clips", "playlist"]);
   const endsSelection = (action: SelectionAction): SelectionAction =>
     OPENS_SHEET.has(action.key)
       ? action

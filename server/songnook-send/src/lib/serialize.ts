@@ -4,6 +4,7 @@
  */
 import type { Config } from "../env";
 import type { ItemRow, TransferRow } from "./db";
+import { normalizeShareKind, type ShareKind } from "./shareKind";
 
 export interface TransferItemPayload {
   itemId: string;
@@ -18,8 +19,9 @@ export interface TransferPayload {
   title: string;
   sender: { name: string; userId: string | null };
   message: string;
-  /** What the sender said this is — loose files, or a running order. */
-  kind: "clips" | "playlist" | "setlist";
+  /** What the sender said this is — loose files, a running order, a chart
+   *  book, a collection or a whole workspace (lib/shareKind.ts). */
+  kind: ShareKind;
   createdAt: string;
   expiresAt: string;
   items: TransferItemPayload[];
@@ -35,7 +37,7 @@ export function toTransferPayload(
     title: transfer.title,
     sender: { name: transfer.sender_name, userId: transfer.sender_user_id ?? null },
     message: transfer.message,
-    kind: transfer.share_kind ?? "clips",
+    kind: normalizeShareKind(transfer.share_kind),
     createdAt: new Date(transfer.created_at).toISOString(),
     expiresAt: new Date(transfer.expires_at).toISOString(),
     items: items.map((it) => ({

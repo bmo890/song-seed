@@ -31,7 +31,7 @@ const HEADER_ROW_HEIGHT = 56;
 export function SongHeaderMenu() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { screen, actions, importFlow } = useSongScreen();
+  const { screen, actions, importFlow, share } = useSongScreen();
   // While clips are selected, the bottom bar already offers a clip "Delete". Disable
   // the song-level delete here so it can't be tapped by mistake mid-selection.
   const isSelectingClips = useStore((s) => s.selectedClipIds.length > 0);
@@ -109,6 +109,26 @@ export function SongHeaderMenu() {
             >
               <Text style={styles.ideasSortMenuItemText}>{t("songDetail.import")}</Text>
               <Ionicons name="download-outline" size={15} color={colors.textStrong} />
+            </Pressable>
+            <View style={styles.ideasDropdownDivider} />
+            {/* The whole sketch — takes, lyrics, chords, notes — as a file or a
+                SongNook Send link. One row; the sheet holds the two exits. */}
+            <Pressable
+              testID="song-menu-share"
+              style={({ pressed }) => [
+                styles.ideasToggleRow,
+                share.busy ? styles.btnDisabled : null,
+                pressed ? styles.pressDown : null,
+              ]}
+              disabled={share.busy}
+              onPress={() => {
+                close();
+                haptic.tap();
+                share.setSheetOpen(true);
+              }}
+            >
+              <Text style={styles.ideasSortMenuItemText}>{t("songDetail.share")}</Text>
+              <Ionicons name="share-outline" size={15} color={colors.textStrong} />
             </Pressable>
           </>
         ) : (

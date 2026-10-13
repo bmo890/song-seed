@@ -12,7 +12,7 @@ import {
 } from "../../../domain/songbookGrouping";
 import { useMiniPlayerContext } from "../../../hooks/FullPlayerProvider";
 import { createSongbookShareLink, shareSongbookFile } from "../../../services/songbookShare";
-import { presentShareLink } from "../../../services/shareLinkFlow";
+import { openSendSheet } from "../../../state/useSendSheetStore";
 import type { SongIdea, Workspace } from "../../../types";
 import { useTranslation } from "react-i18next";
 
@@ -189,10 +189,14 @@ export function useSongbookModel() {
       }
     },
     /** Upload the songbook to SongNook Send and copy a shareable link. */
-    getLinkForActiveSongbook: async () => {
+    getLinkForActiveSongbook: () => {
       if (!activeSongbook) return;
-      await presentShareLink(() => createSongbookShareLink(activeSongbook, workspaces), {
+      const songbook = activeSongbook;
+      openSendSheet({
+        title: songbook.title,
+        kind: "songbook",
         emptyMessage: t("library.addChartsFirst"),
+        create: (parcel) => createSongbookShareLink(songbook, workspaces, parcel),
       });
     },
     shareSongbook: () => {

@@ -12,7 +12,7 @@ import {
 } from "../../../domain/playlistPlayback";
 import { useTranslation } from "react-i18next";
 import { createPlaylistShareLink, sharePlaylist } from "../../../services/playlistShare";
-import { presentShareLink } from "../../../services/shareLinkFlow";
+import { openSendSheet } from "../../../state/useSendSheetStore";
 
 function buildDefaultPlaylistTitle(count: number) {
   return `Playlist ${count + 1}`;
@@ -200,10 +200,14 @@ export function useLibraryScreenModel() {
         AppAlert.info(t("songDetail.shareFailed"), t("library.playlistShareFailed"));
       }
     },
-    getLinkForActivePlaylist: async () => {
+    getLinkForActivePlaylist: () => {
       if (!activePlaylist) return;
-      await presentShareLink(() => createPlaylistShareLink(activePlaylist, workspaces), {
+      const playlist = activePlaylist;
+      openSendSheet({
+        title: playlist.title,
+        kind: "playlist",
         emptyMessage: t("library.addPlaylistSongFirst"),
+        create: (parcel) => createPlaylistShareLink(playlist, workspaces, parcel),
       });
     },
     playFromTrack,
