@@ -32,15 +32,8 @@ appId: com.bmostudio.songnook.dev
 - extendedWaitUntil:
     visible: "Hide markers"
     timeout: 5000
-# Waveform expand → shrink → expand.
-- tapOn: "Expand waveform"
-- extendedWaitUntil:
-    visible: "Shrink waveform"
-    timeout: 5000
-- tapOn: "Shrink waveform"
-- extendedWaitUntil:
-    visible: "Expand waveform"
-    timeout: 5000
+# (2026-10-13) No expand/shrink step: the reel takes its listening height on
+# its own and the corner button is gone.
 # Back to the collection and clean up.
 - tapOn: "Minimize player"
 - extendedWaitUntil:

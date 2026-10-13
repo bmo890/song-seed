@@ -18,7 +18,6 @@ export type PracticeTool = "pins" | "loop" | "sections" | "speed" | "pitch" | "c
 
 export function usePlayerScreenUi() {
   const [mode, setModeState] = useState<PlayerMode>("player");
-  const [reelExpanded, setReelExpanded] = useState(false);
   const [markersVisible, setMarkersVisible] = useState(true);
   const [repeatEnabled, setRepeatEnabled] = useState(false);
   const [readingArtifact, setReadingArtifact] = useState<ReadingArtifact | null>(null);
@@ -55,8 +54,6 @@ export function usePlayerScreenUi() {
   // back at height, and returning to "player" reopens at the doors.
   const setMode = useCallback((next: PlayerMode) => {
     setModeState(next);
-    // Tools and the bench need the page: an expanded reel folds back on the way in.
-    if (next !== "player") setReelExpanded(false);
     if (next !== "player") {
       setReadingArtifact(null);
       setReadingAltitude("reading");
@@ -115,9 +112,6 @@ export function usePlayerScreenUi() {
     openWriting,
     writingSession,
     bumpWritingSession,
-    stopWriting: () => setLyricsWriting(false),
-    reelExpanded,
-    setReelExpanded,
     markersVisible,
     setMarkersVisible,
     repeatEnabled,

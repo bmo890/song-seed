@@ -6,6 +6,7 @@ import {
     pinHeadY,
     pinLaneHeight,
     pinLaneRowCount,
+    reelHeightForFlow,
     sectionLaneHeight,
 } from "../reelLanes";
 
@@ -91,5 +92,22 @@ describe("lane heights", () => {
 
     it("keeps only the rule on the slim reel", () => {
         expect(sectionLaneHeight(2, "slim")).toBeLessThan(sectionLaneHeight(2, "full"));
+    });
+});
+
+describe("reelHeightForFlow", () => {
+    it("gives the listening reel the page on a tall phone", () => {
+        // iPhone 17: 874 window, 62 + 34 insets.
+        expect(reelHeightForFlow("listening", 874 - 62 - 34)).toBe(306);
+    });
+    it("never drops the listening reel under its old height on a short phone", () => {
+        expect(reelHeightForFlow("listening", 667 - 20)).toBe(184);
+    });
+    it("caps the listening reel so it stays a reel, not a wall", () => {
+        expect(reelHeightForFlow("listening", 1200)).toBe(320);
+    });
+    it("pays rent once something opens beneath it", () => {
+        expect(reelHeightForFlow("tools", 778)).toBe(112);
+        expect(reelHeightForFlow("reading", 778)).toBe(64);
     });
 });

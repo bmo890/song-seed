@@ -1,7 +1,8 @@
 import React from "react";
 import { SharedValue, useAnimatedStyle, useSharedValue, runOnJS, withSpring } from "react-native-reanimated";
 import Animated from "react-native-reanimated";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, useWindowDimensions, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { AudioReel } from "../../common/AudioReel";
 import { openingZoomForDuration } from "../playerZoom";
@@ -13,7 +14,7 @@ import { buildSectionBands, sectionMoveBounds, sectionPushBounds } from "../../.
 import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
 import { useStore } from "../../../state/useStore";
-import { laneDensityForHeight } from "../../../domain/reelLanes";
+import { laneDensityForHeight, reelHeightForFlow } from "../../../domain/reelLanes";
 import { springs } from "../../../design/motion";
 
 type Range = {
@@ -257,9 +258,9 @@ const sectionJumpStyles = StyleSheet.create({
   },
 });
 
-/** The reel while Tools is open (founder, 2026-10-13): short, so the drawers have
- *  room to work. At this height the lanes keep ONE row of pin names. */
-const LANES_PRACTICE_REEL_HEIGHT = 112;
+/** The classic (pre-lanes) reel while Tools is open. The lanes reel takes its
+ *  heights from `reelHeightForFlow`. */
+const CLASSIC_PRACTICE_REEL_HEIGHT = 128;
 const LOOP_MOVE_PILL_WIDTH = 34;
 const LOOP_MOVE_PILL_HEIGHT = 10;
 const LOOP_MOVE_HITBOX_WIDTH = 52;
@@ -282,7 +283,6 @@ type Props = {
   /** Reading rung of the ladder: the SAME reel, only thinner — bands, pins,
    *  scrub and pinch-zoom all keep working while an artifact holds the page. */
   readingSlim?: boolean;
-  reelExpanded: boolean;
   waveformPeaks: number[];
   /** Peaks are a synthetic placeholder — draw the pending line instead of a fake wave. */
   waveformPending?: boolean;
@@ -460,7 +460,6 @@ function LoopMoveHandle({
 function PlayerTimelineInner({
   mode,
   readingSlim,
-  reelExpanded,
   waveformPeaks,
   waveformPending,
   waveformAnalyzing,
@@ -526,15 +525,19 @@ function PlayerTimelineInner({
     },
     [onRequestPinActions, practiceMarkers]
   );
+  // One height per flow (domain/reelLanes): the reel takes the page while
+  // nothing is open beneath it and pays rent the moment something is. It used
+  // to need a corner button to grow; now the page decides.
+  const { height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const usableHeight = windowHeight - insets.top - insets.bottom;
   const reelHeight = readingSlim
-    ? 64
-    : reelExpanded
-      ? 250
-      : mode !== "player"
-        ? lanes
-          ? LANES_PRACTICE_REEL_HEIGHT
-          : 128
-        : 184;
+    ? reelHeightForFlow("reading", usableHeight)
+    : mode !== "player"
+      ? lanes
+        ? reelHeightForFlow("tools", usableHeight)
+        : CLASSIC_PRACTICE_REEL_HEIGHT
+      : reelHeightForFlow("listening", usableHeight);
   const previewRange = practiceLoopSelection[0];
   const sharedLoopPreviewStartMs = useSharedValue(previewRange?.start ?? 0);
   const sharedLoopPreviewEndMs = useSharedValue(previewRange?.end ?? Math.max(1000, durationMs));

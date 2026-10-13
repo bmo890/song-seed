@@ -78,6 +78,10 @@ export type RootStackParamList = {
         startInEdit?: boolean;
         /** Land on a specific sketch tab (the player's door CTAs use this). */
         initialSongTab?: "takes" | "lyrics" | "chart" | "notes";
+        /** Land on the chart tab already in its editor (the player's chart
+         *  pencil and its empty Chart key). A fresh number per request, so asking
+         *  twice opens the editor twice. */
+        chartEditToken?: number;
       }
     | undefined;
   /** A collection opened as a VISIT from somewhere outside the workspace stack

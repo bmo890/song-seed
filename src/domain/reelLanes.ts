@@ -145,3 +145,33 @@ export function sectionLaneHeight(sectionCount: number, density: ReelLaneDensity
     if (sectionCount === 0) return 0;
     return density === "slim" ? SECTION_RULE_HEIGHT + 3 : SECTION_RULE_HEIGHT + SECTION_NAME_ROW_HEIGHT + 3;
 }
+
+/**
+ * How tall the full player's reel stands in each flow (2026-10-13, founder:
+ * "larger when no lyrics/chords/tools are open"). One rule: the reel takes the
+ * page when nothing else is asking for it, and pays rent the moment something
+ * opens beneath it.
+ *
+ *   listening  nothing open — as tall as the page allows, never under the old
+ *              184 and never so tall the doors beneath it leave the screen
+ *   tools      Tools drawers or the layers bench need the page
+ *   reading    lyrics or a chart open (or being written): the slim tape
+ */
+export type ReelFlow = "listening" | "tools" | "reading";
+
+export const LISTENING_REEL_MIN_HEIGHT = 184;
+export const LISTENING_REEL_MAX_HEIGHT = 320;
+export const TOOLS_REEL_HEIGHT = 112;
+export const READING_REEL_HEIGHT = 64;
+/** Everything on the listening page that is not the reel: title block, minimap,
+ *  the toolbar row, two filled doors, the notes shelf and the transport —
+ *  measured on an iPhone 17 with all of them present, plus a little air. */
+export const LISTENING_PAGE_RESERVE = 472;
+
+/** `usableHeight` is the window's height less its top and bottom safe insets. */
+export function reelHeightForFlow(flow: ReelFlow, usableHeight: number): number {
+    if (flow === "reading") return READING_REEL_HEIGHT;
+    if (flow === "tools") return TOOLS_REEL_HEIGHT;
+    const room = Math.round(usableHeight - LISTENING_PAGE_RESERVE);
+    return Math.max(LISTENING_REEL_MIN_HEIGHT, Math.min(LISTENING_REEL_MAX_HEIGHT, room));
+}

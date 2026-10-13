@@ -46,6 +46,7 @@ import { OVERDUB_HELP } from "../common/helpContent";
 import { PlayerArtifactReader, FollowSpeedControl } from "./components/PlayerArtifactReader";
 import { chartSummary, lyricChordSummary } from "./components/PlayerArtifactDoors";
 import { MarksToggle } from "./components/MarksToggle";
+import { InkOption } from "../common/InkOption";
 import { Press } from "../common/Press";
 import { PlayerPinSheets } from "./components/PlayerPinSheets";
 import { PlayerShelf } from "./components/PlayerShelf";
@@ -1132,7 +1133,13 @@ function PlayerScreenInner({
   const openChartBuilder = useCallback(() => {
     const { minimizePlayer, navigation: nav } = queueOpenIdeaRef.current;
     minimizePlayer();
-    nav.navigate("IdeaDetail", { ideaId: playerIdeaIdRef.current, initialSongTab: "chart" });
+    // Straight into the chart's editor: the pencil and the empty Chart key both
+    // mean "work on it", and the reader is what the player already shows.
+    nav.navigate("IdeaDetail", {
+      ideaId: playerIdeaIdRef.current,
+      initialSongTab: "chart",
+      chartEditToken: Date.now(),
+    });
   }, []);
   const handleQueueOpenIdea = useCallback((ideaId: string) => {
     const { minimizePlayer, navigation: nav } = queueOpenIdeaRef.current;
@@ -1314,7 +1321,6 @@ function PlayerScreenInner({
                 <PlayerTimeline
                   mode={ui.mode}
                   readingSlim={isReading}
-                  reelExpanded={ui.reelExpanded}
                   waveformPeaks={data.waveformPeaks}
                   waveformPending={data.waveformPending}
                   waveformAnalyzing={lifecycle.isAnalyzingWaveform}
@@ -1359,28 +1365,6 @@ function PlayerScreenInner({
                   practiceZoomMultiple={ui.practiceZoomMultiple}
                   onPracticeZoomMultipleChange={ui.setPracticeZoomMultiple}
                 />
-                {/* Expand/shrink floats in the reel's top-right corner, out of the
-                    toolbar. Hidden while reading — the slim reel has no room for
-                    corner chrome, and growth belongs to the artifact then. */}
-                {!isReading ? (
-                  <Pressable
-                    style={({ pressed }) => [
-                      playerScreenStyles.reelCornerButton,
-                      pressed ? playerScreenStyles.overflowButtonPressed : null,
-                    ]}
-                    onPress={() => ui.setReelExpanded((value) => !value)}
-                    hitSlop={6}
-                    accessibilityRole="button"
-                    accessibilityState={{ expanded: ui.reelExpanded }}
-                    accessibilityLabel={ui.reelExpanded ? t("player.shrinkWaveform") : t("player.expandWaveform")}
-                  >
-                    <Ionicons
-                      name={ui.reelExpanded ? "contract-outline" : "expand-outline"}
-                      size={15}
-                      color={colors.textSecondary}
-                    />
-                  </Pressable>
-                ) : null}
               </View>
             </View>
             ) : null}
@@ -1396,7 +1380,11 @@ function PlayerScreenInner({
                       playerScreenStyles.reelExpandButton,
                       pressed ? playerScreenStyles.overflowButtonPressed : null,
                     ]}
-                    onPress={isWriting ? ui.stopWriting : ui.closeReading}
+                    // One press folds the surface, reading or writing (founder,
+                    // 2026-10-13: leaving the writer took two — the first only
+                    // dropped to a reader nobody had opened). The writer commits
+                    // its pending words as it unmounts.
+                    onPress={ui.closeReading}
                     hitSlop={6}
                     accessibilityRole="button"
                     accessibilityLabel={t("player.closeReading")}
@@ -1406,10 +1394,11 @@ function PlayerScreenInner({
                       {ui.readingArtifact === "chart" ? t("screens.chart") : t("common.lyrics")}
                     </Text>
                   </Pressable>
-                  {/* Same reel, only thinner — so the same eye. Full view has no
-                      reel, so the toggle would govern nothing there. */}
+                  {/* Same reel, only thinner — so the same toggle, glyph only.
+                      Full view has no reel, so it would govern nothing there. */}
                   {hasMarks && !isFullView ? (
                     <MarksToggle
+                      compact
                       visible={ui.markersVisible}
                       onToggle={() => ui.setMarkersVisible((value) => !value)}
                     />
@@ -1546,20 +1535,23 @@ function PlayerScreenInner({
                         <Ionicons name="text" size={15} color={colors.textSecondary} />
                       </Pressable>
                     ) : null}
-                    {playerIdea.kind === "project" && ui.readingArtifact === "lyrics" ? (
-                      // Read → notice a line → fix it against the same tape.
-                      <Pressable
-                        style={({ pressed }) => [
-                          playerScreenStyles.readingIconButton,
-                          pressed ? playerScreenStyles.overflowButtonPressed : null,
-                        ]}
-                        onPress={ui.openWriting}
+                    {playerIdea.kind === "project" ? (
+                      // Read → notice a line → fix it. Lyrics are written here,
+                      // against the same tape; a chart is built in the sketch's
+                      // chart editor, so its pencil goes there.
+                      <Press
+                        feel="glyph"
+                        style={playerScreenStyles.readingIconButton}
+                        onPress={ui.readingArtifact === "chart" ? openChartBuilder : ui.openWriting}
                         hitSlop={6}
                         accessibilityRole="button"
-                        accessibilityLabel={t("player.editLyrics")}
+                        accessibilityLabel={
+                          ui.readingArtifact === "chart" ? t("player.editChart") : t("player.editLyrics")
+                        }
+                        testID="player-edit-artifact"
                       >
                         <Ionicons name="create-outline" size={15} color={colors.textSecondary} />
-                      </Pressable>
+                      </Press>
                     ) : null}
                     <Pressable
                       style={({ pressed }) => [
@@ -1620,9 +1612,9 @@ function PlayerScreenInner({
                 </>
               ) : (
                 <>
-                  {/* The eye only earns a place when the clip has marks to hide;
-                      icon-only, so toggling never re-flows the row. The empty
-                      stand-in keeps Tools pinned to the trailing edge. */}
+                  {/* "Marks" only earns a place when the clip has marks to hide;
+                      the same width on and off, so toggling never re-flows the
+                      row. The empty stand-in keeps Tools on the trailing edge. */}
                   {!hasMarks ? <View /> : null}
                   {hasMarks ? (
                     <MarksToggle
@@ -1984,35 +1976,13 @@ function PlayerScreenInner({
         <ChordZoomBar zoom={ui.readingZoom} onChange={ui.setReadingZoom} />
         {lyricsChordLines ? (
           // Chords over the words are a reading preference too — editorial ink,
-          // hollow dot → terracotta, same voice as every multi-select.
-          <Pressable
-            style={({ pressed }) => [
-              playerScreenStyles.chordsInk,
-              pressed ? styles.pressDown : null,
-            ]}
+          // hollow dot → terracotta, same voice as every on/off.
+          <InkOption
+            label={t("player.chords")}
+            selected={ui.chordsVisible}
             onPress={() => ui.setChordsVisible(!ui.chordsVisible)}
-            hitSlop={{ top: 6, bottom: 6 }}
-            accessibilityRole="switch"
-            accessibilityState={{ checked: ui.chordsVisible }}
-            accessibilityLabel={t("player.chords")}
-          >
-            <View
-              style={[
-                playerScreenStyles.chordsInkDot,
-                ui.chordsVisible
-                  ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                  : null,
-              ]}
-            />
-            <Text
-              style={[
-                playerScreenStyles.chordsInkText,
-                ui.chordsVisible ? { color: colors.primaryDeep } : null,
-              ]}
-            >
-              {t("player.chords")}
-            </Text>
-          </Pressable>
+            style={playerScreenStyles.chordsInk}
+          />
         ) : null}
       </BottomSheet>
     </SafeAreaView>

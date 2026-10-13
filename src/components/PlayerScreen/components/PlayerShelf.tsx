@@ -1,15 +1,19 @@
 import React, { memo } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Press } from "../../common/Press";
 import { styles as appStyles } from "../../../styles";
-import { colors, radii, spacing } from "../../../design/tokens";
+import { colors, spacing } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 
 /**
  * The quiet shelf pinned above the transport (reading-ladder phase 2): editorial
  * ink doors for what the clip HAS — no chips, no dead taps. Today it carries
- * Notes (terracotta dot = something's inside); it renders only when there is
- * something to open, so an empty clip keeps an empty shelf line off the page.
+ * Notes; it renders only when there is something to open, so an empty clip
+ * keeps an empty shelf line off the page.
+ *
+ * A glyph, not a dot (2026-10-13): on this page a dot beside a word now means
+ * on/off ("Marks"), and a door must not borrow a switch's face.
  */
 export const PlayerShelf = memo(PlayerShelfInner);
 
@@ -32,7 +36,7 @@ function PlayerShelfInner({
         accessibilityRole="button"
         accessibilityLabel={t("player.clipNotes")}
       >
-        <View style={shelfStyles.dot} />
+        <Ionicons name="document-text-outline" size={15} color={colors.textSecondary} />
         <Text style={shelfStyles.inkText}>{t("songDetail.notes")}</Text>
       </Press>
     </View>
@@ -52,12 +56,6 @@ const shelfStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: radii.round,
-    backgroundColor: colors.primary,
   },
   inkText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
