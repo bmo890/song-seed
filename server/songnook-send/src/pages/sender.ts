@@ -81,11 +81,11 @@ on the other end.</p>
 
   <div style="margin-top:22px">
     <div class="field"><label for="sender">From</label>
-      <input id="sender" placeholder="Your name, as the receiver knows it" maxlength="80"></div>
+      <input id="sender" placeholder="Name" maxlength="80"></div>
     <div class="field"><label for="title">Title</label>
-      <input id="title" placeholder="Spring Show stems" maxlength="200"></div>
+      <input id="title" placeholder="ex: Spring Show stems" maxlength="200"></div>
     <div class="field"><label for="message">A note, if you like</label>
-      <textarea id="message" rows="2" maxlength="1000" placeholder="Learn track two first…"></textarea></div>
+      <textarea id="message" rows="2" maxlength="1000" placeholder="ex: Learn track two first…"></textarea></div>
   </div>
 
   <button id="send" class="btn btn-block" disabled>Seal &amp; get the link</button>

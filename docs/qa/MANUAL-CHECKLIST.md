@@ -271,6 +271,13 @@ Sending (app → link):
 - iOS ☐  Android ☐ — Full player ⋯ → **Share…** → *Share audio* opens the OS sheet with the
   take; *SongNook Send* opens the Send sheet with the take's title. **[HUMAN]**
 - iOS ☐  Android ☐ — Receive a link with `Song.wav`: the clip is titled "Song". **[HUMAN]**
+- iOS ☐  Android ☐ — Collection → select one sketch → ⋯ → **Share…**: the exits come first —
+  *Share (1)* "The sketch's primary take, as audio." · *Export* "The whole sketch, as a
+  SongNook file." · *SongNook Send* "A link. Choose what goes in next." Share and Export
+  act at once; SongNook Send opens *Send "<title>"* with "A sketch · N takes · lyrics…"
+  under it → *Whole sketch* / *Primary take only* → the Send sheet. Back steps one level
+  each. With only clips selected: Share (N) · SongNook Send, no question, no hints.
+  **[HUMAN]**
 - iOS ☐  Android ☐ — Sketch "Old" with takes "Old", "Old v2", "Old.wav", "Bridge riff" →
   edit sheet → rename to "New" → Save → "Rename 3 takes to match?" → *Update 3 takes*:
   "New", "New v2", "New"; "Bridge riff" untouched. *Keep existing* changes nothing. A

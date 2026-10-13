@@ -215,6 +215,20 @@ a received collection (`src/services/ideasShare.ts`, tested). Plural labels
 when more than one sketch is selected. With no sketch selected there is no
 question.
 
+**Reordered the same day (founder): how first, then what — and only when it
+matters.** *Share what?* came before the exits and said too little. Now
+Share… opens the exits, each saying what it carries when a sketch is among the
+cards: *Share (N)* — "Each sketch's primary take, as audio." · *Export* — "The
+whole sketch, as a SongNook file." · *SongNook Send* — "A link. Choose what goes
+in next." Share and Export each carry one thing, so they never ask. Only
+SongNook Send, which can carry either, asks — last — in a sheet titled *Send
+"To Create"* with the sketch's contents under the title ("A sketch · 3 takes ·
+lyrics · chords · notes"): **Whole sketch** — "Every take, lyrics, chords and
+notes. Opens in SongNook." or **Primary take only** — "Just the audio. Plays
+anywhere, no app needed." The one-line explanations are a new optional `hint`
+on `SelectionAction` and `subtitle` on `SelectionActionSheet` (sheet only,
+never the dock).
+
 Selection ends when an exit is chosen, not when Share… is opened, so the
 chooser never opens on an emptied selection (the Playlist… bug from earlier
 today could not recur here).

@@ -28,6 +28,10 @@ export type SelectionAction = {
   /** The row hands off to another sheet or picker instead of finishing the
    *  job — that is what earns the trailing chevron. Terminal rows carry none. */
   opens?: boolean;
+  /** One quiet line under the label in an action SHEET (never the dock) — what
+   *  this choice actually sends or does, when the label alone can't say it.
+   *  Settings-hint budget: ≤ 12 words. */
+  hint?: string;
 };
 
 type SelectionDockProps = {
