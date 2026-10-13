@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useNavigation } from "@react-navigation/native";
 import { AppAlert } from "../../common/AppAlert";
 import { useStore } from "../../../state/useStore";
@@ -41,6 +42,19 @@ type IdeaSelectionBarProps = {
   onDockLayout?: (height: number) => void;
 };
 
+/** "A sketch · 3 takes · lyrics · chords · notes" — what the whole-sketch
+ *  choice would carry, so the question answers itself. */
+function describeSketchContents(idea: SongIdea, t: TFunction): string {
+  const lines = idea.lyrics?.versions.flatMap((version) => version.document.lines) ?? [];
+  const parts = [t("selection.aSketch"), t("selection.takesCount", { count: idea.clips.length })];
+  if (lines.some((line) => line.text.trim().length > 0)) parts.push(t("selection.partLyrics"));
+  if ((idea.chordSheet?.sections.length ?? 0) > 0 || lines.some((line) => (line.chords?.length ?? 0) > 0)) {
+    parts.push(t("selection.partChords"));
+  }
+  if (idea.notes.trim().length > 0) parts.push(t("selection.partNotes"));
+  return parts.join(" · ");
+}
+
 export function IdeaSelectionBar({
   selectableIdeaIds,
   disabledIdeaIds = [],
@@ -61,11 +75,12 @@ export function IdeaSelectionBar({
   // Second-level "Copy or move" sheet under More (More closes itself before
   // handing off, so the next sheet opens cleanly).
   const [copyMoveVisible, setCopyMoveVisible] = useState(false);
-  // Share… is the same two-step door as everywhere else: the row opens a
-  // chooser of exits. With a sketch among the cards one question comes first
-  // (founder, 2026-10-13): its primary take as audio, or the whole sketch as a
-  // package.  scope → audio | whole.
-  const [shareSheet, setShareSheet] = useState<null | "scope" | "audio" | "whole">(null);
+  // Share… is the same two-step door as everywhere else: the row opens the
+  // exits first (founder, 2026-10-13: how, then what). Share audio is always
+  // the primary takes and Export always the whole sketch, so only SongNook
+  // Send — which can carry either — asks, last, saying what the sketch holds.
+  //   exits → (SongNook Send, with a sketch) sendScope
+  const [shareSheet, setShareSheet] = useState<null | "exits" | "sendScope">(null);
   const [tagsVisible, setTagsVisible] = useState(false);
   const [playlistVisible, setPlaylistVisible] = useState(false);
   const globalCustomTags = useStore((s) => s.globalCustomClipTags);
@@ -388,32 +403,59 @@ export function IdeaSelectionBar({
       ? [{ key: "songnook-send", label: t("collection.getLink"), icon: "paper-plane-outline", onPress }]
       : [];
   // Exits in one fixed order wherever they appear: Share, Export, SongNook Send.
-  const shareScopeActions: SelectionAction[] = [
+  // With a sketch among the cards each exit says what it carries, because the
+  // three carry different things.
+  const hasSketch = selectedSketchCount > 0;
+  const shareExitActions: SelectionAction[] = hasSketch
+    ? [
+        { ...shareAudioAction, hint: t("selection.shareAudioHint", { count: selectedSketchCount }) },
+        {
+          key: "export",
+          label: t("selection.exportRow"),
+          icon: "folder-open-outline",
+          hint: t("selection.exportWholeHint", { count: selectedSketchCount }),
+          onPress: () => void handleExportWhole(),
+        },
+        ...(linkAvailable
+          ? [
+              {
+                key: "songnook-send-scope",
+                label: t("collection.getLink"),
+                icon: "paper-plane-outline" as const,
+                hint: t("selection.sendScopeHint"),
+                opens: true,
+                onPress: () => setShareSheet("sendScope"),
+              },
+            ]
+          : []),
+      ]
+    : [shareAudioAction, ...sendRow(handleSendAudio)];
+
+  // The last step, SongNook Send only: the whole sketch, or just its audio.
+  const loneIdea = interactiveSelectedIdeas.length === 1 ? interactiveSelectedIdeas[0] : null;
+  const sendScopeTitle = loneIdea
+    ? t("selection.sendScopeTitleOne", { title: loneIdea.title })
+    : t("selection.sendScopeTitleMany", { count: interactiveSelectedIdeas.length });
+  const sendScopeSubtitle =
+    loneIdea && loneIdea.kind === "project"
+      ? describeSketchContents(loneIdea, t)
+      : t("selection.sendScopeIncludes", { count: selectedSketchCount });
+  const sendScopeActions: SelectionAction[] = [
     {
-      key: "share-primary",
-      label: t("selection.sharePrimary", { count: selectedSketchCount }),
+      key: "send-whole",
+      label: t("selection.sendWhole", { count: selectedSketchCount }),
+      icon: getHierarchyIconName("song"),
+      hint: t("selection.sendWholeHint"),
+      onPress: handleSendWhole,
+    },
+    {
+      key: "send-primary",
+      label: t("selection.sendPrimary", { count: selectedSketchCount }),
       icon: "musical-note-outline",
-      onPress: () => setShareSheet("audio"),
-      opens: true,
+      hint: t("selection.sendPrimaryHint"),
+      onPress: handleSendAudio,
       disabled: shareableClips.length === 0,
     },
-    {
-      key: "share-whole",
-      label: t("selection.shareWhole", { count: selectedSketchCount }),
-      icon: getHierarchyIconName("song"),
-      onPress: () => setShareSheet("whole"),
-      opens: true,
-    },
-  ];
-  const shareAudioActions: SelectionAction[] = [shareAudioAction, ...sendRow(handleSendAudio)];
-  const shareWholeActions: SelectionAction[] = [
-    {
-      key: "export",
-      label: t("selection.exportRow"),
-      icon: "folder-open-outline",
-      onPress: () => void handleExportWhole(),
-    },
-    ...sendRow(handleSendWhole),
   ];
 
   const sheetActions: SelectionAction[] = useMemo(() => {
@@ -433,7 +475,7 @@ export function IdeaSelectionBar({
           key: "share-menu",
           label: t("selection.shareMenu"),
           icon: "share-social-outline",
-          onPress: () => setShareSheet(selectedSketchCount > 0 ? "scope" : "audio"),
+          onPress: () => setShareSheet("exits"),
           opens: true,
         });
       } else {
@@ -545,8 +587,7 @@ export function IdeaSelectionBar({
     "tag-clips",
     "playlist",
     "share-menu",
-    "share-primary",
-    "share-whole",
+    "songnook-send-scope",
   ]);
   const endsSelection = (action: SelectionAction): SelectionAction =>
     OPENS_SHEET.has(action.key)
@@ -581,27 +622,21 @@ export function IdeaSelectionBar({
         onClose={() => setCopyMoveVisible(false)}
       />
 
-      {/* Share…: (a sketch among the cards → what to share) → the exits. Each
-          level's back key returns one step, so drilling in is never one-way. */}
+      {/* Share…: the exits → (SongNook Send with a sketch) whole or audio.
+          Each level's back key returns one step, so drilling in is never one-way. */}
       <SelectionActionSheet
-        visible={shareSheet === "scope"}
+        visible={shareSheet === "exits"}
         onBack={() => setMoreVisible(true)}
-        title={t("selection.shareScopeTitle")}
-        actions={shareScopeActions.map(endsSelection)}
+        title={t("selection.shareSheetTitle")}
+        actions={shareExitActions.map(endsSelection)}
         onClose={() => setShareSheet(null)}
       />
       <SelectionActionSheet
-        visible={shareSheet === "audio"}
-        onBack={() => (selectedSketchCount > 0 ? setShareSheet("scope") : setMoreVisible(true))}
-        title={t("selection.shareSheetTitle")}
-        actions={shareAudioActions.map(endsSelection)}
-        onClose={() => setShareSheet(null)}
-      />
-      <SelectionActionSheet
-        visible={shareSheet === "whole"}
-        onBack={() => setShareSheet("scope")}
-        title={t("selection.shareSheetTitle")}
-        actions={shareWholeActions.map(endsSelection)}
+        visible={shareSheet === "sendScope"}
+        onBack={() => setShareSheet("exits")}
+        title={sendScopeTitle}
+        subtitle={sendScopeSubtitle}
+        actions={sendScopeActions.map(endsSelection)}
         onClose={() => setShareSheet(null)}
       />
 
