@@ -1032,6 +1032,7 @@ export const resources = {
         },
       },
       songDetail: {
+        renameTakesTitle_one: "Rename {{count}} take to match?", renameTakesTitle_other: "Rename {{count}} takes to match?", renameTakesBody_one: "“{{from}}” → “{{to}}”", renameTakesBody_other: "“{{from}}” → “{{to}}”, and {{more}} more", renameTakesConfirm_one: "Update {{count}} take", renameTakesConfirm_other: "Update {{count}} takes",
         share: "Share…", shareSketchTitle: "Share sketch", exportSketch: "Export", nothingShare: "Nothing to share", nothingShareBody: "Record a take or write a line first.", shareSketchFailedBody: "Could not share this sketch.",
         song: "Song",
         clip: "Clip",
@@ -2552,6 +2553,7 @@ export const resources = {
         },
       },
       songDetail: {
+        renameTakesTitle_one: "לשנות את שם הטייק בהתאם?", renameTakesTitle_two: "לשנות את שמות שני הטייקים בהתאם?", renameTakesTitle_other: "לשנות את שמות {{count}} הטייקים בהתאם?", renameTakesBody_one: "„{{from}}” ← „{{to}}”", renameTakesBody_two: "„{{from}}” ← „{{to}}”, ועוד אחד", renameTakesBody_other: "„{{from}}” ← „{{to}}”, ועוד {{more}}", renameTakesConfirm_one: "עדכון טייק אחד", renameTakesConfirm_two: "עדכון שני טייקים", renameTakesConfirm_other: "עדכון {{count}} טייקים",
         share: "שיתוף…", shareSketchTitle: "שיתוף הסקיצה", exportSketch: "ייצוא", nothingShare: "אין מה לשתף", nothingShareBody: "הקליטו טייק או כתבו שורה קודם.", shareSketchFailedBody: "לא ניתן לשתף את הסקיצה הזו.",
         song: "שיר",
         clip: "קטע",

@@ -170,6 +170,20 @@ icons, labels, service) so a sent sketch reads as "a sketch — takes, lyrics,
 chords, notes" on the recipient page and "Saves to Received · Sketch" in the
 app, and lands as a package presenting as that one sketch.
 
+### Titles: received file names, and a sketch rename (2026-10-13)
+
+- Received clips were titled with the raw file name ("To Create (D Song).wav")
+  until 3da4d35 (2026-10-11). The rule now lives in `domain/fileTitle` with
+  tests and strips only real audio / SongNook extensions, once.
+- **Renaming a sketch offers its matching takes the new name** — one quiet
+  confirm, never automatic (`domain/sketchTakeRenames`). A take follows only
+  when it is a provable copy of the old sketch name: exactly that name, that
+  name plus a file extension, or that name with a thread suffix ("Old v2" →
+  "New v2", so a version thread renames in step). Takes named anything else,
+  machine-named takes, drafts and a cleared title never prompt. One direction
+  only: renaming a take never renames the sketch. Compilations already show the
+  new sketch name (they resolve by id); sent links keep theirs (snapshots).
+
 ## Edge cases accounted for
 
 | Edge | Behaviour |
