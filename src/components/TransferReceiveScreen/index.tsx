@@ -25,6 +25,7 @@ import { enrichImportedAudioAsset, importAudioAssets } from "../../services/audi
 import { createClipImportBatcher } from "../../services/clipImportBatcher";
 import { enqueueMissingMetadataBackfill } from "../../services/backgroundWaveformHydration";
 import { resolveImportedEntityRoute } from "../../domain/receiveRouting";
+import { titleFromFileName } from "../../domain/fileTitle";
 import { getPlayableClipForIdea } from "../../domain/clipPresentation";
 import { useParcelPreview } from "../../hooks/useParcelPreview";
 import { toast } from "../common/toastStore";
@@ -90,10 +91,8 @@ function daysUntil(iso: string): number {
   return Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000));
 }
 
-/** "A War In Me.wav" reads as a song, not a file. */
-function displayName(fileName: string): string {
-  return fileName.replace(/\.[a-z0-9]{1,8}$/i, "") || fileName;
-}
+/** "A War In Me.wav" reads as a song, not a file (domain/fileTitle). */
+const displayName = titleFromFileName;
 
 /**
  * The in-app landing for a SongNook Send link: the parcel — who, what, how
