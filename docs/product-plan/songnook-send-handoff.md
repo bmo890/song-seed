@@ -33,6 +33,11 @@ Worker secrets — **never put any credential in app code**.
 - `src/services/shareLinkFlow.ts` — `presentShareLink`: progress toast → clipboard
   copy → success toast with Share tap-through; error dialogs.
 - `src/services/clipShareLink.ts` — clips → files-link.
+- `src/services/placeShare.ts` (2026-10-13) — a **collection** or a **whole workspace**
+  as a file or a link, full fidelity, nested collections kept, compilations inside the
+  scope riding along; `kind` now travels on the wire for every link and the service
+  accepts all seven kinds. Receive side names the landing per kind, opens the package it
+  made, lists a workspace package's collections. See `send-places.md`.
 - Entry points wired: Setlist detail menu "Get a link", Songbook detail menu
   "Get a link", clip SelectionBars "Get link" (`useSetlistModel.getLinkForActiveSetlist`,
   `useSongbookModel.getLinkForActiveSongbook`, `SelectionBars.handleGetLinkSelected`).

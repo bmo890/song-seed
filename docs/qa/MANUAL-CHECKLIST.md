@@ -253,6 +253,14 @@ Sending (app → link):
 - iOS ☐  Android ☐ — Airplane mode → Get a link fails with the friendly "Couldn't create
   link" dialog (no crash, no half-created chip). **[HUMAN]**
 - iOS ☐  Android ☐ — Empty setlist → Get a link shows "Nothing to share". **[HUMAN]**
+- iOS ☐  Android ☐ — Collection page → ⋯ → **Share…** → *Get a link*: link created; the
+  collection header shows the "Link active" chip. *Share as file* hands a `.songnook` to
+  the share sheet. **[HUMAN — network]**
+- iOS ☐  Android ☐ — Workspaces page → card ⋯ → **Share as file** / **Get a link** (rows
+  absent on an archived workspace). **[HUMAN]**
+- iOS ☐  Android ☐ — Empty collection / empty workspace → "Nothing to share". **[HUMAN]**
+- ☐ — A workspace whose archive is over 512 MB → "Too large to link" dialog, no upload
+  (airplane mode not needed; the check runs before any byte leaves). **[HUMAN]**
 
 Receiving (link → phone/desktop):
 - Desktop ☐ — Open a sent link in a desktop browser: letterpress page, sender name, note,
@@ -264,6 +272,20 @@ Receiving (link → phone/desktop):
   (same transferId → no duplicate). **[HUMAN]**
 - Desktop ☐ — send.songnook.app sender page: drag-drop an audio file → link; dropping a
   video/PDF is rejected client-side AND a curl attempt returns 415. **[HUMAN]**
+- Desktop ☐ — A collection link's page reads "1 SongNook package · a collection"; a
+  workspace link's "… · a whole workspace" (never "1 song"). **[HUMAN]**
+- iOS ☐  Android ☐ — Open a **collection** link in the app: destination line reads
+  "Saves to Received · Collection"; Save opens the package AS that collection, nested
+  collection inside, marks / chords / lyrics / notes present; a setlist built only from
+  that collection sits under Compilations "from <sender>". **[HUMAN — network]**
+- iOS ☐  Android ☐ — Open a **workspace** link: "Saves to Received · Workspace"; the
+  Received row lists every top-level collection and each opens. **Keep this… → As its own
+  workspace** → it appears among Workspaces with title + colour; **Keep → into a
+  workspace** moves its collections there. **[HUMAN]**
+- iOS ☐  Android ☐ — Keep a package whose collection has a nested collection: the chooser
+  offers only *own workspace* and *top level* (hint says why); no half-moved package. **[HUMAN]**
+- iOS ☐  Android ☐ — Received page RTL: the collection rows under a workspace package
+  indent from the right. **[HUMAN]**
 - ☐ — Expiry: after 7 days the link shows the "isn't available" page (spot-check an old link). **[HUMAN]**
 
 Universal links (BLOCKED until Apple Team ID + Android fingerprints + native rebuild):

@@ -19,7 +19,8 @@ import { colors, radii, spacing, text as textTokens } from "../../design/tokens"
 import type { ShareKind, Workspace } from "../../types";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { useLocale } from "../../i18n";
+import { UserText, useLocale } from "../../i18n";
+import { styles } from "../../styles";
 
 const KIND_ICONS: Record<ShareKind, React.ComponentProps<typeof Ionicons>["name"]> = {
   setlist: "albums-outline",
@@ -30,6 +31,11 @@ const KIND_ICONS: Record<ShareKind, React.ComponentProps<typeof Ionicons>["name"
   clips: "musical-notes-outline",
   library: "library-outline",
 };
+
+/** The collections a package shows as rows: top-level only, in stored order. */
+function topLevelCollections(pkg: Workspace) {
+  return pkg.collections.filter((collection) => !collection.parentCollectionId);
+}
 
 function formatReceivedLine(pkg: Workspace, t: TFunction, locale: string): string {
   const meta = pkg.received;
@@ -77,8 +83,13 @@ export function ReceivedScreen() {
     setSelectedIds((prev) => prev.filter((id) => packages.some((pkg) => pkg.id === id)));
   }, [packages]);
 
-  const openPackage = (pkg: Workspace) => {
-    const collection = pkg.collections[0];
+  // A package opens on one of its collections: the one tapped, else its first.
+  // A workspace package with several top-level collections lists them under
+  // its row (below), so every collection it carries stays one tap away.
+  const openPackage = (pkg: Workspace, collectionId?: string) => {
+    const collection = collectionId
+      ? pkg.collections.find((candidate) => candidate.id === collectionId)
+      : topLevelCollections(pkg)[0] ?? pkg.collections[0];
     if (!collection) return;
     // Opening is what clears it from the drawer's "new" count.
     markReceivedPackageOpened(pkg.id);
@@ -154,9 +165,11 @@ export function ReceivedScreen() {
             const selected = selectedIds.includes(pkg.id);
             const toggle = () =>
               setSelectedIds((prev) => (prev.includes(pkg.id) ? prev.filter((id) => id !== pkg.id) : [...prev, pkg.id]));
+            const collections = topLevelCollections(pkg);
+            const showCollections = collections.length > 1 && !selecting;
             return (
+              <View key={pkg.id} style={receivedStyles.packageGroup}>
               <Pressable
-                key={pkg.id}
                 style={({ pressed }) => [
                   receivedStyles.packageRow,
                   selected ? receivedStyles.packageRowSelected : null,
@@ -202,6 +215,31 @@ export function ReceivedScreen() {
                   <Ionicons name={dirIcon("chevron-forward")} size={14} color={colors.textMuted} />
                 ) : null}
               </Pressable>
+              {showCollections
+                ? collections.map((collection) => {
+                    const count = pkg.ideas.filter((idea) => idea.collectionId === collection.id).length;
+                    return (
+                      <Pressable
+                        key={collection.id}
+                        style={({ pressed }) => [receivedStyles.collectionRow, pressed ? styles.pressDown : null]}
+                        onPress={() => {
+                          // haptics vocabulary: `tap` — an acknowledged press.
+                          haptic.tap();
+                          openPackage(pkg, collection.id);
+                        }}
+                        accessibilityRole="button"
+                        accessibilityLabel={t("received.openCollection", { title: collection.title })}
+                      >
+                        <Ionicons name="folder-outline" size={14} color={colors.textSecondary} />
+                        <UserText value={collection.title} style={receivedStyles.collectionTitle} numberOfLines={1}>
+                          {collection.title}
+                        </UserText>
+                        <Text style={receivedStyles.collectionMeta}>{t("received.items", { count })}</Text>
+                      </Pressable>
+                    );
+                  })
+                : null}
+              </View>
             );
           })}
         </View>
@@ -309,6 +347,30 @@ const receivedStyles = StyleSheet.create({
   sentLinkText: {
     ...textTokens.supporting,
     color: colors.primaryDeep,
+  },
+  packageGroup: {
+    gap: 2,
+  },
+  // A package's collections: quiet rows tucked under the package, indented to
+  // read as its contents, not as more packages.
+  collectionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginStart: 44 + spacing.md + 14,
+    paddingVertical: 8,
+    paddingEnd: 14,
+  },
+  collectionTitle: {
+    ...textTokens.supporting,
+    flex: 1,
+    minWidth: 0,
+    color: colors.textPrimary,
+  },
+  collectionMeta: {
+    ...textTokens.caption,
+    color: colors.textMuted,
+    fontVariant: ["tabular-nums"],
   },
   packageRow: {
     flexDirection: "row",

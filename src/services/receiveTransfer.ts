@@ -6,6 +6,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { SEND_SERVICE_BASE_URL } from "../config/sendService";
 import { SendTransferError } from "./sendTransfer";
+import type { ShareKind } from "../types";
 
 export type TransferItemPayload = {
   itemId: string;
@@ -20,9 +21,11 @@ export type TransferPayload = {
   title: string | null;
   sender: { name: string | null; userId: string | null };
   message: string | null;
-  /** What the sender said this is: loose files, or a running order the app
-   *  rebuilds as a playlist or a setlist. Older parcels carry no kind. */
-  kind: "clips" | "playlist" | "setlist";
+  /** What the sender said this is. For loose audio the app acts on it (a
+   *  running order becomes a playlist or a setlist); for a .songnook item the
+   *  file's own manifest stays the authority and this only names the parcel
+   *  before it is opened. Older parcels carry no kind and read as clips. */
+  kind: ShareKind;
   createdAt: string;
   expiresAt: string;
   items: TransferItemPayload[];
@@ -44,6 +47,20 @@ const MAX_NAME_LEN = 260;
 const TRANSFER_ID_PATTERN = /^t_[A-Za-z0-9]{16,80}$/;
 const ITEM_ID_PATTERN = /^i_[A-Za-z0-9]{8,80}$/;
 const AUDIO_EXTS = new Set(["m4a", "mp3", "wav", "aac", "flac", "ogg", "oga", "aif", "aiff", "caf"]);
+const SHARE_KINDS: ReadonlySet<string> = new Set<ShareKind>([
+  "setlist",
+  "playlist",
+  "songbook",
+  "collection",
+  "workspace",
+  "clips",
+  "library",
+]);
+
+/** Unknown or missing → "clips": a parcel is never refused over its label. */
+export function normalizeTransferKind(value: unknown): ShareKind {
+  return typeof value === "string" && SHARE_KINDS.has(value) ? (value as ShareKind) : "clips";
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
@@ -148,7 +165,7 @@ export function validateTransferPayload(value: unknown, expectedTransferId: stri
       userId: optionalText(sender.userId, 120),
     },
     message: optionalText(value.message, 1000),
-    kind: value.kind === "playlist" || value.kind === "setlist" ? value.kind : "clips",
+    kind: normalizeTransferKind(value.kind),
     createdAt,
     expiresAt,
     items,

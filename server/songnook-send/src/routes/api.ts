@@ -29,6 +29,7 @@ import { toTransferPayload } from "../lib/serialize";
 import { checkUploadAllowed, looksLikeZip, requiresZipMagic } from "../lib/contentPolicy";
 import { clientIp, underRateLimit, webOriginAllowed } from "../lib/guard";
 import { hashUploadToken, uploadTokenValid } from "../lib/uploadToken";
+import { normalizeShareKind } from "../lib/shareKind";
 
 export const api = new Hono<{ Bindings: Env }>();
 
@@ -79,7 +80,7 @@ api.post("/transfers", async (c) => {
     sender_name: clampText(body.senderName, 80),
     sender_user_id: null, // v1: always null (accounts fill this later, no wire change)
     message: clampText(body.message, 1000),
-    share_kind: body.kind === "playlist" || body.kind === "setlist" ? body.kind : "clips",
+    share_kind: normalizeShareKind(body.kind),
     status: "draft",
     size_total: 0,
     created_at: now,

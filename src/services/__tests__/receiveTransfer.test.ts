@@ -10,7 +10,7 @@ jest.mock("../../config/sendService", () => ({
   SEND_SERVICE_BASE_URL: "https://send.songnook.app",
 }));
 
-import { parseTransferUrl, validateTransferPayload } from "../receiveTransfer";
+import { normalizeTransferKind, parseTransferUrl, validateTransferPayload } from "../receiveTransfer";
 
 const transferId = "t_0123456789abcdef";
 const itemId = "i_01234567";
@@ -90,5 +90,17 @@ describe("validateTransferPayload", () => {
         transferId
       )
     ).toThrow("not supported");
+  });
+});
+
+describe("transfer kind", () => {
+  it("accepts every ShareKind the app can send, and reads anything else as clips", () => {
+    for (const kind of ["setlist", "playlist", "songbook", "collection", "workspace", "clips", "library"]) {
+      expect(validateTransferPayload(payload({ kind }), transferId).kind).toBe(kind);
+    }
+    // Older parcels carry no kind; a web sender can't declare a package kind.
+    expect(validateTransferPayload(payload(), transferId).kind).toBe("clips");
+    expect(normalizeTransferKind("stems")).toBe("clips");
+    expect(normalizeTransferKind(7)).toBe("clips");
   });
 });

@@ -42,6 +42,7 @@ export function upsertSentLink(links: SentLink[], next: SentLink): SentLink[] {
 
 const VALID_KINDS: ShareKind[] = [
   "setlist",
+  "playlist",
   "songbook",
   "collection",
   "workspace",

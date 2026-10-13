@@ -2,11 +2,16 @@ import { ClipNotesSheet } from "../../modals/ClipNotesSheet";
 import { CollectionActionsModal } from "../../modals/CollectionActionsModal";
 import { CollectionMoveModal } from "../../modals/CollectionMoveModal";
 import { QuickNameModal } from "../../modals/QuickNameModal";
+import { SelectionActionSheet } from "../../common/SelectionActionSheet";
+import { isSendServiceConfigured } from "../../../config/sendService";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import { buildImportHelperText } from "../../../domain/importDates";
 import { buildImportedTitle } from "../../../services/audioStorage";
 import { ensureUniqueCountedTitle, fmtDuration, formatClipDate } from "../../../utils";
 import { useTranslation } from "react-i18next";
+
+// "Get a link" needs a real transfer endpoint — same gate as the Library views.
+const SHOW_GET_LINK = __DEV__ || isSendServiceConfigured();
 
 function buildImportedProjectTitle(name?: string) {
   return buildImportedTitle(name);
@@ -18,6 +23,30 @@ export function CollectionModals() {
 
   return (
     <>
+      <SelectionActionSheet
+        visible={management.shareSheetOpen}
+        title={t("collection.shareTitle")}
+        onClose={() => management.setShareSheetOpen(false)}
+        actions={[
+          {
+            key: "share-file",
+            label: t("collection.shareFile"),
+            icon: "share-outline",
+            onPress: () => void management.shareCurrentCollectionFile(),
+          },
+          ...(SHOW_GET_LINK
+            ? [
+                {
+                  key: "get-link",
+                  label: t("collection.getLink"),
+                  icon: "link-outline" as const,
+                  onPress: () => void management.getLinkForCurrentCollection(),
+                },
+              ]
+            : []),
+        ]}
+      />
+
       <CollectionActionsModal
         visible={management.collectionActionsOpen}
         title={management.managedCollection?.title ?? t("collection.title")}

@@ -4,6 +4,10 @@ import { appActions } from "../../../state/actions";
 import type { Collection, Workspace } from "../../../types";
 import { buildCollectionMoveDestinations, getCollectionDeleteScope } from "../../../domain/collectionManagement";
 import { personalWorkspaces } from "../../../domain/workspaceVisibility";
+import { useStore } from "../../../state/useStore";
+import { createCollectionShareLink, shareCollectionFile } from "../../../services/placeShare";
+import { presentShareLink } from "../../../services/shareLinkFlow";
+import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
 
 type CollectionManagementParams = {
@@ -35,6 +39,9 @@ export function useCollectionManagement({
   const [collectionDestinationMode, setCollectionDestinationMode] = useState<"move" | "copy" | null>(null);
   const [selectedMoveWorkspaceId, setSelectedMoveWorkspaceId] = useState<string | null>(null);
   const [selectedMoveParentCollectionId, setSelectedMoveParentCollectionId] = useState<string | null>(null);
+  // "Share…" on the page's ⋯: one sheet, two exits (a file, a link).
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
+  const [isSharingCollection, setIsSharingCollection] = useState(false);
 
   const managedCollection =
     activeWorkspace?.collections.find((collection) => collection.id === managedCollectionId) ?? null;
@@ -156,9 +163,51 @@ export function useCollectionManagement({
     setManagedCollectionId(null);
   };
 
+  /** The compilations at the moment of sharing — only those entirely inside
+   *  the collection travel (placeShare → scopedCompilations). */
+  const libraryNow = () => {
+    const state = useStore.getState();
+    return { setlists: state.setlists, songbooks: state.songbooks, playlists: state.playlists };
+  };
+
+  const shareCurrentCollectionFile = async () => {
+    if (!currentCollection || !activeWorkspace || isSharingCollection) return;
+    setShareSheetOpen(false);
+    setIsSharingCollection(true);
+    try {
+      const ok = await shareCollectionFile(currentCollection, activeWorkspace, libraryNow());
+      if (!ok) AppAlert.info(t("collection.nothingShare"), t("collection.nothingShareBody"));
+    } catch {
+      // haptics vocabulary: `error` — a failure the user must hear about.
+      haptic.error();
+      AppAlert.info(t("collection.shareFailed"), t("collection.shareFailedBody"));
+    } finally {
+      setIsSharingCollection(false);
+    }
+  };
+
+  const getLinkForCurrentCollection = async () => {
+    if (!currentCollection || !activeWorkspace || isSharingCollection) return;
+    setShareSheetOpen(false);
+    setIsSharingCollection(true);
+    try {
+      await presentShareLink(
+        () => createCollectionShareLink(currentCollection, activeWorkspace, libraryNow()),
+        { emptyMessage: t("collection.nothingShareBody") }
+      );
+    } finally {
+      setIsSharingCollection(false);
+    }
+  };
+
   return {
     managedCollection,
     managedCollectionHasChildren,
+    shareSheetOpen,
+    setShareSheetOpen,
+    isSharingCollection,
+    shareCurrentCollectionFile,
+    getLinkForCurrentCollection,
     collectionActionsOpen,
     collectionRenameModalOpen,
     collectionDraft,

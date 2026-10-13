@@ -4,9 +4,18 @@ import { personalWorkspaces, receivedPackages } from "../../../domain/workspaceV
 import { getWorkspaceListOrderState, sortWorkspacesWithPrimary } from "../../../domain/libraryNavigation";
 import type { WorkspaceListOrder } from "../../../types";
 import { useWorkspaceArchiveActions } from "./useWorkspaceArchiveActions";
+import { createWorkspaceShareLink, shareWorkspaceFile } from "../../../services/placeShare";
+import { presentShareLink } from "../../../services/shareLinkFlow";
+import { isSendServiceConfigured } from "../../../config/sendService";
+import { AppAlert } from "../../common/AppAlert";
+import { haptic } from "../../../design/haptics";
+import type { Workspace } from "../../../types";
 import type { SelectionAction } from "../../common/SelectionDock";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
+
+// "Get a link" needs a real transfer endpoint — same gate as the Library views.
+const SHOW_GET_LINK = __DEV__ || isSendServiceConfigured();
 
 function defaultWorkspaceTitle(t: TFunction) {
   const now = new Date();
@@ -124,6 +133,39 @@ export function useWorkspaceListScreenModel() {
     viewingArchived: false,
   });
 
+  // Sharing a whole workspace — as a SongNook file or a Send link. Compilations
+  // that sit entirely inside it travel too (placeShare).
+  const [sharingWorkspaceId, setSharingWorkspaceId] = useState<string | null>(null);
+  const libraryNow = () => {
+    const state = useStore.getState();
+    return { setlists: state.setlists, songbooks: state.songbooks, playlists: state.playlists };
+  };
+  const shareWorkspaceAsFile = async (workspace: Workspace) => {
+    if (sharingWorkspaceId) return;
+    setSharingWorkspaceId(workspace.id);
+    try {
+      const ok = await shareWorkspaceFile(workspace, libraryNow());
+      if (!ok) AppAlert.info(t("workspaceList.nothingShare"), t("workspaceList.nothingShareBody"));
+    } catch {
+      // haptics vocabulary: `error` — a failure the user must hear about.
+      haptic.error();
+      AppAlert.info(t("workspaceList.shareFailed"), t("workspaceList.shareFailedBody"));
+    } finally {
+      setSharingWorkspaceId(null);
+    }
+  };
+  const getLinkForWorkspace = async (workspace: Workspace) => {
+    if (sharingWorkspaceId) return;
+    setSharingWorkspaceId(workspace.id);
+    try {
+      await presentShareLink(() => createWorkspaceShareLink(workspace, libraryNow()), {
+        emptyMessage: t("workspaceList.nothingShareBody"),
+      });
+    } finally {
+      setSharingWorkspaceId(null);
+    }
+  };
+
   // Actions shown in the ellipsis action sheet — computed for the target workspace
   const workspaceActionSheetActions: SelectionAction[] = useMemo(() => {
     if (!actionSheetWorkspace) return [];
@@ -148,6 +190,33 @@ export function useWorkspaceListScreenModel() {
           closeActionSheet();
         },
       });
+    }
+
+    // Share the place. An archived workspace's audio is packed away, so only a
+    // live one can be shared as it is.
+    if (!actionSheetWorkspace.isArchived) {
+      actions.push({
+        key: "share-file",
+        label: t("workspaceList.shareFile"),
+        icon: "share-outline",
+        disabled: sharingWorkspaceId != null,
+        onPress: () => {
+          closeActionSheet();
+          void shareWorkspaceAsFile(actionSheetWorkspace);
+        },
+      });
+      if (SHOW_GET_LINK) {
+        actions.push({
+          key: "get-link",
+          label: t("workspaceList.getLink"),
+          icon: "link-outline",
+          disabled: sharingWorkspaceId != null,
+          onPress: () => {
+            closeActionSheet();
+            void getLinkForWorkspace(actionSheetWorkspace);
+          },
+        });
+      }
     }
 
     // Archiving is shelved (2026-08-04) until the recent persistence plumbing is
@@ -196,7 +265,7 @@ export function useWorkspaceListScreenModel() {
 
     return actions;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [actionSheetWorkspace, primaryWorkspaceId, t]);
+  }, [actionSheetWorkspace, primaryWorkspaceId, sharingWorkspaceId, t]);
 
   function saveWorkspace(name: string, description: string, color: string, avatarKey: number) {
     if (archiveActions.busyWorkspaceId) return;
