@@ -31,7 +31,7 @@ import { MARK_NUDGE_BASE_MS, MARK_NUDGE_MIN_MS, MarkInspector, nudgeStepMsForZoo
 import { Switch } from "../../common/Switch";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { durations } from "../../../design/motion";
-import { pinPhase, sectionPhase } from "../../../domain/markPhase";
+import { markGroupPositions, markRowTimeline, sectionPhase } from "../../../domain/markPhase";
 import { Press } from "../../common/Press";
 import { SpeedPitchDials } from "../../common/SpeedPitchDials";
 import { UndoRedoButtons } from "../../common/useUndoHistory";
@@ -369,8 +369,23 @@ export function PlayerPracticeDrawers({
       ...sections.map((section) => ({ kind: "section" as const, atMs: section.startMs, section })),
       ...practiceMarkers.map((marker) => ({ kind: "pin" as const, atMs: marker.atMs, marker })),
     ];
-    return entries.sort((a, b) => a.atMs - b.atMs);
+    // By time; on the same instant a section leads, so a pin dropped exactly on
+    // a section's start is listed (and grouped) under it.
+    return entries.sort((a, b) => a.atMs - b.atMs || (a.kind === b.kind ? 0 : a.kind === "section" ? -1 : 1));
   }, [sections, practiceMarkers]);
+  // Pins inside a section are grouped with it (domain/markPhase).
+  const markGroups = useMemo(
+    () =>
+      markGroupPositions(
+        marks.map((entry) =>
+          entry.kind === "section"
+            ? { kind: "section", id: entry.section.id, startMs: entry.section.startMs, endMs: entry.section.endMs }
+            : { kind: "pin", id: entry.marker.id, atMs: entry.atMs }
+        )
+      ),
+    [marks]
+  );
+  const sectionsById = useMemo(() => new Map(sections.map((section) => [section.id, section])), [sections]);
 
   // A dot means something is RUNNING, not merely set up: the loop is looping, or
   // a sound setting is bent away from neutral. Step-up can't run without the
@@ -400,11 +415,23 @@ export function PlayerPracticeDrawers({
     // Where this mark stands against the playhead: passed marks recede, the one
     // you are in is lit, what is ahead waits. The held row is exempt: it is being
     // edited and wears its own card.
-    const phase = isSection
-      ? sectionPhase(entry.section.startMs, entry.section.endMs, playheadMs)
-      : pinPhase(entry.atMs, playheadMs);
-    const isPast = phase === "past" && !isSelected;
-    const isNow = phase === "now" && !isSelected;
+    // A pin inside a section follows its section: lit with it, never faded
+    // while it plays. The group shares one wash and a rail in the section's ink.
+    const group = markGroups[index] ?? { sectionId: null, role: "lone" as const, last: false };
+    const groupSection = group.sectionId ? sectionsById.get(group.sectionId) ?? null : null;
+    const groupPhase = groupSection ? sectionPhase(groupSection.startMs, groupSection.endMs, playheadMs) : null;
+    const timeline = markRowTimeline(
+      isSection
+        ? { kind: "section", id, startMs: entry.section.startMs, endMs: entry.section.endMs }
+        : { kind: "pin", id, atMs: entry.atMs },
+      { role: group.role, sectionPhase: groupPhase },
+      playheadMs
+    );
+    const isPast = timeline.past && !isSelected;
+    const isNow = timeline.lit && !isSelected;
+    const isStrong = timeline.strong && !isSelected;
+    const inGroup = group.role !== "lone" && groupSection != null;
+    const groupLit = inGroup && groupPhase === "now";
 
     // Cue + start from this mark. Holding the row is part of the gesture, so the
     // inspector and the playhead agree about which mark is "the one".
@@ -458,7 +485,25 @@ export function PlayerPracticeDrawers({
             pointerEvents="none"
             entering={FadeIn.duration(durations.base)}
             exiting={FadeOut.duration(durations.base)}
-            style={pd.markNowWash}
+            style={[
+              pd.markNowWash,
+              // One wash for the whole group: square where its rows meet.
+              groupLit && group.role === "head" ? pd.markNowWashHead : null,
+              groupLit && group.role === "member" ? (group.last ? pd.markNowWashTail : pd.markNowWashMid) : null,
+            ]}
+          />
+        ) : null}
+        {/* The group's rail: the section's own ink down the left of the section
+            and every pin inside it. Quiet at rest, full while the section plays. */}
+        {inGroup && !isSelected ? (
+          <View
+            pointerEvents="none"
+            style={[
+              pd.markGroupRail,
+              group.role === "head" ? pd.markGroupRailHead : null,
+              group.last ? pd.markGroupRailTail : null,
+              { backgroundColor: getSectionColor(groupSection), opacity: groupLit ? 1 : isPast ? 0.2 : 0.4 },
+            ]}
           />
         ) : null}
         {/* The play glyph leads the row, as it leads every card in the app. */}
@@ -477,7 +522,7 @@ export function PlayerPracticeDrawers({
             style={[
               pd.markName,
               isSelected ? pd.markNameSelected : null,
-              isNow ? pd.markNameNow : null,
+              isStrong ? pd.markNameNow : null,
               isPast ? pd.markNamePast : null,
             ]}
             numberOfLines={1}
