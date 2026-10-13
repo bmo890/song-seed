@@ -1618,6 +1618,7 @@ export function PlaybackTapeVisualizer({
     ]);
     const waveTopInset = pinLane?.height ?? 0;
     const waveBottomInset = lanes ? sectionLaneHeight(sectionBands?.length ?? 0, laneDensity) : 0;
+    const waveInset = Math.max(waveTopInset, waveBottomInset);
     const waveEdgeMargin = lanes ? LANES_WAVE_EDGE_MARGIN_PX : WAVEFORM_EDGE_MARGIN_PX;
     const playheadCapPath = useMemo(() => {
         const cap = Skia.Path.Make();
@@ -1643,17 +1644,16 @@ export function PlaybackTapeVisualizer({
     // Vertical geometry lives in a normalized space (amplitude -1..1 around y=0) and is
     // mapped to pixels by this transform. A height change is therefore a pure UI-thread
     // transform — it never rebuilds the wave path or re-renders the component.
-    // The lanes (if any) inset the wave from the canvas's top and bottom by two
-    // constants; with none, both are 0 and this is the old full-height geometry.
+    // The wave sits on the reel's MIDDLE line, always (founder, 2026-10-13): the
+    // lanes take their room from above and below it in equal measure — the taller
+    // lane sets the inset for both sides — rather than pushing the wave off centre.
+    // With no lanes the inset is 0 and this is the old full-height geometry.
     const waveVerticalTransform = useDerivedValue(() => {
-        const halfRegion = Math.max(0, heightSV.value - waveTopInset - waveBottomInset) / 2;
-        const waveMaxHeight = Math.max(10, (halfRegion - waveEdgeMargin) * WAVEFORM_HEADROOM);
-        return [{ translateY: waveTopInset + halfRegion }, { scaleY: waveMaxHeight }];
-    }, [waveTopInset, waveBottomInset, waveEdgeMargin]);
-    const baselineY = useDerivedValue(
-        () => waveTopInset + Math.max(0, heightSV.value - waveTopInset - waveBottomInset) / 2 - 0.5,
-        [waveTopInset, waveBottomInset]
-    );
+        const centerY = heightSV.value / 2;
+        const waveMaxHeight = Math.max(10, (centerY - waveInset - waveEdgeMargin) * WAVEFORM_HEADROOM);
+        return [{ translateY: centerY }, { scaleY: waveMaxHeight }];
+    }, [waveInset, waveEdgeMargin]);
+    const baselineY = useDerivedValue(() => heightSV.value / 2 - 0.5);
     // Reveals only the played (behind-the-playhead) portion, in content coordinates so
     // the two-tone split lands exactly under the playhead at any zoom/scroll.
     const playedClip = useDerivedValue(
@@ -1871,8 +1871,8 @@ export function PlaybackTapeVisualizer({
                                     rangeType={selectedRangeType}
                                     lanes={lanes}
                                     loopInk={loopInk}
-                                    waveTopInset={waveTopInset}
-                                    waveBottomInset={waveBottomInset}
+                                    waveTopInset={waveInset}
+                                    waveBottomInset={waveInset}
                                 />
                             ) : null}
                             <Rect

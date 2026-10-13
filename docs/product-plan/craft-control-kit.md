@@ -295,7 +295,7 @@ Built, default ON, with a comparison switch (Settings, General, Interaction,
 | Section | A 2 px rule along the reel's bottom edge in the section's ink, name in the same ink sitting on it. No wash over the audio. |
 | Loop | 12% terracotta wash, 1 px edges, 5×22 grips centred on the wave. Move bar below is a 28×4 terracotta bar. |
 | Playhead | 2 px record-red line under a 9×6 cap. The only red. |
-| Wave | Played half goes neutral (`textSecondary`), so terracotta means the loop only. Inset between the lanes. |
+| Wave | Played half goes neutral (`textSecondary`), so terracotta means the loop only. Always on the reel's MIDDLE line (founder, same day: "I would still like the actual waveform to sit in the middle"): the taller lane sets one inset used on both sides. The cost is wave height, about 52 pt tall in the 146 pt practice reel with two name rows. |
 | Minimap | Silhouette, a neutral lens for the window, pins as 5 px ticks, sections as a bottom rule, playhead 2 px with a round cap, drawn above the lens. |
 
 Where: geometry in `src/domain/reelLanes.ts` (tested, 11 cases); drawing in
@@ -320,7 +320,9 @@ always keep their names". The reel does not know which mark is held, and
 re-laying names out as the playhead moves would re-render the canvas during
 playback. Names are placed first-come by time.
 
-Open with the founder: the head shape (now a dot; the flag was disliked),
+Screenshot: `docs/product-plan/reel-lanes/practice-centred.png`.
+
+Open with the founder: whether the centred wave is tall enough (the levers are a taller practice reel, one name row instead of two, or letting the wave run behind the name rows); the head shape (now a dot; the flag was disliked),
 whether the practice reel's extra 18 pt is welcome, pin names running under
 the expand button at the reel's top-right.
 

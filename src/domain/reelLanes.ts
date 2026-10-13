@@ -13,11 +13,12 @@ import type { PracticeMarker } from "../types";
 export const PIN_LANE_ROW_HEIGHT = 14;
 /** Names stagger onto a second row, never a third: past that the name gives way. */
 export const PIN_LANE_MAX_ROWS = 2;
-/** Clear of the clock ticks and bar numbers that ride the reel's top edge. */
-export const PIN_LANE_TOP_PAD = 12;
+/** Clear of the clock ticks that ride the reel's top edge. Kept tight: the wave
+ *  stays centred, so every point of lane costs it height on BOTH sides. */
+export const PIN_LANE_TOP_PAD = 8;
 /** The strip between the last name row and the waveform, where a pin whose name
  *  is hidden keeps its head. */
-export const PIN_LANE_HEAD_STRIP = 6;
+export const PIN_LANE_HEAD_STRIP = 5;
 export const PIN_HEAD_RADIUS = 2;
 /** Head centre to the first glyph of the name. */
 export const PIN_NAME_GAP = 5;
