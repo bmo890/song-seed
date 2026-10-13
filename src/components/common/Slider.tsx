@@ -23,7 +23,7 @@ import { durations, springs } from "../../design/motion";
  *
  * Feel (2026-10-13, founder's bar: "haptics match the interaction"):
  *   grab  → the finger lands (haptics.ts: drag lift)
- *   tap   → every `detent` crossed while dragging (haptics.ts: selection tick)
+ *   tick  → every `detent` crossed while dragging (haptics.ts: detent)
  *   light → the finger lifts (haptics.ts: small state flip — the value is set)
  *
  * Value is controlled: the thumb follows `value` between drags and the finger
@@ -112,8 +112,8 @@ export function Slider({
     [onSlidingComplete]
   );
   const tick = useCallback(() => {
-    // Haptics: `tap` — a detent crossed, the selection tick.
-    haptic.tap();
+    // Haptics: `tick` — a detent crossed under a moving thumb.
+    haptic.tick();
   }, []);
 
   const gesture = useMemo(() => {

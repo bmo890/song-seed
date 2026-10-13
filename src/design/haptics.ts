@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import * as Haptics from "expo-haptics";
 
 // Master switch, driven by the persisted `hapticsEnabled` preference (see
@@ -13,6 +14,10 @@ export function setHapticsEnabled(value: boolean) {
  * the same physical gesture always feels the same everywhere.
  *
  *   tap      → any acknowledged press: buttons, menu rows, toggles, tabs
+ *   tick     → a detent crossed mid-gesture: a slider passing a second, a
+ *              stepper notch. Selection on iOS; on Android selection is too
+ *              faint to feel under a moving thumb (founder, 2026-10-13), so
+ *              it is a light impact there.
  *   light    → small state flips: bookmark, favorite, chip select
  *   grab     → picking something up / entering a heavier mode: drag lift,
  *              long-press into selection mode, record state changes
@@ -25,6 +30,14 @@ export function setHapticsEnabled(value: boolean) {
 export const haptic = {
   tap: () => {
     if (hapticsEnabled) void Haptics.selectionAsync().catch(() => {});
+  },
+  tick: () => {
+    if (!hapticsEnabled) return;
+    if (Platform.OS === "android") {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    } else {
+      void Haptics.selectionAsync().catch(() => {});
+    }
   },
   light: () => {
     if (hapticsEnabled) void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
