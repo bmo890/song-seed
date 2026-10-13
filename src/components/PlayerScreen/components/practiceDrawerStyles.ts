@@ -45,6 +45,31 @@ export const pd = StyleSheet.create({
   markNameSelected: {
     fontFamily: "PlusJakartaSans_700Bold",
   },
+  // ---- where the playhead is (domain/markPhase) ----
+  // Now: a tonal wash under the row, the name a weight up. No colour: colour
+  // here belongs to the held row and to the sections' own inks.
+  markNowWash: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surfaceHigh,
+  },
+  markNameNow: {
+    fontFamily: "PlusJakartaSans_700Bold",
+  },
+  markTimeNow: {
+    color: colors.textStrong,
+  },
+  // Past: the row recedes — quieter ink, a paler glyph. Still readable, still tappable.
+  markNamePast: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    color: colors.textMuted,
+  },
+  markTimePast: {
+    color: colors.textMuted,
+  },
+  markPastGlyph: {
+    opacity: 0.45,
+  },
   markTime: {
     ...text.supporting,
     fontVariant: ["tabular-nums"],

@@ -469,6 +469,21 @@ Chorus's start to 11 s with its end and the Intro untouched. NOT verified:
 pushing an earlier neighbour's end on screen (unit-tested), the two haptics,
 the loop's Start/End no longer seeking, Android.
 
+**The Marks list shows where you are (2026-10-13).** Founder: timestamps
+alone did not give the song's shape. Each row now reads against the playhead
+(`domain/markPhase`, tested): passed marks recede (medium weight, muted ink,
+paler glyph), the one you are in is lit (a `surfaceHigh` wash that fades in
+and out over `durations.base`, name a weight up), what is ahead stays plain.
+A section is "now" from its start up to its end, so two touching sections are
+never both lit; a pin is "now" for one second either side. The held row is
+exempt. No colour is used. Convention chosen: a transit line's (passed stops
+grey out) over a lyrics view's (everything but the current line dimmed),
+because this list is also an editor and must stay readable. It costs no extra
+renders: the drawer already re-renders with `playheadMs` for the "at 00:04"
+readout. Screenshot: `docs/product-plan/reel-lanes/marks-timeline.png`.
+NOT verified: how it reads on a long song with many marks, and at the very
+end of a clip, where every row is "past".
+
 ## State at handoff
 
 Branch `craft/control-kit`, pushed. Commits:

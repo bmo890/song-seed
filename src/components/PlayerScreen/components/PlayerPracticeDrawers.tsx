@@ -29,6 +29,9 @@ import { AnimatedCollapse } from "../../common/AnimatedCollapse";
 import { useTranslation } from "react-i18next";
 import { MARK_NUDGE_BASE_MS, MARK_NUDGE_MIN_MS, MarkInspector, nudgeStepMsForZoom } from "../../common/MarkInspector";
 import { Switch } from "../../common/Switch";
+import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import { durations } from "../../../design/motion";
+import { pinPhase, sectionPhase } from "../../../domain/markPhase";
 import { Press } from "../../common/Press";
 import { SpeedPitchDials } from "../../common/SpeedPitchDials";
 import { UndoRedoButtons } from "../../common/useUndoHistory";
@@ -393,6 +396,14 @@ export function PlayerPracticeDrawers({
     const color = isSection ? getSectionColor(entry.section) : colors.primaryDeep;
     const name = isSection ? entry.section.label : entry.marker.label || t("player.pin");
     const isPlayingFrom = isPlaying && playFromId === id;
+    // Where this mark stands against the playhead: passed marks recede, the one
+    // you are in is lit, what is ahead waits. The held row is exempt: it is being
+    // edited and wears its own card.
+    const phase = isSection
+      ? sectionPhase(entry.section.startMs, entry.section.endMs, playheadMs)
+      : pinPhase(entry.atMs, playheadMs);
+    const isPast = phase === "past" && !isSelected;
+    const isNow = phase === "now" && !isSelected;
 
     // Cue + start from this mark. Holding the row is part of the gesture, so the
     // inspector and the playhead agree about which mark is "the one".
@@ -440,9 +451,18 @@ export function PlayerPracticeDrawers({
         accessibilityState={{ selected: isSelected, expanded: isSelected }}
         accessibilityLabel={`${name}, ${fmtDuration(entry.atMs)}`}
       >
+        {/* "You are here": a tonal wash that fades in and out, never a colour. */}
+        {isNow ? (
+          <Animated.View
+            pointerEvents="none"
+            entering={FadeIn.duration(durations.base)}
+            exiting={FadeOut.duration(durations.base)}
+            style={pd.markNowWash}
+          />
+        ) : null}
         {/* The play glyph leads the row, as it leads every card in the app. */}
         {playButton}
-        <View style={pd.markGlyph}>
+        <View style={[pd.markGlyph, isPast ? pd.markPastGlyph : null]}>
           {isSection ? (
             <SpanGlyph color={color} />
           ) : (
@@ -452,7 +472,15 @@ export function PlayerPracticeDrawers({
         {/* A pin's note is the reason it exists — "watch the turnaround" is worth more
             than "Pin 3". It rides under the name, quiet and clipped to one line. */}
         <View style={pd.markNameWrap}>
-          <Text style={[pd.markName, isSelected ? pd.markNameSelected : null]} numberOfLines={1}>
+          <Text
+            style={[
+              pd.markName,
+              isSelected ? pd.markNameSelected : null,
+              isNow ? pd.markNameNow : null,
+              isPast ? pd.markNamePast : null,
+            ]}
+            numberOfLines={1}
+          >
             {name}
           </Text>
           {!isSection && entry.marker.note ? (
@@ -483,7 +511,7 @@ export function PlayerPracticeDrawers({
           </View>
         ) : (
           <View style={pd.markTrailing}>
-            <Text style={pd.markTime}>
+            <Text style={[pd.markTime, isNow ? pd.markTimeNow : null, isPast ? pd.markTimePast : null]}>
               {isSection
                 ? `${fmtDuration(entry.section.startMs)}–${fmtDuration(entry.section.endMs)}`
                 : fmtDuration(entry.atMs)}
