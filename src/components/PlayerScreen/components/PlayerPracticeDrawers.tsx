@@ -567,6 +567,21 @@ export function PlayerPracticeDrawers({
           edge={edge}
           startLabel={section ? t("player.start") : t("player.atLabel")}
           endLabel={t("player.end")}
+          // Hold a box to type its time; the same rules as a drag apply.
+          onTypeTime={(which, ms) => {
+            if (section) onRepositionSectionEdge(id, which, clampSectionEdge(section, which, ms));
+            else onRepositionPin(id, Math.max(0, Math.min(durationMs, ms)));
+          }}
+          typeRangeFor={(which) =>
+            section
+              ? which === "start"
+                ? { minMs: 0, maxMs: Math.max(0, section.endMs - MIN_SECTION_LENGTH_MS) }
+                : {
+                    minMs: Math.min(section.startMs + MIN_SECTION_LENGTH_MS, Math.max(1, durationMs)),
+                    maxMs: Math.max(1, durationMs),
+                  }
+              : { minMs: 0, maxMs: Math.max(0, durationMs) }
+          }
           onPickEdge={(nextEdge) => {
             if (section) {
               setSelected({ kind: "section", id, edge: nextEdge });
@@ -720,6 +735,22 @@ export function PlayerPracticeDrawers({
             edge={loopEdge}
             startLabel={t("player.start")}
             endLabel={t("player.end")}
+            // Typed times answer to the loop's LEGAL span, not the slider's window.
+            onTypeTime={(which, ms) => {
+              if (which === "start") {
+                onSetLoopRange(Math.max(0, Math.min(Math.max(0, loop.end - MIN_LOOP_LENGTH_MS), ms)), loop.end);
+              } else {
+                onSetLoopRange(
+                  loop.start,
+                  Math.max(Math.min(loop.start + MIN_LOOP_LENGTH_MS, durationMs), Math.min(Math.max(1, durationMs), ms))
+                );
+              }
+            }}
+            typeRangeFor={(which) =>
+              which === "start"
+                ? { minMs: 0, maxMs: Math.max(0, loop.end - MIN_LOOP_LENGTH_MS) }
+                : { minMs: Math.min(loop.start + MIN_LOOP_LENGTH_MS, durationMs), maxMs: Math.max(1, durationMs) }
+            }
             onPickEdge={(nextEdge) => {
               setLoopEdge(nextEdge);
               onSeek(nextEdge === "start" ? loop.start : loop.end);

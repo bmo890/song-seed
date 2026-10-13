@@ -706,6 +706,7 @@ export const resources = {
         tracks_one: "{{count}} item", tracks_other: "{{count}} items", lessMinute: "<1 min", minutes: "{{count}} min", hoursMinutes: "{{hours}} hr {{minutes}} min", hours: "{{count}} hr", updatedNow: "updated just now", updatedHours: "updated {{count}}h ago", updatedDays: "updated {{count}}d ago", updatedDate: "updated {{date}}",
       },
       player: {
+        setTime: "Set", timeRange: "{{from}} to {{to}}", typeTimeHint: "Hold to type a time",
         shareTitle: "Share", shareAudio: "Share audio", songnookSend: "SongNook Send",
         tools: "Tools",
         sketchDoorTitle: "Grow this into a sketch", sketchDoorBody: "Takes, lyrics, and chords, kept together.",
@@ -2227,6 +2228,7 @@ export const resources = {
         tracks_one: "פריט אחד", tracks_two: "שני פריטים", tracks_other: "{{count}} פריטים", lessMinute: "פחות מדקה", minutes: "{{count}} דק׳", hoursMinutes: "{{hours}} שע׳ {{minutes}} דק׳", hours: "{{count}} שע׳", updatedNow: "עודכן עכשיו", updatedHours: "עודכן לפני {{count}} שעות", updatedDays: "עודכן לפני {{count}} ימים", updatedDate: "עודכן ב־{{date}}",
       },
       player: {
+        setTime: "קביעה", timeRange: "{{from}} עד {{to}}", typeTimeHint: "לחיצה ארוכה להקלדת זמן",
         shareTitle: "שיתוף", shareAudio: "שיתוף השמע", songnookSend: "SongNook Send",
         tools: "כלים",
         sketchDoorTitle: "להצמיח את זה לסקיצה", sketchDoorBody: "טייקים, מילים ואקורדים, שמורים יחד.",

@@ -351,6 +351,13 @@ function PlayerTimelineInner({
 }: Props) {
   // Lanes are the reel's default look; the hitboxes below follow the same geometry.
   const lanes = !useStore((state) => state.classicReel);
+  const handleMarkerLongPress = React.useCallback(
+    (markerId: string) => {
+      const marker = practiceMarkers.find((candidate) => candidate.id === markerId);
+      if (marker) onRequestPinActions(marker);
+    },
+    [onRequestPinActions, practiceMarkers]
+  );
   const previewRange = practiceLoopSelection[0];
   const sharedLoopPreviewStartMs = useSharedValue(previewRange?.start ?? 0);
   const sharedLoopPreviewEndMs = useSharedValue(previewRange?.end ?? Math.max(1000, durationMs));
@@ -425,6 +432,12 @@ function PlayerTimelineInner({
       // (three stacked waveforms is already plenty).
       practiceMarkers={mode !== "layers" ? practiceMarkers : undefined}
       sharedDraggingMarkerId={draggingMarkerId}
+      // Lanes: holding a pin's line and dragging moves it, on the tape itself.
+      sharedDraggingMarkerX={draggingMarkerX}
+      markerDragEnabled={lanes && mode === "practice"}
+      onMarkerDragStateChange={onPinDragStateChange}
+      onMarkerDragEnd={onRepositionMarker}
+      onMarkerLongPress={handleMarkerLongPress}
       sectionBands={sectionBands}
       grid={recordingGrid}
       sharedSelectedRangeStartMs={loopActive ? sharedLoopPreviewStartMs : undefined}

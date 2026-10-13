@@ -41,6 +41,7 @@ import {
     PIN_BADGE_HEIGHT,
 } from "../../domain/practicePinLayout";
 import { colors, radii } from "../../design/tokens";
+import { haptic } from "../../design/haptics";
 import { hexToRgba } from "../../domain/playerSections";
 import {
     PIN_HEAD_RADIUS,
@@ -90,6 +91,17 @@ type Props = {
     /** Set while a pin badge is being dragged: that badge's Skia twin hides and the RN
      *  gesture layer (under the finger) shows instead. */
     sharedDraggingMarkerId?: SharedValue<string>;
+    /** Screen x of the pin being dragged (canvas coordinates). With lanes the canvas
+     *  pin follows it, so the mark under the finger is the mark itself. */
+    sharedDraggingMarkerX?: SharedValue<number>;
+    /** Lanes: hold a pin's LINE anywhere along its height, then drag, to move it. The
+     *  tape owns this one (its scrub already works on every platform); the head and
+     *  the name keep their own targets in the RN layer above. */
+    markerDragEnabled?: boolean;
+    onMarkerDragStateChange?: (dragging: boolean) => void;
+    onMarkerDragEnd?: (markerId: string, atMs: number) => void;
+    /** A hold on a pin's line that never moved: open that pin's actions. */
+    onMarkerLongPress?: (markerId: string) => void;
     sectionBands?: SectionBand[];
     /** Beat-grid ruler primitives (file-ms space) — manuscript lines under the wave. */
     gridRuler?: GridRulerModel | null;
@@ -163,6 +175,12 @@ type LoopRangeOverlayProps = {
 const LOOP_HANDLE_WIDTH = 2;
 const LOOP_PILL_WIDTH = 14;
 const LOOP_PILL_HEIGHT = 28;
+/** Hold this long on a pin's line to pick it up (matches the RN head/name target). */
+const MARKER_GRAB_HOLD_MS = 300;
+/** How far either side of a pin's line a finger may land and still mean that pin. */
+const MARKER_GRAB_SLOP_PX = 14;
+/** Wobble a still finger is allowed while it waits out the hold. */
+const MARKER_HOLD_WOBBLE_PX = 8;
 const LANES_LOOP_LINE_WIDTH = 1;
 const LANES_LOOP_GRIP_WIDTH = 5;
 const LANES_LOOP_GRIP_HEIGHT = 22;
@@ -795,6 +813,8 @@ function PinLaneOverlay({
     heightValue,
     ink,
     sharedDraggingMarkerId,
+    sharedDraggingMarkerX,
+    translateX,
 }: {
     items: PinLaneItem[];
     laneHeight: number;
@@ -802,6 +822,8 @@ function PinLaneOverlay({
     heightValue: SharedValue<number>;
     ink: string;
     sharedDraggingMarkerId?: SharedValue<string>;
+    sharedDraggingMarkerX?: SharedValue<number>;
+    translateX: SharedValue<number>;
 }) {
     return (
         <>
@@ -814,6 +836,8 @@ function PinLaneOverlay({
                     heightValue={heightValue}
                     ink={ink}
                     sharedDraggingMarkerId={sharedDraggingMarkerId}
+                    sharedDraggingMarkerX={sharedDraggingMarkerX}
+                    translateX={translateX}
                 />
             ))}
         </>
@@ -827,6 +851,8 @@ function PinLaneMark({
     heightValue,
     ink,
     sharedDraggingMarkerId,
+    sharedDraggingMarkerX,
+    translateX,
 }: {
     item: PinLaneItem;
     laneHeight: number;
@@ -834,12 +860,22 @@ function PinLaneMark({
     heightValue: SharedValue<number>;
     ink: string;
     sharedDraggingMarkerId?: SharedValue<string>;
+    sharedDraggingMarkerX?: SharedValue<number>;
+    translateX: SharedValue<number>;
 }) {
     const { marker, x, row, anchor, nameWidth, paragraph, textHeight } = item;
     const headY = pinHeadY(row, laneHeight);
+    // While this pin is being dragged it rides the finger: the whole mark — stem,
+    // head, name — shifts by the drag's offset, in the tape's own frame. With no
+    // drag x to follow (an older caller) it hides and lets the RN twin show.
     const opacity = useDerivedValue(() =>
-        sharedDraggingMarkerId && sharedDraggingMarkerId.value === marker.id ? 0 : 1
+        !sharedDraggingMarkerX && sharedDraggingMarkerId && sharedDraggingMarkerId.value === marker.id ? 0 : 1
     );
+    const dragTransform = useDerivedValue(() => {
+        const dragging =
+            !!sharedDraggingMarkerX && !!sharedDraggingMarkerId && sharedDraggingMarkerId.value === marker.id;
+        return [{ translateX: dragging ? sharedDraggingMarkerX.value - translateX.value - x : 0 }];
+    }, [x]);
     const stemHeight = useDerivedValue(
         () => Math.max(0, heightValue.value - bottomInset - headY),
         [bottomInset, headY]
@@ -852,7 +888,7 @@ function PinLaneMark({
     // A pin carrying a note keeps its tell: a second, smaller dot trailing the name.
     const noteDotX = anchor === "start" ? nameX + nameWidth + 4 : nameX - 4;
     return (
-        <Group opacity={opacity}>
+        <Group opacity={opacity} transform={dragTransform}>
             <Rect x={x - 0.5} y={headY} width={1} height={stemHeight} color={ink} opacity={0.4} />
             <Circle cx={x} cy={headY} r={PIN_HEAD_RADIUS} color={ink} />
             {showName ? (
@@ -905,6 +941,11 @@ export function PlaybackTapeVisualizer({
     gridLabelScale = 1,
     gridLabelColor,
     sharedDraggingMarkerId,
+    sharedDraggingMarkerX,
+    markerDragEnabled = false,
+    onMarkerDragStateChange,
+    onMarkerDragEnd,
+    onMarkerLongPress,
     sharedSelectedRangeStartMs,
     sharedSelectedRangeEndMs,
     selectedRangeType = "keep",
@@ -1433,7 +1474,120 @@ export function PlaybackTapeVisualizer({
         .onUpdate((event) => {
             if (onPinchZoomUpdate) runOnJS(onPinchZoomUpdate)(event.scale);
         });
-    const tapeGesture = Gesture.Race(pinch, pan);
+
+    // Hold a pin's line, then drag: move the pin. A manually-activated Pan (the
+    // pattern useHeldScrubGesture proved here): it fails on touch-down unless the
+    // finger landed on a pin, so everywhere else the scrub above is exactly what it
+    // was. On a pin it waits: travel before MARKER_GRAB_HOLD_MS is a scrub (this
+    // one fails and the scrub takes the touch); the first move AFTER the hold picks
+    // the pin up. A hold released without moving opens the pin's actions.
+    // (A LongPress gesture was tried first and lost its touch to the re-render the
+    // drag's own state change causes; a Pan rides through that, as the scrub does.)
+    const markerPxPerMs = durationMs > 0 ? baseContentWidth / durationMs : 0;
+    const markerTimes = useMemo(() => (practiceMarkers ?? []).map((marker) => marker.atMs), [practiceMarkers]);
+    const markerIds = useMemo(() => (practiceMarkers ?? []).map((marker) => marker.id), [practiceMarkers]);
+    const grabbedMarkerIndex = useSharedValue(-1);
+    const grabTouchX = useSharedValue(0);
+    const grabDownAt = useSharedValue(0);
+    const grabOriginX = useSharedValue(0);
+    const grabActive = useSharedValue(false);
+    const markerDragOn =
+        lanes && markerDragEnabled && markerIds.length > 0 && !!sharedDraggingMarkerId && !!sharedDraggingMarkerX;
+    const markerDrag = Gesture.Pan()
+        .enabled(markerDragOn)
+        .maxPointers(1)
+        .manualActivation(true)
+        .shouldCancelWhenOutside(false)
+        .onTouchesDown((event, stateManager) => {
+            "worklet";
+            const touch = event.allTouches[0];
+            let nearest = -1;
+            let nearestDistance = MARKER_GRAB_SLOP_PX;
+            if (touch && event.numberOfTouches === 1) {
+                for (let i = 0; i < markerTimes.length; i += 1) {
+                    const markerX = markerTimes[i] * markerPxPerMs * scale.value + translateX.value;
+                    const distance = Math.abs(touch.x - markerX);
+                    if (distance <= nearestDistance) {
+                        nearest = i;
+                        nearestDistance = distance;
+                    }
+                }
+            }
+            grabbedMarkerIndex.value = nearest;
+            grabActive.value = false;
+            if (nearest < 0 || !touch) {
+                stateManager.fail();
+                return;
+            }
+            grabTouchX.value = touch.x;
+            grabDownAt.value = Date.now();
+        })
+        .onTouchesMove((event, stateManager) => {
+            "worklet";
+            const touch = event.allTouches[0];
+            const index = grabbedMarkerIndex.value;
+            if (!touch || index < 0 || !sharedDraggingMarkerId || !sharedDraggingMarkerX) return;
+            const travel = touch.x - grabTouchX.value;
+            if (!grabActive.value) {
+                if (Date.now() - grabDownAt.value < MARKER_GRAB_HOLD_MS) {
+                    // Moving before the hold is up: this is a scrub, not a grab.
+                    if (Math.abs(travel) > MARKER_HOLD_WOBBLE_PX) stateManager.fail();
+                    return;
+                }
+                // Held long enough and now moving: the pin lifts.
+                const originX = markerTimes[index] * markerPxPerMs * scale.value + translateX.value;
+                grabOriginX.value = originX;
+                grabActive.value = true;
+                // The finger has already drifted a little; measure from here so the
+                // pin does not jump to catch up.
+                grabTouchX.value = touch.x;
+                sharedDraggingMarkerX.value = originX;
+                sharedDraggingMarkerId.value = markerIds[index];
+                stateManager.activate();
+                // Haptics vocabulary: `grab` — picking something up (drag lift).
+                runOnJS(haptic.grab)();
+                if (onMarkerDragStateChange) runOnJS(onMarkerDragStateChange)(true);
+                return;
+            }
+            const minX = translateX.value;
+            const maxX = durationMs * markerPxPerMs * scale.value + translateX.value;
+            sharedDraggingMarkerX.value = Math.max(minX, Math.min(maxX, grabOriginX.value + travel));
+        })
+        .onTouchesUp((_event, stateManager) => {
+            "worklet";
+            const index = grabbedMarkerIndex.value;
+            if (index < 0) return;
+            if (grabActive.value) {
+                stateManager.end();
+                return;
+            }
+            // Never moved. A full hold is a long-press for the pin's actions; a quick
+            // touch is nothing of ours.
+            if (Date.now() - grabDownAt.value >= MARKER_GRAB_HOLD_MS && onMarkerLongPress) {
+                runOnJS(onMarkerLongPress)(markerIds[index]);
+            }
+            grabbedMarkerIndex.value = -1;
+            stateManager.fail();
+        })
+        .onEnd((_event, success) => {
+            "worklet";
+            const index = grabbedMarkerIndex.value;
+            if (!grabActive.value || !success || index < 0 || !sharedDraggingMarkerX) return;
+            const pxPerMs = markerPxPerMs * scale.value;
+            if (pxPerMs > 0 && onMarkerDragEnd) {
+                const atMs = Math.round((sharedDraggingMarkerX.value - translateX.value) / pxPerMs);
+                runOnJS(onMarkerDragEnd)(markerIds[index], Math.max(0, Math.min(durationMs, atMs)));
+            }
+        })
+        .onFinalize(() => {
+            "worklet";
+            grabbedMarkerIndex.value = -1;
+            if (!grabActive.value) return;
+            grabActive.value = false;
+            if (sharedDraggingMarkerId) sharedDraggingMarkerId.value = "";
+            if (onMarkerDragStateChange) runOnJS(onMarkerDragStateChange)(false);
+        });
+    const tapeGesture = Gesture.Race(pinch, markerDrag, pan);
 
     // Dynamic bounded rules — the tape's scroll offset.
     //
@@ -1846,6 +2000,8 @@ export function PlaybackTapeVisualizer({
                                         heightValue={heightSV}
                                         ink={markInk}
                                         sharedDraggingMarkerId={sharedDraggingMarkerId}
+                                        sharedDraggingMarkerX={sharedDraggingMarkerX}
+                                        translateX={translateX}
                                     />
                                 ) : null}
                                 {!lanes && practiceMarkers && practiceMarkers.length > 0 && sectionFontProvider ? (

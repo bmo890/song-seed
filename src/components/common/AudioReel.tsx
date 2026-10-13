@@ -224,6 +224,12 @@ type Props = {
     practiceMarkers?: PracticeMarkerPreview[];
     /** Set while a pin badge drags — hides its canvas twin (see PlaybackTapeVisualizer). */
     sharedDraggingMarkerId?: SharedValue<string>;
+    /** Lanes: the tape itself moves a pin when its line is held and dragged. */
+    sharedDraggingMarkerX?: SharedValue<number>;
+    markerDragEnabled?: boolean;
+    onMarkerDragStateChange?: (dragging: boolean) => void;
+    onMarkerDragEnd?: (markerId: string, atMs: number) => void;
+    onMarkerLongPress?: (markerId: string) => void;
     sectionBands?: SectionBand[];
     /** The take's beat grid — draws the manuscript ruler (bars/beats/changes) on the
      *  tape. Absent or untrustworthy grids draw nothing (the model gates honesty). */
@@ -286,6 +292,11 @@ export function AudioReel({
     selectedRanges,
     practiceMarkers,
     sharedDraggingMarkerId,
+    sharedDraggingMarkerX,
+    markerDragEnabled,
+    onMarkerDragStateChange,
+    onMarkerDragEnd,
+    onMarkerLongPress,
     sectionBands,
     grid,
     sharedSelectedRangeStartMs,
@@ -839,6 +850,11 @@ export function AudioReel({
                             selectedRanges={selectedRanges}
                             practiceMarkers={practiceMarkers}
                             sharedDraggingMarkerId={sharedDraggingMarkerId}
+                            sharedDraggingMarkerX={sharedDraggingMarkerX}
+                            markerDragEnabled={markerDragEnabled}
+                            onMarkerDragStateChange={onMarkerDragStateChange}
+                            onMarkerDragEnd={onMarkerDragEnd}
+                            onMarkerLongPress={onMarkerLongPress}
                             sectionBands={sectionBands}
                             gridRuler={gridRulerModel}
                             gridLabelScale={overscaleFactor}

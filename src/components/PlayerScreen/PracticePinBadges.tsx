@@ -33,10 +33,10 @@ import {
 
 /** Lanes: the touch target around a pin's head and name. Taller than the row it
  *  sits in, since the thing being grabbed is now a hairline, not a badge. */
-const LANE_HIT_HEIGHT = 24;
+const LANE_HIT_HEIGHT = 30;
 /** Head centre to the hitbox's near edge. */
 const LANE_HIT_HEAD_PAD = PIN_HEAD_RADIUS + 5;
-const LANE_HIT_BARE_WIDTH = 28;
+const LANE_HIT_BARE_WIDTH = 36;
 
 type LanePlacement = {
   row: number;
@@ -135,7 +135,8 @@ function PinBadge({
       draggingMarkerX.value =
         marker.atMs * pixelsPerMs * timelineScale.value + timelineTranslateX.value;
       if (onDragStateChange) runOnJS(onDragStateChange)(true);
-      runOnJS(haptic.tap)();
+      // Haptics vocabulary: `grab` — picking something up (drag lift).
+      runOnJS(haptic.grab)();
     })
     .onChange((e) => {
       if (pixelsPerMs <= 0 || timelineScale.value <= 0) return;
@@ -199,8 +200,10 @@ function PinBadge({
   // and this one shows — under the finger, where a one-frame slip cannot be seen.
   // The invisibility lives on the INNER content, never the wrapper: Fabric drops
   // opacity-0 views from hit-testing, and an opacity-0 wrapper is a dead hitbox.
+  // Lanes: the canvas pin itself rides the drag x, so this twin never shows.
+  const hasLane = !!lane;
   const contentStyle = useAnimatedStyle(() => ({
-    opacity: isDragging.value ? 1 : 0,
+    opacity: !hasLane && isDragging.value ? 1 : 0,
   }));
 
   return (
