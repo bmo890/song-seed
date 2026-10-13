@@ -1,5 +1,6 @@
 import React from "react";
-import { ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Switch } from "../../common/Switch";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radii, spacing, text } from "../../../design/tokens";
 import { BottomSheet } from "../../common/BottomSheet";
@@ -127,8 +128,7 @@ export function EditorSaveSheet({
           <Switch
             value={removeOriginalAfterExport}
             onValueChange={onToggleRemoveOriginalAfterExport}
-            trackColor={{ false: colors.surfaceHigh, true: colors.danger }}
-            thumbColor={colors.surface}
+            tone="danger"
             accessibilityLabel={t("editor.deleteOriginal")}
           />
         </View>

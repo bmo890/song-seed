@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { ltrRow } from "../../i18n/direction";
 import { Press } from "./Press";
 import { Slider } from "./Slider";
+import { Stepper } from "./Stepper";
 
 /**
  * The one editor for anything that sits at a position on the reel — a pin, a section
@@ -141,52 +142,40 @@ export function MarkInspector({
         ) : null}
       </View>
       <View style={[mi.dragRow, ltrRow]}>
-        {/* The nudge carets tick (Press: `tap`) — a detent you feel, the same
-            tick the slider gives at every second. Callers no longer fire one. */}
-        <Press
-          style={mi.nudgeBtn}
-          onPress={() => onNudge(-nudgeStepMs)}
-          hitSlop={6}
-          accessibilityRole="button"
-          accessibilityLabel={t("player.nudgeEarlier")}
+        {/* The carets are a Stepper around the slider: each nudge is a `tick`,
+            the same detent the slider gives at every second. Callers fire none. */}
+        <Stepper
+          style={mi.stepper}
+          onStep={(direction) => onNudge(direction * nudgeStepMs)}
+          decrementLabel={t("player.nudgeEarlier")}
+          incrementLabel={t("player.nudgeLater")}
         >
-          <Ionicons name="chevron-back" size={15} color={colors.textStrong} />
-        </Press>
-        {/* A position slider: no fill, since "how much" means nothing here. It
-            ticks once a second so a drag across the window is felt, not buzzed. */}
-        <Slider
-          style={mi.dragSlider}
-          fill={false}
-          inverted={I18nManager.isRTL}
-          minimumValue={bounds.min}
-          maximumValue={bounds.max}
-          step={50}
-          detent={1000}
-          value={Math.max(bounds.min, Math.min(bounds.max, current))}
-          onSlidingStart={() => {
-            latchedBoundsRef.current = { min: minMs, max: Math.max(minMs + 1, maxMs) };
-          }}
-          onValueChange={(value) => {
-            const next = Math.round(value);
-            setDragMs(next);
-            onSlide(next);
-          }}
-          onSlidingComplete={(value) => {
-            onSlideCommit(Math.round(value));
-            setDragMs(null);
-            latchedBoundsRef.current = null;
-          }}
-          accessibilityLabel={edge === "start" || endMs == null ? startLabel : endLabel}
-        />
-        <Press
-          style={mi.nudgeBtn}
-          onPress={() => onNudge(nudgeStepMs)}
-          hitSlop={6}
-          accessibilityRole="button"
-          accessibilityLabel={t("player.nudgeLater")}
-        >
-          <Ionicons name="chevron-forward" size={15} color={colors.textStrong} />
-        </Press>
+          {/* A position slider: no fill, since "how much" means nothing here. */}
+          <Slider
+            style={mi.dragSlider}
+            fill={false}
+            inverted={I18nManager.isRTL}
+            minimumValue={bounds.min}
+            maximumValue={bounds.max}
+            step={50}
+            detent={1000}
+            value={Math.max(bounds.min, Math.min(bounds.max, current))}
+            onSlidingStart={() => {
+              latchedBoundsRef.current = { min: minMs, max: Math.max(minMs + 1, maxMs) };
+            }}
+            onValueChange={(value) => {
+              const next = Math.round(value);
+              setDragMs(next);
+              onSlide(next);
+            }}
+            onSlidingComplete={(value) => {
+              onSlideCommit(Math.round(value));
+              setDragMs(null);
+              latchedBoundsRef.current = null;
+            }}
+            accessibilityLabel={edge === "start" || endMs == null ? startLabel : endLabel}
+          />
+        </Stepper>
         {/* Use-playhead rides the slider row it acts on — icon-only, since the
             row's job is already "move this edge". */}
         <Press
@@ -265,6 +254,7 @@ const mi = StyleSheet.create({
   },
   edgeArrow: { ...text.supporting, color: colors.textMuted },
   dragRow: { alignItems: "center", gap: 8 },
+  stepper: { flex: 1 },
   dragSlider: { flex: 1, height: 32 },
   nudgeBtn: {
     width: 28,

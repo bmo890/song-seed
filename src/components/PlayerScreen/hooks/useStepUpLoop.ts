@@ -119,8 +119,7 @@ export function useStepUpLoop({
   );
 
   const toggleStepUp = useCallback(() => {
-    // Haptics: `tap` — any acknowledged press: buttons, rows, toggles.
-    haptic.tap();
+    // The Switch that flips this owns the haptic (`light`); none here.
     if (sessionRef.current) {
       setSession(null);
       return;

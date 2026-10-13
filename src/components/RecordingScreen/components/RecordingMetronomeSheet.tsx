@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Switch } from "../../common/Switch";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../../common/BottomSheet";
 import { IconButton } from "../../common/IconButton";
@@ -222,13 +223,7 @@ export function RecordingMetronomeSheet({
         {/* The switch lives here as well as on the toolbar glyph. A panel that
             states "On — clicks while you record" and offers no way to change it
             reads as a setting you can't reach. */}
-        <Switch
-          value={enabled}
-          onValueChange={onToggleEnabled}
-          disabled={disabled || !isNativeAvailable}
-          trackColor={{ false: "#E3DCD4", true: colors.primary }}
-          thumbColor={colors.surface}
-        />
+        <Switch value={enabled} onValueChange={onToggleEnabled} disabled={disabled || !isNativeAvailable} />
       </View>
 
 

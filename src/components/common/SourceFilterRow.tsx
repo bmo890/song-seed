@@ -1,5 +1,6 @@
 import React from "react";
-import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Switch } from "./Switch";
 import { Ionicons } from "@expo/vector-icons";
 import { styles as baseStyles } from "../../styles";
 import { WorkspaceAvatar } from "./WorkspaceAvatar";
@@ -96,12 +97,7 @@ export function SourceFilterRow({
           </View>
         </Pressable>
 
-        <Switch
-          value={option.included}
-          onValueChange={onToggleWorkspace}
-          trackColor={{ false: "#E3DCD4", true: colors.primary }}
-          thumbColor={colors.surface}
-        />
+        <Switch value={option.included} onValueChange={onToggleWorkspace} />
       </View>
 
       {expanded && hasCollections ? (

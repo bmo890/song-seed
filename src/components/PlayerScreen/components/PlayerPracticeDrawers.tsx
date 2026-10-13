@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import Slider from "@react-native-community/slider";
+import { Slider } from "../../common/Slider";
 import { Ionicons } from "@expo/vector-icons";
 import { fmtDuration } from "../../../utils";
 import { colors } from "../../../design/tokens";
@@ -30,6 +30,7 @@ import { AnimatedCollapse } from "../../common/AnimatedCollapse";
 import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
 import { MARK_NUDGE_BASE_MS, MARK_NUDGE_MIN_MS, MarkInspector, nudgeStepMsForZoom } from "../../common/MarkInspector";
+import { Switch } from "../../common/Switch";
 import { SpeedPitchDials } from "../../common/SpeedPitchDials";
 import { UndoRedoButtons } from "../../common/useUndoHistory";
 
@@ -706,15 +707,11 @@ export function PlayerPracticeDrawers({
           ) : (
             <Text style={pd.rowValue}>{t("player.off")}</Text>
           )}
-          <Pressable
-            style={[s.switchShell, practiceLoopEnabled ? s.switchShellActive : null]}
-            onPress={onTogglePracticeLoop}
-            accessibilityRole="switch"
-            accessibilityState={{ checked: practiceLoopEnabled }}
+          <Switch
+            value={practiceLoopEnabled}
+            onValueChange={() => onTogglePracticeLoop()}
             accessibilityLabel={t("player.toggleLoop")}
-          >
-            <View style={[s.switchKnob, practiceLoopEnabled ? s.switchKnobActive : null]} />
-          </Pressable>
+          />
         </View>
         {practiceLoopEnabled ? (
           <MarkInspector
@@ -814,20 +811,12 @@ export function PlayerPracticeDrawers({
         {/* Step up counts loop passes, so it can only run while the loop does — the
             session hook ends one the moment the loop goes off. Disabled rather than
             silently self-cancelling. */}
-        <Pressable
-          style={[
-            s.switchShell,
-            stepUpEnabled ? s.switchShellActive : null,
-            !practiceLoopEnabled ? pd.stepUpSwitchDisabled : null,
-          ]}
-          onPress={onToggleStepUp}
+        <Switch
+          value={stepUpEnabled}
+          onValueChange={() => onToggleStepUp()}
           disabled={!practiceLoopEnabled}
-          accessibilityRole="switch"
-          accessibilityState={{ checked: stepUpEnabled, disabled: !practiceLoopEnabled }}
           accessibilityLabel={t("player.toggleStepUp")}
-        >
-          <View style={[s.switchKnob, stepUpEnabled ? s.switchKnobActive : null]} />
-        </Pressable>
+        />
       </View>
       <AnimatedCollapse visible={stepUpEnabled && stepUpProgress != null}>
         {stepUpProgress ? (
@@ -933,15 +922,11 @@ export function PlayerPracticeDrawers({
           <View style={[pd.row, pd.rowDivider]}>
             <Text style={pd.rowLabel}>{t("player.click")}</Text>
             {clickDetail ? <Text style={pd.rowValue}>{clickDetail}</Text> : null}
-            <Pressable
-              style={[s.switchShell, clickEnabled ? s.switchShellActive : null]}
-              onPress={() => onSetClickEnabled(!clickEnabled)}
-              accessibilityRole="switch"
-              accessibilityState={{ checked: clickEnabled }}
+            <Switch
+              value={clickEnabled}
+              onValueChange={onSetClickEnabled}
               accessibilityLabel={t("player.click")}
-            >
-              <View style={[s.switchKnob, clickEnabled ? s.switchKnobActive : null]} />
-            </Pressable>
+            />
           </View>
           {/* The click's own volume — it competes with the song, so it has a dial
               here rather than borrowing the standalone metronome's beep level. */}
@@ -953,14 +938,9 @@ export function PlayerPracticeDrawers({
                 minimumValue={0}
                 maximumValue={100}
                 step={5}
+                detent={10}
                 value={clickLevel}
-                onSlidingComplete={(value) => {
-                  haptic.tap();
-                  onSetClickLevel(Math.round(value));
-                }}
-                minimumTrackTintColor={colors.primary}
-                maximumTrackTintColor={colors.surfaceHigh}
-                thumbTintColor={colors.primary}
+                onSlidingComplete={(value) => onSetClickLevel(Math.round(value))}
                 accessibilityLabel={t("player.clickVolume")}
               />
               <Ionicons name="volume-high-outline" size={16} color={colors.textMuted} />
@@ -970,18 +950,11 @@ export function PlayerPracticeDrawers({
           {clickEnabled && clickHapticAvailable ? (
             <View style={pd.row}>
               <Text style={pd.rowLabel}>{t("player.clickHaptic")}</Text>
-              <Pressable
-                style={[s.switchShell, clickHaptic ? s.switchShellActive : null]}
-                onPress={() => {
-                  haptic.tap();
-                  onSetClickHaptic(!clickHaptic);
-                }}
-                accessibilityRole="switch"
-                accessibilityState={{ checked: clickHaptic }}
+              <Switch
+                value={clickHaptic}
+                onValueChange={onSetClickHaptic}
                 accessibilityLabel={t("player.clickHaptic")}
-              >
-                <View style={[s.switchKnob, clickHaptic ? s.switchKnobActive : null]} />
-              </Pressable>
+              />
             </View>
           ) : null}
         </>

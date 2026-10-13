@@ -20,12 +20,14 @@ import { haptic } from "../../design/haptics";
  *   feel="surface"  a filled thing: a chip, a row, a key. Barely dips.
  *   feel="glyph"    a bare icon on the page. Dims and dips, since there is no
  *                   fill to darken.
+ *   feel="still"    a control that animates its own state (a switch). No dip;
+ *                   the press is felt through the state change.
  *
  * Haptics (haptics.ts): `tap` by default — an acknowledged press. Pass
  * `haptic="none"` when the thing pressed fires its own (a toggle's `light`),
  * never to save the tick.
  */
-export type PressFeel = "surface" | "glyph";
+export type PressFeel = "surface" | "glyph" | "still";
 export type PressHaptic = "tap" | "light" | "grab" | "none";
 
 export type PressProps = Omit<PressableProps, "style"> & {
@@ -49,7 +51,7 @@ export function Press({
       disabled={disabled}
       style={({ pressed }) => [
         style,
-        pressed && !disabled ? (feel === "glyph" ? s.glyphDown : s.surfaceDown) : null,
+        pressed && !disabled && feel !== "still" ? (feel === "glyph" ? s.glyphDown : s.surfaceDown) : null,
         disabled ? s.disabled : null,
       ]}
       onPress={(event: GestureResponderEvent) => {

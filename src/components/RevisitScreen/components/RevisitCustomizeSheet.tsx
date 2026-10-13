@@ -1,5 +1,6 @@
 import React from "react";
-import { Pressable, ScrollView, Switch, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
+import { Switch } from "../../common/Switch";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../../common/BottomSheet";
 import { styles } from "../../../styles";
@@ -102,12 +103,7 @@ export function RevisitCustomizeSheet({
               <Text style={revisitStyles.toggleRowText}>{t(labelKey)}</Text>
               <Text style={revisitStyles.toggleRowDesc}>{t(descKey)}</Text>
             </View>
-            <Switch
-              value={tagPrefs[tag] !== false}
-              onValueChange={(next) => setTagEnabled(tag, next)}
-              trackColor={{ false: "#E3DCD4", true: colors.primary }}
-              thumbColor={colors.surface}
-            />
+            <Switch value={tagPrefs[tag] !== false} onValueChange={(next) => setTagEnabled(tag, next)} />
           </View>
         ))}
 
@@ -125,12 +121,7 @@ export function RevisitCustomizeSheet({
               {t("revisit.dailyDesc")}
             </Text>
           </View>
-          <Switch
-            value={dailyRefresh}
-            onValueChange={setDailyRefresh}
-            trackColor={{ false: "#E3DCD4", true: colors.primary }}
-            thumbColor={colors.surface}
-          />
+          <Switch value={dailyRefresh} onValueChange={setDailyRefresh} />
         </View>
 
         <View style={revisitStyles.sheetHeader}>
