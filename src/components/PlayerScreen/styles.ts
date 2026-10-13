@@ -1371,27 +1371,6 @@ export const playerScreenStyles = StyleSheet.create({
     fontSize: 13,
     color: colors.textSecondary,
   },
-  switchShell: {
-    width: 46,
-    height: 28,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
-    padding: 3,
-    justifyContent: "center",
-  },
-  switchShellActive: {
-    backgroundColor: colors.primary,
-  },
-  switchKnob: {
-    width: 22,
-    height: 22,
-    borderRadius: radii.round,
-    backgroundColor: colors.surface,
-    ...shadows.control,
-  },
-  switchKnobActive: {
-    transform: [{ translateX: 18 }],
-  },
   loopControlsRow: {
     flexDirection: "row",
     alignItems: "center",

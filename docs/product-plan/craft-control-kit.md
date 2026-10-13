@@ -102,12 +102,19 @@ use-playhead, neighbour snap). The drawers' own `haptic.tap()` in `onNudge`,
 
 Founder verdict on the register (2026-10-13): "Feels good."
 
+| Control | File | Commit | Notes |
+|---|---|---|---|
+| `Switch` | `Switch.tsx` | 11fa41c9 | 46×28 shell, 22 pt paper knob (same as the Slider thumb). Knob and shell animate over `durations.base` from a `useDerivedValue` of the prop. `tone="danger"` for a destructive toggle. Haptic: `light` on flip, owned here. Replaced the stock Switch in `SourceFilterRow`, `EditorSaveSheet`, `RevisitCustomizeSheet`, `RecordingMetronomeSheet` and the hand-made `switchShell` on the loop, step-up, click and click-haptic rows. `useStepUpLoop.toggleStepUp` no longer fires its own tap. |
+| `Stepper` | `Stepper.tsx` | 11fa41c9 | Two 28 pt round keys on `surface`, `children` rendered between them (the slider). `tick` per step, hold repeats every 110 ms after 400 ms, a key at its bound is disabled. `glyphs="chevrons"` (time, never mirrored) or `"plusMinus"` (value). In `MarkInspector` around the Slider. |
+| `Press feel="still"` | `Press.tsx` | 11fa41c9 | No dip, for a control that animates its own state (the Switch). |
+
+The hand-made `switchShell`/`switchKnob` styles in `PlayerScreen/styles.ts`
+are now unreferenced and can be deleted.
+
 ### To build, in order
 
 | Control | Replaces | Spec |
 |---|---|---|
-| `Switch` | Stock `Switch` (4 files) and the hand-made `switchShell`/`switchKnob` in `PlayerScreen/styles.ts` (loop, step-up). | 46×28 shell, 22 pt knob, knob slides with `withTiming(durations.base)`, shell tints `surfaceHigh` → `primary`. Haptic: `light` on flip (small state flip). Knob is the same paper knob as the Slider thumb. |
-| `Stepper` | The nudge carets in `MarkInspector`, speed and pitch steps in `SpeedPitchDials`, tempo steps in `MetronomeBlocks`. | Two 28 pt round glyph keys on `surface`. Haptic: `tick` per step. Long-press repeats with the same tick per step. Disabled at the bound. |
 | `Chip` | `edgeChip`, `inkOption`, `partInk`, `toolChip`. One chip with `active` and `tone`. | Height 34, `radii.lg`. Active = `primarySurface` fill + `primaryDeep` text, never a border. Uses `Press`. |
 | `Row` | `pd.row`, `toolBodyRow`, settings rows. Label · value · control. | Min height 46, horizontal 10 inside cards and 16 on pages, hairline below, never a border. Label `text.body` semibold, value `text.supporting` tabular. |
 | `Spinner` | `ActivityIndicator` (14 files). | A hairline arc in `primary` rotating at `durations.slow`; or, where progress is known, a thin bar. Never the platform spinner. |
@@ -153,8 +160,28 @@ there), then the recorder's metronome sheet, then settings, then the rest.
 
 ## Move 3: guardrails
 
-Add to the eslint config (or a `scripts/craft-lint.sh` run in CI and in the
-pre-commit hook if eslint rules are awkward). Each rule fails the build.
+BUILT: `scripts/craft-lint.sh`, run as `npm run lint:craft`. There is no
+eslint config in this repo, so the guard is a shell script with a baseline.
+
+- `scripts/craft-lint.baseline` records each rule's current count of
+  matching lines in `src/` (tests and `dev/` excluded).
+- The check FAILS (exit 1) when any count rises: new drift.
+- It prints `lower` when a count falls: tighten the baseline by running
+  `sh scripts/craft-lint.sh --write-baseline` and committing the file with
+  the change that lowered it. Never write the baseline to hide a rise.
+- Proven on 2026-10-13: a planted `expo-haptics` import failed the check;
+  removing it passed.
+
+Baseline at 11fa41c9: haptics_direct 0 · slider_stock 8 · switch_stock 0 ·
+spinner_stock 20 · alert_native 0 · pressable_raw 530 · press_adhoc 345 ·
+motion_duration 23 · motion_spring 17 · font_weight_bare 1 · color_literal
+876. The migration (move 2) is done when every line but the allowlisted ones
+reads 0.
+
+Run it before every commit on this branch. Add it to CI alongside `tsc` and
+`jest` when the branch merges.
+
+The rules, as intended (the script is the source of truth):
 
 | Rule | Allowed only in |
 |---|---|
@@ -223,7 +250,7 @@ Gotchas that cost time on 2026-10-13:
 
 ## State at handoff
 
-Branch `craft/control-kit` at 1388c70e, pushed. Commits:
+Branch `craft/control-kit`, pushed. Commits:
 
 | Commit | What |
 |---|---|
@@ -231,10 +258,22 @@ Branch `craft/control-kit` at 1388c70e, pushed. Commits:
 | 0fe3a723 | Slider track reads on the terracotta wash |
 | 8ed5d021 | `haptic.tick`, light impact on Android |
 | 1388c70e | Plan note: reel loop handles set aside |
+| 5e409548 | This handoff doc |
+| 11fa41c9 | Switch and Stepper, under every switch and the mark carets |
+| (next) | craft-lint script and baseline, dead switch styles removed |
 
-Preview android updates from this branch: 2e84979d, 967db10b. `tsc` clean,
-jest 135 suites / 1208 tests at 8ed5d021.
+Preview android updates from this branch: 2e84979d, 967db10b (Slider and
+tick), 1d4b44f2 (Switch and Stepper). `tsc` clean, jest 135 suites / 1208
+tests at 11fa41c9.
 
-Next action: build `Switch` and `Stepper`, land them in the loop and marks
-drawers, screenshot before and after, then the lint rules, then the migration
-in the order above.
+Founder, 2026-10-13, after Slider and Press: "Feels good." Also: "the design
+of the whole loop options component is still not there 100%". That is move
+4 (compose), after the kit and the migration.
+
+Next action: move 2, the migration, in the file order above. Start with
+`SpeedPitchDials.tsx` (kit Slider with `detent`, Stepper with
+`glyphs="plusMinus"` around the pitch rail, Press on the resets and preset
+labels, remove its own haptics) and `MetronomeBlocks.tsx`. Run
+`npm run lint:craft` before each commit and tighten the baseline as counts
+fall. Then `Chip`, `Row`, `Spinner`, IconButton on Press. Then the states
+sheet in Claude Design. Then move 4.
