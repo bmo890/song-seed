@@ -22,16 +22,19 @@ the work up cold. Read it top to bottom before touching anything.
   comment, motion only via `src/design/motion.ts`, copy budgets, canon
   components, `npx tsc --noEmit` and `npx jest` green, UI verified in the iOS
   simulator with screenshots.
-- PREVIEW (updated 2026-10-13, later the same day): SongNook Send reached
-  main as PR #6, and main is merged into `craft/control-kit` (26283b7a), so
-  craft now CONTAINS Send. `preview/craft-plus-send` is kept as the branch the
-  preview channel is published from, because a remote session publishes from
-  it too; keep it equal to craft: `git checkout preview/craft-plus-send &&
-  git merge craft/control-kit`, `tsc` + `jest`, publish android and ios, then
-  back to craft. The Send worker is deployed with
+- ON MAIN AND PRODUCTION (2026-10-13, founder: "get everything on to
+  remote/production so I can check"): `craft/control-kit` was fast-forwarded
+  into `main` at 9eb36867 and published to production android 0f4c48aa,
+  production ios c604bac7, preview android 560f3ac4, preview ios 1e7ebce1.
+  `main`, `craft/control-kit` and `preview/craft-plus-send` are the same
+  commit. Further craft work: branch from main (or keep using
+  `craft/control-kit`), and keep `preview/craft-plus-send` equal to whatever
+  is published to preview, because a remote session publishes from it. Every
+  fix still goes to production android + production ios + preview android,
+  one platform per command. The Send worker is deployed with
   `npx wrangler deploy --config wrangler.toml` from `server/songnook-send`
-  (never without `--config`); skip the deploy when `git diff <last deployed
-  commit> -- server` is empty.
+  (never without `--config`); skip it when `git diff <last deployed commit>
+  -- server` is empty (last deployed: 64464c4c, version 84f48e29).
 - Send's sheet (`SendLinkSheet.tsx`) is on Press and Spinner. Three menu rows
   that arrived with Send (`SongHeaderMenu`, `CollectionHeaderMenu`,
   `ReceivedScreen`) copy their unconverted neighbours and wait for the hand
