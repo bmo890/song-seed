@@ -105,6 +105,10 @@ type Props = {
     /** A section being dragged whole (id, and how far in ms): its rule and name follow. */
     sharedDraggingSectionId?: SharedValue<string>;
     sharedDraggingSectionDeltaMs?: SharedValue<number>;
+    /** The neighbour being pushed by that drag, and by how many ms (signed: positive
+     *  moves its START later, negative moves its END earlier). */
+    sharedPushedSectionId?: SharedValue<string>;
+    sharedPushedSectionDeltaMs?: SharedValue<number>;
     sectionBands?: SectionBand[];
     /** Beat-grid ruler primitives (file-ms space) — manuscript lines under the wave. */
     gridRuler?: GridRulerModel | null;
@@ -530,6 +534,8 @@ function SectionLabelChipsOverlay({
     ink = false,
     sharedDraggingSectionId,
     sharedDraggingSectionDeltaMs,
+    sharedPushedSectionId,
+    sharedPushedSectionDeltaMs,
 }: {
     bands: SectionBand[];
     pixelsPerMs: number;
@@ -542,6 +548,8 @@ function SectionLabelChipsOverlay({
     ink?: boolean;
     sharedDraggingSectionId?: SharedValue<string>;
     sharedDraggingSectionDeltaMs?: SharedValue<number>;
+    sharedPushedSectionId?: SharedValue<string>;
+    sharedPushedSectionDeltaMs?: SharedValue<number>;
 }) {
     const chips = useMemo(
         () =>
@@ -584,6 +592,8 @@ function SectionLabelChipsOverlay({
                     dragPxPerMs={pixelsPerMs * labelScale}
                     sharedDraggingSectionId={sharedDraggingSectionId}
                     sharedDraggingSectionDeltaMs={sharedDraggingSectionDeltaMs}
+                    sharedPushedSectionId={sharedPushedSectionId}
+                    sharedPushedSectionDeltaMs={sharedPushedSectionDeltaMs}
                 />
             ))}
         </>
@@ -598,6 +608,8 @@ function SectionLabelChip({
     dragPxPerMs = 0,
     sharedDraggingSectionId,
     sharedDraggingSectionDeltaMs,
+    sharedPushedSectionId,
+    sharedPushedSectionDeltaMs,
 }: {
     chip: {
         band: SectionBand;
@@ -613,6 +625,8 @@ function SectionLabelChip({
     dragPxPerMs?: number;
     sharedDraggingSectionId?: SharedValue<string>;
     sharedDraggingSectionDeltaMs?: SharedValue<number>;
+    sharedPushedSectionId?: SharedValue<string>;
+    sharedPushedSectionDeltaMs?: SharedValue<number>;
 }) {
     const { band, startX, bandWidth, paragraph, chipWidth, textHeight } = chip;
     // Slide along the band so the chip holds the reel's left edge while the band scrolls
@@ -626,7 +640,11 @@ function SectionLabelChip({
         const dragging =
             !!sharedDraggingSectionId && !!sharedDraggingSectionDeltaMs && sharedDraggingSectionId.value === band.id;
         const dragPx = dragging ? sharedDraggingSectionDeltaMs.value * dragPxPerMs : 0;
-        return [{ translateX: startX + SECTION_CHIP_EDGE_PAD + slide.value + dragPx }];
+        const pushed =
+            !!sharedPushedSectionId && !!sharedPushedSectionDeltaMs && sharedPushedSectionId.value === band.id;
+        // Only a pushed START moves the name; a pushed end leaves it where it is.
+        const pushPx = pushed ? Math.max(0, sharedPushedSectionDeltaMs.value) * dragPxPerMs : 0;
+        return [{ translateX: startX + SECTION_CHIP_EDGE_PAD + slide.value + dragPx + pushPx }];
     }, [dragPxPerMs, band.id, startX]);
     const opacity = useDerivedValue(() => {
         const offscreen = SECTION_CHIP_EDGE_PAD - (startX + translateX.value);
@@ -788,12 +806,16 @@ function SectionRuleOverlay({
     pixelsPerMs,
     sharedDraggingSectionId,
     sharedDraggingSectionDeltaMs,
+    sharedPushedSectionId,
+    sharedPushedSectionDeltaMs,
 }: {
     heightValue: SharedValue<number>;
     bands: SectionBand[];
     pixelsPerMs: number;
     sharedDraggingSectionId?: SharedValue<string>;
     sharedDraggingSectionDeltaMs?: SharedValue<number>;
+    sharedPushedSectionId?: SharedValue<string>;
+    sharedPushedSectionDeltaMs?: SharedValue<number>;
 }) {
     return (
         <>
@@ -805,6 +827,8 @@ function SectionRuleOverlay({
                     pixelsPerMs={pixelsPerMs}
                     sharedDraggingSectionId={sharedDraggingSectionId}
                     sharedDraggingSectionDeltaMs={sharedDraggingSectionDeltaMs}
+                    sharedPushedSectionId={sharedPushedSectionId}
+                    sharedPushedSectionDeltaMs={sharedPushedSectionDeltaMs}
                 />
             ))}
         </>
@@ -817,12 +841,16 @@ function SectionRule({
     pixelsPerMs,
     sharedDraggingSectionId,
     sharedDraggingSectionDeltaMs,
+    sharedPushedSectionId,
+    sharedPushedSectionDeltaMs,
 }: {
     band: SectionBand;
     heightValue: SharedValue<number>;
     pixelsPerMs: number;
     sharedDraggingSectionId?: SharedValue<string>;
     sharedDraggingSectionDeltaMs?: SharedValue<number>;
+    sharedPushedSectionId?: SharedValue<string>;
+    sharedPushedSectionDeltaMs?: SharedValue<number>;
 }) {
     const x = band.startMs * pixelsPerMs;
     const width = Math.max(0, (band.endMs - band.startMs) * pixelsPerMs - 1);
@@ -841,10 +869,19 @@ function SectionRule({
         [band.id]
     );
     const ruleY = useDerivedValue(() => Math.max(0, heightValue.value - ruleHeight.value));
+    // A neighbour being pushed gives ground on the touching side only: its start
+    // moves later (positive) or its end moves earlier (negative).
+    const pushedPx = useDerivedValue(() => {
+        const pushed =
+            !!sharedPushedSectionId && !!sharedPushedSectionDeltaMs && sharedPushedSectionId.value === band.id;
+        return pushed ? sharedPushedSectionDeltaMs.value * pixelsPerMs : 0;
+    }, [pixelsPerMs, band.id]);
+    const ruleX = useDerivedValue(() => x + Math.max(0, pushedPx.value), [x]);
+    const ruleWidth = useDerivedValue(() => Math.max(0, width - Math.abs(pushedPx.value)), [width]);
     if (width <= 0) return null;
     return (
         <Group transform={transform}>
-            <Rect x={x} y={ruleY} width={width} height={ruleHeight} color={band.railColor} />
+            <Rect x={ruleX} y={ruleY} width={ruleWidth} height={ruleHeight} color={band.railColor} />
         </Group>
     );
 }
@@ -1006,6 +1043,8 @@ export function PlaybackTapeVisualizer({
     onMarkerLongPress,
     sharedDraggingSectionId,
     sharedDraggingSectionDeltaMs,
+    sharedPushedSectionId,
+    sharedPushedSectionDeltaMs,
     sharedSelectedRangeStartMs,
     sharedSelectedRangeEndMs,
     selectedRangeType = "keep",
@@ -1955,6 +1994,8 @@ export function PlaybackTapeVisualizer({
                                                 pixelsPerMs={durationMs > 0 ? baseContentWidth / durationMs : 0}
                                                 sharedDraggingSectionId={sharedDraggingSectionId}
                                                 sharedDraggingSectionDeltaMs={sharedDraggingSectionDeltaMs}
+                                                sharedPushedSectionId={sharedPushedSectionId}
+                                                sharedPushedSectionDeltaMs={sharedPushedSectionDeltaMs}
                                             />
                                         ) : (
                                             <SectionBandOverlay
@@ -2054,6 +2095,8 @@ export function PlaybackTapeVisualizer({
                                         ink={lanes}
                                         sharedDraggingSectionId={sharedDraggingSectionId}
                                         sharedDraggingSectionDeltaMs={sharedDraggingSectionDeltaMs}
+                                        sharedPushedSectionId={sharedPushedSectionId}
+                                        sharedPushedSectionDeltaMs={sharedPushedSectionDeltaMs}
                                     />
                                 ) : null}
                                 {pinLane ? (

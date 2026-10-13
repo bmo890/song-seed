@@ -231,6 +231,8 @@ type Props = {
     /** A section being dragged whole on the reel (see PlayerTimeline). */
     sharedDraggingSectionId?: SharedValue<string>;
     sharedDraggingSectionDeltaMs?: SharedValue<number>;
+    sharedPushedSectionId?: SharedValue<string>;
+    sharedPushedSectionDeltaMs?: SharedValue<number>;
     sectionBands?: SectionBand[];
     /** The take's beat grid — draws the manuscript ruler (bars/beats/changes) on the
      *  tape. Absent or untrustworthy grids draw nothing (the model gates honesty). */
@@ -300,6 +302,8 @@ export function AudioReel({
     onMarkerLongPress,
     sharedDraggingSectionId,
     sharedDraggingSectionDeltaMs,
+    sharedPushedSectionId,
+    sharedPushedSectionDeltaMs,
     sectionBands,
     grid,
     sharedSelectedRangeStartMs,
@@ -860,6 +864,8 @@ export function AudioReel({
                             onMarkerLongPress={onMarkerLongPress}
                             sharedDraggingSectionId={sharedDraggingSectionId}
                             sharedDraggingSectionDeltaMs={sharedDraggingSectionDeltaMs}
+                            sharedPushedSectionId={sharedPushedSectionId}
+                            sharedPushedSectionDeltaMs={sharedPushedSectionDeltaMs}
                             sectionBands={sectionBands}
                             gridRuler={gridRulerModel}
                             gridLabelScale={overscaleFactor}

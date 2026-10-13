@@ -9,7 +9,7 @@ import { MultiTimeRangeSelector } from "../../common/TimeRangeSelector";
 import { OverdubLayerLanes, type OverdubLayerLane } from "../../common/OverdubLayerLanes";
 import { PracticePinBadges } from "../PracticePinBadges";
 import type { PracticeMarker, ClipSection, RecordingGrid } from "../../../types";
-import { buildSectionBands, sectionMoveBounds } from "../../../domain/playerSections";
+import { buildSectionBands, sectionMoveBounds, sectionPushBounds } from "../../../domain/playerSections";
 import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
 import { useStore } from "../../../state/useStore";
@@ -31,7 +31,19 @@ const SECTION_JUMP_RAIL_HEIGHT = 30;
 const SECTION_MOVE_MIN_MS = 150;
 
 type JumpBand = { id: string; label: string; startMs: number; endMs: number };
-type MoveBounds = { minStartMs: number; maxStartMs: number };
+type MoveBounds = {
+  minStartMs: number;
+  maxStartMs: number;
+  /** How far the section may be leaned past a neighbour, and which neighbours. */
+  pushMinStartMs: number;
+  pushMaxStartMs: number;
+  prevId: string | null;
+  nextId: string | null;
+};
+
+/** How far past a neighbour the finger must lean before that neighbour's edge
+ *  gives way. Distance, not time, guards against an accidental push. */
+const SECTION_PUSH_LEAN_PX = 28;
 
 /** Invisible rails over the section bands. A tap on a section's label strip jumps
  *  the playhead to its start; with `onMove`, holding it and dragging slides the
@@ -48,6 +60,8 @@ function SectionJumpHitboxes({
   onMove,
   draggingSectionId,
   draggingSectionDeltaMs,
+  pushedSectionId,
+  pushedSectionDeltaMs,
 }: {
   bands: JumpBand[];
   pixelsPerMs: number;
@@ -55,9 +69,11 @@ function SectionJumpHitboxes({
   timelineScale: SharedValue<number>;
   onSeek: (timeMs: number) => void;
   moveBounds?: Map<string, MoveBounds>;
-  onMove?: (sectionId: string, startMs: number) => void;
+  onMove?: (sectionId: string, startMs: number, push?: boolean) => void;
   draggingSectionId: SharedValue<string>;
   draggingSectionDeltaMs: SharedValue<number>;
+  pushedSectionId: SharedValue<string>;
+  pushedSectionDeltaMs: SharedValue<number>;
 }) {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
@@ -73,6 +89,8 @@ function SectionJumpHitboxes({
           onMove={onMove}
           draggingSectionId={draggingSectionId}
           draggingSectionDeltaMs={draggingSectionDeltaMs}
+          pushedSectionId={pushedSectionId}
+          pushedSectionDeltaMs={pushedSectionDeltaMs}
         />
       ))}
     </View>
@@ -89,6 +107,8 @@ function SectionJumpHitbox({
   onMove,
   draggingSectionId,
   draggingSectionDeltaMs,
+  pushedSectionId,
+  pushedSectionDeltaMs,
 }: {
   band: JumpBand;
   pixelsPerMs: number;
@@ -96,21 +116,29 @@ function SectionJumpHitbox({
   timelineScale: SharedValue<number>;
   onSeek: (timeMs: number) => void;
   bounds?: MoveBounds;
-  onMove?: (sectionId: string, startMs: number) => void;
+  onMove?: (sectionId: string, startMs: number, push?: boolean) => void;
   draggingSectionId: SharedValue<string>;
   draggingSectionDeltaMs: SharedValue<number>;
+  pushedSectionId: SharedValue<string>;
+  pushedSectionDeltaMs: SharedValue<number>;
 }) {
+  // 0 moving freely · 1 held at a neighbour · 2 leaning through it.
+  const pushZone = useSharedValue(0);
   const handleJump = React.useCallback(
     () => onSeek(band.startMs),
     [band.startMs, onSeek]
   );
   const handleMove = React.useCallback(
-    (startMs: number) => onMove?.(band.id, startMs),
+    (startMs: number, push: boolean) => onMove?.(band.id, startMs, push),
     [band.id, onMove]
   );
   const canMove = !!onMove && !!bounds;
   const minDeltaMs = bounds ? bounds.minStartMs - band.startMs : 0;
   const maxDeltaMs = bounds ? bounds.maxStartMs - band.startMs : 0;
+  const pushMinDeltaMs = bounds ? bounds.pushMinStartMs - band.startMs : 0;
+  const pushMaxDeltaMs = bounds ? bounds.pushMaxStartMs - band.startMs : 0;
+  const prevId = bounds?.prevId ?? "";
+  const nextId = bounds?.nextId ?? "";
   const gesture = React.useMemo(() => {
     const tap = Gesture.Tap().onEnd(() => {
       // Haptics vocabulary: `tap` — an acknowledged press (the jump lands).
@@ -122,23 +150,65 @@ function SectionJumpHitbox({
       .activateAfterLongPress(300)
       .onStart(() => {
         draggingSectionDeltaMs.value = 0;
+        pushedSectionDeltaMs.value = 0;
+        pushedSectionId.value = "";
+        pushZone.value = 0;
         draggingSectionId.value = band.id;
         // Haptics vocabulary: `grab` — picking something up (drag lift).
         runOnJS(haptic.grab)();
       })
       .onChange((event) => {
         if (pixelsPerMs <= 0 || timelineScale.value <= 0) return;
-        const deltaMs = event.translationX / (pixelsPerMs * timelineScale.value);
-        draggingSectionDeltaMs.value = Math.max(minDeltaMs, Math.min(maxDeltaMs, deltaMs));
+        const pxPerMs = pixelsPerMs * timelineScale.value;
+        const raw = event.translationX / pxPerMs;
+        const lean = SECTION_PUSH_LEAN_PX / pxPerMs;
+        // Free between the neighbours; held at one; and, leaned far enough past
+        // it, taking that neighbour's near edge along.
+        let delta = raw;
+        let zone = 0;
+        let pushed = "";
+        let pushedBy = 0;
+        if (raw > maxDeltaMs) {
+          delta = maxDeltaMs;
+          zone = 1;
+          if (nextId !== "" && raw > maxDeltaMs + lean) {
+            delta = Math.min(pushMaxDeltaMs, raw - lean);
+            zone = 2;
+            pushed = nextId;
+            pushedBy = delta - maxDeltaMs;
+          }
+        } else if (raw < minDeltaMs) {
+          delta = minDeltaMs;
+          zone = 1;
+          if (prevId !== "" && raw < minDeltaMs - lean) {
+            delta = Math.max(pushMinDeltaMs, raw + lean);
+            zone = 2;
+            pushed = prevId;
+            pushedBy = delta - minDeltaMs;
+          }
+        }
+        if (zone > pushZone.value) {
+          // Haptics vocabulary: `tick` — a detent reached (the neighbour);
+          // `grab` — a heavier mode entered (the neighbour gives way).
+          if (zone === 2) runOnJS(haptic.grab)();
+          else runOnJS(haptic.tick)();
+        }
+        pushZone.value = zone;
+        draggingSectionDeltaMs.value = delta;
+        pushedSectionDeltaMs.value = pushedBy;
+        pushedSectionId.value = pushed;
       })
       .onEnd(() => {
         const deltaMs = draggingSectionDeltaMs.value;
         if (Math.abs(deltaMs) >= SECTION_MOVE_MIN_MS) {
-          runOnJS(handleMove)(Math.round(band.startMs + deltaMs));
+          runOnJS(handleMove)(Math.round(band.startMs + deltaMs), pushZone.value === 2);
         }
       })
       .onFinalize(() => {
-        if (draggingSectionId.value === band.id) draggingSectionId.value = "";
+        if (draggingSectionId.value === band.id) {
+          draggingSectionId.value = "";
+          pushedSectionId.value = "";
+        }
       });
     return Gesture.Exclusive(pan, tap);
   }, [
@@ -151,7 +221,14 @@ function SectionJumpHitbox({
     handleMove,
     maxDeltaMs,
     minDeltaMs,
+    nextId,
     pixelsPerMs,
+    prevId,
+    pushMaxDeltaMs,
+    pushMinDeltaMs,
+    pushZone,
+    pushedSectionDeltaMs,
+    pushedSectionId,
     timelineScale,
   ]);
   const animatedStyle = useAnimatedStyle(() => {
@@ -250,7 +327,7 @@ type Props = {
   onScrubStateChange: (scrubbing: boolean) => void;
   onRepositionMarker: (markerId: string, newAtMs: number) => void;
   /** Slide a section whole to a new start (hold its name or rule, then drag). */
-  onMoveSection?: (sectionId: string, startMs: number) => void;
+  onMoveSection?: (sectionId: string, startMs: number, push?: boolean) => void;
   onRequestPinActions: (marker: PracticeMarker) => void;
   onRequestAddPin: () => void;
   onPinDragStateChange: (dragging: boolean) => void;
@@ -430,11 +507,15 @@ function PlayerTimelineInner({
   // them on the UI thread; the canvas draws from them. No React state moves.
   const draggingSectionId = useSharedValue("");
   const draggingSectionDeltaMs = useSharedValue(0);
+  // The neighbour whose near edge is being pushed, and by how much (signed).
+  const pushedSectionId = useSharedValue("");
+  const pushedSectionDeltaMs = useSharedValue(0);
   const sectionMoveBoundsById = React.useMemo(() => {
-    const map = new Map<string, { minStartMs: number; maxStartMs: number }>();
+    const map = new Map<string, MoveBounds>();
     for (const section of sections) {
       const bounds = sectionMoveBounds(sections, section.id, durationMs);
-      if (bounds) map.set(section.id, bounds);
+      const push = sectionPushBounds(sections, section.id, durationMs);
+      if (bounds && push) map.set(section.id, { ...bounds, ...push });
     }
     return map;
   }, [sections, durationMs]);
@@ -536,6 +617,8 @@ function PlayerTimelineInner({
       onMarkerLongPress={handleMarkerLongPress}
       sharedDraggingSectionId={draggingSectionId}
       sharedDraggingSectionDeltaMs={draggingSectionDeltaMs}
+      sharedPushedSectionId={pushedSectionId}
+      sharedPushedSectionDeltaMs={pushedSectionDeltaMs}
       sectionBands={sectionBands}
       grid={recordingGrid}
       sharedSelectedRangeStartMs={loopActive ? sharedLoopPreviewStartMs : undefined}
@@ -580,6 +663,8 @@ function PlayerTimelineInner({
                 onMove={mode === "practice" ? onMoveSection : undefined}
                 draggingSectionId={draggingSectionId}
                 draggingSectionDeltaMs={draggingSectionDeltaMs}
+                pushedSectionId={pushedSectionId}
+                pushedSectionDeltaMs={pushedSectionDeltaMs}
               />
               <PracticePinBadges
                 markers={practiceMarkers}

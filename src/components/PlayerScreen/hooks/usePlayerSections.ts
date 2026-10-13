@@ -87,8 +87,8 @@ export function usePlayerSections({
 
   /** Slide a section whole to a new start (the reel's hold-and-drag). */
   const handleMoveSection = useCallback(
-    (sectionId: string, startMs: number) => {
-      persist(moveSection(sections, sectionId, startMs, displayDuration));
+    (sectionId: string, startMs: number, push?: boolean) => {
+      persist(moveSection(sections, sectionId, startMs, displayDuration, { push }));
     },
     [displayDuration, persist, sections]
   );

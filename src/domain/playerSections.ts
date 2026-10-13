@@ -296,21 +296,58 @@ export function sectionMoveBounds(
   return { minStartMs, maxStartMs: Math.max(minStartMs, maxStartMs) };
 }
 
-/** Slide a section to a new start at the same length, stopping at its neighbours. */
+/**
+ * How far a section may be LEANED past a neighbour (founder, 2026-10-13): pushed
+ * through the wall, it moves that neighbour's touching edge — only that edge, and
+ * only until the neighbour is down to its minimum length. Nothing cascades to a
+ * third section. With no neighbour on a side, the push range is the plain range.
+ */
+export function sectionPushBounds(
+  sections: ClipSection[],
+  id: string,
+  durationMs: number
+): { pushMinStartMs: number; pushMaxStartMs: number; prevId: string | null; nextId: string | null } | null {
+  const list = normalizeSections(sections, durationMs);
+  const idx = list.findIndex((section) => section.id === id);
+  const bounds = sectionMoveBounds(list, id, durationMs);
+  if (idx < 0 || !bounds) return null;
+  const self = list[idx];
+  const length = self.endMs - self.startMs;
+  const prev = idx > 0 ? list[idx - 1] : null;
+  const next = idx < list.length - 1 ? list[idx + 1] : null;
+  const pushMinStartMs = prev ? Math.min(bounds.minStartMs, prev.startMs + MIN_SECTION_LENGTH_MS) : bounds.minStartMs;
+  const pushMaxStartMs = next
+    ? Math.max(bounds.maxStartMs, next.endMs - MIN_SECTION_LENGTH_MS - length)
+    : bounds.maxStartMs;
+  return { pushMinStartMs, pushMaxStartMs, prevId: prev?.id ?? null, nextId: next?.id ?? null };
+}
+
+/** Slide a section to a new start at the same length. By default its neighbours
+ *  are walls; with `push` it may go past one, moving that neighbour's near edge. */
 export function moveSection(
   sections: ClipSection[],
   id: string,
   startMs: number,
-  durationMs: number
+  durationMs: number,
+  options?: { push?: boolean }
 ): ClipSection[] {
   const list = normalizeSections(sections, durationMs);
   const bounds = sectionMoveBounds(list, id, durationMs);
   if (!bounds) return list;
+  const push = options?.push ? sectionPushBounds(list, id, durationMs) : null;
+  const minStart = push ? push.pushMinStartMs : bounds.minStartMs;
+  const maxStart = push ? push.pushMaxStartMs : bounds.maxStartMs;
+  const self = list.find((section) => section.id === id)!;
+  const length = self.endMs - self.startMs;
+  const nextStart = Math.max(minStart, Math.min(maxStart, Math.round(startMs)));
+  const nextEnd = nextStart + length;
   return list.map((section) => {
-    if (section.id !== id) return section;
-    const length = section.endMs - section.startMs;
-    const nextStart = Math.max(bounds.minStartMs, Math.min(bounds.maxStartMs, Math.round(startMs)));
-    return { ...section, startMs: nextStart, endMs: nextStart + length };
+    if (section.id === id) return { ...section, startMs: nextStart, endMs: nextEnd };
+    // Past the wall: the neighbour gives up exactly the ground taken, on the
+    // touching side only.
+    if (push && section.id === push.nextId && nextEnd > section.startMs) return { ...section, startMs: nextEnd };
+    if (push && section.id === push.prevId && nextStart < section.endMs) return { ...section, endMs: nextStart };
+    return section;
   });
 }
 
