@@ -132,6 +132,9 @@ are now unreferenced and can be deleted.
 | Control | File | Notes |
 |---|---|---|
 | `InkOption` | `InkOption.tsx` | Editorial ink: a word led by a dot, hollow to terracotta. Built 2026-10-13 for the player's "Marks" toggle. `Press`, `light` on flip. Migration list is in "Under the reel". |
+| `Knob` | `Knob.tsx` | The mixer's level control (Sound room, 2026-10-14). A 60 pt paper disc with `shadows.control`, a terracotta pointer, a tick arc (±135°, nine ticks, the long one at `rest`) whose fill grows from rest toward the pointer. Turned by a vertical drag (150 pt end to end), RNGH pan activated on touch so the page never scrolls from a finger on it; value on the UI thread, quantised to `step`, committed by the caller on release. Haptics: `grab` on land, `tick` per `detent`, `light` on arriving at `rest` and on lift; an end stop is silent. |
+| `LitKey` | `LitKey.tsx` | A piece of gear: a quiet `surface` box (36 pt, `radii.lg`, hairline `borderSubtle`) with a 6 pt lamp at its leading edge. Off: a `borderMuted` bead, grey word. On: the lamp glows `primary` with a 22% halo over `durations.fast`, the word goes `textStrong`. The box never changes colour. `Press`, `light` on press; the lamp lights on release. **The one boxed toggle in the app**, for controls that are equipment (tone presets, the bench's switches); every other on/off stays `InkOption`. |
+| `LevelToneStrip` | `LevelToneStrip.tsx` | One `Knob` (−12 … +12 dB, detent 3, rest 0) beside a two-by-two bank of `LitKey`s for the tone flags, each group with the dials' reset key once bent. The player's Sound drawer and the Layers bench (root and each layer) share it. |
 
 ### To build, in order
 
@@ -751,6 +754,55 @@ an app sent to the background mid-upload on a real phone (the BACKGROUND
 session type should carry it; untested); a seal that takes minutes on a real
 uplink; the one-at-a-time toast; the stacked pills; the packing phase bar on
 a large archive (the sketch seal was too quick to catch).
+
+## Links carry AAC; caps raised (2026-10-14)
+
+Founder sent two collections and was refused: "Links carry up to 512 MB".
+The takes were WAV (imported songs 11.5 MB/min, in-app takes 5.3 MB/min), so
+sixteen songs were about 740 MB. Not a bug in the check. Founder: compress,
+"decent, doesn't need to be studio perfect".
+
+**Decisions.** Links are ALWAYS compressed; no quality picker on the sheet.
+Export-to-file stays lossless, and the library is never touched: only the
+copy inside the parcel is AAC. Per-file cap raised 512 MB → 1 GB on both
+sides (`config/sendService.ts`, `server/songnook-send/wrangler.toml`; a
+collection packs as one file, so the per-file cap was the real line).
+
+**How.** `domain/linkAudio.ts` (tested): which URIs are lossless
+(wav/aif/aiff/aifc/caf/flac), and `substituteEncodedAudio` which returns the
+workspaces with every clip audio field (take, source, stems, rendered mix)
+pointed at the encoded copy, same references where nothing changed.
+`services/linkAudioEncoder.ts`: the native trim renderer with one full-length
+range (AVAssetExportSession AppleM4A preset on iOS, Media3 Transformer AAC on
+Android), one file at a time, cancellable between files, temp files in the
+cache deleted after the parcel leaves; a file the encoder cannot read is
+packed as it is. `prepareLibraryExportArchive` with `compressAudio: true`
+builds once to learn the file list, encodes, swaps the clips, builds again:
+every manifest path and extension follows the .m4a with no builder change.
+Reports an `encoding` phase; `createShareLink` folds encoding into the first
+half of the pill's Packing bar. `createFilesShareLink` (raw clips) encodes
+too and renames items to `.m4a` / `audio/mp4`. The job store flips
+`hasPacking` on the first packing report with work in it, so a clip parcel
+only shows a packing share when it encoded.
+
+**Measured (iOS simulator, live service):** a 35 s mono WAV take (3.1 MB)
+arrived as a 0.99 MB .m4a, 44.1 kHz, 224 kbps, 35.00 s. So the iOS preset
+sits at ~224 kbps. The "Keren show" workspace (nine stereo WAV songs, 415 MB,
+the founder's real case) sealed to a 68 MB parcel: about six times smaller.
+Encoding those nine took roughly 40 s in the simulator (slow for the first
+song, then quick); a phone will be slower, and the pill's Packing bar is
+what covers that wait. The bitrate is the platform preset's; setting it
+explicitly needs a native change in `renderTrim` on both platforms and a
+native build. Android's Transformer default is believed to be 128 kbps —
+UNMEASURED; check a parcel sent from an Android phone before trusting the
+"decent" promise there.
+
+NOT verified: Android at all; a sketch parcel (archive path) end to end with
+WAV takes — the clip path was measured, the archive path is the same encoder
+behind `substituteEncodedAudio`, which is unit-tested; receiving an encoded
+parcel on a second device; stems / rendered mixes through the encoder; the
+first-time encode of a 150 MB WAV (how long the Packing phase takes on a
+phone).
 
 ## State at handoff
 

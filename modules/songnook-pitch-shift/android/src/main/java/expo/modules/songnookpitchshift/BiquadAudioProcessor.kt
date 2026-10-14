@@ -16,6 +16,7 @@ import kotlin.math.sin
  * iOS renderer's AVAudioUnitEQ bands:
  *   - hi cut    = low-pass (7.2 kHz on the mix path)
  *   - mid boost = peaking (+4 dB around 1.8 kHz)
+ *   - low boost = low shelf (+4 dB below 120 Hz)
  * Same 16-bit contract and per-channel state discipline as LowCutAudioProcessor.
  */
 class BiquadAudioProcessor private constructor(
@@ -24,7 +25,7 @@ class BiquadAudioProcessor private constructor(
   private val gainDb: Double,
   private val q: Double,
 ) : BaseAudioProcessor() {
-  private enum class Kind { LOW_PASS, PEAKING }
+  private enum class Kind { LOW_PASS, PEAKING, LOW_SHELF }
 
   companion object {
     fun lowPass(frequencyHz: Double, q: Double = 0.707): BiquadAudioProcessor =
@@ -32,6 +33,9 @@ class BiquadAudioProcessor private constructor(
 
     fun peaking(frequencyHz: Double, gainDb: Double, q: Double): BiquadAudioProcessor =
       BiquadAudioProcessor(Kind.PEAKING, frequencyHz, gainDb, q)
+
+    fun lowShelf(frequencyHz: Double, gainDb: Double, q: Double = 0.707): BiquadAudioProcessor =
+      BiquadAudioProcessor(Kind.LOW_SHELF, frequencyHz, gainDb, q)
   }
 
   // Normalized coefficients (divided by a0).
@@ -148,6 +152,16 @@ class BiquadAudioProcessor private constructor(
         b2 = (1.0 - alpha * amp) / a0
         a1 = (-2.0 * cosOmega) / a0
         a2 = (1.0 - alpha / amp) / a0
+      }
+      Kind.LOW_SHELF -> {
+        val amp = 10.0.pow(gainDb / 40.0)
+        val sqrtTerm = 2.0 * kotlin.math.sqrt(amp) * alpha
+        val a0 = (amp + 1.0) + (amp - 1.0) * cosOmega + sqrtTerm
+        b0 = (amp * ((amp + 1.0) - (amp - 1.0) * cosOmega + sqrtTerm)) / a0
+        b1 = (2.0 * amp * ((amp - 1.0) - (amp + 1.0) * cosOmega)) / a0
+        b2 = (amp * ((amp + 1.0) - (amp - 1.0) * cosOmega - sqrtTerm)) / a0
+        a1 = (-2.0 * ((amp - 1.0) + (amp + 1.0) * cosOmega)) / a0
+        a2 = ((amp + 1.0) + (amp - 1.0) * cosOmega - sqrtTerm) / a0
       }
     }
   }

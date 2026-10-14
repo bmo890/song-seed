@@ -44,6 +44,7 @@ export const OVERDUB_HELP: HelpContent = {
     return [
       item("layers-outline", "overdub.layers"),
       item("git-compare-outline", "overdub.timing"),
+      item("options-outline", "overdub.sound"),
       item("save-outline", "overdub.editing"),
     ];
   },

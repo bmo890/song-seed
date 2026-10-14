@@ -31,6 +31,14 @@ describe("overdub tone flags", () => {
     expect(toggleToneFlag("warm", "mid-boost")).toBe("mid-boost");
   });
 
+  it("keeps one band from pulling two ways", () => {
+    expect(toggleToneFlag("low-cut", "low-boost")).toBe("low-boost");
+    expect(toggleToneFlag("low-boost+hi-cut", "low-cut")).toBe("low-cut+hi-cut");
+    expect(toggleToneFlag("low-boost", "low-boost")).toBe("neutral");
+    expect(formatToneFlags(["mid-boost", "low-boost"])).toBe("low-boost+mid-boost");
+    expect(sanitizeTonePreset("low-boost+low-cut")).toBe("low-cut+low-boost");
+  });
+
   it("answers per-flag membership", () => {
     expect(hasToneFlag("low-cut+mid-boost", "mid-boost")).toBe(true);
     expect(hasToneFlag("low-cut+mid-boost", "hi-cut")).toBe(false);

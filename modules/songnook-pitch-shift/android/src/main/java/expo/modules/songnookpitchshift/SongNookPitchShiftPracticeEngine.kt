@@ -10,13 +10,24 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.common.audio.AudioProcessor
+import androidx.media3.common.audio.DefaultGainProvider
+import androidx.media3.common.audio.GainProcessor
+import androidx.media3.common.audio.ToInt16PcmAudioProcessor
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
 import java.util.concurrent.CountDownLatch
 import kotlin.math.max
 import kotlin.math.min
 
 private const val DEFAULT_TICK_MS = 100L
+private const val SOUND_GAIN_MIN_DB = -24.0
+private const val SOUND_GAIN_MAX_DB = 12.0
 
+@androidx.annotation.OptIn(UnstableApi::class)
 class SongNookPitchShiftPracticeEngine(
   context: Context,
   private val onStateChange: (Map<String, Any?>) -> Unit,
@@ -29,6 +40,11 @@ class SongNookPitchShiftPracticeEngine(
   private var currentSourceUri: String? = null
   private var currentPlaybackRate = 1.0
   private var currentPitchShiftSemitones = 0
+  // The take's sound (Sound room, 2026-10-14): level and tone flags. ExoPlayer's
+  // audio sink takes its processor chain at build time, so a change here rebuilds
+  // the player at the same position (one short gap per knob release or key press).
+  private var currentGainDb = 0.0
+  private var currentTonePreset = "neutral"
   private var didJustFinish = false
   private var tickerRunning = false
 
@@ -68,10 +84,51 @@ class SongNookPitchShiftPracticeEngine(
     return result as T
   }
 
+  /** Gain, then the tone bands, then a limiter so a lift never clips. The sink
+   *  decodes to 16-bit first so every processor meets the format it expects. */
+  private fun buildSoundProcessors(): Array<AudioProcessor> {
+    val processors = mutableListOf<AudioProcessor>()
+    processors += ToInt16PcmAudioProcessor()
+    if (currentGainDb != 0.0) {
+      val factor = Math.pow(10.0, currentGainDb / 20.0).toFloat()
+      processors += GainProcessor(DefaultGainProvider.Builder(factor).build())
+    }
+    val toneFlags = currentTonePreset.split("+")
+    if (toneFlags.contains("low-cut")) {
+      processors += LowCutAudioProcessor()
+    }
+    if (toneFlags.contains("low-boost")) {
+      processors += BiquadAudioProcessor.lowShelf(120.0, 4.0)
+    }
+    if (toneFlags.contains("hi-cut")) {
+      processors += BiquadAudioProcessor.lowPass(7200.0)
+    }
+    if (toneFlags.contains("mid-boost")) {
+      processors += BiquadAudioProcessor.peaking(1800.0, 4.0, 1.0)
+    }
+    processors += LimiterAudioProcessor()
+    return processors.toTypedArray()
+  }
+
   private fun ensurePlayer(): ExoPlayer {
     player?.let { return it }
 
-    val created = ExoPlayer.Builder(appContext).build().apply {
+    val soundProcessors = buildSoundProcessors()
+    val renderersFactory = object : DefaultRenderersFactory(appContext) {
+      override fun buildAudioSink(
+        context: Context,
+        enableFloatOutput: Boolean,
+        enableAudioTrackPlaybackParams: Boolean,
+      ): AudioSink {
+        return DefaultAudioSink.Builder(context)
+          .setAudioProcessors(soundProcessors)
+          .setEnableFloatOutput(enableFloatOutput)
+          .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+          .build()
+      }
+    }
+
+    val created = ExoPlayer.Builder(appContext, renderersFactory).build().apply {
       setAudioAttributes(
         AudioAttributes.Builder()
           .setUsage(C.USAGE_MEDIA)
@@ -169,6 +226,8 @@ class SongNookPitchShiftPracticeEngine(
       "durationMs" to durationMs,
       "playbackRate" to currentPlaybackRate,
       "pitchShiftSemitones" to currentPitchShiftSemitones,
+      "soundGainDb" to currentGainDb,
+      "soundTonePreset" to currentTonePreset,
       "sourceUri" to currentSourceUri,
       )
   }
@@ -185,6 +244,17 @@ class SongNookPitchShiftPracticeEngine(
       val autoplay = request["autoplay"] as? Boolean ?: false
       currentPlaybackRate = (request["playbackRate"] as? Number)?.toDouble() ?: 1.0
       currentPitchShiftSemitones = (request["pitchShiftSemitones"] as? Number)?.toInt() ?: 0
+      val nextGainDb = clampGainDb((request["gainDb"] as? Number)?.toDouble() ?: 0.0)
+      val nextTonePreset = normalizeTonePreset(request["tonePreset"] as? String)
+      if (nextGainDb != currentGainDb || nextTonePreset != currentTonePreset) {
+        // A different sound needs a different processor chain: drop the player so
+        // ensurePlayer builds one with it.
+        stopTicker()
+        player?.release()
+        player = null
+        currentGainDb = nextGainDb
+        currentTonePreset = nextTonePreset
+      }
       didJustFinish = false
       currentSourceUri = sourceUri
 
@@ -248,7 +318,54 @@ class SongNookPitchShiftPracticeEngine(
     currentSourceUri = null
     currentPlaybackRate = 1.0
     currentPitchShiftSemitones = 0
+    currentGainDb = 0.0
+    currentTonePreset = "neutral"
     getStateUnsafe()
+  }
+
+  /** Level and tone on the running transport. The sink's chain is fixed at build,
+   *  so the player is rebuilt in place: same source, same position, same play state. */
+  fun setSound(request: Map<String, Any?>): Map<String, Any?> = runOnPlayerThreadSync {
+    val nextGainDb = clampGainDb((request["gainDb"] as? Number)?.toDouble() ?: currentGainDb)
+    val nextTonePreset = normalizeTonePreset(request["tonePreset"] as? String ?: currentTonePreset)
+    if (nextGainDb == currentGainDb && nextTonePreset == currentTonePreset) {
+      return@runOnPlayerThreadSync getStateUnsafe()
+    }
+    currentGainDb = nextGainDb
+    currentTonePreset = nextTonePreset
+
+    val existing = player
+    val sourceUri = currentSourceUri
+    if (existing == null || sourceUri == null) {
+      return@runOnPlayerThreadSync getStateUnsafe()
+    }
+    val positionMs = existing.currentPosition
+    val wasPlaying = existing.playWhenReady && existing.playbackState != Player.STATE_ENDED
+    stopTicker()
+    existing.release()
+    player = null
+
+    val rebuilt = ensurePlayer()
+    rebuilt.setMediaItem(MediaItem.fromUri(Uri.parse(sourceUri)))
+    applyPlaybackParameters(rebuilt)
+    rebuilt.prepare()
+    rebuilt.seekTo(max(0L, positionMs))
+    rebuilt.playWhenReady = wasPlaying
+    if (wasPlaying) {
+      startTicker()
+    } else {
+      onStateChange(getStateUnsafe())
+    }
+    getStateUnsafe()
+  }
+
+  private fun clampGainDb(value: Double): Double {
+    return max(SOUND_GAIN_MIN_DB, min(SOUND_GAIN_MAX_DB, value))
+  }
+
+  private fun normalizeTonePreset(value: String?): String {
+    val trimmed = value?.trim().orEmpty()
+    return if (trimmed.isEmpty()) "neutral" else trimmed
   }
 
   fun seekTo(positionMs: Double): Map<String, Any?> = runOnPlayerThreadSync {
