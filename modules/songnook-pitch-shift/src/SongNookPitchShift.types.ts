@@ -7,6 +7,14 @@ export type NativePitchShiftCapabilities = {
   maxSemitones: number;
 };
 
+/** How the take sounds (Sound room, 2026-10-14): a level in dB, limited after the
+ *  lift so a boost never clips, and the tone flags in their canonical encoding
+ *  ("neutral", or "+"-joined out of "low-cut" | "low-boost" | "mid-boost" | "hi-cut"). */
+export type NativeSoundSettings = {
+  gainDb: number;
+  tonePreset: string;
+};
+
 export type NativePitchShiftPlaybackState = {
   isAvailable: boolean;
   isLoaded: boolean;
@@ -16,6 +24,9 @@ export type NativePitchShiftPlaybackState = {
   durationMs: number;
   playbackRate: number;
   pitchShiftSemitones: number;
+  /** Absent on native builds predating the Sound room: callers treat it as neutral. */
+  soundGainDb?: number;
+  soundTonePreset?: string;
   sourceUri: string | null;
 };
 
@@ -25,6 +36,9 @@ export type NativePitchShiftLoadRequest = {
   autoplay?: boolean;
   playbackRate?: number;
   pitchShiftSemitones?: number;
+  /** Level and tone to load with; a build without the EQ stage ignores them. */
+  gainDb?: number;
+  tonePreset?: string;
 };
 
 export type NativePitchShiftRenderRequest = {
@@ -46,7 +60,8 @@ export type NativeMixedRenderInput = {
    *  (how a late-recorded overdub gets corrected). */
   offsetMs?: number;
   /** Canonical tone-flag encoding: "neutral", or "+"-joined flags out of
-   *  "low-cut" | "hi-cut" | "mid-boost" (legacy singles "warm"/"bright" pass through). */
+   *  "low-cut" | "low-boost" | "mid-boost" | "hi-cut" (legacy singles "warm"/"bright"
+   *  pass through). */
   tonePreset?: string;
 };
 

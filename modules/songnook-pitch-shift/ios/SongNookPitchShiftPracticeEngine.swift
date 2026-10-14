@@ -10,11 +10,17 @@ final class SongNookPitchShiftPracticeEngine {
   private let engine = AVAudioEngine()
   private let playerNode = AVAudioPlayerNode()
   private let timePitchNode = AVAudioUnitTimePitch()
+  // The take's sound (Sound room, 2026-10-14): level on the EQ's global gain, the
+  // tone keys as its bands, and a limiter after the lift so +12 dB never clips.
+  private let eqNode = SongNookToneEQ.makeNode()
+  private let limiterNode = SongNookToneEQ.makeLimiterNode()
 
   private var audioFile: AVAudioFile?
   private var sourceUri: String?
   private var currentPlaybackRate: Double = 1.0
   private var currentPitchShiftSemitones: Int = 0
+  private var currentGainDb: Double = 0
+  private var currentTonePreset: String = "neutral"
   private var pausedPositionMs: Double = 0
   private var isPlaying = false
   private var didJustFinish = false
@@ -32,9 +38,14 @@ final class SongNookPitchShiftPracticeEngine {
 
     engine.attach(playerNode)
     engine.attach(timePitchNode)
+    engine.attach(eqNode)
+    engine.attach(limiterNode)
     engine.connect(playerNode, to: timePitchNode, format: nil)
-    engine.connect(timePitchNode, to: engine.mainMixerNode, format: nil)
+    engine.connect(timePitchNode, to: eqNode, format: nil)
+    engine.connect(eqNode, to: limiterNode, format: nil)
+    engine.connect(limiterNode, to: engine.mainMixerNode, format: nil)
     applyTimePitchSettings()
+    applySoundSettings()
   }
 
   deinit {
@@ -64,6 +75,8 @@ final class SongNookPitchShiftPracticeEngine {
       "durationMs": durationMs(),
       "playbackRate": currentPlaybackRate,
       "pitchShiftSemitones": currentPitchShiftSemitones,
+      "soundGainDb": currentGainDb,
+      "soundTonePreset": currentTonePreset,
       "sourceUri": sourceUri as Any
     ]
   }
@@ -84,6 +97,8 @@ final class SongNookPitchShiftPracticeEngine {
       ?? Double((request["playbackRate"] as? Int) ?? 1)
     let semitones = (request["pitchShiftSemitones"] as? Int)
       ?? Int((request["pitchShiftSemitones"] as? Double) ?? 0)
+    let gainDb = (request["gainDb"] as? Double) ?? Double((request["gainDb"] as? Int) ?? 0)
+    let tonePreset = (request["tonePreset"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
     let url = URL(string: uriString) ?? URL(fileURLWithPath: uriString)
     let file = try AVAudioFile(forReading: url)
@@ -94,10 +109,13 @@ final class SongNookPitchShiftPracticeEngine {
     sourceUri = uriString
     currentPlaybackRate = max(0.5, min(2.0, playbackRate))
     currentPitchShiftSemitones = max(-12, min(12, semitones))
+    currentGainDb = clampGainDb(gainDb)
+    currentTonePreset = tonePreset.isEmpty ? "neutral" : tonePreset
     pausedPositionMs = max(0, startPositionMs)
     didJustFinish = false
     isPlaying = false
     applyTimePitchSettings()
+    applySoundSettings()
     try ensureEngineRunning()
 
     if autoplay {
@@ -146,9 +164,12 @@ final class SongNookPitchShiftPracticeEngine {
     pausedPositionMs = 0
     currentPlaybackRate = 1.0
     currentPitchShiftSemitones = 0
+    currentGainDb = 0
+    currentTonePreset = "neutral"
     isPlaying = false
     didJustFinish = false
     applyTimePitchSettings()
+    applySoundSettings()
     return getState()
   }
 
@@ -181,9 +202,32 @@ final class SongNookPitchShiftPracticeEngine {
     return getState()
   }
 
+  /// Level and tone on the running transport. The nodes take new parameters live,
+  /// so a key press or a knob release is heard without a gap.
+  func setSound(_ request: [String: Any]) -> [String: Any] {
+    if let gain = (request["gainDb"] as? Double) ?? (request["gainDb"] as? Int).map(Double.init) {
+      currentGainDb = clampGainDb(gain)
+    }
+    if let preset = (request["tonePreset"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) {
+      currentTonePreset = preset.isEmpty ? "neutral" : preset
+    }
+    applySoundSettings()
+    onStateChange(getState())
+    return getState()
+  }
+
   private func applyTimePitchSettings() {
     timePitchNode.rate = Float(currentPlaybackRate)
     timePitchNode.pitch = Float(currentPitchShiftSemitones * 100)
+  }
+
+  private func applySoundSettings() {
+    SongNookToneEQ.configure(eqNode, tonePreset: currentTonePreset)
+    eqNode.globalGain = Float(currentGainDb)
+  }
+
+  private func clampGainDb(_ value: Double) -> Double {
+    return max(-24, min(12, value))
   }
 
   private func ensureEngineRunning() throws {

@@ -139,8 +139,8 @@ final class SongNookPitchShiftRenderer {
     for input in inputs {
       let audioFile = try AVAudioFile(forReading: input.inputURL)
       let playerNode = AVAudioPlayerNode()
-      let eqNode = AVAudioUnitEQ(numberOfBands: 3)
-      configureTone(eqNode, tonePreset: input.tonePreset)
+      let eqNode = SongNookToneEQ.makeNode()
+      SongNookToneEQ.configure(eqNode, tonePreset: input.tonePreset)
       eqNode.globalGain = Float(input.gainDb)
 
       engine.attach(playerNode)
@@ -227,7 +227,9 @@ final class SongNookPitchShiftRenderer {
       return nil
     }
 
-    let gainDb = max(-18.0, min(6.0, (value["gainDb"] as? Double) ?? Double((value["gainDb"] as? Int) ?? 0)))
+    // The domain's clamp (OVERDUB_GAIN_MIN_DB … OVERDUB_GAIN_MAX_DB); it was −18 … +6
+    // here until 2026-10-14, quietly flattening the bench's louder settings in the bake.
+    let gainDb = max(-24.0, min(12.0, (value["gainDb"] as? Double) ?? Double((value["gainDb"] as? Int) ?? 0)))
     // Negative offsets are legal: they pull the input earlier by trimming its head.
     let rawOffsetMs = (value["offsetMs"] as? Double) ?? Double((value["offsetMs"] as? Int) ?? 0)
     let offsetMs = max(-600_000.0, min(600_000.0, rawOffsetMs))
@@ -240,33 +242,6 @@ final class SongNookPitchShiftRenderer {
       offsetMs: offsetMs,
       tonePreset: tonePreset.isEmpty ? "neutral" : tonePreset
     )
-  }
-
-  /// Tone is a set of flags joined by "+" ("low-cut+mid-boost"); each flag maps to one
-  /// EQ band, bypassed unless its flag is present. Legacy single values parse the same.
-  private func configureTone(_ eqNode: AVAudioUnitEQ, tonePreset: String) {
-    let flags = Set(tonePreset.split(separator: "+").map(String.init))
-
-    let lowCut = eqNode.bands[0]
-    lowCut.filterType = .highPass
-    lowCut.frequency = 140
-    lowCut.bandwidth = 0.8
-    lowCut.gain = 0
-    lowCut.bypass = !flags.contains("low-cut")
-
-    let hiCut = eqNode.bands[1]
-    hiCut.filterType = .lowPass
-    hiCut.frequency = 7200
-    hiCut.bandwidth = 0.8
-    hiCut.gain = 0
-    hiCut.bypass = !flags.contains("hi-cut")
-
-    let midBoost = eqNode.bands[2]
-    midBoost.filterType = .parametric
-    midBoost.frequency = 1800
-    midBoost.bandwidth = 1.0
-    midBoost.gain = 4
-    midBoost.bypass = !flags.contains("mid-boost")
   }
 
   private func buildOutputURL(fileName: String?) -> URL {

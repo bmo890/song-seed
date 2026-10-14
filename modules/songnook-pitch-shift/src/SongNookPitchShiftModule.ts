@@ -10,6 +10,7 @@ import type {
   NativePitchShiftPlaybackState,
   NativePitchShiftRenderRequest,
   NativePitchShiftRenderResult,
+  NativeSoundSettings,
   NativeTrimRequest,
   NativeTrimResult,
   NativeWaveformRequest,
@@ -29,6 +30,10 @@ declare class SongNookPitchShiftModule extends NativeModule<SongNookPitchShiftMo
   seekTo(positionMs: number): Promise<NativePitchShiftPlaybackState>;
   setPlaybackRate(rate: number): Promise<NativePitchShiftPlaybackState>;
   setPitchShiftSemitones(semitones: number): Promise<NativePitchShiftPlaybackState>;
+  /** Level and tone on the running practice transport (the Sound room's knob and
+   *  keys). Optional: absent on native builds predating the EQ stage, in which case
+   *  the JS side hears the take flat and says nothing. */
+  setSound?(settings: NativeSoundSettings): Promise<NativePitchShiftPlaybackState>;
   renderPitchShiftedFile(
     request: NativePitchShiftRenderRequest
   ): Promise<NativePitchShiftRenderResult>;

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "../../../state/useStore";
+import { isTonePresetNeutral } from "../../../domain/overdub";
 import { clampPitchShiftSemitones } from "../../../domain/pitchShift";
 import {
   useNativePitchTransport,
@@ -11,6 +12,8 @@ type Args = {
   isFocused: boolean;
   clip: { id: string; audioUri?: string | null } | null;
   pitchShiftSemitones: number;
+  /** The take's level and tone (its root overdub settings); null when no clip. */
+  sound: { gainDb: number; tonePreset: string } | null;
   playerShouldAutoplay: boolean;
   fullPlayerPosition: number;
   fullPlayerDuration: number;
@@ -33,6 +36,7 @@ export function usePlayerPracticePitchTransport({
   isFocused,
   clip,
   pitchShiftSemitones,
+  sound,
   playerShouldAutoplay,
   fullPlayerPosition,
   fullPlayerDuration,
@@ -84,7 +88,12 @@ export function usePlayerPracticePitchTransport({
     ]
   );
 
-  const wantsNative = mode === "practice" && isFocused && (stickyRef.current || clamped !== 0);
+  // A take with a non-neutral sound (Sound room: level or tone) is heard through
+  // the native engine in every mode of the full player, not only with Tools open:
+  // the sound is the take's, not a practice bend. Pitch keeps its practice-only rule.
+  const soundIsNeutral = (sound?.gainDb ?? 0) === 0 && isTonePresetNeutral(sound?.tonePreset);
+  const wantsNative =
+    isFocused && (!soundIsNeutral || (mode === "practice" && (stickyRef.current || clamped !== 0)));
 
   const core = useNativePitchTransport({
     ownerLabel: "player-screen",
@@ -93,6 +102,7 @@ export function usePlayerPracticePitchTransport({
     source,
     playbackRate: fullPlayerPlaybackRate,
     pitchShiftSemitones,
+    sound: sound ?? undefined,
     extraAutoplay: playerShouldAutoplay,
     onEnded,
   });

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Spinner } from "../../common/Spinner";
 import { Slider } from "../../common/Slider";
+import { LevelToneStrip } from "../../common/LevelToneStrip";
 import { Ionicons } from "@expo/vector-icons";
 import { useAudioPlayer } from "expo-audio";
 import type { AudioStatus } from "expo-audio";
@@ -19,12 +20,8 @@ import { useOverdubAlignmentAudition } from "../hooks/useOverdubAlignmentAuditio
 import { activateAndPlay, replacePlaybackSource } from "../../../services/transportPlayback";
 import {
   formatClipOverdubStemOffsetLabel,
-  hasToneFlag,
-  OVERDUB_GAIN_MAX_DB,
-  OVERDUB_GAIN_MIN_DB,
   OVERDUB_STEM_NUDGE_STEP_LARGE_MS,
   OVERDUB_STEM_NUDGE_STEP_SMALL_MS,
-  OVERDUB_TONE_FLAGS,
   overdubGainDbToPlayerVolume,
   type OverdubToneFlag,
 } from "../../../domain/overdub";
@@ -144,96 +141,6 @@ function RoundKey({
         color={primary || active ? colors.primaryDeep : colors.textStrong}
       />
     </Pressable>
-  );
-}
-
-/** i18n keys for the tone flags, in the flags' own canonical order. */
-const TONE_FLAG_LABEL_KEYS: Record<OverdubToneFlag, string> = {
-  "low-cut": "player.lowCut",
-  "hi-cut": "player.hiCut",
-  "mid-boost": "player.midBoost",
-};
-
-/** The tone row: quick EQ switches under their real names, multi-select. */
-function ToneFlagRow({
-  tonePreset,
-  onToggleFlag,
-}: {
-  tonePreset: string;
-  onToggleFlag: (flag: OverdubToneFlag) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <View style={benchStyles.toneRow}>
-      {OVERDUB_TONE_FLAGS.map((flag) => (
-        <ToneInk
-          key={flag}
-          label={t(TONE_FLAG_LABEL_KEYS[flag])}
-          active={hasToneFlag(tonePreset, flag)}
-          onPress={() => {
-            haptic.tap(); // Vocabulary: tap = control toggles.
-            onToggleFlag(flag);
-          }}
-        />
-      ))}
-    </View>
-  );
-}
-
-/** Editorial ink toggle (word + leading dot, hollow → terracotta) — the tone row's
- *  multi-select language. */
-function ToneInk({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  return (
-    <Pressable
-      style={({ pressed }) => [benchStyles.toneInk, pressed ? appStyles.pressDown : null]}
-      onPress={onPress}
-      hitSlop={{ top: 6, bottom: 6 }}
-      accessibilityRole="switch"
-      accessibilityState={{ checked: active }}
-      accessibilityLabel={label}
-    >
-      <View
-        style={[
-          benchStyles.toneInkDot,
-          active ? { backgroundColor: colors.primary, borderColor: colors.primary } : null,
-        ]}
-      />
-      <Text style={[benchStyles.toneInkText, active ? benchStyles.toneInkTextActive : null]}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
-/** Volume slider + the computed dB level it lands on. Commits the delta on release so a
- *  drag is one store write (and one mix re-render), not a stream of them. */
-function GainSliderRow({
-  gainDb,
-  onCommitGain,
-}: {
-  gainDb: number;
-  onCommitGain: (deltaDb: number) => void;
-}) {
-  const [dragDb, setDragDb] = useState<number | null>(null);
-  const shownDb = dragDb ?? gainDb;
-  return (
-    <View style={benchStyles.gainRow}>
-      <Slider
-        style={benchStyles.gainSlider}
-        minimumValue={OVERDUB_GAIN_MIN_DB}
-        maximumValue={OVERDUB_GAIN_MAX_DB}
-        step={1}
-        value={gainDb}
-        onValueChange={(value) => setDragDb(Math.round(value))}
-        onSlidingComplete={(value) => {
-          setDragDb(null);
-          const delta = Math.round(value) - gainDb;
-          if (delta !== 0) onCommitGain(delta);
-        }}
-        detent={3}
-      />
-      <Text style={benchStyles.gainReadout}>{`${shownDb > 0 ? "+" : ""}${shownDb} dB`}</Text>
-    </View>
   );
 }
 
@@ -649,8 +556,13 @@ export function PlayerLayersBench({
           </View>
           {rootSettings ? (
             <>
-              <GainSliderRow gainDb={rootSettings.gainDb} onCommitGain={onAdjustRootGain} />
-              <ToneFlagRow tonePreset={rootSettings.tonePreset} onToggleFlag={onToggleRootToneFlag} />
+              <LevelToneStrip
+                style={benchStyles.strip}
+                gainDb={rootSettings.gainDb}
+                tonePreset={rootSettings.tonePreset}
+                onCommitGain={(db) => onAdjustRootGain(db - rootSettings.gainDb)}
+                onToggleToneFlag={onToggleRootToneFlag}
+              />
             </>
           ) : null}
         </View>
@@ -799,13 +711,12 @@ export function PlayerLayersBench({
               <Text style={benchStyles.originalButtonText}>{t("player.original")}</Text>
             </Pressable>
           </View>
-              <GainSliderRow
+              <LevelToneStrip
+                style={benchStyles.strip}
                 gainDb={selectedStem.gainDb}
-                onCommitGain={(delta) => onAdjustStemGain(selectedStem.id, delta)}
-              />
-              <ToneFlagRow
                 tonePreset={selectedStem.tonePreset}
-                onToggleFlag={(flag) => onToggleStemToneFlag(selectedStem.id, flag)}
+                onCommitGain={(db) => onAdjustStemGain(selectedStem.id, db - selectedStem.gainDb)}
+                onToggleToneFlag={(flag) => onToggleStemToneFlag(selectedStem.id, flag)}
               />
             </View>
           </AnimatedCollapse>
@@ -1034,48 +945,9 @@ const benchStyles = StyleSheet.create({
     gap: 10,
     paddingVertical: 2,
   },
-  gainRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  gainSlider: {
-    flex: 1,
-    height: 30,
-  },
-  gainReadout: {
-    minWidth: 52,
-    textAlign: "right",
-    fontSize: 13,
-    fontFamily: "PlusJakartaSans_700Bold",
-    color: colors.textPrimary,
-    fontVariant: ["tabular-nums"],
-  },
-  toneRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  toneInk: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    paddingVertical: 4,
-  },
-  toneInkDot: {
-    width: 8,
-    height: 8,
-    borderRadius: radii.round,
-    borderWidth: 1.5,
-    borderColor: colors.textMuted,
-  },
-  toneInkText: {
-    fontSize: 13,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    color: colors.textSecondary,
-  },
-  toneInkTextActive: {
-    color: colors.primaryDeep,
+  // The strip sits flush with the bench's rows: no inset of its own.
+  strip: {
+    paddingHorizontal: 0,
   },
   nudgeRow: {
     flexDirection: "row",

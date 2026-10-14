@@ -429,6 +429,18 @@ export const pd = StyleSheet.create({
     color: colors.textMuted,
     fontVariant: ["tabular-nums"],
   },
+  // Between the practice dials and the take's sound: a hairline, with the room's
+  // own side inset, and air either side so the knob never crowds the pitch rail.
+  soundDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.borderSubtle,
+    marginHorizontal: 10,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  soundStrip: {
+    paddingHorizontal: 10,
+  },
   rowDivider: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.borderSubtle,

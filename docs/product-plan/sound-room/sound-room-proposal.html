@@ -1,0 +1,326 @@
+<title>Sound Room Level and Tone</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a reading column of notes with phone-width mocks of the Sound drawer
+   set beside them. The mocks reproduce SongNook's own tokens (src/design/tokens.ts)
+   and stay light in both themes, since they depict the app; the page chrome
+   around them follows the viewer's theme. */
+:root {
+  --bg: #FBF9F5;
+  --fg: #1b1c1a;
+  --fg-2: #5a4f4b;
+  --fg-3: #8a7c77;
+  --rule: #E6E0D9;
+  --card: #FFFFFF;
+  --accent: #824F3F;
+  --accent-soft: #F2E4DF;
+  --display: "Lora", Georgia, "Times New Roman", serif;
+  --ui: "Plus Jakarta Sans", "Helvetica Neue", Arial, sans-serif;
+
+  /* SongNook tokens, exact — used only inside the phone mocks. */
+  --sn-page: #FDFBF7;
+  --sn-surface: #FFFFFF;
+  --sn-container: #F4F1ED;
+  --sn-high: #EDE9E4;
+  --sn-ink: #1b1c1a;
+  --sn-ink-2: #84736f;
+  --sn-muted: #a89994;
+  --sn-strong: #524440;
+  --sn-primary: #B87D6B;
+  --sn-deep: #824F3F;
+  --sn-primary-surface: #F2E4DF;
+  --sn-border: #E8E4DF;
+  --sn-border-muted: #D7C2BD;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1c1917; --fg: #efe9e3; --fg-2: #c9bdb6; --fg-3: #9a8c85; --rule: #37302c;
+    --card: #262120; --accent: #d9a08c; --accent-soft: #3a2c27; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1c1917; --fg: #efe9e3; --fg-2: #c9bdb6; --fg-3: #9a8c85; --rule: #37302c;
+  --card: #262120; --accent: #d9a08c; --accent-soft: #3a2c27; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font-family: var(--ui); font-size: 15px; line-height: 1.55;
+  padding-block: 28px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1040px; margin: 0 auto; }
+h1, h2, h3 { font-family: var(--display); font-weight: 500; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(30px, 4vw, 42px); line-height: 1.1; }
+h2 { font-size: 24px; margin-top: 56px; padding-top: 22px; border-top: 1px solid var(--rule); }
+h3 { font-size: 17px; font-weight: 600; margin-top: 22px; }
+p { margin: 10px 0; max-width: 66ch; }
+.lede { font-size: 17px; color: var(--fg-2); max-width: 62ch; }
+.eyebrow { font-family: var(--ui); font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--fg-3); margin-bottom: 10px; }
+ul { padding-left: 20px; margin: 10px 0; max-width: 66ch; }
+li { margin: 5px 0; }
+li::marker { color: var(--fg-3); }
+b { font-weight: 600; }
+.row { display: flex; gap: 32px; align-items: flex-start; flex-wrap: wrap; margin-top: 18px; }
+.row > .notes { flex: 1 1 300px; min-width: 0; }
+.row > .mocks { flex: 0 1 auto; display: flex; gap: 20px; flex-wrap: wrap; }
+.cap { font-size: 12.5px; color: var(--fg-3); margin-top: 8px; max-width: 320px; }
+table { border-collapse: collapse; width: 100%; max-width: 720px; font-size: 14px; margin-top: 12px; }
+th, td { text-align: left; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 600; color: var(--fg-2); font-size: 12.5px; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tablewrap { overflow-x: auto; }
+.decision { background: var(--card); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; margin-top: 14px; max-width: 720px; }
+.decision h3 { margin-top: 0; }
+.decision .pick { color: var(--accent); font-weight: 600; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; background: var(--accent-soft); color: var(--fg); padding: 1px 5px; border-radius: 4px; }
+
+/* ---------- the phone mock: the Tools room's Sound drawer ---------- */
+.phone {
+  width: 320px; max-width: 100%; background: var(--sn-page); color: var(--sn-ink);
+  border: 1px solid var(--sn-border); border-radius: 22px; padding: 18px 14px 20px;
+  font-family: var(--ui); box-shadow: 0 1px 2px rgba(27,28,26,.05);
+}
+.phone * { font-family: inherit; }
+.seg { display: flex; background: var(--sn-container); border-radius: 999px; padding: 3px; }
+.seg span { flex: 1; text-align: center; font-size: 13.5px; font-weight: 500; color: var(--sn-ink-2); padding: 8px 0; border-radius: 999px; }
+.seg span.on { background: var(--sn-surface); color: var(--sn-ink); font-weight: 600; box-shadow: 0 1px 2px rgba(27,28,26,.06); }
+.seg .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--sn-primary); vertical-align: middle; margin-left: 6px; margin-top: -2px; }
+.dial { margin-top: 16px; padding: 0 6px; }
+.dialhead { display: flex; align-items: baseline; justify-content: space-between; }
+.dial .lab { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--sn-ink); }
+.reset { width: 24px; height: 24px; border-radius: 50%; background: var(--sn-surface); display: inline-grid; place-items: center; color: var(--sn-deep); font-size: 13px; line-height: 1; }
+.val { font-family: var(--display); font-weight: 600; font-size: 26px; font-variant-numeric: tabular-nums; color: var(--sn-ink); }
+.val small { font-family: var(--ui); font-weight: 600; font-size: 12px; color: var(--sn-ink-2); margin-left: 3px; }
+.val.bent, .val.bent small { color: var(--sn-deep); }
+.slider { position: relative; height: 34px; margin: 2px 0 0; }
+.slider .track { position: absolute; left: 0; right: 0; top: 16px; height: 3px; border-radius: 2px; background: var(--sn-border-muted); }
+.slider .fill { position: absolute; left: 0; top: 16px; height: 3px; border-radius: 2px; background: var(--sn-primary); }
+.slider .thumb { position: absolute; top: 8px; width: 18px; height: 18px; margin-left: -9px; border-radius: 50%; background: var(--sn-surface); box-shadow: 0 1px 3px rgba(27,28,26,.18); }
+.ticks { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--sn-muted); font-variant-numeric: tabular-nums; margin-top: -4px; }
+.ticks .on { color: var(--sn-deep); font-weight: 700; }
+.rail { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.rail .key { width: 36px; height: 36px; border-radius: 50%; background: var(--sn-surface); display: grid; place-items: center; color: var(--sn-ink); font-size: 18px; }
+.rail .line { flex: 1; display: flex; justify-content: space-between; align-items: center; height: 22px; }
+.rail .line i { display: block; width: 1px; height: 7px; background: var(--sn-border-muted); }
+.rail .line i.z { height: 12px; background: var(--sn-muted); }
+.rail .line i.on { width: 3px; height: 14px; border-radius: 2px; background: var(--sn-primary); }
+.hair { height: 1px; background: var(--sn-border); margin: 18px 6px 2px; }
+/* The strip: a level knob beside a short column of tone presets, the top of a
+   channel strip in the app's materials. The knob is a white disc on paper with a
+   terracotta pointer; its tick arc fills from flat toward the pointer. The
+   presets are the house toggle (editorial ink). */
+.striphead { display: flex; align-items: center; justify-content: space-between; margin: 16px 6px 0; font-size: 14px; font-weight: 600; }
+.striphead .lab { display: flex; align-items: center; gap: 8px; }
+.strip { display: flex; align-items: center; gap: 12px; margin: 8px 6px 0; }
+.knobcol { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 92px; flex: none; align-self: stretch; }
+.knob { width: 76px; height: 76px; display: block; }
+.knobcol .rd { font-family: var(--display); font-weight: 600; font-size: 20px; font-variant-numeric: tabular-nums; color: var(--sn-ink); line-height: 1.2; }
+.knobcol .rd small { font-family: var(--ui); font-weight: 600; font-size: 11px; color: var(--sn-ink-2); margin-left: 2px; }
+.knobcol .rd.bent, .knobcol .rd.bent small { color: var(--sn-deep); }
+.knobcol .lab { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--sn-ink); }
+.presets { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.presets .lab { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--sn-ink); margin-bottom: 2px; }
+/* The preset key: a quiet white box on the paper with a small lamp at its
+   leading edge. Off, the lamp is a dim bead; on, it glows terracotta and the
+   word darkens. The box itself never changes colour. */
+.keys { flex: 1; min-width: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.key { height: 36px; border-radius: 8px; background: var(--sn-surface); border: 1px solid var(--sn-border); display: flex; align-items: center; gap: 6px; padding: 0 8px; font-size: 12px; font-weight: 600; color: var(--sn-ink-2); white-space: nowrap; min-width: 0; }
+.key i { width: 6px; height: 6px; border-radius: 50%; background: var(--sn-border-muted); flex: none; }
+.key.on { color: var(--sn-strong); }
+.key.on i { background: var(--sn-primary); box-shadow: 0 0 0 3px rgba(184,125,107,.22); }
+.click { display: flex; align-items: center; justify-content: space-between; padding: 12px 6px 0; margin-top: 12px; border-top: 1px solid var(--sn-border); font-size: 14px; font-weight: 600; }
+.click .sw { width: 42px; height: 24px; border-radius: 999px; background: var(--sn-high); position: relative; }
+.click .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: var(--sn-surface); box-shadow: 0 1px 2px rgba(27,28,26,.15); }
+.keep { margin: 14px 6px 0; display: flex; justify-content: flex-end; }
+.keep span { background: var(--sn-primary-surface); color: var(--sn-deep); font-size: 13px; font-weight: 600; padding: 9px 16px; border-radius: 8px; }
+.dim { opacity: .55; }
+.label-under { font-size: 12px; font-weight: 600; color: var(--fg-3); margin-top: 10px; letter-spacing: .04em; text-transform: uppercase; }
+@media (max-width: 720px) { .row { gap: 22px; } h2 { margin-top: 40px; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">SongNook · Full player · Tools › Sound · proposal, 2026-10-14</div>
+  <h1>Level and Tone in the Sound room</h1>
+  <p class="lede">A rehearsal recorded from a phone on the floor hears the kick and the bass amp and little else. A level knob and four tone presets under Speed and Pitch let you lift a quiet take and lean it away from what the phone over-heard. The take itself is never touched, and the setting stays with the take.</p>
+
+  <h2>The room, before and after</h2>
+  <div class="row">
+    <div class="mocks">
+      <div>
+        <div class="phone">
+          <div class="seg"><span>Marks</span><span>Loop</span><span class="on">Sound</span></div>
+          <div class="dial">
+            <div class="dialhead"><div class="lab">Speed</div><div class="val">1<small>×</small></div></div>
+            <div class="slider"><div class="track"></div><div class="fill" style="width:50%"></div><div class="thumb" style="left:50%"></div></div>
+            <div class="ticks"><span>0.5</span><span>0.75</span><span class="on">1</span><span>1.25</span><span>1.5</span></div>
+          </div>
+          <div class="dial">
+            <div class="dialhead"><div class="lab">Pitch</div><div class="val">0<small>st</small></div></div>
+            <div class="rail"><div class="key"><i></i>−</div><div class="line"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="z on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="key"><i></i>+</div></div>
+          </div>
+          <div class="click"><span>Click</span><span class="sw"></span></div>
+        </div>
+        <div class="label-under">Today</div>
+      </div>
+
+      <div>
+        <div class="phone">
+          <div class="seg"><span>Marks</span><span>Loop</span><span class="on">Sound<i class="dot"></i></span></div>
+          <div class="dial">
+            <div class="dialhead"><div class="lab">Speed</div><div class="val">1<small>×</small></div></div>
+            <div class="slider"><div class="track"></div><div class="fill" style="width:50%"></div><div class="thumb" style="left:50%"></div></div>
+            <div class="ticks"><span>0.5</span><span>0.75</span><span class="on">1</span><span>1.25</span><span>1.5</span></div>
+          </div>
+          <div class="dial">
+            <div class="dialhead"><div class="lab">Pitch</div><div class="val">0<small>st</small></div></div>
+            <div class="rail"><div class="key"><i></i>−</div><div class="line"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="z on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="key"><i></i>+</div></div>
+          </div>
+
+          <div class="hair"></div>
+
+          <div class="strip"><div class="knobcol"><svg class="knob" viewBox="0 0 84 84" aria-hidden="true"><path d="M14.8 69.2 A38.5 38.5 0 1 1 69.2 69.2" fill="none" stroke="#D7C2BD" stroke-width="2" stroke-linecap="round"/><path d="M42.0 3.5 A38.5 38.5 0 0 1 77.6 27.3" fill="none" stroke="#B87D6B" stroke-width="2.5" stroke-linecap="round"/><line x1="16.5" y1="67.5" x2="13.0" y2="71.0" stroke="#D7C2BD" stroke-width="1.2"/><line x1="6.7" y1="49.0" x2="1.8" y2="50.0" stroke="#D7C2BD" stroke-width="1.2"/><line x1="8.7" y1="28.2" x2="4.1" y2="26.3" stroke="#D7C2BD" stroke-width="1.2"/><line x1="22.0" y1="12.1" x2="19.2" y2="7.9" stroke="#D7C2BD" stroke-width="1.2"/><line x1="42.0" y1="8.0" x2="42.0" y2="1.0" stroke="#a89994" stroke-width="1.2"/><line x1="62.0" y1="12.1" x2="64.8" y2="7.9" stroke="#D7C2BD" stroke-width="1.2"/><line x1="75.3" y1="28.2" x2="79.9" y2="26.3" stroke="#D7C2BD" stroke-width="1.2"/><line x1="77.3" y1="49.0" x2="82.2" y2="50.0" stroke="#D7C2BD" stroke-width="1.2"/><line x1="67.5" y1="67.5" x2="71.0" y2="71.0" stroke="#D7C2BD" stroke-width="1.2"/><circle cx="42" cy="42" r="29" fill="#FFFFFF" stroke="#E8E4DF" stroke-width="1"/><line x1="54.9" y1="36.6" x2="66.0" y2="32.1" stroke="#B87D6B" stroke-width="3" stroke-linecap="round"/></svg><div class="rd bent">+6<small>dB</small></div><div class="lab">Level <span class="reset">↺</span></div></div><div class="presets"><div class="lab">Tone <span class="reset">↺</span></div><div class="keys"><div class="key on"><i></i>Low cut</div><div class="key"><i></i>Low boost</div><div class="key"><i></i>Mid boost</div><div class="key on"><i></i>Hi cut</div></div></div></div>
+
+          <div class="click"><span>Click</span><span class="sw"></span></div>
+        </div>
+        <div class="label-under">Proposed · a floor recording, tamed</div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <h3>What is added</h3>
+      <ul>
+        <li><b>Level</b> is a knob: a white disc on the paper with a terracotta pointer, a tick arc with a longer tick at flat, and the arc filling from flat toward the pointer. Drag up or down to turn it, the touch-mixer convention, with a tick felt at every 3 dB and a rest at flat. The value sits beneath in the room's serif, terracotta once bent. Range −12 to +12 dB. A limiter sits after it, so +12 never crackles.</li>
+        <li><b>Tone</b> is four fixed presets in a two-by-two bank beside the knob, each a key: a quiet white box on the paper with a small lamp at its leading edge. Off, the lamp is a dim bead and the word is grey. On, the lamp glows terracotta and the word darkens. The box itself never changes, so a lit key and an unlit key sit as equals, the way switches do on gear. They stack (Low cut with Hi cut is the rehearsal recipe), except Low cut and Low boost, which replace each other. Nothing about them is adjustable. Three of the four exist today in the Layers bench.</li>
+        <li>Each group carries its own reset, appearing only once something is bent, as the dials above do. A hairline separates the practice dials (Speed, Pitch) from the take's sound. Click keeps its row beneath.</li>
+        <li>The Sound tab's dot already means "bent from neutral". A tuned take wears it, so the room announces itself from the tab.</li>
+      </ul>
+      <h3>What it fixes</h3>
+      <ul>
+        <li>Kick and bass amp swamp the room: <b>Low cut</b>.</li>
+        <li>Cymbal wash and phone hiss: <b>Hi cut</b>.</li>
+        <li>Can't make out the voice or the guitar line: <b>Mid boost</b>.</li>
+        <li>A thin phone recording with no body: <b>Low boost</b>.</li>
+        <li>The whole take is quiet: <b>Level</b> up.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>How it behaves</h2>
+  <div class="row">
+    <div class="notes">
+      <h3>It stays with the take, without a Save key</h3>
+      <p>You asked for a Save so the setting survives closing the clip. I propose it survives by default: a change lands on the take when you let go of the knob or press a key, exactly as the Layers bench already commits its Levels. Reopen the clip tomorrow and it sounds the way you left it.</p>
+      <p>Three reasons to prefer this over a Save key:</p>
+      <ul>
+        <li>The room has no saved or unsaved state anywhere today. Speed and Pitch are bends you hear at once. Adding a dirty state to one pair of dials makes the whole room ask "did that stick?".</li>
+        <li>Nothing is destroyed. The file is untouched, and every dial carries its own reset. There is nothing a Save would protect you from.</li>
+        <li>The Layers bench's root Levels are the same setting. Reusing it means one source of truth, already persisted, backed up and exported.</li>
+      </ul>
+      <p>Speed and Pitch stay session-only, as now. The hairline marks that line: above it, how you practise today; below it, how this take sounds.</p>
+      <p>One invisible rule earns one help row: <i>Level and tone stay with the take.</i></p>
+
+      <h3>Where you hear it</h3>
+      <ul>
+        <li><b>Full player</b>, any mode: whenever a take has a non-neutral sound, the native practice engine owns playback, the same way it already does once Pitch is bent.</li>
+        <li><b>Mini dock</b>: should hear it too, or the sound drops the moment you minimise. That needs the dock routed through the same engine when a take is tuned. I'd ship both together, see the decisions below.</li>
+        <li><b>Sharing a file</b> sends the raw recording. A later editor tab can bake Level and Tone into a new clip; the mix renderer already does exactly this EQ, so that step is small.</li>
+      </ul>
+    </div>
+
+    <div class="mocks">
+      <div>
+        <div class="phone">
+          <div class="seg"><span>Marks</span><span>Loop</span><span class="on">Sound</span></div>
+          <div class="dial dim">
+            <div class="dialhead"><div class="lab">Pitch</div><div class="val">0<small>st</small></div></div>
+          </div>
+          <div class="hair"></div>
+          <div class="strip"><div class="knobcol"><svg class="knob" viewBox="0 0 84 84" aria-hidden="true"><path d="M14.8 69.2 A38.5 38.5 0 1 1 69.2 69.2" fill="none" stroke="#D7C2BD" stroke-width="2" stroke-linecap="round"/><line x1="16.5" y1="67.5" x2="13.0" y2="71.0" stroke="#D7C2BD" stroke-width="1.2"/><line x1="6.7" y1="49.0" x2="1.8" y2="50.0" stroke="#D7C2BD" stroke-width="1.2"/><line x1="8.7" y1="28.2" x2="4.1" y2="26.3" stroke="#D7C2BD" stroke-width="1.2"/><line x1="22.0" y1="12.1" x2="19.2" y2="7.9" stroke="#D7C2BD" stroke-width="1.2"/><line x1="42.0" y1="8.0" x2="42.0" y2="1.0" stroke="#a89994" stroke-width="1.2"/><line x1="62.0" y1="12.1" x2="64.8" y2="7.9" stroke="#D7C2BD" stroke-width="1.2"/><line x1="75.3" y1="28.2" x2="79.9" y2="26.3" stroke="#D7C2BD" stroke-width="1.2"/><line x1="77.3" y1="49.0" x2="82.2" y2="50.0" stroke="#D7C2BD" stroke-width="1.2"/><line x1="67.5" y1="67.5" x2="71.0" y2="71.0" stroke="#D7C2BD" stroke-width="1.2"/><circle cx="42" cy="42" r="29" fill="#FFFFFF" stroke="#E8E4DF" stroke-width="1"/><line x1="42.0" y1="28.0" x2="42.0" y2="16.0" stroke="#524440" stroke-width="3" stroke-linecap="round"/></svg><div class="rd">0<small>dB</small></div><div class="lab">Level</div></div><div class="presets"><div class="lab">Tone</div><div class="keys"><div class="key"><i></i>Low cut</div><div class="key"><i></i>Low boost</div><div class="key"><i></i>Mid boost</div><div class="key"><i></i>Hi cut</div></div></div></div>
+        </div>
+        <div class="label-under">At rest · neutral, no resets, no dot</div>
+      </div>
+
+      <div>
+        <div class="phone">
+          <div class="seg"><span>Marks</span><span>Loop</span><span class="on">Sound<i class="dot"></i></span></div>
+          <div class="dial dim">
+            <div class="dialhead"><div class="lab">Pitch</div><div class="val">0<small>st</small></div></div>
+          </div>
+          <div class="hair"></div>
+          <div class="strip"><div class="knobcol"><svg class="knob" viewBox="0 0 84 84" aria-hidden="true"><path d="M14.8 69.2 A38.5 38.5 0 1 1 69.2 69.2" fill="none" stroke="#D7C2BD" stroke-width="2" stroke-linecap="round"/><path d="M42.0 3.5 A38.5 38.5 0 0 1 77.6 27.3" fill="none" stroke="#B87D6B" stroke-width="2.5" stroke-linecap="round"/><line x1="16.5" y1="67.5" x2="13.0" y2="71.0" stroke="#D7C2BD" stroke-width="1.2"/><line x1="6.7" y1="49.0" x2="1.8" y2="50.0" stroke="#D7C2BD" stroke-width="1.2"/><line x1="8.7" y1="28.2" x2="4.1" y2="26.3" stroke="#D7C2BD" stroke-width="1.2"/><line x1="22.0" y1="12.1" x2="19.2" y2="7.9" stroke="#D7C2BD" stroke-width="1.2"/><line x1="42.0" y1="8.0" x2="42.0" y2="1.0" stroke="#a89994" stroke-width="1.2"/><line x1="62.0" y1="12.1" x2="64.8" y2="7.9" stroke="#D7C2BD" stroke-width="1.2"/><line x1="75.3" y1="28.2" x2="79.9" y2="26.3" stroke="#D7C2BD" stroke-width="1.2"/><line x1="77.3" y1="49.0" x2="82.2" y2="50.0" stroke="#D7C2BD" stroke-width="1.2"/><line x1="67.5" y1="67.5" x2="71.0" y2="71.0" stroke="#D7C2BD" stroke-width="1.2"/><circle cx="42" cy="42" r="29" fill="#FFFFFF" stroke="#E8E4DF" stroke-width="1"/><line x1="54.9" y1="36.6" x2="66.0" y2="32.1" stroke="#B87D6B" stroke-width="3" stroke-linecap="round"/></svg><div class="rd bent">+6<small>dB</small></div><div class="lab">Level <span class="reset">↺</span></div></div><div class="presets"><div class="lab">Tone <span class="reset">↺</span></div><div class="keys"><div class="key on"><i></i>Low cut</div><div class="key"><i></i>Low boost</div><div class="key"><i></i>Mid boost</div><div class="key"><i></i>Hi cut</div></div></div></div>
+          <div class="keep"><span>Keep</span></div>
+        </div>
+        <div class="label-under">Alternative · with a Keep key</div>
+        <p class="cap">If you'd rather have the explicit step: changes are heard at once, a soft terracotta <b>Keep</b> key appears only when something differs from what the take holds, and leaving the room without keeping reverts. It is the Save you described, named in the app's voice.</p>
+      </div>
+    </div>
+  </div>
+
+  <h2>The presets, exactly</h2>
+  <p>Three of the four already exist as the Layers bench's tone switches, applied by the mix renderer on both platforms. Low boost is the one addition, for phone recordings that lost their body. Gentle amounts on purpose: a listening aid, not an EQ.</p>
+  <div class="tablewrap">
+  <table>
+    <tr><th>Preset</th><th>Filter</th><th>Where</th><th>Status</th></tr>
+    <tr><td>Low cut</td><td>high-pass</td><td class="num">140 Hz</td><td>exists</td></tr>
+    <tr><td>Low boost</td><td>low shelf, +4 dB</td><td class="num">120 Hz</td><td>new</td></tr>
+    <tr><td>Mid boost</td><td>peak, +4 dB</td><td class="num">1.8 kHz</td><td>exists</td></tr>
+    <tr><td>Hi cut</td><td>low-pass</td><td class="num">7.2 kHz</td><td>exists</td></tr>
+    <tr><td>Level</td><td>gain, then a peak limiter</td><td class="num">−12 … +12 dB</td><td>bench gain today, −24 … +12</td></tr>
+  </table>
+  </div>
+  <p>Stored as the existing flag string on the take's root settings, so nothing migrates and old takes sound as they did. The Layers bench's own Levels row adopts the same knob and preset column, so the take's sound looks the same wherever it is shown.</p>
+
+  <h2>Why not the other shapes</h2>
+  <ul>
+    <li><b>Named presets</b> (Bass reducer, Vocal booster, Loudness): the streaming-app answer. Each hides what it does. Musicians know what a low cut is, and the Layers bench already speaks that way.</li>
+    <li><b>A fader desk</b> with Low, Mid and High at ±8 dB: an earlier draft. It invites fiddling with the thing that was meant to be a quick fix, and it turned the tone switches into values the mix renderer would have to learn.</li>
+    <li><b>Editorial ink words</b>, the house toggle: quieter, but they read as settings, not as equipment. The lit key is the one place the app draws a box around a toggle, and it earns it by being the one place that is gear. Decided 2026-10-14; the Layers bench adopts the same keys so the rule holds app-wide.</li>
+    <li><b>A slider for Level</b>: what the bench has today. It works, but it takes the room's full width and says nothing about a mixer. The knob says it in a quarter of the space.</li>
+  </ul>
+
+  <h2>Haptics, exactly</h2>
+  <p>Every verb from <code>src/design/haptics.ts</code>, and only from there. Nothing fires on render, on restore, or when a value changes under the hand for another reason; the hand is the only source.</p>
+  <div class="tablewrap">
+  <table>
+    <tr><th>Touch</th><th>Verb</th><th>Why</th></tr>
+    <tr><td>Knob, finger lands</td><td>grab</td><td>picking something up, as the Slider on touch</td></tr>
+    <tr><td>Knob, each 3 dB stop crossed</td><td>tick</td><td>a detent crossed mid-gesture; throttled so a fast spin is a purr, not a buzz</td></tr>
+    <tr><td>Knob, arriving at flat</td><td>light</td><td>a landing felt apart from the stops: the rest position</td></tr>
+    <tr><td>Knob, finger lifts</td><td>light</td><td>the Slider's release, so dial and knob feel like one family</td></tr>
+    <tr><td>Knob, reaching an end stop</td><td>none</td><td>the pointer simply stops; a thump at the end would read as an error</td></tr>
+    <tr><td>Preset key, press</td><td>light</td><td>a small state flip that lands: the lamp comes on under the thumb</td></tr>
+    <tr><td>Preset key, press while its paired key is lit</td><td>light</td><td>one flip: the other lamp goes out, this one comes on, one tick</td></tr>
+    <tr><td>Reset glyph</td><td>tap</td><td>an acknowledged press; the dials' resets already do this</td></tr>
+    <tr><td>Speed slider, Pitch stepper, Click switch</td><td>unchanged</td><td>grab/tick/light, tick per semitone, tap</td></tr>
+  </table>
+  </div>
+  <p>The key presses down as every tappable does (<code>styles.pressDown</code>), and the lamp lights on release, not on touch, so a slip off the key leaves it as it was.</p>
+
+  <h2>Decisions I need from you</h2>
+  <div class="decision">
+    <h3>1. Save key or not</h3>
+    <p><span class="pick">Recommend: no key.</span> Changes stay with the take on release, like the Layers bench. The alternative mock above shows the Keep key if you'd rather.</p>
+  </div>
+  <div class="decision">
+    <h3>2. Scope of the first ship</h3>
+    <p><span class="pick">Recommend: full player and mini dock together, iOS first.</span> Hearing a tuned take fall flat the moment you minimise would read as a bug. iOS is an EQ node added to the practice engine's graph, about a day. Android needs the existing filter processors wired into the practice player, about another day. The dock needs the native engine to take over from the plain player when a take is tuned.</p>
+  </div>
+  <div class="decision">
+    <h3>3. Lift range</h3>
+    <p><span class="pick">Recommend: ±12 dB with a limiter.</span> Quiet rehearsal takes often need more than +6. The limiter costs nothing on iOS and a small processor on Android. If you'd rather avoid a limiter, cap at +6.</p>
+  </div>
+
+  <h2>Build notes</h2>
+  <ul>
+    <li>Data: reuse <code>clip.overdub.root</code> (gainDb, tonePreset). One new flag, <code>low-boost</code>, exclusive with <code>low-cut</code> in the toggle helper. Fix the renderer's gain clamp, which stops at −18/+6 while the domain allows −24/+12.</li>
+    <li>Playback: the native practice engine gets an EQ stage (iOS: AVAudioUnitEQ with four bands plus global gain and a peak limiter; Android: the existing LowCut and Biquad processors plus one low shelf, as ExoPlayer audio processors). Ownership: engage when sound is non-neutral, not only when pitch is bent.</li>
+    <li>UI: one new kit control, <code>Knob</code>, added to the craft control kit with the Slider's gesture rules (vertical drag turns it, a sideways drag lets the page scroll, grab on touch, tick per detent, light on release). A second kit control, <code>LitKey</code>, is the preset box with its lamp, and joins the canon beside SegmentedControl and InkOption with the rule that it is for gear-like toggles only. <code>SpeedPitchDials</code> gains a sibling <code>LevelToneStrip</code> built from the two. The Layers bench's private tone row and gain slider fold into the same strip, so both rooms share one component.</li>
+    <li>Copy through <code>t()</code>, English and Hebrew: Level, Tone, Low boost; the other three preset names exist. Haptics as in the table above. No new motion: the lamp's glow is a <code>durations.fast</code> fade, nothing moves. The knob's arc reads clockwise for more in every language, so it is not mirrored in RTL; the preset column mirrors normally.</li>
+    <li>Help sheet gets one row for the invisible rule. The Sound tab dot reads Level and Tone too.</li>
+  </ul>
+</div>
