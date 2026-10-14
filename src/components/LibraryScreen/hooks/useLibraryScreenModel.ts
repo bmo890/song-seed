@@ -111,6 +111,24 @@ export function useLibraryScreenModel() {
     store.setPlayerQueue(queue, startIndex, true);
   };
 
+  // Shuffle play, the playlist-page twin of the queue sheet's shuffle: start
+  // the playlist at a random track, already shuffled — or, when this playlist
+  // is the one playing, flip shuffle on the running queue.
+  const shufflePlaylist = () => {
+    const store = useStore.getState();
+    if (nowPlayingItemId) {
+      store.togglePlayerQueueShuffle();
+      return;
+    }
+    const { queue } = buildPlaylistQueue(playlistTracks);
+    if (queue.length === 0) {
+      AppAlert.info(t("library.nothingPlay"), t("library.playlistNoAudio"));
+      return;
+    }
+    store.requestInlineStop();
+    store.setPlayerQueueShuffled(queue, true);
+  };
+
   const startCollecting = () => {
     if (!activePlaylist) return;
     startLibraryCollecting("playlist", activePlaylist.id, activePlaylist.title);
@@ -211,6 +229,7 @@ export function useLibraryScreenModel() {
       });
     },
     playFromTrack,
+    shufflePlaylist,
     togglePlayback: () => useStore.getState().requestPlayerToggle(),
     startCollecting,
     openTrackLocation,

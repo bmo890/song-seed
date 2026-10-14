@@ -190,3 +190,70 @@ describe("no-op requests do not notify", () => {
         expect(store.getState()).toBe(cleared);
     });
 });
+
+describe("queue shuffle", () => {
+    const q = (n: number) => ({ ideaId: `idea-${n}`, clipId: `clip-${n}` });
+    const queue = [q(1), q(2), q(3), q(4), q(5), q(6), q(7), q(8)];
+
+    it("shuffles around the playing item without changing what plays", () => {
+        const store = createStore<PlayerSlice>()(createPlayerSlice);
+        store.getState().setPlayerQueue(queue, 4, true);
+        const target = store.getState().playerTarget;
+
+        store.getState().togglePlayerQueueShuffle();
+
+        const state = store.getState();
+        expect(state.playerQueueUnshuffled).toBe(queue);
+        expect(state.playerQueueIndex).toBe(0);
+        expect(state.playerQueue[0]).toBe(queue[4]);
+        expect(state.playerTarget).toBe(target);
+        expect(state.playerQueue).toHaveLength(queue.length);
+    });
+
+    it("turning shuffle off restores the order and the playing item", () => {
+        const store = createStore<PlayerSlice>()(createPlayerSlice);
+        store.getState().setPlayerQueue(queue, 2, true);
+        store.getState().togglePlayerQueueShuffle();
+        store.getState().advancePlayerQueue("next", true);
+        const playing = store.getState().playerTarget!;
+
+        store.getState().togglePlayerQueueShuffle();
+
+        const state = store.getState();
+        expect(state.playerQueueUnshuffled).toBeNull();
+        expect(state.playerQueue.map((item) => item.clipId)).toEqual(queue.map((item) => item.clipId));
+        expect(state.playerQueue[state.playerQueueIndex].clipId).toBe(playing.clipId);
+    });
+
+    it("keeps shuffle when jumping within the queue, drops it for a new queue", () => {
+        const store = createStore<PlayerSlice>()(createPlayerSlice);
+        store.getState().setPlayerQueue(queue, 0, true);
+        store.getState().togglePlayerQueueShuffle();
+
+        const state = store.getState();
+        state.setPlayerQueue(state.playerQueue, 3, true);
+        expect(store.getState().playerQueueUnshuffled).not.toBeNull();
+
+        store.getState().setPlayerQueue([q(9), q(10)], 0, true);
+        expect(store.getState().playerQueueUnshuffled).toBeNull();
+    });
+
+    it("shuffle play starts a new queue already shuffled", () => {
+        const store = createStore<PlayerSlice>()(createPlayerSlice);
+        store.getState().setPlayerQueueShuffled(queue, true);
+
+        const state = store.getState();
+        expect(state.playerQueueUnshuffled).toBe(queue);
+        expect(state.playerQueueIndex).toBe(0);
+        expect(state.playerTarget).toBe(state.playerQueue[0]);
+        expect(state.playerShouldAutoplay).toBe(true);
+    });
+
+    it("emptying the queue ends shuffle", () => {
+        const store = createStore<PlayerSlice>()(createPlayerSlice);
+        store.getState().setPlayerQueue([q(1), q(2)], 0, true);
+        store.getState().togglePlayerQueueShuffle();
+        store.getState().clearPlayerQueue();
+        expect(store.getState().playerQueueUnshuffled).toBeNull();
+    });
+});

@@ -5,8 +5,11 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import type { FlatList } from "react-native-gesture-handler";
 import DraggableFlatList, { type RenderItemParams } from "react-native-draggable-flatlist";
 import { Ionicons } from "@expo/vector-icons";
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { colors, radii, spacing, text as textTokens } from "../design/tokens";
 import { haptic } from "../design/haptics";
+import { durations } from "../design/motion";
+import { Press } from "./common/Press";
 import { useStore } from "../state/useStore";
 import { fmtDuration } from "../utils";
 import { getClipPlaybackDurationMs } from "../domain/clipPresentation";
@@ -53,6 +56,34 @@ const QueueRowContext = createContext<QueueRowActions>({
   jumpTo: () => {},
   removeAt: () => {},
   goToSong: () => {},
+});
+
+/**
+ * The queue's shuffle mode, as the industry draws it: the crossed-arrows glyph,
+ * warm gray when off, terracotta with a small dot beneath when on (the dot
+ * carries the state for anyone who can't tell the tint). The dot sits outside
+ * the layout, so switching never nudges the header.
+ */
+const ShuffleKey = memo(function ShuffleKey({ onPress }: { onPress: () => void }) {
+  const { t } = useTranslation();
+  const on = useStore((s) => s.playerQueueUnshuffled != null);
+  return (
+    <Press
+      feel="glyph"
+      // A mode flip that should land (haptics.ts: light).
+      haptic="light"
+      style={panelStyles.shuffleKey}
+      onPress={onPress}
+      hitSlop={10}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: on }}
+      accessibilityLabel={t("mediaDock.shuffle")}
+      testID="queue-shuffle"
+    >
+      <Ionicons name="shuffle" size={18} color={on ? colors.primary : colors.textSecondary} />
+      {on ? <View style={panelStyles.shuffleDot} /> : null}
+    </Press>
+  );
 });
 
 /**
@@ -241,6 +272,28 @@ function QueuePanelInner({
     onOpenIdeaRef.current(row.ideaId);
   }, []);
 
+  // ── Shuffle ───────────────────────────────────────────────────────────────
+  // The new order is a state swap, so it fades rather than jumps: the list
+  // dims out, the order changes (playback never stops — the playing item
+  // stays the playing item), the list rests on the playing row, and fades in.
+  const listOpacity = useSharedValue(1);
+  const listFadeStyle = useAnimatedStyle(() => ({ opacity: listOpacity.value }));
+  const applyShuffle = useCallback(() => {
+    const state = useStore.getState();
+    state.togglePlayerQueueShuffle();
+    const next = useStore.getState();
+    listRef.current?.scrollToOffset({
+      offset: queueScrollTargetIndex(next.playerQueueIndex, next.playerQueue.length) * QUEUE_ROW_HEIGHT,
+      animated: false,
+    });
+    listOpacity.value = withTiming(1, { duration: durations.base });
+  }, [listOpacity]);
+  const toggleShuffle = useCallback(() => {
+    listOpacity.value = withTiming(0, { duration: durations.fast }, (finished) => {
+      if (finished) runOnJS(applyShuffle)();
+    });
+  }, [applyShuffle, listOpacity]);
+
   const removeAt = useCallback((index: number) => {
     const before = useStore.getState().playerQueue.length;
     useStore.getState().removeFromPlayerQueue(index);
@@ -323,6 +376,7 @@ function QueuePanelInner({
           <Text style={panelStyles.counter}>
             {t("mediaDock.position", { current: Math.min(playerQueueIndex + 1, playerQueue.length), total: playerQueue.length })}
           </Text>
+          {playerQueue.length > 1 ? <ShuffleKey onPress={toggleShuffle} /> : null}
           {playerQueue.length > 0 ? (
             // Keep what you're hearing: the queue, in this order, as a playlist.
             <Pressable
@@ -358,24 +412,26 @@ function QueuePanelInner({
       </View>
 
       <QueueRowContext.Provider value={rowActions}>
-        <DraggableFlatList
-          ref={listRef}
-          data={rows}
-          keyExtractor={keyExtractor}
-          getItemLayout={getItemLayout}
-          initialScrollIndex={initialScrollIndex}
-          contentOffset={initialContentOffset}
-          containerStyle={framed ? undefined : panelStyles.fill}
-          style={framed ? panelStyles.list : panelStyles.fill}
-          contentContainerStyle={panelStyles.listContent}
-          showsVerticalScrollIndicator={false}
-          activationDistance={14}
-          onDragBegin={haptic.grab}
-          onDragEnd={onDragEnd}
-          onScrollOffsetChange={onScrollOffsetChange}
-          onContainerLayout={onContainerLayout}
-          renderItem={renderQueueRow}
-        />
+        <Animated.View style={[framed ? null : panelStyles.fill, listFadeStyle]}>
+          <DraggableFlatList
+            ref={listRef}
+            data={rows}
+            keyExtractor={keyExtractor}
+            getItemLayout={getItemLayout}
+            initialScrollIndex={initialScrollIndex}
+            contentOffset={initialContentOffset}
+            containerStyle={framed ? undefined : panelStyles.fill}
+            style={framed ? panelStyles.list : panelStyles.fill}
+            contentContainerStyle={panelStyles.listContent}
+            showsVerticalScrollIndicator={false}
+            activationDistance={14}
+            onDragBegin={haptic.grab}
+            onDragEnd={onDragEnd}
+            onScrollOffsetChange={onScrollOffsetChange}
+            onContainerLayout={onContainerLayout}
+            renderItem={renderQueueRow}
+          />
+        </Animated.View>
       </QueueRowContext.Provider>
       <PlaylistChooserSheet
         visible={saveVisible}
@@ -417,8 +473,24 @@ const panelStyles = StyleSheet.create({
   },
   headerRight: {
     flexDirection: "row",
-    alignItems: "baseline",
+    alignItems: "center",
     gap: spacing.md,
+  },
+  // Glyph-sized so the header row keeps its height; the touch target comes
+  // from hitSlop.
+  shuffleKey: {
+    width: 22,
+    height: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  shuffleDot: {
+    position: "absolute",
+    bottom: -4,
+    width: 4,
+    height: 4,
+    borderRadius: radii.round,
+    backgroundColor: colors.primary,
   },
   title: {
     fontFamily: "Lora_600SemiBold",
