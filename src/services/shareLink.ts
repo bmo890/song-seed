@@ -102,8 +102,8 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
   // Packing is one bar: encoding (lossless takes → AAC) fills its first half
   // when it happens at all, the zip the rest. Other build phases are quick.
   let sawEncoding = false;
-  const packing = (fraction: number) =>
-    report?.({ phase: "packing", completedBytes: Math.round(fraction * 1000), totalBytes: 1000 });
+  const packing = (fraction: number, encoding?: { index: number; count: number }) =>
+    report?.({ phase: "packing", completedBytes: Math.round(fraction * 1000), totalBytes: 1000, encoding });
   const prepared = await prepareLibraryExportArchive({
     ...args,
     signal,
@@ -112,7 +112,7 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
       const within = p.totalBytes > 0 ? Math.min(1, p.completedBytes / p.totalBytes) : 0;
       if (p.phase === "encoding") {
         sawEncoding = true;
-        packing(within * 0.5);
+        packing(within * 0.5, p.encoding);
       } else if (p.phase === "packaging") {
         packing(sawEncoding ? 0.5 + within * 0.5 : within);
       }
@@ -195,7 +195,8 @@ export async function createFilesShareLink(input: {
     losslessAudioToEncode(input.files.map((file) => file.fileUri)),
     {
       signal,
-      onProgress: (completedBytes, totalBytes) => report?.({ phase: "packing", completedBytes, totalBytes }),
+      onProgress: (completedBytes, totalBytes, index, count) =>
+        report?.({ phase: "packing", completedBytes, totalBytes, encoding: { index, count } }),
     }
   );
   try {

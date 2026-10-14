@@ -2,9 +2,9 @@ import { formatEta, sendEtaSeconds, sendOverallFraction } from "../sendProgress"
 
 describe("sendOverallFraction", () => {
     it("gives packing its share, then the upload the rest", () => {
-        expect(sendOverallFraction({ phase: "packing", completedBytes: 50, totalBytes: 100 }, true)).toBeCloseTo(0.15);
-        expect(sendOverallFraction({ phase: "uploading", completedBytes: 0, totalBytes: 100 }, true)).toBeCloseTo(0.3);
-        expect(sendOverallFraction({ phase: "uploading", completedBytes: 50, totalBytes: 100 }, true)).toBeCloseTo(0.65);
+        expect(sendOverallFraction({ phase: "packing", completedBytes: 50, totalBytes: 100 }, true)).toBeCloseTo(0.3);
+        expect(sendOverallFraction({ phase: "uploading", completedBytes: 0, totalBytes: 100 }, true)).toBeCloseTo(0.6);
+        expect(sendOverallFraction({ phase: "uploading", completedBytes: 50, totalBytes: 100 }, true)).toBeCloseTo(0.8);
     });
     it("makes the upload the whole bar for a parcel with nothing to pack", () => {
         expect(sendOverallFraction({ phase: "uploading", completedBytes: 25, totalBytes: 100 }, false)).toBeCloseTo(0.25);

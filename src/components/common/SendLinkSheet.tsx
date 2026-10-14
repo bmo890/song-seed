@@ -208,8 +208,14 @@ function useSecondTick(enabled: boolean) {
   }, [enabled]);
 }
 
-function phaseLabel(job: SendJob, t: (key: string) => string): string {
-  if (job.progress.phase === "packing") return t("sendSheet.packing");
+function phaseLabel(job: SendJob, t: (key: string, opts?: Record<string, unknown>) => string): string {
+  if (job.progress.phase === "packing") {
+    // The bar only moves per take; the count is what moves during a long song.
+    const encoding = job.progress.encoding;
+    return encoding && encoding.count > 1
+      ? t("sendSheet.packingOf", { index: encoding.index, count: encoding.count })
+      : t("sendSheet.packing");
+  }
   if (job.progress.phase === "uploading") return t("sendSheet.uploading");
   return t("sendSheet.sealing");
 }

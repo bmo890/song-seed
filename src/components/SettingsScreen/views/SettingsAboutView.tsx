@@ -1,6 +1,9 @@
 import { Image, Linking, Platform, ScrollView, Text, View } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
 import Constants from "expo-constants";
+import * as Updates from "expo-updates";
+import { describeInstalledUpdate } from "../../../domain/installedUpdate";
+import { formatClipDate } from "../../../utils";
 import { PageIntro } from "../../common/PageIntro";
 import { settingsScreenStyles, styles } from "../styles";
 import { AboutLinkRow, SettingsGroup } from "../components/SettingsShared";
@@ -22,6 +25,11 @@ const FEEDBACK_EMAIL = "bmostudio.dev@gmail.com";
 export function SettingsAboutView() {
   const { t } = useTranslation();
   const version = Constants.expoConfig?.version ?? "—";
+  // Which over-the-air update this launch runs; nothing on the binary's own bundle.
+  const installedUpdate = describeInstalledUpdate(
+    { updateId: Updates.updateId, createdAt: Updates.createdAt, isEmbeddedLaunch: Updates.isEmbeddedLaunch },
+    formatClipDate
+  );
   // Real pages now — hosted on songnook.app, generated from the same docs the
   // stores link to. A failed open is the only thing left to toast.
   const openLegal = (url: string) => {
@@ -30,7 +38,7 @@ export function SettingsAboutView() {
   };
 
   const sendFeedback = () => {
-    const subject = encodeURIComponent(`SongNook feedback (v${version})`);
+    const subject = encodeURIComponent(`SongNook feedback (v${version}${installedUpdate ? ` · ${installedUpdate}` : ""})`);
     void Linking.openURL(`mailto:${FEEDBACK_EMAIL}?subject=${subject}`).catch(() => {
       // No mail client configured — nothing to open; leave the user where they are.
     });
@@ -100,6 +108,11 @@ export function SettingsAboutView() {
         />
         <Text style={settingsScreenStyles.colophonName}>SongNook</Text>
         <Text style={settingsScreenStyles.colophonVersion}>{`${t("settingsAbout.version")} ${version}`}</Text>
+        {installedUpdate ? (
+          <Text style={settingsScreenStyles.colophonVersion} selectable>
+            {`${t("settingsAbout.update")} ${installedUpdate}`}
+          </Text>
+        ) : null}
       </View>
 
       <View style={styles.settingsSection}>
