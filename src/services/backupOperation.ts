@@ -5,6 +5,8 @@ export const BACKUP_OPERATION_CANCELLED_MESSAGE = "Backup operation was cancelle
 
 export type BackupOperationPhase =
     | "preparing"
+    /** A Send parcel's lossless takes being encoded to AAC before packaging. */
+    | "encoding"
     | "hashing"
     | "packaging"
     | "saving"

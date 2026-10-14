@@ -25,6 +25,8 @@ import {
   throwIfSendCancelled,
 } from "./sendTransfer";
 import { isBackupOperationCancelled } from "./backupOperation";
+import { losslessAudioToEncode } from "../domain/linkAudio";
+import { deleteEncodedAudio, encodeAudioForLink } from "./linkAudioEncoder";
 import type { SendProgressOptions } from "../domain/sendProgress";
 import { useSentLinksStore } from "../state/useSentLinksStore";
 import type { SentLink } from "../domain/sentLinks";
@@ -97,15 +99,24 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
 
   throwIfSendCancelled(signal);
   report?.({ phase: "packing", completedBytes: 0, totalBytes: 0 });
+  // Packing is one bar: encoding (lossless takes → AAC) fills its first half
+  // when it happens at all, the zip the rest. Other build phases are quick.
+  let sawEncoding = false;
+  const packing = (fraction: number) =>
+    report?.({ phase: "packing", completedBytes: Math.round(fraction * 1000), totalBytes: 1000 });
   const prepared = await prepareLibraryExportArchive({
     ...args,
     signal,
-    // The zip reports every media byte it packs; other phases of the archive
-    // build are quick and read as "packing" with an empty bar.
-    onProgress: (p) =>
-      p.phase === "packaging"
-        ? report?.({ phase: "packing", completedBytes: p.completedBytes, totalBytes: p.totalBytes })
-        : undefined,
+    compressAudio: true,
+    onProgress: (p) => {
+      const within = p.totalBytes > 0 ? Math.min(1, p.completedBytes / p.totalBytes) : 0;
+      if (p.phase === "encoding") {
+        sawEncoding = true;
+        packing(within * 0.5);
+      } else if (p.phase === "packaging") {
+        packing(sawEncoding ? 0.5 + within * 0.5 : within);
+      }
+    },
   });
   const fileName = `${prepared.archiveTitle}.${prepared.archiveExtension}`;
   const size = await fileSize(prepared.archiveUri);
@@ -176,6 +187,52 @@ export async function createFilesShareLink(input: {
   const signal = input.progress?.signal;
   const report = input.progress?.onProgress;
 
+  // Lossless takes go out as AAC, like every link (the encoded copies are
+  // deleted once the parcel has left). A file the encoder cannot read is
+  // sent as it is.
+  throwIfSendCancelled(signal);
+  const { encoded, tempUris } = await encodeAudioForLink(
+    losslessAudioToEncode(input.files.map((file) => file.fileUri)),
+    {
+      signal,
+      onProgress: (completedBytes, totalBytes) => report?.({ phase: "packing", completedBytes, totalBytes }),
+    }
+  );
+  try {
+    return await uploadFiles(
+      {
+        ...input,
+        files: input.files.map((file) => {
+          const next = encoded.get(file.fileUri);
+          if (!next) return file;
+          return {
+            fileUri: next,
+            fileName: file.fileName.replace(/\.[A-Za-z0-9]+$/, "") + ".m4a",
+            // The encoder always writes an .m4a.
+            mimeType: "audio/mp4",
+          };
+        }),
+      },
+      signal,
+      report
+    );
+  } finally {
+    if (tempUris.length > 0) await deleteEncodedAudio(tempUris);
+  }
+}
+
+async function uploadFiles(
+  input: {
+    title: string;
+    kind: ShareKind;
+    entityId?: string;
+    senderName?: string | null;
+    message?: string;
+    files: ShareFileInput[];
+  },
+  signal: AbortSignal | undefined,
+  report: SendProgressOptions["onProgress"]
+): Promise<SentLink> {
   // Sizes first: a parcel past the caps is refused before a transfer exists.
   const sizes = await Promise.all(input.files.map((file) => fileSize(file.fileUri)));
   assertWithinCaps(sizes);

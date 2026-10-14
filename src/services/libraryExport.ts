@@ -1,3 +1,5 @@
+import { losslessAudioToEncode, substituteEncodedAudio } from "../domain/linkAudio";
+import { deleteEncodedAudio, encodeAudioForLink } from "./linkAudioEncoder";
 import * as FileSystem from "expo-file-system/legacy";
 import { getLatestLyricsText } from "../domain/lyrics";
 import { getClipPlaybackUri } from "../domain/clipPresentation";
@@ -71,6 +73,9 @@ export type StandardZipOptions = {
 type ExportProgressArgs = {
     onProgress?: BackupOperationOptions["onProgress"];
     signal?: AbortSignal;
+    /** Encode lossless takes to AAC before packaging (SongNook Send links; the
+     *  library and file exports stay lossless). Reports an "encoding" phase. */
+    compressAudio?: boolean;
 };
 
 export type ExportLibraryArgs =
@@ -179,7 +184,33 @@ export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Prom
         throw new Error("Document directory unavailable.");
     }
 
-    const build = args.format === "songnook-archive" ? buildSongNookArchive(args) : buildStandardZip(args);
+    let build = args.format === "songnook-archive" ? buildSongNookArchive(args) : buildStandardZip(args);
+    let encodedTemps: string[] = [];
+    if (args.compressAudio && args.format === "songnook-archive") {
+        // The first build names the files; the encoded copies are swapped into
+        // the clips and the archive is built again from them, so every path and
+        // extension in the manifest follows the .m4a with no builder change.
+        const toEncode = losslessAudioToEncode(build.entries.map((entry) => entry.fileUri));
+        if (toEncode.length > 0) {
+            const { encoded, tempUris } = await encodeAudioForLink(toEncode, {
+                signal: args.signal,
+                onProgress: (completedBytes, totalBytes) =>
+                    args.onProgress?.({ phase: "encoding", completedBytes, totalBytes, message: "" }),
+            });
+            encodedTemps = tempUris;
+            if (encoded.size > 0) {
+                build = buildSongNookArchive({ ...args, workspaces: substituteEncodedAudio(args.workspaces, encoded) });
+            }
+        }
+    }
+    try {
+        return await packageBuild(args, build);
+    } finally {
+        if (encodedTemps.length > 0) await deleteEncodedAudio(encodedTemps);
+    }
+}
+
+async function packageBuild(args: ExportLibraryArgs, build: ExportBuildContext): Promise<LibraryExportResult> {
 
     await ensureShareDirectory();
 

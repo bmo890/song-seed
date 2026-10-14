@@ -77,6 +77,9 @@ export const useSendJobStore = create<SendJobStore>((set, get) => {
         job: {
           ...current,
           progress,
+          // Raw clips pack nothing unless a lossless take is being encoded;
+          // the first packing report with work in it gives the bar its shape.
+          hasPacking: current.hasPacking || (progress.phase === "packing" && progress.totalBytes > 0),
           uploadStartedAt:
             progress.phase === "uploading" && current.uploadStartedAt == null ? now : current.uploadStartedAt,
         },

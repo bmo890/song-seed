@@ -15,6 +15,11 @@ jest.mock("../sendTransfer", () => ({
   finalizeTransfer: jest.fn(),
   fileSize: jest.fn(),
 }));
+jest.mock("../linkAudioEncoder", () => ({
+  __esModule: true,
+  encodeAudioForLink: jest.fn(async () => ({ encoded: new Map(), tempUris: [] })),
+  deleteEncodedAudio: jest.fn(async () => undefined),
+}));
 jest.mock("../libraryExport", () => ({
   __esModule: true,
   prepareLibraryExportArchive: jest.fn(),
@@ -122,7 +127,7 @@ describe("createShareLink", () => {
 
   it("refuses an archive past the per-file cap before any byte is uploaded", async () => {
     mocked.getState.mockReturnValue({ recordLink: jest.fn() });
-    mocked.fileSize.mockResolvedValue(600 * 1024 * 1024); // a workspace of stems
+    mocked.fileSize.mockResolvedValue(1200 * 1024 * 1024); // a workspace of stems, past the 1 GB file line
 
     await expect(
       createShareLink({ title: "Big", kind: "workspace", buildArgs: () => fakeArgs })

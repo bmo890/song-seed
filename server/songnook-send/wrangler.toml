@@ -18,7 +18,7 @@ workers_dev = false
 PUBLIC_ORIGIN = "https://send.songnook.app"
 # v1 limits (see docs/product-plan/transfer-service-brief.md §9, settled).
 MAX_TRANSFER_BYTES = "1073741824"   # 1 GB per transfer
-MAX_ITEM_BYTES = "536870912"        # 512 MB per file
+MAX_ITEM_BYTES = "1073741824"       # 1 GB per file (a collection is one file)
 EXPIRY_DAYS = "7"
 # Unfinished drafts are not useful to recipients and are the main storage-abuse
 # window, so sweep them sooner than finalized transfers.
