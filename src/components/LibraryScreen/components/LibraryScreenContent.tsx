@@ -179,6 +179,7 @@ function PlaylistsSection({ tabs, scroll, headerRight, searchQuery }: { tabs: Re
           onToggleEditMode={() => model.setEditMode((prev: boolean) => !prev)}
           onTogglePlayback={model.togglePlayback}
           onPlayFromTrack={model.playFromTrack}
+          onShuffle={model.shufflePlaylist}
           onAddItems={model.startCollecting}
           onRename={model.openRenamePlaylist}
           onShare={model.shareActivePlaylist}

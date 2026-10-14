@@ -59,6 +59,7 @@ export function createSongbookShareLink(songbook: Songbook, workspaces: Workspac
     entityId: songbook.id,
     senderName: opts?.senderName,
     message: opts?.message ?? undefined,
+    progress: opts?.progress,
     buildArgs: (transferId) =>
       buildSongbookExportArgs(songbook, workspaces, { transferId, senderName: opts?.senderName, title: opts?.title }),
   });

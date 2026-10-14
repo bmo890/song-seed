@@ -1,5 +1,6 @@
 import { StateCreator } from "zustand";
 import { PlayerTarget, InlineTarget, PlaybackQueueItem } from "../types";
+import { randomQueueStart, shuffleQueue, unshuffleQueue } from "../domain/queueShuffle";
 
 export type PlayerSlice = {
     playerTarget: PlayerTarget;
@@ -31,6 +32,14 @@ export type PlayerSlice = {
     /** Remove one item from the queue. Emptying it ends the session. */
     removeFromPlayerQueue: (index: number) => void;
     advancePlayerQueue: (direction: "next" | "previous", shouldAutoplay?: boolean) => void;
+    /** The queue's order before shuffle was turned on — null while unshuffled.
+     *  Shuffle belongs to one queue: any new queue starts in its own order. */
+    playerQueueUnshuffled: PlaybackQueueItem[] | null;
+    /** Shuffle on: the playing item moves first and keeps playing, the rest
+     *  follow in random order. Off: the earlier order returns around it. */
+    togglePlayerQueueShuffle: () => void;
+    /** "Shuffle play": start a new queue at a random item, already shuffled. */
+    setPlayerQueueShuffled: (queue: PlaybackQueueItem[], shouldAutoplay?: boolean) => void;
     consumePlayerAutoplay: () => void;
     /** True while the full Player screen is opening or mounted. When false (minimized
      *  to the dock), the root provider drives queue auto-advance + source loading. */
@@ -124,6 +133,9 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
             playerQueueIndex: clampedIndex,
             playerTarget: nextTarget,
             playerShouldAutoplay: shouldAutoplay && queue.length > 0,
+            // Jumping within the running queue hands back the same array and
+            // keeps shuffle; any new queue starts in its own order.
+            playerQueueUnshuffled: queue === state.playerQueue ? state.playerQueueUnshuffled : null,
         }));
     },
     setPlayerQueueForScreen: (queue, startIndex, shouldAutoplay = false) => {
@@ -135,6 +147,7 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
             playerQueueIndex: clampedIndex,
             playerTarget: nextTarget,
             playerShouldAutoplay: shouldAutoplay && queue.length > 0,
+            playerQueueUnshuffled: queue === state.playerQueue ? state.playerQueueUnshuffled : null,
             isPlayerScreenMounted: true,
             playerDockPresentationHold: false,
         }));
@@ -142,6 +155,7 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
     clearPlayerQueue: () =>
         set({
             playerQueue: [],
+            playerQueueUnshuffled: null,
             playerQueueIndex: 0,
             playerTarget: null,
             playerShouldAutoplay: false,
@@ -152,7 +166,13 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
     appendToPlayerQueue: (items) =>
         set((state) => {
             if (items.length === 0) return state;
-            return { playerQueue: [...state.playerQueue, ...items] };
+            // Added while shuffled: the items queue at the end, as asked, and
+            // keep that place when shuffle is turned off.
+            return {
+                playerQueue: [...state.playerQueue, ...items],
+                // Appending to an empty queue starts a fresh one.
+                playerQueueUnshuffled: state.playerQueue.length === 0 ? null : state.playerQueueUnshuffled,
+            };
         }),
     reorderPlayerQueue: (orderedQueue) =>
         set((state) => {
@@ -175,6 +195,7 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
             if (nextQueue.length === 0) {
                 return {
                     playerQueue: [],
+                    playerQueueUnshuffled: null,
                     playerQueueIndex: 0,
                     playerTarget: null,
                     playerShouldAutoplay: false,
@@ -217,6 +238,44 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
                 playerShouldAutoplay: shouldAutoplay,
             };
         }),
+    playerQueueUnshuffled: null,
+    togglePlayerQueueShuffle: () =>
+        set((state) => {
+            if (state.playerQueue.length === 0) return state;
+            // The playing item doesn't change, so the engine keeps playing it:
+            // only the queue and the index pointing at it move.
+            if (state.playerQueueUnshuffled) {
+                const restored = unshuffleQueue(
+                    state.playerQueueUnshuffled,
+                    state.playerQueue,
+                    state.playerQueueIndex
+                );
+                return {
+                    playerQueue: restored.queue,
+                    playerQueueIndex: restored.index,
+                    playerQueueUnshuffled: null,
+                };
+            }
+            const shuffled = shuffleQueue(state.playerQueue, state.playerQueueIndex);
+            return {
+                playerQueue: shuffled.queue,
+                playerQueueIndex: shuffled.index,
+                playerQueueUnshuffled: state.playerQueue,
+            };
+        }),
+    setPlayerQueueShuffled: (queue, shouldAutoplay = false) => {
+        if (queue.length === 0) return;
+        const shuffled = shuffleQueue(queue, randomQueueStart(queue));
+        const nextTarget = shuffled.queue[shuffled.index] ?? null;
+        set((state) => ({
+            ...playbackStateForTarget(state.playerTarget, nextTarget),
+            playerQueue: shuffled.queue,
+            playerQueueIndex: shuffled.index,
+            playerQueueUnshuffled: queue,
+            playerTarget: nextTarget,
+            playerShouldAutoplay: shouldAutoplay,
+        }));
+    },
     consumePlayerAutoplay: () => set({ playerShouldAutoplay: false }),
     isPlayerScreenMounted: false,
     playerOpenIntent: null,

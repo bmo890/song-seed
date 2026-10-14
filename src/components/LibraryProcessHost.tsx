@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Circle } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radii } from "../design/tokens";
+import { BackgroundPill } from "./common/BackgroundPill";
 import { formatBytes } from "../utils";
 import { haptic } from "../design/haptics";
 import { useStore } from "../state/useStore";
@@ -280,78 +280,9 @@ function ProcessTakeover({
     );
 }
 
-function MonitorPill({
-    process,
-    onExpand,
-    bottom,
-}: {
-    process: LibraryProcess;
-    onExpand: () => void;
-    bottom: number;
-}) {
-    const { t } = useTranslation();
-    const overall = getProcessOverallFraction(process);
-    const percent = overall != null ? Math.round(overall * 100) : null;
-    const accent = accentFor(process);
-    const terminal = process.status !== "running";
-    const R = 13;
-    const CIRC = 2 * Math.PI * R;
-    const pct = percent ?? 0;
-
-    return (
-        // box-none + a self-sized pill: taps outside the pill itself must pass through to
-        // the app (record button, drawer, tabs) — the pill only ever owns its own pixels.
-        <View style={[styles.pillWrap, { bottom }]} pointerEvents="box-none">
-            <Pressable
-                style={({ pressed }) => [styles.pill, pressed ? { opacity: 0.85 } : null]}
-                onPress={onExpand}
-                accessibilityRole="button"
-                accessibilityLabel={`${t(`libraryProcess.${process.kind}`)}. ${t("common.expand")}`}
-            >
-                <View style={styles.pillRing}>
-                    {terminal ? (
-                        <View style={[styles.pillTerminalDot, { backgroundColor: accent }]}>
-                            <Ionicons
-                                name={process.status === "success" ? "checkmark" : "close"}
-                                size={16}
-                                color="#fff"
-                            />
-                        </View>
-                    ) : (
-                        <Svg width={30} height={30}>
-                            <Circle cx={15} cy={15} r={R} stroke="#EDE4DE" strokeWidth={4} fill="none" />
-                            <Circle
-                                cx={15}
-                                cy={15}
-                                r={R}
-                                stroke={colors.primary}
-                                strokeWidth={4}
-                                fill="none"
-                                strokeLinecap="round"
-                                strokeDasharray={CIRC}
-                                strokeDashoffset={CIRC * (1 - Math.max(0.04, pct / 100))}
-                                transform="rotate(-90 15 15)"
-                            />
-                        </Svg>
-                    )}
-                </View>
-                <View style={styles.pillCopy}>
-                    <Text style={styles.pillTitle} numberOfLines={1}>
-                        {t(`libraryProcess.${process.kind}`)}
-                        {percent != null && !terminal ? ` · ${percent}%` : ""}
-                    </Text>
-                    <Text style={styles.pillSubtitle} numberOfLines={1}>
-                        {terminal ? process.resultMessage ?? t("libraryProcess.done") : process.progress.message}
-                    </Text>
-                </View>
-                <Ionicons name="chevron-up" size={16} color={colors.textStrong} />
-            </Pressable>
-        </View>
-    );
-}
-
 /** Root-mounted host: renders the active library process as a full-screen takeover or a minimized pill. */
 export function LibraryProcessHost({ drawerOpen = false }: { drawerOpen?: boolean }) {
+    const { t } = useTranslation();
     const process = useProcessStore((s) => s.process);
     const setMinimized = useProcessStore((s) => s.setMinimized);
     const requestCancel = useProcessStore((s) => s.requestCancel);
@@ -376,14 +307,17 @@ export function LibraryProcessHost({ drawerOpen = false }: { drawerOpen?: boolea
         // blocks the drawer from opening in the first place, so it never needs this).
         if (drawerOpen) return null;
         const base = playerDockHeight > 0 ? playerDockHeight + 8 : Math.max(insets.bottom, 14);
+        const overall = getProcessOverallFraction(process);
+        const terminal = process.status !== "running";
         return (
-            <MonitorPill
-                process={process}
+            <BackgroundPill
+                title={`${t(`libraryProcess.${process.kind}`)}${overall != null && !terminal ? ` · ${Math.round(overall * 100)}%` : ""}`}
+                subtitle={terminal ? process.resultMessage ?? t("libraryProcess.done") : process.progress.message}
+                fraction={overall}
+                terminal={terminal ? (process.status === "success" ? "success" : "error") : null}
                 bottom={base + importBannerHeight}
-                onExpand={() => {
-                    haptic.tap();
-                    setMinimized(false);
-                }}
+                onPress={() => setMinimized(false)}
+                accessibilityLabel={`${t(`libraryProcess.${process.kind}`)}. ${t("common.expand")}`}
             />
         );
     }
@@ -564,43 +498,4 @@ const styles = StyleSheet.create({
         marginTop: 6,
     },
     primaryBtnText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 15, color: colors.onPrimary },
-    // Self-sizing pill: the wrapper is box-none and the pill centers itself, so nothing
-    // outside the pill's own bounds intercepts touches.
-    pillWrap: { position: "absolute", left: 16, right: 16, zIndex: 55, alignItems: "center" },
-    pill: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 10,
-        maxWidth: "100%",
-        backgroundColor: colors.surface,
-        borderWidth: 1,
-        borderColor: colors.borderMuted,
-        borderRadius: radii.xl,
-        paddingVertical: 9,
-        paddingHorizontal: 12,
-        shadowColor: "#3D3732",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 6,
-    },
-    pillRing: { width: 30, height: 30, alignItems: "center", justifyContent: "center" },
-    pillTerminalDot: {
-        width: 28,
-        height: 28,
-        borderRadius: radii.round,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    pillCopy: { flexShrink: 1, minWidth: 0 },
-    pillTitle: {
-        fontFamily: "PlusJakartaSans_600SemiBold",
-        fontSize: 13,
-        color: colors.textPrimary,
-    },
-    pillSubtitle: {
-        fontFamily: "PlusJakartaSans_400Regular",
-        fontSize: 11,
-        color: colors.textSecondary,
-    },
 });

@@ -140,6 +140,7 @@ export function createCollectionShareLink(
     entityId: collection.id,
     senderName: opts?.senderName,
     message: opts?.message ?? undefined,
+    progress: opts?.progress,
     buildArgs: (transferId) =>
       buildCollectionExportArgs(collection, workspace, library, {
         transferId,
@@ -157,6 +158,7 @@ export function createWorkspaceShareLink(workspace: Workspace, library: ShareLib
     entityId: workspace.id,
     senderName: opts?.senderName,
     message: opts?.message ?? undefined,
+    progress: opts?.progress,
     buildArgs: (transferId) =>
       buildWorkspaceExportArgs(workspace, library, { transferId, senderName: opts?.senderName, title: opts?.title }),
   });

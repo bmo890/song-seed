@@ -38,5 +38,6 @@ export function createClipsShareLink(
     senderName: opts?.senderName,
     message: opts?.message ?? undefined,
     files,
+    progress: opts?.progress,
   });
 }

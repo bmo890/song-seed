@@ -556,7 +556,13 @@ export type SongIdea = {
   isBookmarked?: boolean;
 };
 
-export type PlaybackQueueItem = { ideaId: string; clipId: string };
+export type PlaybackQueueItem = {
+  ideaId: string;
+  clipId: string;
+  /** Items sharing a groupId move together when the queue shuffles — the
+   *  parts of one setlist song stay one song (see domain/queueShuffle). */
+  groupId?: string;
+};
 export type PlayerTarget = PlaybackQueueItem | null;
 export type InlineTarget = { ideaId: string; clipId: string } | null;
 export type LyricsAutoscrollMode = "off" | "follow" | "manual";
