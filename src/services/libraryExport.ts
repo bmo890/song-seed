@@ -718,10 +718,14 @@ function attachSourceAudio(
         manifest.sourceAudioPath = existing;
         return;
     }
-    const sourcePath = `${clipStemPath} Source.${getArchiveFileExtension(sourceUri)}`;
+    const sourcePath = addFileEntry(
+        context,
+        `${clipStemPath} Source.${getArchiveFileExtension(sourceUri)}`,
+        sourceUri,
+        `Missing source audio for ${clipLabel}.`
+    );
     context.sourceAudioPaths.set(sourceUri, sourcePath);
     manifest.sourceAudioPath = sourcePath;
-    addFileEntry(context, sourcePath, sourceUri, `Missing source audio for ${clipLabel}.`);
 }
 
 /** Attach project-level fields the standard archive drops (full-fidelity export only). */
@@ -770,9 +774,12 @@ function buildArchiveClipEntry(
     }
 
     if (clipAudioUri) {
-        const audioPath = `${clipStemPath}.${getArchiveFileExtension(clipAudioUri)}`;
-        clipManifest.audioPath = audioPath;
-        addFileEntry(context, audioPath, clipAudioUri, `Missing clip audio for ${clipLabel}.`);
+        clipManifest.audioPath = addFileEntry(
+            context,
+            `${clipStemPath}.${getArchiveFileExtension(clipAudioUri)}`,
+            clipAudioUri,
+            `Missing clip audio for ${clipLabel}.`
+        );
     } else {
         clipManifest.audioMissing = true;
         context.warnings.push(`Missing clip audio for ${clipLabel}.`);
@@ -1115,13 +1122,34 @@ function addTextEntry(context: ExportBuildContext, archiveName: string, data: st
     context.entries.push({ archiveName, data });
 }
 
-function addFileEntry(context: ExportBuildContext, archiveName: string, fileUri: string, missingMessage: string) {
-    const parentDirectory = getParentDirectory(archiveName);
+/**
+ * Adds a file to the archive and returns the path it will have, which is the
+ * requested path unless another file already holds it. Stems are allocated
+ * unique per folder, but suffixed paths (" Mix", " Source") and extensions are
+ * not: a take "Click test Mix.wav" and the rendered mix of "Click test"
+ * ("Click test Mix.m4a") only collided once links encoded WAV to .m4a
+ * (2026-10-14), and the zip writer refuses a duplicate entry outright. The
+ * caller records the RETURNED path in the manifest.
+ */
+function addFileEntry(context: ExportBuildContext, archiveName: string, fileUri: string, missingMessage: string): string {
+    const taken = new Set(context.entries.map((entry) => entry.archiveName.toLowerCase()));
+    let finalName = archiveName;
+    if (taken.has(finalName.toLowerCase())) {
+        const dot = archiveName.lastIndexOf(".");
+        const slash = archiveName.lastIndexOf("/");
+        const stem = dot > slash ? archiveName.slice(0, dot) : archiveName;
+        const ext = dot > slash ? archiveName.slice(dot) : "";
+        let n = 2;
+        while (taken.has(`${stem} ${n}${ext}`.toLowerCase())) n += 1;
+        finalName = `${stem} ${n}${ext}`;
+    }
+    const parentDirectory = getParentDirectory(finalName);
     if (parentDirectory) {
         addDirectory(context, parentDirectory);
     }
 
-    context.entries.push({ archiveName, fileUri, missingMessage });
+    context.entries.push({ archiveName: finalName, fileUri, missingMessage });
+    return finalName;
 }
 
 function getParentDirectory(path: string) {
@@ -1175,11 +1203,9 @@ function buildArchiveClipOverdubManifest(
     };
 
     if (renderedMixUri) {
-        const renderedMixPath = `${clipStemPath} Mix.${getArchiveFileExtension(renderedMixUri)}`;
-        overdubManifest.renderedMixPath = renderedMixPath;
-        addFileEntry(
+        overdubManifest.renderedMixPath = addFileEntry(
             context,
-            renderedMixPath,
+            `${clipStemPath} Mix.${getArchiveFileExtension(renderedMixUri)}`,
             renderedMixUri,
             `Missing rendered overdub mix for ${clipLabel}.`
         );
@@ -1210,11 +1236,9 @@ function buildArchiveClipOverdubManifest(
                 stemAllocator,
                 "Layer"
             );
-            const audioPath = `${stemStemPath}.${getArchiveFileExtension(stem.audioUri)}`;
-            stemManifest.audioPath = audioPath;
-            addFileEntry(
+            stemManifest.audioPath = addFileEntry(
                 context,
-                audioPath,
+                `${stemStemPath}.${getArchiveFileExtension(stem.audioUri)}`,
                 stem.audioUri,
                 `Missing overdub stem for ${clipLabel} / ${stem.title}.`
             );

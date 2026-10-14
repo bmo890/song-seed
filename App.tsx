@@ -138,6 +138,7 @@ import { AppDialogHost } from "./src/components/common/AppDialog";
 import { AppErrorBoundary } from "./src/components/common/AppErrorBoundary";
 import { ToastHost } from "./src/components/common/ToastHost";
 import { SendJobHost, SendLinkHost } from "./src/components/common/SendLinkSheet";
+import { ReceivedParcelHost } from "./src/components/common/ReceivedParcelSheet";
 import { ProUpsellHost } from "./src/components/common/ProUpsellSheet";
 import { WelcomeFlow } from "./src/components/common/WelcomeFlow";
 import { installGlobalCrashHandler } from "./src/services/crashLog";
@@ -1215,6 +1216,8 @@ function AppContent() {
         <ToastHost />
         {/* The SongNook Send sheet — one host, every "SongNook Send" row opens it. */}
         <SendLinkHost />
+        {/* A received parcel's front door — every road into a package opens it. */}
+        <ReceivedParcelHost />
       </NavigationContainer>
       <RestoreRestartGate />
       <WelcomeGate />
