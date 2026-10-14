@@ -926,3 +926,25 @@ Next action, in order:
    the loop drawer the founder flagged.
 Run `npm run lint:craft` before each commit and tighten the baseline as
 counts fall.
+
+## Move 4 audit (2026-10-14)
+
+Founder: "making things more minimal and less noisy… going page by page".
+Twenty screens photographed in the simulator (`docs/product-plan/page-audit/`),
+laid side by side at https://claude.ai/artifact/FVppEe5X3ZJoKddqZMP34G.
+
+Eight patterns, ranked by pages touched: three header shapes and six
+right-slot buttons (14), pages that narrate (10), five shells for one row (9),
+terracotta four to six times per screen (7), controls on controls (6), three
+search styles (5), machine text in Lora (".wav", timestamps, values) (4), two
+page gutters (3).
+
+The side menu is the nav the founder remembered: 14 rows in five groups
+scroll on a 6.3" phone; Lyric Pad and Spark sit apart; Shelf, Revisit and
+Activity split across two groups; Recent repeats the workspace name. A regroup
+to mock (same 13 destinations, three hairline groups, no group labels, Recent
+folded into the workspace card) is on the audit page. Not decided.
+
+Order: one header, side menu, words out, one row and one card, terracotta
+once (falls out of the first four), Loop and Sound drawers, then sketch,
+Metronome and recorder. Visual steps are mocked on a canvas first.
