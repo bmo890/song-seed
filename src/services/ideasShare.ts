@@ -109,6 +109,7 @@ export function createIdeasShareLink(ideas: SongIdea[], title: string, opts?: Sh
     kind: ideasShareKind(ideas.filter(hasSomething)),
     senderName: opts?.senderName,
     message: opts?.message ?? undefined,
+    progress: opts?.progress,
     buildArgs: (transferId) =>
       buildIdeasExportArgs(ideas, title, { transferId, senderName: opts?.senderName, title: opts?.title }),
   });

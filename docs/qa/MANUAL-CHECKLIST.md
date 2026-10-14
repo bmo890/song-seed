@@ -244,10 +244,19 @@ See `docs/qa/RUN-LOG.md` for the automation status of each.
 
 Sending (app → link):
 - iOS ☐  Android ☐ — Setlist detail → menu → **Share…** → **SongNook Send**: the Send sheet
-  opens with Title prefilled; type From + a note → **Get link** → sealing stays in the sheet
-  (cannot swipe it away) → link shown, already on the clipboard; **Copy** toasts, **Share**
-  opens the OS sheet; **Done** closes. Recipient page shows the From name and the note.
+  opens with Title prefilled; type From + a note → **Get link** → the sheet folds and a pill
+  appears above the dock (ring + "Uploading · N%"); tap the pill → progress sheet with a bar,
+  "X MB of Y MB · ~Ns left", **Cancel** and **Hide**; when done the link is on the clipboard,
+  a "Link copied" toast shows, the pill reads "Link ready · tap to share"; tap it → link card
+  with **Copy** / **Share** / **Done**. Recipient page shows the From name and the note.
   **[HUMAN — network]**
+- iOS ☐  Android ☐ — Mid-upload: **Cancel** in the progress sheet stops the upload and removes
+  the pill (no error); navigating to another page keeps the pill; the pill sits above the
+  media dock and never covers the record key. **[HUMAN — network, large parcel]**
+- iOS ☐  Android ☐ — Airplane mode mid-upload: the pill turns red "Couldn’t seal · tap to retry";
+  tapping it shows the reason; **Try again** reseals the same parcel. **[HUMAN — network]**
+- iOS ☐  Android ☐ — Second **SongNook Send** while one seals: a "One parcel at a time" toast
+  and the running seal's sheet opens instead of a new form. **[HUMAN]**
 - iOS ☐  Android ☐ — Second parcel: From is prefilled with the remembered name. **[HUMAN]**
 - iOS ☐  Android ☐ — Clip selection → Share… → SongNook Send with 3 clips: the sheet lists
   them numbered; nudge one down, tap **Sort A–Z**; the recipient page lists them in the

@@ -6,6 +6,10 @@ import { useSentLinksStore } from "../../state/useSentLinksStore";
 jest.mock("../sendTransfer", () => ({
   __esModule: true,
   SendTransferError: class extends Error {},
+  SendCancelledError: class extends Error {},
+  throwIfSendCancelled: (signal?: AbortSignal) => {
+    if (signal?.aborted) throw new Error("cancelled");
+  },
   createTransfer: jest.fn(),
   registerAndUploadFile: jest.fn(),
   finalizeTransfer: jest.fn(),
@@ -91,7 +95,8 @@ describe("createShareLink", () => {
         fileName: "Set.songnook",
         mimeType: "application/octet-stream",
         size: 4242,
-      }
+      },
+      expect.objectContaining({ onProgress: expect.any(Function) })
     );
 
     // Records the finished link.
@@ -161,8 +166,8 @@ describe("createFilesShareLink", () => {
     });
 
     expect(mocked.createTransfer).toHaveBeenCalledWith(expect.objectContaining({ kind: "clips" }));
-    expect(mocked.registerAndUploadFile).toHaveBeenNthCalledWith(1, "t_ABC", "ut_SECRET", expect.objectContaining({ fileName: "a.wav", size: 10 }));
-    expect(mocked.registerAndUploadFile).toHaveBeenNthCalledWith(2, "t_ABC", "ut_SECRET", expect.objectContaining({ fileName: "b.wav", size: 20 }));
+    expect(mocked.registerAndUploadFile).toHaveBeenNthCalledWith(1, "t_ABC", "ut_SECRET", expect.objectContaining({ fileName: "a.wav", size: 10 }), expect.anything());
+    expect(mocked.registerAndUploadFile).toHaveBeenNthCalledWith(2, "t_ABC", "ut_SECRET", expect.objectContaining({ fileName: "b.wav", size: 20 }), expect.anything());
     expect(record.itemCount).toBe(2);
     expect(recordLink).toHaveBeenCalledTimes(1);
   });

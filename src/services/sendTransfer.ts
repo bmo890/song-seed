@@ -80,12 +80,27 @@ export function createTransfer(input: {
   });
 }
 
+export class SendCancelledError extends Error {
+  constructor() {
+    super("Sealing cancelled.");
+    this.name = "SendCancelledError";
+  }
+}
+
+export function throwIfSendCancelled(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new SendCancelledError();
+}
+
+export type UploadProgress = (sentBytes: number, totalBytes: number) => void;
+
 /** 2+3. Register a file and stream it straight to the presigned URL. */
 export async function registerAndUploadFile(
   transferId: string,
   uploadToken: string,
-  file: { fileUri: string; fileName: string; mimeType: string; size: number }
+  file: { fileUri: string; fileName: string; mimeType: string; size: number },
+  options?: { signal?: AbortSignal; onProgress?: UploadProgress }
 ): Promise<string> {
+  throwIfSendCancelled(options?.signal);
   const item = await postJson<RegisteredItem>(`/api/transfers/${transferId}/items`, {
     uploadToken,
     fileName: file.fileName,
@@ -93,27 +108,48 @@ export async function registerAndUploadFile(
     size: file.size,
   });
 
+  throwIfSendCancelled(options?.signal);
+
+  // An upload TASK, not uploadAsync (2026-10-14): it reports bytes as they
+  // leave and can be cancelled, which is what lets the seal run behind a pill
+  // with a live bar and a Cancel that works. A background session on iOS
+  // keeps the bytes moving if the app is sent to the back mid-upload.
+  const task = FileSystem.createUploadTask(
+    item.uploadUrl,
+    file.fileUri,
+    {
+      httpMethod: item.method ?? "PUT",
+      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+      headers: item.headers ?? {},
+      sessionType: FileSystem.FileSystemSessionType.BACKGROUND,
+    },
+    (data) => options?.onProgress?.(data.totalBytesSent, data.totalBytesExpectedToSend || file.size)
+  );
+  const onAbort = () => void task.cancelAsync().catch(() => {});
+  options?.signal?.addEventListener("abort", onAbort);
+
   let uploadStatus: number;
   try {
-    // uploadAsync exposes no progress or abort, so a truly hung socket can only
-    // be bounded by an absolute ceiling — generous enough for a large file on a
-    // slow uplink, finite enough that "Get a link" never spins forever. An
-    // abandoned draft is swept server-side within 24h either way.
+    // A truly hung socket is still bounded by an absolute ceiling — generous
+    // enough for a large file on a slow uplink, finite enough that a seal
+    // never runs forever. An abandoned draft is swept server-side within 24h.
     const UPLOAD_CEILING_MS = 15 * 60 * 1000;
     const res = await Promise.race([
-      FileSystem.uploadAsync(item.uploadUrl, file.fileUri, {
-        httpMethod: item.method ?? "PUT",
-        uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-        headers: item.headers ?? {},
-      }),
+      task.uploadAsync(),
       new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("upload timed out")), UPLOAD_CEILING_MS)
       ),
     ]);
+    throwIfSendCancelled(options?.signal);
+    if (!res) throw new SendCancelledError();
     uploadStatus = res.status;
   } catch (err) {
+    if (err instanceof SendCancelledError || options?.signal?.aborted) throw new SendCancelledError();
     throw new SendTransferError(`Upload failed (${(err as Error).message}).`);
+  } finally {
+    options?.signal?.removeEventListener("abort", onAbort);
   }
+  options?.onProgress?.(file.size, file.size);
   if (uploadStatus < 200 || uploadStatus >= 300) {
     throw new SendTransferError(`Upload rejected (${uploadStatus}).`, uploadStatus);
   }

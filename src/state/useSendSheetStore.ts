@@ -6,8 +6,12 @@
  * note, seals it, and shows the link. Transient: never persisted.
  */
 import { create } from "zustand";
+import { useSendJobStore } from "./useSendJobStore";
+import { toast } from "../components/common/toastStore";
+import { i18n } from "../i18n/instance";
 import type { SentLink } from "../domain/sentLinks";
 import type { ParcelItem } from "../domain/parcelOrder";
+import type { SendProgressOptions } from "../domain/sendProgress";
 import type { ShareKind } from "../types";
 
 /** What the sender typed on the sheet — the same three lines as the desktop page. */
@@ -18,6 +22,9 @@ export type SendParcel = {
   /** The items' keys in the order the sender chose (only when the request
    *  listed items). The creator applies it with orderByKeys. */
   order?: string[];
+  /** Set by the seal job: live progress and the cancel handle. Creators pass it
+   *  straight through to the transfer service. */
+  progress?: SendProgressOptions;
 };
 
 export type SendRequest = {
@@ -50,7 +57,15 @@ export const useSendSheetStore = create<SendSheetStore>((set) => ({
   close: () => set({ request: null }),
 }));
 
-/** The one call every entry point makes. */
+/** The one call every entry point makes. One seal at a time: while one runs,
+ *  asking for another opens that seal's sheet instead; a finished one makes way. */
 export function openSendSheet(request: SendRequest): void {
+  const jobs = useSendJobStore.getState();
+  if (jobs.job?.status === "running") {
+    toast(i18n.t("sendSheet.oneAtATime"), "paper-plane-outline");
+    jobs.setExpanded(true);
+    return;
+  }
+  if (jobs.job) jobs.dismiss();
   useSendSheetStore.getState().open(request);
 }
