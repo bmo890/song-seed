@@ -360,9 +360,15 @@ export function TransferReceiveScreen() {
         useStore.getState().deleteWorkspace(workspaceId);
       }
       if (abortRef.current) return; // the user chose to leave; no failure to report
+      // The reason goes to the console (and to the diagnostics bundle's log);
+      // the page keeps its one calm sentence.
+      console.warn("[receive] save failed", error);
       // haptics vocabulary: `error` — a failure the user must hear about.
       haptic.error();
-      setPhase({ kind: "error", message: t("transferReceive.saveFailed") });
+      setPhase({
+        kind: "error",
+        message: __DEV__ && error instanceof Error ? error.message : t("transferReceive.saveFailed"),
+      });
     }
   }
 

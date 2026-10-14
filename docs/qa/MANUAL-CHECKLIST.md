@@ -257,6 +257,14 @@ Sending (app → link):
   tapping it shows the reason; **Try again** reseals the same parcel. **[HUMAN — network]**
 - iOS ☐  Android ☐ — Second **SongNook Send** while one seals: a "One parcel at a time" toast
   and the running seal's sheet opens instead of a new form. **[HUMAN]**
+- iOS ☐  Android ☐ — The parcel's front door: Save on any `.songnook` link (sketch, collection,
+  workspace, clips) lands on a sheet "Received · <kind>" with the title, From, and a list of
+  what is inside (a workspace: its collections; a collection: sub-collections and ideas; a
+  sketch: takes · Lyrics · Chart). One key, "Keep <kind>": a workspace becomes your own and
+  the app jumps to its hub; anything else moves into the active workspace's top level and
+  the app opens that collection. "Kept" toast; the package is gone from Received. "Look
+  first" opens the package in Received as before; "Somewhere else…" opens the old chooser.
+  Tapping a package row in Received opens the same sheet. **[HUMAN — network]**
 - iOS ☐  Android ☐ — Links carry AAC: send a sketch whose takes are WAV → the pill shows
   "Packing" before "Uploading"; the recipient page lists one `.songnook` far smaller than the
   WAVs (about 2 MB per minute); receiving it on another device plays every take; the
