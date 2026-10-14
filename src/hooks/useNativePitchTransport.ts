@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import SongNookPitchShiftModule, {
   type NativePitchShiftCapabilities,
   type NativePitchShiftPlaybackState,
+  type NativeSoundSettings,
 } from "../../modules/songnook-pitch-shift";
 import {
   activatePlaybackAudioSession,
@@ -77,6 +78,8 @@ type UseNativePitchTransportArgs = {
   source: NativeTransportSource;
   playbackRate: number;
   pitchShiftSemitones: number;
+  /** The take's level and tone (Sound room). Omit for a flat transport. */
+  sound?: NativeSoundSettings;
   /** Restart from 0 when play() is pressed near the end (editor). */
   restartAtEndOnPlay?: boolean;
   /** Force autoplay on (re)load regardless of prior playing state (player queue). */
@@ -99,10 +102,13 @@ export function useNativePitchTransport({
   source,
   playbackRate,
   pitchShiftSemitones,
+  sound,
   restartAtEndOnPlay = false,
   extraAutoplay = false,
   onEnded,
 }: UseNativePitchTransportArgs) {
+  const soundGainDb = sound?.gainDb ?? 0;
+  const soundTonePreset = sound?.tonePreset ?? "neutral";
   const [capabilities, setCapabilities] = useState<PitchShiftCapabilities>(
     buildUnavailablePitchShiftCapabilities()
   );
@@ -150,6 +156,8 @@ export function useNativePitchTransport({
     audioUri: source.audioUri,
     playbackRate,
     pitch: clamped,
+    gainDb: soundGainDb,
+    tonePreset: soundTonePreset,
     extraAutoplay,
   });
   const reconcileQueuedRef = useRef(false);
@@ -206,6 +214,8 @@ export function useNativePitchTransport({
     audioUri: source.audioUri,
     playbackRate,
     pitch: clamped,
+    gainDb: soundGainDb,
+    tonePreset: soundTonePreset,
     extraAutoplay,
   };
 
@@ -309,6 +319,8 @@ export function useNativePitchTransport({
         autoplay,
         playbackRate: d.playbackRate,
         pitchShiftSemitones: d.pitch,
+        gainDb: d.gainDb,
+        tonePreset: d.tonePreset,
       });
       loadedKeyRef.current = d.sourceKey;
       setNativeState(state);
@@ -323,6 +335,23 @@ export function useNativePitchTransport({
     if (nativeStateRef.current.pitchShiftSemitones !== desiredRef.current.pitch) {
       pitchLog(`[${ownerLabel}] sync → setPitchShiftSemitones`, desiredRef.current.pitch);
       const state = await nativeModule.setPitchShiftSemitones(desiredRef.current.pitch);
+      setNativeState(state);
+    }
+    // Level and tone: a native build without the EQ stage has no setSound and
+    // reports no sound in its state; the take then plays flat, and we say nothing.
+    if (
+      nativeModule.setSound &&
+      ((nativeStateRef.current.soundGainDb ?? 0) !== desiredRef.current.gainDb ||
+        (nativeStateRef.current.soundTonePreset ?? "neutral") !== desiredRef.current.tonePreset)
+    ) {
+      pitchLog(`[${ownerLabel}] sync → setSound`, {
+        gainDb: desiredRef.current.gainDb,
+        tonePreset: desiredRef.current.tonePreset,
+      });
+      const state = await nativeModule.setSound({
+        gainDb: desiredRef.current.gainDb,
+        tonePreset: desiredRef.current.tonePreset,
+      });
       setNativeState(state);
     }
   }, [ensureAudioSessionOwnership, ownerLabel, syncBackToSource]);
@@ -359,7 +388,7 @@ export function useNativePitchTransport({
   useEffect(() => {
     const handle = setTimeout(requestReconcile, NATIVE_PARAM_DEBOUNCE_MS);
     return () => clearTimeout(handle);
-  }, [clamped, playbackRate, requestReconcile]);
+  }, [clamped, playbackRate, soundGainDb, soundTonePreset, requestReconcile]);
 
   useEffect(() => {
     return () => {
@@ -407,6 +436,8 @@ export function useNativePitchTransport({
               autoplay: true,
               playbackRate,
               pitchShiftSemitones: clamped,
+              gainDb: soundGainDb,
+              tonePreset: soundTonePreset,
             });
             loadedKeyRef.current = src.sourceKey;
             setNativeState(state);
@@ -441,6 +472,8 @@ export function useNativePitchTransport({
       restartAtEndOnPlay,
       runExclusive,
       shouldOwnNativeTransport,
+      soundGainDb,
+      soundTonePreset,
     ]
   );
 

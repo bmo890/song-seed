@@ -132,6 +132,9 @@ are now unreferenced and can be deleted.
 | Control | File | Notes |
 |---|---|---|
 | `InkOption` | `InkOption.tsx` | Editorial ink: a word led by a dot, hollow to terracotta. Built 2026-10-13 for the player's "Marks" toggle. `Press`, `light` on flip. Migration list is in "Under the reel". |
+| `Knob` | `Knob.tsx` | The mixer's level control (Sound room, 2026-10-14). A 60 pt paper disc with `shadows.control`, a terracotta pointer, a tick arc (±135°, nine ticks, the long one at `rest`) whose fill grows from rest toward the pointer. Turned by a vertical drag (150 pt end to end), RNGH pan activated on touch so the page never scrolls from a finger on it; value on the UI thread, quantised to `step`, committed by the caller on release. Haptics: `grab` on land, `tick` per `detent`, `light` on arriving at `rest` and on lift; an end stop is silent. |
+| `LitKey` | `LitKey.tsx` | A piece of gear: a quiet `surface` box (36 pt, `radii.lg`, hairline `borderSubtle`) with a 6 pt lamp at its leading edge. Off: a `borderMuted` bead, grey word. On: the lamp glows `primary` with a 22% halo over `durations.fast`, the word goes `textStrong`. The box never changes colour. `Press`, `light` on press; the lamp lights on release. **The one boxed toggle in the app**, for controls that are equipment (tone presets, the bench's switches); every other on/off stays `InkOption`. |
+| `LevelToneStrip` | `LevelToneStrip.tsx` | One `Knob` (−12 … +12 dB, detent 3, rest 0) beside a two-by-two bank of `LitKey`s for the tone flags, each group with the dials' reset key once bent. The player's Sound drawer and the Layers bench (root and each layer) share it. |
 
 ### To build, in order
 

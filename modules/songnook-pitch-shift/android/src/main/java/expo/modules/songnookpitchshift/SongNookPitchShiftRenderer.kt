@@ -37,8 +37,10 @@ const val WAVEFORM_CANCELLED_MESSAGE = "WAVEFORM_CANCELLED"
 
 private const val RENDER_TIMEOUT_MINUTES = 10L
 private const val MIX_OFFSET_US = 1_000L
-private const val OVERDUB_GAIN_MIN_DB = -18.0
-private const val OVERDUB_GAIN_MAX_DB = 6.0
+// The domain's clamp (src/domain/overdub.ts); it was −18 … +6 here until 2026-10-14,
+// quietly flattening the bench's louder settings in the bake.
+private const val OVERDUB_GAIN_MIN_DB = -24.0
+private const val OVERDUB_GAIN_MAX_DB = 12.0
 
 private data class MixedRenderInput(
   val inputUri: String,
@@ -192,6 +194,9 @@ class SongNookPitchShiftRenderer(
     val toneFlags = input.tonePreset.split("+")
     if (toneFlags.contains("low-cut")) {
       processors += LowCutAudioProcessor()
+    }
+    if (toneFlags.contains("low-boost")) {
+      processors += BiquadAudioProcessor.lowShelf(120.0, 4.0)
     }
     if (toneFlags.contains("hi-cut")) {
       processors += BiquadAudioProcessor.lowPass(7200.0)

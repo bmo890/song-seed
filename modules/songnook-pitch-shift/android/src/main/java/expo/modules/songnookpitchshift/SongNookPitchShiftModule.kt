@@ -91,6 +91,10 @@ class SongNookPitchShiftModule : Module() {
       engine.setPitchShiftSemitones(semitones)
     }
 
+    AsyncFunction("setSound") { request: Map<String, Any?> ->
+      engine.setSound(request)
+    }
+
     AsyncFunction("renderPitchShiftedFile") Coroutine { request: Map<String, Any?> ->
       withContext(renderDispatcher) { renderer.renderFile(request) }
     }

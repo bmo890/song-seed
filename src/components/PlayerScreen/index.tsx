@@ -469,6 +469,12 @@ function PlayerScreenInner({
         }
       : null,
     pitchShiftSemitones: ui.pitchShiftSemitones,
+    // Live level and tone apply to the raw take only. A take with layers plays its
+    // rendered mix, which already carries the root's settings in the bake.
+    sound:
+      playerClip && data.playbackAudioUri === (playerClip.audioUri ?? null)
+        ? data.overdubRootSettings
+        : null,
     playerShouldAutoplay: data.playerShouldAutoplay,
     fullPlayerPosition: playerPosition,
     fullPlayerDuration: resolvedDisplayDuration,
@@ -1879,6 +1885,9 @@ function PlayerScreenInner({
               clickHaptic={playbackClickHaptic}
               onSetClickHaptic={setPlaybackClickHaptic}
               onRecordOverdub={handleAddOverdub}
+              sound={data.overdubRootSettings}
+              onCommitSoundLevel={(db) => handleAdjustRootGain(db - (data.overdubRootSettings?.gainDb ?? 0))}
+              onToggleSoundTone={handleToggleRootToneFlag}
             />
           ) : ui.mode === "layers" ? (
             <PlayerLayersBench

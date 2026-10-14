@@ -34,6 +34,8 @@ import { durations } from "../../../design/motion";
 import { markGroupPositions, markRowTimeline, sectionPhase } from "../../../domain/markPhase";
 import { Press } from "../../common/Press";
 import { SpeedPitchDials } from "../../common/SpeedPitchDials";
+import { LevelToneStrip } from "../../common/LevelToneStrip";
+import { isTonePresetNeutral, type OverdubToneFlag } from "../../../domain/overdub";
 import { UndoRedoButtons } from "../../common/useUndoHistory";
 import { PIN_ICON } from "../../../design/markIcons";
 
@@ -154,6 +156,13 @@ type PlayerPracticeDrawersProps = {
 
   // Record a layer
   onRecordOverdub: (playheadMs: number) => void;
+
+  // The take's sound (Sound room, 2026-10-14): its root level and tone, saved on
+  // the take as they are set. Null while no clip is loaded.
+  sound: { gainDb: number; tonePreset: string } | null;
+  /** The knob's value on release — absolute, in dB. */
+  onCommitSoundLevel: (gainDb: number) => void;
+  onToggleSoundTone: (flag: OverdubToneFlag) => void;
 };
 
 /** Pin a row's visual order to LTR regardless of language direction. */
@@ -296,6 +305,9 @@ export function PlayerPracticeDrawers({
   clickHaptic,
   onSetClickHaptic,
   onRecordOverdub,
+  sound,
+  onCommitSoundLevel,
+  onToggleSoundTone,
 }: PlayerPracticeDrawersProps) {
   const { t } = useTranslation();
   const [drawer, setDrawer] = useState<Drawer>("marks");
@@ -395,7 +407,8 @@ export function PlayerPracticeDrawers({
     sound:
       Math.abs(playbackSpeed - 1) > 0.01 ||
       pitchShiftSemitones !== 0 ||
-      (clickAvailable && clickEnabled),
+      (clickAvailable && clickEnabled) ||
+      (!!sound && (sound.gainDb !== 0 || !isTonePresetNeutral(sound.tonePreset))),
   };
 
   const clampSectionEdge = (section: ClipSection, edge: "start" | "end", ms: number) => {
@@ -1001,6 +1014,22 @@ export function PlayerPracticeDrawers({
         supportsPitchShift={supportsPitchShift}
         onAdjustPitchShift={onAdjustPitchShift}
       />
+
+      {/* Below the hairline: the take's own sound, kept with it. Above it, how you
+          practise today. */}
+      {sound ? (
+        <>
+          <View style={pd.soundDivider} />
+          <LevelToneStrip
+            style={pd.soundStrip}
+            gainDb={sound.gainDb}
+            tonePreset={sound.tonePreset}
+            onCommitGain={onCommitSoundLevel}
+            onToggleToneFlag={onToggleSoundTone}
+            testID="sound-strip"
+          />
+        </>
+      ) : null}
 
       {clickAvailable ? (
         <>

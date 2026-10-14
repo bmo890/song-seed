@@ -73,6 +73,10 @@ public class SongNookPitchShiftModule: Module {
       return self.engine.setPitchShiftSemitones(semitones)
     }
 
+    AsyncFunction("setSound") { (request: [String: Any]) -> [String: Any] in
+      return self.engine.setSound(request)
+    }
+
     AsyncFunction("renderPitchShiftedFile") { (request: [String: Any]) -> [String: Any] in
       return try self.renderer.renderFile(request)
     }.runOnQueue(renderQueue)

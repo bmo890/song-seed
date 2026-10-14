@@ -7,6 +7,17 @@ import { hueToAccentHex } from "./workspaceTheme";
 export const OVERDUB_GAIN_MIN_DB = -24;
 export const OVERDUB_GAIN_MAX_DB = 12;
 export const OVERDUB_GAIN_STEP_DB = 4;
+/** The level knob's travel (Sound room, 2026-10-14): ±12 dB with a limiter after
+ *  the lift. Persisted gains keep the wider legacy clamp above so an old stem at
+ *  −20 is not silently changed; the knob pins at its end and the readout says −20. */
+export const SOUND_LEVEL_MIN_DB = -12;
+export const SOUND_LEVEL_MAX_DB = 12;
+/** The knob's felt stops: a tick every 3 dB, a landing at flat. */
+export const SOUND_LEVEL_DETENT_DB = 3;
+
+export function clampSoundLevelDb(value: number) {
+  return Math.max(SOUND_LEVEL_MIN_DB, Math.min(SOUND_LEVEL_MAX_DB, Math.round(value)));
+}
 export const DEFAULT_CLIP_OVERDUB_ROOT_SETTINGS: ClipOverdubRootSettings = {
   gainDb: 0,
   tonePreset: "neutral",
@@ -67,8 +78,27 @@ export function buildCombinedClipTitle(_idea: SongIdea, clip: ClipVersion) {
 // encoded canonically as flags joined by "+" in the order below — "low-cut+hi-cut" —
 // with "neutral" standing for none. The single legacy values ("low-cut", and the never-
 // surfaced "warm"/"bright") parse as themselves, so no stored data needs migrating.
-export const OVERDUB_TONE_FLAGS = ["low-cut", "hi-cut", "mid-boost"] as const;
+// "low-boost" joined on 2026-10-14 (the Sound room's fourth key, for thin phone
+// recordings); it and "low-cut" are one band's two directions, so they exclude
+// each other. The order here is the persisted encoding's order, kept stable.
+export const OVERDUB_TONE_FLAGS = ["low-cut", "low-boost", "hi-cut", "mid-boost"] as const;
 export type OverdubToneFlag = (typeof OVERDUB_TONE_FLAGS)[number];
+/** The keys' order in the Sound room's two-by-two bank: the low band's two
+ *  directions on the first row, mid and high beneath. */
+export const SOUND_TONE_KEY_ORDER: readonly OverdubToneFlag[] = ["low-cut", "low-boost", "mid-boost", "hi-cut"];
+
+/** Flags that cannot both be on: the same band pulled two ways. */
+const EXCLUSIVE_TONE_FLAGS: Record<OverdubToneFlag, OverdubToneFlag | null> = {
+  "low-cut": "low-boost",
+  "low-boost": "low-cut",
+  "mid-boost": null,
+  "hi-cut": null,
+};
+
+/** True once any tone flag is on: the tab's dot and the group's reset key. */
+export function isTonePresetNeutral(preset: string | undefined): boolean {
+  return parseToneFlags(preset).length === 0;
+}
 
 export function parseToneFlags(preset: string | undefined): OverdubToneFlag[] {
   if (!preset) {
@@ -90,9 +120,12 @@ export function formatToneFlags(flags: readonly OverdubToneFlag[]): string {
 
 export function toggleToneFlag(preset: string | undefined, flag: OverdubToneFlag): string {
   const flags = parseToneFlags(preset);
-  return formatToneFlags(
-    flags.includes(flag) ? flags.filter((candidate) => candidate !== flag) : [...flags, flag]
-  );
+  if (flags.includes(flag)) {
+    return formatToneFlags(flags.filter((candidate) => candidate !== flag));
+  }
+  // Lighting one direction of a band puts out the other.
+  const excluded = EXCLUSIVE_TONE_FLAGS[flag];
+  return formatToneFlags([...flags.filter((candidate) => candidate !== excluded), flag]);
 }
 
 /** Hydration guard: canonicalize whatever was persisted. Unknown values fall back to
