@@ -11,6 +11,7 @@ import { SelectionTopBar } from "../common/SelectionTopBar";
 import { SelectionDock } from "../common/SelectionDock";
 import { AppAlert } from "../common/AppAlert";
 import { ReceivedPackageMoveModal } from "../common/ReceivedPackageMoveModal";
+import { openReceivedParcel } from "../../state/useReceivedParcelStore";
 import { useStore } from "../../state/useStore";
 import { receivedPackages, unopenedReceivedCount } from "../../domain/workspaceVisibility";
 import { useBrowseRootBackHandler } from "../../hooks/useBrowseRootBackHandler";
@@ -111,7 +112,12 @@ export function ReceivedScreen() {
   useEffect(() => {
     if (!routePackageId) return;
     const pkg = packages.find((candidate) => candidate.id === routePackageId);
-    if (pkg) openPackage(pkg);
+    // The parcel's front door, not the collection: a just-saved parcel and a
+    // "From others" card both arrive here (2026-10-14).
+    if (pkg) {
+      markReceivedPackageOpened(pkg.id);
+      openReceivedParcel(pkg.id);
+    }
     navigation.setParams({ packageId: undefined, openToken: undefined });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routePackageId, routeOpenToken]);
@@ -183,7 +189,10 @@ export function ReceivedScreen() {
                     toggle();
                     return;
                   }
-                  openPackage(pkg);
+                  // The row opens the parcel's front door; its collection rows
+                  // beneath (a workspace parcel) still open straight in.
+                  markReceivedPackageOpened(pkg.id);
+                  openReceivedParcel(pkg.id);
                 }}
                 onLongPress={() => {
                   // haptics vocabulary: `grab` — entering selection mode.

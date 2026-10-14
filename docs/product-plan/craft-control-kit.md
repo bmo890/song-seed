@@ -817,6 +817,61 @@ parcel on a second device; stems / rendered mixes through the encoder; the
 first-time encode of a 150 MB WAV (how long the Packing phase takes on a
 phone).
 
+## The parcel's front door (2026-10-14, founder: "a new user doesn't know to click Keep")
+
+Before: Save dropped the receiver on the Received list (or the package's
+collection page) with a toast; "Keep this…" lived in the page's own row and
+in multi-select; a workspace with several collections showed as one row with
+sub-rows. The founder's words: overwhelming, they don't know it is a
+package, they don't find Keep, they can't tell there is more than one
+collection.
+
+**Built** (`common/ReceivedParcelSheet.tsx`, `state/useReceivedParcelStore.ts`,
+`domain/receivedParcel.ts` tested):
+- One sheet, every road: after Save (`TransferReceive` → `ReceivedHome` with
+  `packageId` → the sheet, not the collection), a package row tap in
+  Received, the workspace switcher's "From others" cards (same route).
+- Eyebrow "Received · Workspace", kind badge, title, "From Ben · Oct 14",
+  then the contents as rows (`parcelRows`): a workspace lists its top-level
+  collections with counts; a single collection its sub-collections then its
+  ideas; a sketch "3 takes · Lyrics · Chart"; clips one per row. Six rows,
+  then "+N more".
+- One key named by kind: Keep workspace / collection / sketch / clips.
+  `defaultKeepPlan`: a workspace → `adoptReceivedWorkspace` (becomes yours,
+  provenance dropped); anything else → `adoptReceivedPackageInto(active
+  workspace, top level)`; with no workspace of your own to land in, it
+  becomes a workspace too. A line under the rows says which
+  ("Keeping moves it into My Songs."). Keep MOVES (founder: "move not copy");
+  one copy of the audio; the package leaves Received.
+- Then it jumps: own workspace → `setActiveWorkspaceId` +
+  `openWorkspaceBrowseRoot`; into → the collection as the browse root. Toast
+  "Kept". `success` haptic.
+- "Look first" → the package in Received as before (marks opened). "Somewhere
+  else…" → the existing `ReceivedPackageMoveModal`, landing the same way.
+- A "Files" clips parcel is renamed to the parcel's title at the door, so
+  every path out carries the name (it used to rename only on open).
+- Compilations (setlist / playlist / chart book) are untouched: they already
+  land in Compilations and open there.
+
+**A real bug found on the way:** a sketch whose takes include "Click test
+Mix.wav" AND a rendered mix of "Click test" collided once links encoded WAV
+to .m4a ("Click test Mix.m4a" twice); the zip writer refuses duplicate
+entries, so the parcel could be SENT but never SAVED ("Couldn't open the
+transfer"). `libraryExport.addFileEntry` now returns a unique path (" 2",
+" 3"…) and every caller records the returned path in the manifest. The dev
+error page now shows the underlying message (`__DEV__` only) and logs it.
+
+Simulator-verified: the sheet on a clips package from the Received list;
+Keep clips → "Preview test" collection open in My Songs, package gone;
+Save on the nine-song workspace link → the sheet with "Keren show · 9
+items" → Keep workspace → the new workspace's hub, named "Keren show (1)"
+(a workspace of that name already existed; the dedupe is the store's).
+Screenshots `docs/product-plan/under-reel/parcel-sheet*.png`.
+NOT verified: Look first and Somewhere else… from the sheet (both reuse
+code that worked before, with the same landing); a collection parcel; a
+sketch parcel end to end (the collision fix is unit-tested through the
+export suite but the re-send was not repeated); Hebrew; Android.
+
 ## State at handoff
 
 Branch `craft/control-kit`, pushed. Commits:
