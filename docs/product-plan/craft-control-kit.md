@@ -791,11 +791,12 @@ sits at ~224 kbps. The "Keren show" workspace (nine stereo WAV songs, 415 MB,
 the founder's real case) sealed to a 68 MB parcel: about six times smaller.
 Encoding those nine took roughly 40 s in the simulator (slow for the first
 song, then quick); a phone will be slower, and the pill's Packing bar is
-what covers that wait. The bitrate is the platform preset's; setting it
-explicitly needs a native change in `renderTrim` on both platforms and a
-native build. Android's Transformer default is believed to be 128 kbps —
-UNMEASURED; check a parcel sent from an Android phone before trusting the
-"decent" promise there.
+what covers that wait. iOS keeps the preset (~248 kbps
+stereo, measured on the nine-song workspace). Android now asks the
+Transformer for 256 kbps (`AAC_BITRATE` in the renderer, a4f5dafc; the
+default was 128) — needs the native build that was started the same day
+(EAS production, iOS build 7 / Android versionCode 3, for the Sound room's
+EQ stage); UNMEASURED on a device until that build is installed.
 
 NOT verified: Android at all; a sketch parcel (archive path) end to end with
 WAV takes — the clip path was measured, the archive path is the same encoder
