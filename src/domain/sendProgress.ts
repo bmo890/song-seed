@@ -11,6 +11,10 @@ export type SendProgress = {
     /** Bytes done within the phase (packing: media packed; uploading: sent). */
     completedBytes: number;
     totalBytes: number;
+    /** While packing: the take being encoded, 1-based, and how many there are.
+     *  The bar only moves per take, so this is what tells the sender it is
+     *  alive during a long song (founder, 2026-10-14: "sitting at 7%"). */
+    encoding?: { index: number; count: number };
 };
 
 export type SendProgressOptions = {
@@ -18,9 +22,10 @@ export type SendProgressOptions = {
     onProgress?: (progress: SendProgress) => void;
 };
 
-/** Share of the whole seal that packing takes when the parcel needs packing
- *  (an archive). Upload is the slow part on a phone, so it gets the rest. */
-export const PACKING_SHARE = 0.3;
+/** Share of the whole seal that packing takes when the parcel needs packing.
+ *  Since links encode WAV takes to AAC (2026-10-14), packing is the slow half
+ *  on a phone: nine songs took minutes to encode and seconds to upload. */
+export const PACKING_SHARE = 0.6;
 
 function within(progress: SendProgress): number {
     if (progress.totalBytes <= 0) return 0;

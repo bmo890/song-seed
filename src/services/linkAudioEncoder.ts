@@ -10,7 +10,8 @@ import * as FileSystem from "expo-file-system/legacy";
 import SongNookPitchShiftModule from "../../modules/songnook-pitch-shift";
 import { throwIfBackupCancelled } from "./backupOperation";
 
-export type EncodeProgress = (completedBytes: number, totalBytes: number) => void;
+/** Bytes of source audio done, and the take in flight (1-based) of how many. */
+export type EncodeProgress = (completedBytes: number, totalBytes: number, index: number, count: number) => void;
 
 export type EncodedAudio = {
     /** Source URI → encoded .m4a URI, for the files that encoded. */
@@ -37,7 +38,7 @@ export async function encodeAudioForLink(
     const sizes = await Promise.all(sourceUris.map(sizeOf));
     const totalBytes = sizes.reduce((sum, size) => sum + size, 0);
     let completedBytes = 0;
-    options?.onProgress?.(0, totalBytes);
+    options?.onProgress?.(0, totalBytes, 1, sourceUris.length);
     const stamp = Date.now().toString(36);
 
     for (const [index, uri] of sourceUris.entries()) {
@@ -64,7 +65,7 @@ export async function encodeAudioForLink(
             }
         }
         completedBytes += sizes[index] ?? 0;
-        options?.onProgress?.(completedBytes, totalBytes);
+        options?.onProgress?.(completedBytes, totalBytes, Math.min(index + 2, sourceUris.length), sourceUris.length);
     }
     return result;
 }

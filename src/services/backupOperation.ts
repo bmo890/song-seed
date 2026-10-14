@@ -20,6 +20,8 @@ export type BackupOperationProgress = {
     completedBytes: number;
     totalBytes: number;
     message: string;
+    /** "encoding" only: the take in flight (1-based) of how many. */
+    encoding?: { index: number; count: number };
 };
 
 export type BackupOperationOptions = {
