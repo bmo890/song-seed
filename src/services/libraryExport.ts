@@ -194,8 +194,14 @@ export async function prepareLibraryExportArchive(args: ExportLibraryArgs): Prom
         if (toEncode.length > 0) {
             const { encoded, tempUris } = await encodeAudioForLink(toEncode, {
                 signal: args.signal,
-                onProgress: (completedBytes, totalBytes) =>
-                    args.onProgress?.({ phase: "encoding", completedBytes, totalBytes, message: "" }),
+                onProgress: (completedBytes, totalBytes, index, count) =>
+                    args.onProgress?.({
+                        phase: "encoding",
+                        completedBytes,
+                        totalBytes,
+                        message: "",
+                        encoding: { index, count },
+                    }),
             });
             encodedTemps = tempUris;
             if (encoded.size > 0) {

@@ -790,8 +790,20 @@ arrived as a 0.99 MB .m4a, 44.1 kHz, 224 kbps, 35.00 s. So the iOS preset
 sits at ~224 kbps. The "Keren show" workspace (nine stereo WAV songs, 415 MB,
 the founder's real case) sealed to a 68 MB parcel: about six times smaller.
 Encoding those nine took roughly 40 s in the simulator (slow for the first
-song, then quick); a phone will be slower, and the pill's Packing bar is
-what covers that wait. iOS keeps the preset (~248 kbps
+song, then quick). On the founder's iPhone the same parcel sat at "7%" for
+over two minutes: encoding only reports per TAKE, so a long song shows no
+movement at all. Same day: the pill and sheet now read "Packing 3 of 9"
+(`SendProgress.encoding`, threaded from the encoder through the export
+progress), and packing takes 60% of the bar instead of 30 since it is the
+slow half once links encode. Within-song progress needs the native bridge
+to expose the export session's progress (both encoders have it) — a later
+native build. Parallel encoding on iOS is worth measuring on a device.
+
+Also same day: Settings → About shows "Update <6 chars> · <date>" under the
+version (`domain/installedUpdate.ts`, from expo-updates' updateId /
+createdAt), nothing on the binary's own bundle, and the feedback mail
+subject carries it. The dev client never shows it (embedded launch), so it
+is UNSEEN on screen; the formatter is unit-tested. iOS keeps the preset (~248 kbps
 stereo, measured on the nine-song workspace). Android now asks the
 Transformer for 256 kbps (`AAC_BITRATE` in the renderer, a4f5dafc; the
 default was 128) — needs the native build that was started the same day
