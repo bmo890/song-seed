@@ -15,7 +15,9 @@ import androidx.media3.common.audio.GainProcessor
 import androidx.media3.common.audio.SonicAudioProcessor
 import androidx.media3.common.audio.ToInt16PcmAudioProcessor
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.transformer.AudioEncoderSettings
 import androidx.media3.transformer.Composition
+import androidx.media3.transformer.DefaultEncoderFactory
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.EditedMediaItemSequence
 import androidx.media3.transformer.Effects
@@ -226,6 +228,16 @@ class SongNookPitchShiftRenderer(
             Transformer.Builder(appContext)
               .setLooper(renderThread.looper)
               .setAudioMimeType(MimeTypes.AUDIO_AAC)
+              // 256 kbps AAC, the rate SongNook Send links and trims go out at
+              // (2026-10-14): the platform default is 128, which is audibly below
+              // what iOS writes (~248). The device's encoder may clamp it lower.
+              .setEncoderFactory(
+                DefaultEncoderFactory.Builder(appContext)
+                  .setRequestedAudioEncoderSettings(
+                    AudioEncoderSettings.Builder().setBitrate(AAC_BITRATE).build()
+                  )
+                  .build()
+              )
               .addListener(
                 object : Transformer.Listener {
                   override fun onCompleted(
@@ -345,6 +357,9 @@ class SongNookPitchShiftRenderer(
   }
 
   // --- Tier 2: trim/extract/cut via media3 Transformer ---------------------------
+  private companion object {
+    const val AAC_BITRATE = 256_000
+  }
 
   fun renderTrim(request: Map<String, Any?>): Map<String, Any> {
     val inputUri = request["inputUri"] as? String
