@@ -711,6 +711,47 @@ new bottom position; confirming the Make sketch dialog end to end.
 close the LogBox strip. Its close button sits over the record FAB, so a second
 tap after the strip is gone starts a quick record. Screenshot, then tap once.
 
+## SongNook Send seals in the background (2026-10-14)
+
+Founder: "I don't want to keep the loader open and avoid navigating away.
+Also a cancel button." Early link (a link before the upload lands) was
+discussed and declined for now; the pill delivers the link when it is ready.
+
+**Shape.** `Get link` hands the parcel to `useSendJobStore` and the form
+sheet folds. A `BackgroundPill` (new, `common/BackgroundPill.tsx`; the
+library backup/export pill was moved onto the same component, no visual
+change) floats above the media dock from any page: ring + "Uploading · 58%".
+Tap → `SendJobSheet`: phase, a bar, "86 MB of 148 MB · ~7s left", Cancel,
+Hide. Done → link copied, `Link copied` toast, pill turns green "Link ready ·
+tap to share", tap → the link card (Copy / Share / Done). Failure → red pill
+"Couldn't seal · tap to retry", sheet shows the reason and Try again (same
+parcel, same request). Cancel is immediate and silent (pill goes; `light`).
+One seal at a time: a second Send request toasts "One parcel at a time" and
+opens the running seal's sheet. Pill stacks above the library-process pill
+when both are up. Hidden while the drawer is open, like the other pill.
+
+**Plumbing.** `domain/sendProgress.ts` (tested): phases packing / uploading /
+sealing, `sendOverallFraction` (packing 30% of the bar for archives, 0 for
+raw clips), `sendEtaSeconds` from the upload's own rate. `ShareLinkParcel`
+and `SendParcel` carry `progress: { signal, onProgress }`; every creator
+forwards it. `sendTransfer.registerAndUploadFile` now uses
+`FileSystem.createUploadTask` (progress + `cancelAsync`, BACKGROUND session
+type on iOS) instead of `uploadAsync`; `SendCancelledError` /
+`throwIfSendCancelled`; the zip packer already honoured `signal`.
+
+Simulator-verified (148 MB clip against the live service): pill at 0% and
+39%, progress sheet at 58% with bytes and ETA, pill riding above the player
+while it dismisses, pill above the dock on the Ideas list, green ready pill,
+link card from the pill. Cancel, failure and retry are covered by
+`state/__tests__/sendJobStore.test.ts` (abort signal fires, pill clears,
+late rejection ignored; error → retry → ready), NOT on screen: the simulator
+uploads 148 MB in ~10 s, too fast to cancel by hand.
+NOT verified: Android (the upload task's progress callback cadence there);
+an app sent to the background mid-upload on a real phone (the BACKGROUND
+session type should carry it; untested); a seal that takes minutes on a real
+uplink; the one-at-a-time toast; the stacked pills; the packing phase bar on
+a large archive (the sketch seal was too quick to catch).
+
 ## State at handoff
 
 Branch `craft/control-kit`, pushed. Commits:

@@ -16,12 +16,16 @@ import { prepareLibraryExportArchive, type ExportLibraryArgs } from "./libraryEx
 import { SEND_MAX_ITEM_BYTES, SEND_MAX_TRANSFER_BYTES } from "../config/sendService";
 import type { ShareKind } from "../types";
 import {
+  SendCancelledError,
   SendTransferError,
   createTransfer,
   finalizeTransfer,
   fileSize,
   registerAndUploadFile,
+  throwIfSendCancelled,
 } from "./sendTransfer";
+import { isBackupOperationCancelled } from "./backupOperation";
+import type { SendProgressOptions } from "../domain/sendProgress";
 import { useSentLinksStore } from "../state/useSentLinksStore";
 import type { SentLink } from "../domain/sentLinks";
 
@@ -43,7 +47,13 @@ export class TooLargeShareError extends Error {
   }
 }
 
-export { SendTransferError };
+export { SendCancelledError, SendTransferError };
+export type { SendProgressOptions };
+
+/** A cancelled seal, whichever layer noticed first (zip, upload, or between steps). */
+export function isSendCancelled(err: unknown): boolean {
+  return err instanceof SendCancelledError || isBackupOperationCancelled(err);
+}
 
 function assertWithinCaps(itemBytes: number[]): void {
   const biggest = Math.max(0, ...itemBytes);
@@ -62,9 +72,14 @@ export interface CreateShareLinkInput {
   /** Builds the export args once the transferId is known, so it's stamped into
    *  the manifest. Return null if nothing is exportable. */
   buildArgs: (transferId: string) => ExportLibraryArgs | null;
+  /** Live progress and a cancel handle, for the seal that runs behind a pill. */
+  progress?: SendProgressOptions;
 }
 
 export async function createShareLink(input: CreateShareLinkInput): Promise<SentLink> {
+  const signal = input.progress?.signal;
+  const report = input.progress?.onProgress;
+  throwIfSendCancelled(signal);
   // 1. Reserve identity first so it can be stamped into the archive manifest.
   const transfer = await createTransfer({
     title: input.title,
@@ -80,7 +95,18 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
     throw new EmptyShareError();
   }
 
-  const prepared = await prepareLibraryExportArchive(args);
+  throwIfSendCancelled(signal);
+  report?.({ phase: "packing", completedBytes: 0, totalBytes: 0 });
+  const prepared = await prepareLibraryExportArchive({
+    ...args,
+    signal,
+    // The zip reports every media byte it packs; other phases of the archive
+    // build are quick and read as "packing" with an empty bar.
+    onProgress: (p) =>
+      p.phase === "packaging"
+        ? report?.({ phase: "packing", completedBytes: p.completedBytes, totalBytes: p.totalBytes })
+        : undefined,
+  });
   const fileName = `${prepared.archiveTitle}.${prepared.archiveExtension}`;
   const size = await fileSize(prepared.archiveUri);
   // Past the cap the draft is simply never finalized (swept at expiry) — no
@@ -88,16 +114,27 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
   assertWithinCaps([size]);
 
   // 3. Upload the single .songnook file. Opaque to the server.
-  await registerAndUploadFile(transfer.transferId, transfer.uploadToken, {
-    fileUri: prepared.archiveUri,
-    fileName,
-    // Octet-stream, not application/zip: keeps the .songnook identity and
-    // matches how the archive is saved to disk elsewhere.
-    mimeType: "application/octet-stream",
-    size,
-  });
+  report?.({ phase: "uploading", completedBytes: 0, totalBytes: size });
+  await registerAndUploadFile(
+    transfer.transferId,
+    transfer.uploadToken,
+    {
+      fileUri: prepared.archiveUri,
+      fileName,
+      // Octet-stream, not application/zip: keeps the .songnook identity and
+      // matches how the archive is saved to disk elsewhere.
+      mimeType: "application/octet-stream",
+      size,
+    },
+    {
+      signal,
+      onProgress: (sent, total) => report?.({ phase: "uploading", completedBytes: sent, totalBytes: total }),
+    }
+  );
 
   // 4. Finalize — only now is the link live.
+  throwIfSendCancelled(signal);
+  report?.({ phase: "sealing", completedBytes: 0, totalBytes: 0 });
   const { shareUrl } = await finalizeTransfer(transfer.transferId, transfer.uploadToken);
 
   // 5. Record in the local outbox.
@@ -133,13 +170,18 @@ export async function createFilesShareLink(input: {
   senderName?: string | null;
   message?: string;
   files: ShareFileInput[];
+  progress?: SendProgressOptions;
 }): Promise<SentLink> {
   if (input.files.length === 0) throw new EmptyShareError();
+  const signal = input.progress?.signal;
+  const report = input.progress?.onProgress;
 
   // Sizes first: a parcel past the caps is refused before a transfer exists.
   const sizes = await Promise.all(input.files.map((file) => fileSize(file.fileUri)));
   assertWithinCaps(sizes);
+  const totalBytes = sizes.reduce((sum, size) => sum + size, 0);
 
+  throwIfSendCancelled(signal);
   const transfer = await createTransfer({
     title: input.title,
     senderName: input.senderName ?? undefined,
@@ -147,15 +189,30 @@ export async function createFilesShareLink(input: {
     kind: input.kind,
   });
 
+  // One bar for the whole parcel: bytes already sent by earlier files plus the
+  // file in flight.
+  let sentBefore = 0;
+  report?.({ phase: "uploading", completedBytes: 0, totalBytes });
   for (const [index, file] of input.files.entries()) {
-    await registerAndUploadFile(transfer.transferId, transfer.uploadToken, {
-      fileUri: file.fileUri,
-      fileName: file.fileName,
-      mimeType: file.mimeType,
-      size: sizes[index]!,
-    });
+    await registerAndUploadFile(
+      transfer.transferId,
+      transfer.uploadToken,
+      {
+        fileUri: file.fileUri,
+        fileName: file.fileName,
+        mimeType: file.mimeType,
+        size: sizes[index]!,
+      },
+      {
+        signal,
+        onProgress: (sent) => report?.({ phase: "uploading", completedBytes: sentBefore + sent, totalBytes }),
+      }
+    );
+    sentBefore += sizes[index]!;
   }
 
+  throwIfSendCancelled(signal);
+  report?.({ phase: "sealing", completedBytes: 0, totalBytes: 0 });
   const { shareUrl } = await finalizeTransfer(transfer.transferId, transfer.uploadToken);
 
   const record: SentLink = {

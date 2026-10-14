@@ -57,6 +57,7 @@ export function createPlaylistShareLink(playlist: Playlist, workspaces: Workspac
     entityId: playlist.id,
     senderName: opts?.senderName,
     message: opts?.message ?? undefined,
+    progress: opts?.progress,
     buildArgs: (transferId) =>
       buildPlaylistExportArgs(playlist, workspaces, { transferId, senderName: opts?.senderName, title: opts?.title }),
   });
