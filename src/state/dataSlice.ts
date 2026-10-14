@@ -53,7 +53,7 @@ import { createWordLadderExercise } from "../domain/wordLadder";
 import { createCutUpSpark } from "../domain/cutUp";
 import { createMagpieSpark } from "../domain/magpie";
 import { sanitizeChordSheet } from "../domain/chordSheet";
-import { sanitizeTonePreset } from "../domain/overdub";
+import { isTonePresetNeutral, sanitizeTonePreset } from "../domain/overdub";
 import { normalizeTempoMap, sanitizeTempoMap, tempoMapEquals, type TempoMap } from "../domain/tempoMap";
 import { genChildClipTitle, genId, genRootClipTitle } from "../utils";
 import { buildClipGraph } from "../domain/clipGraph";
@@ -775,7 +775,18 @@ function cleanupClipOverdubState(overdub?: ClipOverdubState | null): ClipOverdub
     const renderedMixWaveformPeaks = normalizeWaveformPeaks(overdub.renderedMixWaveformPeaks);
     const lastRenderedAt = normalizeOptionalTimestamp(overdub.lastRenderedAt);
 
-    if (!stems.length && !renderedMixUri && !renderedMixDurationMs && !renderedMixWaveformPeaks && !lastRenderedAt) {
+    // Nothing to keep: no layers, no mix, and the root at neutral. The root's level
+    // and tone are the take's own sound (Sound room, 2026-10-14) and stand without
+    // layers; dropping them here was why a tuned plain take snapped back at once.
+    const rootIsNeutral = root.gainDb === 0 && isTonePresetNeutral(root.tonePreset);
+    if (
+        !stems.length &&
+        !renderedMixUri &&
+        !renderedMixDurationMs &&
+        !renderedMixWaveformPeaks &&
+        !lastRenderedAt &&
+        rootIsNeutral
+    ) {
         return undefined;
     }
 
