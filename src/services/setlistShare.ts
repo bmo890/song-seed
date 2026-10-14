@@ -9,7 +9,16 @@ import type { Setlist, Workspace } from "../types";
 export type ShareArgsOverrides = { transferId?: string | null; senderName?: string | null; title?: string };
 
 /** What the Send sheet collects: the same three lines as the desktop page. */
-export type ShareLinkParcel = { title?: string; senderName?: string | null; message?: string | null };
+import type { SendProgressOptions } from "../domain/sendProgress";
+
+/** What the Send sheet hands a creator: the parcel's three lines, and the
+ *  progress/cancel hooks of the seal running behind the pill. */
+export type ShareLinkParcel = {
+  title?: string;
+  senderName?: string | null;
+  message?: string | null;
+  progress?: SendProgressOptions;
+};
 
 /** Builds the library-export args for a setlist share (selected clips + chosen
  *  charts per song, ordered, no version history). Returns null if nothing is
@@ -70,6 +79,7 @@ export function createSetlistShareLink(setlist: Setlist, workspaces: Workspace[]
     entityId: setlist.id,
     senderName: opts?.senderName,
     message: opts?.message ?? undefined,
+    progress: opts?.progress,
     buildArgs: (transferId) =>
       buildSetlistExportArgs(setlist, workspaces, { transferId, senderName: opts?.senderName, title: opts?.title }),
   });

@@ -88,6 +88,7 @@ export function createSketchShareLink(idea: SongIdea, opts?: ShareLinkParcel) {
     entityId: idea.id,
     senderName: opts?.senderName,
     message: opts?.message ?? undefined,
+    progress: opts?.progress,
     buildArgs: (transferId) =>
       buildSketchExportArgs(idea, { transferId, senderName: opts?.senderName, title: opts?.title }),
   });
