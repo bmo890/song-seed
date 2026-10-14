@@ -257,6 +257,11 @@ Sending (app → link):
   tapping it shows the reason; **Try again** reseals the same parcel. **[HUMAN — network]**
 - iOS ☐  Android ☐ — Second **SongNook Send** while one seals: a "One parcel at a time" toast
   and the running seal's sheet opens instead of a new form. **[HUMAN]**
+- iOS ☐  Android ☐ — Links carry AAC: send a sketch whose takes are WAV → the pill shows
+  "Packing" before "Uploading"; the recipient page lists one `.songnook` far smaller than the
+  WAVs (about 2 MB per minute); receiving it on another device plays every take; the
+  library's own takes are still WAV afterwards. A clip selection of WAVs arrives as `.m4a`
+  files. **[HUMAN — network]**
 - iOS ☐  Android ☐ — Second parcel: From is prefilled with the remembered name. **[HUMAN]**
 - iOS ☐  Android ☐ — Clip selection → Share… → SongNook Send with 3 clips: the sheet lists
   them numbered; nudge one down, tap **Sort A–Z**; the recipient page lists them in the
