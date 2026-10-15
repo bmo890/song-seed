@@ -47,45 +47,28 @@ export function IdeaNotes({
         />
     );
 
-    // -- Tab mode: full-width layout for the Notes tab --
+    // -- Tab mode (2026-10-15): the notes ARE the page. No heading under the
+    // Notes tab, no EDIT key: the words sit on the paper, and a tap anywhere
+    // on the page opens the same keyboard-safe editor. Empty, the page shows
+    // a quiet line where the writing will go.
     if (tabMode && !isEditMode) {
-        if (!notes.trim()) {
-            return (
-                <>
-                    <Pressable
-                        style={[styles.songNotesTabEmpty, cardStyle]}
-                        onPress={() => setIsEditingNotes(true)}
-                    >
-                        <Ionicons name="document-text-outline" size={32} color={colors.textMuted} />
-                        <Text style={styles.songNotesTabEmptyTitle}>{t("songDetail.noNotes")}</Text>
-                        <Text style={styles.songNotesTabEmptySubtitle}>{t("songDetail.tapWrite")}</Text>
-                    </Pressable>
-                    {editor}
-                </>
-            );
-        }
-
+        const text = notes.trim();
         return (
             <>
                 <Pressable
-                    style={({ pressed }) => [
-                        styles.songDetailTabPanelWrap,
-                        cardStyle,
-                        pressed ? styles.pressDown : null,
-                    ]}
+                    style={({ pressed }) => [styles.songNotesTabPage, cardStyle, pressed ? styles.pressDown : null]}
                     onPress={() => setIsEditingNotes(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("songDetail.notes")}
+                    accessibilityHint={t("songDetail.notesEmptyPlaceholder")}
                 >
-                    <View style={styles.songDetailMiniCardHeader}>
-                        <View style={styles.songDetailMiniCardTitleWrap}>
-                            <Ionicons name="create-outline" size={14} color={colors.textSecondary} />
-                            <Text style={styles.songDetailMiniCardTitle}>{t("songDetail.notes")}</Text>
-                        </View>
-                        <View style={styles.songDetailMiniCardActionWrap}>
-                            <Text style={styles.songDetailMiniCardActionText}>{t("songDetail.edit")}</Text>
-                            <Ionicons name={dirIcon("chevron-forward")} size={14} color={colors.textMuted} />
-                        </View>
-                    </View>
-                    <UserText align="content" value={notes.trim()} style={styles.songNotesTabBody}>{notes.trim()}</UserText>
+                    {text ? (
+                        <UserText align="content" value={text} style={styles.songNotesTabText}>
+                            {text}
+                        </UserText>
+                    ) : (
+                        <Text style={styles.songNotesTabPlaceholder}>{t("songDetail.notesEmptyPlaceholder")}</Text>
+                    )}
                 </Pressable>
                 {editor}
             </>
