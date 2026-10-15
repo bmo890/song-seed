@@ -70,11 +70,12 @@ export function IdeaListHeaderSection({
               return;
             }
 
+            const moving = clipClipboard.mode === "move";
             AppAlert.confirm(
-              t("collection.transferTitle", { action: t(clipClipboard.mode === "move" ? "collection.move" : "collection.copy") }),
-              t("collection.transferBody", { action: t(clipClipboard.mode === "move" ? "collection.move" : "collection.copy") }),
+              t(moving ? "collection.moveHereTitle" : "collection.copyHereTitle"),
+              "",
               onPasteClipboard,
-              { confirmLabel: t("collection.yes") }
+              { confirmLabel: t(moving ? "collection.moveAction" : "collection.copyAction") }
             );
           }}
           onCancel={onCancelClipboard}

@@ -38,9 +38,31 @@ export type RevisitCandidate = {
   vaultScore: number;
 };
 
+/** How long ago, in the unit a person would say it. */
+export type RevisitSpan = { unit: "day" | "week" | "month" | "year"; count: number };
+
+/**
+ * Why a card resurfaced, as data. The card turns it into words through t()
+ * (revisit.reason.*), so the line reads in the app's language and stays a
+ * label, not a sentence (copy pass, 2026-10-15).
+ */
+export type RevisitReason =
+  | { kind: "sessions"; count: number }
+  | { kind: "variations"; count: number }
+  | { kind: "lyrics" }
+  | { kind: "notes" }
+  | { kind: "untouched"; span: RevisitSpan }
+  | { kind: "oneTake" }
+  | { kind: "raw" }
+  | { kind: "recorded"; span: RevisitSpan }
+  | { kind: "made"; span: RevisitSpan }
+  | { kind: "season"; season: "winter" | "spring" | "summer" | "fall"; year: number }
+  | { kind: "yearAgoThisWeek" }
+  | { kind: "thisWeekIn"; year: number };
+
 export type RevisitSectionItem = {
   candidate: RevisitCandidate;
-  reason: string;
+  reason: RevisitReason;
 };
 
 /** The four ways an idea can resurface — shown as a "why" tag on each feed card. */
@@ -48,7 +70,7 @@ export type RevisitTag = "unfinished" | "seed" | "vault" | "anniversary";
 
 export type RevisitFeedItem = {
   candidate: RevisitCandidate;
-  reason: string;
+  reason: RevisitReason;
   tag: RevisitTag;
 };
 
@@ -202,25 +224,17 @@ function buildDailyCandidateWindow(
   return shuffleCandidatesDaily(candidateWindow, sectionKey, rotationKey).slice(0, visibleCount);
 }
 
-function formatDormancyDuration(days: number) {
-  if (days <= 1) return "1 day";
-  if (days < 14) return `${days} days`;
-  if (days < 60) {
-    const weeks = Math.max(2, Math.round(days / 7));
-    return `${weeks} weeks`;
-  }
-  if (days < 365) {
-    const months = Math.max(2, Math.round(days / 30));
-    return `${months} months`;
-  }
-  const years = Math.max(1, Math.round(days / 365));
-  return `${years} year${years === 1 ? "" : "s"}`;
+export function dormancySpan(days: number): RevisitSpan {
+  if (days <= 1) return { unit: "day", count: 1 };
+  if (days < 14) return { unit: "day", count: days };
+  if (days < 60) return { unit: "week", count: Math.max(2, Math.round(days / 7)) };
+  if (days < 365) return { unit: "month", count: Math.max(2, Math.round(days / 30)) };
+  return { unit: "year", count: Math.max(1, Math.round(days / 365)) };
 }
 
-function formatSeasonLabel(ts: number) {
+function seasonReason(ts: number): RevisitReason {
   const date = new Date(ts);
   const month = date.getMonth();
-  const year = date.getFullYear();
   const season =
     month <= 1 || month === 11
       ? "winter"
@@ -229,7 +243,7 @@ function formatSeasonLabel(ts: number) {
         : month <= 7
           ? "summer"
           : "fall";
-  return `${season} ${year}`;
+  return { kind: "season", season, year: date.getFullYear() };
 }
 
 function formatMonthDayLabel(ts: number) {
@@ -402,39 +416,26 @@ function computeVaultScore(
   return randomScore + ageBoost + underexposedBoost - recentPenalty - exposurePenalty;
 }
 
-function buildPickupReason(candidate: RevisitCandidate, now: number) {
-  if (candidate.sessionsCount >= 3) {
-    return `Worked on across ${candidate.sessionsCount} sessions`;
-  }
-  if (candidate.variationCount >= 2) {
-    return `${candidate.variationCount} variations explored`;
-  }
-  if (candidate.hasLyrics) {
-    return "Lyrics were taking shape";
-  }
-  if (candidate.hasNotes) {
-    return "Notes are waiting here";
-  }
-  return `Untouched for ${formatDormancyDuration(
-    Math.max(0, Math.floor((now - candidate.updatedAt) / DAY_MS))
-  )}`;
+function buildPickupReason(candidate: RevisitCandidate, now: number): RevisitReason {
+  if (candidate.sessionsCount >= 3) return { kind: "sessions", count: candidate.sessionsCount };
+  if (candidate.variationCount >= 2) return { kind: "variations", count: candidate.variationCount };
+  if (candidate.hasLyrics) return { kind: "lyrics" };
+  if (candidate.hasNotes) return { kind: "notes" };
+  return {
+    kind: "untouched",
+    span: dormancySpan(Math.max(0, Math.floor((now - candidate.updatedAt) / DAY_MS))),
+  };
 }
 
-function buildForgottenReason(candidate: RevisitCandidate) {
-  if (candidate.sessionsCount <= 1 && candidate.variationCount === 0) {
-    return "One take, never revisited";
-  }
-  if (!candidate.hasNotes) {
-    return "Just a raw capture";
-  }
-  return `Recorded ${formatDormancyDuration(candidate.archiveAgeDays)} ago`;
+function buildForgottenReason(candidate: RevisitCandidate): RevisitReason {
+  if (candidate.sessionsCount <= 1 && candidate.variationCount === 0) return { kind: "oneTake" };
+  if (!candidate.hasNotes) return { kind: "raw" };
+  return { kind: "recorded", span: dormancySpan(candidate.archiveAgeDays) };
 }
 
-function buildVaultReason(candidate: RevisitCandidate) {
-  if (candidate.archiveAgeDays >= 330) {
-    return `From ${formatSeasonLabel(candidate.createdAt)}`;
-  }
-  return `Made ${formatDormancyDuration(candidate.archiveAgeDays)} ago`;
+function buildVaultReason(candidate: RevisitCandidate): RevisitReason {
+  if (candidate.archiveAgeDays >= 330) return seasonReason(candidate.createdAt);
+  return { kind: "made", span: dormancySpan(candidate.archiveAgeDays) };
 }
 
 function getAnniversaryDistanceDays(ts: number, now: number) {
@@ -473,17 +474,19 @@ function computeAroundThisTimeScore(candidate: RevisitCandidate, now: number) {
   return score;
 }
 
-function buildAroundThisTimeReason(candidate: RevisitCandidate, now: number) {
+function buildAroundThisTimeReason(candidate: RevisitCandidate, now: number): RevisitReason {
   const createdAt = new Date(candidate.createdAt);
   const nowDate = new Date(now);
   const distanceDays = getAnniversaryDistanceDays(candidate.createdAt, now);
   const yearsAgo = nowDate.getFullYear() - createdAt.getFullYear();
 
   if (distanceDays <= AROUND_THIS_TIME_WINDOW_DAYS && yearsAgo >= 1) {
-    return yearsAgo === 1 ? "A year ago this week" : `This week in ${createdAt.getFullYear()}`;
+    return yearsAgo === 1
+      ? { kind: "yearAgoThisWeek" }
+      : { kind: "thisWeekIn", year: createdAt.getFullYear() };
   }
 
-  return `From ${formatSeasonLabel(candidate.createdAt)}`;
+  return seasonReason(candidate.createdAt);
 }
 
 function compareByScore(

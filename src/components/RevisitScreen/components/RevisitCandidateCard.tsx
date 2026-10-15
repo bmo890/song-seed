@@ -1,3 +1,5 @@
+import { formatRevisitReason } from "../formatRevisitReason";
+import type { RevisitReason } from "../../../domain/revisit";
 import { ViewInCollectionButton } from "../../common/ViewInCollectionButton";
 import React from "react";
 import { Text, View } from "react-native";
@@ -9,7 +11,7 @@ import type { RevisitCandidate } from "../../../domain/revisit";
 
 type RevisitCandidateCardProps = {
   candidate: RevisitCandidate;
-  reason: string;
+  reason: RevisitReason;
   showReason?: boolean;
   status: SongIdea["status"] | null;
   isActive: boolean;
@@ -49,7 +51,7 @@ export function RevisitCandidateCard({
     <View style={styles.ideasListMetaRow}>
       {showReason && reason ? (
         <Text style={styles.ideasListCreatedAtText} numberOfLines={1}>
-          {reason}
+          {formatRevisitReason(t, reason)}
         </Text>
       ) : (
         <View />

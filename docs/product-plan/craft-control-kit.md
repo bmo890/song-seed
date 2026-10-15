@@ -1004,3 +1004,45 @@ Known, left for the words and cards passes: Shelf's empty state puts a second
 large serif under the new title; the title is fixed, not collapsing, so list
 pages give up about 60 pt (the collection's collapsing header is the model if
 that matters).
+
+## Words out (2026-10-15, step 3)
+
+Founder added: "keep a lookout for repetitive copy as well, also unclear
+copy". A read-only sweep of the English strings gave 40 findings; each was
+checked against its render site before changing.
+
+Changed (EN and HE):
+- Counts said twice: the sketch's TAKES label counts only when a filter
+  narrows the list; Activity hides "0 items" over its empty state; the Loop
+  row no longer prints "Off" beside its switch (an empty value keeps the
+  switch at the edge); nested-collection count is a bare number.
+- Narration cut: Lyric Pad count "1 page", Tuner "Play one string at a
+  time.", Marks "No marks yet", collection empty and no-match bodies, search
+  more-matches and Activity truncation lines, recorder redo, overdub review,
+  Bluetooth mic and settings hints, five Settings hints over budget, the notes
+  sheet's meta line, the dock's "Tap to reopen controls", search's landing
+  hint (the chips already list it).
+- Unclear fixed: copy/move alerts named a button that did not exist ("Paste
+  items here"); the button is now "Paste here" and the alerts say so; "3 copy
+  ready" became "3 to copy"; the paste confirm read "move items here?" in
+  lower case with an "Are you sure" body and a Yes button: now "Move items
+  here?" with a Move button; "Master joins in 3" became "Guide in 3"; pill /
+  seal jargon out of three hints.
+- Terminology law: every "song" that is really a sketch (edit header, title
+  placeholder, delete dialogs, primary-take body, takes help, clipboard into a
+  sketch, Lyric Pad's Sketch action, lyrics availability); "track", "just",
+  "Project tags" gone; "New take" on a new clip is "New clip".
+- Revisit's card lines were English sentences built in the domain layer, so
+  Hebrew users saw English. They are now `RevisitReason` data rendered through
+  `t()` (`formatRevisitReason`), and shorter: "11 sessions", "One take",
+  "3 months ago". `dormancySpan` is tested.
+- Kept on purpose: Settings row subtitles (an index page says what is inside;
+  without them "General" is unclear), Shelf's "Nothing deleted." (an invisible
+  rule), Revisit section subtitles (they define each section), the parent-pick
+  inline hint (it holds the toolbar's height while picking).
+
+Left for later: one verb for combine/flatten (five names today); "Replies" on a
+clip's page; editor title-case strings ("No Edits", "Transform Save Error");
+import-date "chronology"; help text with "simply"/"root"; the inspector's
+"drag is live" hint; machine names set in Lora on Revisit ("3:35 PM Jul 23rd");
+four unnamed pins all labelled "Pin" in the Marks list.

@@ -133,9 +133,6 @@ function PlayerSupportSectionsInner({
       {/* Notes — read-only here; editing lives on the song's Notes tab. */}
       <BottomSheet visible={notesExpanded} onClose={() => onToggleNotesExpanded(false)}>
         <Text style={chipStyles.sheetTitle}>{t("player.clipNotes")}</Text>
-        <Text style={chipStyles.sheetMeta}>
-          {hasNotes ? t("player.notesAttached") : t("player.noNotesSaved")}
-        </Text>
         <ScrollView style={chipStyles.sheetScroll} showsVerticalScrollIndicator={false}>
           <UserText align="content" value={clipNotes.trim()} style={hasNotes ? chipStyles.notesText : chipStyles.notesPlaceholder}>
             {hasNotes ? clipNotes.trim() : t("player.noNotesBody")}

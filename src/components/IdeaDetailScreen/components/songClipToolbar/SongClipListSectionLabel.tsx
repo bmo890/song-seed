@@ -3,7 +3,8 @@ import { styles } from "../../styles";
 
 type SongClipListSectionLabelProps = {
   title: string;
-  count: number;
+  /** Omitted when the count is already said elsewhere on the page. */
+  count?: number;
 };
 
 export function SongClipListSectionLabel({
@@ -13,7 +14,7 @@ export function SongClipListSectionLabel({
   return (
     <View style={styles.songDetailSectionHeaderCopy}>
       <Text style={styles.songDetailSectionTitle}>{title}</Text>
-      <Text style={styles.songDetailSectionMeta}>{count}</Text>
+      {count !== undefined ? <Text style={styles.songDetailSectionMeta}>{count}</Text> : null}
     </View>
   );
 }
