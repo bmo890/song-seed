@@ -123,7 +123,7 @@ export function LyricsVersionEditor({
               hitSlop={6}
               accessibilityLabel={t("lyrics.saveAsNew")}
             >
-              <Ionicons name="git-branch-outline" size={18} color={canSave ? colors.textSecondary : colors.borderMuted} />
+              <Ionicons name="albums-outline" size={18} color={canSave ? colors.textSecondary : colors.borderMuted} />
             </Pressable>
           ) : null}
           <Pressable

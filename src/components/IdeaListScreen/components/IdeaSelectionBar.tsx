@@ -609,7 +609,9 @@ export function IdeaSelectionBar({
 
       <SelectionActionSheet
         visible={moreVisible}
-        title={t("selection.collectionActions")}
+        // Named like every sheet: what it acts on ("1 idea · logic-bounce").
+        title={t("common.ideaCount", { count: selectedIdeas.length })}
+        titleContext={selectedIdeas.length === 1 ? selectedIdeas[0]!.title : undefined}
         actions={sheetActions.map(endsSelection)}
         onClose={() => setMoreVisible(false)}
       />

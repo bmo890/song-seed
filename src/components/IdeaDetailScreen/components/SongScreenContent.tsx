@@ -12,7 +12,6 @@ import { useSongScreen } from "../provider/SongScreenProvider";
 import { SelectionBars } from "./SelectionBars";
 import { SongClipboardBanner } from "./SongClipboardBanner";
 import { SongImportModal } from "./SongImportModal";
-import { SongParentPickBanner } from "./SongParentPickBanner";
 import { SongUndoBanner } from "./SongUndoBanner";
 import { SongEditSheet } from "./SongEditSheet";
 import { SongHeaderMenu } from "./SongHeaderMenu";
@@ -61,7 +60,8 @@ export function SongScreenContent() {
     >
       <SongHeaderSection />
       <SongClipboardBanner />
-      {parentPicking.parentPickState ? <SongParentPickBanner /> : <SelectionBars />}
+      {/* Choosing a parent speaks from the toolbar line; no dock meanwhile. */}
+      {parentPicking.parentPickState ? null : <SelectionBars />}
       <SongLyricsSection />
       <SongChartSection />
       <SongNotesSection />

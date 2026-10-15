@@ -155,7 +155,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
     {
       key: "from-current",
       label: t("lyrics.newFromCurrent"),
-      icon: "git-branch-outline",
+      icon: "copy-outline",
       onPress: () => openVersion(latestVersion?.id, { startInEdit: true, forceNewVersion: true }),
     },
     {
@@ -179,7 +179,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
           {
             key: "new-draft",
             label: t("lyrics.newDraftFromThis"),
-            icon: "git-branch-outline" as const,
+            icon: "copy-outline" as const,
             onPress: () =>
               openVersion(selectedSingleVersion.id, { startInEdit: true, forceNewVersion: true }),
           },

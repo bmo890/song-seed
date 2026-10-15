@@ -159,10 +159,20 @@ export function SelectionBars() {
     const ideaId = selectedIdea.id;
     setMoreVisible(false);
 
+    // Stand alone: moving it out is the plain meaning, so it leads.
     AppAlert.custom(
+      t("songDetail.startThread"),
       clip.title,
-      undefined,
       [
+        {
+          label: t("songDetail.split"),
+          description: t("songDetail.splitDesc"),
+          icon: actionIcons.split,
+          onPress: () =>
+            parentPicking.handleMakeRoot(selectedClipIds, (nextUndo, message) => {
+              undo.showUndo(message, nextUndo);
+            }),
+        },
         {
           label: t("songDetail.branch"),
           description: t("songDetail.branchDesc"),
@@ -218,15 +228,6 @@ export function SelectionBars() {
               }
             });
           },
-        },
-        {
-          label: t("songDetail.split"),
-          description: t("songDetail.splitDesc"),
-          icon: actionIcons.split,
-          onPress: () =>
-            parentPicking.handleMakeRoot(selectedClipIds, (nextUndo, message) => {
-              undo.showUndo(message, nextUndo);
-            }),
         },
         { label: t("common.cancel"), style: "cancel" },
       ]
@@ -480,12 +481,13 @@ export function SelectionBars() {
           },
         ]
       : []),
-    ...(selectedClips.length === 1
+    // Stand alone only means something for a take that has versions or is one.
+    ...(selectedClips.length === 1 && anySelectedInThread
       ? [
           {
             key: "make-root",
             label: t("songDetail.startThread"),
-            icon: "radio-button-on-outline" as const,
+            icon: "exit-outline" as const,
             onPress: handleStartNewThread,
           },
         ]
@@ -498,7 +500,7 @@ export function SelectionBars() {
           {
             key: "make-root",
             label: t("songDetail.startThread"),
-            icon: "radio-button-on-outline" as const,
+            icon: "exit-outline" as const,
             onPress: () =>
               parentPicking.handleMakeRoot(selectedClipIds, (nextUndo, message) => {
                 undo.showUndo(message, nextUndo);

@@ -23,7 +23,7 @@ export function TakesHelpSheet({
       thesis={t("takesHelp.thesis")}
       items={[
         {
-          icon: "git-branch-outline",
+          icon: "albums-outline",
           label: t("takesHelp.versionsLabel"),
           description: t("takesHelp.versionsBody"),
         },
@@ -33,12 +33,12 @@ export function TakesHelpSheet({
           description: t("takesHelp.primaryBody"),
         },
         {
-          icon: "git-network-outline",
+          icon: "layers-outline",
           label: t("takesHelp.viewsLabel"),
           description: t("takesHelp.viewsBody"),
         },
         {
-          icon: "git-compare-outline",
+          icon: "exit-outline",
           label: t("takesHelp.branchLabel"),
           description: t("takesHelp.branchBody"),
         },

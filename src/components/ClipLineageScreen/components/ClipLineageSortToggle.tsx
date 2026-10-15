@@ -1,7 +1,8 @@
-import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
+import { View } from "react-native";
+import { InkKey, inkKeyColor } from "../../common/InkKey";
 import { clipLineageStyles } from "../styles";
-import { colors } from "../../../design/tokens";
 
 type SortDirection = "asc" | "desc";
 
@@ -10,28 +11,21 @@ type ClipLineageSortToggleProps = {
   onToggle: () => void;
 };
 
-export function ClipLineageSortToggle({
-  direction,
-  onToggle,
-}: ClipLineageSortToggleProps) {
+/** One tap flips the history's order; the key says the order in force, in
+ *  the same words as every sort ("Newest first"). An ink key, not a pill. */
+export function ClipLineageSortToggle({ direction, onToggle }: ClipLineageSortToggleProps) {
+  const { t } = useTranslation();
   return (
     <View style={clipLineageStyles.sortToggleRow}>
-      <Pressable
-        style={({ pressed }) => [
-          clipLineageStyles.sortDirectionPill,
-          pressed ? clipLineageStyles.sortDirectionPillPressed : null,
-        ]}
+      <InkKey
+        glyph={
+          <Ionicons name={direction === "asc" ? "arrow-up" : "arrow-down"} size={15} color={inkKeyColor("idle")} />
+        }
+        label={direction === "asc" ? t("filters.oldestFirst") : t("filters.newestFirst")}
+        // haptics.ts: light → a small state flip.
+        haptic="light"
         onPress={onToggle}
-      >
-        <Ionicons
-          name={direction === "asc" ? "arrow-up" : "arrow-down"}
-          size={11}
-          color={colors.textSecondary}
-        />
-        <Text style={clipLineageStyles.sortDirectionText}>
-          {direction === "asc" ? "Oldest first" : "Newest first"}
-        </Text>
-      </Pressable>
+      />
     </View>
   );
 }
