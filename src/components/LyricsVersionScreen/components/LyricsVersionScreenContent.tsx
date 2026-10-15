@@ -4,7 +4,7 @@ import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
-import { colors, radii } from "../../../design/tokens";
+import { colors } from "../../../design/tokens";
 import { styles } from "../styles";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { useLyricsVersionScreenModel } from "../hooks/useLyricsVersionScreenModel";
@@ -74,14 +74,17 @@ export function LyricsVersionScreenContent() {
         onLeftPress={handleBack}
         rightElement={
           canExport ? (
+            // The right slot holds one bare ink glyph, never a filled circle.
             <Press
-              haptic="none"
+              feel="glyph"
+              haptic="tap"
               style={headerStyles.exportBtn}
               onPress={() => setExportVisible(true)}
-              hitSlop={6}
+              hitSlop={8}
+              accessibilityRole="button"
               accessibilityLabel={t("chordChart.export")}
             >
-              <Ionicons name="share-outline" size={20} color={colors.textSecondary} />
+              <Ionicons name="share-outline" size={21} color={colors.textStrong} />
             </Press>
           ) : undefined
         }
@@ -190,8 +193,6 @@ const headerStyles = StyleSheet.create({
   exportBtn: {
     width: 36,
     height: 36,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
     alignItems: "center",
     justifyContent: "center",
   },

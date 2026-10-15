@@ -75,10 +75,14 @@ export const lyricsStyles = {
     minHeight: 0,
     marginBottom: 0,
   },
+  // Editing is writing on a page (2026-10-15): the white sheet of your work,
+  // no dashed frame around it.
   lyricsEditFieldActive: {
-    borderColor: "#a89994",
-    borderWidth: 2,
-    borderStyle: "dashed",
+    borderWidth: 0,
+    borderRadius: radii.xl,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 16,
+    paddingTop: 14,
   },
   lyricsPreviewWrap: {
     backgroundColor: colors.surfaceContainer,

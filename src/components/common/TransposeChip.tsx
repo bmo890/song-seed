@@ -1,9 +1,10 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, radii } from "../../design/tokens";
-import { haptic } from "../../design/haptics";
+import { colors } from "../../design/tokens";
 import { formatTransposeOffset } from "../../domain/transpose";
 import { useTranslation } from "react-i18next";
+import { Stepper } from "./Stepper";
+import { Press } from "./Press";
 
 type TransposeChipProps = {
   offset: number;
@@ -12,58 +13,41 @@ type TransposeChipProps = {
 };
 
 /** The display-transpose stepper — shared by the chord sheet, the lyric chart,
- *  and the songbook reader so "transpose" feels like one feature. A reset pill
- *  appears only while shifted. Non-destructive: display-level only. */
+ *  and the songbook reader so "transpose" feels like one feature. The kit
+ *  Stepper (bare ink glyphs, its own step haptic) around a named value; a bare
+ *  reset glyph appears only while shifted. Display-level only. */
 export function TransposeChip({ offset, onNudge, onReset }: TransposeChipProps) {
   const { t } = useTranslation();
+  const value = formatTransposeOffset(offset);
   return (
     <View style={chipStyles.row}>
-      <View style={chipStyles.stepper}>
-        <Pressable
-          onPress={() => {
-            haptic.light();
-            onNudge(-1);
-          }}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={t("common.transposeDown")}
-          style={({ pressed }) => [chipStyles.stepBtn, pressed ? { opacity: 0.6 } : null]}
-        >
-          <Text style={chipStyles.stepGlyph}>−</Text>
-        </Pressable>
+      <Text style={chipStyles.label}>{t("common.transpose")}</Text>
+      <Stepper
+        glyphs="plusMinus"
+        onStep={(direction) => onNudge(direction)}
+        decrementLabel={t("common.transposeDown")}
+        incrementLabel={t("common.transposeUp")}
+      >
         <Text
           style={[chipStyles.value, offset !== 0 ? chipStyles.valueActive : null]}
-          accessibilityLabel={t("common.transposeValue", { value: formatTransposeOffset(offset) })}
+          accessibilityLabel={t("common.transposeValue", { value })}
         >
-          {formatTransposeOffset(offset)}
+          {value}
         </Text>
-        <Pressable
-          onPress={() => {
-            haptic.light();
-            onNudge(1);
-          }}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={t("common.transposeUp")}
-          style={({ pressed }) => [chipStyles.stepBtn, pressed ? { opacity: 0.6 } : null]}
-        >
-          <Text style={chipStyles.stepGlyph}>+</Text>
-        </Pressable>
-      </View>
-
+      </Stepper>
       {offset !== 0 ? (
-        <Pressable
-          onPress={() => {
-            haptic.light();
-            onReset();
-          }}
+        <Press
+          feel="glyph"
+          // haptics.ts: light → a small state flip.
+          haptic="light"
+          onPress={onReset}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={t("common.resetWrittenKey")}
-          style={({ pressed }) => [chipStyles.resetBtn, pressed ? { opacity: 0.6 } : null]}
+          style={chipStyles.reset}
         >
-          <Ionicons name="refresh-outline" size={13} color={colors.textSecondary} />
-        </Pressable>
+          <Ionicons name="refresh-outline" size={16} color={colors.textStrong} />
+        </Press>
       ) : null}
     </View>
   );
@@ -73,45 +57,28 @@ const chipStyles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 4,
   },
-  stepper: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    borderRadius: radii.round,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-  },
-  stepBtn: {
-    paddingHorizontal: 2,
-  },
-  stepGlyph: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 14,
-    color: colors.primaryDeep,
-    lineHeight: 17,
+  label: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginEnd: 2,
   },
   value: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 12,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 14,
     color: colors.textStrong,
     fontVariant: ["tabular-nums"],
-    minWidth: 20,
+    minWidth: 24,
     textAlign: "center",
   },
   valueActive: {
     color: colors.primaryDeep,
   },
-  resetBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: radii.round,
-    borderWidth: 1,
-    borderStyle: "dashed",
-    borderColor: colors.borderMuted,
+  reset: {
+    width: 30,
+    height: 30,
     alignItems: "center",
     justifyContent: "center",
   },
