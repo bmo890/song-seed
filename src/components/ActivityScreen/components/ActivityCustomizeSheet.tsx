@@ -115,8 +115,8 @@ const styles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_700Bold",
     color: colors.textPrimary,
   },
+  // Rows on paper: hairlines do the separating.
   list: {
-    gap: 10,
     paddingBottom: 8,
   },
 });

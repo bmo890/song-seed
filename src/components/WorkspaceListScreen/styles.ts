@@ -71,11 +71,10 @@ export const styles = StyleSheet.create({
     gap: 5,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 999,
+    borderRadius: radii.lg,
   },
-  sortPillActive: {
-    backgroundColor: colors.surfaceHigh,
-  },
+  // Active order reads in full ink, never a fill (toolbar keys are ink).
+  sortPillActive: {},
   sortPillText: {
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 12,
@@ -84,18 +83,22 @@ export const styles = StyleSheet.create({
   sortPillTextActive: {
     color: colors.textPrimary,
   },
+  // The same popover card as every toolbar menu (ideasSortMenu).
   sortMenu: {
     position: "absolute",
     right: 0,
     top: 4,
     backgroundColor: colors.surface,
-    borderRadius: 6,
-    padding: 8,
-    minWidth: 180,
+    borderRadius: radii.xl,
+    borderWidth: 0.5,
+    borderColor: colors.borderSubtle,
+    paddingVertical: 6,
+    minWidth: 220,
     zIndex: 10,
-    shadowColor: "#000000",
+    shadowColor: "#3D3732",
     shadowOpacity: 0.08,
     shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
   orderMenuSection: {

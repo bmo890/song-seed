@@ -1,16 +1,22 @@
 import { ReactNode } from "react";
-import { Text, View } from "react-native";
-import { Press } from "../../common/Press";
-import { Ionicons } from "@expo/vector-icons";
-import { styles } from "../../../styles";
+import { StyleSheet } from "react-native";
 import { useStore } from "../../../state/useStore";
-import { getIdeaSortState, getIdeaSortValue, IdeaSortMetric } from "../../../domain/ideaSort";
+import { getIdeaSortState, getIdeaSortValue, getSortOrderOptions, IdeaSortMetric } from "../../../domain/ideaSort";
 import { getHierarchyIconName } from "../../../domain/hierarchy";
 import { FilterSortControls } from "../../common/FilterSortControls";
+import { SegmentedControl } from "../../common/SegmentedControl";
+import { InkOption } from "../../common/InkOption";
+import {
+  PopoverMenuFootLink,
+  PopoverMenuLabel,
+  PopoverMenuRule,
+  PopoverMenuSection,
+  PopoverRadioRow,
+} from "../../common/PopoverMenu";
 import { STAGE_INK } from "../../common/StageMark";
 import { getTagColor, getTagLabel } from "../../IdeaDetailScreen/songClipControls";
 import { UNTAGGED_FILTER_KEY } from "../../../domain/ideaTags";
-import { colors } from "../../../design/tokens";
+import { colors, spacing } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 
 type ProjectStage = "seed" | "sprout" | "stem" | "song";
@@ -101,19 +107,18 @@ export function FilterSortBar({
       ideasTagFilter.includes(key) ? ideasTagFilter.filter((item) => item !== key) : [...ideasTagFilter, key]
     );
   const { metric: activeSortMetric, direction: activeSortDirection } = getIdeaSortState(ideasSort);
-  const sortMetricOptions: Array<{ key: IdeaSortMetric; label: string; icon: string }> = [
-    { key: "created", label: t("filters.created"), icon: "calendar-outline" },
-    { key: "updated", label: t("filters.updated"), icon: "refresh-outline" },
-    { key: "title", label: t("filters.title"), icon: "text-outline" },
-    { key: "length", label: t("filters.length"), icon: "time-outline" },
-    { key: "progress", label: t("filters.stage"), icon: "leaf-outline" },
+  const sortMetricOptions: Array<{ key: IdeaSortMetric; label: string }> = [
+    { key: "created", label: t("filters.created") },
+    { key: "updated", label: t("filters.updated") },
+    { key: "title", label: t("filters.title") },
+    { key: "length", label: t("filters.length") },
+    { key: "progress", label: t("filters.stage") },
   ];
 
-  const filterOptions = [
-    { key: "all" as const, label: t("filters.all"), icon: "layers-outline" },
-    { key: "clips" as const, label: t("filters.clips"), icon: getHierarchyIconName("clip") },
-    { key: "projects" as const, label: t("filters.songs"), icon: getHierarchyIconName("song") },
-    { key: "bookmarked" as const, label: t("filters.bookmarked"), icon: "bookmark" },
+  const typeOptions = [
+    { key: "all" as const, label: t("filters.all") },
+    { key: "clips" as const, label: t("filters.clips") },
+    { key: "projects" as const, label: t("filters.songs") },
   ];
   const stageOptions = [
     { key: "seed" as const, label: t("stages.seed") },
@@ -135,28 +140,8 @@ export function FilterSortBar({
     onLyricsFilterModeChange("all");
     setIdeasTagFilter([]);
   };
-  const tagSummary = (() => {
-    if (ideasTagFilter.length === 0) return t("filters.all");
-    if (ideasTagFilter.length <= 2) {
-      return ideasTagFilter
-        .map((key) =>
-          key === UNTAGGED_FILTER_KEY
-            ? t("filters.untagged")
-            : t(`clipTags.${key}`, { defaultValue: getTagLabel(key, undefined, globalCustomTags) })
-        )
-        .join(", ");
-    }
-    return t("filters.selected", { count: ideasTagFilter.length });
-  })();
-  const stageSummary = (() => {
-    if (selectedProjectStages.length === 0) return t("filters.all");
-    if (selectedProjectStages.length <= 2) {
-      return selectedProjectStages
-        .map((stage) => t(`stages.${stage}`))
-        .join(", ");
-    }
-    return t("filters.selected", { count: selectedProjectStages.length });
-  })();
+  const typeValue = ideasFilter === "bookmarked" ? "all" : ideasFilter;
+  const orderOptions = getSortOrderOptions(activeSortMetric);
 
   return (
     <FilterSortControls
@@ -166,179 +151,80 @@ export function FilterSortBar({
         onClear: clearFilters,
         renderMenu: ({ close }) => (
           <>
-          <View style={styles.ideasDropdownSectionStack}>
-            <Text style={styles.ideasDropdownSectionToggleText}>{t("filters.type")}</Text>
-            {filterOptions.map((option) => {
-              const active = option.key === ideasFilter;
-              return (
-                <Press
-                  haptic="none"
-                  key={option.key}
-                  style={[styles.ideasSortMenuItem,
-                    active ? styles.ideasSortMenuItemActive : null]}
-                  onPress={() => {
-                    setIdeasFilter(option.key);
-                    if (option.key === "clips") {
-                      onClearProjectStages();
-                      onLyricsFilterModeChange("all");
-                    }
-                    if (option.key === "projects") setIdeasTagFilter([]);
-                    close();
-                  }}
-                >
-                  <View style={styles.ideasMenuItemLead}>
-                    <Ionicons name={option.icon as any} size={15} color={active ? colors.primary : colors.textSecondary} />
-                    <Text
-                      style={[
-                        styles.ideasSortMenuItemText,
-                        active ? styles.ideasSortMenuItemTextActive : null,
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                  </View>
-                  {active ? <Ionicons name="checkmark" size={15} color={colors.primary} /> : null}
-                </Press>
-              );
-            })}
-          </View>
+            {/* One kind at a time is a single choice: ink tabs. Bookmarked
+                spans every kind, so it is its own switch beneath (picking a
+                kind turns it off, as before). */}
+            <PopoverMenuLabel>{t("filters.show")}</PopoverMenuLabel>
+            <PopoverMenuSection>
+              <SegmentedControl
+                options={typeOptions}
+                value={typeValue}
+                onChange={(key) => {
+                  setIdeasFilter(key);
+                  if (key === "clips") {
+                    onClearProjectStages();
+                    onLyricsFilterModeChange("all");
+                  }
+                  if (key === "projects") setIdeasTagFilter([]);
+                }}
+              />
+              <InkOption
+                label={t("songDetail.bookmarkedOnly")}
+                selected={ideasFilter === "bookmarked"}
+                onPress={() => setIdeasFilter(ideasFilter === "bookmarked" ? "all" : "bookmarked")}
+                style={filterStyles.bookmarked}
+              />
+            </PopoverMenuSection>
 
-          {showProjectFilters ? (
-            <>
-              <View style={styles.ideasDropdownDivider} />
-              <View style={styles.ideasDropdownSectionStack}>
-                <View style={styles.ideasDropdownSectionToggle}>
-                  <Text style={styles.ideasDropdownSectionToggleText}>{t("filters.stage")}</Text>
-                  <View style={styles.ideasDropdownSectionMeta}>
-                    <Text style={styles.ideasDropdownSectionMetaText}>{stageSummary}</Text>
-                  </View>
-                </View>
-                {/* Multi-select = editorial ink: word + leading dot (hollow →
-                    filled in the stage's own warm ink), never a capsule. */}
-                <View style={styles.ideasStageInkWrap}>
-                  <Press
-                    haptic="none"
-                    style={styles.ideasStageInk}
-                    onPress={onClearProjectStages}
-                    hitSlop={{ top: 6, bottom: 6 }}
-                  >
-                    <View
-                      style={[
-                        styles.ideasStageInkDot,
-                        selectedProjectStages.length === 0
-                          ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                          : null,
-                      ]}
+            {showProjectFilters ? (
+              <>
+                <PopoverMenuRule />
+                {/* Multi-select = editorial ink, each stage lit in its own ink.
+                    Nothing lit means every stage. */}
+                <PopoverMenuLabel>{t("filters.stage")}</PopoverMenuLabel>
+                <PopoverMenuSection wrap>
+                  {stageOptions.map((option) => (
+                    <InkOption
+                      key={option.key}
+                      label={option.label}
+                      selected={selectedProjectStages.includes(option.key)}
+                      ink={STAGE_INK[option.key] ?? colors.primary}
+                      onPress={() => onToggleProjectStage(option.key)}
                     />
-                    <Text
-                      style={[
-                        styles.ideasStageInkText,
-                        selectedProjectStages.length === 0 ? styles.ideasStageInkTextActive : null,
-                      ]}
-                    >
-                      {t("filters.all")}
-                    </Text>
-                  </Press>
+                  ))}
+                </PopoverMenuSection>
+              </>
+            ) : null}
 
-                  {stageOptions.map((option) => {
-                    const active = selectedProjectStages.includes(option.key);
-                    const ink = STAGE_INK[option.key] ?? colors.primary;
-                    return (
-                      <Press
-                        haptic="none"
-                        key={option.key}
-                        style={styles.ideasStageInk}
-                        onPress={() => onToggleProjectStage(option.key)}
-                        hitSlop={{ top: 6, bottom: 6 }}
-                      >
-                        <View
-                          style={[
-                            styles.ideasStageInkDot,
-                            active ? { backgroundColor: ink, borderColor: ink } : null,
-                          ]}
-                        />
-                        <Text
-                          style={[
-                            styles.ideasStageInkText,
-                            active ? styles.ideasStageInkTextActive : null,
-                          ]}
-                        >
-                          {option.label}
-                        </Text>
-                      </Press>
-                    );
-                  })}
-                </View>
-              </View>
-            </>
-          ) : null}
-
-          {showTagFilters ? (
-            <>
-              <View style={styles.ideasDropdownDivider} />
-              <View style={styles.ideasDropdownSectionStack}>
-                <View style={styles.ideasDropdownSectionToggle}>
-                  <Text style={styles.ideasDropdownSectionToggleText}>{t("filters.tags")}</Text>
-                  <View style={styles.ideasDropdownSectionMeta}>
-                    <Text style={styles.ideasDropdownSectionMetaText}>{tagSummary}</Text>
-                  </View>
-                </View>
-                {/* Same editorial ink as the stages: word + leading dot, the
-                    dot filled in the tag's own ink when it is on. */}
-                <View style={styles.ideasStageInkWrap}>
-                  <Press
-                    haptic="none"
-                    style={styles.ideasStageInk}
-                    onPress={() => setIdeasTagFilter([])}
-                    hitSlop={{ top: 6, bottom: 6 }}
-                  >
-                    <View
-                      style={[
-                        styles.ideasStageInkDot,
-                        ideasTagFilter.length === 0
-                          ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                          : null,
-                      ]}
-                    />
-                    <Text
-                      style={[
-                        styles.ideasStageInkText,
-                        ideasTagFilter.length === 0 ? styles.ideasStageInkTextActive : null,
-                      ]}
-                    >
-                      {t("filters.all")}
-                    </Text>
-                  </Press>
+            {showTagFilters ? (
+              <>
+                <PopoverMenuRule />
+                <PopoverMenuLabel>{t("filters.tags")}</PopoverMenuLabel>
+                <PopoverMenuSection wrap>
                   {[...tagOptions, { key: UNTAGGED_FILTER_KEY, label: t("filters.untagged"), ink: colors.textMuted }].map(
-                    (option) => {
-                      const active = ideasTagFilter.includes(option.key);
-                      return (
-                        <Press
-                          haptic="none"
-                          key={option.key}
-                          style={styles.ideasStageInk}
-                          onPress={() => toggleTag(option.key)}
-                          hitSlop={{ top: 6, bottom: 6 }}
-                        >
-                          <View
-                            style={[
-                              styles.ideasStageInkDot,
-                              active ? { backgroundColor: option.ink, borderColor: option.ink } : null,
-                            ]}
-                          />
-                          <Text
-                            style={[styles.ideasStageInkText, active ? styles.ideasStageInkTextActive : null]}
-                          >
-                            {option.label}
-                          </Text>
-                        </Press>
-                      );
-                    }
+                    (option) => (
+                      <InkOption
+                        key={option.key}
+                        label={option.label}
+                        selected={ideasTagFilter.includes(option.key)}
+                        ink={option.ink}
+                        onPress={() => toggleTag(option.key)}
+                      />
+                    )
                   )}
-                </View>
-              </View>
-            </>
-          ) : null}
+                </PopoverMenuSection>
+              </>
+            ) : null}
+
+            {hasActiveFilters ? (
+              <PopoverMenuFootLink
+                label={t("filters.clearAll")}
+                onPress={() => {
+                  clearFilters();
+                  close();
+                }}
+              />
+            ) : null}
           </>
         ),
       }}
@@ -346,78 +232,31 @@ export function FilterSortBar({
         active: hasCustomSort,
         valueIcon: getSortMetricIcon(activeSortMetric),
         direction: activeSortDirection,
-        renderMenu: ({ close }) => (
+        renderMenu: () => (
           <>
-            <View style={styles.ideasSortDirectionRow}>
-              <Text style={styles.ideasDropdownSectionToggleText}>{t("filters.direction")}</Text>
-              <View style={styles.ideasSortDirectionControls}>
-                <Press
-                  haptic="none"
-                  style={[styles.ideasSortDirectionChip,
-                    activeSortDirection === "asc" ? styles.ideasSortDirectionChipActive : null]}
-                  onPress={() => {
-                    setIdeasSort(getIdeaSortValue(activeSortMetric, "asc"));
-                  }}
-                >
-                  <Ionicons name="arrow-up" size={14} color={activeSortDirection === "asc" ? colors.surface : colors.textSecondary} />
-                  <Text
-                    style={[
-                      styles.ideasSortDirectionChipText,
-                      activeSortDirection === "asc" ? styles.ideasSortDirectionChipTextActive : null,
-                    ]}
-                  >
-                    {t("filters.asc")}
-                  </Text>
-                </Press>
-                <Press
-                  haptic="none"
-                  style={[styles.ideasSortDirectionChip,
-                    activeSortDirection === "desc" ? styles.ideasSortDirectionChipActive : null]}
-                  onPress={() => {
-                    setIdeasSort(getIdeaSortValue(activeSortMetric, "desc"));
-                  }}
-                >
-                  <Ionicons name="arrow-down" size={14} color={activeSortDirection === "desc" ? colors.surface : colors.textSecondary} />
-                  <Text
-                    style={[
-                      styles.ideasSortDirectionChipText,
-                      activeSortDirection === "desc" ? styles.ideasSortDirectionChipTextActive : null,
-                    ]}
-                  >
-                    {t("filters.desc")}
-                  </Text>
-                </Press>
-              </View>
-            </View>
-            <View style={styles.ideasDropdownDivider} />
-            {sortMetricOptions.map((option) => {
-              const active = option.key === activeSortMetric;
-              return (
-                <Press
-                  haptic="none"
-                  key={option.key}
-                  style={[styles.ideasSortMenuItem,
-                    active ? styles.ideasSortMenuItemActive : null]}
-                  onPress={() => {
-                    setIdeasSort(getIdeaSortValue(option.key, activeSortDirection));
-                    close();
-                  }}
-                >
-                  <View style={styles.ideasMenuItemLead}>
-                    <Ionicons name={option.icon as any} size={15} color={active ? colors.primary : colors.textSecondary} />
-                    <Text
-                      style={[
-                        styles.ideasSortMenuItemText,
-                        active ? styles.ideasSortMenuItemTextActive : null,
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                  </View>
-                  {active ? <Ionicons name="checkmark" size={15} color={colors.primary} /> : null}
-                </Press>
-              );
-            })}
+            <PopoverMenuLabel>{t("filters.sortBy")}</PopoverMenuLabel>
+            {sortMetricOptions.map((option) => (
+              <PopoverRadioRow
+                key={option.key}
+                label={option.label}
+                selected={option.key === activeSortMetric}
+                // A field keeps its natural order when picked (newest, A–Z).
+                onPress={() =>
+                  setIdeasSort(
+                    getIdeaSortValue(option.key, getSortOrderOptions(option.key)[0]!.direction)
+                  )
+                }
+              />
+            ))}
+            <PopoverMenuRule />
+            <PopoverMenuLabel>{t("filters.order")}</PopoverMenuLabel>
+            <PopoverMenuSection>
+              <SegmentedControl
+                options={orderOptions.map((option) => ({ key: option.direction, label: t(option.labelKey) }))}
+                value={activeSortDirection}
+                onChange={(direction) => setIdeasSort(getIdeaSortValue(activeSortMetric, direction))}
+              />
+            </PopoverMenuSection>
           </>
         ),
       }}
@@ -429,3 +268,9 @@ export function FilterSortBar({
     />
   );
 }
+
+const filterStyles = StyleSheet.create({
+  bookmarked: {
+    marginTop: spacing.sm,
+  },
+});

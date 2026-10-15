@@ -1,11 +1,9 @@
-import { Text, View } from "react-native";
-import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { FilterSortControls } from "../../common/FilterSortControls";
 import { SearchField } from "../../common/SearchField";
-import { styles } from "../../../styles";
-import { colors } from "../../../design/tokens";
+import { SegmentedControl } from "../../common/SegmentedControl";
+import { PopoverMenuLabel, PopoverMenuSection, PopoverRadioRow } from "../../common/PopoverMenu";
 import { useReceivedPrefsStore } from "../../../state/useReceivedPrefsStore";
 import type { CompilationFilter, CompilationSort } from "../../../domain/compilationListing";
 
@@ -19,35 +17,6 @@ const SORT_ICONS: Record<CompilationSort, keyof typeof Ionicons.glyphMap> = {
   name: "text-outline",
   created: "calendar-outline",
 };
-
-/** One row of the popover menu — the collection's `FilterSortBar` recipe
- *  (glyph + word, terracotta + check when it is the one in force). */
-function MenuRow({
-  icon,
-  label,
-  active,
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Press
-      haptic="none"
-      style={[styles.ideasSortMenuItem,
-        active ? styles.ideasSortMenuItemActive : null]}
-      onPress={onPress}
-    >
-      <View style={styles.ideasMenuItemLead}>
-        <Ionicons name={icon} size={15} color={active ? colors.primary : colors.textSecondary} />
-        <Text style={[styles.ideasSortMenuItemText, active ? styles.ideasSortMenuItemTextActive : null]}>{label}</Text>
-      </View>
-      {active ? <Ionicons name="checkmark" size={15} color={colors.primary} /> : null}
-    </Press>
-  );
-}
 
 /**
  * The hub's filter + sort — the SAME control a collection page carries
@@ -91,22 +60,18 @@ export function CompilationListControls({
               active: filter !== "all",
               valueIcon: FILTER_ICONS[filter],
               onClear: () => setFilter("all"),
-              renderMenu: ({ close }) => (
-                <View style={styles.ideasDropdownSectionStack}>
-                  <Text style={styles.ideasDropdownSectionToggleText}>{t("library.showTitle")}</Text>
-                  {filterOptions.map((key) => (
-                    <MenuRow
-                      key={key}
-                      icon={FILTER_ICONS[key]}
-                      label={t(`library.show_${key}`)}
-                      active={key === filter}
-                      onPress={() => {
-                        setFilter(key);
-                        close();
-                      }}
+              renderMenu: () => (
+                // One of three: ink tabs, the same as the Ideas filter's Show.
+                <>
+                  <PopoverMenuLabel>{t("library.showTitle")}</PopoverMenuLabel>
+                  <PopoverMenuSection>
+                    <SegmentedControl
+                      options={filterOptions.map((key) => ({ key, label: t(`library.show_${key}`) }))}
+                      value={filter}
+                      onChange={setFilter}
                     />
-                  ))}
-                </View>
+                  </PopoverMenuSection>
+                </>
               ),
             }
           : undefined
@@ -116,21 +81,20 @@ export function CompilationListControls({
         valueIcon: SORT_ICONS[sort],
         direction: "desc",
         renderMenu: ({ close }) => (
-          <View style={styles.ideasDropdownSectionStack}>
-            <Text style={styles.ideasDropdownSectionToggleText}>{t("library.sortTitle")}</Text>
+          <>
+            <PopoverMenuLabel>{t("library.sortTitle")}</PopoverMenuLabel>
             {sortOptions.map((key) => (
-              <MenuRow
+              <PopoverRadioRow
                 key={key}
-                icon={SORT_ICONS[key]}
                 label={t(`library.sort_${key}`)}
-                active={key === sort}
+                selected={key === sort}
                 onPress={() => {
                   setSort(key);
                   close();
                 }}
               />
             ))}
-          </View>
+          </>
         ),
       }}
     />

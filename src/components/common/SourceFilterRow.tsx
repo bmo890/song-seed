@@ -138,16 +138,14 @@ export function SourceFilterRow({
 }
 
 const styles = StyleSheet.create({
+  // A row on paper (2026-10-15): structure, so a hairline, never a fill.
   row: {
-    backgroundColor: "#F8F4EE",
-    borderRadius: radii.xl,
     paddingVertical: 12,
-    paddingHorizontal: 14,
     gap: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
   },
-  rowExcluded: {
-    backgroundColor: "#F4F1EC",
-  },
+  rowExcluded: {},
   topRow: {
     flexDirection: "row",
     alignItems: "center",

@@ -495,7 +495,8 @@ export function useActivityScreenModel() {
         {
           key: "shelf",
           label: t("activity.setAside"),
-          icon: "timer-outline",
+          // The Shelf wears one glyph everywhere: the side menu's.
+          icon: "file-tray-outline",
           hint: t("activity.setAsideHint"),
           onPress: () => {
             useShelfStore.getState().setAside([{ kind: "idea", id: item.ideaId }]);

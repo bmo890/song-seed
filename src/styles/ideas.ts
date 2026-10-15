@@ -209,13 +209,16 @@ export const ideasStyles = {
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
+  // Toolbar popovers hold PopoverMenu parts, which carry their own inset.
   ideasPopoverMenu: {
     position: "absolute",
     top: 44,
     alignSelf: "flex-start",
-    minWidth: 220,
-    maxWidth: 272,
+    minWidth: 260,
+    maxWidth: 300,
     zIndex: 30,
+    paddingHorizontal: 0,
+    gap: 0,
   },
   // Filter/sort popovers hang from the toolbar's trailing edge (the glyphs
   // live at the end of the search row).

@@ -62,6 +62,65 @@ export function PopoverMenuRule() {
   return <View style={s.rule} />;
 }
 
+/** A quiet caps label over a menu section ("SHOW", "SORT BY"). */
+export function PopoverMenuLabel({ children, trailing }: { children: string; trailing?: ReactNode }) {
+  return (
+    <View style={s.labelRow}>
+      <Text style={s.sectionLabel}>{children}</Text>
+      {trailing ?? null}
+    </View>
+  );
+}
+
+/** A section's body, inset like the rows. */
+export function PopoverMenuSection({ children, wrap = false }: { children: ReactNode; wrap?: boolean }) {
+  return <View style={wrap ? s.wrap : s.section}>{children}</View>;
+}
+
+/**
+ * One choice of several (a sort field): an ink dot, filled terracotta on the
+ * chosen one, and the word at full weight. The single-select sibling of
+ * InkOption, for lists too long for a SegmentedControl.
+ */
+export function PopoverRadioRow({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Press
+      feel="surface"
+      // haptics.ts: tap → a control changed value.
+      haptic="tap"
+      style={s.radioRow}
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      accessibilityLabel={label}
+    >
+      <View style={[s.radioDot, selected ? s.radioDotOn : null]} />
+      <Text style={[s.label, selected ? s.labelOn : null]} numberOfLines={1}>
+        {label}
+      </Text>
+    </Press>
+  );
+}
+
+/** The menu's one way out of a state ("Clear filters"), quiet ink at its foot. */
+export function PopoverMenuFootLink({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <View style={s.foot}>
+      <Press feel="glyph" haptic="tap" onPress={onPress} hitSlop={8} accessibilityRole="button">
+        <Text style={s.footText}>{label}</Text>
+      </Press>
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
   row: {
     flexDirection: "row",
@@ -81,6 +140,66 @@ const s = StyleSheet.create({
   },
   disabled: {
     opacity: 0.45,
+  },
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
+  },
+  sectionLabel: {
+    flex: 1,
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 10,
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    color: colors.textMuted,
+  },
+  section: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xs,
+  },
+  wrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    columnGap: spacing.lg,
+    rowGap: 2,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xs,
+  },
+  radioRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minHeight: 40,
+    paddingHorizontal: spacing.lg,
+  },
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: colors.textMuted,
+  },
+  radioDotOn: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  labelOn: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+  },
+  foot: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
+  },
+  footText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 13,
+    color: colors.primaryDeep,
   },
   rule: {
     height: StyleSheet.hairlineWidth,

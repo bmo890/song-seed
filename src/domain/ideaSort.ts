@@ -61,6 +61,37 @@ export function getIdeaSortValue(
   return direction === "desc" ? "completion-high" : "completion-low";
 }
 
+/**
+ * The two orders a sort field offers, named the way a person says them
+ * ("Newest first", "A–Z"), natural order first. Labels are i18n keys.
+ */
+export function getSortOrderOptions(
+  metric: IdeaSortMetric
+): Array<{ direction: IdeaSortDirection; labelKey: string }> {
+  switch (metric) {
+    case "title":
+      return [
+        { direction: "asc", labelKey: "filters.aToZ" },
+        { direction: "desc", labelKey: "filters.zToA" },
+      ];
+    case "length":
+      return [
+        { direction: "desc", labelKey: "filters.longestFirst" },
+        { direction: "asc", labelKey: "filters.shortestFirst" },
+      ];
+    case "progress":
+      return [
+        { direction: "desc", labelKey: "filters.furthestFirst" },
+        { direction: "asc", labelKey: "filters.earliestFirst" },
+      ];
+    default:
+      return [
+        { direction: "desc", labelKey: "filters.newestFirst" },
+        { direction: "asc", labelKey: "filters.oldestFirst" },
+      ];
+  }
+}
+
 export function getIdeaCreatedAt(idea: SongIdea): number {
   if (idea.clips.length === 0) {
     return idea.createdAt;

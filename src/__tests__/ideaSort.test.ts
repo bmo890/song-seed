@@ -64,3 +64,25 @@ describe("getIdeaCreatedAt", () => {
     expect(getIdeaCreatedAt(fromImport)).toBe(OCT_2025);
   });
 });
+
+describe("getSortOrderOptions", () => {
+  const { getSortOrderOptions, getIdeaSortValue } = require("../domain/ideaSort");
+
+  it("names each field's orders the way people say them, natural order first", () => {
+    expect(getSortOrderOptions("created").map((o: { labelKey: string }) => o.labelKey)).toEqual([
+      "filters.newestFirst",
+      "filters.oldestFirst",
+    ]);
+    expect(getSortOrderOptions("title")[0]).toEqual({ direction: "asc", labelKey: "filters.aToZ" });
+    expect(getSortOrderOptions("length")[0].direction).toBe("desc");
+  });
+
+  it("every option maps to a stored sort, both directions distinct", () => {
+    for (const metric of ["created", "updated", "title", "length", "progress"]) {
+      const values = getSortOrderOptions(metric).map((o: { direction: "asc" | "desc" }) =>
+        getIdeaSortValue(metric, o.direction)
+      );
+      expect(new Set(values).size).toBe(2);
+    }
+  });
+});

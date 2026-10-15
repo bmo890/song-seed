@@ -466,23 +466,6 @@ export function IdeaSelectionBar({
       actions.push(editAction);
     }
 
-    // One Share… row that opens the chooser, as on every other door. With no
-    // link service and no sketch there is nothing to choose between, so the
-    // row shares the audio directly instead of opening a one-row sheet.
-    if (!selectedHiddenOnly && (shareableClips.length > 0 || selectedSketchCount > 0)) {
-      if (linkAvailable || selectedSketchCount > 0) {
-        actions.push({
-          key: "share-menu",
-          label: t("selection.shareMenu"),
-          icon: "share-social-outline",
-          onPress: () => setShareSheet("exits"),
-          opens: true,
-        });
-      } else {
-        actions.push(shareAudioAction);
-      }
-    }
-
     if (!selectedHiddenOnly) {
       actions.push({
         key: "bookmark",
@@ -498,8 +481,8 @@ export function IdeaSelectionBar({
           interactiveSelectedIdeas.length > 1
             ? t("selection.setAsideCount", { count: interactiveSelectedIdeas.length })
             : t("selection.setAside"),
-        // Timer glyph — shelving is about a 7-day stay, not a container.
-        icon: "timer-outline",
+        // The Shelf wears one glyph everywhere: the side menu's.
+          icon: "file-tray-outline",
         onPress: handleSetAsideSelection,
         disabled: interactiveSelectedIdeas.length === 0,
       });
@@ -534,6 +517,23 @@ export function IdeaSelectionBar({
         onPress: () => setCopyMoveVisible(true),
         opens: true,
       });
+    }
+
+    // Order rule: sending out comes last. One Share row that opens the chooser, as on every other door. With no
+    // link service and no sketch there is nothing to choose between, so the
+    // row shares the audio directly instead of opening a one-row sheet.
+    if (!selectedHiddenOnly && (shareableClips.length > 0 || selectedSketchCount > 0)) {
+      if (linkAvailable || selectedSketchCount > 0) {
+        actions.push({
+          key: "share-menu",
+          label: t("selection.shareMenu"),
+          icon: "share-social-outline",
+          onPress: () => setShareSheet("exits"),
+          opens: true,
+        });
+      } else {
+        actions.push(shareAudioAction);
+      }
     }
 
     // "Make song" lives on the dock now (see makeSongAction).

@@ -197,8 +197,8 @@ export function useRevisitScreenModel() {
       {
         key: "shelf",
         label: t("activity.setAside"),
-        // Timer glyph — shelving is about a 7-day stay, not a container.
-        icon: "timer-outline",
+        // The Shelf wears one glyph everywhere: the side menu's.
+          icon: "file-tray-outline",
         hint: t("activity.setAsideHint"),
         onPress: () => {
           useShelfStore.getState().setAside([{ kind: "idea", id: candidate.ideaId }]);
