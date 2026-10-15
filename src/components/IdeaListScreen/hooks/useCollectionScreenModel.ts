@@ -394,7 +394,7 @@ export function useCollectionScreenModel() {
       animatedValue.setValue(0);
       Animated.sequence([
         Animated.timing(animatedValue, { toValue: 0.9, duration: durations.base, useNativeDriver: true }),
-        Animated.timing(animatedValue, { toValue: 0, duration: 900, useNativeDriver: true }),
+        Animated.timing(animatedValue, { toValue: 0, duration: durations.linger, useNativeDriver: true }),
       ]).start(() => {
         animatedValue.setValue(0);
         clearHighlightSoon(id);

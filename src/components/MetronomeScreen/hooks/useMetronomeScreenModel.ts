@@ -89,7 +89,7 @@ export function useMetronomeScreenModel() {
       }),
       Animated.timing(pulseAnim, {
         toValue: 0,
-        duration: 260,
+        duration: durations.slow,
         useNativeDriver: true,
       }),
     ]).start();

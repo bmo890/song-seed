@@ -15,6 +15,7 @@ import { getMetronomeMeterPreset } from "../../../domain/metronome";
 import type { RecordingGrid } from "../../../types";
 import { colors } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
+import { durations } from "../../../design/motion";
 import { useTranslation } from "react-i18next";
 
 /**
@@ -92,7 +93,7 @@ function StripPlayhead({
         {
           translateX: jumped
             ? x
-            : withTiming(x, { duration: 160, easing: Easing.linear }),
+            : withTiming(x, { duration: durations.base, easing: Easing.linear }),
         },
       ],
     };

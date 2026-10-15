@@ -19,11 +19,16 @@ export const durations = {
   slow: 300,
   /** One turn of the Spinner. Slow enough to read as waiting, not as hurry. */
   spin: 900,
+  /** A highlight, flash or pulse fading away: long enough to be seen after
+   *  the eye arrives, short enough to be gone before it is asked about. */
+  linger: 900,
 } as const;
 
 /** Spring for surfaces sliding into place (sheets, docks). */
 export const springs = {
   surface: { damping: 20, stiffness: 220, mass: 0.9 },
+  /** A surface snapping back to rest after a drag let it go. */
+  settle: { damping: 20, stiffness: 240, mass: 0.85 },
   /** Snappier pop for small cards/dialogs scaling in. */
   pop: { damping: 18, stiffness: 320 },
   /** Handles and grabbed elements tracking a gesture. */

@@ -15,6 +15,8 @@ type ScrubBarProps = {
     /** The 0..1 fraction under the finger while it is held; `null` when the drag
      *  ends either way. Lets the row's elapsed caption follow the thumb. */
     onScrubPreview?: (fraction: number | null) => void;
+    /** Length of the audio, so the drag ticks once per second crossed. */
+    durationMs?: number;
 };
 
 const TRACK_HEIGHT = 3;
@@ -34,9 +36,12 @@ export const ScrubBar = React.memo(function ScrubBar({
     onScrubStart,
     onScrubCancel,
     onScrubPreview,
+    durationMs = 0,
 }: ScrubBarProps) {
     const [width, setWidth] = useState(0);
     const widthValue = useSharedValue(0);
+    const detents = useSharedValue(0);
+    detents.value = durationMs / 1000;
     const [dragFraction, setDragFraction] = useState<number | null>(null);
     const [isCommitPending, setIsCommitPending] = useState(false);
 
@@ -89,6 +94,7 @@ export const ScrubBar = React.memo(function ScrubBar({
         onGrab: grab,
         onCommit: commit,
         onCancel: cancel,
+        detents,
     });
 
     const fraction = Math.max(0, Math.min(1, dragFraction ?? progress ?? 0));

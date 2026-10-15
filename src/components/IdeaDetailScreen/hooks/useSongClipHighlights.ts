@@ -57,7 +57,7 @@ export function useSongClipHighlights(
         Animated.delay(400),
         Animated.timing(animatedValue, {
           toValue: 0,
-          duration: 1400,
+          duration: durations.linger,
           useNativeDriver: true,
         }),
       ]).start(() => {

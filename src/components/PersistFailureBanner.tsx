@@ -7,6 +7,7 @@ import { useStore } from "../state/useStore";
 import { getPersistHealth, onPersistHealthChange, type PersistHealth } from "../state/persistRuntime";
 import { colors, radii } from "../design/tokens";
 import { haptic } from "../design/haptics";
+import { durations, springs } from "../design/motion";
 
 const COPY: Record<Exclude<PersistHealth, "ok">, { title: string; hint: string }> = {
     // Both stores refused several writes in a row — nothing is landing.
@@ -49,10 +50,10 @@ export function PersistFailureBanner({ hidden = false }: { hidden?: boolean }) {
             // outcome the user must not miss").
             haptic.error();
             slideAnim.setValue(0);
-            Animated.spring(slideAnim, { toValue: 1, useNativeDriver: true, tension: 80, friction: 12 }).start();
+            Animated.spring(slideAnim, { toValue: 1, useNativeDriver: true, ...springs.surface }).start();
         } else if (!visible && wasVisible.current) {
             wasVisible.current = false;
-            Animated.timing(slideAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+            Animated.timing(slideAnim, { toValue: 0, duration: durations.gentle, useNativeDriver: true }).start();
         }
     }, [visible, slideAnim]);
 

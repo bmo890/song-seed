@@ -222,6 +222,7 @@ function StemVersionRow({
               <View style={styles.songDetailStemScrubTrack}>
                 <ScrubBar
                   progress={inlineTotalMs > 0 ? Math.min(1, inlinePositionMs / inlineTotalMs) : 0}
+                  durationMs={inlineTotalMs}
                   onScrubStart={() => void inlinePlayer.beginInlineScrub()}
                   onScrub={(fraction) => void inlinePlayer.endInlineScrub(fraction * inlineTotalMs)}
                   onScrubCancel={() => void inlinePlayer.cancelInlineScrub()}

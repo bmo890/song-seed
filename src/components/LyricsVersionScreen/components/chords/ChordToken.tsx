@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
+import { springs } from "../../../../design/motion";
 import { Animated, PanResponder, StyleSheet, Text, View } from "react-native";
 import type { ChordPlacement } from "../../../../types";
 import { chordGraphemeAnchor, clampChordIndex } from "../../../../domain/chords";
@@ -90,8 +91,7 @@ export function ChordToken({
     Animated.spring(scale, {
       toValue: up ? 1.18 : 1,
       useNativeDriver: true,
-      friction: 6,
-      tension: 180,
+      ...springs.handle,
     }).start();
   };
 

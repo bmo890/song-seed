@@ -142,12 +142,16 @@ export const WaveformStrip = React.memo(function WaveformStrip({
         },
         [dragFraction, durationMs, previewScrub, previewedSecond]
     );
+    // One detent per second of audio: the tick under the finger matches the
+    // caption that follows it.
+    const detents = useDerivedValue(() => durationMs.value / 1000, [durationMs]);
     const pan = useHeldScrubGesture({
         width: widthValue,
         onTrack: trackScrub,
         onGrab: startScrub,
         onCommit: commitScrub,
         onCancel: cancelScrub,
+        detents,
     });
 
     const hasPeaks = !!peaks && peaks.length > 0;

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { springs } from "../design/motion";
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -163,7 +164,7 @@ function ProcessTakeover({
     const elapsedSec = (Date.now() - process.startedAt) / 1000;
 
     useEffect(() => {
-        Animated.spring(reveal, { toValue: 1, useNativeDriver: true, tension: 80, friction: 14 }).start();
+        Animated.spring(reveal, { toValue: 1, useNativeDriver: true, ...springs.surface }).start();
     }, [reveal]);
 
     const translateY = reveal.interpolate({ inputRange: [0, 1], outputRange: [40, 0] });

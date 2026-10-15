@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { durations } from "../../../design/motion";
 import { useIsFocused } from "@react-navigation/native";
 import {
   Animated,
@@ -181,7 +182,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
     flashOpacity.setValue(1);
     const anim = Animated.timing(flashOpacity, {
       toValue: 0,
-      duration: 850,
+      duration: durations.linger,
       easing: Easing.out(Easing.quad),
       useNativeDriver: true,
     });

@@ -926,3 +926,56 @@ Next action, in order:
    the loop drawer the founder flagged.
 Run `npm run lint:craft` before each commit and tighten the baseline as
 counts fall.
+
+## Move 4 audit (2026-10-14)
+
+Founder: "making things more minimal and less noisy… going page by page".
+Twenty screens photographed in the simulator (`docs/product-plan/page-audit/`),
+laid side by side at https://claude.ai/artifact/FVppEe5X3ZJoKddqZMP34G.
+
+Eight patterns, ranked by pages touched: three header shapes and six
+right-slot buttons (14), pages that narrate (10), five shells for one row (9),
+terracotta four to six times per screen (7), controls on controls (6), three
+search styles (5), machine text in Lora (".wav", timestamps, values) (4), two
+page gutters (3).
+
+The side menu is the nav the founder remembered: 14 rows in five groups
+scroll on a 6.3" phone; Lyric Pad and Spark sit apart; Shelf, Revisit and
+Activity split across two groups; Recent repeats the workspace name. A regroup
+to mock (same 13 destinations, three hairline groups, no group labels, Recent
+folded into the workspace card) is on the audit page. Not decided.
+
+Order: one header, side menu, words out, one row and one card, terracotta
+once (falls out of the first four), Loop and Sound drawers, then sketch,
+Metronome and recorder. Visual steps are mocked on a canvas first.
+
+## One feel (2026-10-15)
+
+Founder, after the page audit: no feel pass on the phone; "make sure there
+is a shared philosophy and implementation for the sake of continuity".
+Measured first: 0 direct expo-haptics, 82 presses still `haptic="none"`,
+`tick` on only 4 controls, the four scrub surfaces (ScrubBar, WaveformStrip,
+useHeldScrubGesture, Minimap) with no haptic at all, 13 duration and 8 spring
+literals outside motion.ts.
+
+Built: the choreography table in `src/design/haptics.ts` (press, scrub,
+tap-seek, magnet, sheet, mode, finish) and the rule in CLAUDE.md. The scrub
+sentence is now spoken by `useHeldScrubGesture` itself (grab / tick per
+`detents` / light / tap), so the card strips and ScrubBar inherit it without
+a line at the call site; the minimap and the tape pan say the same sentence;
+`AudioReel` fires `grab` on the tape's hold and `light` (or `tick` on a bar
+magnet) at the commit, `tap` only for a tap-seek. The reel used to say `tap`
+for everything. Every duration and spring literal folded into motion.ts
+(`durations.linger` 900 for a fading highlight or pulse; `springs.settle`
+for a surface snapping back after a drag); `motion_duration` and
+`motion_spring` baselines are 0 and the spring rule now also catches
+`tension`/`friction`.
+
+Simulator-verified (gestures only; the simulator has no haptic engine): a
+finger-shaped `touch_path` scrubs the card strip, the reel and the minimap.
+The sim tool's plain `swipe` is not a finger: it opened the card instead of
+scrubbing, before and after this change.
+
+Next on feel: the 82 silent presses, a screen at a time (collection 14,
+sketch 10, Notepad 9, Library 7, Magpie 7), each decided as tap / light /
+silent-because-it-navigates.

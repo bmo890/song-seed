@@ -57,6 +57,11 @@ The hard rules below are non-negotiable.
   (sole exception: the metronome beat engine, deliberately).
   Sheet settle = `light`. Drag lift / record / selection-mode = `grab`.
   Failures MUST fire `error`. Navigation is silent.
+- One scrub choreography (2026-10-15), wherever a finger moves a value or a
+  playhead: `grab` as it is held, `tick` per detent crossed (one second on a
+  timeline, the control's step on a slider), `light` as it lifts, `tap` for a
+  tap-seek. It is built into Slider, Stepper, `useHeldScrubGesture`, the reel
+  and the minimap; a new surface reuses those, never fires the verbs by hand.
 - Motion only via `src/design/motion.ts` (`durations`, `springs`, `popIn`,
   `collapseIn/Out`). No numeric duration/spring literals. Nothing pops: rows,
   panels, and state swaps get fade or ≤ 6px vertical slide entrances. That is the

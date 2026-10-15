@@ -452,8 +452,8 @@ export function AudioReel({
         }
         pendingPulse.value = withRepeat(
             withSequence(
-                withTiming(0, { duration: 800 }),
-                withTiming(1, { duration: 800 })
+                withTiming(0, { duration: durations.linger }),
+                withTiming(1, { duration: durations.linger })
             ),
             -1,
             false
@@ -493,20 +493,22 @@ export function AudioReel({
 
     const scrubbingRef = React.useRef(false);
     const handleInteractionStateChange = (scrubbing: boolean, options?: { silent?: boolean }) => {
-        // Grab/release ticks on the transition only — the reel is the app's most
-        // tactile surface and deserves physical detents (per docs/haptics-vocabulary.md).
+        // The app's one scrub choreography (haptics.ts): `grab` as the tape is
+        // held, the tape ticks each second itself, and the release speaks once
+        // from the commit below. The end transition is silent.
         if (scrubbing !== scrubbingRef.current) {
             scrubbingRef.current = scrubbing;
-            if (!options?.silent) haptic.tap();
+            if (scrubbing && !options?.silent) haptic.grab();
         }
         onScrubStateChange?.(scrubbing);
     };
 
     const handleSeekCommit = async (timeMs: number) => {
-        // ONE tick per commit, fired at the finger-up itself. The state transitions
-        // around the engine's seek are silent: a tap-seek used to tick once before
-        // the (async) seek and once after it — the second one landing late, as a
-        // buzz nobody pressed for. The detent tick below stands in for it on a snap.
+        // ONE haptic per commit, fired at the finger-up itself. The state
+        // transitions around the engine's seek are silent: a tap-seek used to
+        // tick once before the (async) seek and once after it — the second one
+        // landing late, as a buzz nobody pressed for.
+        const wasDrag = scrubbingRef.current;
         handleInteractionStateChange(true, { silent: true });
         let ticked = false;
         try {
@@ -525,12 +527,15 @@ export function AudioReel({
                 });
                 if (snapped != null && Math.abs(snapped - timeMs) > 1) {
                     targetMs = snapped;
-                    // Detent tick — the reel's physical vocabulary (grab/release/detents).
-                    haptic.tap();
+                    // Haptics vocabulary: `tick` — snapped to a magnet, in place
+                    // of the release.
+                    haptic.tick();
                     ticked = true;
                 }
             }
-            if (!ticked) haptic.tap();
+            // Haptics vocabulary: `light` — a drag's finger lifts and the
+            // position is set; `tap` — a tap-seek lands.
+            if (!ticked) (wasDrag ? haptic.light : haptic.tap)();
             await onSeek(targetMs);
         } finally {
             handleInteractionStateChange(false, { silent: true });

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef } from "react";
+import { durations } from "../../../design/motion";
 import { Animated, StyleSheet, View } from "react-native";
 import { colors, radii } from "../../../design/tokens";
 import { getGroupGapIndices } from "../../../domain/metronome";
@@ -93,7 +94,7 @@ export function MetronomeBeatBar({
     if (!anim) return;
     anim.stopAnimation();
     anim.setValue(1);
-    Animated.timing(anim, { toValue: 0, duration: 320, useNativeDriver: true }).start();
+    Animated.timing(anim, { toValue: 0, duration: durations.slow, useNativeDriver: true }).start();
   }, [active, currentBeat, dotAnims, pulseToken]);
 
   useEffect(() => {
