@@ -1,6 +1,6 @@
 import { I18nManager, StyleSheet } from "react-native";
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
-import { colors, radii } from "../design/tokens";
+import { colors, radii, spacing } from "../design/tokens";
 
 // Song detail screen: header, nav, breadcrumbs, tabs, summary, meta, notes.
 // Raw style objects — merged and registered once via StyleSheet.create in ../styles.ts.
@@ -685,58 +685,47 @@ export const songDetailStyles = {
   songDetailListWithStrip: {
     flex: 1,
   },
-  // Transport rows never mirror (see docs/design-system.md "Direction policy").
-  // The play glyph sits where time starts, and time runs left → right in every
-  // language — the same reason the waveform and scrub bar below it stay put.
-  // `row-reverse` under RTL rather than `direction: "ltr"`: an explicit direction
-  // opts the whole subtree out of RN's left/right swap, which then fights the
-  // content-direction alignment the titles inside compute for themselves.
-  songDetailPrimaryStrip: {
+  // The primary take line (2026-10-15): play · name · "Primary take", on the
+  // paper under the meta line. Transport rows never mirror (docs/design-system.md
+  // "Direction policy"): the play glyph sits where time starts in every
+  // language, so `row-reverse` under RTL rather than an explicit direction.
+  songDetailPrimaryLine: {
     flexDirection: I18nManager.isRTL ? "row-reverse" : "row",
     alignItems: "center",
-    gap: 10,
-    paddingVertical: 8,
-    paddingLeft: 0,
-    paddingRight: 4,
-    marginBottom: 6,
+    gap: spacing.sm,
+    minHeight: 34,
+    marginTop: -2,
+    marginBottom: spacing.sm,
   },
-  songDetailPrimaryStripAccent: {
-    width: 3,
-    alignSelf: "stretch",
-    borderRadius: 2,
-    backgroundColor: "#B87D6B",
-  },
-  songDetailPrimaryStripCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  songDetailPrimaryStripLabel: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 9,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    color: "#a89994",
-    marginBottom: 1,
-  },
-  // Auto-named take: quiet tabular Jakarta (earned-serif rule).
-  songDetailPrimaryStripTitle: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 14,
-    color: "#1b1c1a",
-    fontVariant: ["tabular-nums"],
-  },
-  // Hand-named take earns the Lora title.
-  songDetailPrimaryStripTitleSerif: {
-    fontFamily: "Lora_600SemiBold",
-    fontSize: 15,
-    color: "#1b1c1a",
-  },
-  songDetailPrimaryStripLocate: {
-    width: 34,
-    height: 34,
-    borderRadius: radii.round,
+  // The glyph's box backs into the gutter so the triangle lines up with the title.
+  songDetailPrimaryLinePlay: {
+    width: 28,
+    height: 28,
+    marginStart: -7,
     alignItems: "center",
     justifyContent: "center",
+  },
+  songDetailPrimaryLineName: {
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  // A name earns Lora; a filename or timestamp stays tabular Jakarta.
+  songDetailPrimaryLineTitleSerif: {
+    fontFamily: "Lora_500Medium",
+    fontSize: 16,
+    color: colors.textStrong,
+  },
+  songDetailPrimaryLineTitle: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 14,
+    color: colors.textStrong,
+    fontVariant: ["tabular-nums"],
+  },
+  songDetailPrimaryLineLabel: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 12,
+    color: colors.textMuted,
+    flexShrink: 0,
   },
   // Primary ink: dot + word share ONE colour with the card's crown rule, so the
   // status reads as a single mark. primaryDeep (not primary) — a 9.5px label
@@ -775,19 +764,6 @@ export const songDetailStyles = {
   songDetailClipRowWrap: {
     flexDirection: "row",
     alignItems: "stretch",
-  },
-  // Soft key (button law): text buttons are radii.lg, never stadium round.
-  songDetailCollapseAllChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    minHeight: 34,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: "rgba(215,194,189,0.5)",
-    backgroundColor: "#FDFBF7",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
   },
   songDetailClipList: {
     flex: 1,

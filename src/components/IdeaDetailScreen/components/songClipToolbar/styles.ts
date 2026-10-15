@@ -25,13 +25,7 @@ export const songClipToolbarStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-  },
-  // SegmentedControl segments are flex:1 — cap the track so the trailing
-  // glyphs always keep their room.
-  viewToggleWrap: {
-    flexShrink: 1,
-    width: 220,
-    maxWidth: "70%",
+    marginEnd: -8,
   },
   // Filter popover hangs from the row's trailing edge (the trigger now sits
   // at the far right), so anchor right to keep it on screen.

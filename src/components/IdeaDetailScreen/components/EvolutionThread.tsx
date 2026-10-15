@@ -2,7 +2,6 @@ import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Animated as RNAnimated, Pressable, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
@@ -256,12 +255,10 @@ function StemVersionRow({
 }
 
 /**
- * A multi-version lineage rendered as one object: a slim tinted shell, the head
- * card playing the current version, and ONE stem row beneath it — the terminal
- * node that names the history ("v3 · 2 older versions", tap to unfold) and, on
- * its trailing edge, the thread's one forward action, "New version". Unfolded,
- * the older versions hang between the card and that row. The stem never
- * contains the future; actions aren't timeline events.
+ * A multi-version lineage as one object (2026-10-15): the head card wears two
+ * paper edges (a take with versions under it) and carries the thread in its
+ * footer, "2 older ⌄" and "+ Version". Unfolded, the edges lift away and the
+ * older versions hang beneath the card on a stem, newest first, ending at v1.
  */
 export const EvolutionThread = React.memo(function EvolutionThread({
   lineage,
@@ -270,13 +267,8 @@ export const EvolutionThread = React.memo(function EvolutionThread({
   context,
   onVersionRowLayout,
 }: EvolutionThreadProps) {
-  const { t } = useTranslation();
-  const navigation = useNavigation();
   const ideaId = context.mode.idea.id;
   const shellRef = useRef<View>(null);
-  const clipSelectionMode = useStore((s) => s.clipSelectionMode);
-  const setRecordingParentClipId = useStore((s) => s.setRecordingParentClipId);
-  const setRecordingIdeaId = useStore((s) => s.setRecordingIdeaId);
 
   const head = lineage.latestClip;
   const olderClips = useMemo(
@@ -304,98 +296,37 @@ export const EvolutionThread = React.memo(function EvolutionThread({
     }),
     [head, lineage.root.id, versionNumberById, versionCount]
   );
-
-  const handleNewVersion = async () => {
-    await context.playback.inlinePlayer.resetInlinePlayer();
-    useStore.getState().requestPlayerClose();
-    setRecordingParentClipId(head.id);
-    setRecordingIdeaId(ideaId);
-    navigation.navigate("Recording" as never);
-  };
+  const rootId = lineage.root.id;
+  const fold = useMemo(
+    () => ({
+      count: olderClips.length,
+      expanded,
+      onToggle: () => onToggleExpanded(rootId),
+    }),
+    [olderClips.length, expanded, onToggleExpanded, rootId]
+  );
 
   return (
-    <View ref={shellRef} style={styles.songDetailThreadShell}>
-      <SongClipCard entry={headEntry} context={context} />
+    <View ref={shellRef}>
+      <SongClipCard entry={headEntry} context={context} fold={fold} stacked={!expanded} />
 
-      <View style={styles.songDetailStem}>
-        {/* The hinge sits at the fold, directly under the head: history opens
-            BELOW it, newest first, and the stem terminates at v1 — the origin.
-            A hinge glyph, not a node, so it never reads as a third version. */}
-        <View style={styles.songDetailStemFoot}>
-          <View
-            style={[styles.songDetailStemSegmentIn, { top: -5.5, height: 25.5 }]}
-            pointerEvents="none"
-          />
-          {expanded ? <View style={styles.songDetailStemSegmentOn} pointerEvents="none" /> : null}
-          <Pressable
-            style={({ pressed }) => [
-              styles.songDetailStemFootToggle,
-              pressed ? styles.pressDown : null,
-            ]}
-            hitSlop={{ top: 4, bottom: 4 }}
-            onPress={() => {
-              // haptics.ts: light → small state flips (fold/unfold).
-              haptic.light();
-              onToggleExpanded(lineage.root.id);
-            }}
-            accessibilityRole="button"
-            accessibilityState={{ expanded }}
-            accessibilityLabel={
-              expanded
-                ? t("clipLineage.hideOlderVersions", { count: olderClips.length })
-                : t("clipLineage.olderVersions", { count: olderClips.length })
-            }
-          >
-            {/* The hinge is a small round key on the stem line — a control, not a
-                node and not a bare arrowhead — inside the press target so tapping
-                the key itself folds the thread (founder ruling 2026-09-14). */}
-            <View style={styles.songDetailStemHinge} pointerEvents="none">
-              <Ionicons
-                name={expanded ? "chevron-up" : "chevron-down"}
-                size={12}
-                color={colors.textStrong}
-              />
-            </View>
-            {/* Open, the history speaks for itself: the key alone collapses it. */}
-            {!expanded ? (
-              <Text style={styles.songDetailStemFoldText} numberOfLines={1}>
-                {t("clipLineage.olderVersions", { count: olderClips.length })}
-              </Text>
-            ) : null}
-          </Pressable>
-          {!clipSelectionMode ? (
-            <Pressable
-              style={({ pressed }) => [
-                styles.songDetailStemFootAction,
-                pressed ? styles.pressDown : null,
-              ]}
-              onPress={() => void handleNewVersion()}
-              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-              accessibilityRole="button"
-              accessibilityLabel={t("clipLineage.newVersionA11y", { title: head.title })}
-            >
-              <Ionicons name="mic-outline" size={13} color={colors.primaryDeep} />
-              <Text style={styles.songDetailStemFootActionText}>{t("clipLineage.newVersion")}</Text>
-            </Pressable>
-          ) : null}
+      {expanded ? (
+        <View style={styles.songDetailStem}>
+          {olderClips.map((clip, index) => (
+            <StemVersionRow
+              key={clip.id}
+              clip={clip}
+              versionNumber={versionNumberById.get(clip.id) ?? 1}
+              ideaId={ideaId}
+              isFirst={index === 0}
+              isLast={index === olderClips.length - 1}
+              context={context}
+              shellRef={shellRef}
+              onRowLayout={onVersionRowLayout}
+            />
+          ))}
         </View>
-
-        {expanded
-          ? olderClips.map((clip, index) => (
-              <StemVersionRow
-                key={clip.id}
-                clip={clip}
-                versionNumber={versionNumberById.get(clip.id) ?? 1}
-                ideaId={ideaId}
-                isFirst={false}
-                isLast={index === olderClips.length - 1}
-                context={context}
-                shellRef={shellRef}
-                onRowLayout={onVersionRowLayout}
-              />
-            ))
-          : null}
-      </View>
+      ) : null}
     </View>
   );
 });
