@@ -1,4 +1,5 @@
-# Standalone Metronome controls: BPM up/down, meter change, and start/stop toggle.
+# Standalone Metronome controls: BPM up/down, meter change (Meter sheet), and the
+# round start/stop key.
 # Audible click is HUMAN (Sim audio), but every control's state change is checked.
 # BPM assertions assume the default 92 (true after flow 01's clearState / in-suite).
 appId: com.bmostudio.songnook.dev
@@ -23,16 +24,22 @@ appId: com.bmostudio.songnook.dev
 - extendedWaitUntil:
     visible: ".*92 BPM.*"
     timeout: 5000
-# Meter change 4/4 → 7/8 (second chip row) → back.
-- assertVisible: "4/4"
-- tapOn: "7/8 time"
+# Meter change 4/4 → 7/8 → back, inside the Meter sheet (2026-10-15: Meter
+# and Sound are rows that open sheets; the meters are ink tabs).
+- tapOn: "Meter"
+- waitForAnimationToEnd
+- tapOn: "7/8"
 - extendedWaitUntil:
-    visible: "7/8"
+    visible: ".*7/8 ·.*"
     timeout: 5000
-- tapOn: "4/4 time"
+- tapOn: "4/4"
 - extendedWaitUntil:
-    visible: "4/4"
+    visible: ".*4/4 ·.*"
     timeout: 5000
+# Close the sheet on its scrim.
+- tapOn:
+    point: "50%,15%"
+- waitForAnimationToEnd
 # Start then stop the metronome (state toggle; the click itself is HUMAN).
 - tapOn: "Start the metronome"
 - extendedWaitUntil:

@@ -26,6 +26,9 @@ export type StepperProps = {
   /** Glyph pair. Chevrons for a position on time (never mirrored: the axis
    *  stays put in RTL); remove/add for a value. */
   glyphs?: "chevrons" | "plusMinus";
+  /** `large` beside a hero value (the metronome's tempo): 24 pt glyph in a
+   *  48 pt target. Default is the 17 pt glyph in 36 pt. */
+  size?: "default" | "large";
   /** Rendered between the two keys. */
   children?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -40,6 +43,7 @@ function StepKey({
   enabled,
   label,
   glyph,
+  large = false,
   onStep,
   testID,
 }: {
@@ -47,6 +51,7 @@ function StepKey({
   enabled: boolean;
   label: string;
   glyph: keyof typeof Ionicons.glyphMap;
+  large?: boolean;
   onStep: (direction: -1 | 1) => void;
   testID?: string;
 }) {
@@ -69,7 +74,7 @@ function StepKey({
     <Press
       haptic="none"
       feel="glyph"
-      style={s.key}
+      style={large ? s.keyLarge : s.key}
       disabled={!enabled}
       onPress={step}
       onLongPress={() => {
@@ -83,7 +88,7 @@ function StepKey({
       accessibilityLabel={label}
       testID={testID}
     >
-      <Ionicons name={glyph} size={17} color={colors.textStrong} />
+      <Ionicons name={glyph} size={large ? 24 : 17} color={colors.textStrong} />
     </Press>
   );
 }
@@ -95,6 +100,7 @@ export function Stepper({
   decrementLabel,
   incrementLabel,
   glyphs = "chevrons",
+  size = "default",
   children,
   style,
   testID,
@@ -108,6 +114,7 @@ export function Stepper({
         enabled={canDecrement}
         label={decrementLabel}
         glyph={down}
+        large={size === "large"}
         onStep={onStep}
         testID={testID ? `${testID}-down` : undefined}
       />
@@ -117,6 +124,7 @@ export function Stepper({
         enabled={canIncrement}
         label={incrementLabel}
         glyph={up}
+        large={size === "large"}
         onStep={onStep}
         testID={testID ? `${testID}-up` : undefined}
       />
@@ -134,6 +142,12 @@ const s = StyleSheet.create({
   key: {
     width: 36,
     height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  keyLarge: {
+    width: 48,
+    height: 48,
     alignItems: "center",
     justifyContent: "center",
   },
