@@ -98,7 +98,6 @@ export function IdeaListFilterSection({
           value={draft}
           placeholder={t("collection.searchPlaceholder")}
           onChangeText={handleSearchChange}
-          tonal
         />
       }
       rightSlot={

@@ -119,14 +119,15 @@ export const shelfStyles = {
     },
 
     // ── "Recently left the shelf" rows ───────────────────────────────────
+    // Rows on paper (2026-10-15): a departed idea is a record, not a box.
     departedRow: {
       flexDirection: "row",
       alignItems: "center",
       gap: 10,
-      backgroundColor: colors.surfaceContainer,
-      borderRadius: radii.lg,
+      minHeight: 48,
       paddingVertical: 10,
-      paddingHorizontal: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.borderMuted,
     },
     departedTitle: {
       flex: 1,

@@ -33,7 +33,7 @@ import { useWorkspaceCollectionImportFlow } from "../hooks/useWorkspaceCollectio
 import { WorkspaceCollectionList } from "./WorkspaceCollectionList";
 import { WorkspaceAvatar } from "../../common/WorkspaceAvatar";
 import { styles } from "../../../styles";
-import { colors, radii } from "../../../design/tokens";
+import { colors, radii, spacing } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../../i18n";
 
@@ -506,7 +506,7 @@ const browseStyles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.lg,
     gap: 0,
   },
   emptyMsg: {
@@ -521,7 +521,7 @@ const browseStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.lg,
     paddingTop: 8,
     paddingBottom: 4,
   },
@@ -548,7 +548,7 @@ const browseStyles = StyleSheet.create({
 
   // ── Collapsible identity block ──────────────────────────────────────────────
   identityBlock: {
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.lg,
     paddingTop: 4,
     paddingBottom: 20,
     gap: 4,
@@ -581,7 +581,7 @@ const browseStyles = StyleSheet.create({
 
   // ── Pinned search wrapper ──────────────────────────────────────────────────
   searchWrapper: {
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.lg,
     paddingBottom: 8,
   },
 

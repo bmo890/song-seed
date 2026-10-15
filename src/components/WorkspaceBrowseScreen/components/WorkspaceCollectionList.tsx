@@ -1,5 +1,5 @@
+import { colors } from "../../../design/tokens";
 import { StyleSheet, View } from "react-native";
-import { SurfaceCard } from "../../common/SurfaceCard";
 import { EmptyState } from "../../common/EmptyState";
 import type { WorkspaceCollectionBrowseEntry } from "../../../domain/libraryNavigation";
 import { WorkspaceCollectionCard } from "./WorkspaceCollectionCard";
@@ -26,9 +26,9 @@ export function WorkspaceCollectionList({
   return (
     <View style={listStyles.list}>
       {collectionEntries.length > 0 ? (
-        // One flat structural group (SurfaceCard's r8 shell, no padding) — the
-        // rows inside carry their own insets and hairlines.
-        <SurfaceCard style={listStyles.group}>
+        // Rows on paper (2026-10-15): structure carries no surface; a hairline
+        // above the first row and under each.
+        <View style={listStyles.group}>
           {collectionEntries.map((entry, index) => {
             const collection = entry.collection;
             const isSelected = selectedCollectionIds.includes(collection.id);
@@ -40,13 +40,12 @@ export function WorkspaceCollectionList({
                 searchQuery={searchQuery}
                 selectionMode={selectionMode}
                 isSelected={isSelected}
-                divided={index > 0}
                 onPress={() => onPressCollection(collection.id)}
                 onLongPress={() => onLongPressCollection(collection.id)}
               />
             );
           })}
-        </SurfaceCard>
+        </View>
       ) : null}
 
       {collectionEntries.length === 0 ? (
@@ -75,8 +74,7 @@ const listStyles = StyleSheet.create({
     gap: 12,
   },
   group: {
-    padding: 0,
-    gap: 0,
-    overflow: "hidden",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderMuted,
   },
 });

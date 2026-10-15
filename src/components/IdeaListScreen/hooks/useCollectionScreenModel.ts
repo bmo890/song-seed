@@ -237,6 +237,7 @@ export function useCollectionScreenModel() {
       key: `idea:${idea.id}`,
       type: "idea",
       ideaId: idea.id,
+      isSketch: idea.kind === "project",
       dayLabel: getDateBucketLabel(getIdeaSortTimestamp(idea, ideasSort)),
       dayDividerLabel,
       dayStartTs: dayStartTsValue ?? null,

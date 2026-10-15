@@ -95,8 +95,8 @@ export type IdeaCardProps = {
     isInsideTarget?: boolean;
     /** Drag active inside — scale down slightly */
     isDragActiveInside?: boolean;
-    /** Left accent bar color (workspace color for song cards) */
-    accentBorderColor?: string | null;
+    /** A sketch: the card wears a stack of pages beneath it. */
+    stacked?: boolean;
     /** Status mark in the title row, just before the duration — the most-read
      *  line on the card, so a rare status lands without adding a surface. */
     titleAccessory?: ReactNode;
@@ -223,7 +223,7 @@ export function IdeaCard({
     isSong,
     isInsideTarget,
     isDragActiveInside,
-    accentBorderColor,
+    stacked = false,
     titleAccessory,
     compact,
     denseRow,
@@ -322,9 +322,6 @@ export function IdeaCard({
             <View
                 style={[
                     styles.ideaDenseRow,
-                    accentBorderColor
-                        ? { borderLeftWidth: 3, borderLeftColor: accentBorderColor, paddingLeft: 8 }
-                        : null,
                     (selected || isActive) ? styles.ideaDenseRowSelected : null,
                     sounding ? styles.ideaDenseRowNowPlaying : null,
                     pickDisabled ? styles.btnDisabled : null,
@@ -453,19 +450,17 @@ export function IdeaCard({
         );
     }
 
-    return (
+    const card = (
         <View
             style={[
                 styles.ideasListCard,
                 compact ? styles.ideasListCardCompact : null,
-                accentBorderColor ? styles.ideasListProjectCard : null,
-                accentBorderColor ? { borderLeftColor: accentBorderColor } : null,
                 (selected || isActive) ? styles.ideasListCardSelected : null,
                 sounding ? styles.ideasListCardSounding : null,
                 isInsideTarget ? styles.cardInsideHover : null,
                 isDragActiveInside ? styles.cardActiveInside : null,
                 pickDisabled ? styles.btnDisabled : null,
-                containerStyle ?? null,
+                stacked ? null : (containerStyle ?? null),
             ]}
         >
             {highlightValue != null ? (
@@ -659,6 +654,17 @@ export function IdeaCard({
                         </View>
                     ) : null}
             </View>
+        </View>
+    );
+    if (!stacked) return card;
+    // A sketch is a few pages held together (2026-10-15): two paper edges peek
+    // out under its card, so it reads as more than one sheet at scroll speed,
+    // without colour. Margins move to the wrapper so the stack keeps them.
+    return (
+        <View style={[styles.ideasListStack, containerStyle ?? null]}>
+            <View pointerEvents="none" style={styles.ideasListStackBack} />
+            <View pointerEvents="none" style={styles.ideasListStackMiddle} />
+            {card}
         </View>
     );
 }

@@ -59,16 +59,14 @@ export const settingsScreenStyles = StyleSheet.create({
   },
   // Grouped-settings surface: a section's rows share one soft card, separated by
   // hairline dividers rather than each floating in its own bordered box.
+  // Structure is rows on paper (2026-10-15): no fill, no border, the rows'
+  // own 14 pt inset pulled back out so their glyphs sit on the page gutter.
   group: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    overflow: "hidden",
+    marginHorizontal: -14,
   },
   groupDivider: {
-    height: 1,
-    backgroundColor: colors.borderSubtle,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.borderMuted,
     marginHorizontal: 14,
   },
   libraryCard: {
@@ -78,18 +76,16 @@ export const settingsScreenStyles = StyleSheet.create({
     backgroundColor: colors.surfaceContainer,
     borderRadius: radii.lg,
     paddingVertical: 13,
-    paddingHorizontal: 13,
+    paddingHorizontal: 14,
   },
   // Flat variant of libraryCard for use inside a `group` surface.
   libraryCardFlat: {
     backgroundColor: "transparent",
     borderRadius: 0,
   },
+  // A bare ink glyph; the tinted disc is gone with the cards.
   libraryCardIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.round,
-    backgroundColor: colors.primarySurface,
+    width: 22,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -99,14 +95,14 @@ export const settingsScreenStyles = StyleSheet.create({
     gap: 1,
   },
   libraryCardTitle: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 14,
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 15,
     color: colors.textPrimary,
   },
   libraryCardMeta: {
     fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 13,
+    lineHeight: 17,
     color: colors.textSecondary,
   },
   segmentedField: {

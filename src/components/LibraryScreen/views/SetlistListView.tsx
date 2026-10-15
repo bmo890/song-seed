@@ -1,8 +1,5 @@
-import { ScrollView, Text, View } from "react-native";
-import { Press } from "../../common/Press";
-import { colors } from "../../../design/tokens";
-import { Ionicons } from "@expo/vector-icons";
-import { dirIcon } from "../../../design/directionalIcons";
+import { ScrollView, View } from "react-native";
+import { ListRow, ListRowMeta, ListRows } from "../../common/ListRow";
 import { EmptyState } from "../../common/EmptyState";
 import { ProvenanceChip } from "../../common/ProvenanceChip";
 import { styles } from "../styles";
@@ -32,28 +29,22 @@ export function SetlistListView({
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.listContent}>
-        {setlists.map((setlist) => (
-          <Press
-            haptic="none"
-            key={setlist.id}
-            style={styles.card}
-            onPress={() => onOpen(setlist.id)}
-          >
-            <View style={styles.cardTop}>
-              <View style={styles.cardTitleRow}>
-                <Ionicons name="albums-outline" size={18} color={colors.textPrimary} />
-                <Text style={styles.cardTitle}>{setlist.title}</Text>
-              </View>
-              <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
-            </View>
-            <View style={styles.cardMetaRow}>
-              {setlist.received ? <ProvenanceChip received={setlist.received} /> : null}
-              <Text style={styles.cardMeta}>
-                {t("library.songs", { count: setlist.entries.length })}
-              </Text>
-            </View>
-          </Press>
-        ))}
+        <ListRows>
+          {setlists.map((setlist) => (
+            <ListRow
+              key={setlist.id}
+              icon="albums-outline"
+              title={setlist.title}
+              onPress={() => onOpen(setlist.id)}
+              meta={
+                <>
+                  {setlist.received ? <ProvenanceChip received={setlist.received} /> : null}
+                  <ListRowMeta>{setlist.received ? "· " : ""}{t("library.songs", { count: setlist.entries.length })}</ListRowMeta>
+                </>
+              }
+            />
+          ))}
+        </ListRows>
 
         {setlists.length === 0 ? (
           <EmptyState

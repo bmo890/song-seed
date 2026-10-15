@@ -1,8 +1,5 @@
-import { ScrollView, Text, View } from "react-native";
-import { Press } from "../../common/Press";
-import { colors } from "../../../design/tokens";
-import { Ionicons } from "@expo/vector-icons";
-import { dirIcon } from "../../../design/directionalIcons";
+import { ScrollView, View } from "react-native";
+import { ListRow, ListRowMeta, ListRows } from "../../common/ListRow";
 import { EmptyState } from "../../common/EmptyState";
 import { ProvenanceChip } from "../../common/ProvenanceChip";
 import { styles } from "../styles";
@@ -32,28 +29,22 @@ export function SongbookListView({
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.listContent}>
-        {songbooks.map((songbook) => (
-          <Press
-            haptic="none"
-            key={songbook.id}
-            style={styles.card}
-            onPress={() => onOpen(songbook.id)}
-          >
-            <View style={styles.cardTop}>
-              <View style={styles.cardTitleRow}>
-                <Ionicons name="book-outline" size={18} color={colors.textPrimary} />
-                <Text style={styles.cardTitle}>{songbook.title}</Text>
-              </View>
-              <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
-            </View>
-            <View style={styles.cardMetaRow}>
-              {songbook.received ? <ProvenanceChip received={songbook.received} /> : null}
-              <Text style={styles.cardMeta}>
-                {t("library.charts", { count: songbook.items.length })}
-              </Text>
-            </View>
-          </Press>
-        ))}
+        <ListRows>
+          {songbooks.map((songbook) => (
+            <ListRow
+              key={songbook.id}
+              icon="book-outline"
+              title={songbook.title}
+              onPress={() => onOpen(songbook.id)}
+              meta={
+                <>
+                  {songbook.received ? <ProvenanceChip received={songbook.received} /> : null}
+                  <ListRowMeta>{songbook.received ? "· " : ""}{t("library.charts", { count: songbook.items.length })}</ListRowMeta>
+                </>
+              }
+            />
+          ))}
+        </ListRows>
 
         {songbooks.length === 0 ? (
           <EmptyState

@@ -1078,3 +1078,32 @@ or unneeded"):
 - Cut-up remix: "scraps" out.
 - Kept: collection and sketch meta lines, Revisit's date line, Lyric Pad's
   count, Shelf's ledgers, help-sheet theses, Bluetooth calibration steps.
+
+## One row, one card (2026-10-15, step 4)
+
+Canvas: https://claude.ai/artifact/JeVR9WsFTdFgCYvDqBa2ij. Founder: A (rows on
+paper) for structure; Lyric Pad pages become idea cards; on the sketch
+marker: "the rail is unclear to begin with... when scrolling quickly it
+blends together... I'm looking for a quicker signal". Three signals mocked
+(stack, thread of takes, clips step back to rows); founder picked 1, Stack.
+
+Built:
+- `IdeaCard stacked`: two tonal paper edges (surface + surfaceContainer, the
+  card's whisper shadow) under a sketch's card, 10 pt. Replaces
+  `accentBorderColor` (the rail) in the collection and every inline card
+  (Revisit, Shelf, Activity). Compact rows drop the rail with no stand-in yet.
+- List geometry: sketches are their own row kind (`isSketch` on the entry,
+  `rowKind("sketch", …)`), so unmeasured sketch rows get the right height.
+- `common/ListRow` (+ `ListRows`, `ListRowMeta`): the structure row. Used by
+  Playlists, Setlists and Songbooks (which used the deprecated radius-4
+  `styles.card`); Received and the workspace hub restyled to the same anatomy;
+  the Settings group lost its surface and border, its rows their tinted
+  discs, across all 16 uses; Shelf's departed rows are rows.
+- Provenance is a quiet inline "From Dana" with the mail glyph, no chip.
+- Lyric Pad pages: white r12 card, Lora title, the opening line in Lora
+  italic on one line, plain date (no uppercase).
+- One search field: `SearchField` is always the tonal fill; `tonal` removed.
+- Hub gutter 24 to 16; hub primary star and Revisit section icons in ink.
+
+Not done here: the sketch page's PRIMARY TAKE strip still has its rail (it
+marks the primary take, not a sketch); compact density has no sketch marker.

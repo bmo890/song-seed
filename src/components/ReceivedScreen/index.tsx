@@ -208,7 +208,11 @@ export function ReceivedScreen() {
                 accessibilityLabel={t("received.openPackage", { title: pkg.received?.shareTitle ?? pkg.title })}
               >
                 <View style={receivedStyles.packageIcon}>
-                  <Ionicons name={selected ? "checkmark" : KIND_ICONS[kind]} size={18} color={colors.primaryDeep} />
+                  <Ionicons
+                    name={selected ? "checkmark" : KIND_ICONS[kind]}
+                    size={19}
+                    color={selected ? colors.primaryDeep : colors.textStrong}
+                  />
                 </View>
                 <View style={receivedStyles.packageMain}>
                   <Text style={receivedStyles.packageTitle} numberOfLines={1}>
@@ -340,8 +344,11 @@ const receivedStyles = StyleSheet.create({
   scrollContentSelecting: {
     paddingBottom: 160,
   },
+  // Structure is rows on paper (2026-10-15): parcels sit on hairlines, no
+  // boxes, no icon tiles.
   list: {
-    gap: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderMuted,
   },
   countLine: {
     ...textTokens.supporting,
@@ -368,6 +375,9 @@ const receivedStyles = StyleSheet.create({
   },
   packageGroup: {
     gap: 2,
+    paddingBottom: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
   },
   // A package's collections: quiet rows tucked under the package, indented to
   // read as its contents, not as more packages.
@@ -375,7 +385,7 @@ const receivedStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    marginStart: 44 + spacing.md + 14,
+    marginStart: 22 + spacing.md,
     paddingVertical: 8,
     paddingEnd: 14,
   },
@@ -394,22 +404,15 @@ const receivedStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    minHeight: 64,
+    paddingVertical: 10,
     borderRadius: radii.lg,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
   },
   packageRowSelected: {
     backgroundColor: colors.primarySurface,
-    borderColor: colors.primary,
   },
   packageIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: radii.md,
-    backgroundColor: colors.primarySurface,
+    width: 22,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -418,9 +421,10 @@ const receivedStyles = StyleSheet.create({
     minWidth: 0,
     gap: 2,
   },
+  // A parcel's title is a name its sender typed: it earns the serif.
   packageTitle: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 15,
+    fontFamily: "Lora_500Medium",
+    fontSize: 17,
     color: colors.textPrimary,
   },
   packageMeta: {

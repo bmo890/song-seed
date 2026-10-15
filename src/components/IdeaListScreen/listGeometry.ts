@@ -27,10 +27,14 @@ export type ListDensity = "comfortable" | "compact";
 
 export function rowKindOf(entry: IdeaListEntry, density: ListDensity): string {
   if (entry.type === "collapsedDay") return rowKind("collapsedDay", density, false);
-  return rowKind("idea", density, !!entry.dayDividerLabel);
+  return rowKind(entry.isSketch ? "sketch" : "idea", density, !!entry.dayDividerLabel);
 }
 
-export function rowKind(type: "idea" | "collapsedDay", density: ListDensity, withDivider: boolean): string {
+export function rowKind(
+  type: "idea" | "sketch" | "collapsedDay",
+  density: ListDensity,
+  withDivider: boolean
+): string {
   return `${type}|${density}|${withDivider ? 1 : 0}`;
 }
 
@@ -40,6 +44,11 @@ const DEFAULT_ESTIMATES: Record<string, number> = {
   "idea|comfortable|1": 150,
   "idea|compact|0": 64,
   "idea|compact|1": 100,
+  // A sketch's card carries its stack of pages: 10 pt more than a clip's.
+  "sketch|comfortable|0": 120,
+  "sketch|comfortable|1": 160,
+  "sketch|compact|0": 64,
+  "sketch|compact|1": 100,
   "collapsedDay|comfortable|0": 64,
   "collapsedDay|compact|0": 56,
 };

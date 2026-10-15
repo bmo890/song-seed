@@ -83,7 +83,6 @@ export function CompilationListControls({
           value={searchQuery}
           placeholder={searchPlaceholder}
           onChangeText={onSearchQueryChange}
-          tonal
         />
       }
       filter={
