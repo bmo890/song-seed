@@ -366,7 +366,6 @@ export function GlobalMediaDock({
                 isRecording={recorder.isRecording}
                 isPaused={recorder.isPaused}
               />
-              <Text style={styles.miniMediaDockHintText}>{t("mediaDock.reopenControls")}</Text>
             </View>
           </View>
         </Pressable>

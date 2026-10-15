@@ -256,9 +256,6 @@ function SearchLanding() {
           </View>
         ))}
       </View>
-      <Text style={searchScreenStyles.landingHint}>
-        {t("search.landingHint")}
-      </Text>
     </Animated.View>
   );
 }

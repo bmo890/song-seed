@@ -163,12 +163,6 @@ export function SongClipFilterMenu({
       </ScrollView>
 
       <View style={styles.ideasDropdownDivider} />
-      <View style={styles.ideasDropdownSectionToggle}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-          <Ionicons name="bookmark-outline" size={12} color={colors.textMuted} />
-          <Text style={styles.ideasDropdownSectionToggleText}>{t("songDetail.savedClips")}</Text>
-        </View>
-      </View>
       <View style={styles.ideasStageInkWrap}>
         <InkToggle
           label={t("songDetail.bookmarkedOnly")}

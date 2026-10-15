@@ -817,11 +817,11 @@ export function PlayerPracticeDrawers({
       <View style={practiceLoopEnabled ? pd.selectedCard : null}>
         <View style={[pd.row, practiceLoopEnabled ? pd.rowInCard : null]}>
           <Text style={pd.rowLabel}>{t("player.loop")}</Text>
-          {practiceLoopEnabled ? (
-            <Text style={pd.rowValue}>{`${fmtDuration(loop.start)} → ${fmtDuration(loop.end)}`}</Text>
-          ) : (
-            <Text style={pd.rowValue}>{t("player.off")}</Text>
-          )}
+          {/* Off needs no word: the switch already says it. The empty value
+              still takes the row's slack so the switch stays at the edge. */}
+          <Text style={pd.rowValue}>
+            {practiceLoopEnabled ? `${fmtDuration(loop.start)} → ${fmtDuration(loop.end)}` : ""}
+          </Text>
           <Switch
             value={practiceLoopEnabled}
             onValueChange={() => onTogglePracticeLoop()}

@@ -1,3 +1,4 @@
+import { buildClipLineages } from "../../../../domain/clipGraph";
 import { Pressable, Text, View } from "react-native";
 import ReAnimated, { useAnimatedStyle } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
@@ -74,6 +75,8 @@ export function SongClipListToolbar({
   const { screen, store } = useSongScreen();
   const selectedIdea = screen.selectedIdea;
   const clipSelectionMode = useStore((s) => s.clipSelectionMode);
+  const takeTotal =
+    selectedIdea?.kind === "project" ? buildClipLineages(selectedIdea.clips).length : -1;
 
   // Keep the label mounted so the pinned toolbar height stays stable while the
   // collapsible header crosses its docked threshold.
@@ -91,7 +94,9 @@ export function SongClipListToolbar({
         {/* Takes, not "Ideas" — inside a sketch the terminology law says take. */}
         <SongClipListSectionLabel
           title={t(selectedIdea.kind === "project" ? "screens.takes" : "songDetail.replies")}
-          count={visibleIdeaCount}
+          // The sketch's meta line already says "8 takes"; the label counts
+          // only when a filter makes the list show fewer.
+          count={visibleIdeaCount === takeTotal ? undefined : visibleIdeaCount}
         />
       </ReAnimated.View>
 

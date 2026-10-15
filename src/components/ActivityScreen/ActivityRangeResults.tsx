@@ -146,9 +146,12 @@ export function ActivityRangeResults({
         onLayout?.(y, height);
       }}
     >
-      <Text style={styles.activityResultsSummaryText}>
-        {t("activity.itemCount", { count: selectedRangeItemCount })}
-      </Text>
+      {/* A count of zero only repeats the empty state below it. */}
+      {selectedRangeItemCount > 0 ? (
+        <Text style={styles.activityResultsSummaryText}>
+          {t("activity.itemCount", { count: selectedRangeItemCount })}
+        </Text>
+      ) : null}
 
       <ActivityResultsList {...{
         results: itemResults,
