@@ -13,9 +13,9 @@ import {
   parseToneFlags,
   type OverdubToneFlag,
 } from "../../domain/overdub";
-import { colors, radii, text } from "../../design/tokens";
-import { Knob } from "./Knob";
-import { LitKey } from "./LitKey";
+import { colors, text } from "../../design/tokens";
+import { InkOption } from "./InkOption";
+import { Slider } from "./Slider";
 import { Press } from "./Press";
 
 /** i18n keys for the tone keys, by flag. */
@@ -37,17 +37,17 @@ export type LevelToneStripProps = {
 };
 
 /**
- * THE take's sound: a level knob beside a two-by-two bank of lit tone keys — the
- * top of a channel strip in the app's materials (Sound room, 2026-10-14). One
- * component for the player's Sound drawer and the Layers bench, so a take and a
- * layer are tuned with the same hands.
+ * THE take's sound: a level and four tone options, in the drawer's one row
+ * recipe (2026-10-15, founder picked "Sound A"): a label, its value at the
+ * end, the control beneath. The level is a kit Slider with a detent at every
+ * step and a rest at 0 dB (it was a knob); tone is editorial ink, dot + word,
+ * hollow to terracotta (they were boxed lit keys). One component for the
+ * player's Sound drawer and the Layers bench, so a take and a layer are tuned
+ * with the same hands.
  *
- * Each group carries its own reset, appearing only once something is bent, as the
- * Speed and Pitch dials do. The knob's value is the one thing the musician made,
- * so it earns the serif, and goes terracotta when bent.
- *
- * Haptics are the kit controls' own (Knob: grab/tick/light; LitKey: light; the
- * resets: Press's tap). Nothing here fires its own.
+ * Each group carries its own reset, appearing only once something is bent.
+ * Haptics are the kit controls' own (Slider: grab/tick/light; InkOption:
+ * light; the resets: Press's tap). Nothing here fires its own.
  */
 export function LevelToneStrip({
   gainDb,
@@ -65,54 +65,55 @@ export function LevelToneStrip({
 
   return (
     <View style={[s.strip, style]} testID={testID}>
-      <View style={s.knobColumn}>
-        <Knob
-          value={clampSoundLevelDb(gainDb)}
-          minimumValue={SOUND_LEVEL_MIN_DB}
-          maximumValue={SOUND_LEVEL_MAX_DB}
-          step={1}
-          detent={SOUND_LEVEL_DETENT_DB}
-          rest={0}
-          onValueChange={setDragDb}
-          onRelease={(next) => {
-            setDragDb(null);
-            if (next !== gainDb) onCommitGain(next);
-          }}
-          accessibilityLabel={t("player.level")}
-          testID={testID ? `${testID}-knob` : undefined}
-        />
-        <Text style={[s.readout, levelBent ? s.readoutBent : null]}>
-          {`${shownDb > 0 ? "+" : ""}${shownDb}`}
-          <Text style={[s.unit, levelBent ? s.unitBent : null]}>{` ${t("player.dB")}`}</Text>
-        </Text>
-        <View style={s.labelRow}>
+      <View style={s.group}>
+        <View style={s.head}>
           <Text style={s.label}>{t("player.level")}</Text>
           {gainDb !== 0 ? (
             <ResetKey onPress={() => onCommitGain(0)} accessibilityLabel={t("player.resetLevel")} />
           ) : null}
+          <View style={s.spacer} />
+          <Text style={[s.readout, levelBent ? s.readoutBent : null]}>
+            {`${shownDb > 0 ? "+" : ""}${shownDb} ${t("player.dB")}`}
+          </Text>
         </View>
+        <Slider
+          style={s.slider}
+          fill={false}
+          minimumValue={SOUND_LEVEL_MIN_DB}
+          maximumValue={SOUND_LEVEL_MAX_DB}
+          step={1}
+          detent={SOUND_LEVEL_DETENT_DB}
+          value={clampSoundLevelDb(gainDb)}
+          onValueChange={(next) => setDragDb(Math.round(next))}
+          onSlidingComplete={(next) => {
+            const rounded = Math.round(next);
+            setDragDb(null);
+            if (rounded !== gainDb) onCommitGain(rounded);
+          }}
+          accessibilityLabel={t("player.level")}
+          testID={testID ? `${testID}-level` : undefined}
+        />
       </View>
 
-      <View style={s.keys}>
-        <View style={s.labelRow}>
+      <View style={s.group}>
+        <View style={s.head}>
           <Text style={s.label}>{t("player.tone")}</Text>
           {toneBent ? (
             <ResetKey
               onPress={() => {
-                // Each lit key goes out; the toggle helper writes one flag at a time.
+                // Each lit option goes out; the toggle helper writes one flag at a time.
                 for (const flag of parseToneFlags(tonePreset)) onToggleToneFlag(flag);
               }}
               accessibilityLabel={t("player.resetTone")}
             />
           ) : null}
         </View>
-        <View style={s.bank}>
+        <View style={s.options}>
           {SOUND_TONE_KEY_ORDER.map((flag) => (
-            <LitKey
+            <InkOption
               key={flag}
-              style={s.key}
               label={t(TONE_FLAG_LABEL_KEYS[flag])}
-              on={hasToneFlag(tonePreset, flag)}
+              selected={hasToneFlag(tonePreset, flag)}
               onPress={() => onToggleToneFlag(flag)}
               testID={testID ? `${testID}-${flag}` : undefined}
             />
@@ -123,81 +124,67 @@ export function LevelToneStrip({
   );
 }
 
-/** The dials' reset: a small paper key with a refresh glyph, shown only once there
- *  is something to undo. Press owns the `tap`. */
+/** A group's reset: a bare refresh glyph, shown only once there is something to
+ *  undo. Press owns the `tap`. */
 function ResetKey({ onPress, accessibilityLabel }: { onPress: () => void; accessibilityLabel: string }) {
   return (
     <Press
+      feel="glyph"
       style={s.reset}
       onPress={onPress}
       hitSlop={8}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
     >
-      <Ionicons name="refresh" size={13} color={colors.primaryDeep} />
+      <Ionicons name="refresh" size={14} color={colors.primaryDeep} />
     </Press>
   );
 }
 
 const s = StyleSheet.create({
   strip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 6,
+    gap: 16,
   },
-  knobColumn: {
-    width: 96,
-    alignItems: "center",
-    gap: 2,
+  group: {
+    gap: 8,
   },
-  readout: {
-    ...text.headerTitle,
-    fontSize: 20,
-    fontVariant: ["tabular-nums"],
-  },
-  readoutBent: {
-    color: colors.primaryDeep,
-  },
-  unit: {
-    ...text.caption,
-    fontSize: 11,
-  },
-  unitBent: {
-    color: colors.primaryDeep,
-  },
-  labelRow: {
+  head: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     minHeight: 24,
   },
+  spacer: {
+    flex: 1,
+  },
   label: {
-    ...text.caption,
-    fontSize: 13,
+    ...text.body,
+    fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.textPrimary,
+  },
+  // A measured value, not a name: tabular Jakarta (it was the serif).
+  readout: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 15,
+    color: colors.textStrong,
+    fontVariant: ["tabular-nums"],
+  },
+  readoutBent: {
+    color: colors.primaryDeep,
+  },
+  slider: {
+    height: 32,
   },
   reset: {
     width: 24,
     height: 24,
-    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surface,
   },
-  keys: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-  },
-  bank: {
+  // Four on one line: spread across the row, never wrapping one alone.
+  options: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-  },
-  // Two to a row: each key takes half the bank less its share of the gap.
-  key: {
-    width: "48.5%",
-    flexGrow: 1,
+    justifyContent: "space-between",
+    columnGap: 6,
   },
 });

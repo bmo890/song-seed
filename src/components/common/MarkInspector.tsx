@@ -159,7 +159,6 @@ export function MarkInspector({
         />
         {endMs != null ? (
           <>
-            <Text style={mi.edgeArrow}>→</Text>
             <EdgeChip
               label={endLabel}
               timeMs={edge === "end" ? displayMs : endMs}
@@ -216,7 +215,7 @@ export function MarkInspector({
           accessibilityRole="button"
           accessibilityLabel={t("player.usePlayhead")}
         >
-          <Ionicons name="locate-outline" size={15} color={colors.primaryDeep} />
+          <Ionicons name="locate-outline" size={18} color={colors.textStrong} />
         </Press>
       </View>
       {/* Only rendered when there is something to SAY — a snap hint from the
@@ -262,49 +261,43 @@ export function MarkInspector({
 }
 
 const mi = StyleSheet.create({
-  inspector: { paddingHorizontal: 10, gap: 9 },
-  edgesRow: { alignItems: "center", gap: 8 },
+  inspector: { paddingHorizontal: 10, gap: 6 },
+  // Two readouts, not boxed chips (2026-10-15): the edge being edited is in
+  // full ink over a 2 pt rule, the other recedes over a hairline.
+  edgesRow: { alignItems: "stretch", gap: 14 },
   edgeChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    height: 34,
-    paddingHorizontal: 12,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: "transparent",
+    flex: 1,
+    gap: 2,
+    paddingTop: 4,
+    paddingBottom: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
   },
   edgeChipActive: {
-    backgroundColor: colors.surface,
-    borderColor: colors.primary,
+    borderBottomWidth: 2,
+    borderBottomColor: colors.textPrimary,
   },
-  edgeChipIdle: {
-    opacity: 0.45,
-  },
+  edgeChipIdle: {},
   edgeChipLabel: {
     ...text.annotation,
-    fontSize: 9,
-    color: colors.textSecondary,
+    color: colors.textMuted,
   },
-  edgeChipLabelActive: { color: colors.primaryDeep },
+  edgeChipLabelActive: { color: colors.textStrong },
   edgeChipTime: {
-    ...text.body,
-    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 22,
+    color: colors.textPrimary,
     fontVariant: ["tabular-nums"],
   },
   edgeChipTimeIdle: {
     color: colors.textSecondary,
   },
-  edgeArrow: { ...text.supporting, color: colors.textMuted },
   dragRow: { alignItems: "center", gap: 8 },
   stepper: { flex: 1 },
   dragSlider: { flex: 1, height: 32 },
   nudgeBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: radii.round,
-    backgroundColor: colors.surface,
+    width: 36,
+    height: 36,
     alignItems: "center",
     justifyContent: "center",
   },

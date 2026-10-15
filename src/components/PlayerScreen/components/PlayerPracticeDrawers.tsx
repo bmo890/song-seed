@@ -39,6 +39,9 @@ import { isTonePresetNeutral, type OverdubToneFlag } from "../../../domain/overd
 import { UndoRedoButtons } from "../../common/useUndoHistory";
 import { PIN_ICON } from "../../../design/markIcons";
 
+/** How early the playhead lands when the loop's end is picked. */
+const LOOP_END_PREROLL_MS = 2000;
+
 /**
  * The practice tools as three drawers — Marks / Loop / Sound — replacing the old
  * accordion stack and its absolutely-positioned settings popover (which could park
@@ -826,14 +829,12 @@ export function PlayerPracticeDrawers({
 
   const loopDrawer = (
     <View style={pd.wrap}>
-      <View style={practiceLoopEnabled ? pd.selectedCard : null}>
-        <View style={[pd.row, practiceLoopEnabled ? pd.rowInCard : null]}>
+      {/* No wash, no box (2026-10-15): the loop's edges read below as two
+          plain readouts, so the row no longer repeats them as "00:00 → 00:08". */}
+      <View>
+        <View style={pd.row}>
           <Text style={pd.rowLabel}>{t("player.loop")}</Text>
-          {/* Off needs no word: the switch already says it. The empty value
-              still takes the row's slack so the switch stays at the edge. */}
-          <Text style={pd.rowValue}>
-            {practiceLoopEnabled ? `${fmtDuration(loop.start)} → ${fmtDuration(loop.end)}` : ""}
-          </Text>
+          <View style={pd.rowSpacer} />
           <Switch
             value={practiceLoopEnabled}
             onValueChange={() => onTogglePracticeLoop()}
@@ -863,7 +864,17 @@ export function PlayerPracticeDrawers({
                 ? { minMs: 0, maxMs: Math.max(0, loop.end - MIN_LOOP_LENGTH_MS) }
                 : { minMs: Math.min(loop.start + MIN_LOOP_LENGTH_MS, durationMs), maxMs: Math.max(1, durationMs) }
             }
-            onPickEdge={(nextEdge) => setLoopEdge(nextEdge)}
+            // Picking an edge also cues the playhead there (founder, 2026-10-15:
+            // right for the looper, not for marks): the start exactly, the end
+            // two seconds early so you hear it arrive instead of an instant wrap.
+            onPickEdge={(nextEdge) => {
+              setLoopEdge(nextEdge);
+              onSeek(
+                nextEdge === "start"
+                  ? loop.start
+                  : Math.max(loop.start, loop.end - LOOP_END_PREROLL_MS)
+              );
+            }}
             minMs={loopSliderMin}
             maxMs={loopSliderMax}
             onSlide={setLoopEdgeMs}
@@ -1013,39 +1024,16 @@ export function PlayerPracticeDrawers({
 
   const soundDrawer = (
     <View style={pd.wrap}>
-      <SpeedPitchDials
-        playbackSpeed={playbackSpeed}
-        speedPresets={speedPresets}
-        speedMin={speedMin}
-        speedMax={speedMax}
-        onSpeedTap={onSpeedTap}
-        onSpeedSlideStart={onSpeedSlideStart}
-        onSpeedSliding={onSpeedSliding}
-        onSpeedSlideEnd={onSpeedSlideEnd}
-        pitchShiftSemitones={pitchShiftSemitones}
-        supportsPitchShift={supportsPitchShift}
-        onAdjustPitchShift={onAdjustPitchShift}
-      />
-
-      {/* Below the hairline: the take's own sound, kept with it. Above it, how you
-          practise today. */}
-      {sound ? (
-        <>
-          <View style={pd.soundDivider} />
-          <LevelToneStrip
-            style={pd.soundStrip}
-            gainDb={sound.gainDb}
-            tonePreset={sound.tonePreset}
-            onCommitGain={onCommitSoundLevel}
-            onToggleToneFlag={onToggleSoundTone}
-            testID="sound-strip"
-          />
-        </>
-      ) : null}
-
+      {/* Click leads (founder, 2026-10-15): it exists only on a take recorded
+          with the metronome, so when it is here it is the first thing to set.
+          With no grid on the take there is no Click row at all (founder,
+          2026-10-13): tempo detection is not trustworthy yet, so its "Detect
+          tempo" door is hidden rather than offered. The detect plumbing
+          (onDetectAnalysis, analysis, analysisError) is still passed in and
+          comes back with the row. */}
       {clickAvailable ? (
         <>
-          <View style={[pd.row, pd.rowDivider]}>
+          <View style={pd.row}>
             <Text style={pd.rowLabel}>{t("player.click")}</Text>
             {clickDetail ? <Text style={pd.rowValue}>{clickDetail}</Text> : null}
             <Switch
@@ -1083,13 +1071,39 @@ export function PlayerPracticeDrawers({
               />
             </View>
           ) : null}
+          <View style={pd.soundDivider} />
         </>
       ) : null}
-      {/* With no grid on the take there is no Click row at all (founder,
-          2026-10-13): tempo detection is not trustworthy yet, so its "Detect
-          tempo" door is hidden rather than offered. The detect plumbing
-          (onDetectAnalysis, analysis, analysisError) is still passed in and
-          comes back with the row. */}
+
+      <SpeedPitchDials
+        playbackSpeed={playbackSpeed}
+        speedPresets={speedPresets}
+        speedMin={speedMin}
+        speedMax={speedMax}
+        onSpeedTap={onSpeedTap}
+        onSpeedSlideStart={onSpeedSlideStart}
+        onSpeedSliding={onSpeedSliding}
+        onSpeedSlideEnd={onSpeedSlideEnd}
+        pitchShiftSemitones={pitchShiftSemitones}
+        supportsPitchShift={supportsPitchShift}
+        onAdjustPitchShift={onAdjustPitchShift}
+      />
+
+      {/* Below the hairline: the take's own sound, kept with it. Above it, how you
+          practise today. */}
+      {sound ? (
+        <>
+          <View style={pd.soundDivider} />
+          <LevelToneStrip
+            style={pd.soundStrip}
+            gainDb={sound.gainDb}
+            tonePreset={sound.tonePreset}
+            onCommitGain={onCommitSoundLevel}
+            onToggleToneFlag={onToggleSoundTone}
+            testID="sound-strip"
+          />
+        </>
+      ) : null}
     </View>
   );
 
