@@ -29,7 +29,8 @@ The hard rules below are non-negotiable.
   workspace's collections) is rows on paper: `common/ListRow` or the Settings
   group, a bare ink glyph, no fill, no border, no tinted icon tile, hairlines.
   A sketch's card wears a stack of two paper edges (`IdeaCard stacked`); the
-  terracotta rail is retired. One search field: the tonal fill.
+  terracotta rail is retired. Inside a sketch, a take with older versions
+  wears the same stack ("N older ⌄" unfolds it); `EvolutionGlyph` draws it. One search field: the tonal fill.
   The radius-4 `card` in `styles/base.ts` is deprecated. Never invent a card.
 - No pure black. Shadows are whispers (opacity ≤ 0.08); depth via tonal layering.
 - Color is scarce: terracotta `colors.primary` for THE action + active states,

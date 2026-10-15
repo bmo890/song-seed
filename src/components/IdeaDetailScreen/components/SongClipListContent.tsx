@@ -7,7 +7,6 @@ import { useStore } from "../../../state/useStore";
 import { type ClipCardContextProps } from "./ClipCard";
 import { EvolutionList } from "./EvolutionList";
 import { TimelineList } from "./TimelineList";
-import { PrimaryTakeStrip } from "./PrimaryTakeStrip";
 import { useSongScreen } from "../provider/SongScreenProvider";
 import { type ClipLineage, type TimelineClipEntry } from "../../../domain/clipGraph";
 import { SongClipListSummary } from "./SongClipListSummary";
@@ -48,6 +47,16 @@ export function SongClipListContent({
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const summaryContent = <SongClipListSummary />;
+  // "Collapse all" only when a thread with history is open: finding a lone
+  // take marks its lineage expanded too, and that has nothing to fold.
+  const anyThreadOpen = useMemo(
+    () =>
+      filteredLineages.some(
+        (lineage) =>
+          expandedLineageIds[lineage.root.id] && lineage.clipsOldestToNewest.length > 1
+      ),
+    [filteredLineages, expandedLineageIds]
+  );
 
   useEffect(() => {
     return () => {
@@ -192,11 +201,8 @@ export function SongClipListContent({
         collapsible={
           <View style={{ paddingHorizontal: 16 }}>
             <SongCollapsibleHeader
-              extra={
-                primaryEntry ? (
-                  <PrimaryTakeStrip entry={primaryEntry} onLocate={onLocatePrimary} />
-                ) : null
-              }
+              primaryClip={primaryEntry?.clip ?? null}
+              onLocatePrimary={onLocatePrimary}
             />
           </View>
         }
@@ -205,8 +211,7 @@ export function SongClipListContent({
             {/* Selection mode swaps the toolbar's controls row in place (see
                 SongClipListToolbar) — no extra bar, no layout shift. */}
             <SongClipListHeader visibleIdeaCount={visibleIdeaCount} />
-            {screen.clipViewMode === "evolution" &&
-            Object.values(expandedLineageIds).some(Boolean) ? (
+            {screen.clipViewMode === "evolution" && anyThreadOpen ? (
               <CollapseAllPill onPress={() => setExpandedLineageIds({})} />
             ) : null}
           </View>
@@ -217,19 +222,22 @@ export function SongClipListContent({
 }
 
 /**
- * "Collapse all" pill in the pinned toolbar. It keeps one fixed chip shape so
- * the measured pinned header height does not change while scrolling.
+ * "Collapse all" in the pinned toolbar: quiet ink, glyph + words, so it stays
+ * in reach while the header is docked. A fixed height keeps the measured
+ * pinned header steady while scrolling.
  */
 function CollapseAllPill({ onPress }: { onPress: () => void }) {
   const { t } = useTranslation();
   return (
     <View style={styles.songDetailEvolutionCollapseAllRow}>
       <Press
-        haptic="none"
-        style={styles.songDetailCollapseAllChip}
+        feel="glyph"
+        // haptics.ts: light → small state flips (fold/unfold).
+        haptic="light"
+        style={styles.songDetailEvolutionCollapseAllButton}
         onPress={onPress}
       >
-        <Ionicons name="chevron-collapse-outline" size={13} color={colors.textSecondary} />
+        <Ionicons name="chevron-collapse-outline" size={14} color={colors.textSecondary} />
         <Text style={styles.songDetailEvolutionCollapseAllText}>{t("songDetail.collapseAll")}</Text>
       </Press>
     </View>

@@ -52,20 +52,14 @@ export function SongClipToolbarControls({
         <Pressable style={styles.ideasToolbarBackdrop} onPress={() => setFilterMenuOpen(false)} />
       ) : null}
 
-      {/* View switch leads; utility glyphs sit quietly on the trailing edge
-          (collection toolbar language). Bounded so the glyphs never get pushed
-          off-screen by the flex segments. */}
-      <View style={songClipToolbarStyles.viewToggleWrap}>
-        <SongClipViewToggle
-          clipViewMode={screen.clipViewMode}
-          setClipViewMode={screen.setClipViewMode}
-        />
-      </View>
+      {/* The Evolution switch leads; the utility glyphs sit at one weight on
+          the trailing edge: order, filter, then the legend. */}
+      <SongClipViewToggle
+        clipViewMode={screen.clipViewMode}
+        setClipViewMode={screen.setClipViewMode}
+      />
 
       <View style={songClipToolbarStyles.controlsRight}>
-        {/* The takes legend — versions, primary take, branch vs split */}
-        <HelpButton onPress={openHelp} emphasized={helpEmphasized} size={18} />
-
         {/* Arrange — single tap toggles asc ↔ desc, no dropdown */}
         <SongClipSortTrigger
           direction={screen.timelineSortDirection}
@@ -106,6 +100,9 @@ export function SongClipToolbarControls({
             />
           ) : null}
         </View>
+
+        {/* The takes legend — versions, primary take, branch vs split */}
+        <HelpButton onPress={openHelp} emphasized={helpEmphasized} size={18} />
       </View>
 
       <TakesHelpSheet visible={helpVisible} onClose={() => setHelpVisible(false)} />

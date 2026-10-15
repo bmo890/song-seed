@@ -1159,3 +1159,43 @@ Built:
 
 Seen in the simulator: sketch page (both tab rows), player row with Tools
 closed and open, Marks on and off, Metronome note tabs.
+
+## The sketch page (2026-10-15, step 7)
+
+Canvas: https://claude.ai/artifact/Wp9m8gdVM9kKUuBdSyJ2cc. Founder picked A
+(one tab row, a quieter primary line) with: the line must SAY it is the
+primary take; one toggle instead of the Threads/By date tablist, named
+"Evolution" (not "Versions", not "Group": groups already exist here); group
+headings in the new look; and a clearer icon for the toggle.
+
+Built:
+- Primary take line (`PrimaryTakeLine`, was `PrimaryTakeStrip`): play · name ·
+  "Primary take", under the meta line and ABOVE the tabs, on every tab so the
+  tabs never move. No rail, no box, no locate glyph: the name finds the take
+  (Takes tab: scroll + flash; other tabs: opens Takes). Earned serif.
+- The TAKES label is gone for sketches (the meta line already says "4 takes");
+  it returns, with its count, only when a filter shows fewer.
+- `SongClipViewToggle` is an `InkKey` switch: "Evolution", terracotta when on,
+  muted when off (= by date). `light`. New `common/EvolutionGlyph`: a card
+  with two paper edges, the picture a thread makes. Timeline cards' "find in
+  Evolution" key wears it too (was git-branch).
+- Toolbar glyphs: order, filter, help, one weight on the trailing edge.
+- Threads: the head card is `IdeaCard stacked` (two paper edges) and carries
+  "N older ⌄" in its footer; the tonal shell and the stem's foot row (hinge
+  key + "New version") are gone. Unfolded, the edges lift and the older
+  versions hang under the card on the stem, as before.
+- "+ Version" (ink key) on every Evolution card, a lone take and a thread's
+  head alike (was a bare "+" on lone takes and a labelled mic on threads).
+- Group headings: chevron, name in Lora 17, "2 takes" quiet beside it; tap
+  folds (`light`), long-press renames.
+- "Collapse all" is quiet ink, and only appears when a thread with history is
+  open (finding a lone take used to summon it).
+
+Seen in the simulator: folded and unfolded thread, group heading, toggle on
+and off, Lyrics tab header, the name finding the take, "+ Version" opening
+the recorder as "New version of …". Not seen: Hebrew, Android, compact
+density, a filter leaving fewer takes.
+
+Noticed, not touched: the take actions sheet and the group sheet still use
+boxed rows; "Assign group (2 threads)" says threads; parent-picking outlines
+every card.

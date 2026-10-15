@@ -1,5 +1,4 @@
 import { SegmentedControl } from "../../common/SegmentedControl";
-import { type ReactNode } from "react";
 import { Text, View } from "react-native";
 import { styles } from "../styles";
 import { useSongScreen } from "../provider/SongScreenProvider";
@@ -9,6 +8,8 @@ import { useTranslation } from "react-i18next";
 import { UserText } from "../../../i18n";
 import { formatLastEdited } from "../../../utils";
 import { buildClipLineages } from "../../../domain/clipGraph";
+import { type ClipVersion } from "../../../types";
+import { PrimaryTakeLine } from "./PrimaryTakeLine";
 
 const SONG_TABS = [
   { key: "takes", labelKey: "screens.takes" },
@@ -18,17 +19,21 @@ const SONG_TABS = [
 ] as const;
 
 type SongCollapsibleHeaderProps = {
-  /** Extra content rendered below the tabs (e.g. the primary-take strip on the takes tab). */
-  extra?: ReactNode;
+  /** The Takes tab hands in the primary it shows (an edit may have staged a
+   *  new one) and the way to find it in the list. Other tabs read the stored
+   *  primary, and its name opens the Takes tab. */
+  primaryClip?: ClipVersion | null;
+  onLocatePrimary?: () => void;
 };
 
 /**
- * The collapsible portion of the song-detail header: type eyebrow + large title
- * (+ progress strip for projects), the Takes/Lyrics/Notes tab switcher, and an
- * optional extra slot. Rendered inside `CollapsingHeaderOverlay` so it slides up
+ * The collapsible portion of the song-detail header: large title, the meta
+ * line, the primary take line (sketches), then the Takes/Lyrics/Chart/Notes
+ * tabs. The primary line sits ABOVE the tabs and on every tab, so switching
+ * tabs never moves them. Rendered inside `CollapsingHeaderOverlay` so it slides up
  * and clips away on scroll.
  */
-export function SongCollapsibleHeader({ extra }: SongCollapsibleHeaderProps) {
+export function SongCollapsibleHeader({ primaryClip, onLocatePrimary }: SongCollapsibleHeaderProps) {
   const { t } = useTranslation();
   const { screen } = useSongScreen();
   const selectedIdea = screen.selectedIdea;
@@ -44,10 +49,16 @@ export function SongCollapsibleHeader({ extra }: SongCollapsibleHeaderProps) {
   // Clips still use the in-place edit (title moves into the nav), so hide there.
   const showTitle = isProject || !screen.isEditMode;
   const showTabs = isProject;
+  const primary =
+    primaryClip !== undefined
+      ? primaryClip
+      : isProject
+        ? selectedIdea.clips.find((clip) => clip.isPrimary) ?? null
+        : null;
 
   return (
     // box-none + a non-interactive title lets drags on the title fall through to
-    // the scroll view beneath, while the tabs and primary-strip buttons capture taps.
+    // the scroll view beneath, while the tabs and the primary line capture taps.
     <View pointerEvents="box-none">
       {showTitle ? (
         <View style={styles.songDetailTitleBlock} pointerEvents="none">
@@ -82,6 +93,10 @@ export function SongCollapsibleHeader({ extra }: SongCollapsibleHeaderProps) {
         </View>
       ) : null}
 
+      {showTitle && isProject && primary ? (
+        <PrimaryTakeLine clip={primary} onLocate={onLocatePrimary} />
+      ) : null}
+
       {showTabs ? (
         // The shared tab control (2026-10-15): it was a hand-built copy of the
         // segmented track; now the same ink tabs as every other choice.
@@ -93,8 +108,6 @@ export function SongCollapsibleHeader({ extra }: SongCollapsibleHeaderProps) {
           />
         </View>
       ) : null}
-
-      {extra}
     </View>
   );
 }

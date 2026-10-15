@@ -21,7 +21,8 @@ import { getTagColor, getTagLabel, suggestedSectionTagsForClip } from "../songCl
 import { ClipCardEditForm } from "./clipCard/ClipCardEditForm";
 import { ClipCardEvolutionGuide } from "./clipCard/ClipCardEvolutionGuide";
 import { ClipCardPrimaryIndicator, PrimaryInk } from "./clipCard/ClipCardPrimaryIndicator";
-import { ClipCardReplyButton } from "./clipCard/ClipCardReplyButton";
+import { ClipCardFoldKey, ClipCardVersionKey } from "./clipCard/ClipCardVersionKey";
+import { EvolutionGlyph } from "../../common/EvolutionGlyph";
 import { ClipNoteLine } from "../../common/clip/ClipNoteLine";
 import { ClipTagBadges } from "../../common/clip/ClipTagBadges";
 import { IdeaCard } from "../../common/IdeaCard";
@@ -75,11 +76,22 @@ export type ClipCardContextProps = {
   playback: ClipCardPlaybackProps;
 };
 
+/** A thread head's history: how many older versions, and the fold. */
+export type ClipCardFold = {
+  count: number;
+  expanded: boolean;
+  onToggle: () => void;
+};
+
 type ClipCardProps = {
   entry: ClipCardEntry;
   context: ClipCardContextProps;
   displayOnly?: boolean;
   displayPrimary?: boolean;
+  /** A thread head: the "N older" key in the footer unfolds its history. */
+  fold?: ClipCardFold;
+  /** Paper edges under the card: a take with versions, folded. */
+  stacked?: boolean;
 };
 
 // Memoized: entries come from memoized lineage rows and `context` keeps referential
@@ -90,6 +102,8 @@ export const ClipCard = React.memo(function ClipCard({
   context,
   displayOnly,
   displayPrimary,
+  fold,
+  stacked,
 }: ClipCardProps) {
   const { t } = useTranslation();
   const {
@@ -233,14 +247,11 @@ export const ClipCard = React.memo(function ClipCard({
   const canToggleInlinePlayback = !isDraftProject && !isParentPicking;
   const canShowTrailingAction =
     !displayOnly && !clipSelectionMode && !isEditMode && !isDraftProject && !isParentPicking;
-  // Reply (record a new version) belongs to single-version evolution cards only.
-  // Thread heads hand the action to the stem row's labeled "New version", and
-  // indented children are part of one thread, so neither shows the "+" here.
-  const showReplyButton =
-    canShowTrailingAction &&
-    entry.kind === "evolution" &&
-    !entry.indented &&
-    !entry.hasOlderVersions;
+  // "+ Version" (record a new version) is on every Evolution card, a lone take
+  // and a thread's head alike (2026-10-15); an indented child is part of a
+  // thread, which carries it on its head.
+  const showVersionKey =
+    canShowTrailingAction && entry.kind === "evolution" && !entry.indented;
   // Timeline cards swap reply for a "jump to Evolution" locate action.
   const showLocateButton =
     canShowTrailingAction && entry.kind === "timeline" && !!onLocateClip;
@@ -346,6 +357,7 @@ export const ClipCard = React.memo(function ClipCard({
         nowPlaying={nowPlaying}
         nowPlayingIsPlaying={nowPlayingIsPlaying}
         compact={compactDensity}
+        stacked={stacked}
         highlightValue={highlightValue ?? null}
         canPlay={hasClipPlaybackSource(clip)}
         // Session sits on this exact take → the lead mirrors/drives the dock
@@ -390,12 +402,13 @@ export const ClipCard = React.memo(function ClipCard({
                 accessibilityRole="button"
                 accessibilityLabel={t("clipLineage.findEvolution")}
               >
-                <Ionicons name="git-branch-outline" size={14} color={colors.textMuted} />
+                <EvolutionGlyph size={16} color={colors.textMuted} />
               </Press>
             ) : null}
-            {/* History lives on the thread's stem now — no per-card history glyph. */}
-            {/* New version ("+") stays farthest right — the forward action. */}
-            <ClipCardReplyButton visible={showReplyButton} onPress={handleReply} />
+            {/* "+ Version" stays farthest right: the forward action. */}
+            {showVersionKey ? (
+              <ClipCardVersionKey title={clip.title} onPress={handleReply} />
+            ) : null}
           </>
         }
         bodyContent={
@@ -422,6 +435,10 @@ export const ClipCard = React.memo(function ClipCard({
         }
         footerDate={createdAtLabel}
         footerRightContent={
+          <>
+          {fold ? (
+            <ClipCardFoldKey count={fold.count} expanded={fold.expanded} onToggle={fold.onToggle} />
+          ) : null}
           <ClipTagBadges
             tags={visibleTagBadges}
             disabled={!!displayOnly}
@@ -431,6 +448,7 @@ export const ClipCard = React.memo(function ClipCard({
             onApplySuggestion={applyTag}
             containerStyle={styles.clipCardTagsRowFooter}
           />
+          </>
         }
         // The waveform strip is the inline player: progress + scrub map straight
         // onto the existing inline preview state — no engine changes. displayOnly

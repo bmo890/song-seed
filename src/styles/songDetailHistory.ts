@@ -176,14 +176,18 @@ export const songDetailHistoryStyles = {
     color: "#524440",
     fontFamily: "PlusJakartaSans_700Bold",
   },
-  // "New version" on a single-take card: a bare ink "+" in the footer's
-  // trailing slot (the thread's labeled action lives on the stem row).
-  songDetailVersionReplyBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: radii.round,
+  // The card's ink keys ("+ Version", "2 older ⌄"): glyph + word, no fill,
+  // on the footer's trailing edge.
+  songDetailCardKey: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 3,
+    minHeight: 26,
+  },
+  songDetailCardKeyText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 12,
+    color: colors.textStrong,
   },
   songDetailVersionHistoryBtn: {
     width: 26,
@@ -288,15 +292,6 @@ export const songDetailHistoryStyles = {
     fontSize: 11,
     color: "#84736f",
   },
-  // ── Stemmed thread (Evolution v2) ─────────────────────────────────────────
-  // One slim tinted shell per multi-version lineage: head card on top, then the
-  // stem — older versions (when unfolded) ending in ONE 40pt row that names the
-  // history and carries the thread's "New version" action.
-  songDetailThreadShell: {
-    backgroundColor: "rgba(232,228,223,0.42)",
-    borderRadius: 14,
-    padding: 4,
-  },
   // Indented so the stem sits INSIDE the head card's edge rather than flush
   // with it — history reads as hanging off the card, not as a second column.
   songDetailStem: {
@@ -388,21 +383,6 @@ export const songDetailHistoryStyles = {
     borderWidth: 2,
     borderColor: "rgba(184,125,107,0.6)",
   },
-  // The fold hinge: a chevron centred on the stem line where a node would sit,
-  // so the toggle row is read as a hinge in the line, never as a version.
-  songDetailStemHinge: {
-    position: "absolute",
-    left: 3,
-    top: 9,
-    width: 22,
-    height: 22,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   songDetailStemNodeActive: {
     backgroundColor: "#B87D6B",
     borderColor: "#B87D6B",
@@ -437,102 +417,42 @@ export const songDetailHistoryStyles = {
     color: "#A89994",
     fontVariant: ["tabular-nums"],
   },
-  songDetailStemFoldText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 11,
-    color: "#84736f",
-  },
-  // The stem's one row (40pt): terminal node + "vN · k older versions" toggle
-  // on the left, the thread's forward action on the right. Same horizontal
-  // geometry as a version row so the node lands on the same line.
-  songDetailStemFoot: {
-    position: "relative",
-    flexDirection: "row",
-    alignItems: "center",
-    minHeight: 40,
-    paddingHorizontal: 6,
-    borderWidth: 1.5,
-    borderColor: "transparent",
-  },
-  // Reaches back into the stem gutter so the round key is inside the press target.
-  songDetailStemFootToggle: {
-    flex: 1,
-    minWidth: 0,
-    alignSelf: "stretch",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginStart: -34,
-    paddingStart: 34,
-  },
-  songDetailStemFootAction: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "stretch",
-    gap: 6,
-    paddingLeft: 12,
-  },
-  songDetailStemFootActionText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 11.5,
-    color: colors.primaryDeep,
-  },
   songDetailEvolutionGroupRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: 14,
+    paddingTop: 16,
     paddingBottom: 2,
   },
-  // A group is a QUIET SECTION LABEL, not a surface. The old filled bar made a
-  // third tonal layer (page → group bar → thread shell → card) and read as
-  // another card; an editorial label separates without adding weight.
+  // A group is a heading on the paper, not a surface: the name in Lora (a
+  // name you typed earns the serif), the count quiet beside it.
   songDetailEvolutionGroupContent: {
     flex: 1,
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    alignItems: "baseline",
     gap: 8,
-    minHeight: 24,
-    paddingHorizontal: 2,
+    minHeight: 32,
     paddingVertical: 4,
   },
-  songDetailEvolutionGroupTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    flex: 1,
-    minWidth: 0,
+  songDetailEvolutionGroupChevron: {
+    alignSelf: "center",
   },
   songDetailEvolutionGroupTitle: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 10,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    color: "#a89994",
+    fontFamily: "Lora_600SemiBold",
+    fontSize: 17,
+    color: colors.textPrimary,
+    flexShrink: 1,
   },
   songDetailEvolutionGroupMeta: {
     fontFamily: "PlusJakartaSans_500Medium",
-    fontSize: 11,
-    color: "#a89994",
+    fontSize: 12,
+    color: colors.textSecondary,
     fontVariant: ["tabular-nums"],
-  },
-  songDetailEvolutionGroupMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    flexShrink: 0,
-  },
-  songDetailEvolutionGroupCount: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
   },
   songDetailEvolutionCollapseAllRow: {
     flexDirection: "row",
     justifyContent: "flex-end",
     paddingHorizontal: 16,
-    paddingTop: 2,
-    paddingBottom: 4,
+    paddingBottom: 2,
   },
   songDetailEvolutionCollapseAllButton: {
     // Quiet contextual text action — no bordered/filled pill.
@@ -544,8 +464,8 @@ export const songDetailHistoryStyles = {
   },
   songDetailEvolutionCollapseAllText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 11,
-    color: "#84736f",
+    fontSize: 12,
+    color: colors.textSecondary,
   },
   songDetailEvolutionExpandSep: {
     fontFamily: "PlusJakartaSans_400Regular",

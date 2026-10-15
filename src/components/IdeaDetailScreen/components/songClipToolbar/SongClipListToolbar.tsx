@@ -90,15 +90,17 @@ export function SongClipListToolbar({
 
   return (
     <View style={songClipToolbarStyles.headerStack}>
-      <ReAnimated.View style={labelStyle} pointerEvents="none">
-        {/* Takes, not "Ideas" — inside a sketch the terminology law says take. */}
-        <SongClipListSectionLabel
-          title={t(selectedIdea.kind === "project" ? "screens.takes" : "songDetail.replies")}
-          // The sketch's meta line already says "8 takes"; the label counts
-          // only when a filter makes the list show fewer.
-          count={visibleIdeaCount === takeTotal ? undefined : visibleIdeaCount}
-        />
-      </ReAnimated.View>
+      {/* A sketch says its take count once, in the meta line under the title;
+          the list's label only appears when a filter leaves fewer showing. A
+          clip idea keeps its "Versions" label. */}
+      {selectedIdea.kind !== "project" || visibleIdeaCount !== takeTotal ? (
+        <ReAnimated.View style={labelStyle} pointerEvents="none">
+          <SongClipListSectionLabel
+            title={t(selectedIdea.kind === "project" ? "screens.takes" : "songDetail.replies")}
+            count={visibleIdeaCount === takeTotal ? undefined : visibleIdeaCount}
+          />
+        </ReAnimated.View>
+      ) : null}
 
       {selectedIdea.kind === "project" ? (
         clipSelectionMode ? (

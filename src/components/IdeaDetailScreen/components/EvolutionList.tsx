@@ -115,8 +115,12 @@ function EvolutionGroupHeaderRow({
 
   return (
     <View style={styles.songDetailEvolutionGroupRow}>
+      {/* A group is a heading on the paper (2026-10-15): its name in Lora, the
+          take count quiet beside it. Tap folds it, long-press renames. */}
       <Press
-        haptic="none"
+        feel="glyph"
+        // haptics.ts: light → small state flips (fold/unfold).
+        haptic="light"
         style={styles.songDetailEvolutionGroupContent}
         onPress={() => {
           if (!ideaId) return;
@@ -125,23 +129,21 @@ function EvolutionGroupHeaderRow({
         onLongPress={() => onRename(row.groupId, row.name)}
         delayLongPress={300}
         accessibilityRole="button"
+        accessibilityState={{ expanded: !row.collapsed }}
         accessibilityHint={t("songDetail.renameGroupHint")}
       >
-        <View style={styles.songDetailEvolutionGroupTitleRow}>
-          <Ionicons
-            name={row.collapsed ? "chevron-forward" : "chevron-down"}
-            size={13}
-            color={colors.textSecondary}
-          />
-          <Text style={styles.songDetailEvolutionGroupTitle}>{row.name}</Text>
-        </View>
-        <View style={styles.songDetailEvolutionGroupMetaRow}>
-          <View style={styles.songDetailEvolutionGroupCount}>
-            {/* Musical count glyph — git iconography stays out of the studio. */}
-            <Ionicons name="musical-notes-outline" size={12} color={colors.textMuted} />
-            <Text style={styles.songDetailEvolutionGroupMeta}>{row.lineageCount}</Text>
-          </View>
-        </View>
+        <Ionicons
+          name={row.collapsed ? "chevron-forward" : "chevron-down"}
+          size={14}
+          color={colors.textSecondary}
+          style={styles.songDetailEvolutionGroupChevron}
+        />
+        <Text style={styles.songDetailEvolutionGroupTitle} numberOfLines={1}>
+          {row.name}
+        </Text>
+        <Text style={styles.songDetailEvolutionGroupMeta}>
+          {t("brand.takeCount", { count: row.lineageCount })}
+        </Text>
       </Press>
     </View>
   );
