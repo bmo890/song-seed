@@ -122,8 +122,13 @@ export function useLyricsVersionScreenModel() {
 
   const hasUnsavedChanges = isEditMode && (draftText !== baselineText || textDirection !== baselineDirection);
   const canSave = hasUnsavedChanges && (draftText.trim().length > 0 || versions.length > 0);
+  // Reading a version names it by its own number; only an edit that will
+  // save as a new version previews the number it is about to take (opening
+  // v2 to read it used to say "Version 4").
   const displayedVersionNumber =
-    !resolvedVersion || editSavesAsNew ? versions.length + 1 : sourceVersionNumber ?? versions.length + 1;
+    !resolvedVersion || (isEditMode && editSavesAsNew)
+      ? versions.length + 1
+      : sourceVersionNumber ?? versions.length + 1;
   const versionLabel = t("lyrics.version", { number: displayedVersionNumber });
   const versionMeta = !resolvedVersion ? t("lyrics.unsavedDraft") : formatVersionEdited(resolvedVersion.updatedAt, formatLocale, t);
 

@@ -1,13 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { haptic } from "../../design/haptics";
-import Animated, { FadeIn } from "react-native-reanimated";
-import { durations } from "../../design/motion";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { styles } from "../../styles";
 import { SongIdea, type LyricsVersion } from "../../types";
-import { ChordChartLines } from "../LyricsVersionScreen/components/chords/ChordChart";
 import { useStore } from "../../state/useStore";
 import { appActions } from "../../state/actions";
 import { countLyricsVersionReferences, getLatestLyricsVersion, lyricsDocumentToText } from "../../domain/lyrics";
@@ -17,10 +14,10 @@ import { AppAlert } from "../common/AppAlert";
 import { NotePickerSheet } from "../modals/NotePickerSheet";
 import { SelectionActionSheet } from "../common/SelectionActionSheet";
 import { EmptyState } from "../common/EmptyState";
-import { IconButton } from "../common/IconButton";
-import { LyricsChordsToggle } from "../common/LyricsChordsToggle";
+import { InkKey, inkKeyColor } from "../common/InkKey";
+import { Press } from "../common/Press";
 import type { SelectionAction } from "../common/SelectionDock";
-import { colors, radii, spacing } from "../../design/tokens";
+import { colors, radii, shadows, spacing } from "../../design/tokens";
 import type { Note } from "../../types";
 import { useTranslation } from "react-i18next";
 import { useLocale, UserText } from "../../i18n";
@@ -28,6 +25,8 @@ import type { TFunction } from "i18next";
 
 type LyricsVersionsPanelProps = {
   projectIdea: SongIdea;
+  /** Leads the toolbar row ("Write with the tape" on the sketch's tab). */
+  toolbarLeading?: React.ReactNode;
 };
 
 /** Humanized card date — "Today · 1:14 AM", "Yesterday · …", "3 days ago", "Jun 28". */
@@ -43,7 +42,39 @@ function formatCardDate(ts: number, language: string, t: TFunction): string {
   return date.toLocaleDateString(locale, { month: "short", day: "numeric" });
 }
 
-export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
+/** The current card shows this many lines before "Show all". */
+const PREVIEW_LINES = 4;
+
+/** A small ink key in the card's footer ("Show all ⌄", "2 older ⌄"). */
+function FooterKey({
+  label,
+  icon,
+  onPress,
+}: {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+}) {
+  return (
+    <Press
+      feel="glyph"
+      // haptics.ts: light → small state flips (fold/unfold).
+      haptic="light"
+      style={panelStyles.footerKey}
+      onPress={(event) => {
+        event.stopPropagation();
+        onPress();
+      }}
+      hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+      accessibilityRole="button"
+    >
+      <Text style={panelStyles.footerKeyText}>{label}</Text>
+      <Ionicons name={icon} size={13} color={colors.textStrong} />
+    </Press>
+  );
+}
+
+export function LyricsVersionsPanel({ projectIdea, toolbarLeading }: LyricsVersionsPanelProps) {
   const { t } = useTranslation();
   const { language } = useLocale();
   const navigation = useNavigation<any>();
@@ -53,14 +84,12 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
   const versionsNewestFirst = [...versions].reverse();
   const versionsKey = versions.map((version) => version.id).join("|");
 
-  const [expandedVersionIds, setExpandedVersionIds] = useState<string[]>([]);
   const [selectedVersionIds, setSelectedVersionIds] = useState<string[]>([]);
   const [notePickerVisible, setNotePickerVisible] = useState(false);
   const [moreVisible, setMoreVisible] = useState(false);
   const [createVisible, setCreateVisible] = useState(false);
-  // Chord view is per-version (per card), not global — each card remembers whether
-  // it's showing lyrics or chords.
-  const [chordVersionIds, setChordVersionIds] = useState<string[]>([]);
+  // The older versions fold under the current page (Lyrics B, 2026-10-15).
+  const [olderOpen, setOlderOpen] = useState(false);
 
   const versionHasChords = (version: LyricsVersion) =>
     version.document.lines.some((line) => line.chords.length > 0);
@@ -68,7 +97,6 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
   useEffect(() => {
     // Everything starts collapsed — prune stale ids, never auto-expand.
     const visibleIds = new Set(versions.map((version) => version.id));
-    setExpandedVersionIds((prev) => prev.filter((id) => visibleIds.has(id)));
     setSelectedVersionIds((prev) => prev.filter((id) => visibleIds.has(id)));
   }, [versions, versionsKey]);
 
@@ -84,13 +112,6 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
       forceNewVersion: options?.forceNewVersion,
       createDraft: options?.createDraft,
     });
-  }
-
-  function toggleExpanded(versionId: string) {
-    haptic.light();
-    setExpandedVersionIds((prev) =>
-      prev.includes(versionId) ? prev.filter((id) => id !== versionId) : [...prev, versionId]
-    );
   }
 
   function startSelection(versionId: string) {
@@ -195,6 +216,109 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
     },
   ];
 
+  // ── Lyrics B (2026-10-15): the current page as a card, older versions
+  // stacked beneath it like a take's. A tap opens the full page (lyrics,
+  // the chords switch, Edit); the in-list expand is retired (founder,
+  // 2026-10-15). Long-press selects, as before.
+  const current = latestVersion ?? versionsNewestFirst[0] ?? null;
+  const older = versionsNewestFirst.filter((version) => version.id !== current?.id);
+  const numberOf = (version: LyricsVersion) => versions.findIndex((item) => item.id === version.id) + 1;
+  const metaOf = (version: LyricsVersion) => {
+    const lineCount = version.document.lines.filter((line) => line.text.trim().length > 0).length;
+    return [
+      t("clipLineage.versionTag", { number: numberOf(version) }),
+      formatCardDate(version.updatedAt, language, t),
+      t("lyrics.lineCount", { count: lineCount }),
+      ...(versionHasChords(version) ? [t("lyrics.chords")] : []),
+    ].join(" · ");
+  };
+  const pressVersion = (version: LyricsVersion) => {
+    if (selectionMode) {
+      toggleSelection(version.id);
+      return;
+    }
+    openVersion(version.id);
+  };
+  const renderCurrent = (version: LyricsVersion) => {
+    const text = lyricsDocumentToText(version.document);
+    const isSelected = selectedVersionIds.includes(version.id);
+    const stacked = older.length > 0 && !olderOpen;
+    return (
+      <View style={stacked ? styles.ideasListStack : null}>
+        {stacked ? (
+          <>
+            <View pointerEvents="none" style={styles.ideasListStackBack} />
+            <View pointerEvents="none" style={styles.ideasListStackMiddle} />
+          </>
+        ) : null}
+        <Pressable
+          style={({ pressed }) => [
+            panelStyles.card,
+            isSelected ? panelStyles.cardSelected : null,
+            pressed && !selectionMode ? styles.pressDown : null,
+          ]}
+          onPress={() => pressVersion(version)}
+          onLongPress={() => startSelection(version.id)}
+          delayLongPress={250}
+          accessibilityRole="button"
+          accessibilityLabel={t("lyrics.version", { number: numberOf(version) })}
+        >
+          <UserText align="content" value={text} style={panelStyles.lyric} numberOfLines={PREVIEW_LINES}>
+            {text || t("lyrics.noLyricsVersion")}
+          </UserText>
+          <View style={panelStyles.footer}>
+            <Text style={panelStyles.meta} numberOfLines={1}>
+              {metaOf(version)}
+            </Text>
+            {older.length > 0 ? (
+              <FooterKey
+                label={t("clipLineage.olderShort", { count: older.length })}
+                icon={olderOpen ? "chevron-up" : "chevron-down"}
+                onPress={() => {
+                  haptic.light();
+                  setOlderOpen((open) => !open);
+                }}
+              />
+            ) : null}
+          </View>
+        </Pressable>
+      </View>
+    );
+  };
+  const renderOlder = (version: LyricsVersion, index: number) => {
+    const text = lyricsDocumentToText(version.document);
+    const firstLine = text.split("\n").find((line) => line.trim().length > 0) ?? t("lyrics.noLyricsVersion");
+    const isSelected = selectedVersionIds.includes(version.id);
+    return (
+      <View
+        key={version.id}
+        style={[panelStyles.olderRow, index === older.length - 1 ? null : panelStyles.olderRowRule]}
+      >
+        <Pressable
+          style={({ pressed }) => [
+            panelStyles.olderRowTop,
+            isSelected ? panelStyles.olderRowSelected : null,
+            pressed && !selectionMode ? styles.pressDown : null,
+          ]}
+          onPress={() => pressVersion(version)}
+          onLongPress={() => startSelection(version.id)}
+          delayLongPress={250}
+          accessibilityRole="button"
+          accessibilityLabel={t("lyrics.version", { number: numberOf(version) })}
+        >
+          <View style={panelStyles.olderCopy}>
+            <UserText align="content" value={firstLine} style={panelStyles.olderTitle} numberOfLines={1}>
+              {firstLine}
+            </UserText>
+            <Text style={panelStyles.meta} numberOfLines={1}>
+              {metaOf(version)}
+            </Text>
+          </View>
+        </Pressable>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.songDetailTabPanelWrap}>
       {selectionMode ? (
@@ -225,17 +349,19 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
             </Pressable>
           </View>
         </View>
-      ) : versions.length > 0 ? (
+      ) : versions.length > 0 || toolbarLeading ? (
+        // One toolbar row, the Takes tab's language: the tape door leads, the
+        // forward action ("+ Version") sits on the trailing edge.
         <View style={panelStyles.controlRow}>
-          <Text style={panelStyles.sectionLabel}>{t("lyrics.versions", { count: versions.length })}</Text>
-          <Pressable
-            style={({ pressed }) => [panelStyles.addBtn, pressed ? styles.pressDown : null]}
-            onPress={() => setCreateVisible(true)}
-            hitSlop={6}
-            accessibilityLabel={t("lyrics.newVersion")}
-          >
-            <Ionicons name="add" size={22} color={colors.primaryDeep} />
-          </Pressable>
+          {toolbarLeading ?? <View />}
+          {versions.length > 0 ? (
+            <InkKey
+              glyph={<Ionicons name="add" size={17} color={inkKeyColor("idle")} />}
+              label={t("clipLineage.versionKey")}
+              accessibilityLabel={t("lyrics.newVersion")}
+              onPress={() => setCreateVisible(true)}
+            />
+          ) : null}
         </View>
       ) : null}
 
@@ -250,121 +376,12 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
           linkLabel={t("lyrics.fromPad")}
           onLink={() => setNotePickerVisible(true)}
         />
-      ) : (
-        versionsNewestFirst.map((version) => {
-          const isLatest = latestVersion?.id === version.id;
-          const isExpanded = expandedVersionIds.includes(version.id);
-          const isSelected = selectedVersionIds.includes(version.id);
-          const versionNumber = versions.findIndex((item) => item.id === version.id) + 1;
-          const previewText = lyricsDocumentToText(version.document);
-          const lineCount = version.document.lines.filter((line) => line.text.trim().length > 0).length;
-          const hasChords = versionHasChords(version);
-
-          return (
-            <View
-              key={version.id}
-              style={[
-                styles.card,
-                styles.songDetailTabPanelCard,
-                isSelected ? styles.listCardSelected : null,
-              ]}
-            >
-              <Pressable
-                style={({ pressed }) => (pressed && !selectionMode ? styles.pressDown : null)}
-                onLongPress={() => startSelection(version.id)}
-                delayLongPress={250}
-                onPress={() => {
-                  if (selectionMode) {
-                    toggleSelection(version.id);
-                    return;
-                  }
-                  openVersion(version.id);
-                }}
-              >
-                <View style={panelStyles.cardTop}>
-                  <View style={[panelStyles.vnum, isLatest ? panelStyles.vnumCur : null]}>
-                    <Text style={[panelStyles.vnumText, isLatest ? panelStyles.vnumTextCur : null]}>
-                      {versionNumber}
-                    </Text>
-                  </View>
-                  <View style={panelStyles.cardBody}>
-                    <View style={panelStyles.titleRow}>
-                      <Text style={panelStyles.title} numberOfLines={1}>{t("lyrics.version", { number: versionNumber })}</Text>
-                      {/* Editorial ink, same form as PRIMARY on a take: the app
-                          has one way of saying "this is the one". */}
-                      {isLatest ? (
-                        <View style={styles.songDetailPrimaryInk}>
-                          <View style={styles.songDetailPrimaryInkDot} />
-                          <Text style={styles.songDetailPrimaryInkText}>{t("lyrics.current")}</Text>
-                        </View>
-                      ) : null}
-                      <IconButton
-                        icon={isExpanded ? "chevron-up" : "chevron-down"}
-                        tone="muted"
-                        size={15}
-                        onPress={() => toggleExpanded(version.id)}
-                        stopPropagation
-                        accessibilityLabel={t(isExpanded ? "lyrics.collapse" : "lyrics.expand")}
-                      />
-                    </View>
-
-                    <View style={panelStyles.metaRow}>
-                      <Text style={panelStyles.meta}>{formatCardDate(version.updatedAt, language, t)}</Text>
-                      <Text style={panelStyles.metaDot}>·</Text>
-                      <Text style={panelStyles.meta}>{t("lyrics.lineCount", { count: lineCount })}</Text>
-                      {hasChords ? (
-                        <>
-                          <Text style={panelStyles.metaDot}>·</Text>
-                          <View style={panelStyles.chordMeta}>
-                            <Ionicons name="musical-notes" size={12} color={colors.primary} />
-                            <Text style={panelStyles.chordMetaText}>{t("lyrics.chords")}</Text>
-                          </View>
-                        </>
-                      ) : null}
-                    </View>
-
-                    {isLatest && !isExpanded ? (
-                      <UserText align="content" value={previewText} style={panelStyles.preview} numberOfLines={2}>
-                        {previewText || t("lyrics.noLyricsVersion")}
-                      </UserText>
-                    ) : null}
-                  </View>
-                </View>
-              </Pressable>
-
-              {isExpanded ? (
-                <Animated.View entering={FadeIn.duration(durations.base)} style={panelStyles.expanded}>
-                  {hasChords ? (
-                    <View style={panelStyles.cardViewToggle}>
-                      <LyricsChordsToggle
-                        value={chordVersionIds.includes(version.id) ? "chords" : "lyrics"}
-                        onChange={(next) =>
-                          setChordVersionIds((prev) =>
-                            next === "chords"
-                              ? [...new Set([...prev, version.id])]
-                              : prev.filter((id) => id !== version.id)
-                          )
-                        }
-                      />
-                    </View>
-                  ) : null}
-                  <ScrollView
-                    style={panelStyles.expandedScroll}
-                    nestedScrollEnabled
-                    showsVerticalScrollIndicator
-                  >
-                    {chordVersionIds.includes(version.id) && hasChords ? (
-                      <ChordChartLines lines={version.document.lines} editable={false} />
-                    ) : (
-                      <UserText align="content" value={previewText} style={styles.lyricsPreviewText}>{previewText || t("lyrics.noLyricsVersion")}</UserText>
-                    )}
-                  </ScrollView>
-                </Animated.View>
-              ) : null}
-            </View>
-          );
-        })
-      )}
+      ) : current ? (
+        <>
+          {renderCurrent(current)}
+          {olderOpen ? <View style={panelStyles.olderList}>{older.map(renderOlder)}</View> : null}
+        </>
+      ) : null}
 
       <NotePickerSheet
         visible={notePickerVisible}
@@ -415,114 +432,89 @@ const panelStyles = StyleSheet.create({
     fontSize: 13,
     color: colors.onPrimary,
   },
-  cardViewToggle: {
-    alignSelf: "flex-start",
-    marginBottom: 12,
-  },
-  // Section header: a quiet "Versions · N" label that anchors the accented (+),
-  // which opens the New version sheet (new from current, blank, or Lyrics Pad).
+  // The toolbar row: the tape door leads, "+ Version" trails.
   controlRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: spacing.sm,
+    minHeight: 46,
   },
-  sectionLabel: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 11,
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    color: colors.textMuted,
+  // The current page: a card for your work (IdeaCard recipe: white, r12,
+  // whisper shadow). The border is reserved so selecting never resizes it.
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    borderWidth: 1.5,
+    borderColor: "transparent",
+    paddingHorizontal: spacing.lg,
+    paddingTop: 14,
+    paddingBottom: 10,
+    ...shadows.card,
   },
-  // Tonal wash, not solid terracotta — solid primary is reserved for the
-  // record FAB / highest-stakes commit.
-  addBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.round,
-    backgroundColor: "#F3E4DE",
-    alignItems: "center",
-    justifyContent: "center",
+  cardSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySurface,
   },
-
-  // ── Version card ────────────────────────────────────────────────────────────
-  expandedScroll: {
-    maxHeight: 320,
+  lyric: {
+    fontFamily: "Lora_500Medium",
+    fontSize: 16,
+    lineHeight: 26,
+    color: colors.textPrimary,
   },
-  cardTop: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-  },
-  vnum: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    backgroundColor: "#F2ECE4",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 1,
-  },
-  vnumCur: {
-    backgroundColor: "#F2E4DF",
-  },
-  vnumText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 13,
-    color: "#6b5b54",
-    fontVariant: ["tabular-nums"],
-  },
-  vnumTextCur: {
-    color: colors.primaryDeep,
-  },
-  cardBody: {
-    flex: 1,
-  },
-  titleRow: {
+  footer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-  },
-  title: {
-    flex: 1,
-    fontFamily: "Lora_600SemiBold",
-    fontSize: 18,
-    color: "#1C1C19",
-  },
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 6,
+    gap: 14,
+    marginTop: spacing.md,
+    minHeight: 26,
   },
   meta: {
+    flex: 1,
     fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 12,
-    color: colors.textMuted,
+    color: colors.textSecondary,
     fontVariant: ["tabular-nums"],
   },
-  metaDot: {
-    fontSize: 12,
-    color: "#d8cabf",
-  },
-  chordMeta: {
+  footerKey: {
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
   },
-  chordMetaText: {
-    fontFamily: "PlusJakartaSans_500Medium",
+  footerKeyText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 12,
-    color: colors.primary,
+    color: colors.textStrong,
   },
-  preview: {
+  // Older versions: rows on paper under the card, hairlines between.
+  olderList: {
+    marginTop: spacing.xs,
+    paddingHorizontal: spacing.xs,
+  },
+  olderRow: {
+    paddingVertical: 2,
+  },
+  olderRowRule: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
+  },
+  olderRowTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    minHeight: 56,
+    borderRadius: radii.lg,
+  },
+  olderRowSelected: {
+    backgroundColor: colors.primarySurface,
+  },
+  olderCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  olderTitle: {
     fontFamily: "Lora_500Medium",
-    fontSize: 14,
-    lineHeight: 21,
-    color: "#9a8a82",
-    marginTop: 10,
-  },
-  expanded: {
-    marginTop: 12,
+    fontSize: 15,
+    color: colors.textStrong,
   },
 });
