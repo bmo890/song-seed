@@ -1199,3 +1199,41 @@ density, a filter leaving fewer takes.
 Noticed, not touched: the take actions sheet and the group sheet still use
 boxed rows; "Assign group (2 threads)" says threads; parent-picking outlines
 every card.
+
+## Menus, filters, tags, versions, sketch tabs (2026-10-15, step 7b)
+
+Founder, before the metronome: the three leftovers (boxed sheets, "Assign
+group (2 threads)", the loud parent-pick mode), the sketch page's other tabs,
+and every dropdown, popup and filter, "copy as well as design". Canvas:
+https://claude.ai/artifact/4LxEtZbXjKDUnqE4XNTUQF. Picked: menus A (rows on
+paper) with an industry-standard order everywhere; "Let it leave" → Remove;
+Lyrics B (current page stacked over older versions), pending one question.
+
+Built (five commits, 7d550a4d..9cf4c178):
+- Menus: SelectionActionSheet restyled; AppAlert.menu + ActionMenuHost turn
+  the Shelf / Revisit / Activity / player "…" dialogs into that sheet;
+  PopoverMenuRow for header menus; ClipActions, CollectionActions and chord
+  export go through the shared sheet; move, note and workspace pickers are
+  hairline rows. Order rule documented in SelectionActionSheet + CLAUDE.md.
+- Filter and sort: PopoverMenu label / section / radio / foot link;
+  InkOption takes a custom ink. Ideas, Compilations, the sketch filter and
+  the workspace order menu share one recipe. Sort words per field
+  (getSortOrderOptions, tested).
+- Tags: ink with each tag's colour, tri-state kept; Bookmarked moved into
+  Tags (sketch). Groups end when their last take leaves; empty groups never
+  draw (tested); default names through t().
+- Versions: ~30 strings (EN + HE גרסאות); quiet parent-pick line; Stand alone
+  only when meaningful, Move it out first; git glyphs gone; dialog option
+  rows lose the tinted disc; version history sort through t().
+- Tabs: Notes is the page; Lyrics and Chart use the canon EmptyState.
+
+Not built yet: Lyrics B (waiting on the founder's yes to retire the
+in-list expand; tapping the card opens the full page with the same
+lyrics/chords switch). The collection's More sheet still has 7 rows
+(Bookmark cannot fold into Tags there: Tags only exists for clips).
+
+Seen in the simulator: take sheet, Versions sheet, pick mode, both header
+menus, player and Shelf menus as sheets, Ideas filter and sort (incl. a
+stage lit and Title order), tag picker, empty Lyrics / Chart / Notes.
+Not seen: Hebrew, Android, Revisit and Activity menus, Compilations and
+workspace menus, chord export, move picker, the version history screen.

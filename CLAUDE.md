@@ -71,6 +71,14 @@ The hard rules below are non-negotiable.
   (`haptic="navigate"`).
 - Destructive/rare actions live in overflow. Action sheets max ~6 rows — more
   means the IA is wrong; fix the IA.
+- Menus (2026-10-15, founder picked "rows on paper"): every action menu is
+  `SelectionActionSheet` (glyph + word, hairlines, chevron only when a row
+  opens more, destruction last behind its own hairline), named by what it
+  acts on ("1 take · Idea 8"). An item's "…" is `AppAlert.menu`, never a
+  centred dialog (dialogs are questions). "…" popovers use `PopoverMenuRow`;
+  filter/sort popovers use the PopoverMenu label/section/radio/foot parts.
+  One order everywhere: act on it → organise → go somewhere → share →
+  destroy. No ellipsis on menu rows.
 
 ## Feel
 
