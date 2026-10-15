@@ -233,16 +233,13 @@ export function SelectionBars() {
     );
   }
 
-  function handleToggleBookmark() {
-    if (!selectedIdea || !singleSelectedClip) return;
-    useStore.getState().toggleClipBookmark(selectedIdea.id, singleSelectedClip.id);
-    setMoreVisible(false);
-  }
-
   function handleCreateGroupAndAssign() {
     if (!selectedIdea || selectedLineageRootIds.length === 0) return;
     const store = useStore.getState();
-    const groupId = store.createClipGroup(selectedIdea.id);
+    const groupId = store.createClipGroup(
+      selectedIdea.id,
+      t("songDetail.groupDefaultName", { number: (selectedIdea.clipGroups?.length ?? 0) + 1 })
+    );
     if (groupId) {
       selectedLineageRootIds.forEach((rootId) =>
         store.assignLineageToClipGroup(selectedIdea.id, rootId, groupId)
@@ -512,7 +509,7 @@ export function SelectionBars() {
   ];
 
   // The overflow, in the order rule (SelectionActionSheet): act on the take
-  // (primary, bookmark), organise it (versions, tags, playlist, copy or move),
+  // (primary), organise it (versions, tags with Bookmarked inside, playlist, copy or move),
   // then send it out. Rows that open a second sheet carry a chevron.
   const sheetActions: SelectionAction[] = [
     ...(selectedClips.length === 1 && singleSelectedClip
@@ -523,18 +520,6 @@ export function SelectionBars() {
             icon: "star-outline" as const,
             onPress: handleMakePrimary,
             disabled: !!singleSelectedClip.isPrimary,
-          },
-        ]
-      : []),
-    ...(selectedClips.length === 1 && selectedIdea && singleSelectedClip
-      ? [
-          {
-            key: "bookmark",
-            label: singleSelectedClip.isBookmarked ? t("songDetail.removeBookmark") : t("songDetail.bookmarkClip"),
-            icon: (singleSelectedClip.isBookmarked
-              ? "bookmark"
-              : "bookmark-outline") as SelectionAction["icon"],
-            onPress: handleToggleBookmark,
           },
         ]
       : []),
