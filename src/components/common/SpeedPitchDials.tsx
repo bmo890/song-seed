@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { PITCH_SHIFT_MAX_SEMITONES, PITCH_SHIFT_MIN_SEMITONES } from "../../domain/pitchShift";
-import { colors, radii, text } from "../../design/tokens";
+import { colors, text } from "../../design/tokens";
 import { ltrRow } from "../../i18n/direction";
 import { Press } from "./Press";
 import { Slider } from "./Slider";
@@ -70,6 +70,7 @@ export function SpeedPitchDials({
           <Text style={d.rowLabel}>{t("player.speed")}</Text>
           {speedIsChanged ? (
             <Press
+              feel="glyph"
               style={d.dialResetBtn}
               onPress={() => onSpeedTap(1)}
               hitSlop={8}
@@ -112,11 +113,14 @@ export function SpeedPitchDials({
         ))}
       </View>
 
-      <View style={d.dialHead}>
+      {/* Pitch is one row (2026-10-15): label, then − value + at the end. The
+          semitone ruler is gone; the value says where it sits. */}
+      <View style={[d.pitchRow, ltrRow]}>
         <View style={d.dialLabelGroup}>
           <Text style={d.rowLabel}>{t("player.pitch")}</Text>
           {pitchIsChanged ? (
             <Press
+              feel="glyph"
               style={d.dialResetBtn}
               onPress={() => onAdjustPitchShift(0)}
               hitSlop={8}
@@ -127,20 +131,8 @@ export function SpeedPitchDials({
             </Press>
           ) : null}
         </View>
-        <Text style={[d.dialValue, pitchIsChanged ? d.dialValueChanged : null]}>
-          {supportsPitchShift ? `${pitchShiftSemitones > 0 ? "+" : ""}${pitchShiftSemitones}` : "—"}
-          {supportsPitchShift ? (
-            <Text style={[d.dialUnit, pitchIsChanged ? d.dialUnitChanged : null]}>
-              {" "}
-              {t("player.semitones")}
-            </Text>
-          ) : null}
-        </Text>
-      </View>
-      {/* The rail maps onto pitch, low to high, so it is pinned LTR like the tape. */}
-      <View style={[d.pitchRow, ltrRow]}>
+        <View style={d.pitchSpacer} />
         <Stepper
-          style={d.pitchStepper}
           glyphs="plusMinus"
           onStep={(direction) => onAdjustPitchShift(pitchShiftSemitones + direction)}
           canDecrement={canDecreasePitch}
@@ -148,22 +140,11 @@ export function SpeedPitchDials({
           decrementLabel={t("player.lowerPitch")}
           incrementLabel={t("player.raisePitch")}
         >
-          <View style={d.pitchRail}>
-            {Array.from({ length: PITCH_SHIFT_MAX_SEMITONES - PITCH_SHIFT_MIN_SEMITONES + 1 }, (_, i) => {
-              const semitone = PITCH_SHIFT_MIN_SEMITONES + i;
-              const isCurrent = supportsPitchShift && semitone === pitchShiftSemitones;
-              return (
-                <View
-                  key={semitone}
-                  style={[
-                    d.pitchTick,
-                    semitone === 0 ? d.pitchTickZero : null,
-                    isCurrent ? d.pitchTickOn : null,
-                  ]}
-                />
-              );
-            })}
-          </View>
+          <Text style={[d.dialValue, d.pitchValue, pitchIsChanged ? d.dialValueChanged : null]}>
+            {supportsPitchShift
+              ? `${pitchShiftSemitones > 0 ? "+" : ""}${pitchShiftSemitones} ${t("player.semitones")}`
+              : "—"}
+          </Text>
         </Stepper>
       </View>
     </View>
@@ -191,22 +172,21 @@ const d = StyleSheet.create({
     gap: 8,
   },
   rowLabel: {
-    ...text.caption,
-    fontSize: 14,
+    ...text.body,
+    fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.textPrimary,
   },
   dialResetBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: radii.round,
+    width: 24,
+    height: 24,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surface,
   },
-  // The value is the one thing on the dial the musician made — it earns the serif.
+  // A measured value, not a name: tabular Jakarta (2026-10-15; it was the serif).
   dialValue: {
-    ...text.headerTitle,
-    fontSize: 26,
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 15,
+    color: colors.textStrong,
     fontVariant: ["tabular-nums"],
   },
   // Off-neutral: the number itself carries the action colour, so a glance at the
@@ -244,32 +224,16 @@ const d = StyleSheet.create({
     color: colors.primaryDeep,
   },
   pitchRow: {
-    alignItems: "center",
-    paddingHorizontal: 10,
-  },
-  pitchStepper: {
-    flex: 1,
-  },
-  pitchRail: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    height: 22,
+    paddingHorizontal: 10,
+    minHeight: 46,
   },
-  pitchTick: {
-    width: 1,
-    height: 7,
-    backgroundColor: colors.borderMuted,
+  pitchSpacer: {
+    flex: 1,
   },
-  pitchTickZero: {
-    height: 12,
-    backgroundColor: colors.textMuted,
-  },
-  pitchTickOn: {
-    width: 3,
-    height: 14,
-    borderRadius: 2,
-    backgroundColor: colors.primary,
+  pitchValue: {
+    minWidth: 52,
+    textAlign: "center",
   },
 });

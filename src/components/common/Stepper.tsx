@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, radii } from "../../design/tokens";
+import { colors } from "../../design/tokens";
 import { haptic } from "../../design/haptics";
 import { Press } from "./Press";
 
@@ -68,6 +68,7 @@ function StepKey({
   return (
     <Press
       haptic="none"
+      feel="glyph"
       style={s.key}
       disabled={!enabled}
       onPress={step}
@@ -82,7 +83,7 @@ function StepKey({
       accessibilityLabel={label}
       testID={testID}
     >
-      <Ionicons name={glyph} size={15} color={colors.textStrong} />
+      <Ionicons name={glyph} size={17} color={colors.textStrong} />
     </Press>
   );
 }
@@ -129,11 +130,10 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
+  // A bare ink glyph in a 36 pt target (2026-10-15): no white disc.
   key: {
-    width: 28,
-    height: 28,
-    borderRadius: radii.round,
-    backgroundColor: colors.surface,
+    width: 36,
+    height: 36,
     alignItems: "center",
     justifyContent: "center",
   },

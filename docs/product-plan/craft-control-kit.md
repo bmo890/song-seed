@@ -1107,3 +1107,30 @@ Built:
 
 Not done here: the sketch page's PRIMARY TAKE strip still has its rail (it
 marks the primary take, not a sketch); compact density has no sketch marker.
+
+## Loop and Sound drawers (2026-10-15, step 6)
+
+Canvas: https://claude.ai/artifact/BCcuJ9VJYfygTtRNoTaqcE. Founder: Loop A
+(one edge at a time), no milliseconds; picking an edge should cue the playhead
+("best for the looper specifically, not for marks"); Sound A, with Click on
+top because it only exists on a take recorded with the metronome.
+
+Built:
+- Loop: no pink wash card, no "00:00 → 00:08" repeat on the switch row.
+  `MarkInspector` (shared by marks, loop and the clip editor) now shows two
+  edge READOUTS (label, 22 pt tabular time, a 2 pt ink rule under the edge
+  being edited, a hairline under the other) instead of boxed chips; its
+  use-playhead glyph is bare ink. Picking START cues the playhead to the loop
+  start, END to two seconds before the end (`LOOP_END_PREROLL_MS`) so the end
+  is heard arriving. Marks keep "selecting never moves the playhead".
+- Kit `Stepper`: bare ink glyphs in 36 pt targets, no white discs (loop
+  nudges, pitch, the editor).
+- Sound: Click (and its volume and haptic) first when available, then Speed
+  (slider + tappable presets), Pitch as ONE row (label, − value +; the semitone
+  ruler is gone), then the take's Level (kit Slider, was a Knob) and Tone (four
+  `InkOption`s on one line, were boxed LitKeys). Values are tabular Jakarta,
+  not the serif. `LevelToneStrip` is shared with the Layers bench, which
+  follows. `Knob` and `LitKey` now have no users (kept, not deleted).
+
+Not seen on screen: the Layers bench strip, the clip editor's transform
+section and marks inspector, Android, Hebrew.
