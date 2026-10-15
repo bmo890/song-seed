@@ -10,6 +10,11 @@ import { useOriginLabel } from "../../hooks/useOriginLabel";
 
 type Props = {
     title: string;
+    /** "tool" (default): a compact row with the title centred — instruments,
+     *  editors and pushed pages. "place": the nav row carries only the glyphs
+     *  and the title sits under it as the page's large Lora name, the way the
+     *  collection and Settings already read (header rule, 2026-10-15). */
+    variant?: "tool" | "place";
     leftIcon?: "hamburger" | "back" | "none";
     onLeftPress?: () => void;
     rightElement?: React.ReactNode;
@@ -17,6 +22,7 @@ type Props = {
 
 export function ScreenHeader({
     title,
+    variant = "tool",
     leftIcon = "hamburger",
     onLeftPress,
     rightElement,
@@ -57,8 +63,9 @@ export function ScreenHeader({
         }
     }
 
-    return (
-        <View style={headerStyles.row}>
+    const place = variant === "place";
+    const row = (
+        <View style={[headerStyles.row, place ? headerStyles.placeRow : null]}>
             {leftIcon !== "none" ? (
                 <Press
                     haptic="none"
@@ -93,15 +100,30 @@ export function ScreenHeader({
                 <View style={{ width: 44, height: 44 }} />
             )}
 
-            <Text style={headerStyles.title} numberOfLines={1}>
-                {title}
-            </Text>
+            {place ? (
+                <View style={headerStyles.placeSpacer} />
+            ) : (
+                <Text style={headerStyles.title} numberOfLines={1}>
+                    {title}
+                </Text>
+            )}
 
             {rightElement ? (
                 <View style={{ minWidth: 44, alignItems: "flex-end" }}>{rightElement}</View>
             ) : (
                 <View style={{ width: 44, height: 44 }} />
             )}
+        </View>
+    );
+    if (!place) return row;
+    return (
+        <View>
+            {row}
+            {title ? (
+                <Text style={headerStyles.placeTitle} numberOfLines={2} accessibilityRole="header">
+                    {title}
+                </Text>
+            ) : null}
         </View>
     );
 }
@@ -137,6 +159,19 @@ const headerStyles = StyleSheet.create({
         letterSpacing: 1.4,
         textTransform: "uppercase",
         flexShrink: 1,
+    },
+    placeRow: {
+        marginBottom: 0,
+    },
+    placeSpacer: {
+        flex: 1,
+    },
+    // Same name, size and rhythm as PageIntro, the large title Settings and
+    // the collection already wear.
+    placeTitle: {
+        ...textTokens.pageTitle,
+        marginTop: 2,
+        marginBottom: 14,
     },
     title: {
         ...textTokens.headerTitle,

@@ -152,6 +152,7 @@ function PlaylistsSection({ tabs, scroll, headerRight, searchQuery }: { tabs: Re
     <>
       <ScreenHeader
         title={model.pageTitle}
+        variant={model.showBack ? "tool" : "place"}
         leftIcon={model.showBack ? "back" : "hamburger"}
         onLeftPress={model.showBack ? model.handleBackPress : undefined}
         rightElement={!model.showBack ? headerRight : undefined}
@@ -247,6 +248,7 @@ function SongbookSection({ tabs, scroll, headerRight, searchQuery }: { tabs: Rea
     <>
       <ScreenHeader
         title={headerTitle}
+        variant={songbook.showBack ? "tool" : "place"}
         leftIcon={songbook.showBack ? "back" : "hamburger"}
         onLeftPress={songbook.showBack ? songbook.handleBack : undefined}
         rightElement={!songbook.showBack ? headerRight : undefined}
@@ -334,6 +336,7 @@ function SetlistsSection({ tabs, scroll, headerRight, searchQuery }: { tabs: Rea
     <>
       <ScreenHeader
         title={headerTitle}
+        variant={setlist.showBack ? "tool" : "place"}
         leftIcon={setlist.showBack ? "back" : "hamburger"}
         onLeftPress={setlist.showBack ? setlist.handleBack : undefined}
         rightElement={!setlist.showBack ? headerRight : undefined}

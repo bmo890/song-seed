@@ -81,13 +81,12 @@ export const revisitStyles = {
     },
 
     // ── Header help + sources chip (redesign) ────────────────────────────
+    // A bare ink glyph: the header's right slot never wears a fill.
     headerHelpBtn: {
-      width: 34,
-      height: 34,
-      borderRadius: radii.round,
+      width: 44,
+      height: 44,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: SURFACE,
     },
 
     // ── Sources sheet ─────────────────────────────────────────────────────

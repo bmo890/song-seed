@@ -28,6 +28,7 @@ export function ActivityScreenContent() {
     <SafeAreaView style={styles.screen}>
       <ScreenHeader
         title={t("screens.activity")}
+        variant="place"
         leftIcon="hamburger"
         rightElement={
           model.isCollectionScoped ? (
@@ -37,12 +38,13 @@ export function ActivityScreenContent() {
             {isPushedPage ? <SideMenuButton /> : null}
             <Press
               haptic="none"
+              feel="glyph"
               style={styles.customizeBtn}
               onPress={() => setCustomizeOpen(true)}
               hitSlop={6}
               accessibilityLabel={t("activity.customize")}
             >
-              <Ionicons name="options-outline" size={18} color={colors.textSecondary} />
+              <Ionicons name="options-outline" size={22} color={colors.textStrong} />
             </Press>
             </View>
           )

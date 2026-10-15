@@ -50,18 +50,20 @@ export function RevisitScreen() {
     <SafeAreaView style={revisitStyles.screen}>
       <ScreenHeader
         title={t(screen.isAroundSnapshotOpen ? "revisit.aroundTitle" : "revisit.title")}
+        variant={screen.isAroundSnapshotOpen ? "tool" : "place"}
         leftIcon={screen.isAroundSnapshotOpen ? "back" : "hamburger"}
         onLeftPress={screen.isAroundSnapshotOpen ? screen.closeAroundSnapshot : undefined}
         rightElement={
           screen.isAroundSnapshotOpen ? undefined : (
             <Press
               haptic="none"
+              feel="glyph"
               style={revisitStyles.headerHelpBtn}
               onPress={() => setCustomizeOpen(true)}
               hitSlop={6}
               accessibilityLabel={t("revisit.customize")}
             >
-              <Ionicons name="options-outline" size={18} color={colors.textSecondary} />
+              <Ionicons name="options-outline" size={22} color={colors.textStrong} />
             </Press>
           )
         }

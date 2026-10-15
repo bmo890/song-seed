@@ -47,6 +47,17 @@ The hard rules below are non-negotiable.
 - Selection controls: single-select = `SegmentedControl` (sliding thumb);
   multi-select = editorial ink (word + leading dot, hollow→terracotta), no chips.
   Stage color from shared `STAGE_INK`, never cold literals.
+- Headers (2026-10-15): a PLACE (collection, Shelf, Revisit, Activity,
+  Compilations, Received, Lyric Pad, Settings) wears the large Lora title
+  under a glyph-only nav row (`ScreenHeader variant="place"`); a TOOL
+  (Tuner, Metronome, Lyric Spark, editors, pushed sub-views) keeps the
+  compact centred bar. The right slot holds at most one bare ink glyph, never
+  a filled circle or a terracotta one.
+- Side menu (2026-10-15): workspace card (name in Lora, Collections · n, Recent
+  indented beneath under a quiet label), then Compilations and Received, then
+  Lyric Pad, Shelf, Revisit, Activity, no group labels; the three instruments
+  sit in the tool tray above Settings. A drawer press navigates: silent
+  (`haptic="navigate"`).
 - Destructive/rare actions live in overflow. Action sheets max ~6 rows — more
   means the IA is wrong; fix the IA.
 
