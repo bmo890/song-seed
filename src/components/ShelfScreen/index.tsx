@@ -67,6 +67,7 @@ export function ShelfScreen() {
     <SafeAreaView style={shelfStyles.screen}>
       <ScreenHeader
         title={t("screens.shelf")}
+        variant="place"
         leftIcon="hamburger"
       />
 

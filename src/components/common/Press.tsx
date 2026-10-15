@@ -24,11 +24,12 @@ import { haptic } from "../../design/haptics";
  *                   the press is felt through the state change.
  *
  * Haptics (haptics.ts): `tap` by default — an acknowledged press. Pass
- * `haptic="none"` when the thing pressed fires its own (a toggle's `light`),
- * never to save the tick.
+ * `haptic="navigate"` when the press only takes you somewhere (navigation is
+ * silent), and `haptic="none"` when the thing pressed fires its own (a
+ * toggle's `light`), never to save the tick.
  */
 export type PressFeel = "surface" | "glyph" | "still";
-export type PressHaptic = "tap" | "light" | "grab" | "none";
+export type PressHaptic = "tap" | "light" | "grab" | "navigate" | "none";
 
 export type PressProps = Omit<PressableProps, "style"> & {
   feel?: PressFeel;
@@ -56,7 +57,7 @@ export function Press({
       ]}
       onPress={(event: GestureResponderEvent) => {
         if (disabled) return;
-        if (hapticVerb !== "none") haptic[hapticVerb]();
+        if (hapticVerb !== "none" && hapticVerb !== "navigate") haptic[hapticVerb]();
         onPress?.(event);
       }}
     >

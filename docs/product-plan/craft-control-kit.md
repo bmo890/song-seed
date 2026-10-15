@@ -979,3 +979,28 @@ scrubbing, before and after this change.
 Next on feel: the 82 silent presses, a screen at a time (collection 14,
 sketch 10, Notepad 9, Library 7, Magpie 7), each decided as tap / light /
 silent-because-it-navigates.
+
+## Header and side menu (2026-10-15, steps 1 and 2 of the audit order)
+
+Mocked A/B on a canvas (https://claude.ai/artifact/5dXa4h17yqUfRda3YUPXLJ).
+Founder: header B (places large, instruments compact), menu B (the tool tray)
+with changes: Recent indented under "Collections · n ›", kept as today, with a
+quiet "Recent" label ("not just a list of the collections"); Compilations
+and Received first; the tray drawn as glyph over word, no boxes.
+
+Built: `ScreenHeader variant="place"` (glyph-only nav row, then the large
+`text.pageTitle` name) on Shelf, Revisit (not its pushed "around" view),
+Activity, Received, Lyric Pad and Compilations (not when drilled in). Right
+slots are bare ink glyphs at 22: Revisit and Activity lost their filled
+circles, Lyric Pad and Spark's + went from terracotta to ink. Received's
+header got the page gutter it lacked (its menu glyph sat 16 pt left of every
+other page). SideNav rewritten: bare search glyph, no WORKSPACE eyebrow, name
+in Lora, ink glyphs on the card, Recent in the card, two unlabelled groups,
+the tray, Settings; EXPLORE and TOOLS strings removed. `Press` gained
+`haptic="navigate"` (silent because it navigates), which the lint does not
+count; press_haptic_none 82 to 79.
+
+Known, left for the words and cards passes: Shelf's empty state puts a second
+large serif under the new title; the title is fixed, not collapsing, so list
+pages give up about 60 pt (the collection's collapsing header is the model if
+that matters).

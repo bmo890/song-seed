@@ -433,6 +433,7 @@ export function NotepadScreenContent() {
       {!selectionMode ? (
         <ScreenHeader
           title={t(isSparkPage ? "screens.lyricSpark" : "screens.lyricsPad")}
+          variant={isSparkPage ? "tool" : "place"}
           rightElement={
             // One + per room: on the pad it writes a page; on the spark page it
             // opens the chooser for the three word tools.
@@ -445,7 +446,7 @@ export function NotepadScreenContent() {
               onPress={isSparkPage ? () => setSparkSheetVisible(true) : handleNewNote}
               hitSlop={4}
             >
-              <Ionicons name="add" size={22} color={colors.primary} />
+              <Ionicons name="add" size={22} color={colors.textStrong} />
             </Press>
           }
         />

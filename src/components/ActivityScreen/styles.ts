@@ -8,13 +8,12 @@ export const styles = {
   ...base,
   ...StyleSheet.create({
     screen: { ...base.screen, backgroundColor: PAPER },
+    // A bare ink glyph: the header's right slot never wears a fill.
     customizeBtn: {
-      width: 34,
-      height: 34,
-      borderRadius: radii.round,
+      width: 44,
+      height: 44,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: "#efeeea",
     },
   }),
 };

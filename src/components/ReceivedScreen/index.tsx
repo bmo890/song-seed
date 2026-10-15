@@ -142,7 +142,9 @@ export function ReceivedScreen() {
 
   return (
     <SafeAreaView style={receivedStyles.screen}>
-      <ScreenHeader title={t("screens.received")} leftIcon="hamburger" />
+      <View style={receivedStyles.header}>
+        <ScreenHeader title={t("screens.received")} variant="place" leftIcon="hamburger" />
+      </View>
 
       {selecting ? (
         <View style={receivedStyles.topBar}>
@@ -321,6 +323,11 @@ const receivedStyles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.page,
+  },
+  // The list rows carry their own inset; the header takes the page gutter so
+  // its glyph lines up with every other page's.
+  header: {
+    paddingHorizontal: spacing.lg,
   },
   topBar: {
     paddingHorizontal: spacing.lg,
