@@ -398,6 +398,15 @@ export function PlayerPracticeDrawers({
     [marks]
   );
   const sectionsById = useMemo(() => new Map(sections.map((section) => [section.id, section])), [sections]);
+  // Unnamed pins read "Pin 1, Pin 2…" in time order, so a list of them is not
+  // the same word four times (copy pass, 2026-10-15).
+  const unnamedPinNumber = useMemo(() => {
+    const numbers = new Map<string, number>();
+    for (const entry of marks) {
+      if (entry.kind === "pin" && !entry.marker.label) numbers.set(entry.marker.id, numbers.size + 1);
+    }
+    return numbers;
+  }, [marks]);
 
   // A dot means something is RUNNING, not merely set up: the loop is looping, or
   // a sound setting is bent away from neutral. Step-up can't run without the
@@ -423,7 +432,10 @@ export function PlayerPracticeDrawers({
     const id = isSection ? entry.section.id : entry.marker.id;
     const isSelected = selected != null && selected.kind === entry.kind && selected.id === id;
     const color = isSection ? getSectionColor(entry.section) : colors.primaryDeep;
-    const name = isSection ? entry.section.label : entry.marker.label || t("player.pin");
+    const name = isSection
+      ? entry.section.label
+      : entry.marker.label ||
+        t("player.pinNumbered", { n: unnamedPinNumber.get(entry.marker.id) ?? index + 1 });
     const isPlayingFrom = isPlaying && playFromId === id;
     // Where this mark stands against the playhead: passed marks recede, the one
     // you are in is lit, what is ahead waits. The held row is exempt: it is being

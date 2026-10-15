@@ -24,6 +24,7 @@ describe("looksMachineNamed", () => {
     "Idea 3",
     "Idea 3 v2",
     "Recovered · 1:54 PM Sep 23rd",
+    "Recovered Recording 07/29/2026 10:12",
     "Import 1:54 PM Sep 23rd",
     "1:54 PM Sep 23rd",
     "10:58 28 ביולי",

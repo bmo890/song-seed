@@ -18,7 +18,6 @@ export function EditorExportProgressModal({ visible }: EditorExportProgressModal
         <View style={styles.card}>
           <Spinner size="large" color={colors.primary} />
           <Text style={styles.title}>{t("editor.exporting")}</Text>
-          <Text style={styles.subtitle}>{t("editor.onDevice")}</Text>
         </View>
       </View>
     </Modal>

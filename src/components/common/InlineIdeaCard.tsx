@@ -1,3 +1,4 @@
+import { looksMachineNamed } from "../../domain/titleNaming";
 import React from "react";
 import { View, type StyleProp, type ViewStyle } from "react-native";
 import { IdeaCard } from "./IdeaCard";
@@ -12,6 +13,10 @@ import { useTranslation } from "react-i18next";
 
 export type InlineIdeaCardProps = {
   title: string;
+  /** Earned serif: a machine name (timestamp, recorder filename) stays in
+   *  plain Jakarta. Defaults to reading the title itself (titleNaming.ts);
+   *  pass it when the caller knows the idea was renamed in the app. */
+  titleIsAuto?: boolean;
   /** Projects get the semibold title + terracotta accent bar; clips don't. */
   isProject: boolean;
   /** Stage badge (projects only); pass null to hide it (e.g. clips). */
@@ -46,6 +51,7 @@ export type InlineIdeaCardProps = {
  */
 export function InlineIdeaCard({
   title,
+  titleIsAuto,
   isProject,
   status,
   durationMs,
@@ -93,6 +99,7 @@ export function InlineIdeaCard({
       onPress={onOpen}
       onLongPress={onOpenMenu ?? onOpen}
       title={title}
+      titleIsAuto={titleIsAuto ?? looksMachineNamed(title)}
       titleSemiBold={isProject}
       // Stage rides the title row everywhere it appears (collection, Shelf,
       // Revisit, Activity, Received) — one placement, one form.
