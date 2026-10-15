@@ -23,7 +23,13 @@ The hard rules below are non-negotiable.
   serif button is a bug. Earned-serif rule: titles that *read as a name* get Lora, wherever they
   were typed; machine names (timestamps, recorder filenames, "Idea 3") stay in
   quiet tabular Jakarta (`src/domain/titleNaming.ts`).
-- Card shells: content = `IdeaCard` recipe (r12), structural = `SurfaceCard` (r8).
+- Card shells (2026-10-15): a CARD means your work (ideas, clips, sketches,
+  lyric pages): the `IdeaCard` recipe, white r12, borderless, whisper shadow.
+  STRUCTURE (settings, playlists, setlists, songbooks, received parcels, a
+  workspace's collections) is rows on paper: `common/ListRow` or the Settings
+  group, a bare ink glyph, no fill, no border, no tinted icon tile, hairlines.
+  A sketch's card wears a stack of two paper edges (`IdeaCard stacked`); the
+  terracotta rail is retired. One search field: the tonal fill.
   The radius-4 `card` in `styles/base.ts` is deprecated. Never invent a card.
 - No pure black. Shadows are whispers (opacity ≤ 0.08); depth via tonal layering.
 - Color is scarce: terracotta `colors.primary` for THE action + active states,

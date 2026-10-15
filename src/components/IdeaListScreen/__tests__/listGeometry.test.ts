@@ -18,6 +18,18 @@ const collapsed = (ts: number): IdeaListEntry => ({
 });
 
 describe("list geometry (behind getItemLayout)", () => {
+  it("gives a sketch its own row kind, since its card wears a stack of pages", () => {
+    const sketch: IdeaListEntry = { ...idea("s"), isSketch: true } as IdeaListEntry;
+    expect(rowKindOf(sketch, "comfortable")).toBe(rowKind("sketch", "comfortable", false));
+    expect(rowKindOf(idea("c"), "comfortable")).toBe(rowKind("idea", "comfortable", false));
+    const g = createListGeometry();
+    g.configure({ entries: [idea("c"), sketch], density: "comfortable", paddingTop: 0, headerLength: 0, gap: 0 });
+    g.report("idea:c", rowKind("idea", "comfortable", false), 110);
+    g.report("idea:s", rowKind("sketch", "comfortable", false), 120);
+    expect(g.getItemLayout(1)).toMatchObject({ offset: 110, length: 120 });
+  });
+
+
   it("places rows after the padding, the header cell and its gap, each row followed by a gap", () => {
     const g = createListGeometry({ "idea|comfortable|0": 100, "idea|comfortable|1": 140 });
     g.configure({ entries: [idea("a"), idea("b", "Yesterday"), idea("c")], density: "comfortable", paddingTop: 230, headerLength: 0, gap: 8 });

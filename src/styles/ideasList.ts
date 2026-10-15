@@ -72,8 +72,30 @@ export const ideasListStyles = {
     paddingHorizontal: 9,
     minHeight: 0,
   },
-  ideasListProjectCard: {
-    borderLeftWidth: 3.5,
+  // A sketch's stack of pages: two tonal edges under its card (2026-10-15).
+  // The wrapper's bottom padding is the stack's whole extra height.
+  ideasListStack: {
+    paddingBottom: 10,
+  },
+  ideasListStackBack: {
+    position: "absolute",
+    left: 20,
+    right: 20,
+    bottom: 0,
+    height: 24,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceContainer,
+    ...shadows.card,
+  },
+  ideasListStackMiddle: {
+    position: "absolute",
+    left: 10,
+    right: 10,
+    bottom: 5,
+    height: 24,
+    borderRadius: 11,
+    backgroundColor: colors.surface,
+    ...shadows.card,
   },
   ideasListCardSounding: {
     // The card that is sounding — dock session or inline preview, one look

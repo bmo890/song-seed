@@ -1,8 +1,5 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { Press } from "../../common/Press";
-import { Ionicons } from "@expo/vector-icons";
-import { dirIcon } from "../../../design/directionalIcons";
-import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
+import { ScrollView } from "react-native";
+import { ListRow, ListRowMeta, ListRows } from "../../common/ListRow";
 import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
 import { usePersistedScrollView, type ScrollOffset } from "../../../hooks/usePersistedScrollView";
@@ -50,33 +47,25 @@ export function PlaylistListView({
     >
       {/* One creation affordance per state: the hub's + key when there's a
           list, the empty state's own action when there isn't (2026-10-11). */}
-      <View style={listStyles.listStack}>
+      <ListRows>
         {playlists.map((playlist) => (
-          <Press
-            haptic="none"
+          <ListRow
             key={playlist.id}
-            style={listStyles.playlistRow}
+            icon="musical-notes-outline"
+            title={playlist.title}
             onPress={() => onOpenPlaylist(playlist.id)}
-          >
-            <View style={listStyles.playlistArt}>
-              <Ionicons name="musical-notes-outline" size={17} color={colors.primary} />
-            </View>
-            <View style={listStyles.playlistCopy}>
-              <Text style={listStyles.playlistTitle} numberOfLines={1}>
-                {playlist.title}
-              </Text>
-              <View style={listStyles.playlistMetaRow}>
+            meta={
+              <>
                 {playlist.received ? <ProvenanceChip received={playlist.received} /> : null}
-                <Text style={listStyles.playlistMeta} numberOfLines={1}>
+                <ListRowMeta>{playlist.received ? "· " : ""}
                   {t("library.tracks", { count: playlist.items.length })} ·{" "}
                   {formatPlaylistUpdatedAt(playlist.updatedAt)}
-                </Text>
-              </View>
-            </View>
-            <Ionicons name={dirIcon("chevron-forward")} size={15} color={colors.textMuted} />
-          </Press>
+                </ListRowMeta>
+              </>
+            }
+          />
         ))}
-      </View>
+      </ListRows>
 
       {playlists.length === 0 ? (
         <EmptyState
@@ -90,48 +79,3 @@ export function PlaylistListView({
     </ScrollView>
   );
 }
-
-const listStyles = StyleSheet.create({
-  listStack: {
-    gap: spacing.sm,
-  },
-  playlistRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radii.sm,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  playlistArt: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.sm,
-    backgroundColor: "#F4ECE9",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  playlistCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-  },
-  playlistTitle: {
-    fontFamily: "Lora_500Medium",
-    fontSize: 18,
-    lineHeight: 24,
-    color: colors.textPrimary,
-  },
-  playlistMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  playlistMeta: {
-    ...textTokens.caption,
-    fontFamily: "PlusJakartaSans_400Regular",
-    color: colors.textSecondary,
-    fontVariant: ["tabular-nums"],
-  },
-});

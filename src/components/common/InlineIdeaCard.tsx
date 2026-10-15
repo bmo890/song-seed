@@ -90,7 +90,7 @@ export function InlineIdeaCard({
 
   return (
     <IdeaCard
-      accentBorderColor={isProject ? colors.primary : null}
+      stacked={isProject}
       canPlay={canPlay}
       isInlinePlaying={isPlaying}
       inlineActive={isActive}

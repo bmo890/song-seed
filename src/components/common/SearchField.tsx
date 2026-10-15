@@ -11,9 +11,6 @@ type SearchFieldProps = {
   onChangeText: (value: string) => void;
   onFocus?: () => void;
   containerStyle?: StyleProp<ViewStyle>;
-  /** Quiet tonal fill (surfaceContainer, borderless) for toolbar rows where the
-   *  field shares a line with icon glyphs. Default keeps the outlined look. */
-  tonal?: boolean;
   /** Focus on mount — for a field that appears on demand (the hub's in-place search). */
   autoFocus?: boolean;
   testID?: string;
@@ -25,12 +22,11 @@ export function SearchField({
   onChangeText,
   onFocus,
   containerStyle,
-  tonal,
   autoFocus,
   testID,
 }: SearchFieldProps) {
   return (
-    <View style={[searchFieldStyles.wrap, tonal ? searchFieldStyles.wrapTonal : null, containerStyle]}>
+    <View style={[searchFieldStyles.wrap, containerStyle]}>
       <Ionicons name="search" size={16} color={colors.textSecondary} />
       <UserTextInput
         testID={testID}
@@ -59,21 +55,15 @@ export function SearchField({
 }
 
 const searchFieldStyles = StyleSheet.create({
+  // One search field (2026-10-15): the quiet tonal fill, no outline.
   wrap: {
     minHeight: 40,
     borderRadius: radii.round,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceContainer,
     paddingHorizontal: spacing.md,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-  },
-  wrapTonal: {
-    minHeight: 38,
-    borderWidth: 0,
-    backgroundColor: colors.surfaceContainer,
   },
   input: {
     flex: 1,

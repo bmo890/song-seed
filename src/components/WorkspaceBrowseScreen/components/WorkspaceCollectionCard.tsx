@@ -22,7 +22,6 @@ type WorkspaceCollectionCardProps = {
   selectionMode: boolean;
   isSelected: boolean;
   /** Draws the hairline above this row (every row but the first in a group). */
-  divided?: boolean;
   onPress: () => void;
   onLongPress: () => void;
 };
@@ -72,7 +71,6 @@ export function WorkspaceCollectionCard({
   searchQuery,
   selectionMode,
   isSelected,
-  divided = false,
   onPress,
   onLongPress,
 }: WorkspaceCollectionCardProps) {
@@ -93,9 +91,7 @@ export function WorkspaceCollectionCard({
       testID={`collection-card-${collection.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`}
       accessibilityRole="button"
       accessibilityState={selectionMode ? { selected: isSelected } : undefined}
-      style={[rowStyles.row,
-        divided ? rowStyles.rowDivided : null,
-        isSelected ? rowStyles.rowSelected : null]}
+      style={[rowStyles.row, isSelected ? rowStyles.rowSelected : null]}
       onPress={onPress}
       onLongPress={onLongPress}
       delayLongPress={450}
@@ -106,7 +102,7 @@ export function WorkspaceCollectionCard({
           {isSelected ? <Ionicons name="checkmark" size={10} color={colors.onPrimary} /> : null}
         </View>
       ) : (
-        <Ionicons name="folder-outline" size={22} color={colors.primaryDeep} />
+        <Ionicons name="folder-outline" size={19} color={colors.textStrong} />
       )}
 
       <View style={rowStyles.copy}>
@@ -116,7 +112,7 @@ export function WorkspaceCollectionCard({
           </UserText>
           {isPrimary ? (
             <View style={rowStyles.primaryBadge}>
-              <Ionicons name="star" size={10} color={colors.primary} />
+              <Ionicons name="star" size={10} color={colors.textSecondary} />
               <Text style={rowStyles.primaryLabel}>{t("workspaceBrowse.primary")}</Text>
             </View>
           ) : null}
@@ -155,14 +151,11 @@ const rowStyles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    minHeight: 60,
-  },
-  rowDivided: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.borderSubtle,
+    gap: 12,
+    paddingVertical: 12,
+    minHeight: 64,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
   },
   rowSelected: {
     backgroundColor: colors.primarySurface,
@@ -192,11 +185,12 @@ const rowStyles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
+  // A collection's name is typed by a person: it earns the serif.
   title: {
     flexShrink: 1,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 16,
-    lineHeight: 20,
+    fontFamily: "Lora_500Medium",
+    fontSize: 17,
+    lineHeight: 22,
     color: colors.textPrimary,
   },
   meta: {
@@ -223,7 +217,7 @@ const rowStyles = StyleSheet.create({
     fontSize: 9,
     letterSpacing: 1.2,
     textTransform: "uppercase",
-    color: colors.primary,
+    color: colors.textSecondary,
   },
   matchRow: {
     flexDirection: "row",

@@ -27,6 +27,8 @@ export type IdeaListEntry =
       key: string;
       type: "idea";
       ideaId: string;
+      /** A sketch's card wears its stack of pages, so its row is its own kind. */
+      isSketch?: boolean;
       /** The day-bucket label of this row's sort timestamp (sticky chip source). */
       dayLabel: string;
       dayDividerLabel?: string | null;

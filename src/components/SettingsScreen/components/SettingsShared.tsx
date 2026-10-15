@@ -61,9 +61,8 @@ export function LibraryActionCard({
    *  danger-surface icon disc. Colour is the only difference — same anatomy. */
   tone?: "default" | "danger";
 }) {
-  const accent = tone === "danger" ? colors.danger : LIBRARY_DEEP;
-  const iconDiscStyle =
-    tone === "danger" ? { backgroundColor: colors.dangerSurface } : null;
+  // Glyphs are ink; only a destructive row keeps a colour (danger).
+  const accent = tone === "danger" ? colors.danger : colors.textStrong;
   const titleStyle = tone === "danger" ? { color: colors.danger } : null;
   if (!onPress) {
     return (
@@ -73,7 +72,7 @@ export function LibraryActionCard({
           flat ? settingsScreenStyles.libraryCardFlat : null,
         ]}
       >
-        <View style={[settingsScreenStyles.libraryCardIcon, iconDiscStyle]}>
+        <View style={settingsScreenStyles.libraryCardIcon}>
           <Ionicons name={icon} size={20} color={accent} />
         </View>
         <View style={settingsScreenStyles.libraryCardCopy}>
@@ -99,7 +98,7 @@ export function LibraryActionCard({
       onPress={onPress}
       disabled={disabled}
     >
-      <View style={[settingsScreenStyles.libraryCardIcon, iconDiscStyle]}>
+      <View style={settingsScreenStyles.libraryCardIcon}>
         <Ionicons name={icon} size={20} color={accent} />
       </View>
       <View style={settingsScreenStyles.libraryCardCopy}>

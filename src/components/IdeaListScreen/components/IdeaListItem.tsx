@@ -298,7 +298,7 @@ function IdeaListItemInner({
                     ? (evt) =>
                           onRowHeight(
                               `idea:${ideaId}`,
-                              rowKind("idea", listDensity, !!dayDividerLabel),
+                              rowKind(item?.kind === "project" ? "sketch" : "idea", listDensity, !!dayDividerLabel),
                               evt.nativeEvent.layout.height
                           )
                     : undefined
@@ -351,7 +351,7 @@ function IdeaListItemInner({
                             nowPlaying={nowPlaying}
                             nowPlayingIsPlaying={nowPlayingIsPlaying}
                             isSong={item.kind === "project"}
-                            accentBorderColor={item.kind === "project" ? colors.primary : null}
+                            stacked={item.kind === "project"}
                             compact={compact}
                             denseRow={compact}
                             pick={pick}

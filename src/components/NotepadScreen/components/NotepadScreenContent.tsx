@@ -16,7 +16,7 @@ import { NoteEditor } from "./NoteEditor";
 import { LyricsSparkSheet } from "./LyricsSparkSheet";
 import { useNotepadScreenModel, type NotebookEntry } from "../hooks/useNotepadScreenModel";
 import { styles } from "../../../styles";
-import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
+import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
 import { exerciseSummary } from "../../../domain/wordLadder";
 import { cutUpSummary } from "../../../domain/cutUp";
 import { magpieSummary } from "../../../domain/magpie";
@@ -103,7 +103,7 @@ function NoteListItem({
           </UserText>
         )}
         {bodySegments ? (
-          <UserText align="content" value={note.body} style={noteStyles.cardPreview} numberOfLines={2}>
+          <UserText align="content" value={note.body} style={noteStyles.cardPreview} numberOfLines={1}>
             {bodySegments.map((seg, i) => (
               <Text key={i} style={seg.kind === "match" ? noteStyles.matchText : undefined}>
                 {seg.value}
@@ -111,14 +111,14 @@ function NoteListItem({
             ))}
           </UserText>
         ) : fallbackPreview ? (
-          <UserText align="content" value={fallbackPreview} style={noteStyles.cardPreview} numberOfLines={2}>
+          <UserText align="content" value={fallbackPreview} style={noteStyles.cardPreview} numberOfLines={1}>
             {fallbackPreview}
           </UserText>
         ) : (
           <Text style={noteStyles.cardPreviewEmpty}>{t("notepad.emptyNote")}</Text>
         )}
         {showTimestamp ? (
-          <Text style={noteStyles.cardMeta}>{formatRelativeDate(note.updatedAt, t).toUpperCase()}</Text>
+          <Text style={noteStyles.cardMeta}>{formatRelativeDate(note.updatedAt, t)}</Text>
         ) : null}
       </View>
 
@@ -660,9 +660,12 @@ const listStyles = StyleSheet.create({
 });
 
 const noteStyles = StyleSheet.create({
+  // A lyric page is content (2026-10-15): the idea card's shell, white, r12,
+  // borderless with the whisper shadow; the 2px border stays reserved.
   card: {
-    backgroundColor: colors.surfaceContainer,
-    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    ...shadows.card,
     paddingVertical: 14,
     paddingLeft: 16,
     paddingRight: 12,
@@ -672,10 +675,7 @@ const noteStyles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "transparent",
   },
-  cardPinned: {
-    borderLeftColor: colors.primary,
-    borderLeftWidth: 2,
-  },
+  cardPinned: {},
   cardSelected: {
     borderColor: colors.primary,
   },
@@ -685,14 +685,17 @@ const noteStyles = StyleSheet.create({
     minWidth: 0,
   },
   cardTitle: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 16,
+    fontFamily: "Lora_500Medium",
+    fontSize: 18,
     color: colors.textPrimary,
-    lineHeight: 22,
+    lineHeight: 24,
   },
+  // The page's opening line, in the lyric's own voice.
   cardPreview: {
-    ...textTokens.supporting,
-    lineHeight: 17,
+    fontFamily: "Lora_500Medium_Italic",
+    fontSize: 14,
+    lineHeight: 19,
+    color: colors.textStrong,
   },
   cardPreviewEmpty: {
     ...textTokens.supporting,
@@ -700,7 +703,9 @@ const noteStyles = StyleSheet.create({
     fontStyle: "italic",
   },
   cardMeta: {
-    ...textTokens.annotation,
+    ...textTokens.caption,
+    fontFamily: "PlusJakartaSans_400Regular",
+    color: colors.textSecondary,
     marginTop: 2,
   },
   pinBtn: {
