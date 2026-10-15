@@ -1046,3 +1046,35 @@ clip's page; editor title-case strings ("No Edits", "Transform Save Error");
 import-date "chronology"; help text with "simply"/"root"; the inspector's
 "drag is live" hint; machine names set in Lora on Revisit ("3:35 PM Jul 23rd");
 four unnamed pins all labelled "Pin" in the Marks list.
+
+## Leftovers and the subtitle audit (2026-10-15)
+
+Leftovers from the words pass, all built:
+- One verb for layers into one clip: **Combine** ("Combine layers", "Combine
+  as new clip", "Combine and edit", "Combined clip saved", "Couldn't
+  combine"). "Flatten", "flattened mix", "Save as one clip" and "root" are
+  gone from the copy (help text says "the take").
+- "Replies" on a clip's page is "Versions", the word the sketch already uses.
+- Editor alerts: "Nothing marked", "No change", "Couldn't save"; the export
+  modal's "This happens entirely on your device" line is gone.
+- Import dates ask "Which date should these keep?" instead of "chronology".
+- "simply" out of the Send help; the inspector hint reads "‹ › moves 50 ms".
+- Earned serif on inline cards: `InlineIdeaCard` now applies
+  `looksMachineNamed` itself (Revisit, Shelf, Activity), and old "Recovered
+  Recording …" titles count as machine names (tested).
+- Unnamed pins number themselves in time order ("Pin 1", "Pin 2").
+
+Subtitle audit (founder: "subtitles on pages, sometimes unclear or repetitive
+or unneeded"):
+- Revisit: "Unfinished", "Raw ideas" and "Deep cuts" lost their subtitles; the
+  name says what the section holds and each card now says why. "Around this
+  time" keeps "From this date in past years" (alone it could mean the hour).
+- Settings overview: the four group labels (Your SongNook, Preferences, Your
+  data, Support) are gone; six rows in four cards group themselves. Row
+  subtitles stay (they say what is inside).
+- Received: "4 packages" is "4 parcels", the word Send and Keep already use.
+- Hub: "Current Workspace" eyebrow is "Workspace".
+- Search intro: "Anything, by what's inside it." (the chips list the rest).
+- Cut-up remix: "scraps" out.
+- Kept: collection and sketch meta lines, Revisit's date line, Lyric Pad's
+  count, Shelf's ledgers, help-sheet theses, Bluetooth calibration steps.

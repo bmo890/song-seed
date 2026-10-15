@@ -42,7 +42,6 @@ export function SettingsOverviewView({
       <PageIntro title={t("settings.title")} />
 
       <View style={settingsScreenStyles.overviewSection}>
-        <Text style={styles.settingsSectionLabel}>{t("settings.yourSongNook")}</Text>
         <SettingsGroup>
           <LibraryActionCard
             flat
@@ -55,7 +54,6 @@ export function SettingsOverviewView({
       </View>
 
       <View style={settingsScreenStyles.overviewSection}>
-        <Text style={styles.settingsSectionLabel}>{t("settings.preferences")}</Text>
         <SettingsGroup>
           <LibraryActionCard
             flat
@@ -75,7 +73,6 @@ export function SettingsOverviewView({
       </View>
 
       <View style={settingsScreenStyles.overviewSection}>
-        <Text style={styles.settingsSectionLabel}>{t("settings.yourData")}</Text>
         <SettingsGroup>
           <LibraryActionCard
             flat
@@ -96,7 +93,6 @@ export function SettingsOverviewView({
       </View>
 
       <View style={settingsScreenStyles.overviewSection}>
-        <Text style={styles.settingsSectionLabel}>{t("settings.support")}</Text>
         <SettingsGroup>
           <LibraryActionCard
             flat

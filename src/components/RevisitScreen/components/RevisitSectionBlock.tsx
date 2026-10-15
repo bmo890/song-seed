@@ -10,12 +10,15 @@ import { RevisitCandidateCard } from "./RevisitCandidateCard";
 import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 
-const SECTION_COPY = {
-  pickup: { title: "revisit.unfinished", subtitle: "revisit.unfinishedSubtitle" },
-  forgotten: { title: "revisit.rawIdeas", subtitle: "revisit.rawIdeasSubtitle" },
-  vault: { title: "revisit.deepCuts", subtitle: "revisit.deepCutsSubtitle" },
+// A section's name says what it holds and each card says why it is there, so
+// only "Around this time" keeps a subtitle: its name alone could mean the hour
+// (subtitle audit, 2026-10-15).
+const SECTION_COPY: Record<string, { title: string; subtitle?: string }> = {
+  pickup: { title: "revisit.unfinished" },
+  forgotten: { title: "revisit.rawIdeas" },
+  vault: { title: "revisit.deepCuts" },
   around: { title: "revisit.around", subtitle: "revisit.aroundSubtitle" },
-} as const;
+};
 
 // A daily feature: one idea per section, two at most.
 const MAX_ITEMS_PER_SECTION = 2;
@@ -72,7 +75,7 @@ export function RevisitSectionBlock({
             <Ionicons name={SECTION_ICONS[section.key]} size={16} color={colors.primary} />
             <Text style={revisitStyles.sectionTitleSerif}>{t(copy.title)}</Text>
           </View>
-          <Text style={revisitStyles.sectionSubShort}>{t(copy.subtitle)}</Text>
+          {copy.subtitle ? <Text style={revisitStyles.sectionSubShort}>{t(copy.subtitle)}</Text> : null}
         </View>
         {section.actionLabel && onOpenSection ? (
           <Press
