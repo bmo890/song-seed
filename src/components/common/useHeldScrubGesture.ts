@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Gesture, type PanGesture } from "react-native-gesture-handler";
 import { runOnJS, useSharedValue, type SharedValue } from "react-native-reanimated";
+import { haptic } from "../../design/haptics";
 
 /** How far above and below a scrub line a touch still grabs it. */
 const GRAB_SLOP = 10;
@@ -22,6 +23,9 @@ type Options = {
   onCommit: (fraction: number) => void;
   /** JS thread, when the system takes the touch away. */
   onCancel: () => void;
+  /** Detents across the whole width: a timeline passes its length in seconds.
+   *  Omit for a line with no detents (grab and release still speak). */
+  detents?: SharedValue<number>;
 };
 
 /**
@@ -46,15 +50,25 @@ type Options = {
  *
  * `onTrack` must be a worklet. Attach the gesture to a view exactly as wide as
  * the line; `event.x` stays relative to it outside its bounds.
+ *
+ * Feel is the app's one scrub choreography (haptics.ts): `grab` as the line is
+ * held, `tick` at each detent crossed, `light` as the finger lifts, `tap` for
+ * a tap-seek. Callers never fire these themselves.
  */
-export function useHeldScrubGesture({ width, onTrack, onGrab, onCommit, onCancel }: Options) {
+export function useHeldScrubGesture({ width, onTrack, onGrab, onCommit, onCancel, detents }: Options) {
   const held = useSharedValue(false);
+  const lastDetent = useSharedValue(0);
 
   return useMemo(() => {
     const fractionAt = (x: number) => {
       "worklet";
       const w = width.value;
       return w <= 0 ? 0 : Math.max(0, Math.min(1, x / w));
+    };
+    const detentAt = (fraction: number) => {
+      "worklet";
+      const count = detents?.value ?? 0;
+      return count > 0 ? Math.floor(fraction * count) : 0;
     };
 
     const scrubbing = (pan: PanGesture) =>
@@ -65,18 +79,31 @@ export function useHeldScrubGesture({ width, onTrack, onGrab, onCommit, onCancel
         .onStart((event) => {
           "worklet";
           held.value = true;
+          const fraction = fractionAt(event.x);
+          lastDetent.value = detentAt(fraction);
+          // Haptics vocabulary: `grab` — the line is held.
+          runOnJS(haptic.grab)();
           runOnJS(onGrab)();
-          onTrack(fractionAt(event.x));
+          onTrack(fraction);
         })
         .onUpdate((event) => {
           "worklet";
           if (!held.value) return;
-          onTrack(fractionAt(event.x));
+          const fraction = fractionAt(event.x);
+          const detent = detentAt(fraction);
+          if (detent !== lastDetent.value) {
+            lastDetent.value = detent;
+            // Haptics vocabulary: `tick` — a detent crossed under the finger.
+            runOnJS(haptic.tick)();
+          }
+          onTrack(fraction);
         })
         .onEnd((event, success) => {
           "worklet";
           if (!success || !held.value) return;
           held.value = false;
+          // Haptics vocabulary: `light` — the finger lifts, the position is set.
+          runOnJS(haptic.light)();
           runOnJS(onCommit)(fractionAt(event.x));
         })
         .onFinalize(() => {
@@ -103,11 +130,13 @@ export function useHeldScrubGesture({ width, onTrack, onGrab, onCommit, onCancel
         "worklet";
         if (!success) return;
         const fraction = fractionAt(event.x);
+        // Haptics vocabulary: `tap` — a tap-seek, once, at the landing.
+        runOnJS(haptic.tap)();
         runOnJS(onGrab)();
         onTrack(fraction);
         runOnJS(onCommit)(fraction);
       });
 
     return Gesture.Race(sidewaysPan, holdPan, tap);
-  }, [held, onCancel, onCommit, onGrab, onTrack, width]);
+  }, [detents, held, lastDetent, onCancel, onCommit, onGrab, onTrack, width]);
 }

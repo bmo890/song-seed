@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { haptic } from "../../design/haptics";
 import { View, StyleSheet, LayoutChangeEvent } from "react-native";
 import { Canvas, Path, Rect as SkiaRect, Skia } from "@shopify/react-native-skia";
 import Animated, { useAnimatedStyle, SharedValue, useDerivedValue, runOnJS, useSharedValue } from "react-native-reanimated";
@@ -181,6 +182,7 @@ export function MinimapVisualizer({
     }, [sectionBands, durationMs, containerWidth]);
 
     const isDragging = useSharedValue(false);
+    const lastSecond = useSharedValue(-1);
     const localAudioProgress = useSharedValue(0);
     const audioProgress = sharedAudioProgress || localAudioProgress;
     const localCurrentTimeMs = useSharedValue(currentTimeMs);
@@ -258,24 +260,40 @@ export function MinimapVisualizer({
         sharedSelectedRangeStartMs,
     ]);
 
+    // The app's one scrub choreography (haptics.ts): grab, a tick per second
+    // crossed, light on release, tap for a tap-seek.
     const pan = Gesture.Pan()
         .activeOffsetX([-5, 5])
-        .onStart(() => {
+        .onStart((e) => {
             isDragging.value = true;
+            const ratio = Math.max(0, Math.min(1, e.x / containerWidth));
+            lastSecond.value = Math.floor((ratio * durationMs) / 1000);
+            // Haptics vocabulary: `grab` — the lens is held.
+            runOnJS(haptic.grab)();
             if (onScrubStateChange) runOnJS(onScrubStateChange)(true);
         })
         .onUpdate((e) => {
             const ratio = Math.max(0, Math.min(1, e.x / containerWidth));
             audioProgress.value = ratio;
+            const second = Math.floor((ratio * durationMs) / 1000);
+            if (second !== lastSecond.value) {
+                lastSecond.value = second;
+                // Haptics vocabulary: `tick` — a second crossed under the finger.
+                runOnJS(haptic.tick)();
+            }
         })
         .onEnd(() => {
             isDragging.value = false;
+            // Haptics vocabulary: `light` — the finger lifts, the position is set.
+            runOnJS(haptic.light)();
             runOnJS(onSeek)(audioProgress.value * durationMs);
         });
 
     const tap = Gesture.Tap()
         .onEnd((e) => {
             const ratio = Math.max(0, Math.min(1, e.x / containerWidth));
+            // Haptics vocabulary: `tap` — a tap-seek, once, at the landing.
+            runOnJS(haptic.tap)();
             runOnJS(onSeek)(ratio * durationMs);
         });
 

@@ -53,7 +53,7 @@ rules() {
   count motion_duration \
     "src_files | grep -v 'design/motion.ts' | xargs grep -nE 'duration: ?[0-9]{2,4}\b' | grep -v durationMs"
   count motion_spring \
-    "src_files | grep -v 'design/motion.ts' | xargs grep -nE '(damping|stiffness): ?[0-9]'"
+    "src_files | grep -v 'design/motion.ts' | xargs grep -nE '(damping|stiffness|tension|friction): ?[0-9]'"
   # Type.
   count font_weight_bare \
     "for f in \$(src_files | xargs grep -l fontWeight); do grep -q fontFamily \"\$f\" || echo \"\$f\"; done"

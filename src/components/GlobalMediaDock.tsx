@@ -186,7 +186,7 @@ export function GlobalMediaDock({
             if (finished) runOnJS(finishSwipeUpOpen)();
           });
         } else {
-          dragY.value = withTiming(dockedY.value, { duration: 200 }, (finished) => {
+          dragY.value = withTiming(dockedY.value, { duration: durations.gentle }, (finished) => {
             if (finished) runOnJS(endSwipeUpCancel)();
           });
         }

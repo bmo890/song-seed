@@ -22,7 +22,7 @@ import { styles } from "../../styles";
 import { haptic } from "../../design/haptics";
 import { AppDialogHost } from "./AppDialog";
 import { dialogStore } from "./dialogStore";
-import { durations } from "../../design/motion";
+import { durations, springs } from "../../design/motion";
 
 export type BottomSheetRef = { close: () => void };
 
@@ -91,9 +91,7 @@ export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
       keyboardOffset.setValue(0);
       Animated.spring(translateY, {
         toValue: 0,
-        damping: 20,
-        stiffness: 220,
-        mass: 0.9,
+        ...springs.surface,
         useNativeDriver: useNative,
       }).start();
       // Only re-run on visibility flips; geometry is stable per open session.
@@ -131,9 +129,7 @@ export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
       isClosingRef.current = false;
       Animated.spring(translateY, {
         toValue: 0,
-        damping: 20,
-        stiffness: 240,
-        mass: 0.85,
+        ...springs.settle,
         useNativeDriver: useNative,
       }).start();
     }, [translateY, useNative]);
@@ -166,9 +162,7 @@ export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
         restBodyRef.current = target;
         Animated.spring(bodyHeight, {
           toValue: target,
-          damping: 22,
-          stiffness: 240,
-          mass: 0.85,
+          ...springs.settle,
           useNativeDriver: false, // height is a layout prop
         }).start();
       },
@@ -178,9 +172,7 @@ export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
     const settleTranslate = useCallback(() => {
       Animated.spring(translateY, {
         toValue: 0,
-        damping: 20,
-        stiffness: 240,
-        mass: 0.85,
+        ...springs.settle,
         useNativeDriver: useNative,
       }).start();
     }, [translateY, useNative]);

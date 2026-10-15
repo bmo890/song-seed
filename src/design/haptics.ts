@@ -25,6 +25,25 @@ export function setHapticsEnabled(value: boolean) {
  *   warning  → about to do something destructive: confirm dialogs opening
  *   error    → something failed
  *
+ * Choreographies (2026-10-15, founder: one shared feel across the app). A
+ * gesture is a sentence made of the verbs above, and the same gesture always
+ * says the same sentence, whatever surface it is on:
+ *
+ *   press                 tap. Navigation is silent.
+ *   scrub / drag a value  grab when the finger lands and the thing is held;
+ *                         tick at every detent crossed (one second on a
+ *                         timeline, the control's own step on a slider or
+ *                         stepper); light when the finger lifts and the value
+ *                         is set. Nothing on continuous motion between detents.
+ *   tap to seek           tap, once, at the landing.
+ *   snap to a magnet      tick, in place of the release light.
+ *   sheet settles         light. Dragging a sheet is silent.
+ *   lift into a mode      grab (drag lift, selection mode, record).
+ *   finish / fail         success / error. Never both.
+ *
+ * Built once in Slider, Stepper, useHeldScrubGesture, the reel and the
+ * minimap; a new surface reuses those before it fires a verb by hand.
+ *
  * All fire-and-forget; failures are swallowed (haptics are never load-bearing).
  */
 export const haptic = {

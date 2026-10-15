@@ -1076,6 +1076,8 @@ export function PlaybackTapeVisualizer({
     const localScale = useSharedValue(1);
     const scale = sharedScale || localScale;
     const isDragging = useSharedValue(false);
+    // The second under the finger while scrubbing; a change is a detent tick.
+    const scrubSecond = useSharedValue(-1);
     const startProgress = useSharedValue(0);
 
     const localTranslateX = useSharedValue(0);
@@ -1511,6 +1513,7 @@ export function PlaybackTapeVisualizer({
             adoptNextReport.value = false;
             progressVelocity.value = 0;
             startProgress.value = audioProgress.value;
+            scrubSecond.value = Math.floor((audioProgress.value * durationMs) / 1000);
             if (onScrubStateChange) runOnJS(onScrubStateChange)(true);
         })
         .onUpdate((event) => {
@@ -1518,6 +1521,13 @@ export function PlaybackTapeVisualizer({
             let newProgress = startProgress.value + progressChange;
             newProgress = Math.max(0, Math.min(1, newProgress));
             audioProgress.value = newProgress;
+            // Haptics vocabulary: `tick` — a second crossed under the finger,
+            // the same detent every scrub in the app has.
+            const second = Math.floor((newProgress * durationMs) / 1000);
+            if (second !== scrubSecond.value) {
+                scrubSecond.value = second;
+                runOnJS(haptic.tick)();
+            }
         })
         .onEnd((event) => {
             const settle = (fromFling: boolean) => {

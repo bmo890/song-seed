@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { durations } from "../../../design/motion";
 import { Animated, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Press } from "../../common/Press";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -111,7 +112,7 @@ function SearchResultCard({
   useEffect(() => {
     Animated.timing(enter, {
       toValue: 1,
-      duration: 320,
+      duration: durations.slow,
       delay: Math.min(animationIndex * 45, 260),
       useNativeDriver: true,
     }).start();
@@ -229,7 +230,7 @@ function SearchLanding() {
   useEffect(() => {
     Animated.timing(enter, {
       toValue: 1,
-      duration: 420,
+      duration: durations.slow,
       delay: 90,
       useNativeDriver: true,
     }).start();

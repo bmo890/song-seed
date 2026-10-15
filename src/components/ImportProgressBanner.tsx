@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type ImportJob, useImportStore } from "../state/useImportStore";
 import { useStore } from "../state/useStore";
 import { colors, radii } from "../design/tokens";
-import { durations } from "../design/motion";
+import { durations, springs } from "../design/motion";
 
 function ImportJobRow({ job }: { job: ImportJob }) {
     const progressAnim = useRef(new Animated.Value(0)).current;
@@ -91,10 +91,10 @@ export function ImportProgressBanner({ hidden = false }: { hidden?: boolean }) {
         if (hasJobs && !wasVisible.current) {
             wasVisible.current = true;
             slideAnim.setValue(0);
-            Animated.spring(slideAnim, { toValue: 1, useNativeDriver: true, tension: 80, friction: 12 }).start();
+            Animated.spring(slideAnim, { toValue: 1, useNativeDriver: true, ...springs.surface }).start();
         } else if (!hasJobs && wasVisible.current) {
             wasVisible.current = false;
-            Animated.timing(slideAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+            Animated.timing(slideAnim, { toValue: 0, duration: durations.gentle, useNativeDriver: true }).start();
         }
     }, [hasJobs, slideAnim]);
 
