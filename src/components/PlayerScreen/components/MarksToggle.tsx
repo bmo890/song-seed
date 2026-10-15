@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { colors } from "../../../design/tokens";
 import { PIN_ICON, PIN_ICON_OUTLINE } from "../../../design/markIcons";
 import { playerScreenStyles } from "../styles";
-import { InkOption } from "../../common/InkOption";
+import { InkKey, inkKeyColor } from "../../common/InkKey";
 import { Press } from "../../common/Press";
 
 type MarksToggleProps = {
@@ -25,6 +25,11 @@ type MarksToggleProps = {
  *
  * Compact (slim bars): the app's pin glyph, filled while marks show, outline
  * and faded while they do not.
+ *
+ * Full (2026-10-15): an ink key like Layer and Tools beside it, led by the pin
+ * glyph: terracotta and filled while the marks are on the reel, muted and
+ * outlined while they are off (founder: "adjust the Marks button... with an
+ * icon, and show as active/inactive").
  */
 export function MarksToggle({ visible, onToggle, compact }: MarksToggleProps) {
   const { t } = useTranslation();
@@ -49,13 +54,17 @@ export function MarksToggle({ visible, onToggle, compact }: MarksToggleProps) {
       </Press>
     );
   }
+  const tone = visible ? "active" : "off";
   return (
-    <InkOption
+    <InkKey
+      // Haptics vocabulary: `light` — a small state flip, the marks show or hide.
+      haptic="light"
+      role="switch"
+      tone={tone}
       label={t("player.marks")}
-      selected={visible}
+      glyph={<Ionicons name={visible ? PIN_ICON : PIN_ICON_OUTLINE} size={16} color={inkKeyColor(tone)} />}
       onPress={onToggle}
       accessibilityLabel={a11y}
-      style={playerScreenStyles.marksInk}
     />
   );
 }

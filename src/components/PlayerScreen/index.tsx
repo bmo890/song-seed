@@ -47,6 +47,7 @@ import { PlayerArtifactReader, FollowSpeedControl } from "./components/PlayerArt
 import { lyricChordSummary, selectAnySketch } from "./components/PlayerArtifactDoors";
 import { buildLyricPreview } from "../../domain/pagePreview";
 import type { ListeningBelow } from "../../domain/reelLanes";
+import { InkKey, inkKeyColor } from "../common/InkKey";
 import { MarksToggle } from "./components/MarksToggle";
 import { InkOption } from "../common/InkOption";
 import { Press } from "../common/Press";
@@ -1641,42 +1642,30 @@ function PlayerScreenInner({
                         Tools tabs; here it costs the drawers nothing and sits by
                         the tape it records onto. Only while Tools is open. */}
                     {ui.mode === "practice" ? (
-                      <Press
-                        style={playerScreenStyles.layerKey}
+                      <InkKey
+                        // Haptics (Press default): `tap` — an acknowledged press;
+                        // the recorder it opens fires its own record haptics.
+                        label={t("player.layerKey")}
+                        glyph={<View style={playerScreenStyles.layerKeyDot} />}
                         onPress={() => void handleAddOverdub(getVisiblePlayheadMs())}
-                        hitSlop={6}
-                        accessibilityRole="button"
                         accessibilityLabel={t("player.recordLayerAtPlayhead")}
-                      >
-                        <View style={playerScreenStyles.layerKeyDot} />
-                        <Text style={playerScreenStyles.toolsPillText}>{t("player.layerKey")}</Text>
-                      </Press>
-                    ) : null}
-                    <Pressable
-                      style={({ pressed }) => [
-                        playerScreenStyles.toolsPill,
-                        ui.mode === "practice" ? playerScreenStyles.toolsPillActive : null,
-                        pressed ? playerScreenStyles.overflowButtonPressed : null,
-                      ]}
-                      onPress={() => ui.setMode(ui.mode === "practice" ? "player" : "practice")}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: ui.mode === "practice" }}
-                      accessibilityLabel={ui.mode === "practice" ? t("player.closePractice") : t("player.openPractice")}
-                    >
-                      <Ionicons
-                        name="options-outline"
-                        size={15}
-                        color={ui.mode === "practice" ? colors.primaryDeep : colors.textStrong}
                       />
-                      <Text
-                        style={[
-                          playerScreenStyles.toolsPillText,
-                          ui.mode === "practice" ? playerScreenStyles.toolsPillTextActive : null,
-                        ]}
-                      >
-                        {t("player.tools")}
-                      </Text>
-                    </Pressable>
+                    ) : null}
+                    <InkKey
+                      // Haptics vocabulary: `light` — the drawers open or close.
+                      haptic="light"
+                      tone={ui.mode === "practice" ? "active" : "idle"}
+                      label={t("player.tools")}
+                      glyph={
+                        <Ionicons
+                          name="options-outline"
+                          size={16}
+                          color={inkKeyColor(ui.mode === "practice" ? "active" : "idle")}
+                        />
+                      }
+                      onPress={() => ui.setMode(ui.mode === "practice" ? "player" : "practice")}
+                      accessibilityLabel={ui.mode === "practice" ? t("player.closePractice") : t("player.openPractice")}
+                    />
                   </View>
                 </>
               )}

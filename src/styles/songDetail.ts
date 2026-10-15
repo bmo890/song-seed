@@ -273,34 +273,8 @@ export const songDetailStyles = {
     textTransform: "uppercase",
   },
   songDetailSongTabs: {
-    flexDirection: "row",
     marginTop: -2,
     marginBottom: 4,
-    paddingHorizontal: 4,
-    paddingVertical: 3,
-    backgroundColor: "rgba(215,194,189,0.2)",
-    borderRadius: 8,
-  },
-  songDetailSongTab: {
-    flex: 1,
-    paddingVertical: 6,
-    alignItems: "center",
-    borderRadius: 6,
-  },
-  songDetailSongTabActive: {
-    backgroundColor: "#ffffff",
-    shadowColor: "#3D3732",
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  songDetailSongTabText: {
-    fontSize: 13,
-    color: "#84736f",
-    fontFamily: "PlusJakartaSans_600SemiBold",
-  },
-  songDetailSongTabTextActive: {
-    color: "#1C1C19",
   },
   songDetailTabScroll: {
     flex: 1,

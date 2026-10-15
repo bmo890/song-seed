@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Animated, I18nManager, StyleSheet, Text, View } from "react-native";
 import { Press } from "./Press";
 import { styles } from "../../styles";
-import { colors, radii, shadows } from "../../design/tokens";
+import { colors, radii } from "../../design/tokens";
 import { durations } from "../../design/motion";
 import { haptic } from "../../design/haptics";
 import { physicalEdge } from "../../i18n";
@@ -51,7 +51,14 @@ type Props<T extends string> = {
   persist?: SegmentedThumb;
 };
 
-const TRACK_PAD_H = 4;
+/**
+ * Tabs in ink (2026-10-15, founder picked "Ink"): the words sit on a hairline,
+ * the chosen one in full ink with a 2 pt rule beneath it that slides along the
+ * hairline to the next choice; the others recede. No track, no white thumb, no
+ * shadow: the same "a line under the one you are editing" the loop's edge
+ * readouts use.
+ */
+const TRACK_PAD_H = 0;
 
 export function SegmentedControl<T extends string>({
   options,
@@ -169,23 +176,22 @@ const segmentedControlStyles = StyleSheet.create({
   root: {
     flexDirection: "row",
     paddingHorizontal: TRACK_PAD_H,
-    paddingVertical: 3,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceContainer,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
   },
+  // The chosen tab's rule: 2 pt of ink, sitting on the hairline.
   thumb: {
     position: "absolute",
-    top: 3,
-    bottom: 3,
+    bottom: -1,
+    height: 2,
     [physicalEdge("left")]: TRACK_PAD_H,
-    borderRadius: radii.round,
-    backgroundColor: colors.surface,
-    ...shadows.control,
+    borderRadius: 1,
+    backgroundColor: colors.textPrimary,
   },
   segment: {
     flex: 1,
-    paddingVertical: 7,
-    borderRadius: radii.round,
+    paddingTop: 8,
+    paddingBottom: 9,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -207,7 +213,7 @@ const segmentedControlStyles = StyleSheet.create({
     color: colors.textSecondary,
   },
   segmentGlyphActive: {
-    color: colors.primaryDeep,
+    color: colors.textPrimary,
   },
   segmentLabelSmall: {
     fontSize: 11.5,
@@ -219,11 +225,12 @@ const segmentedControlStyles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   segmentLabel: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13,
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 15,
     color: colors.textSecondary,
   },
   segmentLabelActive: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.textPrimary,
   },
 });

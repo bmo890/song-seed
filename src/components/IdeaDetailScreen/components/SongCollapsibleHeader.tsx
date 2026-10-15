@@ -1,8 +1,8 @@
+import { SegmentedControl } from "../../common/SegmentedControl";
 import { type ReactNode } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { styles } from "../styles";
 import { useSongScreen } from "../provider/SongScreenProvider";
-import { haptic } from "../../../design/haptics";
 import { STAGE_INK, StageMark } from "../../common/StageMark";
 import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
@@ -83,34 +83,14 @@ export function SongCollapsibleHeader({ extra }: SongCollapsibleHeaderProps) {
       ) : null}
 
       {showTabs ? (
+        // The shared tab control (2026-10-15): it was a hand-built copy of the
+        // segmented track; now the same ink tabs as every other choice.
         <View style={styles.songDetailSongTabs}>
-          {SONG_TABS.map((tab) => {
-            const active = screen.songTab === tab.key;
-            return (
-              <Pressable
-                key={tab.key}
-                style={({ pressed }) => [
-                  styles.songDetailSongTab,
-                  active ? styles.songDetailSongTabActive : null,
-                  pressed && !active ? styles.pressDown : null,
-                ]}
-                onPress={() => {
-                  if (active) return;
-                  haptic.tap();
-                  screen.setSongTab(tab.key);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.songDetailSongTabText,
-                    active ? styles.songDetailSongTabTextActive : null,
-                  ]}
-                >
-                  {t(tab.labelKey)}
-                </Text>
-              </Pressable>
-            );
-          })}
+          <SegmentedControl
+            options={SONG_TABS.map((tab) => ({ key: tab.key, label: t(tab.labelKey) }))}
+            selectedKey={screen.songTab}
+            onSelect={(key) => screen.setSongTab(key)}
+          />
         </View>
       ) : null}
 
