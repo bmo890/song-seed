@@ -240,10 +240,18 @@ export function SideNav({
                   testID={`nav-recent-${entry.id}`}
                   accessibilityRole="button"
                   accessibilityLabel={`${t("navigation.recent")} · ${entry.title}`}
-                  style={[sideNavStyles.recentRow, entry.active ? sideNavStyles.recentRowActive : null]}
+                  style={sideNavStyles.recentRow}
                   onPress={() => onOpenCollection(entry.id)}
                 >
-                  <Ionicons name={NAV_ICONS.collection} size={15} color={colors.textSecondary} />
+                  {/* "You are here": an ink tick on the guide line, not a fill
+                      (founder, 2026-10-15: the white wash on the tint was a
+                      third tone too many). */}
+                  {entry.active ? <View style={sideNavStyles.recentHereTick} /> : null}
+                  <Ionicons
+                    name={NAV_ICONS.collection}
+                    size={15}
+                    color={entry.active ? colors.textStrong : colors.textSecondary}
+                  />
                   <UserText
                     value={entry.title}
                     style={[sideNavStyles.recentTitle, entry.active ? sideNavStyles.recentTitleActive : null]}
@@ -517,8 +525,15 @@ const sideNavStyles = StyleSheet.create({
     marginHorizontal: -6,
     borderRadius: 6,
   },
-  recentRowActive: {
-    backgroundColor: "rgba(255,255,255,0.55)",
+  // Sits on the guide line (the group's start border, 8 pt outside the row).
+  recentHereTick: {
+    position: "absolute",
+    start: -9,
+    top: 9,
+    bottom: 9,
+    width: 2,
+    borderRadius: 1,
+    backgroundColor: colors.textStrong,
   },
   recentTitle: {
     flexShrink: 1,
@@ -527,6 +542,7 @@ const sideNavStyles = StyleSheet.create({
     color: colors.textStrong,
   },
   recentTitleActive: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.textPrimary,
   },
   recentMeta: {
