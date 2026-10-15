@@ -1227,7 +1227,7 @@ Built (five commits, 7d550a4d..9cf4c178):
   rows lose the tinted disc; version history sort through t().
 - Tabs: Notes is the page; Lyrics and Chart use the canon EmptyState.
 
-Not built yet: Lyrics B (waiting on the founder's yes to retire the
+Lyrics B built after the founder retired the in-list expand (see below).
 in-list expand; tapping the card opens the full page with the same
 lyrics/chords switch). The collection's More sheet still has 7 rows
 (Bookmark cannot fold into Tags there: Tags only exists for clips).
@@ -1237,3 +1237,13 @@ menus, player and Shelf menus as sheets, Ideas filter and sort (incl. a
 stage lit and Title order), tag picker, empty Lyrics / Chart / Notes.
 Not seen: Hebrew, Android, Revisit and Activity menus, Compilations and
 workspace menus, chord export, move picker, the version history screen.
+
+Lyrics B (founder: "yea retire then"): the current version is one card
+showing its first four lines in Lora, stacked when older versions exist,
+"2 older ⌄" unfolding them as hairline rows (first line + v2 · date · lines
+· chords). A tap opens the version's page (lyrics, chords switch, Edit);
+the in-list expand box is retired. "Write with the tape" leads the toolbar
+row, "+ Version" trails (opens the same three choices). Version numbers
+read alike everywhere: the page names a version by its own number while
+reading (opening v2 used to say "Version 4"). Next candidate: the version
+page itself (filled Lyrics/Chords pill, share in a filled circle).

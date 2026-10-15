@@ -1,4 +1,3 @@
-import { View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { LyricsVersionsPanel } from "../../LyricsScreen/LyricsVersionsPanel";
 import { InkLink } from "../../common/InkLink";
@@ -30,17 +29,20 @@ export function SongLyricsSection() {
         { paddingBottom: screen.songPageBaseBottomPadding },
       ]}
     >
-      {canWriteWithTape ? (
-        <View style={styles.songDetailTabLinkRow}>
-          <InkLink
-            icon="play-outline"
-            label={t("songDetail.writeWithTape")}
-            onPress={writeWithTape}
-            testID="song-lyrics-write-with-tape"
-          />
-        </View>
-      ) : null}
-      <LyricsVersionsPanel projectIdea={screen.selectedIdea} />
+      {/* The tape door leads the panel's toolbar row; "+ Version" trails. */}
+      <LyricsVersionsPanel
+        projectIdea={screen.selectedIdea}
+        toolbarLeading={
+          canWriteWithTape ? (
+            <InkLink
+              icon="play-outline"
+              label={t("songDetail.writeWithTape")}
+              onPress={writeWithTape}
+              testID="song-lyrics-write-with-tape"
+            />
+          ) : undefined
+        }
+      />
     </CollapsingTabStage>
   );
 }
