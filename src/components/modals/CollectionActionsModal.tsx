@@ -1,8 +1,5 @@
-import { Modal, Pressable, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { styles } from "../../styles";
-import { colors } from "../../design/tokens";
 import { useTranslation } from "react-i18next";
+import { SelectionActionSheet } from "../common/SelectionActionSheet";
 
 type Props = {
   visible: boolean;
@@ -14,72 +11,24 @@ type Props = {
   onCancel: () => void;
 };
 
-type ActionRowProps = {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  destructive?: boolean;
-  onPress: () => void;
-};
-
-function ActionRow({ icon, label, destructive = false, onPress }: ActionRowProps) {
-  return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.collectionActionsOption,
-        destructive ? styles.collectionActionsOptionDestructive : null,
-        pressed ? styles.pressDown : null,
-      ]}
-      onPress={onPress}
-    >
-      <View style={styles.collectionActionsOptionLead}>
-        <Ionicons
-          name={icon}
-          size={16}
-          color={destructive ? colors.danger : colors.textSecondary}
-        />
-        <Text
-          style={[
-            styles.collectionActionsOptionText,
-            destructive ? styles.collectionActionsOptionTextDestructive : null,
-          ]}
-        >
-          {label}
-        </Text>
-      </View>
-      <Ionicons
-        name={destructive ? "alert-circle-outline" : "chevron-forward"}
-        size={15}
-        color={destructive ? colors.danger : colors.textMuted}
-      />
-    </Pressable>
-  );
-}
-
-export function CollectionActionsModal({
-  visible,
-  title,
-  onRename,
-  onCopy,
-  onMove,
-  onDelete,
-  onCancel,
-}: Props) {
+/** A nested collection's long-press menu: the shared action sheet, named by
+ *  the collection. Was a centred card of boxed rows. */
+export function CollectionActionsModal({ visible, title, onRename, onCopy, onMove, onDelete, onCancel }: Props) {
   const { t } = useTranslation();
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.modalBackdrop}>
-        <Pressable style={styles.overlay} onPress={onCancel}>
-          <Pressable style={[styles.modalCard, styles.collectionActionsModalCard]} onPress={() => {}}>
-            <Text style={styles.modalTitle}>{title}</Text>
-            <View style={styles.collectionActionsOptionList}>
-              <ActionRow icon="create-outline" label={t("modals.rename")} onPress={onRename} />
-              <ActionRow icon="copy-outline" label={t("common.copy")} onPress={onCopy} />
-              <ActionRow icon="swap-horizontal-outline" label={t("common.move")} onPress={onMove} />
-              <ActionRow icon="trash-outline" label={t("common.delete")} destructive onPress={onDelete} />
-            </View>
-          </Pressable>
-        </Pressable>
-      </View>
-    </Modal>
+    <SelectionActionSheet
+      visible={visible}
+      title={title}
+      actions={[
+        { key: "rename", label: t("modals.rename"), icon: "create-outline", onPress: onRename },
+        { key: "copy", label: t("common.copy"), icon: "copy-outline", onPress: onCopy },
+        { key: "move", label: t("common.move"), icon: "swap-horizontal-outline", onPress: onMove },
+        { key: "delete", label: t("common.delete"), icon: "trash-outline", tone: "danger", onPress: onDelete },
+      ]}
+      // Each handler closes the menu itself and still needs the collection it
+      // names; only a dismissal without a choice forgets it.
+      onClose={() => {}}
+      onCancel={onCancel}
+    />
   );
 }

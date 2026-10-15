@@ -490,12 +490,12 @@ export function usePlayerScreenLifecycle({
 
     // The menu is clip MANAGEMENT only. Recording verbs live on the recording
     // surfaces (Tools' "Record a layer", the bench's +) — no "Add overdub" here.
-    AppAlert.custom(t("player.options"), playerClip?.title ?? undefined, [
+    AppAlert.menu(playerClip?.title ?? t("player.options"), [
       ...(hasOverdubs
         ? [
             {
+              key: "player.saveCombinedNew",
               label: t("player.saveCombinedNew"),
-              style: "default" as const,
               icon: actionIcons.add,
               onPress: async () => {
                 if (!playerIdea || !playerClip) return;
@@ -517,8 +517,8 @@ export function usePlayerScreenLifecycle({
               },
             },
             {
+              key: "player.saveCombinedEdit",
               label: t("player.saveCombinedEdit"),
-              style: "default" as const,
               icon: "cut-outline" as const,
               onPress: async () => {
                 try {
@@ -534,8 +534,8 @@ export function usePlayerScreenLifecycle({
         : [
             {
               // Scissors, not a pencil: the editor's job here is trimming the tape.
+              key: "player.trimAudio",
               label: t("player.trimAudio"),
-              style: "default" as const,
               icon: "cut-outline" as const,
               onPress: async () => {
                 if (!playerIdea || !playerClip) return;
@@ -554,8 +554,8 @@ export function usePlayerScreenLifecycle({
       ...(isStandaloneClip
         ? [
             {
+              key: "songDetail.makeSong",
               label: t("songDetail.makeSong"),
-              style: "default" as const,
               // The sketch glyph — the same one the door's eyebrow wears.
               icon: getHierarchyIconName("song"),
               onPress: handleMakeSketch,
@@ -563,8 +563,30 @@ export function usePlayerScreenLifecycle({
           ]
         : []),
       {
-        label: t("player.share"),
-        style: "default",
+        key: "player.setAside",
+              label: t("player.setAside"),
+        // Same glyph the sidebar's Shelf wears — one icon per place.
+        icon: "file-tray-outline",
+        onPress: () => {
+          if (!playerIdea) return;
+          useShelfStore.getState().setAside([{ kind: "idea", id: playerIdea.id }]);
+          haptic.success();
+          toast(t("player.onShelf"), "file-tray-outline", {
+            action: {
+              label: t("player.viewShelf"),
+              onPress: () => {
+                // The full player floats above everything — tuck it into the
+                // dock before jumping, like the queue's "go to song".
+                minimizePlayer();
+                openShelf(navigation);
+              },
+            },
+          });
+        },
+      },
+      {
+        key: "player.share",
+              label: t("player.share"),
         icon: actionIcons.share,
         onPress: () => {
           const playbackUri = playerClip ? getClipPlaybackUri(playerClip) : null;
@@ -586,12 +608,11 @@ export function usePlayerScreenLifecycle({
             void shareAudio();
             return;
           }
-          AppAlert.custom(t("player.shareTitle"), clipTitle, [
-            { label: t("common.cancel"), style: "cancel" },
-            { label: t("player.shareAudio"), style: "default", icon: "share-outline", onPress: () => void shareAudio() },
+          AppAlert.menu(t("player.shareTitle"), [
+            { key: "audio", label: t("player.shareAudio"), icon: "share-outline", onPress: () => void shareAudio() },
             {
+              key: "player.songnookSend",
               label: t("player.songnookSend"),
-              style: "default",
               icon: "paper-plane-outline",
               onPress: () =>
                 openSendSheet({
@@ -602,34 +623,13 @@ export function usePlayerScreenLifecycle({
                     createClipsShareLink([{ title: clipTitle, audioUri: playbackUri }], clipTitle, parcel),
                 }),
             },
-          ]);
+          ], clipTitle);
         },
       },
       {
-        label: t("player.setAside"),
-        style: "default",
-        // Same glyph the sidebar's Shelf wears — one icon per place.
-        icon: "file-tray-outline",
-        onPress: () => {
-          if (!playerIdea) return;
-          useShelfStore.getState().setAside([{ kind: "idea", id: playerIdea.id }]);
-          haptic.success();
-          toast(t("player.onShelf"), "file-tray-outline", {
-            action: {
-              label: t("player.viewShelf"),
-              onPress: () => {
-                // The full player floats above everything — tuck it into the
-                // dock before jumping, like the queue's "go to song".
-                minimizePlayer();
-                openShelf(navigation);
-              },
-            },
-          });
-        },
-      },
-      {
-        label: t("player.deleteClip"),
-        style: "destructive",
+        key: "player.deleteClip",
+              label: t("player.deleteClip"),
+        tone: "danger" as const,
         icon: "trash-outline",
         onPress: () => {
           if (!playerIdea || !playerClip) return;
@@ -672,7 +672,6 @@ export function usePlayerScreenLifecycle({
           );
         },
       },
-      { label: t("common.cancel"), style: "cancel" },
     ]);
   }, [displayDuration, handleMakeSketch, isPlayerPlaying, navigation, pausePlayer, playerClip, playerIdea, stopSessionAndClose, t]);
 

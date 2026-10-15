@@ -392,7 +392,7 @@ export function SelectionBars() {
           {
             key: "thread",
             label: t("selection.threadTitle"),
-            icon: "git-branch-outline",
+            icon: "albums-outline",
             onPress: () => {
               setThreadFromDock(true);
               setSubSheet("thread");
@@ -460,7 +460,7 @@ export function SelectionBars() {
     {
       key: "set-parent",
       label: t("songDetail.setParent"),
-      icon: "git-merge-outline",
+      icon: "return-down-forward-outline",
       onPress: () =>
         parentPicking.handleStartSetParent(selectedClipIds, () => {
           screen.setSongTab("takes");
@@ -475,7 +475,7 @@ export function SelectionBars() {
           {
             key: "combine-thread",
             label: t("songDetail.combineThread"),
-            icon: "git-commit-outline" as const,
+            icon: "albums-outline" as const,
             onPress: () =>
               parentPicking.handleCombineIntoThread(selectedClipIds, (nextUndo, message) => {
                 undo.showUndo(message, nextUndo);
@@ -511,35 +511,40 @@ export function SelectionBars() {
       : []),
   ];
 
-  // The overflow lists four intents at most; each "…" row hands off to a
-  // second-level sheet (the SelectionActionSheet already closes itself before
-  // running onPress, so the next sheet opens cleanly).
+  // The overflow, in the order rule (SelectionActionSheet): act on the take
+  // (primary, bookmark), organise it (versions, tags, playlist, copy or move),
+  // then send it out. Rows that open a second sheet carry a chevron.
   const sheetActions: SelectionAction[] = [
-    {
-      key: "copy-or-move",
-      label: t("selection.copyOrMove"),
-      icon: "copy-outline",
-      onPress: () => setSubSheet("copyMove"),
-      opens: true,
-    },
-    // Without a link service there is nothing to choose between — keep the
-    // direct Share row instead of a one-row second level.
-    linkAvailable
-      ? {
-          key: "share-menu",
-          label: t("selection.shareMenu"),
-          icon: "share-social-outline",
-          onPress: () => setSubSheet("share"),
-          opens: true,
-        }
-      : shareAction,
-    // Several takes reach Thread from the dock; one take reaches it here.
+    ...(selectedClips.length === 1 && singleSelectedClip
+      ? [
+          {
+            key: "primary",
+            label: t("songDetail.makePrimary"),
+            icon: "star-outline" as const,
+            onPress: handleMakePrimary,
+            disabled: !!singleSelectedClip.isPrimary,
+          },
+        ]
+      : []),
+    ...(selectedClips.length === 1 && selectedIdea && singleSelectedClip
+      ? [
+          {
+            key: "bookmark",
+            label: singleSelectedClip.isBookmarked ? t("songDetail.removeBookmark") : t("songDetail.bookmarkClip"),
+            icon: (singleSelectedClip.isBookmarked
+              ? "bookmark"
+              : "bookmark-outline") as SelectionAction["icon"],
+            onPress: handleToggleBookmark,
+          },
+        ]
+      : []),
+    // Several takes reach Versions from the dock; one take reaches it here.
     ...(selectedClips.length === 1 && threadActions.length > 0
       ? [
           {
             key: "thread",
             label: t("selection.thread"),
-            icon: "git-branch-outline" as const,
+            icon: "albums-outline" as const,
             onPress: () => {
               setThreadFromDock(false);
               setSubSheet("thread");
@@ -564,30 +569,29 @@ export function SelectionBars() {
       opens: true,
       disabled: selectedClips.length === 0,
     },
-    ...(selectedClips.length === 1 && singleSelectedClip
-      ? [
-          {
-            key: "primary",
-            label: t("songDetail.makePrimary"),
-            icon: "star-outline" as const,
-            onPress: handleMakePrimary,
-            disabled: !!singleSelectedClip.isPrimary,
-          },
-        ]
-      : []),
-    ...(selectedClips.length === 1 && selectedIdea && singleSelectedClip
-      ? [
-          {
-            key: "bookmark",
-            label: singleSelectedClip.isBookmarked ? t("songDetail.removeBookmark") : t("songDetail.bookmarkClip"),
-            icon: (singleSelectedClip.isBookmarked
-              ? "bookmark"
-              : "bookmark-outline") as SelectionAction["icon"],
-            onPress: handleToggleBookmark,
-          },
-        ]
-      : []),
+    {
+      key: "copy-or-move",
+      label: t("selection.copyOrMove"),
+      icon: "copy-outline",
+      onPress: () => setSubSheet("copyMove"),
+      opens: true,
+    },
+    // Without a link service there is nothing to choose between — keep the
+    // direct Share row instead of a one-row second level.
+    linkAvailable
+      ? {
+          key: "share-menu",
+          label: t("selection.shareMenu"),
+          icon: "share-social-outline",
+          onPress: () => setSubSheet("share"),
+          opens: true,
+        }
+      : shareAction,
   ];
+
+  // The sheets name what they act on: "1 take · Idea 8", "3 takes".
+  const sheetTitle = t("brand.takeCount", { count: selectedClips.length });
+  const sheetContext = selectedClips.length === 1 ? selectedClips[0]?.title : undefined;
 
   if (!clipSelectionMode) {
     return null;
@@ -604,7 +608,8 @@ export function SelectionBars() {
 
       <SelectionActionSheet
         visible={moreVisible}
-        title={t("songDetail.songActions")}
+        title={sheetTitle}
+        titleContext={sheetContext}
         actions={sheetActions}
         onClose={() => setMoreVisible(false)}
       />
@@ -613,6 +618,7 @@ export function SelectionBars() {
         visible={subSheet === "copyMove"}
         onBack={() => setMoreVisible(true)}
         title={t("selection.copyOrMoveTitle")}
+        titleContext={sheetContext}
         actions={copyMoveActions}
         onClose={() => setSubSheet(null)}
       />
@@ -621,6 +627,7 @@ export function SelectionBars() {
         visible={subSheet === "share"}
         onBack={() => setMoreVisible(true)}
         title={t("selection.shareTitle")}
+        titleContext={sheetContext}
         actions={shareActions}
         onClose={() => setSubSheet(null)}
       />
@@ -629,6 +636,7 @@ export function SelectionBars() {
         visible={subSheet === "thread"}
         onBack={threadFromDock ? undefined : () => setMoreVisible(true)}
         title={t("selection.threadTitle")}
+        titleContext={sheetContext}
         actions={threadActions}
         onClose={() => setSubSheet(null)}
       />
@@ -643,8 +651,9 @@ export function SelectionBars() {
         actions={[
           ...(selectedIdea?.clipGroups ?? []).map((group) => ({
             key: group.id,
-            label: `${commonAssignedGroupId === group.id ? "✓ " : ""}${group.name}`,
-            icon: "folder-outline" as const,
+            label: group.name,
+            icon: (commonAssignedGroupId === group.id ? "radio-button-on" : "radio-button-off") as SelectionAction["icon"],
+            selected: commonAssignedGroupId === group.id,
             onPress: () => handleAssignGroup(group.id),
           })),
           {

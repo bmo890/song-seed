@@ -193,13 +193,13 @@ export function useRevisitScreenModel() {
   }
 
   function openCandidateMenu(candidate: RevisitCandidate) {
-    AppAlert.custom(candidate.title, undefined, [
+    AppAlert.menu(candidate.title, [
       {
+        key: "shelf",
         label: t("activity.setAside"),
-        style: "default",
         // Timer glyph — shelving is about a 7-day stay, not a container.
         icon: "timer-outline",
-        description: t("activity.setAsideHint"),
+        hint: t("activity.setAsideHint"),
         onPress: () => {
           useShelfStore.getState().setAside([{ kind: "idea", id: candidate.ideaId }]);
           haptic.success();
@@ -209,14 +209,11 @@ export function useRevisitScreenModel() {
         },
       },
       {
+        key: "hide",
         label: t("common.hide"),
-        style: "destructive",
         icon: "eye-off-outline",
+        tone: "danger",
         onPress: () => confirmHideCandidate(candidate),
-      },
-      {
-        label: t("common.cancel"),
-        style: "cancel",
       },
     ]);
   }

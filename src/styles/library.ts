@@ -127,42 +127,39 @@ export const libraryStyles = {
   collectionMoveSection: {
     gap: 8,
   },
+  // Destinations are rows on paper (2026-10-15): hairlines, the chosen one
+  // marked by a terracotta radio and full weight, never a box.
   collectionMoveOptionList: {
-    gap: 6,
+    gap: 0,
   },
   collectionMoveOption: {
-    minHeight: 44,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E8E4DF",
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 12,
+    minHeight: 50,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+    paddingHorizontal: 2,
     paddingVertical: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 10,
+    gap: 12,
   },
-  collectionMoveOptionSelected: {
-    borderColor: "#a89994",
-    backgroundColor: "#FDFBF7",
-  },
+  collectionMoveOptionSelected: {},
   collectionMoveOptionCopy: {
     flex: 1,
     gap: 2,
   },
   collectionMoveOptionTitle: {
-    fontSize: 13,
-    color: "#524440",
-    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 15,
+    color: colors.textPrimary,
+    fontFamily: "PlusJakartaSans_500Medium",
   },
   collectionMoveOptionTitleSelected: {
-    color: "#1b1c1a",
-    fontFamily: "PlusJakartaSans_700Bold",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   collectionMoveOptionSubtitle: {
-    fontSize: 11,
-    color: "#84736f",
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontFamily: "PlusJakartaSans_400Regular",
   },
   projectCard: {
     backgroundColor: "#F4F1ED",

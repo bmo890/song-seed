@@ -491,12 +491,12 @@ export function useActivityScreenModel() {
       void viewItemInCollection(item);
     },
     onOpenItemMenu: (item: ActivityItemResult) => {
-      AppAlert.custom(item.ideaTitle, undefined, [
+      AppAlert.menu(item.ideaTitle, [
         {
+          key: "shelf",
           label: t("activity.setAside"),
-          style: "default",
           icon: "timer-outline",
-          description: t("activity.setAsideHint"),
+          hint: t("activity.setAsideHint"),
           onPress: () => {
             useShelfStore.getState().setAside([{ kind: "idea", id: item.ideaId }]);
             haptic.success();
@@ -504,10 +504,6 @@ export function useActivityScreenModel() {
               action: { label: t("activity.viewShelf"), onPress: () => openShelf(navigation) },
             });
           },
-        },
-        {
-          label: t("common.cancel"),
-          style: "cancel",
         },
       ]);
     },
