@@ -102,10 +102,11 @@ export const playerScreenStyles = StyleSheet.create({
     justifyContent: "space-between",
     paddingTop: 10,
   },
+  // Ink keys (Layer, Tools) stand apart by space, not by boxes.
   reelToolbarRight: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 22,
   },
   reelToolbarLeft: {
     flexDirection: "row",

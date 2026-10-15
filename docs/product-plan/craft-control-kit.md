@@ -1134,3 +1134,28 @@ Built:
 
 Not seen on screen: the Layers bench strip, the clip editor's transform
 section and marks inspector, Android, Hebrew.
+
+## Keys and tabs in ink (2026-10-15)
+
+Founder, on the player's Layer / Tools keys and the Marks/Loop/Sound track:
+"not sure how much I like the design... any similar button with the same
+shape... another tablist design... less generic, more premium/minimalist".
+Canvas: https://claude.ai/artifact/184usfzG38kwm8VJw6i5nf. Picked 1, Ink,
+"across the board", with Marks given an icon and an active/inactive state.
+
+Built:
+- `SegmentedControl` is ink tabs: words on a hairline, the chosen one in full
+  ink (600) over a 2 pt ink rule that slides (`durations.base`), others
+  textSecondary; no track, no white thumb, no shadow. All eight uses follow
+  (player drawers, Evolution/Timeline, Compilations, Metronome note values,
+  clip editor, word finder, filter menu). The sketch page's hand-built
+  Takes/Lyrics/Chart/Notes track now IS a `SegmentedControl`.
+- `common/InkKey`: glyph + word, no fill, 44 pt target; tone idle (ink),
+  active (terracotta ink), off (muted). Player Tools (light haptic), Layer
+  (record dot), and Marks (`MarksToggle`: pin glyph filled + terracotta when
+  the marks show, outline + muted when hidden, `light`, role switch).
+- Kept on purpose: `Button` secondary (Cancel / Copy / Share in sheets) is a
+  form action beside a primary, not a toolbar key; primary buttons keep weight.
+
+Seen in the simulator: sketch page (both tab rows), player row with Tools
+closed and open, Marks on and off, Metronome note tabs.

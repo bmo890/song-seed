@@ -49,8 +49,12 @@ The hard rules below are non-negotiable.
   `colors.primary` only for the single highest-stakes commit); secondary =
   `surfaceHigh`; destructive = `colors.danger` (or `dangerSurface` wash for a soft
   Discard); tertiary = ghost/ink. Round stays ONLY for circular icon buttons
-  (record FAB, close ✕). Empty states: one primary + a quiet ink link, never two pills.
-- Selection controls: single-select = `SegmentedControl` (sliding thumb);
+  (record FAB, close ✕). Toolbar keys and toggles beside other controls
+  (the player's Marks, Layer, Tools) are `InkKey`s (2026-10-15): glyph + word,
+  no fill; active = terracotta ink, off = muted. Empty states: one primary + a quiet ink link, never two pills.
+- Selection controls: single-select = `SegmentedControl`, drawn as ink tabs
+  (2026-10-15): words on a hairline, the chosen one in full ink over a sliding
+  2 pt rule, no track or thumb;
   multi-select = editorial ink (word + leading dot, hollow→terracotta), no chips.
   Stage color from shared `STAGE_INK`, never cold literals.
 - Headers (2026-10-15): a PLACE (collection, Shelf, Revisit, Activity,
