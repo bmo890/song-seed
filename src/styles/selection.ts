@@ -183,8 +183,8 @@ export const selectionStyles = {
   selectionSheetHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginBottom: 10,
+    gap: 8,
+    marginBottom: 6,
   },
   selectionSheetBack: {
     width: 28,
@@ -195,43 +195,39 @@ export const selectionStyles = {
     marginStart: -6,
   },
   selectionSheetTitle: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 14,
-    lineHeight: 20,
-    color: "#1C1C19",
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.textPrimary,
   },
+  // Rows on paper (2026-10-15) for sheets that draw their own rows (the
+  // workspace picker): same recipe as SelectionActionSheet.
   selectionSheetActionList: {
-    gap: 8,
+    gap: 0,
   },
   selectionSheetAction: {
-    minHeight: 48,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "rgba(215, 194, 189, 0.2)",
-    backgroundColor: "#FDFBF7",
-    paddingHorizontal: 14,
+    minHeight: 52,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
     paddingVertical: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
   },
-  selectionSheetActionDanger: {
-    borderColor: "rgba(184, 50, 50, 0.15)",
-    backgroundColor: "#FDF5F4",
-  },
+  selectionSheetActionDanger: {},
   selectionSheetActionLead: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 14,
   },
   selectionSheetActionText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13,
-    color: "#524440",
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 16,
+    color: colors.textPrimary,
   },
   selectionSheetActionTextDanger: {
-    color: "#a83232",
+    color: colors.danger,
   },
 } satisfies Record<string, ViewStyle | TextStyle | ImageStyle>;

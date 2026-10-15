@@ -26,9 +26,9 @@ export const actionIcons = {
   restore: "refresh-outline",
 
   // Clip / lineage actions
-  branch: "git-branch-outline",
-  split: "cut-outline",
-  setParent: "git-merge-outline",
+  branch: "copy-outline",
+  split: "exit-outline",
+  setParent: "albums-outline",
   newThread: "radio-button-on-outline",
   history: "time-outline",
   bookmark: "bookmark-outline",

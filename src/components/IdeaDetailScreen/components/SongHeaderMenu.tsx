@@ -1,19 +1,17 @@
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
-import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { styles } from "../styles";
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
 import { AppAlert } from "../../common/AppAlert";
-import { haptic } from "../../../design/haptics";
 import { durations } from "../../../design/motion";
-import { colors } from "../../../design/tokens";
 import { useOriginRoute } from "../../../hooks/useOriginLabel";
 import { openIdeaInCollection } from "../../../navigation";
 import { useSongScreen } from "../provider/SongScreenProvider";
 import { DockAddBadgeIcon } from "../../common/dockIcons";
+import { PopoverMenuRow, PopoverMenuRule } from "../../common/PopoverMenu";
 import { getHierarchyIconName } from "../../../domain/hierarchy";
 
 // Nav-row height below the safe-area inset — drops the menu just under the ⋯
@@ -65,121 +63,90 @@ export function SongHeaderMenu() {
         ]}
         entering={FadeIn.duration(durations.fast)}
       >
-        <Pressable
-          style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
+        {/* Order rule (SelectionActionSheet): act on it, organise, go
+            somewhere, send it out, then destruction behind a hairline. */}
+        {isProject ? (
+          <PopoverMenuRow
+            icon="play-outline"
+            label={t("songDetail.playAll")}
+            disabled={playAllDisabled}
+            onPress={() => {
+              close();
+              actions.playProjectQueue();
+            }}
+          />
+        ) : null}
+        <PopoverMenuRow
+          icon="create-outline"
+          label={isProject ? t("songDetail.editSong") : t("songDetail.editClip")}
           onPress={() => {
             close();
-            haptic.tap();
             screen.setIsEditMode(true);
           }}
-        >
-          <Text style={styles.ideasSortMenuItemText}>
-            {isProject ? t("songDetail.editSong") : t("songDetail.editClip")}
-          </Text>
-          <Ionicons name="create-outline" size={15} color={colors.textStrong} />
-        </Pressable>
+        />
+        {!isProject ? (
+          <PopoverMenuRow
+            // The sketch disc with the "+" badge — the one glyph for "make a
+            // sketch", shared with the collection's selection dock.
+            renderIcon={(color) => (
+              <DockAddBadgeIcon base={getHierarchyIconName("song")} color={color} size={18} />
+            )}
+            label={t("songDetail.makeSong")}
+            onPress={() => {
+              close();
+              appActions.convertSelectedClipIdeaToProject();
+              // Same step the other two sketch entry points take: name and
+              // stage it now, while the intent is fresh (2026-09-10).
+              screen.setIsEditMode(true);
+            }}
+          />
+        ) : null}
         {isProject ? (
-          <>
-            <View style={styles.ideasDropdownDivider} />
-            <Pressable
-              style={({ pressed }) => [
-                styles.ideasToggleRow,
-                playAllDisabled ? styles.btnDisabled : null,
-                pressed ? styles.pressDown : null,
-              ]}
-              disabled={playAllDisabled}
-              onPress={() => {
-                close();
-                haptic.tap();
-                actions.playProjectQueue();
-              }}
-            >
-              <Text style={styles.ideasSortMenuItemText}>{t("songDetail.playAll")}</Text>
-              <Ionicons name="play-outline" size={15} color={colors.textStrong} />
-            </Pressable>
-            <View style={styles.ideasDropdownDivider} />
-            {/* Import moved here from the "+" FAB — record stands alone. */}
-            <Pressable
-              style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
-              onPress={() => {
-                close();
-                haptic.tap();
-                void importFlow.openImportAudioFlow();
-              }}
-            >
-              <Text style={styles.ideasSortMenuItemText}>{t("songDetail.import")}</Text>
-              <Ionicons name="download-outline" size={15} color={colors.textStrong} />
-            </Pressable>
-            <View style={styles.ideasDropdownDivider} />
-            {/* The whole sketch — takes, lyrics, chords, notes — as a file or a
-                SongNook Send link. One row; the sheet holds the two exits. */}
-            <Pressable
-              testID="song-menu-share"
-              style={({ pressed }) => [
-                styles.ideasToggleRow,
-                share.busy ? styles.btnDisabled : null,
-                pressed ? styles.pressDown : null,
-              ]}
-              disabled={share.busy}
-              onPress={() => {
-                close();
-                haptic.tap();
-                share.setSheetOpen(true);
-              }}
-            >
-              <Text style={styles.ideasSortMenuItemText}>{t("songDetail.share")}</Text>
-              <Ionicons name="share-outline" size={15} color={colors.textStrong} />
-            </Pressable>
-          </>
-        ) : (
-          <>
-            <View style={styles.ideasDropdownDivider} />
-            <Pressable
-              style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
-              onPress={() => {
-                close();
-                haptic.tap();
-                appActions.convertSelectedClipIdeaToProject();
-                // Same step the other two sketch entry points take: name and
-                // stage it now, while the intent is fresh (2026-09-10).
-                screen.setIsEditMode(true);
-              }}
-            >
-              <Text style={styles.ideasSortMenuItemText}>{t("songDetail.makeSong")}</Text>
-              {/* The sketch disc with the "+" badge — the one glyph for "make a
-                  sketch", shared with the collection's selection dock. */}
-              <DockAddBadgeIcon base={getHierarchyIconName("song")} color={colors.textStrong} size={16} />
-            </Pressable>
-          </>
-        )}
+          // Import moved here from the "+" FAB — record stands alone.
+          <PopoverMenuRow
+            icon="download-outline"
+            label={t("songDetail.import")}
+            onPress={() => {
+              close();
+              void importFlow.openImportAudioFlow();
+            }}
+          />
+        ) : null}
         {canViewInCollection ? (
-          <>
-            <View style={styles.ideasDropdownDivider} />
-            {/* Same glyph, same meaning as the cards' button: open this idea's
-                collection as a visit, scrolled to and highlighting its card.
-                Navigation is silent — no haptic. */}
-            <Pressable
-              testID="song-menu-view-in-collection"
-              style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
-              onPress={() => {
-                close();
-                openIdeaInCollection(screen.navigation, selectedIdea.id);
-              }}
-            >
-              <Text style={styles.ideasSortMenuItemText}>{t("songDetail.viewInCollection")}</Text>
-              <Ionicons name="open-outline" size={15} color={colors.textStrong} />
-            </Pressable>
-          </>
+          // Same glyph, same meaning as the cards' button: open this idea's
+          // collection as a visit. Navigation is silent.
+          <PopoverMenuRow
+            testID="song-menu-view-in-collection"
+            icon="open-outline"
+            label={t("songDetail.viewInCollection")}
+            haptic="navigate"
+            onPress={() => {
+              close();
+              openIdeaInCollection(screen.navigation, selectedIdea.id);
+            }}
+          />
+        ) : null}
+        {isProject ? (
+          // The whole sketch — takes, lyrics, chords, notes — as a file or a
+          // SongNook Send link. One row; the sheet holds the two exits.
+          <PopoverMenuRow
+            testID="song-menu-share"
+            icon="share-outline"
+            label={t("songDetail.share")}
+            disabled={share.busy}
+            onPress={() => {
+              close();
+              share.setSheetOpen(true);
+            }}
+          />
         ) : null}
         {!isNewProjectDraft ? (
           <>
-            <View style={styles.ideasDropdownDivider} />
-            <Pressable
-              style={({ pressed }) => [
-                styles.ideasToggleRow,
-                isSelectingClips ? styles.btnDisabled : null,
-                pressed && !isSelectingClips ? styles.pressDown : null,
-              ]}
+            <PopoverMenuRule />
+            <PopoverMenuRow
+              icon="trash-outline"
+              tone="danger"
+              label={isProject ? t("songDetail.deleteSong") : t("songDetail.deleteClip")}
               disabled={isSelectingClips}
               onPress={() => {
                 close();
@@ -221,16 +188,7 @@ export function SongHeaderMenu() {
                   { confirmLabel: t("common.delete") }
                 );
               }}
-            >
-              <Text style={isSelectingClips ? styles.ideasSortMenuItemText : styles.songDetailDangerMenuText}>
-                {isProject ? t("songDetail.deleteSong") : t("songDetail.deleteClip")}
-              </Text>
-              <Ionicons
-                name="trash-outline"
-                size={15}
-                color={isSelectingClips ? colors.textMuted : colors.danger}
-              />
-            </Pressable>
+            />
           </>
         ) : null}
       </Animated.View>

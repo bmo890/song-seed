@@ -1,6 +1,5 @@
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
-import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import { useStore } from "../../../state/useStore";
@@ -8,10 +7,9 @@ import { appActions } from "../../../state/actions";
 import { buildPlayableQueueFromIdeas } from "../../../domain/clipPresentation";
 import { getHierarchyIconName } from "../../../domain/hierarchy";
 import { durations } from "../../../design/motion";
-import { colors } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
 import { AppAlert } from "../../common/AppAlert";
-import { toast } from "../../common/toastStore";
+import { PopoverMenuRow, PopoverMenuRule } from "../../common/PopoverMenu";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 
@@ -32,6 +30,8 @@ export function CollectionHeaderMenu() {
     .map((entry) => ideaById.get(entry.ideaId))
     .filter((idea): idea is NonNullable<typeof idea> => idea != null);
 
+  const canPlayAll = buildPlayableQueueFromIdeas(playableIdeas).length > 0;
+  const compact = screen.listDensity === "compact";
   const playAllIdeas = async () => {
     const queue = buildPlayableQueueFromIdeas(playableIdeas);
     if (queue.length === 0) return;
@@ -55,53 +55,90 @@ export function CollectionHeaderMenu() {
         ]}
         entering={FadeIn.duration(durations.fast)}
       >
-        <Pressable
-          style={({ pressed }) => [
-            styles.ideasToggleRow,
-            buildPlayableQueueFromIdeas(playableIdeas).length === 0 ? styles.btnDisabled : null,
-            pressed ? styles.pressDown : null,
-          ]}
+        {/* Order rule (SelectionActionSheet): act (play, make, bring in),
+            how the page looks, go somewhere, send it out, then destruction;
+            the dev rows sit apart at the very end. */}
+        <PopoverMenuRow
+          icon="play-outline"
+          label={t("collection.playAll")}
+          disabled={!canPlayAll}
           onPress={() => {
-            haptic.tap();
             screen.setHeaderMenuOpen(false);
             void playAllIdeas();
           }}
-          disabled={buildPlayableQueueFromIdeas(playableIdeas).length === 0}
-        >
-          <Text style={styles.ideasSortMenuItemText} numberOfLines={1}>{t("collection.playAll")}</Text>
-          <Ionicons name="play" size={15} color={colors.textSecondary} />
-        </Pressable>
-        {/* Share this place — as a SongNook file or a Send link. One row; the
-            sheet it opens holds the two exits (CollectionModals). A received
-            package can be passed along the same way. */}
-        <View style={styles.ideasDropdownDivider} />
-        <Pressable
-          testID="collection-menu-share"
-          style={({ pressed }) => [
-            styles.ideasToggleRow,
-            management.isSharingCollection ? styles.btnDisabled : null,
-            pressed ? styles.pressDown : null,
-          ]}
+        />
+        {!screen.isReceivedWorkspace ? (
+          <>
+            {/* Creation rows — moved here from the "+" FAB (single-FAB rule):
+                the record FAB stays THE action. */}
+            <PopoverMenuRow
+              testID="collection-menu-new-song"
+              icon={getHierarchyIconName("song")}
+              label={t("collection.song")}
+              onPress={() => {
+                screen.setHeaderMenuOpen(false);
+                const createdIdeaId = appActions.addIdea(screen.collectionId!);
+                screen.navigateRoot("IdeaDetail", { ideaId: createdIdeaId });
+              }}
+            />
+            <PopoverMenuRow
+              testID="collection-menu-import"
+              icon="download-outline"
+              label={t("collection.import")}
+              onPress={() => {
+                screen.setHeaderMenuOpen(false);
+                void importFlow.openImportAudioFlow();
+              }}
+            />
+          </>
+        ) : null}
+        <PopoverMenuRow
+          icon="reorder-four-outline"
+          label={t("collection.compactView")}
+          haptic="light"
           onPress={() => {
-            haptic.tap();
+            screen.setListDensity((prev) => (prev === "compact" ? "comfortable" : "compact"));
+            screen.setHeaderMenuOpen(false);
+          }}
+          trailing={
+            <View style={[styles.ideasSwitch, compact ? styles.ideasSwitchActive : null]}>
+              <View style={[styles.ideasSwitchThumb, compact ? styles.ideasSwitchThumbActive : null]} />
+            </View>
+          }
+        />
+        <PopoverMenuRow
+          icon="analytics-outline"
+          label={t("collection.viewActivity")}
+          haptic="navigate"
+          onPress={() => {
+            screen.setHeaderMenuOpen(false);
+            screen.navigateRoot("Activity", {
+              workspaceId: screen.activeWorkspace?.id,
+              collectionId: screen.currentCollection?.id,
+            });
+          }}
+        />
+        {/* Share this place — as a SongNook file or a Send link. One row; the
+            sheet it opens holds the two exits (CollectionModals). */}
+        <PopoverMenuRow
+          testID="collection-menu-share"
+          icon="share-outline"
+          label={t("collection.share")}
+          disabled={management.isSharingCollection}
+          onPress={() => {
             screen.setHeaderMenuOpen(false);
             management.setShareSheetOpen(true);
           }}
-          disabled={management.isSharingCollection}
-        >
-          <Text style={styles.ideasSortMenuItemText} numberOfLines={1}>{t("collection.share")}</Text>
-          <Ionicons name="share-outline" size={15} color={colors.textSecondary} />
-        </Pressable>
+        />
         {screen.isReceivedWorkspace ? (
-          // A received package: 'Keep this…' sits in the open on the page;
-          // only the destructive exit lives here, and nothing is created inside it.
           <>
-            <View style={styles.ideasDropdownDivider} />
-            <Pressable
+            <PopoverMenuRule />
+            <PopoverMenuRow
               testID="collection-menu-delete-package"
-              style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
+              icon="trash-outline"
+              tone="danger"
+              label={t("received.deletePackage")}
               onPress={() => {
-                haptic.tap();
                 screen.setHeaderMenuOpen(false);
                 const pkg = screen.activeWorkspace;
                 if (!pkg) return;
@@ -116,129 +153,41 @@ export function CollectionHeaderMenu() {
                   { confirmLabel: t("common.delete") }
                 );
               }}
-            >
-              <Text style={[styles.ideasSortMenuItemText, { color: colors.danger }]} numberOfLines={1}>
-                {t("received.deletePackage")}
-              </Text>
-              <Ionicons name="trash-outline" size={15} color={colors.danger} />
-            </Pressable>
+            />
           </>
-        ) : null}
-        {!screen.isReceivedWorkspace ? (
-        <>
-        <View style={styles.ideasDropdownDivider} />
-        {/* Creation rows — moved here from the "+" FAB (single-FAB rule): the
-            record FAB stays THE action; new-song and import are overflow work.
-            haptics vocabulary: `tap` — "Any acknowledged press: buttons, rows". */}
-        <Pressable
-          testID="collection-menu-new-song"
-          style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
-          onPress={() => {
-            haptic.tap();
-            screen.setHeaderMenuOpen(false);
-            const createdIdeaId = appActions.addIdea(screen.collectionId!);
-            screen.navigateRoot("IdeaDetail", { ideaId: createdIdeaId });
-          }}
-        >
-          <Text style={styles.ideasSortMenuItemText} numberOfLines={1}>{t("collection.song")}</Text>
-          <Ionicons name={getHierarchyIconName("song")} size={15} color={colors.textSecondary} />
-        </Pressable>
-        <View style={styles.ideasDropdownDivider} />
-        <Pressable
-          testID="collection-menu-import"
-          style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
-          onPress={() => {
-            haptic.tap();
-            screen.setHeaderMenuOpen(false);
-            void importFlow.openImportAudioFlow();
-          }}
-        >
-          <Text style={styles.ideasSortMenuItemText} numberOfLines={1}>{t("collection.import")}</Text>
-          <Ionicons name="download-outline" size={15} color={colors.textSecondary} />
-        </Pressable>
-        </>
         ) : null}
         {__DEV__ ? (
           <>
-            <View style={styles.ideasDropdownDivider} />
-            <Pressable
+            <PopoverMenuRule />
+            <PopoverMenuRow
               testID="collection-menu-dev-samples"
-              style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
+              icon="flask-outline"
+              label={t("collection.importSamplesDev")}
               onPress={() => {
-                haptic.tap();
                 screen.setHeaderMenuOpen(false);
                 void importFlow.openDevSampleImport();
               }}
-            >
-              <Text style={styles.ideasSortMenuItemText} numberOfLines={1}>{t("collection.importSamplesDev")}</Text>
-              <Ionicons name="flask-outline" size={15} color={colors.textSecondary} />
-            </Pressable>
-            <View style={styles.ideasDropdownDivider} />
-            <Pressable
+            />
+            <PopoverMenuRow
               testID="collection-menu-dev-song"
-              style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
+              icon="flask-outline"
+              label={t("collection.importSongDev")}
               onPress={() => {
-                haptic.tap();
                 screen.setHeaderMenuOpen(false);
                 void importFlow.openDevSampleImportAsSong();
               }}
-            >
-              <Text style={styles.ideasSortMenuItemText} numberOfLines={1}>{t("collection.importSongDev")}</Text>
-              <Ionicons name="flask-outline" size={15} color={colors.textSecondary} />
-            </Pressable>
-            <View style={styles.ideasDropdownDivider} />
-            <Pressable
+            />
+            <PopoverMenuRow
               testID="collection-menu-dev-receive"
-              style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
+              icon="flask-outline"
+              label={t("collection.receiveSamplesDev")}
               onPress={() => {
-                haptic.tap();
                 screen.setHeaderMenuOpen(false);
                 void importFlow.openDevSampleReceive();
               }}
-            >
-              <Text style={styles.ideasSortMenuItemText} numberOfLines={1}>{t("collection.receiveSamplesDev")}</Text>
-              <Ionicons name="flask-outline" size={15} color={colors.textSecondary} />
-            </Pressable>
+            />
           </>
         ) : null}
-        <View style={styles.ideasDropdownDivider} />
-        <Pressable
-          style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
-          onPress={() => {
-            screen.setListDensity((prev) => (prev === "compact" ? "comfortable" : "compact"));
-            screen.setHeaderMenuOpen(false);
-          }}
-        >
-          <Text style={styles.ideasSortMenuItemText} numberOfLines={1}>{t("collection.compactView")}</Text>
-          <View
-            style={[
-              styles.ideasSwitch,
-              screen.listDensity === "compact" ? styles.ideasSwitchActive : null,
-            ]}
-          >
-            <View
-              style={[
-                styles.ideasSwitchThumb,
-                screen.listDensity === "compact" ? styles.ideasSwitchThumbActive : null,
-              ]}
-            />
-          </View>
-        </Pressable>
-        <View style={styles.ideasDropdownDivider} />
-        <Pressable
-          style={({ pressed }) => [styles.ideasToggleRow, pressed ? styles.pressDown : null]}
-          onPress={() => {
-            haptic.tap();
-            screen.setHeaderMenuOpen(false);
-            screen.navigateRoot("Activity", {
-              workspaceId: screen.activeWorkspace?.id,
-              collectionId: screen.currentCollection?.id,
-            });
-          }}
-        >
-          <Text style={styles.ideasSortMenuItemText} numberOfLines={1}>{t("collection.viewActivity")}</Text>
-          <Ionicons name="grid-outline" size={15} color={colors.textSecondary} />
-        </Pressable>
       </Animated.View>
     </View>
   );

@@ -727,6 +727,24 @@ export const songDetailStyles = {
     color: colors.textMuted,
     flexShrink: 0,
   },
+  // The Notes tab is the page (2026-10-15): the words on the paper, tall
+  // enough that a tap on the blank space below them still opens the editor.
+  songNotesTabPage: {
+    minHeight: 320,
+    paddingTop: spacing.md,
+  },
+  songNotesTabText: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 16,
+    lineHeight: 25,
+    color: colors.textPrimary,
+  },
+  songNotesTabPlaceholder: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 16,
+    lineHeight: 25,
+    color: colors.textMuted,
+  },
   // Primary ink: dot + word share ONE colour with the card's crown rule, so the
   // status reads as a single mark. primaryDeep (not primary) — a 9.5px label
   // needs the contrast, and the crown wears the same value.

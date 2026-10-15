@@ -204,18 +204,21 @@ export const ideasStyles = {
     paddingHorizontal: 6,
     gap: 4,
     shadowColor: "#3D3732",
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
+  // Toolbar popovers hold PopoverMenu parts, which carry their own inset.
   ideasPopoverMenu: {
     position: "absolute",
     top: 44,
     alignSelf: "flex-start",
-    minWidth: 220,
-    maxWidth: 272,
+    minWidth: 260,
+    maxWidth: 300,
     zIndex: 30,
+    paddingHorizontal: 0,
+    gap: 0,
   },
   // Filter/sort popovers hang from the toolbar's trailing edge (the glyphs
   // live at the end of the search row).
@@ -443,6 +446,7 @@ export const ideasStyles = {
   // Floats clear of the top-right corner: dropped below the nav row (top 54)
   // and inset from the edge (right 12). Wide enough that dev/import rows stay
   // single-line.
+  // The "…" popovers hold PopoverMenuRows, which carry their own inset.
   ideasHeaderOverflowMenu: {
     position: "absolute",
     top: 54,
@@ -450,6 +454,8 @@ export const ideasStyles = {
     minWidth: 230,
     maxWidth: 280,
     zIndex: 2,
+    paddingHorizontal: 0,
+    gap: 0,
   },
   // Date group marker: quiet caps label with air above (16) and 8 below in
   // total (marginBottom 2 + the item wrap's gap 6).

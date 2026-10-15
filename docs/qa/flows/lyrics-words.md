@@ -2,7 +2,7 @@
 
 | ID | Flow | Steps (terse) | Expected result | Auto | Platforms | Pri |
 |---|---|---|---|---|---|---|
-| LYR-01 | First lyrics version | Song → Lyrics tab (empty) → Start Writing → type lines → checkmark Save | Read view shows "Version 1", subtitle "Edited today"; Lyrics tab lists 1 version marked CURRENT | AUTO | iOS+Android | P1 |
+| LYR-01 | First lyrics version | Song → Lyrics tab (empty) → Start writing → type lines → checkmark Save | Read view shows "Version 1", subtitle "Edited today"; Lyrics tab lists 1 version marked CURRENT | AUTO | iOS+Android | P1 |
 | LYR-02 | Version from Lyrics Pad | Lyrics tab → From Lyrics Pad → pick a page with text | New version created from note text; picking an empty page shows "Empty page" alert, no version added | AUTO | iOS+Android | P2 |
 | LYR-03 | Save overwrites latest | Open latest version → pencil Edit → change text → checkmark Save | Same version updated in place; version count unchanged; lands in read mode on that version | AUTO | iOS+Android | P1 |
 | LYR-04 | Save as new (branch) | Edit latest version → change text → tap branch icon (Save as new) | New version appended (count+1), becomes CURRENT; original version text intact | AUTO | iOS+Android | P1 |

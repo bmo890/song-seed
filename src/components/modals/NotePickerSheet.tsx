@@ -61,12 +61,13 @@ export function NotePickerSheet({
                   const preview = deriveNotePreviewBody(note);
                   return (
                     <Press
-                      haptic="none"
+                      // haptics.ts: tap → any acknowledged press.
+                      haptic="tap"
                       key={note.id}
                       style={pickerStyles.option}
                       onPress={() => onSelect(note)}
                     >
-                      <Ionicons name="document-text-outline" size={18} color={colors.textSecondary} />
+                      <Ionicons name="document-text-outline" size={20} color={colors.textStrong} />
                       <View style={pickerStyles.optionCopy}>
                         <Text style={pickerStyles.optionTitle} numberOfLines={1}>
                           {noteTitle}
@@ -91,11 +92,12 @@ export function NotePickerSheet({
 }
 
 const pickerStyles = StyleSheet.create({
+  // Same header as every action sheet.
   title: {
-    fontFamily: "Lora_600SemiBold",
-    fontSize: 19,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 15,
     color: colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   subtitle: {
     ...textTokens.supporting,
@@ -111,17 +113,18 @@ const pickerStyles = StyleSheet.create({
     ...textTokens.sectionTitle,
     marginBottom: spacing.sm,
   },
+  // Rows on paper with hairlines, like every sheet.
   optionList: {
-    gap: spacing.xs,
+    gap: 0,
   },
   option: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
-    borderRadius: radii.sm,
-    paddingHorizontal: 13,
-    paddingVertical: 11,
-    backgroundColor: colors.surfaceContainer,
+    gap: 14,
+    minHeight: 52,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
   },
   optionCopy: {
     flex: 1,
@@ -130,7 +133,8 @@ const pickerStyles = StyleSheet.create({
   },
   optionTitle: {
     ...textTokens.body,
-    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 16,
+    fontFamily: "PlusJakartaSans_500Medium",
   },
   optionPreview: {
     ...textTokens.annotation,

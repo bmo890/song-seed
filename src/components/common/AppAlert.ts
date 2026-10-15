@@ -1,6 +1,8 @@
 import { dialogStore, type DialogButton } from "./dialogStore";
 import { actionIcons, type IoniconName } from "./actionIcons";
 import { i18n } from "../../i18n";
+import { actionMenuStore } from "./actionMenuStore";
+import type { SelectionAction } from "./SelectionDock";
 
 type ConfirmOpts = { confirmLabel?: string; cancelLabel?: string; icon?: IoniconName };
 type DestructiveOpts = { confirmLabel?: string; cancelLabel?: string; icon?: IoniconName };
@@ -13,6 +15,12 @@ type DestructiveOpts = { confirmLabel?: string; cancelLabel?: string; icon?: Ion
  * Use these instead of raw Alert.alert() everywhere.
  */
 export const AppAlert = {
+  /** A list of things to do with one item (its "…"): the shared action sheet,
+   *  not a dialog. No Cancel row; the scrim and the grabber close it. */
+  menu(title: string, actions: SelectionAction[], titleContext?: string): void {
+    actionMenuStore.show({ title, titleContext, actions });
+  },
+
   /** Yes/No confirmation — confirm button on right, with a checkmark by default. */
   confirm(title: string, message: string, onConfirm: () => void, opts?: ConfirmOpts): void {
     dialogStore.show({

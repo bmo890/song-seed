@@ -16,6 +16,7 @@ import { Button } from "../common/Button";
 import { AppAlert } from "../common/AppAlert";
 import { NotePickerSheet } from "../modals/NotePickerSheet";
 import { SelectionActionSheet } from "../common/SelectionActionSheet";
+import { EmptyState } from "../common/EmptyState";
 import { IconButton } from "../common/IconButton";
 import { LyricsChordsToggle } from "../common/LyricsChordsToggle";
 import type { SelectionAction } from "../common/SelectionDock";
@@ -155,7 +156,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
     {
       key: "from-current",
       label: t("lyrics.newFromCurrent"),
-      icon: "git-branch-outline",
+      icon: "copy-outline",
       onPress: () => openVersion(latestVersion?.id, { startInEdit: true, forceNewVersion: true }),
     },
     {
@@ -179,7 +180,7 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
           {
             key: "new-draft",
             label: t("lyrics.newDraftFromThis"),
-            icon: "git-branch-outline" as const,
+            icon: "copy-outline" as const,
             onPress: () =>
               openVersion(selectedSingleVersion.id, { startInEdit: true, forceNewVersion: true }),
           },
@@ -239,23 +240,16 @@ export function LyricsVersionsPanel({ projectIdea }: LyricsVersionsPanelProps) {
       ) : null}
 
       {versions.length === 0 ? (
-        <View style={[styles.card, styles.songDetailTabPanelCard]}>
-          <Text style={styles.pageTitleCompact}>{t("lyrics.start")}</Text>
-          <Text style={styles.cardMeta}>
-            {t("lyrics.emptyStartBody")}
-          </Text>
-          <View style={styles.rowButtons}>
-            <Button
-              label={t("lyrics.startWriting")}
-              onPress={() => openVersion(undefined, { createDraft: true, startInEdit: true, forceNewVersion: true })}
-            />
-            <Button
-              variant="quiet"
-              label={t("lyrics.fromPad")}
-              onPress={() => setNotePickerVisible(true)}
-            />
-          </View>
-        </View>
+        // The canon empty state: one tonal primary, one quiet ink link.
+        <EmptyState
+          icon="document-text-outline"
+          title={t("lyrics.start")}
+          body={t("lyrics.emptyStartBody")}
+          actionLabel={t("lyrics.startWriting")}
+          onAction={() => openVersion(undefined, { createDraft: true, startInEdit: true, forceNewVersion: true })}
+          linkLabel={t("lyrics.fromPad")}
+          onLink={() => setNotePickerVisible(true)}
+        />
       ) : (
         versionsNewestFirst.map((version) => {
           const isLatest = latestVersion?.id === version.id;

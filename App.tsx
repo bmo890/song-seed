@@ -135,6 +135,7 @@ const SHOW_SYNC_PROBE = false;
 import { useTranslation } from "react-i18next";
 import { AppAlert } from "./src/components/common/AppAlert";
 import { AppDialogHost } from "./src/components/common/AppDialog";
+import { ActionMenuHost } from "./src/components/common/SelectionActionSheet";
 import { AppErrorBoundary } from "./src/components/common/AppErrorBoundary";
 import { ToastHost } from "./src/components/common/ToastHost";
 import { SendJobHost, SendLinkHost } from "./src/components/common/SendLinkSheet";
@@ -1540,6 +1541,7 @@ export default function App() {
       <StatusBar style="dark" />
       <SafeAreaProvider>
         <AudioRecorderProvider>
+          <ActionMenuHost />
           <AppDialogHost />
           <ProUpsellHost />
           {!hasHydrated ? (

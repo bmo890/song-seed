@@ -108,7 +108,10 @@ export function SongClipListToolbar({
         ) : (
           <SongClipToolbarControls
             projectCustomTags={selectedIdea.customTags ?? []}
-            clipGroups={selectedIdea.clipGroups ?? []}
+            // Only groups that hold a take are worth filtering by.
+            clipGroups={(selectedIdea.clipGroups ?? []).filter((group) =>
+              Object.values(selectedIdea.clipGroupAssignments ?? {}).includes(group.id)
+            )}
           />
         )
       ) : null}

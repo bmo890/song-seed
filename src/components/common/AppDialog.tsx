@@ -156,7 +156,7 @@ function RichRow({ btn, onPress }: { btn: DialogButton; onPress: () => void }) {
     >
       {btn.icon ? (
         <View style={[s.richIconWrap, destructive ? s.richIconWrapDanger : null]}>
-          <Ionicons name={btn.icon} size={19} color={destructive ? "#a83232" : colors.textStrong} />
+          <Ionicons name={btn.icon} size={20} color={destructive ? colors.danger : colors.textStrong} />
         </View>
       ) : null}
       <View style={s.richTextCol}>
@@ -274,17 +274,14 @@ const s = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 18,
   },
+  // A bare ink glyph, the same lead every menu row wears (2026-10-15):
+  // the tinted disc behind it is retired.
   richIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceContainer,
+    width: 24,
     alignItems: "center",
     justifyContent: "center",
   },
-  richIconWrapDanger: {
-    backgroundColor: "#FBEDEC",
-  },
+  richIconWrapDanger: {},
   richTextCol: {
     flex: 1,
     gap: 2,

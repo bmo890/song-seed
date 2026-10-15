@@ -34,7 +34,7 @@ export function ClipCardPrimaryIndicator({
   if (displayOnly) return null;
 
   if (isParentPickSource) {
-    return <Text style={styles.badge}>{t("songDetail.source")}</Text>;
+    return <Text style={styles.songDetailParentSourceTag}>{t("songDetail.source")}</Text>;
   }
 
   // The PRIMARY mark itself now rides the title row (see IdeaCard's

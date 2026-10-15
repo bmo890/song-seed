@@ -2173,8 +2173,16 @@ export const createDataSlice: StateCreator<
                     } else {
                         delete nextAssignments[lineageRootClipId];
                     }
+                    // A group lives as long as it holds a take (2026-10-15): the
+                    // one that just lost its last take goes, instead of lingering
+                    // as "0 takes" with no way to delete it.
+                    const inUse = new Set(Object.values(nextAssignments));
+                    const nextGroups = (idea.clipGroups ?? []).filter(
+                        (group) => inUse.has(group.id) || group.id === groupId
+                    );
                     return {
                         ...idea,
+                        clipGroups: nextGroups.length > 0 ? nextGroups : undefined,
                         clipGroupAssignments:
                             Object.keys(nextAssignments).length > 0 ? nextAssignments : undefined,
                     };

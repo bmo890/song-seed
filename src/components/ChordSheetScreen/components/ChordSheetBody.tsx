@@ -21,6 +21,7 @@ import { BarEditorSheet } from "./BarEditorSheet";
 import { useScrollIntoViewOnFocus } from "./chartScroll";
 import type { useChordSheetModel } from "../useChordSheetModel";
 import { useTranslation } from "react-i18next";
+import { EmptyState } from "../../common/EmptyState";
 import { UserText, UserTextInput } from "../../../i18n";
 
 type MenuTarget = { id: string; label: string; index: number; count: number; kind: "section" | "text" };
@@ -115,7 +116,9 @@ export function ChordSheetBody({
 
   return (
     <>
-      {isEditing || isEmpty ? (
+      {/* Editing keeps its add key; an empty chart at rest speaks through
+          the canon empty state below instead (one primary + an ink link). */}
+      {isEditing ? (
         <View style={styles.addBlock}>
           <Pressable
             style={({ pressed }) => [styles.actionBtn, pressed ? appStyles.pressDown : null]}
@@ -145,11 +148,17 @@ export function ChordSheetBody({
 
       <View style={isEditing ? styles.editSurface : undefined}>
       {isEmpty ? (
-        <View style={styles.empty}>
-          <Ionicons name="grid-outline" size={26} color={colors.textMuted} />
-          <Text style={styles.emptyTitle}>{t("chordChart.blankTitle")}</Text>
-          <Text style={styles.emptyBody}>{t("chordChart.blankBody")}</Text>
-        </View>
+        isEditing ? null : (
+          <EmptyState
+            icon="grid-outline"
+            title={t("chordChart.blankTitle")}
+            body={t("chordChart.blankBody")}
+            actionLabel={t("chordChart.addSection")}
+            onAction={() => setAddSheetOpen(true)}
+            linkLabel={t("chordChart.buildFromLyrics")}
+            onLink={() => model.buildFromLyrics()}
+          />
+        )
       ) : (
         sheet.sections.map((section, index) =>
           section.kind === "text" ? (

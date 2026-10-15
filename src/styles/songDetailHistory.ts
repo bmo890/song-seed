@@ -76,12 +76,19 @@ export const songDetailHistoryStyles = {
     paddingVertical: 5,
     paddingHorizontal: 9,
   },
-  songDetailVersionCardParentTarget: {
-    borderColor: "#B87D6B",
-    backgroundColor: "rgba(184,125,107,0.08)",
+  // "Moving" on the take being given a parent: quiet caps, not a badge.
+  songDetailParentSourceTag: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 10,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    color: colors.textMuted,
+  },
+  songDetailVersionCardParentSource: {
+    opacity: 0.45,
   },
   songDetailVersionCardParentTargetDisabled: {
-    opacity: 0.48,
+    opacity: 0.35,
   },
   songDetailVersionRow: {
     flexDirection: "row",

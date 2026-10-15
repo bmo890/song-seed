@@ -314,6 +314,8 @@ export function buildEvolutionListRowsFromLineages(
 
   groups.forEach((group) => {
     const lineages = lineagesByGroupId.get(group.id) ?? [];
+    // An empty group (a filter hid its takes, or a stale one) is not shown.
+    if (lineages.length === 0) return;
     rows.push({
       kind: "group",
       groupId: group.id,

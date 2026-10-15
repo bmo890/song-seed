@@ -20,31 +20,10 @@ export function ShelfScreen() {
   useBrowseRootBackHandler();
 
   function openRowMenu(row: ShelfRow) {
-    AppAlert.custom(row.idea.title, undefined, [
-      {
-        label: t("shelf.viewInCollectionShort"),
-        style: "default",
-        icon: "open-outline",
-        onPress: () => screen.viewRowInCollection(row),
-      },
-      {
-        label: t("shelf.keepSeven"),
-        style: "default",
-        icon: "time-outline",
-        onPress: () => screen.keepRowLonger(row),
-      },
-      // No `description` here: AppDialog renders described buttons ABOVE plain
-      // ones, which would promote this removal action to the top of the menu.
-      {
-        label: t("shelf.leave"),
-        style: "default",
-        icon: "exit-outline",
-        onPress: () => screen.letRowLeave(row),
-      },
-      {
-        label: t("common.cancel"),
-        style: "cancel",
-      },
+    AppAlert.menu(row.idea.title, [
+      { key: "keep", label: t("shelf.keepSeven"), icon: "time-outline", onPress: () => screen.keepRowLonger(row) },
+      { key: "view", label: t("shelf.viewInCollectionShort"), icon: "open-outline", onPress: () => screen.viewRowInCollection(row) },
+      { key: "leave", label: t("shelf.leave"), icon: "exit-outline", onPress: () => screen.letRowLeave(row) },
     ]);
   }
 

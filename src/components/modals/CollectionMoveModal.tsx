@@ -6,6 +6,7 @@ import { styles } from "../../styles";
 import { Button } from "../common/Button";
 import type { CollectionMoveDestination } from "../../domain/collectionManagement";
 import { useTranslation } from "react-i18next";
+import { colors } from "../../design/tokens";
 
 type Props = {
   visible: boolean;
@@ -65,7 +66,8 @@ export function CollectionMoveModal({
 
                     return (
                       <Press
-                        haptic="none"
+                        // haptics.ts: tap → a control changed value.
+                        haptic="tap"
                         key={`${destination.workspaceId}:${destination.parentCollectionId ?? "root"}`}
                         style={[styles.collectionMoveOption,
                           selected ? styles.collectionMoveOptionSelected : null]}
@@ -86,11 +88,11 @@ export function CollectionMoveModal({
                             <Text style={styles.collectionMoveOptionSubtitle}>{destination.subtitle}</Text>
                           ) : null}
                         </View>
-                        {selected ? (
-                          <Ionicons name="checkmark" size={16} color="#0f172a" />
-                        ) : (
-                          <Ionicons name={dirIcon("chevron-forward")} size={15} color="#94a3b8" />
-                        )}
+                        <Ionicons
+                          name={selected ? "radio-button-on" : "radio-button-off"}
+                          size={20}
+                          color={selected ? colors.primary : colors.textMuted}
+                        />
                       </Press>
                     );
                   })}

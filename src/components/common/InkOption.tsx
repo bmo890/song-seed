@@ -16,6 +16,8 @@ export type InkOptionProps = {
   selected: boolean;
   onPress: () => void;
   disabled?: boolean;
+  /** The dot's colour when on: a stage's or a tag's own ink. Terracotta by default. */
+  ink?: string;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
   testID?: string;
@@ -26,6 +28,7 @@ export function InkOption({
   selected,
   onPress,
   disabled,
+  ink,
   style,
   accessibilityLabel,
   testID,
@@ -43,7 +46,13 @@ export function InkOption({
       accessibilityLabel={accessibilityLabel ?? label}
       testID={testID}
     >
-      <View style={[s.dot, selected ? s.dotOn : null]} />
+      <View
+        style={[
+          s.dot,
+          selected ? s.dotOn : null,
+          selected && ink ? { backgroundColor: ink, borderColor: ink } : null,
+        ]}
+      />
       <Text style={[s.label, selected ? s.labelOn : null]}>{label}</Text>
     </Press>
   );

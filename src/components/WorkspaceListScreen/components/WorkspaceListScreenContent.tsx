@@ -16,6 +16,7 @@ import { WorkspaceList } from "./WorkspaceList";
 import { AppAlert } from "../../common/AppAlert";
 import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
+import { PopoverMenuLabel, PopoverRadioRow } from "../../common/PopoverMenu";
 
 export function WorkspaceListScreenContent() {
   const { t } = useTranslation();
@@ -125,45 +126,18 @@ export function WorkspaceListScreenContent() {
 
             {sortMenuOpen ? (
               <View style={styles.sortMenu}>
-                <View style={styles.orderMenuSection}>
-                  <Text style={styles.orderMenuTitle}>{t("workspaceList.order")}</Text>
-                  {model.data.workspaceOrderOptions.map((option) => {
-                    const active = option.key === model.data.workspaceListOrder;
-                    return (
-                      <Pressable
-                        key={option.key}
-                        style={({ pressed }) => [
-                          styles.orderMenuItem,
-                          active ? styles.orderMenuItemActive : null,
-                          pressed ? styles.pressDown : null,
-                        ]}
-                        onPress={() => {
-                          model.actions.setWorkspaceListOrder(option.key);
-                          setSortMenuOpen(false);
-                        }}
-                      >
-                        <View style={styles.orderMenuItemLead}>
-                          <Ionicons
-                            name={option.icon as any}
-                            size={14}
-                            color={active ? colors.textPrimary : colors.textSecondary}
-                          />
-                          <Text
-                            style={[
-                              styles.orderMenuItemText,
-                              active ? styles.orderMenuItemTextActive : null,
-                            ]}
-                          >
-                            {option.label}
-                          </Text>
-                        </View>
-                        {active ? (
-                          <Ionicons name="checkmark" size={14} color={colors.primary} />
-                        ) : null}
-                      </Pressable>
-                    );
-                  })}
-                </View>
+                <PopoverMenuLabel>{t("workspaceList.order")}</PopoverMenuLabel>
+                {model.data.workspaceOrderOptions.map((option) => (
+                  <PopoverRadioRow
+                    key={option.key}
+                    label={option.label}
+                    selected={option.key === model.data.workspaceListOrder}
+                    onPress={() => {
+                      model.actions.setWorkspaceListOrder(option.key);
+                      setSortMenuOpen(false);
+                    }}
+                  />
+                ))}
               </View>
             ) : null}
           </View>

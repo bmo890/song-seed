@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Press } from "../../common/Press";
+import { Switch } from "../../common/Switch";
+import { Button } from "../../common/Button";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
@@ -12,7 +15,7 @@ import {
   getTagColor,
   type TagColor,
 } from "../songClipControls";
-import { colors } from "../../../design/tokens";
+import { colors, spacing } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 import { UserTextInput } from "../../../i18n";
 
@@ -35,6 +38,9 @@ export type ClipTagTarget = { ideaId: string; clip: ClipVersion };
 
 type ClipTagEditorFieldsProps = {
   globalCustomTags: CustomTagDefinition[];
+  /** Inside a sketch the take's Bookmarked switch leads the tags; the
+   *  collection bookmarks whole ideas from its own row instead. */
+  showBookmark?: boolean;
 } & (
   | {
       /** Inside one sketch: its clips; a new custom tag belongs to the sketch. */
@@ -55,7 +61,7 @@ type ClipTagEditorFieldsProps = {
  * clip has it), "some", or "none"; tapping applies to all, or removes from all
  * when every clip already has it. */
 export function ClipTagEditorFields(props: ClipTagEditorFieldsProps) {
-  const { globalCustomTags } = props;
+  const { globalCustomTags, showBookmark = false } = props;
   const idea = props.idea;
   const targets = useMemo<ClipTagTarget[]>(
     () => props.targets ?? (props.clips ?? []).map((clip) => ({ ideaId: props.idea!.id, clip })),
@@ -96,7 +102,6 @@ export function ClipTagEditorFields(props: ClipTagEditorFieldsProps) {
   const toggleTag = useCallback(
     (key: string) => {
       if (targets.length === 0) return;
-      haptic.tap();
       const removing = tagState(key) === "all";
       targets.forEach(({ ideaId, clip }) => {
         const current = clip.tags ?? [];
@@ -139,54 +144,70 @@ export function ClipTagEditorFields(props: ClipTagEditorFieldsProps) {
   }, [newTagLabel, newTagColor, clips.length, idea, globalCustomTags, applyToAll]);
 
   const projectCustomTags = idea?.customTags ?? [];
+  // Bookmarked lives with the tags (2026-10-15): both are marks you put on a
+  // take. On when every target carries it; flipping it sets them all alike.
+  const allBookmarked = clips.length > 0 && clips.every((clip) => !!clip.isBookmarked);
+  const setBookmarked = (next: boolean) => {
+    targets.forEach(({ ideaId, clip }) => {
+      if (!!clip.isBookmarked !== next) useStore.getState().toggleClipBookmark(ideaId, clip.id);
+    });
+  };
 
   if (clips.length === 0) return null;
 
-  const renderChip = (key: string, label: string, color: TagColor, withDot: boolean) => {
+  // Editorial ink (multi-select): the tag's own colour in its dot. Filled =
+  // every take has it, a centre point = some do, hollow = none.
+  const renderInk = (key: string, label: string, color: TagColor) => {
     const state = tagState(key);
-    const active = state !== "none";
     return (
-      <Pressable
+      <Press
         key={key}
-        style={[
-          styles.tagPickerChip,
-          active
-            ? { backgroundColor: color.bg, borderColor: color.bg }
-            : { backgroundColor: "transparent", borderColor: color.text },
-        ]}
+        // haptics.ts: light → a small state flip.
+        haptic="light"
+        feel="glyph"
+        style={inkStyles.option}
         onPress={() => toggleTag(key)}
+        hitSlop={6}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: state === "all" ? true : state === "some" ? "mixed" : false }}
+        accessibilityLabel={label}
       >
-        {withDot ? <View style={[styles.tagPickerCustomDot, { backgroundColor: color.text }]} /> : null}
-        <Text style={[styles.tagPickerChipText, { color: color.text }]}>{label}</Text>
-        {state === "all" ? (
-          <Ionicons name="checkmark" size={12} color={color.text} />
-        ) : state === "some" ? (
-          <Ionicons name="remove" size={12} color={color.text} />
-        ) : null}
-      </Pressable>
+        <View
+          style={[
+            inkStyles.dot,
+            { borderColor: color.text },
+            state === "all" ? { backgroundColor: color.text } : null,
+          ]}
+        >
+          {state === "some" ? <View style={[inkStyles.dotMid, { backgroundColor: color.text }]} /> : null}
+        </View>
+        <Text style={[inkStyles.label, state !== "none" ? inkStyles.labelOn : null]}>{label}</Text>
+      </Press>
     );
   };
 
   return (
     <>
-      <Text style={styles.tagPickerSectionLabel}>{t("songDetail.tags")}</Text>
-      <View style={styles.tagPickerChipsWrap}>
+      {showBookmark ? (
+      <View style={inkStyles.bookmarkRow}>
+        <Ionicons name={allBookmarked ? "bookmark" : "bookmark-outline"} size={18} color={allBookmarked ? colors.primary : colors.textStrong} />
+        <Text style={inkStyles.bookmarkLabel}>{t("songDetail.bookmarked")}</Text>
+        <Switch value={allBookmarked} onValueChange={setBookmarked} accessibilityLabel={t("songDetail.bookmarked")} />
+      </View>
+      ) : null}
+      {/* The sheet is titled Tags; the built-in ones need no second label. */}
+      <View style={[inkStyles.wrap, inkStyles.wrapFirst]}>
         {SONG_CLIP_TAG_OPTIONS.map((tag) =>
-          renderChip(
-            tag.key,
-            t(`clipTags.${tag.key}`, { defaultValue: tag.label }),
-            { bg: tag.bg, text: tag.text },
-            false
-          )
+          renderInk(tag.key, t(`clipTags.${tag.key}`, { defaultValue: tag.label }), { bg: tag.bg, text: tag.text })
         )}
       </View>
 
       {projectCustomTags.length > 0 ? (
         <>
           <Text style={styles.tagPickerSectionLabel}>{t("songDetail.projectTags")}</Text>
-          <View style={styles.tagPickerChipsWrap}>
+          <View style={inkStyles.wrap}>
             {projectCustomTags.map((tag) =>
-              renderChip(tag.key, tag.label, getTagColor(tag.key, projectCustomTags, globalCustomTags), true)
+              renderInk(tag.key, tag.label, getTagColor(tag.key, projectCustomTags, globalCustomTags))
             )}
           </View>
         </>
@@ -195,9 +216,9 @@ export function ClipTagEditorFields(props: ClipTagEditorFieldsProps) {
       {globalCustomTags.length > 0 ? (
         <>
           <Text style={styles.tagPickerSectionLabel}>{t("songDetail.globalTags")}</Text>
-          <View style={styles.tagPickerChipsWrap}>
+          <View style={inkStyles.wrap}>
             {globalCustomTags.map((tag) =>
-              renderChip(tag.key, tag.label, getTagColor(tag.key, projectCustomTags, globalCustomTags), true)
+              renderInk(tag.key, tag.label, getTagColor(tag.key, projectCustomTags, globalCustomTags))
             )}
           </View>
         </>
@@ -216,28 +237,28 @@ export function ClipTagEditorFields(props: ClipTagEditorFieldsProps) {
           onSubmitEditing={addCustomTag}
           returnKeyType="done"
         />
-        <Pressable
-          style={({ pressed }) => [
-            styles.tagPickerAddBtn,
-            !newTagLabel.trim() ? styles.tagPickerAddBtnDisabled : null,
-            pressed ? styles.pressDown : null,
-          ]}
+        <Button
+          label={t("songDetail.addTag")}
+          variant="primary"
           onPress={addCustomTag}
           disabled={!newTagLabel.trim()}
-        >
-          <Ionicons name="add" size={16} color={newTagLabel.trim() ? colors.textPrimary : colors.textMuted} />
-        </Pressable>
+        />
       </View>
       <View style={styles.tagPickerColorRow}>
         {CUSTOM_TAG_COLOR_OPTIONS.map((option) => (
-          <Pressable
+          <Press
             key={option.bg}
+            // haptics.ts: tap → a control changed value.
+            haptic="tap"
+            feel="glyph"
             style={[
               styles.tagPickerColorSwatch,
               { backgroundColor: option.bg },
               newTagColor === option.bg ? styles.tagPickerColorSwatchActive : null,
             ]}
             onPress={() => setNewTagColor(option.bg)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: newTagColor === option.bg }}
           />
         ))}
       </View>
@@ -252,14 +273,92 @@ export function ClipTagPicker({
   globalCustomTags,
   onClose,
 }: ClipTagPickerProps) {
+  const { t } = useTranslation();
   return (
     <BottomSheet visible={visible} onClose={onClose} dismissDistance={420} keyboardAvoiding>
       <View style={styles.tagPickerContent}>
-        {clips.length > 1 ? (
-          <Text style={styles.tagPickerSectionLabel}>{`${clips.length} clips`}</Text>
-        ) : null}
-        <ClipTagEditorFields clips={clips} idea={idea} globalCustomTags={globalCustomTags} />
+        {/* Named like every sheet: what it acts on. */}
+        <View style={inkStyles.titleRow}>
+          <Text style={inkStyles.title}>{t("selection.tagClips")}</Text>
+          <Text style={inkStyles.titleContext} numberOfLines={1}>
+            {clips.length === 1 ? clips[0]!.title : t("brand.takeCount", { count: clips.length })}
+          </Text>
+        </View>
+        <ClipTagEditorFields clips={clips} idea={idea} globalCustomTags={globalCustomTags} showBookmark />
       </View>
     </BottomSheet>
   );
 }
+
+const inkStyles = StyleSheet.create({
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  title: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  titleContext: {
+    flexShrink: 1,
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  bookmarkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minHeight: 52,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
+    marginBottom: spacing.xs,
+  },
+  bookmarkLabel: {
+    flex: 1,
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 16,
+    color: colors.textPrimary,
+  },
+  wrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    columnGap: 20,
+    rowGap: 10,
+    marginBottom: spacing.xs,
+  },
+  wrapFirst: {
+    marginTop: spacing.md,
+  },
+  option: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    minHeight: 30,
+  },
+  dot: {
+    width: 11,
+    height: 11,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dotMid: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+  },
+  label: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 15,
+    color: colors.textStrong,
+  },
+  labelOn: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    color: colors.textPrimary,
+  },
+});

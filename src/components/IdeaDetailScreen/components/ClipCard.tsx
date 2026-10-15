@@ -324,9 +324,11 @@ export const ClipCard = React.memo(function ClipCard({
     !displayOnly && (displayPrimary || isPrimaryCandidate || clip.isPrimary);
 
   // Compute container extra style for parent-picking visual states
-  const parentPickContainerStyle = isValidParentTarget
-    ? styles.songDetailVersionCardParentTarget
-    : isParentPicking && !isParentPickSource && isInvalidParentTarget
+  // Choosing a parent: the moving take fades, the ones it can't join dim,
+  // the rest stay as they are (no outline on every card).
+  const parentPickContainerStyle = isParentPickSource
+    ? styles.songDetailVersionCardParentSource
+    : isParentPicking && isInvalidParentTarget
       ? styles.songDetailVersionCardParentTargetDisabled
       : undefined;
 
@@ -351,7 +353,8 @@ export const ClipCard = React.memo(function ClipCard({
             </>
           ) : undefined
         }
-        selected={isSelected || isMoving || isParentPickSource}
+        // While choosing a parent the moving take fades instead (no outline).
+        selected={(isSelected || isMoving) && !isParentPicking}
         inlineActive={inlineActive}
         isInlinePlaying={isInlinePlaying}
         nowPlaying={nowPlaying}

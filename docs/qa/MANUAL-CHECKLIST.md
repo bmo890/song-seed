@@ -243,7 +243,7 @@ See `docs/qa/RUN-LOG.md` for the automation status of each.
 ## 16. Songnook Send — transfer links  (service is LIVE at send.songnook.app)
 
 Sending (app → link):
-- iOS ☐  Android ☐ — Setlist detail → menu → **Share…** → **SongNook Send**: the Send sheet
+- iOS ☐  Android ☐ — Setlist detail → menu → **Share** → **SongNook Send**: the Send sheet
   opens with Title prefilled; type From + a note → **Get link** → the sheet folds and a pill
   appears above the dock (ring + "Uploading · N%"); tap the pill → progress sheet with a bar,
   "X MB of Y MB · ~Ns left", **Cancel** and **Hide**; when done the link is on the clipboard,
@@ -271,29 +271,29 @@ Sending (app → link):
   library's own takes are still WAV afterwards. A clip selection of WAVs arrives as `.m4a`
   files. **[HUMAN — network]**
 - iOS ☐  Android ☐ — Second parcel: From is prefilled with the remembered name. **[HUMAN]**
-- iOS ☐  Android ☐ — Clip selection → Share… → SongNook Send with 3 clips: the sheet lists
+- iOS ☐  Android ☐ — Clip selection → Share → SongNook Send with 3 clips: the sheet lists
   them numbered; nudge one down, tap **Sort A–Z**; the recipient page lists them in the
   sheet's final order. A setlist/playlist parcel shows no list. **[HUMAN]**
-- iOS ☐  Android ☐ — Every Share… sub-sheet reads **Export · SongNook Send** (chart book adds
+- iOS ☐  Android ☐ — Every Share sub-sheet reads **Export · SongNook Send** (chart book adds
   *Share as text*); Export on Android opens the folder picker, on iOS the share sheet.
   Nothing in the app calls that action "Share". **[HUMAN]**
-- iOS ☐  Android ☐ — Collection → select 3 → ⋯ → **Playlist…** → the chooser lists 3 items;
-  *New playlist…* asks for a name (prefilled "Playlist N") → Create → lands on that
+- iOS ☐  Android ☐ — Collection → select 3 → ⋯ → **Playlist** → the chooser lists 3 items;
+  *New playlist* asks for a name (prefilled "Playlist N") → Create → lands on that
   playlist with the 3 items. An existing playlist → "Added to …" toast with *Open playlist*.
   **[AUTO-able]**
-- iOS ☐  Android ☐ — Queue → **Playlist…** (was "Save") → same chooser; a new playlist asks
+- iOS ☐  Android ☐ — Queue → **Playlist** (was "Save") → same chooser; a new playlist asks
   for its name and opens, in queue order. **[HUMAN]**
-- iOS ☐  Android ☐ — Sketch page ⋯ → **Share…** → *SongNook Send*: the parcel arrives as a
+- iOS ☐  Android ☐ — Sketch page ⋯ → **Share** → *SongNook Send*: the parcel arrives as a
   package holding that one sketch with every take (lineage kept), all lyric versions with
   chords, the chord sheet, notes and marks; recipient page reads "a sketch — takes, lyrics,
   chords, notes". *Export* writes the `.songnook`. A sketch with lyrics but no take still
   sends; an empty sketch says "Nothing to share". **[HUMAN — network]**
 - iOS ☐  Android ☐ — Workspace hub → long-press one collection → ⋯ → **Export** / **SongNook
   Send** present (disabled with two selected); the selection ends after. **[HUMAN]**
-- iOS ☐  Android ☐ — Full player ⋯ → **Share…** → *Share audio* opens the OS sheet with the
+- iOS ☐  Android ☐ — Full player ⋯ → **Share** → *Share audio* opens the OS sheet with the
   take; *SongNook Send* opens the Send sheet with the take's title. **[HUMAN]**
 - iOS ☐  Android ☐ — Receive a link with `Song.wav`: the clip is titled "Song". **[HUMAN]**
-- iOS ☐  Android ☐ — Collection → select one sketch → ⋯ → **Share…**: the exits come first —
+- iOS ☐  Android ☐ — Collection → select one sketch → ⋯ → **Share**: the exits come first —
   *Share (1)* "The sketch's primary take, as audio." · *Export* "The whole sketch, as a
   SongNook file." · *SongNook Send* "A link. Choose what goes in next." Share and Export
   act at once; SongNook Send opens *Send "<title>"* with "A sketch · N takes · lyrics…"
@@ -304,9 +304,9 @@ Sending (app → link):
   edit sheet → rename to "New" → Save → "Rename 3 takes to match?" → *Update 3 takes*:
   "New", "New v2", "New"; "Bridge riff" untouched. *Keep existing* changes nothing. A
   sketch whose takes are all named otherwise shows no prompt. **[AUTO-able]**
-- iOS ☐  Android ☐ — Songbook detail → menu → **Share…** holds *Share as file · SongNook
+- iOS ☐  Android ☐ — Songbook detail → menu → **Share** holds *Share as file · SongNook
   Send · Share as text*; back chevron returns to the menu. **[HUMAN]**
-- iOS ☐  Android ☐ — Clip selection bar → **Share…** → **SongNook Send** with 1 and with 3
+- iOS ☐  Android ☐ — Clip selection bar → **Share** → **SongNook Send** with 1 and with 3
   clips selected; receiver page lists each clip as its own numbered row. **[HUMAN]**
 - iOS ☐  Android ☐ — After creating a link, the entity header shows the **"Link active ·
   N days left · Copy"** chip; Copy puts the URL on the clipboard. **[HUMAN]**
@@ -315,10 +315,10 @@ Sending (app → link):
 - iOS ☐  Android ☐ — Airplane mode → Get link fails with the friendly "Couldn't create
   link" dialog; the sheet returns to its form with the typed title/note intact. **[HUMAN]**
 - iOS ☐  Android ☐ — Empty setlist → Get link shows "Nothing to share". **[HUMAN]**
-- iOS ☐  Android ☐ — Collection page → ⋯ → **Share…** → *SongNook Send*: link created; the
+- iOS ☐  Android ☐ — Collection page → ⋯ → **Share** → *SongNook Send*: link created; the
   collection header shows the "Link active" chip. *Share as file* hands a `.songnook` to
   the share sheet. **[HUMAN — network]**
-- iOS ☐  Android ☐ — Workspaces page → card ⋯ → **Share…** → *Share as file* / *SongNook
+- iOS ☐  Android ☐ — Workspaces page → card ⋯ → **Share** → *Share as file* / *SongNook
   Send* (the Share… row is absent on an archived workspace). **[HUMAN]**
 - iOS ☐  Android ☐ — Empty collection / empty workspace → "Nothing to share". **[HUMAN]**
 - ☐ — A workspace whose archive is over 512 MB → "Too large to link" dialog, no upload

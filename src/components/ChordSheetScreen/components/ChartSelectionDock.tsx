@@ -40,7 +40,7 @@ export function ChartSelectionDock({
           {
             key: "split",
             label: t("chordChart.splitBars"),
-            icon: "git-branch-outline" as const,
+            icon: "cut-outline" as const,
             onPress: model.splitSelectedBar,
           },
         ]

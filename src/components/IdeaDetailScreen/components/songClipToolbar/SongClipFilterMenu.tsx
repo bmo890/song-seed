@@ -1,5 +1,4 @@
-import { Pressable, ScrollView, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { ScrollView } from "react-native";
 import { styles } from "../../styles";
 import {
   getTagColor,
@@ -14,6 +13,13 @@ import Animated, { FadeIn } from "react-native-reanimated";
 import { durations } from "../../../../design/motion";
 import { colors } from "../../../../design/tokens";
 import { SegmentedControl } from "../../../common/SegmentedControl";
+import { InkOption } from "../../../common/InkOption";
+import {
+  PopoverMenuFootLink,
+  PopoverMenuLabel,
+  PopoverMenuRule,
+  PopoverMenuSection,
+} from "../../../common/PopoverMenu";
 import { useTranslation } from "react-i18next";
 
 type SongClipFilterMenuProps = {
@@ -31,43 +37,6 @@ type SongClipFilterMenuProps = {
   globalCustomTags: CustomTagDefinition[];
   onClose: () => void;
 };
-
-/** One editorial-ink toggle row: leading dot (hollow → filled in `hue`) + word.
- *  Multi-select control language — chips are retired here. */
-function InkToggle({
-  label,
-  active,
-  hue,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  hue: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.ideasStageInk, pressed ? styles.pressDown : null]}
-      onPress={onPress}
-      hitSlop={{ top: 4, bottom: 4 }}
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-      accessibilityLabel={label}
-    >
-      <View
-        style={[
-          styles.ideasStageInkDot,
-          active ? { backgroundColor: hue, borderColor: hue } : null,
-        ]}
-      />
-      <Text
-        style={[styles.ideasStageInkText, active ? styles.ideasStageInkTextActive : null]}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
 
 export function SongClipFilterMenu({
   clipViewMode,
@@ -112,109 +81,91 @@ export function SongClipFilterMenu({
     ...globalCustomTags.map((t) => ({ key: t.key, label: t.label })),
   ];
 
+  const clearAll = () => {
+    setClipTagFilter([]);
+    setClipGroupFilter([]);
+    setClipBookmarkedOnly(false);
+  };
+
   return (
     <Animated.View entering={FadeIn.duration(durations.fast)} style={[styles.ideasSortMenu, styles.ideasPopoverMenu, songClipToolbarStyles.menuOffsetRight]}>
-      {/* Header row */}
-      <View style={styles.ideasDropdownSectionToggle}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-          <Ionicons name="pricetag-outline" size={12} color={colors.textMuted} />
-          <Text style={styles.ideasDropdownSectionToggleText}>{t("songDetail.tags")}</Text>
-        </View>
-        {hasActiveFilters ? (
-          <Pressable
-            onPress={() => {
-              setClipTagFilter([]);
-              setClipGroupFilter([]);
-              setClipBookmarkedOnly(false);
-            }}
-            hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
-          >
-            <Text style={songClipToolbarStyles.filterClearText}>{t("songDetail.clear")}</Text>
-          </Pressable>
-        ) : null}
-      </View>
-
-      {/* Tags (multiselect) — editorial ink; the tag's hue lives in the dot. */}
+      {/* The Ideas filter's recipe: caps labels, editorial ink, the tag's
+          own colour in its dot, one Clear filters at the foot. */}
+      <PopoverMenuLabel>{t("songDetail.tags")}</PopoverMenuLabel>
       <ScrollView
         style={styles.ideasStageChipsScroll}
-        contentContainerStyle={styles.ideasStageInkWrap}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {allOptions.map((option) => {
-          const isUntagged = option.key === "untagged";
-          const tagColor = isUntagged
-            ? null
-            : getTagColor(option.key, projectCustomTags, globalCustomTags);
-          return (
-            <InkToggle
-              key={option.key}
-              label={
-                isUntagged
-                  ? t("songDetail.untagged")
-                  : getTagLabel(option.key, projectCustomTags, globalCustomTags)
-              }
-              active={clipTagFilter.includes(option.key)}
-              hue={tagColor?.text ?? colors.textMuted}
-              onPress={() => toggleTag(option.key)}
-            />
-          );
-        })}
+        <PopoverMenuSection wrap>
+          {allOptions.map((option) => {
+            const isUntagged = option.key === "untagged";
+            const tagColor = isUntagged ? null : getTagColor(option.key, projectCustomTags, globalCustomTags);
+            return (
+              <InkOption
+                key={option.key}
+                label={
+                  isUntagged
+                    ? t("songDetail.untagged")
+                    : getTagLabel(option.key, projectCustomTags, globalCustomTags)
+                }
+                selected={clipTagFilter.includes(option.key)}
+                ink={tagColor?.text ?? colors.textMuted}
+                onPress={() => toggleTag(option.key)}
+              />
+            );
+          })}
+        </PopoverMenuSection>
       </ScrollView>
 
-      <View style={styles.ideasDropdownDivider} />
-      <View style={styles.ideasStageInkWrap}>
-        <InkToggle
+      <PopoverMenuRule />
+      <PopoverMenuSection>
+        <InkOption
           label={t("songDetail.bookmarkedOnly")}
-          active={clipBookmarkedOnly}
-          hue={colors.primary}
+          selected={clipBookmarkedOnly}
           onPress={() => setClipBookmarkedOnly(!clipBookmarkedOnly)}
         />
-      </View>
+      </PopoverMenuSection>
 
       {clipGroups.length > 0 ? (
         <>
-          <View style={styles.ideasDropdownDivider} />
-          <View style={styles.ideasDropdownSectionToggle}>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
-              <Ionicons name="folder-open-outline" size={12} color={colors.textMuted} />
-              <Text style={styles.ideasDropdownSectionToggleText}>{t("songDetail.groups")}</Text>
-            </View>
-          </View>
-          <View style={styles.ideasStageInkWrap}>
+          <PopoverMenuRule />
+          <PopoverMenuLabel>{t("songDetail.groups")}</PopoverMenuLabel>
+          <PopoverMenuSection wrap>
             {clipGroups.map((group) => (
-              <InkToggle
+              <InkOption
                 key={group.id}
                 label={group.name}
-                active={clipGroupFilter.includes(group.id)}
-                hue={colors.primary}
+                selected={clipGroupFilter.includes(group.id)}
                 onPress={() => toggleGroup(group.id)}
               />
             ))}
-          </View>
+          </PopoverMenuSection>
         </>
       ) : null}
 
       {clipViewMode === "timeline" ? (
         <>
-          <View style={styles.ideasDropdownDivider} />
-          <View style={styles.ideasDropdownSectionToggle}>
-            <Text style={styles.ideasDropdownSectionToggleText}>{t("songDetail.display")}</Text>
-          </View>
-          {/* Single-select — SegmentedControl, per the selection-controls law. */}
-          <SegmentedControl
-            options={[
-              { key: "all", label: t("songDetail.allTakes") },
-              { key: "main", label: t("songDetail.mainTakesOnly") },
-            ]}
-            value={timelineMainTakesOnly ? "main" : "all"}
-            onChange={(key) => {
-              setTimelineMainTakesOnly(key === "main");
-              onClose();
-            }}
-          />
+          <PopoverMenuRule />
+          <PopoverMenuLabel>{t("songDetail.display")}</PopoverMenuLabel>
+          <PopoverMenuSection>
+            {/* Single-select — SegmentedControl, per the selection-controls law. */}
+            <SegmentedControl
+              options={[
+                { key: "all", label: t("songDetail.allTakes") },
+                { key: "main", label: t("songDetail.mainTakesOnly") },
+              ]}
+              value={timelineMainTakesOnly ? "main" : "all"}
+              onChange={(key) => {
+                setTimelineMainTakesOnly(key === "main");
+                onClose();
+              }}
+            />
+          </PopoverMenuSection>
         </>
       ) : null}
+
+      {hasActiveFilters ? <PopoverMenuFootLink label={t("filters.clearAll")} onPress={clearAll} /> : null}
     </Animated.View>
   );
 }
