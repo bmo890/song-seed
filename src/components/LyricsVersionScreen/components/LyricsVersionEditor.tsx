@@ -15,6 +15,8 @@ import { WordFinderSheet } from "../../common/WordFinderSheet";
 import { applyPickedWord, extractWordRange } from "../../../domain/wordTools";
 import { UserTextInput, type ContentDirection } from "../../../i18n";
 import { useTranslation } from "react-i18next";
+import { AppAlert } from "../../common/AppAlert";
+import { Button } from "../../common/Button";
 
 type LyricsVersionEditorProps = {
   draftText: string;
@@ -54,7 +56,6 @@ export function LyricsVersionEditor({
   scrollIndicator,
 }: LyricsVersionEditorProps) {
   const { t } = useTranslation();
-  const [directionMenuVisible, setDirectionMenuVisible] = useState(false);
   const [wordFinderVisible, setWordFinderVisible] = useState(false);
   const [wordFinderSeed, setWordFinderSeed] = useState("");
   // Tracked in a ref: selection moves on every keystroke and shouldn't re-render.
@@ -96,7 +97,7 @@ export function LyricsVersionEditor({
             hitSlop={6}
             accessibilityLabel={t("lyrics.undo")}
           >
-            <Ionicons name={dirIcon("arrow-undo-outline")} size={18} color={canUndo ? colors.textSecondary : colors.borderMuted} />
+            <Ionicons name={dirIcon("arrow-undo-outline")} size={18} color={canUndo ? colors.textStrong : colors.borderMuted} />
           </Pressable>
           <Pressable
             style={({ pressed }) => [
@@ -109,7 +110,7 @@ export function LyricsVersionEditor({
             hitSlop={6}
             accessibilityLabel={t("lyrics.redo")}
           >
-            <Ionicons name={dirIcon("arrow-redo-outline")} size={18} color={canRedo ? colors.textSecondary : colors.borderMuted} />
+            <Ionicons name={dirIcon("arrow-redo-outline")} size={18} color={canRedo ? colors.textStrong : colors.borderMuted} />
           </Pressable>
           {showSaveAsNew ? (
             <Pressable
@@ -123,7 +124,7 @@ export function LyricsVersionEditor({
               hitSlop={6}
               accessibilityLabel={t("lyrics.saveAsNew")}
             >
-              <Ionicons name="albums-outline" size={18} color={canSave ? colors.textSecondary : colors.borderMuted} />
+              <Ionicons name="albums-outline" size={18} color={canSave ? colors.textStrong : colors.borderMuted} />
             </Pressable>
           ) : null}
           <Pressable
@@ -132,51 +133,36 @@ export function LyricsVersionEditor({
             hitSlop={6}
             accessibilityLabel={t("lyrics.wordFinder")}
           >
-            <Ionicons name="book-outline" size={18} color={colors.textSecondary} />
+            <Ionicons name="book-outline" size={18} color={colors.textStrong} />
           </Pressable>
           <Pressable
             style={({ pressed }) => [editorControls.iconBtn, pressed ? appStyles.pressDown : null]}
-            onPress={() => setDirectionMenuVisible((visible) => !visible)}
+            // One choice of three: the shared action sheet with radio marks,
+            // not a boxed menu dropping into the page.
+            onPress={() =>
+              AppAlert.menu(
+                t("lyrics.textDirection"),
+                (["auto", "ltr", "rtl"] as ContentDirection[]).map((option) => ({
+                  key: option,
+                  label: t(
+                    option === "auto" ? "lyrics.directionAuto" : option === "ltr" ? "lyrics.directionLtr" : "lyrics.directionRtl"
+                  ),
+                  icon: option === textDirection ? "radio-button-on" : "radio-button-off",
+                  selected: option === textDirection,
+                  noMirror: true,
+                  onPress: () => onTextDirectionChange(option),
+                }))
+              )
+            }
             hitSlop={6}
             accessibilityLabel={t("lyrics.textDirection")}
           >
-            <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
+            <Ionicons name="ellipsis-horizontal" size={18} color={colors.textStrong} />
           </Pressable>
         </View>
-        <Pressable
-          style={({ pressed }) => [
-            editorControls.saveBtn,
-            !canSave ? editorControls.saveBtnDisabled : null,
-            pressed && canSave ? appStyles.pressDown : null,
-          ]}
-          onPress={onSave}
-          disabled={!canSave}
-          hitSlop={6}
-          accessibilityLabel={t("lyrics.save")}
-        >
-          <Ionicons name="checkmark" size={20} color={canSave ? colors.onPrimary : colors.textMuted} />
-        </Pressable>
+        {/* Save is the page's one primary: a soft key in the tonal wash. */}
+        <Button label={t("lyrics.save")} variant="primary" onPress={onSave} disabled={!canSave} />
       </View>
-      {directionMenuVisible ? (
-        <View style={editorControls.directionMenu}>
-          <Text style={editorControls.directionLabel}>{t("lyrics.textDirection")}</Text>
-          {(["auto", "ltr", "rtl"] as ContentDirection[]).map((option) => (
-            <Pressable
-              key={option}
-              style={[editorControls.directionOption, option === textDirection ? editorControls.directionOptionActive : null]}
-              onPress={() => {
-                onTextDirectionChange(option);
-                setDirectionMenuVisible(false);
-              }}
-            >
-              <Text style={editorControls.directionOptionText}>
-                {t(option === "auto" ? "lyrics.directionAuto" : option === "ltr" ? "lyrics.directionLtr" : "lyrics.directionRtl")}
-              </Text>
-              {option === textDirection ? <Ionicons name="checkmark" size={16} color={colors.primary} /> : null}
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
       <View style={[styles.lyricsVersionDocumentFill, styles.lyricsVersionDocumentFillEdit]}>
         <View style={[styles.lyricsVersionDocumentContent, styles.lyricsVersionDocumentContentEdit]}>
           <View
@@ -223,54 +209,14 @@ const editorControls = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
   },
+  // Bare ink glyphs (2026-10-15): the grey discs behind them are retired.
   iconBtn: {
     width: 34,
     height: 34,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
     alignItems: "center",
     justifyContent: "center",
   },
   iconBtnDisabled: {
     opacity: 0.5,
-  },
-  saveBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.round,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  saveBtnDisabled: {
-    backgroundColor: colors.surfaceHigh,
-  },
-  directionMenu: {
-    alignSelf: "flex-start",
-    minWidth: 220,
-    marginBottom: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceHigh,
-  },
-  directionLabel: {
-    color: colors.textMuted,
-    fontSize: 12,
-    marginBottom: spacing.xs,
-  },
-  directionOption: {
-    minHeight: 38,
-    paddingHorizontal: spacing.sm,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  directionOptionActive: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.sm,
-  },
-  directionOptionText: {
-    color: colors.textStrong,
-    fontSize: 14,
   },
 });

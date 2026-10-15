@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Slider } from "../../../common/Slider";
-import { colors, radii, spacing } from "../../../../design/tokens";
+import { colors, spacing } from "../../../../design/tokens";
 import { styles as appStyles } from "../../../../styles";
 import { useTranslation } from "react-i18next";
 
@@ -41,7 +41,7 @@ export function ChordZoomBar({
         accessibilityLabel={t("chordEditor.resetZoom")}
         style={({ pressed }) => [styles.reset, pressed ? appStyles.pressDown : null]}
       >
-        <Ionicons name="refresh" size={16} color={atDefault ? colors.borderMuted : colors.primary} />
+        <Ionicons name="refresh" size={18} color={atDefault ? colors.borderMuted : colors.textStrong} />
       </Pressable>
     </View>
   );
@@ -64,11 +64,10 @@ const styles = StyleSheet.create({
   slider: {
     flex: 1,
   },
+  // A bare ink glyph (no disc): ink when there is a zoom to undo, faint when not.
   reset: {
     width: 32,
     height: 32,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
     alignItems: "center",
     justifyContent: "center",
   },

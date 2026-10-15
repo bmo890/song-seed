@@ -13,6 +13,7 @@ import { TransposeChip } from "../../common/TransposeChip";
 import { useChartPrefsStore } from "../../../state/useChartPrefsStore";
 import { clampTransposeOffset, transposeLyricsLines } from "../../../domain/transpose";
 import { UserText, type ContentDirection } from "../../../i18n";
+import { useTranslation } from "react-i18next";
 
 type LyricsVersionPreviewProps = {
   sourceText: string;
@@ -44,6 +45,7 @@ export function LyricsVersionPreview({
   onScroll,
   scrollIndicator,
 }: LyricsVersionPreviewProps) {
+  const { t } = useTranslation();
   const [zoom, setZoom] = useState(1);
   const [viewMode, setViewMode] = useState<"lyrics" | "chords">(hasChords ? "chords" : "lyrics");
   const chordView = viewMode === "chords";
@@ -68,7 +70,7 @@ export function LyricsVersionPreview({
           tone="muted"
           size={18}
           onPress={chordView ? onChords : onEdit}
-          accessibilityLabel={chordView ? "Edit chords" : "Edit lyrics"}
+          accessibilityLabel={chordView ? t("lyrics.editChords") : t("lyrics.editLyrics")}
         />
       </View>
 
@@ -110,7 +112,7 @@ export function LyricsVersionPreview({
                 scrollEventThrottle={16}
               >
                 <UserText align="content" value={sourceText} direction={textDirection} style={styles.lyricsPreviewText}>
-                  {sourceText || "No lyrics in this version."}
+                  {sourceText || t("lyrics.noLyricsVersion")}
                 </UserText>
               </ScrollView>
               {scrollIndicator}
