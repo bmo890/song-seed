@@ -1247,3 +1247,25 @@ row, "+ Version" trails (opens the same three choices). Version numbers
 read alike everywhere: the page names a version by its own number while
 reading (opening v2 used to say "Version 4"). Next candidate: the version
 page itself (filled Lyrics/Chords pill, share in a filled circle).
+
+## Lyrics page and Metronome (2026-10-15)
+
+Lyrics page: Lyrics / Chords as ink tabs (LyricsChordsToggle wraps the
+SegmentedControl); share a bare glyph; TransposeChip on the kit Stepper with a
+"Transpose" label (also the chord sheet and the songbook reader, not seen);
+zoom reset bare; the editor's discs retired, Save a soft primary key, text
+direction via AppAlert.menu with radio marks, the field a white page.
+
+Metronome, founder picked A ("the instrument",
+https://claude.ai/artifact/S6U4fRNuP9ZCdftPBBycZY): one screen. The tempo
+said once (Lora 88) between the kit Stepper's new `size="large"` keys, the
+beat dots as the only pulse, "BPM · Andante", the slider, Tap as an InkKey,
+one round transport key (the player's), then two ListRows: Meter ("4/4 ·
+Beats") and Sound ("Click · Beep, Visual" / Silent) opening BottomSheets with
+the shared blocks. Shared blocks restyled for the recorder sheet too:
+TempoBlock on the Stepper with Tap as an InkKey (BPM no longer terracotta),
+MeterRow and the click voice and haptic strength as SegmentedControls (the
+boxed CycleKey is gone), the bar strip unboxed (Custom earns the tonal
+wash), each cue's settings under its word. Hebrew: Sound = רמזים (it read
+צליל, the same as Beep). Left for the recorder step: the sheet's count-in
+pill, the change-editor chips.
