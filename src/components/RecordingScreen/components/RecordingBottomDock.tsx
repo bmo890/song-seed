@@ -25,12 +25,14 @@ type RecordingBottomDockProps = {
     onStart: () => Promise<void>;
     onRequestSave: () => void;
     onDiscard: () => void;
-    onRedo?: () => void;
   };
 };
 
 export function RecordingBottomDock({ compact = false, metronome, recording }: RecordingBottomDockProps) {
-  const beatActive = metronome.isCountIn || metronome.isRunning;
+  // The count-in has its own count above the tape (the big number and its
+  // dots); the dock's dots would say the same beat twice (2026-10-16). They
+  // take over once the take is running.
+  const beatActive = metronome.isRunning && !metronome.isCountIn;
 
   return (
     <View style={[styles.recordingBottomDock, compact ? styles.recordingBottomDockCompact : null]}>
@@ -62,14 +64,12 @@ export function RecordingBottomDock({ compact = false, metronome, recording }: R
         recordToggleDisabled={recording.isReviewLocked}
         compact={compact}
         canSave={recording.isRecording || recording.isPaused}
-        canDiscard={recording.isRecording || recording.isPaused}
-        canRedo={recording.isRecording || recording.isPaused || recording.isArming}
+        canDiscard={recording.isRecording || recording.isPaused || recording.isArming}
         onPause={recording.onPause}
         onResume={recording.onResume}
         onStart={recording.onStart}
         onRequestSave={recording.onRequestSave}
         onDiscard={recording.onDiscard}
-        onRedo={recording.onRedo}
       />
     </View>
   );

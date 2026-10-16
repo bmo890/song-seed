@@ -1269,3 +1269,29 @@ boxed CycleKey is gone), the bar strip unboxed (Custom earns the tonal
 wash), each cue's settings under its word. Hebrew: Sound = רמזים (it read
 צליל, the same as Beep). Left for the recorder step: the sheet's count-in
 pill, the change-editor chips.
+
+## The recorder (2026-10-16)
+
+Founder picked A with the dock
+(https://claude.ai/artifact/D18FFrynuf1Mwf64nScQLD), simpler words, icons.
+The dock keeps Discard · Record · Save. Discard asks one question, "Discard
+take?", with Redo (restore glyph), Discard (trash, danger) and Keep
+recording; either answer acts at once, so Redo still costs two taps and the
+old Redo confirmation is gone. Discard is live during a count-in, so a count
+that started wrong is stopped there (REC-25). The back arrow keeps its own
+leave question.
+
+Input and output sheet: rows on paper. Input rows carry a radio and a
+device glyph, the duplicated active label is gone, refresh is a bare glyph;
+Output is one quiet row, "Phone speaker · Follows your phone". Metronome
+sheet: count-in as ink tabs with its one line under it, tempo changes as
+Steppers (bar and BPM, hold to run, replacing the ±5 chips), the cues
+under "Sound" like the Metronome page, the header says "Off" (it said
+"Silent" while Beep was on), audition is a "Listen" InkKey beside the switch
+(it was a filled square). During a count-in the dock's beat dots step aside:
+the big count already shows the beat.
+
+Settings > Recording: the Bluetooth row's hint fits ("Wireless headphone
+delay"); the mic note reads "Choose the mic in the recorder." Next: the
+Bluetooth set (calibration screen, recorder warnings, the Bluetooth mic
+question), which the simulator cannot show live.

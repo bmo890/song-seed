@@ -115,9 +115,9 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
     return (
         <View style={styles.recordingInputCard}>
             <View style={styles.recordingInputHeader}>
+                {/* The chosen input is the radio row below; no second, larger copy of its name. */}
                 <View style={styles.recordingInputHeaderCopy}>
                     <Text style={styles.recordingInputTitle}>{t("recording.input")}</Text>
-                    <Text style={styles.recordingInputActiveLabel}>{activeLabel}</Text>
                 </View>
                 <Pressable
                     style={({ pressed }) => [
@@ -126,11 +126,14 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
                     ]}
                     onPress={refreshDevices}
                     disabled={loading || isApplying}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("recording.refreshInputs")}
                 >
                     {loading || isApplying ? (
                         <Spinner size="small" color={colors.textStrong} />
                     ) : (
-                        <Ionicons name="refresh" size={16} color={colors.textStrong} />
+                        <Ionicons name="refresh" size={18} color={colors.textStrong} />
                     )}
                 </Pressable>
             </View>
@@ -149,12 +152,16 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
                             ]}
                             onPress={() => handleSelectDevice(device)}
                             disabled={disabled || isApplying}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected: isActive, disabled }}
                         >
+                            {/* Rows on paper (2026-10-15): a radio for the one in use. */}
                             <Ionicons
-                                name={iconForType(device.type)}
-                                size={18}
-                                color={isActive ? colors.surface : colors.textStrong}
+                                name={isActive ? "radio-button-on" : "radio-button-off"}
+                                size={20}
+                                color={isActive ? colors.primary : colors.textMuted}
                             />
+                            <Ionicons name={iconForType(device.type)} size={18} color={colors.textStrong} />
                             <Text
                                 style={[
                                     styles.recordingInputOptionText,
@@ -163,9 +170,6 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
                             >
                                 {formatDeviceLabel(device, t)}
                             </Text>
-                            {isActive ? (
-                                <Ionicons name="checkmark" size={16} color={colors.surface} style={styles.recordingInputOptionCheck} />
-                            ) : null}
                         </Pressable>
                     );
                 })}

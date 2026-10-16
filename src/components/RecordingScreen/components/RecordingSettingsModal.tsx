@@ -36,9 +36,6 @@ export function RecordingSettingsModal({
   return (
     <BottomSheet visible={visible} onClose={onClose}>
       <Text style={styles.recordingSettingsTitle}>{t("recording.settings")}</Text>
-      <Text style={styles.recordingSettingsMeta}>
-        {t("recording.settingsHint")}
-      </Text>
 
       <RecordingInputPicker
         disabled={disabled}
@@ -47,14 +44,15 @@ export function RecordingSettingsModal({
       />
 
       <View style={styles.recordingOutputRow}>
-        <Ionicons name={outputIcon} size={18} color={colors.textSecondary} />
+        {/* Output is not chosen here; it follows the phone. Said once, as the
+            row's quiet second line. */}
+        <Ionicons name={outputIcon} size={20} color={colors.textStrong} />
         <View style={styles.recordingOutputCopy}>
           <Text style={styles.recordingOutputLabel}>{t("recording.output")}</Text>
           <Text style={styles.recordingOutputValue} numberOfLines={1}>
-            {outputLabel || t("recording.phoneSpeaker")}
+            {`${outputLabel || t("recording.phoneSpeaker")} · ${t("recording.followsPhone")}`}
           </Text>
         </View>
-        <Text style={styles.recordingOutputAuto}>{t("recording.auto")}</Text>
       </View>
     </BottomSheet>
   );

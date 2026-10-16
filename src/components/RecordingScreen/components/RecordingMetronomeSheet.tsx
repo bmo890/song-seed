@@ -4,8 +4,11 @@ import { Switch } from "../../common/Switch";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../../common/BottomSheet";
 import { IconButton } from "../../common/IconButton";
-import { colors, radii } from "../../../design/tokens";
+import { InkKey, inkKeyColor } from "../../common/InkKey";
+import { colors, radii, spacing } from "../../../design/tokens";
 import { CueRows, FeelControl, MeterRow, TempoBlock, ms } from "../../common/metronome/MetronomeBlocks";
+import { SegmentedControl } from "../../common/SegmentedControl";
+import { Stepper } from "../../common/Stepper";
 import {
   clampMetronomeBpm,
   METRONOME_COUNT_IN_BAR_OPTIONS,
@@ -35,27 +38,6 @@ function countInSubtitle(bars: number, t: (key: string, options?: any) => string
   return bars === 0
     ? t("recording.startsImmediately")
     : t("recording.clickBars", { count: bars });
-}
-
-/** Small square stepper key for the change editor — same voice as ms.segment chips. */
-function StepChip({
-  label,
-  disabled,
-  onPress,
-}: {
-  label: string;
-  disabled: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      style={({ pressed }) => [s.stepChip, disabled ? s.stepChipDisabled : null, pressed ? ms.pressed : null]}
-      onPress={onPress}
-      disabled={disabled}
-    >
-      <Text style={s.stepChipText}>{label}</Text>
-    </Pressable>
-  );
 }
 
 type Props = {
@@ -142,8 +124,8 @@ export function RecordingMetronomeSheet({
   onChangeHapticLevel,
 }: Props) {
   const { t } = useTranslation();
-  const [expanded, setExpanded] = useState<"countin" | "changes" | null>(null);
-  const toggleSection = (section: "countin" | "changes") =>
+  const [expanded, setExpanded] = useState<"changes" | null>(null);
+  const toggleSection = (section: "changes") =>
     setExpanded((prev) => (prev === section ? null : section));
 
   // ── Programmed changes (the sketch's plan) ────────────────────────────────
@@ -211,14 +193,26 @@ export function RecordingMetronomeSheet({
             secondary action, so a glyph, and it stops the sheet opening with an
             empty band across it. */}
         {isNativeAvailable ? (
-          <IconButton
-            icon={previewPlaying ? "stop" : "play"}
-            tone={previewPlaying ? "accent" : "muted"}
-            size={19}
-            disabled={disabled}
-            onPress={() => void onTogglePreview()}
-            accessibilityLabel={previewPlaying ? t("recording.stopPreviewA11y") : t("recording.listenMetronome")}
-          />
+          // Audition is a toolbar key beside the switch: glyph and word in ink,
+          // terracotta while it plays (2026-10-16; was a lone filled square).
+          <View style={disabled ? ms.dimmed : null} pointerEvents={disabled ? "none" : "auto"}>
+            <InkKey
+              glyph={
+                <Ionicons
+                  name={previewPlaying ? "stop" : "play-outline"}
+                  size={15}
+                  color={inkKeyColor(previewPlaying ? "active" : "idle")}
+                />
+              }
+              label={t("recording.listen")}
+              tone={previewPlaying ? "active" : "idle"}
+              role="switch"
+              // Haptics vocabulary: a toggle is `light`.
+              haptic="light"
+              onPress={() => void onTogglePreview()}
+              accessibilityLabel={previewPlaying ? t("recording.stopPreviewA11y") : t("recording.listenMetronome")}
+            />
+          </View>
         ) : null}
         {/* The switch lives here as well as on the toolbar glyph. A panel that
             states "On — clicks while you record" and offers no way to change it
@@ -260,47 +254,19 @@ export function RecordingMetronomeSheet({
           />
           <View style={s.feelGap} />
 
-          {/* Count-in — pronounced, self-explaining row (recording-only concept) */}
-          <Pressable
-            style={({ pressed }) => [s.featureRow, ms.divider, pressed ? ms.pressed : null]}
-            onPress={() => toggleSection("countin")}
-            disabled={disabled}
-          >
-            <View style={s.featureLead}>
-              <View style={s.featureCopy}>
-                <Text style={s.featureTitle}>{t("recording.countIn")}</Text>
-                <Text style={s.featureSub} numberOfLines={1}>{countInSubtitle(countInBars, t)}</Text>
-              </View>
-            </View>
-            {/* The value is dropped once the options are open — it just repeats
-                the selected one three lines below. */}
-            <View style={ms.valuePill}>
-              {expanded === "countin" ? null : (
-                <Text style={ms.valueText}>{countInLabel(countInBars, t)}</Text>
-              )}
-              <Ionicons name={expanded === "countin" ? "chevron-up" : "chevron-down"} size={13} color={colors.textMuted} />
-            </View>
-          </Pressable>
-          {expanded === "countin" ? (
-            <View style={ms.segmentGroup}>
-              {COUNT_IN_OPTIONS.map((bars) => {
-                const active = countInBars === bars;
-                return (
-                  <Pressable
-                    key={bars}
-                    style={({ pressed }) => [ms.segment, active ? ms.segmentActive : null, pressed ? ms.pressed : null]}
-                    onPress={() => {
-                      onSelectCountInBars(bars);
-                      setExpanded(null);
-                    }}
-                    disabled={disabled}
-                  >
-                    <Text style={[ms.segmentText, active ? ms.segmentTextActive : null]}>{countInLabel(bars, t)}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : null}
+          {/* Count-in (recording-only): one choice of a few, so ink tabs, always
+              in view with its one line saying what it does (2026-10-15; was a
+              disclosure opening filled terracotta segments). */}
+          <View style={ms.divider} />
+          <Text style={ms.label}>{t("recording.countIn")}</Text>
+          <View style={disabled ? ms.dimmed : null} pointerEvents={disabled ? "none" : "auto"}>
+            <SegmentedControl
+              options={COUNT_IN_OPTIONS.map((bars) => ({ key: String(bars), label: countInLabel(bars, t) }))}
+              value={String(countInBars)}
+              onChange={(key) => onSelectCountInBars(Number(key))}
+            />
+          </View>
+          <Text style={s.countInNote}>{countInSubtitle(countInBars, t)}</Text>
 
           {/* Programmed changes — the sketch's plan. A tempo/meter change takes effect
               at a bar line; the take snapshots the plan and the click follows it. */}
@@ -312,15 +278,16 @@ export function RecordingMetronomeSheet({
                 disabled={disabled}
               >
                 <Text style={ms.quietLabel}>{t("recording.changes")}</Text>
-                <View style={ms.valuePill}>
+                {/* The value in quiet ink beside the chevron; no pill. */}
+                <View style={s.disclosureValue}>
                   {expanded === "changes" ? null : (
-                    <Text style={ms.valueText}>
+                    <Text style={s.disclosureValueText}>
                       {changes.length === 0
                         ? t("recording.off")
                         : t("recording.changeCount", { count: changes.length })}
                     </Text>
                   )}
-                  <Ionicons name={expanded === "changes" ? "chevron-up" : "chevron-down"} size={13} color={colors.textMuted} />
+                  <Ionicons name={expanded === "changes" ? "chevron-up" : "chevron-down"} size={14} color={colors.textMuted} />
                 </View>
               </Pressable>
               {expanded === "changes" ? (
@@ -349,43 +316,30 @@ export function RecordingMetronomeSheet({
                           <View style={s.changeEditor}>
                             <View style={s.changeStepperRow}>
                               <Text style={s.changeStepperLabel}>{t("recording.changeBar", { bar: segment.atBar })}</Text>
-                              <View style={s.changeStepperGroup}>
-                                <StepChip
-                                  label="−"
-                                  disabled={disabled || segment.atBar <= 2}
-                                  onPress={() => updateChange(segment.atBar, { atBar: Math.max(2, segment.atBar - 1) })}
-                                />
-                                <StepChip
-                                  label="+"
-                                  disabled={disabled}
-                                  onPress={() => updateChange(segment.atBar, { atBar: segment.atBar + 1 })}
-                                />
-                              </View>
+                              <Stepper
+                                glyphs="plusMinus"
+                                canDecrement={!disabled && segment.atBar > 2}
+                                canIncrement={!disabled}
+                                decrementLabel={t("recording.changeEarlier")}
+                                incrementLabel={t("recording.changeLater")}
+                                onStep={(direction) =>
+                                  updateChange(segment.atBar, { atBar: Math.max(2, segment.atBar + direction) })
+                                }
+                              />
                             </View>
                             <View style={s.changeStepperRow}>
                               <Text style={s.changeStepperLabel}>{`${segment.bpm} BPM`}</Text>
-                              <View style={s.changeStepperGroup}>
-                                <StepChip
-                                  label="−5"
-                                  disabled={disabled}
-                                  onPress={() => updateChange(segment.atBar, { bpm: clampMetronomeBpm(segment.bpm - 5) })}
-                                />
-                                <StepChip
-                                  label="−1"
-                                  disabled={disabled}
-                                  onPress={() => updateChange(segment.atBar, { bpm: clampMetronomeBpm(segment.bpm - 1) })}
-                                />
-                                <StepChip
-                                  label="+1"
-                                  disabled={disabled}
-                                  onPress={() => updateChange(segment.atBar, { bpm: clampMetronomeBpm(segment.bpm + 1) })}
-                                />
-                                <StepChip
-                                  label="+5"
-                                  disabled={disabled}
-                                  onPress={() => updateChange(segment.atBar, { bpm: clampMetronomeBpm(segment.bpm + 5) })}
-                                />
-                              </View>
+                              {/* The kit Stepper: hold to run (replaces the ±5 chips). */}
+                              <Stepper
+                                glyphs="plusMinus"
+                                canDecrement={!disabled}
+                                canIncrement={!disabled}
+                                decrementLabel={t("metronome.slow")}
+                                incrementLabel={t("metronome.raise")}
+                                onStep={(direction) =>
+                                  updateChange(segment.atBar, { bpm: clampMetronomeBpm(segment.bpm + direction) })
+                                }
+                              />
                             </View>
                             <MeterRow
                               meterId={segment.meterId}
@@ -414,7 +368,8 @@ export function RecordingMetronomeSheet({
               mid-take: volume is a live param on the native engine (no restart, no phase
               reset) and haptic strength is JS-side only. The toggles and the click voice
               are structural and lock while recording. */}
-          <Text style={[ms.label, ms.divider, { paddingTop: 14 }]}>{t("recording.cues")}</Text>
+          {/* Same name as the Metronome page's Sound row: one word for the cues. */}
+          <Text style={[ms.label, ms.divider, { paddingTop: 14 }]}>{t("metronome.sound")}</Text>
           <CueRows
             outputs={outputs}
             beepLevel={beepLevel}
@@ -434,6 +389,23 @@ export function RecordingMetronomeSheet({
 }
 
 const s = StyleSheet.create({
+  countInNote: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  disclosureValue: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  disclosureValueText: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
   feelGap: {
     height: 8,
   },
@@ -472,33 +444,6 @@ const s = StyleSheet.create({
     color: colors.textSecondary,
     paddingBottom: 16,
   },
-  featureRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 14,
-    marginTop: 16,
-  },
-  featureLead: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    flexShrink: 1,
-  },
-  featureCopy: {
-    flexShrink: 1,
-  },
-  featureTitle: {
-    fontSize: 14,
-    fontFamily: "PlusJakartaSans_700Bold",
-    color: colors.textPrimary,
-  },
-  featureSub: {
-    fontSize: 11,
-    fontFamily: "PlusJakartaSans_400Regular",
-    color: colors.textSecondary,
-    marginTop: 1,
-  },
   changeRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -530,28 +475,6 @@ const s = StyleSheet.create({
     fontSize: 12,
     fontFamily: "PlusJakartaSans_400Regular",
     color: colors.textSecondary,
-    fontVariant: ["tabular-nums"],
-  },
-  changeStepperGroup: {
-    flexDirection: "row",
-    gap: 6,
-  },
-  stepChip: {
-    minWidth: 36,
-    height: 30,
-    paddingHorizontal: 8,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surfaceHigh,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepChipDisabled: {
-    opacity: 0.4,
-  },
-  stepChipText: {
-    fontSize: 13,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    color: colors.textStrong,
     fontVariant: ["tabular-nums"],
   },
   addChangeRow: {

@@ -188,8 +188,8 @@ export function RecordingScreen() {
             onResume: screen.handleResumeRecording,
             onStart: screen.handleStartRecording,
             onRequestSave: screen.requestSaveRecording,
-            onDiscard: screen.confirmDiscardAndExit,
-            onRedo: screen.confirmRedoTake,
+            // Discard asks "Redo or Discard?"; Redo has no key of its own.
+            onDiscard: screen.confirmDiscardOrRedo,
           }}
         />
       </View>
