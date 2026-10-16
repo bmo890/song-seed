@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { colors, radii, spacing, text } from "../../design/tokens";
+import { useSharedValue } from "react-native-reanimated";
+import { colors, spacing, text } from "../../design/tokens";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { View, Text, StyleSheet } from "react-native";
 import { Spinner } from "../common/Spinner";
-import { Press } from "../common/Press";
 import { StackActions, useIsFocused, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useAudioPlayer } from "expo-audio";
@@ -29,13 +29,14 @@ import { buildFallbackAnalysis } from "./helpers";
 import { useEditorSelectionState } from "./hooks/useEditorSelectionState";
 import { EditorHeaderSection } from "./components/EditorHeaderSection";
 import { EditorFooterSection } from "./components/EditorFooterSection";
-import { EditorTrimIntent } from "./components/EditorTrimIntent";
+import { EditorPartsHead } from "./components/EditorPartsHead";
 import { SegmentedControl } from "../common/SegmentedControl";
-import { EditorSelectionList } from "./components/EditorSelectionList";
-import { EditorExportProgressModal } from "./components/EditorExportProgressModal";
+import { EditorPartsList } from "./components/EditorPartsList";
+import { LoopMoveHandle } from "../common/LoopMoveHandle";
+import { SpanInspector, spanNeighbors } from "../common/SpanInspector";
+import { getVisibleTimelineRange } from "../PlayerScreen/helpers";
 import { EditorSaveSheet } from "./components/EditorSaveSheet";
 import { AppAlert } from "../common/AppAlert";
-import { haptic } from "../../design/haptics";
 import { useEditorExportFlow } from "./hooks/useEditorExportFlow";
 import { useEditorTransformState } from "./hooks/useEditorTransformState";
 import { useEditorPreviewTransport } from "./hooks/useEditorPreviewTransport";
@@ -44,12 +45,14 @@ import { clipHasOverdubs, isClipWaveformPending } from "../../domain/clipPresent
 import { HelpSheet } from "../common/HelpSheet";
 import { EDITOR_HELP } from "../common/helpContent";
 import { useTranslation } from "react-i18next";
-import { MarkInspector, nudgeStepMsForZoom } from "../common/MarkInspector";
 import { complementSpans, remapClipForRate, remapClipForSpans } from "../../domain/clipEditRemap";
-import { buildSectionBands, hexToRgba } from "../../domain/playerSections";
+import { SECTION_FILL_ALPHA, buildSectionBands, hexToRgba } from "../../domain/playerSections";
 import { fmtDuration } from "../../utils";
-import { canSnapToGrid, snapResolutionForZoom, snapToGrid } from "../../domain/editSnap";
-import { MIN_REGION_DURATION_MS } from "./helpers";
+import { canSnapToGrid, snapToGrid } from "../../domain/editSnap";
+import { CUT_COLOR, KEEP_COLOR, MIN_REGION_DURATION_MS } from "./helpers";
+
+/** Picking an end edge cues two seconds before it, as the player's loop does. */
+const EDGE_END_PREROLL_MS = 2000;
 
 type Props = NativeStackScreenProps<RootStackParamList, "Editor">;
 
@@ -57,34 +60,14 @@ type Props = NativeStackScreenProps<RootStackParamList, "Editor">;
 const editorLog = (...args: unknown[]) => console.log("[editor]", ...args);
 
 const editorLocalStyles = StyleSheet.create({
-    regionsHead: {
-        flexDirection: "row",
-        alignItems: "baseline",
-        justifyContent: "space-between",
+    partsWrap: {
         paddingHorizontal: 16,
-        marginTop: 16,
-        marginBottom: 4,
-    },
-    regionsLabel: {
-        ...text.sectionTitle,
-    },
-    /** Quiet ink link (tertiary tier): deep terracotta text, no chrome. */
-    addLink: {
-        ...text.caption,
-        color: colors.primaryDeep,
     },
     /** The canon transport sits directly under the tape, at the dock's compact
      *  size — the tape's own control, not a second headline. */
     transportRow: {
         paddingTop: spacing.md,
         paddingBottom: spacing.xs,
-    },
-    inspectorWrap: {
-        marginHorizontal: 16,
-        marginTop: 8,
-        paddingVertical: 10,
-        borderRadius: radii.lg,
-        backgroundColor: colors.surfaceContainer,
     },
     loadingText: {
         ...text.supporting,
@@ -99,8 +82,11 @@ const editorLocalStyles = StyleSheet.create({
 
 export function EditorScreen() {
     const { t } = useTranslation();
-    const editorModes = useMemo(() => [
-        { key: "trim" as const, label: t("editor.trim") },
+    // One row of tabs (2026-10-16, founder picked A): keep and remove are the
+    // trim's two tools, speed & pitch the third, all said in one place.
+    const editorTabs = useMemo(() => [
+        { key: "keep" as const, label: t("editor.keepTab") },
+        { key: "remove" as const, label: t("editor.removeTab") },
         { key: "transform" as const, label: t("editor.transform") },
     ], [t]);
     const navigation = useNavigation();
@@ -304,6 +290,22 @@ export function EditorScreen() {
         [gridForSnap, zoomMultiple, editDurationMs]
     );
 
+    /** The part the inspector holds, drawn on the reel the way the player's loop is. */
+    const heldPart = editorMode === "trim" ? selectedRange : null;
+    const sharedHeldStartMs = useSharedValue(heldPart?.start ?? 0);
+    const sharedHeldEndMs = useSharedValue(heldPart?.end ?? 0);
+    useEffect(() => {
+        if (!heldPart) return;
+        sharedHeldStartMs.value = heldPart.start;
+        sharedHeldEndMs.value = heldPart.end;
+    }, [heldPart, sharedHeldEndMs, sharedHeldStartMs]);
+    const lanesReel = !useStore((state) => state.classicReel);
+    /** What the reel shows, so the inspector's slider spans the same stretch. */
+    const visibleWindow = useMemo(
+        () => getVisibleTimelineRange(editDurationMs, playheadTimeMs, zoomMultiple),
+        [editDurationMs, playheadTimeMs, zoomMultiple]
+    );
+
     const applyEdge = useCallback(
         (rangeId: string, edge: "start" | "end", timeMs: number) => {
             setSelectedRanges((prev) =>
@@ -446,6 +448,34 @@ export function EditorScreen() {
         setCurrentTime,
     });
 
+    /** The song's sections (ghosted), then every part not held, drawn as the
+     *  player draws sections: a band in the part's ink with its name on the rail. */
+    const reelBands = useMemo(() => {
+        const ink = editMode === "keep" ? KEEP_COLOR : CUT_COLOR;
+        const ordered = editorMode === "trim" ? [...selectedRanges].sort((a, b) => a.start - b.start) : [];
+        const partBands = ordered.flatMap((range, index) =>
+            range.id === heldPart?.id
+                ? []
+                : [
+                      {
+                          id: `part-${range.id}`,
+                          startMs: range.start,
+                          endMs: range.end,
+                          // The band says what the row says: a kept part's name (or
+                          // the one it will get), a removed part's number.
+                          label:
+                              editMode === "keep"
+                                  ? range.title?.trim() || exportFlow.buildSuggestedTitle(index)
+                                  : t("editor.partLabel", { n: index + 1 }),
+                          color: hexToRgba(ink, SECTION_FILL_ALPHA),
+                          railColor: ink,
+                      },
+                  ]
+        );
+        const bands = [...(ghostSectionBands ?? []), ...partBands];
+        return bands.length > 0 ? bands : undefined;
+    }, [editMode, editorMode, exportFlow, ghostSectionBands, heldPart?.id, selectedRanges, t]);
+
     useEffect(() => {
         if (sourceClipHasOverdubs) {
             setIsLoading(false);
@@ -585,9 +615,16 @@ export function EditorScreen() {
                     <>
                         <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6 }}>
                             <SegmentedControl
-                                options={editorModes}
-                                value={editorMode}
-                                onChange={setEditorMode}
+                                options={editorTabs}
+                                value={editorMode === "transform" ? "transform" : editMode}
+                                onChange={(key) => {
+                                    if (key === "transform") {
+                                        setEditorMode("transform");
+                                        return;
+                                    }
+                                    setEditorMode("trim");
+                                    if (key !== editMode) setIntent(key);
+                                }}
                             />
                         </View>
 
@@ -609,7 +646,7 @@ export function EditorScreen() {
                             showExpandToggle={false}
                             onZoomMultipleChange={setZoomMultiple}
                             grid={sourceClip?.recordingGrid ?? null}
-                            sectionBands={ghostSectionBands}
+                            sectionBands={reelBands}
                             practiceMarkers={sourceClip?.practiceMarkers}
                             sharedCurrentTimeMs={transportClock.sharedCurrentTimeMs}
                             sharedDurationMs={transportClock.sharedDurationMs}
@@ -627,17 +664,28 @@ export function EditorScreen() {
                                 }
                                 void transportScrub.endScrub();
                             }}
-                            selectedRanges={editorMode === "trim" ? selectedRanges : []}
+                            // The held part is drawn exactly as the player's loop: inside the
+                            // reel's canvas, from shared values, with an invisible edge grab
+                            // over it and the move bar beneath (2026-10-16). The other parts
+                            // ride as section bands (reelBands).
+                            selectedRanges={heldPart ? [heldPart] : undefined}
+                            sharedSelectedRangeStartMs={heldPart ? sharedHeldStartMs : undefined}
+                            sharedSelectedRangeEndMs={heldPart ? sharedHeldEndMs : undefined}
+                            selectedRangeType={editMode}
+                            freezeSelectedRangeWhenFullyVisible={!!heldPart}
                             renderOverlay={
-                                editorMode === "trim"
+                                heldPart
                                     ? ({ pixelsPerMs, timelineTranslateX, timelineScale, sharedAudioProgress }) => (
                                           <MultiTimeRangeSelector
                                               durationMs={analysisData.durationMs}
                                               pixelsPerMs={pixelsPerMs}
-                                              regions={selectedRanges}
+                                              regions={[heldPart]}
                                               sharedTranslateX={timelineTranslateX}
                                               sharedScale={timelineScale}
                                               sharedAudioProgress={sharedAudioProgress}
+                                              sharedPreviewStartMs={sharedHeldStartMs}
+                                              sharedPreviewEndMs={sharedHeldEndMs}
+                                              showVisuals={false}
                                               onScrubStateChange={(scrubbing) => {
                                                   if (scrubbing) {
                                                       void transportScrub.beginScrub();
@@ -666,6 +714,35 @@ export function EditorScreen() {
                                       )
                                     : undefined
                             }
+                            renderBelowSurface={
+                                heldPart
+                                    ? ({ pixelsPerMs, timelineTranslateX, timelineScale }) => (
+                                          <LoopMoveHandle
+                                              range={heldPart}
+                                              durationMs={analysisData.durationMs}
+                                              pixelsPerMs={pixelsPerMs}
+                                              timelineTranslateX={timelineTranslateX}
+                                              timelineScale={timelineScale}
+                                              sharedPreviewStartMs={sharedHeldStartMs}
+                                              sharedPreviewEndMs={sharedHeldEndMs}
+                                              onRangeChange={(start, end) => {
+                                                  setSelectedRanges((prev) =>
+                                                      prev.map((r) => (r.id === heldPart.id ? { ...r, start, end } : r))
+                                                  );
+                                              }}
+                                              onScrubStateChange={(scrubbing) => {
+                                                  if (scrubbing) {
+                                                      void transportScrub.beginScrub();
+                                                      return;
+                                                  }
+                                                  void transportScrub.endScrub();
+                                              }}
+                                              quiet={lanesReel}
+                                              ink={editMode === "remove" ? CUT_COLOR : undefined}
+                                          />
+                                      )
+                                    : undefined
+                            }
                         />
 
                         {/* The skips go to the clip's ends: pause-seek-settle-resume, the
@@ -686,94 +763,72 @@ export function EditorScreen() {
 
                         {editorMode === "trim" ? (
                             <>
-                                <EditorTrimIntent
-                                    intent={editMode}
-                                    regionCount={editMode === "keep" ? keepRegions.length : removeRegions.length}
-                                    removedMs={removeRegions.reduce((sum, r) => sum + (r.end - r.start), 0)}
-                                    onSelectIntent={(intent) => {
-                                        haptic.tap();
-                                        setIntent(intent);
-                                    }}
-                                    gridAvailable={gridAvailable}
-                                    keepToGrid={keepToGrid}
-                                    onToggleKeepToGrid={() => setKeepToGrid((prev) => !prev)}
-                                />
-
-                                <View style={editorLocalStyles.regionsHead}>
-                                    <Text style={editorLocalStyles.regionsLabel}>{t("editor.parts")}</Text>
-                                    <Press
-                                        haptic="none"
-                                        onPress={() => {
-                                            haptic.light();
-                                            addRange();
-                                        }}
-                                        hitSlop={6}
-                                    >
-                                        <Text style={editorLocalStyles.addLink}>
-                                            {playheadSplitsPart ? t("editor.splitHere") : t("editor.addPlayhead")}
-                                        </Text>
-                                    </Press>
-                                </View>
-
-                                <EditorSelectionList
-                                    selectedRanges={selectedRanges}
-                                    intent={editMode}
-                                    selectedRangeId={selectedRangeId}
-                                    suggestedTitleFor={exportFlow.buildSuggestedTitle}
-                                    showNames={editMode === "keep"}
-                                    onRenameRange={renameRange}
-                                    onSelectRange={(range) => {
-                                        haptic.tap();
-                                        selectRange(range.id, "start");
-                                        void transportScrub.seekAndSettle(range.start);
-                                    }}
-                                    onRemoveRange={removeRange}
-                                />
-
-                                {selectedRange ? (
-                                    <View style={editorLocalStyles.inspectorWrap}>
-                                        <MarkInspector
-                                            startMs={selectedRange.start}
-                                            endMs={selectedRange.end}
-                                            edge={selectedEdge}
-                                            onPickEdge={(edge) => {
-                                                setSelectedEdge(edge);
-                                                // Picking an edge cues it, so the reel always shows
-                                                // the moment you are about to move.
-                                                void transportScrub.seekAndSettle(
-                                                    edge === "start" ? selectedRange.start : selectedRange.end
-                                                );
-                                            }}
-                                            minMs={0}
-                                            maxMs={editDurationMs}
-                                            onSlide={(ms) => applyEdge(selectedRange.id, selectedEdge, ms)}
-                                            onSlideCommit={(ms) =>
-                                                applyEdge(selectedRange.id, selectedEdge, snapEdge(ms))
-                                            }
-                                            onNudge={(deltaMs) => {
-                                                const base =
-                                                    selectedEdge === "start" ? selectedRange.start : selectedRange.end;
-                                                applyEdge(selectedRange.id, selectedEdge, base + deltaMs);
-                                            }}
-                                            onUsePlayhead={() =>
-                                                applyEdge(selectedRange.id, selectedEdge, snapEdge(playheadTimeMs))
-                                            }
-                                            usePlayheadDisabled={false}
-                                            nudgeStepMs={nudgeStepMsForZoom(zoomMultiple)}
-                                            startLabel={t("editor.startEdge")}
-                                            endLabel={t("editor.endEdge")}
-                                            hint={
-                                                gridAvailable && keepToGrid
-                                                    ? snapResolutionForZoom(zoomMultiple) === "bar"
-                                                        ? t("editor.snapHintBars")
-                                                        : t("editor.snapHintBeats")
-                                                    : t("player.inspectorHint", {
-                                                          step: nudgeStepMsForZoom(zoomMultiple),
-                                                      })
-                                            }
+                                <View style={editorLocalStyles.partsWrap}>
+                                    <EditorPartsHead
+                                        count={selectedRanges.length}
+                                        gridAvailable={gridAvailable}
+                                        keepToGrid={keepToGrid}
+                                        onToggleKeepToGrid={() => setKeepToGrid((prev) => !prev)}
+                                        addLabel={playheadSplitsPart ? t("editor.splitHere") : t("editor.addPlayhead")}
+                                        onAdd={addRange}
+                                    />
+                                    {selectedRanges.length === 0 ? (
+                                        <EmptyState
+                                            compact
+                                            title={t("editor.noPartsTitle")}
+                                            body={editMode === "keep" ? t("editor.noPartsKeep") : t("editor.noPartsRemove")}
                                         />
-                                    </View>
-                                ) : null}
+                                    ) : (
+                                        <EditorPartsList
+                                            parts={selectedRanges}
+                                            intent={editMode}
+                                            heldId={selectedRangeId}
+                                            suggestedTitleFor={exportFlow.buildSuggestedTitle}
+                                            showNames={editMode === "keep"}
+                                            onHold={(part) => selectRange(part?.id ?? null, "start")}
+                                            onRename={renameRange}
+                                            onRemove={removeRange}
+                                            onPlayFrom={(ms) => {
+                                                transportClock.setDisplayPositionMs(ms);
+                                                setCurrentTime(ms);
+                                                void transportScrub.seekAndSettle(ms).then(() => previewTransport.play());
+                                            }}
+                                            renderInspector={(part) => (
+                                                <SpanInspector
+                                                    startMs={part.start}
+                                                    endMs={part.end}
+                                                    edge={selectedEdge}
+                                                    // The looper's rule: picking an edge cues it, the start
+                                                    // exactly, the end two seconds early so you hear it arrive.
+                                                    onPickEdge={(edge) => {
+                                                        setSelectedEdge(edge);
+                                                        void transportScrub.seekAndSettle(
+                                                            edge === "start"
+                                                                ? part.start
+                                                                : Math.max(part.start, part.end - EDGE_END_PREROLL_MS)
+                                                        );
+                                                    }}
+                                                    durationMs={editDurationMs}
+                                                    minLengthMs={MIN_REGION_DURATION_MS}
+                                                    visibleStartMs={visibleWindow.start}
+                                                    visibleEndMs={visibleWindow.end}
+                                                    zoomMultiple={zoomMultiple}
+                                                    playheadMs={playheadTimeMs}
+                                                    neighbors={spanNeighbors(
+                                                        selectedRanges.map((r) => ({ id: r.id, startMs: r.start, endMs: r.end })),
+                                                        { id: part.id, startMs: part.start, endMs: part.end }
+                                                    )}
+                                                    onEdge={(edge, ms, cause) => {
+                                                        // A release or use-playhead lands on the grid; a slide
+                                                        // previews raw, and the carets stay a surgical escape.
+                                                        const landed = cause === "slideEnd" || cause === "playhead" ? snapEdge(ms) : ms;
+                                                        applyEdge(part.id, edge, landed);
+                                                    }}
+                                                />
+                                            )}
+                                        />
+                                    )}
+                                </View>
 
                                 <View style={{ height: 24 }} />
                             </>
@@ -799,8 +854,6 @@ export function EditorScreen() {
                 items={EDITOR_HELP.items}
             />
 
-            <EditorExportProgressModal visible={exportFlow.isExporting} />
-
             <EditorSaveSheet
                 visible={exportFlow.exportModalVisible || exportFlow.transformExportModalVisible}
                 operation={
@@ -813,6 +866,7 @@ export function EditorScreen() {
                           }${transformState.pitchShiftSemitones} ${t("player.semitones")}`
                         : undefined
                 }
+                sourceTitle={sourceClip?.title ?? ""}
                 targetIdeaKind={targetIdea?.kind ?? null}
                 keepRegions={keepRegions}
                 removedMs={removeRegions.reduce((sum, region) => sum + (region.end - region.start), 0)}
@@ -825,13 +879,7 @@ export function EditorScreen() {
                 suggestedExportTitle={exportFlow.suggestedExportTitle}
                 suggestedTitleFor={exportFlow.buildSuggestedTitle}
                 removeOriginalAfterExport={exportFlow.removeOriginalAfterExport}
-                confirmLabel={
-                    exportFlow.transformExportModalVisible
-                        ? t("editor.saveNewClip")
-                        : exportFlow.exportOperation === "extract"
-                          ? t("editor.extractCount", { count: keepRegions.length })
-                          : t("editor.saveTrimmed")
-                }
+                saving={exportFlow.isExporting}
                 onChangeSpliceNameDraft={
                     exportFlow.transformExportModalVisible
                         ? exportFlow.setTransformNameDraft

@@ -129,23 +129,6 @@ export const pd = StyleSheet.create({
     borderRadius: radii.lg,
     paddingBottom: 10,
   },
-  // section span glyph (|—|), drawn from views so it tints per mark
-  spanBarV: {
-    width: 2,
-    height: 14,
-    borderRadius: 1,
-  },
-  spanBarH: {
-    flex: 1,
-    height: 2,
-    borderRadius: 1,
-    marginHorizontal: 1,
-  },
-  spanGlyph: {
-    width: 16,
-    flexDirection: "row",
-    alignItems: "center",
-  },
 
   // ---- inspector ----
   inspector: {

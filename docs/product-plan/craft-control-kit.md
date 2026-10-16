@@ -1318,3 +1318,34 @@ ink "Calibrate"; the Bluetooth mic says its cost on its own input row and is
 asked once ("Use it" / "Keep the phone mic"). Copy shortened throughout.
 Simulator: only the nothing-connected state can be seen; the rest wants a
 phone with Bluetooth headphones.
+
+## Edit clip (2026-10-16, founder picked A on https://claude.ai/artifact/1N1w5UkVfWw8rQKNHqbjLx)
+
+One row of tabs: Keep · Remove · Speed & pitch (the two stacked rows are
+gone, so is the outcome line). Founder: the parts must feel, look and select
+exactly like the player's sections and loop, on the list and on the reel, and
+the step must be the shared one, from a shared component. So:
+
+- `common/SpanInspector` wraps MarkInspector for any span: slider windowed to
+  what the reel shows, carets a second at rest and finer when zoomed
+  (`MARK_NUDGE_*`), typed times, use-playhead, the Prev end / Next start snap,
+  no hint line. The player's sections and loop now use it too, as do the
+  editor's parts; pins stay on MarkInspector (a point, not a span).
+  `domain/spanNeighbors` feeds the snap (tested).
+- Parts list (`EditorPartsList`) is built from the player's own mark-row
+  styles (`pd`): play glyph, `common/SpanGlyph` in keep or remove ink, name,
+  times; a held part sits on the same tonal wash with the inspector beneath;
+  its name is typed in the row; trash where the section's "…" sits.
+- Reel: the held part is drawn as the loop is (inside the canvas, shared
+  values, invisible edge grabs that need the same 300 ms hold, and
+  `common/LoopMoveHandle`, moved out of PlayerTimeline, under the reel, tinted
+  red in Remove). Other parts ride as section bands in their ink, named as
+  their rows.
+- Keys: Save clips / Save copy. The save sheet is rows on paper with one key
+  (Save, or a red Replace when the original goes) and no Cancel; while it
+  saves the key carries the spinner (EditorExportProgressModal deleted).
+  Speed & pitch lost its narrating line.
+
+Left: the help sheet's grey discs (founder did not take it up), TitleInput's
+bordered field in the save sheet (canon, used elsewhere), the player's "Add a
+section" dialog (old chips) for the sweep.

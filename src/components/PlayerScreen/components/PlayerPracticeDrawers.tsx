@@ -28,6 +28,7 @@ import { HelpSheet } from "../../common/HelpSheet";
 import { AnimatedCollapse } from "../../common/AnimatedCollapse";
 import { useTranslation } from "react-i18next";
 import { MARK_NUDGE_BASE_MS, MARK_NUDGE_MIN_MS, MarkInspector, nudgeStepMsForZoom } from "../../common/MarkInspector";
+import { SpanInspector, spanNeighbors } from "../../common/SpanInspector";
 import { Switch } from "../../common/Switch";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { durations } from "../../../design/motion";
@@ -38,6 +39,7 @@ import { LevelToneStrip } from "../../common/LevelToneStrip";
 import { isTonePresetNeutral, type OverdubToneFlag } from "../../../domain/overdub";
 import { UndoRedoButtons } from "../../common/useUndoHistory";
 import { PIN_ICON } from "../../../design/markIcons";
+import { SpanGlyph } from "../../common/SpanGlyph";
 
 /** How early the playhead lands when the loop's end is picked. */
 const LOOP_END_PREROLL_MS = 2000;
@@ -227,16 +229,6 @@ function StepUpProgressLine({
         {`${passNumber} / ${totalLoops}`}
       </Text>
       <Text style={pd.stepUpProgressRate}>{`${rate}×`}</Text>
-    </View>
-  );
-}
-
-function SpanGlyph({ color }: { color: string }) {
-  return (
-    <View style={pd.spanGlyph}>
-      <View style={[pd.spanBarV, { backgroundColor: color }]} />
-      <View style={[pd.spanBarH, { backgroundColor: color }]} />
-      <View style={[pd.spanBarV, { backgroundColor: color }]} />
     </View>
   );
 }
@@ -606,47 +598,15 @@ export function PlayerPracticeDrawers({
 
     const section = isSection ? entry.section : null;
     const edge = selected!.kind === "section" ? selected!.edge : "start";
-    const legalMin = section ? (edge === "start" ? 0 : Math.min(section.startMs + MIN_SECTION_LENGTH_MS, durationMs)) : 0;
-    const legalMax = section
-      ? edge === "start"
-        ? Math.max(0, section.endMs - MIN_SECTION_LENGTH_MS)
-        : Math.max(1, durationMs)
-      : Math.max(1, durationMs);
-    const currentEdgeMs = section ? (edge === "start" ? section.startMs : section.endMs) : entry.atMs;
-    const { min: sliderMin, max: sliderMax } = windowedSliderBounds(
-      legalMin,
-      legalMax,
-      currentEdgeMs,
+    const pinMin = 0;
+    const pinMax = Math.max(1, durationMs);
+    const { min: pinSliderMin, max: pinSliderMax } = windowedSliderBounds(
+      pinMin,
+      pinMax,
+      entry.atMs,
       visibleWindowStartMs,
       visibleWindowEndMs
     );
-    const canUsePlayhead = section
-      ? edge === "start"
-        ? playheadMs <= section.endMs - MIN_SECTION_LENGTH_MS
-        : playheadMs >= section.startMs + MIN_SECTION_LENGTH_MS
-      : true;
-
-    // One-tap snap to the neighboring section: start edge meets the previous
-    // section's end, end edge meets the next section's start — so mapped sections
-    // can sit flush without slider fiddling.
-    const neighborMs = (() => {
-      if (!section) return null;
-      if (edge === "start") {
-        const prevEnd = sections
-          .filter((other) => other.id !== section.id && other.startMs < section.startMs)
-          .reduce<number | null>((max, other) => Math.max(max ?? 0, other.endMs), null);
-        return prevEnd != null && prevEnd <= section.endMs - MIN_SECTION_LENGTH_MS ? prevEnd : null;
-      }
-      const nextStart = sections
-        .filter((other) => other.id !== section.id && other.startMs > section.startMs)
-        .reduce<number | null>(
-          (min, other) => (min == null ? other.startMs : Math.min(min, other.startMs)),
-          null
-        );
-      return nextStart != null && nextStart >= section.startMs + MIN_SECTION_LENGTH_MS
-        ? nextStart
-        : null;
-    })();
 
     const isPendingReveal = pendingRevealId === id;
     return (
@@ -657,81 +617,57 @@ export function PlayerPracticeDrawers({
         onLayout={isPendingReveal ? handlePendingRevealLayout : undefined}
       >
         {row}
-        <MarkInspector
-          startMs={section ? section.startMs : entry.atMs}
-          endMs={section ? section.endMs : null}
-          edge={edge}
-          startLabel={section ? t("player.start") : t("player.atLabel")}
-          endLabel={t("player.end")}
-          // Hold a box to type its time; the same rules as a drag apply.
-          onTypeTime={(which, ms) => {
-            if (section) onRepositionSectionEdge(id, which, clampSectionEdge(section, which, ms));
-            else onRepositionPin(id, Math.max(0, Math.min(durationMs, ms)));
-          }}
-          typeRangeFor={(which) =>
-            section
-              ? which === "start"
-                ? { minMs: 0, maxMs: Math.max(0, section.endMs - MIN_SECTION_LENGTH_MS) }
-                : {
-                    minMs: Math.min(section.startMs + MIN_SECTION_LENGTH_MS, Math.max(1, durationMs)),
-                    maxMs: Math.max(1, durationMs),
-                  }
-              : { minMs: 0, maxMs: Math.max(0, durationMs) }
-          }
-          onPickEdge={(nextEdge) => {
-            // Choosing which edge the slider and nudges act on; the playhead stays.
-            if (section) setSelected({ kind: "section", id, edge: nextEdge });
-          }}
-          minMs={sliderMin}
-          maxMs={sliderMax}
-          onSlide={(ms) => {
-            if (section) {
-              onSectionPreview({ id, [edge === "start" ? "startMs" : "endMs"]: ms });
-            } else {
-              onPinPreview({ id, atMs: ms });
-            }
-          }}
-          onSlideCommit={(ms) => {
-            if (section) {
-              onRepositionSectionEdge(id, edge, ms);
-              onSectionPreview(null);
-            } else {
+        {section ? (
+          // A section is a span: the shared inspector the loop and the clip
+          // editor's parts use too, so all three move the same way.
+          <SpanInspector
+            startMs={section.startMs}
+            endMs={section.endMs}
+            edge={edge}
+            onPickEdge={(nextEdge) => {
+              // Choosing which edge the slider and nudges act on; the playhead stays.
+              setSelected({ kind: "section", id, edge: nextEdge });
+            }}
+            durationMs={durationMs}
+            minLengthMs={MIN_SECTION_LENGTH_MS}
+            visibleStartMs={visibleWindowStartMs}
+            visibleEndMs={visibleWindowEndMs}
+            zoomMultiple={zoomMultiple}
+            playheadMs={playheadMs}
+            neighbors={spanNeighbors(sections, section)}
+            onEdge={(which, ms, cause) => {
+              if (cause === "slide") {
+                onSectionPreview({ id, [which === "start" ? "startMs" : "endMs"]: ms });
+                return;
+              }
+              onRepositionSectionEdge(id, which, clampSectionEdge(section, which, ms));
+              if (cause === "slideEnd") onSectionPreview(null);
+            }}
+          />
+        ) : (
+          <MarkInspector
+            startMs={entry.atMs}
+            endMs={null}
+            edge="start"
+            startLabel={t("player.atLabel")}
+            endLabel={t("player.end")}
+            // Hold the box to type its time; the same rules as a drag apply.
+            onTypeTime={(_which, ms) => onRepositionPin(id, Math.max(0, Math.min(durationMs, ms)))}
+            typeRangeFor={() => ({ minMs: 0, maxMs: Math.max(0, durationMs) })}
+            onPickEdge={() => {}}
+            minMs={pinSliderMin}
+            maxMs={pinSliderMax}
+            onSlide={(ms) => onPinPreview({ id, atMs: ms })}
+            onSlideCommit={(ms) => {
               onRepositionPin(id, ms);
               onPinPreview(null);
-            }
-          }}
-          onNudge={(deltaMs) => {
-            if (section) {
-              const current = edge === "start" ? section.startMs : section.endMs;
-              onRepositionSectionEdge(id, edge, clampSectionEdge(section, edge, current + deltaMs));
-            } else {
-              onRepositionPin(id, Math.max(0, Math.min(durationMs, entry.atMs + deltaMs)));
-            }
-          }}
-          onUsePlayhead={() => {
-            if (section) {
-              onRepositionSectionEdge(id, edge, clampSectionEdge(section, edge, Math.round(playheadMs)));
-            } else {
-              onRepositionPin(id, Math.round(playheadMs));
-            }
-          }}
-          usePlayheadDisabled={!canUsePlayhead}
-          nudgeStepMs={nudgeStepMs}
-          neighborLabel={
-            neighborMs != null
-              ? edge === "start"
-                ? t("player.snapPrevEnd")
-                : t("player.snapNextStart")
-              : null
-          }
-          onUseNeighbor={
-            neighborMs != null && section
-              ? () => {
-                  onRepositionSectionEdge(id, edge, clampSectionEdge(section, edge, neighborMs));
-                }
-              : undefined
-          }
-        />
+            }}
+            onNudge={(deltaMs) => onRepositionPin(id, Math.max(0, Math.min(durationMs, entry.atMs + deltaMs)))}
+            onUsePlayhead={() => onRepositionPin(id, Math.round(playheadMs))}
+            usePlayheadDisabled={false}
+            nudgeStepMs={nudgeStepMs}
+          />
+        )}
       </View>
     );
   };
@@ -810,22 +746,6 @@ export function PlayerPracticeDrawers({
 
   // ---------------------------------------------------------------- loop
   const loop = practiceLoopRange;
-  const loopLegalMin = loopEdge === "start" ? 0 : Math.min(loop.start + MIN_LOOP_LENGTH_MS, durationMs);
-  const loopLegalMax = loopEdge === "start" ? Math.max(0, loop.end - MIN_LOOP_LENGTH_MS) : Math.max(1, durationMs);
-  const { min: loopSliderMin, max: loopSliderMax } = windowedSliderBounds(
-    loopLegalMin,
-    loopLegalMax,
-    loopEdge === "start" ? loop.start : loop.end,
-    visibleWindowStartMs,
-    visibleWindowEndMs
-  );
-  const clampLoopEdge = (ms: number) => Math.max(loopSliderMin, Math.min(loopSliderMax, ms));
-  const setLoopEdgeMs = (ms: number) => {
-    if (loopEdge === "start") onSetLoopRange(clampLoopEdge(ms), loop.end);
-    else onSetLoopRange(loop.start, clampLoopEdge(ms));
-  };
-  const canLoopUsePlayhead =
-    loopEdge === "start" ? playheadMs <= loop.end - MIN_LOOP_LENGTH_MS : playheadMs >= loop.start + MIN_LOOP_LENGTH_MS;
 
   const loopDrawer = (
     <View style={pd.wrap}>
@@ -842,28 +762,12 @@ export function PlayerPracticeDrawers({
           />
         </View>
         {practiceLoopEnabled ? (
-          <MarkInspector
+          // The shared span inspector, the same one sections and the clip
+          // editor's parts use.
+          <SpanInspector
             startMs={loop.start}
             endMs={loop.end}
             edge={loopEdge}
-            startLabel={t("player.start")}
-            endLabel={t("player.end")}
-            // Typed times answer to the loop's LEGAL span, not the slider's window.
-            onTypeTime={(which, ms) => {
-              if (which === "start") {
-                onSetLoopRange(Math.max(0, Math.min(Math.max(0, loop.end - MIN_LOOP_LENGTH_MS), ms)), loop.end);
-              } else {
-                onSetLoopRange(
-                  loop.start,
-                  Math.max(Math.min(loop.start + MIN_LOOP_LENGTH_MS, durationMs), Math.min(Math.max(1, durationMs), ms))
-                );
-              }
-            }}
-            typeRangeFor={(which) =>
-              which === "start"
-                ? { minMs: 0, maxMs: Math.max(0, loop.end - MIN_LOOP_LENGTH_MS) }
-                : { minMs: Math.min(loop.start + MIN_LOOP_LENGTH_MS, durationMs), maxMs: Math.max(1, durationMs) }
-            }
             // Picking an edge also cues the playhead there (founder, 2026-10-15:
             // right for the looper, not for marks): the start exactly, the end
             // two seconds early so you hear it arrive instead of an instant wrap.
@@ -875,18 +779,16 @@ export function PlayerPracticeDrawers({
                   : Math.max(loop.start, loop.end - LOOP_END_PREROLL_MS)
               );
             }}
-            minMs={loopSliderMin}
-            maxMs={loopSliderMax}
-            onSlide={setLoopEdgeMs}
-            onSlideCommit={setLoopEdgeMs}
-            onNudge={(deltaMs) => {
-              setLoopEdgeMs((loopEdge === "start" ? loop.start : loop.end) + deltaMs);
+            durationMs={durationMs}
+            minLengthMs={MIN_LOOP_LENGTH_MS}
+            visibleStartMs={visibleWindowStartMs}
+            visibleEndMs={visibleWindowEndMs}
+            zoomMultiple={zoomMultiple}
+            playheadMs={playheadMs}
+            onEdge={(which, ms) => {
+              if (which === "start") onSetLoopRange(ms, loop.end);
+              else onSetLoopRange(loop.start, ms);
             }}
-            onUsePlayhead={() => {
-              setLoopEdgeMs(Math.round(playheadMs));
-            }}
-            usePlayheadDisabled={!canLoopUsePlayhead}
-            nudgeStepMs={nudgeStepMs}
           />
         ) : null}
       </View>
