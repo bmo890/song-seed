@@ -44,9 +44,9 @@ export function EditorTransformSection({
         supportsPitchShift={supportsPitchPreview}
         onAdjustPitchShift={onAdjustPitchShift}
       />
-      <Text style={s.note}>
-        {supportsPitchPreview ? t("editor.transformHint") : t("editor.pitchUnavailable")}
-      </Text>
+      {/* Help says once that a change is baked into a new clip; the page
+          only speaks when pitch can't be previewed here. */}
+      {supportsPitchPreview ? null : <Text style={s.note}>{t("editor.pitchUnavailable")}</Text>}
     </View>
   );
 }

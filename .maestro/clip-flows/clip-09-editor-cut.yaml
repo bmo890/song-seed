@@ -1,5 +1,5 @@
 # Editor Cut/trim: mark a region, switch to Cut mode (removes the region), and
-# save the trimmed clip. Distinct from Extract (which keeps a region) — Cut removes
+# save the trimmed copy. Distinct from Keep (each part becomes a clip): Remove cuts
 # it. Verifies the trim produces a shorter clip. Self-cleaning. Requires push-dev-samples.
 appId: com.bmostudio.songnook.dev
 ---
@@ -25,27 +25,27 @@ appId: com.bmostudio.songnook.dev
     timeout: 10000
 - tapOn: "More options"
 - extendedWaitUntil:
-    visible: "Edit clip"
+    visible: "Trim audio"
     timeout: 5000
-- tapOn: "Edit clip"
+- tapOn: "Trim audio"
 - extendedWaitUntil:
-    visible: ".*Add at playhead.*"
+    visible: ".*Add part.*"
     timeout: 10000
 # Mark a region, then switch to Cut mode (region is removed / clip trimmed).
-- tapOn: ".*Add at playhead.*"
+- tapOn: ".*Add part.*"
 - extendedWaitUntil:
-    visible: ".*Extract 1 clip.*"
+    visible: "Save clips"
     timeout: 8000
-- tapOn: ".*Cut"
+- tapOn: "Remove"
 - extendedWaitUntil:
-    visible: ".*trimmed clip.*"
+    visible: "Save copy"
     timeout: 5000
-# Save the trim → confirm sheet → Save Splice.
-- tapOn: ".*Save trimmed clip.*"
+# Save the trim → the save sheet → its one key.
+- tapOn: "Save copy"
 - extendedWaitUntil:
-    visible: "Save Splice"
+    visible: "Save a copy"
     timeout: 8000
-- tapOn: "Save Splice"
+- tapOn: "Save"
 # Back on the player — the trimmed clip (~33s, 5s removed from 38s) now exists.
 - extendedWaitUntil:
     visible: ".*00:33.*"

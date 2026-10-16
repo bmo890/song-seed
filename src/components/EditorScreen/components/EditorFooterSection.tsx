@@ -35,11 +35,12 @@ export function EditorFooterSection({
   let onPress: () => void;
 
   if (editorMode === "transform") {
-    label = t("editor.saveNewClip");
+    label = t("editor.saveCopy");
     enabled = hasActiveTransforms;
     onPress = onSaveTransform;
   } else if (intent === "keep") {
-    label = keepCount > 0 ? t("editor.extractCount", { count: keepCount }) : t("editor.extractClips");
+    // Two words at most; the count lives in the Parts line and the sheet.
+    label = t("editor.saveClips");
     enabled = keepCount > 0;
     onPress = onExport;
   } else if (removesEverything) {
@@ -48,7 +49,7 @@ export function EditorFooterSection({
     enabled = false;
     onPress = onExport;
   } else {
-    label = t("editor.saveTrimmed");
+    label = t("editor.saveCopy");
     enabled = removeCount > 0;
     onPress = onExport;
   }

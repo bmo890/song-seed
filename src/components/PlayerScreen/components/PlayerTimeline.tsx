@@ -1,5 +1,5 @@
 import React from "react";
-import { SharedValue, useAnimatedStyle, useSharedValue, runOnJS, withSpring } from "react-native-reanimated";
+import { SharedValue, useAnimatedStyle, useSharedValue, runOnJS } from "react-native-reanimated";
 import Animated from "react-native-reanimated";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -15,7 +15,7 @@ import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
 import { useStore } from "../../../state/useStore";
 import { laneDensityForHeight, reelHeightForFlow, type ListeningBelow } from "../../../domain/reelLanes";
-import { springs } from "../../../design/motion";
+import { LoopMoveHandle } from "../../common/LoopMoveHandle";
 
 type Range = {
   id: string;
@@ -261,13 +261,7 @@ const sectionJumpStyles = StyleSheet.create({
 /** The classic (pre-lanes) reel while Tools is open. The lanes reel takes its
  *  heights from `reelHeightForFlow`. */
 const CLASSIC_PRACTICE_REEL_HEIGHT = 128;
-const LOOP_MOVE_PILL_WIDTH = 34;
-const LOOP_MOVE_PILL_HEIGHT = 10;
-const LOOP_MOVE_HITBOX_WIDTH = 52;
-const LOOP_MOVE_HITBOX_HEIGHT = 24;
-const LOOP_MOVE_ROW_HEIGHT = 14;
 /** Looper accent — matches the terracotta loop region drawn on the reel. */
-const LOOP_ACCENT = "rgba(139, 79, 59, 0.95)";
 
 type TransportClock = {
   sharedCurrentTimeMs: SharedValue<number>;
@@ -357,107 +351,6 @@ function DragIndicatorLine({
 
   return <Animated.View style={lineStyle} pointerEvents="none" />;
 }
-
-function LoopMoveHandle({
-  range,
-  durationMs,
-  pixelsPerMs,
-  timelineTranslateX,
-  timelineScale,
-  sharedPreviewStartMs,
-  sharedPreviewEndMs,
-  onLoopRangeChange,
-  onScrubStateChange,
-  quiet = false,
-}: {
-  range: Range;
-  durationMs: number;
-  pixelsPerMs: number;
-  timelineTranslateX: SharedValue<number>;
-  timelineScale: SharedValue<number>;
-  sharedPreviewStartMs: SharedValue<number>;
-  sharedPreviewEndMs: SharedValue<number>;
-  onLoopRangeChange: (start: number, end: number) => void;
-  onScrubStateChange: (scrubbing: boolean) => void;
-  /** Lanes look: a slim terracotta bar, no shadow and no inner grip. */
-  quiet?: boolean;
-}) {
-  const dragStartStartMs = useSharedValue(range.start);
-  const dragStartEndMs = useSharedValue(range.end);
-  const isDragging = useSharedValue(false);
-
-  React.useEffect(() => {
-    sharedPreviewStartMs.value = range.start;
-    sharedPreviewEndMs.value = range.end;
-  }, [range.end, range.start, sharedPreviewEndMs, sharedPreviewStartMs]);
-
-  const handleCommit = React.useCallback(
-    (startMs: number, endMs: number) => {
-      onLoopRangeChange(startMs, endMs);
-      onScrubStateChange(false);
-    },
-    [onLoopRangeChange, onScrubStateChange]
-  );
-
-  const panGesture = Gesture.Pan()
-    .activateAfterLongPress(220)
-    .onStart(() => {
-      isDragging.value = true;
-      dragStartStartMs.value = sharedPreviewStartMs.value;
-      dragStartEndMs.value = sharedPreviewEndMs.value;
-      runOnJS(onScrubStateChange)(true);
-      runOnJS(haptic.tap)();
-    })
-    .onChange((event) => {
-      if (pixelsPerMs <= 0 || timelineScale.value <= 0) {
-        return;
-      }
-
-      const deltaMs = event.translationX / (pixelsPerMs * timelineScale.value);
-      const loopWidthMs = dragStartEndMs.value - dragStartStartMs.value;
-      const maxStartMs = Math.max(0, durationMs - loopWidthMs);
-      const nextStartMs = Math.max(0, Math.min(maxStartMs, dragStartStartMs.value + deltaMs));
-
-      sharedPreviewStartMs.value = nextStartMs;
-      sharedPreviewEndMs.value = nextStartMs + loopWidthMs;
-    })
-    .onEnd(() => {
-      isDragging.value = false;
-      runOnJS(handleCommit)(Math.round(sharedPreviewStartMs.value), Math.round(sharedPreviewEndMs.value));
-    })
-    .onFinalize(() => {
-      isDragging.value = false;
-    });
-
-  const handleStyle = useAnimatedStyle(() => {
-    const centerMs = (sharedPreviewStartMs.value + sharedPreviewEndMs.value) / 2;
-    const centerX = centerMs * pixelsPerMs * timelineScale.value + timelineTranslateX.value;
-
-    return {
-      transform: [{ translateX: centerX - LOOP_MOVE_HITBOX_WIDTH / 2 }],
-      opacity: withSpring(isDragging.value ? 1 : 0.92, springs.handle),
-    };
-  });
-
-  const pillStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: withSpring(isDragging.value ? 1.06 : 1, springs.handle) }],
-  }));
-
-  return (
-    <View style={timelineStyles.loopMoveRow} pointerEvents="box-none">
-      <GestureDetector gesture={panGesture}>
-        <Animated.View style={[timelineStyles.loopMoveHitbox, handleStyle]}>
-          <Animated.View
-            style={[quiet ? timelineStyles.loopMoveBar : timelineStyles.loopMovePill, pillStyle]}
-          >
-            {quiet ? null : <View style={timelineStyles.loopMoveGrip} />}
-          </Animated.View>
-        </Animated.View>
-      </GestureDetector>
-    </View>
-  );
-}
-
 
 function PlayerTimelineInner({
   mode,
@@ -718,7 +611,7 @@ function PlayerTimelineInner({
               timelineScale={timelineScale}
               sharedPreviewStartMs={sharedLoopPreviewStartMs}
               sharedPreviewEndMs={sharedLoopPreviewEndMs}
-              onLoopRangeChange={onLoopRangeChange}
+              onRangeChange={onLoopRangeChange}
               onScrubStateChange={onScrubStateChange}
               quiet={lanes}
             />
@@ -735,45 +628,3 @@ function PlayerTimelineInner({
 }
 
 export const PlayerTimeline = React.memo(PlayerTimelineInner);
-
-const timelineStyles = StyleSheet.create({
-  loopMoveRow: {
-    height: LOOP_MOVE_ROW_HEIGHT,
-    overflow: "visible",
-    marginTop: -4,
-    marginBottom: 0,
-  },
-  loopMoveHitbox: {
-    position: "absolute",
-    top: -2,
-    width: LOOP_MOVE_HITBOX_WIDTH,
-    height: LOOP_MOVE_HITBOX_HEIGHT,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  loopMovePill: {
-    width: LOOP_MOVE_PILL_WIDTH,
-    height: LOOP_MOVE_PILL_HEIGHT,
-    borderRadius: LOOP_MOVE_PILL_HEIGHT / 2,
-    backgroundColor: LOOP_ACCENT,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#0f172a",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.16,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  loopMoveBar: {
-    width: 28,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.primary,
-  },
-  loopMoveGrip: {
-    width: 12,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: "rgba(255,255,255,0.88)",
-  },
-});

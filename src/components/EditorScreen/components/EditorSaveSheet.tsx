@@ -5,17 +5,20 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors, radii, spacing, text } from "../../../design/tokens";
 import { BottomSheet } from "../../common/BottomSheet";
 import { Button } from "../../common/Button";
+import { Spinner } from "../../common/Spinner";
 import { TitleInput } from "../../common/TitleInput";
 import { fmtDuration } from "../../../utils";
 import { UserText } from "../../../i18n";
-import { CUT_COLOR, KEEP_COLOR, type EditableSelection } from "../helpers";
+import { KEEP_COLOR, type EditableSelection } from "../helpers";
 import { useTranslation } from "react-i18next";
 
 type EditorSaveSheetProps = {
   visible: boolean;
   operation: "extract" | "splice" | "transform";
-  /** One-line summary of a single-output save (what was cut, or what was baked in). */
+  /** One-line summary of a transform ("0.85x · −2 semitones"). */
   summaryLine?: string;
+  /** The clip being edited, named in the sheet's second line. */
+  sourceTitle: string;
   targetIdeaKind: "project" | "clip" | null;
   keepRegions: EditableSelection[];
   removedMs: number;
@@ -25,7 +28,8 @@ type EditorSaveSheetProps = {
   suggestedExportTitle: string;
   suggestedTitleFor: (index: number) => string;
   removeOriginalAfterExport: boolean;
-  confirmLabel: string;
+  /** While the file renders, the key itself says so (no dialog over the sheet). */
+  saving: boolean;
   onChangeSpliceNameDraft: (value: string) => void;
   onToggleRemoveOriginalAfterExport: () => void;
   onClose: () => void;
@@ -33,16 +37,18 @@ type EditorSaveSheetProps = {
 };
 
 /**
- * The commit step — a receipt, not a form.
+ * The commit step: a receipt in rows on paper (2026-10-16), one key.
  *
- * Extracted parts were already named on their rows while the musician worked, so this
- * only has to show what is about to be made and take one press. The single genuinely
- * dangerous option lives here rather than on the page, in the danger tier it deserves.
+ * What is about to be made, numbered in the parts' ink; the one dangerous option
+ * as a plain row with its switch; then Save, which turns to a red "Replace" when
+ * the original goes too. No Cancel: the sheet drags away. While saving, the key
+ * carries the spinner in place of the old centred card.
  */
 export function EditorSaveSheet({
   visible,
   operation,
   summaryLine,
+  sourceTitle,
   targetIdeaKind,
   keepRegions,
   removedMs,
@@ -51,7 +57,7 @@ export function EditorSaveSheet({
   suggestedExportTitle,
   suggestedTitleFor,
   removeOriginalAfterExport,
-  confirmLabel,
+  saving,
   onChangeSpliceNameDraft,
   onToggleRemoveOriginalAfterExport,
   onClose,
@@ -59,55 +65,70 @@ export function EditorSaveSheet({
 }: EditorSaveSheetProps) {
   const { t } = useTranslation();
   const ordered = [...keepRegions].sort((a, b) => a.start - b.start);
+  const title =
+    operation === "extract" ? t("editor.saveClipsTitle", { count: ordered.length }) : t("editor.saveCopyTitle");
+  const subtitle =
+    operation === "extract"
+      ? t("editor.fromSource", { title: sourceTitle })
+      : operation === "splice"
+        ? t("editor.removedFrom", { duration: fmtDuration(removedMs), title: sourceTitle })
+        : summaryLine ?? "";
 
   return (
     <BottomSheet visible={visible} onClose={onClose} keyboardAvoiding dismissDistance={360}>
       <View style={s.content}>
-        <Text style={s.title}>{confirmLabel}</Text>
+        <View>
+          <Text style={s.title}>{title}</Text>
+          {subtitle ? (
+            <Text style={s.subtitle} numberOfLines={1}>
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
 
-        {operation === "extract" ? (
-          <ScrollView style={s.list} contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false}>
-            {ordered.map((region, index) => {
-              const named = !!region.title?.trim();
-              return (
-                <View key={region.id} style={s.row}>
-                  <View style={[s.dot, { backgroundColor: KEEP_COLOR }]}>
-                    <Text style={s.dotText}>{index + 1}</Text>
+        <View>
+          {operation === "extract" ? (
+            <ScrollView style={s.list} showsVerticalScrollIndicator={false}>
+              {ordered.map((region, index) => {
+                const named = !!region.title?.trim();
+                return (
+                  <View key={region.id} style={s.row}>
+                    <Text style={s.numeral}>{index + 1}</Text>
+                    <UserText style={[s.name, named ? s.nameGiven : null]} numberOfLines={1}>
+                      {region.title?.trim() || suggestedTitleFor(index)}
+                    </UserText>
+                    <Text style={s.duration}>{fmtDuration(region.end - region.start)}</Text>
                   </View>
-                  <UserText style={[s.name, named ? s.nameGiven : null]} numberOfLines={1}>
-                    {region.title?.trim() || suggestedTitleFor(index)}
-                  </UserText>
-                  <Text style={s.duration}>{fmtDuration(region.end - region.start)}</Text>
-                </View>
-              );
-            })}
-          </ScrollView>
-        ) : (
-          <View style={s.spliceBlock}>
-            <View style={s.row}>
-              <View
-                style={[
-                  s.dot,
-                  { backgroundColor: operation === "transform" ? KEEP_COLOR : CUT_COLOR },
-                ]}
-              >
-                <Ionicons
-                  name={operation === "transform" ? "speedometer-outline" : "cut-outline"}
-                  size={11}
-                  color={colors.onDanger}
-                />
-              </View>
-              <Text style={s.name}>
-                {summaryLine ?? t("editor.removedSummary", { duration: fmtDuration(removedMs) })}
-              </Text>
+                );
+              })}
+            </ScrollView>
+          ) : (
+            <View style={s.field}>
+              <TitleInput
+                value={spliceNameDraft}
+                onChangeText={onChangeSpliceNameDraft}
+                placeholder={suggestedExportTitle}
+              />
             </View>
-            <TitleInput
-              value={spliceNameDraft}
-              onChangeText={onChangeSpliceNameDraft}
-              placeholder={suggestedExportTitle}
+          )}
+
+          <View style={[s.row, s.dangerRow]}>
+            <View style={s.dangerCopy}>
+              <Text style={s.dangerLabel}>{t("editor.deleteOriginal")}</Text>
+              {removeOriginalAfterExport ? (
+                <Text style={s.dangerHint}>
+                  {targetIdeaKind === "project" ? t("editor.replaceTakeHint") : t("editor.replaceClipHint")}
+                </Text>
+              ) : null}
+            </View>
+            <Switch
+              value={removeOriginalAfterExport}
+              onValueChange={onToggleRemoveOriginalAfterExport}
+              tone="danger"
+              accessibilityLabel={t("editor.deleteOriginal")}
             />
           </View>
-        )}
+        </View>
 
         {gridOutcomeLine ? (
           <View style={s.gridRow}>
@@ -116,80 +137,101 @@ export function EditorSaveSheet({
           </View>
         ) : null}
 
-        <View style={[s.dangerRow, removeOriginalAfterExport ? s.dangerRowArmed : null]}>
-          <View style={s.dangerCopy}>
-            <Text style={s.dangerLabel}>{t("editor.deleteOriginal")}</Text>
-            {removeOriginalAfterExport ? (
-              <Text style={s.dangerHint}>
-                {targetIdeaKind === "project" ? t("editor.replaceTakeHint") : t("editor.replaceClipHint")}
-              </Text>
-            ) : null}
+        {saving ? (
+          <View style={s.savingKey} accessibilityRole="progressbar" accessibilityLabel={t("editor.saving")}>
+            <Spinner size="small" color={colors.primaryDeep} />
+            <Text style={s.savingText}>{t("editor.saving")}</Text>
           </View>
-          <Switch
-            value={removeOriginalAfterExport}
-            onValueChange={onToggleRemoveOriginalAfterExport}
-            tone="danger"
-            accessibilityLabel={t("editor.deleteOriginal")}
-          />
-        </View>
-
-        <View style={s.actions}>
-          <Button variant="secondary" label={t("common.cancel")} onPress={onClose} />
+        ) : (
           <Button
-            variant={removeOriginalAfterExport ? "destructive" : "primary-emphasis"}
-            label={confirmLabel}
+            variant={removeOriginalAfterExport ? "destructive-soft" : "primary"}
+            label={removeOriginalAfterExport ? t("editor.replace") : t("common.save")}
             onPress={onSave}
           />
-        </View>
+        )}
       </View>
     </BottomSheet>
   );
 }
 
 const s = StyleSheet.create({
-  content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.sm, gap: spacing.md },
-  title: { ...text.headerTitle },
-  list: { maxHeight: 240 },
-  listContent: { gap: 2 },
-  spliceBlock: { gap: spacing.md },
+  content: { paddingHorizontal: spacing.xl, paddingBottom: spacing.sm, gap: spacing.lg },
+  title: {
+    fontSize: 15,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    color: colors.textPrimary,
+  },
+  subtitle: {
+    ...text.caption,
+    fontFamily: "PlusJakartaSans_400Regular",
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  list: {
+    maxHeight: 240,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderMuted,
+  },
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-    paddingVertical: 9,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderSubtle,
+    minHeight: 50,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
   },
-  dot: {
-    width: 20,
-    height: 20,
-    borderRadius: radii.round,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dotText: {
-    ...text.caption,
-    fontSize: 11,
-    color: colors.onPrimary,
+  numeral: {
+    width: 18,
+    fontSize: 15,
+    fontFamily: "PlusJakartaSans_700Bold",
+    color: KEEP_COLOR,
+    fontVariant: ["tabular-nums"],
   },
   /** A name the musician gave earns the serif; a suggested one stays quiet. */
-  name: { ...text.supporting, flex: 1, color: colors.textSecondary },
-  nameGiven: { ...text.cardTitle, fontSize: 15, lineHeight: 20 },
-  duration: { ...text.caption, color: colors.textMuted, fontVariant: ["tabular-nums"] },
+  name: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: "PlusJakartaSans_400Regular",
+    color: colors.textSecondary,
+  },
+  nameGiven: { ...text.cardTitle, fontSize: 16, lineHeight: 21 },
+  duration: {
+    ...text.caption,
+    fontFamily: "PlusJakartaSans_400Regular",
+    color: colors.textMuted,
+    fontVariant: ["tabular-nums"],
+  },
+  field: { paddingBottom: spacing.sm },
+  dangerRow: { minHeight: 56 },
+  dangerCopy: { flex: 1, gap: 2 },
+  dangerLabel: {
+    fontSize: 15,
+    fontFamily: "PlusJakartaSans_500Medium",
+    color: colors.danger,
+  },
+  dangerHint: {
+    fontSize: 12,
+    fontFamily: "PlusJakartaSans_400Regular",
+    color: colors.textSecondary,
+  },
   gridRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  gridText: { ...text.caption, color: colors.textMuted },
-  dangerRow: {
+  gridText: {
+    ...text.caption,
+    fontFamily: "PlusJakartaSans_400Regular",
+    color: colors.textMuted,
+  },
+  savingKey: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
-    paddingVertical: 10,
-    paddingHorizontal: spacing.md,
+    justifyContent: "center",
+    gap: spacing.sm,
+    minHeight: 44,
     borderRadius: radii.lg,
     backgroundColor: colors.surfaceContainer,
   },
-  dangerRowArmed: { backgroundColor: colors.dangerSurface },
-  dangerCopy: { flex: 1, gap: 2 },
-  dangerLabel: { ...text.caption, fontSize: 14, color: colors.danger },
-  dangerHint: { ...text.supporting, fontSize: 12, color: colors.textSecondary },
-  actions: { flexDirection: "row", justifyContent: "flex-end", gap: spacing.sm },
+  savingText: {
+    fontSize: 15,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    color: colors.textSecondary,
+  },
 });
