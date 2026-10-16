@@ -18,10 +18,10 @@ export const shelfStyles = {
     },
 
     // Section labels rest on a shelf edge (Ledger) — the page's signature.
+    // Flush with the cards and rows beneath it (2026-10-16; was inset 4).
     ledger: {
       marginTop: 18,
       marginBottom: 12,
-      marginHorizontal: 4,
     },
 
     feedList: {
@@ -152,7 +152,6 @@ export const shelfStyles = {
       lineHeight: 15,
       color: colors.textMuted,
       marginTop: 8,
-      paddingHorizontal: 2,
     },
   }),
 };
