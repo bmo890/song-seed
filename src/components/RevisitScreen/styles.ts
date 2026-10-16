@@ -48,8 +48,8 @@ export const revisitStyles = {
       paddingTop: 2,
     },
     hiddenResetText: {
-      fontSize: 12,
-      fontFamily: "PlusJakartaSans_700Bold",
+      fontSize: 14,
+      fontFamily: "PlusJakartaSans_600SemiBold",
       color: TERRACOTTA,
     },
 
@@ -94,12 +94,13 @@ export const revisitStyles = {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      marginBottom: 12,
     },
+    // A sheet names what it acts on in Jakarta, like every menu (2026-10-16).
     sheetTitle: {
-      fontFamily: "Lora_600SemiBold",
-      fontSize: 19,
+      fontFamily: "PlusJakartaSans_600SemiBold",
+      fontSize: 15,
       color: INK,
+      marginBottom: 2,
     },
     sheetList: {
       gap: 10,
@@ -111,10 +112,13 @@ export const revisitStyles = {
       minWidth: 0,
       gap: 2,
     },
-    sectionTitleSerif: {
-      fontFamily: "Lora_600SemiBold",
-      fontSize: 19,
-      color: INK,
+    // Sections are labels, so only the ideas wear Lora (2026-10-16, A).
+    sectionLabel: {
+      fontFamily: "PlusJakartaSans_700Bold",
+      fontSize: 11,
+      letterSpacing: 0.8,
+      textTransform: "uppercase",
+      color: colors.textStrong,
     },
     sectionSubShort: {
       fontSize: 12,
@@ -147,15 +151,10 @@ export const revisitStyles = {
       alignItems: "baseline",
       gap: 8,
     },
-    todayEyebrow: {
-      fontFamily: "PlusJakartaSans_600SemiBold",
-      fontSize: 10,
-      letterSpacing: 0.8,
-      textTransform: "uppercase",
-      color: TERRACOTTA,
-    },
-    todayCount: {
-      fontSize: 12,
+    // The day in quiet ink: colour is for actions, not dates (2026-10-16).
+    todayLine: {
+      fontFamily: "PlusJakartaSans_400Regular",
+      fontSize: 13,
       color: MUTED,
       fontVariant: ["tabular-nums"],
     },
@@ -180,16 +179,24 @@ export const revisitStyles = {
       lineHeight: 16,
       color: "#9a8b83",
     },
+    // Rows on paper: hairline under each, no tinted glyph.
     toggleRow: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      gap: 12,
-      paddingVertical: 8,
+      gap: 14,
+      minHeight: 58,
+      paddingVertical: 6,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.borderMuted,
+    },
+    sheetRule: {
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.borderMuted,
     },
     toggleIconWrap: {
-      width: 20,
-      alignItems: "flex-start",
+      width: 22,
+      alignItems: "center",
     },
     toggleRowTextCol: {
       flex: 1,
@@ -198,7 +205,7 @@ export const revisitStyles = {
     toggleRowText: {
       fontSize: 15,
       color: INK,
-      fontFamily: "PlusJakartaSans_600SemiBold",
+      fontFamily: "PlusJakartaSans_500Medium",
     },
     toggleRowDesc: {
       fontSize: 12,
@@ -207,23 +214,26 @@ export const revisitStyles = {
     },
 
     // ── Around snapshot view ──────────────────────────────────────────────
-    snapshotHeaderCard: {
-      gap: 8,
-      backgroundColor: SURFACE,
-      borderWidth: 0,
-      borderRadius: 6,
-      shadowOpacity: 0,
-      elevation: 0,
-    },
-    snapshotHeaderTopRow: {
+    // One meta line on a hairline, the way onward an ink link (2026-10-16;
+    // was a boxed header card with a filled key).
+    snapshotMetaRow: {
       flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
+      alignItems: "baseline",
       gap: 10,
+      paddingBottom: 10,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.borderMuted,
     },
-    snapshotWindowText: {
-      fontSize: 12,
-      fontFamily: "PlusJakartaSans_700Bold",
+    snapshotMetaText: {
+      flex: 1,
+      fontFamily: "PlusJakartaSans_400Regular",
+      fontSize: 13,
+      color: MUTED,
+      fontVariant: ["tabular-nums"],
+    },
+    snapshotLink: {
+      fontFamily: "PlusJakartaSans_600SemiBold",
+      fontSize: 13,
       color: TERRACOTTA,
     },
     snapshotList: {

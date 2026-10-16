@@ -35,14 +35,10 @@ function getCollectionLabel(option: SourceFilterOption) {
   return option.label.slice(dividerIndex + 3);
 }
 
+/** "Primary" as a quiet word beside the name (2026-10-16; was a starred pill). */
 function PrimaryTag() {
   const { t } = useTranslation();
-  return (
-    <View style={styles.primaryTag}>
-      <Ionicons name="star" size={9} color={colors.primaryDeep} />
-      <Text style={styles.primaryTagText}>{t("common.primary")}</Text>
-    </View>
-  );
+  return <Text style={styles.primaryTagText}>{t("common.primary")}</Text>;
 }
 
 export function SourceFilterRow({
@@ -182,21 +178,10 @@ const styles = StyleSheet.create({
   },
   // Primary marker — star + label in the app's terracotta, shared by workspace
   // and collection rows.
-  primaryTag: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    backgroundColor: colors.primarySurface,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 999,
-  },
   primaryTagText: {
-    fontSize: 9.5,
-    fontFamily: "PlusJakartaSans_700Bold",
-    letterSpacing: 0.3,
-    textTransform: "uppercase",
-    color: colors.primaryDeep,
+    fontSize: 12,
+    fontFamily: "PlusJakartaSans_400Regular",
+    color: colors.textMuted,
   },
   // Collections as a quiet indented sub-list under a hairline, not chips.
   collections: {

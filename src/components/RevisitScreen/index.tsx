@@ -35,6 +35,7 @@ export function RevisitScreen() {
   });
 
   const dateLabel = new Date(screen.now).toLocaleDateString(formatLocale, {
+    weekday: "long",
     month: "short",
     day: "numeric",
   });
@@ -90,14 +91,9 @@ export function RevisitScreen() {
           <>
             {populatedSections.length > 0 ? (
               <View style={revisitStyles.pageHeader}>
-                <View style={revisitStyles.todayRow}>
-                  <Text style={revisitStyles.todayEyebrow}>
-                    {screen.dailyRefresh ? t("revisit.today", { date: dateLabel }) : t("revisit.toRevisit")}
-                  </Text>
-                  <Text style={revisitStyles.todayCount}>
-                    {t("revisit.ideaCount", { count: shownCount })}
-                  </Text>
-                </View>
+                <Text style={revisitStyles.todayLine}>
+                  {`${screen.dailyRefresh ? dateLabel : t("revisit.toRevisit")} · ${t("revisit.ideaCount", { count: shownCount })}`}
+                </Text>
               </View>
             ) : null}
 

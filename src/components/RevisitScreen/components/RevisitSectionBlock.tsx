@@ -72,8 +72,8 @@ export function RevisitSectionBlock({
       <View style={revisitStyles.sectionHeader}>
         <View style={revisitStyles.sectionHeaderCol}>
           <View style={revisitStyles.sectionTitleRow}>
-            <Ionicons name={SECTION_ICONS[section.key]} size={16} color={colors.textSecondary} />
-            <Text style={revisitStyles.sectionTitleSerif}>{t(copy.title)}</Text>
+            <Ionicons name={SECTION_ICONS[section.key]} size={14} color={colors.textStrong} />
+            <Text style={revisitStyles.sectionLabel}>{t(copy.title)}</Text>
           </View>
           {copy.subtitle ? <Text style={revisitStyles.sectionSubShort}>{t(copy.subtitle)}</Text> : null}
         </View>

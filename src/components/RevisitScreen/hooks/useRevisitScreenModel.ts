@@ -184,11 +184,12 @@ export function useRevisitScreenModel() {
   }
 
   function confirmHideCandidate(candidate: RevisitCandidate) {
-    AppAlert.destructive(
+    // A question, not a warning: Customize restores anything hidden.
+    AppAlert.confirm(
       t("revisit.hideTitle"),
       t("revisit.hideBody"),
       () => hideCandidate(candidate.key),
-      { confirmLabel: t("common.ok"), icon: "eye-off-outline" }
+      { confirmLabel: t("common.hide"), icon: "eye-off-outline" }
     );
   }
 
@@ -210,9 +211,11 @@ export function useRevisitScreenModel() {
       },
       {
         key: "hide",
-        label: t("common.hide"),
+        // Ink, not danger: hiding a suggestion destroys nothing, and Customize
+        // brings it back (2026-10-16).
+        label: t("revisit.hideFromRevisit"),
         icon: "eye-off-outline",
-        tone: "danger",
+        hint: t("revisit.hideHint"),
         onPress: () => confirmHideCandidate(candidate),
       },
     ]);
