@@ -132,7 +132,7 @@ const s = StyleSheet.create({
     alignSelf: "stretch",
     paddingTop: 88,
     paddingBottom: 32,
-    paddingHorizontal: spacing.xs,
+    // Flush with the page's cards and rows (2026-10-16; was inset 4).
   },
   ledgerWrapCompact: {
     paddingTop: 32,
