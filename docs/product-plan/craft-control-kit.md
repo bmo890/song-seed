@@ -1295,3 +1295,10 @@ Settings > Recording: the Bluetooth row's hint fits ("Wireless headphone
 delay"); the mic note reads "Choose the mic in the recorder." Next: the
 Bluetooth set (calibration screen, recorder warnings, the Bluetooth mic
 question), which the simulator cannot show live.
+
+Metronome sheet folded (2026-10-16, founder picked A on
+https://claude.ai/artifact/WjBLuFtNsTYCofRfsKK51E): Tempo stays open; Meter
+("4/4 · Beats"), Count-in, Sound ("Click · Beep, Visual") and Tempo changes
+are `FoldRow`s (MetronomeBlocks) that unfold in place, one at a time, and
+the sheet opens folded every time. `meterSummary` / `soundSummary` are
+shared with the Metronome page's rows.

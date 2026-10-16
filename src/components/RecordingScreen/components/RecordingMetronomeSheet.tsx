@@ -6,7 +6,16 @@ import { BottomSheet } from "../../common/BottomSheet";
 import { IconButton } from "../../common/IconButton";
 import { InkKey, inkKeyColor } from "../../common/InkKey";
 import { colors, radii, spacing } from "../../../design/tokens";
-import { CueRows, FeelControl, MeterRow, TempoBlock, ms } from "../../common/metronome/MetronomeBlocks";
+import {
+  CueRows,
+  FeelControl,
+  FoldRow,
+  MeterRow,
+  TempoBlock,
+  meterSummary,
+  ms,
+  soundSummary,
+} from "../../common/metronome/MetronomeBlocks";
 import { SegmentedControl } from "../../common/SegmentedControl";
 import { Stepper } from "../../common/Stepper";
 import {
@@ -124,8 +133,9 @@ export function RecordingMetronomeSheet({
   onChangeHapticLevel,
 }: Props) {
   const { t } = useTranslation();
-  const [expanded, setExpanded] = useState<"changes" | null>(null);
-  const toggleSection = (section: "changes") =>
+  type Fold = "meter" | "countIn" | "sound" | "changes";
+  const [expanded, setExpanded] = useState<Fold | null>(null);
+  const toggleSection = (section: Fold) =>
     setExpanded((prev) => (prev === section ? null : section));
 
   // ── Programmed changes (the sketch's plan) ────────────────────────────────
@@ -140,6 +150,8 @@ export function RecordingMetronomeSheet({
   if (visible && !draftSyncedForVisible) {
     // Adopt the stored plan on open (adjust-state-in-render — no post-paint flash).
     setDraftSyncedForVisible(true);
+    // Every opening starts folded: the sheet's first look is always the quiet one.
+    setExpanded(null);
     setDraftChanges((songGrid?.segments ?? []).filter((segment) => segment.atBar > 1));
     setEditingChangeBar(null);
   } else if (!visible && draftSyncedForVisible) {
@@ -225,7 +237,9 @@ export function RecordingMetronomeSheet({
         <Text style={s.disabledNote}>{t("recording.nativeUnavailable")}</Text>
       ) : (
         <ScrollView showsVerticalScrollIndicator={false}>
-          {/* Tempo — shared block */}
+          {/* Tempo stays open: it is the one thing touched every time. The rest
+              fold to a line with their value (2026-10-16, founder picked A);
+              one opens at a time, so the sheet never shows everything at once. */}
           <Text style={ms.label}>{t("recording.tempo")}</Text>
           <TempoBlock
             bpm={bpm}
@@ -235,153 +249,154 @@ export function RecordingMetronomeSheet({
             onSetBpmValue={onSetBpmValue}
             onTapTempo={onTapTempo}
           />
+          <View style={s.foldGap} />
 
-          {/* Meter — all eight on one line, no disclosure needed to see them. */}
-          <Text style={ms.label}>{t("recording.meter")}</Text>
-          <MeterRow meterId={meterId} disabled={disabled} onSelectMeter={onSelectMeter} />
-
-          {/* Click on — the feel for this meter; the strip shows the bar you'll hear. */}
-          <FeelControl
-            meterId={meterId}
-            feelId={feelId}
-            accentPattern={accentPattern}
-            subdivision={subdivision}
-            supportsRests={supportsRests}
-            supportsSubdivision={supportsSubdivision}
-            disabled={disabled}
-            onSelectFeel={onSelectFeel}
-            onChangeCustomPattern={onChangeCustomPattern}
-          />
-          <View style={s.feelGap} />
-
-          {/* Count-in (recording-only): one choice of a few, so ink tabs, always
-              in view with its one line saying what it does (2026-10-15; was a
-              disclosure opening filled terracotta segments). */}
-          <View style={ms.divider} />
-          <Text style={ms.label}>{t("recording.countIn")}</Text>
-          <View style={disabled ? ms.dimmed : null} pointerEvents={disabled ? "none" : "auto"}>
-            <SegmentedControl
-              options={COUNT_IN_OPTIONS.map((bars) => ({ key: String(bars), label: countInLabel(bars, t) }))}
-              value={String(countInBars)}
-              onChange={(key) => onSelectCountInBars(Number(key))}
+          <FoldRow
+            label={t("recording.meter")}
+            value={meterSummary(meterId, feelId, supportsRests, t)}
+            open={expanded === "meter"}
+            onToggle={() => toggleSection("meter")}
+            testID="metronome-fold-meter"
+          >
+            <MeterRow meterId={meterId} disabled={disabled} onSelectMeter={onSelectMeter} />
+            <FeelControl
+              meterId={meterId}
+              feelId={feelId}
+              accentPattern={accentPattern}
+              subdivision={subdivision}
+              supportsRests={supportsRests}
+              supportsSubdivision={supportsSubdivision}
+              disabled={disabled}
+              onSelectFeel={onSelectFeel}
+              onChangeCustomPattern={onChangeCustomPattern}
             />
-          </View>
-          <Text style={s.countInNote}>{countInSubtitle(countInBars, t)}</Text>
+          </FoldRow>
 
-          {/* Programmed changes — the sketch's plan. A tempo/meter change takes effect
+          {/* Count-in is recording-only: a few choices, ink tabs, its one line. */}
+          <FoldRow
+            label={t("recording.countIn")}
+            value={countInLabel(countInBars, t)}
+            open={expanded === "countIn"}
+            onToggle={() => toggleSection("countIn")}
+            testID="metronome-fold-count-in"
+          >
+            <View style={disabled ? ms.dimmed : null} pointerEvents={disabled ? "none" : "auto"}>
+              <SegmentedControl
+                options={COUNT_IN_OPTIONS.map((bars) => ({ key: String(bars), label: countInLabel(bars, t) }))}
+                value={String(countInBars)}
+                onChange={(key) => onSelectCountInBars(Number(key))}
+              />
+            </View>
+            <Text style={s.countInNote}>{countInSubtitle(countInBars, t)}</Text>
+          </FoldRow>
+
+          {/* Cues: ink toggles with their settings on the row. Levels stay adjustable
+              mid-take (volume is a live param on the native engine, haptic strength
+              is JS-side); the toggles and the click voice are structural and lock. */}
+          <FoldRow
+            label={t("metronome.sound")}
+            value={soundSummary(outputs, clickVoice, t)}
+            open={expanded === "sound"}
+            onToggle={() => toggleSection("sound")}
+            testID="metronome-fold-sound"
+          >
+            <CueRows
+              outputs={outputs}
+              beepLevel={beepLevel}
+              hapticLevel={hapticLevel}
+              disabled={disabled}
+              onToggleOutput={onToggleOutput}
+              onChangeBeepLevel={onChangeBeepLevel}
+              onChangeHapticLevel={onChangeHapticLevel}
+              clickVoice={clickVoice}
+              onChangeClickVoice={onSelectClickVoice}
+              voiceDisabled={disabled}
+            />
+          </FoldRow>
+
+          {/* Programmed changes: the sketch's plan. A tempo/meter change takes effect
               at a bar line; the take snapshots the plan and the click follows it. */}
           {onChangeSongGrid ? (
-            <>
+            <FoldRow
+              label={t("recording.changes")}
+              value={
+                changes.length === 0 ? t("recording.noChanges") : t("recording.changeCount", { count: changes.length })
+              }
+              open={expanded === "changes"}
+              onToggle={() => toggleSection("changes")}
+              disabled={disabled}
+              testID="metronome-fold-changes"
+            >
+              {changes.map((segment) => {
+                const editing = editingChangeBar === segment.atBar;
+                return (
+                  <View key={segment.atBar}>
+                    <Pressable
+                      style={({ pressed }) => [s.changeRow, pressed ? ms.pressed : null]}
+                      onPress={() => setEditingChangeBar(editing ? null : segment.atBar)}
+                      disabled={disabled}
+                    >
+                      <Text style={s.changeBar}>{t("recording.changeBar", { bar: segment.atBar })}</Text>
+                      <Text style={s.changeValue}>{`${segment.meterId} · ${segment.bpm}`}</Text>
+                      <IconButton
+                        icon="close"
+                        tone="muted"
+                        size={15}
+                        disabled={disabled}
+                        onPress={() => removeChange(segment.atBar)}
+                        accessibilityLabel={t("recording.removeChangeA11y")}
+                      />
+                    </Pressable>
+                    {editing ? (
+                      <View style={s.changeEditor}>
+                        <View style={s.changeStepperRow}>
+                          <Text style={s.changeStepperLabel}>{t("recording.changeBar", { bar: segment.atBar })}</Text>
+                          <Stepper
+                            glyphs="plusMinus"
+                            canDecrement={!disabled && segment.atBar > 2}
+                            canIncrement={!disabled}
+                            decrementLabel={t("recording.changeEarlier")}
+                            incrementLabel={t("recording.changeLater")}
+                            onStep={(direction) =>
+                              updateChange(segment.atBar, { atBar: Math.max(2, segment.atBar + direction) })
+                            }
+                          />
+                        </View>
+                        <View style={s.changeStepperRow}>
+                          <Text style={s.changeStepperLabel}>{`${segment.bpm} BPM`}</Text>
+                          {/* The kit Stepper: hold to run (replaces the ±5 chips). */}
+                          <Stepper
+                            glyphs="plusMinus"
+                            canDecrement={!disabled}
+                            canIncrement={!disabled}
+                            decrementLabel={t("metronome.slow")}
+                            incrementLabel={t("metronome.raise")}
+                            onStep={(direction) =>
+                              updateChange(segment.atBar, { bpm: clampMetronomeBpm(segment.bpm + direction) })
+                            }
+                          />
+                        </View>
+                        <MeterRow
+                          meterId={segment.meterId}
+                          disabled={disabled}
+                          onSelectMeter={(nextMeterId) => updateChange(segment.atBar, { meterId: nextMeterId })}
+                        />
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })}
               <Pressable
-                style={({ pressed }) => [ms.quietRow, ms.divider, pressed ? ms.pressed : null]}
-                onPress={() => toggleSection("changes")}
+                style={({ pressed }) => [s.addChangeRow, pressed ? ms.pressed : null]}
+                onPress={addChange}
                 disabled={disabled}
               >
-                <Text style={ms.quietLabel}>{t("recording.changes")}</Text>
-                {/* The value in quiet ink beside the chevron; no pill. */}
-                <View style={s.disclosureValue}>
-                  {expanded === "changes" ? null : (
-                    <Text style={s.disclosureValueText}>
-                      {changes.length === 0
-                        ? t("recording.off")
-                        : t("recording.changeCount", { count: changes.length })}
-                    </Text>
-                  )}
-                  <Ionicons name={expanded === "changes" ? "chevron-up" : "chevron-down"} size={14} color={colors.textMuted} />
-                </View>
+                <Ionicons name="add" size={15} color={colors.primaryDeep} />
+                <Text style={s.addChangeText}>{t("recording.addChange")}</Text>
               </Pressable>
-              {expanded === "changes" ? (
-                <View>
-                  {changes.map((segment) => {
-                    const editing = editingChangeBar === segment.atBar;
-                    return (
-                      <View key={segment.atBar}>
-                        <Pressable
-                          style={({ pressed }) => [s.changeRow, pressed ? ms.pressed : null]}
-                          onPress={() => setEditingChangeBar(editing ? null : segment.atBar)}
-                          disabled={disabled}
-                        >
-                          <Text style={s.changeBar}>{t("recording.changeBar", { bar: segment.atBar })}</Text>
-                          <Text style={s.changeValue}>{`${segment.meterId} · ${segment.bpm}`}</Text>
-                          <IconButton
-                            icon="close"
-                            tone="muted"
-                            size={15}
-                            disabled={disabled}
-                            onPress={() => removeChange(segment.atBar)}
-                            accessibilityLabel={t("recording.removeChangeA11y")}
-                          />
-                        </Pressable>
-                        {editing ? (
-                          <View style={s.changeEditor}>
-                            <View style={s.changeStepperRow}>
-                              <Text style={s.changeStepperLabel}>{t("recording.changeBar", { bar: segment.atBar })}</Text>
-                              <Stepper
-                                glyphs="plusMinus"
-                                canDecrement={!disabled && segment.atBar > 2}
-                                canIncrement={!disabled}
-                                decrementLabel={t("recording.changeEarlier")}
-                                incrementLabel={t("recording.changeLater")}
-                                onStep={(direction) =>
-                                  updateChange(segment.atBar, { atBar: Math.max(2, segment.atBar + direction) })
-                                }
-                              />
-                            </View>
-                            <View style={s.changeStepperRow}>
-                              <Text style={s.changeStepperLabel}>{`${segment.bpm} BPM`}</Text>
-                              {/* The kit Stepper: hold to run (replaces the ±5 chips). */}
-                              <Stepper
-                                glyphs="plusMinus"
-                                canDecrement={!disabled}
-                                canIncrement={!disabled}
-                                decrementLabel={t("metronome.slow")}
-                                incrementLabel={t("metronome.raise")}
-                                onStep={(direction) =>
-                                  updateChange(segment.atBar, { bpm: clampMetronomeBpm(segment.bpm + direction) })
-                                }
-                              />
-                            </View>
-                            <MeterRow
-                              meterId={segment.meterId}
-                              disabled={disabled}
-                              onSelectMeter={(nextMeterId) => updateChange(segment.atBar, { meterId: nextMeterId })}
-                            />
-                          </View>
-                        ) : null}
-                      </View>
-                    );
-                  })}
-                  <Pressable
-                    style={({ pressed }) => [s.addChangeRow, pressed ? ms.pressed : null]}
-                    onPress={addChange}
-                    disabled={disabled}
-                  >
-                    <Ionicons name="add" size={15} color={colors.primaryDeep} />
-                    <Text style={s.addChangeText}>{t("recording.addChange")}</Text>
-                  </Pressable>
-                </View>
-              ) : null}
-            </>
+            </FoldRow>
           ) : null}
-
-          {/* Cues — ink toggles with their settings on the row. Levels stay adjustable
-              mid-take: volume is a live param on the native engine (no restart, no phase
-              reset) and haptic strength is JS-side only. The toggles and the click voice
-              are structural and lock while recording. */}
-          {/* Same name as the Metronome page's Sound row: one word for the cues. */}
-          <Text style={[ms.label, ms.divider, { paddingTop: 14 }]}>{t("metronome.sound")}</Text>
-          <CueRows
-            outputs={outputs}
-            beepLevel={beepLevel}
-            hapticLevel={hapticLevel}
-            disabled={disabled}
-            onToggleOutput={onToggleOutput}
-            onChangeBeepLevel={onChangeBeepLevel}
-            onChangeHapticLevel={onChangeHapticLevel}
-            clickVoice={clickVoice}
-            onChangeClickVoice={onSelectClickVoice}
-            voiceDisabled={disabled}
-          />
+          <View style={ms.foldRow} />
         </ScrollView>
       )}
     </BottomSheet>
@@ -396,18 +411,8 @@ const s = StyleSheet.create({
     marginTop: spacing.sm,
     marginBottom: spacing.md,
   },
-  disclosureValue: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  disclosureValueText: {
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  feelGap: {
-    height: 8,
+  foldGap: {
+    height: spacing.md,
   },
   titleRow: {
     flexDirection: "row",

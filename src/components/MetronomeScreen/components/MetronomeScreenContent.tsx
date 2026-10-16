@@ -12,12 +12,10 @@ import { ListRow, ListRows } from "../../common/ListRow";
 import { colors } from "../../../design/tokens";
 import {
   MAX_METRONOME_BPM,
-  METRONOME_METER_PRESETS,
   MIN_METRONOME_BPM,
-  getMetronomeFeels,
   getTempoMarking,
 } from "../../../domain/metronome";
-import { CueRows, FeelControl, MeterRow, feelLabel, ms } from "../../common/metronome/MetronomeBlocks";
+import { CueRows, FeelControl, MeterRow, meterSummary, ms, soundSummary } from "../../common/metronome/MetronomeBlocks";
 import { MetronomeBeatBar } from "../../common/metronome/MetronomeBeatBar";
 import { styles as s } from "../styles";
 import { useMetronomeScreenModel } from "../hooks/useMetronomeScreenModel";
@@ -38,18 +36,8 @@ export function MetronomeScreenContent() {
   const [sheet, setSheet] = useState<SheetKey>(null);
   const isRunning = model.isRunning;
   const tapping = model.tapCount > 0;
-  const meterLabel = METRONOME_METER_PRESETS.find((p) => p.id === model.meterId)?.label ?? "";
-  const feel = getMetronomeFeels(model.meterId, model.supportsRests).find((f) => f.id === model.feelId);
-  const onCues = (["beep", "visual", "haptic"] as const).filter((key) => model.outputs[key]);
-  const soundSummary =
-    onCues.length === 0
-      ? t("metronome.cuesOff")
-      : [
-          ...(model.supportsClickStyle && model.outputs.beep
-            ? [t(model.clickVoice === "wood" ? "metronome.voiceWood" : "metronome.voiceClick")]
-            : []),
-          onCues.map((key) => t(`metronome.${key}`)).join(", "),
-        ].join(" · ");
+  const meterLine = meterSummary(model.meterId, model.feelId, model.supportsRests, t);
+  const soundLine = soundSummary(model.outputs, model.supportsClickStyle ? model.clickVoice : undefined, t);
   const statusLabel = !model.isNativeAvailable
     ? t("metronome.unavailable")
     : model.isPreparing
@@ -143,7 +131,7 @@ export function MetronomeScreenContent() {
             userTitle={false}
             accessory={
               <Text style={s.rowValue} numberOfLines={1}>
-                {feel ? `${meterLabel} · ${feelLabel(feel, t)}` : meterLabel}
+                {meterLine}
               </Text>
             }
             onPress={() => setSheet("meter")}
@@ -155,7 +143,7 @@ export function MetronomeScreenContent() {
             userTitle={false}
             accessory={
               <Text style={s.rowValue} numberOfLines={1}>
-                {soundSummary}
+                {soundLine}
               </Text>
             }
             onPress={() => setSheet("sound")}

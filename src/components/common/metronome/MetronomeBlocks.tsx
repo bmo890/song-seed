@@ -1,4 +1,4 @@
-import React from "react";
+import React, { type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Slider } from "../Slider";
@@ -26,6 +26,8 @@ import {
 import { SegmentedControl } from "../SegmentedControl";
 import { Stepper } from "../Stepper";
 import { InkKey, inkKeyColor } from "../InkKey";
+import { Press } from "../Press";
+import { AnimatedCollapse } from "../AnimatedCollapse";
 import { useTranslation } from "react-i18next";
 
 /**
@@ -56,6 +58,83 @@ export function nearestHapticStrengthId(level: number): HapticStrengthId {
 
 export function feelLabel(feel: MetronomeFeel, t: (key: string) => string) {
   return feel.label ?? (feel.labelKey ? t(feel.labelKey) : feel.id);
+}
+
+/** "4/4 · Beats": the meter and its feel, as the rows that open them read. */
+export function meterSummary(
+  meterId: MetronomeMeterId,
+  feelId: string,
+  supportsRests: boolean,
+  t: (key: string) => string
+) {
+  const meter = METRONOME_METER_PRESETS.find((preset) => preset.id === meterId)?.label ?? "";
+  const feel = getMetronomeFeels(meterId, supportsRests).find((candidate) => candidate.id === feelId);
+  return feel ? `${meter} · ${feelLabel(feel, t)}` : meter;
+}
+
+/** "Click · Beep, Visual", or "Silent" with every cue off. `clickVoice` is
+ *  omitted where the engine can't voice it. */
+export function soundSummary(
+  outputs: MetronomeOutputs,
+  clickVoice: MetronomeClickVoice | undefined,
+  t: (key: string) => string
+) {
+  const onCues = (["beep", "visual", "haptic"] as const).filter((key) => outputs[key]);
+  if (onCues.length === 0) return t("metronome.cuesOff");
+  return [
+    ...(clickVoice && outputs.beep ? [t(CLICK_VOICE_LABEL_KEYS[clickVoice])] : []),
+    onCues.map((key) => t(`metronome.${key}`)).join(", "),
+  ].join(" · ");
+}
+
+/**
+ * A setting folded to one line (2026-10-16, founder picked A): its name and
+ * its value on a hairline; a tap unfolds its controls beneath and hides the
+ * value, which the controls now show. The sheet keeps one open at a time.
+ */
+export function FoldRow({
+  label,
+  value,
+  open,
+  onToggle,
+  disabled = false,
+  children,
+  testID,
+}: {
+  label: string;
+  value: string;
+  open: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+  children: ReactNode;
+  testID?: string;
+}) {
+  return (
+    <View style={ms.foldRow}>
+      <Press
+        // Haptics vocabulary: tap, an acknowledged press (a disclosure opening).
+        haptic="tap"
+        style={ms.foldHead}
+        onPress={onToggle}
+        disabled={disabled}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open, disabled }}
+        accessibilityLabel={open ? label : `${label}, ${value}`}
+        testID={testID}
+      >
+        <Text style={[ms.foldLabel, open ? ms.foldLabelOpen : null]}>{label}</Text>
+        {open ? null : (
+          <Text style={ms.foldValue} numberOfLines={1}>
+            {value}
+          </Text>
+        )}
+        <Ionicons name={open ? "chevron-up" : "chevron-down"} size={15} color={colors.textMuted} />
+      </Press>
+      <AnimatedCollapse visible={open} style={ms.foldBody}>
+        {children}
+      </AnimatedCollapse>
+    </View>
+  );
 }
 
 export function TempoBlock({
@@ -391,6 +470,35 @@ export function CueRows({
 
 /** Shared styles for the metronome control vocabulary (sheet + standalone page). */
 export const ms = StyleSheet.create({
+  foldRow: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderMuted,
+  },
+  foldHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    minHeight: 52,
+  },
+  foldLabel: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: "PlusJakartaSans_500Medium",
+    color: colors.textPrimary,
+  },
+  foldLabelOpen: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+  },
+  foldValue: {
+    flexShrink: 1,
+    fontSize: 14,
+    fontFamily: "PlusJakartaSans_400Regular",
+    color: colors.textSecondary,
+    fontVariant: ["tabular-nums"],
+  },
+  foldBody: {
+    paddingBottom: spacing.md,
+  },
   label: {
     fontSize: 11,
     fontFamily: "PlusJakartaSans_700Bold",
