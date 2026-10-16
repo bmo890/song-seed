@@ -89,16 +89,14 @@ export function RevisitCustomizeSheet({
   return (
     <BottomSheet visible={visible} onClose={onClose}>
       <Text style={revisitStyles.sheetTitle}>{t("revisit.customize")}</Text>
-      <Text style={revisitStyles.cardTagDetail}>
-        {t("revisit.intro")}
-      </Text>
 
       <ScrollView style={{ maxHeight: 460 }} showsVerticalScrollIndicator={false}>
         <Text style={revisitStyles.sheetSectionLabel}>{t("revisit.whatToSurface")}</Text>
+        <View style={revisitStyles.sheetRule} />
         {TAG_OPTIONS.map(({ tag, labelKey, descKey, icon }) => (
           <View key={tag} style={revisitStyles.toggleRow}>
             <View style={revisitStyles.toggleIconWrap}>
-              <Ionicons name={icon} size={16} color={colors.primary} />
+              <Ionicons name={icon} size={18} color={colors.textStrong} />
             </View>
             <View style={revisitStyles.toggleRowTextCol}>
               <Text style={revisitStyles.toggleRowText}>{t(labelKey)}</Text>
@@ -109,12 +107,10 @@ export function RevisitCustomizeSheet({
         ))}
 
         <Text style={revisitStyles.sheetSectionLabel}>{t("revisit.refresh")}</Text>
-        <Text style={revisitStyles.sheetSectionDesc}>
-          {t("revisit.refreshDesc")}
-        </Text>
+        <View style={revisitStyles.sheetRule} />
         <View style={revisitStyles.toggleRow}>
           <View style={revisitStyles.toggleIconWrap}>
-            <Ionicons name="refresh-outline" size={16} color={colors.primary} />
+            <Ionicons name="refresh-outline" size={18} color={colors.textStrong} />
           </View>
           <View style={revisitStyles.toggleRowTextCol}>
             <Text style={revisitStyles.toggleRowText}>{t("revisit.daily")}</Text>
@@ -137,9 +133,7 @@ export function RevisitCustomizeSheet({
             </Press>
           ) : null}
         </View>
-        <Text style={revisitStyles.sheetSectionDesc}>
-          {t("revisit.sourcesDesc")}
-        </Text>
+        <View style={revisitStyles.sheetRule} />
         <View style={revisitStyles.sheetList}>
           {groups.map(({ workspace, collections }) => (
             <SourceFilterRow

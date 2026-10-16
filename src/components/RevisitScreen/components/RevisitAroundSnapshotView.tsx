@@ -1,8 +1,6 @@
 import React from "react";
 import { Text, View } from "react-native";
-import { Press } from "../../common/Press";
-import { PageIntro } from "../../common/PageIntro";
-import { styles } from "../../../styles";
+import { InkLink } from "../../common/InkLink";
 import type { SongIdea } from "../../../types";
 import type { RevisitAroundSnapshot, RevisitCandidate } from "../../../domain/revisit";
 import { revisitStyles } from "../styles";
@@ -44,25 +42,13 @@ export function RevisitAroundSnapshotView({
   const { t } = useTranslation();
   return (
     <View style={revisitStyles.snapshotList}>
-      <PageIntro
-        title={snapshot.title}
-        subtitle={snapshot.subtitle}
-      />
-
-      <View style={[styles.card, revisitStyles.snapshotHeaderCard]}>
-        <View style={revisitStyles.snapshotHeaderTopRow}>
-          <Text style={revisitStyles.snapshotWindowText}>{snapshot.windowLabel}</Text>
-          <Press
-            haptic="none"
-            style={revisitStyles.sectionActionButton}
-            onPress={onOpenInActivity}
-          >
-            <Text style={revisitStyles.sectionActionText}>{t("revisit.openActivity")}</Text>
-          </Press>
-        </View>
-        <Text style={styles.settingsSectionMeta}>
-          {t("revisit.itemCount", { count: snapshot.items.length })}
+      {/* The header already names the page; the window and its count are one
+          quiet line, Activity an ink link (2026-10-16). */}
+      <View style={revisitStyles.snapshotMetaRow}>
+        <Text style={revisitStyles.snapshotMetaText} numberOfLines={1}>
+          {`${snapshot.windowLabel} · ${t("revisit.itemCount", { count: snapshot.items.length })}`}
         </Text>
+        <InkLink label={t("revisit.openActivity")} onPress={onOpenInActivity} />
       </View>
 
       {snapshot.items.length === 0 ? (

@@ -1349,3 +1349,16 @@ the step must be the shared one, from a shared component. So:
 Left: the help sheet's grey discs (founder did not take it up), TitleInput's
 bordered field in the save sheet (canon, used elsewhere), the player's "Add a
 section" dialog (old chips) for the sweep.
+
+## Revisit (2026-10-16, founder: "you choose", A on https://claude.ai/artifact/ARPyXS13ygb9rzEsVoSTka)
+
+The day as a quiet line ("Saturday, Oct 17 · 3 ideas", was terracotta caps);
+sections as small-caps labels with an ink glyph, so only the ideas wear Lora.
+Customize as rows on paper: Jakarta sheet title, ink glyphs (were terracotta),
+hints under eight words, the explaining paragraphs gone, "Primary" a quiet
+word in the shared SourceFilterRow (also Activity's sheet; was a starred
+pill). The item menu says "Hide from Revisit" in ink with "Restore it from
+Customize", and its question is a confirm, not a destructive one. Around this
+time: one meta line on a hairline with an Activity ink link (the boxed header,
+filled key and duplicate intro gone). Not seen in the simulator: Around this
+time (no ideas old enough).
