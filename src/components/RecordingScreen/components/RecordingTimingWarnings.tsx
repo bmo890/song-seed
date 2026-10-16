@@ -1,11 +1,11 @@
 import React, { useRef } from "react";
-import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, PanResponder, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { RecordingTimingWarning } from "../hooks/useRecordingScreenModel";
-import { colors, radii } from "../../../design/tokens";
+import { colors } from "../../../design/tokens";
 import { durations, springs } from "../../../design/motion";
 import { haptic } from "../../../design/haptics";
-import { styles as globalStyles } from "../../../styles";
+import { Press } from "../../common/Press";
 import { useTranslation } from "react-i18next";
 
 /** Horizontal travel past which a release commits the dismissal. */
@@ -32,8 +32,14 @@ export function RecordingTimingWarnings({
 
   return (
     <View style={s.stack}>
-      {warnings.map((warning) => (
-        <DismissableRow key={warning.kind} warning={warning} onCalibrate={onCalibrate} onDismiss={onDismiss} />
+      {warnings.map((warning, index) => (
+        <DismissableRow
+          key={warning.kind}
+          warning={warning}
+          last={index === warnings.length - 1}
+          onCalibrate={onCalibrate}
+          onDismiss={onDismiss}
+        />
       ))}
     </View>
   );
@@ -41,10 +47,12 @@ export function RecordingTimingWarnings({
 
 function DismissableRow({
   warning,
+  last,
   onCalibrate,
   onDismiss,
 }: {
   warning: RecordingTimingWarning;
+  last: boolean;
   onCalibrate: () => void;
   onDismiss: (kind: RecordingTimingWarning["kind"]) => void;
 }) {
@@ -101,67 +109,72 @@ function DismissableRow({
 
   return (
     <Animated.View
-      style={[s.row, { opacity, transform: [{ translateX }] }]}
+      style={[s.row, last ? s.rowLast : null, { opacity, transform: [{ translateX }] }]}
       {...panResponder.panHandlers}
       accessibilityLiveRegion="polite"
     >
       <Ionicons
         name={warning.kind === "bt-mic" ? "mic-off-outline" : "timer-outline"}
-        size={14}
+        size={15}
         color={colors.primaryDeep}
         style={s.icon}
       />
-      <Text style={s.message} numberOfLines={3}>
+      <Text style={s.message} numberOfLines={2}>
         {warning.message}
       </Text>
       {warning.showCalibrateAction ? (
-        <Pressable
-          style={({ pressed }) => [s.action, pressed ? globalStyles.pressDown : null]}
+        <Press
+          // Haptics vocabulary: the link only takes you somewhere; navigation is silent.
+          haptic="navigate"
+          feel="glyph"
+          style={s.action}
           onPress={onCalibrate}
-          accessibilityRole="button"
+          hitSlop={8}
+          accessibilityRole="link"
           accessibilityLabel={t("recording.openCalibration")}
         >
           <Text style={s.actionText}>{t("recording.calibrate")}</Text>
-        </Pressable>
+        </Press>
       ) : null}
     </Animated.View>
   );
 }
 
+// One quiet line on paper between hairlines (2026-10-16; was a tinted pill
+// with a white key): a glyph, a short sentence, an ink link.
 const s = StyleSheet.create({
   stack: {
-    gap: 6,
     paddingHorizontal: 16,
-    paddingTop: 6,
+    paddingTop: 10,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    backgroundColor: colors.primarySurface,
-    borderRadius: radii.lg,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    gap: 10,
+    paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderMuted,
+  },
+  rowLast: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
   },
   icon: {
     flexShrink: 0,
   },
   message: {
     flex: 1,
-    fontFamily: "PlusJakartaSans_500Medium",
-    fontSize: 12,
-    lineHeight: 16,
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 13,
+    lineHeight: 18,
     color: colors.textStrong,
   },
   action: {
-    borderRadius: radii.lg,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingVertical: 4,
   },
   actionText: {
-    fontSize: 12,
-    fontFamily: "PlusJakartaSans_700Bold",
+    fontSize: 13,
+    fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.primaryDeep,
   },
 });

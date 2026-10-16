@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Spinner } from "../../common/Spinner";
 import { Ionicons } from "@expo/vector-icons";
 import { useAudioDevices } from "@siteed/audio-studio";
@@ -72,8 +72,6 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
 
     // If no preference is saved, default to the first available device.
     const activeSelectionId = preferredInputId ?? availableDevices[0]?.id ?? null;
-    const activeDevice = availableDevices.find((d) => d.id === activeSelectionId);
-    const activeLabel = activeDevice ? formatDeviceLabel(activeDevice, t) : t("recording.builtInMic");
 
     useEffect(() => {
         if (loading) return;
@@ -105,7 +103,7 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
                 () => {
                     void applySelectedDevice(device.id);
                 },
-                { confirmLabel: t("recording.useBluetoothMic") }
+                { confirmLabel: t("recording.useBluetoothMic"), cancelLabel: t("recording.keepPhoneMic"), icon: "bluetooth" }
             );
             return;
         }
@@ -162,24 +160,25 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
                                 color={isActive ? colors.primary : colors.textMuted}
                             />
                             <Ionicons name={iconForType(device.type)} size={18} color={colors.textStrong} />
-                            <Text
-                                style={[
-                                    styles.recordingInputOptionText,
-                                    isActive ? styles.recordingInputOptionTextActive : null,
-                                ]}
-                            >
-                                {formatDeviceLabel(device, t)}
-                            </Text>
+                            <View style={local.optionCopy}>
+                                <Text
+                                    style={[
+                                        styles.recordingInputOptionText,
+                                        isActive ? styles.recordingInputOptionTextActive : null,
+                                    ]}
+                                >
+                                    {formatDeviceLabel(device, t)}
+                                </Text>
+                                {/* The Bluetooth mic says its cost on its own row, not
+                                    in a note under the list (2026-10-16). */}
+                                {isActive && device.type === "bluetooth" ? (
+                                    <Text style={local.optionCost}>{t("recording.bluetoothMicActive")}</Text>
+                                ) : null}
+                            </View>
                         </Pressable>
                     );
                 })}
             </View>
-
-            {activeDevice?.type === "bluetooth" ? (
-                <Text style={styles.recordingInputDisabledNote}>
-                    {t("recording.bluetoothMicActive")}
-                </Text>
-            ) : null}
 
             {disabled ? (
                 <Text style={styles.recordingInputDisabledNote}>{t("recording.inputLocked")}</Text>
@@ -191,3 +190,16 @@ export function RecordingInputPicker({ disabled, preferredInputId, onChangePrefe
         </View>
     );
 }
+
+const local = StyleSheet.create({
+    optionCopy: {
+        flex: 1,
+        minWidth: 0,
+        gap: 2,
+    },
+    optionCost: {
+        fontSize: 12,
+        fontFamily: "PlusJakartaSans_400Regular",
+        color: colors.textSecondary,
+    },
+});

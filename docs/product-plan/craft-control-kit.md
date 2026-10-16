@@ -1302,3 +1302,19 @@ https://claude.ai/artifact/WjBLuFtNsTYCofRfsKK51E): Tempo stays open; Meter
 are `FoldRow`s (MetronomeBlocks) that unfold in place, one at a time, and
 the sheet opens folded every time. `meterSummary` / `soundSummary` are
 shared with the Metronome page's rows.
+
+Bluetooth (2026-10-16, the canvas above, founder: "Perfect"). Calibration is
+a pushed place ("‹ Settings", Lora name; the doubled "Settings" and the intro
+are gone), rows on paper: "Listening through" names the route with its state
+("Not calibrated · reports 180 ms" / "Connect the headphones to calibrate."),
+one Start key and a "Use N ms" ink link. A pass hides the page behind one tonal
+Tap pad with a hairline progress and a Stop. The result puts Music and Click
+on Steppers (10 ms a detent, hold to run; the four ±10/±25 keys per delay are
+gone) over Save and Try again. Saved calibrations are ListRows; a row's menu
+holds Fine-tune (back onto the result Steppers, keeping the OS report it was
+measured against), Calibrate again (only when those headphones are the route)
+and Remove. Recorder warnings are one quiet line between hairlines with an
+ink "Calibrate"; the Bluetooth mic says its cost on its own input row and is
+asked once ("Use it" / "Keep the phone mic"). Copy shortened throughout.
+Simulator: only the nothing-connected state can be seen; the rest wants a
+phone with Bluetooth headphones.
