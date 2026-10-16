@@ -1,3 +1,4 @@
+import { StyleSheet } from "react-native";
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
 import { colors, radii, text } from "../design/tokens";
 
@@ -389,27 +390,22 @@ export const recordingStyles = {
   recordingOutputRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    marginTop: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 4,
-    backgroundColor: "#F4F1ED",
+    gap: 14,
+    minHeight: 56,
   },
   recordingOutputCopy: {
     flex: 1,
     gap: 1,
   },
   recordingOutputLabel: {
-    fontSize: 11,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    color: "#84736f",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    fontSize: 16,
+    fontFamily: "PlusJakartaSans_500Medium",
+    color: colors.textPrimary,
   },
   recordingOutputValue: {
-    fontSize: 14,
-    color: "#1b1c1a",
+    fontSize: 12,
+    fontFamily: "PlusJakartaSans_400Regular",
+    color: colors.textSecondary,
   },
   recordingOutputAuto: {
     fontSize: 11,
@@ -485,11 +481,12 @@ export const recordingStyles = {
     gap: 10,
     marginBottom: 4,
   },
+  // Named like every sheet: Jakarta, 15, semibold.
   recordingSettingsTitle: {
-    fontFamily: "Lora_600SemiBold",
-    fontSize: 19,
-    color: "#1b1c1a",
-    marginBottom: 4,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 15,
+    color: colors.textPrimary,
+    marginBottom: 8,
   },
   recordingSettingsMeta: {
     fontSize: 13,
@@ -499,7 +496,7 @@ export const recordingStyles = {
   },
   recordingInputHeader: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
   },
@@ -508,56 +505,48 @@ export const recordingStyles = {
     gap: 2,
   },
   recordingInputTitle: {
-    fontSize: 13,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    color: "#84736f",
+    fontSize: 10,
+    fontFamily: "PlusJakartaSans_700Bold",
+    color: colors.textMuted,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 1,
   },
   recordingInputActiveLabel: {
     fontSize: 17,
     fontFamily: "PlusJakartaSans_700Bold",
     color: "#1b1c1a",
   },
+  // A bare ink glyph, no disc.
   recordingInputRefreshBtn: {
     width: 34,
     height: 34,
-    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F4F1ED",
-    borderWidth: 1,
-    borderColor: "#E8E4DF",
   },
   recordingInputOptionList: {
-    gap: 6,
+    gap: 0,
   },
+  // Rows on paper: hairlines, the one in use marked by its radio.
   recordingInputOption: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: "#E8E4DF",
-    backgroundColor: "#FFFFFF",
+    gap: 12,
+    minHeight: 52,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
   },
-  recordingInputOptionActive: {
-    borderColor: "#B87D6B",
-    backgroundColor: "#B87D6B",
-  },
+  recordingInputOptionActive: {},
   recordingInputOptionDisabled: {
     opacity: 0.55,
   },
   recordingInputOptionText: {
     flex: 1,
-    fontSize: 14,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    color: "#524440",
+    fontSize: 16,
+    fontFamily: "PlusJakartaSans_500Medium",
+    color: colors.textPrimary,
   },
   recordingInputOptionTextActive: {
-    color: "#FFFFFF",
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   recordingInputOptionCheck: {
     marginLeft: "auto",

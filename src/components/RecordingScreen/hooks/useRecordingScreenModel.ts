@@ -1037,17 +1037,6 @@ export function useRecordingScreenModel() {
     }
   }
 
-  function confirmRedoTake() {
-    AppAlert.destructive(
-      t("recording.redoTitle"),
-      t("recording.redoBody"),
-      () => {
-        void redoTake();
-      },
-      { confirmLabel: t("recording.redo"), cancelLabel: t("recording.keepRecording"), icon: actionIcons.restore }
-    );
-  }
-
   // Swipe-back and the Android back button pop this screen with no handler. If no
   // take was in flight at that moment, the placeholder idea goes with the screen.
   // (Mid-take, the recovery marker owns the file — nothing is deleted here.)
@@ -1081,6 +1070,39 @@ export function useRecordingScreenModel() {
       },
       { confirmLabel: t("recording.discard"), cancelLabel: t("recording.keepRecording"), icon: actionIcons.discard }
     );
+  }
+
+  // The dock's Discard (2026-10-15, founder picked A): one question, two
+  // plain answers with their glyphs. Redo deletes the take and stays ready;
+  // Discard deletes it and leaves. Either runs at once, no second confirm, so
+  // both cost the same two taps they did when Redo had its own key.
+  function confirmDiscardOrRedo() {
+    const hasRecordingToDiscard =
+      isArmingRecording || recording.isRecording || recording.isPaused || recording.elapsedMs > 0;
+    if (!hasRecordingToDiscard) {
+      confirmDiscardAndExit();
+      return;
+    }
+    AppAlert.custom(t("recording.discardTitle"), undefined, [
+      {
+        label: t("recording.redo"),
+        style: "default",
+        icon: actionIcons.restore,
+        onPress: () => {
+          void redoTake();
+        },
+      },
+      {
+        label: t("recording.discard"),
+        style: "destructive",
+        // The dock's own glyph, so the answer looks like the key you pressed.
+        icon: "trash-outline",
+        onPress: () => {
+          cancelRecording().then(() => navigation.goBack());
+        },
+      },
+      { label: t("recording.keepRecording"), style: "cancel" },
+    ]);
   }
 
   async function requestSaveRecording() {
@@ -2332,7 +2354,7 @@ export function useRecordingScreenModel() {
     setLyricsAutoscrollMode,
     setLyricsAutoscrollSpeedMultiplier,
     confirmDiscardAndExit,
-    confirmRedoTake,
+    confirmDiscardOrRedo,
     handleQuickNameCancel,
     minimizeRecording,
     requestSaveRecording,

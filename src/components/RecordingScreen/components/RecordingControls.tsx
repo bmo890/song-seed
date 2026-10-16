@@ -14,14 +14,11 @@ type Props = {
     compact?: boolean;
     canSave?: boolean;
     canDiscard?: boolean;
-    /** Redo scraps the take but keeps the session armed — enabled during count-in too. */
-    canRedo?: boolean;
     onPause: () => Promise<void>;
     onResume: () => Promise<void>;
     onStart: () => Promise<void>;
     onRequestSave: () => void;
     onDiscard: () => void;
-    onRedo?: () => void;
 };
 
 export function RecordingControls({
@@ -32,13 +29,11 @@ export function RecordingControls({
     compact = false,
     canSave = true,
     canDiscard = true,
-    canRedo = false,
     onPause,
     onResume,
     onStart,
     onRequestSave,
     onDiscard,
-    onRedo,
 }: Props) {
     const { t } = useTranslation();
     return (
@@ -48,20 +43,22 @@ export function RecordingControls({
                     style={[
                         styles.circleControlBtn,
                         compact ? styles.circleControlBtnCompact : null,
-                        !canDiscard || isArming ? styles.circleControlBtnDisabled : null,
+                        !canDiscard ? styles.circleControlBtnDisabled : null,
                     ]}
                     onPress={() => {
                         haptic.tap();
                         onDiscard();
                     }}
-                    disabled={!canDiscard || isArming}
+                    // Live during a count-in too: its Redo answer is how a count
+                    // that started wrong is stopped (REC-25).
+                    disabled={!canDiscard}
                     accessibilityRole="button"
                     accessibilityLabel={t("recording.discardA11y")}
                 >
                     <Ionicons
                         name="trash-outline"
                         size={compact ? 18 : 21}
-                        color={!canDiscard || isArming ? colors.textMuted : colors.danger}
+                        color={!canDiscard ? colors.textMuted : colors.danger}
                     />
                     {compact ? null : (
                         <Text
@@ -72,33 +69,6 @@ export function RecordingControls({
                         </Text>
                     )}
                 </Pressable>
-                {onRedo ? (
-                    <Pressable
-                        style={[
-                            styles.circleControlBtn,
-                            compact ? styles.circleControlBtnCompact : null,
-                            !canRedo ? styles.circleControlBtnDisabled : null,
-                        ]}
-                        onPress={() => {
-                            haptic.tap();
-                            onRedo();
-                        }}
-                        disabled={!canRedo}
-                        accessibilityRole="button"
-                        accessibilityLabel={t("recording.redoA11y")}
-                    >
-                        <Ionicons
-                            name="refresh-outline"
-                            size={compact ? 18 : 21}
-                            color={!canRedo ? colors.textMuted : colors.textSecondary}
-                        />
-                        {compact ? null : (
-                            <Text style={styles.controlBtnLabel} numberOfLines={1}>
-                                {t("recording.redoShort")}
-                            </Text>
-                        )}
-                    </Pressable>
-                ) : null}
             </View>
 
             <View style={styles.recordBtnWrap}>

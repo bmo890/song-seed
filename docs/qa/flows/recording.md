@@ -25,8 +25,8 @@
 | REC-21 | Discard confirm → keep | Record → trash icon → "Keep recording" | Alert closes, recording still running, timer never stopped | AUTO | iOS+Android | P1 |
 | REC-22 | Back with no take | Open recording screen → Back immediately | Leaves without any confirm (nothing to discard) | AUTO | iOS+Android | P2 |
 | REC-23 | Back with active take | Record → header Back | Same "Discard recording?" confirm as trash; Discard exits to origin | AUTO | iOS+Android | P1 |
-| REC-24 | Redo take | Record 5s → redo icon → "Redo take?" → Redo | Back to Ready on SAME screen; timer 0:00; metronome/count-in settings restored for next attempt | AUTO | iOS+Android | P2 |
-| REC-25 | Redo during count-in | Start take with count-in → tap redo mid-count | Count-in cancels cleanly to Ready (no stuck arming state); count-in bars preserved | AUTO | iOS+Android | P2 |
+| REC-24 | Redo take | Record 5s → Discard → "Discard take?" → Redo | Back to Ready on SAME screen; timer 0:00; metronome/count-in settings restored for next attempt | AUTO | iOS+Android | P2 |
+| REC-25 | Redo during count-in | Start take with count-in → Discard mid-count → Redo | Count-in cancels cleanly to Ready (no stuck arming state); count-in bars preserved | AUTO | iOS+Android | P2 |
 | REC-26 | Minimize during recording | Record → minimize (—) | Returns to previous screen; red "Recording" dock chip shows title + pause + save buttons; recording keeps rolling | AUTO | iOS+Android | P1 |
 | REC-27 | Dock pause/resume | Minimize while recording → tap dock pause → tap dock mic | Chip flips Paused/Recording; reopening screen shows matching state + elapsed | AUTO | iOS+Android | P2 |
 | REC-28 | Dock save | Minimize while recording → tap dock save | Recording screen reopens with naming modal already up; save completes normally | AUTO | iOS+Android | P1 |
