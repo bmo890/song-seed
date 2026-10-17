@@ -11,6 +11,7 @@ import { haptic } from "../../design/haptics";
 import { durations } from "../../design/motion";
 import { colors, radii, spacing } from "../../design/tokens";
 import { useTranslation } from "react-i18next";
+import { useLocale } from "../../i18n";
 
 type ActivityHeatmapGridProps = {
   year: number;
@@ -52,7 +53,19 @@ export function ActivityHeatmapGrid({
   const gridScrollRef = useRef<ScrollView>(null);
   const [gridViewportWidth, setGridViewportWidth] = useState(0);
   const gridWidth = Math.max(0, weeks.length * CELL_STRIDE - 4);
-  const displayRangeLabel = selectedRangeLabel?.replace(/, \d{4}/g, "") ?? t("activity.chooseRange");
+  const { formatLocale } = useLocale();
+  // One line, always (founder, 2026-10-16: the row was one line or two by the
+  // length of the weekday): a day reads "Wed, Sep 16", the span's own style.
+  const displayRangeLabel =
+    selectedRange == null
+      ? t("activity.chooseRange")
+      : selectedRange.startTs === selectedRange.endTs
+        ? new Date(selectedRange.startTs).toLocaleDateString(formatLocale, {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+          })
+        : selectedRangeLabel?.replace(/, \d{4}/g, "") ?? t("activity.chooseRange");
   const todayTs = useMemo(() => startOfActivityDay(Date.now()), []);
   const isSpan = selectedRange != null && selectedRange.endTs > selectedRange.startTs;
   // The weeks the selection covers, for the rule beneath the grid.
@@ -115,7 +128,7 @@ export function ActivityHeatmapGrid({
     <View>
       <View style={local.headRow}>
         <View style={local.headCopy}>
-          <Text style={local.date} numberOfLines={2}>
+          <Text style={local.date} numberOfLines={1}>
             {displayRangeLabel}
           </Text>
           {scopeLabel !== t("activity.allWorkspaces") ? (
@@ -341,9 +354,10 @@ function SelectionRule({ startWeek, endWeek }: { startWeek: number; endWeek: num
 }
 
 const local = StyleSheet.create({
+  // The controls sit on the date's centre line, not its foot.
   headRow: {
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
     gap: spacing.md,
     paddingBottom: spacing.lg,
   },
