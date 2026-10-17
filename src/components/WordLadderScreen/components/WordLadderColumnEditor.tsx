@@ -22,6 +22,10 @@ type Props = {
   onAdd: (text: string) => void;
   /** Sprinkles a few dataset words matched to the seed into the column. */
   onSuggest?: () => void;
+  /** Places still to fill (the Nouns page: one per verb not yet matched).
+   *  Drawn as empty ruled rows under the add row; at 0 the list is complete
+   *  and the add row and Suggest step aside. Unset = an open-ended list. */
+  slots?: number;
   onEdit: (wordId: string, text: string) => void;
   onReorder: (words: WordLadderWord[]) => void;
   onRemove: (wordId: string) => void;
@@ -43,6 +47,7 @@ export function WordLadderColumnEditor({
   emptyHint,
   onAdd,
   onSuggest,
+  slots,
   onEdit,
   onReorder,
   onRemove,
@@ -62,6 +67,11 @@ export function WordLadderColumnEditor({
     onAdd(text);
     latest.current = "";
     addInput.current?.clear();
+    // iOS can commit a pending autocorrect after Return and put the word back;
+    // clear again once that has landed.
+    requestAnimationFrame(() => {
+      if (latest.current === "") addInput.current?.clear();
+    });
     return true;
   }
   // Return adds too. Haptics vocabulary: light, a small state flip (a word
@@ -70,7 +80,10 @@ export function WordLadderColumnEditor({
     if (addDraft(text)) haptic.light();
   }
 
-  const footer = (
+  const complete = slots === 0;
+  const emptyRows = slots !== undefined && slots > 1 ? slots - 1 : 0;
+
+  const footer = complete ? null : (
     <>
       <View style={s.addRow}>
         <Press
@@ -96,8 +109,24 @@ export function WordLadderColumnEditor({
           returnKeyType="done"
           blurOnSubmit={false}
           autoCapitalize="none"
+          autoCorrect={false}
         />
       </View>
+      {/* The rest of the places to fill: quiet ruled rows; a tap lands in the
+          add row above, where the next word goes. */}
+      {Array.from({ length: emptyRows }, (_, i) => (
+        <Press
+          // Haptics vocabulary: tap, an acknowledged press (lands in the add row).
+          key={i}
+          feel="still"
+          style={s.slotRow}
+          onPress={() => addInput.current?.focus()}
+          accessibilityRole="button"
+          accessibilityLabel={placeholder}
+        >
+          <Ionicons name="add" size={17} color={colors.borderMuted} style={s.slotGlyph} />
+        </Press>
+      ))}
       {onSuggest ? (
         <Press
           // Haptics vocabulary: light, words arrive.
@@ -320,6 +349,17 @@ const s = StyleSheet.create({
     color: colors.textPrimary,
     paddingVertical: 10,
     paddingHorizontal: 0,
+  },
+  slotRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 44,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
+  },
+  slotGlyph: {
+    width: 22,
+    textAlign: "center",
   },
   suggest: {
     flexDirection: "row",

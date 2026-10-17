@@ -99,8 +99,8 @@ export function SparkHeader({
 
 /**
  * The steps as a numbered path (2026-10-17, founder: a beginning and an end,
- * like a form): 1 › 2 › 3. The current step is a filled ink number, a finished
- * one a check, the ones ahead hollow and muted. It is wayfinding, not a
+ * like a form): 1 › 2 › 3. The current step is a filled ink number with its
+ * name, a finished one a check, the ones ahead hollow and muted. It is wayfinding, not a
  * control: nothing here is tappable; the footer moves you.
  */
 export function SparkSteps({ steps, current }: { steps: string[]; current: number }) {
@@ -131,12 +131,14 @@ export function SparkSteps({ steps, current }: { steps: string[]; current: numbe
                   <Text style={[s.stepNumText, isCurrent ? s.stepNumTextCurrent : null]}>{index + 1}</Text>
                 )}
               </View>
-              <Text
-                style={[s.stepText, isDone ? s.stepDone : null, isCurrent ? s.stepTextCurrent : null]}
-                numberOfLines={1}
-              >
-                {label}
-              </Text>
+              {/* Only the step you're on is named; the others are their number
+                  or check. Five named steps truncated to "Ve… No… P…" on a
+                  phone (2026-10-17). */}
+              {isCurrent ? (
+                <Text style={[s.stepText, s.stepTextCurrent]} numberOfLines={1}>
+                  {label}
+                </Text>
+              ) : null}
             </View>
           </Fragment>
         );
@@ -322,9 +324,6 @@ const s = StyleSheet.create({
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 13,
     color: colors.textMuted,
-  },
-  stepDone: {
-    color: colors.textSecondary,
   },
   stepTextCurrent: {
     fontFamily: "PlusJakartaSans_600SemiBold",

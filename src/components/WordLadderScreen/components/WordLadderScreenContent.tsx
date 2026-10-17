@@ -209,6 +209,7 @@ export function WordLadderScreenContent() {
             }
             onAdd={(text) => model.addColumnWord("b", text)}
             onSuggest={() => model.suggestColumnWords("b")}
+            slots={Math.max(0, verbCount - nounCount)}
             onEdit={(id, text) => model.editColumnWord("b", id, text)}
             onReorder={(words) => model.reorderColumnWords("b", words)}
             onRemove={(id) => model.removeColumnWord("b", id)}
