@@ -255,6 +255,8 @@ export function sanitizeWordLadderExercise(raw: unknown): WordLadderExercise | n
       : [],
     draft: sanitizeDraft(obj.draft, obj.poem, obj.lines),
     revision: isNonEmptyString(obj.revision) ? obj.revision : "",
+    savedLyricId: isNonEmptyString(obj.savedLyricId) ? obj.savedLyricId : undefined,
+    finishedAt: typeof obj.finishedAt === "number" && Number.isFinite(obj.finishedAt) ? obj.finishedAt : undefined,
   };
 }
 

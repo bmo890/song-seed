@@ -67,7 +67,7 @@ function BuildHelp() {
       <View style={helpStyles.points}>
         <HelpPoint icon="add-outline" title={t("magpieHelp.reorderTitle")} body={t("magpieHelp.reorderBody")} />
         <HelpPoint icon="options-outline" title={t("magpieHelp.splitTitle")} body={t("magpieHelp.splitBody")} />
-        <HelpPoint icon="bookmark-outline" title={t("magpieHelp.saveTitle")} body={t("magpieHelp.saveBody")} />
+        <HelpPoint icon="checkmark-circle-outline" title={t("magpieHelp.saveTitle")} body={t("magpieHelp.saveBody")} />
       </View>
     </>
   );

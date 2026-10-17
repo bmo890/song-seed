@@ -20,6 +20,15 @@ import { colors, radii, shadows, spacing, text as textTokens } from "../../../de
 import { haptic } from "../../../design/haptics";
 import type { Note, WordLadderExercise, CutUpSpark, MagpieSpark } from "../../../types";
 import { useTranslation } from "react-i18next";
+import { useNavigation } from "@react-navigation/native";
+import { useStore } from "../../../state/useStore";
+import {
+  cutUpText,
+  magpieText,
+  sendSparkToPad,
+  sparkDoneLabel,
+  wordLadderText,
+} from "../../common/sparkSend";
 import { UserText } from "../../../i18n";
 import {
   buildSearchPreviewSegments,
@@ -224,6 +233,8 @@ function SparkListItem<T extends { id: string; title: string }>({
 const UNTITLED_TITLES = new Set(["Untitled Word Ladder", "Untitled Cut-Up"]);
 
 function WordLadderListItem(props: SparkItemProps<WordLadderExercise>) {
+  const notes = useStore((state) => state.notes);
+  const hasPadPage = (noteId: string) => notes.some((note) => note.id === noteId);
   const { t } = useTranslation();
   const { spark } = props;
   const words = spark.columnA.length + spark.columnB.length;
@@ -244,12 +255,14 @@ function WordLadderListItem(props: SparkItemProps<WordLadderExercise>) {
       methodName={t("wordSparks.wordLadder")}
       untitled={UNTITLED_TITLES.has(spark.title)}
       meta={meta}
-      stepLabel={stepLabel}
+      stepLabel={sparkDoneLabel(spark, hasPadPage) ?? stepLabel}
     />
   );
 }
 
 function CutUpListItem(props: SparkItemProps<CutUpSpark>) {
+  const notes = useStore((state) => state.notes);
+  const hasPadPage = (noteId: string) => notes.some((note) => note.id === noteId);
   const { t } = useTranslation();
   const { spark } = props;
   const onTable = spark.boardItems.filter((item) => !item.removed).length;
@@ -267,12 +280,14 @@ function CutUpListItem(props: SparkItemProps<CutUpSpark>) {
       methodName={t("wordSparks.cutUp")}
       untitled={UNTITLED_TITLES.has(spark.title)}
       meta={meta}
-      stepLabel={t(`wordSparks.${step}`)}
+      stepLabel={sparkDoneLabel(spark, hasPadPage) ?? t(`wordSparks.${step}`)}
     />
   );
 }
 
 function MagpieListItem(props: SparkItemProps<MagpieSpark>) {
+  const notes = useStore((state) => state.notes);
+  const hasPadPage = (noteId: string) => notes.some((note) => note.id === noteId);
   const { t } = useTranslation();
   const { spark } = props;
   return (
@@ -282,12 +297,14 @@ function MagpieListItem(props: SparkItemProps<MagpieSpark>) {
       methodName={t("wordSparks.magpie")}
       untitled={spark.title === t("magpie.untitledSpark")}
       meta={t("notepad.sparkWords", { count: spark.fragments.length })}
-      stepLabel={t(`wordSparks.${spark.step}`)}
+      stepLabel={sparkDoneLabel(spark, hasPadPage) ?? t(`wordSparks.${spark.step}`)}
     />
   );
 }
 
 export function NotepadScreenContent() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const navigation = useNavigation<any>();
   const { t } = useTranslation();
   const {
     sections,
@@ -385,8 +402,63 @@ export function NotepadScreenContent() {
     onPress: confirmDeleteSelected,
   };
 
+  // One spark selected: it can go to the Lyric Pad from here too (a copy; the
+  // spark stays).
+  const singleSparkSelected =
+    selectedNoteIds.length === 0 &&
+    selectedLadderIds.length + selectedCutUpIds.length + selectedMagpieIds.length === 1;
+  function sendSelectedSpark() {
+    const state = useStore.getState();
+    if (selectedLadderIds.length === 1) {
+      const spark = state.wordLadders.find((item) => item.id === selectedLadderIds[0]);
+      if (!spark) return;
+      sendSparkToPad({
+        text: wordLadderText(spark),
+        title: spark.title,
+        methodName: t("wordSparks.wordLadder"),
+        savedLyricId: spark.savedLyricId,
+        link: (noteId) => state.updateWordLadder(spark.id, { savedLyricId: noteId }),
+        navigation,
+      });
+    } else if (selectedCutUpIds.length === 1) {
+      const spark = state.cutUpSparks.find((item) => item.id === selectedCutUpIds[0]);
+      if (!spark) return;
+      sendSparkToPad({
+        text: cutUpText(spark),
+        title: spark.title,
+        methodName: t("wordSparks.cutUp"),
+        savedLyricId: spark.savedLyricId,
+        link: (noteId) => state.updateCutUpSpark(spark.id, { savedLyricId: noteId }),
+        navigation,
+      });
+    } else if (selectedMagpieIds.length === 1) {
+      const spark = state.magpieSparks.find((item) => item.id === selectedMagpieIds[0]);
+      if (!spark) return;
+      sendSparkToPad({
+        text: magpieText(spark),
+        title: spark.title,
+        methodName: t("wordSparks.magpie"),
+        savedLyricId: spark.savedLyricId,
+        link: (noteId) => state.updateMagpieSpark(spark.id, { savedLyricId: noteId }),
+        navigation,
+      });
+    }
+    cancelSelection();
+  }
+  const sendAction: SelectionAction = {
+    key: "send",
+    label: t("wordSparks.toPad"),
+    icon: "document-text-outline",
+    renderIcon: ({ color, size, disabled }) => (
+      <DockAddBadgeIcon base="document-text-outline" color={color} size={size} disabled={disabled} />
+    ),
+    onPress: sendSelectedSpark,
+  };
+
   const dockActions: SelectionAction[] = hasSparkSelection
-    ? [deleteAction]
+    ? singleSparkSelected
+      ? [sendAction, deleteAction]
+      : [deleteAction]
     : [
         {
           key: "add-to-song",

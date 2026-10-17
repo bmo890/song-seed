@@ -10,6 +10,7 @@ import { BottomSheet } from "../../common/BottomSheet";
 import type { MagpieFragment, MagpieSpark } from "../../../types";
 import type { useMagpieScreenModel } from "../hooks/useMagpieScreenModel";
 import { useTranslation } from "react-i18next";
+import { useHasPadPage } from "../../common/sparkSend";
 import { useSparkTextScale } from "../../common/sparkTextScale";
 import { SparkFooter } from "../../common/SparkFrame";
 import { UndoRedoButtons } from "../../common/useUndoHistory";
@@ -30,6 +31,7 @@ export function MagpieBuildStep({
 }) {
   const { t } = useTranslation();
   const { zoom } = useSparkTextScale();
+  const hasPadPage = useHasPadPage(spark.savedLyricId);
   const [expanded, setExpanded] = useState(false);
   const [menuFragmentId, setMenuFragmentId] = useState<string | null>(null);
   // Derive the menu's fragment live from the store so inline edits/merges show.
@@ -126,7 +128,12 @@ export function MagpieBuildStep({
       {!keyboardVisible ? (
         <SparkFooter
           back={{ label: t("wordSparks.page"), onPress: () => model.goToStep("page") }}
-          next={{ label: t("common.save"), onPress: model.saveAsLyrics, final: true }}
+          next={{ label: t("wordSparks.finish"), onPress: model.finish, disabled: draftBlank, final: true }}
+          link={!draftBlank
+                  ? hasPadPage
+                    ? { label: t("wordSparks.inPad"), icon: "document-text-outline" as const, onPress: model.openPadPageForSpark }
+                    : { label: t("wordSparks.sendToPad"), icon: "document-text-outline" as const, onPress: model.sendToPad }
+                  : undefined}
         />
       ) : null}
 

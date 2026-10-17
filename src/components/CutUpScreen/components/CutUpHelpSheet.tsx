@@ -170,7 +170,7 @@ function DraftHelp() {
 
       <View style={helpStyles.points}>
         <HelpPoint icon="shuffle" title={t("cutUpHelp.composeTitle")} body={t("cutUpHelp.composeBody")} />
-        <HelpPoint icon="bookmark-outline" title={t("cutUpHelp.saveTitle")} body={t("cutUpHelp.saveBody")} />
+        <HelpPoint icon="checkmark-circle-outline" title={t("cutUpHelp.saveTitle")} body={t("cutUpHelp.saveBody")} />
       </View>
     </>
   );

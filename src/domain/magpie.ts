@@ -584,6 +584,7 @@ export function sanitizeMagpieSpark(raw: unknown): MagpieSpark | null {
     language: obj.language === "he" ? "he" : "en",
     wholeLibrary: obj.wholeLibrary === true,
     savedLyricId: isString(obj.savedLyricId) ? obj.savedLyricId : undefined,
+    finishedAt: typeof obj.finishedAt === "number" && Number.isFinite(obj.finishedAt) ? obj.finishedAt : undefined,
     seenHelpSteps: Array.isArray(obj.seenHelpSteps)
       ? obj.seenHelpSteps.filter((s): s is MagpieStep => s === "page" || s === "build")
       : [],

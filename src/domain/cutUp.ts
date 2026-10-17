@@ -1052,6 +1052,7 @@ export function sanitizeCutUpSpark(raw: unknown): CutUpSpark | null {
     boardItems: boardItemsForSpark,
     assembledDraftText: isString(obj.assembledDraftText) ? obj.assembledDraftText : "",
     savedLyricId: isString(obj.savedLyricId) ? obj.savedLyricId : undefined,
+    finishedAt: typeof obj.finishedAt === "number" && Number.isFinite(obj.finishedAt) ? obj.finishedAt : undefined,
     seenHelpSteps: Array.isArray(obj.seenHelpSteps)
       ? obj.seenHelpSteps.filter(
           (s): s is CutUpStep => s === "source" || s === "chunk" || s === "board" || s === "draft"
