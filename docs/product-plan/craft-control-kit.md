@@ -1396,3 +1396,20 @@ label above and the rule below.
 Founder then asked for two-tap ranges back ("clicking 2 dates to show
 everything in between"): first tap picks a day, second closes the span, the
 next starts over; the hold is gone. It works now that the grid stays still.
+
+## Lyric Spark: main page and the shared frame (2026-10-17, founder picked paper A on https://claude.ai/artifact/PyGu74REe4CpbbZHhaYqBv)
+
+One frame for Word Ladder, Cut-Up and Borrowed Words (`common/SparkFrame`):
+the app's paper (the kraft desk and cream sheets retired; writing sheets are
+white cards), a compact tool bar with one "…" (Text size, How this works,
+Delete spark), the steps as ink tabs (Borrowed Words gained Page · Build),
+and one footer: a quiet "‹ Step" and a soft key named for the next step;
+Save fires `success`. The text size is remembered once for every spark
+(`useSparkPrefsStore`; it reset on each open, and per step in Borrowed
+Words). The missing-spark screen has a back key (it was a dead end).
+Main page: one SparkListItem (bare glyph, method name for app-made titles
+in Jakarta, i18n count, the step it rests on; long-press into selection is
+`grab`), the count a quiet number, the empty state without its disc, and New
+spark on the canon menu with one short line each. The English-only summary
+functions are gone. Method pages (columns, board, chips, pills, tiny
+targets, undo gaps) are the next passes: Word Ladder, Cut-Up, Borrowed Words.

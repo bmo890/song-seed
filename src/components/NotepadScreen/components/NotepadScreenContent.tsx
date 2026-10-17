@@ -17,9 +17,7 @@ import { LyricsSparkSheet } from "./LyricsSparkSheet";
 import { useNotepadScreenModel, type NotebookEntry } from "../hooks/useNotepadScreenModel";
 import { styles } from "../../../styles";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
-import { exerciseSummary } from "../../../domain/wordLadder";
-import { cutUpSummary } from "../../../domain/cutUp";
-import { magpieSummary } from "../../../domain/magpie";
+import { haptic } from "../../../design/haptics";
 import type { Note, WordLadderExercise, CutUpSpark, MagpieSpark } from "../../../types";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../../i18n";
@@ -144,147 +142,143 @@ function NoteListItem({
   );
 }
 
-type WordLadderItemProps = {
-  exercise: WordLadderExercise;
+type SparkItemProps<T extends { id: string; title: string }> = {
+  spark: T;
   selectionMode: boolean;
   isSelected: boolean;
-  onPress: (exercise: WordLadderExercise) => void;
-  onBeginSelection: (ladderId: string) => void;
-  onToggleSelect: (ladderId: string) => void;
-};
-
-function WordLadderListItem({
-  exercise,
-  selectionMode,
-  isSelected,
-  onPress,
-  onBeginSelection,
-  onToggleSelect,
-}: WordLadderItemProps) {
-  const { t } = useTranslation();
-  return (
-    <Press
-      haptic="none"
-      style={[noteStyles.card,
-        noteStyles.ladderCard,
-        isSelected ? noteStyles.cardSelected : null]}
-      onPress={() => onPress(exercise)}
-      onLongPress={() => (selectionMode ? onToggleSelect(exercise.id) : onBeginSelection(exercise.id))}
-      delayLongPress={250}
-    >
-      <View style={noteStyles.ladderIconWrap}>
-        <Ionicons name="shuffle-outline" size={16} color={colors.primary} />
-      </View>
-      <View style={noteStyles.cardBody}>
-        <UserText value={exercise.title} style={noteStyles.cardTitle} numberOfLines={1}>
-          {exercise.title}
-        </UserText>
-        <Text style={noteStyles.cardMeta}>{t("notepad.wordLadderMeta", { summary: exerciseSummary(exercise) })}</Text>
-      </View>
-      {selectionMode ? (
-        <View style={[noteStyles.selectIndicator, isSelected ? noteStyles.selectIndicatorChecked : null]}>
-          {isSelected ? <Ionicons name="checkmark" size={13} color={colors.onPrimary} /> : null}
-        </View>
-      ) : (
-        <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
-      )}
-    </Press>
-  );
-}
-
-type CutUpItemProps = {
-  spark: CutUpSpark;
-  selectionMode: boolean;
-  isSelected: boolean;
-  onPress: (spark: CutUpSpark) => void;
+  onPress: (spark: T) => void;
   onBeginSelection: (sparkId: string) => void;
   onToggleSelect: (sparkId: string) => void;
 };
 
-function CutUpListItem({
+/**
+ * One card for every spark (2026-10-17): your work, so the idea card's shell,
+ * with a bare glyph for its method (no tinted disc). The meta line says what
+ * it holds; the step it rests on sits where a card's time would. A title the
+ * app made ("Untitled …") is a machine name: quiet Jakarta, and it reads as the
+ * method; a title from your words earns Lora.
+ */
+function SparkListItem<T extends { id: string; title: string }>({
   spark,
   selectionMode,
   isSelected,
   onPress,
   onBeginSelection,
   onToggleSelect,
-}: CutUpItemProps) {
-  const { t } = useTranslation();
+  icon,
+  methodName,
+  untitled,
+  meta,
+  stepLabel,
+}: SparkItemProps<T> & {
+  icon: keyof typeof Ionicons.glyphMap;
+  methodName: string;
+  untitled: boolean;
+  meta: string;
+  stepLabel: string;
+}) {
   return (
     <Press
       haptic="none"
-      style={[noteStyles.card,
-        noteStyles.ladderCard,
-        isSelected ? noteStyles.cardSelected : null]}
+      style={[noteStyles.card, noteStyles.ladderCard, isSelected ? noteStyles.cardSelected : null]}
       onPress={() => onPress(spark)}
-      onLongPress={() => (selectionMode ? onToggleSelect(spark.id) : onBeginSelection(spark.id))}
+      onLongPress={() => {
+        if (selectionMode) {
+          onToggleSelect(spark.id);
+          return;
+        }
+        // Haptics vocabulary: grab, a long-press into selection mode.
+        haptic.grab();
+        onBeginSelection(spark.id);
+      }}
       delayLongPress={250}
     >
-      <View style={noteStyles.ladderIconWrap}>
-        <Ionicons name="cut-outline" size={16} color={colors.primary} />
+      <View style={noteStyles.sparkGlyph}>
+        <Ionicons name={icon} size={18} color={colors.textStrong} />
       </View>
       <View style={noteStyles.cardBody}>
-        <UserText value={spark.title} style={noteStyles.cardTitle} numberOfLines={1}>
-          {spark.title}
-        </UserText>
-        <Text style={noteStyles.cardMeta}>{t("notepad.cutUpMeta", { summary: cutUpSummary(spark) })}</Text>
+        {untitled ? (
+          <Text style={noteStyles.cardTitleMachine} numberOfLines={1}>
+            {methodName}
+          </Text>
+        ) : (
+          <UserText value={spark.title} style={noteStyles.cardTitle} numberOfLines={1}>
+            {spark.title}
+          </UserText>
+        )}
+        <Text style={noteStyles.cardMeta} numberOfLines={1}>
+          {untitled ? meta : `${methodName} · ${meta}`}
+        </Text>
       </View>
       {selectionMode ? (
         <View style={[noteStyles.selectIndicator, isSelected ? noteStyles.selectIndicatorChecked : null]}>
           {isSelected ? <Ionicons name="checkmark" size={13} color={colors.onPrimary} /> : null}
         </View>
       ) : (
-        <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
+        <Text style={noteStyles.sparkStep}>{stepLabel}</Text>
       )}
     </Press>
   );
 }
 
-type MagpieItemProps = {
-  spark: MagpieSpark;
-  selectionMode: boolean;
-  isSelected: boolean;
-  onPress: (spark: MagpieSpark) => void;
-  onBeginSelection: (sparkId: string) => void;
-  onToggleSelect: (sparkId: string) => void;
-};
+const UNTITLED_TITLES = new Set(["Untitled Word Ladder", "Untitled Cut-Up"]);
 
-function MagpieListItem({
-  spark,
-  selectionMode,
-  isSelected,
-  onPress,
-  onBeginSelection,
-  onToggleSelect,
-}: MagpieItemProps) {
+function WordLadderListItem(props: SparkItemProps<WordLadderExercise>) {
   const { t } = useTranslation();
+  const { spark } = props;
+  const words = spark.columnA.length + spark.columnB.length;
+  const meta =
+    spark.step === "setup"
+      ? t("notepad.sparkWords", { count: words })
+      : t("notepad.sparkPairs", { count: spark.pairings.length });
+  const step = spark.step === "setup" ? "words" : spark.step === "pairs" ? "pair" : spark.step;
   return (
-    <Press
-      haptic="none"
-      style={[noteStyles.card,
-        noteStyles.ladderCard,
-        isSelected ? noteStyles.cardSelected : null]}
-      onPress={() => onPress(spark)}
-      onLongPress={() => (selectionMode ? onToggleSelect(spark.id) : onBeginSelection(spark.id))}
-      delayLongPress={250}
-    >
-      <View style={noteStyles.ladderIconWrap}>
-        <Ionicons name="book-outline" size={16} color={colors.primary} />
-      </View>
-      <View style={noteStyles.cardBody}>
-        <UserText value={spark.title} style={noteStyles.cardTitle} numberOfLines={1}>
-          {spark.title}
-        </UserText>
-        <Text style={noteStyles.cardMeta}>{t("notepad.magpieMeta", { summary: magpieSummary(spark) })}</Text>
-      </View>
-      {selectionMode ? (
-        <View style={[noteStyles.selectIndicator, isSelected ? noteStyles.selectIndicatorChecked : null]}>
-          {isSelected ? <Ionicons name="checkmark" size={13} color={colors.onPrimary} /> : null}
-        </View>
-      ) : (
-        <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
-      )}
-    </Press>
+    <SparkListItem
+      {...props}
+      icon="shuffle-outline"
+      methodName={t("wordSparks.wordLadder")}
+      untitled={UNTITLED_TITLES.has(spark.title)}
+      meta={meta}
+      stepLabel={t(`wordSparks.${step}`)}
+    />
+  );
+}
+
+function CutUpListItem(props: SparkItemProps<CutUpSpark>) {
+  const { t } = useTranslation();
+  const { spark } = props;
+  const onTable = spark.boardItems.filter((item) => !item.removed).length;
+  const lines = spark.sourceText.split("\n").filter((line) => line.trim().length > 0).length;
+  // Count what this step holds: the lines brought in, then the scraps on the table.
+  const meta =
+    spark.step === "source" || spark.step === "chunk" || onTable === 0
+      ? t("notepad.sparkLines", { count: lines })
+      : t("notepad.sparkScraps", { count: onTable });
+  const step = spark.step === "chunk" ? "cut" : spark.step === "board" ? "arrange" : spark.step;
+  return (
+    <SparkListItem
+      {...props}
+      icon="cut-outline"
+      methodName={t("wordSparks.cutUp")}
+      untitled={UNTITLED_TITLES.has(spark.title)}
+      meta={meta}
+      stepLabel={t(`wordSparks.${step}`)}
+    />
+  );
+}
+
+function MagpieListItem(props: SparkItemProps<MagpieSpark>) {
+  const { t } = useTranslation();
+  const { spark } = props;
+  return (
+    <SparkListItem
+      {...props}
+      icon="book-outline"
+      methodName={t("wordSparks.magpie")}
+      untitled={spark.title === t("magpie.untitledSpark")}
+      meta={t("notepad.sparkWords", { count: spark.fragments.length })}
+      stepLabel={t(`wordSparks.${spark.step}`)}
+    />
   );
 }
 
@@ -455,7 +449,8 @@ export function NotepadScreenContent() {
       {pageEmpty ? (
         <View style={listStyles.emptyFill}>
           <EmptyState
-            icon={isSparkPage ? "sparkles-outline" : "document-text-outline"}
+            // Sparks: no disc, the words and one key (2026-10-17).
+            icon={isSparkPage ? undefined : "document-text-outline"}
             title={t(isSparkPage ? "notepad.noSparks" : "notepad.blankPage")}
             body={t(isSparkPage ? "notepad.noSparksHint" : "notepad.looseLines")}
             actionLabel={t(isSparkPage ? "notepad.startSpark" : "notepad.writeSomething")}
@@ -534,7 +529,7 @@ export function NotepadScreenContent() {
                       ) : entry.kind === "ladder" ? (
                         <WordLadderListItem
                           key={entry.exercise.id}
-                          exercise={entry.exercise}
+                          spark={entry.exercise}
                           selectionMode={selectionMode}
                           isSelected={selectedLadderIds.includes(entry.exercise.id)}
                           onPress={handleOpenLadder}
@@ -638,14 +633,12 @@ const listStyles = StyleSheet.create({
     color: colors.textPrimary,
     letterSpacing: 0.5,
   },
+  // A quiet number, not a grey pill (2026-10-17).
   sectionCount: {
     ...textTokens.caption,
-    color: colors.textStrong,
-    backgroundColor: colors.surfaceHigh,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radii.round,
-    overflow: "hidden",
+    fontFamily: "PlusJakartaSans_400Regular",
+    color: colors.textMuted,
+    fontVariant: ["tabular-nums"],
   },
   sectionStack: {
     gap: spacing.sm,
@@ -737,13 +730,20 @@ const noteStyles = StyleSheet.create({
   ladderCard: {
     alignItems: "center",
   },
-  ladderIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
+  sparkGlyph: {
+    width: 22,
     alignItems: "center",
-    justifyContent: "center",
-    marginTop: 1,
+  },
+  // A title the app made is a machine name: quiet Jakarta (earned-serif rule).
+  cardTitleMachine: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 16,
+    lineHeight: 22,
+    color: colors.textSecondary,
+  },
+  sparkStep: {
+    ...textTokens.caption,
+    fontFamily: "PlusJakartaSans_500Medium",
+    color: colors.textStrong,
   },
 });

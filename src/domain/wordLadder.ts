@@ -142,14 +142,6 @@ export function shufflePairings(exercise: Pick<WordLadderExercise, "columnA" | "
   return [...locked, ...reshuffled];
 }
 
-export function exerciseSummary(exercise: WordLadderExercise) {
-  const pairCount = exercise.pairings.length;
-  const parts = [`${pairCount} pair${pairCount === 1 ? "" : "s"}`];
-  if (exercise.revision.trim()) parts.push("revised");
-  else if (exercise.draft.trim()) parts.push("draft started");
-  return parts.join(" · ");
-}
-
 // ── Defensive sanitization (persisted data may be partial/corrupt) ─────────
 
 function isNonEmptyString(value: unknown): value is string {

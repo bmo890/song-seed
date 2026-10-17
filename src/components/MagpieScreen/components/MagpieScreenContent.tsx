@@ -1,15 +1,14 @@
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from "react-native";
+import { KeyboardAvoidingView, Platform, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, spacing, text as textTokens } from "../../../design/tokens";
+import { colors } from "../../../design/tokens";
+import { SPARK_PAPER, SparkHeader, SparkMissing, SparkSteps } from "../../common/SparkFrame";
 import { useMagpieScreenModel } from "../hooks/useMagpieScreenModel";
 import { MagpiePageStep } from "./MagpiePageStep";
 import { MagpieBuildStep } from "./MagpieBuildStep";
 import { MagpieHelpSheet } from "./MagpieHelpSheet";
 import { useTranslation } from "react-i18next";
-
-const KRAFT_BG = "#F2E9DC";
 
 export function MagpieScreenContent() {
   const { t } = useTranslation();
@@ -24,26 +23,37 @@ export function MagpieScreenContent() {
 
   if (!spark) {
     return (
-      <SafeAreaView style={[styles.shell, { backgroundColor: KRAFT_BG }]} edges={["top", "bottom"]}>
-        <View style={styles.missingState}>
-          <Ionicons name="book-outline" size={28} color={colors.textMuted} />
-          <Text style={styles.missingTitle}>{t("wordSparks.gone")}</Text>
-          <Text style={styles.missingBody}>{t("wordSparks.goneBody")}</Text>
-        </View>
+      <SafeAreaView style={[styles.shell, { backgroundColor: SPARK_PAPER }]} edges={["top", "bottom"]}>
+        <SparkMissing
+          icon={<Ionicons name="book-outline" size={28} color={colors.textMuted} />}
+          title={t("wordSparks.gone")}
+          body={t("wordSparks.goneBody")}
+          onBack={model.goBack}
+        />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.shell, { backgroundColor: KRAFT_BG }]} edges={["top", "bottom"]}>
+    <SafeAreaView style={[styles.shell, { backgroundColor: SPARK_PAPER }]} edges={["top", "bottom"]}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
+        <SparkHeader
+          title={t("wordSparks.magpie")}
+          onBack={model.goBack}
+          onHelp={openHelp}
+          onDelete={model.deleteSpark}
+        />
+        <SparkSteps
+          steps={[t("wordSparks.page"), t("wordSparks.build")]}
+          current={model.step === "page" ? 0 : 1}
+        />
         {model.step === "page" ? (
-          <MagpiePageStep model={model} spark={spark} onHelp={openHelp} />
+          <MagpiePageStep model={model} spark={spark} />
         ) : (
-          <MagpieBuildStep model={model} spark={spark} onHelp={openHelp} />
+          <MagpieBuildStep model={model} spark={spark} />
         )}
       </KeyboardAvoidingView>
 
@@ -55,13 +65,4 @@ export function MagpieScreenContent() {
 const styles = StyleSheet.create({
   shell: { flex: 1, paddingHorizontal: 16 },
   keyboardView: { flex: 1 },
-  missingState: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.xxl,
-  },
-  missingTitle: { fontFamily: "Lora_600SemiBold", fontSize: 18, color: colors.textPrimary },
-  missingBody: { ...textTokens.supporting, textAlign: "center" },
 });

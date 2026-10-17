@@ -965,14 +965,6 @@ export function createCutUpSpark(sourceText: string = ""): CutUpSpark {
   };
 }
 
-export function cutUpSummary(spark: CutUpSpark): string {
-  const included = spark.chunks.filter((chunk) => chunk.included).length;
-  const parts = [`${included} chunk${included === 1 ? "" : "s"}`];
-  if (spark.assembledDraftText.trim()) parts.push("draft started");
-  else if (spark.boardItems.some((item) => !item.removed)) parts.push("on the board");
-  return parts.join(" · ");
-}
-
 // ── Defensive sanitization (persisted data may be partial/corrupt) ───────────
 
 function isString(value: unknown): value is string {

@@ -504,13 +504,6 @@ export function createMagpieSpark(): MagpieSpark {
   };
 }
 
-export function magpieSummary(spark: MagpieSpark): string {
-  const count = spark.fragments.length;
-  const parts = [`${count} word${count === 1 ? "" : "s"}`];
-  if (spark.draft.trim()) parts.push("draft started");
-  return parts.join(" · ");
-}
-
 // ── Defensive sanitization (persisted data may be partial/corrupt) ───────────
 
 function isString(value: unknown): value is string {

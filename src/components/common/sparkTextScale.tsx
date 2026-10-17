@@ -1,9 +1,7 @@
-import React, { createContext, useContext, useMemo, useState } from "react";
+import React, { createContext, useContext, useMemo } from "react";
 import { StyleSheet, Text } from "react-native";
-import { Press } from "./Press";
-import { styles as appStyles } from "../../styles";
-import { colors, radii } from "../../design/tokens";
-import { haptic } from "../../design/haptics";
+import { colors } from "../../design/tokens";
+import { useSparkPrefsStore } from "../../state/useSparkPrefsStore";
 import { BottomSheet } from "./BottomSheet";
 import { ChordZoomBar } from "../LyricsVersionScreen/components/chords/ChordZoomBar";
 import { useTranslation } from "react-i18next";
@@ -12,7 +10,7 @@ import { useTranslation } from "react-i18next";
  * One shared "paper text" zoom for a Word Sparks exercise, so the words look
  * the same size on every step — and shrinking them buys real screen space on
  * the denser steps. The control is the same as Magpie's: an "Aa" header button
- * opening a slider sheet (ChordZoomBar).
+ * opening a slider sheet (ChordZoomBar). Remembered across sparks (2026-10-17).
  */
 const BASE_FONT = 17;
 const LINE_RATIO = 1.55;
@@ -31,12 +29,15 @@ const SparkTextScaleContext = createContext<SparkTextScale>({
   lineHeight: Math.round(BASE_FONT * LINE_RATIO),
 });
 
+/** The zoom comes from the remembered spark preference, so every spark and
+ *  every step opens at the size you last chose. */
 export function SparkTextScaleProvider({ children }: { children: React.ReactNode }) {
-  const [zoom, setZoom] = useState(1);
+  const zoom = useSparkPrefsStore((state) => state.zoom);
+  const setZoom = useSparkPrefsStore((state) => state.setZoom);
   const value = useMemo<SparkTextScale>(() => {
     const size = Math.round(BASE_FONT * zoom * 10) / 10;
     return { zoom, setZoom, size, lineHeight: Math.round(size * LINE_RATIO) };
-  }, [zoom]);
+  }, [setZoom, zoom]);
   return <SparkTextScaleContext.Provider value={value}>{children}</SparkTextScaleContext.Provider>;
 }
 
@@ -44,48 +45,22 @@ export function useSparkTextScale() {
   return useContext(SparkTextScaleContext);
 }
 
-/** The header "Aa" button — opens a bottom sheet with the text-size slider. */
-export function SparkTextSizeButton() {
+/** The text-size sheet the spark frame's "…" opens. */
+export function SparkTextSizeSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { t } = useTranslation();
   const { zoom, setZoom } = useSparkTextScale();
-  const [open, setOpen] = useState(false);
   return (
-    <>
-      <Press
-        style={styles.btn}
-        onPress={() => {
-          setOpen(true);
-        }}
-        hitSlop={6}
-        accessibilityRole="button"
-        accessibilityLabel={t("wordSparks.textSize")}
-      >
-        <Text style={styles.glyph}>Aa</Text>
-      </Press>
-      <BottomSheet visible={open} onClose={() => setOpen(false)}>
-        <Text style={styles.sheetLabel}>{t("wordSparks.textSize")}</Text>
-        <ChordZoomBar zoom={zoom} onChange={setZoom} />
-      </BottomSheet>
-    </>
+    <BottomSheet visible={visible} onClose={onClose}>
+      <Text style={styles.sheetLabel}>{t("wordSparks.textSize")}</Text>
+      <ChordZoomBar zoom={zoom} onChange={setZoom} />
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  btn: {
-    width: 34,
-    height: 34,
-    borderRadius: radii.round,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  glyph: {
-    fontFamily: "Lora_600SemiBold",
-    fontSize: 15,
-    color: colors.textStrong,
-  },
   sheetLabel: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 14,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 15,
     color: colors.textPrimary,
     marginBottom: 4,
   },
