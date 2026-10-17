@@ -1356,9 +1356,12 @@ function PlayerScreenInner({
                   loopActive={practiceLoopEnabled && (ui.mode === "practice" || isWriting)}
                   overdubLayerLanes={overdubLayerLanes}
                   // The lane IS the bench's door: tap it and the surface opens with
-                  // the lanes fattened into the selector.
+                  // the lanes fattened into the selector. With Tools open too: a lane
+                  // that looked the same but did nothing there was a dead end.
                   onOpenLayerMixer={
-                    ui.mode === "player" && data.hasClipOverdubs ? openLayersBench : undefined
+                    (ui.mode === "player" || ui.mode === "practice") && data.hasClipOverdubs
+                      ? openLayersBench
+                      : undefined
                   }
                   layerMixerAccessibilityLabel={t("player.layers")}
                   selectedLaneId={benchSelectedLaneId}

@@ -207,7 +207,7 @@ export function RecordingScreen() {
         onCancel={screen.handleQuickNameCancel}
         saving={isSavingClip}
         onSave={finishSave}
-        pins={screen.livePins}
+        pins={screen.sheetPins}
         onChangePinLabel={screen.setLivePinLabel}
         destinationWorkspaceTitle={
           screen.canPickSaveDestination ? screen.effectiveDestinationWorkspaceTitle : undefined
