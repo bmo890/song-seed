@@ -1,5 +1,4 @@
 import { ScrollView, StyleSheet, Text, View } from "react-native";
-import Svg, { Line } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../../common/BottomSheet";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
@@ -30,52 +29,49 @@ export function CutUpHelpSheet({ visible, step, onClose }: Props) {
   );
 }
 
-/** A "paper" line with dashed scissor cuts between its phrases. */
+/** One lyric line as the Cut step draws it: scraps of paper with a plain gap
+ *  between them (tap to join) and a thin mark between words (tap to cut). */
 function CutDiagram() {
   const { t } = useTranslation();
+  const words = t("cutUpHelp.example1").split(" ");
   return (
-    <View style={helpStyles.paper}>
-      <View style={helpStyles.paperRow}>
-        <View style={helpStyles.scrap}>
-          <Text style={helpStyles.scrapText}>{t("cutUpHelp.example1")}</Text>
-        </View>
-        <CutMark />
-        <View style={helpStyles.scrap}>
-          <Text style={helpStyles.scrapText}>{t("cutUpHelp.example2")}</Text>
-        </View>
-        <CutMark />
-        <View style={helpStyles.scrap}>
-          <Text style={helpStyles.scrapText}>{t("cutUpHelp.example3")}</Text>
-        </View>
+    <View style={helpStyles.paperRow}>
+      <View style={helpStyles.scrap}>
+        {words.map((word, i) => (
+          <View key={i} style={helpStyles.scrapWords}>
+            {i > 0 ? <View style={helpStyles.divider} /> : null}
+            <Text style={helpStyles.scrapText}>{word}</Text>
+          </View>
+        ))}
+      </View>
+      <View style={helpStyles.scrap}>
+        <Text style={helpStyles.scrapText}>{t("cutUpHelp.example2")}</Text>
+      </View>
+      <View style={helpStyles.scrap}>
+        <Text style={helpStyles.scrapText}>{t("cutUpHelp.example3")}</Text>
       </View>
     </View>
   );
 }
 
-function CutMark() {
-  return (
-    <View style={helpStyles.cutMark}>
-      <Ionicons name="cut-outline" size={12} color={colors.primaryDeep} />
-      <Svg width={2} height={20}>
-        <Line x1={1} y1={0} x2={1} y2={20} stroke={colors.borderMuted} strokeWidth={1.5} strokeDasharray="2 2" />
-      </Svg>
-    </View>
-  );
-}
-
-/** Three paper strips at playful angles — the cut-out board. */
+/** The table: faint rules, scraps laid on them. Two on one rule read as one
+ *  line; the empty rules below show where a wide gap becomes a blank line. */
 function StripsDiagram() {
   const { t } = useTranslation();
   return (
     <View style={helpStyles.boardDiagram}>
-      <View style={helpStyles.boardStrip}>
-        <Text style={helpStyles.boardStripText}>{t("cutUpHelp.example3")}</Text>
+      <View style={helpStyles.rule}>
+        <View style={helpStyles.scrap}>
+          <Text style={helpStyles.scrapText}>{t("cutUpHelp.example3")}</Text>
+        </View>
+        <View style={helpStyles.scrap}>
+          <Text style={helpStyles.scrapText}>{t("cutUpHelp.example1")}</Text>
+        </View>
       </View>
-      <View style={[helpStyles.boardStrip, helpStyles.boardStripAlt]}>
-        <Text style={helpStyles.boardStripText}>{t("cutUpHelp.example2")}</Text>
-      </View>
-      <View style={helpStyles.boardStrip}>
-        <Text style={helpStyles.boardStripText}>{t("cutUpHelp.example1")}</Text>
+      <View style={helpStyles.rule}>
+        <View style={helpStyles.scrap}>
+          <Text style={helpStyles.scrapText}>{t("cutUpHelp.example2")}</Text>
+        </View>
       </View>
     </View>
   );
@@ -99,9 +95,9 @@ function SourceHelp() {
       </View>
 
       <View style={helpStyles.points}>
-        <HelpPoint icon="clipboard-outline" title={t("cutUpHelp.pasteTitle")} body={t("cutUpHelp.pasteBody")} />
         <HelpPoint icon="document-text-outline" title={t("cutUpHelp.pullTitle")} body={t("cutUpHelp.pullBody")} />
-        <HelpPoint icon="bulb-outline" title={t("cutUpHelp.copyTitle")} body={t("cutUpHelp.copyBody")} />
+        <HelpPoint icon="copy-outline" title={t("cutUpHelp.copyTitle")} body={t("cutUpHelp.copyBody")} />
+        <HelpPoint icon="lock-closed-outline" title={t("cutUpHelp.lockedTitle")} body={t("cutUpHelp.lockedBody")} />
       </View>
     </>
   );
@@ -124,8 +120,9 @@ function ChunkHelp() {
 
       <View style={helpStyles.points}>
         <HelpPoint icon="cut-outline" title={t("cutUpHelp.seamTitle")} body={t("cutUpHelp.seamBody")} />
-        <HelpPoint icon="layers-outline" title={t("cutUpHelp.slideTitle")} body={t("cutUpHelp.slideBody")} />
-        <HelpPoint icon="sparkles-outline" title={t("cutUpHelp.resetTitle")} body={t("cutUpHelp.resetBody")} />
+        <HelpPoint icon="git-merge-outline" title={t("cutUpHelp.slideTitle")} body={t("cutUpHelp.slideBody")} />
+        <HelpPoint icon="return-down-back-outline" title={t("cutUpHelp.lineTitle")} body={t("cutUpHelp.lineBody")} />
+        <HelpPoint icon="refresh" title={t("cutUpHelp.resetTitle")} body={t("cutUpHelp.resetBody")} />
       </View>
     </>
   );
@@ -147,6 +144,7 @@ function BoardHelp() {
       </View>
 
       <View style={helpStyles.points}>
+        <HelpPoint icon="reorder-two-outline" title={t("cutUpHelp.gapTitle")} body={t("cutUpHelp.gapBody")} />
         <HelpPoint icon="shuffle-outline" title={t("cutUpHelp.shuffleTitle")} body={t("cutUpHelp.shuffleBody")} />
         <HelpPoint icon="options-outline" title={t("cutUpHelp.lockTitle")} body={t("cutUpHelp.lockBody")} />
         <HelpPoint icon="archive-outline" title={t("cutUpHelp.restoreTitle")} body={t("cutUpHelp.restoreBody")} />
@@ -172,7 +170,6 @@ function DraftHelp() {
 
       <View style={helpStyles.points}>
         <HelpPoint icon="shuffle" title={t("cutUpHelp.composeTitle")} body={t("cutUpHelp.composeBody")} />
-        <HelpPoint icon="list-outline" title={t("cutUpHelp.boardTitle")} body={t("cutUpHelp.boardBody")} />
         <HelpPoint icon="bookmark-outline" title={t("cutUpHelp.saveTitle")} body={t("cutUpHelp.saveBody")} />
       </View>
     </>
@@ -237,6 +234,8 @@ const helpStyles = StyleSheet.create({
     gap: spacing.xs,
   },
   scrap: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
     borderWidth: StyleSheet.hairlineWidth,
@@ -249,30 +248,18 @@ const helpStyles = StyleSheet.create({
     fontSize: 14,
     color: colors.textPrimary,
   },
-  cutMark: {
-    alignItems: "center",
-    gap: 1,
-  },
+  scrapWords: { flexDirection: "row", alignItems: "center" },
+  divider: { width: 1.5, height: 14, borderRadius: 1, backgroundColor: colors.borderMuted, marginHorizontal: 6 },
   boardDiagram: {
+    gap: 0,
+  },
+  rule: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.xs,
-    paddingVertical: spacing.xs,
-  },
-  boardStrip: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderMuted,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    alignSelf: "center",
-    minWidth: "70%",
-  },
-  boardStripAlt: {},
-  boardStripText: {
-    fontFamily: "Lora_500Medium",
-    fontSize: 15,
-    color: colors.textPrimary,
-    textAlign: "center",
+    paddingVertical: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
   },
   resultRow: {
     flexDirection: "row",

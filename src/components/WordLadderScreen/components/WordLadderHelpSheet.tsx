@@ -45,8 +45,10 @@ export function WordLadderHelpSheet({ visible, step, onClose }: Props) {
           <DraftHelp />
         ) : step === "revise" ? (
           <ReviseHelp />
+        ) : step === "nouns" ? (
+          <ListHelp kind="nouns" />
         ) : (
-          <SetupHelp />
+          <ListHelp kind="verbs" />
         )}
       </ScrollView>
     </BottomSheet>
@@ -106,62 +108,47 @@ function SparkDiagram() {
   );
 }
 
-/** Step 1 — list a job's verbs and a room's nouns, kept even in count. */
-function SetupHelp() {
+/** Steps 1 and 2 — one list each (2026-10-17: verbs and nouns are written on
+ *  separate pages, so each sheet shows only its own list). */
+function ListHelp({ kind }: { kind: "verbs" | "nouns" }) {
   const { t } = useTranslation();
-  const verbs = [t("wordLadderHelp.verb1"), t("wordLadderHelp.verb2"), t("wordLadderHelp.verb3")];
-  const nouns = [t("wordLadderHelp.noun1"), t("wordLadderHelp.noun2"), t("wordLadderHelp.noun3")];
+  const verbs = kind === "verbs";
+  const words = verbs
+    ? [t("wordLadderHelp.verb1"), t("wordLadderHelp.verb2"), t("wordLadderHelp.verb3")]
+    : [t("wordLadderHelp.noun1"), t("wordLadderHelp.noun2"), t("wordLadderHelp.noun3")];
   return (
     <>
-      <Text style={helpStyles.title}>{t("wordLadderHelp.setupTitle")}</Text>
-      <Text style={helpStyles.subtitle}>{t("wordLadderHelp.setupBody")}</Text>
+      <Text style={helpStyles.title}>{t(verbs ? "wordLadderHelp.verbsTitle" : "wordLadderHelp.nounsTitle")}</Text>
+      <Text style={helpStyles.subtitle}>{t(verbs ? "wordLadderHelp.verbsBody" : "wordLadderHelp.nounsBody")}</Text>
 
       <View style={helpStyles.diagram}>
-        <View style={helpStyles.diagramHeaderRow}>
-          <View style={helpStyles.diagramHeaderCell}>
-            <Ionicons name="briefcase-outline" size={13} color={colors.textSecondary} />
-            <Text style={helpStyles.diagramHeaderText}>{t("wordLadderHelp.doctor")}</Text>
-          </View>
-          <View style={helpStyles.diagramHeaderCell}>
-            <Ionicons name="location-outline" size={13} color={colors.textSecondary} />
-            <Text style={helpStyles.diagramHeaderText}>{t("wordLadderHelp.bedroom")}</Text>
-          </View>
+        <View style={helpStyles.listSeed}>
+          <Ionicons name={verbs ? "briefcase-outline" : "location-outline"} size={13} color={colors.textSecondary} />
+          <Text style={helpStyles.diagramHeaderText}>
+            {t(verbs ? "wordLadderHelp.doctor" : "wordLadderHelp.bedroom")}
+          </Text>
         </View>
-
-        <View style={helpStyles.diagramBody}>
-          <View style={helpStyles.diagramColumn}>
-            {verbs.map((word) => (
-              <View key={word} style={helpStyles.diagramChip}>
-                <Text style={helpStyles.diagramChipText}>{word}</Text>
-              </View>
-            ))}
-          </View>
-
-          <Svg width={56} height={120} style={helpStyles.diagramLines}>
-            <Line x1="0" y1="20" x2="56" y2="60" stroke={colors.borderMuted} strokeWidth={1.5} />
-            <Line x1="0" y1="60" x2="56" y2="20" stroke={colors.primaryDeep} strokeWidth={1.75} />
-            <Line x1="0" y1="100" x2="56" y2="100" stroke={colors.borderMuted} strokeWidth={1.5} />
-          </Svg>
-
-          <View style={helpStyles.diagramColumn}>
-            {nouns.map((word) => (
-              <View key={word} style={helpStyles.diagramChip}>
-                <Text style={helpStyles.diagramChipText}>{word}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <View style={helpStyles.diagramResult}>
-          <Ionicons name="arrow-down" size={14} color={colors.textMuted} />
-          <Text style={helpStyles.diagramResultText}>{t("wordLadderHelp.oddPairs")}</Text>
-        </View>
+        {words.map((word) => (
+          <Text key={word} style={helpStyles.listWord}>
+            {word}
+          </Text>
+        ))}
       </View>
 
       <View style={helpStyles.points}>
-        <HelpPoint icon="create-outline" title={t("wordLadderHelp.nameTitle")} body={t("wordLadderHelp.nameBody")} />
-        <HelpPoint icon="list-outline" title={t("wordLadderHelp.listTitle")} body={t("wordLadderHelp.listBody")} />
-        <HelpPoint icon="swap-horizontal-outline" title={t("wordLadderHelp.matchTitle")} body={t("wordLadderHelp.matchBody")} />
+        {verbs ? (
+          <>
+            <HelpPoint icon="flash-outline" title={t("wordLadderHelp.actionTitle")} body={t("wordLadderHelp.actionBody")} />
+            <HelpPoint icon="list-outline" title={t("wordLadderHelp.oneTitle")} body={t("wordLadderHelp.oneBody")} />
+            <HelpPoint icon="arrow-forward-outline" title={t("wordLadderHelp.nounsNextTitle")} body={t("wordLadderHelp.nounsNextBody")} />
+          </>
+        ) : (
+          <>
+            <HelpPoint icon="cube-outline" title={t("wordLadderHelp.objectsTitle")} body={t("wordLadderHelp.objectsBody")} />
+            <HelpPoint icon="swap-horizontal-outline" title={t("wordLadderHelp.matchTitle")} body={t("wordLadderHelp.matchBody")} />
+            <HelpPoint icon="arrow-forward-outline" title={t("wordLadderHelp.pairNextTitle")} body={t("wordLadderHelp.pairNextBody")} />
+          </>
+        )}
       </View>
     </>
   );
@@ -197,9 +184,9 @@ function PairHelp() {
       </View>
 
       <View style={helpStyles.points}>
-        <HelpPoint icon="hand-left-outline" title={t("wordLadderHelp.tapTitle")} body={t("wordLadderHelp.tapBody")} />
         <HelpPoint icon="shuffle-outline" title={t("wordLadderHelp.shuffleTitle")} body={t("wordLadderHelp.shuffleBody")} />
         <HelpPoint icon="lock-closed-outline" title={t("wordLadderHelp.lockTitle")} body={t("wordLadderHelp.lockBody")} />
+        <HelpPoint icon="remove-circle-outline" title={t("wordLadderHelp.leftoverTitle")} body={t("wordLadderHelp.leftoverBody")} />
       </View>
     </>
   );
@@ -297,44 +284,25 @@ const helpStyles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: colors.borderMuted,
   },
-  diagramHeaderRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  diagramHeaderCell: {
+  listSeed: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    width: 96,
-    justifyContent: "center",
+    gap: 5,
+    paddingBottom: spacing.xs,
+  },
+  listWord: {
+    fontFamily: "Lora_500Medium",
+    fontSize: 16,
+    lineHeight: 22,
+    color: colors.textPrimary,
+    paddingVertical: 6,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderMuted,
   },
   diagramHeaderText: {
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 13,
     color: colors.textStrong,
-  },
-  diagramBody: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: spacing.sm,
-  },
-  diagramColumn: {
-    width: 96,
-    gap: spacing.xs,
-  },
-  diagramLines: {
-    marginHorizontal: 2,
-  },
-  diagramChip: {
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  diagramChipText: {
-    fontFamily: "Lora_500Medium",
-    fontSize: 15,
-    color: colors.textPrimary,
   },
   diagramResult: {
     flexDirection: "row",
