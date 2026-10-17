@@ -1,10 +1,11 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import Animated, { FadeIn, FadeInDown, FadeOut, LinearTransition } from "react-native-reanimated";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
-import { styles as appStyles } from "../../../styles";
+import { Press } from "../../common/Press";
+import { InkKey, inkKeyColor } from "../../common/InkKey";
+import { useSparkTextScale } from "../../common/sparkTextScale";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
 import { durations } from "../../../design/motion";
-import { haptic } from "../../../design/haptics";
 import { getUnpairedWords } from "../../../domain/wordLadder";
 import type { WordLadderExercise } from "../../../types";
 import { useTranslation } from "react-i18next";
@@ -21,6 +22,12 @@ type Props = {
   history: { canUndo: boolean; canRedo: boolean; undo: () => void; redo: () => void };
 };
 
+/**
+ * The Pair step (2026-10-17, paper): the words as paper scraps on the page, a
+ * picked one outlined on the terracotta wash (never a solid fill), the pairs
+ * as rows with an ink lock. Shuffle is an ink key; undo covers pairing,
+ * unpairing, locking and shuffling.
+ */
 export function WordLadderPairingBoard({
   exercise,
   armedWord,
@@ -31,93 +38,89 @@ export function WordLadderPairingBoard({
   history,
 }: Props) {
   const { t } = useTranslation();
+  const { size } = useSparkTextScale();
   const unpairedA = getUnpairedWords(exercise.columnA, exercise.pairings, "a");
   const unpairedB = getUnpairedWords(exercise.columnB, exercise.pairings, "b");
   const hasUnpaired = unpairedA.length > 0 || unpairedB.length > 0;
   const pairCount = exercise.pairings.length;
+  const anyLocked = exercise.pairings.some((pairing) => pairing.locked);
   const canShuffle = exercise.columnA.length > 0 && exercise.columnB.length > 0;
+  const scrapFont = { fontSize: size - 1 };
+  const pairFont = { fontSize: size };
 
-  // Tapping a word in the OTHER column than the armed one completes a pair
-  // (success); anything else just arms/disarms (light).
-  const tapWord = (column: "a" | "b", wordId: string) => {
-    const completing = armedWord && armedWord.column !== column;
-    if (completing) haptic.success();
-    else haptic.light();
-    onTapWord(column, wordId);
-  };
+  const hint = !hasUnpaired
+    ? t("wordLadder.allPairedHint")
+    : armedWord
+      ? t(armedWord.column === "a" ? "wordLadder.nowNoun" : "wordLadder.nowVerb")
+      : "";
+
 
   return (
-    <ScrollView style={boardStyles.root} showsVerticalScrollIndicator={false}>
-      <View style={boardStyles.toolbar}>
-        <Text style={boardStyles.hint}>
-          {hasUnpaired ? (armedWord ? t("wordLadder.pairAcross") : "") : t("wordLadder.allPairedHint")}
+    <ScrollView style={s.root} showsVerticalScrollIndicator={false}>
+      <View style={s.toolbar}>
+        <Text style={s.hint} numberOfLines={1}>
+          {hint}
         </Text>
-        <Pressable
-          style={({ pressed }) => [
-            boardStyles.shuffleBtn,
-            !canShuffle ? boardStyles.shuffleBtnDisabled : null,
-            pressed && canShuffle ? appStyles.pressDown : null,
-          ]}
+        <InkKey
+          glyph={<Ionicons name="shuffle" size={16} color={inkKeyColor(canShuffle ? "idle" : "off")} />}
+          label={t("wordLadder.shuffle")}
+          tone={canShuffle ? "idle" : "off"}
           onPress={() => {
-            haptic.light();
-            onShuffle();
+            if (canShuffle) onShuffle();
           }}
-          disabled={!canShuffle}
-        >
-          <Ionicons name="shuffle" size={14} color={colors.onPrimary} />
-          <Text style={boardStyles.shuffleBtnText}>{t("wordLadder.shuffle")}</Text>
-        </Pressable>
-        <UndoRedoButtons canUndo={history.canUndo} canRedo={history.canRedo} onUndo={history.undo} onRedo={history.redo} />
+        />
+        <View style={s.undoPair}>
+          <UndoRedoButtons canUndo={history.canUndo} canRedo={history.canRedo} onUndo={history.undo} onRedo={history.redo} />
+        </View>
       </View>
 
       {hasUnpaired ? (
-        <View style={boardStyles.poolsCard}>
-          <Text style={boardStyles.sectionLabel}>{t("wordLadder.verbs")}</Text>
-          <View style={boardStyles.scrapWrap}>
+        <>
+          <Text style={s.poolLabel}>{t("wordLadder.verbs")}</Text>
+          <View style={s.scrapWrap}>
             {unpairedA.length > 0 ? (
               unpairedA.map((word) => (
                 <Scrap
                   key={word.id}
                   text={word.text}
+                  fontStyle={scrapFont}
                   armed={armedWord?.column === "a" && armedWord.wordId === word.id}
-                  onPress={() => tapWord("a", word.id)}
+                  onPress={() => onTapWord("a", word.id)}
                 />
               ))
             ) : (
-              <Text style={boardStyles.poolEmpty}>{t("wordLadder.allPaired")}</Text>
+              <Text style={s.poolEmpty}>{t("wordLadder.allPaired")}</Text>
             )}
           </View>
 
-          <Text style={[boardStyles.sectionLabel, boardStyles.sectionLabelSecond]}>{t("wordLadder.nouns")}</Text>
-          <View style={boardStyles.scrapWrap}>
+          <Text style={s.poolLabel}>{t("wordLadder.nouns")}</Text>
+          <View style={s.scrapWrap}>
             {unpairedB.length > 0 ? (
               unpairedB.map((word) => (
                 <Scrap
                   key={word.id}
                   text={word.text}
+                  fontStyle={scrapFont}
                   armed={armedWord?.column === "b" && armedWord.wordId === word.id}
-                  onPress={() => tapWord("b", word.id)}
+                  onPress={() => onTapWord("b", word.id)}
                 />
               ))
             ) : (
-              <Text style={boardStyles.poolEmpty}>{t("wordLadder.allPaired")}</Text>
+              <Text style={s.poolEmpty}>{t("wordLadder.allPaired")}</Text>
             )}
           </View>
-        </View>
+        </>
       ) : null}
 
-      <View style={boardStyles.pairsHeaderRow}>
-        <Text style={boardStyles.sectionLabel}>{t("wordLadder.pairs")}</Text>
-        <Text style={boardStyles.pairsCount}>{pairCount}</Text>
+      <View style={s.pairsHeader}>
+        <Text style={s.label}>{t("wordLadder.pairs")}</Text>
+        <Text style={s.count}>{pairCount}</Text>
       </View>
 
       {pairCount === 0 ? (
-        <View style={boardStyles.pairsEmpty}>
-          <Ionicons name="git-compare-outline" size={22} color={colors.textMuted} />
-          <Text style={boardStyles.pairsEmptyText}>{t("wordLadder.noPairs")}</Text>
-        </View>
+        <Text style={s.empty}>{t("wordLadder.noPairs")}</Text>
       ) : (
-        <View style={boardStyles.pairingList}>
+        <View style={s.pairList}>
           {exercise.pairings.map((pairing) => {
             const wordA = exercise.columnA.find((w) => w.id === pairing.columnAWordId);
             const wordB = exercise.columnB.find((w) => w.id === pairing.columnBWordId);
@@ -125,150 +128,157 @@ export function WordLadderPairingBoard({
             return (
               <Animated.View
                 key={pairing.id}
-                entering={FadeInDown.duration(durations.gentle)}
+                entering={FadeIn.duration(durations.gentle)}
                 exiting={FadeOut.duration(durations.fast)}
                 layout={LinearTransition.duration(durations.base)}
-                style={[boardStyles.pairRow, pairing.locked ? boardStyles.pairRowLocked : null]}
+                style={s.pairRow}
               >
-                <Pressable
-                  style={({ pressed }) => [boardStyles.lockBtn, pressed ? appStyles.pressDown : null]}
-                  onPress={() => {
-                    haptic.light();
-                    onToggleLock(pairing.id);
-                  }}
-                  hitSlop={6}
+                <UserText style={[s.pairWord, s.pairWordA, pairFont]} numberOfLines={1}>
+                  {wordA.text}
+                </UserText>
+                <Text style={s.dash}>—</Text>
+                <UserText style={[s.pairWord, pairFont]} numberOfLines={1}>
+                  {wordB.text}
+                </UserText>
+                <Press
+                  feel="glyph"
+                  haptic="light"
+                  style={s.rowKey}
+                  onPress={() => onToggleLock(pairing.id)}
+                  hitSlop={{ top: 4, bottom: 4 }}
+                  accessibilityRole="switch"
+                  accessibilityState={{ checked: !!pairing.locked }}
                   accessibilityLabel={t(pairing.locked ? "wordLadder.unlock" : "wordLadder.lock")}
                 >
                   <Ionicons
                     name={pairing.locked ? "lock-closed" : "lock-open-outline"}
-                    size={14}
+                    size={16}
                     color={pairing.locked ? colors.primaryDeep : colors.textMuted}
                   />
-                </Pressable>
-
-                <UserText style={boardStyles.pairWord} numberOfLines={1}>
-                  {wordA.text}
-                </UserText>
-                <View style={boardStyles.connector}>
-                  <View style={boardStyles.connectorLine} />
-                  <Ionicons name="link" size={11} color={colors.primary} />
-                  <View style={boardStyles.connectorLine} />
-                </View>
-                <UserText style={[boardStyles.pairWord, boardStyles.pairWordB]} numberOfLines={1}>
-                  {wordB.text}
-                </UserText>
-
-                <Pressable
-                  style={({ pressed }) => [boardStyles.unpairBtn, pressed ? appStyles.pressDown : null]}
-                  onPress={() => {
-                    haptic.tap();
-                    onUnpair(pairing.id);
-                  }}
-                  hitSlop={6}
+                </Press>
+                <Press
+                  feel="glyph"
+                  style={s.rowKey}
+                  onPress={() => onUnpair(pairing.id)}
+                  hitSlop={{ top: 4, bottom: 4 }}
+                  accessibilityRole="button"
                   accessibilityLabel={t("wordLadder.removePair")}
                 >
-                  <Ionicons name="close" size={14} color={colors.textMuted} />
-                </Pressable>
+                  <Ionicons name="close" size={15} color={colors.textMuted} />
+                </Press>
               </Animated.View>
             );
           })}
+          {anyLocked ? <Text style={s.footnote}>{t("wordLadder.lockedStay")}</Text> : null}
         </View>
       )}
     </ScrollView>
   );
 }
 
-function Scrap({ text, armed, onPress }: { text: string; armed: boolean; onPress: () => void }) {
+/** A word as a scrap of paper. Picked, it sits on the terracotta wash inside a
+ *  fine terracotta line: the same quiet "chosen" the rest of the app uses. */
+function Scrap({
+  text,
+  armed,
+  fontStyle,
+  onPress,
+}: {
+  text: string;
+  armed: boolean;
+  fontStyle: { fontSize: number };
+  onPress: () => void;
+}) {
   return (
     <Animated.View
       layout={LinearTransition.duration(durations.base)}
       entering={FadeIn.duration(durations.base)}
       exiting={FadeOut.duration(durations.fast)}
-      style={{ transform: [{ scale: armed ? 1.06 : 1 }] }}
     >
-      <Pressable
+      <Press
+        // Haptics vocabulary: light, a small state flip, for picking a word up,
+        // putting it down and for the pair landing (a pair is a step, not a finish).
+        haptic="light"
         onPress={onPress}
-        style={({ pressed }) => [
-          boardStyles.scrap,
-          armed ? boardStyles.scrapArmed : null,
-          pressed ? appStyles.pressDown : null,
-        ]}
+        style={[s.scrap, armed ? s.scrapArmed : null]}
+        accessibilityRole="button"
+        accessibilityState={{ selected: armed }}
+        accessibilityLabel={text}
       >
-        <UserText style={[boardStyles.scrapText, armed ? boardStyles.scrapTextArmed : null]} numberOfLines={1}>
+        <UserText style={[s.scrapText, fontStyle, armed ? s.scrapTextArmed : null]} numberOfLines={1}>
           {text}
         </UserText>
-      </Pressable>
+      </Press>
     </Animated.View>
   );
 }
 
-const boardStyles = StyleSheet.create({
+const s = StyleSheet.create({
   root: { flex: 1 },
-  toolbar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.md, gap: spacing.sm },
-  hint: { ...textTokens.supporting, flex: 1, fontSize: 12 },
-  shuffleBtn: {
+  toolbar: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    backgroundColor: colors.primaryDeep,
+    gap: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
+  },
+  hint: { ...textTokens.supporting, flex: 1 },
+  undoPair: { flexDirection: "row", alignItems: "center" },
+  poolLabel: { ...textTokens.annotation, paddingTop: spacing.lg, paddingBottom: spacing.sm },
+  scrapWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  scrap: {
+    minHeight: 40,
+    justifyContent: "center",
+    paddingHorizontal: 14,
     borderRadius: radii.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 7,
+    borderWidth: 1.5,
+    borderColor: "transparent",
+    backgroundColor: colors.surface,
+    ...shadows.card,
   },
-  shuffleBtnDisabled: { backgroundColor: colors.borderMuted },
-  shuffleBtnText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 12, color: colors.onPrimary },
-  poolsCard: { backgroundColor: colors.surfaceHigh, borderRadius: radii.lg, padding: spacing.md, gap: spacing.xs, marginBottom: spacing.lg },
-  pairsHeaderRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm },
-  pairsCount: {
-    fontFamily: "PlusJakartaSans_700Bold",
+  scrapArmed: {
+    backgroundColor: colors.primarySurface,
+    borderColor: colors.primaryDeep,
+    ...shadows.cardActive,
+  },
+  scrapText: { fontFamily: "Lora_500Medium", fontSize: 16, color: colors.textPrimary },
+  scrapTextArmed: { fontFamily: "Lora_600SemiBold", color: colors.primaryDeep },
+  poolEmpty: { ...textTokens.supporting, color: colors.textMuted, paddingVertical: spacing.sm },
+  pairsHeader: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    paddingTop: spacing.xxl,
+    paddingBottom: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
+  },
+  label: { ...textTokens.annotation },
+  count: {
+    fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 11,
-    lineHeight: 16,
-    textAlignVertical: "center",
-    includeFontPadding: false,
-    color: colors.onPrimary,
-    backgroundColor: colors.primaryDeep,
-    minWidth: 18,
-    textAlign: "center",
-    borderRadius: radii.round,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    overflow: "hidden",
+    color: colors.textMuted,
+    fontVariant: ["tabular-nums"],
   },
-  pairsEmpty: { alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xl, paddingHorizontal: spacing.lg },
-  pairsEmptyText: { ...textTokens.supporting, fontSize: 13, textAlign: "center" },
-  poolEmpty: { ...textTokens.supporting, fontSize: 12, color: colors.textMuted, fontStyle: "italic", paddingVertical: 6 },
-  pairingList: { gap: spacing.xs, marginBottom: spacing.lg },
+  empty: { ...textTokens.supporting, fontSize: 14, paddingTop: spacing.lg },
+  pairList: { marginBottom: spacing.lg },
   pairRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
-    paddingVertical: 9,
-    paddingHorizontal: spacing.sm,
-    gap: 6,
-    ...shadows.card,
+    gap: spacing.sm,
+    minHeight: 50,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
   },
-  pairRowLocked: { borderLeftWidth: 3, borderLeftColor: colors.primaryDeep },
-  lockBtn: { width: 22, height: 22, alignItems: "center", justifyContent: "center" },
   pairWord: {
     flex: 1,
     minWidth: 0,
-    fontFamily: "Lora_600SemiBold",
-    fontSize: 15,
-    lineHeight: 18,
-    includeFontPadding: false,
-    color: colors.textStrong,
-    textAlign: "right",
+    fontFamily: "Lora_500Medium",
+    fontSize: 17,
+    color: colors.textPrimary,
   },
-  pairWordB: { textAlign: "left" },
-  connector: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 3 },
-  connectorLine: { width: 8, height: 1.5, borderRadius: 1, backgroundColor: colors.borderMuted },
-  unpairBtn: { width: 22, height: 22, alignItems: "center", justifyContent: "center" },
-  sectionLabel: { ...textTokens.annotation },
-  sectionLabelSecond: { marginTop: spacing.sm },
-  scrapWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, paddingVertical: spacing.xs },
-  scrap: { backgroundColor: colors.surface, borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: 9, ...shadows.card },
-  scrapArmed: { backgroundColor: colors.primaryDeep, ...shadows.cardActive },
-  scrapText: { fontFamily: "Lora_600SemiBold", fontSize: 14, color: colors.textStrong },
-  scrapTextArmed: { color: colors.onPrimary },
+  pairWordA: { textAlign: "right" },
+  dash: { fontFamily: "PlusJakartaSans_400Regular", fontSize: 14, color: colors.textMuted },
+  rowKey: { width: 32, height: 44, alignItems: "center", justifyContent: "center" },
+  footnote: { ...textTokens.supporting, fontSize: 12, color: colors.textMuted, paddingTop: spacing.sm },
 });

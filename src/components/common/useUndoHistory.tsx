@@ -1,10 +1,9 @@
 import React, { useCallback, useState } from "react";
-import { Pressable, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../design/directionalIcons";
-import { styles as appStyles } from "../../styles";
-import { colors, radii } from "../../design/tokens";
-import { haptic } from "../../design/haptics";
+import { Press } from "./Press";
+import { colors } from "../../design/tokens";
 import { useTranslation } from "react-i18next";
 
 /**
@@ -48,7 +47,7 @@ export function useUndoHistory<T>(current: T, restore: (value: T) => void) {
   return { record, undo, redo, clear, canUndo: hist.undo.length > 0, canRedo: hist.redo.length > 0 };
 }
 
-/** The matching pair of quiet icon buttons. */
+/** The matching pair of bare ink glyphs. */
 export function UndoRedoButtons({
   canUndo,
   canRedo,
@@ -63,34 +62,32 @@ export function UndoRedoButtons({
   const { t } = useTranslation();
   return (
     <>
-      <Pressable
-        style={({ pressed }) => [styles.btn, pressed ? appStyles.pressDown : null]}
-        onPress={() => {
-          haptic.tap();
-          onUndo();
-        }}
+      <Press
+        // Haptics vocabulary: tap, an acknowledged press.
+        feel="glyph"
+        style={styles.btn}
+        onPress={onUndo}
         disabled={!canUndo}
         hitSlop={6}
         accessibilityLabel={t("wordSparks.undo")}
       >
-        <Ionicons name={dirIcon("arrow-undo-outline")} size={17} color={canUndo ? colors.textStrong : colors.borderMuted} />
-      </Pressable>
-      <Pressable
-        style={({ pressed }) => [styles.btn, pressed ? appStyles.pressDown : null]}
-        onPress={() => {
-          haptic.tap();
-          onRedo();
-        }}
+        <Ionicons name={dirIcon("arrow-undo-outline")} size={17} color={colors.textStrong} />
+      </Press>
+      <Press
+        // Haptics vocabulary: tap, an acknowledged press.
+        feel="glyph"
+        style={styles.btn}
+        onPress={onRedo}
         disabled={!canRedo}
         hitSlop={6}
         accessibilityLabel={t("wordSparks.redo")}
       >
-        <Ionicons name={dirIcon("arrow-redo-outline")} size={17} color={canRedo ? colors.textStrong : colors.borderMuted} />
-      </Pressable>
+        <Ionicons name={dirIcon("arrow-redo-outline")} size={17} color={colors.textStrong} />
+      </Press>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  btn: { width: 32, height: 32, borderRadius: radii.round, alignItems: "center", justifyContent: "center" },
+  btn: { width: 36, height: 44, alignItems: "center", justifyContent: "center" },
 });

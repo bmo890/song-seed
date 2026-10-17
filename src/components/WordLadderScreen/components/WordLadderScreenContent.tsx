@@ -3,19 +3,17 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Clipboard from "expo-clipboard";
 import { contentStyles } from "./WordLadderScreenContent.styles";
 import { Ionicons } from "@expo/vector-icons";
-import { styles as appStyles } from "../../../styles";
 import { colors } from "../../../design/tokens";
-import { haptic } from "../../../design/haptics";
+import { Press } from "../../common/Press";
+import { InkKey } from "../../common/InkKey";
 import { toast } from "../../common/toastStore";
 import { useSparkTextScale } from "../../common/sparkTextScale";
 import { SPARK_PAPER, SparkFooter, SparkHeader, SparkMissing, SparkSteps } from "../../common/SparkFrame";
@@ -49,6 +47,7 @@ export function WordLadderScreenContent() {
   // The shared spark zoom drives the poem pages and the draft reference.
   const scaledPoem = { fontSize: size + 1, lineHeight: lineHeight + 2 };
   const scaledRef = { fontSize: size - 1.5, lineHeight: lineHeight - 3 };
+  const scaledToken = { fontSize: size - 3 };
 
   // Hide the step-nav footer (and shrink the draft reference) while typing so
   // the editor gets the room — the nav buttons aren't needed mid-keystroke.
@@ -169,7 +168,6 @@ export function WordLadderScreenContent() {
               onReorder={(words) => model.reorderColumnWords("a", words)}
               onRemove={(id) => model.removeColumnWord("a", id)}
             />
-            <View style={contentStyles.columnDivider} />
             <WordLadderColumnEditor
               label={t("wordLadder.nouns")}
               placeholder={t("wordLadder.addNoun")}
@@ -191,8 +189,6 @@ export function WordLadderScreenContent() {
               onRemove={(id) => model.removeColumnWord("b", id)}
             />
           </View>
-
-          <View style={contentStyles.setupSpacer} />
 
           <SparkFooter
             hint={setupWarning}
@@ -217,13 +213,7 @@ export function WordLadderScreenContent() {
           </View>
 
           <SparkFooter
-            hint={
-              !canLeavePairs
-                ? t("wordSparks.connectPair")
-                : unpairedCount > 0
-                  ? t("wordLadder.unpaired", { count: unpairedCount })
-                  : null
-            }
+            hint={canLeavePairs && unpairedCount > 0 ? t("wordLadder.unpaired", { count: unpairedCount }) : null}
             back={{ label: t("wordSparks.words"), onPress: () => model.goToStep("setup") }}
             next={{ label: t("wordSparks.draft"), onPress: () => model.goToStep("draft"), disabled: !canLeavePairs }}
           />
@@ -234,33 +224,39 @@ export function WordLadderScreenContent() {
         <>
           {sparks.length > 0 ? (
             <View style={contentStyles.palette}>
-              <View style={contentStyles.paletteHeader}>
-                <Text style={contentStyles.paletteLabel}>{t("wordLadder.yourSparks")}</Text>
-                <Text style={contentStyles.paletteHint}>{t("wordLadder.sparkHint")}</Text>
+              <View style={contentStyles.labelRow}>
+                <Text style={contentStyles.label}>{t("wordLadder.yourSparks")}</Text>
+                <Text style={contentStyles.labelHint}>{t("wordLadder.sparkHint")}</Text>
               </View>
               <ScrollView
                 style={contentStyles.paletteScroll}
                 contentContainerStyle={contentStyles.paletteWrap}
                 showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
               >
                 {sparks.map((spark) => {
                   const used = usedSparks.has(spark.id);
                   return (
-                    <Pressable
+                    <Press
                       key={spark.id}
-                      style={({ pressed }) => [
-                        contentStyles.sparkChip,
-                        used ? contentStyles.sparkChipUsed : null,
-                        pressed ? appStyles.pressDown : null,
-                      ]}
+                      // Haptics vocabulary: light, a small state flip (struck through, or back).
+                      feel="glyph"
+                      haptic="light"
+                      style={contentStyles.sparkToken}
                       onPress={() => model.toggleSparkUsed(spark.id)}
+                      hitSlop={{ top: 5, bottom: 5 }}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: used }}
+                      accessibilityLabel={`${spark.seedA} · ${spark.seedB}`}
                     >
-                      <UserText value={spark.seedA} style={[contentStyles.sparkText, used ? contentStyles.sparkTextUsed : null]}>
-                        {spark.seedA}
-                        <Text style={contentStyles.sparkDot}>  ·  </Text>
-                        {spark.seedB}
+                      <View style={[contentStyles.sparkDot, used ? contentStyles.sparkDotUsed : null]} />
+                      <UserText
+                        value={spark.seedA}
+                        style={[contentStyles.sparkText, scaledToken, used ? contentStyles.sparkTextUsed : null]}
+                      >
+                        {spark.seedA} · {spark.seedB}
                       </UserText>
-                    </Pressable>
+                    </Press>
                   );
                 })}
               </ScrollView>
@@ -292,23 +288,18 @@ export function WordLadderScreenContent() {
       {model.step === "revise" ? (
         <>
           <View style={contentStyles.draftRef}>
-            <View style={contentStyles.draftRefHeader}>
-              <Text style={contentStyles.draftRefLabel}>{t("wordLadder.yourDraft")}</Text>
+            <View style={contentStyles.labelRow}>
+              <Text style={contentStyles.label}>{t("wordLadder.yourDraft")}</Text>
               {hasDraft ? (
-                <Pressable
-                  style={({ pressed }) => [contentStyles.copyBtn, pressed ? appStyles.pressDown : null]}
+                <InkKey
+                  glyph={<Ionicons name="copy-outline" size={15} color={colors.textStrong} />}
+                  label={t("common.copy")}
+                  style={contentStyles.copyKey}
                   onPress={() => {
-                    haptic.tap();
                     void Clipboard.setStringAsync(exercise.draft).catch(() => {});
                     toast(t("common.copied"), "checkmark-outline");
                   }}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("common.copy")}
-                >
-                  <Ionicons name="copy-outline" size={13} color={colors.primaryDeep} />
-                  <Text style={contentStyles.copyBtnText}>{t("common.copy")}</Text>
-                </Pressable>
+                />
               ) : null}
             </View>
             <ScrollView
@@ -321,10 +312,6 @@ export function WordLadderScreenContent() {
               <UserText style={[contentStyles.draftRefText, scaledRef]}>{exercise.draft.trim() || "—"}</UserText>
             </ScrollView>
           </View>
-
-          {keyboardVisible ? null : (
-            <Text style={contentStyles.reviseHint}>{t("wordLadder.reviseHint")}</Text>
-          )}
 
           <View style={contentStyles.poemCard}>
             <UserTextInput
@@ -358,7 +345,8 @@ export function WordLadderScreenContent() {
   );
 }
 
-/** The seed input that sits atop a column during the setup step. */
+/** A column's seed: a small-caps label over the tonal field, the dice inside
+ *  it for a random one. */
 function SetupSeedField({
   label,
   value,
@@ -375,31 +363,30 @@ function SetupSeedField({
   onSurprise: () => void;
 }) {
   return (
-    <View style={contentStyles.seedHeader}>
-      <View style={contentStyles.seedLabelRow}>
-        <Text style={contentStyles.seedLabel}>{label}</Text>
-        <Pressable
-          style={({ pressed }) => [contentStyles.seedDice, pressed ? appStyles.pressDown : null]}
-          onPress={() => {
-            haptic.tap();
-            onSurprise();
-          }}
-          hitSlop={8}
+    <View>
+      <Text style={contentStyles.label}>{label}</Text>
+      <View style={contentStyles.seedField}>
+        <UserTextInput
+          style={contentStyles.seedInput}
+          value={value}
+          onChangeText={onChange}
+          placeholder={placeholder}
+          placeholderTextColor={colors.textMuted}
+          autoCapitalize="none"
+          returnKeyType="done"
+        />
+        <Press
+          // Haptics vocabulary: tap, an acknowledged press.
+          feel="glyph"
+          style={contentStyles.seedDice}
+          onPress={onSurprise}
+          hitSlop={6}
           accessibilityRole="button"
           accessibilityLabel={surpriseLabel}
         >
-          <Ionicons name="dice-outline" size={15} color={colors.primaryDeep} />
-        </Pressable>
+          <Ionicons name="dice-outline" size={18} color={colors.textStrong} />
+        </Press>
       </View>
-      <UserTextInput
-        style={contentStyles.seedInput}
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        placeholderTextColor={colors.textMuted}
-        autoCapitalize="none"
-      />
-      <View style={contentStyles.seedHeaderDivider} />
     </View>
   );
 }
