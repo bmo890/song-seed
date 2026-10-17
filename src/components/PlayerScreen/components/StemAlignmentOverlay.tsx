@@ -39,6 +39,9 @@ const ZOOM_WINDOW_MS = 4000;
 const MAX_GRID_TICKS = 96;
 
 type Props = {
+  /** Shares the zoom key's row (the bench's Play together), so the strip costs
+   *  one row of chrome, not two. */
+  headerLeading?: React.ReactNode;
   masterAudioUri: string | null;
   masterDurationMs: number;
   masterFallbackPeaks?: number[];
@@ -148,6 +151,7 @@ function useDetailPeaks(audioUri: string | null, fallbackPeaks?: number[]) {
 }
 
 export function StemAlignmentOverlay({
+  headerLeading,
   masterAudioUri,
   masterDurationMs,
   masterFallbackPeaks,
@@ -284,6 +288,7 @@ export function StemAlignmentOverlay({
       {/* The zoom key names what a tap does (it used to name the current state,
           and read as a stray label): Zoom, or back to the Full clip. */}
       <View style={styles.headerRow}>
+        {headerLeading ?? <View />}
         <InkKey
           // Haptics vocabulary: `tap` — a control toggles.
           label={zoomed ? t("player.fullClip") : t("player.zoomShort")}
@@ -370,7 +375,7 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-end",
+    justifyContent: "space-between",
   },
   // Quiet ink — the zoom toggle is a whisper, not a chip.
   // No box: the bars sit on the page surface — whitespace does the framing.
