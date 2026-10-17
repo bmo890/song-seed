@@ -1393,3 +1393,6 @@ A 2 pt rule now runs under the weeks a selection covers (founder: "some
 subtle line… to further highlight"): the ink tabs' mark for chosen, gliding
 between selections on their timing; a month is bracketed by its underlined
 label above and the rule below.
+Founder then asked for two-tap ranges back ("clicking 2 dates to show
+everything in between"): first tap picks a day, second closes the span, the
+next starts over; the hold is gone. It works now that the grid stays still.

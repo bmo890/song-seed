@@ -431,22 +431,17 @@ export function useActivityScreenModel() {
       setRangeStartTs(monthStart);
       setRangeEndTs(monthEnd);
     },
-    // A tap is always that one day (2026-10-16, founder: a second tap used to
-    // turn into a range, which read as "the tap didn't register" and then
-    // "a whole month got picked"). A span is a hold: it stretches from the
-    // day already chosen to the day held.
+    // Two taps make a span, as a date-range picker does (founder, 2026-10-16:
+    // "clicking 2 dates to show everything in between"): the first picks a day
+    // and waits, the second closes the span (either order), the next starts
+    // over. It was hard to use before only because the grid slid between the
+    // taps; it no longer moves under a finger (ActivityHeatmapGrid).
     onPressDay: (dayTs: number) => {
       setIsRouteRangeActive(false);
       const normalizedDay = startOfActivityDay(dayTs);
-      setRangeStartTs(normalizedDay);
-      setRangeEndTs(normalizedDay);
-    },
-    onLongPressDay: (dayTs: number) => {
-      setIsRouteRangeActive(false);
-      const normalizedDay = startOfActivityDay(dayTs);
-      if (rangeStartTs == null) {
+      if (rangeStartTs == null || rangeEndTs != null) {
         setRangeStartTs(normalizedDay);
-        setRangeEndTs(normalizedDay);
+        setRangeEndTs(null);
         return;
       }
       setRangeEndTs(normalizedDay);

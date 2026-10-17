@@ -27,8 +27,6 @@ type ActivityHeatmapGridProps = {
   onJumpToToday: () => void;
   onPressMonth: (month: number) => void;
   onPressDay: (dayTs: number) => void;
-  /** Hold a day to stretch the selection to it. */
-  onLongPressDay: (dayTs: number) => void;
   /** Changes when the selection should be scrolled into view (year, Today). */
   revealToken: number;
 };
@@ -48,7 +46,6 @@ export function ActivityHeatmapGrid({
   onJumpToToday,
   onPressMonth,
   onPressDay,
-  onLongPressDay,
   revealToken,
 }: ActivityHeatmapGridProps) {
   const { t } = useTranslation();
@@ -273,13 +270,7 @@ export function ActivityHeatmapGrid({
                           haptic.tap();
                           onPressDay(dayTs);
                         }}
-                        onLongPress={() => {
-                          if (!inYear) return;
-                          // Haptics vocabulary: grab, a hold into a heavier mode.
-                          haptic.grab();
-                          onLongPressDay(dayTs);
-                        }}
-                        delayLongPress={350}
+
                       >
                         <View
                           style={[

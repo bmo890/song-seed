@@ -92,7 +92,6 @@ export function ActivityScreenContent() {
             onJumpToToday={model.onJumpToToday}
             onPressMonth={model.onPressMonth}
             onPressDay={model.onPressDay}
-            onLongPressDay={model.onLongPressDay}
             revealToken={model.revealToken}
           />
         </View>
