@@ -1389,3 +1389,7 @@ position iOS never reports for a programmatic scroll), so the next tap hit a
 different day, and a second tap was a range. Now a tap is always that day, a
 hold stretches the selection (`grab`), the grid scrolls only on open, a year
 change or Today (`revealToken`), and each day's touch reaches into the gaps.
+A 2 pt rule now runs under the weeks a selection covers (founder: "some
+subtle line… to further highlight"): the ink tabs' mark for chosen, gliding
+between selections on their timing; a month is bracketed by its underlined
+label above and the rule below.

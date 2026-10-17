@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../design/directionalIcons";
@@ -7,6 +8,7 @@ import { startOfActivityDay } from "../../domain/activity";
 import { styles } from "../../styles";
 import { CELL_SIZE, CELL_STRIDE, getActivityCellBackground } from "./helpers";
 import { haptic } from "../../design/haptics";
+import { durations } from "../../design/motion";
 import { colors, radii, spacing } from "../../design/tokens";
 import { useTranslation } from "react-i18next";
 
@@ -56,6 +58,24 @@ export function ActivityHeatmapGrid({
   const displayRangeLabel = selectedRangeLabel?.replace(/, \d{4}/g, "") ?? t("activity.chooseRange");
   const todayTs = useMemo(() => startOfActivityDay(Date.now()), []);
   const isSpan = selectedRange != null && selectedRange.endTs > selectedRange.startTs;
+  // The weeks the selection covers, for the rule beneath the grid.
+  const selectedWeeks = useMemo(() => {
+    if (!selectedRange) return null;
+    let start = -1;
+    let end = -1;
+    weeks.forEach((week, weekIndex) => {
+      const covered = week.some((dayTs) => {
+        const day = startOfActivityDay(dayTs);
+        return (
+          new Date(day).getFullYear() === year && day >= selectedRange.startTs && day <= selectedRange.endTs
+        );
+      });
+      if (!covered) return;
+      if (start < 0) start = weekIndex;
+      end = weekIndex;
+    });
+    return start < 0 ? null : { start, end };
+  }, [selectedRange, weeks, year]);
   const focusedDayTs = selectedRange?.endTs ?? (year === currentYear ? todayTs : null);
   const focusedWeekIndex = useMemo(
     () =>
@@ -274,6 +294,8 @@ export function ActivityHeatmapGrid({
                 </View>
               ))}
             </View>
+
+            <SelectionRule startWeek={selectedWeeks?.start ?? -1} endWeek={selectedWeeks?.end ?? -1} />
           </View>
         </ScrollView>
       </View>
@@ -290,6 +312,42 @@ export function ActivityHeatmapGrid({
 }
 
 const CELL_HIT_SLOP = { top: 2, bottom: 2, left: 2, right: 2 };
+
+/**
+ * A 2 pt rule under the weeks the selection covers (2026-10-16, founder: "some
+ * subtle line around the selected block"). The ink tabs' mark for "chosen",
+ * so the heatmap speaks the same language; it glides between selections.
+ */
+function SelectionRule({ startWeek, endWeek }: { startWeek: number; endWeek: number }) {
+  const visible = startWeek >= 0;
+  const left = useSharedValue(Math.max(0, startWeek) * CELL_STRIDE);
+  const width = useSharedValue(visible ? (endWeek - startWeek) * CELL_STRIDE + CELL_SIZE : 0);
+  const opacity = useSharedValue(visible ? 1 : 0);
+
+  useEffect(() => {
+    if (startWeek < 0) {
+      opacity.value = withTiming(0, { duration: durations.fast });
+      return;
+    }
+    // The ink tabs' own timing: the rule moves exactly as their rule does.
+    const timing = { duration: durations.base };
+    left.value = withTiming(startWeek * CELL_STRIDE, timing);
+    width.value = withTiming((endWeek - startWeek) * CELL_STRIDE + CELL_SIZE, timing);
+    opacity.value = withTiming(1, { duration: durations.fast });
+  }, [endWeek, left, opacity, startWeek, width]);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    width: width.value,
+    transform: [{ translateX: left.value }],
+  }));
+
+  return (
+    <View style={local.ruleTrack} pointerEvents="none">
+      <Animated.View style={[local.rule, style]} />
+    </View>
+  );
+}
 
 const local = StyleSheet.create({
   headRow: {
@@ -352,6 +410,18 @@ const local = StyleSheet.create({
     fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 10,
     color: colors.textMuted,
+  },
+  ruleTrack: {
+    height: 2,
+    marginTop: 6,
+  },
+  rule: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: colors.primaryDeep,
   },
   outsideSpan: {
     opacity: 0.35,
