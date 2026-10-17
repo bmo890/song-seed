@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { View, Pressable, StyleSheet, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { styles } from "../../../styles";
@@ -36,6 +36,10 @@ export function RecordingControls({
     onDiscard,
 }: Props) {
     const { t } = useTranslation();
+    // The key answers the press at once (2026-10-17): it shows the take as begun
+    // while the recorder spins up, and goes back if the start fails.
+    const [starting, setStarting] = useState(false);
+    const busy = isArming || starting || recordToggleDisabled;
     return (
         <View style={[styles.recordingControlsBar, compact ? styles.recordingControlsBarCompact : null]}>
             <View style={[local.sideColumn, local.sideColumnLead]}>
@@ -81,14 +85,19 @@ export function RecordingControls({
                         pressed ? styles.pressDownStrong : null,
                     ]}
                     onPress={async () => {
-                        if (isArming || recordToggleDisabled) {
+                        if (busy) {
                             return;
                         }
                         // The most tactile moment in the app — every record-state
                         // change gets a firm pulse.
                         haptic.grab();
                         if (!isRecording) {
-                            await onStart();
+                            setStarting(true);
+                            try {
+                                await onStart();
+                            } finally {
+                                setStarting(false);
+                            }
                             return;
                         }
                         if (isPaused) {
@@ -97,10 +106,16 @@ export function RecordingControls({
                         }
                         await onPause();
                     }}
-                    disabled={isArming || recordToggleDisabled}
+                    disabled={busy}
                 >
                     <Ionicons
-                        name={isArming ? "timer-outline" : !isRecording || isPaused ? "mic" : "pause"}
+                        name={
+                            isArming
+                                ? "timer-outline"
+                                : starting || (isRecording && !isPaused)
+                                  ? "pause"
+                                  : "mic"
+                        }
                         size={compact ? 24 : 34}
                         color={recordToggleDisabled ? colors.surfaceHigh : colors.onPrimary}
                     />
