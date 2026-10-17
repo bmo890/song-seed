@@ -239,7 +239,11 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   }
 
   async function releaseRecordingAudioSession() {
-    appliedInputKey = null;
+    // iOS: a released session can lose its preferred input, so the next take
+    // re-applies. Android's input rides the recorder config, not the session, and
+    // re-selecting the default mic cost ~500 ms per take on the founder's phone
+    // (diagnostic trace 2026-10-17); only a device event re-applies there.
+    if (Platform.OS !== "android") appliedInputKey = null;
     await releaseAudioSessionOwner(RECORDING_AUDIO_SESSION_OWNER);
   }
 
