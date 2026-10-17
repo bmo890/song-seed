@@ -227,11 +227,16 @@ function WordLadderListItem(props: SparkItemProps<WordLadderExercise>) {
   const { t } = useTranslation();
   const { spark } = props;
   const words = spark.columnA.length + spark.columnB.length;
-  const meta =
+  const listing = spark.step === "setup" || spark.step === "nouns";
+  const meta = listing
+    ? t("notepad.sparkWords", { count: words })
+    : t("notepad.sparkPairs", { count: spark.pairings.length });
+  const stepLabel =
     spark.step === "setup"
-      ? t("notepad.sparkWords", { count: words })
-      : t("notepad.sparkPairs", { count: spark.pairings.length });
-  const step = spark.step === "setup" ? "words" : spark.step === "pairs" ? "pair" : spark.step;
+      ? t("wordLadder.verbs")
+      : spark.step === "nouns"
+        ? t("wordLadder.nouns")
+        : t(`wordSparks.${spark.step === "pairs" ? "pair" : spark.step}`);
   return (
     <SparkListItem
       {...props}
@@ -239,7 +244,7 @@ function WordLadderListItem(props: SparkItemProps<WordLadderExercise>) {
       methodName={t("wordSparks.wordLadder")}
       untitled={UNTITLED_TITLES.has(spark.title)}
       meta={meta}
-      stepLabel={t(`wordSparks.${step}`)}
+      stepLabel={stepLabel}
     />
   );
 }

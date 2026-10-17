@@ -227,13 +227,11 @@ export function sanitizeWordLadderExercise(raw: unknown): WordLadderExercise | n
 
   // Map legacy final-step keys ("poem", "lines") onto the new "draft" step.
   const step: WordLadderStep =
-    obj.step === "pairs"
-      ? "pairs"
-      : obj.step === "revise"
-        ? "revise"
-        : obj.step === "draft" || obj.step === "poem" || obj.step === "lines"
-          ? "draft"
-          : "setup";
+    obj.step === "nouns" || obj.step === "pairs" || obj.step === "revise"
+      ? obj.step
+      : obj.step === "draft" || obj.step === "poem" || obj.step === "lines"
+        ? "draft"
+        : "setup";
 
   return {
     id: obj.id,
@@ -249,7 +247,7 @@ export function sanitizeWordLadderExercise(raw: unknown): WordLadderExercise | n
     seenHelpSteps: Array.isArray(obj.seenHelpSteps)
       ? obj.seenHelpSteps.filter(
           (s): s is WordLadderStep =>
-            s === "setup" || s === "pairs" || s === "draft" || s === "revise"
+            s === "setup" || s === "nouns" || s === "pairs" || s === "draft" || s === "revise"
         )
       : [],
     usedSparkIds: Array.isArray(obj.usedSparkIds)

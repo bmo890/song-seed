@@ -17,6 +17,8 @@ type Props = {
   targetCount?: number;
   /** The column's seed (job or place), sat above its list. */
   seedSlot?: ReactNode;
+  /** What the step asks for, shown only while the list is empty. */
+  emptyHint?: ReactNode;
   onAdd: (text: string) => void;
   /** Sprinkles a few dataset words matched to the seed into the column. */
   onSuggest?: () => void;
@@ -26,7 +28,7 @@ type Props = {
 };
 
 /**
- * One Word Ladder column (2026-10-17, founder picked A): the seed, then the
+ * One Word Ladder list, a step of its own (2026-10-17): the seed, then the
  * words as rows on paper under a small-caps label, an add row in ink, and
  * Suggest as a quiet link. No panel, no chips. Holding a row's grip lifts it:
  * grab as it lifts, tick per row crossed, light as it lands (the drag sentence
@@ -38,6 +40,7 @@ export function WordLadderColumnEditor({
   words,
   targetCount = 10,
   seedSlot,
+  emptyHint,
   onAdd,
   onSuggest,
   onEdit,
@@ -46,19 +49,25 @@ export function WordLadderColumnEditor({
 }: Props) {
   const { t } = useTranslation();
   const { size } = useSparkTextScale();
-  const [draft, setDraft] = useState("");
   const wordFont = { fontSize: size - 1 };
 
-  function addDraft() {
-    if (!draft.trim()) return;
-    onAdd(draft);
-    setDraft("");
+  // The add field is uncontrolled: the native field owns its text and we read
+  // it from a ref. A controlled field raced fast typing: a Return could land
+  // before the last keystroke's render (dropping a letter, "trowe") and a
+  // stale render could put the old word back after the field was cleared.
+  const latest = useRef("");
+  const addInput = useRef<TextInput>(null);
+  function addDraft(text = latest.current) {
+    if (!text.trim()) return false;
+    onAdd(text);
+    latest.current = "";
+    addInput.current?.clear();
+    return true;
   }
   // Return adds too. Haptics vocabulary: light, a small state flip (a word
   // joins the list); the ink + fires the same verb through Press.
-  function submitFromKeyboard() {
-    if (draft.trim()) haptic.light();
-    addDraft();
+  function submitFromKeyboard(text: string) {
+    if (addDraft(text)) haptic.light();
   }
 
   const footer = (
@@ -68,7 +77,7 @@ export function WordLadderColumnEditor({
           feel="glyph"
           haptic="light"
           style={s.addGlyph}
-          onPress={addDraft}
+          onPress={() => addDraft()}
           hitSlop={6}
           accessibilityRole="button"
           accessibilityLabel={placeholder}
@@ -76,12 +85,14 @@ export function WordLadderColumnEditor({
           <Ionicons name="add" size={17} color={colors.primaryDeep} />
         </Press>
         <UserTextInput
+          ref={addInput}
           style={[s.addInput, wordFont]}
-          value={draft}
-          onChangeText={setDraft}
+          onChangeText={(text) => {
+            latest.current = text;
+          }}
           placeholder={placeholder}
           placeholderTextColor={colors.textMuted}
-          onSubmitEditing={submitFromKeyboard}
+          onSubmitEditing={(event) => submitFromKeyboard(event.nativeEvent.text)}
           returnKeyType="done"
           blurOnSubmit={false}
           autoCapitalize="none"
@@ -124,6 +135,7 @@ export function WordLadderColumnEditor({
         style={s.list}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={emptyHint ? <>{emptyHint}</> : null}
         ListFooterComponent={footer}
         renderItem={({ item: word, drag, isActive }: RenderItemParams<WordLadderWord>) => (
           <ScaleDecorator activeScale={1.02}>

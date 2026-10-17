@@ -36,7 +36,10 @@ export type WordLadderPairing = {
 /** The exercise runs as a linear wizard following Tweedy's method: list words,
  * pair them, write a loose first draft from the pairs, then revise it into
  * something worth keeping. "setup" is a one-time gate that freezes the seeds. */
-export type WordLadderStep = "setup" | "pairs" | "draft" | "revise";
+/** "setup" is the Verbs step (the job and its verbs; the key predates the
+ *  split), "nouns" the place and its nouns, kept apart so one list can't lean
+ *  on the other (2026-10-17). */
+export type WordLadderStep = "setup" | "nouns" | "pairs" | "draft" | "revise";
 
 export type WordLadderExercise = {
   id: string;

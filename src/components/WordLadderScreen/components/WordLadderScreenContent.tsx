@@ -16,7 +16,7 @@ import { Press } from "../../common/Press";
 import { InkKey } from "../../common/InkKey";
 import { toast } from "../../common/toastStore";
 import { useSparkTextScale } from "../../common/sparkTextScale";
-import { SPARK_PAPER, SparkFooter, SparkHeader, SparkMissing, SparkSteps } from "../../common/SparkFrame";
+import { SPARK_PAPER, SparkFooter, SparkHeader, SparkHint, SparkMissing, SparkSteps } from "../../common/SparkFrame";
 import { useWordLadderScreenModel } from "../hooks/useWordLadderScreenModel";
 import { WordLadderColumnEditor } from "./WordLadderColumnEditor";
 import { WordLadderPairingBoard } from "./WordLadderPairingBoard";
@@ -28,14 +28,9 @@ import type { WordLadderStep } from "../../../types";
 import { UserText, UserTextInput } from "../../../i18n";
 import { useTranslation } from "react-i18next";
 
-const STEPS: WordLadderStep[] = ["setup", "pairs", "draft", "revise"];
-
-/** "a, b and c" — joins the still-missing setup pieces into a readable hint. */
-function formatMissing(parts: string[], t: ReturnType<typeof useTranslation>["t"]): string {
-  if (parts.length <= 1) return parts.join("");
-  if (parts.length === 2) return t("wordLadder.listTwo", { first: parts[0], second: parts[1] });
-  return t("wordLadder.listMany", { items: parts.slice(0, -1).join(", "), last: parts[parts.length - 1] });
-}
+// Verbs and nouns are steps of their own, so one list can't lean on the other
+// (2026-10-17). "setup" is the Verbs step's stored key.
+const STEPS: WordLadderStep[] = ["setup", "nouns", "pairs", "draft", "revise"];
 
 export function WordLadderScreenContent() {
   const { t } = useTranslation();
@@ -76,10 +71,8 @@ export function WordLadderScreenContent() {
   }
 
   // ── Per-step completion gates ─────────────────────────────────────────────
-  // The writer can't advance until the current step holds enough to make the
-  // next one meaningful: setup needs both seeds, at least one word per column,
-  // AND an equal count on each side so every word finds a partner; pairing
-  // needs at least one connected pair.
+  // Verbs needs the job and a verb; Nouns needs the place, a noun and as many
+  // nouns as verbs so every word finds a partner; pairing needs one pair.
   const verbCount = exercise.columnA.length;
   const nounCount = exercise.columnB.length;
   const hasRole = exercise.roleSeed.trim().length > 0;
@@ -87,7 +80,8 @@ export function WordLadderScreenContent() {
   const hasVerbs = verbCount > 0;
   const hasNouns = nounCount > 0;
   const countsMatch = verbCount === nounCount;
-  const canLeaveSetup = hasRole && hasPlace && hasVerbs && hasNouns && countsMatch;
+  const canLeaveVerbs = hasRole && hasVerbs;
+  const canLeaveNouns = hasPlace && hasNouns && countsMatch;
 
   const pairCount = exercise.pairings.length;
   const canLeavePairs = pairCount > 0;
@@ -106,21 +100,24 @@ export function WordLadderScreenContent() {
   const hasDraft = model.draftField.draft.trim().length > 0;
   const hasRevision = model.revisionField.draft.trim().length > 0;
 
-  const setupMissing: string[] = [];
-  if (!hasRole) setupMissing.push(t("wordLadder.missingRole"));
-  if (!hasVerbs) setupMissing.push(t("wordLadder.missingVerb"));
-  if (!hasPlace) setupMissing.push(t("wordLadder.missingPlace"));
-  if (!hasNouns) setupMissing.push(t("wordLadder.missingNoun"));
-
-  // Single setup message: list what's missing first, then nudge toward an even
-  // count once both columns have words but differ in length.
-  let setupWarning: string | null = null;
-  if (setupMissing.length > 0) {
-    setupWarning = t("wordLadder.addMissing", { items: formatMissing(setupMissing, t) });
-  } else if (!countsMatch) {
-    const diff = Math.abs(verbCount - nounCount);
-    const sideKey = verbCount > nounCount ? "wordLadder.nounSide" : "wordLadder.verbSide";
-    setupWarning = t("wordLadder.mismatch", { verbs: t("wordLadder.verbCount", { count: verbCount }), nouns: t("wordLadder.nounCount", { count: nounCount }), count: diff, side: t(sideKey, { count: diff }) });
+  // The footer only speaks once the list has words: while it is empty, the
+  // step's own hint in the list says what to do.
+  const verbsWarning = hasVerbs && !hasRole ? t("wordLadder.addMissing", { items: t("wordLadder.missingRole") }) : null;
+  let nounsWarning: string | null = null;
+  if (hasNouns && !hasPlace) {
+    nounsWarning = t("wordLadder.addMissing", { items: t("wordLadder.missingPlace") });
+  } else if (hasNouns && nounCount < verbCount) {
+    const diff = verbCount - nounCount;
+    nounsWarning = t("wordLadder.matchVerbs", {
+      count: diff,
+      side: t("wordLadder.nounSide", { count: diff }),
+      verbs: t("wordLadder.verbCount", { count: verbCount }),
+    });
+  } else if (nounCount > verbCount) {
+    nounsWarning = t("wordLadder.overVerbs", {
+      count: nounCount - verbCount,
+      verbs: t("wordLadder.verbCount", { count: verbCount }),
+    });
   }
 
   const openHelp = () => {
@@ -128,7 +125,13 @@ export function WordLadderScreenContent() {
     setHelpVisible(true);
   };
   const stepLabel = (item: WordLadderStep) =>
-    t(`wordSparks.${item === "setup" ? "words" : item === "pairs" ? "pair" : item}`);
+    item === "setup"
+      ? t("wordLadder.verbs")
+      : item === "nouns"
+        ? t("wordLadder.nouns")
+        : t(`wordSparks.${item === "pairs" ? "pair" : item}`);
+  const role = exercise.roleSeed.trim();
+  const place = exercise.placeSeed.trim();
 
   return (
     <SafeAreaView style={[contentStyles.shell, { backgroundColor: SPARK_PAPER }]} edges={["top", "bottom"]}>
@@ -147,52 +150,74 @@ export function WordLadderScreenContent() {
 
       {model.step === "setup" ? (
         <>
-          <View style={contentStyles.columnsRow}>
-            <WordLadderColumnEditor
-              label={t("wordLadder.verbs")}
-              placeholder={t("wordLadder.addVerb")}
-              words={exercise.columnA}
-              seedSlot={
-                <SetupSeedField
-                  label={t("wordSparks.jobRole")}
-                  value={exercise.roleSeed}
-                  placeholder={t("wordLadder.rolePlaceholder")}
-                  onChange={model.setRoleSeed}
-                  surpriseLabel={t("wordLadder.randomRole")}
-                  onSurprise={model.surpriseRole}
-                />
-              }
-              onAdd={(text) => model.addColumnWord("a", text)}
-              onSuggest={() => model.suggestColumnWords("a")}
-              onEdit={(id, text) => model.editColumnWord("a", id, text)}
-              onReorder={(words) => model.reorderColumnWords("a", words)}
-              onRemove={(id) => model.removeColumnWord("a", id)}
-            />
-            <WordLadderColumnEditor
-              label={t("wordLadder.nouns")}
-              placeholder={t("wordLadder.addNoun")}
-              words={exercise.columnB}
-              seedSlot={
-                <SetupSeedField
-                  label={t("wordSparks.roomPlace")}
-                  value={exercise.placeSeed}
-                  placeholder={t("wordLadder.placePlaceholder")}
-                  onChange={model.setPlaceSeed}
-                  surpriseLabel={t("wordLadder.randomPlace")}
-                  onSurprise={model.surprisePlace}
-                />
-              }
-              onAdd={(text) => model.addColumnWord("b", text)}
-              onSuggest={() => model.suggestColumnWords("b")}
-              onEdit={(id, text) => model.editColumnWord("b", id, text)}
-              onReorder={(words) => model.reorderColumnWords("b", words)}
-              onRemove={(id) => model.removeColumnWord("b", id)}
-            />
-          </View>
+          <WordLadderColumnEditor
+            label={t("wordLadder.verbs")}
+            placeholder={t("wordLadder.addVerb")}
+            words={exercise.columnA}
+            seedSlot={
+              <SetupSeedField
+                label={t("wordSparks.jobRole")}
+                value={exercise.roleSeed}
+                placeholder={t("wordLadder.rolePlaceholder")}
+                onChange={model.setRoleSeed}
+                surpriseLabel={t("wordLadder.randomRole")}
+                onSurprise={model.surpriseRole}
+              />
+            }
+            emptyHint={
+              <SparkHint
+                text={role ? t("wordLadder.verbsHint", { role }) : t("wordLadder.verbsHintBare")}
+                onExample={openHelp}
+              />
+            }
+            onAdd={(text) => model.addColumnWord("a", text)}
+            onSuggest={() => model.suggestColumnWords("a")}
+            onEdit={(id, text) => model.editColumnWord("a", id, text)}
+            onReorder={(words) => model.reorderColumnWords("a", words)}
+            onRemove={(id) => model.removeColumnWord("a", id)}
+          />
 
           <SparkFooter
-            hint={setupWarning}
-            next={{ label: t("wordSparks.pair"), onPress: () => model.goToStep("pairs"), disabled: !canLeaveSetup }}
+            hint={verbsWarning}
+            next={{ label: t("wordLadder.nouns"), onPress: () => model.goToStep("nouns"), disabled: !canLeaveVerbs }}
+          />
+        </>
+      ) : null}
+
+      {model.step === "nouns" ? (
+        <>
+          <WordLadderColumnEditor
+            label={t("wordLadder.nouns")}
+            placeholder={t("wordLadder.addNoun")}
+            words={exercise.columnB}
+            targetCount={Math.max(verbCount, 1)}
+            seedSlot={
+              <SetupSeedField
+                label={t("wordSparks.roomPlace")}
+                value={exercise.placeSeed}
+                placeholder={t("wordLadder.placePlaceholder")}
+                onChange={model.setPlaceSeed}
+                surpriseLabel={t("wordLadder.randomPlace")}
+                onSurprise={model.surprisePlace}
+              />
+            }
+            emptyHint={
+              <SparkHint
+                text={place ? t("wordLadder.nounsHint", { place }) : t("wordLadder.nounsHintBare")}
+                onExample={openHelp}
+              />
+            }
+            onAdd={(text) => model.addColumnWord("b", text)}
+            onSuggest={() => model.suggestColumnWords("b")}
+            onEdit={(id, text) => model.editColumnWord("b", id, text)}
+            onReorder={(words) => model.reorderColumnWords("b", words)}
+            onRemove={(id) => model.removeColumnWord("b", id)}
+          />
+
+          <SparkFooter
+            hint={nounsWarning}
+            back={{ label: t("wordLadder.verbs"), onPress: () => model.goToStep("setup") }}
+            next={{ label: t("wordSparks.pair"), onPress: () => model.goToStep("pairs"), disabled: !canLeaveNouns }}
           />
         </>
       ) : null}
@@ -209,12 +234,13 @@ export function WordLadderScreenContent() {
               onToggleLock={model.toggleLockPairing}
               onShuffle={model.shuffle}
               history={model.pairingHistory}
+              onExample={openHelp}
             />
           </View>
 
           <SparkFooter
             hint={canLeavePairs && unpairedCount > 0 ? t("wordLadder.unpaired", { count: unpairedCount }) : null}
-            back={{ label: t("wordSparks.words"), onPress: () => model.goToStep("setup") }}
+            back={{ label: t("wordLadder.nouns"), onPress: () => model.goToStep("nouns") }}
             next={{ label: t("wordSparks.draft"), onPress: () => model.goToStep("draft"), disabled: !canLeavePairs }}
           />
         </>
@@ -263,6 +289,8 @@ export function WordLadderScreenContent() {
             </View>
           ) : null}
 
+          {hasDraft ? null : <SparkHint text={t("wordLadder.draftHint")} onExample={openHelp} />}
+
           <View style={contentStyles.poemCard}>
             <UserTextInput
               style={[contentStyles.poemInput, scaledPoem]}
@@ -271,8 +299,6 @@ export function WordLadderScreenContent() {
               onBlur={model.draftField.flush}
               multiline
               textAlignVertical="top"
-              placeholder={t("wordLadder.draftPlaceholder")}
-              placeholderTextColor={colors.textMuted}
             />
           </View>
 
@@ -313,6 +339,8 @@ export function WordLadderScreenContent() {
             </ScrollView>
           </View>
 
+          {hasRevision ? null : <SparkHint text={t("wordLadder.reviseShort")} onExample={openHelp} />}
+
           <View style={contentStyles.poemCard}>
             <UserTextInput
               style={[contentStyles.poemInput, scaledPoem]}
@@ -321,8 +349,6 @@ export function WordLadderScreenContent() {
               onBlur={model.revisionField.flush}
               multiline
               textAlignVertical="top"
-              placeholder={t("wordLadder.revisionPlaceholder")}
-              placeholderTextColor={colors.textMuted}
             />
           </View>
 
