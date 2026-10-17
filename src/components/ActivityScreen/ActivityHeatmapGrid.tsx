@@ -423,8 +423,11 @@ const local = StyleSheet.create({
     borderRadius: 1,
     backgroundColor: colors.primaryDeep,
   },
+  // Strong enough that the span reads at a glance (founder: "hard to tell
+  // which is selected" at 0.35); empty days inside keep their own grey, so
+  // nothing outside the scale is mistaken for activity.
   outsideSpan: {
-    opacity: 0.35,
+    opacity: 0.2,
   },
   swatch: {
     width: 9,
