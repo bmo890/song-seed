@@ -54,7 +54,8 @@ export type PersistLogEvent =
     | "recording.attached"
     | "recording.flushFailed"
     | "recording.recovered"
-    | "step.slow";
+    | "step.slow"
+    | "record.trace";
 
 export type PersistLogEntry = {
     at: string;
@@ -155,7 +156,8 @@ export function persistLog(event: PersistLogEvent, detail?: string | { ms?: numb
             entry.detail = detail.slice(0, 200);
         } else if (detail) {
             if (detail.ms != null) entry.ms = Math.round(detail.ms);
-            if (detail.detail) entry.detail = detail.detail.slice(0, 200);
+            // A record trace lists every step of one tap; give it room.
+            if (detail.detail) entry.detail = detail.detail.slice(0, event === "record.trace" ? 400 : 200);
         }
         if (!entries) entries = [];
         entries.push(entry);

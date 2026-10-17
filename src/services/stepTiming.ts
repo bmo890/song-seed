@@ -1,4 +1,5 @@
 import { persistLog } from "./persistLog";
+import { noteRecordTrace } from "./recordTrace";
 
 // A step the user is waiting on that takes this long is worth a line in the
 // diagnostics bundle: it names WHICH awaited hop was slow on a real phone.
@@ -49,6 +50,7 @@ export async function timedStep<T>(
         if (timer) clearTimeout(timer);
         const ms = Date.now() - startedAt;
         if (__DEV__) console.log(`[Step] ${label} ${ms}ms`);
+        noteRecordTrace(`${label.replace(/^record\./, "")} ${ms}`);
         if (ms >= SLOW_STEP_MS) persistLog("step.slow", { ms, detail: label });
     }
 }

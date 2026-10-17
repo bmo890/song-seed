@@ -5,6 +5,7 @@ import { audioDeviceManager, type AudioDevice } from "@siteed/audio-studio";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState, Platform } from "react-native";
 import { runAfterInteractionsWithDeadline } from "../../../services/interactionGate";
+import { beginRecordTrace, endRecordTrace, noteRecordTrace } from "../../../services/recordTrace";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
 import { toast } from "../../common/toastStore";
@@ -1028,8 +1029,12 @@ export function useRecordingScreenModel() {
       setOverdubReviewLocked(false);
       autoStoppingOverdubRef.current = false;
       clearMonitoringDelayTimer();
+      let at = Date.now();
       await stopGuideMix();
+      noteRecordTrace(`guide ${Date.now() - at}`);
+      at = Date.now();
       await stopRecordingMetronome();
+      noteRecordTrace(`metro ${Date.now() - at}`);
       await recording.discardRecording();
       clearLivePins();
     }
@@ -1088,8 +1093,14 @@ export function useRecordingScreenModel() {
   // Back to idle (a Redo, a save that stays): ready the next take.
   const recorderIdle = !recording.isRecording && !recording.isPaused && !isArmingRecording;
   useEffect(() => {
-    if (recorderIdle) prewarmIfIdle();
+    if (!recorderIdle) return;
+    endRecordTrace("redo");
+    prewarmIfIdle();
   }, [recorderIdle, prewarmIfIdle]);
+  // The record trace ends when capture is live.
+  useEffect(() => {
+    if (recording.isRecording) endRecordTrace("rec");
+  }, [recording.isRecording]);
   // A different input needs a recorder prepared on it.
   const prewarmedInputRef = useRef(preferredRecordingInputId);
   useEffect(() => {
@@ -1140,6 +1151,7 @@ export function useRecordingScreenModel() {
         style: "default",
         icon: actionIcons.restore,
         onPress: () => {
+          beginRecordTrace("redo");
           void redoTake();
         },
       },
@@ -1150,7 +1162,11 @@ export function useRecordingScreenModel() {
         icon: "trash-outline",
         onPress: () => {
           prewarmLiveRef.current = false;
-          cancelRecording().then(() => navigation.goBack());
+          beginRecordTrace("discard");
+          cancelRecording().then(() => {
+            endRecordTrace("discard");
+            navigation.goBack();
+          });
         },
       },
       { label: t("recording.keepRecording"), style: "cancel" },
@@ -1730,6 +1746,13 @@ export function useRecordingScreenModel() {
     if (overdubReviewLocked) {
       return;
     }
+    const traceMode =
+      metronome.countInBars > 0 && metronome.isNativeAvailable
+        ? "countin"
+        : recordingMetronomeEnabled && metronome.isNativeAvailable
+          ? "click"
+          : "plain";
+    beginRecordTrace("rec", `${traceMode} ${recording.prewarmState()}`);
 
     autoStoppingOverdubRef.current = false;
     setMidTakeRouteChangeMs(null);
@@ -1813,7 +1836,9 @@ export function useRecordingScreenModel() {
         // for the count-in rather than layering the count-in on top of the running loop.
         const alreadyPreviewing = metronome.isRunning && !metronome.isCountIn;
         if (alreadyPreviewing) {
+          const at = Date.now();
           await metronome.stop();
+          noteRecordTrace(`previewStop ${Date.now() - at}`);
         }
 
         // Record THROUGH the count-in: capture rolls before the first click, the count-in
