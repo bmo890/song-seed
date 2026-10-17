@@ -396,7 +396,7 @@ index 12d30a2..1ad8772 100644
      }
  
 diff --git a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
-index 6f93aa4..ae67393 100644
+index 6f93aa4..9f8a4ef 100644
 --- a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
 +++ b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
 @@ -7,6 +7,7 @@ import android.content.Context
@@ -407,7 +407,17 @@ index 6f93aa4..ae67393 100644
  import android.media.MediaRecorder
  import android.os.Build
  import android.os.Bundle
-@@ -87,6 +88,13 @@ class AudioRecorderManager(
+@@ -82,11 +83,23 @@ class AudioRecorderManager(
+     private var audioRecord: AudioRecord? = null
+     private var bufferSizeInBytes = 0
+     private val _isRecording = AtomicBoolean(false)
++    // SongNook patch (2026-10-17): asks the recording loop to finish before stop
++    // takes audioRecordLock. The loop reads under that lock, so joining it while
++    // holding the lock waited the full 2 s join timeout whenever the loop was
++    // caught mid-read, and froze JS (status() takes the same lock).
++    private val stopRequested = AtomicBoolean(false)
+     private val isPaused = AtomicBoolean(false)
+     private var streamUuid: String? = null
      private var audioFile: File? = null
      private var recordingThread: Thread? = null
      private var recordingStartTime: Long = 0
@@ -421,7 +431,7 @@ index 6f93aa4..ae67393 100644
      private var totalRecordedTime: Long = 0
      private var totalDataSize = 0
      private var lastEmitTime = SystemClock.elapsedRealtime()
-@@ -854,6 +862,8 @@ class AudioRecorderManager(
+@@ -854,6 +867,8 @@ class AudioRecorderManager(
                      )
                      return false
                  }
@@ -430,7 +440,7 @@ index 6f93aa4..ae67393 100644
              }
              return true
  
-@@ -876,6 +886,37 @@ class AudioRecorderManager(
+@@ -876,6 +891,37 @@ class AudioRecorderManager(
          }
      }
  
@@ -468,7 +478,7 @@ index 6f93aa4..ae67393 100644
      private fun initializeRecordingResources(fileExtension: String, promise: Promise): Boolean {
          try {
              streamUuid = java.util.UUID.randomUUID().toString()
-@@ -956,6 +997,9 @@ class AudioRecorderManager(
+@@ -956,11 +1002,15 @@ class AudioRecorderManager(
              isPaused.set(false)
              _isRecording.set(true)
              isFirstChunk = true
@@ -478,7 +488,37 @@ index 6f93aa4..ae67393 100644
  
              if (!isPaused.get()) {
                  recordingStartTime = System.currentTimeMillis()
-@@ -1622,6 +1666,48 @@ class AudioRecorderManager(
+             }
+ 
++            stopRequested.set(false)
+             recordingThread = Thread { recordingProcess() }.apply { start() }
+             
+             // Start service if keepAwake is true, but only if background audio is enabled (#288)
+@@ -981,6 +1031,14 @@ class AudioRecorderManager(
+     fun stopRecording(promise: Promise) {
+         val stopStartTime = System.currentTimeMillis()
+ 
++        // Let the loop leave on its own first, outside the lock it reads under.
++        if (_isRecording.get()) {
++            stopRequested.set(true)
++            recordingThread?.let { thread ->
++                if (thread !== Thread.currentThread()) thread.join(2000L)
++            }
++        }
++
+         synchronized(audioRecordLock) {
+             if (!_isRecording.get()) {
+                 LogUtils.e(CLASS_NAME, "Recording is not active")
+@@ -1484,7 +1542,7 @@ class AudioRecorderManager(
+ 
+                 // Recording loop
+                 var loopCount = 0
+-                while (_isRecording.get() && !Thread.currentThread().isInterrupted) {
++                while (_isRecording.get() && !stopRequested.get() && !Thread.currentThread().isInterrupted) {
+                     loopCount++
+                     if (loopCount % 100 == 0) {
+                         LogUtils.d(CLASS_NAME, "Recording loop iteration $loopCount, isRecording: ${_isRecording.get()}, accumulatedAudioSize: ${accumulatedAudioData?.size() ?: 0}, accumulatedAnalysisSize: ${accumulatedAnalysisData.size()}")
+@@ -1622,6 +1680,48 @@ class AudioRecorderManager(
          }
      }
  
@@ -527,7 +567,7 @@ index 6f93aa4..ae67393 100644
      private fun emitAudioData(audioData: ByteArray, length: Int) {
          val isFloat32Stream = recordingConfig.streamFormat == "float32"
  
-@@ -1711,6 +1797,12 @@ class AudioRecorderManager(
+@@ -1711,6 +1811,12 @@ class AudioRecorderManager(
              )
          }
  
@@ -540,7 +580,7 @@ index 6f93aa4..ae67393 100644
          mainHandler.post {
              try {
                  eventSender.sendExpoEvent(Constants.AUDIO_EVENT_NAME, baseBundle)
-@@ -1768,6 +1860,9 @@ class AudioRecorderManager(
+@@ -1768,6 +1874,9 @@ class AudioRecorderManager(
                  lastEmittedSize = 0
                  streamPosition = 0
                  recordingStartTime = 0
