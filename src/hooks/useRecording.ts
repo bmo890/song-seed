@@ -27,6 +27,7 @@ import {
   recoverPendingRecordingSession,
 } from "../services/recordingRecovery";
 import { trimAudioRanges } from "../services/audioTrim";
+import { beginRecordTrace, endRecordTrace } from "../services/recordTrace";
 import { colors } from "../design/tokens";
 import { useRecordingDisplayElapsed } from "./useRecordingDisplayElapsed";
 import {
@@ -552,7 +553,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
 
       await timedStep("record.session", claimRecordingAudioSession());
       take.beginTake();
-      await recorder.prepareRecording(buildRecordingConfig());
+      await timedStep("record.prepare", recorder.prepareRecording(buildRecordingConfig()));
       take.facts.prepared = true;
       return true;
     } catch (err) {
@@ -592,40 +593,53 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     if (prepareInFlightRef.current) return prepareInFlightRef.current;
     // Claimed before the first await, so a tap that lands mid-check waits for this.
     const housekeeping = discardCleanup;
+    beginRecordTrace("warm");
     const run = (async () => {
       try {
         const mic = await ExpoAudioStreamModule.getPermissionsAsync();
-        if (!(mic?.granted ?? mic?.status === "granted")) return false;
+        if (!(mic?.granted ?? mic?.status === "granted")) return skipWarm("perm");
         if (Platform.OS === "android") {
           const notif = await ExpoAudioStreamModule.getNotificationPermissionsAsync();
-          if (!(notif?.granted ?? notif?.status === "granted")) return false;
+          if (!(notif?.granted ?? notif?.status === "granted")) return skipWarm("perm");
         }
         const known = audioDeviceManager.getRawDevices();
         const devices = known.length > 0 ? known : await audioDeviceManager.getAvailableDevices();
-        if (devices.some((device) => device.type === "bluetooth")) return false;
+        if (devices.some((device) => device.type === "bluetooth")) return skipWarm("bt");
       } catch {
-        return false;
+        return skipWarm("check");
       }
       try {
         await housekeeping;
-        if (take.facts.recordingStartedAt !== null || saveInFlightRef.current) return false;
+        if (take.facts.recordingStartedAt !== null || saveInFlightRef.current) return skipWarm("busy");
         await timedStep("record.prewarm.input", applyPreferredInput());
         await timedStep("record.prewarm.session", claimRecordingAudioSession());
         take.beginTake();
         await timedStep("record.prewarm.native", recorder.prepareRecording(buildRecordingConfig()));
         take.facts.prepared = true;
         prewarmedRef.current = true;
+        endRecordTrace("warm", "ok");
         return true;
       } catch (error) {
         console.warn("Recording prewarm failed", error);
         await releaseRecordingAudioSession().catch(() => {});
-        return false;
+        return skipWarm("fail");
       }
     })().finally(() => {
       prepareInFlightRef.current = null;
     });
     prepareInFlightRef.current = run;
     return run;
+  }
+
+  function skipWarm(reason: string) {
+    endRecordTrace("warm", `skip:${reason}`);
+    return false;
+  }
+
+  /** For the record trace: whether the tap finds a ready recorder. */
+  function prewarmState(): "ready" | "warming" | "cold" {
+    if (take.facts.prepared) return "ready";
+    return prepareInFlightRef.current ? "warming" : "cold";
   }
 
   /** Undo a prewarm the writer never used (leaving the recorder). Nothing was
@@ -662,7 +676,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       // The checks run side by side, not one after another. A discard's
       // housekeeping must land before this take writes its recovery marker.
       const [hasPermission, roomLeft] = await Promise.all([
-        requestRecordingPermissions(),
+        timedStep("perm", requestRecordingPermissions()),
         hasRoomForATake(),
         recoverKeptTakeBeforeNewOne(),
         discardCleanup,
@@ -732,7 +746,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     try {
       // The checks run side by side, not one after another.
       const [permitted, roomLeft] = await Promise.all([
-        requestRecordingPermissions(),
+        timedStep("perm", requestRecordingPermissions()),
         hasRoomForATake(),
         recoverKeptTakeBeforeNewOne(),
         discardCleanup,
@@ -1096,6 +1110,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     prepareRecording,
     prewarmRecording,
     releasePrewarm,
+    prewarmState,
     startRecording,
     startPreparedRecording,
     cancelPreparedRecording,
