@@ -163,8 +163,13 @@ export function useWordLadderScreenModel() {
         apply({ columnA });
       } else {
         const existing = exercise.columnB.map((word) => word.text);
+        // Nouns fill only what the verbs still need (2026-10-17: it always
+        // added four, overshooting a three-verb ladder). Once the counts match
+        // there is nothing to suggest.
+        const needed = Math.max(0, exercise.columnA.length - exercise.columnB.length);
+        if (needed === 0) return;
         let columnB = exercise.columnB;
-        for (const noun of suggestNouns(ideaLang, exercise.placeSeed, existing, 4)) columnB = addWord(columnB, noun);
+        for (const noun of suggestNouns(ideaLang, exercise.placeSeed, existing, needed)) columnB = addWord(columnB, noun);
         apply({ columnB });
       }
     },
