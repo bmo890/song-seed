@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { dirIcon } from "../../../design/directionalIcons";
 import { BottomSheet } from "../../common/BottomSheet";
+import { Button } from "../../common/Button";
+import { Press } from "../../common/Press";
+import { InkKey } from "../../common/InkKey";
 import { UserText } from "../../../i18n";
-import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
 import {
@@ -47,7 +48,6 @@ export function CutUpLineSelectSheet({ note, onClose, onConfirm }: Props) {
   const allSelected = lines.length > 0 && selected.size === lines.length;
 
   const toggleLine = (index: number) => {
-    haptic.light();
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(index)) next.delete(index);
@@ -57,18 +57,15 @@ export function CutUpLineSelectSheet({ note, onClose, onConfirm }: Props) {
   };
 
   const toggleStanza = (stanza: number) => {
-    haptic.tap();
     setSelected((prev) => toggleStanzaSelection(lines, prev, stanza));
   };
 
   const toggleAll = () => {
-    haptic.tap();
     setSelected(allSelected ? new Set() : new Set(lines.map((line) => line.index)));
   };
 
   const confirm = () => {
     if (!note || selected.size === 0) return;
-    haptic.tap();
     onConfirm(note, joinSelectedLines(lines, selected));
   };
 
@@ -81,17 +78,16 @@ export function CutUpLineSelectSheet({ note, onClose, onConfirm }: Props) {
               <Text style={styles.title} numberOfLines={1}>
                 {deriveNotePreviewTitle(note)}
               </Text>
-              <Text style={styles.subtitle}>{t("cutUp.chooseLinesHint")}</Text>
-            </View>
-            <Pressable
-              style={({ pressed }) => [styles.allBtn, pressed ? appStyles.pressDown : null]}
-              onPress={toggleAll}
-              hitSlop={6}
-            >
-              <Text style={styles.allBtnText}>
-                {allSelected ? t("cutUp.clearLines") : t("common.selectAll")}
+              <Text style={styles.subtitle}>
+                {selected.size > 0 ? t("cutUp.linesChosen", { count: selected.size }) : t("cutUp.chooseLinesHint")}
               </Text>
-            </Pressable>
+            </View>
+            <InkKey
+              glyph={null}
+              label={allSelected ? t("cutUp.clearLines") : t("common.selectAll")}
+              onPress={toggleAll}
+              style={styles.allKey}
+            />
           </View>
 
           <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -100,58 +96,48 @@ export function CutUpLineSelectSheet({ note, onClose, onConfirm }: Props) {
               return (
                 <View key={line.index}>
                   {startsStanza && stanzaCount > 1 ? (
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.verseLabelRow,
-                        rtl ? styles.rowRtl : null,
-                        i > 0 ? styles.verseLabelGap : null,
-                        pressed ? appStyles.pressDown : null,
-                      ]}
+                    <Press
+                      // Haptics vocabulary: tap, an acknowledged press (a whole verse).
+                      style={[styles.verseLabelRow, rtl ? styles.rowRtl : null, i > 0 ? styles.verseLabelGap : null]}
                       onPress={() => toggleStanza(line.stanza)}
                       hitSlop={6}
+                      accessibilityRole="button"
                     >
                       <Text style={styles.verseLabel}>
                         {t("cutUp.verseN", { num: line.stanza + 1 })}
                       </Text>
                       <Ionicons name="add-circle-outline" size={13} color={colors.textMuted} />
-                    </Pressable>
+                    </Press>
                   ) : null}
                   <LineRow
                     line={line}
                     selected={selected.has(line.index)}
                     rtl={rtl}
                     onPress={() => toggleLine(line.index)}
-                    onLongPress={() => toggleStanza(line.stanza)}
+                    onLongPress={() => {
+                      // Haptics vocabulary: light, a small state flip (the whole verse).
+                      haptic.light();
+                      toggleStanza(line.stanza);
+                    }}
                   />
                 </View>
               );
             })}
           </ScrollView>
 
-          <Pressable
-            style={({ pressed }) => [
-              styles.cta,
-              selected.size === 0 ? styles.ctaDisabled : null,
-              pressed && selected.size > 0 ? appStyles.pressDown : null,
-            ]}
+          <Button
+            label={t("cutUp.useLinesShort")}
             onPress={confirm}
             disabled={selected.size === 0}
-          >
-            <Text style={[styles.ctaText, selected.size === 0 ? styles.ctaTextDisabled : null]}>
-              {t("cutUp.useLines", { count: selected.size })}
-            </Text>
-            <Ionicons
-              name={dirIcon("arrow-forward")}
-              size={16}
-              color={selected.size > 0 ? colors.onPrimary : colors.textSecondary}
-            />
-          </Pressable>
+          />
         </View>
       ) : null}
     </BottomSheet>
   );
 }
 
+/** A line of the page. Taken, its dot fills terracotta and the words come up
+ *  to full ink: the app's one multi-select mark (editorial ink, no rail). */
 function LineRow({
   line,
   selected,
@@ -166,24 +152,19 @@ function LineRow({
   onLongPress: () => void;
 }) {
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.lineRow,
-        rtl ? styles.rowRtl : null,
-        selected ? styles.lineRowSelected : null,
-        pressed ? appStyles.pressDown : null,
-      ]}
+    <Press
+      // Haptics vocabulary: light, a small state flip (a line taken or dropped).
+      haptic="light"
+      style={[styles.lineRow, rtl ? styles.rowRtl : null]}
       onPress={onPress}
       onLongPress={onLongPress}
       delayLongPress={280}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: selected }}
     >
-      <View style={[styles.selectBar, selected ? styles.selectBarOn : null]} />
-      <UserText
-        style={[styles.lineText, selected ? styles.lineTextSelected : null]}
-      >
-        {line.text}
-      </UserText>
-    </Pressable>
+      <View style={[styles.dot, selected ? styles.dotOn : null]} />
+      <UserText style={[styles.lineText, selected ? styles.lineTextSelected : null]}>{line.text}</UserText>
+    </Press>
   );
 }
 
@@ -203,13 +184,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   subtitle: { ...textTokens.supporting, fontSize: 12 },
-  allBtn: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
-  },
-  allBtnText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 12, color: colors.primaryDeep },
+  allKey: { minHeight: 32 },
 
   scroll: { flex: 1, marginBottom: spacing.sm },
 
@@ -228,14 +203,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    borderRadius: radii.sm,
-    paddingVertical: 7,
-    paddingHorizontal: spacing.sm,
-    marginBottom: 2,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
   },
-  lineRowSelected: { backgroundColor: colors.surfaceContainer },
-  selectBar: { width: 3, alignSelf: "stretch", borderRadius: 2, backgroundColor: "transparent" },
-  selectBarOn: { backgroundColor: colors.primary },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: radii.round,
+    borderWidth: 1.25,
+    borderColor: colors.textMuted,
+  },
+  dotOn: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
   lineText: {
     flex: 1,
     fontFamily: "Lora_500Medium",
@@ -244,17 +226,4 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   lineTextSelected: { color: colors.textPrimary },
-
-  cta: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    backgroundColor: colors.primaryDeep,
-    borderRadius: radii.round,
-    paddingVertical: 14,
-  },
-  ctaDisabled: { backgroundColor: colors.borderMuted },
-  ctaText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 14, color: colors.onPrimary },
-  ctaTextDisabled: { color: colors.textSecondary },
 });

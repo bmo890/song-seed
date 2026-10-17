@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BackHandler, Dimensions } from "react-native";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { useDraftText } from "../../../hooks/useDraftText";
+import { useUndoHistory } from "../../common/useUndoHistory";
 import { AppAlert } from "../../common/AppAlert";
 import { toast } from "../../common/toastStore";
 import { sparkSaveTitle } from "../../../domain/notepad";
@@ -222,13 +223,25 @@ export function useCutUpScreenModel() {
     ? spark.cutSeams ?? seedCutSeams(spark.sourceText, tokenizeWords(spark.sourceText))
     : [];
 
+  // Undo/redo over the cut (2026-10-17): Recut used to wipe every cut with no
+  // way back. Each cut, join and recut records the seams it replaced.
+  const restoreSeams = useCallback((cutSeams: number[]) => apply({ cutSeams }), [apply]);
+  const cutHistory = useUndoHistory<number[]>(currentSeams, restoreSeams);
+  // Seams index the source's words, so a new source makes old snapshots meaningless.
+  const clearCutHistory = cutHistory.clear;
+  const sourceKey = spark?.sourceText;
+  useEffect(() => {
+    clearCutHistory();
+  }, [sourceKey, clearCutHistory]);
+
   const toggleSeamAt = useCallback(
     (seam: number) => {
       if (!spark) return;
       const seams = spark.cutSeams ?? seedCutSeams(spark.sourceText, tokenizeWords(spark.sourceText));
+      cutHistory.record(seams);
       apply({ cutSeams: toggleSeam(seams, seam) });
     },
-    [apply, spark]
+    [apply, spark, cutHistory]
   );
 
   const bindWords = useCallback(
@@ -242,8 +255,10 @@ export function useCutUpScreenModel() {
 
   const resetCuts = useCallback(() => {
     if (!spark) return;
+    const seams = spark.cutSeams ?? seedCutSeams(spark.sourceText, tokenizeWords(spark.sourceText));
+    cutHistory.record(seams);
     apply({ cutSeams: seedCutSeams(spark.sourceText, tokenizeWords(spark.sourceText)) });
-  }, [apply, spark]);
+  }, [apply, spark, cutHistory]);
 
   // ── Chunk step ─────────────────────────────────────────────────────────────
   // Structural changes (mode switch, re-cut, split, merge) mint new chunk ids, so
@@ -575,6 +590,7 @@ export function useCutUpScreenModel() {
     sourceField,
     pickSourceNote,
     currentSeams,
+    cutHistory,
     toggleSeamAt,
     bindWords,
     resetCuts,

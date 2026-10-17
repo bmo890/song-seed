@@ -1,13 +1,10 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { Press } from "../../common/Press";
+import { InkKey, inkKeyColor } from "../../common/InkKey";
 import { UserTextInput } from "../../../i18n";
 import { Ionicons } from "@expo/vector-icons";
 import { AppAlert } from "../../common/AppAlert";
-import { BottomSheet } from "../../common/BottomSheet";
-import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
-import { haptic } from "../../../design/haptics";
 import type { CutUpComposeFlavor } from "../../../domain/cutUp";
 import { useSparkTextScale } from "../../common/sparkTextScale";
 import type { CutUpSpark } from "../../../types";
@@ -43,20 +40,17 @@ export function CutUpDraftEditor({
 }) {
   const { t } = useTranslation();
   const { size, lineHeight } = useSparkTextScale();
-  const [menuOpen, setMenuOpen] = useState(false);
   // True once the writer has hand-edited since the last generated draft — so
   // re-rolling a fresh style is friction-free until there's real work to lose.
   const editedRef = useRef(false);
 
   const runRemix = (option: RemixOption) => {
-    haptic.tap();
     editedRef.current = false;
     if (option.key === "board") model.rebuildDraftFromBoard();
     else model.composeDraft(option.key);
   };
 
   const pickRemix = (option: RemixOption) => {
-    setMenuOpen(false);
     const dirty = model.draftField.draft.trim().length > 0 && editedRef.current;
     if (dirty) {
       AppAlert.destructive(t("cutUp.rebuildTitle"), t("cutUp.rebuildBody"), () => runRemix(option), {
@@ -66,6 +60,20 @@ export function CutUpDraftEditor({
       runRemix(option);
     }
   };
+
+  // The ways to rebuild the draft, as the shared menu (glyph, word, one quiet
+  // line each) instead of a sheet of tinted icon circles.
+  const openRemix = () =>
+    AppAlert.menu(
+      t("cutUp.remixDraft"),
+      REMIX_OPTIONS.map((option) => ({
+        key: option.key,
+        icon: option.icon,
+        label: option.key === "board" ? t("cutUp.boardOrder") : t(`cutUp.${option.key}`),
+        hint: option.key === "board" ? t("cutUp.boardOrderDesc") : t(`cutUp.${option.key}Desc`),
+        onPress: () => pickRemix(option),
+      }))
+    );
 
   const onChangeText = (value: string) => {
     editedRef.current = true;
@@ -77,18 +85,12 @@ export function CutUpDraftEditor({
       {keyboardVisible ? null : (
         <View style={styles.headerRow}>
           <Text style={styles.label}>{t("cutUp.yourDraft")}</Text>
-          <View style={styles.headerActions}>
-            <Press
-              style={styles.remixBtn}
-              onPress={() => {
-                setMenuOpen(true);
-              }}
-              hitSlop={6}
-            >
-              <Ionicons name="shuffle" size={14} color={colors.primaryDeep} />
-              <Text style={styles.remixText}>{t("cutUp.remixDraft")}</Text>
-            </Press>
-          </View>
+          <InkKey
+            glyph={<Ionicons name="shuffle" size={16} color={inkKeyColor("idle")} />}
+            label={t("cutUp.remixDraft")}
+            onPress={openRemix}
+            style={styles.headerKey}
+          />
         </View>
       )}
 
@@ -105,30 +107,6 @@ export function CutUpDraftEditor({
         />
       </View>
 
-      <BottomSheet visible={menuOpen} onClose={() => setMenuOpen(false)}>
-        <Text style={styles.sheetTitle}>{t("cutUp.remixDraft")}</Text>
-        <Text style={styles.sheetSubtitle}>{t("cutUp.remixSubtitle")}</Text>
-        <View style={styles.optionList}>
-          {REMIX_OPTIONS.map((option) => (
-            <Press
-              haptic="none"
-              key={option.key}
-              style={styles.optionRow}
-              onPress={() => pickRemix(option)}
-            >
-              <View style={styles.optionIcon}>
-                <Ionicons name={option.icon} size={18} color={colors.primaryDeep} />
-              </View>
-              <View style={styles.optionCopy}>
-                <Text style={styles.optionLabel}>
-                  {option.key === "board" ? t("cutUp.boardOrder") : t(`cutUp.${option.key}`)}
-                </Text>
-                <Text style={styles.optionDesc}>{t(`cutUp.${option.key}Desc`)}</Text>
-              </View>
-            </Press>
-          ))}
-        </View>
-      </BottomSheet>
     </View>
   );
 }
@@ -142,17 +120,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   label: { ...textTokens.annotation },
-  headerActions: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  remixBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
-  },
-  remixText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 12, color: colors.primaryDeep },
+  headerKey: { minHeight: 36 },
   card: {
     flex: 1,
     backgroundColor: PAGE_BG,
@@ -166,24 +134,4 @@ const styles = StyleSheet.create({
     color: colors.textStrong,
   },
 
-  sheetTitle: { fontFamily: "Lora_600SemiBold", fontSize: 19, color: colors.textPrimary, marginBottom: 4 },
-  sheetSubtitle: { ...textTokens.supporting, marginBottom: spacing.md },
-  optionList: { gap: 2 },
-  optionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  optionIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceContainer,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  optionCopy: { flex: 1, minWidth: 0, gap: 1 },
-  optionLabel: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 15, color: colors.textPrimary },
-  optionDesc: { ...textTokens.supporting, fontSize: 12.5 },
 });

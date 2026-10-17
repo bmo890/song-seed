@@ -55,7 +55,7 @@ function CutDiagram() {
 function CutMark() {
   return (
     <View style={helpStyles.cutMark}>
-      <Ionicons name="cut-outline" size={12} color={colors.primary} />
+      <Ionicons name="cut-outline" size={12} color={colors.primaryDeep} />
       <Svg width={2} height={20}>
         <Line x1={1} y1={0} x2={1} y2={20} stroke={colors.borderMuted} strokeWidth={1.5} strokeDasharray="2 2" />
       </Svg>
@@ -191,7 +191,7 @@ function HelpPoint({
   return (
     <View style={helpStyles.point}>
       <View style={helpStyles.pointIcon}>
-        <Ionicons name={icon} size={16} color={colors.primary} />
+        <Ionicons name={icon} size={16} color={colors.textSecondary} />
       </View>
       <View style={helpStyles.pointCopy}>
         <Text style={helpStyles.pointTitle}>{title}</Text>
@@ -213,16 +213,16 @@ const helpStyles = StyleSheet.create({
     ...textTokens.supporting,
     marginBottom: spacing.lg,
   },
+  // Examples sit on the sheet between hairlines, not in grey boxes (2026-10-17).
   diagram: {
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: radii.lg,
-    padding: spacing.md,
+    paddingVertical: spacing.md,
     marginBottom: spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderMuted,
   },
   paper: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.sm,
-    padding: spacing.md,
+    paddingVertical: spacing.xs,
   },
   paperLines: {
     fontFamily: "Lora_500Medium",
@@ -237,15 +237,17 @@ const helpStyles = StyleSheet.create({
     gap: spacing.xs,
   },
   scrap: {
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: radii.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderMuted,
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
   },
   scrapText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13,
-    color: colors.textStrong,
+    fontFamily: "Lora_500Medium",
+    fontSize: 14,
+    color: colors.textPrimary,
   },
   cutMark: {
     alignItems: "center",
@@ -257,15 +259,15 @@ const helpStyles = StyleSheet.create({
   },
   boardStrip: {
     backgroundColor: colors.surface,
-    borderRadius: radii.sm,
+    borderRadius: radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderMuted,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     alignSelf: "center",
     minWidth: "70%",
   },
-  boardStripAlt: {
-    backgroundColor: colors.surfaceContainer,
-  },
+  boardStripAlt: {},
   boardStripText: {
     fontFamily: "Lora_500Medium",
     fontSize: 15,
@@ -285,11 +287,12 @@ const helpStyles = StyleSheet.create({
     color: colors.textPrimary,
   },
   example: {
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: radii.lg,
-    padding: spacing.md,
+    paddingVertical: spacing.md,
     marginBottom: spacing.lg,
     gap: spacing.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderMuted,
   },
   exampleLabel: {
     ...textTokens.annotation,
@@ -317,12 +320,9 @@ const helpStyles = StyleSheet.create({
     alignItems: "flex-start",
   },
   pointIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
+    width: 20,
+    paddingTop: 2,
     alignItems: "center",
-    justifyContent: "center",
   },
   pointCopy: { flex: 1, minWidth: 0, gap: 2 },
   pointTitle: {
