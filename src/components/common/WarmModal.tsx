@@ -2,6 +2,7 @@ import { KeyboardAvoidingView, Modal, ScrollView, StyleSheet, Text, View } from 
 import Animated from "react-native-reanimated";
 import { popIn } from "../../design/motion";
 import { colors, radii } from "../../design/tokens";
+import { ModalDialogLayer } from "./AppDialog";
 
 type Props = {
   visible: boolean;
@@ -34,6 +35,9 @@ export function WarmModal({ visible, onRequestClose, title, children, scrollable
           </Animated.View>
         </View>
       </KeyboardAvoidingView>
+      {/* Dialogs raised while this modal is open draw here, above the card: the
+          layer name sheet's "Review overdub" used to jam every later dialog. */}
+      <ModalDialogLayer active={visible} />
     </Modal>
   );
 }

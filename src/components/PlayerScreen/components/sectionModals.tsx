@@ -20,6 +20,7 @@ import type { ClipSection, ClipSectionKind } from "../../../types";
 import { PLAYHEAD_COLOR, PlayheadCursorIcon } from "./practicePanelPrimitives";
 import { useTranslation } from "react-i18next";
 import { UserText, UserTextInput } from "../../../i18n";
+import { ModalDialogLayer } from "../../common/AppDialog";
 
 /** Single adjuster for whichever edge (start/end) is active, with a pin-to-playhead button. */
 export function SectionEdgeAdjuster({
@@ -196,6 +197,7 @@ export function SectionPickerModal({
           </View>
         </Pressable>
       </Pressable>
+      <ModalDialogLayer active={visible} />
     </Modal>
   );
 }

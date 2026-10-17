@@ -13,6 +13,7 @@ import {
     subscribeRestoreRestart,
 } from "../../state/restoreRuntime";
 import { useTranslation } from "react-i18next";
+import { ModalDialogLayer } from "./AppDialog";
 
 export function RestoreRestartGate() {
     const { t } = useTranslation();
@@ -113,6 +114,7 @@ export function RestoreRestartGate() {
                     )}
                 </View>
             </View>
+          <ModalDialogLayer active={true} />
         </Modal>
     );
 }

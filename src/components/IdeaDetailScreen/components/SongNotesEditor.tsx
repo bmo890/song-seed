@@ -15,6 +15,7 @@ import { Button } from "../../common/Button";
 import { colors, spacing } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 import { UserTextInput } from "../../../i18n";
+import { ModalDialogLayer } from "../../common/AppDialog";
 
 type Props = {
   visible: boolean;
@@ -86,6 +87,7 @@ export function SongNotesEditor({ visible, initialNotes, onSave, onClose }: Prop
           </KeyboardAvoidingView>
         </SafeAreaView>
       </SafeAreaProvider>
+      <ModalDialogLayer active={visible} />
     </Modal>
   );
 }
