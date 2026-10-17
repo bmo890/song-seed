@@ -124,6 +124,33 @@ async function recoverKeptTakeBeforeNewOne() {
 // started it, and the instance that saves it must release the SAME claim.
 const RECORDING_AUDIO_SESSION_OWNER = createAudioSessionOwner("recording");
 
+// The input last applied to the session ("default" or a device id). Re-selecting
+// the same input cost 110–240 ms on every take (2026-10-17 latency pass), so it is
+// skipped while the recording session stays claimed and nothing changed. Any
+// device event or session release forgets it, and the next take re-applies.
+let appliedInputKey: string | null = null;
+let deviceWatchInstalled = false;
+function watchDevicesOnce() {
+  if (deviceWatchInstalled) return;
+  deviceWatchInstalled = true;
+  try {
+    audioDeviceManager.addDeviceChangeListener(() => {
+      appliedInputKey = null;
+    });
+  } catch {
+    // No device events: always re-apply (the old behaviour).
+    deviceWatchInstalled = false;
+  }
+}
+
+// Discard's housekeeping (delete the file, clear the recovery marker, release the
+// session) runs after the screen has already moved on. The next take waits for it
+// before writing its own recovery marker, so a late clear can never wipe it.
+// A preparation waits only for the housekeeping queued BEFORE it began (captured
+// synchronously): a prewarm release queued later waits on that preparation, and
+// waiting on it back would deadlock the recorder.
+let discardCleanup: Promise<void> = Promise.resolve();
+
 export function useRecording(onRecorded: OnRecorded, preferredInputId: string | null) {
   const { t } = useTranslation();
   const recorder = useSharedAudioRecorder();
@@ -137,7 +164,13 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   // The tape leaf subscribes to the session itself (LiveTakeTape).
   const { token: interruptionToken, reason: lastInterruptionReason } = useTakeInterruption(take);
   const permissionRequestRef = useRef<Promise<boolean> | null>(null);
-  const prepareInFlightRef = useRef(false);
+  const prepareInFlightRef = useRef<Promise<boolean> | null>(null);
+  // The prepared recorder came from a prewarm, not this tap: if it went stale
+  // while waiting (a route or media-services change), the tap retries from scratch.
+  const prewarmedRef = useRef(false);
+  // A save still reads the take (file, trims, envelope) after the recorder stops;
+  // a prewarm must not begin the next take under it.
+  const saveInFlightRef = useRef(false);
   const startInFlightRef = useRef(false);
   const recordingIdeaId = useStore((s) => s.recordingIdeaId);
   const setPreferredRecordingInputId = useStore((s) => s.setPreferredRecordingInputId);
@@ -205,15 +238,24 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   }
 
   async function releaseRecordingAudioSession() {
+    appliedInputKey = null;
     await releaseAudioSessionOwner(RECORDING_AUDIO_SESSION_OWNER);
   }
 
   async function applyPreferredInput() {
+    watchDevicesOnce();
+    const key = preferredInputId ?? "default";
+    if (appliedInputKey === key) return;
+    appliedInputKey = await applyPreferredInputNow();
+  }
+
+  /** Applies the writer's input; returns the key it actually landed on. */
+  async function applyPreferredInputNow(): Promise<string> {
     if (preferredInputId) {
       try {
         const selectionResult = await audioDeviceManager.selectDevice(preferredInputId);
         if (selectionResult !== false) {
-          return;
+          return preferredInputId;
         }
       } catch (selectionError) {
         console.warn("Preferred input selection failed", selectionError);
@@ -225,7 +267,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         console.warn("Recording input reset after stale preference failed", resetError);
       }
       setPreferredRecordingInputId(null);
-      return;
+      return "default";
     }
 
     try {
@@ -233,6 +275,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     } catch (resetError) {
       console.warn("Recording input reset failed", resetError);
     }
+    return "default";
   }
 
   async function requestMicrophonePermission() {
@@ -474,6 +517,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         // mid-count-in interruption leaves an unmeasurable pending head to drop.
         if (take.headTrim.get().pending) take.headTrim.set({ pending: false, ms: 0 });
         take.noteInterruption(event.reason);
+        appliedInputKey = null;
         void releaseAudioSessionOwner(RECORDING_AUDIO_SESSION_OWNER).catch((error) => {
           console.warn("Recording audio session release after interruption failed", error);
         });
@@ -482,10 +526,23 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     };
   }
 
-  async function prepareRecording() {
-    if (recorder.isRecording || recorder.isPaused || prepareInFlightRef.current) return false;
-    prepareInFlightRef.current = true;
+  /** Get the recorder ready to start (input, session, native prepare). Callers
+   *  share one in-flight preparation: a record tap that lands while the screen's
+   *  prewarm is still preparing waits for it instead of failing. */
+  function prepareRecording(): Promise<boolean> {
+    if (recorder.isRecording || recorder.isPaused) return Promise.resolve(false);
+    if (take.facts.prepared) return Promise.resolve(true);
+    if (prepareInFlightRef.current) return prepareInFlightRef.current;
+    const run = prepareRecordingNow(discardCleanup).finally(() => {
+      prepareInFlightRef.current = null;
+    });
+    prepareInFlightRef.current = run;
+    return run;
+  }
+
+  async function prepareRecordingNow(housekeeping: Promise<void>) {
     try {
+      await housekeeping;
       const hasPermission = await requestRecordingPermissions();
       if (!hasPermission) {
         return false;
@@ -505,39 +562,119 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       console.warn("Recording prepare failed", err);
       showRecordingFailure(err, t("recordingErrors.prepareFailed"));
       return false;
-    } finally {
-      prepareInFlightRef.current = false;
     }
+  }
+
+  /**
+   * Prepare ahead of the record tap (2026-10-17 latency pass). An unprepared
+   * start makes the native recorder reset the audio session (deactivate, a fixed
+   * 100 ms sleep, reactivate) and build its engine inside the tap: ~350 ms on the
+   * simulator, more with Bluetooth. Preparing does not open the microphone (the
+   * engine is not started), and runs only when permission was already granted,
+   * so opening the recorder never prompts. Failures are silent: the tap falls
+   * back to preparing itself, exactly as before.
+   *
+   * Not with Bluetooth in reach: a record-ready session moves a headset to its
+   * call profile, and the writer's music would drop to call quality before they
+   * have chosen to record. Those takes prepare on the tap, as before.
+   */
+  function prewarmRecording(): Promise<boolean> {
+    // A take that exists (even paused, or mid-flicker of the recorder's state)
+    // owns the recorder; React state alone can lag it.
+    const takeLive = () =>
+      recorder.isRecording ||
+      recorder.isPaused ||
+      startInFlightRef.current ||
+      saveInFlightRef.current ||
+      take.facts.recordingStartedAt !== null;
+    if (takeLive()) return Promise.resolve(false);
+    if (take.facts.prepared) return Promise.resolve(true);
+    if (prepareInFlightRef.current) return prepareInFlightRef.current;
+    // Claimed before the first await, so a tap that lands mid-check waits for this.
+    const housekeeping = discardCleanup;
+    const run = (async () => {
+      try {
+        const mic = await ExpoAudioStreamModule.getPermissionsAsync();
+        if (!(mic?.granted ?? mic?.status === "granted")) return false;
+        if (Platform.OS === "android") {
+          const notif = await ExpoAudioStreamModule.getNotificationPermissionsAsync();
+          if (!(notif?.granted ?? notif?.status === "granted")) return false;
+        }
+        const known = audioDeviceManager.getRawDevices();
+        const devices = known.length > 0 ? known : await audioDeviceManager.getAvailableDevices();
+        if (devices.some((device) => device.type === "bluetooth")) return false;
+      } catch {
+        return false;
+      }
+      try {
+        await housekeeping;
+        if (take.facts.recordingStartedAt !== null || saveInFlightRef.current) return false;
+        await timedStep("record.prewarm.input", applyPreferredInput());
+        await timedStep("record.prewarm.session", claimRecordingAudioSession());
+        take.beginTake();
+        await timedStep("record.prewarm.native", recorder.prepareRecording(buildRecordingConfig()));
+        take.facts.prepared = true;
+        prewarmedRef.current = true;
+        return true;
+      } catch (error) {
+        console.warn("Recording prewarm failed", error);
+        await releaseRecordingAudioSession().catch(() => {});
+        return false;
+      }
+    })().finally(() => {
+      prepareInFlightRef.current = null;
+    });
+    prepareInFlightRef.current = run;
+    return run;
+  }
+
+  /** Undo a prewarm the writer never used (leaving the recorder). Nothing was
+   *  captured, so the recovery marker is left alone: it may still hold a kept
+   *  take from before. Queued with discard's housekeeping, so the next prepare
+   *  waits for it. */
+  function releasePrewarm() {
+    const inFlight = prepareInFlightRef.current;
+    discardCleanup = discardCleanup.then(async () => {
+      if (inFlight) await inFlight.catch(() => false);
+      if (!take.facts.prepared || startInFlightRef.current) return;
+      take.facts.prepared = false;
+      prewarmedRef.current = false;
+      try {
+        take.facts.expectedStop = true;
+        await recorder.stopRecording();
+      } catch {
+        take.facts.expectedStop = false;
+      }
+      await releaseRecordingAudioSession().catch(() => {});
+    });
+    return discardCleanup;
   }
 
 
   async function startRecording() {
     if (recorder.isRecording || recorder.isPaused || startInFlightRef.current) return false;
+    // Prepared ahead (prewarm) or mid-prepare: start the ready recorder.
+    if (take.facts.prepared || prepareInFlightRef.current) return startPreparedRecording();
     startInFlightRef.current = true;
     let nativeStartAttempted = false;
     let audioSessionClaimed = false;
     try {
-      const hasPermission = await requestRecordingPermissions();
+      // The checks run side by side, not one after another. A discard's
+      // housekeeping must land before this take writes its recovery marker.
+      const [hasPermission, roomLeft] = await Promise.all([
+        requestRecordingPermissions(),
+        hasRoomForATake(),
+        recoverKeptTakeBeforeNewOne(),
+        discardCleanup,
+      ]);
       if (!hasPermission) {
         return false;
       }
-      await recoverKeptTakeBeforeNewOne();
-
-      // A full disk mid-take is the worst place to find out (2026-08-26 audit
-      // F5): refuse to START when free space is below the same 64MB reserve the
-      // backup paths keep. The probe itself fails OPEN — a probe error must
-      // never block a take.
-      try {
-        const MIN_RECORDING_FREE_BYTES = 64 * 1024 * 1024;
-        const freeBytes = await timedStep("record.diskCheck", FileSystem.getFreeDiskStorageAsync());
-        if (Number.isFinite(freeBytes) && freeBytes >= 0 && freeBytes < MIN_RECORDING_FREE_BYTES) {
-          // Haptics vocabulary `error`: "Something failed" — the take can't start.
-          haptic.error();
-          AppAlert.info(t("recording.noSpaceTitle"), t("recording.noSpaceBody"));
-          return false;
-        }
-      } catch {
-        // Unknown free space — proceed; the save path has its own recovery.
+      if (!roomLeft) {
+        // Haptics vocabulary `error`: "Something failed" — the take can't start.
+        haptic.error();
+        AppAlert.info(t("recording.noSpaceTitle"), t("recording.noSpaceBody"));
+        return false;
       }
 
       try {
@@ -574,16 +711,44 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     }
   }
 
-  async function startPreparedRecording() {
+  /** A full disk mid-take is the worst place to find out (2026-08-26 audit F5).
+   *  The probe fails OPEN: an error never blocks a take. */
+  async function hasRoomForATake() {
+    try {
+      const MIN_RECORDING_FREE_BYTES = 64 * 1024 * 1024;
+      const freeBytes = await timedStep("record.diskCheck", FileSystem.getFreeDiskStorageAsync());
+      return !(Number.isFinite(freeBytes) && freeBytes >= 0 && freeBytes < MIN_RECORDING_FREE_BYTES);
+    } catch {
+      return true;
+    }
+  }
+
+  async function startPreparedRecording(): Promise<boolean> {
     if (recorder.isRecording || recorder.isPaused || startInFlightRef.current) return false;
     startInFlightRef.current = true;
+    let fromPrewarm = false;
     let nativeStartAttempted = false;
     let audioSessionClaimed = take.facts.prepared;
     try {
-      if (!(await requestRecordingPermissions())) {
+      // The checks run side by side, not one after another.
+      const [permitted, roomLeft] = await Promise.all([
+        requestRecordingPermissions(),
+        hasRoomForATake(),
+        recoverKeptTakeBeforeNewOne(),
+        discardCleanup,
+        prepareInFlightRef.current ?? Promise.resolve(true),
+      ]);
+      // A prewarm that finished meanwhile claimed the session for this take.
+      audioSessionClaimed = take.facts.prepared;
+      if (!permitted) {
         return false;
       }
-      await recoverKeptTakeBeforeNewOne();
+      if (!roomLeft) {
+        // Haptics vocabulary `error`: "Something failed" — the take can't start.
+        haptic.error();
+        AppAlert.info(t("recording.noSpaceTitle"), t("recording.noSpaceBody"));
+        return false;
+      }
       if (!take.facts.prepared) {
         const prepared = await prepareRecording();
         if (!prepared) {
@@ -591,6 +756,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         }
         audioSessionClaimed = true;
       }
+      fromPrewarm = prewarmedRef.current;
+      prewarmedRef.current = false;
 
       const recordingStartedAt = Date.now();
       take.facts.recordingStartedAt = recordingStartedAt;
@@ -606,6 +773,12 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       return true;
     } catch (err) {
       await rollbackFailedRecordingStart(nativeStartAttempted, audioSessionClaimed);
+      if (fromPrewarm) {
+        // A recorder prepared ahead went stale; prepare afresh, as an unwarmed tap would.
+        console.warn("Prewarmed recording start failed; retrying cold", err);
+        startInFlightRef.current = false;
+        return startRecording();
+      }
       console.warn("Prepared recording start failed", err);
       showRecordingFailure(err, t("recordingErrors.startFailed"));
       return false;
@@ -616,6 +789,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
 
   async function cancelPreparedRecording() {
     take.facts.prepared = false;
+    prewarmedRef.current = false;
     take.facts.recordingStartedAt = null;
     take.facts.sessionPersisted = false;
     abortHeadTrim();
@@ -656,6 +830,15 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   }
 
   async function saveRecording() {
+    saveInFlightRef.current = true;
+    try {
+      return await saveRecordingNow();
+    } finally {
+      saveInFlightRef.current = false;
+    }
+  }
+
+  async function saveRecordingNow() {
     let managedAudioUriToCleanup: string | null = null;
     let trimTempUriToCleanup: string | null = null;
     try {
@@ -859,7 +1042,14 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     }
   }
 
+  /**
+   * Throw the take away. Only the native stop is awaited (the screen's state
+   * follows it); deleting the file, clearing the recovery marker and releasing
+   * the session continue in the background, so Discard and Redo answer at once
+   * (2026-10-17).
+   */
   async function discardRecording() {
+    let fileUri: string | undefined;
     try {
       take.facts.expectedStop = true;
       const recordingData = await timedStep("stopRecording", recorder.stopRecording(), {
@@ -869,26 +1059,28 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
           if (late?.fileUri) void FileSystem.deleteAsync(late.fileUri, { idempotent: true }).catch(() => {});
         },
       });
-      take.facts.prepared = false;
-      take.facts.recordingStartedAt = null;
-      abortHeadTrim();
-      resetLiveWaveform();
-      resetOnsetEnvelope();
-      if (recordingData?.fileUri) {
-        // Discard should clean up the recorder output because the app never imports it into
-        // managed storage or stores metadata for later recovery.
-        await FileSystem.deleteAsync(recordingData.fileUri, { idempotent: true }).catch(() => {});
-      }
-      await clearPendingRecordingSession();
+      fileUri = recordingData?.fileUri;
     } catch {
       take.facts.expectedStop = false;
+    }
+    take.facts.prepared = false;
+    prewarmedRef.current = false;
+    take.facts.recordingStartedAt = null;
+    abortHeadTrim();
+    resetLiveWaveform();
+    resetOnsetEnvelope();
+    discardCleanup = discardCleanup.then(async () => {
+      if (fileUri) {
+        // Discard should clean up the recorder output because the app never imports it into
+        // managed storage or stores metadata for later recovery.
+        await FileSystem.deleteAsync(fileUri, { idempotent: true }).catch(() => {});
+      }
       // A discarded take must not come back as "recovered" on the next launch.
       await clearPendingRecordingSession().catch(() => {});
-    } finally {
       await releaseRecordingAudioSession().catch((error) => {
         console.warn("Recording audio session release after discard failed", error);
       });
-    }
+    });
   }
 
   return {
@@ -902,6 +1094,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     lastInterruptionReason,
     interruptionToken,
     prepareRecording,
+    prewarmRecording,
+    releasePrewarm,
     startRecording,
     startPreparedRecording,
     cancelPreparedRecording,

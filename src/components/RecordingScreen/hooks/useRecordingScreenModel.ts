@@ -3,6 +3,8 @@ import { useNavigation } from "@react-navigation/native";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { audioDeviceManager, type AudioDevice } from "@siteed/audio-studio";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppState, Platform } from "react-native";
+import { runAfterInteractionsWithDeadline } from "../../../services/interactionGate";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
 import { toast } from "../../common/toastStore";
@@ -1050,6 +1052,55 @@ export function useRecordingScreenModel() {
     []
   );
 
+  // Pre-warm (2026-10-17 latency pass): once the open transition settles, ready
+  // the recorder so the record tap starts a prepared engine instead of building
+  // one (~350 ms). Released when the recorder closes or the app leaves the
+  // foreground. iOS only: Android's recorder cannot be un-prepared (its stop
+  // refuses a recorder that never started), so a stale prepare would outlive an
+  // input change there.
+  const recordingRef = useRef(recording);
+  recordingRef.current = recording;
+  const prewarmLiveRef = useRef(false);
+  const prewarmIfIdle = useCallback(() => {
+    const current = recordingRef.current;
+    if (!prewarmLiveRef.current || current.isRecording || current.isPaused) return;
+    void current.prewarmRecording();
+  }, []);
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+    let mounted = true;
+    runAfterInteractionsWithDeadline(() => {
+      if (!mounted) return;
+      prewarmLiveRef.current = true;
+      prewarmIfIdle();
+    }, 800);
+    const appState = AppState.addEventListener("change", (next) => {
+      if (next === "active") prewarmIfIdle();
+      else if (next === "background") void recordingRef.current.releasePrewarm();
+    });
+    return () => {
+      mounted = false;
+      prewarmLiveRef.current = false;
+      appState.remove();
+      void recordingRef.current.releasePrewarm();
+    };
+  }, [prewarmIfIdle]);
+  // Back to idle (a Redo, a save that stays): ready the next take.
+  const recorderIdle = !recording.isRecording && !recording.isPaused && !isArmingRecording;
+  useEffect(() => {
+    if (recorderIdle) prewarmIfIdle();
+  }, [recorderIdle, prewarmIfIdle]);
+  // A different input needs a recorder prepared on it.
+  const prewarmedInputRef = useRef(preferredRecordingInputId);
+  useEffect(() => {
+    if (prewarmedInputRef.current === preferredRecordingInputId) return;
+    prewarmedInputRef.current = preferredRecordingInputId;
+    if (!prewarmLiveRef.current) return;
+    const current = recordingRef.current;
+    if (current.isRecording || current.isPaused) return;
+    void current.releasePrewarm().then(prewarmIfIdle);
+  }, [preferredRecordingInputId, prewarmIfIdle]);
+
   function confirmDiscardAndExit() {
     const hasRecordingToDiscard =
       isArmingRecording || recording.isRecording || recording.isPaused || recording.elapsedMs > 0;
@@ -1065,6 +1116,7 @@ export function useRecordingScreenModel() {
       t("recording.discardTitle"),
       t("recording.discardBody"),
       () => {
+        prewarmLiveRef.current = false;
         cancelRecording().then(() => navigation.goBack());
       },
       { confirmLabel: t("recording.discard"), cancelLabel: t("recording.keepRecording"), icon: actionIcons.discard }
@@ -1097,6 +1149,7 @@ export function useRecordingScreenModel() {
         // The dock's own glyph, so the answer looks like the key you pressed.
         icon: "trash-outline",
         onPress: () => {
+          prewarmLiveRef.current = false;
           cancelRecording().then(() => navigation.goBack());
         },
       },
@@ -1178,6 +1231,8 @@ export function useRecordingScreenModel() {
 
     const saved = await recording.saveRecording();
     pendingOverdubSaveRef.current = null;
+    // The idle prewarm waited for the save; ready the next take now.
+    prewarmIfIdle();
     if (!saved) {
       if (overdubSaveTarget) {
         setQuickNameModalVisible(false);
@@ -1759,15 +1814,19 @@ export function useRecordingScreenModel() {
         const alreadyPreviewing = metronome.isRunning && !metronome.isCountIn;
         if (alreadyPreviewing) {
           await metronome.stop();
-          await new Promise((resolve) => setTimeout(resolve, 180));
         }
 
         // Record THROUGH the count-in: capture rolls before the first click, the count-in
         // completion effect measures where the musical start (downbeat / guide start)
         // landed in the capture, and the head is trimmed at save. Starting capture at the
         // completion event instead used to leave a random ~half-beat of pre-roll (the JS
-        // chain raced the final count-in beat).
-        const started = await recording.startPreparedRecording();
+        // chain raced the final count-in beat). The preview's settle gap runs alongside
+        // the capture start (2026-10-17): it guards the click engine's restart, not the
+        // recorder, and whatever the pre-roll catches is measured and trimmed.
+        const [started] = await Promise.all([
+          recording.startPreparedRecording(),
+          alreadyPreviewing ? waitPlainMs(180) : Promise.resolve(),
+        ]);
         if (!started) {
           setIsArmingRecording(false);
           return;
