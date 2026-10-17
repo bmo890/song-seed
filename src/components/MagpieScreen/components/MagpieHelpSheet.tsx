@@ -123,7 +123,7 @@ const helpStyles = StyleSheet.create({
     fontSize: 11,
     color: colors.textMuted,
     fontStyle: "italic",
-    marginTop: spacing.xs,
+    marginTop: spacing.lg,
   },
   points: { gap: spacing.md },
   point: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start" },
