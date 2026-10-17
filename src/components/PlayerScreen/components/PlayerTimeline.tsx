@@ -304,17 +304,13 @@ type Props = {
   sections: ClipSection[];
   /** The take's beat grid — draws bars/beats/tempo changes on the reel. */
   recordingGrid?: RecordingGrid | null;
-  /** Un-flattened overdub layers, drawn as slim lanes under the reel so their placement
-   *  on the master's timeline is visible at a glance. */
+  /** Un-flattened layers, one named row each under the reel, on its timeline. */
   overdubLayerLanes?: OverdubLayerLane[];
-  /** Lane-as-portal: tapping the lane opens the mixer (player mode only). */
-  onOpenLayerMixer?: () => void;
-  layerMixerAccessibilityLabel?: string;
-  /** Bench (layers mode): lanes become the layer selector. */
-  selectedLaneId?: string | null;
-  onPressLane?: (id: string) => void;
-  onLaneDragEnd?: (id: string, deltaMs: number, msPerPx: number) => void;
-  laneDragResetToken?: number;
+  /** A lane opens its layer on the bench. */
+  onOpenLayerLane?: (id: string) => void;
+  /** The lanes fold away under a quiet "Layers · n" header. */
+  layerLanesCollapsed?: boolean;
+  onToggleLayerLanes?: () => void;
   draggingMarkerId: SharedValue<string>;
   draggingMarkerX: SharedValue<number>;
   onLoopRangeChange: (start: number, end: number) => void;
@@ -376,12 +372,9 @@ function PlayerTimelineInner({
   sections,
   recordingGrid,
   overdubLayerLanes,
-  onOpenLayerMixer,
-  layerMixerAccessibilityLabel,
-  selectedLaneId,
-  onPressLane,
-  onLaneDragEnd,
-  laneDragResetToken,
+  onOpenLayerLane,
+  layerLanesCollapsed,
+  onToggleLayerLanes,
   draggingMarkerId,
   draggingMarkerX,
   onLoopRangeChange,
@@ -588,18 +581,16 @@ function PlayerTimelineInner({
       )}
       renderBelowSurface={({ pixelsPerMs, timelineTranslateX, timelineScale }) => (
         <>
-          {overdubLayerLanes && overdubLayerLanes.length > 0 ? (
+          {/* The bench lists the layers itself; under the reel they rest as lanes. */}
+          {mode !== "layers" && overdubLayerLanes && overdubLayerLanes.length > 0 ? (
             <OverdubLayerLanes
               lanes={overdubLayerLanes}
               pixelsPerMs={pixelsPerMs}
               timelineTranslateX={timelineTranslateX}
               timelineScale={timelineScale}
-              onPress={onOpenLayerMixer}
-              accessibilityLabel={layerMixerAccessibilityLabel}
-              selectedLaneId={mode === "layers" ? selectedLaneId : undefined}
-              onPressLane={mode === "layers" ? onPressLane : undefined}
-              onLaneDragEnd={mode === "layers" ? onLaneDragEnd : undefined}
-              laneDragResetToken={laneDragResetToken}
+              onOpenLane={onOpenLayerLane}
+              collapsed={layerLanesCollapsed}
+              onToggleCollapsed={onToggleLayerLanes}
             />
           ) : null}
           {loopActive && previewRange ? (

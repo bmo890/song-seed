@@ -23,6 +23,8 @@ describe("looksMachineNamed", () => {
     "PTT-20260921-WA0004",
     "Idea 3",
     "Idea 3 v2",
+    "Layer 2",
+    "שכבה 3",
     "Recovered · 1:54 PM Sep 23rd",
     "Recovered Recording 07/29/2026 10:12",
     "Import 1:54 PM Sep 23rd",

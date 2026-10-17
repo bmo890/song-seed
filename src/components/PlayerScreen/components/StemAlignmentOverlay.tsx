@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
@@ -10,13 +10,14 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated";
 import { ensureWaveformSidecar } from "../../../services/waveformSidecar";
-import { fmtDuration } from "../../../utils";
 import { getMetronomeMeterPreset } from "../../../domain/metronome";
 import type { RecordingGrid } from "../../../types";
 import { colors } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
 import { durations } from "../../../design/motion";
 import { useTranslation } from "react-i18next";
+import { Ionicons } from "@expo/vector-icons";
+import { InkKey, inkKeyColor } from "../../common/InkKey";
 
 /**
  * Superimposed master + stem waveforms on one shared time axis, with the stem shifted by
@@ -280,22 +281,22 @@ export function StemAlignmentOverlay({
       {/* No legend: the grey wave is the master, the coloured wave is the layer — the
           colours say it, and the ? sheet spells it out. Only the zoom toggle remains,
           as quiet ink. */}
+      {/* The zoom key names what a tap does (it used to name the current state,
+          and read as a stray label): Zoom, or back to the Full clip. */}
       <View style={styles.headerRow}>
-        <Pressable
-          style={({ pressed }) => [styles.zoomChip, pressed ? styles.pressed : null]}
+        <InkKey
+          // Haptics vocabulary: `tap` — a control toggles.
+          label={zoomed ? t("player.fullClip") : t("player.zoomShort")}
+          glyph={
+            <Ionicons
+              name={zoomed ? "contract-outline" : "search-outline"}
+              size={13}
+              color={inkKeyColor("idle")}
+            />
+          }
           onPress={() => setZoomed((current) => !current)}
-          hitSlop={{ top: 6, bottom: 6 }}
-          accessibilityRole="button"
           accessibilityLabel={zoomed ? t("player.showFullClip") : t("player.zoomLayer")}
-        >
-          <Text style={styles.zoomChipText}>
-            {zoomed
-              ? zoomStartMs > 0
-                ? t("player.atOffset", { time: fmtDuration(zoomStartMs + 1000) })
-                : t("player.firstSeconds", { count: ZOOM_WINDOW_MS / 1000 })
-              : t("player.fullClip")}
-          </Text>
-        </Pressable>
+        />
       </View>
       <StageShell gesture={slideGesture}>
         <View style={styles.content}>
@@ -372,18 +373,6 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   // Quiet ink — the zoom toggle is a whisper, not a chip.
-  zoomChip: {
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-  },
-  zoomChipText: {
-    fontSize: 11,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    color: colors.textSecondary,
-  },
-  pressed: {
-    opacity: 0.7,
-  },
   // No box: the bars sit on the page surface — whitespace does the framing.
   stage: {
     height: VIEW_HEIGHT,

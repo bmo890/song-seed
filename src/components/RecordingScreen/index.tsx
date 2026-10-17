@@ -107,7 +107,7 @@ export function RecordingScreen() {
             screen.recordingIdea?.title ||
             t("recording.title")
           }
-          titleIsPlaceholder={screen.headerTitlePlaceholder}
+          titleIsPlaceholder={screen.headerTitleMachineNamed}
           controlsDisabled={screen.recordingControlsDisabled}
           collapsed={screen.lyricsExpanded}
           onBack={screen.confirmDiscardAndExit}
@@ -125,6 +125,7 @@ export function RecordingScreen() {
         <RecordingBody
           recordingIdea={screen.recordingIdea ?? null}
           recordingOverdubClip={screen.recordingOverdubClip ?? null}
+          guideOnPhoneSpeaker={screen.guideOnPhoneSpeaker}
           guideMixIsPlaying={screen.guideMixIsPlaying}
           guideMixPositionMs={screen.guideMixPositionMs}
           guideMixDurationMs={screen.guideMixDurationMs}
