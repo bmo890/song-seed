@@ -2,37 +2,34 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Keyboard, Platform, ScrollView, StyleSheet, Text, type TextInput, View } from "react-native";
 import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
-import { dirIcon } from "../../../design/directionalIcons";
 import { UserText, UserTextInput } from "../../../i18n";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
 import { BottomSheet } from "../../common/BottomSheet";
-import { ChordZoomBar } from "../../LyricsVersionScreen/components/chords/ChordZoomBar";
 import type { MagpieFragment, MagpieSpark } from "../../../types";
 import type { useMagpieScreenModel } from "../hooks/useMagpieScreenModel";
 import { useTranslation } from "react-i18next";
+import { useSparkTextScale } from "../../common/sparkTextScale";
+import { SparkFooter } from "../../common/SparkFrame";
 import { UndoRedoButtons } from "../../common/useUndoHistory";
-import { HelpButton } from "../../common/HelpButton";
 
 type Model = ReturnType<typeof useMagpieScreenModel>;
 
-const PAGE_BG = "#FBF6EC";
+// The writing sheet is a card on the app paper (2026-10-17, paper A).
+const PAGE_BG = colors.surface;
 const BASE_FONT = 18;
 const BASE_LINE = 29;
 
 export function MagpieBuildStep({
   model,
   spark,
-  onHelp,
 }: {
   model: Model;
   spark: MagpieSpark;
-  onHelp: () => void;
 }) {
   const { t } = useTranslation();
-  const [zoom, setZoom] = useState(1);
-  const [sizeOpen, setSizeOpen] = useState(false);
+  const { zoom } = useSparkTextScale();
   const [expanded, setExpanded] = useState(false);
   const [menuFragmentId, setMenuFragmentId] = useState<string | null>(null);
   // Derive the menu's fragment live from the store so inline edits/merges show.
@@ -90,13 +87,6 @@ export function MagpieBuildStep({
 
   return (
     <View style={styles.body}>
-      <Header
-        title={spark.title}
-        onBack={() => model.goToStep("page")}
-        onSize={() => setSizeOpen(true)}
-        onHelp={onHelp}
-      />
-
       <View style={styles.draftPage}>
         <UserTextInput
           ref={draftRef}
@@ -136,20 +126,12 @@ export function MagpieBuildStep({
       />
 
       {!keyboardVisible ? (
-        <Press
-          haptic="none"
-          style={styles.saveBtn}
-          onPress={model.saveAsLyrics}
-        >
-          <Ionicons name="bookmark-outline" size={16} color={colors.onPrimary} />
-          <Text style={styles.saveBtnText}>{t("wordSparks.saveLyrics")}</Text>
-        </Press>
+        <SparkFooter
+          back={{ label: t("wordSparks.page"), onPress: () => model.goToStep("page") }}
+          next={{ label: t("common.save"), onPress: model.saveAsLyrics, final: true }}
+        />
       ) : null}
 
-      <BottomSheet visible={sizeOpen} onClose={() => setSizeOpen(false)}>
-        <Text style={styles.sheetLabel}>{t("magpie.textSize")}</Text>
-        <ChordZoomBar zoom={zoom} onChange={setZoom} />
-      </BottomSheet>
 
       <ExpandedPalette
         visible={expanded}
@@ -169,44 +151,6 @@ export function MagpieBuildStep({
         onClose={() => setMenuFragmentId(null)}
         model={model}
       />
-    </View>
-  );
-}
-
-// ── Header ────────────────────────────────────────────────────────────────────
-function Header({
-  title,
-  onBack,
-  onSize,
-  onHelp,
-}: {
-  title: string;
-  onBack: () => void;
-  onSize: () => void;
-  onHelp: () => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <View style={styles.header}>
-      <Press
-        haptic="none"
-        style={styles.backBtn}
-        onPress={onBack}
-        hitSlop={6}
-      >
-        <Ionicons name={dirIcon("chevron-back")} size={20} color={colors.textStrong} />
-        <Text style={styles.backText}>{t("wordSparks.page")}</Text>
-      </Press>
-      <View style={styles.titleCol}>
-        <Text style={styles.titleOver}>{t("magpie.yourDraft")}</Text>
-        <UserText style={styles.titleText} numberOfLines={1}>
-          {title}
-        </UserText>
-      </View>
-      <Press haptic="none" style={styles.iconBtn} onPress={onSize} hitSlop={6} accessibilityLabel={t("magpie.textSize")}>
-        <Text style={styles.iconBtnText}>Aa</Text>
-      </Press>
-      <HelpButton size={20} onPress={onHelp} />
     </View>
   );
 }
@@ -412,16 +356,9 @@ function MenuRow({
 }
 
 const styles = StyleSheet.create({
+  sheetLabel: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 10, letterSpacing: 1, textTransform: "uppercase", color: colors.textMuted, marginBottom: spacing.md },
   body: { flex: 1 },
 
-  header: { flexDirection: "row", alignItems: "center", gap: spacing.xs, paddingBottom: spacing.sm },
-  backBtn: { flexDirection: "row", alignItems: "center", gap: 2, paddingVertical: 6, paddingRight: 4 },
-  backText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 14, color: colors.textStrong },
-  titleCol: { flex: 1, minWidth: 0, alignItems: "center" },
-  titleOver: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 9, letterSpacing: 1, textTransform: "uppercase", color: colors.textMuted },
-  titleText: { fontFamily: "Lora_600SemiBold", fontSize: 14, color: colors.textPrimary, marginTop: 1 },
-  iconBtn: { minWidth: 34, height: 34, borderRadius: radii.round, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
-  iconBtnText: { fontFamily: "Lora_600SemiBold", fontSize: 16, color: colors.textStrong },
 
   draftPage: { flex: 1, backgroundColor: PAGE_BG, borderRadius: radii.xl, padding: spacing.lg, ...shadows.card },
   draftInput: { flex: 1, fontFamily: "Lora_500Medium", color: colors.textStrong },
@@ -449,19 +386,7 @@ const styles = StyleSheet.create({
   chipUsed: { opacity: 0.55 },
   chipText: { fontFamily: "Lora_500Medium", fontSize: 14, color: colors.textStrong, flexShrink: 1 },
 
-  saveBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    backgroundColor: colors.primaryDeep,
-    borderRadius: radii.round,
-    paddingVertical: 15,
-    marginTop: spacing.md,
-  },
-  saveBtnText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 14, color: colors.onPrimary },
 
-  sheetLabel: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 10, letterSpacing: 1, textTransform: "uppercase", color: colors.textMuted, marginBottom: spacing.md },
   gridScroll: { maxHeight: 320 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
 

@@ -13,25 +13,22 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as Clipboard from "expo-clipboard";
 import { contentStyles } from "./WordLadderScreenContent.styles";
 import { Ionicons } from "@expo/vector-icons";
-import { dirIcon } from "../../../design/directionalIcons";
 import { styles as appStyles } from "../../../styles";
-import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
+import { colors } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
 import { toast } from "../../common/toastStore";
-import { SparkTextSizeButton, useSparkTextScale } from "../../common/sparkTextScale";
+import { useSparkTextScale } from "../../common/sparkTextScale";
+import { SPARK_PAPER, SparkFooter, SparkHeader, SparkMissing, SparkSteps } from "../../common/SparkFrame";
 import { useWordLadderScreenModel } from "../hooks/useWordLadderScreenModel";
 import { WordLadderColumnEditor } from "./WordLadderColumnEditor";
 import { WordLadderPairingBoard } from "./WordLadderPairingBoard";
 import { WordLadderHelpSheet } from "./WordLadderHelpSheet";
-import { HelpButton } from "../../common/HelpButton";
 import {
   pairingSeedWords,
 } from "../../../domain/wordLadder";
 import type { WordLadderStep } from "../../../types";
 import { UserText, UserTextInput } from "../../../i18n";
 import { useTranslation } from "react-i18next";
-
-const KRAFT_BG = "#F2E9DC";
 
 const STEPS: WordLadderStep[] = ["setup", "pairs", "draft", "revise"];
 
@@ -68,12 +65,13 @@ export function WordLadderScreenContent() {
 
   if (!exercise) {
     return (
-      <SafeAreaView style={[contentStyles.shell, { backgroundColor: KRAFT_BG }]} edges={["top", "bottom"]}>
-        <View style={contentStyles.missingState}>
-          <Ionicons name="trail-sign-outline" size={28} color={colors.textMuted} />
-          <Text style={contentStyles.missingTitle}>{t("wordSparks.gone")}</Text>
-          <Text style={contentStyles.missingBody}>{t("wordSparks.goneBody")}</Text>
-        </View>
+      <SafeAreaView style={[contentStyles.shell, { backgroundColor: SPARK_PAPER }]} edges={["top", "bottom"]}>
+        <SparkMissing
+          icon={<Ionicons name="trail-sign-outline" size={28} color={colors.textMuted} />}
+          title={t("wordSparks.gone")}
+          body={t("wordSparks.goneBody")}
+          onBack={model.goBack}
+        />
       </SafeAreaView>
     );
   }
@@ -130,21 +128,23 @@ export function WordLadderScreenContent() {
     model.markHelpSeen(model.step);
     setHelpVisible(true);
   };
+  const stepLabel = (item: WordLadderStep) =>
+    t(`wordSparks.${item === "setup" ? "words" : item === "pairs" ? "pair" : item}`);
 
   return (
-    <SafeAreaView style={[contentStyles.shell, { backgroundColor: KRAFT_BG }]} edges={["top", "bottom"]}>
+    <SafeAreaView style={[contentStyles.shell, { backgroundColor: SPARK_PAPER }]} edges={["top", "bottom"]}>
       <KeyboardAvoidingView
         style={contentStyles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-      <View style={contentStyles.header}>
-        <IconBtn icon="chevron-back" label={t("common.back")} onPress={model.goBack} />
-        <Text style={contentStyles.headerTitle}>{t("wordSparks.wordLadder")}</Text>
-        <SparkTextSizeButton />
-        <IconBtn icon="trash-outline" label={t("common.delete")} onPress={model.deleteExercise} muted />
-      </View>
+      <SparkHeader
+        title={t("wordSparks.wordLadder")}
+        onBack={model.goBack}
+        onHelp={openHelp}
+        onDelete={model.deleteExercise}
+      />
 
-      <StepRail step={model.step} onHelpPress={openHelp} />
+      <SparkSteps steps={STEPS.map(stepLabel)} current={STEPS.indexOf(model.step)} />
 
       {model.step === "setup" ? (
         <>
@@ -194,35 +194,10 @@ export function WordLadderScreenContent() {
 
           <View style={contentStyles.setupSpacer} />
 
-          <View style={contentStyles.wizardFooter}>
-            {setupWarning ? (
-              <View style={contentStyles.warnRow}>
-                <Ionicons name="alert-circle-outline" size={14} color={colors.textSecondary} />
-                <Text style={contentStyles.footerHint}>{setupWarning}</Text>
-              </View>
-            ) : null}
-            <Pressable
-              style={({ pressed }) => [
-                contentStyles.nextBtn,
-                contentStyles.nextBtnSelfEnd,
-                !canLeaveSetup ? contentStyles.nextBtnDisabled : null,
-                pressed && canLeaveSetup ? appStyles.pressDown : null,
-              ]}
-              onPress={() => model.goToStep("pairs")}
-              disabled={!canLeaveSetup}
-            >
-              <Text
-                style={[contentStyles.nextBtnText, !canLeaveSetup ? contentStyles.nextBtnTextDisabled : null]}
-              >
-                {t("wordSparks.nextPair")}
-              </Text>
-              <Ionicons
-                name={dirIcon("arrow-forward")}
-                size={15}
-                color={canLeaveSetup ? colors.onPrimary : colors.textMuted}
-              />
-            </Pressable>
-          </View>
+          <SparkFooter
+            hint={setupWarning}
+            next={{ label: t("wordSparks.pair"), onPress: () => model.goToStep("pairs"), disabled: !canLeaveSetup }}
+          />
         </>
       ) : null}
 
@@ -241,47 +216,17 @@ export function WordLadderScreenContent() {
             />
           </View>
 
-          <View style={contentStyles.wizardFooter}>
-            {!canLeavePairs ? (
-              <View style={contentStyles.warnRow}>
-                <Ionicons name="alert-circle-outline" size={14} color={colors.textSecondary} />
-                <Text style={contentStyles.footerHint}>{t("wordSparks.connectPair")}</Text>
-              </View>
-            ) : unpairedCount > 0 ? (
-              <Text style={contentStyles.footerHint}>
-                {t("wordLadder.unpaired", { count: unpairedCount })}
-              </Text>
-            ) : null}
-            <View style={contentStyles.footerRow}>
-              <Pressable
-                style={({ pressed }) => [contentStyles.backBtn, pressed ? appStyles.pressDown : null]}
-                onPress={() => model.goToStep("setup")}
-              >
-                <Ionicons name={dirIcon("chevron-back")} size={16} color={colors.textMuted} />
-                <Text style={contentStyles.backBtnText}>{t("wordSparks.words")}</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [
-                  contentStyles.nextBtn,
-                  !canLeavePairs ? contentStyles.nextBtnDisabled : null,
-                  pressed && canLeavePairs ? appStyles.pressDown : null,
-                ]}
-                onPress={() => model.goToStep("draft")}
-                disabled={!canLeavePairs}
-              >
-                <Text
-                  style={[contentStyles.nextBtnText, !canLeavePairs ? contentStyles.nextBtnTextDisabled : null]}
-                >
-                  {t("wordLadder.nextDraft")}
-                </Text>
-                <Ionicons
-                  name={dirIcon("arrow-forward")}
-                  size={16}
-                  color={canLeavePairs ? colors.onPrimary : colors.textMuted}
-                />
-              </Pressable>
-            </View>
-          </View>
+          <SparkFooter
+            hint={
+              !canLeavePairs
+                ? t("wordSparks.connectPair")
+                : unpairedCount > 0
+                  ? t("wordLadder.unpaired", { count: unpairedCount })
+                  : null
+            }
+            back={{ label: t("wordSparks.words"), onPress: () => model.goToStep("setup") }}
+            next={{ label: t("wordSparks.draft"), onPress: () => model.goToStep("draft"), disabled: !canLeavePairs }}
+          />
         </>
       ) : null}
 
@@ -336,35 +281,10 @@ export function WordLadderScreenContent() {
           </View>
 
           {keyboardVisible ? null : (
-            <View style={contentStyles.wizardFooter}>
-              <View style={contentStyles.footerRow}>
-                <Pressable
-                  style={({ pressed }) => [contentStyles.backBtn, pressed ? appStyles.pressDown : null]}
-                  onPress={() => model.goToStep("pairs")}
-                >
-                  <Ionicons name={dirIcon("chevron-back")} size={16} color={colors.textMuted} />
-                  <Text style={contentStyles.backBtnText}>{t("wordSparks.pair")}</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    contentStyles.nextBtn,
-                    !hasDraft ? contentStyles.nextBtnDisabled : null,
-                    pressed && hasDraft ? appStyles.pressDown : null,
-                  ]}
-                  onPress={() => model.goToStep("revise")}
-                  disabled={!hasDraft}
-                >
-                  <Text style={[contentStyles.nextBtnText, !hasDraft ? contentStyles.nextBtnTextDisabled : null]}>
-                    {t("wordLadder.nextRevise")}
-                  </Text>
-                  <Ionicons
-                    name={dirIcon("arrow-forward")}
-                    size={16}
-                    color={hasDraft ? colors.onPrimary : colors.textMuted}
-                  />
-                </Pressable>
-              </View>
-            </View>
+            <SparkFooter
+              back={{ label: t("wordSparks.pair"), onPress: () => model.goToStep("pairs") }}
+              next={{ label: t("wordSparks.revise"), onPress: () => model.goToStep("revise"), disabled: !hasDraft }}
+            />
           )}
         </>
       ) : null}
@@ -420,37 +340,10 @@ export function WordLadderScreenContent() {
           </View>
 
           {keyboardVisible ? null : (
-            <View style={contentStyles.wizardFooter}>
-              <View style={contentStyles.footerRow}>
-                <Pressable
-                  style={({ pressed }) => [contentStyles.backBtn, pressed ? appStyles.pressDown : null]}
-                  onPress={() => model.goToStep("draft")}
-                >
-                  <Ionicons name={dirIcon("chevron-back")} size={16} color={colors.textMuted} />
-                  <Text style={contentStyles.backBtnText}>{t("wordSparks.draft")}</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    contentStyles.nextBtn,
-                    !hasRevision ? contentStyles.nextBtnDisabled : null,
-                    pressed && hasRevision ? appStyles.pressDown : null,
-                  ]}
-                  onPress={model.saveAsLyrics}
-                  disabled={!hasRevision}
-                >
-                  <Ionicons
-                    name="bookmark-outline"
-                    size={15}
-                    color={hasRevision ? colors.onPrimary : colors.textMuted}
-                  />
-                  <Text
-                    style={[contentStyles.nextBtnText, !hasRevision ? contentStyles.nextBtnTextDisabled : null]}
-                  >
-                    {t("wordSparks.saveLyrics")}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
+            <SparkFooter
+              back={{ label: t("wordSparks.draft"), onPress: () => model.goToStep("draft") }}
+              next={{ label: t("common.save"), onPress: model.saveAsLyrics, disabled: !hasRevision, final: true }}
+            />
           )}
         </>
       ) : null}
@@ -462,72 +355,6 @@ export function WordLadderScreenContent() {
         onClose={() => setHelpVisible(false)}
       />
     </SafeAreaView>
-  );
-}
-
-/** A slim step rail — the four labels with the current step accented, over a
- * progress bar. Wayfinding without the clunky numbered dots. The "how this
- * works" hint sits right next to the current step's label, since the help
- * content is scoped per-step anyway. */
-function StepRail({ step, onHelpPress }: { step: WordLadderStep; onHelpPress: () => void }) {
-  const { t } = useTranslation();
-  const currentIndex = STEPS.findIndex((item) => item === step);
-  const progress = (currentIndex + 1) / STEPS.length;
-  const labelFor = (item: WordLadderStep) =>
-    t(`wordSparks.${item === "setup" ? "words" : item === "pairs" ? "pair" : item}`);
-  return (
-    <View style={contentStyles.rail}>
-      <View style={contentStyles.railLabels}>
-        {STEPS.map((item, index) =>
-          index === currentIndex ? (
-            <Pressable
-              key={item}
-              style={({ pressed }) => [contentStyles.railLabelCurrentRow, pressed ? appStyles.pressDown : null]}
-              onPress={onHelpPress}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={t("wordSparks.howThisWorks")}
-            >
-              <Text style={[contentStyles.railLabel, contentStyles.railLabelCurrent]}>{labelFor(item)}</Text>
-              <HelpButton compact onPress={onHelpPress} />
-            </Pressable>
-          ) : (
-            <Text
-              key={item}
-              style={[contentStyles.railLabel, index < currentIndex ? contentStyles.railLabelDone : null]}
-            >
-              {labelFor(item)}
-            </Text>
-          )
-        )}
-      </View>
-      <View style={contentStyles.railTrack}>
-        <View style={[contentStyles.railFill, { width: `${progress * 100}%` }]} />
-      </View>
-    </View>
-  );
-}
-
-function IconBtn({
-  icon,
-  label,
-  onPress,
-  muted,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-  muted?: boolean;
-}) {
-  return (
-    <Pressable
-      style={({ pressed }) => [contentStyles.iconBtn, pressed ? appStyles.pressDown : null]}
-      onPress={onPress}
-      hitSlop={6}
-      accessibilityLabel={label}
-    >
-      <Ionicons name={icon} size={20} color={muted ? colors.textSecondary : colors.textStrong} />
-    </Pressable>
   );
 }
 

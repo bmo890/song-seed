@@ -17,7 +17,6 @@ import { colors, radii, shadows, spacing } from "../../../design/tokens";
 import { durations } from "../../../design/motion";
 import { haptic } from "../../../design/haptics";
 import { BottomSheet } from "../../common/BottomSheet";
-import { ChordZoomBar } from "../../LyricsVersionScreen/components/chords/ChordZoomBar";
 import {
   type MagpieParagraph,
   type MagpieToken,
@@ -30,12 +29,14 @@ import { MAGPIE_HE_ENABLED, MAGPIE_HE_GENRES, type MagpieHeGenre } from "../../.
 import type { MagpieBook, MagpieLanguage, MagpieSpark } from "../../../types";
 import type { useMagpieScreenModel } from "../hooks/useMagpieScreenModel";
 import { useTranslation } from "react-i18next";
+import { useSparkTextScale } from "../../common/sparkTextScale";
+import { Press } from "../../common/Press";
 import { UserText } from "../../../i18n";
-import { HelpButton } from "../../common/HelpButton";
 
 type Model = ReturnType<typeof useMagpieScreenModel>;
 
-const PAGE_BG = "#FBF6EC";
+// The writing sheet is a card on the app paper (2026-10-17, paper A).
+const PAGE_BG = colors.surface;
 const HL_BG = "#EEC79B";
 const HL_TEXT = "#5C3A22";
 const BASE_FONT = 17;
@@ -133,17 +134,14 @@ const Paragraph = memo(
 export function MagpiePageStep({
   model,
   spark,
-  onHelp,
 }: {
   model: Model;
   spark: MagpieSpark;
-  onHelp: () => void;
 }) {
   const { t } = useTranslation();
-  const [zoom, setZoom] = useState(1);
+  const { zoom } = useSparkTextScale();
   const [selected, setSelected] = useState<number[]>([]);
   const [sourceOpen, setSourceOpen] = useState(false);
-  const [sizeOpen, setSizeOpen] = useState(false);
   const [splitRun, setSplitRun] = useState<number[] | null>(null);
 
   const { tokens, paragraphs } = useMemo(
@@ -204,14 +202,7 @@ export function MagpiePageStep({
 
   return (
     <View style={styles.body}>
-      <Header
-        book={spark.book}
-        fallbackTitle={t("magpie.findingBook")}
-        onBack={model.goBack}
-        onSource={() => setSourceOpen(true)}
-        onSize={() => setSizeOpen(true)}
-        onHelp={onHelp}
-      />
+      <BookLine book={spark.book} fallbackTitle={t("magpie.findingBook")} onPress={() => setSourceOpen(true)} />
 
       <View style={styles.page}>
         {model.status.error ? (
@@ -268,10 +259,6 @@ export function MagpiePageStep({
         model={model}
         busy={busy}
       />
-      <BottomSheet visible={sizeOpen} onClose={() => setSizeOpen(false)}>
-        <Text style={styles.sheetLabel}>{t("magpie.textSize")}</Text>
-        <ChordZoomBar zoom={zoom} onChange={setZoom} />
-      </BottomSheet>
       <SplitSheet
         run={splitRun}
         tokens={tokens}
@@ -282,75 +269,41 @@ export function MagpiePageStep({
   );
 }
 
-// ── Header ────────────────────────────────────────────────────────────────────
-function Header({
+// ── The book ──────────────────────────────────────────────────────────────────
+/** The book this page comes from, a row on paper under the steps (2026-10-17;
+ *  was a filled box squeezed into the header). Opens the source sheet. */
+function BookLine({
   book,
   fallbackTitle,
-  onBack,
-  onSource,
-  onSize,
-  onHelp,
+  onPress,
 }: {
   book: MagpieBook | null;
   fallbackTitle: string;
-  onBack: () => void;
-  onSource: () => void;
-  onSize: () => void;
-  onHelp: () => void;
-}) {
-  const { t } = useTranslation();
-  const title = !book ? fallbackTitle : book.title || book.author || fallbackTitle;
-  return (
-    <View style={styles.header}>
-      <IconBtn icon="chevron-back" label={t("common.back")} onPress={onBack} />
-      <Pressable
-        style={({ pressed }) => [styles.credit, pressed ? appStyles.pressDown : null]}
-        onPress={onSource}
-        hitSlop={4}
-      >
-        <BookThumbnail book={book} small />
-        <View style={styles.creditMeta}>
-          <UserText style={styles.creditTitle} numberOfLines={2}>
-            {title}
-          </UserText>
-          {book?.author ? (
-            <UserText style={styles.creditAuthor} numberOfLines={1}>
-              {book.author}
-            </UserText>
-          ) : null}
-        </View>
-        <Ionicons name="chevron-down" size={15} color={colors.textMuted} />
-      </Pressable>
-      <IconBtn text="Aa" label={t("magpie.textSize")} onPress={onSize} />
-      <HelpButton size={20} onPress={onHelp} />
-    </View>
-  );
-}
-
-function IconBtn({
-  icon,
-  text,
-  label,
-  onPress,
-}: {
-  icon?: keyof typeof Ionicons.glyphMap;
-  text?: string;
-  label: string;
   onPress: () => void;
 }) {
+  const title = !book ? fallbackTitle : book.title || book.author || fallbackTitle;
   return (
-    <Pressable
-      style={({ pressed }) => [styles.iconBtn, pressed ? appStyles.pressDown : null]}
+    <Press
+      // Haptics vocabulary: tap, an acknowledged press (opens a sheet).
+      style={styles.credit}
       onPress={onPress}
-      hitSlop={6}
-      accessibilityLabel={label}
+      hitSlop={4}
+      accessibilityRole="button"
+      accessibilityLabel={title}
     >
-      {icon ? (
-        <Ionicons name={icon} size={20} color={colors.textStrong} />
-      ) : (
-        <Text style={styles.iconBtnText}>{text}</Text>
-      )}
-    </Pressable>
+      <BookThumbnail book={book} small />
+      <View style={styles.creditMeta}>
+        <UserText style={styles.creditTitle} numberOfLines={1}>
+          {title}
+        </UserText>
+        {book?.author ? (
+          <UserText style={styles.creditAuthor} numberOfLines={1}>
+            {book.author}
+          </UserText>
+        ) : null}
+      </View>
+      <Ionicons name="chevron-down" size={15} color={colors.textMuted} />
+    </Press>
   );
 }
 
@@ -569,16 +522,6 @@ function SourceSheet({
         disabled={busy}
       />
 
-      <Pressable
-        style={({ pressed }) => [styles.deleteRow, pressed ? appStyles.pressDown : null]}
-        onPress={() => {
-          onClose();
-          model.deleteSpark();
-        }}
-      >
-        <Ionicons name="trash-outline" size={15} color={colors.danger} />
-        <Text style={styles.deleteText}>{t("magpie.deleteTitle")}</Text>
-      </Pressable>
       </ScrollView>
     </BottomSheet>
   );
@@ -766,23 +709,16 @@ const styles = StyleSheet.create({
   body: { flex: 1 },
 
   // header
-  header: { flexDirection: "row", alignItems: "center", gap: spacing.xs, paddingBottom: spacing.sm },
-  iconBtn: { minWidth: 34, height: 34, borderRadius: radii.round, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
-  iconBtnText: { fontFamily: "Lora_600SemiBold", fontSize: 16, color: colors.textStrong },
   credit: {
-    flex: 1,
-    minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 5,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surfaceContainer,
+    gap: spacing.md,
+    minHeight: 52,
+    marginBottom: spacing.md,
   },
   creditMeta: { flex: 1, minWidth: 0 },
-  creditTitle: { fontFamily: "Lora_600SemiBold", fontSize: 13.5, lineHeight: 17, color: colors.textPrimary },
-  creditAuthor: { fontFamily: "PlusJakartaSans_400Regular", fontSize: 11, color: colors.textMuted, marginTop: 1 },
+  creditTitle: { fontFamily: "Lora_500Medium", fontSize: 16, lineHeight: 21, color: colors.textPrimary },
+  creditAuthor: { fontFamily: "PlusJakartaSans_400Regular", fontSize: 12, color: colors.textSecondary, marginTop: 1 },
 
   thumb: { width: 42, height: 58, borderRadius: radii.sm, backgroundColor: colors.surfaceHigh },
   thumbSmall: { width: 28, height: 38, borderRadius: radii.xs, backgroundColor: colors.surfaceHigh },
@@ -924,8 +860,6 @@ const styles = StyleSheet.create({
   chipText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 12.5, color: colors.textSecondary },
   chipTextOn: { color: colors.onPrimary },
 
-  deleteRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginTop: spacing.lg, paddingVertical: spacing.sm },
-  deleteText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 13, color: colors.danger },
 
   // split sheet
   splitPhrase: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center", paddingVertical: spacing.sm },

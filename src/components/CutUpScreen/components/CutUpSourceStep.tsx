@@ -16,7 +16,8 @@ import { useTranslation } from "react-i18next";
 
 type Model = ReturnType<typeof useCutUpScreenModel>;
 
-const PAGE_BG = "#FBF6EC";
+// The writing sheet is a card on the app paper (2026-10-17, paper A).
+const PAGE_BG = colors.surface;
 
 export function CutUpSourceStep({ model, spark }: { model: Model; spark: CutUpSpark }) {
   const { t } = useTranslation();

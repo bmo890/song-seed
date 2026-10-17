@@ -1,7 +1,8 @@
 import { StyleSheet } from "react-native";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
 
-const PAGE_BG = "#FBF6EC";
+// The writing sheet is a card on the app paper (2026-10-17, paper A).
+const PAGE_BG = colors.surface;
 
 export const contentStyles = StyleSheet.create({
   shell: {

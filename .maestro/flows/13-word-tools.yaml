@@ -34,11 +34,11 @@ appId: com.bmostudio.songnook.dev
 - tapOn:
     id: "lyrics-spark-open"
 - extendedWaitUntil:
-    visible: "Lyrics Spark"
+    visible: "New spark"
     timeout: 5000
 - assertVisible: ".*Word Ladder.*"
 - assertVisible: ".*Cut-Up.*"
-- assertVisible: ".*Magpie.*"
+- assertVisible: ".*Borrowed Words.*"
 - tapOn: ".*Word Ladder.*"
 - extendedWaitUntil:
     visible: ".*JOB / ROLE.*"
@@ -52,7 +52,7 @@ appId: com.bmostudio.songnook.dev
 - tapOn:
     id: "lyrics-spark-open"
 - extendedWaitUntil:
-    visible: "Lyrics Spark"
+    visible: "New spark"
     timeout: 5000
 - tapOn: ".*Cut-Up.*"
 - extendedWaitUntil:
@@ -67,11 +67,11 @@ appId: com.bmostudio.songnook.dev
 - tapOn:
     id: "lyrics-spark-open"
 - extendedWaitUntil:
-    visible: "Lyrics Spark"
+    visible: "New spark"
     timeout: 5000
-- tapOn: ".*Magpie.*"
+- tapOn: ".*Borrowed Words.*"
 - extendedWaitUntil:
-    visible: ".*Magpie.*|.*Finding a book.*|.*New book.*|.*needs a connection.*"
+    visible: ".*Borrowed Words.*|.*Finding a book.*|.*New book.*|.*needs a connection.*"
     timeout: 15000
 - tapOn: "Back"
 - extendedWaitUntil:
