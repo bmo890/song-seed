@@ -1150,6 +1150,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     // during the count-in and the head is subtracted once measured. Downstream consumers
     // (display clock, overdub auto-stop threshold) then need no head awareness.
     elapsedMs: headTrim.pending ? 0 : Math.max(0, displayElapsedMs - headTrim.ms),
+    /** The pre-roll the save will cut (0 while unknown): capture ms minus this is take ms. */
+    headTrimMs: headTrim.pending ? 0 : headTrim.ms,
     readElapsedMs,
     lastInterruptionReason,
     interruptionToken,

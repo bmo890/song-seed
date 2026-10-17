@@ -27,6 +27,8 @@ import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
 import type { ClipVersion, PracticeMarker, RecordingGrid } from "../../../types";
 import { clampPinLabel } from "../../../domain/practicePinLayout";
+import { placeLivePins } from "../../../domain/livePins";
+import { findIdeaInLibrary } from "../../../state/librarySelectors";
 import { haptic } from "../../../design/haptics";
 import { getActiveRecordingTakeSession } from "../../../services/recordingTakeSession";
 import { getDefaultOverdubStemTitle, getRecordingGridBarMs } from "../../../domain/overdub";
@@ -335,6 +337,23 @@ export function useRecordingScreenModel() {
           { ...payload, recordingGrid: takeGrid, offsetMs: punchOffsetMs },
           pendingOverdubSave.title
         );
+        // Pins dropped while layering mark moments of the song: they land on the
+        // take the layer rides, at the layer's place on it (they used to vanish).
+        if (livePinsRef.current.length > 0) {
+          const store = useStore.getState();
+          const master = findIdeaInLibrary(store.workspaces, pendingOverdubSave.ideaId)?.clips.find(
+            (clip) => clip.id === pendingOverdubSave.clipId
+          );
+          const placed = placeLivePins(livePinsRef.current, {
+            headTrimmedMs: payload.headTrimmedMs,
+            offsetMs: punchOffsetMs,
+            durationMs: master?.durationMs,
+          });
+          store.setClipPracticeMarkers(pendingOverdubSave.ideaId, pendingOverdubSave.clipId, [
+            ...(master?.practiceMarkers ?? []),
+            ...placed,
+          ]);
+        }
         return;
       }
 
@@ -380,7 +399,14 @@ export function useRecordingScreenModel() {
         tags: parentClip?.tags?.length ? [...parentClip.tags] : undefined,
         // Pins dropped during the take land on it as they are; the name sheet
         // that follows can still name them (saveQuickClipName).
-        practiceMarkers: livePinsRef.current.length > 0 ? [...livePinsRef.current] : undefined,
+        // Placed on the saved file's clock: a count-in's trimmed pre-roll comes off.
+        practiceMarkers:
+          livePinsRef.current.length > 0
+            ? placeLivePins(livePinsRef.current, {
+                headTrimmedMs: payload.headTrimmedMs,
+                durationMs: payload.durationMs,
+              })
+            : undefined,
       };
 
       updateIdeas((ideas) =>
@@ -422,6 +448,17 @@ export function useRecordingScreenModel() {
     // The pin key fires the haptic (light, a mark dropped) through Press.
     setLivePins((prev) => [...prev, pin]);
   }, [recording.elapsedMs, recording.isPaused, recording.isRecording]);
+
+  // The name sheet lists the pins at the times they will be saved at: on the
+  // take's own clock, or on the master's for a layer.
+  const sheetPins = useMemo(
+    () =>
+      placeLivePins(livePins, {
+        headTrimmedMs: recording.headTrimMs,
+        offsetMs: recordingOverdubClip ? punchInMs : 0,
+      }),
+    [livePins, punchInMs, recording.headTrimMs, recordingOverdubClip]
+  );
 
   const recordingControlsDisabled = isArmingRecording || (recording.isRecording && !recording.isPaused);
   /**
@@ -1210,8 +1247,13 @@ export function useRecordingScreenModel() {
   }
 
   async function redoOverdubRecording() {
+    // Same reset as the dock's Redo: the next attempt runs exactly like this one,
+    // one-shot count-in included.
+    const takeCountInBars = takeGridRef.current?.countInBars ?? 0;
     takeGridRef.current = null;
     setLiveTakeGrid(null);
+    setMidTakeRouteChangeMs(null);
+    autoStoppingOverdubRef.current = false;
     setQuickNameModalVisible(false);
     setQuickNameDraft("");
     setQuickNamingIdeaId(null);
@@ -1220,6 +1262,9 @@ export function useRecordingScreenModel() {
     await stopRecordingMetronome();
     await recording.discardRecording();
     clearLivePins();
+    if (takeCountInBars > 0) {
+      metronome.setCountInBarsValue(takeCountInBars);
+    }
   }
 
   function handleQuickNameCancel() {
@@ -1477,8 +1522,12 @@ export function useRecordingScreenModel() {
       return;
     }
     let timer: ReturnType<typeof setTimeout> | null = null;
+    // A punched take's clock starts AT the punch (its head is trimmed there), so
+    // the guide it has left is what follows the punch, not the whole guide. It
+    // used to run punchInMs past the end, recording silence (2026-10-17).
+    const guideAfterPunchMs = Math.max(0, guideMixDurationMs - punchInMs);
     const stopAtEnd = () => {
-      const remainingMs = guideMixDurationMs - recording.readElapsedMs();
+      const remainingMs = guideAfterPunchMs - recording.readElapsedMs();
       if (remainingMs > 0) {
         timer = setTimeout(stopAtEnd, Math.min(remainingMs, 1000));
         return;
@@ -1499,6 +1548,7 @@ export function useRecordingScreenModel() {
   }, [
     guideMixDurationMs,
     isArmingRecording,
+    punchInMs,
     quickNameModalVisible,
     recording.isPaused,
     recording.isRecording,
@@ -2459,6 +2509,7 @@ export function useRecordingScreenModel() {
     handleResumeRecording,
     handleStartRecording,
     livePins,
+    sheetPins,
     addLivePin,
     setLivePinLabel,
   };

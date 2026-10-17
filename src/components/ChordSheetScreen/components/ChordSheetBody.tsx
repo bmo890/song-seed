@@ -23,6 +23,7 @@ import type { useChordSheetModel } from "../useChordSheetModel";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "../../common/EmptyState";
 import { UserText, UserTextInput } from "../../../i18n";
+import { ModalDialogLayer } from "../../common/AppDialog";
 
 type MenuTarget = { id: string; label: string; index: number; count: number; kind: "section" | "text" };
 
@@ -370,6 +371,7 @@ export function ChordSheetFullView({
           </Pressable>
         </View>
       </SafeAreaView>
+      <ModalDialogLayer active={visible} />
     </Modal>
   );
 }

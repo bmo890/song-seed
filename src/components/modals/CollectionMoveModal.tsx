@@ -7,6 +7,7 @@ import { Button } from "../common/Button";
 import type { CollectionMoveDestination } from "../../domain/collectionManagement";
 import { useTranslation } from "react-i18next";
 import { colors } from "../../design/tokens";
+import { ModalDialogLayer } from "../common/AppDialog";
 
 type Props = {
   visible: boolean;
@@ -111,6 +112,7 @@ export function CollectionMoveModal({
           </View>
         </View>
       </View>
+      <ModalDialogLayer active={visible} />
     </Modal>
   );
 }

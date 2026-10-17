@@ -136,6 +136,18 @@ export function AppDialogHost({ nested = false }: { nested?: boolean } = {}) {
 
 /** Inside a sheet's Modal there is nothing to present over, so the dialog is a
  *  plain overlay filling the sheet's window. Same props as Modal for symmetry. */
+/**
+ * The dialog layer for a screen that draws in its own native Modal (WarmModal,
+ * full-screen editors, gates). Mount it as the Modal's LAST child, with
+ * `active` = the Modal's visibility. While active the root host stands down and
+ * dialogs draw here: iOS cannot present the root host's Modal over another one,
+ * and an unpresented root Modal jams every later dialog (2026-10-17).
+ */
+export function ModalDialogLayer({ active }: { active: boolean }) {
+  useEffect(() => (active ? dialogStore.registerSheetHost() : undefined), [active]);
+  return active ? <AppDialogHost nested /> : null;
+}
+
 function NestedFrame({ children }: { children: React.ReactNode; visible?: boolean; transparent?: boolean; animationType?: string; onRequestClose?: () => void }) {
   return (
     <View style={s.nestedFrame} pointerEvents="box-none">
