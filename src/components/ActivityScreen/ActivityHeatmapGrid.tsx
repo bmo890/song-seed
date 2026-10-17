@@ -25,6 +25,10 @@ type ActivityHeatmapGridProps = {
   onJumpToToday: () => void;
   onPressMonth: (month: number) => void;
   onPressDay: (dayTs: number) => void;
+  /** Hold a day to stretch the selection to it. */
+  onLongPressDay: (dayTs: number) => void;
+  /** Changes when the selection should be scrolled into view (year, Today). */
+  revealToken: number;
 };
 
 export function ActivityHeatmapGrid({
@@ -42,6 +46,8 @@ export function ActivityHeatmapGrid({
   onJumpToToday,
   onPressMonth,
   onPressDay,
+  onLongPressDay,
+  revealToken,
 }: ActivityHeatmapGridProps) {
   const { t } = useTranslation();
   const gridScrollRef = useRef<ScrollView>(null);
@@ -61,18 +67,19 @@ export function ActivityHeatmapGrid({
     [focusedDayTs, weeks]
   );
 
-  // Where the grid is scrolled, so a tap on a day you can see never moves the
-  // grid under your finger; it only scrolls to bring an off-screen day in.
-  const scrollXRef = useRef(0);
+  // The grid scrolls only to bring the selection in when the page opens, the
+  // year changes or Today is pressed. A tap on the grid never moves it: a grid
+  // that slid under each tap made the next tap land on another day (founder,
+  // 2026-10-16). The focused week is read at reveal time, not a dependency.
+  const focusedWeekRef = useRef(focusedWeekIndex);
+  focusedWeekRef.current = focusedWeekIndex;
 
   useEffect(() => {
-    if (gridViewportWidth <= 0 || focusedWeekIndex < 0) return;
+    const weekIndex = focusedWeekRef.current;
+    if (gridViewportWidth <= 0 || weekIndex < 0) return;
 
     const maxOffset = Math.max(0, gridWidth - gridViewportWidth);
-    const focusedWeekX = focusedWeekIndex * CELL_STRIDE;
-    const visibleStart = scrollXRef.current;
-    const visibleEnd = visibleStart + gridViewportWidth;
-    if (focusedWeekX >= visibleStart && focusedWeekX + CELL_SIZE <= visibleEnd) return;
+    const focusedWeekX = weekIndex * CELL_STRIDE;
     const targetOffset = Math.min(
       maxOffset,
       Math.max(0, focusedWeekX - gridViewportWidth + CELL_STRIDE * 3)
@@ -82,7 +89,7 @@ export function ActivityHeatmapGrid({
     });
 
     return () => cancelAnimationFrame(frame);
-  }, [focusedWeekIndex, gridViewportWidth, gridWidth]);
+  }, [gridViewportWidth, gridWidth, year, revealToken]);
 
   return (
     // The heatmap on paper (2026-10-16, founder picked A): the chosen date is
@@ -161,10 +168,7 @@ export function ActivityHeatmapGrid({
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ width: gridWidth }}
           onLayout={(event) => setGridViewportWidth(event.nativeEvent.layout.width)}
-          onScroll={(event) => {
-            scrollXRef.current = event.nativeEvent.contentOffset.x;
-          }}
-          scrollEventThrottle={32}
+
         >
           <View style={styles.activityHeatmapContent}>
             <View style={[styles.activityMonthRow, { width: gridWidth }]}>
@@ -240,11 +244,22 @@ export function ActivityHeatmapGrid({
                           outsideSpan ? local.outsideSpan : null,
                           pressed && inYear ? styles.activityDayCellPressed : null,
                         ]}
+                        // The gaps belong to the nearest day: a 15 pt square is a
+                        // small target, so its touch reaches halfway to each neighbour.
+                        hitSlop={CELL_HIT_SLOP}
                         onPress={() => {
                           if (!inYear) return;
+                          // Haptics vocabulary: tap, an acknowledged press.
                           haptic.tap();
                           onPressDay(dayTs);
                         }}
+                        onLongPress={() => {
+                          if (!inYear) return;
+                          // Haptics vocabulary: grab, a hold into a heavier mode.
+                          haptic.grab();
+                          onLongPressDay(dayTs);
+                        }}
+                        delayLongPress={350}
                       >
                         <View
                           style={[
@@ -273,6 +288,8 @@ export function ActivityHeatmapGrid({
     </View>
   );
 }
+
+const CELL_HIT_SLOP = { top: 2, bottom: 2, left: 2, right: 2 };
 
 const local = StyleSheet.create({
   headRow: {

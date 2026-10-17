@@ -122,6 +122,9 @@ export function useActivityScreenModel() {
   const [rangeStartTs, setRangeStartTs] = useState<number | null>(routeRangeStartTs ?? today);
   const [rangeEndTs, setRangeEndTs] = useState<number | null>(routeRangeEndTs ?? today);
   const [isRouteRangeActive, setIsRouteRangeActive] = useState(routeHasPrefilledRange);
+  /** Bumped when the grid should scroll the selection into view: a year
+   *  change or Today. Never by a tap on the grid itself. */
+  const [revealToken, setRevealToken] = useState(0);
 
   useEffect(() => {
     if (!routeHasPrefilledRange || routeYear == null || routeRangeStartTs == null || routeRangeEndTs == null) {
@@ -407,13 +410,16 @@ export function useActivityScreenModel() {
     legendSwatches,
     selectedRangeEntries,
     itemResults,
+    revealToken,
     onChangeYear: (nextYear: number) => {
       setIsRouteRangeActive(false);
+      setRevealToken((token) => token + 1);
       setYear(Math.min(nextYear, currentYear));
     },
     onJumpToToday: () => {
       setIsRouteRangeActive(false);
       const today = startOfActivityDay(Date.now());
+      setRevealToken((token) => token + 1);
       setYear(new Date(today).getFullYear());
       setRangeStartTs(today);
       setRangeEndTs(today);
@@ -425,12 +431,22 @@ export function useActivityScreenModel() {
       setRangeStartTs(monthStart);
       setRangeEndTs(monthEnd);
     },
+    // A tap is always that one day (2026-10-16, founder: a second tap used to
+    // turn into a range, which read as "the tap didn't register" and then
+    // "a whole month got picked"). A span is a hold: it stretches from the
+    // day already chosen to the day held.
     onPressDay: (dayTs: number) => {
       setIsRouteRangeActive(false);
       const normalizedDay = startOfActivityDay(dayTs);
-      if (rangeStartTs == null || rangeEndTs != null) {
+      setRangeStartTs(normalizedDay);
+      setRangeEndTs(normalizedDay);
+    },
+    onLongPressDay: (dayTs: number) => {
+      setIsRouteRangeActive(false);
+      const normalizedDay = startOfActivityDay(dayTs);
+      if (rangeStartTs == null) {
         setRangeStartTs(normalizedDay);
-        setRangeEndTs(null);
+        setRangeEndTs(normalizedDay);
         return;
       }
       setRangeEndTs(normalizedDay);

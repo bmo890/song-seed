@@ -1381,3 +1381,11 @@ DST zone and fails on the old code); the key showed four identical squares
 in a quiet year (now the fixed scale). Copy: "306 ideas", "Nothing this
 day" / "Nothing this month", "Tap a coloured day, or a month.", no disc.
 Customize Activity and Revisit's Reset: Jakarta title, ink Reset, no paragraph.
+
+Activity follow-up (2026-10-16, founder on device: "hard to select a day and
+range… a whole month gets picked… the date reel keeps moving"). Cause: the
+grid re-centred on every selection (the visibility guard read a scroll
+position iOS never reports for a programmatic scroll), so the next tap hit a
+different day, and a second tap was a range. Now a tap is always that day, a
+hold stretches the selection (`grab`), the grid scrolls only on open, a year
+change or Today (`revealToken`), and each day's touch reaches into the gaps.
