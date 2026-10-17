@@ -57,10 +57,18 @@ async function safeFetch(url: string, init?: RequestInit): Promise<Response> {
   }
 }
 
+/** Headers for a byte-range read. `Accept-Encoding: identity` matters: iOS and
+ * Android ask for gzip by default, and gutenberg.org answers a gzip request with
+ * the WHOLE compressed book (200, no Content-Range, no length) instead of the
+ * range (2026-10-17: every English page failed with "That page wouldn't open"). */
+export function rangeHeaders(start: number, end: number): Record<string, string> {
+  return { Range: `bytes=${start}-${end}`, "Accept-Encoding": "identity" };
+}
+
 /** Reads the file's total byte length from a tiny Range probe (the number after
  * the slash in Content-Range), falling back to Content-Length. */
 async function probeTotalBytes(url: string): Promise<number | null> {
-  const res = await safeFetch(url, { headers: { Range: "bytes=0-1" } });
+  const res = await safeFetch(url, { headers: rangeHeaders(0, 1) });
   const contentRange = res.headers.get("content-range");
   if (contentRange) {
     const match = contentRange.match(/\/(\d+)\s*$/);
@@ -105,11 +113,14 @@ export async function fetchPassage(book: MagpieBook): Promise<string> {
   const size = await probeTotalBytes(book.textUrl);
   if (!size) throw new MagpieFetchError("unavailable", "That book wouldn't open.");
   const { start, end } = pickWindow(size);
-  const res = await safeFetch(book.textUrl, { headers: { Range: `bytes=${start}-${end}` } });
+  const res = await safeFetch(book.textUrl, { headers: rangeHeaders(start, end) });
   if (!res.ok && res.status !== 206) {
     throw new MagpieFetchError("unavailable", "That book wouldn't open.");
   }
-  const raw = await res.text();
+  const body = await res.text();
+  // A server that ignores the range answers 200 with the whole book; take the
+  // window ourselves rather than show a whole novel as one "page".
+  const raw = res.status === 206 ? body : body.slice(start, end);
   const page = cleanPassage(raw);
   if (!page) throw new MagpieFetchError("empty", "That page came back blank.");
   return page;
