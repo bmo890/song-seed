@@ -11,6 +11,7 @@ import { dirIcon } from "../../design/directionalIcons";
 import { haptic } from "../../design/haptics";
 import { colors, radii, spacing } from "../../design/tokens";
 import { durations } from "../../design/motion";
+import { CHEVRON, ROW_GAP, STEP_GAP, STEP_NUM, visibleStepLabels } from "../../domain/stepLabels";
 import { useTranslation } from "react-i18next";
 
 /**
@@ -99,15 +100,26 @@ export function SparkHeader({
 
 /**
  * The steps as a numbered path (2026-10-17, founder: a beginning and an end,
- * like a form): 1 › 2 › 3. The current step is a filled ink number with its
- * name, a finished one a check, the ones ahead hollow and muted. It is wayfinding, not a
- * control: nothing here is tappable; the footer moves you.
+ * like a form): 1 › 2 › 3. The current step is a filled ink number, a finished
+ * one a check, the ones ahead hollow and muted. Every name shows when they fit;
+ * when they don't, names drop from the steps furthest from yours first, so the
+ * row never truncates to "Ve… No…" (the responsive-stepper pattern). It is
+ * wayfinding, not a control: nothing here is tappable; the footer moves you.
  */
 export function SparkSteps({ steps, current }: { steps: string[]; current: number }) {
   const { t } = useTranslation();
+  const [rowWidth, setRowWidth] = useState(0);
+  const [labelWidths, setLabelWidths] = useState<Array<number | undefined>>(() => steps.map(() => undefined));
+  const measured = rowWidth > 0 && labelWidths.every((w) => w !== undefined);
+  // Until everything is measured, only the current name shows (never a flash
+  // of truncated names).
+  const shown = measured
+    ? visibleStepLabels(labelWidths as number[], current, rowWidth)
+    : steps.map((_, i) => i === current);
   return (
     <View
       style={s.steps}
+      onLayout={(e) => setRowWidth(e.nativeEvent.layout.width)}
       accessible
       accessibilityLabel={t("wordSparks.stepOf", {
         current: current + 1,
@@ -115,13 +127,28 @@ export function SparkSteps({ steps, current }: { steps: string[]; current: numbe
         name: steps[current] ?? "",
       })}
     >
+      {/* Off-screen measure of each name at its widest (semibold) weight. */}
+      <View style={s.measure} pointerEvents="none" importantForAccessibility="no-hide-descendants">
+        {steps.map((label, index) => (
+          <Text
+            key={label}
+            style={[s.stepText, s.stepTextCurrent]}
+            onLayout={(e) => {
+              const w = Math.ceil(e.nativeEvent.layout.width);
+              setLabelWidths((prev) => (prev[index] === w ? prev : prev.map((v, i) => (i === index ? w : v))));
+            }}
+          >
+            {label}
+          </Text>
+        ))}
+      </View>
       {steps.map((label, index) => {
         const isCurrent = index === current;
         const isDone = index < current;
         return (
           <Fragment key={label}>
             {index > 0 ? (
-              <Ionicons name={dirIcon("chevron-forward")} size={11} color={colors.borderMuted} />
+              <Ionicons name={dirIcon("chevron-forward")} size={CHEVRON} color={colors.borderMuted} />
             ) : null}
             <View style={s.step}>
               <View style={[s.stepNum, isCurrent ? s.stepNumCurrent : isDone ? s.stepNumDone : null]}>
@@ -131,11 +158,11 @@ export function SparkSteps({ steps, current }: { steps: string[]; current: numbe
                   <Text style={[s.stepNumText, isCurrent ? s.stepNumTextCurrent : null]}>{index + 1}</Text>
                 )}
               </View>
-              {/* Only the step you're on is named; the others are their number
-                  or check. Five named steps truncated to "Ve… No… P…" on a
-                  phone (2026-10-17). */}
-              {isCurrent ? (
-                <Text style={[s.stepText, s.stepTextCurrent]} numberOfLines={1}>
+              {shown[index] ? (
+                <Text
+                  style={[s.stepText, isDone ? s.stepDone : null, isCurrent ? s.stepTextCurrent : null]}
+                  numberOfLines={1}
+                >
                   {label}
                 </Text>
               ) : null}
@@ -281,22 +308,29 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 4,
+    gap: ROW_GAP,
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.borderMuted,
     marginBottom: spacing.lg,
   },
+  measure: {
+    position: "absolute",
+    opacity: 0,
+    flexDirection: "row",
+    left: 0,
+    top: 0,
+  },
   step: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: STEP_GAP,
     flexShrink: 1,
     minWidth: 0,
   },
   stepNum: {
-    width: 18,
-    height: 18,
+    width: STEP_NUM,
+    height: STEP_NUM,
     borderRadius: radii.round,
     borderWidth: 1,
     borderColor: colors.borderMuted,
@@ -310,11 +344,16 @@ const s = StyleSheet.create({
   stepNumDone: {
     borderColor: "transparent",
   },
+  // Proportional figures and a fixed line box: tabular "1" sat left of centre
+  // and the font's tall ascender pushed every digit low in the dot.
   stepNumText: {
+    width: STEP_NUM,
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 10,
+    lineHeight: 12,
+    textAlign: "center",
+    includeFontPadding: false,
     color: colors.textMuted,
-    fontVariant: ["tabular-nums"],
   },
   stepNumTextCurrent: {
     color: colors.page,
@@ -328,6 +367,9 @@ const s = StyleSheet.create({
   stepTextCurrent: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.textPrimary,
+  },
+  stepDone: {
+    color: colors.textSecondary,
   },
   hintBlock: {
     paddingVertical: spacing.sm,
