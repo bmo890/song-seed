@@ -15,6 +15,8 @@ import { InkKey, inkKeyColor } from "../../common/InkKey";
 import { InkOption } from "../../common/InkOption";
 import { Press } from "../../common/Press";
 import { looksMachineNamed } from "../../../domain/titleNaming";
+import { LayerFoldAllKey, LayerFoldKey } from "../../common/OverdubLayerLanes";
+import { useLayerPrefsStore } from "../../../state/useLayerPrefsStore";
 import { UserTextInput } from "../../../i18n";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
@@ -667,6 +669,9 @@ export function PlayerLayersBench({
 
   return (
     <View style={benchStyles.bench}>
+      <View style={benchStyles.foldAllRow}>
+        <LayerFoldAllKey layerIds={stems.map((stem) => stem.id)} />
+      </View>
       <BenchRow
         title={t("player.baseTake")}
         readsAsName={false}
@@ -700,6 +705,7 @@ export function PlayerLayersBench({
             muted={stem.isMuted}
             rendering={selected && isRendering}
             onSelect={() => onSelectLane(stem.id)}
+            foldId={stem.id}
             controls={
               <>
                 <InkOption
@@ -800,6 +806,7 @@ function BenchRow({
   rendering = false,
   onSelect,
   controls,
+  foldId,
 }: {
   title: string;
   readsAsName: boolean;
@@ -813,8 +820,11 @@ function BenchRow({
   rendering?: boolean;
   onSelect: () => void;
   controls?: React.ReactNode;
+  /** A layer's id: the row can fold to its name line (shared with the lanes). */
+  foldId?: string;
 }) {
   const { t } = useTranslation();
+  const folded = useLayerPrefsStore((state) => (foldId ? state.collapsedLayerIds.includes(foldId) : false));
   const heights = React.useMemo(() => rowBarHeights(peaks, durationMs), [peaks, durationMs]);
   const leftPct = `${Math.max(0, Math.min(100, (offsetMs / timelineMs) * 100))}%` as const;
   const widthPct = `${Math.max(1, Math.min(100, (durationMs / timelineMs) * 100))}%` as const;
@@ -849,7 +859,9 @@ function BenchRow({
           ) : null}
         </Press>
         {controls ? <View style={benchStyles.controls}>{controls}</View> : null}
+        {foldId ? <LayerFoldKey layerId={foldId} title={title} folded={folded} /> : null}
       </View>
+      {folded ? null : (
       <Press feel="still" haptic="none" onPress={onSelect} style={benchStyles.track} accessibilityElementsHidden>
         <View style={[benchStyles.baseline, muted ? benchStyles.baselineMuted : null]} />
         <View style={[benchStyles.wave, { left: leftPct, width: widthPct }]} pointerEvents="none">
@@ -866,6 +878,7 @@ function BenchRow({
           ))}
         </View>
       </Press>
+      )}
     </View>
   );
 }
@@ -950,6 +963,10 @@ const benchStyles = StyleSheet.create({
     borderTopColor: colors.borderSubtle,
     paddingVertical: 6,
     gap: 2,
+  },
+  foldAllRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
   },
   rule: {
     height: StyleSheet.hairlineWidth,

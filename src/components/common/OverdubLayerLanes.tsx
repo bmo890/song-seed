@@ -5,6 +5,8 @@ import Animated, { SharedValue, useAnimatedStyle } from "react-native-reanimated
 import { colors, text as textTokens } from "../../design/tokens";
 import { styles as appStyles } from "../../styles";
 import { useTranslation } from "react-i18next";
+import { Press } from "./Press";
+import { useLayerPrefsStore } from "../../state/useLayerPrefsStore";
 
 /**
  * The layers a take carries, under its reel (2026-10-17, founder: "sit orderly,
@@ -31,6 +33,8 @@ export type OverdubLayerLane = {
 };
 
 const ROW_HEIGHT = 32;
+/** A folded layer: its name line only. */
+const ROW_HEIGHT_FOLDED = 22;
 const WAVE_HEIGHT = 14;
 export const MAX_VISIBLE_LANE_ROWS = 3;
 const MIN_BARS = 8;
@@ -104,18 +108,25 @@ function LaneRow({
   onOpenLane?: (id: string) => void;
 }) {
   const { t } = useTranslation();
+  const folded = useLayerPrefsStore((state) => state.collapsedLayerIds.includes(lane.id));
   const label = lane.isMuted ? `${lane.title} · ${t("player.mutedShort")}` : lane.title;
-  const body = (
+  const name = (
+    <Text
+      style={[
+        laneStyles.nameText,
+        lane.readsAsName ? laneStyles.nameTyped : laneStyles.nameMachine,
+        lane.isMuted ? laneStyles.nameMuted : null,
+      ]}
+      numberOfLines={1}
+    >
+      {label}
+    </Text>
+  );
+  const body = folded ? (
+    name
+  ) : (
     <>
-      <Text
-        style={[
-          lane.readsAsName ? laneStyles.nameTyped : laneStyles.nameMachine,
-          lane.isMuted ? laneStyles.nameMuted : null,
-        ]}
-        numberOfLines={1}
-      >
-        {label}
-      </Text>
+      {name}
       <View style={laneStyles.track}>
         <View style={[laneStyles.baseline, lane.isMuted ? laneStyles.baselineMuted : null]} />
         <LaneWave
@@ -127,19 +138,67 @@ function LaneRow({
       </View>
     </>
   );
-  if (!onOpenLane) {
-    return <View style={laneStyles.row}>{body}</View>;
-  }
+  const rowStyle = [laneStyles.row, folded ? laneStyles.rowFolded : null];
   return (
-    <Pressable
-      // Haptics: none of its own — the bench it opens is navigation (silent).
-      style={({ pressed }) => [laneStyles.row, pressed ? appStyles.pressDown : null]}
-      onPress={() => onOpenLane(lane.id)}
+    <View style={laneStyles.rowWrap}>
+      {onOpenLane ? (
+        <Pressable
+          // Haptics: none of its own — the bench it opens is navigation (silent).
+          style={({ pressed }) => [...rowStyle, laneStyles.rowFill, pressed ? appStyles.pressDown : null]}
+          onPress={() => onOpenLane(lane.id)}
+          accessibilityRole="button"
+          accessibilityLabel={label}
+        >
+          {body}
+        </Pressable>
+      ) : (
+        <View style={[...rowStyle, laneStyles.rowFill]}>{body}</View>
+      )}
+      <LayerFoldKey layerId={lane.id} title={lane.title} folded={folded} />
+    </View>
+  );
+}
+
+/** One layer's fold: a small chevron at the end of its name line. */
+export function LayerFoldKey({ layerId, title, folded }: { layerId: string; title: string; folded: boolean }) {
+  const { t } = useTranslation();
+  return (
+    <Press
+      feel="glyph"
+      // Haptics vocabulary: `tap` — a control toggles.
+      style={laneStyles.foldKey}
+      onPress={() => useLayerPrefsStore.getState().toggleLayerCollapsed(layerId)}
+      hitSlop={8}
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityState={{ expanded: !folded }}
+      accessibilityLabel={folded ? t("player.expandLayer", { title }) : t("player.collapseLayer", { title })}
     >
-      {body}
-    </Pressable>
+      <Ionicons name={folded ? "chevron-down" : "chevron-up"} size={13} color={colors.textMuted} />
+    </Press>
+  );
+}
+
+/** "Collapse all" / "Expand all" for one take's layers: collapses all while any
+ *  layer is open, expands all once every layer is folded. */
+export function LayerFoldAllKey({ layerIds }: { layerIds: string[] }) {
+  const { t } = useTranslation();
+  const allFolded = useLayerPrefsStore(
+    (state) => layerIds.length > 0 && layerIds.every((id) => state.collapsedLayerIds.includes(id))
+  );
+  if (layerIds.length === 0) return null;
+  return (
+    <Press
+      feel="glyph"
+      // Haptics vocabulary: `tap` — a control toggles.
+      style={laneStyles.foldAll}
+      onPress={() => useLayerPrefsStore.getState().setLayersCollapsed(layerIds, !allFolded)}
+      hitSlop={8}
+      accessibilityRole="button"
+    >
+      <Text style={laneStyles.foldAllText}>
+        {allFolded ? t("player.expandLayers") : t("player.collapseLayers")}
+      </Text>
+    </Press>
   );
 }
 
@@ -179,10 +238,12 @@ export function OverdubLayerLanes({
     />
   ));
   const scrolls = visibleLanes.length > MAX_VISIBLE_LANE_ROWS;
+  const layerIds = visibleLanes.map((lane) => lane.id);
 
   return (
     <View style={laneStyles.block}>
       {onToggleCollapsed ? (
+        <View style={laneStyles.headerRow}>
         <Pressable
           // Haptics vocabulary: `tap` — a control toggles.
           style={({ pressed }) => [laneStyles.header, pressed ? appStyles.pressDown : null]}
@@ -201,6 +262,8 @@ export function OverdubLayerLanes({
             color={colors.textSecondary}
           />
         </Pressable>
+        {isCollapsed ? null : <LayerFoldAllKey layerIds={layerIds} />}
+        </View>
       ) : null}
       {isCollapsed ? null : scrolls ? (
         <ScrollView
@@ -233,10 +296,44 @@ const laneStyles = StyleSheet.create({
     ...textTokens.annotation,
     color: colors.textSecondary,
   },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  foldAll: {
+    paddingVertical: 4,
+  },
+  foldAllText: {
+    ...textTokens.annotation,
+    color: colors.textSecondary,
+  },
+  // The fold key rides over the end of the name line, so the lane keeps the
+  // reel's full width and its waveform stays on the reel's timeline.
+  rowWrap: {
+    position: "relative",
+  },
+  rowFill: {},
   row: {
     height: ROW_HEIGHT,
     justifyContent: "flex-end",
     overflow: "hidden",
+  },
+  rowFolded: {
+    height: ROW_HEIGHT_FOLDED,
+    justifyContent: "center",
+  },
+  nameText: {
+    paddingEnd: 32,
+  },
+  foldKey: {
+    position: "absolute",
+    top: 0,
+    end: 0,
+    width: 28,
+    height: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
   nameTyped: {
     fontFamily: "Lora_500Medium",
