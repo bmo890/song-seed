@@ -297,3 +297,40 @@ export function buildClipOverdubMixInputs(clip: ClipVersion): NativeMixedRenderI
 
   return inputs;
 }
+
+/**
+ * Merging layers into one (founder, 2026-10-18): a harmony sung in five short
+ * spots becomes ONE "Harmony" layer. The merged layer starts where the earliest
+ * picked layer starts; every picked layer is mixed in at its own place, with
+ * its own level and tone baked in, so the take sounds the same before and after.
+ * Headroom is taken only when picked layers actually overlap in time: fragments
+ * that sit side by side keep their full level.
+ */
+export function buildMergeLayerInputs(
+  stems: Pick<ClipOverdubStem, "audioUri" | "offsetMs" | "durationMs" | "gainDb" | "tonePreset">[]
+): { startMs: number; inputs: NativeMixedRenderInput[] } {
+  const usable = stems.filter((stem) => !!stem.audioUri);
+  if (usable.length === 0) return { startMs: 0, inputs: [] };
+  const startMs = Math.min(...usable.map((stem) => stem.offsetMs));
+  const spans = usable
+    .map((stem) => ({ start: stem.offsetMs, end: stem.offsetMs + Math.max(0, stem.durationMs ?? 0) }))
+    .sort((a, b) => a.start - b.start);
+  let overlapDepth = 1;
+  for (let i = 0; i < spans.length; i += 1) {
+    let depth = 1;
+    for (let j = 0; j < spans.length; j += 1) {
+      if (i !== j && spans[j].start < spans[i].end && spans[j].end > spans[i].start) depth += 1;
+    }
+    overlapDepth = Math.max(overlapDepth, depth);
+  }
+  const headroomDb = overlapDepth > 1 ? getMixHeadroomDb(overlapDepth) : 0;
+  return {
+    startMs,
+    inputs: usable.map((stem) => ({
+      inputUri: stem.audioUri!,
+      gainDb: clampOverdubGainDb(stem.gainDb) + headroomDb,
+      offsetMs: stem.offsetMs - startMs,
+      tonePreset: stem.tonePreset,
+    })),
+  };
+}

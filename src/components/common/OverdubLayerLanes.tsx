@@ -160,13 +160,24 @@ function LaneRow({
 }
 
 /** One layer's fold: a small chevron at the end of its name line. */
-export function LayerFoldKey({ layerId, title, folded }: { layerId: string; title: string; folded: boolean }) {
+export function LayerFoldKey({
+  layerId,
+  title,
+  folded,
+  inline = false,
+}: {
+  layerId: string;
+  title: string;
+  folded: boolean;
+  /** In a row of controls (the bench) rather than over a lane's name line. */
+  inline?: boolean;
+}) {
   const { t } = useTranslation();
   return (
     <Press
       feel="glyph"
       // Haptics vocabulary: `tap` — a control toggles.
-      style={laneStyles.foldKey}
+      style={inline ? laneStyles.foldKeyInline : laneStyles.foldKey}
       onPress={() => useLayerPrefsStore.getState().toggleLayerCollapsed(layerId)}
       hitSlop={8}
       accessibilityRole="button"
@@ -325,6 +336,12 @@ const laneStyles = StyleSheet.create({
   },
   nameText: {
     paddingEnd: 32,
+  },
+  foldKeyInline: {
+    width: 28,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
   },
   foldKey: {
     position: "absolute",

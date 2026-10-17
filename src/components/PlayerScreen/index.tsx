@@ -1049,6 +1049,24 @@ function PlayerScreenInner({
   // The body's scroll handle — the Marks drawer asks it to bring a new mark into view.
   const transportRef = useRef<TransportLayoutHandle>(null);
   const handleRevealRow = useCallback((node: View) => transportRef.current?.reveal(node), []);
+  const handleMergeStems = useCallback(
+    async (stemIds: string[], title: string) => {
+      if (!playerIdea || !playerClip) return;
+      try {
+        const mergedId = await appActions.mergeClipOverdubStems(playerIdea.id, playerClip.id, stemIds, title);
+        ui.setBenchLayerId(mergedId);
+        // Haptics vocabulary: success — a meaningful completion.
+        haptic.success();
+        toast(t("player.mergedToast"), "checkmark-outline");
+      } catch (error) {
+        console.warn("Layer merge failed", error);
+        haptic.error(); // Vocabulary: failures fire error.
+        AppAlert.info(t("player.mergeFailed"), error instanceof Error ? error.message : "");
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [playerIdea, playerClip, ui.setBenchLayerId]
+  );
   // Combine is defined further down; the eight-layer limit reaches it through this.
   const handleSaveAsOneClipRef = useRef<(mode: "copy" | "replace") => Promise<void>>(async () => {});
   const handleAddOverdub = useCallback(async (punchInMs: number) => {
@@ -1857,6 +1875,7 @@ function PlayerScreenInner({
           ) : ui.mode === "layers" ? (
             <PlayerLayersBench
               onReveal={revealInBody}
+              onMergeStems={handleMergeStems}
               selectedLaneId={benchSelectedLaneId}
               stems={data.overdubStemEntries}
               rootSettings={data.overdubRootSettings}

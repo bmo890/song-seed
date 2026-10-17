@@ -47,6 +47,7 @@ import {
     assignNextOverdubStemColor,
     buildClipOverdubMixInputs,
     buildCombinedClipTitle,
+    buildMergeLayerInputs,
     clampClipOverdubStemOffsetMs,
     clampOverdubGainDb,
     getClipOverdubRootSettings,
@@ -1514,6 +1515,98 @@ export const appActions = {
             }
         }
         await scheduleClipOverdubRerender(ideaId, clipId, { force: true });
+    },
+
+    /**
+     * Merge several layers into ONE layer (founder, 2026-10-18): a harmony sung in
+     * five spots becomes a single "Harmony" layer against the take. The merged
+     * layer starts where the earliest picked layer starts and takes the first
+     * picked layer's place in the order; each picked layer's level and tone are
+     * baked in, so the take sounds the same. The picked layers' files go once the
+     * merged layer is durable (flush, then trash).
+     */
+    mergeClipOverdubStems: async (ideaId: string, clipId: string, stemIds: string[], title: string) => {
+        const state = useStore.getState();
+        const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
+        if (!match) throw new Error("Clip not found.");
+        const allStems = match.clip.overdub?.stems ?? [];
+        const picked = allStems.filter((stem) => stemIds.includes(stem.id) && !!stem.audioUri);
+        if (picked.length < 2) throw new Error("Pick at least two layers to merge.");
+
+        const pickedIds = picked.map((stem) => stem.id);
+        const { startMs, inputs } = buildMergeLayerInputs(picked);
+        const rendered = await renderMixedFile({
+            inputs,
+            outputFileName: `${clipId}-merged-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        });
+        let imported: Awaited<ReturnType<typeof importAudioAsset>>;
+        try {
+            imported = await importAudioAsset(
+                {
+                    uri: rendered.outputUri,
+                    name: rendered.outputUri.split("/").pop() ?? `${clipId}-merged.m4a`,
+                    mimeType: "audio/mp4",
+                },
+                `${clipId}-merged-${Date.now()}`,
+                // User-blocking: the bench waits on it.
+                { decodeMode: "interactive" }
+            );
+        } finally {
+            await FileSystem.deleteAsync(rendered.outputUri, { idempotent: true }).catch(() => {});
+        }
+
+        const first = picked[0];
+        const merged: ClipOverdubStem = {
+            id: buildClipId(),
+            title: title.trim() || first.title,
+            audioUri: imported.audioUri,
+            gainDb: 0,
+            offsetMs: startMs,
+            tonePreset: "neutral",
+            isMuted: false,
+            durationMs: imported.durationMs,
+            waveformPeaks: imported.waveformPeaks,
+            recordingGrid: first.recordingGrid,
+            createdAt: Date.now(),
+            color: first.color,
+        };
+
+        const latest = useStore.getState();
+        latest.updateIdeas((ideas) =>
+            ideas.map((idea) =>
+                idea.id !== ideaId
+                    ? idea
+                    : {
+                          ...idea,
+                          clips: idea.clips.map((clip) => {
+                              if (clip.id !== clipId || !clip.overdub) return clip;
+                              const stems: ClipOverdubStem[] = [];
+                              let placed = false;
+                              for (const stem of clip.overdub.stems) {
+                                  if (!pickedIds.includes(stem.id)) {
+                                      stems.push(stem);
+                                  } else if (!placed) {
+                                      stems.push(merged);
+                                      placed = true;
+                                  }
+                              }
+                              if (!placed) stems.push(merged);
+                              return { ...clip, overdub: { ...clip.overdub, stems } };
+                          }),
+                      }
+            )
+        );
+        latest.logIdeaActivity(ideaId, "updated", "recording", clipId);
+
+        const oldUris = picked.map((stem) => stem.audioUri!).filter(Boolean);
+        try {
+            await flushPersistedSnapshot();
+            await deleteManagedAudioUris(oldUris);
+        } catch (error) {
+            console.warn("[DataSafety] Merged layers' files kept — metadata was not durable.", error);
+        }
+        await scheduleClipOverdubRerender(ideaId, clipId, { immediate: true, force: true });
+        return merged.id;
     },
 
     saveCombinedClipAsNewClip: async (

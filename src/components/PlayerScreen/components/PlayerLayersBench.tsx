@@ -124,6 +124,8 @@ type Props = {
   onCloseBench: () => void;
   /** Scroll the player body so a block is in view (TransportLayout.reveal). */
   onReveal?: (node: View) => void;
+  /** Mix the picked layers into one named layer. Resolves when it is in place. */
+  onMergeStems: (stemIds: string[], title: string) => Promise<void>;
 };
 
 function NudgeKey({ label, onPress }: { label: string; onPress: () => void }) {
@@ -165,6 +167,7 @@ export function PlayerLayersBench({
   onSaveAsOneClip,
   onCloseBench,
   onReveal,
+  onMergeStems,
 }: Props) {
   const { t } = useTranslation();
   const selectedStem = stems.find((stem) => stem.id === selectedLaneId) ?? null;
@@ -496,6 +499,30 @@ export function PlayerLayersBench({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStem?.id, soloActive]);
 
+  // Merging (founder, 2026-10-18): pick two or more layers, name the result.
+  const [mergePicks, setMergePicks] = useState<string[] | null>(null);
+  const [mergeNameOpen, setMergeNameOpen] = useState(false);
+  const [merging, setMerging] = useState(false);
+  const isPicking = mergePicks !== null;
+  const togglePick = (stemId: string) =>
+    setMergePicks((current) =>
+      current ? (current.includes(stemId) ? current.filter((id) => id !== stemId) : [...current, stemId]) : current
+    );
+  const orderedPicks = mergePicks ? stems.filter((stem) => mergePicks.includes(stem.id)) : [];
+  async function runMerge(title: string) {
+    if (!mergePicks || mergePicks.length < 2) return;
+    audition.stop();
+    pauseSoloSafely();
+    setSoloActive(false);
+    setMerging(true);
+    try {
+      await onMergeStems(orderedPicks.map((stem) => stem.id), title);
+      setMergePicks(null);
+    } finally {
+      setMerging(false);
+    }
+  }
+
   // Picking another layer brings its tools into view: they sit under the whole
   // stack, and with several layers that is below the fold.
   const toolsRef = useRef<View>(null);
@@ -669,9 +696,12 @@ export function PlayerLayersBench({
 
   return (
     <View style={benchStyles.bench}>
-      <View style={benchStyles.foldAllRow}>
-        <LayerFoldAllKey layerIds={stems.map((stem) => stem.id)} />
-      </View>
+      {isPicking ? null : (
+        <View style={benchStyles.foldAllRow}>
+          <LayerFoldAllKey layerIds={stems.map((stem) => stem.id)} />
+        </View>
+      )}
+      {isPicking ? null : (
       <BenchRow
         title={t("player.baseTake")}
         readsAsName={false}
@@ -684,9 +714,11 @@ export function PlayerLayersBench({
         rendering={isRendering}
         onSelect={() => onSelectLane(BENCH_ROOT_LANE_ID)}
       />
+      )}
 
       {stems.map((stem) => {
-        const selected = stem.id === selectedStem?.id;
+        // While picking for a merge, the dots are the only marking.
+        const selected = !isPicking && stem.id === selectedStem?.id;
         return (
           <BenchRow
             key={stem.id}
@@ -705,8 +737,13 @@ export function PlayerLayersBench({
             muted={stem.isMuted}
             rendering={selected && isRendering}
             onSelect={() => onSelectLane(stem.id)}
-            foldId={stem.id}
-            controls={
+            foldId={isPicking ? undefined : stem.id}
+            pick={
+              isPicking
+                ? { picked: mergePicks!.includes(stem.id), onToggle: () => togglePick(stem.id) }
+                : undefined
+            }
+            controls={isPicking ? null : 
               <>
                 <InkOption
                   label={t("player.solo")}
@@ -739,6 +776,21 @@ export function PlayerLayersBench({
       })}
       <View style={benchStyles.rule} />
 
+      {isPicking ? (
+        <View style={benchStyles.pickFoot}>
+          <Text style={benchStyles.toolsCaption}>{t("player.mergePick")}</Text>
+          <View style={benchStyles.editModalActions}>
+            <Button variant="secondary" label={t("common.cancel")} onPress={() => setMergePicks(null)} disabled={merging} />
+            <Button
+              variant="primary"
+              label={merging ? t("player.merging") : t("player.mergeCount", { count: orderedPicks.length })}
+              disabled={orderedPicks.length < 2 || merging}
+              onPress={() => setMergeNameOpen(true)}
+            />
+          </View>
+        </View>
+      ) : (
+      <>
       {/* The selected row's tools sit under the whole stack, so every layer stays
           in view while one is worked on (they used to open inside the list and
           push the rest off the screen). */}
@@ -762,18 +814,44 @@ export function PlayerLayersBench({
       </View>
       <View style={benchStyles.rule} />
 
-      {/* The foot: combining is where a layered take stops being layered. */}
-      {stems.length > 0 ? (
-        <Pressable
-          style={({ pressed }) => [benchStyles.footLink, pressed ? appStyles.pressDown : null]}
-          onPress={openSaveAsOneClip}
-          accessibilityRole="button"
-          accessibilityLabel={t("player.saveOneClip")}
-        >
-          <Ionicons name="albums-outline" size={14} color={colors.textSecondary} />
-          <Text style={benchStyles.footLinkText}>{t("player.saveOneClip")}</Text>
-        </Pressable>
-      ) : null}
+      {/* The foot: merge some layers into one, or combine them all into the take. */}
+      <View style={benchStyles.footRow}>
+        {stems.length >= 2 ? (
+          <Pressable
+            style={({ pressed }) => [benchStyles.footLink, pressed ? appStyles.pressDown : null]}
+            onPress={() => {
+              haptic.tap(); // Vocabulary: tap — a control acted.
+              setMergePicks(selectedStem ? [selectedStem.id] : []);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={t("player.mergeLayers")}
+          >
+            <Ionicons name="git-merge-outline" size={14} color={colors.textSecondary} />
+            <Text style={benchStyles.footLinkText}>{t("player.mergeLayers")}</Text>
+          </Pressable>
+        ) : null}
+        {stems.length > 0 ? (
+          <Pressable
+            style={({ pressed }) => [benchStyles.footLink, pressed ? appStyles.pressDown : null]}
+            onPress={openSaveAsOneClip}
+            accessibilityRole="button"
+            accessibilityLabel={t("player.saveOneClip")}
+          >
+            <Ionicons name="albums-outline" size={14} color={colors.textSecondary} />
+            <Text style={benchStyles.footLinkText}>{t("player.saveOneClip")}</Text>
+          </Pressable>
+        ) : null}
+      </View>
+      </>
+      )}
+
+      <RenameLayerModal
+        visible={mergeNameOpen}
+        heading={t("player.mergeName")}
+        title={orderedPicks[0]?.title ?? ""}
+        onSave={(name) => void runMerge(name)}
+        onClose={() => setMergeNameOpen(false)}
+      />
 
       {selectedStem ? (
         <RenameLayerModal
@@ -807,6 +885,7 @@ function BenchRow({
   onSelect,
   controls,
   foldId,
+  pick,
 }: {
   title: string;
   readsAsName: boolean;
@@ -822,6 +901,8 @@ function BenchRow({
   controls?: React.ReactNode;
   /** A layer's id: the row can fold to its name line (shared with the lanes). */
   foldId?: string;
+  /** Merge picking: a leading dot, and the row toggles it. */
+  pick?: { picked: boolean; onToggle: () => void };
 }) {
   const { t } = useTranslation();
   const folded = useLayerPrefsStore((state) => (foldId ? state.collapsedLayerIds.includes(foldId) : false));
@@ -833,14 +914,16 @@ function BenchRow({
       <View style={benchStyles.rowHead}>
         <Press
           feel="surface"
-          // Haptics: none here — choosing a row taps through onSelect (handlePressLane).
-          haptic="none"
+          // Haptics: choosing a row taps through onSelect (handlePressLane);
+          // a merge pick is a small state flip: `light`.
+          haptic={pick ? "light" : "none"}
           style={benchStyles.rowName}
-          onPress={onSelect}
-          accessibilityRole="button"
-          accessibilityState={{ selected }}
-          accessibilityLabel={title}
+          onPress={pick ? pick.onToggle : onSelect}
+          accessibilityRole={pick ? "checkbox" : "button"}
+          accessibilityState={pick ? { checked: pick.picked } : { selected }}
+          accessibilityLabel={pick ? t("player.pickLayer", { title }) : title}
         >
+          {pick ? <View style={[benchStyles.pickDot, pick.picked ? benchStyles.pickDotOn : null]} /> : null}
           <UserText
             value={title}
             style={[
@@ -859,10 +942,16 @@ function BenchRow({
           ) : null}
         </Press>
         {controls ? <View style={benchStyles.controls}>{controls}</View> : null}
-        {foldId ? <LayerFoldKey layerId={foldId} title={title} folded={folded} /> : null}
+        {foldId ? <LayerFoldKey inline layerId={foldId} title={title} folded={folded} /> : null}
       </View>
       {folded ? null : (
-      <Press feel="still" haptic="none" onPress={onSelect} style={benchStyles.track} accessibilityElementsHidden>
+      <Press
+        feel="still"
+        haptic={pick ? "light" : "none"}
+        onPress={pick ? pick.onToggle : onSelect}
+        style={benchStyles.track}
+        accessibilityElementsHidden
+      >
         <View style={[benchStyles.baseline, muted ? benchStyles.baselineMuted : null]} />
         <View style={[benchStyles.wave, { left: leftPct, width: widthPct }]} pointerEvents="none">
           {heights.map((h, index) => (
@@ -906,11 +995,13 @@ function rowBarHeights(peaks: number[] | undefined, durationMs: number): number[
 /** Rename a layer. Draft state resets from props each time the sheet opens. */
 function RenameLayerModal({
   visible,
+  heading,
   title,
   onSave,
   onClose,
 }: {
   visible: boolean;
+  heading?: string;
   title: string;
   onSave: (title: string) => void;
   onClose: () => void;
@@ -927,7 +1018,7 @@ function RenameLayerModal({
   const trimmed = draftTitle.trim();
 
   return (
-    <WarmModal visible={visible} onRequestClose={onClose} title={t("player.renameLayer")}>
+    <WarmModal visible={visible} onRequestClose={onClose} title={heading ?? t("player.renameLayer")}>
       <UserTextInput
         style={benchStyles.editNameInput}
         value={draftTitle}
@@ -963,6 +1054,28 @@ const benchStyles = StyleSheet.create({
     borderTopColor: colors.borderSubtle,
     paddingVertical: 6,
     gap: 2,
+  },
+  pickDot: {
+    alignSelf: "center",
+    width: 10,
+    height: 10,
+    borderRadius: radii.round,
+    borderWidth: 1.5,
+    borderColor: colors.textMuted,
+  },
+  pickDotOn: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  pickFoot: {
+    paddingTop: 14,
+    paddingBottom: 12,
+    gap: 12,
+  },
+  footRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 24,
   },
   foldAllRow: {
     flexDirection: "row",
