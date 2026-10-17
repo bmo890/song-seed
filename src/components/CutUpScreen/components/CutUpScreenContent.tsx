@@ -77,8 +77,8 @@ export function CutUpScreenContent() {
 
         <View style={styles.stepBody}>
           {model.step === "source" ? <CutUpSourceStep model={model} spark={spark} /> : null}
-          {model.step === "chunk" ? <CutUpChunkEditor model={model} spark={spark} /> : null}
-          {model.step === "board" ? <CutUpBoard model={model} spark={spark} /> : null}
+          {model.step === "chunk" ? <CutUpChunkEditor model={model} spark={spark} onExample={openHelp} /> : null}
+          {model.step === "board" ? <CutUpBoard model={model} spark={spark} onExample={openHelp} /> : null}
           {model.step === "draft" ? <CutUpDraftEditor model={model} spark={spark} keyboardVisible={keyboardVisible} /> : null}
         </View>
 
@@ -89,7 +89,7 @@ export function CutUpScreenContent() {
           <>
             {model.step === "source" ? (
               <SparkFooter
-                hint={canLeaveSource ? null : t("wordSparks.sourceNeeded")}
+                // The empty page's own placeholder says what to do.
                 next={{ label: stepLabels.chunk, onPress: () => model.goToStep("chunk"), disabled: !canLeaveSource }}
               />
             ) : null}
@@ -102,7 +102,7 @@ export function CutUpScreenContent() {
             ) : null}
             {model.step === "board" ? (
               <SparkFooter
-                hint={canLeaveBoard ? null : t("wordSparks.boardNeeded")}
+                // An empty table says what to do in its own place.
                 back={{ label: stepLabels.chunk, onPress: () => model.goToStep("chunk") }}
                 next={{ label: stepLabels.draft, onPress: () => model.goToStep("draft"), disabled: !canLeaveBoard }}
               />

@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { LayoutChangeEvent, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { LayoutChangeEvent, ScrollView, StyleSheet, Text, View } from "react-native";
 import { UserText, UserTextInput } from "../../../i18n";
 import { Gesture, GestureDetector, ScrollView as GHScrollView } from "react-native-gesture-handler";
 import Animated, {
@@ -9,7 +9,11 @@ import Animated, {
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
-import { styles as appStyles } from "../../../styles";
+import { Press } from "../../common/Press";
+import { Button } from "../../common/Button";
+import { InkKey, inkKeyColor } from "../../common/InkKey";
+import { UndoRedoButtons } from "../../common/useUndoHistory";
+import { SparkHint } from "../../common/SparkFrame";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
 import { BottomSheet } from "../../common/BottomSheet";
@@ -23,7 +27,6 @@ import { useTranslation } from "react-i18next";
 
 type Model = ReturnType<typeof useCutUpScreenModel>;
 
-const SCRAP_BG = "#FCF8F0";
 // Breathing room inside a ruled band above/below a scrap.
 const RULE_INSET = 5;
 // Empty rules kept below the lowest scrap so there's always table to drop onto.
@@ -37,7 +40,16 @@ const HEADROOM_BANDS = 6;
  * Scraps sharing a rule read as one draft line; an empty rule between scraps
  * becomes a blank line. What's on the table IS the draft.
  */
-export function CutUpBoard({ model, spark }: { model: Model; spark: CutUpSpark }) {
+export function CutUpBoard({
+  model,
+  spark,
+  onExample,
+}: {
+  model: Model;
+  spark: CutUpSpark;
+  /** Opens the method's example (the step's help). */
+  onExample: () => void;
+}) {
   const { t } = useTranslation();
   const { size, lineHeight } = useSparkTextScale();
   const [sheetItem, setSheetItem] = useState<CutUpBoardItem | null>(null);
@@ -101,6 +113,7 @@ export function CutUpBoard({ model, spark }: { model: Model; spark: CutUpSpark }
   const targetBand = useSharedValue(-1);
 
   const beginDrag = useCallback((id: string) => {
+    // Haptics vocabulary (drag sentence): grab as it lifts.
     haptic.grab();
     dragIdRef.current = id;
     setDragId(id);
@@ -112,7 +125,8 @@ export function CutUpBoard({ model, spark }: { model: Model; spark: CutUpSpark }
       dragIdRef.current = null;
       setDragId(null);
       if (!id || band < 0) return;
-      haptic.tap();
+      // Haptics vocabulary (drag sentence): light as it lands.
+      haptic.light();
       model.moveScrap(id, x, band);
     },
     [model]
@@ -127,6 +141,7 @@ export function CutUpBoard({ model, spark }: { model: Model; spark: CutUpSpark }
     (id: string) => {
       const item = spark.boardItems.find((it) => it.id === id);
       if (item) {
+        // Haptics vocabulary: tap, an acknowledged press (the scrap's sheet).
         haptic.tap();
         setSheetItem(item);
       }
@@ -161,7 +176,10 @@ export function CutUpBoard({ model, spark }: { model: Model; spark: CutUpSpark }
           cloneY.value = cloneBaseY.value + e.translationY;
           const centerY = cloneY.value + cloneH.value / 2;
           const band2 = Math.round((centerY - bandH / 2) / bandH);
-          targetBand.value = Math.max(0, Math.min(bandCountShared.value - 1, band2));
+          const next = Math.max(0, Math.min(bandCountShared.value - 1, band2));
+          // Haptics vocabulary (drag sentence): tick per rule crossed.
+          if (next !== targetBand.value) runOnJS(haptic.tick)();
+          targetBand.value = next;
         })
         .onEnd(() => {
           dragActive.value = false;
@@ -210,79 +228,51 @@ export function CutUpBoard({ model, spark }: { model: Model; spark: CutUpSpark }
   return (
     <View style={styles.body}>
       <View style={styles.controls}>
-        <Pressable
-          style={({ pressed }) => [styles.controlBtn, styles.controlPrimary, pressed ? appStyles.pressDown : null]}
-          onPress={() => {
-            haptic.light();
-            model.shuffle(measuredWidths(), canvasW);
-          }}
-          hitSlop={6}
-        >
-          <Ionicons name="shuffle" size={15} color={colors.onPrimary} />
-          <Text style={styles.controlTextPrimary}>{t("cutUp.shuffle")}</Text>
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [styles.controlBtn, pressed ? appStyles.pressDown : null]}
-          onPress={() => {
-            haptic.tap();
-            model.resetOrder(measuredWidths(), canvasW);
-          }}
-          hitSlop={6}
-        >
-          <Ionicons name="swap-vertical-outline" size={15} color={colors.textSecondary} />
-          <Text style={styles.controlText}>{t("cutUp.sourceOrder")}</Text>
-        </Pressable>
+        <InkKey
+          glyph={<Ionicons name="shuffle" size={16} color={inkKeyColor("idle")} />}
+          label={t("cutUp.shuffle")}
+          onPress={() => model.shuffle(measuredWidths(), canvasW)}
+        />
+        <InkKey
+          glyph={<Ionicons name="list-outline" size={16} color={inkKeyColor("idle")} />}
+          label={t("cutUp.sourceOrder")}
+          onPress={() => model.resetOrder(measuredWidths(), canvasW)}
+        />
         <View style={styles.controlsSpacer} />
-        <Pressable
-          style={({ pressed }) => [styles.historyBtn, pressed ? appStyles.pressDown : null]}
-          onPress={() => {
-            haptic.tap();
-            model.poolAll();
-          }}
+        <Press
+          // Haptics vocabulary: tap, an acknowledged press.
+          feel="glyph"
+          style={styles.glyphKey}
+          onPress={model.poolAll}
           disabled={model.activeCount === 0}
           hitSlop={6}
+          accessibilityRole="button"
           accessibilityLabel={t("cutUp.poolAll")}
         >
-          <Ionicons name="albums-outline" size={17} color={model.activeCount > 0 ? colors.textStrong : colors.borderMuted} />
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [styles.historyBtn, pressed ? appStyles.pressDown : null]}
-          onPress={() => {
-            haptic.tap();
-            model.undoBoard();
-          }}
-          disabled={!model.canUndoBoard}
-          hitSlop={6}
-          accessibilityLabel={t("wordSparks.undo")}
-        >
-          <Ionicons name={dirIcon("arrow-undo-outline")} size={17} color={model.canUndoBoard ? colors.textStrong : colors.borderMuted} />
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [styles.historyBtn, pressed ? appStyles.pressDown : null]}
-          onPress={() => {
-            haptic.tap();
-            model.redoBoard();
-          }}
-          disabled={!model.canRedoBoard}
-          hitSlop={6}
-          accessibilityLabel={t("wordSparks.redo")}
-        >
-          <Ionicons name={dirIcon("arrow-redo-outline")} size={17} color={model.canRedoBoard ? colors.textStrong : colors.borderMuted} />
-        </Pressable>
+          <Ionicons name="albums-outline" size={18} color={colors.textStrong} />
+        </Press>
+        <UndoRedoButtons
+          canUndo={model.canUndoBoard}
+          canRedo={model.canRedoBoard}
+          onUndo={model.undoBoard}
+          onRedo={model.redoBoard}
+        />
       </View>
 
-      <Text style={styles.hint}>{t("cutUp.tableReassure")}</Text>
+      {model.canUndoBoard || active.length === 0 ? null : (
+        <SparkHint text={t("cutUp.tableHintShort")} onExample={onExample} />
+      )}
+
+      {active.length === 0 ? <Text style={styles.empty}>{t("cutUp.boardEmpty")}</Text> : null}
 
       <GHScrollView
         ref={scrollRef}
-        style={styles.scroll}
+        style={active.length === 0 ? styles.scrollCollapsed : styles.scroll}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         scrollEnabled={dragId === null}
       >
-        {active.length === 0 ? (
-          <Text style={styles.empty}>{t("cutUp.boardEmpty")}</Text>
-        ) : (
+        {active.length === 0 ? null : (
           <View
             style={[styles.canvas, { height: canvasH }]}
             collapsable={false}
@@ -332,37 +322,36 @@ export function CutUpBoard({ model, spark }: { model: Model; spark: CutUpSpark }
       </GHScrollView>
 
       {removed.length > 0 ? (
-        <View style={styles.removedSection}>
+        // With nothing on the table the set-aside tray takes the room the
+        // empty table was holding, so the whole pool is browsable at once.
+        <View style={[styles.removedSection, active.length === 0 ? styles.removedSectionFull : null]}>
           <View style={styles.removedHeader}>
             <Text style={styles.removedLabel}>{t("cutUp.setAside", { count: removed.length })}</Text>
-            <Pressable
-              style={({ pressed }) => [styles.bringAllBtn, pressed ? appStyles.pressDown : null]}
-              onPress={() => {
-                haptic.tap();
-                model.restoreAll();
-              }}
-              hitSlop={6}
-            >
-              <Ionicons name="arrow-up-outline" size={13} color={colors.primaryDeep} />
-              <Text style={styles.bringAllText}>{t("cutUp.bringAllUp")}</Text>
-            </Pressable>
+            <InkKey
+              glyph={<Ionicons name="arrow-up-outline" size={15} color={inkKeyColor("idle")} />}
+              label={t("cutUp.bringAllUp")}
+              onPress={model.restoreAll}
+              style={styles.bringAllKey}
+            />
           </View>
-          <ScrollView style={styles.removedScroll} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={active.length === 0 ? styles.removedScrollFull : styles.removedScroll}
+            showsVerticalScrollIndicator={false}
+          >
             <View style={styles.removedWrap}>
               {removed.map((item) => (
-                <Pressable
+                <Press
+                  // Haptics vocabulary: tap, an acknowledged press.
                   key={item.id}
-                  style={({ pressed }) => [styles.removedChip, pressed ? appStyles.pressDown : null]}
-                  onPress={() => {
-                    haptic.tap();
-                    model.restoreStrip(item.id);
-                  }}
+                  style={styles.removedChip}
+                  onPress={() => model.restoreStrip(item.id)}
+                  accessibilityRole="button"
                 >
-                  <Ionicons name={dirIcon("arrow-undo-outline")} size={12} color={colors.textSecondary} />
+                  <Ionicons name="arrow-up-outline" size={12} color={colors.textSecondary} />
                   <UserText style={styles.removedChipText} numberOfLines={1}>
                     {boardItemText(item, spark.chunks)}
                   </UserText>
-                </Pressable>
+                </Press>
               ))}
             </View>
           </ScrollView>
@@ -476,32 +465,22 @@ function StripSheet({
               <MenuRow
                 icon="cut-outline"
                 label={t("cutUp.cutStrip")}
-                onPress={() => {
-                  haptic.light();
-                  onSplit(item);
-                }}
+                onPress={() => onSplit(item)}
               />
             ) : null}
             <MenuRow
               icon={item.locked ? "lock-open-outline" : "lock-closed-outline"}
               label={item.locked ? t("cutUp.unlock") : t("cutUp.lock")}
-              onPress={() => {
-                haptic.light();
-                model.toggleStripLock(item.id);
-              }}
+              onPress={() => model.toggleStripLock(item.id)}
             />
             <MenuRow
               icon="copy-outline"
               label={t("cutUp.duplicate")}
-              onPress={() => {
-                haptic.light();
-                model.duplicateStrip(item.id);
-              }}
+              onPress={() => model.duplicateStrip(item.id)}
             />
             <MenuRow
               icon="archive-outline"
               label={t("cutUp.removeStrip")}
-              danger
               onPress={() => {
                 model.removeStrip(item.id);
                 onClose();
@@ -563,65 +542,51 @@ function StripSplitSheet({
           <View style={styles.splitPaper}>
             <CutSeamRow words={words} isCut={(seam) => cuts.has(seam)} onToggle={toggleCut} rtl={rtl} size={size} />
           </View>
-          <Pressable
-            style={({ pressed }) => [
-              styles.splitCta,
-              cuts.size === 0 ? styles.splitCtaDisabled : null,
-              pressed && cuts.size > 0 ? appStyles.pressDown : null,
-            ]}
-            onPress={apply}
-            disabled={cuts.size === 0}
-          >
-            <Ionicons name="cut-outline" size={15} color={cuts.size > 0 ? colors.onPrimary : colors.textSecondary} />
-            <Text style={[styles.splitCtaText, cuts.size === 0 ? styles.splitCtaTextDisabled : null]}>
-              {t("cutUp.cutInto", { count: cuts.size + 1 })}
-            </Text>
-          </Pressable>
+          <Button label={t("cutUp.cut")} onPress={apply} disabled={cuts.size === 0} hapticFeedback={false} />
         </>
       ) : null}
     </BottomSheet>
   );
 }
 
+/** A row on paper: glyph and word over a hairline (the menu law). Setting a
+ *  scrap aside is reversible, so it reads in ink, not danger. */
 function MenuRow({
   icon,
   label,
-  danger,
   onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
-  danger?: boolean;
   onPress: () => void;
 }) {
   return (
-    <Pressable style={({ pressed }) => [styles.menuRow, pressed ? appStyles.pressDown : null]} onPress={onPress}>
-      <Ionicons name={icon} size={18} color={danger ? colors.danger : colors.textStrong} />
-      <Text style={[styles.menuRowText, danger ? styles.menuRowDanger : null]}>{label}</Text>
-    </Pressable>
+    <Press
+      // Haptics vocabulary: tap, an acknowledged press.
+      style={styles.menuRow}
+      onPress={onPress}
+      accessibilityRole="button"
+    >
+      <Ionicons name={icon} size={20} color={colors.textStrong} />
+      <Text style={styles.menuRowText}>{label}</Text>
+    </Press>
   );
 }
 
 const styles = StyleSheet.create({
   body: { flex: 1 },
-  controls: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.xs },
-  controlBtn: {
+  controls: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
+    gap: spacing.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
   },
-  controlPrimary: { backgroundColor: colors.primaryDeep },
   controlsSpacer: { flex: 1 },
-  historyBtn: { width: 32, height: 32, borderRadius: radii.round, alignItems: "center", justifyContent: "center" },
-  controlText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 12, color: colors.textSecondary },
-  controlTextPrimary: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 12, color: colors.onPrimary },
-  hint: { ...textTokens.supporting, fontSize: 11.5, marginBottom: spacing.xs },
+  glyphKey: { width: 36, height: 44, alignItems: "center", justifyContent: "center" },
 
   scroll: { flex: 1 },
+  scrollCollapsed: { flexGrow: 0, height: 0 },
   scrollContent: { paddingBottom: spacing.md },
   empty: { ...textTokens.supporting, fontSize: 13, textAlign: "center", paddingVertical: spacing.xl },
 
@@ -639,15 +604,15 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     top: 0,
-    backgroundColor: "rgba(184, 125, 107, 0.08)",
+    backgroundColor: colors.primarySurface,
     borderRadius: radii.sm,
   },
 
   scrap: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: SCRAP_BG,
-    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
     paddingHorizontal: spacing.sm + 2,
     paddingVertical: 7,
     ...shadows.card,
@@ -661,27 +626,28 @@ const styles = StyleSheet.create({
   clone: { position: "absolute", left: 0, top: 0 },
   scrapClone: { ...shadows.drawer, backgroundColor: colors.surface },
 
-  removedSection: { marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.borderMuted },
-  removedHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.xs },
+  removedSection: { marginTop: spacing.sm, paddingTop: spacing.xs, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.borderMuted },
+  removedSectionFull: { flex: 1, marginTop: 0 },
+  removedHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   removedLabel: { ...textTokens.annotation },
-  bringAllBtn: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radii.lg, backgroundColor: colors.surfaceHigh },
-  bringAllText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 11.5, color: colors.primaryDeep },
+  bringAllKey: { minHeight: 36 },
   removedScroll: { maxHeight: 88 },
-  removedWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+  removedScrollFull: { flex: 1 },
+  removedWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, paddingBottom: spacing.sm },
   removedChip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
     maxWidth: "100%",
     backgroundColor: colors.surfaceContainer,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
   },
   removedChipText: { fontFamily: "PlusJakartaSans_500Medium", fontSize: 12, color: colors.textSecondary, flexShrink: 1 },
 
   sheetInputWrap: {
-    backgroundColor: SCRAP_BG,
+    backgroundColor: colors.surfaceContainer,
     borderRadius: radii.lg,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
@@ -689,22 +655,16 @@ const styles = StyleSheet.create({
   },
   sheetInput: { fontFamily: "Lora_500Medium", color: colors.textPrimary, padding: 0 },
   menuList: {},
-  menuRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.md },
-  menuRowText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 14.5, color: colors.textPrimary },
-  menuRowDanger: { color: colors.danger },
-
-  splitTitle: { fontFamily: "Lora_600SemiBold", fontSize: 19, color: colors.textPrimary, marginBottom: spacing.md },
-  splitPaper: { backgroundColor: SCRAP_BG, borderRadius: radii.lg, padding: spacing.lg, marginBottom: spacing.lg, ...shadows.card },
-  splitCta: {
+  menuRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    backgroundColor: colors.primaryDeep,
-    borderRadius: radii.round,
-    paddingVertical: 12,
+    gap: spacing.md,
+    minHeight: 52,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
   },
-  splitCtaDisabled: { backgroundColor: colors.surfaceHigh },
-  splitCtaText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 14, color: colors.onPrimary },
-  splitCtaTextDisabled: { color: colors.textMuted },
+  menuRowText: { fontFamily: "PlusJakartaSans_500Medium", fontSize: 16, color: colors.textPrimary },
+
+  splitTitle: { fontFamily: "Lora_600SemiBold", fontSize: 19, color: colors.textPrimary, marginBottom: spacing.md },
+  splitPaper: { backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.lg, marginBottom: spacing.lg, ...shadows.card },
 });

@@ -1,8 +1,10 @@
 import { Fragment, useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
+import { InkKey, inkKeyColor } from "../../common/InkKey";
+import { UndoRedoButtons } from "../../common/useUndoHistory";
+import { SparkHint } from "../../common/SparkFrame";
 import { haptic } from "../../../design/haptics";
 import { type CutUnit, lineBreakSeams, tokenizeWords, unitGroups } from "../../../domain/cutUp";
 import { detectTextDirection } from "../../../i18n/direction";
@@ -13,8 +15,6 @@ import { useTranslation } from "react-i18next";
 
 type Model = ReturnType<typeof useCutUpScreenModel>;
 
-const SCRAP_BG = "#FCF8F0";
-
 /**
  * The Cut step, in the same visual language as the Arrange table: the lyric
  * laid out line by line on a faintly ruled page, each strip already a scrap
@@ -23,7 +23,16 @@ const SCRAP_BG = "#FCF8F0";
  * structural — each source line keeps its own rule — so what you see here is
  * exactly the set of scraps that lands on the table.
  */
-export function CutUpChunkEditor({ model, spark }: { model: Model; spark: CutUpSpark }) {
+export function CutUpChunkEditor({
+  model,
+  spark,
+  onExample,
+}: {
+  model: Model;
+  spark: CutUpSpark;
+  /** Opens the method's example (the step's help). */
+  onExample: () => void;
+}) {
   const { t } = useTranslation();
   const { size, lineHeight } = useSparkTextScale();
   const rtl = detectTextDirection(spark.sourceText) === "rtl";
@@ -51,6 +60,7 @@ export function CutUpChunkEditor({ model, spark }: { model: Model; spark: CutUpS
   }, [spark.sourceText, words, model.currentSeams]);
 
   const toggle = (seam: number) => {
+    // Haptics vocabulary: light, a small state flip (a cut made or mended).
     haptic.light();
     model.toggleSeamAt(seam);
   };
@@ -69,18 +79,22 @@ export function CutUpChunkEditor({ model, spark }: { model: Model; spark: CutUpS
     <View style={styles.body}>
       <View style={styles.headerRow}>
         <Text style={styles.count}>{t("cutUp.pieces", { count: rows.count })}</Text>
-        <Pressable
-          style={({ pressed }) => [styles.resetBtn, pressed ? appStyles.pressDown : null]}
-          onPress={() => {
-            haptic.light();
-            model.resetCuts();
-          }}
-          hitSlop={6}
-        >
-          <Ionicons name="sparkles-outline" size={14} color={colors.textSecondary} />
-          <Text style={styles.resetText}>{t("cutUp.resetCuts")}</Text>
-        </Pressable>
+        <InkKey
+          glyph={<Ionicons name="refresh" size={16} color={inkKeyColor("idle")} />}
+          label={t("cutUp.recut")}
+          onPress={model.resetCuts}
+        />
+        <View style={styles.undoPair}>
+          <UndoRedoButtons
+            canUndo={model.cutHistory.canUndo}
+            canRedo={model.cutHistory.canRedo}
+            onUndo={model.cutHistory.undo}
+            onRedo={model.cutHistory.redo}
+          />
+        </View>
       </View>
+
+      {model.cutHistory.canUndo ? null : <SparkHint text={t("cutUp.cutHint")} onExample={onExample} />}
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
         {rows.rows.map((row) => (
@@ -171,18 +185,15 @@ function Divider({ onPress }: { onPress: () => void }) {
 
 const styles = StyleSheet.create({
   body: { flex: 1 },
-  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.xs },
-  count: { ...textTokens.annotation },
-  resetBtn: {
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 5,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
+    gap: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
   },
-  resetText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 12, color: colors.textSecondary },
+  count: { ...textTokens.annotation, flex: 1 },
+  undoPair: { flexDirection: "row", alignItems: "center" },
 
   scroll: { flex: 1 },
   page: { paddingBottom: spacing.md },
@@ -204,8 +215,8 @@ const styles = StyleSheet.create({
   strip: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: SCRAP_BG,
-    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
     paddingHorizontal: spacing.sm + 2,
     paddingVertical: 7,
     ...shadows.card,
