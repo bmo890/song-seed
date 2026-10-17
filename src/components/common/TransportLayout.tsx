@@ -8,12 +8,15 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { View, type LayoutChangeEvent } from "react-native";
+import { StyleSheet, View, type LayoutChangeEvent } from "react-native";
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
+import { colors } from "../../design/tokens";
 import Animated, {
   Easing,
   scrollTo,
   useAnimatedReaction,
   useAnimatedRef,
+  useAnimatedStyle,
   useScrollViewOffset,
   useSharedValue,
   withTiming,
@@ -75,6 +78,10 @@ export const TransportLayout = forwardRef<TransportLayoutHandle, Props>(function
   // The programmatic glide: a single shared value the scroll follows while it
   // animates; `null` means "hands off", so user scrolling is never fought.
   const revealY = useSharedValue<number | null>(null);
+  // The bottom edge fades while more of the page is below it, so a row cut by
+  // the footer reads as "scroll for more", not as broken (2026-10-18).
+  const viewportHeightSV = useSharedValue(0);
+  const contentHeightSV = useSharedValue(0);
 
   useAnimatedReaction(
     () => revealY.value,
@@ -137,10 +144,17 @@ export const TransportLayout = forwardRef<TransportLayoutHandle, Props>(function
 
   const handleViewportLayout = useCallback((event: LayoutChangeEvent) => {
     viewportHeightRef.current = event.nativeEvent.layout.height;
+    viewportHeightSV.value = event.nativeEvent.layout.height;
   }, []);
   const handleContentSizeChange = useCallback((_width: number, height: number) => {
     contentHeightRef.current = height;
+    contentHeightSV.value = height;
   }, []);
+
+  const edgeFadeStyle = useAnimatedStyle(() => {
+    const remaining = contentHeightSV.value - viewportHeightSV.value - scrollOffset.value;
+    return { opacity: Math.max(0, Math.min(1, remaining / EDGE_FADE_HEIGHT)) };
+  });
 
   const surfaceStyle = [styles.transportSurface, floating ? styles.transportSurfaceWithFloating : null];
   const content = scrollable ? (
@@ -170,6 +184,19 @@ export const TransportLayout = forwardRef<TransportLayoutHandle, Props>(function
       {stickyTop ?? null}
       <View style={styles.transportBodyZone}>
         {content}
+        {scrollable ? (
+          <Animated.View pointerEvents="none" style={[edgeFade.wrap, edgeFadeStyle]}>
+            <Svg width="100%" height={EDGE_FADE_HEIGHT}>
+              <Defs>
+                <LinearGradient id="transportEdgeFade" x1="0" y1="0" x2="0" y2="1">
+                  <Stop offset="0" stopColor={colors.page} stopOpacity={0} />
+                  <Stop offset="1" stopColor={colors.page} stopOpacity={1} />
+                </LinearGradient>
+              </Defs>
+              <Rect x="0" y="0" width="100%" height={EDGE_FADE_HEIGHT} fill="url(#transportEdgeFade)" />
+            </Svg>
+          </Animated.View>
+        ) : null}
         {floating ? <View style={styles.transportFloatingZone}>{floating}</View> : null}
       </View>
       {footer ? (
@@ -184,4 +211,16 @@ export const TransportLayout = forwardRef<TransportLayoutHandle, Props>(function
       ) : null}
     </View>
   );
+});
+
+const EDGE_FADE_HEIGHT = 28;
+
+const edgeFade = StyleSheet.create({
+  wrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: EDGE_FADE_HEIGHT,
+  },
 });

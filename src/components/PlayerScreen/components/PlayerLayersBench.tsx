@@ -120,6 +120,8 @@ type Props = {
   onRemoveStem: (stemId: string) => void;
   onSaveAsOneClip: (mode: "copy" | "replace") => void;
   onCloseBench: () => void;
+  /** Scroll the player body so a block is in view (TransportLayout.reveal). */
+  onReveal?: (node: View) => void;
 };
 
 function NudgeKey({ label, onPress }: { label: string; onPress: () => void }) {
@@ -160,6 +162,7 @@ export function PlayerLayersBench({
   onRemoveStem,
   onSaveAsOneClip,
   onCloseBench,
+  onReveal,
 }: Props) {
   const { t } = useTranslation();
   const selectedStem = stems.find((stem) => stem.id === selectedLaneId) ?? null;
@@ -491,6 +494,19 @@ export function PlayerLayersBench({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStem?.id, soloActive]);
 
+  // Picking another layer brings its tools into view: they sit under the whole
+  // stack, and with several layers that is below the fold.
+  const toolsRef = useRef<View>(null);
+  const revealedLaneRef = useRef(selectedLaneId);
+  useEffect(() => {
+    if (revealedLaneRef.current === selectedLaneId) return;
+    revealedLaneRef.current = selectedLaneId;
+    const frame = requestAnimationFrame(() => {
+      if (toolsRef.current) onReveal?.(toolsRef.current);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [selectedLaneId, onReveal]);
+
   // An item's "…" is the action menu, never a centred dialog; removing asks first.
   function openLayerMenu(stem: BenchStemEntry) {
     AppAlert.menu(stem.title, [
@@ -541,22 +557,6 @@ export function PlayerLayersBench({
 
   const stemTools = selectedStem ? (
     <View style={benchStyles.tools}>
-      <InkKey
-        // Haptics: the toggle fires its own `tap` (togglePlayHere).
-        haptic="none"
-        tone={isAuditioning ? "active" : "idle"}
-        label={t("player.playTogetherShort")}
-        glyph={
-          <Ionicons
-            name={isAuditioning ? "stop" : "play"}
-            size={14}
-            color={inkKeyColor(isAuditioning ? "active" : "idle")}
-          />
-        }
-        onPress={togglePlayHere}
-        accessibilityLabel={isAuditioning ? t("player.stopTogether") : t("player.playTogether")}
-      />
-
       {/* Scrubbable solo transport while the layer is loaded (playing or paused). */}
       {soloActive ? (
         <Slider
@@ -580,6 +580,23 @@ export function PlayerLayersBench({
 
       {/* The alignment strip: this layer against the take; slide it to move it. */}
       <StemAlignmentOverlay
+        headerLeading={
+          <InkKey
+            // Haptics: the toggle fires its own `tap` (togglePlayHere).
+            haptic="none"
+            tone={isAuditioning ? "active" : "idle"}
+            label={t("player.playTogetherShort")}
+            glyph={
+              <Ionicons
+                name={isAuditioning ? "stop" : "play"}
+                size={14}
+                color={inkKeyColor(isAuditioning ? "active" : "idle")}
+              />
+            }
+            onPress={togglePlayHere}
+            accessibilityLabel={isAuditioning ? t("player.stopTogether") : t("player.playTogether")}
+          />
+        }
         masterAudioUri={rootAudioUri}
         masterDurationMs={rootDurationMs}
         masterFallbackPeaks={rootWaveformPeaks}
@@ -661,19 +678,7 @@ export function PlayerLayersBench({
         selected={isRoot}
         rendering={isRendering}
         onSelect={() => onSelectLane(BENCH_ROOT_LANE_ID)}
-      >
-        {isRoot && rootSettings ? (
-          <View style={benchStyles.tools}>
-            <LevelToneStrip
-              style={benchStyles.strip}
-              gainDb={rootSettings.gainDb}
-              tonePreset={rootSettings.tonePreset}
-              onCommitGain={(db) => onAdjustRootGain(db - rootSettings.gainDb)}
-              onToggleToneFlag={onToggleRootToneFlag}
-            />
-          </View>
-        ) : null}
-      </BenchRow>
+      />
 
       {stems.map((stem) => {
         const selected = stem.id === selectedStem?.id;
@@ -723,11 +728,32 @@ export function PlayerLayersBench({
                 </Press>
               </>
             }
-          >
-            {selected ? stemTools : null}
-          </BenchRow>
+          />
         );
       })}
+      <View style={benchStyles.rule} />
+
+      {/* The selected row's tools sit under the whole stack, so every layer stays
+          in view while one is worked on (they used to open inside the list and
+          push the rest off the screen). */}
+      <View ref={toolsRef} collapsable={false} style={benchStyles.toolsBlock}>
+        <Text style={benchStyles.toolsCaption} numberOfLines={1}>
+          {isRoot ? t("player.baseTake") : selectedStem?.title}
+        </Text>
+        {isRoot ? (
+          rootSettings ? (
+            <LevelToneStrip
+              style={benchStyles.strip}
+              gainDb={rootSettings.gainDb}
+              tonePreset={rootSettings.tonePreset}
+              onCommitGain={(db) => onAdjustRootGain(db - rootSettings.gainDb)}
+              onToggleToneFlag={onToggleRootToneFlag}
+            />
+          ) : null
+        ) : (
+          stemTools
+        )}
+      </View>
       <View style={benchStyles.rule} />
 
       {/* The foot: combining is where a layered take stops being layered. */}
@@ -774,7 +800,6 @@ function BenchRow({
   rendering = false,
   onSelect,
   controls,
-  children,
 }: {
   title: string;
   readsAsName: boolean;
@@ -788,7 +813,6 @@ function BenchRow({
   rendering?: boolean;
   onSelect: () => void;
   controls?: React.ReactNode;
-  children?: React.ReactNode;
 }) {
   const { t } = useTranslation();
   const heights = React.useMemo(() => rowBarHeights(peaks, durationMs), [peaks, durationMs]);
@@ -842,12 +866,11 @@ function BenchRow({
           ))}
         </View>
       </Press>
-      {children}
     </View>
   );
 }
 
-const ROW_WAVE_HEIGHT = 18;
+const ROW_WAVE_HEIGHT = 14;
 
 function rowBarHeights(peaks: number[] | undefined, durationMs: number): number[] {
   const count = Math.max(8, Math.min(140, Math.round(durationMs / 140)));
@@ -925,8 +948,8 @@ const benchStyles = StyleSheet.create({
   row: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.borderSubtle,
-    paddingVertical: 10,
-    gap: 6,
+    paddingVertical: 6,
+    gap: 2,
   },
   rule: {
     height: StyleSheet.hairlineWidth,
@@ -943,19 +966,19 @@ const benchStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "baseline",
     gap: 8,
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
   nameTyped: {
     fontFamily: "Lora_600SemiBold",
-    fontSize: 17,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 20,
     color: colors.textPrimary,
     flexShrink: 1,
   },
   nameMachine: {
     fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 20,
     color: colors.textStrong,
     flexShrink: 1,
   },
@@ -1023,8 +1046,17 @@ const benchStyles = StyleSheet.create({
   },
   tools: {
     gap: 10,
-    paddingTop: 6,
-    paddingBottom: 4,
+  },
+  toolsBlock: {
+    paddingTop: 12,
+    paddingBottom: 12,
+    gap: 6,
+  },
+  // The selected layer's name over its tools: the row above is lit terracotta,
+  // this says the same in words.
+  toolsCaption: {
+    ...textTokens.annotation,
+    color: colors.primaryDeep,
   },
   labelRow: {
     flexDirection: "row",
