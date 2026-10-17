@@ -1,18 +1,8 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Image,
-  Linking,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Image, Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Spinner } from "../../common/Spinner";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
-import { dirIcon } from "../../../design/directionalIcons";
-import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing } from "../../../design/tokens";
 import { durations } from "../../../design/motion";
 import { haptic } from "../../../design/haptics";
@@ -31,14 +21,17 @@ import type { useMagpieScreenModel } from "../hooks/useMagpieScreenModel";
 import { useTranslation } from "react-i18next";
 import { useSparkTextScale } from "../../common/sparkTextScale";
 import { Press } from "../../common/Press";
+import { Button } from "../../common/Button";
+import { InkKey, inkKeyColor } from "../../common/InkKey";
+import { InkLink } from "../../common/InkLink";
+import { SegmentedControl } from "../../common/SegmentedControl";
+import { SparkFooter } from "../../common/SparkFrame";
 import { UserText } from "../../../i18n";
 
 type Model = ReturnType<typeof useMagpieScreenModel>;
 
 // The writing sheet is a card on the app paper (2026-10-17, paper A).
 const PAGE_BG = colors.surface;
-const HL_BG = "#EEC79B";
-const HL_TEXT = "#5C3A22";
 const BASE_FONT = 17;
 const BASE_LINE = 29;
 
@@ -155,7 +148,8 @@ export function MagpiePageStep({
   }, [spark.pageText]);
 
   const onToggle = useCallback((wordIndex: number) => {
-    haptic.tap();
+    // Haptics vocabulary: light, a small state flip (a word marked or let go).
+    haptic.light();
     setSelected((prev) =>
       prev.includes(wordIndex) ? prev.filter((w) => w !== wordIndex) : [...prev, wordIndex]
     );
@@ -178,14 +172,12 @@ export function MagpiePageStep({
   const pocket = () => {
     const phrases = selectionToPhrases(tokens, selected);
     if (phrases.length === 0) return;
-    haptic.success();
     model.pocketPhrases(phrases);
     setSelected([]);
   };
 
   const pocketPieces = (pieces: string[], run: number[]) => {
     if (pieces.length === 0) return;
-    haptic.success();
     model.pocketPhrases(pieces);
     setSelected((prev) => prev.filter((w) => !run.includes(w)));
     setSplitRun(null);
@@ -244,12 +236,26 @@ export function MagpiePageStep({
         )}
       </View>
 
-      <BottomBar
-        pendingPhrases={pendingPhrases}
-        collected={collected}
-        onPocket={pocket}
-        onRemove={model.removeFragment}
-        onBuild={() => model.goToStep("build")}
+      <CollectedStrip collected={collected} onRemove={model.removeFragment} />
+
+      {/* One footer: Collect while words are marked, Build once there's a pile. */}
+      <SparkFooter
+        hint={
+          pendingPhrases > 0
+            ? t("magpie.picked", { count: pendingPhrases })
+            : collected.length === 0 && !model.status.error
+              ? t("magpie.tapToPocket")
+              : null
+        }
+        next={
+          pendingPhrases > 0
+            ? { label: t("magpie.pocketThis"), onPress: pocket }
+            : {
+                label: t("wordSparks.build"),
+                onPress: () => model.goToStep("build"),
+                disabled: collected.length === 0,
+              }
+        }
       />
 
       <SourceSheet
@@ -333,83 +339,44 @@ function BookThumbnail({ book, small }: { book: MagpieBook | null; small?: boole
   );
 }
 
-// ── Bottom bar ────────────────────────────────────────────────────────────────
-function BottomBar({
-  pendingPhrases,
+// ── Collected words ───────────────────────────────────────────────────────────
+/** The pile so far, as paper scraps under the page: a quiet count, then the
+ *  words. Tap one to put it back (the toast offers Undo). */
+function CollectedStrip({
   collected,
-  onPocket,
   onRemove,
-  onBuild,
 }: {
-  pendingPhrases: number;
   collected: MagpieSpark["fragments"];
-  onPocket: () => void;
   onRemove: (id: string) => void;
-  onBuild: () => void;
 }) {
   const { t } = useTranslation();
-
-  if (pendingPhrases > 0) {
-    return (
-      <View style={styles.bottomBar}>
-        <Pressable
-          style={({ pressed }) => [styles.primaryBtn, pressed ? appStyles.pressDown : null]}
-          onPress={onPocket}
-        >
-          <Ionicons name="bookmark" size={16} color={colors.onPrimary} />
-          <Text style={styles.primaryBtnText}>
-            {pendingPhrases > 1 ? t("magpie.pocketCount", { count: pendingPhrases }) : t("magpie.pocketThis")}
-          </Text>
-        </Pressable>
-      </View>
-    );
-  }
-
-  if (collected.length === 0) {
-    return (
-      <View style={styles.bottomBar}>
-        <Text style={styles.emptyHint}>{t("magpie.tapToPocket")}</Text>
-      </View>
-    );
-  }
-
+  if (collected.length === 0) return null;
   return (
-    <View style={styles.bottomBar}>
-      <View style={styles.gatheredRow}>
-        <View style={styles.count}>
-          <Text style={styles.countText}>{collected.length}</Text>
-        </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.strip}
-          contentContainerStyle={styles.stripContent}
-          keyboardShouldPersistTaps="handled"
-        >
-          {collected.map((fragment) => (
-            <Pressable
-              key={fragment.id}
-              style={({ pressed }) => [styles.scrap, pressed ? appStyles.pressDown : null]}
-              onPress={() => {
-                haptic.light();
-                onRemove(fragment.id);
-              }}
-            >
-              <UserText style={styles.scrapText} numberOfLines={1}>
-                {fragment.text}
-              </UserText>
-              <Ionicons name="close" size={11} color={colors.textSecondary} />
-            </Pressable>
-          ))}
-        </ScrollView>
-      </View>
-      <Pressable
-        style={({ pressed }) => [styles.buildBtn, pressed ? appStyles.pressDown : null]}
-        onPress={onBuild}
+    <View style={styles.gatheredRow}>
+      <Text style={styles.countText}>{t("magpie.collected", { count: collected.length })}</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.strip}
+        contentContainerStyle={styles.stripContent}
+        keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.buildBtnText}>{t("magpie.buildDraft")}</Text>
-        <Ionicons name={dirIcon("arrow-forward")} size={15} color={colors.onPrimary} />
-      </Pressable>
+        {collected.map((fragment) => (
+          <Press
+            // Haptics vocabulary: tap, an acknowledged press.
+            key={fragment.id}
+            style={styles.scrap}
+            onPress={() => onRemove(fragment.id)}
+            accessibilityRole="button"
+            accessibilityLabel={t("magpie.remove")}
+          >
+            <UserText style={styles.scrapText} numberOfLines={1}>
+              {fragment.text}
+            </UserText>
+            <Ionicons name="close" size={12} color={colors.textMuted} />
+          </Press>
+        ))}
+      </ScrollView>
     </View>
   );
 }
@@ -443,10 +410,8 @@ function SourceSheet({
         </View>
       </View>
 
-      <DrawButton
-        icon="refresh"
+      <Button
         label={t("magpie.newPage")}
-        primary
         onPress={() => {
           model.newPage();
           onClose();
@@ -459,14 +424,15 @@ function SourceSheet({
       {MAGPIE_HE_ENABLED ? (
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>{t("magpie.language")}</Text>
-          <Segmented
+          <SegmentedControl<MagpieLanguage>
             options={[
-              { label: t("magpie.langEnglish"), value: "en" as MagpieLanguage },
-              { label: t("magpie.langHebrew"), value: "he" as MagpieLanguage },
+              { key: "en", label: t("magpie.langEnglish") },
+              { key: "he", label: t("magpie.langHebrew") },
             ]}
             value={spark.language}
-            onChange={(v) => model.setLanguage(v)}
-            disabled={busy}
+            onChange={(v) => {
+              if (!busy) model.setLanguage(v);
+            }}
           />
         </View>
       ) : null}
@@ -474,14 +440,15 @@ function SourceSheet({
       {spark.language === "en" ? (
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>{t("magpie.scope")}</Text>
-          <Segmented
+          <SegmentedControl<"curated" | "library">
             options={[
-              { label: t("magpie.curated"), value: false },
-              { label: t("magpie.library"), value: true },
+              { key: "curated", label: t("magpie.curated") },
+              { key: "library", label: t("magpie.library") },
             ]}
-            value={spark.wholeLibrary}
-            onChange={(v) => model.setWholeLibrary(v)}
-            disabled={busy}
+            value={spark.wholeLibrary ? "library" : "curated"}
+            onChange={(v) => {
+              if (!busy) model.setWholeLibrary(v === "library");
+            }}
           />
         </View>
       ) : (
@@ -491,35 +458,35 @@ function SourceSheet({
             {MAGPIE_HE_GENRES.map((genre) => {
               const on = model.heGenres.includes(genre);
               return (
-                <Pressable
+                <Press
+                  // Haptics vocabulary: light, a small state flip (multi-select).
                   key={genre}
-                  style={[styles.chip, on ? styles.chipOn : null]}
+                  feel="glyph"
+                  haptic="light"
+                  style={styles.genre}
                   onPress={() => model.toggleHeGenre(genre)}
                   disabled={busy}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: on }}
                 >
-                  <Ionicons
-                    name={on ? "checkmark-circle" : "ellipse-outline"}
-                    size={14}
-                    color={on ? colors.onPrimary : colors.textMuted}
-                  />
-                  <Text style={[styles.chipText, on ? styles.chipTextOn : null]}>{t(`magpie.genre.${genre}`)}</Text>
-                </Pressable>
+                  <View style={[styles.genreDot, on ? styles.genreDotOn : null]} />
+                  <Text style={[styles.genreText, on ? styles.genreTextOn : null]}>{t(`magpie.genre.${genre}`)}</Text>
+                </Press>
               );
             })}
           </View>
         </View>
       )}
 
-      <DrawButton
-        icon="shuffle"
+      <InkKey
+        glyph={<Ionicons name="shuffle" size={16} color={inkKeyColor(busy ? "off" : "idle")} />}
         label={t("magpie.newBook")}
+        tone={busy ? "off" : "idle"}
         onPress={() => {
+          if (busy) return;
           model.newBook();
           onClose();
         }}
-        disabled={busy}
       />
 
       </ScrollView>
@@ -533,68 +500,9 @@ function SourceCredit({ book }: { book: MagpieBook | null }) {
   const label = book.source === "benyehuda" ? t("magpie.sourceBenYehuda") : t("magpie.sourceGutenberg");
   if (!book.sourceUrl) return <Text style={styles.bookSource}>{label}</Text>;
   return (
-    <Pressable onPress={() => Linking.openURL(book.sourceUrl!)} hitSlop={4}>
+    <Press haptic="navigate" feel="glyph" onPress={() => Linking.openURL(book.sourceUrl!)} hitSlop={4} accessibilityRole="link">
       <Text style={styles.bookSourceLink}>{label}</Text>
-    </Pressable>
-  );
-}
-
-function DrawButton({
-  icon,
-  label,
-  primary,
-  onPress,
-  disabled,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  primary?: boolean;
-  onPress: () => void;
-  disabled: boolean;
-}) {
-  return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.drawBtn,
-        primary ? styles.drawBtnPrimary : styles.drawBtnGhost,
-        pressed && !disabled ? appStyles.pressDown : null,
-      ]}
-      onPress={onPress}
-      disabled={disabled}
-    >
-      <Ionicons name={icon} size={16} color={primary ? colors.onPrimary : colors.primaryDeep} />
-      <Text style={[styles.drawBtnText, primary ? styles.drawBtnTextPrimary : null]}>{label}</Text>
-    </Pressable>
-  );
-}
-
-function Segmented<T>({
-  options,
-  value,
-  onChange,
-  disabled,
-}: {
-  options: { label: string; value: T }[];
-  value: T;
-  onChange: (value: T) => void;
-  disabled: boolean;
-}) {
-  return (
-    <View style={styles.segment}>
-      {options.map((option) => {
-        const active = option.value === value;
-        return (
-          <Pressable
-            key={String(option.value)}
-            style={[styles.segmentBtn, active ? styles.segmentBtnActive : null]}
-            onPress={() => onChange(option.value)}
-            disabled={disabled}
-          >
-            <Text style={[styles.segmentText, active ? styles.segmentTextActive : null]}>{option.label}</Text>
-          </Pressable>
-        );
-      })}
-    </View>
+    </Press>
   );
 }
 
@@ -629,6 +537,7 @@ function SplitSheet({
   const pieces = useMemo(() => (run ? runToPhrases(tokens, run, cuts) : []), [run, tokens, cuts]);
 
   const toggleSeam = (afterWordIndex: number) => {
+    // Haptics vocabulary: light, a small state flip (a split made or mended).
     haptic.light();
     setCuts((prev) => {
       const next = new Set(prev);
@@ -646,28 +555,23 @@ function SplitSheet({
           <View key={word.wordIndex} style={styles.splitWordWrap}>
             <UserText style={styles.splitWord}>{word.text}</UserText>
             {i < words.length - 1 ? (
-              <Pressable
+              <Press
+                feel="still"
+                haptic="none"
                 onPress={() => toggleSeam(word.wordIndex)}
                 hitSlop={8}
                 style={styles.seam}
+                accessibilityRole="button"
                 accessibilityLabel={t("magpie.splitHere")}
               >
                 <View style={[styles.seamMark, cuts.has(word.wordIndex) ? styles.seamMarkCut : null]} />
-              </Pressable>
+              </Press>
             ) : null}
           </View>
         ))}
       </View>
       <Text style={styles.splitHint}>{t("magpie.splitHint")}</Text>
-      <Pressable
-        style={({ pressed }) => [styles.primaryBtn, styles.splitCommit, pressed ? appStyles.pressDown : null]}
-        onPress={() => run && onPocket(pieces, run)}
-      >
-        <Ionicons name="bookmark" size={16} color={colors.onPrimary} />
-        <Text style={styles.primaryBtnText}>
-          {pieces.length > 1 ? t("magpie.pocketCount", { count: pieces.length }) : t("magpie.pocketThis")}
-        </Text>
-      </Pressable>
+      <Button label={t("magpie.pocketThis")} onPress={() => run && onPocket(pieces, run)} />
     </BottomSheet>
   );
 }
@@ -689,17 +593,10 @@ function ErrorState({
       <Ionicons name={offline ? "cloud-offline-outline" : "book-outline"} size={30} color={colors.textMuted} />
       <Text style={styles.errorTitle}>{t(offline ? "magpie.connectionTitle" : "magpie.pageErrorTitle")}</Text>
       <Text style={styles.errorBody}>{t(offline ? "magpie.connectionBody" : "magpie.pageErrorBody")}</Text>
+      {/* One key and a quiet link (the empty-state law), not two pills. */}
       <View style={styles.errorActions}>
-        <Pressable style={({ pressed }) => [styles.errorBtn, pressed ? appStyles.pressDown : null]} onPress={onRetry}>
-          <Ionicons name="refresh" size={14} color={colors.onPrimary} />
-          <Text style={styles.errorBtnText}>{t("magpie.tryAgain")}</Text>
-        </Pressable>
-        {!offline ? (
-          <Pressable style={({ pressed }) => [styles.errorBtnGhost, pressed ? appStyles.pressDown : null]} onPress={onNewBook}>
-            <Ionicons name="shuffle" size={14} color={colors.primaryDeep} />
-            <Text style={styles.errorBtnGhostText}>{t("magpie.newBook")}</Text>
-          </Pressable>
-        ) : null}
+        <Button label={t("magpie.tryAgain")} onPress={onRetry} />
+        {!offline ? <InkLink label={t("magpie.newBook")} icon="shuffle" onPress={onNewBook} /> : null}
       </View>
     </Animated.View>
   );
@@ -732,7 +629,8 @@ const styles = StyleSheet.create({
   pageContent: { paddingHorizontal: 22, paddingVertical: spacing.lg },
   para: { marginBottom: spacing.md },
   pageText: { fontFamily: "Lora_500Medium", color: colors.textStrong },
-  hl: { backgroundColor: HL_BG, color: HL_TEXT },
+  // A marked word: the terracotta wash and deep ink, the app's one "chosen".
+  hl: { backgroundColor: colors.primarySurface, color: colors.primaryDeep },
   turning: {
     position: "absolute",
     top: spacing.md,
@@ -748,84 +646,31 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.sm, padding: spacing.xl },
   errorTitle: { fontFamily: "Lora_600SemiBold", fontSize: 17, color: colors.textPrimary, textAlign: "center" },
   errorBody: { fontFamily: "PlusJakartaSans_400Regular", fontSize: 13, color: colors.textSecondary, textAlign: "center" },
-  errorActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
-  errorBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: colors.primary,
-    borderRadius: radii.round,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 10,
-  },
-  errorBtnText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 13, color: colors.onPrimary },
-  errorBtnGhost: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: radii.round,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 10,
-  },
-  errorBtnGhostText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 13, color: colors.primaryDeep },
+  errorActions: { alignItems: "center", gap: spacing.xs, marginTop: spacing.sm },
 
-  // bottom bar
-  bottomBar: { paddingTop: spacing.md, gap: spacing.sm },
-  emptyHint: {
-    fontFamily: "Lora_500Medium",
-    fontStyle: "italic",
-    fontSize: 14,
-    color: colors.textMuted,
-    textAlign: "center",
-    paddingVertical: spacing.md,
+  // collected words
+  gatheredRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingTop: spacing.sm },
+  countText: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontVariant: ["tabular-nums"],
   },
-  gatheredRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  count: {
-    minWidth: 24,
-    height: 24,
-    paddingHorizontal: 7,
-    borderRadius: radii.round,
-    backgroundColor: colors.primaryDeep,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  countText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 11, color: colors.onPrimary },
   strip: { flex: 1 },
-  stripContent: { gap: spacing.xs, alignItems: "center", paddingRight: spacing.md },
+  stripContent: { gap: spacing.xs, alignItems: "center", paddingRight: spacing.md, paddingVertical: 4 },
   scrap: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    maxWidth: 180,
+    gap: 6,
+    maxWidth: 200,
+    minHeight: 36,
     backgroundColor: colors.surface,
-    borderRadius: radii.round,
+    borderRadius: radii.lg,
     paddingLeft: spacing.md,
     paddingRight: spacing.sm,
-    paddingVertical: 6,
-    ...shadows.control,
+    ...shadows.card,
   },
-  scrapText: { fontFamily: "Lora_500Medium", fontSize: 13, color: colors.textStrong, flexShrink: 1 },
-  primaryBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    backgroundColor: colors.primaryDeep,
-    borderRadius: radii.round,
-    paddingVertical: 15,
-  },
-  primaryBtnText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 14, color: colors.onPrimary },
-  buildBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    backgroundColor: colors.primaryDeep,
-    borderRadius: radii.round,
-    paddingVertical: 14,
-  },
-  buildBtnText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 14, color: colors.onPrimary },
+  scrapText: { fontFamily: "Lora_500Medium", fontSize: 14, color: colors.textPrimary, flexShrink: 1 },
 
   // sheets — shared
   sheetScroll: { maxHeight: 540 },
@@ -841,25 +686,15 @@ const styles = StyleSheet.create({
   bookSource: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 11, color: colors.textMuted, marginTop: 6 },
   bookSourceLink: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 11, color: colors.primaryDeep, marginTop: 6, textDecorationLine: "underline" },
 
-  drawBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, borderRadius: radii.lg, paddingVertical: 13 },
-  drawBtnPrimary: { backgroundColor: colors.primaryDeep },
-  drawBtnGhost: { borderWidth: 1, borderColor: colors.borderMuted },
-  drawBtnText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 13.5, color: colors.primaryDeep },
-  drawBtnTextPrimary: { color: colors.onPrimary },
-
   field: { marginBottom: spacing.md },
   fieldLabel: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 10, letterSpacing: 1, textTransform: "uppercase", color: colors.textMuted, marginBottom: spacing.sm },
-  segment: { flexDirection: "row", backgroundColor: colors.surfaceHigh, borderRadius: radii.round, padding: 3, alignSelf: "flex-start" },
-  segmentBtn: { paddingHorizontal: spacing.lg, paddingVertical: 7, borderRadius: radii.round },
-  segmentBtnActive: { backgroundColor: colors.primaryDeep },
-  segmentText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 12.5, color: colors.textSecondary },
-  segmentTextActive: { color: colors.onPrimary },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
-  chip: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.surfaceHigh, borderRadius: radii.round, paddingLeft: spacing.sm, paddingRight: spacing.md, paddingVertical: 7 },
-  chipOn: { backgroundColor: colors.primaryDeep },
-  chipText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 12.5, color: colors.textSecondary },
-  chipTextOn: { color: colors.onPrimary },
-
+  chips: { flexDirection: "row", flexWrap: "wrap", columnGap: spacing.lg },
+  // Multi-select in editorial ink: word + leading dot, hollow → terracotta.
+  genre: { flexDirection: "row", alignItems: "center", gap: 7, minHeight: 40 },
+  genreDot: { width: 8, height: 8, borderRadius: radii.round, borderWidth: 1.25, borderColor: colors.textMuted },
+  genreDotOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  genreText: { fontFamily: "PlusJakartaSans_500Medium", fontSize: 14, color: colors.textSecondary },
+  genreTextOn: { color: colors.textPrimary },
 
   // split sheet
   splitPhrase: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center", paddingVertical: spacing.sm },
@@ -869,5 +704,4 @@ const styles = StyleSheet.create({
   seamMark: { width: 2, height: 20, borderRadius: 2, backgroundColor: colors.borderMuted },
   seamMarkCut: { width: 12, height: 34, borderRadius: 5, backgroundColor: PAGE_BG, borderWidth: 1, borderColor: colors.borderMuted },
   splitHint: { fontFamily: "PlusJakartaSans_400Regular", fontSize: 12, color: colors.textMuted, textAlign: "center", marginBottom: spacing.md },
-  splitCommit: { marginTop: spacing.xs },
 });

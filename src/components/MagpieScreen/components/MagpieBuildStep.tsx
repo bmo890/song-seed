@@ -3,7 +3,7 @@ import { Keyboard, Platform, ScrollView, StyleSheet, Text, type TextInput, View 
 import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { UserText, UserTextInput } from "../../../i18n";
-import { styles as appStyles } from "../../../styles";
+import { InkKey, inkKeyColor } from "../../common/InkKey";
 import { colors, radii, shadows, spacing } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
 import { BottomSheet } from "../../common/BottomSheet";
@@ -69,6 +69,7 @@ export function MagpieBuildStep({
   // Drop a scrap in at the caret (or append a new line if the caret is at the end
   // of a non-empty line), with smart spacing. Marks the scrap used.
   const insertScrap = (fragment: MagpieFragment) => {
+    // Haptics vocabulary: light, a small state flip (a word dropped in).
     haptic.light();
     const current = draftText;
     const pos = Math.min(caretRef.current.start, current.length);
@@ -119,10 +120,7 @@ export function MagpieBuildStep({
           setMenuFragmentId(fragment.id);
         }}
         onExpand={() => setExpanded(true)}
-        onPour={() => {
-          haptic.success();
-          model.pourScraps();
-        }}
+        onPour={model.pourScraps}
       />
 
       {!keyboardVisible ? (
@@ -178,7 +176,7 @@ const Chip = memo(function Chip({
       {isUsed ? (
         <Ionicons name="checkmark" size={13} color={colors.primaryDeep} />
       ) : null}
-      <UserText style={styles.chipText} numberOfLines={1}>
+      <UserText style={[styles.chipText, isUsed ? styles.chipTextUsed : null]} numberOfLines={1}>
         {fragment.text}
       </UserText>
     </Press>
@@ -220,15 +218,21 @@ function Palette({
         <Text style={styles.paletteLabel}>{t("magpie.yourScraps", { count })}</Text>
         <UndoRedoButtons canUndo={history.canUndo} canRedo={history.canRedo} onUndo={history.undo} onRedo={history.redo} />
         {showPour ? (
-          <Press haptic="none" style={styles.pourBtn} onPress={onPour}>
-            <Ionicons name="arrow-down" size={13} color={colors.onPrimary} />
-            <Text style={styles.pourText}>{t("magpie.pourInOrder")}</Text>
-          </Press>
+          <InkKey
+            // Haptics vocabulary: light, words arrive (not success: nothing is finished).
+            glyph={<Ionicons name="arrow-down" size={15} color={inkKeyColor("idle")} />}
+            label={t("magpie.addAll")}
+            haptic="light"
+            onPress={onPour}
+            style={styles.headKey}
+          />
         ) : (
-          <Press haptic="none" style={styles.expandBtn} onPress={onExpand} hitSlop={6}>
-            <Ionicons name="grid-outline" size={13} color={colors.textSecondary} />
-            <Text style={styles.expandText}>{t("magpie.seeAll")}</Text>
-          </Press>
+          <InkKey
+            glyph={<Ionicons name="grid-outline" size={15} color={inkKeyColor("idle")} />}
+            label={t("magpie.seeAll")}
+            onPress={onExpand}
+            style={styles.headKey}
+          />
         )}
       </View>
       <ScrollView
@@ -328,7 +332,7 @@ function ScrapMenu({
               label={used ? t("magpie.markUnused") : t("magpie.markUsed")}
               onPress={() => (used ? model.clearFragmentUsed(fragment.id) : model.markFragmentUsed(fragment.id))}
             />
-            <MenuRow icon="trash-outline" label={t("magpie.remove")} danger onPress={() => { model.removeFragment(fragment.id); onClose(); }} />
+            <MenuRow icon="trash-outline" label={t("magpie.remove")} onPress={() => { model.removeFragment(fragment.id); onClose(); }} />
           </View>
         </>
       ) : null}
@@ -336,21 +340,26 @@ function ScrapMenu({
   );
 }
 
+/** A row on paper (the menu law). Removing a word is undoable (toast and the
+ *  undo glyphs), so it reads in ink, not danger. */
 function MenuRow({
   icon,
   label,
-  danger,
   onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
-  danger?: boolean;
   onPress: () => void;
 }) {
   return (
-    <Press haptic="none" style={styles.menuRow} onPress={onPress}>
-      <Ionicons name={icon} size={18} color={danger ? colors.danger : colors.textStrong} />
-      <Text style={[styles.menuRowText, danger ? styles.menuRowDanger : null]}>{label}</Text>
+    <Press
+      // Haptics vocabulary: tap, an acknowledged press.
+      style={styles.menuRow}
+      onPress={onPress}
+      accessibilityRole="button"
+    >
+      <Ionicons name={icon} size={20} color={colors.textStrong} />
+      <Text style={styles.menuRowText}>{label}</Text>
     </Press>
   );
 }
@@ -365,26 +374,25 @@ const styles = StyleSheet.create({
 
   palette: { paddingTop: spacing.md },
   paletteEmpty: { fontFamily: "Lora_500Medium", fontStyle: "italic", fontSize: 13, color: colors.textMuted, textAlign: "center", paddingVertical: spacing.md },
-  paletteHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.sm },
-  paletteLabel: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 10, letterSpacing: 0.8, textTransform: "uppercase", color: colors.textMuted },
-  expandBtn: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: colors.surface, borderRadius: radii.lg, paddingHorizontal: spacing.md, paddingVertical: 5, ...shadows.control },
-  expandText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 11, color: colors.textSecondary },
-  pourBtn: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: colors.primaryDeep, borderRadius: radii.lg, paddingHorizontal: spacing.md, paddingVertical: 6 },
-  pourText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 11, color: colors.onPrimary },
+  paletteHead: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginBottom: spacing.xs },
+  paletteLabel: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 10, letterSpacing: 0.8, textTransform: "uppercase", color: colors.textMuted, flex: 1 },
+  headKey: { minHeight: 36, marginStart: spacing.sm },
   stripContent: { gap: spacing.xs, alignItems: "center", paddingRight: spacing.md },
   chip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
     maxWidth: 200,
+    minHeight: 36,
     backgroundColor: colors.surface,
-    borderRadius: radii.round,
+    borderRadius: radii.lg,
     paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-    ...shadows.control,
+    ...shadows.card,
   },
-  chipUsed: { opacity: 0.55 },
-  chipText: { fontFamily: "Lora_500Medium", fontSize: 14, color: colors.textStrong, flexShrink: 1 },
+  // A word already in the draft: a check and quieter ink, still tappable.
+  chipUsed: { backgroundColor: colors.surfaceContainer, shadowOpacity: 0, elevation: 0 },
+  chipText: { fontFamily: "Lora_500Medium", fontSize: 14, color: colors.textPrimary, flexShrink: 1 },
+  chipTextUsed: { color: colors.textSecondary },
 
 
   gridScroll: { maxHeight: 320 },
@@ -402,7 +410,13 @@ const styles = StyleSheet.create({
   },
   editedNote: { fontFamily: "PlusJakartaSans_400Regular", fontStyle: "italic", fontSize: 11, color: colors.textMuted, marginTop: 6 },
   menuList: { marginTop: spacing.md },
-  menuRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.md },
-  menuRowText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 14.5, color: colors.textPrimary },
-  menuRowDanger: { color: colors.danger },
+  menuRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    minHeight: 52,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
+  },
+  menuRowText: { fontFamily: "PlusJakartaSans_500Medium", fontSize: 16, color: colors.textPrimary },
 });
