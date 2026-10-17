@@ -92,7 +92,7 @@ export function useWordLadderScreenModel() {
     [exerciseId, updateWordLadder, flushDrafts]
   );
 
-  // Undo/redo over the pairing board (connect, unpair, shuffle).
+  // Undo/redo over the pairing board (connect, unpair, lock, shuffle).
   const restorePairings = useCallback(
     (pairings: WordLadderExercise["pairings"]) => apply({ pairings }),
     [apply]
@@ -203,10 +203,20 @@ export function useWordLadderScreenModel() {
       const columnA = column === "a" ? removeWord(exercise.columnA, wordId) : exercise.columnA;
       const columnB = column === "b" ? removeWord(exercise.columnB, wordId) : exercise.columnB;
       const pairings = dropPairingsForRemovedWords(exercise.pairings, columnA, columnB);
+      const removed = (column === "a" ? exercise.columnA : exercise.columnB).find((word) => word.id === wordId);
+      const before = { columnA: exercise.columnA, columnB: exercise.columnB, pairings: exercise.pairings };
       apply({ columnA, columnB, pairings });
+      // The pairing undo history may name the word that just left; drop it so
+      // an undo on the Pair step can never bring back a pair without a word.
+      pairingHistory.clear();
       setArmedWord((prev) => (prev && prev.wordId === wordId ? null : prev));
+      // Removing is immediate; Undo in the toast puts the word back where it
+      // was, with any pairs it was part of.
+      toast(t("wordLadder.removed", { word: removed?.text ?? "" }), undefined, {
+        action: { label: t("wordSparks.undo"), onPress: () => apply(before) },
+      });
     },
-    [apply, exercise]
+    [apply, exercise, pairingHistory, t]
   );
 
   /** Two-step tap-to-pair: tap a word in one column to arm it, then tap a word
@@ -244,9 +254,10 @@ export function useWordLadderScreenModel() {
   const toggleLockPairing = useCallback(
     (pairingId: string) => {
       if (!exercise) return;
+      pairingHistory.record(exercise.pairings);
       apply({ pairings: toggleLock(exercise.pairings, pairingId) });
     },
-    [apply, exercise]
+    [apply, exercise, pairingHistory]
   );
 
   const shuffle = useCallback(() => {

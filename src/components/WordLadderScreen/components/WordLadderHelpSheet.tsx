@@ -139,7 +139,7 @@ function SetupHelp() {
 
           <Svg width={56} height={120} style={helpStyles.diagramLines}>
             <Line x1="0" y1="20" x2="56" y2="60" stroke={colors.borderMuted} strokeWidth={1.5} />
-            <Line x1="0" y1="60" x2="56" y2="20" stroke={colors.primary} strokeWidth={2} />
+            <Line x1="0" y1="60" x2="56" y2="20" stroke={colors.primaryDeep} strokeWidth={1.75} />
             <Line x1="0" y1="100" x2="56" y2="100" stroke={colors.borderMuted} strokeWidth={1.5} />
           </Svg>
 
@@ -265,7 +265,7 @@ function HelpPoint({
   return (
     <View style={helpStyles.point}>
       <View style={helpStyles.pointIcon}>
-        <Ionicons name={icon} size={16} color={colors.primary} />
+        <Ionicons name={icon} size={16} color={colors.textSecondary} />
       </View>
       <View style={helpStyles.pointCopy}>
         <Text style={helpStyles.pointTitle}>{title}</Text>
@@ -289,11 +289,13 @@ const helpStyles = StyleSheet.create({
     ...textTokens.supporting,
     marginBottom: spacing.lg,
   },
+  // Examples sit on the sheet between hairlines, not in grey boxes (2026-10-17).
   diagram: {
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: radii.lg,
-    padding: spacing.md,
+    paddingVertical: spacing.md,
     marginBottom: spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderMuted,
   },
   diagramHeaderRow: {
     flexDirection: "row",
@@ -326,15 +328,13 @@ const helpStyles = StyleSheet.create({
   },
   diagramChip: {
     height: 32,
-    borderRadius: radii.sm,
-    backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
   },
   diagramChipText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13,
-    color: colors.textStrong,
+    fontFamily: "Lora_500Medium",
+    fontSize: 15,
+    color: colors.textPrimary,
   },
   diagramResult: {
     flexDirection: "row",
@@ -354,22 +354,27 @@ const helpStyles = StyleSheet.create({
     justifyContent: "center",
     gap: spacing.sm,
   },
+  // The same scraps as the Pair step: paper, and a picked one outlined on the wash.
   pairScrap: {
     backgroundColor: colors.surface,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing.lg,
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
+    borderColor: colors.borderMuted,
+    paddingHorizontal: 14,
     paddingVertical: spacing.sm,
   },
   pairScrapB: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primarySurface,
+    borderColor: colors.primaryDeep,
   },
   pairScrapText: {
-    fontFamily: "Lora_600SemiBold",
+    fontFamily: "Lora_500Medium",
     fontSize: 15,
-    color: colors.textStrong,
+    color: colors.textPrimary,
   },
   pairScrapTextB: {
-    color: colors.onPrimary,
+    fontFamily: "Lora_600SemiBold",
+    color: colors.primaryDeep,
   },
   pairConnector: {
     flexDirection: "row",
@@ -383,11 +388,12 @@ const helpStyles = StyleSheet.create({
     backgroundColor: colors.borderMuted,
   },
   example: {
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: radii.lg,
-    padding: spacing.md,
+    paddingVertical: spacing.md,
     marginBottom: spacing.lg,
     gap: spacing.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderMuted,
   },
   exampleLabel: {
     ...textTokens.annotation,
@@ -456,12 +462,9 @@ const helpStyles = StyleSheet.create({
     alignItems: "flex-start",
   },
   pointIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
+    width: 20,
+    paddingTop: 2,
     alignItems: "center",
-    justifyContent: "center",
   },
   pointCopy: {
     flex: 1,
