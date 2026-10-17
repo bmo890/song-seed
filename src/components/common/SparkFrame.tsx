@@ -1,13 +1,16 @@
-import { useState, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { Press } from "./Press";
 import { Button } from "./Button";
 import { AppAlert } from "./AppAlert";
+import { InkLink } from "./InkLink";
 import { SparkTextSizeSheet } from "./sparkTextScale";
 import { dirIcon } from "../../design/directionalIcons";
 import { haptic } from "../../design/haptics";
-import { colors, spacing } from "../../design/tokens";
+import { colors, radii, spacing } from "../../design/tokens";
+import { durations } from "../../design/motion";
 import { useTranslation } from "react-i18next";
 
 /**
@@ -94,30 +97,71 @@ export function SparkHeader({
   );
 }
 
-/** The steps as ink tabs: the current one in full ink over a 2 pt rule, the
- *  ones behind in secondary, the ones ahead muted. Wayfinding, not controls. */
+/**
+ * The steps as a numbered path (2026-10-17, founder: a beginning and an end,
+ * like a form): 1 › 2 › 3. The current step is a filled ink number, a finished
+ * one a check, the ones ahead hollow and muted. It is wayfinding, not a
+ * control: nothing here is tappable; the footer moves you.
+ */
 export function SparkSteps({ steps, current }: { steps: string[]; current: number }) {
+  const { t } = useTranslation();
   return (
-    <View style={s.steps} accessibilityRole="tablist">
+    <View
+      style={s.steps}
+      accessible
+      accessibilityLabel={t("wordSparks.stepOf", {
+        current: current + 1,
+        total: steps.length,
+        name: steps[current] ?? "",
+      })}
+    >
       {steps.map((label, index) => {
         const isCurrent = index === current;
+        const isDone = index < current;
         return (
-          <View
-            key={label}
-            style={[s.step, isCurrent ? s.stepCurrent : null]}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: isCurrent }}
-          >
-            <Text
-              style={[s.stepText, index < current ? s.stepDone : null, isCurrent ? s.stepTextCurrent : null]}
-              numberOfLines={1}
-            >
-              {label}
-            </Text>
-          </View>
+          <Fragment key={label}>
+            {index > 0 ? (
+              <Ionicons name={dirIcon("chevron-forward")} size={11} color={colors.borderMuted} />
+            ) : null}
+            <View style={s.step}>
+              <View style={[s.stepNum, isCurrent ? s.stepNumCurrent : isDone ? s.stepNumDone : null]}>
+                {isDone ? (
+                  <Ionicons name="checkmark" size={12} color={colors.textSecondary} />
+                ) : (
+                  <Text style={[s.stepNumText, isCurrent ? s.stepNumTextCurrent : null]}>{index + 1}</Text>
+                )}
+              </View>
+              <Text
+                style={[s.stepText, isDone ? s.stepDone : null, isCurrent ? s.stepTextCurrent : null]}
+                numberOfLines={1}
+              >
+                {label}
+              </Text>
+            </View>
+          </Fragment>
         );
       })}
     </View>
+  );
+}
+
+/**
+ * A step teaching itself (2026-10-17): one plain line where the work will go,
+ * and a quiet link to the method's example. The caller shows it only while the
+ * step is empty, so it leaves the moment you start: there for a newcomer,
+ * gone in a second for someone who knows the method.
+ */
+export function SparkHint({ text, onExample }: { text: string; onExample: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <Animated.View
+      entering={FadeIn.duration(durations.base)}
+      exiting={FadeOut.duration(durations.fast)}
+      style={s.hintBlock}
+    >
+      <Text style={s.hintText}>{text}</Text>
+      <InkLink label={t("wordSparks.seeExample")} onPress={onExample} />
+    </Animated.View>
   );
 }
 
@@ -233,21 +277,48 @@ const s = StyleSheet.create({
   },
   steps: {
     flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 4,
+    paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.borderMuted,
     marginBottom: spacing.lg,
   },
   step: {
-    flex: 1,
+    flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 9,
+    gap: 5,
+    flexShrink: 1,
+    minWidth: 0,
   },
-  stepCurrent: {
-    borderBottomWidth: 2,
-    borderBottomColor: colors.textPrimary,
-    marginBottom: -StyleSheet.hairlineWidth,
+  stepNum: {
+    width: 18,
+    height: 18,
+    borderRadius: radii.round,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepNumCurrent: {
+    backgroundColor: colors.textPrimary,
+    borderColor: colors.textPrimary,
+  },
+  stepNumDone: {
+    borderColor: "transparent",
+  },
+  stepNumText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 10,
+    color: colors.textMuted,
+    fontVariant: ["tabular-nums"],
+  },
+  stepNumTextCurrent: {
+    color: colors.page,
   },
   stepText: {
+    flexShrink: 1,
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 13,
     color: colors.textMuted,
@@ -258,6 +329,15 @@ const s = StyleSheet.create({
   stepTextCurrent: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.textPrimary,
+  },
+  hintBlock: {
+    paddingVertical: spacing.sm,
+  },
+  hintText: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.textSecondary,
   },
   footer: {
     paddingTop: spacing.sm,

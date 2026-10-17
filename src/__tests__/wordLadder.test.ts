@@ -175,6 +175,7 @@ describe("sanitizeWordLadderExercise", () => {
 
   it("preserves valid steps and maps legacy final-step keys onto 'draft'", () => {
     expect(sanitizeWordLadderExercise({ id: "s1", step: "pairs" })?.step).toBe("pairs");
+    expect(sanitizeWordLadderExercise({ id: "s0", step: "nouns" })?.step).toBe("nouns");
     expect(sanitizeWordLadderExercise({ id: "s2", step: "draft" })?.step).toBe("draft");
     expect(sanitizeWordLadderExercise({ id: "s3", step: "revise" })?.step).toBe("revise");
     expect(sanitizeWordLadderExercise({ id: "s4", step: "poem" })?.step).toBe("draft");

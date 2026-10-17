@@ -11,6 +11,7 @@ import type { WordLadderExercise } from "../../../types";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../../i18n";
 import { UndoRedoButtons } from "../../common/useUndoHistory";
+import { SparkHint } from "../../common/SparkFrame";
 
 type Props = {
   exercise: WordLadderExercise;
@@ -20,6 +21,8 @@ type Props = {
   onToggleLock: (pairingId: string) => void;
   onShuffle: () => void;
   history: { canUndo: boolean; canRedo: boolean; undo: () => void; redo: () => void };
+  /** Opens the method's example (the step's help). */
+  onExample: () => void;
 };
 
 /**
@@ -36,6 +39,7 @@ export function WordLadderPairingBoard({
   onToggleLock,
   onShuffle,
   history,
+  onExample,
 }: Props) {
   const { t } = useTranslation();
   const { size } = useSparkTextScale();
@@ -118,7 +122,7 @@ export function WordLadderPairingBoard({
       </View>
 
       {pairCount === 0 ? (
-        <Text style={s.empty}>{t("wordLadder.noPairs")}</Text>
+        <SparkHint text={t("wordLadder.noPairs")} onExample={onExample} />
       ) : (
         <View style={s.pairList}>
           {exercise.pairings.map((pairing) => {
@@ -260,7 +264,6 @@ const s = StyleSheet.create({
     color: colors.textMuted,
     fontVariant: ["tabular-nums"],
   },
-  empty: { ...textTokens.supporting, fontSize: 14, paddingTop: spacing.lg },
   pairList: { marginBottom: spacing.lg },
   pairRow: {
     flexDirection: "row",
