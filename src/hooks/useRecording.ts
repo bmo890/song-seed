@@ -130,6 +130,8 @@ const RECORDING_AUDIO_SESSION_OWNER = createAudioSessionOwner("recording");
 // skipped while the recording session stays claimed and nothing changed. Any
 // device event or session release forgets it, and the next take re-applies.
 let appliedInputKey: string | null = null;
+// The selection in flight, so an early warm-up and a record tap never both pay for it.
+let inputApplying: { key: string; promise: Promise<string> } | null = null;
 let deviceWatchInstalled = false;
 function watchDevicesOnce() {
   if (deviceWatchInstalled) return;
@@ -251,7 +253,49 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     watchDevicesOnce();
     const key = preferredInputId ?? "default";
     if (appliedInputKey === key) return;
-    appliedInputKey = await applyPreferredInputNow();
+    let applying = inputApplying?.key === key ? inputApplying : null;
+    if (!applying) {
+      const started = { key, promise: applyPreferredInputNow() };
+      inputApplying = applying = started;
+      void started.promise
+        .finally(() => {
+          if (inputApplying === started) inputApplying = null;
+        })
+        .catch(() => {});
+    }
+    appliedInputKey = await applying.promise;
+  }
+
+  /** Whether a Bluetooth device is listed (a record-ready route would move it
+   *  to its call profile before the writer chose to record). */
+  async function bluetoothInReach() {
+    const known = audioDeviceManager.getRawDevices();
+    const devices = known.length > 0 ? known : await audioDeviceManager.getAvailableDevices();
+    return devices.some((device) => device.type === "bluetooth");
+  }
+
+  /**
+   * Android's half of the warm-up (2026-10-17): select the input while the
+   * recorder opens instead of inside the first record tap (~500 ms on the
+   * founder's phone). Only the input: the audio mode is left alone, so music
+   * from other apps is untouched. Not with Bluetooth in reach (selecting there
+   * can start the headset's call profile), and never under a take. The native
+   * recorder is not prepared ahead here; Android's cannot be un-prepared.
+   */
+  async function warmInput() {
+    if (recorder.isRecording || recorder.isPaused || take.facts.recordingStartedAt !== null) return;
+    if ((preferredInputId ?? "default") === appliedInputKey) return;
+    beginRecordTrace("warm");
+    try {
+      if (await bluetoothInReach()) {
+        endRecordTrace("warm", "skip:bt");
+        return;
+      }
+      await timedStep("record.prewarm.input", applyPreferredInput());
+      endRecordTrace("warm", "input");
+    } catch {
+      endRecordTrace("warm", "skip:fail");
+    }
   }
 
   /** Applies the writer's input; returns the key it actually landed on. */
@@ -606,9 +650,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
           const notif = await ExpoAudioStreamModule.getNotificationPermissionsAsync();
           if (!(notif?.granted ?? notif?.status === "granted")) return skipWarm("perm");
         }
-        const known = audioDeviceManager.getRawDevices();
-        const devices = known.length > 0 ? known : await audioDeviceManager.getAvailableDevices();
-        if (devices.some((device) => device.type === "bluetooth")) return skipWarm("bt");
+        if (await bluetoothInReach()) return skipWarm("bt");
       } catch {
         return skipWarm("check");
       }
@@ -1114,6 +1156,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     prepareRecording,
     prewarmRecording,
     releasePrewarm,
+    warmInput,
     prewarmState,
     startRecording,
     startPreparedRecording,

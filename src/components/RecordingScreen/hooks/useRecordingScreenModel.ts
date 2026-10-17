@@ -1060,9 +1060,9 @@ export function useRecordingScreenModel() {
   // Pre-warm (2026-10-17 latency pass): once the open transition settles, ready
   // the recorder so the record tap starts a prepared engine instead of building
   // one (~350 ms). Released when the recorder closes or the app leaves the
-  // foreground. iOS only: Android's recorder cannot be un-prepared (its stop
-  // refuses a recorder that never started), so a stale prepare would outlive an
-  // input change there.
+  // foreground. The full prepare is iOS only: Android's recorder cannot be
+  // un-prepared (its stop refuses a recorder that never started), so a stale
+  // prepare would outlive an input change there. Android warms the input alone.
   const recordingRef = useRef(recording);
   recordingRef.current = recording;
   const prewarmLiveRef = useRef(false);
@@ -1072,7 +1072,16 @@ export function useRecordingScreenModel() {
     void current.prewarmRecording();
   }, []);
   useEffect(() => {
-    if (Platform.OS !== "ios") return;
+    if (Platform.OS !== "ios") {
+      // Android warms only the input (see warmInput in useRecording).
+      let mounted = true;
+      runAfterInteractionsWithDeadline(() => {
+        if (mounted) void recordingRef.current.warmInput();
+      }, 800);
+      return () => {
+        mounted = false;
+      };
+    }
     let mounted = true;
     runAfterInteractionsWithDeadline(() => {
       if (!mounted) return;
@@ -1106,6 +1115,10 @@ export function useRecordingScreenModel() {
   useEffect(() => {
     if (prewarmedInputRef.current === preferredRecordingInputId) return;
     prewarmedInputRef.current = preferredRecordingInputId;
+    if (Platform.OS !== "ios") {
+      void recordingRef.current.warmInput();
+      return;
+    }
     if (!prewarmLiveRef.current) return;
     const current = recordingRef.current;
     if (current.isRecording || current.isPaused) return;
