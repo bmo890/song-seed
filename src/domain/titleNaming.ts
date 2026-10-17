@@ -16,7 +16,7 @@ import { i18n } from "../i18n/instance";
 const EN_TIMESTAMP = /^\d{1,2}:\d{2}\s?(?:AM|PM)\s+[A-Za-z]{3}\s+\d{1,2}(?:st|nd|rd|th)?$/i;
 const HE_TIMESTAMP = /^\d{1,2}:\d{2}\s+\d{1,2}\s+ב\S+$/;
 // Our own generated shapes: default take titles, recovered takes, nameless imports.
-const OUR_DEFAULTS = [/^Idea \d+$/i, /^רעיון \d+$/, /^(?:Recovered|שוחזר)\s?·/, /^Recovered Recording\b/i, /^Import\s/];
+const OUR_DEFAULTS = [/^Idea \d+$/i, /^רעיון \d+$/, /^(?:Layer|Overdub) \d+$/i, /^(?:שכבה|שכבת הקלטה) \d+$/, /^(?:Recovered|שוחזר)\s?·/, /^Recovered Recording\b/i, /^Import\s/];
 // What voice recorders and messaging apps call a file nobody named.
 const RECORDER_FILENAMES = [
   /^(?:new\s+)?(?:recording|voice|memo|audio|rec|clip|track|untitled|note|sound|record|voice\s*memo)[\s_\-#.]*\(?\d*\)?$/i,

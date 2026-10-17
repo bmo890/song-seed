@@ -28,6 +28,7 @@ import { useStore } from "../../../state/useStore";
 import type { ClipVersion, PracticeMarker, RecordingGrid } from "../../../types";
 import { clampPinLabel } from "../../../domain/practicePinLayout";
 import { placeLivePins } from "../../../domain/livePins";
+import { looksMachineNamed } from "../../../domain/titleNaming";
 import { findIdeaInLibrary } from "../../../state/librarySelectors";
 import { haptic } from "../../../design/haptics";
 import { getActiveRecordingTakeSession } from "../../../services/recordingTakeSession";
@@ -173,6 +174,12 @@ export function useRecordingScreenModel() {
     !recordingParentClip &&
     !!recordingIdea &&
     isDefaultIdeaTitle(recordingIdea.title, recordingIdea.createdAt);
+  // Earned serif: the take being layered or versioned keeps Lora only when its
+  // title reads as a name; a timestamp stays in quiet tabular Jakarta.
+  const headerTitleMachineNamed =
+    headerTitlePlaceholder ||
+    (!!(recordingOverdubClip ?? recordingParentClip) &&
+      looksMachineNamed((recordingOverdubClip ?? recordingParentClip)!.title));
   const headerEyebrow = recordingOverdubClip
     ? punchInMs > 0
       ? t("recording.layerFrom", { time: fmtDuration(punchInMs) })
@@ -533,6 +540,8 @@ export function useRecordingScreenModel() {
 
   const recordingInputLabel = currentRecordingInput?.name?.trim() || null;
   const monitoringOutputLabel = currentMonitoringOutput?.name?.trim() || null;
+  // The guide sounds from the phone's own speaker: the mic hears it too.
+  const guideOnPhoneSpeaker = currentMonitoringOutput?.type === "speaker";
 
   // A swiped-away warning stays away for this recorder session — the condition it named
   // usually can't change without leaving the screen, so re-nagging is pure noise. A NEW
@@ -2427,6 +2436,8 @@ export function useRecordingScreenModel() {
     headerEyebrow,
     headerEyebrowShort,
     headerTitlePlaceholder,
+    headerTitleMachineNamed,
+    guideOnPhoneSpeaker,
     recordingParentClip,
     latestLyricsVersion,
     latestLyricsText,

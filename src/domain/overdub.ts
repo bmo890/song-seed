@@ -145,6 +145,14 @@ export function sanitizeTonePreset(value: unknown): string {
 export const OVERDUB_STEM_NUDGE_STEP_SMALL_MS = 10;
 export const OVERDUB_STEM_NUDGE_STEP_LARGE_MS = 25;
 
+/**
+ * The most layers one take carries (founder, 2026-10-17), an eight-track's worth.
+ * Each layer makes the mix slower to rebuild and the stack harder to read on a
+ * phone; at eight, Combine folds them into the take and layering starts again,
+ * the way tracks were bounced on tape.
+ */
+export const MAX_LAYERS_PER_TAKE = 8;
+
 /** How far a stem may be pulled EARLIER than the guide (negative offset = the mixer
  *  drops the first |offset| of the stem). Recording latency makes stems land late, so
  *  correction is usually in this direction; bounded so a runaway nudge can't silence

@@ -37,7 +37,10 @@ import { PlayerHeaderSection } from "./components/PlayerHeaderSection";
 import { PlayerFooterSection } from "./components/PlayerFooterSection";
 import { PlayerPracticeDrawers } from "./components/PlayerPracticeDrawers";
 import { PlayerSupportSections } from "./components/PlayerSupportSections";
-import { PlayerLayersBench, BENCH_ROOT_LANE_ID } from "./components/PlayerLayersBench";
+import { PlayerLayersBench, BENCH_ROOT_LANE_ID, openCombineChooser } from "./components/PlayerLayersBench";
+import { MAX_LAYERS_PER_TAKE } from "../../domain/overdub";
+import { useLayerPrefsStore } from "../../state/useLayerPrefsStore";
+import { looksMachineNamed } from "../../domain/titleNaming";
 import { HelpSheet } from "../common/HelpSheet";
 import { HelpButton } from "../common/HelpButton";
 import { BottomSheet } from "../common/BottomSheet";
@@ -58,7 +61,6 @@ import { getVisibleTimelineRange } from "./helpers";
 import { openIdeaInCollection } from "../../navigation";
 import { AppAlert } from "../common/AppAlert";
 import { getClipOverdubStemCount } from "../../domain/clipPresentation";
-import { snapToGrid } from "../../domain/gridRuler";
 import { canAddOverdubLayer, isPracticeToolPro, type PracticeTool } from "../../domain/proGating";
 import { hasProAccess } from "../../domain/entitlements";
 import { ensurePro, openProUpsell } from "../common/proUpsell";
@@ -356,34 +358,27 @@ function PlayerScreenInner({
       resolvedDisplayDuration || 0
     );
   }, [data.sections, sectionPreview, resolvedDisplayDuration]);
-  // Slim lanes under the reel marking where each un-flattened layer sits on the master.
-  // In layers mode the lanes fatten into the bench's selector, and the base take joins
-  // them as a selectable lane of its own (fewer controls — it IS the timeline).
-  const overdubLayerLanes = useMemo(() => {
-    const stemLanes = data.overdubStemEntries.map((stem) => ({
-      id: stem.id,
-      title: stem.title,
-      offsetMs: stem.offsetMs,
-      durationMs: stem.durationMs,
-      color: stem.color,
-      isMuted: stem.isMuted,
-    }));
-    if (ui.mode !== "layers") {
-      return stemLanes;
-    }
-    return [
-      {
-        id: BENCH_ROOT_LANE_ID,
-        title: t("player.baseTake"),
-        offsetMs: 0,
-        durationMs: playerClip?.durationMs ?? 0,
-        color: colors.textMuted,
-        isMuted: false,
-        fixed: true,
-      },
-      ...stemLanes,
-    ];
-  }, [data.overdubStemEntries, ui.mode, playerClip?.durationMs, t]);
+  // The layers under the reel: one named row each, in recording order, on the
+  // take's timeline (2026-10-17). The bench lists them itself, base take first.
+  const overdubLayerLanes = useMemo(
+    () =>
+      data.overdubStemEntries.map((stem) => ({
+        id: stem.id,
+        title: stem.title,
+        offsetMs: stem.offsetMs,
+        durationMs: stem.durationMs,
+        isMuted: stem.isMuted,
+        peaks: stem.waveformPeaks,
+        readsAsName: !looksMachineNamed(stem.title),
+      })),
+    [data.overdubStemEntries]
+  );
+  const layerLanesCollapsed = useLayerPrefsStore((state) => state.lanesCollapsed);
+  const toggleLayerLanes = useCallback(() => {
+    haptic.tap(); // Vocabulary: tap = a control toggles.
+    const prefs = useLayerPrefsStore.getState();
+    prefs.setLanesCollapsed(!prefs.lanesCollapsed);
+  }, []);
   // The bench serves whatever lane is selected; if that layer vanishes (removed,
   // flattened) fall back to the first layer, then the base take.
   const benchSelectedLaneId =
@@ -398,8 +393,9 @@ function PlayerScreenInner({
     },
     [ui.setBenchLayerId]
   );
-  const openLayersBench = useCallback(() => {
-    ui.setBenchLayerId(data.overdubStemEntries[0]?.id ?? BENCH_ROOT_LANE_ID);
+  // A lane opens the bench on ITS layer; the count header opens it on the first.
+  const openLayersBench = useCallback((laneId?: string) => {
+    ui.setBenchLayerId(laneId ?? data.overdubStemEntries[0]?.id ?? BENCH_ROOT_LANE_ID);
     ui.setMode("layers");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.overdubStemEntries, ui.setBenchLayerId, ui.setMode]);
@@ -1052,11 +1048,30 @@ function PlayerScreenInner({
   // The body's scroll handle — the Marks drawer asks it to bring a new mark into view.
   const transportRef = useRef<TransportLayoutHandle>(null);
   const handleRevealRow = useCallback((node: View) => transportRef.current?.reveal(node), []);
+  // Combine is defined further down; the eight-layer limit reaches it through this.
+  const handleSaveAsOneClipRef = useRef<(mode: "copy" | "replace") => Promise<void>>(async () => {});
   const handleAddOverdub = useCallback(async (punchInMs: number) => {
     if (!playerIdea || !playerClip) return;
     // First overdub layer is free; stacking more is Pro. Existing multi-layer clips stay
     // fully playable/editable — only ADDING a new layer past the free one is gated.
-    if (!canAddOverdubLayer(getClipOverdubStemCount(playerClip), hasProAccess("overdub-layers"))) {
+    const layerCount = getClipOverdubStemCount(playerClip);
+    // Eight is the most a take carries: Combine folds them in, and layering goes on.
+    if (layerCount >= MAX_LAYERS_PER_TAKE) {
+      AppAlert.custom(t("player.layerLimitTitle"), t("player.layerLimitBody"), [
+        {
+          label: t("player.combine"),
+          icon: "albums-outline",
+          onPress: () =>
+            openCombineChooser(t, (mode) => {
+              ui.setMode("player");
+              void handleSaveAsOneClipRef.current(mode);
+            }),
+        },
+        { label: t("common.cancel"), style: "cancel" },
+      ]);
+      return;
+    }
+    if (!canAddOverdubLayer(layerCount, hasProAccess("overdub-layers"))) {
       openProUpsell("overdub-layers");
       return;
     }
@@ -1190,6 +1205,7 @@ function PlayerScreenInner({
     },
     [effectiveIsPlaying, navigation, playerClip, playerIdea, practicePitchTransport]
   );
+  handleSaveAsOneClipRef.current = handleSaveAsOneClip;
   // Every layer-mix control shares one shape: guard on a loaded clip, fire the action
   // with (ideaId, clipId, ...args), and surface failures as a "Layer update failed"
   // alert — preferring the action's own error message over the control-specific fallback.
@@ -1237,36 +1253,6 @@ function PlayerScreenInner({
 
   // Reading text size: the Aa button opens the shared slider sheet (ChordZoomBar).
   const [textSizeOpen, setTextSizeOpen] = useState(false);
-
-  // Coarse layer placement from the reel (bench phase 3): the selected lane's drag
-  // commits here. The snap tolerance is zoom-aware — ~10px of screen either way — but
-  // never more than half a beat, so zoomed-out drags still land on the nearest beat
-  // without swallowing deliberate off-grid placements at high zoom.
-  const [laneDragResetToken, setLaneDragResetToken] = useState(0);
-  const handleLaneDragEnd = useCallback(
-    (stemId: string, deltaMs: number, msPerPx: number) => {
-      const stem = data.overdubStemEntries.find((entry) => entry.id === stemId);
-      if (stem && Math.abs(deltaMs) >= 1) {
-        const grid = playerClip?.recordingGrid ?? null;
-        const targetMs = stem.offsetMs + deltaMs;
-        const beatMs = grid && grid.bpm > 0 ? 60000 / grid.bpm : null;
-        const pxToleranceMs = Math.max(60, 10 * msPerPx);
-        const toleranceMs = beatMs ? Math.min(pxToleranceMs, beatMs * 0.45) : pxToleranceMs;
-        const snappedMs = snapToGrid({ grid, ms: targetMs, toleranceMs, unit: "beat" });
-        if (snappedMs != null && Math.abs(snappedMs - targetMs) > 1) {
-          // Detent tick (haptics vocabulary: tap) — the layer settled onto a beat line.
-          haptic.tap();
-        }
-        const finalDeltaMs = Math.round(snappedMs ?? targetMs) - stem.offsetMs;
-        if (finalDeltaMs !== 0) {
-          handleNudgeStem(stemId, finalDeltaMs);
-        }
-      }
-      // Always reset the preview — even a no-op commit must let the bar spring home.
-      setLaneDragResetToken((token) => token + 1);
-    },
-    [data.overdubStemEntries, playerClip?.recordingGrid, handleNudgeStem]
-  );
 
   if (!playerIdea || !playerClip) {
     // The clip can vanish mid-collapse (an audition ends → queue clears while the
@@ -1355,19 +1341,14 @@ function PlayerScreenInner({
                   recordingGrid={playerClip.recordingGrid ?? null}
                   loopActive={practiceLoopEnabled && (ui.mode === "practice" || isWriting)}
                   overdubLayerLanes={overdubLayerLanes}
-                  // The lane IS the bench's door: tap it and the surface opens with
-                  // the lanes fattened into the selector. With Tools open too: a lane
-                  // that looked the same but did nothing there was a dead end.
-                  onOpenLayerMixer={
+                  // A lane is its layer's door to the bench, with Tools open too.
+                  onOpenLayerLane={
                     (ui.mode === "player" || ui.mode === "practice") && data.hasClipOverdubs
                       ? openLayersBench
                       : undefined
                   }
-                  layerMixerAccessibilityLabel={t("player.layers")}
-                  selectedLaneId={benchSelectedLaneId}
-                  onPressLane={handlePressLane}
-                  onLaneDragEnd={handleLaneDragEnd}
-                  laneDragResetToken={laneDragResetToken}
+                  layerLanesCollapsed={layerLanesCollapsed}
+                  onToggleLayerLanes={toggleLayerLanes}
                   draggingMarkerId={draggingMarkerId}
                   draggingMarkerX={draggingMarkerX}
                   onLoopRangeChange={handleLoopRangeChange}
@@ -1596,35 +1577,26 @@ function PlayerScreenInner({
               ) : ui.mode === "layers" ? (
                 <>
                   {/* Bench bar: name/close leading, then record-a-layer and help. */}
-                  <Pressable
-                    style={({ pressed }) => [
-                      playerScreenStyles.reelExpandButton,
-                      pressed ? playerScreenStyles.overflowButtonPressed : null,
-                    ]}
+                  <InkKey
+                    // Haptics vocabulary: `light` — the bench folds back into the player.
+                    haptic="light"
+                    label={t("player.layers")}
+                    glyph={<Ionicons name="chevron-down" size={14} color={inkKeyColor("idle")} />}
                     onPress={() => ui.setMode("player")}
-                    hitSlop={6}
-                    accessibilityRole="button"
                     accessibilityLabel={t("player.closeLayers")}
-                  >
-                    <Ionicons name="chevron-up" size={14} color={colors.textSecondary} />
-                    <Text style={playerScreenStyles.reelExpandText}>{t("player.layers")}</Text>
-                  </Pressable>
+                  />
                   <View style={playerScreenStyles.reelToolbarRight}>
-                    <Pressable
-                      style={({ pressed }) => [
-                        playerScreenStyles.bareGlyphButton,
-                        pressed ? playerScreenStyles.overflowButtonPressed : null,
-                      ]}
+                    <InkKey
+                      // Haptics (Press default): `tap`; the recorder fires its own.
+                      tone="active"
+                      label={t("player.layerKey")}
+                      glyph={<View style={[playerScreenStyles.layerKeyDot, { backgroundColor: inkKeyColor("active") }]} />}
                       onPress={() => {
                         ui.setMode("player");
                         void handleAddOverdub(getVisiblePlayheadMs());
                       }}
-                      hitSlop={6}
-                      accessibilityRole="button"
                       accessibilityLabel={t("player.recordNewLayer")}
-                    >
-                      <Ionicons name="add" size={18} color={colors.primaryDeep} />
-                    </Pressable>
+                    />
                     <HelpButton compact onPress={() => setHelpTopic("overdub")} />
                   </View>
                 </>
@@ -1644,16 +1616,16 @@ function PlayerScreenInner({
                     {/* Record a layer at the playhead. It was a full row above the
                         Tools tabs; here it costs the drawers nothing and sits by
                         the tape it records onto. Only while Tools is open. */}
-                    {ui.mode === "practice" ? (
-                      <InkKey
-                        // Haptics (Press default): `tap` — an acknowledged press;
-                        // the recorder it opens fires its own record haptics.
-                        label={t("player.layerKey")}
-                        glyph={<View style={playerScreenStyles.layerKeyDot} />}
-                        onPress={() => void handleAddOverdub(getVisiblePlayheadMs())}
-                        accessibilityLabel={t("player.recordLayerAtPlayhead")}
-                      />
-                    ) : null}
+                    {/* Record a layer at the playhead: always beside Tools
+                        (2026-10-17), it was hidden behind Tools before. */}
+                    <InkKey
+                      // Haptics (Press default): `tap` — an acknowledged press;
+                      // the recorder it opens fires its own record haptics.
+                      label={t("player.layerKey")}
+                      glyph={<View style={playerScreenStyles.layerKeyDot} />}
+                      onPress={() => void handleAddOverdub(getVisiblePlayheadMs())}
+                      accessibilityLabel={t("player.recordLayerAtPlayhead")}
+                    />
                     <InkKey
                       // Haptics vocabulary: `light` — the drawers open or close.
                       haptic="light"
@@ -1901,7 +1873,7 @@ function PlayerScreenInner({
               onAdjustStemGain={handleAdjustStemGain}
               onNudgeStem={handleNudgeStem}
               onRenameStem={handleRenameStem}
-              onChangeStemColor={handleChangeStemColor}
+              onSelectLane={handlePressLane}
               onToggleStemMute={handleToggleStemMute}
               onToggleStemToneFlag={handleToggleStemToneFlag}
               onRemoveStem={handleRemoveStem}

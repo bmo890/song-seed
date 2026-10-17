@@ -10,12 +10,14 @@ import { useSharedValue, type SharedValue } from "react-native-reanimated";
 import { useThrottledAudioPlayerStatus } from "../../../hooks/useThrottledAudioPlayerStatus";
 import { StemAlignmentOverlay } from "./StemAlignmentOverlay";
 import { WarmModal } from "../../common/WarmModal";
-import { HueSlider } from "../../common/HueSlider";
-import { hexToHue, hueToAccentHex } from "../../../domain/workspaceTheme";
+import { Button } from "../../common/Button";
+import { InkKey, inkKeyColor } from "../../common/InkKey";
+import { InkOption } from "../../common/InkOption";
+import { Press } from "../../common/Press";
+import { looksMachineNamed } from "../../../domain/titleNaming";
 import { UserTextInput } from "../../../i18n";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
-import { AnimatedCollapse } from "../../common/AnimatedCollapse";
 import { useOverdubAlignmentAudition } from "../hooks/useOverdubAlignmentAudition";
 import { activateAndPlay, replacePlaybackSource } from "../../../services/transportPlayback";
 import {
@@ -32,18 +34,40 @@ import { styles as appStyles } from "../../../styles";
 import { haptic } from "../../../design/haptics";
 import { fmtDuration } from "../../../utils";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { UserText } from "../../../i18n";
 
 /**
- * The bench (phase 4b, settled 2026-08-07): the reel-anchored surface that replaced the
- * Layers sheet. The lanes under the reel are the selector; ONE bench below serves the
- * selected layer — quiet face (Play here · Solo · Mute · Levels), the alignment micro
- * strip always in view, nudges under it. Volume and tone disclose behind the Levels
- * door; nothing stands at attention until asked for. The base take is a selectable lane
- * too, with fewer controls — it has no timing because it IS the timeline.
+ * The bench (redrawn 2026-10-17, founder: "orderly, marked, never overstimulating"):
+ * the take's layers as rows on paper, base take first, then the layers in the order
+ * they were recorded. Each row is its name, where it plays (its own waveform on the
+ * take's timeline, ink; the selected one terracotta) and its Solo and Mute. The
+ * selected row opens under itself: play together, the alignment strip, timing nudges,
+ * level and tone. The base take has level and tone only: it IS the timeline.
  */
 
 export const BENCH_ROOT_LANE_ID = "root";
+
+/** The Combine chooser — it IS the confirmation: each option spells its outcome.
+ *  Shared by the bench and the eight-layer limit. */
+export function openCombineChooser(t: TFunction, onChoose: (mode: "copy" | "replace") => void) {
+  AppAlert.custom(t("player.combineTitle"), t("player.combineBody"), [
+    {
+      label: t("player.saveCopy"),
+      description: t("player.saveCopyDesc"),
+      icon: actionIcons.copy,
+      onPress: () => onChoose("copy"),
+    },
+    {
+      label: t("player.replaceTake"),
+      description: t("player.replaceTakeDesc"),
+      icon: actionIcons.convert,
+      style: "destructive",
+      onPress: () => onChoose("replace"),
+    },
+    { label: t("common.cancel"), style: "cancel" },
+  ]);
+}
 
 export type BenchStemEntry = {
   id: string;
@@ -90,59 +114,13 @@ type Props = {
   onAdjustStemGain: (stemId: string, deltaDb: number) => void;
   onNudgeStem: (stemId: string, deltaMs: number) => void;
   onRenameStem: (stemId: string, title: string) => void;
-  onChangeStemColor: (stemId: string, color: string) => void;
+  onSelectLane: (laneId: string) => void;
   onToggleStemMute: (stemId: string) => void;
   onToggleStemToneFlag: (stemId: string, flag: OverdubToneFlag) => void;
   onRemoveStem: (stemId: string) => void;
   onSaveAsOneClip: (mode: "copy" | "replace") => void;
   onCloseBench: () => void;
 };
-
-/** Circular icon key — the face row speaks entirely in icons; colour carries state
- *  (quiet ink at rest, terracotta wash when live) and tier ("primary" = the verb wears
- *  the wash at rest too). Words live in the accessibility labels. */
-function RoundKey({
-  icon,
-  active = false,
-  disabled = false,
-  tone = "default",
-  trailing = false,
-  onPress,
-  accessibilityLabel,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  active?: boolean;
-  disabled?: boolean;
-  tone?: "primary" | "default";
-  /** Pushed to the row's far edge — the door sits apart from the verbs. */
-  trailing?: boolean;
-  onPress: () => void;
-  accessibilityLabel: string;
-}) {
-  const primary = tone === "primary";
-  return (
-    <Pressable
-      style={({ pressed }) => [
-        benchStyles.roundKey,
-        primary || active ? benchStyles.roundKeyActive : null,
-        disabled ? benchStyles.keyDisabled : null,
-        trailing ? benchStyles.keyTrailing : null,
-        pressed ? appStyles.pressDown : null,
-      ]}
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityState={{ selected: active, disabled }}
-      accessibilityLabel={accessibilityLabel}
-    >
-      <Ionicons
-        name={icon}
-        size={16}
-        color={primary || active ? colors.primaryDeep : colors.textStrong}
-      />
-    </Pressable>
-  );
-}
 
 function NudgeKey({ label, onPress }: { label: string; onPress: () => void }) {
   return (
@@ -176,7 +154,7 @@ export function PlayerLayersBench({
   onAdjustStemGain,
   onNudgeStem,
   onRenameStem,
-  onChangeStemColor,
+  onSelectLane,
   onToggleStemMute,
   onToggleStemToneFlag,
   onRemoveStem,
@@ -187,7 +165,6 @@ export function PlayerLayersBench({
   const selectedStem = stems.find((stem) => stem.id === selectedLaneId) ?? null;
   const isRoot = selectedLaneId === BENCH_ROOT_LANE_ID || !selectedStem;
 
-  const [levelsOpen, setLevelsOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
 
   // ---- The position feed ------------------------------------------------------------
@@ -290,7 +267,6 @@ export function PlayerLayersBench({
       audition.stop();
       pauseSoloSafely();
       setSoloActive(false);
-      setLevelsOpen(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLaneId, pauseSoloSafely]);
@@ -496,234 +472,265 @@ export function PlayerLayersBench({
     onNudgeStem(selectedStem.id, Math.round(snappedMs ?? targetMs) - selectedStem.offsetMs);
   };
 
-  function openLayerMenu() {
-    if (!selectedStem) return;
-    AppAlert.custom(selectedStem.title, undefined, [
-      { label: t("songDetail.edit"), icon: actionIcons.edit, onPress: () => setEditModalOpen(true) },
+  // Solo on a row that is not selected selects it, then solos it once the previous
+  // layer's audio has stopped (the selection change stops it first).
+  const pendingSoloRef = useRef<string | null>(null);
+  function requestSolo(stemId: string) {
+    if (stemId === selectedStem?.id) {
+      void toggleSolo();
+      return;
+    }
+    pendingSoloRef.current = stemId;
+    onSelectLane(stemId);
+  }
+  useEffect(() => {
+    if (pendingSoloRef.current && pendingSoloRef.current === selectedStem?.id && !soloActive) {
+      pendingSoloRef.current = null;
+      void toggleSolo();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStem?.id, soloActive]);
+
+  // An item's "…" is the action menu, never a centred dialog; removing asks first.
+  function openLayerMenu(stem: BenchStemEntry) {
+    AppAlert.menu(stem.title, [
       {
-        label: t("player.removeLayer"),
-        style: "destructive",
-        icon: actionIcons.delete,
+        key: "player.renameLayer",
+        label: t("player.renameLayer"),
+        icon: actionIcons.edit,
         onPress: () => {
-          audition.stop();
-          pauseSoloSafely();
-          setSoloActive(false);
-          onRemoveStem(selectedStem.id);
+          onSelectLane(stem.id);
+          setEditModalOpen(true);
         },
       },
-      { label: t("common.cancel"), style: "cancel" },
+      {
+        key: "player.removeLayer",
+        label: t("player.removeLayer"),
+        icon: actionIcons.delete,
+        tone: "danger",
+        onPress: () =>
+          AppAlert.destructive(
+            t("player.removeLayerTitle", { title: stem.title }),
+            t("player.removeLayerBody"),
+            () => {
+              if (stem.id === selectedStem?.id) {
+                audition.stop();
+                pauseSoloSafely();
+                setSoloActive(false);
+              }
+              onRemoveStem(stem.id);
+            },
+            { confirmLabel: t("player.removeLayer") }
+          ),
+      },
     ]);
   }
 
-  // The flatten chooser IS the confirmation — each option spells its outcome.
   function openSaveAsOneClip() {
-    AppAlert.custom(t("player.combineTitle"), t("player.combineBody"), [
-      {
-        label: t("player.saveCopy"),
-        description: t("player.saveCopyDesc"),
-        icon: actionIcons.copy,
-        onPress: () => {
-          onCloseBench();
-          onSaveAsOneClip("copy");
-        },
-      },
-      {
-        label: t("player.replaceTake"),
-        description: t("player.replaceTakeDesc"),
-        icon: actionIcons.convert,
-        style: "destructive",
-        onPress: () => {
-          onCloseBench();
-          onSaveAsOneClip("replace");
-        },
-      },
-      { label: t("common.cancel"), style: "cancel" },
-    ]);
+    openCombineChooser(t, (mode) => {
+      onCloseBench();
+      onSaveAsOneClip(mode);
+    });
   }
+
+  const timelineMs = Math.max(
+    1,
+    rootDurationMs,
+    ...stems.map((stem) => stem.offsetMs + stem.durationMs)
+  );
+
+  const stemTools = selectedStem ? (
+    <View style={benchStyles.tools}>
+      <InkKey
+        // Haptics: the toggle fires its own `tap` (togglePlayHere).
+        haptic="none"
+        tone={isAuditioning ? "active" : "idle"}
+        label={t("player.playTogetherShort")}
+        glyph={
+          <Ionicons
+            name={isAuditioning ? "stop" : "play"}
+            size={14}
+            color={inkKeyColor(isAuditioning ? "active" : "idle")}
+          />
+        }
+        onPress={togglePlayHere}
+        accessibilityLabel={isAuditioning ? t("player.stopTogether") : t("player.playTogether")}
+      />
+
+      {/* Scrubbable solo transport while the layer is loaded (playing or paused). */}
+      {soloActive ? (
+        <Slider
+          style={benchStyles.soloScrubber}
+          minimumValue={0}
+          maximumValue={1}
+          value={soloDurationMs > 0 ? Math.max(0, Math.min(1, soloPositionMs / soloDurationMs)) : 0}
+          onSlidingComplete={(ratio) => {
+            if (soloDurationMs <= 0) return;
+            try {
+              const result = soloPlayer.seekTo((ratio * soloDurationMs) / 1000);
+              void Promise.resolve(result).catch(() => {});
+            } catch {
+              // Stale native handle — ignore.
+            }
+          }}
+          fill={false}
+          accessibilityLabel={t("player.scrubLayer")}
+        />
+      ) : null}
+
+      {/* The alignment strip: this layer against the take; slide it to move it. */}
+      <StemAlignmentOverlay
+        masterAudioUri={rootAudioUri}
+        masterDurationMs={rootDurationMs}
+        masterFallbackPeaks={rootWaveformPeaks}
+        stemAudioUri={selectedStem.audioUri}
+        stemDurationMs={selectedStem.durationMs}
+        stemFallbackPeaks={selectedStem.waveformPeaks}
+        offsetMs={selectedStem.offsetMs + slidePreviewMs}
+        stemColor={colors.primary}
+        recordingGrid={rootRecordingGrid}
+        onSlide={handleSlide}
+        onSlideEnd={handleSlideEnd}
+        sharedPlayheadMs={sharedStripPlayheadMs}
+        playheadColor={colors.playhead}
+        followMs={stripFollowMs}
+      />
+
+      <View style={benchStyles.labelRow}>
+        <Text style={benchStyles.toolLabel}>{t("player.timing")}</Text>
+        <Text style={benchStyles.toolValue}>{formatClipOverdubStemOffsetLabel(selectedStem.offsetMs)}</Text>
+      </View>
+      <View style={benchStyles.nudgeRow}>
+        <NudgeKey
+          label={t("player.nudgeMs", { value: `−${OVERDUB_STEM_NUDGE_STEP_LARGE_MS}` })}
+          onPress={() => onNudgeStem(selectedStem.id, -OVERDUB_STEM_NUDGE_STEP_LARGE_MS)}
+        />
+        <NudgeKey
+          label={t("player.nudgeMs", { value: `−${OVERDUB_STEM_NUDGE_STEP_SMALL_MS}` })}
+          onPress={() => onNudgeStem(selectedStem.id, -OVERDUB_STEM_NUDGE_STEP_SMALL_MS)}
+        />
+        <NudgeKey
+          label={t("player.nudgeMs", { value: `+${OVERDUB_STEM_NUDGE_STEP_SMALL_MS}` })}
+          onPress={() => onNudgeStem(selectedStem.id, OVERDUB_STEM_NUDGE_STEP_SMALL_MS)}
+        />
+        <NudgeKey
+          label={t("player.nudgeMs", { value: `+${OVERDUB_STEM_NUDGE_STEP_LARGE_MS}` })}
+          onPress={() => onNudgeStem(selectedStem.id, OVERDUB_STEM_NUDGE_STEP_LARGE_MS)}
+        />
+        <Pressable
+          style={({ pressed }) => [
+            benchStyles.originalButton,
+            !canRestoreOriginal ? benchStyles.originalButtonDisabled : null,
+            pressed ? appStyles.pressDown : null,
+          ]}
+          onPress={() => {
+            if (canRestoreOriginal && selectedStem) {
+              haptic.tap(); // Vocabulary: tap = an acknowledged press.
+              onNudgeStem(selectedStem.id, baselineOffsetMs - selectedStem.offsetMs);
+            }
+          }}
+          disabled={!canRestoreOriginal}
+          accessibilityRole="button"
+          accessibilityLabel={t("player.restoreAlignment")}
+        >
+          <Ionicons name="refresh-outline" size={12} color={colors.textSecondary} />
+          <Text style={benchStyles.originalButtonText}>{t("player.original")}</Text>
+        </Pressable>
+      </View>
+
+      <LevelToneStrip
+        style={benchStyles.strip}
+        gainDb={selectedStem.gainDb}
+        tonePreset={selectedStem.tonePreset}
+        onCommitGain={(db) => onAdjustStemGain(selectedStem.id, db - selectedStem.gainDb)}
+        onToggleToneFlag={(flag) => onToggleStemToneFlag(selectedStem.id, flag)}
+      />
+    </View>
+  ) : null;
 
   return (
     <View style={benchStyles.bench}>
-      {isRoot ? (
-        // Base take: fewer controls — no timing (it IS the timeline), no solo/mute.
-        <View style={benchStyles.section}>
-          <View style={benchStyles.headerRow}>
-            <View style={[benchStyles.laneDot, { backgroundColor: colors.textMuted }]} />
-            <Text style={benchStyles.title}>{t("player.baseTake")}</Text>
-            {isRendering ? (
-              <Spinner size="small" color={colors.primaryDeep} accessibilityLabel={t("player.updatingMix")} />
-            ) : null}
-            <Text style={benchStyles.duration}>{fmtDuration(rootDurationMs)}</Text>
-          </View>
-          {rootSettings ? (
-            <>
-              <LevelToneStrip
-                style={benchStyles.strip}
-                gainDb={rootSettings.gainDb}
-                tonePreset={rootSettings.tonePreset}
-                onCommitGain={(db) => onAdjustRootGain(db - rootSettings.gainDb)}
-                onToggleToneFlag={onToggleRootToneFlag}
-              />
-            </>
-          ) : null}
-        </View>
-      ) : (
-        <View style={benchStyles.section}>
-          <View style={benchStyles.headerRow}>
-            <View style={[benchStyles.laneDot, { backgroundColor: selectedStem.color }]} />
-            <UserText value={selectedStem.title} style={benchStyles.title} numberOfLines={1}>
-              {selectedStem.title}
-            </UserText>
-            {isRendering ? (
-              <Spinner size="small" color={colors.primaryDeep} accessibilityLabel={t("player.updatingMix")} />
-            ) : null}
-            <Text style={benchStyles.duration}>{fmtDuration(selectedStem.durationMs)}</Text>
-            <Pressable
-              style={({ pressed }) => [benchStyles.menuButton, pressed ? appStyles.pressDown : null]}
-              onPress={openLayerMenu}
-              hitSlop={6}
-              accessibilityRole="button"
-              accessibilityLabel={t("player.layerOptions")}
-            >
-              <Ionicons name="ellipsis-horizontal" size={16} color={colors.textSecondary} />
-            </Pressable>
-          </View>
-
-          {/* The bench face, all icons: play the layer in place · solo · mute — and the
-              adjust door apart at the trailing edge. Inside the layer's own bench, the
-              play key needs no words to say whose play it is. */}
-          <View style={benchStyles.faceRow}>
-            <RoundKey
-              icon={isAuditioning ? "stop" : "play"}
-              tone="primary"
-              active={isAuditioning}
-              disabled={!selectedStem.audioUri || !rootAudioUri}
-              onPress={togglePlayHere}
-              accessibilityLabel={isAuditioning ? t("player.stopTogether") : t("player.playTogether")}
-            />
-            <RoundKey
-              icon={soloActive && soloStatus.playing ? "pause" : "headset-outline"}
-              active={soloActive}
-              disabled={!selectedStem.audioUri}
-              onPress={() => void toggleSolo()}
-              accessibilityLabel={t("player.solo")}
-            />
-            <RoundKey
-              icon={selectedStem.isMuted ? "volume-mute" : "volume-mute-outline"}
-              active={selectedStem.isMuted}
-              onPress={() => {
-                haptic.tap(); // Vocabulary: tap = control toggles.
-                onToggleStemMute(selectedStem.id);
-              }}
-              accessibilityLabel={selectedStem.isMuted ? t("player.unmuteLayer") : t("player.muteLayer")}
-            />
-            <RoundKey
-              icon="options-outline"
-              active={levelsOpen}
-              trailing
-              onPress={() => {
-                haptic.tap(); // Vocabulary: tap = control toggles.
-                setLevelsOpen((current) => !current);
-              }}
-              accessibilityLabel={t("player.adjustA11y")}
+      <BenchRow
+        title={t("player.baseTake")}
+        readsAsName={false}
+        meta={fmtDuration(rootDurationMs)}
+        offsetMs={0}
+        durationMs={rootDurationMs}
+        timelineMs={timelineMs}
+        peaks={rootWaveformPeaks}
+        selected={isRoot}
+        rendering={isRendering}
+        onSelect={() => onSelectLane(BENCH_ROOT_LANE_ID)}
+      >
+        {isRoot && rootSettings ? (
+          <View style={benchStyles.tools}>
+            <LevelToneStrip
+              style={benchStyles.strip}
+              gainDb={rootSettings.gainDb}
+              tonePreset={rootSettings.tonePreset}
+              onCommitGain={(db) => onAdjustRootGain(db - rootSettings.gainDb)}
+              onToggleToneFlag={onToggleRootToneFlag}
             />
           </View>
+        ) : null}
+      </BenchRow>
 
-          {/* Scrubbable solo transport while the layer is loaded (playing or paused). */}
-          {soloActive ? (
-            <Slider
-              style={benchStyles.soloScrubber}
-              minimumValue={0}
-              maximumValue={1}
-              value={soloDurationMs > 0 ? Math.max(0, Math.min(1, soloPositionMs / soloDurationMs)) : 0}
-              onSlidingComplete={(ratio) => {
-                if (soloDurationMs <= 0) return;
-                try {
-                  const result = soloPlayer.seekTo((ratio * soloDurationMs) / 1000);
-                  void Promise.resolve(result).catch(() => {});
-                } catch {
-                  // Stale native handle — ignore.
-                }
-              }}
-              fill={false}
-              accessibilityLabel={t("player.scrubLayer")}
-            />
-          ) : null}
+      {stems.map((stem) => {
+        const selected = stem.id === selectedStem?.id;
+        return (
+          <BenchRow
+            key={stem.id}
+            title={stem.title}
+            readsAsName={!looksMachineNamed(stem.title)}
+            meta={
+              stem.offsetMs > 0
+                ? t("player.fromTime", { time: fmtDuration(stem.offsetMs) })
+                : fmtDuration(stem.durationMs)
+            }
+            offsetMs={stem.offsetMs}
+            durationMs={stem.durationMs}
+            timelineMs={timelineMs}
+            peaks={stem.waveformPeaks}
+            selected={selected}
+            muted={stem.isMuted}
+            rendering={selected && isRendering}
+            onSelect={() => onSelectLane(stem.id)}
+            controls={
+              <>
+                <InkOption
+                  label={t("player.solo")}
+                  selected={selected && soloActive}
+                  disabled={!stem.audioUri}
+                  onPress={() => requestSolo(stem.id)}
+                />
+                <InkOption
+                  label={t("player.mute")}
+                  selected={stem.isMuted}
+                  onPress={() => onToggleStemMute(stem.id)}
+                  accessibilityLabel={stem.isMuted ? t("player.unmuteLayer") : t("player.muteLayer")}
+                />
+                <Press
+                  feel="glyph"
+                  // Haptics: none — it opens a menu, which settles with its own.
+                  haptic="none"
+                  style={benchStyles.menuButton}
+                  onPress={() => openLayerMenu(stem)}
+                  hitSlop={6}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("player.layerOptions")}
+                >
+                  <Ionicons name="ellipsis-horizontal" size={16} color={colors.textSecondary} />
+                </Press>
+              </>
+            }
+          >
+            {selected ? stemTools : null}
+          </BenchRow>
+        );
+      })}
+      <View style={benchStyles.rule} />
 
-          {/* The micro strip: this layer against the master, always in view — full clip
-              by default, the detail window follows the playhead while audio runs. */}
-          <StemAlignmentOverlay
-            masterAudioUri={rootAudioUri}
-            masterDurationMs={rootDurationMs}
-            masterFallbackPeaks={rootWaveformPeaks}
-            stemAudioUri={selectedStem.audioUri}
-            stemDurationMs={selectedStem.durationMs}
-            stemFallbackPeaks={selectedStem.waveformPeaks}
-            offsetMs={selectedStem.offsetMs + slidePreviewMs}
-            stemColor={selectedStem.color}
-            recordingGrid={rootRecordingGrid}
-            onSlide={handleSlide}
-            onSlideEnd={handleSlideEnd}
-            sharedPlayheadMs={sharedStripPlayheadMs}
-            playheadColor={selectedStem.color}
-            followMs={stripFollowMs}
-          />
-
-          {/* One adjust drawer — timing, volume, tone — behind the face row's door.
-              Nothing stands at attention until asked for. */}
-          <AnimatedCollapse visible={levelsOpen}>
-            <View style={benchStyles.adjustDrawer}>
-          <View style={benchStyles.nudgeRow}>
-            <NudgeKey
-              label={`◀ ${OVERDUB_STEM_NUDGE_STEP_LARGE_MS}`}
-              onPress={() => onNudgeStem(selectedStem.id, -OVERDUB_STEM_NUDGE_STEP_LARGE_MS)}
-            />
-            <NudgeKey
-              label={`◀ ${OVERDUB_STEM_NUDGE_STEP_SMALL_MS}`}
-              onPress={() => onNudgeStem(selectedStem.id, -OVERDUB_STEM_NUDGE_STEP_SMALL_MS)}
-            />
-            <Text style={benchStyles.offsetReadout}>
-              {formatClipOverdubStemOffsetLabel(selectedStem.offsetMs)}
-            </Text>
-            <NudgeKey
-              label={`${OVERDUB_STEM_NUDGE_STEP_SMALL_MS} ▶`}
-              onPress={() => onNudgeStem(selectedStem.id, OVERDUB_STEM_NUDGE_STEP_SMALL_MS)}
-            />
-            <NudgeKey
-              label={`${OVERDUB_STEM_NUDGE_STEP_LARGE_MS} ▶`}
-              onPress={() => onNudgeStem(selectedStem.id, OVERDUB_STEM_NUDGE_STEP_LARGE_MS)}
-            />
-            <Pressable
-              style={({ pressed }) => [
-                benchStyles.originalButton,
-                !canRestoreOriginal ? benchStyles.originalButtonDisabled : null,
-                pressed ? appStyles.pressDown : null,
-              ]}
-              onPress={() => {
-                if (canRestoreOriginal && selectedStem) {
-                  onNudgeStem(selectedStem.id, baselineOffsetMs - selectedStem.offsetMs);
-                }
-              }}
-              disabled={!canRestoreOriginal}
-              accessibilityRole="button"
-              accessibilityLabel={t("player.restoreAlignment")}
-            >
-              <Ionicons name="refresh-outline" size={12} color={colors.textSecondary} />
-              <Text style={benchStyles.originalButtonText}>{t("player.original")}</Text>
-            </Pressable>
-          </View>
-              <LevelToneStrip
-                style={benchStyles.strip}
-                gainDb={selectedStem.gainDb}
-                tonePreset={selectedStem.tonePreset}
-                onCommitGain={(db) => onAdjustStemGain(selectedStem.id, db - selectedStem.gainDb)}
-                onToggleToneFlag={(flag) => onToggleStemToneFlag(selectedStem.id, flag)}
-              />
-            </View>
-          </AnimatedCollapse>
-        </View>
-      )}
-
-      {/* The surface's foot: flattening is where a layered take stops being layered. */}
+      {/* The foot: combining is where a layered take stops being layered. */}
       {stems.length > 0 ? (
         <Pressable
           style={({ pressed }) => [benchStyles.footLink, pressed ? appStyles.pressDown : null]}
@@ -737,16 +744,12 @@ export function PlayerLayersBench({
       ) : null}
 
       {selectedStem ? (
-        <EditLayerModal
+        <RenameLayerModal
           visible={editModalOpen}
           title={selectedStem.title}
-          color={selectedStem.color}
-          onSave={(nextTitle, nextColor) => {
-            if (nextTitle.trim() && nextTitle.trim() !== selectedStem.title) {
-              onRenameStem(selectedStem.id, nextTitle.trim());
-            }
-            if (nextColor !== selectedStem.color) {
-              onChangeStemColor(selectedStem.id, nextColor);
+          onSave={(nextTitle) => {
+            if (nextTitle !== selectedStem.title) {
+              onRenameStem(selectedStem.id, nextTitle);
             }
           }}
           onClose={() => setEditModalOpen(false)}
@@ -756,194 +759,289 @@ export function PlayerLayersBench({
   );
 }
 
-/** Name + color editor for a layer, combined into one Edit action — the same HueSlider
- *  used for workspace/section colors, so picking a layer's color matches the rest of the
- *  app. Draft state resets from props each time the modal opens. */
-function EditLayerModal({
+/** One row on the bench: name and where it sits (meta), its Solo / Mute / "…",
+ *  and its waveform on the take's timeline. The selected row opens beneath. */
+function BenchRow({
+  title,
+  readsAsName,
+  meta,
+  offsetMs,
+  durationMs,
+  timelineMs,
+  peaks,
+  selected,
+  muted = false,
+  rendering = false,
+  onSelect,
+  controls,
+  children,
+}: {
+  title: string;
+  readsAsName: boolean;
+  meta: string;
+  offsetMs: number;
+  durationMs: number;
+  timelineMs: number;
+  peaks?: number[];
+  selected: boolean;
+  muted?: boolean;
+  rendering?: boolean;
+  onSelect: () => void;
+  controls?: React.ReactNode;
+  children?: React.ReactNode;
+}) {
+  const { t } = useTranslation();
+  const heights = React.useMemo(() => rowBarHeights(peaks, durationMs), [peaks, durationMs]);
+  const leftPct = `${Math.max(0, Math.min(100, (offsetMs / timelineMs) * 100))}%` as const;
+  const widthPct = `${Math.max(1, Math.min(100, (durationMs / timelineMs) * 100))}%` as const;
+  return (
+    <View style={benchStyles.row}>
+      <View style={benchStyles.rowHead}>
+        <Press
+          feel="surface"
+          // Haptics: none here — choosing a row taps through onSelect (handlePressLane).
+          haptic="none"
+          style={benchStyles.rowName}
+          onPress={onSelect}
+          accessibilityRole="button"
+          accessibilityState={{ selected }}
+          accessibilityLabel={title}
+        >
+          <UserText
+            value={title}
+            style={[
+              readsAsName ? benchStyles.nameTyped : benchStyles.nameMachine,
+              selected ? benchStyles.nameSelected : null,
+            ]}
+            numberOfLines={1}
+          >
+            {title}
+          </UserText>
+          <Text style={benchStyles.meta} numberOfLines={1}>
+            {muted ? `${meta} · ${t("player.mutedShort")}` : meta}
+          </Text>
+          {rendering ? (
+            <Spinner size="small" color={colors.primaryDeep} accessibilityLabel={t("player.updatingMix")} />
+          ) : null}
+        </Press>
+        {controls ? <View style={benchStyles.controls}>{controls}</View> : null}
+      </View>
+      <Press feel="still" haptic="none" onPress={onSelect} style={benchStyles.track} accessibilityElementsHidden>
+        <View style={[benchStyles.baseline, muted ? benchStyles.baselineMuted : null]} />
+        <View style={[benchStyles.wave, { left: leftPct, width: widthPct }]} pointerEvents="none">
+          {heights.map((h, index) => (
+            <View
+              key={index}
+              style={[
+                benchStyles.bar,
+                selected ? benchStyles.barSelected : null,
+                muted ? (selected ? benchStyles.barSelectedMuted : benchStyles.barMuted) : null,
+                { height: Math.max(2, Math.round(h * ROW_WAVE_HEIGHT)) },
+              ]}
+            />
+          ))}
+        </View>
+      </Press>
+      {children}
+    </View>
+  );
+}
+
+const ROW_WAVE_HEIGHT = 18;
+
+function rowBarHeights(peaks: number[] | undefined, durationMs: number): number[] {
+  const count = Math.max(8, Math.min(140, Math.round(durationMs / 140)));
+  if (!peaks || peaks.length === 0) return new Array(count).fill(0.12);
+  const max = peaks.reduce((m, p) => (Number.isFinite(p) && Math.abs(p) > m ? Math.abs(p) : m), 0) || 1;
+  const out: number[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const from = Math.floor((i / count) * peaks.length);
+    const to = Math.max(from + 1, Math.floor(((i + 1) / count) * peaks.length));
+    let top = 0;
+    for (let j = from; j < to && j < peaks.length; j += 1) {
+      const v = Math.abs(peaks[j]);
+      if (Number.isFinite(v) && v > top) top = v;
+    }
+    out.push(Math.max(0.12, top / max));
+  }
+  return out;
+}
+
+/** Rename a layer. Draft state resets from props each time the sheet opens. */
+function RenameLayerModal({
   visible,
   title,
-  color,
   onSave,
   onClose,
 }: {
   visible: boolean;
   title: string;
-  color: string;
-  onSave: (title: string, color: string) => void;
+  onSave: (title: string) => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
   const [draftTitle, setDraftTitle] = useState(title);
-  const [hue, setHue] = useState(() => hexToHue(color));
   const prevVisible = useRef(false);
   useEffect(() => {
     if (visible && !prevVisible.current) {
       setDraftTitle(title);
-      setHue(hexToHue(color));
     }
     prevVisible.current = visible;
-  }, [visible, title, color]);
-
-  const previewColor = hueToAccentHex(hue);
+  }, [visible, title]);
   const trimmed = draftTitle.trim();
 
   return (
-    <WarmModal visible={visible} onRequestClose={onClose} title={t("player.editLayer")}>
-      <View style={benchStyles.colorPreviewRow}>
-        <View style={[benchStyles.colorPreviewSwatch, { backgroundColor: previewColor }]} />
-        <UserTextInput
-          style={benchStyles.editNameInput}
-          value={draftTitle}
-          onChangeText={setDraftTitle}
-          placeholder={t("player.layerName")}
-          placeholderTextColor={colors.textMuted}
-          returnKeyType="done"
-        />
-      </View>
-      <HueSlider hue={hue} onChange={setHue} />
+    <WarmModal visible={visible} onRequestClose={onClose} title={t("player.renameLayer")}>
+      <UserTextInput
+        style={benchStyles.editNameInput}
+        value={draftTitle}
+        onChangeText={setDraftTitle}
+        placeholder={t("player.layerName")}
+        placeholderTextColor={colors.textMuted}
+        returnKeyType="done"
+        autoFocus
+      />
       <View style={benchStyles.editModalActions}>
-        <Pressable
-          style={({ pressed }) => [benchStyles.editModalCancel, pressed ? appStyles.pressDown : null]}
-          onPress={onClose}
-          accessibilityRole="button"
-        >
-          <Text style={benchStyles.editModalCancelText}>{t("common.cancel")}</Text>
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [
-            benchStyles.editModalConfirm,
-            !trimmed ? benchStyles.editModalConfirmDisabled : null,
-            pressed ? appStyles.pressDown : null,
-          ]}
+        <Button variant="secondary" label={t("common.cancel")} onPress={onClose} />
+        <Button
+          variant="primary"
+          label={t("common.save")}
+          disabled={!trimmed}
           onPress={() => {
             if (!trimmed) return;
-            onSave(trimmed, previewColor);
+            onSave(trimmed);
             onClose();
           }}
-          disabled={!trimmed}
-          accessibilityRole="button"
-        >
-          <Text style={benchStyles.editModalConfirmText}>{t("common.save")}</Text>
-        </Pressable>
+        />
       </View>
     </WarmModal>
   );
 }
 
 const benchStyles = StyleSheet.create({
-  colorPreviewRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 4,
-  },
-  colorPreviewSwatch: {
-    width: 28,
-    height: 28,
-    borderRadius: radii.round,
-  },
-  editNameInput: {
-    flex: 1,
-    fontSize: 15,
-    fontFamily: "PlusJakartaSans_700Bold",
-    color: colors.textPrimary,
-    paddingVertical: 6,
-  },
-  editModalActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    gap: 10,
-    marginTop: 8,
-  },
-  editModalCancel: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  editModalCancelText: {
-    fontSize: 14,
-    fontFamily: "PlusJakartaSans_700Bold",
-    color: colors.textSecondary,
-  },
-  // Soft key, not a stadium pill (button language locked 2026-07-24): tonal
-  // terracotta wash carries the commit.
-  editModalConfirm: {
-    borderRadius: radii.lg,
-    backgroundColor: colors.primarySurface,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-  },
-  editModalConfirmDisabled: {
-    opacity: 0.5,
-  },
-  editModalConfirmText: {
-    fontSize: 14,
-    fontFamily: "PlusJakartaSans_700Bold",
-    color: colors.primaryDeep,
-  },
   bench: {
-    gap: spacing.md,
+    marginTop: spacing.sm,
   },
-  section: {
-    gap: 14,
+  row: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderSubtle,
+    paddingVertical: 10,
+    gap: 6,
   },
-  headerRow: {
+  rule: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.borderSubtle,
+  },
+  rowHead: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
   },
-  laneDot: {
-    width: 10,
-    height: 10,
-    borderRadius: radii.round,
-  },
-  title: {
+  rowName: {
     flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 8,
+    paddingVertical: 4,
+  },
+  nameTyped: {
     fontFamily: "Lora_600SemiBold",
     fontSize: 17,
+    lineHeight: 22,
     color: colors.textPrimary,
+    flexShrink: 1,
   },
-  duration: {
-    ...textTokens.supporting,
+  nameMachine: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.textStrong,
+    flexShrink: 1,
+  },
+  nameSelected: {
+    color: colors.primaryDeep,
+  },
+  meta: {
+    ...textTokens.caption,
+    color: colors.textMuted,
     fontVariant: ["tabular-nums"],
   },
-  menuButton: {
-    width: 30,
-    height: 30,
-    borderRadius: radii.round,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  faceRow: {
+  controls: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 14,
   },
-  keyDisabled: {
-    opacity: 0.45,
-  },
-  keyTrailing: {
-    marginStart: "auto",
-  },
-  roundKey: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.round,
+  menuButton: {
+    width: 28,
+    height: 32,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surfaceHigh,
   },
-  roundKeyActive: {
-    backgroundColor: colors.primarySurface,
+  track: {
+    height: ROW_WAVE_HEIGHT + 4,
+    justifyContent: "center",
+  },
+  baseline: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: (ROW_WAVE_HEIGHT + 4) / 2,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.borderSubtle,
+  },
+  baselineMuted: {
+    height: 0,
+    backgroundColor: "transparent",
+    borderTopWidth: 1,
+    borderStyle: "dashed",
+    borderColor: colors.borderSubtle,
+  },
+  wave: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  bar: {
+    width: 1.6,
+    borderRadius: 1,
+    backgroundColor: colors.textStrong,
+    opacity: 0.45,
+  },
+  barSelected: {
+    backgroundColor: colors.primary,
+    opacity: 1,
+  },
+  barMuted: {
+    opacity: 0.15,
+  },
+  barSelectedMuted: {
+    opacity: 0.35,
+  },
+  tools: {
+    gap: 10,
+    paddingTop: 6,
+    paddingBottom: 4,
+  },
+  labelRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+  },
+  toolLabel: {
+    ...textTokens.supporting,
+  },
+  toolValue: {
+    ...textTokens.supporting,
+    color: colors.textStrong,
+    fontVariant: ["tabular-nums"],
   },
   soloScrubber: {
     width: "100%",
     height: 26,
-    marginTop: -4,
-  },
-  adjustDrawer: {
-    gap: 10,
-    paddingVertical: 2,
   },
   // The strip sits flush with the bench's rows: no inset of its own.
   strip: {
@@ -952,40 +1050,32 @@ const benchStyles = StyleSheet.create({
   nudgeRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    flexWrap: "wrap",
+    justifyContent: "space-between",
   },
   // Quiet ink, not chips: nudges are tapped rhythmically — text invites that, fills don't.
   nudgeKey: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
     paddingVertical: 8,
   },
   nudgeKeyText: {
-    fontSize: 12,
-    lineHeight: 15,
+    fontSize: 13,
+    lineHeight: 16,
     fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.textStrong,
     fontVariant: ["tabular-nums"],
-  },
-  offsetReadout: {
-    ...textTokens.supporting,
-    fontVariant: ["tabular-nums"],
-    minWidth: 52,
-    textAlign: "center",
   },
   originalButton: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
     paddingVertical: 8,
-    marginStart: "auto",
   },
   originalButtonDisabled: {
     opacity: 0.4,
   },
   originalButtonText: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.textSecondary,
   },
@@ -994,11 +1084,27 @@ const benchStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    paddingVertical: 10,
+    paddingVertical: 14,
   },
   footLinkText: {
     fontSize: 13,
     fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.textSecondary,
+  },
+  editNameInput: {
+    fontSize: 16,
+    fontFamily: "PlusJakartaSans_500Medium",
+    color: colors.textPrimary,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    borderRadius: radii.lg,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 14,
+  },
+  editModalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
   },
 });

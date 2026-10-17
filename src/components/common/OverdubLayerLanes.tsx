@@ -1,27 +1,21 @@
 import React from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, {
-  SharedValue,
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-} from "react-native-reanimated";
-import { withAlpha } from "../../domain/overdub";
-import { colors } from "../../design/tokens";
-import { haptic } from "../../design/haptics";
-import { dirIcon } from "../../design/directionalIcons";
+import Animated, { SharedValue, useAnimatedStyle } from "react-native-reanimated";
+import { colors, text as textTokens } from "../../design/tokens";
+import { styles as appStyles } from "../../styles";
+import { useTranslation } from "react-i18next";
 
 /**
- * Slim lanes under an audio reel marking where each (un-flattened) overdub layer sits on
- * the master's timeline, each tinted in its layer colour and carrying its name. Rows are
- * packed automatically (interval partitioning): layers that don't meaningfully overlap in
- * time share a row; a layer that overlaps others is pushed to its own row. So a stack of
- * spot layers stays one compact row, while a full-length layer over a spot one splits —
- * no collisions, no more rows than the actual overlap depth. Bars ride the reel's own
- * pan/zoom transform, so they stay glued to the waveform above. Purely indicative: no
- * gestures, mixing lives in the Layers sheet.
+ * The layers a take carries, under its reel (2026-10-17, founder: "sit orderly,
+ * marked, never overstimulating"). One row per layer, in the order they were
+ * recorded, so adding a layer never reshuffles the others. Each row is its name
+ * in a left column and its sound in ink, where it plays on the take: the
+ * waveform rides the reel's own pan and zoom, so it stays glued to the tape
+ * above. No colour: the shape, the name and the place tell layers apart.
+ *
+ * Calm at any count: past three rows the lanes scroll inside a fixed height, so
+ * the reel never gets pushed around, and the header folds them away entirely.
  */
 
 export type OverdubLayerLane = {
@@ -29,200 +23,124 @@ export type OverdubLayerLane = {
   title: string;
   offsetMs: number;
   durationMs: number;
-  color: string;
   isMuted: boolean;
-  /** The base take's lane in the bench selector: selectable, but it never slides —
-   *  it IS the timeline. */
-  fixed?: boolean;
+  /** The layer's own waveform (any scale); a flat line stands in without one. */
+  peaks?: number[];
+  /** Typed names wear Lora; machine names ("Layer 2") stay in quiet Jakarta. */
+  readsAsName?: boolean;
 };
 
-const LANE_HEIGHT = 15;
-/** Bench selector: the same lanes, fattened into per-layer touch targets. */
-const LANE_HEIGHT_SELECTABLE = 24;
-const LANE_GAP = 3;
-const LANE_ALPHA = 0.5;
-const LANE_ALPHA_SELECTED = 0.85;
-/** Muted layers drop to a faint wash so they read as "off" without vanishing. */
-const LANE_ALPHA_MUTED = 0.16;
-/** A later layer may still share a row if it overlaps the row's occupant by at most this
- *  fraction of the shorter bar — a small edge overlap reads fine (labels sit at each
- *  bar's start), a real overlap forces a new row. */
-const SHARE_ROW_OVERLAP_FRACTION = 0.2;
-/** Room the sticky label keeps clear of the bar's tail, so pinning never pushes the
- *  name past the bar it belongs to. */
-const LABEL_PIN_RESERVE_PX = 110;
+const ROW_HEIGHT = 32;
+const WAVE_HEIGHT = 14;
+export const MAX_VISIBLE_LANE_ROWS = 3;
+const MIN_BARS = 8;
+const MAX_BARS = 160;
+/** One bar per this much audio: dense enough to read as the layer's shape. */
+const MS_PER_BAR = 140;
 
-/** Greedy interval partitioning → row index per lane (temporal, so zoom-independent). */
-export function packOverdubLaneRows(lanes: OverdubLayerLane[]): {
-  rowByLaneId: Record<string, number>;
-  rowCount: number;
-} {
-  const sorted = [...lanes].sort(
-    (a, b) => a.offsetMs - b.offsetMs || b.durationMs - a.durationMs
-  );
-  const rows: { maxEnd: number; maxEndDur: number }[] = [];
-  const rowByLaneId: Record<string, number> = {};
-
-  for (const lane of sorted) {
-    const start = lane.offsetMs;
-    const end = lane.offsetMs + lane.durationMs;
-    let placed = -1;
-    for (let r = 0; r < rows.length; r += 1) {
-      const overlap = Math.max(0, rows[r].maxEnd - start);
-      const allowed = SHARE_ROW_OVERLAP_FRACTION * Math.min(lane.durationMs, rows[r].maxEndDur);
-      if (overlap <= allowed) {
-        placed = r;
-        break;
-      }
-    }
-    if (placed === -1) {
-      placed = rows.length;
-      rows.push({ maxEnd: end, maxEndDur: lane.durationMs });
-    } else if (end > rows[placed].maxEnd) {
-      rows[placed] = { maxEnd: end, maxEndDur: lane.durationMs };
-    }
-    rowByLaneId[lane.id] = placed;
+function barHeights(peaks: number[] | undefined, durationMs: number): number[] {
+  const count = Math.max(MIN_BARS, Math.min(MAX_BARS, Math.round(durationMs / MS_PER_BAR)));
+  if (!peaks || peaks.length === 0) {
+    return new Array(count).fill(0.12);
   }
-
-  return { rowByLaneId, rowCount: rows.length };
+  const max = peaks.reduce((m, p) => (Number.isFinite(p) && Math.abs(p) > m ? Math.abs(p) : m), 0) || 1;
+  const out: number[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const from = Math.floor((i / count) * peaks.length);
+    const to = Math.max(from + 1, Math.floor(((i + 1) / count) * peaks.length));
+    let top = 0;
+    for (let j = from; j < to && j < peaks.length; j += 1) {
+      const v = Math.abs(peaks[j]);
+      if (Number.isFinite(v) && v > top) top = v;
+    }
+    out.push(Math.max(0.12, top / max));
+  }
+  return out;
 }
 
-function LaneBar({
+function LaneWave({
   lane,
-  rowIndex,
-  laneHeight,
   pixelsPerMs,
   timelineTranslateX,
   timelineScale,
-  isSelected = false,
-  onPressLane,
-  onDragEnd,
-  dragResetToken = 0,
 }: {
   lane: OverdubLayerLane;
-  rowIndex: number;
-  laneHeight: number;
   pixelsPerMs: number;
   timelineTranslateX: SharedValue<number>;
   timelineScale: SharedValue<number>;
-  isSelected?: boolean;
-  onPressLane?: (id: string) => void;
-  onDragEnd?: (id: string, deltaMs: number, msPerPx: number) => void;
-  dragResetToken?: number;
 }) {
-  // withAlpha is plain JS, not a worklet — resolve the colour here (JS thread) and only
-  // capture the resulting string inside the worklet below.
-  const laneColor = withAlpha(
-    lane.color,
-    lane.isMuted ? LANE_ALPHA_MUTED : isSelected ? LANE_ALPHA_SELECTED : LANE_ALPHA
-  );
-
-  // Coarse placement (2026-08-07): the SELECTED lane slides along the tape — same
-  // long-press-then-pan family as the loop's move pill. The preview delta lives on the
-  // UI thread; the owner commits (and may beat-snap) on release, and the bar holds its
-  // dragged position until the committed offset (or the reset token) lands back.
-  const dragDeltaMs = useSharedValue(0);
-  const draggable = isSelected && !!onDragEnd && !lane.fixed;
-  React.useEffect(() => {
-    dragDeltaMs.value = 0;
-  }, [lane.offsetMs, dragResetToken, dragDeltaMs]);
-  const dragGesture = React.useMemo(() => {
-    if (!draggable || !onDragEnd) {
-      return null;
-    }
-    return Gesture.Pan()
-      .activateAfterLongPress(220)
-      .onStart(() => {
-        // Drag lift (haptics vocabulary: grab).
-        runOnJS(haptic.grab)();
-      })
-      .onChange((event) => {
-        const pxPerMs = pixelsPerMs * timelineScale.value;
-        if (pxPerMs <= 0) {
-          return;
-        }
-        dragDeltaMs.value = event.translationX / pxPerMs;
-      })
-      .onEnd((event) => {
-        const pxPerMs = pixelsPerMs * timelineScale.value;
-        if (pxPerMs <= 0) {
-          dragDeltaMs.value = 0;
-          return;
-        }
-        runOnJS(onDragEnd)(lane.id, event.translationX / pxPerMs, 1 / pxPerMs);
-      })
-      .onFinalize((_event, success) => {
-        if (!success) {
-          dragDeltaMs.value = 0;
-        }
-      });
-  }, [draggable, onDragEnd, lane.id, pixelsPerMs, timelineScale, dragDeltaMs]);
-
-  const barStyle = useAnimatedStyle(() => {
-    const leftPx =
-      (lane.offsetMs + dragDeltaMs.value) * pixelsPerMs * timelineScale.value +
-      timelineTranslateX.value;
-    const widthPx = Math.max(3, lane.durationMs * pixelsPerMs * timelineScale.value);
-    return {
-      transform: [{ translateX: leftPx }],
-      width: widthPx,
-      backgroundColor: laneColor,
-    };
-  });
-
-  // Sticky label: while the bar's head is scrolled off-screen, the name pins to the
-  // visible edge (clamped so it never escapes the bar's own end) — a lane in frame
-  // always says whose it is.
-  const labelStyle = useAnimatedStyle(() => {
-    const leftPx =
-      (lane.offsetMs + dragDeltaMs.value) * pixelsPerMs * timelineScale.value +
-      timelineTranslateX.value;
-    const widthPx = Math.max(3, lane.durationMs * pixelsPerMs * timelineScale.value);
-    const maxShiftPx = Math.max(0, widthPx - LABEL_PIN_RESERVE_PX);
-    return {
-      transform: [{ translateX: Math.min(Math.max(0, -leftPx), maxShiftPx) }],
-    };
-  });
-
-  const content = (
-    <Animated.Text
-      style={[laneStyles.label, lane.isMuted ? laneStyles.labelMuted : null, labelStyle]}
-      numberOfLines={1}
-    >
-      {lane.isMuted ? `${lane.title} · muted` : lane.title}
-    </Animated.Text>
-  );
-
-  const bar = (
-    <Animated.View
-      style={[
-        laneStyles.bar,
-        { top: rowIndex * (laneHeight + LANE_GAP), height: laneHeight },
-        lane.isMuted ? laneStyles.barMuted : null,
-        isSelected ? { borderWidth: 1.5, borderColor: lane.color, borderStyle: "solid" } : null,
-        barStyle,
-      ]}
-    >
-      {onPressLane ? (
-        <Pressable
-          style={laneStyles.laneTouch}
-          onPress={() => onPressLane(lane.id)}
-          accessibilityRole="button"
-          accessibilityState={{ selected: isSelected }}
-          accessibilityLabel={lane.title}
-        >
-          {content}
-        </Pressable>
-      ) : (
-        content
-      )}
+  const heights = React.useMemo(() => barHeights(lane.peaks, lane.durationMs), [lane.peaks, lane.durationMs]);
+  const placement = useAnimatedStyle(() => ({
+    transform: [{ translateX: lane.offsetMs * pixelsPerMs * timelineScale.value + timelineTranslateX.value }],
+    width: Math.max(3, lane.durationMs * pixelsPerMs * timelineScale.value),
+  }));
+  return (
+    <Animated.View style={[laneStyles.wave, placement]} pointerEvents="none">
+      {heights.map((h, index) => (
+        <View
+          key={index}
+          style={[
+            laneStyles.bar,
+            lane.isMuted ? laneStyles.barMuted : null,
+            { height: Math.max(2, Math.round(h * WAVE_HEIGHT)) },
+          ]}
+        />
+      ))}
     </Animated.View>
   );
+}
 
-  if (!dragGesture) {
-    return bar;
+function LaneRow({
+  lane,
+  pixelsPerMs,
+  timelineTranslateX,
+  timelineScale,
+  onOpenLane,
+}: {
+  lane: OverdubLayerLane;
+  pixelsPerMs: number;
+  timelineTranslateX: SharedValue<number>;
+  timelineScale: SharedValue<number>;
+  onOpenLane?: (id: string) => void;
+}) {
+  const { t } = useTranslation();
+  const label = lane.isMuted ? `${lane.title} · ${t("player.mutedShort")}` : lane.title;
+  const body = (
+    <>
+      <Text
+        style={[
+          lane.readsAsName ? laneStyles.nameTyped : laneStyles.nameMachine,
+          lane.isMuted ? laneStyles.nameMuted : null,
+        ]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+      <View style={laneStyles.track}>
+        <View style={[laneStyles.baseline, lane.isMuted ? laneStyles.baselineMuted : null]} />
+        <LaneWave
+          lane={lane}
+          pixelsPerMs={pixelsPerMs}
+          timelineTranslateX={timelineTranslateX}
+          timelineScale={timelineScale}
+        />
+      </View>
+    </>
+  );
+  if (!onOpenLane) {
+    return <View style={laneStyles.row}>{body}</View>;
   }
-  return <GestureDetector gesture={dragGesture}>{bar}</GestureDetector>;
+  return (
+    <Pressable
+      // Haptics: none of its own — the bench it opens is navigation (silent).
+      style={({ pressed }) => [laneStyles.row, pressed ? appStyles.pressDown : null]}
+      onPress={() => onOpenLane(lane.id)}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      {body}
+    </Pressable>
+  );
 }
 
 export function OverdubLayerLanes({
@@ -230,131 +148,146 @@ export function OverdubLayerLanes({
   pixelsPerMs,
   timelineTranslateX,
   timelineScale,
-  onPress,
-  accessibilityLabel,
-  selectedLaneId,
-  onPressLane,
-  onLaneDragEnd,
-  laneDragResetToken,
+  onOpenLane,
+  collapsed,
+  onToggleCollapsed,
 }: {
   lanes: OverdubLayerLane[];
   pixelsPerMs: number;
   timelineTranslateX: SharedValue<number>;
   timelineScale: SharedValue<number>;
-  /** Lane-as-portal (2026-08-06): the lane is where layers live on the tape, so
-   *  the lane is the door to the mixer. Omit to keep it purely indicative. */
-  onPress?: () => void;
-  accessibilityLabel?: string;
-  /** Bench selector mode (2026-08-07): lanes fatten into per-layer touch
-   *  targets; the selected lane deepens and takes a border in its own colour. */
-  selectedLaneId?: string | null;
-  onPressLane?: (id: string) => void;
-  /** Selected-lane slide: release hands the owner the delta (and the ms-per-px of the
-   *  current zoom, for a snap tolerance that means the same distance on any zoom). */
-  onLaneDragEnd?: (id: string, deltaMs: number, msPerPx: number) => void;
-  /** Bumped by the owner after every drag commit — even a no-op one — so the preview
-   *  delta always resets, including when a snap lands back on the original offset. */
-  laneDragResetToken?: number;
+  /** A lane is the door to its layer on the bench. Omit for a read-only stack. */
+  onOpenLane?: (id: string) => void;
+  /** With a toggle, a quiet "Layers · n" header folds the lanes away. */
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
 }) {
-  const selectable = !!onPressLane;
-  const laneHeight = selectable ? LANE_HEIGHT_SELECTABLE : LANE_HEIGHT;
+  const { t } = useTranslation();
   const visibleLanes = lanes.filter((lane) => lane.durationMs > 0);
-  const { rowByLaneId, rowCount } = React.useMemo(
-    () => packOverdubLaneRows(visibleLanes),
-    [visibleLanes]
-  );
   if (visibleLanes.length === 0) {
     return null;
   }
-  const stripHeight = rowCount * (laneHeight + LANE_GAP) - LANE_GAP;
-  const bars = visibleLanes.map((lane) => (
-    <LaneBar
+  const isCollapsed = !!onToggleCollapsed && !!collapsed;
+  const rows = visibleLanes.map((lane) => (
+    <LaneRow
       key={lane.id}
       lane={lane}
-      rowIndex={rowByLaneId[lane.id] ?? 0}
-      laneHeight={laneHeight}
       pixelsPerMs={pixelsPerMs}
       timelineTranslateX={timelineTranslateX}
       timelineScale={timelineScale}
-      isSelected={selectable && lane.id === selectedLaneId}
-      onPressLane={onPressLane}
-      onDragEnd={onLaneDragEnd}
-      dragResetToken={laneDragResetToken}
+      onOpenLane={onOpenLane}
     />
   ));
-  if (selectable) {
-    // Selector mode: the strip is not a door — each lane answers for itself.
-    return <View style={[laneStyles.strip, { height: stripHeight }]}>{bars}</View>;
-  }
-  if (!onPress) {
-    return (
-      <View style={[laneStyles.strip, { height: stripHeight }]} pointerEvents="none">
-        {bars}
-      </View>
-    );
-  }
+  const scrolls = visibleLanes.length > MAX_VISIBLE_LANE_ROWS;
+
   return (
-    <Pressable
-      style={({ pressed }) => [
-        laneStyles.strip,
-        { height: stripHeight },
-        pressed ? laneStyles.stripPressed : null,
-      ]}
-      onPress={onPress}
-      hitSlop={{ top: 4, bottom: 6 }}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
-    >
-      {bars}
-      {/* Trailing chevron pinned off the timeline: the strip is a door, not just paint. */}
-      <View style={laneStyles.chevron} pointerEvents="none">
-        <Ionicons name={dirIcon("chevron-forward")} size={12} color={colors.textMuted} />
-      </View>
-    </Pressable>
+    <View style={laneStyles.block}>
+      {onToggleCollapsed ? (
+        <Pressable
+          // Haptics vocabulary: `tap` — a control toggles.
+          style={({ pressed }) => [laneStyles.header, pressed ? appStyles.pressDown : null]}
+          onPress={onToggleCollapsed}
+          hitSlop={{ top: 6, bottom: 6 }}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: !isCollapsed }}
+          accessibilityLabel={isCollapsed ? t("player.showLayers") : t("player.hideLayers")}
+        >
+          <Text style={laneStyles.headerText}>
+            {t("player.layerCountHeader", { count: visibleLanes.length })}
+          </Text>
+          <Ionicons
+            name={isCollapsed ? "chevron-down" : "chevron-up"}
+            size={13}
+            color={colors.textSecondary}
+          />
+        </Pressable>
+      ) : null}
+      {isCollapsed ? null : scrolls ? (
+        <ScrollView
+          style={{ maxHeight: MAX_VISIBLE_LANE_ROWS * ROW_HEIGHT }}
+          nestedScrollEnabled
+          showsVerticalScrollIndicator
+        >
+          {rows}
+        </ScrollView>
+      ) : (
+        rows
+      )}
+    </View>
   );
 }
 
 const laneStyles = StyleSheet.create({
-  strip: {
-    marginTop: 3,
+  block: {
+    marginTop: 6,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    paddingVertical: 4,
+    marginBottom: 2,
+  },
+  headerText: {
+    ...textTokens.annotation,
+    color: colors.textSecondary,
+  },
+  row: {
+    height: ROW_HEIGHT,
+    justifyContent: "flex-end",
     overflow: "hidden",
-    position: "relative",
   },
-  stripPressed: {
-    opacity: 0.7,
+  nameTyped: {
+    fontFamily: "Lora_500Medium",
+    fontSize: 12,
+    lineHeight: 15,
+    color: colors.textStrong,
   },
-  chevron: {
+  nameMachine: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 11,
+    lineHeight: 15,
+    color: colors.textSecondary,
+  },
+  nameMuted: {
+    color: colors.textMuted,
+  },
+  track: {
+    height: WAVE_HEIGHT + 2,
+    justifyContent: "center",
+  },
+  baseline: {
     position: "absolute",
+    left: 0,
+    right: 0,
+    top: (WAVE_HEIGHT + 2) / 2,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.borderSubtle,
+  },
+  baselineMuted: {
+    height: 0,
+    backgroundColor: "transparent",
+    borderTopWidth: 1,
+    borderStyle: "dashed",
+    borderColor: colors.borderSubtle,
+  },
+  wave: {
+    position: "absolute",
+    left: 0,
     top: 0,
     bottom: 0,
-    end: 2,
-    justifyContent: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   bar: {
-    position: "absolute",
-    height: LANE_HEIGHT,
-    borderRadius: 4,
-    justifyContent: "center",
-    overflow: "hidden",
-  },
-  laneTouch: {
-    flex: 1,
-    justifyContent: "center",
+    width: 1.6,
+    borderRadius: 1,
+    backgroundColor: colors.textStrong,
+    opacity: 0.42,
   },
   barMuted: {
-    borderWidth: 1,
-    borderColor: "rgba(122, 106, 100, 0.4)",
-    borderStyle: "dashed",
-  },
-  label: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 9,
-    lineHeight: 11,
-    color: "#4a3f3b",
-    paddingHorizontal: 5,
-  },
-  labelMuted: {
-    color: "#9a8b83",
-    fontStyle: "italic",
+    opacity: 0.14,
   },
 });

@@ -1,5 +1,9 @@
 import React, { useMemo } from "react";
-import { Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
+import { Ionicons } from "@expo/vector-icons";
+import { collapseIn, collapseOut } from "../../../design/motion";
+import { colors, text as textTokens } from "../../../design/tokens";
 import { AudioReel } from "../../common/AudioReel";
 import { OverdubLayerLanes, type OverdubLayerLane } from "../../common/OverdubLayerLanes";
 import { useTransportClock } from "../../../hooks/useTransportClock";
@@ -37,6 +41,9 @@ type RecordingOverdubGuideProps = {
   practiceMarkers?: PracticeMarker[];
   /** Already-recorded layers on this master, drawn as slim lanes under the reel. */
   layerLanes?: OverdubLayerLane[];
+  /** The guide plays from the phone's own speaker, straight into the mic: say once,
+   *  quietly, that headphones keep it out of the take. Hidden once recording. */
+  showHeadphonesHint?: boolean;
 };
 
 const GUIDE_FOLLOW_WINDOW_MS = 20000;
@@ -51,6 +58,7 @@ export function RecordingOverdubGuide({
   sections,
   practiceMarkers,
   layerLanes,
+  showHeadphonesHint,
 }: RecordingOverdubGuideProps) {
   const { t } = useTranslation();
   // Interpolates the 250ms-interval position updates on the UI thread — the tape glides
@@ -119,6 +127,25 @@ export function RecordingOverdubGuide({
           onSeekToEnd={noop}
         />
       </View>
+      {showHeadphonesHint ? (
+        <Animated.View entering={collapseIn} exiting={collapseOut} style={hintStyles.row}>
+          <Ionicons name="headset-outline" size={15} color={colors.textSecondary} />
+          <Text style={hintStyles.text}>{t("recording.headphonesHint")}</Text>
+        </Animated.View>
+      ) : null}
     </View>
   );
 }
+
+const hintStyles = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 12,
+  },
+  text: {
+    ...textTokens.supporting,
+    flexShrink: 1,
+  },
+});

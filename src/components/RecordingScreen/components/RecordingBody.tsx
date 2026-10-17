@@ -3,7 +3,7 @@ import { ScrollView, View } from "react-native";
 import type { SongIdea } from "../../../types";
 import { styles } from "../../../styles";
 import { getLatestLyricsVersion } from "../../../domain/lyrics";
-import { getOverdubStemColor } from "../../../domain/overdub";
+import { looksMachineNamed } from "../../../domain/titleNaming";
 import { RecordingMeta } from "./RecordingMeta";
 import { RecordingLyricsSection } from "./RecordingLyricsSection";
 import { RecordingOverdubGuide } from "./RecordingOverdubGuide";
@@ -22,6 +22,8 @@ type RecordingBodyProps = {
   lyricsAutoscrollMode: "off" | "follow" | "manual";
   lyricsAutoscrollSpeedMultiplier: number;
   isRecording: boolean;
+  /** The guide plays from the phone speaker (no headphones, no Bluetooth). */
+  guideOnPhoneSpeaker?: boolean;
   isPaused: boolean;
   elapsedMs: number;
   isCountIn: boolean;
@@ -59,6 +61,7 @@ export function RecordingBody({
   lyricsAutoscrollMode,
   lyricsAutoscrollSpeedMultiplier,
   isRecording,
+  guideOnPhoneSpeaker = false,
   isPaused,
   elapsedMs,
   isCountIn,
@@ -96,13 +99,15 @@ export function RecordingBody({
               waveformPeaks={guideMixWaveformPeaks}
               sections={recordingOverdubClip.sections}
               practiceMarkers={recordingOverdubClip.practiceMarkers}
-              layerLanes={(recordingOverdubClip.overdub?.stems ?? []).map((stem, index) => ({
+              showHeadphonesHint={guideOnPhoneSpeaker && !isRecording}
+              layerLanes={(recordingOverdubClip.overdub?.stems ?? []).map((stem) => ({
                 id: stem.id,
                 title: stem.title,
                 offsetMs: stem.offsetMs,
                 durationMs: stem.durationMs ?? 0,
-                color: getOverdubStemColor(stem, index),
                 isMuted: stem.isMuted,
+                peaks: stem.waveformPeaks,
+                readsAsName: !looksMachineNamed(stem.title),
               }))}
             />
           </>

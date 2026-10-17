@@ -53,11 +53,12 @@ export const playerScreenStyles = StyleSheet.create({
     borderRadius: radii.lg,
     backgroundColor: colors.surfaceContainer,
   },
+  // Ink, not record-red: nothing is recording yet (colour is scarce).
   layerKeyDot: {
     width: 8,
     height: 8,
     borderRadius: radii.round,
-    backgroundColor: colors.record,
+    backgroundColor: colors.textStrong,
   },
   toolsPillText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
