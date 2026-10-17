@@ -177,13 +177,20 @@ export function useMagpieScreenModel() {
   const removeFragment = useCallback(
     (id: string) => {
       if (!spark) return;
+      const before = { fragments: spark.fragments, usedFragmentIds: spark.usedFragmentIds };
+      const word = spark.fragments.find((fragment) => fragment.id === id)?.text ?? "";
       fragmentHistory.record(spark.fragments);
       apply({
         fragments: removeFragmentOp(spark.fragments, id),
         usedFragmentIds: spark.usedFragmentIds.filter((used) => used !== id),
       });
+      // Removing is immediate; Undo in the toast puts the word back (the Page
+      // step has no undo glyphs of its own).
+      toast(t("magpie.removedWord", { text: word }), undefined, {
+        action: { label: t("wordSparks.undo"), onPress: () => apply(before) },
+      });
     },
-    [spark, apply, fragmentHistory]
+    [spark, apply, fragmentHistory, t]
   );
 
   const splitFragment = useCallback(

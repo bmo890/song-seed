@@ -85,7 +85,7 @@ function HelpPoint({
   return (
     <View style={helpStyles.point}>
       <View style={helpStyles.pointIcon}>
-        <Ionicons name={icon} size={16} color={colors.primary} />
+        <Ionicons name={icon} size={16} color={colors.textSecondary} />
       </View>
       <View style={helpStyles.pointCopy}>
         <Text style={helpStyles.pointTitle}>{title}</Text>
@@ -99,12 +99,14 @@ const helpStyles = StyleSheet.create({
   sheetScroll: { maxHeight: 540 },
   title: { fontFamily: "Lora_600SemiBold", fontSize: 19, color: colors.textPrimary, marginBottom: 4 },
   subtitle: { ...textTokens.supporting, marginBottom: spacing.lg },
+  // Examples sit on the sheet between hairlines, not in grey boxes (2026-10-17).
   example: {
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: radii.lg,
-    padding: spacing.md,
+    paddingVertical: spacing.md,
     marginBottom: spacing.lg,
     gap: spacing.xs,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderMuted,
   },
   exampleLabel: { ...textTokens.annotation },
   exampleLabelSecond: { marginTop: spacing.md },
@@ -114,7 +116,8 @@ const helpStyles = StyleSheet.create({
     lineHeight: 24,
     color: colors.textPrimary,
   },
-  exampleMark: { backgroundColor: "#E4B7A6", color: "#5C2E1E" },
+  // The same mark as a collected word on the page.
+  exampleMark: { backgroundColor: colors.primarySurface, color: colors.primaryDeep },
   credit: {
     fontFamily: "PlusJakartaSans_400Regular",
     fontSize: 11,
@@ -124,14 +127,7 @@ const helpStyles = StyleSheet.create({
   },
   points: { gap: spacing.md },
   point: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start" },
-  pointIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  pointIcon: { width: 20, paddingTop: 2, alignItems: "center" },
   pointCopy: { flex: 1, minWidth: 0, gap: 2 },
   pointTitle: { ...textTokens.body, fontFamily: "PlusJakartaSans_700Bold" },
   pointBody: { ...textTokens.supporting, fontSize: 12 },
