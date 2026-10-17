@@ -338,13 +338,17 @@ export const activityStyles = {
     alignItems: "flex-start",
     gap: 8,
   },
+  // One letter per row, on its row: the column steps exactly as the cells do
+  // (15 + 4) and starts below the month row (16) and its gap (8). It drifted
+  // a point a row before (2026-10-16).
   activityWeekdayLabels: {
     width: 16,
     gap: 4,
-    paddingTop: 17,
+    paddingTop: 24,
   },
   activityWeekdayLabel: {
-    height: 14,
+    height: 15,
+    lineHeight: 15,
     fontSize: 9,
     color: "#84736f",
     textAlign: "center",

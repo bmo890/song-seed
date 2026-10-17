@@ -264,7 +264,9 @@ export function buildActivityHeatmapMatrix(year: number) {
 
   const monthMarkers = Array.from({ length: 12 }, (_, month) => {
     const monthStart = startOfActivityDay(new Date(year, month, 1).getTime());
-    const weekIndex = Math.max(0, Math.floor((startOfActivityWeek(monthStart) - start) / WEEK_MS));
+    // Round, not floor: after the spring clock change a week is an hour short,
+    // so floor landed every later month label one column early (2026-10-16).
+    const weekIndex = Math.max(0, Math.round((startOfActivityWeek(monthStart) - start) / WEEK_MS));
     return {
       month,
       label: new Date(year, month, 1).toLocaleDateString(i18n.language === "he" ? "he-IL" : "en-US", { month: "short" }),

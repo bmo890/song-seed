@@ -97,6 +97,7 @@ export function ActivityScreenContent() {
 
         <ActivityRangeResults
           selectedRangeItemCount={model.selectedRangeEntries.length}
+          singleDay={model.normalizedRange != null && model.normalizedRange.startTs === model.normalizedRange.endTs}
           itemResults={model.itemResults}
           onLayout={model.onResultsLayout}
           onItemLayout={model.onItemLayout}

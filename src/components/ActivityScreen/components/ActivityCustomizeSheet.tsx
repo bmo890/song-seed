@@ -1,7 +1,7 @@
 import React from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { BottomSheet } from "../../common/BottomSheet";
-import { styles as baseStyles } from "../../../styles";
+import { Press } from "../../common/Press";
 import { SourceFilterRow, type SourceFilterOption } from "../../common/SourceFilterRow";
 import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
@@ -43,17 +43,19 @@ export function ActivityCustomizeSheet({
         <View style={styles.header}>
           <Text style={styles.sectionLabel}>{t("activity.sources")}</Text>
           {hasSourceOverrides ? (
-            <Pressable
-              style={({ pressed }) => [styles.reset, pressed ? baseStyles.pressDown : null]}
+            <Press
+              // Haptics vocabulary: tap, an acknowledged press.
+              haptic="tap"
+              feel="glyph"
               onPress={resetSourceFilters}
+              hitSlop={8}
+              accessibilityRole="button"
             >
               <Text style={styles.resetText}>{t("activity.reset")}</Text>
-            </Pressable>
+            </Press>
           ) : null}
         </View>
-        <Text style={styles.sectionDesc}>
-          {t("activity.sourcesHint")}
-        </Text>
+        <View style={styles.rule} />
 
         <View style={styles.list}>
           {groups.map(({ workspace, collections }) => (
@@ -77,10 +79,12 @@ export function ActivityCustomizeSheet({
   );
 }
 
+// Rows on paper, as Revisit's Customize (2026-10-16): a Jakarta title, the
+// label on a hairline, Reset an ink word; no paragraph explaining the rows.
 const styles = StyleSheet.create({
   title: {
-    fontFamily: "Lora_600SemiBold",
-    fontSize: 19,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 15,
     color: colors.textPrimary,
   },
   header: {
@@ -97,23 +101,14 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     color: colors.textSecondary,
   },
-  sectionDesc: {
-    marginTop: -6,
-    marginBottom: 12,
-    fontSize: 12,
-    lineHeight: 16,
-    color: "#9a8b83",
-  },
-  reset: {
-    borderRadius: 4,
-    backgroundColor: "#e4deda",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  rule: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderMuted,
   },
   resetText: {
-    fontSize: 12,
-    fontFamily: "PlusJakartaSans_700Bold",
-    color: colors.textPrimary,
+    fontSize: 13,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    color: colors.primaryDeep,
   },
   // Rows on paper: hairlines do the separating.
   list: {

@@ -3,8 +3,6 @@ import { styles as base } from "../../styles";
 import { radii, colors } from "../../design/tokens";
 
 const PAPER = "#fbf9f5";
-const SURFACE = "#efeeea";
-const SURFACE_LO = "#e4deda";
 const TERRACOTTA = colors.primaryDeep;
 const INK = colors.textPrimary;
 const INK_LO = "#4a3f3b";
@@ -27,16 +25,14 @@ export const revisitStyles = {
     },
 
     // ── Sources filter panel ──────────────────────────────────────────────
+    // Reset is an ink word, not a grey key (2026-10-16).
     utilityButton: {
-      borderRadius: 4,
-      backgroundColor: SURFACE_LO,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
+      paddingVertical: 4,
     },
     utilityButtonText: {
-      fontSize: 12,
-      fontFamily: "PlusJakartaSans_700Bold",
-      color: INK,
+      fontSize: 13,
+      fontFamily: "PlusJakartaSans_600SemiBold",
+      color: TERRACOTTA,
     },
 
     // ── Restore hidden ────────────────────────────────────────────────────
@@ -67,17 +63,6 @@ export const revisitStyles = {
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
-    },
-    sectionActionButton: {
-      borderRadius: 4,
-      backgroundColor: SURFACE_LO,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-    },
-    sectionActionText: {
-      fontSize: 12,
-      fontFamily: "PlusJakartaSans_700Bold",
-      color: INK,
     },
 
     // ── Header help + sources chip (redesign) ────────────────────────────
@@ -136,11 +121,6 @@ export const revisitStyles = {
     },
 
     // ── Feed card detail row ──────────────────────────────────────────────
-    cardTagDetail: {
-      flex: 1,
-      fontSize: 12,
-      color: "#9a8b83",
-    },
 
     // ── "Today" hook ──────────────────────────────────────────────────────
     pageHeader: {
@@ -171,13 +151,6 @@ export const revisitStyles = {
       color: MUTED,
       marginTop: 18,
       marginBottom: 10,
-    },
-    sheetSectionDesc: {
-      marginTop: -6,
-      marginBottom: 12,
-      fontSize: 12,
-      lineHeight: 16,
-      color: "#9a8b83",
     },
     // Rows on paper: hairline under each, no tinted glyph.
     toggleRow: {
