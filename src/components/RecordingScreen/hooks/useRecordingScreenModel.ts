@@ -416,8 +416,7 @@ export function useRecordingScreenModel() {
     const captureMs = getActiveRecordingTakeSession().liveWaveform.get().durationMs;
     const atMs = Math.max(0, Math.round(captureMs > 0 ? captureMs : recording.elapsedMs));
     const pin: PracticeMarker = { id: `pin-${Date.now()}`, label: "", atMs };
-    // Haptic row: light — a small state flip that should land (a mark dropped).
-    haptic.light();
+    // The pin key fires the haptic (light, a mark dropped) through Press.
     setLivePins((prev) => [...prev, pin]);
   }, [recording.elapsedMs, recording.isPaused, recording.isRecording]);
 

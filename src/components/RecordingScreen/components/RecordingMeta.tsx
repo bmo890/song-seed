@@ -8,7 +8,8 @@ import { haptic } from "../../../design/haptics";
 import { LiveTapeVisualizer } from "../../visualizers/LiveTapeVisualizer";
 import { getActiveRecordingTakeSession, useTakeLiveWaveform } from "../../../services/recordingTakeSession";
 import { MetronomeIcon } from "../../common/MetronomeIcon";
-import { radii, colors } from "../../../design/tokens";
+import { radii, colors, shadows } from "../../../design/tokens";
+import { Press } from "../../common/Press";
 import { useTranslation } from "react-i18next";
 import { PIN_ICON, PIN_ICON_OUTLINE } from "../../../design/markIcons";
 
@@ -146,16 +147,18 @@ export function RecordingMeta({
     // Bare glyphs, not tinted circles: the record button is the only circle on
     // this page. The metronome's ON state reads from the terracotta glyph + its
     // summary, not from a pill around it.
-    // One tap marks the moment; the count beside the pin is the whole readout.
-    // Nothing to type until the name sheet, so the hands stay on the instrument.
+    // The pin (2026-10-17, founder: thumb-sized, quick to hit mid-rehearsal
+    // with the phone beside you): a round key on the reel's bottom-right
+    // corner, where the playhead never is and the thumb already rests. It
+    // appears once the take has started and stays through pauses; while
+    // paused it's quiet and can't drop a mark (there's no live moment).
     const canPin = isRecording && !isPaused && !isCountIn;
-    const pinButton = onAddPin ? (
-        <Pressable
-            style={({ pressed }) => [
-                metaStyles.metroToggle,
-                !canPin ? metaStyles.metroChipDisabled : null,
-                pressed && canPin ? styles.pressDown : null,
-            ]}
+    const showPin = !!onAddPin && (isRecording || isPaused) && !isCountIn;
+    const pinButton = showPin ? (
+        <Press
+            // Haptics vocabulary: light, a small state flip (a mark dropped).
+            haptic="light"
+            style={[metaStyles.pinKey, !canPin ? metaStyles.pinKeyIdle : null]}
             onPress={onAddPin}
             disabled={!canPin}
             hitSlop={8}
@@ -165,16 +168,15 @@ export function RecordingMeta({
         >
             <Ionicons
                 name={pinCount > 0 ? PIN_ICON : PIN_ICON_OUTLINE}
-                size={18}
-                color={pinCount > 0 ? colors.textStrong : colors.textMuted}
+                size={24}
+                color={colors.textStrong}
             />
-            {pinCount > 0 ? <Text style={metaStyles.pinCountText}>{pinCount}</Text> : null}
-        </Pressable>
+            {pinCount > 0 ? <Text style={metaStyles.pinKeyCount}>{pinCount}</Text> : null}
+        </Press>
     ) : null;
 
     const metronomeChip = onOpenMetronome ? (
         <View style={metaStyles.metroGroup}>
-            {pinButton}
             <Pressable
                 style={({ pressed }) => [
                     metaStyles.metroToggle,
@@ -292,12 +294,38 @@ export function RecordingMeta({
                 ]}
             >
                 <LiveTakeTape liveGrid={liveTakeGrid} theme={liveTapeTheme} pins={pinTimes} />
+                {pinButton}
             </View>
         </View>
     );
 }
 
 const metaStyles = StyleSheet.create({
+    pinKey: {
+        position: "absolute",
+        right: 16,
+        bottom: 12,
+        width: 58,
+        height: 58,
+        borderRadius: radii.round,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.surface,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: colors.borderMuted,
+        ...shadows.control,
+    },
+    pinKeyIdle: {
+        opacity: 0.5,
+    },
+    pinKeyCount: {
+        fontFamily: "PlusJakartaSans_600SemiBold",
+        fontSize: 11,
+        lineHeight: 13,
+        marginTop: -2,
+        color: colors.textSecondary,
+        fontVariant: ["tabular-nums"],
+    },
     statusRow: {
         justifyContent: "space-between",
     },
@@ -341,12 +369,6 @@ const metaStyles = StyleSheet.create({
         fontFamily: "PlusJakartaSans_700Bold",
         fontSize: 11,
         color: colors.primaryDeep,
-        fontVariant: ["tabular-nums"],
-    },
-    pinCountText: {
-        fontFamily: "PlusJakartaSans_700Bold",
-        fontSize: 11,
-        color: colors.textStrong,
         fontVariant: ["tabular-nums"],
     },
     metroGroup: {
