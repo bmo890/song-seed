@@ -30,6 +30,7 @@ export function SparkHeader({
   onBack,
   onHelp,
   onDelete,
+  onSend,
   menuTitle,
 }: {
   title: string;
@@ -37,13 +38,15 @@ export function SparkHeader({
   /** "How it works": the method's help for the current step. */
   onHelp: () => void;
   onDelete: () => void;
+  /** Copies the spark's lyric into the Lyric Pad (the spark stays). */
+  onSend?: () => void;
   /** Names what the "…" acts on (the spark's own title when it has one). */
   menuTitle?: string;
 }) {
   const { t } = useTranslation();
   const [sizeOpen, setSizeOpen] = useState(false);
   const openMenu = () => {
-    // Order: act on it, then destroy (the menu law).
+    // Order: act on it, send it out, then destroy (the menu law).
     AppAlert.menu(menuTitle || title, [
       {
         key: "size",
@@ -57,6 +60,16 @@ export function SparkHeader({
         icon: "help-circle-outline",
         onPress: onHelp,
       },
+      ...(onSend
+        ? [
+            {
+              key: "send",
+              label: t("wordSparks.sendToPad"),
+              icon: "document-text-outline" as const,
+              onPress: onSend,
+            },
+          ]
+        : []),
       {
         key: "delete",
         label: t("wordSparks.deleteSpark"),
@@ -202,10 +215,14 @@ export function SparkFooter({
   back,
   next,
   hint,
+  link,
 }: {
   back?: { label: string; onPress: () => void };
   next: { label: string; onPress: () => void; disabled?: boolean; final?: boolean };
   hint?: string | null;
+  /** A quiet way onward beside the step's own key (the last step's "Send to
+   *  Lyric Pad", or "In Lyric Pad" once sent). */
+  link?: { label: string; onPress: () => void; icon?: keyof typeof Ionicons.glyphMap };
 }) {
   return (
     <View style={s.footer}>
@@ -214,6 +231,7 @@ export function SparkFooter({
           {hint}
         </Text>
       ) : null}
+      {link ? <InkLink label={link.label} icon={link.icon} onPress={link.onPress} /> : null}
       <View style={s.footerRow}>
         {back ? (
           <Press

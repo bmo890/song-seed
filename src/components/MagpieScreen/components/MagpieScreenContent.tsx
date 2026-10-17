@@ -45,6 +45,7 @@ export function MagpieScreenContent() {
           onBack={model.goBack}
           onHelp={openHelp}
           onDelete={model.deleteSpark}
+          onSend={model.sendToPad}
         />
         <SparkSteps
           steps={[t("wordSparks.page"), t("wordSparks.build")]}

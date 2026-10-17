@@ -234,7 +234,7 @@ function ReviseHelp() {
       <View style={helpStyles.points}>
         <HelpPoint icon="cut-outline" title={t("wordLadderHelp.trimTitle")} body={t("wordLadderHelp.trimBody")} />
         <HelpPoint icon="create-outline" title={t("wordLadderHelp.reshapeTitle")} body={t("wordLadderHelp.reshapeBody")} />
-        <HelpPoint icon="send-outline" title={t("wordLadderHelp.saveTitle")} body={t("wordLadderHelp.saveBody")} />
+        <HelpPoint icon="checkmark-circle-outline" title={t("wordLadderHelp.saveTitle")} body={t("wordLadderHelp.saveBody")} />
       </View>
     </>
   );

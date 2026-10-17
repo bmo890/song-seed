@@ -12,6 +12,7 @@ import { CutUpHelpSheet } from "./CutUpHelpSheet";
 import { SPARK_PAPER, SparkFooter, SparkHeader, SparkMissing, SparkSteps } from "../../common/SparkFrame";
 import type { CutUpStep } from "../../../types";
 import { useTranslation } from "react-i18next";
+import { useHasPadPage } from "../../common/sparkSend";
 
 const STEP_KEYS: CutUpStep[] = ["source", "chunk", "board", "draft"];
 
@@ -19,6 +20,7 @@ export function CutUpScreenContent() {
   const { t } = useTranslation();
   const model = useCutUpScreenModel();
   const { spark } = model;
+  const hasPadPage = useHasPadPage(spark?.savedLyricId);
   const [helpVisible, setHelpVisible] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
@@ -71,6 +73,7 @@ export function CutUpScreenContent() {
           onBack={model.goBack}
           onHelp={openHelp}
           onDelete={model.deleteSpark}
+          onSend={model.sendToPad}
         />
 
         <SparkSteps steps={STEP_KEYS.map((key) => stepLabels[key])} current={STEP_KEYS.indexOf(model.step)} />
@@ -111,7 +114,12 @@ export function CutUpScreenContent() {
               <SparkFooter
                 hint={hasDraft ? null : t("wordSparks.draftNeeded")}
                 back={{ label: stepLabels.board, onPress: () => model.goToStep("board") }}
-                next={{ label: t("common.save"), onPress: model.saveAsLyrics, disabled: !hasDraft, final: true }}
+                next={{ label: t("wordSparks.finish"), onPress: model.finish, disabled: !hasDraft, final: true }}
+                link={hasDraft
+                  ? hasPadPage
+                    ? { label: t("wordSparks.inPad"), icon: "document-text-outline" as const, onPress: model.openPadPageForSpark }
+                    : { label: t("wordSparks.sendToPad"), icon: "document-text-outline" as const, onPress: model.sendToPad }
+                  : undefined}
               />
             ) : null}
           </>

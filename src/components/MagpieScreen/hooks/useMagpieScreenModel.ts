@@ -5,6 +5,7 @@ import { useStore } from "../../../state/useStore";
 import { useDraftText } from "../../../hooks/useDraftText";
 import { AppAlert } from "../../common/AppAlert";
 import { toast } from "../../common/toastStore";
+import { cutUpText, magpieText, openPadPage, sendSparkToPad, wordLadderText } from "../../common/sparkSend";
 import { sparkSaveTitle } from "../../../domain/notepad";
 import { useUndoHistory } from "../../common/useUndoHistory";
 import { actionIcons } from "../../common/actionIcons";
@@ -297,22 +298,36 @@ export function useMagpieScreenModel() {
   }, [spark, apply]);
 
   // ── Save / delete ───────────────────────────────────────────────────────────
-  const saveAsLyrics = useCallback(() => {
+  // Finishing keeps the spark in Lyric Spark (2026-10-17: Save used to copy
+  // it into the Lyric Pad and delete the spark). Sending is its own step.
+  const finish = useCallback(() => {
     if (!spark) return;
     flushDraft();
-    const text = (draftText.trim() ? draftText : assembleDraft(spark.fragments)).trim();
-    if (!text) {
-      AppAlert.info(t("wordSparks.nothingSave"), t("magpie.nothingBody"));
-      return;
-    }
-    const noteId = addNote();
-    updateNote(noteId, { title: sparkSaveTitle(spark.title, t("wordSparks.magpie"), notes), body: text });
-    // Saving completes the exercise: the page in the pad is now the real thing,
-    // so the scaffolding leaves the Sparks tab.
-    toast(t("wordSparks.savedToPad"), "checkmark-outline");
-    navigation.navigate("NotepadHome", { noteId, openToken: Date.now() });
-    if (sparkId) deleteMagpieSpark(sparkId);
-  }, [spark, sparkId, notes, addNote, updateNote, deleteMagpieSpark, navigation, t, flushDraft, draftText]);
+    apply({ finishedAt: Date.now() });
+    toast(t("wordSparks.sparkFinished"), "checkmark-outline");
+    navigation.navigate("SparkHome");
+  }, [spark, flushDraft, apply, navigation, t]);
+
+  const sendToPad = useCallback(() => {
+    flushDraft();
+    const fresh = (() => {
+      const spark = useStore.getState().magpieSparks.find((item) => item.id === sparkId);
+      return spark ? { spark, text: magpieText(spark) } : null;
+    })();
+    if (!fresh) return;
+    sendSparkToPad({
+      text: fresh.text,
+      title: fresh.spark.title,
+      methodName: t("wordSparks.magpie"),
+      savedLyricId: fresh.spark.savedLyricId,
+      link: (noteId) => apply({ savedLyricId: noteId }),
+      navigation,
+    });
+  }, [flushDraft, apply, navigation, t]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const openPadPageForSpark = useCallback(() => {
+    if (spark?.savedLyricId) openPadPage(navigation, spark.savedLyricId);
+  }, [spark?.savedLyricId, navigation]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const deleteSpark = useCallback(() => {
     if (!sparkId) return;
@@ -331,7 +346,7 @@ export function useMagpieScreenModel() {
     !!spark && (spark.fragments.length > 0 || draftText.trim().length > 0);
 
   const goBack = useCallback(() => {
-    if (spark?.savedLyricId) {
+    if (spark?.savedLyricId || spark?.finishedAt) {
       navigation.navigate("SparkHome");
       return;
     }
@@ -358,7 +373,7 @@ export function useMagpieScreenModel() {
       },
       { label: t("wordSparks.keepWorking"), style: "cancel" },
     ]);
-  }, [spark?.savedLyricId, hasContent, sparkId, deleteMagpieSpark, navigation, t]);
+  }, [spark?.savedLyricId, spark?.finishedAt, hasContent, sparkId, deleteMagpieSpark, navigation, t]);
 
   // Intercept hardware back + drawer-switch blur, mirroring the Cut-Up spark: an
   // empty, unsaved spark is silently discarded so it doesn't litter the notebook.
@@ -408,7 +423,9 @@ export function useMagpieScreenModel() {
     setDraft,
     rebuildDraft,
     pourScraps,
-    saveAsLyrics,
+    finish,
+    sendToPad,
+    openPadPageForSpark,
     fragmentHistory,
     deleteSpark,
     goBack,

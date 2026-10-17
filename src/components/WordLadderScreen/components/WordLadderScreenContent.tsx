@@ -27,6 +27,7 @@ import {
 import type { WordLadderStep } from "../../../types";
 import { UserText, UserTextInput } from "../../../i18n";
 import { useTranslation } from "react-i18next";
+import { useHasPadPage } from "../../common/sparkSend";
 
 // Verbs and nouns are steps of their own, so one list can't lean on the other
 // (2026-10-17). "setup" is the Verbs step's stored key.
@@ -36,6 +37,7 @@ export function WordLadderScreenContent() {
   const { t } = useTranslation();
   const model = useWordLadderScreenModel();
   const { exercise } = model;
+  const hasPadPage = useHasPadPage(exercise?.savedLyricId);
   const { size, lineHeight } = useSparkTextScale();
   const [helpVisible, setHelpVisible] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
@@ -144,6 +146,7 @@ export function WordLadderScreenContent() {
         onBack={model.goBack}
         onHelp={openHelp}
         onDelete={model.deleteExercise}
+        onSend={model.sendToPad}
       />
 
       <SparkSteps steps={STEPS.map(stepLabel)} current={STEPS.indexOf(model.step)} />
@@ -356,7 +359,12 @@ export function WordLadderScreenContent() {
           {keyboardVisible ? null : (
             <SparkFooter
               back={{ label: t("wordSparks.draft"), onPress: () => model.goToStep("draft") }}
-              next={{ label: t("common.save"), onPress: model.saveAsLyrics, disabled: !hasRevision, final: true }}
+              next={{ label: t("wordSparks.finish"), onPress: model.finish, disabled: !hasRevision, final: true }}
+              link={hasRevision
+                  ? hasPadPage
+                    ? { label: t("wordSparks.inPad"), icon: "document-text-outline" as const, onPress: model.openPadPageForSpark }
+                    : { label: t("wordSparks.sendToPad"), icon: "document-text-outline" as const, onPress: model.sendToPad }
+                  : undefined}
             />
           )}
         </>

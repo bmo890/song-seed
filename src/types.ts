@@ -64,8 +64,12 @@ export type WordLadderExercise = {
   draft: string;
   /** The tightened rewrite — what gets saved as lyrics. */
   revision: string;
-  /** Set once the revision has been saved to the Lyrics Pad. */
+  /** The Lyric Pad page this spark was last sent to (a copy; the spark stays).
+   *  Was set by the old Save, which also deleted the spark (until 2026-10-17). */
   savedLyricId?: string;
+  /** When the writer finished the spark. A finished spark stays in Lyric Spark
+   *  and can be reopened; sending to the Lyric Pad is a separate step. */
+  finishedAt?: number;
 };
 
 // ── Cut-Up Spark ─────────────────────────────────────────────────────────────
@@ -131,7 +135,12 @@ export type CutUpSpark = {
   boardItems: CutUpBoardItem[];
   /** The rebuilt + edited draft; preserved alongside the chunks. */
   assembledDraftText: string;
+  /** The Lyric Pad page this spark was last sent to (a copy; the spark stays).
+   *  Was set by the old Save, which also deleted the spark (until 2026-10-17). */
   savedLyricId?: string;
+  /** When the writer finished the spark. A finished spark stays in Lyric Spark
+   *  and can be reopened; sending to the Lyric Pad is a separate step. */
+  finishedAt?: number;
   /** Steps whose help has already been opened — highlight on first visit. */
   seenHelpSteps: CutUpStep[];
 };
@@ -207,7 +216,12 @@ export type MagpieSpark = {
   /** Whether to draw from the whole Gutenberg library (true) or the curated pool
    * (false). Applies to the English source only. */
   wholeLibrary: boolean;
+  /** The Lyric Pad page this spark was last sent to (a copy; the spark stays).
+   *  Was set by the old Save, which also deleted the spark (until 2026-10-17). */
   savedLyricId?: string;
+  /** When the writer finished the spark. A finished spark stays in Lyric Spark
+   *  and can be reopened; sending to the Lyric Pad is a separate step. */
+  finishedAt?: number;
   /** Steps whose help has already been opened — highlight on first visit. */
   seenHelpSteps: MagpieStep[];
   /** Fragment ids the writer has dropped into the draft at least once — a soft

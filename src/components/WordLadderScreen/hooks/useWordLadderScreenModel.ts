@@ -5,6 +5,7 @@ import { useStore } from "../../../state/useStore";
 import { useDraftText } from "../../../hooks/useDraftText";
 import { AppAlert } from "../../common/AppAlert";
 import { toast } from "../../common/toastStore";
+import { cutUpText, magpieText, openPadPage, sendSparkToPad, wordLadderText } from "../../common/sparkSend";
 import { sparkSaveTitle } from "../../../domain/notepad";
 import { useUndoHistory } from "../../common/useUndoHistory";
 import { actionIcons } from "../../common/actionIcons";
@@ -297,26 +298,39 @@ export function useWordLadderScreenModel() {
     );
   }, [deleteWordLadder, exerciseId, navigation, t]);
 
-  /** Saves the revision (falling back to the draft) as a new page in the global
-   * Lyrics Pad, then opens it there. */
   const draftText = draftField.draft;
   const revisionText = revisionField.draft;
-  const saveAsLyrics = useCallback(() => {
+
+  // Finishing keeps the spark in Lyric Spark (2026-10-17: Save used to copy
+  // it into the Lyric Pad and delete the spark). Sending is its own step.
+  const finish = useCallback(() => {
     if (!exercise) return;
     flushDrafts();
-    const text = (revisionText.trim() ? revisionText : draftText).trim();
-    if (!text) {
-      AppAlert.info(t("wordSparks.nothingSave"), t("wordLadder.nothingBody"));
-      return;
-    }
-    const noteId = addNote();
-    updateNote(noteId, { title: sparkSaveTitle(exercise.title, t("wordSparks.wordLadder"), notes), body: text });
-    // Saving completes the exercise: the page in the pad is now the real thing,
-    // so the scaffolding leaves the Sparks tab.
-    toast(t("wordSparks.savedToPad"), "checkmark-outline");
-    navigation.navigate("NotepadHome", { noteId, openToken: Date.now() });
-    if (exerciseId) deleteWordLadder(exerciseId);
-  }, [exercise, exerciseId, notes, addNote, updateNote, deleteWordLadder, navigation, t, flushDrafts, draftText, revisionText]);
+    apply({ finishedAt: Date.now() });
+    toast(t("wordSparks.sparkFinished"), "checkmark-outline");
+    navigation.navigate("SparkHome");
+  }, [exercise, flushDrafts, apply, navigation, t]);
+
+  const sendToPad = useCallback(() => {
+    flushDrafts();
+    const fresh = (() => {
+      const spark = useStore.getState().wordLadders.find((item) => item.id === exerciseId);
+      return spark ? { spark, text: wordLadderText(spark) } : null;
+    })();
+    if (!fresh) return;
+    sendSparkToPad({
+      text: fresh.text,
+      title: fresh.spark.title,
+      methodName: t("wordSparks.wordLadder"),
+      savedLyricId: fresh.spark.savedLyricId,
+      link: (noteId) => apply({ savedLyricId: noteId }),
+      navigation,
+    });
+  }, [flushDrafts, apply, navigation, t]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const openPadPageForSpark = useCallback(() => {
+    if (exercise?.savedLyricId) openPadPage(navigation, exercise.savedLyricId);
+  }, [exercise?.savedLyricId, navigation]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasContent =
     !!exercise &&
@@ -329,7 +343,7 @@ export function useWordLadderScreenModel() {
 
   const goBack = useCallback(() => {
     // Already saved to the Lyrics Pad → just leave (the exercise stays for resuming).
-    if (exercise?.savedLyricId) {
+    if (exercise?.savedLyricId || exercise?.finishedAt) {
       navigation.navigate("SparkHome");
       return;
     }
@@ -360,7 +374,7 @@ export function useWordLadderScreenModel() {
       },
       { label: t("wordSparks.keepWorking"), style: "cancel" },
     ]);
-  }, [exercise?.savedLyricId, hasContent, exerciseId, deleteWordLadder, navigation, t]);
+  }, [exercise?.savedLyricId, exercise?.finishedAt, hasContent, exerciseId, deleteWordLadder, navigation, t]);
 
   // Catch every other way of leaving. Hardware back runs the same prompt as the
   // in-app Back button. A drawer switch can't be intercepted before it happens, so
@@ -412,7 +426,9 @@ export function useWordLadderScreenModel() {
     toggleSparkUsed,
     revisionField,
     deleteExercise,
-    saveAsLyrics,
+    finish,
+    sendToPad,
+    openPadPageForSpark,
     goBack,
   };
 }

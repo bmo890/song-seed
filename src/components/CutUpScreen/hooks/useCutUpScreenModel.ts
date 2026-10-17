@@ -6,6 +6,7 @@ import { useDraftText } from "../../../hooks/useDraftText";
 import { useUndoHistory } from "../../common/useUndoHistory";
 import { AppAlert } from "../../common/AppAlert";
 import { toast } from "../../common/toastStore";
+import { cutUpText, magpieText, openPadPage, sendSparkToPad, wordLadderText } from "../../common/sparkSend";
 import { sparkSaveTitle } from "../../../domain/notepad";
 import { actionIcons } from "../../common/actionIcons";
 import {
@@ -480,26 +481,36 @@ export function useCutUpScreenModel() {
   );
 
   // ── Save / delete ──────────────────────────────────────────────────────────
-  const saveAsLyrics = useCallback(() => {
+  // Finishing keeps the spark in Lyric Spark (2026-10-17: Save used to copy
+  // it into the Lyric Pad and delete the spark). Sending is its own step.
+  const finish = useCallback(() => {
     if (!spark) return;
     flushDrafts();
-    const text = (
-      draftText.trim()
-        ? draftText
-        : assembleDraftFromCanvas(spark.boardItems, makeTextOf(spark), canvasRtl(spark))
-    ).trim();
-    if (!text) {
-      AppAlert.info(t("wordSparks.nothingSave"), t("cutUp.nothingBody"));
-      return;
-    }
-    const noteId = addNote();
-    updateNote(noteId, { title: sparkSaveTitle(spark.title, t("wordSparks.cutUp"), notes), body: text });
-    // Saving completes the exercise: the page in the pad is now the real thing,
-    // so the scaffolding leaves the Sparks tab.
-    toast(t("wordSparks.savedToPad"), "checkmark-outline");
-    navigation.navigate("NotepadHome", { noteId, openToken: Date.now() });
-    if (sparkId) deleteCutUpSpark(sparkId);
-  }, [spark, sparkId, notes, addNote, updateNote, deleteCutUpSpark, navigation, t, flushDrafts, draftText]);
+    apply({ finishedAt: Date.now() });
+    toast(t("wordSparks.sparkFinished"), "checkmark-outline");
+    navigation.navigate("SparkHome");
+  }, [spark, flushDrafts, apply, navigation, t]);
+
+  const sendToPad = useCallback(() => {
+    flushDrafts();
+    const fresh = (() => {
+      const spark = useStore.getState().cutUpSparks.find((item) => item.id === sparkId);
+      return spark ? { spark, text: cutUpText(spark) } : null;
+    })();
+    if (!fresh) return;
+    sendSparkToPad({
+      text: fresh.text,
+      title: fresh.spark.title,
+      methodName: t("wordSparks.cutUp"),
+      savedLyricId: fresh.spark.savedLyricId,
+      link: (noteId) => apply({ savedLyricId: noteId }),
+      navigation,
+    });
+  }, [flushDrafts, apply, navigation, t]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const openPadPageForSpark = useCallback(() => {
+    if (spark?.savedLyricId) openPadPage(navigation, spark.savedLyricId);
+  }, [spark?.savedLyricId, navigation]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const deleteSpark = useCallback(() => {
     if (!sparkId) return;
@@ -522,7 +533,7 @@ export function useCutUpScreenModel() {
 
   const goBack = useCallback(() => {
     // Already saved to the Lyrics Pad → just leave (the spark stays for resuming).
-    if (spark?.savedLyricId) {
+    if (spark?.savedLyricId || spark?.finishedAt) {
       navigation.navigate("SparkHome");
       return;
     }
@@ -553,7 +564,7 @@ export function useCutUpScreenModel() {
       },
       { label: t("wordSparks.keepWorking"), style: "cancel" },
     ]);
-  }, [spark?.savedLyricId, hasContent, sparkId, deleteCutUpSpark, navigation, t]);
+  }, [spark?.savedLyricId, spark?.finishedAt, hasContent, sparkId, deleteCutUpSpark, navigation, t]);
 
   // Catch every other way of leaving. Hardware back runs the same prompt as the
   // in-app Back button. A drawer switch can't be intercepted before it happens, so
@@ -620,7 +631,9 @@ export function useCutUpScreenModel() {
     draftField,
     rebuildDraftFromBoard,
     composeDraft,
-    saveAsLyrics,
+    finish,
+    sendToPad,
+    openPadPageForSpark,
     deleteSpark,
     goBack,
   };
