@@ -267,16 +267,11 @@ export function useActivityScreenModel() {
         : formatSelectedRangeLabel(normalizedRange.startTs, normalizedRange.endTs, metricFilter),
     [metricFilter, normalizedRange]
   );
+  // The key is the scale itself, four steps, whatever the year holds: a quiet
+  // year used to show four identical squares (2026-10-16).
   const legendSwatches = useMemo(
-    () =>
-      [0.25, 0.5, 0.75, 1].map((ratio) =>
-        getActivityCellBackground(
-          Math.max(1, Math.round(maxDailyCount * ratio)),
-          Math.max(1, maxDailyCount),
-          true
-        )
-      ),
-    [maxDailyCount]
+    () => [25, 50, 75, 100].map((count) => getActivityCellBackground(count, 100, true)),
+    []
   );
   const scopeLabel = useMemo(() => {
     if (collectionScope && collectionScopeWorkspace) {

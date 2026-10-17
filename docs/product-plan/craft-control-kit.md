@@ -1362,3 +1362,22 @@ Customize", and its question is a confirm, not a destructive one. Around this
 time: one meta line on a hairline with an Activity ink link (the boxed header,
 filled key and duplicate intro gone). Not seen in the simulator: Around this
 time (no ideas old enough).
+
+## Activity (2026-10-16, founder picked A on https://claude.ai/artifact/BZUxHqJipvE5FWJpRtSESK)
+
+One page in two doors (the drawer's ActivityHome and a collection's pushed,
+scoped Activity were already the same ActivityScreen). The heatmap is on
+paper: the chosen date as the page's line (scope beneath it from a
+collection), Today in ink and ‹ year › bare beside it (Press, tap), the key
+under the grid on a hairline. A single day keeps its outline; a span (two
+taps, or a month) instead fades the days outside it, so a month no longer
+draws thirty outlines. The grid only scrolls to bring an off-screen
+selection in, never under a finger on a visible day. The month underline
+means a whole month is selected (it used to show for any day in it).
+Bugs fixed: weekday letters drifted off their rows (14 pt for 15 pt cells,
+started 7 pt high); month labels sat one week early after the spring clock
+change (floor over a 1 h short week; `activityMonthMarkers.test.ts` pins a
+DST zone and fails on the old code); the key showed four identical squares
+in a quiet year (now the fixed scale). Copy: "306 ideas", "Nothing this
+day" / "Nothing this month", "Tap a coloured day, or a month.", no disc.
+Customize Activity and Revisit's Reset: Jakarta title, ink Reset, no paragraph.

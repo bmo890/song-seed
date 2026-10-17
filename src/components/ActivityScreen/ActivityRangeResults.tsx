@@ -7,6 +7,8 @@ import { useTranslation } from "react-i18next";
 
 type ActivityRangeResultsProps = {
   selectedRangeItemCount: number;
+  /** One day chosen (the empty state says "this day", else "this month"). */
+  singleDay: boolean;
   itemResults: ActivityItemResult[];
   onLayout?: (y: number, height: number) => void;
   onItemLayout: (item: ActivityItemResult, y: number, height: number) => void;
@@ -27,6 +29,7 @@ type ActivityRangeResultsProps = {
 
 type ActivityResultsListProps = {
   results: ActivityItemResult[];
+  singleDay: boolean;
   onItemLayout: (item: ActivityItemResult, y: number, height: number) => void;
   onDayLayout: (dayLabel: string, y: number, height: number) => void;
   canPlayItem: (item: ActivityItemResult) => boolean;
@@ -50,6 +53,7 @@ const MAX_RENDERED_RESULTS = 60;
 
 function ActivityResultsList({
   results,
+  singleDay,
   onItemLayout,
   onDayLayout,
   canPlayItem,
@@ -68,10 +72,11 @@ function ActivityResultsList({
   const { t } = useTranslation();
   if (results.length === 0) {
     return (
+      // The page's one empty state, without a disc: the heatmap above is the
+      // picture (2026-10-16).
       <EmptyState
         compact
-        icon="calendar-outline"
-        title={t("activity.noWork")}
+        title={singleDay ? t("activity.noWorkDay") : t("activity.noWork")}
         body={t("activity.noWorkHint")}
       />
     );
@@ -120,6 +125,7 @@ function ActivityResultsList({
 
 export function ActivityRangeResults({
   selectedRangeItemCount,
+  singleDay,
   itemResults,
   onLayout,
   onItemLayout,
@@ -155,6 +161,7 @@ export function ActivityRangeResults({
 
       <ActivityResultsList {...{
         results: itemResults,
+        singleDay,
         onItemLayout,
         onDayLayout,
         canPlayItem,
