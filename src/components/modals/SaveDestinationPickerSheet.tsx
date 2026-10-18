@@ -5,8 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../common/BottomSheet";
 import { WorkspaceAvatar } from "../common/WorkspaceAvatar";
 import type { SaveDestination } from "../../domain/collectionManagement";
-import { colors, radii } from "../../design/tokens";
-import { styles } from "../../styles";
+import { colors, text } from "../../design/tokens";
 import { formatLastEdited } from "../../utils";
 import { UserText } from "../../i18n";
 import { useTranslation } from "react-i18next";
@@ -35,8 +34,9 @@ type Group = {
 /**
  * Where a fresh clip lands. Each workspace wears its avatar (the same mark as the
  * side menu) and each collection the structural-row recipe from the workspace hub:
- * folder, name, and a quiet count · last-worked line, so two "Demos" in two
- * workspaces never look alike.
+ * rows on paper (2026-10-18), a bare ink folder, the name, and a quiet
+ * count · last-worked line, so two "Demos" in two workspaces never look alike.
+ * The chosen one carries the tick; nothing else is coloured.
  */
 export function SaveDestinationPickerSheet({
   visible,
@@ -97,21 +97,21 @@ export function SaveDestinationPickerSheet({
                   .join("  ·  ");
                 return (
                   <Press
-                    haptic="none"
+                    // haptics.ts: light → a small state flip (a choice in a set).
+                    haptic="light"
                     key={destination.collectionId}
                     accessibilityRole="button"
                     accessibilityState={{ selected: isSelected }}
                     accessibilityLabel={`${destination.pathLabel ?? destination.label}, ${meta}`}
                     style={[localStyles.row,
-                      { paddingStart: 14 + destination.depth * INDENT_STEP },
-                      index > 0 ? localStyles.rowDivided : null,
-                      isSelected ? localStyles.rowSelected : null]}
+                      { paddingStart: 2 + destination.depth * INDENT_STEP },
+                      index > 0 ? localStyles.rowDivided : null]}
                     onPress={() => onSelect(destination)}
                   >
                     <Ionicons
                       name={isSelected ? "folder-open-outline" : "folder-outline"}
                       size={destination.depth > 0 ? 17 : 19}
-                      color={isSelected ? colors.primaryDeep : colors.textStrong}
+                      color={colors.textStrong}
                     />
                     <View style={localStyles.copy}>
                       <View style={localStyles.titleRow}>
@@ -135,7 +135,7 @@ export function SaveDestinationPickerSheet({
                       </Text>
                     </View>
                     {isSelected ? (
-                      <Ionicons name="checkmark" size={18} color={colors.primaryDeep} />
+                      <Ionicons name="checkmark" size={18} color={colors.primaryDeep} accessibilityElementsHidden />
                     ) : null}
                   </Press>
                 );
@@ -150,9 +150,8 @@ export function SaveDestinationPickerSheet({
 
 const localStyles = StyleSheet.create({
   title: {
-    fontFamily: "Lora_600SemiBold",
+    ...text.headerTitle,
     fontSize: 19,
-    color: colors.textPrimary,
     marginBottom: 14,
   },
   scroll: {
@@ -173,25 +172,23 @@ const localStyles = StyleSheet.create({
     fontSize: 14,
     color: colors.textStrong,
   },
+  // Structure is rows on paper: hairlines above and below, no panel.
   surface: {
-    borderRadius: radii.lg,
-    backgroundColor: colors.surfaceContainer,
-    overflow: "hidden",
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderMuted,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingEnd: 14,
+    paddingEnd: 4,
     paddingVertical: 10,
     minHeight: 54,
   },
   rowDivided: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.borderSubtle,
-  },
-  rowSelected: {
-    backgroundColor: colors.primarySurface,
+    borderTopColor: colors.borderMuted,
   },
   copy: {
     flex: 1,
@@ -211,7 +208,7 @@ const localStyles = StyleSheet.create({
     color: colors.textPrimary,
   },
   optionTextSelected: {
-    color: colors.primaryDeep,
+    fontFamily: "PlusJakartaSans_700Bold",
   },
   originLabel: {
     flexShrink: 0,
