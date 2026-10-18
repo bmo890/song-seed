@@ -1,185 +1,95 @@
-import { useEffect, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { useMemo, useState } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import { BottomSheet } from "./common/BottomSheet";
+import { Button } from "./common/Button";
+import { Press } from "./common/Press";
 import { buildImportedTitle } from "../services/audioStorage";
 import { useDuplicateReviewStore } from "../state/useDuplicateReviewStore";
-import { colors, radii } from "../design/tokens";
+import { colors, radii, spacing, text as textTokens } from "../design/tokens";
+import { looksMachineNamed } from "../domain/titleNaming";
 import type { ImportedAudioAsset } from "../services/audioStorage";
 import type { DuplicateLocation } from "../services/importDuplicates";
-import { useTranslation } from "react-i18next";
 import { UserText } from "../i18n";
+
+/**
+ * Some of what you're importing is already in your library (rebuilt 2026-10-18 to the
+ * design system: rows on paper, an ink tick per file, one primary).
+ *
+ * Where the flow can import any subset, every file is a row with a tick: files you
+ * already have start UNticked (skipped), new ones ticked, and "Import N" imports what is
+ * ticked. Tick a duplicate to import a copy anyway, so no choice is lost. Flows that can
+ * only import all or the new ones (a single song) keep that one choice: Skip, or Import
+ * copy. Swiping the sheet away cancels the import, as before.
+ */
+
+const ROW_HEIGHT = 56;
+const EMPTY_FLIPS: ReadonlySet<ImportedAudioAsset> = new Set();
+const MAX_VISIBLE_ROWS = 6;
 
 function formatSourceDate(ts: number, locale: string): string {
     return new Date(ts).toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" });
 }
 
-function LocationLine({ location }: { location: DuplicateLocation }) {
-    return (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 2 }}>
-            <View
-                style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 4,
-                    backgroundColor: location.workspaceColor ?? colors.primary,
-                }}
-            />
-            <UserText value={location.workspaceTitle} style={{ fontSize: 11, color: colors.textSecondary, lineHeight: 15 }} numberOfLines={1}>
-                {location.workspaceTitle}
-                {location.collectionTitle ? ` · ${location.collectionTitle}` : ""}
-            </UserText>
-        </View>
-    );
-}
-
 function FileRow({
     asset,
-    isDuplicate,
     location,
-    excluded,
-    canExclude,
-    onToggleExclude,
+    ticked,
+    tickable,
+    onToggle,
 }: {
     asset: ImportedAudioAsset;
-    isDuplicate: boolean;
+    /** Where your copy already lives, for a duplicate. */
     location?: DuplicateLocation;
-    excluded: boolean;
-    canExclude: boolean;
-    onToggleExclude: () => void;
+    ticked: boolean;
+    tickable: boolean;
+    onToggle: () => void;
 }) {
     const { t, i18n } = useTranslation();
     const title = buildImportedTitle(asset.name);
-    const dateLabel =
-        typeof asset.sourceCreatedAt === "number"
-            ? t("duplicateReview.originallyRecorded", { date: formatSourceDate(asset.sourceCreatedAt, i18n.language) })
-            : null;
+    const machine = looksMachineNamed(title);
+    const meta = location
+        ? location.collectionTitle
+            ? t("duplicateReview.livesIn", { collection: location.collectionTitle, workspace: location.workspaceTitle })
+            : t("duplicateReview.livesInWorkspace", { workspace: location.workspaceTitle })
+        : typeof asset.sourceCreatedAt === "number"
+          ? t("duplicateReview.originallyRecorded", { date: formatSourceDate(asset.sourceCreatedAt, i18n.language) })
+          : null;
 
-    return (
-        <View
-            style={{
-                flexDirection: "row",
-                alignItems: "flex-start",
-                gap: 10,
-                paddingVertical: 8,
-                paddingLeft: isDuplicate ? 10 : 0,
-                borderLeftWidth: isDuplicate ? 2 : 0,
-                borderLeftColor: isDuplicate ? colors.primary : "transparent",
-                opacity: excluded ? 0.4 : 1,
-            }}
-        >
-            <Ionicons
-                name={isDuplicate ? "documents-outline" : "add-circle-outline"}
-                size={16}
-                color={isDuplicate ? colors.primary : colors.textMuted}
-                style={{ marginTop: 2 }}
-            />
-            <View style={{ flex: 1, minWidth: 0 }}>
+    const body = (
+        <>
+            {tickable ? <View style={[s.dot, ticked ? s.dotOn : null]} /> : null}
+            <View style={s.rowCopy}>
                 <UserText
+                    value={title}
                     numberOfLines={1}
-                    style={{
-                        fontFamily: "PlusJakartaSans_500Medium",
-                        fontSize: 14,
-                        color: colors.textPrimary,
-                        lineHeight: 18,
-                        textDecorationLine: excluded ? "line-through" : "none",
-                    }}
+                    style={[s.title, machine ? s.titleMachine : null, tickable && !ticked ? s.titleOff : null]}
                 >
                     {title}
                 </UserText>
-                {location ? (
-                    <LocationLine location={location} />
-                ) : dateLabel ? (
-                    <Text style={{ fontSize: 11, color: colors.textMuted, lineHeight: 15, marginTop: 1 }}>
-                        {dateLabel}
-                    </Text>
+                {meta ? (
+                    <UserText value={meta} numberOfLines={1} style={s.meta}>
+                        {meta}
+                    </UserText>
                 ) : null}
             </View>
-            {canExclude ? (
-                <Pressable
-                    onPress={onToggleExclude}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel={t(excluded ? "duplicateReview.include" : "duplicateReview.exclude", { title })}
-                    style={({ pressed }) => ({ padding: 2, opacity: pressed ? 0.5 : 1 })}
-                >
-                    <Ionicons
-                        name={excluded ? "add-circle-outline" : "close-circle"}
-                        size={20}
-                        color={excluded ? colors.primary : colors.textMuted}
-                    />
-                </Pressable>
-            ) : null}
-        </View>
+        </>
     );
-}
 
-function SectionHeader({ label, count }: { label: string; count: number }) {
+    if (!tickable) return <View style={s.row}>{body}</View>;
     return (
-        <View
-            style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 6,
-                paddingVertical: 6,
-                borderBottomWidth: 1,
-                borderBottomColor: colors.borderSubtle,
-                marginBottom: 2,
-            }}
+        <Press
+            feel="surface"
+            // haptics.ts: light → a small state flip (a tick in a set).
+            haptic="light"
+            style={s.row}
+            onPress={onToggle}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: ticked }}
+            accessibilityLabel={t(ticked ? "duplicateReview.exclude" : "duplicateReview.include", { title })}
         >
-            <Text
-                style={{
-                    fontFamily: "PlusJakartaSans_700Bold",
-                    fontSize: 10,
-                    letterSpacing: 0.8,
-                    textTransform: "uppercase",
-                    color: colors.textSecondary,
-                }}
-            >
-                {label}
-            </Text>
-            <View style={{ backgroundColor: colors.surfaceContainer, borderRadius: radii.lg, paddingHorizontal: 6, paddingVertical: 1 }}>
-                <Text style={{ fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 11, color: colors.textSecondary }}>
-                    {count}
-                </Text>
-            </View>
-        </View>
-    );
-}
-
-function ActionButton({
-    label,
-    variant,
-    disabled,
-    onPress,
-}: {
-    label: string;
-    variant: "primary" | "secondary" | "ghost";
-    disabled?: boolean;
-    onPress: () => void;
-}) {
-    const bg = variant === "primary" ? colors.primary : variant === "secondary" ? colors.surfaceContainer : "transparent";
-    const textColor = variant === "primary" ? colors.onPrimary : variant === "secondary" ? colors.textPrimary : colors.textSecondary;
-
-    return (
-        <Pressable
-            disabled={disabled}
-            style={({ pressed }) => ({
-                flex: variant !== "ghost" ? 1 : undefined,
-                height: 44,
-                borderRadius: radii.lg,
-                backgroundColor: bg,
-                borderWidth: variant === "ghost" ? 1 : 0,
-                borderColor: colors.borderSubtle,
-                alignItems: "center",
-                justifyContent: "center",
-                paddingHorizontal: 12,
-                opacity: disabled ? 0.4 : pressed ? 0.7 : 1,
-            })}
-            onPress={onPress}
-        >
-            <Text style={{ fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 14, color: textColor }}>{label}</Text>
-        </Pressable>
+            {body}
+        </Press>
     );
 }
 
@@ -197,126 +107,197 @@ export function DuplicateReviewSheet() {
         dismiss,
     } = useDuplicateReviewStore();
 
-    // Per-row exclusion (only when the caller supports importing an arbitrary subset).
-    const canExclude = !!onImportSubset;
-    const [excluded, setExcluded] = useState<Set<ImportedAudioAsset>>(new Set());
-    // Reset the selection whenever a new review opens.
-    useEffect(() => {
-        setExcluded(new Set());
-    }, [allAssets]);
+    const tickable = !!onImportSubset;
+    // What gets imported. Files you already have start unticked: the common intent is
+    // "bring in what's new", and a copy is one tick away. Kept as the rows the person
+    // FLIPPED, tied to the review they belong to, and derived in render, so a fresh review
+    // opens with the right ticks on its first frame (never seeded from an effect).
+    const [flips, setFlips] = useState<{ review: ImportedAudioAsset[]; assets: Set<ImportedAudioAsset> }>(() => ({
+        review: allAssets,
+        assets: new Set(),
+    }));
+    const flipped = flips.review === allAssets ? flips.assets : EMPTY_FLIPS;
+    const uniqueSet = useMemo(() => new Set(uniqueAssets), [uniqueAssets]);
+    const isTicked = (asset: ImportedAudioAsset) => uniqueSet.has(asset) !== flipped.has(asset);
 
-    const toggleExclude = (asset: ImportedAudioAsset) => {
-        setExcluded((prev) => {
-            const next = new Set(prev);
+    const toggle = (asset: ImportedAudioAsset) =>
+        setFlips((previous) => {
+            const next = new Set(previous.review === allAssets ? previous.assets : EMPTY_FLIPS);
             if (next.has(asset)) next.delete(asset);
             else next.add(asset);
-            return next;
+            return { review: allAssets, assets: next };
         });
-    };
 
     const isSingle = allAssets.length === 1;
     const allDuplicates = uniqueAssets.length === 0;
-    const keptCount = allAssets.length - excluded.size;
+    const tickedCount = allAssets.filter(isTicked).length;
 
     const title = t(isSingle || allDuplicates ? "duplicateReview.alreadyImported" : "duplicateReview.someImported");
-    const subtitle = canExclude
+    const body = tickable
         ? t("duplicateReview.subsetBody")
         : isSingle
           ? t("duplicateReview.singleBody")
           : t("duplicateReview.copiesBody");
 
-    function handleImport() {
-        if (canExclude && onImportSubset) {
-            onImportSubset(allAssets.filter((asset) => !excluded.has(asset)));
-        } else {
-            onImportAll();
-        }
+    const rowCount = duplicateAssets.length + uniqueAssets.length;
+    const sectionCount = (duplicateAssets.length > 0 ? 1 : 0) + (uniqueAssets.length > 0 ? 1 : 0);
+    const listHeight = Math.min(rowCount, MAX_VISIBLE_ROWS) * ROW_HEIGHT + sectionCount * 34;
+
+    function importTicked() {
+        onImportSubset?.(allAssets.filter(isTicked));
         dismiss();
     }
-
-    function handleSkip() {
+    function skip() {
         onSkip();
         dismiss();
     }
+    function importAll() {
+        onImportAll();
+        dismiss();
+    }
 
-    const MAX_VISIBLE_ROWS = 6;
-    const totalRows = duplicateAssets.length + uniqueAssets.length;
-    const listHeight = Math.min(totalRows, MAX_VISIBLE_ROWS) * 58;
-
-    const importLabel = canExclude
-        ? keptCount === allAssets.length
-            ? t("duplicateReview.importAll", { count: allAssets.length })
-            : t("duplicateReview.importCount", { count: keptCount })
-        : isSingle || allDuplicates
-          ? t("duplicateReview.importCopy")
-          : t("duplicateReview.importAllShort");
-
-    const hasBothSections = duplicateAssets.length > 0 && uniqueAssets.length > 0;
+    const renderRows = (assets: ImportedAudioAsset[], duplicates: boolean) =>
+        assets.map((asset, index) => (
+            <FileRow
+                key={`${duplicates ? "d" : "n"}-${index}-${asset.uri}`}
+                asset={asset}
+                location={
+                    duplicates && typeof asset.sourceCreatedAt === "number"
+                        ? locationsBySourceDate[asset.sourceCreatedAt]
+                        : undefined
+                }
+                ticked={isTicked(asset)}
+                tickable={tickable}
+                onToggle={() => toggle(asset)}
+            />
+        ));
 
     return (
         <BottomSheet visible={visible} onClose={dismiss}>
-            <View style={{ gap: 3, marginBottom: 14 }}>
-                <Text style={{ fontFamily: "Lora_600SemiBold", fontSize: 18, color: colors.textPrimary, lineHeight: 24 }}>
-                    {title}
-                </Text>
-                <Text style={{ fontSize: 13, color: colors.textSecondary, lineHeight: 18 }}>{subtitle}</Text>
+            <View style={s.head}>
+                <Text style={s.heading}>{title}</Text>
+                <Text style={s.body}>{body}</Text>
             </View>
 
             <ScrollView style={{ maxHeight: listHeight }} showsVerticalScrollIndicator={false} bounces={false}>
                 {duplicateAssets.length > 0 ? (
-                    <View style={{ marginBottom: 10 }}>
-                        <SectionHeader label={t("duplicateReview.alreadyLibrary")} count={duplicateAssets.length} />
-                        {duplicateAssets.map((asset, i) => (
-                            <FileRow
-                                key={`d-${asset.sourceCreatedAt ?? i}`}
-                                asset={asset}
-                                isDuplicate
-                                location={
-                                    typeof asset.sourceCreatedAt === "number"
-                                        ? locationsBySourceDate[asset.sourceCreatedAt]
-                                        : undefined
-                                }
-                                excluded={excluded.has(asset)}
-                                canExclude={canExclude}
-                                onToggleExclude={() => toggleExclude(asset)}
-                            />
-                        ))}
-                    </View>
+                    <>
+                        <Text style={s.sectionLabel}>{t("duplicateReview.alreadyLibrary")}</Text>
+                        <View style={s.rows}>{renderRows(duplicateAssets, true)}</View>
+                    </>
                 ) : null}
-
                 {uniqueAssets.length > 0 ? (
-                    <View style={{ marginBottom: 4 }}>
-                        <SectionHeader label={t("duplicateReview.new")} count={uniqueAssets.length} />
-                        {uniqueAssets.map((asset, i) => (
-                            <FileRow
-                                key={`u-${asset.sourceCreatedAt ?? i}`}
-                                asset={asset}
-                                isDuplicate={false}
-                                excluded={excluded.has(asset)}
-                                canExclude={canExclude}
-                                onToggleExclude={() => toggleExclude(asset)}
-                            />
-                        ))}
-                    </View>
+                    <>
+                        <Text style={s.sectionLabel}>{t("duplicateReview.new")}</Text>
+                        <View style={s.rows}>{renderRows(uniqueAssets, false)}</View>
+                    </>
                 ) : null}
             </ScrollView>
 
-            <View style={{ gap: 8, marginTop: 16 }}>
-                <View style={{ flexDirection: "row", gap: 8 }}>
-                    <ActionButton
-                        label={t(hasBothSections ? "duplicateReview.skipDuplicates" : "duplicateReview.skip")}
-                        variant="secondary"
-                        onPress={handleSkip}
+            {tickable ? (
+                <View style={s.actions}>
+                    <Button
+                        // Nothing ticked reads "Import", not "Import 0".
+                        label={tickedCount > 0 ? t("duplicateReview.importCount", { count: tickedCount }) : t("duplicateReview.import")}
+                        disabled={tickedCount === 0}
+                        onPress={importTicked}
                     />
-                    <ActionButton
-                        label={importLabel}
-                        variant="primary"
-                        disabled={canExclude && keptCount === 0}
-                        onPress={handleImport}
+                    <Button variant="quiet" label={t("duplicateReview.cancel")} onPress={dismiss} />
+                </View>
+            ) : (
+                <View style={[s.actions, s.actionsRow]}>
+                    <Button
+                        variant="secondary"
+                        style={s.flex}
+                        label={t(isSingle || allDuplicates ? "duplicateReview.importCopy" : "duplicateReview.importAllShort")}
+                        onPress={importAll}
+                    />
+                    <Button
+                        style={s.flex}
+                        label={t(allDuplicates ? "duplicateReview.skip" : "duplicateReview.skipDuplicates")}
+                        onPress={skip}
                     />
                 </View>
-                <ActionButton label={t("duplicateReview.cancel")} variant="ghost" onPress={dismiss} />
-            </View>
+            )}
         </BottomSheet>
     );
 }
+
+const s = StyleSheet.create({
+    head: {
+        gap: 4,
+        marginBottom: spacing.sm,
+    },
+    heading: {
+        ...textTokens.headerTitle,
+        fontSize: 19,
+    },
+    body: {
+        ...textTokens.supporting,
+        color: colors.textSecondary,
+    },
+    sectionLabel: {
+        ...textTokens.annotation,
+        color: colors.textSecondary,
+        marginTop: spacing.md,
+        marginBottom: 2,
+    },
+    rows: {
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: colors.borderMuted,
+    },
+    row: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        minHeight: ROW_HEIGHT,
+        paddingVertical: 6,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: colors.borderMuted,
+    },
+    // The ink tick (InkOption's dot): hollow = left out, terracotta = imported.
+    dot: {
+        width: 10,
+        height: 10,
+        borderRadius: radii.round,
+        borderWidth: 1.5,
+        borderColor: colors.textMuted,
+    },
+    dotOn: {
+        backgroundColor: colors.primary,
+        borderColor: colors.primary,
+    },
+    rowCopy: {
+        flex: 1,
+        minWidth: 0,
+        gap: 2,
+    },
+    title: {
+        fontFamily: "Lora_600SemiBold",
+        fontSize: 16,
+        color: colors.textPrimary,
+    },
+    titleMachine: {
+        fontFamily: "PlusJakartaSans_500Medium",
+        fontSize: 15,
+        color: colors.textStrong,
+        fontVariant: ["tabular-nums"],
+    },
+    titleOff: {
+        color: colors.textMuted,
+    },
+    meta: {
+        ...textTokens.caption,
+        color: colors.textSecondary,
+    },
+    actions: {
+        gap: spacing.sm,
+        marginTop: spacing.md,
+    },
+    actionsRow: {
+        flexDirection: "row",
+    },
+    flex: {
+        flex: 1,
+    },
+});
