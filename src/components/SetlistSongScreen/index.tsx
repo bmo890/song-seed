@@ -69,7 +69,7 @@ export function SetlistSongScreen() {
   const metaParts = [
     t("setlistSong.partCount", { count: entry.parts.length }),
     ...(hasLyrics ? [t("setlistSong.lyrics")] : []),
-    ...(hasChords ? [t("setlistSong.chords")] : []),
+    ...(hasChords ? [t("setlistSong.chart")] : []),
     ...(showNotes ? [t("setlistSong.notes")] : []),
   ];
 
@@ -138,7 +138,7 @@ export function SetlistSongScreen() {
                 style={({ pressed }) => [folderStyles.chartBtn, pressed ? { opacity: 0.7 } : null]}
                 onPress={() => navigation.navigate("ChordSheet", { ideaId: idea.id })}
                 accessibilityRole="button"
-                accessibilityLabel={t("setlistSong.openChords")}
+                accessibilityLabel={t("setlistSong.openChart")}
               >
                 <Ionicons name="grid-outline" size={14} color={colors.textStrong} />
                 <Text style={folderStyles.chartBtnLabel}>{t("common.chords")}</Text>

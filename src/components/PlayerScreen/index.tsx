@@ -52,7 +52,10 @@ import { buildLyricPreview } from "../../domain/pagePreview";
 import type { ListeningBelow } from "../../domain/reelLanes";
 import { InkKey, inkKeyColor } from "../common/InkKey";
 import { MarksToggle } from "./components/MarksToggle";
-import { InkOption } from "../common/InkOption";
+import { ReadingSheet, readingKeyLabel } from "../common/ReadingSheet";
+import { linesFromText } from "../common/SongReading";
+import { useChartPrefsStore, useReadingChordShift } from "../../state/useChartPrefsStore";
+import { transposeChordSheet, transposeLyricsLines } from "../../domain/transpose";
 import { Press } from "../common/Press";
 import { PlayerPinSheets } from "./components/PlayerPinSheets";
 import { PlayerLyricsWriter } from "./components/PlayerLyricsWriter";
@@ -295,6 +298,21 @@ function PlayerScreenInner({
   const isWriting = isReading && ui.readingArtifact === "lyrics" && ui.lyricsWriting;
   const isFullView = isReading && !isWriting && ui.readingAltitude === "full";
   const chordSheet = playerIdea?.kind === "project" ? playerIdea.chordSheet ?? null : null;
+  // How the song reads (shared with the songbook reader and setlist pages):
+  // one remembered size and chords on/off, and this song's key and capo,
+  // applied to what is drawn, never to the song itself.
+  const readingZoom = useChartPrefsStore((st) => st.readingZoom);
+  const chordsHidden = useChartPrefsStore((st) => st.chordsHidden);
+  const readingShift = useReadingChordShift(playerIdea?.id);
+  const readingKeyText = readingKeyLabel(t, readingShift.transpose, readingShift.capo);
+  const readingLyricLines = useMemo(() => {
+    if (!lyricsChordLines) return linesFromText(displayedLyricsText);
+    return readingShift.shift ? transposeLyricsLines(lyricsChordLines, readingShift.shift) : lyricsChordLines;
+  }, [displayedLyricsText, lyricsChordLines, readingShift.shift]);
+  const readingChordSheet = useMemo(
+    () => (chordSheet && readingShift.shift ? transposeChordSheet(chordSheet, readingShift.shift) : chordSheet),
+    [chordSheet, readingShift.shift]
+  );
   const hasChart = useMemo(
     () =>
       !!chordSheet &&
@@ -1407,7 +1425,7 @@ function PlayerScreenInner({
                     accessibilityRole="button"
                     accessibilityLabel={t("player.closeReading")}
                   >
-                    <Ionicons name="chevron-up" size={14} color={colors.textSecondary} />
+                    <Ionicons name="chevron-up" size={14} color={colors.textStrong} />
                     <Text style={playerScreenStyles.reelExpandText}>
                       {ui.readingArtifact === "chart" ? t("screens.chart") : t("common.lyrics")}
                     </Text>
@@ -1423,7 +1441,7 @@ function PlayerScreenInner({
                   ) : null}
                   </View>
                   {isWriting ? (
-                    <View style={playerScreenStyles.reelToolbarRight}>
+                    <View style={playerScreenStyles.readingToolbarRight}>
                       {/* Loop: the writer's companion — keep a part going while words come. */}
                       <Pressable
                         style={({ pressed }) => [
@@ -1441,7 +1459,7 @@ function PlayerScreenInner({
                         <Ionicons
                           name="repeat"
                           size={14}
-                          color={practiceLoopEnabled ? colors.primaryDeep : colors.textSecondary}
+                          color={practiceLoopEnabled ? colors.primaryDeep : colors.textStrong}
                         />
                         <Text
                           style={[
@@ -1463,7 +1481,7 @@ function PlayerScreenInner({
                           accessibilityRole="button"
                           accessibilityLabel={t("player.loopWhat")}
                         >
-                          <Ionicons name="albums-outline" size={15} color={colors.textSecondary} />
+                          <Ionicons name="albums-outline" size={15} color={colors.textStrong} />
                         </Pressable>
                       ) : null}
                       <Pressable
@@ -1476,7 +1494,7 @@ function PlayerScreenInner({
                         accessibilityRole="button"
                         accessibilityLabel={t("player.newVersionTitle")}
                       >
-                        <Ionicons name="duplicate-outline" size={15} color={colors.textSecondary} />
+                        <Ionicons name="duplicate-outline" size={15} color={colors.textStrong} />
                       </Pressable>
                       {/* Transport lives here while the keyboard buries the footer. */}
                       <Pressable
@@ -1497,7 +1515,7 @@ function PlayerScreenInner({
                       </Pressable>
                     </View>
                   ) : (
-                  <View style={playerScreenStyles.reelToolbarRight}>
+                  <View style={playerScreenStyles.readingToolbarRight}>
                     {/* Follow: only offered where it can act. */}
                     <Pressable
                       style={({ pressed }) => [
@@ -1513,7 +1531,7 @@ function PlayerScreenInner({
                       <Ionicons
                         name={ui.followEnabled ? "musical-notes" : "musical-notes-outline"}
                         size={14}
-                        color={ui.followEnabled ? colors.primaryDeep : colors.textSecondary}
+                        color={ui.followEnabled ? colors.primaryDeep : colors.textStrong}
                       />
                       <Text
                         style={[
@@ -1534,24 +1552,25 @@ function PlayerScreenInner({
                           if (guardPracticeTool("speed")) handleSpeedTap(value);
                         }}
                       />
-                    ) : ui.readingArtifact === "lyrics" ? (
-                      // Aa opens the same text-size slider the sparks use —
-                      // one control for "make the words bigger" everywhere.
-                      <Pressable
-                        style={({ pressed }) => [
-                          playerScreenStyles.readingIconButton,
-                          pressed ? playerScreenStyles.overflowButtonPressed : null,
-                        ]}
-                        onPress={() => {
-                          haptic.tap();
-                          setTextSizeOpen(true);
-                        }}
+                    ) : ui.readingArtifact === "lyrics" || hasChart ? (
+                      // Aa opens the reading sheet the songbook reader and a
+                      // setlist page share: size, key, capo, chords. Beside the
+                      // glyph, the key or capo in force, so it shows on stage.
+                      <Press
+                        feel="glyph"
+                        // haptics.ts: tap → a control acted (a sheet opens).
+                        haptic="tap"
+                        style={playerScreenStyles.readingAaButton}
+                        onPress={() => setTextSizeOpen(true)}
                         hitSlop={6}
                         accessibilityRole="button"
-                        accessibilityLabel={t("player.lyricSize")}
+                        accessibilityLabel={t("reading.sheetA11y")}
                       >
-                        <Ionicons name="text" size={15} color={colors.textSecondary} />
-                      </Pressable>
+                        <Text style={playerScreenStyles.readingAaGlyph}>{t("reading.aa")}</Text>
+                        {readingKeyText ? (
+                          <Text style={playerScreenStyles.readingAaKey}>{readingKeyText}</Text>
+                        ) : null}
+                      </Press>
                     ) : null}
                     {playerIdea.kind === "project" ? (
                       // Read → notice a line → fix it. Lyrics are written here,
@@ -1568,7 +1587,7 @@ function PlayerScreenInner({
                         }
                         testID="player-edit-artifact"
                       >
-                        <Ionicons name="create-outline" size={15} color={colors.textSecondary} />
+                        <Ionicons name="create-outline" size={15} color={colors.textStrong} />
                       </Press>
                     ) : null}
                     <Pressable
@@ -1587,7 +1606,7 @@ function PlayerScreenInner({
                       <Ionicons
                         name={isFullView ? "contract-outline" : "expand-outline"}
                         size={15}
-                        color={colors.textSecondary}
+                        color={colors.textStrong}
                       />
                     </Pressable>
                   </View>
@@ -1761,11 +1780,10 @@ function PlayerScreenInner({
               ) : null}
               <PlayerArtifactReader
                 artifact={ui.readingArtifact!}
-                text={displayedLyricsText}
-                chordLines={lyricsChordLines}
-                chordSheet={chordSheet}
-                zoom={ui.readingZoom}
-                showChords={ui.chordsVisible}
+                lyricLines={readingLyricLines}
+                chordSheet={readingChordSheet}
+                zoom={readingZoom}
+                showChords={!chordsHidden}
                 followEnabled={ui.followEnabled}
                 positionMs={effectivePlayerPosition}
                 durationMs={effectivePlayerDuration}
@@ -1962,20 +1980,13 @@ function PlayerScreenInner({
         items={OVERDUB_HELP.items}
       />
 
-      <BottomSheet visible={textSizeOpen} onClose={() => setTextSizeOpen(false)}>
-        <Text style={playerScreenStyles.textSizeSheetLabel}>{t("player.lyricSize")}</Text>
-        <ChordZoomBar zoom={ui.readingZoom} onChange={ui.setReadingZoom} />
-        {lyricsChordLines ? (
-          // Chords over the words are a reading preference too — editorial ink,
-          // hollow dot → terracotta, same voice as every on/off.
-          <InkOption
-            label={t("player.chords")}
-            selected={ui.chordsVisible}
-            onPress={() => ui.setChordsVisible(!ui.chordsVisible)}
-            style={playerScreenStyles.chordsInk}
-          />
-        ) : null}
-      </BottomSheet>
+      <ReadingSheet
+        visible={textSizeOpen}
+        onClose={() => setTextSizeOpen(false)}
+        ideaId={playerIdea?.id ?? null}
+        hasChords={!!lyricsChordLines || hasChart}
+        hasLyricChords={!!lyricsChordLines && ui.readingArtifact !== "chart"}
+      />
     </SafeAreaView>
   );
 

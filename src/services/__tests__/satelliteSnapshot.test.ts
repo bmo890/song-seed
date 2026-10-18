@@ -22,7 +22,7 @@ import { useSentLinksStore } from "../../state/useSentLinksStore";
 beforeEach(async () => {
     await AsyncStorage.clear();
     useShelfStore.setState({ entries: [], departed: [] });
-    useChartPrefsStore.setState({ transposeByIdeaId: {} });
+    useChartPrefsStore.setState({ transposeByIdeaId: {}, capoByIdeaId: {}, readingZoom: 1, chordsHidden: false });
     useSentLinksStore.setState({ links: [] });
 });
 
@@ -38,7 +38,12 @@ describe("collectSatelliteSnapshot", () => {
         expect(snapshot.uiLanguage).toBe("he");
         expect(snapshot.stores.shelf).toMatchObject({ name: "songnook-shelf-store", version: 1 });
         expect((snapshot.stores.shelf!.state.entries as unknown[]).length).toBe(1);
-        expect(snapshot.stores.chartPrefs!.state).toEqual({ transposeByIdeaId: { "idea-1": 2 } });
+        expect(snapshot.stores.chartPrefs!.state).toEqual({
+            transposeByIdeaId: { "idea-1": 2 },
+            capoByIdeaId: {},
+            readingZoom: 1,
+            chordsHidden: false,
+        });
         // Persisted slice only — no functions leak into the backup.
         expect(Object.values(snapshot.stores.shelf!.state).some((v) => typeof v === "function")).toBe(false);
     });
@@ -80,9 +85,11 @@ describe("writeSatelliteSnapshot", () => {
         );
         expect(result.written).toEqual(["chartPrefs"]);
         expect(result.skipped).toEqual(["shelf"]);
+        // A backup from before capo (store v1) lands under today's version; the
+        // store's merge fills what it lacks.
         expect(JSON.parse((await AsyncStorage.getItem("songnook-chart-prefs"))!)).toEqual({
             state: { transposeByIdeaId: { a: -1 } },
-            version: 1,
+            version: 2,
         });
         expect(await AsyncStorage.getItem("songnook-ui-language-v1")).toBe("he");
     });

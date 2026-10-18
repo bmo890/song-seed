@@ -10,6 +10,16 @@ export const LYRIC_LINE_HEIGHT = 22;
 export const CHORD_FONT_SIZE = 13;
 export const CHORD_ROW_HEIGHT = 22;
 
+/** The READING scale (2026-10-18): one size for words wherever a song is read,
+ *  the player, the songbook reader, a setlist page and the lyric pages, with
+ *  or without chords. Chords ride above in bold sans ink. Multiply by zoom. */
+export const READING_LYRIC_SIZE = 19;
+export const READING_LYRIC_LINE_HEIGHT = 30;
+/** A word under a chord sits tighter: the chord row above already parts it. */
+export const READING_CHORDED_LINE_HEIGHT = 26;
+export const READING_CHORD_SIZE = 14;
+export const READING_CHORD_ROW_HEIGHT = 20;
+
 /** Reference string length used to measure the monospace advance width. */
 export const MEASURE_SAMPLE = "0".repeat(40);
 
