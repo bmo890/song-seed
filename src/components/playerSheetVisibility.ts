@@ -15,7 +15,6 @@ export const OBSCURING_ROUTES = new Set([
   "Lyrics",
   "LyricsVersion",
   "ChordSheet",
-  "ClipLineage",
   "ShareImport",
 ]);
 

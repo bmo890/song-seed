@@ -119,12 +119,10 @@ export function SongClipListContent({
   // on them), so the added callbacks are stable wrappers over a latest-impl ref.
   const latestRef = useRef({
     focusClipInEvolution,
-    openLineageHistory: actions.openLineageHistory,
     headerHeight,
   });
   latestRef.current = {
     focusClipInEvolution,
-    openLineageHistory: actions.openLineageHistory,
     headerHeight,
   };
 
@@ -149,17 +147,6 @@ export function SongClipListContent({
     [clipCardContext]
   );
 
-  const evolutionClipCardContext = useMemo<ClipCardContextProps>(
-    () => ({
-      ...clipCardContext,
-      actions: {
-        ...clipCardContext.actions,
-        onViewLineageHistory: (rootClipId: string) =>
-          latestRef.current.openLineageHistory(rootClipId),
-      },
-    }),
-    [clipCardContext]
-  );
 
   const body =
     screen.clipViewMode === "timeline" ? (
@@ -182,7 +169,7 @@ export function SongClipListContent({
         summaryContent={summaryContent}
         footerSpacerHeight={footerSpacerHeight}
         primaryEntry={primaryEntry}
-        clipCardContext={evolutionClipCardContext}
+        clipCardContext={clipCardContext}
         scrollY={screen.scrollY}
         contentPaddingTop={headerHeight}
         contentPaddingHorizontal={16}
