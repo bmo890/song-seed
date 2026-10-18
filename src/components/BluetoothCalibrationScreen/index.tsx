@@ -1,7 +1,9 @@
 import { useNavigation } from "@react-navigation/native";
 import { useAudioPlayer } from "expo-audio";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Spinner } from "../common/Spinner";
 import { Ionicons } from "@expo/vector-icons";
@@ -115,6 +117,42 @@ export function BluetoothCalibrationScreen() {
    *  run in flight, so a Stop in that window can't start the engine afterwards or
    *  arm a finish timer nothing clears (audit 2026-10-18). */
   const runIdRef = useRef(0);
+  const phaseRef = useRef<CalibrationPhase>("idle");
+  phaseRef.current = phase;
+  const handleTapAtRef = useRef(handleTapAt);
+  handleTapAtRef.current = handleTapAt;
+  const padPressed = useSharedValue(0);
+  const tapGesture = useMemo(() => {
+    const record = (epochMs: number) => handleTapAtRef.current(epochMs);
+    // Manual: never activates, so it claims nothing; it only hears every finger land.
+    return Gesture.Manual()
+      .onTouchesDown(() => {
+        "worklet";
+        const at = Date.now();
+        padPressed.value = 1;
+        runOnJS(record)(at);
+      })
+      .onTouchesUp((event) => {
+        "worklet";
+        if (event.numberOfTouches <= 1) padPressed.value = 0;
+      })
+      .onTouchesCancelled(() => {
+        "worklet";
+        padPressed.value = 0;
+      });
+  }, [padPressed]);
+  // The shared press-down feel, driven from the touch thread; released
+  // explicitly back to rest so no transform lingers.
+  const pressDown = StyleSheet.flatten(globalStyles.pressDown) ?? {};
+  const pressedOpacity = typeof pressDown.opacity === "number" ? pressDown.opacity : 1;
+  const pressedScale =
+    (Array.isArray(pressDown.transform)
+      ? (pressDown.transform.find((entry) => "scale" in entry) as { scale?: number } | undefined)?.scale
+      : undefined) ?? 1;
+  const tapPadPressStyle = useAnimatedStyle(() => ({
+    opacity: padPressed.value ? pressedOpacity : 1,
+    transform: [{ scale: padPressed.value ? pressedScale : 1 }],
+  }));
 
   const audioPlayer = useAudioPlayer(audioLoopUri ? { uri: audioLoopUri } : null, { updateInterval: 250 });
   // The player instance is recreated whenever the pattern (and its file) changes; timer
@@ -552,14 +590,17 @@ export function BluetoothCalibrationScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeRouteKey, isPassRunning, bluetoothTargetRoute]);
 
-  function handleTap() {
-    if (phase !== "player-running" && phase !== "click-running") {
+  /** A tap at `epochMs`, the moment the finger met the pad (stamped on the touch
+   *  thread). Phase is read from a ref: the gesture keeps one callback for the run. */
+  function handleTapAt(epochMs: number) {
+    const current = phaseRef.current;
+    if (current !== "player-running" && current !== "click-running") {
       return;
     }
     if (phaseStartAtRef.current == null) {
       return;
     }
-    tapEpochsRef.current.push(Date.now());
+    tapEpochsRef.current.push(epochMs);
   }
 
   function adjustDraftOffset(deltaMs: number) {
@@ -753,17 +794,23 @@ export function BluetoothCalibrationScreen() {
                   ? t("bluetoothCalibration.clickInstruction")
                   : t("bluetoothCalibration.musicInstruction")}
             </Text>
-            {/* The pad stays a raw press on purpose: no haptic of its own, nothing
-                between the finger and the timestamp the analysis reads. */}
-            <Pressable
-              style={({ pressed }) => [screenStyles.tapPad, pressed ? globalStyles.pressDown : null]}
-              onPress={handleTap}
-              accessibilityRole="button"
-              accessibilityLabel={t("bluetoothCalibration.tap")}
-            >
-              <Ionicons name="hand-left-outline" size={32} color={colors.primaryDeep} />
-              <Text style={screenStyles.tapPadLabel}>{t("bluetoothCalibration.tap")}</Text>
-            </Pressable>
+            {/* The pad is timed at TOUCH-DOWN, stamped on the touch thread (2026-10-18).
+                A press used to register on the finger's lift, read on the busy JS thread:
+                ~60–150 ms after the hit the tapper aims at the beat, which read every
+                Bluetooth delay that much high and landed takes early. No haptic of its
+                own, nothing between the finger and the timestamp. */}
+            <GestureDetector gesture={tapGesture}>
+              <Animated.View
+                style={[screenStyles.tapPad, tapPadPressStyle]}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={t("bluetoothCalibration.tap")}
+                onAccessibilityTap={() => handleTapAt(Date.now())}
+              >
+                <Ionicons name="hand-left-outline" size={32} color={colors.primaryDeep} />
+                <Text style={screenStyles.tapPadLabel}>{t("bluetoothCalibration.tap")}</Text>
+              </Animated.View>
+            </GestureDetector>
             <Button
               variant="quiet"
               label={t("bluetoothCalibration.stop")}
@@ -811,7 +858,11 @@ export function BluetoothCalibrationScreen() {
                   onPress={schedulePhase}
                   disabled={!isBluetoothRoute || isPreparingAudio || !audioLoopUri}
                 />
-                {isBluetoothRoute && reportedLatencyMs != null ? (
+                {/* The phone's reported delay describes its quick audio path (the click).
+                    On Android the media player, which carries the song, buffers far more,
+                    so one reported number would set the music delay too low and land
+                    layers late: there, the music delay has to be tapped. */}
+                {isBluetoothRoute && reportedLatencyMs != null && Platform.OS === "ios" ? (
                   <View style={screenStyles.linkRow}>
                     <InkLink
                       label={t("bluetoothCalibration.useReportedMs", { value: reportedLatencyMs })}
