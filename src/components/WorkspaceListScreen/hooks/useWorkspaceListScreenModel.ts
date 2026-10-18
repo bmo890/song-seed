@@ -292,7 +292,7 @@ export function useWorkspaceListScreenModel() {
     if (isEditing && editingWorkspace) {
       updateWorkspace(editingWorkspace.id, { title: finalName, description, color, avatarKey });
     } else {
-      addWorkspace(finalName, description, avatarKey);
+      addWorkspace(finalName, description, avatarKey, color);
     }
     closeModal();
   }

@@ -240,7 +240,7 @@ export type DataSlice = {
     setLastSuccessfulBackupAt: (timestamp: number | null) => void;
     setLastSuccessfulBackupFileName: (fileName: string | null) => void;
     setBackupReminderLastPromptedAt: (timestamp: number | null) => void;
-    addWorkspace: (title: string, description?: string, avatarKey?: number) => void;
+    addWorkspace: (title: string, description?: string, avatarKey?: number, color?: string) => void;
     updateWorkspace: (id: string, updates: { title?: string; description?: string; color?: string; avatarKey?: number }) => void;
     deleteWorkspace: (id: string) => void;
     /** Flip a received package into a personal workspace ("Move to my workspaces"). */
@@ -1776,11 +1776,13 @@ export const createDataSlice: StateCreator<
     setLastSuccessfulBackupFileName: (fileName) => set({ lastSuccessfulBackupFileName: fileName }),
     setBackupReminderLastPromptedAt: (timestamp) => set({ backupReminderLastPromptedAt: timestamp }),
 
-    addWorkspace: (title, description, avatarKey) => {
+    addWorkspace: (title, description, avatarKey, chosenColor) => {
         const workspaceId = `ws-${Date.now()}`;
         const now = Date.now();
-        // Use timestamp to vary color naturally by creation time
-        const color = WORKSPACE_COLORS[now % WORKSPACE_COLORS.length];
+        // The colour picked in the sheet (2026-10-18: it was dropped here, so a new
+        // workspace came out a different colour than its preview). Without one, vary
+        // by creation time.
+        const color = chosenColor ?? WORKSPACE_COLORS[now % WORKSPACE_COLORS.length];
         const newWorkspace = {
             id: workspaceId,
             title,
