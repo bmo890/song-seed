@@ -8,12 +8,13 @@ import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { EmptyState } from "../../common/EmptyState";
 import { SentLinkChip } from "../../common/SentLinkChip";
 import { NowPlayingIndicator } from "../../common/NowPlayingIndicator";
-import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
+import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
 import { fmtDuration } from "../../../utils";
 import { getClipPlaybackDurationMs } from "../../../domain/clipPresentation";
 import type { Songbook } from "../../../types";
 import { availableViewsForSong, type SongbookSong } from "../../../domain/songbookGrouping";
+import { looksMachineNamed } from "../../../domain/titleNaming";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../../i18n";
 
@@ -34,7 +35,7 @@ type SongbookDetailViewProps = {
   onDelete: () => void;
 };
 
-/** The book of your songs — one row per song, chart-kind chips, reference audio
+/** The book of your songs — one card per song, what it holds as a quiet line, reference audio
  *  a tap away, and the reader behind the big open button. Design mirrors
  *  PlaylistDetailView so the Library's tabs read as one family. */
 export function SongbookDetailView({
@@ -123,7 +124,7 @@ export function SongbookDetailView({
           <Ionicons
             name={editMode ? "checkmark" : "pencil"}
             size={16}
-            color={editMode ? colors.onPrimary : colors.textStrong}
+            color={editMode ? colors.primaryDeep : colors.textStrong}
           />
         </Pressable>
 
@@ -185,7 +186,7 @@ export function SongbookDetailView({
                   accessibilityRole="button"
                   accessibilityLabel={t("library.removeBookSong", { title: song.title })}
                 >
-                  <Ionicons name="remove-circle-outline" size={19} color="#B4574A" />
+                  <Ionicons name="remove-circle-outline" size={19} color={colors.danger} />
                 </Pressable>
               ) : (
                 <Pressable
@@ -209,7 +210,7 @@ export function SongbookDetailView({
                     <Ionicons
                       name="play"
                       size={12}
-                      color={song.playableClip ? colors.textPrimary : colors.textMuted}
+                      color={song.playableClip ? colors.textStrong : colors.textMuted}
                       style={{ marginLeft: 1 }}
                     />
                   )}
@@ -235,6 +236,7 @@ export function SongbookDetailView({
                 <UserText value={song.title}
                   style={[
                     bookStyles.rowTitle,
+                    looksMachineNamed(song.title) ? bookStyles.rowTitleMachine : null,
                     isNowPlaying ? bookStyles.rowTitleActive : null,
                     !song.available ? bookStyles.rowTitleMissing : null,
                   ]}
@@ -242,20 +244,16 @@ export function SongbookDetailView({
                 >
                   {song.title}
                 </UserText>
-                <View style={bookStyles.chipRow}>
-                  {song.available ? (
-                    <>
-                      <Text style={[bookStyles.kindChip, song.hasLyricChart ? bookStyles.kindChipOn : null]}>
-                        {t("common.lyrics")}
-                      </Text>
-                      <Text style={[bookStyles.kindChip, song.hasChordChart ? bookStyles.kindChipOn : null]}>
-                        {t("common.chords")}
-                      </Text>
-                    </>
-                  ) : (
-                    <Text style={bookStyles.missingText}>{t("library.missing")}</Text>
-                  )}
-                </View>
+                {!song.available ? (
+                  <Text style={bookStyles.missingText}>{t("library.missing")}</Text>
+                ) : song.hasLyricChart || song.hasChordChart ? (
+                  <Text style={bookStyles.rowMeta}>
+                    {[
+                      ...(song.hasLyricChart ? [t("reading.lyrics")] : []),
+                      ...(song.hasChordChart ? [t("reading.chart")] : []),
+                    ].join(" · ")}
+                  </Text>
+                ) : null}
               </Pressable>
 
               {durationMs != null && song.available && !editMode ? (
@@ -368,17 +366,15 @@ const bookStyles = StyleSheet.create({
   readBtnDisabled: {
     opacity: 0.4,
   },
+  // Secondary keys are bare ink glyphs (2026-10-18): no fill, no circle.
+  // Active (editing, shuffle on) is terracotta ink.
   quietBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceContainer,
+    width: 40,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
-  quietBtnActive: {
-    backgroundColor: colors.primary,
-  },
+  quietBtnActive: {},
   actionSpacer: {
     flex: 1,
   },
@@ -387,26 +383,25 @@ const bookStyles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 10,
   },
+  // A song is your work: the card recipe (white, r12, borderless, whisper).
   songRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 14,
+    minHeight: 64,
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    borderRadius: radii.lg,
-    paddingVertical: 11,
-    paddingHorizontal: 12,
-    marginBottom: 8,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 10,
+    ...shadows.card,
   },
   songRowDragging: {
     opacity: 0.92,
   },
   rowPlay: {
-    width: 30,
-    height: 30,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
+    width: 28,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -416,42 +411,28 @@ const bookStyles = StyleSheet.create({
   rowMain: {
     flex: 1,
     minWidth: 0,
-    gap: 5,
+    gap: 2,
   },
   rowTitle: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 14,
+    fontFamily: "Lora_600SemiBold",
+    fontSize: 17,
     color: colors.textPrimary,
+  },
+  rowTitleMachine: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 15,
+    color: colors.textStrong,
+    fontVariant: ["tabular-nums"],
+  },
+  rowMeta: {
+    ...textTokens.caption,
+    color: colors.textSecondary,
   },
   rowTitleActive: {
     color: colors.primaryDeep,
   },
   rowTitleMissing: {
     color: colors.textMuted,
-  },
-  chipRow: {
-    flexDirection: "row",
-    gap: 5,
-  },
-  kindChip: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 8.5,
-    letterSpacing: 0.7,
-    textTransform: "uppercase",
-    color: colors.textSecondary,
-    backgroundColor: colors.surfaceContainer,
-    borderRadius: 4,
-    paddingVertical: 2.5,
-    paddingHorizontal: 7,
-    overflow: "hidden",
-  },
-  kindChipOn: {
-    color: colors.primaryDeep,
-    backgroundColor: "#FDF5F2",
-    borderWidth: 1,
-    borderColor: "#EBD3CE",
-    paddingVertical: 1.5,
-    paddingHorizontal: 6,
   },
   missingText: {
     ...textTokens.caption,
