@@ -21,7 +21,9 @@ import { useMetronome } from "../../../hooks/useMetronome";
 import {
   formatLatencyProfileLog,
   resolveCurrentRouteLatencyProfile,
+  type RouteLatencyProfile,
 } from "../../../services/latencyModel";
+import { persistLog } from "../../../services/persistLog";
 import SongNookMetronomeModule from "../../../../modules/songnook-metronome";
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
@@ -93,6 +95,22 @@ export type RecordingTimingWarning = {
   message: string;
   showCalibrateAction: boolean;
 };
+
+/** One diagnostic-log line per take played against the guide: which delay the head
+ *  trim used (music, after the 2026-10-18 fix) beside the click's, so a phone log
+ *  shows whether a Bluetooth layer was lined up on the right pipeline. */
+function logGuidedTiming(path: string, profile: RouteLatencyProfile | null) {
+  if (!profile) {
+    persistLog("record.timing", `guided ${path}: no latency profile, trim keeps pre-roll`);
+    return;
+  }
+  persistLog(
+    "record.timing",
+    `guided ${path}: music ${Math.round(profile.guidePlayerOutputMs)} click ${Math.round(profile.outputMs)} ` +
+      `input ${Math.round(profile.inputMs)} drift ${Math.round(profile.btDriftMs)} ` +
+      `→ trim +${Math.round(profile.guideRecordingCorrectionMs)}ms (music)`
+  );
+}
 
 export function useRecordingScreenModel() {
   const { t } = useTranslation();
@@ -561,7 +579,11 @@ export function useRecordingScreenModel() {
     const warnings: RecordingTimingWarning[] = [];
     const outputName = monitoringOutputLabel ?? t("recording.theseHeadphones");
 
-    if (isBluetoothMonitoringOutput) {
+    // The headset's mic puts it in call mode, whose delay can't be calibrated (the
+    // calibration screen measures listening mode). Offering Calibrate there was a
+    // promise the screen can't keep: the mic warning below says it once, honestly.
+    const onCallProfile = currentMonitoringOutput?.profile === "hfp";
+    if (isBluetoothMonitoringOutput && !onCallProfile) {
       if (!activeBluetoothCalibration) {
         warnings.push({
           kind: "uncalibrated-bt",
@@ -577,7 +599,7 @@ export function useRecordingScreenModel() {
       }
     }
 
-    if (isBluetoothRecordingInput) {
+    if (isBluetoothRecordingInput || (isBluetoothMonitoringOutput && onCallProfile)) {
       warnings.push({
         kind: "bt-mic",
         message: t("recording.bluetoothMicWarning"),
@@ -596,6 +618,7 @@ export function useRecordingScreenModel() {
     return warnings.filter((warning) => !dismissedWarningKinds.includes(warning.kind));
   }, [
     activeBluetoothCalibration,
+    currentMonitoringOutput?.profile,
     dismissedWarningKinds,
     isBluetoothMonitoringOutput,
     isBluetoothRecordingInput,
@@ -1717,11 +1740,13 @@ export function useRecordingScreenModel() {
           }
 
           if (captureStartEpochMs != null && guideStartEpochMs != null) {
+            // Played against the guide: its music delay, not the click's.
             headMs =
               guideStartEpochMs -
               captureStartEpochMs +
-              audibleCorrectionMs -
+              latencyProfile.guideRecordingCorrectionMs -
               HEAD_TRIM_SAFETY_EARLY_MS;
+            logGuidedTiming("count-in", latencyProfile);
           }
         } else if (captureStartEpochMs != null && downbeatEpochMs != null) {
           headMs =
@@ -2060,11 +2085,13 @@ export function useRecordingScreenModel() {
           // Unmeasurable → commit 0: keep the pre-roll instead of guessing a cut.
           let headMs = 0;
           if (guideStartEpochMs != null && captureStartEpochMs != null) {
+            // Played against the guide: its music delay, not the click's.
             headMs =
               guideStartEpochMs -
               captureStartEpochMs +
-              (profile?.recordingCorrectionMs ?? 0) -
+              (profile?.guideRecordingCorrectionMs ?? 0) -
               HEAD_TRIM_SAFETY_EARLY_MS;
+            logGuidedTiming("guide-only", profile);
           }
           console.log(
             `[timing] no-count-in overdub head trim: ${Math.round(headMs)}ms ` +
@@ -2216,10 +2243,14 @@ export function useRecordingScreenModel() {
         // Musical start: the guide's measured t=0 for overdubs, else the engine's first
         // click (pulse 0 — a fresh start has no count-in pulses in front of it).
         const musicalStartEpochMs = guideStartEpochMs ?? anchorEpochMs;
+        // Against the guide, its music delay; against the click alone, the click's.
+        const startCorrectionMs =
+          guideStartEpochMs != null ? profile?.guideRecordingCorrectionMs ?? correctionMs : correctionMs;
+        if (guideStartEpochMs != null) logGuidedTiming("guide+click", profile);
         let headMs = 0;
         if (captureStartEpochMs != null && musicalStartEpochMs != null) {
           headMs =
-            musicalStartEpochMs - captureStartEpochMs + correctionMs - HEAD_TRIM_SAFETY_EARLY_MS;
+            musicalStartEpochMs - captureStartEpochMs + startCorrectionMs - HEAD_TRIM_SAFETY_EARLY_MS;
         }
         console.log(
           `[timing] no-count-in head trim: ${Math.round(headMs)}ms ` +
@@ -2229,7 +2260,7 @@ export function useRecordingScreenModel() {
         recording.commitHeadTrim(headMs);
         if (musicalStartEpochMs != null && captureStartEpochMs != null && anchor?.msPerPulse) {
           setLiveTakeGrid({
-            firstBeatCaptureMs: musicalStartEpochMs - captureStartEpochMs + correctionMs,
+            firstBeatCaptureMs: musicalStartEpochMs - captureStartEpochMs + startCorrectionMs,
             beatMs: anchor.msPerPulse,
             pulsesPerBar: anchor.pulsesPerBar ?? metronome.meterPreset.pulsesPerBar,
             tempoMap: takeGridRef.current?.tempoMap ?? null,

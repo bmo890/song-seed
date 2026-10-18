@@ -215,6 +215,12 @@ export function analyzePatternPhaseTaps(taps: number[], pattern: boolean[]): Pha
   };
 }
 
+/** Below this, a Bluetooth music delay is not believable: real routes run ~100 ms
+ *  and up. A reading this low means the tap train aligned one beat off (a steady
+ *  tapper keeping time through the silent beats can do that when the true delay is
+ *  long), and it would be saved as "no delay" (audit 2026-10-18). */
+export const IMPLAUSIBLY_LOW_BT_MS = 40;
+
 /** Cross-check the two ear passes against each other and the OS report. Both passes share
  *  the same ears and tap reflexes, so their difference is purely the pipeline delta — a
  *  gap beyond these bounds means one pass measured wrong, and a single bad pass silently
@@ -227,17 +233,22 @@ export function buildResultWarning(
   reportedMs: number | null,
   translate?: (key: string, options?: Record<string, unknown>) => string
 ): string | null {
+  if (playerMs != null && playerMs < IMPLAUSIBLY_LOW_BT_MS) {
+    if (translate) return translate("bluetoothCalibrationWarnings.nearZero");
+    return "Measured almost no delay. Skip the silent beats and try again.";
+  }
   if (playerMs == null || clickMs == null) {
     return null;
   }
   const pipelineGapMs = playerMs - clickMs;
   if (pipelineGapMs > 250 || pipelineGapMs < -80) {
-    if (translate) return translate("bluetoothCalibrationWarnings.unusualGap", { gap: Math.abs(Math.round(pipelineGapMs)), direction: translate(pipelineGapMs > 0 ? "bluetoothCalibrationWarnings.above" : "bluetoothCalibrationWarnings.below") });
-    return `The music pass came out ${Math.abs(Math.round(pipelineGapMs))} ms ${pipelineGapMs > 0 ? "above" : "below"} the click pass — that gap is unusual for one set of headphones. One of the passes likely measured wrong; a retry is recommended before saving.`;
+    const gap = Math.abs(Math.round(pipelineGapMs));
+    if (translate) return translate("bluetoothCalibrationWarnings.unusualGap", { gap });
+    return `The two passes differ by ${gap} ms. One likely measured wrong; try again.`;
   }
   if (reportedMs != null && Math.abs(playerMs - reportedMs) > 300) {
     if (translate) return translate("bluetoothCalibrationWarnings.farFromReported", { music: Math.round(playerMs), reported: reportedMs });
-    return `The music pass (${Math.round(playerMs)} ms) is far from the OS-reported route latency (~${reportedMs} ms). That can be real, but a retry is recommended before saving.`;
+    return `Music measured ${Math.round(playerMs)} ms; the phone reports about ${reportedMs} ms. Try again to be sure.`;
   }
   return null;
 }

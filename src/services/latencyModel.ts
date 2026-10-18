@@ -61,6 +61,12 @@ export type RouteLatencyProfile = {
   /** ms to add to the record-through head trim so the saved file's t=0 is the beat as
    *  the performer PERCEIVED it, as stamped by the mic. */
   recordingCorrectionMs: number;
+  /** Same, for a take played against the GUIDE (a layer, a punch): the performer
+   *  locks to the master, which reaches the ear through the media player's pipeline,
+   *  so the music delay applies, not the click's. Using the click number here left
+   *  every Bluetooth layer late by (music − click), ~300 ms on Samsung + AirPods
+   *  (audit 2026-10-18). Equal to recordingCorrectionMs off Bluetooth. */
+  guideRecordingCorrectionMs: number;
   sources: {
     output: LatencySource;
     input: LatencySource;
@@ -214,6 +220,7 @@ export function resolveRouteLatencyProfile({
     hapticLeadMs: outputMs - HAPTIC_PIPELINE_LATENCY_MS,
     referenceModality,
     recordingCorrectionMs: perceivedBeatLatencyMs + inputMs,
+    guideRecordingCorrectionMs: guidePlayerOutputMs + inputMs,
     sources: {
       output: outputSource,
       input: inputKnown ? "os" : "unknown",
@@ -256,7 +263,8 @@ export function formatLatencyProfileLog(profile: RouteLatencyProfile) {
       ? `btDrift=${Math.round(profile.btDriftMs)}ms `
       : "") +
     `in=${Math.round(profile.inputMs)}ms(${profile.sources.input}) ` +
-    `ref=${profile.referenceModality} → correction ${Math.round(profile.recordingCorrectionMs)}ms`
+    `ref=${profile.referenceModality} → correction ${Math.round(profile.recordingCorrectionMs)}ms` +
+    ` (guide ${Math.round(profile.guideRecordingCorrectionMs)}ms)`
   );
 }
 

@@ -110,7 +110,11 @@ export function BluetoothCalibrationScreen() {
   /** Whether the click pass actually rendered the gap pattern (needs silent-beat
    *  support in the native binary) — decides which analysis reads its taps. */
   const clickPatternActiveRef = useRef(false);
-  const [resultWarning, setResultWarning] = useState<string | null>(null);
+  /** Bumped by Stop, Retry and leaving the page. The click pass's start is async
+   *  (configure, start, a settle, an anchor read): each step checks it is still the
+   *  run in flight, so a Stop in that window can't start the engine afterwards or
+   *  arm a finish timer nothing clears (audit 2026-10-18). */
+  const runIdRef = useRef(0);
 
   const audioPlayer = useAudioPlayer(audioLoopUri ? { uri: audioLoopUri } : null, { updateInterval: 250 });
   // The player instance is recreated whenever the pattern (and its file) changes; timer
@@ -120,7 +124,7 @@ export function BluetoothCalibrationScreen() {
 
   const activeRoute = currentOutputRoute ?? currentDevice;
   const activeRouteKey = useMemo(() => buildBluetoothMonitoringRouteKey(activeRoute), [activeRoute]);
-  const activeRouteLabel = useMemo(() => buildBluetoothMonitoringRouteLabel(activeRoute), [activeRoute]);
+  const activeRouteLabel = useMemo(() => buildBluetoothMonitoringRouteLabel(activeRoute, t), [activeRoute, t]);
   const isBluetoothRoute = useMemo(() => isBluetoothLikeAudioDevice(activeRoute), [activeRoute]);
   const isHfpRoute = currentOutputRoute?.profile === "hfp";
   const editableRouteKey = bluetoothTargetRoute?.routeKey ?? (isBluetoothRoute ? activeRouteKey : null);
@@ -211,6 +215,7 @@ export function BluetoothCalibrationScreen() {
   // whatever screen comes next.
   useEffect(() => {
     return () => {
+      runIdRef.current += 1;
       timersRef.current.forEach((timer) => clearTimeout(timer));
       if (progressIntervalRef.current) {
         clearInterval(progressIntervalRef.current);
@@ -357,9 +362,12 @@ export function BluetoothCalibrationScreen() {
       timersRef.current.push(countdownTimer as unknown as number);
     });
 
+    const runId = ++runIdRef.current;
+    const stillThisRun = () => runIdRef.current === runId;
     const startTimer = setTimeout(() => {
       void (async () => {
         try {
+          if (!stillThisRun()) return;
           setCountdownValue(null);
           // Old binaries render accent 0 as a quiet click, not a rest — fall back to a
           // steady pass there and route its taps through the legacy analysis.
@@ -389,7 +397,12 @@ export function BluetoothCalibrationScreen() {
             subdivision: 1,
             clickVoice: "click",
           });
+          if (!stillThisRun()) return;
           await SongNookMetronomeModule!.start();
+          if (!stillThisRun()) {
+            void SongNookMetronomeModule!.stop().catch(() => {});
+            return;
+          }
 
           // Anchor taps to the engine's render-domain grid: tap-time − grid-time IS the
           // click pipeline's ear latency, which is exactly what this pass measures.
@@ -397,6 +410,10 @@ export function BluetoothCalibrationScreen() {
             setTimeout(resolve, 150);
           });
           const anchor = await SongNookMetronomeModule!.getGridAnchor?.().catch(() => null);
+          if (!stillThisRun()) {
+            void SongNookMetronomeModule!.stop().catch(() => {});
+            return;
+          }
           if (!anchor?.isRunning || anchor.anchorEpochMs == null) {
             void SongNookMetronomeModule!.stop().catch(() => {});
             setEstimatedClickOffsetMs(null);
@@ -417,6 +434,7 @@ export function BluetoothCalibrationScreen() {
           timersRef.current.push(finishTimer as unknown as number);
         } catch {
           void SongNookMetronomeModule?.stop().catch(() => {});
+          if (!stillThisRun()) return;
           setEstimatedClickOffsetMs(null);
           setLastAnalysisSummary(t("bluetoothCalibration.clickStartFailed"));
           resetRunState("result");
@@ -443,7 +461,6 @@ export function BluetoothCalibrationScreen() {
     }
     const clickMs = normalizeBluetoothMonitoringOffsetMs(analysis.medianMs);
     setEstimatedClickOffsetMs(clickMs);
-    setResultWarning(buildResultWarning(playerOffsetDraftRef.current, clickMs, reportedLatencyMs, t));
     setLastAnalysisSummary(
       (current) =>
         `${current ?? ""} ${t("bluetoothCalibration.clickSummary", {
@@ -477,7 +494,6 @@ export function BluetoothCalibrationScreen() {
     runPatternRef.current = pendingPattern;
     clickPatternActiveRef.current = false;
     setEstimatedClickOffsetMs(null);
-    setResultWarning(null);
     setPhase("player-running");
     setPhaseElapsedMs(0);
     setPhaseError(null);
@@ -581,7 +597,8 @@ export function BluetoothCalibrationScreen() {
       // against (undefined preserves it); only a fresh run stamps the current one.
       // Contemporaneous OS report → future sessions apply the ear numbers as a bias on
       // top of the then-current report, tracking per-connection BT drift automatically.
-      fineTuningSavedRef.current ? undefined : reportedLatencyMs ?? undefined
+      fineTuningSavedRef.current ? undefined : reportedLatencyMs ?? undefined,
+      fineTuningSavedRef.current ? "fineTune" : "fresh"
     );
     // haptics.ts vocabulary: success → a completion the user waited for, paired with a
     // toast (never a dialog — the result needs no decision).
@@ -612,6 +629,7 @@ export function BluetoothCalibrationScreen() {
   }
 
   function resetCalibrationRun() {
+    runIdRef.current += 1;
     fineTuningSavedRef.current = false;
     void SongNookMetronomeModule?.stop().catch(() => {});
     setEstimatedOffsetMs(null);
@@ -619,7 +637,6 @@ export function BluetoothCalibrationScreen() {
     playerOffsetDraftRef.current = null;
     setPhaseError(null);
     setLastAnalysisSummary(null);
-    setResultWarning(null);
     setBluetoothTargetRoute(null);
     resetRunState("idle");
   }
@@ -639,7 +656,6 @@ export function BluetoothCalibrationScreen() {
     setEstimatedOffsetMs(normalizeBluetoothMonitoringSavedOffsetMs(reportedLatencyMs));
     setEstimatedClickOffsetMs(normalizeBluetoothMonitoringSavedOffsetMs(reportedLatencyMs));
     setPhaseError(null);
-    setResultWarning(null);
     setLastAnalysisSummary(t("bluetoothCalibration.seeded"));
     resetRunState("result");
   }
@@ -652,7 +668,6 @@ export function BluetoothCalibrationScreen() {
     setEstimatedOffsetMs(calibration.offsetMs);
     setEstimatedClickOffsetMs(calibration.clickOffsetMs ?? null);
     setPhaseError(null);
-    setResultWarning(null);
     setLastAnalysisSummary(null);
     resetRunState("result");
   }
@@ -699,6 +714,10 @@ export function BluetoothCalibrationScreen() {
         ...(reportedLatencyMs != null ? [t("bluetoothCalibration.reports", { value: reportedLatencyMs })] : []),
       ].join(" · ")
     : t("bluetoothCalibration.switchOutput");
+  // Read from the numbers on screen, so it holds on every way to a result (a failed
+  // click pass, a seeded start) and follows the ± fine-tune instead of going stale.
+  const resultWarning =
+    phase === "result" ? buildResultWarning(estimatedOffsetMs, estimatedClickOffsetMs, reportedLatencyMs, t) : null;
   const resultNote =
     resultWarning ?? (phase === "result" && estimatedOffsetMs == null ? t("bluetoothCalibration.unstable") : null);
 
@@ -790,7 +809,7 @@ export function BluetoothCalibrationScreen() {
                 <Button
                   label={t("bluetoothCalibration.start")}
                   onPress={schedulePhase}
-                  disabled={!isBluetoothRoute || isPreparingAudio}
+                  disabled={!isBluetoothRoute || isPreparingAudio || !audioLoopUri}
                 />
                 {isBluetoothRoute && reportedLatencyMs != null ? (
                   <View style={screenStyles.linkRow}>

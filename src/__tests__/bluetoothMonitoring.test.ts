@@ -76,3 +76,25 @@ describe("isBluetoothLikeAudioDevice", () => {
     expect(isBluetoothLikeAudioDevice(A2DP_BUDS)).toBe(true);
   });
 });
+
+describe("wired routes are not Bluetooth (audit 2026-10-18)", () => {
+  it("never asks wired headphones or a headset to calibrate", () => {
+    expect(isBluetoothLikeAudioDevice({ name: "Headphones", type: "wired_headphones" })).toBe(false);
+    expect(isBluetoothLikeAudioDevice({ name: "EarPods headset", type: "wired_headset" })).toBe(false);
+    expect(isBluetoothLikeAudioDevice({ name: "USB headset", type: "usb_headset" })).toBe(false);
+    expect(isBluetoothLikeAudioDevice({ name: "Speaker", type: "speaker" })).toBe(false);
+  });
+  it("still recognises a Bluetooth headset the platform couldn't type", () => {
+    expect(isBluetoothLikeAudioDevice({ name: "Galaxy Buds2", type: "unknown" })).toBe(true);
+  });
+});
+
+describe("route names go through the translator when given", () => {
+  const t = (key: string, options?: Record<string, unknown>) =>
+    options?.name ? `${key}:${String(options.name)}` : key;
+  it("translates the fallbacks and the mic-on mark, keeps a device's own name", () => {
+    expect(buildBluetoothMonitoringRouteLabel({ name: "", type: "wired_headphones" }, t)).toBe("bluetoothRoute.wired");
+    expect(buildBluetoothMonitoringRouteLabel(HFP_BUDS, t)).toBe("bluetoothRoute.micActive:AirPods Pro");
+    expect(buildBluetoothMonitoringRouteLabel(A2DP_BUDS, t)).toBe("AirPods Pro");
+  });
+});
