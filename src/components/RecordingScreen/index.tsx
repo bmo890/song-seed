@@ -225,18 +225,19 @@ export function RecordingScreen() {
         onPressDestination={
           screen.canPickSaveDestination ? () => screen.setSaveDestinationPickerVisible(true) : undefined
         }
-      />
-
-      <SaveDestinationPickerSheet
-        visible={screen.saveDestinationPickerVisible}
-        destinations={screen.saveDestinations}
-        selectedCollectionId={
-          screen.saveDestinationOverride?.collectionId ?? screen.recordingIdea?.collectionId ?? null
-        }
-        originCollectionId={screen.recordingIdea?.collectionId ?? null}
-        onClose={() => screen.setSaveDestinationPickerVisible(false)}
-        onSelect={screen.handleSelectSaveDestination}
-      />
+      >
+        {/* Hosted inside the save dialog: iOS cannot stack a second Modal over it. */}
+        <SaveDestinationPickerSheet
+          visible={screen.saveDestinationPickerVisible}
+          destinations={screen.saveDestinations}
+          selectedCollectionId={
+            screen.saveDestinationOverride?.collectionId ?? screen.recordingIdea?.collectionId ?? null
+          }
+          originCollectionId={screen.recordingIdea?.collectionId ?? null}
+          onClose={() => screen.setSaveDestinationPickerVisible(false)}
+          onSelect={screen.handleSelectSaveDestination}
+        />
+      </DraftedQuickNameModal>
 
       <RecordingSettingsModal
         visible={screen.settingsVisible}

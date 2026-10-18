@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Spinner } from "../common/Spinner";
 import { UserText, UserTextInput } from "../../i18n/direction";
@@ -45,6 +46,10 @@ type Props = {
     /** Pins dropped during the take: named here, or left as plain pins. */
     pins?: { id: string; atMs: number; label: string }[];
     onChangePinLabel?: (pinId: string, label: string) => void;
+    /** Sheets this dialog opens (the save-to picker) render INSIDE it: iOS will
+     *  not present a second Modal over this one, and the refused sheet left the
+     *  recorder deaf to touches until a restart (audit 2026-10-18). */
+    children?: ReactNode;
 };
 
 export function QuickNameModal({
@@ -75,6 +80,7 @@ export function QuickNameModal({
     onPressDestination,
     pins,
     onChangePinLabel,
+    children,
 }: Props) {
     const { t } = useTranslation();
     const resolvedTitle = title ?? t("modals.saveClipAs");
@@ -275,6 +281,7 @@ export function QuickNameModal({
                     )}
                 </Pressable>
             </View>
+            {children}
         </WarmModal>
     );
 }
