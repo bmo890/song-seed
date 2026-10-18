@@ -1,6 +1,7 @@
 import {
   buildChordChartHtml,
   buildChordDisplay,
+  tidyChordName,
   clampChordIndex,
   graphemeCount,
   graphemeIndexToStringIndex,
@@ -170,5 +171,28 @@ describe("serializeChordPro", () => {
       { id: "l2", text: "plain line", chords: [] },
     ];
     expect(serializeChordPro(lines)).toBe("[C]hello [G]world\nplain line");
+  });
+});
+
+describe("tidyChordName (written the way charts write them)", () => {
+  it("drops long-hand major and shortens long-hand minor", () => {
+    expect(tidyChordName("Dmaj")).toBe("D");
+    expect(tidyChordName("F♯maj")).toBe("F♯");
+    expect(tidyChordName("Amin")).toBe("Am");
+    expect(tidyChordName("Amin7")).toBe("Am7");
+    expect(tidyChordName("Bbmaj/D")).toBe("Bb/D");
+  });
+  it("keeps what charts do write", () => {
+    for (const chord of ["D", "Dm", "D7", "Dmaj7", "Dmaj9", "Dm7b5", "Dsus4", "Dadd9", "D/F♯", "N.C."]) {
+      expect(tidyChordName(chord)).toBe(chord);
+    }
+  });
+});
+
+describe("buildChordDisplay writes a major chord as its letter", () => {
+  it("never spells out maj on a triad", () => {
+    expect(buildChordDisplay({ root: "D", accidental: "natural", quality: "maj" })).toBe("D");
+    expect(buildChordDisplay({ root: "D", accidental: "natural", quality: "" })).toBe("D");
+    expect(buildChordDisplay({ root: "D", accidental: "natural", quality: "maj7" })).toBe("Dmaj7");
   });
 });
