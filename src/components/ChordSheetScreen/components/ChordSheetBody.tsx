@@ -218,17 +218,18 @@ export function ChordSheetBody({
           model.barEditor && model.openChordPicker(model.barEditor.sectionId, model.barEditor.measureId, index)
         }
         onClose={model.closeBarEditor}
-      />
+      >
+        <ChordPickerSheet
+          visible={!!model.pickerTarget}
+          mode={model.pickerMode}
+          initial={model.pickerInitial}
+          palette={model.palette}
+          onClose={model.closePicker}
+          onSave={model.saveChord}
+          onDelete={model.removeEditingChord}
+        />
+      </BarEditorSheet>
 
-      <ChordPickerSheet
-        visible={!!model.pickerTarget}
-        mode={model.pickerMode}
-        initial={model.pickerInitial}
-        palette={model.palette}
-        onClose={model.closePicker}
-        onSave={model.saveChord}
-        onDelete={model.removeEditingChord}
-      />
 
       <SelectionActionSheet
         visible={addSheetOpen}

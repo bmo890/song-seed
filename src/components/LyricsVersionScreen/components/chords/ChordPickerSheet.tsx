@@ -1,18 +1,21 @@
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheet } from "../../../common/BottomSheet";
-import { styles as appStyles } from "../../../../styles";
+import { Button } from "../../../common/Button";
+import { Press } from "../../../common/Press";
 import { colors, radii, spacing, text as textTokens } from "../../../../design/tokens";
 import {
-  ACCIDENTAL_OPTIONS,
   CHORD_ROOTS,
   QUALITY_OPTIONS,
+  accidentalSymbol,
   buildChordDisplay,
+  tidyChordName,
   type ChordParts,
 } from "../../../../domain/chords";
-import type { ChordAccidental, ChordRoot, SongChordPaletteItem } from "../../../../types";
+import type { ChordAccidental, SongChordPaletteItem } from "../../../../types";
 import { useTranslation } from "react-i18next";
+import { UserTextInput } from "../../../../i18n";
 
 type Props = {
   visible: boolean;
@@ -26,6 +29,13 @@ type Props = {
 
 const EMPTY: ChordParts = { root: "C", accidental: "natural", quality: "" };
 
+/**
+ * The one chord picker (2026-10-18), shared by the lyric chord editor and the
+ * bar chart. The chord you are making sits large at the top, in the reading
+ * ink; every key is ink on paper, the chosen one in the tonal terracotta wash
+ * (no filled chips). Each chord type is labelled by the chord it makes with
+ * the root you picked ("D", "Dm", "D7", "Dmaj7"), the way charts write them.
+ */
 export function ChordPickerSheet({ visible, mode, initial, palette, onClose, onSave, onDelete }: Props) {
   const { t } = useTranslation();
   const [parts, setParts] = useState<ChordParts>(EMPTY);
@@ -37,30 +47,38 @@ export function ChordPickerSheet({ visible, mode, initial, palette, onClose, onS
 
   const preview = buildChordDisplay(parts);
   const update = (patch: Partial<ChordParts>) => setParts((prev) => ({ ...prev, ...patch }));
+  // Types are named with the chosen root; a chord saved without one reads on C.
+  const rootName = `${parts.root ?? "C"}${parts.root ? accidentalSymbol(parts.accidental) : ""}`;
+  const toggleAccidental = (next: ChordAccidental) =>
+    update({ accidental: (parts.accidental ?? "natural") === next ? "natural" : next });
+  const toggleBassAccidental = (next: ChordAccidental) =>
+    update({ bassAccidental: (parts.bassAccidental ?? "natural") === next ? "natural" : next });
 
   return (
     <BottomSheet visible={visible} onClose={onClose} keyboardAvoiding>
-      <View style={pickerStyles.headerRow}>
-        <Text style={pickerStyles.title}>{t(mode === "edit" ? "chordEditor.editChord" : "chordEditor.addChord")}</Text>
-        <View style={pickerStyles.previewChip}>
-          <Text style={pickerStyles.previewText}>{preview || "—"}</Text>
-        </View>
+      <View style={s.headerRow}>
+        <Text style={s.title}>{t(mode === "edit" ? "chordEditor.editChord" : "chordEditor.addChord")}</Text>
+        <Text style={s.preview} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+          {preview || "—"}
+        </Text>
       </View>
 
-      <ScrollView style={pickerStyles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView style={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {palette.length > 0 ? (
           <>
-            <Text style={pickerStyles.sectionLabel}>{t("chordEditor.recent")}</Text>
+            <Text style={s.sectionLabel}>{t("chordEditor.recent")}</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={pickerStyles.paletteRow}
+              contentContainerStyle={s.paletteRow}
               keyboardShouldPersistTaps="handled"
             >
               {palette.map((item) => (
-                <Pressable
+                <Key
                   key={item.id}
-                  style={({ pressed }) => [pickerStyles.paletteChip, pressed ? appStyles.pressDown : null]}
+                  label={tidyChordName(item.displayText)}
+                  active={false}
+                  wide
                   onPress={() =>
                     onSave({
                       root: item.root,
@@ -72,73 +90,86 @@ export function ChordPickerSheet({ visible, mode, initial, palette, onClose, onS
                       customSuffix: item.customSuffix,
                     })
                   }
-                >
-                  <Text style={pickerStyles.paletteChipText}>{item.displayText}</Text>
-                </Pressable>
+                />
               ))}
             </ScrollView>
           </>
         ) : null}
 
-        <Text style={pickerStyles.sectionLabel}>{t("chordEditor.root")}</Text>
-        <View style={pickerStyles.rowWrap}>
+        <Text style={s.sectionLabel}>{t("chordEditor.root")}</Text>
+        {/* Seven letters, then flat and sharp: one row, so a root is one glance. */}
+        <View style={s.cellRow}>
           {CHORD_ROOTS.map((root) => (
-            <Chip key={root} label={root} active={parts.root === root} onPress={() => update({ root })} />
+            <Key key={root} label={root} cell active={parts.root === root} onPress={() => update({ root })} />
           ))}
+          <View style={s.keyGap} />
+          <Key
+            label="♭"
+            cell
+            active={parts.accidental === "flat"}
+            onPress={() => toggleAccidental("flat")}
+            accessibilityLabel={t("chordEditor.flat")}
+          />
+          <Key
+            label="♯"
+            cell
+            active={parts.accidental === "sharp"}
+            onPress={() => toggleAccidental("sharp")}
+            accessibilityLabel={t("chordEditor.sharp")}
+          />
         </View>
 
-        <Text style={pickerStyles.sectionLabel}>{t("chordEditor.accidental")}</Text>
-        <View style={pickerStyles.rowWrap}>
-          {ACCIDENTAL_OPTIONS.map((opt) => (
-            <Chip
-              key={opt.value}
-              label={opt.label}
-              active={(parts.accidental ?? "natural") === opt.value}
-              onPress={() => update({ accidental: opt.value })}
+        <Text style={s.sectionLabel}>{t("chordEditor.quality")}</Text>
+        <View style={s.grid}>
+          {QUALITY_OPTIONS.map((option) => (
+            <Key
+              key={option.value || "major"}
+              label={`${rootName}${option.value}`}
+              active={(tidyQuality(parts.quality) ?? "") === option.value}
+              wide
+              onPress={() => update({ quality: option.value })}
             />
           ))}
         </View>
 
-        <Text style={pickerStyles.sectionLabel}>{t("chordEditor.quality")}</Text>
-        <View style={pickerStyles.rowWrap}>
-          {QUALITY_OPTIONS.map((opt) => (
-            <Chip
-              key={opt.label}
-              label={opt.label}
-              active={(parts.quality ?? "") === opt.value}
-              onPress={() => update({ quality: opt.value })}
-            />
-          ))}
-        </View>
-
-        <Text style={pickerStyles.sectionLabel}>{t("chordEditor.slashBass")}</Text>
-        <View style={pickerStyles.rowWrap}>
-          <Chip label={t("chordEditor.none")} active={!parts.bassRoot} onPress={() => update({ bassRoot: undefined, bassAccidental: undefined })} />
+        <Text style={s.sectionLabel}>{t("chordEditor.slashBass")}</Text>
+        <View style={s.grid}>
+          <Key
+            label={t("chordEditor.none")}
+            active={!parts.bassRoot}
+            wide
+            onPress={() => update({ bassRoot: undefined, bassAccidental: undefined })}
+          />
           {CHORD_ROOTS.map((root) => (
-            <Chip
+            <Key
               key={`bass-${root}`}
               label={`/${root}`}
               active={parts.bassRoot === root}
               onPress={() => update({ bassRoot: root, bassAccidental: parts.bassAccidental ?? "natural" })}
             />
           ))}
-        </View>
-        {parts.bassRoot ? (
-          <View style={pickerStyles.rowWrap}>
-            {ACCIDENTAL_OPTIONS.map((opt) => (
-              <Chip
-                key={`bassacc-${opt.value}`}
-                label={opt.label}
-                active={(parts.bassAccidental ?? "natural") === opt.value}
-                onPress={() => update({ bassAccidental: opt.value })}
+          {parts.bassRoot ? (
+            <>
+              <View style={s.keyGap} />
+              <Key
+                label="♭"
+                active={parts.bassAccidental === "flat"}
+                onPress={() => toggleBassAccidental("flat")}
+                accessibilityLabel={t("chordEditor.flat")}
               />
-            ))}
-          </View>
-        ) : null}
+              <Key
+                label="♯"
+                active={parts.bassAccidental === "sharp"}
+                onPress={() => toggleBassAccidental("sharp")}
+                accessibilityLabel={t("chordEditor.sharp")}
+              />
+            </>
+          ) : null}
+        </View>
 
-        <Text style={pickerStyles.sectionLabel}>{t("chordEditor.customSuffix")}</Text>
-        <TextInput
-          style={pickerStyles.customInput}
+        <Text style={s.sectionLabel}>{t("chordEditor.customSuffix")}</Text>
+        <UserTextInput
+          style={s.customInput}
           value={parts.customSuffix ?? ""}
           onChangeText={(customSuffix) => update({ customSuffix })}
           placeholder={t("chordEditor.customSuffixPlaceholder")}
@@ -148,130 +179,157 @@ export function ChordPickerSheet({ visible, mode, initial, palette, onClose, onS
         />
       </ScrollView>
 
-      <View style={pickerStyles.actions}>
+      <View style={s.actions}>
         {mode === "edit" ? (
-          <Pressable
-            style={({ pressed }) => [pickerStyles.deleteBtn, pressed ? appStyles.pressDown : null]}
+          <Press
+            feel="glyph"
+            // haptics.ts: tap → a control acted (the chord is removed).
+            haptic="tap"
+            style={s.deleteBtn}
             onPress={onDelete}
             hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel={t("chordEditor.removeChord")}
           >
-            <Ionicons name="trash-outline" size={16} color={colors.textSecondary} />
-          </Pressable>
+            <Ionicons name="trash-outline" size={19} color={colors.danger} />
+          </Press>
         ) : null}
-        <Pressable
-          style={({ pressed }) => [
-            pickerStyles.saveBtn,
-            !preview ? pickerStyles.saveBtnDisabled : null,
-            pressed && preview ? appStyles.pressDown : null,
-          ]}
+        <Button
+          label={t(mode === "edit" ? "chordEditor.updateChord" : "chordEditor.addChord")}
           onPress={() => onSave(parts)}
           disabled={!preview}
-        >
-          <Text style={pickerStyles.saveBtnText}>{t(mode === "edit" ? "chordEditor.updateChord" : "chordEditor.addChord")}</Text>
-        </Pressable>
+          style={s.saveBtn}
+        />
       </View>
     </BottomSheet>
   );
 }
 
-function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+/** A long-hand quality an older chord was saved with ("maj", "min7") reads as
+ *  the key that makes it today ("", "m7"). */
+function tidyQuality(quality: string | undefined): string | undefined {
+  if (quality == null) return quality;
+  const tidied = tidyChordName(`C${quality}`);
+  return tidied.slice(1);
+}
+
+function Key({
+  label,
+  active,
+  onPress,
+  wide = false,
+  cell = false,
+  accessibilityLabel,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+  /** Sized to its word (chord types, the bass "none") rather than a letter cell. */
+  wide?: boolean;
+  /** An equal share of a row (the root letters and accidentals). */
+  cell?: boolean;
+  accessibilityLabel?: string;
+}) {
   return (
-    <Pressable
-      style={({ pressed }) => [
-        pickerStyles.chip,
-        active ? pickerStyles.chipActive : null,
-        pressed ? appStyles.pressDown : null,
-      ]}
+    <Press
+      feel="surface"
+      // haptics.ts: light → a small state flip (a choice in a set).
+      haptic="light"
+      style={[s.key, wide ? s.keyWide : null, cell ? s.keyCell : null, active ? s.keyActive : null]}
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={accessibilityLabel ?? label}
     >
-      <Text style={[pickerStyles.chipText, active ? pickerStyles.chipTextActive : null]}>{label}</Text>
-    </Pressable>
+      <Text style={[s.keyText, active ? s.keyTextActive : null]} numberOfLines={1}>
+        {label}
+      </Text>
+    </Press>
   );
 }
 
-const pickerStyles = StyleSheet.create({
+const s = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: spacing.sm,
+    gap: spacing.md,
+    marginBottom: spacing.xs,
   },
   title: {
-    fontFamily: "Lora_600SemiBold",
+    ...textTokens.headerTitle,
     fontSize: 19,
-    color: colors.textPrimary,
   },
-  previewChip: {
-    backgroundColor: colors.primary,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-    minWidth: 56,
-    alignItems: "center",
-  },
-  previewText: {
+  // The chord being made, large in the reading ink (as it will read on a chart).
+  preview: {
+    flexShrink: 1,
     fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 16,
-    color: colors.onPrimary,
+    fontSize: 28,
+    color: colors.textStrong,
   },
   scroll: {
-    maxHeight: 360,
+    maxHeight: 380,
   },
   sectionLabel: {
     ...textTokens.annotation,
+    color: colors.textSecondary,
     marginTop: spacing.md,
-    marginBottom: spacing.xs,
+    marginBottom: 6,
   },
   paletteRow: {
     flexDirection: "row",
-    gap: spacing.xs,
-    paddingVertical: 2,
+    gap: 4,
   },
-  paletteChip: {
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: radii.round,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 7,
-  },
-  paletteChipText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 13,
-    color: colors.primary,
-  },
-  rowWrap: {
+  grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.xs,
+    gap: 4,
   },
-  chip: {
-    minWidth: 38,
+  cellRow: {
+    flexDirection: "row",
+    gap: 2,
+  },
+  keyGap: {
+    width: 8,
+  },
+  key: {
+    minWidth: 40,
+    minHeight: 40,
+    paddingHorizontal: 8,
+    borderRadius: radii.lg,
     alignItems: "center",
-    backgroundColor: colors.surfaceContainer,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 8,
+    justifyContent: "center",
   },
-  chipActive: {
-    backgroundColor: colors.primary,
+  keyCell: {
+    flex: 1,
+    minWidth: 0,
+    paddingHorizontal: 0,
   },
-  chipText: {
+  keyWide: {
+    minWidth: 58,
+    paddingHorizontal: 10,
+  },
+  keyActive: {
+    backgroundColor: colors.primarySurface,
+  },
+  keyText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13,
-    color: colors.textSecondary,
+    fontSize: 16,
+    color: colors.textStrong,
   },
-  chipTextActive: {
-    color: colors.onPrimary,
+  keyTextActive: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    color: colors.primaryDeep,
   },
+  // One field: the tonal fill, as the search field wears it.
   customInput: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 9,
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: radii.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
     fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 14,
+    fontSize: 15,
     color: colors.textPrimary,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderMuted,
   },
   actions: {
     flexDirection: "row",
@@ -282,24 +340,10 @@ const pickerStyles = StyleSheet.create({
   deleteBtn: {
     width: 44,
     height: 44,
-    borderRadius: radii.sm,
-    backgroundColor: colors.surfaceContainer,
     alignItems: "center",
     justifyContent: "center",
   },
   saveBtn: {
     flex: 1,
-    backgroundColor: colors.primary,
-    borderRadius: radii.lg,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  saveBtnDisabled: {
-    backgroundColor: colors.borderMuted,
-  },
-  saveBtnText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 14,
-    color: colors.onPrimary,
   },
 });
