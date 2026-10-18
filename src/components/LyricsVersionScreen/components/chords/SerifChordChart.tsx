@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, type StyleProp, type TextStyle } from "react-na
 import type { LyricsLine } from "../../../../types";
 import { colors } from "../../../../design/tokens";
 import { buildWordChunks } from "../../../../domain/serifChordChunks";
+import { tidyChordName } from "../../../../domain/chords";
 import {
   READING_CHORD_ROW_HEIGHT,
   READING_CHORD_SIZE,
@@ -75,14 +76,14 @@ function SerifChordLine({
             // Several chords on one word read as a short run ("D  E  F"), not
             // a stack of chips, so a busy word barely widens.
             <Text style={chordStyle} numberOfLines={1}>
-              {chunk.chords.join("  ")}
+              {chunk.chords.map(tidyChordName).join("  ")}
             </Text>
           ) : null}
           <Text style={lyricStyle}>{chunk.text}</Text>
         </View>
       ))}
       {orphanChords.length > 0 ? (
-        <Text style={chordStyle}>{orphanChords.join("  ")}</Text>
+        <Text style={chordStyle}>{orphanChords.map(tidyChordName).join("  ")}</Text>
       ) : null}
     </View>
   );

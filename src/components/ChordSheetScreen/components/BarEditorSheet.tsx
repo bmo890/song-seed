@@ -1,28 +1,39 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import type { ReactNode } from "react";
+import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { WarmModal } from "../../common/WarmModal";
-import { styles as appStyles } from "../../../styles";
-import { colors, radii, spacing } from "../../../design/tokens";
+import { Press } from "../../common/Press";
+import { InkKey, inkKeyColor } from "../../common/InkKey";
+import { Button } from "../../common/Button";
+import { colors, spacing } from "../../../design/tokens";
 import { MAX_CHORDS_PER_BAR } from "../../../domain/chordSheet";
+import { tidyChordName } from "../../../domain/chords";
 import { useTranslation } from "react-i18next";
 
 const BARLINE = "#BCA59B";
 
 /** Focused, centered editor for a single bar: shows the bar with its chords (tap
- * one to change or delete it) and a + to add one. The chord picker launches from
- * here. Deliberately minimal — just the bar, an add button, and done. */
+ * one to change or delete it) and an ink "Add chord" key. Deliberately minimal —
+ * just the bar, add, and done.
+ *
+ * The chord picker opens from INSIDE this modal (`children`): iOS will not
+ * present a second modal over this one from beside it, so a picker rendered
+ * as a sibling never appeared and "+" did nothing (2026-10-18). */
 export function BarEditorSheet({
   visible,
   chords,
   onAddChord,
   onEditChord,
   onClose,
+  children,
 }: {
   visible: boolean;
   chords: string[];
   onAddChord: () => void;
   onEditChord: (index: number) => void;
   onClose: () => void;
+  /** The chord picker, hosted inside this modal. */
+  children?: ReactNode;
 }) {
   const { t } = useTranslation();
   const full = chords.length >= MAX_CHORDS_PER_BAR;
@@ -34,30 +45,34 @@ export function BarEditorSheet({
           <Text style={styles.rest}>—</Text>
         ) : (
           chords.map((chord, index) => (
-            <Pressable
+            <Press
               key={index}
-              style={({ pressed }) => [styles.chordHit, pressed ? appStyles.pressDown : null]}
+              feel="glyph"
+              // haptics.ts: tap → a control acted (opens the picker).
+              haptic="tap"
+              style={styles.chordHit}
               onPress={() => onEditChord(index)}
+              accessibilityRole="button"
+              accessibilityLabel={t("chordEditor.editChord")}
             >
-              <Text style={styles.chord}>{chord}</Text>
-            </Pressable>
+              <Text style={styles.chord}>{tidyChordName(chord)}</Text>
+            </Press>
           ))
         )}
       </View>
 
       <View style={styles.footer}>
-        <Pressable
-          style={({ pressed }) => [styles.addCircle, full ? styles.addDisabled : null, pressed && !full ? appStyles.pressDown : null]}
-          onPress={onAddChord}
-          disabled={full}
-          accessibilityLabel={t("chordChart.addChord")}
-        >
-          <Ionicons name="add" size={22} color={full ? colors.textMuted : colors.onPrimary} />
-        </Pressable>
-        <Pressable style={({ pressed }) => [styles.doneBtn, pressed ? appStyles.pressDown : null]} onPress={onClose}>
-          <Text style={styles.doneText}>{t("chordChart.done")}</Text>
-        </Pressable>
+        <InkKey
+          glyph={<Ionicons name="add" size={18} color={inkKeyColor(full ? "off" : "idle")} />}
+          label={t("chordChart.addChord")}
+          tone={full ? "off" : "idle"}
+          onPress={() => {
+            if (!full) onAddChord();
+          }}
+        />
+        <Button label={t("chordChart.done")} variant="secondary" onPress={onClose} />
       </View>
+      {children}
     </WarmModal>
   );
 }
@@ -88,7 +103,7 @@ const styles = StyleSheet.create({
   chord: {
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 22,
-    color: colors.textPrimary,
+    color: colors.textStrong,
   },
   rest: {
     fontFamily: "PlusJakartaSans_400Regular",
@@ -100,27 +115,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginTop: spacing.lg,
-  },
-  addCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: radii.round,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addDisabled: {
-    backgroundColor: colors.surfaceHigh,
-  },
-  doneBtn: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 10,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
-  },
-  doneText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 14,
-    color: colors.primary,
   },
 });

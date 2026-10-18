@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { springs } from "../../../../design/motion";
 import { Animated, PanResponder, StyleSheet, Text, View } from "react-native";
 import type { ChordPlacement } from "../../../../types";
-import { chordGraphemeAnchor, clampChordIndex } from "../../../../domain/chords";
+import { chordGraphemeAnchor, clampChordIndex, tidyChordName } from "../../../../domain/chords";
 import { CHORD_FONT_SIZE, MONO_FONT, chordChartColors } from "./chordChartStyle";
 import { haptic } from "../../../../design/haptics";
 import { physicalEdge } from "../../../../i18n";
@@ -154,7 +154,7 @@ export function ChordToken({
         pointerEvents="none"
       >
         <View style={[styles.chip, rtl ? styles.chipRtl : null]}>
-          <Text style={[styles.text, chordTextStyle]}>{chord.chord}</Text>
+          <Text style={[styles.text, chordTextStyle]}>{tidyChordName(chord.chord)}</Text>
         </View>
       </View>
     );
@@ -178,7 +178,7 @@ export function ChordToken({
           { transform: [{ scale }] },
         ]}
       >
-        <Text style={[styles.text, chordTextStyle]}>{chord.chord}</Text>
+        <Text style={[styles.text, chordTextStyle]}>{tidyChordName(chord.chord)}</Text>
       </Animated.View>
     </Animated.View>
   );

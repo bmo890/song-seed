@@ -5,6 +5,7 @@ import { IconButton } from "../common/IconButton";
 import { colors, spacing, text as textTokens } from "../../design/tokens";
 import { useScrollIntoViewOnFocus } from "./components/chartScroll";
 import { useDraftText } from "../../hooks/useDraftText";
+import { tidyChordName } from "../../domain/chords";
 import type { ChordSheetMeasure, ChordSheetSection as Section } from "../../types";
 import { useTranslation } from "react-i18next";
 import { UserText, UserTextInput } from "../../i18n";
@@ -157,7 +158,7 @@ function Bar({
         <Text style={styles.rest}>{"—"}</Text>
       ) : (
         <Text style={[styles.chord, styles.chordFill]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
-          {chords.join("  ")}
+          {chords.map(tidyChordName).join("  ")}
         </Text>
       )}
     </Pressable>

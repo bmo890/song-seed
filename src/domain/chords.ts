@@ -47,30 +47,59 @@ export const ACCIDENTAL_OPTIONS: Array<{ value: ChordAccidental; label: string }
   { value: "flat", label: "♭" },
 ];
 
-/** Quality/extension suffixes. `value` is appended verbatim to the display text
- * (ASCII, matching how online chord charts read: "C#m7", "Gsus4", "Am7b5"). */
-export const QUALITY_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: "", label: "maj" },
-  { value: "m", label: "m" },
-  { value: "min", label: "min" },
-  { value: "maj", label: "Maj" },
-  { value: "maj7", label: "Maj7" },
-  { value: "m7", label: "m7" },
-  { value: "min7", label: "min7" },
-  { value: "7", label: "7" },
-  { value: "sus2", label: "sus2" },
-  { value: "sus4", label: "sus4" },
-  { value: "add9", label: "add9" },
-  { value: "6", label: "6" },
-  { value: "m6", label: "m6" },
-  { value: "9", label: "9" },
-  { value: "11", label: "11" },
-  { value: "13", label: "13" },
-  { value: "dim", label: "dim" },
-  { value: "dim7", label: "dim7" },
-  { value: "aug", label: "aug" },
-  { value: "m7b5", label: "ø (m7b5)" },
+/** Chord types, written the way charts are colloquially written (2026-10-18,
+ * founder: "you don't need to say maj unless it's a maj7"): a plain letter is
+ * major, "m" is minor, a bare "7" is the dominant seventh, "maj7" the major
+ * seventh. Most-played first. `value` is appended verbatim to the display text
+ * (ASCII, matching how online chord charts read: "C#m7", "Gsus4", "Am7b5").
+ * The picker labels each by the chord it makes ("D", "Dm", "D7"), so no type
+ * needs a word of its own. Older synonyms ("maj", "min", "min7") still read,
+ * tidied by `tidyChordName`. */
+export const QUALITY_OPTIONS: Array<{ value: string }> = [
+  { value: "" },
+  { value: "m" },
+  { value: "7" },
+  { value: "maj7" },
+  { value: "m7" },
+  { value: "sus4" },
+  { value: "sus2" },
+  { value: "add9" },
+  { value: "6" },
+  { value: "m6" },
+  { value: "9" },
+  { value: "11" },
+  { value: "13" },
+  { value: "dim" },
+  { value: "dim7" },
+  { value: "aug" },
+  { value: "m7b5" },
 ];
+
+/** Long-hand that charts don't write, mapped to how they are written. Only
+ *  the WHOLE quality is replaced, so "maj7", "maj9" and "madd9" stay as they are. */
+const QUALITY_TIDY: Record<string, string> = {
+  maj: "",
+  major: "",
+  M: "",
+  min: "m",
+  minor: "m",
+  "-": "m",
+  min7: "m7",
+  min6: "m6",
+  min9: "m9",
+};
+
+/** How a chord is shown: "Dmaj" reads "D", "Amin7" reads "Am7". Anything that
+ *  isn't a root plus a long-hand quality passes through untouched (a bass note
+ *  after "/" is kept). Display-level: stored chords are never rewritten. */
+export function tidyChordName(text: string): string {
+  const match = (text ?? "").match(/^([A-G](?:♯|♭|#|b)?)([^/]*)(\/.*)?$/);
+  if (!match) return text;
+  const [, root, quality, bass = ""] = match;
+  const tidy = QUALITY_TIDY[quality!];
+  if (tidy === undefined) return text;
+  return `${root}${tidy}${bass}`;
+}
 
 /** Parts that compose a chord's display text. */
 export type ChordParts = {
@@ -98,7 +127,7 @@ export function buildChordDisplay(parts: ChordParts): string {
   if (!root) return (customSuffix ?? "").trim();
 
   let text = `${root}${accidentalSymbol(accidental)}`;
-  if (quality) text += quality;
+  if (quality) text += QUALITY_TIDY[quality] ?? quality;
   if (extension) text += extension;
   if (customSuffix) text += customSuffix;
   if (bassRoot) text += `/${bassRoot}${accidentalSymbol(bassAccidental)}`;
@@ -222,7 +251,7 @@ export function buildChordRowLine(line: LyricsLine): string {
     if (row.length < at) row += " ".repeat(at - row.length);
     // If two chords collide, leave a single space between them.
     if (row.length > at) row += " ";
-    row += chord.chord;
+    row += tidyChordName(chord.chord);
   }
   return row.replace(/\s+$/, "");
 }
