@@ -1414,15 +1414,15 @@ export default function App() {
       const recordingRecovery = await recoverPendingRecordingSession();
       if (recordingRecovery.status === "recovered") {
         AppAlert.info(
-          "Recovered recording",
-          `${recordingRecovery.title} was restored after the previous session ended unexpectedly.`
+          i18n.t("recovery.clipRecoveredTitle"),
+          i18n.t("recovery.clipRecoveredBody", { title: recordingRecovery.title })
         );
         return;
+      } else if (recordingRecovery.status === "empty") {
+        AppAlert.info(i18n.t("recovery.clipEmptyTitle"), i18n.t("recovery.clipEmptyBody"));
+        return;
       } else if (recordingRecovery.status === "failed") {
-        AppAlert.info(
-          "Recording recovery failed",
-          "SongNook found an unfinished recording from the previous session but could not restore it automatically."
-        );
+        AppAlert.info(i18n.t("recovery.clipRecoveryFailedTitle"), i18n.t("recovery.clipRecoveryFailedBody"));
         return;
       }
 

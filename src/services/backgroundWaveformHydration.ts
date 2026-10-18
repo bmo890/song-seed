@@ -6,6 +6,7 @@ import {
     MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS,
 } from "./audioStorage";
 import { ensureWaveformSidecar } from "./waveformSidecar";
+import { repairUnfinalizedWav } from "./wavHeaderRepair";
 import { deriveThumbnailPeaks } from "../domain/cardWaveform";
 import { cancelActiveWaveformDecode, getWaveformCancelEpoch } from "./waveformAnalysis";
 import {
@@ -161,6 +162,15 @@ async function hydrateJob(job: HydrationJob): Promise<JobOutcome> {
     // the time until later clips' cards filled in. A sidecar that already exists
     // (the player opened this clip once) is read, not decoded.
     const knownClipDurationMs = clip.durationMs && clip.durationMs > 0 ? clip.durationMs : undefined;
+    if (!knownClipDurationMs) {
+        // A take recovered before 2026-10-18 kept the recorder's placeholder WAV header,
+        // so the probe and decoder read 0 s forever. Finalize it before probing.
+        try {
+            repairUnfinalizedWav(job.audioUri);
+        } catch (error) {
+            console.warn("[hydration] wav header repair failed", error);
+        }
+    }
     if (knownClipDurationMs && knownClipDurationMs <= MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS) {
         const detail = await ensureWaveformSidecar(job.audioUri, knownClipDurationMs, { mode: "background" });
         const latestClip = findClip(job).clip;
@@ -424,7 +434,15 @@ export function enqueueMissingMetadataBackfill(workspaces: Workspace[]): number 
                 const hasDuration = clip.durationMs != null && clip.durationMs > 0;
                 const hasRealWaveform =
                     (clip.waveformPeaks?.length ?? 0) >= MANAGED_WAVEFORM_PEAK_COUNT;
-                if (hasDuration && hasRealWaveform) continue;
+                // A give-up mark on a clip under the analysis cap contradicts itself
+                // (its decode failed once, e.g. a recovered take whose WAV header read
+                // 0 s). One more pass either lands real peaks, which clear the mark, or
+                // fails as it did before; a sidecar on disk makes it a read, not a decode.
+                const markedUnderCap =
+                    !!clip.detailedWaveformUnavailable &&
+                    hasDuration &&
+                    clip.durationMs! <= MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS;
+                if (hasDuration && hasRealWaveform && !markedUnderCap) continue;
                 if (queuedClipIds.has(clip.id) || exhaustedClipIds.has(clip.id)) continue;
                 enqueueBackgroundWaveformHydration({
                     workspaceId: workspace.id,
