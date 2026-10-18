@@ -55,7 +55,8 @@ export type PersistLogEvent =
     | "recording.flushFailed"
     | "recording.recovered"
     | "step.slow"
-    | "record.trace";
+    | "record.trace"
+    | "record.timing";
 
 export type PersistLogEntry = {
     at: string;

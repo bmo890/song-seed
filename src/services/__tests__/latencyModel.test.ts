@@ -78,8 +78,22 @@ describe("resolveRouteLatencyProfile", () => {
     expect(profile.sources.output).toBe("calibration");
     expect(profile.guidePlayerOutputMs).toBe(500);
     expect(profile.guideStartAdvanceMs).toBe(300);
-    // Cues and trims reference the CLICK path, never the player path.
+    // Cues and click-referenced trims use the CLICK path...
     expect(profile.recordingCorrectionMs).toBe(200);
+    // ...but a take played against the guide (a layer, a punch) locks to the master,
+    // heard through the PLAYER path: its trim must use the music delay, or every
+    // Bluetooth layer lands late by player − click (audit 2026-10-18).
+    expect(profile.guideRecordingCorrectionMs).toBe(500);
+  });
+
+  it("off Bluetooth the guide and click corrections agree", () => {
+    const profile = resolveRouteLatencyProfile({
+      route: { name: "Headphones", type: "wired_headphones" },
+      osLatency: { outputMs: 12, inputMs: 8 },
+      calibrations: [],
+      activeOutputs: ALL_CUES,
+    });
+    expect(profile.guideRecordingCorrectionMs).toBe(profile.recordingCorrectionMs);
   });
 
   it("legacy calibration (player-only): OS report keeps the click path honest", () => {
