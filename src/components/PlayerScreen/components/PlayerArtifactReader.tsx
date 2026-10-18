@@ -10,7 +10,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
-import { ReadingChart, ReadingLyrics } from "../../common/SongReading";
+import { ReadingChart, ReadingLyrics, ReadingTransposeBar } from "../../common/SongReading";
 import type { ChordSheet, LyricsLine } from "../../../types";
 import { useTranslation } from "react-i18next";
 import { scheduleFrameOrBackgroundTick } from "../../../services/backgroundPosition";
@@ -21,6 +21,10 @@ type Props = {
   /** The lyric page as reading lines, any key or capo shift already applied. */
   lyricLines: LyricsLine[];
   chordSheet?: ChordSheet | null;
+  /** The song whose key the transpose bar changes; the bar shows only while chords
+   *  are on the page. */
+  transposeIdeaId?: string | null;
+  showTranspose?: boolean;
   /** Text-size multiplier from the reading bar's Aa control. */
   zoom: number;
   /** Chords over the lyrics. The Aa sheet can turn them off for a words-only
@@ -48,6 +52,8 @@ export function PlayerArtifactReader({
   artifact,
   lyricLines,
   chordSheet,
+  transposeIdeaId,
+  showTranspose = false,
   zoom,
   showChords = true,
   followEnabled,
@@ -149,6 +155,11 @@ export function PlayerArtifactReader({
 
   return (
     <View style={styles.root}>
+      {showTranspose && transposeIdeaId ? (
+        <View style={styles.transposeRow}>
+          <ReadingTransposeBar ideaId={transposeIdeaId} />
+        </View>
+      ) : null}
       <ScrollView
         ref={scrollRef}
         style={styles.scroll}
@@ -247,6 +258,9 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flex: 1,
+  },
+  transposeRow: {
+    paddingHorizontal: spacing.lg,
   },
   scrollContent: {
     paddingHorizontal: spacing.lg,
