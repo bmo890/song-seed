@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { colors, text } from "../../design/tokens";
@@ -40,15 +40,14 @@ function sanitize(text: string): string {
 export function TimeEntryModal({ visible, title, initialMs, minMs, maxMs, onConfirm, onClose }: TimeEntryModalProps) {
   const { t } = useTranslation();
   const [raw, setRaw] = useState("");
-  // A fresh field per opening: nothing typed last time carries over.
+  // A fresh field per opening: nothing typed last time carries over. Cleared as
+  // it CLOSES, while nothing is on screen, so an opening's first frame already
+  // shows the current time (clearing on open flashed the last typed figure).
   const [openSeq, setOpenSeq] = useState(0);
-  const wasVisible = useRef(false);
   useEffect(() => {
-    if (visible && !wasVisible.current) {
-      setRaw("");
-      setOpenSeq((seq) => seq + 1);
-    }
-    wasVisible.current = visible;
+    if (visible) return;
+    setRaw("");
+    setOpenSeq((seq) => seq + 1);
   }, [visible]);
 
   const untouched = raw === "";
