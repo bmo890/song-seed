@@ -9,7 +9,7 @@ import { ScreenHeader } from "../common/ScreenHeader";
 import { SegmentedControl } from "../common/SegmentedControl";
 import { NowPlayingIndicator } from "../common/NowPlayingIndicator";
 import { Press } from "../common/Press";
-import { ReadingChart, ReadingLyrics } from "../common/SongReading";
+import { ReadingChart, ReadingLyrics, ReadingTransposeBar } from "../common/SongReading";
 import { ReadingSheet, readingKeyLabel } from "../common/ReadingSheet";
 import { SongPagerStrip, SongPosition, useSongSwipe } from "../common/SongPagerStrip";
 import { colors, text as textTokens } from "../../design/tokens";
@@ -34,10 +34,13 @@ export function SongbookReaderScreen() {
   if (!reader.songbook || !song) return null;
 
   const durationMs = song.playableClip ? getClipPlaybackDurationMs(song.playableClip) : null;
-  const keyText = readingKeyLabel(t, reader.transpose, reader.capo);
+  const keyText = readingKeyLabel(t, reader.capo);
   const titleIsMachine = looksMachineNamed(song.title);
   const clickOn = reader.metronome.isRunning || reader.metronome.isCountIn;
   const clickBpm = reader.tempo ?? reader.metronome.bpm;
+  // Change key on the fly, on the page, whenever chords are showing.
+  const showTranspose =
+    reader.view === "chart" ? !!reader.chordSheet : reader.hasLyricChords && reader.showChords;
 
   return (
     <SafeAreaView style={styles.screen} edges={["top"]}>
@@ -91,6 +94,7 @@ export function SongbookReaderScreen() {
             {keyText ? <Text style={styles.aaKeyText}>{keyText}</Text> : null}
           </Press>
         </View>
+        {showTranspose ? <ReadingTransposeBar ideaId={song.ideaId} /> : null}
       </View>
 
       <GestureDetector gesture={swipe}>

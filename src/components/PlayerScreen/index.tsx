@@ -304,7 +304,7 @@ function PlayerScreenInner({
   const readingZoom = useChartPrefsStore((st) => st.readingZoom);
   const chordsHidden = useChartPrefsStore((st) => st.chordsHidden);
   const readingShift = useReadingChordShift(playerIdea?.id);
-  const readingKeyText = readingKeyLabel(t, readingShift.transpose, readingShift.capo);
+  const readingKeyText = readingKeyLabel(t, readingShift.capo);
   const readingLyricLines = useMemo(() => {
     if (!lyricsChordLines) return linesFromText(displayedLyricsText);
     return readingShift.shift ? transposeLyricsLines(lyricsChordLines, readingShift.shift) : lyricsChordLines;
@@ -1782,6 +1782,10 @@ function PlayerScreenInner({
                 artifact={ui.readingArtifact!}
                 lyricLines={readingLyricLines}
                 chordSheet={readingChordSheet}
+                transposeIdeaId={playerIdea?.id ?? null}
+                showTranspose={
+                  ui.readingArtifact === "chart" ? hasChart : !!lyricsChordLines && !chordsHidden
+                }
                 zoom={readingZoom}
                 showChords={!chordsHidden}
                 followEnabled={ui.followEnabled}

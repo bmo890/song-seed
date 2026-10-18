@@ -7,7 +7,6 @@ import { Stepper } from "./Stepper";
 import { Press } from "./Press";
 import { InkOption } from "./InkOption";
 import { colors } from "../../design/tokens";
-import { formatTransposeOffset } from "../../domain/transpose";
 import { READING_ZOOM_MAX, READING_ZOOM_MIN, useChartPrefsStore } from "../../state/useChartPrefsStore";
 
 /**
@@ -16,11 +15,11 @@ import { READING_ZOOM_MAX, READING_ZOOM_MIN, useChartPrefsStore } from "../../st
  * size or key in all of them.
  *
  * - Size: the reading zoom, remembered for every song.
- * - Key: the key you play it in. Optional, starts at the written key.
+ * - Key lives on the chart itself (ReadingTransposeBar), to change on the fly.
  * - Capo: the fret your capo sits on, so the chords read as the shapes you
  *   finger (founder: "what if someone's using a capo"). Optional, starts off.
  * - Chords: over the words or not, when the lyric page has chords.
- * Key and capo are per song and only offered when the song has chords.
+ * Capo is per song and only offered when the song has chords.
  */
 export function ReadingSheet({
   visible,
@@ -40,10 +39,9 @@ export function ReadingSheet({
   const { t } = useTranslation();
   const zoom = useChartPrefsStore((s) => s.readingZoom);
   const chordsHidden = useChartPrefsStore((s) => s.chordsHidden);
-  const transpose = useChartPrefsStore((s) => (ideaId ? s.transposeByIdeaId[ideaId] ?? 0 : 0));
   const capo = useChartPrefsStore((s) => (ideaId ? s.capoByIdeaId[ideaId] ?? 0 : 0));
   const prefs = useChartPrefsStore.getState;
-  const showKeyRows = hasChords && !!ideaId;
+  const showCapo = hasChords && !!ideaId;
 
   return (
     <BottomSheet visible={visible} onClose={onClose}>
@@ -64,40 +62,7 @@ export function ReadingSheet({
           <Text style={styles.bigA}>{t("reading.aa")}</Text>
         </View>
 
-        {showKeyRows ? (
-          <View style={styles.row}>
-            <Text style={styles.label}>{t("reading.key")}</Text>
-            <Stepper
-              glyphs="plusMinus"
-              onStep={(direction) => prefs().nudgeTranspose(ideaId!, direction)}
-              decrementLabel={t("common.transposeDown")}
-              incrementLabel={t("common.transposeUp")}
-            >
-              <Text
-                style={[styles.value, transpose !== 0 ? styles.valueActive : null]}
-                accessibilityLabel={t("common.transposeValue", { value: formatTransposeOffset(transpose) })}
-              >
-                {formatTransposeOffset(transpose)}
-              </Text>
-            </Stepper>
-            <View style={styles.spacer} />
-            {transpose !== 0 ? (
-              <Press
-                feel="glyph"
-                // haptics.ts: light → a small state flip.
-                haptic="light"
-                onPress={() => prefs().resetTranspose(ideaId!)}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={t("common.resetWrittenKey")}
-              >
-                <Text style={styles.reset}>{t("reading.original")}</Text>
-              </Press>
-            ) : null}
-          </View>
-        ) : null}
-
-        {showKeyRows ? (
+        {showCapo ? (
           <View style={styles.row}>
             <Text style={styles.label}>{t("reading.capo")}</Text>
             <Stepper
@@ -145,15 +110,13 @@ export function ReadingSheet({
   );
 }
 
-/** What the Aa key says beside its glyph: the capo or key in force, else
- *  nothing. Capo wins: it is what changes the shapes under your hand. */
+/** What the Aa key says beside its glyph: the capo in force, else nothing. The
+ *  key shows on the chart's own transpose bar. */
 export function readingKeyLabel(
   t: (key: string, options?: Record<string, unknown>) => string,
-  transpose: number,
   capo: number
 ): string | null {
   if (capo > 0) return t("reading.capoShort", { fret: capo });
-  if (transpose !== 0) return t("reading.keyShort", { value: formatTransposeOffset(transpose) });
   return null;
 }
 

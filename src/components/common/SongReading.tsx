@@ -9,6 +9,8 @@ import {
   READING_LYRIC_SIZE,
 } from "../LyricsVersionScreen/components/chords/chordChartStyle";
 import { ChordSheetSection } from "../ChordSheetScreen/ChordSheetSection";
+import { TransposeChip } from "./TransposeChip";
+import { useChartPrefsStore } from "../../state/useChartPrefsStore";
 
 /**
  * How a song is READ, wherever it is read (2026-10-18, founder: "make sure
@@ -93,7 +95,31 @@ export function ReadingChart({ sheet }: { sheet: ChordSheet }) {
   );
 }
 
+/**
+ * Change key on the fly, right on the chart (founder, 2026-10-18): the shared
+ * transpose control, − and + a half step, with the return-to-written-key glyph
+ * once shifted. Sits pinned above the scrolling page so it stays in reach while a
+ * song plays. Per song, the same key the chart editor and lyric pages use.
+ */
+export function ReadingTransposeBar({ ideaId }: { ideaId: string }) {
+  const transpose = useChartPrefsStore((state) => state.transposeByIdeaId[ideaId] ?? 0);
+  return (
+    <View style={styles.transposeBar}>
+      <TransposeChip
+        offset={transpose}
+        onNudge={(delta) => useChartPrefsStore.getState().nudgeTranspose(ideaId, delta)}
+        onReset={() => useChartPrefsStore.getState().resetTranspose(ideaId)}
+      />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  transposeBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 40,
+  },
   lyric: {
     fontFamily: "Lora_500Medium",
     color: colors.textPrimary,
