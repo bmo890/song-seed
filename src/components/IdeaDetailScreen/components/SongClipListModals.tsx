@@ -1,4 +1,3 @@
-import { fmtDuration, formatClipDate } from "../../../utils";
 import { type CustomTagDefinition, type SongIdea } from "../../../types";
 import { ClipNotesSheet } from "../../modals/ClipNotesSheet";
 import { ClipTagPicker } from "./ClipTagPicker";
@@ -34,11 +33,8 @@ export function SongClipListModals({
     <>
       <ClipNotesSheet
         visible={!!notesSheetClip}
-        clipSubtitle={
-          notesSheetClip
-            ? `${notesSheetClip.durationMs ? fmtDuration(notesSheetClip.durationMs) : "0:00"} • ${formatClipDate(notesSheetClip.createdAt)}`
-            : ""
-        }
+        durationMs={notesSheetClip?.durationMs}
+        createdAt={notesSheetClip?.createdAt}
         titleDraft={editingClipDraft}
         notesDraft={editingClipNotesDraft}
         onChangeTitle={setEditingClipDraft}

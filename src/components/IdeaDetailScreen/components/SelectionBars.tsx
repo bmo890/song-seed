@@ -15,7 +15,6 @@ import { SelectionDock, type SelectionAction } from "../../common/SelectionDock"
 import { ClipNotesSheet } from "../../modals/ClipNotesSheet";
 import { ClipTagPicker } from "./ClipTagPicker";
 import { PlaylistChooserSheet } from "../../common/PlaylistChooserSheet";
-import { fmtDuration, formatClipDate } from "../../../utils";
 import { getLineageRootId } from "../../../domain/clipGraph";
 import {
   buildLineageTitlePlan,
@@ -687,11 +686,8 @@ export function SelectionBars() {
 
       <ClipNotesSheet
         visible={editVisible}
-        clipSubtitle={
-          singleSelectedClip
-            ? `${singleSelectedClip.durationMs ? fmtDuration(singleSelectedClip.durationMs) : "0:00"} • ${formatClipDate(singleSelectedClip.createdAt)}`
-            : ""
-        }
+        durationMs={singleSelectedClip?.durationMs}
+        createdAt={singleSelectedClip?.createdAt}
         titleDraft={editTitleDraft}
         notesDraft={editNotesDraft}
         onChangeTitle={setEditTitleDraft}

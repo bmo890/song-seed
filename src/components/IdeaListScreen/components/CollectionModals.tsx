@@ -7,7 +7,7 @@ import { isSendServiceConfigured } from "../../../config/sendService";
 import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import { buildImportHelperText } from "../../../domain/importDates";
 import { buildImportedTitle } from "../../../services/audioStorage";
-import { ensureUniqueCountedTitle, fmtDuration, formatClipDate } from "../../../utils";
+import { ensureUniqueCountedTitle } from "../../../utils";
 import { useTranslation } from "react-i18next";
 
 // "Get a link" needs a real transfer endpoint — same gate as the Library views.
@@ -76,11 +76,8 @@ export function CollectionModals() {
 
       <ClipNotesSheet
         visible={editModal.editModalOpen && editModal.editTargetIdea?.kind === "clip"}
-        clipSubtitle={
-          editModal.editTargetClip
-            ? `${editModal.editTargetClip.durationMs ? fmtDuration(editModal.editTargetClip.durationMs) : "0:00"} • ${formatClipDate(editModal.editTargetClip.createdAt)}`
-            : ""
-        }
+        durationMs={editModal.editTargetClip?.durationMs}
+        createdAt={editModal.editTargetClip?.createdAt}
         titleDraft={editModal.editClipDraft}
         notesDraft={editModal.editClipNotesDraft}
         onChangeTitle={editModal.setEditClipDraft}

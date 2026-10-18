@@ -164,13 +164,12 @@ export const baseStyles = {
     flexDirection: "row",
     gap: 6,
   },
+  // Bare ink glyphs (2026-10-18), as the name fields in the dialogs wear them.
   titleClearBtn: {
     width: 26,
     height: 26,
-    borderRadius: radii.round,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surfaceHigh,
   },
   subtitle: { marginTop: 2, marginBottom: 12, fontSize: 13, color: "#84736f" },
   inputRow: {
