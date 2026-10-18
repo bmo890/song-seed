@@ -48,27 +48,32 @@ export const finderStyles = StyleSheet.create({
     fontSize: 11,
     color: colors.textMuted,
   },
-  themePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.primary,
-    borderRadius: radii.round,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 5,
-  },
-  themePillText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 11,
-    color: colors.onPrimary,
-  },
   themePlusBtn: {
     width: 24,
     height: 24,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
     alignItems: "center",
     justifyContent: "center",
+  },
+  // A committed theme word: ink, with its own small ✕ (2026-10-18; was a solid
+  // terracotta pill — colour is for THE action and state, not a filter's words).
+  themeWord: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  themeWordText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 12,
+    color: colors.textStrong,
+  },
+  themeAddKey: {
+    minHeight: 28,
+    justifyContent: "center",
+  },
+  themeAddKeyText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 12,
+    color: colors.primaryDeep,
   },
   themeInput: {
     minWidth: 90,
@@ -77,32 +82,17 @@ export const finderStyles = StyleSheet.create({
     color: colors.textPrimary,
     paddingVertical: 4,
   },
-  themeAddBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: radii.round,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 5,
-  },
-  themeAddBtnText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 11,
-    color: colors.onPrimary,
-  },
   toolBar: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
     gap: 5,
     alignSelf: "flex-start",
-    backgroundColor: colors.surfaceContainer,
-    borderRadius: radii.round,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
+    minHeight: 32,
     marginTop: spacing.sm,
   },
   toolBarText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 12,
+    fontSize: 14,
     color: colors.textStrong,
   },
   toolGroup: {
@@ -154,26 +144,11 @@ export const finderStyles = StyleSheet.create({
   emptyState: {
     alignItems: "center",
   },
-  tryNearBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderRadius: radii.round,
-    paddingVertical: 9,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.primary,
-    marginTop: spacing.xs,
-  },
-  tryNearBtnText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13,
-    color: colors.onPrimary,
-  },
   chipWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: spacing.sm,
-    paddingBottom: spacing.md,
+    columnGap: 18,
+    paddingBottom: spacing.sm,
   },
   syllableGroup: {
     marginBottom: spacing.xs,
@@ -185,29 +160,21 @@ export const finderStyles = StyleSheet.create({
     color: colors.textMuted,
     marginBottom: spacing.sm,
   },
-  chip: {
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: radii.round,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 7,
+  // A found word: ink on the paper (2026-10-18; was a filled stadium chip, a
+  // shape the button language retired). The gap between words is the grouping.
+  word: {
+    minHeight: 38,
+    justifyContent: "center",
   },
-  chipText: {
+  wordText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 14,
+    fontSize: 15,
     color: colors.textStrong,
   },
-  moreChip: {
-    borderRadius: radii.round,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 7,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    borderStyle: "dashed",
-  },
-  moreChipText: {
+  moreText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13,
-    color: colors.textSecondary,
+    fontSize: 14,
+    color: colors.textMuted,
   },
   hintRow: {
     height: 18,
@@ -238,8 +205,6 @@ export const finderStyles = StyleSheet.create({
   previewCloseBtn: {
     width: 32,
     height: 32,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -267,7 +232,7 @@ export const finderStyles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 10,
     letterSpacing: 0.4,
-    color: colors.primary,
+    color: colors.textMuted,
     textTransform: "uppercase",
     paddingTop: 2,
     minWidth: 52,
@@ -284,35 +249,9 @@ export const finderStyles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.md,
   },
-  previewActionSecondary: {
+  previewAction: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    borderRadius: radii.round,
-    paddingVertical: 11,
-    backgroundColor: colors.surfaceHigh,
-  },
-  previewActionSecondaryText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13,
-    color: colors.textStrong,
-  },
-  previewActionPrimary: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    borderRadius: radii.round,
-    paddingVertical: 11,
-    backgroundColor: colors.primary,
-  },
-  previewActionPrimaryText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13,
-    color: colors.onPrimary,
+    alignSelf: "stretch",
   },
   // ── Hebrew rhymes: nikud-reading picker ────────────────────────────────────
   // Shown only when the plain spelling is ambiguous (e.g. שמיים → שָׁמַיִם /
@@ -341,7 +280,32 @@ export const finderStyles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     alignItems: "center",
-    gap: spacing.sm,
+    columnGap: spacing.lg,
+    rowGap: spacing.xs,
+  },
+  // A reading in the ink-tab voice: full ink over a 2 pt rule when chosen.
+  reading: {
+    alignItems: "center",
+    gap: 2,
+    paddingHorizontal: 2,
+  },
+  readingText: {
+    fontFamily: "SongNookHebrewSansSemiBold",
+    fontSize: 15,
+    lineHeight: 24,
+    color: colors.textMuted,
+  },
+  readingTextActive: {
+    color: colors.textStrong,
+  },
+  readingRule: {
+    alignSelf: "stretch",
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: "transparent",
+  },
+  readingRuleActive: {
+    backgroundColor: colors.primary,
   },
   // Mirror a content row to right-to-left for Hebrew results.
   rowRtl: {
@@ -350,55 +314,12 @@ export const finderStyles = StyleSheet.create({
   labelRtl: {
     textAlign: "right",
   },
-  vocalPill: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    borderRadius: radii.round,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-  },
-  vocalPillActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  vocalPillText: {
-    fontFamily: "SongNookHebrewSansSemiBold",
-    fontSize: 15,
-    lineHeight: 24,
-    color: colors.textStrong,
-  },
-  vocalPillTextActive: {
-    color: colors.onPrimary,
-  },
   // ── On-demand (Hebrew LLM) trigger + coming-soon composition ───────────────
   triggerCenter: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: spacing.lg,
-  },
-  triggerBadge: {
-    width: 46,
-    height: 46,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.md,
-  },
-  triggerBadgeMuted: {
-    width: 46,
-    height: 46,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceHigh,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.md,
   },
   triggerEyebrow: {
     fontFamily: "PlusJakartaSans_700Bold",
@@ -425,20 +346,8 @@ export const finderStyles = StyleSheet.create({
     textAlign: "center",
   },
   triggerBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
     marginTop: spacing.lg,
-    borderRadius: radii.round,
-    paddingVertical: 11,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.primary,
-  },
-  triggerBtnText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 14,
-    color: colors.onPrimary,
+    alignSelf: "center",
   },
   triggerSub: {
     fontFamily: "PlusJakartaSans_400Regular",

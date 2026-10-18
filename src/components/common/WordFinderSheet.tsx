@@ -1,20 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  Keyboard,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { Keyboard, ScrollView, Text, View } from "react-native";
 import { Spinner } from "./Spinner";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../design/directionalIcons";
 import { BottomSheet } from "./BottomSheet";
 import { SegmentedControl } from "./SegmentedControl";
+import { Button } from "./Button";
+import { InkLink } from "./InkLink";
+import { Press } from "./Press";
 import { finderStyles } from "./WordFinderSheet.styles";
-import { styles as appStyles } from "../../styles";
-import { colors, radii, spacing } from "../../design/tokens";
+import { colors } from "../../design/tokens";
 import { haptic } from "../../design/haptics";
 import { durations } from "../../design/motion";
 import {
@@ -283,7 +279,6 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
   const runHebrewLookup = () => {
     const trimmed = query.trim();
     if (!trimmed || !activeMode) return;
-    haptic.tap();
     const requestId = ++requestIdRef.current;
     setLookup({ status: "loading" });
     fetchHebrewWordSuggestions(activeMode, trimmed, { theme: themeParam })
@@ -301,20 +296,17 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
   };
 
   const handlePick = (word: string) => {
-    haptic.tap();
     onPickWord(word);
   };
 
   /** Explore: look the suggestion itself up, keeping the current mode. */
   const drillInto = (word: string) => {
-    haptic.grab();
     setPreview(null);
     setDrillStack((prev) => [...prev, query]);
     setQuery(word);
   };
 
   const drillBack = () => {
-    haptic.tap();
     setDrillStack((prev) => {
       const next = [...prev];
       const previous = next.pop();
@@ -346,7 +338,6 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
   };
 
   const closePreview = () => {
-    haptic.tap();
     setPreview(null);
   };
 
@@ -362,7 +353,6 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
   };
 
   const selectExtendedMode = (next: WordLookupMode) => {
-    haptic.tap();
     Keyboard.dismiss();
     setExtendedMode(next);
     setToolListOpen(false);
@@ -370,27 +360,23 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
 
   /** Empty rhymes → jump to the Near tab (works for Datamuse and Charuzit). */
   const goToNear = () => {
-    haptic.tap();
     Keyboard.dismiss();
     setMoreTab(false);
     setQuickMode("near");
   };
 
   const reopenToolList = () => {
-    haptic.tap();
     Keyboard.dismiss();
     setToolListOpen(true);
   };
 
   // ── Theme pills ────────────────────────────────────────────────────────────
   const beginThemeEdit = () => {
-    haptic.tap();
     setThemeEditing(true);
   };
 
   /** Commit the draft: sanitized words become pills; requests only fire now. */
   const commitThemeDraft = () => {
-    haptic.tap();
     const words = sanitizeThemeWords(themeDraft);
     if (words.length > 0) {
       setThemes((prev) => [...new Set([...prev, ...words])].slice(0, MAX_THEMES));
@@ -401,10 +387,11 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
   };
 
   const removeTheme = (word: string) => {
-    haptic.light();
     setThemes((prev) => prev.filter((entry) => entry !== word));
   };
 
+  /** Theme words: committed words in ink, each with its own small ✕. The
+   * funnel is ink while a theme is on (state, not decoration). */
   const renderThemeLine = () => (
     <View style={finderStyles.themeLine}>
       {themes.length > 0 || themeEditing ? (
@@ -414,13 +401,21 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={finderStyles.themeScroll}
         >
-          <Ionicons name="funnel-outline" size={12} color={themes.length > 0 ? colors.primary : colors.textMuted} />
+          <Ionicons name="funnel-outline" size={12} color={themes.length > 0 ? colors.textStrong : colors.textMuted} />
           {themes.map((word) => (
-            <View key={word} style={finderStyles.themePill}>
-              <Text style={finderStyles.themePillText}>{word}</Text>
-              <Pressable onPress={() => removeTheme(word)} hitSlop={8} accessibilityLabel={t("wordFinderUi.removeTheme", { word })}>
-                <Ionicons name="close" size={12} color={colors.onPrimary} />
-              </Pressable>
+            <View key={word} style={finderStyles.themeWord}>
+              <Text style={finderStyles.themeWordText}>{word}</Text>
+              <Press
+                feel="glyph"
+                // haptics.ts: light → a small state flip (a theme word let go).
+                haptic="light"
+                onPress={() => removeTheme(word)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t("wordFinderUi.removeTheme", { word })}
+              >
+                <Ionicons name="close" size={12} color={colors.textMuted} />
+              </Press>
             </View>
           ))}
           {themeEditing ? (
@@ -437,55 +432,72 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
                 returnKeyType="done"
                 onSubmitEditing={commitThemeDraft}
               />
-              <Pressable
-                style={({ pressed }) => [finderStyles.themeAddBtn, pressed ? appStyles.pressDown : null]}
+              <Press
+                feel="glyph"
+                // haptics.ts: tap → a control acted (the theme committed).
+                haptic="tap"
+                style={finderStyles.themeAddKey}
                 onPress={commitThemeDraft}
+                hitSlop={6}
+                accessibilityRole="button"
                 accessibilityLabel={t("wordFinderUi.addThemeWord")}
               >
-                <Text style={finderStyles.themeAddBtnText}>{t("wordFinderUi.add")}</Text>
-              </Pressable>
+                <Text style={finderStyles.themeAddKeyText}>{t("wordFinderUi.add")}</Text>
+              </Press>
             </>
           ) : themes.length < MAX_THEMES ? (
-            <Pressable
-              style={({ pressed }) => [finderStyles.themePlusBtn, pressed ? appStyles.pressDown : null]}
+            <Press
+              feel="glyph"
+              // haptics.ts: tap → a control acted (opens the theme field).
+              haptic="tap"
+              style={finderStyles.themePlusBtn}
               onPress={beginThemeEdit}
-              hitSlop={6}
+              hitSlop={8}
+              accessibilityRole="button"
               accessibilityLabel={t("wordFinderUi.addAnotherTheme")}
             >
-              <Ionicons name="add" size={14} color={colors.textSecondary} />
-            </Pressable>
+              <Ionicons name="add" size={16} color={colors.textSecondary} />
+            </Press>
           ) : null}
         </ScrollView>
       ) : (
-        <Pressable
-          style={({ pressed }) => [finderStyles.themeAdd, pressed ? appStyles.pressDown : null]}
+        <Press
+          feel="glyph"
+          // haptics.ts: tap → a control acted (opens the theme field).
+          haptic="tap"
+          style={finderStyles.themeAdd}
           onPress={beginThemeEdit}
+          accessibilityRole="button"
           accessibilityLabel={t("wordFinderUi.addThemeA11y")}
         >
           <Ionicons name="funnel-outline" size={11} color={colors.textMuted} />
           <Text style={finderStyles.themeAddText}>{t("wordFinderUi.addTheme")}</Text>
-        </Pressable>
+        </Press>
       )}
     </View>
   );
 
   // ── Results ────────────────────────────────────────────────────────────────
   const expandChipKey = (key: string) => {
-    haptic.light();
     setExpandedChipKeys((prev) => new Set(prev).add(key));
   };
 
+  /** A found word in ink on the paper: tap places it, a hold opens its meaning. */
   const renderChip = (suggestion: WordSuggestion) => (
-    <Pressable
+    <Press
       key={suggestion.word}
-      style={({ pressed }) => [finderStyles.chip, pressed ? appStyles.pressDown : null]}
+      feel="glyph"
+      // haptics.ts: tap → a control acted (the word placed in the lyric).
+      haptic="tap"
+      style={finderStyles.word}
       onPress={() => handlePick(suggestion.word)}
       onLongPress={() => openPreview(suggestion.word)}
+      accessibilityRole="button"
       accessibilityLabel={t("wordFinderUi.insertWord", { word: suggestion.word })}
       accessibilityHint={t("wordFinderUi.definitionHint")}
     >
-      <Text style={finderStyles.chipText}>{suggestion.word}</Text>
-    </Pressable>
+      <Text style={finderStyles.wordText}>{suggestion.word}</Text>
+    </Press>
   );
 
   /** A capped chip run: shows up to `cap` chips plus a "+ n more" expander. */
@@ -497,13 +509,17 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
       <View style={[finderStyles.chipWrap, resultsAreHebrew ? finderStyles.rowRtl : null]}>
         {shown.map(renderChip)}
         {hidden > 0 ? (
-          <Pressable
-            style={({ pressed }) => [finderStyles.moreChip, pressed ? appStyles.pressDown : null]}
+          <Press
+            feel="glyph"
+            // haptics.ts: light → a small state flip (the run unfolds).
+            haptic="light"
+            style={finderStyles.word}
             onPress={() => expandChipKey(expandKey)}
+            accessibilityRole="button"
             accessibilityLabel={t("wordFinderUi.showMore", { count: hidden })}
           >
-            <Text style={finderStyles.moreChipText}>{t("wordFinderUi.moreCount", { count: hidden })}</Text>
-          </Pressable>
+            <Text style={finderStyles.moreText}>{t("wordFinderUi.moreCount", { count: hidden })}</Text>
+          </Press>
         ) : null}
       </View>
     );
@@ -539,22 +555,11 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
    * the sheet, so the one paid action reads as deliberate, not a bare button. */
   const renderTrigger = () => (
     <Animated.View entering={FadeIn.duration(durations.fast)} style={finderStyles.triggerCenter}>
-      <View style={finderStyles.triggerBadge}>
-        <Ionicons name="sparkles-outline" size={19} color={colors.primary} />
-      </View>
       {activeMode ? <Text style={finderStyles.triggerEyebrow}>{modeLabel(activeMode).toUpperCase()}</Text> : null}
       <Text style={finderStyles.triggerWord} numberOfLines={1}>
         {query.trim()}
       </Text>
-      <Pressable
-        style={({ pressed }) => [finderStyles.triggerBtn, pressed ? appStyles.pressDown : null]}
-        onPress={runHebrewLookup}
-        accessibilityRole="button"
-        accessibilityLabel={t("wordFinderUi.llmFind")}
-      >
-        <Ionicons name="search" size={15} color={colors.onPrimary} />
-        <Text style={finderStyles.triggerBtnText}>{t("wordFinderUi.llmFind")}</Text>
-      </Pressable>
+      <Button label={t("wordFinderUi.llmFind")} onPress={runHebrewLookup} style={finderStyles.triggerBtn} />
       <Text style={finderStyles.triggerSub}>{t("wordFinderUi.llmSub")}</Text>
     </Animated.View>
   );
@@ -563,9 +568,6 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
    * composition, muted, no action. */
   const renderComingSoon = () => (
     <Animated.View entering={FadeIn.duration(durations.fast)} style={finderStyles.triggerCenter}>
-      <View style={finderStyles.triggerBadgeMuted}>
-        <Ionicons name="time-outline" size={19} color={colors.textMuted} />
-      </View>
       {activeMode ? <Text style={finderStyles.triggerEyebrow}>{modeLabel(activeMode).toUpperCase()}</Text> : null}
       <Text style={finderStyles.triggerWordMuted} numberOfLines={1}>
         {query.trim()}
@@ -596,9 +598,11 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
             {group.modes.map((key) => {
               const active = extendedMode === key;
               return (
-                <Pressable
+                <Press
                   key={key}
-                  style={({ pressed }) => [finderStyles.toolRow, pressed ? appStyles.pressDown : null]}
+                  // haptics.ts: light → a small state flip (a choice in a set).
+                  haptic="light"
+                  style={finderStyles.toolRow}
                   onPress={() => selectExtendedMode(key)}
                   accessibilityRole="button"
                   accessibilityState={{ selected: active }}
@@ -609,8 +613,8 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
                       {modeDescription(key)}
                     </Text>
                   </View>
-                  {active ? <Ionicons name="checkmark" size={16} color={colors.primary} /> : null}
-                </Pressable>
+                  {active ? <Ionicons name="checkmark" size={16} color={colors.primaryDeep} /> : null}
+                </Press>
               );
             })}
           </View>
@@ -625,14 +629,18 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
     <Animated.View entering={FadeIn.duration(durations.fast)} style={finderStyles.previewFill}>
       <View style={finderStyles.previewHeader}>
         <Text style={finderStyles.previewWord}>{state.word}</Text>
-        <Pressable
-          style={({ pressed }) => [finderStyles.previewCloseBtn, pressed ? appStyles.pressDown : null]}
+        <Press
+          feel="glyph"
+          // haptics.ts: tap → a control acted (back to the words).
+          haptic="tap"
+          style={finderStyles.previewCloseBtn}
           onPress={closePreview}
           hitSlop={8}
+          accessibilityRole="button"
           accessibilityLabel={t("wordFinderUi.closeDefinition")}
         >
-          <Ionicons name="close" size={18} color={colors.textSecondary} />
-        </Pressable>
+          <Ionicons name="close" size={20} color={colors.textSecondary} />
+        </Press>
       </View>
 
       <View style={finderStyles.previewBody}>
@@ -661,22 +669,19 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
       </View>
 
       <View style={finderStyles.previewActions}>
-        <Pressable
-          style={({ pressed }) => [finderStyles.previewActionSecondary, pressed ? appStyles.pressDown : null]}
+        <Button
+          variant="secondary"
+          label={t("wordFinderUi.explore")}
+          style={finderStyles.previewAction}
           onPress={() => drillInto(state.word)}
           accessibilityLabel={t("wordFinderUi.exploreWord", { word: state.word })}
-        >
-          <Ionicons name="compass-outline" size={15} color={colors.textStrong} />
-          <Text style={finderStyles.previewActionSecondaryText}>{t("wordFinderUi.explore")}</Text>
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [finderStyles.previewActionPrimary, pressed ? appStyles.pressDown : null]}
+        />
+        <Button
+          label={t("wordFinderUi.useWord")}
+          style={finderStyles.previewAction}
           onPress={() => handlePick(state.word)}
           accessibilityLabel={t("wordFinderUi.insertWord", { word: state.word })}
-        >
-          <Text style={finderStyles.previewActionPrimaryText}>{t("wordFinderUi.useWord")}</Text>
-          <Ionicons name="arrow-down" size={14} color={colors.onPrimary} />
-        </Pressable>
+        />
       </View>
     </Animated.View>
   );
@@ -703,26 +708,25 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
         <View style={[finderStyles.vocalRow, resultsAreHebrew ? finderStyles.rowRtl : null]}>
           {readings.map((option) => {
             const selected = option === effectiveVocal;
+            // One reading at a time, in the ink-tab voice: the chosen one in full
+            // ink over a 2 pt rule, the others muted.
             return (
-              <Pressable
+              <Press
                 key={option}
-                style={({ pressed }) => [
-                  finderStyles.vocalPill,
-                  selected ? finderStyles.vocalPillActive : null,
-                  pressed ? appStyles.pressDown : null,
-                ]}
-                onPress={() => {
-                  haptic.tap();
-                  setVocalChoice(option);
-                }}
+                feel="glyph"
+                // haptics.ts: light → a small state flip (a choice in a set).
+                haptic="light"
+                style={finderStyles.reading}
+                onPress={() => setVocalChoice(option)}
                 accessibilityRole="button"
                 accessibilityState={{ selected }}
                 accessibilityLabel={t("wordFinderUi.readingOption", { word: option })}
               >
-                <Text style={[finderStyles.vocalPillText, selected ? finderStyles.vocalPillTextActive : null]}>
+                <Text style={[finderStyles.readingText, selected ? finderStyles.readingTextActive : null]}>
                   {option}
                 </Text>
-              </Pressable>
+                <View style={[finderStyles.readingRule, selected ? finderStyles.readingRuleActive : null]} />
+              </Press>
             );
           })}
         </View>
@@ -738,9 +742,17 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
           <>
             <View style={finderStyles.searchRow}>
               {drillStack.length > 0 ? (
-                <Pressable onPress={drillBack} hitSlop={8} accessibilityLabel={t("wordFinderUi.previousWord")}>
+                <Press
+                  feel="glyph"
+                  // haptics.ts: tap → a control acted (back to the previous word).
+                  haptic="tap"
+                  onPress={drillBack}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("wordFinderUi.previousWord")}
+                >
                   <Ionicons name={dirIcon("chevron-back")} size={17} color={colors.textStrong} />
-                </Pressable>
+                </Press>
               ) : (
                 <Ionicons name="search" size={15} color={colors.textMuted} />
               )}
@@ -756,9 +768,17 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
                 onSubmitEditing={() => Keyboard.dismiss()}
               />
               {query.length > 0 ? (
-                <Pressable onPress={() => setQuery("")} hitSlop={8} accessibilityLabel={t("wordFinderUi.clearWord")}>
+                <Press
+                  feel="glyph"
+                  // haptics.ts: light → a small state flip (the field cleared).
+                  haptic="light"
+                  onPress={() => setQuery("")}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("wordFinderUi.clearWord")}
+                >
                   <Ionicons name="close-circle" size={16} color={colors.textMuted} />
-                </Pressable>
+                </Press>
               ) : null}
             </View>
 
@@ -780,14 +800,18 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
             {/* Active extended tool: a compact bar that reopens the described list. */}
             {moreTab && extendedMode && !showToolList ? (
               <Animated.View entering={FadeIn.duration(durations.fast)}>
-                <Pressable
-                  style={({ pressed }) => [finderStyles.toolBar, pressed ? appStyles.pressDown : null]}
+                <Press
+                  feel="glyph"
+                  // haptics.ts: tap → a control acted (the tool list reopens).
+                  haptic="tap"
+                  style={finderStyles.toolBar}
                   onPress={reopenToolList}
+                  accessibilityRole="button"
                   accessibilityLabel={t("wordFinderUi.changeTool", { tool: modeLabel(extendedMode) })}
                 >
                   <Text style={finderStyles.toolBarText}>{modeLabel(extendedMode)}</Text>
                   <Ionicons name="chevron-down" size={13} color={colors.textSecondary} />
-                </Pressable>
+                </Press>
               </Animated.View>
             ) : null}
 
@@ -821,17 +845,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
                   </Text>
                   {/* Perfect rhymes often come up empty (orange, silver, גֶּשֶׁם) —
                       point the writer at near rhymes rather than a dead end. */}
-                  {activeMode === "rhymes" ? (
-                    <Pressable
-                      style={({ pressed }) => [finderStyles.tryNearBtn, pressed ? appStyles.pressDown : null]}
-                      onPress={goToNear}
-                      accessibilityRole="button"
-                      accessibilityLabel={t("wordFinderUi.tryNear")}
-                    >
-                      <Text style={finderStyles.tryNearBtnText}>{t("wordFinderUi.tryNear")}</Text>
-                      <Ionicons name={dirIcon("arrow-forward")} size={14} color={colors.onPrimary} />
-                    </Pressable>
-                  ) : null}
+                  {activeMode === "rhymes" ? <InkLink label={t("wordFinderUi.tryNear")} onPress={goToNear} /> : null}
                 </View>
               ) : (
                 <ScrollView
