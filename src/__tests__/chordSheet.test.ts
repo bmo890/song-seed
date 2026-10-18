@@ -87,7 +87,7 @@ describe("serializeChordSheetText", () => {
         },
       ],
     };
-    expect(serializeChordSheetText(sheet)).toBe("INTRO\n| C | C Fmaj | - |");
+    expect(serializeChordSheetText(sheet)).toBe("INTRO\n| C | C F | - |");
   });
 });
 
