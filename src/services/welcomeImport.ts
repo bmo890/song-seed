@@ -76,7 +76,7 @@ export async function runWelcomeImport(
         state.addCollection(workspace.id, WELCOME_IMPORT_COLLECTION_TITLE);
 
     const duplicateResult = checkImportDuplicates(assets, getAllClips());
-    const toImport = duplicateResult.hasDuplicates ? duplicateResult.uniqueAssets : assets;
+    const toImport = duplicateResult.hasDuplicates ? duplicateResult.uniqueAssets : duplicateResult.allAssets;
     const skippedDuplicates = assets.length - toImport.length;
     if (toImport.length === 0) {
         onProgress({ phase: "done", imported: 0, failed: 0, skippedDuplicates });

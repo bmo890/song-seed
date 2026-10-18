@@ -56,9 +56,12 @@ function buildLocationBySourceDate(): Map<number, DuplicateLocation> {
  * carry a matching `sourceCreatedAt` timestamp — precise, no false positives.
  */
 export function checkImportDuplicates(
-    assets: ImportedAudioAsset[],
+    assetsIn: ImportedAudioAsset[],
     allClips: ClipVersion[]
 ): DuplicateCheckResult {
+    // The same file picked twice in one import is one file (2026-10-18: it used to land
+    // as two clips). Same location, or the same original recording time and name.
+    const assets = dedupeBatch(assetsIn);
     const existingSourceDates = new Set(
         allClips
             .map((c) => c.sourceCreatedAt)
@@ -99,6 +102,21 @@ export function checkImportDuplicates(
         allAssets: assets,
         locationsBySourceDate,
     };
+}
+
+function dedupeBatch(assets: ImportedAudioAsset[]): ImportedAudioAsset[] {
+    const seen = new Set<string>();
+    const kept: ImportedAudioAsset[] = [];
+    for (const asset of assets) {
+        const keys = [`uri:${asset.uri}`];
+        if (typeof asset.sourceCreatedAt === "number") {
+            keys.push(`src:${asset.sourceCreatedAt}:${(asset.name ?? "").trim().toLowerCase()}`);
+        }
+        if (keys.some((key) => seen.has(key))) continue;
+        keys.forEach((key) => seen.add(key));
+        kept.push(asset);
+    }
+    return kept;
 }
 
 /**
