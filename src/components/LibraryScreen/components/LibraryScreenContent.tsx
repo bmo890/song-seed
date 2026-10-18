@@ -242,7 +242,8 @@ function SongbookSection({ tabs, scroll, headerRight, searchQuery }: { tabs: Rea
   const workspaces = useStore((s) => s.workspaces);
   const ideaTitles = useMemo(() => buildIdeaTitleIndex(workspaces), [workspaces]);
 
-  const headerTitle = songbook.activeSongbook?.title ?? t("library.title");
+  // An open book names itself once, in its own large title (as a playlist does).
+  const headerTitle = songbook.activeSongbook ? "" : t("library.title");
 
   return (
     <>
@@ -328,9 +329,12 @@ function SetlistsSection({ tabs, scroll, headerRight, searchQuery }: { tabs: Rea
   const workspaces = useStore((s) => s.workspaces);
   const ideaTitles = useMemo(() => buildIdeaTitleIndex(workspaces), [workspaces]);
 
+  // An open set names itself once, in its own large title (as a playlist does).
   const headerTitle = setlist.builder
     ? t("library.editSong")
-    : setlist.activeSetlist?.title ?? t("library.title");
+    : setlist.activeSetlist
+      ? ""
+      : t("library.title");
 
   return (
     <>

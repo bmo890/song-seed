@@ -1,6 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-const NO_SELECTION: string[] = [];
 import {
   LayoutChangeEvent,
   Pressable,
@@ -12,25 +10,21 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
-import { ChordChartLines } from "../../LyricsVersionScreen/components/chords/ChordChart";
-import { ChordSheetSection } from "../../ChordSheetScreen/ChordSheetSection";
+import { ReadingChart, ReadingLyrics } from "../../common/SongReading";
 import type { ChordSheet, LyricsLine } from "../../../types";
 import { useTranslation } from "react-i18next";
-import { UserText } from "../../../i18n";
 import { scheduleFrameOrBackgroundTick } from "../../../services/backgroundPosition";
-
-const noop = () => {};
 
 type Props = {
   /** Which artifact is open — decides the body (lyric text / lyric chart / block chart). */
   artifact: "lyrics" | "chart";
-  text: string;
-  chordLines?: LyricsLine[];
+  /** The lyric page as reading lines, any key or capo shift already applied. */
+  lyricLines: LyricsLine[];
   chordSheet?: ChordSheet | null;
   /** Text-size multiplier from the reading bar's Aa control. */
   zoom: number;
-  /** Chord lines over the lyrics — the Aa sheet can turn them off for a
-   *  words-only read. Ignored when the version has no chords. */
+  /** Chords over the lyrics. The Aa sheet can turn them off for a words-only
+   *  read. Ignored when the version has no chords. */
   showChords?: boolean;
   /** Follow: scroll in lock-step with the playhead. */
   followEnabled: boolean;
@@ -52,8 +46,7 @@ type Props = {
  */
 export function PlayerArtifactReader({
   artifact,
-  text,
-  chordLines,
+  lyricLines,
   chordSheet,
   zoom,
   showChords = true,
@@ -70,12 +63,6 @@ export function PlayerArtifactReader({
   // True while follow is on AND the reader hasn't dragged away from it.
   const [tracking, setTracking] = useState(true);
 
-  const showLyricChart =
-    artifact === "lyrics" &&
-    showChords &&
-    !!chordLines &&
-    chordLines.some((line) => line.chords.length > 0);
-  const lines = useMemo(() => text.split("\n"), [text]);
 
   // Live values the rAF loop reads without re-subscribing each render.
   const maxOffsetRef = useRef(0);
@@ -148,47 +135,17 @@ export function PlayerArtifactReader({
 
   // The body is the whole chart or lyric: memoized so the once-a-second position
   // prop (a ref read for the loop) no longer rebuilds every section and line.
-  const body = useMemo(() => (
-    artifact === "chart" ? (
-      chordSheet && chordSheet.sections.length > 0 ? (
-        chordSheet.sections.map((section) =>
-          section.kind === "text" ? (
-            <UserText align="content" key={section.id} value={section.text ?? ""} style={styles.chartText}>
-              {section.text ?? ""}
-            </UserText>
-          ) : (
-            <ChordSheetSection
-              key={section.id}
-              section={section}
-              editable={false}
-              selectionActive={false}
-              selectedMeasureIds={NO_SELECTION}
-              onTapMeasure={noop}
-              onLongPressMeasure={noop}
-              onAddMeasure={noop}
-              onNotes={noop}
-              onOpenMenu={noop}
-            />
-          )
-        )
-      ) : null
-    ) : showLyricChart ? (
-      <ChordChartLines lines={chordLines!} editable={false} zoom={zoom} />
-    ) : (
-      lines.map((line, i) =>
-        line.trim() ? (
-          <Text
-            key={i}
-            style={[styles.line, { fontSize: 20 * zoom, lineHeight: 34 * zoom }]}
-          >
-            {line}
-          </Text>
-        ) : (
-          <View key={i} style={styles.blankLine} />
-        )
-      )
-    )
-  ), [artifact, chordSheet, showLyricChart, chordLines, zoom, lines]);
+  // Drawn by the shared reading pieces, the same ones the songbook reader and
+  // a setlist page use.
+  const body = useMemo(
+    () =>
+      artifact === "chart" ? (
+        chordSheet && chordSheet.sections.length > 0 ? <ReadingChart sheet={chordSheet} /> : null
+      ) : (
+        <ReadingLyrics lines={lyricLines} showChords={showChords} zoom={zoom} />
+      ),
+    [artifact, chordSheet, lyricLines, showChords, zoom]
+  );
 
   return (
     <View style={styles.root}>
@@ -296,21 +253,6 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     // Generous tail so the final lines can still scroll up into view at 100%.
     paddingBottom: 160,
-  },
-  line: {
-    fontFamily: "Lora_500Medium",
-    color: colors.textPrimary,
-  },
-  blankLine: {
-    height: 18,
-  },
-  chartText: {
-    fontFamily: "Lora_500Medium",
-    fontSize: 15,
-    lineHeight: 24,
-    fontStyle: "italic",
-    color: colors.textSecondary,
-    marginVertical: spacing.sm,
   },
   // Soft key in the primary tier (tonal wash + deep ink) — solid primary is
   // reserved for the single highest-stakes commit, which a re-follow is not.

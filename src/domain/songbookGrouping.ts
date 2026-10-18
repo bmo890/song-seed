@@ -36,7 +36,10 @@ export type SongbookSong = {
   playableClip: ClipVersion | null;
 };
 
-export type SongbookReaderView = "lyrics" | "chart" | "grid";
+/** What a reader turns between (2026-10-18, one vocabulary with the player):
+ *  the LYRICS, chords over them when the version has chords, and the CHART,
+ *  the bar grid. */
+export type SongbookReaderView = "lyrics" | "chart";
 
 function findIdea(
   workspaces: Workspace[],
@@ -113,17 +116,19 @@ export function buildDefaultSongbookItemsForIdea(
   return items;
 }
 
-/** Which reader views this song offers. "chart" (chords over lyrics) only when
- *  the referenced lyric version actually carries chords — otherwise it would
- *  duplicate the lyrics view. */
+/** Which reader views this song offers: its lyrics (chords ride on them, the
+ *  reader toggles them in the Aa sheet) and its bar chart. */
 export function availableViewsForSong(song: SongbookSong): SongbookReaderView[] {
   const views: SongbookReaderView[] = [];
   const lyricChart = song.charts.find((chart) => chart.kind === "lyricChart" && chart.available);
-  if (lyricChart && song.idea) {
-    views.push("lyrics");
-    const version = song.idea.lyrics?.versions.find((v) => v.id === lyricChart.versionId);
-    if (version?.document.lines.some((line) => line.chords.length > 0)) views.push("chart");
-  }
-  if (song.hasChordChart) views.push("grid");
+  if (lyricChart && song.idea) views.push("lyrics");
+  if (song.hasChordChart) views.push("chart");
   return views;
+}
+
+/** The lyric version a song's page references, or null. */
+export function songLyricVersion(song: SongbookSong) {
+  const lyricChart = song.charts.find((chart) => chart.kind === "lyricChart" && chart.available);
+  if (!lyricChart || !song.idea) return null;
+  return song.idea.lyrics?.versions.find((version) => version.id === lyricChart.versionId) ?? null;
 }

@@ -154,7 +154,11 @@ export function mergeSatelliteState(
                 ),
             };
         case "chartPrefs":
-            return { ...current, transposeByIdeaId: unionRecords(current.transposeByIdeaId, restored.transposeByIdeaId) };
+            return {
+                ...current,
+                transposeByIdeaId: unionRecords(current.transposeByIdeaId, restored.transposeByIdeaId),
+                capoByIdeaId: unionRecords(current.capoByIdeaId, restored.capoByIdeaId),
+            };
         case "revisit":
             return {
                 ...current,

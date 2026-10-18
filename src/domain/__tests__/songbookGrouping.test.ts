@@ -128,9 +128,9 @@ describe("availableViewsForSong", () => {
       ]),
       [workspace]
     )[0]!;
-    expect(availableViewsForSong(both)).toEqual(["lyrics", "chart", "grid"]);
+    expect(availableViewsForSong(both)).toEqual(["lyrics", "chart"]);
 
-    // v1 has no chords → no "chart" view, just plain lyrics.
+    // No bar chart in the book → lyrics only.
     const plain = groupSongbookItems(
       makeBook([
         { id: "i1", kind: "lyricChart", workspaceId: "ws-1", ideaId: "song-a", versionId: "v1", addedAt: 1 },

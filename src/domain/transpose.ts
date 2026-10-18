@@ -142,6 +142,12 @@ export function clampTransposeOffset(offset: number): number {
   return Math.max(-11, Math.min(11, Math.round(offset)));
 }
 
+/** A capo sits on fret 0 (none) to 11. */
+export function clampCapoFret(fret: number): number {
+  if (!Number.isFinite(fret)) return 0;
+  return Math.max(0, Math.min(11, Math.round(fret)));
+}
+
 /** "+3" / "−2" / "0" for the stepper chip. */
 export function formatTransposeOffset(offset: number): string {
   if (offset > 0) return `+${offset}`;

@@ -152,7 +152,7 @@ export function PlaylistDetailView({
           accessibilityLabel={t("library.shufflePlaylist")}
           testID="playlist-shuffle"
         >
-          <Ionicons name="shuffle" size={18} color={shuffleOn ? colors.onPrimary : colors.textStrong} />
+          <Ionicons name="shuffle" size={18} color={shuffleOn ? colors.primaryDeep : colors.textStrong} />
         </Press>
 
         <Pressable
@@ -177,7 +177,7 @@ export function PlaylistDetailView({
           <Ionicons
             name={editMode ? "checkmark" : "pencil"}
             size={16}
-            color={editMode ? colors.onPrimary : colors.textStrong}
+            color={editMode ? colors.primaryDeep : colors.textStrong}
           />
         </Pressable>
 
@@ -237,7 +237,7 @@ export function PlaylistDetailView({
                   accessibilityRole="button"
                   accessibilityLabel={t("library.removeItemA11y", { title: track.title })}
                 >
-                  <Ionicons name="remove-circle-outline" size={19} color="#B4574A" />
+                  <Ionicons name="remove-circle-outline" size={19} color={colors.danger} />
                 </Pressable>
               ) : (
                 <View style={detailStyles.trackNum}>
@@ -401,17 +401,15 @@ const detailStyles = StyleSheet.create({
   playIconNudge: {
     marginLeft: 3,
   },
+  // Secondary keys are bare ink glyphs (2026-10-18): no fill, no circle.
+  // Active (editing, shuffle on) is terracotta ink.
   quietBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceContainer,
+    width: 40,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
-  quietBtnActive: {
-    backgroundColor: colors.primary,
-  },
+  quietBtnActive: {},
   actionSpacer: {
     flex: 1,
   },

@@ -109,6 +109,12 @@ export const playerScreenStyles = StyleSheet.create({
     alignItems: "center",
     gap: 22,
   },
+  // The reading bar holds more keys than the listening bar, so they sit closer.
+  readingToolbarRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
   reelToolbarLeft: {
     flexDirection: "row",
     alignItems: "center",
@@ -121,60 +127,63 @@ export const playerScreenStyles = StyleSheet.create({
     gap: 6,
     backgroundColor: colors.page,
   },
+  // The reading bar is ink (2026-10-18, aligned with the songbook reader):
+  // glyph + word, no fill, no box, like every toolbar key beside others.
   reelExpandButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceContainer,
+    gap: 6,
+    minHeight: 44,
+    paddingHorizontal: 4,
   },
   reelExpandText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 12,
-    color: colors.textSecondary,
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 15,
+    color: colors.textStrong,
   },
-  // Reading bar (open artifact): quiet soft-key chips at radii.lg — the button
-  // language's tier for contextual controls, not the retired stadium pill.
   readingChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    height: 32,
-    paddingHorizontal: 11,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surfaceContainer,
+    gap: 6,
+    minHeight: 44,
   },
-  readingChipActive: {
-    backgroundColor: colors.primarySurface,
-  },
+  readingChipActive: {},
   readingChipText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 12.5,
-    color: colors.textSecondary,
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 15,
+    color: colors.textStrong,
   },
   readingChipTextActive: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.primaryDeep,
   },
   readingIconButton: {
     width: 32,
-    height: 32,
-    borderRadius: radii.lg,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surfaceContainer,
+  },
+  readingAaButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    minHeight: 44,
+  },
+  readingAaGlyph: {
+    fontFamily: "Lora_600SemiBold",
+    fontSize: 18,
+    letterSpacing: -0.5,
+    color: colors.textStrong,
+  },
+  readingAaKey: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 15,
+    color: colors.primaryDeep,
+    fontVariant: ["tabular-nums"],
   },
   // Bare glyph (sketch-page toolbar language): no fill — the icon alone is the button.
   bareGlyphButton: {
     padding: 6,
-  },
-  // Label atop the text-size slider sheet (same shape as the sparks' sheet).
-  textSizeSheetLabel: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 14,
-    color: colors.textPrimary,
-    marginBottom: 4,
   },
   // The take's-page row above the reader: one whispered line naming which
   // version holds the page, one quiet action to flip.
@@ -197,10 +206,6 @@ export const playerScreenStyles = StyleSheet.create({
     fontSize: 12,
     color: colors.primaryDeep,
     marginStart: "auto",
-  },
-  // Chords toggle in the same sheet — editorial ink (word + leading dot).
-  chordsInk: {
-    marginTop: 10,
   },
   // "Marks" in the listening bar: lines up with the reel's leading edge.
   marksInk: {

@@ -8,12 +8,13 @@ import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { EmptyState } from "../../common/EmptyState";
 import { SentLinkChip } from "../../common/SentLinkChip";
 import { NowPlayingIndicator } from "../../common/NowPlayingIndicator";
-import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
+import { colors, radii, spacing, text as textTokens, shadows } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
 import { fmtDuration } from "../../../utils";
 import type { Setlist } from "../../../types";
 import type { ResolvedSetlistEntry } from "../../../domain/setlistPlayback";
 import { useTranslation } from "react-i18next";
+import { looksMachineNamed } from "../../../domain/titleNaming";
 import { UserText } from "../../../i18n";
 
 type SetlistDetailViewProps = {
@@ -125,7 +126,7 @@ export function SetlistDetailView({
           <Ionicons
             name={editMode ? "checkmark" : "pencil"}
             size={16}
-            color={editMode ? colors.onPrimary : colors.textStrong}
+            color={editMode ? colors.primaryDeep : colors.textStrong}
           />
         </Pressable>
 
@@ -175,6 +176,12 @@ export function SetlistDetailView({
           const isNowPlaying = entry.entryId === nowPlayingEntryId;
           const index = (getIndex() ?? 0) + 1;
           const partCount = entry.parts.length;
+          const entryMeta = [
+            ...(partCount > 1 ? [t("library.parts", { count: partCount })] : []),
+            ...(entry.lyricVersionIds.length > 0 ? [t("reading.lyrics")] : []),
+            ...(entry.hasChordChart ? [t("reading.chart")] : []),
+            ...(entry.includeSongNotes && entry.songNotes ? [t("songDetail.notes")] : []),
+          ].join(" · ");
 
           return (
             <View
@@ -192,7 +199,7 @@ export function SetlistDetailView({
                   accessibilityRole="button"
                   accessibilityLabel={t("library.removeSetSong", { title: entry.title })}
                 >
-                  <Ionicons name="remove-circle-outline" size={19} color="#B4574A" />
+                  <Ionicons name="remove-circle-outline" size={19} color={colors.danger} />
                 </Pressable>
               ) : (
                 <Pressable
@@ -238,6 +245,7 @@ export function SetlistDetailView({
                 <UserText value={entry.title}
                   style={[
                     setStyles.entryTitle,
+                    looksMachineNamed(entry.title) ? setStyles.entryTitleMachine : null,
                     isNowPlaying ? setStyles.entryTitleActive : null,
                     !entry.available ? setStyles.entryTitleMissing : null,
                   ]}
@@ -245,26 +253,13 @@ export function SetlistDetailView({
                 >
                   {entry.title}
                 </UserText>
-                <View style={setStyles.chipRow}>
-                  {entry.available ? (
-                    <>
-                      {partCount > 1 ? (
-                        <Text style={setStyles.partCount}>
-                          {t("library.parts", { count: partCount })}
-                        </Text>
-                      ) : null}
-                      {entry.lyricVersionIds.length > 0 ? (
-                        <Text style={setStyles.chartChip}>{t("common.lyrics")}</Text>
-                      ) : null}
-                      {entry.hasChordChart ? <Text style={setStyles.chartChip}>{t("common.chords")}</Text> : null}
-                      {entry.includeSongNotes && entry.songNotes ? (
-                        <Text style={setStyles.chartChip}>{t("songDetail.notes")}</Text>
-                      ) : null}
-                    </>
-                  ) : (
-                    <Text style={setStyles.missingText}>{t("library.missing")}</Text>
-                  )}
-                </View>
+                {!entry.available ? (
+                  <Text style={setStyles.missingText}>{t("library.missing")}</Text>
+                ) : entryMeta ? (
+                  <Text style={setStyles.entryMeta} numberOfLines={1}>
+                    {entryMeta}
+                  </Text>
+                ) : null}
               </Pressable>
 
               {entry.durationMs != null && entry.available && !editMode ? (
@@ -381,17 +376,15 @@ const setStyles = StyleSheet.create({
   playBtnDisabled: {
     opacity: 0.4,
   },
+  // Secondary keys are bare ink glyphs (2026-10-18): no fill, no circle.
+  // Active (editing, shuffle on) is terracotta ink.
   quietBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceContainer,
+    width: 40,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
-  quietBtnActive: {
-    backgroundColor: colors.primary,
-  },
+  quietBtnActive: {},
   actionSpacer: {
     flex: 1,
   },
@@ -400,22 +393,21 @@ const setStyles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 10,
   },
+  // A song in the set is your work: the card recipe (white, r12, borderless,
+  // whisper). The one sounding is told by its title in terracotta ink.
   entryRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    minHeight: 64,
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    borderRadius: radii.lg,
-    paddingVertical: 11,
-    paddingHorizontal: 12,
-    marginBottom: 8,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 10,
+    ...shadows.card,
   },
-  entryRowActive: {
-    backgroundColor: "#FDF5F2",
-    borderColor: "#EBD3CE",
-  },
+  entryRowActive: {},
   entryRowDragging: {
     opacity: 0.92,
   },
@@ -432,42 +424,28 @@ const setStyles = StyleSheet.create({
   entryMain: {
     flex: 1,
     minWidth: 0,
-    gap: 5,
+    gap: 2,
   },
   entryTitle: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 14,
+    fontFamily: "Lora_600SemiBold",
+    fontSize: 17,
     color: colors.textPrimary,
+  },
+  entryTitleMachine: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 15,
+    color: colors.textStrong,
+    fontVariant: ["tabular-nums"],
+  },
+  entryMeta: {
+    ...textTokens.caption,
+    color: colors.textSecondary,
   },
   entryTitleActive: {
     color: colors.primaryDeep,
   },
   entryTitleMissing: {
     color: colors.textMuted,
-  },
-  chipRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-  chartChip: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 8.5,
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-    color: colors.primaryDeep,
-    backgroundColor: "#FDF5F2",
-    borderWidth: 1,
-    borderColor: "#EBD3CE",
-    borderRadius: 4,
-    paddingVertical: 1.5,
-    paddingHorizontal: 6,
-    overflow: "hidden",
-  },
-  partCount: {
-    ...textTokens.caption,
-    fontSize: 10,
-    color: colors.textSecondary,
   },
   missingText: {
     ...textTokens.caption,
