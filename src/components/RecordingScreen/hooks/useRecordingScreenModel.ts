@@ -12,6 +12,7 @@ import { toast } from "../../common/toastStore";
 import {
   buildBluetoothMonitoringRouteKey,
   getBluetoothMonitoringCalibrationForRoute,
+  calibrationNeedsRedo,
   isBluetoothLikeAudioDevice,
 } from "../../../domain/bluetoothMonitoring";
 import { getClipPlaybackDurationMs, getClipPlaybackWaveformPeaks } from "../../../domain/clipPresentation";
@@ -299,6 +300,10 @@ export function useRecordingScreenModel() {
      *  spacing for the whole take, so from the first change onward it was measuring the
      *  performance against a beat length the click had stopped playing. */
     tempoMap?: TempoMap | null;
+    /** The correction the grid was stamped with in the CLICK's domain (click output delay
+     *  + mic delay): how far the engine's render grid runs ahead of the capture. Resume
+     *  needs it to pick the click back up where it left off. */
+    clickLeadMs?: number;
   } | null>(null);
   /** Mirror for imperative readers (the resume handler) — a press handler must not depend
    *  on having re-rendered since the grid was measured. */
@@ -550,6 +555,12 @@ export function useRecordingScreenModel() {
   const activeBluetoothCalibrationMs = activeBluetoothCalibration?.offsetMs ?? null;
   const monitoringCompensationMs =
     isBluetoothMonitoringOutput && activeBluetoothCalibrationMs != null ? activeBluetoothCalibrationMs : 0;
+  // Visual and haptic beat cues wait for the first CLICK to be heard, so the click's
+  // own delay, not the song's (2026-10-18; the music number held them back by the gap).
+  const clickCueDelayMs =
+    isBluetoothMonitoringOutput && activeBluetoothCalibration
+      ? activeBluetoothCalibration.clickOffsetMs ?? activeBluetoothCalibration.offsetMs
+      : 0;
   const activeMonitoringCompensationMs =
     monitoringCompensationMs > 0 &&
     (Boolean(recordingGuideMixUri) || (recordingMetronomeEnabled && metronome.isNativeAvailable))
@@ -588,6 +599,14 @@ export function useRecordingScreenModel() {
         warnings.push({
           kind: "uncalibrated-bt",
           message: t("recording.uncalibrated", { name: outputName }),
+          showCalibrateAction: true,
+        });
+      } else if (calibrationNeedsRedo(activeBluetoothCalibration)) {
+        // Saved before taps were timed at touch-down: its delays read high, so takes
+        // would land early. One redo fixes it for good.
+        warnings.push({
+          kind: "stale-calibration",
+          message: t("recording.recalibrate", { name: outputName }),
           showCalibrateAction: true,
         });
       } else if (Date.now() - activeBluetoothCalibration.updatedAt > CALIBRATION_STALE_AFTER_MS) {
@@ -1663,15 +1682,12 @@ export function useRecordingScreenModel() {
     countInPendingRef.current = false;
     const mode = countInModeRef.current;
     void (async () => {
-      const delayMs = activeMonitoringCompensationMs;
       let started = false;
 
       if (mode === "resume") {
-        // Resume is the one place the compensation wait survives: a head trim can't fix
-        // alignment mid-file, so delaying the recorder by the ear latency remains the
-        // least-bad option for resumed BT takes.
+        // Guide and capture restart together, as they stopped: the ear delay is on both
+        // sides of the pause alike, so no wait (one used to shift the rest of the take).
         await resumeGuideMix();
-        await waitForMonitoringCompensation(delayMs);
         await recording.resumeRecording();
         started = true;
       } else {
@@ -1766,6 +1782,7 @@ export function useRecordingScreenModel() {
         if (downbeatEpochMs != null && captureStartEpochMs != null && anchor?.msPerPulse) {
           setLiveTakeGrid({
             firstBeatCaptureMs: downbeatEpochMs - captureStartEpochMs + audibleCorrectionMs,
+            clickLeadMs: audibleCorrectionMs,
             beatMs: anchor.msPerPulse,
             pulsesPerBar: anchor.pulsesPerBar ?? metronome.meterPreset.pulsesPerBar,
             tempoMap: takeGridRef.current?.tempoMap ?? null,
@@ -1968,7 +1985,7 @@ export function useRecordingScreenModel() {
         takeUsesNativeMapRef.current = !!nativeMapSegments;
         await metronome.startCountIn(metronome.countInBars, {
           manageAudioSession: false,
-          cueDelayMs: activeMonitoringCompensationMs,
+          cueDelayMs: clickCueDelayMs,
           tempoMapSegments: nativeMapSegments ?? undefined,
         });
 
@@ -2136,7 +2153,7 @@ export function useRecordingScreenModel() {
       if (!alreadyPreviewing) {
         await metronome.start({
           manageAudioSession: false,
-          cueDelayMs: activeMonitoringCompensationMs,
+          cueDelayMs: clickCueDelayMs,
         });
       }
       // Let the engine's audio clock settle before anchoring — but a single fixed wait
@@ -2261,6 +2278,10 @@ export function useRecordingScreenModel() {
         if (musicalStartEpochMs != null && captureStartEpochMs != null && anchor?.msPerPulse) {
           setLiveTakeGrid({
             firstBeatCaptureMs: musicalStartEpochMs - captureStartEpochMs + startCorrectionMs,
+            // Against the guide the guide's music delay stamped the grid, but the guide was
+            // started early by (music − click), so the click's render grid leads the capture
+            // by the click correction either way.
+            clickLeadMs: correctionMs,
             beatMs: anchor.msPerPulse,
             pulsesPerBar: anchor.pulsesPerBar ?? metronome.meterPreset.pulsesPerBar,
             tempoMap: takeGridRef.current?.tempoMap ?? null,
@@ -2287,6 +2308,7 @@ export function useRecordingScreenModel() {
         if (anchor?.msPerPulse) {
           setLiveTakeGrid({
             firstBeatCaptureMs: firstDownbeatMs,
+            clickLeadMs: correctionMs,
             beatMs: anchor.msPerPulse,
             pulsesPerBar: anchor.pulsesPerBar ?? metronome.meterPreset.pulsesPerBar,
             tempoMap: takeGridRef.current?.tempoMap ?? null,
@@ -2340,7 +2362,7 @@ export function useRecordingScreenModel() {
         countInPendingRef.current = true;
         await metronome.startCountIn(metronome.countInBars, {
           manageAudioSession: false,
-          cueDelayMs: activeMonitoringCompensationMs,
+          cueDelayMs: clickCueDelayMs,
         });
       } catch (error) {
         console.warn("Recording count-in resume failed", error);
@@ -2365,7 +2387,7 @@ export function useRecordingScreenModel() {
             beatMs: liveGrid.beatMs,
             pulsesPerBar: liveGrid.pulsesPerBar,
             tempoMap: liveGrid.tempoMap ?? null,
-            startsEarlyByMs: activeMonitoringCompensationMs,
+            renderLeadMs: liveGrid.clickLeadMs ?? 0,
           })
         : null;
       const at = liveGrid
@@ -2387,14 +2409,17 @@ export function useRecordingScreenModel() {
       try {
         await metronome.start({
           manageAudioSession: false,
-          cueDelayMs: activeMonitoringCompensationMs,
+          cueDelayMs: clickCueDelayMs,
           phaseOffsetMs: phase?.offsetMs,
         });
       } catch (error) {
         console.warn("Recording metronome resume failed", error);
       }
     }
-    await waitForMonitoringCompensation(activeMonitoringCompensationMs);
+    // No ear-delay wait (2026-10-18): the guide, the click and the capture all stopped
+    // together and restart together, so the Bluetooth delay sits on both sides of the
+    // pause alike and the head trim already accounts for it. Waiting it out shifted
+    // everything after the pause by the wait (a few hundred ms over Bluetooth).
     await recording.resumeRecording();
   }
 

@@ -1578,6 +1578,8 @@ export const createDataSlice: StateCreator<
                     mode === "fresh"
                         ? osOutputAtCalibrationMs
                         : osOutputAtCalibrationMs ?? previous?.osOutputAtCalibrationMs,
+                // A fresh run is timed at touch-down; a fine-tune keeps how its taps were timed.
+                tapTiming: mode === "fresh" ? "touchDown" : previous?.tapTiming,
                 updatedAt: Date.now(),
             });
             return {

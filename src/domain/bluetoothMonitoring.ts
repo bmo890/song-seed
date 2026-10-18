@@ -119,6 +119,11 @@ export function buildBluetoothMonitoringRouteLabel(
   }
 }
 
+/** Saved before taps were timed at touch-down: its numbers read high, redo it. */
+export function calibrationNeedsRedo(calibration: BluetoothMonitoringCalibration): boolean {
+  return calibration.tapTiming !== "touchDown";
+}
+
 export function normalizeBluetoothMonitoringCalibration(
   calibration: BluetoothMonitoringCalibration
 ): BluetoothMonitoringCalibration {
@@ -136,6 +141,7 @@ export function normalizeBluetoothMonitoringCalibration(
       calibration.osOutputAtCalibrationMs > 0
         ? Math.min(1000, Math.round(calibration.osOutputAtCalibrationMs))
         : undefined,
+    tapTiming: calibration.tapTiming === "touchDown" ? "touchDown" : undefined,
     updatedAt: Number.isFinite(calibration.updatedAt) ? calibration.updatedAt : Date.now(),
   };
 }

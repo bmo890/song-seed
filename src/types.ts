@@ -245,6 +245,11 @@ export type BluetoothMonitoringCalibration = {
    *  resolvers apply the ear-measured values as a BIAS on top of the CURRENT OS report,
    *  so per-connection drift tracks automatically instead of staling the calibration. */
   osOutputAtCalibrationMs?: number;
+  /** How the taps were timed. "touchDown" = the moment the finger met the glass, stamped
+   *  on the touch thread (2026-10-18). Absent = an older calibration timed on the finger's
+   *  LIFT on the JS thread, which read every delay ~60–150 ms high; the recorder asks for
+   *  those to be redone. */
+  tapTiming?: "touchDown";
   updatedAt: number;
 };
 

@@ -45,6 +45,16 @@ describe("resolveResumeClickPhase", () => {
     expect(plain.offsetMs - monitored.offsetMs).toBeCloseTo(120, 6);
   });
 
+  // The take's beats are stamped in the file a click-delay + mic-delay later than the engine
+  // played them. Resuming at the same capture position must put the engine that much further
+  // along, or the second half's click is late by the whole correction.
+  it("puts the engine ahead by the correction the grid was stamped with", () => {
+    const captureMs = 1000 + 2 * BAR + BEAT;
+    const plain = resolveResumeClickPhase({ ...BASE, captureMs })!;
+    const led = resolveResumeClickPhase({ ...BASE, captureMs, renderLeadMs: 230 })!;
+    expect(led.offsetMs - plain.offsetMs).toBeCloseTo(230, 6);
+  });
+
   it("declines when the pause landed before the take musically started", () => {
     expect(resolveResumeClickPhase({ ...BASE, captureMs: 400 })).toBeNull();
   });

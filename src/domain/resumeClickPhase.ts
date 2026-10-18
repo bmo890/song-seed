@@ -41,13 +41,23 @@ export function resolveResumeClickPhase(args: {
      * would put the click off the grid by exactly the compensation.
      */
     startsEarlyByMs?: number;
+    /**
+     * How far the click's RENDER grid runs ahead of the capture at the same moment: the
+     * correction the take's grid was stamped with (click output delay + mic delay). The
+     * take's beats sit in the file that much later than the engine played them, so to pick
+     * the click back up where it left off the engine must be put that much further along
+     * (2026-10-18; without it the resumed click ran late by the whole correction, ~20 ms
+     * wired and a few hundred over Bluetooth).
+     */
+    renderLeadMs?: number;
 }): ResumeClickPhase | null {
     const { captureMs, firstBeatCaptureMs, beatMs, pulsesPerBar } = args;
     if (!Number.isFinite(captureMs) || !Number.isFinite(firstBeatCaptureMs)) return null;
     if (!(beatMs > 0) || !(pulsesPerBar > 0)) return null;
 
     const startsEarlyByMs = Math.max(0, args.startsEarlyByMs ?? 0);
-    const elapsedMs = captureMs - startsEarlyByMs - firstBeatCaptureMs;
+    const renderLeadMs = Number.isFinite(args.renderLeadMs) ? (args.renderLeadMs as number) : 0;
+    const elapsedMs = captureMs - startsEarlyByMs + renderLeadMs - firstBeatCaptureMs;
     // Paused before the take musically started: there is no grid behind us to continue, so a
     // fresh downbeat is the right answer and the caller should start normally.
     if (elapsedMs < 0) return null;
