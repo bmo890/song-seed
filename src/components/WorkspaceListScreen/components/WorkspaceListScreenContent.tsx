@@ -253,15 +253,11 @@ export function WorkspaceListScreenContent() {
         initialDescription={model.modal.editingWorkspace?.description}
         initialColor={model.modal.editingWorkspace?.color}
         initialAvatarKey={model.modal.editingWorkspace?.avatarKey}
-        showArchiveAction={false}
-        showDelete={false}
         onCancel={() => {
           if (model.data.busyWorkspaceId) return;
           model.modal.closeModal();
         }}
         onSave={model.modal.saveWorkspace}
-        onArchiveAction={() => {}}
-        onDelete={() => {}}
       />
 
     </SafeAreaView>

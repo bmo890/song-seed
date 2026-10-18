@@ -48,6 +48,9 @@ export type SliderProps = {
   /** Mirror the axis (a value track reads with the language; a time track does not). */
   inverted?: boolean;
   disabled?: boolean;
+  /** Draws the track in place of the hairline (e.g. the workspace hue rainbow).
+   *  Spans the thumb's travel at CUSTOM_TRACK_HEIGHT; no fill run is drawn over it. */
+  track?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
   testID?: string;
@@ -56,6 +59,7 @@ export type SliderProps = {
 const TRACK_HEIGHT = 3;
 const THUMB = 18;
 const TOUCH_HEIGHT = 32;
+export const CUSTOM_TRACK_HEIGHT = 14;
 /** Sideways travel that means "I am sliding". */
 const SLIDE_INTENT_PX = 6;
 /** Vertical travel that means "I am scrolling the page" — the slider lets go. */
@@ -79,6 +83,7 @@ export function Slider({
   fill = true,
   inverted = false,
   disabled = false,
+  track: customTrack,
   style,
   accessibilityLabel,
   testID,
@@ -267,10 +272,28 @@ export function Slider({
         accessibilityLabel={accessibilityLabel}
         accessibilityValue={{ min: minimumValue, max: maximumValue, now: value }}
         accessibilityState={{ disabled }}
+        // VoiceOver / TalkBack swipe up and down to adjust (2026-10-18: "adjustable"
+        // was declared with no actions, so a screen reader could not move it).
+        accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
+        onAccessibilityAction={(event) => {
+          if (disabled) return;
+          const unit = detent && detent > 0 ? detent : step > 0 ? step : range / 10;
+          const direction = event.nativeEvent.actionName === "increment" ? 1 : -1;
+          const next = Math.max(minimumValue, Math.min(maximumValue, quantise(value + direction * unit, step)));
+          if (next === value) return;
+          onValueChange?.(next);
+          onSlidingComplete?.(next);
+        }}
         testID={testID}
       >
-        <View style={s.track} pointerEvents="none" />
-        {fill ? <Animated.View style={[s.fill, fillStyle]} pointerEvents="none" /> : null}
+        {customTrack ? (
+          <View style={s.customTrack} pointerEvents="none">
+            {customTrack}
+          </View>
+        ) : (
+          <View style={s.track} pointerEvents="none" />
+        )}
+        {fill && !customTrack ? <Animated.View style={[s.fill, fillStyle]} pointerEvents="none" /> : null}
         <Animated.View style={[s.thumb, thumbStyle]} pointerEvents="none" />
       </Animated.View>
     </GestureDetector>
@@ -284,6 +307,16 @@ const s = StyleSheet.create({
   },
   disabled: {
     opacity: 0.4,
+  },
+  // Inset by half a thumb, like the hairline, so the colour under the thumb's
+  // centre is the value it reports.
+  customTrack: {
+    position: "absolute",
+    left: THUMB / 2,
+    right: THUMB / 2,
+    height: CUSTOM_TRACK_HEIGHT,
+    borderRadius: radii.round,
+    overflow: "hidden",
   },
   // A warm line, not a surface tone: it has to read on the page AND on the
   // terracotta wash the loop and marks cards sit on.

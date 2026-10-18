@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { UserTextInput } from "../../i18n/direction";
+import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useTranslation } from "react-i18next";
+import { UserTextInput } from "../../i18n/direction";
 import { genIdea } from "../../utils";
 import { WorkspaceAvatar } from "../common/WorkspaceAvatar";
 import { WarmModal } from "../common/WarmModal";
 import { HueSlider } from "../common/HueSlider";
-import { hueToAccentHex, hexToHue, DEFAULT_WORKSPACE_COLOR } from "../../domain/workspaceTheme";
-import { colors, radii } from "../../design/tokens";
-import { useTranslation } from "react-i18next";
+import { Button } from "../common/Button";
+import { Press } from "../common/Press";
+import { hueToAccentHex, hexToHue } from "../../domain/workspaceTheme";
+import { colors, radii, spacing } from "../../design/tokens";
 
 type Props = {
   visible: boolean;
@@ -17,21 +19,20 @@ type Props = {
   initialDescription?: string;
   initialColor?: string;
   initialAvatarKey?: number;
-  showArchiveAction?: boolean;
-  archiveActionLabel?: string;
-  archiveActionDisabled?: boolean;
-  showDelete?: boolean;
-  deleteLabel?: string;
   onCancel: () => void;
   onSave: (name: string, description: string, color: string, avatarKey: number) => void;
-  onArchiveAction?: () => void;
-  onDelete?: () => void;
 };
 
 function randomHue() {
   return Math.floor(Math.random() * 360);
 }
 
+/**
+ * Name a workspace and give it a colour (design-system pass 2026-10-18): the
+ * avatar previews the colour the slider sets, fields wear the tonal fill, the
+ * name field's helpers are bare ink glyphs, Save is the canon primary key.
+ * Archive and delete live in each workspace's "…" menu, not here.
+ */
 export function WorkspaceModal({
   visible,
   title,
@@ -39,25 +40,16 @@ export function WorkspaceModal({
   initialDescription,
   initialColor,
   initialAvatarKey,
-  showArchiveAction,
-  archiveActionLabel,
-  archiveActionDisabled,
-  showDelete,
-  deleteLabel,
   onCancel,
   onSave,
-  onArchiveAction,
-  onDelete,
 }: Props) {
   const { t } = useTranslation();
   const [name, setName] = useState(initialName ?? "");
   const [description, setDescription] = useState(initialDescription ?? "");
-  const [hue, setHue] = useState(() =>
-    initialColor ? hexToHue(initialColor) : randomHue()
-  );
+  const [hue, setHue] = useState(() => (initialColor ? hexToHue(initialColor) : randomHue()));
   const [avatarKey, setAvatarKey] = useState(initialAvatarKey ?? Date.now());
 
-  // Sync when modal re-opens with fresh initial values
+  // Sync when the sheet re-opens with fresh initial values.
   const prevVisible = useRef(false);
   useEffect(() => {
     if (visible && !prevVisible.current) {
@@ -73,253 +65,150 @@ export function WorkspaceModal({
 
   return (
     <WarmModal visible={visible} onRequestClose={onCancel} title={title} scrollable>
-      {/* ── Avatar preview ──────────────────────────────────────────────── */}
-      <View style={wsStyles.avatarRow}>
-        <View style={wsStyles.avatarWrap}>
-          <WorkspaceAvatar
-            color={accentColor}
-            name={name || "?"}
-            size={64}
-            avatarKey={avatarKey}
-          />
-          <Pressable
-            style={({ pressed }) => [wsStyles.refreshBadge, pressed ? wsStyles.pressed : null]}
+      <View style={s.avatarRow}>
+        <View>
+          <WorkspaceAvatar color={accentColor} name={name || "?"} size={64} avatarKey={avatarKey} />
+          <Press
+            feel="glyph"
+            // haptics.ts: tap → a control acted (a new avatar pattern).
+            haptic="tap"
+            style={s.refreshBadge}
             onPress={() => setAvatarKey(Date.now())}
-            hitSlop={6}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t("modals.newAvatar")}
           >
-            <Ionicons name="refresh-outline" size={13} color={colors.textSecondary} />
-          </Pressable>
+            <Ionicons name="refresh-outline" size={13} color={colors.textStrong} />
+          </Press>
         </View>
       </View>
 
-      {/* ── Hue slider ──────────────────────────────────────────────────── */}
       <HueSlider hue={hue} onChange={setHue} />
 
-      {/* ── Name input ──────────────────────────────────────────────────── */}
-      <View style={wsStyles.inputWrap}>
+      <View style={s.nameField}>
         <UserTextInput
           testID="workspace-name-input"
-          style={wsStyles.input}
+          style={[s.input, s.nameInput]}
           value={name}
           onChangeText={setName}
           placeholder={t("modals.workspaceName")}
-          placeholderTextColor="#B8A8A3"
+          placeholderTextColor={colors.textMuted}
           returnKeyType="next"
         />
-        <View style={wsStyles.inputBtns}>
-          <Pressable
-            style={({ pressed }) => [wsStyles.inputIconBtn, pressed ? wsStyles.pressed : null]}
+        <View style={s.nameGlyphs}>
+          <Press
+            feel="glyph"
+            // haptics.ts: tap → a control acted (a name suggested).
+            haptic="tap"
+            style={s.glyph}
             onPress={() => setName(genIdea())}
             hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel={t("modals.randomName")}
           >
-            <Ionicons name="sparkles" size={14} color="#B8A8A3" />
-          </Pressable>
+            <Ionicons name="sparkles-outline" size={16} color={colors.textSecondary} />
+          </Press>
           {name.length > 0 ? (
-            <Pressable
-              style={({ pressed }) => [wsStyles.inputIconBtn, pressed ? wsStyles.pressed : null]}
+            <Press
+              feel="glyph"
+              // haptics.ts: light → a small state flip (the field cleared).
+              haptic="light"
+              style={s.glyph}
               onPress={() => setName("")}
               hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel={t("modals.clearName")}
             >
-              <Ionicons name="close" size={14} color="#B8A8A3" />
-            </Pressable>
+              <Ionicons name="close" size={16} color={colors.textSecondary} />
+            </Press>
           ) : null}
         </View>
       </View>
 
-      {/* ── Description input ───────────────────────────────────────────── */}
       <UserTextInput
-        style={[wsStyles.input, wsStyles.descriptionInput]}
+        style={[s.input, s.descriptionInput]}
         value={description}
         onChangeText={setDescription}
         placeholder={t("modals.descriptionOptional")}
-        placeholderTextColor="#B8A8A3"
+        placeholderTextColor={colors.textMuted}
         multiline
         returnKeyType="default"
       />
 
-      {/* ── Archive / Delete actions ─────────────────────────────────────── */}
-      {(showArchiveAction && onArchiveAction) || (showDelete && onDelete) ? (
-        <View style={wsStyles.dangerRow}>
-          {showArchiveAction && onArchiveAction ? (
-            <Pressable
-              style={({ pressed }) => [
-                wsStyles.dangerBtn,
-                archiveActionDisabled ? wsStyles.btnDisabled : null,
-                pressed && !archiveActionDisabled ? wsStyles.pressed : null,
-              ]}
-              disabled={archiveActionDisabled}
-              onPress={onArchiveAction}
-            >
-              <Text style={wsStyles.dangerBtnText}>{archiveActionLabel ?? t("workspaceList.archive")}</Text>
-            </Pressable>
-          ) : null}
-          {showDelete && onDelete ? (
-            <Pressable
-              style={({ pressed }) => [wsStyles.deleteBtn, pressed ? wsStyles.pressed : null]}
-              onPress={onDelete}
-            >
-              <Text style={wsStyles.deleteBtnText}>{deleteLabel ?? t("workspaceList.deletePermanently")}</Text>
-            </Pressable>
-          ) : null}
-        </View>
-      ) : null}
-
-      {/* ── Cancel / Save ───────────────────────────────────────────────── */}
-      <View style={wsStyles.btnRow}>
-        <Pressable
-          style={({ pressed }) => [wsStyles.cancelBtn, pressed ? wsStyles.pressed : null]}
-          onPress={onCancel}
-        >
-          <Text style={wsStyles.cancelBtnText}>{t("common.cancel")}</Text>
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [wsStyles.saveBtn, pressed ? wsStyles.pressed : null]}
+      <View style={s.actions}>
+        <Button variant="quiet" label={t("common.cancel")} onPress={onCancel} />
+        <Button
+          label={t("common.save")}
           onPress={() => onSave(name.trim(), description.trim(), accentColor, avatarKey)}
-        >
-          <Text style={wsStyles.saveBtnText}>{t("common.save")}</Text>
-        </Pressable>
+        />
       </View>
     </WarmModal>
   );
 }
 
-const wsStyles = StyleSheet.create({
+const s = StyleSheet.create({
   avatarRow: {
     alignItems: "center",
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
-  avatarWrap: {
-    position: "relative",
-  },
+  // A small paper disc on the avatar's corner: the one control that sits on art.
   refreshBadge: {
     position: "absolute",
     bottom: -2,
-    right: -2,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.surfaceContainer,
-    borderWidth: 1.5,
-    borderColor: colors.page,
+    end: -2,
+    width: 26,
+    height: 26,
+    borderRadius: radii.round,
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderMuted,
     alignItems: "center",
     justifyContent: "center",
   },
-  inputWrap: {
-    position: "relative",
-    marginTop: 10,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "rgba(215,194,189,0.6)",
-    backgroundColor: colors.surface,
+  nameField: {
+    marginTop: spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.surfaceContainer,
     borderRadius: radii.lg,
-    paddingLeft: 14,
-    paddingRight: 72,
+  },
+  // One field language: the tonal fill, no border (as the search field wears it).
+  input: {
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: radii.lg,
+    paddingHorizontal: 14,
     paddingVertical: 10,
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 16,
     lineHeight: 22,
-    color: "#1C1C19",
+    color: colors.textPrimary,
   },
-  inputBtns: {
-    position: "absolute",
-    right: 10,
-    top: 0,
-    bottom: 0,
+  nameInput: {
+    flex: 1,
+    backgroundColor: "transparent",
+  },
+  nameGlyphs: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    paddingEnd: 6,
   },
-  inputIconBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceContainer,
+  glyph: {
+    width: 34,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
   },
   descriptionInput: {
-    marginTop: 10,
+    marginTop: spacing.sm,
     minHeight: 70,
     textAlignVertical: "top",
-    paddingTop: 10,
-    paddingRight: 14,
     fontSize: 14,
     lineHeight: 20,
   },
-  btnRow: {
+  actions: {
     flexDirection: "row",
     justifyContent: "flex-end",
-    gap: 10,
-    marginTop: 20,
-  },
-  cancelBtn: {
-    height: 42,
-    paddingHorizontal: 18,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: "rgba(215,194,189,0.6)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cancelBtnText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  saveBtn: {
-    height: 42,
-    paddingHorizontal: 20,
-    borderRadius: radii.lg,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  saveBtnText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 13,
-    color: colors.surface,
-  },
-  dangerRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 16,
-  },
-  dangerBtn: {
-    height: 36,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "rgba(215,194,189,0.5)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dangerBtnText: {
-    fontFamily: "PlusJakartaSans_500Medium",
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  deleteBtn: {
-    height: 36,
-    paddingHorizontal: 14,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.danger,
-    backgroundColor: colors.dangerSurface,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  deleteBtnText: {
-    fontFamily: "PlusJakartaSans_500Medium",
-    fontSize: 12,
-    color: colors.danger,
-  },
-  btnDisabled: {
-    opacity: 0.4,
-  },
-  pressed: {
-    opacity: 0.7,
-    transform: [{ scale: 0.97 }],
+    gap: spacing.sm,
+    marginTop: spacing.lg,
   },
 });

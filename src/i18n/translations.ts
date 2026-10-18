@@ -903,7 +903,7 @@ export const resources = {
         saving: "Saving…",
         chooseDestination: "Choose destination",
         startedHere: "Started here",
-        workspaceName: "Workspace name",
+        workspaceName: "Workspace name", workspaceColor: "Workspace colour", newAvatar: "New avatar", randomName: "Suggest a name", clearName: "Clear name",
       },
       lyrics: {
         writeHere: "Write your lyrics here",
@@ -2513,7 +2513,7 @@ export const resources = {
         saving: "מתבצעת שמירה…",
         chooseDestination: "בחירת יעד",
         startedHere: "נקודת ההתחלה",
-        workspaceName: "שם מרחב העבודה",
+        workspaceName: "שם מרחב העבודה", workspaceColor: "צבע מרחב העבודה", newAvatar: "אווטאר חדש", randomName: "הצעת שם", clearName: "ניקוי השם",
       },
       lyrics: {
         writeHere: "כאן כותבים את מילות השיר",
