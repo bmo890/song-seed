@@ -35,12 +35,21 @@ export function normalizeBluetoothMonitoringSavedOffsetMs(value: number) {
  *  "a2dp"/"le" otherwise. */
 export type AudioRouteLike = Pick<AudioDevice, "name" | "type"> & { profile?: string | null };
 
+const NON_BLUETOOTH_TYPES = /^(?:wired|usb|builtin|built_in|speaker|earpiece|hdmi|line)/i;
+
 export function isBluetoothLikeAudioDevice(device: AudioRouteLike | null | undefined) {
   if (!device) {
     return false;
   }
   if (device.type === "bluetooth") {
     return true;
+  }
+  // A route the system already named as wired, built in or a speaker is not
+  // Bluetooth, whatever its name says ("wired_headphones" matched "headphones" and
+  // asked wired listeners to calibrate; audit 2026-10-18). The name test below is for
+  // routes the platform could not type (Android LE Audio arrives as "unknown").
+  if (NON_BLUETOOTH_TYPES.test(device.type ?? "")) {
+    return false;
   }
 
   const label = `${device.name} ${device.type}`.toLowerCase();
@@ -75,29 +84,38 @@ export function buildBluetoothMonitoringRouteKey(
   return `${normalizedType}:${normalizedName}`;
 }
 
+type Translate = (key: string, options?: Record<string, unknown>) => string;
+
+/** A route's name for people. The device's own name when it has one; otherwise a
+ *  plain description, through `translate` when given (saved as the calibration's
+ *  label, so it must not be English-only). */
 export function buildBluetoothMonitoringRouteLabel(
-  device: AudioRouteLike | null | undefined
+  device: AudioRouteLike | null | undefined,
+  translate?: Translate
 ) {
+  const say = (key: string, fallback: string, options?: Record<string, unknown>) =>
+    translate ? translate(`bluetoothRoute.${key}`, options) : fallback;
   if (!device) {
-    return "Unknown Bluetooth route";
+    return say("unknown", "Unknown Bluetooth route");
   }
 
-  const hfpSuffix = device.type === "bluetooth" && device.profile === "hfp" ? " (mic active)" : "";
+  const onCall = device.type === "bluetooth" && device.profile === "hfp";
+  const withMic = (name: string) => (onCall ? say("micActive", `${name} (mic active)`, { name }) : name);
   const trimmedName = device.name.trim();
   if (trimmedName.length > 0) {
-    return `${trimmedName}${hfpSuffix}`;
+    return withMic(trimmedName);
   }
 
   switch (device.type) {
     case "bluetooth":
-      return `Bluetooth audio${hfpSuffix}`;
+      return withMic(say("bluetooth", "Bluetooth audio"));
     case "wired_headset":
     case "wired_headphones":
-      return "Wired headphones";
+      return say("wired", "Wired headphones");
     case "builtin_mic":
-      return "Built-in mic";
+      return say("builtinMic", "Built-in mic");
     default:
-      return "Audio route";
+      return say("other", "Audio route");
   }
 }
 

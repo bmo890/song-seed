@@ -190,7 +190,9 @@ export type DataSlice = {
         routeLabel: string,
         offsetMs: number,
         clickOffsetMs?: number,
-        osOutputAtCalibrationMs?: number
+        osOutputAtCalibrationMs?: number,
+        /** A fresh run replaces every number; a fine-tune keeps what it didn't touch. */
+        mode?: "fresh" | "fineTune"
     ) => void;
     removeBluetoothMonitoringCalibration: (routeKey: string) => void;
     setClipOverdubPreviewRenderActive: (ideaId: string, clipId: string, active: boolean) => void;
@@ -1558,7 +1560,7 @@ export const createDataSlice: StateCreator<
             };
         }),
     setPreferredRecordingInputId: (id) => set({ preferredRecordingInputId: id }),
-    setBluetoothMonitoringCalibration: (routeKey, routeLabel, offsetMs, clickOffsetMs, osOutputAtCalibrationMs) =>
+    setBluetoothMonitoringCalibration: (routeKey, routeLabel, offsetMs, clickOffsetMs, osOutputAtCalibrationMs, mode = "fineTune") =>
         set((state) => {
             const previous = state.bluetoothMonitoringCalibrations.find(
                 (calibration) => calibration.routeKey === routeKey
@@ -1567,10 +1569,15 @@ export const createDataSlice: StateCreator<
                 routeKey,
                 routeLabel,
                 offsetMs,
-                // Preserve existing companion measurements when only one number is
-                // being updated (e.g. the saved-list ±10 tweaks touch offsetMs alone).
-                clickOffsetMs: clickOffsetMs ?? previous?.clickOffsetMs,
-                osOutputAtCalibrationMs: osOutputAtCalibrationMs ?? previous?.osOutputAtCalibrationMs,
+                // A fine-tune keeps the companion numbers it didn't touch. A FRESH run
+                // replaces them all: an old click number beside a new music number, or
+                // an old connection's OS report, would silently mis-time every take
+                // (audit 2026-10-18).
+                clickOffsetMs: mode === "fresh" ? clickOffsetMs : clickOffsetMs ?? previous?.clickOffsetMs,
+                osOutputAtCalibrationMs:
+                    mode === "fresh"
+                        ? osOutputAtCalibrationMs
+                        : osOutputAtCalibrationMs ?? previous?.osOutputAtCalibrationMs,
                 updatedAt: Date.now(),
             });
             return {

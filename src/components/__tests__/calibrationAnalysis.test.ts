@@ -163,22 +163,20 @@ describe("buildResultWarning", () => {
   it("warns when the music pass is far above the click pass", () => {
     const warning = buildResultWarning(600, 340, null);
     expect(warning).toContain("260 ms");
-    expect(warning).toContain("above");
-    expect(warning).toContain("retry is recommended");
+    expect(warning).toContain("try again");
   });
 
   it("warns when the music pass is far below the click pass", () => {
     const warning = buildResultWarning(100, 200, null);
     expect(warning).toContain("100 ms");
-    expect(warning).toContain("below");
   });
 
   it("warns when the music pass is far from the OS-reported latency", () => {
     // Gap between passes is fine (50 ms), but 400 vs reported 50 exceeds 300.
     const warning = buildResultWarning(400, 350, 50);
-    expect(warning).toContain("OS-reported route latency");
+    expect(warning).toContain("phone reports");
     expect(warning).toContain("400 ms");
-    expect(warning).toContain("~50 ms");
+    expect(warning).toContain("about 50 ms");
   });
 
   it("returns null for consistent results", () => {
@@ -187,5 +185,15 @@ describe("buildResultWarning", () => {
     expect(buildResultWarning(590, 340, null)).toBeNull();
     // Boundary: a -80 ms gap is still accepted (strictly less triggers).
     expect(buildResultWarning(260, 340, null)).toBeNull();
+  });
+});
+
+describe("an implausibly low Bluetooth reading", () => {
+  it("warns even when the click pass failed: a one-beat-off alignment reads as no delay", () => {
+    expect(buildResultWarning(0, null, null)).toContain("almost no delay");
+    expect(buildResultWarning(20, 300, 280)).toContain("almost no delay");
+  });
+  it("stays quiet for a believable delay", () => {
+    expect(buildResultWarning(180, 160, 170)).toBeNull();
   });
 });

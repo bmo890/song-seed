@@ -561,7 +561,11 @@ export function useRecordingScreenModel() {
     const warnings: RecordingTimingWarning[] = [];
     const outputName = monitoringOutputLabel ?? t("recording.theseHeadphones");
 
-    if (isBluetoothMonitoringOutput) {
+    // The headset's mic puts it in call mode, whose delay can't be calibrated (the
+    // calibration screen measures listening mode). Offering Calibrate there was a
+    // promise the screen can't keep: the mic warning below says it once, honestly.
+    const onCallProfile = currentMonitoringOutput?.profile === "hfp";
+    if (isBluetoothMonitoringOutput && !onCallProfile) {
       if (!activeBluetoothCalibration) {
         warnings.push({
           kind: "uncalibrated-bt",
@@ -577,7 +581,7 @@ export function useRecordingScreenModel() {
       }
     }
 
-    if (isBluetoothRecordingInput) {
+    if (isBluetoothRecordingInput || (isBluetoothMonitoringOutput && onCallProfile)) {
       warnings.push({
         kind: "bt-mic",
         message: t("recording.bluetoothMicWarning"),
@@ -596,6 +600,7 @@ export function useRecordingScreenModel() {
     return warnings.filter((warning) => !dismissedWarningKinds.includes(warning.kind));
   }, [
     activeBluetoothCalibration,
+    currentMonitoringOutput?.profile,
     dismissedWarningKinds,
     isBluetoothMonitoringOutput,
     isBluetoothRecordingInput,
