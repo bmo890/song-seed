@@ -63,7 +63,6 @@ import { EditorScreen } from "./src/components/EditorScreen";
 import { LyricsScreen } from "./src/components/LyricsScreen";
 import { LyricsVersionScreen } from "./src/components/LyricsVersionScreen";
 import { ChordSheetScreen } from "./src/components/ChordSheetScreen";
-import { ClipLineageScreen } from "./src/components/ClipLineageScreen";
 import { SongbookReaderScreen } from "./src/components/SongbookReaderScreen";
 import { SetlistSongScreen } from "./src/components/SetlistSongScreen";
 import { ReceivedScreen } from "./src/components/ReceivedScreen";
@@ -260,7 +259,6 @@ const ROOT_STACK_ROUTE_NAMES: Array<keyof RootStackParamList> = [
   "Lyrics",
   "LyricsVersion",
   "ChordSheet",
-  "ClipLineage",
   "SongbookReader",
   "SetlistSong",
   "TransferReceive",
@@ -392,13 +390,6 @@ function isValidRestorableRootRoute(route: any) {
       return typeof route.params?.ideaId === "string" && route.params.ideaId.length > 0;
     case "LyricsVersion":
       return typeof route.params?.ideaId === "string" && route.params.ideaId.length > 0;
-    case "ClipLineage":
-      return (
-        typeof route.params?.ideaId === "string" &&
-        route.params.ideaId.length > 0 &&
-        typeof route.params?.rootClipId === "string" &&
-        route.params.rootClipId.length > 0
-      );
     case "SongbookReader":
       return typeof route.params?.songbookId === "string" && route.params.songbookId.length > 0;
     case "SetlistSong":
@@ -545,8 +536,7 @@ function getActiveWorkspaceRouteContext(args: {
     args.deepestRouteName === "IdeaDetail" ||
     args.deepestRouteName === "Editor" ||
     args.deepestRouteName === "Lyrics" ||
-    args.deepestRouteName === "LyricsVersion" ||
-    args.deepestRouteName === "ClipLineage"
+    args.deepestRouteName === "LyricsVersion"
       ? (args.deepestParams.ideaId as string | undefined) ?? args.selectedIdeaId
       : args.selectedIdeaId;
   const routeIdea =
@@ -1186,7 +1176,6 @@ function AppContent() {
           <Stack.Screen name="Lyrics" component={LyricsScreen} />
           <Stack.Screen name="LyricsVersion" component={LyricsVersionScreen} />
           <Stack.Screen name="ChordSheet" component={ChordSheetScreen} />
-          <Stack.Screen name="ClipLineage" component={ClipLineageScreen} />
           <Stack.Screen name="SongbookReader" component={SongbookReaderScreen} />
           <Stack.Screen name="SetlistSong" component={SetlistSongScreen} />
           <Stack.Screen name="TransferReceive" component={TransferReceiveScreen} />

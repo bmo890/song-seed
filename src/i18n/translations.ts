@@ -1435,7 +1435,7 @@ export const resources = {
       },
       collectionActions: { undo: "Undo" },
       clipLineage: {
-        notFound: "Lineage not found.", actions: "Clip actions", recordVariation: "Record variation", rename: "Rename", editNotes: "Edit notes", addNotes: "Add notes", deleteClip: "Delete clip?", cannotUndo: "This cannot be undone.", recordTakeA11y: "Record a new version of this take", findEvolution: "Find in Evolution view", viewHistory: "Version history",
+        findEvolution: "Find in Evolution view",
         newVersion: "New version",
         newVersionA11y: "Record a new version of “{{title}}”",
         versionTag: "v{{number}}",
@@ -3051,7 +3051,7 @@ export const resources = {
       },
       collectionActions: { undo: "ביטול" },
       clipLineage: {
-        notFound: "לא נמצא רצף גרסאות.", actions: "פעולות קטע", recordVariation: "הקלטת וריאציה", rename: "שינוי שם", editNotes: "עריכת הערות", addNotes: "הוספת הערות", deleteClip: "למחוק את הקטע?", cannotUndo: "לא ניתן לבטל את הפעולה.", recordTakeA11y: "הקלטת גרסה חדשה של הטייק הזה", findEvolution: "איתור בתצוגת ההתפתחות", viewHistory: "היסטוריית גרסאות",
+        findEvolution: "איתור בתצוגת ההתפתחות",
         newVersion: "גרסה חדשה",
         newVersionA11y: "הקלטת גרסה חדשה של „{{title}}”",
         versionTag: "V{{number}}",

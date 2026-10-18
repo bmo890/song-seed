@@ -97,7 +97,6 @@ export type RootStackParamList = {
   Lyrics: { ideaId: string };
   LyricsVersion: { ideaId: string; versionId?: string; startInEdit?: boolean; forceNewVersion?: boolean; createDraft?: boolean };
   ChordSheet: { ideaId: string };
-  ClipLineage: { ideaId: string; rootClipId: string };
   SongbookReader: { songbookId: string; startIdeaId?: string };
   SetlistSong: { setlistId: string; entryId: string };
   TransferReceive: { transferId: string };

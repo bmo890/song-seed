@@ -39,7 +39,6 @@ type SongScreenContextValue = {
     buildProjectQueue: (clipIds?: string[]) => Array<{ ideaId: string; clipId: string }>;
     playProjectQueue: (clipIds?: string[]) => void;
     startRecording: (parentClipId: string | null) => void;
-    openLineageHistory: (rootClipId: string) => void;
     handleBackToIdeas: () => void;
   };
 };
@@ -159,13 +158,6 @@ export function SongScreenProvider({ children }: { children: ReactNode }) {
       screen.navigation.navigate("Recording" as never);
     }
 
-    function openLineageHistory(rootClipId: string) {
-      if (!screen.selectedIdea) return;
-      (screen.navigation as any).navigate("ClipLineage", {
-        ideaId: screen.selectedIdea.id,
-        rootClipId,
-      });
-    }
 
     function handleBackToIdeas() {
       useStore.getState().cancelClipSelection();
@@ -178,7 +170,6 @@ export function SongScreenProvider({ children }: { children: ReactNode }) {
       buildProjectQueue,
       playProjectQueue,
       startRecording,
-      openLineageHistory,
       handleBackToIdeas,
     };
   }, [parentPicking, screen.navigation, screen.selectedIdea, setRecordingIdeaId, setRecordingParentClipId]);

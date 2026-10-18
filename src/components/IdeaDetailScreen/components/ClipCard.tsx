@@ -59,7 +59,6 @@ export type ClipCardActionProps = {
   onOpenNotesSheet?: (clip: ClipVersion) => void;
   onPickParentTarget: (clipId: string) => void;
   onOpenTagPicker?: (clip: ClipVersion) => void;
-  onViewLineageHistory?: (rootClipId: string) => void;
   onLocateClip?: (clipId: string) => void;
 };
 
