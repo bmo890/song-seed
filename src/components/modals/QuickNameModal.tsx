@@ -1,13 +1,15 @@
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Spinner } from "../common/Spinner";
+import { StyleSheet, Text, View } from "react-native";
 import { UserText, UserTextInput } from "../../i18n/direction";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../design/directionalIcons";
 import { WarmModal } from "../common/WarmModal";
 import { WorkspaceAvatar } from "../common/WorkspaceAvatar";
+import { Button } from "../common/Button";
+import { InkOption } from "../common/InkOption";
+import { Press } from "../common/Press";
 import { fmtDuration, genIdea } from "../../utils";
-import { colors, radii } from "../../design/tokens";
+import { colors, radii, text } from "../../design/tokens";
 import { useTranslation } from "react-i18next";
 import { PIN_ICON } from "../../design/markIcons";
 
@@ -108,51 +110,64 @@ export function QuickNameModal({
 
     return (
         <WarmModal visible={visible} onRequestClose={onCancel} title={resolvedTitle}>
-            {/* ── Name input with sparkle + clear ── */}
-            <View style={qStyles.inputWrap}>
+            {/* ── Name: the tonal field, its helpers bare ink glyphs ── */}
+            <View style={qStyles.nameField}>
                 <UserTextInput
                     testID="quickname-input"
-                    style={qStyles.input}
+                    style={[qStyles.input, qStyles.nameInput]}
                     value={draftValue}
                     onChangeText={onChangeDraft}
                     placeholder={placeholderValue}
-                    placeholderTextColor="#B8A8A3"
+                    placeholderTextColor={colors.textMuted}
                     autoFocus
                     returnKeyType="done"
                     onSubmitEditing={isSaveDisabled ? undefined : onSave}
                     blurOnSubmit
                 />
-                <View style={qStyles.inputBtns}>
-                    <Pressable
-                        style={({ pressed }) => [qStyles.inputIconBtn, pressed ? qStyles.pressDown : null]}
+                <View style={qStyles.nameGlyphs}>
+                    <Press
+                        feel="glyph"
+                        // haptics.ts: tap → a control acted (a name suggested).
+                        haptic="tap"
+                        style={qStyles.glyph}
                         onPress={() => onChangeDraft(genIdea())}
                         hitSlop={6}
+                        accessibilityRole="button"
+                        accessibilityLabel={t("modals.randomName")}
                     >
-                        <Ionicons name="sparkles" size={14} color="#B8A8A3" />
-                    </Pressable>
+                        <Ionicons name="sparkles-outline" size={16} color={colors.textSecondary} />
+                    </Press>
                     {draftValue.length > 0 ? (
-                        <Pressable
-                            style={({ pressed }) => [qStyles.inputIconBtn, pressed ? qStyles.pressDown : null]}
+                        <Press
+                            feel="glyph"
+                            // haptics.ts: light → a small state flip (the field cleared).
+                            haptic="light"
+                            style={qStyles.glyph}
                             onPress={() => onChangeDraft("")}
                             hitSlop={6}
+                            accessibilityRole="button"
+                            accessibilityLabel={t("modals.clearName")}
                         >
-                            <Ionicons name="close" size={14} color="#B8A8A3" />
-                        </Pressable>
+                            <Ionicons name="close" size={16} color={colors.textSecondary} />
+                        </Press>
                     ) : null}
                 </View>
             </View>
 
-            {/* ── Autocomplete suggestions ── */}
+            {/* ── Autocomplete: names in ink, tap to use ── */}
             {suggestions && suggestionMatches.length > 0 ? (
                 <View style={qStyles.suggestRow}>
                     {suggestionMatches.map((s) => (
-                        <Pressable
+                        <Press
                             key={s}
-                            style={({ pressed }) => [qStyles.suggestChip, pressed ? qStyles.pressDown : null]}
+                            feel="glyph"
+                            style={qStyles.suggestWord}
                             onPress={() => (onSelectSuggestion ? onSelectSuggestion(s) : onChangeDraft(s))}
+                            accessibilityRole="button"
+                            accessibilityLabel={s}
                         >
-                            <Text style={qStyles.suggestChipText}>{s}</Text>
-                        </Pressable>
+                            <UserText style={qStyles.suggestWordText}>{s}</UserText>
+                        </Press>
                     ))}
                 </View>
             ) : null}
@@ -164,7 +179,7 @@ export function QuickNameModal({
                     value={descriptionValue ?? ""}
                     onChangeText={onChangeDescription}
                     placeholder={t("modals.descriptionOptional")}
-                    placeholderTextColor="#B8A8A3"
+                    placeholderTextColor={colors.textMuted}
                     multiline
                     returnKeyType="default"
                 />
@@ -175,18 +190,18 @@ export function QuickNameModal({
             {/* ── Pins dropped during the take: a time and a name, nothing else ── */}
             {pins && pins.length > 0 && onChangePinLabel ? (
                 <>
-                    <Text style={qStyles.destinationLabel}>{t("modals.pinsDropped", { count: pins.length })}</Text>
+                    <Text style={qStyles.sectionLabel}>{t("modals.pinsDropped", { count: pins.length })}</Text>
                     <View style={qStyles.pinList}>
                         {pins.map((pin) => (
                             <View key={pin.id} style={qStyles.pinRow}>
                                 <Ionicons name={PIN_ICON} size={14} color={colors.textStrong} />
                                 <Text style={qStyles.pinTime}>{fmtDuration(pin.atMs)}</Text>
                                 <UserTextInput
-                                    style={qStyles.pinInput}
+                                    style={[qStyles.input, qStyles.pinInput]}
                                     value={pin.label}
                                     onChangeText={(value) => onChangePinLabel(pin.id, value)}
                                     placeholder={t("modals.pinNamePlaceholder")}
-                                    placeholderTextColor="#B8A8A3"
+                                    placeholderTextColor={colors.textMuted}
                                     returnKeyType="done"
                                 />
                             </View>
@@ -197,13 +212,16 @@ export function QuickNameModal({
 
             {onPressDestination ? (
                 <>
-                    <Text style={qStyles.destinationLabel}>{t("modals.saveTo")}</Text>
-                    <Pressable
-                        style={({ pressed }) => [
-                            qStyles.destinationRow,
-                            pressed ? qStyles.pressDown : null,
-                        ]}
+                    <Text style={qStyles.sectionLabel}>{t("modals.saveTo")}</Text>
+                    <Press
+                        // Opens a sheet of places: navigation is silent.
+                        haptic="navigate"
+                        style={qStyles.destinationRow}
                         onPress={onPressDestination}
+                        accessibilityRole="button"
+                        accessibilityLabel={[t("modals.saveTo"), destinationWorkspaceTitle, destinationCollectionLabel]
+                            .filter(Boolean)
+                            .join(", ")}
                     >
                         {destinationWorkspaceTitle ? (
                             <WorkspaceAvatar
@@ -213,7 +231,7 @@ export function QuickNameModal({
                                 size={22}
                             />
                         ) : (
-                            <Ionicons name="folder-outline" size={18} color={colors.primary} />
+                            <Ionicons name="folder-outline" size={18} color={colors.textStrong} />
                         )}
                         <View style={qStyles.destinationCopy}>
                             {destinationWorkspaceTitle ? (
@@ -226,60 +244,34 @@ export function QuickNameModal({
                             </Text>
                         </View>
                         <Ionicons name={dirIcon("chevron-forward")} size={18} color={colors.textMuted} />
-                    </Pressable>
+                    </Press>
                 </>
             ) : null}
 
             {onChangeIsPrimary !== undefined ? (
-                <Pressable
-                    style={qStyles.checkRow}
+                <InkOption
+                    label={primaryLabel ?? t("modals.makePrimary")}
+                    selected={!!isPrimary}
                     onPress={() => onChangeIsPrimary(!isPrimary)}
-                >
-                    <Ionicons
-                        name={isPrimary ? "checkbox" : "square-outline"}
-                        size={20}
-                        color={isPrimary ? colors.primary : colors.borderMuted}
-                    />
-                    <Text style={qStyles.checkLabel}>{primaryLabel ?? t("modals.makePrimary")}</Text>
-                </Pressable>
+                    style={qStyles.primaryOption}
+                />
             ) : null}
 
             <View style={qStyles.btnRow}>
-                <Pressable
+                <Button
                     testID="quickname-cancel"
-                    accessibilityRole="button"
-                    accessibilityLabel={t("common.cancel")}
-                    style={({ pressed }) => [
-                        qStyles.cancelBtn,
-                        isCancelDisabled ? qStyles.btnDisabled : null,
-                        pressed && !isCancelDisabled ? qStyles.pressDown : null,
-                    ]}
+                    variant="quiet"
+                    label={t("common.cancel")}
                     disabled={isCancelDisabled}
                     onPress={onCancel}
-                >
-                    <Text style={qStyles.cancelBtnText}>{t("common.cancel")}</Text>
-                </Pressable>
-                <Pressable
+                />
+                <Button
                     testID="quickname-save"
-                    accessibilityRole="button"
+                    label={saving ? t("modals.saving") : resolvedSaveLabel}
                     accessibilityLabel={resolvedSaveLabel}
-                    style={({ pressed }) => [
-                        qStyles.saveBtn,
-                        isSaveDisabled ? qStyles.btnDisabled : null,
-                        pressed && !isSaveDisabled ? qStyles.pressDown : null,
-                    ]}
                     disabled={isSaveDisabled}
                     onPress={onSave}
-                >
-                    {saving ? (
-                        <View style={qStyles.saveBtnBusy}>
-                            <Spinner size="small" color={colors.surface} />
-                            <Text style={qStyles.saveBtnText}>{t("modals.saving")}</Text>
-                        </View>
-                    ) : (
-                        <Text style={qStyles.saveBtnText}>{resolvedSaveLabel}</Text>
-                    )}
-                </Pressable>
+                />
             </View>
             {children}
         </WarmModal>
@@ -287,69 +279,70 @@ export function QuickNameModal({
 }
 
 const qStyles = StyleSheet.create({
-    inputWrap: {
-        position: "relative",
-    },
+    // One field language: the tonal fill, no border (as the search field wears it).
     input: {
-        borderWidth: 1,
-        borderColor: "rgba(215,194,189,0.6)",
-        backgroundColor: colors.surface,
+        backgroundColor: colors.surfaceContainer,
         borderRadius: radii.lg,
-        paddingLeft: 14,
-        paddingRight: 72,
+        paddingHorizontal: 14,
         paddingVertical: 10,
         fontFamily: "PlusJakartaSans_500Medium",
         fontSize: 16,
         lineHeight: 22,
-        color: "#1C1C19",
+        color: colors.textPrimary,
+    },
+    nameField: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: colors.surfaceContainer,
+        borderRadius: radii.lg,
+    },
+    nameInput: {
+        flex: 1,
+        backgroundColor: "transparent",
+    },
+    nameGlyphs: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingEnd: 6,
+    },
+    glyph: {
+        width: 34,
+        height: 40,
+        alignItems: "center",
+        justifyContent: "center",
     },
     descriptionInput: {
         marginTop: 8,
         fontSize: 14,
         lineHeight: 20,
         minHeight: 60,
-        paddingRight: 14,
-    },
-    inputBtns: {
-        position: "absolute",
-        right: 10,
-        top: 0,
-        bottom: 0,
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 4,
-    },
-    inputIconBtn: {
-        width: 26,
-        height: 26,
-        borderRadius: radii.round,
-        backgroundColor: colors.surfaceContainer,
-        alignItems: "center",
-        justifyContent: "center",
+        textAlignVertical: "top",
     },
     suggestRow: {
         flexDirection: "row",
         flexWrap: "wrap",
-        gap: 6,
-        marginTop: 10,
+        columnGap: 16,
+        marginTop: 6,
     },
-    suggestChip: {
-        backgroundColor: colors.surfaceContainer,
-        borderRadius: radii.xl,
-        paddingHorizontal: 12,
-        paddingVertical: 7,
+    suggestWord: {
+        minHeight: 34,
+        justifyContent: "center",
     },
-    suggestChipText: {
+    suggestWordText: {
         fontFamily: "PlusJakartaSans_600SemiBold",
-        fontSize: 13,
+        fontSize: 14,
         color: colors.textStrong,
     },
     helperText: {
-        fontFamily: "PlusJakartaSans_400Regular",
-        fontSize: 12,
-        lineHeight: 18,
+        ...text.caption,
         color: colors.textSecondary,
         marginTop: 8,
+    },
+    sectionLabel: {
+        ...text.annotation,
+        color: colors.textSecondary,
+        marginTop: 14,
+        marginBottom: 6,
     },
     pinList: {
         gap: 6,
@@ -368,33 +361,16 @@ const qStyles = StyleSheet.create({
     },
     pinInput: {
         flex: 1,
-        borderWidth: 1,
-        borderColor: "rgba(215,194,189,0.6)",
-        backgroundColor: colors.surface,
-        borderRadius: radii.lg,
         paddingHorizontal: 12,
         paddingVertical: 7,
-        fontFamily: "PlusJakartaSans_500Medium",
         fontSize: 14,
         lineHeight: 20,
-        color: "#1C1C19",
-    },
-    destinationLabel: {
-        fontFamily: "PlusJakartaSans_600SemiBold",
-        fontSize: 11,
-        color: colors.textSecondary,
-        textTransform: "uppercase",
-        letterSpacing: 0.5,
-        marginTop: 14,
-        marginBottom: 6,
     },
     destinationRow: {
         flexDirection: "row",
         alignItems: "center",
         gap: 11,
-        borderWidth: 1,
-        borderColor: "rgba(215,194,189,0.6)",
-        backgroundColor: colors.surface,
+        backgroundColor: colors.surfaceContainer,
         borderRadius: radii.lg,
         paddingHorizontal: 13,
         paddingVertical: 11,
@@ -413,61 +389,13 @@ const qStyles = StyleSheet.create({
         fontSize: 14,
         color: colors.textPrimary,
     },
-    checkRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 8,
-        marginTop: 14,
-    },
-    checkLabel: {
-        fontFamily: "PlusJakartaSans_500Medium",
-        fontSize: 14,
-        color: colors.textStrong,
+    primaryOption: {
+        marginTop: 12,
     },
     btnRow: {
         flexDirection: "row",
         justifyContent: "flex-end",
-        gap: 10,
-        marginTop: 20,
-    },
-    cancelBtn: {
-        height: 42,
-        paddingHorizontal: 18,
-        borderRadius: radii.lg,
-        borderWidth: 1,
-        borderColor: "rgba(215,194,189,0.6)",
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    cancelBtnText: {
-        fontFamily: "PlusJakartaSans_600SemiBold",
-        fontSize: 13,
-        color: colors.textSecondary,
-    },
-    saveBtn: {
-        height: 42,
-        minWidth: 92,
-        paddingHorizontal: 20,
-        borderRadius: radii.lg,
-        backgroundColor: colors.primary,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    saveBtnBusy: {
-        flexDirection: "row",
-        alignItems: "center",
         gap: 8,
-    },
-    saveBtnText: {
-        fontFamily: "PlusJakartaSans_700Bold",
-        fontSize: 13,
-        color: colors.surface,
-    },
-    btnDisabled: {
-        opacity: 0.45,
-    },
-    pressDown: {
-        opacity: 0.8,
-        transform: [{ scale: 0.97 }],
+        marginTop: 20,
     },
 });
