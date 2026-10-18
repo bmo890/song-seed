@@ -14,6 +14,9 @@ import { styles } from "../styles";
 import { useSongScreen } from "../provider/SongScreenProvider";
 import { CollapsingTabStage } from "../components/CollapsingTabStage";
 import { useTranslation } from "react-i18next";
+import { TransposeChip } from "../../common/TransposeChip";
+import { useChartPrefsStore } from "../../../state/useChartPrefsStore";
+import { clampTransposeOffset, transposeChordSheet } from "../../../domain/transpose";
 
 export function SongChartSection() {
   const { t } = useTranslation();
@@ -29,6 +32,13 @@ export function SongChartSection() {
   const [exportVisible, setExportVisible] = useState(false);
   const [fullViewOpen, setFullViewOpen] = useState(false);
   const { setIsEditing, isEditing } = model;
+  // Change key on the fly in the read view (founder, 2026-10-18), the same
+  // per-song display transpose the chart page, player and songbook use. Editing
+  // always shows, and edits, the written key.
+  const transposeIdeaId = idea?.kind === "project" ? idea.id : null;
+  const transpose = useChartPrefsStore((st) =>
+    transposeIdeaId ? clampTransposeOffset(st.transposeByIdeaId[transposeIdeaId] ?? 0) : 0
+  );
 
   // Editing happens in a dedicated keyboard-safe scroll view (below); track its
   // offset so a focused note/text-block can be lifted above the keyboard.
@@ -149,6 +159,7 @@ export function SongChartSection() {
 
   // ── Read-only view: the collapsing song header + tabs stay in place. ─────────
   const isEmpty = model.sheet.sections.length === 0;
+  const displaySheet = transpose ? transposeChordSheet(model.sheet, transpose) : model.sheet;
   return (
     <>
       <CollapsingTabStage
@@ -163,6 +174,14 @@ export function SongChartSection() {
           // terracotta pencil, which borrowed the record FAB's identity for an
           // edit action and made the sibling tabs look like different apps.
           <View style={chartControls.row}>
+            {transposeIdeaId ? (
+              <TransposeChip
+                offset={transpose}
+                onNudge={(delta) => useChartPrefsStore.getState().nudgeTranspose(transposeIdeaId, delta)}
+                onReset={() => useChartPrefsStore.getState().resetTranspose(transposeIdeaId)}
+              />
+            ) : null}
+            <View style={chartControls.spacer} />
             <IconButton
               icon="expand-outline"
               tone="muted"
@@ -187,7 +206,7 @@ export function SongChartSection() {
           </View>
         ) : null}
 
-        <ChordSheetBody model={model} />
+        <ChordSheetBody model={model} displaySheet={displaySheet} />
 
         {exportSheet}
       </CollapsingTabStage>
@@ -195,7 +214,7 @@ export function SongChartSection() {
       <ChordSheetFullView
         visible={fullViewOpen}
         title={model.projectIdea?.title ?? t("songDetail.chartFallback")}
-        sheet={model.sheet}
+        sheet={displaySheet}
         onClose={() => setFullViewOpen(false)}
       />
     </>
@@ -206,11 +225,13 @@ const chartControls = StyleSheet.create({
   // Glyphs sit quietly on the trailing edge, same as the Takes toolbar.
   row: {
     flexDirection: "row",
-    justifyContent: "flex-end",
     alignItems: "center",
     gap: 14,
     minHeight: 38,
     marginBottom: spacing.sm,
+  },
+  spacer: {
+    flex: 1,
   },
   editorBar: {
     flexDirection: "row",
