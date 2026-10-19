@@ -140,6 +140,7 @@ import { ToastHost } from "./src/components/common/ToastHost";
 import { SendJobHost, SendLinkHost } from "./src/components/common/SendLinkSheet";
 import { ReceivedParcelHost } from "./src/components/common/ReceivedParcelSheet";
 import { ProUpsellHost } from "./src/components/common/ProUpsellSheet";
+import { FreeMonthNotices } from "./src/components/common/FreeMonthNotices";
 import { WelcomeFlow } from "./src/components/common/WelcomeFlow";
 import { installGlobalCrashHandler } from "./src/services/crashLog";
 import { describeError, persistLog } from "./src/services/persistLog";
@@ -1533,6 +1534,7 @@ export default function App() {
           <ActionMenuHost />
           <AppDialogHost />
           <ProUpsellHost />
+          {hasHydrated ? <FreeMonthNotices /> : null}
           {!hasHydrated ? (
             // Hold the app shell until persist rehydrates so no screen can mount against the
             // default store and accidentally serialize an empty snapshot back to AsyncStorage.

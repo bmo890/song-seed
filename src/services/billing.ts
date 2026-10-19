@@ -3,13 +3,13 @@ import { proEntitlement } from "../domain/entitlements";
 /**
  * Billing integration point (RevenueCat) — STUB.
  *
- * The whole free/Pro seam is built and testable, but real purchases are deliberately not
- * wired yet: monetization ships 2–4 weeks AFTER launch (see phase-6-monetization.md), and
- * it needs the owner's RevenueCat account + App Store Connect / Play products + a signed
- * Paid Apps agreement. Until then every entry point resolves to `unavailable` so the paywall
- * can be previewed without pretending to charge anyone.
+ * The whole free/Pro seam is built and testable, but real purchases are not wired yet.
+ * Pro ships with v1 behind a 30-day free month (founder, 2026-10-19; see the header of
+ * phase-6-monetization.md). Store products and agreements are set up; the RevenueCat
+ * account is the last piece. Until it lands every entry point resolves to `unavailable`, so
+ * the Pro sheet can be previewed without pretending to charge anyone.
  *
- * Post-launch wiring (do NOT do pre-launch):
+ * Wiring, once RevenueCat is set up (needs a new store build):
  *   - add `react-native-purchases`, init with the API key (EAS secret → app.config.js extra)
  *   - Purchases.addCustomerInfoUpdateListener → proEntitlement.set(active["pro"] != null)
  *   - purchasePro → Purchases.purchasePackage; restorePurchases → Purchases.restorePurchases

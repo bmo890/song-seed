@@ -1,293 +1,304 @@
 import { useState } from "react";
-import { Dimensions, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { BottomSheet } from "./BottomSheet";
-import { closeProUpsell, useProUpsellState } from "./proUpsell";
-import { colors, radii } from "../../design/tokens";
-import { haptic } from "../../design/haptics";
-import { purchasePro, restorePurchases, type ProPlan } from "../../services/billing";
 import { useTranslation } from "react-i18next";
+import { BottomSheet } from "./BottomSheet";
+import { Button } from "./Button";
+import { Press } from "./Press";
+import { closeProUpsell, useProUpsellState } from "./proUpsell";
+import { colors, radii, spacing, text as textTokens } from "../../design/tokens";
+import { getFreeMonthEndsAt, isFoundingMember, isPaywallLive, proEntitlement } from "../../domain/entitlements";
+import { freeMonthStatus, FREE_MONTH_DAYS } from "../../domain/freeMonth";
+import { isDevFreeMonthPreview } from "../../services/freeMonthClock";
+import { purchasePro, restorePurchases, type ProPlan } from "../../services/billing";
 
-// TODO(owner): confirm these once the privacy policy is hosted (OWNER-TODO §3) and a terms
-// page exists. Apple requires functional Terms + Privacy links on a live paywall; the sheet
-// is never shown to real users until billing lands, so placeholders are fine until then.
-const PRIVACY_URL = "https://bmo890.github.io/song-nook/privacy-policy";
-const TERMS_URL = "https://bmo890.github.io/song-nook/terms";
+// The live legal pages on songnook.app (built from docs/ by build:legal). Apple requires
+// working Terms and Privacy links on a paywall.
+const PRIVACY_URL = "https://songnook.app/privacy";
+const TERMS_URL = "https://songnook.app/terms";
 
-type FeatureRow = { icon: keyof typeof Ionicons.glyphMap; title: string; blurb: string };
-
-const FEATURE_ICONS: FeatureRow["icon"][] = ["infinite-outline", "layers-outline", "sparkles-outline", "cloud-upload-outline", "file-tray-full-outline", "document-text-outline"];
+/** What Pro adds, in the confirmed split (founder, 2026-10-19). Bare ink glyphs, no tiles. */
+const FEATURE_ICONS: (keyof typeof Ionicons.glyphMap)[] = [
+  "musical-notes-outline",
+  "layers-outline",
+  "repeat-outline",
+  "cut-outline",
+  "sparkles-outline",
+  "paper-plane-outline",
+];
 const PLAN_IDS: ProPlan[] = ["annual", "monthly", "lifetime"];
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
-    const { t } = useTranslation();
-    const [selected, setSelected] = useState<ProPlan>("annual");
-    // Feedback is rendered INLINE, not via AppAlert: this sheet is a Modal, AppDialog is
-    // also a Modal, and iOS won't present a dialog over an already-open Modal — so an alert
-    // here would silently no-op (a dead-end tap). Inline copy also reads better than a
-    // dialog stacked on the sheet.
-    const [notice, setNotice] = useState<string | null>(null);
-    const maxScroll = Math.round(Dimensions.get("window").height * 0.5);
-
-    async function handlePurchase() {
-        haptic.tap();
-        const result = await purchasePro(selected);
-        if (!result.ok) {
-            setNotice(t("pro.purchaseUnavailable"));
-        } else {
-            onClose();
-        }
-    }
-
-    async function handleRestore() {
-        const result = await restorePurchases();
-        if (!result.ok) {
-            setNotice(t("pro.noRestores"));
-        } else {
-            onClose();
-        }
-    }
-
-    const ctaLabel = selected === "lifetime" ? t("pro.getLifetime") : t("pro.startTrial");
-    const features: FeatureRow[] = FEATURE_ICONS.map((icon, index) => ({ icon, title: t(`pro.features.${index}.title`), blurb: t(`pro.features.${index}.blurb`) }));
-
-    return (
-        <View style={styles.container}>
-            <ScrollView
-                style={{ maxHeight: maxScroll }}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.scrollContent}
-            >
-                <Text style={styles.eyebrow}>SONGNOOK PRO</Text>
-                <Text style={styles.headline}>{t("pro.headline")}</Text>
-                <Text style={styles.subhead}>
-                    {t("pro.subhead")}
-                </Text>
-
-                <View style={styles.features}>
-                    {features.map((f) => (
-                        <View key={f.title} style={styles.featureRow}>
-                            <View style={styles.featureIcon}>
-                                <Ionicons name={f.icon} size={18} color={colors.primaryDeep} />
-                            </View>
-                            <View style={styles.featureText}>
-                                <Text style={styles.featureTitle}>{f.title}</Text>
-                                <Text style={styles.featureBlurb}>{f.blurb}</Text>
-                            </View>
-                        </View>
-                    ))}
-                </View>
-
-                <View style={styles.plans}>
-                    {PLAN_IDS.map((plan) => {
-                        const p = { plan, label: t(`pro.plans.${plan}.label`), price: t(`pro.plans.${plan}.price`), sub: t(`pro.plans.${plan}.sub`), tag: plan === "annual" ? t("pro.plans.annual.tag") : undefined };
-                        const isSelected = p.plan === selected;
-                        return (
-                            <Pressable
-                                key={p.plan}
-                                onPress={() => {
-                                    haptic.light();
-                                    setSelected(p.plan);
-                                }}
-                                style={[styles.planCard, isSelected && styles.planCardSelected]}
-                            >
-                                <View style={styles.planHeader}>
-                                    <Text style={styles.planLabel}>{p.label}</Text>
-                                    {p.tag ? <Text style={styles.planTag}>{p.tag}</Text> : null}
-                                </View>
-                                <Text style={styles.planPrice}>{p.price}</Text>
-                                <Text style={styles.planSub}>{p.sub}</Text>
-                            </Pressable>
-                        );
-                    })}
-                </View>
-            </ScrollView>
-
-            <View style={styles.footer}>
-                {notice ? <Text style={styles.notice}>{notice}</Text> : null}
-                <Pressable onPress={handlePurchase} style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}>
-                    <Text style={styles.ctaLabel}>{ctaLabel}</Text>
-                </Pressable>
-                <View style={styles.footerLinks}>
-                    <Pressable onPress={handleRestore} hitSlop={8}>
-                        <Text style={styles.link}>{t("pro.restore")}</Text>
-                    </Pressable>
-                    <Text style={styles.linkDot}>·</Text>
-                    <Pressable onPress={() => void Linking.openURL(TERMS_URL).catch(() => {})} hitSlop={8}>
-                        <Text style={styles.link}>{t("pro.terms")}</Text>
-                    </Pressable>
-                    <Text style={styles.linkDot}>·</Text>
-                    <Pressable onPress={() => void Linking.openURL(PRIVACY_URL).catch(() => {})} hitSlop={8}>
-                        <Text style={styles.link}>{t("pro.privacy")}</Text>
-                    </Pressable>
-                </View>
-            </View>
-        </View>
-    );
+/** The free month's state as the sheet tells it, or null when it doesn't apply. */
+function freeMonthLine(): { daysLeft: number } | "ended" | null {
+  if (!isPaywallLive() && !isDevFreeMonthPreview()) return null;
+  if (proEntitlement.get() || isFoundingMember()) return null;
+  const endsAt = getFreeMonthEndsAt();
+  if (endsAt == null) return null;
+  const status = freeMonthStatus(endsAt - FREE_MONTH_DAYS * DAY_MS, Date.now());
+  return status.active ? { daysLeft: status.daysLeft } : "ended";
 }
 
-/** The single app-wide paywall. Mount <ProUpsellHost/> once at the app root; any gated call
+/**
+ * The one Pro sheet (rebuilt 2026-10-19): what Pro adds, the privacy promise, the
+ * founding prices as rows on paper with an ink tick, one primary key, and the quiet
+ * Restore / Terms / Privacy line Apple requires. Prices are the founding ones; once
+ * billing lands the store's localized prices replace them.
+ */
+function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
+  const [selected, setSelected] = useState<ProPlan>("annual");
+  // Inline, not a dialog: this sheet is a Modal and iOS won't stack a dialog over it.
+  const [notice, setNotice] = useState<string | null>(null);
+  const maxScroll = Math.round(Dimensions.get("window").height * 0.55);
+  const freeMonth = freeMonthLine();
+
+  async function handlePurchase() {
+    const result = await purchasePro(selected);
+    if (!result.ok) setNotice(result.reason === "cancelled" ? null : t("pro.purchaseUnavailable"));
+    else onClose();
+  }
+
+  async function handleRestore() {
+    const result = await restorePurchases();
+    if (!result.ok) setNotice(t("pro.noRestores"));
+    else onClose();
+  }
+
+  return (
+    <View>
+      <ScrollView style={{ maxHeight: maxScroll }} showsVerticalScrollIndicator={false}>
+        <Text style={s.eyebrow}>{t("pro.eyebrow")}</Text>
+        <Text style={s.headline}>{t("pro.headline")}</Text>
+        {freeMonth ? (
+          <Text style={s.freeMonth}>
+            {freeMonth === "ended" ? t("pro.freeMonthEnded") : t("pro.freeMonthLeft", { count: freeMonth.daysLeft })}
+          </Text>
+        ) : null}
+        <Text style={s.subhead}>{t("pro.subhead")}</Text>
+
+        <View style={s.features}>
+          {FEATURE_ICONS.map((icon, index) => (
+            <View key={icon} style={s.featureRow}>
+              <Ionicons name={icon} size={18} color={colors.textStrong} style={s.featureGlyph} />
+              <View style={s.featureText}>
+                <Text style={s.featureTitle}>{t(`pro.features.${index}.title`)}</Text>
+                <Text style={s.featureBlurb}>{t(`pro.features.${index}.blurb`)}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        <View style={s.plans}>
+          {PLAN_IDS.map((plan) => {
+            const isSelected = plan === selected;
+            return (
+              <Press
+                key={plan}
+                // haptics.ts: light → a small state flip (a choice in a set).
+                haptic="light"
+                style={s.planRow}
+                onPress={() => setSelected(plan)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: isSelected }}
+                accessibilityLabel={`${t(`pro.plans.${plan}.label`)}, ${t(`pro.plans.${plan}.price`)}`}
+              >
+                <View style={[s.dot, isSelected ? s.dotOn : null]} />
+                <View style={s.planText}>
+                  <View style={s.planHeader}>
+                    <Text style={[s.planLabel, isSelected ? s.planLabelOn : null]}>{t(`pro.plans.${plan}.label`)}</Text>
+                    {plan === "annual" ? <Text style={s.planTag}>{t("pro.plans.annual.tag")}</Text> : null}
+                  </View>
+                  <Text style={s.planSub}>{t(`pro.plans.${plan}.sub`)}</Text>
+                </View>
+                <Text style={s.planPrice}>{t(`pro.plans.${plan}.price`)}</Text>
+              </Press>
+            );
+          })}
+        </View>
+      </ScrollView>
+
+      <View style={s.footer}>
+        {notice ? <Text style={s.notice}>{notice}</Text> : null}
+        <Button label={t("pro.getPro")} onPress={() => void handlePurchase()} style={s.cta} />
+        <View style={s.footerLinks}>
+          <Press feel="glyph" onPress={() => void handleRestore()} hitSlop={8} accessibilityRole="button">
+            <Text style={s.link}>{t("pro.restore")}</Text>
+          </Press>
+          <Text style={s.linkDot}>·</Text>
+          <Press
+            feel="glyph"
+            haptic="navigate"
+            onPress={() => void Linking.openURL(TERMS_URL).catch(() => {})}
+            hitSlop={8}
+            accessibilityRole="link"
+          >
+            <Text style={s.link}>{t("pro.terms")}</Text>
+          </Press>
+          <Text style={s.linkDot}>·</Text>
+          <Press
+            feel="glyph"
+            haptic="navigate"
+            onPress={() => void Linking.openURL(PRIVACY_URL).catch(() => {})}
+            hitSlop={8}
+            accessibilityRole="link"
+          >
+            <Text style={s.link}>{t("pro.privacy")}</Text>
+          </Press>
+          <Text style={s.linkDot}>·</Text>
+          <Press feel="glyph" haptic="navigate" onPress={onClose} hitSlop={8} accessibilityRole="button">
+            <Text style={s.link}>{t("pro.notNow")}</Text>
+          </Press>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/** The single app-wide Pro sheet. Mount <ProUpsellHost/> once at the app root; any gated call
  *  site opens it via openProUpsell(feature). */
 export function ProUpsellHost() {
-    const { visible } = useProUpsellState();
-    return (
-        <BottomSheet visible={visible} onClose={closeProUpsell}>
-            {visible ? <ProUpsellSheetBody onClose={closeProUpsell} /> : null}
-        </BottomSheet>
-    );
+  const { visible } = useProUpsellState();
+  return (
+    <BottomSheet visible={visible} onClose={closeProUpsell}>
+      {visible ? <ProUpsellSheetBody onClose={closeProUpsell} /> : null}
+    </BottomSheet>
+  );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        paddingHorizontal: 20,
-    },
-    scrollContent: {
-        paddingBottom: 4,
-    },
-    eyebrow: {
-        fontFamily: "PlusJakartaSans_700Bold",
-        fontSize: 10,
-        letterSpacing: 1.5,
-        color: colors.primaryDeep,
-    },
-    headline: {
-        fontFamily: "Lora_600SemiBold",
-        fontSize: 30,
-        lineHeight: 34,
-        color: colors.textPrimary,
-        marginTop: 4,
-    },
-    subhead: {
-        fontFamily: "PlusJakartaSans_400Regular",
-        fontSize: 14,
-        lineHeight: 20,
-        color: colors.textSecondary,
-        marginTop: 8,
-    },
-    features: {
-        marginTop: 22,
-        gap: 14,
-    },
-    featureRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-    },
-    featureIcon: {
-        width: 38,
-        height: 38,
-        borderRadius: radii.round,
-        backgroundColor: colors.surfaceContainer,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    featureText: {
-        flex: 1,
-    },
-    featureTitle: {
-        fontFamily: "PlusJakartaSans_600SemiBold",
-        fontSize: 14,
-        color: colors.textPrimary,
-    },
-    featureBlurb: {
-        fontFamily: "PlusJakartaSans_400Regular",
-        fontSize: 13,
-        lineHeight: 17,
-        color: colors.textSecondary,
-        marginTop: 1,
-    },
-    plans: {
-        marginTop: 22,
-        gap: 10,
-    },
-    planCard: {
-        borderWidth: 1,
-        borderColor: colors.borderMuted,
-        borderRadius: radii.xl,
-        backgroundColor: colors.surface,
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-    },
-    planCardSelected: {
-        borderWidth: 2,
-        borderColor: colors.primary,
-        backgroundColor: "#FDF5F2",
-        paddingHorizontal: 13,
-        paddingVertical: 11,
-    },
-    planHeader: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-    },
-    planLabel: {
-        fontFamily: "PlusJakartaSans_700Bold",
-        fontSize: 15,
-        color: colors.textPrimary,
-    },
-    planTag: {
-        fontFamily: "PlusJakartaSans_700Bold",
-        fontSize: 9,
-        letterSpacing: 0.6,
-        color: colors.primaryDeep,
-        backgroundColor: "#F5E5DF",
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: radii.round,
-        overflow: "hidden",
-    },
-    planPrice: {
-        fontFamily: "Lora_600SemiBold",
-        fontSize: 22,
-        color: colors.textPrimary,
-        marginTop: 6,
-    },
-    planSub: {
-        fontFamily: "PlusJakartaSans_400Regular",
-        fontSize: 12,
-        color: colors.textSecondary,
-        marginTop: 2,
-    },
-    footer: {
-        marginTop: 18,
-        gap: 12,
-    },
-    notice: {
-        fontFamily: "PlusJakartaSans_400Regular",
-        fontSize: 12,
-        lineHeight: 16,
-        color: colors.textSecondary,
-        textAlign: "center",
-    },
-    cta: {
-        backgroundColor: colors.primaryDeep,
-        borderRadius: radii.round,
-        paddingVertical: 15,
-        alignItems: "center",
-    },
-    ctaPressed: {
-        opacity: 0.9,
-    },
-    ctaLabel: {
-        fontFamily: "PlusJakartaSans_700Bold",
-        fontSize: 15,
-        letterSpacing: 0.3,
-        color: colors.surface,
-    },
-    footerLinks: {
-        flexDirection: "row",
-        justifyContent: "center",
-        alignItems: "center",
-        gap: 6,
-    },
-    link: {
-        fontFamily: "PlusJakartaSans_600SemiBold",
-        fontSize: 12,
-        color: colors.textSecondary,
-    },
-    linkDot: {
-        fontFamily: "PlusJakartaSans_400Regular",
-        fontSize: 12,
-        color: colors.textMuted,
-    },
+const s = StyleSheet.create({
+  eyebrow: {
+    ...textTokens.annotation,
+    color: colors.textSecondary,
+  },
+  headline: {
+    ...textTokens.headerTitle,
+    fontSize: 28,
+    lineHeight: 34,
+    marginTop: 4,
+  },
+  freeMonth: {
+    ...textTokens.supporting,
+    color: colors.primaryDeep,
+    marginTop: spacing.xs,
+  },
+  subhead: {
+    ...textTokens.supporting,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+  },
+  features: {
+    marginTop: spacing.lg,
+    gap: 14,
+  },
+  featureRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  featureGlyph: {
+    marginTop: 1,
+    width: 22,
+    textAlign: "center",
+  },
+  featureText: {
+    flex: 1,
+    gap: 1,
+  },
+  featureTitle: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  featureBlurb: {
+    ...textTokens.caption,
+    color: colors.textSecondary,
+  },
+  // Prices are rows on paper with an ink tick, not boxed cards.
+  plans: {
+    marginTop: spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderMuted,
+  },
+  planRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minHeight: 60,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
+  },
+  dot: {
+    width: 10,
+    height: 10,
+    borderRadius: radii.round,
+    borderWidth: 1.5,
+    borderColor: colors.textMuted,
+  },
+  dotOn: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  planText: {
+    flex: 1,
+    gap: 2,
+  },
+  planHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  planLabel: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 15,
+    color: colors.textStrong,
+  },
+  planLabelOn: {
+    fontFamily: "PlusJakartaSans_700Bold",
+    color: colors.textPrimary,
+  },
+  planTag: {
+    ...textTokens.annotation,
+    color: colors.textSecondary,
+  },
+  planSub: {
+    ...textTokens.caption,
+    color: colors.textSecondary,
+  },
+  planPrice: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 15,
+    color: colors.textPrimary,
+    fontVariant: ["tabular-nums"],
+  },
+  footer: {
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  notice: {
+    ...textTokens.caption,
+    color: colors.textSecondary,
+    textAlign: "center",
+  },
+  cta: {
+    alignSelf: "stretch",
+  },
+  footerLinks: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  link: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  linkDot: {
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 12,
+    color: colors.textMuted,
+  },
 });

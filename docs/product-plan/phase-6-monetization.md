@@ -1,5 +1,38 @@
 # Phase 6 — Monetization (SongNook Pro)
 
+> **2026-10-19 founder decisions (supersede the pricing, trial and timing below).**
+> Research behind them: `reports/SongNook market and pricing.md` (comparable apps, RevenueCat
+> benchmarks, 10k/100k/1M revenue scenarios). Summary: a low price does not raise the share of
+> people who pay (low-priced apps ~1.4% of downloads vs ~2.8% high-priced), it lowers value per
+> payer; the step from free to paying is the barrier, not $1 vs $2.
+>
+> - **Launch with Pro in v1** (not 2–4 weeks after): the free month makes it gentle.
+> - **Free month (reverse trial):** every feature unlocked for **30 days from first launch**, no
+>   card, no store trial. Quiet notes around day 25 and on the last day. When it ends nothing is
+>   lost: work made with Pro tools still opens and plays; gates only stop creating new. Trial start
+>   persisted where a reinstall can't reset it (iOS Keychain; Android best effort).
+> - **Founding price** for everyone who subscribes in the launch window, kept for as long as they
+>   stay subscribed: **$11.99/yr ("$1 a month")**, $1.99/mo, lifetime ~$29.99. No store trial on top.
+> - **Later:** raise the price for NEW subscribers only (~$24.99/yr, $3.99/mo, lifetime ~$79.99),
+>   decided from our own data via RevenueCat Experiments (price A/B for new users), not averages.
+> - **Never lock:** recording, the library, lyrics, backup/export/restore, receiving through Send.
+> - **Free/Pro split (founder confirmed 2026-10-19):** free = unlimited recording, 2 workspaces,
+>   collections, player, marks, lyrics pad, trim, tuner, metronome, backup/export/restore, receiving
+>   through Send, Shelf/Revisit/Activity; Pro = workspaces beyond 2, layers beyond 1, full editor
+>   (parts, speed & pitch), practice suite, charts/transpose/capo/songbook/setlists/stage reader,
+>   Lyric Spark + full word finder, sending through Send, PDF export.
+> - **Founding testers get Pro free (founder confirmed).** Testers are iOS TestFlight only today
+>   (no Android testers). Mechanism: an install whose first launch predates the App Store release
+>   keeps Pro (the TestFlight → App Store upgrade keeps the same data), backed by RevenueCat
+>   promotional entitlements for anyone that misses; no promo codes needed.
+> - **Owner paperwork first (longest lead):** App Store Connect Paid Apps agreement + banking/tax,
+>   3 products in one subscription group (+ lifetime non-consumable); Google Play merchant account +
+>   products; RevenueCat account (free under $2.5k monthly tracked revenue, then 1%).
+> - **Code (after paperwork, needs a new store build):** react-native-purchases + keys via EAS
+>   secrets, the 30-day free month, ProUpsellSheet refresh (real prices from offerings; Playfair is
+>   retired, Lora only; restore + terms links), privacy policy + store privacy labels (RevenueCat
+>   sees purchases, never recordings), sandbox QA (6.7).
+
 **Effort:** ~2 weeks · **Timing:** 2–4 weeks **after** launch — ship v1.0 fully free, accumulate reviews and a usage baseline first. Launching a paywall and a new app simultaneously doubles first-impression risk. · **Dependencies:** launched app; Apple/Google merchant agreements signed (do the paperwork during the wait — it has lead time)
 
 ## Purpose

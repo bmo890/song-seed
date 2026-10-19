@@ -27,6 +27,51 @@ export type ProFeature =
 
 let isProState = false;
 
+// The free month and founding membership (domain/freeMonth.ts): access without a
+// purchase. Set by services/freeMonthClock once the stored dates are read.
+let freeMonthEndsAt: number | null = null;
+let foundingMember = false;
+let freeMonthExpiryTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** When the free month ends (ms), or null before the clock has been read. */
+export function getFreeMonthEndsAt(): number | null {
+    return freeMonthEndsAt;
+}
+
+/** A founding member (first launch before the App Store release) keeps Pro. */
+export function isFoundingMember(): boolean {
+    return foundingMember;
+}
+
+/** Whether the paywall is live at all: false while everything is free. Free-month notes key off it. */
+export function isPaywallLive(): boolean {
+    return !ALL_FEATURES_FREE;
+}
+
+function freeMonthOpen(): boolean {
+    return freeMonthEndsAt != null && Date.now() < freeMonthEndsAt;
+}
+
+/**
+ * Access without a purchase: the free month's end and founding membership. Re-renders
+ * gates when the month runs out while the app is open.
+ */
+export function setPurchaseFreeAccess(next: { freeMonthEndsAt: number | null; founding: boolean }) {
+    freeMonthEndsAt = next.freeMonthEndsAt;
+    foundingMember = next.founding;
+    if (freeMonthExpiryTimer) clearTimeout(freeMonthExpiryTimer);
+    freeMonthExpiryTimer = null;
+    const remaining = freeMonthEndsAt != null ? freeMonthEndsAt - Date.now() : -1;
+    // setTimeout tops out near 24.8 days; a longer wait is re-armed on the next launch.
+    if (remaining > 0 && remaining < 2 ** 31 - 1) {
+        freeMonthExpiryTimer = setTimeout(() => {
+            freeMonthExpiryTimer = null;
+            notify();
+        }, remaining + 1000);
+    }
+    notify();
+}
+
 /**
  * Dev-only override to exercise BOTH the free and the gated UX without real billing and
  * without flipping ALL_FEATURES_FREE. `null` = follow the real entitlement; `true`/`false`
@@ -77,10 +122,13 @@ function isProSubscriber(): boolean {
     return isProState;
 }
 
-/** Imperative check: whether the user may USE `feature`. All features are free for now. */
+/**
+ * Imperative check: whether the user may USE `feature`. All features are free for now;
+ * once the paywall is live, Pro comes from a purchase, the free month, or founding.
+ */
 export function hasProAccess(_feature?: ProFeature): boolean {
     if (__DEV__ && devProOverride !== null) return devProOverride;
-    return ALL_FEATURES_FREE || isProState;
+    return ALL_FEATURES_FREE || isProState || foundingMember || freeMonthOpen();
 }
 
 /** Reactive subscriber flag — re-renders when entitlement OR the dev override changes. */
