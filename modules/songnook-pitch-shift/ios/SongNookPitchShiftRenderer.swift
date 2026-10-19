@@ -408,6 +408,82 @@ final class SongNookPitchShiftRenderer {
     return ["outputUri": outputURL.absoluteString]
   }
 
+  // MARK: - Video import: lift the sound out of a video
+
+  /// Message marker for a video with no sound — JS matches on it.
+  static let noAudioTrackMessage = "NO_AUDIO_TRACK"
+
+  /// Write the first audio track of `inputUri` (a phone video, a screen recording) to an
+  /// .m4a and drop everything else. AAC — what every phone camera and screen recorder
+  /// writes — is copied as-is, so the clip keeps the video's exact sound; any other codec
+  /// is encoded to AAC once. The video file itself is never kept.
+  func extractAudioTrack(_ request: [String: Any]) throws -> [String: Any] {
+    guard let inputUri = request["inputUri"] as? String else {
+      throw NSError(domain: "SongNookPitchShift", code: 40, userInfo: [NSLocalizedDescriptionKey: "Audio extraction requires inputUri."])
+    }
+    let outputFileName = (request["outputFileName"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+    let inputURL = URL(string: inputUri) ?? URL(fileURLWithPath: inputUri)
+    let asset = AVURLAsset(url: inputURL)
+    guard let sourceTrack = asset.tracks(withMediaType: .audio).first else {
+      throw NSError(domain: "SongNookPitchShift", code: 41, userInfo: [NSLocalizedDescriptionKey: Self.noAudioTrackMessage])
+    }
+
+    // An audio-only composition: the export can never carry the picture along.
+    let composition = AVMutableComposition()
+    guard let compTrack = composition.addMutableTrack(
+      withMediaType: .audio,
+      preferredTrackID: kCMPersistentTrackID_Invalid
+    ) else {
+      throw NSError(domain: "SongNookPitchShift", code: 42, userInfo: [NSLocalizedDescriptionKey: "Could not create composition track."])
+    }
+    try compTrack.insertTimeRange(
+      CMTimeRange(start: sourceTrack.timeRange.start, duration: sourceTrack.timeRange.duration),
+      of: sourceTrack,
+      at: .zero
+    )
+
+    let outputURL = buildExportOutputURL(fileName: outputFileName)
+    // Passthrough first (a lossless copy of AAC); if the codec can't live in an .m4a
+    // as-is (PCM from some cameras, for one), encode it once instead.
+    var exportError = exportAudioComposition(composition, presetName: AVAssetExportPresetPassthrough, to: outputURL)
+    if exportError != nil {
+      try? FileManager.default.removeItem(at: outputURL)
+      exportError = exportAudioComposition(composition, presetName: AVAssetExportPresetAppleM4A, to: outputURL)
+    }
+    if let exportError {
+      try? FileManager.default.removeItem(at: outputURL)
+      throw exportError
+    }
+
+    let seconds = CMTimeGetSeconds(composition.duration)
+    let durationMs = seconds.isFinite && seconds > 0 ? seconds * 1000.0 : 0
+    return ["outputUri": outputURL.absoluteString, "durationMs": durationMs]
+  }
+
+  /// Run one .m4a export synchronously. Returns the failure, or nil on success.
+  private func exportAudioComposition(_ composition: AVAsset, presetName: String, to outputURL: URL) -> Error? {
+    guard let exportSession = AVAssetExportSession(asset: composition, presetName: presetName) else {
+      return NSError(domain: "SongNookPitchShift", code: 43, userInfo: [NSLocalizedDescriptionKey: "Could not create export session."])
+    }
+    guard exportSession.supportedFileTypes.contains(.m4a) else {
+      return NSError(domain: "SongNookPitchShift", code: 44, userInfo: [NSLocalizedDescriptionKey: "This audio can't be written as M4A with \(presetName)."])
+    }
+    exportSession.outputURL = outputURL
+    exportSession.outputFileType = .m4a
+
+    let semaphore = DispatchSemaphore(value: 0)
+    var exportError: Error?
+    exportSession.exportAsynchronously {
+      if exportSession.status != .completed {
+        exportError = exportSession.error
+          ?? NSError(domain: "SongNookPitchShift", code: 45, userInfo: [NSLocalizedDescriptionKey: "Audio extraction failed."])
+      }
+      semaphore.signal()
+    }
+    semaphore.wait()
+    return exportError
+  }
+
   private func buildExportOutputURL(fileName: String?) -> URL {
     let safeName = sanitizeFileName(fileName)
     let finalName = safeName.hasSuffix(".m4a") ? safeName : "\(safeName).m4a"

@@ -145,6 +145,18 @@ See `docs/qa/RUN-LOG.md` for the automation status of each.
 - iOS ☐  Android ☐ — Import **multiple** files → choose "Song project" → one song with N clips. **[AUTO: clip-06]**
 - iOS ☐  Android ☐ — Re-import the same file(s) → "ALREADY IN YOUR LIBRARY" review appears;
   Skip adds nothing; Import all adds duplicates. **[AUTO: clip-07]**
+- iOS ☐  Android ☐ — ⋯ → **Import** asks **Files** or **Videos**; Cancel or a scrim tap
+  does nothing. On iOS the picker opens on the first tap after choosing (no dead tap). **[HUMAN]**
+- iOS ☐  Android ☐ — **Videos** → pick a camera video and a screen recording → each lands as
+  a clip with the video's sound and length; titles like IMG_1234 / RPReplay… stay in quiet
+  Jakarta. No video file is kept in the library (Settings → storage doesn't grow by the video). **[HUMAN]**
+- iOS ☐  Android ☐ — **Files** → pick an .mp4 / .mov → same result as above. **[HUMAN]**
+- iOS ☐  Android ☐ — Share a video from Photos / Gallery into SongNook → the share screen
+  lists it, it imports as a clip. **[HUMAN]**
+- iOS ☐  Android ☐ — Import a video with **no sound** → "This video has no sound" alert +
+  error haptic, no clip created. **[HUMAN]**
+- iOS ☐  Android ☐ — Import a long video (5 min+) → the clip's sound matches the video's
+  exactly (AAC is copied, not re-encoded); a sketch's ⋯ → Import → Videos adds it as a take. **[HUMAN]**
 - iOS ☐  Android ☐ — Rename a clip and add notes (selection → More → Edit). **[AUTO: clip-03]**
 - iOS ☐  Android ☐ — **Copy** a clip to another collection (Copy → Paste to collection → confirm). **[AUTO: clip-10]**
 - iOS ☐  Android ☐ — **Move** a clip to another collection (removed from source). **[AUTO: clip-11]**

@@ -87,7 +87,8 @@
       ],
       "blockedPermissions": [
         "android.permission.READ_PHONE_STATE",
-        "android.permission.SYSTEM_ALERT_WINDOW"
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.CAMERA"
       ],
       "package": "com.bmostudio.songnook"
     },
@@ -105,16 +106,25 @@
         "expo-share-intent",
         {
           "iosActivationRules": {
-            "NSExtensionActivationSupportsFileWithMaxCount": 20
+            "NSExtensionActivationSupportsFileWithMaxCount": 20,
+            "NSExtensionActivationSupportsMovieWithMaxCount": 20
           },
           "androidIntentFilters": [
             "audio/*",
             "application/zip",
             "application/x-zip-compressed",
-            "application/octet-stream"
+            "application/octet-stream",
+            "video/mp4",
+            "video/quicktime",
+            "video/x-m4v",
+            "video/3gpp"
           ],
           "androidMultiIntentFilters": [
-            "audio/*"
+            "audio/*",
+            "video/mp4",
+            "video/quicktime",
+            "video/x-m4v",
+            "video/3gpp"
           ],
           "iosShareExtensionName": "SongNook Import"
         }
@@ -142,6 +152,14 @@
             "notificationUsageDescription": "SongNook uses recording notifications so background recording can continue.",
             "allowBackgroundAudioControls": true
           }
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SongNook opens the videos you pick so their sound can come in as clips.",
+          "cameraPermission": "SongNook doesn’t use the camera. Videos come in from your photo library.",
+          "microphonePermission": "SongNook needs microphone access so you can record song ideas and voice memos."
         }
       ],
       "./plugins/withSongNookAndroidVariants",

@@ -107,6 +107,12 @@ class SongNookPitchShiftModule : Module() {
       withContext(renderDispatcher) { renderer.renderTrim(request) }
     }
 
+    // Video import: the video's sound as an .m4a, the picture dropped. A render the
+    // user is waiting on, so it shares the render thread.
+    AsyncFunction("extractAudioTrack") Coroutine { request: Map<String, Any?> ->
+      withContext(renderDispatcher) { renderer.extractAudioTrack(request) }
+    }
+
     AsyncFunction("computeWaveform") Coroutine { request: Map<String, Any?> ->
       withContext(waveformDispatcher) { renderer.computeWaveform(request) }
     }

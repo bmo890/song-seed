@@ -117,6 +117,19 @@ export type NativeAudioDurationResult = {
   durationMs: number;
 };
 
+/** Video import: write the first audio track of `inputUri` to an .m4a, dropping the
+ *  picture. AAC is copied as-is; other codecs are encoded to AAC. Rejects with a
+ *  message containing "NO_AUDIO_TRACK" when the video has no sound. */
+export type NativeAudioExtractRequest = {
+  inputUri: string;
+  outputFileName?: string;
+};
+
+export type NativeAudioExtractResult = {
+  outputUri: string;
+  durationMs: number;
+};
+
 export type SongNookPitchShiftModuleEvents = {
   onStateChange: (params: NativePitchShiftPlaybackState) => void;
   onPlaybackEnded: (params: NativePitchShiftPlaybackState) => void;

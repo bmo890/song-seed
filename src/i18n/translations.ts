@@ -698,8 +698,8 @@ export const resources = {
         import: "Import",
         notNow: "Not now",
         preparing: "Preparing the shared audio before import.",
-        audioReady_one: "{{count}} audio file ready to import",
-        audioReady_other: "{{count}} audio files ready to import",
+        audioReady_one: "{{count}} file ready to import",
+        audioReady_other: "{{count}} files ready to import",
         review: "Review the shared content and choose where it should go.",
         nothingWaiting: "There is no shared audio waiting to import.",
         currentWorkspace: "Current workspace",
@@ -1406,6 +1406,10 @@ export const resources = {
         creating: "Creating link…", copied: "Link copied — expires soon", share: "Share", emptyTitle: "Nothing to share", failureTitle: "Couldn't create link", retry: "Please try again.",
       },
       collectionImport: {
+        // Where an import comes from: Files (audio or video) or the photo library's videos.
+        sourceTitle: "Import", sourceFiles: "Files", sourceFilesHint: "Audio or video files", sourceVideos: "Videos", sourceVideosHint: "From your photo library",
+        noAudioTitle: "This video has no sound", noAudioBody: "Pick a video with audio, then import again.",
+        videoUnreadableTitle: "Couldn’t read this video", videoUnreadableBody: "Try an MP4 or MOV, then import again.",
         chooseCollection: "Choose a collection", chooseCollectionBody: "Open a collection before importing audio.", unsupportedFormatTitle: "AIFF isn’t supported on Android", unsupportedFormatBody: "Export it as WAV or M4A from your DAW, then import again.", title: "Import audio", chooseBody: "Choose how to add {{count}} files into {{title}}.",
       },
       selection: {
@@ -2303,9 +2307,9 @@ export const resources = {
         import: "ייבוא",
         notNow: "לא עכשיו",
         preparing: "מכין את השמע המשותף לייבוא.",
-        audioReady_one: "קובץ שמע אחד מוכן לייבוא",
-        audioReady_two: "שני קובצי שמע מוכנים לייבוא",
-        audioReady_other: "{{count}} קובצי שמע מוכנים לייבוא",
+        audioReady_one: "קובץ אחד מוכן לייבוא",
+        audioReady_two: "שני קבצים מוכנים לייבוא",
+        audioReady_other: "{{count}} קבצים מוכנים לייבוא",
         review: "עברו על התוכן המשותף ובחרו לאן הוא ייכנס.",
         nothingWaiting: "אין כרגע שמע משותף שממתין לייבוא.",
         currentWorkspace: "מרחב העבודה הנוכחי",
@@ -3031,6 +3035,9 @@ export const resources = {
         creating: "יוצרים קישור…", copied: "הקישור הועתק — הוא יפוג בקרוב", share: "שיתוף", emptyTitle: "אין מה לשתף", failureTitle: "לא הצלחנו ליצור קישור", retry: "נסו שוב.",
       },
       collectionImport: {
+        sourceTitle: "ייבוא", sourceFiles: "קבצים", sourceFilesHint: "קובצי שמע או וידאו", sourceVideos: "סרטונים", sourceVideosHint: "מספריית התמונות",
+        noAudioTitle: "בסרטון הזה אין קול", noAudioBody: "בחרו סרטון עם קול, ואז ייבאו שוב.",
+        videoUnreadableTitle: "לא הצלחנו לקרוא את הסרטון", videoUnreadableBody: "נסו קובץ MP4 או MOV, ואז ייבאו שוב.",
         chooseCollection: "בחירת אוסף", chooseCollectionBody: "פתחו אוסף לפני ייבוא שמע.", unsupportedFormatTitle: "AIFF לא נתמך באנדרואיד", unsupportedFormatBody: "ייצאו אותו כ־WAV או M4A מה־DAW, ואז ייבאו שוב.", title: "ייבוא שמע", chooseBody: "איך להוסיף {{count}} קבצים אל {{title}}?",
       },
       selection: {
