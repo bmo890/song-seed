@@ -36,6 +36,7 @@ import { buildPersistedAppStoreSnapshot, flushPersistedSnapshot } from "./useSto
 import { persistRestoredAppStoreSnapshot } from "./persistedSnapshot";
 import { buildRuntimeCleanupPatch } from "./runtimeCleanup";
 import {
+    collectManagedClipAudioUris,
     collectManagedIdeaAudioUris,
     deleteManagedArchiveUri,
     deleteManagedAudioUris,
@@ -1640,6 +1641,23 @@ export const appActions = {
         const now = Date.now();
         const removeOriginalAfterExport = !!options?.removeOriginalAfterExport;
         const nextTitle = buildCombinedClipTitle(match.idea, match.clip);
+        // "Replace" drops the source take from the library; its files (take, source,
+        // rendered mix, every layer) used to stay on the phone with nothing pointing
+        // at them (layers audit 2026-10-17). Once the new library is durable they go
+        // to the trash, like any deleted clip's, unless something still uses them.
+        const trashReplacedTake = () => {
+            if (!removeOriginalAfterExport) return;
+            const uris = filterUnreferencedManagedAudioUris(
+                collectManagedClipAudioUris(match.clip),
+                useStore.getState().workspaces
+            );
+            if (uris.length === 0) return;
+            void flushPersistedSnapshot()
+                .then(() => deleteManagedAudioUris(uris))
+                .catch((error) => {
+                    console.warn("[DataSafety] Replaced take's files kept: metadata was not durable.", error);
+                });
+        };
 
         if (match.idea.kind === "clip") {
             const nextIdeaId = removeOriginalAfterExport ? match.idea.id : buildIdeaId();
@@ -1702,6 +1720,7 @@ export const appActions = {
                 },
             ]);
 
+            trashReplacedTake();
             return { ideaId: flattenedIdea.id, clipId: nextClipId };
         }
 
@@ -1767,6 +1786,7 @@ export const appActions = {
         );
         state.markRecentlyAdded([flattenedClipId]);
         state.logIdeaActivity(ideaId, "updated", "audio-edit", flattenedClipId);
+        trashReplacedTake();
 
         return { ideaId, clipId: flattenedClipId };
     },
