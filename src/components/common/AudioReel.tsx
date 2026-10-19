@@ -760,6 +760,11 @@ export function AudioReel({
                 </View>
             ) : null}
 
+            {/* The surface and its overlay zoom share one box, so the zoom's `top` is
+                measured from the reel's own top edge. The reel used to return a bare
+                fragment: the zoom anchored to whatever the CALLER's container was, and
+                in the editor (tabs above the reel) it floated halfway up the wave. */}
+            <View style={audioReelStyles.reelBox}>
             <AnimatedView
                 style={[
                     audioReelStyles.surface,
@@ -915,7 +920,7 @@ export function AudioReel({
 
             {/* Rendered as a static sibling of the animated surface (not inside it) so RNGH
                 hit-testing isn't thrown off by the surface's animated height. Positioned over
-                the reel's bottom-right via the known collapsed height. */}
+                the reel's bottom-right via the known collapsed height, inside reelBox. */}
             {showZoomControls && zoomPlacement === "overlay" ? (
                 <View style={[audioReelStyles.zoomOverlay, { top: collapsedHeight - 34 }]} pointerEvents="box-none">
                     {zoomExpanded ? (
@@ -976,6 +981,7 @@ export function AudioReel({
                     )}
                 </View>
             ) : null}
+            </View>
 
             {renderBelowSurface ? (
                 <View style={{ marginHorizontal: timelineHorizontalPadding, overflow: "visible" }}>
