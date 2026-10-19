@@ -37,6 +37,9 @@ import kotlin.math.min
 /** Message marker for a decode preempted by cancelActiveWaveform — JS matches on it. */
 const val WAVEFORM_CANCELLED_MESSAGE = "WAVEFORM_CANCELLED"
 
+/** Message marker for a video with no sound — JS matches on it. */
+const val NO_AUDIO_TRACK_MESSAGE = "NO_AUDIO_TRACK"
+
 private const val RENDER_TIMEOUT_MINUTES = 10L
 private const val MIX_OFFSET_US = 1_000L
 // The domain's clamp (src/domain/overdub.ts); it was −18 … +6 here until 2026-10-14,
@@ -418,6 +421,55 @@ class SongNookPitchShiftRenderer(
     val end = (map["endTimeMs"] as? Number)?.toLong() ?: return null
     if (end <= start) return null
     return TrimRange(start, end)
+  }
+
+  // --- Video import: lift the sound out of a video --------------------------------
+
+  /**
+   * Write the audio of [request]'s `inputUri` (a phone video, a screen recording) to an
+   * .m4a and drop the picture. With no effects attached, Transformer copies AAC — what
+   * every phone camera and screen recorder writes — straight into the new file without
+   * re-encoding; any other codec is encoded to AAC once. The video itself is never kept.
+   */
+  fun extractAudioTrack(request: Map<String, Any?>): Map<String, Any> {
+    val inputUri = request["inputUri"] as? String
+      ?: throw IllegalArgumentException("Audio extraction requires inputUri.")
+    val outputFileName = (request["outputFileName"] as? String)?.trim()
+    val uri = parseInputUri(inputUri)
+
+    // Refuse a silent video up front with a marker JS can name, instead of letting
+    // Transformer fail on an empty composition with a generic export error.
+    val durationMs = probeAudioTrackDurationMs(uri)
+
+    val editedItem = EditedMediaItem.Builder(MediaItem.fromUri(uri))
+      .setRemoveVideo(true)
+      .build()
+    val composition = Composition.Builder(EditedMediaItemSequence(editedItem)).build()
+
+    val outputFile = buildOutputFile(outputFileName)
+    try {
+      return renderComposition(composition, outputFile) + mapOf("durationMs" to durationMs)
+    } catch (throwable: Throwable) {
+      if (outputFile.exists()) {
+        outputFile.delete()
+      }
+      throw throwable
+    }
+  }
+
+  private fun probeAudioTrackDurationMs(uri: Uri): Long {
+    val extractor = MediaExtractor()
+    try {
+      extractor.setDataSource(appContext, uri, null)
+      val trackIndex = (0 until extractor.trackCount).firstOrNull { index ->
+        extractor.getTrackFormat(index).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
+      } ?: throw IllegalStateException(NO_AUDIO_TRACK_MESSAGE)
+      val format = extractor.getTrackFormat(trackIndex)
+      val durationUs = if (format.containsKey(MediaFormat.KEY_DURATION)) format.getLong(MediaFormat.KEY_DURATION) else 0L
+      return durationUs / 1000L
+    } finally {
+      try { extractor.release() } catch (_: Throwable) {}
+    }
   }
 
   // --- Tier 3: waveform analysis via MediaExtractor + MediaCodec ------------------

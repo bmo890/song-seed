@@ -2,12 +2,12 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AppAlert } from "../../common/AppAlert";
 import { reportUnsupportedImports } from "../../common/importFeedback";
+import { pickImportAssets } from "../../common/importSource";
 import {
   buildImportedTitle,
   importAudioAsset,
   importAudioAssets,
   listDevSampleAudioAssets,
-  pickAudioFiles,
   type ImportedAudioAsset,
 } from "../../../services/audioStorage";
 import { useImportStore } from "../../../state/useImportStore";
@@ -62,7 +62,7 @@ export function useCollectionImportFlow({
       return;
     }
 
-    const assets = await pickAudioFiles({ multiple: true });
+    const assets = await pickImportAssets({ multiple: true });
     if (assets.length === 0) return;
 
     if (assets.length === 1) {
@@ -434,6 +434,7 @@ export function useCollectionImportFlow({
           });
         } catch (error) {
           console.warn("Import audio error", error);
+          reportUnsupportedImports([{ error }]);
           useImportStore.getState().updateJob(jobId, { status: "error" });
         } finally {
           setTimeout(() => useImportStore.getState().removeJob(jobId), 2500);
