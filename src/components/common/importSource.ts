@@ -1,12 +1,12 @@
 import { Platform } from "react-native";
 import { i18n } from "../../i18n/instance";
-import { AppAlert } from "./AppAlert";
-import { pickAudioFiles, pickVideoFiles, type ImportedAudioAsset } from "../../services/audioStorage";
+import { actionMenuStore } from "./actionMenuStore";
+import { canPickVideos, pickAudioFiles, pickVideoFiles, type ImportedAudioAsset } from "../../services/audioStorage";
 
 export type ImportSource = "files" | "videos";
 
 /**
- * The dialog is a native Modal that fades out after a choice. iOS won't present the
+ * The menu is a native Modal that slides out after a choice. iOS won't present the
  * system picker over a view controller that is still dismissing — it just doesn't
  * open — so the picker waits for the fade to finish. Android pickers are separate
  * activities and open at once.
@@ -26,28 +26,29 @@ function afterDialogCloses(): Promise<void> {
  */
 export function chooseImportSource(): Promise<ImportSource | null> {
   return new Promise((resolve) => {
-    AppAlert.custom(
-      i18n.t("collectionImport.sourceTitle"),
-      undefined,
-      [
+    // A choice of where to go is a menu, not a question (menus law 2026-10-15).
+    actionMenuStore.show({
+      title: i18n.t("collectionImport.sourceTitle"),
+      actions: [
         {
+          key: "files",
           label: i18n.t("collectionImport.sourceFiles"),
-          description: i18n.t("collectionImport.sourceFilesHint"),
+          hint: i18n.t("collectionImport.sourceFilesHint"),
           icon: "folder-outline",
-          style: "default",
+          opens: true,
           onPress: () => resolve("files"),
         },
         {
+          key: "videos",
           label: i18n.t("collectionImport.sourceVideos"),
-          description: i18n.t("collectionImport.sourceVideosHint"),
+          hint: i18n.t("collectionImport.sourceVideosHint"),
           icon: "film-outline",
-          style: "default",
+          opens: true,
           onPress: () => resolve("videos"),
         },
-        { label: i18n.t("common.cancel"), style: "cancel", onPress: () => resolve(null) },
       ],
-      { onDismiss: () => resolve(null) }
-    );
+      onDismiss: () => resolve(null),
+    });
   });
 }
 
@@ -57,6 +58,8 @@ export function chooseImportSource(): Promise<ImportSource | null> {
  * falls back to Files, which also takes videos.
  */
 export async function pickImportAssets(options: { multiple: boolean }): Promise<ImportedAudioAsset[]> {
+  // A build without the video extractor and photo picker never asks: Files, as before.
+  if (!canPickVideos()) return pickAudioFiles(options);
   const source = await chooseImportSource();
   if (!source) return [];
   await afterDialogCloses();

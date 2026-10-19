@@ -156,7 +156,13 @@ export function ActionMenuHost() {
       title={config?.title}
       titleContext={config?.titleContext}
       actions={config?.actions ?? []}
-      onClose={() => actionMenuStore.dismiss()}
+      onClose={() => {
+        const onDismiss = config?.onDismiss;
+        actionMenuStore.dismiss();
+        // A chosen row closes the sheet first, then runs: let it land before
+        // telling the caller nothing was chosen.
+        if (onDismiss) queueMicrotask(onDismiss);
+      }}
     />
   );
 }

@@ -426,10 +426,21 @@ export async function ensurePreviewAudioDirectory() {
     }
 }
 
+/** This build carries the native extractor that lifts a video's sound out. An app
+ *  binary from before 2026-10-19 doesn't: over-the-air JS must not offer videos to it. */
+export function canExtractVideoAudio(): boolean {
+    return typeof SongNookPitchShiftModule?.extractAudioTrack === "function";
+}
+
+/** Videos can be offered from the photo library: the extractor AND the picker are in this build. */
+export function canPickVideos(): boolean {
+    return canExtractVideoAudio() && getExpoImagePickerModule() !== null;
+}
+
 export async function pickAudioFiles(options?: { multiple?: boolean }): Promise<ImportedAudioAsset[]> {
     const result = await DocumentPicker.getDocumentAsync({
-        // Videos too: their sound imports as a clip (see audioImportFormat).
-        type: ["audio/*", ...VIDEO_IMPORT_MIME_TYPES],
+        // Videos too, where this build can lift their sound out (see audioImportFormat).
+        type: canExtractVideoAudio() ? ["audio/*", ...VIDEO_IMPORT_MIME_TYPES] : ["audio/*"],
         multiple: options?.multiple ?? false,
         copyToCacheDirectory: true,
     });
@@ -475,7 +486,7 @@ function getExpoImagePickerModule(): ExpoImagePickerModule | null {
  * Returns `null` when this build has no photo picker, so callers can fall back to Files.
  */
 export async function pickVideoFiles(options?: { multiple?: boolean }): Promise<ImportedAudioAsset[] | null> {
-    const imagePicker = getExpoImagePickerModule();
+    const imagePicker = canExtractVideoAudio() ? getExpoImagePickerModule() : null;
     if (!imagePicker) return null;
 
     const multiple = options?.multiple ?? false;
