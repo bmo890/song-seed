@@ -12,6 +12,8 @@ import { AppAlert } from "../../common/AppAlert";
 import { PopoverMenuRow, PopoverMenuRule } from "../../common/PopoverMenu";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
+import { setDevFreeMonthStart, syncFreeMonth } from "../../../services/freeMonthClock";
+import { openProUpsell } from "../../common/proUpsell";
 
 // Nav-row height below the safe-area inset — drops the menu just under the ⋯.
 const HEADER_ROW_HEIGHT = 46;
@@ -184,6 +186,17 @@ export function CollectionHeaderMenu() {
               onPress={() => {
                 screen.setHeaderMenuOpen(false);
                 void importFlow.openDevSampleReceive();
+              }}
+            />
+            <PopoverMenuRow
+              testID="collection-menu-dev-pro"
+              icon="flask-outline"
+              label={t("collection.proPreviewDev")}
+              onPress={() => {
+                screen.setHeaderMenuOpen(false);
+                // Preview the Pro sheet as on day 26 of the free month (4 days left).
+                setDevFreeMonthStart(Date.now() - 26 * 24 * 60 * 60 * 1000);
+                void syncFreeMonth(useStore.getState().firstLaunchAt).then(() => openProUpsell());
               }}
             />
           </>
