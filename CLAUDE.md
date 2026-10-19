@@ -150,6 +150,15 @@ canon components, action tiers, haptic cited, motion tokens, copy budgets, empty
 state, music-stand test). Run `npx tsc --noEmit`. UI changes are verified in the
 iOS simulator with screenshots when feasible — never "should work".
 
+## Data
+
+- Law (founder, 2026-10-19): **no media stays on the phone that the library
+  can't reach.** Any write that drops a clip, take, layer or mix from the
+  library trashes its files once that library is durable
+  (`state/mediaCleanup.ts trashFilesOfDroppedClips`, flush first, 14-day
+  trash), unless a clip that remains still uses them. Never drop versions or
+  siblings a person didn't choose to drop.
+
 ## Repo notes
 
 - App name is SongNook everywhere; the git folder stays `song-seed` — do not
