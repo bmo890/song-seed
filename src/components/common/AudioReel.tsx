@@ -577,6 +577,19 @@ export function AudioReel({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [overscaleFactor, resetKey, timelineScale, waveformPeaks.length]);
 
+    // One commit for every zoom gesture: tell a listener, and move the reel itself
+    // unless the caller drives zoom (passes `zoomMultiple`). A caller that only
+    // LISTENS (the editor keeps the level for its snapping) used to swallow the
+    // change, and the reel sat at 1x whatever was pressed (founder, 2026-10-19).
+    const isZoomControlled = controlledZoomMultiple != null;
+    const commitZoom = React.useCallback(
+        (next: number) => {
+            onZoomMultipleChange?.(next);
+            if (!isZoomControlled) setUncontrolledZoomMultiple(next);
+        },
+        [isZoomControlled, onZoomMultipleChange]
+    );
+
     const handleZoom = React.useCallback((direction: "in" | "out") => {
         const currentIndex = ZOOM_LEVELS.findIndex((level) => level >= zoomMultiple - 0.001);
         const baseIndex = currentIndex >= 0 ? currentIndex : nearestZoomIndex;
@@ -588,14 +601,8 @@ export function AudioReel({
         // No detent past the limit: no haptic, no state churn on a no-op zoom tap.
         if (nextZoom === zoomMultiple) return;
         haptic.light();
-
-        if (onZoomMultipleChange) {
-            onZoomMultipleChange(nextZoom);
-            return;
-        }
-
-        setUncontrolledZoomMultiple(nextZoom);
-    }, [nearestZoomIndex, onZoomMultipleChange, zoomMultiple]);
+        commitZoom(nextZoom);
+    }, [commitZoom, nearestZoomIndex, zoomMultiple]);
 
     // Stretch-to-zoom: the tape's pinch reports a running scale; it's snapped to
     // the same discrete detents as the −/+ keys, committing (with the same light
@@ -615,25 +622,17 @@ export function AudioReel({
             if (target === pinchLastZoomRef.current) return;
             pinchLastZoomRef.current = target;
             haptic.light();
-            if (onZoomMultipleChange) {
-                onZoomMultipleChange(target);
-                return;
-            }
-            setUncontrolledZoomMultiple(target);
+            commitZoom(target);
         },
-        [onZoomMultipleChange]
+        [commitZoom]
     );
 
     // Reset to 1x — the whole clip fits the reel. No-op (and no haptic) when already there.
     const handleZoomToFit = React.useCallback(() => {
         if (zoomMultiple <= MIN_ZOOM) return;
         haptic.light();
-        if (onZoomMultipleChange) {
-            onZoomMultipleChange(MIN_ZOOM);
-            return;
-        }
-        setUncontrolledZoomMultiple(MIN_ZOOM);
-    }, [onZoomMultipleChange, zoomMultiple]);
+        commitZoom(MIN_ZOOM);
+    }, [commitZoom, zoomMultiple]);
 
     // RNGH taps (not TouchableOpacity) for the on-reel overlay zoom, so the press wins over
     // the waveform's pan/scrub gesture underneath it instead of being swallowed.
