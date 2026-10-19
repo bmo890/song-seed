@@ -1,11 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
-import { StyleProp, TextInputProps, View, ViewStyle } from "react-native";
+import { StyleProp, StyleSheet, TextInputProps, View, ViewStyle } from "react-native";
+import { useTranslation } from "react-i18next";
 import { Press } from "./Press";
 import { styles } from "../../styles";
 import { genIdea } from "../../utils";
 import { UserTextInput } from "../../i18n";
 import { colors } from "../../design/tokens";
+import { looksMachineNamed } from "../../domain/titleNaming";
 
 /** One 26pt key plus its gap; the field's trailing padding grows by this per visible key. */
 const TRAILING_KEY_WIDTH = 32;
@@ -50,7 +52,11 @@ export function TitleInput({
     maxLines = DEFAULT_TITLE_MAX_LINES,
     ...inputProps
 }: Props) {
+    const { t } = useTranslation();
     const [inputHeight, setInputHeight] = useState(minHeight);
+    // Earned serif: a name the person typed wears Lora; a machine name (a
+    // timestamp, "Idea 3") stays in quiet tabular Jakarta, as it does on the card.
+    const machineNamed = value.length > 0 && looksMachineNamed(value);
     const showClearKey = showClear && value.length > 0;
     const trailingKeys = (showGenerator ? 1 : 0) + (showClearKey ? 1 : 0);
 
@@ -64,6 +70,7 @@ export function TitleInput({
                 style={[
                     styles.titleInlineInput,
                     !value ? styles.titleInlineInputPlaceholder : null,
+                    machineNamed ? local.machine : null,
                     { minHeight: Math.max(minHeight, inputHeight), maxHeight },
                     trailingKeys > 0 ? { paddingEnd: 14 + trailingKeys * TRAILING_KEY_WIDTH } : null,
                 ]}
@@ -91,20 +98,30 @@ export function TitleInput({
                 <View style={styles.titleInlineBtns}>
                     {showGenerator ? (
                         <Press
-                            haptic="none"
+                            feel="glyph"
+                            // haptics.ts: tap → a control acted (a name suggested).
+                            haptic="tap"
                             style={styles.titleClearBtn}
                             onPress={() => onChangeText(sanitizeTitleValue(genIdea(), maxLength, maxLines, true))}
+                            hitSlop={4}
+                            accessibilityRole="button"
+                            accessibilityLabel={t("modals.randomName")}
                         >
-                            <Ionicons name="sparkles" size={14} color={colors.textSecondary} />
+                            <Ionicons name="sparkles-outline" size={16} color={colors.textSecondary} />
                         </Press>
                     ) : null}
                     {showClearKey ? (
                         <Press
-                            haptic="none"
+                            feel="glyph"
+                            // haptics.ts: light → a small state flip (the field cleared).
+                            haptic="light"
                             style={styles.titleClearBtn}
                             onPress={() => onChangeText("")}
+                            hitSlop={4}
+                            accessibilityRole="button"
+                            accessibilityLabel={t("modals.clearName")}
                         >
-                            <Ionicons name="close" size={14} color={colors.textSecondary} />
+                            <Ionicons name="close" size={16} color={colors.textSecondary} />
                         </Press>
                     ) : null}
                 </View>
@@ -112,3 +129,12 @@ export function TitleInput({
         </View>
     );
 }
+
+const local = StyleSheet.create({
+    machine: {
+        fontFamily: "PlusJakartaSans_500Medium",
+        fontSize: 16,
+        color: colors.textStrong,
+        fontVariant: ["tabular-nums"],
+    },
+});
