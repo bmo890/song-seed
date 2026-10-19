@@ -27,6 +27,7 @@ import {
   type EditableSelection,
 } from "../helpers";
 import { useTranslation } from "react-i18next";
+import { trashFilesOfDroppedClips } from "../../../state/mediaCleanup";
 
 type MinimalPlayer = {
   seekTo: (seconds: number) => Promise<void> | void;
@@ -252,7 +253,15 @@ export function useEditorExportFlow({
       isPrimary: false,
     }));
 
-    if (targetIdea.kind === "clip") {
+    // Older versions stacked under the edited clip stay where they are (2026-10-19):
+    // replacing used to drop the whole idea, versions and all, and leave every file
+    // on the phone. A single result takes the source's place in its stack (the
+    // in-place path below); several parts still become ideas of their own.
+    const olderVersions = targetIdea.clips.filter((clip) => clip.id !== clipId);
+    const keepStack = targetIdea.kind === "clip" && removeOriginalAfterExport && olderVersions.length > 0;
+    const replaceInPlace = keepStack && createdClips.length === 1;
+
+    if (targetIdea.kind === "clip" && !replaceInPlace) {
       const createdIdeas: SongIdea[] = createdClips.map((clip, index) => ({
         id: `idea-${now + index}-${Math.random().toString(36).slice(2, 8)}`,
         title: clip.title,
@@ -269,9 +278,25 @@ export function useEditorExportFlow({
       }));
 
       updateIdeas((prev) => {
+        if (keepStack) {
+          // The parts go out as new ideas; the source leaves its stack, and the
+          // versions that pointed at it now point at its parent.
+          const kept = prev.map((idea) => {
+            if (idea.id !== ideaId) return idea;
+            const clips = idea.clips
+              .filter((clip) => clip.id !== clipId)
+              .map((clip) =>
+                clip.parentClipId === clipId ? { ...clip, parentClipId: sourceClip.parentClipId } : clip
+              );
+            if (!clips.some((clip) => clip.isPrimary) && clips[0]) clips[0] = { ...clips[0], isPrimary: true };
+            return { ...idea, clips, lastActivityAt: now };
+          });
+          return [...createdIdeas, ...kept];
+        }
         const remainingIdeas = removeOriginalAfterExport ? prev.filter((idea) => idea.id !== ideaId) : [...prev];
         return [...createdIdeas, ...remainingIdeas];
       });
+      if (removeOriginalAfterExport) trashFilesOfDroppedClips([sourceClip], "Editor replace");
       useStore
         .getState()
         .logActivityEvents(
@@ -303,6 +328,8 @@ export function useEditorExportFlow({
 
         const nextNewClips = createdClips.map((clip, index) => ({
           ...clip,
+          // In a clip's stack the result inherits the source's place in the chain.
+          ...(replaceInPlace ? { parentClipId: sourceClip.parentClipId } : null),
           isPrimary: removeOriginalAfterExport && (sourceWasPrimary || noPrimaryRemaining) && index === 0,
         }));
         const repairedRemainingClips =
@@ -329,6 +356,7 @@ export function useEditorExportFlow({
       })
     );
     useStore.getState().logIdeaActivity(ideaId, "updated", "audio-edit", createdClips[0]?.id ?? null);
+    if (removeOriginalAfterExport) trashFilesOfDroppedClips([sourceClip], "Editor replace");
 
     return createdClips.map((clip) => clip.id);
   };

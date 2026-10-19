@@ -35,8 +35,8 @@ import { forceManifestWrite } from "../services/manifestSync";
 import { buildPersistedAppStoreSnapshot, flushPersistedSnapshot } from "./useStore";
 import { persistRestoredAppStoreSnapshot } from "./persistedSnapshot";
 import { buildRuntimeCleanupPatch } from "./runtimeCleanup";
+import { trashFilesOfDroppedClips } from "./mediaCleanup";
 import {
-    collectManagedClipAudioUris,
     collectManagedIdeaAudioUris,
     deleteManagedArchiveUri,
     deleteManagedAudioUris,
@@ -1643,23 +1643,17 @@ export const appActions = {
         const nextTitle = buildCombinedClipTitle(match.idea, match.clip);
         // "Replace" drops the source take from the library; its files (take, source,
         // rendered mix, every layer) used to stay on the phone with nothing pointing
-        // at them (layers audit 2026-10-17). Once the new library is durable they go
-        // to the trash, like any deleted clip's, unless something still uses them.
+        // at them. They go to the trash once the new library is durable.
         const trashReplacedTake = () => {
-            if (!removeOriginalAfterExport) return;
-            const uris = filterUnreferencedManagedAudioUris(
-                collectManagedClipAudioUris(match.clip),
-                useStore.getState().workspaces
-            );
-            if (uris.length === 0) return;
-            void flushPersistedSnapshot()
-                .then(() => deleteManagedAudioUris(uris))
-                .catch((error) => {
-                    console.warn("[DataSafety] Replaced take's files kept: metadata was not durable.", error);
-                });
+            if (removeOriginalAfterExport) trashFilesOfDroppedClips([match.clip], "Combine replace");
         };
+        // A clip with older versions stacked under it keeps them: the mix takes the
+        // replaced take's place in the stack (the in-place path below). Only a lone
+        // clip becomes a fresh idea. Rebuilding the idea with just the mix used to
+        // drop every older version from the library (2026-10-19).
+        const hasOlderVersions = match.idea.clips.some((candidate) => candidate.id !== clipId);
 
-        if (match.idea.kind === "clip") {
+        if (match.idea.kind === "clip" && !(removeOriginalAfterExport && hasOlderVersions)) {
             const nextIdeaId = removeOriginalAfterExport ? match.idea.id : buildIdeaId();
             const nextClipId = buildClipId();
             const flattenedIdea: SongIdea = {
@@ -1774,6 +1768,9 @@ export const appActions = {
 
                 const nextIdea = {
                     ...idea,
+                    // A clip idea is named by the take on top of its stack.
+                    title: idea.kind === "clip" && sourceWasPrimary ? nextTitle : idea.title,
+                    lastActivityAt: now,
                     clips: [flattenedClip, ...repairedRemainingClips],
                 };
 
