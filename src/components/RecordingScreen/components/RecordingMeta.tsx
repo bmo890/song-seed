@@ -29,6 +29,10 @@ type Props = {
     /** Whether the project has lyrics — drives the reel height: no-lyrics gets a
      * tall centered reel, collapsed-lyrics fills, expanded gets the slim monitor. */
     hasLyrics?: boolean;
+    /** A layer take: the guide strip sits above, so the reel takes the height
+     *  that is left rather than a fixed 320 pt that runs under the dock (and
+     *  hides the pin key) on shorter phones. */
+    hasGuide?: boolean;
     /** Metronome control in the Ready row: the chip itself is the on/off toggle
      * (quiet icon when off, tempo chip when on); the small companion button opens
      * the settings sheet. */
@@ -70,6 +74,7 @@ export function RecordingMeta({
     compact = false,
     fill = false,
     hasLyrics = false,
+    hasGuide = false,
     metronomeEnabled = false,
     metronomeSummary,
     metronomeToggleDisabled = false,
@@ -288,7 +293,7 @@ export function RecordingMeta({
                     styles.liveWaveWrap,
                     compact
                         ? styles.liveWaveWrapCompact
-                        : hasLyrics
+                        : hasLyrics || hasGuide
                         ? styles.liveWaveWrapFill
                         : styles.liveWaveWrapDefault,
                 ]}
