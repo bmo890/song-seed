@@ -1333,16 +1333,16 @@ export default function App() {
             useStore.getState().markFirstLaunch();
           };
           AppAlert.custom(
-            "Restore your library?",
-            `SongNook opened with an empty library, but a backup with ${manifestIdeaCount} item${manifestIdeaCount === 1 ? "" : "s"} was found on this device. Restore it now?`,
+            i18n.t("recovery.restoreLibraryTitle"),
+            i18n.t("recovery.restoreLibraryBody", { count: manifestIdeaCount }),
             [
               {
-                label: "Not now",
+                label: i18n.t("recovery.restoreLibraryNotNow"),
                 style: "cancel",
                 onPress: continueWithEmptyLibrary,
               },
               {
-                label: "Restore",
+                label: i18n.t("recovery.restoreLibraryRestore"),
                 style: "default",
                 icon: "refresh-outline",
                 onPress: () => {

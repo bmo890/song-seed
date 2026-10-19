@@ -38,6 +38,13 @@ function collectManagedClipUris(clip: ClipVersion, target: Set<string>) {
     }
 }
 
+/** One clip's managed files, resolved — the replaced take of a combine, say. */
+export function collectManagedClipAudioUris(clip: ClipVersion) {
+    const uris = new Set<string>();
+    collectManagedClipUris(clip, uris);
+    return uris;
+}
+
 export function collectManagedIdeaAudioUris(idea: SongIdea) {
     const uris = new Set<string>();
     idea.clips.forEach((clip) => collectManagedClipUris(clip, uris));

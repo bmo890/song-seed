@@ -129,6 +129,7 @@ export function RecordingBody({
           compact={lyricsExpanded}
           fill={!lyricsExpanded}
           hasLyrics={hasProjectLyrics}
+          hasGuide={!!recordingOverdubClip}
           metronomeEnabled={metronomeEnabled}
           metronomeSummary={metronomeSummary}
           metronomeToggleDisabled={metronomeToggleDisabled}
