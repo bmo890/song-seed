@@ -1,5 +1,9 @@
 import {
+  ALIASES,
+  EVERYDAY_NOUNS,
+  EVERYDAY_VERBS,
   ideaBank,
+  matchSeed,
   randomPlaceIdea,
   randomRoleIdea,
   suggestNouns,
@@ -83,5 +87,78 @@ describe("word ladder ideas dataset", () => {
   it("a custom seed still gets suggestions", () => {
     expect(suggestNouns("en", "my weird spaceship", [], 4).length).toBe(4);
     expect(suggestVerbs("he", "משהו מוזר", [], 3).length).toBe(3);
+  });
+});
+
+describe("typed seeds (founder, 2026-10-19)", () => {
+  const verbsOf = (lang: IdeaLang, seed: string) => ideaBank(lang).roles.find((idea) => idea.seed === seed)!.words;
+  const placesOf = (lang: IdeaLang, seed: string) => ideaBank(lang).places.find((idea) => idea.seed === seed)!.words;
+  const allFrom = (picks: string[], pool: string[]) => picks.length > 0 && picks.every((word) => pool.includes(word));
+
+  it.each([
+    ["Florist", "florist"],
+    ["  florists ", "florist"],
+    ["a florist", "florist"],
+    ["the baker", "baker"],
+    ["florsit", "florist"], // two letters swapped
+    ["electrican", "electrician"], // one letter missing
+    ["Cop", "police officer"],
+    ["taxi driver", "driver"],
+    ["grave digger", "gravedigger"],
+    ["Waitress", "waiter"],
+  ])("%s finds the %s list", (typed, seed) => {
+    expect(matchSeed("en", "roles", typed)?.seed).toBe(seed);
+    expect(allFrom(suggestVerbs("en", typed, [], 4), verbsOf("en", seed))).toBe(true);
+  });
+
+  it.each([
+    ["הנגר", "נגר"],
+    ["צלמת", "צלם"],
+    ["קופאית", "קופאי"],
+    ["מלצרית", "מלצר"],
+    ["דייגים", "דייג"],
+    ["שף", "טבח"],
+    ["עורכת דין", "עורך דין"],
+  ])("%s finds the %s list", (typed, seed) => {
+    expect(matchSeed("he", "roles", typed)?.seed).toBe(seed);
+  });
+
+  it("finds places typed the same loose way", () => {
+    expect(matchSeed("en", "places", "The Kitchen")?.seed).toBe("kitchen");
+    expect(matchSeed("en", "places", "gym")?.seed).toBe("gymnasium");
+    expect(matchSeed("he", "places", "המטבח")?.seed).toBe("מטבח");
+    expect(allFrom(suggestNouns("en", "kitchens", [], 4), placesOf("en", "kitchen"))).toBe(true);
+  });
+
+  it("looks in the other language too", () => {
+    expect(allFrom(suggestVerbs("he", "florist", [], 4), verbsOf("en", "florist"))).toBe(true);
+    expect(allFrom(suggestVerbs("en", "נגר", [], 4), verbsOf("he", "נגר"))).toBe(true);
+  });
+
+  it("an unlisted job gets everyday words, never another job's list", () => {
+    for (let i = 0; i < 30; i++) {
+      expect(matchSeed("en", "roles", "astronaut")).toBeNull();
+      expect(allFrom(suggestVerbs("en", "astronaut", [], 4), EVERYDAY_VERBS.en)).toBe(true);
+      expect(allFrom(suggestNouns("en", "my weird spaceship", [], 4), EVERYDAY_NOUNS.en)).toBe(true);
+      expect(allFrom(suggestVerbs("he", "אסטרונאוט", [], 4), EVERYDAY_VERBS.he)).toBe(true);
+      // The script of what was typed picks the everyday language.
+      expect(allFrom(suggestVerbs("he", "astronaut", [], 4), EVERYDAY_VERBS.en)).toBe(true);
+    }
+  });
+
+  it("every alias points at a listed seed and never at two", () => {
+    for (const lang of LANGS) {
+      const bank = ideaBank(lang);
+      const seeds = new Set([...bank.roles, ...bank.places].map((idea) => idea.seed));
+      const seen = new Map<string, string>();
+      for (const [seed, aliases] of Object.entries(ALIASES[lang])) {
+        expect(seeds.has(seed)).toBe(true);
+        for (const alias of aliases) {
+          expect(seeds.has(alias)).toBe(false);
+          expect(seen.get(alias) ?? seed).toBe(seed);
+          seen.set(alias, seed);
+        }
+      }
+    }
   });
 });
