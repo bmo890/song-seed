@@ -8,7 +8,15 @@ import { SONG_NOOK_AUDIO_DIR, SONG_NOOK_PREVIEW_AUDIO_DIR, SONG_NOOK_SHARE_DIR }
 import { cleanupShareTempFile } from "./managedMedia";
 import { createZipArchive, type ZipArchiveEntry } from "./zipArchive";
 import SongNookPitchShiftModule from "../../modules/songnook-pitch-shift";
-import { UnsupportedAudioFormatError, isAiffExtension } from "./audioImportFormat";
+import {
+    NO_AUDIO_FORMAT,
+    UnsupportedAudioFormatError,
+    VIDEO_FORMAT,
+    VIDEO_IMPORT_MIME_TYPES,
+    isAiffExtension,
+    isNoAudioTrackError,
+    isVideoImport,
+} from "./audioImportFormat";
 
 export const MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS = 30 * 60 * 1000;
 export const MANAGED_WAVEFORM_PEAK_COUNT = 256;
@@ -31,6 +39,13 @@ export type ImportedAudioAsset = {
     mimeType?: string | null;
     sourceCreatedAt?: number;
     sourceCreatedAtSource?: "document-picker-last-modified" | "file-modification-time";
+    /** The source is a temp copy only this import uses (a video handed over by the
+     *  photo picker) — delete it once the import has its own file, so a long video
+     *  never lingers in the cache. */
+    discardSourceAfterImport?: boolean;
+    /** Picked as a video (the photo-library picker): lift its sound out whatever the
+     *  container, since the phone's own gallery only holds videos it can play. */
+    isVideo?: boolean;
 };
 
 type ManagedAudioResult = {
@@ -411,14 +426,10 @@ export async function ensurePreviewAudioDirectory() {
     }
 }
 
-export async function pickSingleAudioFile(): Promise<ImportedAudioAsset | null> {
-    const assets = await pickAudioFiles({ multiple: false });
-    return assets[0] ?? null;
-}
-
 export async function pickAudioFiles(options?: { multiple?: boolean }): Promise<ImportedAudioAsset[]> {
     const result = await DocumentPicker.getDocumentAsync({
-        type: ["audio/*"],
+        // Videos too: their sound imports as a clip (see audioImportFormat).
+        type: ["audio/*", ...VIDEO_IMPORT_MIME_TYPES],
         multiple: options?.multiple ?? false,
         copyToCacheDirectory: true,
     });
@@ -442,6 +453,55 @@ export async function pickAudioFiles(options?: { multiple?: boolean }): Promise<
             )
         )
     );
+}
+
+type ExpoImagePickerModule = typeof import("expo-image-picker");
+
+/** Loaded lazily: a dev client built before expo-image-picker was added has no native
+ *  side for it, and a top-level import would take the whole bundle down with it. */
+function getExpoImagePickerModule(): ExpoImagePickerModule | null {
+    try {
+        return require("expo-image-picker") as ExpoImagePickerModule;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Videos from the phone's photo library — where camera videos and screen recordings
+ * live (the Files picker can't reach them on iOS). Each comes back as an import asset
+ * flagged `isVideo`; the import lifts its sound out and the temp copy is discarded.
+ * No permission prompt: both platforms' system pickers hand over only what was picked.
+ * Returns `null` when this build has no photo picker, so callers can fall back to Files.
+ */
+export async function pickVideoFiles(options?: { multiple?: boolean }): Promise<ImportedAudioAsset[] | null> {
+    const imagePicker = getExpoImagePickerModule();
+    if (!imagePicker) return null;
+
+    const multiple = options?.multiple ?? false;
+    const result = await imagePicker.launchImageLibraryAsync({
+        mediaTypes: ["videos"],
+        allowsMultipleSelection: multiple,
+        // 0 = no cap (the system's own limit).
+        selectionLimit: multiple ? 0 : 1,
+        allowsEditing: false,
+        // The original file, never a transcode: only its sound is kept.
+        preferredAssetRepresentationMode: imagePicker.UIImagePickerPreferredAssetRepresentationMode.Current,
+    });
+
+    if (result.canceled || !result.assets?.length) {
+        return [];
+    }
+
+    return result.assets
+        .filter((asset) => asset.type == null || asset.type === "video")
+        .map((asset) => ({
+            uri: asset.uri,
+            name: asset.fileName ?? undefined,
+            mimeType: asset.mimeType ?? null,
+            isVideo: true,
+            discardSourceAfterImport: true,
+        }));
 }
 
 /**
@@ -497,7 +557,45 @@ async function convertAiffToM4a(sourceUri: string, targetId: string): Promise<st
     }
 }
 
+/**
+ * Video → M4A: the native extractor writes the video's audio track to a temp .m4a
+ * (AAC copied as-is, anything else encoded once) and the picture is dropped. A video
+ * with no sound, a file the device can't open, or a build without the extractor is
+ * refused as unsupported — never a clip that imports and then never plays.
+ */
+async function extractVideoAudioToM4a(sourceUri: string, targetId: string): Promise<string> {
+    const native = SongNookPitchShiftModule;
+    if (!native?.extractAudioTrack) throw new UnsupportedAudioFormatError(VIDEO_FORMAT);
+    try {
+        const result = await native.extractAudioTrack({
+            inputUri: sourceUri,
+            outputFileName: `${targetId}-video.m4a`,
+        });
+        return result.outputUri;
+    } catch (error) {
+        const message = error instanceof Error ? error.message : undefined;
+        throw new UnsupportedAudioFormatError(isNoAudioTrackError(error) ? NO_AUDIO_FORMAT : VIDEO_FORMAT, message);
+    }
+}
+
 export async function importAudioAsset(
+    asset: ImportedAudioAsset,
+    targetId: string,
+    options?: AudioMetadataLoadOptions
+): Promise<ManagedAudioResult> {
+    try {
+        return await importAudioAssetFromSource(asset, targetId, options);
+    } finally {
+        // Only ever a file inside our own cache: a picker that hands back the user's
+        // original (a content:// URI) must never have it deleted.
+        const cacheDirectory = FileSystem.cacheDirectory;
+        if (asset.discardSourceAfterImport && cacheDirectory && asset.uri.startsWith(cacheDirectory)) {
+            await FileSystem.deleteAsync(asset.uri, { idempotent: true }).catch(() => {});
+        }
+    }
+}
+
+async function importAudioAssetFromSource(
     asset: ImportedAudioAsset,
     targetId: string,
     options?: AudioMetadataLoadOptions
@@ -507,7 +605,12 @@ export async function importAudioAsset(
     let sourceUri = asset.uri;
     let extension = getFileExtension(asset.name, asset.mimeType);
     let convertedTempUri: string | null = null;
-    if (isAiffExtension(extension)) {
+    if (asset.isVideo || isVideoImport(asset.name, asset.mimeType)) {
+        // The sound comes in as a clip; the video itself is never copied into the library.
+        convertedTempUri = await extractVideoAudioToM4a(asset.uri, targetId);
+        sourceUri = convertedTempUri;
+        extension = "m4a";
+    } else if (isAiffExtension(extension)) {
         // Android can't decode AIFF at all (see audioImportFormat.ts); iOS keeps
         // the import by converting it. Either way the library never holds an AIFF.
         if (Platform.OS !== "ios") throw new UnsupportedAudioFormatError(extension);
@@ -543,6 +646,9 @@ export async function importAudioAsset(
         // orphaned audio that the store never referenced.
         if (copiedToManagedStorage) {
             await FileSystem.deleteAsync(destinationUri, { idempotent: true }).catch(() => {});
+        }
+        if (convertedTempUri) {
+            await FileSystem.deleteAsync(convertedTempUri, { idempotent: true }).catch(() => {});
         }
         throw error;
     }

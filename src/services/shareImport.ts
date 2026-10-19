@@ -1,5 +1,6 @@
 import type { ShareIntentFile } from "expo-share-intent";
 import { enrichImportedAudioAsset, type ImportedAudioAsset } from "./audioStorage";
+import { isVideoImport } from "./audioImportFormat";
 
 const AUDIO_FILE_EXTENSIONS = new Set([
   "aac",
@@ -35,9 +36,11 @@ function getFileExtension(fileName?: string | null) {
   return match?.[1] ?? null;
 }
 
-function isSharedAudioFile(file: ShareIntentFile) {
+/** Audio, or a video whose sound imports as a clip (MP4 / MOV / M4V / 3GP). */
+export function isSharedAudioFile(file: Pick<ShareIntentFile, "mimeType" | "fileName">) {
   const mimeType = file.mimeType?.toLowerCase() ?? "";
   if (mimeType.startsWith("audio/")) return true;
+  if (isVideoImport(file.fileName, file.mimeType)) return true;
 
   const extension = getFileExtension(file.fileName);
   return extension ? AUDIO_FILE_EXTENSIONS.has(extension) : false;

@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { checkImportDuplicates, getAllClips, showDuplicateReview } from "../../../services/importDuplicates";
-import { buildImportedTitle, importAudioAsset, pickSingleAudioFile, type ImportedAudioAsset } from "../../../services/audioStorage";
+import { buildImportedTitle, importAudioAsset, type ImportedAudioAsset } from "../../../services/audioStorage";
+import { reportUnsupportedImports } from "../../common/importFeedback";
+import { pickImportAssets } from "../../common/importSource";
+import { i18n } from "../../../i18n/instance";
 import { useImportStore } from "../../../state/useImportStore";
 import { appActions } from "../../../state/actions";
 import { ensureUniqueCountedTitle } from "../../../utils";
@@ -29,9 +32,9 @@ export function useSongImportFlow({ selectedIdea, songClipTitles }: SongImportFl
 
   async function openImportAudioFlow() {
     if (!selectedIdea || selectedIdea.kind !== "project") return;
-    const asset = await pickSingleAudioFile();
+    const [asset] = await pickImportAssets({ multiple: false });
     if (!asset) return;
-    const datePreference = await promptForImportDatePreference([asset], "Import audio into song");
+    const datePreference = await promptForImportDatePreference([asset], i18n.t("songDetail.importAudio"));
     if (!datePreference) return;
     setImportAsset(asset);
     setImportDatePreference(datePreference);
@@ -79,6 +82,7 @@ export function useSongImportFlow({ selectedIdea, songClipTitles }: SongImportFl
           useImportStore.getState().updateJob(jobId, { current: 1, status: "done" });
         } catch (error) {
           console.warn("Song import audio error", error);
+          reportUnsupportedImports([{ error }]);
           useImportStore.getState().updateJob(jobId, { status: "error" });
         } finally {
           setTimeout(() => useImportStore.getState().removeJob(jobId), 2500);

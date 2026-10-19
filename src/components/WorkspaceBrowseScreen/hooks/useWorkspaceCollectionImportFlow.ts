@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { appActions } from "../../../state/actions";
 import { reportUnsupportedImports } from "../../common/importFeedback";
+import { pickImportAssets } from "../../common/importSource";
 import { buildCollectionMoveDestinations } from "../../../domain/collectionManagement";
 import { ensureUniqueCountedTitle } from "../../../utils";
 import {
   buildImportedTitle,
   importAudioAssets,
-  pickAudioFiles,
   type ImportedAudioAsset,
 } from "../../../services/audioStorage";
 import { createClipImportBatcher } from "../../../services/clipImportBatcher";
@@ -60,7 +60,7 @@ export function useWorkspaceCollectionImportFlow({
   };
 
   const openCollectionImportFlow = async () => {
-    const assets = await pickAudioFiles({ multiple: true });
+    const assets = await pickImportAssets({ multiple: true });
     if (assets.length === 0) return;
     const datePreference = await promptForImportDatePreference(assets, "New collection from import");
     if (!datePreference) return;

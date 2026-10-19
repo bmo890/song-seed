@@ -21,6 +21,19 @@ describe("looksMachineNamed", () => {
     "audio-1758470000000-3-abc12",
     "WhatsApp Audio 2026-09-21 at 14.30.12",
     "PTT-20260921-WA0004",
+    // Videos whose sound came in as a clip.
+    "IMG_1234",
+    "IMG_E1234",
+    "VID_20261013_142201",
+    "VID-20261013-WA0001",
+    "PXL_20261013_142201123",
+    "SVID_20261013_142201_1",
+    "RPReplay_Final1697200000",
+    "ScreenRecording_10-13-2026 14-22-01_1",
+    "Screen Recording 2026-10-13 at 14.22.01",
+    "Screen_Recording_20261013_142201",
+    "screen-20261013-142201",
+    "WhatsApp Video 2026-10-13 at 14.22.01",
     "Idea 3",
     "Idea 3 v2",
     "Recovered · 1:54 PM Sep 23rd",
@@ -41,6 +54,10 @@ describe("looksMachineNamed", () => {
     "Recording of the sea",
     "מנגינה למרפסת",
     "Take 2 was better",
+    "Video for Mia",
+    "Screen door blues",
+    "Image of you",
+    "Rehearsal Oct 3",
   ])("treats %j as a name", (title) => {
     expect(looksMachineNamed(title)).toBe(false);
   });

@@ -22,8 +22,14 @@ const RECORDER_FILENAMES = [
   /^(?:new\s+)?(?:recording|voice|memo|audio|rec|clip|track|untitled|note|sound|record|voice\s*memo)[\s_\-#.]*\(?\d*\)?$/i,
   /^rec[\s_-]?\d+/i,
   /^(?:audio|clip|recovered|import|recording|voice)[_-]\d{6,}/i,
-  /^(?:whatsapp|telegram)\s+(?:audio|ptt)/i,
+  /^(?:whatsapp|telegram)\s+(?:audio|ptt|video)/i,
   /^ptt-\d/i,
+  // What cameras and screen recorders call a video nobody named (its sound imports
+  // as a clip, 2026-10-19): IMG_1234, IMG_E1234, VID_20261013_142201, PXL_…, SVID_…,
+  // RPReplay_Final…, ScreenRecording_10-13-2026 14-22-01, Screen_Recording_2026…
+  /^(?:img|vid|pxl|svid|mvi|dsc|gopr)[_-]?e?\d/i,
+  /^(?:rpreplay|screen[\s_-]*record(?:ing|er)?|screen[\s_-]*capture)(?:$|[\s_\-\d])/i,
+  /^screen[\s_-]?\d/i,
   /^\d[\d\s_\-:.T]*$/, // 20260921_143012, 2026-09-21 14.30.12
 ];
 

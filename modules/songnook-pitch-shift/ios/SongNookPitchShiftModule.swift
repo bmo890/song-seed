@@ -85,6 +85,12 @@ public class SongNookPitchShiftModule: Module {
       return try self.renderer.renderTrim(request)
     }.runOnQueue(renderQueue)
 
+    // Video import: the video's sound as an .m4a, the picture dropped. A render the
+    // user is waiting on, so it shares the render queue.
+    AsyncFunction("extractAudioTrack") { (request: [String: Any]) -> [String: Any] in
+      return try self.renderer.extractAudioTrack(request)
+    }.runOnQueue(renderQueue)
+
     AsyncFunction("computeWaveform") { (request: [String: Any]) -> [String: Any] in
       return try self.renderer.computeWaveform(request)
     }.runOnQueue(waveformQueue)

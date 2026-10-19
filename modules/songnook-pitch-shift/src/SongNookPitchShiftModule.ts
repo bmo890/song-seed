@@ -3,6 +3,8 @@ import { NativeModule, requireOptionalNativeModule } from "expo";
 import type {
   NativeAudioDurationRequest,
   NativeAudioDurationResult,
+  NativeAudioExtractRequest,
+  NativeAudioExtractResult,
   NativePitchShiftCapabilities,
   NativePitchShiftLoadRequest,
   NativeMixedRenderRequest,
@@ -40,6 +42,9 @@ declare class SongNookPitchShiftModule extends NativeModule<SongNookPitchShiftMo
   /** Cheap duration probe: reads container metadata only (no PCM decode). Optional —
    *  feature-detect before calling; absent on builds predating this native method. */
   getAudioDurationMs?(request: NativeAudioDurationRequest): Promise<NativeAudioDurationResult>;
+  /** Video import: the video's sound as an .m4a. Optional — feature-detect; absent on
+   *  builds predating this native method. */
+  extractAudioTrack?(request: NativeAudioExtractRequest): Promise<NativeAudioExtractResult>;
   /** Preempt in-flight/queued computeWaveform calls whose request `epoch` is older
    *  than `epoch` (they reject with "WAVEFORM_CANCELLED"). Synchronous native
    *  Function; feature-detect before calling. */
