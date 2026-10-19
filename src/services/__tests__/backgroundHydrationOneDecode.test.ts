@@ -7,6 +7,11 @@
 const mockHydrateClips = jest.fn();
 const mockLoadManagedAudioMetadata = jest.fn();
 const mockEnsureWaveformSidecar = jest.fn();
+const mockCallOrder: string[] = [];
+const mockRepairUnfinalizedWav = jest.fn((uri: string) => {
+    mockCallOrder.push(`repair ${uri}`);
+    return "repaired";
+});
 
 const DETAIL = Array.from({ length: 2048 }, (_, i) => (i % 8 === 3 ? 0.9 : 0.1));
 
@@ -31,6 +36,12 @@ const mockWorkspaces = [
             { id: "idea-1", title: "a", clips: [clip("c-1")] },
             { id: "idea-2", title: "b", clips: [clip("c-2")] },
             { id: "idea-3", title: "c", clips: [clip("c-3")] },
+            // A take recovered before the header fix: the WAV still reads 0 s.
+            {
+                id: "idea-4",
+                title: "d",
+                clips: [{ ...clip("c-4"), audioUri: "file:///c-4.wav", durationMs: 0 }],
+            },
         ],
     },
 ];
@@ -52,6 +63,9 @@ jest.mock("../audioStorage", () => ({
 }));
 jest.mock("../waveformSidecar", () => ({
     ensureWaveformSidecar: (...args: unknown[]) => mockEnsureWaveformSidecar(...args),
+}));
+jest.mock("../wavHeaderRepair", () => ({
+    repairUnfinalizedWav: (uri: string) => mockRepairUnfinalizedWav(uri),
 }));
 jest.mock("../../utils", () => ({
     buildStaticWaveform: (_seed: string, count: number) => Array.from({ length: count }, () => 0.4),
@@ -100,6 +114,8 @@ describe("background hydration — one decode, prompt writes, visible first", ()
         mockLoadManagedAudioMetadata.mockClear();
         mockEnsureWaveformSidecar.mockReset();
         mockEnsureWaveformSidecar.mockResolvedValue(DETAIL);
+        mockRepairUnfinalizedWav.mockClear();
+        mockCallOrder.length = 0;
     });
 
     it("derives the card's 256 peaks from the one sidecar decode and writes within seconds", async () => {
@@ -131,5 +147,23 @@ describe("background hydration — one decode, prompt writes, visible first", ()
 
         const order = mockEnsureWaveformSidecar.mock.calls.map((call) => call[0]);
         expect(order).toEqual(["file:///c-3.m4a", "file:///c-2.m4a", "file:///c-1.m4a"]);
+    });
+
+    it("finalizes a 0:00 clip's file before probing it, and leaves known clips alone", async () => {
+        mockLoadManagedAudioMetadata.mockImplementation(async (uri: string) => {
+            mockCallOrder.push(`probe ${uri}`);
+            return { durationMs: 10_335, waveformPeaks: DETAIL.slice(0, 256), usedDetailedAnalysis: true };
+        });
+        enqueueBackgroundWaveformHydration(job(1));
+        enqueueBackgroundWaveformHydration({ ...job(4), audioUri: "file:///c-4.wav" });
+
+        await jest.advanceTimersByTimeAsync(1500 + 2 * 250 + 100);
+
+        expect(mockRepairUnfinalizedWav).toHaveBeenCalledTimes(1);
+        expect(mockCallOrder).toEqual(["repair file:///c-4.wav", "probe file:///c-4.wav"]);
+        const written = mockHydrateClips.mock.calls.flatMap(
+            (call) => call[0] as Array<{ clipId: string; durationMs?: number }>
+        );
+        expect(written.find((entry) => entry.clipId === "c-4")?.durationMs).toBe(10_335);
     });
 });

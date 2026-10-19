@@ -72,6 +72,7 @@ jest.mock("../audioStorage", () => ({
     }),
 }));
 jest.mock("../waveformSidecar", () => ({ ensureWaveformSidecar: jest.fn() }));
+jest.mock("../wavHeaderRepair", () => ({ repairUnfinalizedWav: () => "notWav" }));
 jest.mock("../../utils", () => ({
     buildStaticWaveform: (_seed: string, count: number) => Array.from({ length: count }, () => 0.4),
 }));
