@@ -13,6 +13,9 @@ export type ActionMenuConfig = {
   title: string;
   titleContext?: string;
   actions: SelectionAction[];
+  /** Closed without a choice (swipe, scrim). Runs after any chosen row's
+   *  onPress, so a caller awaiting an answer gets the choice, not the close. */
+  onDismiss?: () => void;
 };
 
 type Listener = (config: ActionMenuConfig | null) => void;
