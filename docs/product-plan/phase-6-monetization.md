@@ -16,11 +16,15 @@
 > - **Later:** raise the price for NEW subscribers only (~$24.99/yr, $3.99/mo, lifetime ~$79.99),
 >   decided from our own data via RevenueCat Experiments (price A/B for new users), not averages.
 > - **Never lock:** recording, the library, lyrics, backup/export/restore, receiving through Send.
-> - **Open (founder):** confirm the free/Pro split (proposal in the chat of 2026-10-19: free =
->   unlimited recording, 2 workspaces, player, trim, tuner, metronome, backup; Pro = workspaces
->   beyond 2, layers beyond 1, full editor, practice suite, charts/transpose/capo/songbook/setlists/
->   stage reader, Lyric Spark + full word finder, sending through Send, PDF export); and whether
->   current testers get free Pro as founding members (promo codes).
+> - **Free/Pro split (founder confirmed 2026-10-19):** free = unlimited recording, 2 workspaces,
+>   collections, player, marks, lyrics pad, trim, tuner, metronome, backup/export/restore, receiving
+>   through Send, Shelf/Revisit/Activity; Pro = workspaces beyond 2, layers beyond 1, full editor
+>   (parts, speed & pitch), practice suite, charts/transpose/capo/songbook/setlists/stage reader,
+>   Lyric Spark + full word finder, sending through Send, PDF export.
+> - **Founding testers get Pro free (founder confirmed).** Testers are iOS TestFlight only today
+>   (no Android testers). Mechanism: an install whose first launch predates the App Store release
+>   keeps Pro (the TestFlight → App Store upgrade keeps the same data), backed by RevenueCat
+>   promotional entitlements for anyone that misses; no promo codes needed.
 > - **Owner paperwork first (longest lead):** App Store Connect Paid Apps agreement + banking/tax,
 >   3 products in one subscription group (+ lifetime non-consumable); Google Play merchant account +
 >   products; RevenueCat account (free under $2.5k monthly tracked revenue, then 1%).
