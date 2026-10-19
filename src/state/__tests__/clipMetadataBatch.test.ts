@@ -104,4 +104,26 @@ describe("applyClipMetadataBatch — reference identity (the persist-storm guard
         expect(next[0]!.ideas[0]!.clips[0]!.waveformPeaks).toBe(existing);
         expect(next[0]!.ideas[0]!.clips[0]!.durationMs).toBe(2000);
     });
+
+    it("lets real peaks clear a give-up mark, but not a placeholder", () => {
+        // A recovered take failed hydration while its WAV header read 0 s, so it was
+        // marked unavailable; once the header is finalized its real waveform lands.
+        const idea = clipIdea("i1", "col-1", "c1");
+        idea.clips[0]!.waveformPeaks = Array.from({ length: 256 }, () => 0.4);
+        idea.clips[0]!.detailedWaveformUnavailable = true;
+        const ws = workspace("ws-1", "col-1", [idea]);
+        const real = Array.from({ length: 256 }, (_, i) => (i % 4) / 4);
+
+        const healed = applyClipMetadataBatch([ws], [
+            { workspaceId: "ws-1", ideaId: "i1", clipId: "c1", durationMs: 10_335, waveformPeaks: real },
+        ])[0]!.ideas[0]!.clips[0]!;
+        expect(healed.detailedWaveformUnavailable).toBe(false);
+        expect(healed.waveformPeaks).toBe(real);
+        expect(healed.durationMs).toBe(10_335);
+
+        const placeholder = applyClipMetadataBatch([ws], [
+            { workspaceId: "ws-1", ideaId: "i1", clipId: "c1", durationMs: 10_335, waveformPeaks: [0.4, 0.4] },
+        ])[0]!.ideas[0]!.clips[0]!;
+        expect(placeholder.detailedWaveformUnavailable).toBe(true);
+    });
 });

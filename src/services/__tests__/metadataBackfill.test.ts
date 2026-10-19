@@ -10,6 +10,7 @@
 jest.mock("../audioStorage", () => ({
     __esModule: true,
     MANAGED_WAVEFORM_PEAK_COUNT: 256,
+    MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS: 30 * 60 * 1000,
     loadManagedAudioMetadata: jest.fn(),
 }));
 jest.mock("../waveformSidecar", () => ({ ensureWaveformSidecar: jest.fn() }));
@@ -113,5 +114,31 @@ describe("enqueueMissingMetadataBackfill — re-enqueues placeholder-waveform cl
         ]);
 
         expect(enqueued).toBe(4);
+    });
+
+    it("re-enqueues a full-waveform clip still marked unavailable under the cap, not one past it", () => {
+        const enqueued = enqueueMissingMetadataBackfill([
+            workspaceWith([
+                // Healed before the batch write cleared the mark (recovered takes,
+                // 2026-10-18): one pass re-lands its peaks and clears it → ENQUEUE
+                {
+                    id: "c-marked-healed",
+                    audioUri: "file:///mh.wav",
+                    durationMs: 10_335,
+                    waveformPeaks: peaks(256),
+                    detailedWaveformUnavailable: true,
+                },
+                // Past the detail cap: its stylized wave is final → SKIP
+                {
+                    id: "c-marked-long",
+                    audioUri: "file:///ml.m4a",
+                    durationMs: 2 * 60 * 60 * 1000,
+                    waveformPeaks: peaks(256),
+                    detailedWaveformUnavailable: true,
+                },
+            ]),
+        ]);
+
+        expect(enqueued).toBe(1);
     });
 });

@@ -1,5 +1,9 @@
 import type { Workspace } from "../types";
 
+// Equals audioStorage's MANAGED_WAVEFORM_PEAK_COUNT; a local literal so this pure
+// module doesn't pull in the native audio module (same as domain/clipPresentation).
+const REAL_WAVEFORM_PEAK_COUNT = 256;
+
 export type ClipMetadataEntry = {
     workspaceId: string;
     ideaId: string;
@@ -21,6 +25,11 @@ export type ClipMetadataEntry = {
  *
  * Placeholder-safety: an empty peaks array never overwrites existing peaks (a
  * skipped/preempted decode must not stamp a fake waveform over a real one).
+ *
+ * Full-resolution peaks clear a give-up mark (detailedWaveformUnavailable), as the
+ * single-clip hydrateClipAudioMetadata does: the mark makes every surface treat the
+ * peaks as synthetic, so a clip that once failed (a recovered take with an unfinalized
+ * header) kept a dotted card after its real waveform landed.
  */
 export function applyClipMetadataBatch(
     workspaces: Workspace[],
@@ -58,12 +67,17 @@ export function applyClipMetadataBatch(
                     clips: idea.clips.map((clip) => {
                         const payload = clipMap.get(clip.id);
                         if (!payload) return clip;
+                        const realPeaksLand =
+                            (payload.waveformPeaks?.length ?? 0) >= REAL_WAVEFORM_PEAK_COUNT;
                         return {
                             ...clip,
                             durationMs: payload.durationMs ?? clip.durationMs,
                             waveformPeaks: payload.waveformPeaks?.length
                                 ? payload.waveformPeaks
                                 : clip.waveformPeaks,
+                            ...(realPeaksLand && clip.detailedWaveformUnavailable
+                                ? { detailedWaveformUnavailable: false }
+                                : null),
                         };
                     }),
                 };
