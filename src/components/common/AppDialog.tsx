@@ -20,8 +20,14 @@ import { colors, radii } from "../../design/tokens";
  * Button presentation:
  * - A button with a `description` renders as a full-width "option row"
  *   (tinted icon · bold label · description) — for choice dialogs.
- * - Otherwise: 2 plain buttons sit side-by-side; 1 or 3+ stack vertically.
+ * - Otherwise: 2 plain buttons sit side-by-side when both labels fit half the
+ *   card; a long label ("Delete permanently") stacks them instead of clipping
+ *   (2026-10-19). 1 or 3+ always stack.
  */
+
+/** Characters a label (plus its glyph) can hold in half the card at 15 pt. */
+const SIDE_BY_SIDE_MAX_CHARS = 14;
+const fitsHalf = (btn: DialogButton) => btn.label.length + (btn.icon ? 3 : 0) <= SIDE_BY_SIDE_MAX_CHARS;
 export function AppDialogHost({ nested = false }: { nested?: boolean } = {}) {
   const [config, setConfig] = useState<DialogConfig | null>(null);
   const [sheetHosts, setSheetHosts] = useState(0);
@@ -56,10 +62,10 @@ export function AppDialogHost({ nested = false }: { nested?: boolean } = {}) {
   const hasCancel = config.buttons.some((b) => b.style === "cancel");
   const isRich = config.buttons.some((b) => !!b.description);
   const plainButtons = config.buttons.filter((b) => !b.description);
-  const sideBySide = !isRich && config.buttons.length === 2;
+  const sideBySide = !isRich && config.buttons.length === 2 && config.buttons.every(fitsHalf);
 
   const iconColor = (style?: string) =>
-    style === "destructive" ? "#a83232" : style === "cancel" ? colors.textSecondary : colors.textStrong;
+    style === "destructive" ? colors.danger : style === "cancel" ? colors.textSecondary : colors.textStrong;
 
   const Frame = nested ? NestedFrame : Modal;
   return (
@@ -305,7 +311,7 @@ const s = StyleSheet.create({
     color: colors.textPrimary,
   },
   richLabelDanger: {
-    color: "#a83232",
+    color: colors.danger,
   },
   richDesc: {
     fontFamily: "PlusJakartaSans_400Regular",
@@ -324,7 +330,7 @@ const s = StyleSheet.create({
   btnTextDefault: { color: colors.textPrimary },
   btnTextCancel: { color: colors.textSecondary },
   btnTextDestructive: {
-    color: "#a83232",
+    color: colors.danger,
     fontFamily: "PlusJakartaSans_700Bold",
   },
 });
