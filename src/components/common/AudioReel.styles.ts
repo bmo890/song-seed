@@ -2,6 +2,10 @@ import { StyleSheet } from "react-native";
 import { colors, radii } from "../../design/tokens";
 
 export const audioReelStyles = StyleSheet.create({
+    // The surface plus its overlay zoom: the zoom's offsets are measured from here.
+    reelBox: {
+        position: "relative",
+    },
     surface: {
         overflow: "hidden",
         position: "relative",
