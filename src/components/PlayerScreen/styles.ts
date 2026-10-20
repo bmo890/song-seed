@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import { colors, radii, shadows } from "../../design/tokens";
+import { colors, radii, shadows, spacing } from "../../design/tokens";
 
 export const playerScreenStyles = StyleSheet.create({
   screen: {
@@ -821,30 +821,24 @@ export const playerScreenStyles = StyleSheet.create({
     gap: 6,
     marginBottom: 4,
   },
+  // A section kind to pick is a word in ink led by its section-ink dot
+  // (2026-10-20, the multi-select ink language): no chip fill, no stadium.
   sectionChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 11,
-    paddingVertical: 7,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceContainer,
-    borderWidth: 0.5,
-    borderColor: "transparent",
-  },
-  sectionChipActive: {
-    backgroundColor: "#FBF4F1",
-    borderColor: colors.primary,
+    gap: 7,
+    minHeight: 40,
+    paddingEnd: spacing.md,
   },
   sectionChipText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 12.5,
-    color: colors.textSecondary,
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 15,
+    color: colors.textPrimary,
   },
   sectionSwatch: {
-    width: 10,
-    height: 10,
-    borderRadius: 2,
+    width: 9,
+    height: 9,
+    borderRadius: radii.round,
     backgroundColor: colors.borderMuted,
   },
   sectionDurationPill: {
@@ -985,23 +979,20 @@ export const playerScreenStyles = StyleSheet.create({
   sectionModalGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    columnGap: spacing.sm,
   },
+  // The quiet ink link beside Cancel: a word, no outline.
   sectionModalNewButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    borderRadius: radii.sm,
-    borderWidth: 0.5,
-    borderColor: colors.primary,
+    gap: 4,
+    minHeight: 38,
     alignSelf: "flex-start",
   },
   sectionModalNewText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 12.5,
-    color: colors.primary,
+    fontSize: 14,
+    color: colors.primaryDeep,
   },
   sectionColorRow: {
     flexDirection: "row",

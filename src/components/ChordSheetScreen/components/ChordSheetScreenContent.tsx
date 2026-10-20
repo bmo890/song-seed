@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { styles as appStyles } from "../../../styles";
-import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
+import { colors, spacing, text as textTokens } from "../../../design/tokens";
 import { ChordExportSheet } from "../../LyricsVersionScreen/components/chords/ChordExportSheet";
 import { useChordSheetModel } from "../useChordSheetModel";
 import { ChordSheetBody, ChordSheetFullView } from "./ChordSheetBody";
@@ -108,7 +108,7 @@ export function ChordSheetScreenContent() {
                 hitSlop={6}
                 accessibilityLabel={t("chordChart.fullView")}
               >
-                <Ionicons name="expand-outline" size={19} color={colors.primary} />
+                <Ionicons name="expand-outline" size={19} color={colors.textSecondary} />
               </Pressable>
             ) : null}
             {!isEmpty ? (
@@ -137,7 +137,7 @@ export function ChordSheetScreenContent() {
                   hitSlop={6}
                   accessibilityLabel={t("chordChart.edit")}
                 >
-                  <Ionicons name="pencil" size={18} color={colors.onPrimary} />
+                  <Ionicons name="pencil-outline" size={19} color={colors.textStrong} />
                 </Pressable>
               )
             ) : null}
@@ -224,18 +224,17 @@ const styles = StyleSheet.create({
   fill: { flex: 1, minHeight: 0 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   headerBtn: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },
+  // Header keys are ink (header rule 2026-10-15): Done is the active word in
+  // terracotta ink, Edit a bare pencil. No filled pill, no filled circle.
   editPill: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-    borderRadius: radii.round,
-    backgroundColor: colors.primary,
+    minHeight: 36,
+    paddingHorizontal: spacing.sm,
+    justifyContent: "center",
   },
-  editPillText: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 13, color: colors.onPrimary },
+  editPillText: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 14, color: colors.primaryDeep },
   editIconBtn: {
     width: 36,
     height: 36,
-    borderRadius: radii.round,
-    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
