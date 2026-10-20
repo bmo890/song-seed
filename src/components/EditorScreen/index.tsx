@@ -50,6 +50,7 @@ import { SECTION_FILL_ALPHA, buildSectionBands, hexToRgba } from "../../domain/p
 import { fmtDuration } from "../../utils";
 import { canSnapToGrid, snapToGrid } from "../../domain/editSnap";
 import { CUT_COLOR, KEEP_COLOR, MIN_REGION_DURATION_MS } from "./helpers";
+import { UserFacingError, userFacingMessage } from "../../i18n/userFacingError";
 
 /** Picking an end edge cues two seconds before it, as the player's loop does. */
 const EDGE_END_PREROLL_MS = 2000;
@@ -496,7 +497,7 @@ export function EditorScreen() {
                     durationHintMs && durationHintMs > 0 ? durationHintMs : await loadAudioDurationMs(editorAudioUri);
                 editorLog("load: resolved duration", resolvedDurationMs);
                 if (!resolvedDurationMs || resolvedDurationMs <= 0) {
-                    throw new Error(t("editor.durationUnavailable"));
+                    throw new UserFacingError(t("editor.durationUnavailable"));
                 }
                 if (isMounted) {
                     setAnalysisData(buildFallbackAnalysis(resolvedDurationMs));
@@ -531,7 +532,7 @@ export function EditorScreen() {
         try {
             const savedTarget = await appActions.saveCombinedClipAsNewClip(targetIdea.id, sourceClip.id);
             if (!savedTarget) {
-                throw new Error(t("editor.combinedCouldNotSave"));
+                throw new UserFacingError(t("editor.combinedCouldNotSave"));
             }
             editorLog("flatten overdub: saved combined", savedTarget);
 
@@ -541,7 +542,7 @@ export function EditorScreen() {
                 .find((idea) => idea.id === savedTarget.ideaId);
             const savedClip = savedIdea?.clips.find((clip) => clip.id === savedTarget.clipId) ?? null;
             if (!savedIdea || !savedClip?.audioUri) {
-                throw new Error(t("editor.combinedCouldNotOpen"));
+                throw new UserFacingError(t("editor.combinedCouldNotOpen"));
             }
 
             navigation.dispatch(
@@ -556,7 +557,7 @@ export function EditorScreen() {
             console.warn("[editor] flatten overdub failed", error);
             AppAlert.error(
                 t("editor.saveCombinedFailed"),
-                error instanceof Error ? error.message : t("editor.combinedFailedBody")
+                userFacingMessage(error, t("editor.combinedFailedBody"))
             );
         } finally {
             setIsFlatteningOverdub(false);

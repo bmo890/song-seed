@@ -35,6 +35,7 @@ import {
   deriveNotePreviewBody,
   deriveNotePreviewTitle,
 } from "../../../domain/notepad";
+import { i18n } from "../../../i18n/instance";
 
 function formatRelativeDate(ts: number, t: ReturnType<typeof useTranslation>["t"]) {
   const now = Date.now();
@@ -230,7 +231,11 @@ function SparkListItem<T extends { id: string; title: string }>({
   );
 }
 
-const UNTITLED_TITLES = new Set(["Untitled Word Ladder", "Untitled Cut-Up"]);
+// The app's own placeholder titles, in every language (a spark made in Hebrew keeps
+// its Hebrew placeholder after a switch to English).
+const UNTITLED_TITLES = new Set(
+  ["en", "he"].flatMap((lng) => [i18n.t("wordLadder.untitled", { lng }), i18n.t("cutUp.untitled", { lng })])
+);
 
 function WordLadderListItem(props: SparkItemProps<WordLadderExercise>) {
   const notes = useStore((state) => state.notes);

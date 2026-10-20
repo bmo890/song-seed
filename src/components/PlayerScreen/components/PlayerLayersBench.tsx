@@ -38,6 +38,7 @@ import { fmtDuration } from "../../../utils";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { UserText } from "../../../i18n";
+import { userFacingMessage } from "../../../i18n/userFacingError";
 
 /**
  * The bench (redrawn 2026-10-17, founder: "orderly, marked, never overstimulating"):
@@ -424,7 +425,7 @@ export function PlayerLayersBench({
     } catch (error) {
       pauseSoloSafely();
       setSoloActive(false);
-      const message = error instanceof Error ? error.message : t("player.layerPlayFailed");
+      const message = userFacingMessage(error, t("player.layerPlayFailed"));
       console.warn("Layer solo failed", error);
       AppAlert.error(t("player.layerPreviewFailed"), message);
     }

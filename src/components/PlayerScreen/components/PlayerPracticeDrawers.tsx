@@ -4,7 +4,7 @@ import { Slider } from "../../common/Slider";
 import { Ionicons } from "@expo/vector-icons";
 import { fmtDuration } from "../../../utils";
 import { colors } from "../../../design/tokens";
-import { getCustomSectionOptions, getSectionColor, MIN_SECTION_LENGTH_MS } from "../../../domain/playerSections";
+import { getCustomSectionOptions, getSectionColor, MIN_SECTION_LENGTH_MS, sectionDisplayLabel } from "../../../domain/playerSections";
 import type { SectionCustomInput } from "../hooks/usePlayerSections";
 import { formatBpmLabel, hasAnalysisResult, isTempoSteady } from "../../../domain/clipAnalysis";
 import { playerScreenStyles as s } from "../styles";
@@ -428,7 +428,7 @@ export function PlayerPracticeDrawers({
     const isSelected = selected != null && selected.kind === entry.kind && selected.id === id;
     const color = isSection ? getSectionColor(entry.section) : colors.primaryDeep;
     const name = isSection
-      ? entry.section.label
+      ? sectionDisplayLabel(entry.section)
       : entry.marker.label ||
         t("player.pinNumbered", { n: unnamedPinNumber.get(entry.marker.id) ?? index + 1 });
     const isPlayingFrom = isPlaying && playFromId === id;
@@ -814,7 +814,7 @@ export function PlayerPracticeDrawers({
                   accessibilityLabel={t("player.loopSection")}
                 >
                   <View style={[pd.partInkBar, { backgroundColor: getSectionColor(section) }]} />
-                  <Text style={[pd.partInkText, active ? pd.partInkTextOn : null]}>{section.label}</Text>
+                  <Text style={[pd.partInkText, active ? pd.partInkTextOn : null]}>{sectionDisplayLabel(section)}</Text>
                 </Press>
               );
             })}
@@ -1057,7 +1057,7 @@ export function PlayerPracticeDrawers({
         visible={detailModal != null}
         title={detailModal?.mode === "edit" ? t("player.editSection") : t("player.newSection")}
         confirmLabel={detailModal?.mode === "edit" ? t("common.save") : t("songDetail.add")}
-        initialName={detailModal?.mode === "edit" ? detailModal.section.label : ""}
+        initialName={detailModal?.mode === "edit" ? sectionDisplayLabel(detailModal.section) : ""}
         initialColor={
           detailModal?.mode === "edit" ? getSectionColor(detailModal.section) : colors.sectionCustom
         }

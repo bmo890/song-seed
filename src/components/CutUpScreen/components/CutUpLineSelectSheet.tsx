@@ -5,7 +5,7 @@ import { BottomSheet } from "../../common/BottomSheet";
 import { Button } from "../../common/Button";
 import { Press } from "../../common/Press";
 import { InkKey } from "../../common/InkKey";
-import { UserText } from "../../../i18n";
+import { UserText, contentRow } from "../../../i18n";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import { haptic } from "../../../design/haptics";
 import {
@@ -98,7 +98,7 @@ export function CutUpLineSelectSheet({ note, onClose, onConfirm }: Props) {
                   {startsStanza && stanzaCount > 1 ? (
                     <Press
                       // Haptics vocabulary: tap, an acknowledged press (a whole verse).
-                      style={[styles.verseLabelRow, rtl ? styles.rowRtl : null, i > 0 ? styles.verseLabelGap : null]}
+                      style={[styles.verseLabelRow, contentRow(rtl ? "rtl" : "ltr"), i > 0 ? styles.verseLabelGap : null]}
                       onPress={() => toggleStanza(line.stanza)}
                       hitSlop={6}
                       accessibilityRole="button"
@@ -155,7 +155,7 @@ function LineRow({
     <Press
       // Haptics vocabulary: light, a small state flip (a line taken or dropped).
       haptic="light"
-      style={[styles.lineRow, rtl ? styles.rowRtl : null]}
+      style={[styles.lineRow, contentRow(rtl ? "rtl" : "ltr")]}
       onPress={onPress}
       onLongPress={onLongPress}
       delayLongPress={280}
@@ -198,7 +198,6 @@ const styles = StyleSheet.create({
   verseLabelGap: { marginTop: spacing.lg },
   verseLabel: { ...textTokens.annotation },
 
-  rowRtl: { flexDirection: "row-reverse" },
   lineRow: {
     flexDirection: "row",
     alignItems: "center",

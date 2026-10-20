@@ -22,6 +22,7 @@ import {
 import { showLineageRenamePrompt } from "../../../domain/clipLineageRenamePrompt";
 import { useSongScreen } from "../provider/SongScreenProvider";
 import { useTranslation } from "react-i18next";
+import { userFacingMessage } from "../../../i18n/userFacingError";
 
 export function SelectionBars() {
   const { t } = useTranslation();
@@ -115,7 +116,7 @@ export function SelectionBars() {
         selectedIdea ? t("songDetail.clipsLabel", { title: selectedIdea.title }) : t("songDetail.appClipsLabel")
       );
     } catch (error) {
-      const message = error instanceof Error ? error.message : t("songDetail.shareFailedBody");
+      const message = userFacingMessage(error, t("songDetail.shareFailedBody"));
       AppAlert.error(t("songDetail.shareFailed"), message);
     } finally {
       setIsSharing(false);

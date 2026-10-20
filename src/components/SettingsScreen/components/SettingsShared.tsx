@@ -185,7 +185,7 @@ export function AboutLinkRow({
       <Text style={settingsScreenStyles.aboutRowLabel}>{label}</Text>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
         {value ? <Text style={settingsScreenStyles.aboutRowValue}>{value}</Text> : null}
-        {onPress ? <Ionicons name={icon ?? "chevron-forward"} size={18} color={colors.textMuted} /> : null}
+        {onPress ? <Ionicons name={icon ?? dirIcon("chevron-forward")} size={18} color={colors.textMuted} /> : null}
       </View>
     </>
   );

@@ -24,6 +24,7 @@ import { laneDensityForHeight } from "../../domain/reelLanes";
 import { durations } from "../../design/motion";
 import { haptic } from "../../design/haptics";
 import { audioReelStyles } from "./AudioReel.styles";
+import { i18n } from "../../i18n";
 
 const TIMELINE_HORIZONTAL_PADDING = 20;
 const AnimatedView = Reanimated.createAnimatedComponent(View);
@@ -836,10 +837,10 @@ export function AudioReel({
                                 ]}
                             >
                                 {waveformAnalyzing
-                                    ? "Analyzing waveform…"
+                                    ? i18n.t("reel.analyzing")
                                     : isPlaying
-                                        ? "Waveform finishes after playback"
-                                        : "Waveform coming up…"}
+                                        ? i18n.t("reel.afterPlayback")
+                                        : i18n.t("reel.coming")}
                             </Text>
                         ) : null}
                     </AnimatedView>

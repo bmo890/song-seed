@@ -21,6 +21,7 @@ import { SongClipListShell } from "./SongClipListShell";
 import { haptic } from "../../../design/haptics";
 import { colors, spacing } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
+import { dirIcon } from "../../../design/directionalIcons";
 
 const EMPTY_GROUPS: NonNullable<ClipCardContextProps["mode"]["idea"]["clipGroups"]> = [];
 const EMPTY_ASSIGNMENTS: NonNullable<ClipCardContextProps["mode"]["idea"]["clipGroupAssignments"]> = {};
@@ -135,7 +136,7 @@ function EvolutionGroupHeaderRow({
         accessibilityHint={t("songDetail.renameGroupHint")}
       >
         <Ionicons
-          name={row.collapsed ? "chevron-forward" : "chevron-down"}
+          name={row.collapsed ? dirIcon("chevron-forward") : "chevron-down"}
           size={14}
           color={colors.textSecondary}
           style={styles.songDetailEvolutionGroupChevron}

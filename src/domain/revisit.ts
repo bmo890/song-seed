@@ -1,5 +1,6 @@
 import { getActivityEventsWithHistory, startOfActivityDay } from "./activity";
 import { i18n } from "../i18n/instance";
+import { currentFormatLocale } from "../i18n/formatLocale";
 import { getIdeaCreatedAt, getIdeaUpdatedAt } from "./ideaSort";
 import type { ActivityEvent, ClipVersion, SongIdea, Workspace } from "../types";
 import { getCollectionAncestors, getCollectionById, getCollectionScopeIds } from "../utils";
@@ -247,7 +248,7 @@ function seasonReason(ts: number): RevisitReason {
 }
 
 function formatMonthDayLabel(ts: number) {
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(currentFormatLocale(), {
     month: "short",
     day: "numeric",
   }).format(new Date(ts));

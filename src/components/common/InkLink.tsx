@@ -31,7 +31,7 @@ export function InkLink({ label, onPress, icon, testID }: Props) {
       hitSlop={8}
       testID={testID}
     >
-      {icon ? <Ionicons name={icon} size={14} color={colors.primaryDeep} /> : null}
+      {icon ? <Ionicons name={dirIcon(icon)} size={14} color={colors.primaryDeep} /> : null}
       <Text style={s.text}>{label}</Text>
       <Ionicons name={dirIcon("chevron-forward")} size={14} color={colors.primaryDeep} />
     </Press>

@@ -1,5 +1,6 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { i18n } from "../i18n/instance";
+import { UserFacingError } from "../i18n/userFacingError";
 import { File } from "expo-file-system";
 import { buildTimestampSlug } from "./audioStorage";
 import { createZipArchive, type ZipArchiveEntry } from "./zipArchive";
@@ -235,9 +236,7 @@ export function estimateStoredZipArchiveBytes(entries: ZipArchiveEntry[]) {
 export function assertZip32ArchiveSize(entries: ZipArchiveEntry[]) {
     const projectedArchiveBytes = estimateStoredZipArchiveBytes(entries);
     if (projectedArchiveBytes > 0xffffffff) {
-        throw new Error(
-            "This library exceeds the supported 4 GB ZIP32 backup limit. Split the library before backing it up with this app version."
-        );
+        throw new UserFacingError(i18n.t("backupOperation.tooLarge"));
     }
     return projectedArchiveBytes;
 }
@@ -343,9 +342,7 @@ export async function buildDisasterRecoveryBackup(
 
     const totalMediaBytes = readableRefs.reduce((sum, ref) => sum + ref.sizeBytes, 0);
     if (readableRefs.length + 2 >= 0xffff || totalMediaBytes > 0xffffffff) {
-        throw new Error(
-            "This library exceeds the supported 4 GB ZIP32 backup limit. Split the library before backing it up with this app version."
-        );
+        throw new UserFacingError(i18n.t("backupOperation.tooLarge"));
     }
     // Fail before an expensive checksum pass when the temporary archive cannot fit.
     await ensureBackupDiskSpace(totalMediaBytes, "backup");

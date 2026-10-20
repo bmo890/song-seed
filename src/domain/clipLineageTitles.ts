@@ -1,6 +1,7 @@
 import { findLineageForClip, type ClipLineage } from "./clipGraph";
 import type { ClipVersion } from "../types";
 import { getBaseClipTitle } from "../utils";
+import { i18n } from "../i18n/instance";
 
 export type LineageRenameTarget = {
   clip: ClipVersion;
@@ -40,7 +41,7 @@ export function buildLineageTitlePlan(
   const clip = clips.find((candidate) => candidate.id === targetClipId);
   if (!clip) return null;
 
-  const draftTitle = rawDraftTitle.trim() || "Untitled Clip";
+  const draftTitle = rawDraftTitle.trim() || i18n.t("defaults.untitledClip");
   const newBase = getBaseClipTitle(draftTitle) || draftTitle;
   const previousBase = getBaseClipTitle(clip.title) || clip.title;
   const lineage = findLineageForClip(clips, targetClipId);

@@ -6,6 +6,7 @@ import type {
   LyricsLine,
   LyricsVersion,
 } from "../types";
+import { i18n } from "../i18n/instance";
 
 function randomId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -226,7 +227,7 @@ export function buildChordSheetHtml(
     .map((section) => {
       if (section.kind === "text") {
         const t = (section.text ?? "").trim();
-        return t ? `<div class="textblock">${escapeHtml(t)}</div>` : "";
+        return t ? `<div class="textblock" dir="auto">${escapeHtml(t)}</div>` : "";
       }
       const rows: string[] = [];
       for (let i = 0; i < section.measures.length; i += perRow) {
@@ -237,8 +238,8 @@ export function buildChordSheetHtml(
         rows.push(`<tr>${cells}</tr>`);
       }
       const grid = rows.length > 0 ? `<table class="bars">${rows.join("")}</table>` : "";
-      const notes = section.notes.trim() ? `<div class="notes">${escapeHtml(section.notes.trim())}</div>` : "";
-      return `<div class="section"><div class="label">${escapeHtml(section.label)}</div>${grid}${notes}</div>`;
+      const notes = section.notes.trim() ? `<div class="notes" dir="auto">${escapeHtml(section.notes.trim())}</div>` : "";
+      return `<div class="section"><div class="label" dir="auto">${escapeHtml(section.label)}</div>${grid}${notes}</div>`;
     })
     .join("\n");
 
@@ -256,8 +257,8 @@ export function buildChordSheetHtml(
   .notes { margin-top: 8px; font-size: 13px; color: #4b5563; white-space: pre-wrap; }
   .textblock { margin-bottom: 22px; font-size: 14px; line-height: 1.5; color: #1b1c1a; white-space: pre-wrap; break-inside: avoid; }
 </style></head><body>
-  <h1>${escapeHtml(title || "Untitled")}</h1>
-  <div class="sub">${escapeHtml(subtitle)}</div>
+  <h1 dir="auto">${escapeHtml(title || i18n.t("common.untitled"))}</h1>
+  <div class="sub" dir="auto">${escapeHtml(subtitle)}</div>
   ${sectionsHtml}
 </body></html>`;
 }

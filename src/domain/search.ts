@@ -1,6 +1,7 @@
 import { getCollectionAncestors, getCollectionById } from "../utils";
 import { deriveNotePreviewBody, deriveNotePreviewTitle } from "./notepad";
 import type { Note, SongIdea, Workspace } from "../types";
+import { i18n } from "../i18n/instance";
 
 export type GlobalSearchResultKind = "song" | "clip" | "note" | "collection" | "workspace";
 export type GlobalSearchMatchSource =
@@ -174,7 +175,7 @@ function buildIdeaSearchFields(idea: SongIdea): SearchField[] {
         text: clip.title,
         baseScore: 84,
         snippetText: clip.title,
-        snippetPrefix: "Clip",
+        snippetPrefix: i18n.t("search.prefixClip"),
       })
     );
     fields.push(
@@ -183,7 +184,7 @@ function buildIdeaSearchFields(idea: SongIdea): SearchField[] {
         text: clip.notes,
         baseScore: 80,
         snippetText: clip.notes,
-        snippetPrefix: clip.title.trim() || "Clip",
+        snippetPrefix: clip.title.trim() || i18n.t("search.prefixClip"),
       })
     );
   }
@@ -205,7 +206,7 @@ function buildIdeaSearchFields(idea: SongIdea): SearchField[] {
               text: chord.chord,
               baseScore: 70,
               snippetText: line.text || chord.chord,
-              snippetPrefix: "Chord",
+              snippetPrefix: i18n.t("search.prefixChord"),
             })
           );
         }
@@ -215,28 +216,6 @@ function buildIdeaSearchFields(idea: SongIdea): SearchField[] {
 
   ideaSearchFieldsCache.set(idea, fields);
   return fields;
-}
-
-export function getSearchMatchSourceLabel(source: GlobalSearchMatchSource) {
-  switch (source) {
-    case "title":
-      return "Title";
-    case "description":
-      return "Description";
-    case "notes":
-      return "Notes";
-    case "clip-title":
-      return "Clip title";
-    case "clip-notes":
-      return "Clip notes";
-    case "lyrics":
-      return "Lyrics";
-    case "chords":
-      return "Chords";
-    case "body":
-    default:
-      return "Body";
-  }
 }
 
 // Coarse buckets for the quick-filter pills. Every granular match source folds into
@@ -319,7 +298,7 @@ export function buildGlobalSearchResults(workspaces: Workspace[], notes: Note[],
         id: `workspace:${workspace.id}`,
         kind: "workspace",
         title: workspace.title,
-        context: workspace.description?.trim() || "Workspace",
+        context: workspace.description?.trim() || i18n.t("search.contextWorkspace"),
         matchSource: workspaceMatch.source,
         snippet:
           workspaceMatch.source === "title" ? workspace.description?.trim() || null : workspaceMatch.snippet,
@@ -400,7 +379,7 @@ export function buildGlobalSearchResults(workspaces: Workspace[], notes: Note[],
       id: `note:${note.id}`,
       kind: "note",
       title,
-      context: note.isPinned ? "Lyrics Pad • Pinned" : "Lyrics Pad",
+      context: i18n.t(note.isPinned ? "search.contextLyricPadPinned" : "search.contextLyricPad"),
       matchSource: noteMatch.source,
       snippet: noteMatch.source === "title" && hasExplicitTitle ? body || null : noteMatch.snippet,
       score: noteMatch.score + (note.isPinned ? 3 : 0),

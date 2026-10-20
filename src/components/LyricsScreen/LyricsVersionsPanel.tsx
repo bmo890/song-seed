@@ -38,7 +38,7 @@ function formatCardDate(ts: number, language: string, t: TFunction): string {
   const time = date.toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" });
   if (days <= 0) return `${t("time.today")} · ${time}`;
   if (days === 1) return `${t("time.yesterday")} · ${time}`;
-  if (days < 7) return t("lyrics.editedDaysAgo", { count: days }).replace(/^Edited |^נערך /, "");
+  if (days < 7) return t("lyrics.daysAgoShort", { count: days });
   return date.toLocaleDateString(locale, { month: "short", day: "numeric" });
 }
 

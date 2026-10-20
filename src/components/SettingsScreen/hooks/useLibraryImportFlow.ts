@@ -13,6 +13,7 @@ import { haptic } from "../../../design/haptics";
 import { enqueueMissingMetadataBackfill } from "../../../services/backgroundWaveformHydration";
 import { useStore } from "../../../state/useStore";
 import { useTranslation } from "react-i18next";
+import { userFacingMessage } from "../../../i18n/userFacingError";
 
 export function useLibraryImportFlow() {
     const { t } = useTranslation();
@@ -57,7 +58,7 @@ export function useLibraryImportFlow() {
             return true;
         } catch (error) {
             const message =
-                error instanceof Error ? error.message : t("settingsImport.readFailed");
+                userFacingMessage(error, t("settingsImport.readFailed"));
             AppAlert.error(t("settingsImport.importFailed"), message);
             return false;
         } finally {
@@ -88,7 +89,7 @@ export function useLibraryImportFlow() {
             return true;
         } catch (error) {
             const message =
-                error instanceof Error ? error.message : t("settingsImport.archiveFailed");
+                userFacingMessage(error, t("settingsImport.archiveFailed"));
             AppAlert.error(t("settingsImport.importFailed"), message);
             return false;
         } finally {

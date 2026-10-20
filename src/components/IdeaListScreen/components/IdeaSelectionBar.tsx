@@ -26,6 +26,7 @@ import { orderByKeys } from "../../../domain/parcelOrder";
 import { isSendServiceConfigured } from "../../../config/sendService";
 import { styles } from "../../../styles";
 import { View } from "react-native";
+import { userFacingMessage } from "../../../i18n/userFacingError";
 
 type IdeaSelectionBarProps = {
   selectableIdeaIds: string[];
@@ -253,7 +254,7 @@ export function IdeaSelectionBar({
         activeWorkspace?.title ? t("selection.workspaceSelection", { title: activeWorkspace.title }) : t("selection.defaultSelection")
       );
     } catch (error) {
-      const message = error instanceof Error ? error.message : t("selection.shareFailedBody");
+      const message = userFacingMessage(error, t("selection.shareFailedBody"));
       AppAlert.error(t("selection.shareFailed"), message);
     } finally {
       setIsSharing(false);

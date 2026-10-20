@@ -491,8 +491,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
           // Updates eligibility; channels are immutable once created, so the id
           // must change for existing installs to pick it up.
           channelId: "songnook-recording-v2",
-          channelName: "Recording",
-          channelDescription: "Background recording status and controls",
+          channelName: t("recordingErrors.notificationChannel"),
+          channelDescription: t("recordingErrors.notificationChannelHint"),
           notificationId: 4101,
           priority: "high" as const,
           accentColor: colors.record,

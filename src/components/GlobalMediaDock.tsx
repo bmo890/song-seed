@@ -307,11 +307,11 @@ export function GlobalMediaDock({
                     ]}
                   />
                   <Text style={styles.miniMediaDockRecordingBadgeText}>
-                    {recorder.isPaused ? "Paused" : "Recording"}
+                    {recorder.isPaused ? t("recording.paused") : t("mediaDock.recordingBadge")}
                   </Text>
                 </View>
                 <Text style={styles.miniMediaDockRecordingTitle} numberOfLines={1}>
-                  {recordingIdea.title || "Recording"}
+                  {recordingIdea.title || t("common.untitled")}
                 </Text>
               </View>
 

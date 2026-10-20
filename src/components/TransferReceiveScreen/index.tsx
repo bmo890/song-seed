@@ -37,6 +37,7 @@ import type { ShareKind } from "../../types";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { UserText } from "../../i18n";
+import { UserFacingError, userFacingMessage } from "../../i18n/userFacingError";
 
 type Phase =
   | { kind: "loading" }
@@ -272,7 +273,7 @@ export function TransferReceiveScreen() {
           );
         }
         if (audioImport.imported.length === 0) {
-          throw new Error(t("transferReceive.noAudio"));
+          throw new UserFacingError(t("transferReceive.noAudio"));
         }
         importedAnything = true;
 
@@ -312,7 +313,7 @@ export function TransferReceiveScreen() {
         }
       }
 
-      if (!importedAnything) throw new Error(t("transferReceive.nothingImported"));
+      if (!importedAnything) throw new UserFacingError(t("transferReceive.nothingImported"));
 
       enqueueMissingMetadataBackfill(useStore.getState().workspaces);
       await cleanupReceiveCache();
@@ -367,7 +368,7 @@ export function TransferReceiveScreen() {
       haptic.error();
       setPhase({
         kind: "error",
-        message: __DEV__ && error instanceof Error ? error.message : t("transferReceive.saveFailed"),
+        message: userFacingMessage(error, t("transferReceive.saveFailed")),
       });
     }
   }

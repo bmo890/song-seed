@@ -3,6 +3,7 @@ import type { ClipAnalysis } from "../../../types";
 import { useStore } from "../../../state/useStore";
 import { analyzeClipAudio } from "../../../domain/clipAnalysisRunner";
 import { useTranslation } from "react-i18next";
+import { userFacingMessage } from "../../../i18n/userFacingError";
 
 type UseClipAnalysisArgs = {
   playerIdeaId: string | null | undefined;
@@ -27,7 +28,7 @@ export function useClipAnalysis({ playerIdeaId, playerClipId, audioUri, duration
         setError(t("player.tempoInconclusive"));
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("player.analysisUnavailable"));
+      setError(userFacingMessage(e, t("player.analysisUnavailable")));
     } finally {
       setIsAnalyzing(false);
     }

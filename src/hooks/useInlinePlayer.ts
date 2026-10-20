@@ -10,6 +10,7 @@ import { getLockScreenArtworkUrl } from "../services/lockScreenArtwork";
 import { buildClipLockScreenMetadata } from "../services/lockScreenMetadata";
 import { useStore } from "../state/useStore";
 import { appActions } from "../state/actions";
+import { i18n } from "../i18n/instance";
 
 type Args = {
   onBeforePlayNew?: () => Promise<void> | void;
@@ -413,7 +414,7 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
             {
               ...(idea
                 ? buildClipLockScreenMetadata(idea, clip)
-                : { title: clip.title || "Clip", artist: "SongNook" }),
+                : { title: clip.title || i18n.t("common.untitled"), artist: "SongNook" }),
               artworkUrl: getLockScreenArtworkUrl(),
             },
             // Previews have no queue, and the native scrubber covers seeking:

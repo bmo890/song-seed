@@ -102,16 +102,3 @@ export function suggestedSectionTagsForClip(
     : matched;
 }
 
-export function getSongClipTagFilterSummary(
-  tagFilter: SongClipTagFilter,
-  projectCustomTags?: CustomTagDefinition[],
-  globalCustomTags?: CustomTagDefinition[]
-) {
-  if (tagFilter.length === 0) return "All";
-  if (tagFilter.length === 1) {
-    const key = tagFilter[0];
-    if (key === "untagged") return "Untagged";
-    return getTagLabel(key, projectCustomTags, globalCustomTags);
-  }
-  return `${tagFilter.length} tags`;
-}

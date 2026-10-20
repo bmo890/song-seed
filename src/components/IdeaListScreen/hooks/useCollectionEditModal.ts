@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useStore } from "../../../state/useStore";
 import type { SongIdea } from "../../../types";
+import { i18n } from "../../../i18n/instance";
 
 export function useCollectionEditModal(ideas: SongIdea[]) {
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -26,7 +27,7 @@ export function useCollectionEditModal(ideas: SongIdea[]) {
   const saveStandaloneClipEdit = () => {
     if (!editTargetIdea || editTargetIdea.kind !== "clip" || !editTargetClip) return;
 
-    const nextTitle = editClipDraft.trim() || "Untitled Clip";
+    const nextTitle = editClipDraft.trim() || i18n.t("defaults.untitledClip");
     const nextNotes = editClipNotesDraft.trim();
 
     useStore.getState().updateIdeas((nextIdeas) =>

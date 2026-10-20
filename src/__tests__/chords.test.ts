@@ -144,7 +144,7 @@ describe("buildChordChartHtml", () => {
 
   it("includes the title, a chord row for chorded lines, and escapes HTML", () => {
     const html = buildChordChartHtml("My <Song>", "Album · 2026", lines);
-    expect(html).toContain("<h1>My &lt;Song&gt;</h1>");
+    expect(html).toContain("<h1 dir=\"auto\">My &lt;Song&gt;</h1>");
     expect(html).toContain("Album · 2026");
     expect(html).toContain('<pre class="chords">C</pre>');
     expect(html).toContain('<pre class="lyric">hello world</pre>');

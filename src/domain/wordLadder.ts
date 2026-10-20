@@ -4,6 +4,7 @@ import type {
   WordLadderStep,
   WordLadderWord,
 } from "../types";
+import { i18n } from "../i18n/instance";
 
 function randomId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -27,10 +28,10 @@ export function getColumnBPlaceholder(_placeSeed: string) {
 export function deriveExerciseTitle(roleSeed: string, placeSeed: string) {
   const role = roleSeed.trim();
   const place = placeSeed.trim();
-  if (role && place) return `The ${role} in the ${place}`;
-  if (role) return `The ${role}`;
-  if (place) return `The ${place}`;
-  return "Untitled Word Ladder";
+  if (role && place) return i18n.t("wordLadder.titleBoth", { role, place });
+  if (role) return i18n.t("wordLadder.titleRole", { role });
+  if (place) return i18n.t("wordLadder.titlePlace", { place });
+  return i18n.t("wordLadder.untitled");
 }
 
 export function createWordLadderExercise(
@@ -235,7 +236,7 @@ export function sanitizeWordLadderExercise(raw: unknown): WordLadderExercise | n
 
   return {
     id: obj.id,
-    title: isNonEmptyString(obj.title) && obj.title.trim() ? obj.title : "Untitled Word Ladder",
+    title: isNonEmptyString(obj.title) && obj.title.trim() ? obj.title : i18n.t("wordLadder.untitled"),
     createdAt: typeof obj.createdAt === "number" ? obj.createdAt : Date.now(),
     updatedAt: typeof obj.updatedAt === "number" ? obj.updatedAt : Date.now(),
     step,

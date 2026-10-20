@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../design/tokens";
 import { haptic } from "../../design/haptics";
 import { Press } from "./Press";
+import { dirIcon } from "../../design/directionalIcons";
 
 /**
  * A pair of detented keys: nudge a mark, step a speed, tick a tempo.
@@ -106,7 +107,7 @@ export function Stepper({
   testID,
 }: StepperProps) {
   const [down, up]: [keyof typeof Ionicons.glyphMap, keyof typeof Ionicons.glyphMap] =
-    glyphs === "chevrons" ? ["chevron-back", "chevron-forward"] : ["remove", "add"];
+    glyphs === "chevrons" ? [dirIcon("chevron-back"), dirIcon("chevron-forward")] : ["remove", "add"];
   return (
     <View style={[s.row, style]}>
       <StepKey

@@ -88,7 +88,8 @@ export function RestoreRestartGate() {
                     {isFailed ? (
                         <>
                             <Text style={styles.error}>
-                                {restoreState.reloadError} {t("restoreGate.restartError")}
+                                {/* The raw reload error stays in the state for the log, not the screen. */}
+                                {t("restoreGate.restartError")}
                             </Text>
                             <Pressable
                                 accessibilityRole="button"

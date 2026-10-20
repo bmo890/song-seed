@@ -5,6 +5,7 @@ import type {
   CutUpSpark,
   CutUpStep,
 } from "../types";
+import { i18n } from "../i18n/instance";
 
 function randomId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -942,7 +943,7 @@ export function toggleStanzaSelection(
 
 export function deriveCutUpTitle(sourceText: string): string {
   const firstLine = sourceText.split("\n").map((line) => line.trim()).find((line) => line.length > 0);
-  if (!firstLine) return "Untitled Cut-Up";
+  if (!firstLine) return i18n.t("cutUp.untitled");
   const words = firstLine.split(/\s+/).slice(0, 6).join(" ");
   return words.length < firstLine.length ? `${words}…` : words;
 }
@@ -1036,7 +1037,7 @@ export function sanitizeCutUpSpark(raw: unknown): CutUpSpark | null {
   return {
     id: obj.id,
     type: "cut-up",
-    title: isString(obj.title) && obj.title.trim() ? obj.title : "Untitled Cut-Up",
+    title: isString(obj.title) && obj.title.trim() ? obj.title : i18n.t("cutUp.untitled"),
     createdAt: typeof obj.createdAt === "number" ? obj.createdAt : Date.now(),
     updatedAt: typeof obj.updatedAt === "number" ? obj.updatedAt : Date.now(),
     step: sanitizeStep(obj.step),

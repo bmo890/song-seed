@@ -429,7 +429,7 @@ function WorkspaceBrowseInner() {
         visible={selectionModel.collectionRenameModalOpen}
         title={t("workspaceBrowse.editCollection")}
         draftValue={selectionModel.collectionDraft}
-        placeholderValue={selectionModel.managedCollection?.title ?? "Collection"}
+        placeholderValue={selectionModel.managedCollection?.title ?? t("common.collection")}
         onChangeDraft={selectionModel.setCollectionDraft}
         descriptionValue={selectionModel.collectionDescriptionDraft}
         onChangeDescription={selectionModel.setCollectionDescriptionDraft}
@@ -444,13 +444,11 @@ function WorkspaceBrowseInner() {
 
       <CollectionMoveModal
         visible={!!selectionModel.collectionDestinationMode}
-        title={selectionModel.collectionDestinationMode === "copy" ? "Copy Collection" : "Move Collection"}
-        helperText={
-          selectionModel.collectionDestinationMode === "copy"
-            ? "Choose where to copy this collection."
-            : "Choose the destination for this collection."
-        }
-        confirmLabel={selectionModel.collectionDestinationMode === "copy" ? "Copy" : "Move"}
+        title={t(selectionModel.collectionDestinationMode === "copy" ? "collection.copyCollection" : "collection.moveCollection")}
+        helperText={t("collection.chooseDestination", {
+          action: t(selectionModel.collectionDestinationMode === "copy" ? "collection.copy" : "collection.move"),
+        })}
+        confirmLabel={t(selectionModel.collectionDestinationMode === "copy" ? "common.copy" : "collection.move")}
         destinations={selectionModel.moveDestinations}
         selectedWorkspaceId={selectionModel.selectedMoveWorkspaceId}
         selectedParentCollectionId={selectionModel.selectedMoveParentCollectionId}
