@@ -1,4 +1,5 @@
 import {
+  playbackChordShift,
   clampTransposeOffset,
   formatTransposeOffset,
   parseChordSymbol,
@@ -122,5 +123,22 @@ describe("structure helpers", () => {
     expect(formatTransposeOffset(3)).toBe("+3");
     expect(formatTransposeOffset(-2)).toBe("−2");
     expect(formatTransposeOffset(0)).toBe("0");
+  });
+});
+
+describe("playbackChordShift", () => {
+  it("keeps the written shapes under a capo when playback is pitched up", () => {
+    expect(playbackChordShift(2, true)).toEqual({ shift: 0, capo: 2, sameChords: false });
+  });
+  it("moves the chords when the capo is off", () => {
+    expect(playbackChordShift(2, false)).toEqual({ shift: 2, capo: 0, sameChords: false });
+  });
+  it("always moves the chords when playback is pitched down", () => {
+    expect(playbackChordShift(-3, true)).toEqual({ shift: -3, capo: 0, sameChords: false });
+  });
+  it("changes nothing for an octave or no pitch", () => {
+    expect(playbackChordShift(12, true)).toEqual({ shift: 0, capo: 0, sameChords: true });
+    expect(playbackChordShift(-12, false)).toEqual({ shift: 0, capo: 0, sameChords: true });
+    expect(playbackChordShift(0, false)).toEqual({ shift: 0, capo: 0, sameChords: true });
   });
 });

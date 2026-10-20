@@ -1,5 +1,6 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import { colors, spacing } from "../../design/tokens";
 import type { ChordSheet, LyricsLine } from "../../types";
 import { UserText } from "../../i18n";
@@ -10,6 +11,8 @@ import {
 } from "../LyricsVersionScreen/components/chords/chordChartStyle";
 import { ChordSheetSection } from "../ChordSheetScreen/ChordSheetSection";
 import { TransposeChip } from "./TransposeChip";
+import { Switch } from "./Switch";
+import { formatTransposeOffset, playbackChordShift } from "../../domain/transpose";
 import { useChartPrefsStore } from "../../state/useChartPrefsStore";
 
 /**
@@ -114,7 +117,68 @@ export function ReadingTransposeBar({ ideaId }: { ideaId: string }) {
   );
 }
 
+/**
+ * The playback-pitch reminder (founder, 2026-10-20): while the player's pitch
+ * is bent, the chart says by how much, and offers the one choice a player
+ * makes about it. Pitched up: keep the written shapes with a capo on that
+ * fret, or switch the capo off and read the chords moved. Pitched down (no
+ * capo lowers a guitar): read them as written, or moved. An octave changes no
+ * chord, so it only reminds. The song's own key and capo never move.
+ */
+export function PlaybackKeyRow({ pitchSemitones }: { pitchSemitones: number }) {
+  const { t } = useTranslation();
+  const withCapo = useChartPrefsStore((state) => state.playAlongWithCapo);
+  if (!pitchSemitones) return null;
+  const value = formatTransposeOffset(pitchSemitones);
+  const { sameChords } = playbackChordShift(pitchSemitones, withCapo);
+  const raised = pitchSemitones > 0;
+  const setWithCapo = (next: boolean) => useChartPrefsStore.getState().setPlayAlongWithCapo(next);
+  return (
+    <View style={styles.playbackRow}>
+      <Text
+        style={styles.playbackText}
+        accessibilityLabel={t("reading.playbackShiftA11y", { value })}
+      >
+        {t("reading.playbackShift", { value })}
+      </Text>
+      {sameChords ? null : (
+        <View style={styles.playbackChoice}>
+          <Text style={styles.playbackText}>
+            {raised ? t("reading.capoShort", { fret: pitchSemitones }) : t("reading.moveChords")}
+          </Text>
+          <Switch
+            value={raised ? withCapo : !withCapo}
+            onValueChange={(next) => setWithCapo(raised ? next : !next)}
+            accessibilityLabel={
+              raised
+                ? t("reading.capoForPlaybackA11y", { fret: pitchSemitones })
+                : t("reading.moveChordsA11y")
+            }
+          />
+        </View>
+      )}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  playbackRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: 36,
+  },
+  playbackChoice: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  playbackText: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontVariant: ["tabular-nums"],
+  },
   transposeBar: {
     flexDirection: "row",
     alignItems: "center",

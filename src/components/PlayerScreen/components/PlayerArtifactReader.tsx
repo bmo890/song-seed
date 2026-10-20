@@ -10,7 +10,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { styles as appStyles } from "../../../styles";
 import { colors, radii, shadows, spacing, text as textTokens } from "../../../design/tokens";
-import { ReadingChart, ReadingLyrics, ReadingTransposeBar } from "../../common/SongReading";
+import { PlaybackKeyRow, ReadingChart, ReadingLyrics, ReadingTransposeBar } from "../../common/SongReading";
 import type { ChordSheet, LyricsLine } from "../../../types";
 import { useTranslation } from "react-i18next";
 import { scheduleFrameOrBackgroundTick } from "../../../services/backgroundPosition";
@@ -25,6 +25,8 @@ type Props = {
    *  are on the page. */
   transposeIdeaId?: string | null;
   showTranspose?: boolean;
+  /** The player's live pitch bend, for the reminder under the key (0 = none). */
+  playbackPitch?: number;
   /** Text-size multiplier from the reading bar's Aa control. */
   zoom: number;
   /** Chords over the lyrics. The Aa sheet can turn them off for a words-only
@@ -54,6 +56,7 @@ export function PlayerArtifactReader({
   chordSheet,
   transposeIdeaId,
   showTranspose = false,
+  playbackPitch = 0,
   zoom,
   showChords = true,
   followEnabled,
@@ -158,6 +161,7 @@ export function PlayerArtifactReader({
       {showTranspose && transposeIdeaId ? (
         <View style={styles.transposeRow}>
           <ReadingTransposeBar ideaId={transposeIdeaId} />
+          <PlaybackKeyRow pitchSemitones={playbackPitch} />
         </View>
       ) : null}
       <ScrollView

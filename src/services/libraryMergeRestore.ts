@@ -1,5 +1,5 @@
 import type { PersistedAppStore } from "../state/storeTypes";
-import type { ClipVersion, SongIdea, Workspace } from "../types";
+import type { ClipOverdubStem, ClipVersion, LyricsVersion, SongIdea, Workspace } from "../types";
 
 /**
  * Merge-restore ("keep newer items"): combine a restored backup snapshot with the CURRENT
@@ -13,7 +13,11 @@ import type { ClipVersion, SongIdea, Workspace } from "../types";
  * - On an ID collision the CURRENT version wins — a collision means the same item exists
  *   in both (IDs are random at creation), and the current copy is the newer state. We
  *   still recurse into collided containers so backup-only children come back (e.g. a clip
- *   deleted after the backup returns into its still-existing song).
+ *   deleted after the backup returns into its still-existing song). That reaches inside
+ *   a take too (founder, 2026-10-20): a layer deleted since the backup comes back to its
+ *   take MUTED, so the take's rendered mix (which leaves muted layers out) stays true
+ *   until the person unmutes it; a lyric version deleted since comes back in date order,
+ *   never as the latest page.
  * - Scalar settings (active workspace, metronome, filters, reminders…) keep their current
  *   values; keyed records keep current values per key and gain restored-only keys.
  *
@@ -77,15 +81,31 @@ function unionById<T extends { id: string }>(
  * "restored-only" in its old place; it must not come back there as a second copy with
  * the same id (overnight check 2026-10-20).
  */
-type LibraryIds = { collections: Set<string>; ideas: Set<string>; clips: Set<string> };
+type LibraryIds = {
+    collections: Set<string>;
+    ideas: Set<string>;
+    clips: Set<string>;
+    stems: Set<string>;
+    lyricVersions: Set<string>;
+};
 
 function indexIds(workspaces: Workspace[]): LibraryIds {
-    const ids: LibraryIds = { collections: new Set(), ideas: new Set(), clips: new Set() };
+    const ids: LibraryIds = {
+        collections: new Set(),
+        ideas: new Set(),
+        clips: new Set(),
+        stems: new Set(),
+        lyricVersions: new Set(),
+    };
     for (const workspace of workspaces) {
         for (const collection of workspace.collections) ids.collections.add(collection.id);
         for (const idea of workspace.ideas) {
             ids.ideas.add(idea.id);
-            for (const clip of idea.clips) ids.clips.add(clip.id);
+            for (const version of idea.lyrics?.versions ?? []) ids.lyricVersions.add(version.id);
+            for (const clip of idea.clips) {
+                ids.clips.add(clip.id);
+                for (const stem of clip.overdub?.stems ?? []) ids.stems.add(stem.id);
+            }
         }
     }
     return ids;
@@ -149,16 +169,27 @@ function mergeIdeas(current: SongIdea[], restored: SongIdea[], taken: LibraryIds
         const restoredIdea = restoredById.get(idea.id);
         if (!restoredIdea) return idea;
         const clips = mergeClips(idea.clips, restoredIdea.clips, taken);
-        if (clips === idea.clips) return idea;
+        const lyrics = mergeLyrics(idea, restoredIdea, taken);
+        if (clips === idea.clips && lyrics === idea.lyrics) return idea;
         changed = true;
-        return { ...idea, clips };
+        return { ...idea, clips, lyrics };
     });
     const restoredOnly = restored.flatMap((idea) => restorableIdea(idea, taken) ?? []);
     if (restoredOnly.length === 0) return changed ? merged : current;
     return [...merged, ...restoredOnly];
 }
 
-function mergeClips(current: ClipVersion[], restored: ClipVersion[], taken: LibraryIds): ClipVersion[] {
+function mergeClips(currentValue: ClipVersion[], restored: ClipVersion[], taken: LibraryIds): ClipVersion[] {
+    const restoredById = new Map(restored.map((clip) => [clip.id, clip]));
+    let layersChanged = false;
+    const withLayers = currentValue.map((clip) => {
+        const restoredClip = restoredById.get(clip.id);
+        if (!restoredClip) return clip;
+        const merged = mergeLayers(clip, restoredClip, taken);
+        if (merged !== clip) layersChanged = true;
+        return merged;
+    });
+    const current = layersChanged ? withLayers : currentValue;
     const restoredOnly = restored.filter((clip) => !taken.clips.has(clip.id));
     if (restoredOnly.length === 0) return current;
     // A song can only have one primary take: the current library's choice stands, so
@@ -168,4 +199,40 @@ function mergeClips(current: ClipVersion[], restored: ClipVersion[], taken: Libr
         ? restoredOnly.map((clip) => (clip.isPrimary ? { ...clip, isPrimary: false } : clip))
         : restoredOnly;
     return [...current, ...appended];
+}
+
+/** Layers deleted from a take since the backup, returned muted (see the header). */
+function mergeLayers(clip: ClipVersion, restoredClip: ClipVersion, taken: LibraryIds): ClipVersion {
+    const restoredOnly = (restoredClip.overdub?.stems ?? []).filter(
+        (stem) => !taken.stems.has(stem.id) && !!stem.audioUri
+    );
+    if (restoredOnly.length === 0) return clip;
+    const returned: ClipOverdubStem[] = restoredOnly.map((stem) => ({ ...stem, isMuted: true }));
+    return {
+        ...clip,
+        overdub: {
+            ...clip.overdub,
+            stems: [...(clip.overdub?.stems ?? []), ...returned],
+        },
+    };
+}
+
+/** Lyric versions deleted since the backup, back in date order behind the current
+ *  latest page (the last version is the one every reader opens). */
+function mergeLyrics(idea: SongIdea, restoredIdea: SongIdea, taken: LibraryIds): SongIdea["lyrics"] {
+    const restoredOnly = (restoredIdea.lyrics?.versions ?? []).filter(
+        (version) => !taken.lyricVersions.has(version.id)
+    );
+    if (restoredOnly.length === 0) return idea.lyrics;
+    const current = idea.lyrics?.versions ?? [];
+    if (current.length === 0) return { ...idea.lyrics, versions: restoredOnly };
+    // Current versions keep their order; each returned one slots in before the first
+    // earlier version made after it (ties stay behind), never past the latest.
+    const latest = current[current.length - 1]!;
+    const versions: LyricsVersion[] = current.slice(0, -1);
+    for (const version of [...restoredOnly].sort((x, y) => x.createdAt - y.createdAt)) {
+        const at = versions.findIndex((existing) => existing.createdAt > version.createdAt);
+        versions.splice(at < 0 ? versions.length : at, 0, version);
+    }
+    return { ...idea.lyrics, versions: [...versions, latest] };
 }

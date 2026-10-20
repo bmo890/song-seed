@@ -56,7 +56,7 @@ import { MarksToggle } from "./components/MarksToggle";
 import { ReadingSheet, readingKeyLabel } from "../common/ReadingSheet";
 import { linesFromText } from "../common/SongReading";
 import { useChartPrefsStore, useReadingChordShift } from "../../state/useChartPrefsStore";
-import { transposeChordSheet, transposeLyricsLines } from "../../domain/transpose";
+import { playbackChordShift, transposeChordSheet, transposeLyricsLines } from "../../domain/transpose";
 import { Press } from "../common/Press";
 import { PlayerPinSheets } from "./components/PlayerPinSheets";
 import { PlayerLyricsWriter } from "./components/PlayerLyricsWriter";
@@ -307,13 +307,18 @@ function PlayerScreenInner({
   const chordsHidden = useChartPrefsStore((st) => st.chordsHidden);
   const readingShift = useReadingChordShift(playerIdea?.id);
   const readingKeyText = readingKeyLabel(t, readingShift.capo);
+  // A pitched playback adds its own, temporary shift on top (2026-10-20): none
+  // while the capo carries it, the pitch itself once the capo is off.
+  const playAlongWithCapo = useChartPrefsStore((st) => st.playAlongWithCapo);
+  const playbackShift = playbackChordShift(ui.pitchShiftSemitones, playAlongWithCapo).shift;
+  const totalReadingShift = (readingShift.shift + playbackShift) % 12;
   const readingLyricLines = useMemo(() => {
     if (!lyricsChordLines) return linesFromText(displayedLyricsText);
-    return readingShift.shift ? transposeLyricsLines(lyricsChordLines, readingShift.shift) : lyricsChordLines;
-  }, [displayedLyricsText, lyricsChordLines, readingShift.shift]);
+    return totalReadingShift ? transposeLyricsLines(lyricsChordLines, totalReadingShift) : lyricsChordLines;
+  }, [displayedLyricsText, lyricsChordLines, totalReadingShift]);
   const readingChordSheet = useMemo(
-    () => (chordSheet && readingShift.shift ? transposeChordSheet(chordSheet, readingShift.shift) : chordSheet),
-    [chordSheet, readingShift.shift]
+    () => (chordSheet && totalReadingShift ? transposeChordSheet(chordSheet, totalReadingShift) : chordSheet),
+    [chordSheet, totalReadingShift]
   );
   const hasChart = useMemo(
     () =>
@@ -1811,6 +1816,7 @@ function PlayerScreenInner({
                 showTranspose={
                   ui.readingArtifact === "chart" ? hasChart : !!lyricsChordLines && !chordsHidden
                 }
+                playbackPitch={ui.pitchShiftSemitones}
                 zoom={readingZoom}
                 showChords={!chordsHidden}
                 followEnabled={ui.followEnabled}

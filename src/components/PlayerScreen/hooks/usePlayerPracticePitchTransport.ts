@@ -90,10 +90,14 @@ export function usePlayerPracticePitchTransport({
 
   // A take with a non-neutral sound (Sound room: level or tone) is heard through
   // the native engine in every mode of the full player, not only with Tools open:
-  // the sound is the take's, not a practice bend. Pitch keeps its practice-only rule.
+  // the sound is the take's, not a practice bend. Pitch, like speed, now holds
+  // when Tools close (2026-10-20: the chart reads against it, so it must still
+  // sound while you read); only the layers bench, which plays its own audio,
+  // sets it aside.
   const soundIsNeutral = (sound?.gainDb ?? 0) === 0 && isTonePresetNeutral(sound?.tonePreset);
+  const pitchMode = mode !== "layers";
   const wantsNative =
-    isFocused && (!soundIsNeutral || (mode === "practice" && (stickyRef.current || clamped !== 0)));
+    isFocused && (!soundIsNeutral || (pitchMode && (stickyRef.current || clamped !== 0)));
 
   const core = useNativePitchTransport({
     ownerLabel: "player-screen",
@@ -109,7 +113,7 @@ export function usePlayerPracticePitchTransport({
 
   // Maintain sticky ownership + clear a prior error-disable on re-engage / mode exit.
   useEffect(() => {
-    if (mode !== "practice" || !isFocused) {
+    if (!pitchMode || !isFocused) {
       stickyRef.current = false;
       if (core.nativeTransportDisabled) core.clearDisabled();
       return;
@@ -118,7 +122,7 @@ export function usePlayerPracticePitchTransport({
       stickyRef.current = true;
       if (core.nativeTransportDisabled) core.clearDisabled();
     }
-  }, [clamped, core.clearDisabled, core.nativeTransportDisabled, isFocused, mode]);
+  }, [clamped, core.clearDisabled, core.nativeTransportDisabled, isFocused, pitchMode]);
 
   // Publish native playback position into the store so the rest of the app (dock,
   // lock screen) tracks practice playback while the native engine owns transport.
