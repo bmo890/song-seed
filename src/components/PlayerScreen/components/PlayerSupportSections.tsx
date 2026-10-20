@@ -1,14 +1,12 @@
-import React, { memo, useCallback } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { Press } from "../../common/Press";
+import React, { memo, useCallback, useState } from "react";
+import { StyleSheet, View } from "react-native";
 import type { ChordSheet } from "../../../types";
 import { PlayerArtifactDoors } from "./PlayerArtifactDoors";
+import { ClipNotesSheet } from "../../modals/ClipNotesSheet";
 import { QUEUE_SHEET_COLLAPSED_HEIGHT, QueuePanel } from "../../QueuePanel";
 import { BottomSheet } from "../../common/BottomSheet";
-import { colors, spacing, text as textTokens } from "../../../design/tokens";
+import { spacing } from "../../../design/tokens";
 import { playerScreenStyles } from "../styles";
-import { useTranslation } from "react-i18next";
-import { UserText } from "../../../i18n";
 
 /** Total sheet height at rest: handle + queue header + eight rows + bottom
  *  inset on a standard phone. The sheet caps this at 72% of the window. */
@@ -30,6 +28,10 @@ type PlayerSupportSectionsProps = {
   onWriteLyrics: () => void;
   onBuildChart: () => void;
   clipNotes: string;
+  /** "Notes" on a clip, "Take notes" on a sketch's take. */
+  notesLabel: string;
+  /** Write the recording's note (the Notes page edits it in place, no sketch needed). */
+  onSaveNotes: (notes: string) => void;
   notesExpanded: boolean;
   /** A queue exists (even one item): the footer's queue button is never a dead tap. */
   hasQueue: boolean;
@@ -56,6 +58,8 @@ function PlayerSupportSectionsInner({
   onWriteLyrics,
   onBuildChart,
   clipNotes,
+  notesLabel,
+  onSaveNotes,
   notesExpanded,
   hasQueue,
   queueExpanded,
@@ -63,9 +67,16 @@ function PlayerSupportSectionsInner({
   onToggleQueueExpanded,
   onQueueOpenIdea,
 }: PlayerSupportSectionsProps) {
-  const { t } = useTranslation();
 
-  const hasNotes = clipNotes.trim().length > 0;
+  const [notesDraft, setNotesDraft] = useState(clipNotes);
+  const openNotes = useCallback(() => {
+    setNotesDraft(clipNotes);
+    onToggleNotesExpanded(true);
+  }, [clipNotes, onToggleNotesExpanded]);
+  const saveNotes = useCallback(() => {
+    if (notesDraft !== clipNotes) onSaveNotes(notesDraft);
+    onToggleNotesExpanded(false);
+  }, [clipNotes, notesDraft, onSaveNotes, onToggleNotesExpanded]);
 
   // Stable identities so the memoized QueuePanel isn't re-rendered by this
   // section's own playback-tick renders while the queue sheet is open.
@@ -84,25 +95,6 @@ function PlayerSupportSectionsInner({
 
   return (
     <View style={playerScreenStyles.listenStack}>
-      {/* The take's note, where a margin note goes: under the tape, in the
-          hand it was written in. It is its own door — tap for the whole note. */}
-      {hasNotes ? (
-        <Press
-          // Haptics: none here — the sheet it opens settles with `light`.
-          haptic="none"
-          style={chipStyles.marginNote}
-          onPress={() => onToggleNotesExpanded(true)}
-          accessibilityRole="button"
-          accessibilityLabel={t("player.clipNotes")}
-          testID="player-note"
-        >
-          <Text style={chipStyles.marginNoteEyebrow}>{t("player.noteEyebrow")}</Text>
-          <UserText value={clipNotes.trim()} style={chipStyles.marginNoteText} numberOfLines={2}>
-            {clipNotes.trim()}
-          </UserText>
-        </Press>
-      ) : null}
-
       {/* The page is composed from the thumb up: the air sits between the tape
           and the pages, never under them. */}
       <View style={chipStyles.air} />
@@ -122,6 +114,9 @@ function PlayerSupportSectionsInner({
         onOpenChart={onOpenChart}
         onWriteLyrics={onWriteLyrics}
         onBuildChart={onBuildChart}
+        notes={clipNotes}
+        notesLabel={notesLabel}
+        onOpenNotes={openNotes}
       />
 
       {/* No chip row: the layer lane under the reel is the bench's door, the
@@ -130,15 +125,16 @@ function PlayerSupportSectionsInner({
           Layer editing itself moved to the bench (layers mode) — the sheet died
           with the mixer metaphor (2026-08-07). */}
 
-      {/* Notes — read-only here; editing lives on the song's Notes tab. */}
-      <BottomSheet visible={notesExpanded} onClose={() => onToggleNotesExpanded(false)}>
-        <Text style={chipStyles.sheetTitle}>{t("player.clipNotes")}</Text>
-        <ScrollView style={chipStyles.sheetScroll} showsVerticalScrollIndicator={false}>
-          <UserText align="content" value={clipNotes.trim()} style={hasNotes ? chipStyles.notesText : chipStyles.notesPlaceholder}>
-            {hasNotes ? clipNotes.trim() : t("player.noNotesBody")}
-          </UserText>
-        </ScrollView>
-      </BottomSheet>
+      {/* The Notes page opens the note itself, to write in place. */}
+      <ClipNotesSheet
+        visible={notesExpanded}
+        heading={notesLabel}
+        titleDraft=""
+        notesDraft={notesDraft}
+        onChangeNotes={setNotesDraft}
+        onSave={saveNotes}
+        onCancel={() => onToggleNotesExpanded(false)}
+      />
 
       {/* Queue — the SAME surface as the dock's queue panel (jump on tap,
           go-to-song), hosted in a bottom sheet here. Opens at half height
@@ -159,52 +155,8 @@ function PlayerSupportSectionsInner({
 }
 
 const chipStyles = StyleSheet.create({
-  marginNote: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: spacing.sm,
-    // Lines up with the "Marks" ink in the bar above.
-    paddingHorizontal: spacing.xs,
-    paddingTop: 2,
-  },
-  marginNoteEyebrow: {
-    ...textTokens.annotation,
-    letterSpacing: 1.2,
-  },
-  marginNoteText: {
-    flex: 1,
-    fontFamily: "Lora_500Medium_Italic",
-    fontSize: 15,
-    lineHeight: 22,
-    color: colors.textStrong,
-  },
   air: {
     flex: 1,
     minHeight: spacing.sm,
-  },
-  sheetTitle: {
-    fontFamily: "Lora_600SemiBold",
-    fontSize: 19,
-    color: colors.textPrimary,
-  },
-  sheetMeta: {
-    ...textTokens.supporting,
-    marginTop: 2,
-    marginBottom: spacing.md,
-  },
-  sheetScroll: {
-    maxHeight: 420,
-  },
-  notesText: {
-    fontFamily: "Lora_500Medium",
-    fontSize: 16,
-    lineHeight: 26,
-    color: colors.textPrimary,
-  },
-  notesPlaceholder: {
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 14,
-    color: colors.textMuted,
-    fontStyle: "italic",
   },
 });

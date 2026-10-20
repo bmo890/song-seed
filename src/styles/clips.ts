@@ -1,5 +1,5 @@
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
-import { colors, radii, shadows } from "../design/tokens";
+import { colors, radii, shadows, text } from "../design/tokens";
 
 // Clip cards, clip actions/notes sheets, status chips, tag picker, threads.
 // Raw style objects — merged and registered once via StyleSheet.create in ../styles.ts.
@@ -262,6 +262,10 @@ export const clipsStyles = {
   },
   clipNotesSheetScroll: {
     maxHeight: 560,
+  },
+  // The sheet's name when it edits the note alone: an editorial title, Lora.
+  clipNotesSheetHeading: {
+    ...text.headerTitle,
   },
   clipNotesSheetSubtitle: {
     fontFamily: "PlusJakartaSans_500Medium",

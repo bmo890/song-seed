@@ -16,7 +16,10 @@ type ClipNotesSheetProps = {
   createdAt?: number;
   titleDraft: string;
   notesDraft: string;
-  onChangeTitle: (text: string) => void;
+  /** Leave out to edit the note alone (the player's Notes page): `heading` names
+   *  the sheet instead of the title field. */
+  onChangeTitle?: (text: string) => void;
+  heading?: string;
   onChangeNotes: (text: string) => void;
   onSave: () => void;
   onCancel: () => void;
@@ -34,6 +37,7 @@ export function ClipNotesSheet({
   titleDraft,
   notesDraft,
   onChangeTitle,
+  heading,
   onChangeNotes,
   onSave,
   onCancel,
@@ -74,13 +78,17 @@ export function ClipNotesSheet({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <TitleInput
-          testID="clip-title-input"
-          value={titleDraft}
-          onChangeText={onChangeTitle}
-          placeholder={t("modals.clipTitle")}
-          containerStyle={{ marginHorizontal: 0 }}
-        />
+        {onChangeTitle ? (
+          <TitleInput
+            testID="clip-title-input"
+            value={titleDraft}
+            onChangeText={onChangeTitle}
+            placeholder={t("modals.clipTitle")}
+            containerStyle={{ marginHorizontal: 0 }}
+          />
+        ) : (
+          <Text style={styles.clipNotesSheetHeading}>{heading}</Text>
+        )}
         {meta ? <Text style={styles.clipNotesSheetSubtitle}>{meta}</Text> : null}
 
         <UserTextInput

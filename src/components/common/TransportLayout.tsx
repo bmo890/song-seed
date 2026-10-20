@@ -51,6 +51,10 @@ type Props = {
   /** When the footer's first row draws its own top line (the full-view progress
    *  thread doubles as the divider), the zone's hairline must stand down. */
   footerDivider?: boolean;
+  /** The height between header and footer (the sticky band plus the body), as laid
+   *  out. Constant while the sticky band resizes, so the player sizes its reel from it
+   *  instead of guessing the chrome around it. */
+  onBodyHeight?: (height: number) => void;
 };
 
 export type TransportLayoutHandle = {
@@ -66,10 +70,16 @@ export type TransportLayoutHandle = {
 const REVEAL_PADDING = 12;
 
 export const TransportLayout = forwardRef<TransportLayoutHandle, Props>(function TransportLayout(
-  { header, stickyTop, floating, footer, children, scrollable = false, footerDivider = true },
+  { header, stickyTop, floating, footer, children, scrollable = false, footerDivider = true, onBodyHeight },
   ref
 ) {
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
+  const zoneHeights = useRef({ sticky: 0, body: 0 });
+  const reportZone = (zone: "sticky" | "body", height: number) => {
+    zoneHeights.current[zone] = height;
+    if (!stickyTop) zoneHeights.current.sticky = 0;
+    onBodyHeight?.(Math.round(zoneHeights.current.sticky + zoneHeights.current.body));
+  };
   // Read on the UI thread — no JS scroll listener, so a user's scroll never
   // costs a render in a screen that is sensitive to them (the player).
   const scrollOffset = useScrollViewOffset(scrollRef);
@@ -181,8 +191,15 @@ export const TransportLayout = forwardRef<TransportLayoutHandle, Props>(function
   return (
     <View style={styles.transportLayout}>
       {header ? <View style={styles.transportHeaderZone}>{header}</View> : null}
-      {stickyTop ?? null}
-      <View style={styles.transportBodyZone}>
+      {stickyTop ? (
+        <View onLayout={onBodyHeight ? (event) => reportZone("sticky", event.nativeEvent.layout.height) : undefined}>
+          {stickyTop}
+        </View>
+      ) : null}
+      <View
+        style={styles.transportBodyZone}
+        onLayout={onBodyHeight ? (event) => reportZone("body", event.nativeEvent.layout.height) : undefined}
+      >
         {content}
         {scrollable ? (
           <Animated.View pointerEvents="none" style={[edgeFade.wrap, edgeFadeStyle]}>
