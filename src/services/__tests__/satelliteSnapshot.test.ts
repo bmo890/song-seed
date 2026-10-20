@@ -43,6 +43,7 @@ describe("collectSatelliteSnapshot", () => {
             capoByIdeaId: {},
             readingZoom: 1,
             chordsHidden: false,
+            playAlongWithCapo: true,
         });
         // Persisted slice only — no functions leak into the backup.
         expect(Object.values(snapshot.stores.shelf!.state).some((v) => typeof v === "function")).toBe(false);

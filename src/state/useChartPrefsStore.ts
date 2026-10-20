@@ -15,6 +15,8 @@ import { clampCapoFret, clampTransposeOffset } from "../domain/transpose";
  * - `readingZoom` / `chordsHidden`: one text size and one chords on/off for
  *   every reading surface (player, songbook reader, setlist), so a size set on
  *   stage is the size the player opens with.
+ * - `playAlongWithCapo` (2026-10-20): when the player's pitch is raised, keep
+ *   the written shapes and put a capo on (true), or move the chords (false).
  * Both are optional and start off: nothing moves until the reader asks.
  */
 
@@ -25,6 +27,7 @@ type PersistedChartPrefsState = {
   capoByIdeaId: Record<string, number>;
   readingZoom: number;
   chordsHidden: boolean;
+  playAlongWithCapo: boolean;
 };
 
 export type ChartPrefsStore = PersistedChartPrefsState & {
@@ -35,6 +38,7 @@ export type ChartPrefsStore = PersistedChartPrefsState & {
   resetCapo: (ideaId: string) => void;
   setReadingZoom: (zoom: number) => void;
   setChordsHidden: (hidden: boolean) => void;
+  setPlayAlongWithCapo: (withCapo: boolean) => void;
 };
 
 const STORE_NAME = "songnook-chart-prefs";
@@ -86,6 +90,7 @@ export const useChartPrefsStore = create<ChartPrefsStore>()(
       capoByIdeaId: {},
       readingZoom: 1,
       chordsHidden: false,
+      playAlongWithCapo: true,
 
       setTranspose: (ideaId, offset) =>
         set((state) => ({
@@ -118,6 +123,7 @@ export const useChartPrefsStore = create<ChartPrefsStore>()(
 
       setReadingZoom: (zoom) => set({ readingZoom: clampZoom(zoom) }),
       setChordsHidden: (chordsHidden) => set({ chordsHidden }),
+      setPlayAlongWithCapo: (playAlongWithCapo) => set({ playAlongWithCapo }),
     }),
     {
       name: STORE_NAME,
@@ -128,6 +134,7 @@ export const useChartPrefsStore = create<ChartPrefsStore>()(
         capoByIdeaId: state.capoByIdeaId,
         readingZoom: state.readingZoom,
         chordsHidden: state.chordsHidden,
+        playAlongWithCapo: state.playAlongWithCapo,
       }),
       // v1 held only transposeByIdeaId; the merge below fills the rest.
       migrate: (persisted) => persisted as Partial<PersistedChartPrefsState>,
@@ -139,6 +146,7 @@ export const useChartPrefsStore = create<ChartPrefsStore>()(
           capoByIdeaId: sanitizeCapos(saved?.capoByIdeaId),
           readingZoom: clampZoom(saved?.readingZoom),
           chordsHidden: saved?.chordsHidden === true,
+          playAlongWithCapo: saved?.playAlongWithCapo !== false,
         };
       },
     }

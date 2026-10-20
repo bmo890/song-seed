@@ -154,3 +154,25 @@ export function formatTransposeOffset(offset: number): string {
   if (offset < 0) return `−${Math.abs(offset)}`;
   return "0";
 }
+
+/**
+ * How a chart meets a pitched recording (founder, 2026-10-20: "capo and tone
+ * change should be independent", with a reminder and a way to drop the capo).
+ * The song's own key and capo never move; this is an extra, temporary shift
+ * for as long as playback is pitched.
+ *
+ * - Pitched up, with the capo: the shapes stay as written and the capo goes
+ *   on that many frets (`capo`); nothing on the page moves.
+ * - Pitched up without it, or pitched down (a capo can't lower a guitar): the
+ *   chords move by the pitch (`shift`).
+ * - A whole octave plays the same chords, so nothing changes (`sameChords`).
+ */
+export function playbackChordShift(
+  pitchSemitones: number,
+  withCapo: boolean
+): { shift: number; capo: number; sameChords: boolean } {
+  const pitch = Number.isFinite(pitchSemitones) ? Math.round(pitchSemitones) : 0;
+  if (pitch % 12 === 0) return { shift: 0, capo: 0, sameChords: true };
+  if (pitch > 0 && withCapo) return { shift: 0, capo: pitch, sameChords: false };
+  return { shift: pitch, capo: 0, sameChords: false };
+}
