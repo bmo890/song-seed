@@ -128,31 +128,6 @@ export const settingsScreenStyles = StyleSheet.create({
     lineHeight: 17,
     color: colors.textSecondary,
   },
-  segmentedRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  segmentedChip: {
-    minWidth: 52,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceContainer,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  segmentedChipActive: {
-    backgroundColor: colors.primary,
-  },
-  segmentedChipText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  segmentedChipTextActive: {
-    color: colors.onPrimary,
-  },
   aboutRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -175,19 +150,16 @@ export const settingsScreenStyles = StyleSheet.create({
     color: colors.textSecondary,
     fontVariant: ["tabular-nums"],
   },
+  // Said in ink, not a green pill (2026-10-20): a quiet check and a word.
   verifiedChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    backgroundColor: colors.accentSuccessText,
-    borderRadius: radii.round,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
+    gap: 3,
   },
   verifiedChipText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 11,
-    color: colors.onPrimary,
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 12,
+    color: colors.textSecondary,
   },
   inlineNoteRow: {
     paddingHorizontal: 14,
@@ -199,11 +171,9 @@ export const settingsScreenStyles = StyleSheet.create({
     gap: 14,
     paddingVertical: 4,
   },
+  // A bare ink glyph, no tinted tile (2026-10-20).
   accountMark: {
-    width: 48,
-    height: 48,
-    borderRadius: radii.round,
-    backgroundColor: colors.primarySurface,
+    width: 28,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -223,15 +193,15 @@ export const settingsScreenStyles = StyleSheet.create({
     lineHeight: 17,
     color: colors.textSecondary,
   },
+  // The plan is a row on paper, not a terracotta-washed box (2026-10-20).
   planSummary: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: colors.primarySurface,
-    borderRadius: radii.lg,
-    paddingHorizontal: 14,
     paddingVertical: 14,
-    marginBottom: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderMuted,
   },
   planSummaryCopy: {
     flex: 1,
@@ -241,7 +211,7 @@ export const settingsScreenStyles = StyleSheet.create({
   planTitle: {
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 14,
-    color: colors.primaryDeep,
+    color: colors.textPrimary,
   },
   planMeta: {
     fontFamily: "PlusJakartaSans_400Regular",
@@ -249,17 +219,12 @@ export const settingsScreenStyles = StyleSheet.create({
     lineHeight: 17,
     color: colors.textStrong,
   },
-  planBadge: {
-    borderRadius: radii.md,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-  },
+  planBadge: {},
   planBadgeText: {
     fontFamily: "PlusJakartaSans_700Bold",
     fontSize: 10,
     letterSpacing: 0.7,
     textTransform: "uppercase",
-    color: colors.primaryDeep,
+    color: colors.textSecondary,
   },
 });

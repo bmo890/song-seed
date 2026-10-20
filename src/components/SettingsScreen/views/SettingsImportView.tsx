@@ -1,150 +1,104 @@
-import { Pressable, ScrollView, Text, View } from "react-native";
-import { Spinner } from "../../common/Spinner";
-import { colors } from "../../../design/tokens";
-import { Ionicons } from "@expo/vector-icons";
-import { dirIcon } from "../../../design/directionalIcons";
+import { ScrollView, Text, View } from "react-native";
 import { PageIntro } from "../../common/PageIntro";
+import { Button } from "../../common/Button";
+import { UserText } from "../../../i18n";
 import { settingsScreenStyles, styles } from "../styles";
 import type { useLibraryImportFlow } from "../hooks/useLibraryImportFlow";
 import { useTranslation } from "react-i18next";
 
 type LibraryImportFlow = ReturnType<typeof useLibraryImportFlow>;
 
+/**
+ * Import an archive (2026-10-20): one primary key at a time. Choose a file;
+ * once one is read, what it holds is said on paper and Import becomes the
+ * key, with Choose another and Clear as quiet words. The header's back
+ * chevron leaves (the old "Back to Settings" card said it twice).
+ */
 export function SettingsImportView({
     flow,
-    onCancel,
 }: {
     flow: LibraryImportFlow;
-    onCancel: () => void;
+    onCancel?: () => void;
 }) {
     const { t } = useTranslation();
+    const preview = flow.preview;
     return (
         <ScrollView style={styles.flexFill} contentContainerStyle={settingsScreenStyles.scrollContent}>
             <PageIntro title={t("settingsImport.title")} />
 
-            <Pressable
-                style={({ pressed }) => [
-                    styles.settingsActionCard,
-                    pressed ? styles.pressDown : null,
-                ]}
-                onPress={flow.chooseArchive}
-                disabled={flow.isPicking || flow.isImporting}
-            >
-                <View style={styles.settingsActionCardCopy}>
-                    <Text style={styles.settingsActionCardTitle}>
-                        {flow.preview ? t("settingsImport.chooseDifferent") : t("settingsImport.choose")}
-                    </Text>
-                    <Text style={styles.settingsActionCardMeta}>
-                        {t("settingsImport.chooseHint")}
-                    </Text>
-                </View>
-                {flow.isPicking ? (
-                    <Spinner size="small" color={colors.textSecondary} />
-                ) : (
-                    <Ionicons name="folder-open-outline" size={18} color={colors.textSecondary} />
-                )}
-            </Pressable>
+            <Text style={styles.settingsSectionHint}>{t("settingsImport.chooseHint")}</Text>
 
-            {flow.preview ? (
+            {!preview ? (
+                <View style={styles.settingsActionRow}>
+                    <Button
+                        label={t("settingsImport.chooseShort")}
+                        onPress={flow.chooseArchive}
+                        disabled={flow.isPicking || flow.isImporting}
+                        style={styles.settingsPrimaryAction}
+                    />
+                </View>
+            ) : (
                 <View style={styles.settingsSection}>
                     <View style={styles.settingsSectionHeaderRow}>
                         <Text style={styles.settingsSectionLabel}>{t("settingsImport.archive")}</Text>
-                        <Text style={styles.settingsSectionMeta}>{flow.preview.archiveName}</Text>
                     </View>
-                    <Text style={styles.settingsSectionHint}>
-                        {t("settingsImport.exported", { date: new Date(flow.preview.exportedAt).toLocaleString() })}
-                    </Text>
-
-                    <View style={styles.settingsOptionStack}>
-                        <View style={styles.settingsActionCard}>
-                            <View style={styles.settingsActionCardCopy}>
-                                <Text style={styles.settingsActionCardTitle}>
-                                    {t("settingsImport.workspaces", { count: flow.preview.workspaceCount })}
-                                </Text>
-                                <Text style={styles.settingsActionCardMeta}>
-                                    {t("settingsImport.contents", { collections: flow.preview.collectionCount, songs: flow.preview.songCount, clips: flow.preview.standaloneClipCount, notes: flow.preview.notepadNoteCount })}
-                                </Text>
-                            </View>
+                    <View style={styles.settingsFactRow}>
+                        <UserText style={styles.settingsChoiceTitle} numberOfLines={1}>
+                            {preview.archiveName}
+                        </UserText>
+                        <Text style={styles.settingsChoiceMeta}>
+                            {t("settingsImport.exported", { date: new Date(preview.exportedAt).toLocaleString() })}
+                        </Text>
+                    </View>
+                    <View style={styles.settingsFactRow}>
+                        <Text style={styles.settingsChoiceTitle}>
+                            {t("settingsImport.workspaces", { count: preview.workspaceCount })}
+                        </Text>
+                        <Text style={styles.settingsChoiceMeta}>
+                            {t("settingsImport.contents", {
+                                collections: preview.collectionCount,
+                                songs: preview.songCount,
+                                clips: preview.standaloneClipCount,
+                                notes: preview.notepadNoteCount,
+                            })}
+                        </Text>
+                    </View>
+                    {preview.primaryWorkspaceTitle ? (
+                        <View style={styles.settingsFactRow}>
+                            <Text style={styles.settingsChoiceMeta}>{t("settingsImport.mainWorkspace")}</Text>
+                            <UserText style={styles.settingsChoiceTitle}>{preview.primaryWorkspaceTitle}</UserText>
                         </View>
+                    ) : null}
+                    {flow.warningSummary.length > 0 ? (
+                        <View style={styles.settingsFactRow}>
+                            <Text style={styles.settingsChoiceTitle}>{t("settingsImport.warnings")}</Text>
+                            <Text style={styles.settingsChoiceMeta}>{flow.warningSummary.join("\n")}</Text>
+                        </View>
+                    ) : null}
 
-                        {flow.preview.primaryWorkspaceTitle ? (
-                            <View style={styles.settingsActionCard}>
-                                <View style={styles.settingsActionCardCopy}>
-                                    <Text style={styles.settingsActionCardTitle}>{t("settingsImport.mainWorkspace")}</Text>
-                                    <Text style={styles.settingsActionCardMeta}>
-                                        {flow.preview.primaryWorkspaceTitle}
-                                      </Text>
-                                </View>
-                            </View>
-                        ) : null}
-
-                        {flow.warningSummary.length > 0 ? (
-                            <View style={styles.settingsActionCard}>
-                                <View style={styles.settingsActionCardCopy}>
-                                    <Text style={styles.settingsActionCardTitle}>{t("settingsImport.warnings")}</Text>
-                                    <Text style={styles.settingsActionCardMeta}>
-                                        {flow.warningSummary.join("\n")}
-                                    </Text>
-                                </View>
-                            </View>
-                        ) : null}
-                    </View>
-
-                    <View style={styles.settingsOptionStack}>
-                        <Pressable
-                            style={({ pressed }) => [
-                                styles.settingsActionCard,
-                                pressed ? styles.pressDown : null,
-                            ]}
+                    <Text style={styles.settingsSectionHint}>{t("settingsImport.importHint")}</Text>
+                    <View style={styles.settingsActionRow}>
+                        <Button
+                            label={flow.isImporting ? t("settingsImport.importing") : t("settingsImport.importShort")}
                             onPress={flow.importArchive}
                             disabled={flow.isImporting}
-                        >
-                            <View style={styles.settingsActionCardCopy}>
-                                <Text style={styles.settingsActionCardTitle}>{t("settingsImport.importLibrary")}</Text>
-                                <Text style={styles.settingsActionCardMeta}>
-                                    {t("settingsImport.importHint")}
-                                </Text>
-                            </View>
-                            {flow.isImporting ? (
-                                <Spinner size="small" color={colors.textSecondary} />
-                            ) : (
-                                <Ionicons name="download-outline" size={18} color={colors.textSecondary} />
-                            )}
-                        </Pressable>
-
-                        <Pressable
-                            style={({ pressed }) => [
-                                styles.settingsActionCard,
-                                pressed ? styles.pressDown : null,
-                            ]}
+                            style={styles.settingsPrimaryAction}
+                        />
+                        <Button
+                            label={t("settingsImport.chooseAnother")}
+                            variant="quiet"
+                            onPress={flow.chooseArchive}
+                            disabled={flow.isPicking || flow.isImporting}
+                        />
+                        <Button
+                            label={t("settingsImport.clearShort")}
+                            variant="quiet"
                             onPress={flow.clearArchive}
                             disabled={flow.isImporting}
-                        >
-                            <View style={styles.settingsActionCardCopy}>
-                                <Text style={styles.settingsActionCardTitle}>{t("settingsImport.clear")}</Text>
-                                <Text style={styles.settingsActionCardMeta}>
-                                    {t("settingsImport.clearHint")}
-                                </Text>
-                            </View>
-                            <Ionicons name="close-outline" size={18} color={colors.textSecondary} />
-                        </Pressable>
+                        />
                     </View>
                 </View>
-            ) : null}
-
-            <Pressable
-                style={({ pressed }) => [styles.settingsActionCard, pressed ? styles.pressDown : null]}
-                onPress={onCancel}
-                disabled={flow.isImporting}
-            >
-                <View style={styles.settingsActionCardCopy}>
-                    <Text style={styles.settingsActionCardTitle}>{t("settingsImport.back")}</Text>
-                    <Text style={styles.settingsActionCardMeta}>
-                        {t("settingsImport.backHint")}
-                    </Text>
-                </View>
-                <Ionicons name={dirIcon("chevron-back")} size={18} color={colors.textSecondary} />
-            </Pressable>
+            )}
         </ScrollView>
     );
 }

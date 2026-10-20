@@ -44,7 +44,6 @@ import { useLayerPrefsStore } from "../../state/useLayerPrefsStore";
 import { looksMachineNamed } from "../../domain/titleNaming";
 import { HelpSheet } from "../common/HelpSheet";
 import { HelpButton } from "../common/HelpButton";
-import { BottomSheet } from "../common/BottomSheet";
 import { ChordZoomBar } from "../LyricsVersionScreen/components/chords/ChordZoomBar";
 import { OVERDUB_HELP } from "../common/helpContent";
 import { PlayerArtifactReader, FollowSpeedControl } from "./components/PlayerArtifactReader";
@@ -58,7 +57,7 @@ import { linesFromText } from "../common/SongReading";
 import { useChartPrefsStore, useReadingChordShift } from "../../state/useChartPrefsStore";
 import { playbackChordShift, transposeChordSheet, transposeLyricsLines } from "../../domain/transpose";
 import { Press } from "../common/Press";
-import { PlayerPinSheets } from "./components/PlayerPinSheets";
+import { PinDetailModal } from "./components/PinDetailModal";
 import { PlayerLyricsWriter } from "./components/PlayerLyricsWriter";
 import { playerScreenStyles } from "./styles";
 import { getVisibleTimelineRange } from "./helpers";
@@ -785,15 +784,11 @@ function PlayerScreenInner({
   const {
     pinActionsTarget,
     pinActionsVisible,
-    pinRenameValue,
     setPinActionsTarget,
     setPinActionsVisible,
-    setPinRenameValue,
     handleAddPin,
     handleRepositionMarker,
     handlePinActions,
-    handleRenamePin,
-    handleDeletePin,
     handleEditPin,
     handleDeletePinId,
     expandedPinId,
@@ -1983,18 +1978,26 @@ function PlayerScreenInner({
         </GestureDetector>
       </TransportLayout>
 
-      <PlayerPinSheets
-        pinActionsVisible={pinActionsVisible}
-        pinTargetLabel={pinActionsTarget?.label ?? null}
-        pinTargetAtMs={pinActionsTarget?.atMs ?? null}
-        pinRenameValue={pinRenameValue}
-        onCloseActions={() => {
+      {/* A pin held on the reel opens the same editor as the Marks list
+          (2026-10-20): name, note, delete; the old rename sheet is gone. */}
+      <PinDetailModal
+        visible={pinActionsVisible}
+        initialName={pinActionsTarget?.label ?? ""}
+        initialNote={pinActionsTarget?.note ?? ""}
+        onConfirm={(edits) => {
+          if (pinActionsTarget) handleEditPin(pinActionsTarget.id, edits);
           setPinActionsVisible(false);
           setPinActionsTarget(null);
         }}
-        onChangePinRenameValue={setPinRenameValue}
-        onRenamePin={handleRenamePin}
-        onDeletePin={handleDeletePin}
+        onDelete={() => {
+          if (pinActionsTarget) handleDeletePinId(pinActionsTarget.id);
+          setPinActionsVisible(false);
+          setPinActionsTarget(null);
+        }}
+        onClose={() => {
+          setPinActionsVisible(false);
+          setPinActionsTarget(null);
+        }}
       />
 
       <HelpSheet

@@ -1,12 +1,11 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { styles as globalStyles } from "../../styles";
 import { Workspace } from "../../types";
-import { SurfaceCard } from "../common/SurfaceCard";
+import { Press } from "../common/Press";
 import { WorkspaceAvatar } from "../common/WorkspaceAvatar";
 import { IconButton } from "../common/IconButton";
 import { useStore } from "../../state/useStore";
-import { colors } from "../../design/tokens";
+import { colors, spacing } from "../../design/tokens";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { UserText } from "../../i18n";
@@ -34,9 +33,15 @@ function formatLastWorked(ts: number | undefined, t: TFunction): string | null {
   return t("workspaceCard.lastWorkedMonths", { count: Math.floor(days / 30) });
 }
 
+/**
+ * A workspace in the list (2026-10-20): a row on paper, not a card. Workspaces
+ * are structure, so they wear the ListRow shape: the workspace's own mark, its
+ * name in Lora, one quiet line of counts and when you last worked in it, its
+ * description if it has one, and a bare "…" for its actions. An archived
+ * workspace reads the same, in muted ink.
+ */
 export function WorkspaceCard({
   workspace,
-  isActive,
   isPrimary,
   isEditing,
   isBusy = false,
@@ -46,269 +51,124 @@ export function WorkspaceCard({
 }: Props) {
   const { t } = useTranslation();
   const workspaceLastOpenedAt = useStore((s) => s.workspaceLastOpenedAt);
-  const lastWorkedLabel = formatLastWorked(workspaceLastOpenedAt[workspace.id], t);
+  const lastWorkedLabel = workspace.isArchived ? null : formatLastWorked(workspaceLastOpenedAt[workspace.id], t);
+  const topLevelCollectionCount = workspace.collections.filter((c) => !c.parentCollectionId).length;
+  const meta = [
+    t("common.collectionCount", { count: topLevelCollectionCount }),
+    t("common.ideaCount", { count: workspace.ideas.length }),
+    lastWorkedLabel,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const slug = workspace.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
-  const topLevelCollectionCount = workspace.collections.filter(
-    (c) => !c.parentCollectionId
-  ).length;
-  const seedCount = workspace.ideas.length;
-
-  // ── Archived card ─────────────────────────────────────────────────────────
-  if (workspace.isArchived) {
-    return (
-      <Pressable
-        style={({ pressed }) => [
-          cardStyles.archivedCard,
-          isEditing ? globalStyles.cardEditing : null,
-          pressed ? globalStyles.pressDown : null,
-        ]}
-        onPress={onPress}
-      >
-        {/* Title row */}
-        <View style={cardStyles.archivedTitleRow}>
-          <UserText style={cardStyles.archivedTitle} numberOfLines={1}>
+  return (
+    <Press
+      // Haptics vocabulary: a row only takes you somewhere; navigation is silent.
+      haptic="navigate"
+      style={[rowStyles.row, isEditing ? rowStyles.rowEditing : null]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={workspace.title}
+    >
+      <View style={workspace.isArchived ? rowStyles.markArchived : null}>
+        <WorkspaceAvatar color={workspace.color} name={workspace.title} size={32} avatarKey={workspace.avatarKey} />
+      </View>
+      <View style={rowStyles.copy}>
+        <View style={rowStyles.titleRow}>
+          <UserText
+            style={[rowStyles.title, workspace.isArchived ? rowStyles.titleArchived : null]}
+            numberOfLines={1}
+          >
             {workspace.title}
           </UserText>
-          {isBusy ? (
-            <Text style={[globalStyles.badge, globalStyles.badgeArchived]}>
-              {busyLabel ?? t("workspaceCard.working")}
-            </Text>
-          ) : (
-            <IconButton
-              testID={`workspace-actions-${workspace.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`}
-              icon="ellipsis-vertical"
-              tone="muted"
-              size={16}
-              onPress={onOpenActions}
-              accessibilityLabel={t("workspaceCard.options")}
-            />
-          )}
-        </View>
-
-        {/* Meta row */}
-        <View style={cardStyles.archivedMetaRow}>
-          <Text style={cardStyles.archivedMeta}>
-            {t("common.collectionCount", { count: topLevelCollectionCount })}
-          </Text>
-          <Text style={cardStyles.archivedMetaDot}>·</Text>
-          <Text style={cardStyles.archivedMeta}>
-            {t("common.ideaCount", { count: seedCount })}
-          </Text>
-        </View>
-      </Pressable>
-    );
-  }
-
-  // ── Active card ────────────────────────────────────────────────────────────
-  return (
-    <SurfaceCard
-      style={[
-        cardStyles.cardBase,
-        isEditing ? globalStyles.cardEditing : null,
-      ]}
-      onPress={onPress}
-    >
-      {/* Avatar row */}
-      <View style={cardStyles.avatarRow}>
-        <View style={cardStyles.avatarLeft}>
-          <WorkspaceAvatar
-            color={workspace.color}
-            name={workspace.title}
-            size={48}
-            avatarKey={workspace.avatarKey}
-          />
           {isPrimary ? (
-            <View style={cardStyles.primaryBadge}>
-              <Ionicons name="star" size={10} color={colors.primary} />
-              <Text style={cardStyles.primaryLabel}>{t("workspaceCard.primary")}</Text>
+            <View style={rowStyles.primary}>
+              <Ionicons name="star" size={10} color={colors.textSecondary} />
+              <Text style={rowStyles.primaryLabel}>{t("workspaceCard.primary")}</Text>
             </View>
           ) : null}
         </View>
-        <View style={cardStyles.avatarRowRight}>
-          {isBusy ? (
-            <Text style={[globalStyles.badge, globalStyles.badgeArchived]}>
-              {busyLabel ?? t("workspaceCard.working")}
-            </Text>
-          ) : (
-            <IconButton
-              testID={`workspace-actions-${workspace.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`}
-              icon="ellipsis-vertical"
-              tone="muted"
-              size={18}
-              onPress={onOpenActions}
-              accessibilityLabel={t("workspaceCard.options")}
-            />
-          )}
-        </View>
-      </View>
-
-      {/* Name + last worked + description */}
-      <View style={cardStyles.nameBlock}>
-        <UserText style={cardStyles.title} numberOfLines={2}>
-          {workspace.title}
-        </UserText>
-
-        {lastWorkedLabel ? (
-          <Text style={cardStyles.lastWorked}>{lastWorkedLabel}</Text>
-        ) : null}
-
+        <Text style={rowStyles.meta} numberOfLines={1}>
+          {isBusy ? busyLabel ?? t("workspaceCard.working") : meta}
+        </Text>
         {workspace.description ? (
-          <UserText style={cardStyles.description} numberOfLines={3}>
+          <UserText style={rowStyles.description} numberOfLines={2}>
             {workspace.description}
           </UserText>
         ) : null}
       </View>
-
-      {/* Stats */}
-      <View style={cardStyles.statsRow}>
-        <View style={cardStyles.statCol}>
-          <Text style={cardStyles.statLabel}>{t("workspaceCard.collections")}</Text>
-          <Text style={cardStyles.statValue}>{topLevelCollectionCount}</Text>
-        </View>
-        <View style={cardStyles.statDivider} />
-        <View style={cardStyles.statCol}>
-          <Text style={cardStyles.statLabel}>{t("workspaceCard.ideas")}</Text>
-          <Text style={cardStyles.statValue}>{seedCount}</Text>
-        </View>
-      </View>
-    </SurfaceCard>
+      {isBusy ? null : (
+        <IconButton
+          testID={`workspace-actions-${slug}`}
+          icon="ellipsis-horizontal"
+          tone="muted"
+          size={18}
+          onPress={onOpenActions}
+          accessibilityLabel={t("workspaceCard.options")}
+        />
+      )}
+    </Press>
   );
 }
 
-const cardStyles = StyleSheet.create({
-  // ── Active card ─────────────────────────────────────────────────────────
-  cardBase: {
-    borderWidth: 1,
-    borderColor: "rgba(215, 194, 189, 0.1)",
-    borderRadius: 8,
-    padding: 32,
-    gap: 0,
-    backgroundColor: colors.surface,
-    shadowColor: "#3D3732",
-    shadowOpacity: 0.03,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  avatarRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
-  avatarLeft: {
+const rowStyles = StyleSheet.create({
+  row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: spacing.md,
+    minHeight: 72,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
   },
-  primaryBadge: {
+  rowEditing: {
+    opacity: 0.6,
+  },
+  markArchived: {
+    opacity: 0.55,
+  },
+  copy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  titleRow: {
+    flexDirection: "row",
     alignItems: "center",
-    gap: 2,
+    gap: spacing.sm,
+  },
+  title: {
+    flexShrink: 1,
+    fontFamily: "Lora_500Medium",
+    fontSize: 18,
+    color: colors.textPrimary,
+  },
+  titleArchived: {
+    color: colors.textSecondary,
+  },
+  primary: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
   },
   primaryLabel: {
     fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 7,
-    color: colors.primary,
-    letterSpacing: 0.5,
+    fontSize: 10,
+    letterSpacing: 0.8,
     textTransform: "uppercase",
-    opacity: 0.85,
+    color: colors.textSecondary,
   },
-  avatarRowRight: {
-    alignItems: "flex-end",
-  },
-  nameBlock: {
-    gap: 6,
-  },
-  title: {
-    fontFamily: "Lora_500Medium",
-    fontSize: 30,
-    lineHeight: 36,
-    color: "#1C1C19",
-  },
-  lastWorked: {
+  meta: {
     fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 12,
-    lineHeight: 16,
-    color: colors.textMuted,
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontVariant: ["tabular-nums"],
   },
   description: {
     fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 14,
-    color: colors.textStrong,
-    lineHeight: 23,
-    marginTop: 2,
-  },
-  statsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingTop: 24,
-    marginTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(215, 194, 189, 0.1)",
-  },
-  statCol: {
-    flex: 1,
-    gap: 2,
-  },
-  statDivider: {
-    width: 1,
-    height: 32,
-    backgroundColor: "rgba(215, 194, 189, 0.15)",
-    marginHorizontal: 16,
-  },
-  statLabel: {
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 10,
-    lineHeight: 15,
-    color: "#526351",
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-  },
-  statValue: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 18,
-    lineHeight: 28,
-    color: "#1C1C19",
-    fontVariant: ["tabular-nums"],
-  },
-
-  // ── Archived card ────────────────────────────────────────────────────────
-  archivedCard: {
-    backgroundColor: "#F7F3EE",
-    opacity: 0.85,
-    borderWidth: 1,
-    borderColor: "rgba(215, 194, 189, 0.1)",
-    borderRadius: 4,
-    padding: 24,
-    gap: 16,
-  },
-  archivedTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  archivedTitle: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 16,
-    lineHeight: 24,
-    color: "#1C1C19",
-    flex: 1,
-  },
-  archivedMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  archivedMeta: {
-    fontFamily: "PlusJakartaSans_500Medium",
-    fontSize: 12,
-    lineHeight: 16,
-    color: "#526351",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-  },
-  archivedMetaDot: {
-    fontSize: 12,
-    color: colors.borderMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textSecondary,
   },
 });

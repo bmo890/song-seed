@@ -21,6 +21,13 @@ export function getBackupReminderLabel(frequency: BackupReminderFrequency) {
     return i18n.t(`backupReminder.frequency.${frequency}.label`);
 }
 
+/** The word a tab can hold: "3 months", not "Every 3 months". */
+export function getBackupReminderShortLabel(frequency: BackupReminderFrequency) {
+    return i18n.t(`backupReminder.frequency.${frequency}.short`, {
+        defaultValue: getBackupReminderLabel(frequency),
+    });
+}
+
 export function getBackupReminderWindowLabel(frequency: BackupReminderFrequency) {
     return i18n.t(`backupReminder.frequency.${frequency === "off" ? "monthly" : frequency}.window`);
 }

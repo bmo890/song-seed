@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import { colors, radii, shadows } from "../../design/tokens";
+import { colors, radii, shadows, spacing } from "../../design/tokens";
 
 export const playerScreenStyles = StyleSheet.create({
   screen: {
@@ -821,30 +821,24 @@ export const playerScreenStyles = StyleSheet.create({
     gap: 6,
     marginBottom: 4,
   },
+  // A section kind to pick is a word in ink led by its section-ink dot
+  // (2026-10-20, the multi-select ink language): no chip fill, no stadium.
   sectionChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 11,
-    paddingVertical: 7,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceContainer,
-    borderWidth: 0.5,
-    borderColor: "transparent",
-  },
-  sectionChipActive: {
-    backgroundColor: "#FBF4F1",
-    borderColor: colors.primary,
+    gap: 7,
+    minHeight: 40,
+    paddingEnd: spacing.md,
   },
   sectionChipText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 12.5,
-    color: colors.textSecondary,
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 15,
+    color: colors.textPrimary,
   },
   sectionSwatch: {
-    width: 10,
-    height: 10,
-    borderRadius: 2,
+    width: 9,
+    height: 9,
+    borderRadius: radii.round,
     backgroundColor: colors.borderMuted,
   },
   sectionDurationPill: {
@@ -985,23 +979,20 @@ export const playerScreenStyles = StyleSheet.create({
   sectionModalGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    columnGap: spacing.sm,
   },
+  // The quiet ink link beside Cancel: a word, no outline.
   sectionModalNewButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    borderRadius: radii.sm,
-    borderWidth: 0.5,
-    borderColor: colors.primary,
+    gap: 4,
+    minHeight: 38,
     alignSelf: "flex-start",
   },
   sectionModalNewText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 12.5,
-    color: colors.primary,
+    fontSize: 14,
+    color: colors.primaryDeep,
   },
   sectionColorRow: {
     flexDirection: "row",
@@ -1475,61 +1466,5 @@ export const playerScreenStyles = StyleSheet.create({
   },
   pitchSpacer: {
     flex: 1,
-  },
-  pinSheetContent: {
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 8,
-    gap: 16,
-  },
-  pinSheetTitle: {
-    fontSize: 17,
-    fontFamily: "PlusJakartaSans_700Bold",
-    color: "#111827",
-  },
-  pinSheetTime: {
-    fontSize: 13,
-    color: "#ca8a04",
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontVariant: ["tabular-nums"],
-    marginTop: -8,
-  },
-  pinSheetInput: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: radii.lg,
-    backgroundColor: "#f3f4f6",
-    fontSize: 15,
-    color: "#111827",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-  pinSheetFooter: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  pinSheetButton: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-    borderRadius: radii.lg,
-    alignItems: "center",
-    backgroundColor: "#ca8a04",
-  },
-  pinSheetButtonDanger: {
-    backgroundColor: colors.danger,
-    flexDirection: "row",
-    justifyContent: "center",
-  },
-  pinSheetButtonDisabled: {
-    backgroundColor: "#e5e7eb",
-  },
-  pinSheetButtonText: {
-    fontSize: 15,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    color: colors.surface,
-  },
-  pinSheetButtonTextDisabled: {
-    color: "#9ca3af",
   },
 });

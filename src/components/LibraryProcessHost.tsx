@@ -18,9 +18,12 @@ import { useTranslation } from "react-i18next";
 import { i18n } from "../i18n/instance";
 import { formatEta } from "../domain/sendProgress";
 
-const DEEP = "#8b4f3b";
-const SUCCESS = "#3F9C82";
-const ERROR = "#B4574A";
+// Color is scarce (2026-10-20): the work in progress and the finished work
+// both read in deep terracotta ink; only a failure takes danger red. The old
+// green "success" and second red were outside the palette.
+const DEEP = colors.primaryDeep;
+const SUCCESS = colors.primaryDeep;
+const ERROR = colors.danger;
 const TERMINAL_AUTO_DISMISS_MS = 4000;
 
 function accentFor(process: LibraryProcess): string {
@@ -94,7 +97,7 @@ function Timeline({ process }: { process: LibraryProcess }) {
                             <View
                                 style={[
                                     styles.timelineConnector,
-                                    { backgroundColor: step.state === "upcoming" ? "#E0D6CE" : accent },
+                                    { backgroundColor: step.state === "upcoming" ? colors.borderSubtle : accent },
                                 ]}
                             />
                         ) : null}
@@ -114,7 +117,7 @@ function Timeline({ process }: { process: LibraryProcess }) {
                         ]}
                     >
                         {step.state === "done" ? (
-                            <Ionicons name="checkmark" size={15} color="#fff" />
+                            <Ionicons name="checkmark" size={15} color={colors.onPrimary} />
                         ) : step.state === "active" ? (
                             <View style={styles.timelineActiveDot} />
                         ) : (
@@ -204,7 +207,7 @@ function ProcessTakeover({
                             <Ionicons
                                 name={process.status === "success" ? "checkmark" : "close"}
                                 size={30}
-                                color="#fff"
+                                color={colors.onPrimary}
                             />
                         </View>
                         <Text style={styles.terminalMessage}>
@@ -379,7 +382,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
-    timelineActiveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#fff" },
+    timelineActiveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.onPrimary },
     timelineNodeNum: {
         fontFamily: "PlusJakartaSans_700Bold",
         fontSize: 11,
@@ -407,7 +410,7 @@ const styles = StyleSheet.create({
     progressTrack: {
         height: 6,
         borderRadius: 999,
-        backgroundColor: "#E3D9D0",
+        backgroundColor: colors.borderSubtle,
         overflow: "hidden",
         marginBottom: 18,
     },

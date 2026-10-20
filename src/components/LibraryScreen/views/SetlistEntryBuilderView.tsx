@@ -3,7 +3,7 @@ import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { Button } from "../../common/Button";
 import { styles } from "../styles";
-import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
+import { colors, spacing, text as textTokens } from "../../../design/tokens";
 import { fmtDuration } from "../../../utils";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../../i18n";
@@ -24,6 +24,9 @@ type BuilderSong = {
   notesPreview: string;
 };
 
+/** A choice on paper (2026-10-20, multi-select is editorial ink): the word
+ *  and its quiet detail over a hairline, led by a dot that fills terracotta
+ *  when chosen. No card, no washed selection. */
 function CheckRow({
   label,
   detail,
@@ -37,30 +40,28 @@ function CheckRow({
 }) {
   return (
     <Press
-      haptic="none"
-      style={[styles.card,
-        checked ? builderStyles.cardChecked : null]}
+      // Haptics vocabulary: `light` — a small state flip (a choice ticked).
+      haptic="light"
+      style={builderStyles.row}
       onPress={onPress}
       accessibilityRole="checkbox"
       accessibilityState={{ checked }}
       accessibilityLabel={label}
     >
-      <View style={styles.cardTop}>
-        <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-          <Text style={styles.cardTitle} numberOfLines={1}>
-            {label}
+      <Ionicons
+        name={checked ? "ellipse" : "ellipse-outline"}
+        size={14}
+        color={checked ? colors.primary : colors.textMuted}
+      />
+      <View style={builderStyles.rowCopy}>
+        <UserText style={builderStyles.rowLabel} numberOfLines={1}>
+          {label}
+        </UserText>
+        {detail ? (
+          <Text style={builderStyles.detailText} numberOfLines={1}>
+            {detail}
           </Text>
-          {detail ? (
-            <Text style={builderStyles.detailText} numberOfLines={1}>
-              {detail}
-            </Text>
-          ) : null}
-        </View>
-        <Ionicons
-          name={checked ? "checkmark-circle" : "ellipse-outline"}
-          size={20}
-          color={checked ? colors.primary : colors.borderMuted}
-        />
+        ) : null}
       </View>
     </Press>
   );
@@ -111,7 +112,8 @@ export function SetlistEntryBuilderView({
             {song.title}
           </UserText>
           <Press
-            haptic="none"
+            // Haptics vocabulary: `light` — every choice flips at once.
+            haptic="light"
             style={builderStyles.everythingBtn}
             onPress={onSelectEverything}
             accessibilityRole="button"
@@ -125,7 +127,7 @@ export function SetlistEntryBuilderView({
         {song.clips.length === 0 ? (
           <Text style={styles.cardMeta}>{t("library.noClips")}</Text>
         ) : (
-          <View style={styles.listContent}>
+          <View style={builderStyles.list}>
             {song.clips.map((clip) => {
               const extras = [
                 clip.sectionCount > 0
@@ -148,7 +150,7 @@ export function SetlistEntryBuilderView({
         )}
 
         <Text style={builderStyles.sectionLabel}>{t("library.chartsNotes")}</Text>
-        <View style={styles.listContent}>
+        <View style={builderStyles.list}>
           {song.versions.map((version) => (
             <CheckRow
               key={version.id}
@@ -190,40 +192,52 @@ const builderStyles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
+  // The quiet ink link beside the title: a word, no outline.
   everythingBtn: {
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    borderRadius: radii.round,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    minHeight: 36,
+    justifyContent: "center",
+    paddingHorizontal: spacing.xs,
   },
   everythingLabel: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 11,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 14,
     color: colors.primaryDeep,
   },
   sectionLabel: {
-    ...textTokens.annotation,
-    color: colors.textSecondary,
+    ...textTokens.sectionTitle,
     marginTop: spacing.lg,
-    marginBottom: 6,
+    marginBottom: spacing.xs,
   },
-  cardChecked: {
-    borderColor: "#EBD3CE",
-    backgroundColor: "#FDF5F2",
+  list: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderMuted,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    minHeight: 52,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
+  },
+  rowCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  rowLabel: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 15,
+    color: colors.textPrimary,
   },
   detailText: {
     ...textTokens.caption,
-    fontSize: 10,
-    color: colors.textMuted,
+    color: colors.textSecondary,
     fontVariant: ["tabular-nums"],
   },
   footnote: {
-    ...textTokens.caption,
-    fontSize: 10,
-    lineHeight: 15,
-    color: colors.textMuted,
+    ...textTokens.supporting,
     marginTop: spacing.lg,
-    paddingHorizontal: 2,
   },
 });

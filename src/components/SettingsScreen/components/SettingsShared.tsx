@@ -3,6 +3,10 @@ import { colors } from "../../../design/tokens";
 import { Pressable, Text, View } from "react-native";
 import { Spinner } from "../../common/Spinner";
 import { Ionicons } from "@expo/vector-icons";
+import { Switch } from "../../common/Switch";
+import { Press } from "../../common/Press";
+import { SegmentedControl } from "../../common/SegmentedControl";
+import { i18n } from "../../../i18n/instance";
 import { dirIcon } from "../../../design/directionalIcons";
 import type { Collection, Workspace } from "../../../types";
 import { settingsScreenStyles, styles } from "../styles";
@@ -117,6 +121,8 @@ export function LibraryActionCard({
 }
 
 /** Label + a compact row of pill chips — for picking one of a few short values. */
+/** A titled single choice: the title and hint, then the canon ink tabs
+ *  (2026-10-20: was a row of filled terracotta chips). */
 export function SegmentedField<T extends string | number>({
   title,
   subtitle,
@@ -133,37 +139,21 @@ export function SegmentedField<T extends string | number>({
   /** Add row padding for use inside a SettingsGroup surface. */
   flat?: boolean;
 }) {
+  const keyOf = (option: T) => String(option);
   return (
     <View style={[settingsScreenStyles.segmentedField, flat ? settingsScreenStyles.segmentedFieldFlat : null]}>
       <View style={settingsScreenStyles.segmentedCopy}>
         <Text style={settingsScreenStyles.segmentedTitle}>{title}</Text>
         {subtitle ? <Text style={settingsScreenStyles.segmentedSubtitle}>{subtitle}</Text> : null}
       </View>
-      <View style={settingsScreenStyles.segmentedRow}>
-        {options.map((option) => {
-          const active = option.value === value;
-          return (
-            <Pressable
-              key={String(option.value)}
-              style={({ pressed }) => [
-                settingsScreenStyles.segmentedChip,
-                active ? settingsScreenStyles.segmentedChipActive : null,
-                pressed ? styles.pressDown : null,
-              ]}
-              onPress={() => onChange(option.value)}
-            >
-              <Text
-                style={[
-                  settingsScreenStyles.segmentedChipText,
-                  active ? settingsScreenStyles.segmentedChipTextActive : null,
-                ]}
-              >
-                {option.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <SegmentedControl
+        options={options.map((option) => ({ key: keyOf(option.value), label: option.label }))}
+        value={keyOf(value)}
+        onChange={(key) => {
+          const picked = options.find((option) => keyOf(option.value) === key);
+          if (picked) onChange(picked.value);
+        }}
+      />
     </View>
   );
 }
@@ -330,22 +320,24 @@ export function ToggleRow({
   flat?: boolean;
 }) {
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.settingsToggleRow,
-        flat ? styles.settingsRowFlat : null,
-        pressed ? styles.pressDown : null,
-      ]}
+    <Press
+      // Haptics vocabulary: `light` — a small state flip (the switch turns).
+      haptic="light"
+      style={[styles.settingsToggleRow, flat ? styles.settingsRowFlat : null]}
       onPress={onPress}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value }}
     >
       <View style={styles.settingsChoiceCopy}>
         <Text style={styles.settingsChoiceTitle}>{title}</Text>
         {subtitle ? <Text style={styles.settingsChoiceMeta}>{subtitle}</Text> : null}
       </View>
-      <View style={[styles.settingsTogglePill, value ? styles.settingsTogglePillActive : null]}>
-        <View style={[styles.settingsToggleThumb, value ? styles.settingsToggleThumbActive : null]} />
+      {/* The canon switch (2026-10-20; was a hand-drawn pill). The row's own
+          press flips it, so the switch itself takes no touches. */}
+      <View pointerEvents="none">
+        <Switch value={value} onValueChange={onPress} accessibilityLabel={title} />
       </View>
-    </Pressable>
+    </Press>
   );
 }
 
@@ -454,14 +446,15 @@ export function CollectionTreeRow({
     excludedCollectionIds
   );
   const itemCount = countCollectionIdeas(workspace, collection.id, includeHiddenItems);
+  const items = i18n.t("settingsExport.items", { count: itemCount });
   const inheritedSubtitle =
     state === "excluded"
-      ? `Excluded · ${itemCount} items`
+      ? i18n.t("settingsExport.excludedMeta", { items })
       : state === "inherited"
         ? selectedWorkspaceIds.includes(workspace.id)
-          ? `Included via workspace · ${itemCount} items`
-          : `Included via parent collection · ${itemCount} items`
-        : `${itemCount} items`;
+          ? i18n.t("settingsExport.viaWorkspaceMeta", { items })
+          : i18n.t("settingsExport.viaParentMeta", { items })
+        : items;
 
   return (
     <View>
@@ -491,25 +484,28 @@ export function CollectionTreeRow({
   );
 }
 
+/**
+ * Selection in ink (2026-10-20, the multi-select law): a hollow ring that fills
+ * terracotta when chosen. Included by a parent reads as the same dot at the
+ * outline weight; excluded from a chosen parent is a struck ring.
+ */
 export function SelectionMark({ state }: { state: CollectionSelectionState }) {
   const iconName: ComponentProps<typeof Ionicons>["name"] =
-    state === "selected"
-      ? "checkmark-circle"
+    state === "selected" || state === "inherited"
+      ? "ellipse"
       : state === "excluded"
-        ? "close-circle"
-        : state === "inherited"
-          ? "remove-circle"
-          : "ellipse-outline";
+        ? "remove-circle-outline"
+        : "ellipse-outline";
   const color =
     state === "selected"
-      ? colors.textPrimary
-      : state === "excluded"
-        ? colors.danger
-        : state === "inherited"
+      ? colors.primary
+      : state === "inherited"
+        ? colors.primaryOutline
+        : state === "excluded"
           ? colors.textSecondary
           : colors.textMuted;
 
-  return <Ionicons name={iconName} size={18} color={color} />;
+  return <Ionicons name={iconName} size={16} color={color} />;
 }
 
 export { countWorkspaceIdeas };

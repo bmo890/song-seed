@@ -8,6 +8,7 @@ import {
     formatBackupTimestamp,
     getBackupReminderDescription,
     getBackupReminderLabel,
+    getBackupReminderShortLabel,
 } from "../../../domain/backupPreferences";
 import {
     BACKUP_SAVE_CANCELLED_MESSAGE,
@@ -114,6 +115,7 @@ export function useLibraryBackupFlow() {
             REMINDER_OPTIONS.map((value) => ({
                 value,
                 title: getBackupReminderLabel(value),
+                short: getBackupReminderShortLabel(value),
                 subtitle: getBackupReminderDescription(value),
             })),
         []

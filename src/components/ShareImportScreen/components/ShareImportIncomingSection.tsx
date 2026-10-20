@@ -1,6 +1,5 @@
 import { Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { SurfaceCard } from "../../common/SurfaceCard";
 import { colors } from "../../../design/tokens";
 import { styles } from "../styles";
 import { useTranslation } from "react-i18next";
@@ -14,6 +13,7 @@ type Props = {
   rejectedCount: number;
 };
 
+/** What arrived: the first few file names on paper, then a count of the rest. */
 export function ShareImportIncomingSection({
   importedAssetCount,
   previewNames,
@@ -23,17 +23,13 @@ export function ShareImportIncomingSection({
 }: Props) {
   const { t } = useTranslation();
   return (
-    <SurfaceCard>
+    <View style={styles.section}>
       <Text style={styles.sectionTitle}>{t("shareImport.incomingAudio")}</Text>
       {importedAssetCount > 0 ? (
         <>
           {previewNames.map((name, index) => (
             <View key={`${name}-${index}`} style={styles.previewRow}>
-              <Ionicons
-                name="musical-notes-outline"
-                size={14}
-                color={colors.textSecondary}
-              />
+              <Ionicons name="musical-notes-outline" size={15} color={colors.textStrong} />
               <UserText style={styles.previewText} numberOfLines={1}>
                 {name}
               </UserText>
@@ -55,10 +51,8 @@ export function ShareImportIncomingSection({
         </Text>
       )}
       {rejectedCount > 0 ? (
-        <Text style={styles.warningText}>
-          {t("shareImport.skipped", { count: rejectedCount })}
-        </Text>
+        <Text style={styles.skippedText}>{t("shareImport.skipped", { count: rejectedCount })}</Text>
       ) : null}
-    </SurfaceCard>
+    </View>
   );
 }

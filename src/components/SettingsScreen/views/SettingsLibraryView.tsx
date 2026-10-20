@@ -4,10 +4,11 @@ import { colors } from "../../../design/tokens";
 import { PageIntro } from "../../common/PageIntro";
 import { ensurePro } from "../../common/proUpsell";
 import { settingsScreenStyles, styles } from "../styles";
-import { FormatOptionRow, LibraryActionCard, SettingsGroup } from "../components/SettingsShared";
+import { LibraryActionCard, SettingsGroup } from "../components/SettingsShared";
 import type { useLibraryBackupFlow } from "../hooks/useLibraryBackupFlow";
 import type { useStorageDiagnostics } from "../hooks/useStorageDiagnostics";
 import { useTranslation } from "react-i18next";
+import { SegmentedControl } from "../../common/SegmentedControl";
 
 type LibraryBackupFlow = ReturnType<typeof useLibraryBackupFlow>;
 type StorageDiagnostics = ReturnType<typeof useStorageDiagnostics>;
@@ -59,13 +60,13 @@ export function SettingsLibraryView({
               backupFlow.isBackingUp
                 ? backupFlow.backupProgressLabel ?? t("settings.backingUp")
                 : backupFlow.lastSuccessfulBackupFileName
-                  ? `Last backup · ${backupFlow.lastSuccessfulBackupLabel}`
+                  ? t("settingsLibrary.lastBackup", { when: backupFlow.lastSuccessfulBackupLabel })
                   : t("settingsLibrary.noBackup")
             }
             rightAccessory={
               backupFlow.lastSuccessfulBackupFileName && !backupFlow.isBackingUp ? (
                 <View style={settingsScreenStyles.verifiedChip}>
-                  <Ionicons name="checkmark" size={13} color="#fff" />
+                  <Ionicons name="checkmark" size={14} color={colors.textSecondary} />
                   <Text style={settingsScreenStyles.verifiedChipText}>{t("settingsLibrary.verified")}</Text>
                 </View>
               ) : undefined
@@ -107,23 +108,24 @@ export function SettingsLibraryView({
         <View style={styles.settingsSectionHeaderRow}>
           <Text style={styles.settingsSectionLabel}>{t("settingsLibrary.backupReminder")}</Text>
         </View>
-        <SettingsGroup>
-          {backupFlow.reminderOptions.map((option) => (
-            <FormatOptionRow
-              flat
-              key={option.value}
-              title={option.title}
-              subtitle={option.subtitle}
-              selected={backupFlow.backupReminderFrequency === option.value}
-              onPress={() => {
-                // Manual backup stays free; scheduling an automatic reminder is Pro.
-                // Turning the reminder OFF is always free.
-                if (option.value !== "off" && !ensurePro("auto-backup")) return;
-                backupFlow.setBackupReminderFrequency(option.value);
-              }}
-            />
-          ))}
-        </SettingsGroup>
+        {/* One choice of four: ink tabs, with the chosen one said once beneath
+            (2026-10-20; was four radio rows, the chosen one filled). */}
+        <SegmentedControl
+          options={backupFlow.reminderOptions.map((option) => ({
+            key: option.value,
+            label: option.short,
+          }))}
+          value={backupFlow.backupReminderFrequency}
+          onChange={(value) => {
+            // Manual backup stays free; scheduling an automatic reminder is Pro.
+            // Turning the reminder OFF is always free.
+            if (value !== "off" && !ensurePro("auto-backup")) return;
+            backupFlow.setBackupReminderFrequency(value);
+          }}
+        />
+        <Text style={styles.settingsSectionHint}>
+          {backupFlow.reminderOptions.find((option) => option.value === backupFlow.backupReminderFrequency)?.subtitle}
+        </Text>
       </View>
 
       <View style={styles.settingsSection}>

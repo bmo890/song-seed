@@ -74,7 +74,7 @@ export function SectionPickerModal({
                 accessibilityRole="button"
                 accessibilityLabel={t("player.customSectionA11y")}
               >
-                <Ionicons name="add" size={16} color={colors.primary} />
+                <Ionicons name="add" size={16} color={colors.primaryDeep} />
                 <Text style={s.sectionModalNewText}>{t("player.newCustom")}</Text>
               </Pressable>
               <View style={{ flex: 1 }} />
