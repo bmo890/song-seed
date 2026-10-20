@@ -7,7 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { SearchField } from "../../common/SearchField";
-import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
+import { colors, spacing, text as textTokens } from "../../../design/tokens";
 import { styles } from "../../../styles";
 import { type GlobalSearchResult, type GlobalSearchMatchSource } from "../../../domain/search";
 import { useSearchScreenModel } from "../hooks/useSearchScreenModel";
@@ -138,7 +138,7 @@ function SearchResultCard({
           <Ionicons
             name={getResultIconName(result)}
             size={16}
-            color="#6a5751"
+            color={colors.textSecondary}
           />
           <UserText value={result.title} style={searchScreenStyles.resultTitle} numberOfLines={1}>
             <HighlightedText value={result.title} query={query} />
@@ -151,7 +151,7 @@ function SearchResultCard({
             </Text>
           </View>
           {showOpenIn ? null : (
-            <Ionicons name={dirIcon("chevron-forward")} size={16} color="#9b8a84" />
+            <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />
           )}
         </View>
       </View>
@@ -180,8 +180,10 @@ function SearchResultCard({
   );
 }
 
-// A single quick-filter pill. Active = terracotta fill; the count reads as a quiet
-// suffix so the pill stays scannable.
+// A quick filter as an ink tab (2026-10-20, single-select law): the word and its
+// quiet count on the hairline, the chosen one in full ink over a 2 pt rule. No
+// pill fill. It scrolls sideways, so it keeps its own row rather than the
+// equal-width SegmentedControl.
 function FilterPill({
   label,
   count,
@@ -195,7 +197,8 @@ function FilterPill({
 }) {
   return (
     <Press
-      haptic="none"
+      // Haptics vocabulary: `light` — a small state flip (the filter changes).
+      haptic="light"
       style={[searchScreenStyles.filterPill,
         active ? searchScreenStyles.filterPillActive : null]}
       onPress={onPress}
@@ -382,9 +385,10 @@ const searchScreenStyles = StyleSheet.create({
     marginBottom: 16,
     gap: 4,
   },
+  // Wayfinding in moss, like every eyebrow; terracotta is for the action.
   eyebrow: {
     ...textTokens.annotation,
-    color: colors.primary,
+    color: colors.eyebrow,
   },
   title: {
     ...textTokens.pageTitle,
@@ -401,39 +405,41 @@ const searchScreenStyles = StyleSheet.create({
   filterBar: {
     flexGrow: 0,
     marginBottom: 14,
-    marginHorizontal: -2,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
   },
   filterBarContent: {
-    gap: spacing.sm,
-    paddingHorizontal: 2,
+    gap: spacing.lg,
   },
   filterPill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.surfaceContainer,
-    borderRadius: radii.round,
-    paddingHorizontal: 13,
-    paddingVertical: 7,
+    gap: 5,
+    paddingVertical: 9,
+    borderBottomWidth: 2,
+    borderBottomColor: "transparent",
+    marginBottom: -1,
   },
   filterPillActive: {
-    backgroundColor: colors.primary,
+    borderBottomColor: colors.textPrimary,
   },
   filterPillLabel: {
-    ...textTokens.caption,
-    color: colors.textStrong,
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 14,
+    color: colors.textSecondary,
   },
   filterPillLabelActive: {
-    color: colors.onPrimary,
+    color: colors.textPrimary,
+    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   filterPillCount: {
-    ...textTokens.caption,
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 12,
     color: colors.textMuted,
     fontVariant: ["tabular-nums"],
   },
   filterPillCountActive: {
-    color: colors.onPrimary,
-    opacity: 0.85,
+    color: colors.textSecondary,
   },
   landing: {
     marginTop: spacing.xl,
@@ -460,14 +466,13 @@ const searchScreenStyles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.sm,
   },
+  // What search reads, as ink words with their glyphs (no chips, 2026-10-20).
   domainChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.surfaceContainer,
-    borderRadius: radii.round,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    gap: 5,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
   },
   domainLabel: {
     ...textTokens.caption,
@@ -514,12 +519,8 @@ const searchScreenStyles = StyleSheet.create({
   },
   sectionCount: {
     ...textTokens.caption,
-    color: "#6a5751",
-    backgroundColor: "#efeeea",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    overflow: "hidden",
+    color: colors.textSecondary,
+    fontVariant: ["tabular-nums"],
   },
   sectionStack: {
     gap: 10,
@@ -561,19 +562,15 @@ const searchScreenStyles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.xs,
   },
-  matchChip: {
-    borderRadius: 999,
-    backgroundColor: "#efeeea",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
+  // Where the match was found: a quiet word, not a pill.
+  matchChip: {},
   matchChipText: {
     ...textTokens.caption,
-    color: colors.primaryDeep,
+    color: colors.textSecondary,
   },
   resultContext: {
     ...textTokens.supporting,
-    color: "#6a5751",
+    color: colors.textSecondary,
   },
   resultSnippet: {
     ...textTokens.body,
