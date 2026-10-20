@@ -1,0 +1,35 @@
+diff --git a/node_modules/react-native/Libraries/Text/Text.js b/node_modules/react-native/Libraries/Text/Text.js
+index b08b8f3..2abd0e0 100644
+--- a/node_modules/react-native/Libraries/Text/Text.js
++++ b/node_modules/react-native/Libraries/Text/Text.js
+@@ -19,6 +19,7 @@ import usePressability from '../Pressability/usePressability';
+ import flattenStyle from '../StyleSheet/flattenStyle';
+ import processColor from '../StyleSheet/processColor';
+ import Platform from '../Utilities/Platform';
++import I18nManager from '../ReactNative/I18nManager';
+ import TextAncestorContext from './TextAncestorContext';
+ import {NativeText, NativeVirtualText} from './TextNativeComponent';
+ import * as React from 'react';
+@@ -35,6 +36,11 @@ type TextForwardRef = React.ElementRef<
+  *
+  * @see https://reactnative.dev/docs/text
+  */
++// SongNook (2026-10-20): in an RTL app, text with no alignment rendered on the
++// LEFT on iOS (rows mirror, text did not). Give it a start alignment ('left',
++// which RN swaps to the right in RTL); an explicit textAlign still wins.
++const RTL_START_ALIGN = {textAlign: 'left'};
++
+ const TextImpl: component(
+   ref?: React.RefSetter<TextForwardRef>,
+   ...props: TextProps
+@@ -76,6 +82,10 @@ const TextImpl: component(
+   ref?: React.RefSetter<TextForwardRef>,
+   ...TextProps,
+ }) => {
++  if (I18nManager.isRTL) {
++    // $FlowFixMe[reassign-const] - SongNook start alignment, see RTL_START_ALIGN.
++    style = [RTL_START_ALIGN, style];
++  }
+   const _accessibilityLabel = ariaLabel ?? accessibilityLabel;
+ 
+   let _accessibilityState: ?TextProps['accessibilityState'] =
