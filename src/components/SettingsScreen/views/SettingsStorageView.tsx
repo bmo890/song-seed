@@ -1,11 +1,12 @@
 import { ScrollView, Text, View } from "react-native";
 import { Spinner } from "../../common/Spinner";
+import { Press } from "../../common/Press";
+import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../design/tokens";
 import { PageIntro } from "../../common/PageIntro";
 import { Button } from "../../common/Button";
 import { styles } from "../styles";
 import {
-  AccordionSection,
   LibraryActionCard,
   SettingsGroup,
   StorageMetricRow,
@@ -96,11 +97,6 @@ export function SettingsStorageView({ diagnostics }: { diagnostics: StorageDiagn
             </View>
             <View style={styles.settingsSummaryPanel}>
               <StorageMetricRow
-                label={t("settingsStorage.totalUsed")}
-                value={formatBytes(diagnostics.storageReport.totalLibraryBytes)}
-                detail={t("settingsStorage.totalUsedDetail")}
-              />
-              <StorageMetricRow
                 label={t("settingsStorage.activeWorkspaces")}
                 value={String(diagnostics.storageReport.activeWorkspaceCount)}
                 detail={t("settingsStorage.activeDetail", { size: formatBytes(diagnostics.storageReport.activeLibraryBytes) })}
@@ -118,6 +114,8 @@ export function SettingsStorageView({ diagnostics }: { diagnostics: StorageDiagn
             </View>
           </View>
 
+          {/* Archived space only matters once something is archived. */}
+          {diagnostics.storageReport.archivedWorkspaceCount > 0 || diagnostics.storageReport.archivePackages.bytes > 0 ? (
           <View style={styles.settingsSection}>
             <View style={styles.settingsSectionHeaderRow}>
               <Text style={styles.settingsSectionLabel}>{t("settingsStorage.archivedWorkspaces")}</Text>
@@ -141,6 +139,7 @@ export function SettingsStorageView({ diagnostics }: { diagnostics: StorageDiagn
               />
             </View>
           </View>
+          ) : null}
 
           <View style={styles.settingsSection}>
             <View style={styles.settingsSectionHeaderRow}>
@@ -161,15 +160,24 @@ export function SettingsStorageView({ diagnostics }: { diagnostics: StorageDiagn
             </View>
           </View>
 
-          <AccordionSection
-            step={t("settingsStorage.advanced")}
-            title={t("settingsStorage.supportDetails")}
-            hint={t("settingsStorage.supportHint")}
-            open={diagnostics.showAdvancedStorageDetails}
-            onPress={() =>
-              diagnostics.setShowAdvancedStorageDetails((current) => !current)
-            }
+          {/* Support details fold under one quiet row (2026-10-20; was an
+              accordion card). Only support ever needs them. */}
+          <Press
+            // Haptics vocabulary: `light` — a section folds open or closed.
+            haptic="light"
+            style={styles.settingsFoldRow}
+            onPress={() => diagnostics.setShowAdvancedStorageDetails((current) => !current)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: diagnostics.showAdvancedStorageDetails }}
           >
+            <Text style={styles.settingsSectionLabel}>{t("settingsStorage.supportDetails")}</Text>
+            <Ionicons
+              name={diagnostics.showAdvancedStorageDetails ? "chevron-up" : "chevron-down"}
+              size={14}
+              color={colors.textMuted}
+            />
+          </Press>
+          {diagnostics.showAdvancedStorageDetails ? (
             <View style={styles.settingsOptionStack}>
               {diagnostics.storageReport.unmanagedAudioReferences.totalReferences > 0 ? (
                 <View style={styles.settingsSummaryPanel}>
@@ -225,7 +233,7 @@ export function SettingsStorageView({ diagnostics }: { diagnostics: StorageDiagn
                 </View>
               ) : null}
             </View>
-          </AccordionSection>
+          ) : null}
         </>
       ) : null}
 

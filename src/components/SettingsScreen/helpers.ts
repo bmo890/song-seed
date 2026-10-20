@@ -1,6 +1,4 @@
-import type { LibraryExportFormat } from "../../services/libraryExport";
 import type { Collection, Workspace } from "../../types";
-import type { TFunction } from "i18next";
 import { getCollectionScopeIds } from "../../utils";
 import type {
   ArchiveExportOptions,
@@ -170,39 +168,3 @@ export function buildWarningSummary(warnings: string[]) {
   return `${preview}${remainder}`;
 }
 
-export function getFormatSummary(format: LibraryExportFormat, t: TFunction) {
-  return format === "songnook-archive" ? t("settingsExport.archive") : t("settingsExport.zip");
-}
-
-export function getOptionsSummary(
-  format: LibraryExportFormat | null,
-  archiveOptions: ArchiveExportOptions,
-  standardOptions: StandardExportOptions,
-  t: TFunction
-) {
-  if (!format) {
-    return "";
-  }
-
-  const options =
-    format === "songnook-archive"
-      ? [
-          archiveOptions.includeFullSongHistory ? t("settingsExport.historyShort") : null,
-          archiveOptions.includeNotes ? t("settingsExport.notesShort") : null,
-          archiveOptions.includeLyrics ? t("settingsExport.lyricsShort") : null,
-          archiveOptions.includeHiddenItems ? t("settingsExport.hiddenShort") : null,
-          archiveOptions.preserveAllMetadata ? t("settingsExport.metadataShort") : null,
-        ]
-      : [
-          standardOptions.includeNotesAsText ? t("settingsExport.notesShort") : null,
-          standardOptions.includeLyricsAsText ? t("settingsExport.lyricsShort") : null,
-          standardOptions.includeHiddenItems ? t("settingsExport.hiddenShort") : null,
-        ];
-
-  const enabled = options.filter((value): value is string => Boolean(value));
-  if (enabled.length === 0) {
-    return t("settingsExport.basic");
-  }
-
-  return enabled.join(", ");
-}

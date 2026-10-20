@@ -25,7 +25,7 @@ export function SettingsAccountView() {
 
       <View style={settingsScreenStyles.accountIdentity}>
         <View style={settingsScreenStyles.accountMark}>
-          <Ionicons name="person-outline" size={22} color={colors.primaryDeep} />
+          <Ionicons name="person-outline" size={22} color={colors.textStrong} />
         </View>
         <View style={settingsScreenStyles.accountIdentityCopy}>
           <Text style={settingsScreenStyles.accountIdentityTitle}>{t("settingsAccount.localProfile")}</Text>

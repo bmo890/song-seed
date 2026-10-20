@@ -52,7 +52,8 @@ export function useLibraryExportFlow() {
   const primaryWorkspaceId = useStore((state) => state.primaryWorkspaceId);
   const primaryCollectionIdByWorkspace = useStore((state) => state.primaryCollectionIdByWorkspace);
   const bluetoothMonitoringCalibrations = useStore((state) => state.bluetoothMonitoringCalibrations);
-  const [format, setFormat] = useState<LibraryExportFormat | null>(null);
+  // The archive is the default: it keeps everything SongNook knows about the work.
+  const [format, setFormat] = useState<LibraryExportFormat | null>("songnook-archive");
   const [selectedWorkspaceIds, setSelectedWorkspaceIds] = useState<string[]>([]);
   const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>([]);
   const [excludedCollectionIds, setExcludedCollectionIds] = useState<string[]>([]);

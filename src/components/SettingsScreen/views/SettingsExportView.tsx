@@ -2,9 +2,9 @@ import { ScrollView, Text, View } from "react-native";
 import { PageIntro } from "../../common/PageIntro";
 import { Button } from "../../common/Button";
 import { styles } from "../styles";
-import { AccordionSection, CollectionTreeRow, FormatOptionRow, ToggleRow, WorkspaceScopeRow } from "../components/SettingsShared";
-import { countWorkspaceIdeas, getFormatSummary } from "../helpers";
-import { getOptionsSummary } from "../helpers";
+import { CollectionTreeRow, ToggleRow, WorkspaceScopeRow } from "../components/SettingsShared";
+import { SegmentedControl } from "../../common/SegmentedControl";
+import { countWorkspaceIdeas } from "../helpers";
 import { formatBytes } from "../../../utils";
 import type { useLibraryExportFlow } from "../hooks/useLibraryExportFlow";
 import { useTranslation } from "react-i18next";
@@ -13,7 +13,6 @@ type ExportFlow = ReturnType<typeof useLibraryExportFlow>;
 
 export function SettingsExportView({ flow, onCancel }: { flow: ExportFlow; onCancel: () => void }) {
   const { t } = useTranslation();
-  const optionsSummary = getOptionsSummary(flow.format, flow.archiveOptions, flow.standardOptions, t);
   return (
     <ScrollView
       style={styles.flexFill}
@@ -22,40 +21,26 @@ export function SettingsExportView({ flow, onCancel }: { flow: ExportFlow; onCan
     >
       <PageIntro title={t("settingsExport.title")} />
 
-      <AccordionSection
-        step="1"
-        title={`${t("settingsExport.format")}${flow.format ? ` (${getFormatSummary(flow.format, t)})` : ""}`}
-        hint={t("settingsExport.formatHint")}
-        open={flow.openSection === "format"}
-        onPress={() => flow.setOpenSection("format")}
-      >
-        <View style={styles.settingsOptionStack}>
-          <FormatOptionRow
-            title={t("settingsExport.archive")}
-            subtitle={t("settingsExport.archiveHint")}
-            selected={flow.format === "songnook-archive"}
-            onPress={() => flow.setFormat("songnook-archive")}
-          />
-          <FormatOptionRow
-            title={t("settingsExport.zip")}
-            subtitle={t("settingsExport.zipHint")}
-            selected={flow.format === "standard-zip"}
-            onPress={() => flow.setFormat("standard-zip")}
-          />
-        </View>
-      </AccordionSection>
-
-      <AccordionSection
-        step="2"
-        title={`${t("settingsExport.scope")}${flow.selectedSummary.selectedWorkspaceCount || flow.selectedSummary.selectedCollectionCount ? ` (${t("settingsExport.scopeSummary", { workspaces: flow.selectedSummary.selectedWorkspaceCount, collections: flow.selectedSummary.selectedCollectionCount })})` : ""}`}
-        hint={t("settingsExport.scopeHint")}
-        open={flow.openSection === "scope"}
-        onPress={() => flow.setOpenSection("scope")}
-      >
+      {/* One calm page (2026-10-20): what format, what to take, what to include,
+          then one Export key. Was four numbered accordion cards. */}
+      <View style={styles.settingsSection}>
+        <Text style={styles.settingsSectionLabel}>{t("settingsExport.format")}</Text>
+        <SegmentedControl
+          options={[
+            { key: "songnook-archive", label: t("settingsExport.archive") },
+            { key: "standard-zip", label: t("settingsExport.zip") },
+          ]}
+          value={flow.format ?? "songnook-archive"}
+          onChange={(value) => flow.setFormat(value)}
+        />
         <Text style={styles.settingsSectionHint}>
-          {t("settingsExport.selectionHint")}
+          {flow.format === "standard-zip" ? t("settingsExport.zipHint") : t("settingsExport.archiveHint")}
         </Text>
+      </View>
 
+      <View style={styles.settingsSection}>
+        <Text style={styles.settingsSectionLabel}>{t("settingsExport.scope")}</Text>
+        <Text style={styles.settingsSectionHint}>{t("settingsExport.selectionHint")}</Text>
         <View style={styles.settingsScopeStack}>
           {flow.workspaces.map((workspace) => {
             const workspaceSelected = flow.selectedWorkspaceIds.includes(workspace.id);
@@ -109,19 +94,10 @@ export function SettingsExportView({ flow, onCancel }: { flow: ExportFlow; onCan
             );
           })}
         </View>
-      </AccordionSection>
+      </View>
 
-      <AccordionSection
-        step="3"
-        title={`${t("settingsExport.options")}${optionsSummary ? ` (${optionsSummary})` : ""}`}
-        hint={t("settingsExport.optionsHint")}
-        open={flow.openSection === "options"}
-        onPress={() => flow.setOpenSection("options")}
-      >
-        {!flow.format ? (
-          <Text style={styles.settingsSectionHint}>{t("settingsExport.chooseFormatOptions")}</Text>
-        ) : null}
-
+      <View style={styles.settingsSection}>
+        <Text style={styles.settingsSectionLabel}>{t("settingsExport.options")}</Text>
         {flow.format === "songnook-archive" ? (
           <View style={styles.settingsOptionStack}>
             <ToggleRow
@@ -154,15 +130,6 @@ export function SettingsExportView({ flow, onCancel }: { flow: ExportFlow; onCan
               value={flow.archiveOptions.preserveAllMetadata}
               onPress={() => flow.toggleArchiveOption("preserveAllMetadata")}
             />
-            {flow.archiveSizeEstimate ? (
-              <Text style={styles.settingsSectionHint}>
-                {t("settingsExport.estimate", { full: formatBytes(flow.archiveSizeEstimate.fullBytes), standard: formatBytes(flow.archiveSizeEstimate.standardBytes) })}
-              </Text>
-            ) : flow.isEstimatingArchiveSize ? (
-              <Text style={styles.settingsSectionHint}>{t("settingsExport.estimating")}</Text>
-            ) : (
-              <Text style={styles.settingsSectionHint}>{t("settingsExport.estimateScope")}</Text>
-            )}
           </View>
         ) : null}
 
@@ -188,55 +155,33 @@ export function SettingsExportView({ flow, onCancel }: { flow: ExportFlow; onCan
             />
           </View>
         ) : null}
-      </AccordionSection>
+      </View>
 
-      <AccordionSection
-        step="4"
-        title={`${t("settingsExport.generate")}${flow.format ? ` (${getFormatSummary(flow.format, t)})` : ""}`}
-        hint={t("settingsExport.ready", { count: flow.selectedSummary.exportableIdeaCount })}
-        open={flow.openSection === "generate"}
-        onPress={() => flow.setOpenSection("generate")}
-      >
-        <View style={styles.settingsSummaryPanel}>
-          <Text style={styles.settingsSummaryTitle}>
-            {flow.format === "songnook-archive"
-              ? t("settingsExport.archive")
-              : flow.format === "standard-zip"
-                ? t("settingsExport.zip")
-                : t("settingsExport.chooseFormat")}
-          </Text>
-          <Text style={styles.settingsSummaryMeta}>
-            {t("settingsExport.generateSummary", { workspaces: flow.selectedSummary.selectedWorkspaceCount, collections: flow.selectedSummary.selectedCollectionCount, items: flow.selectedSummary.exportableIdeaCount })}
-          </Text>
-          {flow.generateEstimateLabel ? (
-            <Text style={styles.settingsSummaryMeta}>{flow.generateEstimateLabel}</Text>
-          ) : null}
-          <Text style={styles.settingsSectionHint}>
-            {t("settingsExport.progressHint")}
-          </Text>
-
-          <View style={styles.settingsActionRow}>
-            <Button
-              label={
-                flow.isExporting
-                  ? flow.exportProgressLabel ?? t("settingsExport.preparing")
-                  : t("settingsExport.generateExport")
-              }
-              onPress={() => {
-                void flow.handleExport();
-              }}
-              disabled={flow.isExporting || !flow.format}
-              style={styles.settingsPrimaryAction}
-            />
-            <Button
-              label={t("common.cancel")}
-              variant="secondary"
-              onPress={onCancel}
-              disabled={flow.isExporting}
-            />
-          </View>
+      <View style={styles.settingsSection}>
+        <Text style={styles.settingsSummaryMeta}>
+          {t("settingsExport.inScope", {
+            items: t("settingsExport.items", { count: flow.selectedSummary.exportableIdeaCount }),
+          })}
+        </Text>
+        {flow.generateEstimateLabel ? (
+          <Text style={styles.settingsSummaryMeta}>{flow.generateEstimateLabel}</Text>
+        ) : null}
+        <View style={styles.settingsActionRow}>
+          <Button
+            label={
+              flow.isExporting
+                ? flow.exportProgressLabel ?? t("settingsExport.preparing")
+                : t("settingsExport.export")
+            }
+            onPress={() => {
+              void flow.handleExport();
+            }}
+            disabled={flow.isExporting || !flow.format || flow.selectedSummary.exportableIdeaCount === 0}
+            style={styles.settingsPrimaryAction}
+          />
+          <Button label={t("common.cancel")} variant="quiet" onPress={onCancel} disabled={flow.isExporting} />
         </View>
-      </AccordionSection>
+      </View>
     </ScrollView>
   );
 }
