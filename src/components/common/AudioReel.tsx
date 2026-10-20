@@ -112,6 +112,9 @@ const DARK_REEL_PALETTE: ReelPalette = {
 
 /** How many display bars the canvas asks for at this zoom: capacity (floored at 48
  *  bars, 96 when the canvas is unmeasured) times the zoom multiple. */
+/** The space above the minimap strip (audioReelStyles.minimapWrap marginTop). */
+const MINIMAP_GAP = 12;
+
 function requestedBarCountFor(mainCanvasWidth: number, zoomMultiple: number) {
     const visibleBarCapacity =
         mainCanvasWidth > 0 ? Math.max(48, Math.round(mainCanvasWidth / DISPLAY_BAR_PITCH_PX)) : 96;
@@ -260,9 +263,10 @@ type Props = {
     minimapInteractive?: boolean;
     /** Half-height minimap — for slim reels where the full map would out-weigh the tape. */
     minimapCompact?: boolean;
-    /** Keep the minimap's room while it is hidden, so zooming in never moves the page
-     *  beneath the reel (the player's listening page). */
-    reserveMinimapSpace?: boolean;
+    /** The minimap shares the reel's height instead of adding to it: when it shows,
+     *  the tape gives up the strip's room, so zooming in never moves the page beneath
+     *  (the player's listening page) and no empty band waits for it when hidden. */
+    minimapWithinHeight?: boolean;
     zoomMultiple?: number;
     onZoomMultipleChange?: (zoomMultiple: number) => void;
     /** Desired initial zoom for the uncontrolled case (snapped to the nearest step).
@@ -329,7 +333,7 @@ export function AudioReel({
     showMinimapMode = "auto",
     minimapInteractive = true,
     minimapCompact = false,
-    reserveMinimapSpace = false,
+    minimapWithinHeight = false,
     zoomMultiple: controlledZoomMultiple,
     onZoomMultipleChange,
     initialZoomMultiple,
@@ -364,7 +368,18 @@ export function AudioReel({
         }
     }
 
-    const collapsedHeight = collapsedHeightOverride ?? (compact ? 120 : 160);
+    const showMinimap =
+        showMinimapMode === "always"
+            ? true
+            : showMinimapMode === "never"
+                ? false
+                : zoomMultiple > 1.01 && (!compact || isExpanded);
+    // With `minimapWithinHeight` the strip (and its gap) comes out of the tape's height.
+    const minimapShare =
+        minimapWithinHeight && showMinimap
+            ? (minimapCompact ? MINIMAP_COMPACT_HEIGHT : MINIMAP_HEIGHT) + MINIMAP_GAP
+            : 0;
+    const collapsedHeight = (collapsedHeightOverride ?? (compact ? 120 : 160)) - minimapShare;
     const expandedHeight = expandedHeightOverride ?? (compact ? 220 : 320);
 
     React.useEffect(() => {
@@ -485,12 +500,6 @@ export function AudioReel({
         () => buildGridRulerModel({ grid: grid ?? null, durationMs, pixelsPerMs, overscale: overscaleFactor }),
         [grid, durationMs, pixelsPerMs, overscaleFactor]
     );
-    const showMinimap =
-        showMinimapMode === "always"
-            ? true
-            : showMinimapMode === "never"
-                ? false
-                : zoomMultiple > 1.01 && (!compact || isExpanded);
     const palette = chrome === "light" ? LIGHT_REEL_PALETTE : DARK_REEL_PALETTE;
     // The lanes redesign (2026-10-13) is the default; Settings keeps the earlier
     // drawing one switch away while the new one settles.
@@ -1020,10 +1029,6 @@ export function AudioReel({
                             sharedAudioProgress={sharedAudioProgress}
                         />
                     ) : null}
-                </View>
-            ) : reserveMinimapSpace ? (
-                <View style={audioReelStyles.minimapWrap}>
-                    <View style={{ height: minimapCompact ? MINIMAP_COMPACT_HEIGHT : MINIMAP_HEIGHT }} />
                 </View>
             ) : null}
 

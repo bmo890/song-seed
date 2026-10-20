@@ -1653,7 +1653,7 @@ function PlayerScreenInner({
                       // Haptics (Press default): `tap`; the recorder fires its own.
                       tone="active"
                       label={t("player.layerKey")}
-                      glyph={<View style={[playerScreenStyles.layerKeyDot, { backgroundColor: inkKeyColor("active") }]} />}
+                      glyph={<View style={playerScreenStyles.layerKeyDot} />}
                       onPress={() => {
                         ui.setMode("player");
                         void handleAddOverdub(getVisiblePlayheadMs());

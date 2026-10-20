@@ -95,8 +95,7 @@ function PlayerSupportSectionsInner({
 
   return (
     <View style={playerScreenStyles.listenStack}>
-      {/* The page is composed from the thumb up: the air sits between the tape
-          and the pages, never under them. */}
+      {/* The pages float centred in the bottom half (founder, 2026-10-20). */}
       <View style={chipStyles.air} />
 
       {/* Closed rung of the reading ladder: the pages, anchored above the transport. */}
@@ -118,6 +117,8 @@ function PlayerSupportSectionsInner({
         notesLabel={notesLabel}
         onOpenNotes={openNotes}
       />
+      {/* Air on both sides: the pages sit centred between the toolbar and the transport. */}
+      <View style={chipStyles.air} />
 
       {/* No chip row: the layer lane under the reel is the bench's door, the
           margin note above is the notes door, and the transport bar's list
