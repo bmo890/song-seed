@@ -218,7 +218,6 @@ export const resources = {
       },
       workspaceList: {
         shareFile: "Export", getLink: "SongNook Send", share: "Share", shareTitle: "Share workspace", nothingShare: "Nothing to share", nothingShareBody: "Add an idea to this workspace first.", shareFailed: "Share failed", shareFailedBody: "Could not share this workspace.",
-        eyebrow: "Creative overview",
         title: "Your workspaces",
         order: "Order",
         lastWorked: "Last worked",
@@ -1804,7 +1803,6 @@ export const resources = {
       },
       workspaceList: {
         shareFile: "ייצוא", getLink: "SongNook Send", share: "שיתוף", shareTitle: "שיתוף מרחב העבודה", nothingShare: "אין מה לשתף", nothingShareBody: "הוסיפו קודם רעיון למרחב העבודה הזה.", shareFailed: "השיתוף נכשל", shareFailedBody: "לא ניתן לשתף את מרחב העבודה הזה.",
-        eyebrow: "מבט על היצירה",
         title: "מרחבי העבודה שלך",
         order: "סדר",
         lastWorked: "עבודה אחרונה",

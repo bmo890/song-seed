@@ -1,11 +1,11 @@
 import { StyleSheet } from "react-native";
-import { colors, radii } from "../../design/tokens";
+import { colors, radii, spacing, text as textTokens } from "../../design/tokens";
 
 export const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: colors.page,
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.lg,
   },
   flexFill: {
     flex: 1,
@@ -13,37 +13,6 @@ export const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 128,
     gap: 0,
-  },
-
-  // ── Header ────────────────────────────────────────────────────────────────
-  header: {
-    paddingTop: 32,
-    paddingBottom: 0,
-    gap: 0,
-    marginBottom: 32,
-  },
-  hamburgerBtn: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: -8,
-    marginBottom: 8,
-  },
-  eyebrow: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 12,
-    lineHeight: 16,
-    color: "#526351",
-    letterSpacing: 1.8,
-    textTransform: "uppercase",
-    marginBottom: 8,
-  },
-  pageTitle: {
-    fontFamily: "Lora_500Medium",
-    fontSize: 48,
-    lineHeight: 58,
-    color: "#1C1C19",
   },
 
   // ── Sort row ──────────────────────────────────────────────────────────────
@@ -95,7 +64,7 @@ export const styles = StyleSheet.create({
     paddingVertical: 6,
     minWidth: 220,
     zIndex: 10,
-    shadowColor: "#3D3732",
+    shadowColor: colors.textPrimary,
     shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
@@ -144,33 +113,18 @@ export const styles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_600SemiBold",
   },
 
-  // ── Workspace list ────────────────────────────────────────────────────────
+  // ── Workspace list: rows on paper, the hairline above the first ─────────
   listContent: {
-    gap: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderMuted,
   },
-  // ── Archived section ──────────────────────────────────────────────────────
+  // ── From others / Archived: a small-caps label over their own rows ───────
   archivedSection: {
-    marginTop: 64,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(215, 194, 189, 0.3)",
-    paddingTop: 48,
-    gap: 24,
+    marginTop: spacing.xl,
+    gap: spacing.sm,
   },
-  archivedSectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  archivedHeading: {
-    fontFamily: "Lora_500Medium",
-    fontSize: 30,
-    lineHeight: 36,
-    color: colors.textSecondary,
-  },
-  archivedDivider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "rgba(215, 194, 189, 0.2)",
+  sectionLabel: {
+    ...textTokens.sectionTitle,
   },
 
   // ── Misc ──────────────────────────────────────────────────────────────────
@@ -190,8 +144,8 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000000",
-    shadowOpacity: 0.12,
+    shadowColor: colors.textPrimary,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 6,
   },

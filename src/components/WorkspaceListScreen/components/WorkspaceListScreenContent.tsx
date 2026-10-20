@@ -9,6 +9,7 @@ import { useStore } from "../../../state/useStore";
 import { WorkspaceModal } from "../../modals/WorkspaceModal";
 import { ClipboardBanner } from "../../ClipboardBanner";
 import { PickerEyebrow } from "../../common/PickerEyebrow";
+import { ScreenHeader } from "../../common/ScreenHeader";
 import { PickerFooter } from "../../common/PickerFooter";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { EmptyState } from "../../common/EmptyState";
@@ -28,17 +29,6 @@ export function WorkspaceListScreenContent() {
   const navigation = useNavigation<any>();
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
 
-  function openDrawer() {
-    let nav: any = navigation;
-    while (nav) {
-      if (typeof nav.openDrawer === "function") {
-        nav.openDrawer();
-        return;
-      }
-      nav = nav.getParent?.();
-    }
-  }
-
   const sortActive = model.data.workspaceListOrder !== "last-worked";
   const sortLabel = model.data.workspaceOrderOptions.find(
     (o) => o.key === model.data.workspaceListOrder
@@ -49,6 +39,8 @@ export function WorkspaceListScreenContent() {
 
   return (
     <SafeAreaView style={styles.screen}>
+      {/* A place (header rule, 2026-10-15): glyph-only nav row, large Lora title. */}
+      <ScreenHeader title={t("workspaceList.title")} variant="place" leftIcon="hamburger" />
 
       {model.clipClipboard ? (
         <ClipboardBanner
@@ -72,24 +64,11 @@ export function WorkspaceListScreenContent() {
         showsVerticalScrollIndicator={false}
       >
 
-        {/* ── Header ──────────────────────────────────────────────────────── */}
-        <View style={styles.header}>
-          <Pressable
-            style={({ pressed }) => [styles.hamburgerBtn, pressed ? styles.pressDown : null]}
-            onPress={openDrawer}
-            hitSlop={8}
-          >
-            <Ionicons name="menu-outline" size={22} color={colors.textSecondary} />
-          </Pressable>
-          {/* Choosing a song for lyrics: the picker eyebrow takes the title's
-              eyebrow slot, and a ✕ footer is the way out (2026-09-11). */}
-          {songTargetPicker ? (
-            <PickerEyebrow testID="picker-eyebrow" icon="document-text-outline" label={t("selection.pickingSongFor")} />
-          ) : (
-            <Text style={styles.eyebrow}>{t("workspaceList.eyebrow")}</Text>
-          )}
-          <Text style={styles.pageTitle}>{t("workspaceList.title")}</Text>
-        </View>
+        {/* Choosing a song for lyrics: the picker eyebrow names the task, and
+            a ✕ footer is the way out (2026-09-11). */}
+        {songTargetPicker ? (
+          <PickerEyebrow testID="picker-eyebrow" icon="document-text-outline" label={t("selection.pickingSongFor")} />
+        ) : null}
 
         {/* ── Sort control ─────────────────────────────────────────────────── */}
         <View style={styles.sortRow}>
@@ -167,10 +146,7 @@ export function WorkspaceListScreenContent() {
             Appears only once you've actually imported something. */}
         {hasReceived ? (
           <View style={styles.archivedSection}>
-            <View style={styles.archivedSectionHeader}>
-              <Text style={styles.archivedHeading}>{t("workspaceList.fromOthers")}</Text>
-              <View style={styles.archivedDivider} />
-            </View>
+            <Text style={styles.sectionLabel}>{t("workspaceList.fromOthers")}</Text>
 
             <WorkspaceList
               workspaces={model.data.receivedWorkspaces}
@@ -186,10 +162,7 @@ export function WorkspaceListScreenContent() {
         {/* ── Archived workspace section ─────────────────────────────────── */}
         {hasArchived ? (
           <View style={styles.archivedSection}>
-            <View style={styles.archivedSectionHeader}>
-              <Text style={styles.archivedHeading}>{t("workspaceList.archived")}</Text>
-              <View style={styles.archivedDivider} />
-            </View>
+            <Text style={styles.sectionLabel}>{t("workspaceList.archived")}</Text>
 
             <WorkspaceList
               workspaces={model.data.archivedWorkspaces}
