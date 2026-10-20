@@ -261,6 +261,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   const isLockScreenActiveRef = useRef(false);
   const appStateRef = useRef(AppState.currentState);
   const currentSourceUriRef = useRef<string | null>(null);
+  const twinMutedRef = useRef(false);
 
   const holdSourcePositionAt = useCallback((targetMs: number, sourceMs?: number | null) => {
     const safeTargetMs = Math.max(0, targetMs);
@@ -304,6 +305,8 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     ) {
       return;
     }
+    // The muted twin's clock is not the one the musician hears.
+    if (twinMutedRef.current) return;
     const now = Date.now();
     const lastPublished = lastPublishedPlaybackRef.current;
     const shouldPublish =
@@ -821,6 +824,22 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     await seekTo(playerPositionRef.current + delta);
   }, [seekTo]);
 
+  /**
+   * The muted twin (2026-10-21). While the pitch/sound engine plays a clip, this
+   * player keeps running the same clip silently in step with it, so the dock,
+   * the lock screen and headphone buttons (which all drive THIS player) keep
+   * working: what they do here is mirrored onto the engine. Muted, it stops
+   * publishing its position; the engine publishes instead.
+   */
+  const setMuted = useCallback((muted: boolean) => {
+    twinMutedRef.current = muted;
+    try {
+      player.volume = muted ? 0 : 1;
+    } catch (err) {
+      console.warn("FULL setMuted error", err);
+    }
+  }, [player]);
+
   const setPlaybackRate = useCallback((rate: number) => {
     const nextRate = Math.max(0.5, Math.min(rate, 2));
     try {
@@ -858,6 +877,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       seekTo,
       seekBy,
       setPlaybackRate,
+      setMuted,
       updateLockScreenMetadata,
     }),
     [
@@ -881,6 +901,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       seekTo,
       seekBy,
       setPlaybackRate,
+      setMuted,
       updateLockScreenMetadata,
     ]
   );

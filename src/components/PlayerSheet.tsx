@@ -15,7 +15,7 @@ import { useStore } from "../state/useStore";
 import { usePlayerSheetPosition } from "../hooks/PlayerSheetPositionProvider";
 import { colors, radii } from "../design/tokens";
 import { haptic } from "../design/haptics";
-import { shouldObscurePlayerSheet } from "./playerSheetVisibility";
+import { AUDIO_TAKING_ROUTES, shouldObscurePlayerSheet } from "./playerSheetVisibility";
 import { ReelStageVisibleContext } from "./visualizers/reelStage";
 import { useTranslation } from "react-i18next";
 
@@ -179,6 +179,7 @@ export function PlayerSheet({ activeRouteName, isDrawerOpen, navigateRoot }: Pla
             <PlayerScreen
               navigation={sheetNavigation}
               isActive={isActive}
+              audioYielded={AUDIO_TAKING_ROUTES.has(activeRouteName)}
               dragY={dragY}
               sheetInMotion={inMotion}
             />

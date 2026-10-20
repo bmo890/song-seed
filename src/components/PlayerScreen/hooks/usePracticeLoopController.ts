@@ -210,12 +210,43 @@ export function usePracticeLoopController({
     setLoopState("idle");
   }, [clearWrapTimer, setLoopState, suppressLoopBriefly]);
 
+  // A loop belongs to the clip it was set on (founder, 2026-10-21: "speed and
+  // tone etc should only be relevant for the clip it was done on"). Each clip
+  // in the session keeps its own on/off and range; a clip never looped starts
+  // off, on the default region. Lives as long as the player session.
+  const loopByClipRef = useRef(new Map<string, { enabled: boolean; range: LoopRange }>());
+  const loopClipIdRef = useRef<string | null | undefined>(undefined);
+  // A fresh clip's default region was built from whatever length was known at
+  // the switch (often the previous clip's); rebuild it once the real one lands.
+  const defaultBuiltForMsRef = useRef<number | null>(null);
   useEffect(() => {
-    const next = buildDefaultLoopRegion(durationMs);
-    // Same range → same object: the engine's duration settling a few ms away
-    // from the stored one used to reset the loop (and everything keyed on it).
+    if (clipId !== loopClipIdRef.current) {
+      const previous = loopClipIdRef.current;
+      if (previous) {
+        loopByClipRef.current.set(previous, {
+          enabled: practiceLoopEnabledRef.current,
+          range: practiceLoopRangeRef.current,
+        });
+      }
+      loopClipIdRef.current = clipId;
+      const saved = clipId ? loopByClipRef.current.get(clipId) : undefined;
+      setPracticeLoopEnabled(saved?.enabled ?? false);
+      setPracticeLoopRange(saved?.range ?? buildDefaultLoopRegion(durationMs));
+      defaultBuiltForMsRef.current = saved ? null : durationMs;
+      return;
+    }
+    if (durationMs <= 0) return;
+    const builtFor = defaultBuiltForMsRef.current;
+    defaultBuiltForMsRef.current = null;
+    if (builtFor !== null && Math.abs(builtFor - durationMs) > 500) {
+      setPracticeLoopRange(buildDefaultLoopRegion(durationMs));
+      return;
+    }
+    // Same clip, its length settled: keep the range unless it no longer fits.
     setPracticeLoopRange((current) =>
-      current.start === next.start && current.end === next.end ? current : next
+      current.end > current.start && current.end <= durationMs + 50
+        ? current
+        : buildDefaultLoopRegion(durationMs)
     );
   }, [clipId, durationMs]);
 

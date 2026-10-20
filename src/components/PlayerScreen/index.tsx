@@ -18,6 +18,7 @@ import { wasLyricsEditedSinceTake } from "../../domain/lyrics";
 import { usePracticeLoopController } from "./hooks/usePracticeLoopController";
 import { usePlayerSpeedControls } from "./hooks/usePlayerSpeedControls";
 import { useStepUpLoop } from "./hooks/useStepUpLoop";
+import { usePerClipPractice } from "./hooks/usePerClipPractice";
 import { clickRateBounds } from "../../domain/stepUpLoop";
 import { haptic } from "../../design/haptics";
 import { toast } from "../common/toastStore";
@@ -184,11 +185,15 @@ export const PlayerScreen = React.memo(PlayerScreenInner);
 function PlayerScreenInner({
   navigation,
   isActive,
+  audioYielded = false,
   dragY,
   sheetInMotion,
 }: {
   navigation: PlayerSheetNavigation;
   isActive: boolean;
+  /** A screen on top that takes the audio itself (recorder, editor): the
+   *  pitch/sound engine hands its transport back while it is up. */
+  audioYielded?: boolean;
   /** Sheet vertical offset owned by PlayerSheet (0 = open). The header drag
    *  gesture writes to it so the whole sheet tracks the thumb. */
   dragY: SharedValue<number>;
@@ -508,6 +513,10 @@ function PlayerScreenInner({
   const practicePitchTransport = usePlayerPracticePitchTransport({
     mode: ui.mode,
     isFocused,
+    // Docked, or under the drawer or a lyric editor, the clip keeps sounding as
+    // set (2026-10-21: it used to snap back to its original pitch and tone).
+    engaged: !audioYielded,
+    sourceInSync: activePlayerTarget?.clipId === playerClip?.id,
     clip: playerClip
       ? {
           id: playerClip.id,
@@ -530,6 +539,7 @@ function PlayerScreenInner({
     playFullPlayer: playPlayer,
     seekFullPlayerTo: seekTo,
     setFullPlayerPlaybackRate: setPlaybackRate,
+    setFullPlayerMuted: fullPlayer.setMuted,
   });
   // Stale-position invariant: until the engine's loaded target matches the on-screen
   // clip (the source swap hasn't completed — or failed silently), whatever position the
@@ -571,6 +581,24 @@ function PlayerScreenInner({
     isPlaying: effectiveIsPlaying,
     playbackRate: effectivePlaybackRate,
     getPositionMs: () => playerPositionMsRef.current,
+  });
+  // Speed, pitch, click and count-in belong to the clip they were set on.
+  usePerClipPractice({
+    clipId: playerClip?.id,
+    current: {
+      pitchSemitones: ui.pitchShiftSemitones,
+      playbackRate: effectivePlaybackRate,
+      clickEnabled: playbackClick.enabled,
+      countIn: ui.countInOption,
+    },
+    apply: (settings) => {
+      if (ui.pitchShiftSemitones !== settings.pitchSemitones) ui.setPitchShiftSemitones(settings.pitchSemitones);
+      if (Math.abs(effectivePlaybackRate - settings.playbackRate) > 0.001) {
+        void practicePitchTransport.setPlaybackRate(settings.playbackRate);
+      }
+      if (playbackClick.enabled !== settings.clickEnabled) playbackClick.setEnabled(settings.clickEnabled);
+      if (ui.countInOption !== settings.countIn) ui.setCountInOption(settings.countIn);
+    },
   });
   const playbackClickLevel = useStore((s) => s.playbackClickLevel);
   const setPlaybackClickLevel = useStore((s) => s.setPlaybackClickLevel);
