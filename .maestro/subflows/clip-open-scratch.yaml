@@ -1,0 +1,49 @@
+# Reusable: cold-launch and open a throwaway "Maestro Clips" collection in the
+# primary workspace, creating it if it doesn't exist, then clear anything a
+# previous run left in it. The clip flows work ONLY in this collection: their
+# cleanup uses "Select all", which must never run in a real collection (on a
+# seeded/test library, "Ideas" holds hundreds of ideas). clip-close-scratch.yaml
+# deletes the collection again at the end of each flow.
+appId: com.bmostudio.songnook.dev
+---
+- runFlow: open-library.yaml
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn:
+    id: "nav-collections"
+- extendedWaitUntil:
+    visible:
+      id: "workspace-add-collection"
+    timeout: 10000
+- runFlow: dismiss-logbox.yaml
+- runFlow:
+    when:
+      visible:
+        id: "collection-card-maestro-clips"
+    commands:
+      - tapOn:
+          id: "collection-card-maestro-clips"
+- runFlow:
+    when:
+      notVisible:
+        id: "collection-search"
+    commands:
+      - tapOn:
+          id: "workspace-add-collection"
+      - extendedWaitUntil:
+          visible:
+            id: "quickname-input"
+          timeout: 10000
+      - tapOn:
+          id: "quickname-input"
+      - inputText: "Maestro Clips"
+      - tapOn:
+          id: "quickname-save"
+- extendedWaitUntil:
+    visible:
+      id: "collection-search"
+    timeout: 10000
+- assertVisible: "Maestro Clips"
+- runFlow: dismiss-logbox.yaml
+- runFlow: clip-reset.yaml

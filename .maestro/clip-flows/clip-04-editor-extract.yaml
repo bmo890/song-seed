@@ -1,74 +1,47 @@
-# Editor extract: mark a region and extract it into a new clip, confirming the
+# Editor extract: mark a part and save it as its own clip, confirming the
 # extracted (short) clip is created. Exercises the editor's real output path
-# (part → Save clips → the sheet's Save), not just mounting. Self-cleaning.
-# Requires scripts/push-dev-samples.sh.
+# (Keep → Add part → Save clips → the sheet's Save), not just mounting. Runs in
+# the scratch "Maestro Clips" collection and deletes it at the end. Requires dev
+# samples.
 appId: com.bmostudio.songnook.dev
 ---
-- runFlow: ../subflows/open-library.yaml
-- tapOn: ".*Ideas.*"
-- extendedWaitUntil:
-    visible:
-      id: "fab-record"
-    timeout: 15000
-- runFlow: reset-clips.yaml
-- runFlow: ../subflows/dismiss-logbox.yaml
-- tapOn:
-    id: "collection-overflow"
-- waitForAnimationToEnd
-- tapOn:
-    id: "collection-menu-dev-samples"
-- extendedWaitUntil:
-    visible: ".*sample-01.*"
-    timeout: 20000
+- runFlow: ../subflows/clip-open-scratch.yaml
+- runFlow: ../subflows/clip-import-samples.yaml
+- runFlow: ../subflows/clip-open-sample-01.yaml
 # Open the editor on the clip.
-- tapOn: ".*sample-01.*"
-- extendedWaitUntil:
-    visible: "More options"
-    timeout: 10000
 - tapOn: "More options"
 - extendedWaitUntil:
     visible: "Trim audio"
     timeout: 5000
 - tapOn: "Trim audio"
 - extendedWaitUntil:
-    visible: ".*Add part.*"
+    visible: "Add part"
     timeout: 10000
-# Mark a region and extract it into a new clip.
-- tapOn: ".*Add part.*"
+# Mark a part and save it as a new clip.
+- tapOn: "Add part"
 - extendedWaitUntil:
-    visible: "Save clips"
+    visible: "PARTS · 1"
     timeout: 8000
 - tapOn: "Save clips"
 - extendedWaitUntil:
     visible: "Save 1 clip"
     timeout: 8000
 - tapOn: "Save"
-# Back on the player — the short extracted clip (~4-5s) now exists.
+# The short extracted part (~4 s, "sample-01 v2") now exists as its own clip.
 - extendedWaitUntil:
-    visible: ".*00:0[45].*"
+    visible: ".*00:0[3-5].*|.*0:0[3-5].*"
     timeout: 10000
 - runFlow:
     when:
-      visible: "Minimize player"
+      visible:
+        id: "transport-close"
     commands:
-      - tapOn: "Minimize player"
+      - tapOn:
+          id: "transport-close"
       - waitForAnimationToEnd
 - extendedWaitUntil:
     visible:
-      id: "fab-record"
+      id: "collection-search"
     timeout: 10000
-# Clean up.
-- longPressOn: ".*sample-0.*"
-- extendedWaitUntil:
-    visible: "Select all"
-    timeout: 5000
-- tapOn: "Select all"
-- tapOn: ".*Delete"
-- extendedWaitUntil:
-    visible: ".*Delete selected items.*"
-    timeout: 5000
-- tapOn:
-    id: "dialog-btn-delete"
-- extendedWaitUntil:
-    notVisible: ".*sample-0.*"
-    timeout: 8000
+- assertVisible: ".*sample-01 v2.*0:0[3-5].*"
+- runFlow: ../subflows/clip-close-scratch.yaml

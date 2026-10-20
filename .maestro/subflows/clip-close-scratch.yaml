@@ -1,0 +1,11 @@
+# Reusable: end-of-flow cleanup for the clip flows. From anywhere: relaunch, go to
+# the workspace's Collections page and delete the scratch "Maestro Clips"
+# collection (with whatever is still in it). Keeps every clip flow self-cleaning.
+appId: com.bmostudio.songnook.dev
+---
+- runFlow:
+    file: delete-collection.yaml
+    env:
+      SLUG: "maestro-clips"
+- assertNotVisible:
+    id: "collection-card-maestro-clips"

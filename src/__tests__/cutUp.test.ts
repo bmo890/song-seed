@@ -320,8 +320,9 @@ describe("the table (ruled canvas)", () => {
   it("canvasLines groups by band, orders by x, and marks blank rules", () => {
     const items = [item("a", 60, 0), item("b", 0, 0), item("d", 0, 3)];
     expect(canvasLines(items, false)).toEqual([["b", "a"], [], ["d"]]);
-    // RTL reads right-to-left within a band.
-    expect(canvasLines(items, true)[0]).toEqual(["a", "b"]);
+    // x is measured from the line's start edge, so RTL reads the same order
+    // (the board draws it from the right).
+    expect(canvasLines(items, true)[0]).toEqual(["b", "a"]);
   });
 
   it("a run of empty rules collapses to a single blank line", () => {

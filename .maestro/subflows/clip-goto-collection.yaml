@@ -1,0 +1,20 @@
+# Reusable: drawer → Collections → open collection-card-${SLUG} (no relaunch, so a
+# pending copy/move "Paste here" bar survives the trip).
+appId: com.bmostudio.songnook.dev
+---
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn:
+    id: "nav-collections"
+- extendedWaitUntil:
+    visible:
+      id: "collection-card-${SLUG}"
+    timeout: 10000
+- tapOn:
+    id: "collection-card-${SLUG}"
+- extendedWaitUntil:
+    visible:
+      id: "collection-search"
+    timeout: 10000
+- runFlow: dismiss-logbox.yaml

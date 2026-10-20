@@ -1,0 +1,38 @@
+# Reusable: relaunch, open the workspace's Collections page and delete the
+# collection whose row testID is collection-card-${SLUG} (with whatever is in it).
+# A no-op when that collection doesn't exist (safe as a pre-clean).
+appId: com.bmostudio.songnook.dev
+---
+- runFlow: open-library.yaml
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn:
+    id: "nav-collections"
+- extendedWaitUntil:
+    visible:
+      id: "workspace-add-collection"
+    timeout: 10000
+- runFlow: dismiss-logbox.yaml
+- runFlow:
+    when:
+      visible:
+        id: "collection-card-${SLUG}"
+    commands:
+      - longPressOn:
+          id: "collection-card-${SLUG}"
+      - runFlow: dismiss-logbox.yaml
+      - extendedWaitUntil:
+          visible: ".*Delete"
+          timeout: 5000
+      - tapOn: ".*Delete"
+      - extendedWaitUntil:
+          visible:
+            id: "dialog-btn-delete"
+          timeout: 5000
+      - tapOn:
+          id: "dialog-btn-delete"
+      - extendedWaitUntil:
+          notVisible:
+            id: "collection-card-${SLUG}"
+          timeout: 8000

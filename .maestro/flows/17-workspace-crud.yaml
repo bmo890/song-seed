@@ -1,5 +1,6 @@
-# Workspace management: open the workspace picker, create a workspace, confirm it
-# lists, then delete it via its action sheet. Self-cleaning. Exercises the picker,
+# Workspace management: open Your workspaces (a place: rows on paper, one row per
+# workspace with a bare "…" glyph), create a workspace, confirm it lists, then
+# delete it via its row's "…" menu. Self-cleaning. Exercises the picker,
 # WorkspaceModal, workspace creation, and the per-workspace action sheet.
 appId: com.bmostudio.songnook.dev
 ---
@@ -11,13 +12,13 @@ appId: com.bmostudio.songnook.dev
     id: "workspace-switch"
 - waitForAnimationToEnd
 - extendedWaitUntil:
-    visible: ".*Your Workspaces.*"
+    visible: "Your workspaces"
     timeout: 10000
 # Create a workspace.
 - tapOn:
     id: "workspace-add"
 - extendedWaitUntil:
-    visible: "New Workspace"
+    visible: "New workspace"
     timeout: 10000
 - tapOn:
     id: "workspace-name-input"
@@ -26,7 +27,7 @@ appId: com.bmostudio.songnook.dev
 - extendedWaitUntil:
     visible: ".*Maestro Workspace.*"
     timeout: 10000
-# Delete it via the card's ellipsis (title-based testID) → action sheet → Delete
+# Delete it via the row's "…" (title-based testID) → action sheet → Delete
 # → confirm dialog.
 - tapOn:
     id: "workspace-actions-maestro-workspace"

@@ -1,54 +1,39 @@
-# Paywall: Settings → Upgrade to Pro opens the ProUpsellSheet; CTA shows the
-# pre-billing preview notice; restore gives the friendly nothing-to-restore message.
+# Paywall: the ProUpsellSheet renders its pitch, plans and CTA; the CTA shows the
+# pre-billing inline notice; Restore shows the nothing-to-restore notice; "Not now"
+# closes it. During the beta every Pro feature is unlocked, so Settings → Account &
+# Pro no longer carries an "Upgrade to Pro" row — the sheet is reached through the
+# __DEV__ "Pro sheet (dev)" item in the collection "…" menu, which opens the same
+# sheet the real Pro gates open.
 appId: com.bmostudio.songnook.dev
 ---
-- launchApp:
-    stopApp: true
-- runFlow:
-    when:
-      visible: ".*Back up your library.*"
-    commands:
-      - tapOn: "Later"
-- extendedWaitUntil:
-    visible: ".*Ideas.*"
-    timeout: 60000
-- runFlow:
-    when:
-      visible: ".*Open debugger.*"
-    commands:
-      - tapOn:
-          point: 92%,93%
+- runFlow: ../subflows/open-ideas.yaml
 - tapOn:
-    id: "header-menu"
-- extendedWaitUntil:
-    visible: ".*Settings.*"
-    timeout: 5000
+    id: "collection-overflow"
 - waitForAnimationToEnd
-- tapOn: ".*Settings.*"
+- tapOn:
+    id: "collection-menu-dev-pro"
 - extendedWaitUntil:
-    visible: ".*Upgrade to Pro.*"
+    visible: "Finish more songs"
     timeout: 10000
-- tapOn: ".*Upgrade to Pro.*"
-- extendedWaitUntil:
-    visible: ".*Grow every idea.*"
-    timeout: 10000
-- assertVisible: ".*Practice suite.*"
-- assertVisible: ".*Start free trial.*"
+- assertVisible: "Practice tools"
+- assertVisible: ".*Yearly.*"
+- assertVisible: "Get Pro"
 - waitForAnimationToEnd
-- tapOn: ".*Start free trial.*"
-# Billing stub → INLINE preview notice inside the sheet (not a dialog — a dialog can't
+- tapOn: "Get Pro"
+# Billing stub → INLINE notice inside the sheet (not a dialog — a dialog can't
 # present over the sheet's own Modal on iOS; see ProUpsellSheet).
 - extendedWaitUntil:
-    visible: ".*preview of the upgrade.*"
+    visible: ".*Purchases aren.t open yet.*"
     timeout: 10000
 # Restore link → inline nothing-to-restore notice.
 - tapOn: "Restore"
 - extendedWaitUntil:
-    visible: ".*no purchases to restore.*"
+    visible: ".*Nothing to restore yet.*"
     timeout: 10000
-# Dismiss the sheet via the backdrop; land back on Settings.
-- tapOn:
-    point: 50%,6%
+# "Not now" closes the sheet; land back on the collection.
+- tapOn: "Not now"
 - extendedWaitUntil:
-    visible: ".*SongNook Pro.*"
+    notVisible: "Finish more songs"
     timeout: 10000
+- assertVisible:
+    id: "collection-search"

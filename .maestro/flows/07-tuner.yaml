@@ -9,7 +9,7 @@ appId: com.bmostudio.songnook.dev
     id: "header-menu"
 - waitForAnimationToEnd
 - tapOn:
-    id: "nav-row-tuner"
+    id: "nav-tool-tuner"
 - waitForAnimationToEnd
 # First launch may raise the iOS mic-permission alert — grant it if present.
 - runFlow:
@@ -24,7 +24,7 @@ appId: com.bmostudio.songnook.dev
       - tapOn: "OK"
 # Listening UI is up.
 - extendedWaitUntil:
-    visible: ".*Tuner.*"
+    visible: "Tuner"
     timeout: 10000
-- assertVisible: ".*LISTENING.*"
-- assertVisible: ".*Hold the phone near your instrument.*"
+- assertVisible: "LISTENING"
+- assertVisible: "Play one string at a time."

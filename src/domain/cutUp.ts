@@ -782,11 +782,14 @@ export function packSourceLines(
   });
 }
 
-/** The canvas read back as lines of scrap ids: bands in order, each sorted by x
- * (descending for RTL). A single empty rule between lines is just breathing room
- * (no blank); a gap of MIN_BLANK_EMPTY_RULES or more empty rules reads as one
- * blank line. */
-export function canvasLines(items: CutUpBoardItem[], rtl: boolean): string[][] {
+/** The canvas read back as lines of scrap ids: bands in order, each sorted by x.
+ * A scrap's x is its distance from where a line STARTS (the left edge for
+ * English, the right edge for Hebrew; the board draws it mirrored), so reading
+ * order is ascending x in both directions (2026-10-20: a Hebrew table was
+ * dealt from the left while read from the right, so lines came out backwards).
+ * A single empty rule between lines is just breathing room (no blank); a gap of
+ * MIN_BLANK_EMPTY_RULES or more empty rules reads as one blank line. */
+export function canvasLines(items: CutUpBoardItem[], _rtl?: boolean): string[][] {
   const byBand = new Map<number, CutUpBoardItem[]>();
   for (const it of items) {
     if (it.removed || typeof it.y !== "number") continue;
@@ -800,7 +803,7 @@ export function canvasLines(items: CutUpBoardItem[], rtl: boolean): string[][] {
     if (i > 0 && bands[i] - bands[i - 1] - 1 >= MIN_BLANK_EMPTY_RULES) out.push([]);
     const sorted = (byBand.get(bands[i]) ?? [])
       .slice()
-      .sort((a, b) => (rtl ? (b.x ?? 0) - (a.x ?? 0) : (a.x ?? 0) - (b.x ?? 0)));
+      .sort((a, b) => (a.x ?? 0) - (b.x ?? 0));
     out.push(sorted.map((it) => it.id));
   }
   return out;

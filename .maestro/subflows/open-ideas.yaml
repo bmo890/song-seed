@@ -1,0 +1,25 @@
+# Reusable: cold-launch (open-library) and then open the primary workspace's
+# "Ideas" collection deterministically through the drawer's Collections door,
+# whatever the app's "Open to" startup setting landed on. Ends on the
+# collection screen (the `collection-search` field is the landmark — the sketch
+# page also carries `fab-record`, so that id no longer proves we're on a list).
+appId: com.bmostudio.songnook.dev
+---
+- runFlow: open-library.yaml
+- tapOn:
+    id: "header-menu"
+- waitForAnimationToEnd
+- tapOn:
+    id: "nav-collections"
+- extendedWaitUntil:
+    visible:
+      id: "collection-card-ideas"
+    timeout: 10000
+- tapOn:
+    id: "collection-card-ideas"
+- extendedWaitUntil:
+    visible:
+      id: "collection-search"
+    timeout: 15000
+- runFlow: dismiss-logbox.yaml
+- waitForAnimationToEnd

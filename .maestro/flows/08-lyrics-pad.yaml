@@ -1,8 +1,9 @@
-# Lyrics Pad note editing + autosave. Robust to both landing states: with no
-# existing notes the pad opens straight into a blank editor; with notes it opens
-# the index (tap "New Page" to get an editor). We type a line, confirm it renders
-# (autosaved into the note), then clear it so the flow leaves an empty page.
-# Exercises the notepad editor text input and autosave.
+# Lyric Pad page editing + autosave. Opens the pad's index (a place), adds a New
+# page, types a line, backs out to the index and confirms the line autosaved into
+# the page's preview, reopens the page, then deletes it through the editor's "…"
+# menu (Text direction / Pin / Delete live there now) → confirm. Self-cleaning.
+# Exercises the notepad editor text input, autosave, the index preview, and the
+# page "…" menu.
 appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
@@ -10,29 +11,46 @@ appId: com.bmostudio.songnook.dev
     id: "header-menu"
 - waitForAnimationToEnd
 - tapOn:
-    id: "nav-row-lyrics-pad"
+    id: "nav-row-lyric-pad"
 - waitForAnimationToEnd
 - extendedWaitUntil:
-    visible: ".*Lyrics Pad.*"
+    visible: "Lyric Pad"
     timeout: 10000
-# If we landed on the notes index (notes already exist), open a page editor.
-# If we landed straight in the editor (no notes yet), this is skipped.
-- runFlow:
-    when:
-      visible: ".*New Page.*"
-    commands:
-      - tapOn: ".*New Page.*"
-# Editor is open — "Word finder" is always present here (unlike the "Start writing…"
-# placeholder, which only shows while the body is empty).
+# New page (the place header's single right glyph).
+- tapOn: "New page"
 - extendedWaitUntil:
-    visible: ".*Word finder.*"
+    visible: "Word finder"
     timeout: 10000
-# Focus the empty body and type a line, then dismiss the keyboard via the date.
+# Focus the empty body and type a line, then dismiss the keyboard via the date line.
 - tapOn: ".*Start writing.*"
 - inputText: "Maestro lyric line"
-- tapOn: ".*JUL 2026.*"
+- tapOn: "\\d+ [A-Z]{3} \\d{4}"
 - assertVisible: ".*Maestro lyric line.*"
-# Clean up: clear the line, leaving an empty page (no residue).
+# Back to the index: the autosaved line shows in the page's preview.
+- tapOn: ".*Lyric Pad"
+- extendedWaitUntil:
+    visible: ".*Maestro lyric line.*"
+    timeout: 10000
+- assertVisible: "New page"
+# Reopen the page — the line is still there.
 - tapOn: ".*Maestro lyric line.*"
-- eraseText: 40
-- tapOn: ".*JUL 2026.*"
+- extendedWaitUntil:
+    visible: "Word finder"
+    timeout: 10000
+- assertVisible: ".*Maestro lyric line.*"
+# Clean up: "…" → Delete → confirm; back on the index, the page is gone.
+- tapOn: "More"
+- extendedWaitUntil:
+    visible: "Text direction"
+    timeout: 5000
+- assertVisible: "Pin"
+- tapOn: "Delete"
+- extendedWaitUntil:
+    visible: "Delete page?"
+    timeout: 5000
+- tapOn:
+    id: "dialog-btn-delete"
+- extendedWaitUntil:
+    visible: "New page"
+    timeout: 10000
+- assertNotVisible: ".*Maestro lyric line.*"

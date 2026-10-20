@@ -232,7 +232,12 @@ export function useWorkspaceArchiveActions({
         t(action === "archive" ? "workspaceArchive.archiveIncomplete" : "workspaceArchive.restoreIncomplete"),
         [
           successes.length > 0
-            ? t("workspaceArchive.actionSuccess", { count: successes.length, action: t(action === "archive" ? "workspaceArchiveVerbs.archived" : "workspaceArchiveVerbs.restored") })
+            ? t("workspaceArchive.actionSuccess", {
+                count: successes.length,
+                action: t(action === "archive" ? "workspaceArchiveVerbs.archived" : "workspaceArchiveVerbs.restored"),
+                // Hebrew agrees the verb with one workspace (אורכב, not אורכבו).
+                actionOne: t(action === "archive" ? "workspaceArchiveVerbs.archivedOne" : "workspaceArchiveVerbs.restoredOne"),
+              })
             : null,
           failures.join("\n"),
         ]
@@ -244,7 +249,12 @@ export function useWorkspaceArchiveActions({
 
     AppAlert.info(
       t(action === "archive" ? "workspaceArchive.workspacesArchived" : "workspaceArchive.workspacesRestored"),
-      t("workspaceArchive.actionSuccess", { count: successes.length, action: t(action === "archive" ? "workspaceArchiveVerbs.archived" : "workspaceArchiveVerbs.restored") })
+      t("workspaceArchive.actionSuccess", {
+                count: successes.length,
+                action: t(action === "archive" ? "workspaceArchiveVerbs.archived" : "workspaceArchiveVerbs.restored"),
+                // Hebrew agrees the verb with one workspace (אורכב, not אורכבו).
+                actionOne: t(action === "archive" ? "workspaceArchiveVerbs.archivedOne" : "workspaceArchiveVerbs.restoredOne"),
+              })
     );
   }
 

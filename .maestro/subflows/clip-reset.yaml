@@ -1,0 +1,27 @@
+# Reusable: clear everything left in the scratch "Maestro Clips" collection (the
+# dev-sample clips, the "Maestro Dev Song" sketch, a renamed clip) so a following
+# dev-sample import runs clean. No-op when the collection is already empty.
+# ONLY call this inside the scratch collection — it uses "Select all".
+appId: com.bmostudio.songnook.dev
+---
+- assertVisible: "Maestro Clips"
+- runFlow:
+    when:
+      visible: ".*(sample-0|Maestro Dev Song|Renamed Clip).*"
+    commands:
+      - longPressOn: ".*(sample-0|Maestro Dev Song|Renamed Clip).*"
+      - extendedWaitUntil:
+          visible:
+            id: "selection-count"
+          timeout: 5000
+      - tapOn: "Select all"
+      - runFlow: dismiss-logbox.yaml
+      - tapOn: ".*Delete"
+      - extendedWaitUntil:
+          visible: ".*Delete selected items.*"
+          timeout: 5000
+      - tapOn:
+          id: "dialog-btn-delete"
+      - extendedWaitUntil:
+          notVisible: ".*(sample-0|Maestro Dev Song|Renamed Clip).*"
+          timeout: 8000

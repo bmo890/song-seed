@@ -1,8 +1,9 @@
-# Deeper Settings/Library views open and back out: Export an archive, Import an
-# archive, Storage details. These are complex screens where a crash would be bad,
+# Deeper Settings → Data & storage views open and back out: Export an archive,
+# Import an archive, Storage details. These are complex screens where a crash would be bad,
 # so opening + rendering each is high-value. Deliberately does NOT tap Back up /
-# Restore (those kick off real file operations / system sheets). The Export/Import/
-# Storage cards live in the SHARE & MOVE section below the fold — scroll to each.
+# Restore (those kick off real file operations / system sheets). The Export/Import
+# rows live under SHARE & MOVE and Storage details under MAINTENANCE, at or below
+# the fold — scroll to each.
 appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
@@ -13,12 +14,13 @@ appId: com.bmostudio.songnook.dev
     id: "nav-row-settings"
 - waitForAnimationToEnd
 - extendedWaitUntil:
-    visible: ".*STARTUP.*"
+    visible:
+      id: "settings-card-data-storage"
     timeout: 10000
 - tapOn:
-    id: "settings-card-library-backups"
+    id: "settings-card-data-storage"
 - extendedWaitUntil:
-    visible: ".*SAFETY COPY.*"
+    visible: "SAFETY COPY"
     timeout: 10000
 # --- Export an archive ---
 - scrollUntilVisible:
@@ -28,11 +30,13 @@ appId: com.bmostudio.songnook.dev
 - tapOn:
     id: "settings-card-export-an-archive"
 - extendedWaitUntil:
-    visible: ".*Parts of your work.*|.*Whole library.*|.*Export.*"
+    visible: "Export archive"
     timeout: 10000
+- assertVisible: "FORMAT"
+- assertVisible: "SCOPE"
 - tapOn: "Back"
 - extendedWaitUntil:
-    visible: ".*SAFETY COPY.*"
+    visible: "SAFETY COPY"
     timeout: 10000
 # --- Import an archive ---
 - scrollUntilVisible:
@@ -42,11 +46,12 @@ appId: com.bmostudio.songnook.dev
 - tapOn:
     id: "settings-card-import-an-archive"
 - extendedWaitUntil:
-    visible: ".*archive.*|.*Import.*|.*Merge.*"
+    visible: "Import archive"
     timeout: 10000
+- assertVisible: "Choose file"
 - tapOn: "Back"
 - extendedWaitUntil:
-    visible: ".*SAFETY COPY.*"
+    visible: "SAFETY COPY"
     timeout: 10000
 # --- Storage details ---
 - scrollUntilVisible:
@@ -56,9 +61,10 @@ appId: com.bmostudio.songnook.dev
 - tapOn:
     id: "settings-card-storage-details"
 - extendedWaitUntil:
-    visible: ".*storage.*|.*Managed audio.*|.*Library data.*"
+    visible: "Storage details"
     timeout: 10000
+- assertVisible: "Check integrity"
 - tapOn: "Back"
 - extendedWaitUntil:
-    visible: ".*SAFETY COPY.*"
+    visible: "SAFETY COPY"
     timeout: 10000

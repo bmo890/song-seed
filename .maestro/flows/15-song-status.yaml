@@ -1,64 +1,66 @@
-# Song status / progress editing. In the New Song sheet, the SEED/SPROUT/STEM/SONG
-# chips drive the completion %: SONG→75%, SEED→0%. Verify that binding, then save a
-# song at SONG status, confirm it lands, and delete it. Self-cleaning. Exercises the
-# StatusChipRow ↔ completion coupling and that saved status renders in the list.
+# Sketch stage editing. The old SEED/SPROUT/STEM/SONG chips + "Completion %" readout
+# became a single-select ink row of stages (Early / Rough / Close / Song) in the
+# New sketch sheet; the chosen one carries the selected state. Verify the
+# selection moves (Early → Song → Early), then save a sketch at Song, confirm the
+# stage renders on the sketch page header and on its card in the list, and delete
+# it. Self-cleaning. Exercises the stage row ↔ status binding and that the saved
+# stage renders.
 appId: com.bmostudio.songnook.dev
 ---
-- runFlow: ../subflows/open-library.yaml
-- tapOn: ".*Ideas.*"
-- extendedWaitUntil:
-    visible:
-      id: "fab-record"
-    timeout: 15000
-- runFlow: ../subflows/dismiss-logbox.yaml
-- waitForAnimationToEnd
+- runFlow: ../subflows/open-ideas.yaml
 - tapOn:
     id: "collection-overflow"
 - waitForAnimationToEnd
 - tapOn:
     id: "collection-menu-new-song"
 - extendedWaitUntil:
-    visible: "New Song"
+    visible: "New sketch"
     timeout: 10000
-# Fresh draft starts at 0%.
-- assertVisible: ".*Completion: 0%.*"
-# SONG chip drives completion to 75%.
-- tapOn: "SONG"
+# A fresh draft starts at Early.
+- assertVisible:
+    text: "Early"
+    selected: true
+# Song takes the selection…
+- tapOn: "Song"
 - extendedWaitUntil:
-    visible: ".*Completion: 75%.*"
+    visible:
+      text: "Song"
+      selected: true
     timeout: 5000
-# SEED chip drops it back to 0%.
-- tapOn: "SEED"
+- assertNotVisible:
+    text: "Early"
+    selected: true
+# …and Early takes it back.
+- tapOn: "Early"
 - extendedWaitUntil:
-    visible: ".*Completion: 0%.*"
+    visible:
+      text: "Early"
+      selected: true
     timeout: 5000
-# Name it, set to SONG, and save.
+- assertNotVisible:
+    text: "Song"
+    selected: true
+# Name it, set it to Song, and save.
 - tapOn:
     id: "song-title-input"
 - eraseText: 40
 - inputText: "Maestro Status Song"
-- tapOn: "SONG"
+- tapOn: "Song"
 - tapOn: "Save"
 - extendedWaitUntil:
-    visible: "Maestro Status Song"
+    notVisible: "New sketch"
     timeout: 10000
-# Back to the list; the card shows SONG status.
+# The sketch page header carries the stage ink.
+- assertVisible: "Maestro Status Song"
+- assertVisible: "SONG"
+# Back to the list; the card shows the Song stage.
 - tapOn:
     id: "song-header-back"
 - extendedWaitUntil:
-    visible: ".*Maestro Status Song.*SONG.*"
+    visible: ".*Maestro Status Song, SONG.*"
     timeout: 10000
 # Clean up.
-- longPressOn: ".*Maestro Status Song.*"
-- extendedWaitUntil:
-    visible: ".*Delete"
-    timeout: 5000
-- tapOn: ".*Delete"
-- extendedWaitUntil:
-    visible: ".*Delete selected items.*"
-    timeout: 5000
-- tapOn:
-    id: "dialog-btn-delete"
-- extendedWaitUntil:
-    visible: ".*Deleted 1 item.*"
-    timeout: 5000
+- runFlow:
+    file: ../subflows/delete-idea.yaml
+    env:
+      TITLE: "Maestro Status Song"
