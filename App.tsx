@@ -107,7 +107,8 @@ import {
   buildBackupReminderPromptMessage,
   shouldPromptForBackupReminder,
 } from "./src/services/backupStatus";
-import { resumePendingWorkspaceArchiveOperations } from "./src/services/workspaceArchiveRecovery";
+import { hasPendingWorkspaceArchiveOperations, resumePendingWorkspaceArchiveOperations } from "./src/services/workspaceArchiveRecovery";
+import { sweepPickerCache } from "./src/services/pickedCopies";
 import { enqueueMissingMetadataBackfill } from "./src/services/backgroundWaveformHydration";
 import { recoverPendingRecordingSession } from "./src/services/recordingRecovery";
 import { cleanupStaleDisasterRecoveryBackupFiles } from "./src/services/disasterRecoveryBackup";
@@ -1282,6 +1283,11 @@ export default function App() {
       // Permanently purge quarantined (deleted) audio past its retention window.
       await purgeExpiredTrash();
       await resumePendingWorkspaceArchiveOperations();
+      // Picker copies left by an import (or a backup file picked for a restore) that a
+      // kill interrupted: nothing is mid-import at launch, so they go. Never the
+      // originals, which live outside the app; held back while an unarchive may still
+      // need a package it picked.
+      if (!(await hasPendingWorkspaceArchiveOperations())) await sweepPickerCache();
 
       // Backfill clip durations the import-time hydration queue never finished (it's
       // in-memory and single-shot: app restarts, probe timeouts, and archive restores

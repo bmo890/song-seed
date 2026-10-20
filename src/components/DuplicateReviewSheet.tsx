@@ -11,6 +11,7 @@ import { looksMachineNamed } from "../domain/titleNaming";
 import type { ImportedAudioAsset } from "../services/audioStorage";
 import type { DuplicateLocation } from "../services/importDuplicates";
 import { UserText } from "../i18n";
+import { discardPickedCopies } from "../services/pickedCopies";
 
 /**
  * Some of what you're importing is already in your library (rebuilt 2026-10-18 to the
@@ -143,12 +144,23 @@ export function DuplicateReviewSheet() {
     const sectionCount = (duplicateAssets.length > 0 ? 1 : 0) + (uniqueAssets.length > 0 ? 1 : 0);
     const listHeight = Math.min(rowCount, MAX_VISIBLE_ROWS) * ROW_HEIGHT + sectionCount * 34;
 
+    // Files left out never import: their picker copies (possibly a long video) are
+    // deleted at once, never the originals (pickedCopies.ts).
     function importTicked() {
+        void discardPickedCopies(allAssets.filter((asset) => !isTicked(asset)));
         onImportSubset?.(allAssets.filter(isTicked));
         dismiss();
     }
     function skip() {
+        void discardPickedCopies(duplicateAssets);
         onSkip();
+        dismiss();
+    }
+    // Cancel, swipe or scrim: nothing imports. Read from the store at call time: after a
+    // choice the review is already cleared, so a late close can never touch files that
+    // are being imported.
+    function cancel() {
+        void discardPickedCopies(useDuplicateReviewStore.getState().allAssets);
         dismiss();
     }
     function importAll() {
@@ -173,7 +185,7 @@ export function DuplicateReviewSheet() {
         ));
 
     return (
-        <BottomSheet visible={visible} onClose={dismiss}>
+        <BottomSheet visible={visible} onClose={cancel}>
             <View style={s.head}>
                 <Text style={s.heading}>{title}</Text>
                 <Text style={s.body}>{body}</Text>
@@ -202,7 +214,7 @@ export function DuplicateReviewSheet() {
                         disabled={tickedCount === 0}
                         onPress={importTicked}
                     />
-                    <Button variant="quiet" label={t("duplicateReview.cancel")} onPress={dismiss} />
+                    <Button variant="quiet" label={t("duplicateReview.cancel")} onPress={cancel} />
                 </View>
             ) : (
                 <View style={[s.actions, s.actionsRow]}>

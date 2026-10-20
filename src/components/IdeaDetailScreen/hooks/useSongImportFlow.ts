@@ -10,6 +10,7 @@ import { ensureUniqueCountedTitle } from "../../../utils";
 import { buildImportedAssetDateMetadata, promptForImportDatePreference, type ImportDatePreference } from "../../../domain/importDates";
 import type { SongIdea } from "../../../types";
 import { afterOverlayCloses } from "../../common/afterOverlayCloses";
+import { discardPickedCopies } from "../../../services/pickedCopies";
 
 type SongImportFlowParams = {
   selectedIdea: SongIdea | null | undefined;
@@ -31,12 +32,19 @@ export function useSongImportFlow({ selectedIdea, songClipTitles }: SongImportFl
     setImportAsPrimary(false);
   }
 
+  /** The name sheet's Cancel: nothing imports, so the picked copy goes. */
+  function cancelImportModal() {
+    if (importAsset) void discardPickedCopies([importAsset]);
+    resetImportModal();
+  }
+
   async function openImportAudioFlow() {
     if (!selectedIdea || selectedIdea.kind !== "project") return;
     const [asset] = await pickImportAssets({ multiple: false });
     if (!asset) return;
     const datePreference = await promptForImportDatePreference([asset], i18n.t("songDetail.importAudio"));
-    if (!datePreference) return;
+    // Cancelled before importing: the picker's copy goes, never the original.
+    if (!datePreference) return void discardPickedCopies([asset]);
     setImportAsset(asset);
     setImportDatePreference(datePreference);
     setImportDraft("");
@@ -116,6 +124,7 @@ export function useSongImportFlow({ selectedIdea, songClipTitles }: SongImportFl
     setImportDraft,
     setImportAsPrimary,
     resetImportModal,
+    cancelImportModal,
     openImportAudioFlow,
     saveImportedAudio,
   };

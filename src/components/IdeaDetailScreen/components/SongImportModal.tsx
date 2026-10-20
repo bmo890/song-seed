@@ -26,7 +26,7 @@ export function SongImportModal() {
       onChangeDraft={importFlow.setImportDraft}
       isPrimary={importFlow.importAsPrimary}
       onChangeIsPrimary={importFlow.setImportAsPrimary}
-      onCancel={importFlow.resetImportModal}
+      onCancel={importFlow.cancelImportModal}
       onSave={() => {
         void importFlow.saveImportedAudio();
       }}

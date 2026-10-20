@@ -19,6 +19,7 @@ import {
   promptForImportDatePreference,
   type ImportDatePreference,
 } from "../../../domain/importDates";
+import { discardPickedCopies } from "../../../services/pickedCopies";
 
 function buildDefaultCollectionTitle(count: number) {
   return `Collection ${count + 1}`;
@@ -63,12 +64,19 @@ export function useWorkspaceCollectionImportFlow({
     const assets = await pickImportAssets({ multiple: true });
     if (assets.length === 0) return;
     const datePreference = await promptForImportDatePreference(assets, "New collection from import");
-    if (!datePreference) return;
+    // Cancelled before importing: the picker's copies go, never the originals.
+    if (!datePreference) return void discardPickedCopies(assets);
 
     setImportCollectionAssets(assets);
     setImportCollectionDatePreference(datePreference);
     setImportCollectionDraft("");
     setImportCollectionModalOpen(true);
+  };
+
+  /** The name sheet's Cancel: nothing imports, so the picked copies go. */
+  const cancelImportCollectionModal = () => {
+    void discardPickedCopies(importCollectionAssets);
+    resetImportCollectionModal();
   };
 
   const resetImportCollectionModal = () => {
@@ -199,6 +207,7 @@ export function useWorkspaceCollectionImportFlow({
     openAddCollectionFlow,
     openCollectionImportFlow,
     resetImportCollectionModal,
+    cancelImportCollectionModal,
     createCollection,
     saveImportedCollection,
     defaultCollectionTitle: buildDefaultCollectionTitle(topLevelCollectionCount),

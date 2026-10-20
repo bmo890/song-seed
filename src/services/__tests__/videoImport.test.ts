@@ -15,6 +15,7 @@ jest.mock("expo-file-system/legacy", () => ({
     getInfoAsync: jest.fn(async () => ({ exists: true })),
     makeDirectoryAsync: jest.fn(async () => {}),
     copyAsync: jest.fn(async () => {}),
+    moveAsync: jest.fn(async () => {}),
     deleteAsync: jest.fn(async () => {}),
 }));
 jest.mock("expo-file-system", () => ({ File: class {} }));
@@ -39,7 +40,7 @@ import { importAudioAsset } from "../audioStorage";
 import { isSharedAudioFile } from "../shareImport";
 
 const nativeMock = SongNookPitchShiftModule as unknown as { extractAudioTrack?: jest.Mock };
-const fs = FileSystem as unknown as { copyAsync: jest.Mock; deleteAsync: jest.Mock };
+const fs = FileSystem as unknown as { copyAsync: jest.Mock; moveAsync: jest.Mock; deleteAsync: jest.Mock };
 
 describe("isVideoImport", () => {
     it.each([
@@ -108,12 +109,13 @@ describe("importAudioAsset — video", () => {
             inputUri: "file:///picked/IMG_1234.MOV",
             outputFileName: "clip-1-video.m4a",
         });
-        expect(fs.copyAsync).toHaveBeenCalledWith({
+        // The extracted sound is our own temp file: it MOVES into the library (a phone
+        // short of space never holds it twice), and the video is never copied at all.
+        expect(fs.moveAsync).toHaveBeenCalledWith({
             from: "file:///tmp/clip-1-video.m4a",
             to: "file:///docs/songnook/audio/clip-1.m4a",
         });
-        // The video itself is never copied into the library.
-        expect(fs.copyAsync).toHaveBeenCalledTimes(1);
+        expect(fs.copyAsync).not.toHaveBeenCalled();
         expect(fs.deleteAsync).toHaveBeenCalledWith("file:///tmp/clip-1-video.m4a", { idempotent: true });
         expect(result.audioUri).toBe("file:///docs/songnook/audio/clip-1.m4a");
         expect(result.durationMs).toBe(4200);
@@ -183,6 +185,39 @@ describe("importAudioAsset — video", () => {
         ).catch(() => {});
 
         expect(fs.deleteAsync).toHaveBeenCalledWith("file:///cache/ImagePicker/silent.mov", { idempotent: true });
+    });
+
+    it("moves the Files picker's cache copy into the library, and deletes nothing else", async () => {
+        nativeMock.extractAudioTrack = jest.fn();
+
+        await importAudioAsset(
+            { uri: "file:///cache/DocumentPicker/ABC.m4a", name: "take.m4a", discardSourceAfterImport: true },
+            "clip-9",
+            { lightweight: true }
+        );
+
+        expect(fs.moveAsync).toHaveBeenCalledWith({
+            from: "file:///cache/DocumentPicker/ABC.m4a",
+            to: "file:///docs/songnook/audio/clip-9.m4a",
+        });
+        expect(fs.copyAsync).not.toHaveBeenCalled();
+    });
+
+    it("never moves or deletes a file outside our cache, even one tagged discardable", async () => {
+        nativeMock.extractAudioTrack = jest.fn();
+
+        await importAudioAsset(
+            { uri: "file:///Users/someone/Music/original.m4a", name: "original.m4a", discardSourceAfterImport: true },
+            "clip-10",
+            { lightweight: true }
+        );
+
+        expect(fs.copyAsync).toHaveBeenCalledWith({
+            from: "file:///Users/someone/Music/original.m4a",
+            to: "file:///docs/songnook/audio/clip-10.m4a",
+        });
+        expect(fs.moveAsync).not.toHaveBeenCalled();
+        expect(fs.deleteAsync).not.toHaveBeenCalledWith("file:///Users/someone/Music/original.m4a", expect.anything());
     });
 
     it("copies an audio file as-is, with no extraction", async () => {
