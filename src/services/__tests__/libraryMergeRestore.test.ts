@@ -201,6 +201,37 @@ describe("mergeRestoredLibrary", () => {
         expect(merged.workspaceLastOpenedAt).toEqual({ "ws-1": 900, "ws-lost": 50 });
     });
 
+    it("never brings back a moved idea or take as a second copy (overnight check 2026-10-20)", () => {
+        // Since the backup: idea-2 moved from ws-1 to ws-2, and clip-b moved into idea-3.
+        const restored = snapshot({
+            workspaces: [
+                workspace("ws-1", [idea("idea-1", [clip("clip-a"), clip("clip-b")]), idea("idea-2", [clip("clip-c")])]),
+                workspace("ws-2", [], { collections: [{ id: "col-2", title: "Other", workspaceId: "ws-2", createdAt: 0, updatedAt: 0 }] }),
+            ],
+        });
+        const current = snapshot({
+            workspaces: [
+                workspace("ws-1", [idea("idea-1", [clip("clip-a")])]),
+                workspace("ws-2", [idea("idea-2", [clip("clip-c")], { collectionId: "col-2" }), idea("idea-3", [clip("clip-b")], { collectionId: "col-2" })], {
+                    collections: [{ id: "col-2", title: "Other", workspaceId: "ws-2", createdAt: 0, updatedAt: 0 }],
+                }),
+            ],
+        });
+
+        const merged = mergeRestoredLibrary(restored, current);
+        const ideaIds = merged.workspaces.flatMap((w) => w.ideas.map((i) => i.id));
+        const clipIds = merged.workspaces.flatMap((w) => w.ideas.flatMap((i) => i.clips.map((c) => c.id)));
+        expect(ideaIds.sort()).toEqual(["idea-1", "idea-2", "idea-3"]);
+        expect(clipIds.sort()).toEqual(["clip-a", "clip-b", "clip-c"]);
+    });
+
+    it("still brings back a deleted take whose sketch remains", () => {
+        const restored = snapshot({ workspaces: [workspace("ws-1", [idea("idea-1", [clip("clip-a"), clip("clip-gone")])])] });
+        const current = snapshot({ workspaces: [workspace("ws-1", [idea("idea-1", [clip("clip-a", { isPrimary: true })])])] });
+        const merged = mergeRestoredLibrary(restored, current);
+        expect(merged.workspaces[0].ideas[0].clips.map((c) => c.id)).toEqual(["clip-a", "clip-gone"]);
+    });
+
     it("is a no-op when the backup contains nothing the library lacks", () => {
         const shared = [workspace("ws-1", [idea("idea-1", [clip("clip-a")])])];
         const merged = mergeRestoredLibrary(

@@ -75,7 +75,7 @@ jest.mock("../audioStorage", () => ({
     }),
 }));
 
-const mockImportClip = jest.fn(() => ({ ideaId: "idea-recovered", clipId: "clip-recovered" }));
+const mockImportClip = jest.fn((..._args: any[]) => ({ ideaId: "idea-recovered", clipId: "clip-recovered" }));
 const mockFlush = jest.fn(async () => undefined);
 jest.mock("../../state/actions", () => ({
     appActions: { importClipToCollection: (...args: unknown[]) => mockImportClip(...args) },
