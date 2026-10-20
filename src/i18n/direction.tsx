@@ -64,6 +64,20 @@ export const ltrRow: { flexDirection: "row" | "row-reverse" } = {
   flexDirection: I18nManager.isRTL ? "row-reverse" : "row",
 };
 
+/**
+ * Lay a row out in the CONTENT's direction, whatever the app's. RN already mirrors
+ * `row` in the Hebrew app, so a plain `row-reverse` for Hebrew content flipped twice
+ * and put a Hebrew lyric's strips left-to-right there (overnight check 2026-10-20).
+ */
+export function contentRow(direction: UiDirection): { flexDirection: "row" | "row-reverse" } {
+  return { flexDirection: (direction === "rtl") === I18nManager.isRTL ? "row" : "row-reverse" };
+}
+
+/** Align text to the edge the content's script starts at, whatever the app's direction. */
+export function contentTextAlign(direction: UiDirection): { textAlign: "left" | "right" } {
+  return { textAlign: physicalTextAlign(direction === "rtl" ? "right" : "left") };
+}
+
 /** The style key to use when you mean the physical left/right edge. */
 export function physicalEdge(edge: "left" | "right"): "left" | "right" {
   return physical(edge);

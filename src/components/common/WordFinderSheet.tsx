@@ -34,7 +34,7 @@ import {
   type WordLookupMode,
   type WordSuggestion,
 } from "../../domain/wordTools";
-import { UserTextInput } from "../../i18n";
+import { UserTextInput, contentRow, contentTextAlign } from "../../i18n";
 import { useTranslation } from "react-i18next";
 
 const LOOKUP_DEBOUNCE_MS = 400;
@@ -506,7 +506,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
     const shown = expanded ? suggestions : suggestions.slice(0, cap);
     const hidden = suggestions.length - shown.length;
     return (
-      <View style={[finderStyles.chipWrap, resultsAreHebrew ? finderStyles.rowRtl : null]}>
+      <View style={[finderStyles.chipWrap, resultsAreHebrew ? contentRow("rtl") : null]}>
         {shown.map(renderChip)}
         {hidden > 0 ? (
           <Press
@@ -539,7 +539,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
         {groups.map((group) => (
           <View key={group.syllables ?? "unknown"} style={finderStyles.syllableGroup}>
             {groups.length > 1 && group.syllables !== null ? (
-              <Text style={[finderStyles.syllableLabel, resultsAreHebrew ? finderStyles.labelRtl : null]}>
+              <Text style={[finderStyles.syllableLabel, resultsAreHebrew ? contentTextAlign("rtl") : null]}>
                 {t("wordFinderUi.syllable", { count: group.syllables })}
               </Text>
             ) : null}
@@ -701,11 +701,11 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
   const renderVocalRow = () =>
     activeRoute === "hebrewRhymes" && readings.length > 1 && !showToolList ? (
       <Animated.View entering={FadeIn.duration(durations.fast)} style={finderStyles.vocalBlock}>
-        <View style={[finderStyles.vocalHeader, resultsAreHebrew ? finderStyles.rowRtl : null]}>
+        <View style={[finderStyles.vocalHeader, resultsAreHebrew ? contentRow("rtl") : null]}>
           <Ionicons name="options-outline" size={12} color={colors.textMuted} />
           <Text style={finderStyles.vocalLabel}>{t("wordFinderUi.readingLabel")}</Text>
         </View>
-        <View style={[finderStyles.vocalRow, resultsAreHebrew ? finderStyles.rowRtl : null]}>
+        <View style={[finderStyles.vocalRow, resultsAreHebrew ? contentRow("rtl") : null]}>
           {readings.map((option) => {
             const selected = option === effectiveVocal;
             // One reading at a time, in the ink-tab voice: the chosen one in full

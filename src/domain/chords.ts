@@ -305,8 +305,8 @@ export function buildChordChartHtml(
   pre.chords { color: #824f3f; font-weight: 700; }
   pre.lyric { color: #1b1c1a; }
 </style></head><body>
-  <h1>${escapeHtml(title || i18n.t("common.untitled"))}</h1>
-  <div class="sub">${escapeHtml(subtitle)}</div>
+  <h1 dir="auto">${escapeHtml(title || i18n.t("common.untitled"))}</h1>
+  <div class="sub" dir="auto">${escapeHtml(subtitle)}</div>
   ${body}
 </body></html>`;
 }

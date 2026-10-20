@@ -5,6 +5,7 @@ import { BottomSheet } from "../../common/BottomSheet";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import type { WordLadderStep } from "../../../types";
 import { useTranslation } from "react-i18next";
+import { dirIcon } from "../../../design/directionalIcons";
 
 type Props = {
   visible: boolean;
@@ -252,7 +253,7 @@ function HelpPoint({
   return (
     <View style={helpStyles.point}>
       <View style={helpStyles.pointIcon}>
-        <Ionicons name={icon} size={16} color={colors.textSecondary} />
+        <Ionicons name={dirIcon(icon)} size={16} color={colors.textSecondary} />
       </View>
       <View style={helpStyles.pointCopy}>
         <Text style={helpStyles.pointTitle}>{title}</Text>

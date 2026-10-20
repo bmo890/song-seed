@@ -307,13 +307,6 @@ export const finderStyles = StyleSheet.create({
   readingRuleActive: {
     backgroundColor: colors.primary,
   },
-  // Mirror a content row to right-to-left for Hebrew results.
-  rowRtl: {
-    flexDirection: "row-reverse",
-  },
-  labelRtl: {
-    textAlign: "right",
-  },
   // ── On-demand (Hebrew LLM) trigger + coming-soon composition ───────────────
   triggerCenter: {
     flex: 1,

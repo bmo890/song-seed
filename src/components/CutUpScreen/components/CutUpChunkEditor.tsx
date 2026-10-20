@@ -7,7 +7,7 @@ import { UndoRedoButtons } from "../../common/useUndoHistory";
 import { SparkHint } from "../../common/SparkFrame";
 import { haptic } from "../../../design/haptics";
 import { type CutUnit, lineBreakSeams, tokenizeWords, unitGroups } from "../../../domain/cutUp";
-import { detectTextDirection } from "../../../i18n/direction";
+import { contentRow, detectTextDirection } from "../../../i18n/direction";
 import { useSparkTextScale } from "../../common/sparkTextScale";
 import type { CutUpSpark } from "../../../types";
 import type { useCutUpScreenModel } from "../hooks/useCutUpScreenModel";
@@ -102,7 +102,7 @@ export function CutUpChunkEditor({
             key={row.line}
             style={[styles.lineRow, row.stanzaGapBefore ? styles.stanzaGap : null]}
           >
-            <View style={[styles.lineStrips, rtl ? styles.rowRtl : null]}>
+            <View style={[styles.lineStrips, contentRow(rtl ? "rtl" : "ltr")]}>
               {row.units.map((unit, ui) => (
                 <Fragment key={unit.startSeam}>
                   {ui > 0 ? (
@@ -116,7 +116,7 @@ export function CutUpChunkEditor({
                       accessibilityLabel={t("cutUp.joinPieces")}
                     />
                   ) : null}
-                  <View style={[styles.strip, rtl ? styles.rowRtl : null]}>
+                  <View style={[styles.strip, contentRow(rtl ? "rtl" : "ltr")]}>
                     {unit.words.map((word, wi) => (
                       <Fragment key={word.index}>
                         {wi > 0 ? <Divider onPress={() => toggle(word.index)} /> : null}
@@ -154,7 +154,7 @@ export function CutSeamRow({
   size: number;
 }) {
   return (
-    <View style={[styles.seamRow, rtl ? styles.rowRtl : null]}>
+    <View style={[styles.seamRow, contentRow(rtl ? "rtl" : "ltr")]}>
       {words.map((text, i) => (
         <Fragment key={i}>
           {i > 0 ? (
@@ -202,7 +202,6 @@ const styles = StyleSheet.create({
   lineRow: { paddingTop: 6 },
   stanzaGap: { marginTop: 26 },
   lineStrips: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", rowGap: 6 },
-  rowRtl: { flexDirection: "row-reverse" },
   rule: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.borderMuted,
