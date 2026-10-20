@@ -185,7 +185,11 @@ export async function quarantineManagedPaths(paths: Iterable<string>) {
         const relativePath = toRelativeManagedPath(path);
         if (!relativePath || !(await trashFileIfManaged(resolveManagedUri(relativePath)))) {
             failedPaths.push(path);
+            continue;
         }
+        // Its detail waveform goes with it, as on any delete (deleteManagedAudioUris):
+        // a Replace restore left the displaced library's sidecars behind as orphans.
+        await hardDeleteFileIfManaged(waveformSidecarUri(resolveManagedUri(relativePath)));
     }
     return { complete: failedPaths.length === 0, failedPaths };
 }

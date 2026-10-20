@@ -94,7 +94,6 @@ export type RootStackParamList = {
   BluetoothCalibration: undefined;
   ShareImport: undefined;
   Editor: { ideaId: string; clipId: string; audioUri?: string; durationMs?: number };
-  Lyrics: { ideaId: string };
   LyricsVersion: { ideaId: string; versionId?: string; startInEdit?: boolean; forceNewVersion?: boolean; createDraft?: boolean };
   ChordSheet: { ideaId: string };
   SongbookReader: { songbookId: string; startIdeaId?: string };

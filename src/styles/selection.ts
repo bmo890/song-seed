@@ -1,39 +1,9 @@
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
-import { colors, radii, shadows } from "../design/tokens";
+import { colors, radii } from "../design/tokens";
 
 // Multi-select mode: selection bars, toolbars, sheets, indicators.
 // Raw style objects — merged and registered once via StyleSheet.create in ../styles.ts.
 export const selectionStyles = {
-  selectionIndicatorHidden: { width: 0, marginRight: 0 },
-  selectionBadgeText: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    color: "#fff",
-    fontSize: 12,
-    lineHeight: 14,
-    textAlign: "center",
-    textAlignVertical: "center",
-  },
-  selectionIndicatorCol: {
-    width: 24,
-    marginRight: 4,
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "stretch",
-  },
-  selectionIndicatorCircle: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 2,
-    borderColor: "rgba(215,194,189,0.6)",
-    backgroundColor: "#FDFBF7",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  selectionIndicatorActive: {
-    borderColor: "#B87D6B",
-    backgroundColor: "#B87D6B",
-  },
   selectionBar: {
     marginTop: 4,
     marginBottom: 8,
@@ -43,29 +13,6 @@ export const selectionStyles = {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-  },
-  songSelectionBar: {
-    marginTop: 4,
-    marginBottom: 8,
-    padding: 10,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: "#E8E4DF",
-    backgroundColor: "#fff",
-    gap: 10,
-    alignItems: "stretch",
-  },
-  songSelectionBarHeader: {
-    width: "100%",
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  songSelectionBarActions: {
-    width: "100%",
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    alignItems: "center",
   },
   selectionText: { fontSize: 13, color: colors.textStrong, fontFamily: "PlusJakartaSans_600SemiBold" },
   // ─── Selection top bar (count · All · Cancel) ───────────────────────────────
@@ -215,7 +162,6 @@ export const selectionStyles = {
     justifyContent: "space-between",
     gap: 12,
   },
-  selectionSheetActionDanger: {},
   selectionSheetActionLead: {
     flex: 1,
     flexDirection: "row",
@@ -226,8 +172,5 @@ export const selectionStyles = {
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 16,
     color: colors.textPrimary,
-  },
-  selectionSheetActionTextDanger: {
-    color: colors.danger,
   },
 } satisfies Record<string, ViewStyle | TextStyle | ImageStyle>;

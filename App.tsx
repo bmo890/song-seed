@@ -60,7 +60,6 @@ import { WorkspaceListScreen } from "./src/components/WorkspaceListScreen";
 import { WorkspaceBrowseScreen } from "./src/components/WorkspaceBrowseScreen";
 import { SideNav } from "./src/components/SideNav";
 import { EditorScreen } from "./src/components/EditorScreen";
-import { LyricsScreen } from "./src/components/LyricsScreen";
 import { LyricsVersionScreen } from "./src/components/LyricsVersionScreen";
 import { ChordSheetScreen } from "./src/components/ChordSheetScreen";
 import { SongbookReaderScreen } from "./src/components/SongbookReaderScreen";
@@ -258,7 +257,6 @@ const ROOT_STACK_ROUTE_NAMES: Array<keyof RootStackParamList> = [
   "BluetoothCalibration",
   "ShareImport",
   "Editor",
-  "Lyrics",
   "LyricsVersion",
   "ChordSheet",
   "SongbookReader",
@@ -388,8 +386,6 @@ function isValidRestorableRootRoute(route: any) {
         typeof route.params?.clipId === "string" &&
         route.params.clipId.length > 0
       );
-    case "Lyrics":
-      return typeof route.params?.ideaId === "string" && route.params.ideaId.length > 0;
     case "LyricsVersion":
       return typeof route.params?.ideaId === "string" && route.params.ideaId.length > 0;
     case "SongbookReader":
@@ -537,7 +533,6 @@ function getActiveWorkspaceRouteContext(args: {
   const routeIdeaId =
     args.deepestRouteName === "IdeaDetail" ||
     args.deepestRouteName === "Editor" ||
-    args.deepestRouteName === "Lyrics" ||
     args.deepestRouteName === "LyricsVersion"
       ? (args.deepestParams.ideaId as string | undefined) ?? args.selectedIdeaId
       : args.selectedIdeaId;
@@ -1175,7 +1170,6 @@ function AppContent() {
             {() => <ShareImportScreen fallbackCollectionId={lastCollectionContextId} />}
           </Stack.Screen>
           <Stack.Screen name="Editor" component={EditorScreen} />
-          <Stack.Screen name="Lyrics" component={LyricsScreen} />
           <Stack.Screen name="LyricsVersion" component={LyricsVersionScreen} />
           <Stack.Screen name="ChordSheet" component={ChordSheetScreen} />
           <Stack.Screen name="SongbookReader" component={SongbookReaderScreen} />

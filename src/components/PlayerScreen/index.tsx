@@ -783,13 +783,9 @@ function PlayerScreenInner({
   }, [closeReading, playerIdea?.id]);
 
   const {
-    newPinLabel,
-    pinModalVisible,
     pinActionsTarget,
     pinActionsVisible,
     pinRenameValue,
-    setNewPinLabel,
-    setPinModalVisible,
     setPinActionsTarget,
     setPinActionsVisible,
     setPinRenameValue,
@@ -1988,19 +1984,10 @@ function PlayerScreenInner({
       </TransportLayout>
 
       <PlayerPinSheets
-        pinModalVisible={pinModalVisible}
         pinActionsVisible={pinActionsVisible}
-        newPinLabel={newPinLabel}
-        playerPosition={effectivePlayerPosition}
         pinTargetLabel={pinActionsTarget?.label ?? null}
         pinTargetAtMs={pinActionsTarget?.atMs ?? null}
         pinRenameValue={pinRenameValue}
-        onCloseCreate={() => {
-          setPinModalVisible(false);
-          setNewPinLabel("");
-        }}
-        onChangeNewPinLabel={setNewPinLabel}
-        onSaveNewPin={() => handleAddPin(newPinLabel)}
         onCloseActions={() => {
           setPinActionsVisible(false);
           setPinActionsTarget(null);

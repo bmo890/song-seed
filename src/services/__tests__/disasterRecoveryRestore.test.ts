@@ -640,6 +640,7 @@ describe("restoreFromDisasterRecoveryBackup", () => {
         installArchive();
         const oldBytes = mockTextBytes("existing-current-audio");
         mockFiles.set(ORIGINAL_MEDIA_URI, oldBytes);
+        mockFiles.set(`${ORIGINAL_MEDIA_URI}.waveform`, mockTextBytes('{"v":1,"bins":[1]}'));
 
         await restoreFromDisasterRecoveryBackup(ARCHIVE_URI, {
             displacedWorkspaces: snapshot().workspaces as never,
@@ -650,6 +651,8 @@ describe("restoreFromDisasterRecoveryBackup", () => {
         await cleanupInterruptedDisasterRecoveryRestores(persisted.state.workspaces);
 
         expect(mockFiles.has(ORIGINAL_MEDIA_URI)).toBe(false);
+        // Its waveform sidecar goes with it, not left behind as an orphan.
+        expect(mockFiles.has(`${ORIGINAL_MEDIA_URI}.waveform`)).toBe(false);
         expect(
             Array.from(mockFiles.entries()).some(
                 ([uri, bytes]) => uri.includes("/songnook/trash/") && bytes === oldBytes

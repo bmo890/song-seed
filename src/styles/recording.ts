@@ -39,27 +39,11 @@ export const recordingStyles = {
     fontSize: 13,
     color: colors.textSecondary,
   },
-  recordingLyricsSyncMeta: {
-    fontSize: 12,
-    color: colors.primary,
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-  recordingLyricsAutoscrollBtn: {
-    alignSelf: "flex-start",
-    paddingVertical: 2,
-  },
   recordingLyricsToggleBtn: {
     backgroundColor: "transparent",
     borderWidth: 0,
     width: 28,
     height: 28,
-  },
-  recordingLyricsBody: {
-    borderWidth: 0,
-    backgroundColor: "transparent",
-    borderRadius: 0,
-    paddingHorizontal: 0,
-    paddingVertical: 4,
   },
   // Expanded "perform" view: break out of the 28px gutter to full-bleed and
   // fill the height left below the slim reel.
@@ -223,30 +207,12 @@ export const recordingStyles = {
     textTransform: "uppercase",
     letterSpacing: 0.9,
   },
-  recordingGuideTiming: {
-    alignItems: "flex-end",
-    gap: 2,
-  },
   recordingGuideTimingText: {
     fontSize: 11,
     lineHeight: 14,
     color: colors.textMuted,
     fontFamily: "PlusJakartaSans_500Medium",
     fontVariant: ["tabular-nums"],
-  },
-  recordingGuideWaveWrap: {
-    position: "relative",
-    overflow: "hidden",
-    borderRadius: 4,
-  },
-  recordingGuidePlayhead: {
-    position: "absolute",
-    top: 2,
-    bottom: 2,
-    width: 2,
-    marginLeft: -1,
-    backgroundColor: "#B87D6B",
-    opacity: 0.8,
   },
   recordingMetaSection: {
     gap: 6,
@@ -278,17 +244,6 @@ export const recordingStyles = {
   recordingCountInBlock: {
     gap: 10,
     paddingVertical: 10,
-  },
-  recordingCountInTitle: {
-    fontSize: 32,
-    lineHeight: 36,
-    fontFamily: "PlusJakartaSans_700Bold",
-    color: "#1b1c1a",
-    letterSpacing: -0.8,
-  },
-  recordingCountInTitleCompact: {
-    fontSize: 26,
-    lineHeight: 30,
   },
   recordingCountInDotsRow: {
     // Beats progress 1→N through TIME, which never mirrors — same rule as
@@ -407,11 +362,6 @@ export const recordingStyles = {
     fontFamily: "PlusJakartaSans_400Regular",
     color: colors.textSecondary,
   },
-  recordingOutputAuto: {
-    fontSize: 11,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    color: "#a89994",
-  },
   // Bare glyph + word. The record button is the only circle on this page, so
   // the secondary actions read as ink and can't compete with it. Fixed height
   // so waking them up (once there's a take) never moves the dock.
@@ -488,12 +438,6 @@ export const recordingStyles = {
     color: colors.textPrimary,
     marginBottom: 8,
   },
-  recordingSettingsMeta: {
-    fontSize: 13,
-    lineHeight: 18,
-    color: "#84736f",
-    marginBottom: 14,
-  },
   recordingInputHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -510,11 +454,6 @@ export const recordingStyles = {
     color: colors.textMuted,
     textTransform: "uppercase",
     letterSpacing: 1,
-  },
-  recordingInputActiveLabel: {
-    fontSize: 17,
-    fontFamily: "PlusJakartaSans_700Bold",
-    color: "#1b1c1a",
   },
   // A bare ink glyph, no disc.
   recordingInputRefreshBtn: {
@@ -547,9 +486,6 @@ export const recordingStyles = {
   },
   recordingInputOptionTextActive: {
     fontFamily: "PlusJakartaSans_600SemiBold",
-  },
-  recordingInputOptionCheck: {
-    marginLeft: "auto",
   },
   recordingInputDisabledNote: {
     fontSize: 12,

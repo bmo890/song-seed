@@ -1,100 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
-import { Slider } from "../../common/Slider";
+import { Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { dirIcon } from "../../../design/directionalIcons";
-import { fmtDuration } from "../../../utils";
 import { colors } from "../../../design/tokens";
 import { MAX_PIN_LABEL_LENGTH } from "../../../domain/practicePinLayout";
 import { WarmModal } from "../../common/WarmModal";
 import { playerScreenStyles as s } from "../styles";
-import type { PracticeMarker } from "../../../types";
-import { PLAYHEAD_COLOR, PlayheadCursorIcon } from "./practicePanelPrimitives";
 import { useTranslation } from "react-i18next";
 import { UserTextInput } from "../../../i18n";
-
-/** Single-point timing adjuster for a pin — mirrors SectionEdgeAdjuster. */
-export function PinTimingAdjuster({
-  marker,
-  durationMs,
-  playheadMs,
-  onReposition,
-  onPreview,
-}: {
-  marker: PracticeMarker;
-  durationMs: number;
-  playheadMs: number;
-  onReposition: (markerId: string, atMs: number) => void;
-  onPreview: (preview: { id: string; atMs: number } | null) => void;
-}) {
-  const { t } = useTranslation();
-  const [dragMs, setDragMs] = useState<number | null>(null);
-  const current = marker.atMs;
-  const maxMs = Math.max(1, durationMs);
-  const displayMs = dragMs ?? current;
-  const clamp = (ms: number) => Math.max(0, Math.min(maxMs, ms));
-  // The arrows are coarse travel (the slider is the fine control): a step you
-  // can SEE on the reel — 1 s on a short clip, up to 5 s on a long one.
-  const nudgeMs = Math.max(1000, Math.min(5000, Math.round(durationMs / 60 / 500) * 500));
-  const stepBy = (deltaMs: number) => onReposition(marker.id, clamp(current + deltaMs));
-  return (
-    <View style={s.sectionAdjuster}>
-      <View style={s.sectionAdjusterHeader}>
-        <Text style={s.sectionEdgeLabel}>{t("player.time")}</Text>
-        <Text style={s.sectionEdgeLiveTime}>{fmtDuration(displayMs)}</Text>
-        <View style={{ flex: 1 }} />
-        <Pressable
-          style={s.sectionPinCircle}
-          onPress={() => onReposition(marker.id, Math.round(clamp(playheadMs)))}
-          hitSlop={6}
-          accessibilityRole="button"
-          accessibilityLabel={t("player.setPinPlayhead", { time: fmtDuration(playheadMs) })}
-        >
-          <PlayheadCursorIcon color={PLAYHEAD_COLOR} />
-        </Pressable>
-      </View>
-      <View style={s.pinTrayRow}>
-        <Pressable
-          style={s.pinStepButton}
-          onPress={() => stepBy(-nudgeMs)}
-          hitSlop={6}
-          accessibilityRole="button"
-          accessibilityLabel={t("player.nudgePinBack")}
-        >
-          <Ionicons name={dirIcon("chevron-back")} size={16} color={colors.textStrong} />
-        </Pressable>
-        <Slider
-          style={s.pinSlider}
-          minimumValue={0}
-          maximumValue={maxMs}
-          step={50}
-          value={Math.max(0, Math.min(maxMs, current))}
-          onValueChange={(value) => {
-            const next = Math.round(value);
-            setDragMs(next);
-            onPreview({ id: marker.id, atMs: next });
-          }}
-          onSlidingComplete={(value) => {
-            onReposition(marker.id, Math.round(value));
-            onPreview(null);
-            setDragMs(null);
-          }}
-          fill={false}
-          detent={1000}
-        />
-        <Pressable
-          style={s.pinStepButton}
-          onPress={() => stepBy(nudgeMs)}
-          hitSlop={6}
-          accessibilityRole="button"
-          accessibilityLabel={t("player.nudgePinForward")}
-        >
-          <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textStrong} />
-        </Pressable>
-      </View>
-    </View>
-  );
-}
 
 /** Name + note editor for a pin — mirrors SectionDetailModal (note instead of colour). */
 export function PinDetailModal({

@@ -38,6 +38,8 @@ import {
 } from "../services/recordingTakeSession";
 import { finishOnsetEnvelope, type OnsetEnvelope } from "../domain/onsetEnvelope";
 import { flushPersistedSnapshot, useStore } from "../state/useStore";
+import { useProcessStore } from "../state/useProcessStore";
+import { getRestoreRestartState } from "../state/restoreRuntime";
 import { deleteManagedAudioUris } from "../services/managedMedia";
 import { describeError, persistLog } from "../services/persistLog";
 import { useTranslation } from "react-i18next";
@@ -713,6 +715,15 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
 
   async function startRecording() {
     if (recorder.isRecording || recorder.isPaused || startInFlightRef.current) return false;
+    // A restore restarts the app the moment it lands, so a take begun under it would
+    // be cut off mid-phrase (overnight check 2026-10-19). Haptics vocabulary `error`:
+    // "Something failed" — the take can't start.
+    const process = useProcessStore.getState().process;
+    if ((process?.kind === "restore" && process.status === "running") || getRestoreRestartState()) {
+      haptic.error();
+      AppAlert.info(t("recording.restoreRunningTitle"), t("recording.restoreRunningBody"));
+      return false;
+    }
     // Prepared ahead (prewarm) or mid-prepare: start the ready recorder.
     if (take.facts.prepared || prepareInFlightRef.current) return startPreparedRecording();
     startInFlightRef.current = true;

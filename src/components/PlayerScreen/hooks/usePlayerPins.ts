@@ -28,8 +28,6 @@ export function usePlayerPins({
   onBeforeChange,
 }: UsePlayerPinsArgs) {
   const { t } = useTranslation();
-  const [newPinLabel, setNewPinLabel] = useState("");
-  const [pinModalVisible, setPinModalVisible] = useState(false);
   const [pinActionsTarget, setPinActionsTarget] = useState<PracticeMarker | null>(null);
   const [pinActionsVisible, setPinActionsVisible] = useState(false);
   const [pinRenameValue, setPinRenameValue] = useState("");
@@ -46,7 +44,7 @@ export function usePlayerPins({
   const handleAddPin = useCallback(
     (label?: string) => {
       if (!playerIdeaId || !playerClipId) return null;
-      const resolvedLabel = clampPinLabel(label ?? newPinLabel);
+      const resolvedLabel = clampPinLabel(label ?? "");
 
       const atMs = playerPositionRef.current;
       const newMarker: PracticeMarker = {
@@ -60,11 +58,9 @@ export function usePlayerPins({
       // Haptics: `light` — a small state flip that should land (a mark dropped).
       haptic.light();
       toast(t("player.pinAddedAt", { time: fmtDuration(atMs) }), PIN_ICON_OUTLINE);
-      setNewPinLabel("");
-      setPinModalVisible(false);
       return newMarker.id;
     },
-    [newPinLabel, onBeforeChange, playerClipId, playerIdeaId, t]
+    [onBeforeChange, playerClipId, playerIdeaId, t]
   );
 
   const handleRepositionMarker = useCallback(
@@ -164,15 +160,11 @@ export function usePlayerPins({
   );
 
   return {
-    newPinLabel,
-    pinModalVisible,
     pinActionsTarget,
     pinActionsVisible,
     pinRenameValue,
     expandedPinId,
     pinNoteDraft,
-    setNewPinLabel,
-    setPinModalVisible,
     setPinActionsTarget,
     setPinActionsVisible,
     setPinRenameValue,

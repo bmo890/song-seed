@@ -11,10 +11,6 @@ export const playerStyles = {
     gap: 8,
     marginBottom: 8,
   },
-  playerLyricsHeaderText: {
-    flex: 1,
-    gap: 4,
-  },
   playerLyricsTitle: {
     fontSize: 16,
     lineHeight: 20,
@@ -24,11 +20,6 @@ export const playerStyles = {
   playerLyricsMeta: {
     fontSize: 12,
     color: "#84736f",
-  },
-  playerLyricsSyncMeta: {
-    fontSize: 11,
-    color: "#B87D6B",
-    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   playerLyricsToggleBtn: {
     width: 34,
@@ -40,61 +31,13 @@ export const playerStyles = {
     borderWidth: 1,
     borderColor: "#E8E4DF",
   },
-  playerLyricsBody: {
-    borderWidth: 1,
-    borderColor: "#D7C2BD",
-    borderRadius: 12,
-    backgroundColor: "#fff",
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  playerLyricsScroll: {
-    maxHeight: 140,
-  },
   playerLyricsText: {
     fontSize: 15,
     lineHeight: 22,
     color: "#1b1c1a",
   },
-  playerUtilityBtn: {
-    minHeight: 32,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radii.round,
-    backgroundColor: "#10b981",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  playerUtilityBtnSecondary: {
-    backgroundColor: "#524440",
-  },
-  playerUtilityBtnText: {
-    color: "#fff",
-    fontSize: 12,
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-  playerUtilityBtnTextSecondary: {
-    color: "#fff",
-  },
-  progressWrap: {
-    width: "100%",
-    marginBottom: 8,
-    gap: 6,
-  },
   progressTrack: {
     width: "100%",
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: "#E8E4DF",
-    overflow: "hidden",
-  },
-  progressInlineRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  progressTrackInline: {
-    flex: 1,
     height: 8,
     borderRadius: 999,
     backgroundColor: "#E8E4DF",
@@ -105,31 +48,11 @@ export const playerStyles = {
     borderRadius: 999,
     backgroundColor: "#1b1c1a",
   },
-  progressMeta: {
-    fontSize: 12,
-    color: "#84736f",
-    fontFamily: "PlusJakartaSans_600SemiBold",
-  },
   transportLayout: {
     flex: 1,
   },
   transportHeaderZone: {
     gap: 12,
-  },
-  transportHeaderActionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  transportHeaderActionBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.round,
-    borderWidth: 1,
-    borderColor: "#E8E4DF",
-    backgroundColor: "#ffffff",
-    alignItems: "center",
-    justifyContent: "center",
   },
   transportBodyZone: {
     flex: 1,
@@ -166,60 +89,6 @@ export const playerStyles = {
   // Full view: the progress thread IS the divider — no second hairline.
   transportFooterZoneNoDivider: {
     borderTopWidth: 0,
-  },
-  transportFooterCard: {
-    backgroundColor: "#fff",
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: "#E8E4DF",
-    padding: 14,
-    gap: 12,
-  },
-  transportFooterMeta: {
-    gap: 2,
-  },
-  transportFooterEyebrow: {
-    fontSize: 11,
-    fontFamily: "PlusJakartaSans_700Bold",
-    letterSpacing: 0.4,
-    textTransform: "uppercase",
-    color: "#84736f",
-  },
-  transportFooterTitle: {
-    fontSize: 15,
-    fontFamily: "PlusJakartaSans_700Bold",
-    color: "#1b1c1a",
-  },
-  transportFooterRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  transportFooterButton: {
-    flex: 1,
-    minHeight: 44,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    backgroundColor: "#1b1c1a",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  transportFooterButtonSecondary: {
-    backgroundColor: "#E8E4DF",
-  },
-  transportFooterButtonDanger: {
-    backgroundColor: colors.danger,
-  },
-  transportFooterButtonDisabled: {
-    backgroundColor: "#D7C2BD",
-  },
-  transportFooterButtonText: {
-    color: "#fff",
-    fontSize: 13,
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-  transportFooterButtonTextSecondary: {
-    color: "#1b1c1a",
   },
   miniProgressWrap: {
     marginBottom: 4,
@@ -287,82 +156,6 @@ export const playerStyles = {
     borderRadius: 5,
     backgroundColor: "#1b1c1a",
     transform: [{ translateX: -5 }, { translateY: -5 }],
-  },
-  globalInlineDockWrap: {
-    position: "absolute",
-    left: 16,
-    right: 16,
-    zIndex: 50,
-  },
-  globalInlineDockCard: {
-    minHeight: 58,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: "#E8E4DF",
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    gap: 6,
-    shadowColor: "#1b1c1a",
-    shadowOpacity: 0.12,
-    shadowRadius: 14,
-    elevation: 8,
-  },
-  globalInlineDockTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  globalInlineDockCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 1,
-  },
-  globalInlineDockTitle: {
-    fontSize: 12,
-    lineHeight: 15,
-    color: "#1b1c1a",
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-  globalInlineDockSubtitle: {
-    fontSize: 11,
-    lineHeight: 14,
-    color: "#84736f",
-    fontFamily: "PlusJakartaSans_600SemiBold",
-  },
-  globalInlineDockCloseBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: radii.round,
-    borderWidth: 1,
-    borderColor: "#E8E4DF",
-    backgroundColor: "#FDFBF7",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  globalInlineDockProgressTrack: {
-    height: 4,
-    borderRadius: 999,
-    backgroundColor: "#E8E4DF",
-    overflow: "hidden",
-  },
-  globalInlineDockProgressFill: {
-    height: "100%",
-    backgroundColor: "#1b1c1a",
-  },
-  globalInlineDockTimesRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  globalInlineDockTime: {
-    fontSize: 10,
-    lineHeight: 12,
-    color: "#84736f",
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontVariant: ["tabular-nums"],
   },
   // ─── Global Media Dock ──────────────────────────────────────────────────────
   miniMediaDockWrap: {
@@ -532,11 +325,6 @@ export const playerStyles = {
     fontFamily: "PlusJakartaSans_700Bold",
     color: "#1b1c1a",
   },
-  miniMediaDockRecordingMeta: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: colors.record,
-  },
   // Recording transport: pause + stop
   miniMediaDockRecordingActions: {
     flexDirection: "row",
@@ -571,65 +359,10 @@ export const playerStyles = {
     fontVariant: ["tabular-nums"],
     letterSpacing: -0.3,
   },
-  miniMediaDockHintText: {
-    fontSize: 11,
-    lineHeight: 14,
-    color: colors.record,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-  },
 
-  inlinePlayBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: radii.round,
-    borderWidth: 1,
-    borderColor: "#D7C2BD",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#fff",
-    marginTop: 2,
-  },
-  inlinePlayBtnText: {
-    fontSize: 12,
-    color: "#1b1c1a",
-    fontFamily: "PlusJakartaSans_700Bold",
-    marginLeft: 1,
-  },
 
-  inlinePlayerWrap: {
-    borderWidth: 1,
-    borderColor: "#E8E4DF",
-    borderRadius: radii.lg,
-    paddingHorizontal: 8,
-    paddingTop: 6,
-    paddingBottom: 2,
-    backgroundColor: "#ffffff",
-  },
   // inlineTimes removed
 
-  waveWrap: {
-    marginTop: 16,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#E8E4DF",
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingTop: 10,
-    paddingBottom: 2,
-  },
-  waveBarsRow: {
-    height: 64,
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: 2,
-    paddingHorizontal: 2,
-  },
-  waveBar: { flex: 1, backgroundColor: "#D7C2BD", borderRadius: 6 },
-  waveBarPlayed: { backgroundColor: "#1b1c1a" },
-  playheadWrap: {
-    position: "relative",
-    height: 0,
-  },
   playhead: {
     position: "absolute",
     top: -62,
