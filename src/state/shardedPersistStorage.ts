@@ -362,12 +362,18 @@ export function createShardedPersistStorage(): ShardedPersistStorage {
                 if (orphans.length > 0) extraDeletes = [...plan.deleteKeys, ...orphans];
             }
 
-            await commitShardedWrite(
+            const outcome = await commitShardedWrite(
                 [plan.metaRow, ...(plan.activityRow ? [plan.activityRow] : []), ...plan.dirtyWorkspaceRows],
                 extraDeletes,
                 { strict }
             );
-            // Adopt the new reference set only after a successful commit.
+            // Adopt the new reference set only once the rows landed somewhere (SQLite, or
+            // parked for replay). When both stores refused them, keep the old set so the
+            // next write proposes every one of these workspaces again.
+            if (outcome === "lost") {
+                orphansSwept = false;
+                return;
+            }
             lastWorkspaceRefs = plan.nextWorkspaceRefs;
             lastActivityRef = plan.nextActivityRef;
 

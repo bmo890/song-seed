@@ -42,6 +42,7 @@ import {
     SQLITE_CALL_TIMEOUT_MS,
 } from "../db/storage";
 import { getPersistHealth, reportPersistWriteSuccess } from "../persistRuntime";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // A transaction mock that runs the task against mockRunAsync like the real one would.
 const runTransaction = async (task: () => Promise<void>) => {
@@ -118,6 +119,58 @@ describe("fallback rows are recorded and replayed", () => {
         expect(mockAsyncStore.has(FALLBACK_MARKER_KEY)).toBe(false);
         const writtenKeys = mockRunAsync.mock.calls.map((call) => call[1]);
         expect(writtenKeys).toEqual(expect.arrayContaining(["store::ws::w1", "store::ws::w2"]));
+    });
+
+    it("never replays a parked row over a newer write of the same key", async () => {
+        mockWithTransactionAsync.mockRejectedValueOnce(new Error("database is locked"));
+        await commitShardedWrite([{ key: "store", value: "meta-before-take" }, { key: "store::ws::w1", value: "old" }], []);
+
+        mockWithTransactionAsync.mockImplementation(runTransaction);
+        mockRunAsync.mockResolvedValue(undefined);
+        await commitShardedWrite([{ key: "store", value: "meta-take" }, { key: "store::ws::w1", value: "with-take" }], []);
+
+        // Each key's last SQLite write is the newer value; the parked copies are gone.
+        const lastValueByKey = new Map<string, unknown>();
+        for (const call of mockRunAsync.mock.calls) lastValueByKey.set(call[1] as string, call[2]);
+        expect(lastValueByKey.get("store")).toBe("meta-take");
+        expect(lastValueByKey.get("store::ws::w1")).toBe("with-take");
+        expect(mockAsyncStore.has(FALLBACK_MARKER_KEY)).toBe(false);
+        expect(mockAsyncStore.has("store::ws::w1")).toBe(false);
+    });
+
+    it("still replays parked rows the newer write did not touch", async () => {
+        mockWithTransactionAsync.mockRejectedValueOnce(new Error("database is locked"));
+        await commitShardedWrite([{ key: "store", value: "meta-earlier" }, { key: "store::ws::w9", value: "parked" }], []);
+
+        mockWithTransactionAsync.mockImplementation(runTransaction);
+        mockRunAsync.mockResolvedValue(undefined);
+        await commitShardedWrite([{ key: "store", value: "meta-later" }], []);
+
+        const lastValueByKey = new Map<string, unknown>();
+        for (const call of mockRunAsync.mock.calls) lastValueByKey.set(call[1] as string, call[2]);
+        expect(lastValueByKey.get("store")).toBe("meta-later");
+        expect(lastValueByKey.get("store::ws::w9")).toBe("parked");
+    });
+
+    it("retries a row whose value went back to what SQLite already holds", async () => {
+        mockWithTransactionAsync.mockImplementation(runTransaction);
+        mockRunAsync.mockResolvedValue(undefined);
+        await commitShardedWrite([{ key: "store::ws::w1", value: "v1" }], []);
+
+        mockWithTransactionAsync.mockRejectedValueOnce(new Error("database is locked"));
+        await commitShardedWrite([{ key: "store::ws::w1", value: "v2" }], []);
+
+        mockRunAsync.mockClear();
+        await commitShardedWrite([{ key: "store::ws::w1", value: "v1" }], []);
+        const lastValueByKey = new Map<string, unknown>();
+        for (const call of mockRunAsync.mock.calls) lastValueByKey.set(call[1] as string, call[2]);
+        expect(lastValueByKey.get("store::ws::w1")).toBe("v1");
+    });
+
+    it("says a write landed nowhere when both stores refuse it", async () => {
+        mockWithTransactionAsync.mockRejectedValueOnce(new Error("disk full"));
+        (AsyncStorage.setItem as jest.Mock).mockRejectedValueOnce(new Error("disk full"));
+        expect(await commitShardedWrite([{ key: "store::ws::w1", value: "edit" }], [])).toBe("lost");
     });
 
     it("reports nothing to do when no marker exists", async () => {
