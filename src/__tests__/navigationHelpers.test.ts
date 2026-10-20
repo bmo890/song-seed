@@ -1,6 +1,7 @@
 import { CommonActions, StackRouter } from "@react-navigation/native";
 import {
   openCollectionInBrowse,
+  openSketchPage,
   openParentCollection,
   openWorkspaceBrowseRoot,
   returnHome,
@@ -65,6 +66,23 @@ describe("visitCollection", () => {
     const h = createStackHarness(ROOT, [{ name: "Home" }, { name: "CollectionVisit", params: { collectionId: "c1" } }]);
     openCollectionInBrowse(h.navigation, { collectionId: "c2" });
     expect(h.names()).toEqual(["Home", "CollectionVisit", "CollectionVisit"]);
+  });
+});
+
+describe("openSketchPage", () => {
+  it("opens a new sketch page over the one in front instead of turning it into another sketch", () => {
+    const h = createStackHarness(ROOT, [{ name: "Home" }, { name: "IdeaDetail", params: { ideaId: "a" } }]);
+    openSketchPage(h.navigation, { ideaId: "b" });
+    expect(h.names()).toEqual(["Home", "IdeaDetail", "IdeaDetail"]);
+    expect(h.state.routes[1].params).toMatchObject({ ideaId: "a" });
+    expect(h.top().params).toMatchObject({ ideaId: "b" });
+  });
+
+  it("the same sketch's page in front only takes the new tab", () => {
+    const h = createStackHarness(ROOT, [{ name: "Home" }, { name: "IdeaDetail", params: { ideaId: "a" } }]);
+    openSketchPage(h.navigation, { ideaId: "a", initialSongTab: "chart" });
+    expect(h.names()).toEqual(["Home", "IdeaDetail"]);
+    expect(h.top().params).toMatchObject({ ideaId: "a", initialSongTab: "chart" });
   });
 });
 

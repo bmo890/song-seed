@@ -250,6 +250,23 @@ export function visitCollection(navigation: any, params: CollectionDetailRoutePa
 }
 
 /**
+ * Open a sketch's page. When that sketch's page is already in front, it only takes the
+ * new params (a tab to land on); otherwise a page is pushed. React Navigation 7's
+ * `navigate` would instead turn the sketch page in front into another sketch, and back
+ * would no longer return to it (overnight check 2026-10-20).
+ */
+export function openSketchPage(navigation: any, params: { ideaId: string } & Record<string, unknown>) {
+  const root = getRootNavigation(navigation);
+  if (!root?.dispatch) return;
+  const current = currentRootRoute(root);
+  if (current?.name === "IdeaDetail" && current.params?.ideaId === params.ideaId) {
+    root.dispatch({ ...CommonActions.setParams(params), source: current.key });
+    return;
+  }
+  root.dispatch(StackActions.push("IdeaDetail", params));
+}
+
+/**
  * Jump to a clip/song's HOME — its collection, scrolled to and highlighting the
  * card (the same treatment as "view in collection" from Search/Activity). Used
  * by the queue's per-row arrow. Falls back to the idea's own detail page if it
@@ -279,8 +296,7 @@ export function openIdeaInCollection(navigation: any, ideaId: string) {
     visitCollection(navigation, params);
     return;
   }
-  const rootNavigation = getRootNavigation(navigation);
-  (rootNavigation ?? navigation)?.navigate?.("IdeaDetail", { ideaId });
+  openSketchPage(navigation, { ideaId });
 }
 
 /** Jump to the Shelf page (drawer) from anywhere — e.g. the set-aside toast's

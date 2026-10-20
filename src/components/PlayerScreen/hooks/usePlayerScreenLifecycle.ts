@@ -12,7 +12,7 @@ import { buildClipLockScreenMetadata } from "../../../services/lockScreenMetadat
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
 import { useShelfStore } from "../../../state/useShelfStore";
-import { openShelf, returnHome } from "../../../navigation";
+import { openShelf, openSketchPage, returnHome } from "../../../navigation";
 import { toast } from "../../common/toastStore";
 import { haptic } from "../../../design/haptics";
 import { getHierarchyIconName } from "../../../domain/hierarchy";
@@ -450,7 +450,7 @@ export function usePlayerScreenLifecycle({
     minimizePlayer();
     // The page opens in edit mode because the idea is a draft now — not via
     // `startInEdit`, which would re-open the sheet after Save or Discard.
-    navigation.navigate("IdeaDetail", { ideaId });
+    openSketchPage(navigation, { ideaId });
   }, [minimizePlayer, navigation, playerIdea]);
 
   const handleOverflowMenu = useCallback(() => {

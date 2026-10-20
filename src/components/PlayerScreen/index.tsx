@@ -61,7 +61,7 @@ import { PlayerPinSheets } from "./components/PlayerPinSheets";
 import { PlayerLyricsWriter } from "./components/PlayerLyricsWriter";
 import { playerScreenStyles } from "./styles";
 import { getVisibleTimelineRange } from "./helpers";
-import { openIdeaInCollection } from "../../navigation";
+import { openIdeaInCollection, openSketchPage } from "../../navigation";
 import { AppAlert } from "../common/AppAlert";
 import { getClipOverdubStemCount } from "../../domain/clipPresentation";
 import { canAddOverdubLayer, isPracticeToolPro, type PracticeTool } from "../../domain/proGating";
@@ -1201,11 +1201,9 @@ function PlayerScreenInner({
     minimizePlayer();
     // Straight into the chart's editor: the pencil and the empty Chart key both
     // mean "work on it", and the reader is what the player already shows.
-    nav.navigate("IdeaDetail", {
-      ideaId: playerIdeaIdRef.current,
-      initialSongTab: "chart",
-      chartEditToken: Date.now(),
-    });
+    const ideaId = playerIdeaIdRef.current;
+    if (!ideaId) return;
+    openSketchPage(nav, { ideaId, initialSongTab: "chart", chartEditToken: Date.now() });
   }, []);
   const handleQueueOpenIdea = useCallback((ideaId: string) => {
     const { minimizePlayer, navigation: nav } = queueOpenIdeaRef.current;
