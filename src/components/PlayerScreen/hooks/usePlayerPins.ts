@@ -30,7 +30,6 @@ export function usePlayerPins({
   const { t } = useTranslation();
   const [pinActionsTarget, setPinActionsTarget] = useState<PracticeMarker | null>(null);
   const [pinActionsVisible, setPinActionsVisible] = useState(false);
-  const [pinRenameValue, setPinRenameValue] = useState("");
   const [expandedPinId, setExpandedPinId] = useState<string | null>(null);
   const [pinNoteDraft, setPinNoteDraft] = useState("");
 
@@ -79,35 +78,8 @@ export function usePlayerPins({
 
   const handlePinActions = useCallback((marker: PracticeMarker) => {
     setPinActionsTarget(marker);
-    setPinRenameValue(marker.label);
     setPinActionsVisible(true);
   }, []);
-
-  const handleRenamePin = useCallback(() => {
-    if (!playerIdeaId || !playerClipId || !pinActionsTarget) return;
-    const label = pinRenameValue.trim();
-    if (!label) return;
-    if (label === pinActionsTarget.label) {
-      setPinActionsVisible(false);
-      setPinActionsTarget(null);
-      return;
-    }
-    const updated = practiceMarkers.map((marker) =>
-      marker.id === pinActionsTarget.id ? { ...marker, label } : marker
-    );
-    onBeforeChange?.();
-    useStore.getState().setClipPracticeMarkers(playerIdeaId, playerClipId, updated);
-    setPinActionsVisible(false);
-    setPinActionsTarget(null);
-  }, [onBeforeChange, pinActionsTarget, pinRenameValue, playerClipId, playerIdeaId, practiceMarkers]);
-
-  const handleDeletePin = useCallback(() => {
-    if (!playerIdeaId || !playerClipId || !pinActionsTarget) return;
-    onBeforeChange?.();
-    useStore.getState().removeClipPracticeMarker(playerIdeaId, playerClipId, pinActionsTarget.id);
-    setPinActionsVisible(false);
-    setPinActionsTarget(null);
-  }, [onBeforeChange, pinActionsTarget, playerClipId, playerIdeaId]);
 
   const commitPinNote = useCallback(
     (markerId: string, note: string) => {
@@ -162,18 +134,14 @@ export function usePlayerPins({
   return {
     pinActionsTarget,
     pinActionsVisible,
-    pinRenameValue,
     expandedPinId,
     pinNoteDraft,
     setPinActionsTarget,
     setPinActionsVisible,
-    setPinRenameValue,
     setPinNoteDraft,
     handleAddPin,
     handleRepositionMarker,
     handlePinActions,
-    handleRenamePin,
-    handleDeletePin,
     handleEditPin,
     handleDeletePinId,
     togglePinExpanded,
