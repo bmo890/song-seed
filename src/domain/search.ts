@@ -218,28 +218,6 @@ function buildIdeaSearchFields(idea: SongIdea): SearchField[] {
   return fields;
 }
 
-export function getSearchMatchSourceLabel(source: GlobalSearchMatchSource) {
-  switch (source) {
-    case "title":
-      return "Title";
-    case "description":
-      return "Description";
-    case "notes":
-      return "Notes";
-    case "clip-title":
-      return "Clip title";
-    case "clip-notes":
-      return "Clip notes";
-    case "lyrics":
-      return "Lyrics";
-    case "chords":
-      return "Chords";
-    case "body":
-    default:
-      return "Body";
-  }
-}
-
 // Coarse buckets for the quick-filter pills. Every granular match source folds into
 // one of four everyday categories, so the filter row stays short (≤4 pills) instead of
 // exposing the internal source taxonomy.

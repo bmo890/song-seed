@@ -60,17 +60,3 @@ export function buildFallbackAnalysis(durationMs: number): AudioAnalysis {
   };
 }
 
-export function formatSelectionDuration(ms: number) {
-  const totalSeconds = Math.max(0, Math.round(ms / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  if (hours > 0) {
-    return `${hours}hr ${minutes}min ${seconds}sec`;
-  }
-  if (minutes > 0) {
-    return `${minutes}min ${String(seconds).padStart(2, "0")}sec`;
-  }
-  return `${seconds} sec`;
-}
