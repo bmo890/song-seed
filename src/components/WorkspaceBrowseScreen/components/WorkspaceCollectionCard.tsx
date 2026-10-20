@@ -7,7 +7,7 @@ import { styles } from "../../../styles";
 import type { CollectionSearchMatchKind } from "../../../domain/libraryNavigation";
 import type { Collection } from "../../../types";
 import { formatLastEdited } from "../../../utils";
-import { UserText } from "../../../i18n";
+import { UserText, i18n } from "../../../i18n";
 import { useTranslation } from "react-i18next";
 
 type WorkspaceCollectionCardProps = {
@@ -28,14 +28,14 @@ type WorkspaceCollectionCardProps = {
 
 function getMatchLabel(kind: CollectionSearchMatchKind): string {
   switch (kind) {
-    case "collection": return "Collection:";
-    case "subcollection": return "Inside:";
-    case "song": return "Song:";
-    case "notes": return "Notes:";
-    case "lyrics": return "Lyrics:";
-    case "chords": return "Chord:";
+    case "collection": return i18n.t("collectionMatch.collection");
+    case "subcollection": return i18n.t("collectionMatch.subcollection");
+    case "song": return i18n.t("collectionMatch.sketch");
+    case "notes": return i18n.t("collectionMatch.notes");
+    case "lyrics": return i18n.t("collectionMatch.lyrics");
+    case "chords": return i18n.t("collectionMatch.chords");
     case "clip":
-    default: return "Clip:";
+    default: return i18n.t("collectionMatch.clip");
   }
 }
 
@@ -131,7 +131,7 @@ export function WorkspaceCollectionCard({
                   {getMatchLabel(match.kind)}{" "}
                   <HighlightedText value={match.label} query={searchQuery} />
                   {match.context ? (
-                    <Text style={rowStyles.matchContext}> in {match.context}</Text>
+                    <Text style={rowStyles.matchContext}>{i18n.t("collectionMatch.inContext", { context: match.context })}</Text>
                   ) : null}
                 </Text>
               </View>

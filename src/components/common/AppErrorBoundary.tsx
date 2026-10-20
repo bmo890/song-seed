@@ -113,7 +113,7 @@ export class AppErrorBoundary extends React.Component<
                             textAlign: "center",
                         }}
                     >
-                        If this keeps happening, share the diagnostic log from Settings → About.
+                        {safeT("errorBoundary.hint", "If this keeps happening, share the diagnostic log from Settings → About.")}
                     </Text>
                 </View>
             );

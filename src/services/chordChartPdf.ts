@@ -3,6 +3,7 @@ import * as Sharing from "expo-sharing";
 import { buildChordChartHtml } from "../domain/chords";
 import { buildChordSheetHtml, isChordSheetEmpty } from "../domain/chordSheet";
 import type { ChordSheet, LyricsLine } from "../types";
+import { i18n } from "../i18n/instance";
 
 async function sharePdfFromHtml(html: string, dialogTitle: string): Promise<void> {
   const { uri } = await Print.printToFileAsync({ html });
@@ -26,7 +27,7 @@ export async function shareChordChartPdf({ title, subtitle, lines }: ChordChartP
   const hasContent = lines.some((line) => line.text.trim().length > 0 || line.chords.length > 0);
   if (!hasContent) return false;
 
-  await sharePdfFromHtml(buildChordChartHtml(title, subtitle, lines), `${title} — chords`);
+  await sharePdfFromHtml(buildChordChartHtml(title, subtitle, lines), i18n.t("chordEditor.shareTitle", { title }));
   return true;
 }
 
@@ -39,6 +40,6 @@ type ChordSheetPdfInput = {
 /** Renders a standalone block chord chart to a PDF and shares/prints it. */
 export async function shareChordSheetPdf({ title, subtitle, sheet }: ChordSheetPdfInput): Promise<boolean> {
   if (isChordSheetEmpty(sheet)) return false;
-  await sharePdfFromHtml(buildChordSheetHtml(title, subtitle, sheet), `${title} — chord chart`);
+  await sharePdfFromHtml(buildChordSheetHtml(title, subtitle, sheet), i18n.t("chordChart.shareTitle", { title }));
   return true;
 }

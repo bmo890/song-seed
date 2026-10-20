@@ -163,7 +163,7 @@ describe("buildDisasterRecoveryBackup", () => {
                 { archiveName: "snapshot.json", data: "{}" },
                 { archiveName: "manifest.json", data: "{}" },
             ])
-        ).toThrow("4 GB ZIP32 backup limit");
+        ).toThrow("over 4 GB");
     });
 
     it("hashes exact audio incrementally and passes precomputed integrity to the ZIP writer", async () => {

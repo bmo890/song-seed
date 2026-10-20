@@ -41,7 +41,7 @@ describe("playlists", () => {
         const playlists = store.getState().playlists;
         expect(playlists.map((p) => p.id)).toEqual([second, first]);
         expect(playlists[1]?.title).toBe("Road Trip");
-        expect(playlists[0]?.title).toBe("Untitled Playlist");
+        expect(playlists[0]?.title).toBe("Untitled playlist");
         expect(playlists[0]?.items).toEqual([]);
     });
 
@@ -190,7 +190,7 @@ describe("setlists", () => {
     it("rename/reorder/remove/delete mirror the songbook semantics", () => {
         const store = makeStore();
         const id = store.getState().addSetlist("   ");
-        expect(store.getState().setlists[0]?.title).toBe("Untitled Setlist");
+        expect(store.getState().setlists[0]?.title).toBe("Untitled setlist");
 
         store.getState().addSetlistEntry(id, { ideaId: "idea-1" } as never);
         store.getState().addSetlistEntry(id, { ideaId: "idea-2" } as never);

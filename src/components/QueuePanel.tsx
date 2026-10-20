@@ -25,6 +25,7 @@ import type { PlaybackQueueItem } from "../types";
 import { useTranslation } from "react-i18next";
 import { PlaylistChooserSheet } from "./common/PlaylistChooserSheet";
 import { UserText } from "../i18n";
+import { i18n } from "../i18n/instance";
 
 type QueueRow = {
   key: string;
@@ -243,7 +244,7 @@ function QueuePanelInner({
         index,
         ideaId: idea?.id ?? null,
         workspaceId,
-        title: clip?.title || idea?.title || "Unknown clip",
+        title: clip?.title || idea?.title || i18n.t("common.untitled"),
         subtitle: idea?.title ?? "",
         durationMs: clip ? getClipPlaybackDurationMs(clip) ?? null : null,
       };

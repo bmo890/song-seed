@@ -324,7 +324,7 @@ function IdeaListItemInner({
                             }}
                             hitSlop={8}
                             accessibilityRole="button"
-                            accessibilityLabel={dayDividerLabel ? `Hide ${dayDividerLabel}` : "Hide section"}
+                            accessibilityLabel={dayDividerLabel ? t("collection.hideDay", { label: dayDividerLabel }) : t("collection.hideSection")}
                         >
                             <Ionicons name="eye-off-outline" size={13} color="#84736f" />
                         </Pressable>
@@ -562,7 +562,7 @@ export function CollapsedDayRow({
                 <Ionicons name={dirIcon("chevron-forward")} size={12} color="#84736f" />
                 <Text style={styles.ideasDayDividerText}>{label}</Text>
                 <View style={styles.ideasCollapsedDayCountPill}>
-                    <Text style={styles.ideasCollapsedDayCountText}>{count} hidden</Text>
+                    <Text style={styles.ideasCollapsedDayCountText}>{t("common.hiddenCount", { count })}</Text>
                 </View>
                 <View style={styles.ideasDayDividerLine} />
             </Pressable>

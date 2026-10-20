@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
 import { useIsFocused } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import { useStore } from "../../../state/useStore";
 import { useMiniPlayerContext } from "../../../hooks/FullPlayerProvider";
 import { useCollectionEditModal } from "../hooks/useCollectionEditModal";
@@ -35,6 +36,7 @@ type CollectionScreenContextValue = {
 const CollectionScreenContext = createContext<CollectionScreenContextValue | null>(null);
 
 export function CollectionScreenProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   const screen = useCollectionScreenModel();
   const globalCustomTags = useStore((s) => s.globalCustomClipTags);
   const ideasFilter = useStore((s) => s.ideasFilter);
@@ -67,7 +69,7 @@ export function CollectionScreenProvider({ children }: { children: ReactNode }) 
     activeWorkspaceId: screen.activeWorkspaceId,
     collectionId: screen.collectionId ?? "",
     collectionIdeaTitles: screen.ideas.map((idea) => idea.title),
-    currentCollectionTitle: screen.currentCollection?.title ?? "Collection",
+    currentCollectionTitle: screen.currentCollection?.title ?? t("common.collection"),
   });
   const management = useCollectionManagement({
     workspaces: screen.workspaces,

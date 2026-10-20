@@ -28,6 +28,7 @@ import {
 } from "../helpers";
 import { useTranslation } from "react-i18next";
 import { trashFilesOfDroppedClips } from "../../../state/mediaCleanup";
+import { userFacingMessage } from "../../../i18n/userFacingError";
 
 type MinimalPlayer = {
   seekTo: (seconds: number) => Promise<void> | void;
@@ -527,7 +528,7 @@ export function useEditorExportFlow({
       console.warn("Editor transform save failed", error);
       AppAlert.error(
         t("editor.transformSaveError"),
-        error instanceof Error ? error.message : t("editor.transformSaveFailed")
+        userFacingMessage(error, t("editor.transformSaveFailed"))
       );
     } finally {
       setIsExporting(false);

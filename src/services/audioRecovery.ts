@@ -12,7 +12,8 @@ import {
 } from "./storedZipArchive";
 import { readManifest, type ManifestData } from "./manifestSync";
 import { loadAudioDurationMs } from "./audioStorage";
-import { buildStaticWaveform } from "../utils";
+import { buildDefaultIdeaTitle, buildStaticWaveform } from "../utils";
+import { i18n } from "../i18n/instance";
 import type { SongIdea, ClipVersion, Workspace } from "../types";
 import { normalizeWorkspaces } from "../state/dataSlice";
 import { sanitizePersistedState, type PersistedAppStore } from "../state/useStore";
@@ -395,14 +396,7 @@ function buildRecoveredTitle(baseName: string): string {
         const timestamp = parseInt(audioIdMatch[1], 10);
         if (timestamp > 1e12) {
             const date = new Date(timestamp);
-            return `Recovered — ${date.toLocaleString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-                hour: "numeric",
-                minute: "2-digit",
-                hour12: true,
-            })}`;
+            return i18n.t("defaults.recoveredClipTitle", { name: buildDefaultIdeaTitle(timestamp) });
         }
     }
 
@@ -412,14 +406,7 @@ function buildRecoveredTitle(baseName: string): string {
         const timestamp = parseInt(clipMatch[1], 10);
         if (timestamp > 1e12) {
             const date = new Date(timestamp);
-            return `Recovered — ${date.toLocaleString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-                hour: "numeric",
-                minute: "2-digit",
-                hour12: true,
-            })}`;
+            return i18n.t("defaults.recoveredClipTitle", { name: buildDefaultIdeaTitle(timestamp) });
         }
     }
 

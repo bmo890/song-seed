@@ -19,6 +19,7 @@ import { getHierarchyIconName } from "../../../domain/hierarchy";
 import { SKETCH_DOOR_HINT } from "../components/PlayerArtifactDoors";
 import type { ClipVersion } from "../../../types";
 import { useTranslation } from "react-i18next";
+import { UserFacingError, userFacingMessage } from "../../../i18n/userFacingError";
 
 type UsePlayerScreenLifecycleArgs = {
   navigation: any;
@@ -477,7 +478,7 @@ export function usePlayerScreenLifecycle({
         .find((idea) => idea.id === savedTarget.ideaId);
       const savedClip = savedIdea?.clips.find((clip) => clip.id === savedTarget.clipId) ?? null;
       if (!savedIdea || !savedClip?.audioUri) {
-        throw new Error(t("player.combinedOpenFailed"));
+        throw new UserFacingError(t("player.combinedOpenFailed"));
       }
 
       navigation.navigate("Editor", {
@@ -511,7 +512,7 @@ export function usePlayerScreenLifecycle({
                   AppAlert.info(t("player.combinedSaved"), t("player.combinedSavedBody"));
                 } catch (error) {
                   const message =
-                    error instanceof Error ? error.message : t("player.combinedSaveBody");
+                    userFacingMessage(error, t("player.combinedSaveBody"));
                   AppAlert.error(t("player.combinedSaveFailed"), message);
                 }
               },
@@ -525,7 +526,7 @@ export function usePlayerScreenLifecycle({
                   await openFlattenedEditor();
                 } catch (error) {
                   const message =
-                    error instanceof Error ? error.message : t("player.combinedOpenFailed");
+                    userFacingMessage(error, t("player.combinedOpenFailed"));
                   AppAlert.error(t("player.combinedSaveFailed"), message);
                 }
               },
@@ -597,7 +598,7 @@ export function usePlayerScreenLifecycle({
               await shareAudioFile(playbackUri, clipTitle);
             } catch (error) {
               console.warn("Share audio error", error);
-              const message = error instanceof Error ? error.message : t("player.shareAudioFailed");
+              const message = userFacingMessage(error, t("player.shareAudioFailed"));
               AppAlert.error(t("player.shareFailed"), message);
             }
           };

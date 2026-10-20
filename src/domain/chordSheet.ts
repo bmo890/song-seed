@@ -6,6 +6,7 @@ import type {
   LyricsLine,
   LyricsVersion,
 } from "../types";
+import { i18n } from "../i18n/instance";
 
 function randomId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -256,7 +257,7 @@ export function buildChordSheetHtml(
   .notes { margin-top: 8px; font-size: 13px; color: #4b5563; white-space: pre-wrap; }
   .textblock { margin-bottom: 22px; font-size: 14px; line-height: 1.5; color: #1b1c1a; white-space: pre-wrap; break-inside: avoid; }
 </style></head><body>
-  <h1>${escapeHtml(title || "Untitled")}</h1>
+  <h1>${escapeHtml(title || i18n.t("common.untitled"))}</h1>
   <div class="sub">${escapeHtml(subtitle)}</div>
   ${sectionsHtml}
 </body></html>`;

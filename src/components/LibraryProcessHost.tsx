@@ -15,6 +15,8 @@ import {
     type LibraryProcess,
 } from "../state/useProcessStore";
 import { useTranslation } from "react-i18next";
+import { i18n } from "../i18n/instance";
+import { formatEta } from "../domain/sendProgress";
 
 const DEEP = "#8b4f3b";
 const SUCCESS = "#3F9C82";
@@ -56,10 +58,9 @@ function computeLiveStats(process: LibraryProcess) {
 
     let etaLabel = "—";
     if (overall != null && overall >= 1) {
-        etaLabel = "almost done";
+        etaLabel = i18n.t("common.almostDone");
     } else if (overall != null && overall > 0.02) {
-        const etaSec = Math.round((elapsedSec * (1 - overall)) / overall);
-        etaLabel = etaSec >= 60 ? `~${Math.ceil(etaSec / 60)} min` : `~${etaSec}s`;
+        etaLabel = formatEta(Math.round((elapsedSec * (1 - overall)) / overall));
     }
 
     return {

@@ -30,7 +30,7 @@ export const AppAlert = {
       buttons: [
         { label: opts?.cancelLabel ?? i18n.t("common.cancel"), style: "cancel" },
         {
-          label: opts?.confirmLabel ?? "Confirm",
+          label: opts?.confirmLabel ?? i18n.t("common.confirm"),
           style: "default",
           icon: opts?.icon ?? actionIcons.confirm,
           onPress: onConfirm,
@@ -47,7 +47,7 @@ export const AppAlert = {
       buttons: [
         { label: opts?.cancelLabel ?? i18n.t("common.cancel"), style: "cancel" },
         {
-          label: opts?.confirmLabel ?? "Delete",
+          label: opts?.confirmLabel ?? i18n.t("common.delete"),
           style: "destructive",
           icon: opts?.icon ?? actionIcons.delete,
           onPress: onConfirm,

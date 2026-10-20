@@ -6,6 +6,7 @@ import type {
   SongChordPaletteItem,
 } from "../types";
 import GraphemeSplitter from "grapheme-splitter";
+import { i18n } from "../i18n/instance";
 
 const graphemeSplitter = new GraphemeSplitter();
 
@@ -304,7 +305,7 @@ export function buildChordChartHtml(
   pre.chords { color: #824f3f; font-weight: 700; }
   pre.lyric { color: #1b1c1a; }
 </style></head><body>
-  <h1>${escapeHtml(title || "Untitled")}</h1>
+  <h1>${escapeHtml(title || i18n.t("common.untitled"))}</h1>
   <div class="sub">${escapeHtml(subtitle)}</div>
   ${body}
 </body></html>`;

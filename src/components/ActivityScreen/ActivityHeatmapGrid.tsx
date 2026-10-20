@@ -12,6 +12,7 @@ import { durations } from "../../design/motion";
 import { colors, radii, spacing } from "../../design/tokens";
 import { useTranslation } from "react-i18next";
 import { useLocale } from "../../i18n";
+import { getWeekdayName } from "../../domain/dateNames";
 
 type ActivityHeatmapGridProps = {
   year: number;
@@ -185,7 +186,7 @@ export function ActivityHeatmapGrid({
 
       <View style={styles.activityGridRow}>
         <View style={styles.activityWeekdayLabels}>
-          {["S", "M", "T", "W", "T", "F", "S"].map((label, index) => (
+          {[0, 1, 2, 3, 4, 5, 6].map((day) => getWeekdayName(formatLocale, day, "narrow")).map((label, index) => (
             <Text key={`${label}-${index}`} style={styles.activityWeekdayLabel}>
               {label}
             </Text>

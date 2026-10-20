@@ -3,6 +3,7 @@ import type { NativeMixedRenderInput } from "../../modules/songnook-pitch-shift"
 import { getMetronomeMeterPreset } from "./metronome";
 import { fmtDuration } from "../utils";
 import { hueToAccentHex } from "./workspaceTheme";
+import { i18n } from "../i18n/instance";
 
 export const OVERDUB_GAIN_MIN_DB = -24;
 export const OVERDUB_GAIN_MAX_DB = 12;
@@ -238,13 +239,14 @@ export function snapPunchInMsToGrid(
 
 export function formatClipOverdubStemOffsetLabel(offsetMs: number) {
   if (!Number.isFinite(offsetMs) || offsetMs === 0) {
-    return "In place";
+    return i18n.t("player.offsetInPlace");
   }
   // Second-scale offsets are punch-in placements — read as a song position, not a nudge.
   if (offsetMs >= MIN_PUNCH_IN_MS) {
-    return `at ${fmtDuration(offsetMs)}`;
+    return i18n.t("player.offsetAt", { time: fmtDuration(offsetMs) });
   }
-  return offsetMs > 0 ? `+${Math.round(offsetMs)} ms` : `${Math.round(offsetMs)} ms`;
+  const ms = Math.round(offsetMs);
+  return i18n.t("player.offsetMs", { ms: ms > 0 ? `+${ms}` : `${ms}` });
 }
 
 /**

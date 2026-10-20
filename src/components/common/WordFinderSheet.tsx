@@ -841,7 +841,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
               ) : lookup.suggestions.length === 0 ? (
                 <View style={finderStyles.emptyState}>
                   <Text style={finderStyles.stateText}>
-                    {t("wordFinderUi.noMatches", { mode: activeMode ? modeLabel(activeMode).toLowerCase() : t("wordFinderUi.matches"), query: query.trim(), theme: themes.length > 0 ? t("wordFinderUi.withTheme") : "" })}
+                    {t(themes.length > 0 ? "wordFinderUi.noMatchesWithTheme" : "wordFinderUi.noMatches", { query: query.trim() })}
                   </Text>
                   {/* Perfect rhymes often come up empty (orange, silver, גֶּשֶׁם) —
                       point the writer at near rhymes rather than a dead end. */}

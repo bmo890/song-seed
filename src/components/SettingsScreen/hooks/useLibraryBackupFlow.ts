@@ -42,6 +42,7 @@ import { haptic } from "../../../design/haptics";
 import { toast } from "../../common/toastStore";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
+import { userFacingMessage } from "../../../i18n/userFacingError";
 
 const REMINDER_OPTIONS: BackupReminderFrequency[] = ["off", "weekly", "monthly", "quarterly"];
 
@@ -313,15 +314,13 @@ export function useLibraryBackupFlow() {
                 return false;
             }
 
-            // Keep the raw error in the diagnostic log. Our own guards (e.g.
-            // ensureBackupDiskSpace) already throw clear, specific messages — including the
-            // exact free-space figures — so show the message as-is; only the cryptic
-            // low-level out-of-space string gets rewritten to friendly copy.
-            console.warn("[backup] failed", error);
+            // Our own guards (ensureBackupDiskSpace, the 4 GB limit) throw sentences
+            // written for people, with the exact figures; the low-level out-of-space
+            // string becomes friendly copy; anything else is logged, not shown.
             const raw = error instanceof Error ? error.message : "";
             const message = /enospc|no space left on device/i.test(raw)
                 ? t("settingsBackup.lowStorage")
-                : raw || t("settingsBackup.failedBody");
+                : userFacingMessage(error, t("settingsBackup.failedBody"));
             useProcessStore.getState().setStatus("error", message);
             AppAlert.error(t("settingsBackup.failed"), message);
             return false;

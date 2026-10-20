@@ -25,6 +25,7 @@ import {
 import type { ArchiveExportOptions, ExportSectionKey, StandardExportOptions } from "../types";
 import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
+import { userFacingMessage } from "../../../i18n/userFacingError";
 
 // Hidden ideas are included by default: a library export should be the whole library, and
 // (since archive v7) the hidden state itself travels, so they arrive hidden on import.
@@ -361,7 +362,7 @@ export function useLibraryExportFlow() {
         return;
       }
       const message =
-        error instanceof Error ? error.message : t("settingsExport.failedBody");
+        userFacingMessage(error, t("settingsExport.failedBody"));
       useProcessStore.getState().setStatus("error", message);
       AppAlert.error(t("settingsExport.failed"), message);
     }

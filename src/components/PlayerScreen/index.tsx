@@ -68,8 +68,9 @@ import { canAddOverdubLayer, isPracticeToolPro, type PracticeTool } from "../../
 import { hasProAccess } from "../../domain/entitlements";
 import { ensurePro, openProUpsell } from "../common/proUpsell";
 import { useTranslation } from "react-i18next";
-import { resolveSectionEdit } from "../../domain/playerSections";
+import { resolveSectionEdit, sectionDisplayLabel } from "../../domain/playerSections";
 import { durations } from "../../design/motion";
+import { userFacingMessage } from "../../i18n/userFacingError";
 
 const PRACTICE_SPEED_PRESETS = [0.5, 0.75, 1, 1.25, 1.5] as const;
 const PRACTICE_SPEED_MIN = 0.5;
@@ -1078,7 +1079,7 @@ function PlayerScreenInner({
         toast(t("player.mergedToast"), "checkmark-outline");
       } catch (error) {
         console.warn("Layer merge failed", error);
-        AppAlert.error(t("player.mergeFailed"), error instanceof Error ? error.message : "");
+        AppAlert.error(t("player.mergeFailed"), userFacingMessage(error, ""));
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1120,7 +1121,7 @@ function PlayerScreenInner({
       navigation.navigate("Recording" as never);
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : t("player.layerStartFailed");
+        userFacingMessage(error, t("player.layerStartFailed"));
       AppAlert.info(t("player.layerUnavailable"), message);
     }
   }, [navigation, playerClip, playerIdea]);
@@ -1138,7 +1139,7 @@ function PlayerScreenInner({
     if (!guardPracticeTool("loop")) return;
     AppAlert.custom(t("player.loopWhat"), "", [
       ...data.sections.slice(0, 5).map((section) => ({
-        label: section.label,
+        label: sectionDisplayLabel(section),
         onPress: () => handleLoopSection(section),
       })),
       {
@@ -1233,7 +1234,7 @@ function PlayerScreenInner({
             : t("player.flattenedCopy")
         );
       } catch (error) {
-        const message = error instanceof Error ? error.message : t("player.flattenFailed");
+        const message = userFacingMessage(error, t("player.flattenFailed"));
         AppAlert.error(t("player.saveFailed"), message);
       }
     },
@@ -1257,7 +1258,7 @@ function PlayerScreenInner({
       (...args: A) => {
         if (!layerIdeaId || !layerClipId) return;
         void action(layerIdeaId, layerClipId, ...args).catch((error) => {
-          const message = error instanceof Error ? error.message : fallbackMessage;
+          const message = userFacingMessage(error, fallbackMessage);
           AppAlert.error(t("player.layerUpdateFailed"), message);
         });
       };

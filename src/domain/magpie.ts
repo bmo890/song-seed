@@ -165,10 +165,10 @@ async function fetchRandomLibraryBook(attempts = 3): Promise<MagpieBook> {
       .map((book) => {
         const url = textPlainUrl(book.formats ?? {});
         if (!url) return null;
-        const author = Array.isArray(book.authors) && book.authors[0]?.name ? book.authors[0].name : "Unknown";
+        const author = Array.isArray(book.authors) && book.authors[0]?.name ? book.authors[0].name : i18n.t("magpie.unknownAuthor");
         return {
           id: String(book.id),
-          title: cleanTitle(String(book.title ?? "Untitled")),
+          title: cleanTitle(String(book.title ?? i18n.t("magpie.untitledWork"))),
           author: formatAuthor(String(author)),
           textUrl: url,
           source: "gutenberg",

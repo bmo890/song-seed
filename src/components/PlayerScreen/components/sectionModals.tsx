@@ -5,14 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
 import { fmtDuration } from "../../../utils";
 import { colors } from "../../../design/tokens";
-import {
-  getSectionColor,
-  getSectionPreset,
-  MIN_SECTION_LENGTH_MS,
-  nearestSectionInk,
-  SECTION_INKS,
-  SECTION_QUICK_ADD,
-} from "../../../domain/playerSections";
+import { getSectionColor, getSectionPreset, MIN_SECTION_LENGTH_MS, nearestSectionInk, SECTION_INKS, SECTION_QUICK_ADD, sectionDisplayLabel, sectionPresetDisplayLabel } from "../../../domain/playerSections";
 import type { SectionCustomInput } from "../hooks/usePlayerSections";
 import { WarmModal } from "../../common/WarmModal";
 import { playerScreenStyles as s } from "../styles";
@@ -160,11 +153,11 @@ export function SectionPickerModal({
                     style={s.sectionChip}
                     onPress={() => onPickPreset(kind)}
                     accessibilityRole="button"
-                    accessibilityLabel={t(`chordChart.presets.${preset.label}`, { defaultValue: preset.label })}
+                    accessibilityLabel={sectionPresetDisplayLabel(kind)}
                   >
                     <View style={[s.sectionSwatch, { backgroundColor: preset.color }]} />
                     <Text style={s.sectionChipText}>
-                      {t(`chordChart.presets.${preset.label}`, { defaultValue: preset.label })}
+                      {sectionPresetDisplayLabel(kind)}
                     </Text>
                   </Pressable>
                 );
@@ -322,11 +315,11 @@ export function LoopSectionPickerModal({
           style={s.loopSectionRow}
           onPress={() => onPick(section)}
           accessibilityRole="button"
-          accessibilityLabel={t("player.loopSectionA11y", { label: section.label })}
+          accessibilityLabel={t("player.loopSectionA11y", { label: sectionDisplayLabel(section) })}
         >
           <View style={[s.sectionSwatch, { backgroundColor: getSectionColor(section) }]} />
           <Text style={s.loopSectionLabel} numberOfLines={1}>
-            {section.label}
+            {sectionDisplayLabel(section)}
           </Text>
           <Text style={s.loopSectionTime}>
             {fmtDuration(section.startMs)}–{fmtDuration(section.endMs)}

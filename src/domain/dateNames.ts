@@ -2,7 +2,7 @@
 // row is the slow path on Android (each call builds a formatter across the JNI bridge);
 // twelve months and seven weekdays never change, so they are read once and indexed.
 
-type NameStyle = "long" | "short";
+type NameStyle = "long" | "short" | "narrow";
 
 const monthNames = new Map<string, string[]>();
 const weekdayNames = new Map<string, string[]>();

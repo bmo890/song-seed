@@ -1,12 +1,14 @@
 import { useEffect, useRef } from "react";
 import { Animated, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTranslation } from "react-i18next";
 import { type ImportJob, useImportStore } from "../state/useImportStore";
 import { useStore } from "../state/useStore";
 import { colors, radii } from "../design/tokens";
 import { durations, springs } from "../design/motion";
 
 function ImportJobRow({ job }: { job: ImportJob }) {
+    const { t } = useTranslation();
     const progressAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
@@ -22,14 +24,19 @@ function ImportJobRow({ job }: { job: ImportJob }) {
 
     let statusText: string;
     let statusColor: string;
+    // Color is scarce: terracotta while it works, ink when done, danger when it failed.
     if (job.status === "done") {
-        statusText = isMulti ? `Imported ${job.total - job.failed} of ${job.total}` : "Imported";
-        statusColor = "#3F9C82";
+        statusText = isMulti
+            ? t("importBanner.doneMany", { done: job.total - job.failed, total: job.total })
+            : t("importBanner.done");
+        statusColor = colors.textSecondary;
     } else if (job.status === "error") {
-        statusText = "Import failed";
-        statusColor = "#B4574A";
+        statusText = t("importBanner.failed");
+        statusColor = colors.danger;
     } else {
-        statusText = isMulti ? `Importing ${job.current} of ${job.total}…` : "Importing…";
+        statusText = isMulti
+            ? t("importBanner.progressMany", { current: job.current, total: job.total })
+            : t("importBanner.progress");
         statusColor = colors.primary;
     }
 

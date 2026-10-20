@@ -1,5 +1,6 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { i18n } from "../i18n/instance";
+import { UserFacingError } from "../i18n/userFacingError";
 
 export const BACKUP_OPERATION_CANCELLED_MESSAGE = "Backup operation was cancelled.";
 
@@ -74,12 +75,12 @@ export type BackupSpaceOperation = "backup" | "restore" | "export" | "archive";
 export async function ensureBackupDiskSpace(requiredBytes: number, operation: BackupSpaceOperation) {
     const action = i18n.t(`backupOperation.action.${operation}`);
     if (!Number.isFinite(requiredBytes) || requiredBytes < 0) {
-        throw new Error(i18n.t("backupOperation.estimateFailed", { action }));
+        throw new UserFacingError(i18n.t("backupOperation.estimateFailed", { action }));
     }
 
     const availableBytes = await FileSystem.getFreeDiskStorageAsync();
     if (!Number.isFinite(availableBytes) || availableBytes < 0) {
-        throw new Error(i18n.t("backupOperation.spaceUnknown", { action }));
+        throw new UserFacingError(i18n.t("backupOperation.spaceUnknown", { action }));
     }
     const reserveBytes = Math.max(
         MIN_FREE_SPACE_RESERVE_BYTES,
@@ -90,7 +91,7 @@ export async function ensureBackupDiskSpace(requiredBytes: number, operation: Ba
     if (availableBytes < totalRequiredBytes) {
         const requiredMb = Math.ceil(totalRequiredBytes / (1024 * 1024));
         const availableMb = Math.floor(availableBytes / (1024 * 1024));
-        throw new Error(
+        throw new UserFacingError(
             i18n.t("backupOperation.lowStorage", { action, required: requiredMb, available: availableMb })
         );
     }

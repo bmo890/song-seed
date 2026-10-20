@@ -1,3 +1,4 @@
+import { i18n } from "../i18n/instance";
 /**
  * Progress of one SongNook Send seal (2026-10-14): pack the parcel, upload
  * it, seal it. Pure arithmetic for the pill and the sheet; the store owns the
@@ -64,5 +65,7 @@ export function sendEtaSeconds(
 
 /** "~45s" / "~3 min" for a supporting line. */
 export function formatEta(seconds: number): string {
-    return seconds >= 60 ? `~${Math.ceil(seconds / 60)} min` : `~${Math.max(1, seconds)}s`;
+    return seconds >= 60
+        ? i18n.t("common.etaMinutes", { count: Math.ceil(seconds / 60) })
+        : i18n.t("common.etaSeconds", { count: Math.max(1, seconds) });
 }

@@ -2522,13 +2522,13 @@ export const appActions = {
         const targetWorkspace = state.workspaces.find((workspace) => workspace.id === targetWorkspaceId) ?? null;
 
         if (!sourceWorkspace || !targetWorkspace) {
-            return { ok: false, error: "Collection not found." };
+            return { ok: false, error: i18n.t("collectionErrors.notFound") };
         }
 
         const sourceCollection =
             sourceWorkspace.collections.find((collection) => collection.id === collectionId) ?? null;
         if (!sourceCollection) {
-            return { ok: false, error: "Collection not found." };
+            return { ok: false, error: i18n.t("collectionErrors.notFound") };
         }
 
         const descendantIds = getCollectionDescendantIds(sourceWorkspace.collections, collectionId);
@@ -2539,17 +2539,17 @@ export const appActions = {
                 targetWorkspace.collections.find((collection) => collection.id === targetParentCollectionId) ?? null;
 
             if (!targetParent) {
-                return { ok: false, error: "Destination collection not found." };
+                return { ok: false, error: i18n.t("collectionErrors.destinationNotFound") };
             }
 
             if (targetParent.parentCollectionId) {
-                return { ok: false, error: "Subcollections cannot contain another subcollection." };
+                return { ok: false, error: i18n.t("collectionErrors.tooDeep") };
             }
 
             if (hasChildCollections) {
                 return {
                     ok: false,
-                    error: "A collection with subcollections can only be copied to the top level.",
+                    error: i18n.t("collectionErrors.topLevelCopy"),
                 };
             }
         }

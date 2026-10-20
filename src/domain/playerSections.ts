@@ -1,5 +1,6 @@
 import type { ClipSection, ClipSectionKind } from "../types";
 import { colors } from "../design/tokens";
+import { i18n } from "../i18n/instance";
 
 export type SectionPreset = {
   kind: ClipSectionKind;
@@ -158,8 +159,20 @@ export function sortClipSections(sections: ClipSection[]): ClipSection[] {
 }
 
 /** True when the label is still the preset's default (i.e. the user hasn't renamed it). */
-export function isDefaultSectionLabel(section: ClipSection): boolean {
+export function isDefaultSectionLabel(section: Pick<ClipSection, "kind" | "label">): boolean {
   return section.label.trim() === getSectionPreset(section.kind).label;
+}
+
+/** The name to show: a section still wearing its preset's name shows it in the app's
+ *  language (the stored default is the English preset, kept as data); a name the person
+ *  typed shows as typed. */
+export function sectionDisplayLabel(section: Pick<ClipSection, "kind" | "label">): string {
+  return isDefaultSectionLabel(section) ? i18n.t(`sections.${section.kind}`) : section.label;
+}
+
+/** A preset's name in the app's language. */
+export function sectionPresetDisplayLabel(kind: ClipSectionKind): string {
+  return i18n.t(`sections.${kind}`);
 }
 
 /**
@@ -196,7 +209,7 @@ export function buildSectionBands(sections: ClipSection[], durationMs: number): 
       id: section.id,
       startMs: Math.max(0, Math.min(durationMs, section.startMs)),
       endMs: Math.max(0, Math.min(durationMs, section.endMs)),
-      label: section.label,
+      label: sectionDisplayLabel(section),
       color: hexToRgba(base, SECTION_FILL_ALPHA),
       railColor: base,
     };

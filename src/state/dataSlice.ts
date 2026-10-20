@@ -1266,7 +1266,7 @@ export function normalizePlaylists(playlists: Playlist[] | undefined) {
         })
         .map((playlist) => ({
             ...playlist,
-            title: playlist.title.trim() || "Untitled Playlist",
+            title: playlist.title.trim() || i18n.t("defaults.untitledPlaylist"),
             items: normalizePlaylistItems(playlist.items),
         }));
 }
@@ -1300,7 +1300,7 @@ export function normalizeSongbooks(songbooks: Songbook[] | undefined) {
         })
         .map((songbook) => ({
             ...songbook,
-            title: songbook.title.trim() || "Untitled chart book",
+            title: songbook.title.trim() || i18n.t("defaults.untitledChartBook"),
             items: normalizeSongbookItems(songbook.items),
             received: normalizeCompilationProvenance(songbook.received),
         }));
@@ -1352,7 +1352,7 @@ export function normalizeSetlists(setlists: Setlist[] | undefined) {
         })
         .map((setlist) => ({
             ...setlist,
-            title: setlist.title.trim() || "Untitled Setlist",
+            title: setlist.title.trim() || i18n.t("defaults.untitledSetlist"),
             entries: normalizeSetlistEntries(setlist.entries),
             received: normalizeCompilationProvenance(setlist.received),
         }));
@@ -1863,12 +1863,12 @@ export const createDataSlice: StateCreator<
         const targetWorkspace = state.workspaces.find((workspace) => workspace.id === targetWorkspaceId) ?? null;
 
         if (!sourceWorkspace || !targetWorkspace) {
-            return { ok: false, error: "Collection not found." };
+            return { ok: false, error: i18n.t("collectionErrors.notFound") };
         }
 
         const movingCollection = sourceWorkspace.collections.find((collection) => collection.id === collectionId) ?? null;
         if (!movingCollection) {
-            return { ok: false, error: "Collection not found." };
+            return { ok: false, error: i18n.t("collectionErrors.notFound") };
         }
 
         const descendantIds = getCollectionDescendantIds(sourceWorkspace.collections, collectionId);
@@ -1876,7 +1876,7 @@ export const createDataSlice: StateCreator<
 
         if (targetParentCollectionId) {
             if (targetParentCollectionId === collectionId || descendantIds.has(targetParentCollectionId)) {
-                return { ok: false, error: "A collection cannot be moved inside itself." };
+                return { ok: false, error: i18n.t("collectionErrors.intoItself") };
             }
 
             const targetParent = targetWorkspace.collections.find(
@@ -1884,17 +1884,17 @@ export const createDataSlice: StateCreator<
             ) ?? null;
 
             if (!targetParent) {
-                return { ok: false, error: "Destination collection not found." };
+                return { ok: false, error: i18n.t("collectionErrors.destinationNotFound") };
             }
 
             if (targetParent.parentCollectionId) {
-                return { ok: false, error: "Subcollections cannot contain another subcollection." };
+                return { ok: false, error: i18n.t("collectionErrors.tooDeep") };
             }
 
             if (hasChildCollections) {
                 return {
                     ok: false,
-                    error: "A collection with subcollections can only be moved to the top level.",
+                    error: i18n.t("collectionErrors.topLevelMove"),
                 };
             }
         }
@@ -2615,7 +2615,7 @@ export const createDataSlice: StateCreator<
         // ideas keep their audio — it is referenced from the destination now.
         const state = get();
         const pkg = state.workspaces.find((ws) => ws.id === packageId);
-        if (!pkg || pkg.origin !== "received") return { ok: false, error: "Package not found.", collectionIds: [] };
+        if (!pkg || pkg.origin !== "received") return { ok: false, error: i18n.t("collectionErrors.packageNotFound"), collectionIds: [] };
         const topLevel = pkg.collections.filter((c) => !c.parentCollectionId);
         // Decide before touching anything: a collection that carries nested
         // collections can only move to the top level (sub-collections never
@@ -2627,7 +2627,7 @@ export const createDataSlice: StateCreator<
         ) {
             return {
                 ok: false,
-                error: "A collection with subcollections can only be moved to the top level.",
+                error: i18n.t("collectionErrors.topLevelMove"),
                 collectionIds: [],
             };
         }
@@ -3084,7 +3084,7 @@ export const createDataSlice: StateCreator<
         const playlistId = buildPlaylistId();
         const nextPlaylist: Playlist = {
             id: playlistId,
-            title: title.trim() || "Untitled Playlist",
+            title: title.trim() || i18n.t("defaults.untitledPlaylist"),
             createdAt: now,
             updatedAt: now,
             items: [],
@@ -3162,7 +3162,7 @@ export const createDataSlice: StateCreator<
         const id = buildSongbookId();
         set((state) => ({
             songbooks: [
-                { id, title: title.trim() || "Untitled chart book", createdAt: now, updatedAt: now, items: [] },
+                { id, title: title.trim() || i18n.t("defaults.untitledChartBook"), createdAt: now, updatedAt: now, items: [] },
                 ...state.songbooks,
             ],
         }));
@@ -3244,7 +3244,7 @@ export const createDataSlice: StateCreator<
         const id = buildSetlistId();
         set((state) => ({
             setlists: [
-                { id, title: title.trim() || "Untitled Setlist", createdAt: now, updatedAt: now, entries: [] },
+                { id, title: title.trim() || i18n.t("defaults.untitledSetlist"), createdAt: now, updatedAt: now, entries: [] },
                 ...state.setlists,
             ],
         }));

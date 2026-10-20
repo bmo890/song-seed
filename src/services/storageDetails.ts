@@ -1,4 +1,5 @@
 import * as FileSystem from "expo-file-system/legacy";
+import { i18n } from "../i18n/instance";
 import type { PersistedAppStore } from "../state/useStore";
 import { STORE_VERSION } from "../state/useStore";
 import type { Workspace } from "../types";
@@ -202,7 +203,7 @@ export async function getStorageDetailsReport(snapshot: PersistedAppStore): Prom
 
     return {
         generatedAt: Date.now(),
-        storageLabel: "Stored locally in SongNook app storage on this device.",
+        storageLabel: i18n.t("settingsStorage.storedLocally"),
         totalLibraryBytes,
         totalManagedBytes,
         activeWorkspaceCount: activeWorkspaces.length,
