@@ -2,12 +2,14 @@ import * as FileSystem from "expo-file-system/legacy";
 import { i18n } from "../i18n/instance";
 import { File } from "expo-file-system";
 import {
+    BackupOperationCancelledError,
     reportBackupProgress,
     throwIfBackupCancelled,
     yieldToBackupUi,
     type BackupOperationOptions,
 } from "./backupOperation";
 import { IncrementalCrc32 } from "./streamingIntegrity";
+import { NATIVE_IO_CANCELLED, NativeZipWriter, isNativeZipAvailable } from "../../modules/songnook-file-io";
 
 export type ZipArchiveEntry = {
     archiveName: string;
@@ -103,6 +105,8 @@ export async function createZipArchive(
         archiveName: string;
         filenameBytes: Uint8Array;
         data?: Uint8Array;
+        /** The entry's text when it was given as a string (sent natively without a base64 trip). */
+        text?: string;
         fileUri?: string;
         checksum: number;
         /** CRC computed while streaming, then patched into the already-written local header. */
@@ -173,7 +177,8 @@ export async function createZipArchive(
             archiveName: entry.archiveName,
             filenameBytes: encodeUtf8(entry.archiveName),
             data,
-            checksum: crc32(data),
+            text: typeof entry.data === "string" ? entry.data : undefined,
+            checksum: isNativeZipAvailable() ? 0 : crc32(data),
             size: data.length,
         });
     }
@@ -197,6 +202,11 @@ export async function createZipArchive(
     );
     if (projectedOffset + projectedCentralDirectorySize + 22 > ZIP32_MAX_VALUE) {
         throw new Error("Archive exceeds the 4 GB limit of the supported ZIP format.");
+    }
+
+    if (isNativeZipAvailable()) {
+        await writeZipNatively(destinationUri, resolvedEntries, options);
+        return;
     }
 
     const destinationFile = new File(destinationUri);
@@ -287,6 +297,92 @@ export async function createZipArchive(
         }
     }
 
+    reportBackupProgress(options, {
+        phase: "packaging",
+        completedBytes: totalSourceBytes,
+        totalBytes: totalSourceBytes,
+        message: i18n.t("process.packaged"),
+    });
+}
+
+/** Base64 of raw bytes, for the rare binary data entry handed to the native writer. */
+function bytesToBase64(bytes: Uint8Array) {
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    }
+    return btoa(binary);
+}
+
+/** A native cancellation (or an aborted signal) surfaces as the backup's own cancel error. */
+export function rethrowNativeCancel(error: unknown, signal?: AbortSignal): never {
+    if (signal?.aborted || (error instanceof Error && error.message === NATIVE_IO_CANCELLED)) {
+        throw new BackupOperationCancelledError();
+    }
+    throw error;
+}
+
+/**
+ * The same archive, written by native code (2026-10-20): each file is read once and
+ * streamed into the zip with its CRC computed on the way, instead of four trips of every
+ * byte through JavaScript. Byte-identical layout to the JS writer above.
+ */
+async function writeZipNatively(
+    destinationUri: string,
+    entries: Array<{
+        archiveName: string;
+        data?: Uint8Array;
+        text?: string;
+        fileUri?: string;
+        checksum: number;
+        deferredCrc?: boolean;
+        size: number;
+    }>,
+    options?: BackupOperationOptions
+) {
+    const totalSourceBytes = entries.reduce((sum, entry) => sum + entry.size, 0);
+    let completedSourceBytes = 0;
+    const writer = await NativeZipWriter.create(destinationUri);
+    let finished = false;
+    try {
+        for (const entry of entries) {
+            throwIfBackupCancelled(options?.signal);
+            if (entry.fileUri) {
+                const before = completedSourceBytes;
+                const written = await writer.addFile(entry.archiveName, entry.fileUri, {
+                    expectedSizeBytes: entry.size,
+                    signal: options?.signal,
+                    onProgress: ({ completedBytes }) =>
+                        reportBackupProgress(options, {
+                            phase: "packaging",
+                            completedBytes: before + completedBytes,
+                            totalBytes: totalSourceBytes,
+                            message: i18n.t("process.packaging"),
+                        }),
+                });
+                if (!entry.deferredCrc && written.crc32 !== entry.checksum >>> 0) {
+                    throw new Error(`File changed while packaging archive: ${entry.archiveName}`);
+                }
+            } else if (entry.text !== undefined) {
+                await writer.addText(entry.archiveName, entry.text);
+            } else {
+                await writer.addBase64(entry.archiveName, bytesToBase64(entry.data ?? new Uint8Array(0)));
+            }
+            completedSourceBytes += entry.size;
+            reportBackupProgress(options, {
+                phase: "packaging",
+                completedBytes: completedSourceBytes,
+                totalBytes: totalSourceBytes,
+                message: i18n.t("process.packaging"),
+            });
+        }
+        await writer.finish();
+        finished = true;
+    } catch (error) {
+        rethrowNativeCancel(error, options?.signal);
+    } finally {
+        if (!finished) await writer.abort();
+    }
     reportBackupProgress(options, {
         phase: "packaging",
         completedBytes: totalSourceBytes,

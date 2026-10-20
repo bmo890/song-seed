@@ -94,6 +94,7 @@ jest.mock("expo-document-picker", () => ({ getDocumentAsync: jest.fn() }));
 jest.mock("../waveformAnalysis", () => ({ computeWaveformPeaks: jest.fn() }));
 jest.mock("../../../modules/songnook-file-io", () => ({
     isSongNookFileIOAvailable: () => false,
+    isNativeZipAvailable: () => false,
     copyLocalFileToContentUri: jest.fn(),
     deleteContentUri: jest.fn(),
 }));

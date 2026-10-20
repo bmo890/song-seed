@@ -3,7 +3,8 @@ import { i18n } from "../i18n/instance";
 import { UserFacingError } from "../i18n/userFacingError";
 import { File } from "expo-file-system";
 import { buildTimestampSlug } from "./audioStorage";
-import { createZipArchive, type ZipArchiveEntry } from "./zipArchive";
+import { createZipArchive, rethrowNativeCancel, type ZipArchiveEntry } from "./zipArchive";
+import { NATIVE_IO_CANCELLED, NativeZipWriter, isNativeZipAvailable } from "../../modules/songnook-file-io";
 import { SONG_NOOK_ROOT, toRelativeManagedPath, waveformSidecarUri } from "./storagePaths";
 import type { DrSatelliteSnapshot } from "./satelliteSnapshot";
 import {
@@ -347,6 +348,20 @@ export async function buildDisasterRecoveryBackup(
     // Fail before an expensive checksum pass when the temporary archive cannot fit.
     await ensureBackupDiskSpace(totalMediaBytes, "backup");
     throwIfBackupCancelled(opts?.signal);
+
+    if (isNativeZipAvailable()) {
+        const native = await buildBackupArchiveNatively({
+            snapshotAbs,
+            snapshotJson,
+            snapshotSha256,
+            readableRefs,
+            missing: [...missing],
+            opts,
+        });
+        if (native) return native;
+        // The native fingerprint disagreed with the proven JS one: this build's native
+        // pass is not trusted, and the backup is made the slower way instead.
+    }
     const totalMediaMb = totalMediaBytes / (1024 * 1024);
     console.log(
         `[backup] starting: ${readableRefs.length} files, ${totalMediaMb.toFixed(1)}MB media ` +
@@ -434,17 +449,7 @@ export async function buildDisasterRecoveryBackup(
         );
     }
 
-    const manifest: DrBackupManifest = {
-        formatVersion: DR_BACKUP_FORMAT_VERSION,
-        storeVersion: STORE_VERSION,
-        appVersion: opts?.appVersion,
-        createdAt: new Date().toISOString(),
-        status: missing.some((m) => m.critical) ? "incomplete" : "complete",
-        counts: countEntities(snapshotAbs.workspaces),
-        snapshotSha256,
-        files,
-        missing,
-    };
+    const manifest = composeManifest(snapshotAbs, snapshotSha256, files, missing, opts?.appVersion);
     entries.push({ archiveName: MANIFEST_ENTRY, data: JSON.stringify(manifest) });
 
     const projectedArchiveBytes = assertZip32ArchiveSize(entries);
@@ -479,6 +484,142 @@ export async function buildDisasterRecoveryBackup(
     recordLibraryOperationThroughput("backup", totalMediaBytes, totalMs);
 
     return { archiveUri, archiveTitle, manifest };
+}
+
+function composeManifest(
+    snapshotAbs: ReturnType<typeof buildPersistedAppStoreSnapshot>,
+    snapshotSha256: string,
+    files: DrBackupFileRecord[],
+    missing: DrBackupMissingRecord[],
+    appVersion: string | undefined
+): DrBackupManifest {
+    return {
+        formatVersion: DR_BACKUP_FORMAT_VERSION,
+        storeVersion: STORE_VERSION,
+        appVersion,
+        createdAt: new Date().toISOString(),
+        status: missing.some((m) => m.critical) ? "incomplete" : "complete",
+        counts: countEntities(snapshotAbs.workspaces),
+        snapshotSha256,
+        files,
+        missing,
+    };
+}
+
+/** Room the manifest may take, for the up-front size guards (it is written last). */
+function manifestAllowanceBytes(fileCount: number) {
+    return 64 * 1024 + fileCount * 512;
+}
+
+/**
+ * The backup in ONE native pass (2026-10-20): the snapshot goes in first, then every
+ * recording is read once, streamed into the archive and fingerprinted on the way (CRC-32
+ * for the zip, SHA-256 of its base64 form for the manifest), then the manifest last. The
+ * JS path read each file four times through JavaScript (1.7 GB took 17 minutes). Same
+ * archive layout and the same manifest, so every backup restores either way.
+ */
+async function buildBackupArchiveNatively({
+    snapshotAbs,
+    snapshotJson,
+    snapshotSha256,
+    readableRefs,
+    missing,
+    opts,
+}: {
+    snapshotAbs: ReturnType<typeof buildPersistedAppStoreSnapshot>;
+    snapshotJson: string;
+    snapshotSha256: string;
+    readableRefs: Array<MediaRef & { sizeBytes: number }>;
+    missing: DrBackupMissingRecord[];
+    opts?: BackupOperationOptions & { appVersion?: string };
+}): Promise<DrBackupResult | null> {
+    const totalMediaBytes = readableRefs.reduce((sum, ref) => sum + ref.sizeBytes, 0);
+    // Self-check: the first file the native pass writes is fingerprinted again by the
+    // proven JS route. A disagreement means this build's native code can't be trusted
+    // with a backup someone's library depends on.
+    const probe = [...readableRefs].sort((a, b) => a.sizeBytes - b.sizeBytes)[0];
+    const projectedArchiveBytes = assertZip32ArchiveSize([
+        { archiveName: SNAPSHOT_ENTRY, data: snapshotJson },
+        ...readableRefs.map((ref) => ({
+            archiveName: `${MEDIA_PREFIX}${ref.relativePath}`,
+            fileUri: ref.absUri,
+            sizeBytes: ref.sizeBytes,
+        })),
+        { archiveName: MANIFEST_ENTRY, sizeBytes: manifestAllowanceBytes(readableRefs.length) },
+    ]);
+    await ensureBackupDiskSpace(projectedArchiveBytes, "backup");
+    throwIfBackupCancelled(opts?.signal);
+
+    const dirInfo = await FileSystem.getInfoAsync(DR_TEMP_DIR);
+    if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(DR_TEMP_DIR, { intermediates: true });
+    }
+    const archiveTitle = `SongNook Backup ${buildTimestampSlug()}.${DR_BACKUP_FILE_SUFFIX}.zip`;
+    const archiveUri = `${DR_TEMP_DIR}/${archiveTitle}`;
+    const startedAt = Date.now();
+    const files: DrBackupFileRecord[] = [];
+    let doneBytes = 0;
+    const report = (completedBytes: number) =>
+        reportBackupProgress(opts, {
+            phase: "packaging",
+            completedBytes,
+            totalBytes: totalMediaBytes,
+            message: i18n.t("process.packagingBackup"),
+        });
+    report(0);
+
+    const writer = await NativeZipWriter.create(archiveUri);
+    let finished = false;
+    try {
+        await writer.addText(SNAPSHOT_ENTRY, snapshotJson);
+        for (const ref of readableRefs) {
+            throwIfBackupCancelled(opts?.signal);
+            const before = doneBytes;
+            try {
+                const written = await writer.addFile(`${MEDIA_PREFIX}${ref.relativePath}`, ref.absUri, {
+                    expectedSizeBytes: ref.sizeBytes,
+                    sha256: true,
+                    signal: opts?.signal,
+                    onProgress: ({ completedBytes }) => report(before + completedBytes),
+                });
+                if (!written.sha256) throw new Error("No fingerprint for a backed-up file.");
+                if (ref === probe) {
+                    const proven = await sha256OfFileBase64(ref.absUri, ref.sizeBytes, opts);
+                    if (proven !== written.sha256) {
+                        console.warn("[backup] native fingerprint disagreed with JS; using the JS path");
+                        return null;
+                    }
+                }
+                files.push({ path: ref.relativePath!, sha256: written.sha256, sizeBytes: written.sizeBytes });
+            } catch (error) {
+                if (opts?.signal?.aborted || (error instanceof Error && error.message === NATIVE_IO_CANCELLED)) {
+                    throw error;
+                }
+                // Unreadable or changed mid-read: the writer left the archive as it was,
+                // and the file is recorded as missing, exactly as the JS path does.
+                missing.push({ path: ref.relativePath!, kind: ref.kind, critical: ref.critical, ref: ref.ref });
+            }
+            doneBytes += ref.sizeBytes;
+            report(doneBytes);
+        }
+
+        const manifest = composeManifest(snapshotAbs, snapshotSha256, files, missing, opts?.appVersion);
+        await writer.addText(MANIFEST_ENTRY, JSON.stringify(manifest));
+        await writer.finish();
+        finished = true;
+
+        const totalMs = Date.now() - startedAt;
+        console.log(
+            `[backup] native single pass: ${(totalMediaBytes / (1024 * 1024)).toFixed(1)}MB in ` +
+                `${(totalMs / 1000).toFixed(1)}s (${(totalMediaBytes / (1024 * 1024) / (totalMs / 1000 || 1)).toFixed(1)}MB/s)`
+        );
+        recordLibraryOperationThroughput("backup", totalMediaBytes, totalMs);
+        return { archiveUri, archiveTitle, manifest };
+    } catch (error) {
+        return rethrowNativeCancel(error, opts?.signal);
+    } finally {
+        if (!finished) await writer.abort();
+    }
 }
 
 export async function cleanupStaleDisasterRecoveryBackupFiles(

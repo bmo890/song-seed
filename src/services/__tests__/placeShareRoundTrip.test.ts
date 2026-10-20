@@ -144,6 +144,7 @@ jest.mock("../zipArchive", () => ({
 
 jest.mock("../../../modules/songnook-file-io", () => ({
     isSongNookFileIOAvailable: () => false,
+    isNativeZipAvailable: () => false,
     copyLocalFileToContentUri: jest.fn(),
     deleteContentUri: jest.fn(),
 }));
