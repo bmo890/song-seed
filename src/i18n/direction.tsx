@@ -1,6 +1,7 @@
 import React from "react";
 import {
   I18nManager,
+  Platform,
   Text,
   TextInput,
   type TextInputProps,
@@ -128,6 +129,21 @@ export function UserText({ value, direction = "auto", fallbackDirection, align =
   return <Text {...props} style={[contentDirectionStyle(resolved, align), style]}>{children}</Text>;
 }
 
+/**
+ * A text field's edge, said physically. Text swaps left/right in the Hebrew app
+ * (so `physical()` pre-swaps it), but a multi-line field on iOS does not: a
+ * Hebrew draft sat on the LEFT of the Cut-Up page in the Hebrew app
+ * (2026-10-20). Fields get the edge they mean.
+ */
+function inputEdgeStyle(direction: UiDirection, align: ContentAlign): TextStyle | null {
+  if (Platform.OS !== "ios") return null;
+  const edge =
+    align === "content"
+      ? direction === "rtl" ? "right" : "left"
+      : I18nManager.isRTL ? "right" : "left";
+  return { textAlign: edge };
+}
+
 type UserTextInputProps = TextInputProps & {
   direction?: ContentDirection;
   fallbackDirection?: UiDirection;
@@ -142,5 +158,13 @@ export const UserTextInput = React.forwardRef<TextInput, UserTextInputProps>(fun
   const source = value ?? defaultValue ?? "";
   const resolved = resolveContentDirection(source, direction, fallbackDirection);
   const resolvedAlign: ContentAlign = align ?? (props.multiline ? "content" : "ui");
-  return <TextInput ref={ref} {...props} value={value} defaultValue={defaultValue} style={[contentDirectionStyle(resolved, resolvedAlign), style]} />;
+  return (
+    <TextInput
+      ref={ref}
+      {...props}
+      value={value}
+      defaultValue={defaultValue}
+      style={[contentDirectionStyle(resolved, resolvedAlign), inputEdgeStyle(resolved, resolvedAlign), style]}
+    />
+  );
 });

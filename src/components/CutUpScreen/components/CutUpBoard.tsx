@@ -52,6 +52,14 @@ export function CutUpBoard({
 }) {
   const { t } = useTranslation();
   const { size, lineHeight } = useSparkTextScale();
+  // A scrap's x is measured from where its line starts: the left edge for
+  // English, the right edge for Hebrew. The canvas is laid out physically
+  // (direction ltr) and a Hebrew scrap is drawn `right: x` (2026-10-20).
+  const rtl = model.rtl;
+  const rtlShared = useSharedValue(rtl);
+  useEffect(() => {
+    rtlShared.value = rtl;
+  }, [rtl, rtlShared]);
   const [sheetItem, setSheetItem] = useState<CutUpBoardItem | null>(null);
   const [splitItem, setSplitItem] = useState<CutUpBoardItem | null>(null);
 
@@ -161,7 +169,9 @@ export function CutUpBoard({
           const h = sizes ? sizes.h : 40;
           cloneW.value = w;
           cloneH.value = h;
-          cloneBaseX.value = x;
+          // The clone rides in physical coordinates; a Hebrew scrap sits x
+          // in from the right edge.
+          cloneBaseX.value = rtlShared.value ? Math.max(0, canvasWShared.value - x - w) : x;
           // The scrap lifts in place and rides 1:1 with the thumb.
           cloneBaseY.value = band * bandH + RULE_INSET;
           void h;
@@ -187,7 +197,8 @@ export function CutUpBoard({
           const x2 = Math.max(0, Math.min(maxX, cloneX.value));
           const band2 = targetBand.value;
           targetBand.value = -1;
-          runOnJS(commitDrop)(Math.round(x2), band2);
+          // Back to distance from the line's start edge.
+          runOnJS(commitDrop)(Math.round(rtlShared.value ? maxX - x2 : x2), band2);
         })
         .onFinalize((_e, success) => {
           if (!success) {
@@ -206,7 +217,7 @@ export function CutUpBoard({
 
       return Gesture.Race(pan, tap);
     },
-    [bandH, sharedSizes, canvasWShared, bandCountShared, cloneW, cloneH, cloneX, cloneY, cloneBaseX, cloneBaseY, dragActive, targetBand, beginDrag, commitDrop, cancelDrag, openSheetFor]
+    [bandH, sharedSizes, canvasWShared, bandCountShared, rtlShared, cloneW, cloneH, cloneX, cloneY, cloneBaseX, cloneBaseY, dragActive, targetBand, beginDrag, commitDrop, cancelDrag, openSheetFor]
   );
 
   const cloneStyle = useAnimatedStyle(() => ({
@@ -274,7 +285,7 @@ export function CutUpBoard({
       >
         {active.length === 0 ? null : (
           <View
-            style={[styles.canvas, { height: canvasH }]}
+            style={[styles.canvas, styles.canvasPhysical, { height: canvasH }]}
             collapsable={false}
             onLayout={(e) => {
               setCanvasW(e.nativeEvent.layout.width);
@@ -299,7 +310,8 @@ export function CutUpBoard({
                   locked={item.locked === true}
                   fontSize={size}
                   lineHeight={lineHeight}
-                  left={x}
+                  offset={x}
+                  rtl={rtl}
                   top={band * bandH + RULE_INSET}
                   maxWidth={canvasW > 0 ? canvasW - Math.min(x, canvasW * 0.6) : undefined}
                   dimmed={dragId === item.id}
@@ -387,7 +399,8 @@ const Scrap = memo(function Scrap({
   locked,
   fontSize,
   lineHeight,
-  left,
+  offset,
+  rtl,
   top,
   maxWidth,
   dimmed,
@@ -398,7 +411,9 @@ const Scrap = memo(function Scrap({
   locked: boolean;
   fontSize: number;
   lineHeight: number;
-  left: number;
+  /** Distance from the line's start edge. */
+  offset: number;
+  rtl: boolean;
   top: number;
   maxWidth?: number;
   dimmed: boolean;
@@ -412,7 +427,7 @@ const Scrap = memo(function Scrap({
         style={[
           styles.scrap,
           styles.scrapPlaced,
-          { left, top },
+          rtl ? { right: offset, top } : { left: offset, top },
           maxWidth !== undefined ? { maxWidth } : null,
           locked ? styles.scrapLocked : null,
           dimmed ? styles.scrapDimmed : null,
@@ -624,6 +639,9 @@ const styles = StyleSheet.create({
   scrapText: { fontFamily: "Lora_500Medium", color: colors.textPrimary, flexShrink: 1 },
 
   clone: { position: "absolute", left: 0, top: 0 },
+  // Positions here are physical whatever the app language; a Hebrew scrap
+  // opts into the right edge itself.
+  canvasPhysical: { direction: "ltr" },
   scrapClone: { ...shadows.drawer, backgroundColor: colors.surface },
 
   removedSection: { marginTop: spacing.sm, paddingTop: spacing.xs, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.borderMuted },
