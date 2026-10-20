@@ -17,6 +17,12 @@ export const OBSCURING_ROUTES = new Set([
   "ShareImport",
 ]);
 
+/** Routes on top of the player that take the audio themselves (they record or
+ *  play their own preview), so the player's pitch/sound engine must hand its
+ *  transport back while they are up. Every other cover (lyric or chord editing,
+ *  the drawer, docking) keeps the clip sounding exactly as it was set. */
+export const AUDIO_TAKING_ROUTES = new Set(["Editor", "Recording", "BluetoothCalibration"]);
+
 /**
  * Should the sheet be hidden (kept mounted, painted invisible)?
  *

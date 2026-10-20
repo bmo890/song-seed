@@ -79,8 +79,13 @@ export function useStepUpLoop({
   clickBoundsRef.current = clickBounds;
 
   // Losing the room ends the session: clip change, mode change, loop switched off.
+  // The clip check was missing (2026-10-21): a drill kept running, and kept
+  // setting the speed, on the next clip in the queue.
+  const sessionClipIdRef = useRef(clipId);
   useEffect(() => {
-    if (!isPracticeLoopActive) {
+    const clipChanged = sessionClipIdRef.current !== clipId;
+    sessionClipIdRef.current = clipId;
+    if (!isPracticeLoopActive || clipChanged) {
       setSession(null);
     }
   }, [clipId, isPracticeLoopActive]);

@@ -10,6 +10,11 @@ import {
 type Args = {
   mode: "player" | "practice" | "layers";
   isFocused: boolean;
+  /** The engine may keep sounding: the player is up, docked, or under a
+   *  non-audio screen. False only while a screen that takes the audio is up. */
+  engaged: boolean;
+  /** The full player is loaded with this same clip. */
+  sourceInSync: boolean;
   clip: { id: string; audioUri?: string | null } | null;
   pitchShiftSemitones: number;
   /** The take's level and tone (its root overdub settings); null when no clip. */
@@ -23,6 +28,7 @@ type Args = {
   playFullPlayer: () => Promise<void>;
   seekFullPlayerTo: (ms: number) => Promise<void>;
   setFullPlayerPlaybackRate: (rate: number) => void;
+  setFullPlayerMuted: (muted: boolean) => void;
 };
 
 /**
@@ -33,7 +39,8 @@ type Args = {
  */
 export function usePlayerPracticePitchTransport({
   mode,
-  isFocused,
+  engaged,
+  sourceInSync,
   clip,
   pitchShiftSemitones,
   sound,
@@ -46,6 +53,7 @@ export function usePlayerPracticePitchTransport({
   playFullPlayer,
   seekFullPlayerTo,
   setFullPlayerPlaybackRate,
+  setFullPlayerMuted,
 }: Args) {
   const setPlayerPlaybackState = useStore((s) => s.setPlayerPlaybackState);
   const clamped = clampPitchShiftSemitones(pitchShiftSemitones);
@@ -74,6 +82,8 @@ export function usePlayerPracticePitchTransport({
       play: playFullPlayer,
       seekTo: seekFullPlayerTo,
       setPlaybackRate: setFullPlayerPlaybackRate,
+      setMuted: setFullPlayerMuted,
+      inSync: sourceInSync,
     }),
     [
       clip?.id,
@@ -85,6 +95,8 @@ export function usePlayerPracticePitchTransport({
       playFullPlayer,
       seekFullPlayerTo,
       setFullPlayerPlaybackRate,
+      setFullPlayerMuted,
+      sourceInSync,
     ]
   );
 
@@ -96,8 +108,11 @@ export function usePlayerPracticePitchTransport({
   // sets it aside.
   const soundIsNeutral = (sound?.gainDb ?? 0) === 0 && isTonePresetNeutral(sound?.tonePreset);
   const pitchMode = mode !== "layers";
+  // Engaged, not focused (2026-10-21): docked, or under the drawer or a lyric
+  // editor, the clip keeps its pitch and sound; only a screen that takes the
+  // audio (recorder, editor) makes the engine hand back.
   const wantsNative =
-    isFocused && (!soundIsNeutral || (pitchMode && (stickyRef.current || clamped !== 0)));
+    engaged && (!soundIsNeutral || (pitchMode && (stickyRef.current || clamped !== 0)));
 
   const core = useNativePitchTransport({
     ownerLabel: "player-screen",
@@ -109,11 +124,16 @@ export function usePlayerPracticePitchTransport({
     sound: sound ?? undefined,
     extraAutoplay: playerShouldAutoplay,
     onEnded,
+    twinSource: true,
   });
 
   // Maintain sticky ownership + clear a prior error-disable on re-engage / mode exit.
+  // A clip of its own starts unstuck: its pitch is its own (per-clip settings).
+  const stickyClipIdRef = useRef(clip?.id);
   useEffect(() => {
-    if (!pitchMode || !isFocused) {
+    const clipChanged = stickyClipIdRef.current !== clip?.id;
+    stickyClipIdRef.current = clip?.id;
+    if (!pitchMode || !engaged || clipChanged) {
       stickyRef.current = false;
       if (core.nativeTransportDisabled) core.clearDisabled();
       return;
@@ -122,7 +142,7 @@ export function usePlayerPracticePitchTransport({
       stickyRef.current = true;
       if (core.nativeTransportDisabled) core.clearDisabled();
     }
-  }, [clamped, core.clearDisabled, core.nativeTransportDisabled, isFocused, pitchMode]);
+  }, [clamped, clip?.id, core.clearDisabled, core.nativeTransportDisabled, engaged, pitchMode]);
 
   // Publish native playback position into the store so the rest of the app (dock,
   // lock screen) tracks practice playback while the native engine owns transport.
