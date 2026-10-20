@@ -14,7 +14,15 @@ import { flushPersistedSnapshot, useStore } from "./useStore";
  * that remains still uses it. Returns at once; the move happens behind.
  */
 export function trashFilesOfDroppedClips(droppedClips: ClipVersion[], reason: string) {
-    const candidates = droppedClips.flatMap((clip) => Array.from(collectManagedClipAudioUris(clip)));
+    trashFilesNoLongerUsed(
+        droppedClips.flatMap((clip) => Array.from(collectManagedClipAudioUris(clip))),
+        reason
+    );
+}
+
+/** The same law for a list of files: those the library no longer uses go to the trash
+ *  once the write that dropped them is durable. */
+export function trashFilesNoLongerUsed(candidates: string[], reason: string) {
     const uris = filterUnreferencedManagedAudioUris(candidates, useStore.getState().workspaces);
     if (uris.length === 0) return;
     void flushPersistedSnapshot()

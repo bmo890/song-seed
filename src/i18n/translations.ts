@@ -247,6 +247,9 @@ export const resources = {
         deletePermanently: "Delete permanently",
       },
       collection: {
+        deletedUndo_one: "Deleted {{count}} idea",
+        deletedUndo_other: "Deleted {{count}} ideas",
+        madeSketchUndo: "Made “{{title}}”",
         share: "Share", shareTitle: "Share collection", shareFile: "Export", getLink: "SongNook Send", nothingShare: "Nothing to share", nothingShareBody: "Add an idea to this collection first.", shareFailed: "Share failed", shareFailedBody: "Could not share this collection.",
         title: "Collection",
         missing: "This collection isn’t here anymore.",
@@ -1845,6 +1848,10 @@ export const resources = {
         deletePermanently: "מחיקה לצמיתות",
       },
       collection: {
+        deletedUndo_one: "רעיון אחד נמחק",
+        deletedUndo_two: "שני רעיונות נמחקו",
+        deletedUndo_other: "{{count}} רעיונות נמחקו",
+        madeSketchUndo: "נוצרה “{{title}}”",
         share: "שיתוף", shareTitle: "שיתוף האוסף", shareFile: "ייצוא", getLink: "SongNook Send", nothingShare: "אין מה לשתף", nothingShareBody: "הוסיפו קודם רעיון לאוסף הזה.", shareFailed: "השיתוף נכשל", shareFailedBody: "לא ניתן לשתף את האוסף הזה.",
         title: "אוסף",
         missing: "האוסף הזה כבר לא נמצא כאן.",
