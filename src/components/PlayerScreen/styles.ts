@@ -1516,9 +1516,6 @@ export const playerScreenStyles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#ca8a04",
   },
-  pinSheetButtonSecondary: {
-    backgroundColor: "#f3f4f6",
-  },
   pinSheetButtonDanger: {
     backgroundColor: colors.danger,
     flexDirection: "row",
@@ -1531,9 +1528,6 @@ export const playerScreenStyles = StyleSheet.create({
     fontSize: 15,
     fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.surface,
-  },
-  pinSheetButtonSecondaryText: {
-    color: "#374151",
   },
   pinSheetButtonTextDisabled: {
     color: "#9ca3af",

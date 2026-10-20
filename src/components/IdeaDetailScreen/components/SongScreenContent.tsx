@@ -75,7 +75,6 @@ export function SongScreenContent() {
         // header overflow (same consolidation as the collection screen).
         <FloatingActionDock
           onRecord={() => actions.startRecording(null)}
-          menuItems={[]}
         />
       ) : null}
       <SongUndoBanner />

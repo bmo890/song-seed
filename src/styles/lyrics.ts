@@ -4,17 +4,6 @@ import { colors, radii } from "../design/tokens";
 // Lyrics editing and version views.
 // Raw style objects — merged and registered once via StyleSheet.create in ../styles.ts.
 export const lyricsStyles = {
-  lyricsSummaryCard: {
-    marginBottom: 8,
-  },
-  lyricsScreenContent: {
-    flexGrow: 1,
-    gap: 10,
-    paddingBottom: 24,
-  },
-  lyricsScreenContentKeyboard: {
-    paddingBottom: 120,
-  },
   lyricsVersionDocumentContent: {
     flexGrow: 1,
     gap: 10,
@@ -35,24 +24,6 @@ export const lyricsStyles = {
   },
   lyricsVersionDocumentFillEdit: {
     paddingBottom: 0,
-  },
-  lyricsVersionTopActions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  lyricsHeaderRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 10,
-    marginBottom: 10,
-  },
-  lyricsHeaderText: {
-    flex: 1,
-    gap: 4,
   },
   lyricsInput: {
     width: "100%",
@@ -133,47 +104,6 @@ export const lyricsStyles = {
     borderRadius: 999,
     backgroundColor: "rgba(27,28,26,0.38)",
   },
-  lyricsActionBtn: {
-    minHeight: 32,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radii.round,
-  },
-  lyricsActionBtnText: {
-    fontSize: 11,
-  },
-  lyricsTimelineCard: {
-    gap: 8,
-  },
-  lyricsTimelineCardPressable: {
-    gap: 8,
-  },
-  lyricsVersionHeader: {
-    gap: 8,
-  },
-  lyricsVersionHeaderRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 8,
-  },
-  lyricsVersionBadgePlaceholder: {
-    minWidth: 100,
-    minHeight: 28,
-  },
-  lyricsVersionToggleBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.round,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F4F1ED",
-    borderWidth: 1,
-    borderColor: "#E8E4DF",
-  },
-  lyricsTimelinePreviewScroll: {
-    height: 160,
-  },
   lyricsVersionPreviewContent: {
     flexGrow: 1,
   },
@@ -182,17 +112,5 @@ export const lyricsStyles = {
     lineHeight: 23,
     color: colors.textPrimary,
     fontFamily: "Lora_500Medium",
-  },
-  lyricsHistoryList: {
-    marginTop: 10,
-    gap: 10,
-  },
-  lyricsHistoryCard: {
-    borderWidth: 1,
-    borderColor: "#E8E4DF",
-    borderRadius: 12,
-    backgroundColor: "#F4F1ED",
-    padding: 12,
-    gap: 8,
   },
 } satisfies Record<string, ViewStyle | TextStyle | ImageStyle>;

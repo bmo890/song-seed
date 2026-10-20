@@ -12,7 +12,6 @@ export const OBSCURING_ROUTES = new Set([
   "Editor",
   "Recording",
   "BluetoothCalibration",
-  "Lyrics",
   "LyricsVersion",
   "ChordSheet",
   "ShareImport",

@@ -5,40 +5,8 @@ import { colors, radii, shadows } from "../design/tokens";
 // Ideas list rows, cards and list chrome.
 // Raw style objects — merged and registered once via StyleSheet.create in ../styles.ts.
 export const ideasListStyles = {
-  ideasListContentFloating: {
-    paddingBottom: 178,
-  },
-  ideasListContentSelection: {
-    paddingBottom: 168,
-  },
   ideasListItemWrap: {
     gap: 6,
-  },
-  ideasListLeadHotzone: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 76,
-    zIndex: 4,
-  },
-  ideasListLeadHotzoneCompact: {
-    width: 70,
-  },
-  ideasListLeadHotzoneExpanded: {
-    width: 76,
-  },
-  ideasListLeadHotzoneInline: {
-    flexDirection: "column",
-    width: 46,
-  },
-  ideasListLeadHotzoneTop: {
-    flex: 1,
-    width: "100%",
-  },
-  ideasListLeadHotzoneBottom: {
-    flex: 1,
-    width: "100%",
   },
   ideasListCard: {
     backgroundColor: "#ffffff",
@@ -116,65 +84,6 @@ export const ideasListStyles = {
     borderWidth: 1.5,
     borderColor: "rgba(184,125,107,0.55)",
   },
-  ideasListExpandedStaticWrap: {
-    flex: 1,
-    justifyContent: "space-between",
-  },
-  ideasListExpandedHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  ideasListExpandedHeaderLead: {
-    width: 46,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  ideasListExpandedHeaderMain: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-  },
-  ideasListExpandedMetaGrid: {
-    flexDirection: "row",
-    alignItems: "stretch",
-    gap: 12,
-  },
-  ideasListExpandedMetaRows: {
-    gap: 2,
-  },
-  ideasListExpandedMetaGridRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  ideasListExpandedMetaLeadSpacer: {
-    width: 46,
-    flexShrink: 0,
-  },
-  ideasListExpandedMetaLeftCol: {
-    width: 46,
-    minHeight: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  ideasListExpandedMetaCenterCol: {
-    flex: 1,
-    minWidth: 0,
-    gap: 1,
-  },
-  ideasListExpandedMetaRightCol: {
-    width: 72,
-    gap: 1,
-    flexShrink: 0,
-  },
-  ideasListExpandedMetaRightIndicators: {
-    flexShrink: 0,
-    alignItems: "flex-end",
-    justifyContent: "center",
-  },
   ideasListCardRow: {
     // A clip card is a media surface: play control leads on the left, scrubber
     // runs left→right. Pinned LTR so the whole card never mirrors under a Hebrew
@@ -183,17 +92,6 @@ export const ideasListStyles = {
     flexDirection: "row",
     alignItems: "stretch",
     gap: 10,
-  },
-  ideasListLeadCol: {
-    width: 46,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    flexShrink: 0,
-    alignSelf: "stretch",
-  },
-  ideasListLeadColInlineActive: {
-    justifyContent: "space-evenly",
   },
   ideasListCardMain: {
     flex: 1,
@@ -240,13 +138,6 @@ export const ideasListStyles = {
     alignItems: "center",
     minHeight: 26,
   },
-  ideasListCardMainCompact: {
-    gap: 4,
-  },
-  ideasListCardBottomBlock: {
-    gap: 1,
-    minWidth: 0,
-  },
   // Meta-row right cluster: consistent 10pt gaps between caption-scale items.
   ideasListCardTrailing: {
     flexDirection: "row",
@@ -267,16 +158,6 @@ export const ideasListStyles = {
     minWidth: 0,
     minHeight: 26,
   },
-  ideasListCardTitleRowExpanded: {
-    alignItems: "flex-start",
-  },
-  ideasListTitleIconWrap: {
-    width: 14,
-    height: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
   ideasListCardTitle: {
     flex: 1,
     // Title-row truncation law (locked 2026-07-27): the title takes the room and
@@ -288,9 +169,6 @@ export const ideasListStyles = {
     fontSize: 14,
     lineHeight: 18,
     color: "#1C1C19",
-  },
-  ideasListCardTitleProject: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   // Earned serif (locked 2026-07-23): only *named* clips/sketches get Lora.
   ideasListCardTitleSerif: {
@@ -342,31 +220,12 @@ export const ideasListStyles = {
     fontStyle: "italic",
     color: colors.textSecondary,
   },
-  ideasListCardMeta: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 12,
-    color: "#84736f",
-    },
   ideasListCreatedAtText: {
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 10,
     lineHeight: 12,
     color: "#84736f",
     fontVariant: ["tabular-nums"],
-  },
-  ideasListExpandedMetaStack: {
-    gap: 1,
-  },
-  ideasListDateRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-  ideasListDateStack: {
-    gap: 2,
-    flex: 1,
-    minWidth: 0,
   },
   // Fixed-height bottom zone (set to the tallest occupant, the 26px soft key):
   // every state of every card bottoms out identically, so the play glyph —
@@ -392,14 +251,6 @@ export const ideasListStyles = {
     lineHeight: 12,
     letterSpacing: 0.3,
   },
-  ideasListMetaLeftCluster: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    minHeight: 14,
-    flexShrink: 1,
-    minWidth: 0,
-  },
   ideasListMetaToken: {
     flexDirection: "row",
     alignItems: "center",
@@ -411,17 +262,6 @@ export const ideasListStyles = {
     alignItems: "center",
     justifyContent: "center",
   },
-  ideasListMetaDurationText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13,
-    lineHeight: 14,
-    color: "#524440",
-    fontVariant: ["tabular-nums"],
-  },
-  ideasListMetaDurationTextCompact: {
-    fontSize: 12,
-    lineHeight: 13,
-  },
   ideasListMetaText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 11,
@@ -429,87 +269,11 @@ export const ideasListStyles = {
     color: "#84736f",
     fontVariant: ["tabular-nums"],
   },
-  ideasListMetaRightCol: {
-    width: 72,
-    alignItems: "flex-end",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  ideasListMetaRightColInner: {
-    width: "100%",
-    alignItems: "flex-end",
-    justifyContent: "center",
-    minHeight: 14,
-  },
   ideasListMetaRightCluster: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
     gap: 10,
     minHeight: 12,
-  },
-  ideasListMetaSizeText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 11,
-    lineHeight: 14,
-    color: "#84736f",
-    textAlign: "right",
-    fontVariant: ["tabular-nums"],
-  },
-  ideasListDateSizeCol: {
-    width: 72,
-    alignItems: "flex-end",
-    justifyContent: "center",
-    flexShrink: 0,
-    minHeight: 28,
-  },
-  ideasListDateSizeText: {
-    fontFamily: "PlusJakartaSans_500Medium",
-    fontSize: 10,
-    lineHeight: 13,
-    color: "#84736f",
-    textAlign: "right",
-    fontVariant: ["tabular-nums"],
-  },
-  ideasListMetaSizeTextCompact: {
-    fontSize: 10,
-    lineHeight: 12,
-  },
-  ideasListMetaSeparator: {
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontSize: 10,
-    lineHeight: 12,
-    color: "#B8A8A3",
-    },
-  ideasListStatusBadgeText: {
-    fontSize: 9,
-    lineHeight: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    minWidth: 46,
-    textAlign: "center",
-  },
-  ideasListProgressText: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 10,
-    lineHeight: 12,
-    color: "#84736f",
-    textAlign: "right",
-    fontVariant: ["tabular-nums"],
-  },
-  ideasListNowPlayingTrack: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 2,
-    backgroundColor: "rgba(215,194,189,0.4)",
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
-    overflow: "hidden",
-  },
-  ideasListNowPlayingFill: {
-    height: "100%",
-    backgroundColor: "#B87D6B",
   },
 } satisfies Record<string, ViewStyle | TextStyle | ImageStyle>;

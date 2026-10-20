@@ -15,7 +15,6 @@ export function ActionButtons({ onQuickRecord, onDockLayout }: ActionButtonsProp
     <FloatingActionDock
       onDockLayout={onDockLayout}
       onRecord={onQuickRecord}
-      menuItems={[]}
     />
   );
 }

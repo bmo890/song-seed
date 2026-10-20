@@ -58,14 +58,6 @@ export const songDetailStyles = {
     lineHeight: 18,
     color: colors.textSecondary,
   },
-  songDetailInlineBreadcrumbs: {
-    flex: 1,
-    minWidth: 0,
-    marginTop: 0,
-    marginBottom: 0,
-    paddingHorizontal: 0,
-    flexWrap: "nowrap",
-  },
   songDetailNavCompactTitle: {
     fontFamily: "PlusJakartaSans_500Medium",
     flex: 1,
@@ -74,59 +66,12 @@ export const songDetailStyles = {
     lineHeight: 20,
     color: "#1b1c1a",
   },
-  songDetailNavCompactTypeLabel: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 10,
-    lineHeight: 20,
-    color: "#a89994",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-  },
   songDetailCompactTitleWrap: {
     flex: 1,
     minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-  },
-  songDetailBreadcrumbWrap: {
-    flex: 1,
-    minWidth: 0,
-  },
-  songDetailBreadcrumbScrollContent: {
-    alignItems: "center",
-    gap: 4,
-    paddingRight: 8,
-  },
-  songDetailBreadcrumbChunk: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  songDetailBreadcrumbTextHitbox: {
-    minHeight: 18,
-    justifyContent: "center",
-  },
-  songDetailBreadcrumbSeparator: {
-    fontSize: 12,
-    lineHeight: 14,
-    color: "#B8A8A3",
-    fontFamily: "PlusJakartaSans_600SemiBold",
-  },
-  songDetailBreadcrumbText: {
-    fontSize: 12,
-    lineHeight: 14,
-    color: "#84736f",
-    fontFamily: "PlusJakartaSans_600SemiBold",
-  },
-  songDetailBreadcrumbTextActive: {
-    color: "#524440",
-  },
-  songDetailBreadcrumbEllipsis: {
-    fontSize: 12,
-    lineHeight: 14,
-    color: "#B8A8A3",
-    fontFamily: "PlusJakartaSans_600SemiBold",
   },
   songDetailNavEditActions: {
     flexDirection: "row",
@@ -161,51 +106,15 @@ export const songDetailStyles = {
     marginTop: 4,
     gap: 3,
   },
-  songDetailTitleBlockHidden: {
-    display: "none",
-  },
-  songDetailHeaderModeLabel: {
-    fontSize: 11,
-    lineHeight: 14,
-    color: "#84736f",
-    fontFamily: "PlusJakartaSans_700Bold",
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
-  },
   songDetailTitleInputWrap: {
     marginHorizontal: 0,
     marginTop: 2,
-  },
-  songDetailTitleRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-    marginTop: 2,
-  },
-  songDetailTitleLead: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-  },
-  songDetailPageTitle: {
-    flex: 1,
-    fontSize: 20,
-    lineHeight: 24,
-    fontFamily: "PlusJakartaSans_700Bold",
-    color: "#1C1C19",
   },
   songDetailPageTitleLarge: {
     fontFamily: "Lora_600SemiBold",
     fontSize: 26,
     lineHeight: 32,
     color: "#1b1c1a",
-  },
-  songDetailPageTitleWithIcon: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
   },
   songDetailTypeLabel: {
     fontSize: 11,
@@ -214,39 +123,6 @@ export const songDetailStyles = {
     fontFamily: "PlusJakartaSans_700Bold",
     textTransform: "uppercase",
     letterSpacing: 0.5,
-  },
-  songDetailTypeEyebrow: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 10,
-    lineHeight: 14,
-    color: "#a89994",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    marginBottom: 2,
-  },
-  songDetailBreadcrumbLine: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 1,
-    marginBottom: 4,
-    overflow: "hidden",
-  },
-  songDetailHeaderEditActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  songDetailHeaderActionBtn: {
-    minHeight: 32,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  songDetailDangerMenuText: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.danger,
-    fontFamily: "PlusJakartaSans_700Bold",
   },
   songDetailTopStack: {
     gap: 8,
@@ -276,9 +152,6 @@ export const songDetailStyles = {
     marginTop: -2,
     marginBottom: 4,
   },
-  songDetailTabScroll: {
-    flex: 1,
-  },
   songDetailTabScrollContent: {
     gap: 10,
     paddingBottom: 0,
@@ -286,212 +159,8 @@ export const songDetailStyles = {
   songDetailTabPanelWrap: {
     gap: 10,
   },
-  // A tab's one quiet way onward (the Lyrics tab's "Write with the tape"), set
-  // on the title's start x and kept clear of the panel beneath.
-  songDetailTabLinkRow: {
-    flexDirection: "row",
-    paddingHorizontal: 2,
-    marginBottom: -4,
-  },
   songDetailTabPanelCard: {
     width: "100%",
-  },
-  songDetailMetaTabStrip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    flexWrap: "wrap",
-  },
-  songDetailMetaTab: {
-    minHeight: 28,
-    borderRadius: radii.xl,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: "#F4F1ED",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  songDetailMetaTabActive: {
-    backgroundColor: "#1C1C19",
-  },
-  songDetailMetaTabText: {
-    fontSize: 11,
-    color: "#84736f",
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-  songDetailMetaTabTextActive: {
-    color: "#FDFBF7",
-  },
-  songDetailMetaPanel: {
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-  },
-  songDetailMetaPanelBody: {
-    gap: 6,
-  },
-  songDetailMetaCompactStatsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  songDetailMetaStageRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  songDetailMetaValueRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  songDetailMetaLabelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  songDetailMetaFieldLabel: {
-    fontSize: 11,
-    color: "#84736f",
-    fontFamily: "PlusJakartaSans_700Bold",
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
-  },
-  songDetailMetaFieldHint: {
-    fontSize: 11,
-    color: "#B8A8A3",
-    fontFamily: "PlusJakartaSans_600SemiBold",
-  },
-  songDetailMetaValue: {
-    fontSize: 16,
-    color: "#1C1C19",
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-  songDetailMetaValueCompact: {
-    fontSize: 15,
-    color: "#1C1C19",
-    fontFamily: "PlusJakartaSans_700Bold",
-    fontVariant: ["tabular-nums"],
-  },
-  songDetailMetaSliderWrap: {
-    gap: 2,
-  },
-  songDetailMetaPreview: {
-    fontSize: 11.5,
-    lineHeight: 16,
-    color: "#524440",
-  },
-  songDetailMetaPreviewMuted: {
-    color: "#84736f",
-  },
-  songDetailMetaActionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 5,
-  },
-  songDetailMetaActionChip: {
-    minHeight: 26,
-    borderRadius: radii.round,
-    borderWidth: 1,
-    borderColor: "rgba(215,194,189,0.5)",
-    backgroundColor: "#F4F1ED",
-    paddingHorizontal: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  songDetailMetaActionChipText: {
-    fontSize: 10,
-    color: "#524440",
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-  songDetailSummaryCard: {
-    gap: 8,
-    paddingVertical: 12,
-  },
-  songDetailSummaryCardCompact: {
-    gap: 6,
-    paddingVertical: 10,
-  },
-  songDetailSummaryStrip: {
-    flexDirection: "row",
-    alignItems: "stretch",
-    gap: 8,
-  },
-  songDetailSummaryProgressCell: {
-    flex: 0.9,
-    minWidth: 0,
-  },
-  songDetailSummaryActionsStack: {
-    flex: 1.1,
-    minWidth: 0,
-    gap: 8,
-  },
-  songDetailSummaryProgressCard: {
-    minHeight: 84,
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 12,
-  },
-  songDetailSummaryActionCard: {
-    minHeight: 0,
-    paddingVertical: 10,
-    gap: 4,
-  },
-  songDetailSummaryHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  songDetailSummaryTitleWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  songDetailStatusSummaryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-start",
-    gap: 8,
-  },
-  songDetailStatusPercent: {
-    fontSize: 16,
-    color: "#1C1C19",
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-  songDetailStatusPercentCompact: {
-    fontSize: 18,
-    color: "#1C1C19",
-    fontFamily: "PlusJakartaSans_700Bold",
-    lineHeight: 22,
-  },
-  songDetailStatusBadgeLarge: {
-    fontSize: 11,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  songDetailEditorCard: {
-    gap: 10,
-    paddingVertical: 12,
-  },
-  songDetailNotesEditorCard: {
-    flex: 1,
-  },
-  songDetailWritingRow: {
-    flexDirection: "row",
-    alignItems: "stretch",
-    gap: 8,
-  },
-  songDetailWritingCell: {
-    flex: 1,
-    flexBasis: 0,
-    minWidth: 0,
-  },
-  songDetailWritingRowStacked: {
-    flexDirection: "column",
   },
   songDetailMiniCard: {
     minWidth: 0,
@@ -499,19 +168,6 @@ export const songDetailStyles = {
     gap: 6,
     marginBottom: 0,
     minHeight: 88,
-  },
-  songDetailMiniCardStandalone: {
-    width: "100%",
-    minHeight: 0,
-  },
-  songDetailMiniCardRow: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: 0,
-  },
-  songDetailMiniCardStacked: {
-    flex: 0,
-    width: "100%",
   },
   songDetailMiniCardHeader: {
     flexDirection: "row",
@@ -531,22 +187,10 @@ export const songDetailStyles = {
     color: "#1C1C19",
     fontFamily: "PlusJakartaSans_700Bold",
   },
-  songDetailMiniCardMetaWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
   songDetailMiniCardActionWrap: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-  },
-  songDetailMiniCardMetaText: {
-    fontSize: 10,
-    color: "#84736f",
-    fontFamily: "PlusJakartaSans_700Bold",
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
   },
   songDetailMiniCardBody: {
     fontSize: 11.5,
@@ -602,40 +246,6 @@ export const songDetailStyles = {
     lineHeight: 15,
     color: "#84736f",
   },
-  songDetailMiniCardButtons: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 8,
-  },
-  songDetailMiniCardButton: {
-    minHeight: 30,
-    paddingHorizontal: 12,
-    borderRadius: radii.lg,
-  },
-  songDetailMiniCardButtonText: {
-    fontSize: 12,
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-  songDetailLyricsCard: {
-    borderColor: "rgba(215,194,189,0.3)",
-    backgroundColor: "#FDFBF7",
-    minHeight: 0,
-  },
-  songDetailSectionEyebrow: {
-    fontSize: 11,
-    color: "#84736f",
-    fontFamily: "PlusJakartaSans_700Bold",
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
-  },
-  songDetailSectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-    marginTop: 4,
-    marginBottom: 6,
-  },
   songDetailSectionHeaderCopy: {
     flexDirection: "row",
     alignItems: "baseline",
@@ -655,14 +265,8 @@ export const songDetailStyles = {
     color: "#a89994",
     fontVariant: ["tabular-nums"],
   },
-  songDetailClipListHeader: {
-    gap: 10,
-  },
   songDetailClipSummarySection: {
     marginBottom: 4,
-  },
-  songDetailClipSection: {
-    gap: 8,
   },
   songDetailStickyIdeasHeader: {
     // Pinned toolbar: opaque page tone so content scrolls cleanly beneath it,
@@ -675,15 +279,6 @@ export const songDetailStyles = {
     borderBottomColor: "#E8E4DF",
     overflow: "visible" as const,
     zIndex: 120,
-  },
-  songDetailPrimaryDivider: {
-    height: 1,
-    backgroundColor: "#E8E4DF",
-    marginTop: 12,
-    marginBottom: 2,
-  },
-  songDetailListWithStrip: {
-    flex: 1,
   },
   // The primary take line (2026-10-15): play · name · "Primary take", on the
   // paper under the meta line. Transport rows never mirror (docs/design-system.md
@@ -766,19 +361,6 @@ export const songDetailStyles = {
     textTransform: "uppercase",
     color: colors.primaryDeep,
   },
-  songDetailClipPrimaryLabel: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 9,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    color: "#a89994",
-  },
-  songDetailRecordBtn: {
-    minHeight: 34,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: radii.round,
-  },
   songDetailClipRowWrap: {
     flexDirection: "row",
     alignItems: "stretch",
@@ -791,82 +373,5 @@ export const songDetailStyles = {
     paddingBottom: 0,
     gap: 7,
   },
-  songDetailParentPickCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-    paddingRight: 12,
-  },
-  songDetailParentPickHelper: {
-    fontSize: 12,
-    lineHeight: 16,
-    color: "#84736f",
-    fontFamily: "PlusJakartaSans_600SemiBold",
-  },
-  songDetailParentPickMeta: {
-    fontSize: 11,
-    lineHeight: 15,
-    color: "#84736f",
-    fontFamily: "PlusJakartaSans_500Medium",
-  },
-  songDetailParentPickInlineHint: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#D7C2BD",
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 2,
-  },
-  songDetailParentPickInlineTitle: {
-    fontSize: 12,
-    color: "#1b1c1a",
-    fontFamily: "PlusJakartaSans_700Bold",
-  },
-  songDetailParentPickInlineText: {
-    fontSize: 11,
-    lineHeight: 15,
-    color: "#84736f",
-    fontFamily: "PlusJakartaSans_600SemiBold",
-  },
 
-  // -- Song Notes Tab --
-  songNotesTabEmpty: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 48,
-    gap: 8,
-  },
-  songNotesTabEmptyTitle: {
-    fontSize: 15,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    color: "#84736f",
-  },
-  songNotesTabEmptySubtitle: {
-    fontSize: 13,
-    fontFamily: "PlusJakartaSans_400Regular",
-    color: "#B8A8A3",
-  },
-  songNotesTabBody: {
-    fontSize: 15,
-    lineHeight: 23,
-    fontFamily: "PlusJakartaSans_400Regular",
-    color: "#524440",
-  },
-  songNotesTabEditorInput: {
-    width: "100%",
-    borderWidth: 1,
-    borderColor: "rgba(215,194,189,0.5)",
-    backgroundColor: "#FDFBF7",
-    borderRadius: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    minHeight: 280,
-    textAlignVertical: "top",
-    fontSize: 15,
-    lineHeight: 23,
-    fontFamily: "PlusJakartaSans_400Regular",
-    color: "#1C1C19",
-    marginBottom: 6,
-  },
 } satisfies Record<string, ViewStyle | TextStyle | ImageStyle>;

@@ -1,124 +1,16 @@
 import React, { useEffect, useState } from "react";
-import { Modal, Pressable, Text, TextInput, View } from "react-native";
-import { Slider } from "../../common/Slider";
+import { Modal, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { dirIcon } from "../../../design/directionalIcons";
-import { fmtDuration } from "../../../utils";
 import { colors } from "../../../design/tokens";
-import { getSectionColor, getSectionPreset, MIN_SECTION_LENGTH_MS, nearestSectionInk, SECTION_INKS, SECTION_QUICK_ADD, sectionDisplayLabel, sectionPresetDisplayLabel } from "../../../domain/playerSections";
+import { getSectionPreset, nearestSectionInk, SECTION_INKS, SECTION_QUICK_ADD, sectionPresetDisplayLabel } from "../../../domain/playerSections";
 import type { SectionCustomInput } from "../hooks/usePlayerSections";
 import { WarmModal } from "../../common/WarmModal";
 import { playerScreenStyles as s } from "../styles";
-import type { ClipSection, ClipSectionKind } from "../../../types";
-import { PLAYHEAD_COLOR, PlayheadCursorIcon } from "./practicePanelPrimitives";
+import type { ClipSectionKind } from "../../../types";
 import { useTranslation } from "react-i18next";
 import { UserText, UserTextInput } from "../../../i18n";
 import { ModalDialogLayer } from "../../common/AppDialog";
 import { ModalGestureRoot } from "../../common/ModalGestureRoot";
-
-/** Single adjuster for whichever edge (start/end) is active, with a pin-to-playhead button. */
-export function SectionEdgeAdjuster({
-  section,
-  edge,
-  durationMs,
-  playheadMs,
-  onReposition,
-  onPreview,
-}: {
-  section: ClipSection;
-  edge: "start" | "end";
-  durationMs: number;
-  playheadMs: number;
-  onReposition: (sectionId: string, edge: "start" | "end", ms: number) => void;
-  onPreview: (preview: { id: string; startMs?: number; endMs?: number } | null) => void;
-}) {
-  const { t } = useTranslation();
-  const [dragMs, setDragMs] = useState<number | null>(null);
-  const isStart = edge === "start";
-  const current = isStart ? section.startMs : section.endMs;
-  // Keep the handle on its own side of the section; the resolver pushes neighbours on commit.
-  const minMs = isStart ? 0 : Math.min(section.startMs + MIN_SECTION_LENGTH_MS, Math.max(1, durationMs));
-  const maxMs = isStart
-    ? Math.max(0, section.endMs - MIN_SECTION_LENGTH_MS)
-    : Math.max(1, durationMs);
-  const clamp = (ms: number) => Math.max(minMs, Math.min(maxMs, ms));
-  // The arrows are coarse travel (the slider is the fine control): a step you
-  // can SEE on the reel — 1 s on a short clip, up to 5 s on a long one.
-  const nudgeMs = Math.max(1000, Math.min(5000, Math.round(durationMs / 60 / 500) * 500));
-  const stepBy = (deltaMs: number) => onReposition(section.id, edge, clamp(current + deltaMs));
-  // Pinning the active edge to the playhead only makes sense when it stays on its own side of
-  // the section (start before end, end after start). Crossing neighbours is fine — the resolver
-  // pushes them — so only the self-crossing case is disabled.
-  const canPin = isStart
-    ? playheadMs <= section.endMs - MIN_SECTION_LENGTH_MS
-    : playheadMs >= section.startMs + MIN_SECTION_LENGTH_MS;
-  const displayMs = dragMs ?? current;
-  return (
-    <View style={s.sectionAdjuster}>
-      <View style={s.sectionAdjusterHeader}>
-        <Text style={s.sectionEdgeLabel}>{isStart ? t("player.start") : t("player.end")}</Text>
-        <Text style={s.sectionEdgeLiveTime}>{fmtDuration(displayMs)}</Text>
-        <View style={{ flex: 1 }} />
-        <Pressable
-          style={[s.sectionPinCircle, !canPin ? s.sectionPinCircleDisabled : null]}
-          onPress={() => canPin && onReposition(section.id, edge, Math.round(playheadMs))}
-          disabled={!canPin}
-          hitSlop={6}
-          accessibilityRole="button"
-          accessibilityLabel={t("player.setEdgePlayheadA11y", {
-            edge: isStart ? t("player.start") : t("player.end"),
-            time: fmtDuration(playheadMs),
-          })}
-        >
-          <PlayheadCursorIcon color={canPin ? PLAYHEAD_COLOR : colors.textMuted} />
-        </Pressable>
-      </View>
-      <View style={s.pinTrayRow}>
-        <Pressable
-          style={s.pinStepButton}
-          onPress={() => stepBy(-nudgeMs)}
-          hitSlop={6}
-          accessibilityRole="button"
-          accessibilityLabel={t("player.nudgeEdgeBackA11y", {
-            edge: isStart ? t("player.start") : t("player.end"),
-          })}
-        >
-          <Ionicons name={dirIcon("chevron-back")} size={16} color={colors.textStrong} />
-        </Pressable>
-        <Slider
-          style={s.pinSlider}
-          minimumValue={minMs}
-          maximumValue={maxMs}
-          step={50}
-          value={Math.max(minMs, Math.min(maxMs, current))}
-          onValueChange={(value) => {
-            const next = Math.round(value);
-            setDragMs(next);
-            onPreview({ id: section.id, [isStart ? "startMs" : "endMs"]: next });
-          }}
-          onSlidingComplete={(value) => {
-            onReposition(section.id, edge, Math.round(value));
-            onPreview(null);
-            setDragMs(null);
-          }}
-          fill={false}
-          detent={1000}
-        />
-        <Pressable
-          style={s.pinStepButton}
-          onPress={() => stepBy(nudgeMs)}
-          hitSlop={6}
-          accessibilityRole="button"
-          accessibilityLabel={t("player.nudgeEdgeForwardA11y", {
-            edge: isStart ? t("player.start") : t("player.end"),
-          })}
-        >
-          <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textStrong} />
-        </Pressable>
-      </View>
-    </View>
-  );
-}
 
 export function SectionPickerModal({
   visible,
@@ -288,48 +180,6 @@ export function SectionDetailModal({
           accessibilityRole="button"
         >
           <Text style={s.sectionModalConfirmText}>{confirmLabel}</Text>
-        </Pressable>
-      </View>
-    </WarmModal>
-  );
-}
-
-/** Quick picker to drop the loop region onto an existing section. */
-export function LoopSectionPickerModal({
-  visible,
-  sections,
-  onPick,
-  onClose,
-}: {
-  visible: boolean;
-  sections: ClipSection[];
-  onPick: (section: ClipSection) => void;
-  onClose: () => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <WarmModal visible={visible} onRequestClose={onClose} title={t("player.loopSection")} scrollable>
-      {sections.map((section) => (
-        <Pressable
-          key={section.id}
-          style={s.loopSectionRow}
-          onPress={() => onPick(section)}
-          accessibilityRole="button"
-          accessibilityLabel={t("player.loopSectionA11y", { label: sectionDisplayLabel(section) })}
-        >
-          <View style={[s.sectionSwatch, { backgroundColor: getSectionColor(section) }]} />
-          <Text style={s.loopSectionLabel} numberOfLines={1}>
-            {sectionDisplayLabel(section)}
-          </Text>
-          <Text style={s.loopSectionTime}>
-            {fmtDuration(section.startMs)}–{fmtDuration(section.endMs)}
-          </Text>
-        </Pressable>
-      ))}
-      <View style={s.sectionModalActions}>
-        <View style={{ flex: 1 }} />
-        <Pressable style={s.sectionModalCancel} onPress={onClose} accessibilityRole="button">
-          <Text style={s.sectionModalCancelText}>{t("common.cancel")}</Text>
         </Pressable>
       </View>
     </WarmModal>
