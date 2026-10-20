@@ -54,11 +54,12 @@ export const playerScreenStyles = StyleSheet.create({
     backgroundColor: colors.surfaceContainer,
   },
   // Ink, not record-red: nothing is recording yet (colour is scarce).
+  // Record-red: Layer records (founder, 2026-10-20), the recorder's own colour.
   layerKeyDot: {
     width: 8,
     height: 8,
     borderRadius: radii.round,
-    backgroundColor: colors.textStrong,
+    backgroundColor: colors.record,
   },
   toolsPillText: {
     fontFamily: "PlusJakartaSans_600SemiBold",
@@ -97,11 +98,12 @@ export const playerScreenStyles = StyleSheet.create({
     color: colors.textPrimary,
   },
   // Row under the reel that holds the Tools toggle (and leaves room for reel-side controls).
+  // Sits close under the tape it acts on (founder, 2026-10-20).
   reelToolbar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 10,
+    paddingTop: 4,
   },
   // Ink keys (Layer, Tools) stand apart by space, not by boxes.
   reelToolbarRight: {

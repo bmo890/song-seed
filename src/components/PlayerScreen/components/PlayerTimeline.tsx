@@ -480,8 +480,8 @@ function PlayerTimelineInner({
       // The map halves whenever the page below needs the room: reading, the
       // bench, and Tools.
       minimapCompact={readingSlim || mode !== "player"}
-      // The listening page holds the minimap's room, so zooming never moves the pages.
-      reserveMinimapSpace={!readingSlim && mode === "player"}
+      // On the listening page the minimap shares the reel's half: zooming never moves the pages.
+      minimapWithinHeight={!readingSlim && mode === "player"}
       zoomPlacement="overlay"
       showTimingRow={false}
       defaultExpanded={false}

@@ -179,17 +179,16 @@ export const PAGE_ROW_GAP = 16;
 /** The take's note under the toolbar: two lines of margin script. */
 export const LISTENING_NOTE_RESERVE = 54;
 
-/** The minimap's band under the listening reel (its 24pt strip and 12pt gap). */
-export const MINIMAP_BAND_HEIGHT = 36;
-
 /**
  * The listening page, half and half (founder, 2026-10-20): the reel and its minimap
- * band take the top half of the page body (everything between the title and the
+ * take the top half of the page body (everything between the title and the
  * transport, as laid out), the pages beneath take the bottom half. Measured, so a
  * two-line title or a zoomed reel can never push the pages under the transport.
  */
 export function listeningReelHeightForBody(bodyHeight: number): number {
-    const room = Math.round(bodyHeight / 2) - MINIMAP_BAND_HEIGHT;
+    // The reel and its minimap share this half: the reel gives up the strip's room
+    // when it shows (AudioReel minimapWithinHeight).
+    const room = Math.round(bodyHeight / 2);
     return Math.max(LISTENING_REEL_MIN_HEIGHT, Math.min(LISTENING_REEL_MAX_HEIGHT, room));
 }
 
