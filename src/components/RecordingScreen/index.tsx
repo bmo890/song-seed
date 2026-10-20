@@ -213,14 +213,23 @@ export function RecordingScreen() {
 
       <DraftedQuickNameModal
         visible={screen.quickNameModalVisible && !autoNameActive && !otherSheetOpen && !nameSheetWaiting}
-        // Inside a sketch the object is a take; elsewhere it stays a clip.
-        title={screen.recordingIdea?.kind === "project" ? t("modals.saveTakeAs") : undefined}
-        primaryLabel={screen.recordingIdea?.kind === "project" ? t("modals.makePrimaryTake") : undefined}
+        // A layer is a layer; inside a sketch a new recording is a take; elsewhere a clip.
+        // Only a take can be the sketch's primary.
+        title={
+          isOverdubSession
+            ? t("modals.saveLayerAs")
+            : screen.recordingIdea?.kind === "project"
+              ? t("modals.saveTakeAs")
+              : undefined
+        }
+        primaryLabel={screen.recordingIdea?.kind === "project" && !isOverdubSession ? t("modals.makePrimaryTake") : undefined}
         draftValue={screen.quickNameDraft}
         placeholderValue={screen.recordingPlaceholderTitle}
         onChangeDraft={screen.setQuickNameDraft}
         isPrimary={screen.isPrimaryDraft}
-        onChangeIsPrimary={screen.recordingIdea?.kind === "project" ? screen.setIsPrimaryDraft : undefined}
+        onChangeIsPrimary={
+          screen.recordingIdea?.kind === "project" && !isOverdubSession ? screen.setIsPrimaryDraft : undefined
+        }
         onCancel={screen.handleQuickNameCancel}
         saving={isSavingClip}
         onSave={finishSave}

@@ -24,6 +24,12 @@ test("key and capo combine: up 2 with capo 2 reads as written", () => {
   expect(readingChordShift(2, 2)).toBe(0);
 });
 
+test("past an octave the shift wraps: G played in D with capo 7 reads as G shapes", () => {
+  const shift = readingChordShift(-5, 7);
+  expect(transposeChordSymbol("G", shift)).toBe("G");
+  expect(readingChordShift(-11, 11)).toBe(-10);
+});
+
 test("capo is optional and per song; it steps between none and fret 11", () => {
   const prefs = useChartPrefsStore.getState();
   prefs.nudgeCapo("song", -1);
