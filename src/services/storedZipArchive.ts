@@ -2,12 +2,15 @@ import { File } from "expo-file-system";
 import { i18n } from "../i18n/instance";
 import { strFromU8 } from "fflate";
 import {
+    BackupOperationCancelledError,
     reportBackupProgress,
     throwIfBackupCancelled,
     yieldToBackupUi,
     type BackupOperationOptions,
 } from "./backupOperation";
 import { IncrementalCrc32 } from "./streamingIntegrity";
+import * as FileSystem from "expo-file-system/legacy";
+import { NATIVE_IO_CANCELLED, extractRangeNative, isNativeZipAvailable } from "../../modules/songnook-file-io";
 
 const LOCAL_FILE_HEADER_SIGNATURE = 0x04034b50;
 const CENTRAL_DIRECTORY_SIGNATURE = 0x02014b50;
@@ -324,6 +327,25 @@ export async function extractStoredZipEntryToFile(
     targetUri: string,
     options?: BackupOperationOptions
 ) {
+    if (isNativeZipAvailable()) {
+        // One native read and write, CRC checked from the same bytes (2026-10-20).
+        let result: Awaited<ReturnType<typeof extractRangeNative>>;
+        try {
+            result = await extractRangeNative(index.archiveUri, entry.dataOffset, entry.sizeBytes, targetUri, {
+                signal: options?.signal,
+            });
+        } catch (error) {
+            if (options?.signal?.aborted || (error instanceof Error && error.message === NATIVE_IO_CANCELLED)) {
+                throw new BackupOperationCancelledError();
+            }
+            throw error;
+        }
+        if (result.crc32 !== entry.crc32 >>> 0 || result.sizeBytes !== entry.sizeBytes) {
+            await FileSystem.deleteAsync(targetUri, { idempotent: true }).catch(() => {});
+            throw new StoredZipError(`Backup ZIP checksum failed for ${entry.name}.`);
+        }
+        return;
+    }
     const targetFile = new File(targetUri);
     targetFile.create({ intermediates: true, overwrite: true });
     const handle = targetFile.open();

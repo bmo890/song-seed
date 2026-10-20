@@ -18,6 +18,7 @@ import {
     type SalvageSkippedItem,
 } from "./disasterRecoveryValidation";
 import {
+    BackupOperationCancelledError,
     ensureBackupDiskSpace,
     isBackupOperationCancelled,
     reportBackupProgress,
@@ -25,6 +26,7 @@ import {
     type BackupOperationOptions,
 } from "./backupOperation";
 import { sha256OfFileBase64, sha256OfString } from "./fileHashing";
+import { NATIVE_IO_CANCELLED, extractRangeNative, isNativeZipAvailable } from "../../modules/songnook-file-io";
 import { recordLibraryOperationThroughput } from "./operationPacing";
 import {
     indexStoredZipArchive,
@@ -328,6 +330,8 @@ export async function restoreFromDisasterRecoveryBackup(
                 : collectManagedLibraryFilePathsFromWorkspaces(options?.displacedWorkspaces ?? [])
         );
         journalStarted = true;
+        // Builds with the native file module copy and fingerprint each file in one read.
+        const nativeRestore = isNativeZipAvailable();
         reportBackupProgress(options, {
             phase: "restoring",
             completedBytes: 0,
@@ -362,6 +366,53 @@ export async function restoreFromDisasterRecoveryBackup(
             const targetFile = new File(targetUri);
             targetFile.create({ intermediates: true, overwrite: false });
             writtenUris.push(targetUri);
+            if (nativeRestore) {
+                // One native read per file: copied out and fingerprinted on the way, so it
+                // is checked against the zip's CRC and the manifest's SHA-256 here, and the
+                // separate verify pass below has nothing left to read (2026-10-20).
+                const before = restoredBytes;
+                let extracted: Awaited<ReturnType<typeof extractRangeNative>>;
+                try {
+                    extracted = await extractRangeNative(archiveIndex.archiveUri, entry.dataOffset, entry.sizeBytes, targetUri, {
+                        sha256: true,
+                        signal: options?.signal,
+                        onProgress: ({ completedBytes }) =>
+                            reportBackupProgress(options, {
+                                phase: "restoring",
+                                completedBytes: before + completedBytes,
+                                totalBytes: totalMediaBytes,
+                                message: i18n.t("process.restoringClips"),
+                            }),
+                    });
+                } catch (error) {
+                    if (options?.signal?.aborted || (error instanceof Error && error.message === NATIVE_IO_CANCELLED)) {
+                        throw new BackupOperationCancelledError();
+                    }
+                    throw error;
+                }
+                if (extracted.crc32 !== entry.crc32 >>> 0) {
+                    throw new DrRestoreError("integrity", `Backup ZIP checksum failed for ${record.path}`);
+                }
+                if (extracted.sizeBytes !== record.sizeBytes || extracted.sha256 !== record.sha256) {
+                    // Before calling the file bad, ask the proven JS route: a native hashing
+                    // fault must never refuse a good backup.
+                    const proven =
+                        extracted.sizeBytes === record.sizeBytes
+                            ? await sha256OfFileBase64(targetUri, record.sizeBytes, options).catch(() => null)
+                            : null;
+                    if (proven !== record.sha256) {
+                        throw new DrRestoreError("verifyFailed", `Audio file failed its integrity check: ${record.path}`);
+                    }
+                }
+                restoredBytes += record.sizeBytes;
+                reportBackupProgress(options, {
+                    phase: "restoring",
+                    completedBytes: restoredBytes,
+                    totalBytes: totalMediaBytes,
+                    message: i18n.t("process.restoringClips"),
+                });
+                continue;
+            }
             const targetHandle = targetFile.open();
             try {
                 await streamStoredZipEntry(
@@ -401,7 +452,7 @@ export async function restoreFromDisasterRecoveryBackup(
             totalBytes: totalMediaBytes,
             message: i18n.t("process.verifyingRestoredClips"),
         });
-        for (const record of manifest.files) {
+        for (const record of nativeRestore ? [] : manifest.files) {
             throwIfBackupCancelled(options?.signal);
             const destinationPath = prepared.destinationPathBySourcePath.get(record.path);
             if (!destinationPath) {
