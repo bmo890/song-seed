@@ -68,6 +68,11 @@ async function writePendingWorkspaceArchiveOperations(
     );
 }
 
+/** Whether an archive or unarchive is still mid-way (its package may sit in a picker cache). */
+export async function hasPendingWorkspaceArchiveOperations(): Promise<boolean> {
+    return (await readPendingWorkspaceArchiveOperations()).length > 0;
+}
+
 export async function upsertPendingWorkspaceArchiveOperation(
     operation: PendingWorkspaceArchiveOperation
 ) {

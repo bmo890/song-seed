@@ -24,6 +24,7 @@ import {
   promptForImportDatePreference,
   type ImportDatePreference,
 } from "../../../domain/importDates";
+import { discardPickedCopies } from "../../../services/pickedCopies";
 
 type CollectionImportFlowParams = {
   activeWorkspaceId: string | null;
@@ -57,6 +58,12 @@ export function useCollectionImportFlow({
     setImportDraft("");
   };
 
+  /** The name sheet's Cancel: nothing imports, so the picked copies go. */
+  const cancelImportModal = () => {
+    void discardPickedCopies(importAssets);
+    resetImportModal();
+  };
+
   const openImportAudioFlow = async () => {
     if (!collectionId) {
       AppAlert.info(t("collectionImport.chooseCollection"), t("collectionImport.chooseCollectionBody"));
@@ -68,7 +75,8 @@ export function useCollectionImportFlow({
 
     if (assets.length === 1) {
       const datePreference = await promptForImportDatePreference(assets);
-      if (!datePreference) return;
+      // Every way out before an import deletes the picker's copies (never the originals).
+      if (!datePreference) return void discardPickedCopies(assets);
       setImportAssets(assets);
       setImportMode("single-clip");
       setImportDatePreference(datePreference);
@@ -89,7 +97,7 @@ export function useCollectionImportFlow({
           onPress: () => {
             void (async () => {
               const datePreference = await promptForImportDatePreference(assets);
-              if (!datePreference) return;
+              if (!datePreference) return void discardPickedCopies(assets);
               importAssetsAsIndividualClips(assets, datePreference);
             })();
           },
@@ -102,7 +110,7 @@ export function useCollectionImportFlow({
           onPress: () => {
             void (async () => {
               const datePreference = await promptForImportDatePreference(assets);
-              if (!datePreference) return;
+              if (!datePreference) return void discardPickedCopies(assets);
               setImportAssets(assets);
               setImportMode("song-project");
               setImportDatePreference(datePreference);
@@ -111,8 +119,9 @@ export function useCollectionImportFlow({
             })();
           },
         },
-        { label: t("common.cancel"), style: "cancel" },
-      ]
+        { label: t("common.cancel"), style: "cancel", onPress: () => void discardPickedCopies(assets) },
+      ],
+      { onDismiss: () => void discardPickedCopies(assets) }
     );
   };
 
@@ -481,6 +490,7 @@ export function useCollectionImportFlow({
     setImportMode,
     setImportDatePreference,
     resetImportModal,
+    cancelImportModal,
     openImportAudioFlow,
     openDevSampleImport,
     openDevSampleImportAsSong,

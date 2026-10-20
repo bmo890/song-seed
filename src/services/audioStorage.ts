@@ -17,6 +17,7 @@ import {
     isNoAudioTrackError,
     isVideoImport,
 } from "./audioImportFormat";
+import { discardPickedCopies, isInAppCache } from "./pickedCopies";
 
 export const MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS = 30 * 60 * 1000;
 export const MANAGED_WAVEFORM_PEAK_COUNT = 256;
@@ -103,7 +104,7 @@ function normalizeExternalTimestamp(timestamp: number | null | undefined) {
 }
 
 export async function enrichImportedAudioAsset(
-    asset: Pick<ImportedAudioAsset, "uri" | "name" | "mimeType">,
+    asset: Pick<ImportedAudioAsset, "uri" | "name" | "mimeType" | "discardSourceAfterImport">,
     options?: {
         lastModified?: number | null;
         sourceHint?: ImportedAudioAsset["sourceCreatedAtSource"];
@@ -456,6 +457,9 @@ export async function pickAudioFiles(options?: { multiple?: boolean }): Promise<
                     uri: asset.uri,
                     name: asset.name,
                     mimeType: asset.mimeType,
+                    // The picker's copy in our cache (never the user's original):
+                    // deleted once imported, skipped or cancelled (pickedCopies.ts).
+                    discardSourceAfterImport: isInAppCache(asset.uri),
                 },
                 {
                     lastModified: asset.lastModified,
@@ -511,7 +515,8 @@ export async function pickVideoFiles(options?: { multiple?: boolean }): Promise<
             name: asset.fileName ?? undefined,
             mimeType: asset.mimeType ?? null,
             isVideo: true,
-            discardSourceAfterImport: true,
+            // The Photos picker's copy in our cache; the video in Photos is untouched.
+            discardSourceAfterImport: isInAppCache(asset.uri),
         }));
 }
 
@@ -597,12 +602,9 @@ export async function importAudioAsset(
     try {
         return await importAudioAssetFromSource(asset, targetId, options);
     } finally {
-        // Only ever a file inside our own cache: a picker that hands back the user's
-        // original (a content:// URI) must never have it deleted.
-        const cacheDirectory = FileSystem.cacheDirectory;
-        if (asset.discardSourceAfterImport && cacheDirectory && asset.uri.startsWith(cacheDirectory)) {
-            await FileSystem.deleteAsync(asset.uri, { idempotent: true }).catch(() => {});
-        }
+        // Only ever a picker's copy inside our own cache: a picker that hands back the
+        // user's original (a content:// URI) must never have it deleted.
+        await discardPickedCopies([asset]);
     }
 }
 
@@ -634,7 +636,16 @@ async function importAudioAssetFromSource(
 
     try {
         if (copiedToManagedStorage) {
-            await FileSystem.copyAsync({ from: sourceUri, to: destinationUri });
+            // Our own temp file (the extracted sound) or the picker's cache copy moves into
+            // the library instead of being copied: a phone short of space never holds the
+            // recording twice. Anything else (a file we don't own) is copied.
+            const ownsSource =
+                sourceUri === convertedTempUri || (asset.discardSourceAfterImport === true && isInAppCache(sourceUri));
+            if (ownsSource) {
+                await FileSystem.moveAsync({ from: sourceUri, to: destinationUri });
+            } else {
+                await FileSystem.copyAsync({ from: sourceUri, to: destinationUri });
+            }
         }
         if (convertedTempUri) {
             await FileSystem.deleteAsync(convertedTempUri, { idempotent: true }).catch(() => {});

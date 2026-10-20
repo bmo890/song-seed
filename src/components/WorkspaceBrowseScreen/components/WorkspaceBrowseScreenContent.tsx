@@ -419,7 +419,7 @@ function WorkspaceBrowseInner() {
         draftValue={importFlow.importCollectionDraft}
         placeholderValue={importFlow.defaultImportedTitle}
         onChangeDraft={importFlow.setImportCollectionDraft}
-        onCancel={importFlow.resetImportCollectionModal}
+        onCancel={importFlow.cancelImportCollectionModal}
         onSave={importFlow.saveImportedCollection}
         helperText={importFlow.importHelperText}
         saveLabel={t("workspaceBrowse.create")}

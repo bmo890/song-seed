@@ -98,7 +98,7 @@ export function CollectionModals() {
               : ""
         }
         onChangeDraft={importFlow.setImportDraft}
-        onCancel={importFlow.resetImportModal}
+        onCancel={importFlow.cancelImportModal}
         onSave={() => {
           void importFlow.saveImportedAudio();
         }}
