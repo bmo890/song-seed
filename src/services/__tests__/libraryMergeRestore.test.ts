@@ -232,6 +232,60 @@ describe("mergeRestoredLibrary", () => {
         expect(merged.workspaces[0].ideas[0].clips.map((c) => c.id)).toEqual(["clip-a", "clip-gone"]);
     });
 
+    it("brings a deleted layer back to its take, muted, and leaves the mix alone", () => {
+        const stem = (id: string, extra: Record<string, unknown> = {}) => ({
+            id,
+            title: id,
+            audioUri: `songnook/audio/${id}.m4a`,
+            gainDb: 0,
+            offsetMs: 0,
+            tonePreset: "neutral",
+            isMuted: false,
+            createdAt: 0,
+            ...extra,
+        });
+        const restored = snapshot({
+            workspaces: [workspace("ws-1", [idea("idea-1", [clip("clip-a", { overdub: { stems: [stem("keep"), stem("gone")] } })])])],
+        });
+        const current = snapshot({
+            workspaces: [
+                workspace("ws-1", [
+                    idea("idea-1", [clip("clip-a", { overdub: { stems: [stem("keep")], renderedMixUri: "mix.m4a" } })]),
+                ]),
+            ],
+        });
+        const merged = mergeRestoredLibrary(restored, current);
+        const overdub = merged.workspaces[0].ideas[0].clips[0].overdub!;
+        expect(overdub.stems.map((s) => [s.id, s.isMuted])).toEqual([
+            ["keep", false],
+            ["gone", true],
+        ]);
+        expect(overdub.renderedMixUri).toBe("mix.m4a");
+    });
+
+    it("brings deleted lyric versions back in date order, never as the latest page", () => {
+        const version = (id: string, createdAt: number) => ({
+            id,
+            createdAt,
+            updatedAt: createdAt,
+            document: { lines: [] },
+        });
+        const restored = snapshot({
+            workspaces: [
+                workspace("ws-1", [
+                    idea("idea-1", [clip("clip-a")], { lyrics: { versions: [version("v1", 1), version("v2", 2), version("v9", 9)] } }),
+                ]),
+            ],
+        });
+        const current = snapshot({
+            workspaces: [
+                workspace("ws-1", [idea("idea-1", [clip("clip-a")], { lyrics: { versions: [version("v1", 1), version("v3", 3)] } })]),
+            ],
+        });
+        const merged = mergeRestoredLibrary(restored, current);
+        expect(merged.workspaces[0].ideas[0].lyrics!.versions.map((v) => v.id)).toEqual(["v1", "v2", "v9", "v3"]);
+    });
+
     it("is a no-op when the backup contains nothing the library lacks", () => {
         const shared = [workspace("ws-1", [idea("idea-1", [clip("clip-a")])])];
         const merged = mergeRestoredLibrary(
