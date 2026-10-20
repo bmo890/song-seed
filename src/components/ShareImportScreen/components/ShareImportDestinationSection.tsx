@@ -1,10 +1,9 @@
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { dirIcon } from "../../../design/directionalIcons";
-import { NavRow } from "../../common/NavRow";
-import { SurfaceCard } from "../../common/SurfaceCard";
+import { Press } from "../../common/Press";
+import { ListRow, ListRows } from "../../common/ListRow";
 import { colors } from "../../../design/tokens";
-import { getHierarchyIconColor, getHierarchyIconName } from "../../../domain/hierarchy";
+import { getHierarchyIconName } from "../../../domain/hierarchy";
 import type { CollectionDestination } from "../types";
 import { styles } from "../styles";
 import { useTranslation } from "react-i18next";
@@ -25,6 +24,7 @@ type Props = {
   onCreateNewCollection: () => void;
 };
 
+/** Where the files go: the collection you were in, any other one, or a new one. */
 export function ShareImportDestinationSection({
   currentCollection,
   currentCollectionPathLabel,
@@ -39,96 +39,77 @@ export function ShareImportDestinationSection({
   onCreateNewCollection,
 }: Props) {
   const { t } = useTranslation();
+  const collectionIcon = getHierarchyIconName("collection");
+  // The path only adds something when the collection sits inside another one.
+  const currentMeta =
+    currentCollectionPathLabel && currentCollection && currentCollectionPathLabel !== currentCollection.title
+      ? `${t("shareImport.currentCollection")} · ${currentCollectionPathLabel}`
+      : t("shareImport.currentCollection");
   return (
-    <SurfaceCard>
+    <View style={styles.section}>
       <Text style={styles.sectionTitle}>{t("shareImport.destination")}</Text>
 
-      {currentCollection ? (
-        <NavRow
-          icon={getHierarchyIconName("collection")}
-          iconColor={getHierarchyIconColor("collection")}
-          label={currentCollection.title}
-          eyebrow={t("shareImport.currentCollection")}
-          accessory={
-            <Ionicons
-              name={dirIcon("chevron-forward")}
-              size={16}
-              color={colors.textMuted}
-            />
-          }
-          onPress={onImportIntoCurrentCollection}
-        />
-      ) : (
+      {!currentCollection && currentWorkspaceTitle ? (
         <Text style={styles.helperText}>
-          {t("shareImport.noCurrentCollection")}
+          {t("shareImport.importingInto", { workspace: currentWorkspaceTitle })}
         </Text>
-      )}
+      ) : null}
 
-      <Pressable
-        style={({ pressed }) => [
-          styles.toggleRow,
-          pressed ? styles.pressDown : null,
-        ]}
-        onPress={onToggleOtherCollections}
-      >
-        <Text style={styles.toggleLabel}>{t("shareImport.anotherCollection")}</Text>
-        <Ionicons
-          name={otherCollectionsExpanded ? "chevron-up" : "chevron-down"}
-          size={14}
-          color={colors.textMuted}
-        />
-      </Pressable>
+      <ListRows>
+        {currentCollection ? (
+          <ListRow
+            icon={collectionIcon}
+            title={currentCollection.title}
+            meta={currentMeta}
+            onPress={onImportIntoCurrentCollection}
+          />
+        ) : null}
 
-      {otherCollectionsExpanded ? (
-        <View style={styles.collectionList}>
-          {otherCollectionDestinations.map((destination) => (
-            <NavRow
-              key={`${destination.workspaceId}:${destination.collectionId}`}
-              icon={getHierarchyIconName("collection")}
-              iconColor={getHierarchyIconColor("collection")}
-              label={destination.pathLabel}
-              eyebrow={destination.workspaceTitle}
-              nested
-              accessory={
-                <Ionicons
-                  name={dirIcon("chevron-forward")}
-                  size={16}
-                  color={colors.textMuted}
+        <Press
+          // Haptics vocabulary: `light` — a section folds open or closed.
+          haptic="light"
+          style={styles.toggleRow}
+          onPress={onToggleOtherCollections}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: otherCollectionsExpanded }}
+        >
+          <View style={styles.toggleGlyph}>
+            <Ionicons name="folder-open-outline" size={19} color={colors.textStrong} />
+          </View>
+          <Text style={styles.toggleLabel}>{t("shareImport.anotherCollection")}</Text>
+          <Ionicons
+            name={otherCollectionsExpanded ? "chevron-up" : "chevron-down"}
+            size={14}
+            color={colors.textMuted}
+          />
+        </Press>
+
+        {otherCollectionsExpanded
+          ? otherCollectionDestinations.map((destination) => (
+              <View key={`${destination.workspaceId}:${destination.collectionId}`} style={styles.nested}>
+                <ListRow
+                  icon={collectionIcon}
+                  title={destination.pathLabel}
+                  meta={destination.workspaceTitle}
+                  onPress={() => onSelectDestination(destination)}
                 />
-              }
-              onPress={() => onSelectDestination(destination)}
-            />
-          ))}
-        </View>
-      ) : null}
+              </View>
+            ))
+          : null}
 
-      <Pressable
-        style={({ pressed }) => [
-          styles.newCollectionRow,
-          pressed ? styles.pressDown : null,
-          !targetWorkspaceTitle || isResolvingShareAssets ? styles.disabled : null,
-        ]}
-        onPress={onCreateNewCollection}
-        disabled={!targetWorkspaceTitle || isResolvingShareAssets}
-      >
-        <View style={styles.newCollectionCopy}>
-          <Text style={styles.newCollectionTitle}>{t("shareImport.newCollection")}</Text>
-          <Text style={styles.newCollectionMeta}>
-            {targetWorkspaceTitle
-              ? t("shareImport.createIn", { workspace: targetWorkspaceTitle })
-              : t("shareImport.noWorkspace")}
-          </Text>
-        </View>
-        <Ionicons name="add" size={16} color={colors.textSecondary} />
-      </Pressable>
+        {targetWorkspaceTitle && !isResolvingShareAssets ? (
+          <ListRow
+            icon="add"
+            title={t("shareImport.newCollection")}
+            meta={t("shareImport.createIn", { workspace: targetWorkspaceTitle })}
+            serifTitle={false}
+            userTitle={false}
+            onPress={onCreateNewCollection}
+          />
+        ) : null}
+      </ListRows>
 
-      {currentCollectionPathLabel || currentWorkspaceTitle ? (
-        <Text style={styles.helperText}>
-          {currentCollectionPathLabel
-            ? t("shareImport.currentPath", { path: currentCollectionPathLabel })
-            : t("shareImport.importingInto", { workspace: currentWorkspaceTitle })}
-        </Text>
-      ) : null}
-    </SurfaceCard>
+      {!targetWorkspaceTitle ? <Text style={styles.helperText}>{t("shareImport.noWorkspace")}</Text> : null}
+    </View>
   );
 }

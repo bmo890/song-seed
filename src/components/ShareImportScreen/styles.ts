@@ -1,6 +1,11 @@
 import { StyleSheet } from "react-native";
 import { colors, spacing, text as textTokens } from "../../design/tokens";
 
+/**
+ * Import from Share is a task, so it reads as rows on paper (2026-10-20): a
+ * quiet status line, the files that arrived, and the places they can go as
+ * `ListRow`s. No cards: nothing here is the musician's work yet.
+ */
 export const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -11,18 +16,25 @@ export const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    gap: spacing.md,
+    gap: spacing.xl,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.xxl,
+  },
+  section: {
+    gap: spacing.sm,
   },
   sectionTitle: {
     ...textTokens.sectionTitle,
-    marginBottom: 2,
+  },
+  status: {
+    ...textTokens.supporting,
+    color: colors.textSecondary,
   },
   previewRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    minHeight: 24,
+    minHeight: 28,
   },
   previewText: {
     flex: 1,
@@ -33,57 +45,54 @@ export const styles = StyleSheet.create({
     ...textTokens.supporting,
     color: colors.textSecondary,
   },
-  warningText: {
+  /** Skipped files: said in ink, not a warning colour (color is scarce). */
+  skippedText: {
     ...textTokens.supporting,
-    color: "#b45309",
-  },
-  pressDown: {
-    opacity: 0.9,
-    transform: [{ scale: 0.985 }],
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  toggleRow: {
-    minHeight: 42,
-    marginTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderSubtle,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.sm,
-    paddingTop: spacing.md,
-  },
-  toggleLabel: {
-    ...textTokens.caption,
     color: colors.textStrong,
   },
-  collectionList: {
-    gap: spacing.xs,
-    marginTop: spacing.sm,
-  },
-  newCollectionRow: {
-    minHeight: 46,
-    marginTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderSubtle,
-    paddingTop: spacing.md,
+  toggleRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     gap: spacing.md,
+    minHeight: 52,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
   },
-  newCollectionCopy: {
+  toggleGlyph: {
+    width: 22,
+    alignItems: "center",
+  },
+  toggleLabel: {
     flex: 1,
-    gap: 2,
-  },
-  newCollectionTitle: {
-    ...textTokens.body,
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 15,
     color: colors.textPrimary,
-    fontFamily: "PlusJakartaSans_700Bold",
   },
-  newCollectionMeta: {
-    ...textTokens.supporting,
+  nested: {
+    paddingStart: spacing.lg,
+  },
+  archiveRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    minHeight: 56,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderMuted,
+  },
+  archiveName: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+  archiveActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  archiveImport: {
+    flex: 1,
   },
 });
