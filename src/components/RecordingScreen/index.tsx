@@ -18,6 +18,7 @@ import { METRONOME_METER_PRESETS } from "../../domain/metronome";
 import { useStore } from "../../state/useStore";
 import { useRecordingScreenModel } from "./hooks/useRecordingScreenModel";
 import { HelpSheet } from "../common/HelpSheet";
+import { afterOverlayCloses } from "../common/afterOverlayCloses";
 import { RECORDING_HELP } from "../common/helpContent";
 import { useTranslation } from "react-i18next";
 import { setRecorderScreenOpen } from "../../services/audioForegroundActivity";
@@ -83,6 +84,21 @@ export function RecordingScreen() {
       });
     }
   }, [screen.quickNameModalVisible, autoNameActive, isSavingClip, finishSave, autoNameFailed]);
+  // A save can be asked for while another recorder sheet is up (the guide ends and
+  // stops an overdub with help open). iOS refuses the name sheet beside it and the
+  // recorder stops taking touches (overnight check 2026-10-20): close the others first,
+  // then show the name sheet once they have gone.
+  const otherSheetOpen = helpVisible || screen.settingsVisible || screen.metronomeSheetVisible;
+  const [nameSheetWaiting, setNameSheetWaiting] = React.useState(false);
+  const { setSettingsVisible, setMetronomeSheetVisible } = screen;
+  React.useEffect(() => {
+    if (!screen.quickNameModalVisible || autoNameActive || !otherSheetOpen) return;
+    setHelpVisible(false);
+    setSettingsVisible(false);
+    setMetronomeSheetVisible(false);
+    setNameSheetWaiting(true);
+    void afterOverlayCloses().then(() => setNameSheetWaiting(false));
+  }, [screen.quickNameModalVisible, autoNameActive, otherSheetOpen, setSettingsVisible, setMetronomeSheetVisible]);
   const meterLabel =
     METRONOME_METER_PRESETS.find((p) => p.id === screen.metronome.meterId)?.label ?? "";
   const metronomeSummary = `${screen.metronome.bpm} · ${meterLabel}${
@@ -196,7 +212,7 @@ export function RecordingScreen() {
       </View>
 
       <DraftedQuickNameModal
-        visible={screen.quickNameModalVisible && !autoNameActive}
+        visible={screen.quickNameModalVisible && !autoNameActive && !otherSheetOpen && !nameSheetWaiting}
         // Inside a sketch the object is a take; elsewhere it stays a clip.
         title={screen.recordingIdea?.kind === "project" ? t("modals.saveTakeAs") : undefined}
         primaryLabel={screen.recordingIdea?.kind === "project" ? t("modals.makePrimaryTake") : undefined}

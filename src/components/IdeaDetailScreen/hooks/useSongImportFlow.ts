@@ -9,6 +9,7 @@ import { appActions } from "../../../state/actions";
 import { ensureUniqueCountedTitle } from "../../../utils";
 import { buildImportedAssetDateMetadata, promptForImportDatePreference, type ImportDatePreference } from "../../../domain/importDates";
 import type { SongIdea } from "../../../types";
+import { afterOverlayCloses } from "../../common/afterOverlayCloses";
 
 type SongImportFlowParams = {
   selectedIdea: SongIdea | null | undefined;
@@ -92,10 +93,10 @@ export function useSongImportFlow({ selectedIdea, songClipTitles }: SongImportFl
 
     const duplicateResult = checkImportDuplicates([assetSnapshot], getAllClips());
     if (duplicateResult.hasDuplicates) {
-      showDuplicateReview(
-        duplicateResult,
-        () => resetImportModal(),
-        () => proceedWithImport(assetSnapshot)
+      // Close the name sheet before the review: iOS refuses a second sheet beside it.
+      resetImportModal();
+      void afterOverlayCloses().then(() =>
+        showDuplicateReview(duplicateResult, () => {}, () => proceedWithImport(assetSnapshot))
       );
       return;
     }
