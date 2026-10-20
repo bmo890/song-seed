@@ -74,7 +74,7 @@ export function useStorageDiagnostics({ active }: { active: boolean }) {
         AppAlert.info(t("settingsStorage.recoveryComplete"), parts.join(". ") + ".");
       }
     } catch (error) {
-      AppAlert.info(t("settingsStorage.recoveryFailed"), t("settingsStorage.recoveryFailedBody"));
+      AppAlert.error(t("settingsStorage.recoveryFailed"), t("settingsStorage.recoveryFailedBody"));
       console.warn("Recovery error:", error);
     } finally {
       setIsRecovering(false);
@@ -94,7 +94,7 @@ export function useStorageDiagnostics({ active }: { active: boolean }) {
         summarizeIntegrityReport(report)
       );
     } catch (error) {
-      AppAlert.info(t("settingsStorage.integrityFailed"), t("settingsStorage.integrityFailedBody"));
+      AppAlert.error(t("settingsStorage.integrityFailed"), t("settingsStorage.integrityFailedBody"));
       console.warn("Integrity scan error:", error);
     } finally {
       setIsScanning(false);

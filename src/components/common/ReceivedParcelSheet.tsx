@@ -151,9 +151,7 @@ function ReceivedParcelSheet({ pkg }: { pkg: Workspace }) {
     }
     const result = state.adoptReceivedPackageInto(pkg.id, plan.workspaceId, null);
     if (!result.ok) {
-      // Haptics: `error` — a failure the user must hear about.
-      haptic.error();
-      AppAlert.info(t("received.moveFailedTitle"), result.error ?? t("received.moveFailedBody"));
+      AppAlert.error(t("received.moveFailedTitle"), result.error ?? t("received.moveFailedBody"));
       return;
     }
     haptic.success();

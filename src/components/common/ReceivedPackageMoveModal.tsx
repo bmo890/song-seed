@@ -109,8 +109,7 @@ export function ReceivedPackageMoveModal({
     for (const pkg of packages) {
       const result = state.adoptReceivedPackageInto(pkg.id, selectedWorkspaceId, selectedParentId);
       if (!result.ok) {
-        haptic.error();
-        AppAlert.info(t("received.moveFailedTitle"), result.error ?? t("received.moveFailedBody"));
+        AppAlert.error(t("received.moveFailedTitle"), result.error ?? t("received.moveFailedBody"));
         return;
       }
       collectionIds.push(...result.collectionIds);

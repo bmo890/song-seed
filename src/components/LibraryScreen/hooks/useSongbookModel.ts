@@ -186,7 +186,7 @@ export function useSongbookModel() {
         const ok = await shareSongbookFile(activeSongbook, workspaces);
         if (!ok) AppAlert.info(t("library.nothingShare"), t("library.addChartsFirst"));
       } catch {
-        AppAlert.info(t("songDetail.shareFailed"), t("library.songbookShareFailed"));
+        AppAlert.error(t("songDetail.shareFailed"), t("library.songbookShareFailed"));
       }
     },
     /** Upload the songbook to SongNook Send and copy a shareable link. */

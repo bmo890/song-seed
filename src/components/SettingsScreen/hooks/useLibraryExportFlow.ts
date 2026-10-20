@@ -363,7 +363,7 @@ export function useLibraryExportFlow() {
       const message =
         error instanceof Error ? error.message : t("settingsExport.failedBody");
       useProcessStore.getState().setStatus("error", message);
-      AppAlert.info(t("settingsExport.failed"), message);
+      AppAlert.error(t("settingsExport.failed"), message);
     }
   };
 

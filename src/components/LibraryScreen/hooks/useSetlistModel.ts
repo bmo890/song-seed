@@ -277,7 +277,7 @@ export function useSetlistModel() {
         const ok = await shareSetlist(activeSetlist, workspaces);
         if (!ok) AppAlert.info(t("library.nothingShare"), t("library.addSetSongFirst"));
       } catch {
-        AppAlert.info(t("songDetail.shareFailed"), t("library.setlistShareFailed"));
+        AppAlert.error(t("songDetail.shareFailed"), t("library.setlistShareFailed"));
       }
     },
     getLinkForActiveSetlist: () => {

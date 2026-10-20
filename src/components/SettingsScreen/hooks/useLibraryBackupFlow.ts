@@ -323,7 +323,7 @@ export function useLibraryBackupFlow() {
                 ? t("settingsBackup.lowStorage")
                 : raw || t("settingsBackup.failedBody");
             useProcessStore.getState().setStatus("error", message);
-            AppAlert.info(t("settingsBackup.failed"), message);
+            AppAlert.error(t("settingsBackup.failed"), message);
             return false;
         }
     };
@@ -406,7 +406,7 @@ export function useLibraryBackupFlow() {
             console.warn("[restore] failed", error);
             const message = describeDrRestoreError(error);
             useProcessStore.getState().setStatus("error", message);
-            AppAlert.info(t("settingsBackup.restoreFailed"), message);
+            AppAlert.error(t("settingsBackup.restoreFailed"), message);
         }
     };
 
@@ -432,7 +432,7 @@ export function useLibraryBackupFlow() {
                 copyToCacheDirectory: true,
             });
         } catch {
-            AppAlert.info(t("settingsBackup.restoreFailed"), t("settingsBackup.pickerFailed"));
+            AppAlert.error(t("settingsBackup.restoreFailed"), t("settingsBackup.pickerFailed"));
             return;
         }
 

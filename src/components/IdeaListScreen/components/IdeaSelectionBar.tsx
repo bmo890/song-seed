@@ -230,9 +230,7 @@ export function IdeaSelectionBar({
       if (!shared) AppAlert.info(t("collection.nothingShare"), t("selection.nothingWholeBody"));
     } catch (error) {
       console.warn("Selection export error", error);
-      // Haptics: `error` — a failure must be felt.
-      haptic.error();
-      AppAlert.info(t("selection.shareFailed"), t("selection.shareFailedBody"));
+      AppAlert.error(t("selection.shareFailed"), t("selection.shareFailedBody"));
     }
   }
   function handleSendWhole() {
@@ -256,7 +254,7 @@ export function IdeaSelectionBar({
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : t("selection.shareFailedBody");
-      AppAlert.info(t("selection.shareFailed"), message);
+      AppAlert.error(t("selection.shareFailed"), message);
     } finally {
       setIsSharing(false);
     }

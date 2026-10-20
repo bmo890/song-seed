@@ -419,7 +419,7 @@ export function useEditorExportFlow({
       finishExport(newClipIds);
     } catch (error) {
       console.warn("Editor extract failed", error);
-      AppAlert.info(t("editor.exportError"), t("editor.extractFailed"));
+      AppAlert.error(t("editor.exportError"), t("editor.extractFailed"));
     } finally {
       setIsExporting(false);
     }
@@ -478,7 +478,7 @@ export function useEditorExportFlow({
       finishExport(newClipIds);
     } catch (error) {
       console.warn("Editor splice failed", error);
-      AppAlert.info(t("editor.exportError"), t("editor.spliceFailed"));
+      AppAlert.error(t("editor.exportError"), t("editor.spliceFailed"));
     } finally {
       setIsExporting(false);
     }
@@ -525,7 +525,7 @@ export function useEditorExportFlow({
       finishExport(newClipIds);
     } catch (error) {
       console.warn("Editor transform save failed", error);
-      AppAlert.info(
+      AppAlert.error(
         t("editor.transformSaveError"),
         error instanceof Error ? error.message : t("editor.transformSaveFailed")
       );

@@ -7,7 +7,6 @@ import { writableWorkspaces } from "../../../domain/workspaceVisibility";
 import { useStore } from "../../../state/useStore";
 import { createCollectionShareLink, shareCollectionFile } from "../../../services/placeShare";
 import { openSendSheet } from "../../../state/useSendSheetStore";
-import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
 
 type CollectionManagementParams = {
@@ -141,7 +140,7 @@ export function useCollectionManagement({
         : moveCollection(managedCollection.id, selectedMoveWorkspaceId, selectedMoveParentCollectionId);
 
     if (!result.ok) {
-      AppAlert.info(
+      AppAlert.error(
         t(collectionDestinationMode === "copy" ? "collection.copyFailed" : "collection.moveFailed"),
         result.error ??
           t("collection.operationFailed", { action: t(collectionDestinationMode === "copy" ? "collection.copy" : "collection.move") })
@@ -178,9 +177,7 @@ export function useCollectionManagement({
       const ok = await shareCollectionFile(currentCollection, activeWorkspace, libraryNow());
       if (!ok) AppAlert.info(t("collection.nothingShare"), t("collection.nothingShareBody"));
     } catch {
-      // haptics vocabulary: `error` — a failure the user must hear about.
-      haptic.error();
-      AppAlert.info(t("collection.shareFailed"), t("collection.shareFailedBody"));
+      AppAlert.error(t("collection.shareFailed"), t("collection.shareFailedBody"));
     } finally {
       setIsSharingCollection(false);
     }

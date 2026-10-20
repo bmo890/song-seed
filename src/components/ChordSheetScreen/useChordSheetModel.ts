@@ -407,7 +407,7 @@ export function useChordSheetModel(ideaIdOverride?: string, options?: { startEdi
       const ok = await shareChordSheetPdf({ title: projectIdea.title, subtitle, sheet: sheetForExport() });
       if (!ok) AppAlert.info(t("chordChart.nothingExport"), t("chordChart.addChartFirst"));
     } catch {
-      AppAlert.info(t("chordChart.exportFailed"), t("chordChart.exportFailedBody"));
+      AppAlert.error(t("chordChart.exportFailed"), t("chordChart.exportFailedBody"));
     }
   };
 

@@ -2,6 +2,7 @@ import { dialogStore, type DialogButton } from "./dialogStore";
 import { actionIcons, type IoniconName } from "./actionIcons";
 import { i18n } from "../../i18n";
 import { actionMenuStore } from "./actionMenuStore";
+import { haptic } from "../../design/haptics";
 import type { SelectionAction } from "./SelectionDock";
 
 type ConfirmOpts = { confirmLabel?: string; cancelLabel?: string; icon?: IoniconName };
@@ -55,7 +56,14 @@ export const AppAlert = {
     });
   },
 
-  /** Info / error — single dismiss button. */
+  /** Something failed: the `error` haptic (haptics.ts: "error → something failed",
+   *  failures must fire it) and the same single-button dialog as `info`. */
+  error(title: string, message?: string): void {
+    haptic.error();
+    AppAlert.info(title, message);
+  },
+
+  /** Information — single dismiss button. Failures use `error`. */
   info(title: string, message?: string): void {
     dialogStore.show({
       title,

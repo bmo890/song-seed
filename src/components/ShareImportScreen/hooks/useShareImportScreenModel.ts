@@ -165,7 +165,7 @@ export function useShareImportScreenModel({
         returnHome(navigation, { screen: "ReceivedHome" });
       }
     } catch (error) {
-      AppAlert.info(t("common.importFailed"), t("common.archiveReadFailed"));
+      AppAlert.error(t("common.importFailed"), t("common.archiveReadFailed"));
     } finally {
       setIsImportingArchive(false);
     }

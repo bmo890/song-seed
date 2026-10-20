@@ -10,7 +10,6 @@ import { useStore } from "../../../state/useStore";
 import { openSendSheet } from "../../../state/useSendSheetStore";
 import { createCollectionShareLink, shareCollectionFile } from "../../../services/placeShare";
 import { isSendServiceConfigured } from "../../../config/sendService";
-import { haptic } from "../../../design/haptics";
 
 function collapseSelectedCollectionIds(
   collections: Array<{ id: string; parentCollectionId?: string | null }>,
@@ -265,9 +264,7 @@ export function useWorkspaceCollectionSelection({
       if (!ok) AppAlert.info(t("collection.nothingShare"), t("collection.nothingShareBody"));
       else setSelectedCollectionIds([]);
     } catch {
-      // haptics vocabulary: `error` — a failure the user must hear about.
-      haptic.error();
-      AppAlert.info(t("collection.shareFailed"), t("collection.shareFailedBody"));
+      AppAlert.error(t("collection.shareFailed"), t("collection.shareFailedBody"));
     } finally {
       setSharingCollection(false);
     }

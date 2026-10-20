@@ -51,7 +51,7 @@ export function SettingsAboutView() {
       const uri = await buildDiagnosticsBundle();
       await shareFileUri(uri, "SongNook diagnostic log", "application/json");
     } catch {
-      AppAlert.info(t("settingsAbout.couldNotShare"), t("settingsAbout.couldNotShareBody"));
+      AppAlert.error(t("settingsAbout.couldNotShare"), t("settingsAbout.couldNotShareBody"));
     }
   };
 
@@ -72,8 +72,7 @@ export function SettingsAboutView() {
       haptic.success(); // vocabulary: success — a save the user asked for landed
       toast(t("settingsAbout.diagnosticsSaved"), "checkmark-circle-outline");
     } catch {
-      haptic.error(); // vocabulary: error — failures must fire it
-      AppAlert.info(t("settingsAbout.couldNotSaveLog"));
+      AppAlert.error(t("settingsAbout.couldNotSaveLog"));
     }
   };
 

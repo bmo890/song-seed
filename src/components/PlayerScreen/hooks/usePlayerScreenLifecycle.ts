@@ -512,7 +512,7 @@ export function usePlayerScreenLifecycle({
                 } catch (error) {
                   const message =
                     error instanceof Error ? error.message : t("player.combinedSaveBody");
-                  AppAlert.info(t("player.combinedSaveFailed"), message);
+                  AppAlert.error(t("player.combinedSaveFailed"), message);
                 }
               },
             },
@@ -526,7 +526,7 @@ export function usePlayerScreenLifecycle({
                 } catch (error) {
                   const message =
                     error instanceof Error ? error.message : t("player.combinedOpenFailed");
-                  AppAlert.info(t("player.combinedSaveFailed"), message);
+                  AppAlert.error(t("player.combinedSaveFailed"), message);
                 }
               },
             },
@@ -598,7 +598,7 @@ export function usePlayerScreenLifecycle({
             } catch (error) {
               console.warn("Share audio error", error);
               const message = error instanceof Error ? error.message : t("player.shareAudioFailed");
-              AppAlert.info(t("player.shareFailed"), message);
+              AppAlert.error(t("player.shareFailed"), message);
             }
           };
           // Share… holds the same two exits as everywhere else: the audio by the

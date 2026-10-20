@@ -65,7 +65,7 @@ export function useWorkspaceArchiveActions({
       }
       AppAlert.info(t("workspaceArchive.archivedTitle"), summary.join(" "));
     } catch (error) {
-      AppAlert.info(
+      AppAlert.error(
         t("workspaceArchive.archiveFailed"),
         t("workspaceArchive.archiveFailedBody")
       );
@@ -88,7 +88,7 @@ export function useWorkspaceArchiveActions({
       }
       AppAlert.info(t("workspaceArchive.restoredTitle"), summary.join(" "));
     } catch (error) {
-      AppAlert.info(
+      AppAlert.error(
         t("workspaceArchive.restoreFailed"),
         t("workspaceArchive.restoreFailedBody")
       );
@@ -110,7 +110,7 @@ export function useWorkspaceArchiveActions({
         copyToCacheDirectory: true,
       });
     } catch {
-      AppAlert.info(t("workspaceArchive.restoreFailed"), t("workspaceArchive.pickerFailed"));
+      AppAlert.error(t("workspaceArchive.restoreFailed"), t("workspaceArchive.pickerFailed"));
       return;
     }
     if (picked.canceled || picked.assets.length === 0) return;
@@ -133,7 +133,7 @@ export function useWorkspaceArchiveActions({
             t("workspaceArchive.packageMovedBody", { size: formatBytes(result.freedBytes), workspace: workspace.title, file: saved.fileName })
           );
         } catch (error) {
-          AppAlert.info(
+          AppAlert.error(
             t("workspaceArchive.moveFinishFailed"),
             t("workspaceArchive.localKept")
           );
@@ -156,7 +156,7 @@ export function useWorkspaceArchiveActions({
       }
     } catch (error) {
       if (!(error instanceof Error && error.message === BACKUP_SAVE_CANCELLED_MESSAGE)) {
-        AppAlert.info(
+        AppAlert.error(
           t("workspaceArchive.moveFailed"),
           t("workspaceArchive.moveFailedBody")
         );

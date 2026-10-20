@@ -32,7 +32,7 @@ export function useChordExport(
       const ok = await shareChordChartPdf({ title: songTitle, subtitle, lines });
       if (!ok) AppAlert.info(t("chordEditor.nothingExport"), t("chordEditor.addLyricsFirst"));
     } catch {
-      AppAlert.info(t("chordEditor.exportFailed"), t("chordEditor.exportFailedBody"));
+      AppAlert.error(t("chordEditor.exportFailed"), t("chordEditor.exportFailedBody"));
     }
   };
 

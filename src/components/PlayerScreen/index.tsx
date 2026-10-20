@@ -1078,8 +1078,7 @@ function PlayerScreenInner({
         toast(t("player.mergedToast"), "checkmark-outline");
       } catch (error) {
         console.warn("Layer merge failed", error);
-        haptic.error(); // Vocabulary: failures fire error.
-        AppAlert.info(t("player.mergeFailed"), error instanceof Error ? error.message : "");
+        AppAlert.error(t("player.mergeFailed"), error instanceof Error ? error.message : "");
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1235,7 +1234,7 @@ function PlayerScreenInner({
         );
       } catch (error) {
         const message = error instanceof Error ? error.message : t("player.flattenFailed");
-        AppAlert.info(t("player.saveFailed"), message);
+        AppAlert.error(t("player.saveFailed"), message);
       }
     },
     [effectiveIsPlaying, navigation, playerClip, playerIdea, practicePitchTransport]
@@ -1259,7 +1258,7 @@ function PlayerScreenInner({
         if (!layerIdeaId || !layerClipId) return;
         void action(layerIdeaId, layerClipId, ...args).catch((error) => {
           const message = error instanceof Error ? error.message : fallbackMessage;
-          AppAlert.info(t("player.layerUpdateFailed"), message);
+          AppAlert.error(t("player.layerUpdateFailed"), message);
         });
       };
     return {

@@ -21,8 +21,7 @@ export function useEraseAllData() {
             const result = await eraseAllAppData();
             // Reached only if the reload did not happen (it normally never returns).
             if (result.failures.length > 0) {
-                haptic.error(); // haptics vocabulary: a failed outcome the user must not miss
-                AppAlert.info(t("eraseAll.failedTitle"), t("eraseAll.failedBody"));
+                AppAlert.error(t("eraseAll.failedTitle"), t("eraseAll.failedBody"));
             }
         } finally {
             setIsErasing(false);

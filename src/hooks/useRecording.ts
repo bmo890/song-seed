@@ -430,7 +430,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       showNotificationPermissionAlert(true);
       return;
     }
-    AppAlert.info(t("recordingErrors.failed"), fallback);
+    AppAlert.error(t("recordingErrors.failed"), fallback);
   }
 
   async function rollbackFailedRecordingStart(
@@ -873,7 +873,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     try {
       await recorder.pauseRecording();
     } catch {
-      AppAlert.info(t("recordingErrors.pauseFailed"), t("recordingErrors.pauseFailedBody"));
+      AppAlert.error(t("recordingErrors.pauseFailed"), t("recordingErrors.pauseFailedBody"));
     }
   }
 
@@ -885,7 +885,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       await claimRecordingAudioSession();
       await recorder.resumeRecording();
     } catch {
-      AppAlert.info(t("recordingErrors.resumeFailed"), t("recordingErrors.resumeFailedBody"));
+      AppAlert.error(t("recordingErrors.resumeFailed"), t("recordingErrors.resumeFailedBody"));
     }
   }
 
@@ -912,7 +912,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       resetLiveWaveform();
       resetOnsetEnvelope();
       if (!recordingData || !recordingData.fileUri) {
-        AppAlert.info(t("recordingErrors.failed"), t("recordingErrors.noFile"));
+        AppAlert.error(t("recordingErrors.failed"), t("recordingErrors.noFile"));
         return false;
       }
 
