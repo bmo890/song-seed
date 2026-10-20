@@ -18,6 +18,7 @@ import {
     isVideoImport,
 } from "./audioImportFormat";
 import { discardPickedCopies, isInAppCache } from "./pickedCopies";
+import { readVideoCreationTimeMs } from "./videoCreationTime";
 
 export const MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS = 30 * 60 * 1000;
 export const MANAGED_WAVEFORM_PEAK_COUNT = 256;
@@ -39,7 +40,7 @@ export type ImportedAudioAsset = {
     name?: string;
     mimeType?: string | null;
     sourceCreatedAt?: number;
-    sourceCreatedAtSource?: "document-picker-last-modified" | "file-modification-time";
+    sourceCreatedAtSource?: "document-picker-last-modified" | "file-modification-time" | "video-recorded-at";
     /** The source is a temp copy only this import uses (a video handed over by the
      *  photo picker) — delete it once the import has its own file, so a long video
      *  never lingers in the cache. */
@@ -510,14 +511,23 @@ export async function pickVideoFiles(options?: { multiple?: boolean }): Promise<
 
     return result.assets
         .filter((asset) => asset.type == null || asset.type === "video")
-        .map((asset) => ({
-            uri: asset.uri,
-            name: asset.fileName ?? undefined,
-            mimeType: asset.mimeType ?? null,
-            isVideo: true,
-            // The Photos picker's copy in our cache; the video in Photos is untouched.
-            discardSourceAfterImport: isInAppCache(asset.uri),
-        }));
+        .map((asset) => {
+            // The picker hands over a fresh copy, so its file date is now: the
+            // recording time comes from the video's own header instead, which is
+            // also what lets the duplicate check recognise a video picked twice.
+            const recordedAt = readVideoCreationTimeMs(asset.uri);
+            return {
+                uri: asset.uri,
+                name: asset.fileName ?? undefined,
+                mimeType: asset.mimeType ?? null,
+                isVideo: true,
+                // The Photos picker's copy in our cache; the video in Photos is untouched.
+                discardSourceAfterImport: isInAppCache(asset.uri),
+                ...(recordedAt
+                    ? { sourceCreatedAt: recordedAt, sourceCreatedAtSource: "video-recorded-at" as const }
+                    : {}),
+            };
+        });
 }
 
 /**

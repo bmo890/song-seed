@@ -197,11 +197,16 @@ export function useWorkspaceCollectionSelection({
 
     AppAlert.destructive(
       t("workspaceBrowse.deleteCollectionsTitle"),
-      t("workspaceBrowse.deleteCollectionsBody", { count: collapsedSelectedCollectionIds.length }) +
-        (scope.childCollectionCount > 0
-          ? t("workspaceBrowse.deleteCollectionsSub", { count: scope.childCollectionCount })
-          : "") +
-        t("workspaceBrowse.deleteCollectionsItems", { count: scope.itemCount }),
+      t(
+        scope.childCollectionCount > 0
+          ? "workspaceBrowse.deleteCollectionsNested"
+          : "workspaceBrowse.deleteCollectionsBody",
+        {
+          count: collapsedSelectedCollectionIds.length,
+          children: t("collection.childCount", { count: scope.childCollectionCount }),
+          items: t("collection.itemScope", { count: scope.itemCount }),
+        }
+      ),
       () => {
         for (const collectionId of collapsedSelectedCollectionIds) {
           deleteCollection(collectionId);

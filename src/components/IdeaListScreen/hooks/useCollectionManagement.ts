@@ -119,9 +119,9 @@ export function useCollectionManagement({
     setCollectionActionsOpen(false);
     AppAlert.destructive(
       t("collection.deleteTitle"),
-      t("collection.deleteScope", {
+      t(childCollectionCount > 0 ? "collection.deleteScopeNested" : "collection.deleteScope", {
         title: managedCollection.title,
-        children: childCollectionCount > 0 ? t("collection.childScope", { count: childCollectionCount }) : "",
+        children: t("collection.childCount", { count: childCollectionCount }),
         items: t("collection.itemScope", { count: itemCount }),
       }),
       () => {
