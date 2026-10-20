@@ -727,6 +727,10 @@ export const resources = {
         tracks_one: "{{count}} item", tracks_other: "{{count}} items", lessMinute: "<1 min", minutes: "{{count}} min", hoursMinutes: "{{hours}} hr {{minutes}} min", hours: "{{count}} hr", updatedNow: "updated now", updatedHours_one: "updated 1h ago", updatedHours_other: "updated {{count}}h ago", updatedDays_one: "updated 1d ago", updatedDays_other: "updated {{count}}d ago", updatedDate: "updated {{date}}",
       },
       player: {
+        notesPage: "Notes",
+        takeNotesPage: "Take notes",
+        writeNote: "Write a note",
+        openNotes: "Open notes",
         offsetInPlace: "In place",
         offsetAt: "at {{time}}",
         offsetMs: "{{ms}} ms",
@@ -2334,6 +2338,10 @@ export const resources = {
         tracks_one: "פריט אחד", tracks_two: "שני פריטים", tracks_other: "{{count}} פריטים", lessMinute: "פחות מדקה", minutes: "{{count}} דק׳", hoursMinutes: "{{hours}} שע׳ {{minutes}} דק׳", hours: "{{count}} שע׳", updatedNow: "עודכן עכשיו", updatedHours_one: "עודכן לפני שעה", updatedHours_two: "עודכן לפני שעתיים", updatedHours_other: "עודכן לפני {{count}} שעות", updatedDays_one: "עודכן אתמול", updatedDays_two: "עודכן לפני יומיים", updatedDays_other: "עודכן לפני {{count}} ימים", updatedDate: "עודכן ב־{{date}}",
       },
       player: {
+        notesPage: "הערות",
+        takeNotesPage: "הערות לטייק",
+        writeNote: "כתיבת הערה",
+        openNotes: "פתיחת ההערות",
         offsetInPlace: "במקום",
         offsetAt: "ב־{{time}}",
         offsetMs: "{{ms}} מ״ש",

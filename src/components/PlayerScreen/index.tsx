@@ -30,6 +30,7 @@ import { usePlayerScreenLifecycle } from "./hooks/usePlayerScreenLifecycle";
 import { usePlayerPracticePitchTransport } from "./hooks/usePlayerPracticePitchTransport";
 import { usePlayerScreenUi } from "./hooks/usePlayerScreenUi";
 import { appActions } from "../../state/actions";
+import { ideaWorkspaceId } from "../../state/dataSlice";
 import { useStore } from "../../state/useStore";
 import { isPlaybackNearEnd } from "../../services/transportPlayback";
 import { PlayerTimeline } from "./components/PlayerTimeline";
@@ -337,6 +338,29 @@ function PlayerScreenInner({
   }, [displayedLyricsVersion?.updatedAt, data.clipLyrics.total, data.clipLyrics.index, readingStampedLyrics, t]);
   // What sits above the transport on the listening page, so the reel can take
   // exactly the room that is left (domain/reelLanes).
+  // The recording's own note, written from the Notes page. It lives on the clip (a
+  // take keeps it when the clip grows into a sketch), in the idea's own workspace.
+  const notesIdeaId = playerIdea?.id;
+  const notesClipId = playerClip?.id;
+  const saveClipNotes = useCallback(
+    (notes: string) => {
+      if (!notesIdeaId || !notesClipId) return;
+      const state = useStore.getState();
+      state.updateIdeas(
+        (ideas) =>
+          ideas.map((idea) =>
+            idea.id !== notesIdeaId
+              ? idea
+              : { ...idea, clips: idea.clips.map((clip) => (clip.id === notesClipId ? { ...clip, notes } : clip)) }
+          ),
+        { workspaceId: ideaWorkspaceId(state.workspaces, notesIdeaId) }
+      );
+    },
+    [notesIdeaId, notesClipId]
+  );
+  // The page body between title and transport, as laid out: the listening reel
+  // takes its top half (domain/reelLanes listeningReelHeightForBody).
+  const [bodyHeight, setBodyHeight] = useState(0);
   const anySketch = useStore(selectAnySketch);
   const listeningBelow = useMemo<ListeningBelow>(() => {
     const pages: ListeningBelow["pages"] =
@@ -349,7 +373,8 @@ function PlayerScreenInner({
             ? "slots"
             : "tiles"
           : "none";
-    return { pages, note: data.clipNotes.trim().length > 0 };
+    // The note is a page in the row now, not a margin line under the toolbar.
+    return { pages, note: false };
   }, [anySketch, data.clipNotes, data.hasProjectLyrics, hasChart, lyricsPreview, playerIdea?.kind]);
   // Marker visibility only matters when the clip has marks to show or hide.
   const hasMarks = data.practiceMarkers.length > 0 || data.sections.length > 0;
@@ -1319,6 +1344,7 @@ function PlayerScreenInner({
         ref={transportRef}
         scrollable={!isReading}
         footerDivider={!isFullView}
+        onBodyHeight={setBodyHeight}
         header={
           <PlayerHeaderSection
             clipTitle={playerClip.title}
@@ -1392,6 +1418,7 @@ function PlayerScreenInner({
                   onScrubStateChange={lifecycle.handleScrubStateChange}
                   onRepositionMarker={handleRepositionMarker}
                   listeningBelow={listeningBelow}
+                  bodyHeight={bodyHeight}
                   onMoveSection={sectionsApi.handleMoveSection}
                   onRequestPinActions={handlePinActions}
                   onRequestAddPin={handleRequestAddPin}
@@ -1940,6 +1967,8 @@ function PlayerScreenInner({
               onWriteLyrics={ui.openWriting}
               onBuildChart={openChartBuilder}
               clipNotes={data.clipNotes}
+              notesLabel={playerIdea.kind === "project" ? t("player.takeNotesPage") : t("player.notesPage")}
+              onSaveNotes={saveClipNotes}
               notesExpanded={ui.notesExpanded}
               hasQueue={data.playerQueue.length > 0}
               queueExpanded={ui.queueExpanded}

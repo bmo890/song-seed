@@ -15,7 +15,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { PlaybackTapeVisualizer } from "../visualizers/PlaybackTapeVisualizer";
 import { buildGridRulerModel, snapToGrid, type GridRulerGrid } from "../../domain/gridRuler";
-import { MinimapVisualizer } from "../visualizers/MinimapVisualizer";
+import { MINIMAP_COMPACT_HEIGHT, MINIMAP_HEIGHT, MinimapVisualizer } from "../visualizers/MinimapVisualizer";
 import type { SectionBand } from "../../domain/playerSections";
 import { fmt } from "../../utils";
 import { colors } from "../../design/tokens";
@@ -260,6 +260,9 @@ type Props = {
     minimapInteractive?: boolean;
     /** Half-height minimap — for slim reels where the full map would out-weigh the tape. */
     minimapCompact?: boolean;
+    /** Keep the minimap's room while it is hidden, so zooming in never moves the page
+     *  beneath the reel (the player's listening page). */
+    reserveMinimapSpace?: boolean;
     zoomMultiple?: number;
     onZoomMultipleChange?: (zoomMultiple: number) => void;
     /** Desired initial zoom for the uncontrolled case (snapped to the nearest step).
@@ -326,6 +329,7 @@ export function AudioReel({
     showMinimapMode = "auto",
     minimapInteractive = true,
     minimapCompact = false,
+    reserveMinimapSpace = false,
     zoomMultiple: controlledZoomMultiple,
     onZoomMultipleChange,
     initialZoomMultiple,
@@ -1016,6 +1020,10 @@ export function AudioReel({
                             sharedAudioProgress={sharedAudioProgress}
                         />
                     ) : null}
+                </View>
+            ) : reserveMinimapSpace ? (
+                <View style={audioReelStyles.minimapWrap}>
+                    <View style={{ height: minimapCompact ? MINIMAP_COMPACT_HEIGHT : MINIMAP_HEIGHT }} />
                 </View>
             ) : null}
 

@@ -14,7 +14,7 @@ import { buildSectionBands, sectionMoveBounds, sectionPushBounds } from "../../.
 import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
 import { useStore } from "../../../state/useStore";
-import { laneDensityForHeight, reelHeightForFlow, type ListeningBelow } from "../../../domain/reelLanes";
+import { laneDensityForHeight, listeningReelHeightForBody, reelHeightForFlow, type ListeningBelow } from "../../../domain/reelLanes";
 import { LoopMoveHandle } from "../../common/LoopMoveHandle";
 
 type Range = {
@@ -279,6 +279,8 @@ type Props = {
   readingSlim?: boolean;
   /** What the listening page holds beneath the reel; the reel takes the rest. */
   listeningBelow?: ListeningBelow;
+  /** The page body's measured height; the listening reel takes its top half. */
+  bodyHeight?: number;
   waveformPeaks: number[];
   /** Peaks are a synthetic placeholder — draw the pending line instead of a fake wave. */
   waveformPending?: boolean;
@@ -352,6 +354,7 @@ function PlayerTimelineInner({
   mode,
   readingSlim,
   listeningBelow,
+  bodyHeight,
   waveformPeaks,
   waveformPending,
   waveformAnalyzing,
@@ -426,7 +429,9 @@ function PlayerTimelineInner({
       ? lanes
         ? reelHeightForFlow("tools", usableHeight)
         : CLASSIC_PRACTICE_REEL_HEIGHT
-      : reelHeightForFlow("listening", usableHeight, listeningBelow);
+      : bodyHeight
+        ? listeningReelHeightForBody(bodyHeight)
+        : reelHeightForFlow("listening", usableHeight, listeningBelow);
   const previewRange = practiceLoopSelection[0];
   const sharedLoopPreviewStartMs = useSharedValue(previewRange?.start ?? 0);
   const sharedLoopPreviewEndMs = useSharedValue(previewRange?.end ?? Math.max(1000, durationMs));
@@ -475,6 +480,8 @@ function PlayerTimelineInner({
       // The map halves whenever the page below needs the room: reading, the
       // bench, and Tools.
       minimapCompact={readingSlim || mode !== "player"}
+      // The listening page holds the minimap's room, so zooming never moves the pages.
+      reserveMinimapSpace={!readingSlim && mode === "player"}
       zoomPlacement="overlay"
       showTimingRow={false}
       defaultExpanded={false}

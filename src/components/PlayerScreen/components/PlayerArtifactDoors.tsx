@@ -265,6 +265,12 @@ type Props = {
   onOpenChart: () => void;
   onWriteLyrics: () => void;
   onBuildChart: () => void;
+  /** The recording's own note (a clip's, or a take's inside a sketch). Any clip can
+   *  carry one; it never needs a sketch (founder, 2026-10-20). */
+  notes: string;
+  /** "Notes" on a clip, "Take notes" on a sketch's take. */
+  notesLabel: string;
+  onOpenNotes: () => void;
 };
 
 /**
@@ -288,17 +294,41 @@ function PlayerArtifactDoorsInner({
   onOpenChart,
   onWriteLyrics,
   onBuildChart,
+  notes,
+  notesLabel,
+  onOpenNotes,
 }: Props) {
   const { t } = useTranslation();
   const anySketch = useStore(selectAnySketch);
   const chartRows = useMemo(() => buildChartPreview(chordSheet), [chordSheet]);
   const chartBars = useMemo(() => countChartBars(chordSheet), [chordSheet]);
 
+  const trimmedNotes = notes.trim();
+  const notesPage = trimmedNotes ? (
+    <PageTile kind={notesLabel} onOpen={onOpenNotes} accessibilityLabel={t("player.openNotes")} testID="player-notes-door">
+      {/* A note is prose, not verse: it wraps (a lyric line never does). */}
+      <UserText value={trimmedNotes} align="content" style={pageStyles.lyric} numberOfLines={5}>
+        {trimmedNotes}
+      </UserText>
+    </PageTile>
+  ) : (
+    <PageSlot label={notesLabel} onPress={onOpenNotes} accessibilityLabel={t("player.writeNote")} testID="player-write-note" />
+  );
+
   if (!canAuthor) {
-    if (!onGrowSketch) return null;
-    if (!anySketch) return <SketchDoor onPress={onGrowSketch} />;
-    // A clip has no pages of its own: wanting one is the moment it becomes a
-    // sketch. The slots say where the pages will be; the dialog says the rule.
+    if (!onGrowSketch) return <View style={pageStyles.row}>{notesPage}</View>;
+    // First clip ever: the sketch card explains what a sketch is; the note sits beside it.
+    if (!anySketch) {
+      return (
+        <View style={pageStyles.row}>
+          <SketchDoor onPress={onGrowSketch} />
+          {notesPage}
+        </View>
+      );
+    }
+    // A clip has no lyric or chart pages of its own: wanting one is the moment it
+    // becomes a sketch. The slots say where the pages will be; the dialog says the
+    // rule. Its note needs no sketch.
     const offerSketch = () =>
       AppAlert.confirm(t("songDetail.makeSong"), t("player.pagesNeedSketch"), onGrowSketch, {
         confirmLabel: t("songDetail.makeSong"),
@@ -318,6 +348,7 @@ function PlayerArtifactDoorsInner({
           accessibilityLabel={t("player.buildChart")}
           testID="player-sketch-door-chart"
         />
+        {notesPage}
       </View>
     );
   }
@@ -365,6 +396,7 @@ function PlayerArtifactDoorsInner({
           testID="player-build-chart"
         />
       )}
+      {notesPage}
     </View>
   );
 }
@@ -504,6 +536,9 @@ const pageStyles = StyleSheet.create({
   // The first-visit sketch card: tonal, no shadow. The hairline is reserved at
   // rest (transparent) so the first-visit wash is a colour change, not a resize.
   sketchDoor: {
+    // Beside the Notes page: the card keeps two thirds of the row.
+    flex: 2,
+    minWidth: 0,
     backgroundColor: colors.surfaceContainer,
     borderRadius: radii.xl,
     borderWidth: 1,
