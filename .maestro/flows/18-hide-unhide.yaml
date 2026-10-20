@@ -1,64 +1,38 @@
-# Hide / reveal items. Create a song, hide it via selection mode (it disappears
-# from the default list and a "Show all (N)" pill appears), reveal it again, then
-# delete it. Self-cleaning. Exercises the hide state + the reveal-hidden filter.
+# Hide / reveal items. Create a sketch, hide it via selection mode (it disappears
+# from the default list and a "Show all (N)" pill appears), reveal it with the
+# pill, then delete it. Self-cleaning.
+# Exercises the hide state + the reveal-hidden filter.
 appId: com.bmostudio.songnook.dev
 ---
-- runFlow: ../subflows/open-library.yaml
-- tapOn: ".*Ideas.*"
-- extendedWaitUntil:
-    visible:
-      id: "fab-record"
-    timeout: 15000
-- runFlow: ../subflows/dismiss-logbox.yaml
-- waitForAnimationToEnd
-# Create "Maestro Hide Song".
-- tapOn:
-    id: "collection-overflow"
-- waitForAnimationToEnd
-- tapOn:
-    id: "collection-menu-new-song"
-- extendedWaitUntil:
-    visible: "New Song"
-    timeout: 10000
-- tapOn:
-    id: "song-title-input"
-- eraseText: 40
-- inputText: "Maestro Hide Song"
-- tapOn: "PROGRESS"
-- tapOn: "Save"
-- tapOn:
-    id: "song-header-back"
+- runFlow: ../subflows/open-ideas.yaml
+- runFlow:
+    file: ../subflows/new-sketch.yaml
+    env:
+      TITLE: "Maestro Hide Song"
 - extendedWaitUntil:
     visible: ".*Maestro Hide Song.*"
     timeout: 10000
 # Select and Hide it.
 - longPressOn: ".*Maestro Hide Song.*"
 - extendedWaitUntil:
-    visible: ".*Hide"
+    visible:
+      id: "selection-count"
     timeout: 5000
+- runFlow: ../subflows/dismiss-logbox.yaml
 - tapOn: ".*Hide"
-# It's gone from the default list; a "Show all" pill reveals hidden items.
 - extendedWaitUntil:
     notVisible: ".*Maestro Hide Song.*"
     timeout: 8000
+# A "Show all (N)" pill reveals hidden items.
 - extendedWaitUntil:
-    visible: ".*Show all.*"
+    visible: "Show all \\(\\d+\\)"
     timeout: 8000
-- tapOn: ".*Show all.*"
+- tapOn: "Show all \\(\\d+\\)"
 - extendedWaitUntil:
     visible: ".*Maestro Hide Song.*"
     timeout: 8000
 # Clean up: delete it.
-- longPressOn: ".*Maestro Hide Song.*"
-- extendedWaitUntil:
-    visible: ".*Delete"
-    timeout: 5000
-- tapOn: ".*Delete"
-- extendedWaitUntil:
-    visible: ".*Delete selected items.*"
-    timeout: 5000
-- tapOn:
-    id: "dialog-btn-delete"
-- extendedWaitUntil:
-    visible: ".*Deleted 1 item.*"
-    timeout: 5000
+- runFlow:
+    file: ../subflows/delete-idea.yaml
+    env:
+      TITLE: "Maestro Hide Song"

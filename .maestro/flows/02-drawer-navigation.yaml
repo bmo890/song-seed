@@ -1,88 +1,48 @@
-# Drawer navigation: each drawer destination opens and renders. Relaunches between
-# destinations so every drawer-open starts from the known-good Ideas screen (the
-# drawer opens via the header-menu testID. RN rows expose composite labels
-# (", Lyrics Pad") so use .*X.* regexes. A backup-reminder dialog can appear on launch
-# once the library has content — dismissed with a guarded "Later" tap.
+# Drawer navigation: Lyric Pad, Metronome and Settings each open from the side
+# menu and render. Relaunches between destinations so every drawer-open starts
+# from a known screen. The drawer opens via the `header-menu` testID; rows are
+# targeted by their testIDs (`nav-row-<label>` for places, `nav-tool-<route>` for
+# the three instruments in the tool tray above Settings). A backup-reminder
+# dialog can appear on launch — open-library dismisses it.
 appId: com.bmostudio.songnook.dev
 ---
-- launchApp:
-    stopApp: true
-- runFlow:
-    when:
-      visible: ".*Back up your library.*"
-    commands:
-      - tapOn: "Later"
-- extendedWaitUntil:
-    visible: ".*Ideas.*"
-    timeout: 60000
-- runFlow:
-    when:
-      visible: ".*Open debugger.*"
-    commands:
-      - tapOn:
-          point: 92%,93%
+# --- Lyric Pad (a place: large Lora title) ---
+- runFlow: ../subflows/open-library.yaml
 - tapOn:
     id: "header-menu"
-- extendedWaitUntil:
-    visible: ".*Lyrics Pad.*"
-    timeout: 5000
 - waitForAnimationToEnd
-- tapOn: ".*Lyrics Pad.*"
+- tapOn:
+    id: "nav-row-lyric-pad"
+- waitForAnimationToEnd
 - extendedWaitUntil:
-    visible: ".*([Ll]yrics|[Nn]ote).*"
+    visible: "Lyric Pad"
     timeout: 10000
+- assertVisible: "New page"
 
-- launchApp:
-    stopApp: true
-- runFlow:
-    when:
-      visible: ".*Back up your library.*"
-    commands:
-      - tapOn: "Later"
-- extendedWaitUntil:
-    visible: ".*Ideas.*"
-    timeout: 60000
-- runFlow:
-    when:
-      visible: ".*Open debugger.*"
-    commands:
-      - tapOn:
-          point: 92%,93%
+# --- Metronome (a tool, from the tool tray) ---
+- runFlow: ../subflows/open-library.yaml
 - tapOn:
     id: "header-menu"
-- extendedWaitUntil:
-    visible: ".*Metronome.*"
-    timeout: 5000
 - waitForAnimationToEnd
-- tapOn: ".*Metronome.*"
+- tapOn:
+    id: "nav-tool-metronome"
+- waitForAnimationToEnd
 - extendedWaitUntil:
-    visible: ".*([Bb]pm|BPM|[Tt]empo).*"
+    visible: ".*\\d+ BPM.*"
     timeout: 10000
+- assertVisible: "Start the metronome"
 
-- launchApp:
-    stopApp: true
-- runFlow:
-    when:
-      visible: ".*Back up your library.*"
-    commands:
-      - tapOn: "Later"
-- extendedWaitUntil:
-    visible: ".*Ideas.*"
-    timeout: 60000
-- runFlow:
-    when:
-      visible: ".*Open debugger.*"
-    commands:
-      - tapOn:
-          point: 92%,93%
+# --- Settings (rows on paper) ---
+- runFlow: ../subflows/open-library.yaml
 - tapOn:
     id: "header-menu"
-- extendedWaitUntil:
-    visible: ".*Settings.*"
-    timeout: 5000
 - waitForAnimationToEnd
-- tapOn: ".*Settings.*"
+- tapOn:
+    id: "nav-row-settings"
+- waitForAnimationToEnd
 - extendedWaitUntil:
-    visible: ".*SongNook Pro.*"
+    visible:
+      id: "settings-card-general"
     timeout: 10000
-- assertVisible: ".*Startup.*"
+- assertVisible:
+    id: "settings-card-account-pro"

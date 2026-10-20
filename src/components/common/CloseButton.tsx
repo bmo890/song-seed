@@ -29,6 +29,7 @@ type CloseButtonProps = {
   /** Skip the built-in tap haptic when the caller fires its own. */
   noHaptic?: boolean;
   hitSlop?: number;
+  testID?: string;
 };
 
 function CloseButtonInner({
@@ -38,6 +39,7 @@ function CloseButtonInner({
   accessibilityLabel,
   noHaptic = false,
   hitSlop = 8,
+  testID,
 }: CloseButtonProps) {
   const { t } = useTranslation();
   const { diameter, icon } = SIZES[size];
@@ -61,6 +63,7 @@ function CloseButtonInner({
       hitSlop={hitSlop}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? t("common.close")}
+      testID={testID}
     >
       <Ionicons name="close" size={icon} color={onDark ? "#FDFBF7" : colors.textSecondary} />
     </Pressable>

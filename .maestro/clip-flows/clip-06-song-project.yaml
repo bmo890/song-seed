@@ -1,18 +1,13 @@
-# Song-project import: import the samples as ONE song (an idea holding multiple
-# clips), confirm the single song card appears, open it, and confirm the song
-# detail renders. A different data shape from individual-clip import. Self-cleaning.
-# Requires scripts/push-dev-samples.sh.
+# Sketch import: import the samples as ONE sketch (an idea holding all the clips
+# as takes) via the __DEV__ "Import as sketch (dev)" item, confirm the single
+# sketch card appears (titled "Maestro Dev Song", or "… (2)" when the workspace
+# already holds one), open it, and confirm the sketch page renders its takes. A
+# different data shape from individual-clip import. Runs in the scratch "Maestro
+# Clips" collection and deletes it at the end. Requires dev samples.
 appId: com.bmostudio.songnook.dev
 ---
-- runFlow: ../subflows/open-library.yaml
-- tapOn: ".*Ideas.*"
-- extendedWaitUntil:
-    visible:
-      id: "fab-record"
-    timeout: 15000
-- runFlow: reset-clips.yaml
-- runFlow: ../subflows/dismiss-logbox.yaml
-# Import the samples as one song project.
+- runFlow: ../subflows/clip-open-scratch.yaml
+# Import the samples as one sketch.
 - tapOn:
     id: "collection-overflow"
 - waitForAnimationToEnd
@@ -21,33 +16,25 @@ appId: com.bmostudio.songnook.dev
 - tapOn:
     id: "collection-menu-dev-song"
 - extendedWaitUntil:
-    visible: ".*Maestro Dev Song.*"
+    visible: "Maestro Dev Song( \\(\\d+\\))?, .*"
     timeout: 20000
-# Open the song → detail page with its clips.
-- tapOn: ".*Maestro Dev Song.*"
+# One sketch, not loose clips.
+- assertVisible: "1 idea.*"
+- assertNotVisible: "sample-01, .*"
+# Open the sketch → its page with the takes.
+- tapOn: "Maestro Dev Song( \\(\\d+\\))?, .*"
 - extendedWaitUntil:
     visible:
       id: "song-header-back"
     timeout: 10000
-- assertVisible: ".*Maestro Dev Song.*"
-# Back to the collection and clean up (Select all clears the song + any residue).
+- assertVisible: "Maestro Dev Song( \\(\\d+\\))?"
+- assertVisible: ".*\\d+ takes.*"
+- assertVisible: ".*sample-01.*"
+# Back to the collection and clean up.
 - tapOn:
     id: "song-header-back"
 - extendedWaitUntil:
     visible:
-      id: "fab-record"
+      id: "collection-search"
     timeout: 10000
-- longPressOn: ".*Maestro Dev Song.*"
-- extendedWaitUntil:
-    visible: "Select all"
-    timeout: 5000
-- tapOn: "Select all"
-- tapOn: ".*Delete"
-- extendedWaitUntil:
-    visible: ".*Delete selected items.*"
-    timeout: 5000
-- tapOn:
-    id: "dialog-btn-delete"
-- extendedWaitUntil:
-    notVisible: ".*Maestro Dev Song.*"
-    timeout: 8000
+- runFlow: ../subflows/clip-close-scratch.yaml

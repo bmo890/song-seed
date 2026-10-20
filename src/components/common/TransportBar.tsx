@@ -155,6 +155,7 @@ function TransportBarInner({
         disabled={playDisabled}
         accessibilityRole="button"
         accessibilityLabel={t(isPlaying ? "common.pause" : "common.play")}
+        testID="transport-play"
       >
         <Ionicons
           name={isPlaying ? "pause" : "play"}
@@ -192,6 +193,7 @@ function TransportBarInner({
             tone="onLight"
             onPress={onClose}
             accessibilityLabel={t("common.closePlayer")}
+            testID="transport-close"
           />
         ) : null}
       </View>

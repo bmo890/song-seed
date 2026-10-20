@@ -1,0 +1,8 @@
+# Reusable: open sample-01 from the scratch collection into the player sheet.
+appId: com.bmostudio.songnook.dev
+---
+- tapOn: "sample-01, .*"
+- extendedWaitUntil:
+    visible:
+      id: "transport-play"
+    timeout: 10000

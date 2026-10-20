@@ -1,62 +1,44 @@
 # Import real audio (dev pipeline) and play it. Verifies: the import pipeline
-# creates clip cards with durations, tapping a clip opens the player, the
-# play/pause transport toggles, and the player minimizes back to the collection.
-# Self-cleaning (deletes the imported clips). Requires scripts/push-dev-samples.sh.
+# creates clip cards with durations, tapping a clip opens the player sheet, the
+# play/pause transport toggles, and the player's ✕ closes back to the collection.
+# Runs in the scratch "Maestro Clips" collection and deletes it at the end.
+# Requires dev samples in Documents/dev-samples (scripts/push-dev-samples.sh).
 appId: com.bmostudio.songnook.dev
 ---
-- runFlow: ../subflows/open-library.yaml
-- tapOn: ".*Ideas.*"
-- extendedWaitUntil:
-    visible:
-      id: "fab-record"
-    timeout: 15000
-- runFlow: ../subflows/dismiss-logbox.yaml
-# Clear any leftover sample clips so the import runs clean (no duplicate review).
-- runFlow: reset-clips.yaml
+- runFlow: ../subflows/clip-open-scratch.yaml
 # Import the dev sample clips through the real pipeline.
-- tapOn:
-    id: "collection-overflow"
-- waitForAnimationToEnd
+- runFlow: ../subflows/clip-import-samples.yaml
+# Open the first clip → the player sheet.
+- runFlow: ../subflows/clip-open-sample-01.yaml
+- assertVisible: "sample-01"
 - assertVisible:
-    id: "collection-menu-dev-samples"
-- tapOn:
-    id: "collection-menu-dev-samples"
-- extendedWaitUntil:
-    visible: ".*sample-01.*"
-    timeout: 20000
-# Open the first clip → player.
-- tapOn: ".*sample-01.*"
-- extendedWaitUntil:
-    visible: "Play"
-    timeout: 10000
-- assertVisible: "Minimize player"
+    id: "transport-close"
 # Play → transport switches to Pause; pause → back to Play.
-- tapOn: "Play"
-- extendedWaitUntil:
-    visible: "Pause"
-    timeout: 8000
-- tapOn: "Pause"
-- extendedWaitUntil:
-    visible: "Play"
-    timeout: 8000
-# Minimize the player, back to the collection.
-- tapOn: "Minimize player"
+- assertVisible:
+    id: "transport-play"
+    text: "Play"
+- tapOn:
+    id: "transport-play"
 - extendedWaitUntil:
     visible:
-      id: "fab-record"
-    timeout: 10000
-# Clean up: delete all imported clips.
-- longPressOn: ".*sample-0.*"
-- extendedWaitUntil:
-    visible: "Select all"
-    timeout: 5000
-- tapOn: "Select all"
-- tapOn: ".*Delete"
-- extendedWaitUntil:
-    visible: ".*Delete selected items.*"
-    timeout: 5000
-- tapOn:
-    id: "dialog-btn-delete"
-- extendedWaitUntil:
-    notVisible: ".*sample-0.*"
+      id: "transport-play"
+      text: "Pause"
     timeout: 8000
+- tapOn:
+    id: "transport-play"
+- extendedWaitUntil:
+    visible:
+      id: "transport-play"
+      text: "Play"
+    timeout: 8000
+# Close the player, back to the collection.
+- tapOn:
+    id: "transport-close"
+- extendedWaitUntil:
+    notVisible:
+      id: "transport-play"
+    timeout: 10000
+- assertVisible:
+    id: "collection-search"
+# Clean up: delete the scratch collection with the imported clips.
+- runFlow: ../subflows/clip-close-scratch.yaml

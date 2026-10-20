@@ -1,58 +1,41 @@
-# Whole-collection queue playback. Import several clips, then "Play all" from the
-# collection ⋯ menu — the player opens and plays the queue back-to-back. Verifies
-# the queue builds and starts, then stops. Self-cleaning. Requires push-dev-samples.
+# Play all: collection "…" → Play all opens the queue player, which auto-plays
+# the collection's clips back to back (transport reads Pause, the queue has a
+# Next). Then pause and close. Runs in the scratch "Maestro Clips" collection and
+# deletes it at the end. Requires dev samples.
 appId: com.bmostudio.songnook.dev
 ---
-- runFlow: ../subflows/open-library.yaml
-- tapOn: ".*Ideas.*"
-- extendedWaitUntil:
-    visible:
-      id: "fab-record"
-    timeout: 15000
-- runFlow: reset-clips.yaml
-- runFlow: ../subflows/dismiss-logbox.yaml
-- tapOn:
-    id: "collection-overflow"
-- waitForAnimationToEnd
-- tapOn:
-    id: "collection-menu-dev-samples"
-- extendedWaitUntil:
-    visible: ".*6 seeds.*"
-    timeout: 20000
-# Collection ⋯ → Play all.
+- runFlow: ../subflows/clip-open-scratch.yaml
+- runFlow: ../subflows/clip-import-samples.yaml
+# Collection "…" → Play all.
 - tapOn:
     id: "collection-overflow"
 - extendedWaitUntil:
-    visible: ".*Play all.*"
+    visible: "Play all"
     timeout: 5000
-- tapOn: ".*Play all.*"
+- tapOn: "Play all"
 # The queue player opens and auto-plays (transport shows Pause).
 - extendedWaitUntil:
-    visible: "Pause"
+    visible:
+      id: "transport-play"
+      text: "Pause"
     timeout: 10000
-- assertVisible: "Minimize player"
-# Stop and minimize.
-- tapOn: "Pause"
-- extendedWaitUntil:
-    visible: "Play"
-    timeout: 8000
-- tapOn: "Minimize player"
+- assertVisible:
+    id: "transport-close"
+- assertVisible: "Show queue"
+# Stop and close.
+- tapOn:
+    id: "transport-play"
 - extendedWaitUntil:
     visible:
-      id: "fab-record"
-    timeout: 10000
-# Clean up.
-- longPressOn: ".*sample-0.*"
-- extendedWaitUntil:
-    visible: "Select all"
-    timeout: 5000
-- tapOn: "Select all"
-- tapOn: ".*Delete"
-- extendedWaitUntil:
-    visible: ".*Delete selected items.*"
-    timeout: 5000
-- tapOn:
-    id: "dialog-btn-delete"
-- extendedWaitUntil:
-    notVisible: ".*sample-0.*"
+      id: "transport-play"
+      text: "Play"
     timeout: 8000
+- tapOn:
+    id: "transport-close"
+- extendedWaitUntil:
+    notVisible:
+      id: "transport-play"
+    timeout: 10000
+- assertVisible:
+    id: "collection-search"
+- runFlow: ../subflows/clip-close-scratch.yaml

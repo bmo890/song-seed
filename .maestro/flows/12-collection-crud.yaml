@@ -1,25 +1,29 @@
-# Collection CRUD at the workspace-browse level. Create a collection via the add
-# FAB + New Collection modal (which auto-opens the new empty collection), confirm
-# it opened, then return to browse, long-press its card to enter collection-select
-# mode, and Delete → confirm it's gone. Self-cleaning. Exercises the browse screen,
-# QuickNameModal, createCollection + auto-open, collection selection, and deletion.
+# Collection CRUD at the workspace level. Opens the workspace's Collections page
+# (drawer → "Collections · n"), creates a collection via the add FAB + New
+# collection name sheet (which auto-opens the new empty collection), confirms it
+# opened, returns to the Collections page, long-presses its row into selection
+# mode, and Delete → confirm it's gone. Self-cleaning. Exercises the Collections
+# page, QuickNameModal, createCollection + auto-open, collection selection, and
+# deletion.
 appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
 - tapOn:
     id: "header-menu"
 - waitForAnimationToEnd
-- tapOn: ".*Collections,.*"
+- tapOn:
+    id: "nav-collections"
 - waitForAnimationToEnd
 - extendedWaitUntil:
-    visible: ".*ACTIVE COLLECTIONS.*"
+    visible: "COLLECTIONS"
     timeout: 10000
 - runFlow: ../subflows/dismiss-logbox.yaml
 # Create a collection — this drops us inside the new (empty) collection.
 - tapOn:
     id: "workspace-add-collection"
 - extendedWaitUntil:
-    visible: "New Collection"
+    visible:
+      id: "quickname-input"
     timeout: 10000
 - tapOn:
     id: "quickname-input"
@@ -27,23 +31,26 @@ appId: com.bmostudio.songnook.dev
 - tapOn:
     id: "quickname-save"
 - extendedWaitUntil:
-    visible: ".*Maestro Collection.*"
+    visible: "Maestro Collection"
     timeout: 10000
 - assertVisible:
-    id: "fab-record"
-# Back to browse to delete it.
+    id: "collection-search"
+# Back to the Collections page to delete it.
 - tapOn:
     id: "header-menu"
 - waitForAnimationToEnd
-- tapOn: ".*Collections,.*"
+- tapOn:
+    id: "nav-collections"
 - waitForAnimationToEnd
 - extendedWaitUntil:
-    visible: ".*ACTIVE COLLECTIONS.*"
+    visible:
+      id: "collection-card-maestro-collection"
     timeout: 10000
-# Long-press the card (by testID → hits the Pressable, not a text child) to select,
+# Long-press the row (by testID → hits the Pressable, not a text child) to select,
 # then Delete → confirm.
 - longPressOn:
     id: "collection-card-maestro-collection"
+- runFlow: ../subflows/dismiss-logbox.yaml
 - extendedWaitUntil:
     visible: ".*Delete"
     timeout: 5000
@@ -54,5 +61,6 @@ appId: com.bmostudio.songnook.dev
 - tapOn:
     id: "dialog-btn-delete"
 - extendedWaitUntil:
-    notVisible: ".*Maestro Collection.*"
+    notVisible:
+      id: "collection-card-maestro-collection"
     timeout: 8000

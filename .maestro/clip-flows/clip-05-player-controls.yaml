@@ -1,29 +1,40 @@
-# Player UI controls (ungated): the markers toggle and the waveform expand/collapse
-# both flip state and back. Self-cleaning. Requires scripts/push-dev-samples.sh.
+# Player UI controls: the Marks toggle flips the reel's marks off and on. The
+# toggle only exists once a clip has marks (2026-10-15 ink key beside Layer and
+# Tools), so the flow first drops a pin from Tools → Marks ("+ Pin" at the
+# playhead), then checks Hide markers ↔ Show markers. Runs in the scratch
+# "Maestro Clips" collection and deletes it at the end. Requires dev samples.
 # (Speed / loop live behind the Pro-gated practice suite and are covered elsewhere.)
 appId: com.bmostudio.songnook.dev
 ---
-- runFlow: ../subflows/open-library.yaml
-- tapOn: ".*Ideas.*"
+- runFlow: ../subflows/clip-open-scratch.yaml
+- runFlow: ../subflows/clip-import-samples.yaml
+- runFlow: ../subflows/clip-open-sample-01.yaml
+# No marks yet → no Marks toggle.
+- assertNotVisible: "Hide markers"
+# Tools → Marks tab.
+- tapOn: "Open practice tools"
 - extendedWaitUntil:
-    visible:
-      id: "fab-record"
-    timeout: 15000
-- runFlow: reset-clips.yaml
-- runFlow: ../subflows/dismiss-logbox.yaml
+    visible: "No marks yet"
+    timeout: 5000
+# Move the playhead off 00:00, then drop a pin there.
 - tapOn:
-    id: "collection-overflow"
-- waitForAnimationToEnd
-- tapOn:
-    id: "collection-menu-dev-samples"
+    id: "transport-play"
 - extendedWaitUntil:
-    visible: ".*sample-01.*"
-    timeout: 20000
-- tapOn: ".*sample-01.*"
-- extendedWaitUntil:
-    visible: "More options"
+    visible: "at 00:0[2-9]"
     timeout: 10000
-# Markers toggle Hide → Show → Hide.
+- tapOn:
+    id: "transport-play"
+- tapOn: "Add a pin at the playhead"
+# A new pin asks for its name (optional) — keep the default.
+- extendedWaitUntil:
+    visible: "Edit pin"
+    timeout: 5000
+- tapOn: "Save"
+- extendedWaitUntil:
+    visible: "Pin 1, .*"
+    timeout: 5000
+# Marks toggle: on (Hide markers) → off (Show markers) → on.
+- assertVisible: "Hide markers"
 - tapOn: "Hide markers"
 - extendedWaitUntil:
     visible: "Show markers"
@@ -34,23 +45,11 @@ appId: com.bmostudio.songnook.dev
     timeout: 5000
 # (2026-10-13) No expand/shrink step: the reel takes its listening height on
 # its own and the corner button is gone.
-# Back to the collection and clean up.
-- tapOn: "Minimize player"
-- extendedWaitUntil:
-    visible:
-      id: "fab-record"
-    timeout: 10000
-- longPressOn: ".*sample-0.*"
-- extendedWaitUntil:
-    visible: "Select all"
-    timeout: 5000
-- tapOn: "Select all"
-- tapOn: ".*Delete"
-- extendedWaitUntil:
-    visible: ".*Delete selected items.*"
-    timeout: 5000
+# Close the player and clean up.
 - tapOn:
-    id: "dialog-btn-delete"
+    id: "transport-close"
 - extendedWaitUntil:
-    notVisible: ".*sample-0.*"
-    timeout: 8000
+    notVisible:
+      id: "transport-play"
+    timeout: 10000
+- runFlow: ../subflows/clip-close-scratch.yaml

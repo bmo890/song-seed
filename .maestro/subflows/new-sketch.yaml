@@ -1,0 +1,29 @@
+# Reusable: from a collection screen, create a sketch named ${TITLE} through the
+# collection "…" → New sketch sheet (stage left at its default), save it, and
+# return to the collection. ("New Song" became "New sketch" — terminology law.)
+appId: com.bmostudio.songnook.dev
+---
+- tapOn:
+    id: "collection-overflow"
+- waitForAnimationToEnd
+- tapOn:
+    id: "collection-menu-new-song"
+- extendedWaitUntil:
+    visible: "New sketch"
+    timeout: 10000
+- tapOn:
+    id: "song-title-input"
+- eraseText: 40
+- inputText: ${TITLE}
+- tapOn: "Save"
+# The new sketch's page opens behind the sheet; its back chevron reads "Back to <collection>".
+- extendedWaitUntil:
+    visible:
+      id: "song-header-back"
+    timeout: 10000
+- tapOn:
+    id: "song-header-back"
+- extendedWaitUntil:
+    visible:
+      id: "collection-search"
+    timeout: 10000

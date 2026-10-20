@@ -1,0 +1,13 @@
+# Reusable: in the scratch collection, import the dev samples as individual clips
+# through the real pipeline (collection "…" → "Import samples (dev)") and wait for
+# the first clip card (title, duration, age) to land.
+appId: com.bmostudio.songnook.dev
+---
+- tapOn:
+    id: "collection-overflow"
+- waitForAnimationToEnd
+- tapOn:
+    id: "collection-menu-dev-samples"
+- extendedWaitUntil:
+    visible: "sample-01, \\d+:\\d\\d, .*"
+    timeout: 20000

@@ -1,77 +1,47 @@
-# Editor Cut/trim: mark a region, switch to Cut mode (removes the region), and
-# save the trimmed copy. Distinct from Keep (each part becomes a clip): Remove cuts
-# it. Verifies the trim produces a shorter clip. Self-cleaning. Requires push-dev-samples.
+# Editor cut: in the clip editor's Remove mode, mark a part and save a trimmed
+# copy (Save copy → "Save a copy" sheet → Save). The copy is shorter by the
+# removed part (38 s − ~4-5 s ≈ 33-34 s) and the original stays. Runs in the
+# scratch "Maestro Clips" collection and deletes it at the end. Requires dev
+# samples (sample-01 is the 38 s file).
 appId: com.bmostudio.songnook.dev
 ---
-- runFlow: ../subflows/open-library.yaml
-- tapOn: ".*Ideas.*"
-- extendedWaitUntil:
-    visible:
-      id: "fab-record"
-    timeout: 15000
-- runFlow: reset-clips.yaml
-- runFlow: ../subflows/dismiss-logbox.yaml
-- tapOn:
-    id: "collection-overflow"
-- waitForAnimationToEnd
-- tapOn:
-    id: "collection-menu-dev-samples"
-- extendedWaitUntil:
-    visible: ".*sample-01.*"
-    timeout: 20000
-- tapOn: ".*sample-01.*"
-- extendedWaitUntil:
-    visible: "More options"
-    timeout: 10000
+- runFlow: ../subflows/clip-open-scratch.yaml
+- runFlow: ../subflows/clip-import-samples.yaml
+- assertVisible: "sample-01, 0:38, .*"
+- runFlow: ../subflows/clip-open-sample-01.yaml
 - tapOn: "More options"
 - extendedWaitUntil:
     visible: "Trim audio"
     timeout: 5000
 - tapOn: "Trim audio"
 - extendedWaitUntil:
-    visible: ".*Add part.*"
+    visible: "Add part"
     timeout: 10000
-# Mark a region, then switch to Cut mode (region is removed / clip trimmed).
-- tapOn: ".*Add part.*"
-- extendedWaitUntil:
-    visible: "Save clips"
-    timeout: 8000
+# Remove mode, then mark a part to cut out.
 - tapOn: "Remove"
+- tapOn: "Add part"
 - extendedWaitUntil:
-    visible: "Save copy"
-    timeout: 5000
-# Save the trim → the save sheet → its one key.
+    visible: "PARTS · 1"
+    timeout: 8000
+- assertVisible: "Save copy"
+# Save the trim → the save sheet → its one key (the original is kept).
 - tapOn: "Save copy"
 - extendedWaitUntil:
     visible: "Save a copy"
     timeout: 8000
+- assertVisible: ".*removed from sample-01"
 - tapOn: "Save"
-# Back on the player — the trimmed clip (~33s, 5s removed from 38s) now exists.
-- extendedWaitUntil:
-    visible: ".*00:33.*"
-    timeout: 10000
-- runFlow:
-    when:
-      visible: "Minimize player"
-    commands:
-      - tapOn: "Minimize player"
-      - waitForAnimationToEnd
+# Back on the player; close it. The trimmed copy sits beside the original.
 - extendedWaitUntil:
     visible:
-      id: "fab-record"
+      id: "transport-close"
     timeout: 10000
-# Clean up.
-- longPressOn: ".*sample-0.*"
-- extendedWaitUntil:
-    visible: "Select all"
-    timeout: 5000
-- tapOn: "Select all"
-- tapOn: ".*Delete"
-- extendedWaitUntil:
-    visible: ".*Delete selected items.*"
-    timeout: 5000
 - tapOn:
-    id: "dialog-btn-delete"
+    id: "transport-close"
 - extendedWaitUntil:
-    notVisible: ".*sample-0.*"
-    timeout: 8000
+    notVisible:
+      id: "transport-play"
+    timeout: 10000
+- assertVisible: "sample-01 v2, 0:3[34], .*"
+- assertVisible: ".*sample-01, 0:38, .*"
+- runFlow: ../subflows/clip-close-scratch.yaml

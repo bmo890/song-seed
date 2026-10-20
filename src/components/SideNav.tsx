@@ -212,6 +212,7 @@ export function SideNav({
               rides inside the label ("Collections · 3") as quiet inventory. */}
           {workspaceTitle ? (
             <Press
+              testID="nav-collections"
               haptic="navigate"
               style={sideNavStyles.cardRow}
               onPress={onGoWorkspace}

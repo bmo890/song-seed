@@ -1,0 +1,26 @@
+# Reusable (clip-10 / clip-11): create a fresh, empty "Maestro Dest" collection
+# from the Collections page (a leftover from an aborted run is deleted first) and
+# land inside it.
+appId: com.bmostudio.songnook.dev
+---
+- runFlow:
+    file: delete-collection.yaml
+    env:
+      SLUG: "maestro-dest"
+- tapOn:
+    id: "workspace-add-collection"
+- extendedWaitUntil:
+    visible:
+      id: "quickname-input"
+    timeout: 10000
+- tapOn:
+    id: "quickname-input"
+- inputText: "Maestro Dest"
+- tapOn:
+    id: "quickname-save"
+- extendedWaitUntil:
+    visible:
+      id: "collection-search"
+    timeout: 10000
+- assertVisible: "Maestro Dest"
+- runFlow: dismiss-logbox.yaml

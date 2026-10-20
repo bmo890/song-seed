@@ -1,0 +1,26 @@
+# Reusable: on a collection screen, long-press the idea titled ${TITLE} into
+# selection mode, Delete it from the selection dock and confirm. Asserts the undo
+# toast and that the card is gone. Keeps flows self-cleaning.
+appId: com.bmostudio.songnook.dev
+---
+- hideKeyboard
+- longPressOn: ".*${TITLE}.*"
+- extendedWaitUntil:
+    visible:
+      id: "selection-count"
+    timeout: 5000
+- runFlow: dismiss-logbox.yaml
+# The dock's delete key reads ", Delete" (glyph + word); the dialog button shares
+# the word, so it is targeted by its testID.
+- tapOn: ".*Delete"
+- extendedWaitUntil:
+    visible: ".*Delete selected items.*"
+    timeout: 5000
+- tapOn:
+    id: "dialog-btn-delete"
+- extendedWaitUntil:
+    visible: ".*Deleted 1.*"
+    timeout: 5000
+- extendedWaitUntil:
+    notVisible: ".*${TITLE}.*"
+    timeout: 8000

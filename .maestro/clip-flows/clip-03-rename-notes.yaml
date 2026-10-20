@@ -1,34 +1,23 @@
-# Edit clip metadata: rename a clip and add notes via the selection "Edit" sheet
-# (ClipNotesSheet), and confirm the new title renders on the card. Self-cleaning.
-# Requires scripts/push-dev-samples.sh.
+# Edit clip metadata: rename a clip and add notes via the selection "…" → Edit
+# sheet (ClipNotesSheet), confirm the new title renders on the card and the notes
+# persisted (reopen the sheet). Runs in the scratch "Maestro Clips" collection and
+# deletes it at the end. Requires dev samples.
 appId: com.bmostudio.songnook.dev
 ---
-- runFlow: ../subflows/open-library.yaml
-- tapOn: ".*Ideas.*"
+- runFlow: ../subflows/clip-open-scratch.yaml
+- runFlow: ../subflows/clip-import-samples.yaml
+# Select the clip → More → Edit → the title/notes sheet.
+- longPressOn: "sample-01, .*"
 - extendedWaitUntil:
     visible:
-      id: "fab-record"
-    timeout: 15000
-- runFlow: reset-clips.yaml
-- runFlow: ../subflows/dismiss-logbox.yaml
-- tapOn:
-    id: "collection-overflow"
-- waitForAnimationToEnd
-- tapOn:
-    id: "collection-menu-dev-samples"
-- extendedWaitUntil:
-    visible: ".*sample-01.*"
-    timeout: 20000
-# Select the clip → More → Edit → the notes/title sheet.
-- longPressOn: ".*sample-01.*"
-- extendedWaitUntil:
-    visible: ".*More"
+      id: "selection-count"
     timeout: 5000
+- runFlow: ../subflows/dismiss-logbox.yaml
 - tapOn: ".*More"
 - extendedWaitUntil:
-    visible: ".*Edit,.*"
+    visible: "Edit"
     timeout: 5000
-- tapOn: ".*Edit,.*"
+- tapOn: "Edit"
 - extendedWaitUntil:
     visible:
       id: "clip-title-input"
@@ -43,22 +32,32 @@ appId: com.bmostudio.songnook.dev
 - inputText: "maestro notes line"
 # Sheet is keyboardAvoiding — Save stays reachable above the keyboard.
 - tapOn: "Save"
-# The renamed clip shows on the card.
+# The renamed clip shows on the card (a typed name reads as a name).
 - extendedWaitUntil:
-    visible: ".*Renamed Clip.*"
+    visible: "Renamed Clip, .*"
     timeout: 10000
-# Clean up: delete all clips (samples 02-06 still match the reset pattern).
-- longPressOn: ".*sample-0.*"
+- assertNotVisible: "sample-01, .*"
+# The notes persisted: reopen the Edit sheet on the renamed clip.
+- runFlow:
+    when:
+      visible:
+        id: "selection-cancel"
+    commands:
+      - tapOn:
+          id: "selection-cancel"
+- longPressOn: "Renamed Clip, .*"
 - extendedWaitUntil:
-    visible: "Select all"
+    visible:
+      id: "selection-count"
     timeout: 5000
-- tapOn: "Select all"
-- tapOn: ".*Delete"
+- runFlow: ../subflows/dismiss-logbox.yaml
+- tapOn: ".*More"
 - extendedWaitUntil:
-    visible: ".*Delete selected items.*"
+    visible: "Edit"
     timeout: 5000
-- tapOn:
-    id: "dialog-btn-delete"
+- tapOn: "Edit"
 - extendedWaitUntil:
-    notVisible: ".*Renamed Clip.*"
-    timeout: 8000
+    visible: "maestro notes line"
+    timeout: 10000
+- tapOn: "Cancel"
+- runFlow: ../subflows/clip-close-scratch.yaml

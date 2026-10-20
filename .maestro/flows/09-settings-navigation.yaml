@@ -1,7 +1,8 @@
 # Settings overview renders and its sub-views open + back out. Covers the Settings
-# hub and two representative detail views (Recording defaults, Library & Backups) —
-# the ones most likely to break after a Settings IA refactor. Uses settings-card-*
-# testIDs because the cards' composite a11y labels make Maestro mis-target the tap.
+# hub (rows on paper, one row per area) and three representative detail pages —
+# General (startup), Recording & audio, Data & storage — the ones most likely to
+# break after a Settings IA refactor. Uses settings-card-* testIDs (slug of the
+# row title) because the rows' composite a11y labels make text taps mis-target.
 appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
@@ -11,33 +12,53 @@ appId: com.bmostudio.songnook.dev
 - tapOn:
     id: "nav-row-settings"
 - waitForAnimationToEnd
-# Overview renders with its section groups.
+# Overview renders with every area row.
 - extendedWaitUntil:
-    visible: ".*STARTUP.*"
+    visible:
+      id: "settings-card-general"
     timeout: 10000
-- assertVisible: ".*RECORDING.*"
-- assertVisible: ".*LIBRARY.*"
-- assertVisible: ".*SONGNOOK PRO.*"
-# --- Recording defaults sub-view ---
+- assertVisible:
+    id: "settings-card-account-pro"
+- assertVisible:
+    id: "settings-card-recording-audio"
+- assertVisible:
+    id: "settings-card-data-storage"
+- assertVisible:
+    id: "settings-card-help-about"
+# --- General: language, startup, interaction ---
 - tapOn:
-    id: "settings-card-recording-defaults"
-# The metronome no longer lives in Settings (it moved to the recording and metronome
-# surfaces); the sub-view carries naming + devices now.
+    id: "settings-card-general"
 - extendedWaitUntil:
-    visible: ".*Devices.*|.*DEVICES.*|.*Bluetooth.*"
+    visible: "STARTUP"
     timeout: 10000
+- assertVisible: "Open to"
 - tapOn: "Back"
 - extendedWaitUntil:
-    visible: ".*STARTUP.*"
+    visible:
+      id: "settings-card-general"
     timeout: 10000
-# --- Library & Backups sub-view ---
+# --- Recording & audio: naming + devices ---
 - tapOn:
-    id: "settings-card-library-backups"
+    id: "settings-card-recording-audio"
 - extendedWaitUntil:
-    visible: ".*SAFETY COPY.*"
+    visible: "DEVICES"
     timeout: 10000
-- assertVisible: ".*BACKUP REMINDER.*"
+- assertVisible:
+    id: "settings-card-bluetooth-calibration"
 - tapOn: "Back"
 - extendedWaitUntil:
-    visible: ".*STARTUP.*"
+    visible:
+      id: "settings-card-general"
+    timeout: 10000
+# --- Data & storage: safety copy + backup reminder ---
+- tapOn:
+    id: "settings-card-data-storage"
+- extendedWaitUntil:
+    visible: "SAFETY COPY"
+    timeout: 10000
+- assertVisible: "BACKUP REMINDER"
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible:
+      id: "settings-card-general"
     timeout: 10000

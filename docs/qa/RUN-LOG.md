@@ -334,3 +334,17 @@ clip-1785234938327 it corrects by +90ms against the harness's 89.5ms.
 
 **Still to do:** re-run after recording a fresh take on a device (the simulator's mic did not
 engage), and decide whether to backfill the existing takes' grids.
+
+## 2026-10-20 — selector refresh against the current UI
+
+All flows rewritten for today's UI (New sketch, ink tabs, rows-on-paper Settings, Your
+workspaces rows, drawer tool tray, Lyric Pad "…" menu, player sheet, clip editor parts).
+Flow 01 is tagged `clears-state` and excluded (welcome redesign on hold); the normal run is
+`maestro test --exclude-tags clears-state .maestro/flows/`. The clip suite now works only
+inside a throwaway "Maestro Clips" collection (its "Select all" cleanup used to run in
+"Ideas"). New testIDs: `nav-collections`, `transport-play`, `transport-close`.
+
+Main suite: **18/18 in 16m 36s** (iPhone 17 sim, on the large test library).
+Clip suite: **10/11 on the full run, 11/11 counting reruns.** clip-11 hit "app not running" on the
+relaunch at the start of its setup (the sim sat on the splash screen, and no crash report was
+written). It passed twice in a row when run again.
