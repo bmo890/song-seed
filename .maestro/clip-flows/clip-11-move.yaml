@@ -1,4 +1,4 @@
-# Move a clip to another collection: selection "…" → Copy or move → Move puts it
+# Move a clip to another collection: selection "…" → Copy, move, playlist → Move puts it
 # on the clipboard ("1 to move"); "Paste here" in a second collection completes
 # the move after a confirm. The clip lands in the destination AND is removed from
 # the source. Creates + deletes a throwaway "Maestro Dest" collection and the
@@ -10,7 +10,7 @@ appId: com.bmostudio.songnook.dev
 - assertVisible: "Nothing here yet"
 - runFlow: ../subflows/clip-open-scratch.yaml
 - runFlow: ../subflows/clip-import-samples.yaml
-# Select sample-01 → More → Copy or move → Move.
+# Select sample-01 → More → Copy, move, playlist → Move.
 - longPressOn: "sample-01, .*"
 - extendedWaitUntil:
     visible:
@@ -19,9 +19,9 @@ appId: com.bmostudio.songnook.dev
 - runFlow: ../subflows/dismiss-logbox.yaml
 - tapOn: ".*More"
 - extendedWaitUntil:
-    visible: "Copy or move"
+    visible: "Copy, move, playlist"
     timeout: 5000
-- tapOn: "Copy or move"
+- tapOn: "Copy, move, playlist"
 - extendedWaitUntil:
     visible: "Copy"
     timeout: 5000

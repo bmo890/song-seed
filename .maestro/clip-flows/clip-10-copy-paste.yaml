@@ -11,7 +11,7 @@ appId: com.bmostudio.songnook.dev
 - assertVisible: "Nothing here yet"
 - runFlow: ../subflows/clip-open-scratch.yaml
 - runFlow: ../subflows/clip-import-samples.yaml
-# Select sample-01 → More → Copy or move → Copy.
+# Select sample-01 → More → Copy, move, playlist → Copy.
 - longPressOn: "sample-01, .*"
 - extendedWaitUntil:
     visible:
@@ -20,9 +20,9 @@ appId: com.bmostudio.songnook.dev
 - runFlow: ../subflows/dismiss-logbox.yaml
 - tapOn: ".*More"
 - extendedWaitUntil:
-    visible: "Copy or move"
+    visible: "Copy, move, playlist"
     timeout: 5000
-- tapOn: "Copy or move"
+- tapOn: "Copy, move, playlist"
 - extendedWaitUntil:
     visible: "Copy"
     timeout: 5000

@@ -5,7 +5,7 @@ import { flushPersistedSnapshot, useStore } from "../state/useStore";
 import { appActions } from "../state/actions";
 import { i18n } from "../i18n/instance";
 import { buildDefaultIdeaTitle, genRootClipTitle } from "../utils";
-import type { ClipVersion, Workspace } from "../types";
+import type { ClipVersion, SongIdea, Workspace } from "../types";
 import { persistLog } from "./persistLog";
 import { repairUnfinalizedWav, type WavRepairOutcome } from "./wavHeaderRepair";
 import { isEmptyRecordingPlaceholder, removeEmptyRecordingPlaceholder } from "../domain/recordingPlaceholder";
@@ -216,6 +216,27 @@ function removeLeftoverPlaceholder(ideaId: string | null | undefined) {
     }));
 }
 
+/**
+ * Every empty quick-record shell left anywhere in the library (2026-10-21). The
+ * recorder makes its idea when it opens, before any take; if the app is closed
+ * while the recorder sits open but idle, no take marker exists, so the per-take
+ * cleanup never sees that shell and a 0:00 card stays in the collection. Runs
+ * at launch only, after any take has been recovered into its shell, and never
+ * touches the idea the recorder is holding right now. Shells hold no media.
+ */
+function removeAllLeftoverPlaceholders() {
+    const holding = useStore.getState().recordingIdeaId ?? null;
+    const isLeftover = (idea: SongIdea) => idea.id !== holding && isEmptyRecordingPlaceholder(idea);
+    if (!useStore.getState().workspaces.some((workspace) => workspace.ideas.some(isLeftover))) return;
+    useStore.setState((store) => ({
+        workspaces: store.workspaces.map((workspace) =>
+            workspace.ideas.some(isLeftover)
+                ? { ...workspace, ideas: workspace.ideas.filter((idea) => !isLeftover(idea)) }
+                : workspace
+        ),
+    }));
+}
+
 /** A recovered take's import decode is idle-gated (and skipped in session), so it can
  *  land on a placeholder waveform. The launch backfill scan ran before it existed:
  *  queue it now, or its card waits a whole relaunch for its waveform. */
@@ -238,6 +259,12 @@ export async function recoverPendingRecordingSession(options?: {
      *  hydration draw its waveform later, rather than decoding while the user waits. */
     lightweight?: boolean;
 }): Promise<RecordingRecoveryResult> {
+    const result = await recoverTake(options);
+    if (!options?.lightweight) removeAllLeftoverPlaceholders();
+    return result;
+}
+
+async function recoverTake(options?: { lightweight?: boolean }): Promise<RecordingRecoveryResult> {
     const session = await readPendingRecordingSession();
     if (!session) {
         return { status: "none" };

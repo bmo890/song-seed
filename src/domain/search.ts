@@ -265,7 +265,9 @@ export function getSearchMatchFilterLabel(filter: SearchMatchFilter) {
 export function getSearchResultKindLabel(kind: GlobalSearchResultKind) {
   switch (kind) {
     case "song":
-      return "Songs";
+      // Project ideas are sketches (terminology law); the screen titles groups
+      // through t("search.songs"), which says Sketches.
+      return "Sketches";
     case "clip":
       return "Clips";
     case "note":

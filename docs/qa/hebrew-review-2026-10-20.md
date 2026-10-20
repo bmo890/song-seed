@@ -2,6 +2,13 @@
 
 Every Hebrew string (3,377) was read against its English. 289 were changed. Grouped by area of the app; each line is English, then Hebrew before → after, and why.
 
+## Word choices (2026-10-21)
+
+- **Chart** → אקורדים for the tab and page, דף אקורדים for a chord chart, שירון for a chart book (תרשים read as a diagram).
+- **Loop** → לופ, the word players use (was לולאה).
+- **Scraps** (Cut-Up) → פתקים everywhere (פיסות in a few places before).
+- Kept: bookmark סימנייה, pre-chorus קדם־פזמון, audio שמע (the standard on Hebrew phones).
+
 Not changed on purpose: `reading.aa` (אב, the text-size key) and `collectionActions.undo` (ביטול is what Hebrew apps say for Undo).
 
 ## common

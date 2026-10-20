@@ -313,11 +313,14 @@ export function IdeaSelectionBar({
     const projectNames = selectedProjects.map((project) => project.title).slice(0, 4);
     const projectList =
       projectNames.length > 0
-        ? `\n\n${t("selection.songs")}: ${projectNames.join(", ")}${selectedProjects.length > 4 ? "…" : ""}`
+        ? `\n\n${t("selection.sketchesLabel")}: ${projectNames.join(", ")}${selectedProjects.length > 4 ? "…" : ""}`
         : "";
+    // "Also N clips." only when there are clips (it read "Also 0 clips.." before).
+    const alsoClips =
+      selectedClipIdeas.length > 0 ? ` ${t("selection.deleteClips", { count: selectedClipIdeas.length })}` : "";
     const message =
       selectedProjects.length > 0
-        ? `${t("selection.deleteSongs", { count: selectedProjects.length })} ${t("selection.deleteClips", { count: selectedClipIdeas.length })}.${projectList}`
+        ? `${t("selection.deleteSongs", { count: selectedProjects.length })}${alsoClips}${projectList}`
         : t("selection.deleteSelectedClips", { count: selectedClipIdeas.length });
 
     AppAlert.destructive(t("selection.deleteSelected"), message, onDeleteSelected, { confirmLabel: t("common.delete") });
@@ -497,21 +500,11 @@ export function IdeaSelectionBar({
           opens: true,
         });
       }
-      // Keep these for listening: into a playlist, existing or new.
-      actions.push({
-        key: "playlist",
-        label: t("selection.addToPlaylist"),
-        icon: "musical-notes-outline",
-        onPress: () => {
-          setMoreVisible(false);
-          setPlaylistVisible(true);
-        },
-        opens: true,
-        disabled: interactiveSelectedIdeas.length === 0,
-      });
+      // Somewhere else: another collection (copy, move) or a playlist, behind
+      // one row (2026-10-21: the sheet ran to seven rows; the cap is six).
       actions.push({
         key: "copy-or-move",
-        label: t("selection.copyOrMove"),
+        label: t("selection.copyMovePlaylist"),
         icon: "copy-outline",
         onPress: () => setCopyMoveVisible(true),
         opens: true,
@@ -570,6 +563,18 @@ export function IdeaSelectionBar({
       icon: "arrow-forward-outline",
       onPress: () => handleClipboardAction("move"),
     },
+    // Keep these for listening: into a playlist, existing or new.
+    {
+      key: "playlist",
+      label: t("selection.addToPlaylist"),
+      icon: "musical-notes-outline",
+      onPress: () => {
+        setCopyMoveVisible(false);
+        setPlaylistVisible(true);
+      },
+      opens: true,
+      disabled: interactiveSelectedIdeas.length === 0,
+    },
   ];
 
   // Choosing an action is terminal: selection mode ends the moment it's tapped,
@@ -618,7 +623,7 @@ export function IdeaSelectionBar({
       <SelectionActionSheet
         visible={copyMoveVisible}
         onBack={() => setMoreVisible(true)}
-        title={t("selection.copyOrMoveTitle")}
+        title={t("selection.copyMovePlaylist")}
         actions={copyMoveActions.map(endsSelection)}
         onClose={() => setCopyMoveVisible(false)}
       />
