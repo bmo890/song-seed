@@ -75,7 +75,8 @@ jest.mock("../audioStorage", () => ({
     }),
 }));
 
-const mockImportClip = jest.fn();
+const mockImportClip = jest.fn(() => ({ ideaId: "idea-recovered", clipId: "clip-recovered" }));
+const mockFlush = jest.fn(async () => undefined);
 jest.mock("../../state/actions", () => ({
     appActions: { importClipToCollection: (...args: unknown[]) => mockImportClip(...args) },
 }));
@@ -88,6 +89,7 @@ type MockState = {
 };
 let mockState: MockState;
 jest.mock("../../state/useStore", () => ({
+    flushPersistedSnapshot: () => mockFlush(),
     useStore: {
         getState: () => mockState,
         setState: (update: (state: MockState) => Partial<MockState>) => {
@@ -148,6 +150,8 @@ beforeEach(() => {
     mockFiles.clear();
     mockStorage.clear();
     mockImportClip.mockClear();
+    mockFlush.mockReset();
+    mockFlush.mockResolvedValue(undefined);
     mockBackfill.mockClear();
     mockState = {
         activeWorkspaceId: "ws-1",
@@ -185,6 +189,33 @@ describe("recoverPendingRecordingSession", () => {
         expect(mockStorage.size).toBe(0);
         // Its waveform is queued now, not on the next launch.
         expect(mockBackfill).toHaveBeenCalledTimes(1);
+    });
+
+    it("saves the library before it lets go of the take's marker", async () => {
+        mockFiles.set(TAKE_URI, unfinalizedTake(88_200 * 10));
+        await persistPendingRecordingSession(TAKE_URI, 1_792_353_379_373);
+        mockFlush.mockImplementation(async () => {
+            // At the moment of the save, the marker still points at the take.
+            expect(mockStorage.size).toBe(1);
+        });
+
+        await recoverPendingRecordingSession();
+        expect(mockFlush).toHaveBeenCalledTimes(1);
+        expect(mockStorage.size).toBe(0);
+    });
+
+    it("keeps a journal for the next launch when the save is refused", async () => {
+        mockFiles.set(TAKE_URI, unfinalizedTake(88_200 * 10));
+        await persistPendingRecordingSession(TAKE_URI, 1_792_353_379_373);
+        mockFlush.mockRejectedValue(new Error("persist blocked"));
+
+        await expect(recoverPendingRecordingSession()).resolves.toMatchObject({ status: "recovered" });
+
+        const marker = JSON.parse(Array.from(mockStorage.values())[0]);
+        expect(marker.attached).toMatchObject({ ideaId: "idea-recovered", clipId: "clip-recovered" });
+        // The marker points at the library's copy, which stays; the recorder temp goes.
+        expect(mockFiles.has(marker.fileUri)).toBe(true);
+        expect(mockFiles.has(TAKE_URI)).toBe(false);
     });
 
     it("says nothing was captured instead of listing a 0:00 clip", async () => {
