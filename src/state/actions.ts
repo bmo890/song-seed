@@ -753,6 +753,14 @@ async function persistBeforeFileMoves() {
     await persistCurrentStoreSnapshot();
 }
 
+const ARCHIVE_PACK_ATTEMPTS = 3;
+
+/** What an archive package must hold: everything but derived waveform and duration
+ *  data, which background hydration may refresh while the package is written. */
+function archiveContentKey(workspace: Workspace): string {
+    return JSON.stringify(workspace, (key, value) => (/waveform|duration/i.test(key) ? undefined : value));
+}
+
 function buildWorkspaceArchivalState(
     store: ReturnType<typeof useStore.getState>,
     archivedWorkspace: Workspace
@@ -3099,7 +3107,20 @@ export const appActions = {
             throw new Error("You must keep at least one active workspace.");
         }
 
-        const result = await archiveWorkspaceToDevice(workspace);
+        // Packing takes a while. If the workspace changed meanwhile (an import landed, an
+        // idea moved in), the package would miss it and the stub would erase it: pack again.
+        let packed = workspace;
+        let result = await archiveWorkspaceToDevice(packed);
+        for (let attempt = 1; ; attempt += 1) {
+            const live = useStore.getState().workspaces.find((item) => item.id === workspaceId) ?? null;
+            if (live && archiveContentKey(live) === archiveContentKey(packed)) break;
+            await deleteManagedArchiveUri(result.archiveState.archiveUri).catch(() => {});
+            if (!live || live.isArchived || attempt >= ARCHIVE_PACK_ATTEMPTS) {
+                throw new Error("The workspace changed while it was being archived.");
+            }
+            packed = live;
+            result = await archiveWorkspaceToDevice(packed);
+        }
         useStore.setState((store) => buildWorkspaceArchivalState(store, result.archivedWorkspace));
         await persistBeforeFileMoves();
         await upsertPendingWorkspaceArchiveOperation({
