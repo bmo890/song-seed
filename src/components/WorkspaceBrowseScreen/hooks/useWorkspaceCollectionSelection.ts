@@ -4,7 +4,7 @@ import { AppAlert } from "../../common/AppAlert";
 import type { Collection, Workspace } from "../../../types";
 import { appActions } from "../../../state/actions";
 import { buildCollectionMoveDestinations, getCollectionDeleteScope } from "../../../domain/collectionManagement";
-import { personalWorkspaces } from "../../../domain/workspaceVisibility";
+import { writableWorkspaces } from "../../../domain/workspaceVisibility";
 import type { SelectionAction } from "../../common/SelectionDock";
 import { useStore } from "../../../state/useStore";
 import { openSendSheet } from "../../../state/useSendSheetStore";
@@ -112,7 +112,7 @@ export function useWorkspaceCollectionSelection({
     // collection into someone else's shared bundle.
     () =>
       buildCollectionMoveDestinations(
-        personalWorkspaces(workspaces),
+        writableWorkspaces(workspaces),
         destinationAnchorCollection,
         activeWorkspaceId
       ),

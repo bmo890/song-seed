@@ -742,6 +742,17 @@ async function persistCurrentStoreSnapshot() {
     await forceManifestWrite(buildPersistedAppStoreSnapshot(useStore.getState()));
 }
 
+/**
+ * Before archive, unarchive or offload moves any file: make the LIBRARY durable, then the
+ * shadow manifest. These used to write only the manifest, so a kill in the few seconds
+ * before the debounced store write left the audio trashed while the library still pointed
+ * at it (overnight check 2026-10-20). A failed flush throws, and the caller keeps every file.
+ */
+async function persistBeforeFileMoves() {
+    await flushPersistedSnapshot();
+    await persistCurrentStoreSnapshot();
+}
+
 function buildWorkspaceArchivalState(
     store: ReturnType<typeof useStore.getState>,
     archivedWorkspace: Workspace
@@ -3090,7 +3101,7 @@ export const appActions = {
 
         const result = await archiveWorkspaceToDevice(workspace);
         useStore.setState((store) => buildWorkspaceArchivalState(store, result.archivedWorkspace));
-        await persistCurrentStoreSnapshot();
+        await persistBeforeFileMoves();
         await upsertPendingWorkspaceArchiveOperation({
             kind: "archive-cleanup",
             workspaceId,
@@ -3098,7 +3109,10 @@ export const appActions = {
             originalAudioUris: result.originalAudioUris,
             createdAt: Date.now(),
         });
-        await deleteManagedAudioUris(result.originalAudioUris);
+        // Only what nothing else uses: a copied idea elsewhere shares its audio files.
+        await deleteManagedAudioUris(
+            filterUnreferencedManagedAudioUris(result.originalAudioUris, useStore.getState().workspaces)
+        );
         await clearPendingWorkspaceArchiveOperation(workspaceId);
         return result;
     },
@@ -3162,7 +3176,7 @@ export const appActions = {
             ),
             activeWorkspaceId: store.activeWorkspaceId ?? workspaceId,
         }));
-        await persistCurrentStoreSnapshot();
+        await persistBeforeFileMoves();
         if (!offloaded) {
             await upsertPendingWorkspaceArchiveOperation({
                 kind: "unarchive-cleanup",
@@ -3222,7 +3236,7 @@ export const appActions = {
         }));
         // Persist the offload marker BEFORE deleting: if we die in between, the journal
         // finishes the delete on next launch (and only because the marker is persisted).
-        await persistCurrentStoreSnapshot();
+        await persistBeforeFileMoves();
         await upsertPendingWorkspaceArchiveOperation({
             kind: "offload-cleanup",
             workspaceId,

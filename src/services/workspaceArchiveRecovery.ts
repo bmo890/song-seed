@@ -1,7 +1,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { buildPersistedAppStoreSnapshot, useStore } from "../state/useStore";
 import { forceManifestWrite } from "./manifestSync";
-import { deleteManagedArchiveUri, deleteManagedAudioUris } from "./managedMedia";
+import { deleteManagedArchiveUri, deleteManagedAudioUris, filterUnreferencedManagedAudioUris } from "./managedMedia";
 import { restoreWorkspaceFromDevice } from "./workspaceArchive";
 import { SONG_NOOK_ROOT } from "./storagePaths";
 
@@ -93,7 +93,13 @@ export async function resumePendingWorkspaceArchiveOperations() {
                     .getState()
                     .workspaces.find((candidate) => candidate.id === operation.workspaceId);
                 if (workspace?.isArchived) {
-                    await deleteManagedAudioUris(operation.originalAudioUris);
+                    // Only what nothing else uses: copies elsewhere share audio files.
+                    await deleteManagedAudioUris(
+                        filterUnreferencedManagedAudioUris(
+                            operation.originalAudioUris,
+                            useStore.getState().workspaces
+                        )
+                    );
                 }
                 await clearPendingWorkspaceArchiveOperation(operation.workspaceId);
                 continue;
