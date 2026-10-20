@@ -58,7 +58,7 @@ export function useLibraryImportFlow() {
         } catch (error) {
             const message =
                 error instanceof Error ? error.message : t("settingsImport.readFailed");
-            AppAlert.info(t("settingsImport.importFailed"), message);
+            AppAlert.error(t("settingsImport.importFailed"), message);
             return false;
         } finally {
             setIsPicking(false);
@@ -89,7 +89,7 @@ export function useLibraryImportFlow() {
         } catch (error) {
             const message =
                 error instanceof Error ? error.message : t("settingsImport.archiveFailed");
-            AppAlert.info(t("settingsImport.importFailed"), message);
+            AppAlert.error(t("settingsImport.importFailed"), message);
             return false;
         } finally {
             setIsImporting(false);

@@ -29,9 +29,17 @@ export function useSongScreenModel() {
   // so a write elsewhere no longer re-renders the 22 context consumers here.
   // Active workspace first, then any workspace — ideas opened from a Received
   // package live outside the active one.
-  const selectedIdea = useStore((s) =>
-    selectedIdeaId ? selectIdeaById(s.workspaces, selectedIdeaId, activeWorkspaceId) ?? undefined : undefined
-  );
+  //
+  // The page shows the idea its own route names (the First-Frame Rule): two sketch
+  // pages on the stack used to each write their route into the one global selection
+  // from an effect, and fought over it forever (overnight check 2026-10-20). The
+  // global is the fallback only when the route's idea is gone (a discarded draft).
+  const selectedIdea = useStore((s) => {
+    const fromRoute = routeIdeaId ? selectIdeaById(s.workspaces, routeIdeaId, activeWorkspaceId) : null;
+    if (fromRoute) return fromRoute;
+    return selectedIdeaId ? selectIdeaById(s.workspaces, selectedIdeaId, activeWorkspaceId) ?? undefined : undefined;
+  });
+  const pageIdeaId = selectedIdea?.id ?? selectedIdeaId;
   const navigation = useNavigation();
   const rootNavigation = (navigation as any).getParent?.();
   const navigateRoot = (routeName: string, params?: object) =>
@@ -84,16 +92,14 @@ export function useSongScreenModel() {
   const clipListFooterSpacerHeight = getFloatingActionDockContentClearance(insets.bottom, dockLayout);
   const clipSelectionFooterSpacerHeight = selectionDockHeight + 24 + Math.max(insets.bottom, 12) + playerDockHeight;
 
+  // The store's selection follows the page in front only: actions that act on "the
+  // selected idea" must mean the one on screen. A page beneath stays quiet until it is
+  // back in front. Only an idea that exists is written (after a discarded draft the
+  // route param outlives the idea, 2026-09-10).
+  const shownIdeaId = selectedIdea?.id;
   useEffect(() => {
-    if (routeIdeaId && routeIdeaId !== selectedIdeaId) {
-      // Only re-select an idea that still exists: after a draft is discarded
-      // the route param outlives the idea, and writing it back would point the
-      // store at a deleted id (2026-09-10).
-      const s = useStore.getState();
-      const exists = s.workspaces.some((ws) => ws.ideas.some((idea) => idea.id === routeIdeaId));
-      if (exists) setSelectedIdeaId(routeIdeaId);
-    }
-  }, [routeIdeaId, selectedIdeaId, setSelectedIdeaId]);
+    if (isFocused && shownIdeaId && shownIdeaId !== selectedIdeaId) setSelectedIdeaId(shownIdeaId);
+  }, [isFocused, shownIdeaId, selectedIdeaId, setSelectedIdeaId]);
 
   useEffect(() => {
     if (selectedIdea?.isDraft || startInEdit) {
@@ -153,7 +159,7 @@ export function useSongScreenModel() {
   return {
     isFocused,
     routeIdeaId,
-    selectedIdeaId,
+    selectedIdeaId: pageIdeaId,
     activeWorkspaceId,
     selectedIdea,
     songClips,

@@ -116,7 +116,7 @@ export function SelectionBars() {
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : t("songDetail.shareFailedBody");
-      AppAlert.info(t("songDetail.shareFailed"), message);
+      AppAlert.error(t("songDetail.shareFailed"), message);
     } finally {
       setIsSharing(false);
     }

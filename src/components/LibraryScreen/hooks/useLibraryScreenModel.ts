@@ -215,7 +215,7 @@ export function useLibraryScreenModel() {
         const ok = await sharePlaylist(activePlaylist, workspaces);
         if (!ok) AppAlert.info(t("library.nothingShare"), t("library.addPlaylistSongFirst"));
       } catch {
-        AppAlert.info(t("songDetail.shareFailed"), t("library.playlistShareFailed"));
+        AppAlert.error(t("songDetail.shareFailed"), t("library.playlistShareFailed"));
       }
     },
     getLinkForActivePlaylist: () => {

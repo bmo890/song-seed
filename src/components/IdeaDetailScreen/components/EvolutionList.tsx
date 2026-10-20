@@ -4,6 +4,7 @@ import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { type SharedValue } from "react-native-reanimated";
 import { useStore } from "../../../state/useStore";
+import { useSongScreen } from "../provider/SongScreenProvider";
 import { QuickNameModal } from "../../modals/QuickNameModal";
 import { styles } from "../styles";
 import {
@@ -110,7 +111,8 @@ function EvolutionGroupHeaderRow({
   onRename: (groupId: string, name: string) => void;
 }) {
   const { t } = useTranslation();
-  const ideaId = useStore((s) => s.selectedIdeaId);
+  // This page's sketch, not the global selection (another sketch page may be in front).
+  const ideaId = useSongScreen().screen.selectedIdea?.id ?? null;
   const setClipGroupCollapsed = useStore((s) => s.setClipGroupCollapsed);
 
   return (

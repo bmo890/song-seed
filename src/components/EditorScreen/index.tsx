@@ -554,7 +554,7 @@ export function EditorScreen() {
             );
         } catch (error) {
             console.warn("[editor] flatten overdub failed", error);
-            AppAlert.info(
+            AppAlert.error(
                 t("editor.saveCombinedFailed"),
                 error instanceof Error ? error.message : t("editor.combinedFailedBody")
             );

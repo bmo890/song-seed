@@ -151,9 +151,7 @@ function ReceivedParcelSheet({ pkg }: { pkg: Workspace }) {
     }
     const result = state.adoptReceivedPackageInto(pkg.id, plan.workspaceId, null);
     if (!result.ok) {
-      // Haptics: `error` — a failure the user must hear about.
-      haptic.error();
-      AppAlert.info(t("received.moveFailedTitle"), result.error ?? t("received.moveFailedBody"));
+      AppAlert.error(t("received.moveFailedTitle"), result.error ?? t("received.moveFailedBody"));
       return;
     }
     haptic.success();
@@ -238,13 +236,15 @@ function ReceivedParcelSheet({ pkg }: { pkg: Workspace }) {
             </Press>
           </View>
         </View>
+        {/* Hosted inside the sheet: iOS won't present a second Modal beside a visible
+            one, and the chooser never appeared (overnight check 2026-10-20). */}
+        <ReceivedPackageMoveModal
+          packageIds={[pkg.id]}
+          visible={chooserOpen}
+          onClose={() => setChooserOpen(false)}
+          onDone={(result) => fold(() => landAfterKeep(result))}
+        />
       </BottomSheet>
-      <ReceivedPackageMoveModal
-        packageIds={[pkg.id]}
-        visible={chooserOpen}
-        onClose={() => setChooserOpen(false)}
-        onDone={(result) => fold(() => landAfterKeep(result))}
-      />
     </>
   );
 }

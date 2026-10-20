@@ -8,7 +8,6 @@ import { createWorkspaceShareLink, shareWorkspaceFile } from "../../../services/
 import { openSendSheet } from "../../../state/useSendSheetStore";
 import { isSendServiceConfigured } from "../../../config/sendService";
 import { AppAlert } from "../../common/AppAlert";
-import { haptic } from "../../../design/haptics";
 import type { Workspace } from "../../../types";
 import type { SelectionAction } from "../../common/SelectionDock";
 import { useTranslation } from "react-i18next";
@@ -147,9 +146,7 @@ export function useWorkspaceListScreenModel() {
       const ok = await shareWorkspaceFile(workspace, libraryNow());
       if (!ok) AppAlert.info(t("workspaceList.nothingShare"), t("workspaceList.nothingShareBody"));
     } catch {
-      // haptics vocabulary: `error` — a failure the user must hear about.
-      haptic.error();
-      AppAlert.info(t("workspaceList.shareFailed"), t("workspaceList.shareFailedBody"));
+      AppAlert.error(t("workspaceList.shareFailed"), t("workspaceList.shareFailedBody"));
     } finally {
       setSharingWorkspaceId(null);
     }

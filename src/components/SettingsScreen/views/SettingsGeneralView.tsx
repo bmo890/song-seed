@@ -53,7 +53,7 @@ export function SettingsGeneralView() {
             ]}
             onChange={(next) => {
               void setLanguage(next).catch(() => {
-                AppAlert.info(t("settings.restartFailedTitle"), t("settings.restartFailedBody"));
+                AppAlert.error(t("settings.restartFailedTitle"), t("settings.restartFailedBody"));
               });
             }}
           />

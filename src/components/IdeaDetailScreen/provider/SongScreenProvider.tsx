@@ -11,7 +11,6 @@ import { useSongScreenModel } from "../hooks/useSongScreenModel";
 import { useSongUndo } from "../hooks/useSongUndo";
 import { createSketchShareLink, shareSketchFile } from "../../../services/sketchShare";
 import { openSendSheet } from "../../../state/useSendSheetStore";
-import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
 
 type SongScreenContextValue = {
@@ -107,9 +106,7 @@ export function SongScreenProvider({ children }: { children: ReactNode }) {
           const ok = await shareSketchFile(idea);
           if (!ok) AppAlert.info(t("songDetail.nothingShare"), t("songDetail.nothingShareBody"));
         } catch {
-          // haptics vocabulary: `error` — a failure the user must hear about.
-          haptic.error();
-          AppAlert.info(t("songDetail.shareFailed"), t("songDetail.shareSketchFailedBody"));
+          AppAlert.error(t("songDetail.shareFailed"), t("songDetail.shareSketchFailedBody"));
         } finally {
           setShareBusy(false);
         }

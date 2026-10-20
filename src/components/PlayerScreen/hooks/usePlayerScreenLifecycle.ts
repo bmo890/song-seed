@@ -12,7 +12,7 @@ import { buildClipLockScreenMetadata } from "../../../services/lockScreenMetadat
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
 import { useShelfStore } from "../../../state/useShelfStore";
-import { openShelf, returnHome } from "../../../navigation";
+import { openShelf, openSketchPage, returnHome } from "../../../navigation";
 import { toast } from "../../common/toastStore";
 import { haptic } from "../../../design/haptics";
 import { getHierarchyIconName } from "../../../domain/hierarchy";
@@ -450,7 +450,7 @@ export function usePlayerScreenLifecycle({
     minimizePlayer();
     // The page opens in edit mode because the idea is a draft now — not via
     // `startInEdit`, which would re-open the sheet after Save or Discard.
-    navigation.navigate("IdeaDetail", { ideaId });
+    openSketchPage(navigation, { ideaId });
   }, [minimizePlayer, navigation, playerIdea]);
 
   const handleOverflowMenu = useCallback(() => {
@@ -512,7 +512,7 @@ export function usePlayerScreenLifecycle({
                 } catch (error) {
                   const message =
                     error instanceof Error ? error.message : t("player.combinedSaveBody");
-                  AppAlert.info(t("player.combinedSaveFailed"), message);
+                  AppAlert.error(t("player.combinedSaveFailed"), message);
                 }
               },
             },
@@ -526,7 +526,7 @@ export function usePlayerScreenLifecycle({
                 } catch (error) {
                   const message =
                     error instanceof Error ? error.message : t("player.combinedOpenFailed");
-                  AppAlert.info(t("player.combinedSaveFailed"), message);
+                  AppAlert.error(t("player.combinedSaveFailed"), message);
                 }
               },
             },
@@ -598,7 +598,7 @@ export function usePlayerScreenLifecycle({
             } catch (error) {
               console.warn("Share audio error", error);
               const message = error instanceof Error ? error.message : t("player.shareAudioFailed");
-              AppAlert.info(t("player.shareFailed"), message);
+              AppAlert.error(t("player.shareFailed"), message);
             }
           };
           // Share… holds the same two exits as everywhere else: the audio by the

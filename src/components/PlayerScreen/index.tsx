@@ -61,7 +61,7 @@ import { PlayerPinSheets } from "./components/PlayerPinSheets";
 import { PlayerLyricsWriter } from "./components/PlayerLyricsWriter";
 import { playerScreenStyles } from "./styles";
 import { getVisibleTimelineRange } from "./helpers";
-import { openIdeaInCollection } from "../../navigation";
+import { openIdeaInCollection, openSketchPage } from "../../navigation";
 import { AppAlert } from "../common/AppAlert";
 import { getClipOverdubStemCount } from "../../domain/clipPresentation";
 import { canAddOverdubLayer, isPracticeToolPro, type PracticeTool } from "../../domain/proGating";
@@ -1078,8 +1078,7 @@ function PlayerScreenInner({
         toast(t("player.mergedToast"), "checkmark-outline");
       } catch (error) {
         console.warn("Layer merge failed", error);
-        haptic.error(); // Vocabulary: failures fire error.
-        AppAlert.info(t("player.mergeFailed"), error instanceof Error ? error.message : "");
+        AppAlert.error(t("player.mergeFailed"), error instanceof Error ? error.message : "");
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1201,11 +1200,9 @@ function PlayerScreenInner({
     minimizePlayer();
     // Straight into the chart's editor: the pencil and the empty Chart key both
     // mean "work on it", and the reader is what the player already shows.
-    nav.navigate("IdeaDetail", {
-      ideaId: playerIdeaIdRef.current,
-      initialSongTab: "chart",
-      chartEditToken: Date.now(),
-    });
+    const ideaId = playerIdeaIdRef.current;
+    if (!ideaId) return;
+    openSketchPage(nav, { ideaId, initialSongTab: "chart", chartEditToken: Date.now() });
   }, []);
   const handleQueueOpenIdea = useCallback((ideaId: string) => {
     const { minimizePlayer, navigation: nav } = queueOpenIdeaRef.current;
@@ -1237,7 +1234,7 @@ function PlayerScreenInner({
         );
       } catch (error) {
         const message = error instanceof Error ? error.message : t("player.flattenFailed");
-        AppAlert.info(t("player.saveFailed"), message);
+        AppAlert.error(t("player.saveFailed"), message);
       }
     },
     [effectiveIsPlaying, navigation, playerClip, playerIdea, practicePitchTransport]
@@ -1261,7 +1258,7 @@ function PlayerScreenInner({
         if (!layerIdeaId || !layerClipId) return;
         void action(layerIdeaId, layerClipId, ...args).catch((error) => {
           const message = error instanceof Error ? error.message : fallbackMessage;
-          AppAlert.info(t("player.layerUpdateFailed"), message);
+          AppAlert.error(t("player.layerUpdateFailed"), message);
         });
       };
     return {

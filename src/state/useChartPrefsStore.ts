@@ -158,5 +158,9 @@ export function useReadingChordShift(ideaId: string | null | undefined): {
 }
 
 export function readingChordShift(transpose: number, capo: number): number {
-  return clampTransposeOffset(transpose - capo);
+  // Transpose runs −11..11 and the capo 0..11, so the difference reaches −22. Past an
+  // octave it wraps (−12 is the same shapes), never clamps: a clamp turned −12 into a
+  // semitone off. Shifts already inside the window are untouched, spelling included.
+  const shift = clampTransposeOffset(transpose) - clampCapoFret(capo);
+  return shift <= -12 ? shift + 12 : shift;
 }

@@ -3,6 +3,7 @@ import * as Clipboard from "expo-clipboard";
 import * as DocumentPicker from "expo-document-picker";
 import { useSharedAudioRecorder } from "@siteed/audio-studio";
 import { AppAlert } from "../../common/AppAlert";
+import { afterOverlayCloses } from "../../common/afterOverlayCloses";
 import {
     formatBackupTimestamp,
     getBackupReminderDescription,
@@ -191,30 +192,40 @@ export function useLibraryBackupFlow() {
                     throw error;
                 }
                 if (error instanceof Error && error.message === BACKUP_SAVE_CANCELLED_MESSAGE) {
-                    return await new Promise((resolve) => {
-                        AppAlert.custom(
-                            t("settingsBackup.saveTitle"),
-                            t("settingsBackup.saveBody", { title: built.archiveTitle }),
-                            [
-                                {
-                                    label: t("settingsBackup.discard"),
-                                    style: "destructive",
-                                    onPress: () => {
-                                        void discardBuiltLibraryBackup(built.archiveUri)
-                                            .catch(() => {})
-                                            .finally(() => resolve({ saved: false }));
+                    // Every way out settles (overnight check 2026-10-20: a second save that
+                    // failed or was cancelled left the backup hanging forever). A scrim tap
+                    // asks again: the built backup is either saved or discarded on purpose.
+                    return await new Promise((resolve, reject) => {
+                        const ask = () =>
+                            AppAlert.custom(
+                                t("settingsBackup.saveTitle"),
+                                t("settingsBackup.saveBody", { title: built.archiveTitle }),
+                                [
+                                    {
+                                        label: t("settingsBackup.discard"),
+                                        style: "destructive",
+                                        onPress: () => {
+                                            void discardBuiltLibraryBackup(built.archiveUri)
+                                                .catch(() => {})
+                                                .finally(() => resolve({ saved: false }));
+                                        },
                                     },
-                                },
-                                {
-                                    label: t("settingsBackup.chooseLocation"),
-                                    style: "default",
-                                    icon: "folder-outline",
-                                    onPress: () => {
-                                        void attemptSave(built).then(resolve);
+                                    {
+                                        label: t("settingsBackup.chooseLocation"),
+                                        style: "default",
+                                        icon: "folder-outline",
+                                        onPress: () => {
+                                            // The picker waits for the dialog to leave, or iOS
+                                            // refuses to present it.
+                                            void afterOverlayCloses()
+                                                .then(() => attemptSave(built))
+                                                .then(resolve, reject);
+                                        },
                                     },
-                                },
-                            ]
-                        );
+                                ],
+                                { onDismiss: ask }
+                            );
+                        ask();
                     });
                 }
                 throw error;
@@ -312,7 +323,7 @@ export function useLibraryBackupFlow() {
                 ? t("settingsBackup.lowStorage")
                 : raw || t("settingsBackup.failedBody");
             useProcessStore.getState().setStatus("error", message);
-            AppAlert.info(t("settingsBackup.failed"), message);
+            AppAlert.error(t("settingsBackup.failed"), message);
             return false;
         }
     };
@@ -395,7 +406,7 @@ export function useLibraryBackupFlow() {
             console.warn("[restore] failed", error);
             const message = describeDrRestoreError(error);
             useProcessStore.getState().setStatus("error", message);
-            AppAlert.info(t("settingsBackup.restoreFailed"), message);
+            AppAlert.error(t("settingsBackup.restoreFailed"), message);
         }
     };
 
@@ -421,7 +432,7 @@ export function useLibraryBackupFlow() {
                 copyToCacheDirectory: true,
             });
         } catch {
-            AppAlert.info(t("settingsBackup.restoreFailed"), t("settingsBackup.pickerFailed"));
+            AppAlert.error(t("settingsBackup.restoreFailed"), t("settingsBackup.pickerFailed"));
             return;
         }
 

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { personalWorkspaces } from "../../../domain/workspaceVisibility";
-import { visitCollection } from "../../../navigation";
+import { openSketchPage, visitCollection } from "../../../navigation";
 import {
   buildGlobalSearchResults,
   getSearchMatchFilter,
@@ -35,21 +35,6 @@ type SearchMatchFilterOption = {
   label: string;
   count: number;
 };
-
-function navigateToRoute(navigation: any, routeName: string, params?: Record<string, unknown>) {
-  let current = navigation;
-
-  while (current) {
-    const routeNames = current.getState?.()?.routeNames;
-    if (Array.isArray(routeNames) && routeNames.includes(routeName)) {
-      current.navigate(routeName, params);
-      return true;
-    }
-    current = current.getParent?.();
-  }
-
-  return false;
-}
 
 export function useSearchScreenModel() {
   const { t } = useTranslation();
@@ -151,8 +136,8 @@ export function useSearchScreenModel() {
             focusIdeaId: result.ideaId,
             focusToken: Date.now(),
           });
-        } else {
-          navigateToRoute(navigation, "IdeaDetail", { ideaId: result.ideaId });
+        } else if (result.ideaId) {
+          openSketchPage(navigation, { ideaId: result.ideaId });
         }
         return;
       case "note":

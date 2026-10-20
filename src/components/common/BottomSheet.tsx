@@ -23,6 +23,7 @@ import { haptic } from "../../design/haptics";
 import { AppDialogHost } from "./AppDialog";
 import { dialogStore } from "./dialogStore";
 import { durations, springs } from "../../design/motion";
+import { ModalGestureRoot } from "./ModalGestureRoot";
 
 export type BottomSheetRef = { close: () => void };
 
@@ -243,26 +244,28 @@ export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
 
     return (
       <Modal visible={visible} transparent animationType="fade" onRequestClose={closeWithSlide}>
-        <View style={styles.bottomSheetBackdrop}>
-          {/* Dialogs raised while this sheet is open draw here — see AppDialogHost. */}
-          <AppDialogHost nested />
-          <Pressable style={styles.bottomSheetOverlay} onPress={closeWithSlide} />
-          <Animated.View
-            style={[
-              styles.modalCard,
-              styles.bottomSheetCard,
-              // Cap the card at the expandable ceiling so a tall body (the metronome
-              // sheet with a section open) scrolls inside instead of pushing the
-              // handle and title off the top of the screen.
-              { maxHeight: expandedTotal, paddingBottom: 14 + insets.bottom, transform: [{ translateY: combinedTranslateY }] },
-            ]}
-          >
-            <View style={styles.bottomSheetDragZone} {...handlePanResponder.panHandlers}>
-              <View style={styles.bottomSheetHandle} />
-            </View>
-            {expandable ? <Animated.View style={{ height: bodyHeight }}>{children}</Animated.View> : children}
-          </Animated.View>
-        </View>
+        <ModalGestureRoot>
+          <View style={styles.bottomSheetBackdrop}>
+            {/* Dialogs raised while this sheet is open draw here — see AppDialogHost. */}
+            <AppDialogHost nested />
+            <Pressable style={styles.bottomSheetOverlay} onPress={closeWithSlide} />
+            <Animated.View
+              style={[
+                styles.modalCard,
+                styles.bottomSheetCard,
+                // Cap the card at the expandable ceiling so a tall body (the metronome
+                // sheet with a section open) scrolls inside instead of pushing the
+                // handle and title off the top of the screen.
+                { maxHeight: expandedTotal, paddingBottom: 14 + insets.bottom, transform: [{ translateY: combinedTranslateY }] },
+              ]}
+            >
+              <View style={styles.bottomSheetDragZone} {...handlePanResponder.panHandlers}>
+                <View style={styles.bottomSheetHandle} />
+              </View>
+              {expandable ? <Animated.View style={{ height: bodyHeight }}>{children}</Animated.View> : children}
+            </Animated.View>
+          </View>
+        </ModalGestureRoot>
       </Modal>
     );
   }

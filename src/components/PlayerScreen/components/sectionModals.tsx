@@ -21,6 +21,7 @@ import { PLAYHEAD_COLOR, PlayheadCursorIcon } from "./practicePanelPrimitives";
 import { useTranslation } from "react-i18next";
 import { UserText, UserTextInput } from "../../../i18n";
 import { ModalDialogLayer } from "../../common/AppDialog";
+import { ModalGestureRoot } from "../../common/ModalGestureRoot";
 
 /** Single adjuster for whichever edge (start/end) is active, with a pin-to-playhead button. */
 export function SectionEdgeAdjuster({
@@ -146,58 +147,60 @@ export function SectionPickerModal({
   const { t } = useTranslation();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={s.sectionModalBackdrop} onPress={onClose}>
-        <Pressable style={s.sectionModalCard} onPress={() => {}}>
-          <Text style={s.sectionModalTitle}>{title}</Text>
-          <View style={s.sectionModalGrid}>
-            {SECTION_QUICK_ADD.map((kind) => {
-              const preset = getSectionPreset(kind);
-              return (
+      <ModalGestureRoot>
+        <Pressable style={s.sectionModalBackdrop} onPress={onClose}>
+          <Pressable style={s.sectionModalCard} onPress={() => {}}>
+            <Text style={s.sectionModalTitle}>{title}</Text>
+            <View style={s.sectionModalGrid}>
+              {SECTION_QUICK_ADD.map((kind) => {
+                const preset = getSectionPreset(kind);
+                return (
+                  <Pressable
+                    key={kind}
+                    style={s.sectionChip}
+                    onPress={() => onPickPreset(kind)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t(`chordChart.presets.${preset.label}`, { defaultValue: preset.label })}
+                  >
+                    <View style={[s.sectionSwatch, { backgroundColor: preset.color }]} />
+                    <Text style={s.sectionChipText}>
+                      {t(`chordChart.presets.${preset.label}`, { defaultValue: preset.label })}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+              {customOptions.map((option) => (
                 <Pressable
-                  key={kind}
+                  key={`custom-${option.label}`}
                   style={s.sectionChip}
-                  onPress={() => onPickPreset(kind)}
+                  onPress={() => onPickCustom(option)}
                   accessibilityRole="button"
-                  accessibilityLabel={t(`chordChart.presets.${preset.label}`, { defaultValue: preset.label })}
+                  accessibilityLabel={option.label}
                 >
-                  <View style={[s.sectionSwatch, { backgroundColor: preset.color }]} />
-                  <Text style={s.sectionChipText}>
-                    {t(`chordChart.presets.${preset.label}`, { defaultValue: preset.label })}
-                  </Text>
+                  <View style={[s.sectionSwatch, { backgroundColor: option.color }]} />
+                  <Text style={s.sectionChipText}>{option.label}</Text>
                 </Pressable>
-              );
-            })}
-            {customOptions.map((option) => (
+              ))}
+            </View>
+            <View style={s.sectionPickerFooter}>
               <Pressable
-                key={`custom-${option.label}`}
-                style={s.sectionChip}
-                onPress={() => onPickCustom(option)}
+                style={s.sectionModalNewButton}
+                onPress={onCreateNew}
                 accessibilityRole="button"
-                accessibilityLabel={option.label}
+                accessibilityLabel={t("player.customSectionA11y")}
               >
-                <View style={[s.sectionSwatch, { backgroundColor: option.color }]} />
-                <Text style={s.sectionChipText}>{option.label}</Text>
+                <Ionicons name="add" size={16} color={colors.primary} />
+                <Text style={s.sectionModalNewText}>{t("player.newCustom")}</Text>
               </Pressable>
-            ))}
-          </View>
-          <View style={s.sectionPickerFooter}>
-            <Pressable
-              style={s.sectionModalNewButton}
-              onPress={onCreateNew}
-              accessibilityRole="button"
-              accessibilityLabel={t("player.customSectionA11y")}
-            >
-              <Ionicons name="add" size={16} color={colors.primary} />
-              <Text style={s.sectionModalNewText}>{t("player.newCustom")}</Text>
-            </Pressable>
-            <View style={{ flex: 1 }} />
-            <Pressable style={s.sectionModalCancel} onPress={onClose} accessibilityRole="button">
-              <Text style={s.sectionModalCancelText}>{t("common.cancel")}</Text>
-            </Pressable>
-          </View>
+              <View style={{ flex: 1 }} />
+              <Pressable style={s.sectionModalCancel} onPress={onClose} accessibilityRole="button">
+                <Text style={s.sectionModalCancelText}>{t("common.cancel")}</Text>
+              </Pressable>
+            </View>
+          </Pressable>
         </Pressable>
-      </Pressable>
-      <ModalDialogLayer active={visible} />
+        <ModalDialogLayer active={visible} />
+      </ModalGestureRoot>
     </Modal>
   );
 }

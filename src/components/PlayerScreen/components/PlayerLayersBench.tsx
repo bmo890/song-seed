@@ -426,8 +426,7 @@ export function PlayerLayersBench({
       setSoloActive(false);
       const message = error instanceof Error ? error.message : t("player.layerPlayFailed");
       console.warn("Layer solo failed", error);
-      haptic.error(); // Vocabulary: failures fire error.
-      AppAlert.info(t("player.layerPreviewFailed"), message);
+      AppAlert.error(t("player.layerPreviewFailed"), message);
     }
   }
 

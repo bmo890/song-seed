@@ -8,6 +8,7 @@ import { transposeLyricsLines } from "../../../../domain/transpose";
 import { useChartPrefsStore } from "../../../../state/useChartPrefsStore";
 import type { LyricsVersion } from "../../../../types";
 import { useTranslation } from "react-i18next";
+import { afterOverlayCloses } from "../../../common/afterOverlayCloses";
 
 /** Shared chord-chart export handlers (PDF + text/ChordPro), used by both the
  * chord editor and the read view. Exports honor the song's active display
@@ -31,7 +32,7 @@ export function useChordExport(
       const ok = await shareChordChartPdf({ title: songTitle, subtitle, lines });
       if (!ok) AppAlert.info(t("chordEditor.nothingExport"), t("chordEditor.addLyricsFirst"));
     } catch {
-      AppAlert.info(t("chordEditor.exportFailed"), t("chordEditor.exportFailedBody"));
+      AppAlert.error(t("chordEditor.exportFailed"), t("chordEditor.exportFailedBody"));
     }
   };
 
@@ -41,10 +42,13 @@ export function useChordExport(
       AppAlert.info(t("chordEditor.nothingShare"), t("chordEditor.addLyricsFirst"));
       return;
     }
-    void Share.share({
-      title: t("chordEditor.shareTitle", { title: songTitle }),
-      message: `${chart}\n\n— ChordPro —\n${serializeChordPro(lines)}`,
-    });
+    // The export sheet is still closing; iOS won't present the share sheet over it.
+    void afterOverlayCloses().then(() =>
+      Share.share({
+        title: t("chordEditor.shareTitle", { title: songTitle }),
+        message: `${chart}\n\n— ChordPro —\n${serializeChordPro(lines)}`,
+      })
+    );
   };
 
   return { exportPdf, exportText };

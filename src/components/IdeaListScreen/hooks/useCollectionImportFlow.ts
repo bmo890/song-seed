@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { afterOverlayCloses } from "../../common/afterOverlayCloses";
 import { AppAlert } from "../../common/AppAlert";
 import { reportUnsupportedImports } from "../../common/importFeedback";
 import { pickImportAssets } from "../../common/importSource";
@@ -444,12 +445,18 @@ export function useCollectionImportFlow({
 
     const duplicateResult = checkImportDuplicates(assetsSnapshot, getAllClips());
     if (duplicateResult.hasDuplicates) {
-      showDuplicateReview(
-        duplicateResult,
-        () => doImport(duplicateResult.uniqueAssets),
-        () => doImport(duplicateResult.allAssets),
-        doImport
-        );
+      // The name sheet closes first: iOS refuses the review sheet beside it, and any
+      // way out of the review (Skip with nothing new, Cancel, a swipe) used to leave
+      // the name sheet behind (overnight check 2026-10-20).
+      resetImportModal();
+      void afterOverlayCloses().then(() =>
+        showDuplicateReview(
+          duplicateResult,
+          () => doImport(duplicateResult.uniqueAssets),
+          () => doImport(duplicateResult.allAssets),
+          doImport
+        )
+      );
       return;
     }
 

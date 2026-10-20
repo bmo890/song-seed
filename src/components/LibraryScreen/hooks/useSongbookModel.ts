@@ -15,6 +15,7 @@ import { createSongbookShareLink, shareSongbookFile } from "../../../services/so
 import { openSendSheet } from "../../../state/useSendSheetStore";
 import type { SongIdea, Workspace } from "../../../types";
 import { useTranslation } from "react-i18next";
+import { afterOverlayCloses } from "../../common/afterOverlayCloses";
 
 function findIdea(workspaces: Workspace[], ideaId: string): { workspace: Workspace; idea: SongIdea } | null {
   for (const workspace of workspaces) {
@@ -185,7 +186,7 @@ export function useSongbookModel() {
         const ok = await shareSongbookFile(activeSongbook, workspaces);
         if (!ok) AppAlert.info(t("library.nothingShare"), t("library.addChartsFirst"));
       } catch {
-        AppAlert.info(t("songDetail.shareFailed"), t("library.songbookShareFailed"));
+        AppAlert.error(t("songDetail.shareFailed"), t("library.songbookShareFailed"));
       }
     },
     /** Upload the songbook to SongNook Send and copy a shareable link. */
@@ -219,7 +220,8 @@ export function useSongbookModel() {
         AppAlert.info(t("library.nothingShare"), t("library.addChartsFirst"));
         return;
       }
-      void Share.share({ title: activeSongbook.title, message: text });
+      // The share menu is still closing; iOS won't present the share sheet over it.
+      void afterOverlayCloses().then(() => Share.share({ title: activeSongbook.title, message: text }));
     },
     deleteActiveSongbook: () => {
       if (!activeSongbook) return;
