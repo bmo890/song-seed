@@ -270,6 +270,25 @@ describe("recoverPendingRecordingSession", () => {
         expect(mockState.workspaces[0].ideas).toEqual([]);
     });
 
+    it("at launch, sweeps a shell the recorder left without ever starting a take", async () => {
+        // The recorder opened (making its idea), then the app closed before a take:
+        // no take marker, so only the launch sweep can find it.
+        mockState.workspaces[0].ideas = [shell, { ...shell, id: "idea-keeps", kind: "project" }];
+
+        await expect(recoverPendingRecordingSession()).resolves.toEqual({ status: "none" });
+        expect(mockState.workspaces[0].ideas.map((idea: { id: string }) => idea.id)).toEqual(["idea-keeps"]);
+    });
+
+    it("never sweeps the shell the recorder is holding, nor in session", async () => {
+        withShell();
+        await recoverPendingRecordingSession();
+        expect(mockState.workspaces[0].ideas).toHaveLength(1);
+
+        mockState.recordingIdeaId = null;
+        await recoverPendingRecordingSession({ lightweight: true });
+        expect(mockState.workspaces[0].ideas).toHaveLength(1);
+    });
+
     it("leaves the shell alone in session, where the recorder still holds it", async () => {
         withShell();
         mockFiles.set(TAKE_URI, unfinalizedTake(88_200));
