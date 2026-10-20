@@ -44,7 +44,7 @@ export function mergeRestoredLibrary(
             ...restored.collectionLastOpenedAt,
             ...current.collectionLastOpenedAt,
         },
-        workspaces: mergeWorkspaces(current.workspaces ?? [], restored.workspaces ?? []),
+        workspaces: mergeWorkspaces(current.workspaces ?? [], restored.workspaces ?? [], indexIds(current.workspaces ?? [])),
         activityEvents: unionById(current.activityEvents, restored.activityEvents),
         playlists: unionById(current.playlists, restored.playlists),
         songbooks: unionById(current.songbooks, restored.songbooks),
@@ -71,13 +71,61 @@ function unionById<T extends { id: string }>(
     return restoredOnly.length === 0 ? current : [...current, ...restoredOnly];
 }
 
-function mergeWorkspaces(current: Workspace[], restored: Workspace[]): Workspace[] {
+/**
+ * Every collection, idea and clip id anywhere in the current library. An item moved
+ * since the backup (an idea to another workspace, a take to another sketch) is
+ * "restored-only" in its old place; it must not come back there as a second copy with
+ * the same id (overnight check 2026-10-20).
+ */
+type LibraryIds = { collections: Set<string>; ideas: Set<string>; clips: Set<string> };
+
+function indexIds(workspaces: Workspace[]): LibraryIds {
+    const ids: LibraryIds = { collections: new Set(), ideas: new Set(), clips: new Set() };
+    for (const workspace of workspaces) {
+        for (const collection of workspace.collections) ids.collections.add(collection.id);
+        for (const idea of workspace.ideas) {
+            ids.ideas.add(idea.id);
+            for (const clip of idea.clips) ids.clips.add(clip.id);
+        }
+    }
+    return ids;
+}
+
+/** A restored-only idea, minus takes that now live elsewhere; null when nothing of it is left. */
+function restorableIdea(idea: SongIdea, taken: LibraryIds): SongIdea | null {
+    if (taken.ideas.has(idea.id)) return null;
+    const clips = idea.clips.filter((clip) => !taken.clips.has(clip.id));
+    if (clips.length === idea.clips.length) return idea;
+    // Every take moved on (into another sketch): the idea went with them.
+    if (clips.length === 0) return null;
+    // The primary take may have been one that moved: the first one left leads.
+    const hasPrimary = clips.some((clip) => clip.isPrimary);
+    return {
+        ...idea,
+        clips: hasPrimary ? clips : clips.map((clip, index) => (index === 0 ? { ...clip, isPrimary: true } : clip)),
+    };
+}
+
+function restorableWorkspace(workspace: Workspace, taken: LibraryIds): Workspace {
+    return {
+        ...workspace,
+        collections: workspace.collections.filter((collection) => !taken.collections.has(collection.id)),
+        ideas: workspace.ideas.flatMap((idea) => restorableIdea(idea, taken) ?? []),
+    };
+}
+
+function mergeWorkspaces(current: Workspace[], restored: Workspace[], taken: LibraryIds): Workspace[] {
     const restoredById = new Map(restored.map((workspace) => [workspace.id, workspace]));
     const merged = current.map((workspace) => {
         const restoredWorkspace = restoredById.get(workspace.id);
         if (!restoredWorkspace) return workspace;
-        const collections = unionById(workspace.collections, restoredWorkspace.collections);
-        const ideas = mergeIdeas(workspace.ideas, restoredWorkspace.ideas);
+        const collections = unionById(
+            workspace.collections,
+            restoredWorkspace.collections.filter(
+                (collection) => !taken.collections.has(collection.id)
+            )
+        );
+        const ideas = mergeIdeas(workspace.ideas, restoredWorkspace.ideas, taken);
         if (
             collections === workspace.collections &&
             ideas === workspace.ideas
@@ -88,30 +136,30 @@ function mergeWorkspaces(current: Workspace[], restored: Workspace[]): Workspace
         return { ...workspace, collections, ideas };
     });
     const currentIds = new Set(current.map((workspace) => workspace.id));
-    const restoredOnly = restored.filter((workspace) => !currentIds.has(workspace.id));
+    const restoredOnly = restored
+        .filter((workspace) => !currentIds.has(workspace.id))
+        .map((workspace) => restorableWorkspace(workspace, taken));
     return restoredOnly.length === 0 ? merged : [...merged, ...restoredOnly];
 }
 
-function mergeIdeas(current: SongIdea[], restored: SongIdea[]): SongIdea[] {
+function mergeIdeas(current: SongIdea[], restored: SongIdea[], taken: LibraryIds): SongIdea[] {
     const restoredById = new Map(restored.map((idea) => [idea.id, idea]));
     let changed = false;
     const merged = current.map((idea) => {
         const restoredIdea = restoredById.get(idea.id);
         if (!restoredIdea) return idea;
-        const clips = mergeClips(idea.clips, restoredIdea.clips);
+        const clips = mergeClips(idea.clips, restoredIdea.clips, taken);
         if (clips === idea.clips) return idea;
         changed = true;
         return { ...idea, clips };
     });
-    const currentIds = new Set(current.map((idea) => idea.id));
-    const restoredOnly = restored.filter((idea) => !currentIds.has(idea.id));
+    const restoredOnly = restored.flatMap((idea) => restorableIdea(idea, taken) ?? []);
     if (restoredOnly.length === 0) return changed ? merged : current;
     return [...merged, ...restoredOnly];
 }
 
-function mergeClips(current: ClipVersion[], restored: ClipVersion[]): ClipVersion[] {
-    const currentIds = new Set(current.map((clip) => clip.id));
-    const restoredOnly = restored.filter((clip) => !currentIds.has(clip.id));
+function mergeClips(current: ClipVersion[], restored: ClipVersion[], taken: LibraryIds): ClipVersion[] {
+    const restoredOnly = restored.filter((clip) => !taken.clips.has(clip.id));
     if (restoredOnly.length === 0) return current;
     // A song can only have one primary take: the current library's choice stands, so
     // returning backup-only clips must not bring a competing primary flag with them.

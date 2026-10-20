@@ -11,11 +11,8 @@ import { appActions } from "../../../state/actions";
 import { createEmptyProjectLyrics } from "../../../state/dataSlice";
 import { relocateActivityEvents, relocatePlaylists } from "../../../state/relocationMetadata";
 import { buildRuntimeCleanupPatch } from "../../../state/runtimeCleanup";
-import {
-  collectManagedIdeaAudioUris,
-  deleteManagedAudioUris,
-  filterUnreferencedManagedAudioUris,
-} from "../../../services/managedMedia";
+import { collectManagedIdeaAudioUris } from "../../../services/managedMedia";
+import { trashFilesNoLongerUsed } from "../../../state/mediaCleanup";
 import { authorizeIntentionalEmptyStateWrite } from "../../../services/stateIntegrity";
 import { buildDefaultIdeaTitle, ensureUniqueIdeaTitle, getBaseClipTitle } from "../../../utils";
 import type { ActivityEvent, IdeasHiddenDay, IdeasListState, Playlist, SongIdea, Workspace } from "../../../types";
@@ -99,14 +96,52 @@ function restoreCollectionUndoSnapshot(snapshot: CollectionUndoSnapshot) {
   }));
 }
 
-function deleteManagedAudioUrisIfStillUnreferenced(candidateUris: string[]) {
-  const urisToDelete = filterUnreferencedManagedAudioUris(
-    candidateUris,
-    useStore.getState().workspaces
-  );
-  if (urisToDelete.length === 0) return;
-  void deleteManagedAudioUris(urisToDelete).catch((error) => {
-    console.warn("[Collection] Deferred managed audio cleanup failed", error);
+/** Undo for a multi-delete: put back only the ideas (and their activity and playlist
+ *  entries) that the delete removed. Anything saved during the undo window stays. */
+function restoreDeletedIdeas(snapshot: CollectionUndoSnapshot, removedIdeaIds: Set<string>) {
+  useStore.setState((store) => {
+    const removedIdeas = snapshot.ideas.filter((idea) => removedIdeaIds.has(idea.id));
+    const nextWorkspaces = store.workspaces.map((workspace) => {
+      if (workspace.id !== snapshot.workspaceId) return workspace;
+      const present = new Set(workspace.ideas.map((idea) => idea.id));
+      const hiddenBefore = new Map(snapshot.collections.map((collection) => [collection.id, collection.ideasListState]));
+      return normalizeCollectionVisibility({
+        ...workspace,
+        ideas: [...workspace.ideas, ...removedIdeas.filter((idea) => !present.has(idea.id))],
+        // Bring back the deleted ideas' hidden state with them.
+        collections: workspace.collections.map((collection) => {
+          const before = hiddenBefore.get(collection.id);
+          if (!before) return collection;
+          const hidden = new Set(collection.ideasListState?.hiddenIdeaIds ?? []);
+          for (const id of before.hiddenIdeaIds ?? []) if (removedIdeaIds.has(id)) hidden.add(id);
+          return {
+            ...collection,
+            ideasListState: { hiddenDays: collection.ideasListState?.hiddenDays ?? [], hiddenIdeaIds: [...hidden] },
+          };
+        }),
+      });
+    });
+    const presentEvents = new Set(store.activityEvents.map((event) => event.id));
+    return {
+      workspaces: nextWorkspaces,
+      activityEvents: [
+        ...store.activityEvents,
+        ...snapshot.activityEvents.filter((event) => removedIdeaIds.has(event.ideaId) && !presentEvents.has(event.id)),
+      ].sort((a, b) => b.at - a.at),
+      playlists: store.playlists.map((playlist) => {
+        const before = snapshot.playlists.find((candidate) => candidate.id === playlist.id);
+        if (!before) return playlist;
+        const kept = new Set(playlist.items.map((item) => item.id));
+        // The playlist's order from before the delete, minus anything removed since.
+        return {
+          ...playlist,
+          items: [
+            ...before.items.filter((item) => kept.has(item.id) || removedIdeaIds.has(item.ideaId)),
+            ...playlist.items.filter((item) => !before.items.some((old) => old.id === item.id)),
+          ],
+        };
+      }),
+    };
   });
 }
 
@@ -280,9 +315,11 @@ export function CollectionFloatingActions() {
         })),
       };
     });
-    selection.showUndo(`Deleted ${deletedCount} item${deletedCount === 1 ? "" : "s"}`, () => {
-      restoreCollectionUndoSnapshot(previousSnapshot);
-    }, () => deleteManagedAudioUrisIfStillUnreferenced(candidateAudioUris));
+    // Same word as the confirm dialog: clips when every one was a clip.
+    const allClips = removedIdeas.every((idea) => idea.kind === "clip");
+    selection.showUndo(t(allClips ? "collection.deletedClipsUndo" : "collection.deletedUndo", { count: deletedCount }), () => {
+      restoreDeletedIdeas(previousSnapshot, selectedIdeaIds);
+    }, () => trashFilesNoLongerUsed(candidateAudioUris, "multi-delete"));
   };
 
   const hideIdeasFromList = async (ideaIds: string[]) => {
@@ -400,7 +437,7 @@ export function CollectionFloatingActions() {
       }),
     }));
     useStore.getState().cancelListSelection();
-    selection.showUndo(`Created song "${generatedTitle}"`, () => {
+    selection.showUndo(t("collection.madeSketchUndo", { title: generatedTitle }), () => {
       restoreCollectionUndoSnapshot(previousSnapshot);
     });
     store.setSelectedIdeaId(projectId);

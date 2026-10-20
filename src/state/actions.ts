@@ -17,7 +17,7 @@ import {
     ReceivedMeta,
 } from "../types";
 import { useStore } from "./useStore";
-import { createEmptyProjectLyrics, createEmptyWorkspaceIdeasListState, normalizeWorkspaces } from "./dataSlice";
+import { createEmptyProjectLyrics, createEmptyWorkspaceIdeasListState, ideaWorkspaceId, normalizeWorkspaces } from "./dataSlice";
 import { createLyricsVersion, lyricsTextToDocument } from "../domain/lyrics";
 import { cloneChordSheet } from "../domain/chordSheet";
 import { buildChordDisplay, clampChordIndex, graphemeCount, graphemeIndexToStringIndex, recordChordInPalette, type ChordParts } from "../domain/chords";
@@ -329,7 +329,11 @@ async function publishClipOverdubMixRerender(
         lastRenderedAt: Date.now(),
     });
 
-    if (currentMixUri && currentMixUri !== nextMix.audioUri) {
+    if (
+        currentMixUri &&
+        currentMixUri !== nextMix.audioUri &&
+        filterUnreferencedManagedAudioUris([currentMixUri], useStore.getState().workspaces).length > 0
+    ) {
         // Same discipline as the deletion flows: the state that stops referencing the
         // old mix file must be durable before that file is trashed. A skipped/failed
         // flush keeps the old file — persisted metadata may still point at it.
@@ -738,6 +742,25 @@ async function persistCurrentStoreSnapshot() {
     await forceManifestWrite(buildPersistedAppStoreSnapshot(useStore.getState()));
 }
 
+/**
+ * Before archive, unarchive or offload moves any file: make the LIBRARY durable, then the
+ * shadow manifest. These used to write only the manifest, so a kill in the few seconds
+ * before the debounced store write left the audio trashed while the library still pointed
+ * at it (overnight check 2026-10-20). A failed flush throws, and the caller keeps every file.
+ */
+async function persistBeforeFileMoves() {
+    await flushPersistedSnapshot();
+    await persistCurrentStoreSnapshot();
+}
+
+const ARCHIVE_PACK_ATTEMPTS = 3;
+
+/** What an archive package must hold: everything but derived waveform and duration
+ *  data, which background hydration may refresh while the package is written. */
+function archiveContentKey(workspace: Workspace): string {
+    return JSON.stringify(workspace, (key, value) => (/waveform|duration/i.test(key) ? undefined : value));
+}
+
 function buildWorkspaceArchivalState(
     store: ReturnType<typeof useStore.getState>,
     archivedWorkspace: Workspace
@@ -862,7 +885,8 @@ export const appActions = {
             useStore.getState().updateIdeas((ideas) =>
                 ideas.map((idea) =>
                     idea.id === ideaId ? { ...idea, collectionId: targetCollectionId } : idea
-                )
+                ),
+                { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, ideaId) }
             );
             return;
         }
@@ -1196,7 +1220,8 @@ export const appActions = {
                     ...idea,
                     clips: [importedClip, ...nextClips],
                 };
-            })
+            }),
+            { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, projectId) }
         );
         state.logIdeaActivity(projectId, "updated", "import", clipId);
         state.markRecentlyAdded([clipId]);
@@ -1505,12 +1530,19 @@ export const appActions = {
         const { state, stem } = resolveOverdubStem(ideaId, clipId, stemId);
 
         state.removeClipOverdubStem(ideaId, clipId, stemId);
-        if (stem.audioUri) {
+        // Only a file nothing in the library still points at is trashed: if the write
+        // didn't land, or a copied clip shares the layer, the file stays (overnight
+        // check 2026-10-20: a layer removed from a clip outside the active workspace
+        // used to lose its audio while the clip kept it).
+        const unused = stem.audioUri
+            ? filterUnreferencedManagedAudioUris([stem.audioUri], useStore.getState().workspaces)
+            : [];
+        if (unused.length > 0) {
             // Durably commit the removed stem reference before its file is trashed —
             // same flush-then-trash discipline as the clip/idea delete flows.
             try {
                 await flushPersistedSnapshot();
-                await deleteManagedAudioUris([stem.audioUri]);
+                await deleteManagedAudioUris(unused);
             } catch (error) {
                 console.warn("[DataSafety] Stem file kept — metadata was not durable.", error);
             }
@@ -1595,14 +1627,19 @@ export const appActions = {
                               return { ...clip, overdub: { ...clip.overdub, stems } };
                           }),
                       }
-            )
+            ),
+            { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, ideaId) }
         );
         latest.logIdeaActivity(ideaId, "updated", "recording", clipId);
 
-        const oldUris = picked.map((stem) => stem.audioUri!).filter(Boolean);
+        // Only files the library no longer points at (see removeClipOverdubStem).
+        const oldUris = filterUnreferencedManagedAudioUris(
+            picked.map((stem) => stem.audioUri!).filter(Boolean),
+            useStore.getState().workspaces
+        );
         try {
             await flushPersistedSnapshot();
-            await deleteManagedAudioUris(oldUris);
+            if (oldUris.length > 0) await deleteManagedAudioUris(oldUris);
         } catch (error) {
             console.warn("[DataSafety] Merged layers' files kept — metadata was not durable.", error);
         }
@@ -1698,7 +1735,7 @@ export const appActions = {
                     ? prev.filter((idea) => idea.id !== ideaId)
                     : prev;
                 return [flattenedIdea, ...remainingIdeas];
-            });
+            }, { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, ideaId) });
             state.markRecentlyAdded([nextIdeaId]);
             state.logActivityEvents([
                 {
@@ -1779,7 +1816,8 @@ export const appActions = {
                 }
 
                 return nextIdea;
-            })
+            }),
+            { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, ideaId) }
         );
         state.markRecentlyAdded([flattenedClipId]);
         state.logIdeaActivity(ideaId, "updated", "audio-edit", flattenedClipId);
@@ -1797,7 +1835,7 @@ export const appActions = {
     reorderClipsInSelectedIdea: (clips: ClipVersion[]) => {
         const state = useStore.getState();
         if (!state.selectedIdeaId) return;
-        state.updateIdeas((prev) => prev.map((i) => (i.id === state.selectedIdeaId ? { ...i, clips } : i)));
+        state.updateIdeas((prev) => prev.map((i) => (i.id === state.selectedIdeaId ? { ...i, clips } : i)), { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, state.selectedIdeaId) });
     },
 
     markBestClip: (clipId: string) => {
@@ -1808,7 +1846,8 @@ export const appActions = {
                 i.id !== state.selectedIdeaId
                     ? i
                     : { ...i, clips: i.clips.map((c) => ({ ...c, isPrimary: c.id === clipId })) }
-            )
+            ),
+            { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, state.selectedIdeaId) }
         );
     },
 
@@ -1822,7 +1861,7 @@ export const appActions = {
         if (status === "stem") completionPct = 50;
         if (status === "sprout") completionPct = 25;
 
-        state.updateIdeas((prev) => prev.map((i) => (i.id === selectedIdea.id ? { ...i, status, completionPct } : i)), { preserveActivity: true });
+        state.updateIdeas((prev) => prev.map((i) => (i.id === selectedIdea.id ? { ...i, status, completionPct } : i)), { preserveActivity: true, workspaceId: ideaWorkspaceId(useStore.getState().workspaces, selectedIdea.id) });
     },
 
     setIdeaCompletion: (completionPct: number) => {
@@ -1836,7 +1875,7 @@ export const appActions = {
         else if (stepped >= 50) status = "stem";
         else if (stepped >= 25) status = "sprout";
 
-        state.updateIdeas((prev) => prev.map((i) => (i.id === selectedIdea.id ? { ...i, completionPct: stepped, status } : i)), { preserveActivity: true });
+        state.updateIdeas((prev) => prev.map((i) => (i.id === selectedIdea.id ? { ...i, completionPct: stepped, status } : i)), { preserveActivity: true, workspaceId: ideaWorkspaceId(useStore.getState().workspaces, selectedIdea.id) });
     },
 
     setIdeaNotes: (notes: string) => {
@@ -1847,7 +1886,7 @@ export const appActions = {
             ?.ideas.find((i) => i.id === state.selectedIdeaId);
         if (!selectedIdea || selectedIdea.notes === notes) return;
 
-        state.updateIdeas((prev) => prev.map((i) => (i.id === state.selectedIdeaId ? { ...i, notes } : i)));
+        state.updateIdeas((prev) => prev.map((i) => (i.id === state.selectedIdeaId ? { ...i, notes } : i)), { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, state.selectedIdeaId) });
 
         if (selectedIdea.kind === "project") {
             state.logIdeaActivity(selectedIdea.id, "updated", "song-save");
@@ -1889,7 +1928,8 @@ export const appActions = {
                         versions: [...versions.slice(0, -1), nextVersion],
                     },
                 };
-            })
+            }),
+            { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, projectId) }
         );
         state.logIdeaActivity(projectId, "updated", "lyrics-save");
     },
@@ -1912,7 +1952,8 @@ export const appActions = {
                         versions: [...versions, createLyricsVersion(nextDocument, textDirection)],
                     },
                 };
-            })
+            }),
+            { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, projectId) }
         );
         state.logIdeaActivity(projectId, "updated", "lyrics-save");
     },
@@ -1964,7 +2005,8 @@ export const appActions = {
                     ...withChord,
                     chordPalette: recordChordInPalette(idea.chordPalette, placement, buildChordPaletteId(), now),
                 };
-            })
+            }),
+            { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, projectId) }
         );
         state.logIdeaActivity(projectId, "updated", "lyrics-save");
     },
@@ -1994,7 +2036,8 @@ export const appActions = {
                             : chord
                     ),
                 }));
-            })
+            }),
+            { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, projectId) }
         );
     },
 
@@ -2006,7 +2049,8 @@ export const appActions = {
                     ...line,
                     chords: line.chords.filter((chord) => chord.id !== chordId),
                 }));
-            })
+            }),
+            { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, projectId) }
         );
     },
 
@@ -2020,7 +2064,8 @@ export const appActions = {
                 const next =
                     sheet.sections.length > 0 ? { ...sheet, updatedAt: Date.now() } : undefined;
                 return { ...idea, chordSheet: next };
-            })
+            }),
+            { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, projectId) }
         );
         state.logIdeaActivity(projectId, "updated", "lyrics-save");
     },
@@ -2040,7 +2085,8 @@ export const appActions = {
                           chordPalette: recordChordInPalette(idea.chordPalette, chord, buildChordPaletteId(), now),
                       }
                     : idea
-            )
+            ),
+            { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, projectId) }
         );
     },
 
@@ -2083,7 +2129,8 @@ export const appActions = {
                         versions: (idea.lyrics?.versions ?? []).filter((version) => !versionIds.includes(version.id)),
                     },
                 };
-            })
+            }),
+            { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, projectId) }
         );
     },
 
@@ -2098,7 +2145,7 @@ export const appActions = {
             // was, in place — same id, same activity, nothing was saved.
             state.updateIdeas(
                 (prev) => prev.map((idea) => (idea.id === selectedIdea.id ? revertDraftToClipIdea(idea) : idea)),
-                { preserveActivity: true }
+                { preserveActivity: true, workspaceId: ideaWorkspaceId(useStore.getState().workspaces, selectedIdea.id) }
             );
         } else if (selectedIdea?.isDraft && selectedIdea.clips.length > 0) {
             // Discarding a draft gathered from clips: the clips go back to the
@@ -2341,7 +2388,7 @@ export const appActions = {
 
         const swapIn = (prev: SongIdea[]) => prev.map((idea) => (idea.id === clipIdea.id ? converted : idea));
         if (workspace.id === state.activeWorkspaceId) {
-            state.updateIdeas(swapIn, { preserveActivity: true });
+            state.updateIdeas(swapIn, { preserveActivity: true, workspaceId: ideaWorkspaceId(useStore.getState().workspaces, ideaId) });
         } else {
             // The player resolves clips across workspaces (queues, Received
             // packages), so the door may grow an idea that isn't in the active
@@ -3060,9 +3107,22 @@ export const appActions = {
             throw new Error("You must keep at least one active workspace.");
         }
 
-        const result = await archiveWorkspaceToDevice(workspace);
+        // Packing takes a while. If the workspace changed meanwhile (an import landed, an
+        // idea moved in), the package would miss it and the stub would erase it: pack again.
+        let packed = workspace;
+        let result = await archiveWorkspaceToDevice(packed);
+        for (let attempt = 1; ; attempt += 1) {
+            const live = useStore.getState().workspaces.find((item) => item.id === workspaceId) ?? null;
+            if (live && archiveContentKey(live) === archiveContentKey(packed)) break;
+            await deleteManagedArchiveUri(result.archiveState.archiveUri).catch(() => {});
+            if (!live || live.isArchived || attempt >= ARCHIVE_PACK_ATTEMPTS) {
+                throw new Error("The workspace changed while it was being archived.");
+            }
+            packed = live;
+            result = await archiveWorkspaceToDevice(packed);
+        }
         useStore.setState((store) => buildWorkspaceArchivalState(store, result.archivedWorkspace));
-        await persistCurrentStoreSnapshot();
+        await persistBeforeFileMoves();
         await upsertPendingWorkspaceArchiveOperation({
             kind: "archive-cleanup",
             workspaceId,
@@ -3070,7 +3130,10 @@ export const appActions = {
             originalAudioUris: result.originalAudioUris,
             createdAt: Date.now(),
         });
-        await deleteManagedAudioUris(result.originalAudioUris);
+        // Only what nothing else uses: a copied idea elsewhere shares its audio files.
+        await deleteManagedAudioUris(
+            filterUnreferencedManagedAudioUris(result.originalAudioUris, useStore.getState().workspaces)
+        );
         await clearPendingWorkspaceArchiveOperation(workspaceId);
         return result;
     },
@@ -3134,7 +3197,7 @@ export const appActions = {
             ),
             activeWorkspaceId: store.activeWorkspaceId ?? workspaceId,
         }));
-        await persistCurrentStoreSnapshot();
+        await persistBeforeFileMoves();
         if (!offloaded) {
             await upsertPendingWorkspaceArchiveOperation({
                 kind: "unarchive-cleanup",
@@ -3194,7 +3257,7 @@ export const appActions = {
         }));
         // Persist the offload marker BEFORE deleting: if we die in between, the journal
         // finishes the delete on next launch (and only because the marker is persisted).
-        await persistCurrentStoreSnapshot();
+        await persistBeforeFileMoves();
         await upsertPendingWorkspaceArchiveOperation({
             kind: "offload-cleanup",
             workspaceId,

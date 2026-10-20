@@ -3,7 +3,7 @@ import { AppAlert } from "../../common/AppAlert";
 import { appActions } from "../../../state/actions";
 import type { Collection, Workspace } from "../../../types";
 import { buildCollectionMoveDestinations, getCollectionDeleteScope } from "../../../domain/collectionManagement";
-import { personalWorkspaces } from "../../../domain/workspaceVisibility";
+import { writableWorkspaces } from "../../../domain/workspaceVisibility";
 import { useStore } from "../../../state/useStore";
 import { createCollectionShareLink, shareCollectionFile } from "../../../services/placeShare";
 import { openSendSheet } from "../../../state/useSendSheetStore";
@@ -58,7 +58,7 @@ export function useCollectionManagement({
     // Exclude received packages — they're never a move target.
     () =>
       buildCollectionMoveDestinations(
-        personalWorkspaces(workspaces),
+        writableWorkspaces(workspaces),
         managedCollection,
         activeWorkspaceId
       ),

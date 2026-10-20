@@ -52,7 +52,7 @@ import {
 import { nativeTempoMapSegments } from "../../../domain/playbackClick";
 import { describeGridPosition, resolveResumeClickPhase } from "../../../domain/resumeClickPhase";
 import { buildSaveDestinations, resolveSaveDestinationLabel, type SaveDestination } from "../../../domain/collectionManagement";
-import { personalWorkspaces } from "../../../domain/workspaceVisibility";
+import { writableWorkspaces } from "../../../domain/workspaceVisibility";
 import { authorizeIntentionalEmptyStateWrite } from "../../../services/stateIntegrity";
 import { selfAlignClipGrid } from "../../../services/gridSelfAlignment";
 import { ensureWaveformSidecar } from "../../../services/waveformSidecar";
@@ -231,7 +231,7 @@ export function useRecordingScreenModel() {
   const saveDestinations = useMemo(
     // Creation surface: recordings may only target the user's OWN workspaces —
     // a received package must never be offered as a save destination.
-    () => (canPickSaveDestination ? buildSaveDestinations(personalWorkspaces(workspaces), activeWorkspaceId) : []),
+    () => (canPickSaveDestination ? buildSaveDestinations(writableWorkspaces(workspaces), activeWorkspaceId) : []),
     [canPickSaveDestination, workspaces, activeWorkspaceId]
   );
   const defaultDestinationLabel = recordingIdea

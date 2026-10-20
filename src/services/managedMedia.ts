@@ -1,5 +1,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import type { ClipVersion, SongIdea, Workspace } from "../types";
+import { planTrashRestores } from "../domain/trashRestore";
+import { persistLog } from "./persistLog";
 import {
     isManagedPreviewAudioUri,
     SONG_NOOK_SHARE_DIR,
@@ -190,6 +192,61 @@ export async function quarantineManagedPaths(paths: Iterable<string>) {
 
 export async function cleanupShareTempFile(fileUri: string) {
     await hardDeleteFileIfManaged(fileUri);
+}
+
+/** Every managed file the library points at that should be on disk: each clip's audio
+ *  (take, source, mix, layers) and each archived workspace's package. */
+function collectReferencedManagedUris(workspaces: Workspace[]): Set<string> {
+    const uris = collectManagedAudioUrisFromWorkspaces(workspaces);
+    for (const workspace of workspaces) {
+        const archivePath = toRelativeManagedPath(workspace.archiveState?.archiveUri);
+        if (archivePath) uris.add(resolveManagedUri(archivePath));
+    }
+    return uris;
+}
+
+/**
+ * The trash safety net (domain/trashRestore.ts): move back any file the library still
+ * points at but that sits in the trash. Runs on launch BEFORE the purge, so a mistaken
+ * delete is undone before its 14 days run out. Only ever moves files out of the trash
+ * into a place that is empty; never overwrites. Returns how many came back.
+ */
+export async function restoreReferencedFilesFromTrash(workspaces: Workspace[]): Promise<number> {
+    try {
+        const trashInfo = await FileSystem.getInfoAsync(SONG_NOOK_TRASH_DIR);
+        if (!trashInfo.exists) return 0;
+        const trashNames = await FileSystem.readDirectoryAsync(SONG_NOOK_TRASH_DIR);
+        if (trashNames.length === 0) return 0;
+
+        const missing: string[] = [];
+        for (const uri of collectReferencedManagedUris(workspaces)) {
+            const info = await FileSystem.getInfoAsync(uri).catch(() => null);
+            if (info && !info.exists) missing.push(uri);
+        }
+        if (missing.length === 0) return 0;
+
+        let restored = 0;
+        for (const { trashName, to } of planTrashRestores(missing, trashNames)) {
+            try {
+                const parent = to.slice(0, to.lastIndexOf("/"));
+                await FileSystem.makeDirectoryAsync(parent, { intermediates: true }).catch(() => {});
+                // Re-check right before the move: something may have written the file since.
+                const target = await FileSystem.getInfoAsync(to);
+                if (target.exists) continue;
+                await FileSystem.moveAsync({ from: `${SONG_NOOK_TRASH_DIR}/${trashName}`, to });
+                restored += 1;
+            } catch (error) {
+                console.warn("[ManagedMedia] Failed to restore a file from the trash", to, error);
+            }
+        }
+        if (restored > 0) {
+            persistLog("media.untrashed", `${restored} of ${missing.length} missing file(s) back from the trash`);
+        }
+        return restored;
+    } catch (error) {
+        console.warn("[ManagedMedia] Trash restore sweep failed", error);
+        return 0;
+    }
 }
 
 /**

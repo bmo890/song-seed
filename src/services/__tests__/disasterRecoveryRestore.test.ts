@@ -383,7 +383,7 @@ describe("restoreFromDisasterRecoveryBackup", () => {
 
         await restoreFromDisasterRecoveryBackup(ARCHIVE_URI, {
             mode: "merge",
-            currentSnapshot: snapshot() as never,
+            currentSnapshot: (() => snapshot()) as never,
         });
 
         expect(mockWriteSatelliteSnapshot).toHaveBeenCalledWith(SATELLITES, "merge");
@@ -457,20 +457,28 @@ describe("restoreFromDisasterRecoveryBackup", () => {
         const currentSnapshot = snapshot();
         const currentClips = currentSnapshot.workspaces[0].ideas[0].clips;
         currentClips[0].title = "Edited after backup";
-        currentClips.push({
-            id: "clip-2",
-            title: "Recorded after backup",
-            notes: "",
-            createdAt: 10,
-            isPrimary: false,
-            audioUri: "songnook/audio/clip-new.m4a",
-        });
+        const recordDuringRestore = () => {
+            if (currentClips.some((clip: { id: string }) => clip.id === "clip-2")) return;
+            currentClips.push({
+                id: "clip-2",
+                title: "Recorded after backup",
+                notes: "",
+                createdAt: 10,
+                isPrimary: false,
+                audioUri: "songnook/audio/clip-new.m4a",
+            });
+        };
 
+        // The take is saved WHILE the restore verifies (overnight check 2026-10-20: a
+        // snapshot taken at the start dropped it). The merge reads the library at commit.
         await restoreFromDisasterRecoveryBackup(ARCHIVE_URI, {
             mode: "merge",
-            currentSnapshot: currentSnapshot as never,
+            currentSnapshot: (() => currentSnapshot) as never,
             displacedWorkspaces: currentSnapshot.workspaces as never,
-        });
+            onProgress: (progress: { phase: string }) => {
+                if (progress.phase === "verifying") recordDuringRestore();
+            },
+        } as never);
 
         const persisted = JSON.parse(mockPersistRawSnapshot.mock.calls[0][1]);
         const mergedClips = persisted.state.workspaces[0].ideas[0].clips;
@@ -525,7 +533,7 @@ describe("restoreFromDisasterRecoveryBackup", () => {
         await expect(
             restoreFromDisasterRecoveryBackup(ARCHIVE_URI, {
                 mode: "merge",
-                currentSnapshot: currentSnapshot as never,
+                currentSnapshot: (() => currentSnapshot) as never,
             })
         ).rejects.toThrow("older app version");
         expect(mockPersistRawSnapshot).not.toHaveBeenCalled();

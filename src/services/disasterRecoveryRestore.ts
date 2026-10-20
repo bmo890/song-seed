@@ -87,8 +87,12 @@ export type DisasterRecoveryRestoreOptions = BackupOperationOptions & {
      * backup-only items are restored into it, and NOTHING is displaced or quarantined.
      */
     mode?: DisasterRecoveryRestoreMode;
-    /** Required for merge mode: the live library snapshot to merge the restored one into. */
-    currentSnapshot?: PersistedAppStore;
+    /**
+     * Required for merge mode: the live library to merge the restored one into. Read at
+     * commit time, after writes are blocked, so anything saved while the restore ran
+     * (a take recorded during a ten-minute verify) is part of the merge.
+     */
+    currentSnapshot?: () => PersistedAppStore;
     /**
      * Salvage: restore an INCOMPLETE backup (one that recorded missing critical
      * recordings when it was created), dropping the affected items and restoring
@@ -442,10 +446,11 @@ export async function restoreFromDisasterRecoveryBackup(
         // Merge: fold the restored snapshot into the current library (current wins
         // collisions; backup-only items return). Current media URIs are stored relative,
         // matching the restored snapshot's style, so hydration rebases both uniformly.
-        const snapshotToCommit = mergeMode
+        const liveSnapshot = mergeMode ? options!.currentSnapshot!() : null;
+        const snapshotToCommit = liveSnapshot
             ? mergeRestoredLibrary(prepared.snapshot, {
-                  ...options!.currentSnapshot!,
-                  workspaces: toRelativeWorkspacesManagedMedia(options!.currentSnapshot!.workspaces),
+                  ...liveSnapshot,
+                  workspaces: toRelativeWorkspacesManagedMedia(liveSnapshot.workspaces),
               })
             : prepared.snapshot;
         await persistRawSnapshot(

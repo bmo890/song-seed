@@ -174,6 +174,36 @@ async function clearFallbackMarker(): Promise<void> {
     }
 }
 
+/**
+ * A write that just landed in SQLite supersedes whatever the fallback still holds for
+ * the same keys: those parked rows are OLDER now and must never be replayed over it
+ * (overnight check 2026-10-20: the replay rewound the meta row and the active workspace
+ * to the failed write's values, losing the take saved in between). Drops the keys from
+ * the marker and their AsyncStorage mirrors. Runs inside the write queue.
+ */
+async function forgetSupersededFallbackRows(keys: Iterable<string>): Promise<void> {
+    const marker = await readFallbackMarker();
+    if (!marker) return;
+    const superseded = new Set(keys);
+    const stillParked = marker.keys.filter((key) => !superseded.has(key));
+    const stillDeleted = marker.deletedKeys.filter((key) => !superseded.has(key));
+    if (stillParked.length === marker.keys.length && stillDeleted.length === marker.deletedKeys.length) return;
+    for (const key of marker.keys) {
+        if (superseded.has(key)) await AsyncStorage.removeItem(key).catch(() => {});
+    }
+    if (stillParked.length === 0 && stillDeleted.length === 0) {
+        await clearFallbackMarker();
+        return;
+    }
+    const next: FallbackMarker = { keys: stillParked, deletedKeys: stillDeleted, at: marker.at };
+    fallbackMarkerCache = next;
+    try {
+        await AsyncStorage.setItem(FALLBACK_MARKER_KEY, JSON.stringify(next));
+    } catch {
+        // Worst case the boot replay re-reads a mirror we just removed: it is skipped.
+    }
+}
+
 export type FallbackReplayResult =
     | { status: "none" }
     | { status: "replayed"; keys: number; deletedKeys: number }
@@ -403,6 +433,9 @@ export async function getKvNewestUpdatedAt(exactKeys: string[], prefixes: string
     }
 }
 
+/** Where a sharded write ended up: SQLite, parked in the fallback for replay, or nowhere. */
+export type ShardedWriteOutcome = "sqlite" | "fallback" | "lost";
+
 /**
  * Commit a sharded snapshot write atomically: all row writes + deletions in ONE SQLite
  * transaction, so a crash can never leave the meta row's workspaceIds pointing at a
@@ -420,11 +453,13 @@ export async function commitShardedWrite(
          *  instead of resolving as if the rows had landed. */
         strict?: boolean;
     }
-): Promise<void> {
+): Promise<ShardedWriteOutcome> {
     const pendingWrites = writes.filter((row) => lastWritten.get(row.key) !== row.value);
     // DELETE is idempotent, so no need to dedupe deletes against the cache.
     const pendingDeletes = deletes;
-    if (pendingWrites.length === 0 && pendingDeletes.length === 0) return;
+    if (pendingWrites.length === 0 && pendingDeletes.length === 0) return "sqlite";
+
+    let outcome: ShardedWriteOutcome = "lost";
 
     let landedInSqlite = false;
     let sqliteError: unknown = null;
@@ -451,14 +486,19 @@ export async function commitShardedWrite(
             );
             for (const row of pendingWrites) lastWritten.set(row.key, row.value);
             for (const key of pendingDeletes) lastWritten.delete(key);
+            await forgetSupersededFallbackRows([...pendingWrites.map((row) => row.key), ...pendingDeletes]);
             persistLog("write.sqlite", {
                 ms: Date.now() - startedAt,
                 detail: `${pendingWrites.length} rows, ${pendingDeletes.length} deletes`,
             });
             landedInSqlite = true;
+            outcome = "sqlite";
             reportPersistWriteSuccess();
         } catch (err) {
-            // Do NOT update lastWritten on failure, so the next write retries SQLite.
+            // Forget what SQLite last held for these keys, so the next write retries every
+            // one of them, even one whose value has gone back to what SQLite already has
+            // (the parked row would otherwise be replayed over it).
+            for (const row of pendingWrites) lastWritten.delete(row.key);
             console.warn("[sqliteStorage] commitShardedWrite fell back to AsyncStorage:", err);
             logWriteFailure(err, "commitShardedWrite");
             let anyRowLost = false;
@@ -488,6 +528,7 @@ export async function commitShardedWrite(
                 persistLog("write.failed", `commitShardedWrite: ${pendingWrites.length - landed.length} rows lost`);
                 reportPersistWriteFailure();
             } else {
+                outcome = "fallback";
                 reportPersistWriteFallback();
             }
             sqliteError = err;
@@ -499,7 +540,7 @@ export async function commitShardedWrite(
         persistLog("write.failed", `commitShardedWrite queue: ${describeError(err)}`);
         reportPersistWriteFailure();
         if (options?.strict) throw err;
-        return;
+        return "lost";
     }
     if (options?.strict && !landedInSqlite) {
         throw sqliteError instanceof Error ? sqliteError : new Error("commitShardedWrite: SQLite write failed");
@@ -509,6 +550,7 @@ export async function commitShardedWrite(
     if (landedInSqlite && fallbackMarkerCache) {
         await replayPendingFallbackWrites().catch(() => undefined);
     }
+    return outcome;
 }
 
 /**
@@ -574,6 +616,7 @@ export async function persistRawSnapshot(name: string, value: string): Promise<v
                 )
             );
             lastWritten.set(name, value);
+            await forgetSupersededFallbackRows([name]);
             persistLog("flush.ok", { ms: Date.now() - startedAt });
             reportPersistWriteSuccess();
         } catch (error) {

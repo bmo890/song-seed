@@ -56,7 +56,9 @@ export type PersistLogEvent =
     | "recording.recovered"
     | "step.slow"
     | "record.trace"
-    | "record.timing";
+    | "record.timing"
+    // Media safety net
+    | "media.untrashed";
 
 export type PersistLogEntry = {
     at: string;
@@ -82,6 +84,8 @@ const ALARM_EVENTS = new Set<PersistLogEvent>([
     "manifest.failed",
     "manifest.newer",
     "recording.flushFailed",
+    // A file came back from the trash: something deleted audio still in use.
+    "media.untrashed",
 ]);
 
 let entries: PersistLogEntry[] | null = null;

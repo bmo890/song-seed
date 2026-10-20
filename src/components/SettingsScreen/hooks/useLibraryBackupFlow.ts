@@ -352,7 +352,7 @@ export function useLibraryBackupFlow() {
                 mode,
                 currentSnapshot:
                     mode === "merge"
-                        ? buildPersistedAppStoreSnapshot(useStore.getState())
+                        ? () => buildPersistedAppStoreSnapshot(useStore.getState())
                         : undefined,
                 allowIncomplete,
             });

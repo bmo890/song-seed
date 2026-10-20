@@ -21,6 +21,16 @@ export function personalWorkspaces(workspaces: Workspace[]): Workspace[] {
   return workspaces.filter((workspace) => !isReceivedWorkspace(workspace));
 }
 
+/**
+ * Where new work may land: the user's own workspaces that are not archived. An archived
+ * workspace's audio is packed away in its archive, so anything saved or moved into it
+ * would sit outside that archive and be lost on the next unarchive. Save and move
+ * pickers use this; the workspace list itself still shows archived ones.
+ */
+export function writableWorkspaces(workspaces: Workspace[]): Workspace[] {
+  return workspaces.filter((workspace) => !isReceivedWorkspace(workspace) && !workspace.isArchived);
+}
+
 /** Received packages — what the Received page lists, newest first. */
 export function receivedPackages(workspaces: Workspace[]): Workspace[] {
   return workspaces

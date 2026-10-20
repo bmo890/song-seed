@@ -343,7 +343,16 @@ export type DataSlice = {
 
     addIdea: (title: string, collectionId: string) => string;
     quickRecordIdea: (title: string, collectionId: string) => string;
-    updateIdeas: (updater: (prev: SongIdea[]) => SongIdea[], options?: { preserveActivity?: boolean }) => void;
+    /**
+     * Rewrite one workspace's ideas: the ACTIVE workspace unless `workspaceId` names
+     * another. An edit to an idea that may live outside the active workspace (the player
+     * opens clips from anywhere) must name its workspace, or the write silently does
+     * nothing (overnight check 2026-10-20; see ideaWorkspaceId).
+     */
+    updateIdeas: (
+        updater: (prev: SongIdea[]) => SongIdea[],
+        options?: { preserveActivity?: boolean; workspaceId?: string | null }
+    ) => void;
     setClipManualSortOrder: (ideaId: string, orderedClipIds: string[]) => void;
     addClipVersion: (
         targetIdeaId: string,
@@ -1057,6 +1066,12 @@ function normalizeIdea(idea: SongIdea): SongIdea {
  * library subscriber (2026-09-24). An updater that returns the same idea is a no-op:
  * the state object itself is returned, so nobody is notified and nothing persists.
  */
+/** The workspace that holds an idea, or null. Edits keyed by idea id pass it to
+ *  updateIdeas so they land wherever the idea lives, not just in the active workspace. */
+export function ideaWorkspaceId(workspaces: Workspace[], ideaId: string): string | null {
+    return workspaces.find((workspace) => workspace.ideas.some((idea) => idea.id === ideaId))?.id ?? null;
+}
+
 function updateIdeaInState<S extends { workspaces: Workspace[] }>(
     state: S,
     ideaId: string,
@@ -2348,7 +2363,8 @@ export const createDataSlice: StateCreator<
                                     }
                           ),
                       }
-            )
+            ),
+            { workspaceId: ideaWorkspaceId(get().workspaces, ideaId) }
         );
     },
 
@@ -2374,7 +2390,8 @@ export const createDataSlice: StateCreator<
                                     }
                           ),
                       }
-            )
+            ),
+            { workspaceId: ideaWorkspaceId(get().workspaces, ideaId) }
         );
     },
 
@@ -2398,7 +2415,8 @@ export const createDataSlice: StateCreator<
                                     }
                           ),
                       }
-            )
+            ),
+            { workspaceId: ideaWorkspaceId(get().workspaces, ideaId) }
         );
     },
 
@@ -2420,7 +2438,8 @@ export const createDataSlice: StateCreator<
                                     }
                           ),
                       }
-            )
+            ),
+            { workspaceId: ideaWorkspaceId(get().workspaces, ideaId) }
         );
     },
 
@@ -2445,7 +2464,8 @@ export const createDataSlice: StateCreator<
                                     }
                           ),
                       }
-            )
+            ),
+            { workspaceId: ideaWorkspaceId(get().workspaces, ideaId) }
         );
     },
 
@@ -2470,7 +2490,8 @@ export const createDataSlice: StateCreator<
                                     }
                           ),
                       }
-            )
+            ),
+            { workspaceId: ideaWorkspaceId(get().workspaces, ideaId) }
         );
     },
 
@@ -2896,11 +2917,12 @@ export const createDataSlice: StateCreator<
     updateIdeas: (updater, options) => {
         set((state) => {
             const { activeWorkspaceId, workspaces } = state;
-            if (!activeWorkspaceId) return state;
+            const targetWorkspaceId = options?.workspaceId ?? activeWorkspaceId;
+            if (!targetWorkspaceId) return state;
 
             const now = Date.now();
             const nextWorkspaces = workspaces.map((ws) =>
-                    ws.id === activeWorkspaceId
+                    ws.id === targetWorkspaceId
                         ? (() => {
                             const prevIdeas = ws.ideas;
                             const prevIdeaMap = new Map(prevIdeas.map((idea) => [idea.id, idea]));
