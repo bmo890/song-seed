@@ -3,6 +3,7 @@ import Animated from "react-native-reanimated";
 import { popIn } from "../../design/motion";
 import { colors, radii } from "../../design/tokens";
 import { ModalDialogLayer } from "./AppDialog";
+import { ModalGestureRoot } from "./ModalGestureRoot";
 
 type Props = {
   visible: boolean;
@@ -16,28 +17,30 @@ type Props = {
 export function WarmModal({ visible, onRequestClose, title, children, scrollable }: Props) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onRequestClose}>
-      <View style={warmModalStyles.backdropFill} />
-      <KeyboardAvoidingView style={warmModalStyles.avoid} behavior="padding">
-        <View style={warmModalStyles.center}>
-          <Animated.View style={warmModalStyles.card} entering={popIn}>
-            {title ? <Text style={warmModalStyles.title}>{title}</Text> : null}
-            {scrollable ? (
-              <ScrollView
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={warmModalStyles.scrollContent}
-              >
-                {children}
-              </ScrollView>
-            ) : (
-              children
-            )}
-          </Animated.View>
-        </View>
-      </KeyboardAvoidingView>
-      {/* Dialogs raised while this modal is open draw here, above the card: the
-          layer name sheet's "Review overdub" used to jam every later dialog. */}
-      <ModalDialogLayer active={visible} />
+      <ModalGestureRoot>
+        <View style={warmModalStyles.backdropFill} />
+        <KeyboardAvoidingView style={warmModalStyles.avoid} behavior="padding">
+          <View style={warmModalStyles.center}>
+            <Animated.View style={warmModalStyles.card} entering={popIn}>
+              {title ? <Text style={warmModalStyles.title}>{title}</Text> : null}
+              {scrollable ? (
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={warmModalStyles.scrollContent}
+                >
+                  {children}
+                </ScrollView>
+              ) : (
+                children
+              )}
+            </Animated.View>
+          </View>
+        </KeyboardAvoidingView>
+        {/* Dialogs raised while this modal is open draw here, above the card: the
+            layer name sheet's "Review overdub" used to jam every later dialog. */}
+        <ModalDialogLayer active={visible} />
+      </ModalGestureRoot>
     </Modal>
   );
 }
