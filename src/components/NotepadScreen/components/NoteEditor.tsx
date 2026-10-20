@@ -22,6 +22,7 @@ import { styles } from "../../../styles";
 import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
 import type { ContentDirection, Note } from "../../../types";
 import { AppAlert } from "../../common/AppAlert";
+import { PopoverMenuLabel, PopoverRadioRow } from "../../common/PopoverMenu";
 import { WordFinderSheet } from "../../common/WordFinderSheet";
 import { applyPickedWord, extractWordRange } from "../../../domain/wordTools";
 import { useEditHistory } from "../../../hooks/useEditHistory";
@@ -278,51 +279,53 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
               <Ionicons name="book-outline" size={20} color={colors.textSecondary} />
             </Pressable>
 
-            {/* Text direction (auto / ltr / rtl) */}
+            {/* The page's "…" (2026-10-20): direction, pin, then delete behind
+                its hairline. Destruction never sits bare in the header. */}
             <Pressable
               style={({ pressed }) => [editorStyles.iconBtn, pressed ? styles.pressDown : null]}
-              onPress={() => setDirectionMenuVisible((visible) => !visible)}
-              accessibilityLabel={t("lyrics.textDirection")}
+              onPress={() =>
+                AppAlert.menu(note.title || t("screens.lyricsPad"), [
+                  {
+                    key: "direction",
+                    label: t("lyrics.textDirection"),
+                    icon: "swap-horizontal-outline",
+                    opens: true,
+                    onPress: () => setDirectionMenuVisible(true),
+                  },
+                  {
+                    key: "pin",
+                    label: note.isPinned ? t("notepad.unpin") : t("notepad.pin"),
+                    icon: note.isPinned ? "bookmark" : "bookmark-outline",
+                    onPress: () => onTogglePin(note.id),
+                  },
+                  {
+                    key: "delete",
+                    label: t("notepad.delete"),
+                    icon: "trash-outline",
+                    tone: "danger",
+                    onPress: handleDeletePress,
+                  },
+                ])
+              }
+              accessibilityLabel={t("notepad.more")}
             >
               <Ionicons name="ellipsis-horizontal" size={20} color={colors.textSecondary} />
-            </Pressable>
-
-            {/* Pin */}
-            <Pressable
-              style={({ pressed }) => [editorStyles.iconBtn, pressed ? styles.pressDown : null]}
-              onPress={() => onTogglePin(note.id)}
-            >
-              <Ionicons
-                name={note.isPinned ? "bookmark" : "bookmark-outline"}
-                size={20}
-                color={note.isPinned ? colors.primary : colors.textSecondary}
-              />
-            </Pressable>
-
-            {/* Delete (with confirmation) */}
-            <Pressable
-              style={({ pressed }) => [editorStyles.iconBtn, pressed ? styles.pressDown : null]}
-              onPress={handleDeletePress}
-            >
-              <Ionicons name="trash-outline" size={20} color={colors.textSecondary} />
             </Pressable>
           </View>
         </View>
 
         {directionMenuVisible ? (
-          <View style={editorStyles.directionMenu}>
-            <Text style={editorStyles.directionLabel}>{t("lyrics.textDirection")}</Text>
+          // The one popover card and its radio rows (menus law 2026-10-15; was
+          // a grey box in the system font).
+          <View style={[styles.ideasSortMenu, editorStyles.directionMenu]}>
+            <PopoverMenuLabel>{t("lyrics.textDirection")}</PopoverMenuLabel>
             {(["auto", "ltr", "rtl"] as ContentDirection[]).map((option) => (
-              <Pressable
+              <PopoverRadioRow
                 key={option}
-                style={[editorStyles.directionOption, option === noteDirection ? editorStyles.directionOptionActive : null]}
+                label={t(option === "auto" ? "lyrics.directionAuto" : option === "ltr" ? "lyrics.directionLtr" : "lyrics.directionRtl")}
+                selected={option === noteDirection}
                 onPress={() => handleSetDirection(option)}
-              >
-                <Text style={editorStyles.directionOptionText}>
-                  {t(option === "auto" ? "lyrics.directionAuto" : option === "ltr" ? "lyrics.directionLtr" : "lyrics.directionRtl")}
-                </Text>
-                {option === noteDirection ? <Ionicons name="checkmark" size={16} color={colors.primary} /> : null}
-              </Pressable>
+              />
             ))}
           </View>
         ) : null}
@@ -477,35 +480,12 @@ const editorStyles = StyleSheet.create({
   },
   flashWord: {
     color: "transparent",
-    backgroundColor: "rgba(184,125,107,0.28)", // colors.primary (terracotta) @ 28%
+    backgroundColor: colors.primaryOutline,
   },
   directionMenu: {
     alignSelf: "flex-start",
     minWidth: 220,
     marginHorizontal: spacing.lg,
     marginBottom: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceHigh,
-  },
-  directionLabel: {
-    color: colors.textMuted,
-    fontSize: 12,
-    marginBottom: spacing.xs,
-  },
-  directionOption: {
-    minHeight: 38,
-    paddingHorizontal: spacing.sm,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  directionOptionActive: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.sm,
-  },
-  directionOptionText: {
-    color: colors.textStrong,
-    fontSize: 14,
   },
 });
