@@ -315,7 +315,9 @@ export function CollectionFloatingActions() {
         })),
       };
     });
-    selection.showUndo(t("collection.deletedUndo", { count: deletedCount }), () => {
+    // Same word as the confirm dialog: clips when every one was a clip.
+    const allClips = removedIdeas.every((idea) => idea.kind === "clip");
+    selection.showUndo(t(allClips ? "collection.deletedClipsUndo" : "collection.deletedUndo", { count: deletedCount }), () => {
       restoreDeletedIdeas(previousSnapshot, selectedIdeaIds);
     }, () => trashFilesNoLongerUsed(candidateAudioUris, "multi-delete"));
   };

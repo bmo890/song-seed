@@ -249,6 +249,8 @@ export const resources = {
       collection: {
         deletedUndo_one: "Deleted {{count}} idea",
         deletedUndo_other: "Deleted {{count}} ideas",
+        deletedClipsUndo_one: "Deleted {{count}} clip",
+        deletedClipsUndo_other: "Deleted {{count}} clips",
         madeSketchUndo: "Made “{{title}}”",
         share: "Share", shareTitle: "Share collection", shareFile: "Export", getLink: "SongNook Send", nothingShare: "Nothing to share", nothingShareBody: "Add an idea to this collection first.", shareFailed: "Share failed", shareFailedBody: "Could not share this collection.",
         title: "Collection",
@@ -1851,6 +1853,9 @@ export const resources = {
         deletedUndo_one: "רעיון אחד נמחק",
         deletedUndo_two: "שני רעיונות נמחקו",
         deletedUndo_other: "{{count}} רעיונות נמחקו",
+        deletedClipsUndo_one: "קטע אחד נמחק",
+        deletedClipsUndo_two: "שני קטעים נמחקו",
+        deletedClipsUndo_other: "{{count}} קטעים נמחקו",
         madeSketchUndo: "נוצרה “{{title}}”",
         share: "שיתוף", shareTitle: "שיתוף האוסף", shareFile: "ייצוא", getLink: "SongNook Send", nothingShare: "אין מה לשתף", nothingShareBody: "הוסיפו קודם רעיון לאוסף הזה.", shareFailed: "השיתוף נכשל", shareFailedBody: "לא ניתן לשתף את האוסף הזה.",
         title: "אוסף",
