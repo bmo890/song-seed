@@ -26,6 +26,7 @@ import { shareChordSheetPdf } from "../../services/chordChartPdf";
 import { ensurePro } from "../common/proUpsell";
 import type { ChordSheet, SongIdea } from "../../types";
 import { useTranslation } from "react-i18next";
+import { afterOverlayCloses } from "../common/afterOverlayCloses";
 
 // index === null adds a chord to the bar; a number edits the chord at that index.
 type PickerTarget = { sectionId: string; measureId: string; index: number | null };
@@ -417,7 +418,10 @@ export function useChordSheetModel(ideaIdOverride?: string, options?: { startEdi
       AppAlert.info(t("chordChart.nothingShare"), t("chordChart.addChartFirst"));
       return;
     }
-    void Share.share({ title: t("chordChart.shareTitle", { title: projectIdea.title }), message: text });
+    // The export sheet is still closing; iOS won't present the share sheet over it.
+    void afterOverlayCloses().then(() =>
+      Share.share({ title: t("chordChart.shareTitle", { title: projectIdea.title }), message: text })
+    );
   };
 
   return {
