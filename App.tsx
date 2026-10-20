@@ -100,7 +100,7 @@ import type {
 import { openIdeaInCollection, registerRootNavigation } from "./src/navigation";
 import { beginUiActivity, endUiActivity } from "./src/services/interactionGate";
 import { countReceivedPackages, unopenedReceivedCount } from "./src/domain/workspaceVisibility";
-import { cleanupStaleShareTempFiles, purgeExpiredTrash } from "./src/services/managedMedia";
+import { cleanupStaleShareTempFiles, purgeExpiredTrash, restoreReferencedFilesFromTrash } from "./src/services/managedMedia";
 import { readManifest } from "./src/services/manifestSync";
 import { appActions } from "./src/state/actions";
 import {
@@ -1276,6 +1276,9 @@ export default function App() {
       await cleanupStaleDisasterRecoveryBackupFiles();
       const hydratedState = useStore.getState();
       await cleanupInterruptedDisasterRecoveryRestores(hydratedState.workspaces);
+      // The trash safety net: any file the library still points at that a mistaken
+      // delete sent to the trash comes back BEFORE the purge can make it permanent.
+      await restoreReferencedFilesFromTrash(useStore.getState().workspaces);
       // Permanently purge quarantined (deleted) audio past its retention window.
       await purgeExpiredTrash();
       await resumePendingWorkspaceArchiveOperations();
