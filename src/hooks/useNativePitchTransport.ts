@@ -11,6 +11,7 @@ import {
 } from "../services/audioSession";
 import { isPlaybackNearEnd } from "../services/transportPlayback";
 import { classifyTwinMove } from "./twinFollow";
+import { presentEngineReport, type EngineIntent } from "./engineIntent";
 import { shouldCommitNativeState } from "./nativeStateCommit";
 import { createTransportPositionChannel } from "../domain/transportPosition";
 import {
@@ -21,10 +22,6 @@ import {
 
 /** How long after a pause the engine's "ended" report is taken as the pause's echo. */
 const PAUSE_ECHO_MS = 2000;
-/** A playing engine that reports "not playing" for less than this, with no pause
- *  behind it, is re-buffering (Android does on every rate, pitch, sound change
- *  and seek): it stays "playing" for everyone watching. */
-const ENGINE_BLIP_MS = 600;
 /** After we command the twin, its own reports are ours settling, not a person
  *  pressing a lock-screen button: the mirror leaves them alone this long. */
 const TWIN_GRACE_MS = 900;
@@ -82,6 +79,8 @@ export type NativeTransportSource = {
   setPlaybackRate: (rate: number) => void;
   /** Silences the source while the engine sounds (the muted twin, below). */
   setMuted?: (muted: boolean) => void;
+  /** The source is loading (after a seek or a start): not playing, not paused. */
+  isBuffering?: () => boolean;
   /** The source engine is loaded with this same clip (false mid-swap). */
   inSync?: boolean;
 };
@@ -171,37 +170,34 @@ export function useNativePitchTransport({
   const positionChannel = useRef(createTransportPositionChannel()).current;
   const committedNativeRef = useRef(nativeState);
   const rawNativeRef = useRef(nativeState);
-  const blipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** What we last asked the engine to do; see engineIntent.ts. */
+  const engineIntentRef = useRef<EngineIntent>({ playing: false, since: 0 });
+  const presentRecheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const markEngineIntent = useCallback((playing: boolean) => {
+    engineIntentRef.current = { playing, since: Date.now() };
+  }, []);
   const lastNativeCommitAtRef = useRef(0);
   const nativeReportAtRef = useRef(0);
   const receiveNativeState = useCallback(
     (
       value: NativePitchShiftPlaybackState,
-      opts?: { force?: boolean; seekLanded?: boolean; settled?: boolean }
+      opts?: { force?: boolean; seekLanded?: boolean }
     ) => {
       rawNativeRef.current = value;
-      const pausedRecently =
-        !!lastPauseRef.current && Date.now() - lastPauseRef.current.at < PAUSE_ECHO_MS;
-      if (
-        !opts?.settled &&
-        !value.isPlaying &&
-        nativeStateRef.current.isPlaying &&
-        value.isLoaded &&
-        !value.didJustFinish &&
-        !pausedRecently
-      ) {
-        if (!blipTimerRef.current) {
-          blipTimerRef.current = setTimeout(() => {
-            blipTimerRef.current = null;
-            const latest = rawNativeRef.current;
-            if (!latest.isPlaying) receiveNativeStateRef.current(latest, { force: true, settled: true });
-          }, ENGINE_BLIP_MS);
-        }
-        value = { ...value, isPlaying: true };
-      } else if (blipTimerRef.current && (value.isPlaying || opts?.settled || pausedRecently)) {
-        clearTimeout(blipTimerRef.current);
-        blipTimerRef.current = null;
+      // Shown as asked (engineIntent.ts): a load is not a pause.
+      const presented = presentEngineReport(value, engineIntentRef.current, Date.now());
+      engineIntentRef.current = presented.intent;
+      if (presentRecheckRef.current) {
+        clearTimeout(presentRecheckRef.current);
+        presentRecheckRef.current = null;
       }
+      if (presented.recheckInMs !== null) {
+        presentRecheckRef.current = setTimeout(() => {
+          presentRecheckRef.current = null;
+          receiveNativeStateRef.current(rawNativeRef.current, { force: true });
+        }, presented.recheckInMs + 50);
+      }
+      if (presented.playing !== value.isPlaying) value = { ...value, isPlaying: presented.playing };
       nativeStateRef.current = value;
       nativeReportAtRef.current = Date.now();
       positionChannel.publish({
@@ -245,6 +241,7 @@ export function useNativePitchTransport({
   const pauseEngine = useCallback(
     async (nativeModule: NonNullable<typeof SongNookPitchShiftModule>) => {
       const before = estimateEnginePositionMs();
+      markEngineIntent(false);
       lastPauseRef.current = { at: Date.now(), positionMs: before };
       const raw = await nativeModule.pause();
       const echoed = raw.didJustFinish && !isPlaybackNearEnd(before, raw.durationMs);
@@ -252,7 +249,7 @@ export function useNativePitchTransport({
       lastPauseRef.current = { at: Date.now(), positionMs: state.currentTimeMs };
       return state;
     },
-    [estimateEnginePositionMs]
+    [estimateEnginePositionMs, markEngineIntent]
   );
   /** Until when a "finished" state is the pause's echo and is dropped, not shown. */
   const dropEchoUntilRef = useRef(0);
@@ -511,6 +508,7 @@ export function useNativePitchTransport({
         playbackRate: d.playbackRate,
         pitchShiftSemitones: d.pitch,
       });
+      markEngineIntent(autoplay);
       const state = await nativeModule.loadForPractice({
         sourceUri: d.audioUri,
         startPositionMs,
@@ -609,19 +607,24 @@ export function useNativePitchTransport({
   }, [releaseAudioSessionOwnership, runExclusive]);
 
   // ── Mirror: the dock, the lock screen and headphones act on the twin ───────
-  // The twin's play state is the one every outside control sees and changes,
-  // so it decides playing or paused; the engine's position is what is heard,
-  // so the twin follows it. When the two disagree for a moment (a remote play
-  // or pause, the queue moving on, a load landing), they converge: the engine
-  // takes the twin's play state and the twin jumps silently to the engine's
-  // place. Our own commands move both together, so they never disagree for
-  // long. A natural end is not a pause: the engine ends on its own.
+  // Those controls only ever press play or pause on the twin, so the mirror
+  // listens to the twin alone and carries a change it did not cause over to
+  // the engine. It is one way and edge-triggered (2026-10-21): the engine's own
+  // reports never start it, and a twin that stops only to load (after a seek,
+  // a start) is not a pause. It used to reconcile any disagreement in both
+  // directions; on Android, where both players read "not playing" while they
+  // load, the two chased each other for seconds per press. A natural end is
+  // not a pause either: the engine ends on its own.
   const TWIN_SETTLE_MS = 250;
+  const twinPrevPlayingRef = useRef(source.isPlaying);
   useEffect(() => {
+    const previous = twinPrevPlayingRef.current;
+    twinPrevPlayingRef.current = source.isPlaying;
+    if (previous === source.isPlaying) return;
     if (!twinSource || !isNativeTransportActive || !SongNookPitchShiftModule) return;
     if (source.inSync === false) return;
-    if (source.isPlaying === nativeState.isPlaying) return;
     const nativeModule = SongNookPitchShiftModule;
+    const wantPlaying = source.isPlaying;
     let timer: ReturnType<typeof setTimeout>;
     const check = () => {
       // Our own command is still settling on the twin: look again once it has.
@@ -631,15 +634,19 @@ export function useNativePitchTransport({
         return;
       }
       const src = sourceRef.current;
-      const engine = nativeStateRef.current;
-      if (src.inSync === false || src.isPlaying === engine.isPlaying) return;
+      if (src.inSync === false || src.isPlaying !== wantPlaying) return;
+      if (!wantPlaying && src.isBuffering?.()) return;
+      if (engineIntentRef.current.playing === wantPlaying) return;
       if (isPlaybackNearEnd(src.positionMs, src.durationMs)) return;
+      const engine = nativeStateRef.current;
       if (isPlaybackNearEnd(engine.currentTimeMs, engine.durationMs)) return;
-      const wantPlaying = src.isPlaying;
       pitchLog(`[${ownerLabel}] twin → engine`, { play: wantPlaying });
       void runExclusive(async () => {
-        if (nativeStateRef.current.isPlaying === wantPlaying) return;
-        if (wantPlaying) lastPauseRef.current = null;
+        if (engineIntentRef.current.playing === wantPlaying) return;
+        if (wantPlaying) {
+          lastPauseRef.current = null;
+          markEngineIntent(true);
+        }
         const state = wantPlaying ? await nativeModule.play() : await pauseEngine(nativeModule);
         receiveNativeStateRef.current(state, { force: true });
         await twinSeek(state.currentTimeMs);
@@ -648,7 +655,7 @@ export function useNativePitchTransport({
     timer = setTimeout(check, TWIN_SETTLE_MS);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source.isPlaying, nativeState.isPlaying, isNativeTransportActive, twinSource, source.inSync]);
+  }, [source.isPlaying, isNativeTransportActive, twinSource, source.inSync]);
 
   // A lock-screen scrub makes the twin jump: the engine follows it. Drift, or
   // an engine that stalls, moves the silent twin back instead (twinFollow.ts).
@@ -717,6 +724,7 @@ export function useNativePitchTransport({
             await ensureAudioSessionOwnership();
             if (twinSource) src.setMuted?.(true);
             else if (src.isPlaying) await src.pause();
+            markEngineIntent(true);
             const state = await SongNookPitchShiftModule.loadForPractice({
               sourceUri: src.audioUri,
               startPositionMs: atEnd ? 0 : src.positionMs,
@@ -739,6 +747,7 @@ export function useNativePitchTransport({
               receiveNativeStateRef.current(seekState, { force: true, seekLanded: true });
               await twinSeek(0);
             }
+            markEngineIntent(true);
             const state = await SongNookPitchShiftModule.play();
             receiveNativeStateRef.current(state, { force: true });
             await twinPlay();

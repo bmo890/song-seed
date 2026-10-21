@@ -19,6 +19,8 @@ export type NativePitchShiftPlaybackState = {
   isAvailable: boolean;
   isLoaded: boolean;
   isPlaying: boolean;
+  /** Android, native builds from 2026-10-21: asked to play (true while loading). */
+  playWhenReady?: boolean;
   didJustFinish: boolean;
   currentTimeMs: number;
   durationMs: number;

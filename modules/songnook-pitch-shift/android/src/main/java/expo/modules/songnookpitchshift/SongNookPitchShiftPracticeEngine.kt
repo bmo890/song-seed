@@ -221,6 +221,9 @@ class SongNookPitchShiftPracticeEngine(
       "isAvailable" to true,
       "isLoaded" to (target != null && currentSourceUri != null),
       "isPlaying" to (target?.isPlaying ?: false),
+      // What it was asked to do: isPlaying reads false while audio loads, so a
+      // play that is still starting looked like a pause to the JS side.
+      "playWhenReady" to ((target?.playWhenReady ?: false) && target?.playbackState != Player.STATE_ENDED),
       "didJustFinish" to didJustFinish,
       "currentTimeMs" to (target?.currentPosition ?: 0L),
       "durationMs" to durationMs,
