@@ -5,7 +5,9 @@ import SongNookPitchShiftModule, {
   type NativeSoundSettings,
 } from "../../modules/songnook-pitch-shift";
 import {
+  activateEngineAudioSession,
   activatePlaybackAudioSession,
+  handBackPlayerAudioFocus,
   createAudioSessionOwner,
   releaseAudioSessionOwner,
 } from "../services/audioSession";
@@ -257,10 +259,12 @@ export function useNativePitchTransport({
   // ── The muted twin ─────────────────────────────────────────────────────────
   // When we last moved the twin ourselves, so a scrub check skips our own seeks.
   const twinLastCommandAtRef = useRef(0);
-  const twinPlay = useCallback(async () => {
+  /** `force` plays even when the twin reads playing: after a focus hand-back
+   *  it was paused a moment ago and React has not heard yet. */
+  const twinPlay = useCallback(async (force = false) => {
     if (!twinSource) return;
     twinLastCommandAtRef.current = Date.now();
-    if (!sourceRef.current.isPlaying) await sourceRef.current.play();
+    if (force || !sourceRef.current.isPlaying) await sourceRef.current.play();
   }, [twinSource]);
   const twinPause = useCallback(async () => {
     if (!twinSource) return;
@@ -397,9 +401,17 @@ export function useNativePitchTransport({
 
   const ensureAudioSessionOwnership = useCallback(async () => {
     if (ownsAudioSessionRef.current) return;
-    await activatePlaybackAudioSession({ ownerId: audioSessionOwnerIdRef.current });
+    if (twinSource) {
+      // Android: the engine must hold audio focus alone (audioSession.ts). The
+      // twin's brief pause here is ours, so the mirror is told to ignore it.
+      await activateEngineAudioSession({ ownerId: audioSessionOwnerIdRef.current });
+      twinLastCommandAtRef.current = Date.now();
+      await handBackPlayerAudioFocus();
+    } else {
+      await activatePlaybackAudioSession({ ownerId: audioSessionOwnerIdRef.current });
+    }
     ownsAudioSessionRef.current = true;
-  }, []);
+  }, [twinSource]);
 
   const releaseAudioSessionOwnership = useCallback(async () => {
     if (!ownsAudioSessionRef.current) return;
@@ -526,7 +538,8 @@ export function useNativePitchTransport({
         // engine's speed or the two clocks part.
         setSourceRate(d.playbackRate);
         await twinSeek(state.currentTimeMs);
-        if (state.isPlaying && !src.isPlaying) await twinPlay();
+        // As asked, not as reported: Android reads "not playing" while it loads.
+        if (autoplay) await twinPlay(true);
       }
       return;
     }
@@ -737,7 +750,7 @@ export function useNativePitchTransport({
             loadedKeyRef.current = src.sourceKey;
             receiveNativeStateRef.current(state, { force: true });
             if (atEnd) await twinSeek(0);
-            await twinPlay();
+            await twinPlay(true);
             return;
           }
 
@@ -801,14 +814,21 @@ export function useNativePitchTransport({
     [disableNativeTransport, isNativeTransportActive, pauseEngine, runExclusive, twinPause]
   );
 
+  // A drag sends a seek per step; only the newest one matters. Superseded
+  // seeks are skipped, and the muted twin's seek is not waited for, so the
+  // play that ends a scrub is not queued behind a drag's worth of seeks
+  // (2026-10-21: on Android it waited for each twin seek to land).
+  const latestSeekRef = useRef(0);
   const seekTo = useCallback(
-    (positionMs: number) =>
-      runExclusive(async () => {
+    (positionMs: number) => {
+      const token = ++latestSeekRef.current;
+      return runExclusive(async () => {
         try {
           if (isNativeTransportActive && SongNookPitchShiftModule) {
+            if (token !== latestSeekRef.current) return;
             const state = await SongNookPitchShiftModule.seekTo(positionMs);
             receiveNativeStateRef.current(state, { force: true, seekLanded: true });
-            await twinSeek(positionMs);
+            void twinSeek(positionMs).catch(() => {});
             return;
           }
           await sourceRef.current.seekTo(positionMs);
@@ -818,7 +838,8 @@ export function useNativePitchTransport({
           );
           await sourceRef.current.seekTo(positionMs);
         }
-      }),
+      });
+    },
     [disableNativeTransport, isNativeTransportActive, runExclusive, twinSeek]
   );
 
