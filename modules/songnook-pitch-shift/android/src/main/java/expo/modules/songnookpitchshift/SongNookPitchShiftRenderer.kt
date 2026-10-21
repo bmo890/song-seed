@@ -10,8 +10,6 @@ import android.os.HandlerThread
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.audio.AudioProcessor
-import androidx.media3.common.audio.DefaultGainProvider
-import androidx.media3.common.audio.GainProcessor
 import androidx.media3.common.audio.SonicAudioProcessor
 import androidx.media3.common.audio.ToInt16PcmAudioProcessor
 import androidx.media3.common.util.UnstableApi
@@ -169,6 +167,10 @@ class SongNookPitchShiftRenderer(
 
     return Composition.Builder(sequences)
       .experimentalSetForceAudioTrack(true)
+      // The mixed sum, held under the ceiling before it is written (2026-10-21:
+      // a layer at +12 dB used to be written clipped, and plain playback plays
+      // this file).
+      .setEffects(Effects(listOf(ToInt16PcmAudioProcessor(), SoundChainAudioProcessor()), emptyList()))
       .build()
   }
 
@@ -182,36 +184,17 @@ class SongNookPitchShiftRenderer(
       setPitch(semitonesToPitchMultiplier(semitones))
     }
 
-    return listOf(toInt16Processor, sonicProcessor)
+    // A limiter after the shift: Sonic's overlap-add can peak above the source.
+    return listOf(toInt16Processor, sonicProcessor, SoundChainAudioProcessor())
   }
 
-  private fun buildMixAudioProcessors(input: MixedRenderInput): List<AudioProcessor> {
-    val processors = mutableListOf<AudioProcessor>()
-    processors += ToInt16PcmAudioProcessor()
-
-    val gainDb = input.gainDb
-    if (gainDb != 0.0) {
-      processors += GainProcessor(DefaultGainProvider.Builder(dbToGainFactor(gainDb)).build())
-    }
-
-    // Tone is a "+"-joined flag set ("low-cut+mid-boost"); legacy singles parse the same.
-    // Parameters mirror the iOS renderer's EQ bands.
-    val toneFlags = input.tonePreset.split("+")
-    if (toneFlags.contains("low-cut")) {
-      processors += LowCutAudioProcessor()
-    }
-    if (toneFlags.contains("low-boost")) {
-      processors += BiquadAudioProcessor.lowShelf(120.0, 4.0)
-    }
-    if (toneFlags.contains("hi-cut")) {
-      processors += BiquadAudioProcessor.lowPass(7200.0)
-    }
-    if (toneFlags.contains("mid-boost")) {
-      processors += BiquadAudioProcessor.peaking(1800.0, 4.0, 1.0)
-    }
-
-    return processors
-  }
+  /** One layer's level and tone (SoundChainAudioProcessor, the live chain's stage).
+   *  No limiter here: the SUM is limited once, on the composition. */
+  private fun buildMixAudioProcessors(input: MixedRenderInput): List<AudioProcessor> =
+    listOf(
+      ToInt16PcmAudioProcessor(),
+      SoundChainAudioProcessor(gainDb = input.gainDb, tonePreset = input.tonePreset, limit = false),
+    )
 
   private fun renderComposition(
     composition: Composition,
@@ -310,9 +293,6 @@ class SongNookPitchShiftRenderer(
     )
   }
 
-  private fun dbToGainFactor(gainDb: Double): Float {
-    return Math.pow(10.0, gainDb / 20.0).toFloat()
-  }
 
   private fun semitonesToPitchMultiplier(semitones: Int): Float {
     return Math.pow(2.0, semitones / 12.0).toFloat()

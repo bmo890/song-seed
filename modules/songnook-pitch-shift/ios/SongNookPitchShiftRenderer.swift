@@ -46,11 +46,16 @@ final class SongNookPitchShiftRenderer {
     let timePitchNode = AVAudioUnitTimePitch()
     timePitchNode.rate = Float(playbackRate)
     timePitchNode.pitch = Float(semitones * 100)
+    timePitchNode.overlap = SongNookTimePitch.overlap
+    // A limiter after the shift: a shifted peak can land above the source's.
+    let limiterNode = SongNookToneEQ.makeLimiterNode()
 
     engine.attach(playerNode)
     engine.attach(timePitchNode)
+    engine.attach(limiterNode)
     engine.connect(playerNode, to: timePitchNode, format: renderFormat)
-    engine.connect(timePitchNode, to: engine.mainMixerNode, format: renderFormat)
+    engine.connect(timePitchNode, to: limiterNode, format: renderFormat)
+    engine.connect(limiterNode, to: engine.mainMixerNode, format: renderFormat)
 
     let maximumFrameCount: AVAudioFrameCount = 4096
     try engine.enableManualRenderingMode(.offline, format: renderFormat, maximumFrameCount: maximumFrameCount)
@@ -172,6 +177,14 @@ final class SongNookPitchShiftRenderer {
       playerNodes.append(playerNode)
       eqNodes.append(eqNode)
     }
+
+    // The mixed sum, held under the ceiling before it is written (2026-10-21: a
+    // layer at +12 dB was written clipped, and plain playback plays this file).
+    // The live engine limits the same way, so the bake sounds like the room.
+    let limiterNode = SongNookToneEQ.makeLimiterNode()
+    engine.attach(limiterNode)
+    engine.connect(engine.mainMixerNode, to: limiterNode, format: renderFormat)
+    engine.connect(limiterNode, to: engine.outputNode, format: renderFormat)
 
     try engine.enableManualRenderingMode(.offline, format: renderFormat, maximumFrameCount: maximumFrameCount)
     try engine.start()
