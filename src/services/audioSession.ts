@@ -1,6 +1,7 @@
-import { setAudioModeAsync } from "expo-audio";
+import { Platform } from "react-native";
+import { setAudioModeAsync, setIsAudioActiveAsync } from "expo-audio";
 
-export type AudioSessionRole = "playback" | "recording" | "metronome";
+export type AudioSessionRole = "playback" | "engine" | "recording" | "metronome";
 
 type AudioSessionActivationOptions = {
     ownerId?: string;
@@ -38,17 +39,36 @@ const sharedMetronomeAudioMode = {
     shouldRouteThroughEarpiece: false,
 };
 
+/**
+ * The pitch engine owns playback with the full player running muted beside it
+ * (2026-10-21). On Android only one player may hold audio focus: the engine's
+ * ExoPlayer takes it, and expo-audio asks for it again on every play, so each
+ * start paused the other (a multi-second wait on every pitch change and scrub).
+ * While the engine plays, expo-audio is told to mix, which on Android means it
+ * never asks for focus; the engine alone holds it. iOS has no such rule inside
+ * an app and keeps the playback mode (see activateEngineAudioSession).
+ */
+const sharedEngineAudioMode = {
+    ...sharedPlaybackAudioMode,
+    interruptionMode: "mixWithOthers" as const,
+};
+
 const audioSessionModes = {
     playback: sharedPlaybackAudioMode,
+    engine: sharedEngineAudioMode,
     recording: sharedRecordingAudioMode,
     metronome: sharedMetronomeAudioMode,
 } satisfies Record<
     AudioSessionRole,
-    typeof sharedPlaybackAudioMode | typeof sharedRecordingAudioMode | typeof sharedMetronomeAudioMode
+    | typeof sharedPlaybackAudioMode
+    | typeof sharedEngineAudioMode
+    | typeof sharedRecordingAudioMode
+    | typeof sharedMetronomeAudioMode
 >;
 
 const audioSessionPriority: Record<AudioSessionRole, number> = {
     playback: 0,
+    engine: 0.5,
     metronome: 1,
     recording: 2,
 };
@@ -158,6 +178,22 @@ export async function activatePlaybackAudioSession(
     options: AudioSessionActivationOptions = {}
 ) {
     await activateAudioSessionRole("playback", options);
+}
+
+/** The pitch engine's session; the playback session outside Android. */
+export async function activateEngineAudioSession(options: AudioSessionActivationOptions = {}) {
+    await activateAudioSessionRole(Platform.OS === "android" ? "engine" : "playback", options);
+}
+
+/**
+ * Android: expo-audio gives up the audio focus it holds (and pauses its
+ * players for the moment), so the engine that starts next takes focus without
+ * knocking the muted full player off. No-op elsewhere.
+ */
+export async function handBackPlayerAudioFocus() {
+    if (Platform.OS !== "android") return;
+    await setIsAudioActiveAsync(false);
+    await setIsAudioActiveAsync(true);
 }
 
 export async function activateRecordingAudioSession(
