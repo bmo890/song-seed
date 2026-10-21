@@ -1,6 +1,6 @@
 import type { MagpieBook } from "../types";
 import { MAGPIE_HE_SERVICE_BASE_URL, type MagpieHeGenre } from "../config/magpieService";
-import { MagpieFetchError } from "./magpie";
+import { MagpieFetchError } from "./magpieFetchError";
 
 // ── Hebrew source: Project Ben-Yehuda via the Magpie worker ──────────────────
 // Unlike the Gutenberg path (Range-fetch a byte window of a big book), a Hebrew
