@@ -4,9 +4,6 @@ type UsePlayerSpeedControlsArgs = {
   minSpeed: number;
   maxSpeed: number;
   playbackRate: number;
-  isPlayerPlaying: boolean;
-  pausePlayer: () => Promise<void>;
-  playPlayer: () => Promise<void>;
   setPlaybackRate: (rate: number) => void;
 };
 
@@ -14,15 +11,10 @@ export function usePlayerSpeedControls({
   minSpeed,
   maxSpeed,
   playbackRate,
-  isPlayerPlaying,
-  pausePlayer,
-  playPlayer,
   setPlaybackRate,
 }: UsePlayerSpeedControlsArgs) {
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [speedPanelVisible, setSpeedPanelVisible] = useState(false);
-  const speedResumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const wasPlayingBeforeSpeedChange = useRef(false);
   const isSlidingSpeed = useRef(false);
 
   const cleanSpeed = useCallback(
@@ -30,26 +22,6 @@ export function usePlayerSpeedControls({
       Math.max(minSpeed, Math.min(maxSpeed, Math.round(value * 20) / 20)),
     [maxSpeed, minSpeed]
   );
-
-  const clearScheduledSpeedResume = useCallback(() => {
-    if (speedResumeTimeoutRef.current === null) return;
-    clearTimeout(speedResumeTimeoutRef.current);
-    speedResumeTimeoutRef.current = null;
-  }, []);
-
-  const scheduleSpeedResume = useCallback(() => {
-    clearScheduledSpeedResume();
-    speedResumeTimeoutRef.current = setTimeout(() => {
-      speedResumeTimeoutRef.current = null;
-      void playPlayer();
-    }, 80);
-  }, [clearScheduledSpeedResume, playPlayer]);
-
-  useEffect(() => {
-    return () => {
-      clearScheduledSpeedResume();
-    };
-  }, [clearScheduledSpeedResume]);
 
   useEffect(() => {
     if (isSlidingSpeed.current) {
@@ -64,14 +36,12 @@ export function usePlayerSpeedControls({
     setPlaybackSpeed(cleanSpeed(playbackRate));
   }, [cleanSpeed, playbackRate]);
 
+  // Speed changes are heard live (2026-10-21). They used to pause the take and
+  // resume 80 ms later, which read as a stutter on every change; both engines
+  // take a new rate while playing, and a slide commits only once, on release.
   const handleSpeedSlideStart = useCallback(() => {
-    clearScheduledSpeedResume();
     isSlidingSpeed.current = true;
-    wasPlayingBeforeSpeedChange.current = isPlayerPlaying;
-    if (isPlayerPlaying) {
-      void pausePlayer();
-    }
-  }, [clearScheduledSpeedResume, isPlayerPlaying, pausePlayer]);
+  }, []);
 
   const handleSpeedSliding = useCallback(
     (value: number) => {
@@ -86,27 +56,16 @@ export function usePlayerSpeedControls({
       isSlidingSpeed.current = false;
       setPlaybackSpeed(clean);
       setPlaybackRate(clean);
-      if (wasPlayingBeforeSpeedChange.current) {
-        scheduleSpeedResume();
-      }
     },
-    [cleanSpeed, scheduleSpeedResume, setPlaybackRate]
+    [cleanSpeed, setPlaybackRate]
   );
 
   const handleSpeedTap = useCallback(
     (speed: number) => {
-      clearScheduledSpeedResume();
-      wasPlayingBeforeSpeedChange.current = isPlayerPlaying;
-      if (isPlayerPlaying) {
-        void pausePlayer();
-      }
       setPlaybackSpeed(speed);
       setPlaybackRate(speed);
-      if (wasPlayingBeforeSpeedChange.current) {
-        scheduleSpeedResume();
-      }
     },
-    [clearScheduledSpeedResume, isPlayerPlaying, pausePlayer, scheduleSpeedResume, setPlaybackRate]
+    [setPlaybackRate]
   );
 
   return {
