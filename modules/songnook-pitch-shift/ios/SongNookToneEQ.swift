@@ -11,6 +11,15 @@ import AudioToolbox
 ///   low-boost = low shelf +4 dB at 120 Hz
 ///   mid-boost = peak +4 dB at 1.8 kHz
 ///   hi-cut    = low-pass 7.2 kHz
+/// The time-pitch unit's quality (2026-10-21). `overlap` is how many grains
+/// overlap per output sample, 3…32, default 8: more means fewer of the
+/// scratchy artifacts a shift adds, for more CPU. One stereo stream at 24 is
+/// cheap on any phone that runs the app. Shared by the live engine and the
+/// bake so a shift sounds the same in both.
+enum SongNookTimePitch {
+  static let overlap: Float = 24
+}
+
 enum SongNookToneEQ {
   static let bandCount = 4
 

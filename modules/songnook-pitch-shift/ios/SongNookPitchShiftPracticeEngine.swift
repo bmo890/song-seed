@@ -44,6 +44,7 @@ final class SongNookPitchShiftPracticeEngine {
     engine.connect(timePitchNode, to: eqNode, format: nil)
     engine.connect(eqNode, to: limiterNode, format: nil)
     engine.connect(limiterNode, to: engine.mainMixerNode, format: nil)
+    timePitchNode.overlap = SongNookTimePitch.overlap
     applyTimePitchSettings()
     applySoundSettings()
   }
