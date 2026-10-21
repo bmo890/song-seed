@@ -544,6 +544,7 @@ function PlayerScreenInner({
     seekFullPlayerTo: seekTo,
     setFullPlayerPlaybackRate: setPlaybackRate,
     setFullPlayerMuted: fullPlayer.setMuted,
+    getFullPlayerIsBuffering: fullPlayer.getIsBuffering,
   });
   // Stale-position invariant: until the engine's loaded target matches the on-screen
   // clip (the source swap hasn't completed — or failed silently), whatever position the

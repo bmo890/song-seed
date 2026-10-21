@@ -29,6 +29,7 @@ type Args = {
   seekFullPlayerTo: (ms: number) => Promise<void>;
   setFullPlayerPlaybackRate: (rate: number) => void;
   setFullPlayerMuted: (muted: boolean) => void;
+  getFullPlayerIsBuffering: () => boolean;
 };
 
 /**
@@ -54,6 +55,7 @@ export function usePlayerPracticePitchTransport({
   seekFullPlayerTo,
   setFullPlayerPlaybackRate,
   setFullPlayerMuted,
+  getFullPlayerIsBuffering,
 }: Args) {
   const setPlayerPlaybackState = useStore((s) => s.setPlayerPlaybackState);
   const clamped = clampPitchShiftSemitones(pitchShiftSemitones);
@@ -83,6 +85,7 @@ export function usePlayerPracticePitchTransport({
       seekTo: seekFullPlayerTo,
       setPlaybackRate: setFullPlayerPlaybackRate,
       setMuted: setFullPlayerMuted,
+      isBuffering: getFullPlayerIsBuffering,
       inSync: sourceInSync,
     }),
     [
@@ -96,6 +99,7 @@ export function usePlayerPracticePitchTransport({
       seekFullPlayerTo,
       setFullPlayerPlaybackRate,
       setFullPlayerMuted,
+      getFullPlayerIsBuffering,
       sourceInSync,
     ]
   );

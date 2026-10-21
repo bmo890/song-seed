@@ -840,6 +840,9 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     }
   }, [player]);
 
+  /** Fresh off the raw status: the player is loading, neither playing nor paused. */
+  const getIsBuffering = useCallback(() => !!statusRef.current?.isBuffering, [statusRef]);
+
   const setPlaybackRate = useCallback((rate: number) => {
     const nextRate = Math.max(0.5, Math.min(rate, 2));
     try {
@@ -878,6 +881,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       seekBy,
       setPlaybackRate,
       setMuted,
+      getIsBuffering,
       updateLockScreenMetadata,
     }),
     [
@@ -902,6 +906,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       seekBy,
       setPlaybackRate,
       setMuted,
+      getIsBuffering,
       updateLockScreenMetadata,
     ]
   );
