@@ -9,14 +9,12 @@ import { useLibraryExportFlow } from "../hooks/useLibraryExportFlow";
 import { useLibraryImportFlow } from "../hooks/useLibraryImportFlow";
 import { useStorageDiagnostics } from "../hooks/useStorageDiagnostics";
 import { SettingsAboutView } from "../views/SettingsAboutView";
-import { SettingsAccountView } from "../views/SettingsAccountView";
 import { SettingsExportView } from "../views/SettingsExportView";
 import { SettingsImportView } from "../views/SettingsImportView";
 import { SettingsLibraryView } from "../views/SettingsLibraryView";
 import { SettingsOverviewView } from "../views/SettingsOverviewView";
 import { SettingsGeneralView } from "../views/SettingsGeneralView";
 import { SettingsSharingView } from "../views/SettingsSharingView";
-import { SettingsRecordingView } from "../views/SettingsRecordingView";
 import { SettingsStorageView } from "../views/SettingsStorageView";
 
 export function SettingsScreenContent() {
@@ -53,16 +51,14 @@ export function SettingsScreenContent() {
         onLeftPress={handleBackPress}
       />
 
-      {screen.view === "account" ? (
-        <SettingsAccountView />
-      ) : screen.view === "general" ? (
+      {screen.view === "general" ? (
         <SettingsGeneralView />
       ) : screen.view === "library" ? (
         <SettingsLibraryView
           backupFlow={backupFlow}
-          diagnostics={diagnostics}
           onBeginExportFlow={() => screen.setView("export")}
           onBeginImportFlow={() => screen.setView("import")}
+          onOpenSentLinks={() => screen.setView("sharing")}
           onOpenStorageDetails={() => {
             diagnostics.setShowAdvancedStorageDetails(false);
             screen.setView("storage");
@@ -88,8 +84,6 @@ export function SettingsScreenContent() {
         />
       ) : screen.view === "storage" ? (
         <SettingsStorageView diagnostics={diagnostics} />
-      ) : screen.view === "recording" ? (
-        <SettingsRecordingView />
       ) : screen.view === "sharing" ? (
         <SettingsSharingView />
       ) : screen.view === "about" ? (
@@ -97,11 +91,8 @@ export function SettingsScreenContent() {
       ) : (
         <SettingsOverviewView
           backupFlow={backupFlow}
-          onOpenAccount={() => screen.setView("account")}
-          onOpenGeneral={() => screen.setView("general")}
+          onOpenPreferences={() => screen.setView("general")}
           onOpenLibrary={() => screen.setView("library")}
-          onOpenRecording={() => screen.setView("recording")}
-          onOpenSharing={() => screen.setView("sharing")}
           onOpenAbout={() => screen.setView("about")}
         />
       )}

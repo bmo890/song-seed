@@ -1,8 +1,8 @@
 # Settings overview renders and its sub-views open + back out. Covers the Settings
-# hub (rows on paper, one row per area) and three representative detail pages —
-# General (startup), Recording & audio, Data & storage — the ones most likely to
-# break after a Settings IA refactor. Uses settings-card-* testIDs (slug of the
-# row title) because the rows' composite a11y labels make text taps mis-target.
+# hub (the plan line and three doors, 2026-10-21) and its pages: Preferences
+# (value rows + the merged Recording section), Data & storage, Help & about.
+# Uses settings-card-* testIDs (slug of the row title) because the rows'
+# composite a11y labels make text taps mis-target.
 appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
@@ -12,53 +12,45 @@ appId: com.bmostudio.songnook.dev
 - tapOn:
     id: "nav-row-settings"
 - waitForAnimationToEnd
-# Overview renders with every area row.
+# Overview renders with every door.
 - extendedWaitUntil:
     visible:
-      id: "settings-card-general"
+      id: "settings-card-preferences"
     timeout: 10000
-- assertVisible:
-    id: "settings-card-account-pro"
-- assertVisible:
-    id: "settings-card-recording-audio"
+- assertVisible: ".*Pro unlocked.*"
 - assertVisible:
     id: "settings-card-data-storage"
 - assertVisible:
     id: "settings-card-help-about"
-# --- General: language, startup, interaction ---
+# --- Preferences: value rows, then Recording ---
 - tapOn:
-    id: "settings-card-general"
+    id: "settings-card-preferences"
 - extendedWaitUntil:
-    visible: "STARTUP"
+    visible: "Open to.*"
     timeout: 10000
-- assertVisible: "Open to"
-- tapOn: "Back"
-- extendedWaitUntil:
-    visible:
-      id: "settings-card-general"
-    timeout: 10000
-# --- Recording & audio: naming + devices ---
-- tapOn:
-    id: "settings-card-recording-audio"
-- extendedWaitUntil:
-    visible: "DEVICES"
-    timeout: 10000
+- assertVisible: "RECORDING"
 - assertVisible:
     id: "settings-card-bluetooth-calibration"
+# A value row opens its picker and closes on a second tap.
+- tapOn: "Name suggestions.*"
+- assertVisible: "English"
+- tapOn: "Name suggestions.*"
 - tapOn: "Back"
 - extendedWaitUntil:
     visible:
-      id: "settings-card-general"
+      id: "settings-card-preferences"
     timeout: 10000
-# --- Data & storage: safety copy + backup reminder ---
+# --- Data & storage: backup, share, storage ---
 - tapOn:
     id: "settings-card-data-storage"
 - extendedWaitUntil:
-    visible: "SAFETY COPY"
+    visible: "BACKUP"
     timeout: 10000
-- assertVisible: "BACKUP REMINDER"
+- assertVisible: "Reminder.*"
+- assertVisible:
+    id: "settings-card-sent-links"
 - tapOn: "Back"
 - extendedWaitUntil:
     visible:
-      id: "settings-card-general"
+      id: "settings-card-preferences"
     timeout: 10000

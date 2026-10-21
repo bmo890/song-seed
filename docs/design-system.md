@@ -402,6 +402,12 @@ Two treatments, used everywhere so single vs. multi reads at a glance:
 
 - **Single-select** (Lyrics-style toggles, Evolution|Timeline, Takes tabs) →
   the sliding-thumb **`SegmentedControl`**. The one single-select primitive.
+- **A setting** (founder, 2026-10-21: "drop downs instead of tab lists") →
+  the Settings **`ValueRow`** (`SettingsShared.tsx`): the row says its value
+  with a quiet chevron; a tap hangs the filter/sort popover
+  (`PopoverRadioRow`) from the row's end. A preference is set once and read
+  often, so it shows one word, not every option. Its section takes
+  `settingsScreenStyles.pickerSection` so the popover hangs over what follows.
 - **Multi-select** (Stage filter, tag pickers) → **editorial ink**: options as
   words with a leading ink-dot (hollow `borderMuted` → filled `colors.primary`
   when on), generous hit-padding for thumb targets. No capsules, no chips.

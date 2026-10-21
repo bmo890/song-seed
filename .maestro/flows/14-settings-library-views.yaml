@@ -1,9 +1,8 @@
 # Deeper Settings → Data & storage views open and back out: Export an archive,
-# Import an archive, Storage details. These are complex screens where a crash would be bad,
+# Import an archive, Storage & repair. These are complex screens where a crash would be bad,
 # so opening + rendering each is high-value. Deliberately does NOT tap Back up /
-# Restore (those kick off real file operations / system sheets). The Export/Import
-# rows live under SHARE & MOVE and Storage details under MAINTENANCE, at or below
-# the fold — scroll to each.
+# Restore (those kick off real file operations / system sheets). Export/Import sit
+# under SHARE and Storage & repair under STORAGE; scroll to each.
 appId: com.bmostudio.songnook.dev
 ---
 - runFlow: ../subflows/open-library.yaml
@@ -20,7 +19,7 @@ appId: com.bmostudio.songnook.dev
 - tapOn:
     id: "settings-card-data-storage"
 - extendedWaitUntil:
-    visible: "SAFETY COPY"
+    visible: "BACKUP"
     timeout: 10000
 # --- Export an archive ---
 - scrollUntilVisible:
@@ -36,7 +35,7 @@ appId: com.bmostudio.songnook.dev
 - assertVisible: "SCOPE"
 - tapOn: "Back"
 - extendedWaitUntil:
-    visible: "SAFETY COPY"
+    visible: "BACKUP"
     timeout: 10000
 # --- Import an archive ---
 - scrollUntilVisible:
@@ -51,20 +50,21 @@ appId: com.bmostudio.songnook.dev
 - assertVisible: "Choose file"
 - tapOn: "Back"
 - extendedWaitUntil:
-    visible: "SAFETY COPY"
+    visible: "BACKUP"
     timeout: 10000
 # --- Storage details ---
 - scrollUntilVisible:
     element:
-      id: "settings-card-storage-details"
+      id: "settings-card-storage-repair"
     direction: DOWN
 - tapOn:
-    id: "settings-card-storage-details"
+    id: "settings-card-storage-repair"
 - extendedWaitUntil:
-    visible: "Storage details"
+    visible: "REPAIR"
     timeout: 10000
-- assertVisible: "Check integrity"
+- assertVisible:
+    id: "settings-card-check-library"
 - tapOn: "Back"
 - extendedWaitUntil:
-    visible: "SAFETY COPY"
+    visible: "BACKUP"
     timeout: 10000

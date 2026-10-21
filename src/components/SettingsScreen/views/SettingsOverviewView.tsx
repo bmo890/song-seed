@@ -1,27 +1,28 @@
 import { ScrollView, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { PageIntro } from "../../common/PageIntro";
 import { settingsScreenStyles, styles } from "../styles";
 import { LibraryActionCard, SettingsGroup } from "../components/SettingsShared";
 import type { useLibraryBackupFlow } from "../hooks/useLibraryBackupFlow";
 import { useTranslation } from "react-i18next";
+import { colors } from "../../../design/tokens";
 
 type LibraryBackupFlow = ReturnType<typeof useLibraryBackupFlow>;
 
+/**
+ * Four doors (founder, 2026-10-21: fewer pages, less text). The plan is a
+ * line, not a page: during the beta there is nothing to manage. It becomes a
+ * door again when Pro can be bought.
+ */
 export function SettingsOverviewView({
   backupFlow,
-  onOpenAccount,
-  onOpenGeneral,
+  onOpenPreferences,
   onOpenLibrary,
-  onOpenRecording,
-  onOpenSharing,
   onOpenAbout,
 }: {
   backupFlow: LibraryBackupFlow;
-  onOpenAccount: () => void;
-  onOpenGeneral: () => void;
+  onOpenPreferences: () => void;
   onOpenLibrary: () => void;
-  onOpenRecording: () => void;
-  onOpenSharing: () => void;
   onOpenAbout: () => void;
 }) {
   const { t } = useTranslation();
@@ -41,16 +42,10 @@ export function SettingsOverviewView({
     >
       <PageIntro title={t("settings.title")} />
 
-      <View style={settingsScreenStyles.overviewSection}>
-        <SettingsGroup>
-          <LibraryActionCard
-            flat
-            icon="person-outline"
-            title={t("settings.account")}
-            meta={t("settings.accountMeta")}
-            onPress={onOpenAccount}
-          />
-        </SettingsGroup>
+      <View style={settingsScreenStyles.planLine}>
+        <Ionicons name="sparkles-outline" size={18} color={colors.textStrong} />
+        <Text style={settingsScreenStyles.planLineTitle}>{t("settingsAccount.betaPlan")}</Text>
+        <Text style={settingsScreenStyles.planLineState}>{t("settings.proUnlocked")}</Text>
       </View>
 
       <View style={settingsScreenStyles.overviewSection}>
@@ -58,22 +53,9 @@ export function SettingsOverviewView({
           <LibraryActionCard
             flat
             icon="options-outline"
-            title={t("settings.general")}
-            meta={t("settings.generalMeta")}
-            onPress={onOpenGeneral}
+            title={t("settings.preferences")}
+            onPress={onOpenPreferences}
           />
-          <LibraryActionCard
-            flat
-            icon="mic-outline"
-            title={t("settings.recordingAudio")}
-            meta={t("settings.recordingAudioMeta")}
-            onPress={onOpenRecording}
-          />
-        </SettingsGroup>
-      </View>
-
-      <View style={settingsScreenStyles.overviewSection}>
-        <SettingsGroup>
           <LibraryActionCard
             flat
             icon="archive-outline"
@@ -84,21 +66,8 @@ export function SettingsOverviewView({
           />
           <LibraryActionCard
             flat
-            icon="link-outline"
-            title={t("settings.sharedLinks")}
-            meta={t("settings.sharedLinksMeta")}
-            onPress={onOpenSharing}
-          />
-        </SettingsGroup>
-      </View>
-
-      <View style={settingsScreenStyles.overviewSection}>
-        <SettingsGroup>
-          <LibraryActionCard
-            flat
             icon="help-circle-outline"
             title={t("settings.helpAbout")}
-            meta={t("settings.helpAboutMeta")}
             onPress={onOpenAbout}
           />
         </SettingsGroup>

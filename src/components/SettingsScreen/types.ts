@@ -17,10 +17,8 @@ export type CollectionSelectionState = "unselected" | "selected" | "inherited" |
 export type ExportSectionKey = "format" | "scope" | "options" | "generate";
 export type SettingsView =
   | "overview"
-  | "account"
   | "general"
   | "library"
-  | "recording"
   | "sharing"
   | "about"
   | "export"

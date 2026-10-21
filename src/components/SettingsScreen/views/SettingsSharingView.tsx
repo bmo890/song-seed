@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { PageIntro } from "../../common/PageIntro";
@@ -13,8 +14,7 @@ import { useSentLinksStore } from "../../../state/useSentLinksStore";
 import { getHierarchyIconName } from "../../../domain/hierarchy";
 import { isSentLinkExpired, type SentLink } from "../../../domain/sentLinks";
 import { toast } from "../../common/toastStore";
-import { haptic } from "../../../design/haptics";
-import { colors, radii, text as textTokens } from "../../../design/tokens";
+import { colors, text as textTokens } from "../../../design/tokens";
 import type { ShareKind } from "../../../types";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
@@ -59,7 +59,6 @@ export function SettingsSharingView() {
 
   const copy = async (link: SentLink) => {
     await Clipboard.setStringAsync(link.shareUrl);
-    haptic.light();
     toast(t("sharing.linkCopied"), "link-outline");
   };
 
@@ -80,7 +79,7 @@ export function SettingsSharingView() {
     >
       <View style={sharingStyles.introRow}>
         <View style={styles.flexFill}>
-          <PageIntro title={t("sharing.title")} />
+          <PageIntro title={t("settings.sentLinks")} />
         </View>
         <HelpButton onPress={() => setHelpVisible(true)} />
       </View>
@@ -90,13 +89,11 @@ export function SettingsSharingView() {
           const expired = isSentLinkExpired(link, now);
           return (
             <View key={link.transferId} style={[sharingStyles.row, expired ? sharingStyles.rowExpired : null]}>
-              <View style={sharingStyles.icon}>
-                <Ionicons
-                  name={KIND_ICONS[link.kind] ?? "link-outline"}
-                  size={16}
-                  color={expired ? colors.textMuted : colors.primaryDeep}
-                />
-              </View>
+              <Ionicons
+                name={KIND_ICONS[link.kind] ?? "link-outline"}
+                size={18}
+                color={expired ? colors.textMuted : colors.textStrong}
+              />
               <View style={sharingStyles.main}>
                 <UserText
                   style={[sharingStyles.title, expired ? sharingStyles.titleExpired : null]}
@@ -109,25 +106,29 @@ export function SettingsSharingView() {
                 </Text>
               </View>
               {!expired ? (
-                <Pressable
+                <Press
+                  feel="glyph"
+                  // Haptics vocabulary: `light` — a small confirmation (copied).
+                  haptic="light"
                   onPress={() => void copy(link)}
-                  hitSlop={8}
+                  hitSlop={10}
+                  style={sharingStyles.actionBtn}
                   accessibilityRole="button"
                   accessibilityLabel={t("sharing.copyA11y", { title: link.title })}
-                  style={({ pressed }) => [sharingStyles.actionBtn, pressed ? { opacity: 0.6 } : null]}
                 >
-                  <Ionicons name="copy-outline" size={15} color={colors.textStrong} />
-                </Pressable>
+                  <Ionicons name="copy-outline" size={17} color={colors.textStrong} />
+                </Press>
               ) : null}
-              <Pressable
+              <Press
+                feel="glyph"
                 onPress={() => confirmForget(link)}
-                hitSlop={8}
+                hitSlop={10}
+                style={sharingStyles.actionBtn}
                 accessibilityRole="button"
                 accessibilityLabel={t("sharing.forgetA11y", { title: link.title })}
-                style={({ pressed }) => [sharingStyles.actionBtn, pressed ? { opacity: 0.6 } : null]}
               >
-                <Ionicons name="close" size={15} color={colors.textMuted} />
-              </Pressable>
+                <Ionicons name="close" size={17} color={colors.textMuted} />
+              </Press>
             </View>
           );
         })}
@@ -152,6 +153,8 @@ export function SettingsSharingView() {
   );
 }
 
+// Rows on paper (2026-10-21): sent links are structure, not work, so no
+// card, no tinted tile, no filled buttons; a bare glyph and hairlines.
 const sharingStyles = StyleSheet.create({
   introRow: {
     flexDirection: "row",
@@ -159,35 +162,22 @@ const sharingStyles = StyleSheet.create({
     gap: 8,
   },
   content: {
-    paddingHorizontal: 16,
     paddingBottom: 120,
   },
   list: {
-    gap: 8,
+    gap: 0,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    borderRadius: radii.lg,
-    paddingVertical: 11,
-    paddingHorizontal: 12,
+    gap: 14,
+    minHeight: 60,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
   },
   rowExpired: {
     opacity: 0.55,
-  },
-  icon: {
-    width: 34,
-    height: 34,
-    borderRadius: radii.md,
-    backgroundColor: "#FDF5F2",
-    borderWidth: 1,
-    borderColor: "#EBD3CE",
-    alignItems: "center",
-    justifyContent: "center",
   },
   main: {
     flex: 1,
@@ -195,8 +185,8 @@ const sharingStyles = StyleSheet.create({
     gap: 2,
   },
   title: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 13.5,
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 15,
     color: colors.textPrimary,
   },
   titleExpired: {
@@ -204,15 +194,13 @@ const sharingStyles = StyleSheet.create({
   },
   meta: {
     ...textTokens.caption,
-    fontSize: 11,
-    color: colors.textMuted,
+    fontSize: 12,
+    color: colors.textSecondary,
     fontVariant: ["tabular-nums"],
   },
   actionBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceContainer,
+    width: 36,
+    height: 36,
     alignItems: "center",
     justifyContent: "center",
   },

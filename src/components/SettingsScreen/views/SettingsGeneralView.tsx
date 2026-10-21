@@ -1,35 +1,32 @@
-import { useMemo } from "react";
 import { ScrollView, Text, View } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { PageIntro } from "../../common/PageIntro";
 import { AppAlert } from "../../common/AppAlert";
-import { SettingsGroup, SegmentedField, ToggleRow } from "../components/SettingsShared";
+import { LibraryActionCard, SettingsGroup, ToggleRow, ValueRow } from "../components/SettingsShared";
 import { settingsScreenStyles, styles } from "../styles";
 import { useLocale } from "../../../i18n";
 import { useStore } from "../../../state/useStore";
 import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
 
+/**
+ * Preferences (2026-10-21): General and Recording in one page, each choice a
+ * value row instead of a tab list, no hints. A language is named in its own
+ * script, so someone lost in the wrong one can still find theirs.
+ */
 export function SettingsGeneralView() {
   const { t } = useTranslation();
+  const navigation = useNavigation();
   const { language, setLanguage } = useLocale();
-  const workspaces = useStore((state) => state.workspaces);
-  const primaryWorkspaceId = useStore((state) => state.primaryWorkspaceId);
   const workspaceStartupPreference = useStore((state) => state.workspaceStartupPreference);
   const setWorkspaceStartupPreference = useStore((state) => state.setWorkspaceStartupPreference);
   const hapticsEnabled = useStore((state) => state.hapticsEnabled);
-  const classicReel = useStore((state) => state.classicReel);
-  const setClassicReel = useStore((state) => state.setClassicReel);
   const setHapticsEnabled = useStore((state) => state.setHapticsEnabled);
   const nameLanguage = useStore((state) => state.nameLanguage);
   const setNameLanguage = useStore((state) => state.setNameLanguage);
-  const primaryWorkspaceTitle = useMemo(
-    () => workspaces.find((workspace) => workspace.id === primaryWorkspaceId)?.title ?? null,
-    [primaryWorkspaceId, workspaces]
-  );
-  const startupHint =
-    workspaceStartupPreference === "primary" && primaryWorkspaceTitle
-      ? t("settings.primaryWorkspaceHint", { name: primaryWorkspaceTitle })
-      : t("settings.startupHint");
+  const promptForClipName = useStore((s) => s.promptForClipName);
+  const setPromptForClipName = useStore((s) => s.setPromptForClipName);
+  const bluetoothCalibrations = useStore((s) => s.bluetoothMonitoringCalibrations);
 
   return (
     <ScrollView
@@ -37,71 +34,53 @@ export function SettingsGeneralView() {
       contentContainerStyle={settingsScreenStyles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      <PageIntro title={t("settings.general")} />
+      <PageIntro title={t("settings.preferences")} />
 
-      <View style={styles.settingsSection}>
-        <Text style={styles.settingsSectionLabel}>{t("settings.language")}</Text>
+      <View style={[styles.settingsSection, settingsScreenStyles.pickerSection]}>
         <SettingsGroup>
-          <SegmentedField
-            flat
+          <ValueRow
             title={t("settings.appLanguage")}
-            subtitle={t("settings.languageHint")}
             value={language}
             options={[
-              { value: "en", label: t("settings.english") },
-              { value: "he", label: t("settings.hebrew") },
+              { value: "en", label: "English" },
+              { value: "he", label: "עברית" },
             ]}
             onChange={(next) => {
-              void setLanguage(next).catch(() => {
-                AppAlert.error(t("settings.restartFailedTitle"), t("settings.restartFailedBody"));
-              });
+              // The language takes hold on a restart; say so before it happens.
+              AppAlert.confirm(
+                t("settings.restartTitle"),
+                t("settings.restartBody"),
+                () => {
+                  void setLanguage(next).catch(() => {
+                    AppAlert.error(t("settings.restartFailedTitle"), t("settings.restartFailedBody"));
+                  });
+                },
+                { confirmLabel: t("settings.restartConfirm") }
+              );
             }}
           />
-          <SegmentedField
-            flat
+          <ValueRow
             title={t("settings.nameLanguage")}
-            subtitle={t("settings.nameLanguageHint")}
             value={nameLanguage}
             options={[
               { value: "auto", label: t("settings.automatic") },
               { value: "en", label: t("settings.english") },
               { value: "he", label: t("settings.hebrew") },
             ]}
-            onChange={(next) => {
-              haptic.tap();
-              setNameLanguage(next);
-            }}
+            onChange={setNameLanguage}
           />
-        </SettingsGroup>
-      </View>
-
-      <View style={styles.settingsSection}>
-        <Text style={styles.settingsSectionLabel}>{t("settings.startup")}</Text>
-        <SettingsGroup>
-          <SegmentedField
-            flat
+          <ValueRow
             title={t("settings.openTo")}
-            subtitle={startupHint}
             value={workspaceStartupPreference}
             options={[
-              { value: "primary", label: t("settings.primaryShort") },
-              { value: "last-used", label: t("settings.lastUsedShort") },
+              { value: "primary", label: t("settings.primaryWorkspaceOption") },
+              { value: "last-used", label: t("settings.lastUsedOption") },
             ]}
-            onChange={(next) => {
-              haptic.tap();
-              setWorkspaceStartupPreference(next);
-            }}
+            onChange={setWorkspaceStartupPreference}
           />
-        </SettingsGroup>
-      </View>
-
-      <View style={styles.settingsSection}>
-        <Text style={styles.settingsSectionLabel}>{t("settings.interaction")}</Text>
-        <SettingsGroup>
           <ToggleRow
             flat
             title={t("settings.interfaceHaptics")}
-            subtitle={t("settings.hapticsHint")}
             value={hapticsEnabled}
             onPress={() => {
               const next = !hapticsEnabled;
@@ -109,12 +88,31 @@ export function SettingsGeneralView() {
               if (next) haptic.tap();
             }}
           />
+        </SettingsGroup>
+      </View>
+
+      <View style={styles.settingsSection}>
+        <Text style={styles.settingsSectionLabel}>{t("settings.recording")}</Text>
+        <SettingsGroup>
           <ToggleRow
             flat
-            title={t("settings.classicReel")}
-            subtitle={t("settings.classicReelHint")}
-            value={classicReel}
-            onPress={() => setClassicReel(!classicReel)}
+            title={t("settingsRecording.nameEach")}
+            value={promptForClipName}
+            onPress={() => setPromptForClipName(!promptForClipName)}
+          />
+          <LibraryActionCard
+            flat
+            icon="bluetooth"
+            title={t("settingsRecording.bluetooth")}
+            meta={
+              bluetoothCalibrations.length > 0
+                ? t("settingsRecording.calibrations", { count: bluetoothCalibrations.length })
+                : undefined
+            }
+            onPress={() => {
+              haptic.tap();
+              navigation.navigate("BluetoothCalibration" as never);
+            }}
           />
         </SettingsGroup>
       </View>

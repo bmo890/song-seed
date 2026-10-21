@@ -249,7 +249,9 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
             ? state.backupReminderFrequency
             : DEFAULT_BACKUP_REMINDER_FREQUENCY,
         hapticsEnabled: state?.hapticsEnabled !== false,
-        classicReel: state?.classicReel === true,
+        // The Classic reel switch left Settings (founder, 2026-10-21): whoever had it
+        // on comes back to the lanes reel, with no switch left to find their way.
+        classicReel: false,
         promptForClipName: state?.promptForClipName !== false,
         nameLanguage:
             state?.nameLanguage === "he"
