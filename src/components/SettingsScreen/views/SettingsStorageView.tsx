@@ -4,7 +4,6 @@ import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../design/tokens";
 import { PageIntro } from "../../common/PageIntro";
-import { Button } from "../../common/Button";
 import { styles } from "../styles";
 import {
   LibraryActionCard,
@@ -29,137 +28,74 @@ export function SettingsStorageView({ diagnostics }: { diagnostics: StorageDiagn
       contentContainerStyle={styles.settingsScrollContent}
       showsVerticalScrollIndicator={false}
     >
-      <PageIntro title={t("settingsStorage.title")} />
+      <PageIntro title={t("settingsLibrary.storageRepair")} />
 
-      <View style={styles.settingsSummaryPanel}>
-        <Text style={styles.settingsSummaryTitle}>{t("settingsStorage.health")}</Text>
-        <Text style={styles.settingsSummaryMeta}>
-          {t("settingsStorage.healthHint")}
-        </Text>
-        {diagnostics.integrityReport ? (
-          <Text style={styles.settingsSummaryMeta}>
-            {diagnostics.integrityReport.ok
-              ? t("settingsStorage.noProblems")
-              : t("settingsStorage.lastCheck", { summary: summarizeIntegrityReport(diagnostics.integrityReport) })}
-          </Text>
-        ) : null}
-        <View style={styles.settingsActionRow}>
-          <Button
-            label={diagnostics.isScanning ? t("settingsStorage.checking") : t("settingsStorage.check")}
-            variant="secondary"
-            onPress={() => void diagnostics.runIntegrityScan()}
-            disabled={diagnostics.isScanning}
-          />
-        </View>
-      </View>
-
+      {/* Space first: one line each, the breakdown lives in Support details
+          (2026-10-21: the page carried sixteen rows of storage arithmetic). */}
       {diagnostics.isStorageLoading && !diagnostics.storageReport ? (
-        <View style={styles.settingsSummaryPanel}>
-          <View style={styles.settingsBusyRow}>
-            <Spinner size="small" color={colors.textPrimary} />
-            <Text style={styles.settingsBusyText}>{t("settingsStorage.measuring")}</Text>
-          </View>
+        <View style={styles.settingsBusyRow}>
+          <Spinner size="small" color={colors.textPrimary} />
+          <Text style={styles.settingsBusyText}>{t("settingsStorage.measuring")}</Text>
+        </View>
+      ) : null}
+      {diagnostics.storageError ? (
+        <Text style={styles.settingsSectionHint}>{t("settingsStorage.unavailable")}</Text>
+      ) : null}
+      {diagnostics.storageReport ? (
+        <View style={styles.settingsSection}>
+          <StorageMetricRow
+            label={t("settingsStorage.libraryStorage")}
+            value={formatBytes(diagnostics.storageReport.totalLibraryBytes)}
+          />
+          {diagnostics.storageReport.archivedWorkspaceCount > 0 || diagnostics.storageReport.archivePackages.bytes > 0 ? (
+            <StorageMetricRow
+              label={t("settingsStorage.archivedWorkspaces")}
+              value={formatBytes(diagnostics.storageReport.archivedLibraryBytes)}
+            />
+          ) : null}
+          {diagnostics.storageReport.temporaryExports.bytes > 0 ? (
+            <StorageMetricRow
+              label={t("settingsStorage.tempFiles")}
+              value={formatBytes(diagnostics.storageReport.temporaryExports.bytes)}
+            />
+          ) : null}
         </View>
       ) : null}
 
-      {diagnostics.storageError ? (
-        <View style={styles.settingsSummaryPanel}>
-          <Text style={styles.settingsSummaryTitle}>{t("settingsStorage.unavailable")}</Text>
-          <Text style={styles.settingsSummaryMeta}>{diagnostics.storageError}</Text>
-        </View>
-      ) : null}
+      <View style={styles.settingsSection}>
+        <Text style={styles.settingsSectionLabel}>{t("settingsStorage.repair")}</Text>
+        <SettingsGroup>
+          <LibraryActionCard
+            flat
+            icon="pulse-outline"
+            title={t("settingsStorage.checkLibrary")}
+            busy={diagnostics.isScanning}
+            disabled={diagnostics.isScanning}
+            meta={
+              diagnostics.isScanning
+                ? t("settingsStorage.checking")
+                : diagnostics.integrityReport
+                  ? diagnostics.integrityReport.ok
+                    ? t("settingsStorage.noProblems")
+                    : t("settingsStorage.lastCheck", { summary: summarizeIntegrityReport(diagnostics.integrityReport) })
+                  : undefined
+            }
+            onPress={() => void diagnostics.runIntegrityScan()}
+          />
+          <LibraryActionCard
+            flat
+            icon="medkit-outline"
+            title={t("settingsLibrary.recoverAudio")}
+            busy={diagnostics.isRecovering}
+            disabled={diagnostics.isRecovering}
+            meta={diagnostics.isRecovering ? diagnostics.recoveryProgress || t("settingsLibrary.scanning") : undefined}
+            onPress={diagnostics.runRecovery}
+          />
+        </SettingsGroup>
+      </View>
 
       {diagnostics.storageReport ? (
         <>
-          <View style={styles.settingsSummaryPanel}>
-            <Text style={styles.settingsSummaryTitle}>{t("settingsStorage.libraryStorage")}</Text>
-            <Text style={styles.settingsStoragePrimaryValue}>
-              {formatBytes(diagnostics.storageReport.totalLibraryBytes)}
-            </Text>
-            <Text style={styles.settingsSummaryMeta}>{diagnostics.storageReport.storageLabel}</Text>
-            <Text style={styles.settingsSummaryMeta}>
-              {t("settingsStorage.workspaceSummary", { active: diagnostics.storageReport.activeWorkspaceCount, archived: diagnostics.storageReport.archivedWorkspaceCount })}
-            </Text>
-            <View style={styles.settingsActionRow}>
-              <Button
-                label={diagnostics.isStorageLoading ? t("settingsStorage.refreshing") : t("settingsStorage.refresh")}
-                variant="secondary"
-                onPress={() => void diagnostics.loadStorageDetails()}
-                disabled={diagnostics.isStorageLoading}
-              />
-            </View>
-          </View>
-
-          <View style={styles.settingsSection}>
-            <View style={styles.settingsSectionHeaderRow}>
-              <Text style={styles.settingsSectionLabel}>{t("settingsStorage.libraryStorage")}</Text>
-              <Text style={styles.settingsSectionMeta}>{formatBytes(diagnostics.storageReport.totalLibraryBytes)}</Text>
-            </View>
-            <View style={styles.settingsSummaryPanel}>
-              <StorageMetricRow
-                label={t("settingsStorage.activeWorkspaces")}
-                value={String(diagnostics.storageReport.activeWorkspaceCount)}
-                detail={t("settingsStorage.activeDetail", { size: formatBytes(diagnostics.storageReport.activeLibraryBytes) })}
-              />
-              <StorageMetricRow
-                label={t("settingsStorage.audioFiles")}
-                value={formatBytes(diagnostics.storageReport.managedAudio.bytes)}
-                detail={t("settingsStorage.audioDetail", { count: diagnostics.storageReport.managedAudio.fileCount })}
-              />
-              <StorageMetricRow
-                label={t("settingsStorage.libraryData")}
-                value={formatBytes(diagnostics.storageReport.metadataBytes)}
-                detail={t("settingsStorage.libraryDataDetail")}
-              />
-            </View>
-          </View>
-
-          {/* Archived space only matters once something is archived. */}
-          {diagnostics.storageReport.archivedWorkspaceCount > 0 || diagnostics.storageReport.archivePackages.bytes > 0 ? (
-          <View style={styles.settingsSection}>
-            <View style={styles.settingsSectionHeaderRow}>
-              <Text style={styles.settingsSectionLabel}>{t("settingsStorage.archivedWorkspaces")}</Text>
-              <Text style={styles.settingsSectionMeta}>{diagnostics.storageReport.archivedWorkspaceCount}</Text>
-            </View>
-            <View style={styles.settingsSummaryPanel}>
-              <StorageMetricRow
-                label={t("settingsStorage.archivedWorkspaces")}
-                value={String(diagnostics.storageReport.archivedWorkspaceCount)}
-                detail={t("settingsStorage.archivedDetail", { size: formatBytes(diagnostics.storageReport.archivedLibraryBytes) })}
-              />
-              <StorageMetricRow
-                label={t("settingsStorage.archiveUsed")}
-                value={formatBytes(diagnostics.storageReport.archivePackages.bytes)}
-                detail={t("settingsStorage.archiveDetail", { count: diagnostics.storageReport.archivePackages.fileCount })}
-              />
-              <StorageMetricRow
-                label={t("settingsStorage.archivedData")}
-                value={formatBytes(diagnostics.storageReport.archivedWorkspaceMetadataBytes)}
-                detail={t("settingsStorage.archivedDataDetail")}
-              />
-            </View>
-          </View>
-          ) : null}
-
-          <View style={styles.settingsSection}>
-            <View style={styles.settingsSectionHeaderRow}>
-              <Text style={styles.settingsSectionLabel}>{t("settingsStorage.tempFiles")}</Text>
-              <Text style={styles.settingsSectionMeta}>{formatBytes(diagnostics.storageReport.temporaryExports.bytes)}</Text>
-            </View>
-            <View style={styles.settingsSummaryPanel}>
-              <StorageMetricRow
-                label={t("settingsStorage.exportTemp")}
-                value={formatBytes(diagnostics.storageReport.temporaryExports.bytes)}
-                detail={t("settingsStorage.exportTempDetail", { count: diagnostics.storageReport.temporaryExports.fileCount })}
-              />
-              <StorageMetricRow
-                label={t("settingsStorage.allManaged")}
-                value={formatBytes(diagnostics.storageReport.totalManagedBytes)}
-                detail={t("settingsStorage.allManagedDetail")}
-              />
-            </View>
-          </View>
-
           {/* Support details fold under one quiet row (2026-10-20; was an
               accordion card). Only support ever needs them. */}
           <Press
@@ -179,6 +115,52 @@ export function SettingsStorageView({ diagnostics }: { diagnostics: StorageDiagn
           </Press>
           {diagnostics.showAdvancedStorageDetails ? (
             <View style={styles.settingsOptionStack}>
+              <View style={styles.settingsSummaryPanel}>
+                <StorageMetricRow
+                  label={t("settingsStorage.activeWorkspaces")}
+                  value={String(diagnostics.storageReport.activeWorkspaceCount)}
+                  detail={t("settingsStorage.activeDetail", { size: formatBytes(diagnostics.storageReport.activeLibraryBytes) })}
+                />
+                <StorageMetricRow
+                  label={t("settingsStorage.audioFiles")}
+                  value={formatBytes(diagnostics.storageReport.managedAudio.bytes)}
+                  detail={t("settingsStorage.audioDetail", { count: diagnostics.storageReport.managedAudio.fileCount })}
+                />
+                <StorageMetricRow
+                  label={t("settingsStorage.libraryData")}
+                  value={formatBytes(diagnostics.storageReport.metadataBytes)}
+                  detail={t("settingsStorage.libraryDataDetail")}
+                />
+                {diagnostics.storageReport.archivedWorkspaceCount > 0 ? (
+                  <>
+                    <StorageMetricRow
+                      label={t("settingsStorage.archivedWorkspaces")}
+                      value={String(diagnostics.storageReport.archivedWorkspaceCount)}
+                      detail={t("settingsStorage.archivedDetail", { size: formatBytes(diagnostics.storageReport.archivedLibraryBytes) })}
+                    />
+                    <StorageMetricRow
+                      label={t("settingsStorage.archiveUsed")}
+                      value={formatBytes(diagnostics.storageReport.archivePackages.bytes)}
+                      detail={t("settingsStorage.archiveDetail", { count: diagnostics.storageReport.archivePackages.fileCount })}
+                    />
+                    <StorageMetricRow
+                      label={t("settingsStorage.archivedData")}
+                      value={formatBytes(diagnostics.storageReport.archivedWorkspaceMetadataBytes)}
+                      detail={t("settingsStorage.archivedDataDetail")}
+                    />
+                  </>
+                ) : null}
+                <StorageMetricRow
+                  label={t("settingsStorage.exportTemp")}
+                  value={formatBytes(diagnostics.storageReport.temporaryExports.bytes)}
+                  detail={t("settingsStorage.exportTempDetail", { count: diagnostics.storageReport.temporaryExports.fileCount })}
+                />
+                <StorageMetricRow
+                  label={t("settingsStorage.allManaged")}
+                  value={formatBytes(diagnostics.storageReport.totalManagedBytes)}
+                  detail={t("settingsStorage.allManagedDetail")}
+                />
+              </View>
               {diagnostics.storageReport.unmanagedAudioReferences.totalReferences > 0 ? (
                 <View style={styles.settingsSummaryPanel}>
                   <StorageMetricRow
@@ -241,9 +223,6 @@ export function SettingsStorageView({ diagnostics }: { diagnostics: StorageDiagn
           the bottom of the storage details rather than anywhere it could be tapped in
           passing. Two confirmations + the device lock stand between the tap and the wipe. */}
       <View style={styles.settingsSection}>
-        <View style={styles.settingsSectionHeaderRow}>
-          <Text style={styles.settingsSectionLabel}>{t("eraseAll.section")}</Text>
-        </View>
         <SettingsGroup>
           <LibraryActionCard
             flat

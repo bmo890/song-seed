@@ -57,6 +57,7 @@ The hard rules below are non-negotiable.
   (2026-10-15): words on a hairline, the chosen one in full ink over a sliding
   2 pt rule, no track or thumb;
   multi-select = editorial ink (word + leading dot, hollow→terracotta), no chips.
+  A choice in Settings is a `ValueRow` (value + popover, 2026-10-21), not tabs.
   Stage color from shared `STAGE_INK`, never cold literals.
 - Headers (2026-10-15): a PLACE (collection, Shelf, Revisit, Activity,
   Compilations, Received, Lyric Pad, Settings) wears the large Lora title

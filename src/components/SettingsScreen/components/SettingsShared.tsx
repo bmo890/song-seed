@@ -1,4 +1,7 @@
-import { Children, Fragment, type ComponentProps, type ReactNode } from "react";
+import { Children, Fragment, useState, type ComponentProps, type ReactNode } from "react";
+import Animated, { FadeIn } from "react-native-reanimated";
+import { durations } from "../../../design/motion";
+import { PopoverRadioRow } from "../../common/PopoverMenu";
 import { colors } from "../../../design/tokens";
 import { Pressable, Text, View } from "react-native";
 import { Spinner } from "../../common/Spinner";
@@ -52,7 +55,8 @@ export function LibraryActionCard({
 }: {
   icon: ComponentProps<typeof Ionicons>["name"];
   title: string;
-  meta: string;
+  /** A status line; omitted, the row is its name alone. */
+  meta?: string;
   busy?: boolean;
   rightAccessory?: ReactNode;
   /** Omit for a STATIC row — same anatomy, no press affordance. Used for
@@ -81,9 +85,11 @@ export function LibraryActionCard({
         </View>
         <View style={settingsScreenStyles.libraryCardCopy}>
           <Text style={[settingsScreenStyles.libraryCardTitle, titleStyle]}>{title}</Text>
-          <Text style={settingsScreenStyles.libraryCardMeta} numberOfLines={1}>
-            {meta}
-          </Text>
+          {meta ? (
+            <Text style={settingsScreenStyles.libraryCardMeta} numberOfLines={1}>
+              {meta}
+            </Text>
+          ) : null}
         </View>
         {rightAccessory ?? null}
       </View>
@@ -107,9 +113,11 @@ export function LibraryActionCard({
       </View>
       <View style={settingsScreenStyles.libraryCardCopy}>
         <Text style={[settingsScreenStyles.libraryCardTitle, titleStyle]}>{title}</Text>
-        <Text style={settingsScreenStyles.libraryCardMeta} numberOfLines={1}>
-          {meta}
-        </Text>
+        {meta ? (
+          <Text style={settingsScreenStyles.libraryCardMeta} numberOfLines={1}>
+            {meta}
+          </Text>
+        ) : null}
       </View>
       {busy ? (
         <Spinner size="small" color={accent} />
@@ -277,13 +285,13 @@ export function StorageMetricRow({
 }: {
   label: string;
   value: string;
-  detail: string;
+  detail?: string;
 }) {
   return (
     <View style={styles.settingsStorageMetricRow}>
       <View style={styles.settingsStorageMetricCopy}>
         <Text style={styles.settingsChoiceTitle}>{label}</Text>
-        <Text style={styles.settingsChoiceMeta}>{detail}</Text>
+        {detail ? <Text style={styles.settingsChoiceMeta}>{detail}</Text> : null}
       </View>
       <Text style={styles.settingsStorageMetricValue}>{value}</Text>
     </View>
@@ -301,6 +309,79 @@ export function StoragePathRow({
     <View style={styles.settingsStoragePathRow}>
       <Text style={styles.settingsSectionLabel}>{label}</Text>
       <Text style={styles.settingsStoragePathValue}>{value}</Text>
+    </View>
+  );
+}
+
+/**
+ * One choice of a few, said as a value (2026-10-21, founder: "drop downs
+ * instead of tab lists"): the row shows the current value; a tap hangs the
+ * filter/sort popover (PopoverRadioRow) from its trailing edge. The section
+ * holding these rows sits above the ones after it (`settingsScreenStyles.pickerSection`),
+ * so an open popover is never covered by a later section.
+ */
+export function ValueRow<T extends string>({
+  title,
+  value,
+  options,
+  onChange,
+}: {
+  title: string;
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (next: T) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const current = options.find((option) => option.value === value)?.label ?? "";
+  return (
+    <View style={[settingsScreenStyles.valueRowWrap, open ? settingsScreenStyles.valueRowWrapOpen : null]}>
+      {open ? (
+        <Press
+          feel="still"
+          // Haptics vocabulary: `light` — the small panel closes, as it opened.
+          haptic="light"
+          style={settingsScreenStyles.valueRowBackdrop}
+          onPress={() => setOpen(false)}
+          accessible={false}
+        />
+      ) : null}
+      <Press
+        // Haptics vocabulary: `light` — a small panel opens.
+        haptic="light"
+        style={[styles.settingsToggleRow, styles.settingsRowFlat]}
+        onPress={() => setOpen((wasOpen) => !wasOpen)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        accessibilityLabel={`${title}: ${current}`}
+      >
+        <View style={styles.settingsChoiceCopy}>
+          <Text style={styles.settingsChoiceTitle}>{title}</Text>
+        </View>
+        <View style={settingsScreenStyles.valueRowValue}>
+          <Text style={settingsScreenStyles.valueRowValueText} numberOfLines={1}>
+            {current}
+          </Text>
+          <Ionicons name={open ? "chevron-up" : "chevron-down"} size={14} color={colors.textMuted} />
+        </View>
+      </Press>
+      {open ? (
+        <Animated.View
+          entering={FadeIn.duration(durations.fast)}
+          style={[styles.ideasSortMenu, settingsScreenStyles.valueRowMenu]}
+        >
+          {options.map((option) => (
+            <PopoverRadioRow
+              key={option.value}
+              label={option.label}
+              selected={option.value === value}
+              onPress={() => {
+                setOpen(false);
+                if (option.value !== value) onChange(option.value);
+              }}
+            />
+          ))}
+        </Animated.View>
+      ) : null}
     </View>
   );
 }

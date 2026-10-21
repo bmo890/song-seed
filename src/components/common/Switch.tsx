@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, type StyleProp, type ViewStyle } from "react-native";
+import { I18nManager, StyleSheet, type StyleProp, type ViewStyle } from "react-native";
 import Animated, {
   interpolateColor,
   useAnimatedStyle,
@@ -35,7 +35,10 @@ const SHELL_W = 46;
 const SHELL_H = 28;
 const KNOB = 22;
 const PAD = 3;
-const TRAVEL = SHELL_W - KNOB - PAD * 2;
+// The knob starts at the leading edge, which is the right in Hebrew, so it
+// travels toward the trailing edge: negative x there (2026-10-21: it slid out
+// of the shell, the same flip SegmentedControl's rule makes).
+const TRAVEL = (SHELL_W - KNOB - PAD * 2) * (I18nManager.isRTL ? -1 : 1);
 
 export function Switch({
   value,

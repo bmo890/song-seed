@@ -94,7 +94,7 @@ export function SettingsAboutView() {
       contentContainerStyle={settingsScreenStyles.scrollContent}
       showsVerticalScrollIndicator={false}
     >
-      <PageIntro title={t("settings.about")} />
+      <PageIntro title={t("settings.helpAbout")} />
 
       {/* Colophon: the one place the mark lives in the app (the drawer carries the
           wordmark alone). Mark, name, version — the line to quote in a bug report. */}
@@ -143,9 +143,7 @@ export function SettingsAboutView() {
         <View style={styles.settingsSectionHeaderRow}>
           <Text style={styles.settingsSectionLabel}>{t("settingsAbout.privacy")}</Text>
         </View>
-        <Text style={styles.settingsSectionHint}>
-          {t("settingsAbout.privacyBody")}
-        </Text>
+        <Text style={styles.settingsSectionHint}>{t("settingsAbout.privacyLine")}</Text>
         <SettingsGroup>
           <AboutLinkRow label={t("settingsAbout.privacyPolicy")} icon="shield-checkmark-outline" onPress={() => openLegal(PRIVACY_POLICY_URL)} />
           <AboutLinkRow label={t("settingsAbout.terms")} icon="document-text-outline" onPress={() => openLegal(TERMS_OF_USE_URL)} />

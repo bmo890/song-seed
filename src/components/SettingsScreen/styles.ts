@@ -4,6 +4,54 @@ import { colors, radii, spacing } from "../../design/tokens";
 export { styles } from "../../styles";
 
 export const settingsScreenStyles = StyleSheet.create({
+  // ── Value rows (the filter-style picker) ───────────────────────────────
+  valueRowWrap: {
+    position: "relative",
+  },
+  valueRowWrapOpen: {
+    zIndex: 30,
+    elevation: 30,
+  },
+  // Catches the tap that closes the popover, wherever it lands.
+  valueRowBackdrop: {
+    position: "absolute",
+    top: -2000,
+    bottom: -2000,
+    left: -40,
+    right: -40,
+    zIndex: 20,
+  },
+  valueRowValue: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    maxWidth: "55%",
+  },
+  valueRowValueText: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  valueRowMenu: {
+    position: "absolute",
+    top: 50,
+    // The group bleeds 14 pt past the page edge; hang the menu from the
+    // row's chevron instead of the screen's edge. `end`, so it follows the
+    // chevron to the left in Hebrew.
+    end: 14,
+    minWidth: 200,
+    maxWidth: 280,
+    zIndex: 30,
+    paddingHorizontal: 0,
+    gap: 0,
+  },
+  // A section that holds value rows sits above the sections after it, so an
+  // open popover hangs over them rather than under.
+  pickerSection: {
+    zIndex: 10,
+    elevation: 10,
+  },
+
   // ── About colophon ─────────────────────────────────────────────────────
   colophon: {
     alignItems: "center",
@@ -194,6 +242,26 @@ export const settingsScreenStyles = StyleSheet.create({
     color: colors.textSecondary,
   },
   // The plan is a row on paper, not a terracotta-washed box (2026-10-20).
+  // The plan as a line on Settings (no page during the beta).
+  planLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderMuted,
+  },
+  planLineTitle: {
+    flex: 1,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  planLineState: {
+    fontFamily: "PlusJakartaSans_500Medium",
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
   planSummary: {
     flexDirection: "row",
     alignItems: "center",
