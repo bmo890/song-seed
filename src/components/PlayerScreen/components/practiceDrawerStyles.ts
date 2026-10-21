@@ -360,12 +360,14 @@ export const pd = StyleSheet.create({
   },
   stepUpLabelRow: {
     flexDirection: "row",
-    // Centre on the label's CAP height, not its line box: a text box carries
-    // descender space below the glyphs, so a box-centred icon reads low beside
-    // a word with no descenders ("Step up"). The 1px lift is that optical
-    // correction, the same one the reset glyphs get by riding their label.
     alignItems: "center",
     gap: 5,
+  },
+  // The "?" beside a row label, centred on the word's capitals rather than its
+  // line box: Jakarta's line box carries the ascender headroom above the caps,
+  // so a box-centred glyph sits high beside the word (founder, 2026-10-21).
+  labelHelp: {
+    transform: [{ translateY: 2 }],
   },
   // Pushes a row's controls to its trailing edge.
   rowSpacer: {
@@ -423,6 +425,16 @@ export const pd = StyleSheet.create({
   },
   soundStrip: {
     paddingHorizontal: 10,
+  },
+  // Keep / Reset all, once under the tabs: a quiet line, not a tool.
+  keepRow: {
+    minHeight: 44,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderSubtle,
+  },
+  keepLabel: {
+    ...text.supporting,
+    color: colors.textSecondary,
   },
   rowDivider: {
     borderTopWidth: StyleSheet.hairlineWidth,

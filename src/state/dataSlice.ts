@@ -35,6 +35,7 @@ import {
     WorkspaceStartupPreference,
     BackupReminderFrequency,
     PracticeMarker,
+    ClipKeptPractice,
     ClipSection,
     ClipAnalysis,
     Note,
@@ -54,6 +55,7 @@ import { createCutUpSpark } from "../domain/cutUp";
 import { createMagpieSpark } from "../domain/magpie";
 import { sanitizeChordSheet } from "../domain/chordSheet";
 import { isTonePresetNeutral, sanitizeTonePreset } from "../domain/overdub";
+import { normalizeKeptPractice } from "../domain/keptPractice";
 import { normalizeTempoMap, sanitizeTempoMap, tempoMapEquals, type TempoMap } from "../domain/tempoMap";
 import { genChildClipTitle, genId, genRootClipTitle } from "../utils";
 import { buildClipGraph } from "../domain/clipGraph";
@@ -289,6 +291,9 @@ export type DataSlice = {
     addClipPracticeMarker: (ideaId: string, clipId: string, marker: PracticeMarker) => void;
     removeClipPracticeMarker: (ideaId: string, clipId: string, markerId: string) => void;
     setClipPracticeMarkers: (ideaId: string, clipId: string, markers: PracticeMarker[]) => void;
+    /** The player's Keep switch: undefined forgets. Not creative work, so the
+     *  idea's activity time is left alone. */
+    setClipKeptPractice: (ideaId: string, clipId: string, kept: ClipKeptPractice | undefined) => void;
     setClipSections: (ideaId: string, clipId: string, sections: ClipSection[]) => void;
     setClipAnalysis: (ideaId: string, clipId: string, analysis: ClipAnalysis) => void;
     addClipOverdubStem: (ideaId: string, clipId: string, stem: ClipOverdubStem) => void;
@@ -942,6 +947,7 @@ function normalizeClip(clip: ClipVersion): ClipVersion {
         tags: normalizeClipTags(clip.tags),
         lyricsVersionId: isNonEmptyString(clip.lyricsVersionId) ? clip.lyricsVersionId : undefined,
         overdub: cleanupClipOverdubState(clip.overdub),
+        keptPractice: normalizeKeptPractice(clip.keptPractice),
     };
 }
 
@@ -2309,6 +2315,21 @@ export const createDataSlice: StateCreator<
                               ),
                           }
                         : idea
+            )
+        );
+    },
+
+    setClipKeptPractice: (ideaId, clipId, kept) => {
+        set((state) =>
+            updateIdeaInState(state, ideaId, (idea) =>
+                idea.id === ideaId
+                    ? {
+                          ...idea,
+                          clips: idea.clips.map((clip) =>
+                              clip.id === clipId ? { ...clip, keptPractice: kept } : clip
+                          ),
+                      }
+                    : idea
             )
         );
     },

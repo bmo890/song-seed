@@ -157,6 +157,7 @@ function readFullClipMetadata(clipManifest: ArchiveClipManifest) {
         editRegions: clipManifest.editRegions,
         tags: clipManifest.tags,
         practiceMarkers: clipManifest.practiceMarkers,
+        keptPractice: clipManifest.keptPractice,
         sections: clipManifest.sections,
         analysis: clipManifest.analysis,
         recordingGrid: clipManifest.recordingGrid,

@@ -30,6 +30,7 @@ import { useTranslation } from "react-i18next";
 import { MARK_NUDGE_BASE_MS, MARK_NUDGE_MIN_MS, MarkInspector, nudgeStepMsForZoom } from "../../common/MarkInspector";
 import { SpanInspector, spanNeighbors } from "../../common/SpanInspector";
 import { Switch } from "../../common/Switch";
+import { InkKey, inkKeyColor } from "../../common/InkKey";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { durations } from "../../../design/motion";
 import { markGroupPositions, markRowTimeline, sectionPhase } from "../../../domain/markPhase";
@@ -133,6 +134,11 @@ type PlayerPracticeDrawersProps = {
   stepUpRateMax: number;
   onToggleStepUp: () => void;
   onRestartStepUp: () => void;
+  /** The take keeps this practice setup and opens with it (one switch for all tools). */
+  keepOn: boolean;
+  onToggleKeep: () => void;
+  /** Every tool back to neutral, the take's level and tone included. */
+  onResetAll: () => void;
 
   // Sound
   playbackSpeed: number;
@@ -278,6 +284,9 @@ export function PlayerPracticeDrawers({
   stepUpRateMax,
   onToggleStepUp,
   onRestartStepUp,
+  keepOn,
+  onToggleKeep,
+  onResetAll,
   playbackSpeed,
   speedPresets,
   speedMin,
@@ -414,6 +423,8 @@ export function PlayerPracticeDrawers({
       (clickAvailable && clickEnabled) ||
       (!!sound && (sound.gainDb !== 0 || !isTonePresetNeutral(sound.tonePreset))),
   };
+  // Anything a reset would change, set-ups included (count-in, a drill).
+  const anyToolSet = drawerHasState.loop || drawerHasState.sound || countInOption !== "off" || stepUpEnabled;
 
   const clampSectionEdge = (section: ClipSection, edge: "start" | "end", ms: number) => {
     const minMs = edge === "start" ? 0 : Math.min(section.startMs + MIN_SECTION_LENGTH_MS, Math.max(1, durationMs));
@@ -826,7 +837,9 @@ export function PlayerPracticeDrawers({
       <View style={[pd.row, pd.rowDivider]}>
         <View style={pd.stepUpLabelRow}>
           <Text style={pd.rowLabel}>{t("player.stepUp")}</Text>
-          <HelpButton compact onPress={() => setStepUpHelpOpen(true)} />
+          <View style={pd.labelHelp}>
+            <HelpButton compact onPress={() => setStepUpHelpOpen(true)} />
+          </View>
         </View>
         {/* The plan's name is not on this row (founder, 2026-10-13): it said
             nothing while the drill was off and crowded the controls. It lives
@@ -855,13 +868,11 @@ export function PlayerPracticeDrawers({
         >
           <Ionicons name="options-outline" size={16} color={colors.textMuted} />
         </Press>
-        {/* Step up counts loop passes, so it can only run while the loop does — the
-            session hook ends one the moment the loop goes off. Disabled rather than
-            silently self-cancelling. */}
+        {/* Step up counts loop passes, so it only runs while the loop does: turning
+            it on turns the loop on, and the session ends when the loop goes off. */}
         <Switch
           value={stepUpEnabled}
           onValueChange={() => onToggleStepUp()}
-          disabled={!practiceLoopEnabled}
           accessibilityLabel={t("player.toggleStepUp")}
         />
       </View>
@@ -1031,6 +1042,24 @@ export function PlayerPracticeDrawers({
           onPinPreview(null);
         }}
       />
+      {/* Keep and Reset all speak for every tool, so they sit once under the
+          tabs rather than in each drawer; marks are always saved, so the Marks
+          tab goes without (founder, 2026-10-21). */}
+      {drawer !== "marks" ? (
+        <View style={[pd.row, pd.keepRow]}>
+          {anyToolSet ? (
+            <InkKey
+              glyph={<Ionicons name="refresh" size={15} color={inkKeyColor("idle")} />}
+              label={t("player.resetAll")}
+              onPress={onResetAll}
+              accessibilityLabel={t("player.resetAllA11y")}
+            />
+          ) : null}
+          <View style={pd.rowSpacer} />
+          <Text style={pd.keepLabel}>{t("player.keepSettings")}</Text>
+          <Switch value={keepOn} onValueChange={() => onToggleKeep()} accessibilityLabel={t("player.keepSettingsA11y")} />
+        </View>
+      ) : null}
       {drawer === "marks" ? marksDrawer : drawer === "loop" ? loopDrawer : soundDrawer}
 
       <SectionPickerModal

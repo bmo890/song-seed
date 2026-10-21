@@ -52,4 +52,16 @@ describe("per-clip practice", () => {
     p.show("song-a");
     expect(p.live).toEqual(NEUTRAL_CLIP_PRACTICE);
   });
+
+  it("a take met for the first time opens with what it keeps", () => {
+    const saved = new Map();
+    const kept = { pitchSemitones: 2, playbackRate: 0.75, clickEnabled: true, countIn: "3s" as const };
+    expect(switchClipPractice(saved, null, NEUTRAL_CLIP_PRACTICE, "song-a", () => kept)).toEqual(kept);
+  });
+
+  it("this session's own changes win over what the take keeps", () => {
+    const saved = new Map([["song-a", { ...NEUTRAL_CLIP_PRACTICE, pitchSemitones: -1 }]]);
+    const kept = { ...NEUTRAL_CLIP_PRACTICE, pitchSemitones: 4 };
+    expect(switchClipPractice(saved, null, NEUTRAL_CLIP_PRACTICE, "song-a", () => kept)?.pitchSemitones).toBe(-1);
+  });
 });

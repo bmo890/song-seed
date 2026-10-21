@@ -348,6 +348,7 @@ const READABLE_SUMMARY_OMITTED_KEYS = new Set([
     "chordSheet",
     "sections",
     "practiceMarkers",
+    "keptPractice",
     "editRegions",
     "analysis",
 ]);
@@ -693,6 +694,7 @@ function applyFullClipMetadata(
     manifest.waveformPeaks = clip.waveformPeaks;
     manifest.tags = clip.tags;
     manifest.practiceMarkers = clip.practiceMarkers;
+    manifest.keptPractice = clip.keptPractice;
     manifest.sections = clip.sections;
     manifest.analysis = clip.analysis;
     manifest.lyricsVersionId = options.includeLyrics ? clip.lyricsVersionId : undefined;
