@@ -125,6 +125,7 @@ export function usePlayerPracticePitchTransport({
     extraAutoplay: playerShouldAutoplay,
     onEnded,
     twinSource: true,
+    throttlePositionCommits: true,
   });
 
   // Maintain sticky ownership + clear a prior error-disable on re-engage / mode exit.
@@ -188,6 +189,9 @@ export function usePlayerPracticePitchTransport({
       finishedPlaybackToken: core.isNativeTransportActive ? finishedPlaybackToken : 0,
       finishedPlaybackClipId: core.isNativeTransportActive ? finishedPlaybackClipId : null,
       isOwningNativeTransport: core.isOwningNativeTransport,
+      /** The engine is loaded with this clip and its reports drive the clock. */
+      isNativeClockActive: core.isNativeTransportActive,
+      positionChannel: core.positionChannel,
       isPitchShiftAvailable: core.capabilities.supportsPracticePlayback && !core.nativeTransportDisabled,
       play: core.play,
       pause: core.pause,

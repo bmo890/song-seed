@@ -11,11 +11,16 @@ import {
 } from "../services/audioSession";
 import { isPlaybackNearEnd } from "../services/transportPlayback";
 import { classifyTwinMove } from "./twinFollow";
+import { shouldCommitNativeState } from "./nativeStateCommit";
+import { createTransportPositionChannel } from "../domain/transportPosition";
 import {
   buildUnavailablePitchShiftCapabilities,
   clampPitchShiftSemitones,
   type PitchShiftCapabilities,
 } from "../domain/pitchShift";
+
+/** How long after a pause the engine's "ended" report is taken as the pause's echo. */
+const PAUSE_ECHO_MS = 2000;
 
 /** Tagged, greppable diagnostics for the native pitch/speed engine. Event-driven
  * only (never called from render) so it doesn't spam. Filter logs by "[pitch]". */
@@ -100,6 +105,12 @@ type UseNativePitchTransportArgs = {
    * docked, and a lock-screen play started the source alongside the engine.
    */
   twinSource?: boolean;
+  /**
+   * Render on a change of state and once a second, like the plain player, instead
+   * of on every engine report; the reel and the loop read `positionChannel`. Off
+   * for callers that still take position as a prop (the editor preview).
+   */
+  throttlePositionCommits?: boolean;
 };
 
 /**
@@ -121,6 +132,7 @@ export function useNativePitchTransport({
   extraAutoplay = false,
   onEnded,
   twinSource = false,
+  throttlePositionCommits = false,
 }: UseNativePitchTransportArgs) {
   const soundGainDb = sound?.gainDb ?? 0;
   const soundTonePreset = sound?.tonePreset ?? "neutral";
@@ -142,9 +154,73 @@ export function useNativePitchTransport({
   // the sync effect — position is only ever needed as a load start point.
   const sourceRef = useRef(source);
 
-  nativeStateRef.current = nativeState;
   onEndedRef.current = onEnded;
   sourceRef.current = source;
+
+  // Every engine report lands here. The ref and the channel always carry the
+  // latest; React renders only when shouldCommitNativeState says so (or a
+  // command result forces it), so a playing engine costs what the plain
+  // player costs: about one render a second.
+  const positionChannel = useRef(createTransportPositionChannel()).current;
+  const committedNativeRef = useRef(nativeState);
+  const lastNativeCommitAtRef = useRef(0);
+  const nativeReportAtRef = useRef(0);
+  const receiveNativeState = useCallback(
+    (value: NativePitchShiftPlaybackState, opts?: { force?: boolean; seekLanded?: boolean }) => {
+      nativeStateRef.current = value;
+      nativeReportAtRef.current = Date.now();
+      positionChannel.publish({
+        positionMs: value.currentTimeMs,
+        isPlaying: value.isPlaying,
+        playbackRate: value.playbackRate > 0 ? value.playbackRate : 1,
+        seekLanded: opts?.seekLanded,
+      });
+      const now = Date.now();
+      if (
+        !opts?.force &&
+        throttlePositionCommits &&
+        !shouldCommitNativeState(committedNativeRef.current, value, lastNativeCommitAtRef.current, now)
+      ) {
+        return;
+      }
+      committedNativeRef.current = value;
+      lastNativeCommitAtRef.current = now;
+      setNativeState(value);
+    },
+    [positionChannel, throttlePositionCommits]
+  );
+  const receiveNativeStateRef = useRef(receiveNativeState);
+  receiveNativeStateRef.current = receiveNativeState;
+  // Stopping the engine's player also fires its "segment played" callback, which
+  // the engine reports as the end of the clip. A pause is not an end: remember
+  // where we paused so that report can be told apart and undone.
+  const lastPauseRef = useRef<{ at: number; positionMs: number } | null>(null);
+  /** Where the engine is now: its last report, carried forward while it plays. */
+  const estimateEnginePositionMs = useCallback(() => {
+    const engine = nativeStateRef.current;
+    if (!engine.isPlaying) return engine.currentTimeMs;
+    const elapsed = Math.max(0, Date.now() - nativeReportAtRef.current) * (engine.playbackRate || 1);
+    return Math.min(engine.durationMs || Infinity, engine.currentTimeMs + elapsed);
+  }, []);
+  /**
+   * Pause the engine and say where it stopped. The pause's echo can land before
+   * the call returns, so its result may already read "finished at the end"; then
+   * the position from just before the pause is the truth.
+   */
+  const pauseEngine = useCallback(
+    async (nativeModule: NonNullable<typeof SongNookPitchShiftModule>) => {
+      const before = estimateEnginePositionMs();
+      lastPauseRef.current = { at: Date.now(), positionMs: before };
+      const raw = await nativeModule.pause();
+      const echoed = raw.didJustFinish && !isPlaybackNearEnd(before, raw.durationMs);
+      const state = echoed ? { ...raw, currentTimeMs: before, didJustFinish: false } : raw;
+      lastPauseRef.current = { at: Date.now(), positionMs: state.currentTimeMs };
+      return state;
+    },
+    [estimateEnginePositionMs]
+  );
+  /** Until when a "finished" state is the pause's echo and is dropped, not shown. */
+  const dropEchoUntilRef = useRef(0);
 
   // ── The muted twin ─────────────────────────────────────────────────────────
   // When we last moved the twin ourselves, so a scrub check skips our own seeks.
@@ -181,6 +257,7 @@ export function useNativePitchTransport({
     );
     return result;
   }, []);
+  const runExclusiveRef = useRef(runExclusive);
 
   // Latest desired transport target — read inside the coalesced reconcile so a
   // burst of changes collapses to the final value instead of replaying each step.
@@ -210,16 +287,43 @@ export function useNativePitchTransport({
       .catch((error) => console.warn("[pitch] capabilities lookup failed", error));
     void SongNookPitchShiftModule.getPlaybackState()
       .then((value) => {
-        if (!cancelled) setNativeState(value);
+        if (!cancelled) receiveNativeStateRef.current(value, { force: true });
       })
       .catch(() => {});
 
     const stateSub = SongNookPitchShiftModule.addListener("onStateChange", (value) => {
-      setNativeState(value);
+      // The echo's own state says the clip is over; showing it would tell the
+      // dock (and the store) the song had finished.
+      if (value.didJustFinish && Date.now() < dropEchoUntilRef.current) return;
+      receiveNativeStateRef.current(value);
     });
     const endSub = SongNookPitchShiftModule.addListener("onPlaybackEnded", (value) => {
+      const paused = lastPauseRef.current;
+      if (
+        paused &&
+        Date.now() - paused.at < PAUSE_ECHO_MS &&
+        !isPlaybackNearEnd(paused.positionMs, value.durationMs)
+      ) {
+        pitchLog(`[${ownerLabel}] end after pause ignored`, { pausedAtMs: paused.positionMs });
+        dropEchoUntilRef.current = Date.now() + PAUSE_ECHO_MS;
+        const nativeModule = SongNookPitchShiftModule;
+        if (!nativeModule) return;
+        // Queued behind the pause itself, so it reads where the pause really landed.
+        void runExclusiveRef.current(async () => {
+          const at = lastPauseRef.current ?? paused;
+          lastPauseRef.current = null;
+          try {
+            if (nativeStateRef.current.isPlaying) return;
+            receiveNativeStateRef.current(await nativeModule.seekTo(at.positionMs), { force: true });
+          } finally {
+            dropEchoUntilRef.current = 0;
+          }
+        }).catch(() => {});
+        return;
+      }
+      lastPauseRef.current = null;
       pitchLog(`[${ownerLabel}] onPlaybackEnded`, { key: loadedKeyRef.current, atMs: value.currentTimeMs });
-      setNativeState(value);
+      receiveNativeStateRef.current(value, { force: true });
       onEndedRef.current?.(loadedKeyRef.current);
     });
     const errorSub = SongNookPitchShiftModule.addListener("onError", ({ message }) => {
@@ -290,7 +394,7 @@ export function useNativePitchTransport({
       const sameSource = loadedKeyRef.current === src.sourceKey;
       loadedKeyRef.current = null;
       const state = await SongNookPitchShiftModule.unload();
-      setNativeState(state);
+      receiveNativeStateRef.current(state, { force: true });
       await releaseAudioSessionOwnership();
       src.setMuted?.(false);
       // The source already moved on to another clip (the queue advanced): it
@@ -376,7 +480,7 @@ export function useNativePitchTransport({
         tonePreset: d.tonePreset,
       });
       loadedKeyRef.current = d.sourceKey;
-      setNativeState(state);
+      receiveNativeStateRef.current(state, { force: true });
       if (twinSource) {
         // The twin sits where the engine is; its play state converges below.
         // A freshly loaded clip on the twin can fall back to 1x; it keeps the
@@ -391,13 +495,13 @@ export function useNativePitchTransport({
     if (Math.abs(nativeStateRef.current.playbackRate - desiredRef.current.playbackRate) > 0.01) {
       pitchLog(`[${ownerLabel}] sync → setPlaybackRate`, desiredRef.current.playbackRate);
       const state = await nativeModule.setPlaybackRate(desiredRef.current.playbackRate);
-      setNativeState(state);
+      receiveNativeStateRef.current(state, { force: true });
       if (twinSource) src.setPlaybackRate(desiredRef.current.playbackRate);
     }
     if (nativeStateRef.current.pitchShiftSemitones !== desiredRef.current.pitch) {
       pitchLog(`[${ownerLabel}] sync → setPitchShiftSemitones`, desiredRef.current.pitch);
       const state = await nativeModule.setPitchShiftSemitones(desiredRef.current.pitch);
-      setNativeState(state);
+      receiveNativeStateRef.current(state, { force: true });
     }
     // Level and tone: a native build without the EQ stage has no setSound and
     // reports no sound in its state; the take then plays flat, and we say nothing.
@@ -414,7 +518,7 @@ export function useNativePitchTransport({
         gainDb: desiredRef.current.gainDb,
         tonePreset: desiredRef.current.tonePreset,
       });
-      setNativeState(state);
+      receiveNativeStateRef.current(state, { force: true });
     }
   }, [ensureAudioSessionOwnership, ownerLabel, syncBackToSource, twinPlay, twinSeek, twinSource]);
 
@@ -487,8 +591,9 @@ export function useNativePitchTransport({
       pitchLog(`[${ownerLabel}] twin → engine`, { play: wantPlaying });
       void runExclusive(async () => {
         if (nativeStateRef.current.isPlaying === wantPlaying) return;
-        const state = wantPlaying ? await nativeModule.play() : await nativeModule.pause();
-        setNativeState(state);
+        if (wantPlaying) lastPauseRef.current = null;
+        const state = wantPlaying ? await nativeModule.play() : await pauseEngine(nativeModule);
+        receiveNativeStateRef.current(state, { force: true });
         await twinSeek(state.currentTimeMs);
       }).catch(() => {});
     }, TWIN_SETTLE_MS);
@@ -498,13 +603,14 @@ export function useNativePitchTransport({
 
   // A lock-screen scrub makes the twin jump: the engine follows it. Drift, or
   // an engine that stalls, moves the silent twin back instead (twinFollow.ts).
-  const twinLastReportRef = useRef<{ positionMs: number; at: number } | null>(null);
+  const twinLastReportRef = useRef<{ positionMs: number; at: number; playing: boolean } | null>(null);
   useEffect(() => {
     const now = Date.now();
     const previous = twinLastReportRef.current;
-    twinLastReportRef.current = { positionMs: source.positionMs, at: now };
+    twinLastReportRef.current = { positionMs: source.positionMs, at: now, playing: source.isPlaying };
     if (!twinSource || !isNativeTransportActive || !SongNookPitchShiftModule) return;
-    if (source.inSync === false || !previous) return;
+    // A window that spans a play or a pause has no single rate to judge it by.
+    if (source.inSync === false || !previous || previous.playing !== source.isPlaying) return;
     if (now - twinLastCommandAtRef.current < TWIN_SETTLE_MS * 2) return;
     const engine = nativeStateRef.current;
     const move = classifyTwinMove({
@@ -526,7 +632,7 @@ export function useNativePitchTransport({
     pitchLog(`[${ownerLabel}] twin scrub → engine`, { target });
     void runExclusive(async () => {
       const state = await nativeModule.seekTo(target);
-      setNativeState(state);
+      receiveNativeStateRef.current(state, { force: true, seekLanded: true });
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source.positionMs, isNativeTransportActive, twinSource]);
@@ -572,7 +678,7 @@ export function useNativePitchTransport({
               tonePreset: soundTonePreset,
             });
             loadedKeyRef.current = src.sourceKey;
-            setNativeState(state);
+            receiveNativeStateRef.current(state, { force: true });
             if (atEnd) await twinSeek(0);
             await twinPlay();
             return;
@@ -581,11 +687,11 @@ export function useNativePitchTransport({
           if (isNativeTransportActive && SongNookPitchShiftModule) {
             if (atEnd) {
               const seekState = await SongNookPitchShiftModule.seekTo(0);
-              setNativeState(seekState);
+              receiveNativeStateRef.current(seekState, { force: true, seekLanded: true });
               await twinSeek(0);
             }
             const state = await SongNookPitchShiftModule.play();
-            setNativeState(state);
+            receiveNativeStateRef.current(state, { force: true });
             await twinPlay();
             return;
           }
@@ -621,8 +727,8 @@ export function useNativePitchTransport({
       runExclusive(async () => {
         try {
           if (isNativeTransportActive && SongNookPitchShiftModule) {
-            const state = await SongNookPitchShiftModule.pause();
-            setNativeState(state);
+            const state = await pauseEngine(SongNookPitchShiftModule);
+            receiveNativeStateRef.current(state, { force: true });
             await twinPause();
             return;
           }
@@ -634,7 +740,7 @@ export function useNativePitchTransport({
           await sourceRef.current.pause();
         }
       }),
-    [disableNativeTransport, isNativeTransportActive, runExclusive, twinPause]
+    [disableNativeTransport, isNativeTransportActive, pauseEngine, runExclusive, twinPause]
   );
 
   const seekTo = useCallback(
@@ -643,7 +749,7 @@ export function useNativePitchTransport({
         try {
           if (isNativeTransportActive && SongNookPitchShiftModule) {
             const state = await SongNookPitchShiftModule.seekTo(positionMs);
-            setNativeState(state);
+            receiveNativeStateRef.current(state, { force: true, seekLanded: true });
             await twinSeek(positionMs);
             return;
           }
@@ -664,7 +770,7 @@ export function useNativePitchTransport({
         try {
           if (isNativeTransportActive && SongNookPitchShiftModule) {
             const state = await SongNookPitchShiftModule.setPlaybackRate(rate);
-            setNativeState(state);
+            receiveNativeStateRef.current(state, { force: true });
           }
           sourceRef.current.setPlaybackRate(rate);
         } catch (error) {
@@ -704,6 +810,7 @@ export function useNativePitchTransport({
       nativeTransportDisabled,
       isOwningNativeTransport: shouldOwnNativeTransport,
       isNativeTransportActive,
+      positionChannel,
       effectivePositionMs,
       effectiveDurationMs,
       effectiveIsPlaying,
@@ -728,6 +835,7 @@ export function useNativePitchTransport({
       nativeTransportDisabled,
       pause,
       play,
+      positionChannel,
       prepareForRelease,
       seekTo,
       setPlaybackRate,
