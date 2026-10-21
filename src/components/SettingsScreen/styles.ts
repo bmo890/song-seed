@@ -28,6 +28,7 @@ export const settingsScreenStyles = StyleSheet.create({
     maxWidth: "55%",
   },
   valueRowValueText: {
+    flexShrink: 1,
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 14,
     color: colors.textSecondary,
@@ -44,6 +45,11 @@ export const settingsScreenStyles = StyleSheet.create({
     zIndex: 30,
     paddingHorizontal: 0,
     gap: 0,
+  },
+  multiMenuBody: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    gap: spacing.xs,
   },
   // A section that holds value rows sits above the sections after it, so an
   // open popover hangs over them rather than under.

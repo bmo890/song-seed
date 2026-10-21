@@ -2,6 +2,7 @@ import { Children, Fragment, useState, type ComponentProps, type ReactNode } fro
 import Animated, { FadeIn } from "react-native-reanimated";
 import { durations } from "../../../design/motion";
 import { PopoverRadioRow } from "../../common/PopoverMenu";
+import { InkOption } from "../../common/InkOption";
 import { colors } from "../../../design/tokens";
 import { Pressable, Text, View } from "react-native";
 import { Spinner } from "../../common/Spinner";
@@ -331,8 +332,89 @@ export function ValueRow<T extends string>({
   options: { value: T; label: string }[];
   onChange: (next: T) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const current = options.find((option) => option.value === value)?.label ?? "";
+  return (
+    <PickerRowShell title={title} valueLabel={current}>
+      {(close) =>
+        options.map((option) => (
+          <PopoverRadioRow
+            key={option.value}
+            label={option.label}
+            selected={option.value === value}
+            onPress={() => {
+              close();
+              if (option.value !== value) onChange(option.value);
+            }}
+          />
+        ))
+      }
+    </PickerRowShell>
+  );
+}
+
+/**
+ * Several on/off choices under one row (2026-10-21: the export's include
+ * switches): the row lists what is on; the popover holds an ink-dot option
+ * per choice (the multi-select vocabulary) and stays open while you tick.
+ */
+export function MultiValueRow<K extends string>({
+  title,
+  options,
+  noneLabel,
+  allLabel,
+  countLabel,
+  onToggle,
+}: {
+  title: string;
+  options: { key: K; label: string; on: boolean }[];
+  /** What the row says when nothing is on. */
+  noneLabel: string;
+  /** …when everything is on. */
+  allLabel: string;
+  /** …when more than two (but not all) are on. */
+  countLabel: (count: number) => string;
+  onToggle: (key: K) => void;
+}) {
+  // The row says it in a word or two; the popover holds the detail.
+  const onLabels = options.filter((option) => option.on).map((option) => option.label);
+  const summary =
+    onLabels.length === 0
+      ? noneLabel
+      : onLabels.length === options.length
+        ? allLabel
+        : onLabels.length <= 2
+          ? onLabels.join(", ")
+          : countLabel(onLabels.length);
+  return (
+    <PickerRowShell title={title} valueLabel={summary}>
+      {() => (
+        <View style={settingsScreenStyles.multiMenuBody}>
+          {options.map((option) => (
+            <InkOption
+              key={option.key}
+              label={option.label}
+              selected={option.on}
+              onPress={() => onToggle(option.key)}
+            />
+          ))}
+        </View>
+      )}
+    </PickerRowShell>
+  );
+}
+
+/** The row-and-popover both pickers share. */
+function PickerRowShell({
+  title,
+  valueLabel,
+  children,
+}: {
+  title: string;
+  valueLabel: string;
+  children: (close: () => void) => ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const close = () => setOpen(false);
   return (
     <View style={[settingsScreenStyles.valueRowWrap, open ? settingsScreenStyles.valueRowWrapOpen : null]}>
       {open ? (
@@ -341,7 +423,7 @@ export function ValueRow<T extends string>({
           // Haptics vocabulary: `light` — the small panel closes, as it opened.
           haptic="light"
           style={settingsScreenStyles.valueRowBackdrop}
-          onPress={() => setOpen(false)}
+          onPress={close}
           accessible={false}
         />
       ) : null}
@@ -352,14 +434,14 @@ export function ValueRow<T extends string>({
         onPress={() => setOpen((wasOpen) => !wasOpen)}
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
-        accessibilityLabel={`${title}: ${current}`}
+        accessibilityLabel={`${title}: ${valueLabel}`}
       >
         <View style={styles.settingsChoiceCopy}>
           <Text style={styles.settingsChoiceTitle}>{title}</Text>
         </View>
         <View style={settingsScreenStyles.valueRowValue}>
           <Text style={settingsScreenStyles.valueRowValueText} numberOfLines={1}>
-            {current}
+            {valueLabel}
           </Text>
           <Ionicons name={open ? "chevron-up" : "chevron-down"} size={14} color={colors.textMuted} />
         </View>
@@ -369,17 +451,7 @@ export function ValueRow<T extends string>({
           entering={FadeIn.duration(durations.fast)}
           style={[styles.ideasSortMenu, settingsScreenStyles.valueRowMenu]}
         >
-          {options.map((option) => (
-            <PopoverRadioRow
-              key={option.value}
-              label={option.label}
-              selected={option.value === value}
-              onPress={() => {
-                setOpen(false);
-                if (option.value !== value) onChange(option.value);
-              }}
-            />
-          ))}
+          {children(close)}
         </Animated.View>
       ) : null}
     </View>

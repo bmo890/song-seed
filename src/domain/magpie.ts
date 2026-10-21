@@ -23,18 +23,8 @@ const WINDOW_END_FRACTION = 0.82;
 
 const GUTENDEX_EN_PAGES = 1900; // ~62k English books / 32 per page
 
-export type MagpieFetchErrorKind = "offline" | "unavailable" | "empty";
-
-/** A typed failure so the UI can distinguish "you're offline" from "that book
- * wouldn't load" and respond appropriately. */
-export class MagpieFetchError extends Error {
-  kind: MagpieFetchErrorKind;
-  constructor(kind: MagpieFetchErrorKind, message: string) {
-    super(message);
-    this.name = "MagpieFetchError";
-    this.kind = kind;
-  }
-}
+import { MagpieFetchError } from "./magpieFetchError";
+export { MagpieFetchError, type MagpieFetchErrorKind } from "./magpieFetchError";
 
 /** A connection that opens but never responds (one-bar mobile, an unresponsive
  * gutenberg.org/gutendex.com, a captive portal) would otherwise leave the reader

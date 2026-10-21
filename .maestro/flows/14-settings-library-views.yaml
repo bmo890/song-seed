@@ -31,7 +31,8 @@ appId: com.bmostudio.songnook.dev
 - extendedWaitUntil:
     visible: "Export archive"
     timeout: 10000
-- assertVisible: "FORMAT"
+- assertVisible: "Format.*"
+- assertVisible: "Include.*"
 - assertVisible: "SCOPE"
 - tapOn: "Back"
 - extendedWaitUntil:
