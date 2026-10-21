@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { StyleSheet, Text, type StyleProp, type ViewStyle } from "react-native";
+import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { Press, type PressHaptic } from "./Press";
 import { colors } from "../../design/tokens";
 
@@ -12,6 +12,11 @@ import { colors } from "../../design/tokens";
  *
  * The caller hands in the glyph so it can colour it from `inkKeyColor(tone)`;
  * `haptic` follows the vocabulary (a toggle is `light`, an action `tap`).
+ *
+ * `opens` is for a key that opens a panel beneath it (Tools): while active it
+ * also wears the ink tabs' 2 pt rule under its word, in terracotta, so an open
+ * panel reads as open at a glance rather than by colour alone (founder,
+ * 2026-10-21).
  */
 export type InkKeyTone = "idle" | "active" | "off";
 
@@ -28,6 +33,7 @@ export function InkKey({
   onPress,
   haptic = "tap",
   role = "button",
+  opens = false,
   style,
   accessibilityLabel,
   testID,
@@ -39,6 +45,7 @@ export function InkKey({
   haptic?: PressHaptic;
   /** A toggle reports itself as a switch, checked while active. */
   role?: "button" | "switch";
+  opens?: boolean;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
   testID?: string;
@@ -59,6 +66,7 @@ export function InkKey({
       <Text style={[s.label, tone === "active" ? s.labelActive : null, { color: inkKeyColor(tone) }]}>
         {label}
       </Text>
+      {opens && tone === "active" ? <View style={s.openRule} /> : null}
     </Press>
   );
 }
@@ -76,5 +84,14 @@ const s = StyleSheet.create({
   },
   labelActive: {
     fontFamily: "PlusJakartaSans_600SemiBold",
+  },
+  openRule: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 4,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: colors.primary,
   },
 });

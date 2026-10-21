@@ -24,7 +24,9 @@ export const NEUTRAL_CLIP_PRACTICE: ClipPracticeSettings = {
  * was closed. Now each clip keeps its own for the length of the session: the
  * clip you leave is remembered, the clip you arrive at gets its own back, or
  * neutral if it was never bent. The loop and step-up keep theirs in their own
- * controllers. Closing the session (the dock's x) forgets them all.
+ * controllers. Closing the session (the dock's x) forgets them all, except what
+ * a take keeps with it (the Keep switch): a clip the session has not met yet
+ * opens with its kept settings.
  */
 /**
  * The clip on screen changes from `previousId` to `nextId`: remember what the
@@ -35,23 +37,27 @@ export function switchClipPractice(
   saved: Map<string, ClipPracticeSettings>,
   previousId: string | null | undefined,
   live: ClipPracticeSettings,
-  nextId: string | null | undefined
+  nextId: string | null | undefined,
+  keptFor?: (clipId: string) => ClipPracticeSettings | undefined
 ): ClipPracticeSettings | null {
   if (previousId) saved.set(previousId, live);
   if (!nextId) return null;
-  return saved.get(nextId) ?? NEUTRAL_CLIP_PRACTICE;
+  return saved.get(nextId) ?? keptFor?.(nextId) ?? NEUTRAL_CLIP_PRACTICE;
 }
 
 export function usePerClipPractice({
   clipId,
   current,
   apply,
+  keptFor,
 }: {
   clipId: string | null | undefined;
   /** This render's live values for the clip on screen. */
   current: ClipPracticeSettings;
   /** Puts a clip's values in force. */
   apply: (settings: ClipPracticeSettings) => void;
+  /** What a take keeps with it, read when the session has not met it yet. */
+  keptFor?: (clipId: string) => ClipPracticeSettings | undefined;
 }) {
   const savedRef = useRef(new Map<string, ClipPracticeSettings>());
   const currentRef = useRef(current);
@@ -59,10 +65,18 @@ export function usePerClipPractice({
   const applyRef = useRef(apply);
   applyRef.current = apply;
   const clipIdRef = useRef<string | null | undefined>(undefined);
+  const keptForRef = useRef(keptFor);
+  keptForRef.current = keptFor;
 
   useEffect(() => {
     if (clipId === clipIdRef.current) return;
-    const next = switchClipPractice(savedRef.current, clipIdRef.current, currentRef.current, clipId);
+    const next = switchClipPractice(
+      savedRef.current,
+      clipIdRef.current,
+      currentRef.current,
+      clipId,
+      keptForRef.current
+    );
     clipIdRef.current = clipId;
     if (next) applyRef.current(next);
   }, [clipId]);

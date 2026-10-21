@@ -11,6 +11,7 @@ import type {
     IdeaStatus,
     LyricsVersion,
     PracticeMarker,
+    ClipKeptPractice,
     RecordingGrid,
     Playlist,
     ReceivedMeta,
@@ -127,6 +128,8 @@ export type ArchiveClipManifest = {
     sourceAudioPath?: string;
     tags?: string[];
     practiceMarkers?: PracticeMarker[];
+    /** Practice settings kept with the take (the player's Keep switch). */
+    keptPractice?: ClipKeptPractice;
     sections?: ClipSection[];
     analysis?: ClipAnalysis;
     /** The lyrics version this take was recorded against (resolves against the

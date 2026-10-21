@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
-import type { ClipSection, PracticeMarker } from "../../types";
+import type { ClipKeptPractice, ClipSection, PracticeMarker } from "../../types";
 import { styles } from "../../styles";
 import { colors } from "../../design/tokens";
 import { useFullPlayerContext } from "../../hooks/FullPlayerProvider";
@@ -19,6 +19,8 @@ import { usePracticeLoopController } from "./hooks/usePracticeLoopController";
 import { usePlayerSpeedControls } from "./hooks/usePlayerSpeedControls";
 import { useStepUpLoop } from "./hooks/useStepUpLoop";
 import { usePerClipPractice } from "./hooks/usePerClipPractice";
+import { sameKeptPractice } from "../../domain/keptPractice";
+import { parseToneFlags } from "../../domain/overdub";
 import { clickRateBounds } from "../../domain/stepUpLoop";
 import { haptic } from "../../design/haptics";
 import { toast } from "../common/toastStore";
@@ -76,6 +78,8 @@ import { userFacingMessage } from "../../i18n/userFacingError";
 const PRACTICE_SPEED_PRESETS = [0.5, 0.75, 1, 1.25, 1.5] as const;
 const PRACTICE_SPEED_MIN = 0.5;
 const PRACTICE_SPEED_MAX = 1.5;
+/** How long Tools settle before the Keep switch writes them to the take. */
+const KEEP_SETTLE_MS = 700;
 
 // Stable empty arrays so hiding reel markers doesn't churn the memoized timeline.
 const EMPTY_MARKERS: PracticeMarker[] = [];
@@ -582,8 +586,28 @@ function PlayerScreenInner({
     playbackRate: effectivePlaybackRate,
     getPositionMs: () => playerPositionMsRef.current,
   });
+  // What a take keeps with it (the Keep switch, 2026-10-21), read when this
+  // session meets the clip for the first time.
+  const latestClipRef = useRef(playerClip);
+  latestClipRef.current = playerClip;
+  const keptFor = useCallback((clipId: string) => {
+    const kept = latestClipRef.current?.id === clipId ? latestClipRef.current.keptPractice : undefined;
+    return kept
+      ? {
+          pitchSemitones: kept.pitchSemitones,
+          playbackRate: kept.playbackRate,
+          clickEnabled: kept.clickEnabled,
+          countIn: kept.countIn,
+        }
+      : undefined;
+  }, []);
+  const keptLoopFor = useCallback((clipId: string) => {
+    const loop = latestClipRef.current?.id === clipId ? latestClipRef.current.keptPractice?.loop : undefined;
+    return loop ? { start: loop.startMs, end: loop.endMs } : undefined;
+  }, []);
   // Speed, pitch, click and count-in belong to the clip they were set on.
   usePerClipPractice({
+    keptFor,
     clipId: playerClip?.id,
     current: {
       pitchSemitones: ui.pitchShiftSemitones,
@@ -648,9 +672,6 @@ function PlayerScreenInner({
     minSpeed: PRACTICE_SPEED_MIN,
     maxSpeed: PRACTICE_SPEED_MAX,
     playbackRate: effectivePlaybackRate,
-    isPlayerPlaying: effectiveIsPlaying,
-    pausePlayer: practicePitchTransport.pause,
-    playPlayer: practicePitchTransport.play,
     setPlaybackRate: practicePitchTransport.setPlaybackRate,
   });
   const visiblePracticeRange = useMemo(
@@ -707,6 +728,7 @@ function PlayerScreenInner({
     pausePlayer: practicePitchTransport.pause,
     onDisplaySeek: transportClock.setDisplayPositionMs,
     getFreshPositionMs,
+    keptLoopFor,
     onLoopCycle: handleStepUpLoopCycle,
     visibleWindowStartMs: visiblePracticeRange.start,
     visibleWindowEndMs: visiblePracticeRange.end,
@@ -1339,6 +1361,78 @@ function PlayerScreenInner({
     removeStem: handleRemoveStem,
   } = layerHandlers;
 
+  // Keep (founder, 2026-10-21): one switch for every tool. On, the take keeps
+  // this practice setup and opens with it next time; changes follow it while it
+  // is on. Off, the setup is for this session only (the take forgets it).
+  const keepOn = !!playerClip?.keptPractice;
+  const keptNow = useMemo<ClipKeptPractice>(
+    () => ({
+      pitchSemitones: ui.pitchShiftSemitones,
+      // A step-up drill moves the speed every pass; what is kept is the speed
+      // the musician set, not wherever the drill happens to be.
+      playbackRate: stepUp.stepUpEnabled
+        ? playerClip?.keptPractice?.playbackRate ?? 1
+        : Math.round(effectivePlaybackRate * 100) / 100,
+      clickEnabled: playbackClick.enabled,
+      countIn: ui.countInOption,
+      ...(practiceLoopEnabled && practiceLoopRange.end > practiceLoopRange.start
+        ? { loop: { startMs: Math.round(practiceLoopRange.start), endMs: Math.round(practiceLoopRange.end) } }
+        : {}),
+    }),
+    [
+      effectivePlaybackRate,
+      playbackClick.enabled,
+      playerClip?.keptPractice?.playbackRate,
+      practiceLoopEnabled,
+      practiceLoopRange.end,
+      practiceLoopRange.start,
+      stepUp.stepUpEnabled,
+      ui.countInOption,
+      ui.pitchShiftSemitones,
+    ]
+  );
+  const keepIdeaId = playerIdea?.id;
+  const keepClipId = playerClip?.id;
+  const keptStored = playerClip?.keptPractice;
+  // Settled before it is written: a clip switch passes through a frame or two
+  // that still carries the previous clip's values, and a slider settles once.
+  useEffect(() => {
+    if (!keepOn || !keepIdeaId || !keepClipId) return;
+    if (sameKeptPractice(keptStored, keptNow)) return;
+    const timer = setTimeout(() => {
+      useStore.getState().setClipKeptPractice(keepIdeaId, keepClipId, keptNow);
+    }, KEEP_SETTLE_MS);
+    return () => clearTimeout(timer);
+  }, [keepClipId, keepIdeaId, keepOn, keptNow, keptStored]);
+  const handleToggleKeep = useCallback(() => {
+    if (!keepIdeaId || !keepClipId) return;
+    useStore.getState().setClipKeptPractice(keepIdeaId, keepClipId, keepOn ? undefined : keptNow);
+  }, [keepClipId, keepIdeaId, keepOn, keptNow]);
+  // Reset all: every tool back to where an untouched take starts, the take's
+  // own level and tone included.
+  const rootSound = data.overdubRootSettings;
+  const handleResetAllTools = useCallback(async () => {
+    if (stepUp.stepUpEnabled) stepUp.toggleStepUp();
+    if (practiceLoopEnabled) handlePracticeLoopToggle();
+    if (ui.pitchShiftSemitones !== 0) ui.setPitchShiftSemitones(0);
+    if (Math.abs(effectivePlaybackRate - 1) > 0.001) void practicePitchTransport.setPlaybackRate(1);
+    if (playbackClick.enabled) playbackClick.setEnabled(false);
+    if (ui.countInOption !== "off") ui.setCountInOption("off");
+    if (rootSound && rootSound.gainDb !== 0) await handleAdjustRootGain(-rootSound.gainDb);
+    for (const flag of parseToneFlags(rootSound?.tonePreset)) await handleToggleRootToneFlag(flag);
+  }, [
+    effectivePlaybackRate,
+    handleAdjustRootGain,
+    handlePracticeLoopToggle,
+    handleToggleRootToneFlag,
+    playbackClick,
+    practiceLoopEnabled,
+    practicePitchTransport,
+    rootSound,
+    stepUp,
+    ui,
+  ]);
+
   // Reading text size: the Aa button opens the shared slider sheet (ChordZoomBar).
   const [textSizeOpen, setTextSizeOpen] = useState(false);
 
@@ -1721,6 +1815,7 @@ function PlayerScreenInner({
                       // Haptics vocabulary: `light` — the drawers open or close.
                       haptic="light"
                       tone={ui.mode === "practice" ? "active" : "idle"}
+                      opens
                       label={t("player.tools")}
                       glyph={
                         <Ionicons
@@ -1886,9 +1981,16 @@ function PlayerScreenInner({
               stepUpRateMin={PRACTICE_SPEED_MIN}
               stepUpRateMax={PRACTICE_SPEED_MAX}
               onToggleStepUp={() => {
-                if (guardPracticeTool("loop")) stepUp.toggleStepUp();
+                if (!guardPracticeTool("loop")) return;
+                // Step up rides the loop, so switching it on starts the loop too
+                // (founder, 2026-10-21: a switch that would not move read as broken).
+                if (!stepUp.stepUpEnabled && !practiceLoopEnabled) handlePracticeLoopToggle();
+                stepUp.toggleStepUp();
               }}
               onRestartStepUp={stepUp.restartStepUp}
+              keepOn={keepOn}
+              onToggleKeep={handleToggleKeep}
+              onResetAll={() => void handleResetAllTools()}
               practiceMarkers={data.practiceMarkers}
               canUndoMarks={marksHistory.canUndo}
               canRedoMarks={marksHistory.canRedo}

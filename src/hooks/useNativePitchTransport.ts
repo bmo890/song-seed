@@ -21,6 +21,13 @@ import {
 
 /** How long after a pause the engine's "ended" report is taken as the pause's echo. */
 const PAUSE_ECHO_MS = 2000;
+/** A playing engine that reports "not playing" for less than this, with no pause
+ *  behind it, is re-buffering (Android does on every rate, pitch, sound change
+ *  and seek): it stays "playing" for everyone watching. */
+const ENGINE_BLIP_MS = 600;
+/** After we command the twin, its own reports are ours settling, not a person
+ *  pressing a lock-screen button: the mirror leaves them alone this long. */
+const TWIN_GRACE_MS = 900;
 
 /** Tagged, greppable diagnostics for the native pitch/speed engine. Event-driven
  * only (never called from render) so it doesn't spam. Filter logs by "[pitch]". */
@@ -163,10 +170,38 @@ export function useNativePitchTransport({
   // player costs: about one render a second.
   const positionChannel = useRef(createTransportPositionChannel()).current;
   const committedNativeRef = useRef(nativeState);
+  const rawNativeRef = useRef(nativeState);
+  const blipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastNativeCommitAtRef = useRef(0);
   const nativeReportAtRef = useRef(0);
   const receiveNativeState = useCallback(
-    (value: NativePitchShiftPlaybackState, opts?: { force?: boolean; seekLanded?: boolean }) => {
+    (
+      value: NativePitchShiftPlaybackState,
+      opts?: { force?: boolean; seekLanded?: boolean; settled?: boolean }
+    ) => {
+      rawNativeRef.current = value;
+      const pausedRecently =
+        !!lastPauseRef.current && Date.now() - lastPauseRef.current.at < PAUSE_ECHO_MS;
+      if (
+        !opts?.settled &&
+        !value.isPlaying &&
+        nativeStateRef.current.isPlaying &&
+        value.isLoaded &&
+        !value.didJustFinish &&
+        !pausedRecently
+      ) {
+        if (!blipTimerRef.current) {
+          blipTimerRef.current = setTimeout(() => {
+            blipTimerRef.current = null;
+            const latest = rawNativeRef.current;
+            if (!latest.isPlaying) receiveNativeStateRef.current(latest, { force: true, settled: true });
+          }, ENGINE_BLIP_MS);
+        }
+        value = { ...value, isPlaying: true };
+      } else if (blipTimerRef.current && (value.isPlaying || opts?.settled || pausedRecently)) {
+        clearTimeout(blipTimerRef.current);
+        blipTimerRef.current = null;
+      }
       nativeStateRef.current = value;
       nativeReportAtRef.current = Date.now();
       positionChannel.publish({
@@ -239,6 +274,12 @@ export function useNativePitchTransport({
     if (!twinSource) return;
     twinLastCommandAtRef.current = Date.now();
     await sourceRef.current.seekTo(positionMs);
+  }, [twinSource]);
+  /** The source's rate; with a twin, stamped as ours so its re-buffer is not
+   *  mistaken for someone pausing it. */
+  const setSourceRate = useCallback((rate: number) => {
+    if (twinSource) twinLastCommandAtRef.current = Date.now();
+    sourceRef.current.setPlaybackRate(rate);
   }, [twinSource]);
 
   const clamped = clampPitchShiftSemitones(pitchShiftSemitones);
@@ -485,7 +526,7 @@ export function useNativePitchTransport({
         // The twin sits where the engine is; its play state converges below.
         // A freshly loaded clip on the twin can fall back to 1x; it keeps the
         // engine's speed or the two clocks part.
-        src.setPlaybackRate(d.playbackRate);
+        setSourceRate(d.playbackRate);
         await twinSeek(state.currentTimeMs);
         if (state.isPlaying && !src.isPlaying) await twinPlay();
       }
@@ -496,7 +537,7 @@ export function useNativePitchTransport({
       pitchLog(`[${ownerLabel}] sync → setPlaybackRate`, desiredRef.current.playbackRate);
       const state = await nativeModule.setPlaybackRate(desiredRef.current.playbackRate);
       receiveNativeStateRef.current(state, { force: true });
-      if (twinSource) src.setPlaybackRate(desiredRef.current.playbackRate);
+      if (twinSource) setSourceRate(desiredRef.current.playbackRate);
     }
     if (nativeStateRef.current.pitchShiftSemitones !== desiredRef.current.pitch) {
       pitchLog(`[${ownerLabel}] sync → setPitchShiftSemitones`, desiredRef.current.pitch);
@@ -520,7 +561,7 @@ export function useNativePitchTransport({
       });
       receiveNativeStateRef.current(state, { force: true });
     }
-  }, [ensureAudioSessionOwnership, ownerLabel, syncBackToSource, twinPlay, twinSeek, twinSource]);
+  }, [ensureAudioSessionOwnership, ownerLabel, setSourceRate, syncBackToSource, twinPlay, twinSeek, twinSource]);
 
   // Schedule a reconcile on the serialized chain. Coalesced: while one is already
   // queued, further requests fold into it (it reads the latest target when it
@@ -581,7 +622,14 @@ export function useNativePitchTransport({
     if (source.inSync === false) return;
     if (source.isPlaying === nativeState.isPlaying) return;
     const nativeModule = SongNookPitchShiftModule;
-    const timer = setTimeout(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const check = () => {
+      // Our own command is still settling on the twin: look again once it has.
+      const sinceCommand = Date.now() - twinLastCommandAtRef.current;
+      if (sinceCommand < TWIN_GRACE_MS) {
+        timer = setTimeout(check, TWIN_GRACE_MS - sinceCommand);
+        return;
+      }
       const src = sourceRef.current;
       const engine = nativeStateRef.current;
       if (src.inSync === false || src.isPlaying === engine.isPlaying) return;
@@ -596,7 +644,8 @@ export function useNativePitchTransport({
         receiveNativeStateRef.current(state, { force: true });
         await twinSeek(state.currentTimeMs);
       }).catch(() => {});
-    }, TWIN_SETTLE_MS);
+    };
+    timer = setTimeout(check, TWIN_SETTLE_MS);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source.isPlaying, nativeState.isPlaying, isNativeTransportActive, twinSource, source.inSync]);
@@ -772,7 +821,7 @@ export function useNativePitchTransport({
             const state = await SongNookPitchShiftModule.setPlaybackRate(rate);
             receiveNativeStateRef.current(state, { force: true });
           }
-          sourceRef.current.setPlaybackRate(rate);
+          setSourceRate(rate);
         } catch (error) {
           await disableNativeTransport(
             `Native transport rate change failed: ${error instanceof Error ? error.message : String(error)}`
@@ -780,7 +829,7 @@ export function useNativePitchTransport({
           sourceRef.current.setPlaybackRate(rate);
         }
       }),
-    [disableNativeTransport, isNativeTransportActive, runExclusive]
+    [disableNativeTransport, isNativeTransportActive, runExclusive, setSourceRate]
   );
 
   const togglePlay = useCallback(async () => {

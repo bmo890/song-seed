@@ -488,6 +488,18 @@ export type ClipOverdubState = {
   lastRenderedAt?: number;
 };
 
+/** Practice settings a musician chose to keep with a take (the player's Keep
+ *  switch, 2026-10-21). Absent: nothing kept, the take opens neutral. The take's
+ *  own level and tone are not here; they always live on `overdub.root`. */
+export type ClipKeptPractice = {
+  pitchSemitones: number;
+  playbackRate: number;
+  clickEnabled: boolean;
+  countIn: "off" | "3s" | "1b" | "2b";
+  /** The loop's region, present only when the loop was on. */
+  loop?: { startMs: number; endMs: number };
+};
+
 export type ClipVersion = {
   id: string;
   title: string;
@@ -525,6 +537,7 @@ export type ClipVersion = {
   lyricsVersionId?: string;
   manualSortOrder?: number;
   overdub?: ClipOverdubState;
+  keptPractice?: ClipKeptPractice;
 };
 
 export type CustomTagDefinition = {

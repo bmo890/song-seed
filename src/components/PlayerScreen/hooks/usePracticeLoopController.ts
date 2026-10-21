@@ -33,6 +33,9 @@ type Args = {
    * far too coarse to time a loop wrap against. Null when no fast feed is driving.
    */
   getFreshPositionMs?: () => number | null;
+  /** The loop a take keeps with it (the Keep switch), read when the session
+   *  has not met the clip yet. A range means the loop was on. */
+  keptLoopFor?: (clipId: string) => LoopRange | undefined;
   /** Fires once per completed pass, at the wrap seek back to loop start. */
   onLoopCycle?: () => void;
   visibleWindowStartMs?: number;
@@ -121,6 +124,7 @@ export function usePracticeLoopController({
   pausePlayer,
   onDisplaySeek,
   getFreshPositionMs,
+  keptLoopFor,
   onLoopCycle,
   visibleWindowStartMs,
   visibleWindowEndMs,
@@ -216,6 +220,8 @@ export function usePracticeLoopController({
   // off, on the default region. Lives as long as the player session.
   const loopByClipRef = useRef(new Map<string, { enabled: boolean; range: LoopRange }>());
   const loopClipIdRef = useRef<string | null | undefined>(undefined);
+  const keptLoopForRef = useRef(keptLoopFor);
+  keptLoopForRef.current = keptLoopFor;
   // A fresh clip's default region was built from whatever length was known at
   // the switch (often the previous clip's); rebuild it once the real one lands.
   const defaultBuiltForMsRef = useRef<number | null>(null);
@@ -229,7 +235,10 @@ export function usePracticeLoopController({
         });
       }
       loopClipIdRef.current = clipId;
-      const saved = clipId ? loopByClipRef.current.get(clipId) : undefined;
+      const keptRange = clipId && !loopByClipRef.current.has(clipId) ? keptLoopForRef.current?.(clipId) : undefined;
+      const saved = clipId
+        ? loopByClipRef.current.get(clipId) ?? (keptRange ? { enabled: true, range: keptRange } : undefined)
+        : undefined;
       setPracticeLoopEnabled(saved?.enabled ?? false);
       setPracticeLoopRange(saved?.range ?? buildDefaultLoopRegion(durationMs));
       defaultBuiltForMsRef.current = saved ? null : durationMs;
