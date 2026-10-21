@@ -104,6 +104,7 @@ final class SongNookPitchShiftPracticeEngine {
     let file = try AVAudioFile(forReading: url)
 
     stopTimer()
+    playbackSessionId = UUID()
     playerNode.stop()
     audioFile = file
     sourceUri = uriString
@@ -138,6 +139,9 @@ final class SongNookPitchShiftPracticeEngine {
 
   func pause() -> [String: Any] {
     pausedPositionMs = computedCurrentPositionMs()
+    // Stopping the node also runs the segment's completion handler; a new
+    // session id makes it stale, so a pause is never reported as the end.
+    playbackSessionId = UUID()
     playerNode.stop()
     isPlaying = false
     stopTimer()
@@ -148,6 +152,7 @@ final class SongNookPitchShiftPracticeEngine {
   func stop() -> [String: Any] {
     pausedPositionMs = 0
     didJustFinish = false
+    playbackSessionId = UUID()
     playerNode.stop()
     isPlaying = false
     stopTimer()
@@ -157,6 +162,7 @@ final class SongNookPitchShiftPracticeEngine {
 
   func unload() -> [String: Any] {
     stopTimer()
+    playbackSessionId = UUID()
     playerNode.stop()
     engine.stop()
     audioFile = nil

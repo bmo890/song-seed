@@ -609,8 +609,12 @@ function PlayerScreenInner({
   // only allowed to drive when the full player genuinely owns the transport AND the engine
   // is loaded with the clip on screen; otherwise position still arrives as a prop, which is
   // what keeps the stale-position invariant above honest.
+  // While the pitch engine plays the clip its reports take the same channel, so
+  // pitched playback renders once a second like plain playback (2026-10-21).
+  const nativeClockActive = practicePitchTransport.isNativeClockActive;
   const channelDriven =
-    engineMatchesScreenClip && !practicePitchTransport.isOwningNativeTransport;
+    nativeClockActive || (engineMatchesScreenClip && !practicePitchTransport.isOwningNativeTransport);
+  const clockPositionChannel = nativeClockActive ? practicePitchTransport.positionChannel : positionChannel;
   const transportClock = usePlayerTransportClock({
     positionMs: effectivePlayerPosition,
     durationMs: effectivePlayerDuration,
@@ -618,7 +622,7 @@ function PlayerScreenInner({
     playbackRate: effectivePlaybackRate,
     resetKey: playerClip?.id ?? null,
     resetPositionMs: 0,
-    positionChannel,
+    positionChannel: clockPositionChannel,
     channelDriven,
   });
   setPauseDisplayPositionRef.current = transportClock.setDisplayPositionMs;
@@ -667,10 +671,10 @@ function PlayerScreenInner({
       freshPositionMsRef.current = null;
       return;
     }
-    return positionChannel.subscribe((report) => {
+    return clockPositionChannel.subscribe((report) => {
       freshPositionMsRef.current = report.positionMs;
     });
-  }, [channelDriven, positionChannel]);
+  }, [channelDriven, clockPositionChannel]);
   const getFreshPositionMs = useCallback(() => freshPositionMsRef.current, []);
   // The step-up hook needs the controller's loop state, and the controller needs the
   // step-up pass counter — the cycle callback goes through a ref to break the tie.
