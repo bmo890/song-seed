@@ -707,6 +707,7 @@ export const resources = {
         tracks_one: "{{count}} item", tracks_other: "{{count}} items", lessMinute: "<1 min", minutes: "{{count}} min", hoursMinutes: "{{hours}} hr {{minutes}} min", hours: "{{count}} hr", updatedNow: "updated now", updatedHours_one: "updated 1h ago", updatedHours_other: "updated {{count}}h ago", updatedDays_one: "updated 1d ago", updatedDays_other: "updated {{count}}d ago", updatedDate: "updated {{date}}",
       },
       player: {
+        defaultLayerName: "Layer {{number}}",
         playAloneA11y: "Play the layer on its own",
         layerSettings: "Open {{title}}",
         resetAll: "Reset all",
@@ -743,6 +744,7 @@ export const resources = {
         renameLayerFailed: "Could not rename the layer.", layerColorFailed: "Could not update the layer color.", rootGainFailed: "Couldn’t change the take’s level.", rootToneFailed: "Couldn’t change the take’s tone.", layerGainFailed: "Could not update the layer gain.", layerTimingFailed: "Could not adjust the layer timing.", layerMuteFailed: "Could not update the layer mute state.", layerToneFailed: "Could not update the layer tone.", removeLayerFailed: "Could not remove the layer.", analysisUnavailable: "Analysis isn’t available for this clip.", mutedStem: "Muted layer", mutedShort: "muted", mergeLayers: "Merge layers", mergePick: "Pick the layers to merge", mergeCount_one: "Merge {{count}}", mergeCount_other: "Merge {{count}}", mergeName: "Name the merged layer", merging: "Merging…", mergedToast: "Layers merged", mergeFailed: "Couldn’t merge the layers", pickLayer: "Pick {{title}}", collapseLayers: "Collapse all", expandLayers: "Expand all", collapseLayer: "Collapse {{title}}", expandLayer: "Expand {{title}}", zoomShort: "Zoom", playTogetherShort: "Play together", timing: "Timing", nudgeMs: "{{value}} ms", renameLayer: "Rename", removeLayerTitle: "Remove {{title}}?", removeLayerBody: "Its audio is deleted.", layerLimitTitle: "Eight layers", layerLimitBody: "Combine them to keep layering.", combine: "Combine", showLayers: "Show layers", hideLayers: "Hide layers", layerCountHeader: "Layers · {{count}}", overdubNumber: "Overdub {{number}}", master: "master", thisLayer: "this layer", bpmGrid: "{{bpm}} BPM grid", showFullClip: "Show the full clip", zoomLayer: "Zoom to this layer", atOffset: "At {{time}}", firstSeconds: "First {{count}}s", fullClip: "Full clip",
       },
       recording: { changeEarlier: "One bar earlier", changeLater: "One bar later", refreshInputs: "Look for inputs", followsPhone: "follows your phone",
+        timeLeft: "{{time}} left",
         preRoll: "Pre-roll",
         stopListening: "Stop",
         listenFromStart: "Listen from the start",
@@ -2307,6 +2309,7 @@ export const resources = {
         tracks_one: "פריט אחד", tracks_two: "שני פריטים", tracks_other: "{{count}} פריטים", lessMinute: "פחות מדקה", minutes: "{{count}} דק׳", hoursMinutes: "{{hours}} שע׳ {{minutes}} דק׳", hours: "{{count}} שע׳", updatedNow: "עודכן עכשיו", updatedHours_one: "עודכן לפני שעה", updatedHours_two: "עודכן לפני שעתיים", updatedHours_other: "עודכן לפני {{count}} שעות", updatedDays_one: "עודכן אתמול", updatedDays_two: "עודכן לפני יומיים", updatedDays_other: "עודכן לפני {{count}} ימים", updatedDate: "עודכן ב־{{date}}",
       },
       player: {
+        defaultLayerName: "שכבה {{number}}",
         playAloneA11y: "ניגון השכבה לבדה",
         layerSettings: "פתיחת {{title}}",
         resetAll: "איפוס הכול",
@@ -2343,6 +2346,7 @@ export const resources = {
         renameLayerFailed: "לא ניתן לשנות את שם השכבה.", layerColorFailed: "לא ניתן לעדכן את צבע השכבה.", rootGainFailed: "לא ניתן לשנות את עוצמת הטייק.", rootToneFailed: "לא ניתן לשנות את הגוון של הטייק.", layerGainFailed: "לא ניתן לעדכן את עוצמת השכבה.", layerTimingFailed: "לא ניתן להתאים את תזמון השכבה.", layerMuteFailed: "לא ניתן לעדכן את השתקת השכבה.", layerToneFailed: "לא ניתן לעדכן את גוון השכבה.", removeLayerFailed: "לא ניתן להסיר את השכבה.", analysisUnavailable: "הניתוח אינו זמין לקטע הזה.", mutedStem: "שכבה מושתקת", mutedShort: "מושתקת", mergeLayers: "מיזוג שכבות", mergePick: "בחרו את השכבות למיזוג", mergeCount_one: "מיזוג {{count}}", mergeCount_two: "מיזוג {{count}}", mergeCount_other: "מיזוג {{count}}", mergeName: "שם לשכבה הממוזגת", merging: "ממזג…", mergedToast: "השכבות מוזגו", mergeFailed: "לא ניתן למזג את השכבות", pickLayer: "בחירת {{title}}", collapseLayers: "צמצום הכול", expandLayers: "הרחבת הכול", collapseLayer: "צמצום {{title}}", expandLayer: "הרחבת {{title}}", zoomShort: "הגדלה", playTogetherShort: "ניגון יחד", timing: "תזמון", nudgeMs: "{{value}} מ״ש", renameLayer: "שינוי שם", removeLayerTitle: "להסיר את {{title}}?", removeLayerBody: "השמע שלה יימחק.", layerLimitTitle: "שמונה שכבות", layerLimitBody: "אחדו אותן כדי להמשיך להוסיף שכבות.", combine: "איחוד", showLayers: "הצגת השכבות", hideLayers: "הסתרת השכבות", layerCountHeader: "שכבות · {{count}}", overdubNumber: "שכבת הקלטה {{number}}", master: "בסיס", thisLayer: "השכבה הזו", bpmGrid: "רשת {{bpm}} BPM", showFullClip: "הצגת הקטע המלא", zoomLayer: "התמקדות בשכבה הזו", atOffset: "ב־{{time}}", firstSeconds: "{{count}} השניות הראשונות", fullClip: "הקטע המלא",
       },
       recording: { changeEarlier: "תיבה אחת מוקדם יותר", changeLater: "תיבה אחת מאוחר יותר", refreshInputs: "חיפוש התקני קלט", followsPhone: "לפי הטלפון",
+        timeLeft: "נותרו {{time}}",
         preRoll: "הקדמה",
         stopListening: "עצירה",
         listenFromStart: "האזנה מנקודת ההתחלה",

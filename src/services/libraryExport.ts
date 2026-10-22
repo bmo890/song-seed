@@ -1228,6 +1228,7 @@ function buildArchiveClipOverdubManifest(
             durationMs: stem.durationMs,
             waveformPeaks: stem.waveformPeaks,
             recordingGrid: stem.recordingGrid,
+            recordedOffsetMs: stem.recordedOffsetMs,
             ...(options.preserveAllMetadata ? { color: stem.color, createdAt: stem.createdAt } : null),
         };
 

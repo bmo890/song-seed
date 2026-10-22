@@ -1389,16 +1389,18 @@ export const appActions = {
             throw new Error("Clip not found.");
         }
 
+        const recordedOffsetMs = clampClipOverdubStemOffsetMs(
+            payload.offsetMs ?? 0,
+            match.clip.durationMs,
+            payload.durationMs
+        );
         const stem: ClipOverdubStem = {
             id: buildClipId(),
             title: title?.trim() || getDefaultOverdubStemTitle(match.clip),
             audioUri: payload.audioUri,
             gainDb: 0,
-            offsetMs: clampClipOverdubStemOffsetMs(
-                payload.offsetMs ?? 0,
-                match.clip.durationMs,
-                payload.durationMs
-            ),
+            offsetMs: recordedOffsetMs,
+            recordedOffsetMs,
             tonePreset: "neutral",
             isMuted: false,
             durationMs: payload.durationMs,
@@ -1595,6 +1597,7 @@ export const appActions = {
             audioUri: imported.audioUri,
             gainDb: 0,
             offsetMs: startMs,
+            recordedOffsetMs: startMs,
             tonePreset: "neutral",
             isMuted: false,
             durationMs: imported.durationMs,

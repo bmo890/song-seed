@@ -23,7 +23,7 @@ import { AppAlert } from "../../common/AppAlert";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import type { SelectionAction } from "../../common/SelectionDock";
 import { actionIcons } from "../../common/actionIcons";
-import { useOverdubAlignmentAudition } from "../hooks/useOverdubAlignmentAudition";
+import { useOverdubAlignmentAudition, type AlignmentAuditionTarget } from "../hooks/useOverdubAlignmentAudition";
 import { activateAndPlay, replacePlaybackSource } from "../../../services/transportPlayback";
 import {
   formatClipOverdubStemOffsetLabel,
@@ -76,6 +76,8 @@ export function openCombineChooser(t: TFunction, onChoose: (mode: "copy" | "repl
   ]);
 }
 
+export type AuditionFiles = { bedUri: string; layerUri: string; layerLeadMs: number };
+
 export type BenchStemEntry = {
   id: string;
   title: string;
@@ -84,6 +86,8 @@ export type BenchStemEntry = {
   waveformPeaks?: number[];
   gainDb: number;
   offsetMs: number;
+  /** Where it was recorded; absent on older layers. */
+  recordedOffsetMs?: number;
   isMuted: boolean;
   tonePreset: string;
   color: string;
@@ -97,6 +101,10 @@ export type BenchTransportClock = {
   sharedIsPlaying: SharedValue<boolean>;
   sharedPlaybackRate: SharedValue<number>;
   sharedUpdateToken: SharedValue<number>;
+  /** The reel's pause hold: the tape ignores reports for a moment after any pause,
+   *  so handing it back to its resting place has to go through this. */
+  sharedPauseHoldMs?: SharedValue<number>;
+  sharedPauseHoldToken?: SharedValue<number>;
 };
 
 type Props = {
@@ -108,6 +116,8 @@ type Props = {
   rootSettings: { gainDb: number; tonePreset: string } | null;
   rootAudioUri: string | null;
   rootDurationMs: number;
+  /** The reel's (and its minimap's) length: the rows share the minimap's scale. */
+  timelineDurationMs?: number;
   rootWaveformPeaks?: number[];
   rootRecordingGrid?: RecordingGrid | null;
   isRendering: boolean;
@@ -130,6 +140,9 @@ type Props = {
   onRemoveStem: (stemId: string) => void;
   onSaveAsOneClip: (mode: "copy" | "replace") => void;
   onCloseBench: () => void;
+  /** Play together's files for a layer: the song without it, and the layer with its
+   *  level and tone after `layerLeadMs` of silence. Null: play the raw files. */
+  prepareAudition?: (stemId: string) => Promise<AuditionFiles | null>;
   /** Mix the picked layers into one named layer. Resolves when it is in place. */
   onMergeStems: (stemIds: string[], title: string) => Promise<void>;
 };
@@ -155,6 +168,7 @@ export function PlayerLayersBench({
   rootSettings,
   rootAudioUri,
   rootDurationMs,
+  timelineDurationMs,
   rootWaveformPeaks,
   rootRecordingGrid,
   isRendering,
@@ -174,6 +188,7 @@ export function PlayerLayersBench({
   onRemoveStem,
   onSaveAsOneClip,
   onCloseBench,
+  prepareAudition,
   onMergeStems,
 }: Props) {
   const { t } = useTranslation();
@@ -221,9 +236,16 @@ export function PlayerLayersBench({
     if (isMainPlayingRef.current) {
       return;
     }
+    const restingMs = getRestingPositionMs();
     transportClock.sharedIsPlaying.value = false;
-    transportClock.sharedCurrentTimeMs.value = getRestingPositionMs();
+    transportClock.sharedCurrentTimeMs.value = restingMs;
     transportClock.sharedUpdateToken.value += 1;
+    // Without this the tape stayed where the bench audio stopped while the readout
+    // said the resting time (2026-10-22).
+    if (transportClock.sharedPauseHoldMs && transportClock.sharedPauseHoldToken) {
+      transportClock.sharedPauseHoldMs.value = restingMs;
+      transportClock.sharedPauseHoldToken.value += 1;
+    }
   }, [transportClock, sharedStripPlayheadMs, getRestingPositionMs]);
 
   // ---- Solo (the layer truly alone) -------------------------------------------------
@@ -268,13 +290,14 @@ export function PlayerLayersBench({
   const lastAuditionOffsetRef = useRef<number | null>(null);
   const auditionRestartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // The offset the layer had when it was selected — "Original" undoes this sitting's
-  // nudges without touching a previously-saved alignment.
+  // "Original" is where the layer was recorded (founder, 2026-10-22). Layers saved
+  // before that was kept fall back to where it was when this sitting began.
   const baselineRef = useRef<{ stemId: string; offsetMs: number } | null>(null);
   if (selectedStem && baselineRef.current?.stemId !== selectedStem.id) {
     baselineRef.current = { stemId: selectedStem.id, offsetMs: selectedStem.offsetMs };
   }
-  const baselineOffsetMs = baselineRef.current?.offsetMs ?? selectedStem?.offsetMs ?? 0;
+  const baselineOffsetMs =
+    selectedStem?.recordedOffsetMs ?? baselineRef.current?.offsetMs ?? selectedStem?.offsetMs ?? 0;
   const canRestoreOriginal = !!selectedStem && selectedStem.offsetMs !== baselineOffsetMs;
 
   // Selection change: whatever was sounding belonged to the previous layer.
@@ -324,15 +347,14 @@ export function PlayerLayersBench({
     };
   }, [releaseReel]);
 
-  // Second-granularity position for React readers: the header's mm:ss readout and the
-  // micro strip's follow window — one commit per displayed second, the same cadence
-  // the main transport's readout already renders at.
-  const [stripFollowMs, setStripFollowMs] = useState<number | null>(null);
+  // Second-granularity position for the header's mm:ss readout — one commit per
+  // displayed second, the same cadence the main transport's readout renders at. The
+  // strip no longer follows it: its window re-centring once a second read as the
+  // playhead jumping (2026-10-22); the window stays on the layer, the cursor moves.
   const lastSentSecondRef = useRef<number | null>(null);
   useEffect(() => {
     if (!benchAudible) {
       lastSentSecondRef.current = null;
-      setStripFollowMs(null);
       onDisplayPositionChange?.(null);
       return;
     }
@@ -346,7 +368,6 @@ export function PlayerLayersBench({
         return;
       }
       lastSentSecondRef.current = second;
-      setStripFollowMs(ms);
       onDisplayPositionChange?.(ms);
     };
     tick();
@@ -354,7 +375,6 @@ export function PlayerLayersBench({
     return () => {
       clearInterval(interval);
       lastSentSecondRef.current = null;
-      setStripFollowMs(null);
       onDisplayPositionChange?.(null);
     };
   }, [benchAudible, onDisplayPositionChange, sharedStripPlayheadMs]);
@@ -384,19 +404,15 @@ export function PlayerLayersBench({
     if (auditionRestartTimerRef.current) {
       clearTimeout(auditionRestartTimerRef.current);
     }
-    const target = {
-      stemId: selectedStem.id,
-      masterAudioUri: rootAudioUri,
-      stemAudioUri: selectedStem.audioUri,
-      offsetMs: selectedStem.offsetMs,
-      stemGainDb: selectedStem.gainDb,
-    };
+    const stem = selectedStem;
     auditionRestartTimerRef.current = setTimeout(() => {
       auditionRestartTimerRef.current = null;
-      lastAuditionOffsetRef.current = target.offsetMs;
-      void audition.start(target).catch(() => {
-        audition.stop();
-      });
+      lastAuditionOffsetRef.current = stem.offsetMs;
+      void auditionTargetFor(stem)
+        .then((target) => (target ? audition.start(target) : audition.stop()))
+        .catch(() => {
+          audition.stop();
+        });
     }, 350);
     return () => {
       if (auditionRestartTimerRef.current) {
@@ -440,10 +456,38 @@ export function PlayerLayersBench({
     }
   }
 
-  function togglePlayHere() {
+  // Play together's two files (the song without this layer, and the layer) come
+  // from the owner, rendered once and cached; without a renderer it falls back to
+  // the raw base take and the raw layer.
+  const [auditionPreparing, setAuditionPreparing] = useState(false);
+  const prepareRunRef = useRef(0);
+  async function auditionTargetFor(stem: BenchStemEntry): Promise<AlignmentAuditionTarget | null> {
+    if (!stem.audioUri || !rootAudioUri) return null;
+    let files: AuditionFiles | null = null;
+    if (prepareAudition) {
+      try {
+        files = await prepareAudition(stem.id);
+      } catch (error) {
+        console.warn("Play together render failed — playing the raw take", error);
+      }
+    }
+    return {
+      stemId: stem.id,
+      bedUri: files?.bedUri ?? rootAudioUri,
+      layerUri: files?.layerUri ?? stem.audioUri,
+      layerLeadMs: files?.layerLeadMs ?? 0,
+      layerVolume: files ? 1 : overdubGainDbToPlayerVolume(stem.gainDb),
+      offsetMs: stem.offsetMs,
+      layerDurationMs: stem.durationMs,
+    };
+  }
+
+  async function togglePlayHere() {
     if (!selectedStem) return;
     haptic.tap(); // Vocabulary: tap = control toggles.
-    if (isAuditioning) {
+    const run = ++prepareRunRef.current;
+    if (isAuditioning || auditionPreparing) {
+      setAuditionPreparing(false);
       audition.stop();
       return;
     }
@@ -452,19 +496,18 @@ export function PlayerLayersBench({
     setSoloActive(false);
     lastAuditionOffsetRef.current = selectedStem.offsetMs;
     void onPauseMainPlayback().catch(() => {});
-    void audition
-      .start({
-        stemId: selectedStem.id,
-        masterAudioUri: rootAudioUri,
-        stemAudioUri: selectedStem.audioUri,
-        offsetMs: selectedStem.offsetMs,
-        stemGainDb: selectedStem.gainDb,
-      })
-      .catch((error) => {
-        console.warn("Alignment audition failed", error);
-        haptic.error(); // Vocabulary: failures fire error.
-        audition.stop();
-      });
+    setAuditionPreparing(true);
+    try {
+      const target = await auditionTargetFor(selectedStem);
+      if (run !== prepareRunRef.current || !target) return;
+      await audition.start(target);
+    } catch (error) {
+      console.warn("Alignment audition failed", error);
+      haptic.error(); // Vocabulary: failures fire error.
+      audition.stop();
+    } finally {
+      if (run === prepareRunRef.current) setAuditionPreparing(false);
+    }
   }
 
   // Slide-to-move on the micro strip: preview rides the drag; the commit snaps onto the
@@ -596,10 +639,11 @@ export function PlayerLayersBench({
     });
   }
 
+  // The minimap's scale, so each row's wave sits exactly under its place on the
+  // minimap above (founder, 2026-10-22: "is it actually lined up?").
   const timelineMs = Math.max(
     1,
-    rootDurationMs,
-    ...stems.map((stem) => stem.offsetMs + stem.durationMs)
+    timelineDurationMs ?? Math.max(rootDurationMs, ...stems.map((stem) => stem.offsetMs + stem.durationMs))
   );
 
   const stemTools = selectedStem ? (
@@ -611,16 +655,20 @@ export function PlayerLayersBench({
             <InkKey
               // Haptics: the toggle fires its own `tap` (togglePlayHere).
               haptic="none"
-              tone={isAuditioning ? "active" : "idle"}
+              tone={isAuditioning || auditionPreparing ? "active" : "idle"}
               label={t("player.playTogetherShort")}
               glyph={
-                <Ionicons
-                  name={isAuditioning ? "stop" : "play"}
-                  size={14}
-                  color={inkKeyColor(isAuditioning ? "active" : "idle")}
-                />
+                auditionPreparing ? (
+                  <Spinner size="small" color={inkKeyColor("active")} accessibilityLabel={t("player.updatingMix")} />
+                ) : (
+                  <Ionicons
+                    name={isAuditioning ? "stop" : "play"}
+                    size={14}
+                    color={inkKeyColor(isAuditioning ? "active" : "idle")}
+                  />
+                )
               }
-              onPress={togglePlayHere}
+              onPress={() => void togglePlayHere()}
               accessibilityLabel={isAuditioning ? t("player.stopTogether") : t("player.playTogether")}
             />
             <InkKey
@@ -653,7 +701,6 @@ export function PlayerLayersBench({
         onSlideEnd={handleSlideEnd}
         sharedPlayheadMs={sharedStripPlayheadMs}
         playheadColor={colors.playhead}
-        followMs={stripFollowMs}
       />
       {/* Solo: the layer's own tape, scrubbable while it is loaded. Under the strip, so
           the sheet does not jump when it appears. */}
@@ -771,7 +818,8 @@ export function PlayerLayersBench({
             durationMs={stem.durationMs}
             timelineMs={timelineMs}
             peaks={stem.waveformPeaks}
-            selected={selected}
+            // Rows are doors now: nothing stays lit for being the last one opened.
+            selected={false}
             muted={stem.isMuted}
             rendering={selected && isRendering}
             onSelect={() => openLane(stem.id)}
@@ -1211,9 +1259,13 @@ const benchStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  // Inset to the minimap's span: the reel's minimap sits 6 pt further in than the
+  // bench's rows (AudioReel minimapWrap's 20 pt inside the reel's own inset, measured
+  // 36→366 vs 30→372 on a 402 pt screen), and both are fixed paddings.
   track: {
     height: ROW_WAVE_HEIGHT + 4,
     justifyContent: "center",
+    marginHorizontal: 6,
   },
   baseline: {
     position: "absolute",

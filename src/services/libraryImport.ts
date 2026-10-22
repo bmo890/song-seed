@@ -326,6 +326,7 @@ async function materializeArchiveClipOverdub(
             durationMs: stemManifest.durationMs,
             waveformPeaks: stemManifest.waveformPeaks,
             recordingGrid: stemManifest.recordingGrid,
+            recordedOffsetMs: stemManifest.recordedOffsetMs,
             color: stemManifest.color,
             createdAt: stemManifest.createdAt ?? Date.now(),
         });

@@ -7,6 +7,7 @@ import { styles as appStyles } from "../../styles";
 import { useTranslation } from "react-i18next";
 import { Press } from "./Press";
 import { useLayerPrefsStore } from "../../state/useLayerPrefsStore";
+import { fmtDuration } from "../../utils";
 
 /**
  * The layers a take carries, under its reel (2026-10-17, founder: "sit orderly,
@@ -87,7 +88,9 @@ function LaneWave({
   timelineTranslateX: SharedValue<number>;
   timelineScale: SharedValue<number>;
 }) {
-  const [zoom, setZoom] = React.useState(() => zoomStep(timelineScale.value));
+  // Set by the reaction below on mount; reading the shared value in render is
+  // what Reanimated's strict mode warns about.
+  const [zoom, setZoom] = React.useState(1);
   useAnimatedReaction(
     () => zoomStep(timelineScale.value),
     (next, previous) => {
@@ -116,6 +119,48 @@ function LaneWave({
   );
 }
 
+/**
+ * Zoomed in, a layer can sit outside the stretch of song on screen, and its lane
+ * was an empty line (founder, 2026-10-22: the carets "don't always show the
+ * layer"). At the edge it lies beyond: a quiet arrow and where it starts.
+ */
+function OffscreenHint({
+  lane,
+  trackWidth,
+  pixelsPerMs,
+  timelineTranslateX,
+  timelineScale,
+}: {
+  lane: OverdubLayerLane;
+  trackWidth: number;
+  pixelsPerMs: number;
+  timelineTranslateX: SharedValue<number>;
+  timelineScale: SharedValue<number>;
+}) {
+  const before = useAnimatedStyle(() => {
+    const x = lane.offsetMs * pixelsPerMs * timelineScale.value + timelineTranslateX.value;
+    const width = lane.durationMs * pixelsPerMs * timelineScale.value;
+    return { opacity: trackWidth > 0 && x + width < 0 ? 1 : 0 };
+  });
+  const after = useAnimatedStyle(() => {
+    const x = lane.offsetMs * pixelsPerMs * timelineScale.value + timelineTranslateX.value;
+    return { opacity: trackWidth > 0 && x > trackWidth ? 1 : 0 };
+  });
+  const at = fmtDuration(lane.offsetMs);
+  return (
+    <>
+      <Animated.View pointerEvents="none" style={[laneStyles.hint, laneStyles.hintStart, before]}>
+        <Ionicons name="chevron-back" size={11} color={colors.textMuted} />
+        <Text style={laneStyles.hintText}>{at}</Text>
+      </Animated.View>
+      <Animated.View pointerEvents="none" style={[laneStyles.hint, laneStyles.hintEnd, after]}>
+        <Text style={laneStyles.hintText}>{at}</Text>
+        <Ionicons name="chevron-forward" size={11} color={colors.textMuted} />
+      </Animated.View>
+    </>
+  );
+}
+
 function LaneRow({
   lane,
   pixelsPerMs,
@@ -130,7 +175,9 @@ function LaneRow({
   onOpenLane?: (id: string) => void;
 }) {
   const { t } = useTranslation();
-  const folded = useLayerPrefsStore((state) => state.collapsedLayerIds.includes(lane.id));
+  // Read-only stacks always show every wave: nothing there can unfold them.
+  const folded = useLayerPrefsStore((state) => !!onOpenLane && state.collapsedLayerIds.includes(lane.id));
+  const [trackWidth, setTrackWidth] = React.useState(0);
   const label = lane.isMuted ? `${lane.title} · ${t("player.mutedShort")}` : lane.title;
   const name = (
     <Text
@@ -149,10 +196,17 @@ function LaneRow({
   ) : (
     <>
       {name}
-      <View style={laneStyles.track}>
+      <View style={laneStyles.track} onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)}>
         <View style={[laneStyles.baseline, lane.isMuted ? laneStyles.baselineMuted : null]} />
         <LaneWave
           lane={lane}
+          pixelsPerMs={pixelsPerMs}
+          timelineTranslateX={timelineTranslateX}
+          timelineScale={timelineScale}
+        />
+        <OffscreenHint
+          lane={lane}
+          trackWidth={trackWidth}
           pixelsPerMs={pixelsPerMs}
           timelineTranslateX={timelineTranslateX}
           timelineScale={timelineScale}
@@ -176,7 +230,9 @@ function LaneRow({
       ) : (
         <View style={[...rowStyle, laneStyles.rowFill]}>{body}</View>
       )}
-      <LayerFoldKey layerId={lane.id} title={lane.title} folded={folded} />
+      {/* A read-only stack (the recorder's guide) shows the lanes as they are; its
+          carets used to change the player's folds from a screen about something else. */}
+      {onOpenLane ? <LayerFoldKey layerId={lane.id} title={lane.title} folded={folded} /> : null}
     </View>
   );
 }
@@ -218,7 +274,8 @@ export function LayerFoldAllKey({ layerIds }: { layerIds: string[] }) {
   const allFolded = useLayerPrefsStore(
     (state) => layerIds.length > 0 && layerIds.every((id) => state.collapsedLayerIds.includes(id))
   );
-  if (layerIds.length === 0) return null;
+  // One layer: its own caret says the same thing.
+  if (layerIds.length < 2) return null;
   return (
     <Press
       feel="glyph"
@@ -392,6 +449,24 @@ const laneStyles = StyleSheet.create({
   track: {
     height: WAVE_HEIGHT + 2,
     justifyContent: "center",
+  },
+  // The time axis is LTR-pinned like the reel, so these use left/right.
+  hint: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    paddingHorizontal: 4,
+    backgroundColor: colors.page,
+  },
+  hintStart: { left: 0 },
+  hintEnd: { right: 0 },
+  hintText: {
+    ...textTokens.caption,
+    color: colors.textMuted,
+    fontVariant: ["tabular-nums"],
   },
   baseline: {
     position: "absolute",

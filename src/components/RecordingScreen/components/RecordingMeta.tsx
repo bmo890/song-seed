@@ -21,6 +21,8 @@ type Props = {
     isCountIn?: boolean;
     /** A punched layer's run-up: the song plays toward the start, nothing kept yet. */
     isPreRoll?: boolean;
+    /** A layer's last seconds before the song ends and it stops itself. */
+    layerTimeLeftMs?: number | null;
     countInBars?: number;
     countInCurrentBar?: number;
     countInCurrentBeat?: number;
@@ -70,6 +72,7 @@ export function RecordingMeta({
     elapsedMs,
     isCountIn = false,
     isPreRoll = false,
+    layerTimeLeftMs = null,
     countInBars = 0,
     countInCurrentBar = 1,
     countInCurrentBeat = 0,
@@ -142,7 +145,9 @@ export function RecordingMeta({
                 ? t("recording.paused")
                 : isPreRoll
                     ? t("recording.preRoll")
-                    : t("recording.title");
+                    : layerTimeLeftMs != null
+                        ? `${t("recording.title")} · ${t("recording.timeLeft", { time: fmtDuration(layerTimeLeftMs) })}`
+                        : t("recording.title");
     const showActiveDot = isCountIn || (isRecording && !isPaused);
 
     const statusDot = (

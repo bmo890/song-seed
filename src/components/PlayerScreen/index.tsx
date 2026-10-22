@@ -42,7 +42,8 @@ import { PlayerFooterSection } from "./components/PlayerFooterSection";
 import { PlayerPracticeDrawers } from "./components/PlayerPracticeDrawers";
 import { PlayerSupportSections } from "./components/PlayerSupportSections";
 import { PlayerLayersBench, BENCH_ROOT_LANE_ID, openCombineChooser } from "./components/PlayerLayersBench";
-import { MAX_LAYERS_PER_TAKE } from "../../domain/overdub";
+import { LAYER_AUDITION_LEAD_MS, MAX_LAYERS_PER_TAKE, buildLayerAuditionInputs } from "../../domain/overdub";
+import { releaseAuditionFiles, renderAuditionFile } from "../../services/layerAudition";
 import { useLayerPrefsStore } from "../../state/useLayerPrefsStore";
 import { looksMachineNamed } from "../../domain/titleNaming";
 import { HelpSheet } from "../common/HelpSheet";
@@ -453,6 +454,21 @@ function PlayerScreenInner({
   // A lane opens the bench on ITS layer, straight into that layer's sheet (founder,
   // 2026-10-22); the count header opens the list on the first.
   const [benchSheetRequest, setBenchSheetRequest] = useState<string | null>(null);
+  // Play together plays the song as it will sound: its two files are rendered once
+  // and kept while the mix is unchanged (services/layerAudition.ts).
+  const playerClipRef = useRef(playerClip);
+  playerClipRef.current = playerClip;
+  const prepareLayerAudition = useCallback(async (stemId: string) => {
+    const clip = playerClipRef.current;
+    const inputs = clip ? buildLayerAuditionInputs(clip, stemId) : null;
+    if (!inputs) return null;
+    const [bedUri, layerUri] = await Promise.all([
+      renderAuditionFile(inputs.bed),
+      renderAuditionFile(inputs.layer),
+    ]);
+    return { bedUri, layerUri, layerLeadMs: LAYER_AUDITION_LEAD_MS };
+  }, []);
+  useEffect(() => releaseAuditionFiles, []);
   const openLayersBench = useCallback((laneId?: string) => {
     ui.setBenchLayerId(laneId ?? data.overdubStemEntries[0]?.id ?? BENCH_ROOT_LANE_ID);
     if (laneId) setBenchSheetRequest(laneId);
@@ -653,6 +669,10 @@ function PlayerScreenInner({
     channelDriven,
   });
   setPauseDisplayPositionRef.current = transportClock.setDisplayPositionMs;
+  const benchTransportClock = useMemo(
+    () => ({ ...transportClock, sharedPauseHoldMs: pauseVisualHoldMs, sharedPauseHoldToken: pauseVisualHoldToken }),
+    [transportClock, pauseVisualHoldMs, pauseVisualHoldToken]
+  );
   const hasPreviousTrack = data.playerQueueIndex > 0;
   const hasNextTrack = data.playerQueueIndex >= 0 && data.playerQueueIndex < data.playerQueue.length - 1;
   const transportScrub = useTransportScrubbing({
@@ -2061,16 +2081,18 @@ function PlayerScreenInner({
               onMergeStems={handleMergeStems}
               selectedLaneId={benchSelectedLaneId}
               sheetRequest={benchSheetRequest}
+              prepareAudition={prepareLayerAudition}
               onSheetRequestHandled={() => setBenchSheetRequest(null)}
               stems={data.overdubStemEntries}
               rootSettings={data.overdubRootSettings}
               rootAudioUri={playerClip.audioUri ?? null}
               rootDurationMs={playerClip.durationMs ?? 0}
+              timelineDurationMs={effectivePlayerDuration > 0 ? effectivePlayerDuration : undefined}
               rootWaveformPeaks={playerClip.waveformPeaks}
               rootRecordingGrid={playerClip.recordingGrid ?? null}
               isRendering={isMixUpdating}
               isMainPlaybackPlaying={effectiveIsPlaying}
-              transportClock={transportClock}
+              transportClock={benchTransportClock}
               getRestingPositionMs={() => playerPositionMsRef.current}
               onDisplayPositionChange={handleBenchDisplayPosition}
               onPauseMainPlayback={practicePitchTransport.pause}

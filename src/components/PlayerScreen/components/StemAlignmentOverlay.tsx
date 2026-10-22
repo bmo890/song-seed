@@ -27,10 +27,11 @@ import { InkKey, inkKeyColor } from "../../common/InkKey";
  * sidecars; the inline thumbnails are the fallback while they load.
  */
 
-const DISPLAY_BARS = 72;
 const BAR_WIDTH = 3;
 const BAR_GAP = 1;
-const CONTENT_WIDTH = DISPLAY_BARS * BAR_WIDTH + (DISPLAY_BARS - 1) * BAR_GAP;
+/** Before the stage is measured. The strip spans the sheet's full width once it is
+ *  (it used to sit at a fixed 287 pt, centred: narrower than everything around it). */
+const DEFAULT_CONTENT_WIDTH = 287;
 const VIEW_HEIGHT = 46;
 const MASTER_AMPLITUDE = 40;
 const STEM_AMPLITUDE = 26;
@@ -77,18 +78,20 @@ function StripPlayhead({
   sharedPlayheadMs,
   zoomStartMs,
   timelineMs,
+  contentWidth,
   color,
 }: {
   sharedPlayheadMs: SharedValue<number>;
   zoomStartMs: number;
   timelineMs: number;
+  contentWidth: number;
   color: string;
 }) {
   const prevXRef = useSharedValue(-1);
   const playheadStyle = useAnimatedStyle(() => {
     const ms = sharedPlayheadMs.value;
-    const x = ((ms - zoomStartMs) / timelineMs) * CONTENT_WIDTH;
-    const visible = ms >= 0 && x >= -1 && x <= CONTENT_WIDTH + 1;
+    const x = ((ms - zoomStartMs) / timelineMs) * contentWidth;
+    const visible = ms >= 0 && x >= -1 && x <= contentWidth + 1;
     const jumped = Math.abs(x - prevXRef.value) > 40 || prevXRef.value < 0;
     prevXRef.value = visible ? x : -1;
     return {
@@ -171,6 +174,8 @@ export function StemAlignmentOverlay({
   // Full clip by default — the whole point of the strip is seeing the layer against the
   // take; the detail window is the opt-in for millisecond work.
   const [zoomed, setZoomed] = useState(false);
+  const [contentWidth, setContentWidth] = useState(DEFAULT_CONTENT_WIDTH);
+  const displayBars = Math.max(8, Math.floor((contentWidth + BAR_GAP) / (BAR_WIDTH + BAR_GAP)));
 
   // Slide-to-move: horizontal px map 1:1 to timeline ms through the current zoom. The
   // callbacks receive deltas; the owner previews and commits (and may snap). A ref keeps
@@ -212,15 +217,15 @@ export function StemAlignmentOverlay({
     ? Math.max(0, Math.min(zoomAnchorMs - 1000, fullTimelineMs - ZOOM_WINDOW_MS))
     : 0;
   const timelineMs = zoomed ? Math.min(ZOOM_WINDOW_MS, fullTimelineMs - zoomStartMs) : fullTimelineMs;
-  msPerPxRef.current = timelineMs / CONTENT_WIDTH;
+  msPerPxRef.current = timelineMs / contentWidth;
 
   const bars = useMemo(() => {
     if (masterDurationMs <= 0 && stemDurationMs <= 0) {
       return [];
     }
-    const barDurationMs = timelineMs / DISPLAY_BARS;
+    const barDurationMs = timelineMs / displayBars;
 
-    return Array.from({ length: DISPLAY_BARS }, (_, index) => {
+    return Array.from({ length: displayBars }, (_, index) => {
       const fromMs = zoomStartMs + index * barDurationMs;
       const toMs = fromMs + barDurationMs;
       return {
@@ -228,7 +233,7 @@ export function StemAlignmentOverlay({
         stem: samplePeakRange(stemPeaks, stemDurationMs, fromMs - offsetMs, toMs - offsetMs),
       };
     });
-  }, [masterDurationMs, masterPeaks, offsetMs, stemDurationMs, stemPeaks, timelineMs, zoomStartMs]);
+  }, [displayBars, masterDurationMs, masterPeaks, offsetMs, stemDurationMs, stemPeaks, timelineMs, zoomStartMs]);
 
   // Beat-grid ticks on the master's timeline: downbeats accented, other beats faint.
   // Density-limited — all beats when they fit, downbeats only when bars fit, then every
@@ -268,13 +273,13 @@ export function StemAlignmentOverlay({
           continue;
         }
       }
-      ticks.push({ leftPx: ((timeMs - zoomStartMs) / timelineMs) * CONTENT_WIDTH, isDownbeat });
+      ticks.push({ leftPx: ((timeMs - zoomStartMs) / timelineMs) * contentWidth, isDownbeat });
       if (ticks.length > MAX_GRID_TICKS) {
         break;
       }
     }
     return ticks;
-  }, [recordingGrid, timelineMs, zoomStartMs]);
+  }, [contentWidth, recordingGrid, timelineMs, zoomStartMs]);
 
   if (!bars.length) {
     return null;
@@ -303,8 +308,8 @@ export function StemAlignmentOverlay({
           accessibilityLabel={zoomed ? t("player.showFullClip") : t("player.zoomLayer")}
         />
       </View>
-      <StageShell gesture={slideGesture}>
-        <View style={styles.content}>
+      <StageShell gesture={slideGesture} onWidth={setContentWidth}>
+        <View style={[styles.content, { width: contentWidth }]}>
           {gridTicks.map((tick, index) => (
             <View
               key={`grid-tick-${index}`}
@@ -340,6 +345,7 @@ export function StemAlignmentOverlay({
               sharedPlayheadMs={sharedPlayheadMs}
               zoomStartMs={zoomStartMs}
               timelineMs={timelineMs}
+              contentWidth={contentWidth}
               color={playheadColor ?? colors.primaryDeep}
             />
           ) : null}
@@ -353,19 +359,25 @@ export function StemAlignmentOverlay({
  *  get the plain view they always had. */
 function StageShell({
   gesture,
+  onWidth,
   children,
 }: {
   gesture: ReturnType<typeof Gesture.Pan> | null;
+  onWidth: (width: number) => void;
   children: React.ReactNode;
 }) {
-  if (!gesture) {
-    return <View style={styles.stage}>{children}</View>;
-  }
-  return (
-    <GestureDetector gesture={gesture}>
-      <View style={styles.stage}>{children}</View>
-    </GestureDetector>
+  const stage = (
+    <View
+      style={styles.stage}
+      onLayout={(event) => {
+        const width = Math.round(event.nativeEvent.layout.width);
+        if (width > 0) onWidth(width);
+      }}
+    >
+      {children}
+    </View>
   );
+  return gesture ? <GestureDetector gesture={gesture}>{stage}</GestureDetector> : stage;
 }
 
 const styles = StyleSheet.create({
@@ -387,7 +399,6 @@ const styles = StyleSheet.create({
   },
   // Fixed-width inner canvas: bars AND grid ticks share the same time→pixel mapping.
   content: {
-    width: CONTENT_WIDTH,
     height: VIEW_HEIGHT,
     flexDirection: "row",
     alignItems: "center",
@@ -407,16 +418,16 @@ const styles = StyleSheet.create({
     top: 8,
     bottom: 8,
     width: 1,
-    backgroundColor: "#c8b8ac",
-    opacity: 0.55,
+    backgroundColor: colors.borderMuted,
+    opacity: 0.7,
   },
   downbeatTick: {
     position: "absolute",
     top: 2,
     bottom: 2,
     width: 1,
-    backgroundColor: "#8a6f5f",
-    opacity: 0.75,
+    backgroundColor: colors.textMuted,
+    opacity: 0.8,
   },
   column: {
     width: BAR_WIDTH,
@@ -427,7 +438,9 @@ const styles = StyleSheet.create({
   masterBar: {
     width: BAR_WIDTH,
     borderRadius: 2,
-    backgroundColor: "#d8cec6",
+    // The song in the same quiet ink as the lanes; the layer over it in its colour.
+    backgroundColor: colors.textStrong,
+    opacity: 0.22,
   },
   stemBar: {
     position: "absolute",
