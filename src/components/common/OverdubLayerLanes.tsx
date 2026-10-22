@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { Press } from "./Press";
 import { useLayerPrefsStore } from "../../state/useLayerPrefsStore";
 import { fmtDuration } from "../../utils";
+import { InkOption } from "./InkOption";
 
 /**
  * The layers a take carries, under its reel (2026-10-17, founder: "sit orderly,
@@ -33,9 +34,9 @@ export type OverdubLayerLane = {
   readsAsName?: boolean;
 };
 
-const ROW_HEIGHT = 32;
+const ROW_HEIGHT = 40;
 /** A folded layer: its name line only. */
-const ROW_HEIGHT_FOLDED = 22;
+const ROW_HEIGHT_FOLDED = 24;
 const WAVE_HEIGHT = 14;
 export const MAX_VISIBLE_LANE_ROWS = 3;
 const MIN_BARS = 4;
@@ -167,29 +168,65 @@ function LaneRow({
   timelineTranslateX,
   timelineScale,
   onOpenLane,
+  soloing,
+  onSoloLane,
+  onToggleMuteLane,
 }: {
   lane: OverdubLayerLane;
   pixelsPerMs: number;
   timelineTranslateX: SharedValue<number>;
   timelineScale: SharedValue<number>;
   onOpenLane?: (id: string) => void;
+  soloing?: boolean;
+  onSoloLane?: (id: string) => void;
+  onToggleMuteLane?: (id: string) => void;
 }) {
   const { t } = useTranslation();
   // Read-only stacks always show every wave: nothing there can unfold them.
   const folded = useLayerPrefsStore((state) => !!onOpenLane && state.collapsedLayerIds.includes(lane.id));
   const [trackWidth, setTrackWidth] = React.useState(0);
-  const label = lane.isMuted ? `${lane.title} · ${t("player.mutedShort")}` : lane.title;
+  const hasControls = !!onSoloLane || !!onToggleMuteLane;
+  // With a Mute key on the line the dot says it; a read-only stack still spells it.
+  const label = lane.isMuted && !hasControls ? `${lane.title} · ${t("player.mutedShort")}` : lane.title;
   const name = (
-    <Text
-      style={[
-        laneStyles.nameText,
-        lane.readsAsName ? laneStyles.nameTyped : laneStyles.nameMachine,
-        lane.isMuted ? laneStyles.nameMuted : null,
-      ]}
-      numberOfLines={1}
-    >
-      {label}
-    </Text>
+    <View style={laneStyles.nameLine}>
+      <Text
+        style={[
+          laneStyles.nameText,
+          lane.readsAsName ? laneStyles.nameTyped : laneStyles.nameMachine,
+          lane.isMuted ? laneStyles.nameMuted : null,
+        ]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+      {hasControls ? (
+        <>
+          <Text style={laneStyles.span} numberOfLines={1}>
+            {`${fmtDuration(Math.max(0, lane.offsetMs))} – ${fmtDuration(Math.max(0, lane.offsetMs + lane.durationMs))}`}
+          </Text>
+          <View style={laneStyles.nameSpacer} />
+          {onSoloLane ? (
+            <InkOption
+              compact
+              label={t("player.solo")}
+              selected={!!soloing}
+              onPress={() => onSoloLane(lane.id)}
+              accessibilityLabel={t("player.soloLayer", { title: lane.title })}
+            />
+          ) : null}
+          {onToggleMuteLane ? (
+            <InkOption
+              compact
+              label={t("player.mute")}
+              selected={lane.isMuted}
+              onPress={() => onToggleMuteLane(lane.id)}
+              accessibilityLabel={lane.isMuted ? t("player.unmuteLayer") : t("player.muteLayer")}
+            />
+          ) : null}
+        </>
+      ) : null}
+    </View>
   );
   const body = folded ? (
     name
@@ -235,6 +272,50 @@ function LaneRow({
   );
 }
 
+/** Under the lanes: merge some layers into one, or combine them all into the take. */
+export function LayerLanesFoot({
+  layerCount,
+  onMerge,
+  onCombine,
+}: {
+  layerCount: number;
+  onMerge: () => void;
+  onCombine: () => void;
+}) {
+  const { t } = useTranslation();
+  if (layerCount === 0) return null;
+  return (
+    <View style={laneStyles.foot}>
+      {layerCount >= 2 ? (
+        <Press
+          feel="glyph"
+          // Haptics vocabulary: opening a sheet is navigation, and navigation is silent.
+          haptic="navigate"
+          style={laneStyles.footLink}
+          onPress={onMerge}
+          accessibilityRole="button"
+          accessibilityLabel={t("player.mergeLayers")}
+        >
+          <Ionicons name="git-merge-outline" size={13} color={colors.textSecondary} />
+          <Text style={laneStyles.footLinkText}>{t("player.mergeLayers")}</Text>
+        </Press>
+      ) : null}
+      <Press
+        feel="glyph"
+        // Haptics vocabulary: opening the Combine chooser is navigation (silent).
+        haptic="navigate"
+        style={laneStyles.footLink}
+        onPress={onCombine}
+        accessibilityRole="button"
+        accessibilityLabel={t("player.saveOneClip")}
+      >
+        <Ionicons name="albums-outline" size={13} color={colors.textSecondary} />
+        <Text style={laneStyles.footLinkText}>{t("player.saveOneClip")}</Text>
+      </Press>
+    </View>
+  );
+}
+
 /** "Collapse all" / "Expand all" for one take's layers: collapses all while any
  *  layer is open, expands all once every layer is folded. */
 export function LayerFoldAllKey({ layerIds }: { layerIds: string[] }) {
@@ -267,16 +348,29 @@ export function OverdubLayerLanes({
   onOpenLane,
   collapsed,
   onToggleCollapsed,
+  soloingLaneId,
+  onSoloLane,
+  onToggleMuteLane,
+  footer,
+  playhead,
 }: {
   lanes: OverdubLayerLane[];
   pixelsPerMs: number;
   timelineTranslateX: SharedValue<number>;
   timelineScale: SharedValue<number>;
-  /** A lane is the door to its layer on the bench. Omit for a read-only stack. */
+  /** A lane is the door to its layer's sheet. Omit for a read-only stack. */
   onOpenLane?: (id: string) => void;
   /** With a toggle, a quiet "Layers · n" header folds the lanes away. */
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
+  /** The lanes ARE the layer list (2026-10-22): Solo and Mute on each name line. */
+  soloingLaneId?: string | null;
+  onSoloLane?: (id: string) => void;
+  onToggleMuteLane?: (id: string) => void;
+  /** Under the lanes: Merge layers, Combine layers. */
+  footer?: React.ReactNode;
+  /** The reel's playhead, carried down through the lanes to show they share its time. */
+  playhead?: { progress: SharedValue<number>; durationMs: number };
 }) {
   const { t } = useTranslation();
   const visibleLanes = lanes.filter((lane) => lane.durationMs > 0);
@@ -292,6 +386,9 @@ export function OverdubLayerLanes({
       timelineTranslateX={timelineTranslateX}
       timelineScale={timelineScale}
       onOpenLane={onOpenLane}
+      soloing={soloingLaneId === lane.id}
+      onSoloLane={onSoloLane}
+      onToggleMuteLane={onToggleMuteLane}
     />
   ));
   const scrolls = visibleLanes.length > MAX_VISIBLE_LANE_ROWS;
@@ -322,19 +419,56 @@ export function OverdubLayerLanes({
         {isCollapsed ? null : <LayerFoldAllKey layerIds={layerIds} />}
         </View>
       ) : null}
-      {isCollapsed ? null : scrolls ? (
-        <ScrollView
-          style={{ maxHeight: MAX_VISIBLE_LANE_ROWS * ROW_HEIGHT }}
-          nestedScrollEnabled
-          showsVerticalScrollIndicator
-        >
-          {rows}
-        </ScrollView>
-      ) : (
-        rows
+      {isCollapsed ? null : (
+        <View style={laneStyles.rowsArea}>
+          {/* Behind the waves: the reel's playhead carried down through the lanes. */}
+          {playhead ? (
+            <LanePlayhead
+              progress={playhead.progress}
+              durationMs={playhead.durationMs}
+              pixelsPerMs={pixelsPerMs}
+              timelineTranslateX={timelineTranslateX}
+              timelineScale={timelineScale}
+            />
+          ) : null}
+          {scrolls ? (
+            <ScrollView
+              style={{ maxHeight: MAX_VISIBLE_LANE_ROWS * ROW_HEIGHT }}
+              nestedScrollEnabled
+              showsVerticalScrollIndicator
+            >
+              {rows}
+            </ScrollView>
+          ) : (
+            rows
+          )}
+        </View>
       )}
+      {isCollapsed ? null : footer ?? null}
     </View>
   );
+}
+
+/** The reel's playhead as a thin line through the lanes: one time, top to bottom. */
+function LanePlayhead({
+  progress,
+  durationMs,
+  pixelsPerMs,
+  timelineTranslateX,
+  timelineScale,
+}: {
+  progress: SharedValue<number>;
+  durationMs: number;
+  pixelsPerMs: number;
+  timelineTranslateX: SharedValue<number>;
+  timelineScale: SharedValue<number>;
+}) {
+  const placement = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: progress.value * durationMs * pixelsPerMs * timelineScale.value + timelineTranslateX.value },
+    ],
+  }));
+  return <Animated.View pointerEvents="none" style={[laneStyles.playhead, placement]} />;
 }
 
 const laneStyles = StyleSheet.create({
@@ -381,6 +515,52 @@ const laneStyles = StyleSheet.create({
   },
   nameText: {
     paddingEnd: 8,
+    flexShrink: 1,
+  },
+  nameLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minHeight: 20,
+  },
+  nameSpacer: {
+    flex: 1,
+  },
+  span: {
+    ...textTokens.caption,
+    fontFamily: "PlusJakartaSans_500Medium",
+    color: colors.textMuted,
+    fontVariant: ["tabular-nums"],
+  },
+  foot: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 22,
+    paddingTop: 4,
+  },
+  footLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingVertical: 6,
+  },
+  footLinkText: {
+    fontSize: 12,
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    color: colors.textSecondary,
+  },
+  rowsArea: {
+    position: "relative",
+  },
+  playhead: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: 1.5,
+    marginLeft: -0.75,
+    backgroundColor: colors.playhead,
+    opacity: 0.45,
   },
   nameTyped: {
     fontFamily: "Lora_500Medium",

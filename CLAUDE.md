@@ -70,6 +70,9 @@ The hard rules below are non-negotiable.
   Lyric Pad, Shelf, Revisit, Activity, no group labels; the three instruments
   sit in the tool tray above Settings. A drawer press navigates: silent
   (`haptic="navigate"`).
+- Layers (2026-10-22): the lanes under the reel ARE the layer list (name, span,
+  Solo, Mute; tap opens the layer's sheet). No separate Layers view, no second
+  list; a lane's wave rides the reel's own pan and zoom.
 - Destructive/rare actions live in overflow. Action sheets max ~6 rows — more
   means the IA is wrong; fix the IA.
 - Menus (2026-10-15, founder picked "rows on paper"): every action menu is

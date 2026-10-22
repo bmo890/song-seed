@@ -273,7 +273,7 @@ type TransportClock = {
 };
 
 type Props = {
-  mode: "player" | "practice" | "layers";
+  mode: "player" | "practice";
   /** Reading rung of the ladder: the SAME reel, only thinner — bands, pins,
    *  scrub and pinch-zoom all keep working while an artifact holds the page. */
   readingSlim?: boolean;
@@ -310,6 +310,11 @@ type Props = {
   overdubLayerLanes?: OverdubLayerLane[];
   /** A lane opens its layer on the bench. */
   onOpenLayerLane?: (id: string) => void;
+  /** The lanes are the layer list: Solo and Mute on each, the foot under them. */
+  soloingLayerId?: string | null;
+  onSoloLayer?: (id: string) => void;
+  onToggleLayerMute?: (id: string) => void;
+  layerLanesFooter?: React.ReactNode;
   /** The lanes fold away under a quiet "Layers · n" header. */
   layerLanesCollapsed?: boolean;
   onToggleLayerLanes?: () => void;
@@ -376,6 +381,10 @@ function PlayerTimelineInner({
   recordingGrid,
   overdubLayerLanes,
   onOpenLayerLane,
+  soloingLayerId,
+  onSoloLayer,
+  onToggleLayerMute,
+  layerLanesFooter,
   layerLanesCollapsed,
   onToggleLayerLanes,
   draggingMarkerId,
@@ -504,9 +513,8 @@ function PlayerTimelineInner({
       freezeSelectedRangeWhenFullyVisible={loopActive}
       selectedRanges={loopActive ? practiceLoopSelection : undefined}
       // Pins show wherever the tape does — full height or reading-slim. They're
-      // the song's own map, not a practice tool. Only the bench skips them
-      // (three stacked waveforms is already plenty).
-      practiceMarkers={mode !== "layers" ? practiceMarkers : undefined}
+      // the song's own map, not a practice tool.
+      practiceMarkers={practiceMarkers}
       sharedDraggingMarkerId={draggingMarkerId}
       // Lanes: holding a pin's line and dragging moves it, on the tape itself.
       sharedDraggingMarkerX={draggingMarkerX}
@@ -543,7 +551,6 @@ function PlayerTimelineInner({
                   showVisuals={false}
                 />
           ) : null}
-          {mode !== "layers" ? (
             <>
               {mode === "practice" ? (
                 <DragIndicatorLine
@@ -583,13 +590,13 @@ function PlayerTimelineInner({
                 laneDensity={laneDensityForHeight(reelHeight)}
               />
             </>
-          ) : null}
+
         </View>
       )}
-      renderBelowSurface={({ pixelsPerMs, timelineTranslateX, timelineScale }) => (
+      renderBelowSurface={({ pixelsPerMs, timelineTranslateX, timelineScale, sharedAudioProgress }) => (
         <>
-          {/* The bench lists the layers itself; under the reel they rest as lanes. */}
-          {mode !== "layers" && overdubLayerLanes && overdubLayerLanes.length > 0 ? (
+          {/* The lanes ARE the layer list (2026-10-22): one place, on the reel's time. */}
+          {overdubLayerLanes && overdubLayerLanes.length > 0 ? (
             <OverdubLayerLanes
               lanes={overdubLayerLanes}
               pixelsPerMs={pixelsPerMs}
@@ -598,6 +605,11 @@ function PlayerTimelineInner({
               onOpenLane={onOpenLayerLane}
               collapsed={layerLanesCollapsed}
               onToggleCollapsed={onToggleLayerLanes}
+              soloingLaneId={soloingLayerId}
+              onSoloLane={onSoloLayer}
+              onToggleMuteLane={onToggleLayerMute}
+              footer={layerLanesFooter}
+              playhead={durationMs > 0 ? { progress: sharedAudioProgress, durationMs } : undefined}
             />
           ) : null}
           {loopActive && previewRange ? (

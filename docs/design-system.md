@@ -413,8 +413,8 @@ Two treatments, used everywhere so single vs. multi reads at a glance:
   when on), generous hit-padding for thumb targets. No capsules, no chips.
 - **Equipment** (decided 2026-10-14) → the **`LitKey`**: a quiet white box with a
   small lamp that glows terracotta when on. The one boxed toggle in the app, and
-  only for controls that are gear — the Sound room's tone presets, the Layers
-  bench's switches. A level is a **`Knob`** there, not a slider. Nothing else may
+  only for controls that are gear — the Sound room's tone presets, a layer's
+  sheet. A level is a **`Knob`** there, not a slider. Nothing else may
   borrow either; a settings row or a filter is ink, never a key.
 - Stage accent color comes from the shared `STAGE_INK` map (`StatusBadge`), never
   cold literals.

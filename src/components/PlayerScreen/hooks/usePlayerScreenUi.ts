@@ -1,9 +1,9 @@
 import { useCallback, useState } from "react";
 import { clampPitchShiftSemitones } from "../../../domain/pitchShift";
 
-/** "layers" is the bench (2026-08-07): a reel-anchored surface like practice —
- *  lanes fatten into a selector, one bench below serves the selected layer. */
-export type PlayerMode = "player" | "practice" | "layers";
+/** Layers are not a mode (2026-10-22): the lanes under the reel are the layer list,
+ *  and a lane opens its layer's sheet over whichever mode is showing. */
+export type PlayerMode = "player" | "practice";
 /** The two readable artifacts a sketch can hang on a take. */
 export type ReadingArtifact = "lyrics" | "chart";
 /** The reading ladder (settled 2026-08-06): closed → reading (slim reel) →
@@ -29,8 +29,6 @@ export function usePlayerScreenUi() {
   // Text size and chords on/off live in useChartPrefsStore: one reading
   // preference shared with the songbook reader and setlist pages.
   const [notesExpanded, setNotesExpanded] = useState(false);
-  // The bench's selected lane: a stem id, or "root" for the base take.
-  const [benchLayerId, setBenchLayerId] = useState<string>("root");
   const [queueExpanded, setQueueExpanded] = useState(false);
   const [countInOption, setCountInOption] = useState<CountInOption>("off");
   const [practiceZoomMultiple, setPracticeZoomMultiple] = useState<number>(1);
@@ -47,7 +45,7 @@ export function usePlayerScreenUi() {
 
   const closeTool = () => setExpandedTool(null);
 
-  // Opening Tools or the bench closes the reading surface — both need the reel
+  // Opening Tools closes the reading surface — both need the reel
   // back at height, and returning to "player" reopens at the doors.
   const setMode = useCallback((next: PlayerMode) => {
     setModeState(next);
@@ -111,8 +109,6 @@ export function usePlayerScreenUi() {
     setRepeatEnabled,
     notesExpanded,
     setNotesExpanded,
-    benchLayerId,
-    setBenchLayerId,
     queueExpanded,
     setQueueExpanded,
     countInOption,

@@ -41,13 +41,14 @@ import { PlayerHeaderSection } from "./components/PlayerHeaderSection";
 import { PlayerFooterSection } from "./components/PlayerFooterSection";
 import { PlayerPracticeDrawers } from "./components/PlayerPracticeDrawers";
 import { PlayerSupportSections } from "./components/PlayerSupportSections";
-import { PlayerLayersBench, BENCH_ROOT_LANE_ID, openCombineChooser } from "./components/PlayerLayersBench";
+import { PlayerLayersBench, openCombineChooser, type LayerSheetHandle } from "./components/PlayerLayersBench";
 import { LAYER_AUDITION_LEAD_MS, MAX_LAYERS_PER_TAKE, buildLayerAuditionInputs } from "../../domain/overdub";
 import { releaseAuditionFiles, renderAuditionFile } from "../../services/layerAudition";
 import { useLayerPrefsStore } from "../../state/useLayerPrefsStore";
 import { looksMachineNamed } from "../../domain/titleNaming";
 import { HelpSheet } from "../common/HelpSheet";
 import { HelpButton } from "../common/HelpButton";
+import { LayerLanesFoot } from "../common/OverdubLayerLanes";
 import { ChordZoomBar } from "../LyricsVersionScreen/components/chords/ChordZoomBar";
 import { OVERDUB_HELP } from "../common/helpContent";
 import { PlayerArtifactReader, FollowSpeedControl } from "./components/PlayerArtifactReader";
@@ -209,6 +210,8 @@ function PlayerScreenInner({
   const isFocused = isActive;
 
   const ui = usePlayerScreenUi();
+  // A layer's own audio (Solo, Play together) is sounding: see `channelDriven`.
+  const [layerAudioActive, setLayerAudioActive] = useState(false);
   const draggingMarkerId = useSharedValue("");
   const draggingMarkerX = useSharedValue(0);
   const timelineAudioProgress = useSharedValue(0);
@@ -437,23 +440,11 @@ function PlayerScreenInner({
     const prefs = useLayerPrefsStore.getState();
     prefs.setLanesCollapsed(!prefs.lanesCollapsed);
   }, []);
-  // The bench serves whatever lane is selected; if that layer vanishes (removed,
-  // flattened) fall back to the first layer, then the base take.
-  const benchSelectedLaneId =
-    ui.benchLayerId === BENCH_ROOT_LANE_ID ||
-    data.overdubStemEntries.some((stem) => stem.id === ui.benchLayerId)
-      ? ui.benchLayerId
-      : data.overdubStemEntries[0]?.id ?? BENCH_ROOT_LANE_ID;
-  const handlePressLane = useCallback(
-    (laneId: string) => {
-      haptic.tap();
-      ui.setBenchLayerId(laneId);
-    },
-    [ui.setBenchLayerId]
-  );
-  // A lane opens the bench on ITS layer, straight into that layer's sheet (founder,
-  // 2026-10-22); the count header opens the list on the first.
-  const [benchSheetRequest, setBenchSheetRequest] = useState<string | null>(null);
+  // The lanes under the reel ARE the layer list (founder, 2026-10-22). A lane opens
+  // its layer's sheet; Solo and Mute sit on its name line. The sheet, the merge
+  // picker and the layer audio live in PlayerLayersBench, driven through this.
+  const layerSheetRef = useRef<LayerSheetHandle>(null);
+  const [soloingLayerId, setSoloingLayerId] = useState<string | null>(null);
   // Play together plays the song as it will sound: its two files are rendered once
   // and kept while the mix is unchanged (services/layerAudition.ts).
   const playerClipRef = useRef(playerClip);
@@ -469,19 +460,8 @@ function PlayerScreenInner({
     return { bedUri, layerUri, layerLeadMs: LAYER_AUDITION_LEAD_MS };
   }, []);
   useEffect(() => releaseAuditionFiles, []);
-  const openLayersBench = useCallback((laneId?: string) => {
-    ui.setBenchLayerId(laneId ?? data.overdubStemEntries[0]?.id ?? BENCH_ROOT_LANE_ID);
-    if (laneId) setBenchSheetRequest(laneId);
-    ui.setMode("layers");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.overdubStemEntries, ui.setBenchLayerId, ui.setMode]);
-  // A flatten-replace (or removing the last layer) dissolves the bench's subject.
-  useEffect(() => {
-    if (ui.mode === "layers" && !data.hasClipOverdubs) {
-      ui.setMode("player");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ui.mode, data.hasClipOverdubs, ui.setMode]);
+  const openLayerSheet = useCallback((laneId: string) => layerSheetRef.current?.openLayer(laneId), []);
+  const soloLayer = useCallback((laneId: string) => layerSheetRef.current?.toggleSolo(laneId), []);
   // While bench audio is sounding, the compact timing row reads the bench's clock
   // (second granularity — same commit cadence as the main transport's readout).
   const [benchDisplayMs, setBenchDisplayMs] = useState<number | null>(null);
@@ -655,8 +635,12 @@ function PlayerScreenInner({
   // While the pitch engine plays the clip its reports take the same channel, so
   // pitched playback renders once a second like plain playback (2026-10-21).
   const nativeClockActive = practicePitchTransport.isNativeClockActive;
+  // While a layer sounds (Solo, Play together) the reel follows THAT audio: the main
+  // engine's position reports would pull it back to where the song paused. (The
+  // Layers view used to switch the pitch engine off; there is no such view now.)
   const channelDriven =
-    nativeClockActive || (engineMatchesScreenClip && !practicePitchTransport.isOwningNativeTransport);
+    !layerAudioActive &&
+    (nativeClockActive || (engineMatchesScreenClip && !practicePitchTransport.isOwningNativeTransport));
   const clockPositionChannel = nativeClockActive ? practicePitchTransport.positionChannel : positionChannel;
   const transportClock = usePlayerTransportClock({
     positionMs: effectivePlayerPosition,
@@ -1170,8 +1154,7 @@ function PlayerScreenInner({
     async (stemIds: string[], title: string) => {
       if (!playerIdea || !playerClip) return;
       try {
-        const mergedId = await appActions.mergeClipOverdubStems(playerIdea.id, playerClip.id, stemIds, title);
-        ui.setBenchLayerId(mergedId);
+        await appActions.mergeClipOverdubStems(playerIdea.id, playerClip.id, stemIds, title);
         // Haptics vocabulary: success — a meaningful completion.
         haptic.success();
         toast(t("player.mergedToast"), "checkmark-outline");
@@ -1181,7 +1164,7 @@ function PlayerScreenInner({
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [playerIdea, playerClip, ui.setBenchLayerId]
+    [playerIdea, playerClip]
   );
   // Combine is defined further down; the eight-layer limit reaches it through this.
   const handleSaveAsOneClipRef = useRef<(mode: "copy" | "replace") => Promise<void>>(async () => {});
@@ -1517,9 +1500,7 @@ function PlayerScreenInner({
               <View style={playerScreenStyles.reelTimingRow}>
                 <Text style={playerScreenStyles.reelTimingText}>
                   {fmtDuration(
-                    ui.mode === "layers" && benchDisplayMs != null
-                      ? benchDisplayMs
-                      : effectivePlayerPosition
+                    benchDisplayMs ?? effectivePlayerPosition
                   )}{" "}
                   / {fmtDuration(effectivePlayerDuration)}
                 </Text>
@@ -1553,12 +1534,20 @@ function PlayerScreenInner({
                   overdubLayerLanes={overdubLayerLanes}
                   // A lane is its layer's door to the bench, with Tools open too.
                   onOpenLayerLane={
-                    (ui.mode === "player" || ui.mode === "practice") && data.hasClipOverdubs
-                      ? openLayersBench
-                      : undefined
+                    data.hasClipOverdubs ? openLayerSheet : undefined
                   }
                   layerLanesCollapsed={layerLanesCollapsed}
                   onToggleLayerLanes={toggleLayerLanes}
+                  soloingLayerId={soloingLayerId}
+                  onSoloLayer={soloLayer}
+                  onToggleLayerMute={handleToggleStemMute}
+                  layerLanesFooter={
+                    <LayerLanesFoot
+                      layerCount={data.overdubStemEntries.length}
+                      onMerge={() => layerSheetRef.current?.startMerge()}
+                      onCombine={() => layerSheetRef.current?.openCombine()}
+                    />
+                  }
                   draggingMarkerId={draggingMarkerId}
                   draggingMarkerX={draggingMarkerX}
                   onLoopRangeChange={handleLoopRangeChange}
@@ -1785,32 +1774,6 @@ function PlayerScreenInner({
                     </Pressable>
                   </View>
                   )}
-                </>
-              ) : ui.mode === "layers" ? (
-                <>
-                  {/* Bench bar: name/close leading, then record-a-layer and help. */}
-                  <InkKey
-                    // Haptics vocabulary: `light` — the bench folds back into the player.
-                    haptic="light"
-                    label={t("player.layers")}
-                    glyph={<Ionicons name="chevron-down" size={14} color={inkKeyColor("idle")} />}
-                    onPress={() => ui.setMode("player")}
-                    accessibilityLabel={t("player.closeLayers")}
-                  />
-                  <View style={playerScreenStyles.reelToolbarRight}>
-                    <InkKey
-                      // Haptics (Press default): `tap`; the recorder fires its own.
-                      tone="active"
-                      label={t("player.layerKey")}
-                      glyph={<View style={playerScreenStyles.layerKeyDot} />}
-                      onPress={() => {
-                        ui.setMode("player");
-                        void handleAddOverdub();
-                      }}
-                      accessibilityLabel={t("player.recordNewLayer")}
-                    />
-                    <HelpButton compact onPress={() => setHelpTopic("overdub")} />
-                  </View>
                 </>
               ) : (
                 <>
@@ -2076,38 +2039,6 @@ function PlayerScreenInner({
               onCommitSoundLevel={(db) => handleAdjustRootGain(db - (data.overdubRootSettings?.gainDb ?? 0))}
               onToggleSoundTone={handleToggleRootToneFlag}
             />
-          ) : ui.mode === "layers" ? (
-            <PlayerLayersBench
-              onMergeStems={handleMergeStems}
-              selectedLaneId={benchSelectedLaneId}
-              sheetRequest={benchSheetRequest}
-              prepareAudition={prepareLayerAudition}
-              onSheetRequestHandled={() => setBenchSheetRequest(null)}
-              stems={data.overdubStemEntries}
-              rootSettings={data.overdubRootSettings}
-              rootAudioUri={playerClip.audioUri ?? null}
-              rootDurationMs={playerClip.durationMs ?? 0}
-              timelineDurationMs={effectivePlayerDuration > 0 ? effectivePlayerDuration : undefined}
-              rootWaveformPeaks={playerClip.waveformPeaks}
-              rootRecordingGrid={playerClip.recordingGrid ?? null}
-              isRendering={isMixUpdating}
-              isMainPlaybackPlaying={effectiveIsPlaying}
-              transportClock={benchTransportClock}
-              getRestingPositionMs={() => playerPositionMsRef.current}
-              onDisplayPositionChange={handleBenchDisplayPosition}
-              onPauseMainPlayback={practicePitchTransport.pause}
-              onAdjustRootGain={handleAdjustRootGain}
-              onToggleRootToneFlag={handleToggleRootToneFlag}
-              onAdjustStemGain={handleAdjustStemGain}
-              onNudgeStem={handleNudgeStem}
-              onRenameStem={handleRenameStem}
-              onSelectLane={handlePressLane}
-              onToggleStemMute={handleToggleStemMute}
-              onToggleStemToneFlag={handleToggleStemToneFlag}
-              onRemoveStem={handleRemoveStem}
-              onSaveAsOneClip={handleSaveAsOneClip}
-              onCloseBench={() => ui.setMode("player")}
-            />
           ) : (
             <PlayerSupportSections
               canAuthor={playerIdea.kind === "project"}
@@ -2162,6 +2093,34 @@ function PlayerScreenInner({
           setPinActionsTarget(null);
         }}
       />
+
+      {data.hasClipOverdubs ? (
+        <PlayerLayersBench
+          ref={layerSheetRef}
+          stems={data.overdubStemEntries}
+          rootAudioUri={playerClip.audioUri ?? null}
+          rootDurationMs={playerClip.durationMs ?? 0}
+          rootWaveformPeaks={playerClip.waveformPeaks}
+          rootRecordingGrid={playerClip.recordingGrid ?? null}
+          isRendering={isMixUpdating}
+          isMainPlaybackPlaying={effectiveIsPlaying}
+          transportClock={benchTransportClock}
+          getRestingPositionMs={() => playerPositionMsRef.current}
+          onDisplayPositionChange={handleBenchDisplayPosition}
+          onPauseMainPlayback={practicePitchTransport.pause}
+          onAdjustStemGain={handleAdjustStemGain}
+          onNudgeStem={handleNudgeStem}
+          onRenameStem={handleRenameStem}
+          onToggleStemToneFlag={handleToggleStemToneFlag}
+          onRemoveStem={handleRemoveStem}
+          onSaveAsOneClip={handleSaveAsOneClip}
+          onSoloChange={setSoloingLayerId}
+          onAudioActiveChange={setLayerAudioActive}
+          onHelp={() => setHelpTopic("overdub")}
+          prepareAudition={prepareLayerAudition}
+          onMergeStems={handleMergeStems}
+        />
+      ) : null}
 
       <HelpSheet
         visible={helpTopic !== null}
