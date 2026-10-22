@@ -57,6 +57,9 @@ export function WorkspaceList({
             navigation.navigate("WorkspaceStack", {
               screen: "Browse",
               params: { workspaceId: workspace.id },
+              // Up to the hub pops to the Browse beneath; without `pop` RN7 pushes a
+              // second Browse over an open collection (navigation law, navigation.ts).
+              pop: true,
             });
           }}
         />

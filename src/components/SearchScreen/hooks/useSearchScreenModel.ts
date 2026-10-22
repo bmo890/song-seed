@@ -113,7 +113,7 @@ export function useSearchScreenModel() {
 
     switch (result.kind) {
       case "workspace":
-        navigation.navigate("WorkspaceStack", { screen: "Browse" });
+        navigation.navigate("WorkspaceStack", { screen: "Browse", pop: true });
         return;
       case "collection":
         navigation.navigate("WorkspaceStack", {

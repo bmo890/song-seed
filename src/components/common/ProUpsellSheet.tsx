@@ -11,11 +11,9 @@ import { getFreeMonthEndsAt, isFoundingMember, isPaywallLive, proEntitlement } f
 import { freeMonthStatus, FREE_MONTH_DAYS } from "../../domain/freeMonth";
 import { isDevFreeMonthPreview } from "../../services/freeMonthClock";
 import { purchasePro, restorePurchases, type ProPlan } from "../../services/billing";
-
-// The live legal pages on songnook.app (built from docs/ by build:legal). Apple requires
-// working Terms and Privacy links on a paywall.
-const PRIVACY_URL = "https://songnook.app/privacy";
-const TERMS_URL = "https://songnook.app/terms";
+// Apple requires working Terms and Privacy links on a paywall; the one source of
+// those URLs is config/legalLinks, shared with Settings → About.
+import { PRIVACY_POLICY_URL as PRIVACY_URL, TERMS_OF_USE_URL as TERMS_URL } from "../../config/legalLinks";
 
 /** What Pro adds, in the confirmed split (founder, 2026-10-19). Bare ink glyphs, no tiles. */
 const FEATURE_ICONS: (keyof typeof Ionicons.glyphMap)[] = [

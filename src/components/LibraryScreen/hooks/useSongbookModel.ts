@@ -177,6 +177,7 @@ export function useSongbookModel() {
       navigation.navigate("WorkspaceStack", {
         screen: "Browse",
         params: undefined,
+        pop: true,
       });
     },
     /** Share as an importable .zip archive — the receiver gets a real songbook. */

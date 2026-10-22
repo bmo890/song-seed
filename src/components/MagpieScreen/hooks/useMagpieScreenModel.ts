@@ -114,6 +114,13 @@ export function useMagpieScreenModel() {
   const newPage = useCallback(() => void load("page"), [load]);
   const retry = useCallback(() => void load(spark?.book ? "page" : "book"), [load, spark?.book]);
 
+  // The drawer reuses this screen for every spark (freezeOnBlur, no key), so the
+  // auto-load guard and a previous spark's error must not outlive the spark.
+  useEffect(() => {
+    autoLoadedRef.current = false;
+    setStatus({ loading: false, error: null });
+  }, [sparkId]);
+
   // First open (or a spark whose page never loaded): pull a page automatically.
   useEffect(() => {
     if (!spark || autoLoadedRef.current) return;

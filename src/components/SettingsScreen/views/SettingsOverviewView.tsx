@@ -6,6 +6,7 @@ import { LibraryActionCard, SettingsGroup } from "../components/SettingsShared";
 import type { useLibraryBackupFlow } from "../hooks/useLibraryBackupFlow";
 import { useTranslation } from "react-i18next";
 import { colors } from "../../../design/tokens";
+import { isPaywallLive } from "../../../domain/entitlements";
 
 type LibraryBackupFlow = ReturnType<typeof useLibraryBackupFlow>;
 
@@ -42,11 +43,16 @@ export function SettingsOverviewView({
     >
       <PageIntro title={t("settings.title")} />
 
-      <View style={settingsScreenStyles.planLine}>
-        <Ionicons name="sparkles-outline" size={18} color={colors.textStrong} />
-        <Text style={settingsScreenStyles.planLineTitle}>{t("settingsAccount.betaPlan")}</Text>
-        <Text style={settingsScreenStyles.planLineState}>{t("settings.proUnlocked")}</Text>
-      </View>
+      {/* No plan line while everything is free: "Beta" copy in a shipping build is an
+          App Review 2.2 rejection, and there is nothing to manage yet. It returns, with
+          the real plan, once Pro can be bought. */}
+      {isPaywallLive() ? (
+        <View style={settingsScreenStyles.planLine}>
+          <Ionicons name="sparkles-outline" size={18} color={colors.textStrong} />
+          <Text style={settingsScreenStyles.planLineTitle}>{t("settingsAccount.betaPlan")}</Text>
+          <Text style={settingsScreenStyles.planLineState}>{t("settings.proUnlocked")}</Text>
+        </View>
+      ) : null}
 
       <View style={settingsScreenStyles.overviewSection}>
         <SettingsGroup>

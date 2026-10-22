@@ -1,6 +1,6 @@
 import * as FileSystem from "expo-file-system/legacy";
 import type { ClipVersion, SongIdea, Workspace } from "../types";
-import { planTrashRestores } from "../domain/trashRestore";
+import { parseTrashName, planTrashRestores } from "../domain/trashRestore";
 import { persistLog } from "./persistLog";
 import {
     isManagedPreviewAudioUri,
@@ -222,8 +222,18 @@ export async function restoreReferencedFilesFromTrash(workspaces: Workspace[]): 
         const trashNames = await FileSystem.readDirectoryAsync(SONG_NOOK_TRASH_DIR);
         if (trashNames.length === 0) return 0;
 
+        // Only a reference whose filename sits in the trash can come back, so only
+        // those are stat'ed: the sweep stays O(trash), not O(library), on launch.
+        const trashedFilenames = new Set<string>();
+        for (const trashName of trashNames) {
+            const parsed = parseTrashName(trashName);
+            if (parsed) trashedFilenames.add(parsed.filename);
+        }
+        if (trashedFilenames.size === 0) return 0;
         const missing: string[] = [];
         for (const uri of collectReferencedManagedUris(workspaces)) {
+            const filename = uri.split("?")[0].split("/").pop() ?? "";
+            if (!trashedFilenames.has(filename)) continue;
             const info = await FileSystem.getInfoAsync(uri).catch(() => null);
             if (info && !info.exists) missing.push(uri);
         }

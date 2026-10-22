@@ -201,7 +201,7 @@ export function useSetlistModel() {
       if (!activeSetlist) return;
       useStore.getState().startLibraryCollecting("setlist", activeSetlist.id, activeSetlist.title);
       setBuilder(null);
-      navigation.navigate("WorkspaceStack", { screen: "Browse", params: undefined });
+      navigation.navigate("WorkspaceStack", { screen: "Browse", params: undefined, pop: true });
     },
 
     /** Open an entry's packaged song folder. */

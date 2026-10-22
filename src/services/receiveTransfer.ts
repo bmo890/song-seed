@@ -4,7 +4,7 @@
  * same no-credentials rule: the link is the capability.
  */
 import * as FileSystem from "expo-file-system/legacy";
-import { SEND_SERVICE_BASE_URL } from "../config/sendService";
+import { SEND_MAX_ITEM_BYTES, SEND_MAX_TRANSFER_BYTES, SEND_SERVICE_BASE_URL } from "../config/sendService";
 import { SendTransferError } from "./sendTransfer";
 import type { ShareKind } from "../types";
 
@@ -41,8 +41,10 @@ export class TransferGoneError extends Error {
 }
 
 const MAX_TRANSFER_ITEMS = 200;
-const MAX_TRANSFER_BYTES = 1024 * 1024 * 1024;
-const MAX_ITEM_BYTES = 512 * 1024 * 1024;
+// The same lines the sender and the service enforce (config/sendService): a parcel
+// that sealed fine must never be refused on arrival.
+const MAX_TRANSFER_BYTES = SEND_MAX_TRANSFER_BYTES;
+const MAX_ITEM_BYTES = SEND_MAX_ITEM_BYTES;
 const MAX_NAME_LEN = 260;
 const TRANSFER_ID_PATTERN = /^t_[A-Za-z0-9]{16,80}$/;
 const ITEM_ID_PATTERN = /^i_[A-Za-z0-9]{8,80}$/;
