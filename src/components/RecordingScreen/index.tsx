@@ -146,6 +146,13 @@ export function RecordingScreen() {
           guideMixPositionMs={screen.guideMixPositionMs}
           guideMixDurationMs={screen.guideMixDurationMs}
           guideMixWaveformPeaks={screen.guideMixWaveformPeaks}
+          guideCue={{
+            movable: screen.guideMovable,
+            listening: screen.isListeningToGuide,
+            startMs: screen.guideStartMs,
+            onMove: screen.setGuideStart,
+            onToggleListen: screen.toggleGuideListening,
+          }}
           hasProjectLyrics={screen.hasProjectLyrics}
           latestLyricsText={screen.latestLyricsText}
           latestLyricsUpdatedAt={screen.latestLyricsVersion?.updatedAt ?? null}

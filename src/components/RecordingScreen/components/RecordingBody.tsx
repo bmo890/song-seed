@@ -6,7 +6,7 @@ import { getLatestLyricsVersion } from "../../../domain/lyrics";
 import { looksMachineNamed } from "../../../domain/titleNaming";
 import { RecordingMeta } from "./RecordingMeta";
 import { RecordingLyricsSection } from "./RecordingLyricsSection";
-import { RecordingOverdubGuide } from "./RecordingOverdubGuide";
+import { RecordingOverdubGuide, type GuideCue } from "./RecordingOverdubGuide";
 
 type RecordingBodyProps = {
   recordingIdea: SongIdea | null | undefined;
@@ -15,6 +15,8 @@ type RecordingBodyProps = {
   guideMixPositionMs: number;
   guideMixDurationMs: number;
   guideMixWaveformPeaks?: number[];
+  /** Choosing where the layer starts, before the take. */
+  guideCue?: GuideCue;
   hasProjectLyrics: boolean;
   latestLyricsText: string;
   latestLyricsUpdatedAt: number | null;
@@ -54,6 +56,7 @@ export function RecordingBody({
   guideMixPositionMs,
   guideMixDurationMs,
   guideMixWaveformPeaks,
+  guideCue,
   hasProjectLyrics,
   latestLyricsText,
   latestLyricsUpdatedAt,
@@ -97,6 +100,7 @@ export function RecordingBody({
               positionMs={guideMixPositionMs}
               isPlaying={guideMixIsPlaying}
               waveformPeaks={guideMixWaveformPeaks}
+              cue={guideCue}
               sections={recordingOverdubClip.sections}
               practiceMarkers={recordingOverdubClip.practiceMarkers}
               showHeadphonesHint={guideOnPhoneSpeaker && !isRecording}
