@@ -166,7 +166,6 @@ type PlayerPracticeDrawersProps = {
   onSetClickHaptic: (enabled: boolean) => void;
 
   // Record a layer
-  onRecordOverdub: (playheadMs: number) => void;
 
   // The take's sound (Sound room, 2026-10-14): its root level and tone, saved on
   // the take as they are set. Null while no clip is loaded.
@@ -308,7 +307,6 @@ export function PlayerPracticeDrawers({
   clickHapticAvailable,
   clickHaptic,
   onSetClickHaptic,
-  onRecordOverdub,
   sound,
   onCommitSoundLevel,
   onToggleSoundTone,

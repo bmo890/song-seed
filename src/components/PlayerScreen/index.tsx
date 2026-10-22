@@ -1163,7 +1163,7 @@ function PlayerScreenInner({
   );
   // Combine is defined further down; the eight-layer limit reaches it through this.
   const handleSaveAsOneClipRef = useRef<(mode: "copy" | "replace") => Promise<void>>(async () => {});
-  const handleAddOverdub = useCallback(async (punchInMs: number) => {
+  const handleAddOverdub = useCallback(async () => {
     if (!playerIdea || !playerClip) return;
     // First overdub layer is free; stacking more is Pro. Existing multi-layer clips stay
     // fully playable/editable — only ADDING a new layer past the free one is gated.
@@ -1189,10 +1189,14 @@ function PlayerScreenInner({
       return;
     }
     try {
-      // Punch in at the time the button showed. Scrubbed to the chorus = punch in
-      // at the chorus (bar-snapped in the action); at the top = classic full layer.
+      // The song stops where it is, and the layer starts there (founder,
+      // 2026-10-22). It used to keep playing under the recorder while the punch
+      // stayed at the moment Layer was pressed, so the take landed wherever the
+      // song had been, not where it was. Scrubbed to the chorus = punch in at the
+      // chorus (bar-snapped in the action); at the top = classic full layer.
+      if (practicePitchTransport.effectiveIsPlaying) await practicePitchTransport.pause();
       await appActions.startClipOverdubRecording(playerIdea.id, playerClip.id, {
-        punchInMs,
+        punchInMs: getVisiblePlayheadMs(),
       });
       navigation.navigate("Recording" as never);
     } catch (error) {
@@ -1200,7 +1204,7 @@ function PlayerScreenInner({
         userFacingMessage(error, t("player.layerStartFailed"));
       AppAlert.info(t("player.layerUnavailable"), message);
     }
-  }, [navigation, playerClip, playerIdea]);
+  }, [getVisiblePlayheadMs, navigation, playerClip, playerIdea, practicePitchTransport]);
   // Practice tools are Pro (per-tool configurable via PRACTICE_TOOL_IS_PRO — flip one entry
   // to make that tool free, no call-site change). Returns true if the tap may proceed;
   // otherwise opens the upsell. Opening practice mode and viewing existing pins/sections/
@@ -1779,7 +1783,7 @@ function PlayerScreenInner({
                       glyph={<View style={playerScreenStyles.layerKeyDot} />}
                       onPress={() => {
                         ui.setMode("player");
-                        void handleAddOverdub(getVisiblePlayheadMs());
+                        void handleAddOverdub();
                       }}
                       accessibilityLabel={t("player.recordNewLayer")}
                     />
@@ -1809,7 +1813,7 @@ function PlayerScreenInner({
                       // the recorder it opens fires its own record haptics.
                       label={t("player.layerKey")}
                       glyph={<View style={playerScreenStyles.layerKeyDot} />}
-                      onPress={() => void handleAddOverdub(getVisiblePlayheadMs())}
+                      onPress={() => void handleAddOverdub()}
                       accessibilityLabel={t("player.recordLayerAtPlayhead")}
                     />
                     <InkKey
@@ -2046,7 +2050,6 @@ function PlayerScreenInner({
               clickHapticAvailable={playbackClick.supportsHaptic}
               clickHaptic={playbackClickHaptic}
               onSetClickHaptic={setPlaybackClickHaptic}
-              onRecordOverdub={handleAddOverdub}
               sound={data.overdubRootSettings}
               onCommitSoundLevel={(db) => handleAdjustRootGain(db - (data.overdubRootSettings?.gainDb ?? 0))}
               onToggleSoundTone={handleToggleRootToneFlag}
