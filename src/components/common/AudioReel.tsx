@@ -94,6 +94,9 @@ const LIGHT_REEL_PALETTE: ReelPalette = {
     markInk: colors.textStrong,
     loopInk: colors.primary,
 };
+/** The light reel's paper, for a strip that continues the reel below its surface
+ *  (the layer recorder's take register). */
+export const REEL_SURFACE_COLOR = LIGHT_REEL_PALETTE.surfaceColor;
 const DARK_REEL_PALETTE: ReelPalette = {
     surfaceColor: "#2B211D",
     utilityBackgroundColor: "#3A2D28",

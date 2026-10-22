@@ -33,9 +33,8 @@ type Props = {
     /** Whether the project has lyrics — drives the reel height: no-lyrics gets a
      * tall centered reel, collapsed-lyrics fills, expanded gets the slim monitor. */
     hasLyrics?: boolean;
-    /** A layer take: the guide strip sits above, so the reel takes the height
-     *  that is left rather than a fixed 320 pt that runs under the dock (and
-     *  hides the pin key) on shorter phones. */
+    /** A layer take: the take is written into the guide's own reel (TakeRegister),
+     *  so this section draws no tape and no pin key of its own. */
     hasGuide?: boolean;
     /** Metronome control in the Ready row: the chip itself is the on/off toggle
      * (quiet icon when off, tempo chip when on); the small companion button opens
@@ -162,33 +161,15 @@ export function RecordingMeta({
     // Bare glyphs, not tinted circles: the record button is the only circle on
     // this page. The metronome's ON state reads from the terracotta glyph + its
     // summary, not from a pill around it.
-    // The pin (2026-10-17, founder: thumb-sized, quick to hit mid-rehearsal
-    // with the phone beside you): a round key on the reel's bottom-right
-    // corner, where the playhead never is and the thumb already rests. It
-    // appears once the take has started and stays through pauses; while
-    // paused it's quiet and can't drop a mark (there's no live moment).
-    const canPin = isRecording && !isPaused && !isCountIn;
-    const showPin = !!onAddPin && (isRecording || isPaused) && !isCountIn;
-    const pinButton = showPin ? (
-        <Press
-            // Haptics vocabulary: light, a small state flip (a mark dropped).
-            haptic="light"
-            style={[metaStyles.pinKey, !canPin ? metaStyles.pinKeyIdle : null]}
-            onPress={onAddPin}
-            disabled={!canPin}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel={t("recording.dropPin")}
-            testID="recording-drop-pin"
-        >
-            <Ionicons
-                name={pinCount > 0 ? PIN_ICON : PIN_ICON_OUTLINE}
-                size={24}
-                color={colors.textStrong}
-            />
-            {pinCount > 0 ? <Text style={metaStyles.pinKeyCount}>{pinCount}</Text> : null}
-        </Press>
-    ) : null;
+    const pinButton = (
+        <TakePinKey
+            isRecording={isRecording}
+            isPaused={isPaused}
+            isCountIn={isCountIn}
+            pinCount={pinCount}
+            onAddPin={onAddPin}
+        />
+    );
 
     const metronomeChip = onOpenMetronome ? (
         <View style={metaStyles.metroGroup}>
@@ -298,20 +279,67 @@ export function RecordingMeta({
                 </>
             )}
 
-            <View
-                style={[
-                    styles.liveWaveWrap,
-                    compact
-                        ? styles.liveWaveWrapCompact
-                        : hasLyrics || hasGuide
-                        ? styles.liveWaveWrapFill
-                        : styles.liveWaveWrapDefault,
-                ]}
-            >
-                <LiveTakeTape liveGrid={liveTakeGrid} theme={liveTapeTheme} pins={pinTimes} />
-                {pinButton}
-            </View>
+            {hasGuide ? null : (
+                <View
+                    style={[
+                        styles.liveWaveWrap,
+                        compact
+                            ? styles.liveWaveWrapCompact
+                            : hasLyrics
+                            ? styles.liveWaveWrapFill
+                            : styles.liveWaveWrapDefault,
+                    ]}
+                >
+                    <LiveTakeTape liveGrid={liveTakeGrid} theme={liveTapeTheme} pins={pinTimes} />
+                    {pinButton}
+                </View>
+            )}
         </View>
+    );
+}
+
+/**
+ * The pin (2026-10-17, founder: thumb-sized, quick to hit mid-rehearsal with the phone
+ * beside you): a round key on the tape's bottom-right corner, where the playhead never
+ * is and the thumb already rests. It appears once the take has started and stays through
+ * pauses; while paused it's quiet and can't drop a mark (there's no live moment).
+ */
+export function TakePinKey({
+    isRecording,
+    isPaused,
+    isCountIn,
+    pinCount,
+    onAddPin,
+}: {
+    isRecording: boolean;
+    isPaused: boolean;
+    isCountIn: boolean;
+    pinCount: number;
+    onAddPin?: () => void;
+}) {
+    const { t } = useTranslation();
+    const canPin = isRecording && !isPaused && !isCountIn;
+    const showPin = !!onAddPin && (isRecording || isPaused) && !isCountIn;
+    if (!showPin) return null;
+    return (
+        <Press
+            // Haptics vocabulary: light, a small state flip (a mark dropped).
+            haptic="light"
+            style={[metaStyles.pinKey, !canPin ? metaStyles.pinKeyIdle : null]}
+            onPress={onAddPin}
+            disabled={!canPin}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t("recording.dropPin")}
+            testID="recording-drop-pin"
+        >
+            <Ionicons
+                name={pinCount > 0 ? PIN_ICON : PIN_ICON_OUTLINE}
+                size={24}
+                color={colors.textStrong}
+            />
+            {pinCount > 0 ? <Text style={metaStyles.pinKeyCount}>{pinCount}</Text> : null}
+        </Press>
     );
 }
 
