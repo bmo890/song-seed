@@ -1,5 +1,5 @@
 import React from "react";
-import { ScrollView, View } from "react-native";
+import { ScrollView, StyleSheet, View, type LayoutChangeEvent } from "react-native";
 import type { SongIdea } from "../../../types";
 import { styles } from "../../../styles";
 import { getLatestLyricsVersion } from "../../../domain/lyrics";
@@ -91,6 +91,22 @@ export function RecordingBody({
   onLyricsAutoscrollInterrupted,
   onSelectLyricsAutoscrollSpeedMultiplier,
 }: RecordingBodyProps) {
+  // Stable for the same pins: the take register memoises its marks on it.
+  const livePinTimes = React.useMemo(() => livePins?.map((pin) => pin.atMs) ?? [], [livePins]);
+  // A layer's reel fills what the page has left. Everything here is measured from the
+  // visible area and the parts beside the reel, never from a box the reel sits in.
+  const [viewportHeight, setViewportHeight] = React.useState(0);
+  const [metaHeight, setMetaHeight] = React.useState(0);
+  const [lyricsHeight, setLyricsHeight] = React.useState(0);
+  const showsLyrics = hasProjectLyrics && latestLyricsUpdatedAt !== null;
+  const guideAvailableHeight =
+    viewportHeight -
+    (hasProjectLyrics && !lyricsExpanded ? COLLAPSED_LYRICS_BOTTOM_PAD : BODY_BOTTOM_PAD) -
+    metaHeight -
+    BODY_GAP -
+    (showsLyrics ? lyricsHeight + BODY_GAP : 0);
+  const measure = (set: (value: number) => void) => (event: LayoutChangeEvent) =>
+    set(Math.round(event.nativeEvent.layout.height));
   const bodyContent = (
       <View
         style={[
@@ -109,6 +125,16 @@ export function RecordingBody({
               sections={recordingOverdubClip.sections}
               practiceMarkers={recordingOverdubClip.practiceMarkers}
               showHeadphonesHint={guideOnPhoneSpeaker && !isRecording}
+              compact={lyricsExpanded}
+              availableHeight={guideAvailableHeight}
+              take={{
+                active: isRecording || isPaused || elapsedMs > 0,
+                isRecording,
+                isPaused,
+                isCountIn,
+                pins: livePinTimes,
+                onAddPin,
+              }}
               layerLanes={(recordingOverdubClip.overdub?.stems ?? []).map((stem) => ({
                 id: stem.id,
                 title: stem.title,
@@ -122,6 +148,7 @@ export function RecordingBody({
           </>
         ) : null}
 
+        <View onLayout={measure(setMetaHeight)}>
         <RecordingMeta
           // The header already says LAYER · <clip>; this used to repeat it as
           // "Layer on <clip>" directly underneath.
@@ -138,7 +165,8 @@ export function RecordingBody({
           countInBeatsPerBar={countInBeatsPerBar}
           guideJoin={guideJoin}
           compact={lyricsExpanded}
-          fill={!lyricsExpanded}
+          // A layer's reel fills the page instead (RecordingOverdubGuide).
+          fill={!lyricsExpanded && !recordingOverdubClip}
           hasLyrics={hasProjectLyrics}
           hasGuide={!!recordingOverdubClip}
           metronomeEnabled={metronomeEnabled}
@@ -150,6 +178,7 @@ export function RecordingBody({
           livePins={livePins}
           onAddPin={onAddPin}
         />
+        </View>
 
         {hasProjectLyrics && latestLyricsUpdatedAt !== null ? (
           (() => {
@@ -159,6 +188,7 @@ export function RecordingBody({
                 : null) ?? [];
             const recChordLines = recLines.some((line) => line.chords.length > 0) ? recLines : undefined;
             return (
+          <View onLayout={measure(setLyricsHeight)} style={lyricsExpanded ? bodyStyles.fill : null}>
           <RecordingLyricsSection
             text={latestLyricsText}
             chordLines={recChordLines}
@@ -175,6 +205,7 @@ export function RecordingBody({
             onAutoscrollInterrupted={onLyricsAutoscrollInterrupted}
             onSelectAutoscrollSpeedMultiplier={onSelectLyricsAutoscrollSpeedMultiplier}
           />
+          </View>
             );
           })()
         ) : null}
@@ -191,6 +222,7 @@ export function RecordingBody({
   return (
     <ScrollView
       style={styles.recordingScroll}
+      onLayout={measure(setViewportHeight)}
       contentContainerStyle={[
         styles.recordingScrollContent,
         hasProjectLyrics && !lyricsExpanded ? styles.recordingScrollContentWithCollapsedLyrics : null,
@@ -201,3 +233,14 @@ export function RecordingBody({
     </ScrollView>
   );
 }
+
+/** recordingScrollContent's bottom padding (8 with collapsed lyrics) and the body's gap. */
+const BODY_BOTTOM_PAD = 12;
+const COLLAPSED_LYRICS_BOTTOM_PAD = 8;
+const BODY_GAP = 12;
+
+const bodyStyles = StyleSheet.create({
+  fill: {
+    flex: 1,
+  },
+});

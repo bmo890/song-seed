@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { collapseIn, collapseOut } from "../../../design/motion";
@@ -8,6 +8,8 @@ import { AudioReel } from "../../common/AudioReel";
 import { InkKey, inkKeyColor } from "../../common/InkKey";
 import { Press } from "../../common/Press";
 import { OverdubLayerLanes, type OverdubLayerLane } from "../../common/OverdubLayerLanes";
+import { TakeRegister } from "./TakeRegister";
+import { TakePinKey } from "./RecordingMeta";
 import { useTransportClock } from "../../../hooks/useTransportClock";
 import { buildSectionBands } from "../../../domain/playerSections";
 import { fmtDuration } from "../../../utils";
@@ -31,6 +33,12 @@ import { useTranslation } from "react-i18next";
  * The same smooth scrolling reel as the player — section bands, pins, and
  * existing layer lanes ride the waveform — with the playhead at the guide's REAL
  * position (a punch take opens mid-song, exactly where the layer will sit).
+ *
+ * One reel (founder, 2026-10-22): the take is written into the reel's lower register
+ * (TakeRegister), under the song, on the same timeline. There used to be a second tape
+ * below the clock; with a few layers the guide grew and squeezed it until its centre
+ * line sat on the dock, and the two scrolled as unrelated pictures. The registers now
+ * share whatever height the page has, so nothing can be pushed off the bottom.
  * Before the take it is the performer's (founder, 2026-10-22): drag it to choose
  * where the layer starts, Listen to hear that spot. From arming on it is read-only:
  * seeking the guide mid-take would break the measured alignment.
@@ -59,9 +67,33 @@ type RecordingOverdubGuideProps = {
    *  quietly, that headphones keep it out of the take. Hidden once recording. */
   showHeadphonesHint?: boolean;
   cue?: GuideCue;
+  /** The take written under the song. */
+  take: {
+    active: boolean;
+    isRecording: boolean;
+    isPaused: boolean;
+    isCountIn: boolean;
+    /** Pins dropped in this take, capture ms. */
+    pins: number[];
+    onAddPin?: () => void;
+  };
+  /** Lyrics open beside the take: a fixed, slim reel instead of filling the page. */
+  compact?: boolean;
+  /** The height this register may use: the page's visible height less everything
+   *  else on it. Measured from the viewport, never from the reel itself (a box that
+   *  holds the reel grows with it, and the reel then grew to its cap). */
+  availableHeight?: number;
 };
 
 const GUIDE_FOLLOW_WINDOW_MS = 20000;
+/** How the reel's height splits between the song and the take. */
+const SONG_SHARE = 0.55;
+const SONG_HEIGHT = { min: 64, max: 210, compact: 56 } as const;
+const TAKE_HEIGHT = { min: 64, max: 190, compact: 48 } as const;
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
 
 function noop() {}
 
@@ -75,8 +107,26 @@ export function RecordingOverdubGuide({
   layerLanes,
   showHeadphonesHint,
   cue,
+  take,
+  compact = false,
+  availableHeight = 0,
 }: RecordingOverdubGuideProps) {
   const { t } = useTranslation();
+  // The reel takes the height the page has left once the lanes and the rows under
+  // it are laid out; each part reports its own height, so none of it is guessed.
+  const [lanesHeight, setLanesHeight] = useState(0);
+  const [tailHeight, setTailHeight] = useState(0);
+  const measure = (set: (value: number) => void) => (event: LayoutChangeEvent) => {
+    const next = Math.round(event.nativeEvent.layout.height);
+    set(next);
+  };
+  const reelRoom = availableHeight - lanesHeight - tailHeight - GUIDE_HEADER_HEIGHT - GUIDE_GAPS;
+  const songHeight = compact
+    ? SONG_HEIGHT.compact
+    : clamp(Math.round(reelRoom * SONG_SHARE), SONG_HEIGHT.min, SONG_HEIGHT.max);
+  const takeHeight = compact
+    ? TAKE_HEIGHT.compact
+    : clamp(reelRoom - songHeight, TAKE_HEIGHT.min, TAKE_HEIGHT.max);
   // Interpolates the 250ms-interval position updates on the UI thread — the tape glides
   // instead of stepping.
   const transportClock = useTransportClock({
@@ -135,23 +185,47 @@ export function RecordingOverdubGuide({
           showZoomControls={false}
           showTimingRow={false}
           defaultExpanded={false}
-          surfaceRadius={4}
+          // Square: the take register continues the surface below it.
+          surfaceRadius={0}
           timelineHorizontalPadding={0}
-          collapsedHeightOverride={84}
+          collapsedHeightOverride={songHeight}
           showMinimapMode="never"
           initialZoomMultiple={durationMs > 0 ? durationMs / GUIDE_FOLLOW_WINDOW_MS : undefined}
           sectionBands={sectionBands}
           practiceMarkers={practiceMarkers}
-          renderBelowSurface={({ pixelsPerMs, timelineTranslateX, timelineScale }) =>
-            layerLanes && layerLanes.length > 0 ? (
-              <OverdubLayerLanes
-                lanes={layerLanes}
+          renderBelowSurface={({ pixelsPerMs, timelineTranslateX, timelineScale }) => (
+            <>
+              <TakeRegister
+                height={takeHeight}
                 pixelsPerMs={pixelsPerMs}
                 timelineTranslateX={timelineTranslateX}
                 timelineScale={timelineScale}
-              />
-            ) : null
-          }
+                sharedSongMs={transportClock.sharedCurrentTimeMs}
+                startMs={cue?.startMs ?? 0}
+                active={take.active}
+                recording={take.isRecording && !take.isPaused}
+                pins={take.pins}
+              >
+                <TakePinKey
+                  isRecording={take.isRecording}
+                  isPaused={take.isPaused}
+                  isCountIn={take.isCountIn}
+                  pinCount={take.pins.length}
+                  onAddPin={take.onAddPin}
+                />
+              </TakeRegister>
+              {layerLanes && layerLanes.length > 0 ? (
+                <View onLayout={measure(setLanesHeight)}>
+                  <OverdubLayerLanes
+                    lanes={layerLanes}
+                    pixelsPerMs={pixelsPerMs}
+                    timelineTranslateX={timelineTranslateX}
+                    timelineScale={timelineScale}
+                  />
+                </View>
+              ) : null}
+            </>
+          )}
           renderOverlay={({ pixelsPerMs, timelineTranslateX, timelineScale }) =>
             cue && cue.startMs > 0 ? (
               <StartFlag
@@ -168,6 +242,7 @@ export function RecordingOverdubGuide({
           onSeekToEnd={noop}
         />
       </View>
+      <View onLayout={measure(setTailHeight)}>
       {cue?.movable ? (
         <Animated.View entering={collapseIn} exiting={collapseOut} style={cueStyles.row}>
           <InkKey
@@ -213,9 +288,15 @@ export function RecordingOverdubGuide({
           <Text style={hintStyles.text}>{t("recording.headphonesHint")}</Text>
         </Animated.View>
       ) : null}
+      </View>
     </View>
   );
 }
+
+/** The GUIDE · time line above the reel. */
+const GUIDE_HEADER_HEIGHT = 18;
+/** The card's two gaps: header → reel → the rows under it. */
+const GUIDE_GAPS = 12;
 
 /** Where the layer starts, riding the tape: while you listen the playhead leaves it,
  *  and while the lead-in runs the playhead walks up to it. */
