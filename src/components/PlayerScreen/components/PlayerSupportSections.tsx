@@ -120,11 +120,9 @@ function PlayerSupportSectionsInner({
       {/* Air on both sides: the pages sit centred between the toolbar and the transport. */}
       <View style={chipStyles.air} />
 
-      {/* No chip row: the layer lane under the reel is the bench's door, the
+      {/* No chip row: a layer lane under the reel opens that layer's sheet, the
           margin note above is the notes door, and the transport bar's list
-          button is the queue's. Doors live where their subjects do.
-          Layer editing itself moved to the bench (layers mode) — the sheet died
-          with the mixer metaphor (2026-08-07). */}
+          button is the queue's. Doors live where their subjects do. */}
 
       {/* The Notes page opens the note itself, to write in place. */}
       <ClipNotesSheet

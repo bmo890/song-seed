@@ -165,8 +165,6 @@ type PlayerPracticeDrawersProps = {
   clickHaptic: boolean;
   onSetClickHaptic: (enabled: boolean) => void;
 
-  // Record a layer
-
   // The take's sound (Sound room, 2026-10-14): its root level and tone, saved on
   // the take as they are set. Null while no clip is loaded.
   sound: { gainDb: number; tonePreset: string } | null;

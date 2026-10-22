@@ -256,7 +256,7 @@ function LaneRow({
     <View style={laneStyles.rowWrap}>
       {onOpenLane ? (
         <Pressable
-          // Haptics: none of its own — the bench it opens is navigation (silent).
+          // Haptics: none of its own — the sheet it opens is navigation (silent).
           style={({ pressed }) => [...rowStyle, laneStyles.rowFill, pressed ? appStyles.pressDown : null]}
           onPress={() => onOpenLane(lane.id)}
           accessibilityRole="button"

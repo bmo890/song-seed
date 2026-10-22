@@ -7,10 +7,7 @@ import {
   getClipReelWaveformPeaks,
   isClipWaveformPending,
 } from "../../../domain/clipPresentation";
-import {
-  getClipOverdubRootSettings,
-  getOverdubStemColor,
-} from "../../../domain/overdub";
+import { getClipOverdubRootSettings } from "../../../domain/overdub";
 import { useClipWaveform } from "../../../hooks/useClipWaveform";
 import { getLatestLyricsVersion, lyricsDocumentToText, resolveClipLyricsVersion } from "../../../domain/lyrics";
 import { normalizeSections } from "../../../domain/playerSections";
@@ -18,7 +15,6 @@ import { useStore } from "../../../state/useStore";
 import { findClipInIdea, findIdeaInLibrary } from "../../../state/librarySelectors";
 import type { PracticeMarker, SongIdea } from "../../../types";
 import { extractLyricsMarkers } from "../helpers";
-import { useTranslation } from "react-i18next";
 
 const EMPTY_IDEAS: SongIdea[] = [];
 
@@ -39,7 +35,6 @@ export function usePlayerScreenData({
   currentPlaybackSourceUri = null,
   isPlaying = false,
 }: UsePlayerScreenDataArgs) {
-  const { t } = useTranslation();
   const playerTarget = useStore((s) => s.playerTarget);
   const playerQueue = useStore((s) => s.playerQueue);
   const playerQueueIndex = useStore((s) => s.playerQueueIndex);
@@ -147,10 +142,9 @@ export function usePlayerScreenData({
   const overdubRootSettings = playerClip ? getClipOverdubRootSettings(playerClip) : null;
   const overdubStemEntries = useMemo(
     () =>
-      (playerClip?.overdub?.stems ?? []).map((stem, index) => ({
+      (playerClip?.overdub?.stems ?? []).map((stem) => ({
         id: stem.id,
         title: stem.title,
-        meta: stem.isMuted ? t("player.mutedStem") : t("player.overdubNumber", { number: index + 1 }),
         audioUri: stem.audioUri ?? null,
         durationMs: stem.durationMs ?? 0,
         waveformPeaks: stem.waveformPeaks,
@@ -159,9 +153,8 @@ export function usePlayerScreenData({
         recordedOffsetMs: stem.recordedOffsetMs,
         isMuted: stem.isMuted,
         tonePreset: stem.tonePreset,
-        color: getOverdubStemColor(stem, index),
       })),
-    [playerClip?.overdub?.stems, t]
+    [playerClip?.overdub?.stems]
   );
 
   return {

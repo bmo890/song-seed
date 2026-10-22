@@ -490,7 +490,7 @@ export function usePlayerScreenLifecycle({
     };
 
     // The menu is clip MANAGEMENT only. Recording verbs live on the recording
-    // surfaces (Tools' "Record a layer", the bench's +) — no "Add overdub" here.
+    // surfaces (the toolbar's Layer key) — no "Add overdub" here.
     AppAlert.menu(playerClip?.title ?? t("player.options"), [
       ...(hasOverdubs
         ? [

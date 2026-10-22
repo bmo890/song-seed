@@ -475,10 +475,9 @@ export type ClipOverdubStem = {
   /** Where the layer was placed when it was recorded (or merged): what "Original"
    *  returns to. Absent on layers saved before 2026-10-22. */
   recordedOffsetMs?: number;
-  /** Accent hex identifying this layer — auto-assigned (well-spaced hue rotation) when
-   *  the stem is created, adjustable afterward. Shown as the layer card's tint, the
-   *  lane on the reel, and the waveform colour in Align. Absent on stems saved before
-   *  this field existed — callers fall back via getOverdubStemColor(). */
+  /** Accent hex stamped when the stem is created (well-spaced hue rotation). Kept as
+   *  data and carried by archives; the lanes draw in ink, so nothing shows it today.
+   *  Absent on stems saved before this field existed. */
   color?: string;
 };
 

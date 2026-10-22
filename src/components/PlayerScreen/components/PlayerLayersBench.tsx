@@ -86,7 +86,6 @@ export type BenchStemEntry = {
   recordedOffsetMs?: number;
   isMuted: boolean;
   tonePreset: string;
-  color: string;
 };
 
 /** The slice of the transport clock the bench is allowed to drive. While Play here or
