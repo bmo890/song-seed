@@ -79,6 +79,8 @@ function concatFloat32(a: Float32Array, b: Float32Array): Float32Array {
  * Fold one delivery into the tape.
  *
  * `retainPoints: false` advances the clock and discards the picture — the count-in case.
+ * `hideBeforeMs` keeps the picture only from that capture time on — the trimmed head
+ * (a punched layer's run-up) once its length is known.
  * The returned state is always a new object when anything changed, and `changed` is false
  * when the delivery did not complete a segment (so a caller can skip a render).
  */
@@ -86,7 +88,7 @@ export function appendLiveWaveform(
   state: LiveWaveformState,
   samples: Float32Array,
   shape: LiveWaveformShape,
-  { retainPoints = true }: { retainPoints?: boolean } = {}
+  { retainPoints = true, hideBeforeMs = 0 }: { retainPoints?: boolean; hideBeforeMs?: number } = {}
 ): { state: LiveWaveformState; changed: boolean } {
   const { channels, sampleRate, segmentDurationMs, windowDurationMs } = shape;
   const framesPerSegment = Math.max(1, Math.round((sampleRate * segmentDurationMs) / 1000));
@@ -139,7 +141,8 @@ export function appendLiveWaveform(
   }
 
   const kept = (retainPoints ? [...state.points, ...nextPoints] : []).filter(
-    (point) => (point.endTime ?? 0) >= streamDurationMs - windowDurationMs
+    (point) =>
+      (point.endTime ?? 0) >= streamDurationMs - windowDurationMs && (point.startTime ?? 0) >= hideBeforeMs
   );
 
   // Dropping the picture (count-in) restarts the tape, so the guard re-arms.

@@ -35,7 +35,7 @@ import { looksMachineNamed } from "../../../domain/titleNaming";
 import { findIdeaInLibrary } from "../../../state/librarySelectors";
 import { haptic } from "../../../design/haptics";
 import { getActiveRecordingTakeSession } from "../../../services/recordingTakeSession";
-import { getDefaultOverdubStemTitle, getRecordingGridBarMs, snapPunchInMsToGrid } from "../../../domain/overdub";
+import { clampPunchInMs, getDefaultOverdubStemTitle, getRecordingGridBarMs } from "../../../domain/overdub";
 import {
   feelIdForGrid,
   getMetronomeAccentPattern,
@@ -318,6 +318,8 @@ export function useRecordingScreenModel() {
   const initializedMetronomeRef = useRef(false);
   const pendingOverdubSaveRef = useRef<{ ideaId: string; clipId: string; title: string } | null>(null);
   const autoStoppingOverdubRef = useRef(false);
+  /** The start a punched take was armed with (see the save). */
+  const takePunchInMsRef = useRef<number | null>(null);
   const abandonedPlaceholderCleanupRef = useRef<() => void>(() => {});
   // The recorder's beat bar and breath draw from `beatCount` (the onBeat stream);
   // the pulse token was a second render per pulse it never read.
@@ -360,7 +362,9 @@ export function useRecordingScreenModel() {
       if (pendingOverdubSave) {
         // A punch take's file t=0 IS the punch point (head-trimmed to the guide's
         // measured punch epoch), so the stem sits on the master at that offset.
-        const punchOffsetMs = useStore.getState().recordingPunchInMs ?? 0;
+        // The start this take was recorded against, not whatever the store holds by
+        // the time it saves (a quick record while minimised rewrites it).
+        const punchOffsetMs = takePunchInMsRef.current ?? useStore.getState().recordingPunchInMs ?? 0;
         await appActions.attachRecordedOverdubStem(
           pendingOverdubSave.ideaId,
           pendingOverdubSave.clipId,
@@ -563,15 +567,11 @@ export function useRecordingScreenModel() {
   const setGuideStart = useCallback(
     async (requestedMs: number) => {
       if (!guideMovable || !recordingOverdubClip) return;
-      const snappedMs = snapPunchInMsToGrid(
-        requestedMs,
-        recordingOverdubClip.recordingGrid ?? null,
-        guideMixDurationMs > 0 ? guideMixDurationMs : undefined
-      );
-      useStore.getState().setRecordingPunchInMs(snappedMs > 0 ? snappedMs : null);
+      const startMs = clampPunchInMs(requestedMs, guideMixDurationMs > 0 ? guideMixDurationMs : undefined);
+      useStore.getState().setRecordingPunchInMs(startMs > 0 ? startMs : null);
       if (isListeningToGuide) {
         try {
-          await guideMixPlayer.seekTo(snappedMs / 1000);
+          await guideMixPlayer.seekTo(startMs / 1000);
         } catch {
           stopGuideListening();
         }
@@ -976,10 +976,21 @@ export function useRecordingScreenModel() {
     try {
       setGuideMonitoringLeadInMs(activeMonitoringCompensationMs);
       await guideMixPlayer.seekTo(seekPositionMs / 1000);
+      const playCallAtMs = Date.now();
       guideMixPlayer.play();
-      const seekAnchorEpochMs = await measureGuideAnchorEpochMs(1500, seekPositionMs);
+      // A cold guide (the first take after opening) can take well over a second
+      // to report motion; the run-up gives the time to wait for it.
+      const seekAnchorEpochMs = await measureGuideAnchorEpochMs(Math.max(1500, anchorLeadMs), seekPositionMs);
       if (seekAnchorEpochMs != null) {
         return seekAnchorEpochMs + anchorLeadMs;
+      }
+      if (anchorLeadMs > 0 && guideMixPlayer.playing) {
+        // Unmeasured punch take: keeping the pre-roll would keep the whole run-up, and
+        // the layer would land seconds late, sounding like it was recorded from the
+        // top (founder, 2026-10-22). An estimate is off by a start latency at most.
+        const latencyMs = sessionGuideResumeLatencyMs ?? GUIDE_DOWNBEAT_LEAD_MS;
+        console.warn(`[timing] guide start unmeasured — estimating the punch from play() + ${latencyMs}ms`);
+        return playCallAtMs + latencyMs + anchorLeadMs;
       }
     } catch (error) {
       console.warn("Guide mix anchored start failed", error);
@@ -1935,6 +1946,7 @@ export function useRecordingScreenModel() {
     if (overdubReviewLocked) {
       return;
     }
+    takePunchInMsRef.current = recordingOverdubClip ? punchInMs : null;
     if (isListeningToGuide) {
       // The take's own guide start seeks and plays this player; listening ends here.
       setIsListeningToGuide(false);
@@ -2610,6 +2622,9 @@ export function useRecordingScreenModel() {
     guideMixIsPlaying: !!guideMixStatus.playing,
     guideMovable,
     isListeningToGuide,
+    // A punched layer's run-up: the song plays toward the start point, nothing kept yet.
+    isPreRoll:
+      !!recordingOverdubClip && punchInMs > 0 && recording.isRecording && !recording.isPaused && recording.inHead,
     guideStartMs: punchInMs,
     setGuideStart,
     toggleGuideListening,

@@ -120,9 +120,12 @@ export function createRecordingTakeSession(shape: LiveWaveformShape) {
    * record-through count-in, where capture is rolling but the audio will be trimmed off
    * at save. See `domain/liveWaveform.ts` for why the clock must not stop.
    */
-  function appendAudioStream(event: AudioDataEvent, { retainPoints = true }: { retainPoints?: boolean } = {}) {
+  function appendAudioStream(
+    event: AudioDataEvent,
+    { retainPoints = true, hideBeforeMs = 0 }: { retainPoints?: boolean; hideBeforeMs?: number } = {}
+  ) {
     if (event.streamFormat !== "float32" || !(event.data instanceof Float32Array)) return;
-    const { state, changed } = appendLiveWaveform(liveState, event.data, shape, { retainPoints });
+    const { state, changed } = appendLiveWaveform(liveState, event.data, shape, { retainPoints, hideBeforeMs });
     liveState = state;
     if (!changed) return;
     liveWaveform.set({

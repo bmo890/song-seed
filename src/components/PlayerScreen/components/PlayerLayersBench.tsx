@@ -16,7 +16,7 @@ import { InkKey, inkKeyColor } from "../../common/InkKey";
 import { InkOption } from "../../common/InkOption";
 import { Press } from "../../common/Press";
 import { looksMachineNamed } from "../../../domain/titleNaming";
-import { LayerFoldAllKey } from "../../common/OverdubLayerLanes";
+import { LayerFoldAllKey, barHeights, laneBarCount } from "../../common/OverdubLayerLanes";
 import { useLayerPrefsStore } from "../../../state/useLayerPrefsStore";
 import { UserTextInput } from "../../../i18n";
 import { AppAlert } from "../../common/AppAlert";
@@ -101,6 +101,9 @@ export type BenchTransportClock = {
 
 type Props = {
   selectedLaneId: string;
+  /** A lane under the reel asked for this layer's sheet; handled once. */
+  sheetRequest?: string | null;
+  onSheetRequestHandled?: () => void;
   stems: BenchStemEntry[];
   rootSettings: { gainDb: number; tonePreset: string } | null;
   rootAudioUri: string | null;
@@ -146,6 +149,8 @@ function NudgeKey({ label, onPress }: { label: string; onPress: () => void }) {
 
 export function PlayerLayersBench({
   selectedLaneId,
+  sheetRequest,
+  onSheetRequestHandled,
   stems,
   rootSettings,
   rootAudioUri,
@@ -527,6 +532,12 @@ export function PlayerLayersBench({
     }
   }
 
+  useEffect(() => {
+    if (!sheetRequest) return;
+    setSheetOpen(true);
+    onSheetRequestHandled?.();
+  }, [sheetRequest, onSheetRequestHandled]);
+
   function openLane(laneId: string) {
     if (laneId !== selectedLaneId) onSelectLane(laneId);
     setSheetOpen(true);
@@ -616,7 +627,7 @@ export function PlayerLayersBench({
               // Haptics vocabulary: `tap` — a control toggles (the key's own; toggleSolo stays quiet).
               haptic="tap"
               tone={soloActive && soloStatus.playing ? "active" : "idle"}
-              label={t("player.playAlone")}
+              label={t("player.solo")}
               glyph={
                 <Ionicons
                   name={soloActive && soloStatus.playing ? "stop" : "play"}
@@ -644,9 +655,11 @@ export function PlayerLayersBench({
         playheadColor={colors.playhead}
         followMs={stripFollowMs}
       />
-      {/* Alone: the layer's own tape, scrubbable while it is loaded. Under the strip, so
+      {/* Solo: the layer's own tape, scrubbable while it is loaded. Under the strip, so
           the sheet does not jump when it appears. */}
       {soloActive ? (
+        <View style={benchStyles.soloRow}>
+        <Text style={benchStyles.soloTime}>{fmtDuration(soloPositionMs)}</Text>
         <Slider
           style={benchStyles.soloScrubber}
           minimumValue={0}
@@ -664,6 +677,8 @@ export function PlayerLayersBench({
           fill={false}
           accessibilityLabel={t("player.scrubLayer")}
         />
+        <Text style={benchStyles.soloTime}>{fmtDuration(soloDurationMs)}</Text>
+        </View>
       ) : null}
 
 
@@ -770,7 +785,7 @@ export function PlayerLayersBench({
               <>
                 <InkOption
                   label={t("player.solo")}
-                  selected={selected && soloActive}
+                  selected={selected && soloActive && !!soloStatus.playing}
                   disabled={!stem.audioUri}
                   onPress={() => requestSolo(stem.id)}
                 />
@@ -983,7 +998,13 @@ function BenchRow({
 }) {
   const { t } = useTranslation();
   const folded = useLayerPrefsStore((state) => (layerId ? state.collapsedLayerIds.includes(layerId) : false));
-  const heights = React.useMemo(() => rowBarHeights(peaks, durationMs), [peaks, durationMs]);
+  // Bars by drawn width, the same grain as the lanes under the reel.
+  const [trackWidth, setTrackWidth] = useState(0);
+  const waveWidth = (trackWidth * Math.max(0, durationMs)) / timelineMs;
+  const heights = React.useMemo(
+    () => (wave && trackWidth > 0 ? barHeights(peaks, laneBarCount(waveWidth)) : []),
+    [wave, trackWidth, peaks, waveWidth]
+  );
   const leftPct = `${Math.max(0, Math.min(100, (offsetMs / timelineMs) * 100))}%` as const;
   const widthPct = `${Math.max(1, Math.min(100, (durationMs / timelineMs) * 100))}%` as const;
   return (
@@ -1025,6 +1046,7 @@ function BenchRow({
         feel="still"
         haptic={pick ? "light" : "none"}
         onPress={pick ? pick.onToggle : onSelect}
+        onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)}
         style={benchStyles.track}
         accessibilityElementsHidden
       >
@@ -1049,24 +1071,6 @@ function BenchRow({
 }
 
 const ROW_WAVE_HEIGHT = 14;
-
-function rowBarHeights(peaks: number[] | undefined, durationMs: number): number[] {
-  const count = Math.max(8, Math.min(140, Math.round(durationMs / 140)));
-  if (!peaks || peaks.length === 0) return new Array(count).fill(0.12);
-  const max = peaks.reduce((m, p) => (Number.isFinite(p) && Math.abs(p) > m ? Math.abs(p) : m), 0) || 1;
-  const out: number[] = [];
-  for (let i = 0; i < count; i += 1) {
-    const from = Math.floor((i / count) * peaks.length);
-    const to = Math.max(from + 1, Math.floor(((i + 1) / count) * peaks.length));
-    let top = 0;
-    for (let j = from; j < to && j < peaks.length; j += 1) {
-      const v = Math.abs(peaks[j]);
-      if (Number.isFinite(v) && v > top) top = v;
-    }
-    out.push(Math.max(0.12, top / max));
-  }
-  return out;
-}
 
 /** Rename a layer. Draft state resets from props each time the sheet opens. */
 function RenameLayerModal({
@@ -1305,9 +1309,21 @@ const benchStyles = StyleSheet.create({
     color: colors.textStrong,
     fontVariant: ["tabular-nums"],
   },
+  // Solo's own tape: where in the layer you are, start and end in time, so it
+  // reads as a playhead and not as another setting.
+  soloRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   soloScrubber: {
-    width: "100%",
+    flex: 1,
     height: 26,
+  },
+  soloTime: {
+    ...textTokens.caption,
+    color: colors.textMuted,
+    fontVariant: ["tabular-nums"],
   },
   // The strip sits flush with the bench's rows: no inset of its own.
   strip: {
