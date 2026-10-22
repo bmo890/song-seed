@@ -230,40 +230,8 @@ function LaneRow({
       ) : (
         <View style={[...rowStyle, laneStyles.rowFill]}>{body}</View>
       )}
-      {/* A read-only stack (the recorder's guide) shows the lanes as they are; its
-          carets used to change the player's folds from a screen about something else. */}
-      {onOpenLane ? <LayerFoldKey layerId={lane.id} title={lane.title} folded={folded} /> : null}
-    </View>
-  );
-}
 
-/** One layer's fold: a small chevron at the end of its name line. */
-export function LayerFoldKey({
-  layerId,
-  title,
-  folded,
-  inline = false,
-}: {
-  layerId: string;
-  title: string;
-  folded: boolean;
-  /** In a row of controls (the bench) rather than over a lane's name line. */
-  inline?: boolean;
-}) {
-  const { t } = useTranslation();
-  return (
-    <Press
-      feel="glyph"
-      // Haptics vocabulary: `tap` — a control toggles.
-      style={inline ? laneStyles.foldKeyInline : laneStyles.foldKey}
-      onPress={() => useLayerPrefsStore.getState().toggleLayerCollapsed(layerId)}
-      hitSlop={8}
-      accessibilityRole="button"
-      accessibilityState={{ expanded: !folded }}
-      accessibilityLabel={folded ? t("player.expandLayer", { title }) : t("player.collapseLayer", { title })}
-    >
-      <Ionicons name={folded ? "chevron-down" : "chevron-up"} size={13} color={colors.textMuted} />
-    </Press>
+    </View>
   );
 }
 
@@ -274,8 +242,7 @@ export function LayerFoldAllKey({ layerIds }: { layerIds: string[] }) {
   const allFolded = useLayerPrefsStore(
     (state) => layerIds.length > 0 && layerIds.every((id) => state.collapsedLayerIds.includes(id))
   );
-  // One layer: its own caret says the same thing.
-  if (layerIds.length < 2) return null;
+  if (layerIds.length === 0) return null;
   return (
     <Press
       feel="glyph"
@@ -398,8 +365,7 @@ const laneStyles = StyleSheet.create({
     ...textTokens.annotation,
     color: colors.textSecondary,
   },
-  // The fold key rides over the end of the name line, so the lane keeps the
-  // reel's full width and its waveform stays on the reel's timeline.
+  // The lane keeps the reel's full width so its waveform stays on the reel's timeline.
   rowWrap: {
     position: "relative",
   },
@@ -414,22 +380,7 @@ const laneStyles = StyleSheet.create({
     justifyContent: "center",
   },
   nameText: {
-    paddingEnd: 32,
-  },
-  foldKeyInline: {
-    width: 28,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  foldKey: {
-    position: "absolute",
-    top: 0,
-    end: 0,
-    width: 28,
-    height: 20,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingEnd: 8,
   },
   nameTyped: {
     fontFamily: "Lora_500Medium",

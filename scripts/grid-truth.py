@@ -30,8 +30,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import shutil
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass, asdict
 
 import numpy as np
@@ -55,13 +58,29 @@ METER_PULSES = {"2/4": 2, "3/4": 3, "4/4": 4, "5/4": 5, "6/8": 6, "7/8": 7, "12/
 # ─────────────────────────────────────────────────────────────── audio → onsets ──
 
 def decode_mono(path: str) -> np.ndarray:
-    """Decode to mono float32 at SAMPLE_RATE. ffmpeg honours the container's edit list,
-    so AAC encoder priming is already stripped — the same t=0 a DAW would see."""
-    out = subprocess.run(
-        ["ffmpeg", "-v", "error", "-i", path, "-map", "0:a:0",
-         "-ac", "1", "-ar", str(SAMPLE_RATE), "-f", "f32le", "-"],
-        capture_output=True, check=True,
-    )
+    """Decode to mono float32 at SAMPLE_RATE, the way the iPhone reads the file.
+
+    Apple's decoders strip AAC encoder priming even when a file carries no edit list;
+    ffmpeg only honours an edit list, and reads such a file 2112 samples (≈48 ms) late.
+    On a Mac, convert with afconvert (Core Audio) first, so a take reads here exactly as
+    the app plays it (found 2026-10-22 with scripts/layer-truth.py)."""
+    source = path
+    tmp = None
+    if shutil.which("afconvert") and not path.lower().endswith(".wav"):
+        tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        tmp.close()
+        subprocess.run(["afconvert", "-f", "WAVE", "-d", "LEF32", path, tmp.name],
+                       capture_output=True, check=True)
+        source = tmp.name
+    try:
+        out = subprocess.run(
+            ["ffmpeg", "-v", "error", "-i", source, "-map", "0:a:0",
+             "-ac", "1", "-ar", str(SAMPLE_RATE), "-f", "f32le", "-"],
+            capture_output=True, check=True,
+        )
+    finally:
+        if tmp:
+            os.unlink(tmp.name)
     return np.frombuffer(out.stdout, dtype="<f4").astype(np.float64)
 
 

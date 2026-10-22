@@ -30,3 +30,18 @@ describe("a new layer's name", () => {
     expect(getDefaultOverdubStemTitle(clipWith(["Harmony", "Layer 1"]))).toBe("Layer 3");
   });
 });
+
+describe("where a start falls in the song's bar", () => {
+  const { punchPhaseInBarMs } = jest.requireActual("../overdub");
+  const grid = { bpm: 120, firstDownbeatMs: 250 } as never; // 2 s bars in 4/4
+
+  it("measures from the song's own downbeat", () => {
+    expect(punchPhaseInBarMs(2250, grid, 2000)).toBe(0);
+    expect(punchPhaseInBarMs(3250, grid, 2000)).toBe(1000);
+    expect(punchPhaseInBarMs(2249.5, grid, 2000)).toBe(0);
+  });
+
+  it("has nothing to lock to without a measured downbeat", () => {
+    expect(punchPhaseInBarMs(3250, { bpm: 120 } as never, 2000)).toBe(0);
+  });
+});

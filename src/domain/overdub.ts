@@ -247,6 +247,29 @@ export function snapPunchInMsToGrid(
 }
 
 /**
+ * Where a layer's start falls inside the song's bar, in ms after the bar line.
+ *
+ * With the click on, the recorder starts the song so the start lands on a click bar
+ * line. That keeps the song's beats on the click's only when the start is itself on one
+ * of the song's bar lines; anywhere else the click ran up to half a bar off the song,
+ * and a layer played to the click sat between the song's beats (founder, 2026-10-22).
+ * Shifting the song's entry by this much puts the song's own bar lines on the click's.
+ * 0 when the song has no measured downbeat (nothing to lock to).
+ */
+export function punchPhaseInBarMs(
+  punchMs: number,
+  grid: RecordingGrid | null | undefined,
+  barMs: number | null | undefined
+): number {
+  if (!grid || grid.firstDownbeatMs == null || !barMs || !(barMs > 0) || !(punchMs > 0)) {
+    return 0;
+  }
+  const phase = (((punchMs - grid.firstDownbeatMs) % barMs) + barMs) % barMs;
+  // A start a hair before a bar line IS on it.
+  return phase > barMs - 1 ? 0 : phase;
+}
+
+/**
  * A start chosen by dragging the recorder's guide: kept where it was put (the reel
  * already settles a drag that lands near a bar line onto it), only clamped. Forcing
  * every drag to the nearest bar moved a deliberate start, and near the top it
