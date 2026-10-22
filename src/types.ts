@@ -472,6 +472,9 @@ export type ClipOverdubStem = {
   waveformPeaks?: number[];
   recordingGrid?: RecordingGrid;
   createdAt: number;
+  /** Where the layer was placed when it was recorded (or merged): what "Original"
+   *  returns to. Absent on layers saved before 2026-10-22. */
+  recordedOffsetMs?: number;
   /** Accent hex identifying this layer — auto-assigned (well-spaced hue rotation) when
    *  the stem is created, adjustable afterward. Shown as the layer card's tint, the
    *  lane on the reel, and the waveform colour in Align. Absent on stems saved before

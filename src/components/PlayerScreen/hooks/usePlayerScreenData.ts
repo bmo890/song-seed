@@ -156,6 +156,7 @@ export function usePlayerScreenData({
         waveformPeaks: stem.waveformPeaks,
         gainDb: stem.gainDb,
         offsetMs: stem.offsetMs,
+        recordedOffsetMs: stem.recordedOffsetMs,
         isMuted: stem.isMuted,
         tonePreset: stem.tonePreset,
         color: getOverdubStemColor(stem, index),

@@ -82,6 +82,8 @@ export type ArchiveClipOverdubStemManifest = {
     waveformPeaks?: number[];
     /** Beat grid the stem was recorded against. Written in all fidelities (tiny + musically essential). */
     recordingGrid?: RecordingGrid;
+    /** Where the layer was recorded (what "Original" returns to). */
+    recordedOffsetMs?: number;
     audioPath?: string;
     audioMissing?: boolean;
     // ── Full-fidelity only ──

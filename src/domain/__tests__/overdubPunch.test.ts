@@ -18,3 +18,15 @@ describe("where a layer starts", () => {
     expect(clampPunchInMs(70000, 64000)).toBe(63000);
   });
 });
+
+describe("a new layer's name", () => {
+  const { getDefaultOverdubStemTitle } = jest.requireActual("../overdub");
+  const clipWith = (titles: string[]) =>
+    ({ overdub: { stems: titles.map((title, i) => ({ id: String(i), title })) } }) as never;
+
+  it("never repeats a number already taken", () => {
+    expect(getDefaultOverdubStemTitle(clipWith(["Layer 2"]))).toBe("Layer 3");
+    expect(getDefaultOverdubStemTitle(clipWith([]))).toBe("Layer 1");
+    expect(getDefaultOverdubStemTitle(clipWith(["Harmony", "Layer 1"]))).toBe("Layer 3");
+  });
+});

@@ -599,6 +599,29 @@ export function useRecordingScreenModel() {
     }
   }, [guideMovable, isListeningToGuide, guideMixPlayer, punchInMs, stopGuideListening]);
 
+  // Back from a minimised take (2026-10-22): this screen's guide player is new and
+  // parked at 0 while the take kept recording, so you played on without the song.
+  // Put the song back where the take is. Monitoring only: the layer's place on the
+  // song was fixed when the take started.
+  const guideResyncedRef = useRef(false);
+  useEffect(() => {
+    if (guideResyncedRef.current) return;
+    if (!recordingOverdubClip || !recordingGuideMixUri || !guideMixStatus.isLoaded) return;
+    guideResyncedRef.current = true;
+    const take = recordingRef.current;
+    if (isArmingRecording || !(take.isRecording || take.isPaused)) return;
+    const atMs = punchInMs + take.readElapsedMs();
+    void (async () => {
+      try {
+        await guideMixPlayer.seekTo(atMs / 1000);
+        if (!take.isPaused) guideMixPlayer.play();
+      } catch (error) {
+        console.warn("Guide resync after minimise failed", error);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guideMixStatus.isLoaded, recordingOverdubClip, recordingGuideMixUri]);
+
   // A take began by any path: the take owns the guide player from here.
   useEffect(() => {
     if (!guideMovable && isListeningToGuide) setIsListeningToGuide(false);
@@ -976,8 +999,19 @@ export function useRecordingScreenModel() {
     try {
       setGuideMonitoringLeadInMs(activeMonitoringCompensationMs);
       await guideMixPlayer.seekTo(seekPositionMs / 1000);
-      const playCallAtMs = Date.now();
+      let playCallAtMs = Date.now();
       guideMixPlayer.play();
+      // Starting the recorder can leave the guide player dead on iOS (see
+      // resumeGuideMix): if it has not started, load it again. The anchor below is
+      // measured off the guide's own position, so a late start stays exact.
+      await waitForGuideMixPlaybackStart();
+      if (!guideMixPlayer.playing) {
+        console.warn("[timing] guide did not start — reloading it");
+        await guideMixPlayer.replace({ uri: recordingGuideMixUri });
+        await guideMixPlayer.seekTo(seekPositionMs / 1000);
+        playCallAtMs = Date.now();
+        guideMixPlayer.play();
+      }
       // A cold guide (the first take after opening) can take well over a second
       // to report motion; the run-up gives the time to wait for it.
       const seekAnchorEpochMs = await measureGuideAnchorEpochMs(Math.max(1500, anchorLeadMs), seekPositionMs);
@@ -1002,8 +1036,21 @@ export function useRecordingScreenModel() {
     if (!recordingGuideMixUri) return;
     try {
       setGuideMonitoringLeadInMs(activeMonitoringCompensationMs);
+      // A recorder pause stops its audio engine, and on iOS that leaves the guide
+      // player dead: it forgets its place and ignores play (2026-10-22: the song came
+      // back at 0:00, or not at all, under a resumed layer). Put it where the take is,
+      // and if it will not start, load it again and try once more.
+      const atSec = recordingOverdubClip ? (punchInMs + recording.readElapsedMs()) / 1000 : null;
+      if (atSec != null) await guideMixPlayer.seekTo(atSec);
       guideMixPlayer.play();
       await waitForGuideMixPlaybackStart();
+      if (!guideMixPlayer.playing) {
+        console.warn("[timing] guide did not resume — reloading it");
+        await guideMixPlayer.replace({ uri: recordingGuideMixUri });
+        if (atSec != null) await guideMixPlayer.seekTo(atSec);
+        guideMixPlayer.play();
+        await waitForGuideMixPlaybackStart();
+      }
     } catch (error) {
       console.warn("Guide mix resume failed", error);
     }
@@ -1310,15 +1357,38 @@ export function useRecordingScreenModel() {
       return;
     }
 
-    AppAlert.destructive(
+    const resume = holdTakeWhileAsking();
+    AppAlert.custom(
       t("recording.discardTitle"),
       t("recording.discardBody"),
-      () => {
-        prewarmLiveRef.current = false;
-        cancelRecording().then(() => navigation.goBack());
-      },
-      { confirmLabel: t("recording.discard"), cancelLabel: t("recording.keepRecording"), icon: actionIcons.discard }
+      [
+        { label: t("recording.keepRecording"), style: "cancel", onPress: resume },
+        {
+          label: t("recording.discard"),
+          style: "destructive",
+          icon: actionIcons.discard,
+          onPress: () => {
+            prewarmLiveRef.current = false;
+            cancelRecording().then(() => navigation.goBack());
+          },
+        },
+      ],
+      { onDismiss: resume }
     );
+  }
+
+  /** A question about the take holds it (founder, 2026-10-22): the song and the
+   *  mic used to keep running behind "Discard take?". Returns how to carry on:
+   *  resume only if this paused it. */
+  function holdTakeWhileAsking(): () => void {
+    const wasRunning = recording.isRecording && !recording.isPaused && !isArmingRecording;
+    if (!wasRunning) return () => {};
+    void handlePauseRecording();
+    // The answer comes later, from a dialog holding this render's closures: resume
+    // through the latest handler, or it acts on a take it still thinks is running.
+    return () => {
+      void resumeRecordingRef.current();
+    };
   }
 
   // The dock's Discard (2026-10-15, founder picked A): one question, two
@@ -1332,6 +1402,7 @@ export function useRecordingScreenModel() {
       confirmDiscardAndExit();
       return;
     }
+    const resume = holdTakeWhileAsking();
     AppAlert.custom(t("recording.discardTitle"), undefined, [
       {
         label: t("recording.redo"),
@@ -1356,8 +1427,8 @@ export function useRecordingScreenModel() {
           });
         },
       },
-      { label: t("recording.keepRecording"), style: "cancel" },
-    ]);
+      { label: t("recording.keepRecording"), style: "cancel", onPress: resume },
+    ], { onDismiss: resume });
   }
 
   async function requestSaveRecording() {
@@ -1648,6 +1719,8 @@ export function useRecordingScreenModel() {
   // resume.
   const requestSaveRecordingRef = useRef(requestSaveRecording);
   requestSaveRecordingRef.current = requestSaveRecording;
+  const resumeRecordingRef = useRef(handleResumeRecording);
+  resumeRecordingRef.current = handleResumeRecording;
   useEffect(() => {
     if (!recordingOverdubClip) {
       return;
@@ -2622,6 +2695,14 @@ export function useRecordingScreenModel() {
     guideMixIsPlaying: !!guideMixStatus.playing,
     guideMovable,
     isListeningToGuide,
+    // A layer stops itself when the song ends: its last ten seconds say so
+    // (founder, 2026-10-22), so the end is expected rather than a surprise.
+    layerTimeLeftMs: (() => {
+      if (!recordingOverdubClip || !recording.isRecording || recording.isPaused || recording.inHead) return null;
+      if (!(guideMixDurationMs > 0)) return null;
+      const leftMs = guideMixDurationMs - punchInMs - recording.elapsedMs;
+      return leftMs > 0 && leftMs <= 10000 ? Math.ceil(leftMs / 1000) * 1000 : null;
+    })(),
     // A punched layer's run-up: the song plays toward the start point, nothing kept yet.
     isPreRoll:
       !!recordingOverdubClip && punchInMs > 0 && recording.isRecording && !recording.isPaused && recording.inHead,
