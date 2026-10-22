@@ -35,7 +35,7 @@ import { looksMachineNamed } from "../../../domain/titleNaming";
 import { findIdeaInLibrary } from "../../../state/librarySelectors";
 import { haptic } from "../../../design/haptics";
 import { getActiveRecordingTakeSession } from "../../../services/recordingTakeSession";
-import { getDefaultOverdubStemTitle, getRecordingGridBarMs } from "../../../domain/overdub";
+import { getDefaultOverdubStemTitle, getRecordingGridBarMs, snapPunchInMsToGrid } from "../../../domain/overdub";
 import {
   feelIdForGrid,
   getMetronomeAccentPattern,
@@ -535,6 +535,81 @@ export function useRecordingScreenModel() {
   const guideMixWaveformPeaks = recordingOverdubClip
     ? getClipPlaybackWaveformPeaks(recordingOverdubClip)
     : undefined;
+
+  // ── Choosing where the layer starts (founder, 2026-10-22) ─────────────────
+  // Before the take the guide is the performer's: drag it to move the start (bar-
+  // snapped, the same number the save uses), Listen plays from that spot and comes
+  // back to it. Once arming starts it is read-only again — seeking mid-take would
+  // break the measured alignment.
+  const [isListeningToGuide, setIsListeningToGuide] = useState(false);
+  const guideMovable =
+    !!recordingOverdubClip &&
+    !!recordingGuideMixUri &&
+    !recording.isRecording &&
+    !recording.isPaused &&
+    !isArmingRecording &&
+    !overdubReviewLocked;
+
+  const stopGuideListening = useCallback(() => {
+    setIsListeningToGuide(false);
+    try {
+      guideMixPlayer.pause();
+      void Promise.resolve(guideMixPlayer.seekTo(0)).catch(() => {});
+    } catch {
+      // Released during teardown — nothing to stop.
+    }
+  }, [guideMixPlayer]);
+
+  const setGuideStart = useCallback(
+    async (requestedMs: number) => {
+      if (!guideMovable || !recordingOverdubClip) return;
+      const snappedMs = snapPunchInMsToGrid(
+        requestedMs,
+        recordingOverdubClip.recordingGrid ?? null,
+        guideMixDurationMs > 0 ? guideMixDurationMs : undefined
+      );
+      useStore.getState().setRecordingPunchInMs(snappedMs > 0 ? snappedMs : null);
+      if (isListeningToGuide) {
+        try {
+          await guideMixPlayer.seekTo(snappedMs / 1000);
+        } catch {
+          stopGuideListening();
+        }
+      }
+    },
+    [guideMovable, recordingOverdubClip, guideMixDurationMs, isListeningToGuide, guideMixPlayer, stopGuideListening]
+  );
+
+  const toggleGuideListening = useCallback(async () => {
+    if (!guideMovable) return;
+    // The Listen key fires its own `tap`.
+    if (isListeningToGuide) {
+      stopGuideListening();
+      return;
+    }
+    try {
+      setIsListeningToGuide(true);
+      guideMixPlayer.volume = 1;
+      await guideMixPlayer.seekTo(punchInMs / 1000);
+      guideMixPlayer.play();
+    } catch (error) {
+      console.warn("Guide listen failed", error);
+      haptic.error(); // Vocabulary: failures fire error.
+      stopGuideListening();
+    }
+  }, [guideMovable, isListeningToGuide, guideMixPlayer, punchInMs, stopGuideListening]);
+
+  // A take began by any path: the take owns the guide player from here.
+  useEffect(() => {
+    if (!guideMovable && isListeningToGuide) setIsListeningToGuide(false);
+  }, [guideMovable, isListeningToGuide]);
+
+  // The guide ran out while listening: back to the start point.
+  useEffect(() => {
+    if (isListeningToGuide && guideMixStatus.didJustFinish) {
+      stopGuideListening();
+    }
+  }, [isListeningToGuide, guideMixStatus.didJustFinish, stopGuideListening]);
   const isBluetoothRecordingInput = useMemo(() => isBluetoothLikeAudioDevice(currentRecordingInput), [currentRecordingInput]);
   const isBluetoothMonitoringOutput = useMemo(
     () => isBluetoothLikeAudioDevice(currentMonitoringOutput),
@@ -1860,6 +1935,15 @@ export function useRecordingScreenModel() {
     if (overdubReviewLocked) {
       return;
     }
+    if (isListeningToGuide) {
+      // The take's own guide start seeks and plays this player; listening ends here.
+      setIsListeningToGuide(false);
+      try {
+        guideMixPlayer.pause();
+      } catch {
+        // Released — the take starts it fresh.
+      }
+    }
     const traceMode =
       metronome.countInBars > 0 && metronome.isNativeAvailable
         ? "countin"
@@ -2524,6 +2608,11 @@ export function useRecordingScreenModel() {
     isArmingRecording,
     overdubReviewLocked,
     guideMixIsPlaying: !!guideMixStatus.playing,
+    guideMovable,
+    isListeningToGuide,
+    guideStartMs: punchInMs,
+    setGuideStart,
+    toggleGuideListening,
     guideMixPositionMs,
     guideJoinInfo,
     guideMixDurationMs,

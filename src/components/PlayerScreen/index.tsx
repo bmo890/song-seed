@@ -430,7 +430,6 @@ function PlayerScreenInner({
       })),
     [data.overdubStemEntries]
   );
-  const revealInBody = useCallback((node: View) => transportRef.current?.reveal(node), []);
   const layerLanesCollapsed = useLayerPrefsStore((state) => state.lanesCollapsed);
   const toggleLayerLanes = useCallback(() => {
     haptic.tap(); // Vocabulary: tap = a control toggles.
@@ -2056,7 +2055,6 @@ function PlayerScreenInner({
             />
           ) : ui.mode === "layers" ? (
             <PlayerLayersBench
-              onReveal={revealInBody}
               onMergeStems={handleMergeStems}
               selectedLaneId={benchSelectedLaneId}
               stems={data.overdubStemEntries}
