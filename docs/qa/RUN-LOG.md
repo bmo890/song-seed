@@ -348,3 +348,31 @@ Main suite: **18/18 in 16m 36s** (iPhone 17 sim, on the large test library).
 Clip suite: **10/11 on the full run, 11/11 counting reruns.** clip-11 hit "app not running" on the
 relaunch at the start of its setup (the sim sat on the splash screen, and no crash report was
 written). It passed twice in a row when run again.
+
+## 2026-10-22 — layer placement (scripts/layer-truth.py, new)
+
+Founder: layers recorded over the speaker land "a few tens of ms" late; with the click,
+"even half a beat". Measured every layer in the simulator library first.
+
+**Before:** every layer with an audible song in it sat **+45 to +49 ms late**, halves agreeing
+to 1 ms (constant, not jitter). Two causes:
+
+- **+15 ms bookkeeping.** The head trim cuts 15 ms before the measured start on purpose, but
+  the layer was placed at the start, so its content played 15 ms late. Solo takes already
+  stamped the margin into their grid; layers never did. Fixed: the layer is placed by what its
+  file holds (`punch − (requested trim + 15 − actual trim)`).
+- **~+30 ms of speaker → microphone path** that the latency model could not see (the
+  simulator reports 0; phones under-report). Fixed by measuring it: after every layer save
+  the app lines the song in the layer up with the guide and moves the layer, gated on
+  confidence ≥ 8 and the two halves agreeing within 4 ms.
+
+**After:** a fresh layer measured **+25.9 ms** in the app (halves 26.0 / 25.5, confidence 17),
+was moved, and the harness then read it at **−0.5 ms**.
+
+**Half a beat with the click:** not a placement error. A start dragged off the song's bar
+line was made to land on a click bar line, so the click ran up to half a bar off the song.
+The song now enters at its own place in the bar (`punchPhaseInBarMs`). Unit-tested; **not yet
+measured on a fresh click take.**
+
+**On headphones** there is no song in the layer to measure; placement relies on the latency
+model (phone report, Bluetooth ear calibration) plus the 15 ms fix. Not measured.

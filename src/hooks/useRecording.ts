@@ -51,6 +51,10 @@ type OnRecorded = (
     waveformPeaks?: number[];
     /** ms cut from the front of the take at save (count-in/pre-roll head). 0 = untrimmed. */
     headTrimmedMs?: number;
+    /** The cut that was asked for (0 = the musical start was never measured). Differs from
+     *  headTrimmedMs when the trim was skipped or failed: the file then still holds the
+     *  pre-roll, and a layer must be placed knowing it. */
+    headTrimRequestedMs?: number;
     /**
      * 1ms high-passed onset envelope of the take, already shifted into FILE ms (the trimmed
      * head is dropped). This is the signal the beat grid is verified against — see
@@ -1032,6 +1036,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
             : undefined),
         waveformPeaks,
         headTrimmedMs,
+        headTrimRequestedMs: headTrimMs,
         onsetEnvelope: finishOnsetEnvelope(capturedOnsetState, headTrimmedMs),
       }));
 

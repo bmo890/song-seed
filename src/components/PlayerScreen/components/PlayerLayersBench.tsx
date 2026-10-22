@@ -731,7 +731,15 @@ export function PlayerLayersBench({
 
       <View style={benchStyles.labelRow}>
         <Text style={benchStyles.toolLabel}>{t("player.timing")}</Text>
-        <Text style={benchStyles.toolValue}>{formatClipOverdubStemOffsetLabel(selectedStem.offsetMs)}</Text>
+        {/* Relative to where it was recorded (the measured place): a fresh layer reads
+            "In place", not the correction the app made for the phone's latency. */}
+        <Text style={benchStyles.toolValue}>
+          {formatClipOverdubStemOffsetLabel(
+            selectedStem.recordedOffsetMs != null
+              ? selectedStem.offsetMs - selectedStem.recordedOffsetMs
+              : selectedStem.offsetMs
+          )}
+        </Text>
       </View>
       <View style={benchStyles.nudgeRow}>
         <NudgeKey
@@ -1037,7 +1045,7 @@ function BenchRow({
   onSelect: () => void;
   controls?: React.ReactNode;
   /** A layer's id: the row folds to its name line with its lane under the reel
-   *  (the fold key lives on the lane). */
+   *  (folded from Collapse all). */
   layerId?: string;
   /** False for the base take: the reel already draws it. */
   wave?: boolean;

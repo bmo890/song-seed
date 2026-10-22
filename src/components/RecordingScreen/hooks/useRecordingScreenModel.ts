@@ -35,7 +35,8 @@ import { looksMachineNamed } from "../../../domain/titleNaming";
 import { findIdeaInLibrary } from "../../../state/librarySelectors";
 import { haptic } from "../../../design/haptics";
 import { getActiveRecordingTakeSession } from "../../../services/recordingTakeSession";
-import { clampPunchInMs, getDefaultOverdubStemTitle, getRecordingGridBarMs } from "../../../domain/overdub";
+import { selfAlignRecordedLayer } from "../../../services/layerSelfAlignment";
+import { clampPunchInMs, getDefaultOverdubStemTitle, getRecordingGridBarMs, punchPhaseInBarMs } from "../../../domain/overdub";
 import {
   feelIdForGrid,
   getMetronomeAccentPattern,
@@ -364,13 +365,38 @@ export function useRecordingScreenModel() {
         // measured punch epoch), so the stem sits on the master at that offset.
         // The start this take was recorded against, not whatever the store holds by
         // the time it saves (a quick record while minimised rewrites it).
-        const punchOffsetMs = takePunchInMsRef.current ?? useStore.getState().recordingPunchInMs ?? 0;
-        await appActions.attachRecordedOverdubStem(
+        const punchMs = takePunchInMsRef.current ?? useStore.getState().recordingPunchInMs ?? 0;
+        // Place the layer by what its FILE holds, not by the punch alone. The head is cut
+        // HEAD_TRIM_SAFETY_EARLY_MS before the measured start, so the punch sits that far
+        // into the file, and further when the trim was skipped. Placing the file at the
+        // punch made every layer late by the margin (2026-10-22, measured +15 ms of a
+        // +47 ms total with scripts/layer-truth.py).
+        const requestedTrimMs = payload.headTrimRequestedMs ?? 0;
+        const punchInFileMs =
+          requestedTrimMs > 0 ? requestedTrimMs + HEAD_TRIM_SAFETY_EARLY_MS - (payload.headTrimmedMs ?? 0) : 0;
+        const punchOffsetMs = punchMs - punchInFileMs;
+        const guideUriAtSave = useStore.getState().recordingGuideMixUri;
+        const stemId = await appActions.attachRecordedOverdubStem(
           pendingOverdubSave.ideaId,
           pendingOverdubSave.clipId,
           { ...payload, recordingGrid: takeGrid, offsetMs: punchOffsetMs },
           pendingOverdubSave.title
         );
+        // Then measure it against the song it heard and move it where it was really
+        // played (services/layerSelfAlignment.ts). In the background: the layer is
+        // already in place by the model; a certain measurement refines it.
+        if (stemId && guideUriAtSave) {
+          const guideDurationMs = guideMixDurationMs;
+          void selfAlignRecordedLayer({
+            ideaId: pendingOverdubSave.ideaId,
+            clipId: pendingOverdubSave.clipId,
+            stemId,
+            guideUri: guideUriAtSave,
+            guideDurationMs,
+            layerEnvelope: payload.onsetEnvelope,
+            offsetMs: punchOffsetMs,
+          }).catch((error) => console.warn("Layer self-align failed", error));
+        }
         // Pins dropped while layering mark moments of the song: they land on the
         // take the layer rides, at the layer's place on it (they used to vanish).
         if (livePinsRef.current.length > 0) {
@@ -845,6 +871,12 @@ export function useRecordingScreenModel() {
     await new Promise<void>((resolve) => {
       setTimeout(resolve, ms);
     });
+  }
+
+  /** The click runs the song's own tempo and meter, so its bar lines can be the song's. */
+  function clickFollowsMasterGrid() {
+    const grid = recordingOverdubClip?.recordingGrid;
+    return !!grid && grid.bpm === metronome.bpm && grid.meterId === metronome.meterId;
   }
 
   /** Epoch time the guide's audio passed `basePositionMs`, anchored off its reported
@@ -2204,11 +2236,17 @@ export function useRecordingScreenModel() {
               console.log(`[timing] guide start advanced ${Math.round(guideAdvanceMs)}ms (player vs click pipeline)`);
             }
             if (punchInMs > 0) {
-              // Punch take: the count-in clicks ARE the lead-in; the master enters
-              // exactly at the punch point on the downbeat. The punch is bar-snapped on
-              // the master's grid, so no firstDownbeat shift applies.
-              console.log(`[timing] punch-in: master enters at ${Math.round(punchInMs)}ms on the downbeat`);
-              void schedulePhaseLockedGuideStart(downbeatEpochMs - guideAdvanceMs, {
+              // Punch take: the count-in clicks ARE the lead-in; the master enters at the
+              // punch point, at its own place in the bar, so the song's bar lines land on
+              // the click's (a start dragged off the bar used to enter ON the downbeat,
+              // putting the click up to half a bar off the song).
+              const phaseMs = clickFollowsMasterGrid()
+                ? punchPhaseInBarMs(punchInMs, recordingOverdubClip?.recordingGrid, anchor.msPerPulse * (anchor.pulsesPerBar ?? metronome.meterPreset.pulsesPerBar))
+                : 0;
+              console.log(
+                `[timing] punch-in: master enters at ${Math.round(punchInMs)}ms, ${Math.round(phaseMs)}ms after the downbeat`
+              );
+              void schedulePhaseLockedGuideStart(downbeatEpochMs + phaseMs - guideAdvanceMs, {
                 seekPositionMs: punchInMs,
                 anchorPositionMs: punchInMs,
               });
@@ -2381,7 +2419,13 @@ export function useRecordingScreenModel() {
             1,
             Math.ceil((Date.now() + guideLockLeadNeededMs() + punchLeadInMs - anchorEpochMs) / barMs)
           );
-          const targetEpochMs = anchorEpochMs + barsAhead * barMs;
+          // A punch off the song's bar line joins at its place in the bar, so the song's
+          // bar lines (not the punch) land on the click's.
+          const punchPhaseMs =
+            punchInMs > 0 && clickFollowsMasterGrid()
+              ? punchPhaseInBarMs(punchInMs, recordingOverdubClip?.recordingGrid, barMs)
+              : 0;
+          const targetEpochMs = anchorEpochMs + barsAhead * barMs + punchPhaseMs;
           console.log(
             `[timing] no-count-in guide lock: joining at the bar line ` +
               `${Math.round(targetEpochMs - Date.now())}ms out` +

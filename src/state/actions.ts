@@ -1488,6 +1488,22 @@ export const appActions = {
         await scheduleClipOverdubRerender(ideaId, clipId, { force: true });
     },
 
+    /** Re-place a just-recorded layer where measurement says it was really played
+     *  (services/layerSelfAlignment.ts). Moves its recorded place too, so Original
+     *  returns here, not to the estimate. */
+    placeRecordedOverdubStem: async (ideaId: string, clipId: string, stemId: string, offsetMs: number) => {
+        const { state, match, stem } = resolveOverdubStem(ideaId, clipId, stemId);
+        const nextOffsetMs = clampClipOverdubStemOffsetMs(offsetMs, match.clip.durationMs, stem.durationMs);
+        if (nextOffsetMs === stem.offsetMs && nextOffsetMs === stem.recordedOffsetMs) {
+            return;
+        }
+        state.updateClipOverdubStem(ideaId, clipId, stemId, {
+            offsetMs: nextOffsetMs,
+            recordedOffsetMs: nextOffsetMs,
+        });
+        await scheduleClipOverdubRerender(ideaId, clipId, { force: true });
+    },
+
     renameClipOverdubStem: async (ideaId: string, clipId: string, stemId: string, title: string) => {
         const nextTitle = title.trim();
         if (!nextTitle) {
