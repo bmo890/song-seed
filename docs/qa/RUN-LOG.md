@@ -376,3 +376,11 @@ measured on a fresh click take.**
 
 **On headphones** there is no song in the layer to measure; placement relies on the latency
 model (phone report, Bluetooth ear calibration) plus the 15 ms fix. Not measured.
+
+**Files without the priming marker (2026-10-22 survey of the simulator library).** Of 487
+audio files, the 314 imported `audio-*` files (dev samples copied from an outside voice
+recorder) carry no AAC edit list; every take the app recorded does. Import copies a file
+byte for byte (`importAudioAsset` → `copyAsync`), so the marker is the source app's, not
+ours. iOS strips the 48 ms either way. **Android unchecked:** ExoPlayer may play such a file
+48 ms later than iOS, which would put a layer recorded over it 48 ms off on that phone only.
+Needs one Android listen (a layer over an imported clip, played back on both platforms).

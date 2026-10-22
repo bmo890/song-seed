@@ -22,5 +22,9 @@ even from a file with no edit list; ffmpeg does not. Both scripts convert with `
 first, so a file reads as the app plays it. Without that, takes recorded by a path that writes
 no edit list read 48 ms late and every layer on them looks 48 ms early.
 
+Takes the app records carry the edit list. Imported files keep whatever their source wrote
+(import copies them as they are); many voice-recorder exports have none. Whether Android's
+player strips the priming on such a file is unchecked (see RUN-LOG, 2026-10-22).
+
 The app runs the same measurement after every layer save (`domain/layerAlignment.ts`,
 `services/layerSelfAlignment.ts`) and moves the layer when both halves agree.

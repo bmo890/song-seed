@@ -560,8 +560,16 @@ export function useRecordingScreenModel() {
   // the whole track, with only the eyebrow saying otherwise.
   const guideWaiting =
     !recording.isRecording && !recording.isPaused && !isArmingRecording && rawGuideMixPositionMs === 0;
-  const guideMixPositionMs =
-    guideWaiting && punchInMs > 0 ? punchInMs : Math.max(0, rawGuideMixPositionMs - guideMonitoringLeadInMs);
+  // A paused or finished take reads where the take stands on the song, not
+  // where the guide player happens to be: iOS tears the guide down on a
+  // recorder pause, and its 0:00 parked the tape at the top.
+  const takeHeldOnSong =
+    !!recordingOverdubClip && (recording.isPaused || overdubReviewLocked) && recording.elapsedMs > 0;
+  const guideMixPositionMs = takeHeldOnSong
+    ? punchInMs + recording.elapsedMs
+    : guideWaiting && punchInMs > 0
+      ? punchInMs
+      : Math.max(0, rawGuideMixPositionMs - guideMonitoringLeadInMs);
   const guideMixWaveformPeaks = recordingOverdubClip
     ? getClipPlaybackWaveformPeaks(recordingOverdubClip)
     : undefined;

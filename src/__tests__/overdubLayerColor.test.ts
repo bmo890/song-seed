@@ -1,4 +1,4 @@
-import { assignNextOverdubStemColor, getOverdubStemColor, withAlpha } from "../domain/overdub";
+import { assignNextOverdubStemColor } from "../domain/overdub";
 
 describe("assignNextOverdubStemColor", () => {
   it("returns a hex colour for any existing stem count", () => {
@@ -15,26 +15,5 @@ describe("assignNextOverdubStemColor", () => {
 
   it("is deterministic for a given index", () => {
     expect(assignNextOverdubStemColor(2)).toBe(assignNextOverdubStemColor(2));
-  });
-});
-
-describe("getOverdubStemColor", () => {
-  it("prefers the stem's own stored colour", () => {
-    expect(getOverdubStemColor({ color: "#123456" }, 5)).toBe("#123456");
-  });
-
-  it("falls back to the index-derived colour for stems saved before colour existed", () => {
-    expect(getOverdubStemColor({ color: undefined }, 3)).toBe(assignNextOverdubStemColor(3));
-  });
-});
-
-describe("withAlpha", () => {
-  it("converts a hex colour to an rgba string with the given alpha", () => {
-    expect(withAlpha("#824f3f", 0.5)).toBe("rgba(130, 79, 63, 0.5)");
-  });
-
-  it("handles pure black/white bounds", () => {
-    expect(withAlpha("#000000", 1)).toBe("rgba(0, 0, 0, 1)");
-    expect(withAlpha("#ffffff", 0)).toBe("rgba(255, 255, 255, 0)");
   });
 });

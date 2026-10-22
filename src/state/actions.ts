@@ -1517,12 +1517,6 @@ export const appActions = {
         state.updateClipOverdubStem(ideaId, clipId, stemId, { title: nextTitle });
     },
 
-    setClipOverdubStemColor: async (ideaId: string, clipId: string, stemId: string, color: string) => {
-        const { state } = resolveOverdubStem(ideaId, clipId, stemId);
-        // Cosmetic only — the rendered mix is unaffected, so no re-render is scheduled.
-        state.updateClipOverdubStem(ideaId, clipId, stemId, { color });
-    },
-
     toggleClipOverdubStemMute: async (ideaId: string, clipId: string, stemId: string) => {
         const { state, stem } = resolveOverdubStem(ideaId, clipId, stemId);
 

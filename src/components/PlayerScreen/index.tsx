@@ -420,7 +420,7 @@ function PlayerScreenInner({
     );
   }, [data.sections, sectionPreview, resolvedDisplayDuration]);
   // The layers under the reel: one named row each, in recording order, on the
-  // take's timeline (2026-10-17). The bench lists them itself, base take first.
+  // take's timeline. The lanes are the layer list (2026-10-22).
   const overdubLayerLanes = useMemo(
     () =>
       data.overdubStemEntries.map((stem) => ({
@@ -1349,7 +1349,6 @@ function PlayerScreenInner({
       };
     return {
       renameStem: wrap(appActions.renameClipOverdubStem, t("player.renameLayerFailed")),
-      changeStemColor: wrap(appActions.setClipOverdubStemColor, t("player.layerColorFailed")),
       adjustRootGain: wrap(appActions.adjustClipOverdubRootGain, t("player.rootGainFailed")),
       toggleRootToneFlag: wrap(appActions.toggleClipOverdubRootToneFlag, t("player.rootToneFailed")),
       adjustStemGain: wrap(appActions.adjustClipOverdubStemGain, t("player.layerGainFailed")),
@@ -1361,7 +1360,6 @@ function PlayerScreenInner({
   }, [layerClipId, layerIdeaId, t]);
   const {
     renameStem: handleRenameStem,
-    changeStemColor: handleChangeStemColor,
     adjustRootGain: handleAdjustRootGain,
     toggleRootToneFlag: handleToggleRootToneFlag,
     adjustStemGain: handleAdjustStemGain,
@@ -1532,7 +1530,7 @@ function PlayerScreenInner({
                   recordingGrid={playerClip.recordingGrid ?? null}
                   loopActive={practiceLoopEnabled && (ui.mode === "practice" || isWriting)}
                   overdubLayerLanes={overdubLayerLanes}
-                  // A lane is its layer's door to the bench, with Tools open too.
+                  // A lane is its layer's door to its sheet, with Tools open too.
                   onOpenLayerLane={
                     data.hasClipOverdubs ? openLayerSheet : undefined
                   }

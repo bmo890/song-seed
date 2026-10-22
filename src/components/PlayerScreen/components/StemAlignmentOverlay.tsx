@@ -40,7 +40,7 @@ const ZOOM_WINDOW_MS = 4000;
 const MAX_GRID_TICKS = 96;
 
 type Props = {
-  /** Shares the zoom key's row (the bench's Play together), so the strip costs
+  /** Shares the zoom key's row (the sheet's Play together), so the strip costs
    *  one row of chrome, not two. */
   headerLeading?: React.ReactNode;
   masterAudioUri: string | null;
@@ -50,8 +50,7 @@ type Props = {
   stemDurationMs: number;
   stemFallbackPeaks?: number[];
   offsetMs: number;
-  /** This layer's color key — drives its waveform bars and legend swatch, so the
-   *  overlay reads as "this specific layer" rather than one generic terracotta stem. */
+  /** The ink of this layer's bars against the song's. */
   stemColor: string;
   /** The MASTER's beat grid. Ticks are drawn only when its downbeat anchor was actually
    *  measured (firstDownbeatMs != null) — never guessed onto the timeline. */
@@ -65,7 +64,7 @@ type Props = {
    *  engine with no renders involved — while Play here or Solo runs, the cursor shows
    *  exactly what is sounding, so a nudge is never judged blind. */
   sharedPlayheadMs?: SharedValue<number>;
-  /** The cursor's ink — the layer's own colour for Solo, warm ink for Play here. */
+  /** The cursor's ink; deep terracotta when absent. */
   playheadColor?: string;
   /** Second-granularity playback position (null when nothing plays). While the detail
    *  zoom is open, the window follows this — the tape never plays out of view. */

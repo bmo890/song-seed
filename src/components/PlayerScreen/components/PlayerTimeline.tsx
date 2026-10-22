@@ -308,7 +308,7 @@ type Props = {
   recordingGrid?: RecordingGrid | null;
   /** Un-flattened layers, one named row each under the reel, on its timeline. */
   overdubLayerLanes?: OverdubLayerLane[];
-  /** A lane opens its layer on the bench. */
+  /** A lane opens its layer's sheet. */
   onOpenLayerLane?: (id: string) => void;
   /** The lanes are the layer list: Solo and Mute on each, the foot under them. */
   soloingLayerId?: string | null;
@@ -484,10 +484,8 @@ function PlayerTimelineInner({
       showExpandToggle={false}
       // Zoom is part of the reel's identity — the slim reel keeps the controls
       // and pinch alike; the minimap halves instead so navigation stays cheap.
-      // The bench halves it too: three stacked waveforms is one too many.
       showZoomControls
-      // The map halves whenever the page below needs the room: reading, the
-      // bench, and Tools.
+      // The map halves whenever the page below needs the room: reading and Tools.
       minimapCompact={readingSlim || mode !== "player"}
       // On the listening page the minimap shares the reel's half: zooming never moves the pages.
       minimapWithinHeight={!readingSlim && mode === "player"}

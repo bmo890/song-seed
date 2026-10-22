@@ -7,7 +7,6 @@ import { i18n } from "../i18n/instance";
 
 export const OVERDUB_GAIN_MIN_DB = -24;
 export const OVERDUB_GAIN_MAX_DB = 12;
-export const OVERDUB_GAIN_STEP_DB = 4;
 /** The level knob's travel (Sound room, 2026-10-14): ±12 dB with a limiter after
  *  the lift. Persisted gains keep the wider legacy clamp above so an old stem at
  *  −20 is not silently changed; the knob pins at its end and the readout says −20. */
@@ -43,33 +42,16 @@ export function getDefaultOverdubStemTitle(clip: ClipVersion) {
 }
 
 // ── Layer colour ─────────────────────────────────────────────────────────────
-// Each layer gets an accent colour automatically at creation — a golden-angle hue
-// rotation (~137.5°) so consecutive layers land far apart on the wheel regardless of
-// how many exist, without tracking which hues are "taken". Shown as the layer card's
-// tint, its lane on the reel, and its waveform in Align; adjustable anytime via the
-// layer's ⋯ menu.
+// Each layer is stamped with an accent colour at creation — a golden-angle hue
+// rotation (~137.5°) so consecutive layers land far apart on the wheel without
+// tracking which hues are "taken". Kept as data (archives carry it); nothing draws
+// it since the lanes went to ink (2026-10-22).
 const OVERDUB_STEM_HUE_STEP = 137.5;
 const OVERDUB_STEM_HUE_SEED = 18; // offsets the first layer off pure red
 
 export function assignNextOverdubStemColor(existingStemCount: number): string {
   const hue = (OVERDUB_STEM_HUE_SEED + existingStemCount * OVERDUB_STEM_HUE_STEP) % 360;
   return hueToAccentHex(hue);
-}
-
-/** Stems saved before the colour field existed fall back to a colour derived from
- *  their position, so old layers still render distinctly instead of all-terracotta. */
-export function getOverdubStemColor(stem: Pick<ClipOverdubStem, "color">, indexFallback: number): string {
-  return stem.color ?? assignNextOverdubStemColor(indexFallback);
-}
-
-/** rgba() with the given alpha — layer lanes/waveforms use partial opacity so
- *  overlapping layers blend instead of fully occluding each other. */
-export function withAlpha(hex: string, alpha: number): string {
-  const normalized = hex.replace("#", "");
-  const r = parseInt(normalized.slice(0, 2), 16);
-  const g = parseInt(normalized.slice(2, 4), 16);
-  const b = parseInt(normalized.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 export function getClipOverdubRootSettings(clip: ClipVersion): ClipOverdubRootSettings {
