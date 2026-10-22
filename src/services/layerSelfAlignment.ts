@@ -1,3 +1,4 @@
+import { InteractionManager } from "react-native";
 import { extractAudioData } from "@siteed/audio-studio";
 import { appActions } from "../state/actions";
 import {
@@ -17,10 +18,22 @@ import {
 /** Enough song to be certain; more only costs decode time and JS work. */
 const MAX_ALIGN_SPAN_MS = 20_000;
 
-function asSamples(value: unknown): Float32Array | null {
-  if (value instanceof Float32Array) return value;
-  if (Array.isArray(value) || ArrayBuffer.isView(value)) return Float32Array.from(value as ArrayLike<number>);
-  return null;
+/** Samples handed to the envelope per step; the JS thread breathes between steps. */
+const ENVELOPE_CHUNK_FRAMES = 16_384;
+
+const nextTick = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+/**
+ * The decoder's raw 16-bit PCM as floats. Read from `pcmData`, which crosses to JS as
+ * one buffer on both platforms; `normalizedData` crosses on Android as a JS array built
+ * one number at a time (two million for 20 s of stereo), enough to freeze or kill the
+ * app right after a layer saves (founder, Android, 2026-10-22).
+ */
+function pcm16ToFloats(pcm: Uint8Array): Float32Array {
+  const view = new DataView(pcm.buffer, pcm.byteOffset, pcm.byteLength);
+  const out = new Float32Array(Math.floor(pcm.byteLength / 2));
+  for (let i = 0; i < out.length; i += 1) out[i] = view.getInt16(i * 2, true) / 32768;
+  return out;
 }
 
 /**
@@ -56,23 +69,35 @@ export async function selfAlignRecordedLayer(args: {
   );
   if (endMs - startMs < MIN_LAYER_ALIGN_MS) return null;
 
+  // Let the save land and the recorder close before the decode competes with them.
+  await new Promise<void>((resolve) => InteractionManager.runAfterInteractions(() => resolve()));
   const decoded = await extractAudioData({
     fileUri: args.guideUri,
     startTimeMs: startMs,
     endTimeMs: endMs,
-    includeNormalizedData: true,
+    includeNormalizedData: false,
     includeBase64Data: false,
     includeWavHeader: false,
   });
-  const samples = asSamples(decoded?.normalizedData);
-  if (!samples || samples.length === 0) return null;
+  const raw: unknown = decoded?.pcmData;
+  const pcm = raw instanceof Uint8Array ? raw : raw instanceof ArrayBuffer ? new Uint8Array(raw) : null;
+  // Both decoders write 16-bit PCM unless asked otherwise; iOS still reports the
+  // source file's depth (32 for a rendered mix), so the field is not consulted.
+  if (!pcm || pcm.byteLength === 0) return null;
+  const samples = pcm16ToFloats(pcm);
+  // Android hands a stereo song back interleaved; the envelope folds the channels.
+  const channels = decoded.channels === 2 ? 2 : 1;
   const sampleRate =
-    typeof decoded?.sampleRate === "number" && decoded.sampleRate > 0
+    typeof decoded.sampleRate === "number" && decoded.sampleRate > 0
       ? decoded.sampleRate
-      : (samples.length * 1000) / (endMs - startMs);
+      : (samples.length * 1000) / channels / (endMs - startMs);
 
-  const state = createOnsetEnvelopeState(sampleRate, 1);
-  appendOnsetSamples(state, samples);
+  const state = createOnsetEnvelopeState(sampleRate, channels);
+  const chunk = ENVELOPE_CHUNK_FRAMES * channels;
+  for (let at = 0; at < samples.length; at += chunk) {
+    appendOnsetSamples(state, samples.subarray(at, at + chunk));
+    await nextTick();
+  }
   const guideEnvelope = finishOnsetEnvelope(state);
   if (!guideEnvelope) return null;
 

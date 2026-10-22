@@ -147,7 +147,8 @@ function OffscreenHint({
     const x = lane.offsetMs * pixelsPerMs * timelineScale.value + timelineTranslateX.value;
     return { opacity: trackWidth > 0 && x > trackWidth ? 1 : 0 };
   });
-  const at = fmtDuration(lane.offsetMs);
+  // A layer measured a few ms before the top starts at 0:00, not "−00:00".
+  const at = fmtDuration(Math.max(0, lane.offsetMs));
   return (
     <>
       <Animated.View pointerEvents="none" style={[laneStyles.hint, laneStyles.hintStart, before]}>

@@ -9,6 +9,7 @@ import {
   type SampleRate,
 } from "@siteed/audio-studio";
 import * as FileSystem from "expo-file-system/legacy";
+import { waitForFinalWavHeader } from "../services/wavHeaderReady";
 import { Linking, Platform } from "react-native";
 import { AppAlert } from "../components/common/AppAlert";
 import { haptic } from "../design/haptics";
@@ -940,12 +941,16 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       // pending-session marker stay in place until the trimmed attach succeeds, so a
       // failure at any point still recovers the full take.
       const rawDurationMs = recordingData.durationMs ?? 0;
+      // Nothing may read the file until its header states its real length: on iOS the
+      // recorder returns first and finishes the header after (services/wavHeaderReady.ts).
+      const headerFinal = await waitForFinalWavHeader(recordingData.fileUri);
+      if (!headerFinal) console.warn("[timing] the take's WAV header never settled; keeping it untrimmed");
       const currentHeadTrim = take.headTrim.get();
       const headTrimMs = currentHeadTrim.pending ? 0 : currentHeadTrim.ms;
       take.headTrim.set({ pending: false, ms: 0 });
       let sourceAudioUri = recordingData.fileUri;
       let headTrimmedMs = 0;
-      if (headTrimMs >= MIN_HEAD_TRIM_MS && rawDurationMs > headTrimMs + 250) {
+      if (headerFinal && headTrimMs >= MIN_HEAD_TRIM_MS && rawDurationMs > headTrimMs + 250) {
         try {
           const trimmed = await trimAudioRanges({
             fileUri: recordingData.fileUri,
