@@ -311,7 +311,7 @@ type Props = {
   /** A lane opens its layer's sheet. */
   onOpenLayerLane?: (id: string) => void;
   /** The lanes are the layer list: Solo and Mute on each, the foot under them. */
-  soloingLayerId?: string | null;
+  soloedLayerIds?: readonly string[];
   onSoloLayer?: (id: string) => void;
   onToggleLayerMute?: (id: string) => void;
   layerLanesFooter?: React.ReactNode;
@@ -381,7 +381,7 @@ function PlayerTimelineInner({
   recordingGrid,
   overdubLayerLanes,
   onOpenLayerLane,
-  soloingLayerId,
+  soloedLayerIds,
   onSoloLayer,
   onToggleLayerMute,
   layerLanesFooter,
@@ -603,7 +603,7 @@ function PlayerTimelineInner({
               onOpenLane={onOpenLayerLane}
               collapsed={layerLanesCollapsed}
               onToggleCollapsed={onToggleLayerLanes}
-              soloingLaneId={soloingLayerId}
+              soloedLaneIds={soloedLayerIds}
               onSoloLane={onSoloLayer}
               onToggleMuteLane={onToggleLayerMute}
               footer={layerLanesFooter}

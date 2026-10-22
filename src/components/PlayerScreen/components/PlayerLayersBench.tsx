@@ -1,13 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Spinner } from "../../common/Spinner";
-import { Slider } from "../../common/Slider";
 import { LevelToneStrip } from "../../common/LevelToneStrip";
 import { Ionicons } from "@expo/vector-icons";
-import { useAudioPlayer } from "expo-audio";
-import type { AudioStatus } from "expo-audio";
-import { useSharedValue, type SharedValue } from "react-native-reanimated";
-import { useThrottledAudioPlayerStatus } from "../../../hooks/useThrottledAudioPlayerStatus";
 import { StemAlignmentOverlay } from "./StemAlignmentOverlay";
 import { WarmModal } from "../../common/WarmModal";
 import { BottomSheet } from "../../common/BottomSheet";
@@ -22,13 +17,10 @@ import { AppAlert } from "../../common/AppAlert";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import type { SelectionAction } from "../../common/SelectionDock";
 import { actionIcons } from "../../common/actionIcons";
-import { useOverdubAlignmentAudition, type AlignmentAuditionTarget } from "../hooks/useOverdubAlignmentAudition";
-import { activateAndPlay, replacePlaybackSource } from "../../../services/transportPlayback";
 import {
   formatClipOverdubStemOffsetLabel,
   OVERDUB_STEM_NUDGE_STEP_LARGE_MS,
   OVERDUB_STEM_NUDGE_STEP_SMALL_MS,
-  overdubGainDbToPlayerVolume,
   type OverdubToneFlag,
 } from "../../../domain/overdub";
 import { snapToGrid } from "../../../domain/gridRuler";
@@ -40,15 +32,14 @@ import { fmtDuration } from "../../../utils";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { UserText } from "../../../i18n";
-import { userFacingMessage } from "../../../i18n/userFacingError";
 
 /**
  * A take's layers, behind the lanes (2026-10-22, founder: "the lanes as the list").
  * The lanes under the reel are the one place layers show: each is its name, where it
  * plays, Solo and Mute. This draws nothing of its own until asked: a layer's sheet
- * (play together, solo, alignment, timing, level, tone, rename, remove) when a lane is
- * opened, and the merge picker. It owns the layer audio (Solo, Play together) and drives
- * the reel's playhead while that audio sounds.
+ * (play, solo, alignment, timing, level, tone, rename, remove) when a lane is opened,
+ * and the merge picker. It has no audio of its own: play and Solo go through the main
+ * transport, so there is one player and one playhead (2026-10-22).
  */
 
 /** The Combine chooser — it IS the confirmation: each option spells its outcome.
@@ -72,8 +63,6 @@ export function openCombineChooser(t: TFunction, onChoose: (mode: "copy" | "repl
   ]);
 }
 
-export type AuditionFiles = { bedUri: string; layerUri: string; layerLeadMs: number };
-
 export type BenchStemEntry = {
   id: string;
   title: string;
@@ -88,24 +77,9 @@ export type BenchStemEntry = {
   tonePreset: string;
 };
 
-/** The slice of the transport clock the bench is allowed to drive. While Play here or
- *  Solo runs (main transport paused), the bench anchors these directly off its own audio
- *  engines — the reel's playhead then moves with what is actually sounding. */
-export type BenchTransportClock = {
-  sharedCurrentTimeMs: SharedValue<number>;
-  sharedIsPlaying: SharedValue<boolean>;
-  sharedPlaybackRate: SharedValue<number>;
-  sharedUpdateToken: SharedValue<number>;
-  /** The reel's pause hold: the tape ignores reports for a moment after any pause,
-   *  so handing it back to its resting place has to go through this. */
-  sharedPauseHoldMs?: SharedValue<number>;
-  sharedPauseHoldToken?: SharedValue<number>;
-};
-
 /** What the player drives (the lanes under the reel are the layer list). */
 export type LayerSheetHandle = {
   openLayer: (stemId: string) => void;
-  toggleSolo: (stemId: string) => void;
   startMerge: () => void;
   openCombine: () => void;
 };
@@ -118,12 +92,11 @@ type Props = {
   rootRecordingGrid?: RecordingGrid | null;
   isRendering: boolean;
   isMainPlaybackPlaying: boolean;
-  transportClock: BenchTransportClock;
-  /** Where the main transport rests — the playhead returns here when bench audio stops. */
-  getRestingPositionMs: () => number;
-  /** Second-granularity position for the header's mm:ss readout while bench audio is
-   *  what's sounding; null hands the readout back to the main transport. */
-  onDisplayPositionChange?: (ms: number | null) => void;
+  /** The layers whose Solo is on; the same switches as the lanes'. */
+  soloedLayerIds: readonly string[];
+  onToggleSolo: (stemId: string) => void;
+  /** Play the song through the main transport from a little before this layer. */
+  onPlayLayer: (stemId: string) => Promise<void>;
   onPauseMainPlayback: () => Promise<void>;
   onAdjustStemGain: (stemId: string, deltaDb: number) => void;
   onNudgeStem: (stemId: string, deltaMs: number) => void;
@@ -131,15 +104,8 @@ type Props = {
   onToggleStemToneFlag: (stemId: string, flag: OverdubToneFlag) => void;
   onRemoveStem: (stemId: string) => void;
   onSaveAsOneClip: (mode: "copy" | "replace") => void;
-  /** The layer whose Solo is sounding (null: none), for the lanes' Solo keys. */
-  onSoloChange?: (stemId: string | null) => void;
-  /** Layer audio started or stopped sounding (the reel follows it meanwhile). */
-  onAudioActiveChange?: (active: boolean) => void;
   /** The layers' help (formerly on the Layers view's bar). */
   onHelp?: () => void;
-  /** Play together's files for a layer: the song without it, and the layer with its
-   *  level and tone after `layerLeadMs` of silence. Null: play the raw files. */
-  prepareAudition?: (stemId: string) => Promise<AuditionFiles | null>;
   /** Mix the picked layers into one named layer. Resolves when it is in place. */
   onMergeStems: (stemIds: string[], title: string) => Promise<void>;
 };
@@ -166,9 +132,9 @@ export const PlayerLayersBench = React.forwardRef<LayerSheetHandle, Props>(funct
     rootRecordingGrid,
     isRendering,
     isMainPlaybackPlaying,
-    transportClock,
-    getRestingPositionMs,
-    onDisplayPositionChange,
+    soloedLayerIds,
+    onToggleSolo,
+    onPlayLayer,
     onPauseMainPlayback,
     onAdjustStemGain,
     onNudgeStem,
@@ -176,10 +142,7 @@ export const PlayerLayersBench = React.forwardRef<LayerSheetHandle, Props>(funct
     onToggleStemToneFlag,
     onRemoveStem,
     onSaveAsOneClip,
-    onSoloChange,
-    onAudioActiveChange,
     onHelp,
-    prepareAudition,
     onMergeStems,
   }: Props,
   ref
@@ -195,95 +158,7 @@ export const PlayerLayersBench = React.forwardRef<LayerSheetHandle, Props>(funct
   // it feel too cluttered").
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  // ---- The position feed ------------------------------------------------------------
-  // Raw status events (no renders) anchor the reel clock and the micro strip cursor
-  // while the bench is what's sounding. The reel dead-reckons between anchors exactly
-  // as it does for the main transport channel; the strip cursor tweens between them.
-  const feedActiveRef = useRef<"audition" | "solo" | null>(null);
-  const fedRef = useRef(false);
-  const selectedOffsetRef = useRef(0);
-  selectedOffsetRef.current = selectedStem?.offsetMs ?? 0;
-  const isMainPlayingRef = useRef(isMainPlaybackPlaying);
-  isMainPlayingRef.current = isMainPlaybackPlaying;
-  const sharedStripPlayheadMs = useSharedValue(-1);
-
-  const feedReel = React.useCallback(
-    (masterMs: number, playing: boolean) => {
-      fedRef.current = true;
-      transportClock.sharedCurrentTimeMs.value = masterMs;
-      transportClock.sharedIsPlaying.value = playing;
-      transportClock.sharedPlaybackRate.value = 1;
-      transportClock.sharedUpdateToken.value += 1;
-      sharedStripPlayheadMs.value = masterMs;
-    },
-    [transportClock, sharedStripPlayheadMs]
-  );
-
-  // Bench audio ended: hide the strip cursor and hand the clock back — parked at the
-  // main transport's resting position, unless the main transport is already playing
-  // again (then its own channel owns the clock and we must not touch it).
-  const releaseReel = React.useCallback(() => {
-    sharedStripPlayheadMs.value = -1;
-    if (!fedRef.current) {
-      return;
-    }
-    fedRef.current = false;
-    if (isMainPlayingRef.current) {
-      return;
-    }
-    const restingMs = getRestingPositionMs();
-    transportClock.sharedIsPlaying.value = false;
-    transportClock.sharedCurrentTimeMs.value = restingMs;
-    transportClock.sharedUpdateToken.value += 1;
-    // Without this the tape stayed where the bench audio stopped while the readout
-    // said the resting time (2026-10-22).
-    if (transportClock.sharedPauseHoldMs && transportClock.sharedPauseHoldToken) {
-      transportClock.sharedPauseHoldMs.value = restingMs;
-      transportClock.sharedPauseHoldToken.value += 1;
-    }
-  }, [transportClock, sharedStripPlayheadMs, getRestingPositionMs]);
-
-  // ---- Solo (the layer truly alone) -------------------------------------------------
-  const soloPlayer = useAudioPlayer(null, { updateInterval: 120 });
-  const { status: soloStatus } = useThrottledAudioPlayerStatus(soloPlayer, {
-    positionIntervalMs: 200,
-    onRawStatus: (status: AudioStatus) => {
-      if (feedActiveRef.current !== "solo") {
-        return;
-      }
-      // Solo runs on the layer's own tape — map it onto the master's timeline.
-      feedReel(
-        selectedOffsetRef.current + Math.round((status.currentTime ?? 0) * 1000),
-        !!status.playing
-      );
-    },
-  });
-  const [soloActive, setSoloActive] = useState(false);
-  const soloDurationMs = selectedStem?.durationMs ?? Math.round((soloStatus.duration ?? 0) * 1000);
-  const soloPositionMs = Math.round((soloStatus.currentTime ?? 0) * 1000);
-
-  const pauseSoloSafely = React.useCallback(() => {
-    try {
-      const result = soloPlayer.pause();
-      void Promise.resolve(result).catch(() => {});
-    } catch {
-      // Stale native handle during teardown/handoff — ignore.
-    }
-  }, [soloPlayer]);
-
-  // ---- Play here (master + layer together over the layer's span) --------------------
-  const audition = useOverdubAlignmentAudition({
-    onMasterRawStatus: (status: AudioStatus) => {
-      if (feedActiveRef.current !== "audition") {
-        return;
-      }
-      // The audition's master player IS the master timeline — feed it straight through.
-      feedReel(Math.round((status.currentTime ?? 0) * 1000), !!status.playing);
-    },
-  });
-  const isAuditioning = audition.auditioningStemId === selectedStem?.id;
-  const lastAuditionOffsetRef = useRef<number | null>(null);
-  const auditionRestartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isSoloed = !!selectedStem && soloedLayerIds.includes(selectedStem.id);
 
   // "Original" is where the layer was recorded (founder, 2026-10-22). Layers saved
   // before that was kept fall back to where it was when this sitting began.
@@ -294,216 +169,6 @@ export const PlayerLayersBench = React.forwardRef<LayerSheetHandle, Props>(funct
   const baselineOffsetMs =
     selectedStem?.recordedOffsetMs ?? baselineRef.current?.offsetMs ?? selectedStem?.offsetMs ?? 0;
   const canRestoreOriginal = !!selectedStem && selectedStem.offsetMs !== baselineOffsetMs;
-
-  // Selection change: whatever was sounding belonged to the previous layer.
-  const prevSelectionRef = useRef(selectedLaneId);
-  useEffect(() => {
-    if (prevSelectionRef.current !== selectedLaneId) {
-      prevSelectionRef.current = selectedLaneId;
-      audition.stop();
-      pauseSoloSafely();
-      setSoloActive(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLaneId, pauseSoloSafely]);
-
-  // Solo loops the layer (settled 2026-08-07): running out wraps to the top — a steady
-  // pulse for level and tone judgements, until the key is tapped again.
-  useEffect(() => {
-    if (!soloStatus.didJustFinish || !soloActive) {
-      return;
-    }
-    try {
-      const seekResult = soloPlayer.seekTo(0);
-      void Promise.resolve(seekResult)
-        .then(() => {
-          soloPlayer.play();
-        })
-        .catch(() => setSoloActive(false));
-    } catch {
-      setSoloActive(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [soloStatus.didJustFinish]);
-
-  // The feed follows whichever bench engine is live; when neither is, the reel clock
-  // goes back to the main transport.
-  const benchAudible = isAuditioning || soloActive;
-  useEffect(() => {
-    feedActiveRef.current = isAuditioning ? "audition" : soloActive ? "solo" : null;
-    if (!benchAudible) {
-      releaseReel();
-    }
-  }, [isAuditioning, soloActive, benchAudible, releaseReel]);
-
-  useEffect(() => {
-    return () => {
-      releaseReel();
-    };
-  }, [releaseReel]);
-
-  // Second-granularity position for the header's mm:ss readout — one commit per
-  // displayed second, the same cadence the main transport's readout renders at. The
-  // strip no longer follows it: its window re-centring once a second read as the
-  // playhead jumping (2026-10-22); the window stays on the layer, the cursor moves.
-  const lastSentSecondRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (!benchAudible) {
-      lastSentSecondRef.current = null;
-      onDisplayPositionChange?.(null);
-      return;
-    }
-    const tick = () => {
-      const ms = sharedStripPlayheadMs.value;
-      if (ms < 0) {
-        return;
-      }
-      const second = Math.floor(ms / 1000);
-      if (lastSentSecondRef.current === second) {
-        return;
-      }
-      lastSentSecondRef.current = second;
-      onDisplayPositionChange?.(ms);
-    };
-    tick();
-    const interval = setInterval(tick, 250);
-    return () => {
-      clearInterval(interval);
-      lastSentSecondRef.current = null;
-      onDisplayPositionChange?.(null);
-    };
-  }, [benchAudible, onDisplayPositionChange, sharedStripPlayheadMs]);
-
-  // Main playback wins — never two transports at once.
-  useEffect(() => {
-    if (!isMainPlaybackPlaying) return;
-    if (soloActive) {
-      pauseSoloSafely();
-      setSoloActive(false);
-    }
-    if (audition.auditioningStemId) {
-      audition.stop();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMainPlaybackPlaying]);
-
-  // Hearing a nudge is the point: while Play here runs, an offset change restarts the
-  // audition at the new offset after a short settle so successive taps coalesce.
-  useEffect(() => {
-    if (!isAuditioning || !selectedStem?.audioUri || !rootAudioUri) {
-      return;
-    }
-    if (lastAuditionOffsetRef.current === selectedStem.offsetMs) {
-      return;
-    }
-    if (auditionRestartTimerRef.current) {
-      clearTimeout(auditionRestartTimerRef.current);
-    }
-    const stem = selectedStem;
-    auditionRestartTimerRef.current = setTimeout(() => {
-      auditionRestartTimerRef.current = null;
-      lastAuditionOffsetRef.current = stem.offsetMs;
-      void auditionTargetFor(stem)
-        .then((target) => (target ? audition.start(target) : audition.stop()))
-        .catch(() => {
-          audition.stop();
-        });
-    }, 350);
-    return () => {
-      if (auditionRestartTimerRef.current) {
-        clearTimeout(auditionRestartTimerRef.current);
-        auditionRestartTimerRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuditioning, selectedStem?.id, selectedStem?.offsetMs, rootAudioUri]);
-
-  useEffect(() => {
-    return () => {
-      pauseSoloSafely();
-    };
-  }, [pauseSoloSafely]);
-
-  async function toggleSolo({ felt = true }: { felt?: boolean } = {}) {
-    if (!selectedStem?.audioUri) return;
-    if (felt) haptic.tap(); // Vocabulary: tap = control toggles.
-    try {
-      if (soloActive && soloStatus.playing) {
-        await soloPlayer.pause();
-        return;
-      }
-      audition.stop();
-      await onPauseMainPlayback();
-      soloPlayer.volume = overdubGainDbToPlayerVolume(selectedStem.gainDb);
-      if (soloActive) {
-        await activateAndPlay(soloPlayer, soloStatus, soloDurationMs, soloPositionMs);
-        return;
-      }
-      await replacePlaybackSource(soloPlayer, selectedStem.audioUri, false);
-      setSoloActive(true);
-      await activateAndPlay(soloPlayer, { duration: 0, currentTime: 0 });
-    } catch (error) {
-      pauseSoloSafely();
-      setSoloActive(false);
-      const message = userFacingMessage(error, t("player.layerPlayFailed"));
-      console.warn("Layer solo failed", error);
-      AppAlert.error(t("player.layerPreviewFailed"), message);
-    }
-  }
-
-  // Play together's two files (the song without this layer, and the layer) come
-  // from the owner, rendered once and cached; without a renderer it falls back to
-  // the raw base take and the raw layer.
-  const [auditionPreparing, setAuditionPreparing] = useState(false);
-  const prepareRunRef = useRef(0);
-  async function auditionTargetFor(stem: BenchStemEntry): Promise<AlignmentAuditionTarget | null> {
-    if (!stem.audioUri || !rootAudioUri) return null;
-    let files: AuditionFiles | null = null;
-    if (prepareAudition) {
-      try {
-        files = await prepareAudition(stem.id);
-      } catch (error) {
-        console.warn("Play together render failed — playing the raw take", error);
-      }
-    }
-    return {
-      stemId: stem.id,
-      bedUri: files?.bedUri ?? rootAudioUri,
-      layerUri: files?.layerUri ?? stem.audioUri,
-      layerLeadMs: files?.layerLeadMs ?? 0,
-      layerVolume: files ? 1 : overdubGainDbToPlayerVolume(stem.gainDb),
-      offsetMs: stem.offsetMs,
-      layerDurationMs: stem.durationMs,
-    };
-  }
-
-  async function togglePlayHere() {
-    if (!selectedStem) return;
-    haptic.tap(); // Vocabulary: tap = control toggles.
-    const run = ++prepareRunRef.current;
-    if (isAuditioning || auditionPreparing) {
-      setAuditionPreparing(false);
-      audition.stop();
-      return;
-    }
-    if (!selectedStem.audioUri || !rootAudioUri) return;
-    pauseSoloSafely();
-    setSoloActive(false);
-    lastAuditionOffsetRef.current = selectedStem.offsetMs;
-    void onPauseMainPlayback().catch(() => {});
-    setAuditionPreparing(true);
-    try {
-      const target = await auditionTargetFor(selectedStem);
-      if (run !== prepareRunRef.current || !target) return;
-      await audition.start(target);
-    } catch (error) {
-      console.warn("Alignment audition failed", error);
-      haptic.error(); // Vocabulary: failures fire error.
-      audition.stop();
-    } finally {
-      if (run === prepareRunRef.current) setAuditionPreparing(false);
-    }
-  }
 
   // Slide-to-move on the micro strip: preview rides the drag; the commit snaps onto the
   // master grid's nearest beat when close (60ms magnet — deliberate placements stay).
@@ -527,25 +192,6 @@ export const PlayerLayersBench = React.forwardRef<LayerSheetHandle, Props>(funct
     onNudgeStem(selectedStem.id, Math.round(snappedMs ?? targetMs) - selectedStem.offsetMs);
   };
 
-  // Solo on a row that is not selected selects it, then solos it once the previous
-  // layer's audio has stopped (the selection change stops it first).
-  const pendingSoloRef = useRef<string | null>(null);
-  function requestSolo(stemId: string) {
-    if (stemId === selectedStem?.id) {
-      void toggleSolo();
-      return;
-    }
-    pendingSoloRef.current = stemId;
-    setSelectedLaneId(stemId);
-  }
-  useEffect(() => {
-    if (pendingSoloRef.current && pendingSoloRef.current === selectedStem?.id && !soloActive) {
-      pendingSoloRef.current = null;
-      void toggleSolo();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedStem?.id, soloActive]);
-
   // Merging (founder, 2026-10-18): pick two or more layers, name the result.
   const [mergePicks, setMergePicks] = useState<string[] | null>(null);
   const [mergeNameOpen, setMergeNameOpen] = useState(false);
@@ -558,9 +204,6 @@ export const PlayerLayersBench = React.forwardRef<LayerSheetHandle, Props>(funct
   const orderedPicks = mergePicks ? stems.filter((stem) => mergePicks.includes(stem.id)) : [];
   async function runMerge(title: string) {
     if (!mergePicks || mergePicks.length < 2) return;
-    audition.stop();
-    pauseSoloSafely();
-    setSoloActive(false);
     setMerging(true);
     try {
       await onMergeStems(orderedPicks.map((stem) => stem.id), title);
@@ -575,11 +218,8 @@ export const PlayerLayersBench = React.forwardRef<LayerSheetHandle, Props>(funct
     setSheetOpen(true);
   }
 
-  // Playing together belongs to the sheet: closing it stops that. Solo stays — it
-  // has its own key on the row.
   function closeSheet() {
     setSheetOpen(false);
-    if (audition.auditioningStemId) audition.stop();
   }
 
   // An item's "…" is the action menu, never a centred dialog; removing asks first.
@@ -604,11 +244,6 @@ export const PlayerLayersBench = React.forwardRef<LayerSheetHandle, Props>(funct
             t("player.removeLayerTitle", { title: stem.title }),
             t("player.removeLayerBody"),
             () => {
-              if (stem.id === selectedStem?.id) {
-                audition.stop();
-                pauseSoloSafely();
-                setSoloActive(false);
-              }
               setSheetOpen(false);
               onRemoveStem(stem.id);
             },
@@ -624,22 +259,12 @@ export const PlayerLayersBench = React.forwardRef<LayerSheetHandle, Props>(funct
 
   React.useImperativeHandle(ref, () => ({
     openLayer: openLane,
-    toggleSolo: requestSolo,
     startMerge: () => {
       setSheetOpen(false);
       setMergePicks(selectedStem ? [selectedStem.id] : []);
     },
     openCombine: openSaveAsOneClip,
   }));
-
-  // The lanes light Solo from this.
-  const soloingStemId = soloActive && soloStatus.playing ? selectedStem?.id ?? null : null;
-  useEffect(() => {
-    onSoloChange?.(soloingStemId);
-  }, [soloingStemId, onSoloChange]);
-  useEffect(() => {
-    onAudioActiveChange?.(benchAudible);
-  }, [benchAudible, onAudioActiveChange]);
 
   const stemTools = selectedStem ? (
     <View style={benchStyles.tools}>
@@ -648,38 +273,38 @@ export const PlayerLayersBench = React.forwardRef<LayerSheetHandle, Props>(funct
         headerLeading={
           <View style={benchStyles.playKeys}>
             <InkKey
-              // Haptics: the toggle fires its own `tap` (togglePlayHere).
-              haptic="none"
-              tone={isAuditioning || auditionPreparing ? "active" : "idle"}
-              label={t("player.playTogetherShort")}
-              glyph={
-                auditionPreparing ? (
-                  <Spinner size="small" color={inkKeyColor("active")} accessibilityLabel={t("player.updatingMix")} />
-                ) : (
-                  <Ionicons
-                    name={isAuditioning ? "stop" : "play"}
-                    size={14}
-                    color={inkKeyColor(isAuditioning ? "active" : "idle")}
-                  />
-                )
-              }
-              onPress={() => void togglePlayHere()}
-              accessibilityLabel={isAuditioning ? t("player.stopTogether") : t("player.playTogether")}
-            />
-            <InkKey
-              // Haptics vocabulary: `tap` — a control toggles (the key's own; toggleSolo stays quiet).
+              // Haptics vocabulary: `tap` — a control toggles.
               haptic="tap"
-              tone={soloActive && soloStatus.playing ? "active" : "idle"}
+              tone={isMainPlaybackPlaying ? "active" : "idle"}
+              label={isMainPlaybackPlaying ? t("common.pause") : t("common.play")}
+              glyph={
+                <Ionicons
+                  name={isMainPlaybackPlaying ? "pause" : "play"}
+                  size={14}
+                  color={inkKeyColor(isMainPlaybackPlaying ? "active" : "idle")}
+                />
+              }
+              onPress={() =>
+                void (isMainPlaybackPlaying ? onPauseMainPlayback() : onPlayLayer(selectedStem.id)).catch(() => {})
+              }
+              accessibilityLabel={isMainPlaybackPlaying ? t("common.pause") : t("player.playLayerA11y")}
+            />
+            {/* The lane's Solo switch, drawn as a key beside Play (a toggle beside other
+                controls is an InkKey): the same set, on in both places at once. */}
+            <InkKey
+              // Haptics vocabulary: `tap` — a control toggles.
+              haptic="tap"
+              tone={isSoloed ? "active" : "idle"}
               label={t("player.solo")}
               glyph={
                 <Ionicons
-                  name={soloActive && soloStatus.playing ? "stop" : "play"}
-                  size={14}
-                  color={inkKeyColor(soloActive && soloStatus.playing ? "active" : "idle")}
+                  name={isSoloed ? "ellipse" : "ellipse-outline"}
+                  size={10}
+                  color={inkKeyColor(isSoloed ? "active" : "idle")}
                 />
               }
-              onPress={() => void toggleSolo({ felt: false })}
-              accessibilityLabel={t("player.playAloneA11y")}
+              onPress={() => onToggleSolo(selectedStem.id)}
+              accessibilityLabel={t("player.soloLayer", { title: selectedStem.title })}
             />
           </View>
         }
@@ -694,36 +319,9 @@ export const PlayerLayersBench = React.forwardRef<LayerSheetHandle, Props>(funct
         recordingGrid={rootRecordingGrid}
         onSlide={handleSlide}
         onSlideEnd={handleSlideEnd}
-        sharedPlayheadMs={sharedStripPlayheadMs}
-        playheadColor={colors.playhead}
       />
-      {/* Solo: the layer's own tape, scrubbable while it is loaded. Under the strip, so
-          the sheet does not jump when it appears. */}
-      {soloActive ? (
-        <View style={benchStyles.soloRow}>
-        <Text style={benchStyles.soloTime}>{fmtDuration(soloPositionMs)}</Text>
-        <Slider
-          style={benchStyles.soloScrubber}
-          minimumValue={0}
-          maximumValue={1}
-          value={soloDurationMs > 0 ? Math.max(0, Math.min(1, soloPositionMs / soloDurationMs)) : 0}
-          onSlidingComplete={(ratio) => {
-            if (soloDurationMs <= 0) return;
-            try {
-              const result = soloPlayer.seekTo((ratio * soloDurationMs) / 1000);
-              void Promise.resolve(result).catch(() => {});
-            } catch {
-              // Stale native handle — ignore.
-            }
-          }}
-          fill={false}
-          accessibilityLabel={t("player.scrubLayer")}
-        />
-        <Text style={benchStyles.soloTime}>{fmtDuration(soloDurationMs)}</Text>
-        </View>
-      ) : null}
-
-
+      {/* The strip holds still (no second playhead): it is for placing the layer. */}
+      <Text style={benchStyles.dragHint}>{t("player.dragToMove")}</Text>
       <View style={benchStyles.labelRow}>
         <Text style={benchStyles.toolLabel}>{t("player.timing")}</Text>
         {/* Relative to where it was recorded (the measured place): a fresh layer reads
@@ -999,21 +597,10 @@ const benchStyles = StyleSheet.create({
     color: colors.textStrong,
     fontVariant: ["tabular-nums"],
   },
-  // Solo's own tape: where in the layer you are, start and end in time, so it
-  // reads as a playhead and not as another setting.
-  soloRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  soloScrubber: {
-    flex: 1,
-    height: 26,
-  },
-  soloTime: {
+  dragHint: {
     ...textTokens.caption,
     color: colors.textMuted,
-    fontVariant: ["tabular-nums"],
+    marginTop: -4,
   },
   // The strip sits flush with the bench's rows: no inset of its own.
   strip: {

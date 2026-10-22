@@ -15,6 +15,7 @@ import {
   getClipPlaybackUri,
 } from "../domain/clipPresentation";
 import { activateAndPlay, replacePlaybackSource } from "../services/transportPlayback";
+import { isSoloMixUri } from "../services/soloMix";
 import { getLockScreenArtworkUrl, prefetchLockScreenArtwork } from "../services/lockScreenArtwork";
 import { beginForegroundAudioLoad, endForegroundAudioLoad } from "../services/audioForegroundActivity";
 import {
@@ -57,6 +58,12 @@ async function resolvePlayableUriWithDiagnostics(
       `exists=${info ? String(info.exists) : "unknown"}` +
       `${info?.exists && "size" in info ? ` size=${info.size}` : ""} uri=${playbackUri}`
   );
+
+  // A solo mix stands in for the clip's mix (services/soloMix.ts); a missing one is
+  // scratch gone, never a reason to clear the clip's real mix.
+  if (info && !info.exists && isSoloMixUri(playbackUri)) {
+    return null;
+  }
 
   if (info && !info.exists && usingMix && clip.audioUri) {
     console.warn(
