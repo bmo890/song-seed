@@ -19,6 +19,9 @@ export type InkOptionProps = {
   /** The dot's colour when on: a stage's or a tag's own ink. Terracotta by default. */
   ink?: string;
   style?: StyleProp<ViewStyle>;
+  /** On a lane's name line under the reel: smaller type and dot, a 20 pt row
+   *  (the 8 pt hit slop keeps it a finger's target). */
+  compact?: boolean;
   accessibilityLabel?: string;
   testID?: string;
 };
@@ -30,6 +33,7 @@ export function InkOption({
   disabled,
   ink,
   style,
+  compact = false,
   accessibilityLabel,
   testID,
 }: InkOptionProps) {
@@ -37,7 +41,7 @@ export function InkOption({
     <Press
       // Haptics (haptics.ts): `light` — a small state flip.
       haptic="light"
-      style={[s.row, style]}
+      style={[s.row, compact ? s.rowCompact : null, style]}
       onPress={onPress}
       disabled={disabled}
       hitSlop={8}
@@ -49,11 +53,12 @@ export function InkOption({
       <View
         style={[
           s.dot,
+          compact ? s.dotCompact : null,
           selected ? s.dotOn : null,
           selected && ink ? { backgroundColor: ink, borderColor: ink } : null,
         ]}
       />
-      <Text style={[s.label, selected ? s.labelOn : null]}>{label}</Text>
+      <Text style={[s.label, compact ? s.labelCompact : null, selected ? s.labelOn : null]}>{label}</Text>
     </Press>
   );
 }
@@ -84,5 +89,16 @@ const s = StyleSheet.create({
   },
   labelOn: {
     color: colors.textStrong,
+  },
+  rowCompact: {
+    gap: 5,
+    minHeight: 20,
+  },
+  dotCompact: {
+    width: 6,
+    height: 6,
+  },
+  labelCompact: {
+    fontSize: 11,
   },
 });

@@ -15,9 +15,8 @@ import { Button } from "../../common/Button";
 import { InkKey, inkKeyColor } from "../../common/InkKey";
 import { InkOption } from "../../common/InkOption";
 import { Press } from "../../common/Press";
+import { HelpButton } from "../../common/HelpButton";
 import { looksMachineNamed } from "../../../domain/titleNaming";
-import { LayerFoldAllKey, barHeights, laneBarCount } from "../../common/OverdubLayerLanes";
-import { useLayerPrefsStore } from "../../../state/useLayerPrefsStore";
 import { UserTextInput } from "../../../i18n";
 import { AppAlert } from "../../common/AppAlert";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
@@ -34,7 +33,7 @@ import {
 } from "../../../domain/overdub";
 import { snapToGrid } from "../../../domain/gridRuler";
 import type { RecordingGrid } from "../../../types";
-import { colors, radii, spacing, text as textTokens } from "../../../design/tokens";
+import { colors, radii, text as textTokens } from "../../../design/tokens";
 import { styles as appStyles } from "../../../styles";
 import { haptic } from "../../../design/haptics";
 import { fmtDuration } from "../../../utils";
@@ -44,16 +43,13 @@ import { UserText } from "../../../i18n";
 import { userFacingMessage } from "../../../i18n/userFacingError";
 
 /**
- * The bench (redrawn 2026-10-17, founder: "orderly, marked, never overstimulating";
- * list + sheet 2026-10-22): the take's layers as rows on paper, base take first, then
- * the layers in the order they were recorded. A layer's row is its name, where it plays
- * (its own waveform on the take's timeline) and its Solo, Mute and ›. The base take
- * draws no waveform: the reel above already is the song. Everything else about a
- * layer (play together, alignment, timing, level, tone, rename, remove) lives in its
- * own sheet, opened from the row, so the list stays a list.
+ * A take's layers, behind the lanes (2026-10-22, founder: "the lanes as the list").
+ * The lanes under the reel are the one place layers show: each is its name, where it
+ * plays, Solo and Mute. This draws nothing of its own until asked: a layer's sheet
+ * (play together, solo, alignment, timing, level, tone, rename, remove) when a lane is
+ * opened, and the merge picker. It owns the layer audio (Solo, Play together) and drives
+ * the reel's playhead while that audio sounds.
  */
-
-export const BENCH_ROOT_LANE_ID = "root";
 
 /** The Combine chooser — it IS the confirmation: each option spells its outcome.
  *  Shared by the bench and the eight-layer limit. */
@@ -107,17 +103,18 @@ export type BenchTransportClock = {
   sharedPauseHoldToken?: SharedValue<number>;
 };
 
+/** What the player drives (the lanes under the reel are the layer list). */
+export type LayerSheetHandle = {
+  openLayer: (stemId: string) => void;
+  toggleSolo: (stemId: string) => void;
+  startMerge: () => void;
+  openCombine: () => void;
+};
+
 type Props = {
-  selectedLaneId: string;
-  /** A lane under the reel asked for this layer's sheet; handled once. */
-  sheetRequest?: string | null;
-  onSheetRequestHandled?: () => void;
   stems: BenchStemEntry[];
-  rootSettings: { gainDb: number; tonePreset: string } | null;
   rootAudioUri: string | null;
   rootDurationMs: number;
-  /** The reel's (and its minimap's) length: the rows share the minimap's scale. */
-  timelineDurationMs?: number;
   rootWaveformPeaks?: number[];
   rootRecordingGrid?: RecordingGrid | null;
   isRendering: boolean;
@@ -129,17 +126,18 @@ type Props = {
    *  what's sounding; null hands the readout back to the main transport. */
   onDisplayPositionChange?: (ms: number | null) => void;
   onPauseMainPlayback: () => Promise<void>;
-  onAdjustRootGain: (deltaDb: number) => void;
-  onToggleRootToneFlag: (flag: OverdubToneFlag) => void;
   onAdjustStemGain: (stemId: string, deltaDb: number) => void;
   onNudgeStem: (stemId: string, deltaMs: number) => void;
   onRenameStem: (stemId: string, title: string) => void;
-  onSelectLane: (laneId: string) => void;
-  onToggleStemMute: (stemId: string) => void;
   onToggleStemToneFlag: (stemId: string, flag: OverdubToneFlag) => void;
   onRemoveStem: (stemId: string) => void;
   onSaveAsOneClip: (mode: "copy" | "replace") => void;
-  onCloseBench: () => void;
+  /** The layer whose Solo is sounding (null: none), for the lanes' Solo keys. */
+  onSoloChange?: (stemId: string | null) => void;
+  /** Layer audio started or stopped sounding (the reel follows it meanwhile). */
+  onAudioActiveChange?: (active: boolean) => void;
+  /** The layers' help (formerly on the Layers view's bar). */
+  onHelp?: () => void;
   /** Play together's files for a layer: the song without it, and the layer with its
    *  level and tone after `layerLeadMs` of silence. Null: play the raw files. */
   prepareAudition?: (stemId: string) => Promise<AuditionFiles | null>;
@@ -160,40 +158,38 @@ function NudgeKey({ label, onPress }: { label: string; onPress: () => void }) {
   );
 }
 
-export function PlayerLayersBench({
-  selectedLaneId,
-  sheetRequest,
-  onSheetRequestHandled,
-  stems,
-  rootSettings,
-  rootAudioUri,
-  rootDurationMs,
-  timelineDurationMs,
-  rootWaveformPeaks,
-  rootRecordingGrid,
-  isRendering,
-  isMainPlaybackPlaying,
-  transportClock,
-  getRestingPositionMs,
-  onDisplayPositionChange,
-  onPauseMainPlayback,
-  onAdjustRootGain,
-  onToggleRootToneFlag,
-  onAdjustStemGain,
-  onNudgeStem,
-  onRenameStem,
-  onSelectLane,
-  onToggleStemMute,
-  onToggleStemToneFlag,
-  onRemoveStem,
-  onSaveAsOneClip,
-  onCloseBench,
-  prepareAudition,
-  onMergeStems,
-}: Props) {
+export const PlayerLayersBench = React.forwardRef<LayerSheetHandle, Props>(function PlayerLayersBench(
+  {
+    stems,
+    rootAudioUri,
+    rootDurationMs,
+    rootWaveformPeaks,
+    rootRecordingGrid,
+    isRendering,
+    isMainPlaybackPlaying,
+    transportClock,
+    getRestingPositionMs,
+    onDisplayPositionChange,
+    onPauseMainPlayback,
+    onAdjustStemGain,
+    onNudgeStem,
+    onRenameStem,
+    onToggleStemToneFlag,
+    onRemoveStem,
+    onSaveAsOneClip,
+    onSoloChange,
+    onAudioActiveChange,
+    onHelp,
+    prepareAudition,
+    onMergeStems,
+  }: Props,
+  ref
+) {
   const { t } = useTranslation();
+  // Which layer the sheet (and Solo) is about. The lanes are the list now; this is
+  // the one the player last asked for.
+  const [selectedLaneId, setSelectedLaneId] = useState<string | null>(null);
   const selectedStem = stems.find((stem) => stem.id === selectedLaneId) ?? null;
-  const isRoot = selectedLaneId === BENCH_ROOT_LANE_ID || !selectedStem;
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   // One layer's settings, in its own sheet (founder, 2026-10-22: "the controls make
@@ -541,7 +537,7 @@ export function PlayerLayersBench({
       return;
     }
     pendingSoloRef.current = stemId;
-    onSelectLane(stemId);
+    setSelectedLaneId(stemId);
   }
   useEffect(() => {
     if (pendingSoloRef.current && pendingSoloRef.current === selectedStem?.id && !soloActive) {
@@ -575,14 +571,8 @@ export function PlayerLayersBench({
     }
   }
 
-  useEffect(() => {
-    if (!sheetRequest) return;
-    setSheetOpen(true);
-    onSheetRequestHandled?.();
-  }, [sheetRequest, onSheetRequestHandled]);
-
   function openLane(laneId: string) {
-    if (laneId !== selectedLaneId) onSelectLane(laneId);
+    if (laneId !== selectedLaneId) setSelectedLaneId(laneId);
     setSheetOpen(true);
   }
 
@@ -603,10 +593,7 @@ export function PlayerLayersBench({
         key: "player.renameLayer",
         label: t("player.renameLayer"),
         icon: actionIcons.edit,
-        onPress: () => {
-          onSelectLane(stem.id);
-          setEditModalOpen(true);
-        },
+        onPress: () => setEditModalOpen(true),
       },
       {
         key: "player.removeLayer",
@@ -633,18 +620,27 @@ export function PlayerLayersBench({
   }
 
   function openSaveAsOneClip() {
-    openCombineChooser(t, (mode) => {
-      onCloseBench();
-      onSaveAsOneClip(mode);
-    });
+    openCombineChooser(t, (mode) => onSaveAsOneClip(mode));
   }
 
-  // The minimap's scale, so each row's wave sits exactly under its place on the
-  // minimap above (founder, 2026-10-22: "is it actually lined up?").
-  const timelineMs = Math.max(
-    1,
-    timelineDurationMs ?? Math.max(rootDurationMs, ...stems.map((stem) => stem.offsetMs + stem.durationMs))
-  );
+  React.useImperativeHandle(ref, () => ({
+    openLayer: openLane,
+    toggleSolo: requestSolo,
+    startMerge: () => {
+      setSheetOpen(false);
+      setMergePicks(selectedStem ? [selectedStem.id] : []);
+    },
+    openCombine: openSaveAsOneClip,
+  }));
+
+  // The lanes light Solo from this.
+  const soloingStemId = soloActive && soloStatus.playing ? selectedStem?.id ?? null : null;
+  useEffect(() => {
+    onSoloChange?.(soloingStemId);
+  }, [soloingStemId, onSoloChange]);
+  useEffect(() => {
+    onAudioActiveChange?.(benchAudible);
+  }, [benchAudible, onAudioActiveChange]);
 
   const stemTools = selectedStem ? (
     <View style={benchStyles.tools}>
@@ -790,343 +786,102 @@ export function PlayerLayersBench({
   ) : null;
 
   return (
-    <View style={benchStyles.bench}>
-      {isPicking ? null : (
-        <View style={benchStyles.foldAllRow}>
-          <LayerFoldAllKey layerIds={stems.map((stem) => stem.id)} />
-        </View>
-      )}
-      {isPicking ? null : (
-      <BenchRow
-        title={t("player.baseTake")}
-        readsAsName={false}
-        meta={fmtDuration(rootDurationMs)}
-        offsetMs={0}
-        durationMs={rootDurationMs}
-        timelineMs={timelineMs}
-        // No waveform: the reel above already is the base take.
-        wave={false}
-        selected={false}
-        rendering={isRoot && isRendering}
-        onSelect={() => openLane(BENCH_ROOT_LANE_ID)}
-        controls={<RowChevron label={t("player.layerSettings", { title: t("player.baseTake") })} onPress={() => openLane(BENCH_ROOT_LANE_ID)} />}
-      />
-      )}
-
-      {stems.map((stem) => {
-        // While picking for a merge, the dots are the only marking.
-        const selected = !isPicking && stem.id === selectedStem?.id;
-        return (
-          <BenchRow
-            key={stem.id}
-            title={stem.title}
-            readsAsName={!looksMachineNamed(stem.title)}
-            meta={`${fmtDuration(stem.offsetMs)} – ${fmtDuration(stem.offsetMs + stem.durationMs)}`}
-            offsetMs={stem.offsetMs}
-            durationMs={stem.durationMs}
-            timelineMs={timelineMs}
-            peaks={stem.waveformPeaks}
-            // Rows are doors now: nothing stays lit for being the last one opened.
-            selected={false}
-            muted={stem.isMuted}
-            rendering={selected && isRendering}
-            onSelect={() => openLane(stem.id)}
-            layerId={stem.id}
-            pick={
-              isPicking
-                ? { picked: mergePicks!.includes(stem.id), onToggle: () => togglePick(stem.id) }
-                : undefined
-            }
-            controls={isPicking ? null : 
-              <>
-                <InkOption
-                  label={t("player.solo")}
-                  selected={selected && soloActive && !!soloStatus.playing}
-                  disabled={!stem.audioUri}
-                  onPress={() => requestSolo(stem.id)}
-                />
-                <InkOption
-                  label={t("player.mute")}
-                  selected={stem.isMuted}
-                  onPress={() => onToggleStemMute(stem.id)}
-                  accessibilityLabel={stem.isMuted ? t("player.unmuteLayer") : t("player.muteLayer")}
-                />
-                <RowChevron
-                  label={t("player.layerSettings", { title: stem.title })}
-                  onPress={() => openLane(stem.id)}
-                />
-              </>
-            }
-          />
-        );
-      })}
-      <View style={benchStyles.rule} />
-
-      {isPicking ? (
-        <View style={benchStyles.pickFoot}>
-          <Text style={benchStyles.toolsCaption}>{t("player.mergePick")}</Text>
-          <View style={benchStyles.editModalActions}>
-            <Button variant="secondary" label={t("common.cancel")} onPress={() => setMergePicks(null)} disabled={merging} />
-            <Button
-              variant="primary"
-              label={merging ? t("player.merging") : t("player.mergeCount", { count: orderedPicks.length })}
-              disabled={orderedPicks.length < 2 || merging}
-              onPress={() => setMergeNameOpen(true)}
-            />
-          </View>
-        </View>
-      ) : (
-      <>
-      {/* The foot: merge some layers into one, or combine them all into the take. */}
-      <View style={benchStyles.footRow}>
-        {stems.length >= 2 ? (
-          <Pressable
-            style={({ pressed }) => [benchStyles.footLink, pressed ? appStyles.pressDown : null]}
-            onPress={() => {
-              haptic.tap(); // Vocabulary: tap — a control acted.
-              setMergePicks(selectedStem ? [selectedStem.id] : []);
-            }}
-            accessibilityRole="button"
-            accessibilityLabel={t("player.mergeLayers")}
-          >
-            <Ionicons name="git-merge-outline" size={14} color={colors.textSecondary} />
-            <Text style={benchStyles.footLinkText}>{t("player.mergeLayers")}</Text>
-          </Pressable>
-        ) : null}
-        {stems.length > 0 ? (
-          <Pressable
-            style={({ pressed }) => [benchStyles.footLink, pressed ? appStyles.pressDown : null]}
-            onPress={openSaveAsOneClip}
-            accessibilityRole="button"
-            accessibilityLabel={t("player.saveOneClip")}
-          >
-            <Ionicons name="albums-outline" size={14} color={colors.textSecondary} />
-            <Text style={benchStyles.footLinkText}>{t("player.saveOneClip")}</Text>
-          </Pressable>
-        ) : null}
-      </View>
-      </>
-      )}
-
-      <BottomSheet visible={sheetOpen && !isPicking} onClose={closeSheet}>
-        <View style={benchStyles.sheetHead}>
-          <View style={benchStyles.sheetTitleBlock}>
-            <UserText
-              value={isRoot ? t("player.baseTake") : selectedStem?.title ?? ""}
-              style={
-                !isRoot && selectedStem && !looksMachineNamed(selectedStem.title)
-                  ? benchStyles.sheetTitleTyped
-                  : benchStyles.sheetTitleMachine
-              }
-              numberOfLines={1}
-            >
-              {isRoot ? t("player.baseTake") : selectedStem?.title ?? ""}
-            </UserText>
-            <Text style={benchStyles.meta}>
-              {isRoot || !selectedStem
-                ? fmtDuration(rootDurationMs)
-                : `${fmtDuration(selectedStem.offsetMs)} – ${fmtDuration(selectedStem.offsetMs + selectedStem.durationMs)}`}
-            </Text>
-          </View>
-          {isRendering ? (
-            <Spinner size="small" color={colors.primaryDeep} accessibilityLabel={t("player.updatingMix")} />
-          ) : null}
-          {!isRoot && selectedStem ? (
-            <Press
-              feel="glyph"
-              // Haptics: none — it opens a menu, which settles with its own.
-              haptic="none"
-              style={benchStyles.menuButton}
-              onPress={() => setMenuOpen(true)}
-              hitSlop={6}
-              accessibilityRole="button"
-              accessibilityLabel={t("player.layerOptions")}
-            >
-              <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
-            </Press>
-          ) : null}
-        </View>
-        {isRoot ? (
-          rootSettings ? (
-            <LevelToneStrip
-              style={benchStyles.strip}
-              gainDb={rootSettings.gainDb}
-              tonePreset={rootSettings.tonePreset}
-              onCommitGain={(db) => onAdjustRootGain(db - rootSettings.gainDb)}
-              onToggleToneFlag={onToggleRootToneFlag}
-            />
-          ) : null
-        ) : (
-          stemTools
-        )}
-        {/* The menu and Rename open from this sheet, so they are presented from inside
-            it (iOS cannot stack a second Modal from the root). */}
+    <>
+      <BottomSheet visible={sheetOpen && !!selectedStem} onClose={closeSheet}>
         {selectedStem ? (
-          <SelectionActionSheet
-            visible={menuOpen}
-            title={selectedStem.title}
-            actions={layerMenuActions(selectedStem)}
-            onClose={() => setMenuOpen(false)}
-          />
-        ) : null}
-        {selectedStem ? (
-          <RenameLayerModal
-            visible={editModalOpen}
-            title={selectedStem.title}
-            onSave={(nextTitle) => {
-              if (nextTitle !== selectedStem.title) {
-                onRenameStem(selectedStem.id, nextTitle);
-              }
-            }}
-            onClose={() => setEditModalOpen(false)}
-          />
+          <>
+            <View style={benchStyles.sheetHead}>
+              <View style={benchStyles.sheetTitleBlock}>
+                <UserText
+                  value={selectedStem.title}
+                  style={
+                    !looksMachineNamed(selectedStem.title)
+                      ? benchStyles.sheetTitleTyped
+                      : benchStyles.sheetTitleMachine
+                  }
+                  numberOfLines={1}
+                >
+                  {selectedStem.title}
+                </UserText>
+                <Text style={benchStyles.meta}>
+                  {`${fmtDuration(Math.max(0, selectedStem.offsetMs))} – ${fmtDuration(Math.max(0, selectedStem.offsetMs + selectedStem.durationMs))}`}
+                </Text>
+              </View>
+              {isRendering ? (
+                <Spinner size="small" color={colors.primaryDeep} accessibilityLabel={t("player.updatingMix")} />
+              ) : null}
+              {onHelp ? <HelpButton compact onPress={onHelp} /> : null}
+              <Press
+                feel="glyph"
+                // Haptics: none — it opens a menu, which settles with its own.
+                haptic="none"
+                style={benchStyles.menuButton}
+                onPress={() => setMenuOpen(true)}
+                hitSlop={6}
+                accessibilityRole="button"
+                accessibilityLabel={t("player.layerOptions")}
+              >
+                <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
+              </Press>
+            </View>
+            {stemTools}
+            {/* The menu and Rename open from this sheet, so they are presented from
+                inside it (iOS cannot stack a second Modal from the root). */}
+            <SelectionActionSheet
+              visible={menuOpen}
+              title={selectedStem.title}
+              actions={layerMenuActions(selectedStem)}
+              onClose={() => setMenuOpen(false)}
+            />
+            <RenameLayerModal
+              visible={editModalOpen}
+              title={selectedStem.title}
+              onSave={(nextTitle) => {
+                if (nextTitle !== selectedStem.title) {
+                  onRenameStem(selectedStem.id, nextTitle);
+                }
+              }}
+              onClose={() => setEditModalOpen(false)}
+            />
+          </>
         ) : null}
       </BottomSheet>
 
-      <RenameLayerModal
-        visible={mergeNameOpen}
-        heading={t("player.mergeName")}
-        title={orderedPicks[0]?.title ?? ""}
-        onSave={(name) => void runMerge(name)}
-        onClose={() => setMergeNameOpen(false)}
-      />
-
-    </View>
-  );
-}
-
-/** The row's door into its sheet: a bare chevron, never a filled key. */
-function RowChevron({ label, onPress }: { label: string; onPress: () => void }) {
-  return (
-    <Press
-      feel="glyph"
-      // Haptics vocabulary: opening a place is navigation, and navigation is silent.
-      haptic="navigate"
-      style={benchStyles.menuButton}
-      onPress={onPress}
-      hitSlop={6}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-    >
-      <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-    </Press>
-  );
-}
-
-/** One row on the bench: name and where it sits (meta), its Solo / Mute / ›, and
- *  its waveform on the take's timeline. The row opens the layer's sheet. */
-function BenchRow({
-  title,
-  readsAsName,
-  meta,
-  offsetMs,
-  durationMs,
-  timelineMs,
-  peaks,
-  selected,
-  muted = false,
-  rendering = false,
-  onSelect,
-  controls,
-  layerId,
-  wave = true,
-  pick,
-}: {
-  title: string;
-  readsAsName: boolean;
-  meta: string;
-  offsetMs: number;
-  durationMs: number;
-  timelineMs: number;
-  peaks?: number[];
-  selected: boolean;
-  muted?: boolean;
-  rendering?: boolean;
-  onSelect: () => void;
-  controls?: React.ReactNode;
-  /** A layer's id: the row folds to its name line with its lane under the reel
-   *  (folded from Collapse all). */
-  layerId?: string;
-  /** False for the base take: the reel already draws it. */
-  wave?: boolean;
-  /** Merge picking: a leading dot, and the row toggles it. */
-  pick?: { picked: boolean; onToggle: () => void };
-}) {
-  const { t } = useTranslation();
-  const folded = useLayerPrefsStore((state) => (layerId ? state.collapsedLayerIds.includes(layerId) : false));
-  // Bars by drawn width, the same grain as the lanes under the reel.
-  const [trackWidth, setTrackWidth] = useState(0);
-  const waveWidth = (trackWidth * Math.max(0, durationMs)) / timelineMs;
-  const heights = React.useMemo(
-    () => (wave && trackWidth > 0 ? barHeights(peaks, laneBarCount(waveWidth)) : []),
-    [wave, trackWidth, peaks, waveWidth]
-  );
-  const leftPct = `${Math.max(0, Math.min(100, (offsetMs / timelineMs) * 100))}%` as const;
-  const widthPct = `${Math.max(1, Math.min(100, (durationMs / timelineMs) * 100))}%` as const;
-  return (
-    <View style={benchStyles.row}>
-      <View style={benchStyles.rowHead}>
-        <Press
-          feel="surface"
-          // Haptics: choosing a row taps through onSelect (handlePressLane);
-          // a merge pick is a small state flip: `light`.
-          haptic={pick ? "light" : "none"}
-          style={benchStyles.rowName}
-          onPress={pick ? pick.onToggle : onSelect}
-          accessibilityRole={pick ? "checkbox" : "button"}
-          accessibilityState={pick ? { checked: pick.picked } : { selected }}
-          accessibilityLabel={pick ? t("player.pickLayer", { title }) : title}
-        >
-          {pick ? <View style={[benchStyles.pickDot, pick.picked ? benchStyles.pickDotOn : null]} /> : null}
-          <UserText
-            value={title}
-            style={[
-              readsAsName ? benchStyles.nameTyped : benchStyles.nameMachine,
-              selected ? benchStyles.nameSelected : null,
-            ]}
-            numberOfLines={1}
-          >
-            {title}
-          </UserText>
-          <Text style={benchStyles.meta} numberOfLines={1}>
-            {muted ? `${meta} · ${t("player.mutedShort")}` : meta}
-          </Text>
-          {rendering ? (
-            <Spinner size="small" color={colors.primaryDeep} accessibilityLabel={t("player.updatingMix")} />
-          ) : null}
-        </Press>
-        {controls ? <View style={benchStyles.controls}>{controls}</View> : null}
-      </View>
-      {folded || !wave ? null : (
-      <Press
-        feel="still"
-        haptic={pick ? "light" : "none"}
-        onPress={pick ? pick.onToggle : onSelect}
-        onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)}
-        style={benchStyles.track}
-        accessibilityElementsHidden
-      >
-        <View style={[benchStyles.baseline, muted ? benchStyles.baselineMuted : null]} />
-        <View style={[benchStyles.wave, { left: leftPct, width: widthPct }]} pointerEvents="none">
-          {heights.map((h, index) => (
-            <View
-              key={index}
-              style={[
-                benchStyles.bar,
-                selected ? benchStyles.barSelected : null,
-                muted ? (selected ? benchStyles.barSelectedMuted : benchStyles.barMuted) : null,
-                { height: Math.max(2, Math.round(h * ROW_WAVE_HEIGHT)) },
-              ]}
+      {/* Merge (founder, 2026-10-18): pick two or more layers, then name the result. */}
+      <BottomSheet visible={isPicking} onClose={() => (merging ? undefined : setMergePicks(null))}>
+        <Text style={appStyles.selectionSheetTitle}>{t("player.mergeLayers")}</Text>
+        <Text style={benchStyles.pickHint}>{t("player.mergePick")}</Text>
+        <View style={benchStyles.pickList}>
+          {stems.map((stem) => (
+            <InkOption
+              key={stem.id}
+              label={stem.title}
+              selected={!!mergePicks?.includes(stem.id)}
+              onPress={() => togglePick(stem.id)}
+              accessibilityLabel={t("player.pickLayer", { title: stem.title })}
             />
           ))}
         </View>
-      </Press>
-      )}
-    </View>
+        <View style={benchStyles.editModalActions}>
+          <Button variant="secondary" label={t("common.cancel")} onPress={() => setMergePicks(null)} disabled={merging} />
+          <Button
+            variant="primary"
+            label={merging ? t("player.merging") : t("player.mergeCount", { count: orderedPicks.length })}
+            disabled={orderedPicks.length < 2 || merging}
+            onPress={() => setMergeNameOpen(true)}
+          />
+        </View>
+        <RenameLayerModal
+          visible={mergeNameOpen}
+          heading={t("player.mergeName")}
+          title={orderedPicks[0]?.title ?? ""}
+          onSave={(name) => void runMerge(name)}
+          onClose={() => setMergeNameOpen(false)}
+        />
+      </BottomSheet>
+    </>
   );
-}
-
-const ROW_WAVE_HEIGHT = 14;
+});
 
 /** Rename a layer. Draft state resets from props each time the sheet opens. */
 function RenameLayerModal({
@@ -1182,137 +937,24 @@ function RenameLayerModal({
 }
 
 const benchStyles = StyleSheet.create({
-  bench: {
-    marginTop: spacing.sm,
+  pickHint: {
+    ...textTokens.supporting,
+    marginTop: 2,
   },
-  row: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.borderSubtle,
-    paddingVertical: 6,
-    gap: 2,
-  },
-  pickDot: {
-    alignSelf: "center",
-    width: 10,
-    height: 10,
-    borderRadius: radii.round,
-    borderWidth: 1.5,
-    borderColor: colors.textMuted,
-  },
-  pickDotOn: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  pickFoot: {
-    paddingTop: 14,
-    paddingBottom: 12,
-    gap: 12,
-  },
-  footRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 24,
-  },
-  foldAllRow: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-  },
-  rule: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.borderSubtle,
-  },
-  rowHead: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  rowName: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: 8,
-    paddingVertical: 2,
-  },
-  nameTyped: {
-    fontFamily: "Lora_600SemiBold",
-    fontSize: 16,
-    lineHeight: 20,
-    color: colors.textPrimary,
-    flexShrink: 1,
-  },
-  nameMachine: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.textStrong,
-    flexShrink: 1,
-  },
-  nameSelected: {
-    color: colors.primaryDeep,
+  pickList: {
+    paddingVertical: 10,
+    gap: 4,
   },
   meta: {
     ...textTokens.caption,
     color: colors.textMuted,
     fontVariant: ["tabular-nums"],
   },
-  controls: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-  },
   menuButton: {
     width: 28,
     height: 32,
     alignItems: "center",
     justifyContent: "center",
-  },
-  // Inset to the minimap's span: the reel's minimap sits 6 pt further in than the
-  // bench's rows (AudioReel minimapWrap's 20 pt inside the reel's own inset, measured
-  // 36→366 vs 30→372 on a 402 pt screen), and both are fixed paddings.
-  track: {
-    height: ROW_WAVE_HEIGHT + 4,
-    justifyContent: "center",
-    marginHorizontal: 6,
-  },
-  baseline: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: (ROW_WAVE_HEIGHT + 4) / 2,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.borderSubtle,
-  },
-  baselineMuted: {
-    height: 0,
-    backgroundColor: "transparent",
-    borderTopWidth: 1,
-    borderStyle: "dashed",
-    borderColor: colors.borderSubtle,
-  },
-  wave: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  bar: {
-    width: 1.6,
-    borderRadius: 1,
-    backgroundColor: colors.textStrong,
-    opacity: 0.45,
-  },
-  barSelected: {
-    backgroundColor: colors.primary,
-    opacity: 1,
-  },
-  barMuted: {
-    opacity: 0.15,
-  },
-  barSelectedMuted: {
-    opacity: 0.35,
   },
   tools: {
     gap: 10,
@@ -1344,17 +986,6 @@ const benchStyles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 24,
     color: colors.textPrimary,
-  },
-  toolsBlock: {
-    paddingTop: 12,
-    paddingBottom: 12,
-    gap: 6,
-  },
-  // The selected layer's name over its tools: the row above is lit terracotta,
-  // this says the same in words.
-  toolsCaption: {
-    ...textTokens.annotation,
-    color: colors.primaryDeep,
   },
   labelRow: {
     flexDirection: "row",
@@ -1417,18 +1048,6 @@ const benchStyles = StyleSheet.create({
     opacity: 0.4,
   },
   originalButtonText: {
-    fontSize: 13,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    color: colors.textSecondary,
-  },
-  footLink: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 14,
-  },
-  footLinkText: {
     fontSize: 13,
     fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.textSecondary,

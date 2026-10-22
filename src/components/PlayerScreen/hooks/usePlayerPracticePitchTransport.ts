@@ -8,7 +8,7 @@ import {
 } from "../../../hooks/useNativePitchTransport";
 
 type Args = {
-  mode: "player" | "practice" | "layers";
+  mode: "player" | "practice";
   isFocused: boolean;
   /** The engine may keep sounding: the player is up, docked, or under a
    *  non-audio screen. False only while a screen that takes the audio is up. */
@@ -108,10 +108,10 @@ export function usePlayerPracticePitchTransport({
   // the native engine in every mode of the full player, not only with Tools open:
   // the sound is the take's, not a practice bend. Pitch, like speed, now holds
   // when Tools close (2026-10-20: the chart reads against it, so it must still
-  // sound while you read); only the layers bench, which plays its own audio,
-  // sets it aside.
+  // sound while you read). (Layer audio, Solo and Play together, pauses this
+  // transport and plays its own.)
   const soundIsNeutral = (sound?.gainDb ?? 0) === 0 && isTonePresetNeutral(sound?.tonePreset);
-  const pitchMode = mode !== "layers";
+  const pitchMode = true;
   // Engaged, not focused (2026-10-21): docked, or under the drawer or a lyric
   // editor, the clip keeps its pitch and sound; only a screen that takes the
   // audio (recorder, editor) makes the engine hand back.
