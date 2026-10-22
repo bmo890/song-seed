@@ -163,6 +163,7 @@ export function RecordingScreen() {
           isPaused={screen.recording.isPaused}
           elapsedMs={screen.recording.elapsedMs}
           isCountIn={screen.metronome.isCountIn}
+          isPreRoll={screen.isPreRoll}
           countInBars={screen.metronome.countInBars}
           countInCurrentBar={screen.metronome.currentBar}
           countInCurrentBeat={screen.metronome.currentBeatInBar}

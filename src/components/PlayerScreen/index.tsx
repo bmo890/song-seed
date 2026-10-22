@@ -450,9 +450,12 @@ function PlayerScreenInner({
     },
     [ui.setBenchLayerId]
   );
-  // A lane opens the bench on ITS layer; the count header opens it on the first.
+  // A lane opens the bench on ITS layer, straight into that layer's sheet (founder,
+  // 2026-10-22); the count header opens the list on the first.
+  const [benchSheetRequest, setBenchSheetRequest] = useState<string | null>(null);
   const openLayersBench = useCallback((laneId?: string) => {
     ui.setBenchLayerId(laneId ?? data.overdubStemEntries[0]?.id ?? BENCH_ROOT_LANE_ID);
+    if (laneId) setBenchSheetRequest(laneId);
     ui.setMode("layers");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.overdubStemEntries, ui.setBenchLayerId, ui.setMode]);
@@ -2057,6 +2060,8 @@ function PlayerScreenInner({
             <PlayerLayersBench
               onMergeStems={handleMergeStems}
               selectedLaneId={benchSelectedLaneId}
+              sheetRequest={benchSheetRequest}
+              onSheetRequestHandled={() => setBenchSheetRequest(null)}
               stems={data.overdubStemEntries}
               rootSettings={data.overdubRootSettings}
               rootAudioUri={playerClip.audioUri ?? null}

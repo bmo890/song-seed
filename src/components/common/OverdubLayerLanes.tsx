@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import Animated, { SharedValue, useAnimatedStyle } from "react-native-reanimated";
+import Animated, { SharedValue, runOnJS, useAnimatedReaction, useAnimatedStyle } from "react-native-reanimated";
 import { colors, text as textTokens } from "../../design/tokens";
 import { styles as appStyles } from "../../styles";
 import { useTranslation } from "react-i18next";
@@ -37,13 +37,27 @@ const ROW_HEIGHT = 32;
 const ROW_HEIGHT_FOLDED = 22;
 const WAVE_HEIGHT = 14;
 export const MAX_VISIBLE_LANE_ROWS = 3;
-const MIN_BARS = 8;
-const MAX_BARS = 160;
-/** One bar per this much audio: dense enough to read as the layer's shape. */
-const MS_PER_BAR = 140;
+const MIN_BARS = 4;
+const MAX_BARS = 480;
+/** One bar per this many points of drawn width (bar + gap): the same even grain
+ *  at every length and zoom. Counting bars by audio length instead stretched a
+ *  short layer, or any layer zoomed in, into a few bars far apart (founder,
+ *  2026-10-22: "looks too stretched out"). */
+export const LANE_BAR_PITCH = 3.5;
 
-function barHeights(peaks: number[] | undefined, durationMs: number): number[] {
-  const count = Math.max(MIN_BARS, Math.min(MAX_BARS, Math.round(durationMs / MS_PER_BAR)));
+/** Bar count for a wave drawn `widthPx` wide. */
+export function laneBarCount(widthPx: number): number {
+  return Math.max(MIN_BARS, Math.min(MAX_BARS, Math.round(widthPx / LANE_BAR_PITCH)));
+}
+
+/** The reel's zoom, rounded to half-octaves: the bars re-cut only when the zoom
+ *  has moved enough to show, not on every pinch frame. */
+function zoomStep(scale: number): number {
+  "worklet";
+  return Math.pow(2, Math.round(Math.log2(Math.max(scale, 0.01)) * 2) / 2);
+}
+
+export function barHeights(peaks: number[] | undefined, count: number): number[] {
   if (!peaks || peaks.length === 0) {
     return new Array(count).fill(0.12);
   }
@@ -73,7 +87,15 @@ function LaneWave({
   timelineTranslateX: SharedValue<number>;
   timelineScale: SharedValue<number>;
 }) {
-  const heights = React.useMemo(() => barHeights(lane.peaks, lane.durationMs), [lane.peaks, lane.durationMs]);
+  const [zoom, setZoom] = React.useState(() => zoomStep(timelineScale.value));
+  useAnimatedReaction(
+    () => zoomStep(timelineScale.value),
+    (next, previous) => {
+      if (next !== previous) runOnJS(setZoom)(next);
+    }
+  );
+  const widthPx = lane.durationMs * pixelsPerMs * zoom;
+  const heights = React.useMemo(() => barHeights(lane.peaks, laneBarCount(widthPx)), [lane.peaks, widthPx]);
   const placement = useAnimatedStyle(() => ({
     transform: [{ translateX: lane.offsetMs * pixelsPerMs * timelineScale.value + timelineTranslateX.value }],
     width: Math.max(3, lane.durationMs * pixelsPerMs * timelineScale.value),

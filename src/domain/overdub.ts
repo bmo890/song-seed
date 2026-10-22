@@ -237,6 +237,23 @@ export function snapPunchInMsToGrid(
   return snapped < MIN_PUNCH_IN_MS ? 0 : snapped;
 }
 
+/**
+ * A start chosen by dragging the recorder's guide: kept where it was put (the reel
+ * already settles a drag that lands near a bar line onto it), only clamped. Forcing
+ * every drag to the nearest bar moved a deliberate start, and near the top it
+ * rounded to 0 and recorded from the beginning (founder, 2026-10-22).
+ */
+export function clampPunchInMs(requestedMs: number, masterDurationMs?: number): number {
+  if (!Number.isFinite(requestedMs) || requestedMs <= 0) {
+    return 0;
+  }
+  let ms = Math.round(requestedMs);
+  if (Number.isFinite(masterDurationMs) && masterDurationMs! > 0) {
+    ms = Math.min(ms, Math.max(0, Math.round(masterDurationMs!) - MIN_PUNCH_IN_MS));
+  }
+  return ms < MIN_PUNCH_IN_MS ? 0 : ms;
+}
+
 export function formatClipOverdubStemOffsetLabel(offsetMs: number) {
   if (!Number.isFinite(offsetMs) || offsetMs === 0) {
     return i18n.t("player.offsetInPlace");

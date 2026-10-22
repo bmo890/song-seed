@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
@@ -86,20 +86,19 @@ export function RecordingOverdubGuide({
     playbackRate: 1,
   });
 
-  // Stopping a listen parks the tape back on the start. The tape swallows reports for
-  // a moment after any pause (it covers the player's corrective seek), so the return
-  // is handed over the same way the player hands its pause position: as a pause hold.
+  // While the guide is stopped, the position it reports is where the tape rests:
+  // after a listen, a redo, a discard or a moved start. The tape swallows reports
+  // for a moment after any pause (it covers the player's corrective seek), so
+  // the resting place is handed over the way the player hands its own: as a
+  // pause hold.
   const sharedPauseHoldMs = useSharedValue(-1);
   const sharedPauseHoldToken = useSharedValue(0);
-  const wasListeningRef = useRef(false);
   useEffect(() => {
-    const listening = !!cue?.listening;
-    if (wasListeningRef.current && !listening && cue?.movable) {
-      sharedPauseHoldMs.value = cue.startMs;
-      sharedPauseHoldToken.value += 1;
-    }
-    wasListeningRef.current = listening;
-  }, [cue?.listening, cue?.movable, cue?.startMs, sharedPauseHoldMs, sharedPauseHoldToken]);
+    if (isPlaying) return;
+    sharedPauseHoldMs.value = positionMs;
+    sharedPauseHoldToken.value += 1;
+  }, [isPlaying, positionMs, sharedPauseHoldMs, sharedPauseHoldToken]);
+
   const sectionBands = useMemo(
     () => buildSectionBands(sections ?? [], durationMs),
     [sections, durationMs]

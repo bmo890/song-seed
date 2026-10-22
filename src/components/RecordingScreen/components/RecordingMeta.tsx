@@ -19,6 +19,8 @@ type Props = {
     isPaused: boolean;
     elapsedMs: number;
     isCountIn?: boolean;
+    /** A punched layer's run-up: the song plays toward the start, nothing kept yet. */
+    isPreRoll?: boolean;
     countInBars?: number;
     countInCurrentBar?: number;
     countInCurrentBeat?: number;
@@ -67,6 +69,7 @@ export function RecordingMeta({
     isPaused,
     elapsedMs,
     isCountIn = false,
+    isPreRoll = false,
     countInBars = 0,
     countInCurrentBar = 1,
     countInCurrentBeat = 0,
@@ -137,7 +140,9 @@ export function RecordingMeta({
             ? t("recording.ready")
             : isPaused
                 ? t("recording.paused")
-                : t("recording.title");
+                : isPreRoll
+                    ? t("recording.preRoll")
+                    : t("recording.title");
     const showActiveDot = isCountIn || (isRecording && !isPaused);
 
     const statusDot = (

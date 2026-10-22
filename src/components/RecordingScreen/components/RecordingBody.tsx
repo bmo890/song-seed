@@ -29,6 +29,8 @@ type RecordingBodyProps = {
   isPaused: boolean;
   elapsedMs: number;
   isCountIn: boolean;
+  /** A punched layer's run-up toward its start point. */
+  isPreRoll?: boolean;
   countInBars: number;
   countInCurrentBar: number;
   countInCurrentBeat: number;
@@ -68,6 +70,7 @@ export function RecordingBody({
   isPaused,
   elapsedMs,
   isCountIn,
+  isPreRoll,
   countInBars,
   countInCurrentBar,
   countInCurrentBeat,
@@ -125,6 +128,7 @@ export function RecordingBody({
           isPaused={isPaused}
           elapsedMs={elapsedMs}
           isCountIn={isCountIn}
+          isPreRoll={isPreRoll}
           countInBars={countInBars}
           countInCurrentBar={countInCurrentBar}
           countInCurrentBeat={countInCurrentBeat}

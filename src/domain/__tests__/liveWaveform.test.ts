@@ -54,6 +54,16 @@ describe("appendLiveWaveform", () => {
     expect(state.streamDurationMs).toBeCloseTo(SEGMENT_MS * 3, 6);
   });
 
+  // A punched layer's run-up is trimmed off at save; once its length is known the tape
+  // must not draw it, or the take looks like it started at the run-up (2026-10-22).
+  it("hides audio before the trimmed head without moving the clock", () => {
+    const state = appendLiveWaveform(emptyLiveWaveformState(), segment(0.5, 5), SHAPE, {
+      hideBeforeMs: SEGMENT_MS * 3,
+    }).state;
+    expect(state.points.map((point) => point.startTime)).toEqual([SEGMENT_MS * 3, SEGMENT_MS * 4]);
+    expect(state.streamDurationMs).toBeCloseTo(SEGMENT_MS * 5, 6);
+  });
+
   // The regression that made the live beat grid decorative. A record-through count-in
   // hides its audio; if hiding it also stops (or rewinds) the clock, every candle drawn
   // afterwards is dated from the downbeat while the grid is still dated from sample 0.

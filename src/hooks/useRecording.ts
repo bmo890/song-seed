@@ -521,7 +521,11 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         // file doesn't have. The clock keeps running through it, so the tape and the beat
         // grid stay in one axis (capture ms); dropping these deliveries entirely is what
         // used to break that.
-        take.appendAudioStream(event, { retainPoints: !take.headTrim.get().pending });
+        // Once the head is known, audio before it stays hidden too: a punched layer's
+        // run-up (the bar of song before the start point) is trimmed off just the same,
+        // and drawing it read as "recording from the beginning" (founder, 2026-10-22).
+        const trim = take.headTrim.get();
+        take.appendAudioStream(event, { retainPoints: !trim.pending, hideBeforeMs: trim.pending ? 0 : trim.ms });
         // The click bleed's onset envelope, accumulated from the same buffers. This is the
         // signal the beat grid is verified against at save; measured against the waveform
         // sidecar the app used to comb, a click under real playing does not exist at all
@@ -1161,6 +1165,9 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     // during the count-in and the head is subtracted once measured. Downstream consumers
     // (display clock, overdub auto-stop threshold) then need no head awareness.
     elapsedMs: headTrim.pending ? 0 : Math.max(0, displayElapsedMs - headTrim.ms),
+    /** Capture is rolling but still inside the head the save will cut (pre-roll,
+     *  count-in, a punched layer's run-up). Second-granular, like the readout. */
+    inHead: headTrim.pending || displayElapsedMs < headTrim.ms,
     /** The pre-roll the save will cut (0 while unknown): capture ms minus this is take ms. */
     headTrimMs: headTrim.pending ? 0 : headTrim.ms,
     readElapsedMs,
