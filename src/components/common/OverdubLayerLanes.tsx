@@ -349,7 +349,7 @@ export function OverdubLayerLanes({
   onOpenLane,
   collapsed,
   onToggleCollapsed,
-  soloingLaneId,
+  soloedLaneIds,
   onSoloLane,
   onToggleMuteLane,
   footer,
@@ -365,7 +365,7 @@ export function OverdubLayerLanes({
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
   /** The lanes ARE the layer list (2026-10-22): Solo and Mute on each name line. */
-  soloingLaneId?: string | null;
+  soloedLaneIds?: readonly string[];
   onSoloLane?: (id: string) => void;
   onToggleMuteLane?: (id: string) => void;
   /** Under the lanes: Merge layers, Combine layers. */
@@ -387,7 +387,7 @@ export function OverdubLayerLanes({
       timelineTranslateX={timelineTranslateX}
       timelineScale={timelineScale}
       onOpenLane={onOpenLane}
-      soloing={soloingLaneId === lane.id}
+      soloing={!!soloedLaneIds?.includes(lane.id)}
       onSoloLane={onSoloLane}
       onToggleMuteLane={onToggleMuteLane}
     />

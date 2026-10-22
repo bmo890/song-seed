@@ -72,7 +72,9 @@ The hard rules below are non-negotiable.
   (`haptic="navigate"`).
 - Layers (2026-10-22): the lanes under the reel ARE the layer list (name, span,
   Solo, Mute; tap opens the layer's sheet). No separate Layers view, no second
-  list; a lane's wave rides the reel's own pan and zoom.
+  list; a lane's wave rides the reel's own pan and zoom. Solo is a switch (any
+  number at once): the main transport plays a solo mix (`services/soloMix.ts`),
+  so there is one player and one playhead; the layer sheet has no audio of its own.
 - Destructive/rare actions live in overflow. Action sheets max ~6 rows — more
   means the IA is wrong; fix the IA.
 - Menus (2026-10-15, founder picked "rows on paper"): every action menu is

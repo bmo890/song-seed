@@ -331,50 +331,35 @@ export function buildClipOverdubMixInputs(clip: ClipVersion): NativeMixedRenderI
   return inputs;
 }
 
-/** Silence in front of the rendered layer for Play together: the run-up the
- *  song plays before the layer comes in. Baked into the file so both players
- *  start in the same tick, whatever the layer's offset. */
-export const LAYER_AUDITION_LEAD_MS = 2000;
+/** Gain for an input that only holds the mix's length: well under any playback floor. */
+const SILENT_INPUT_DB = -120;
 
 /**
- * Play together, as the song will sound (founder, 2026-10-22): the mix WITHOUT
- * this layer (the base take and the other unmuted layers, every level and tone,
- * at the full mix's headroom), and this layer alone with its own level and tone,
- * starting LAYER_AUDITION_LEAD_MS into its file. Nudging the layer then only
- * moves where the two start, so a nudge is heard without a render.
+ * Solo (founder, 2026-10-22): the soloed layers alone, as they sound in the mix.
+ * Everything else is still an input, at SILENT_INPUT_DB, so the file has exactly the
+ * mix's length and the reel, the readout and the end of the song never move; the
+ * soloed layers keep the full mix's level and tone. A soloed layer plays even when
+ * it is muted: soloing it is asking to hear it.
  */
-export function buildLayerAuditionInputs(
-  clip: ClipVersion,
-  stemId: string
-): { bed: NativeMixedRenderInput[]; layer: NativeMixedRenderInput[] } | null {
+export function buildSoloMixInputs(clip: ClipVersion, soloedIds: readonly string[]): NativeMixedRenderInput[] | null {
   const rootAudioUri = clip.audioUri;
-  const stems = clip.overdub?.stems ?? [];
-  const target = stems.find((stem) => stem.id === stemId && stem.audioUri);
-  if (!rootAudioUri || !target) {
+  const stems = (clip.overdub?.stems ?? []).filter((stem) => !!stem.audioUri);
+  const soloed = new Set(soloedIds);
+  if (!rootAudioUri || !stems.some((stem) => soloed.has(stem.id))) {
     return null;
   }
   const rootSettings = getClipOverdubRootSettings(clip);
-  const others = stems.filter((stem) => stem.id !== stemId && stem.audioUri && !stem.isMuted);
-  // The full mix's headroom, this layer counted even if muted: it is being heard.
-  const headroomDb = getMixHeadroomDb(2 + others.length);
-  const bed: NativeMixedRenderInput[] = [
-    { inputUri: rootAudioUri, gainDb: rootSettings.gainDb + headroomDb, offsetMs: 0, tonePreset: rootSettings.tonePreset },
-    ...others.map((stem) => ({
+  const heard = stems.filter((stem) => !stem.isMuted || soloed.has(stem.id));
+  const headroomDb = getMixHeadroomDb(1 + heard.length);
+  return [
+    { inputUri: rootAudioUri, gainDb: SILENT_INPUT_DB, offsetMs: 0, tonePreset: "neutral" },
+    ...heard.map((stem) => ({
       inputUri: stem.audioUri!,
-      gainDb: clampOverdubGainDb(stem.gainDb) + headroomDb,
+      gainDb: soloed.has(stem.id) ? clampOverdubGainDb(stem.gainDb) + headroomDb : SILENT_INPUT_DB,
       offsetMs: clampClipOverdubStemOffsetMs(stem.offsetMs, clip.durationMs, stem.durationMs),
-      tonePreset: stem.tonePreset,
+      tonePreset: soloed.has(stem.id) ? stem.tonePreset : "neutral",
     })),
   ];
-  const layer: NativeMixedRenderInput[] = [
-    {
-      inputUri: target.audioUri!,
-      gainDb: clampOverdubGainDb(target.gainDb) + headroomDb,
-      offsetMs: LAYER_AUDITION_LEAD_MS,
-      tonePreset: target.tonePreset,
-    },
-  ];
-  return { bed, layer };
 }
 
 /**

@@ -42,8 +42,8 @@ import { PlayerFooterSection } from "./components/PlayerFooterSection";
 import { PlayerPracticeDrawers } from "./components/PlayerPracticeDrawers";
 import { PlayerSupportSections } from "./components/PlayerSupportSections";
 import { PlayerLayersBench, openCombineChooser, type LayerSheetHandle } from "./components/PlayerLayersBench";
-import { LAYER_AUDITION_LEAD_MS, MAX_LAYERS_PER_TAKE, buildLayerAuditionInputs } from "../../domain/overdub";
-import { releaseAuditionFiles, renderAuditionFile } from "../../services/layerAudition";
+import { MAX_LAYERS_PER_TAKE, buildSoloMixInputs } from "../../domain/overdub";
+import { releaseSoloMixFiles, renderSoloMixFile } from "../../services/soloMix";
 import { useLayerPrefsStore } from "../../state/useLayerPrefsStore";
 import { looksMachineNamed } from "../../domain/titleNaming";
 import { HelpSheet } from "../common/HelpSheet";
@@ -68,7 +68,7 @@ import { playerScreenStyles } from "./styles";
 import { getVisibleTimelineRange } from "./helpers";
 import { openIdeaInCollection, openSketchPage } from "../../navigation";
 import { AppAlert } from "../common/AppAlert";
-import { getClipOverdubStemCount } from "../../domain/clipPresentation";
+import { getClipOverdubStemCount, getClipPlaybackDurationMs } from "../../domain/clipPresentation";
 import { canAddOverdubLayer, isPracticeToolPro, type PracticeTool } from "../../domain/proGating";
 import { hasProAccess } from "../../domain/entitlements";
 import { ensurePro, openProUpsell } from "../common/proUpsell";
@@ -82,6 +82,8 @@ const PRACTICE_SPEED_MIN = 0.5;
 const PRACTICE_SPEED_MAX = 1.5;
 /** How long Tools settle before the Keep switch writes them to the take. */
 const KEEP_SETTLE_MS = 700;
+/** How much song plays before a layer comes in when its sheet plays it. */
+const LAYER_RUN_UP_MS = 2000;
 
 // Stable empty arrays so hiding reel markers doesn't churn the memoized timeline.
 const EMPTY_MARKERS: PracticeMarker[] = [];
@@ -210,8 +212,6 @@ function PlayerScreenInner({
   const isFocused = isActive;
 
   const ui = usePlayerScreenUi();
-  // A layer's own audio (Solo, Play together) is sounding: see `channelDriven`.
-  const [layerAudioActive, setLayerAudioActive] = useState(false);
   const draggingMarkerId = useSharedValue("");
   const draggingMarkerX = useSharedValue(0);
   const timelineAudioProgress = useSharedValue(0);
@@ -441,41 +441,79 @@ function PlayerScreenInner({
     prefs.setLanesCollapsed(!prefs.lanesCollapsed);
   }, []);
   // The lanes under the reel ARE the layer list (founder, 2026-10-22). A lane opens
-  // its layer's sheet; Solo and Mute sit on its name line. The sheet, the merge
-  // picker and the layer audio live in PlayerLayersBench, driven through this.
+  // its layer's sheet; Solo and Mute sit on its name line. The sheet and the merge
+  // picker live in PlayerLayersBench, driven through this.
   const layerSheetRef = useRef<LayerSheetHandle>(null);
-  const [soloingLayerId, setSoloingLayerId] = useState<string | null>(null);
-  // Play together plays the song as it will sound: its two files are rendered once
-  // and kept while the mix is unchanged (services/layerAudition.ts).
-  const playerClipRef = useRef(playerClip);
-  playerClipRef.current = playerClip;
-  const prepareLayerAudition = useCallback(async (stemId: string) => {
-    const clip = playerClipRef.current;
-    const inputs = clip ? buildLayerAuditionInputs(clip, stemId) : null;
-    if (!inputs) return null;
-    const [bedUri, layerUri] = await Promise.all([
-      renderAuditionFile(inputs.bed),
-      renderAuditionFile(inputs.layer),
-    ]);
-    return { bedUri, layerUri, layerLeadMs: LAYER_AUDITION_LEAD_MS };
-  }, []);
-  useEffect(() => releaseAuditionFiles, []);
   const openLayerSheet = useCallback((laneId: string) => layerSheetRef.current?.openLayer(laneId), []);
-  const soloLayer = useCallback((laneId: string) => layerSheetRef.current?.toggleSolo(laneId), []);
-  // While bench audio is sounding, the compact timing row reads the bench's clock
-  // (second granularity — same commit cadence as the main transport's readout).
-  const [benchDisplayMs, setBenchDisplayMs] = useState<number | null>(null);
-  const handleBenchDisplayPosition = useCallback((ms: number | null) => {
-    setBenchDisplayMs((previous) => {
-      if (ms == null) {
-        return previous == null ? previous : null;
-      }
-      if (previous != null && Math.floor(previous / 1000) === Math.floor(ms / 1000)) {
-        return previous;
-      }
-      return ms;
-    });
+
+  // ── Solo (founder, 2026-10-22) ────────────────────────────────────────────
+  // A switch per layer, any number at once. While any is on, the main transport plays
+  // only the soloed layers (the take and the rest silent), in time with the reel: one
+  // player, one playhead. Not saved: a new clip, or leaving the full player, ends it.
+  const [soloedLayerIds, setSoloedLayerIds] = useState<string[]>([]);
+  const [soloScope, setSoloScope] = useState<string | null>(playerClip?.id ?? null);
+  const nextSoloScope = isFocused ? playerClip?.id ?? null : null;
+  if (soloScope !== nextSoloScope) {
+    setSoloScope(nextSoloScope);
+    if (soloedLayerIds.length > 0) setSoloedLayerIds([]);
+  }
+  const toggleSoloLayer = useCallback((laneId: string) => {
+    setSoloedLayerIds((current) =>
+      current.includes(laneId) ? current.filter((id) => id !== laneId) : [...current, laneId]
+    );
   }, []);
+  const soloInputs = useMemo(
+    () => (playerClip && soloedLayerIds.length > 0 ? buildSoloMixInputs(playerClip, soloedLayerIds) : null),
+    [playerClip, soloedLayerIds]
+  );
+  const soloKey = soloInputs ? JSON.stringify(soloInputs) : null;
+  const [soloMix, setSoloMix] = useState<{ key: string; uri: string } | null>(null);
+  const soloInputsRef = useRef(soloInputs);
+  soloInputsRef.current = soloInputs;
+  useEffect(() => {
+    const inputs = soloInputsRef.current;
+    if (!soloKey || !inputs) return;
+    let live = true;
+    // A short settle so a run of nudges or quick taps renders once.
+    const timer = setTimeout(() => {
+      renderSoloMixFile(inputs)
+        .then((uri) => {
+          if (live) setSoloMix({ key: soloKey, uri });
+        })
+        .catch((error) => {
+          if (!live) return;
+          console.warn("[solo] render failed", error);
+          haptic.error(); // Vocabulary: failures fire error.
+          setSoloedLayerIds([]);
+        });
+    }, 150);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+  }, [soloKey]);
+  useEffect(() => releaseSoloMixFiles, []);
+  // Until a new set's file is ready the previous one keeps sounding (as a mute does);
+  // with nothing soloed the clip's own mix comes straight back.
+  const soloMixUri = soloKey ? soloMix?.uri ?? null : null;
+  const soloPending = !!soloKey && soloMix?.key !== soloKey;
+  const playbackClip = useMemo(
+    () =>
+      soloMixUri && playerClip
+        ? {
+            ...playerClip,
+            overdub: playerClip.overdub
+              ? {
+                  ...playerClip.overdub,
+                  renderedMixUri: soloMixUri,
+                  renderedMixDurationMs: getClipPlaybackDurationMs(playerClip),
+                }
+              : playerClip.overdub,
+          }
+        : null,
+    [soloMixUri, playerClip]
+  );
+  const enginePlaybackUri = soloMixUri ?? data.playbackAudioUri;
   const pauseFullPlayerAtVisiblePosition = useCallback(async () => {
     const durationMs = resolvedDisplayDuration || playerDuration;
     const visualProgress = timelineAudioProgress.value;
@@ -522,7 +560,7 @@ function PlayerScreenInner({
     clip: playerClip
       ? {
           id: playerClip.id,
-          audioUri: data.playbackAudioUri,
+          audioUri: enginePlaybackUri,
         }
       : null,
     pitchShiftSemitones: ui.pitchShiftSemitones,
@@ -635,12 +673,8 @@ function PlayerScreenInner({
   // While the pitch engine plays the clip its reports take the same channel, so
   // pitched playback renders once a second like plain playback (2026-10-21).
   const nativeClockActive = practicePitchTransport.isNativeClockActive;
-  // While a layer sounds (Solo, Play together) the reel follows THAT audio: the main
-  // engine's position reports would pull it back to where the song paused. (The
-  // Layers view used to switch the pitch engine off; there is no such view now.)
   const channelDriven =
-    !layerAudioActive &&
-    (nativeClockActive || (engineMatchesScreenClip && !practicePitchTransport.isOwningNativeTransport));
+    nativeClockActive || (engineMatchesScreenClip && !practicePitchTransport.isOwningNativeTransport);
   const clockPositionChannel = nativeClockActive ? practicePitchTransport.positionChannel : positionChannel;
   const transportClock = usePlayerTransportClock({
     positionMs: effectivePlayerPosition,
@@ -653,10 +687,6 @@ function PlayerScreenInner({
     channelDriven,
   });
   setPauseDisplayPositionRef.current = transportClock.setDisplayPositionMs;
-  const benchTransportClock = useMemo(
-    () => ({ ...transportClock, sharedPauseHoldMs: pauseVisualHoldMs, sharedPauseHoldToken: pauseVisualHoldToken }),
-    [transportClock, pauseVisualHoldMs, pauseVisualHoldToken]
-  );
   const hasPreviousTrack = data.playerQueueIndex > 0;
   const hasNextTrack = data.playerQueueIndex >= 0 && data.playerQueueIndex < data.playerQueue.length - 1;
   const transportScrub = useTransportScrubbing({
@@ -879,6 +909,20 @@ function PlayerScreenInner({
     audioUri: data.playbackAudioUri,
     durationMs: effectivePlayerDuration,
   });
+  // A layer's sheet plays through the main transport: the song a little before the
+  // layer comes in, so you hear it arrive (2026-10-22: the sheet's own players fought
+  // the reel for the playhead).
+  const stemEntriesRef = useRef(data.overdubStemEntries);
+  stemEntriesRef.current = data.overdubStemEntries;
+  const playFromLayer = useCallback(
+    async (stemId: string) => {
+      const stem = stemEntriesRef.current.find((entry) => entry.id === stemId);
+      if (!stem) return;
+      await practicePitchTransport.seekTo(Math.max(0, stem.offsetMs - LAYER_RUN_UP_MS));
+      await practicePitchTransport.play();
+    },
+    [practicePitchTransport]
+  );
   // Repeat (playlist-style): replay the clip from the top when it finishes.
   const replayClip = useCallback(async () => {
     await practicePitchTransport.seekTo(0);
@@ -897,7 +941,8 @@ function PlayerScreenInner({
     isFocused,
     playerIdea: lifecycleIdea,
     playerClip,
-    playbackAudioUri: data.playbackAudioUri,
+    playbackAudioUri: enginePlaybackUri,
+    playbackClip,
     currentPlaybackSourceUri,
     activeWorkspaceId: data.activeWorkspaceId,
     activePlayerTargetClipId: activePlayerTarget?.clipId,
@@ -1497,9 +1542,7 @@ function PlayerScreenInner({
             {ui.mode !== "player" || isReading ? (
               <View style={playerScreenStyles.reelTimingRow}>
                 <Text style={playerScreenStyles.reelTimingText}>
-                  {fmtDuration(
-                    benchDisplayMs ?? effectivePlayerPosition
-                  )}{" "}
+                  {fmtDuration(effectivePlayerPosition)}{" "}
                   / {fmtDuration(effectivePlayerDuration)}
                 </Text>
               </View>
@@ -1536,8 +1579,8 @@ function PlayerScreenInner({
                   }
                   layerLanesCollapsed={layerLanesCollapsed}
                   onToggleLayerLanes={toggleLayerLanes}
-                  soloingLayerId={soloingLayerId}
-                  onSoloLayer={soloLayer}
+                  soloedLayerIds={soloedLayerIds}
+                  onSoloLayer={toggleSoloLayer}
                   onToggleLayerMute={handleToggleStemMute}
                   layerLanesFooter={
                     <LayerLanesFoot
@@ -2100,11 +2143,11 @@ function PlayerScreenInner({
           rootDurationMs={playerClip.durationMs ?? 0}
           rootWaveformPeaks={playerClip.waveformPeaks}
           rootRecordingGrid={playerClip.recordingGrid ?? null}
-          isRendering={isMixUpdating}
+          isRendering={isMixUpdating || soloPending}
           isMainPlaybackPlaying={effectiveIsPlaying}
-          transportClock={benchTransportClock}
-          getRestingPositionMs={() => playerPositionMsRef.current}
-          onDisplayPositionChange={handleBenchDisplayPosition}
+          soloedLayerIds={soloedLayerIds}
+          onToggleSolo={toggleSoloLayer}
+          onPlayLayer={playFromLayer}
           onPauseMainPlayback={practicePitchTransport.pause}
           onAdjustStemGain={handleAdjustStemGain}
           onNudgeStem={handleNudgeStem}
@@ -2112,10 +2155,7 @@ function PlayerScreenInner({
           onToggleStemToneFlag={handleToggleStemToneFlag}
           onRemoveStem={handleRemoveStem}
           onSaveAsOneClip={handleSaveAsOneClip}
-          onSoloChange={setSoloingLayerId}
-          onAudioActiveChange={setLayerAudioActive}
           onHelp={() => setHelpTopic("overdub")}
-          prepareAudition={prepareLayerAudition}
           onMergeStems={handleMergeStems}
         />
       ) : null}

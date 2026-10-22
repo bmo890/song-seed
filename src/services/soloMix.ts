@@ -3,12 +3,19 @@ import type { NativeMixedRenderInput } from "../../modules/songnook-pitch-shift"
 import { renderMixedFile } from "./pitchShift";
 
 /**
- * The two files Play together plays (domain/overdub.ts buildLayerAuditionInputs):
- * the song without the layer, and the layer with its level and tone. Rendered on
- * first use and kept while their inputs stay the same, so a nudge never waits on
- * a render. They are scratch audio in the renderer's own temp space, never library
- * media: a handful at most, deleted as soon as newer ones replace them.
+ * Solo's mixes (domain/overdub.ts buildSoloMixInputs): the soloed layers alone, at the
+ * full mix's length, played by the main transport in place of the mix. Rendered on
+ * first use and kept while their inputs stay the same, so switching between a few
+ * solo sets does not wait on a render. Scratch audio in the renderer's own temp space,
+ * never library media: a handful at most, deleted as newer ones replace them.
  */
+
+const FILE_PREFIX = "solo-mix-";
+
+/** A solo mix stands in for the clip's mix while it plays; it is never the mix itself. */
+export function isSoloMixUri(uri: string | null | undefined): boolean {
+  return !!uri && uri.includes(FILE_PREFIX);
+}
 
 const MAX_KEPT = 4;
 const cache = new Map<string, Promise<string>>();
@@ -27,7 +34,7 @@ function evictOldest() {
   }
 }
 
-export function renderAuditionFile(inputs: NativeMixedRenderInput[]): Promise<string> {
+export function renderSoloMixFile(inputs: NativeMixedRenderInput[]): Promise<string> {
   const key = signatureOf(inputs);
   const existing = cache.get(key);
   if (existing) {
@@ -38,7 +45,7 @@ export function renderAuditionFile(inputs: NativeMixedRenderInput[]): Promise<st
   }
   const pending = renderMixedFile({
     inputs,
-    outputFileName: `audition-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    outputFileName: `${FILE_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
   }).then((result) => result.outputUri);
   cache.set(key, pending);
   pending.catch(() => cache.delete(key));
@@ -47,7 +54,7 @@ export function renderAuditionFile(inputs: NativeMixedRenderInput[]): Promise<st
 }
 
 /** Leaving the player: the scratch files go with it. */
-export function releaseAuditionFiles() {
+export function releaseSoloMixFiles() {
   const entries = [...cache.values()];
   cache.clear();
   for (const entry of entries) {

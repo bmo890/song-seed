@@ -19,6 +19,7 @@ import { getHierarchyIconName } from "../../../domain/hierarchy";
 import { SKETCH_DOOR_HINT } from "../components/PlayerArtifactDoors";
 import type { ClipVersion } from "../../../types";
 import { useTranslation } from "react-i18next";
+import { isSoloMixUri } from "../../../services/soloMix";
 import { UserFacingError, userFacingMessage } from "../../../i18n/userFacingError";
 
 type UsePlayerScreenLifecycleArgs = {
@@ -27,6 +28,9 @@ type UsePlayerScreenLifecycleArgs = {
   playerIdea: { id: string; title: string } | null;
   playerClip: ClipVersion | null;
   playbackAudioUri: string | null;
+  /** What the engine should hold when it is not the clip itself: the clip with a solo
+   *  mix standing in for its mix (services/soloMix.ts). */
+  playbackClip?: ClipVersion | null;
   currentPlaybackSourceUri: string | null;
   activeWorkspaceId: string | null;
   activePlayerTargetClipId?: string | null;
@@ -74,6 +78,7 @@ export function usePlayerScreenLifecycle({
   playerIdea,
   playerClip,
   playbackAudioUri,
+  playbackClip,
   currentPlaybackSourceUri,
   activeWorkspaceId,
   activePlayerTargetClipId,
@@ -187,8 +192,11 @@ export function usePlayerScreenLifecycle({
     suppressAutoplayOnOpen,
   ]);
 
+  // A solo mix must never outlive the full player: docked, the clip goes back to its
+  // own mix, so this sync also runs unfocused while a solo file is loaded.
+  const soloSourceLoaded = isSoloMixUri(currentPlaybackSourceUri);
   useEffect(() => {
-    if (!isFocused) return;
+    if (!isFocused && !soloSourceLoaded) return;
     if (!playerIdea || !playerClip || !playbackAudioUri) return;
     if (activePlayerTargetClipId !== playerClip.id) return;
     if (!currentPlaybackSourceUri) return;
@@ -199,7 +207,7 @@ export function usePlayerScreenLifecycle({
     const playbackSnapshot = latestPlaybackRef.current;
     void syncPlayerSource(
       playerIdea.id,
-      playerClip,
+      playbackClip ?? playerClip,
       buildClipLockScreenMetadata(playerIdea, playerClip),
       playbackSnapshot.positionMs,
       playbackSnapshot.isPlaying
@@ -211,8 +219,10 @@ export function usePlayerScreenLifecycle({
   }, [
     activePlayerTargetClipId,
     isFocused,
+    soloSourceLoaded,
     currentPlaybackSourceUri,
     playbackAudioUri,
+    playbackClip,
     playerClip,
     playerIdea,
     syncPlayerSource,
