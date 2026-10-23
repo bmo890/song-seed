@@ -3,11 +3,15 @@ import * as FileSystem from "expo-file-system/legacy";
 import { File } from "expo-file-system";
 import { strFromU8 } from "fflate";
 import {
+    MAX_ARCHIVE_MANIFEST_ENTRY_BYTES,
     extractStoredZipEntryToFile,
     indexStoredZipArchive,
     readStoredZipEntryBytes,
+    type StoredZipEntry,
     type StoredZipIndex,
 } from "./storedZipArchive";
+import { ensureBackupDiskSpace } from "./backupOperation";
+import { describeArchiveWarning, readArchiveWarnings, type ArchiveWarning } from "./archiveWarnings";
 import { createLyricsVersion, lyricsTextToDocument } from "../domain/lyrics";
 import { createEmptyProjectLyrics, createEmptyWorkspaceIdeasListState } from "../state/dataSlice";
 import type {
@@ -38,6 +42,10 @@ import { sanitizeTempoMap } from "../domain/tempoMap";
 
 /** Pre-edit source files already extracted, by archive path → managed uri (shared sources). */
 type SourceAudioDestinations = Map<string, string>;
+
+/** Every managed file this import has written so far — deleted together if it fails
+ *  (nothing references them until the store commits). */
+type ImportWriteLog = string[];
 
 /** Remap a hidden-idea list onto the freshly minted idea ids; hidden days copy as-is. */
 function remapIdeasListState(
@@ -92,7 +100,7 @@ export type MaterializedSongNookArchiveMerge = {
     bluetoothMonitoringCalibrations: BluetoothMonitoringCalibration[];
     importedWorkspaceIds: string[];
     importedIdeaIds: string[];
-    warnings: string[];
+    warnings: ArchiveWarning[];
 };
 
 function buildEntityId(prefix: string) {
@@ -186,15 +194,56 @@ async function extractManagedArchiveAudio(
     parsed: ParsedSongNookArchive,
     archivePath: string,
     targetId: string,
-    extension: string
+    extension: string,
+    written: ImportWriteLog
 ): Promise<string | null> {
     const entry = parsed.archiveIndex.entries.get(archivePath);
     if (!entry) return null;
 
     await ensureAudioDirectory();
     const destinationUri = `${SONG_NOOK_AUDIO_DIR}/${targetId}.${extension}`;
+    // Logged before the write so a file cut short mid-extract is rolled back too.
+    written.push(destinationUri);
     await extractStoredZipEntryToFile(parsed.archiveIndex, entry, destinationUri);
     return destinationUri;
+}
+
+/** The archive entry an audio path names, if the archive carries it. */
+function archiveAudioEntry(parsed: ParsedSongNookArchive, archivePath: string | undefined): StoredZipEntry | undefined {
+    return archivePath ? parsed.archiveIndex.entries.get(archivePath) : undefined;
+}
+
+/**
+ * Bytes the import will write: every audio entry the manifest references, each counted
+ * once (derived clips share one source file). Checked against free space BEFORE the
+ * first extract, so a full phone fails with a sentence instead of a native ENOSPC
+ * halfway through (final sweep 2026-10-22, #3).
+ */
+function sumReferencedArchiveAudioBytes(parsed: ParsedSongNookArchive): number {
+    const counted = new Set<string>();
+    let total = 0;
+    const count = (archivePath: string | undefined) => {
+        const entry = archiveAudioEntry(parsed, archivePath);
+        if (!entry || counted.has(entry.name)) return;
+        counted.add(entry.name);
+        total += entry.sizeBytes;
+    };
+    const countClip = (clip: ArchiveClipManifest) => {
+        count(clip.audioPath);
+        count(clip.sourceAudioPath);
+        count(clip.overdub?.renderedMixPath);
+        for (const stem of clip.overdub?.stems ?? []) count(stem.audioPath);
+    };
+    for (const workspace of parsed.manifest.workspaces) {
+        for (const collection of workspace.collections) {
+            for (const song of collection.songs) song.clips.forEach(countClip);
+            for (const clip of collection.standaloneClips) {
+                countClip(clip);
+                (clip.takes ?? []).forEach(countClip);
+            }
+        }
+    }
+    return total;
 }
 
 /**
@@ -205,9 +254,10 @@ async function materializeArchiveClip(
     clipManifest: ArchiveClipManifest,
     parsed: ParsedSongNookArchive,
     clipId: string,
-    warnings: string[],
+    warnings: ArchiveWarning[],
     clipLabel: string,
-    sourceDestinations: SourceAudioDestinations
+    sourceDestinations: SourceAudioDestinations,
+    written: ImportWriteLog
 ): Promise<ClipVersion> {
     let audioUri: string | undefined;
     if (clipManifest.audioPath) {
@@ -216,10 +266,11 @@ async function materializeArchiveClip(
                 parsed,
                 clipManifest.audioPath,
                 clipId,
-                getPathExtension(clipManifest.audioPath)
+                getPathExtension(clipManifest.audioPath),
+                written
             )) ?? undefined;
         if (!audioUri) {
-            warnings.push(`Missing archived audio for ${clipLabel}.`);
+            warnings.push({ code: "missingArchivedAudio", params: { name: clipLabel } });
         }
     }
 
@@ -234,17 +285,18 @@ async function materializeArchiveClip(
                     parsed,
                     clipManifest.sourceAudioPath,
                     `${clipId}-source`,
-                    getPathExtension(clipManifest.sourceAudioPath)
+                    getPathExtension(clipManifest.sourceAudioPath),
+                    written
                 )) ?? undefined;
             if (sourceAudioUri) {
                 sourceDestinations.set(clipManifest.sourceAudioPath, sourceAudioUri);
             } else {
-                warnings.push(`Missing archived source audio for ${clipLabel}.`);
+                warnings.push({ code: "missingArchivedSourceAudio", params: { name: clipLabel } });
             }
         }
     }
 
-    const overdub = await materializeArchiveClipOverdub(clipManifest.overdub, parsed, clipId, warnings, clipLabel);
+    const overdub = await materializeArchiveClipOverdub(clipManifest.overdub, parsed, clipId, warnings, clipLabel, written);
 
     return {
         id: clipId,
@@ -277,8 +329,9 @@ async function materializeArchiveClipOverdub(
     overdubManifest: ArchiveClipOverdubManifest | undefined,
     parsed: ParsedSongNookArchive,
     clipId: string,
-    warnings: string[],
-    clipLabel: string
+    warnings: ArchiveWarning[],
+    clipLabel: string,
+    written: ImportWriteLog
 ) {
     if (!overdubManifest) {
         return undefined;
@@ -291,10 +344,11 @@ async function materializeArchiveClipOverdub(
                 parsed,
                 overdubManifest.renderedMixPath,
                 `${clipId}-mix`,
-                getPathExtension(overdubManifest.renderedMixPath)
+                getPathExtension(overdubManifest.renderedMixPath),
+                written
             )) ?? undefined;
         if (!renderedMixUri) {
-            warnings.push(`Missing archived rendered overdub mix for ${clipLabel}.`);
+            warnings.push({ code: "missingArchivedOverdubMix", params: { name: clipLabel } });
         }
     }
 
@@ -308,10 +362,14 @@ async function materializeArchiveClipOverdub(
                     parsed,
                     stemManifest.audioPath,
                     `${clipId}-${stemId}`,
-                    getPathExtension(stemManifest.audioPath)
+                    getPathExtension(stemManifest.audioPath),
+                    written
                 )) ?? undefined;
             if (!audioUri) {
-                warnings.push(`Missing archived overdub stem for ${clipLabel} / ${stemManifest.title}.`);
+                warnings.push({
+                    code: "missingArchivedOverdubStem",
+                    params: { name: clipLabel, stem: stemManifest.title },
+                });
             }
         }
 
@@ -393,8 +451,9 @@ export async function readSongNookArchive(
         throw new Error("Archive is missing manifest.json.");
     }
 
+    // A received file is untrusted: a giant manifest.json must not be parsed at all.
     const manifestJson = JSON.parse(
-        strFromU8(await readStoredZipEntryBytes(archiveIndex, manifestEntry))
+        strFromU8(await readStoredZipEntryBytes(archiveIndex, manifestEntry, MAX_ARCHIVE_MANIFEST_ENTRY_BYTES))
     );
     if (!isSongNookArchiveManifest(manifestJson)) {
         throw new Error("This file is not a valid SongNook Archive.");
@@ -426,7 +485,7 @@ export function buildLibraryImportPreview(parsed: ParsedSongNookArchive): Librar
         standaloneClipCount: parsed.manifest.summary.standaloneClips,
         notepadNoteCount: parsed.manifest.summary.notepadNotes ?? parsed.manifest.notepadNotes?.length ?? 0,
         workspaceTitles: parsed.manifest.workspaces.map((workspace) => workspace.title),
-        warningMessages: parsed.manifest.warnings ?? [],
+        warningMessages: readArchiveWarnings(parsed.manifest).map(describeArchiveWarning),
         primaryWorkspaceTitle,
     };
 }
@@ -436,7 +495,27 @@ export async function materializeSongNookArchiveMerge(
     existingWorkspaces: Workspace[],
     localPrimaryWorkspaceId: string | null
 ): Promise<MaterializedSongNookArchiveMerge> {
-    const warnings = [...(parsed.manifest.warnings ?? [])];
+    await ensureBackupDiskSpace(sumReferencedArchiveAudioBytes(parsed), "restore");
+    const written: ImportWriteLog = [];
+    try {
+        return await materializeSongNookArchiveMergeUnguarded(parsed, existingWorkspaces, localPrimaryWorkspaceId, written);
+    } catch (error) {
+        // Nothing references these yet; an orphan the library can't reach is the one
+        // thing the Data law forbids. Idempotent, so a half-written file goes too.
+        for (const uri of written) {
+            await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
+        }
+        throw error;
+    }
+}
+
+async function materializeSongNookArchiveMergeUnguarded(
+    parsed: ParsedSongNookArchive,
+    existingWorkspaces: Workspace[],
+    localPrimaryWorkspaceId: string | null,
+    written: ImportWriteLog
+): Promise<MaterializedSongNookArchiveMerge> {
+    const warnings = readArchiveWarnings(parsed.manifest);
     const importedWorkspaces: Workspace[] = [];
     const importedNotes: Note[] = [];
     const importedWorkspaceIds: string[] = [];
@@ -555,7 +634,8 @@ export async function materializeSongNookArchiveMerge(
                             clipId,
                             warnings,
                             `${songManifest.title} / ${clipManifest.title}`,
-                            sourceDestinations
+                            sourceDestinations,
+                            written
                         )
                     );
                 }
@@ -643,7 +723,8 @@ export async function materializeSongNookArchiveMerge(
                                 takeId,
                                 warnings,
                                 `${clipManifest.title} / ${takeManifest.title}`,
-                                sourceDestinations
+                                sourceDestinations,
+                                written
                             )
                         );
                     }
@@ -657,7 +738,8 @@ export async function materializeSongNookArchiveMerge(
                         clipId,
                         warnings,
                         clipManifest.title,
-                        sourceDestinations
+                        sourceDestinations,
+                        written
                     );
                     clips = [{ ...primary, isPrimary: true, isBookmarked: undefined }];
                 }

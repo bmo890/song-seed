@@ -5,7 +5,7 @@
  */
 import * as FileSystem from "expo-file-system/legacy";
 import { SEND_MAX_ITEM_BYTES, SEND_MAX_TRANSFER_BYTES, SEND_SERVICE_BASE_URL } from "../config/sendService";
-import { SendTransferError } from "./sendTransfer";
+import { SendCancelledError, SendTransferError } from "./sendTransfer";
 import type { ShareKind } from "../types";
 
 export type TransferItemPayload = {
@@ -69,15 +69,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
+/** Every "the service sent something we can't trust" failure reads the same to a person. */
+function invalidTransfer(message: string): SendTransferError {
+  return new SendTransferError(message, undefined, "invalidTransfer");
+}
+
 function optionalText(value: unknown, max: number): string | null {
   if (value == null) return null;
-  if (typeof value !== "string") throw new SendTransferError("Transfer metadata is invalid.");
+  if (typeof value !== "string") throw invalidTransfer("Transfer metadata is invalid.");
   return value.slice(0, max);
 }
 
 function requiredText(value: unknown, max: number): string {
   if (typeof value !== "string" || value.length === 0) {
-    throw new SendTransferError("Transfer metadata is invalid.");
+    throw invalidTransfer("Transfer metadata is invalid.");
   }
   return value.slice(0, max);
 }
@@ -103,46 +108,46 @@ function validateDownloadUrl(value: unknown, transferId: string, itemId: string)
     url = new URL(downloadUrl);
     serviceUrl = new URL(SEND_SERVICE_BASE_URL);
   } catch {
-    throw new SendTransferError("Transfer metadata points to an invalid download URL.");
+    throw invalidTransfer("Transfer metadata points to an invalid download URL.");
   }
   if (url.origin !== serviceUrl.origin) {
-    throw new SendTransferError("Transfer metadata points to an unexpected download host.");
+    throw invalidTransfer("Transfer metadata points to an unexpected download host.");
   }
   if (url.pathname !== `/t/${transferId}/dl/${itemId}`) {
-    throw new SendTransferError("Transfer metadata points to an unexpected file path.");
+    throw invalidTransfer("Transfer metadata points to an unexpected file path.");
   }
   return downloadUrl;
 }
 
 export function validateTransferPayload(value: unknown, expectedTransferId: string): TransferPayload {
-  if (!isRecord(value)) throw new SendTransferError("Transfer metadata is invalid.");
+  if (!isRecord(value)) throw invalidTransfer("Transfer metadata is invalid.");
   const transferId = requiredText(value.transferId, 100);
   if (transferId !== expectedTransferId || !TRANSFER_ID_PATTERN.test(transferId)) {
-    throw new SendTransferError("Transfer metadata is invalid.");
+    throw invalidTransfer("Transfer metadata is invalid.");
   }
 
   const itemsIn = value.items;
   if (!Array.isArray(itemsIn) || itemsIn.length === 0 || itemsIn.length > MAX_TRANSFER_ITEMS) {
-    throw new SendTransferError("Transfer metadata has no importable items.");
+    throw invalidTransfer("Transfer metadata has no importable items.");
   }
 
   let total = 0;
   const items: TransferItemPayload[] = itemsIn.map((raw) => {
-    if (!isRecord(raw)) throw new SendTransferError("Transfer item metadata is invalid.");
+    if (!isRecord(raw)) throw invalidTransfer("Transfer item metadata is invalid.");
     const itemId = requiredText(raw.itemId, 100);
-    if (!ITEM_ID_PATTERN.test(itemId)) throw new SendTransferError("Transfer item metadata is invalid.");
+    if (!ITEM_ID_PATTERN.test(itemId)) throw invalidTransfer("Transfer item metadata is invalid.");
     const fileName = requiredText(raw.fileName, MAX_NAME_LEN).trim() || "file";
     const mimeType = requiredText(raw.mimeType, 120).toLowerCase();
     const size = Number(raw.size);
     if (!Number.isFinite(size) || size <= 0 || size > MAX_ITEM_BYTES) {
-      throw new SendTransferError("Transfer item size is invalid.");
+      throw invalidTransfer("Transfer item size is invalid.");
     }
     if (!isSupportedTransferItem(fileName, mimeType)) {
-      throw new SendTransferError(`Transfer item "${fileName}" is not supported.`);
+      throw new SendTransferError(`Transfer item "${fileName}" is not supported.`, undefined, "unsupportedItem");
     }
     total += size;
     if (total > MAX_TRANSFER_BYTES) {
-      throw new SendTransferError("Transfer is too large for this app version.");
+      throw new SendTransferError("Transfer is too large for this app version.", undefined, "tooLarge");
     }
     return {
       itemId,
@@ -157,7 +162,7 @@ export function validateTransferPayload(value: unknown, expectedTransferId: stri
   const createdAt = requiredText(value.createdAt, 80);
   const expiresAt = requiredText(value.expiresAt, 80);
   if (!Number.isFinite(Date.parse(createdAt)) || !Number.isFinite(Date.parse(expiresAt))) {
-    throw new SendTransferError("Transfer dates are invalid.");
+    throw invalidTransfer("Transfer dates are invalid.");
   }
 
   return {
@@ -211,7 +216,9 @@ export async function fetchTransfer(transferId: string): Promise<TransferPayload
     });
   } catch (err) {
     throw new SendTransferError(
-      `Couldn't reach the transfer service (${(err as Error).message}).`
+      `Couldn't reach the transfer service (${(err as Error).message}).`,
+      undefined,
+      "unreachable"
     );
   } finally {
     clearTimeout(timeout);
@@ -219,31 +226,35 @@ export async function fetchTransfer(transferId: string): Promise<TransferPayload
   if (res.status === 404 || res.status === 410) throw new TransferGoneError();
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
-    throw new SendTransferError(detail || `Request failed (${res.status}).`, res.status);
+    throw new SendTransferError(detail || `Request failed (${res.status}).`, res.status, "rejected");
   }
   let raw: unknown;
   try {
     raw = await res.json();
   } catch {
-    throw new SendTransferError("Transfer metadata could not be read.");
+    throw invalidTransfer("Transfer metadata could not be read.");
   }
   return validateTransferPayload(raw, transferId);
 }
 
-/** A SongNook archive item (vs. a loose audio/other file). */
+/** A SongNook archive item (vs. a loose audio file). The service registers
+ *  only .songnook and audio, so there is no other archive to recognise. */
 export function isArchiveItem(item: TransferItemPayload): boolean {
-  const name = item.fileName.toLowerCase();
-  return name.endsWith(".songnook") || name.endsWith(".zip");
+  return item.fileName.toLowerCase().endsWith(".songnook");
 }
 
 const RECEIVE_CACHE_DIR = `${FileSystem.cacheDirectory}songnook-receive`;
 
 /** Downloads one item into cache; returns the local file uri. Progress is
- *  0..1 within this item. Caller cleans up via cleanupReceiveCache(). */
+ *  0..1 within this item. Caller cleans up via cleanupReceiveCache(). An
+ *  aborted `signal` cancels the download in flight (a Stop mid-parcel used to
+ *  wait for the whole item) and throws `SendCancelledError`. */
 export async function downloadTransferItem(
   item: TransferItemPayload,
-  onProgress?: (fraction: number) => void
+  onProgress?: (fraction: number) => void,
+  options?: { signal?: AbortSignal }
 ): Promise<string> {
+  if (options?.signal?.aborted) throw new SendCancelledError();
   await FileSystem.makeDirectoryAsync(RECEIVE_CACHE_DIR, { intermediates: true }).catch(() => {});
   // Keep the original extension (import routing keys off it); the itemId prefix
   // guarantees uniqueness within the cache dir.
@@ -271,21 +282,28 @@ export async function downloadTransferItem(
       void download.cancelAsync().catch(() => {});
     }
   }, 5_000);
+  const onAbort = () => void download.cancelAsync().catch(() => {});
+  options?.signal?.addEventListener("abort", onAbort);
+  // A Stop that landed while the cache directory was being made has no listener yet.
+  if (options?.signal?.aborted) onAbort();
   let result: FileSystem.FileSystemDownloadResult | undefined;
   try {
     result = await download.downloadAsync();
   } finally {
     clearInterval(stallWatch);
+    options?.signal?.removeEventListener("abort", onAbort);
   }
+  if (options?.signal?.aborted) throw new SendCancelledError();
   if (!result || (result.status !== 200 && result.status !== 206)) {
     throw new SendTransferError(
       `Download failed for "${item.fileName}" (${result?.status ?? "no response"}).`,
-      result?.status
+      result?.status,
+      "downloadFailed"
     );
   }
   const info = await FileSystem.getInfoAsync(result.uri);
   if (!info.exists || info.isDirectory || !Number.isFinite(info.size) || info.size !== item.size) {
-    throw new SendTransferError(`Downloaded file size did not match "${item.fileName}".`);
+    throw new SendTransferError(`Downloaded file size did not match "${item.fileName}".`, undefined, "downloadFailed");
   }
   return result.uri;
 }

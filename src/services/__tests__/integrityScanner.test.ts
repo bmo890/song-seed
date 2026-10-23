@@ -19,7 +19,7 @@ jest.mock("expo-file-system/legacy", () => ({
     readDirectoryAsync: jest.fn(async (uri: string) => mockImmediateChildren(uri)),
 }));
 
-import { scanLibraryIntegrity, type IntegrityIssue } from "../integrityScanner";
+import { scanLibraryIntegrity, summarizeIntegrityReport, type IntegrityIssue } from "../integrityScanner";
 import type { ClipVersion, Collection, Playlist, SongIdea, Workspace } from "../../types";
 
 function clip(id: string, over: Partial<ClipVersion> = {}): ClipVersion {
@@ -155,5 +155,32 @@ describe("scanLibraryIntegrity", () => {
             path: orphanWithSameName,
         });
         expect(report.issues).not.toContainEqual({ type: "orphan-file", path: restoredUri });
+    });
+});
+
+describe("summarizeIntegrityReport", () => {
+    beforeEach(() => {
+        mockFiles.clear();
+        mockDirectories.clear();
+        mockDirectories.add("file:///doc/songnook/audio");
+    });
+
+    it("reads as counts per issue type, never the list, and as one line when clean", async () => {
+        const ok = await scanLibraryIntegrity([workspace([idea("idea-1", [clip("c1", { isPrimary: true })])])], []);
+        expect(summarizeIntegrityReport(ok)).toBe("No problems across 1 items and 1 clips.");
+
+        const report = await scanLibraryIntegrity(
+            [
+                workspace([
+                    idea("idea-1", [clip("c1", { isPrimary: true }), clip("c1", { parentClipId: "c1" })]),
+                    idea("idea-2", [clip("c2", { isPrimary: true, parentClipId: "nope" })]),
+                ]),
+            ],
+            []
+        );
+        const summary = summarizeIntegrityReport(report);
+        expect(summary).toContain("× duplicate ID");
+        expect(summary).toContain("× broken parent link");
+        expect(summary).not.toContain("c1");
     });
 });

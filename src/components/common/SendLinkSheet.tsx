@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -20,12 +21,14 @@ import { formatEta, sendEtaSeconds, sendOverallFraction } from "../../domain/sen
 import { formatBytes } from "../../utils";
 import { haptic } from "../../design/haptics";
 import { colors, radii, spacing, text as textTokens } from "../../design/tokens";
+import { durations } from "../../design/motion";
 import { useTranslation } from "react-i18next";
 
 const TITLE_MAX = 200;
 const MESSAGE_MAX = 1000;
 /** BottomSheet's exit animation; the store clears after it. */
-const SHEET_EXIT_MS = 260;
+const SHEET_EXIT_MS = durations.sheetExit;
+const KEEP_AWAKE_TAG = "send-job";
 
 function daysUntil(expiresAt: number): number {
   return Math.max(0, Math.ceil((expiresAt - Date.now()) / 86400000));
@@ -356,6 +359,20 @@ export function SendJobHost({ drawerOpen = false }: { drawerOpen?: boolean }) {
   const playerDockHeight = useStore((s) => s.playerDockHeight);
   const importBannerHeight = useStore((s) => s.importBannerHeight);
   const insets = useSafeAreaInsets();
+  // Packing and encoding are JS-driven; a locked phone would stall the seal
+  // (sweep 2026-10-22, #7). Released the moment the job leaves "running".
+  const sealing = job?.status === "running";
+  useEffect(() => {
+    if (!sealing) return;
+    activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {});
+    return () => {
+      try {
+        void deactivateKeepAwake(KEEP_AWAKE_TAG);
+      } catch {
+        // no-op where keep-awake is unavailable (web)
+      }
+    };
+  }, [sealing]);
 
   if (!job) return null;
   if (job.expanded) return <SendJobSheet key={job.id} job={job} />;

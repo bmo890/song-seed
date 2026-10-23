@@ -1,5 +1,7 @@
+import type { TFunction } from "i18next";
 import type { Collection, Workspace } from "../../types";
 import { getCollectionScopeIds } from "../../utils";
+import { describeArchiveWarning, type ArchiveWarning } from "../../services/archiveWarnings";
 import type {
   ArchiveExportOptions,
   CollectionSelectionState,
@@ -158,12 +160,12 @@ export function getSelectionSummary({
   };
 }
 
-export function buildWarningSummary(warnings: string[]) {
-  const uniqueWarnings = Array.from(new Set(warnings));
+export function buildWarningSummary(warnings: ArchiveWarning[], t: TFunction) {
+  const uniqueWarnings = Array.from(new Set(warnings.map(describeArchiveWarning)));
   const preview = uniqueWarnings.slice(0, 3).join("\n");
   const remainder =
     uniqueWarnings.length > 3
-      ? `\n+ ${uniqueWarnings.length - 3} more warning${uniqueWarnings.length - 3 === 1 ? "" : "s"}.`
+      ? `\n${t("settingsExport.moreWarnings", { count: uniqueWarnings.length - 3 })}`
       : "";
   return `${preview}${remainder}`;
 }

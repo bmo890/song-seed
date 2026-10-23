@@ -1,5 +1,6 @@
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { styles } from "../styles";
+import { Button } from "./common/Button";
 import { useTranslation } from "react-i18next";
 
 export function ClipboardBanner({
@@ -25,19 +26,9 @@ export function ClipboardBanner({
       </Text>
       <View style={styles.rowButtons}>
         {actionLabel && onAction ? (
-          <Pressable
-            style={[styles.primaryBtn, { opacity: disabled ? 0.4 : 1 }]}
-            onPress={() => {
-              if (disabled) return;
-              onAction();
-            }}
-          >
-            <Text style={styles.primaryBtnText}>{actionLabel}</Text>
-          </Pressable>
+          <Button label={actionLabel} disabled={disabled} onPress={onAction} />
         ) : null}
-        <Pressable style={styles.secondaryBtn} onPress={onCancel}>
-          <Text style={styles.secondaryBtnText}>{t("common.cancel")}</Text>
-        </Pressable>
+        <Button variant="secondary" label={t("common.cancel")} onPress={onCancel} />
       </View>
     </View>
   );

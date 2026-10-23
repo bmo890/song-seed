@@ -10,7 +10,15 @@ jest.mock("../../config/sendService", () => ({
   SEND_SERVICE_BASE_URL: "https://send.songnook.app",
 }));
 
-import { normalizeTransferKind, parseTransferUrl, validateTransferPayload } from "../receiveTransfer";
+import * as FileSystem from "expo-file-system/legacy";
+import {
+  downloadTransferItem,
+  isArchiveItem,
+  normalizeTransferKind,
+  parseTransferUrl,
+  validateTransferPayload,
+} from "../receiveTransfer";
+import { describeSendTransferError, SendCancelledError, SendTransferError } from "../sendTransfer";
 
 const transferId = "t_0123456789abcdef";
 const itemId = "i_01234567";
@@ -90,6 +98,73 @@ describe("validateTransferPayload", () => {
         transferId
       )
     ).toThrow("not supported");
+  });
+
+  it("codes every refusal so the alert is translated and the message stays for the log", () => {
+    const unsupported = () =>
+      validateTransferPayload(
+        payload({
+          items: [
+            {
+              itemId,
+              fileName: "invoice.pdf",
+              size: 1234,
+              mimeType: "application/pdf",
+              downloadUrl: `https://send.songnook.app/t/${transferId}/dl/${itemId}`,
+            },
+          ],
+        }),
+        transferId
+      );
+    expect(unsupported).toThrow(SendTransferError);
+    try {
+      unsupported();
+    } catch (error) {
+      expect((error as SendTransferError).code).toBe("unsupportedItem");
+      expect((error as SendTransferError).message).toContain("invoice.pdf");
+      expect(describeSendTransferError(error as SendTransferError)).not.toContain("invoice.pdf");
+    }
+    try {
+      validateTransferPayload(payload({ items: [] }), transferId);
+    } catch (error) {
+      expect((error as SendTransferError).code).toBe("invalidTransfer");
+    }
+  });
+});
+
+describe("isArchiveItem", () => {
+  it("recognises .songnook only — the service never registers a .zip", () => {
+    const item = (fileName: string) => ({ ...payload().items[0]!, fileName });
+    expect(isArchiveItem(item("Parcel.songnook"))).toBe(true);
+    expect(isArchiveItem(item("Parcel.SONGNOOK"))).toBe(true);
+    expect(isArchiveItem(item("parcel.zip"))).toBe(false);
+    expect(isArchiveItem(item("bass.m4a"))).toBe(false);
+  });
+});
+
+describe("downloadTransferItem", () => {
+  it("cancels the download in flight when the signal aborts", async () => {
+    (FileSystem.makeDirectoryAsync as jest.Mock).mockResolvedValue(undefined);
+    let settle: (value: undefined) => void = () => {};
+    const cancelAsync = jest.fn(async () => settle(undefined));
+    (FileSystem.createDownloadResumable as jest.Mock).mockReturnValue({
+      downloadAsync: () => new Promise<undefined>((resolve) => (settle = resolve)),
+      cancelAsync,
+    });
+    const controller = new AbortController();
+    const pending = downloadTransferItem(payload().items[0]!, undefined, { signal: controller.signal });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    controller.abort();
+    await expect(pending).rejects.toBeInstanceOf(SendCancelledError);
+    expect(cancelAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it("refuses to start once the signal is already aborted", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      downloadTransferItem(payload().items[0]!, undefined, { signal: controller.signal })
+    ).rejects.toBeInstanceOf(SendCancelledError);
   });
 });
 

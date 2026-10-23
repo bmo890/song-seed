@@ -1,3 +1,4 @@
+import type { ArchiveWarning } from "./archiveWarnings";
 import type {
     BluetoothMonitoringCalibration,
     ClipAnalysis,
@@ -258,6 +259,8 @@ export type ArchiveManifest = {
         excludedCollectionIds?: string[];
     };
     warnings?: string[];
+    /** Structured twin of `warnings` (2026-10-22); older archives carry only the sentences. */
+    warningEntries?: ArchiveWarning[];
     summary: {
         workspaces: number;
         collections: number;

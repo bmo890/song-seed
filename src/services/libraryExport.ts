@@ -27,6 +27,7 @@ import { SONG_NOOK_SHARE_DIR } from "./storagePaths";
 import { cleanupShareTempFile } from "./managedMedia";
 import { saveArchiveToUserLocation } from "./archiveSave";
 import { ensureBackupDiskSpace } from "./backupOperation";
+import { archiveWarningEnglish, type ArchiveWarning } from "./archiveWarnings";
 import type { BackupOperationOptions } from "./backupOperation";
 import { recordLibraryOperationThroughput } from "./operationPacing";
 import {
@@ -110,7 +111,7 @@ export type LibraryExportResult = {
     archiveUri: string;
     archiveTitle: string;
     archiveExtension: "zip" | "songnook";
-    warningMessages: string[];
+    warnings: ArchiveWarning[];
     exportedWorkspaces: number;
     exportedCollections: number;
     exportedSongs: number;
@@ -128,6 +129,7 @@ type StandardExportReport = {
     options: StandardZipOptions;
     scope: LibraryExportScope;
     warnings: string[];
+    warningEntries: ArchiveWarning[];
     summary: {
         workspaces: number;
         collections: number;
@@ -137,10 +139,13 @@ type StandardExportReport = {
     };
 };
 
+/** A packed file remembers which warning to raise if it has gone missing by pack time. */
+type ExportZipEntry = ZipArchiveEntry & { missingWarning?: ArchiveWarning };
+
 type ExportBuildContext = {
     directories: Set<string>;
-    entries: ZipArchiveEntry[];
-    warnings: string[];
+    entries: ExportZipEntry[];
+    warnings: ArchiveWarning[];
     /** Pre-edit source audio already packed, by live file URI → archive path (dedupe). */
     sourceAudioPaths: Map<string, string>;
     exportedWorkspaces: number;
@@ -248,7 +253,7 @@ async function packageBuild(args: ExportLibraryArgs, build: ExportBuildContext):
                 return entry;
             }
 
-            build.warnings.push(entry.missingMessage ?? `Missing file: ${entry.archiveName}`);
+            build.warnings.push(entry.missingWarning ?? { code: "missingFile", params: { name: entry.archiveName } });
             return null;
         })
     );
@@ -260,7 +265,8 @@ async function packageBuild(args: ExportLibraryArgs, build: ExportBuildContext):
                 format: args.format,
                 exportedAt: new Date().toISOString(),
                 scope: args.scope,
-                warnings: build.warnings,
+                warnings: build.warnings.map(archiveWarningEnglish),
+                warningEntries: build.warnings,
                 summary: {
                     workspaces: build.exportedWorkspaces,
                     collections: build.exportedCollections,
@@ -309,7 +315,7 @@ async function packageBuild(args: ExportLibraryArgs, build: ExportBuildContext):
         archiveUri,
         archiveTitle,
         archiveExtension,
-        warningMessages: build.warnings,
+        warnings: build.warnings,
         exportedWorkspaces: build.exportedWorkspaces,
         exportedCollections: build.exportedCollections,
         exportedSongs: build.exportedSongs,
@@ -424,7 +430,7 @@ function buildSongNookArchive(args: Extract<ExportLibraryArgs, { format: "songno
             args.libraryPreferences
         ),
         scope: args.scope,
-        warnings: context.warnings,
+        warnings: [],
         summary: {
             workspaces: 0,
             collections: 0,
@@ -582,6 +588,9 @@ function buildSongNookArchive(args: Extract<ExportLibraryArgs, { format: "songno
         notepadNotes: context.exportedNotepadNotes,
     };
 
+    // Sentences for older apps and logs, codes for this one (translated at display).
+    manifest.warnings = context.warnings.map(archiveWarningEnglish);
+    manifest.warningEntries = context.warnings;
     addTextEntry(context, "manifest.json", JSON.stringify(manifest, null, 2));
 
     return context;
@@ -658,7 +667,8 @@ function buildStandardZip(args: Extract<ExportLibraryArgs, { format: "standard-z
         exportedAt: new Date().toISOString(),
         options: args.options,
         scope: args.scope,
-        warnings: context.warnings,
+        warnings: context.warnings.map(archiveWarningEnglish),
+        warningEntries: context.warnings,
         summary: {
             workspaces: context.exportedWorkspaces,
             collections: context.exportedCollections,
@@ -724,7 +734,7 @@ function attachSourceAudio(
         context,
         `${clipStemPath} Source.${getArchiveFileExtension(sourceUri)}`,
         sourceUri,
-        `Missing source audio for ${clipLabel}.`
+        { code: "missingSourceAudio", params: { name: clipLabel } }
     );
     context.sourceAudioPaths.set(sourceUri, sourcePath);
     manifest.sourceAudioPath = sourcePath;
@@ -780,11 +790,11 @@ function buildArchiveClipEntry(
             context,
             `${clipStemPath}.${getArchiveFileExtension(clipAudioUri)}`,
             clipAudioUri,
-            `Missing clip audio for ${clipLabel}.`
+            { code: "missingClipAudio", params: { name: clipLabel } }
         );
     } else {
         clipManifest.audioMissing = true;
-        context.warnings.push(`Missing clip audio for ${clipLabel}.`);
+        context.warnings.push({ code: "missingClipAudio", params: { name: clipLabel } });
     }
 
     const overdubManifest = buildArchiveClipOverdubManifest(clip, clipStemPath, context, clipLabel, options);
@@ -871,7 +881,7 @@ function buildArchiveStandaloneClip(
           })
         : null;
     if (!primaryTake) {
-        context.warnings.push(`Missing clip audio for ${idea.title}.`);
+        context.warnings.push({ code: "missingClipAudio", params: { name: idea.title } });
     }
 
     // The entry describes the PRIMARY take under the idea's identity (title, bookmark,
@@ -937,10 +947,10 @@ function exportStandardSong(
             context,
             `${itemStemPath}.${getArchiveFileExtension(primaryAudioUri)}`,
             primaryAudioUri,
-            `Missing primary take for ${idea.title}.`
+            { code: "missingPrimaryTake", params: { name: idea.title } }
         );
     } else {
-        context.warnings.push(`Missing primary take for ${idea.title}.`);
+        context.warnings.push({ code: "missingPrimaryTake", params: { name: idea.title } });
     }
 
     if (options.includeNotesAsText && idea.notes.trim().length > 0) {
@@ -967,10 +977,10 @@ function exportStandardClip(
             context,
             `${itemStemPath}.${getArchiveFileExtension(audioUri)}`,
             audioUri,
-            `Missing clip audio for ${idea.title}.`
+            { code: "missingClipAudio", params: { name: idea.title } }
         );
     } else {
-        context.warnings.push(`Missing clip audio for ${idea.title}.`);
+        context.warnings.push({ code: "missingClipAudio", params: { name: idea.title } });
     }
 
     if (options.includeNotesAsText && idea.notes.trim().length > 0) {
@@ -1133,7 +1143,7 @@ function addTextEntry(context: ExportBuildContext, archiveName: string, data: st
  * (2026-10-14), and the zip writer refuses a duplicate entry outright. The
  * caller records the RETURNED path in the manifest.
  */
-function addFileEntry(context: ExportBuildContext, archiveName: string, fileUri: string, missingMessage: string): string {
+function addFileEntry(context: ExportBuildContext, archiveName: string, fileUri: string, missingWarning: ArchiveWarning): string {
     const taken = new Set(context.entries.map((entry) => entry.archiveName.toLowerCase()));
     let finalName = archiveName;
     if (taken.has(finalName.toLowerCase())) {
@@ -1150,7 +1160,7 @@ function addFileEntry(context: ExportBuildContext, archiveName: string, fileUri:
         addDirectory(context, parentDirectory);
     }
 
-    context.entries.push({ archiveName: finalName, fileUri, missingMessage });
+    context.entries.push({ archiveName: finalName, fileUri, missingWarning });
     return finalName;
 }
 
@@ -1209,7 +1219,7 @@ function buildArchiveClipOverdubManifest(
             context,
             `${clipStemPath} Mix.${getArchiveFileExtension(renderedMixUri)}`,
             renderedMixUri,
-            `Missing rendered overdub mix for ${clipLabel}.`
+            { code: "missingOverdubMix", params: { name: clipLabel } }
         );
     }
 
@@ -1243,11 +1253,11 @@ function buildArchiveClipOverdubManifest(
                 context,
                 `${stemStemPath}.${getArchiveFileExtension(stem.audioUri)}`,
                 stem.audioUri,
-                `Missing overdub stem for ${clipLabel} / ${stem.title}.`
+                { code: "missingOverdubStem", params: { name: clipLabel, stem: stem.title } }
             );
         } else {
             stemManifest.audioMissing = true;
-            context.warnings.push(`Missing overdub stem for ${clipLabel} / ${stem.title}.`);
+            context.warnings.push({ code: "missingOverdubStem", params: { name: clipLabel, stem: stem.title } });
         }
 
         overdubManifest.stems.push(stemManifest);

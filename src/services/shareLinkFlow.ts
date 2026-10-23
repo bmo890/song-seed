@@ -3,6 +3,7 @@
  * point (the Send sheet today) says the same thing for the same failure.
  */
 import { EmptyShareError, SendTransferError, TooLargeShareError } from "./shareLink";
+import { describeSendTransferError } from "./sendTransfer";
 import { i18n } from "../i18n/instance";
 
 export function formatByteLimit(bytes: number): string {
@@ -24,7 +25,9 @@ export function describeShareLinkError(
     };
   }
   if (err instanceof SendTransferError) {
-    return { title: i18n.t("shareLink.failureTitle"), body: err.message };
+    // The code is translated; the raw message (often a server body) is for the log.
+    console.warn("[send] transfer failed", err.message);
+    return { title: i18n.t("shareLink.failureTitle"), body: describeSendTransferError(err) };
   }
   return { title: i18n.t("shareLink.failureTitle"), body: i18n.t("shareLink.retry") };
 }

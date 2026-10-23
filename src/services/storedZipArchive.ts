@@ -24,6 +24,10 @@ const STREAM_CHUNK_BYTES = 256 * 1024;
 const YIELD_AFTER_BYTES = 2 * 1024 * 1024;
 
 export const MAX_BACKUP_METADATA_ENTRY_BYTES = 128 * 1024 * 1024;
+/** manifest.json of a SHARED archive (a file someone sent): far below the backup cap, so
+ *  a hostile manifest is refused before JSON.parse can exhaust Hermes (sweep #21). 32 MB
+ *  still fits the inline waveforms of a full-fidelity 4 GB archive. */
+export const MAX_ARCHIVE_MANIFEST_ENTRY_BYTES = 32 * 1024 * 1024;
 
 export type StoredZipEntry = {
     name: string;
@@ -299,7 +303,7 @@ export async function streamStoredZipEntry(
                         phase: options.phase,
                         completedBytes: (options.progressOffsetBytes ?? 0) + processed,
                         totalBytes: options.progressTotalBytes ?? entry.sizeBytes,
-                        message: options.progressMessage ?? "Processing backup",
+                        message: options.progressMessage ?? i18n.t("process.processingBackup"),
                     });
                 }
                 bytesSinceYield = 0;

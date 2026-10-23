@@ -9,6 +9,7 @@ import {
 } from "../../../services/integrityScanner";
 import { appActions } from "../../../state/actions";
 import { useTranslation } from "react-i18next";
+import { userFacingMessage } from "../../../i18n/userFacingError";
 
 export function useStorageDiagnostics({ active }: { active: boolean }) {
   const { t } = useTranslation();
@@ -30,11 +31,8 @@ export function useStorageDiagnostics({ active }: { active: boolean }) {
       const report = await getStorageDetailsReport(snapshot);
       setStorageReport(report);
     } catch (error) {
-      setStorageError(
-        error instanceof Error
-          ? error.message
-          : t("settingsStorage.loadFailed")
-      );
+      // A raw native message is English and internal; the sentence is ours.
+      setStorageError(userFacingMessage(error, t("settingsStorage.loadFailed")));
     } finally {
       setIsStorageLoading(false);
     }

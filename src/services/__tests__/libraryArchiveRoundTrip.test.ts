@@ -37,6 +37,9 @@ jest.mock("expo-file-system/legacy", () => ({
     makeDirectoryAsync: jest.fn(async (uri: string) => {
         mockDirectories.add(uri);
     }),
+    deleteAsync: jest.fn(async (uri: string) => {
+        mockFiles.delete(uri);
+    }),
 }));
 
 // Modern expo-file-system File API used by the streaming archive reader/writer.
@@ -149,9 +152,11 @@ jest.mock("../../../modules/songnook-file-io", () => ({
 jest.mock("expo-document-picker", () => ({ getDocumentAsync: jest.fn() }));
 
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
+import * as FileSystem from "expo-file-system/legacy";
 import { prepareLibraryExportArchive } from "../libraryExport";
-import { materializeSongNookArchiveMerge, readSongNookArchive } from "../libraryImport";
+import { buildLibraryImportPreview, materializeSongNookArchiveMerge, readSongNookArchive } from "../libraryImport";
 import { normalizeWorkspaces } from "../../state/dataSlice";
+import { UserFacingError } from "../../i18n/userFacingError";
 
 const REAL_PEAKS = [0.11, 0.22, 0.33, 0.44, 0.55];
 const ROOT_CLIP_AUDIO = "file:///doc/songnook/audio/root.m4a";
@@ -722,5 +727,106 @@ describe("SongNook Archive round-trip — standard (lossy)", () => {
         expect(song.status).toBe("song");
         // The latest lyric text still round-trips as a single rebuilt version.
         expect(song.lyrics?.versions.length).toBeGreaterThanOrEqual(1);
+    });
+});
+
+const FULL_EXPORT_OPTIONS = {
+    includeFullSongHistory: true,
+    includeNotes: true,
+    includeLyrics: true,
+    includeHiddenItems: true,
+    preserveAllMetadata: true,
+};
+
+async function exportFixture(preserveAllMetadata = true, mutate?: (workspaces: Workspace[]) => void) {
+    const { workspaces } = buildLibrary();
+    mutate?.(workspaces);
+    return prepareLibraryExportArchive({
+        workspaces,
+        notes: [],
+        format: "songnook-archive",
+        scope: { workspaceIds: ["ws-1"], collectionIds: [] },
+        options: { ...FULL_EXPORT_OPTIONS, preserveAllMetadata },
+        libraryPreferences: { primaryWorkspaceId: "ws-1", primaryCollectionIdByWorkspace: {} },
+    });
+}
+
+describe("SongNook Archive import — guard and rollback (sweep 2026-10-22 #3)", () => {
+    const AUDIO_DIR = "file:///doc/songnook/audio/";
+    const managedAudio = () =>
+        new Set(Array.from(mockFiles.keys()).filter((uri) => uri.startsWith(AUDIO_DIR)));
+
+    it("refuses the import before the first write when the phone has no room", async () => {
+        const before = managedAudio();
+        const prepared = await exportFixture();
+        const parsed = await readSongNookArchive(prepared.archiveUri, "archive.zip");
+        (FileSystem.getFreeDiskStorageAsync as jest.Mock).mockResolvedValueOnce(0);
+
+        await expect(materializeSongNookArchiveMerge(parsed, [], null)).rejects.toBeInstanceOf(UserFacingError);
+        expect(managedAudio()).toEqual(before);
+    });
+
+    it("deletes every extracted file when the import fails midway", async () => {
+        const before = managedAudio();
+        const prepared = await exportFixture();
+        // Corrupt one stored entry's bytes: the index still reads, but that entry fails
+        // its CRC on extract — after earlier entries were already written.
+        const archive = mockFiles.get(prepared.archiveUri)!;
+        const at = Buffer.from(archive).indexOf(Buffer.from(utf8("standalone-audio-bytes")));
+        expect(at).toBeGreaterThan(0);
+        archive[at] = archive[at]! ^ 0xff;
+        const parsed = await readSongNookArchive(prepared.archiveUri, "archive.zip");
+
+        await expect(materializeSongNookArchiveMerge(parsed, [], null)).rejects.toThrow(/checksum/);
+        expect(FileSystem.deleteAsync).toHaveBeenCalled();
+        expect(managedAudio()).toEqual(before);
+    });
+
+    it("writes the referenced audio once the guard passes", async () => {
+        const before = managedAudio();
+        const prepared = await exportFixture();
+        const parsed = await readSongNookArchive(prepared.archiveUri, "archive.zip");
+        await materializeSongNookArchiveMerge(parsed, [], null);
+        // Six takes/stems in the fixture plus one shared pre-edit source.
+        expect(managedAudio().size).toBe(before.size + 7);
+    });
+});
+
+describe("SongNook Archive warnings carry codes (sweep 2026-10-22 #8)", () => {
+    it("names a file missing at pack time by code, in the archive and in the result", async () => {
+        mockFiles.delete(CHILD2_CLIP_AUDIO);
+        const prepared = await exportFixture();
+        expect(prepared.warnings).toContainEqual({ code: "missingClipAudio", params: { name: "My Song / Edit 2" } });
+
+        // The archive keeps the English sentence for older apps and a structured twin.
+        const report = JSON.parse(strFromU8(unzipSync(mockFiles.get(prepared.archiveUri)!)["export-report.json"]!));
+        expect(report.warnings).toEqual(["Missing clip audio for My Song / Edit 2."]);
+        expect(report.warningEntries).toEqual(prepared.warnings);
+
+        // On import the manifest still points at the entry, so the importer warns by code too.
+        const parsed = await readSongNookArchive(prepared.archiveUri, "archive.zip");
+        const merge = await materializeSongNookArchiveMerge(parsed, [], null);
+        expect(merge.warnings).toContainEqual({ code: "missingArchivedAudio", params: { name: "My Song / Edit 2" } });
+    });
+
+    it("writes a take without audio into the manifest as a coded warning the preview can read", async () => {
+        const prepared = await exportFixture(false, (workspaces) => {
+            // A derived take falls back to its pre-edit source; the root has none.
+            workspaces[0]!.ideas[0]!.clips[0]!.audioUri = undefined;
+        });
+        const parsed = await readSongNookArchive(prepared.archiveUri, "archive.zip");
+        expect(parsed.manifest.warnings).toEqual(["Missing clip audio for My Song / Root take."]);
+        expect(parsed.manifest.warningEntries).toEqual([{ code: "missingClipAudio", params: { name: "My Song / Root take" } }]);
+        expect(buildLibraryImportPreview(parsed).warningMessages).toEqual(["Missing clip audio for My Song / Root take."]);
+    });
+
+    it("shows an older archive's baked sentences as they were written", async () => {
+        const prepared = await exportFixture(false);
+        const parsed = await readSongNookArchive(prepared.archiveUri, "archive.zip");
+        delete parsed.manifest.warningEntries;
+        parsed.manifest.warnings = ["Something an older app wrote."];
+        expect(buildLibraryImportPreview(parsed).warningMessages).toEqual(["Something an older app wrote."]);
+        const merge = await materializeSongNookArchiveMerge(parsed, [], null);
+        expect(merge.warnings[0]).toEqual({ code: "text", params: { message: "Something an older app wrote." } });
     });
 });

@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
         paddingHorizontal: 36,
-        backgroundColor: "rgba(28,28,25,0.55)",
+        backgroundColor: colors.scrim,
     },
     card: {
         width: "100%",
