@@ -12,6 +12,7 @@ import { radii, colors, shadows } from "../../../design/tokens";
 import { Press } from "../../common/Press";
 import { useTranslation } from "react-i18next";
 import { PIN_ICON, PIN_ICON_OUTLINE } from "../../../design/markIcons";
+import { hexToRgba } from "../../../domain/playerSections";
 
 type Props = {
     ideaTitle: string;
@@ -100,7 +101,7 @@ export function RecordingMeta({
             rulerColor: colors.borderMuted,
             // Full record-red once the tape is moving; quieter while parked, so an idle
             // page doesn't announce something that isn't happening yet.
-            playheadColor: isRecording ? colors.record : "rgba(192,69,59,0.45)",
+            playheadColor: isRecording ? colors.record : hexToRgba(colors.record, 0.45),
             pinColor: colors.textStrong,
         }),
         [isRecording]

@@ -1,5 +1,5 @@
 import { softenStartLevels } from "../domain/liveWaveform";
-import { timedStep } from "../services/stepTiming";
+import { StepTimeoutError, timedStep } from "../services/stepTiming";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   useSharedAudioRecorder,
@@ -242,7 +242,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     take.headTrim.set({ pending: false, ms: 0 });
   }
   // Single-line card by design: "● Recording… • 0:42". One fixed title.
-  const recordingNotificationTitle = "Recording…";
+  const recordingNotificationTitle = t("recordingErrors.notificationLiveTitle");
   async function claimRecordingAudioSession() {
     await activateRecordingAudioSession({ ownerId: RECORDING_AUDIO_SESSION_OWNER });
   }
@@ -342,6 +342,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       return true;
     }
 
+    // haptics.ts vocabulary: `error` — a failure the person has to deal with.
+    haptic.error();
     if (permission?.canAskAgain === false) {
       AppAlert.custom(
         t("recordingErrors.micTitle"),
@@ -433,6 +435,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   }
 
   function showRecordingFailure(error: unknown, fallback: string) {
+    // haptics.ts vocabulary: `error` — a failure the person has to deal with.
+    haptic.error();
     if (isNotificationPermissionError(error)) {
       showNotificationPermissionAlert(true);
       return;
@@ -868,6 +872,11 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
   }
 
   async function cancelPreparedRecording() {
+    // Read before the reset below: only the marker THIS take wrote may be cleared. A
+    // prepared-but-not-started take wrote none, and the marker that is there may belong
+    // to a take kept for recovery after a failed save (recovery runs only once the next
+    // take actually starts) — clearing it unconditionally orphaned that take.
+    const wroteSessionMarker = take.facts.sessionPersisted;
     take.facts.prepared = false;
     prewarmedRef.current = false;
     take.facts.recordingStartedAt = null;
@@ -875,14 +884,21 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     abortHeadTrim();
     resetLiveWaveform();
       resetOnsetEnvelope();
+    let fileUri: string | undefined;
     try {
       take.facts.expectedStop = true;
-      await recorder.stopRecording();
+      const recordingData = await recorder.stopRecording();
+      fileUri = recordingData?.fileUri;
     } catch {
       take.facts.expectedStop = false;
       // Ignore cleanup failures when a prepared recorder is canceled before capture begins.
     }
-    await clearPendingRecordingSession();
+    if (fileUri) {
+      // Record-through: capture was already rolling during the count-in, so a cancelled
+      // count-in has a file nobody will ever reach (Data law) — drop it like discard does.
+      await FileSystem.deleteAsync(fileUri, { idempotent: true }).catch(() => {});
+    }
+    if (wroteSessionMarker) await clearPendingRecordingSession();
     await releaseRecordingAudioSession().catch((error) => {
       console.warn("Recording audio session release after prepare cancel failed", error);
     });
@@ -909,7 +925,17 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     }
   }
 
+  /** A stop that timed out may still be capturing (mic indicator, wake lock, foreground
+   *  service); nothing else would stop it until the next take. One follow-up stop, not
+   *  awaited, so capture cannot continue unattended. */
+  function stopLateRecorder() {
+    void recorder.stopRecording().catch(() => {});
+  }
+
   async function saveRecording() {
+    // A second Save landing in the same frame would stop an already-stopped recorder and
+    // read as "kept for recovery"; the render-gated buttons can't catch that one.
+    if (saveInFlightRef.current) return false;
     saveInFlightRef.current = true;
     try {
       return await saveRecordingNow();
@@ -1102,8 +1128,9 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       // The marker now either is gone (durable) or points at the managed file (journal).
       if (durable) await clearPendingRecordingSession();
       return true;
-    } catch {
+    } catch (error) {
       take.facts.expectedStop = false;
+      if (error instanceof StepTimeoutError) stopLateRecorder();
       // Roll back the PARTIAL artifacts (the managed copy and the intermediate trim temp),
       // but PRESERVE the recorder temp file AND the pending-session marker — together they
       // are the recoverable take that recoverPendingRecordingSession restores on next
@@ -1145,8 +1172,9 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         },
       });
       fileUri = recordingData?.fileUri;
-    } catch {
+    } catch (error) {
       take.facts.expectedStop = false;
+      if (error instanceof StepTimeoutError) stopLateRecorder();
     }
     take.facts.prepared = false;
     prewarmedRef.current = false;

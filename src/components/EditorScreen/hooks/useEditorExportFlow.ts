@@ -28,6 +28,7 @@ import {
 } from "../helpers";
 import { useTranslation } from "react-i18next";
 import { trashFilesOfDroppedClips } from "../../../state/mediaCleanup";
+import { deleteManagedAudioUris } from "../../../services/managedMedia";
 import { userFacingMessage } from "../../../i18n/userFacingError";
 
 type MinimalPlayer = {
@@ -53,6 +54,13 @@ async function importRenderedFileToManaged(renderedUri: string) {
     await FileSystem.deleteAsync(renderedUri, { idempotent: true }).catch(() => {});
   }
   return imported;
+}
+
+/** A save that failed after importing leaves managed files no clip references (Data law:
+ *  nothing stays on the phone the library can't reach). Drop them, never the source. */
+function dropUnattachedImports(audioUris: string[]) {
+  if (audioUris.length === 0) return;
+  void deleteManagedAudioUris(audioUris).catch(() => {});
 }
 
 type UseEditorExportFlowArgs = {
@@ -366,6 +374,9 @@ export function useEditorExportFlow({
     if (!audioUri || !sourceClip) return;
 
     setIsExporting(true);
+    // Each part is imported inside the loop; a later part failing (or the commit) would
+    // otherwise orphan the parts already in managed storage.
+    const importedAudioUris: string[] = [];
     try {
       await safePause();
       console.log("[editor:export] extract start", { regions: keepRegions.length });
@@ -385,6 +396,7 @@ export function useEditorExportFlow({
           endTimeMs: region.end,
         });
         const metadata = await importRenderedFileToManaged(result.uri);
+        importedAudioUris.push(metadata.audioUri);
         void ensureWaveformSidecar(metadata.audioUri, metadata.durationMs);
         const remap = remapClipForSpans(
           sourceClip,
@@ -416,10 +428,12 @@ export function useEditorExportFlow({
       }
 
       const newClipIds = commitExportedClips(exportedClips);
+      importedAudioUris.length = 0; // attached now — theirs to keep
       console.log("[editor:export] extract done", { newClipIds });
       finishExport(newClipIds);
     } catch (error) {
       console.warn("Editor extract failed", error);
+      dropUnattachedImports(importedAudioUris);
       AppAlert.error(t("editor.exportError"), t("editor.extractFailed"));
     } finally {
       setIsExporting(false);
@@ -430,6 +444,7 @@ export function useEditorExportFlow({
     if (!audioUri || !sourceClip || !analysisData) return;
 
     setIsExporting(true);
+    const importedAudioUris: string[] = [];
     try {
       await safePause();
       console.log("[editor:export] splice start", {
@@ -443,6 +458,7 @@ export function useEditorExportFlow({
         durationMs: analysisData.durationMs,
       });
       const metadata = await importRenderedFileToManaged(result.uri);
+      importedAudioUris.push(metadata.audioUri);
       void ensureWaveformSidecar(metadata.audioUri, metadata.durationMs);
 
       // The same kept spans the renderer just concatenated, so the audio and its
@@ -474,11 +490,13 @@ export function useEditorExportFlow({
         remap
       );
       const newClipIds = derivedClip ? commitExportedClips([derivedClip]) : [];
+      importedAudioUris.length = 0; // attached now — theirs to keep
       console.log("[editor:export] splice done", { newClipIds });
 
       finishExport(newClipIds);
     } catch (error) {
       console.warn("Editor splice failed", error);
+      dropUnattachedImports(importedAudioUris);
       AppAlert.error(t("editor.exportError"), t("editor.spliceFailed"));
     } finally {
       setIsExporting(false);
@@ -489,6 +507,7 @@ export function useEditorExportFlow({
     if (!audioUri || !sourceClip) return;
 
     setIsExporting(true);
+    const importedAudioUris: string[] = [];
     try {
       await safePause();
       console.log("[editor:export] transform start", {
@@ -503,6 +522,7 @@ export function useEditorExportFlow({
         outputFileName: title.replace(/[^a-zA-Z0-9-_ ]/g, "").trim().replace(/\s+/g, "-") || undefined,
       });
       const metadata = await importRenderedFileToManaged(result.outputUri);
+      importedAudioUris.push(metadata.audioUri);
       void ensureWaveformSidecar(metadata.audioUri, metadata.durationMs);
       // A rate change stretches the timeline: every pin, section and tempo scales with it.
       const renderedDurationMs =
@@ -521,11 +541,13 @@ export function useEditorExportFlow({
         remap
       );
       const newClipIds = derivedClip ? commitExportedClips([derivedClip]) : [];
+      importedAudioUris.length = 0; // attached now — theirs to keep
       console.log("[editor:export] transform done", { newClipIds });
       setTransformExportModalVisible(false);
       finishExport(newClipIds);
     } catch (error) {
       console.warn("Editor transform save failed", error);
+      dropUnattachedImports(importedAudioUris);
       AppAlert.error(
         t("editor.transformSaveError"),
         userFacingMessage(error, t("editor.transformSaveFailed"))
