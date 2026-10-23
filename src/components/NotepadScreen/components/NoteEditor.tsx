@@ -24,6 +24,7 @@ import type { ContentDirection, Note } from "../../../types";
 import { AppAlert } from "../../common/AppAlert";
 import { PopoverMenuLabel, PopoverRadioRow } from "../../common/PopoverMenu";
 import { WordFinderSheet } from "../../common/WordFinderSheet";
+import { ensurePro } from "../../common/proUpsell";
 import { applyPickedWord, extractWordRange } from "../../../domain/wordTools";
 import { useEditHistory } from "../../../hooks/useEditHistory";
 import { useDraftText } from "../../../hooks/useDraftText";
@@ -197,6 +198,8 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
   }, [flash?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openWordFinder = useCallback(() => {
+    // The Word Finder is Pro (domain/proCatalog.ts "word-finder-full").
+    if (!ensurePro("word-finder-full")) return;
     const { start, end } = selectionRef.current;
     // The selection was made in the draft, which may run ahead of the store.
     const range = extractWordRange(bodyDraft.draft, start, end);

@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { hasProAccess, type ProFeature } from "../../domain/entitlements";
+import { useStore } from "../../state/useStore";
 
 /**
  * Global visibility store for the single ProUpsellSheet. Any gated call site calls
@@ -48,4 +49,22 @@ export function ensurePro(feature: ProFeature, allowed?: boolean): boolean {
     const ok = allowed ?? hasProAccess(feature);
     if (!ok) openProUpsell(feature);
     return ok;
+}
+
+/**
+ * A parcel that arrived through SongNook Send (a received package) is the sender's to
+ * share: the Pro tools that USE it (transpose, capo, the stage reader, practice) work on
+ * it for everyone, so a free bandmate can rehearse the set a Pro user sent (founder,
+ * 2026-10-23). Making new things from it stays gated like anywhere else.
+ */
+export function isReceivedIdea(ideaId: string | null | undefined): boolean {
+    if (!ideaId) return false;
+    return useStore
+        .getState()
+        .workspaces.some((workspace) => workspace.origin === "received" && workspace.ideas.some((idea) => idea.id === ideaId));
+}
+
+/** ensurePro for a tool used ON an idea: free when the idea came in a received parcel. */
+export function ensureProFor(feature: ProFeature, ideaId: string | null | undefined): boolean {
+    return ensurePro(feature, hasProAccess(feature) || isReceivedIdea(ideaId));
 }

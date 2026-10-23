@@ -25,6 +25,9 @@ export const FREE_SAVED_SPARKS_PER_TOOL = freeLimitOf("word-sparks-unlimited") ?
 /** Workspaces a free user may have (proCatalog "workspaces".freeLimit). */
 export const FREE_WORKSPACES = freeLimitOf("workspaces") ?? Infinity;
 
+/** SongNook Send links a free user may make per 30 days (proCatalog "send".freeLimit). */
+export const FREE_SEND_LINKS = freeLimitOf("send") ?? Infinity;
+
 /** Parts a free user may cut a take into in one edit (proCatalog "full-editor".freeLimit). */
 export const FREE_EDITOR_PARTS = freeLimitOf("full-editor") ?? Infinity;
 
@@ -71,4 +74,13 @@ export function canAddEditorPart(existingPartCount: number, isPro: boolean): boo
  */
 export function isPracticeToolPro(tool: PracticeTool): boolean {
     return PRO_CATALOG["practice-suite"].pro && PRACTICE_TOOLS_PRO[tool];
+}
+
+/**
+ * Whether the user may make another SongNook Send link. `recentCount` is how many links
+ * this device made in the last 30 days. Receiving, and anything inside a received
+ * parcel, is never counted or gated.
+ */
+export function canSendLink(recentCount: number, isPro: boolean): boolean {
+    return withinFreeLimit("send", recentCount, isPro);
 }

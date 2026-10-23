@@ -167,6 +167,7 @@ export function ChordSheetScreenContent() {
           {!isEmpty && !isEditing ? (
             <View style={transposeRowStyles.row}>
               <TransposeChip
+                ideaId={ideaId}
                 offset={transpose}
                 onNudge={(delta) => useChartPrefsStore.getState().nudgeTranspose(ideaId, delta)}
                 onReset={() => useChartPrefsStore.getState().resetTranspose(ideaId)}

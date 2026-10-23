@@ -15,7 +15,6 @@ import { ChordChartEditor } from "./chords/ChordChartEditor";
 import { ChordExportSheet } from "./chords/ChordExportSheet";
 import { SongbookChooserSheet } from "../../common/SongbookChooserSheet";
 import { useChordExport } from "./chords/useChordExport";
-import { ensurePro } from "../../common/proUpsell";
 import { useTranslation } from "react-i18next";
 
 export function LyricsVersionScreenContent() {
@@ -138,11 +137,7 @@ export function LyricsVersionScreenContent() {
             canChart={canChart}
             transposeIdeaId={model.projectIdea.id}
             onEdit={model.beginEdit}
-            onChords={() => {
-              // Chords over lyrics are written with a stage tool (domain/proCatalog.ts).
-              if (!ensurePro("stage-tools")) return;
-              setChordEditMode(true);
-            }}
+            onChords={() => setChordEditMode(true)}
             onLayout={model.setPreviewViewportHeight}
             onContentSizeChange={model.setPreviewContentHeight}
             onScroll={model.setPreviewScrollY}

@@ -112,7 +112,6 @@ import { enqueueMissingMetadataBackfill } from "./src/services/backgroundWavefor
 import { recoverPendingRecordingSession } from "./src/services/recordingRecovery";
 import { cleanupStaleDisasterRecoveryBackupFiles } from "./src/services/disasterRecoveryBackup";
 import { cleanupInterruptedDisasterRecoveryRestores } from "./src/services/disasterRecoveryTemp";
-import { checkClipboardForTransfer } from "./src/services/clipboardTransferCheck";
 
 
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
@@ -1426,28 +1425,6 @@ export default function App() {
         return;
       } else if (recordingRecovery.status === "failed") {
         AppAlert.info(i18n.t("recovery.clipRecoveryFailedTitle"), i18n.t("recovery.clipRecoveryFailedBody"));
-        return;
-      }
-
-      // Songnook Send deferred deep link (iOS v1): a link left on the
-      // pasteboard by the pre-install web page gets a user-visible offer —
-      // never a silent open. Takes precedence over the backup nag.
-      const pendingTransferId = await checkClipboardForTransfer();
-      if (
-        pendingTransferId &&
-        navigationRef.isReady() &&
-        navigationRef.getCurrentRoute()?.name !== "TransferReceive"
-      ) {
-        AppAlert.confirm(
-          i18n.t("transferReceive.clipboardTitle"),
-          i18n.t("transferReceive.clipboardBody"),
-          () => {
-            if (navigationRef.isReady()) {
-              navigationRef.navigate("TransferReceive", { transferId: pendingTransferId });
-            }
-          },
-          { confirmLabel: i18n.t("transferReceive.open"), icon: "mail-open-outline" }
-        );
         return;
       }
 

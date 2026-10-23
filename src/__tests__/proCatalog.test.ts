@@ -15,6 +15,8 @@ import {
     FREE_WORKSPACES,
     canAddEditorPart,
     canAddWorkspace,
+    canSendLink,
+    FREE_SEND_LINKS,
     isPracticeToolPro,
 } from "../domain/proGating";
 
@@ -75,6 +77,10 @@ describe("the Pro catalog", () => {
         expect(canAddEditorPart(0, false)).toBe(true); // a plain trim
         expect(canAddEditorPart(PRO_CATALOG["full-editor"].freeLimit!, false)).toBe(false);
         expect(canAddEditorPart(5, true)).toBe(true);
+        expect(FREE_SEND_LINKS).toBe(PRO_CATALOG.send.freeLimit);
+        expect(canSendLink(FREE_SEND_LINKS - 1, false)).toBe(true);
+        expect(canSendLink(FREE_SEND_LINKS, false)).toBe(false);
+        expect(canSendLink(99, true)).toBe(true);
         for (const tool of Object.keys(PRACTICE_TOOLS_PRO) as (keyof typeof PRACTICE_TOOLS_PRO)[]) {
             expect(isPracticeToolPro(tool)).toBe(PRO_CATALOG["practice-suite"].pro && PRACTICE_TOOLS_PRO[tool]);
         }
@@ -107,5 +113,17 @@ describe("the Pro sheet's rows", () => {
             if (!isProFeature(key) || quiet.includes(key)) continue;
             expect({ key, advertised: advertised.has(key) }).toEqual({ key, advertised: true });
         }
+    });
+});
+
+describe("the founder's split (2026-10-23)", () => {
+    it("keeps capture-adjacent basics free and the word lookups Pro", () => {
+        expect(isPracticeToolPro("loop")).toBe(false);
+        expect(isPracticeToolPro("speed")).toBe(false);
+        expect(isPracticeToolPro("stepUp")).toBe(true);
+        expect(isProFeature("lyric-spark")).toBe(false);
+        expect(isProFeature("word-finder-full")).toBe(true);
+        expect(FREE_WORKSPACES).toBe(3);
+        expect(FREE_SAVED_SPARKS_PER_TOOL).toBe(3);
     });
 });

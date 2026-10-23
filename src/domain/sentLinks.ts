@@ -24,6 +24,15 @@ export type SentLink = {
   itemCount: number;
 };
 
+/** The window a free user's Send allowance counts over (domain/proCatalog.ts "send"). */
+export const SEND_ALLOWANCE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** The moments links were made, inside the allowance window. The outbox itself prunes
+ *  a link days after it expires, so it can't be the count. */
+export function recentSendStamps(stamps: number[], now: number): number[] {
+  return stamps.filter((at) => Number.isFinite(at) && at > now - SEND_ALLOWANCE_WINDOW_MS && at <= now + 60_000);
+}
+
 /** Keep expired entries visible (greyed out) this long before pruning. */
 export const SENT_LINK_PRUNE_GRACE_MS = 3 * 24 * 60 * 60 * 1000;
 

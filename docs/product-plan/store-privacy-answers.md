@@ -1,5 +1,9 @@
 # Store privacy questionnaires — corrected answers (SongNook Send era)
 
+> **2026-10-23:** the label to submit is now in `store-listing.md` (founder: declare
+> honestly; Pro adds purchase history). The facts below still hold, except the iOS
+> pasteboard check, which was removed.
+
 **Drafted 2026-08-26, for founder review.** Supersedes the privacy-questionnaire
 and content-questionnaire sections of `store-listing.md` (lines ~81–135), which
 predate SongNook Send and answer "Data Not Collected" / "no user-generated
