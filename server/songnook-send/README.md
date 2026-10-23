@@ -59,7 +59,7 @@ Every client is untrusted (the desktop page is public HTML; the raw API is reach
 - **Draft mutation token** — the public link id is not enough to add items or finalize;
   the create caller gets a separate `uploadToken` for those draft-only operations.
 - **Origin allowlist** (`lib/guard.ts`) on create/upload — browser calls must come from `ALLOWED_WEB_ORIGINS` (blocks other sites' JS). The native app sends no Origin → allowed.
-- **Per-IP rate limiting** on create/upload — the Workers Rate Limiting binding (`RATE_CREATE` / `RATE_ITEMS` in `wrangler.toml`, atomic per colo: 5 creates and 60 item registrations per IP per minute). Without the binding (local dev) it falls back to the approximate KV fixed window — `RATE_CREATE_PER_HOUR` (30) / `RATE_ITEMS_PER_HOUR` (300) on the `RATE` KV — and fails open with neither.
+- **Per-IP rate limiting** on create/upload — the Workers Rate Limiting binding (`RATE_CREATE` / `RATE_ITEMS` in `wrangler.toml`, atomic per colo: 5 creates and 240 item registrations per IP per minute, above the 200-item cap of one link). Without the binding (local dev) it falls back to the approximate KV fixed window — `RATE_CREATE_PER_HOUR` (30) / `RATE_ITEMS_PER_HOUR` (300) on the `RATE` KV — and fails open with neither.
 - **Caps** — 1 GB/transfer, 1 GB/file (a collection is one file), 200 items, 7-day
   finalized-transfer expiry, 24-hour unfinished-draft sweep. The item and byte caps
   are enforced inside the item INSERT (one D1 transaction), so parallel

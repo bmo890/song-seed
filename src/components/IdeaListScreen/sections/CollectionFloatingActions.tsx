@@ -10,12 +10,12 @@ import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import { appActions } from "../../../state/actions";
 import { createEmptyProjectLyrics } from "../../../state/dataSlice";
 import { relocateActivityEvents, relocatePlaylists } from "../../../state/relocationMetadata";
-import { buildRuntimeCleanupPatch } from "../../../state/runtimeCleanup";
+import { buildRuntimeCleanupPatch, restorePrunedEntries } from "../../../state/runtimeCleanup";
 import { collectManagedIdeaAudioUris } from "../../../services/managedMedia";
 import { trashFilesNoLongerUsed } from "../../../state/mediaCleanup";
 import { authorizeIntentionalEmptyStateWrite } from "../../../services/stateIntegrity";
 import { buildDefaultIdeaTitle, ensureUniqueIdeaTitle, getBaseClipTitle } from "../../../utils";
-import type { ActivityEvent, IdeasHiddenDay, IdeasListState, Playlist, SongIdea, Workspace } from "../../../types";
+import type { ActivityEvent, IdeasHiddenDay, IdeasListState, Playlist, Setlist, SongIdea, Songbook, Workspace } from "../../../types";
 import { useStore } from "../../../state/useStore";
 import { getDateBucket } from "../../../domain/dateBuckets";
 import { getIdeaSortTimestamp } from "../../../domain/ideaSort";
@@ -28,7 +28,12 @@ type CollectionUndoSnapshot = {
   ideas: SongIdea[];
   activityEvents: ActivityEvent[];
   playlists: Playlist[];
+  // A delete prunes the ideas' songbook and setlist entries (runtimeCleanup); undo
+  // must put them back where they stood.
+  songbooks: Songbook[];
+  setlists: Setlist[];
 };
+
 
 function normalizeIdeasListState(
   ideasListState: IdeasListState | undefined,
@@ -77,6 +82,8 @@ function buildCollectionUndoSnapshot(workspace: Workspace): CollectionUndoSnapsh
     ideas: workspace.ideas,
     activityEvents: state.activityEvents,
     playlists: state.playlists,
+    songbooks: state.songbooks,
+    setlists: state.setlists,
   };
 }
 
@@ -140,6 +147,14 @@ function restoreDeletedIdeas(snapshot: CollectionUndoSnapshot, removedIdeaIds: S
             ...playlist.items.filter((item) => !before.items.some((old) => old.id === item.id)),
           ],
         };
+      }),
+      songbooks: store.songbooks.map((book) => {
+        const before = snapshot.songbooks.find((candidate) => candidate.id === book.id);
+        return before ? { ...book, items: restorePrunedEntries(book.items, before.items, removedIdeaIds) } : book;
+      }),
+      setlists: store.setlists.map((set) => {
+        const before = snapshot.setlists.find((candidate) => candidate.id === set.id);
+        return before ? { ...set, entries: restorePrunedEntries(set.entries, before.entries, removedIdeaIds) } : set;
       }),
     };
   });
@@ -419,6 +434,10 @@ export function CollectionFloatingActions() {
       ideaTitle: generatedTitle,
     }));
 
+    // Folding N clips into one sketch drops N − 1 ideas while every take stays: on a
+    // small library that reads as a large loss to the persist guard, which would lock
+    // saving for the session (2026-10-23). It is a deliberate gather — authorize it.
+    authorizeIntentionalEmptyStateWrite(6);
     useStore.setState((storeState) => ({
       workspaces: storeState.workspaces.map((workspace) =>
         workspace.id !== activeWorkspace.id

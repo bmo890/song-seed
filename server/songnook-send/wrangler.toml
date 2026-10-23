@@ -76,7 +76,9 @@ simple = { limit = 5, period = 60 }
 name = "RATE_ITEMS"
 type = "ratelimit"
 namespace_id = "1002"
-simple = { limit = 60, period = 60 }
+# Above MAX_ITEMS_PER_TRANSFER (200): the app registers a loose-files link one
+# file at a time, so one legitimate send of short clips can need ~200 in a minute.
+simple = { limit = 240, period = 60 }
 
 # ── KV binding: rate-limit FALLBACK when the bindings above are absent ───────
 # (local dev). Create with `wrangler kv namespace create RATE`, paste the id.

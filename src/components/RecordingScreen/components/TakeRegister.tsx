@@ -5,7 +5,11 @@ import { runOnJS, useAnimatedReaction, useDerivedValue, type SharedValue } from 
 import type { DataPoint } from "@siteed/audio-studio";
 import { colors } from "../../../design/tokens";
 import { REEL_SURFACE_COLOR } from "../../common/AudioReel";
-import { getActiveRecordingTakeSession, useTakeLiveWaveform } from "../../../services/recordingTakeSession";
+import {
+  getActiveRecordingTakeSession,
+  RECORDING_TAKE_SHAPE,
+  useTakeLiveWaveform,
+} from "../../../services/recordingTakeSession";
 
 /**
  * The lower register of the one reel (founder, 2026-10-22: "make it look like we are
@@ -18,6 +22,10 @@ import { getActiveRecordingTakeSession, useTakeLiveWaveform } from "../../../ser
  * playhead. That holds while recording (both clocks run) and while paused (both hold).
  * The run-up and a count-in never reach here: the live waveform drops them
  * (`hideBeforeMs`, `retainPoints: false`).
+ *
+ * The live tape only holds its last 12 s, while the reel above shows far more once
+ * zoomed out; the register folds every window into its own whole-take history
+ * (`TakeHistory`), so the take stays written from its first bar (sweep R3, 2026-10-23).
  */
 
 const NOISE_FLOOR_DB = -55;
@@ -33,15 +41,51 @@ function barScale(point: DataPoint): number {
   return point.silent ? 0.01 : Math.max(0.02, Math.pow(normalized, 1.35));
 }
 
-/** Buckets on the capture clock (so bars don't reshuffle as audio arrives), each the
- *  loudest of its segments. Returns [ageMs of the bucket's start, height 0..1]. */
-export function takeBars(points: DataPoint[], captureNowMs: number, msPerBar: number): [number, number][] {
-  if (!(msPerBar > 0) || points.length === 0) return [];
-  const buckets = new Map<number, number>();
+/** The whole take, one loudness per tape segment, indexed by segment number on the
+ *  capture clock. The live waveform drops what leaves its window; this keeps it. */
+export type TakeHistory = { segmentMs: number; heights: number[]; lastNowMs: number };
+
+export function createTakeHistory(segmentMs: number): TakeHistory {
+  return { segmentMs, heights: [], lastNowMs: 0 };
+}
+
+export function resetTakeHistory(history: TakeHistory) {
+  history.heights = [];
+  history.lastNowMs = 0;
+}
+
+/** Fold the window's points in, each segment keeping its loudest reading, so folding
+ *  the same window twice changes nothing. A capture clock that went back is a new take
+ *  (Redo): the old one is cleared first. */
+export function foldIntoTakeHistory(history: TakeHistory, points: DataPoint[], captureNowMs: number) {
+  if (captureNowMs < history.lastNowMs) resetTakeHistory(history);
+  history.lastNowMs = captureNowMs;
   for (const point of points) {
-    const start = point.startTime ?? 0;
-    const key = Math.floor(start / msPerBar);
+    const segment = Math.floor((point.startTime ?? 0) / history.segmentMs);
+    if (segment < 0) continue;
     const height = barScale(point);
+    const held = history.heights[segment];
+    if (held === undefined || height > held) history.heights[segment] = height;
+  }
+}
+
+/** Bars on the capture clock (so they don't reshuffle as audio arrives), each the
+ *  loudest of its segments; only those younger than `maxAgeMs` (the rest is off the
+ *  register's left edge). Returns [ageMs of the bar's start, height 0..1]. */
+export function takeBars(
+  history: TakeHistory,
+  captureNowMs: number,
+  msPerBar: number,
+  maxAgeMs = Infinity
+): [number, number][] {
+  const { heights, segmentMs } = history;
+  if (!(msPerBar > 0) || heights.length === 0) return [];
+  const first = Math.max(0, Math.floor((captureNowMs - maxAgeMs - msPerBar) / segmentMs));
+  const buckets = new Map<number, number>();
+  for (let segment = first; segment < heights.length; segment += 1) {
+    const height = heights[segment];
+    if (height === undefined) continue;
+    const key = Math.floor((segment * segmentMs) / msPerBar);
     const held = buckets.get(key);
     if (held == null || height > held) buckets.set(key, height);
   }
@@ -98,15 +142,22 @@ export function TakeRegister({
 
   const captureNowMs = waveform.durationMs ?? 0;
   const points = active ? waveform.dataPoints ?? [] : [];
+  const historyRef = React.useRef<TakeHistory | null>(null);
+  if (!historyRef.current) historyRef.current = createTakeHistory(RECORDING_TAKE_SHAPE.segmentDurationMs);
+  const history = historyRef.current;
   const path = React.useMemo(() => {
+    // Folding is idempotent (each segment keeps its max), so a repeated run is harmless.
+    if (active) foldIntoTakeHistory(history, points, captureNowMs);
+    else resetTakeHistory(history);
     const built = Skia.Path.Make();
-    for (const [ageMs, scale] of takeBars(points, captureNowMs, msPerBar)) {
+    const maxAgeMs = width > 0 && pxPerMs > 0 ? width / pxPerMs : Infinity;
+    for (const [ageMs, scale] of takeBars(history, captureNowMs, msPerBar, maxAgeMs)) {
       const x = -ageMs * pxPerMs;
       const h = Math.max(1, scale * half);
       built.addRect(Skia.XYWHRect(x, mid - h, BAR_PX, h * 2));
     }
     return built;
-  }, [points, captureNowMs, msPerBar, pxPerMs, half, mid]);
+  }, [active, history, points, captureNowMs, msPerBar, pxPerMs, half, mid, width]);
 
   const pinPath = React.useMemo(() => {
     const built = Skia.Path.Make();

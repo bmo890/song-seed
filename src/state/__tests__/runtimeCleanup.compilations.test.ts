@@ -1,4 +1,4 @@
-import { buildRuntimeCleanupPatch } from "../runtimeCleanup";
+import { buildRuntimeCleanupPatch, restorePrunedEntries } from "../runtimeCleanup";
 import type { Setlist, Songbook, Workspace } from "../../types";
 
 /**
@@ -109,5 +109,22 @@ describe("buildRuntimeCleanupPatch · songbooks and setlists", () => {
         });
         expect(patch.songbooks).toBe(store.songbooks);
         expect(patch.setlists).toBe(store.setlists);
+    });
+});
+
+describe("restorePrunedEntries · undo of a delete", () => {
+    const entry = (id: string, ideaId: string) => ({ id, ideaId });
+
+    it("puts the pruned entries back where they stood", () => {
+        const before = [entry("a", "idea-1"), entry("b", "idea-2"), entry("c", "idea-3")];
+        const afterDelete = [entry("b", "idea-2"), entry("c", "idea-3")];
+        expect(restorePrunedEntries(afterDelete, before, new Set(["idea-1"])).map((e) => e.id)).toEqual(["a", "b", "c"]);
+    });
+
+    it("keeps what was added since and leaves out what was removed since", () => {
+        const before = [entry("a", "idea-1"), entry("b", "idea-2"), entry("c", "idea-3")];
+        // After the delete of idea-1: "c" was removed by hand and "d" added.
+        const now = [entry("b", "idea-2"), entry("d", "idea-4")];
+        expect(restorePrunedEntries(now, before, new Set(["idea-1"])).map((e) => e.id)).toEqual(["a", "b", "d"]);
     });
 });

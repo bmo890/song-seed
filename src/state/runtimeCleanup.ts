@@ -134,6 +134,22 @@ function pruneCompilationEntries<T extends { ideaId: string; workspaceId: string
     return changed ? next : compilations;
 }
 
+/** Undo for the pruning above: the entries a delete took from one compilation, back in
+ *  their old order. Anything added since stays at the end; anything removed since stays
+ *  removed. */
+export function restorePrunedEntries<T extends { id: string; ideaId: string }>(
+    current: T[],
+    before: T[],
+    removedIdeaIds: Set<string>
+): T[] {
+    const kept = new Set(current.map((entry) => entry.id));
+    const beforeIds = new Set(before.map((entry) => entry.id));
+    return [
+        ...before.filter((entry) => kept.has(entry.id) || removedIdeaIds.has(entry.ideaId)),
+        ...current.filter((entry) => !beforeIds.has(entry.id)),
+    ];
+}
+
 export function buildRuntimeCleanupPatch(
     store: RuntimeStoreState,
     {
