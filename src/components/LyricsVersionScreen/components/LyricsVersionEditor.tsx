@@ -12,6 +12,7 @@ import { styles as appStyles } from "../../../styles";
 import { colors, radii, spacing } from "../../../design/tokens";
 import { styles } from "../styles";
 import { WordFinderSheet } from "../../common/WordFinderSheet";
+import { ensurePro } from "../../common/proUpsell";
 import { applyPickedWord, extractWordRange } from "../../../domain/wordTools";
 import { UserTextInput, type ContentDirection } from "../../../i18n";
 import { useTranslation } from "react-i18next";
@@ -68,6 +69,8 @@ export function LyricsVersionEditor({
   };
 
   const openWordFinder = () => {
+    // The Word Finder is Pro (domain/proCatalog.ts "word-finder-full").
+    if (!ensurePro("word-finder-full")) return;
     const { start, end } = selectionRef.current;
     const range = extractWordRange(draftText, start, end);
     setWordFinderSeed(range?.word ?? "");

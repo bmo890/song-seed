@@ -5,6 +5,8 @@ import {
   sanitizeSentLinks,
   upsertSentLink,
   type SentLink,
+  recentSendStamps,
+  SEND_ALLOWANCE_WINDOW_MS,
 } from "../sentLinks";
 
 const link = (over: Partial<SentLink> = {}): SentLink => ({
@@ -55,5 +57,19 @@ describe("sentLinks", () => {
     const kinds = ["setlist", "playlist", "songbook", "sketch", "collection", "workspace", "clips", "library"] as const;
     const out = sanitizeSentLinks(kinds.map((kind, i) => link({ transferId: `t_${i}`, kind })));
     expect(out.map((l) => l.kind)).toEqual([...kinds]);
+  });
+});
+
+describe("the Send allowance window", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  it("counts only links made in the last 30 days", () => {
+    const now = 100 * DAY;
+    expect(recentSendStamps([now - 31 * DAY, now - 29 * DAY, now - DAY], now)).toEqual([now - 29 * DAY, now - DAY]);
+    expect(SEND_ALLOWANCE_WINDOW_MS).toBe(30 * DAY);
+  });
+
+  it("ignores junk and a clock far in the future", () => {
+    const now = 100 * DAY;
+    expect(recentSendStamps([Number.NaN, now + 10 * DAY, now], now)).toEqual([now]);
   });
 });

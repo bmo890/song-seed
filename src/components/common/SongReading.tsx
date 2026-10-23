@@ -109,6 +109,7 @@ export function ReadingTransposeBar({ ideaId }: { ideaId: string }) {
   return (
     <View style={styles.transposeBar}>
       <TransposeChip
+        ideaId={ideaId}
         offset={transpose}
         onNudge={(delta) => useChartPrefsStore.getState().nudgeTranspose(ideaId, delta)}
         onReset={() => useChartPrefsStore.getState().resetTranspose(ideaId)}

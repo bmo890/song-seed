@@ -8,6 +8,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import {
   pruneExpiredSentLinks,
+  recentSendStamps,
   sanitizeSentLinks,
   upsertSentLink,
   type SentLink,
@@ -16,6 +17,8 @@ import {
 type PersistedSentLinksState = {
   /** Newest first, deduped by transferId. */
   links: SentLink[];
+  /** When each link was made, last 30 days only: a free user's Send allowance. */
+  sentAt: number[];
 };
 
 export type SentLinksStore = PersistedSentLinksState & {
@@ -27,6 +30,8 @@ export type SentLinksStore = PersistedSentLinksState & {
   prune: (now?: number) => void;
   /** The active link for an entity, if any (for on-entity "Link active" chips). */
   linkForEntity: (entityId: string, now?: number) => SentLink | undefined;
+  /** Links made in the allowance window (domain/proCatalog.ts "send"). */
+  recentSendCount: (now?: number) => number;
 };
 
 const STORE_NAME = "songnook-sent-links-store";
@@ -36,9 +41,17 @@ export const useSentLinksStore = create<SentLinksStore>()(
   persist(
     (set, get) => ({
       links: [],
+      sentAt: [],
 
       recordLink: (link) =>
-        set((state) => ({ links: upsertSentLink(state.links, link) })),
+        set((state) => {
+          const isNew = !state.links.some((existing) => existing.transferId === link.transferId);
+          const now = Date.now();
+          return {
+            links: upsertSentLink(state.links, link),
+            sentAt: isNew ? [...recentSendStamps(state.sentAt, now), now] : state.sentAt,
+          };
+        }),
 
       forgetLink: (transferId) =>
         set((state) => ({ links: state.links.filter((l) => l.transferId !== transferId) })),
@@ -51,16 +64,22 @@ export const useSentLinksStore = create<SentLinksStore>()(
 
       linkForEntity: (entityId, now = Date.now()) =>
         get().links.find((l) => l.entityId === entityId && l.expiresAt > now),
+
+      recentSendCount: (now = Date.now()) => recentSendStamps(get().sentAt, now).length,
     }),
     {
       name: STORE_NAME,
       version: STORE_VERSION,
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state): PersistedSentLinksState => ({ links: state.links }),
-      merge: (persisted, current): SentLinksStore => ({
-        ...current,
-        links: sanitizeSentLinks((persisted as PersistedSentLinksState | undefined)?.links),
-      }),
+      partialize: (state): PersistedSentLinksState => ({ links: state.links, sentAt: state.sentAt }),
+      merge: (persisted, current): SentLinksStore => {
+        const saved = persisted as Partial<PersistedSentLinksState> | undefined;
+        return {
+          ...current,
+          links: sanitizeSentLinks(saved?.links),
+          sentAt: Array.isArray(saved?.sentAt) ? recentSendStamps(saved.sentAt, Date.now()) : [],
+        };
+      },
     }
   )
 );

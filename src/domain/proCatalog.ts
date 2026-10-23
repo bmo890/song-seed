@@ -51,7 +51,7 @@ export const PRO_CATALOG: Record<ProFeature, ProCatalogRow> = {
     // ── The library ──────────────────────────────────────────────────────────────────
     workspaces: {
         pro: true,
-        freeLimit: 2, // Sweep (2026-10-22) suggests 3: "My Songs" plus two reads less stingy.
+        freeLimit: 3, // Founder, 2026-10-23: "My Songs" plus two.
         what: "Creating a workspace beyond the free ones. Opening, renaming, archiving any workspace stays free.",
     },
 
@@ -63,9 +63,7 @@ export const PRO_CATALOG: Record<ProFeature, ProCatalogRow> = {
     },
     "practice-suite": {
         pro: true,
-        what: "USING a practice tool: loop, pins, speed, pitch, analysis (per-tool switches in PRACTICE_TOOLS_PRO). Opening practice mode and viewing existing marks stays free.",
-        // Sweep suggests one plain loop free (no Step up) and speed 0.5–1.5× free: flip
-        // `loop` and `speed` below to false.
+        what: "USING a practice tool: pins, pitch, analysis, Step up (per-tool switches in PRACTICE_TOOLS_PRO; a plain loop and speed are free). Opening practice mode and viewing existing marks stays free. A received parcel's clips practise free.",
     },
 
     // ── The editor ───────────────────────────────────────────────────────────────────
@@ -78,8 +76,7 @@ export const PRO_CATALOG: Record<ProFeature, ProCatalogRow> = {
     // ── Charts and the stage ─────────────────────────────────────────────────────────
     "stage-tools": {
         pro: true,
-        what: "Writing a chord chart, transpose, capo, creating a chart book or a setlist, opening the stage reader. Reading existing charts, books and sets stays free.",
-        // Sweep suggests chord EDITING free (export Pro): would need this split in two keys.
+        what: "Transpose, capo, creating a chart book or a setlist, opening the stage reader. Writing chord charts and reading existing charts, books and sets stay free; a received parcel's charts and books use these tools free.",
     },
     "pdf-export": {
         pro: true,
@@ -88,28 +85,24 @@ export const PRO_CATALOG: Record<ProFeature, ProCatalogRow> = {
 
     // ── Lyrics ───────────────────────────────────────────────────────────────────────
     "lyric-spark": {
-        pro: true,
+        pro: false, // Founder, 2026-10-23: the games are free; keeping many is Pro.
         what: "Starting a new spark (Word Ladder, Cut-Up, Magpie). Sparks already made stay open and editable.",
-        // Sweep suggests sparks free with a few saved per tool: set this to false and
-        // "word-sparks-unlimited".freeLimit to 3.
     },
     "word-sparks-unlimited": {
         pro: true,
-        freeLimit: 5, // Saved sparks a free user keeps PER TOOL. Only reached once "lyric-spark" is free.
+        freeLimit: 3, // Saved sparks a free user keeps PER TOOL.
         what: "Saving more sparks per tool than the free number.",
     },
     "word-finder-full": {
         pro: true,
-        what: "The Word Finder's More groups (Sound, Meaning, Imagery). Rhymes, Near and Similar stay free.",
+        what: "The whole Word Finder (founder, 2026-10-23: its lookups are third-party API calls we may come to pay for). Lyrics themselves stay free.",
     },
 
     // ── Sharing ──────────────────────────────────────────────────────────────────────
     send: {
         pro: true,
-        what: "Getting a SongNook Send link (every 'Get a link'). Receiving through Send is always free.",
-        // Sweep suggests sending loose clips free under a size/count cap (e.g. 3 files /
-        // 100 MB) and gating only the packed parcels (sketches, collections, sets): that
-        // needs the send sheet to read a freeLimit per request kind before it is one edit.
+        freeLimit: 3, // Links a free user may make per 30 days (founder, 2026-10-23).
+        what: "Getting a SongNook Send link beyond the free ones a month. Receiving through Send, and everything in a received parcel, is always free.",
     },
 
     // ── Storage ──────────────────────────────────────────────────────────────────────
@@ -128,18 +121,19 @@ export const PRO_CATALOG: Record<ProFeature, ProCatalogRow> = {
 };
 
 /** The individual tools inside the practice suite (all under the "practice-suite" key). */
-export type PracticeTool = "loop" | "pins" | "speed" | "pitch" | "analysis";
+export type PracticeTool = "loop" | "pins" | "speed" | "pitch" | "analysis" | "stepUp";
 
 /**
  * Per-tool switches under "practice-suite": flip one to false to make that tool free
  * while the rest stay Pro. The whole row's `pro: false` frees them all.
  */
 export const PRACTICE_TOOLS_PRO: Record<PracticeTool, boolean> = {
-    loop: true,
+    loop: false, // A plain loop and the speed control are free (founder, 2026-10-23).
     pins: true,
-    speed: true,
+    speed: false,
     pitch: true,
     analysis: true,
+    stepUp: true,
 };
 
 /** Whether `key` is gated at all. A row with `pro: false` is free for everyone. */
@@ -173,6 +167,6 @@ export const PAYWALL_ROWS: ReadonlyArray<{ icon: string; features: ProFeature[] 
     { icon: "layers-outline", features: ["overdub-layers"] },
     { icon: "repeat-outline", features: ["practice-suite"] },
     { icon: "cut-outline", features: ["full-editor"] },
-    { icon: "sparkles-outline", features: ["lyric-spark", "word-finder-full"] },
+    { icon: "sparkles-outline", features: ["word-finder-full", "word-sparks-unlimited"] },
     { icon: "paper-plane-outline", features: ["send", "workspaces"] },
 ];

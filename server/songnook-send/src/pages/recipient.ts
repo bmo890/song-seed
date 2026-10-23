@@ -9,10 +9,11 @@
  * gallery, and a quiet "take the raw files" disclosure at the very bottom —
  * is identical for both, so the marketing pitch isn't desktop-only.
  *
- * Deferred deep link:
- *  - Android: the store link carries `referrer=<transferId>` (Play Install Referrer).
- *  - iOS: on "Open in SongNook" tap we copy the transfer URL to the clipboard with a
- *    visible notice; the app reads the pasteboard on first launch. (No SDK in v1.)
+ * After installing, the recipient opens this link again and the app takes it (universal
+ * / app links). No deferred deep link in v1: the iOS clipboard handoff was removed
+ * (founder, 2026-10-23: iOS shows every new user a paste banner on first launch). The
+ * Android store link still carries `referrer=<transferId>` for a future Install
+ * Referrer reader.
  */
 import type { Config } from "../env";
 import type { TransferPayload } from "../lib/serialize";
@@ -99,9 +100,7 @@ function ctaBlock(cfg: Config, t: TransferPayload, plat: Platform, transferUrl: 
     )}&referrer=${encodeURIComponent("transferId=" + t.transferId)}`;
     const storeUrl = plat.isAndroid ? androidStore : cfg.iosAppStoreUrl;
     return `<a id="get" class="btn btn-block" href="${escapeHtml(storeUrl)}">Open in SongNook</a>
-  <p class="cta-fine">Installs the app, then opens straight to this parcel.</p>
-  <div id="ios-notice" class="notice" hidden>Link copied. After installing, open SongNook —
-    your parcel will be waiting.</div>`;
+  <p class="cta-fine">Install SongNook, then open this link again.</p>`;
   }
   const { d, modules } = qrSvgPath(transferUrl);
   return `<div class="qr-cta">
@@ -146,24 +145,11 @@ ${GALLERY_HTML}
   <ul class="tracklist">${tracklist(t)}</ul>
 </details>`;
 
-  const iosScript = plat.isIOS
-    ? `
-;(function(){
-  var get=document.getElementById('get');
-  if(!get) return;
-  get.addEventListener('click', function(){
-    // iOS deferred deep link (v1): copy the transfer URL with a visible notice;
-    // the app checks the pasteboard on first launch.
-    try{ navigator.clipboard && navigator.clipboard.writeText(${JSON.stringify(transferUrl)}); }catch(_){}
-    var n=document.getElementById('ios-notice'); if(n) n.hidden=false;
-  });
-})();`
-    : "";
 
   return page({
     title: `${senderName} sent you music — SongNook Send`,
     body,
-    bodyScript: GALLERY_SCRIPT + iosScript,
+    bodyScript: GALLERY_SCRIPT,
     extraStyle: GALLERY_CSS + FUNNEL_CSS,
     noindex: true,
     reportHref: `/report/${encodeURIComponent(t.transferId)}`,

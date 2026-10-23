@@ -71,7 +71,7 @@ import { AppAlert } from "../common/AppAlert";
 import { getClipOverdubStemCount, getClipPlaybackDurationMs } from "../../domain/clipPresentation";
 import { canAddOverdubLayer, isPracticeToolPro, type PracticeTool } from "../../domain/proGating";
 import { hasProAccess } from "../../domain/entitlements";
-import { ensurePro, openProUpsell } from "../common/proUpsell";
+import { ensureProFor, openProUpsell } from "../common/proUpsell";
 import { useTranslation } from "react-i18next";
 import { resolveSectionEdit, sectionDisplayLabel } from "../../domain/playerSections";
 import { durations } from "../../design/motion";
@@ -1270,12 +1270,15 @@ function PlayerScreenInner({
       AppAlert.info(t("player.layerUnavailable"), message);
     }
   }, [getVisiblePlayheadMs, navigation, playerClip, playerIdea, practicePitchTransport]);
+  const playerIdeaIdRef = useRef(playerIdea?.id ?? "");
+  playerIdeaIdRef.current = playerIdea?.id ?? "";
   // Practice tools are Pro (per-tool configurable via PRACTICE_TOOLS_PRO in
   // domain/proCatalog.ts — flip one entry to make that tool free, no call-site change). Returns true if the tap may proceed;
   // otherwise opens the upsell. Opening practice mode and viewing existing pins/sections/
   // analysis stays FREE — only USING a gated tool is gated.
   const guardPracticeTool = useCallback((tool: PracticeTool): boolean => {
-    if (isPracticeToolPro(tool) && !ensurePro("practice-suite")) return false;
+    // A clip that came in a received parcel practises for everyone.
+    if (isPracticeToolPro(tool) && !ensureProFor("practice-suite", playerIdeaIdRef.current)) return false;
     return true;
   }, []);
   // Writing bar: quick loop scopes without opening Tools — the sections the take
@@ -1331,8 +1334,6 @@ function PlayerScreenInner({
   // clock, and an inline arrow here re-ran every queue row each time.
   const queueOpenIdeaRef = useRef({ minimizePlayer: lifecycle.minimizePlayer, navigation });
   queueOpenIdeaRef.current = { minimizePlayer: lifecycle.minimizePlayer, navigation };
-  const playerIdeaIdRef = useRef(playerIdea?.id ?? "");
-  playerIdeaIdRef.current = playerIdea?.id ?? "";
   // Stable handlers for the memoized footer, shelf and support sections: the
   // root renders once a second for the readout, and inline arrows here made
   // those subtrees (five bottom sheets among them) render with it.
@@ -1348,7 +1349,6 @@ function PlayerScreenInner({
     // mean "work on it", and the reader is what the player already shows.
     const ideaId = playerIdeaIdRef.current;
     if (!ideaId) return;
-    if (!ensurePro("stage-tools")) return;
     openSketchPage(nav, { ideaId, initialSongTab: "chart", chartEditToken: Date.now() });
   }, []);
   const handleQueueOpenIdea = useCallback((ideaId: string) => {
@@ -2022,7 +2022,7 @@ function PlayerScreenInner({
               stepUpRateMin={PRACTICE_SPEED_MIN}
               stepUpRateMax={PRACTICE_SPEED_MAX}
               onToggleStepUp={() => {
-                if (!guardPracticeTool("loop")) return;
+                if (!guardPracticeTool("stepUp")) return;
                 // Step up rides the loop, so switching it on starts the loop too
                 // (founder, 2026-10-21: a switch that would not move read as broken).
                 if (!stepUp.stepUpEnabled && !practiceLoopEnabled) handlePracticeLoopToggle();

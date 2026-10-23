@@ -6,7 +6,7 @@ import { Slider } from "./Slider";
 import { Stepper } from "./Stepper";
 import { Press } from "./Press";
 import { InkOption } from "./InkOption";
-import { ensurePro } from "./proUpsell";
+import { ensureProFor } from "./proUpsell";
 import { colors } from "../../design/tokens";
 import { READING_ZOOM_MAX, READING_ZOOM_MIN, useChartPrefsStore } from "../../state/useChartPrefsStore";
 
@@ -69,8 +69,9 @@ export function ReadingSheet({
             <Stepper
               glyphs="plusMinus"
               onStep={(direction) => {
-                // Capo is a stage tool (domain/proCatalog.ts); taking it off stays free.
-                if (!ensurePro("stage-tools")) return;
+                // Capo is a stage tool (domain/proCatalog.ts); taking it off stays free,
+                // and so does a received parcel's song.
+                if (!ensureProFor("stage-tools", ideaId)) return;
                 prefs().nudgeCapo(ideaId!, direction);
               }}
               canDecrement={capo > 0}

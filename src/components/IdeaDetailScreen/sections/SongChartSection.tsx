@@ -176,6 +176,7 @@ export function SongChartSection() {
           <View style={chartControls.row}>
             {transposeIdeaId ? (
               <TransposeChip
+                ideaId={transposeIdeaId}
                 offset={transpose}
                 onNudge={(delta) => useChartPrefsStore.getState().nudgeTranspose(transposeIdeaId, delta)}
                 onReset={() => useChartPrefsStore.getState().resetTranspose(transposeIdeaId)}

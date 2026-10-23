@@ -106,38 +106,31 @@ space; rotate in later based on Search Ads / console analytics.
 
 ## Privacy questionnaire — App Store "nutrition label" & Play "Data safety"
 
-SongNook's answer is the short one: **Data Not Collected.** It rests on SongNook Send
-being what it is: a transfer the user starts by tapping "Get a link", held opaque on
-our server (never opened, listened to, or analysed), tied to no account or identifier,
-and deleted after 7 days — the upload IP serves only a rate-limit counter that expires
-within two hours. If a console or reviewer reads a 7-day hold as collection, the fallback
-is the declaration in `store-privacy-answers.md` (User Content → Audio Data / Other User
-Content, App Functionality, not linked, no tracking; Play: collected yes, shared no).
-Beyond that, two things to confirm against the shipped build before you commit:
-
-1. **Crash capture is LOCAL-ONLY** (the `crashLog` service writes to the device;
-   nothing is transmitted unless the user taps "Share diagnostic log"). As long as
-   that's still true at ship time, no crash/diagnostics data is "collected" by you →
-   **Data Not Collected** stands. (If you ever add Sentry/analytics, this flips to
-   "Diagnostics → Crash Data, not linked to identity.")
-2. **Third-party API calls** — the Word Finder sends the looked-up word to the
-   Datamuse API; Magpie fetches public-domain text from Project Gutenberg. These are
-   anonymous (no account, no identifier you create), you don't store them, and they're
-   only made when the user uses those features. You are not *collecting* this data.
-   Both stores' forms ask about data **you or your SDKs collect** — a stateless
-   third-party API call that you don't log doesn't count as collection. Safe to answer
-   **Data Not Collected**; if you want to be maximally conservative, Play lets you note
-   it and it does not change the "no data collected" headline.
+**Decided by the founder, 2026-10-23: declare honestly, not "Data Not Collected".** Pro
+ships in v1 through RevenueCat, which keeps purchase history under an anonymous ID, and
+SongNook Send holds what a person chooses to send for 7 days. Neither is linked to
+anyone, neither tracks, and the page reads "Data Not Linked to You". The facts these
+answers rest on are listed in `store-privacy-answers.md` (no analytics, ads, crash SDK
+or accounts; the crash log is local and shared only by the user; IPs serve only short
+rate-limit counters; word lookups send only the word).
 
 **App Store — App Privacy:**
-- Data Not Collected. (Toggle every category off.)
-- "Data used to track you": None.
+- **Purchases → Purchase History.** Used for: App Functionality. Linked to the user: No.
+  Tracking: No.
+- **User Content → Audio Data** and **Other User Content** (titles, the optional sender
+  name and note on a Send link). Used for: App Functionality. Linked: No. Tracking: No.
+- Data used to track you: None.
+- Check RevenueCat's App Store privacy guide when billing is wired in, in case its SDK
+  version also requires **Identifiers → User ID** (anonymous, not linked).
 
 **Play — Data safety:**
-- Does your app collect or share any user data? **No.**
-- Is all data encrypted in transit? The few HTTPS calls are — but since you collect
-  no data, this section is moot. If prompted: yes, HTTPS.
-- Data deletion: N/A (nothing held server-side).
+- Collects data: **Yes.** Shares data: **No.**
+- **Financial info → Purchase history**: collected, not shared, required for Pro, used
+  for App functionality.
+- **Audio → Voice or sound recordings** and **Files and docs**: collected only when the
+  user sends a link; optional; App functionality; deleted after 7 days.
+- Encrypted in transit: **Yes** (HTTPS). Users can request deletion: a link expires on
+  its own after 7 days; abuse reports go to the support email.
 
 **Export compliance (App Store):** `ITSAppUsesNonExemptEncryption = false` is already
 in app.json — the standard-encryption-only answer. No extra docs needed.
@@ -149,9 +142,7 @@ in-progress audio recording when the app is backgrounded or the screen locks."
 
 **Notes for the reviewer (append to the paragraph in `store-privacy-answers.md`):**
 
-> On the first launch after install (iOS only) the app reads the pasteboard once, to
-> see whether a SongNook Send link was copied before installing; it offers to open
-> that link and never reads the pasteboard again. The audio background mode keeps a
+> The app never reads the pasteboard on its own. The audio background mode keeps a
 > recording or playback going when the screen locks — the lock-screen controls and the
 > recording notification belong to that session, and nothing runs in the background
 > otherwise.

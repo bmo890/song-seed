@@ -88,19 +88,19 @@ Flip `ALL_FEATURES_FREE` (`domain/entitlements.ts`) to `false` **last**, behind 
 everything must have a graceful gated state before the flag flips. The `__DEV__` override
 (`setDevProOverride` from the debugger) exercises both states without flipping it.
 
-### 6.3 Gate call sites (done 2026-10-23; every gate is one `ensurePro(key)` line at the top of a CREATE handler)
+### 6.3 Gate call sites (split decided by the founder 2026-10-23; every gate is one `ensurePro(key)` line at the top of a CREATE handler)
 
 | Catalog key | Where it gates | What stays free |
 |---|---|---|
-| `workspaces` | New-workspace FAB (`WorkspaceListScreenContent`), beyond `freeLimit` | Opening, renaming, archiving any workspace |
+| `workspaces` | New-workspace FAB (`WorkspaceListScreenContent`), beyond `freeLimit` (3) | Opening, renaming, archiving any workspace |
 | `overdub-layers` | Add-layer action (`PlayerScreen`), beyond `freeLimit` | Existing layered takes play and open |
-| `practice-suite` | Using a practice tool (`PlayerScreen guardPracticeTool`, per-tool switches) | Opening practice mode, viewing marks |
+| `practice-suite` | Using pins, pitch, analysis, Step up (`PlayerScreen guardPracticeTool`, per-tool switches) | A plain loop and speed; opening practice mode, viewing marks; a received parcel's clips |
 | `full-editor` | The editor's Speed & pitch tab; adding a part beyond `freeLimit` (`useEditorSelectionState`) | A plain trim |
-| `stage-tools` | Entering chart edit (`useChordSheetModel.setIsEditing`, the player's chart key, chords over lyrics), `TransposeChip`, capo (`ReadingSheet`), new chart book / setlist (`useSongbookModel`, `useSetlistModel`, `SongbookChooserSheet`), the stage reader (`openReader`) | Reading charts, books, sets; received sets |
-| `lyric-spark` | The new-spark sheet (`NotepadScreenContent openSparkSheet`) | Sparks already made |
-| `word-sparks-unlimited` | Saving beyond `freeLimit` per tool (`useNotepadScreenModel`), reached only once `lyric-spark` is free | Existing sparks |
-| `word-finder-full` | The More groups (`WordFinderSheet selectExtendedMode`) | Rhymes, Near, Similar |
-| `send` | `openSendSheet` — the one call every "Get a link" makes | Receiving |
+| `stage-tools` | `TransposeChip`, capo (`ReadingSheet`), new chart book / setlist (`useSongbookModel`, `useSetlistModel`, `SongbookChooserSheet`), the stage reader (`openReader`) | Writing chord charts; reading charts, books, sets; all of it on a received parcel (`ensureProFor`) |
+| `lyric-spark` | `pro: false` (founder, 2026-10-23) — the games are free | Everything |
+| `word-sparks-unlimited` | Saving beyond `freeLimit` (3) per tool (`useNotepadScreenModel`) | Existing sparks |
+| `word-finder-full` | Opening the Word Finder (`LyricsVersionEditor`, `NoteEditor`): its lookups are paid-for APIs | Lyrics themselves |
+| `send` | `openSendSheet`, beyond `freeLimit` (3) links per 30 days (`useSentLinksStore.sentAt`) | Receiving, and everything in a received parcel |
 | `pdf-export` | Chart PDF (`useChordSheetModel.exportPdf`, `useChordExport`) | Text and archive exports |
 | `archive-offload` | `useWorkspaceArchiveActions` | Backup, export, restore, the backup reminder |
 | `auto-backup` | `pro: false` — nothing reads it; reserved | Backup is never locked |

@@ -9,7 +9,6 @@ import { SegmentedControl } from "./SegmentedControl";
 import { Button } from "./Button";
 import { InkLink } from "./InkLink";
 import { Press } from "./Press";
-import { ensurePro } from "./proUpsell";
 import { finderStyles } from "./WordFinderSheet.styles";
 import { colors } from "../../design/tokens";
 import { haptic } from "../../design/haptics";
@@ -351,8 +350,6 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
   };
 
   const selectExtendedMode = (next: WordLookupMode) => {
-    // The More groups (Sound, Meaning, Imagery) are the full word finder (domain/proCatalog.ts).
-    if (!ensurePro("word-finder-full")) return;
     Keyboard.dismiss();
     setExtendedMode(next);
     setToolListOpen(false);

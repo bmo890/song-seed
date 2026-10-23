@@ -84,11 +84,9 @@ export function useChordSheetModel(ideaIdOverride?: string, options?: { startEdi
   // `startEditing` seeds the first frame (a page opened straight into the
   // editor must not flash the reader first).
   const [isEditing, setIsEditingState] = useState(options?.startEditing ?? false);
-  // Writing a chart is a stage tool (domain/proCatalog.ts "stage-tools"); reading one
-  // never is. Every way into edit mode (pencil, build from lyrics, the player's chart
-  // key) goes through here. Leaving it is always free.
+  // Writing a chart is free (founder, 2026-10-23); transpose, capo and the stage
+  // reader are the stage tools (domain/proCatalog.ts).
   const setIsEditing = useCallback((next: boolean) => {
-    if (next && !ensurePro("stage-tools")) return;
     setIsEditingState(next);
   }, []);
   const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);

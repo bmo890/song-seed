@@ -14,6 +14,7 @@ import { useMiniPlayerContext } from "../../../hooks/FullPlayerProvider";
 import { createSongbookShareLink, shareSongbookFile } from "../../../services/songbookShare";
 import { openSendSheet } from "../../../state/useSendSheetStore";
 import { ensurePro } from "../../common/proUpsell";
+import { hasProAccess } from "../../../domain/entitlements";
 import type { SongIdea, Workspace } from "../../../types";
 import { useTranslation } from "react-i18next";
 import { afterOverlayCloses } from "../../common/afterOverlayCloses";
@@ -99,8 +100,9 @@ export function useSongbookModel() {
     /** Open the full-screen reader, optionally at a specific song. */
     openReader: (startIdeaId?: string) => {
       if (!activeSongbook) return;
-      // The stage reader is a stage tool (domain/proCatalog.ts "stage-tools").
-      if (!ensurePro("stage-tools")) return;
+      // The stage reader is a stage tool (domain/proCatalog.ts "stage-tools"); a chart
+      // book that arrived through Send opens in it for everyone.
+      if (!ensurePro("stage-tools", hasProAccess("stage-tools") || activeSongbook.received != null)) return;
       navigateRoot("SongbookReader", { songbookId: activeSongbook.id, startIdeaId });
     },
 

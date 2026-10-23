@@ -90,6 +90,7 @@ export function LyricsVersionPreview({
               {transposeIdeaId ? (
                 <View style={controls.transposeRow}>
                   <TransposeChip
+                    ideaId={transposeIdeaId}
                     offset={transpose}
                     onNudge={(delta) =>
                       useChartPrefsStore.getState().nudgeTranspose(transposeIdeaId, delta)

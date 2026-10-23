@@ -5,9 +5,11 @@ import { formatTransposeOffset } from "../../domain/transpose";
 import { useTranslation } from "react-i18next";
 import { Stepper } from "./Stepper";
 import { Press } from "./Press";
-import { ensurePro } from "./proUpsell";
+import { ensureProFor } from "./proUpsell";
 
 type TransposeChipProps = {
+  /** The song the chart belongs to: transposing a received parcel's chart is free. */
+  ideaId: string;
   offset: number;
   onNudge: (delta: number) => void;
   onReset: () => void;
@@ -17,7 +19,7 @@ type TransposeChipProps = {
  *  and the songbook reader so "transpose" feels like one feature. The kit
  *  Stepper (bare ink glyphs, its own step haptic) around a named value; a bare
  *  reset glyph appears only while shifted. Display-level only. */
-export function TransposeChip({ offset, onNudge, onReset }: TransposeChipProps) {
+export function TransposeChip({ ideaId, offset, onNudge, onReset }: TransposeChipProps) {
   const { t } = useTranslation();
   const value = formatTransposeOffset(offset);
   return (
@@ -26,8 +28,9 @@ export function TransposeChip({ offset, onNudge, onReset }: TransposeChipProps) 
       <Stepper
         glyphs="plusMinus"
         onStep={(direction) => {
-          // Transpose is a stage tool (domain/proCatalog.ts); the written key always shows.
-          if (!ensurePro("stage-tools")) return;
+          // Transpose is a stage tool (domain/proCatalog.ts); the written key always shows,
+          // and a received parcel's chart transposes for everyone.
+          if (!ensureProFor("stage-tools", ideaId)) return;
           onNudge(direction);
         }}
         decrementLabel={t("common.transposeDown")}
