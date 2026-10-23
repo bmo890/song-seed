@@ -326,6 +326,12 @@ export const resources = {
         chooseDestination: "Choose where to {{action}} this collection.",
         copied: "copied",
         moved: "moved",
+        duplicateBody_one: "This idea is already in this collection. Paste a copy?",
+        duplicateBody_other: "These {{count}} ideas are already in this collection. Paste copies?",
+        duplicateClipsBody_one: "This clip is already in this collection. Paste a copy?",
+        duplicateClipsBody_other: "These {{count}} clips are already in this collection. Paste copies?",
+        copyHereBody: "The originals stay where they are.",
+        moveHereBody: "They leave the collection they are in now.",
       },
       revisit: {
         reason: {
@@ -705,6 +711,8 @@ export const resources = {
         main: "main", sections_one: "{{count}} section", sections_other: "{{count}} sections", pins_one: "{{count}} pin", pins_other: "{{count}} pins", versionLyrics: "{{label}} — lyrics", packFootnote: "A chosen take brings its reel with it — sections, pins, and take notes come along. Version history stays home.",
         removeBookTitle: "Remove from this book?", removeBookBody: "“{{title}}” will leave this chart book. The song stays in your library.", remove: "Remove", nothingShare: "Nothing to share", addChartsFirst: "Add some charts with content first.", songbookShareFailed: "Couldn’t build the chart book file. Try again.", addSetSongFirst: "Add at least one song to the setlist first.", setlistShareFailed: "Couldn’t build the setlist file. Try again.", nothingPlay: "Nothing to play", playlistNoAudio: "Nothing here plays yet. Add ideas first.", deletePlaylistTitle: "Delete playlist?", deletePlaylistBody: "“{{title}}” will be deleted. Its songs and clips stay in your library.",
         tracks_one: "{{count}} item", tracks_other: "{{count}} items", lessMinute: "<1 min", minutes: "{{count}} min", hoursMinutes: "{{hours}} hr {{minutes}} min", hours: "{{count}} hr", updatedNow: "updated now", updatedHours_one: "updated 1h ago", updatedHours_other: "updated {{count}}h ago", updatedDays_one: "updated 1d ago", updatedDays_other: "updated {{count}}d ago", updatedDate: "updated {{date}}",
+        playFromA11y: "Play from {{title}}",
+        unavailableA11y: "{{title}} (unavailable)",
       },
       player: {
         playLayerA11y: "Play the song from just before this layer", dragToMove: "Drag to move", soloLayer: "Solo {{title}}",
@@ -1063,6 +1071,8 @@ export const resources = {
           Interlude: "Interlude",
           Solo: "Solo",
           Outro: "Outro",
+        sectionNumbered: "Section {{n}}",
+        noBarsYet: "(no bars yet)",
         },
       },
       songDetail: {
@@ -1912,6 +1922,14 @@ export const resources = {
         chooseDestination: "בחרו לאן {{action}} את האוסף הזה.",
         copied: "להיות מועתקים",
         moved: "לעבור",
+        duplicateBody_one: "הרעיון הזה כבר נמצא באוסף הזה. להדביק עותק?",
+        duplicateBody_two: "שני הרעיונות האלה כבר נמצאים באוסף הזה. להדביק עותקים?",
+        duplicateBody_other: "{{count}} הרעיונות האלה כבר נמצאים באוסף הזה. להדביק עותקים?",
+        duplicateClipsBody_one: "הקטע הזה כבר נמצא באוסף הזה. להדביק עותק?",
+        duplicateClipsBody_two: "שני הקטעים האלה כבר נמצאים באוסף הזה. להדביק עותקים?",
+        duplicateClipsBody_other: "{{count}} הקטעים האלה כבר נמצאים באוסף הזה. להדביק עותקים?",
+        copyHereBody: "המקור נשאר במקומו.",
+        moveHereBody: "הם יעזבו את האוסף שבו הם נמצאים עכשיו.",
       },
       revisit: {
         reason: {
@@ -2305,6 +2323,8 @@ export const resources = {
         main: "ראשי", sections_one: "חלק אחד", sections_two: "שני חלקים", sections_other: "{{count}} חלקים", pins_one: "סמן אחד", pins_two: "שני סמנים", pins_other: "{{count}} סמנים", versionLyrics: "{{label}} — מילים", packFootnote: "טייק שנבחר נארז עם כל מה שעליו — חלקים, סמנים והערות לטייק. היסטוריית הגרסאות נשארת אצלכם.",
         removeBookTitle: "להסיר מהספר?", removeBookBody: "„{{title}}” יוסר מהשירון. השיר יישאר בספרייה.", remove: "הסרה", nothingShare: "אין מה לשתף", addChartsFirst: "הוסיפו קודם דפי אקורדים עם תוכן.", songbookShareFailed: "לא ניתן ליצור את קובץ השירון. נסו שוב.", addSetSongFirst: "הוסיפו קודם לפחות שיר אחד לסטליסט.", setlistShareFailed: "לא ניתן ליצור את קובץ הסטליסט. נסו שוב.", nothingPlay: "אין מה לנגן", playlistNoAudio: "עדיין אין כאן מה לנגן. הוסיפו קודם רעיונות.", deletePlaylistTitle: "למחוק את הפלייליסט?", deletePlaylistBody: "„{{title}}” יימחק. השירים והקטעים שבו יישארו בספרייה.",
         tracks_one: "פריט אחד", tracks_two: "שני פריטים", tracks_other: "{{count}} פריטים", lessMinute: "פחות מדקה", minutes: "{{count}} דק׳", hoursMinutes: "{{hours}} שע׳ {{minutes}} דק׳", hours: "{{count}} שע׳", updatedNow: "עודכן עכשיו", updatedHours_one: "עודכן לפני שעה", updatedHours_two: "עודכן לפני שעתיים", updatedHours_other: "עודכן לפני {{count}} שעות", updatedDays_one: "עודכן אתמול", updatedDays_two: "עודכן לפני יומיים", updatedDays_other: "עודכן לפני {{count}} ימים", updatedDate: "עודכן ב־{{date}}",
+        playFromA11y: "ניגון מ־{{title}}",
+        unavailableA11y: "{{title}} (לא זמין)",
       },
       player: {
         playLayerA11y: "ניגון השיר מעט לפני השכבה הזו", dragToMove: "גררו כדי להזיז", soloLayer: "השמעת {{title}} לבד",
@@ -2679,6 +2699,8 @@ export const resources = {
           Interlude: "מעבר",
           Solo: "סולו",
           Outro: "סיום",
+        sectionNumbered: "חלק {{n}}",
+        noBarsYet: "(עדיין אין תיבות)",
         },
       },
       songDetail: {

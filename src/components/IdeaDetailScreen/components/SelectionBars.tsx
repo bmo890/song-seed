@@ -291,15 +291,7 @@ export function SelectionBars() {
       ? buildLineageTitlePlan(currentIdea.clips, singleSelectedClip.id, editTitleDraft)
       : null;
 
-    if (!currentIdea || !plan) {
-      console.warn("[renameThread] selection edit save skipped", {
-        ideaId: selectedIdea.id,
-        clipId: singleSelectedClip.id,
-        hasIdea: !!currentIdea,
-        hasPlan: !!plan,
-      });
-      return;
-    }
+    if (!currentIdea || !plan) return;
 
     state.updateIdeas((ideas) =>
       ideas.map((idea) =>

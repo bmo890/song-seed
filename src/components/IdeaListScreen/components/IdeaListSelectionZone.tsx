@@ -7,6 +7,8 @@ type IdeaListSelectionZoneProps = {
   /** While the page is a picker, the footer is the zone's only occupant —
    *  no selection dock, no record FAB. */
   pickerFooter?: ReactNode;
+  /** The page's workspace — a visited package is never the active one. */
+  workspaceId?: string;
   listSelectionMode: boolean;
   selectedHiddenIdeaIds: string[];
   selectedClipIdeasCount: number;
@@ -28,6 +30,7 @@ type IdeaListSelectionZoneProps = {
 
 export function IdeaListSelectionZone({
   pickerFooter,
+  workspaceId,
   listSelectionMode,
   selectedHiddenIdeaIds,
   selectedClipIdeasCount,
@@ -51,6 +54,7 @@ export function IdeaListSelectionZone({
     <>
       {listSelectionMode ? (
         <IdeaSelectionBar
+          workspaceId={workspaceId}
           selectableIdeaIds={selectableIdeaIds}
           disabledIdeaIds={selectedHiddenIdeaIds}
           onPlaySelected={onPlaySelected}

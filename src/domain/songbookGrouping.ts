@@ -1,4 +1,5 @@
 import { getPlayableClipForIdea } from "./clipPresentation";
+import { i18n } from "../i18n/instance";
 import type {
   ClipVersion,
   Songbook,
@@ -66,8 +67,8 @@ export function groupSongbookItems(songbook: Songbook, workspaces: Workspace[]):
         ideaId: item.ideaId,
         workspaceId: resolved?.workspace.id ?? item.workspaceId,
         idea: resolved?.idea ?? null,
-        title: resolved?.idea.title ?? "Unavailable song",
-        workspaceTitle: resolved?.workspace.title ?? "No longer in the library",
+        title: resolved?.idea.title ?? i18n.t("library.unavailableSong"),
+        workspaceTitle: resolved?.workspace.title ?? i18n.t("library.missing"),
         available: !!resolved,
         charts: [],
         hasLyricChart: false,

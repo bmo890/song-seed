@@ -263,7 +263,9 @@ export function CollectionFloatingActions() {
     if (screen.selectedListIdeaIds.length === 0) return;
     const selectedIdeaIds = new Set(screen.selectedListIdeaIds);
     const state = useStore.getState();
-    const activeWorkspace = state.workspaces.find((workspace) => workspace.id === state.activeWorkspaceId);
+    // The page's workspace, not the store's active one: a visited received
+    // package is never made active, so its ideas live elsewhere.
+    const activeWorkspace = state.workspaces.find((workspace) => workspace.id === screen.activeWorkspaceId);
     if (!activeWorkspace) return;
 
     const removedIdeas = activeWorkspace.ideas.filter((idea) => selectedIdeaIds.has(idea.id));
@@ -289,7 +291,7 @@ export function CollectionFloatingActions() {
     const deletedCount = screen.selectedListIdeaIds.length;
     useStore.setState((storeState) => {
       const nextWorkspaces = storeState.workspaces.map((workspace) =>
-        workspace.id !== storeState.activeWorkspaceId
+        workspace.id !== activeWorkspace.id
           ? workspace
           : normalizeCollectionVisibility({
               ...workspace,
@@ -355,7 +357,9 @@ export function CollectionFloatingActions() {
   const createProjectFromClipIdeas = (targetClips: SongIdea[]) => {
     if (targetClips.length === 0 || !screen.collectionId) return;
     const state = useStore.getState();
-    const activeWorkspace = state.workspaces.find((workspace) => workspace.id === state.activeWorkspaceId);
+    // The page's workspace (see deleteSelectedIdeasWithUndo): the sketch must
+    // land where its clips and collection are, not in the active workspace.
+    const activeWorkspace = state.workspaces.find((workspace) => workspace.id === screen.activeWorkspaceId);
     if (!activeWorkspace) return;
     const previousSnapshot = buildCollectionUndoSnapshot(activeWorkspace);
     const projectId = `idea-${Date.now()}`;
@@ -468,6 +472,7 @@ export function CollectionFloatingActions() {
             />
           ) : null
         }
+        workspaceId={screen.activeWorkspaceId ?? undefined}
         listSelectionMode={screen.listSelectionMode}
         selectedHiddenIdeaIds={selectedHiddenIdeaIds}
         selectedClipIdeasCount={selectedClipIdeasInList.length}

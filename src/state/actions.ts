@@ -3001,76 +3001,13 @@ export const appActions = {
         return movedClips.map((clip) => clip.id);
     },
 
-    deleteSelectedIdeasFromList: () => {
+    // `workspaceId` is the page the selection was made on; a visited received
+    // package is never the active workspace, so the caller names it.
+    startClipboardFromList: (mode: "copy" | "move", pageWorkspaceId?: string) => {
         const state = useStore.getState();
-        if (state.selectedListIdeaIds.length === 0) return;
-        const selectedIdeaIds = new Set(state.selectedListIdeaIds);
-        let audioUrisToDelete: string[] = [];
-
-        useStore.setState((store) => {
-            const activeWorkspace = store.workspaces.find(
-                (workspace) => workspace.id === store.activeWorkspaceId
-            );
-            if (!activeWorkspace) {
-                return store;
-            }
-
-            const removedIdeas = activeWorkspace.ideas.filter((idea) => selectedIdeaIds.has(idea.id));
-            if (removedIdeas.length === 0) {
-                return store;
-            }
-
-            const removedClipIds = removedIdeas.flatMap((idea) =>
-                idea.clips.map((clip) => clip.id)
-            );
-            const nextWorkspaces = store.workspaces.map((workspace) =>
-                workspace.id !== store.activeWorkspaceId
-                    ? workspace
-                    : normalizeWorkspaceCollectionVisibility({
-                          ...workspace,
-                          ideas: workspace.ideas.filter((idea) => !selectedIdeaIds.has(idea.id)),
-                      })
-            );
-
-            audioUrisToDelete = filterUnreferencedManagedAudioUris(
-                removedIdeas.flatMap((idea) => Array.from(collectManagedIdeaAudioUris(idea))),
-                nextWorkspaces
-            );
-
-            // Multi-delete is an explicit bulk action — it can intentionally clear the final
-            // remaining ideas, or just remove a large chunk of the library, so authorize either way.
-            authorizeIntentionalEmptyStateWrite(6);
-
-            return {
-                ...buildRuntimeCleanupPatch(store, {
-                    nextWorkspaces,
-                    removedIdeaIds: selectedIdeaIds,
-                    removedClipIds,
-                }),
-                workspaces: nextWorkspaces,
-                activityEvents: store.activityEvents.filter(
-                    (event) => !selectedIdeaIds.has(event.ideaId)
-                ),
-                playlists: store.playlists.map((playlist) => ({
-                    ...playlist,
-                    items: playlist.items.filter((item) => !selectedIdeaIds.has(item.ideaId)),
-                })),
-            };
-        });
-        // Durably commit the metadata change before trashing files — a crash inside the
-        // passive-persist debounce window must never leave saved metadata pointing at
-        // audio that already moved to trash (2026-08-26 audit F2).
-        void flushPersistedSnapshot()
-            .then(() => deleteManagedAudioUris(audioUrisToDelete))
-            .catch((error) => {
-                console.warn("[DataSafety] Media deletion skipped because metadata was not durable.", error);
-            });
-    },
-
-    startClipboardFromList: (mode: "copy" | "move") => {
-        const state = useStore.getState();
-        if (!state.activeWorkspaceId || state.selectedListIdeaIds.length === 0) return;
-        const activeWorkspace = state.workspaces.find((workspace) => workspace.id === state.activeWorkspaceId);
+        const workspaceId = pageWorkspaceId ?? state.activeWorkspaceId;
+        if (!workspaceId || state.selectedListIdeaIds.length === 0) return;
+        const activeWorkspace = state.workspaces.find((workspace) => workspace.id === workspaceId);
         if (!activeWorkspace) return;
 
         const selectedIdeas = activeWorkspace.ideas.filter((idea) => state.selectedListIdeaIds.includes(idea.id));
@@ -3079,7 +3016,7 @@ export const appActions = {
         const itemType = hasClip && hasProject ? "mixed" : hasProject ? "project" : "clip";
 
         state.setClipClipboard({
-            sourceWorkspaceId: state.activeWorkspaceId,
+            sourceWorkspaceId: workspaceId,
             sourceCollectionId: selectedIdeas[0]?.collectionId,
             sourceIdeaId: undefined,
             clipIds: [...state.selectedListIdeaIds],

@@ -467,18 +467,13 @@ export function useCollectionScreenModel() {
     hasActivityRangeFilter ? t("common.activitySlice") : null,
   ].filter(Boolean).join("  •  ");
 
-  const duplicateWarningText = (() => {
-    if (!clipClipboard || clipClipboard.sourceWorkspaceId !== activeWorkspaceId) return "";
-    const sourceWs = workspaces.find((ws) => ws.id === clipClipboard.sourceWorkspaceId);
-    if (!sourceWs) return "";
-    const itemNames =
-      clipClipboard.from === "list"
-        ? sourceWs.ideas.filter((idea) => clipClipboard.clipIds.includes(idea.id)).map((idea) => idea.title)
-        : sourceWs.ideas.find((i) => i.id === clipClipboard.sourceIdeaId)?.clips.filter((c) => clipClipboard.clipIds.includes(c.id)).map((c) => c.title) ?? [];
-    const displayNames = itemNames.slice(0, 5).map((n) => `"${n}"`).join(", ");
-    const remainder = itemNames.length > 5 ? ` and ${itemNames.length - 5} other${itemNames.length - 5 > 1 ? "s" : ""}` : "";
-    return `You are copying ${itemNames.length} item${itemNames.length > 1 ? "s" : ""} (${displayNames}${remainder}) into the same collection they already belong to. This will create duplicates. Continue?`;
-  })();
+  // Ideas when the clipboard came from a list, clips when it came from a sketch.
+  const duplicateWarningText =
+    clipClipboard && clipClipboard.sourceWorkspaceId === activeWorkspaceId
+      ? t(clipClipboard.from === "list" ? "collection.duplicateBody" : "collection.duplicateClipsBody", {
+          count: clipClipboard.clipIds.length,
+        })
+      : "";
 
   const playerDockHeight = useStore((s) => s.playerDockHeight);
   const importBannerHeight = useStore((s) => s.importBannerHeight);
