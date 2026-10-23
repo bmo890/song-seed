@@ -13,6 +13,7 @@ import {
 import { useMiniPlayerContext } from "../../../hooks/FullPlayerProvider";
 import { createSongbookShareLink, shareSongbookFile } from "../../../services/songbookShare";
 import { openSendSheet } from "../../../state/useSendSheetStore";
+import { ensurePro } from "../../common/proUpsell";
 import type { SongIdea, Workspace } from "../../../types";
 import { useTranslation } from "react-i18next";
 import { afterOverlayCloses } from "../../common/afterOverlayCloses";
@@ -98,6 +99,8 @@ export function useSongbookModel() {
     /** Open the full-screen reader, optionally at a specific song. */
     openReader: (startIdeaId?: string) => {
       if (!activeSongbook) return;
+      // The stage reader is a stage tool (domain/proCatalog.ts "stage-tools").
+      if (!ensurePro("stage-tools")) return;
       navigateRoot("SongbookReader", { songbookId: activeSongbook.id, startIdeaId });
     },
 
@@ -144,6 +147,8 @@ export function useSongbookModel() {
     defaultTitle: t("songbookChooser.defaultTitle", { number: songbooks.length + 1 }),
     openSongbook: (id: string) => setSelectedSongbookId(id),
     openCreate: () => {
+      // Creating a chart book is a stage tool; existing books open and play as before.
+      if (!ensurePro("stage-tools")) return;
       setDraftTitle("");
       setCreateModalOpen(true);
     },

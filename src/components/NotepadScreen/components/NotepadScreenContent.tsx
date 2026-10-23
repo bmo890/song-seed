@@ -10,6 +10,7 @@ import { EmptyState } from "../../common/EmptyState";
 import { SelectionTopBar } from "../../common/SelectionTopBar";
 import { SelectionDock, type SelectionAction } from "../../common/SelectionDock";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
+import { ensurePro } from "../../common/proUpsell";
 import { DockAddBadgeIcon } from "../../common/dockIcons";
 import { AppAlert } from "../../common/AppAlert";
 import { NoteEditor } from "./NoteEditor";
@@ -360,6 +361,12 @@ export function NotepadScreenContent() {
   } = useNotepadScreenModel();
   const [moreVisible, setMoreVisible] = useState(false);
   const [sparkSheetVisible, setSparkSheetVisible] = useState(false);
+  // Starting a spark is Lyric Spark (domain/proCatalog.ts "lyric-spark"); sparks already
+  // made stay open and editable.
+  const openSparkSheet = () => {
+    if (!ensurePro("lyric-spark")) return;
+    setSparkSheetVisible(true);
+  };
   // The route fixes the room: SparkHome renders this screen in sparks mode.
   const isSparkPage = activeTab === "sparks";
 
@@ -521,7 +528,7 @@ export function NotepadScreenContent() {
               accessibilityRole="button"
               accessibilityLabel={t(isSparkPage ? "notepad.lyricsSpark" : "notepad.newPage")}
               style={listStyles.newBtn}
-              onPress={isSparkPage ? () => setSparkSheetVisible(true) : handleNewNote}
+              onPress={isSparkPage ? openSparkSheet : handleNewNote}
               hitSlop={4}
             >
               <Ionicons name="add" size={22} color={colors.textStrong} />
@@ -538,7 +545,7 @@ export function NotepadScreenContent() {
             title={t(isSparkPage ? "notepad.noSparks" : "notepad.blankPage")}
             body={t(isSparkPage ? "notepad.noSparksHint" : "notepad.looseLines")}
             actionLabel={t(isSparkPage ? "notepad.startSpark" : "notepad.writeSomething")}
-            onAction={isSparkPage ? () => setSparkSheetVisible(true) : handleNewNote}
+            onAction={isSparkPage ? openSparkSheet : handleNewNote}
           />
         </View>
       ) : (

@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { AppAlert } from "../../common/AppAlert";
+import { ensurePro } from "../../common/proUpsell";
+import { hasProAccess } from "../../../domain/entitlements";
+import { canAddEditorPart } from "../../../domain/proGating";
 import { EditableSelection, getInitialRegionDurationMs, MIN_REGION_DURATION_MS } from "../helpers";
 import { useTranslation } from "react-i18next";
 
@@ -28,6 +31,8 @@ export function useEditorSelectionState({
 
   const addRange = () => {
     if (!analysisDurationMs) return;
+    // A plain trim (one part) is free; more parts are the full editor (domain/proCatalog.ts).
+    if (!ensurePro("full-editor", canAddEditorPart(selectedRanges.length, hasProAccess("full-editor")))) return;
     const durationMs = analysisDurationMs;
     let newStart = playheadTimeMs;
 

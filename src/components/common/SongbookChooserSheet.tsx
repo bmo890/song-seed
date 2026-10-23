@@ -3,6 +3,7 @@ import { useNavigation } from "@react-navigation/native";
 import { SelectionActionSheet } from "./SelectionActionSheet";
 import { useStore } from "../../state/useStore";
 import { toast } from "./toastStore";
+import { ensurePro } from "./proUpsell";
 import { haptic } from "../../design/haptics";
 import type { SongbookItemKind } from "../../types";
 import { useTranslation } from "react-i18next";
@@ -73,6 +74,8 @@ export function SongbookChooserSheet({
           label: t("songbookChooser.newSongbook"),
           icon: "add-circle-outline" as const,
           onPress: () => {
+            // A new chart book is a stage tool (domain/proCatalog.ts); adding to one is not.
+            if (!ensurePro("stage-tools")) return;
             const store = useStore.getState();
             const title = t("songbookChooser.defaultTitle", { number: store.songbooks.length + 1 });
             const id = store.addSongbook(title);

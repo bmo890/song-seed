@@ -1270,8 +1270,8 @@ function PlayerScreenInner({
       AppAlert.info(t("player.layerUnavailable"), message);
     }
   }, [getVisiblePlayheadMs, navigation, playerClip, playerIdea, practicePitchTransport]);
-  // Practice tools are Pro (per-tool configurable via PRACTICE_TOOL_IS_PRO — flip one entry
-  // to make that tool free, no call-site change). Returns true if the tap may proceed;
+  // Practice tools are Pro (per-tool configurable via PRACTICE_TOOLS_PRO in
+  // domain/proCatalog.ts — flip one entry to make that tool free, no call-site change). Returns true if the tap may proceed;
   // otherwise opens the upsell. Opening practice mode and viewing existing pins/sections/
   // analysis stays FREE — only USING a gated tool is gated.
   const guardPracticeTool = useCallback((tool: PracticeTool): boolean => {
@@ -1348,6 +1348,7 @@ function PlayerScreenInner({
     // mean "work on it", and the reader is what the player already shows.
     const ideaId = playerIdeaIdRef.current;
     if (!ideaId) return;
+    if (!ensurePro("stage-tools")) return;
     openSketchPage(nav, { ideaId, initialSongTab: "chart", chartEditToken: Date.now() });
   }, []);
   const handleQueueOpenIdea = useCallback((ideaId: string) => {

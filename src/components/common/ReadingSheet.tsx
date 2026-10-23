@@ -6,6 +6,7 @@ import { Slider } from "./Slider";
 import { Stepper } from "./Stepper";
 import { Press } from "./Press";
 import { InkOption } from "./InkOption";
+import { ensurePro } from "./proUpsell";
 import { colors } from "../../design/tokens";
 import { READING_ZOOM_MAX, READING_ZOOM_MIN, useChartPrefsStore } from "../../state/useChartPrefsStore";
 
@@ -67,7 +68,11 @@ export function ReadingSheet({
             <Text style={styles.label}>{t("reading.capo")}</Text>
             <Stepper
               glyphs="plusMinus"
-              onStep={(direction) => prefs().nudgeCapo(ideaId!, direction)}
+              onStep={(direction) => {
+                // Capo is a stage tool (domain/proCatalog.ts); taking it off stays free.
+                if (!ensurePro("stage-tools")) return;
+                prefs().nudgeCapo(ideaId!, direction);
+              }}
               canDecrement={capo > 0}
               canIncrement={capo < 11}
               decrementLabel={t("reading.capoDown")}

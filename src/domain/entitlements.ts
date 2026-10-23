@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { isProFeature, type ProFeature } from "./proCatalog";
 
 /**
  * Pro-entitlement gate.
@@ -9,33 +10,37 @@ import { useSyncExternalStore } from "react";
  * false and driving `proEntitlement` from the purchase/entitlement state turns on the split
  * without touching any gated call site.
  *
+ * WHICH features are Pro is decided in ONE table, domain/proCatalog.ts: a key whose row
+ * says `pro: false` is free for everyone whatever this flag says.
+ *
  * NEVER gate the act of capturing music, backing up, or opening existing work — gates apply
  * only to creating NEW Pro-tier content. (House principle from the 2026-07 audit.)
  */
 
 const ALL_FEATURES_FREE = true;
 
-/** Pro feature keys. Extend as gated features are introduced. */
-export type ProFeature =
-    | "cloud-backup"
-    | "auto-backup"
-    | "practice-suite"
-    | "overdub-layers"
-    | "word-sparks-unlimited"
-    | "archive-offload"
-    | "pdf-export";
+/** Pro feature keys: the catalog's rows (domain/proCatalog.ts). */
+export type { ProFeature } from "./proCatalog";
 
 let isProState = false;
 
 // The free month and founding membership (domain/freeMonth.ts): access without a
 // purchase. Set by services/freeMonthClock once the stored dates are read.
 let freeMonthEndsAt: number | null = null;
+// The latest moment the clock has been seen at (services/freeMonthClock.ts): a device
+// date set back does not reopen the month in-session either.
+let freeMonthSeenAt = 0;
 let foundingMember = false;
 let freeMonthExpiryTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** When the free month ends (ms), or null before the clock has been read. */
 export function getFreeMonthEndsAt(): number | null {
     return freeMonthEndsAt;
+}
+
+/** The clock the month is judged by: now, or the latest moment already seen if later. */
+export function getFreeMonthClock(): number {
+    return Math.max(Date.now(), freeMonthSeenAt);
 }
 
 /** A founding member (first launch before the App Store release) keeps Pro. */
@@ -49,19 +54,20 @@ export function isPaywallLive(): boolean {
 }
 
 function freeMonthOpen(): boolean {
-    return freeMonthEndsAt != null && Date.now() < freeMonthEndsAt;
+    return freeMonthEndsAt != null && getFreeMonthClock() < freeMonthEndsAt;
 }
 
 /**
  * Access without a purchase: the free month's end and founding membership. Re-renders
  * gates when the month runs out while the app is open.
  */
-export function setPurchaseFreeAccess(next: { freeMonthEndsAt: number | null; founding: boolean }) {
+export function setPurchaseFreeAccess(next: { freeMonthEndsAt: number | null; founding: boolean; seenAt?: number }) {
     freeMonthEndsAt = next.freeMonthEndsAt;
     foundingMember = next.founding;
+    if (next.seenAt != null && next.seenAt > freeMonthSeenAt) freeMonthSeenAt = next.seenAt;
     if (freeMonthExpiryTimer) clearTimeout(freeMonthExpiryTimer);
     freeMonthExpiryTimer = null;
-    const remaining = freeMonthEndsAt != null ? freeMonthEndsAt - Date.now() : -1;
+    const remaining = freeMonthEndsAt != null ? freeMonthEndsAt - getFreeMonthClock() : -1;
     // setTimeout tops out near 24.8 days; a longer wait is re-armed on the next launch.
     if (remaining > 0 && remaining < 2 ** 31 - 1) {
         freeMonthExpiryTimer = setTimeout(() => {
@@ -124,9 +130,11 @@ function isProSubscriber(): boolean {
 
 /**
  * Imperative check: whether the user may USE `feature`. All features are free for now;
- * once the paywall is live, Pro comes from a purchase, the free month, or founding.
+ * once the paywall is live, Pro comes from a purchase, the free month, or founding. A
+ * feature the catalog marks `pro: false` is free for everyone (the dev override included).
  */
-export function hasProAccess(_feature?: ProFeature): boolean {
+export function hasProAccess(feature?: ProFeature): boolean {
+    if (feature && !isProFeature(feature)) return true;
     if (__DEV__ && devProOverride !== null) return devProOverride;
     return ALL_FEATURES_FREE || isProState || foundingMember || freeMonthOpen();
 }

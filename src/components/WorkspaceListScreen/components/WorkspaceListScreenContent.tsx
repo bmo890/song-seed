@@ -15,6 +15,9 @@ import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { EmptyState } from "../../common/EmptyState";
 import { WorkspaceList } from "./WorkspaceList";
 import { AppAlert } from "../../common/AppAlert";
+import { ensurePro } from "../../common/proUpsell";
+import { hasProAccess } from "../../../domain/entitlements";
+import { canAddWorkspace } from "../../../domain/proGating";
 import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 import { PopoverMenuLabel, PopoverRadioRow } from "../../common/PopoverMenu";
@@ -194,6 +197,8 @@ export function WorkspaceListScreenContent() {
           pressed ? styles.pressDown : null,
         ]}
         onPress={() => {
+          // Workspaces beyond the free ones are Pro (domain/proCatalog.ts "workspaces").
+          if (!ensurePro("workspaces", canAddWorkspace(model.data.activeWorkspaceCount, hasProAccess("workspaces")))) return;
           model.modal.setEditId(null);
           model.modal.setModalOpen(true);
         }}

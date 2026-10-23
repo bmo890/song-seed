@@ -2,7 +2,6 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../../design/tokens";
 import { PageIntro } from "../../common/PageIntro";
-import { ensurePro } from "../../common/proUpsell";
 import { settingsScreenStyles, styles } from "../styles";
 import { LibraryActionCard, SettingsGroup, ValueRow } from "../components/SettingsShared";
 import type { useLibraryBackupFlow } from "../hooks/useLibraryBackupFlow";
@@ -69,12 +68,9 @@ export function SettingsLibraryView({
             title={t("settingsLibrary.reminder")}
             value={backupFlow.backupReminderFrequency}
             options={backupFlow.reminderOptions.map((option) => ({ value: option.value, label: option.title }))}
-            onChange={(value) => {
-              // Manual backup stays free; scheduling an automatic reminder is Pro.
-              // Turning the reminder OFF is always free.
-              if (value !== "off" && !ensurePro("auto-backup")) return;
-              backupFlow.setBackupReminderFrequency(value);
-            }}
+            // Backup is never locked (founder): the reminder is free. The future
+            // automatic backup keeps the "auto-backup" key in domain/proCatalog.ts.
+            onChange={(value) => backupFlow.setBackupReminderFrequency(value)}
           />
         </SettingsGroup>
 

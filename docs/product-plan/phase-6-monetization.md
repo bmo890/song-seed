@@ -7,10 +7,15 @@
 > payer; the step from free to paying is the barrier, not $1 vs $2.
 >
 > - **Launch with Pro in v1** (not 2–4 weeks after): the free month makes it gentle.
-> - **Free month (reverse trial):** every feature unlocked for **30 days from first launch**, no
->   card, no store trial. Quiet notes around day 25 and on the last day. When it ends nothing is
->   lost: work made with Pro tools still opens and plays; gates only stop creating new. Trial start
->   persisted where a reinstall can't reset it (iOS Keychain; Android best effort).
+> - **Free month (reverse trial):** every feature unlocked for **30 days**, no card, no store
+>   trial. Quiet notes around day 25 and on the last day. When it ends nothing is lost: work made
+>   with Pro tools still opens and plays; gates only stop creating new. Trial start persisted
+>   where a reinstall can't reset it (iOS Keychain; Android best effort).
+>   Mechanics (sweep fixes, 2026-10-23, `services/freeMonthClock.ts`): the month counts from the
+>   **first launch of a build with the paywall live** (`paywallSinceAt`, written once when
+>   `ALL_FEATURES_FREE` is false) or the install's first launch, whichever is later, so a v1.0
+>   user gets a whole month after the flip, not a spent one. A high-water `lastSeenAt` beside it
+>   means a device date set back does not reopen the month.
 > - **Founding price** for everyone who subscribes in the launch window, kept for as long as they
 >   stay subscribed: **$11.99/yr ("$1 a month")**, $1.99/mo, lifetime ~$29.99. No store trial on top.
 > - **Later:** raise the price for NEW subscribers only (~$24.99/yr, $3.99/mo, lifetime ~$79.99),
@@ -24,7 +29,11 @@
 > - **Founding testers get Pro free (founder confirmed).** Testers are iOS TestFlight only today
 >   (no Android testers). Mechanism: an install whose first launch predates the App Store release
 >   keeps Pro (the TestFlight → App Store upgrade keeps the same data), backed by RevenueCat
->   promotional entitlements for anyone that misses; no promo codes needed.
+>   promotional entitlements for anyone that misses; no promo codes needed. Decided **once**, on
+>   the first launch after `APP_STORE_RELEASE_AT` is set, and stored in the Keychain as
+>   `songnook.founding` ("1"/"0"); from then on only the flag counts, so a restored backup's
+>   `firstLaunchAt` cannot carry founding access and "Erase everything" cannot drop it
+>   (`domain/freeMonth.ts decideFounding`).
 > - **Owner paperwork first (longest lead):** App Store Connect Paid Apps agreement + banking/tax,
 >   3 products in one subscription group (+ lifetime non-consumable); Google Play merchant account +
 >   products; RevenueCat account (free under $2.5k monthly tracked revenue, then 1%).
@@ -61,20 +70,40 @@ Flip the already-built entitlement seam into a real free/Pro split with billing,
 `react-native-purchases` (Expo-compatible, config plugin). Products: `pro_monthly`, `pro_annual` (subscription group with trial), `pro_lifetime` (non-consumable). One entitlement: `pro`. Configure in RevenueCat dashboard + App Store Connect + Play Console (both consoles need the products created and, for iOS, a signed Paid Apps agreement — **longest lead-time item, start first**).
 Integration: initialize SDK at app start (API key via EAS secret → `app.config.js` `extra`, read with `expo-constants`); on `customerInfo` listener, call `proEntitlement.set(info.entitlements.active["pro"] != null)`. Restore purchases = `Purchases.restorePurchases()`. **No account system needed** — RevenueCat anonymous IDs ride the store account, which also survives reinstall.
 
-### 6.2 Extend the entitlement keys and flip the flag
+### 6.2 The catalog decides the split; flip the flag last
 
-Add to `ProFeature`: `"practice-suite" | "overdub-layers" | "word-sparks-unlimited" | "archive-offload" | "pdf-export"`. Flip `ALL_FEATURES_FREE` to `false` **last**, behind a full pass of 6.3 — everything must have a graceful gated state before the flag flips. Keep a dev override (e.g. `__DEV__` && a debug toggle) for testing both states.
+**How to change the split:** edit `src/domain/proCatalog.ts`, nothing else. It is one table
+keyed by `ProFeature` — per row `pro: true|false` (gated at all), an optional `freeLimit` for
+count-based gates (workspaces, layers, editor parts, saved sparks per tool), and a plain-English
+`what`. Every gate reads it (`hasProAccess` returns true for a `pro: false` row, the count
+helpers in `domain/proGating.ts` read `freeLimit`), so flipping a feature free or changing a
+number is a one-value edit with no call-site change. The practice tools have per-tool switches
+in `PRACTICE_TOOLS_PRO` under the same row. The sweep's suggested tweaks (3 free workspaces,
+loose clips sendable free, 3 free sparks per tool) sit as comments on the rows they would
+change. `PAYWALL_ROWS` in the same file is what the Pro sheet advertises; `src/__tests__/
+proCatalog.test.ts` fails if a row promises a feature that is no longer gated or the row count
+drifts from `pro.features.*` in translations, so a flip means editing the sheet's copy too.
 
-### 6.3 Gate call sites (use `ProGate` fallback or imperative `hasProAccess` + upsell)
+Flip `ALL_FEATURES_FREE` (`domain/entitlements.ts`) to `false` **last**, behind the 6.3 pass —
+everything must have a graceful gated state before the flag flips. The `__DEV__` override
+(`setDevProOverride` from the debugger) exercises both states without flipping it.
 
-| Feature | Where to gate | Gated UX (never a dead end) |
+### 6.3 Gate call sites (done 2026-10-23; every gate is one `ensurePro(key)` line at the top of a CREATE handler)
+
+| Catalog key | Where it gates | What stays free |
 |---|---|---|
-| Practice suite | Practice panel entry in `PlayerScreen` (tool buttons render; tapping opens upsell) | Tools visible but locked-badged; one free "taste" session/day is worth considering |
-| Overdub layers ≥2 | Add-layer action in the overdub section | First layer works fully; second layer add → upsell sheet explaining stacking |
-| Auto-backup | `SettingsScreen` backup options (key exists) | Row visible with Pro badge |
-| Archive offload | Offload action in Settings library flow | Same |
-| Word sparks | Save-spark actions in WordLadder/CutUp/Magpie when count ≥ limit | Counter visible ("3 of 5 saved"); limit hit → upsell |
-| PDF export | `chordChartPdf.ts` / `setlistExport.ts` call sites | Export button Pro-badged |
+| `workspaces` | New-workspace FAB (`WorkspaceListScreenContent`), beyond `freeLimit` | Opening, renaming, archiving any workspace |
+| `overdub-layers` | Add-layer action (`PlayerScreen`), beyond `freeLimit` | Existing layered takes play and open |
+| `practice-suite` | Using a practice tool (`PlayerScreen guardPracticeTool`, per-tool switches) | Opening practice mode, viewing marks |
+| `full-editor` | The editor's Speed & pitch tab; adding a part beyond `freeLimit` (`useEditorSelectionState`) | A plain trim |
+| `stage-tools` | Entering chart edit (`useChordSheetModel.setIsEditing`, the player's chart key, chords over lyrics), `TransposeChip`, capo (`ReadingSheet`), new chart book / setlist (`useSongbookModel`, `useSetlistModel`, `SongbookChooserSheet`), the stage reader (`openReader`) | Reading charts, books, sets; received sets |
+| `lyric-spark` | The new-spark sheet (`NotepadScreenContent openSparkSheet`) | Sparks already made |
+| `word-sparks-unlimited` | Saving beyond `freeLimit` per tool (`useNotepadScreenModel`), reached only once `lyric-spark` is free | Existing sparks |
+| `word-finder-full` | The More groups (`WordFinderSheet selectExtendedMode`) | Rhymes, Near, Similar |
+| `send` | `openSendSheet` — the one call every "Get a link" makes | Receiving |
+| `pdf-export` | Chart PDF (`useChordSheetModel.exportPdf`, `useChordExport`) | Text and archive exports |
+| `archive-offload` | `useWorkspaceArchiveActions` | Backup, export, restore, the backup reminder |
+| `auto-backup` | `pro: false` — nothing reads it; reserved | Backup is never locked |
 
 Every gate shows the **same upsell sheet** (6.4) — no bespoke paywalls per feature. Add a reusable `ProBadge` chip (terracotta outline, "PRO") in `src/components/common/`.
 

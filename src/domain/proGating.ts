@@ -4,23 +4,36 @@
  * isolation: each function takes the current count + the caller's resolved `isPro`
  * (from hasProAccess / useHasProAccess) and returns a plain decision.
  *
+ * The numbers and switches live in ONE place, domain/proCatalog.ts; these are thin
+ * wrappers over it so a call site never carries its own constant.
+ *
  * Invariant: these gate CREATING NEW Pro-tier content only. Opening, playing, or editing
  * content the user already has (existing multi-layer clips, already-saved sparks) is never
  * gated — callers must not run these checks on the read/edit paths.
  */
 
-/** Overdub layers a free user may add per clip. The first layer is free; a second needs Pro. */
-export const FREE_OVERDUB_LAYERS = 1;
+import { freeLimitOf, PRACTICE_TOOLS_PRO, PRO_CATALOG, withinFreeLimit, type PracticeTool } from "./proCatalog";
 
-/** Saved word-tool sparks a free user may keep PER TOOL (WordLadder / Cut-Up / Magpie). */
-export const FREE_SAVED_SPARKS_PER_TOOL = 5;
+export type { PracticeTool } from "./proCatalog";
+
+/** Overdub layers a free user may add per clip (proCatalog "overdub-layers".freeLimit). */
+export const FREE_OVERDUB_LAYERS = freeLimitOf("overdub-layers") ?? Infinity;
+
+/** Saved word-tool sparks a free user may keep PER TOOL (proCatalog "word-sparks-unlimited".freeLimit). */
+export const FREE_SAVED_SPARKS_PER_TOOL = freeLimitOf("word-sparks-unlimited") ?? Infinity;
+
+/** Workspaces a free user may have (proCatalog "workspaces".freeLimit). */
+export const FREE_WORKSPACES = freeLimitOf("workspaces") ?? Infinity;
+
+/** Parts a free user may cut a take into in one edit (proCatalog "full-editor".freeLimit). */
+export const FREE_EDITOR_PARTS = freeLimitOf("full-editor") ?? Infinity;
 
 /**
  * Whether the user may add another overdub layer. `existingLayerCount` is how many overdub
  * layers the clip already has (0 for a bare clip). Free users get FREE_OVERDUB_LAYERS.
  */
 export function canAddOverdubLayer(existingLayerCount: number, isPro: boolean): boolean {
-    return isPro || existingLayerCount < FREE_OVERDUB_LAYERS;
+    return withinFreeLimit("overdub-layers", existingLayerCount, isPro);
 }
 
 /**
@@ -28,7 +41,7 @@ export function canAddOverdubLayer(existingLayerCount: number, isPro: boolean): 
  * are already saved IN THAT TOOL. Free users get FREE_SAVED_SPARKS_PER_TOOL.
  */
 export function canSaveWordSpark(savedCount: number, isPro: boolean): boolean {
-    return isPro || savedCount < FREE_SAVED_SPARKS_PER_TOOL;
+    return withinFreeLimit("word-sparks-unlimited", savedCount, isPro);
 }
 
 /** Sparks a free user has left in a tool, for the "3 of 5 saved" counter. Never negative. */
@@ -36,22 +49,26 @@ export function remainingFreeSparks(savedCount: number): number {
     return Math.max(0, FREE_SAVED_SPARKS_PER_TOOL - savedCount);
 }
 
-/** The individual tools inside the practice suite (all gated under the "practice-suite" key). */
-export type PracticeTool = "loop" | "pins" | "speed" | "pitch" | "analysis";
+/**
+ * Whether the user may create another workspace. `existingCount` is how many personal,
+ * unarchived workspaces there are (the seeded one counts). Free users get FREE_WORKSPACES.
+ */
+export function canAddWorkspace(existingCount: number, isPro: boolean): boolean {
+    return withinFreeLimit("workspaces", existingCount, isPro);
+}
 
 /**
- * Which practice tools are Pro. The whole suite is Pro today, but this is the SINGLE knob:
- * flip any entry to `false` to make that one tool free — every practice gate reads this map,
- * so no call site changes. (Keep the "practice-suite" entitlement key for all of them.)
+ * Whether the user may add another part in the editor. `existingPartCount` is how many
+ * parts the edit already has. A plain trim (one part) is free.
  */
-export const PRACTICE_TOOL_IS_PRO: Record<PracticeTool, boolean> = {
-    loop: true,
-    pins: true,
-    speed: true,
-    pitch: true,
-    analysis: true,
-};
+export function canAddEditorPart(existingPartCount: number, isPro: boolean): boolean {
+    return withinFreeLimit("full-editor", existingPartCount, isPro);
+}
 
+/**
+ * Which practice tools are Pro: the "practice-suite" row AND the tool's own switch in
+ * proCatalog PRACTICE_TOOLS_PRO. Every practice gate reads this, so no call site changes.
+ */
 export function isPracticeToolPro(tool: PracticeTool): boolean {
-    return PRACTICE_TOOL_IS_PRO[tool];
+    return PRO_CATALOG["practice-suite"].pro && PRACTICE_TOOLS_PRO[tool];
 }

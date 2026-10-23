@@ -4,6 +4,7 @@ import { useStore } from "../../../state/useStore";
 import { AppAlert } from "../../common/AppAlert";
 import { createSetlistShareLink, shareSetlist } from "../../../services/setlistShare";
 import { openSendSheet } from "../../../state/useSendSheetStore";
+import { ensurePro } from "../../common/proUpsell";
 import {
   buildSetlistQueue,
   getSetlistDurationMs,
@@ -165,6 +166,9 @@ export function useSetlistModel() {
     handleBack,
     openSetlist: (id: string) => setSelectedSetlistId(id),
     openCreate: () => {
+      // Creating a setlist is a stage tool (domain/proCatalog.ts); received and
+      // existing sets open as before.
+      if (!ensurePro("stage-tools")) return;
       setDraftTitle("");
       setCreateModalOpen(true);
     },
