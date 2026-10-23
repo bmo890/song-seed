@@ -3,11 +3,23 @@ main = "worker.js"
 compatibility_date = "2026-07-01"
 
 # Cached index of eligible work IDs (id + title + author). A few hundred KB.
-# Create with: npx wrangler kv namespace create MAGPIE_KV
-# then paste the returned id below.
+# Also holds the rate-limit counters (rl:* keys, short TTL — no collision with
+# the pool key), as word-he does; no second namespace needed.
+# The id below MUST be a namespace that exists in the account — create one with
+#   npx wrangler kv namespace create MAGPIE_KV
+# and paste the returned id. Without the binding, rate limiting fails open and
+# the index cannot be stored at all.
 [[kv_namespaces]]
 binding = "MAGPIE_KV"
 id = "c26caa8e8a2d4ad08b359b74d8f62120"
+
+# Anti-abuse limits (fail open if MAGPIE_KV is unbound, e.g. local dev).
+# Counters tick only on the UPSTREAM path — a draw whose text is already at the
+# edge is free. Sized under Ben-Yehuda's 50 req/min on the shared key (a draw is
+# 2 upstream calls; the live fallback up to 5). Tune without a code change.
+[vars]
+RATE_DRAWS_PER_HOUR = "120"         # per-IP upstream draws / hour
+RATE_DRAWS_GLOBAL_PER_HOUR = "1000" # worker-wide breaker / hour (~33 upstream calls/min)
 
 # Weekly index refresh — the public-domain corpus barely changes.
 [triggers]

@@ -59,9 +59,11 @@ Every client is untrusted (the desktop page is public HTML; the raw API is reach
 - **Draft mutation token** — the public link id is not enough to add items or finalize;
   the create caller gets a separate `uploadToken` for those draft-only operations.
 - **Origin allowlist** (`lib/guard.ts`) on create/upload — browser calls must come from `ALLOWED_WEB_ORIGINS` (blocks other sites' JS). The native app sends no Origin → allowed.
-- **Per-IP rate limiting** (KV fixed window) on create/upload — `RATE_CREATE_PER_HOUR` (30) / `RATE_ITEMS_PER_HOUR` (300). Fails open if `RATE` KV is unbound (dev); **bind it before going public**.
-- **Caps** — 1 GB/transfer, 512 MB/file, 200 items, 7-day finalized-transfer expiry,
-  24-hour unfinished-draft sweep.
+- **Per-IP rate limiting** on create/upload — the Workers Rate Limiting binding (`RATE_CREATE` / `RATE_ITEMS` in `wrangler.toml`, atomic per colo: 5 creates and 60 item registrations per IP per minute). Without the binding (local dev) it falls back to the approximate KV fixed window — `RATE_CREATE_PER_HOUR` (30) / `RATE_ITEMS_PER_HOUR` (300) on the `RATE` KV — and fails open with neither.
+- **Caps** — 1 GB/transfer, 1 GB/file (a collection is one file), 200 items, 7-day
+  finalized-transfer expiry, 24-hour unfinished-draft sweep. The item and byte caps
+  are enforced inside the item INSERT (one D1 transaction), so parallel
+  registrations cannot overshoot a draft.
 
 **Inherent residual:** `.songnook` is an opaque ZIP we must not unpack, so a determined abuser can smuggle bytes inside one (an `.xlsx` is also a ZIP). Content-typing can't close that — rate limits, expiry, and the launch-hardening below do.
 
@@ -77,13 +79,15 @@ cp .dev.vars.example .dev.vars            # fill in R2 S3 API token (local only)
 # create the D1 db + R2 bucket in your CF account, paste ids into wrangler.toml:
 npx wrangler d1 create songnook_send
 npx wrangler r2 bucket create songnook-send
-npx wrangler kv namespace create RATE   # paste id into wrangler.toml (rate limiting)
+npx wrangler kv namespace create RATE   # paste id into wrangler.toml (dev rate-limit fallback)
+# production rate limiting is the [[unsafe.bindings]] ratelimit entries in wrangler.toml —
+# nothing to create; they take effect on `wrangler deploy`.
 npx wrangler r2 bucket cors set songnook-send --file r2-cors.json --force
 npm run db:migrate:local
 npm run dev
 ```
 
-Tests: `node --test --experimental-strip-types src/lib/__tests__/contentPolicy.test.ts`.
+Tests: `node --test --experimental-strip-types src/lib/__tests__/*.test.ts`.
 
 ## Settled v1 decisions (brief §9)
 
@@ -99,9 +103,8 @@ Tests: `node --test --experimental-strip-types src/lib/__tests__/contentPolicy.t
 | Abuse | report link + takedown; **no AV scan v1** |
 | Location | `server/songnook-send/` (this repo) |
 
-## Still needed from the app team (blocks only the `.well-known` files)
+## Universal / App Link identity
 
-- Apple **Team ID** → `APPLE_TEAM_ID` var, for `apple-app-site-association`.
-- Android release **signing SHA-256 fingerprint(s)** → `ANDROID_CERT_FINGERPRINTS`, for `assetlinks.json`.
-
-Until supplied, both files serve with clearly-marked `REPLACE_*` placeholders.
+Both `.well-known` files are live: `APPLE_TEAM_ID` and `ANDROID_CERT_FINGERPRINTS`
+are set in `wrangler.toml` (public values). When Play App Signing re-signs store
+installs, append Play's SHA-256 to `ANDROID_CERT_FINGERPRINTS`, comma-separated.

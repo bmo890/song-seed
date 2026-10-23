@@ -108,7 +108,7 @@ export default {
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
     ctx.waitUntil(
       sweepExpired(env, Date.now()).then((r) =>
-        console.log(`sweep: removed ${r.transfers} transfers, ${r.objects} objects`)
+        console.log(`sweep: removed ${r.transfers} transfers, ${r.objects} objects, ${r.failed} failed`)
       )
     );
   },

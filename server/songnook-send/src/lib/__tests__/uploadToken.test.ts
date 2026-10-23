@@ -40,6 +40,8 @@ test("new transfers require the matching upload token", async () => {
   assert.equal(await uploadTokenValid(fakeContext(), transfer, {}), false);
 });
 
-test("legacy draft rows without a token hash remain finishable", async () => {
-  assert.equal(await uploadTokenValid(fakeContext(), { upload_token_hash: null } as any, {}), true);
+test("rows without a token hash are never a bypass", async () => {
+  const legacy = { upload_token_hash: null } as any;
+  assert.equal(await uploadTokenValid(fakeContext(), legacy, {}), false);
+  assert.equal(await uploadTokenValid(fakeContext(), legacy, { uploadToken: "anything" }), false);
 });

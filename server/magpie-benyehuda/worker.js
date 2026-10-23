@@ -16,19 +16,25 @@
  * The index is tiny (id + title + author per work, a few hundred KB) and lives in
  * KV; the actual text is fetched fresh per draw and edge-cached per work id.
  *
- * The index is self-building: the first Hebrew draw with an empty index kicks off
- * a background rebuild (and serves a live fallback meanwhile), and a weekly cron
- * keeps it fresh. No manual build step or admin token needed.
+ * Only the weekly cron builds the index (a request's `waitUntil` budget is far
+ * shorter than the ~6 min a full build takes, and the request path stays
+ * read-only). The build writes the pool after every genre, so a build cut short
+ * still leaves the finished genres in KV. While the index has nothing in the
+ * requested genres, a request serves a live search instead.
  *
  * Deploy:
  *   1. Get a free key at https://benyehuda.org/api_keys/new
  *   2. `npx wrangler kv namespace create MAGPIE_KV` → put the id in wrangler.toml
  *   3. `npx wrangler deploy`
  *   4. `npx wrangler secret put BENYEHUDA_KEY`
+ *   5. First build (or after a pool-key bump): don't wait for Monday —
+ *      `npx wrangler dev --remote --test-scheduled` then
+ *      `curl "http://localhost:8787/__scheduled?cron=0+4+*+*+1"`.
  *
  * App-side contract:
  *   GET /magpie/he/random
  *     → 200 { id, title, author, sourceUrl, text }   // text = cleaned plaintext
+ *     → 429 { error } rate limited (per IP, or the worker-wide breaker)
  *     → 503 { error } if the index is empty and the live fallback also fails
  *
  * ATTRIBUTION (required): every field except `text` exists so the Magpie UI can
@@ -86,12 +92,68 @@ const JSON_HEADERS = {
   "Access-Control-Allow-Origin": "*",
 };
 
+const HOUR = 3600;
+
+// ── Rate limiting (KV fixed-window; approximate, fail-open) ───────────────────
+// Same shape as word-he. Ben-Yehuda allows 50 req/min on the shared key, and a
+// draw costs 2 upstream calls (live fallback: up to 5) — so one person tapping
+// "New page" fast, or any script on the public URL, would exhaust the key for
+// everyone. Counters tick only on the UPSTREAM path (edge-cache hits are free).
+// KV is eventually consistent, so counts can race under load — fine for
+// blunting abuse. Fail open when MAGPIE_KV is unbound so dev isn't blocked.
+
+function clientIp(request) {
+  return (
+    request.headers.get("cf-connecting-ip") ||
+    request.headers.get("x-forwarded-for") ||
+    "unknown"
+  );
+}
+
+function numVar(env, name, fallback) {
+  const n = Number(env[name]);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+/** Increment a fixed-window counter; allow until `limit`. Returns { ok } or
+ * { ok:false, retryAfter } (seconds until the window rolls over). */
+async function bumpCounter(env, prefix, limit, windowSec) {
+  if (!env.MAGPIE_KV) return { ok: true };
+  const nowSec = Date.now() / 1000;
+  const key = `${prefix}:${Math.floor(nowSec / windowSec)}`;
+  const current = parseInt((await env.MAGPIE_KV.get(key)) || "0", 10);
+  if (current >= limit) {
+    return { ok: false, retryAfter: Math.ceil(windowSec - (nowSec % windowSec)) };
+  }
+  // TTL a bit past the window so stale counters self-expire.
+  await env.MAGPIE_KV.put(key, String(current + 1), { expirationTtl: Math.ceil(windowSec) + HOUR });
+  return { ok: true };
+}
+
+function json429(retryAfter) {
+  return new Response(JSON.stringify({ error: "rate limited — try again shortly" }), {
+    status: 429,
+    headers: { ...JSON_HEADERS, "Retry-After": String(retryAfter ?? 60) },
+  });
+}
+
+/** Per-IP hourly limit, then a worker-wide hourly breaker that catches
+ * distributed (many-IP) abuse before it burns the shared upstream key.
+ * Returns a 429 Response to short-circuit, or null to proceed upstream. */
+async function upstreamGuard(env, ip) {
+  const perIp = await bumpCounter(env, `rl:draw:${ip}`, numVar(env, "RATE_DRAWS_PER_HOUR", 120), HOUR);
+  if (!perIp.ok) return json429(perIp.retryAfter);
+  const global = await bumpCounter(env, "rl:global:draw", numVar(env, "RATE_DRAWS_GLOBAL_PER_HOUR", 1000), HOUR);
+  if (!global.ok) return json429(global.retryAfter);
+  return null;
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     if (request.method === "GET" && url.pathname === "/magpie/he/random") {
-      return handleRandom(env, ctx, requestedGenres(url));
+      return handleRandom(env, ctx, requestedGenres(url), clientIp(request));
     }
     return json({ error: "not found" }, 404);
   },
@@ -104,23 +166,29 @@ export default {
 
 // ── Random draw ────────────────────────────────────────────────────────────
 
-async function handleRandom(env, ctx, genres) {
+async function handleRandom(env, ctx, genres, ip) {
   const wanted = new Set(genres);
   const pool = await readPool(env);
   const eligible = pool ? pool.filter((item) => wanted.has(item.genre)) : [];
 
   // Cold start, OR the current pool has nothing in the requested genres yet:
-  // kick off a background rebuild so variety ramps up on its own, and serve a
-  // single live search (in the requested genres) meanwhile.
+  // serve a single live search (in the requested genres). The request path
+  // never builds the index — only the cron does (see the header comment).
   if (eligible.length === 0) {
-    ctx.waitUntil(maybeRebuildInBackground(env));
+    const blocked = await upstreamGuard(env, ip);
+    if (blocked) return blocked;
     const fallback = await liveFallbackDraw(env, genres);
     if (fallback) return json(fallback, 200);
     return json({ error: "index unavailable" }, 503);
   }
 
   const pick = eligible[Math.floor(Math.random() * eligible.length)];
-  const work = await fetchWork(env, ctx, pick.id);
+  let work = await cachedWork(pick.id);
+  if (!work) {
+    const blocked = await upstreamGuard(env, ip);
+    if (blocked) return blocked;
+    work = await fetchWork(env, ctx, pick.id);
+  }
   if (!work) return json({ error: "text fetch failed" }, 502);
 
   return json(
@@ -135,14 +203,20 @@ async function handleRandom(env, ctx, genres) {
   );
 }
 
-// Fetch one work's plaintext, edge-cached per id (so repeat draws of the same
-// work never re-hit Ben-Yehuda). Returns { title, author, sourceUrl, text }.
-async function fetchWork(env, ctx, id) {
-  const cache = caches.default;
-  const cacheKey = new Request(`https://magpie.cache/he/text/${id}`);
-  const cached = await cache.match(cacheKey);
-  if (cached) return cached.json();
+function workCacheKey(id) {
+  return new Request(`https://magpie.cache/he/text/${id}`);
+}
 
+// A work already at the edge (repeat draws of the same work never re-hit
+// Ben-Yehuda, and never count against the rate limit). Null on a miss.
+async function cachedWork(id) {
+  const cached = await caches.default.match(workCacheKey(id));
+  return cached ? cached.json() : null;
+}
+
+// Fetch one work's plaintext from Ben-Yehuda and edge-cache it per id.
+// Returns { title, author, sourceUrl, text }. Callers run `upstreamGuard` first.
+async function fetchWork(env, ctx, id) {
   // 1. Metadata + a fresh download_url for the txt format.
   const metaUrl = new URL(`${API_BASE}/texts/${id}`);
   metaUrl.searchParams.set("key", env.BENYEHUDA_KEY);
@@ -171,12 +245,13 @@ async function fetchWork(env, ctx, id) {
   const toCache = new Response(JSON.stringify(work), {
     headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=2592000" },
   });
-  ctx.waitUntil(cache.put(cacheKey, toCache));
+  ctx.waitUntil(caches.default.put(workCacheKey(id), toCache));
   return work;
 }
 
 // If the index has nothing in the requested genres yet, one live search + text
 // fetch so the feature still responds. Pages a few times in case of thin pages.
+// Upstream-only path: the caller has already passed `upstreamGuard`.
 async function liveFallbackDraw(env, genres) {
   const wanted = new Set(genres);
   let candidates = [];
@@ -190,7 +265,7 @@ async function liveFallbackDraw(env, genres) {
   }
   if (candidates.length === 0) return null;
   const item = candidates[Math.floor(Math.random() * candidates.length)];
-  const work = await fetchWork(env, { waitUntil: () => {} }, item.id);
+  const work = (await cachedWork(item.id)) || (await fetchWork(env, { waitUntil: () => {} }, item.id));
   if (!work) return null;
   return {
     id: item.id,
@@ -203,10 +278,11 @@ async function liveFallbackDraw(env, genres) {
 
 // ── Index build ──────────────────────────────────────────────────────────────
 
-// Rebuild at most once per BUILD_LOCK_TTL, so a burst of cold-start requests
-// doesn't fire many concurrent rebuilds (each pages the API for minutes).
+// One build at a time: the lock outlives a full build (4 genres × ≤60 pages ×
+// 1.5 s ≈ 6 min, matching the cron's 15-min budget) so a hand-fired cron can't
+// run alongside the weekly one; it self-expires if a build dies mid-way.
 const BUILD_LOCK_KEY = "he:building";
-const BUILD_LOCK_TTL = 300; // seconds
+const BUILD_LOCK_TTL = 900; // seconds
 
 async function maybeRebuildInBackground(env) {
   const inProgress = await env.MAGPIE_KV.get(BUILD_LOCK_KEY);
@@ -221,13 +297,17 @@ async function maybeRebuildInBackground(env) {
 
 // Build the index one genre at a time (each capped at PER_GENRE_CAP) so every
 // candidate genre is represented, storing { id, title, author, genre } per work.
+// The pool is written after EVERY genre (that genre's entries replaced, the
+// others kept), so a build cut short by the runtime still lands what it
+// finished, and the pool is never empty between the start and end of a build.
 async function rebuildIndex(env) {
-  const pool = [];
+  let pool = (await readPool(env)) || [];
+  let built = 0;
 
   for (const genre of CANDIDATE_GENRES) {
+    const entries = [];
     let searchAfter = null;
-    let count = 0;
-    while (count < PER_GENRE_CAP) {
+    while (entries.length < PER_GENRE_CAP) {
       const page = await searchPage(env, searchAfter, [genre]);
       if (!page || !page.data || page.data.length === 0) break;
 
@@ -236,18 +316,22 @@ async function rebuildIndex(env) {
         // work is only ever stored under a candidate genre).
         const g = item?.metadata?.genre;
         if (!CANDIDATE_GENRE_SET.has(g)) continue;
-        pool.push({ id: item.id, title: item.metadata?.title || "", author: item.metadata?.author_string || "", genre: g });
-        count++;
+        entries.push({ id: item.id, title: item.metadata?.title || "", author: item.metadata?.author_string || "", genre: g });
       }
 
       searchAfter = page.next_page_search_after;
       if (!searchAfter) break; // last page for this genre
       await sleep(REBUILD_PAGE_DELAY_MS); // stay under 50 req/min
     }
+
+    // An upstream failure on the first page leaves the genre's old entries alone.
+    if (entries.length === 0) continue;
+    pool = pool.filter((item) => item.genre !== genre).concat(entries);
+    await env.MAGPIE_KV.put(KV_POOL_KEY, JSON.stringify(pool));
+    built += entries.length;
   }
 
-  await env.MAGPIE_KV.put(KV_POOL_KEY, JSON.stringify(pool));
-  return pool.length;
+  return built;
 }
 
 async function searchPage(env, searchAfter, genres) {

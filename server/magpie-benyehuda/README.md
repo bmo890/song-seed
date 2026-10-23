@@ -37,8 +37,14 @@ with `MAGPIE_HE_GENRES` in `src/config/magpieService.ts`.
 ```
 GET /magpie/he/random?genres=prose,memoir
   → 200 { id, title, author, sourceUrl, text }   // text = cleaned plaintext
+  → 429 { error }                                 // rate limited (per IP / worker-wide); Retry-After set
   → 503 { error }                                 // no works in requested genres + fallback failed
 ```
+
+Rate limits (KV fixed window, same pattern as `word-he`): `RATE_DRAWS_PER_HOUR` (120
+per IP) and `RATE_DRAWS_GLOBAL_PER_HOUR` (1000, worker-wide breaker), both in
+`wrangler.toml`. They tick only on the upstream path — a work already at the edge
+is free — and keep the shared Ben-Yehuda key under its 50 req/min.
 
 `genres` is a comma-separated subset of `CANDIDATE_GENRES` (invalid/empty → defaults
 to `prose`). `sourceUrl` is the canonical Ben-Yehuda page, for the credit / click-through.
@@ -65,10 +71,15 @@ side should likewise credit author, work, and "Project Gutenberg".
 3. `npx wrangler deploy`
 4. `npx wrangler secret put BENYEHUDA_KEY`
 5. Point `MAGPIE_HE_SERVICE_BASE_URL` (src/config/magpieService.ts) at the worker URL.
+6. Build the index once (otherwise it waits for Monday's cron):
+   `npx wrangler dev --remote --test-scheduled`, then in another shell
+   `curl "http://localhost:8787/__scheduled?cron=0+4+*+*+1"`.
 
-The index is self-building: the first Hebrew draw with an empty index triggers a
-background rebuild (serving a lower-variety live fallback meanwhile), and the
-weekly cron (`0 4 * * 1`) keeps it fresh. No manual build step.
+Only the weekly cron (`0 4 * * 1`) builds the index — a request's `waitUntil`
+budget is far shorter than the ~6 min a full build takes, so the request path
+is read-only. The build writes the pool after every genre, so a build cut short
+still lands the genres it finished. Until the requested genres are in the pool,
+a request serves a lower-variety live search.
 
 ## To verify once the key is live (the "spike")
 
@@ -82,6 +93,6 @@ Confirm with a real key and adjust if needed:
   on `POST /search`.
 - **Boilerplate marker** — `preparePassage()` strips a trailing rule-of-dashes
   block; check the real files' header/footer shape and tighten the regex.
-- **Pool size** — after the first background build, check `he:pool` in the KV
-  dashboard (or `npx wrangler kv key get --binding MAGPIE_KV he:pool`). If small,
+- **Pool size** — after the first build, check `he:pool:v2` in the KV
+  dashboard (or `npx wrangler kv key get --binding MAGPIE_KV he:pool:v2`). If small,
   widen `CORPUS_FILTERS` (add genres / periods).

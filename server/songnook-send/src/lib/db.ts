@@ -74,30 +74,55 @@ export async function getItem(env: Env, transferId: string, itemId: string): Pro
     .first<ItemRow>();
 }
 
-export async function insertItem(env: Env, item: ItemRow): Promise<void> {
-  await env.DB.prepare(
-    `INSERT INTO items
-      (item_id, transfer_id, file_name, mime_type, size, r2_key, download_count, created_at, sort_order)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  )
-    .bind(
-      item.item_id,
-      item.transfer_id,
-      item.file_name,
-      item.mime_type,
-      item.size,
-      item.r2_key,
-      item.download_count,
-      item.created_at,
-      item.sort_order
-    )
-    .run();
+export interface DraftCaps {
+  maxTotalBytes: number;
+  maxItems: number;
 }
 
-export async function bumpTransferSize(env: Env, transferId: string, addBytes: number): Promise<void> {
-  await env.DB.prepare(`UPDATE transfers SET size_total = size_total + ? WHERE transfer_id = ?`)
-    .bind(addBytes, transferId)
-    .run();
+/**
+ * Register an item and bump the draft's size in one D1 transaction, with the
+ * caps checked inside the INSERT itself. Reading the count/sum first and
+ * inserting later let parallel registrations overshoot the item and byte caps
+ * (TOCTOU); here the row only lands while the transfer is still a draft and
+ * both caps hold, and `sort_order` is the live count, not the caller's. The
+ * size bump only follows a landed row. Returns false when nothing was inserted.
+ */
+export async function insertItemWithinCaps(
+  env: Env,
+  item: Omit<ItemRow, "sort_order">,
+  caps: DraftCaps
+): Promise<boolean> {
+  const [inserted] = await env.DB.batch([
+    env.DB
+      .prepare(
+        `INSERT INTO items
+          (item_id, transfer_id, file_name, mime_type, size, r2_key, download_count, created_at, sort_order)
+         SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, (SELECT COUNT(*) FROM items WHERE transfer_id = ?2)
+         FROM transfers
+         WHERE transfer_id = ?2 AND status = 'draft'
+           AND size_total + ?5 <= ?9
+           AND (SELECT COUNT(*) FROM items WHERE transfer_id = ?2) < ?10`
+      )
+      .bind(
+        item.item_id,
+        item.transfer_id,
+        item.file_name,
+        item.mime_type,
+        item.size,
+        item.r2_key,
+        item.download_count,
+        item.created_at,
+        caps.maxTotalBytes,
+        caps.maxItems
+      ),
+    env.DB
+      .prepare(
+        `UPDATE transfers SET size_total = size_total + ?1
+         WHERE transfer_id = ?2 AND EXISTS (SELECT 1 FROM items WHERE item_id = ?3)`
+      )
+      .bind(item.size, item.transfer_id, item.item_id),
+  ]);
+  return (inserted?.meta?.changes ?? 0) > 0;
 }
 
 export async function setTransferSize(env: Env, transferId: string, sizeBytes: number): Promise<void> {
