@@ -64,6 +64,11 @@ function StepKey({
     }
   };
   useEffect(() => stop, []);
+  // A key that reaches its bound mid-hold goes quiet: the interval was only
+  // cleared on press-out, so it kept stepping (and ticking) against the stop.
+  useEffect(() => {
+    if (!enabled) stop();
+  }, [enabled]);
 
   const step = () => {
     // Haptics: `tick` — a detent crossed.

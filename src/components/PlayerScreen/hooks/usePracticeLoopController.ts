@@ -240,8 +240,16 @@ export function usePracticeLoopController({
         ? loopByClipRef.current.get(clipId) ?? (keptRange ? { enabled: true, range: keptRange } : undefined)
         : undefined;
       setPracticeLoopEnabled(saved?.enabled ?? false);
-      setPracticeLoopRange(saved?.range ?? buildDefaultLoopRegion(durationMs));
-      defaultBuiltForMsRef.current = saved ? null : durationMs;
+      // A kept range can outlive its take's length (trimmed in the Editor after
+      // Keep): adopt it only if it fits, by the same rule as the length branch
+      // below; with no length known yet, that branch checks once one lands.
+      const adopted = saved?.range;
+      const fits =
+        adopted != null &&
+        adopted.end > adopted.start &&
+        (durationMs <= 0 || adopted.end <= durationMs + 50);
+      setPracticeLoopRange(fits ? adopted : buildDefaultLoopRegion(durationMs));
+      defaultBuiltForMsRef.current = fits ? null : durationMs;
       return;
     }
     if (durationMs <= 0) return;

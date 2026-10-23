@@ -299,12 +299,10 @@ function QueuePanelInner({
     const before = useStore.getState().playerQueue.length;
     useStore.getState().removeFromPlayerQueue(index);
     haptic.light();
-    // Removing the last item ends the session — collapse the full player if it's
-    // open (the dock hides itself once the queue empties) and drop out of edit.
-    if (before <= 1) {
-      useStore.getState().requestPlayerClose();
-      setEditMode(false);
-    }
+    // Removing the last item ends the session: the store's empty branch requests
+    // the close itself (one owner — the sheet or the root provider — stops the
+    // engine; the dock hides once the queue empties). Here, only leave edit mode.
+    if (before <= 1) setEditMode(false);
   }, []);
 
   const onDragEnd = useCallback(({ data }: { data: QueueRow[] }) => {

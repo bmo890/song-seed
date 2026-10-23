@@ -161,7 +161,9 @@ export function GlobalMediaDock({
   // Swipe UP on the dock pulls the pre-mounted player up, tracking the finger.
   // Vertical-up only, so the scrub bar's horizontal drags and button taps are
   // never contested. Declared before any early return so hook order is stable.
-  const expandGesture = useRef(
+  // Built once: `useRef(build()).current` evaluated the builder (a Pan gesture,
+  // three worklets) on every render and threw the result away.
+  const [expandGesture] = useState(() =>
     Gesture.Pan()
       .activeOffsetY(-12)
       .failOffsetY(12)
@@ -191,7 +193,7 @@ export function GlobalMediaDock({
           });
         }
       })
-  ).current;
+  );
 
   // Clear the stored dock height when the queue empties (dock disappears).
   const queueEmpty = playerQueue.length === 0;

@@ -39,6 +39,8 @@ type Args = {
   speedBounds: RateBounds;
   /** Click engine's supported range, null when the click is off or unavailable. */
   clickBounds: RateBounds | null;
+  /** The transport's live rate — what the musician had set before a drill moves it. */
+  playbackRate: number;
   setPlaybackRate: (rate: number) => void;
   /**
    * The plan's last pass has played. A drill is a finite thing — it stops here
@@ -58,6 +60,7 @@ export function useStepUpLoop({
   isPracticeLoopActive,
   speedBounds,
   clickBounds,
+  playbackRate,
   setPlaybackRate,
   onDrillComplete,
 }: Args) {
@@ -77,6 +80,21 @@ export function useStepUpLoop({
   sessionRef.current = session;
   speedBoundsRef.current = speedBounds;
   clickBoundsRef.current = clickBounds;
+  const playbackRateRef = useRef(playbackRate);
+  playbackRateRef.current = playbackRate;
+
+  // The speed the musician had set when the drill began. A drill moves the
+  // transport every pass; ending it leaves the speed wherever the ladder stood
+  // (2026-10-22), so the session remembers the pre-drill rate and puts it back.
+  const preDrillRateRef = useRef<number | null>(null);
+  const setPlaybackRateRef = useRef(setPlaybackRate);
+  setPlaybackRateRef.current = setPlaybackRate;
+  const endSession = useCallback((restoreRate: boolean) => {
+    setSession(null);
+    const preDrillRate = preDrillRateRef.current;
+    preDrillRateRef.current = null;
+    if (restoreRate && preDrillRate != null) setPlaybackRateRef.current(preDrillRate);
+  }, []);
 
   // Losing the room ends the session: clip change, mode change, loop switched off.
   // The clip check was missing (2026-10-21): a drill kept running, and kept
@@ -86,9 +104,12 @@ export function useStepUpLoop({
     const clipChanged = sessionClipIdRef.current !== clipId;
     sessionClipIdRef.current = clipId;
     if (!isPracticeLoopActive || clipChanged) {
-      setSession(null);
+      // On a clip change the per-clip practice memory sets the arriving clip's
+      // own speed right after this (it is handed `preDrillRate` for the clip
+      // being left); restoring here as well would race that write.
+      endSession(!clipChanged);
     }
-  }, [clipId, isPracticeLoopActive]);
+  }, [clipId, endSession, isPracticeLoopActive]);
 
   const sessionBounds = useCallback(
     () =>
@@ -98,8 +119,8 @@ export function useStepUpLoop({
   );
 
   const cancelStepUp = useCallback(() => {
-    setSession(null);
-  }, []);
+    endSession(true);
+  }, [endSession]);
 
   /** The customizer writes here; a running session restarts on the new sequence. */
   const setSequence = useCallback(
@@ -126,13 +147,14 @@ export function useStepUpLoop({
   const toggleStepUp = useCallback(() => {
     // The Switch that flips this owns the haptic (`light`); none here.
     if (sessionRef.current) {
-      setSession(null);
+      endSession(true);
       return;
     }
     const stages = normalizeStepUpSequence(sequence, sessionBounds());
+    preDrillRateRef.current = playbackRateRef.current;
     setSession({ stages, completedLoops: 0 });
     setPlaybackRate(stages[0].rate);
-  }, [sequence, sessionBounds, setPlaybackRate]);
+  }, [endSession, sequence, sessionBounds, setPlaybackRate]);
 
   /** Start the drill over from its first step, keeping the plan. */
   const restartStepUp = useCallback(() => {
@@ -183,6 +205,8 @@ export function useStepUpLoop({
     setSequence,
     stepUpEnabled: session != null,
     stepUpProgress,
+    /** While a drill runs, the speed the musician had set; null otherwise. */
+    preDrillRate: session != null ? preDrillRateRef.current : null,
     toggleStepUp,
     restartStepUp,
     handleLoopCycle,

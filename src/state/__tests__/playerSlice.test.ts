@@ -54,6 +54,22 @@ describe("queue mutation actions", () => {
         expect(store.getState().playerTarget).toEqual(q(2));
     });
 
+    it("keeps the playing copy of a clip queued twice after a reorder", () => {
+        const store = createStore<PlayerSlice>()(createPlayerSlice);
+        // A setlist that repeats a song: two rows with the same ids.
+        const first = q(1);
+        const again = q(1);
+        const other = q(2);
+        store.getState().setPlayerQueue([first, other, again], 2, true); // playing the repeat
+
+        // Drag the playing repeat to the front; the rows are the live items.
+        store.getState().reorderPlayerQueue([again, first, other]);
+
+        expect(store.getState().playerQueueIndex).toBe(0);
+        expect(store.getState().playerQueue[0]).toBe(again);
+        expect(store.getState().playerTarget).toBe(again);
+    });
+
     it("shifts the index down when removing an item above the playhead", () => {
         const store = createStore<PlayerSlice>()(createPlayerSlice);
         store.getState().setPlayerQueue([q(1), q(2), q(3)], 2, true); // playing q(3)
@@ -87,6 +103,22 @@ describe("queue mutation actions", () => {
         expect(store.getState().playerQueue).toEqual([]);
         expect(store.getState().playerTarget).toBeNull();
         expect(store.getState().playerShouldAutoplay).toBe(false);
+    });
+
+    it("removing the last item while docked still requests a close", () => {
+        const store = createStore<PlayerSlice>()(createPlayerSlice);
+        store.getState().setPlayerQueue([q(1)], 0, true);
+        store.getState().setPlayerPlaybackState({ positionMs: 10, durationMs: 100, isPlaying: true });
+        expect(store.getState().isPlayerScreenMounted).toBe(false); // docked
+        const token = store.getState().playerCloseRequestToken;
+
+        store.getState().removeFromPlayerQueue(0);
+
+        // The root provider stops the engine on this token; without it the dock
+        // and sheet unmounted and the clip played on with no UI.
+        expect(store.getState().playerCloseRequestToken).toBe(token + 1);
+        expect(store.getState().playerTarget).toBeNull();
+        expect(store.getState().playerIsPlaying).toBe(false);
     });
 });
 

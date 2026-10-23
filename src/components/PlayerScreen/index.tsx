@@ -642,25 +642,6 @@ function PlayerScreenInner({
     const loop = latestClipRef.current?.id === clipId ? latestClipRef.current.keptPractice?.loop : undefined;
     return loop ? { start: loop.startMs, end: loop.endMs } : undefined;
   }, []);
-  // Speed, pitch, click and count-in belong to the clip they were set on.
-  usePerClipPractice({
-    keptFor,
-    clipId: playerClip?.id,
-    current: {
-      pitchSemitones: ui.pitchShiftSemitones,
-      playbackRate: effectivePlaybackRate,
-      clickEnabled: playbackClick.enabled,
-      countIn: ui.countInOption,
-    },
-    apply: (settings) => {
-      if (ui.pitchShiftSemitones !== settings.pitchSemitones) ui.setPitchShiftSemitones(settings.pitchSemitones);
-      if (Math.abs(effectivePlaybackRate - settings.playbackRate) > 0.001) {
-        void practicePitchTransport.setPlaybackRate(settings.playbackRate);
-      }
-      if (playbackClick.enabled !== settings.clickEnabled) playbackClick.setEnabled(settings.clickEnabled);
-      if (ui.countInOption !== settings.countIn) ui.setCountInOption(settings.countIn);
-    },
-  });
   const playbackClickLevel = useStore((s) => s.playbackClickLevel);
   const setPlaybackClickLevel = useStore((s) => s.setPlaybackClickLevel);
   const playbackClickHaptic = useStore((s) => s.playbackClickHaptic);
@@ -797,10 +778,33 @@ function PlayerScreenInner({
     isPracticeLoopActive: ui.mode === "practice" && practiceLoopEnabled,
     speedBounds: stepUpSpeedBounds,
     clickBounds: stepUpClickBounds,
+    playbackRate: effectivePlaybackRate,
     setPlaybackRate: practicePitchTransport.setPlaybackRate,
     onDrillComplete: handleStepUpComplete,
   });
   stepUpLoopCycleRef.current = stepUp.handleLoopCycle;
+  // Speed, pitch, click and count-in belong to the clip they were set on. Sits
+  // after the step-up hook so its clip-change effect runs after the drill has
+  // ended: the clip being left remembers the speed the musician set, not the
+  // drill's rung, and the arriving clip's own speed is the last write.
+  usePerClipPractice({
+    keptFor,
+    clipId: playerClip?.id,
+    current: {
+      pitchSemitones: ui.pitchShiftSemitones,
+      playbackRate: stepUp.preDrillRate ?? effectivePlaybackRate,
+      clickEnabled: playbackClick.enabled,
+      countIn: ui.countInOption,
+    },
+    apply: (settings) => {
+      if (ui.pitchShiftSemitones !== settings.pitchSemitones) ui.setPitchShiftSemitones(settings.pitchSemitones);
+      if (Math.abs(effectivePlaybackRate - settings.playbackRate) > 0.001) {
+        void practicePitchTransport.setPlaybackRate(settings.playbackRate);
+      }
+      if (playbackClick.enabled !== settings.clickEnabled) playbackClick.setEnabled(settings.clickEnabled);
+      if (ui.countInOption !== settings.countIn) ui.setCountInOption(settings.countIn);
+    },
+  });
   const handleTransportToggleWithDisplaySync = useCallback(async () => {
     const loopControllerWillSeek =
       (ui.mode === "practice" || isWriting) && practiceLoopEnabled && hasValidPracticeLoop;
@@ -1177,8 +1181,19 @@ function PlayerScreenInner({
   // when the content is taller than the viewport the native scroll takes the
   // touch and this pan is cancelled — it only dismisses when there is nothing to
   // scroll. Off in reading/practice/layers modes, which own their vertical gestures.
-  const bodyDismissGesture = useRef(buildDismissGesture()).current;
+  const [bodyDismissGesture] = useState(() => buildDismissGesture());
   bodyDismissGesture.enabled(ui.mode === "player" && !isReading);
+
+  // One element per layer count: an inline `<LayerLanesFoot …/>` was a new
+  // element every commit, which defeated PlayerTimeline's memo and re-rendered
+  // the whole reel on each once-a-second status commit.
+  const startLayerMerge = useCallback(() => layerSheetRef.current?.startMerge(), []);
+  const openLayerCombine = useCallback(() => layerSheetRef.current?.openCombine(), []);
+  const layerCount = data.overdubStemEntries.length;
+  const layerLanesFooter = useMemo(
+    () => <LayerLanesFoot layerCount={layerCount} onMerge={startLayerMerge} onCombine={openLayerCombine} />,
+    [layerCount, openLayerCombine, startLayerMerge]
+  );
 
   const handleLoopRangeChange = useCallback(
     (start: number, end: number) => setPracticeLoopRange({ start, end }),
@@ -1582,13 +1597,7 @@ function PlayerScreenInner({
                   soloedLayerIds={soloedLayerIds}
                   onSoloLayer={toggleSoloLayer}
                   onToggleLayerMute={handleToggleStemMute}
-                  layerLanesFooter={
-                    <LayerLanesFoot
-                      layerCount={data.overdubStemEntries.length}
-                      onMerge={() => layerSheetRef.current?.startMerge()}
-                      onCombine={() => layerSheetRef.current?.openCombine()}
-                    />
-                  }
+                  layerLanesFooter={layerLanesFooter}
                   draggingMarkerId={draggingMarkerId}
                   draggingMarkerX={draggingMarkerX}
                   onLoopRangeChange={handleLoopRangeChange}
