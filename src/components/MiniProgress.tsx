@@ -9,11 +9,6 @@ type Props = {
   onSeek?: (ms: number) => void | Promise<void>;
   onSeekStart?: () => void | Promise<void>;
   onSeekCancel?: () => void | Promise<void>;
-  showTopDivider?: boolean;
-  extraBottomMargin?: number;
-  captureWholeLane?: boolean;
-  /** Hide the built-in current/duration labels (e.g. when the host renders its own). */
-  hideTimes?: boolean;
   /** Compact inline usage (clip cards): centers the track inside a symmetric
    *  touch target and tightens the bottom margin, so a `trailingAccessory` lines
    *  up on the track line rather than sitting low. Time labels are unaffected. */
@@ -24,8 +19,6 @@ type Props = {
   /** Render the elapsed/total labels inline on one row, flanking the track
    *  (elapsed · track · total · accessory), instead of stacked above it. */
   flankTimes?: boolean;
-  /** Override the fill + scrub-dot color. Defaults to the global track fill (#111827). */
-  accentColor?: string;
 };
 
 const EDGE_GRAB_INSET = 10;
@@ -36,14 +29,9 @@ export function MiniProgress({
   onSeek,
   onSeekStart,
   onSeekCancel,
-  showTopDivider = false,
-  extraBottomMargin = 0,
-  captureWholeLane = false,
-  hideTimes = false,
   compact = false,
   trailingAccessory,
   flankTimes = false,
-  accentColor,
 }: Props) {
   const safeDuration = durationMs || 1;
   const trackRef = useRef<View | null>(null);
@@ -144,17 +132,15 @@ export function MiniProgress({
         // default (4 + 12) but centers the track within it, so a trailing
         // accessory on this row lines up on the track line.
         compact ? { paddingTop: 8, paddingBottom: 8 } : null,
-        captureWholeLane ? { minHeight: 24, justifyContent: "center" } : null,
         inRow ? styles.miniProgressTrackHitboxFlex : null,
       ]}
-      {...(!captureWholeLane ? responderHandlers : {})}
+      {...responderHandlers}
     >
       <View style={styles.miniProgressTrack}>
         <View
           style={[
             styles.miniProgressFill,
             { width: `${clamped * 100}%` },
-            accentColor ? { backgroundColor: accentColor } : null,
           ]}
         />
         <View
@@ -163,7 +149,6 @@ export function MiniProgress({
             // Logical `start` (not `left`) so the dot tracks the fill's leading
             // edge inside the LTR-pinned lane regardless of app direction.
             { start: `${clamped * 100}%` },
-            accentColor ? { backgroundColor: accentColor } : null,
           ]}
         />
       </View>
@@ -180,12 +165,9 @@ export function MiniProgress({
         styles.miniProgressWrap,
         { direction: "ltr" },
         compact ? { marginBottom: 0 } : null,
-        extraBottomMargin ? { paddingBottom: extraBottomMargin } : null,
       ]}
-      {...(captureWholeLane ? responderHandlers : {})}
     >
-      {showTopDivider ? <View style={styles.miniProgressTopDivider} /> : null}
-      {hideTimes || flankTimes ? null : (
+      {flankTimes ? null : (
         <View style={styles.miniProgressTimes}>
           <Text style={styles.miniProgressTime}>{fmtDuration(displayMs)}</Text>
           <Text style={styles.miniProgressTime}>{fmtDuration(durationMs || 0)}</Text>

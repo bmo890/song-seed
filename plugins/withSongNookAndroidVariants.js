@@ -3,17 +3,34 @@ const { withAndroidManifest, withAppBuildGradle } = require("@expo/config-plugin
 const DEVELOPMENT_ID = "com.bmostudio.songnook.dev";
 const PRODUCTION_ID = "com.bmostudio.songnook";
 
+/** Every injection below anchors on the SDK template's exact whitespace. A miss
+ *  must throw, not no-op: a silent miss after an Expo bump would prebuild a
+ *  release that is debug-signed or missing the production flavor. */
+function replaceAnchored(contents, pattern, replacement, what) {
+  if (!pattern.test(contents)) {
+    throw new Error(
+      `SongNook Android variants: could not find ${what} in app/build.gradle. ` +
+        "The Expo template changed; update plugins/withSongNookAndroidVariants.js."
+    );
+  }
+  return contents.replace(pattern, replacement);
+}
+
 function configureBuildGradle(contents) {
   // Expo CLI also uses the first literal applicationId when launching Android.
-  let next = contents.replace(
+  let next = replaceAnchored(
+    contents,
     /applicationId ['"][^'"]+['"]/,
-    `applicationId '${DEVELOPMENT_ID}'`
+    `applicationId '${DEVELOPMENT_ID}'`,
+    "the applicationId line"
   );
 
   if (!next.includes('debuggableVariants = ["developmentDebug"]')) {
-    next = next.replace(
+    next = replaceAnchored(
+      next,
       /\s*\/\/ debuggableVariants = \[[^\n]+\]/,
-      '\n    debuggableVariants = ["developmentDebug"]'
+      '\n    debuggableVariants = ["developmentDebug"]',
+      "the commented debuggableVariants line"
     );
   }
 
@@ -32,7 +49,12 @@ function configureBuildGradle(contents) {
         }
     }
 `;
-    next = next.replace(/\n    signingConfigs \{/, `${flavors}\n    signingConfigs {`);
+    next = replaceAnchored(
+      next,
+      /\n    signingConfigs \{/,
+      `${flavors}\n    signingConfigs {`,
+      "the signingConfigs block"
+    );
   }
 
   if (!next.includes("SONGNOOK_UPLOAD_STORE_FILE")) {
@@ -46,21 +68,35 @@ function configureBuildGradle(contents) {
             }
         }
 `;
-    next = next.replace(
+    next = replaceAnchored(
+      next,
       /\n    \}\n    buildTypes \{/,
-      `${releaseSigning}\n    }\n    buildTypes {`
+      `${releaseSigning}\n    }\n    buildTypes {`,
+      "the end of signingConfigs before buildTypes"
     );
   }
 
-  next = next.replace(
-    /(buildTypes\s*\{[\s\S]*?release\s*\{[\s\S]*?)signingConfig signingConfigs\.debug/,
-    "$1signingConfig signingConfigs.release"
-  );
+  // Idempotent: a second pass finds the release block already on the release
+  // signing config and leaves it; anything else is drift.
+  const releaseSignedWithDebug =
+    /(buildTypes\s*\{[\s\S]*?release\s*\{[\s\S]*?)signingConfig signingConfigs\.debug/;
+  const releaseSignedWithRelease =
+    /buildTypes\s*\{[\s\S]*?release\s*\{[\s\S]*?signingConfig\s+signingConfigs\.release/;
+  if (releaseSignedWithDebug.test(next)) {
+    next = next.replace(releaseSignedWithDebug, "$1signingConfig signingConfigs.release");
+  } else if (!releaseSignedWithRelease.test(next)) {
+    throw new Error(
+      "SongNook Android variants: could not find the release buildType's signingConfig " +
+        "in app/build.gradle. The Expo template changed; update plugins/withSongNookAndroidVariants.js."
+    );
+  }
 
   if (!next.includes("manifestPlaceholders = [songNookScheme: 'songnook-dev']")) {
-    next = next.replace(
+    next = replaceAnchored(
+      next,
       /(applicationId ['"]com\.bmostudio\.songnook\.dev['"])/,
-      "$1\n        manifestPlaceholders = [songNookScheme: 'songnook-dev']"
+      "$1\n        manifestPlaceholders = [songNookScheme: 'songnook-dev']",
+      "the development applicationId line"
     );
   }
 

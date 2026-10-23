@@ -31,14 +31,11 @@ type TransportBarProps = {
   /** Tiny readout under the trailing button (the queue's "n / n" position),
    *  mirroring the mini dock. */
   trailingCaption?: string;
-  speedBadge?: string;
-  speedActive?: boolean;
-  onSpeedPress?: () => void;
 };
 
 /**
  * THE transport row — one component for the mini dock and the full player, so
- * prev/play/next (+ queue toggle, + speed) look and act identically at both
+ * prev/play/next (+ queue toggle) look and act identically at both
  * sizes. Nocturne styling: filled terracotta play circle, bare warm-gray skips,
  * quiet circular trailing button that fills terracotta when active.
  */
@@ -59,9 +56,6 @@ function TransportBarInner({
   trailingDisabled = false,
   onTrailingPress,
   trailingCaption,
-  speedBadge,
-  speedActive = false,
-  onSpeedPress,
 }: TransportBarProps) {
   const { t } = useTranslation();
   const compact = size === "compact";
@@ -100,24 +94,6 @@ function TransportBarInner({
               <Text style={styles.trailingCaption}>{trailingCaption}</Text>
             ) : null}
           </View>
-        ) : speedBadge ? (
-          <Pressable
-            style={({ pressed }) => [
-              styles.speedBadge,
-              speedActive ? styles.speedBadgeActive : null,
-              pressed ? styles.pressed : null,
-            ]}
-            onPress={() => {
-              haptic.tap();
-              onSpeedPress?.();
-            }}
-            accessibilityRole="button"
-            accessibilityLabel={t("common.playbackSpeed", { speed: speedBadge })}
-          >
-            <Text style={[styles.speedBadgeText, speedActive ? styles.speedBadgeTextActive : null]}>
-              {speedBadge}
-            </Text>
-          </Pressable>
         ) : null}
       </View>
 
@@ -257,25 +233,6 @@ const styles = StyleSheet.create({
   },
   playIconNudge: {
     marginStart: 2,
-  },
-  speedBadge: {
-    minWidth: 40,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: radii.md,
-    backgroundColor: "#F4ECE9",
-    alignItems: "center",
-  },
-  speedBadgeActive: {
-    backgroundColor: colors.primaryDeep,
-  },
-  speedBadgeText: {
-    fontSize: 11,
-    fontFamily: "PlusJakartaSans_700Bold",
-    color: colors.primaryDeep,
-  },
-  speedBadgeTextActive: {
-    color: colors.page,
   },
   trailingButton: {
     width: 36,

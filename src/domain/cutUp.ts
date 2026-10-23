@@ -19,12 +19,6 @@ export const MAX_CHUNKS = 400;
 const MAX_PHRASE_WORDS = 6;
 const PHRASE_GROUP = 4;
 
-export const CHUNK_MODE_OPTIONS: Array<{ key: Exclude<CutUpChunkMode, "custom">; label: string }> = [
-  { key: "phrase", label: "Phrase" },
-  { key: "line", label: "Line" },
-  { key: "word", label: "Word" },
-];
-
 // ── Slicing the source into raw spans ────────────────────────────────────────
 
 type RawChunk = { text: string; start: number; end: number };
@@ -307,18 +301,6 @@ export function bindWordRange(
   if (a >= 1) set.add(a);
   if (b + 1 <= wordCount - 1) set.add(b + 1);
   return [...set].sort((x, y) => x - y);
-}
-
-/** The unit (chunk) index each word belongs to, for tinting units on the mat. */
-export function unitIndexByWord(words: CutWord[], cutSeams: number[]): number[] {
-  const cutSet = new Set(cutSeams);
-  const out: number[] = [];
-  let unit = 0;
-  for (let i = 0; i < words.length; i++) {
-    if (i > 0 && cutSet.has(i)) unit++;
-    out.push(unit);
-  }
-  return out;
 }
 
 /** Word-runs between cuts → chunk text spans. */
@@ -872,18 +854,6 @@ export function composeLines(strips: string[], flavor: CutUpComposeFlavor): stri
     i += take;
   }
   return lines.join("\n");
-}
-
-/** Shuffles the strips into a fresh order, then composes them into fragment lines
- * — the "surprise me" draft. Board order/locks are untouched; this only produces
- * text for the draft. */
-export function composeDraftText(
-  chunks: CutUpChunk[],
-  boardItems: CutUpBoardItem[],
-  flavor: CutUpComposeFlavor
-): string {
-  const strips = shuffle(orderedStripTexts(chunks, boardItems));
-  return composeLines(strips, flavor);
 }
 
 // ── Importing from a Lyrics Pad page (line picker) ───────────────────────────

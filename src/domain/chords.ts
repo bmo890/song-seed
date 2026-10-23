@@ -42,12 +42,6 @@ export function chordGraphemeAnchor(chord: ChordPlacement, text: string): number
 
 export const CHORD_ROOTS: ChordRoot[] = ["A", "B", "C", "D", "E", "F", "G"];
 
-export const ACCIDENTAL_OPTIONS: Array<{ value: ChordAccidental; label: string }> = [
-  { value: "natural", label: "♮" },
-  { value: "sharp", label: "♯" },
-  { value: "flat", label: "♭" },
-];
-
 /** Chord types, written the way charts are colloquially written (2026-10-18,
  * founder: "you don't need to say maj unless it's a maj7"): a plain letter is
  * major, "m" is minor, a bare "7" is the dominant seventh, "maj7" the major

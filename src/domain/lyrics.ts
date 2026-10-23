@@ -134,9 +134,3 @@ export function resolveClipLyricsVersion(
 export function getLatestLyricsText(idea?: SongIdea | null) {
   return lyricsDocumentToText(getLatestLyricsVersion(idea)?.document);
 }
-
-export function getLyricsPreview(idea?: SongIdea | null) {
-  const lines = getLatestLyricsVersion(idea)?.document.lines ?? [];
-  const firstNonEmpty = lines.find((line) => line.text.trim().length > 0);
-  return firstNonEmpty?.text ?? "";
-}

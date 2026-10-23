@@ -10,7 +10,6 @@ export type TunerReading = {
   octave: number;
   nearestNoteFrequency: number;
   centsOff: number;
-  tuningLabel: string;
   isInTune: boolean;
 };
 
@@ -24,10 +23,6 @@ function midiToFrequency(midi: number) {
 
 function frequencyToMidi(frequency: number) {
   return 69 + 12 * Math.log2(frequency / 440);
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
 }
 
 export function buildTunerReading(frequency: number | null): TunerReading | null {
@@ -53,11 +48,6 @@ export function buildTunerReading(frequency: number | null): TunerReading | null
     octave,
     nearestNoteFrequency,
     centsOff,
-    tuningLabel: absCents <= 5 ? "In tune" : centsOff < 0 ? "Tune up" : "Tune down",
     isInTune: absCents <= 5,
   };
-}
-
-export function getTunerMeterPercent(centsOff: number) {
-  return 50 + clamp(centsOff, -50, 50);
 }

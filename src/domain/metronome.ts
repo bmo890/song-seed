@@ -35,7 +35,6 @@ export const METRONOME_LOOP_BEAT_COUNT = 4;
 export const DEFAULT_METRONOME_METER_ID: MetronomeMeterId = "4/4";
 export const METRONOME_COUNT_IN_BAR_OPTIONS = [0, 1, 2, 4] as const;
 export const DEFAULT_METRONOME_COUNT_IN_BARS = 1;
-export const METRONOME_SUBDIVISION_OPTIONS: readonly MetronomeSubdivision[] = [1, 2, 3, 4];
 export const DEFAULT_METRONOME_SUBDIVISION: MetronomeSubdivision = 1;
 /** Weight of every sub-click (weak voice). Quiet and present, well under a weak beat. */
 export const SUBDIVISION_CLICK_ACCENT = 0.18;

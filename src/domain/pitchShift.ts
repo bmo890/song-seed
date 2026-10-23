@@ -14,16 +14,6 @@ export function clampPitchShiftSemitones(value: number) {
   return Math.max(PITCH_SHIFT_MIN_SEMITONES, Math.min(PITCH_SHIFT_MAX_SEMITONES, Math.round(value)));
 }
 
-export function formatPitchShiftLabel(semitones: number) {
-  const clean = clampPitchShiftSemitones(semitones);
-  if (clean === 0) {
-    return "Original";
-  }
-
-  const suffix = Math.abs(clean) === 1 ? "semitone" : "semitones";
-  return `${clean > 0 ? "+" : ""}${clean} ${suffix}`;
-}
-
 export function buildUnavailablePitchShiftCapabilities(): PitchShiftCapabilities {
   return {
     isAvailable: false,

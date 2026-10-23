@@ -7,9 +7,6 @@ import { isFromOthers } from "./compilationsProvenance";
 export type CompilationFilter = "all" | "mine" | "received";
 export type CompilationSort = "updated" | "name" | "created";
 
-export const COMPILATION_FILTERS: readonly CompilationFilter[] = ["all", "mine", "received"];
-export const COMPILATION_SORTS: readonly CompilationSort[] = ["updated", "name", "created"];
-
 type Listable = {
   title: string;
   createdAt: number;

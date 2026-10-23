@@ -79,17 +79,25 @@ space; rotate in later based on Search Ads / console analytics.
 - **Primary category:** Music. **Secondary (App Store):** Productivity.
 - **Age rating:** 4+ (App Store) / Everyone (Play).
 - Content questionnaire answers (both stores):
-  - No user-generated content shared between users (the library is private/local).
+  - User-generated content shared between users: **Yes, narrowly.** SongNook Send
+    lets a person hand their own clips or a sketch to someone they choose, by an
+    expiring link (7 days, unguessable, no account). No feed, search, discovery, or
+    messaging — a recipient sees only what a sender gave them. The recipient page
+    carries a Report link (abuse-report funnel to the support mailbox, with
+    takedown), and the privacy policy already describes Send. Per-store wording:
+    `store-privacy-answers.md`.
   - No unrestricted web access. (Magpie shows curated public-domain book text from
     Project Gutenberg; the word finder queries a rhyme/synonym API. Neither is open
     web browsing — answer the "unrestricted web" question **No**.)
-  - No ads, no gambling, no mature content, no data collection.
+  - No ads, no gambling, no mature content. Data: see the privacy section below.
 
 ---
 
 ## URLs
 
-- **Privacy policy:** `<GitHub Pages URL — see OWNER-TODO>` (content: docs/privacy-policy.md)
+- **Privacy policy:** `https://songnook.app/privacy` (content: docs/privacy-policy.md,
+  served by the Send Worker; the app links the same URL from `src/config/legalLinks.ts`,
+  alongside `https://songnook.app/terms`)
 - **Support URL:** same site, or a simple page with the support email.
 - **Marketing URL** (optional): a landing page if/when one exists; leave blank for v1.
 - **Support email:** bmostudio.dev@gmail.com
@@ -98,8 +106,14 @@ space; rotate in later based on Search Ads / console analytics.
 
 ## Privacy questionnaire — App Store "nutrition label" & Play "Data safety"
 
-SongNook's answer is the short one: **Data Not Collected.** Two things to confirm
-against the shipped build before you commit to that:
+SongNook's answer is the short one: **Data Not Collected.** It rests on SongNook Send
+being what it is: a transfer the user starts by tapping "Get a link", held opaque on
+our server (never opened, listened to, or analysed), tied to no account or identifier,
+and deleted after 7 days — the upload IP serves only a rate-limit counter that expires
+within two hours. If a console or reviewer reads a 7-day hold as collection, the fallback
+is the declaration in `store-privacy-answers.md` (User Content → Audio Data / Other User
+Content, App Functionality, not linked, no tracking; Play: collected yes, shared no).
+Beyond that, two things to confirm against the shipped build before you commit:
 
 1. **Crash capture is LOCAL-ONLY** (the `crashLog` service writes to the device;
    nothing is transmitted unless the user taps "Share diagnostic log"). As long as
@@ -132,6 +146,15 @@ in app.json — the standard-encryption-only answer. No extra docs needed.
 service for background recording. When Play prompts for the foreground-service
 declaration, select the **microphone** use case and describe it: "Continues an
 in-progress audio recording when the app is backgrounded or the screen locks."
+
+**Notes for the reviewer (append to the paragraph in `store-privacy-answers.md`):**
+
+> On the first launch after install (iOS only) the app reads the pasteboard once, to
+> see whether a SongNook Send link was copied before installing; it offers to open
+> that link and never reads the pasteboard again. The audio background mode keeps a
+> recording or playback going when the screen locks — the lock-screen controls and the
+> recording notification belong to that session, and nothing runs in the background
+> otherwise.
 
 ---
 

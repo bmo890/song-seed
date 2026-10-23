@@ -36,9 +36,3 @@ export function extractLyricsMarkers(lyricsText: string, durationMs: number): Pr
 
   return headingLines;
 }
-
-export function getNoteSummary(notes: string, emptyLabel: string) {
-  const trimmed = notes.trim();
-  if (!trimmed) return emptyLabel;
-  return trimmed;
-}

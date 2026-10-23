@@ -294,12 +294,6 @@ export function getMixHeadroomDb(inputCount: number): number {
   return -10 * Math.log10(inputCount);
 }
 
-/** dB → linear player volume, clamped to the 0..1 range expo-audio accepts (boosts
- *  flatten to 1 — live previews are for timing/balance judgement, not level boosts). */
-export function overdubGainDbToPlayerVolume(gainDb: number): number {
-  return Math.max(0, Math.min(1, Math.pow(10, gainDb / 20)));
-}
-
 export function buildClipOverdubMixInputs(clip: ClipVersion): NativeMixedRenderInput[] {
   const rootAudioUri = clip.audioUri;
   if (!rootAudioUri) {

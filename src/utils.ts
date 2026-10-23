@@ -1,7 +1,5 @@
 import { adjectives, animals, uniqueNamesGenerator } from "unique-names-generator";
-import * as FileSystem from "expo-file-system/legacy";
 import { Collection, SongIdea, Workspace } from "./types";
-import { collectClipAudioUris } from "./services/managedMedia";
 import { i18n } from "./i18n/instance";
 // The default-title helpers live with the naming rule (a utils <-> titleNaming
 // require cycle otherwise).
@@ -440,32 +438,6 @@ export function metersToWaveformPeaks(meters: number[], bins = 150) {
   return peaks;
 }
 
-/** Sums every file-backed audio URI on a clip — master take, pre-edit source,
- *  overdub layer recordings, and the rendered mix. */
-async function getClipMediaSizeBytes(clip: SongIdea["clips"][number]): Promise<number> {
-  let totalBytes = 0;
-  for (const uri of collectClipAudioUris(clip)) {
-    if (uri.startsWith("blob:")) continue;
-    try {
-      const info = await FileSystem.getInfoAsync(uri);
-      if (info.exists && info.size) {
-        totalBytes += info.size;
-      }
-    } catch (e) {
-      console.warn("Failed to get file size for", uri, e);
-    }
-  }
-  return totalBytes;
-}
-
-export async function getIdeaSizeBytes(idea: SongIdea): Promise<number> {
-  let totalBytes = 0;
-  for (const clip of idea.clips) {
-    totalBytes += await getClipMediaSizeBytes(clip);
-  }
-  return totalBytes;
-}
-
 export function getCollectionScopeIds(workspace: Workspace, collectionId: string) {
   const ids = new Set<string>();
   const walk = (targetId: string) => {
@@ -514,16 +486,6 @@ export function getCollectionDescendantIds(workspace: Workspace, collectionId: s
   };
   walk(collectionId);
   return ids;
-}
-
-export async function getCollectionSizeBytes(workspace: Workspace, collectionId: string): Promise<number> {
-  const scopeIds = getCollectionScopeIds(workspace, collectionId);
-  const ideas = workspace.ideas.filter((idea) => scopeIds.has(idea.collectionId));
-  let totalBytes = 0;
-  for (const idea of ideas) {
-    totalBytes += await getIdeaSizeBytes(idea);
-  }
-  return totalBytes;
 }
 
 export function formatBytes(bytes: number) {

@@ -36,28 +36,6 @@ const HIERARCHY_ICON_NAMES: Record<HierarchyLevel, IoniconName> = {
   notepad: "pencil-outline",
 };
 
-const HIERARCHY_ICON_COLORS: Record<HierarchyLevel, string> = {
-  home: "#475569",
-  revisit: "#9a3412",
-  workspace: "#0f172a",
-  collection: "#64748b",
-  subcollection: "#64748b",
-  song: "#0f172a",
-  clip: "#64748b",
-  activity: "#0f172a",
-  library: "#0f172a",
-  settings: "#0f172a",
-  tuner: "#0f172a",
-  metronome: "#0f172a",
-  lyrics: "#0f172a",
-  notepad: "#0f172a",
-};
-
 export function getHierarchyIconName(level: HierarchyLevel) {
   return HIERARCHY_ICON_NAMES[level];
 }
-
-export function getHierarchyIconColor(level: HierarchyLevel) {
-  return HIERARCHY_ICON_COLORS[level];
-}
-
