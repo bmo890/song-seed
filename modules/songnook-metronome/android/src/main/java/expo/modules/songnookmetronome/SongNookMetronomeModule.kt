@@ -88,27 +88,27 @@ class SongNookMetronomeModule : Module() {
     }
 
     AsyncFunction("configureTempoMap") { segments: List<Map<String, Any?>> ->
-      engine.configureTempoMap(segments)
+      engine.serially { engine.configureTempoMap(segments) }
     }
 
     AsyncFunction("clearTempoMap") {
-      engine.clearTempoMap()
+      engine.serially { engine.clearTempoMap() }
     }
 
     AsyncFunction("configure") { config: Map<String, Any?> ->
-      engine.configure(config)
+      engine.serially { engine.configure(config) }
     }
 
     AsyncFunction("getState") {
-      engine.getState()
+      engine.serially { engine.getState() }
     }
 
     AsyncFunction("setClickVolume") { volume: Double ->
-      engine.setClickVolume(volume)
+      engine.serially { engine.setClickVolume(volume) }
     }
 
     AsyncFunction("getGridAnchor") {
-      engine.getGridAnchor()
+      engine.serially { engine.getGridAnchor() }
     }
 
     AsyncFunction("getCurrentAudioOutputRoute") {
@@ -120,28 +120,28 @@ class SongNookMetronomeModule : Module() {
       // Best-effort: Android has no public total-route-latency API. Omitted fields mean
       // "unknown" — callers must not assume zero.
       val result = mutableMapOf<String, Any>()
-      engine.currentOutputLatencyMs()?.let { result["outputMs"] = it }
+      engine.serially { engine.currentOutputLatencyMs() }?.let { result["outputMs"] = it }
       result
     }
 
     AsyncFunction("start") {
-      engine.start(0)
+      engine.serially { engine.start(0) }
     }
 
     AsyncFunction("startCountIn") { bars: Int ->
-      engine.start(bars)
+      engine.serially { engine.start(bars) }
     }
 
     AsyncFunction("startAtPhase") { offsetMs: Double ->
-      engine.startAtPhase(offsetMs)
+      engine.serially { engine.startAtPhase(offsetMs) }
     }
 
     AsyncFunction("stop") {
-      engine.stop()
+      engine.serially { engine.stop() }
     }
 
     OnDestroy {
-      engine.stop()
+      engine.serially { engine.stop() }
     }
   }
 

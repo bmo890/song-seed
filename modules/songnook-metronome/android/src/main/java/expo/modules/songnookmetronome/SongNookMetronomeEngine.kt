@@ -127,6 +127,18 @@ class SongNookMetronomeEngine(
   private val sampleRate = 44_100
   private val pollIntervalMs = 8L
 
+  /**
+   * One lock for the run state. The 8 ms poll and the map writer run on the engine's
+   * HandlerThread; configure / start / stop / the tempo map arrive on Expo's module
+   * thread. Unserialized, a seek with the playback click on could release the track or
+   * clear the map under a poll in flight and crash (sweep 2026-10-22, audio P1-1).
+   * Reentrant, so a configure that restarts the run is fine.
+   */
+  private val lock = Any()
+
+  /** Run a public entry point under the engine lock (the module wraps every call). */
+  fun <T> serially(block: () -> T): T = synchronized(lock) { block() }
+
   private var config = MetronomeConfig()
   private var audioTrack: AudioTrack? = null
   private var handlerThread: HandlerThread? = null
@@ -162,9 +174,15 @@ class SongNookMetronomeEngine(
 
   private val mapWriterRunnable = object : Runnable {
     override fun run() {
-      writeMapChunks()
-      if (isRunning && mapSegments != null && config.clickEnabled) {
-        handler?.postDelayed(this, pollIntervalMs)
+      synchronized(lock) {
+        try {
+          writeMapChunks()
+        } catch (_: Throwable) {
+          // A track torn down mid-write ends this pass; never the process.
+        }
+        if (isRunning && mapSegments != null && config.clickEnabled) {
+          handler?.postDelayed(this, pollIntervalMs)
+        }
       }
     }
   }
@@ -179,8 +197,14 @@ class SongNookMetronomeEngine(
 
   private val pollRunnable = object : Runnable {
     override fun run() {
-      pollBeatProgress()
-      handler?.postDelayed(this, pollIntervalMs)
+      synchronized(lock) {
+        try {
+          pollBeatProgress()
+        } catch (_: Throwable) {
+          // A released track's playbackHeadPosition throws; skip this tick.
+        }
+        if (isRunning) handler?.postDelayed(this, pollIntervalMs)
+      }
     }
   }
 

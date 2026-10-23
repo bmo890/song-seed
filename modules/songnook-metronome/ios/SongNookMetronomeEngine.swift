@@ -80,6 +80,15 @@ final class SongNookMetronomeEngine {
   private let player = AVAudioPlayerNode()
   private let queue = DispatchQueue(label: "SongNookMetronomeEngine")
 
+  /// Every public entry point runs here, on the engine's own serial queue — the queue the
+  /// 8 ms poll and the delayed cues run on. Calls arrive on Expo's shared async queue;
+  /// unserialized, a seek with the playback click on could clear the tempo map under a
+  /// poll in flight and crash on its force-unwrap (sweep 2026-10-22, audio P1-1).
+  /// Never call this from the queue itself (the module is the only caller).
+  func serially<T>(_ work: () -> T) -> T {
+    return queue.sync(execute: work)
+  }
+
   private var config = MetronomeConfig()
   private var loopBuffer: AVAudioPCMBuffer?
   private var pollTimer: DispatchSourceTimer?

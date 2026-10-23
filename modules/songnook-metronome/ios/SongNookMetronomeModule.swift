@@ -47,27 +47,27 @@ public class SongNookMetronomeModule: Module {
     }
 
     AsyncFunction("configureTempoMap") { (segments: [[String: Any]]) -> [String: Any] in
-      return self.engine.configureTempoMap(segments)
+      return self.engine.serially { self.engine.configureTempoMap(segments) }
     }
 
     AsyncFunction("clearTempoMap") { () -> [String: Any] in
-      return self.engine.clearTempoMap()
+      return self.engine.serially { self.engine.clearTempoMap() }
     }
 
     AsyncFunction("configure") { (config: [String: Any]) -> [String: Any] in
-      return self.engine.configure(config)
+      return self.engine.serially { self.engine.configure(config) }
     }
 
     AsyncFunction("getState") { () -> [String: Any] in
-      return self.engine.getState()
+      return self.engine.serially { self.engine.getState() }
     }
 
     AsyncFunction("setClickVolume") { (volume: Double) -> [String: Any] in
-      return self.engine.setClickVolume(volume)
+      return self.engine.serially { self.engine.setClickVolume(volume) }
     }
 
     AsyncFunction("getGridAnchor") { () -> [String: Any] in
-      return self.engine.getGridAnchor()
+      return self.engine.serially { self.engine.getGridAnchor() }
     }
 
     AsyncFunction("getCurrentAudioOutputRoute") { () -> [String: String]? in
@@ -140,23 +140,23 @@ public class SongNookMetronomeModule: Module {
     }
 
     AsyncFunction("start") { () -> [String: Any] in
-      return self.engine.start(countInBars: 0)
+      return self.engine.serially { self.engine.start(countInBars: 0) }
     }
 
     AsyncFunction("startCountIn") { (bars: Int) -> [String: Any] in
-      return self.engine.start(countInBars: bars)
+      return self.engine.serially { self.engine.start(countInBars: bars) }
     }
 
     AsyncFunction("startAtPhase") { (offsetMs: Double) -> [String: Any] in
-      return self.engine.startAtPhase(offsetMs: offsetMs)
+      return self.engine.serially { self.engine.startAtPhase(offsetMs: offsetMs) }
     }
 
     AsyncFunction("stop") { () -> [String: Any] in
-      return self.engine.stop()
+      return self.engine.serially { self.engine.stop() }
     }
 
     OnDestroy {
-      _ = self.engine.stop()
+      _ = self.engine.serially { self.engine.stop() }
     }
   }
 }
