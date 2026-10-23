@@ -17,6 +17,9 @@ export const durations = {
   gentle: 220,
   /** Expansive changes: panel expand/collapse, progress. */
   slow: 300,
+  /** Following the keyboard when the platform states no duration (Android, or an
+   *  iOS event without one): about the system keyboard's own slide. */
+  keyboard: 250,
   /** One turn of the Spinner. Slow enough to read as waiting, not as hurry. */
   spin: 900,
   /** A highlight, flash or pulse fading away: long enough to be seen after

@@ -203,8 +203,9 @@ const s = StyleSheet.create({
     flex: 1,
     gap: 1,
   },
+  // Jakarta faces come from the text tokens, never as family literals.
   featureTitle: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontFamily: textTokens.caption.fontFamily,
     fontSize: 14,
     color: colors.textPrimary,
   },
@@ -248,12 +249,12 @@ const s = StyleSheet.create({
     gap: 8,
   },
   planLabel: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontFamily: textTokens.caption.fontFamily,
     fontSize: 15,
     color: colors.textStrong,
   },
   planLabelOn: {
-    fontFamily: "PlusJakartaSans_700Bold",
+    fontFamily: textTokens.sectionTitle.fontFamily,
     color: colors.textPrimary,
   },
   planTag: {
@@ -265,7 +266,7 @@ const s = StyleSheet.create({
     color: colors.textSecondary,
   },
   planPrice: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontFamily: textTokens.caption.fontFamily,
     fontSize: 15,
     color: colors.textPrimary,
     fontVariant: ["tabular-nums"],

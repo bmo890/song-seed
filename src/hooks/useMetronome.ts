@@ -3,6 +3,9 @@ import { useEventListener } from "expo";
 import * as Haptics from "expo-haptics";
 import { Platform, Vibration } from "react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "../components/common/toastStore";
+import { haptic } from "../design/haptics";
 import {
   activateMetronomeAudioSession,
   releaseAudioSessionOwner,
@@ -85,6 +88,7 @@ export function useMetronome({ initialBpm = DEFAULT_METRONOME_BPM, initialOutput
 }
 
 function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOutputs, visualPulse = true }: UseMetronomeArgs = {}) {
+  const { t } = useTranslation();
   const visualPulseRef = useRef(visualPulse);
   visualPulseRef.current = visualPulse;
   const bpm = useStore((s) => s.metronomeBpm);
@@ -630,8 +634,14 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
       void stop();
       return;
     }
-    void start();
-  }, [nativeState?.isRunning, start, stop]);
+    // start() rethrows after releasing the session (an exclusive owner elsewhere, route
+    // negotiation); the rejection used to vanish and leave "Start" up with no word.
+    start().catch((error) => {
+      console.warn("Metronome start failed", error);
+      haptic.error(); // haptics vocabulary: `error` — something failed
+      toast(t("metronome.startFailed"), "alert-circle-outline");
+    });
+  }, [nativeState?.isRunning, start, stop, t]);
 
   const setBpmValue = useCallback((nextValue: number) => {
     clearTapTempo();
