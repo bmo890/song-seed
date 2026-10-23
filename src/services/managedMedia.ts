@@ -14,7 +14,6 @@ import {
 } from "./storagePaths";
 
 export const SHARE_TEMP_FILE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-export const MAX_IN_MEMORY_ARCHIVE_BYTES = 150 * 1024 * 1024;
 /** How long quarantined (deleted) audio is retained before it is permanently purged. */
 export const TRASH_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
 

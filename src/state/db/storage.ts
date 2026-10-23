@@ -8,15 +8,15 @@ import {
 import { describeError, persistLog } from "../../services/persistLog";
 
 /**
- * A string key/value `StateStorage` backed by SQLite, used as the base for zustand's
- * persisted store (wrapped by `createJSONStorage` + the corruption guard in useStore.ts).
+ * The SQLite key/value layer under zustand's persisted store: the sharded adapter
+ * (`shardedPersistStorage.ts`, wrapped by the corruption guard in useStore.ts) plans
+ * per-workspace rows and commits them here.
  *
  * Safety properties:
- * - SQLite is authoritative. Writes are a single atomic statement, run asynchronously so the
- *   JS thread is never blocked (zustand fires a write on every state change — including
- *   high-frequency playback-position updates — even when the persisted slice is unchanged).
- * - Redundant writes are skipped: if the serialized snapshot matches what was last written,
- *   the DB is not touched at all, so playback ticks don't churn storage.
+ * - SQLite is authoritative. Writes are atomic statements, run asynchronously so the JS
+ *   thread is never blocked. A write that changes nothing persisted never reaches this
+ *   layer (`persistChangeDetection.ts` + the passive scheduler), so playback ticks don't
+ *   churn storage.
  * - On first read, a legacy AsyncStorage blob is imported into SQLite once (seamless
  *   migration) and the legacy blob is left in place as an emergency fallback.
  * - If SQLite is ever unavailable, every operation falls back to AsyncStorage, so a SQLite

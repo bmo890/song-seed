@@ -192,10 +192,6 @@ export async function readPersistLogEntries(): Promise<PersistLogEntry[]> {
     return [...(await loadEntries())];
 }
 
-export function getPersistLogPath(): string {
-    return PERSIST_LOG_FILE;
-}
-
 // Don't sit on a coalesced log write while the app leaves the foreground — the entry
 // written just before a swipe-away is the one that matters.
 AppState.addEventListener("change", (nextState) => {

@@ -13,7 +13,7 @@ import { isClipWaveformSynthetic } from "../../../domain/clipPresentation";
 import { buildDefaultSongbookItemsForIdea } from "../../../domain/songbookGrouping";
 import { getIdeaListItemMeta } from "../ideaListItemMeta";
 import { computeIdeaSearchMeta, EMPTY_SEARCH_META } from "../ideaSearchMeta";
-import { selectIdeaById } from "../../../state/librarySelectors";
+import { getIdSet, getPickedIdeaIdSet, selectIdeaById } from "../../../state/librarySelectors";
 import type { IdeaListItemMeta } from "../types";
 
 const EMPTY_ITEM_META: IdeaListItemMeta = {
@@ -168,8 +168,8 @@ function IdeaListItemInner({
     // workspaces), so it lives on the collector, not in the list selection.
     const isSelected = useStore((s) =>
         s.libraryCollector
-            ? s.libraryCollector.picks.some((pick) => pick.ideaId === ideaId)
-            : s.selectedListIdeaIds.includes(ideaId)
+            ? getPickedIdeaIdSet(s.libraryCollector.picks).has(ideaId)
+            : getIdSet(s.selectedListIdeaIds).has(ideaId)
     );
     const compact = listDensity === "compact";
     // Eligibility per compilation kind: a songbook takes charts; a playlist and
