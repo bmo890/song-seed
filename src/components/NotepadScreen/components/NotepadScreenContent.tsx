@@ -36,6 +36,7 @@ import {
   deriveNotePreviewTitle,
 } from "../../../domain/notepad";
 import { i18n } from "../../../i18n/instance";
+import { currentFormatLocale } from "../../../i18n/formatLocale";
 
 function formatRelativeDate(ts: number, t: ReturnType<typeof useTranslation>["t"]) {
   const now = Date.now();
@@ -46,7 +47,8 @@ function formatRelativeDate(ts: number, t: ReturnType<typeof useTranslation>["t"
   if (diffDays === 1) return t("notepad.yesterday");
   if (diffDays < 7) return t("notepad.daysAgo", { count: diffDays });
 
-  return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  // The app's language, not the device's (a Hebrew UI on an English phone).
+  return new Date(ts).toLocaleDateString(currentFormatLocale(), { month: "short", day: "numeric" });
 }
 
 type NoteItemProps = {
@@ -805,8 +807,8 @@ const noteStyles = StyleSheet.create({
     borderColor: colors.primary,
   },
   matchText: {
-    backgroundColor: "#f0d4cc",
-    color: "#5c2d1e",
+    backgroundColor: colors.primarySurface,
+    color: colors.primaryDeep,
     fontFamily: "PlusJakartaSans_700Bold",
   },
   ladderCard: {

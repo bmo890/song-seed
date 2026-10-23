@@ -332,12 +332,6 @@ export const finderStyles = StyleSheet.create({
     color: colors.textPrimary,
     textAlign: "center",
   },
-  triggerWordMuted: {
-    fontFamily: "SongNookHebrewSerifSemiBold",
-    fontSize: 30,
-    color: colors.textMuted,
-    textAlign: "center",
-  },
   triggerBtn: {
     marginTop: spacing.lg,
     alignSelf: "center",
@@ -349,13 +343,5 @@ export const finderStyles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: "center",
     marginTop: spacing.md,
-  },
-  triggerSubFaint: {
-    fontFamily: "PlusJakartaSans_400Regular",
-    fontSize: 11,
-    lineHeight: 16,
-    color: colors.textMuted,
-    textAlign: "center",
-    marginTop: 4,
   },
 });

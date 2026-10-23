@@ -27,6 +27,7 @@ import { WordFinderSheet } from "../../common/WordFinderSheet";
 import { applyPickedWord, extractWordRange } from "../../../domain/wordTools";
 import { useEditHistory } from "../../../hooks/useEditHistory";
 import { useDraftText } from "../../../hooks/useDraftText";
+import { currentFormatLocale } from "../../../i18n/formatLocale";
 import { useTranslation } from "react-i18next";
 
 type Props = {
@@ -41,7 +42,9 @@ type Snapshot = { title: string; body: string };
 
 function formatTimestamp(ts: number) {
   const date = new Date(ts);
-  return date.toLocaleDateString(undefined, {
+  // The app's language, not the device's: a Hebrew UI on an English phone
+  // showed English month names.
+  return date.toLocaleDateString(currentFormatLocale(), {
     month: "short",
     day: "numeric",
     year: "numeric",

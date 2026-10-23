@@ -21,6 +21,7 @@ import { boardItemText } from "../../../domain/cutUp";
 import { detectTextDirection } from "../../../i18n/direction";
 import { CutSeamRow } from "./CutUpChunkEditor";
 import { useSparkTextScale } from "../../common/sparkTextScale";
+import { useDraftText } from "../../../hooks/useDraftText";
 import type { CutUpBoardItem, CutUpChunk, CutUpSpark } from "../../../types";
 import type { useCutUpScreenModel } from "../hooks/useCutUpScreenModel";
 import { useTranslation } from "react-i18next";
@@ -444,6 +445,22 @@ const Scrap = memo(function Scrap({
   );
 });
 
+/** The scrap's text, committed on a pause and when the sheet closes
+ *  (useDraftText) — a keystroke used to write the whole spark to the store. */
+function StripTextField({ text, onCommit }: { text: string; onCommit: (next: string) => void }) {
+  const { size, lineHeight } = useSparkTextScale();
+  const field = useDraftText(text, onCommit);
+  return (
+    <UserTextInput
+      style={[styles.sheetInput, { fontSize: size, lineHeight }]}
+      value={field.draft}
+      onChangeText={field.onChangeText}
+      multiline
+      scrollEnabled={false}
+    />
+  );
+}
+
 /** Tap a scrap → edit it in place, plus its actions. */
 function StripSheet({
   item,
@@ -459,7 +476,6 @@ function StripSheet({
   model: Model;
 }) {
   const { t } = useTranslation();
-  const { size, lineHeight } = useSparkTextScale();
   const text = item ? boardItemText(item, chunks) : "";
   const canSplit = text.trim().split(/\s+/).length > 1;
   return (
@@ -467,13 +483,9 @@ function StripSheet({
       {item ? (
         <>
           <View style={styles.sheetInputWrap}>
-            <UserTextInput
-              style={[styles.sheetInput, { fontSize: size, lineHeight }]}
-              value={text}
-              onChangeText={(next) => model.editStripText(item.id, next)}
-              multiline
-              scrollEnabled={false}
-            />
+            {/* Keyed per scrap: a new scrap gets a fresh draft and the old
+                one's pending text lands as the field unmounts. */}
+            <StripTextField key={item.id} text={text} onCommit={(next) => model.editStripText(item.id, next)} />
           </View>
           <View style={styles.menuList}>
             {canSplit ? (

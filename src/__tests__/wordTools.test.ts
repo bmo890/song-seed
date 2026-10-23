@@ -332,6 +332,25 @@ describe("persistent cache layer", () => {
     expect(JSON.parse(writes["rhymes::love"])).toEqual([{ word: "dove", score: 5, numSyllables: 1 }]);
   });
 
+  it("keeps an empty network result out of the durable store but serves it from memory", async () => {
+    const writes: Record<string, string> = {};
+    setWordLookupPersistentStore({
+      get: async () => null,
+      set: (key, value) => {
+        writes[key] = value;
+      },
+    });
+    const fetchMock = jest.fn(async () => ({ ok: true, json: async () => [] }));
+    (globalThis as { fetch?: unknown }).fetch = fetchMock;
+
+    expect(await fetchWordSuggestions("rhymes", "orange")).toEqual([]);
+    // A transient empty answer must not become "No matches" on this device for good…
+    expect(writes["rhymes::orange"]).toBeUndefined();
+    // …but the session needn't re-ask while the writer flips between modes.
+    expect(await fetchWordSuggestions("rhymes", "orange")).toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("getCachedWordSuggestions returns null on a full miss without any network", async () => {
     setWordLookupPersistentStore({ get: async () => null, set: () => {} });
     // No fetch mock installed — a network attempt would throw, null means cache-only.

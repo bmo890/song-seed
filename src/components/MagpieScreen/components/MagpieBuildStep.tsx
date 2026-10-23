@@ -12,6 +12,7 @@ import type { useMagpieScreenModel } from "../hooks/useMagpieScreenModel";
 import { useTranslation } from "react-i18next";
 import { useHasPadPage } from "../../common/sparkSend";
 import { useSparkTextScale } from "../../common/sparkTextScale";
+import { useDraftText } from "../../../hooks/useDraftText";
 import { SparkFooter } from "../../common/SparkFrame";
 import { UndoRedoButtons } from "../../common/useUndoHistory";
 
@@ -298,6 +299,23 @@ function ExpandedPalette({
   );
 }
 
+/** The scrap's text, committed on a pause and when the menu closes
+ *  (useDraftText) — a keystroke used to write the whole spark to the store. */
+function ScrapTextField({ fragment, onCommit }: { fragment: MagpieFragment; onCommit: (text: string) => void }) {
+  const { t } = useTranslation();
+  const field = useDraftText(fragment.text, onCommit);
+  return (
+    <>
+      <UserTextInput style={styles.menuInput} value={field.draft} onChangeText={field.onChangeText} multiline />
+      {field.draft.trim() !== fragment.originalText.trim() ? (
+        <UserText style={styles.editedNote} value={fragment.originalText} numberOfLines={1}>
+          {t("magpie.editedFrom", { text: fragment.originalText })}
+        </UserText>
+      ) : null}
+    </>
+  );
+}
+
 // ── Scrap menu (long-press) ───────────────────────────────────────────────────
 function ScrapMenu({
   fragment,
@@ -317,17 +335,9 @@ function ScrapMenu({
       {fragment ? (
         <>
           <Text style={styles.sheetLabel}>{t("magpie.editScrap")}</Text>
-          <UserTextInput
-            style={styles.menuInput}
-            value={fragment.text}
-            onChangeText={(text) => model.editFragment(fragment.id, text)}
-            multiline
-          />
-          {fragment.text.trim() !== fragment.originalText.trim() ? (
-            <UserText style={styles.editedNote} value={fragment.originalText} numberOfLines={1}>
-              {t("magpie.editedFrom", { text: fragment.originalText })}
-            </UserText>
-          ) : null}
+          {/* Keyed per scrap: a new scrap gets a fresh draft and the old one's
+              pending text lands as the field unmounts. */}
+          <ScrapTextField key={fragment.id} fragment={fragment} onCommit={(text) => model.editFragment(fragment.id, text)} />
 
           <View style={styles.menuList}>
             {isMultiWord ? (
