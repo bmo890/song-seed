@@ -3,7 +3,7 @@ import {
     LEGACY_SONG_NOOK_ARCHIVE_FORMAT,
     SONG_NOOK_ARCHIVE_FORMAT,
 } from "./libraryArchiveManifest";
-import { indexStoredZipArchive, readStoredZipEntryBytes } from "./storedZipArchive";
+import { MAX_ARCHIVE_MANIFEST_ENTRY_BYTES, indexStoredZipArchive, readStoredZipEntryBytes } from "./storedZipArchive";
 
 /**
  * SongNook writes two unrelated ZIP files that both end in `.zip`:
@@ -42,7 +42,8 @@ export async function detectPickedArchiveKind(fileUri: string): Promise<PickedAr
 
         let manifest: unknown;
         try {
-            manifest = JSON.parse(strFromU8(await readStoredZipEntryBytes(index, manifestEntry)));
+            // The picked file is untrusted; the same manifest cap the importer applies.
+            manifest = JSON.parse(strFromU8(await readStoredZipEntryBytes(index, manifestEntry, MAX_ARCHIVE_MANIFEST_ENTRY_BYTES)));
         } catch {
             return "unknown";
         }

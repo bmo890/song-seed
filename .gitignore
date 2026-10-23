@@ -56,3 +56,6 @@ modules/*/android/.cxx/
 .dev.vars*
 !.dev.vars.example
 !.env.example
+
+# Agent worktrees (local checkouts used by parallel fixers)
+.claude/worktrees/

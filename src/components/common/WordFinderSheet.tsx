@@ -9,6 +9,7 @@ import { SegmentedControl } from "./SegmentedControl";
 import { Button } from "./Button";
 import { InkLink } from "./InkLink";
 import { Press } from "./Press";
+import { ensurePro } from "./proUpsell";
 import { finderStyles } from "./WordFinderSheet.styles";
 import { colors } from "../../design/tokens";
 import { haptic } from "../../design/haptics";
@@ -67,8 +68,6 @@ type LookupState =
   // Hebrew meaning mode, nothing cached: awaiting an explicit tap so the paid
   // LLM call never fires on a debounce.
   | { status: "needsTrigger" }
-  // Hebrew sound mode (rhymes/near/…): Charuzit isn't wired yet.
-  | { status: "comingSoon" }
   | { status: "results"; suggestions: WordSuggestion[] }
   | { status: "offline" }
   | { status: "busy" }
@@ -171,12 +170,11 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
     const route = classifyLookup(trimmed, activeMode);
     const requestId = ++requestIdRef.current;
 
-    if (route === "unsupported") {
+    // A Hebrew word in a sound tool with no backend (consonance, sounds like —
+    // reachable when the tool was picked for an English word) is unsupported,
+    // not "coming soon": no placeholder copy in a shipping app.
+    if (route === "unsupported" || route === "hebrewSound") {
       setLookup({ status: "unsupported" });
-      return;
-    }
-    if (route === "hebrewSound") {
-      setLookup({ status: "comingSoon" });
       return;
     }
 
@@ -353,6 +351,8 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
   };
 
   const selectExtendedMode = (next: WordLookupMode) => {
+    // The More groups (Sound, Meaning, Imagery) are the full word finder (domain/proCatalog.ts).
+    if (!ensurePro("word-finder-full")) return;
     Keyboard.dismiss();
     setExtendedMode(next);
     setToolListOpen(false);
@@ -561,19 +561,6 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
       </Text>
       <Button label={t("wordFinderUi.llmFind")} onPress={runHebrewLookup} style={finderStyles.triggerBtn} />
       <Text style={finderStyles.triggerSub}>{t("wordFinderUi.llmSub")}</Text>
-    </Animated.View>
-  );
-
-  /** Hebrew sound mode (rhymes/near/…) — Charuzit isn't wired yet. Same quiet
-   * composition, muted, no action. */
-  const renderComingSoon = () => (
-    <Animated.View entering={FadeIn.duration(durations.fast)} style={finderStyles.triggerCenter}>
-      {activeMode ? <Text style={finderStyles.triggerEyebrow}>{modeLabel(activeMode).toUpperCase()}</Text> : null}
-      <Text style={finderStyles.triggerWordMuted} numberOfLines={1}>
-        {query.trim()}
-      </Text>
-      <Text style={finderStyles.triggerSub}>{t("wordFinderUi.soundSoon")}</Text>
-      <Text style={finderStyles.triggerSubFaint}>{t("wordFinderUi.soundSoonSub")}</Text>
     </Animated.View>
   );
 
@@ -826,8 +813,6 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
                 </View>
               ) : lookup.status === "needsTrigger" ? (
                 renderTrigger()
-              ) : lookup.status === "comingSoon" ? (
-                renderComingSoon()
               ) : lookup.status === "unsupported" ? (
                 <View style={finderStyles.stateCenter}>
                   <Text style={finderStyles.stateText}>{t("wordFinderUi.scriptUnsupported")}</Text>

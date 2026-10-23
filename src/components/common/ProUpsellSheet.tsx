@@ -7,25 +7,18 @@ import { Button } from "./Button";
 import { Press } from "./Press";
 import { closeProUpsell, useProUpsellState } from "./proUpsell";
 import { colors, radii, spacing, text as textTokens } from "../../design/tokens";
-import { getFreeMonthEndsAt, isFoundingMember, isPaywallLive, proEntitlement } from "../../domain/entitlements";
+import { getFreeMonthClock, getFreeMonthEndsAt, isFoundingMember, isPaywallLive, proEntitlement } from "../../domain/entitlements";
 import { freeMonthStatus, FREE_MONTH_DAYS } from "../../domain/freeMonth";
+import { PAYWALL_ROWS } from "../../domain/proCatalog";
 import { isDevFreeMonthPreview } from "../../services/freeMonthClock";
 import { purchasePro, restorePurchases, type ProPlan } from "../../services/billing";
+// Apple requires working Terms and Privacy links on a paywall; the one source of
+// those URLs is config/legalLinks, shared with Settings → About.
+import { PRIVACY_POLICY_URL as PRIVACY_URL, TERMS_OF_USE_URL as TERMS_URL } from "../../config/legalLinks";
 
-// The live legal pages on songnook.app (built from docs/ by build:legal). Apple requires
-// working Terms and Privacy links on a paywall.
-const PRIVACY_URL = "https://songnook.app/privacy";
-const TERMS_URL = "https://songnook.app/terms";
-
-/** What Pro adds, in the confirmed split (founder, 2026-10-19). Bare ink glyphs, no tiles. */
-const FEATURE_ICONS: (keyof typeof Ionicons.glyphMap)[] = [
-  "musical-notes-outline",
-  "layers-outline",
-  "repeat-outline",
-  "cut-outline",
-  "sparkles-outline",
-  "paper-plane-outline",
-];
+/** What Pro adds: the catalog's PAYWALL_ROWS (domain/proCatalog.ts), each row's copy at
+ *  `pro.features.<index>`. Bare ink glyphs, no tiles. */
+const FEATURE_ICONS = PAYWALL_ROWS.map((row) => row.icon as keyof typeof Ionicons.glyphMap);
 const PLAN_IDS: ProPlan[] = ["annual", "monthly", "lifetime"];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -35,7 +28,7 @@ function freeMonthLine(): { daysLeft: number } | "ended" | null {
   if (proEntitlement.get() || isFoundingMember()) return null;
   const endsAt = getFreeMonthEndsAt();
   if (endsAt == null) return null;
-  const status = freeMonthStatus(endsAt - FREE_MONTH_DAYS * DAY_MS, Date.now());
+  const status = freeMonthStatus(endsAt - FREE_MONTH_DAYS * DAY_MS, getFreeMonthClock());
   return status.active ? { daysLeft: status.daysLeft } : "ended";
 }
 
@@ -205,8 +198,9 @@ const s = StyleSheet.create({
     flex: 1,
     gap: 1,
   },
+  // Jakarta faces come from the text tokens, never as family literals.
   featureTitle: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontFamily: textTokens.caption.fontFamily,
     fontSize: 14,
     color: colors.textPrimary,
   },
@@ -250,12 +244,12 @@ const s = StyleSheet.create({
     gap: 8,
   },
   planLabel: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontFamily: textTokens.caption.fontFamily,
     fontSize: 15,
     color: colors.textStrong,
   },
   planLabelOn: {
-    fontFamily: "PlusJakartaSans_700Bold",
+    fontFamily: textTokens.sectionTitle.fontFamily,
     color: colors.textPrimary,
   },
   planTag: {
@@ -267,7 +261,7 @@ const s = StyleSheet.create({
     color: colors.textSecondary,
   },
   planPrice: {
-    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontFamily: textTokens.caption.fontFamily,
     fontSize: 15,
     color: colors.textPrimary,
     fontVariant: ["tabular-nums"],

@@ -5,6 +5,8 @@ import type {
     PlaybackQueueItem,
     PlayerTarget,
     Playlist,
+    Setlist,
+    Songbook,
     Workspace,
 } from "../types";
 
@@ -45,6 +47,8 @@ type RuntimeStoreState = {
     quickNameDraft: string;
     activityEvents: ActivityEvent[];
     playlists: Playlist[];
+    songbooks: Songbook[];
+    setlists: Setlist[];
 };
 
 type CleanupTargets = {
@@ -104,6 +108,46 @@ function queueTouchesRemovedClip(
     return playerQueue.some(
         (item) => removedIdeaIds.has(item.ideaId) || removedClipIds.has(item.clipId)
     );
+}
+
+/** Drops the compilation entries whose song the delete removed (by idea or by
+ *  workspace). Callers prune `playlists` themselves (they also match clip ids);
+ *  songbooks and setlists only ever point at an idea, so one rule serves both.
+ *  A list nothing was dropped from keeps its identity. */
+function pruneCompilationEntries<T extends { ideaId: string; workspaceId: string }, C extends { items?: T[]; entries?: T[] }>(
+    compilations: C[],
+    key: "items" | "entries",
+    removedWorkspaceIds: Set<string>,
+    removedIdeaIds: Set<string>
+): C[] {
+    if (removedWorkspaceIds.size === 0 && removedIdeaIds.size === 0) return compilations;
+    let changed = false;
+    const next = compilations.map((compilation) => {
+        const entries = (compilation[key] ?? []) as T[];
+        const kept = entries.filter(
+            (entry) => !removedIdeaIds.has(entry.ideaId) && !removedWorkspaceIds.has(entry.workspaceId)
+        );
+        if (kept.length === entries.length) return compilation;
+        changed = true;
+        return { ...compilation, [key]: kept };
+    });
+    return changed ? next : compilations;
+}
+
+/** Undo for the pruning above: the entries a delete took from one compilation, back in
+ *  their old order. Anything added since stays at the end; anything removed since stays
+ *  removed. */
+export function restorePrunedEntries<T extends { id: string; ideaId: string }>(
+    current: T[],
+    before: T[],
+    removedIdeaIds: Set<string>
+): T[] {
+    const kept = new Set(current.map((entry) => entry.id));
+    const beforeIds = new Set(before.map((entry) => entry.id));
+    return [
+        ...before.filter((entry) => kept.has(entry.id) || removedIdeaIds.has(entry.ideaId)),
+        ...current.filter((entry) => !beforeIds.has(entry.id)),
+    ];
 }
 
 export function buildRuntimeCleanupPatch(
@@ -229,5 +273,9 @@ export function buildRuntimeCleanupPatch(
         quickNameModalVisible:
             quickNamingIdeaRemoved ? false : store.quickNameModalVisible,
         quickNameDraft: quickNamingIdeaRemoved ? "" : store.quickNameDraft,
+        // A deleted song must not linger as a ghost row in a book or a set
+        // (the sweep of 2026-10-22: only playlists were pruned before).
+        songbooks: pruneCompilationEntries(store.songbooks, "items", removedWorkspaceIdSet, removedIdeaIdSet),
+        setlists: pruneCompilationEntries(store.setlists, "entries", removedWorkspaceIdSet, removedIdeaIdSet),
     };
 }

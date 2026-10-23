@@ -108,14 +108,14 @@ export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
       const showSub = Keyboard.addListener(showEvent, (e) => {
         Animated.timing(keyboardOffset, {
           toValue: -e.endCoordinates.height,
-          duration: Platform.OS === "ios" ? (e.duration ?? 250) : 250,
+          duration: Platform.OS === "ios" ? (e.duration ?? durations.keyboard) : durations.keyboard,
           useNativeDriver: useNative,
         }).start();
       });
       const hideSub = Keyboard.addListener(hideEvent, (e) => {
         Animated.timing(keyboardOffset, {
           toValue: 0,
-          duration: Platform.OS === "ios" ? (e.duration ?? 250) : 250,
+          duration: Platform.OS === "ios" ? (e.duration ?? durations.keyboard) : durations.keyboard,
           useNativeDriver: useNative,
         }).start();
       });

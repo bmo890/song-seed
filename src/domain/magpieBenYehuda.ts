@@ -10,11 +10,14 @@ import { MagpieFetchError } from "./magpieFetchError";
 
 const REQUEST_TIMEOUT_MS = 8000;
 
-async function fetchWithTimeout(url: string): Promise<Response> {
+async function fetchWithTimeout(url: string): Promise<{ ok: boolean; text: string }> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    return await fetch(url, { headers: { Accept: "application/json" }, signal: controller.signal });
+    const res = await fetch(url, { headers: { Accept: "application/json" }, signal: controller.signal });
+    // The body read stays under the timer (2026-10-23): headers that arrive and
+    // a body that stalls used to spin the page until the OS dropped the socket.
+    return { ok: res.ok, text: res.ok ? await res.text() : "" };
   } finally {
     clearTimeout(timeout);
   }
@@ -48,7 +51,7 @@ export async function fetchBenYehudaPage(
   if (!base) throw new MagpieFetchError("unavailable", "Hebrew source isn't configured.");
 
   const query = genres && genres.length ? `?genres=${genres.join(",")}` : "";
-  let res: Response;
+  let res: { ok: boolean; text: string };
   try {
     res = await fetchWithTimeout(`${base}/magpie/he/random${query}`);
   } catch {
@@ -58,7 +61,7 @@ export async function fetchBenYehudaPage(
 
   let data: WorkerWork;
   try {
-    data = (await res.json()) as WorkerWork;
+    data = JSON.parse(res.text) as WorkerWork;
   } catch {
     throw new MagpieFetchError("unavailable", "Couldn't open a Hebrew page.");
   }

@@ -29,6 +29,9 @@ import { View } from "react-native";
 import { userFacingMessage } from "../../../i18n/userFacingError";
 
 type IdeaSelectionBarProps = {
+  /** The page's workspace; falls back to the active one. A visited received
+   *  package is never made active, so its selection must read the route's. */
+  workspaceId?: string;
   selectableIdeaIds: string[];
   disabledIdeaIds?: string[];
   onPlaySelected: () => void;
@@ -57,6 +60,7 @@ function describeSketchContents(idea: SongIdea, t: TFunction): string {
 }
 
 export function IdeaSelectionBar({
+  workspaceId: pageWorkspaceId,
   selectableIdeaIds,
   disabledIdeaIds = [],
   onPlaySelected,
@@ -88,7 +92,8 @@ export function IdeaSelectionBar({
   const navigation = useNavigation<any>();
 
   const selectedListIdeaIds = useStore((s) => s.selectedListIdeaIds);
-  const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
+  const storeActiveWorkspaceId = useStore((s) => s.activeWorkspaceId);
+  const activeWorkspaceId = pageWorkspaceId ?? storeActiveWorkspaceId;
   const replaceListSelection = useStore((s) => s.replaceListSelection);
   // A running session turns the dock's primary action from "Play" into
   // "Add to queue" — the way to grow the queue you already have going.
@@ -262,7 +267,7 @@ export function IdeaSelectionBar({
   }
 
   function handleClipboardAction(mode: "copy" | "move") {
-    appActions.startClipboardFromList(mode);
+    appActions.startClipboardFromList(mode, activeWorkspaceId ?? undefined);
     AppAlert.info(
       mode === "copy" ? t("common.copyReady", { count: selectedIdeas.length }) : t("common.moveReady", { count: selectedIdeas.length }),
       mode === "copy"

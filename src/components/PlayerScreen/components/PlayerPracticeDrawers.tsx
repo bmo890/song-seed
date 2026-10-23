@@ -6,7 +6,6 @@ import { fmtDuration } from "../../../utils";
 import { colors } from "../../../design/tokens";
 import { getCustomSectionOptions, getSectionColor, MIN_SECTION_LENGTH_MS, sectionDisplayLabel } from "../../../domain/playerSections";
 import type { SectionCustomInput } from "../hooks/usePlayerSections";
-import { formatBpmLabel, hasAnalysisResult, isTempoSteady } from "../../../domain/clipAnalysis";
 import { playerScreenStyles as s } from "../styles";
 import { pd } from "./practiceDrawerStyles";
 import type { CountInOption } from "../hooks/usePlayerScreenUi";

@@ -14,6 +14,7 @@ import { enqueueMissingMetadataBackfill } from "../../../services/backgroundWave
 import { useStore } from "../../../state/useStore";
 import { useTranslation } from "react-i18next";
 import { userFacingMessage } from "../../../i18n/userFacingError";
+import { describeArchiveWarning } from "../../../services/archiveWarnings";
 
 export function useLibraryImportFlow() {
     const { t } = useTranslation();
@@ -81,7 +82,7 @@ export function useLibraryImportFlow() {
             AppAlert.info(
                 result.warnings.length > 0 ? t("settingsImport.warningsTitle") : t("settingsImport.complete"),
                 result.warnings.length > 0
-                    ? result.warnings.slice(0, 6).join("\n")
+                    ? result.warnings.slice(0, 6).map(describeArchiveWarning).join("\n")
                     : t("settingsImport.completeBody", { workspaces: result.importedWorkspaces, items: result.importedIdeas, notes: result.importedNotes })
             );
             setParsedArchive(null);

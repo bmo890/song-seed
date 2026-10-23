@@ -12,12 +12,11 @@ import { Hono } from "hono";
 import type { Env } from "../env";
 import { loadConfig } from "../env";
 import {
-  bumpTransferSize,
   deleteTransfer,
   finalizeTransfer,
   getItems,
   getTransfer,
-  insertItem,
+  insertItemWithinCaps,
   insertTransfer,
   setItemSize,
   setTransferSize,
@@ -67,7 +66,8 @@ api.post("/transfers", async (c) => {
   if (!(await underRateLimit(c.env, "create", clientIp(c), cfg.rateCreatePerHour, 3600))) {
     return errorResponse(429, "too many transfers — try again later");
   }
-  const body = await c.req.json().catch(() => ({}));
+  // A `null` / primitive JSON body is a valid parse — normalise before `.title`.
+  const body = bodyRecord(await c.req.json().catch(() => ({})));
   const now = Date.now();
 
   const transferId = newTransferId();
@@ -120,6 +120,8 @@ api.post("/transfers/:id/items", async (c) => {
   const allowed = checkUploadAllowed(fileName, mimeType);
   if (!allowed.ok) return errorResponse(415, allowed.reason ?? "file type not accepted");
 
+  // Early, precise answers for the plain cases; the insert below re-checks the
+  // item and byte caps atomically, since these reads race parallel registrations.
   const existing = await getItems(c.env, transferId);
   if (existing.length >= MAX_ITEMS_PER_TRANSFER) return errorResponse(400, "too many items");
 
@@ -131,20 +133,25 @@ api.post("/transfers/:id/items", async (c) => {
 
   const itemId = newItemId();
   const r2Key = `${transferId}/${itemId}`; // key is opaque; original name kept in metadata only
-  const presigned = await presignUpload(c.env, r2Key, mimeType, size);
 
-  await insertItem(c.env, {
-    item_id: itemId,
-    transfer_id: transferId,
-    file_name: fileName,
-    mime_type: mimeType,
-    size,
-    r2_key: r2Key,
-    download_count: 0,
-    created_at: Date.now(),
-    sort_order: existing.length,
-  });
-  await bumpTransferSize(c.env, transferId, size);
+  const landed = await insertItemWithinCaps(
+    c.env,
+    {
+      item_id: itemId,
+      transfer_id: transferId,
+      file_name: fileName,
+      mime_type: mimeType,
+      size,
+      r2_key: r2Key,
+      download_count: 0,
+      created_at: Date.now(),
+    },
+    { maxTotalBytes: cfg.maxTransferBytes, maxItems: MAX_ITEMS_PER_TRANSFER }
+  );
+  // Lost a race: a parallel registration (or finalize) used the room first.
+  if (!landed) return errorResponse(413, "transfer exceeds size cap");
+
+  const presigned = await presignUpload(c.env, r2Key, mimeType, size);
 
   return jsonResponse(
     { itemId, uploadUrl: presigned.uploadUrl, method: presigned.method, headers: presigned.headers },

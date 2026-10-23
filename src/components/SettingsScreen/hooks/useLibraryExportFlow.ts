@@ -342,8 +342,8 @@ export function useLibraryExportFlow() {
 
       const summary = t("settingsExport.resultSummary", { workspaces: result.exportedWorkspaces, collections: result.exportedCollections, songs: result.exportedSongs, clips: result.exportedStandaloneClips, notes: result.exportedNotepadNotes });
 
-      if (result.warningMessages.length > 0) {
-        AppAlert.info(t("settingsExport.warningsTitle"), buildWarningSummary(result.warningMessages));
+      if (result.warnings.length > 0) {
+        AppAlert.info(t("settingsExport.warningsTitle"), buildWarningSummary(result.warnings, t));
       } else if (result.saveConfirmed) {
         // Android: copied into the folder the user chose.
         haptic.success();

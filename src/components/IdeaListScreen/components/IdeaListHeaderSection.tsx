@@ -73,7 +73,7 @@ export function IdeaListHeaderSection({
             const moving = clipClipboard.mode === "move";
             AppAlert.confirm(
               t(moving ? "collection.moveHereTitle" : "collection.copyHereTitle"),
-              "",
+              t(moving ? "collection.moveHereBody" : "collection.copyHereBody"),
               onPasteClipboard,
               { confirmLabel: t(moving ? "collection.moveAction" : "collection.copyAction") }
             );

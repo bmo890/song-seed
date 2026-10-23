@@ -18,7 +18,7 @@ import { dirIcon } from "../../design/directionalIcons";
 import { Button } from "./Button";
 import {
   runWelcomeImport,
-  WELCOME_IMPORT_COLLECTION_TITLE,
+  welcomeImportCollectionTitle,
   type WelcomeImportProgress,
 } from "../../services/welcomeImport";
 import { useTranslation } from "react-i18next";
@@ -174,7 +174,7 @@ function ImportPane({
       motif={<IconRingMotif icon="albums-outline" />}
       eyebrow={t("welcome.importEyebrow")}
       title={t("welcome.importTitle")}
-      body={t("welcome.importBody", { collection: WELCOME_IMPORT_COLLECTION_TITLE })}
+      body={t("welcome.importBody", { collection: welcomeImportCollectionTitle() })}
     >
       {progress?.phase === "done" ? (
         <View style={s.importDone}>
@@ -184,7 +184,7 @@ function ImportPane({
       ) : null}
       {progress?.phase === "done" && progress.imported > 0 ? (
         <Text style={s.importCaption}>
-          {t("welcome.importedCaption", { collection: WELCOME_IMPORT_COLLECTION_TITLE })}
+          {t("welcome.importedCaption", { collection: welcomeImportCollectionTitle() })}
         </Text>
       ) : null}
       {progress?.phase === "error" ? (

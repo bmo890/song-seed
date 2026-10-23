@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BackHandler } from "react-native";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
@@ -99,6 +99,14 @@ export function useWordLadderScreenModel() {
     [apply]
   );
   const pairingHistory = useUndoHistory(exercise?.pairings ?? [], restorePairings);
+  // The drawer screen is reused across exercises (freezeOnBlur): a word armed
+  // in the last one would pair with a foreign id, and its snapshots would be
+  // undone onto this one.
+  const clearPairingHistory = pairingHistory.clear;
+  useEffect(() => {
+    clearPairingHistory();
+    setArmedWord(null);
+  }, [exerciseId, clearPairingHistory]);
 
   // ── Wizard navigation ─────────────────────────────────────────────────────
   // "setup" is a one-way gate: once committed, the seeds are frozen and the

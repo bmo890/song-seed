@@ -20,6 +20,7 @@ import {
   type ImportDatePreference,
 } from "../../../domain/importDates";
 import { discardPickedCopies } from "../../../services/pickedCopies";
+import { i18n } from "../../../i18n/instance";
 
 function buildDefaultCollectionTitle(count: number) {
   return `Collection ${count + 1}`;
@@ -63,7 +64,7 @@ export function useWorkspaceCollectionImportFlow({
   const openCollectionImportFlow = async () => {
     const assets = await pickImportAssets({ multiple: true });
     if (assets.length === 0) return;
-    const datePreference = await promptForImportDatePreference(assets, "New collection from import");
+    const datePreference = await promptForImportDatePreference(assets, i18n.t("workspaceBrowse.newCollectionFromImport"));
     // Cancelled before importing: the picker's copies go, never the originals.
     if (!datePreference) return void discardPickedCopies(assets);
 

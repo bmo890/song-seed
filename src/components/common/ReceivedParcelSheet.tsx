@@ -22,9 +22,10 @@ import { getHierarchyIconName } from "../../domain/hierarchy";
 import { getRootNavigation, openCollectionAsBrowseRoot, openWorkspaceBrowseRoot, visitCollection } from "../../navigation";
 import { haptic } from "../../design/haptics";
 import { colors, radii, spacing, text as textTokens } from "../../design/tokens";
+import { durations } from "../../design/motion";
 import type { ShareKind, Workspace } from "../../types";
 
-const SHEET_EXIT_MS = 260;
+const SHEET_EXIT_MS = durations.sheetExit;
 
 const KIND_ICONS: Record<ShareKind, React.ComponentProps<typeof Ionicons>["name"]> = {
   setlist: "albums-outline",

@@ -127,6 +127,9 @@ export const colors = {
   borderStrong:   "#C8C4BF",   // slightly stronger warm line
   accentSuccessBg:   "#dcfce7",
   accentSuccessText: "#166534",
+
+  /** The warm ink wash behind a dialog or a gate (AppDialog's scrim, named 2026-10-22). */
+  scrim: "rgba(28,28,25,0.45)",
 } as const;
 
 export const text = {

@@ -39,7 +39,7 @@ export function SongScreenContent() {
             }
             screen.navigateRoot("Home", {
               screen: "WorkspaceStack",
-              params: { screen: "Browse" },
+              params: { screen: "Browse", pop: true },
             });
           }}
         />

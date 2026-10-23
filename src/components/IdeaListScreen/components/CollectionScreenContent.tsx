@@ -19,7 +19,7 @@ import { IdeaListNestedCollectionsSection } from "./IdeaListNestedCollectionsSec
 import { styles } from "../../../styles";
 import { goBackFromParentStack, openCollectionInBrowse, openWorkspaceBrowseRoot } from "../../../navigation";
 import { useStickyDayLabel, useStickyDayChipVisible } from "../stickyDayStore";
-import { colors } from "../../../design/tokens";
+import { colors, text } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 
 // Reasonable first-paint estimate for the header height; corrected on measure.
@@ -94,7 +94,7 @@ export function CollectionScreenContent() {
           <Text
             onPress={goToLibrary}
             accessibilityRole="button"
-            style={{ fontSize: 15, fontWeight: "600", color: colors.primaryDeep }}
+            style={{ ...text.caption, fontSize: 15, color: colors.primaryDeep }}
           >
             {t("collection.goToLibrary")}
           </Text>

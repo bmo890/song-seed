@@ -8,6 +8,7 @@
 import { create } from "zustand";
 import { useSendJobStore } from "./useSendJobStore";
 import { toast } from "../components/common/toastStore";
+import { ensurePro } from "../components/common/proUpsell";
 import { i18n } from "../i18n/instance";
 import type { SentLink } from "../domain/sentLinks";
 import type { ParcelItem } from "../domain/parcelOrder";
@@ -60,6 +61,9 @@ export const useSendSheetStore = create<SendSheetStore>((set) => ({
 /** The one call every entry point makes. One seal at a time: while one runs,
  *  asking for another opens that seal's sheet instead; a finished one makes way. */
 export function openSendSheet(request: SendRequest): void {
+  // Sending is Pro (domain/proCatalog.ts "send"); receiving never is. Every "Get a
+  // link" row lands here, so this is the one gate.
+  if (!ensurePro("send")) return;
   const jobs = useSendJobStore.getState();
   if (jobs.job?.status === "running") {
     toast(i18n.t("sendSheet.oneAtATime"), "paper-plane-outline");

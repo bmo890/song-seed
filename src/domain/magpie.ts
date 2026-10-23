@@ -34,12 +34,20 @@ const REQUEST_TIMEOUT_MS = 8000;
 
 /** Wraps fetch so a thrown network error (no connection) OR a hung request that
  * times out becomes an "offline" MagpieFetchError rather than a raw TypeError or a
- * permanent stall — the reader's ErrorState + retry then handle it. */
-async function safeFetch(url: string, init?: RequestInit): Promise<Response> {
+ * permanent stall — the reader's ErrorState + retry then handle it. `read` runs
+ * under the same timer (2026-10-23): headers that arrive and a body that stalls
+ * used to spin the page until the OS dropped the socket. It must only throw for
+ * a failed read — anything it throws reads as "offline". */
+async function safeFetch<T>(
+  url: string,
+  init: RequestInit | undefined,
+  read: (res: Response) => Promise<T>
+): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    return await fetch(url, { ...init, signal: controller.signal });
+    const res = await fetch(url, { ...init, signal: controller.signal });
+    return await read(res);
   } catch {
     throw new MagpieFetchError("offline", "No connection to the shelf.");
   } finally {
@@ -58,7 +66,8 @@ export function rangeHeaders(start: number, end: number): Record<string, string>
 /** Reads the file's total byte length from a tiny Range probe (the number after
  * the slash in Content-Range), falling back to Content-Length. */
 async function probeTotalBytes(url: string): Promise<number | null> {
-  const res = await safeFetch(url, { headers: rangeHeaders(0, 1) });
+  // Headers only — the two-byte body is never read.
+  const res = await safeFetch(url, { headers: rangeHeaders(0, 1) }, async (r) => r);
   const contentRange = res.headers.get("content-range");
   if (contentRange) {
     const match = contentRange.match(/\/(\d+)\s*$/);
@@ -103,11 +112,15 @@ export async function fetchPassage(book: MagpieBook): Promise<string> {
   const size = await probeTotalBytes(book.textUrl);
   if (!size) throw new MagpieFetchError("unavailable", "That book wouldn't open.");
   const { start, end } = pickWindow(size);
-  const res = await safeFetch(book.textUrl, { headers: rangeHeaders(start, end) });
+  const res = await safeFetch(book.textUrl, { headers: rangeHeaders(start, end) }, async (r) => ({
+    ok: r.ok,
+    status: r.status,
+    body: r.ok ? await r.text() : "",
+  }));
   if (!res.ok && res.status !== 206) {
     throw new MagpieFetchError("unavailable", "That book wouldn't open.");
   }
-  const body = await res.text();
+  const body = res.body;
   // A server that ignores the range answers 200 with the whole book; take the
   // window ourselves rather than show a whole novel as one "page".
   const raw = res.status === 206 ? body : body.slice(start, end);
@@ -148,9 +161,12 @@ function textPlainUrl(formats: Record<string, string>): string | null {
 async function fetchRandomLibraryBook(attempts = 3): Promise<MagpieBook> {
   for (let i = 0; i < attempts; i++) {
     const page = 1 + Math.floor(Math.random() * GUTENDEX_EN_PAGES);
-    const res = await safeFetch(`https://gutendex.com/books?languages=en&page=${page}`);
+    const res = await safeFetch(`https://gutendex.com/books?languages=en&page=${page}`, undefined, async (r) => ({
+      ok: r.ok,
+      text: r.ok ? await r.text() : "",
+    }));
     if (!res.ok) continue;
-    const data = (await res.json()) as { results?: Array<Record<string, any>> };
+    const data = JSON.parse(res.text) as { results?: Array<Record<string, any>> };
     const candidates = (data.results ?? [])
       .map((book) => {
         const url = textPlainUrl(book.formats ?? {});

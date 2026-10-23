@@ -324,8 +324,12 @@ function initialsFor(name: string): string {
 
 function BookThumbnail({ book, small }: { book: MagpieBook | null; small?: boolean }) {
   const size = small ? styles.thumbSmall : styles.thumb;
-  if (book?.thumbnailUrl) {
-    return <Image source={{ uri: book.thumbnailUrl }} style={size} resizeMode="cover" />;
+  // A cover that won't load (no scan for that id, offline) falls back to the
+  // initials tile rather than a blank grey square.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  if (book?.thumbnailUrl && failedUrl !== book.thumbnailUrl) {
+    const uri = book.thumbnailUrl;
+    return <Image source={{ uri }} style={size} resizeMode="cover" onError={() => setFailedUrl(uri)} />;
   }
   const initials = initialsFor(book?.author || book?.title || "");
   return (
@@ -500,7 +504,14 @@ function SourceCredit({ book }: { book: MagpieBook | null }) {
   const label = book.source === "benyehuda" ? t("magpie.sourceBenYehuda") : t("magpie.sourceGutenberg");
   if (!book.sourceUrl) return <Text style={styles.bookSource}>{label}</Text>;
   return (
-    <Press haptic="navigate" feel="glyph" onPress={() => Linking.openURL(book.sourceUrl!)} hitSlop={4} accessibilityRole="link">
+    <Press
+      haptic="navigate"
+      feel="glyph"
+      // No handler for the URL rejects; nothing to show, nothing to crash on.
+      onPress={() => void Linking.openURL(book.sourceUrl!).catch(() => {})}
+      hitSlop={4}
+      accessibilityRole="link"
+    >
       <Text style={styles.bookSourceLink}>{label}</Text>
     </Press>
   );

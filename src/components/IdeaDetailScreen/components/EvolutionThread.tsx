@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
+import { getIdSet } from "../../../state/librarySelectors";
 import { type ClipLineage } from "../../../domain/clipGraph";
 import { getClipPlaybackDurationMs, hasClipPlaybackSource } from "../../../domain/clipPresentation";
 import { fmtCardDuration, formatClipDate } from "../../../utils";
@@ -57,7 +58,7 @@ function StemVersionRow({
   const { inlinePlayer, getHighlightValue } = context.playback;
   const rowRef = useRef<View>(null);
   const clipSelectionMode = useStore((s) => s.clipSelectionMode);
-  const isSelected = useStore((s) => s.selectedClipIds.includes(clip.id));
+  const isSelected = useStore((s) => getIdSet(s.selectedClipIds).has(clip.id));
   const toggleClipSelection = useStore((s) => s.toggleClipSelection);
   const startClipSelection = useStore((s) => s.startClipSelection);
   const setPlayerQueueForScreen = useStore((s) => s.setPlayerQueueForScreen);

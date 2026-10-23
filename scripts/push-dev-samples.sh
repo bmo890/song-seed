@@ -6,7 +6,7 @@
 # Usage: scripts/push-dev-samples.sh [UDID] [SOURCE_DIR] [COUNT]
 set -euo pipefail
 UDID="${1:-booted}"
-SRC="${2:-/Users/benmogerman/Desktop/Voice Recorder (old)}"
+SRC="${2:-$HOME/Desktop/Voice Recorder (old)}"
 COUNT="${3:-6}"
 BUNDLE="com.bmostudio.songnook.dev"
 

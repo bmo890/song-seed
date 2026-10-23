@@ -3,6 +3,7 @@ import * as LocalAuthentication from "expo-local-authentication";
 import { useTranslation } from "react-i18next";
 import { AppAlert } from "../../common/AppAlert";
 import { haptic } from "../../../design/haptics";
+import { toast } from "../../common/toastStore";
 import { eraseAllAppData } from "../../../services/eraseAllData";
 
 /**
@@ -49,6 +50,9 @@ export function useEraseAllData() {
             }
             if (!ok) {
                 haptic.error(); // the gate refused — a failed outcome
+                // A refused or dismissed lock sheet used to leave the row silent after
+                // two confirmations (2026-10-22 sweep).
+                toast(t("eraseAll.authFailed"), "alert-circle-outline");
                 return;
             }
         }

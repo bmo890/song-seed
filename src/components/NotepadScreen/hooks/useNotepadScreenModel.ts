@@ -281,13 +281,17 @@ export function useNotepadScreenModel() {
 
   const handleCloseNote = useCallback(() => {
     if (activeNoteId) {
-      const note = notes.find((n) => n.id === activeNoteId);
+      // Read the live store, not this render's `notes`: the editor flushes its drafts
+      // and closes in the same tick, so the closure still holds the page as it was
+      // before the first commit (empty) and a page typed in under the idle window
+      // would be deleted on the way out.
+      const note = useStore.getState().notes.find((n) => n.id === activeNoteId);
       if (note && !note.title.trim() && !note.body.trim()) {
         deleteNote(activeNoteId);
       }
     }
     setActiveNoteId(null);
-  }, [activeNoteId, notes, deleteNote]);
+  }, [activeNoteId, deleteNote]);
 
   const handleUpdateNote = useCallback(
     (updates: { title?: string; body?: string; textDirection?: ContentDirection }) => {

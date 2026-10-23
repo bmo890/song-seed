@@ -111,7 +111,7 @@ export function buildChordSheetFromLyrics(version: LyricsVersion | null | undefi
 
     sections.push({
       id: randomId("section"),
-      label: tag ?? `Section ${sections.length + 1}`,
+      label: tag ?? i18n.t("chordChart.sectionNumbered", { n: sections.length + 1 }),
       measures,
       notes: "",
     });
@@ -154,7 +154,7 @@ function sanitizeSection(raw: unknown): ChordSheetSection | null {
     : [];
   return {
     id: obj.id,
-    label: isNonEmptyString(obj.label) ? obj.label : "Section",
+    label: isNonEmptyString(obj.label) ? obj.label : i18n.t("chordChart.section"),
     measures,
     notes: isNonEmptyString(obj.notes) ? obj.notes : "",
     kind: obj.kind === "text" ? "text" : undefined,
@@ -205,7 +205,7 @@ export function serializeChordSheetText(sheet: ChordSheet, perRow = 4): string {
       const row = section.measures.slice(i, i + perRow);
       lines.push(`| ${row.map(measureText).join(" | ")} |`);
     }
-    if (section.measures.length === 0) lines.push("(no bars yet)");
+    if (section.measures.length === 0) lines.push(i18n.t("chordChart.noBarsYet"));
     if (section.notes.trim()) lines.push(section.notes.trim());
     return lines.join("\n");
   });

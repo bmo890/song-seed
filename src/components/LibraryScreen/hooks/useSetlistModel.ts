@@ -4,6 +4,7 @@ import { useStore } from "../../../state/useStore";
 import { AppAlert } from "../../common/AppAlert";
 import { createSetlistShareLink, shareSetlist } from "../../../services/setlistShare";
 import { openSendSheet } from "../../../state/useSendSheetStore";
+import { ensurePro } from "../../common/proUpsell";
 import {
   buildSetlistQueue,
   getSetlistDurationMs,
@@ -165,6 +166,9 @@ export function useSetlistModel() {
     handleBack,
     openSetlist: (id: string) => setSelectedSetlistId(id),
     openCreate: () => {
+      // Creating a setlist is a stage tool (domain/proCatalog.ts); received and
+      // existing sets open as before.
+      if (!ensurePro("stage-tools")) return;
       setDraftTitle("");
       setCreateModalOpen(true);
     },
@@ -201,7 +205,7 @@ export function useSetlistModel() {
       if (!activeSetlist) return;
       useStore.getState().startLibraryCollecting("setlist", activeSetlist.id, activeSetlist.title);
       setBuilder(null);
-      navigation.navigate("WorkspaceStack", { screen: "Browse", params: undefined });
+      navigation.navigate("WorkspaceStack", { screen: "Browse", params: undefined, pop: true });
     },
 
     /** Open an entry's packaged song folder. */

@@ -3,13 +3,13 @@ import * as FileSystem from "expo-file-system/legacy";
 
 /**
  * SQLite is the authoritative on-device persistence for SongNook. The library snapshot
- * lives in `kv`; `media_inventory` mirrors every referenced audio path for the integrity
- * scanner; `app_meta` tracks the schema version; `migration_journal` is an audit trail.
+ * lives in `kv`; `app_meta` tracks the schema version; `migration_journal` is an audit
+ * trail. (The integrity scanner lists the filesystem itself; it has no table here.)
  *
  * AsyncStorage is retained as an automatic fallback (see storage.ts) so a SQLite failure
  * can never strand the user's data. Full per-entity normalization is a deliberate
  * follow-on — this layer first delivers atomic writes, an unbounded store, schema
- * versioning, and the media inventory without rewriting every mutation.
+ * versioning without rewriting every mutation.
  */
 
 export const DB_NAME = "songnook.db";
@@ -49,12 +49,6 @@ function bootstrap(database: SQLiteDatabase) {
         CREATE TABLE IF NOT EXISTS kv (
             key TEXT PRIMARY KEY NOT NULL,
             value TEXT NOT NULL,
-            updated_at INTEGER
-        );
-        CREATE TABLE IF NOT EXISTS media_inventory (
-            path TEXT PRIMARY KEY NOT NULL,
-            kind TEXT,
-            ref_id TEXT,
             updated_at INTEGER
         );
         CREATE TABLE IF NOT EXISTS migration_journal (

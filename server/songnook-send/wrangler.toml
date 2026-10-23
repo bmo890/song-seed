@@ -26,7 +26,8 @@ DRAFT_EXPIRY_HOURS = "24"
 # Anti-abuse: browser origins allowed to call the write API (the app sends no
 # Origin and is allowed; PUBLIC_ORIGIN + localhost are always trusted).
 ALLOWED_WEB_ORIGINS = ""
-# Per-IP write rate limits (fixed 1-hour window).
+# Per-IP write rate limits for the KV FALLBACK (fixed 1-hour window) — only used
+# when the ratelimit bindings below are absent (local dev).
 RATE_CREATE_PER_HOUR = "30"
 RATE_ITEMS_PER_HOUR = "300"
 # Store links for the mobile-without-app install funnel.
@@ -60,9 +61,28 @@ database_name = "songnook_send"
 database_id = "6c31073c-ee89-4d9d-b88c-3f307000935d"
 migrations_dir = "migrations"
 
-# ── KV binding: per-IP rate limiting (create + upload). ──────────────────────
-# Create with `wrangler kv namespace create RATE` and paste the id below.
-# If absent, rate limiting fails open (dev) — bind it before going public.
+# ── Rate Limiting bindings: per-IP limits on create + upload (production) ────
+# Atomic per colo (a KV counter is a racy read-modify-write — see lib/guard.ts).
+# `period` may only be 10 or 60 seconds; the hourly vars above size the KV
+# fallback only. Nothing to create: the bindings exist once deployed.
+# `namespace_id` is an arbitrary integer, unique per binding within the account.
+[[unsafe.bindings]]
+name = "RATE_CREATE"
+type = "ratelimit"
+namespace_id = "1001"
+simple = { limit = 5, period = 60 }
+
+[[unsafe.bindings]]
+name = "RATE_ITEMS"
+type = "ratelimit"
+namespace_id = "1002"
+# Above MAX_ITEMS_PER_TRANSFER (200): the app registers a loose-files link one
+# file at a time, so one legitimate send of short clips can need ~200 in a minute.
+simple = { limit = 240, period = 60 }
+
+# ── KV binding: rate-limit FALLBACK when the bindings above are absent ───────
+# (local dev). Create with `wrangler kv namespace create RATE`, paste the id.
+# With neither, rate limiting fails open.
 [[kv_namespaces]]
 binding = "RATE"
 id = "89a03d6d2b0a42a5bc9112c87f5ff7dc"

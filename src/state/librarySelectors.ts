@@ -66,6 +66,33 @@ export function getIdeaIndex(workspaces: Workspace[]): IdeaIndex {
   return index;
 }
 
+// Selection membership for list rows, built once per selection array: a `WeakMap`
+// keyed by the array itself (like the idea index above), so N selected rows cost one
+// Set per selection change instead of an `includes` walk per row per store
+// notification (selector audit D, 2026-10-22).
+const idSetByArray = new WeakMap<readonly string[], ReadonlySet<string>>();
+
+export function getIdSet(ids: readonly string[]): ReadonlySet<string> {
+  let set = idSetByArray.get(ids);
+  if (!set) {
+    set = new Set(ids);
+    idSetByArray.set(ids, set);
+  }
+  return set;
+}
+
+const ideaIdSetByPicks = new WeakMap<readonly { ideaId: string }[], ReadonlySet<string>>();
+
+/** The ideas a compilation basket holds, indexed once per `picks` array. */
+export function getPickedIdeaIdSet(picks: readonly { ideaId: string }[]): ReadonlySet<string> {
+  let set = ideaIdSetByPicks.get(picks);
+  if (!set) {
+    set = new Set(picks.map((pick) => pick.ideaId));
+    ideaIdSetByPicks.set(picks, set);
+  }
+  return set;
+}
+
 /** The idea by id — the same object while the idea is untouched, so a row subscribed
  *  through this re-renders only when ITS idea changes. With `preferWorkspaceId` the
  *  workspace's own copy wins should the same id exist in two workspaces. */

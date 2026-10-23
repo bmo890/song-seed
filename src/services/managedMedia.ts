@@ -1,6 +1,6 @@
 import * as FileSystem from "expo-file-system/legacy";
 import type { ClipVersion, SongIdea, Workspace } from "../types";
-import { planTrashRestores } from "../domain/trashRestore";
+import { parseTrashName, planTrashRestores } from "../domain/trashRestore";
 import { persistLog } from "./persistLog";
 import {
     isManagedPreviewAudioUri,
@@ -14,7 +14,6 @@ import {
 } from "./storagePaths";
 
 export const SHARE_TEMP_FILE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-export const MAX_IN_MEMORY_ARCHIVE_BYTES = 150 * 1024 * 1024;
 /** How long quarantined (deleted) audio is retained before it is permanently purged. */
 export const TRASH_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
 
@@ -222,8 +221,18 @@ export async function restoreReferencedFilesFromTrash(workspaces: Workspace[]): 
         const trashNames = await FileSystem.readDirectoryAsync(SONG_NOOK_TRASH_DIR);
         if (trashNames.length === 0) return 0;
 
+        // Only a reference whose filename sits in the trash can come back, so only
+        // those are stat'ed: the sweep stays O(trash), not O(library), on launch.
+        const trashedFilenames = new Set<string>();
+        for (const trashName of trashNames) {
+            const parsed = parseTrashName(trashName);
+            if (parsed) trashedFilenames.add(parsed.filename);
+        }
+        if (trashedFilenames.size === 0) return 0;
         const missing: string[] = [];
         for (const uri of collectReferencedManagedUris(workspaces)) {
+            const filename = uri.split("?")[0].split("/").pop() ?? "";
+            if (!trashedFilenames.has(filename)) continue;
             const info = await FileSystem.getInfoAsync(uri).catch(() => null);
             if (info && !info.exists) missing.push(uri);
         }

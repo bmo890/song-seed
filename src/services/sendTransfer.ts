@@ -11,13 +11,31 @@
  */
 import * as FileSystem from "expo-file-system/legacy";
 import { SEND_SERVICE_BASE_URL } from "../config/sendService";
+import { i18n } from "../i18n/instance";
 import type { ShareKind } from "../types";
 
+/** Why a transfer failed, for the alert; the English `message` (often a raw server
+ *  body) stays for logs. Mirrors `DrRestoreErrorCode` (sweep 2026-10-22, #8). */
+export type SendTransferErrorCode =
+  | "unreachable"
+  | "rejected"
+  | "uploadFailed"
+  | "uploadRejected"
+  | "invalidTransfer"
+  | "unsupportedItem"
+  | "tooLarge"
+  | "downloadFailed";
+
 export class SendTransferError extends Error {
-  constructor(message: string, readonly status?: number) {
+  constructor(message: string, readonly status?: number, readonly code: SendTransferErrorCode = "rejected") {
     super(message);
     this.name = "SendTransferError";
   }
+}
+
+/** Translated, user-facing sentence for a transfer failure. */
+export function describeSendTransferError(error: SendTransferError): string {
+  return i18n.t(`shareLink.sendError.${error.code}`, { status: error.status ?? "" });
 }
 
 export interface CreatedTransfer {
@@ -50,14 +68,16 @@ async function postJson<T>(path: string, body?: unknown): Promise<T> {
     });
   } catch (err) {
     throw new SendTransferError(
-      `Couldn't reach the transfer service (${(err as Error).message}).`
+      `Couldn't reach the transfer service (${(err as Error).message}).`,
+      undefined,
+      "unreachable"
     );
   } finally {
     clearTimeout(timeout);
   }
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
-    throw new SendTransferError(detail || `Request failed (${res.status}).`, res.status);
+    throw new SendTransferError(detail || `Request failed (${res.status}).`, res.status, "rejected");
   }
   return (await res.json()) as T;
 }
@@ -129,29 +149,36 @@ export async function registerAndUploadFile(
   options?.signal?.addEventListener("abort", onAbort);
 
   let uploadStatus: number;
+  // A truly hung socket is still bounded by an absolute ceiling — generous
+  // enough for a large file on a slow uplink, finite enough that a seal
+  // never runs forever. An abandoned draft is swept server-side within 24h.
+  // The task is cancelled on timeout (the bytes would otherwise keep flowing
+  // behind a failure) and the timer cleared on every exit (sweep #17).
+  const UPLOAD_CEILING_MS = 15 * 60 * 1000;
+  let ceiling: ReturnType<typeof setTimeout> | undefined;
   try {
-    // A truly hung socket is still bounded by an absolute ceiling — generous
-    // enough for a large file on a slow uplink, finite enough that a seal
-    // never runs forever. An abandoned draft is swept server-side within 24h.
-    const UPLOAD_CEILING_MS = 15 * 60 * 1000;
     const res = await Promise.race([
       task.uploadAsync(),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("upload timed out")), UPLOAD_CEILING_MS)
-      ),
+      new Promise<never>((_, reject) => {
+        ceiling = setTimeout(() => {
+          void task.cancelAsync().catch(() => {});
+          reject(new Error("upload timed out"));
+        }, UPLOAD_CEILING_MS);
+      }),
     ]);
     throwIfSendCancelled(options?.signal);
     if (!res) throw new SendCancelledError();
     uploadStatus = res.status;
   } catch (err) {
     if (err instanceof SendCancelledError || options?.signal?.aborted) throw new SendCancelledError();
-    throw new SendTransferError(`Upload failed (${(err as Error).message}).`);
+    throw new SendTransferError(`Upload failed (${(err as Error).message}).`, undefined, "uploadFailed");
   } finally {
+    if (ceiling !== undefined) clearTimeout(ceiling);
     options?.signal?.removeEventListener("abort", onAbort);
   }
   options?.onProgress?.(file.size, file.size);
   if (uploadStatus < 200 || uploadStatus >= 300) {
-    throw new SendTransferError(`Upload rejected (${uploadStatus}).`, uploadStatus);
+    throw new SendTransferError(`Upload rejected (${uploadStatus}).`, uploadStatus, "uploadRejected");
   }
   return item.itemId;
 }

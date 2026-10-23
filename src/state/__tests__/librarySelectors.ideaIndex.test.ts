@@ -1,5 +1,5 @@
 import type { SongIdea, Workspace } from "../../types";
-import { getIdeaIndex, selectIdeaById } from "../librarySelectors";
+import { getIdSet, getIdeaIndex, getPickedIdeaIdSet, selectIdeaById } from "../librarySelectors";
 
 const idea = (id: string, title = id): SongIdea => ({ id, title, clips: [] } as unknown as SongIdea);
 const ws = (id: string, ideas: SongIdea[]): Workspace => ({ id, ideas } as unknown as Workspace);
@@ -39,5 +39,25 @@ describe("selectIdeaById", () => {
         expect(selectIdeaById(workspaces, "dup")).toBe(first);
         expect(selectIdeaById(workspaces, "dup", "w2")).toBe(second);
         expect(selectIdeaById(workspaces, "dup", "w9")).toBe(first);
+    });
+});
+
+describe("getIdSet / getPickedIdeaIdSet", () => {
+    it("builds one Set per selection array identity and answers membership", () => {
+        const selected = ["a", "b"];
+        expect(getIdSet(selected).has("a")).toBe(true);
+        expect(getIdSet(selected).has("c")).toBe(false);
+        expect(getIdSet(selected)).toBe(getIdSet(selected));
+        // A new selection (any toggle) is a new array, so a new Set.
+        const next = [...selected, "c"];
+        expect(getIdSet(next)).not.toBe(getIdSet(selected));
+        expect(getIdSet(next).has("c")).toBe(true);
+    });
+
+    it("indexes a collector's picks by idea id once per picks array", () => {
+        const picks = [{ ideaId: "a" }, { ideaId: "b" }];
+        expect(getPickedIdeaIdSet(picks).has("b")).toBe(true);
+        expect(getPickedIdeaIdSet(picks).has("z")).toBe(false);
+        expect(getPickedIdeaIdSet(picks)).toBe(getPickedIdeaIdSet(picks));
     });
 });

@@ -185,20 +185,18 @@ export async function getStorageDetailsReport(snapshot: PersistedAppStore): Prom
 
     if (unmanagedAudioReferences.totalReferences > 0) {
         limitations.push(
-            `${unmanagedAudioReferences.totalReferences} audio reference${unmanagedAudioReferences.totalReferences === 1 ? " points" : "s point"} outside SongNook's managed live-library storage and ${unmanagedAudioReferences.totalReferences === 1 ? "is" : "are"} excluded from the total library storage figure.`
+            i18n.t("settingsStorage.noteUnmanaged", { count: unmanagedAudioReferences.totalReferences })
         );
     }
 
     if (unmanagedAudioReferences.missingCount > 0) {
         limitations.push(
-            `${unmanagedAudioReferences.missingCount} external audio reference${unmanagedAudioReferences.missingCount === 1 ? " could" : "s could"} not be measured because the file is unavailable or inaccessible.`
+            i18n.t("settingsStorage.noteUnmeasured", { count: unmanagedAudioReferences.missingCount })
         );
     }
 
     if (supportingDataBytes > 0) {
-        limitations.push(
-            "Workspace metadata is separated from shared library state where possible. Supporting data such as activity history and preferences is included under library data."
-        );
+        limitations.push(i18n.t("settingsStorage.noteSupporting"));
     }
 
     return {

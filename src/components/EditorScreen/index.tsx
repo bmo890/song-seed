@@ -17,6 +17,7 @@ import { appActions } from "../../state/actions";
 import { AudioReel } from "../common/AudioReel";
 import { TransportBar } from "../common/TransportBar";
 import { EmptyState } from "../common/EmptyState";
+import { ensurePro } from "../common/proUpsell";
 import { useClipWaveform } from "../../hooks/useClipWaveform";
 import { loadAudioDurationMs } from "../../services/audioStorage";
 import { activatePlaybackAudioSession } from "../../services/audioSession";
@@ -620,6 +621,7 @@ export function EditorScreen() {
                                 value={editorMode === "transform" ? "transform" : editMode}
                                 onChange={(key) => {
                                     if (key === "transform") {
+                                        if (!ensurePro("full-editor")) return;
                                         setEditorMode("transform");
                                         return;
                                     }

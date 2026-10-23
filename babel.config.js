@@ -9,6 +9,5 @@ module.exports = function (api) {
         plugins: [["transform-remove-console", { exclude: ["error", "warn"] }]],
       },
     },
-    plugins: ["react-native-reanimated/plugin"],
   };
 };

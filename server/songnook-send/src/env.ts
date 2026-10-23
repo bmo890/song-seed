@@ -6,7 +6,12 @@ export interface Env {
   // Bindings
   DB: D1Database;
   BUCKET: R2Bucket;
-  /** KV for per-IP rate limiting. Optional — fail-open when absent (dev). */
+  /** Workers Rate Limiting bindings (atomic per colo) — the production per-IP
+   *  limiter, one per write bucket. Optional so local dev falls back to KV. */
+  RATE_CREATE?: RateLimit;
+  RATE_ITEMS?: RateLimit;
+  /** KV fallback for per-IP rate limiting when the bindings above are absent.
+   *  Optional — fail-open when absent (dev). */
   RATE?: KVNamespace;
 
   // Public, non-secret vars (from wrangler.toml [vars]) — safe everywhere.
@@ -22,7 +27,7 @@ export interface Env {
   R2_BUCKET: string;
   /** Comma-separated browser origins allowed to call the write API. */
   ALLOWED_WEB_ORIGINS?: string;
-  /** Per-IP write limits (fixed window). */
+  /** Per-IP write limits for the KV fallback (fixed window). */
   RATE_CREATE_PER_HOUR?: string;
   RATE_ITEMS_PER_HOUR?: string;
 

@@ -10,6 +10,7 @@ import { EmptyState } from "../../common/EmptyState";
 import { SelectionTopBar } from "../../common/SelectionTopBar";
 import { SelectionDock, type SelectionAction } from "../../common/SelectionDock";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
+import { ensurePro } from "../../common/proUpsell";
 import { DockAddBadgeIcon } from "../../common/dockIcons";
 import { AppAlert } from "../../common/AppAlert";
 import { NoteEditor } from "./NoteEditor";
@@ -36,6 +37,7 @@ import {
   deriveNotePreviewTitle,
 } from "../../../domain/notepad";
 import { i18n } from "../../../i18n/instance";
+import { currentFormatLocale } from "../../../i18n/formatLocale";
 
 function formatRelativeDate(ts: number, t: ReturnType<typeof useTranslation>["t"]) {
   const now = Date.now();
@@ -46,7 +48,8 @@ function formatRelativeDate(ts: number, t: ReturnType<typeof useTranslation>["t"
   if (diffDays === 1) return t("notepad.yesterday");
   if (diffDays < 7) return t("notepad.daysAgo", { count: diffDays });
 
-  return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  // The app's language, not the device's (a Hebrew UI on an English phone).
+  return new Date(ts).toLocaleDateString(currentFormatLocale(), { month: "short", day: "numeric" });
 }
 
 type NoteItemProps = {
@@ -358,6 +361,12 @@ export function NotepadScreenContent() {
   } = useNotepadScreenModel();
   const [moreVisible, setMoreVisible] = useState(false);
   const [sparkSheetVisible, setSparkSheetVisible] = useState(false);
+  // Starting a spark is Lyric Spark (domain/proCatalog.ts "lyric-spark"); sparks already
+  // made stay open and editable.
+  const openSparkSheet = () => {
+    if (!ensurePro("lyric-spark")) return;
+    setSparkSheetVisible(true);
+  };
   // The route fixes the room: SparkHome renders this screen in sparks mode.
   const isSparkPage = activeTab === "sparks";
 
@@ -519,7 +528,7 @@ export function NotepadScreenContent() {
               accessibilityRole="button"
               accessibilityLabel={t(isSparkPage ? "notepad.lyricsSpark" : "notepad.newPage")}
               style={listStyles.newBtn}
-              onPress={isSparkPage ? () => setSparkSheetVisible(true) : handleNewNote}
+              onPress={isSparkPage ? openSparkSheet : handleNewNote}
               hitSlop={4}
             >
               <Ionicons name="add" size={22} color={colors.textStrong} />
@@ -536,7 +545,7 @@ export function NotepadScreenContent() {
             title={t(isSparkPage ? "notepad.noSparks" : "notepad.blankPage")}
             body={t(isSparkPage ? "notepad.noSparksHint" : "notepad.looseLines")}
             actionLabel={t(isSparkPage ? "notepad.startSpark" : "notepad.writeSomething")}
-            onAction={isSparkPage ? () => setSparkSheetVisible(true) : handleNewNote}
+            onAction={isSparkPage ? openSparkSheet : handleNewNote}
           />
         </View>
       ) : (
@@ -805,8 +814,8 @@ const noteStyles = StyleSheet.create({
     borderColor: colors.primary,
   },
   matchText: {
-    backgroundColor: "#f0d4cc",
-    color: "#5c2d1e",
+    backgroundColor: colors.primarySurface,
+    color: colors.primaryDeep,
     fontFamily: "PlusJakartaSans_700Bold",
   },
   ladderCard: {

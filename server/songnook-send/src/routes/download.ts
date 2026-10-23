@@ -10,7 +10,7 @@
 import { Hono } from "hono";
 import type { Env } from "../env";
 import { getItem, getTransfer, incrementDownload } from "../lib/db";
-import { NOINDEX, transferUsable } from "../lib/http";
+import { NOINDEX, attachmentDisposition, transferUsable } from "../lib/http";
 
 export const download = new Hono<{ Bindings: Env }>();
 
@@ -41,12 +41,10 @@ download.get("/:id/dl/:itemId", async (c) => {
   const headers = new Headers();
   headers.set("content-type", item.mime_type || "application/octet-stream");
   headers.set("accept-ranges", "bytes");
+  headers.set("x-content-type-options", "nosniff");
   headers.set("x-robots-tag", NOINDEX);
   headers.set("cache-control", "private, no-store");
-  headers.set(
-    "content-disposition",
-    `attachment; filename="${sanitizeFilename(item.file_name)}"`
-  );
+  headers.set("content-disposition", attachmentDisposition(item.file_name));
   if (object.httpEtag) headers.set("etag", object.httpEtag);
 
   if (range) {
@@ -86,8 +84,4 @@ function parseRange(header: string | undefined, size: number): R2Range | null {
   const end = endStr === "" ? size - 1 : Math.min(Number(endStr), size - 1);
   if (end < start) return null;
   return { offset: start, length: end - start + 1 };
-}
-
-function sanitizeFilename(name: string): string {
-  return name.replace(/[\r\n"\\]/g, "_").slice(0, 200) || "file";
 }

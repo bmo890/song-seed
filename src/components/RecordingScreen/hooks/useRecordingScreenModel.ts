@@ -315,6 +315,11 @@ export function useRecordingScreenModel() {
   /** True while the running take's changes are scheduled by the native map engine. */
   const takeUsesNativeMapRef = useRef(false);
   const countInPendingRef = useRef(false);
+  // The metronome's completion token only ever counts up and is never reset, so after a
+  // Redo the completion effect would otherwise see last take's token and fire at once
+  // (before the native count-in has even started). Remember the token at arm time and
+  // only act once it moves past it.
+  const countInTokenAtArmRef = useRef(0);
   const countInModeRef = useRef<"start" | "resume">("start");
   const initializedMetronomeRef = useRef(false);
   const pendingOverdubSaveRef = useRef<{ ideaId: string; clipId: string; title: string } | null>(null);
@@ -1874,7 +1879,7 @@ export function useRecordingScreenModel() {
   }, [metronome.isCountIn, metronome.isRunning, recording.isPaused, recording.isRecording]);
 
   useEffect(() => {
-    if (!countInPendingRef.current || metronome.countInCompletionToken === 0) {
+    if (!countInPendingRef.current || metronome.countInCompletionToken === countInTokenAtArmRef.current) {
       return;
     }
 
@@ -2182,6 +2187,7 @@ export function useRecordingScreenModel() {
         recording.armHeadTrim();
 
         countInModeRef.current = "start";
+        countInTokenAtArmRef.current = metronome.countInCompletionToken;
         countInPendingRef.current = true;
         // Map-capable binaries schedule the take's tempo/meter changes natively
         // (sample-exact, seamless); the JS boundary scheduler stays as the fallback.
@@ -2580,6 +2586,7 @@ export function useRecordingScreenModel() {
           await new Promise((resolve) => setTimeout(resolve, 180));
         }
         countInModeRef.current = "resume";
+        countInTokenAtArmRef.current = metronome.countInCompletionToken;
         countInPendingRef.current = true;
         await metronome.startCountIn(metronome.countInBars, {
           manageAudioSession: false,

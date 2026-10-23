@@ -114,6 +114,8 @@ export function TransferReceiveScreen() {
   phaseRef.current = phase;
   const startedRef = useRef(false);
   const abortRef = useRef(false);
+  // Stop cancels the download in flight, not just the loop after it (sweep #12).
+  const abortControllerRef = useRef<AbortController | null>(null);
   const preview = useParcelPreview();
 
   const alreadyReceived = useCallback(
@@ -162,6 +164,7 @@ export function TransferReceiveScreen() {
         t("transferReceive.stopSavingBody"),
         () => {
           abortRef.current = true;
+          abortControllerRef.current?.abort();
           navigation.dispatch(event.data.action);
         },
         { confirmLabel: t("transferReceive.stop") }
@@ -179,6 +182,8 @@ export function TransferReceiveScreen() {
     if (startedRef.current) return;
     startedRef.current = true;
     abortRef.current = false;
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
     preview.stop();
     haptic.tap();
 
@@ -203,8 +208,10 @@ export function TransferReceiveScreen() {
       for (let index = 0; index < transfer.items.length; index++) {
         const item = transfer.items[index]!;
         setPhase({ kind: "saving", transfer, itemIndex: index, itemFraction: 0 });
-        const localUri = await downloadTransferItem(item, (fraction) =>
-          setPhase({ kind: "saving", transfer, itemIndex: index, itemFraction: fraction })
+        const localUri = await downloadTransferItem(
+          item,
+          (fraction) => setPhase({ kind: "saving", transfer, itemIndex: index, itemFraction: fraction }),
+          { signal: abortController.signal }
         );
         if (abortRef.current) throw new Error("aborted");
 
@@ -244,10 +251,11 @@ export function TransferReceiveScreen() {
           )
         );
         const batcher = createClipImportBatcher({ collectionId, workspaceId });
-        // Four downloads run at once and finish in any order; the parcel's
-        // order is the sender's order (a set, a running order), so clips are
-        // added by parcel index after the batch, each stamped one tick apart —
-        // a whole chunk used to share one millisecond and land shuffled.
+        // Downloads run one after another, but the import batch finishes in
+        // any order; the parcel's order is the sender's order (a set, a running
+        // order), so clips are added by parcel index after the batch, each
+        // stamped one tick apart — a whole chunk used to share one millisecond
+        // and land shuffled.
         const audioImport = await importAudioAssets(
           assets,
           (_asset, idx) => `audio-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 9)}`,
@@ -360,6 +368,15 @@ export function TransferReceiveScreen() {
       for (const workspaceId of partialIds) {
         useStore.getState().deleteWorkspace(workspaceId);
       }
+      // A compilation an earlier .songnook item in this parcel created (a setlist,
+      // a chart book, a playlist) goes too: deleteWorkspace only prunes playlist
+      // ITEMS of the removed workspace, never the compilation itself.
+      const state = useStore.getState();
+      const fromThisParcel = (entity: { received?: { transferId?: string | null } }) =>
+        entity.received?.transferId === transfer.transferId;
+      state.setlists.filter(fromThisParcel).forEach((setlist) => state.deleteSetlist(setlist.id));
+      state.songbooks.filter(fromThisParcel).forEach((songbook) => state.deleteSongbook(songbook.id));
+      state.playlists.filter(fromThisParcel).forEach((playlist) => state.deletePlaylist(playlist.id));
       if (abortRef.current) return; // the user chose to leave; no failure to report
       // The reason goes to the console (and to the diagnostics bundle's log);
       // the page keeps its one calm sentence.

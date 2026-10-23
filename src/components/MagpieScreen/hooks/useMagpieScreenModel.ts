@@ -114,6 +114,13 @@ export function useMagpieScreenModel() {
   const newPage = useCallback(() => void load("page"), [load]);
   const retry = useCallback(() => void load(spark?.book ? "page" : "book"), [load, spark?.book]);
 
+  // The drawer reuses this screen for every spark (freezeOnBlur, no key), so the
+  // auto-load guard and a previous spark's error must not outlive the spark.
+  useEffect(() => {
+    autoLoadedRef.current = false;
+    setStatus({ loading: false, error: null });
+  }, [sparkId]);
+
   // First open (or a spark whose page never loaded): pull a page automatically.
   useEffect(() => {
     if (!spark || autoLoadedRef.current) return;
@@ -163,6 +170,12 @@ export function useMagpieScreenModel() {
     [apply]
   );
   const fragmentHistory = useUndoHistory(spark?.fragments ?? [], restoreFragments);
+  // The drawer screen is reused across sparks (freezeOnBlur), so the last
+  // spark's snapshots must not be undone onto this one.
+  const clearFragmentHistory = fragmentHistory.clear;
+  useEffect(() => {
+    clearFragmentHistory();
+  }, [sparkId, clearFragmentHistory]);
 
   // ── Collecting words ────────────────────────────────────────────────────────
   const pocketPhrases = useCallback(
@@ -235,12 +248,15 @@ export function useMagpieScreenModel() {
     [spark, apply]
   );
 
+  // Runs on the field's pause or close (useDraftText), possibly after another
+  // write landed, so it reads the store rather than the render's closure.
   const editFragment = useCallback(
     (id: string, text: string) => {
-      if (!spark) return;
-      apply({ fragments: editFragmentText(spark.fragments, id, text) });
+      const current = useStore.getState().magpieSparks.find((item) => item.id === sparkId);
+      if (!current) return;
+      apply({ fragments: editFragmentText(current.fragments, id, text) });
     },
-    [spark, apply]
+    [sparkId, apply]
   );
 
   const reorder = useCallback(

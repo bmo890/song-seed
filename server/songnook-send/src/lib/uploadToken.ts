@@ -42,16 +42,15 @@ function tokenFromRequest(c: Context<{ Bindings: Env }>, body: Record<string, un
 }
 
 /**
- * Legacy rows created before migration have no token hash. They are allowed so
- * in-flight drafts can still finish during a rolling deploy; every new transfer
- * gets a hash and requires the token.
+ * Every transfer gets a hash at create and requires the token. A row with no
+ * hash (pre-migration 0002; all long expired) is unfinishable — never a bypass.
  */
 export async function uploadTokenValid(
   c: Context<{ Bindings: Env }>,
   transfer: TransferRow,
   body: Record<string, unknown>
 ): Promise<boolean> {
-  if (!transfer.upload_token_hash) return true;
+  if (!transfer.upload_token_hash) return false;
   const token = tokenFromRequest(c, body);
   if (!token) return false;
   return constantTimeEqual(await hashUploadToken(token), transfer.upload_token_hash);

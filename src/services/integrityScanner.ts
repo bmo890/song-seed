@@ -1,4 +1,5 @@
 import * as FileSystem from "expo-file-system/legacy";
+import { i18n } from "../i18n/instance";
 import type { Playlist, SongIdea, Workspace } from "../types";
 import { SONG_NOOK_AUDIO_DIR } from "./storagePaths";
 import {
@@ -189,25 +190,35 @@ export async function scanLibraryIntegrity(
     };
 }
 
-/** A short human-readable summary of a report, grouped by issue type. */
+/** Translation key suffix per issue type (`settingsStorage.issueKind.*`). */
+const ISSUE_KIND_KEYS: Record<IntegrityIssue["type"], string> = {
+    "duplicate-id": "duplicateId",
+    "lineage-cycle": "lineageCycle",
+    "dangling-parent": "danglingParent",
+    "dangling-group-assignment": "danglingGroup",
+    "missing-primary": "missingPrimary",
+    "multiple-primary": "multiplePrimary",
+    "dangling-playlist-item": "danglingPlaylistItem",
+    "missing-file": "missingFile",
+    "orphan-file": "orphanFile",
+};
+
+/** A short translated summary of a report: counts per issue type, never the list. */
 export function summarizeIntegrityReport(report: IntegrityReport): string {
     if (report.ok) {
-        return `No problems found across ${report.counts.ideas} item${report.counts.ideas === 1 ? "" : "s"} and ${report.counts.clips} clip${report.counts.clips === 1 ? "" : "s"}.`;
+        return i18n.t("settingsStorage.integrityOk", {
+            ideas: report.counts.ideas,
+            clips: report.counts.clips,
+        });
     }
-    const byType = new Map<string, number>();
+    const byType = new Map<IntegrityIssue["type"], number>();
     for (const issue of report.issues) byType.set(issue.type, (byType.get(issue.type) ?? 0) + 1);
-    const labels: Record<IntegrityIssue["type"], string> = {
-        "duplicate-id": "duplicate ID",
-        "lineage-cycle": "lineage cycle",
-        "dangling-parent": "broken parent link",
-        "dangling-group-assignment": "broken group assignment",
-        "missing-primary": "missing primary take",
-        "multiple-primary": "multiple primary takes",
-        "dangling-playlist-item": "broken playlist entry",
-        "missing-file": "missing audio file",
-        "orphan-file": "orphaned audio file",
-    };
     return Array.from(byType.entries())
-        .map(([type, count]) => `${count} ${labels[type as IntegrityIssue["type"]]}${count === 1 ? "" : "s"}`)
+        .map(([type, count]) =>
+            i18n.t("settingsStorage.issueCount", {
+                count,
+                issue: i18n.t(`settingsStorage.issueKind.${ISSUE_KIND_KEYS[type]}`),
+            })
+        )
         .join(", ");
 }

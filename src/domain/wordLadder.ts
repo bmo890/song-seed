@@ -10,21 +10,6 @@ function randomId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-/** Column A is always the role's verbs; column B is always the room's nouns. */
-export const COLUMN_A_LABEL = "Verbs";
-export const COLUMN_B_LABEL = "Nouns";
-
-export const ROLE_SEED_PLACEHOLDER = "e.g. doctor";
-export const PLACE_SEED_PLACEHOLDER = "e.g. bedroom";
-
-export function getColumnAPlaceholder(_roleSeed: string) {
-  return "Add a verb";
-}
-
-export function getColumnBPlaceholder(_placeSeed: string) {
-  return "Add a noun";
-}
-
 export function deriveExerciseTitle(roleSeed: string, placeSeed: string) {
   const role = roleSeed.trim();
   const place = placeSeed.trim();

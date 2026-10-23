@@ -319,6 +319,17 @@ export class WordLookupBusyError extends Error {
   }
 }
 
+/** Parses the body while the caller's timer still runs: a read that times out
+ * is "offline", like a connect that does; the caller's own abort passes through. */
+async function readBodyJson(response: Response, timer: AbortSignal, signal?: AbortSignal): Promise<unknown> {
+  try {
+    return await response.json();
+  } catch (error) {
+    if (!timer.aborted || signal?.aborted) throw error;
+    throw new WordLookupOfflineError();
+  }
+}
+
 /** Shared fetch: timeout, external-abort passthrough, and the offline mapping. */
 async function fetchWordServiceJson(url: string, signal?: AbortSignal): Promise<unknown> {
   const timeoutController = new AbortController();
@@ -326,19 +337,22 @@ async function fetchWordServiceJson(url: string, signal?: AbortSignal): Promise<
   const abort = () => timeoutController.abort();
   signal?.addEventListener("abort", abort);
 
-  let response: Response;
   try {
-    response = await fetch(url, { signal: timeoutController.signal });
-  } catch (error) {
-    if (signal?.aborted) throw error;
-    throw new WordLookupOfflineError();
+    let response: Response;
+    try {
+      response = await fetch(url, { signal: timeoutController.signal });
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      throw new WordLookupOfflineError();
+    }
+    if (!response.ok) throw new Error(`Word lookup failed (${response.status})`);
+    // The body read stays under the timer (2026-10-23): headers that arrive and
+    // a body that stalls used to hang here for good once the timer was cleared.
+    return await readBodyJson(response, timeoutController.signal, signal);
   } finally {
     clearTimeout(timeout);
     signal?.removeEventListener("abort", abort);
   }
-
-  if (!response.ok) throw new Error(`Word lookup failed (${response.status})`);
-  return response.json();
 }
 
 // Session-scoped cache: rhymes/synonyms for a word never change, so repeat lookups
@@ -387,6 +401,9 @@ async function readPersistent<T>(key: string, parse: (raw: unknown) => T): Promi
 }
 
 function writePersistent(key: string, value: unknown) {
+  // An empty answer stays in memory for the session only: a model hiccup or an
+  // upstream outage must not make a word "No matches" on this device for good.
+  if (Array.isArray(value) && value.length === 0) return;
   try {
     void persistentStore?.set(key, JSON.stringify(value));
   } catch {
@@ -452,25 +469,27 @@ async function postWordHeJson(path: string, body: unknown, signal?: AbortSignal)
   const abort = () => timeoutController.abort();
   signal?.addEventListener("abort", abort);
 
-  let response: Response;
   try {
-    response = await fetch(`${WORD_HE_SERVICE_BASE_URL}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify(body),
-      signal: timeoutController.signal,
-    });
-  } catch (error) {
-    if (signal?.aborted) throw error;
-    throw new WordLookupOfflineError();
+    let response: Response;
+    try {
+      response = await fetch(`${WORD_HE_SERVICE_BASE_URL}${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(body),
+        signal: timeoutController.signal,
+      });
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      throw new WordLookupOfflineError();
+    }
+    if (response.status === 429) throw new WordLookupBusyError();
+    if (!response.ok) throw new Error(`Hebrew word lookup failed (${response.status})`);
+    // The body read stays under the timer, as in fetchWordServiceJson.
+    return await readBodyJson(response, timeoutController.signal, signal);
   } finally {
     clearTimeout(timeout);
     signal?.removeEventListener("abort", abort);
   }
-
-  if (response.status === 429) throw new WordLookupBusyError();
-  if (!response.ok) throw new Error(`Hebrew word lookup failed (${response.status})`);
-  return response.json();
 }
 
 /** Adapt the worker's { words: [{ word, syllables, tag? }] } to WordSuggestion[].

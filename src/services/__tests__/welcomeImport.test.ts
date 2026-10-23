@@ -122,6 +122,15 @@ describe("runWelcomeImport", () => {
         expect(mockCreateBatcher).toHaveBeenCalledWith({ collectionId: "col-imported", workspaceId: "ws-1" });
     });
 
+    it("reuses the collection made under the other app language", async () => {
+        // The title is translated; a library started in Hebrew must still be found.
+        mockWorkspaces = [workspace([{ id: "col-imported-he", title: "מיובאים" }])];
+        mockPickAudioFiles.mockResolvedValue([asset("memo1.m4a")]);
+        await runWelcomeImport(() => {});
+        expect(mockAddCollection).not.toHaveBeenCalled();
+        expect(mockCreateBatcher).toHaveBeenCalledWith({ collectionId: "col-imported-he", workspaceId: "ws-1" });
+    });
+
     it("silently skips exact duplicates and reports the skip count", async () => {
         const fresh = asset("new.m4a");
         const dupe = asset("dupe.m4a");

@@ -130,90 +130,6 @@ export const pd = StyleSheet.create({
     paddingBottom: 10,
   },
 
-  // ---- inspector ----
-  inspector: {
-    paddingHorizontal: 10,
-    gap: 9,
-  },
-  edgesRow: {
-    alignItems: "center",
-    gap: 8,
-  },
-  edgeChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    height: 34,
-    paddingHorizontal: 12,
-    borderRadius: radii.lg,
-    backgroundColor: "rgba(255,255,255,0.6)",
-    borderWidth: 1,
-    borderColor: "transparent",
-  },
-  edgeChipActive: {
-    backgroundColor: colors.surface,
-    borderColor: colors.primary,
-  },
-  edgeChipLabel: {
-    ...text.annotation,
-    fontSize: 9,
-    color: colors.textSecondary,
-  },
-  edgeChipLabelActive: {
-    color: colors.primaryDeep,
-  },
-  edgeChipTime: {
-    ...text.body,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontVariant: ["tabular-nums"],
-  },
-  edgeArrow: {
-    ...text.supporting,
-    color: colors.textMuted,
-  },
-  hintRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  usePlayheadBtn: {
-    marginLeft: "auto",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    height: 32,
-    paddingHorizontal: 10,
-    borderRadius: radii.lg,
-    backgroundColor: "rgba(255,255,255,0.6)",
-  },
-  usePlayheadText: {
-    ...text.caption,
-    color: colors.primaryDeep,
-  },
-  dragRow: {
-    alignItems: "center",
-    gap: 8,
-  },
-  dragSlider: {
-    flex: 1,
-    height: 32,
-  },
-  nudgeBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: radii.round,
-    backgroundColor: "rgba(255,255,255,0.72)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  inspectorHint: {
-    ...text.annotation,
-    flexShrink: 1,
-    fontSize: 9.5,
-    letterSpacing: 0.4,
-    textTransform: "none",
-    color: colors.textMuted,
-  },
   selectedHeadActions: {
     flexDirection: "row",
     alignItems: "center",
@@ -296,9 +212,6 @@ export const pd = StyleSheet.create({
     minHeight: 46,
     paddingHorizontal: 10,
   },
-  rowInCard: {
-    paddingTop: 2,
-  },
   rowLabel: {
     ...text.body,
     fontFamily: "PlusJakartaSans_600SemiBold",
@@ -307,10 +220,6 @@ export const pd = StyleSheet.create({
     ...text.supporting,
     marginLeft: "auto",
     fontVariant: ["tabular-nums"],
-  },
-  // Step up rides the loop; its switch dims when there is no loop to count.
-  stepUpSwitchDisabled: {
-    opacity: 0.4,
   },
   // ---- step up's own progress line, under the row ----
   stepUpProgressRow: {
@@ -393,27 +302,6 @@ export const pd = StyleSheet.create({
     fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.primaryDeep,
   },
-  stepUpValueRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    marginLeft: "auto",
-    // Shrinks before the icons and switch do — a long saved-plan name truncates
-    // rather than pushing them off the row's edge.
-    flexShrink: 1,
-    minWidth: 0,
-  },
-  stepUpPlanName: {
-    ...text.supporting,
-    color: colors.textSecondary,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    flexShrink: 1,
-  },
-  stepUpClimb: {
-    ...text.supporting,
-    color: colors.textMuted,
-    fontVariant: ["tabular-nums"],
-  },
   // Between the practice dials and the take's sound: a hairline, with the room's
   // own side inset, and air either side so the knob never crowds the pitch rail.
   soundDivider: {
@@ -446,12 +334,6 @@ export const pd = StyleSheet.create({
     paddingHorizontal: 10,
     paddingTop: 8,
     paddingBottom: 2,
-  },
-  inkOptionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 20,
-    marginLeft: "auto",
   },
   inkOption: {
     flexDirection: "row",
@@ -499,48 +381,6 @@ export const pd = StyleSheet.create({
     fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.primaryDeep,
   },
-  note: {
-    ...text.supporting,
-    fontSize: 11.5,
-    color: colors.textMuted,
-    paddingHorizontal: 10,
-  },
 
-  // ---- sound ----
-  // (speed + pitch dials live in common/SpeedPitchDials — shared with the editor)
-  ghostRow: {
-    borderWidth: 1,
-    borderStyle: "dashed",
-    borderColor: colors.borderMuted,
-    borderRadius: radii.lg,
-    minHeight: 44,
-    marginHorizontal: 10,
-    paddingHorizontal: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
 
-  // ---- record a layer ----
-  recordLayerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.borderSubtle,
-    marginTop: 2,
-  },
-  recordLayerDot: {
-    width: 8,
-    height: 8,
-    borderRadius: radii.round,
-    backgroundColor: colors.record,
-  },
-  recordLayerText: {
-    ...text.caption,
-    fontSize: 13,
-    color: colors.primaryDeep,
-  },
 });

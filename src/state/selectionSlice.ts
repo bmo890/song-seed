@@ -51,11 +51,6 @@ export type SelectionSlice = {
     cancelLibraryCollecting: () => void;
 
     clipClipboard: ClipClipboard | null;
-    startClipboardFromList: (mode: "copy" | "move") => void;
-    startClipboardFromProject: (mode: "copy" | "move") => void;
-    pasteClipboardToProject: (projectId: string) => Promise<string[]>;
-    pasteClipboardToCollection: (collectionId: string) => Promise<string[]>;
-    pasteClipboardToWorkspace: (workspaceId: string) => Promise<string[]>;
     setClipClipboard: (v: ClipClipboard | null) => void;
     cancelClipboard: () => void;
 
@@ -141,22 +136,7 @@ export const createSelectionSlice: StateCreator<
     cancelLibraryCollecting: () => set({ libraryCollector: null }),
 
     clipClipboard: null,
-    startClipboardFromList: (mode) => {
-        // Stub to be implemented
-    },
-    startClipboardFromProject: (mode) => {
-        // Stub to be implemented
-    },
     cancelClipboard: () => set({ clipClipboard: null }),
-    pasteClipboardToProject: async (projectId) => {
-        return [];
-    },
-    pasteClipboardToCollection: async (collectionId) => {
-        return [];
-    },
-    pasteClipboardToWorkspace: async (workspaceId) => {
-        return [];
-    },
     setClipClipboard: (v) => set({ clipClipboard: v }),
 
     movingClipId: null,

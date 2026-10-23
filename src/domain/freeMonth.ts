@@ -33,6 +33,47 @@ export function freeMonthStatus(startedAt: number, now: number): FreeMonthStatus
   return { active, daysLeft: active ? Math.ceil((endsAt - now) / DAY_MS) : 0, endsAt };
 }
 
+/**
+ * The date the month is counted from (sweep P1-1, 2026-10-22): the install's first
+ * launch, or the first launch of a build WITH the paywall, whichever is later. v1.0
+ * ships with everything free, so a month that ran from first launch would already be
+ * spent when the update that turns Pro on arrives; `paywallSinceAt` is written the
+ * first time such a build runs (services/freeMonthClock.ts).
+ */
+export function freeMonthStart(startedAt: number, paywallSinceAt: number | null | undefined): number {
+  return paywallSinceAt != null && paywallSinceAt > startedAt ? paywallSinceAt : startedAt;
+}
+
+/**
+ * The clock the month is judged by (sweep P2-2): never earlier than the latest moment
+ * the app has already seen, so turning the device's date back does not reopen the month.
+ * `lastSeenAt` is the stored high-water mark.
+ */
+export function freeMonthNow(now: number, lastSeenAt: number | null | undefined): number {
+  return lastSeenAt != null && lastSeenAt > now ? lastSeenAt : now;
+}
+
+/**
+ * Founding membership, decided ONCE and stored (sweep P1-2): `firstLaunchAt` rides the
+ * restorable snapshot, so a restored backup could carry it; the stored flag ("1"/"0",
+ * in the Keychain beside the free month's start) is what counts from then on. The
+ * decision waits until the release date is known: with none set nobody is founding
+ * yet, and storing "0" then would lock the testers out.
+ */
+export type FoundingDecision = { founding: boolean; store: "1" | "0" | null };
+
+export function decideFounding(
+  storedFlag: string | null | undefined,
+  firstLaunchAt: number | null | undefined,
+  releaseAt: number | null = APP_STORE_RELEASE_AT
+): FoundingDecision {
+  if (storedFlag === "1") return { founding: true, store: null };
+  if (storedFlag === "0") return { founding: false, store: null };
+  if (releaseAt == null) return { founding: false, store: null };
+  const founding = isFoundingInstall(firstLaunchAt, releaseAt);
+  return { founding, store: founding ? "1" : "0" };
+}
+
 /** The quiet notes the free month gives, each shown once: a few days ahead, the last day, after. */
 export type FreeMonthNotice = "fewDaysLeft" | "lastDay" | "ended";
 

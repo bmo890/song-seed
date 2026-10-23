@@ -5,6 +5,7 @@ import { formatTransposeOffset } from "../../domain/transpose";
 import { useTranslation } from "react-i18next";
 import { Stepper } from "./Stepper";
 import { Press } from "./Press";
+import { ensurePro } from "./proUpsell";
 
 type TransposeChipProps = {
   offset: number;
@@ -24,7 +25,11 @@ export function TransposeChip({ offset, onNudge, onReset }: TransposeChipProps) 
       <Text style={chipStyles.label}>{t("common.transpose")}</Text>
       <Stepper
         glyphs="plusMinus"
-        onStep={(direction) => onNudge(direction)}
+        onStep={(direction) => {
+          // Transpose is a stage tool (domain/proCatalog.ts); the written key always shows.
+          if (!ensurePro("stage-tools")) return;
+          onNudge(direction);
+        }}
         decrementLabel={t("common.transposeDown")}
         incrementLabel={t("common.transposeUp")}
       >

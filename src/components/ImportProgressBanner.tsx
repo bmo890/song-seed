@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { type ImportJob, useImportStore } from "../state/useImportStore";
 import { useStore } from "../state/useStore";
-import { colors, radii } from "../design/tokens";
+import { colors, radii, shadows } from "../design/tokens";
 import { durations, springs } from "../design/motion";
 
 function ImportJobRow({ job }: { job: ImportJob }) {
@@ -67,7 +67,7 @@ function ImportJobRow({ job }: { job: ImportJob }) {
                         {statusText}
                     </Text>
                 </View>
-                {job.status === "done" ? <Text style={{ fontSize: 14, color: "#3F9C82" }}>✓</Text> : null}
+                {job.status === "done" ? <Text style={{ fontSize: 14, color: colors.primaryDeep }}>✓</Text> : null}
             </View>
 
             <View style={{ height: 3, borderRadius: 999, backgroundColor: colors.surfaceHigh, overflow: "hidden" }}>
@@ -142,7 +142,7 @@ export function ImportProgressBanner({ hidden = false }: { hidden?: boolean }) {
                     paddingHorizontal: 16,
                     paddingVertical: 12,
                     gap: 10,
-                    shadowColor: "#3D3732",
+                    shadowColor: shadows.card.shadowColor,
                     shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.08,
                     shadowRadius: 12,

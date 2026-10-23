@@ -262,7 +262,9 @@ export function PlaylistDetailView({
                 disabled={editMode || !track.available}
                 accessibilityRole="button"
                 accessibilityLabel={
-                  track.available ? `Play from ${track.title}` : `${track.title} (unavailable)`
+                  track.available
+                    ? t("library.playFromA11y", { title: track.title })
+                    : t("library.unavailableA11y", { title: track.title })
                 }
               >
                 <Text

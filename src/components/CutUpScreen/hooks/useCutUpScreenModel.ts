@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { BackHandler, Dimensions } from "react-native";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
@@ -311,46 +311,31 @@ export function useCutUpScreenModel() {
 
   // Undo/redo over table changes (positions, shuffle, dup, split, remove…).
   // Text edits are excluded — they'd flood the stack one keystroke at a time.
-  const [boardHistory, setBoardHistory] = useState<{
-    undo: CutUpBoardItem[][];
-    redo: CutUpBoardItem[][];
-  }>({ undo: [], redo: [] });
-
-  const clearBoardHistory = useCallback(() => setBoardHistory({ undo: [], redo: [] }), []);
+  // The shared history restores outside the state updater (a store write from
+  // inside one ran twice under StrictMode).
+  const restoreBoard = useCallback((boardItems: CutUpBoardItem[]) => apply({ boardItems }), [apply]);
+  const boardHistory = useUndoHistory<CutUpBoardItem[]>(spark?.boardItems ?? [], restoreBoard);
+  const clearBoardHistory = boardHistory.clear;
+  // The drawer screen is reused across sparks (freezeOnBlur), so the last
+  // spark's snapshots must not be undone onto this one.
+  useEffect(() => {
+    clearBoardHistory();
+  }, [sparkId, clearBoardHistory]);
 
   /** Applies a board change, recording the previous table for undo. */
   const applyBoard = useCallback(
     (items: CutUpBoardItem[]) => {
       if (!spark) return;
-      const prev = spark.boardItems;
-      setBoardHistory((h) => ({ undo: [...h.undo.slice(-39), prev], redo: [] }));
+      boardHistory.record(spark.boardItems);
       apply({ boardItems: items });
     },
-    [apply, spark]
+    [apply, spark, boardHistory]
   );
 
-  const undoBoard = useCallback(() => {
-    if (!spark) return;
-    setBoardHistory((h) => {
-      if (h.undo.length === 0) return h;
-      const prev = h.undo[h.undo.length - 1];
-      apply({ boardItems: prev });
-      return { undo: h.undo.slice(0, -1), redo: [...h.redo.slice(-39), spark.boardItems] };
-    });
-  }, [apply, spark]);
-
-  const redoBoard = useCallback(() => {
-    if (!spark) return;
-    setBoardHistory((h) => {
-      if (h.redo.length === 0) return h;
-      const next = h.redo[h.redo.length - 1];
-      apply({ boardItems: next });
-      return { undo: [...h.undo.slice(-39), spark.boardItems], redo: h.redo.slice(0, -1) };
-    });
-  }, [apply, spark]);
-
-  const canUndoBoard = boardHistory.undo.length > 0;
-  const canRedoBoard = boardHistory.redo.length > 0;
+  const undoBoard = boardHistory.undo;
+  const redoBoard = boardHistory.redo;
+  const canUndoBoard = boardHistory.canUndo;
+  const canRedoBoard = boardHistory.canRedo;
 
   /** Random re-deal into rows of varied length. Widths come from the UI's
    * measured scraps so rows pack to the real canvas. */
@@ -440,12 +425,15 @@ export function useCutUpScreenModel() {
     [applyBoard, spark]
   );
 
+  // Runs on the field's pause or close (useDraftText), possibly after another
+  // table write landed, so it reads the store rather than the render's closure.
   const editStripText = useCallback(
     (itemId: string, text: string) => {
-      if (!spark) return;
-      apply({ boardItems: setBoardItemText(spark.boardItems, itemId, text) });
+      const current = freshSpark();
+      if (!current) return;
+      apply({ boardItems: setBoardItemText(current.boardItems, itemId, text) });
     },
-    [apply, spark]
+    [apply, freshSpark]
   );
 
   /** Re-cuts one scrap into pieces from the table, the pieces cascading from the

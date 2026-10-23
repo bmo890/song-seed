@@ -16,15 +16,6 @@ import { BACKUP_SAVE_CANCELLED_MESSAGE, saveArchiveToUserLocation } from "./arch
 // archiveSave.ts so the human-readable export can reuse the same crash-safe save path.
 export { BACKUP_SAVE_CANCELLED_MESSAGE } from "./archiveSave";
 
-export type ManualExactBackupResult = {
-    archiveTitle: string;
-    status: DrBackupManifest["status"];
-    manifest: DrBackupManifest;
-    savedDirectoryUri?: string;
-    /** False when the platform share sheet cannot report whether the user completed Save to Files. */
-    saveConfirmed: boolean;
-};
-
 /** A built-but-not-yet-saved backup archive. The caller MUST later save it or discard it. */
 export type BuiltExactBackup = {
     archiveUri: string;

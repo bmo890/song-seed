@@ -355,8 +355,11 @@ function createGuardedStorage() {
             return; // The lock itself was announced when it was set (banner + log).
         }
 
-        // Inspect the idea count before writing
-        if (isHydrationComplete() && getLastPersistedIdeaCount() > 0) {
+        // Inspect the idea count before writing. The count advances only here, once a
+        // write passes (partialize used to advance it inside set(), ahead of this
+        // compare, which disarmed the partial-loss gate — 2026-10-22 sweep), and from 0
+        // too, so a first-session library is guarded before its first restart.
+        if (isHydrationComplete()) {
             try {
                 const parsed = typeof value === "string" ? JSON.parse(value) : value;
                 const state = (parsed as { state?: PersistedAppStore })?.state;
@@ -365,7 +368,9 @@ function createGuardedStorage() {
                     const newIdeaCount = state.workspaces.reduce(
                         (sum: number, ws) => sum + (ws.ideas?.length ?? 0), 0
                     );
-                    if (newIdeaCount === 0) {
+                    if (lastCount <= 0) {
+                        // Nothing to lose yet (fresh install, or an authorized empty).
+                    } else if (newIdeaCount === 0) {
                         // A deliberate last-item delete is the only valid reason to
                         // transition the persisted library from >0 ideas to 0 ideas.
                         if (!consumeIntentionalEmptyStateWrite()) {
@@ -491,21 +496,12 @@ export const useStore = create<AppStore>()(
             storage: guardedStorage,
             migrate: (persistedState) =>
                 sanitizePersistedState(persistedState as Partial<PersistedAppStore> | undefined),
-            partialize: (state) => {
-                const snapshot = buildPersistedAppStoreSnapshot(state);
-
-                // Track the idea count for the guarded storage adapter
-                if (isHydrationComplete()) {
-                    const count = snapshot.workspaces.reduce(
-                        (sum, ws) => sum + ws.ideas.length, 0
-                    );
-                    if (count > 0) {
-                        setLastPersistedIdeaCount(count);
-                    }
-                }
-
-                return snapshot;
-            },
+            // The last-persisted idea count is NOT advanced here: zustand calls partialize
+            // synchronously inside every set(), before the debounced guard compares the
+            // write against that count, so updating it here made the partial-loss gate
+            // compare every write with itself (never fired, 2026-10-22 sweep). The count
+            // is seeded on hydrate and advanced in runGuardedWrite once a write passes.
+            partialize: (state) => buildPersistedAppStoreSnapshot(state),
             merge: (persistedState, currentState) => ({
                 ...currentState,
                 ...sanitizePersistedState(persistedState as Partial<PersistedAppStore> | undefined),

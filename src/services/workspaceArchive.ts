@@ -74,7 +74,12 @@ function estimateJsonBytes(value: unknown) {
 }
 
 function assertManagedRestoreUri(fileUri: string) {
-    if (!isSongNookManagedUri(fileUri)) {
+    const path = fileUri.split("?")[0];
+    const escapes =
+        path.includes("\\") ||
+        path.includes("\0") ||
+        path.split("/").some((segment) => segment === "." || segment === "..");
+    if (escapes || !isSongNookManagedUri(fileUri)) {
         throw new Error("Archive restore target is outside SongNook managed storage.");
     }
 }

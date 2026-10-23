@@ -51,7 +51,6 @@ const SEARCH_PLACEHOLDER: Record<Section, string> = {
  */
 export function LibraryScreenContent() {
   const { t } = useTranslation();
-  useBrowseRootBackHandler();
   const [section, setSection] = useState<Section>("playlists");
   // Switching tabs swaps the whole section subtree, so the SegmentedControl
   // remounts. Own its thumb state here (this screen doesn't remount) so the
@@ -143,6 +142,9 @@ export function LibraryScreenContent() {
 function PlaylistsSection({ tabs, scroll, headerRight, searchQuery }: { tabs: ReactNode; scroll: ScrollOffset; headerRight?: ReactNode; searchQuery: string }) {
   const { t } = useTranslation();
   const model = useLibraryScreenModel();
+  // An open detail is this page's own sub-state: Android back closes it
+  // instead of leaving the page (as Browse's selection and Revisit's snapshot do).
+  useBrowseRootBackHandler({ onBack: model.showBack ? model.handleBackPress : undefined });
   const filter = useReceivedPrefsStore((s) => s.compilationFilter);
   const sort = useReceivedPrefsStore((s) => s.compilationSort);
   const workspaces = useStore((s) => s.workspaces);
@@ -237,6 +239,7 @@ function PlaylistsSection({ tabs, scroll, headerRight, searchQuery }: { tabs: Re
 function SongbookSection({ tabs, scroll, headerRight, searchQuery }: { tabs: ReactNode; scroll: ScrollOffset; headerRight?: ReactNode; searchQuery: string }) {
   const { t } = useTranslation();
   const songbook = useSongbookModel();
+  useBrowseRootBackHandler({ onBack: songbook.showBack ? songbook.handleBack : undefined });
   const filter = useReceivedPrefsStore((s) => s.compilationFilter);
   const sort = useReceivedPrefsStore((s) => s.compilationSort);
   const workspaces = useStore((s) => s.workspaces);
@@ -324,6 +327,7 @@ function SongbookSection({ tabs, scroll, headerRight, searchQuery }: { tabs: Rea
 function SetlistsSection({ tabs, scroll, headerRight, searchQuery }: { tabs: ReactNode; scroll: ScrollOffset; headerRight?: ReactNode; searchQuery: string }) {
   const { t } = useTranslation();
   const setlist = useSetlistModel();
+  useBrowseRootBackHandler({ onBack: setlist.showBack ? setlist.handleBack : undefined });
   const filter = useReceivedPrefsStore((s) => s.compilationFilter);
   const sort = useReceivedPrefsStore((s) => s.compilationSort);
   const workspaces = useStore((s) => s.workspaces);

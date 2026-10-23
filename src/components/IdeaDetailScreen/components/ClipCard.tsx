@@ -6,6 +6,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
+import { getIdSet } from "../../../state/librarySelectors";
 import { useFullPlayerControls } from "../../../hooks/FullPlayerProvider";
 import {
   getClipOverdubStemCount,
@@ -139,7 +140,7 @@ export const ClipCard = React.memo(function ClipCard({
   const { clip } = entry;
   const navigation = useNavigation();
   const clipSelectionMode = useStore((s) => s.clipSelectionMode);
-  const isSelected = useStore((s) => s.selectedClipIds.includes(clip.id));
+  const isSelected = useStore((s) => getIdSet(s.selectedClipIds).has(clip.id));
   const isMoving = useStore((s) => s.movingClipId === clip.id);
   const startClipSelection = useStore((s) => s.startClipSelection);
   const toggleClipSelection = useStore((s) => s.toggleClipSelection);

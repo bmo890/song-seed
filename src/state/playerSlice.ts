@@ -180,9 +180,18 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
             const current = state.playerTarget;
             let nextIndex = state.playerQueueIndex;
             if (current) {
-                const found = orderedQueue.findIndex(
-                    (item) => item.ideaId === current.ideaId && item.clipId === current.clipId
-                );
+                // The rows the panel drags are the live queue items, so the playing
+                // row is found by identity first: a clip queued twice (a setlist
+                // that repeats a song) has two rows with the same ids, and an id
+                // match re-pointed the playhead at whichever copy came first.
+                const playingItem = state.playerQueue[state.playerQueueIndex];
+                const byIdentity = playingItem ? orderedQueue.indexOf(playingItem) : -1;
+                const found =
+                    byIdentity >= 0
+                        ? byIdentity
+                        : orderedQueue.findIndex(
+                              (item) => item.ideaId === current.ideaId && item.clipId === current.clipId
+                          );
                 if (found >= 0) nextIndex = found;
             }
             return { playerQueue: orderedQueue, playerQueueIndex: nextIndex };
@@ -191,9 +200,13 @@ export const createPlayerSlice: StateCreator<PlayerSlice> = (set) => ({
         set((state) => {
             if (index < 0 || index >= state.playerQueue.length) return state;
             const nextQueue = state.playerQueue.filter((_, i) => i !== index);
-            // Emptying the queue ends the session outright (same shape as clear).
+            // Emptying the queue ends the session outright (same shape as clear)
+            // and requests the close itself: the panel's own `requestPlayerClose`
+            // was a no-op once this had nulled the target while docked, so the
+            // dock and sheet unmounted and the engine played on with no UI.
             if (nextQueue.length === 0) {
                 return {
+                    playerCloseRequestToken: state.playerCloseRequestToken + 1,
                     playerQueue: [],
                     playerQueueUnshuffled: null,
                     playerQueueIndex: 0,

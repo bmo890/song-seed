@@ -135,6 +135,7 @@ export function useLibraryScreenModel() {
     navigation.navigate("WorkspaceStack", {
       screen: "Browse",
       params: activeWorkspaceId ? { workspaceId: activeWorkspaceId } : undefined,
+      pop: true,
     });
   };
 

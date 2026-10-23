@@ -25,6 +25,7 @@ import {
   throwIfSendCancelled,
 } from "./sendTransfer";
 import { isBackupOperationCancelled } from "./backupOperation";
+import { cleanupShareTempFile } from "./managedMedia";
 import { losslessAudioToEncode } from "../domain/linkAudio";
 import { deleteEncodedAudio, encodeAudioForLink } from "./linkAudioEncoder";
 import type { SendProgressOptions } from "../domain/sendProgress";
@@ -119,29 +120,35 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
     },
   });
   const fileName = `${prepared.archiveTitle}.${prepared.archiveExtension}`;
-  const size = await fileSize(prepared.archiveUri);
-  // Past the cap the draft is simply never finalized (swept at expiry) — no
-  // bytes leave the device.
-  assertWithinCaps([size]);
+  try {
+    const size = await fileSize(prepared.archiveUri);
+    // Past the cap the draft is simply never finalized (swept at expiry) — no
+    // bytes leave the device.
+    assertWithinCaps([size]);
 
-  // 3. Upload the single .songnook file. Opaque to the server.
-  report?.({ phase: "uploading", completedBytes: 0, totalBytes: size });
-  await registerAndUploadFile(
-    transfer.transferId,
-    transfer.uploadToken,
-    {
-      fileUri: prepared.archiveUri,
-      fileName,
-      // Octet-stream, not application/zip: keeps the .songnook identity and
-      // matches how the archive is saved to disk elsewhere.
-      mimeType: "application/octet-stream",
-      size,
-    },
-    {
-      signal,
-      onProgress: (sent, total) => report?.({ phase: "uploading", completedBytes: sent, totalBytes: total }),
-    }
-  );
+    // 3. Upload the single .songnook file. Opaque to the server.
+    report?.({ phase: "uploading", completedBytes: 0, totalBytes: size });
+    await registerAndUploadFile(
+      transfer.transferId,
+      transfer.uploadToken,
+      {
+        fileUri: prepared.archiveUri,
+        fileName,
+        // Octet-stream, not application/zip: keeps the .songnook identity and
+        // matches how the archive is saved to disk elsewhere.
+        mimeType: "application/octet-stream",
+        size,
+      },
+      {
+        signal,
+        onProgress: (sent, total) => report?.({ phase: "uploading", completedBytes: sent, totalBytes: total }),
+      }
+    );
+  } finally {
+    // The packed archive is a temp file (songnook/share); the share-sheet path deletes
+    // its copy the same way. Nothing else reads it once the bytes are up (or failed).
+    await cleanupShareTempFile(prepared.archiveUri);
+  }
 
   // 4. Finalize — only now is the link live.
   throwIfSendCancelled(signal);

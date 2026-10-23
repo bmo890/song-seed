@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { springs } from "../design/motion";
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -25,6 +26,26 @@ const DEEP = colors.primaryDeep;
 const SUCCESS = colors.primaryDeep;
 const ERROR = colors.danger;
 const TERMINAL_AUTO_DISMISS_MS = 4000;
+const KEEP_AWAKE_TAG = "library-process";
+
+/**
+ * The screen stays lit while a library process runs (sweep 2026-10-22, #7): the loop
+ * is JS-driven, and iOS suspends it ~30 s after the phone locks, so a ten-minute backup
+ * left on the table would sit at N% until the next unlock. Released as soon as it ends.
+ */
+function useKeepAwakeWhileRunning(running: boolean, tag: string) {
+    useEffect(() => {
+        if (!running) return;
+        activateKeepAwakeAsync(tag).catch(() => {});
+        return () => {
+            try {
+                void deactivateKeepAwake(tag);
+            } catch {
+                // no-op where keep-awake is unavailable (web)
+            }
+        };
+    }, [running, tag]);
+}
 
 function accentFor(process: LibraryProcess): string {
     if (process.status === "success") return SUCCESS;
@@ -295,6 +316,7 @@ export function LibraryProcessHost({ drawerOpen = false }: { drawerOpen?: boolea
     const playerDockHeight = useStore((s) => s.playerDockHeight);
     const importBannerHeight = useStore((s) => s.importBannerHeight);
     const insets = useSafeAreaInsets();
+    useKeepAwakeWhileRunning(process?.status === "running", KEEP_AWAKE_TAG);
 
     // Terminal states linger briefly as confirmation, then clear themselves.
     useEffect(() => {

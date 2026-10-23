@@ -9,10 +9,23 @@ import { buildImportedAssetDateMetadata } from "../domain/importDates";
 import { useImportStore } from "../state/useImportStore";
 import { useStore } from "../state/useStore";
 import { ensureUniqueCountedTitle } from "../utils";
+import { i18n } from "../i18n/instance";
 
-/** Collection the welcome-flow import lands in (found by title, created if missing —
- *  so replaying the intro and importing again reuses the same collection). */
-export const WELCOME_IMPORT_COLLECTION_TITLE = "Imported";
+/** Collection the welcome-flow import lands in, in the app's language (found by title,
+ *  created if missing — so replaying the intro and importing again reuses the same
+ *  collection). */
+export function welcomeImportCollectionTitle(): string {
+    return i18n.t("welcome.importedCollection");
+}
+
+/** The title in every language the app speaks, so a collection made under one
+ *  language is still found after a switch (the lookup is locale-insensitive). */
+function welcomeImportCollectionTitleKeys(): Set<string> {
+    const languages = (i18n.options.supportedLngs || ["en"]).filter((lng) => lng !== "cimode");
+    return new Set(
+        languages.map((lng) => i18n.t("welcome.importedCollection", { lng }).trim().toLowerCase())
+    );
+}
 
 export type WelcomeImportProgress =
     | { phase: "importing"; current: number; total: number }
@@ -67,13 +80,13 @@ export async function runWelcomeImport(
         return { outcome: "error", imported: 0, failed: 0, skippedDuplicates: 0 };
     }
 
-    const existingCollection = workspace.collections.find(
-        (collection) =>
-            collection.title.trim().toLowerCase() === WELCOME_IMPORT_COLLECTION_TITLE.toLowerCase()
+    const titleKeys = welcomeImportCollectionTitleKeys();
+    const existingCollection = workspace.collections.find((collection) =>
+        titleKeys.has(collection.title.trim().toLowerCase())
     );
     const collectionId =
         existingCollection?.id ??
-        state.addCollection(workspace.id, WELCOME_IMPORT_COLLECTION_TITLE);
+        state.addCollection(workspace.id, welcomeImportCollectionTitle());
 
     const duplicateResult = checkImportDuplicates(assets, getAllClips());
     const toImport = duplicateResult.hasDuplicates ? duplicateResult.uniqueAssets : duplicateResult.allAssets;
@@ -92,7 +105,10 @@ export async function runWelcomeImport(
     const jobId = `welcome-import-${Date.now()}`;
     useImportStore.getState().startJob({
         id: jobId,
-        label: toImport.length === 1 ? buildImportedTitle(toImport[0]!.name) : `${toImport.length} recordings`,
+        label:
+            toImport.length === 1
+                ? buildImportedTitle(toImport[0]!.name)
+                : i18n.t("welcome.importClips", { count: toImport.length }),
         total: toImport.length,
     });
     onProgress({ phase: "importing", current: 0, total: toImport.length });

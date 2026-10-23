@@ -128,9 +128,6 @@ import {
 } from "./src/state/persistRuntime";
 import { authorizeIntentionalEmptyStateWrite } from "./src/services/stateIntegrity";
 import { EmptyState } from "./src/components/common/EmptyState";
-// TEMPORARY DIAGNOSTIC — remove with src/components/dev/SyncProbe.tsx.
-import { SyncProbe } from "./src/components/dev/SyncProbe";
-const SHOW_SYNC_PROBE = false;
 import { useTranslation } from "react-i18next";
 import { AppAlert } from "./src/components/common/AppAlert";
 import { AppDialogHost } from "./src/components/common/AppDialog";
@@ -652,6 +649,8 @@ function SideNavHost({
         leave("WorkspaceStack", {
           screen: "Browse",
           params: activeWorkspace?.id ? { workspaceId: activeWorkspace.id } : undefined,
+          // Pops to the Browse beneath instead of pushing a second one (navigation law).
+          pop: true,
         })
       }
       onGoRevisit={() => leave("RevisitHome")}
@@ -1128,7 +1127,7 @@ function AppContent() {
             backgroundColor: "#FDFBF7",
           }}
         >
-          <ActivityIndicator color="#B87D6B" />
+          <ActivityIndicator color={colors.primary} />
         </View>
       ) : (
       <RootCommitProfiler currentRoute={currentRouteName}>
@@ -1518,7 +1517,7 @@ export default function App() {
   if (!locale.language) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#FDFBF7" }}>
-        <ActivityIndicator color="#B87D6B" />
+        <ActivityIndicator color={colors.primary} />
       </View>
     );
   }
@@ -1562,13 +1561,12 @@ export default function App() {
                   }}
                 />
               ) : (
-                <ActivityIndicator color="#B87D6B" />
+                <ActivityIndicator color={colors.primary} />
               )}
             </View>
           ) : (
             <AppContent />
           )}
-          {__DEV__ && SHOW_SYNC_PROBE ? <SyncProbe /> : null}
         </AudioRecorderProvider>
       </SafeAreaProvider>
       </AppErrorBoundary>
