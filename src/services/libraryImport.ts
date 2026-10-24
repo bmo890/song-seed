@@ -39,6 +39,7 @@ import {
 } from "./libraryArchiveManifest";
 import { normalizeBluetoothMonitoringCalibrations } from "../domain/bluetoothMonitoring";
 import { sanitizeTempoMap } from "../domain/tempoMap";
+import { normalizeKeptPractice } from "../domain/keptPractice";
 
 /** Pre-edit source files already extracted, by archive path → managed uri (shared sources). */
 type SourceAudioDestinations = Map<string, string>;
@@ -165,7 +166,7 @@ function readFullClipMetadata(clipManifest: ArchiveClipManifest) {
         editRegions: clipManifest.editRegions,
         tags: clipManifest.tags,
         practiceMarkers: clipManifest.practiceMarkers,
-        keptPractice: clipManifest.keptPractice,
+        keptPractice: normalizeKeptPractice(clipManifest.keptPractice),
         sections: clipManifest.sections,
         analysis: clipManifest.analysis,
         recordingGrid: clipManifest.recordingGrid,
