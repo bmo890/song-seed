@@ -731,8 +731,9 @@ export const resources = {
         
         resetAll: "Reset all",
         resetAllA11y: "Reset every tool",
-        keepSettings: "Keep settings",
-        keepSettingsA11y: "Keep these settings with this clip",
+        keep: "Keep",
+        keepLoopA11y: "Keep this loop with this clip",
+        keepSoundA11y: "Keep this sound with this clip",
         notesPage: "Notes",
         takeNotesPage: "Take notes",
         writeNote: "Write a note",
@@ -2384,8 +2385,9 @@ export const resources = {
         
         resetAll: "איפוס הכול",
         resetAllA11y: "איפוס כל הכלים",
-        keepSettings: "שמירת ההגדרות",
-        keepSettingsA11y: "שמירת ההגדרות האלה עם הקטע",
+        keep: "שמירה",
+        keepLoopA11y: "שמירת הלופ הזה עם הקטע",
+        keepSoundA11y: "שמירת הצליל הזה עם הקטע",
         notesPage: "הערות",
         takeNotesPage: "הערות לטייק",
         writeNote: "כתיבת הערה",

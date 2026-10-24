@@ -19,7 +19,7 @@ import { usePracticeLoopController } from "./hooks/usePracticeLoopController";
 import { usePlayerSpeedControls } from "./hooks/usePlayerSpeedControls";
 import { useStepUpLoop } from "./hooks/useStepUpLoop";
 import { usePerClipPractice } from "./hooks/usePerClipPractice";
-import { sameKeptPractice } from "../../domain/keptPractice";
+import { sameKeptPractice, toggleKeptPart } from "../../domain/keptPractice";
 import { parseToneFlags } from "../../domain/overdub";
 import { clickRateBounds } from "../../domain/stepUpLoop";
 import { haptic } from "../../design/haptics";
@@ -623,23 +623,24 @@ function PlayerScreenInner({
     playbackRate: effectivePlaybackRate,
     getPositionMs: () => playerPositionMsRef.current,
   });
-  // What a take keeps with it (the Keep switch, 2026-10-21), read when this
-  // session meets the clip for the first time.
+  // What a take keeps with it (the Keep switches, one per drawer), read when
+  // this session meets the clip for the first time. A drawer not kept opens
+  // neutral.
   const latestClipRef = useRef(playerClip);
   latestClipRef.current = playerClip;
   const keptFor = useCallback((clipId: string) => {
     const kept = latestClipRef.current?.id === clipId ? latestClipRef.current.keptPractice : undefined;
     return kept
       ? {
-          pitchSemitones: kept.pitchSemitones,
-          playbackRate: kept.playbackRate,
-          clickEnabled: kept.clickEnabled,
-          countIn: kept.countIn,
+          pitchSemitones: kept.sound?.pitchSemitones ?? 0,
+          playbackRate: kept.sound?.playbackRate ?? 1,
+          clickEnabled: kept.sound?.clickEnabled ?? false,
+          countIn: kept.loop?.countIn ?? "off",
         }
       : undefined;
   }, []);
   const keptLoopFor = useCallback((clipId: string) => {
-    const loop = latestClipRef.current?.id === clipId ? latestClipRef.current.keptPractice?.loop : undefined;
+    const loop = latestClipRef.current?.id === clipId ? latestClipRef.current.keptPractice?.loop?.region : undefined;
     return loop ? { start: loop.startMs, end: loop.endMs } : undefined;
   }, []);
   const playbackClickLevel = useStore((s) => s.playbackClickLevel);
@@ -1430,28 +1431,37 @@ function PlayerScreenInner({
     removeStem: handleRemoveStem,
   } = layerHandlers;
 
-  // Keep (founder, 2026-10-21): one switch for every tool. On, the take keeps
-  // this practice setup and opens with it next time; changes follow it while it
-  // is on. Off, the setup is for this session only (the take forgets it).
-  const keepOn = !!playerClip?.keptPractice;
-  const keptNow = useMemo<ClipKeptPractice>(
+  // Keep (founder, 2026-10-24): one switch per drawer, so the pitch can stay
+  // while the loop goes. On, the take keeps that drawer's setup and opens with
+  // it next time; changes follow it while it is on. Off, that drawer is for
+  // this session only (the take forgets it).
+  const keptStored = playerClip?.keptPractice;
+  const keepOn = useMemo(
+    () => ({ sound: !!keptStored?.sound, loop: !!keptStored?.loop }),
+    [keptStored]
+  );
+  const partsNow = useMemo(
     () => ({
-      pitchSemitones: ui.pitchShiftSemitones,
-      // A step-up drill moves the speed every pass; what is kept is the speed
-      // the musician set, not wherever the drill happens to be.
-      playbackRate: stepUp.stepUpEnabled
-        ? playerClip?.keptPractice?.playbackRate ?? 1
-        : Math.round(effectivePlaybackRate * 100) / 100,
-      clickEnabled: playbackClick.enabled,
-      countIn: ui.countInOption,
-      ...(practiceLoopEnabled && practiceLoopRange.end > practiceLoopRange.start
-        ? { loop: { startMs: Math.round(practiceLoopRange.start), endMs: Math.round(practiceLoopRange.end) } }
-        : {}),
+      sound: {
+        pitchSemitones: ui.pitchShiftSemitones,
+        // A step-up drill moves the speed every pass; what is kept is the speed
+        // the musician set, not wherever the drill happens to be.
+        playbackRate: stepUp.stepUpEnabled
+          ? keptStored?.sound?.playbackRate ?? 1
+          : Math.round(effectivePlaybackRate * 100) / 100,
+        clickEnabled: playbackClick.enabled,
+      },
+      loop: {
+        countIn: ui.countInOption,
+        ...(practiceLoopEnabled && practiceLoopRange.end > practiceLoopRange.start
+          ? { region: { startMs: Math.round(practiceLoopRange.start), endMs: Math.round(practiceLoopRange.end) } }
+          : {}),
+      },
     }),
     [
       effectivePlaybackRate,
+      keptStored?.sound?.playbackRate,
       playbackClick.enabled,
-      playerClip?.keptPractice?.playbackRate,
       practiceLoopEnabled,
       practiceLoopRange.end,
       practiceLoopRange.start,
@@ -1460,23 +1470,32 @@ function PlayerScreenInner({
       ui.pitchShiftSemitones,
     ]
   );
+  const keptNow = useMemo<ClipKeptPractice | undefined>(() => {
+    if (!keepOn.sound && !keepOn.loop) return undefined;
+    return {
+      ...(keepOn.sound ? { sound: partsNow.sound } : {}),
+      ...(keepOn.loop ? { loop: partsNow.loop } : {}),
+    };
+  }, [keepOn.loop, keepOn.sound, partsNow]);
   const keepIdeaId = playerIdea?.id;
   const keepClipId = playerClip?.id;
-  const keptStored = playerClip?.keptPractice;
   // Settled before it is written: a clip switch passes through a frame or two
   // that still carries the previous clip's values, and a slider settles once.
   useEffect(() => {
-    if (!keepOn || !keepIdeaId || !keepClipId) return;
+    if (!keptNow || !keepIdeaId || !keepClipId) return;
     if (sameKeptPractice(keptStored, keptNow)) return;
     const timer = setTimeout(() => {
       useStore.getState().setClipKeptPractice(keepIdeaId, keepClipId, keptNow);
     }, KEEP_SETTLE_MS);
     return () => clearTimeout(timer);
-  }, [keepClipId, keepIdeaId, keepOn, keptNow, keptStored]);
-  const handleToggleKeep = useCallback(() => {
-    if (!keepIdeaId || !keepClipId) return;
-    useStore.getState().setClipKeptPractice(keepIdeaId, keepClipId, keepOn ? undefined : keptNow);
-  }, [keepClipId, keepIdeaId, keepOn, keptNow]);
+  }, [keepClipId, keepIdeaId, keptNow, keptStored]);
+  const handleToggleKeep = useCallback(
+    (part: "sound" | "loop") => {
+      if (!keepIdeaId || !keepClipId) return;
+      useStore.getState().setClipKeptPractice(keepIdeaId, keepClipId, toggleKeptPart(keptStored, part, partsNow));
+    },
+    [keepClipId, keepIdeaId, keptStored, partsNow]
+  );
   // Reset all: every tool back to where an untouched take starts, the take's
   // own level and tone included.
   const rootSound = data.overdubRootSettings;
