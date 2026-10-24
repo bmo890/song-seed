@@ -11,7 +11,8 @@ import { getFreeMonthClock, getFreeMonthEndsAt, isFoundingMember, isPaywallLive,
 import { freeMonthStatus, FREE_MONTH_DAYS } from "../../domain/freeMonth";
 import { PAYWALL_ROWS } from "../../domain/proCatalog";
 import { isDevFreeMonthPreview } from "../../services/freeMonthClock";
-import { purchasePro, restorePurchases, type ProPlan } from "../../services/billing";
+import { purchasePro, restorePurchases, useProPrices, type ProPlan } from "../../services/billing";
+import { haptic } from "../../design/haptics";
 // Apple requires working Terms and Privacy links on a paywall; the one source of
 // those URLs is config/legalLinks, shared with Settings → About.
 import { PRIVACY_POLICY_URL as PRIVACY_URL, TERMS_OF_USE_URL as TERMS_URL } from "../../config/legalLinks";
@@ -35,8 +36,8 @@ function freeMonthLine(): { daysLeft: number } | "ended" | null {
 /**
  * The one Pro sheet (rebuilt 2026-10-19): what Pro adds, the privacy promise, the
  * founding prices as rows on paper with an ink tick, one primary key, and the quiet
- * Restore / Terms / Privacy line Apple requires. Prices are the founding ones; once
- * billing lands the store's localized prices replace them.
+ * Restore / Terms / Privacy line Apple requires. Prices come from the store, in the
+ * person's currency, once RevenueCat answers; the printed ones are the fallback.
  */
 function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
@@ -45,17 +46,48 @@ function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
   const [notice, setNotice] = useState<string | null>(null);
   const maxScroll = Math.round(Dimensions.get("window").height * 0.55);
   const freeMonth = freeMonthLine();
+  const storePrices = useProPrices();
+  const priceOf = (plan: ProPlan) => storePrices[plan]?.price ?? t(`pro.plans.${plan}.price`);
+  const subOf = (plan: ProPlan) => {
+    const perMonth = plan === "annual" ? storePrices.annual?.perMonth : null;
+    return perMonth ? t("pro.plans.annual.subPerMonth", { price: perMonth }) : t(`pro.plans.${plan}.sub`);
+  };
 
   async function handlePurchase() {
+    setNotice(null);
     const result = await purchasePro(selected);
-    if (!result.ok) setNotice(result.reason === "cancelled" ? null : t("pro.purchaseUnavailable"));
-    else onClose();
+    if (result.ok) {
+      // haptics.ts: success → a commit that landed.
+      haptic.success();
+      onClose();
+      return;
+    }
+    if (result.reason === "cancelled") return;
+    if (result.reason === "error") {
+      // haptics.ts: error → a failure the person has to deal with.
+      haptic.error();
+      setNotice(t("pro.purchaseFailed"));
+      return;
+    }
+    setNotice(t("pro.purchaseUnavailable"));
   }
 
   async function handleRestore() {
+    setNotice(null);
     const result = await restorePurchases();
-    if (!result.ok) setNotice(t("pro.noRestores"));
-    else onClose();
+    if (result.ok) {
+      // haptics.ts: success → a commit that landed.
+      haptic.success();
+      onClose();
+      return;
+    }
+    if (result.reason === "error") {
+      // haptics.ts: error → a failure the person has to deal with.
+      haptic.error();
+      setNotice(t("pro.restoreFailed"));
+      return;
+    }
+    setNotice(result.reason === "unavailable" ? t("pro.purchaseUnavailable") : t("pro.noRestores"));
   }
 
   return (
@@ -94,7 +126,7 @@ function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
                 onPress={() => setSelected(plan)}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: isSelected }}
-                accessibilityLabel={`${t(`pro.plans.${plan}.label`)}, ${t(`pro.plans.${plan}.price`)}`}
+                accessibilityLabel={`${t(`pro.plans.${plan}.label`)}, ${priceOf(plan)}`}
               >
                 <View style={[s.dot, isSelected ? s.dotOn : null]} />
                 <View style={s.planText}>
@@ -102,9 +134,9 @@ function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
                     <Text style={[s.planLabel, isSelected ? s.planLabelOn : null]}>{t(`pro.plans.${plan}.label`)}</Text>
                     {plan === "annual" ? <Text style={s.planTag}>{t("pro.plans.annual.tag")}</Text> : null}
                   </View>
-                  <Text style={s.planSub}>{t(`pro.plans.${plan}.sub`)}</Text>
+                  <Text style={s.planSub}>{subOf(plan)}</Text>
                 </View>
-                <Text style={s.planPrice}>{t(`pro.plans.${plan}.price`)}</Text>
+                <Text style={s.planPrice}>{priceOf(plan)}</Text>
               </Press>
             );
           })}
