@@ -137,6 +137,7 @@ import { SendJobHost, SendLinkHost } from "./src/components/common/SendLinkSheet
 import { ReceivedParcelHost } from "./src/components/common/ReceivedParcelSheet";
 import { ProUpsellHost } from "./src/components/common/ProUpsellSheet";
 import { FreeMonthNotices } from "./src/components/common/FreeMonthNotices";
+import { initBilling } from "./src/services/billing";
 import { WelcomeFlow } from "./src/components/common/WelcomeFlow";
 import { installGlobalCrashHandler } from "./src/services/crashLog";
 import { describeError, persistLog } from "./src/services/persistLog";
@@ -1214,6 +1215,10 @@ function AppContent() {
 
 export default function App() {
   const locale = useLocaleBootstrap();
+  // RevenueCat: once per launch. Inert on builds without its native side.
+  useEffect(() => {
+    void initBilling();
+  }, []);
   const { t } = useTranslation();
   const [hasHydrated, setHasHydrated] = useState(() => useStore.persist.hasHydrated());
   // Hydration can FAIL (disk unreadable — transient during dev reloads, rare in
