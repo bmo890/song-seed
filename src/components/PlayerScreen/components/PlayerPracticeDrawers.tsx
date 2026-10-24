@@ -134,8 +134,9 @@ type PlayerPracticeDrawersProps = {
   onToggleStepUp: () => void;
   onRestartStepUp: () => void;
   /** The take keeps this practice setup and opens with it (one switch for all tools). */
-  keepOn: boolean;
-  onToggleKeep: () => void;
+  /** Each drawer keeps its own setup with the take (Loop, Sound). */
+  keepOn: { loop: boolean; sound: boolean };
+  onToggleKeep: (part: "loop" | "sound") => void;
   /** Every tool back to neutral, the take's level and tone included. */
   onResetAll: () => void;
 
@@ -1037,9 +1038,9 @@ export function PlayerPracticeDrawers({
           onPinPreview(null);
         }}
       />
-      {/* Keep and Reset all speak for every tool, so they sit once under the
-          tabs rather than in each drawer; marks are always saved, so the Marks
-          tab goes without (founder, 2026-10-21). */}
+      {/* Reset all speaks for every tool; Keep speaks for the drawer it sits
+          over, so the pitch can stay while the loop goes (founder, 2026-10-24).
+          Marks are always saved, so the Marks tab goes without. */}
       {drawer !== "marks" ? (
         <View style={[pd.row, pd.keepRow]}>
           {anyToolSet ? (
@@ -1051,8 +1052,12 @@ export function PlayerPracticeDrawers({
             />
           ) : null}
           <View style={pd.rowSpacer} />
-          <Text style={pd.keepLabel}>{t("player.keepSettings")}</Text>
-          <Switch value={keepOn} onValueChange={() => onToggleKeep()} accessibilityLabel={t("player.keepSettingsA11y")} />
+          <Text style={pd.keepLabel}>{t("player.keep")}</Text>
+          <Switch
+            value={keepOn[drawer]}
+            onValueChange={() => onToggleKeep(drawer)}
+            accessibilityLabel={t(drawer === "loop" ? "player.keepLoopA11y" : "player.keepSoundA11y")}
+          />
         </View>
       ) : null}
       {drawer === "marks" ? marksDrawer : drawer === "loop" ? loopDrawer : soundDrawer}
