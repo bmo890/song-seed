@@ -18,6 +18,10 @@
 >   means a device date set back does not reopen the month.
 > - **Founding price** for everyone who subscribes in the launch window, kept for as long as they
 >   stay subscribed: **$11.99/yr ("$1 a month")**, $1.99/mo, lifetime ~$29.99. No store trial on top.
+>   **Superseded 2026-10-24 (founder):** launch at **$24.99/yr ("about $2 a month"),
+>   $3.99/mo, lifetime $59.99 launch price → $79.99 later**, per the market research
+>   (`reports/SongNook market and pricing.md`). No "founding price" on subscriptions;
+>   pre-release installs (TestFlight testers) still keep Pro free.
 > - **Later:** raise the price for NEW subscribers only (~$24.99/yr, $3.99/mo, lifetime ~$79.99),
 >   decided from our own data via RevenueCat Experiments (price A/B for new users), not averages.
 > - **Never lock:** recording, the library, lyrics, backup/export/restore, receiving through Send.
