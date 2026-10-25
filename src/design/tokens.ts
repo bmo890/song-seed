@@ -136,7 +136,9 @@ export const text = {
   pageTitle: {
     fontFamily: "Lora_500Medium",
     fontSize: 48,
-    lineHeight: 48,
+    // Lora's ascent + descent is ~1.28 em. A line box tighter than that is cropped on
+    // Android: "Compilations" lost the tail of its p at 48/48 (founder, 2026-10-25).
+    lineHeight: 60,
     color: colors.textPrimary,
   },
   headerTitle: {
