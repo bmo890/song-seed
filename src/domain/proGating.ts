@@ -19,8 +19,8 @@ export type { PracticeTool } from "./proCatalog";
 /** Overdub layers a free user may add per clip (proCatalog "overdub-layers".freeLimit). */
 export const FREE_OVERDUB_LAYERS = freeLimitOf("overdub-layers") ?? Infinity;
 
-/** Saved word-tool sparks a free user may keep PER TOOL (proCatalog "word-sparks-unlimited".freeLimit). */
-export const FREE_SAVED_SPARKS_PER_TOOL = freeLimitOf("word-sparks-unlimited") ?? Infinity;
+/** Sparks a free user may start in each game, ever (proCatalog "lyric-spark".freeLimit). */
+export const FREE_SPARK_TRIES_PER_GAME = freeLimitOf("lyric-spark") ?? Infinity;
 
 /** Workspaces a free user may have (proCatalog "workspaces".freeLimit). */
 export const FREE_WORKSPACES = freeLimitOf("workspaces") ?? Infinity;
@@ -40,16 +40,12 @@ export function canAddOverdubLayer(existingLayerCount: number, isPro: boolean): 
 }
 
 /**
- * Whether the user may save another spark in a given tool. `savedCount` is how many sparks
- * are already saved IN THAT TOOL. Free users get FREE_SAVED_SPARKS_PER_TOOL.
+ * Whether the user may start another spark in a game. `triesUsed` is how many sparks were
+ * started in THAT GAME without Pro, ever (services/sparkTries.ts): deleting one gives no
+ * try back. Free users get FREE_SPARK_TRIES_PER_GAME.
  */
-export function canSaveWordSpark(savedCount: number, isPro: boolean): boolean {
-    return withinFreeLimit("word-sparks-unlimited", savedCount, isPro);
-}
-
-/** Sparks a free user has left in a tool, for the "3 of 5 saved" counter. Never negative. */
-export function remainingFreeSparks(savedCount: number): number {
-    return Math.max(0, FREE_SAVED_SPARKS_PER_TOOL - savedCount);
+export function canStartSpark(triesUsed: number, isPro: boolean): boolean {
+    return withinFreeLimit("lyric-spark", triesUsed, isPro);
 }
 
 /**

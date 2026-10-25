@@ -101,8 +101,8 @@ everything must have a graceful gated state before the flag flips. The `__DEV__`
 | `practice-suite` | Using pins, pitch, analysis, Step up (`PlayerScreen guardPracticeTool`, per-tool switches) | A plain loop and speed; opening practice mode, viewing marks; a received parcel's clips |
 | `full-editor` | The editor's Speed & pitch tab; adding a part beyond `freeLimit` (`useEditorSelectionState`) | A plain trim |
 | `stage-tools` | `TransposeChip`, capo (`ReadingSheet`), new chart book / setlist (`useSongbookModel`, `useSetlistModel`, `SongbookChooserSheet`), the stage reader (`openReader`) | Writing chord charts; reading charts, books, sets; all of it on a received parcel (`ensureProFor`) |
-| `lyric-spark` | `pro: false` (founder, 2026-10-23) — the games are free | Everything |
-| `word-sparks-unlimited` | Saving beyond `freeLimit` (3) per tool (`useNotepadScreenModel`) | Existing sparks |
+| `lyric-spark` | Starting a spark beyond 3 tries per game, counted for good (`useNotepadScreenModel startSpark`, `services/sparkTries.ts`; founder, 2026-10-25: deleting gives no try back; sparks made with Pro or in the free month don't count) | Existing sparks open and edit |
+| `word-sparks-unlimited` | Retired 2026-10-25 (`pro: false`): replaced by the tries above | — |
 | `word-finder-full` | Opening the Word Finder (`LyricsVersionEditor`, `NoteEditor`): its lookups are paid-for APIs | Lyrics themselves |
 | `send` | `openSendSheet`, beyond `freeLimit` (3) links per 30 days (`useSentLinksStore.sentAt`) | Receiving, and everything in a received parcel |
 | `pdf-export` | Chart PDF (`useChordSheetModel.exportPdf`, `useChordExport`) | Text and archive exports |

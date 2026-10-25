@@ -11,7 +11,7 @@ import {
 import { hasProAccess } from "../domain/entitlements";
 import {
     FREE_OVERDUB_LAYERS,
-    FREE_SAVED_SPARKS_PER_TOOL,
+    FREE_SPARK_TRIES_PER_GAME,
     FREE_WORKSPACES,
     canAddEditorPart,
     canAddWorkspace,
@@ -69,7 +69,7 @@ describe("the Pro catalog", () => {
 
     it("drives the proGating helpers", () => {
         expect(FREE_OVERDUB_LAYERS).toBe(PRO_CATALOG["overdub-layers"].freeLimit);
-        expect(FREE_SAVED_SPARKS_PER_TOOL).toBe(PRO_CATALOG["word-sparks-unlimited"].freeLimit);
+        expect(FREE_SPARK_TRIES_PER_GAME).toBe(PRO_CATALOG["lyric-spark"].freeLimit);
         expect(FREE_WORKSPACES).toBe(PRO_CATALOG.workspaces.freeLimit);
         expect(canAddWorkspace(FREE_WORKSPACES - 1, false)).toBe(true);
         expect(canAddWorkspace(FREE_WORKSPACES, false)).toBe(false);
@@ -108,7 +108,7 @@ describe("the Pro sheet's rows", () => {
     it("advertise every gated feature with a call site, apart from the quiet storage ones", () => {
         const advertised = new Set(PAYWALL_ROWS.flatMap((row) => row.features));
         // Storage and the keys reserved for future features are Pro without a sheet row.
-        const quiet: ProFeature[] = ["archive-offload", "cloud-backup", "pdf-export", "word-sparks-unlimited"];
+        const quiet: ProFeature[] = ["archive-offload", "cloud-backup", "pdf-export"];
         for (const key of EVERY_KEY) {
             if (!isProFeature(key) || quiet.includes(key)) continue;
             expect({ key, advertised: advertised.has(key) }).toEqual({ key, advertised: true });
@@ -121,9 +121,9 @@ describe("the founder's split (2026-10-23)", () => {
         expect(isPracticeToolPro("loop")).toBe(false);
         expect(isPracticeToolPro("speed")).toBe(false);
         expect(isPracticeToolPro("stepUp")).toBe(true);
-        expect(isProFeature("lyric-spark")).toBe(false);
+        expect(isProFeature("lyric-spark")).toBe(true);
         expect(isProFeature("word-finder-full")).toBe(true);
         expect(FREE_WORKSPACES).toBe(3);
-        expect(FREE_SAVED_SPARKS_PER_TOOL).toBe(3);
+        expect(FREE_SPARK_TRIES_PER_GAME).toBe(3);
     });
 });

@@ -138,6 +138,7 @@ import { ReceivedParcelHost } from "./src/components/common/ReceivedParcelSheet"
 import { ProUpsellHost } from "./src/components/common/ProUpsellSheet";
 import { FreeMonthNotices } from "./src/components/common/FreeMonthNotices";
 import { initBilling } from "./src/services/billing";
+import { loadSparkTries } from "./src/services/sparkTries";
 import { WelcomeFlow } from "./src/components/common/WelcomeFlow";
 import { installGlobalCrashHandler } from "./src/services/crashLog";
 import { describeError, persistLog } from "./src/services/persistLog";
@@ -1218,6 +1219,8 @@ export default function App() {
   // RevenueCat: once per launch. Inert on builds without its native side.
   useEffect(() => {
     void initBilling();
+    // The word games' free tries live beside the free month (services/sparkTries.ts).
+    void loadSparkTries();
   }, []);
   const { t } = useTranslation();
   const [hasHydrated, setHasHydrated] = useState(() => useStore.persist.hasHydrated());
