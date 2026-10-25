@@ -23,8 +23,8 @@
 export const APP_LANGUAGES = [
   { code: "en", nativeName: "English", flag: "🇺🇸", formatLocale: "en-US", direction: "ltr" },
   { code: "he", nativeName: "עברית", flag: "🇮🇱", formatLocale: "he-IL", direction: "rtl" },
-  // Neutral Latin American Spanish (tú), dates as in Mexico.
-  { code: "es", nativeName: "Español", flag: "🇲🇽", formatLocale: "es-MX", direction: "ltr" },
+  // Neutral Spanish (tú) that reads naturally in Spain and Latin America.
+  { code: "es", nativeName: "Español", flag: "🇪🇸", formatLocale: "es-ES", direction: "ltr" },
 ] as const;
 
 type LanguageEntry = (typeof APP_LANGUAGES)[number];

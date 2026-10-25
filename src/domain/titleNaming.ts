@@ -67,8 +67,8 @@ function buildDefaultIdeaTitleIn(language: TitleLanguage, timestamp: number) {
   const day = date.getDate();
   if (language === "es") {
     // 24-hour, day before month, no ordinal: "10:58 28 oct".
-    const time = date.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false });
-    const month = date.toLocaleDateString("es-MX", { month: "short" }).replace(/\.$/, "");
+    const time = date.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", hour12: false });
+    const month = date.toLocaleDateString("es-ES", { month: "short" }).replace(/\.$/, "");
     return `${time} ${day} ${month}`;
   }
   if (language === "he") {

@@ -160,6 +160,33 @@ function textPlainUrl(formats: Record<string, string>): string | null {
   return null;
 }
 
+type GutendexPerson = { birth_year?: number | null; death_year?: number | null };
+
+/**
+ * Gutenberg follows US copyright; Europe and Brazil protect a work until 70
+ * years after its author (and translator) died, and Borrowed Words shows pages
+ * everywhere (2026-10-25: 67 Spanish, 256 German, 16 Portuguese titles fail
+ * this). A person with no death year is let through only when nothing suggests
+ * they lived recently: a dateless translator is usually a living volunteer, a
+ * dateless author born in the last 170 years may still be in copyright.
+ */
+export function isPublicDomainEverywhere(
+  book: { authors?: GutendexPerson[]; translators?: GutendexPerson[] },
+  now: Date = new Date()
+): boolean {
+  // Protection runs to the end of the 70th year after death.
+  const lastProtectedDeath = now.getFullYear() - 71;
+  const clear = (person: GutendexPerson, isTranslator: boolean) => {
+    if (typeof person.death_year === "number") return person.death_year <= lastProtectedDeath;
+    if (isTranslator) return false;
+    return typeof person.birth_year !== "number" || person.birth_year <= lastProtectedDeath - 100;
+  };
+  return (
+    (book.authors ?? []).every((person) => clear(person, false)) &&
+    (book.translators ?? []).every((person) => clear(person, true))
+  );
+}
+
 /** Draws a random book in a language from anywhere in the Gutenberg library via
  * a random Gutendex page. Retries a few pages if a page has no plain-text books. */
 async function fetchRandomLibraryBook(language: "en" | "es" = "en", attempts = 3): Promise<MagpieBook> {
@@ -172,6 +199,7 @@ async function fetchRandomLibraryBook(language: "en" | "es" = "en", attempts = 3
     if (!res.ok) continue;
     const data = JSON.parse(res.text) as { results?: Array<Record<string, any>> };
     const candidates = (data.results ?? [])
+      .filter((book) => isPublicDomainEverywhere(book))
       .map((book) => {
         const url = textPlainUrl(book.formats ?? {});
         if (!url) return null;
