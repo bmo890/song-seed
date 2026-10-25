@@ -26,7 +26,8 @@ import {
   isEnglishLookupWord,
   isHebrewLookupWord,
   sanitizeThemeWords,
-  spanishSupports,
+  latinLookupLanguageFor,
+  latinSupports,
   WORD_LOOKUP_MODE_ORDER,
   WORD_LOOKUP_MODES,
   WordLookupBusyError,
@@ -67,8 +68,8 @@ type LookupState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "unsupported" }
-  // A tool Datamuse's Spanish vocabulary can't serve (opposites, related…).
-  | { status: "notInSpanish" }
+  // A tool the word's language has no source for (Spanish opposites…).
+  | { status: "notInLanguage" }
   // Hebrew meaning mode, nothing cached: awaiting an explicit tap so the paid
   // LLM call never fires on a debounce.
   | { status: "needsTrigger" }
@@ -78,14 +79,14 @@ type LookupState =
   | { status: "error" };
 
 /** How a (word, mode) pair is served. */
-type LookupRoute = "english" | "spanish" | "spanishUnsupported" | "hebrewRhymes" | "hebrewLlm" | "hebrewSound" | "unsupported";
+type LookupRoute = "english" | "latin" | "latinUnsupported" | "hebrewRhymes" | "hebrewLlm" | "hebrewSound" | "unsupported";
 
 /** Latin letters follow the word-tools language (Settings → Preferences);
  *  Hebrew letters are Hebrew whatever is chosen. */
 function classifyLookup(word: string, mode: WordLookupMode, latin: LatinLookupLanguage): LookupRoute {
   if (isEnglishLookupWord(word)) {
     if (latin === "en") return "english";
-    return spanishSupports(mode) ? "spanish" : "spanishUnsupported";
+    return latinSupports(latin, mode) ? "latin" : "latinUnsupported";
   }
   if (isHebrewLookupWord(word)) {
     // Rhymes + near rhymes both come from Charuzit — free, auto-fire.
@@ -113,7 +114,7 @@ type PreviewState = {
  */
 export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: WordFinderSheetProps) {
   const { t } = useTranslation();
-  const latin: LatinLookupLanguage = useWordLanguage() === "es" ? "es" : "en";
+  const latin = latinLookupLanguageFor(useWordLanguage());
   const modeLabel = (mode: WordLookupMode) => t(`wordFinderUi.${mode}`);
   const modeDescription = (mode: WordLookupMode) => t(`wordFinderUi.${mode}Desc`);
   // Datamuse uses single-letter tags; the Hebrew worker returns a pos phrase
@@ -151,8 +152,9 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
 
   /** The mode actually queried; null while More is open with no tool picked. */
   const activeMode: WordLookupMode | null = moreTab ? extendedMode : quickMode;
-  // Spanish has no Related; its sound tools wait under More.
-  const quickModes = latin === "es" ? WORD_LOOKUP_MODE_ORDER.filter(spanishSupports) : WORD_LOOKUP_MODE_ORDER;
+  // A language keeps only the quick tools it has a source for (Spanish has no
+  // Related); its other tools wait under More.
+  const quickModes = WORD_LOOKUP_MODE_ORDER.filter((mode) => latinSupports(latin, mode));
   const themeParam = themes.join(", ");
 
   // Re-seed from the editor each time the sheet opens on a new word.
@@ -182,8 +184,8 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
     const route = classifyLookup(trimmed, activeMode, latin);
     const requestId = ++requestIdRef.current;
 
-    if (route === "spanishUnsupported") {
-      setLookup({ status: "notInSpanish" });
+    if (route === "latinUnsupported") {
+      setLookup({ status: "notInLanguage" });
       return;
     }
 
@@ -251,9 +253,9 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
       };
     }
 
-    // route === "english" | "spanish": cache-first, then debounced network.
-    // Spanish takes no theme (Datamuse's Spanish vocabulary has no topics).
-    const lookupOptions = route === "spanish" ? { language: "es" as const } : { theme: themeParam };
+    // route === "english" | "latin": cache-first, then debounced network.
+    // Only English takes a theme (Datamuse's other vocabularies have no topics).
+    const lookupOptions = route === "latin" ? { language: latin } : { theme: themeParam };
     const controller = new AbortController();
     let settled = false;
     setLookup({ status: "loading" });
@@ -589,9 +591,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
       title: group.title,
       modes: resultsAreHebrew
         ? group.modes.filter((m) => hebrewWorkerMode(m) !== null)
-        : latin === "es"
-          ? group.modes.filter(spanishSupports)
-          : group.modes,
+        : group.modes.filter((mode) => latinSupports(latin, mode)),
     })).filter((group) => group.modes.length > 0);
     return (
     <ScrollView
@@ -792,7 +792,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
 
             {/* Themes bias Datamuse and the LLM, but Charuzit ignores them —
                 hide the affordance in Hebrew rhyme/near modes where it's a no-op. */}
-            {activeRoute === "hebrewRhymes" || activeRoute === "spanish" || activeRoute === "spanishUnsupported"
+            {activeRoute === "hebrewRhymes" || activeRoute === "latin" || activeRoute === "latinUnsupported"
               ? null
               : renderThemeLine()}
 
@@ -840,9 +840,11 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
                 <View style={finderStyles.stateCenter}>
                   <Text style={finderStyles.stateText}>{t("wordFinderUi.scriptUnsupported")}</Text>
                 </View>
-              ) : lookup.status === "notInSpanish" ? (
+              ) : lookup.status === "notInLanguage" ? (
                 <View style={finderStyles.stateCenter}>
-                  <Text style={finderStyles.stateText}>{t("wordFinderUi.notInSpanish")}</Text>
+                  <Text style={finderStyles.stateText}>
+                    {t(latin === "de" ? "wordFinderUi.notInGerman" : "wordFinderUi.notInSpanish")}
+                  </Text>
                 </View>
               ) : lookup.status === "offline" ? (
                 <Text style={finderStyles.stateText}>{t("wordFinderUi.offline")}</Text>
@@ -876,7 +878,9 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
                 <Text style={finderStyles.hint}>
                   {activeRoute === "hebrewRhymes"
                     ? t("wordFinderUi.dictaCredit")
-                    : t("wordFinderUi.resultHint")}
+                    : activeRoute === "latin" && latin === "de"
+                      ? t("wordFinderUi.germanCredit")
+                      : t("wordFinderUi.resultHint")}
                 </Text>
               ) : null}
             </View>

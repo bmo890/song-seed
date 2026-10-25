@@ -431,6 +431,7 @@ function SourceSheet({
           options={[
             { key: "en", label: t("magpie.langEnglish") },
             { key: "es", label: t("magpie.langSpanish") },
+            { key: "de", label: t("magpie.langGerman") },
             ...(MAGPIE_HE_ENABLED ? [{ key: "he" as const, label: t("magpie.langHebrew") }] : []),
           ]}
           value={spark.language}

@@ -22,9 +22,10 @@ const WINDOW_START_FRACTION = 0.1;
 const WINDOW_END_FRACTION = 0.82;
 
 // Whole-library draws pick a random Gutendex page per language.
-const GUTENDEX_PAGES: Record<"en" | "es", number> = {
+const GUTENDEX_PAGES: Record<"en" | "es" | "de", number> = {
   en: 1900, // ~62k English books / 32 per page
   es: 28, // 922 Spanish books (2026-10-25) / 32 per page
+  de: 77, // 2,479 German books (2026-10-25) / 32 per page
 };
 
 import { MagpieFetchError } from "./magpieFetchError";
@@ -189,7 +190,7 @@ export function isPublicDomainEverywhere(
 
 /** Draws a random book in a language from anywhere in the Gutenberg library via
  * a random Gutendex page. Retries a few pages if a page has no plain-text books. */
-async function fetchRandomLibraryBook(language: "en" | "es" = "en", attempts = 3): Promise<MagpieBook> {
+async function fetchRandomLibraryBook(language: "en" | "es" | "de" = "en", attempts = 3): Promise<MagpieBook> {
   for (let i = 0; i < attempts; i++) {
     const page = 1 + Math.floor(Math.random() * GUTENDEX_PAGES[language]);
     const res = await safeFetch(`https://gutendex.com/books?languages=${language}&page=${page}`, undefined, async (r) => ({
@@ -245,11 +246,12 @@ export async function drawPage(
   if (spark.language === "he") {
     return fetchBenYehudaPage(spark.heGenres);
   }
-  if (spark.language === "es") {
-    // Spanish has no curated shelf: every book comes from Gutenberg's whole
-    // Spanish library.
+  if (spark.language === "es" || spark.language === "de") {
+    // Spanish and German have no curated shelf: every book comes from
+    // Gutenberg's whole library in that language (reachable from Germany,
+    // checked 2026-10-25).
     let book = spark.book;
-    if (mode === "book" || !book || book.source === "benyehuda") book = await fetchRandomLibraryBook("es");
+    if (mode === "book" || !book || book.source === "benyehuda") book = await fetchRandomLibraryBook(spark.language);
     return { book, pageText: await fetchPassage(book) };
   }
   let book = spark.book;
@@ -626,7 +628,7 @@ export function sanitizeMagpieSpark(raw: unknown): MagpieSpark | null {
     pageText: isString(obj.pageText) ? obj.pageText : "",
     fragments: sanitizeFragments(obj.fragments),
     draft: isString(obj.draft) ? obj.draft : "",
-    language: obj.language === "he" || obj.language === "es" ? obj.language : "en",
+    language: obj.language === "he" || obj.language === "es" || obj.language === "de" ? obj.language : "en",
     wholeLibrary: obj.wholeLibrary === true,
     savedLyricId: isString(obj.savedLyricId) ? obj.savedLyricId : undefined,
     finishedAt: typeof obj.finishedAt === "number" && Number.isFinite(obj.finishedAt) ? obj.finishedAt : undefined,

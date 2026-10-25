@@ -2,6 +2,7 @@ import type { AppLanguage } from "./languages";
 import { en } from "./locales/en";
 import { he } from "./locales/he";
 import { es } from "./locales/es";
+import { de } from "./locales/de";
 
 /**
  * Every language's catalog, one file each under locales/. A language listed in
@@ -12,4 +13,5 @@ export const resources = {
   en: { translation: en },
   he: { translation: he },
   es: { translation: es },
+  de: { translation: de },
 } as const satisfies Record<AppLanguage, { translation: object }>;

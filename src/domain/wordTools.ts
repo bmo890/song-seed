@@ -8,6 +8,7 @@
  * WORD_SERVICE_BASE_URL at it and nothing else in the app changes.
  */
 
+import { germanRhymes } from "./germanRhyme";
 import { isSpanishAssonance, isSpanishRhyme, spanishRhyme, spanishRhymePattern } from "./spanishRhyme";
 
 export const WORD_SERVICE_BASE_URL = "https://api.datamuse.com";
@@ -91,7 +92,7 @@ export const WORD_LOOKUP_MODES: Record<WordLookupMode, ModeConfig> = {
  * language the writer chose (Settings → Preferences), since the letters alone
  * can't tell "once" the number from "once" the word.
  */
-export type LatinLookupLanguage = "en" | "es";
+export type LatinLookupLanguage = "en" | "es" | "de";
 
 /**
  * What Datamuse's Spanish vocabulary (`v=es`) can serve (probed 2026-10-25):
@@ -104,6 +105,33 @@ const SPANISH_MODES = new Set<WordLookupMode>(["rhymes", "near", "similar", "sou
 
 export function spanishSupports(mode: WordLookupMode): boolean {
   return SPANISH_MODES.has(mode);
+}
+
+/**
+ * German (2026-10-25): no Datamuse. Rhymes and near rhymes come from the
+ * bundled index (domain/germanRhyme.ts); meanings from OpenThesaurus.de
+ * (CC BY-SA / LGPL, free, 60 requests a minute per phone, credited in the
+ * sheet): its synonyms serve Similar, its broader terms Related, its narrower
+ * terms Kinds of. Nothing open offers German opposites, describing words or
+ * parts yet.
+ */
+const GERMAN_MODES = new Set<WordLookupMode>(["rhymes", "near", "similar", "related", "kinds"]);
+
+export function germanSupports(mode: WordLookupMode): boolean {
+  return GERMAN_MODES.has(mode);
+}
+
+/** The vocabulary Latin-script words are looked up in for a word-tools language
+ *  (Hebrew words route by their letters, so Hebrew maps to English here). */
+export function latinLookupLanguageFor(code: string): LatinLookupLanguage {
+  return code === "es" || code === "de" ? code : "en";
+}
+
+/** Whether a Latin-script lookup language serves a mode. */
+export function latinSupports(language: LatinLookupLanguage, mode: WordLookupMode): boolean {
+  if (language === "es") return spanishSupports(mode);
+  if (language === "de") return germanSupports(mode);
+  return true;
 }
 
 /** The four quick modes shown as segments. */
@@ -297,7 +325,7 @@ export type WordLookupOptions = {
 /** Cache key for a lookup: Spanish keys carry their language so "once" in
  *  English and "once" in Spanish never share results. Themes are English-only. */
 function lookupCacheKey(mode: WordLookupMode, normalized: string, options?: WordLookupOptions): string {
-  if (options?.language === "es") return `es:${mode}:${normalized}`;
+  if (options?.language === "es" || options?.language === "de") return `${options.language}:${mode}:${normalized}`;
   const themeKey = sanitizeThemeWords(options?.theme ?? "").join(",");
   return `${mode}:${themeKey}:${normalized}`;
 }
@@ -368,7 +396,7 @@ async function readBodyJson(response: Response, timer: AbortSignal, signal?: Abo
 }
 
 /** Shared fetch: timeout, external-abort passthrough, and the offline mapping. */
-async function fetchWordServiceJson(url: string, signal?: AbortSignal): Promise<unknown> {
+async function fetchWordServiceJson(url: string, signal?: AbortSignal, headers?: Record<string, string>): Promise<unknown> {
   const timeoutController = new AbortController();
   const timeout = setTimeout(() => timeoutController.abort(), REQUEST_TIMEOUT_MS);
   const abort = () => timeoutController.abort();
@@ -377,7 +405,7 @@ async function fetchWordServiceJson(url: string, signal?: AbortSignal): Promise<
   try {
     let response: Response;
     try {
-      response = await fetch(url, { signal: timeoutController.signal });
+      response = await fetch(url, { signal: timeoutController.signal, headers });
     } catch (error) {
       if (signal?.aborted) throw error;
       throw new WordLookupOfflineError();
@@ -486,6 +514,16 @@ export async function fetchWordSuggestions(
   if (cached !== null) return cached;
 
   const cacheKey = lookupCacheKey(mode, normalized, options);
+  if (options?.language === "de") {
+    // Rhymes come from the bundled index: instant, nothing to cache.
+    if (mode === "rhymes" || mode === "near") {
+      return germanRhymes(word, mode === "near").map((rhyme, rank) => ({ ...rhyme, score: 1000 - rank }));
+    }
+    const german = await fetchOpenThesaurus(mode, word.trim(), options?.signal);
+    rememberInMemory(cacheKey, german);
+    writePersistent(cacheKey, german);
+    return german;
+  }
   const spanishRhymeMode = options?.language === "es" && (mode === "rhymes" || mode === "near");
   const suggestions = spanishRhymeMode
     ? await fetchSpanishRhymes(normalized, mode === "near", options)
@@ -566,6 +604,62 @@ async function fetchSpanishRhymes(
   const url = buildSpanishRhymeUrl(word, near, options?.baseUrl);
   if (!url) return [];
   return filterSpanishRhymes(word, parseSpanishCandidates(await fetchWordServiceJson(url, options?.signal)), near);
+}
+
+// ── German meanings (OpenThesaurus.de) ─────────────────────────────────────────
+
+export const OPEN_THESAURUS_BASE_URL = "https://www.openthesaurus.de";
+
+type OpenThesaurusTerm = { term?: unknown };
+type OpenThesaurusSynset = {
+  terms?: OpenThesaurusTerm[];
+  supersynsets?: OpenThesaurusTerm[][];
+  subsynsets?: OpenThesaurusTerm[][];
+};
+
+/** "Bindung (zu jemandem)" → "Bindung"; long explanations are not words. */
+function cleanThesaurusTerm(term: unknown): string | null {
+  if (typeof term !== "string") return null;
+  const text = term.replace(/\s*\([^)]*\)/g, "").replace(/\s+/g, " ").trim();
+  if (!text || text.split(" ").length > 3) return null;
+  return text;
+}
+
+/** Synonyms (similar), broader terms (related) or narrower terms (kinds) from
+ *  an OpenThesaurus search response, in its own order, without the word itself. */
+export function parseOpenThesaurus(payload: unknown, mode: WordLookupMode, word: string): WordSuggestion[] {
+  const synsets = (payload as { synsets?: OpenThesaurusSynset[] } | null)?.synsets;
+  if (!Array.isArray(synsets)) return [];
+  const self = word.trim().toLowerCase();
+  const seen = new Set<string>([self]);
+  const out: WordSuggestion[] = [];
+  const add = (terms: OpenThesaurusTerm[] | undefined) => {
+    for (const entry of terms ?? []) {
+      const text = cleanThesaurusTerm(entry?.term);
+      if (!text || seen.has(text.toLowerCase())) continue;
+      seen.add(text.toLowerCase());
+      out.push({ word: text, score: MAX_RESULTS - out.length });
+    }
+  };
+  for (const synset of synsets) {
+    if (mode === "similar") add(synset.terms);
+    else if (mode === "related") for (const group of synset.supersynsets ?? []) add(group);
+    else if (mode === "kinds") for (const group of synset.subsynsets ?? []) add(group);
+  }
+  return out.slice(0, MAX_RESULTS);
+}
+
+async function fetchOpenThesaurus(mode: WordLookupMode, word: string, signal?: AbortSignal): Promise<WordSuggestion[]> {
+  const params = new URLSearchParams();
+  params.set("q", word);
+  params.set("format", "application/json");
+  if (mode === "related") params.set("supersynsets", "true");
+  if (mode === "kinds") params.set("subsynsets", "true");
+  // OpenThesaurus asks API users to say who they are.
+  const payload = await fetchWordServiceJson(`${OPEN_THESAURUS_BASE_URL}/synonyme/search?${params.toString()}`, signal, {
+    "User-Agent": "SongNook/1.0 (https://songnook.app)",
+  });
+  return parseOpenThesaurus(payload, mode, word);
 }
 
 // ── Hebrew (LLM worker) ────────────────────────────────────────────────────────
@@ -831,6 +925,8 @@ export async function fetchWordDefinitions(
   const normalized = word.trim().toLowerCase();
   if (!normalized) return [];
   const language = options?.language ?? "en";
+  // No open German dictionary is wired yet: hold shows "no definition".
+  if (language === "de") return [];
   // Spanish definitions are their own entries ("once" is eleven in Spanish).
   const defKey = language === "es" ? `es:${normalized}` : normalized;
 

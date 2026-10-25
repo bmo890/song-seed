@@ -16,8 +16,9 @@ import { i18n } from "../i18n/instance";
 const EN_TIMESTAMP = /^\d{1,2}:\d{2}\s?(?:AM|PM)\s+[A-Za-z]{3}\s+\d{1,2}(?:st|nd|rd|th)?$/i;
 const HE_TIMESTAMP = /^\d{1,2}:\d{2}\s+\d{1,2}\s+ב\S+$/;
 const ES_TIMESTAMP = /^\d{1,2}:\d{2}\s+\d{1,2}\s+[a-záéíóú]{3,5}\.?$/i;
+const DE_TIMESTAMP = /^\d{1,2}:\d{2}\s+\d{1,2}\.\s+[A-Za-zäöüÄÖÜ]{3,5}\.?$/;
 // Our own generated shapes: default take titles, recovered takes, nameless imports.
-const OUR_DEFAULTS = [/^Idea \d+$/i, /^רעיון \d+$/, /^(?:Layer|Overdub) \d+$/i, /^(?:שכבה|שכבת הקלטה) \d+$/, /^Capa \d+$/i, /^(?:Recovered|שוחזר|Recuperado)\s?·/, /^Recovered Recording\b/i, /^Import\s/];
+const OUR_DEFAULTS = [/^Idea \d+$/i, /^רעיון \d+$/, /^(?:Layer|Overdub) \d+$/i, /^(?:שכבה|שכבת הקלטה) \d+$/, /^Capa \d+$/i, /^Spur \d+$/i, /^(?:Recovered|שוחזר|Recuperado|Gerettet)\s?·/, /^Recovered Recording\b/i, /^Import\s/];
 // What voice recorders and messaging apps call a file nobody named.
 const RECORDER_FILENAMES = [
   /^(?:new\s+)?(?:recording|voice|memo|audio|rec|clip|track|untitled|note|sound|record|voice\s*memo)[\s_\-#.]*\(?\d*\)?$/i,
@@ -44,7 +45,7 @@ export function looksMachineNamed(title: string, createdAt?: number): boolean {
   if (createdAt !== undefined && isDefaultIdeaTitle(trimmed, createdAt)) return true;
   // "Chorus hook v3" is a child take of a named clip; "Idea 2 v3" is not.
   const base = stripVersionSuffix(trimmed);
-  if (EN_TIMESTAMP.test(base) || HE_TIMESTAMP.test(base) || ES_TIMESTAMP.test(base)) return true;
+  if ([EN_TIMESTAMP, HE_TIMESTAMP, ES_TIMESTAMP, DE_TIMESTAMP].some((pattern) => pattern.test(base))) return true;
   if (OUR_DEFAULTS.some((pattern) => pattern.test(base))) return true;
   return RECORDER_FILENAMES.some((pattern) => pattern.test(base));
 }
@@ -59,8 +60,8 @@ export function isTitleAutoNamed(entry: {
   return looksMachineNamed(entry.title, entry.createdAt);
 }
 
-type TitleLanguage = "en" | "he" | "es";
-const TITLE_LANGUAGES: TitleLanguage[] = ["en", "he", "es"];
+type TitleLanguage = "en" | "he" | "es" | "de";
+const TITLE_LANGUAGES: TitleLanguage[] = ["en", "he", "es", "de"];
 
 function buildDefaultIdeaTitleIn(language: TitleLanguage, timestamp: number) {
   const date = new Date(timestamp);
@@ -70,6 +71,12 @@ function buildDefaultIdeaTitleIn(language: TitleLanguage, timestamp: number) {
     const time = date.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", hour12: false });
     const month = date.toLocaleDateString("es-ES", { month: "short" }).replace(/\.$/, "");
     return `${time} ${day} ${month}`;
+  }
+  if (language === "de") {
+    // 24-hour, day with its period: "10:58 28. Okt".
+    const time = date.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", hour12: false });
+    const month = date.toLocaleDateString("de-DE", { month: "short" }).replace(/\.$/, "");
+    return `${time} ${day}. ${month}`;
   }
   if (language === "he") {
     // Hebrew has no ordinal suffix and reads 24-hour: "10:58 · 28 ביולי".

@@ -1,4 +1,5 @@
 import { ES_ALIASES, ES_EVERYDAY_NOUNS, ES_EVERYDAY_VERBS, ES_PLACES, ES_ROLES } from "./wordIdeasEs";
+import { DE_ALIASES, DE_EVERYDAY_NOUNS, DE_EVERYDAY_VERBS, DE_PLACES, DE_ROLES } from "./wordIdeasDe";
 
 /**
  * Inspiration for the Word Ladder setup step, per Jeff Tweedy's exercise: pick
@@ -11,12 +12,13 @@ import { ES_ALIASES, ES_EVERYDAY_NOUNS, ES_EVERYDAY_VERBS, ES_PLACES, ES_ROLES }
  * DISTINCTIVENESS — words strongly tied to that seed — which both sparks better
  * lines and, as a happy side effect, keeps the same word from recurring across
  * seeds (verified by src/__tests__/wordLadderIdeas.test.ts, which caps how many
- * pools any one word may appear in). English, Hebrew and Spanish (wordIdeasEs.ts).
+ * pools any one word may appear in). English, Hebrew, Spanish (wordIdeasEs.ts)
+ * and German (wordIdeasDe.ts).
  */
 
 export type Idea = { seed: string; words: string[] };
 export type IdeaBank = { roles: Idea[]; places: Idea[] };
-export type IdeaLang = "en" | "he" | "es";
+export type IdeaLang = "en" | "he" | "es" | "de";
 
 // ── English ──────────────────────────────────────────────────────────────────
 
@@ -215,6 +217,7 @@ const BANKS: Record<IdeaLang, IdeaBank> = {
   en: { roles: EN_ROLES, places: EN_PLACES },
   he: { roles: HE_ROLES, places: HE_PLACES },
   es: { roles: ES_ROLES, places: ES_PLACES },
+  de: { roles: DE_ROLES, places: DE_PLACES },
 };
 
 /** The dataset for a language (falls back to English). */
@@ -297,6 +300,7 @@ export const ALIASES: Record<IdeaLang, Record<string, string[]>> = {
     מנתח: ["מנתחת"],
   },
   es: ES_ALIASES,
+  de: DE_ALIASES,
 };
 
 /** Hebrew gender and plural forms that point back at a listed seed:
@@ -311,9 +315,14 @@ function key(text: string): string {
     .trim()
     .toLowerCase()
     .replace(/[\s\-־]+/g, "")
-    // Spanish accents never decide a match (fotografo finds fotógrafo).
+    .replace(/ß/g, "ss")
+    // Accents and umlauts never decide a match (fotografo finds fotógrafo,
+    // backer finds bäcker), nor does writing an umlaut out (baecker).
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ae/g, "a")
+    .replace(/oe/g, "o")
+    .replace(/ue/g, "u")
     // A Hebrew word's last letter takes its final form; once a suffix is cut
     // (צלמת → צלמ) it has to meet צלם, so final letters compare as regular ones.
     .replace(/[ךםןףץ]/g, (letter) => HE_FINAL_FORMS[letter]);
@@ -329,6 +338,8 @@ function typedForms(text: string): string[] {
   forms.add(bare);
   // Spanish articles and possessives ("la cocina", "un panadero", "mi taller").
   forms.add(base.replace(/^(el|la|los|las|un|una|unos|unas|mi|mis|tu|nuestro|nuestra)\s+/, ""));
+  // German articles and prepositions ("der bäcker", "im theater", "auf dem dach").
+  forms.add(base.replace(/^(der|die|das|den|dem|des|ein|eine|einen|einem|mein|meine|im|am|beim|zum|zur|in der|auf dem)\s+/, ""));
   for (const form of [...forms]) {
     // English plurals: florists, benches, libraries → library.
     if (/ies$/.test(form)) forms.add(form.replace(/ies$/, "y"));
@@ -337,6 +348,11 @@ function typedForms(text: string): string[] {
     // Spanish plurals: pescadores → pescador, luces → luz.
     if (/ces$/.test(form)) forms.add(form.replace(/ces$/, "z"));
     if (/[^aeiou]es$/.test(form)) forms.add(form.replace(/es$/, ""));
+    // German plurals and feminine plurals: bäckerinnen → bäckerin, polizisten →
+    // polizist, küchen → küche.
+    if (/innen$/.test(form)) forms.add(form.replace(/nen$/, ""));
+    if (form.length > 4 && /en$/.test(form)) forms.add(form.replace(/en$/, ""));
+    if (form.length > 4 && /n$/.test(form)) forms.add(form.replace(/n$/, ""));
     // Hebrew definite article (הנגר) and gender/plural endings.
     const withoutHe = form.startsWith("ה") && form.length > 2 ? form.slice(1) : form;
     forms.add(withoutHe);
@@ -397,7 +413,7 @@ function namesFor(lang: IdeaLang, kind: SeedKind): { name: string; idea: Idea }[
 export function matchSeed(lang: IdeaLang, kind: SeedKind, text: string): Idea | null {
   const forms = typedForms(text).map(key).filter(Boolean);
   if (forms.length === 0) return null;
-  const langs: IdeaLang[] = [lang, ...(["en", "es", "he"] as IdeaLang[]).filter((other) => other !== lang)];
+  const langs: IdeaLang[] = [lang, ...(["en", "es", "de", "he"] as IdeaLang[]).filter((other) => other !== lang)];
   for (const candidateLang of langs) {
     const names = namesFor(candidateLang, kind);
     for (const form of forms) {
@@ -425,19 +441,21 @@ export const EVERYDAY_VERBS: Record<IdeaLang, string[]> = {
   en: ["carry", "wait", "fold", "open", "count", "leave", "hold", "lift", "sort", "clean", "fix", "watch", "listen", "check", "lock", "reach", "borrow", "return", "stay", "forget"],
   he: ["לסחוב", "לחכות", "לקפל", "לפתוח", "לספור", "לעזוב", "להחזיק", "להרים", "למיין", "לנקות", "לתקן", "לבדוק", "להקשיב", "לנעול", "להגיע", "להחזיר", "להישאר", "לשאול", "לזכור", "לשכוח"],
   es: ES_EVERYDAY_VERBS,
+  de: DE_EVERYDAY_VERBS,
 };
 
 export const EVERYDAY_NOUNS: Record<IdeaLang, string[]> = {
   en: ["door", "window", "chair", "key", "coat", "light switch", "clock", "bag", "cup", "stairs", "shadow", "floor", "wall", "phone", "pocket", "mirror", "rain", "dust", "noise", "receipt"],
   he: ["דלת", "חלון", "כיסא", "מפתח", "מעיל", "מתג", "שעון", "תיק", "כוס", "מדרגות", "צל", "רצפה", "קיר", "טלפון", "כיס", "מראה", "גשם", "אבק", "רעש", "שקית"],
   es: ES_EVERYDAY_NOUNS,
+  de: DE_EVERYDAY_NOUNS,
 };
 
 /** Hebrew letters decide which everyday pool fits what was typed; Latin
  *  letters keep the word language when it is Latin (English or Spanish). */
 function textLang(text: string, fallback: IdeaLang): IdeaLang {
   if (/[\u0590-\u05FF]/.test(text)) return "he";
-  if (/[a-zñáéíóú]/i.test(text)) return fallback === "he" ? "en" : fallback;
+  if (/[a-zñáéíóúäöüß]/i.test(text)) return fallback === "he" ? "en" : fallback;
   return fallback;
 }
 

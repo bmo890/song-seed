@@ -11,7 +11,7 @@ import {
   type IdeaLang,
 } from "../domain/wordLadderIdeas";
 
-const LANGS: IdeaLang[] = ["en", "he", "es"];
+const LANGS: IdeaLang[] = ["en", "he", "es", "de"];
 
 /** How many distinct pools any single word shows up in — the cross-category
  * repetition we're trying to minimize. */
@@ -160,5 +160,17 @@ describe("typed seeds (founder, 2026-10-19)", () => {
         }
       }
     }
+  });
+});
+
+describe("German seed matching", () => {
+  it.each([
+    ["Bäcker", "bäcker"],
+    ["baecker", "bäcker"],
+    ["die Bäckerin", "bäcker"],
+    ["Bäckerinnen", "bäcker"],
+    ["Fleischer", "metzger"],
+  ])("%s finds %s", (typed, seed) => {
+    expect(matchSeed("de", "roles", typed)?.seed).toBe(seed);
   });
 });
