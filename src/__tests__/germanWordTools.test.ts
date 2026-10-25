@@ -34,7 +34,7 @@ describe("OpenThesaurus", () => {
   const payload = {
     synsets: [
       {
-        terms: [{ term: "Liebe" }, { term: "Zuneigung" }, { term: "Bindung (zu jemandem)" }, { term: "völlige Zuwendung zu jemandem ganz" }],
+        terms: [{ term: "Liebe" }, { term: "Zuneigung" }, { term: "Bindung (zu jemandem)" }, { term: "völlige Zuwendung zu jemandem ganz" }, { term: "Herz..." }, { term: "hält alles zusammen" }, { term: "Rotes Kreuz" }],
         supersynsets: [[{ term: "Gefühl" }]],
         subsynsets: [[{ term: "Jugendliebe" }], [{ term: "Elternliebe" }]],
       },
@@ -43,7 +43,7 @@ describe("OpenThesaurus", () => {
   };
 
   it("serves synonyms, broader and narrower terms without the word itself", () => {
-    expect(parseOpenThesaurus(payload, "similar", "Liebe").map((s) => s.word)).toEqual(["Zuneigung", "Bindung", "Hingabe"]);
+    expect(parseOpenThesaurus(payload, "similar", "Liebe").map((s) => s.word)).toEqual(["Zuneigung", "Bindung", "Rotes Kreuz", "Hingabe"]);
     expect(parseOpenThesaurus(payload, "related", "Liebe").map((s) => s.word)).toEqual(["Gefühl"]);
     expect(parseOpenThesaurus(payload, "kinds", "Liebe").map((s) => s.word)).toEqual(["Jugendliebe", "Elternliebe"]);
   });

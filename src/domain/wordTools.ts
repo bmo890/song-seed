@@ -621,7 +621,10 @@ type OpenThesaurusSynset = {
 function cleanThesaurusTerm(term: unknown): string | null {
   if (typeof term !== "string") return null;
   const text = term.replace(/\s*\([^)]*\)/g, "").replace(/\s+/g, " ").trim();
-  if (!text || text.split(" ").length > 3) return null;
+  // Word parts ("Herz...") and descriptions ("hält alles zusammen") are not
+  // words to drop into a line: keep single words and two-word names.
+  if (!text || /\.\.\.|…/.test(text) || text.split(" ").length > 2) return null;
+  if (text.includes(" ") && text === text.toLowerCase()) return null;
   return text;
 }
 

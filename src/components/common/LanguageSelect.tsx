@@ -105,9 +105,11 @@ const s = StyleSheet.create({
     fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.textStrong,
   },
+  // Opens upward, over the logo: the page dots and the start key sit below,
+  // and the list grows with every language added.
   menu: {
     position: "absolute",
-    top: 44,
+    bottom: 44,
     alignSelf: "center",
     minWidth: 180,
     zIndex: 40,
