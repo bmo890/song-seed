@@ -156,7 +156,7 @@ export type MagpieStep = "page" | "build";
 
 /** Which language's public-domain library Magpie draws from: English (Project
  * Gutenberg) or Hebrew (Project Ben-Yehuda). */
-export type MagpieLanguage = "en" | "he";
+export type MagpieLanguage = "en" | "he" | "es";
 
 /** Which public-domain library a Magpie page was pulled from. */
 export type MagpieSource = "gutenberg" | "benyehuda";

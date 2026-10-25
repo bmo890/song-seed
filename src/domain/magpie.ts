@@ -1,4 +1,4 @@
-import type { MagpieBook, MagpieFragment, MagpieSource, MagpieSpark, MagpieStep } from "../types";
+import type { MagpieBook, MagpieFragment, MagpieLanguage, MagpieSource, MagpieSpark, MagpieStep } from "../types";
 import { i18n } from "../i18n/instance";
 import type { MagpieHeGenre } from "../config/magpieService";
 import { gutenbergCoverUrl, gutenbergSourceUrl, randomCuratedBook } from "./magpieBooks";
@@ -21,7 +21,11 @@ const PAGE_BYTES = 3000;
 const WINDOW_START_FRACTION = 0.1;
 const WINDOW_END_FRACTION = 0.82;
 
-const GUTENDEX_EN_PAGES = 1900; // ~62k English books / 32 per page
+// Whole-library draws pick a random Gutendex page per language.
+const GUTENDEX_PAGES: Record<"en" | "es", number> = {
+  en: 1900, // ~62k English books / 32 per page
+  es: 28, // 922 Spanish books (2026-10-25) / 32 per page
+};
 
 import { MagpieFetchError } from "./magpieFetchError";
 export { MagpieFetchError, type MagpieFetchErrorKind } from "./magpieFetchError";
@@ -156,12 +160,12 @@ function textPlainUrl(formats: Record<string, string>): string | null {
   return null;
 }
 
-/** Draws a random English book from anywhere in the Gutenberg library via a
- * random Gutendex page. Retries a few pages if a page has no plain-text books. */
-async function fetchRandomLibraryBook(attempts = 3): Promise<MagpieBook> {
+/** Draws a random book in a language from anywhere in the Gutenberg library via
+ * a random Gutendex page. Retries a few pages if a page has no plain-text books. */
+async function fetchRandomLibraryBook(language: "en" | "es" = "en", attempts = 3): Promise<MagpieBook> {
   for (let i = 0; i < attempts; i++) {
-    const page = 1 + Math.floor(Math.random() * GUTENDEX_EN_PAGES);
-    const res = await safeFetch(`https://gutendex.com/books?languages=en&page=${page}`, undefined, async (r) => ({
+    const page = 1 + Math.floor(Math.random() * GUTENDEX_PAGES[language]);
+    const res = await safeFetch(`https://gutendex.com/books?languages=${language}&page=${page}`, undefined, async (r) => ({
       ok: r.ok,
       text: r.ok ? await r.text() : "",
     }));
@@ -212,6 +216,13 @@ export async function drawPage(
 ): Promise<MagpiePage> {
   if (spark.language === "he") {
     return fetchBenYehudaPage(spark.heGenres);
+  }
+  if (spark.language === "es") {
+    // Spanish has no curated shelf: every book comes from Gutenberg's whole
+    // Spanish library.
+    let book = spark.book;
+    if (mode === "book" || !book || book.source === "benyehuda") book = await fetchRandomLibraryBook("es");
+    return { book, pageText: await fetchPassage(book) };
   }
   let book = spark.book;
   // Force a fresh English book on an explicit reshuffle, when none exists yet, or
@@ -501,7 +512,7 @@ export function deriveMagpieTitle(spark: Pick<MagpieSpark, "draft" | "fragments"
   return words.length < source.length ? `${words}…` : words;
 }
 
-export function createMagpieSpark(): MagpieSpark {
+export function createMagpieSpark(language: MagpieLanguage = "en"): MagpieSpark {
   const now = Date.now();
   return {
     id: randomId("magpie"),
@@ -514,7 +525,7 @@ export function createMagpieSpark(): MagpieSpark {
     pageText: "",
     fragments: [],
     draft: "",
-    language: "en",
+    language,
     wholeLibrary: false,
     seenHelpSteps: [],
     usedFragmentIds: [],
@@ -587,7 +598,7 @@ export function sanitizeMagpieSpark(raw: unknown): MagpieSpark | null {
     pageText: isString(obj.pageText) ? obj.pageText : "",
     fragments: sanitizeFragments(obj.fragments),
     draft: isString(obj.draft) ? obj.draft : "",
-    language: obj.language === "he" ? "he" : "en",
+    language: obj.language === "he" || obj.language === "es" ? obj.language : "en",
     wholeLibrary: obj.wholeLibrary === true,
     savedLyricId: isString(obj.savedLyricId) ? obj.savedLyricId : undefined,
     finishedAt: typeof obj.finishedAt === "number" && Number.isFinite(obj.finishedAt) ? obj.finishedAt : undefined,

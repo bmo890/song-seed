@@ -11,7 +11,7 @@ import {
   type IdeaLang,
 } from "../domain/wordLadderIdeas";
 
-const LANGS: IdeaLang[] = ["en", "he"];
+const LANGS: IdeaLang[] = ["en", "he", "es"];
 
 /** How many distinct pools any single word shows up in — the cross-category
  * repetition we're trying to minimize. */

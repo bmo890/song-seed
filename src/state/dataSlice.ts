@@ -57,7 +57,7 @@ import { sanitizeChordSheet } from "../domain/chordSheet";
 import { isTonePresetNeutral, sanitizeTonePreset } from "../domain/overdub";
 import { normalizeKeptPractice } from "../domain/keptPractice";
 import { normalizeTempoMap, sanitizeTempoMap, tempoMapEquals, type TempoMap } from "../domain/tempoMap";
-import { genChildClipTitle, genId, genRootClipTitle } from "../utils";
+import { genChildClipTitle, genId, genRootClipTitle, NAME_IDEA_LANGUAGES, type NameIdeaLanguage } from "../utils";
 import { buildClipGraph } from "../domain/clipGraph";
 import type { SelectionSlice } from "./selectionSlice";
 import type { RecordingSlice } from "./recordingSlice";
@@ -72,6 +72,8 @@ import {
 } from "../services/managedMedia";
 import { authorizeIntentionalEmptyStateWrite } from "../services/stateIntegrity";
 import { DEFAULT_LANGUAGE, deviceLanguage, i18n, isAppLanguage } from "../i18n";
+import { resolveWordLanguage, sanitizeWordLanguagePref, type WordLanguagePref } from "../domain/wordLanguage";
+import { MAGPIE_HE_ENABLED } from "../config/magpieService";
 import { persistAppStoreSnapshot } from "./persistedSnapshot";
 import { relocateActivityEvents, relocatePlaylists } from "./relocationMetadata";
 import {
@@ -134,9 +136,12 @@ export type DataSlice = {
     /** When true, saving a recording asks for a name; when false it auto-names from the suggestion. */
     promptForClipName: boolean;
     /** Language the sparkle "surprise me" name generator draws from. "auto" (the
-     *  default) follows the UI language; "en"/"he" pin it explicitly once the user
+     *  default) follows the UI language; a language code pins it once the user
      *  picks in Settings — so a Hebrew UI can still keep English working titles. */
-    nameLanguage: "auto" | "en" | "he";
+    nameLanguage: "auto" | NameIdeaLanguage;
+    /** Language of the word tools (Word Finder, Word Ladder, Borrowed Words).
+     *  "auto" follows the app language (domain/wordLanguage.ts). */
+    wordLanguage: WordLanguagePref;
     /** First-run: false until the welcome intro has been shown once. Defaults true for
      *  existing users (data present at hydration) so an upgrade never re-shows it. */
     hasSeenWelcome: boolean;
@@ -234,7 +239,8 @@ export type DataSlice = {
     setHapticsEnabled: (value: boolean) => void;
     setClassicReel: (value: boolean) => void;
     setPromptForClipName: (value: boolean) => void;
-    setNameLanguage: (value: "auto" | "en" | "he") => void;
+    setNameLanguage: (value: "auto" | NameIdeaLanguage) => void;
+    setWordLanguage: (value: WordLanguagePref) => void;
     setHasSeenWelcome: (value: boolean) => void;
     markHintSeen: (hintId: string) => void;
     markFirstLaunch: () => void;
@@ -1504,6 +1510,7 @@ export const createDataSlice: StateCreator<
     classicReel: false,
     promptForClipName: true,
     nameLanguage: "auto",
+    wordLanguage: "auto",
     hasSeenWelcome: false,
     seenHints: [],
     firstLaunchAt: null,
@@ -1765,7 +1772,12 @@ export const createDataSlice: StateCreator<
     deleteCutUpSpark: (id) =>
         set((state) => ({ cutUpSparks: state.cutUpSparks.filter((spark) => spark.id !== id) })),
     addMagpieSpark: () => {
-        const spark = createMagpieSpark();
+        // A new spark draws from the word-tools language's library (Hebrew only
+        // while its source is live).
+        const wordLanguage = resolveWordLanguage(get().wordLanguage, i18n.language);
+        const spark = createMagpieSpark(
+            wordLanguage === "es" ? "es" : wordLanguage === "he" && MAGPIE_HE_ENABLED ? "he" : "en"
+        );
         set((state) => ({ magpieSparks: [spark, ...state.magpieSparks] }));
         return spark.id;
     },
@@ -1782,7 +1794,8 @@ export const createDataSlice: StateCreator<
     setClassicReel: (value) => set({ classicReel: value }),
     setPromptForClipName: (value) => set({ promptForClipName: value }),
     setNameLanguage: (value) =>
-        set({ nameLanguage: value === "he" ? "he" : value === "en" ? "en" : "auto" }),
+        set({ nameLanguage: NAME_IDEA_LANGUAGES.includes(value as NameIdeaLanguage) ? value : "auto" }),
+    setWordLanguage: (value) => set({ wordLanguage: sanitizeWordLanguagePref(value) }),
     setHasSeenWelcome: (value) => set({ hasSeenWelcome: value }),
     markHintSeen: (hintId) => {
         if (get().seenHints.includes(hintId)) return;

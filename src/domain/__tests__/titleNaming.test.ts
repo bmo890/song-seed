@@ -22,6 +22,10 @@ describe("looksMachineNamed", () => {
     "WhatsApp Audio 2026-09-21 at 14.30.12",
     "PTT-20260921-WA0004",
     // Videos whose sound came in as a clip.
+    // Spanish defaults: timestamps, layers, recovered takes.
+    "10:58 28 oct",
+    "Capa 3",
+    "Recuperado · Idea 4",
     "IMG_1234",
     "IMG_E1234",
     "VID_20261013_142201",

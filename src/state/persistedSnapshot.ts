@@ -46,6 +46,7 @@ export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppSto
         classicReel: state.classicReel,
         promptForClipName: state.promptForClipName,
         nameLanguage: state.nameLanguage,
+        wordLanguage: state.wordLanguage,
         hasSeenWelcome: state.hasSeenWelcome,
         seenHints: state.seenHints,
         firstLaunchAt: state.firstLaunchAt,

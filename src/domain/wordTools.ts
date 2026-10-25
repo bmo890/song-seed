@@ -8,6 +8,8 @@
  * WORD_SERVICE_BASE_URL at it and nothing else in the app changes.
  */
 
+import { isSpanishAssonance, isSpanishRhyme, spanishRhyme, spanishRhymePattern } from "./spanishRhyme";
+
 export const WORD_SERVICE_BASE_URL = "https://api.datamuse.com";
 
 /**
@@ -83,6 +85,26 @@ export const WORD_LOOKUP_MODES: Record<WordLookupMode, ModeConfig> = {
   kinds: { label: "Kinds of it", param: "rel_gen", description: "More specific — bird: sparrow, heron." },
   parts: { label: "Parts of it", param: "rel_com", description: "What it contains — car: dashboard." },
 };
+
+/**
+ * Latin-script words are looked up in English or Spanish, by the word-tools
+ * language the writer chose (Settings → Preferences), since the letters alone
+ * can't tell "once" the number from "once" the word.
+ */
+export type LatinLookupLanguage = "en" | "es";
+
+/**
+ * What Datamuse's Spanish vocabulary (`v=es`) can serve (probed 2026-10-25):
+ * meaning (ml), sounds-like (sl), consonance (rel_cns), spelling patterns and
+ * definitions. Its rhyme relations are English-only, so Spanish rhymes and
+ * near rhymes are worked out from spelling (domain/spanishRhyme.ts) and
+ * fetched by pattern. The other relations return nothing for Spanish.
+ */
+const SPANISH_MODES = new Set<WordLookupMode>(["rhymes", "near", "similar", "soundsLike", "consonance"]);
+
+export function spanishSupports(mode: WordLookupMode): boolean {
+  return SPANISH_MODES.has(mode);
+}
 
 /** The four quick modes shown as segments. */
 export const WORD_LOOKUP_MODE_ORDER: WordLookupMode[] = ["rhymes", "near", "similar", "related"];
@@ -268,7 +290,17 @@ export type WordLookupOptions = {
   baseUrl?: string;
   /** Free-typed theme words — biases any mode via Datamuse's topics param. */
   theme?: string;
+  /** Which vocabulary a Latin-script word is looked up in (default English). */
+  language?: LatinLookupLanguage;
 };
+
+/** Cache key for a lookup: Spanish keys carry their language so "once" in
+ *  English and "once" in Spanish never share results. Themes are English-only. */
+function lookupCacheKey(mode: WordLookupMode, normalized: string, options?: WordLookupOptions): string {
+  if (options?.language === "es") return `es:${mode}:${normalized}`;
+  const themeKey = sanitizeThemeWords(options?.theme ?? "").join(",");
+  return `${mode}:${themeKey}:${normalized}`;
+}
 
 export function buildWordLookupUrl(
   mode: WordLookupMode,
@@ -278,8 +310,13 @@ export function buildWordLookupUrl(
   const config = WORD_LOOKUP_MODES[mode];
   const params = new URLSearchParams();
   params.set(config.param, word.trim().toLowerCase());
-  const topics = sanitizeThemeWords(options?.theme ?? "");
-  if (topics.length > 0) params.set("topics", topics.join(","));
+  if (options?.language === "es") {
+    // Datamuse's Spanish vocabulary takes no topics.
+    params.set("v", "es");
+  } else {
+    const topics = sanitizeThemeWords(options?.theme ?? "");
+    if (topics.length > 0) params.set("topics", topics.join(","));
+  }
   params.set("max", String(MAX_RESULTS));
   // Syllable counts let the UI (and future meter tools) speak a songwriter's language.
   params.set("md", "s");
@@ -425,8 +462,7 @@ export async function getCachedWordSuggestions(
   const normalized = word.trim().toLowerCase();
   if (!normalized) return null;
 
-  const themeKey = sanitizeThemeWords(options?.theme ?? "").join(",");
-  const cacheKey = `${mode}:${themeKey}:${normalized}`;
+  const cacheKey = lookupCacheKey(mode, normalized, options);
   const cached = cache.get(cacheKey);
   if (cached) return cached;
 
@@ -449,14 +485,87 @@ export async function fetchWordSuggestions(
   const cached = await getCachedWordSuggestions(mode, normalized, options);
   if (cached !== null) return cached;
 
-  const themeKey = sanitizeThemeWords(options?.theme ?? "").join(",");
-  const cacheKey = `${mode}:${themeKey}:${normalized}`;
-  const url = buildWordLookupUrl(mode, normalized, options);
-  const suggestions = parseWordSuggestions(await fetchWordServiceJson(url, options?.signal));
+  const cacheKey = lookupCacheKey(mode, normalized, options);
+  const spanishRhymeMode = options?.language === "es" && (mode === "rhymes" || mode === "near");
+  const suggestions = spanishRhymeMode
+    ? await fetchSpanishRhymes(normalized, mode === "near", options)
+    : parseWordSuggestions(
+        await fetchWordServiceJson(buildWordLookupUrl(mode, normalized, options), options?.signal)
+      );
 
   rememberInMemory(cacheKey, suggestions);
   writePersistent(cacheKey, suggestions);
   return suggestions;
+}
+
+// ── Spanish rhymes (spelling pattern + computed stress) ─────────────────────────
+
+/** How many pattern matches to sift: common words first, plenty to filter. */
+const SPANISH_CANDIDATES = 400;
+/** Uses per million below which a pattern match is a dictionary curiosity
+ *  (tololoche, queroche) rather than a word a lyric can use. */
+const SPANISH_MIN_FREQUENCY = 0.05;
+/** Below this many common rhymes, rarer ones fill in rather than show nothing. */
+const SPANISH_MIN_RESULTS = 6;
+
+export type SpanishCandidate = WordSuggestion & { frequency: number };
+
+/** Datamuse rows with their frequency tag ("f:12.78", uses per million). */
+export function parseSpanishCandidates(payload: unknown): SpanishCandidate[] {
+  if (!Array.isArray(payload)) return [];
+  return parseWordSuggestions(payload).map((suggestion, index) => {
+    const tags = (payload[index] as { tags?: unknown })?.tags;
+    const tag = Array.isArray(tags) ? tags.find((t) => typeof t === "string" && t.startsWith("f:")) : undefined;
+    const frequency = typeof tag === "string" ? Number(tag.slice(2)) : 0;
+    return { ...suggestion, frequency: Number.isFinite(frequency) ? frequency : 0 };
+  });
+}
+
+export function buildSpanishRhymeUrl(
+  word: string,
+  near: boolean,
+  baseUrl: string = WORD_SERVICE_BASE_URL
+): string | null {
+  const rhyme = spanishRhyme(word);
+  if (!rhyme) return null;
+  const params = new URLSearchParams();
+  params.set("sp", spanishRhymePattern(rhyme, near));
+  params.set("v", "es");
+  params.set("md", "f");
+  params.set("max", String(SPANISH_CANDIDATES));
+  return `${baseUrl}/words?${params.toString()}`;
+}
+
+/** Keep the candidates that really rhyme (or assonate), most common first,
+ *  with our own syllable count: Datamuse's Spanish counts split diphthongs
+ *  (cielo comes back as 3). */
+export function filterSpanishRhymes(word: string, candidates: SpanishCandidate[], near: boolean): WordSuggestion[] {
+  const target = spanishRhyme(word);
+  if (!target) return [];
+  const self = word.trim().toLowerCase();
+  const matches: SpanishCandidate[] = [];
+  for (const candidate of candidates) {
+    const text = candidate.word.toLowerCase();
+    if (text === self || text.includes(" ")) continue;
+    const rhyme = spanishRhyme(text);
+    if (!rhyme) continue;
+    const rhymes = near ? isSpanishAssonance(target, rhyme) : isSpanishRhyme(target, rhyme);
+    if (rhymes) matches.push({ ...candidate, numSyllables: rhyme.syllables });
+  }
+  matches.sort((a, b) => b.frequency - a.frequency);
+  const common = matches.filter((match) => match.frequency >= SPANISH_MIN_FREQUENCY);
+  const kept = common.length >= SPANISH_MIN_RESULTS ? common : matches.slice(0, SPANISH_MIN_RESULTS);
+  return kept.slice(0, MAX_RESULTS).map(({ frequency: _frequency, ...suggestion }) => suggestion);
+}
+
+async function fetchSpanishRhymes(
+  word: string,
+  near: boolean,
+  options?: WordLookupOptions & { signal?: AbortSignal }
+): Promise<WordSuggestion[]> {
+  const url = buildSpanishRhymeUrl(word, near, options?.baseUrl);
+  if (!url) return [];
+  return filterSpanishRhymes(word, parseSpanishCandidates(await fetchWordServiceJson(url, options?.signal)), near);
 }
 
 // ── Hebrew (LLM worker) ────────────────────────────────────────────────────────
@@ -687,8 +796,13 @@ function parseWordDefinitions(raw: unknown): WordDefinition[] {
   return defs;
 }
 
-export function buildDefinitionLookupUrl(word: string, baseUrl: string = WORD_SERVICE_BASE_URL): string {
+export function buildDefinitionLookupUrl(
+  word: string,
+  baseUrl: string = WORD_SERVICE_BASE_URL,
+  language: LatinLookupLanguage = "en"
+): string {
   const params = new URLSearchParams();
+  if (language === "es") params.set("v", "es");
   // sp= (spelled like) is Datamuse's documented way to fetch a single word's
   // record — an exact word also matches as its own best "spelled like" hit.
   params.set("sp", word.trim().toLowerCase());
@@ -708,7 +822,7 @@ const DEFINITION_CACHE_LIMIT = 200;
  */
 export async function fetchWordDefinitions(
   word: string,
-  options?: { signal?: AbortSignal; baseUrl?: string }
+  options?: { signal?: AbortSignal; baseUrl?: string; language?: LatinLookupLanguage }
 ): Promise<WordDefinition[]> {
   // Hebrew has no Datamuse dictionary; route to the worker's definition mode.
   // Long-press is an explicit gesture, so an on-demand LLM call is acceptable.
@@ -716,25 +830,28 @@ export async function fetchWordDefinitions(
 
   const normalized = word.trim().toLowerCase();
   if (!normalized) return [];
+  const language = options?.language ?? "en";
+  // Spanish definitions are their own entries ("once" is eleven in Spanish).
+  const defKey = language === "es" ? `es:${normalized}` : normalized;
 
-  const cached = definitionCache.get(normalized);
+  const cached = definitionCache.get(defKey);
   if (cached) return cached;
 
-  const storedDefs = await readPersistent(`def:${normalized}`, parseStoredDefinitions);
+  const storedDefs = await readPersistent(`def:${defKey}`, parseStoredDefinitions);
   if (storedDefs !== null) {
-    rememberDefinition(normalized, storedDefs);
+    rememberDefinition(defKey, storedDefs);
     return storedDefs;
   }
 
-  const url = buildDefinitionLookupUrl(normalized, options?.baseUrl);
+  const url = buildDefinitionLookupUrl(normalized, options?.baseUrl, language);
   const payload = await fetchWordServiceJson(url, options?.signal);
   const first = Array.isArray(payload) ? payload[0] : null;
   const matchesWord =
     first && typeof first === "object" && (first as { word?: unknown }).word === normalized;
   const defs = matchesWord ? parseWordDefinitions((first as { defs?: unknown }).defs) : [];
 
-  rememberDefinition(normalized, defs);
-  writePersistent(`def:${normalized}`, defs);
+  rememberDefinition(defKey, defs);
+  writePersistent(`def:${defKey}`, defs);
   return defs;
 }
 

@@ -425,21 +425,20 @@ function SourceSheet({
 
       <View style={styles.sheetDivider} />
 
-      {MAGPIE_HE_ENABLED ? (
-        <View style={styles.field}>
-          <Text style={styles.fieldLabel}>{t("magpie.language")}</Text>
-          <SegmentedControl<MagpieLanguage>
-            options={[
-              { key: "en", label: t("magpie.langEnglish") },
-              { key: "he", label: t("magpie.langHebrew") },
-            ]}
-            value={spark.language}
-            onChange={(v) => {
-              if (!busy) model.setLanguage(v);
-            }}
-          />
-        </View>
-      ) : null}
+      <View style={styles.field}>
+        <Text style={styles.fieldLabel}>{t("magpie.language")}</Text>
+        <SegmentedControl<MagpieLanguage>
+          options={[
+            { key: "en", label: t("magpie.langEnglish") },
+            { key: "es", label: t("magpie.langSpanish") },
+            ...(MAGPIE_HE_ENABLED ? [{ key: "he" as const, label: t("magpie.langHebrew") }] : []),
+          ]}
+          value={spark.language}
+          onChange={(v) => {
+            if (!busy) model.setLanguage(v);
+          }}
+        />
+      </View>
 
       {spark.language === "en" ? (
         <View style={styles.field}>
@@ -455,7 +454,7 @@ function SourceSheet({
             }}
           />
         </View>
-      ) : (
+      ) : spark.language === "he" ? (
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>{t("magpie.genreHint")}</Text>
           <View style={styles.chips}>
@@ -480,7 +479,7 @@ function SourceSheet({
             })}
           </View>
         </View>
-      )}
+      ) : null}
 
       <InkKey
         glyph={<Ionicons name="shuffle" size={16} color={inkKeyColor(busy ? "off" : "idle")} />}
