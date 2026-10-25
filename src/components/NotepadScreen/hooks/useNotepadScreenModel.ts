@@ -3,7 +3,8 @@ import { Share } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { buildShareTextFromNotes } from "../../../domain/notepad";
-import { canSaveWordSpark } from "../../../domain/proGating";
+import { canStartSpark } from "../../../domain/proGating";
+import { spendSparkTry, sparkTriesUsed, type SparkGame } from "../../../services/sparkTries";
 import { hasProAccess } from "../../../domain/entitlements";
 import { openProUpsell } from "../../common/proUpsell";
 import type { ContentDirection, Note, WordLadderExercise, CutUpSpark, MagpieSpark } from "../../../types";
@@ -207,33 +208,39 @@ export function useNotepadScreenModel() {
     setActiveNoteId(id);
   }, [addNote]);
 
-  const handleNewWordLadder = useCallback(() => {
-    // Free users keep a limited number of sparks PER TOOL; existing ones stay fully editable.
-    if (!canSaveWordSpark(wordLadders.length, hasProAccess("word-sparks-unlimited"))) {
-      openProUpsell("word-sparks-unlimited");
+  // Each word game gives a free user three tries, for good (services/sparkTries.ts):
+  // starting is what counts, so deleting a spark gives no try back. Sparks already made
+  // stay open and editable.
+  const startSpark = useCallback((game: SparkGame, start: () => void) => {
+    const isPro = hasProAccess("lyric-spark");
+    if (!canStartSpark(sparkTriesUsed(game), isPro)) {
+      openProUpsell("lyric-spark");
       return;
     }
-    const id = addWordLadder("", "");
-    navigation.navigate("WordLadderHome", { exerciseId: id });
-  }, [addWordLadder, navigation, wordLadders.length]);
+    if (!isPro) spendSparkTry(game);
+    start();
+  }, []);
+
+  const handleNewWordLadder = useCallback(() => {
+    startSpark("wordLadder", () => {
+      const id = addWordLadder("", "");
+      navigation.navigate("WordLadderHome", { exerciseId: id });
+    });
+  }, [addWordLadder, navigation, startSpark]);
 
   const handleNewCutUp = useCallback(() => {
-    if (!canSaveWordSpark(cutUpSparks.length, hasProAccess("word-sparks-unlimited"))) {
-      openProUpsell("word-sparks-unlimited");
-      return;
-    }
-    const id = addCutUpSpark("");
-    navigation.navigate("CutUpHome", { sparkId: id });
-  }, [addCutUpSpark, navigation, cutUpSparks.length]);
+    startSpark("cutUp", () => {
+      const id = addCutUpSpark("");
+      navigation.navigate("CutUpHome", { sparkId: id });
+    });
+  }, [addCutUpSpark, navigation, startSpark]);
 
   const handleNewMagpie = useCallback(() => {
-    if (!canSaveWordSpark(magpieSparks.length, hasProAccess("word-sparks-unlimited"))) {
-      openProUpsell("word-sparks-unlimited");
-      return;
-    }
-    const id = addMagpieSpark();
-    navigation.navigate("MagpieHome", { sparkId: id });
-  }, [addMagpieSpark, navigation, magpieSparks.length]);
+    startSpark("magpie", () => {
+      const id = addMagpieSpark();
+      navigation.navigate("MagpieHome", { sparkId: id });
+    });
+  }, [addMagpieSpark, navigation, startSpark]);
 
   const handleOpenNote = useCallback(
     (note: Note) => {

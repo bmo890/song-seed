@@ -1,9 +1,8 @@
 import {
     FREE_OVERDUB_LAYERS,
-    FREE_SAVED_SPARKS_PER_TOOL,
+    FREE_SPARK_TRIES_PER_GAME,
     canAddOverdubLayer,
-    canSaveWordSpark,
-    remainingFreeSparks,
+    canStartSpark,
 } from "../domain/proGating";
 
 describe("canAddOverdubLayer", () => {
@@ -19,25 +18,15 @@ describe("canAddOverdubLayer", () => {
     });
 });
 
-describe("canSaveWordSpark", () => {
-    it("lets a free user save up to the per-tool limit, then gates", () => {
-        expect(canSaveWordSpark(0, false)).toBe(true);
-        expect(canSaveWordSpark(FREE_SAVED_SPARKS_PER_TOOL - 1, false)).toBe(true); // saving the 5th
-        expect(canSaveWordSpark(FREE_SAVED_SPARKS_PER_TOOL, false)).toBe(false); // 6th → Pro
-        expect(canSaveWordSpark(99, false)).toBe(false);
+describe("canStartSpark", () => {
+    it("gives a free user three tries of a game, then gates", () => {
+        expect(canStartSpark(0, false)).toBe(true);
+        expect(canStartSpark(FREE_SPARK_TRIES_PER_GAME - 1, false)).toBe(true); // the third try
+        expect(canStartSpark(FREE_SPARK_TRIES_PER_GAME, false)).toBe(false); // a fourth → Pro
     });
 
-    it("lets a Pro user save without limit", () => {
-        expect(canSaveWordSpark(FREE_SAVED_SPARKS_PER_TOOL, true)).toBe(true);
-        expect(canSaveWordSpark(1000, true)).toBe(true);
-    });
-});
-
-describe("remainingFreeSparks", () => {
-    it("counts down and floors at zero", () => {
-        expect(remainingFreeSparks(0)).toBe(FREE_SAVED_SPARKS_PER_TOOL);
-        expect(remainingFreeSparks(3)).toBe(FREE_SAVED_SPARKS_PER_TOOL - 3);
-        expect(remainingFreeSparks(FREE_SAVED_SPARKS_PER_TOOL)).toBe(0);
-        expect(remainingFreeSparks(FREE_SAVED_SPARKS_PER_TOOL + 10)).toBe(0);
+    it("never gates Pro (or the free month)", () => {
+        expect(canStartSpark(FREE_SPARK_TRIES_PER_GAME, true)).toBe(true);
+        expect(canStartSpark(1000, true)).toBe(true);
     });
 });

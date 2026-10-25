@@ -10,7 +10,6 @@ import { EmptyState } from "../../common/EmptyState";
 import { SelectionTopBar } from "../../common/SelectionTopBar";
 import { SelectionDock, type SelectionAction } from "../../common/SelectionDock";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
-import { ensurePro } from "../../common/proUpsell";
 import { DockAddBadgeIcon } from "../../common/dockIcons";
 import { AppAlert } from "../../common/AppAlert";
 import { NoteEditor } from "./NoteEditor";
@@ -361,12 +360,9 @@ export function NotepadScreenContent() {
   } = useNotepadScreenModel();
   const [moreVisible, setMoreVisible] = useState(false);
   const [sparkSheetVisible, setSparkSheetVisible] = useState(false);
-  // Starting a spark is Lyric Spark (domain/proCatalog.ts "lyric-spark"); sparks already
-  // made stay open and editable.
-  const openSparkSheet = () => {
-    if (!ensurePro("lyric-spark")) return;
-    setSparkSheetVisible(true);
-  };
+  // The game chooser always opens; each game counts its own free tries when one is
+  // started (useNotepadScreenModel startSpark).
+  const openSparkSheet = () => setSparkSheetVisible(true);
   // The route fixes the room: SparkHome renders this screen in sparks mode.
   const isSparkPage = activeTab === "sparks";
 

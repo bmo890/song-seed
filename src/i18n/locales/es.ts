@@ -3491,8 +3491,8 @@ export const es = {
         blurb: "Corta en partes, cambia la velocidad y el tono.",
       },
       "4": {
-        title: "Buscador de palabras",
-        blurb: "Rimas y palabras afines, y cada chispa que guardes.",
+        title: "Herramientas de palabras",
+        blurb: "El buscador de palabras y todos los juegos, sin límite.",
       },
       "5": {
         title: "Send y más espacios",

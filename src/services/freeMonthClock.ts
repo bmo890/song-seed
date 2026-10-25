@@ -77,6 +77,10 @@ async function writeRaw(key: string, value: string): Promise<void> {
   await secureStore()?.setItemAsync(key, value).catch(() => {});
 }
 
+/** The same durable store for other per-device allowances (services/sparkTries.ts). */
+export const readDurable = (key: string) => readRaw(key).then((result) => result.value);
+export const writeDurable = writeRaw;
+
 async function readTime(key: string): Promise<{ value: number | null; inSecureStore: boolean }> {
   const raw = await readRaw(key);
   const value = parseTime(raw.value);

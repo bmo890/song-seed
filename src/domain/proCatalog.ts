@@ -85,13 +85,13 @@ export const PRO_CATALOG: Record<ProFeature, ProCatalogRow> = {
 
     // ── Lyrics ───────────────────────────────────────────────────────────────────────
     "lyric-spark": {
-        pro: false, // Founder, 2026-10-23: the games are free; keeping many is Pro.
-        what: "Starting a new spark (Word Ladder, Cut-Up, Magpie). Sparks already made stay open and editable.",
+        pro: true,
+        freeLimit: 3, // Founder, 2026-10-25: three tries of each game, then Pro.
+        what: "Starting a spark (Word Ladder, Cut-Up, Magpie) beyond the free tries of that game. Tries are counted for good (services/sparkTries.ts): deleting a spark gives none back, and sparks started with Pro or in the free month don't count. Sparks already made stay open and editable.",
     },
     "word-sparks-unlimited": {
-        pro: true,
-        freeLimit: 3, // Saved sparks a free user keeps PER TOOL.
-        what: "Saving more sparks per tool than the free number.",
+        pro: false, // Retired 2026-10-25: the limit is on starting a spark (lyric-spark), not on keeping one.
+        what: "Formerly the cap on saved sparks per tool. Nothing reads it; kept so old references type-check.",
     },
     "word-finder-full": {
         pro: true,
@@ -167,6 +167,6 @@ export const PAYWALL_ROWS: ReadonlyArray<{ icon: string; features: ProFeature[] 
     { icon: "layers-outline", features: ["overdub-layers"] },
     { icon: "repeat-outline", features: ["practice-suite"] },
     { icon: "cut-outline", features: ["full-editor"] },
-    { icon: "sparkles-outline", features: ["word-finder-full", "word-sparks-unlimited"] },
+    { icon: "sparkles-outline", features: ["word-finder-full", "lyric-spark"] },
     { icon: "paper-plane-outline", features: ["send", "workspaces"] },
 ];
