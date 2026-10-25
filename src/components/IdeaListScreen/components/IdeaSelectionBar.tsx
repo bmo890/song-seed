@@ -33,6 +33,10 @@ type IdeaSelectionBarProps = {
    *  package is never made active, so its selection must read the route's. */
   workspaceId?: string;
   selectableIdeaIds: string[];
+  /** Every idea in the order the page shows it (its sort, its day groups). Each action
+   *  here acts in this order, as Play does: a playlist made from a selection plays
+   *  down the list as shown, not in storage order. */
+  orderedIdeaIds?: string[];
   disabledIdeaIds?: string[];
   onPlaySelected: () => void;
   onAddToQueue: () => void;
@@ -62,6 +66,7 @@ function describeSketchContents(idea: SongIdea, t: TFunction): string {
 export function IdeaSelectionBar({
   workspaceId: pageWorkspaceId,
   selectableIdeaIds,
+  orderedIdeaIds,
   disabledIdeaIds = [],
   onPlaySelected,
   onAddToQueue,
@@ -103,10 +108,17 @@ export function IdeaSelectionBar({
   // One workspace, not the library: `find` returns the same object while the
   // workspace is untouched, so writes elsewhere don't re-render the bar.
   const activeWorkspace = useStore((s) => s.workspaces.find((workspace) => workspace.id === activeWorkspaceId));
-  const selectedIdeas = useMemo(
-    () => (activeWorkspace?.ideas ?? []).filter((idea) => selectedListIdeaIds.includes(idea.id)),
-    [activeWorkspace?.ideas, selectedListIdeaIds]
-  );
+  const selectedIdeas = useMemo(() => {
+    const picked = (activeWorkspace?.ideas ?? []).filter((idea) => selectedListIdeaIds.includes(idea.id));
+    if (!orderedIdeaIds || orderedIdeaIds.length === 0) return picked;
+    // On-screen order; anything not on screen (a collapsed day) keeps storage order, last.
+    const position = new Map(orderedIdeaIds.map((id, index) => [id, index]));
+    const rank = (id: string) => position.get(id) ?? Number.MAX_SAFE_INTEGER;
+    return picked
+      .map((idea, storageIndex) => ({ idea, storageIndex }))
+      .sort((a, b) => rank(a.idea.id) - rank(b.idea.id) || a.storageIndex - b.storageIndex)
+      .map(({ idea }) => idea);
+  }, [activeWorkspace?.ideas, orderedIdeaIds, selectedListIdeaIds]);
   const interactiveSelectedIdeas = useMemo(
     () => selectedIdeas.filter((idea) => !disabledIdeaIdSet.has(idea.id)),
     [disabledIdeaIdSet, selectedIdeas]
