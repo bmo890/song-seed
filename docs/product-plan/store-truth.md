@@ -166,65 +166,84 @@ controls going in the background").
 
 ## 6. Store description (one voice, both stores)
 
-**Name:** SongNook
-**Apple subtitle (30):** `Catch song ideas, grow them`
-**Play short description (80):** `Record song ideas the moment they strike, then grow them into finished songs.`
-**Apple promotional text (170):** `Every song starts as a hum in the car or a riff at 2am. SongNook catches it before it's gone, then helps you shape it. No account. Your songs stay on your phone.`
+This is the founder-approved copy, live in both consoles since 2026-10-25. The two stores
+differ only where marked.
 
-**Full description:**
+- **Name:** SongNook
+- **Tagline (both stores, the intro screen and the feature graphic):** A quiet corner to finish songs.
+- **Apple subtitle (30):** `A quiet corner to finish songs`
+- **Play short description (80):** `A quiet corner to finish songs. Record, organize, rehearse, never lose a gem.`
+- **Apple promotional text (170):** `A quiet corner to finish songs. Catch ideas the moment they hit, find them again, rehearse them until they're done. No account, and your songs stay on your phone.`
+- **Apple keywords (100):** `songwriting,songwriter,lyrics,chords,voice memo,recorder,song ideas,setlist,tuner,metronome,demo`
+- **Categories:** Apple: Music, then Productivity.
+- **Links:** support https://songnook.app/privacy#contact · marketing https://songnook.app
 
-> SongNook is a songwriting sketchbook for the ideas that arrive when you least expect
-> them. Hum a melody, strum a riff, sing a line: catch it in a tap, then grow it into a
-> song at your own pace.
->
-> No account, no sign-up, no ads. Your songs live on your phone.
->
-> CATCH THE SPARK
-> • One tap to record, with a count-in and a metronome
-> • Keeps recording with the screen locked
-> • Bring in voice memos and audio files, or the sound from a video
->
-> GROW EVERY IDEA
-> • Gather takes into sketches, collections and workspaces
-> • Keep lyrics, chord charts and notes beside the audio
-> • Layer a harmony or a second part over a take
-> • Trim and edit takes
->
-> PRACTICE
-> • Loop the hard part and slow it down without changing the pitch
-> • Tuner and metronome built in
->
-> WORDS
-> • Word games to shake a line loose: Word Ladder, Cut-Up, Borrowed Words (three
->   free tries of each)
->
-> SHARE WHEN YOU CHOOSE
-> • Send clips or a whole sketch to a bandmate with a private link that expires in 7 days
-> • Back up and export to Files, iCloud or Drive, wherever you choose
->
-> SONGNOOK PRO
-> Try every Pro tool free for a month, no card needed. Then Pro adds: more layers per
-> take, more workspaces, the Word Finder (rhymes, synonyms, related words), every word
-> game as often as you like, pins, pitch
-> shift and tempo analysis, the full editor, transpose, capo, chart books, setlists and the
-> stage reader, PDF export, and unlimited Send links.
-> Recording, your library, lyrics and backups are never locked.
->
-> English, עברית, Español.
->
-> Made for songwriters, by a songwriter. Start with a hum.
+**Full description.** Play uses this text as is. Apple changes the backup line to
+"Files, iCloud Drive or wherever you keep things", because Apple doesn't allow naming
+other platforms. Apple also appends the subscription paragraph below.
 
-**Apple subscription disclosure (end of description, required for auto-renewing Pro):**
+```
+SongNook records your song ideas, keeps them organized, and helps you finish them. No account, no ads.
 
-> SongNook Pro is available as a yearly or monthly subscription, or a one-time lifetime
-> purchase. Subscriptions renew automatically unless cancelled at least 24 hours before
-> the end of the period; manage or cancel them in your App Store account settings.
-> Terms: https://songnook.app/terms · Privacy: https://songnook.app/privacy
+Your songs stay on your phone. We never see them, and they are never used to train AI.
 
-(The Play listing doesn't need this paragraph; Google shows subscription terms itself. It
-can stay for one shared text.)
+CAPTURE
+• Record in one tap
+• Stuck for a title? Get a name suggestion, so ideas don't end up as a list of dates
+• Import voice memos, audio files, or the sound from a video
 
-**Translations:** Hebrew and Spanish listings, translated from this text once approved.
+FIND IT AGAIN
+• Revisit - brings back unfinished sketches, untouched ideas, and what you wrote this week in past years
+• Shelf - found something worth coming back to? Set it aside for later so it doesn't get lost again
+• Activity - shows what you worked on in any date range
+• Tags, and search across titles, notes and lyrics
+
+FINISH THE SONG
+• Sketches - every take of a song in one place, with version history so nothing you tried is lost
+• Lyric versions, chord charts, and lyrics with chords
+• Record layers over a take and solo any of them
+• Collections and workspaces to keep it all in order
+
+REHEARSE
+• Mark sections, drop pins and add notes on the timeline
+• Change speed without changing pitch, and pitch without changing speed
+• Loop any part
+• Step up - work a hard part up to speed: the loop gets a little faster each pass
+• Count-in, click, tuner and metronome
+
+WRITE
+• Word Finder - rhymes, near rhymes, synonyms
+• Lyric Spark - games for writer's block
+• Lyric Pad - a home for loose lines
+
+SHARE
+• SongNook Send - share clips or a whole sketch, with its lyrics, chords, notes and pins, by private link
+• Open what co-writers and bandmates send you, notes and all
+• Recording a band rehearsal? Drop pins as it happens to mark the moments worth coming back to
+• Playlists, setlists, and chart books with transpose, capo and an autoscrolling stage reader
+• Back up and export to Files, iCloud Drive or Google Drive
+
+PRO
+Your first month includes every tool, free, no card needed. After that, recording, writing and organizing your songs stay free, and SongNook Pro unlocks the extended tools.
+```
+
+**Apple only, appended (required for auto-renewing Pro):**
+
+```
+SongNook Pro is available as a yearly or monthly subscription, or a one-time lifetime purchase. Subscriptions renew automatically unless cancelled at least 24 hours before the end of the period; manage or cancel them in your App Store account settings.
+Terms of Use: https://songnook.app/terms
+Privacy Policy: https://songnook.app/privacy
+```
+
+**Writing rules the founder set:**
+- Describe only what users do. Leave out crash safety, settings and other non-features.
+- When a feature has a proper name, write "Name - what it does".
+- Don't list languages.
+- No marketing flourishes.
+
+**Graphics:** see `docs/store-assets/`. Render them with `npm run brand:render`.
+
+**Translations:** the Hebrew, Spanish, German and Portuguese listings are still to do.
 
 ---
 
