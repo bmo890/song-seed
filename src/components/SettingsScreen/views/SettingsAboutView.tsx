@@ -15,6 +15,7 @@ import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
 import { toast } from "../../common/toastStore";
 import { PRIVACY_POLICY_URL, TERMS_OF_USE_URL } from "../../../config/legalLinks";
+import { OPEN_DATA_SOURCES } from "../../../config/openData";
 
 const FEEDBACK_EMAIL = "bmostudio.dev@gmail.com";
 
@@ -147,6 +148,24 @@ export function SettingsAboutView() {
         <SettingsGroup>
           <AboutLinkRow label={t("settingsAbout.privacyPolicy")} icon="shield-checkmark-outline" onPress={() => openLegal(PRIVACY_POLICY_URL)} />
           <AboutLinkRow label={t("settingsAbout.terms")} icon="document-text-outline" onPress={() => openLegal(TERMS_OF_USE_URL)} />
+        </SettingsGroup>
+      </View>
+
+      <View style={styles.settingsSection}>
+        <View style={styles.settingsSectionHeaderRow}>
+          <Text style={styles.settingsSectionLabel}>{t("settingsAbout.openData")}</Text>
+        </View>
+        <Text style={styles.settingsSectionHint}>{t("settingsAbout.openDataLine")}</Text>
+        <SettingsGroup>
+          {OPEN_DATA_SOURCES.map((source) => (
+            <AboutLinkRow
+              key={source.name}
+              label={source.name}
+              value={t(`settingsAbout.openDataUse.${source.use}`)}
+              icon="open-outline"
+              onPress={() => openLegal(source.url)}
+            />
+          ))}
         </SettingsGroup>
       </View>
     </ScrollView>

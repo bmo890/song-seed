@@ -536,6 +536,17 @@ export const es = {
     bars_many: "{{count}} compases",
   },
   settingsAbout: {
+    openData: "Datos abiertos",
+    openDataLine: "Las herramientas de palabras y los libros vienen de estos proyectos abiertos.",
+    openDataUse: {
+      wordsEnEs: "Palabras en inglés y español",
+      rhymesDe: "Rimas en alemán",
+      synonymsDe: "Sinónimos en alemán",
+      wordRanks: "Orden de palabras",
+      rhymesHe: "Rimas en hebreo",
+      books: "Libros",
+      booksHe: "Libros en hebreo",
+    },
     privacyLine: "Tu biblioteca se queda en este teléfono.",
     linkFailed: "No se pudo abrir la página",
     version: "Versión",

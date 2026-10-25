@@ -507,6 +507,17 @@ export const de = {
     bars_other: "{{count}} Takte",
   },
   settingsAbout: {
+    openData: "Offene Daten",
+    openDataLine: "Wortwerkzeuge und Bücher stammen aus diesen offenen Projekten.",
+    openDataUse: {
+      wordsEnEs: "Englische & spanische Wörter",
+      rhymesDe: "Deutsche Reime",
+      synonymsDe: "Deutsche Synonyme",
+      wordRanks: "Wortrangfolge",
+      rhymesHe: "Hebräische Reime",
+      books: "Bücher",
+      booksHe: "Hebräische Bücher",
+    },
     privacyLine: "Deine Bibliothek bleibt auf diesem Handy.",
     linkFailed: "Seite ließ sich nicht öffnen",
     version: "Version",

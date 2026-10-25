@@ -471,6 +471,17 @@ export const en = {
     bars_other: "{{count}} bars",
   },
   settingsAbout: {
+    openData: "Open data",
+    openDataLine: "Word tools and books come from these open projects.",
+    openDataUse: {
+      wordsEnEs: "English & Spanish words",
+      rhymesDe: "German rhymes",
+      synonymsDe: "German synonyms",
+      wordRanks: "Word ranking",
+      rhymesHe: "Hebrew rhymes",
+      books: "Books",
+      booksHe: "Hebrew books",
+    },
     privacyLine: "Your library stays on this phone.",
     linkFailed: "Couldn’t open the page",
     version: "Version",

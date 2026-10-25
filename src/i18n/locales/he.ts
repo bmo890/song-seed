@@ -493,6 +493,17 @@ export const he = {
     bars_other: "{{count}} תיבות",
   },
   settingsAbout: {
+    openData: "מידע פתוח",
+    openDataLine: "כלי המילים והספרים מגיעים מהפרויקטים הפתוחים האלה.",
+    openDataUse: {
+      wordsEnEs: "מילים באנגלית ובספרדית",
+      rhymesDe: "חרוזים בגרמנית",
+      synonymsDe: "מילים נרדפות בגרמנית",
+      wordRanks: "דירוג מילים",
+      rhymesHe: "חרוזים בעברית",
+      books: "ספרים",
+      booksHe: "ספרים בעברית",
+    },
     privacyLine: "הספרייה שלך נשמרת בטלפון הזה.",
     linkFailed: "לא ניתן לפתוח את הדף",
     version: "גרסה", update: "עדכון",
