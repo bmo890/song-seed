@@ -4,7 +4,7 @@ import { PageIntro } from "../../common/PageIntro";
 import { AppAlert } from "../../common/AppAlert";
 import { LibraryActionCard, SettingsGroup, ToggleRow, ValueRow } from "../components/SettingsShared";
 import { settingsScreenStyles, styles } from "../styles";
-import { useLocale } from "../../../i18n";
+import { APP_LANGUAGES, languageLabel, useLocale } from "../../../i18n";
 import { useStore } from "../../../state/useStore";
 import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
@@ -41,10 +41,7 @@ export function SettingsGeneralView() {
           <ValueRow
             title={t("settings.appLanguage")}
             value={language}
-            options={[
-              { value: "en", label: "English" },
-              { value: "he", label: "עברית" },
-            ]}
+            options={APP_LANGUAGES.map((language) => ({ value: language.code, label: languageLabel(language.code) }))}
             onChange={(next) => {
               // The language takes hold on a restart; say so before it happens.
               AppAlert.confirm(

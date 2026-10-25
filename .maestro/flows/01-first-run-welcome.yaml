@@ -11,12 +11,12 @@ tags:
 # clearState keeps the dev client's remembered Metro URL, so the app boots straight
 # into the JS bundle. First bundle build can take a while on a cold Metro.
 - extendedWaitUntil:
-    visible: "Catch the spark"
+    visible: "A quiet corner to finish songs."
     timeout: 90000
-# Walk the panes forward: pane 1 → 2 → 3.
+# Walk the panes forward: cover → sketches → write.
+- tapOn: "Get started"
 - tapOn: "Next"
-- tapOn: "Next"
-- assertNotVisible: "Catch the spark"
+- assertNotVisible: "A quiet corner to finish songs."
 # Finish the intro from the last pane (its CTA is Skip-labeled or a final button —
 # use the skip affordance, which exists on every pane).
 - tapOn: ".*Skip.*"
