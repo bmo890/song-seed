@@ -1,7 +1,8 @@
 /**
- * Spanish (neutral Latin American, tú). Same keys as en.ts (translations.test.ts
- * checks); every `_other` plural also has its `_many` (Spanish plural rules use it
- * for large round numbers). First translated 2026-10-25; awaiting a native read.
+ * Spanish (neutral, tú; reads naturally in Spain and Latin America). Same keys
+ * as en.ts (translations.test.ts checks); every `_other` plural also has its
+ * `_many` (Spanish plural rules use it for large round numbers). First
+ * translated 2026-10-25; awaiting a native read.
  */
 export const es = {
   bootRecovery: {

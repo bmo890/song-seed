@@ -8,7 +8,11 @@ import type { MagpieBook } from "../types";
  * from Gutenberg, never bundled. Prune or extend freely.
  *
  * `id` is the Project Gutenberg ebook id. `textUrl` points at the pre-generated
- * UTF-8 cache file, which serves HTTP Range requests directly (no redirect). */
+ * UTF-8 cache file, which serves HTTP Range requests directly (no redirect).
+ *
+ * Every entry must be public domain in Europe and Brazil too, not only the US:
+ * author AND translator dead 70+ years (2026-10-25 audit dropped Du Bois, the
+ * Della Chiesa Pinocchio and the Wyllie Kafka translations). */
 export type CuratedBook = { id: number; title: string; author: string };
 
 function gutenbergCacheTextUrl(id: number): string {
@@ -79,7 +83,6 @@ export const CURATED_BOOKS: CuratedBook[] = [
   { id: 205, title: "Walden", author: "Henry David Thoreau" },
   { id: 1322, title: "Leaves of Grass", author: "Walt Whitman" },
   { id: 1934, title: "Songs of Innocence and of Experience", author: "William Blake" },
-  { id: 500, title: "The Adventures of Pinocchio", author: "Carlo Collodi" },
   { id: 2591, title: "Grimms' Fairy Tales", author: "The Brothers Grimm" },
   { id: 1597, title: "Andersen's Fairy Tales", author: "Hans Christian Andersen" },
   { id: 16, title: "Peter Pan", author: "J. M. Barrie" },
@@ -100,8 +103,6 @@ export const CURATED_BOOKS: CuratedBook[] = [
   { id: 514, title: "Little Women", author: "Louisa May Alcott" },
   { id: 45, title: "Anne of Green Gables", author: "L. M. Montgomery" },
   { id: 113, title: "The Secret Garden", author: "Frances Hodgson Burnett" },
-  { id: 5200, title: "The Metamorphosis", author: "Franz Kafka" },
-  { id: 7849, title: "The Trial", author: "Franz Kafka" },
   { id: 145, title: "Middlemarch", author: "George Eliot" },
   { id: 6688, title: "The Mill on the Floss", author: "George Eliot" },
   { id: 829, title: "Gulliver's Travels", author: "Jonathan Swift" },
@@ -117,7 +118,6 @@ export const CURATED_BOOKS: CuratedBook[] = [
   { id: 2383, title: "The Canterbury Tales", author: "Geoffrey Chaucer" },
   { id: 2680, title: "Meditations", author: "Marcus Aurelius" },
   { id: 1497, title: "The Republic", author: "Plato" },
-  { id: 408, title: "The Souls of Black Folk", author: "W. E. B. Du Bois" },
   { id: 23, title: "Narrative of the Life of Frederick Douglass", author: "Frederick Douglass" },
   { id: 203, title: "Uncle Tom's Cabin", author: "Harriet Beecher Stowe" },
   { id: 160, title: "The Awakening", author: "Kate Chopin" },
