@@ -3,7 +3,7 @@
  *
  * Direction: "the letterpress parcel" — the page reads as a beautifully typeset
  * note that arrived wrapped around a parcel of songs. Warm paper with real
- * grain, espresso ink, terracotta letterpress accents, oversized Newsreader
+ * grain, espresso ink, terracotta letterpress accents, oversized Lora
  * display serif, hairline rules — and a living waveform of terracotta bars as
  * the brand signature. Staggered reveal on load; warm ember dark mode.
  *
@@ -42,6 +42,23 @@ export function waveformStrip(barCount = 36): string {
 const GRAIN =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E\")";
 
+/**
+ * The pages' two faces, served by this Worker from public/fonts (the app's own Lora and
+ * Plus Jakarta Sans, OFL), so a visitor's browser talks to no one but us
+ * (store-truth.md D4; Google Fonts was loaded here before 2026-10-25).
+ */
+const FONT_FACES = `
+@font-face{font-family:"Lora";src:url(/fonts/lora-latin-400-normal.woff2) format("woff2");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"Lora";src:url(/fonts/lora-latin-500-normal.woff2) format("woff2");font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:"Lora";src:url(/fonts/lora-latin-600-normal.woff2) format("woff2");font-weight:600;font-style:normal;font-display:swap}
+@font-face{font-family:"Lora";src:url(/fonts/lora-latin-400-italic.woff2) format("woff2");font-weight:400;font-style:italic;font-display:swap}
+@font-face{font-family:"Lora";src:url(/fonts/lora-latin-500-italic.woff2) format("woff2");font-weight:500;font-style:italic;font-display:swap}
+@font-face{font-family:"Plus Jakarta Sans";src:url(/fonts/plus-jakarta-sans-latin-400-normal.woff2) format("woff2");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"Plus Jakarta Sans";src:url(/fonts/plus-jakarta-sans-latin-500-normal.woff2) format("woff2");font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:"Plus Jakarta Sans";src:url(/fonts/plus-jakarta-sans-latin-600-normal.woff2) format("woff2");font-weight:600;font-style:normal;font-display:swap}
+@font-face{font-family:"Plus Jakarta Sans";src:url(/fonts/plus-jakarta-sans-latin-700-normal.woff2) format("woff2");font-weight:700;font-style:normal;font-display:swap}
+`;
+
 const BRAND_CSS = `
 :root{
   --paper:#f3ecdf; --paper-deep:#eae1cf; --card:#faf5ea; --ink:#2a2119;
@@ -73,7 +90,7 @@ body::before{ /* paper grain — plain opacity; blend modes are too expensive to
 /* ── masthead ── */
 .masthead{display:flex;align-items:baseline;justify-content:space-between;gap:16px;
   border-bottom:1px solid var(--rule);padding-bottom:18px;margin-bottom:clamp(34px,7vw,60px)}
-.brand{font-family:Newsreader,Georgia,serif;font-style:italic;font-weight:500;
+.brand{font-family:Lora,Georgia,serif;font-style:italic;font-weight:500;
   font-size:21px;color:var(--ink);letter-spacing:.01em;text-decoration:none}
 .brand b{color:var(--terra);font-style:normal;font-weight:600}
 .masthead .tag{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)}
@@ -82,11 +99,11 @@ body::before{ /* paper grain — plain opacity; blend modes are too expensive to
 .eyebrow{font-size:12px;letter-spacing:.26em;text-transform:uppercase;color:var(--terra);
   font-weight:700;margin:0 0 18px;display:flex;align-items:center;gap:14px}
 .eyebrow::after{content:"";height:1px;flex:1;background:var(--rule)}
-h1{font-family:Newsreader,Georgia,serif;font-weight:500;letter-spacing:-0.01em;
+h1{font-family:Lora,Georgia,serif;font-weight:500;letter-spacing:-0.01em;
   font-size:clamp(38px,7.5vw,58px);line-height:1.04;margin:0 0 18px;text-wrap:balance}
 h1 em{font-style:italic;color:var(--terra)}
 .sub{color:var(--ink-soft);font-size:16.5px;margin:0 0 34px;max-width:46ch}
-.note{font-family:Newsreader,Georgia,serif;font-style:italic;font-size:20px;color:var(--ink-soft);
+.note{font-family:Lora,Georgia,serif;font-style:italic;font-size:20px;color:var(--ink-soft);
   border-left:2px solid var(--terra);padding:2px 0 2px 18px;margin:0 0 34px}
 
 /* ── waveform signature ── */
@@ -111,7 +128,7 @@ h1 em{font-style:italic;color:var(--terra)}
   border-top:1px solid var(--rule)}
 .tracklist li:first-child{border-top:none}
 .tracklist li::before{content:counter(trk,decimal-leading-zero);
-  font-family:Newsreader,Georgia,serif;font-style:italic;font-size:15px;color:var(--terra);
+  font-family:Lora,Georgia,serif;font-style:italic;font-size:15px;color:var(--terra);
   min-width:26px}
 .trk-name{flex:1;min-width:0;font-weight:600;font-size:15px;word-break:break-word}
 .trk-size{font-size:12.5px;color:var(--ink-faint);font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -143,14 +160,14 @@ h1 em{font-style:italic;color:var(--terra)}
   border-bottom:1px solid var(--rule);padding:8px 2px 10px;font:inherit;font-size:16px;
   color:var(--ink);resize:vertical;border-radius:0}
 .field input:focus,.field textarea:focus{outline:none;border-bottom-color:var(--terra)}
-.field ::placeholder{color:var(--ink-faint);font-style:italic;font-family:Newsreader,Georgia,serif}
+.field ::placeholder{color:var(--ink-faint);font-style:italic;font-family:Lora,Georgia,serif}
 
 /* ── dropzone ── */
 .drop{border:1.5px dashed var(--rule);border-radius:4px;background:var(--paper-deep);
   padding:clamp(30px,6vw,48px) 20px;text-align:center;cursor:pointer;
   transition:border-color .15s, background .15s}
 .drop:hover,.drop.over{border-color:var(--terra);background:var(--card)}
-.drop strong{font-family:Newsreader,Georgia,serif;font-weight:500;font-size:22px;display:block;margin-bottom:6px}
+.drop strong{font-family:Lora,Georgia,serif;font-weight:500;font-size:22px;display:block;margin-bottom:6px}
 .drop span{color:var(--ink-soft);font-size:13.5px}
 
 /* ── link output ── */
@@ -211,10 +228,9 @@ ${opts.noindex ? '<meta name="robots" content="noindex,nofollow">' : ""}
 <title>${escapeHtml(opts.title)}</title>
 <meta name="theme-color" content="#f3ecdf" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1d1712" media="(prefers-color-scheme: dark)">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>${BRAND_CSS}${opts.extraStyle ?? ""}</style>
+<link rel="preload" href="/fonts/lora-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/plus-jakarta-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<style>${FONT_FACES}${BRAND_CSS}${opts.extraStyle ?? ""}</style>
 </head>
 <body>
 <div class="wrap">
@@ -250,8 +266,8 @@ export function htmlPage(body: string, status = 200): Response {
         "object-src 'none'",
         "frame-ancestors 'none'",
         "img-src 'self' data:",
-        "font-src https://fonts.gstatic.com",
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self'",
+        "style-src 'self' 'unsafe-inline'",
         "script-src 'self' 'unsafe-inline'",
         "connect-src 'self' https://*.r2.cloudflarestorage.com",
         "form-action 'none'",

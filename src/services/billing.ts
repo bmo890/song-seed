@@ -1,7 +1,7 @@
 import { NativeModules, Platform } from "react-native";
 import { useSyncExternalStore } from "react";
 import type { CustomerInfo, PurchasesPackage } from "react-native-purchases";
-import { proEntitlement } from "../domain/entitlements";
+import { isPaywallLive, proEntitlement } from "../domain/entitlements";
 
 /**
  * Billing through RevenueCat (wired 2026-10-24). Pro ships with v1 behind a 30-day free
@@ -112,6 +112,9 @@ export function isBillingAvailable(): boolean {
 /** Once per launch: configure RevenueCat, follow the entitlement live, fetch prices. */
 export async function initBilling(): Promise<void> {
     if (configured) return;
+    // Nothing is for sale until the paywall is live, so release builds don't contact
+    // RevenueCat before then (store-truth.md D1). Dev builds keep the Test Store flow.
+    if (!isPaywallLive() && !__DEV__) return;
     const key = apiKey();
     const P = loadPurchases();
     if (!key || !P) return;

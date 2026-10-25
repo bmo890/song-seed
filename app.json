@@ -87,7 +87,8 @@
       "blockedPermissions": [
         "android.permission.READ_PHONE_STATE",
         "android.permission.SYSTEM_ALERT_WINDOW",
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "com.google.android.gms.permission.AD_ID"
       ],
       "package": "com.bmostudio.songnook"
     },
@@ -157,7 +158,7 @@
         "expo-image-picker",
         {
           "photosPermission": "SongNook opens the videos you pick so their sound can come in as clips.",
-          "cameraPermission": "SongNook doesn’t use the camera. Videos come in from your photo library.",
+          "cameraPermission": false,
           "microphonePermission": "SongNook needs microphone access so you can record song ideas and voice memos."
         }
       ],

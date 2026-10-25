@@ -37,7 +37,7 @@ const SONGNOOK_DESC =
 const FUNNEL_CSS = `
 .about{margin-top:34px}
 .about .eyebrow + .lede{margin-bottom:22px}
-.lede{font-family:Newsreader,Georgia,serif;font-weight:400;font-size:20px;line-height:1.5;
+.lede{font-family:Lora,Georgia,serif;font-weight:400;font-size:20px;line-height:1.5;
   color:var(--ink);margin:0 0 22px;max-width:31ch}
 .cta-fine{text-align:center;font-size:12.5px;color:var(--ink-faint);margin:12px 0 0}
 .qr-cta{display:flex;flex-direction:column;align-items:center;gap:2px}

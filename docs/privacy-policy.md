@@ -1,62 +1,64 @@
 # SongNook Privacy Policy
 
-**Effective date:** August 26, 2026
+**Effective date:** October 25, 2026
 
-SongNook is a songwriting app built around a simple promise: **your music stays yours, on your device.**
+SongNook is a songwriting app built on a simple promise: **your music stays yours, on your phone.** There are no accounts, no ads, no analytics and no tracking.
 
-## What SongNook stores
+## What stays on your phone
 
-Everything you create in SongNook — recordings, song ideas, lyrics, chords, notes, practice markers, and settings — is stored **locally on your device**. SongNook has no accounts, no sign-in, and no library sync. We cannot see, access, or recover your work, because it never reaches us — unless you deliberately send something with SongNook Send, described below.
+Everything you make in SongNook (recordings, ideas, lyrics, chords, notes, marks and settings) is stored on your device. There is no library sync: we cannot see, open or recover your work, because it never reaches us unless you send something with SongNook Send.
 
-## Backups and exports
+Your phone's own backup (iCloud on iPhone, Google backup on Android) includes SongNook's data unless you turn that off. Those backups are held by Apple or Google under their policies; we never see them.
 
-When you back up, export, or share from SongNook through your device's share sheet, the resulting files go **only where you send them** — for example the Files app, iCloud Drive, Google Drive, or another app you choose. Those destinations are governed by their own privacy policies. SongNook never uploads anything automatically.
+When you back up, export or share through your phone's share sheet, the files go only where you choose (Files, iCloud Drive, Google Drive, another app).
+
+## What SongNook sends, and why
+
+SongNook makes a few network requests. None of them carry your name, an account, or anything from your library unless you choose to send it.
+
+- **App updates.** When it opens, the app asks Expo, the service that delivers our updates, whether a newer version of its code is available. This sends the app version, your platform, a random install ID created by the app, and, if the app failed to start last time, the error message.
+- **Purchases.** If you buy SongNook Pro, the App Store or Google Play handles the payment. We use RevenueCat to check and restore your purchase. RevenueCat receives an anonymous ID, your device's app-specific identifier, device model, system version, language, store country and your purchase history. We never see your payment details.
+- **Word tools.** Word Finder lookups send the word you look up, plus any theme words you add, to Datamuse (English and Spanish) or, for Hebrew, to our own server, which asks Anthropic's Claude and Dicta (a non-profit Hebrew language institute) for suggestions. Our Hebrew server keeps a shared cache of results, with nothing that identifies who looked them up. Your lyrics are never sent.
+- **Borrowed Words.** This word game loads pages of public-domain books from Project Gutenberg and, for Hebrew, from the Ben-Yehuda Project through our server.
 
 ## Sharing with SongNook Send
 
-SongNook Send is the app's built-in way to hand clips or a whole sketch to someone else with a link. It is entirely optional, and nothing is uploaded until you tap **Get a link**.
+Send hands clips or a whole sketch to someone with a link. Nothing uploads until you tap **Get a link**.
 
-**What uploads.** Only the clips or SongNook packages you selected, with their file names, plus an optional title, your name, and a short message if you choose to add them. Nothing else from your library is sent.
+- **What uploads:** only what you picked. Clips, or a sketch as one package, which includes its lyrics, notes, chords and marks, with file names and the optional title, name and message you add.
+- **Where:** a server we operate (send.songnook.app), hosted by Cloudflare. We don't open, listen to or analyze what you send; we deliver it.
+- **Who can see it:** anyone with the link. Links are long and random, and not listed or searchable anywhere. Share a link only with people you want to have the files.
+- **How long:** every parcel is deleted **7 days** after it is made, files and details both. Unfinished uploads are cleaned up within a day. To remove one sooner, email us.
+- **What we count:** how many times each file was downloaded, never by whom.
 
-**Where it goes.** Files are uploaded to a server we operate (send.songnook.app), hosted on Cloudflare. We store the bytes as you sent them; we do not open, listen to, analyze, or use your files for anything except delivering them to the people you give the link to.
+## Abuse prevention
 
-**Who can access it.** Anyone who has the link can download the files. Links are long, random, and unguessable — they are not listed, searchable, or indexed anywhere, and there is no way to browse other people's transfers. Treat a link like the files themselves: share it only with people you want to have them.
+Send, our Hebrew word server and our Borrowed Words server use your device's IP address briefly to limit how often they can be called. These counters expire on their own within about two hours. We keep no log of who sent or looked up what.
 
-**How long it stays.** Every transfer is deleted **7 days** after it is created — files and details both. Uploads you start but never finish are cleaned up within about a day. Expiry is automatic; you don't need to do anything. If you need something taken down sooner, email us and we will delete it.
+## What we collect
 
-**No account, no identity.** Transfers are not tied to an account, because there are none. We keep a count of how many times each file was downloaded, but nothing about who downloaded it.
+Only what is described above. No analytics, no advertising, no tracking, and nothing sold or shared for advertising.
 
-**Abuse prevention.** When you upload, your device's IP address is used briefly to enforce rate limits (so the service can't be abused as a free file host). These counters expire on their own within a couple of hours; we do not keep a log of who uploaded what.
+If the app crashes, it writes a diagnostic log **on your device only**, with a short journal of whether each save succeeded (times and outcomes, never your recordings or lyrics). You can send them to us from Settings → About when reporting a problem; nothing is sent automatically.
 
-## What SongNook sends over the internet
-
-Beyond Send, SongNook makes a small number of anonymous network requests to provide specific features:
-
-- **English word lookups** (rhymes, synonyms, related words) are sent to the Datamuse API. Only the word you look up is transmitted.
-- **Hebrew word lookups** are sent to a server we operate, which passes the search word to Anthropic's Claude API to generate suggestions, and to Dicta (a non-profit Hebrew language institute) for rhymes and vocalization. Only the search word is sent — never your lyrics, recordings, or any identifier.
-- **Public-domain book text** is fetched from Project Gutenberg / Gutendex when you use the Magpie lyric tool.
-
-These requests contain no account information and nothing from your library beyond the word you typed. If you never use these features or Send, SongNook makes no network requests at all.
-
-## What SongNook collects
-
-**Nothing.** SongNook contains no analytics, no advertising SDKs, and no trackers. We do not collect usage data, personal information, or telemetry of any kind.
-
-If the app crashes, a diagnostic log is written **locally on your device only**. The app also keeps a short local journal of whether each save of your library succeeded (timestamps and outcomes, never your recordings or lyrics). Neither is ever transmitted automatically — you can choose to share them with us from Settings → About when reporting a problem, and you can see exactly what they contain before sending them.
+SongNook keeps a small record of when your free month of Pro began, and of how many free tries of each word game you've used, in your phone's secure storage, so that reinstalling doesn't reset them. They stay on your phone.
 
 ## Permissions
 
-- **Microphone** — required to record your song ideas. Audio is captured only when you start a recording and is stored only on your device.
-- **Notifications (Android)** — used to show the recording notification that lets recording continue in the background.
+- **Microphone:** to record, and for the tuner. Audio is captured only while you record or tune.
+- **Notifications:** for the notification that keeps a recording or playback going while the screen is locked.
+- **Photos (choosing a video):** the system picker hands SongNook only the video you pick, to take its sound. The video stays on your phone.
+- **Face ID or fingerprint:** only to confirm Erase everything.
+- **Bluetooth and USB (Android):** to record from external microphones and interfaces.
 
-## Children's privacy
+## Children
 
-SongNook does not collect personal information from anyone, including children. Files sent through SongNook Send are held only as described above and are deleted automatically.
+SongNook is not directed at children under 13 and does not knowingly collect their personal information.
 
-## Changes to this policy
+## Changes
 
-If this policy changes, the updated version will be posted at this address with a new effective date.
+If this policy changes, the new version is posted here with a new effective date.
 
 ## Contact
 
-Questions, concerns, or reports of a Send link being misused: **bmostudio.dev@gmail.com**
+Questions, requests, or a Send link being misused: **bmostudio.dev@gmail.com**
