@@ -1,4 +1,5 @@
 import { adjectives, animals, uniqueNamesGenerator } from "unique-names-generator";
+import { ES_NAME_WORDS } from "./domain/wordIdeasEs";
 import { Collection, SongIdea, Workspace } from "./types";
 import { i18n } from "./i18n/instance";
 import { currentFormatLocale } from "./i18n/formatLocale";
@@ -337,13 +338,21 @@ function pickDistinctWords(pool: string[], count: number) {
 // with no store import (avoids a circular dependency).
 /** The languages the name ideas have word lists for; a new UI language is only
  *  offered under Settings → Name suggestions once its list is added here. */
-export const NAME_IDEA_LANGUAGES = ["en", "he"] as const;
-let ideaNameLanguage: "en" | "he" = "en";
-export function setIdeaNameLanguage(next: "en" | "he") {
-  ideaNameLanguage = next === "he" ? "he" : "en";
+export const NAME_IDEA_LANGUAGES = ["en", "he", "es"] as const;
+export type NameIdeaLanguage = (typeof NAME_IDEA_LANGUAGES)[number];
+let ideaNameLanguage: NameIdeaLanguage = "en";
+export function setIdeaNameLanguage(next: NameIdeaLanguage) {
+  ideaNameLanguage = NAME_IDEA_LANGUAGES.includes(next) ? next : "en";
 }
 
 export const genIdea = () => {
+  if (ideaNameLanguage === "es") {
+    // Spanish adjectives agree with their noun, so the list holds nouns and
+    // gender-free adjectives; a third of the time two nouns meet as "X de Y".
+    const [first, second] = pickDistinctWords(ES_NAME_WORDS, 2);
+    return Math.random() > 0.66 ? `${first} de ${second}` : `${first} ${second}`;
+  }
+
   if (ideaNameLanguage === "he") {
     const count = Math.random() > 0.7 ? 3 : 2;
     return pickDistinctWords(hebrewWords, count).join(" ");

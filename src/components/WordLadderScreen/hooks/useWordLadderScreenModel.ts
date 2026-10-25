@@ -27,10 +27,12 @@ import {
 } from "../../../domain/wordLadder";
 import type { WordLadderExercise, WordLadderStep, WordLadderWord } from "../../../types";
 import { useTranslation } from "react-i18next";
+import { useWordLanguage } from "../../../hooks/useWordLanguage";
 
 export function useWordLadderScreenModel() {
-  const { t, i18n } = useTranslation();
-  const ideaLang = i18n.language === "he" ? "he" : "en";
+  const { t } = useTranslation();
+  // Suggestions and the dice follow the word-tools language (Settings).
+  const ideaLang = useWordLanguage();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const exerciseId = route.params?.exerciseId as string | undefined;

@@ -41,6 +41,7 @@ export type PersistedAppStore = Pick<
     | "classicReel"
     | "promptForClipName"
     | "nameLanguage"
+    | "wordLanguage"
     | "hasSeenWelcome"
     | "seenHints"
     | "firstLaunchAt"

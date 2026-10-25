@@ -75,7 +75,8 @@ import {
 } from "./persistedSnapshot";
 import type { AppStore, PersistedAppStore } from "./storeTypes";
 import { setHapticsEnabled } from "../design/haptics";
-import { setIdeaNameLanguage } from "../utils";
+import { NAME_IDEA_LANGUAGES, setIdeaNameLanguage, type NameIdeaLanguage } from "../utils";
+import { sanitizeWordLanguagePref } from "../domain/wordLanguage";
 import { i18n } from "../i18n/instance";
 
 export { buildPersistedAppStoreSnapshot, STORE_NAME, STORE_VERSION } from "./persistedSnapshot";
@@ -253,12 +254,8 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
         // on comes back to the lanes reel, with no switch left to find their way.
         classicReel: false,
         promptForClipName: state?.promptForClipName !== false,
-        nameLanguage:
-            state?.nameLanguage === "he"
-                ? "he"
-                : state?.nameLanguage === "en"
-                    ? "en"
-                    : "auto",
+        nameLanguage: NAME_IDEA_LANGUAGES.find((code) => code === state?.nameLanguage) ?? "auto",
+        wordLanguage: sanitizeWordLanguagePref(state?.wordLanguage),
         // Default true whenever ANY persisted state exists — this sanitize only runs via
         // zustand's migrate/merge, which fire only when getItem returned non-null (a
         // genuinely fresh install returns null and never reaches here, keeping the initial
@@ -548,8 +545,12 @@ useStore.subscribe((state) => setHapticsEnabled(state.hapticsEnabled));
 // generator (src/utils.ts) — on boot, after rehydration, and on every change.
 // "auto" resolves to whichever UI language is active, so a fresh Hebrew install
 // gets Hebrew name ideas out of the box until the user pins a choice in Settings.
-const resolveNameLanguage = (pref: "auto" | "en" | "he"): "en" | "he" =>
-    pref === "auto" ? (i18n.language === "he" ? "he" : "en") : pref;
+const resolveNameLanguage = (pref: "auto" | NameIdeaLanguage): NameIdeaLanguage =>
+    pref !== "auto"
+        ? pref
+        : NAME_IDEA_LANGUAGES.includes(i18n.language as NameIdeaLanguage)
+            ? (i18n.language as NameIdeaLanguage)
+            : "en";
 setIdeaNameLanguage(resolveNameLanguage(useStore.getState().nameLanguage));
 useStore.subscribe((state) => setIdeaNameLanguage(resolveNameLanguage(state.nameLanguage)));
 

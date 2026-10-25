@@ -7,6 +7,7 @@ import { settingsScreenStyles, styles } from "../styles";
 import { APP_LANGUAGES, languageLabel, useLocale } from "../../../i18n";
 import { useStore } from "../../../state/useStore";
 import { NAME_IDEA_LANGUAGES } from "../../../utils";
+import { WORD_TOOL_LANGUAGES } from "../../../domain/wordLanguage";
 import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
 
@@ -25,6 +26,8 @@ export function SettingsGeneralView() {
   const setHapticsEnabled = useStore((state) => state.setHapticsEnabled);
   const nameLanguage = useStore((state) => state.nameLanguage);
   const setNameLanguage = useStore((state) => state.setNameLanguage);
+  const wordLanguage = useStore((state) => state.wordLanguage);
+  const setWordLanguage = useStore((state) => state.setWordLanguage);
   const promptForClipName = useStore((s) => s.promptForClipName);
   const setPromptForClipName = useStore((s) => s.setPromptForClipName);
   const bluetoothCalibrations = useStore((s) => s.bluetoothMonitoringCalibrations);
@@ -65,6 +68,15 @@ export function SettingsGeneralView() {
               ...NAME_IDEA_LANGUAGES.map((code) => ({ value: code, label: languageLabel(code) })),
             ]}
             onChange={setNameLanguage}
+          />
+          <ValueRow
+            title={t("settings.wordLanguage")}
+            value={wordLanguage}
+            options={[
+              { value: "auto" as const, label: t("settings.automatic") },
+              ...WORD_TOOL_LANGUAGES.map((code) => ({ value: code, label: languageLabel(code) })),
+            ]}
+            onChange={setWordLanguage}
           />
           <ValueRow
             title={t("settings.openTo")}

@@ -26,16 +26,19 @@ import {
   isEnglishLookupWord,
   isHebrewLookupWord,
   sanitizeThemeWords,
+  spanishSupports,
   WORD_LOOKUP_MODE_ORDER,
   WORD_LOOKUP_MODES,
   WordLookupBusyError,
   WordLookupOfflineError,
+  type LatinLookupLanguage,
   type WordDefinition,
   type WordLookupMode,
   type WordSuggestion,
 } from "../../domain/wordTools";
 import { UserTextInput, contentRow, contentTextAlign } from "../../i18n";
 import { useTranslation } from "react-i18next";
+import { useWordLanguage } from "../../hooks/useWordLanguage";
 
 const LOOKUP_DEBOUNCE_MS = 400;
 /** Chips shown per syllable group / flat list before "+ n more". */
@@ -64,6 +67,8 @@ type LookupState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "unsupported" }
+  // A tool Datamuse's Spanish vocabulary can't serve (opposites, related…).
+  | { status: "notInSpanish" }
   // Hebrew meaning mode, nothing cached: awaiting an explicit tap so the paid
   // LLM call never fires on a debounce.
   | { status: "needsTrigger" }
@@ -73,10 +78,15 @@ type LookupState =
   | { status: "error" };
 
 /** How a (word, mode) pair is served. */
-type LookupRoute = "english" | "hebrewRhymes" | "hebrewLlm" | "hebrewSound" | "unsupported";
+type LookupRoute = "english" | "spanish" | "spanishUnsupported" | "hebrewRhymes" | "hebrewLlm" | "hebrewSound" | "unsupported";
 
-function classifyLookup(word: string, mode: WordLookupMode): LookupRoute {
-  if (isEnglishLookupWord(word)) return "english";
+/** Latin letters follow the word-tools language (Settings → Preferences);
+ *  Hebrew letters are Hebrew whatever is chosen. */
+function classifyLookup(word: string, mode: WordLookupMode, latin: LatinLookupLanguage): LookupRoute {
+  if (isEnglishLookupWord(word)) {
+    if (latin === "en") return "english";
+    return spanishSupports(mode) ? "spanish" : "spanishUnsupported";
+  }
   if (isHebrewLookupWord(word)) {
     // Rhymes + near rhymes both come from Charuzit — free, auto-fire.
     if (mode === "rhymes" || mode === "near") return "hebrewRhymes";
@@ -103,6 +113,7 @@ type PreviewState = {
  */
 export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: WordFinderSheetProps) {
   const { t } = useTranslation();
+  const latin: LatinLookupLanguage = useWordLanguage() === "es" ? "es" : "en";
   const modeLabel = (mode: WordLookupMode) => t(`wordFinderUi.${mode}`);
   const modeDescription = (mode: WordLookupMode) => t(`wordFinderUi.${mode}Desc`);
   // Datamuse uses single-letter tags; the Hebrew worker returns a pos phrase
@@ -140,6 +151,8 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
 
   /** The mode actually queried; null while More is open with no tool picked. */
   const activeMode: WordLookupMode | null = moreTab ? extendedMode : quickMode;
+  // Spanish has no Related; its sound tools wait under More.
+  const quickModes = latin === "es" ? WORD_LOOKUP_MODE_ORDER.filter(spanishSupports) : WORD_LOOKUP_MODE_ORDER;
   const themeParam = themes.join(", ");
 
   // Re-seed from the editor each time the sheet opens on a new word.
@@ -166,8 +179,13 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
       return;
     }
 
-    const route = classifyLookup(trimmed, activeMode);
+    const route = classifyLookup(trimmed, activeMode, latin);
     const requestId = ++requestIdRef.current;
+
+    if (route === "spanishUnsupported") {
+      setLookup({ status: "notInSpanish" });
+      return;
+    }
 
     // A Hebrew word in a sound tool with no backend (consonance, sounds like —
     // reachable when the tool was picked for an English word) is unsupported,
@@ -233,7 +251,9 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
       };
     }
 
-    // route === "english": cache-first, then debounced network.
+    // route === "english" | "spanish": cache-first, then debounced network.
+    // Spanish takes no theme (Datamuse's Spanish vocabulary has no topics).
+    const lookupOptions = route === "spanish" ? { language: "es" as const } : { theme: themeParam };
     const controller = new AbortController();
     let settled = false;
     setLookup({ status: "loading" });
@@ -247,13 +267,13 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
 
     // Cached lookups (memory or SQLite) render immediately — the typing
     // debounce below only gates true network fetches.
-    void getCachedWordSuggestions(activeMode, trimmed, { theme: themeParam }).then((cached) => {
+    void getCachedWordSuggestions(activeMode, trimmed, lookupOptions).then((cached) => {
       if (cached !== null) showResults(cached);
     });
 
     const timer = setTimeout(() => {
       if (settled) return;
-      fetchWordSuggestions(activeMode, trimmed, { signal: controller.signal, theme: themeParam })
+      fetchWordSuggestions(activeMode, trimmed, { ...lookupOptions, signal: controller.signal })
         .then(showResults)
         .catch((error) => {
           if (requestId !== requestIdRef.current || controller.signal.aborted || settled) return;
@@ -266,7 +286,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
       controller.abort();
     };
     // vocalChoice: a new reading re-runs the (cached) Hebrew rhyme pipeline.
-  }, [visible, query, activeMode, themeParam, vocalChoice]);
+  }, [visible, query, activeMode, themeParam, vocalChoice, latin]);
 
   /**
    * The one place a paid Hebrew LLM lookup fires — an explicit tap, never a
@@ -319,7 +339,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
     Keyboard.dismiss();
     const requestId = ++previewRequestIdRef.current;
     setPreview({ word, status: "loading", defs: [] });
-    fetchWordDefinitions(word)
+    fetchWordDefinitions(word, { language: latin })
       .then((defs) => {
         if (requestId !== previewRequestIdRef.current) return;
         setPreview({ word, status: defs.length > 0 ? "loaded" : "empty", defs });
@@ -567,7 +587,11 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
   const renderToolList = () => {
     const groups = EXTENDED_WORD_MODE_GROUPS.map((group) => ({
       title: group.title,
-      modes: resultsAreHebrew ? group.modes.filter((m) => hebrewWorkerMode(m) !== null) : group.modes,
+      modes: resultsAreHebrew
+        ? group.modes.filter((m) => hebrewWorkerMode(m) !== null)
+        : latin === "es"
+          ? group.modes.filter(spanishSupports)
+          : group.modes,
     })).filter((group) => group.modes.length > 0);
     return (
     <ScrollView
@@ -671,7 +695,7 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
   );
 
   const showToolList = moreTab && (toolListOpen || !extendedMode);
-  const activeRoute = activeMode ? classifyLookup(query.trim(), activeMode) : null;
+  const activeRoute = activeMode ? classifyLookup(query.trim(), activeMode, latin) : null;
   const effectiveVocal =
     vocalChoice && vocalOptions.includes(vocalChoice) ? vocalChoice : vocalOptions[0] ?? null;
   // Hebrew results read right-to-left; mirror the pill/chip rows so the first
@@ -768,11 +792,13 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
 
             {/* Themes bias Datamuse and the LLM, but Charuzit ignores them —
                 hide the affordance in Hebrew rhyme/near modes where it's a no-op. */}
-            {activeRoute === "hebrewRhymes" ? null : renderThemeLine()}
+            {activeRoute === "hebrewRhymes" || activeRoute === "spanish" || activeRoute === "spanishUnsupported"
+              ? null
+              : renderThemeLine()}
 
             <SegmentedControl<SegmentKey>
               options={[
-                ...WORD_LOOKUP_MODE_ORDER.map((key) => ({ key: key as SegmentKey, label: modeLabel(key) })),
+                ...quickModes.map((key) => ({ key: key as SegmentKey, label: modeLabel(key) })),
                 { key: MORE_TAB, label: t("wordFinderUi.more") },
               ]}
               value={moreTab ? MORE_TAB : quickMode}
@@ -813,6 +839,10 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
               ) : lookup.status === "unsupported" ? (
                 <View style={finderStyles.stateCenter}>
                   <Text style={finderStyles.stateText}>{t("wordFinderUi.scriptUnsupported")}</Text>
+                </View>
+              ) : lookup.status === "notInSpanish" ? (
+                <View style={finderStyles.stateCenter}>
+                  <Text style={finderStyles.stateText}>{t("wordFinderUi.notInSpanish")}</Text>
                 </View>
               ) : lookup.status === "offline" ? (
                 <Text style={finderStyles.stateText}>{t("wordFinderUi.offline")}</Text>

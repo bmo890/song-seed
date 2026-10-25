@@ -249,6 +249,7 @@ function libraryState() {
         hapticsEnabled: true,
         promptForClipName: false,
         nameLanguage: "he",
+        wordLanguage: "es",
         hasSeenWelcome: true,
         seenHints: ["a"],
         firstLaunchAt: 1,
