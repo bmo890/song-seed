@@ -6,3 +6,6 @@
  */
 export const PRIVACY_POLICY_URL = "https://songnook.app/privacy";
 export const TERMS_OF_USE_URL = "https://songnook.app/terms";
+
+/** The one inbox for feedback, deletion requests and abuse reports (the policy names it). */
+export const SONGNOOK_EMAIL = "bmostudio.dev@gmail.com";

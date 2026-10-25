@@ -14,10 +14,8 @@ import { useStore } from "../../../state/useStore";
 import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
 import { toast } from "../../common/toastStore";
-import { PRIVACY_POLICY_URL, TERMS_OF_USE_URL } from "../../../config/legalLinks";
+import { PRIVACY_POLICY_URL, SONGNOOK_EMAIL, TERMS_OF_USE_URL } from "../../../config/legalLinks";
 import { OPEN_DATA_SOURCES } from "../../../config/openData";
-
-const FEEDBACK_EMAIL = "bmostudio.dev@gmail.com";
 
 /**
  * Quiet closing page: the version to quote in a bug report, a way to reach out, and a
@@ -40,7 +38,7 @@ export function SettingsAboutView() {
 
   const sendFeedback = () => {
     const subject = encodeURIComponent(`SongNook feedback (v${version}${installedUpdate ? ` · ${installedUpdate}` : ""})`);
-    void Linking.openURL(`mailto:${FEEDBACK_EMAIL}?subject=${subject}`).catch(() => {
+    void Linking.openURL(`mailto:${SONGNOOK_EMAIL}?subject=${subject}`).catch(() => {
       // No mail client configured — nothing to open; leave the user where they are.
     });
   };

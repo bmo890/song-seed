@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Linking, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { BottomSheet } from "./BottomSheet";
@@ -23,6 +23,7 @@ import { getRootNavigation, openCollectionAsBrowseRoot, openWorkspaceBrowseRoot,
 import { haptic } from "../../design/haptics";
 import { colors, radii, spacing, text as textTokens } from "../../design/tokens";
 import { durations } from "../../design/motion";
+import { SONGNOOK_EMAIL } from "../../config/legalLinks";
 import type { ShareKind, Workspace } from "../../types";
 
 const SHEET_EXIT_MS = durations.sheetExit;
@@ -58,7 +59,8 @@ export function ReceivedParcelHost() {
  * inside, and one key that keeps it. Keep MOVES the package into your
  * workspaces (one copy of the audio; Received no longer lists it) and lands
  * you on the thing you kept. "Look first" opens it in Received as it is;
- * "Somewhere else…" opens the full chooser.
+ * "Somewhere else…" opens the full chooser. Report (the header's quiet key)
+ * writes to us with the parcel's link code, so a bad link can be taken down.
  */
 function ReceivedParcelSheet({ pkg }: { pkg: Workspace }) {
   const { t } = useTranslation();
@@ -175,6 +177,27 @@ function ReceivedParcelSheet({ pkg }: { pkg: Workspace }) {
     fold(() => visitCollection(nav(), { collectionId: collection.id, workspaceId: pkg.id }));
   };
 
+  // The mail draft is the confirmation: nothing is sent until the person sends it.
+  const report = () => {
+    const id = pkg.received?.transferId ?? null;
+    const subject = id ? t("received.reportSubject", { id }) : t("received.reportSubjectNoId");
+    const body = t("received.reportBody", {
+      title,
+      sender: pkg.received?.senderName ?? t("received.fromSomeone"),
+      id: id ?? "—",
+    });
+    void Linking.openURL(
+      `mailto:${SONGNOOK_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    ).catch(() => {
+      // No mail app: say where to write instead. A dialog, not a toast — toasts
+      // draw beneath this sheet's Modal. AppAlert.error fires the `error` haptic.
+      AppAlert.error(
+        t("received.noMailApp"),
+        id ? t("received.noMailBody", { email: SONGNOOK_EMAIL, id }) : t("received.noMailBodyNoId", { email: SONGNOOK_EMAIL })
+      );
+    });
+  };
+
   return (
     <>
       <BottomSheet visible={visible} onClose={() => fold()} dismissDistance={420}>
@@ -182,6 +205,20 @@ function ReceivedParcelSheet({ pkg }: { pkg: Workspace }) {
           <View style={local.header}>
             <Ionicons name="mail-open-outline" size={15} color={colors.primaryDeep} />
             <Text style={local.eyebrow}>{t("received.parcelEyebrow", { kind: t(`received.${kind}`) })}</Text>
+            {/* Haptics: silent (`navigate`) — the press only hands you to your mail app. */}
+            <Press
+              feel="glyph"
+              haptic="navigate"
+              onPress={report}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={t("received.report")}
+              testID="parcel-report"
+              style={local.reportKey}
+            >
+              <Ionicons name="flag-outline" size={13} color={colors.textMuted} />
+              <Text style={local.reportLabel}>{t("received.report")}</Text>
+            </Press>
           </View>
           <View style={local.titleRow}>
             <View style={local.kindBadge}>
@@ -265,6 +302,16 @@ const local = StyleSheet.create({
   eyebrow: {
     ...textTokens.annotation,
     color: colors.primaryDeep,
+    flex: 1,
+  },
+  reportKey: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  reportLabel: {
+    ...textTokens.caption,
+    color: colors.textMuted,
   },
   titleRow: {
     flexDirection: "row",
