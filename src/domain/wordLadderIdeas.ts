@@ -1,5 +1,6 @@
 import { ES_ALIASES, ES_EVERYDAY_NOUNS, ES_EVERYDAY_VERBS, ES_PLACES, ES_ROLES } from "./wordIdeasEs";
 import { DE_ALIASES, DE_EVERYDAY_NOUNS, DE_EVERYDAY_VERBS, DE_PLACES, DE_ROLES } from "./wordIdeasDe";
+import { PT_ALIASES, PT_EVERYDAY_NOUNS, PT_EVERYDAY_VERBS, PT_PLACES, PT_ROLES } from "./wordIdeasPt";
 
 /**
  * Inspiration for the Word Ladder setup step, per Jeff Tweedy's exercise: pick
@@ -13,12 +14,12 @@ import { DE_ALIASES, DE_EVERYDAY_NOUNS, DE_EVERYDAY_VERBS, DE_PLACES, DE_ROLES }
  * lines and, as a happy side effect, keeps the same word from recurring across
  * seeds (verified by src/__tests__/wordLadderIdeas.test.ts, which caps how many
  * pools any one word may appear in). English, Hebrew, Spanish (wordIdeasEs.ts)
- * and German (wordIdeasDe.ts).
+ * German (wordIdeasDe.ts) and Brazilian Portuguese (wordIdeasPt.ts).
  */
 
 export type Idea = { seed: string; words: string[] };
 export type IdeaBank = { roles: Idea[]; places: Idea[] };
-export type IdeaLang = "en" | "he" | "es" | "de";
+export type IdeaLang = "en" | "he" | "es" | "de" | "pt";
 
 // ── English ──────────────────────────────────────────────────────────────────
 
@@ -218,6 +219,7 @@ const BANKS: Record<IdeaLang, IdeaBank> = {
   he: { roles: HE_ROLES, places: HE_PLACES },
   es: { roles: ES_ROLES, places: ES_PLACES },
   de: { roles: DE_ROLES, places: DE_PLACES },
+  pt: { roles: PT_ROLES, places: PT_PLACES },
 };
 
 /** The dataset for a language (falls back to English). */
@@ -301,6 +303,7 @@ export const ALIASES: Record<IdeaLang, Record<string, string[]>> = {
   },
   es: ES_ALIASES,
   de: DE_ALIASES,
+  pt: PT_ALIASES,
 };
 
 /** Hebrew gender and plural forms that point back at a listed seed:
@@ -338,6 +341,8 @@ function typedForms(text: string): string[] {
   forms.add(bare);
   // Spanish articles and possessives ("la cocina", "un panadero", "mi taller").
   forms.add(base.replace(/^(el|la|los|las|un|una|unos|unas|mi|mis|tu|nuestro|nuestra)\s+/, ""));
+  // Portuguese articles and contractions ("o padeiro", "na cozinha", "da praia").
+  forms.add(base.replace(/^(o|os|as|um|uma|uns|umas|meu|minha|meus|minhas|seu|sua|nosso|nossa|no|na|nos|nas|do|da|dos|das|ao|à)\s+/, ""));
   // German articles and prepositions ("der bäcker", "im theater", "auf dem dach").
   forms.add(base.replace(/^(der|die|das|den|dem|des|ein|eine|einen|einem|mein|meine|im|am|beim|zum|zur|in der|auf dem)\s+/, ""));
   for (const form of [...forms]) {
@@ -353,6 +358,13 @@ function typedForms(text: string): string[] {
     if (/innen$/.test(form)) forms.add(form.replace(/nen$/, ""));
     if (form.length > 4 && /en$/.test(form)) forms.add(form.replace(/en$/, ""));
     if (form.length > 4 && /n$/.test(form)) forms.add(form.replace(/n$/, ""));
+    // Portuguese plurals: ladrões → ladrão, capitães → capitão, quintais →
+    // quintal, papéis → papel, barris → barril, armazéns → armazém.
+    if (/[õã]es$/.test(form)) forms.add(form.replace(/[õã]es$/, "ão"));
+    if (/ais$/.test(form)) forms.add(form.replace(/ais$/, "al"));
+    if (/[ée]is$/.test(form)) forms.add(form.replace(/[ée]is$/, "el"));
+    if (/is$/.test(form)) forms.add(form.replace(/is$/, "il"));
+    if (/ns$/.test(form)) forms.add(form.replace(/ns$/, "m"));
     // Hebrew definite article (הנגר) and gender/plural endings.
     const withoutHe = form.startsWith("ה") && form.length > 2 ? form.slice(1) : form;
     forms.add(withoutHe);
@@ -413,7 +425,7 @@ function namesFor(lang: IdeaLang, kind: SeedKind): { name: string; idea: Idea }[
 export function matchSeed(lang: IdeaLang, kind: SeedKind, text: string): Idea | null {
   const forms = typedForms(text).map(key).filter(Boolean);
   if (forms.length === 0) return null;
-  const langs: IdeaLang[] = [lang, ...(["en", "es", "de", "he"] as IdeaLang[]).filter((other) => other !== lang)];
+  const langs: IdeaLang[] = [lang, ...(["en", "es", "pt", "de", "he"] as IdeaLang[]).filter((other) => other !== lang)];
   for (const candidateLang of langs) {
     const names = namesFor(candidateLang, kind);
     for (const form of forms) {
@@ -442,6 +454,7 @@ export const EVERYDAY_VERBS: Record<IdeaLang, string[]> = {
   he: ["לסחוב", "לחכות", "לקפל", "לפתוח", "לספור", "לעזוב", "להחזיק", "להרים", "למיין", "לנקות", "לתקן", "לבדוק", "להקשיב", "לנעול", "להגיע", "להחזיר", "להישאר", "לשאול", "לזכור", "לשכוח"],
   es: ES_EVERYDAY_VERBS,
   de: DE_EVERYDAY_VERBS,
+  pt: PT_EVERYDAY_VERBS,
 };
 
 export const EVERYDAY_NOUNS: Record<IdeaLang, string[]> = {
@@ -449,13 +462,14 @@ export const EVERYDAY_NOUNS: Record<IdeaLang, string[]> = {
   he: ["דלת", "חלון", "כיסא", "מפתח", "מעיל", "מתג", "שעון", "תיק", "כוס", "מדרגות", "צל", "רצפה", "קיר", "טלפון", "כיס", "מראה", "גשם", "אבק", "רעש", "שקית"],
   es: ES_EVERYDAY_NOUNS,
   de: DE_EVERYDAY_NOUNS,
+  pt: PT_EVERYDAY_NOUNS,
 };
 
 /** Hebrew letters decide which everyday pool fits what was typed; Latin
  *  letters keep the word language when it is Latin (English or Spanish). */
 function textLang(text: string, fallback: IdeaLang): IdeaLang {
   if (/[\u0590-\u05FF]/.test(text)) return "he";
-  if (/[a-zñáéíóúäöüß]/i.test(text)) return fallback === "he" ? "en" : fallback;
+  if (/[a-zñáéíóúäöüßçãõâêô]/i.test(text)) return fallback === "he" ? "en" : fallback;
   return fallback;
 }
 

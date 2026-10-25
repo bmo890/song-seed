@@ -8,6 +8,8 @@
  * WORD_SERVICE_BASE_URL at it and nothing else in the app changes.
  */
 
+import { portugueseRhymes } from "./portugueseRhyme";
+import { portugueseMeanings } from "./portugueseThesaurus";
 import { germanRhymes } from "./germanRhyme";
 import { isSpanishAssonance, isSpanishRhyme, spanishRhyme, spanishRhymePattern } from "./spanishRhyme";
 
@@ -92,7 +94,7 @@ export const WORD_LOOKUP_MODES: Record<WordLookupMode, ModeConfig> = {
  * language the writer chose (Settings → Preferences), since the letters alone
  * can't tell "once" the number from "once" the word.
  */
-export type LatinLookupLanguage = "en" | "es" | "de";
+export type LatinLookupLanguage = "en" | "es" | "de" | "pt";
 
 /**
  * What Datamuse's Spanish vocabulary (`v=es`) can serve (probed 2026-10-25):
@@ -121,16 +123,29 @@ export function germanSupports(mode: WordLookupMode): boolean {
   return GERMAN_MODES.has(mode);
 }
 
+/**
+ * Portuguese (Brazil, 2026-10-25): no Datamuse and no open thesaurus API.
+ * Rhymes are worked out from spelling over a bundled word list
+ * (domain/portugueseRhyme.ts); meanings come from a bundled OpenWordNet-PT
+ * extract (domain/portugueseThesaurus.ts). Everything runs on the phone.
+ */
+const PORTUGUESE_MODES = new Set<WordLookupMode>(["rhymes", "near", "similar", "related", "kinds", "parts", "opposite"]);
+
+export function portugueseSupports(mode: WordLookupMode): boolean {
+  return PORTUGUESE_MODES.has(mode);
+}
+
 /** The vocabulary Latin-script words are looked up in for a word-tools language
  *  (Hebrew words route by their letters, so Hebrew maps to English here). */
 export function latinLookupLanguageFor(code: string): LatinLookupLanguage {
-  return code === "es" || code === "de" ? code : "en";
+  return code === "es" || code === "de" || code === "pt" ? code : "en";
 }
 
 /** Whether a Latin-script lookup language serves a mode. */
 export function latinSupports(language: LatinLookupLanguage, mode: WordLookupMode): boolean {
   if (language === "es") return spanishSupports(mode);
   if (language === "de") return germanSupports(mode);
+  if (language === "pt") return portugueseSupports(mode);
   return true;
 }
 
@@ -325,7 +340,7 @@ export type WordLookupOptions = {
 /** Cache key for a lookup: Spanish keys carry their language so "once" in
  *  English and "once" in Spanish never share results. Themes are English-only. */
 function lookupCacheKey(mode: WordLookupMode, normalized: string, options?: WordLookupOptions): string {
-  if (options?.language === "es" || options?.language === "de") return `${options.language}:${mode}:${normalized}`;
+  if (options?.language && options.language !== "en") return `${options.language}:${mode}:${normalized}`;
   const themeKey = sanitizeThemeWords(options?.theme ?? "").join(",");
   return `${mode}:${themeKey}:${normalized}`;
 }
@@ -514,6 +529,13 @@ export async function fetchWordSuggestions(
   if (cached !== null) return cached;
 
   const cacheKey = lookupCacheKey(mode, normalized, options);
+  if (options?.language === "pt") {
+    // All bundled: instant, nothing to fetch or cache.
+    if (mode === "rhymes" || mode === "near") {
+      return portugueseRhymes(word, mode === "near").map((rhyme, rank) => ({ ...rhyme, score: 1000 - rank }));
+    }
+    return portugueseMeanings(word, mode);
+  }
   if (options?.language === "de") {
     // Rhymes come from the bundled index: instant, nothing to cache.
     if (mode === "rhymes" || mode === "near") {
@@ -928,8 +950,8 @@ export async function fetchWordDefinitions(
   const normalized = word.trim().toLowerCase();
   if (!normalized) return [];
   const language = options?.language ?? "en";
-  // No open German dictionary is wired yet: hold shows "no definition".
-  if (language === "de") return [];
+  // No open German or Portuguese dictionary is wired yet: hold shows "no definition".
+  if (language === "de" || language === "pt") return [];
   // Spanish definitions are their own entries ("once" is eleven in Spanish).
   const defKey = language === "es" ? `es:${normalized}` : normalized;
 

@@ -1776,7 +1776,7 @@ export const createDataSlice: StateCreator<
         // while its source is live).
         const wordLanguage = resolveWordLanguage(get().wordLanguage, i18n.language);
         const spark = createMagpieSpark(
-            wordLanguage === "es" || wordLanguage === "de"
+            wordLanguage === "es" || wordLanguage === "de" || wordLanguage === "pt"
                 ? wordLanguage
                 : wordLanguage === "he" && MAGPIE_HE_ENABLED
                     ? "he"

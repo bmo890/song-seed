@@ -16,9 +16,10 @@ import { i18n } from "../i18n/instance";
 const EN_TIMESTAMP = /^\d{1,2}:\d{2}\s?(?:AM|PM)\s+[A-Za-z]{3}\s+\d{1,2}(?:st|nd|rd|th)?$/i;
 const HE_TIMESTAMP = /^\d{1,2}:\d{2}\s+\d{1,2}\s+ב\S+$/;
 const ES_TIMESTAMP = /^\d{1,2}:\d{2}\s+\d{1,2}\s+[a-záéíóú]{3,5}\.?$/i;
+const PT_TIMESTAMP = /^\d{1,2}:\d{2}\s+\d{1,2}\s+de\s+[a-zç]{3,4}\.?$/i;
 const DE_TIMESTAMP = /^\d{1,2}:\d{2}\s+\d{1,2}\.\s+[A-Za-zäöüÄÖÜ]{3,5}\.?$/;
 // Our own generated shapes: default take titles, recovered takes, nameless imports.
-const OUR_DEFAULTS = [/^Idea \d+$/i, /^רעיון \d+$/, /^(?:Layer|Overdub) \d+$/i, /^(?:שכבה|שכבת הקלטה) \d+$/, /^Capa \d+$/i, /^Spur \d+$/i, /^(?:Recovered|שוחזר|Recuperado|Gerettet)\s?·/, /^Recovered Recording\b/i, /^Import\s/];
+const OUR_DEFAULTS = [/^Idea \d+$/i, /^רעיון \d+$/, /^(?:Layer|Overdub) \d+$/i, /^(?:שכבה|שכבת הקלטה) \d+$/, /^Capa \d+$/i, /^Spur \d+$/i, /^Camada \d+$/i, /^(?:Recovered|שוחזר|Recuperado|Gerettet)\s?·/, /^Recovered Recording\b/i, /^Import\s/];
 // What voice recorders and messaging apps call a file nobody named.
 const RECORDER_FILENAMES = [
   /^(?:new\s+)?(?:recording|voice|memo|audio|rec|clip|track|untitled|note|sound|record|voice\s*memo)[\s_\-#.]*\(?\d*\)?$/i,
@@ -45,7 +46,7 @@ export function looksMachineNamed(title: string, createdAt?: number): boolean {
   if (createdAt !== undefined && isDefaultIdeaTitle(trimmed, createdAt)) return true;
   // "Chorus hook v3" is a child take of a named clip; "Idea 2 v3" is not.
   const base = stripVersionSuffix(trimmed);
-  if ([EN_TIMESTAMP, HE_TIMESTAMP, ES_TIMESTAMP, DE_TIMESTAMP].some((pattern) => pattern.test(base))) return true;
+  if ([EN_TIMESTAMP, HE_TIMESTAMP, ES_TIMESTAMP, DE_TIMESTAMP, PT_TIMESTAMP].some((pattern) => pattern.test(base))) return true;
   if (OUR_DEFAULTS.some((pattern) => pattern.test(base))) return true;
   return RECORDER_FILENAMES.some((pattern) => pattern.test(base));
 }
@@ -60,8 +61,8 @@ export function isTitleAutoNamed(entry: {
   return looksMachineNamed(entry.title, entry.createdAt);
 }
 
-type TitleLanguage = "en" | "he" | "es" | "de";
-const TITLE_LANGUAGES: TitleLanguage[] = ["en", "he", "es", "de"];
+type TitleLanguage = "en" | "he" | "es" | "de" | "pt";
+const TITLE_LANGUAGES: TitleLanguage[] = ["en", "he", "es", "de", "pt"];
 
 function buildDefaultIdeaTitleIn(language: TitleLanguage, timestamp: number) {
   const date = new Date(timestamp);
@@ -71,6 +72,12 @@ function buildDefaultIdeaTitleIn(language: TitleLanguage, timestamp: number) {
     const time = date.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", hour12: false });
     const month = date.toLocaleDateString("es-ES", { month: "short" }).replace(/\.$/, "");
     return `${time} ${day} ${month}`;
+  }
+  if (language === "pt") {
+    // 24-hour, "28 de out" as Brazilians write a date.
+    const time = date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false });
+    const month = date.toLocaleDateString("pt-BR", { month: "short" }).replace(/\.$/, "");
+    return `${time} ${day} de ${month}`;
   }
   if (language === "de") {
     // 24-hour, day with its period: "10:58 28. Okt".

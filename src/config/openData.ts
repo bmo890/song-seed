@@ -7,7 +7,7 @@
 export type OpenDataSource = {
   name: string;
   /** settingsAbout.openDataUse.<use> — what SongNook uses it for. */
-  use: "rhymesDe" | "synonymsDe" | "wordRanks" | "wordsEnEs" | "rhymesHe" | "books" | "booksHe";
+  use: "rhymesDe" | "synonymsDe" | "synonymsPt" | "wordRanks" | "wordsEnEs" | "rhymesHe" | "books" | "booksHe";
   url: string;
 };
 
@@ -15,6 +15,7 @@ export const OPEN_DATA_SOURCES: OpenDataSource[] = [
   { name: "Datamuse", use: "wordsEnEs", url: "https://www.datamuse.com/api/" },
   { name: "Wiktionary", use: "rhymesDe", url: "https://de.wiktionary.org" },
   { name: "OpenThesaurus", use: "synonymsDe", url: "https://www.openthesaurus.de" },
+  { name: "OpenWordNet-PT", use: "synonymsPt", url: "https://github.com/own-pt/openWordnet-PT" },
   { name: "FrequencyWords", use: "wordRanks", url: "https://github.com/hermitdave/FrequencyWords" },
   { name: "Dicta", use: "rhymesHe", url: "https://dicta.org.il" },
   { name: "Project Gutenberg", use: "books", url: "https://www.gutenberg.org" },

@@ -11,7 +11,7 @@ export type WordLanguagePref = "auto" | AppLanguage;
 
 /** The languages the word tools are built for; a new UI language joins once
  *  its word lists and lookups exist. */
-export const WORD_TOOL_LANGUAGES: AppLanguage[] = ["en", "he", "es", "de"];
+export const WORD_TOOL_LANGUAGES: AppLanguage[] = ["en", "he", "es", "de", "pt"];
 
 export function sanitizeWordLanguagePref(value: unknown): WordLanguagePref {
   return isAppLanguage(value) && WORD_TOOL_LANGUAGES.includes(value) ? value : "auto";

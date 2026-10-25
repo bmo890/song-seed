@@ -26,6 +26,8 @@ export const APP_LANGUAGES = [
   // Neutral Spanish (tú) that reads naturally in Spain and Latin America.
   { code: "es", nativeName: "Español", flag: "🇪🇸", formatLocale: "es-ES", direction: "ltr" },
   { code: "de", nativeName: "Deutsch", flag: "🇩🇪", formatLocale: "de-DE", direction: "ltr" },
+  // Brazilian Portuguese (você).
+  { code: "pt", nativeName: "Português", flag: "🇧🇷", formatLocale: "pt-BR", direction: "ltr" },
 ] as const;
 
 type LanguageEntry = (typeof APP_LANGUAGES)[number];

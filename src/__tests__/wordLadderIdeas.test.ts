@@ -11,7 +11,7 @@ import {
   type IdeaLang,
 } from "../domain/wordLadderIdeas";
 
-const LANGS: IdeaLang[] = ["en", "he", "es", "de"];
+const LANGS: IdeaLang[] = ["en", "he", "es", "de", "pt"];
 
 /** How many distinct pools any single word shows up in — the cross-category
  * repetition we're trying to minimize. */
@@ -172,5 +172,18 @@ describe("German seed matching", () => {
     ["Fleischer", "metzger"],
   ])("%s finds %s", (typed, seed) => {
     expect(matchSeed("de", "roles", typed)?.seed).toBe(seed);
+  });
+});
+
+describe("Portuguese seed matching", () => {
+  it.each([
+    ["Padeiro", "roles", "padeiro"],
+    ["a padeira", "roles", "padeiro"],
+    ["padeiros", "roles", "padeiro"],
+    ["empregado de mesa", "roles", "garçom"],
+    ["na cozinha", "places", "cozinha"],
+    ["quintais", "places", "quintal"],
+  ] as const)("%s finds %s", (typed, kind, seed) => {
+    expect(matchSeed("pt", kind, typed)?.seed).toBe(seed);
   });
 });

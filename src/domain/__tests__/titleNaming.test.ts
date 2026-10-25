@@ -29,6 +29,9 @@ describe("looksMachineNamed", () => {
     // German defaults.
     "10:58 28. Okt",
     "Spur 2",
+    // Portuguese defaults.
+    "10:58 28 de out",
+    "Camada 2",
     "Gerettet · Idee 3",
     "IMG_1234",
     "IMG_E1234",

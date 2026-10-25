@@ -843,7 +843,13 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
               ) : lookup.status === "notInLanguage" ? (
                 <View style={finderStyles.stateCenter}>
                   <Text style={finderStyles.stateText}>
-                    {t(latin === "de" ? "wordFinderUi.notInGerman" : "wordFinderUi.notInSpanish")}
+                    {t(
+                      latin === "de"
+                        ? "wordFinderUi.notInGerman"
+                        : latin === "pt"
+                          ? "wordFinderUi.notInPortuguese"
+                          : "wordFinderUi.notInSpanish"
+                    )}
                   </Text>
                 </View>
               ) : lookup.status === "offline" ? (
@@ -880,7 +886,9 @@ export function WordFinderSheet({ visible, initialWord, onClose, onPickWord }: W
                     ? t("wordFinderUi.dictaCredit")
                     : activeRoute === "latin" && latin === "de"
                       ? t("wordFinderUi.germanCredit")
-                      : t("wordFinderUi.resultHint")}
+                      : activeRoute === "latin" && latin === "pt"
+                        ? t("wordFinderUi.portugueseCredit")
+                        : t("wordFinderUi.resultHint")}
                 </Text>
               ) : null}
             </View>
