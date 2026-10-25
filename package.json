@@ -12,6 +12,7 @@
     "ios": "expo run:ios",
     "test": "jest",
     "lint:craft": "sh scripts/craft-lint.sh",
+    "brand:render": "node scripts/brand/render-brand.mjs",
     "postinstall": "patch-package"
   },
   "dependencies": {

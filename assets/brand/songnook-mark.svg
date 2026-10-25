@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <!-- The SongNook mark: two leaves over a stem and stand (a lamp on a desk).
+       Master artwork. Every PNG in assets/ is rendered from this file by
+       `npm run brand:render`; edit here, never the PNGs. -->
+  <rect x="57.5" y="42" width="5" height="44" rx="2.5" fill="#B87D6B"/>
+  <rect x="41" y="84" width="38" height="5" rx="2.5" fill="#B87D6B"/>
+  <path d="M60 32 A25 25 0 0 0 23 59 A25 25 0 0 0 60 32 Z" fill="#C9978A" stroke="#C9978A" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M60 32 A25 25 0 0 1 97 59 A25 25 0 0 1 60 32 Z" fill="#B87D6B" stroke="#B87D6B" stroke-width="3" stroke-linejoin="round"/>
+</svg>
