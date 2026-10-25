@@ -165,6 +165,8 @@ export function useWordLadderScreenModel() {
   const suggestColumnWords = useCallback(
     (column: "a" | "b") => {
       if (!exercise) return;
+      // No job (or place) yet, nothing to suggest from (founder, 2026-10-25).
+      if (!(column === "a" ? exercise.roleSeed : exercise.placeSeed).trim()) return;
       if (column === "a") {
         const existing = exercise.columnA.map((word) => word.text);
         let columnA = exercise.columnA;
