@@ -174,7 +174,8 @@ export function WordLadderScreenContent() {
               />
             }
             onAdd={(text) => model.addColumnWord("a", text)}
-            onSuggest={() => model.suggestColumnWords("a")}
+            // Suggestions are drawn from the job; with none chosen there is nothing to draw from.
+            onSuggest={role ? () => model.suggestColumnWords("a") : undefined}
             onEdit={(id, text) => model.editColumnWord("a", id, text)}
             onReorder={(words) => model.reorderColumnWords("a", words)}
             onRemove={(id) => model.removeColumnWord("a", id)}
@@ -211,7 +212,7 @@ export function WordLadderScreenContent() {
               />
             }
             onAdd={(text) => model.addColumnWord("b", text)}
-            onSuggest={() => model.suggestColumnWords("b")}
+            onSuggest={place ? () => model.suggestColumnWords("b") : undefined}
             slots={Math.max(0, verbCount - nounCount)}
             onEdit={(id, text) => model.editColumnWord("b", id, text)}
             onReorder={(words) => model.reorderColumnWords("b", words)}
