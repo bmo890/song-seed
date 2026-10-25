@@ -31,7 +31,15 @@ function toHtml(md) {
   for (const raw of lines) {
     const line = raw.trimEnd();
     if (/^# /.test(line)) { flushPara(); flushList(); title = line.slice(2).trim(); continue; }
-    if (/^## /.test(line)) { flushPara(); flushList(); out.push(`<h2>${inline(line.slice(3).trim())}</h2>`); continue; }
+    // Each section gets an anchor, so a store form can link straight to it
+    // (Play's data-deletion link points at /privacy#deleting-your-data).
+    if (/^## /.test(line)) {
+      flushPara(); flushList();
+      const heading = line.slice(3).trim();
+      const id = heading.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      out.push(`<h2 id="${id}">${inline(heading)}</h2>`);
+      continue;
+    }
     if (/^- /.test(line)) { flushPara(); list.push(line.slice(2).trim()); continue; }
     if (line.trim() === "") { flushPara(); flushList(); continue; }
     const eff = line.match(/^\*\*Effective date:\*\*\s*(.+)$/);
