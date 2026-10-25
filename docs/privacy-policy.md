@@ -31,6 +31,13 @@ Send hands clips or a whole sketch to someone with a link. Nothing uploads until
 - **How long:** every parcel is deleted **7 days** after it is made, files and details both. Unfinished uploads are cleaned up within a day. To remove one sooner, email us.
 - **What we count:** how many times each file was downloaded, never by whom.
 
+## Deleting your data
+
+- **Your library:** it lives only on your phone. Delete ideas in the app, or remove everything with **Settings → Erase everything**. Deleting the app removes it too (your phone's own backups are managed in its settings).
+- **A Send link:** it is deleted automatically **7 days** after you made it. To delete one sooner, email **bmostudio.dev@gmail.com** with the link; we remove the files and details within 7 days of your request.
+- **Purchase records:** if you bought SongNook Pro, email us and we will ask RevenueCat to delete the purchase history tied to your anonymous ID. The App Store or Google Play keep their own records of the payment under their policies.
+- **Everything else:** word lookups are not tied to you, and the IP counters used against abuse expire on their own within about two hours, so there is nothing to delete.
+
 ## Abuse prevention
 
 Send, our Hebrew word server and our Borrowed Words server use your device's IP address briefly to limit how often they can be called. These counters expire on their own within about two hours. We keep no log of who sent or looked up what.
