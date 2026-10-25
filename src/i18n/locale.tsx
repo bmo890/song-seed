@@ -4,9 +4,16 @@ import * as Updates from "expo-updates";
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { DevSettings, I18nManager, Platform } from "react-native";
 import { i18n } from "./instance";
-
-export type AppLanguage = "en" | "he";
-export type UiDirection = "ltr" | "rtl";
+import {
+  DEFAULT_LANGUAGE,
+  directionFor,
+  formatLocaleFor,
+  isAppLanguage,
+  matchLanguage,
+  type AppLanguage,
+  type FormatLocale,
+  type UiDirection,
+} from "./languages";
 
 /** AsyncStorage key holding the chosen UI language. Exported so the exact backup can
  *  carry it (see services/satelliteSnapshot.ts). */
@@ -15,19 +22,15 @@ const LANGUAGE_KEY = UI_LANGUAGE_STORAGE_KEY;
 
 type LocaleContextValue = {
   language: AppLanguage;
-  formatLocale: "en-US" | "he-IL";
+  formatLocale: FormatLocale;
   direction: UiDirection;
   setLanguage: (language: AppLanguage) => Promise<void>;
 };
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
-function isAppLanguage(value: unknown): value is AppLanguage {
-  return value === "en" || value === "he";
-}
-
 function detectInitialLanguage(): AppLanguage {
-  return getLocales()[0]?.languageCode === "he" ? "he" : "en";
+  return matchLanguage(getLocales().map((locale) => locale.languageCode));
 }
 
 /** The device's language, for defaults created before the i18n bootstrap has run
@@ -61,7 +64,7 @@ async function reloadApplication() {
 }
 
 async function applyNativeDirection(language: AppLanguage): Promise<boolean> {
-  const shouldBeRtl = language === "he";
+  const shouldBeRtl = directionFor(language) === "rtl";
   if (Platform.OS === "web") {
     if (typeof document !== "undefined") {
       document.documentElement.lang = language;
@@ -93,8 +96,8 @@ export function useLocaleBootstrap() {
       .catch((nextError) => {
         if (active) {
           setError(nextError);
-          void i18n.changeLanguage("en");
-          setLanguage("en");
+          void i18n.changeLanguage(DEFAULT_LANGUAGE);
+          setLanguage(DEFAULT_LANGUAGE);
         }
       });
     return () => {
@@ -108,8 +111,8 @@ export function useLocaleBootstrap() {
 export function LocaleProvider({ language, children }: { language: AppLanguage; children: React.ReactNode }) {
   const value = useMemo<LocaleContextValue>(() => ({
     language,
-    formatLocale: language === "he" ? "he-IL" : "en-US",
-    direction: language === "he" ? "rtl" : "ltr",
+    formatLocale: formatLocaleFor(language),
+    direction: directionFor(language),
     setLanguage: async (next) => {
       if (next === language) return;
       await AsyncStorage.setItem(LANGUAGE_KEY, next);

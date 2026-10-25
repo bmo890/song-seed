@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { UI_LANGUAGE_STORAGE_KEY, type AppLanguage } from "../i18n/locale";
+import { UI_LANGUAGE_STORAGE_KEY, isAppLanguage, type AppLanguage } from "../i18n";
 import { useActivityStore } from "../state/useActivityStore";
 import { useChartPrefsStore } from "../state/useChartPrefsStore";
 import { useMagpiePrefsStore } from "../state/useMagpiePrefsStore";
@@ -86,7 +86,7 @@ export async function collectSatelliteSnapshot(): Promise<DrSatelliteSnapshot> {
     let uiLanguage: AppLanguage | undefined;
     try {
         const stored = await AsyncStorage.getItem(UI_LANGUAGE_STORAGE_KEY);
-        if (stored === "en" || stored === "he") uiLanguage = stored;
+        if (isAppLanguage(stored)) uiLanguage = stored;
     } catch {
         // Language is a nicety; a backup must never fail over it.
     }
@@ -103,7 +103,7 @@ export function sanitizeSatelliteSnapshot(value: unknown): DrSatelliteSnapshot |
         if (typeof record.name !== "string" || !Number.isFinite(record.version) || !isRecord(record.state)) continue;
         stores[key] = { name: record.name, version: Number(record.version), state: record.state };
     }
-    const uiLanguage = value.uiLanguage === "en" || value.uiLanguage === "he" ? value.uiLanguage : undefined;
+    const uiLanguage = isAppLanguage(value.uiLanguage) ? value.uiLanguage : undefined;
     return { schemaVersion: 1, stores, ...(uiLanguage ? { uiLanguage } : null) };
 }
 

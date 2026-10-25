@@ -1,4 +1,5 @@
 import { i18n } from "../i18n/instance";
+import { currentFormatLocale } from "../i18n/formatLocale";
 import { getMonthName } from "./dateNames";
 
 /**
@@ -98,7 +99,7 @@ export function getDateBucket(ts: number): DateBucket {
   // Group by calendar month
   const d = new Date(ts);
   const monthStart = startOfMonth(ts);
-  const monthName = getMonthName(i18n.language === "he" ? "he-IL" : "en-US", d.getMonth(), "long");
+  const monthName = getMonthName(currentFormatLocale(), d.getMonth(), "long");
 
   if (d.getFullYear() === currentYear) {
     return { key: `month-${d.getMonth()}`, label: monthName, startTs: monthStart };

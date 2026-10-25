@@ -30,7 +30,7 @@ import {
   sparkDoneLabel,
   wordLadderText,
 } from "../../common/sparkSend";
-import { UserText } from "../../../i18n";
+import { APP_LANGUAGE_CODES, UserText } from "../../../i18n";
 import {
   buildSearchPreviewSegments,
   deriveNotePreviewBody,
@@ -237,7 +237,7 @@ function SparkListItem<T extends { id: string; title: string }>({
 // The app's own placeholder titles, in every language (a spark made in Hebrew keeps
 // its Hebrew placeholder after a switch to English).
 const UNTITLED_TITLES = new Set(
-  ["en", "he"].flatMap((lng) => [i18n.t("wordLadder.untitled", { lng }), i18n.t("cutUp.untitled", { lng })])
+  APP_LANGUAGE_CODES.flatMap((lng) => [i18n.t("wordLadder.untitled", { lng }), i18n.t("cutUp.untitled", { lng })])
 );
 
 function WordLadderListItem(props: SparkItemProps<WordLadderExercise>) {

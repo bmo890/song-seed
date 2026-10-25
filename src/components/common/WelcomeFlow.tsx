@@ -52,6 +52,9 @@ import { useTranslation } from "react-i18next";
 
 const PANE_COUNT = 7;
 const FADE_HEIGHT = 40;
+/** Eyebrow, a two-line title and a three-line body, plus the band's padding. */
+const COPY_BAND_HEIGHT =
+  spacing.xxl + 16 + spacing.sm + textTokens.cardTitle.lineHeight * 2 + spacing.sm + 23 * 3 + spacing.xxl * 2;
 
 /** The scene runs on past its window and sinks into the paper. */
 function SceneFade() {
@@ -422,10 +425,15 @@ const s = StyleSheet.create({
     bottom: 0,
     height: FADE_HEIGHT,
   },
+  // The copy sits in a fixed band, top-aligned, so the eyebrow lands at the same
+  // height on every pane whether the title takes one line or two, and a clear
+  // gap keeps it off the dots.
   copy: {
     alignItems: "center",
     gap: spacing.sm,
-    paddingTop: spacing.lg,
+    minHeight: COPY_BAND_HEIGHT,
+    paddingTop: spacing.xxl,
+    paddingBottom: spacing.xxl * 2,
   },
   eyebrow: {
     ...textTokens.annotation,
