@@ -13,6 +13,8 @@ type IdeaListSelectionZoneProps = {
   selectedHiddenIdeaIds: string[];
   selectedClipIdeasCount: number;
   selectableIdeaIds: string[];
+  /** The page's ideas in on-screen order (see IdeaSelectionBar). */
+  orderedIdeaIds?: string[];
   selectedHiddenOnly: boolean;
   selectedInteractiveIdeasCount: number;
   onCreateProjectFromSelection: () => void;
@@ -35,6 +37,7 @@ export function IdeaListSelectionZone({
   selectedHiddenIdeaIds,
   selectedClipIdeasCount,
   selectableIdeaIds,
+  orderedIdeaIds,
   selectedHiddenOnly,
   selectedInteractiveIdeasCount,
   onCreateProjectFromSelection,
@@ -56,6 +59,7 @@ export function IdeaListSelectionZone({
         <IdeaSelectionBar
           workspaceId={workspaceId}
           selectableIdeaIds={selectableIdeaIds}
+          orderedIdeaIds={orderedIdeaIds}
           disabledIdeaIds={selectedHiddenIdeaIds}
           onPlaySelected={onPlaySelected}
           onAddToQueue={onAddToQueue}

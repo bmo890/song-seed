@@ -496,6 +496,7 @@ export function CollectionFloatingActions() {
         selectedHiddenIdeaIds={selectedHiddenIdeaIds}
         selectedClipIdeasCount={selectedClipIdeasInList.length}
         selectableIdeaIds={selectableIdeaIds}
+        orderedIdeaIds={selectableIdeaIds}
         selectedHiddenOnly={selectedHiddenOnly}
         selectedInteractiveIdeasCount={selectedInteractiveIdeas.length}
         onCreateProjectFromSelection={createProjectFromSelection}
