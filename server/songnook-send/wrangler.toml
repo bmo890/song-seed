@@ -11,6 +11,11 @@ routes = [
 ]
 workers_dev = false
 
+# The pages' fonts (Lora, Plus Jakarta Sans; OFL) are served from public/ by the
+# Workers asset server; paths with no file there fall through to the Worker.
+[assets]
+directory = "./public"
+
 # ── Public, non-secret config (safe to commit) ───────────────────────────────
 [vars]
 # Canonical public origin. The mobile app and web page embed only this — it is
