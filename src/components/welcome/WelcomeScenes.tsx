@@ -183,10 +183,9 @@ export function ShareScene() {
           onPress={noop}
         />
         <ListRow
-          icon="link-outline"
-          title={t("welcome.demo.link")}
-          serifTitle={false}
-          meta={<ListRowMeta>{t("welcome.demo.linkMeta")}</ListRowMeta>}
+          icon="paper-plane-outline"
+          title={t("welcome.demo.sketch")}
+          meta={<ListRowMeta>{t("welcome.demo.sentMeta")}</ListRowMeta>}
           onPress={noop}
         />
         <ListRow
