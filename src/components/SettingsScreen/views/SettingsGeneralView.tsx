@@ -6,6 +6,7 @@ import { LibraryActionCard, SettingsGroup, ToggleRow, ValueRow } from "../compon
 import { settingsScreenStyles, styles } from "../styles";
 import { APP_LANGUAGES, languageLabel, useLocale } from "../../../i18n";
 import { useStore } from "../../../state/useStore";
+import { NAME_IDEA_LANGUAGES } from "../../../utils";
 import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
 
@@ -61,7 +62,7 @@ export function SettingsGeneralView() {
             value={nameLanguage}
             options={[
               { value: "auto" as const, label: t("settings.automatic") },
-              ...APP_LANGUAGES.map((language) => ({ value: language.code, label: languageLabel(language.code) })),
+              ...NAME_IDEA_LANGUAGES.map((code) => ({ value: code, label: languageLabel(code) })),
             ]}
             onChange={setNameLanguage}
           />

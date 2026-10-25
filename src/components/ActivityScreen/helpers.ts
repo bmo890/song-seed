@@ -8,6 +8,7 @@ import {
 import { IdeaStatus, SongIdea, Workspace } from "../../types";
 import { colors } from "../../design/tokens";
 import { i18n } from "../../i18n/instance";
+import { currentFormatLocale } from "../../i18n/formatLocale";
 
 export const CELL_SIZE = 15;
 export const CELL_GAP = 4;
@@ -47,7 +48,7 @@ export function formatActivityCardMatch(
 }
 
 function formatActivityDateLabel(ts: number, includeYear = true) {
-  return new Date(ts).toLocaleDateString(i18n.language === "he" ? "he-IL" : "en-US", {
+  return new Date(ts).toLocaleDateString(currentFormatLocale(), {
     month: "short",
     day: "numeric",
     ...(includeYear ? { year: "numeric" } : {}),
@@ -55,7 +56,7 @@ function formatActivityDateLabel(ts: number, includeYear = true) {
 }
 
 export function formatActivityTimeLabel(ts: number) {
-  return new Date(ts).toLocaleTimeString(i18n.language === "he" ? "he-IL" : "en-US", {
+  return new Date(ts).toLocaleTimeString(currentFormatLocale(), {
     hour: "numeric",
     minute: "2-digit",
   });

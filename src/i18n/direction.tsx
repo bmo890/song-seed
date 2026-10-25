@@ -8,7 +8,7 @@ import {
   type TextProps,
   type TextStyle,
 } from "react-native";
-import type { UiDirection } from "./locale";
+import type { UiDirection } from "./languages";
 import type { ContentDirection } from "../types";
 export type { ContentDirection } from "../types";
 

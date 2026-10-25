@@ -71,7 +71,7 @@ import {
     filterUnreferencedManagedAudioUris,
 } from "../services/managedMedia";
 import { authorizeIntentionalEmptyStateWrite } from "../services/stateIntegrity";
-import { deviceLanguage, i18n } from "../i18n";
+import { DEFAULT_LANGUAGE, deviceLanguage, i18n, isAppLanguage } from "../i18n";
 import { persistAppStoreSnapshot } from "./persistedSnapshot";
 import { relocateActivityEvents, relocatePlaylists } from "./relocationMetadata";
 import {
@@ -533,7 +533,7 @@ export const createInitialWorkspace = (): Workspace => {
     // This can run at store-module init, before the i18n bootstrap switches off the
     // default "en" — fall back to the device language so a Hebrew first run gets a
     // Hebrew library instead of the pre-bootstrap default.
-    const lng = i18n.language === "he" ? "he" : deviceLanguage();
+    const lng = isAppLanguage(i18n.language) && i18n.language !== DEFAULT_LANGUAGE ? i18n.language : deviceLanguage();
     return {
         id,
         title: i18n.t("defaults.workspaceTitle", { lng }),

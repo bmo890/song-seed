@@ -20,7 +20,7 @@ import type { SelectionAction } from "../common/SelectionDock";
 import { colors, radii, shadows, spacing } from "../../design/tokens";
 import type { Note } from "../../types";
 import { useTranslation } from "react-i18next";
-import { useLocale, UserText } from "../../i18n";
+import { formatLocaleFor, useLocale, UserText } from "../../i18n";
 import type { TFunction } from "i18next";
 
 type LyricsVersionsPanelProps = {
@@ -34,7 +34,7 @@ function formatCardDate(ts: number, language: string, t: TFunction): string {
   const date = new Date(ts);
   const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const days = Math.round((startOf(new Date()) - startOf(date)) / 86400000);
-  const locale = language === "he" ? "he-IL" : "en-US";
+  const locale = formatLocaleFor(language);
   const time = date.toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" });
   if (days <= 0) return `${t("time.today")} · ${time}`;
   if (days === 1) return `${t("time.yesterday")} · ${time}`;

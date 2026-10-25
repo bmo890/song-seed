@@ -6,6 +6,7 @@ import { usePersistedScrollView, type ScrollOffset } from "../../../hooks/usePer
 import type { Playlist } from "../../../types";
 import { useTranslation } from "react-i18next";
 import { i18n } from "../../../i18n/instance";
+import { currentFormatLocale } from "../../../i18n/formatLocale";
 import { EmptyState } from "../../common/EmptyState";
 import { ProvenanceChip } from "../../common/ProvenanceChip";
 
@@ -16,7 +17,7 @@ function formatPlaylistUpdatedAt(timestamp: number) {
   if (ageHours < 24) return i18n.t("library.updatedHours", { count: ageHours });
   const ageDays = Math.floor(ageHours / 24);
   if (ageDays < 7) return i18n.t("library.updatedDays", { count: ageDays });
-  const locale = i18n.language === "he" ? "he-IL" : "en-US";
+  const locale = currentFormatLocale();
   return i18n.t("library.updatedDate", {
     date: new Date(timestamp).toLocaleDateString(locale, { month: "short", day: "numeric" }),
   });

@@ -1,6 +1,7 @@
 import { adjectives, animals, uniqueNamesGenerator } from "unique-names-generator";
 import { Collection, SongIdea, Workspace } from "./types";
 import { i18n } from "./i18n/instance";
+import { currentFormatLocale } from "./i18n/formatLocale";
 // The default-title helpers live with the naming rule (a utils <-> titleNaming
 // require cycle otherwise).
 import { buildDefaultIdeaTitle, isDefaultIdeaTitle, isTitleAutoNamed } from "./domain/titleNaming";
@@ -145,15 +146,15 @@ export const formatClipDate = (ts: number, sectionLabel?: string): string => {
   } else if (dayDiff === 1) {
     label = i18n.t("time.yesterday");
   } else if (dayDiff < 7) {
-    label = getWeekdayName(i18n.language === "he" ? "he-IL" : "en-US", date.getDay(), "short");
+    label = getWeekdayName(currentFormatLocale(), date.getDay(), "short");
   } else {
-    const month = getMonthName(i18n.language === "he" ? "he-IL" : "en-US", date.getMonth(), "short");
+    const month = getMonthName(currentFormatLocale(), date.getMonth(), "short");
     const sameYear = date.getFullYear() === new Date(now).getFullYear();
     label = sameYear ? `${month} ${date.getDate()}` : `${month} ${date.getDate()} ${date.getFullYear()}`;
   }
 
   if (sectionLabel && label === sectionLabel) {
-    return date.toLocaleTimeString(i18n.language === "he" ? "he-IL" : "en-US", { hour: "numeric", minute: "2-digit" });
+    return date.toLocaleTimeString(currentFormatLocale(), { hour: "numeric", minute: "2-digit" });
   }
   return label;
 };
@@ -173,7 +174,7 @@ export const formatClipCardTime = (ts: number, sectionLabel?: string): string =>
     date.getMonth() === today.getMonth() &&
     date.getDate() === today.getDate();
   if (sameDay) {
-    return date.toLocaleTimeString(i18n.language === "he" ? "he-IL" : "en-US", {
+    return date.toLocaleTimeString(currentFormatLocale(), {
       hour: "numeric",
       minute: "2-digit",
     });
@@ -287,7 +288,7 @@ export function formatLastEdited(ts: number): string {
   if (days === 1) return i18n.t("lyrics.editedYesterday");
   if (days < 7) return i18n.t("lyrics.editedDaysAgo", { count: days });
   if (days < 14) return i18n.t("lyrics.editedLastWeek");
-  const locale = i18n.language === "he" ? "he-IL" : "en-US";
+  const locale = currentFormatLocale();
   return i18n.t("lyrics.editedDate", {
     date: new Date(ts).toLocaleDateString(locale, { month: "short", day: "numeric" }),
   });
@@ -334,6 +335,9 @@ function pickDistinctWords(pool: string[], count: number) {
 // persisted `nameLanguage` store field via a subscription in useStore, exactly
 // like the haptics master switch — so genIdea stays a cheap synchronous call
 // with no store import (avoids a circular dependency).
+/** The languages the name ideas have word lists for; a new UI language is only
+ *  offered under Settings → Name suggestions once its list is added here. */
+export const NAME_IDEA_LANGUAGES = ["en", "he"] as const;
 let ideaNameLanguage: "en" | "he" = "en";
 export function setIdeaNameLanguage(next: "en" | "he") {
   ideaNameLanguage = next === "he" ? "he" : "en";

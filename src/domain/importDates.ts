@@ -1,6 +1,7 @@
 import type { ImportedAudioAsset } from "../services/audioStorage";
 import { AppAlert } from "../components/common/AppAlert";
 import { i18n } from "../i18n/instance";
+import { currentFormatLocale } from "../i18n/formatLocale";
 
 export type ImportDatePreference = "source" | "import";
 
@@ -18,7 +19,7 @@ type ImportSourceDateSummary = {
 };
 
 function formatImportDateLabel(timestamp: number) {
-  return new Date(timestamp).toLocaleDateString(i18n.language === "he" ? "he-IL" : "en-US", {
+  return new Date(timestamp).toLocaleDateString(currentFormatLocale(), {
     month: "short",
     day: "numeric",
     year: "numeric",
