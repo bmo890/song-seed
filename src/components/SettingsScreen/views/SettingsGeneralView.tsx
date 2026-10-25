@@ -60,9 +60,8 @@ export function SettingsGeneralView() {
             title={t("settings.nameLanguage")}
             value={nameLanguage}
             options={[
-              { value: "auto", label: t("settings.automatic") },
-              { value: "en", label: t("settings.english") },
-              { value: "he", label: t("settings.hebrew") },
+              { value: "auto" as const, label: t("settings.automatic") },
+              ...APP_LANGUAGES.map((language) => ({ value: language.code, label: languageLabel(language.code) })),
             ]}
             onChange={setNameLanguage}
           />
