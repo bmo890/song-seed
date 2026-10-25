@@ -3,10 +3,12 @@ import {
   I18nManager,
   PanResponder,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { Spinner } from "./Spinner";
 import ReAnimated from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,8 +16,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors, radii, spacing, text as textTokens } from "../../design/tokens";
 import { haptic } from "../../design/haptics";
 import { collapseIn, collapseOut } from "../../design/motion";
-import { dirIcon } from "../../design/directionalIcons";
 import { Button } from "./Button";
+import { LanguageSelect } from "./LanguageSelect";
+import {
+  CoverScene,
+  GemScene,
+  OrganizeScene,
+  PracticeScene,
+  ShareScene,
+  SketchesScene,
+  WordsScene,
+} from "../welcome/WelcomeScenes";
 import {
   runWelcomeImport,
   welcomeImportCollectionTitle,
@@ -24,33 +35,51 @@ import {
 import { useTranslation } from "react-i18next";
 
 /**
- * First-run (and replayable) intro. Five panes — capture, the workspace map,
- * clip→sketch, lyric versions, then the interactive audio import — over the
- * paper background. The wizard teaches the NOUNS only; verbs (versioning,
- * practice) are taught in place by help sheets. Skippable from any pane; the
- * final pane's CTA dismisses. Rendered as a full-screen gate above the app so
- * the seeded workspace is already waiting behind it. The import pane hands off
- * to the real import pipeline and runs detached: tapping Start mid-import
- * never interrupts it (the global import pill takes over the progress).
+ * First-run (and replayable) tour, rebuilt 2026-10-25 (founder: "more understandable",
+ * and pictures that can serve as store material). Seven panes: the cover with the
+ * app language (read from the phone, changeable here), then one pane per promise —
+ * sketches and versions, writing, practice, sharing, never losing an idea, getting
+ * organized — each a real slice of the app (welcome/WelcomeScenes.tsx) over one title
+ * and one line. The last pane hands off to the real import pipeline, which runs
+ * detached: tapping Start mid-import never interrupts it (the global import pill takes
+ * over). Skippable from any pane.
  *
- * Pane changes are a fade + 6px settle (`collapseIn`/`collapseOut`) — the
- * motion vocabulary has no horizontal slides. A horizontal swipe still
- * advances/retreats as a GESTURE; only the resulting motion is a fade, which
- * also keeps the pager direction-correct under RTL with no offset math.
+ * Pane changes are a fade + 6px settle (`collapseIn`/`collapseOut`) — the motion
+ * vocabulary has no horizontal slides. A horizontal swipe still advances/retreats as a
+ * GESTURE; only the resulting motion is a fade, which keeps the pager direction-correct
+ * under RTL with no offset math.
  */
 
-const PANE_COUNT = 5;
+const PANE_COUNT = 7;
+const FADE_HEIGHT = 40;
 
-/** Shared frame: fixed-height motif slot above eyebrow/title/body so the type
- *  block sits at the same height on every pane (no layout hop between panes). */
-function StoryPane({
-  motif,
+/** The scene runs on past its window and sinks into the paper. */
+function SceneFade() {
+  return (
+    <View style={s.sceneFade} pointerEvents="none">
+      <Svg width="100%" height={FADE_HEIGHT}>
+        <Defs>
+          <LinearGradient id="welcomeSceneFade" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={colors.page} stopOpacity={0} />
+            <Stop offset="0.85" stopColor={colors.page} stopOpacity={1} />
+          </LinearGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height={FADE_HEIGHT} fill="url(#welcomeSceneFade)" />
+      </Svg>
+    </View>
+  );
+}
+
+/** One promise: a real slice of the app above, its title and one line below. The
+ *  scene is a picture — never a control. */
+function FeaturePane({
+  scene,
   eyebrow,
   title,
   body,
   children,
 }: {
-  motif: ReactNode;
+  scene: ReactNode;
   eyebrow: string;
   title: string;
   body: string;
@@ -58,92 +87,47 @@ function StoryPane({
 }) {
   return (
     <View style={s.pane}>
-      <View style={s.motifSlot}>{motif}</View>
-      <Text style={s.eyebrow}>{eyebrow}</Text>
-      <Text style={s.title}>{title}</Text>
-      <Text style={s.body}>{body}</Text>
-      {children}
+      <View style={s.sceneWindow} pointerEvents="none" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+        {/* A non-scrolling ScrollView: the scene keeps its natural height (cards
+            measure themselves) and the window clips what runs past it. */}
+        <ScrollView
+          scrollEnabled={false}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={s.sceneInner}
+        >
+          {scene}
+        </ScrollView>
+        <SceneFade />
+      </View>
+      <View style={s.copy}>
+        <Text style={s.eyebrow}>{eyebrow}</Text>
+        <Text style={s.title}>{title}</Text>
+        <Text style={s.body}>{body}</Text>
+        {children}
+      </View>
     </View>
   );
 }
 
-function IconRingMotif({ icon }: { icon: keyof typeof Ionicons.glyphMap }) {
-  return (
-    <View style={s.iconRing}>
-      <Ionicons name={icon} size={40} color={colors.primary} />
-    </View>
-  );
-}
-
-/** Pane 2 — the library map: a workspace holds collections; collections hold
- *  clips and sketches. Abstract tinted shapes, not screenshots. */
-function OrganizeMotif() {
+/** The cover: the mark, the name, the promise, and the language (from the phone,
+ *  changeable here; a change restarts the app into this same pane). */
+function CoverPane() {
   const { t } = useTranslation();
   return (
-    <View style={s.mapWorkspace}>
-      <Text style={s.mapWorkspaceLabel}>{t("common.workspace")}</Text>
-      <View style={s.mapCollection}>
-        <Text style={s.mapCollectionLabel}>{t("welcome.mapCollection")}</Text>
-        <View style={s.mapChipRow}>
-          <View style={s.mapChip}>
-            <Text style={s.mapChipText}>{t("screens.clip")}</Text>
-          </View>
-          <View style={s.mapChip}>
-            <Text style={s.mapChipText}>{t("screens.clip")}</Text>
-          </View>
-          <View style={[s.mapChip, s.mapChipAccent]}>
-            <Text style={[s.mapChipText, s.mapChipTextAccent]}>{t("brand.sketch")}</Text>
-          </View>
-        </View>
+    <View style={[s.pane, s.coverPane]}>
+      <CoverScene />
+      <Text style={s.coverName}>SongNook</Text>
+      <Text style={s.coverTagline}>{t("welcome.tagline")}</Text>
+      <View style={s.coverLanguage}>
+        <LanguageSelect />
       </View>
     </View>
   );
 }
 
-/** Pane 3 — a clip growing into a sketch with its four tabs. */
-function GrowMotif() {
-  const { t } = useTranslation();
-  return (
-    <View style={s.growRow}>
-      <View style={s.mapChip}>
-        <Text style={s.mapChipText}>{t("screens.clip")}</Text>
-      </View>
-      <Ionicons name={dirIcon("arrow-forward")} size={18} color={colors.primary} />
-      <View style={s.growSketch}>
-        <Text style={s.mapWorkspaceLabel}>{t("brand.sketch")}</Text>
-        <View style={s.growTabs}>
-          <Text style={[s.growTab, s.growTabActive]}>{t("screens.takes")}</Text>
-          <Text style={s.growTab}>{t("screens.lyrics")}</Text>
-          <Text style={s.growTab}>{t("screens.chart")}</Text>
-          <Text style={s.growTab}>{t("screens.notes")}</Text>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-/** Pane 4 — stacked lyric pages: the current version over an older one. */
-function WriteMotif() {
-  const { t } = useTranslation();
-  return (
-    <View style={s.versionStack}>
-      <View style={[s.versionPage, s.versionPageCurrent]}>
-        <Text style={s.versionTag}>{t("welcome.versionCurrent")}</Text>
-        <View style={s.versionLine} />
-        <View style={[s.versionLine, s.versionLineShort]} />
-      </View>
-      <View style={s.versionPage}>
-        <Text style={[s.versionTag, s.versionTagMuted]}>{t("welcome.versionOld")}</Text>
-        <View style={s.versionLine} />
-      </View>
-    </View>
-  );
-}
-
-/** The interactive "bring your voice memos" pane — last pane of the intro.
- *  Import state lives in the parent so pane changes never lose a running
- *  import's summary. */
-function ImportPane({
+/** "Get organized" + the voice-memo import. Import state lives in the parent so pane
+ *  changes never lose a running import's summary. */
+function ImportControls({
   progress,
   busy,
   onPick,
@@ -170,12 +154,7 @@ function ImportPane({
       : null;
 
   return (
-    <StoryPane
-      motif={<IconRingMotif icon="albums-outline" />}
-      eyebrow={t("welcome.importEyebrow")}
-      title={t("welcome.importTitle")}
-      body={t("welcome.importBody", { collection: welcomeImportCollectionTitle() })}
-    >
+    <>
       {progress?.phase === "done" ? (
         <View style={s.importDone}>
           <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
@@ -205,7 +184,7 @@ function ImportPane({
       >
         {progress?.phase === "importing" ? (
           <>
-            <Spinner size="small" color={colors.primaryDeep} />
+            <Spinner size="small" color={colors.textStrong} />
             <Text style={s.importButtonText}>
               {t("welcome.importing", {
                 current: Math.min(progress.current + 1, progress.total),
@@ -215,7 +194,7 @@ function ImportPane({
           </>
         ) : (
           <>
-            <Ionicons name="folder-open-outline" size={18} color={colors.primaryDeep} />
+            <Ionicons name="folder-open-outline" size={18} color={colors.textStrong} />
             <Text style={s.importButtonText}>
               {t(progress?.phase === "done" ? "welcome.importMore" : "welcome.chooseFiles")}
             </Text>
@@ -228,7 +207,7 @@ function ImportPane({
           ? t("welcome.importingHint")
           : t("welcome.skipImportHint")}
       </Text>
-    </StoryPane>
+    </>
   );
 }
 
@@ -302,35 +281,51 @@ export function WelcomeFlow({ onDone }: { onDone: () => void }) {
       <View style={s.paneArea} {...panResponder.panHandlers}>
         <ReAnimated.View key={index} entering={collapseIn} exiting={collapseOut} style={s.paneFill}>
           {index === 0 ? (
-            <StoryPane
-              motif={<IconRingMotif icon="mic-outline" />}
-              eyebrow={t("welcome.captureEyebrow")}
-              title={t("welcome.captureTitle")}
-              body={t("welcome.captureBody")}
-            />
+            <CoverPane />
           ) : index === 1 ? (
-            <StoryPane
-              motif={<OrganizeMotif />}
-              eyebrow={t("welcome.organizeEyebrow")}
-              title={t("welcome.organizeTitle")}
-              body={t("welcome.organizeBody")}
+            <FeaturePane
+              scene={<SketchesScene />}
+              eyebrow={t("welcome.sketchesEyebrow")}
+              title={t("welcome.sketchesTitle")}
+              body={t("welcome.sketchesBody")}
             />
           ) : index === 2 ? (
-            <StoryPane
-              motif={<GrowMotif />}
-              eyebrow={t("welcome.growEyebrow")}
-              title={t("welcome.growTitle")}
-              body={t("welcome.growBody")}
+            <FeaturePane
+              scene={<WordsScene />}
+              eyebrow={t("welcome.wordsEyebrow")}
+              title={t("welcome.wordsTitle")}
+              body={t("welcome.wordsBody")}
             />
           ) : index === 3 ? (
-            <StoryPane
-              motif={<WriteMotif />}
-              eyebrow={t("welcome.writeEyebrow")}
-              title={t("welcome.writeTitle")}
-              body={t("welcome.writeBody")}
+            <FeaturePane
+              scene={<PracticeScene />}
+              eyebrow={t("welcome.practiceEyebrow")}
+              title={t("welcome.practiceTitle")}
+              body={t("welcome.practiceBody")}
+            />
+          ) : index === 4 ? (
+            <FeaturePane
+              scene={<ShareScene />}
+              eyebrow={t("welcome.shareEyebrow")}
+              title={t("welcome.shareTitle")}
+              body={t("welcome.shareBody")}
+            />
+          ) : index === 5 ? (
+            <FeaturePane
+              scene={<GemScene />}
+              eyebrow={t("welcome.gemEyebrow")}
+              title={t("welcome.gemTitle")}
+              body={t("welcome.gemBody")}
             />
           ) : (
-            <ImportPane progress={importProgress} busy={importBusy} onPick={handlePick} />
+            <FeaturePane
+              scene={<OrganizeScene />}
+              eyebrow={t("welcome.organizeEyebrow2")}
+              title={t("welcome.organizeTitle2")}
+              body={t("welcome.organizeBody2")}
+            >
+              <ImportControls progress={importProgress} busy={importBusy} onPick={handlePick} />
+            </FeaturePane>
           )}
         </ReAnimated.View>
       </View>
@@ -356,7 +351,7 @@ export function WelcomeFlow({ onDone }: { onDone: () => void }) {
           ))}
         </View>
         <Button
-          label={isLast ? t("welcome.start") : t("welcome.next")}
+          label={isLast ? t("welcome.start") : index === 0 ? t("welcome.getStarted") : t("welcome.next")}
           variant="primary"
           style={s.cta}
           accessibilityLabel={isLast ? t("welcome.startA11y") : t("welcome.next")}
@@ -388,27 +383,49 @@ const s = StyleSheet.create({
   },
   pane: {
     flex: 1,
+    paddingHorizontal: spacing.xl,
+  },
+  coverPane: {
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 40,
     gap: spacing.md,
   },
-  motifSlot: {
-    height: 132,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.lg,
-    alignSelf: "stretch",
+  coverName: {
+    ...textTokens.pageTitle,
+    textAlign: "center",
+    marginTop: spacing.sm,
   },
-  iconRing: {
-    width: 96,
-    height: 96,
-    borderRadius: radii.round,
-    alignItems: "center",
+  coverTagline: {
+    ...textTokens.body,
+    fontSize: 16,
+    lineHeight: 24,
+    color: colors.textStrong,
+    textAlign: "center",
+  },
+  coverLanguage: {
+    marginTop: spacing.xl,
+  },
+  // The scene takes what the copy leaves; its foot sinks into the paper.
+  sceneWindow: {
+    flex: 1,
+    overflow: "hidden",
+  },
+  sceneInner: {
+    flexGrow: 1,
     justifyContent: "center",
-    backgroundColor: colors.primarySurface,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
+    paddingVertical: spacing.sm,
+  },
+  sceneFade: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: FADE_HEIGHT,
+  },
+  copy: {
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingTop: spacing.lg,
   },
   eyebrow: {
     ...textTokens.annotation,
@@ -423,120 +440,17 @@ const s = StyleSheet.create({
   body: {
     ...textTokens.body,
     fontSize: 15,
-    lineHeight: 24,
+    lineHeight: 23,
     color: colors.textStrong,
     textAlign: "center",
     maxWidth: 320,
   },
-  // ── Motifs: abstract tinted shapes, all tokens ──────────────────────────────
-  mapWorkspace: {
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    borderRadius: radii.xl,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    gap: spacing.xs,
-    minWidth: 180,
-  },
-  mapWorkspaceLabel: {
-    ...textTokens.annotation,
-    color: colors.primaryDeep,
-  },
-  mapCollection: {
-    backgroundColor: colors.surfaceContainer,
-    borderRadius: radii.lg,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    gap: spacing.xs,
-  },
-  mapCollectionLabel: {
-    ...textTokens.caption,
-    fontSize: 11,
-  },
-  mapChipRow: {
-    flexDirection: "row",
-    gap: spacing.xs,
-  },
-  mapChip: {
-    backgroundColor: colors.surfaceHigh,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-  },
-  mapChipAccent: {
-    backgroundColor: colors.primarySurface,
-  },
-  mapChipText: {
-    ...textTokens.caption,
-    fontSize: 11,
-    color: colors.textStrong,
-  },
-  mapChipTextAccent: {
-    color: colors.primaryDeep,
-  },
-  growRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-  },
-  growSketch: {
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    borderRadius: radii.xl,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    gap: spacing.xs,
-  },
-  growTabs: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  growTab: {
-    ...textTokens.caption,
-    fontSize: 10,
-    color: colors.textMuted,
-  },
-  growTabActive: {
-    color: colors.primaryDeep,
-  },
-  versionStack: {
-    gap: spacing.xs,
-    width: 168,
-  },
-  versionPage: {
-    backgroundColor: colors.surfaceContainer,
-    borderRadius: radii.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    gap: 5,
-  },
-  versionPageCurrent: {
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-  },
-  versionTag: {
-    ...textTokens.annotation,
-    color: colors.primaryDeep,
-  },
-  versionTagMuted: {
-    color: colors.textMuted,
-  },
-  versionLine: {
-    height: 4,
-    borderRadius: radii.xs,
-    backgroundColor: colors.borderMuted,
-    alignSelf: "stretch",
-  },
-  versionLineShort: {
-    alignSelf: "flex-start",
-    width: "60%",
-  },
   // ── Footer & import controls: soft-key language, no stadium pills ───────────
   footer: {
     paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xxl,
-    gap: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
+    gap: spacing.lg,
   },
   dots: {
     flexDirection: "row",
@@ -564,8 +478,9 @@ const s = StyleSheet.create({
     minHeight: 38,
     paddingHorizontal: spacing.lg,
     borderRadius: radii.lg,
-    backgroundColor: colors.primarySurface,
-    marginTop: spacing.md,
+    // Secondary tier: Start is the pane's one primary key.
+    backgroundColor: colors.surfaceHigh,
+    marginTop: spacing.sm,
   },
   importButtonPressed: {
     opacity: 0.8,
@@ -577,7 +492,7 @@ const s = StyleSheet.create({
     ...textTokens.caption,
     fontSize: 13.5,
     fontFamily: "PlusJakartaSans_700Bold",
-    color: colors.primaryDeep,
+    color: colors.textStrong,
     letterSpacing: 0.2,
   },
   importDone: {
