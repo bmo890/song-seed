@@ -237,8 +237,9 @@ back/forward chevrons, toggles, and value controls: a slider that sets how much
    chart takes this per line and anchors each line's chords to the edge that
    line starts at.
 
-**Deliberate exception:** the floating record key stays bottom-right in Hebrew,
-under the right thumb (founder, 2026-10-26). Material would move it left.
+**The record key** floats at the end edge: bottom-left in Hebrew, as Material
+puts it. Cards mirror, so their play button is at the start edge and the key
+never covers it (founder, 2026-10-26).
 
 **Alignment ≠ reading order (founder ruling 2026-09-11).** These are two decisions
 and RTL forces you to make them separately. ALIGNMENT follows the UI's start edge
