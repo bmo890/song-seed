@@ -730,7 +730,10 @@ export function useRecordingScreenModel() {
     // The headset's mic puts it in call mode, whose delay can't be calibrated (the
     // calibration screen measures listening mode). Offering Calibrate there was a
     // promise the screen can't keep: the mic warning below says it once, honestly.
-    const onCallProfile = currentMonitoringOutput?.profile === "hfp";
+    // Android builds before 2026-10-26 could report the headset's call entry while it
+    // played in listening mode; only a Bluetooth mic actually puts it there.
+    const onCallProfile =
+      currentMonitoringOutput?.profile === "hfp" && (Platform.OS !== "android" || isBluetoothRecordingInput);
     if (isBluetoothMonitoringOutput && !onCallProfile) {
       if (!activeBluetoothCalibration) {
         warnings.push({

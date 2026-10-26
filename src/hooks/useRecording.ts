@@ -38,6 +38,7 @@ import {
   useTakeInterruption,
 } from "../services/recordingTakeSession";
 import { finishOnsetEnvelope, type OnsetEnvelope } from "../domain/onsetEnvelope";
+import { effectiveRecordingInputId } from "../domain/recordingInput";
 import { flushPersistedSnapshot, useStore } from "../state/useStore";
 import { useProcessStore } from "../state/useProcessStore";
 import { getRestoreRestartState } from "../state/restoreRuntime";
@@ -256,9 +257,17 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
     await releaseAudioSessionOwner(RECORDING_AUDIO_SESSION_OWNER);
   }
 
+  /** The writer's input, or the phone's mic under a wired headset (domain/recordingInput). */
+  function inputIdToRecordFrom(): string | null {
+    return effectiveRecordingInputId(preferredInputId, audioDeviceManager.getRawDevices(), Platform.OS);
+  }
+
   async function applyPreferredInput() {
     watchDevicesOnce();
-    const key = preferredInputId ?? "default";
+    if (Platform.OS === "android" && audioDeviceManager.getRawDevices().length === 0) {
+      await audioDeviceManager.getAvailableDevices().catch(() => []);
+    }
+    const key = inputIdToRecordFrom() ?? "default";
     if (appliedInputKey === key) return;
     let applying = inputApplying?.key === key ? inputApplying : null;
     if (!applying) {
@@ -291,7 +300,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
    */
   async function warmInput() {
     if (recorder.isRecording || recorder.isPaused || take.facts.recordingStartedAt !== null) return;
-    if ((preferredInputId ?? "default") === appliedInputKey) return;
+    if ((inputIdToRecordFrom() ?? "default") === appliedInputKey) return;
     beginRecordTrace("warm");
     try {
       if (await bluetoothInReach()) {
@@ -307,11 +316,12 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
 
   /** Applies the writer's input; returns the key it actually landed on. */
   async function applyPreferredInputNow(): Promise<string> {
-    if (preferredInputId) {
+    const inputId = inputIdToRecordFrom();
+    if (inputId) {
       try {
-        const selectionResult = await audioDeviceManager.selectDevice(preferredInputId);
+        const selectionResult = await audioDeviceManager.selectDevice(inputId);
         if (selectionResult !== false) {
-          return preferredInputId;
+          return inputId;
         }
       } catch (selectionError) {
         console.warn("Preferred input selection failed", selectionError);
@@ -322,7 +332,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       } catch (resetError) {
         console.warn("Recording input reset after stale preference failed", resetError);
       }
-      setPreferredRecordingInputId(null);
+      // Only the writer's own choice is forgotten; the headset rule re-checks every take.
+      if (inputId === preferredInputId) setPreferredRecordingInputId(null);
       return "default";
     }
 
@@ -479,7 +490,7 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       // Session-level selection (applyPreferredInput) covers iOS; Android's recorder only
       // honors the choice when the id rides the config into the native AudioRecord
       // (patched: AudioRecord.setPreferredDevice).
-      deviceId: preferredInputId ?? undefined,
+      deviceId: inputIdToRecordFrom() ?? undefined,
       sampleRate: CAPTURE_SAMPLE_RATE as SampleRate,
       channels: CAPTURE_CHANNELS as 1,
       interval: LIVE_STREAM_INTERVAL_MS,

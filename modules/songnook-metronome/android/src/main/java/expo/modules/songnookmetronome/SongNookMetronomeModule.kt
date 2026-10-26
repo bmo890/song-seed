@@ -153,9 +153,17 @@ class SongNookMetronomeModule : Module() {
     // link is up (Bluetooth mic in use) that is the route audio actually takes.
     @Suppress("DEPRECATION")
     val scoActive = audioManager.isBluetoothScoOn
+    // Not on a call, the listening entry (A2DP, or LE Audio) is the route, even when the
+    // headset's SCO entry is listed first; picking SCO there read as call mode.
+    val listening = setOf(
+      AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+      AudioDeviceInfo.TYPE_BLE_HEADSET,
+      AudioDeviceInfo.TYPE_BLE_SPEAKER
+    )
     val preferredOutput =
       (if (scoActive) outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO } else null)
-        ?: outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP || it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO }
+        ?: outputs.firstOrNull { it.type in listening }
+        ?: outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO }
         ?: outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES || it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET }
         ?: outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
         ?: outputs.firstOrNull()
@@ -163,7 +171,9 @@ class SongNookMetronomeModule : Module() {
 
     val type = when (preferredOutput.type) {
       AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
-      AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "bluetooth"
+      AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+      AudioDeviceInfo.TYPE_BLE_HEADSET,
+      AudioDeviceInfo.TYPE_BLE_SPEAKER -> "bluetooth"
       AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "wired_headphones"
       AudioDeviceInfo.TYPE_WIRED_HEADSET -> "wired_headset"
       AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "speaker"
@@ -175,6 +185,8 @@ class SongNookMetronomeModule : Module() {
     val profile = when (preferredOutput.type) {
       AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "hfp"
       AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "a2dp"
+      AudioDeviceInfo.TYPE_BLE_HEADSET,
+      AudioDeviceInfo.TYPE_BLE_SPEAKER -> "le"
       else -> null
     }
 
