@@ -170,6 +170,15 @@
         {
           "faceIDPermission": "SongNook asks for Face ID only to confirm erasing all data."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "extraProguardRules": "-keepclasseswithmembernames,includedescriptorclasses class * { native <methods>; }\n-keep class com.pitchy.** { *; }\n-keep class net.siteed.audiostudio.** { *; }\n-keep class expo.modules.songnookfileio.** { *; }\n-keep class expo.modules.songnookmetronome.** { *; }\n-keep class expo.modules.songnookpitchshift.** { *; }"
+          }
+        }
       ]
     ],
     "web": {

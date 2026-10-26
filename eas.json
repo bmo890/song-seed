@@ -22,7 +22,10 @@
       },
       "android": {
         "buildType": "apk",
-        "gradleCommand": ":app:assembleProductionRelease"
+        "gradleCommand": ":app:assembleProductionRelease",
+        "buildArtifactPaths": [
+          "android/app/build/outputs/mapping/productionRelease/mapping.txt"
+        ]
       },
       "channel": "preview"
     },
@@ -33,7 +36,10 @@
       },
       "android": {
         "buildType": "app-bundle",
-        "gradleCommand": ":app:bundleProductionRelease"
+        "gradleCommand": ":app:bundleProductionRelease",
+        "buildArtifactPaths": [
+          "android/app/build/outputs/mapping/productionRelease/mapping.txt"
+        ]
       },
       "channel": "production"
     }
