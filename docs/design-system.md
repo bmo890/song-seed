@@ -217,18 +217,23 @@ left), the mini player's frame (queue and title at the start edge, as Apple
 Music does in Hebrew; its prev/play/next and progress line stay left to right),
 menus, tabs and segment order, the side drawer (opens from the right),
 non-media progress (an import or backup bar fills from the right, a process's
-steps run right to left),
+steps run right to left), calendars (the Activity heatmap: weekday letters on
+the right, newest week on the left, like Apple's and Google's Hebrew calendars),
 back/forward chevrons, toggles, and value controls: a slider that sets how much
 (size, volume, level, tempo, speed) fills from the right, and a −/+ stepper puts
 − on the right. `Slider` mirrors by default for this reason.
 
 **Never mirrors:**
 1. **Time.** Play/previous/next and every transport bar (the player's, the
-   mini player's, the recorder's Discard · Record · Save), every playback row
-   (founder, 2026-10-26): a clip card, a compact clip row and a take in a
-   sketch's history read `[▶ waveform →]` with the play button on the LEFT in
-   Hebrew too; only the words inside follow the language (the title sits at
-   the right, as all text does). The reel, waveforms,
+   mini player's, the recorder's Discard · Record · Save), and **every row
+   that leads with a play button: play is always on the LEFT** (founder,
+   2026-10-26). Clip cards, compact rows, takes, editor parts, practice marks,
+   setlist parts, songbook rows, received previews, the layer keys and the
+   Listen cue all read `[▶ …]`; after the play key the row follows the
+   language (title at the right, as all text is). Pin with `playRowFrame` and
+   wrap the rest in `playRowRest` (`src/i18n/direction.tsx`). A header's
+   Play ACTION button (a setlist's, a playlist's) is an action, not a row,
+   and mirrors with its header. The reel, waveforms,
    the minimap, scrub bars, layer lanes, marks and loops on the reel, and the
    controls that move a position on it (the inspector's edge chips, nudge
    carets and position slider: `Slider mirrors={false}`, `Stepper` chevrons).
