@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Keyboard, Platform, StyleSheet, Text, TextInput, View } from "react-native";
 import { UserText, UserTextInput } from "../../../i18n";
 import DraggableFlatList, { ScaleDecorator, type RenderItemParams } from "react-native-draggable-flatlist";
 import { Ionicons } from "@expo/vector-icons";
@@ -26,6 +26,10 @@ type Props = {
    *  Drawn as empty ruled rows under the add row; at 0 the list is complete
    *  and the add row and Suggest step aside. Unset = an open-ended list. */
   slots?: number;
+  /** The seed (job or place) is still empty: there is nothing to draw words from
+   *  yet, so no add row and no Suggest. Words already listed stay (founder,
+   *  2026-10-26: "disabled or hidden until a job/role is added"). */
+  waitingForSeed?: boolean;
   onEdit: (wordId: string, text: string) => void;
   onReorder: (words: WordLadderWord[]) => void;
   onRemove: (wordId: string) => void;
@@ -48,6 +52,7 @@ export function WordLadderColumnEditor({
   onAdd,
   onSuggest,
   slots,
+  waitingForSeed = false,
   onEdit,
   onReorder,
   onRemove,
@@ -62,9 +67,34 @@ export function WordLadderColumnEditor({
   // stale render could put the old word back after the field was cleared.
   const latest = useRef("");
   const addInput = useRef<TextInput>(null);
+  // The add row is the list's last row: while it is being typed in, the list
+  // keeps it in sight above the keys (founder, 2026-10-26: the words were cut off
+  // by the keyboard).
+  const listRef = useRef<FlatList<WordLadderWord>>(null);
+  // Measured, not assumed: the list's visible height, its content, and the footer
+  // (add row, empty slots, Suggest) at the content's end. The add row is the top of
+  // the footer, so it is brought to the list's bottom edge with the words just
+  // typed above it; the empty slots on the Nouns page wait below.
+  const geometry = useRef({ viewport: 0, content: 0, footer: 0 });
+  const revealAddRow = () => {
+    requestAnimationFrame(() => {
+      const { viewport, content, footer } = geometry.current;
+      if (viewport <= 0) return;
+      const addRowBottom = content - footer + ADD_ROW_HEIGHT;
+      listRef.current?.scrollToOffset({ offset: Math.max(0, addRowBottom - viewport + 8), animated: true });
+    });
+  };
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const sub = Keyboard.addListener(showEvent, () => {
+      if (addInput.current?.isFocused()) setTimeout(revealAddRow, 60);
+    });
+    return () => sub.remove();
+  }, []);
   function addDraft(text = latest.current) {
     if (!text.trim()) return false;
     onAdd(text);
+    revealAddRow();
     latest.current = "";
     addInput.current?.clear();
     // iOS can commit a pending autocorrect after Return and put the word back;
@@ -83,8 +113,8 @@ export function WordLadderColumnEditor({
   const complete = slots === 0;
   const emptyRows = slots !== undefined && slots > 1 ? slots - 1 : 0;
 
-  const footer = complete ? null : (
-    <>
+  const footer = complete || waitingForSeed ? null : (
+    <View onLayout={(event) => (geometry.current.footer = event.nativeEvent.layout.height)}>
       <View style={s.addRow}>
         <Press
           feel="glyph"
@@ -141,7 +171,7 @@ export function WordLadderColumnEditor({
           <Text style={s.suggestText}>{t("wordLadder.suggestWords")}</Text>
         </Press>
       ) : null}
-    </>
+    </View>
   );
 
   return (
@@ -153,6 +183,9 @@ export function WordLadderColumnEditor({
       </View>
 
       <DraggableFlatList
+        // The library types its ref as gesture-handler's FlatList; the instance is
+        // React Native's, which is what scrollToEnd lives on.
+        ref={listRef as never}
         data={words}
         keyExtractor={(word) => word.id}
         onDragBegin={() => haptic.grab()}
@@ -162,6 +195,11 @@ export function WordLadderColumnEditor({
           if (from !== to) onReorder(data);
         }}
         style={s.list}
+        // The library wraps the list in a container of its own: it has to give way
+        // too, or the list keeps its full height under the footer.
+        containerStyle={s.list}
+        onLayout={(event) => (geometry.current.viewport = event.nativeEvent.layout.height)}
+        onContentSizeChange={(_width, height) => (geometry.current.content = height)}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={emptyHint ? <>{emptyHint}</> : null}
@@ -263,6 +301,9 @@ function WordRow({
   );
 }
 
+/** The add row's height (s.addRow minHeight). */
+const ADD_ROW_HEIGHT = 44;
+
 const s = StyleSheet.create({
   column: {
     flex: 1,
@@ -286,8 +327,11 @@ const s = StyleSheet.create({
     color: colors.textMuted,
     fontVariant: ["tabular-nums"],
   },
+  // Sized to its words, but never past the room it has: with the keyboard up the
+  // list scrolls instead of running under the footer and the keys.
   list: {
     flexGrow: 0,
+    flexShrink: 1,
   },
   row: {
     flexDirection: "row",

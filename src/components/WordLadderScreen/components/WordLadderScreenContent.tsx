@@ -173,6 +173,8 @@ export function WordLadderScreenContent() {
                 onExample={openHelp}
               />
             }
+            // The verbs come from the job: until there is one, the list waits.
+            waitingForSeed={!role}
             onAdd={(text) => model.addColumnWord("a", text)}
             // Suggestions are drawn from the job; with none chosen there is nothing to draw from.
             onSuggest={role ? () => model.suggestColumnWords("a") : undefined}
@@ -211,6 +213,8 @@ export function WordLadderScreenContent() {
                 onExample={openHelp}
               />
             }
+            // The nouns come from the place: until there is one, the list waits.
+            waitingForSeed={!place}
             onAdd={(text) => model.addColumnWord("b", text)}
             onSuggest={place ? () => model.suggestColumnWords("b") : undefined}
             slots={Math.max(0, verbCount - nounCount)}

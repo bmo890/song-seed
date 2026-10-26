@@ -2592,11 +2592,11 @@ export const es = {
   wordLadder: {
     verbs: "Verbos",
     nouns: "Sustantivos",
-    rolePlaceholder: "médico",
+    rolePlaceholder: "ej.: médico",
     randomRole: "Elige un oficio",
     randomPlace: "Elige un lugar",
     suggestWords: "Sugerir",
-    placePlaceholder: "dormitorio",
+    placePlaceholder: "ej.: dormitorio",
     addVerb: "Añadir un verbo",
     addNoun: "Añadir un sustantivo",
     count: "{{count}}/{{target}}",
