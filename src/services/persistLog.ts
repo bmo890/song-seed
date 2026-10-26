@@ -61,7 +61,9 @@ export type PersistLogEvent =
     | "click.started"
     | "click.failed"
     // Media safety net
-    | "media.untrashed";
+    | "media.untrashed"
+    // Reel label faces that failed to load (labels fall back to the system font)
+    | "reel.fontFailed";
 
 export type PersistLogEntry = {
     at: string;

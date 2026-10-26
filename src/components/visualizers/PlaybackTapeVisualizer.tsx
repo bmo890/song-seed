@@ -10,8 +10,6 @@ import {
     Circle,
     Text as SkiaText,
     Paragraph,
-    useFont,
-    useFonts,
 } from "@shopify/react-native-skia";
 import {
     useSharedValue,
@@ -22,7 +20,8 @@ import {
     cancelAnimation,
 } from "react-native-reanimated";
 import { GestureDetector, Gesture } from "react-native-gesture-handler";
-import type { SkParagraph } from "@shopify/react-native-skia";
+import type { SkParagraph, SkTypefaceFontProvider } from "@shopify/react-native-skia";
+import { useReelFonts } from "./reelFonts";
 import type { PracticeMarker } from "../../types";
 import type { SectionBand } from "../../domain/playerSections";
 import type { GridRulerModel } from "../../domain/gridRuler";
@@ -391,7 +390,7 @@ function PinBadgeChipsOverlay({
     pixelsPerMs: number;
     labelScale: number;
     durationMs: number;
-    fontProvider: NonNullable<ReturnType<typeof useFonts>>;
+    fontProvider: SkTypefaceFontProvider;
     sharedDraggingMarkerId?: SharedValue<string>;
 }) {
     const chips = useMemo(() => {
@@ -545,7 +544,7 @@ function SectionLabelChipsOverlay({
     labelScale: number;
     translateX: SharedValue<number>;
     heightValue: SharedValue<number>;
-    fontProvider: NonNullable<ReturnType<typeof useFonts>>;
+    fontProvider: SkTypefaceFontProvider;
     /** Lanes: the name is plain text in the section's own ink, sitting on its rule —
      *  no filled chip. */
     ink?: boolean;
@@ -1827,26 +1826,17 @@ export function PlaybackTapeVisualizer({
     );
     const playheadCapTransform = useDerivedValue(() => [{ translateX: playheadX.value }]);
 
-    // Same face the RN labels used (text.annotation). Null until loaded — the labels
-    // simply aren't drawn for those first frames rather than popping in at a wrong size.
     // Content-space px per file-ms, matching what the ruler primitives use.
     const gridLabelPixelsPerMs = durationMs > 0 ? baseContentWidth / durationMs : 0;
-    const gridLabelFont = useFont(
-        require("@expo-google-fonts/plus-jakarta-sans/600SemiBold/PlusJakartaSans_600SemiBold.ttf"),
-        GRID_LABEL_FONT_SIZE
+    // Paragraph faces for USER text (section names) and the bar-number face, shared
+    // by every reel (reelFonts.ts). A face that fails to load falls back to the
+    // system font instead of blanking every label. Null until loaded; the chips wait.
+    const reelFonts = useReelFonts();
+    const gridLabelFont = useMemo(
+        () => (reelFonts ? Skia.Font(reelFonts.gridTypeface ?? undefined, GRID_LABEL_FONT_SIZE) : null),
+        [reelFonts]
     );
-    // Paragraph faces for USER text (section names). Heebo is the Hebrew fallback,
-    // mirroring the app-level RTL font remap. Null until loaded; the chips wait.
-    const sectionFontProvider = useFonts({
-        "Plus Jakarta Sans": [
-            require("@expo-google-fonts/plus-jakarta-sans/600SemiBold/PlusJakartaSans_600SemiBold.ttf"),
-            require("@expo-google-fonts/plus-jakarta-sans/500Medium/PlusJakartaSans_500Medium.ttf"),
-        ],
-        Heebo: [
-            require("@expo-google-fonts/heebo/600SemiBold/Heebo_600SemiBold.ttf"),
-            require("@expo-google-fonts/heebo/500Medium/Heebo_500Medium.ttf"),
-        ],
-    });
+    const sectionFontProvider = reelFonts?.provider ?? null;
 
     // ---- lanes geometry ------------------------------------------------------
     // Everything here is plain numbers decided in React: the lanes inset the wave by a

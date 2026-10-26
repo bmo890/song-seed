@@ -3052,7 +3052,7 @@ export const de = {
     wordsBody: "Schreib die Worte, behalte jede Version, finde den Reim, notiere die Akkorde.",
     practiceEyebrow: "Üben",
     practiceTitle: "Erst lernen, dann Spuren legen",
-    practiceBody: "Loop die schwere Stelle, mach sie langsamer, nimm eine zweite Stimme über deinen Take auf.",
+    practiceBody: "Loop die schwere Stelle, bring sie aufs Tempo, dann nimm eine zweite Stimme über deinen Take auf.",
     shareEyebrow: "Teilen",
     shareTitle: "Schick es an die Band",
     shareBody: "Schick einen Clip, ein Set oder eine ganze Sammlung an wen du willst. Deine Notizen und Marker reisen mit.",

@@ -3175,7 +3175,7 @@ export const es = {
     wordsBody: "Escribe la letra, guarda cada versión, encuentra la rima, cifra los acordes.",
     practiceEyebrow: "Practicar",
     practiceTitle: "Apréndela y luego súmale capas",
-    practiceBody: "Repite en loop la parte difícil, bájale la velocidad, graba una armonía sobre tu toma.",
+    practiceBody: "Repite en loop la parte difícil, llévala a tempo y graba una armonía sobre tu toma.",
     shareEyebrow: "Compartir",
     shareTitle: "Envíalo a la banda",
     shareBody: "Envía un clip, un setlist o una colección entera a quien quieras. Tus notas y marcas van incluidas.",

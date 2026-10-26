@@ -3178,7 +3178,7 @@ export const pt = {
     wordsBody: "Escreva a letra, guarde cada versão, ache a rima, monte a cifra.",
     practiceEyebrow: "Praticar",
     practiceTitle: "Aprenda, depois grave camadas",
-    practiceBody: "Faça loop na parte difícil, diminua a velocidade, grave uma harmonia sobre seu take.",
+    practiceBody: "Faça loop na parte difícil, chegue à velocidade certa e grave uma harmonia sobre seu take.",
     shareEyebrow: "Compartilhar",
     shareTitle: "Mande para a banda",
     shareBody: "Envie um clipe, um setlist ou uma coleção inteira para qualquer pessoa. Suas notas e marcações vão junto.",

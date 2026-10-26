@@ -1371,7 +1371,7 @@ export const en = {
     wordsBody: "Write the words, keep each version, find the rhyme, chart the chords.",
     practiceEyebrow: "Practice",
     practiceTitle: "Learn it, then layer it",
-    practiceBody: "Loop the hard part, slow it down, record a harmony over your take.",
+    practiceBody: "Loop the hard part, work it up to speed, then record a harmony over your take.",
     shareEyebrow: "Share",
     shareTitle: "Send it to the band",
     shareBody: "Send a clip, a set or a whole collection to anyone. Your notes and marks go with it.",

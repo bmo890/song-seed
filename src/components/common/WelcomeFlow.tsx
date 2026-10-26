@@ -80,17 +80,31 @@ function FeaturePane({
   eyebrow,
   title,
   body,
+  fit = false,
   children,
 }: {
   scene: ReactNode;
   eyebrow: string;
   title: string;
   body: string;
+  /** A scene that must be seen whole (the practice controls) shrinks to its window
+   *  on a short screen instead of sinking into the fade. Lists keep running on. */
+  fit?: boolean;
   children?: ReactNode;
 }) {
+  const [windowHeight, setWindowHeight] = useState(0);
+  const [sceneHeight, setSceneHeight] = useState(0);
+  const room = windowHeight - FADE_HEIGHT - spacing.sm * 2;
+  const scale = fit && room > 0 && sceneHeight > 0 ? Math.min(1, room / sceneHeight) : 1;
   return (
     <View style={s.pane}>
-      <View style={s.sceneWindow} pointerEvents="none" importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
+      <View
+        style={s.sceneWindow}
+        onLayout={(event) => setWindowHeight(event.nativeEvent.layout.height)}
+        pointerEvents="none"
+        importantForAccessibility="no-hide-descendants"
+        accessibilityElementsHidden
+      >
         {/* A non-scrolling ScrollView: the scene keeps its natural height (cards
             measure themselves) and the window clips what runs past it. */}
         <ScrollView
@@ -98,7 +112,12 @@ function FeaturePane({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={s.sceneInner}
         >
-          {scene}
+          <View
+            onLayout={(event) => setSceneHeight(event.nativeEvent.layout.height)}
+            style={scale < 1 ? [s.sceneFit, { transform: [{ scale }] }] : undefined}
+          >
+            {scene}
+          </View>
         </ScrollView>
         <SceneFade />
       </View>
@@ -302,6 +321,7 @@ export function WelcomeFlow({ onDone }: { onDone: () => void }) {
           ) : index === 3 ? (
             <FeaturePane
               scene={<PracticeScene />}
+              fit
               eyebrow={t("welcome.practiceEyebrow")}
               title={t("welcome.practiceTitle")}
               body={t("welcome.practiceBody")}
@@ -417,6 +437,10 @@ const s = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
     paddingVertical: spacing.sm,
+  },
+  // Shrinks from its top edge, so the scene keeps its place under the header.
+  sceneFit: {
+    transformOrigin: "top",
   },
   sceneFade: {
     position: "absolute",
