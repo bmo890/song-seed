@@ -15,7 +15,11 @@ import {
 } from "../../../../domain/chords";
 import type { ChordAccidental, SongChordPaletteItem } from "../../../../types";
 import { useTranslation } from "react-i18next";
-import { UserTextInput } from "../../../../i18n";
+import { UserTextInput, ltrRow } from "../../../../i18n";
+
+/** A chord symbol reads left to right in every language ("C/G", "/E"): the left-to-right
+ *  mark keeps a leading slash from landing on the wrong side in a Hebrew paragraph. */
+const LRM = "\u200E";
 
 type Props = {
   visible: boolean;
@@ -59,7 +63,7 @@ export function ChordPickerSheet({ visible, mode, initial, palette, onClose, onS
       <View style={s.headerRow}>
         <Text style={s.title}>{t(mode === "edit" ? "chordEditor.editChord" : "chordEditor.addChord")}</Text>
         <Text style={s.preview} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-          {preview || "—"}
+          {preview ? LRM + preview : "—"}
         </Text>
       </View>
 
@@ -97,8 +101,9 @@ export function ChordPickerSheet({ visible, mode, initial, palette, onClose, onS
         ) : null}
 
         <Text style={s.sectionLabel}>{t("chordEditor.root")}</Text>
-        {/* Seven letters, then flat and sharp: one row, so a root is one glance. */}
-        <View style={s.cellRow}>
+        {/* Seven letters, then flat and sharp: one row, so a root is one glance.
+            Notation, not a list: A to G runs left to right in Hebrew too. */}
+        <View style={[s.cellRow, ltrRow]}>
           {CHORD_ROOTS.map((root) => (
             <Key key={root} label={root} cell active={parts.root === root} onPress={() => update({ root })} />
           ))}
@@ -120,7 +125,7 @@ export function ChordPickerSheet({ visible, mode, initial, palette, onClose, onS
         </View>
 
         <Text style={s.sectionLabel}>{t("chordEditor.quality")}</Text>
-        <View style={s.grid}>
+        <View style={[s.grid, ltrRow]}>
           {QUALITY_OPTIONS.map((option) => (
             <Key
               key={option.value || "major"}
@@ -133,7 +138,7 @@ export function ChordPickerSheet({ visible, mode, initial, palette, onClose, onS
         </View>
 
         <Text style={s.sectionLabel}>{t("chordEditor.slashBass")}</Text>
-        <View style={s.grid}>
+        <View style={[s.grid, ltrRow]}>
           <Key
             label={t("chordEditor.none")}
             active={!parts.bassRoot}
@@ -242,7 +247,7 @@ function Key({
       accessibilityLabel={accessibilityLabel ?? label}
     >
       <Text style={[s.keyText, active ? s.keyTextActive : null]} numberOfLines={1}>
-        {label}
+        {LRM + label}
       </Text>
     </Press>
   );

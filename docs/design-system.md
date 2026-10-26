@@ -226,7 +226,9 @@ back/forward chevrons, toggles, and value controls: a slider that sets how much
    carets and position slider: `Slider mirrors={false}`, `Stepper` chevrons).
    Time on tape runs left → right in every language.
 2. **Notation and instruments.** A chord staff, the metronome's beats, the
-   tuner's ♭–♯ gauge.
+   tuner's ♭–♯ gauge, the chord picker's letters and chord types. A chord
+   symbol ("C/G", "/E") reads left to right inside any line; a SEQUENCE of
+   chords (a lyric line, the song's palette) follows the language.
 3. **Content.** Writing direction comes from the STRING (`UserText`,
    `UserTextInput`, `resolveContentDirection`), never from the UI. The chord
    chart takes this per line and anchors each line's chords to the edge that

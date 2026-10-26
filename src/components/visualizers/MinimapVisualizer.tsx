@@ -394,6 +394,9 @@ export const MINIMAP_COMPACT_HEIGHT = 16;
 
 const styles = StyleSheet.create({
     container: {
+        // The minimap is the reel in small: time runs left to right in Hebrew too.
+        // Without this its absolute layers (playhead, lens) anchored to the right.
+        direction: "ltr",
         height: 40,
         backgroundColor: "#1e293b",
         borderRadius: 8,
