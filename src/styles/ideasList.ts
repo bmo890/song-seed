@@ -85,10 +85,9 @@ export const ideasListStyles = {
     borderColor: "rgba(184,125,107,0.55)",
   },
   ideasListCardRow: {
-    // A clip card is a media surface: play control leads on the left, scrubber
-    // runs left→right. Pinned LTR so the whole card never mirrors under a Hebrew
-    // UI (the title keeps its own writing direction via UserText, aligned to the UI edge).
-    direction: "ltr",
+    // The card is a list row and mirrors with the language (founder, 2026-10-26:
+    // Apple Music / Spotify in Hebrew): play leads at the start edge. Only the
+    // timeline inside (waveform, scrub bar, elapsed) stays left to right.
     flexDirection: "row",
     alignItems: "stretch",
     gap: 10,
@@ -134,6 +133,9 @@ export const ideasListStyles = {
   // size between rest and play, or the card's centre — and the waveform's
   // alignment with the centred play glyph — drifts.
   ideaCardInlineControlRow: {
+    // Elapsed sits under the start of the waveform, which is on the left in
+    // every language.
+    direction: "ltr",
     flexDirection: "row",
     alignItems: "center",
     minHeight: 26,

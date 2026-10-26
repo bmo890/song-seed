@@ -11,6 +11,10 @@ import { IconButton } from "./IconButton";
 import { UserText } from "../../i18n";
 import type { InlinePlayerClock } from "../../types";
 
+/** The play triangle's optical centring: its weight sits left, so it moves right
+ *  by 2 pt. Physical, because the glyph itself never mirrors. */
+const PLAY_NUDGE = { marginLeft: 2 };
+
 /** Renders title text with optional search-needle highlighting */
 function HighlightedText({
     text,
@@ -356,7 +360,7 @@ export function IdeaCard({
                             name={leadShowsPause ? "pause" : "play"}
                             size={15}
                             color={!canPlay ? colors.textMuted : colors.textStrong}
-                            style={leadShowsPause ? undefined : { marginStart: 2 }}
+                            style={leadShowsPause ? undefined : PLAY_NUDGE}
                         />
                     </Pressable>
                     {/* The main pressable spans title AND the meta cluster: the meta
@@ -373,7 +377,7 @@ export function IdeaCard({
                         disabled={pickDisabled}
                     >
                         {nowPlaying ? (
-                            <View style={{ marginRight: 6 }}>
+                            <View style={{ marginEnd: 6 }}>
                                 <NowPlayingIndicator playing={!!nowPlayingIsPlaying} color={colors.primary} size={12} />
                             </View>
                         ) : null}
@@ -418,17 +422,19 @@ export function IdeaCard({
                 {denseScrubActive ? (
                     // The extend: the row grows to hold a real, draggable scrub line.
                     <View style={styles.ideaDenseScrubRow}>
-                        <Text style={styles.ideaDenseDuration}>{inlineElapsedLabel ?? ""}</Text>
-                        <View style={{ flex: 1 }}>
-                            <ScrubBar
-                                progress={denseProgress}
-                                onScrub={onInlineScrub}
-                                onScrubStart={onInlineScrubStart}
-                                onScrubCancel={onInlineScrubCancel}
-                                onScrubPreview={onInlineScrubPreview}
-                            />
+                        <View style={styles.ideaDenseScrubTimeline}>
+                            <Text style={styles.ideaDenseDuration}>{inlineElapsedLabel ?? ""}</Text>
+                            <View style={{ flex: 1 }}>
+                                <ScrubBar
+                                    progress={denseProgress}
+                                    onScrub={onInlineScrub}
+                                    onScrubStart={onInlineScrubStart}
+                                    onScrubCancel={onInlineScrubCancel}
+                                    onScrubPreview={onInlineScrubPreview}
+                                />
+                            </View>
+                            <Text style={styles.ideaDenseDuration}>{durationLabel}</Text>
                         </View>
-                        <Text style={styles.ideaDenseDuration}>{durationLabel}</Text>
                         {onInlineClose != null ? (
                             <IconButton
                                 icon="close"
@@ -506,7 +512,7 @@ export function IdeaCard({
                             name={leadShowsPause ? "pause" : "play"}
                             size={18}
                             color={!canPlay ? colors.textMuted : colors.textStrong}
-                            style={leadShowsPause ? undefined : { marginStart: 2 }}
+                            style={leadShowsPause ? undefined : PLAY_NUDGE}
                         />
                     </Pressable>
                     {leadAccessory ?? null}
@@ -528,7 +534,7 @@ export function IdeaCard({
                                 No disc marker: a sketch is identified by its spine + ♪ N alone. */}
                             <View style={styles.ideasListCardTitleRow}>
                                 {nowPlaying ? (
-                                    <View style={{ marginRight: 7 }}>
+                                    <View style={{ marginEnd: 7 }}>
                                         <NowPlayingIndicator playing={!!nowPlayingIsPlaying} color={colors.primary} size={13} />
                                     </View>
                                 ) : null}

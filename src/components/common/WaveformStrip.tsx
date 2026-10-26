@@ -224,7 +224,8 @@ export const WaveformStrip = React.memo(function WaveformStrip({
 
     return (
         <View
-            style={{ height, width: "100%", justifyContent: "center" }}
+            // A waveform is time: left to right in every language.
+            style={{ height, width: "100%", justifyContent: "center", direction: "ltr" }}
             // Only the resting strip is pass-through; the live strip owns its drags.
             pointerEvents={interactive ? "auto" : "none"}
             onLayout={onLayout}

@@ -206,15 +206,15 @@ export const playerStyles = {
     height: 3,
     backgroundColor: "#E8B865",
   },
-  // The single dock row: [ ✕ ] [ title/context …flex… ] [ ◀ ▶ ▶▶ ] [ ≡ / n·n ].
-  // ✕ anchors left, the title absorbs the slack, and the transport + queue
-  // clusters sit at the right. A touch of extra vertical room lets the title
-  // carry both the clip title and its context line when present.
+  // The single dock row: [ ≡ / n·n ] [ title/context …flex… ] [ ◀ ▶ ▶▶ ] [ ✕ ].
+  // Queue at the start edge, the title absorbs the slack, transport and ✕ at
+  // the end. A touch of extra vertical room lets the title carry both the clip
+  // title and its context line when present.
   miniMediaDockRow: {
-    // The dock is a media surface: transport (prev/play/next) and progress read
-    // left→right, so the whole row is pinned LTR rather than mirrored. The title
-    // still keeps its own writing direction via UserText, aligned to the UI edge.
-    direction: "ltr",
+    // The dock mirrors with the language like Apple Music's mini player in
+    // Hebrew (founder, 2026-10-26): queue and title at the start edge. Only
+    // prev/play/next (miniMediaDockTransport) and the progress hairline stay
+    // left to right.
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
@@ -225,6 +225,7 @@ export const playerStyles = {
   },
   // Prev · play · next kept tight together so they read as one control.
   miniMediaDockTransport: {
+    direction: "ltr",
     flexDirection: "row",
     alignItems: "center",
     gap: 2,

@@ -213,7 +213,10 @@ retain left-to-right"), and what Apple Music's Hebrew player does:
 
 **Mirrors (it is layout):** reading order, headers, lists and their rows (the
 play queue, playlists, compilations: number on the right, drag handle on the
-left), menus, tabs and segment order, the side drawer (opens from the right),
+left), idea cards and the mini player (play and title at the start edge, as
+Apple Music and Spotify do in Hebrew; the waveform, scrub line and
+prev/play/next inside them stay left to right, and the play glyph never flips),
+menus, tabs and segment order, the side drawer (opens from the right),
 back/forward chevrons, toggles, and value controls: a slider that sets how much
 (size, volume, level, tempo, speed) fills from the right, and a −/+ stepper puts
 − on the right. `Slider` mirrors by default for this reason.

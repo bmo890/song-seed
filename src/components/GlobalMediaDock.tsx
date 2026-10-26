@@ -435,9 +435,10 @@ export function GlobalMediaDock({
         <DockProgressTrack fallbackDurationMs={activePlayback.fallbackDurationMs} />
 
         {/* One row: [ ≡ + n/n ] [ title·context …flex… ] [ ◀ ▶ ▶▶ ] [ ✕ ].
-            The queue button (with its position readout beneath) anchors far
-            left, the title fills the slack, prev/play/next form a tight
-            transport cluster, and ✕ closes the right. */}
+            The queue button (with its position readout beneath) anchors the
+            start edge, the title fills the slack, prev/play/next form a tight
+            transport cluster, and ✕ closes the end. Mirrors in Hebrew; the
+            transport cluster itself stays left to right. */}
         <View style={styles.miniMediaDockRow}>
           <View style={styles.miniMediaDockQueueCol}>
             <Pressable
@@ -521,7 +522,7 @@ export function GlobalMediaDock({
                 name={activePlayback.isPlaying ? "pause" : "play"}
                 size={17}
                 color="#8b4f3b"
-                style={activePlayback.isPlaying ? null : { marginStart: 2 }}
+                style={activePlayback.isPlaying ? null : { marginLeft: 2 }}
               />
             </Pressable>
 

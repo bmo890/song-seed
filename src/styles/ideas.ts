@@ -321,6 +321,15 @@ export const ideasStyles = {
     marginTop: 6,
     paddingStart: 30,
   },
+  // elapsed · scrub line · duration: a timeline, left to right in Hebrew too.
+  // The ✕ beside it follows the row.
+  ideaDenseScrubTimeline: {
+    flex: 1,
+    direction: "ltr",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
   // Compact search-match: a quiet second line under the title (glyph + snippet).
   ideaDenseSnippet: {
     flexDirection: "row",
