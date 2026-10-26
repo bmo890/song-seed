@@ -25,6 +25,7 @@ import {
   type RouteLatencyProfile,
 } from "../../../services/latencyModel";
 import { persistLog } from "../../../services/persistLog";
+import { settleWithin } from "../../../services/settleWithin";
 import SongNookMetronomeModule from "../../../../modules/songnook-metronome";
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
@@ -97,6 +98,9 @@ export type RecordingTimingWarning = {
   message: string;
   showCalibrateAction: boolean;
 };
+
+/** How long a take's start may wait on one guide-player call (a seek, a reload). */
+const GUIDE_CALL_BOUND_MS = 1500;
 
 /** One diagnostic-log line per take played against the guide: which delay the head
  *  trim used (music, after the 2026-10-18 fix) beside the click's, so a phone log
@@ -1046,17 +1050,20 @@ export function useRecordingScreenModel() {
     const anchorLeadMs = Math.max(0, (opts?.anchorPositionMs ?? seekPositionMs) - seekPositionMs);
     try {
       setGuideMonitoringLeadInMs(activeMonitoringCompensationMs);
-      await guideMixPlayer.seekTo(seekPositionMs / 1000);
+      // Every call on the guide is bounded (settleWithin): capture is already rolling,
+      // and each second spent waiting here is a second of run-up in the take.
+      const seekAnswered = await settleWithin(guideMixPlayer.seekTo(seekPositionMs / 1000), GUIDE_CALL_BOUND_MS);
       let playCallAtMs = Date.now();
       guideMixPlayer.play();
       // Starting the recorder can leave the guide player dead on iOS (see
       // resumeGuideMix): if it has not started, load it again. The anchor below is
       // measured off the guide's own position, so a late start stays exact.
       await waitForGuideMixPlaybackStart();
-      if (!guideMixPlayer.playing) {
+      if (!seekAnswered || !guideMixPlayer.playing) {
         console.warn("[timing] guide did not start — reloading it");
-        await guideMixPlayer.replace({ uri: recordingGuideMixUri });
-        await guideMixPlayer.seekTo(seekPositionMs / 1000);
+        persistLog("record.timing", `guide stalled at take start (seek ${seekAnswered ? "ok" : "silent"}) — reloaded`);
+        await settleWithin(guideMixPlayer.replace({ uri: recordingGuideMixUri }), GUIDE_CALL_BOUND_MS);
+        await settleWithin(guideMixPlayer.seekTo(seekPositionMs / 1000), GUIDE_CALL_BOUND_MS);
         playCallAtMs = Date.now();
         guideMixPlayer.play();
       }
@@ -1066,12 +1073,14 @@ export function useRecordingScreenModel() {
       if (seekAnchorEpochMs != null) {
         return seekAnchorEpochMs + anchorLeadMs;
       }
-      if (anchorLeadMs > 0 && guideMixPlayer.playing) {
-        // Unmeasured punch take: keeping the pre-roll would keep the whole run-up, and
-        // the layer would land seconds late, sounding like it was recorded from the
-        // top (founder, 2026-10-22). An estimate is off by a start latency at most.
+      if (guideMixPlayer.playing) {
+        // Unmeasured start: keeping the pre-roll would keep everything captured before
+        // the guide sounded. A punch take kept its whole run-up and sounded recorded
+        // from the top (founder, 2026-10-22); a full-length layer kept a stalled
+        // start's wait (2026-10-26). An estimate is off by a start latency at most.
         const latencyMs = sessionGuideResumeLatencyMs ?? GUIDE_DOWNBEAT_LEAD_MS;
-        console.warn(`[timing] guide start unmeasured — estimating the punch from play() + ${latencyMs}ms`);
+        console.warn(`[timing] guide start unmeasured — estimating it from play() + ${latencyMs}ms`);
+        persistLog("record.timing", `guide start unmeasured — estimated from play() + ${latencyMs}ms`);
         return playCallAtMs + latencyMs + anchorLeadMs;
       }
     } catch (error) {
@@ -1089,13 +1098,13 @@ export function useRecordingScreenModel() {
       // back at 0:00, or not at all, under a resumed layer). Put it where the take is,
       // and if it will not start, load it again and try once more.
       const atSec = recordingOverdubClip ? (punchInMs + recording.readElapsedMs()) / 1000 : null;
-      if (atSec != null) await guideMixPlayer.seekTo(atSec);
+      if (atSec != null) await settleWithin(guideMixPlayer.seekTo(atSec), GUIDE_CALL_BOUND_MS);
       guideMixPlayer.play();
       await waitForGuideMixPlaybackStart();
       if (!guideMixPlayer.playing) {
         console.warn("[timing] guide did not resume — reloading it");
-        await guideMixPlayer.replace({ uri: recordingGuideMixUri });
-        if (atSec != null) await guideMixPlayer.seekTo(atSec);
+        await settleWithin(guideMixPlayer.replace({ uri: recordingGuideMixUri }), GUIDE_CALL_BOUND_MS);
+        if (atSec != null) await settleWithin(guideMixPlayer.seekTo(atSec), GUIDE_CALL_BOUND_MS);
         guideMixPlayer.play();
         await waitForGuideMixPlaybackStart();
       }
