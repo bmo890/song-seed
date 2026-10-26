@@ -254,6 +254,9 @@ type Props = {
      *  take register): a sideways drag there scrubs the reel exactly as one on the
      *  surface does (founder, 2026-10-26: a thumb on the lower half did nothing). */
     belowSurfaceScrubs?: boolean;
+    /** The take's own sound is silent right now (a Solo plays other layers): its wave
+     *  draws switched off, one light tone with no played/unplayed split. */
+    waveSilent?: boolean;
     renderBelowOverlay?: (args: OverlayArgs) => ReactNode;
     chrome?: ReelChrome;
     /** @deprecated See `onTogglePlay` — there is no transport to show. */
@@ -328,6 +331,7 @@ export function AudioReel({
     renderOverlay,
     renderBelowSurface,
     belowSurfaceScrubs = false,
+    waveSilent = false,
     renderBelowOverlay,
     chrome = "dark",
     showExpandToggle = true,
@@ -954,8 +958,12 @@ export function AudioReel({
                             // The reading-height reel has no room for names: heads and rules only.
                             laneDensity={laneDensityForHeight(collapsedHeight)}
                             theme={{
-                                waveColor: palette.waveColor,
-                                wavePlayedColor: lanes ? palette.wavePlayedQuietColor : palette.wavePlayedColor,
+                                waveColor: waveSilent ? colors.waveSilent : palette.waveColor,
+                                wavePlayedColor: waveSilent
+                                    ? colors.waveSilent
+                                    : lanes
+                                      ? palette.wavePlayedQuietColor
+                                      : palette.wavePlayedColor,
                                 rulerColor: palette.rulerColor,
                                 playheadColor: palette.playheadColor,
                                 backgroundColor: "transparent",

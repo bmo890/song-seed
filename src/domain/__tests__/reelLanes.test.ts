@@ -3,6 +3,7 @@ import {
     PIN_LANE_ROW_HEIGHT,
     PIN_LANE_TOP_PAD,
     layoutPinLane,
+    listeningReelHeightForBody,
     pinHeadY,
     pinLaneHeight,
     pinLaneRowCount,
@@ -113,5 +114,20 @@ describe("reelHeightForFlow", () => {
     it("pays rent once something opens beneath it", () => {
         expect(reelHeightForFlow("tools", tall)).toBe(112);
         expect(reelHeightForFlow("reading", tall)).toBe(64);
+    });
+});
+
+describe("the listening reel's half of the page", () => {
+    it("takes the top half of the body", () => {
+        expect(listeningReelHeightForBody(600)).toBe(300);
+    });
+
+    it("shares that half with the layer lanes under it", () => {
+        // Two layers used to sit on top of a half-page reel and squeeze the pages.
+        expect(listeningReelHeightForBody(600, 130)).toBe(170);
+    });
+
+    it("never shrinks below its floor, however many layers", () => {
+        expect(listeningReelHeightForBody(600, 400)).toBe(120);
     });
 });

@@ -80,11 +80,13 @@ export function barHeights(peaks: number[] | undefined, count: number): number[]
 
 function LaneWave({
   lane,
+  silent,
   pixelsPerMs,
   timelineTranslateX,
   timelineScale,
 }: {
   lane: OverdubLayerLane;
+  silent: boolean;
   pixelsPerMs: number;
   timelineTranslateX: SharedValue<number>;
   timelineScale: SharedValue<number>;
@@ -111,7 +113,7 @@ function LaneWave({
           key={index}
           style={[
             laneStyles.bar,
-            lane.isMuted ? laneStyles.barMuted : null,
+            silent ? laneStyles.barMuted : null,
             { height: Math.max(2, Math.round(h * WAVE_HEIGHT)) },
           ]}
         />
@@ -170,6 +172,7 @@ function LaneRow({
   timelineScale,
   onOpenLane,
   soloing,
+  otherSoloed,
   onSoloLane,
   onToggleMuteLane,
 }: {
@@ -179,6 +182,8 @@ function LaneRow({
   timelineScale: SharedValue<number>;
   onOpenLane?: (id: string) => void;
   soloing?: boolean;
+  /** Another layer is soloed and this one is not: it is silent too. */
+  otherSoloed?: boolean;
   onSoloLane?: (id: string) => void;
   onToggleMuteLane?: (id: string) => void;
 }) {
@@ -187,6 +192,9 @@ function LaneRow({
   const folded = useLayerPrefsStore((state) => !!onOpenLane && state.collapsedLayerIds.includes(lane.id));
   const [trackWidth, setTrackWidth] = React.useState(0);
   const hasControls = !!onSoloLane || !!onToggleMuteLane;
+  // What you will not hear looks switched off (founder, 2026-10-26): a muted layer, or
+  // any layer a Solo elsewhere leaves out. A soloed layer plays even when muted.
+  const silent = soloing ? false : lane.isMuted || !!otherSoloed;
   // With a Mute key on the line the dot says it; a read-only stack still spells it.
   const label = lane.isMuted && !hasControls ? `${lane.title} · ${t("player.mutedShort")}` : lane.title;
   const name = (
@@ -195,7 +203,7 @@ function LaneRow({
         style={[
           laneStyles.nameText,
           lane.readsAsName ? laneStyles.nameTyped : laneStyles.nameMachine,
-          lane.isMuted ? laneStyles.nameMuted : null,
+          silent ? laneStyles.nameMuted : null,
         ]}
         numberOfLines={1}
       >
@@ -235,9 +243,10 @@ function LaneRow({
     <>
       {name}
       <View style={laneStyles.track} onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)}>
-        <View style={[laneStyles.baseline, lane.isMuted ? laneStyles.baselineMuted : null]} />
+        <View style={[laneStyles.baseline, silent ? laneStyles.baselineMuted : null]} />
         <LaneWave
           lane={lane}
+          silent={silent}
           pixelsPerMs={pixelsPerMs}
           timelineTranslateX={timelineTranslateX}
           timelineScale={timelineScale}
@@ -388,6 +397,7 @@ export function OverdubLayerLanes({
       timelineScale={timelineScale}
       onOpenLane={onOpenLane}
       soloing={!!soloedLaneIds?.includes(lane.id)}
+      otherSoloed={!!soloedLaneIds?.length && !soloedLaneIds.includes(lane.id)}
       onSoloLane={onSoloLane}
       onToggleMuteLane={onToggleMuteLane}
     />
@@ -634,6 +644,7 @@ const laneStyles = StyleSheet.create({
     opacity: 0.42,
   },
   barMuted: {
-    opacity: 0.14,
+    backgroundColor: colors.waveSilent,
+    opacity: 1,
   },
 });

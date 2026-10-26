@@ -14,6 +14,7 @@ import { useTransportClock } from "../../../hooks/useTransportClock";
 import { buildSectionBands } from "../../../domain/playerSections";
 import { fmtDuration } from "../../../utils";
 import { styles } from "../../../styles";
+import { haptic } from "../../../design/haptics";
 import type { ClipSection, PracticeMarker } from "../../../types";
 import { useTranslation } from "react-i18next";
 
@@ -115,6 +116,11 @@ export function RecordingOverdubGuide({
   // The reel takes the height the page has left once the lanes and the rows under
   // it are laid out; each part reports its own height, so none of it is guessed.
   const [lanesHeight, setLanesHeight] = useState(0);
+  // With the words open the page belongs to them: the layers already on the song fold
+  // to one "Layers · n" line, a tap away (founder, 2026-10-26: several layers squeezed
+  // the lyrics).
+  const [lanesOpen, setLanesOpen] = useState(false);
+  const lanesFolded = compact && !lanesOpen;
   const [tailHeight, setTailHeight] = useState(0);
   const measure = (set: (value: number) => void) => (event: LayoutChangeEvent) => {
     const next = Math.round(event.nativeEvent.layout.height);
@@ -225,6 +231,15 @@ export function RecordingOverdubGuide({
                     pixelsPerMs={pixelsPerMs}
                     timelineTranslateX={timelineTranslateX}
                     timelineScale={timelineScale}
+                    collapsed={lanesFolded}
+                    onToggleCollapsed={
+                      compact
+                        ? () => {
+                            haptic.tap(); // Vocabulary: tap = a control toggles.
+                            setLanesOpen((open) => !open);
+                          }
+                        : undefined
+                    }
                   />
                 </View>
               ) : null}

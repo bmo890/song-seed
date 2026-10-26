@@ -112,6 +112,11 @@ export const colors = {
    *  content. Lived as a bare literal in two headers before it had a name (2026-09-07). */
   eyebrow: "#526351",
 
+  /** A waveform you will not hear (a muted layer; the take while a Solo plays others):
+   *  one neutral light tone, no played/unplayed split, so it reads switched off
+   *  (founder, 2026-10-26). Grey, not the borders' blush. */
+  waveSilent: "#D3CEC9",
+
   // Technical lines (graph paper feel)
   borderSubtle: "#E8E4DF",
   borderMuted:  "#D7C2BD",

@@ -185,10 +185,12 @@ export const LISTENING_NOTE_RESERVE = 54;
  * transport, as laid out), the pages beneath take the bottom half. Measured, so a
  * two-line title or a zoomed reel can never push the pages under the transport.
  */
-export function listeningReelHeightForBody(bodyHeight: number): number {
+export function listeningReelHeightForBody(bodyHeight: number, lanesHeight = 0): number {
     // The reel and its minimap share this half: the reel gives up the strip's room
-    // when it shows (AudioReel minimapWithinHeight).
-    const room = Math.round(bodyHeight / 2);
+    // when it shows (AudioReel minimapWithinHeight). The layer lanes under it live in
+    // the same half: added on top, two layers squeezed the pages to a sliver
+    // (founder, 2026-10-26).
+    const room = Math.round(bodyHeight / 2) - Math.max(0, lanesHeight);
     return Math.max(LISTENING_REEL_MIN_HEIGHT, Math.min(LISTENING_REEL_MAX_HEIGHT, room));
 }
 

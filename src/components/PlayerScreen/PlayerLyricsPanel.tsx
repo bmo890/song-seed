@@ -14,7 +14,8 @@ import { styles as appStyles } from "../../styles";
 import { colors, radii, spacing, text as textStyles } from "../../design/tokens";
 import { LyricsAutoscrollState, LyricsLine } from "../../types";
 import { ChordChartLines } from "../LyricsVersionScreen/components/chords/ChordChart";
-import { ChordZoomBar } from "../LyricsVersionScreen/components/chords/ChordZoomBar";
+import { ReadingSheet } from "../common/ReadingSheet";
+import { useChartPrefsStore } from "../../state/useChartPrefsStore";
 import { useTranslation } from "react-i18next";
 
 type Props = {
@@ -40,6 +41,8 @@ type Props = {
   onToggleAutoscroll?: (enabled: boolean) => void;
   onAutoscrollInterrupted?: () => void;
   onSelectAutoscrollSpeedMultiplier?: (multiplier: number) => void;
+  /** The sketch the words belong to: its capo, for the reading sheet. */
+  ideaId?: string | null;
 };
 
 // Autoscroll speed is a multiplier on the base rate (1 ≈ one lyric line every
@@ -70,14 +73,19 @@ function PlayerLyricsPanelInner({
   onToggleAutoscroll,
   onAutoscrollInterrupted,
   onSelectAutoscrollSpeedMultiplier,
+  ideaId = null,
 }: Props) {
   const { t } = useTranslation();
   const [uncontrolledExpanded, setUncontrolledExpanded] = useState(defaultExpanded);
-  const [zoom, setZoom] = useState(1);
-  const [zoomOpen, setZoomOpen] = useState(false);
+  // The app's one reading size and chords switch (useChartPrefsStore), set from the
+  // shared reading sheet: the words read the same in the recorder as in the player,
+  // the songbook and a setlist (founder, 2026-10-26: "our reusable zoom").
+  const zoom = useChartPrefsStore((state) => state.readingZoom);
+  const chordsHidden = useChartPrefsStore((state) => state.chordsHidden);
+  const [readingOpen, setReadingOpen] = useState(false);
   // Reveals the numeric speed row; auto-closes on pick or when a take starts.
   const [speedOpen, setSpeedOpen] = useState(false);
-  const [chordsOn, setChordsOn] = useState(true);
+  const chordsOn = !chordsHidden;
   const isRecordingVariant = variant === "recording";
   const isExpanded = expanded ?? uncontrolledExpanded;
   const scrollRef = useRef<ScrollView>(null);
@@ -255,7 +263,7 @@ function PlayerLyricsPanelInner({
                 appStyles.recordingLyricsZoomBtn,
                 pressed ? appStyles.pressDown : null,
               ]}
-              onPress={() => setChordsOn((on) => !on)}
+              onPress={() => useChartPrefsStore.getState().setChordsHidden(chordsOn)}
               hitSlop={6}
               accessibilityLabel={chordsOn ? t("player.hideChords") : t("player.showChords")}
             >
@@ -315,14 +323,14 @@ function PlayerLyricsPanelInner({
               <Pressable
                 style={({ pressed }) => [
                   appStyles.recordingLyricsZoomBtn,
-                  zoomOpen ? appStyles.recordingLyricsZoomBtnActive : null,
+                  readingOpen ? appStyles.recordingLyricsZoomBtnActive : null,
                   pressed ? appStyles.pressDown : null,
                 ]}
-                onPress={() => setZoomOpen((open) => !open)}
+                onPress={() => setReadingOpen(true)}
                 hitSlop={6}
-                accessibilityLabel={t("player.lyricSize")}
+                accessibilityLabel={t("reading.sheetA11y")}
               >
-                <Ionicons name="text" size={16} color={zoomOpen ? colors.primaryDeep : colors.textSecondary} />
+                <Text style={[styles.aaGlyph, readingOpen ? styles.aaGlyphActive : null]}>{t("reading.aa")}</Text>
               </Pressable>
             </View>
           ) : null}
@@ -410,9 +418,15 @@ function PlayerLyricsPanelInner({
               )}
             </ScrollView>
 
-            {zoomOpen ? <ChordZoomBar zoom={zoom} onChange={setZoom} compact /> : null}
           </View>
         ) : null}
+        <ReadingSheet
+          visible={readingOpen}
+          onClose={() => setReadingOpen(false)}
+          ideaId={ideaId}
+          hasChords={hasChords}
+          hasLyricChords={hasChords}
+        />
       </View>
     );
   }
@@ -463,6 +477,15 @@ function PlayerLyricsPanelInner({
 export const PlayerLyricsPanel = React.memo(PlayerLyricsPanelInner);
 
 const styles = StyleSheet.create({
+  // The reading sheet's door, as in the player's toolbar: the letters, not an icon.
+  aaGlyph: {
+    ...textStyles.caption,
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  aaGlyphActive: {
+    color: colors.primaryDeep,
+  },
   panel: {
     gap: spacing.sm,
   },

@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { KeyboardAvoidingView, Platform, StyleSheet } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { colors, spacing } from "../../../design/tokens";
 import { appActions } from "../../../state/actions";
 import type { ContentDirection } from "../../../types";
 import { UserTextInput } from "../../../i18n";
+import { useKeyboardOverlap } from "../../../hooks/useKeyboardOverlap";
 import { useTranslation } from "react-i18next";
 
 const AUTOSAVE_DEBOUNCE_MS = 700;
@@ -57,11 +58,12 @@ export function PlayerLyricsWriter({
   // Leaving the writer (close, switch clip, unmount) commits whatever's pending.
   useEffect(() => flush, [flush]);
 
+  // The page ends at the keys: the line being typed stays in sight on both platforms.
+  const frameRef = useRef<View>(null);
+  const keyboardOverlap = useKeyboardOverlap(frameRef);
+
   return (
-    <KeyboardAvoidingView
-      style={styles.fill}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
+    <View ref={frameRef} style={[styles.fill, { paddingBottom: keyboardOverlap }]}>
       <UserTextInput
         style={styles.input}
         value={text}
@@ -74,7 +76,7 @@ export function PlayerLyricsWriter({
         scrollEnabled
         textAlignVertical="top"
       />
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

@@ -429,6 +429,19 @@ function PlayerTimelineInner({
   // One height per flow (domain/reelLanes): the reel takes the page while
   // nothing is open beneath it and pays rent the moment something is. It used
   // to need a corner button to grow; now the page decides.
+  // Reading or writing, the words own the page: the lanes fold to their one header
+  // line, a tap away, whatever the listening page keeps (founder, 2026-10-26).
+  const [readingLanesOpen, setReadingLanesOpen] = React.useState(false);
+  const toggleReadingLanes = React.useCallback(() => {
+    haptic.tap(); // Vocabulary: tap = a control toggles.
+    setReadingLanesOpen((open) => !open);
+  }, []);
+  // The lanes under the reel, as laid out: they share the reel's half of the page.
+  const [lanesHeight, setLanesHeight] = React.useState(0);
+  const hasLanes = !!overdubLayerLanes && overdubLayerLanes.some((lane) => lane.durationMs > 0);
+  React.useEffect(() => {
+    if (!hasLanes) setLanesHeight(0);
+  }, [hasLanes]);
   const { height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const usableHeight = windowHeight - insets.top - insets.bottom;
@@ -439,7 +452,7 @@ function PlayerTimelineInner({
         ? reelHeightForFlow("tools", usableHeight)
         : CLASSIC_PRACTICE_REEL_HEIGHT
       : bodyHeight
-        ? listeningReelHeightForBody(bodyHeight)
+        ? listeningReelHeightForBody(bodyHeight, lanesHeight)
         : reelHeightForFlow("listening", usableHeight, listeningBelow);
   const previewRange = practiceLoopSelection[0];
   const sharedLoopPreviewStartMs = useSharedValue(previewRange?.start ?? 0);
@@ -479,6 +492,8 @@ function PlayerTimelineInner({
       playbackRate={playbackRate}
       sharedPlaybackRate={transportClock.sharedPlaybackRate}
       isScrubbing={isScrubbing}
+      // A Solo plays only the soloed layers: the take itself is silent, and looks it.
+      waveSilent={!!soloedLayerIds && soloedLayerIds.length > 0}
       chrome="light"
       showTransportControls={false}
       showExpandToggle={false}
@@ -595,20 +610,22 @@ function PlayerTimelineInner({
         <>
           {/* The lanes ARE the layer list (2026-10-22): one place, on the reel's time. */}
           {overdubLayerLanes && overdubLayerLanes.length > 0 ? (
+            <View onLayout={(event) => setLanesHeight(Math.round(event.nativeEvent.layout.height))}>
             <OverdubLayerLanes
               lanes={overdubLayerLanes}
               pixelsPerMs={pixelsPerMs}
               timelineTranslateX={timelineTranslateX}
               timelineScale={timelineScale}
               onOpenLane={onOpenLayerLane}
-              collapsed={layerLanesCollapsed}
-              onToggleCollapsed={onToggleLayerLanes}
+              collapsed={readingSlim ? !readingLanesOpen : layerLanesCollapsed}
+              onToggleCollapsed={readingSlim ? toggleReadingLanes : onToggleLayerLanes}
               soloedLaneIds={soloedLayerIds}
               onSoloLane={onSoloLayer}
               onToggleMuteLane={onToggleLayerMute}
               footer={layerLanesFooter}
               playhead={durationMs > 0 ? { progress: sharedAudioProgress, durationMs } : undefined}
             />
+            </View>
           ) : null}
           {loopActive && previewRange ? (
             <LoopMoveHandle

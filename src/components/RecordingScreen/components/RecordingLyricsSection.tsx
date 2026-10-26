@@ -19,6 +19,7 @@ type RecordingLyricsSectionProps = {
   onToggleAutoscroll: (enabled: boolean) => void;
   onAutoscrollInterrupted: () => void;
   onSelectAutoscrollSpeedMultiplier: (value: number) => void;
+  ideaId?: string | null;
 };
 
 export function RecordingLyricsSection({
@@ -36,6 +37,7 @@ export function RecordingLyricsSection({
   onToggleAutoscroll,
   onAutoscrollInterrupted,
   onSelectAutoscrollSpeedMultiplier,
+  ideaId = null,
 }: RecordingLyricsSectionProps) {
   // One object per mode: the panel never reads the time fields (its follow
   // scroll runs on its own interval), so the tick used to defeat the panel's
@@ -56,6 +58,7 @@ export function RecordingLyricsSection({
       updatedAtLabel={formatClipDate(updatedAt)}
       autoscrollState={autoscrollState}
       variant="recording"
+      ideaId={ideaId}
       expanded={expanded}
       defaultExpanded={false}
       onToggleExpanded={onToggleExpanded}

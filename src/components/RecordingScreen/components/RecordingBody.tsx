@@ -204,6 +204,7 @@ export function RecordingBody({
             onToggleAutoscroll={onToggleLyricsAutoscroll}
             onAutoscrollInterrupted={onLyricsAutoscrollInterrupted}
             onSelectAutoscrollSpeedMultiplier={onSelectLyricsAutoscrollSpeedMultiplier}
+            ideaId={recordingIdea?.id ?? null}
           />
           </View>
             );
