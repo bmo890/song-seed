@@ -17,7 +17,7 @@ import { fmtDuration } from "../../utils";
 import { getClipPlaybackDurationMs } from "../../domain/clipPresentation";
 import { looksMachineNamed } from "../../domain/titleNaming";
 import type { SongbookReaderView } from "../../domain/songbookGrouping";
-import { UserText } from "../../i18n";
+import { UserText, playRowFrame } from "../../i18n";
 
 /** Full-screen book reading (stage pass, 2026-10-18): one song per page, its
  *  Lyrics or its Chart, the shared Aa sheet, and a strip at the foot that turns
@@ -122,7 +122,8 @@ export function SongbookReaderScreen() {
             feel="glyph"
             // haptics.ts: tap → a control acted.
             haptic="tap"
-            style={styles.stripKey}
+            // [▶ 3:12] reads left to right in every language: play leads its time.
+            style={[styles.stripKey, playRowFrame]}
             onPress={reader.toggleSongAudio}
             accessibilityRole="button"
             accessibilityLabel={t(

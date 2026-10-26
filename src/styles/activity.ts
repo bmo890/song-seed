@@ -67,9 +67,9 @@ export const activityStyles = {
     color: colors.primaryDeep,
   },
   activityGridRow: {
-    // The heatmap is a calendar: weekday labels lead, weeks run oldest→newest
-    // left→right, and the horizontal scroll tracks x that way. Pinned LTR so it
-    // reads as a timeline (and the scroll offset isn't inverted) under a Hebrew UI.
+    // Pinned LTR so the horizontal scroll offset means the same on both platforms.
+    // Hebrew still reads as a Hebrew calendar: ActivityHeatmapGrid draws the weeks
+    // newest-left and puts the weekday labels on the right.
     direction: "ltr",
     flexDirection: "row",
     alignItems: "flex-start",

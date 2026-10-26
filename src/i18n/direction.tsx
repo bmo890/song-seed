@@ -66,6 +66,22 @@ export const ltrRow: { flexDirection: "row" | "row-reverse" } = {
 };
 
 /**
+ * A playback row (founder, 2026-10-26): its play key sits on the LEFT in every
+ * language, because play points into time and time runs left to right. Pin the
+ * row with `playRowFrame` and wrap everything after the play key in
+ * `playRowRest`, which hands the words back to the language: in Hebrew the title
+ * reads from the right and trailing times sit beside the play key.
+ */
+export const playRowFrame = { direction: "ltr" as const };
+export const playRowRest = {
+  flex: 1,
+  minWidth: 0,
+  flexDirection: "row" as const,
+  alignItems: "center" as const,
+  direction: (I18nManager.isRTL ? "rtl" : "ltr") as "rtl" | "ltr",
+};
+
+/**
  * Lay a row out in the CONTENT's direction, whatever the app's. RN already mirrors
  * `row` in the Hebrew app, so a plain `row-reverse` for Hebrew content flipped twice
  * and put a Hebrew lyric's strips left-to-right there (overnight check 2026-10-20).

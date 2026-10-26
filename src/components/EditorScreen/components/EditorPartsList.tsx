@@ -1,7 +1,7 @@
 import React, { type ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { UserTextInput } from "../../../i18n/direction";
+import { UserTextInput, playRowFrame, playRowRest } from "../../../i18n/direction";
 import { fmtDuration } from "../../../utils";
 import { colors } from "../../../design/tokens";
 import { Press } from "../../common/Press";
@@ -56,7 +56,7 @@ export function EditorPartsList({
           : t("editor.partLabel", { n: index + 1 });
         const row = (
           <Press
-            style={pd.markRow}
+            style={[pd.markRow, playRowFrame]}
             onPress={() => onHold(held ? null : part)}
             accessibilityRole="button"
             accessibilityState={{ selected: held, expanded: held }}
@@ -74,6 +74,8 @@ export function EditorPartsList({
             >
               <Ionicons name="play" size={15} color={colors.textSecondary} />
             </Press>
+            {/* After the play key, the row follows the language. */}
+            <View style={[playRowRest, { gap: 8 }]}>
             <View style={pd.markGlyph}>
               <SpanGlyph color={ink} />
             </View>
@@ -114,6 +116,7 @@ export function EditorPartsList({
                 <Text style={pd.markTime}>{`${fmtDuration(part.start)}–${fmtDuration(part.end)}`}</Text>
               </View>
             )}
+            </View>
           </Press>
         );
         if (!held) {

@@ -36,7 +36,7 @@ import { colors, radii, spacing, text as textTokens } from "../../design/tokens"
 import type { ShareKind } from "../../types";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { UserText } from "../../i18n";
+import { UserText, playRowFrame, playRowRest } from "../../i18n";
 import { UserFacingError, userFacingMessage } from "../../i18n/userFacingError";
 
 type Phase =
@@ -423,7 +423,8 @@ export function TransferReceiveScreen() {
         ? `${archiveLabel} · ${formatBytes(item.size)}`
         : formatBytes(item.size);
     return (
-      <SurfaceCard key={item.itemId} style={local.row}>
+      // A clip's row plays: ▶ on the left in every language; the words follow it.
+      <SurfaceCard key={item.itemId} style={[local.row, archive ? null : playRowFrame]}>
         {archive ? (
           <View style={local.lead}>
             <Ionicons name="albums-outline" size={16} color={colors.textStrong} />
@@ -453,6 +454,7 @@ export function TransferReceiveScreen() {
             )}
           </Pressable>
         )}
+        <View style={[playRowRest, { gap: spacing.md }]}>
         <View style={local.rowMain}>
           <UserText value={name} style={local.rowTitle} numberOfLines={1}>
             {name}
@@ -464,6 +466,7 @@ export function TransferReceiveScreen() {
         ) : active ? (
           <Spinner size="small" color={colors.primary} />
         ) : null}
+        </View>
       </SurfaceCard>
     );
   };

@@ -26,6 +26,7 @@ import { HelpButton } from "../../common/HelpButton";
 import { HelpSheet } from "../../common/HelpSheet";
 import { AnimatedCollapse } from "../../common/AnimatedCollapse";
 import { useTranslation } from "react-i18next";
+import { playRowFrame, playRowRest } from "../../../i18n/direction";
 import { MARK_NUDGE_BASE_MS, MARK_NUDGE_MIN_MS, MarkInspector, nudgeStepMsForZoom } from "../../common/MarkInspector";
 import { SpanInspector, spanNeighbors } from "../../common/SpanInspector";
 import { Switch } from "../../common/Switch";
@@ -487,7 +488,7 @@ export function PlayerPracticeDrawers({
     const row = (
       <Press
         key={`${entry.kind}-${id}-row`}
-        style={pd.markRow}
+        style={[pd.markRow, playRowFrame]}
         onPress={() => {
           if (isSelected) {
             setSelected(null);
@@ -533,8 +534,10 @@ export function PlayerPracticeDrawers({
             ]}
           />
         ) : null}
-        {/* The play glyph leads the row, as it leads every card in the app. */}
+        {/* The play glyph leads the row on the left, as on every card in the app;
+            after it, the row follows the language. */}
         {playButton}
+        <View style={[playRowRest, { gap: 8 }]}>
         <View style={[pd.markGlyph, isPast ? pd.markPastGlyph : null]}>
           {isSection ? (
             <SpanGlyph color={color} />
@@ -591,6 +594,7 @@ export function PlayerPracticeDrawers({
             </Text>
           </View>
         )}
+        </View>
       </Press>
     );
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { I18nManager, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../design/directionalIcons";
 import { Press } from "../common/Press";
@@ -13,6 +13,13 @@ import { colors, radii, spacing } from "../../design/tokens";
 import { useTranslation } from "react-i18next";
 import { useLocale } from "../../i18n";
 import { getWeekdayName } from "../../domain/dateNames";
+
+/** Hebrew calendars run right to left (founder, 2026-10-26: mirror the heatmap like
+ *  Apple's and Google's Hebrew calendars): the newest week sits at the left, the
+ *  weekday labels at the right. The scroll view itself stays physically left to
+ *  right (RTL horizontal scrolling differs by platform), so the order is drawn
+ *  mirrored instead: week i lands at weekX(i). */
+const RTL = I18nManager.isRTL;
 
 type ActivityHeatmapGridProps = {
   year: number;
@@ -54,6 +61,7 @@ export function ActivityHeatmapGrid({
   const gridScrollRef = useRef<ScrollView>(null);
   const [gridViewportWidth, setGridViewportWidth] = useState(0);
   const gridWidth = Math.max(0, weeks.length * CELL_STRIDE - 4);
+  const weekX = (weekIndex: number) => (RTL ? weeks.length - 1 - weekIndex : weekIndex) * CELL_STRIDE;
   const { formatLocale } = useLocale();
   // One line, always (founder, 2026-10-16: the row was one line or two by the
   // length of the weekday): a day reads "Wed, Sep 16", the span's own style.
@@ -110,17 +118,19 @@ export function ActivityHeatmapGrid({
     if (gridViewportWidth <= 0 || weekIndex < 0) return;
 
     const maxOffset = Math.max(0, gridWidth - gridViewportWidth);
-    const focusedWeekX = weekIndex * CELL_STRIDE;
+    const focusedWeekX = (RTL ? weeks.length - 1 - weekIndex : weekIndex) * CELL_STRIDE;
+    // The focused week rides near the edge time is heading to, with the weeks before
+    // it in view: the right edge in English, the left in Hebrew.
     const targetOffset = Math.min(
       maxOffset,
-      Math.max(0, focusedWeekX - gridViewportWidth + CELL_STRIDE * 3)
+      Math.max(0, RTL ? focusedWeekX - CELL_STRIDE * 3 : focusedWeekX - gridViewportWidth + CELL_STRIDE * 3)
     );
     const frame = requestAnimationFrame(() => {
       gridScrollRef.current?.scrollTo({ x: targetOffset, animated: false });
     });
 
     return () => cancelAnimationFrame(frame);
-  }, [gridViewportWidth, gridWidth, year, revealToken]);
+  }, [gridViewportWidth, gridWidth, year, revealToken, weeks.length]);
 
   return (
     // The heatmap on paper (2026-10-16, founder picked A): the chosen date is
@@ -184,7 +194,7 @@ export function ActivityHeatmapGrid({
         </View>
       </View>
 
-      <View style={styles.activityGridRow}>
+      <View style={[styles.activityGridRow, RTL ? { flexDirection: "row-reverse" } : null]}>
         <View style={styles.activityWeekdayLabels}>
           {[0, 1, 2, 3, 4, 5, 6].map((day) => getWeekdayName(formatLocale, day, "narrow")).map((label, index) => (
             <Text key={`${label}-${index}`} style={styles.activityWeekdayLabel}>
@@ -224,7 +234,9 @@ export function ActivityHeatmapGrid({
                     style={({ pressed }) => [
                       styles.activityMonthPressable,
                       monthSelected ? styles.activityMonthPressableActive : null,
-                      { start: marker.weekIndex * CELL_STRIDE },
+                      // A month's label starts at its first week: that week's left
+                      // edge, or its right edge in Hebrew (the subtree is pinned LTR).
+                      RTL ? { right: marker.weekIndex * CELL_STRIDE } : { left: marker.weekIndex * CELL_STRIDE },
                       pressed ? styles.pressDown : null,
                     ]}
                     onPress={() => {
@@ -246,7 +258,7 @@ export function ActivityHeatmapGrid({
             </View>
 
             <View style={[styles.activityWeeksWrap, { width: gridWidth }]}>
-              {weeks.map((week, weekIndex) => (
+              {(RTL ? weeks.map((week, weekIndex) => ({ week, weekIndex })).reverse() : weeks.map((week, weekIndex) => ({ week, weekIndex }))).map(({ week, weekIndex }) => (
                 <View key={`${year}-week-${weekIndex}`} style={styles.activityWeekColumn}>
                   {week.map((dayTs) => {
                     const normalizedDayTs = startOfActivityDay(dayTs);
@@ -300,7 +312,11 @@ export function ActivityHeatmapGrid({
               ))}
             </View>
 
-            <SelectionRule startWeek={selectedWeeks?.start ?? -1} endWeek={selectedWeeks?.end ?? -1} />
+            <SelectionRule
+              startWeek={selectedWeeks?.start ?? -1}
+              endWeek={selectedWeeks?.end ?? -1}
+              weekCount={weeks.length}
+            />
           </View>
         </ScrollView>
       </View>
@@ -323,9 +339,11 @@ const CELL_HIT_SLOP = { top: 2, bottom: 2, left: 2, right: 2 };
  * subtle line around the selected block"). The ink tabs' mark for "chosen",
  * so the heatmap speaks the same language; it glides between selections.
  */
-function SelectionRule({ startWeek, endWeek }: { startWeek: number; endWeek: number }) {
+function SelectionRule({ startWeek, endWeek, weekCount }: { startWeek: number; endWeek: number; weekCount: number }) {
   const visible = startWeek >= 0;
-  const left = useSharedValue(Math.max(0, startWeek) * CELL_STRIDE);
+  // The span's left edge: its first week in English, its last in Hebrew (mirrored order).
+  const leftWeek = RTL ? weekCount - 1 - endWeek : startWeek;
+  const left = useSharedValue(Math.max(0, leftWeek) * CELL_STRIDE);
   const width = useSharedValue(visible ? (endWeek - startWeek) * CELL_STRIDE + CELL_SIZE : 0);
   const opacity = useSharedValue(visible ? 1 : 0);
 
@@ -336,10 +354,10 @@ function SelectionRule({ startWeek, endWeek }: { startWeek: number; endWeek: num
     }
     // The ink tabs' own timing: the rule moves exactly as their rule does.
     const timing = { duration: durations.base };
-    left.value = withTiming(startWeek * CELL_STRIDE, timing);
+    left.value = withTiming(leftWeek * CELL_STRIDE, timing);
     width.value = withTiming((endWeek - startWeek) * CELL_STRIDE + CELL_SIZE, timing);
     opacity.value = withTiming(1, { duration: durations.fast });
-  }, [endWeek, left, opacity, startWeek, width]);
+  }, [endWeek, left, leftWeek, opacity, startWeek, width]);
 
   const style = useAnimatedStyle(() => ({
     opacity: opacity.value,

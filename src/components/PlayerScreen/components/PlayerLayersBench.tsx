@@ -556,7 +556,9 @@ const benchStyles = StyleSheet.create({
   tools: {
     gap: 10,
   },
+  // Play, then Solo: left to right in every language, like the strip they sit over.
   playKeys: {
+    direction: "ltr",
     flexDirection: "row",
     alignItems: "center",
     gap: 16,

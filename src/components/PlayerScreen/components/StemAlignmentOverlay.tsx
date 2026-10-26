@@ -384,6 +384,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   headerRow: {
+    // Over a left-to-right strip: Play leads on the left, Zoom closes the right,
+    // in every language (founder, 2026-10-26: play is always on the left).
+    direction: "ltr",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",

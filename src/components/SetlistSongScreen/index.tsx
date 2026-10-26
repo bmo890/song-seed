@@ -20,7 +20,7 @@ import { looksMachineNamed } from "../../domain/titleNaming";
 import { useKeepAwakeWhileFocused } from "../../hooks/useKeepAwakeWhileFocused";
 import { colors, text as textTokens } from "../../design/tokens";
 import { fmtDuration } from "../../utils";
-import { UserText } from "../../i18n";
+import { UserText, playRowFrame, playRowRest } from "../../i18n";
 
 /**
  * A setlist entry's SONG FOLDER — the packaged, stripped-down song page: the
@@ -192,7 +192,7 @@ export function SetlistSongScreen() {
                   feel="surface"
                   // haptics.ts: tap → a control acted.
                   haptic="tap"
-                  style={[styles.partRow, !part.available ? styles.partRowDisabled : null]}
+                  style={[styles.partRow, playRowFrame, !part.available ? styles.partRowDisabled : null]}
                   onPress={() => playEntry(part.clipId)}
                   disabled={!part.available}
                   accessibilityRole="button"
@@ -205,6 +205,8 @@ export function SetlistSongScreen() {
                       <Ionicons name="play" size={13} color={colors.textStrong} />
                     )}
                   </View>
+                  {/* Play leads on the left in every language; the rest follows it. */}
+                  <View style={[playRowRest, { gap: 14 }]}>
                   <View style={styles.partMain}>
                     <UserText
                       value={part.title}
@@ -222,6 +224,7 @@ export function SetlistSongScreen() {
                   <Text style={styles.partDuration}>
                     {part.durationMs != null ? fmtDuration(part.durationMs) : "--:--"}
                   </Text>
+                  </View>
                 </Press>
               );
             })}

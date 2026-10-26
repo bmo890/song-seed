@@ -16,7 +16,7 @@ import type { Songbook } from "../../../types";
 import { availableViewsForSong, type SongbookSong } from "../../../domain/songbookGrouping";
 import { looksMachineNamed } from "../../../domain/titleNaming";
 import { useTranslation } from "react-i18next";
-import { UserText } from "../../../i18n";
+import { UserText, playRowFrame, playRowRest } from "../../../i18n";
 
 type SongbookDetailViewProps = {
   songbook: Songbook;
@@ -177,7 +177,9 @@ export function SongbookDetailView({
             : null;
 
           return (
-            <View style={[bookStyles.songRow, isActive ? bookStyles.songRowDragging : null]}>
+            // Listening, the row plays: ▶ on the left in every language. Editing, it is
+            // a list to arrange and mirrors like any other.
+            <View style={[bookStyles.songRow, editMode ? null : playRowFrame, isActive ? bookStyles.songRowDragging : null]}>
               {editMode ? (
                 <Pressable
                   style={({ pressed }) => [bookStyles.removeBtn, pressed ? styles.pressDown : null]}
@@ -217,6 +219,7 @@ export function SongbookDetailView({
                 </Pressable>
               )}
 
+              <View style={[playRowRest, { gap: 14 }]}>
               <Pressable
                 style={({ pressed }) => [
                   bookStyles.rowMain,
@@ -273,6 +276,7 @@ export function SongbookDetailView({
               ) : (
                 <Ionicons name={dirIcon("chevron-forward")} size={14} color={colors.textMuted} />
               )}
+              </View>
             </View>
           );
         }}

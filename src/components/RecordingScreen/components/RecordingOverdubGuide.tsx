@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
+import { I18nManager, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, type SharedValue } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { collapseIn, collapseOut } from "../../../design/motion";
@@ -337,7 +337,10 @@ function StartFlag({
 }
 
 const cueStyles = StyleSheet.create({
+  // Listen leads on the left in every language (play is always on the left); the
+  // "Starts at · From top" group at the other end follows the language.
   row: {
+    direction: "ltr",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -345,6 +348,7 @@ const cueStyles = StyleSheet.create({
     marginTop: 4,
   },
   start: {
+    direction: I18nManager.isRTL ? "rtl" : "ltr",
     flexDirection: "row",
     alignItems: "baseline",
     gap: 12,
