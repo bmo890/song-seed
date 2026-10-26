@@ -254,6 +254,15 @@ their play button on the left, so the key never covers one (founder,
 **A play triangle never flips**, and its optical nudge is physical
 (`marginLeft`), never `marginStart`.
 
+**A popover hangs from its trigger** at the trailing edge: anchor it with
+`end:`, never `right:`, so in Hebrew it opens under the button on the left.
+Hairlines and curls that sit between two things (a toast's divider before its
+action, the evolution thread curling into a card) use `borderStart…`.
+
+**A signed number** ("+2", "−25", "-12 cents") goes through
+`signedNumberText()`: without it Hebrew shows "2+". The marks it adds keep the
+sign on the digits and the line reading from the right ("+2 ח״ט").
+
 **Alignment ≠ reading order (founder ruling 2026-09-11).** These are two decisions
 and RTL forces you to make them separately. ALIGNMENT follows the UI's start edge
 by default: a Hebrew collection name in the English app sits on the left with the

@@ -31,7 +31,7 @@ import { haptic } from "../../../design/haptics";
 import { fmtDuration } from "../../../utils";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { UserText } from "../../../i18n";
+import { UserText, signedNumberText } from "../../../i18n";
 
 /**
  * A take's layers, behind the lanes (2026-10-22, founder: "the lanes as the list").
@@ -336,19 +336,19 @@ export const PlayerLayersBench = React.forwardRef<LayerSheetHandle, Props>(funct
       </View>
       <View style={benchStyles.nudgeRow}>
         <NudgeKey
-          label={t("player.nudgeMs", { value: `−${OVERDUB_STEM_NUDGE_STEP_LARGE_MS}` })}
+          label={t("player.nudgeMs", { value: signedNumberText(`−${OVERDUB_STEM_NUDGE_STEP_LARGE_MS}`) })}
           onPress={() => onNudgeStem(selectedStem.id, -OVERDUB_STEM_NUDGE_STEP_LARGE_MS)}
         />
         <NudgeKey
-          label={t("player.nudgeMs", { value: `−${OVERDUB_STEM_NUDGE_STEP_SMALL_MS}` })}
+          label={t("player.nudgeMs", { value: signedNumberText(`−${OVERDUB_STEM_NUDGE_STEP_SMALL_MS}`) })}
           onPress={() => onNudgeStem(selectedStem.id, -OVERDUB_STEM_NUDGE_STEP_SMALL_MS)}
         />
         <NudgeKey
-          label={t("player.nudgeMs", { value: `+${OVERDUB_STEM_NUDGE_STEP_SMALL_MS}` })}
+          label={t("player.nudgeMs", { value: signedNumberText(`+${OVERDUB_STEM_NUDGE_STEP_SMALL_MS}`) })}
           onPress={() => onNudgeStem(selectedStem.id, OVERDUB_STEM_NUDGE_STEP_SMALL_MS)}
         />
         <NudgeKey
-          label={t("player.nudgeMs", { value: `+${OVERDUB_STEM_NUDGE_STEP_LARGE_MS}` })}
+          label={t("player.nudgeMs", { value: signedNumberText(`+${OVERDUB_STEM_NUDGE_STEP_LARGE_MS}`) })}
           onPress={() => onNudgeStem(selectedStem.id, OVERDUB_STEM_NUDGE_STEP_LARGE_MS)}
         />
         <Pressable

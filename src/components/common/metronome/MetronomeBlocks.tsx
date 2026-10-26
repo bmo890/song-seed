@@ -1,5 +1,5 @@
 import React, { type ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { I18nManager, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Slider } from "../Slider";
 import { haptic } from "../../../design/haptics";
@@ -650,7 +650,9 @@ export const ms = StyleSheet.create({
   // ── Bar strip ──
   // The bar on the paper (2026-10-15): no box. Editing (Custom) earns the
   // tonal wash, the state colour, so you can see the dots are live.
+  // Beats run left to right in every language, like the count-in dots.
   bar: {
+    direction: "ltr",
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
@@ -703,6 +705,7 @@ export const ms = StyleSheet.create({
   },
   barTrail: {
     marginStart: "auto",
+    writingDirection: I18nManager.isRTL ? "rtl" : "ltr",
     fontSize: 11,
     fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.textMuted,

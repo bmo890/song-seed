@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Stepper } from "./Stepper";
 import { Press } from "./Press";
 import { ensureProFor } from "./proUpsell";
+import { signedNumberText } from "../../i18n/direction";
 
 type TransposeChipProps = {
   /** The song the chart belongs to: transposing a received parcel's chart is free. */
@@ -21,7 +22,7 @@ type TransposeChipProps = {
  *  reset glyph appears only while shifted. Display-level only. */
 export function TransposeChip({ ideaId, offset, onNudge, onReset }: TransposeChipProps) {
   const { t } = useTranslation();
-  const value = formatTransposeOffset(offset);
+  const value = signedNumberText(formatTransposeOffset(offset));
   return (
     <View style={chipStyles.row}>
       <Text style={chipStyles.label}>{t("common.transpose")}</Text>

@@ -5,9 +5,9 @@ import { styles } from "../styles";
 import { type ClipVersion } from "../../../types";
 import { useSongScreen } from "../provider/SongScreenProvider";
 import { isClipTitleAutoNamed } from "../../../domain/clipPresentation";
-import { colors } from "../../../design/tokens";
+import { colors, spacing } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
-import { UserText } from "../../../i18n";
+import { UserText, playRowFrame, playRowRest } from "../../../i18n";
 
 type PrimaryTakeLineProps = {
   clip: ClipVersion;
@@ -30,7 +30,7 @@ export function PrimaryTakeLine({ clip, onLocate }: PrimaryTakeLineProps) {
   const titleIsEarned = !!clip.title && !isClipTitleAutoNamed(clip);
 
   return (
-    <View style={styles.songDetailPrimaryLine} pointerEvents="box-none">
+    <View style={[styles.songDetailPrimaryLine, playRowFrame]} pointerEvents="box-none">
       <Press
         feel="glyph"
         haptic="tap"
@@ -42,30 +42,32 @@ export function PrimaryTakeLine({ clip, onLocate }: PrimaryTakeLineProps) {
       >
         <Ionicons name="play" size={16} color={colors.textStrong} style={{ marginLeft: 2 }} />
       </Press>
-      <Press
-        feel="glyph"
-        haptic="navigate"
-        style={styles.songDetailPrimaryLineName}
-        hitSlop={{ top: 8, bottom: 8 }}
-        onPress={onLocate ?? (() => screen.setSongTab("takes"))}
-        accessibilityRole="button"
-        accessibilityLabel={t("songDetail.findPrimaryTake")}
-      >
-        <UserText
-          value={clip.title}
-          style={
-            titleIsEarned
-              ? styles.songDetailPrimaryLineTitleSerif
-              : styles.songDetailPrimaryLineTitle
-          }
-          numberOfLines={1}
+      <View style={[playRowRest, { gap: spacing.sm }]} pointerEvents="box-none">
+        <Press
+          feel="glyph"
+          haptic="navigate"
+          style={styles.songDetailPrimaryLineName}
+          hitSlop={{ top: 8, bottom: 8 }}
+          onPress={onLocate ?? (() => screen.setSongTab("takes"))}
+          accessibilityRole="button"
+          accessibilityLabel={t("songDetail.findPrimaryTake")}
         >
-          {clip.title || t("common.untitled")}
-        </UserText>
-      </Press>
-      <Text style={styles.songDetailPrimaryLineLabel} numberOfLines={1}>
-        {t("songDetail.primaryTake")}
-      </Text>
+          <UserText
+            value={clip.title}
+            style={
+              titleIsEarned
+                ? styles.songDetailPrimaryLineTitleSerif
+                : styles.songDetailPrimaryLineTitle
+            }
+            numberOfLines={1}
+          >
+            {clip.title || t("common.untitled")}
+          </UserText>
+        </Press>
+        <Text style={styles.songDetailPrimaryLineLabel} numberOfLines={1}>
+          {t("songDetail.primaryTake")}
+        </Text>
+      </View>
     </View>
   );
 }

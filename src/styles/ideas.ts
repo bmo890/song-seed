@@ -65,7 +65,10 @@ export const ideasStyles = {
   // Filter/sort popovers hang from the toolbar's trailing edge (the glyphs
   // live at the end of the search row).
   ideasPopoverMenuEnd: {
-    right: 0,
+    // Logical: the glyphs sit at the end edge (the left in Hebrew), and the menu
+    // hangs from them. Absolute insets are not swapped in RTL, so `right` left it
+    // stranded on the far side of the screen.
+    end: 0,
   },
   ideasStageChipsScroll: {
     maxHeight: 168,
@@ -128,14 +131,15 @@ export const ideasStyles = {
     ...StyleSheet.absoluteFillObject,
     zIndex: 1,
   },
-  // Floats clear of the top-right corner: dropped below the nav row (top 54)
-  // and inset from the edge (right 12). Wide enough that dev/import rows stay
-  // single-line.
+  // Hangs from the "…" at the header's end corner (top-right in English,
+  // top-left in Hebrew): dropped below the nav row (top 54), inset 12. Logical
+  // `end`, because absolute insets are not swapped in RTL. Wide enough that
+  // dev/import rows stay single-line.
   // The "…" popovers hold PopoverMenuRows, which carry their own inset.
   ideasHeaderOverflowMenu: {
     position: "absolute",
     top: 54,
-    right: 12,
+    end: 12,
     minWidth: 230,
     maxWidth: 280,
     zIndex: 2,

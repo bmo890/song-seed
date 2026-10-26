@@ -182,8 +182,9 @@ const s = StyleSheet.create({
     flexShrink: 1,
   },
   actionBtn: {
-    borderLeftWidth: 1,
-    borderLeftColor: colors.borderSubtle,
+    // The hairline sits between the words and the action in both directions.
+    borderStartWidth: 1,
+    borderStartColor: colors.borderSubtle,
     paddingStart: 10,
     marginStart: 2,
   },

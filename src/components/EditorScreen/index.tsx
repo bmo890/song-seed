@@ -52,6 +52,7 @@ import { fmtDuration } from "../../utils";
 import { canSnapToGrid, snapToGrid } from "../../domain/editSnap";
 import { CUT_COLOR, KEEP_COLOR, MIN_REGION_DURATION_MS } from "./helpers";
 import { UserFacingError, userFacingMessage } from "../../i18n/userFacingError";
+import { signedNumberText } from "../../i18n/direction";
 
 /** Picking an end edge cues two seconds before it, as the player's loop does. */
 const EDGE_END_PREROLL_MS = 2000;
@@ -864,9 +865,9 @@ export function EditorScreen() {
                 }
                 summaryLine={
                     exportFlow.transformExportModalVisible
-                        ? `${transformState.playbackRate.toFixed(2)}x · ${
-                              transformState.pitchShiftSemitones > 0 ? "+" : ""
-                          }${transformState.pitchShiftSemitones} ${t("player.semitones")}`
+                        ? `${transformState.playbackRate.toFixed(2)}x · ${signedNumberText(
+                              `${transformState.pitchShiftSemitones > 0 ? "+" : ""}${transformState.pitchShiftSemitones}`
+                          )} ${t("player.semitones")}`
                         : undefined
                 }
                 sourceTitle={sourceClip?.title ?? ""}

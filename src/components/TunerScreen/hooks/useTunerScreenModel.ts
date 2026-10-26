@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { ExpoAudioStreamModule } from "@siteed/audio-studio";
 import { AppState, type EmitterSubscription } from "react-native";
 import { haptic } from "../../../design/haptics";
+import { signedNumberText } from "../../../i18n/direction";
 import {
   TRACKER_CONFIG,
   createTrackerState,
@@ -77,10 +78,10 @@ function formatDetuneBadge(centsOff: number | null, side: "flat" | "sharp") {
   }
 
   if (side === "flat") {
-    return centsOff < 0 ? `-${rounded}` : "--";
+    return centsOff < 0 ? signedNumberText(`-${rounded}`) : "--";
   }
 
-  return centsOff > 0 ? `+${rounded}` : "--";
+  return centsOff > 0 ? signedNumberText(`+${rounded}`) : "--";
 }
 
 function getDetuneTone(absCents: number) {

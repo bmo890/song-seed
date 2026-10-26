@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
   turning: {
     position: "absolute",
     top: spacing.md,
-    right: spacing.md,
+    end: spacing.md,
     width: 34,
     height: 34,
     borderRadius: radii.round,
@@ -669,7 +669,7 @@ const styles = StyleSheet.create({
     fontVariant: ["tabular-nums"],
   },
   strip: { flex: 1 },
-  stripContent: { gap: spacing.xs, alignItems: "center", paddingRight: spacing.md, paddingVertical: 4 },
+  stripContent: { gap: spacing.xs, alignItems: "center", paddingEnd: spacing.md, paddingVertical: 4 },
   scrap: {
     flexDirection: "row",
     alignItems: "center",

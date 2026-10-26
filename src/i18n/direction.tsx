@@ -95,6 +95,16 @@ export function contentTextAlign(direction: UiDirection): { textAlign: "left" | 
   return { textAlign: physicalTextAlign(direction === "rtl" ? "right" : "left") };
 }
 
+/**
+ * A signed number ("+2", "−3", "-12") shown in Hebrew: the bidi algorithm moves
+ * a leading sign to the far side of the digits ("2+"). A left-to-right mark
+ * glues the sign to its digits; the right-to-left mark before it keeps the line
+ * itself reading from the right ("+2 ח״ט", number first). A no-op in LTR.
+ */
+export function signedNumberText(value: string): string {
+  return I18nManager.isRTL ? `\u200F\u200E${value}` : value;
+}
+
 /** The style key to use when you mean the physical left/right edge for an
  *  inset, padding or margin. Those are not swapped here, so it is the edge
  *  itself; kept so call sites say what they mean. */

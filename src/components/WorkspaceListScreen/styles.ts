@@ -55,7 +55,8 @@ export const styles = StyleSheet.create({
   // The same popover card as every toolbar menu (ideasSortMenu).
   sortMenu: {
     position: "absolute",
-    right: 0,
+    // Hangs from the sort pill at the trailing edge, in both directions.
+    end: 0,
     top: 4,
     backgroundColor: colors.surface,
     borderRadius: radii.xl,

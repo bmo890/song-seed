@@ -27,10 +27,10 @@ export const songClipToolbarStyles = StyleSheet.create({
     gap: 6,
     marginEnd: -8,
   },
-  // Filter popover hangs from the row's trailing edge (the trigger now sits
-  // at the far right), so anchor right to keep it on screen.
+  // Filter popover hangs from the row's trailing edge, where its trigger sits
+  // (the left in Hebrew), so it stays on screen in both directions.
   menuOffsetRight: {
-    right: 0,
+    end: 0,
     top: 38,
   },
   // Selection-mode controls row: same slot and height as the view switch, so

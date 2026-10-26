@@ -7,6 +7,7 @@ import { colors, text } from "../../design/tokens";
 import { Press } from "./Press";
 import { Slider } from "./Slider";
 import { Stepper } from "./Stepper";
+import { signedNumberText } from "../../i18n/direction";
 
 type SpeedPitchDialsProps = {
   playbackSpeed: number;
@@ -143,7 +144,7 @@ export function SpeedPitchDials({
         >
           <Text style={[d.dialValue, d.pitchValue, pitchIsChanged ? d.dialValueChanged : null]}>
             {supportsPitchShift
-              ? `${pitchShiftSemitones > 0 ? "+" : ""}${pitchShiftSemitones} ${t("player.semitones")}`
+              ? `${signedNumberText(`${pitchShiftSemitones > 0 ? "+" : ""}${pitchShiftSemitones}`)} ${t("player.semitones")}`
               : "—"}
           </Text>
         </Stepper>

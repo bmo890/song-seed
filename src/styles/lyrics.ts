@@ -93,7 +93,8 @@ export const lyricsStyles = {
   lyricsScrollIndicatorTrack: {
     position: "absolute",
     top: 4,
-    right: 4,
+    // The trailing edge, where the system puts its own indicator in Hebrew too.
+    end: 4,
     width: 4,
     borderRadius: 999,
     backgroundColor: "rgba(27,28,26,0.08)",

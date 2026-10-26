@@ -66,9 +66,11 @@ export const songDetailHistoryStyles = {
   },
   // Continuous vertical thread line (Reddit-style spine). Negative top/bottom
   // bridge the FlatList row gap so the line reads as one unbroken thread.
+  // The guide sits on the card's leading side, so spine and curl follow the
+  // reading direction (start/end), curling toward the card in both.
   songDetailThreadSpine: {
     position: "absolute",
-    left: 25,
+    start: 25,
     top: -5,
     bottom: -5,
     width: 1.5,
@@ -77,14 +79,14 @@ export const songDetailHistoryStyles = {
   // Curved branch (╰) that peels off the spine and curls into each reply card.
   songDetailThreadCurve: {
     position: "absolute",
-    left: 25,
+    start: 25,
     top: -5,
     width: 13,
     height: 28,
-    borderLeftWidth: 1.5,
+    borderStartWidth: 1.5,
     borderBottomWidth: 1.5,
     borderColor: "#D7C2BD",
-    borderBottomLeftRadius: 10,
+    borderBottomStartRadius: 10,
   },
   songDetailEvolutionExpandRow: {
     flex: 1,

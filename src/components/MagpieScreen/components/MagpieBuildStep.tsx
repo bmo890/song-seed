@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
   paletteHead: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginBottom: spacing.xs },
   paletteLabel: { fontFamily: "PlusJakartaSans_700Bold", fontSize: 10, letterSpacing: 0.8, textTransform: "uppercase", color: colors.textMuted, flex: 1 },
   headKey: { minHeight: 36, marginStart: spacing.sm },
-  stripContent: { gap: spacing.xs, alignItems: "center", paddingRight: spacing.md },
+  stripContent: { gap: spacing.xs, alignItems: "center", paddingEnd: spacing.md },
   chip: {
     flexDirection: "row",
     alignItems: "center",

@@ -17,6 +17,7 @@ import { colors, text } from "../../design/tokens";
 import { InkOption } from "./InkOption";
 import { Slider } from "./Slider";
 import { Press } from "./Press";
+import { signedNumberText } from "../../i18n/direction";
 
 /** i18n keys for the tone keys, by flag. */
 const TONE_FLAG_LABEL_KEYS: Record<OverdubToneFlag, string> = {
@@ -73,7 +74,7 @@ export function LevelToneStrip({
           ) : null}
           <View style={s.spacer} />
           <Text style={[s.readout, levelBent ? s.readoutBent : null]}>
-            {`${shownDb > 0 ? "+" : ""}${shownDb} ${t("player.dB")}`}
+            {`${signedNumberText(`${shownDb > 0 ? "+" : ""}${shownDb}`)} ${t("player.dB")}`}
           </Text>
         </View>
         <Slider

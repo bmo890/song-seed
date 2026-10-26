@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import { colors, spacing } from "../../design/tokens";
 import type { ChordSheet, LyricsLine } from "../../types";
-import { UserText } from "../../i18n";
+import { UserText, signedNumberText } from "../../i18n";
 import { SerifChordLines } from "../LyricsVersionScreen/components/chords/SerifChordChart";
 import {
   READING_LYRIC_LINE_HEIGHT,
@@ -130,7 +130,7 @@ export function PlaybackKeyRow({ pitchSemitones }: { pitchSemitones: number }) {
   const { t } = useTranslation();
   const withCapo = useChartPrefsStore((state) => state.playAlongWithCapo);
   if (!pitchSemitones) return null;
-  const value = formatTransposeOffset(pitchSemitones);
+  const value = signedNumberText(formatTransposeOffset(pitchSemitones));
   const { sameChords } = playbackChordShift(pitchSemitones, withCapo);
   const raised = pitchSemitones > 0;
   const setWithCapo = (next: boolean) => useChartPrefsStore.getState().setPlayAlongWithCapo(next);

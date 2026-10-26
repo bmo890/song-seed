@@ -1,4 +1,4 @@
-import { I18nManager, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
 import { colors, radii, spacing } from "../design/tokens";
 
@@ -284,8 +284,10 @@ export const songDetailStyles = {
   // paper under the meta line. Transport rows never mirror (docs/design-system.md
   // "Direction policy"): the play glyph sits where time starts in every
   // language, so `row-reverse` under RTL rather than an explicit direction.
+  // A playback row: ▶ on the left in every language, the words after it
+  // following the language (playRowFrame / playRowRest at the call site).
   songDetailPrimaryLine: {
-    flexDirection: I18nManager.isRTL ? "row-reverse" : "row",
+    flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
     minHeight: 34,
