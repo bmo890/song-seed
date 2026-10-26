@@ -608,7 +608,10 @@ const benchStyles = StyleSheet.create({
   strip: {
     paddingHorizontal: 0,
   },
+  // Earlier on the left, later on the right, then Original: a time axis, left to
+  // right in every language like the strip above it.
   nudgeRow: {
+    direction: "ltr",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",

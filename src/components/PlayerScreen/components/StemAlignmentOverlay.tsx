@@ -394,6 +394,10 @@ const styles = StyleSheet.create({
   // Quiet ink — the zoom toggle is a whisper, not a chip.
   // No box: the bars sit on the page surface — whitespace does the framing.
   stage: {
+    // Time: the bars, ticks, playhead and the drag all run left to right in every
+    // language, like the reel. Unpinned, the bars mirrored in Hebrew while the drag
+    // and ticks stayed physical, so dragging moved the layer backwards (2026-10-26).
+    direction: "ltr",
     height: VIEW_HEIGHT,
     alignItems: "center",
     justifyContent: "center",
