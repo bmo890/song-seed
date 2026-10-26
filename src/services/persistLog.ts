@@ -57,6 +57,9 @@ export type PersistLogEvent =
     | "step.slow"
     | "record.trace"
     | "record.timing"
+    // Playback click: the full player's metronome over a recorded take
+    | "click.started"
+    | "click.failed"
     // Media safety net
     | "media.untrashed";
 

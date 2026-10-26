@@ -19,6 +19,7 @@ import {
 } from "../domain/metronome";
 import { resolveCurrentRouteLatencyProfile } from "../services/latencyModel";
 import { useStore } from "../state/useStore";
+import { describeError, persistLog } from "../services/persistLog";
 
 /**
  * The playback click: sounds a take's own beat grid along with playback, from any
@@ -227,6 +228,10 @@ function usePlaybackClickNative({
       const rate = rateRef.current;
       const params = clickEngineParamsAt({ grid: gridRef.current, positionMs, rate });
       if (!params) {
+        persistLog(
+          "click.failed",
+          `no params: grid=${gridRef.current ? "yes" : "none"} pos=${Math.round(positionMs)} rate=${rate}`
+        );
         await stopEngine();
         return;
       }
@@ -283,9 +288,23 @@ function usePlaybackClickNative({
         }
       } catch (error) {
         console.warn("[timing] playback click start failed", error);
+        // A silent click on a phone leaves no trace without this: the diagnostic
+        // log is what the writer can share (Settings > Help & about).
+        persistLog("click.failed", describeError(error));
         return;
       }
       if (syncTokenRef.current !== token) return;
+      // Whether the engine is really running once started: the one fact a silent click
+      // needs (2026-10-26, Android map runs). Off the critical path.
+      void SongNookMetronomeModule!
+        .getState?.()
+        .then((state: { isRunning?: boolean }) =>
+          persistLog(
+            "click.started",
+            `${usedNativeMap ? `map:${nativeMapSegmentCount}` : "phase"} bpm=${params.bpm} rate=${rate} running=${state?.isRunning ?? "?"}`
+          )
+        )
+        .catch((error: unknown) => persistLog("click.failed", `state: ${describeError(error)}`));
 
       // Tempo-segment boundary: break phase there and re-derive — needed only on
       // engines without native maps (the map engine lands changes itself).
@@ -370,6 +389,10 @@ function usePlaybackClickNative({
       void stopEngine();
     };
   }, [stopEngine]);
+
+  useEventListener(SongNookMetronomeModule!, "onError", ({ message }: { message?: string }) => {
+    if (engineOwnedRef.current) persistLog("click.failed", `engine: ${message ?? "unknown"}`);
+  });
 
   useEventListener(SongNookMetronomeModule!, "onCountInComplete", () => {
     if (!isCountingInRef.current) {
