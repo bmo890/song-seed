@@ -197,9 +197,9 @@ export const ideasStyles = {
     color: "#84736f",
     letterSpacing: 0.6,
   },
+  // Horizontal edge set by FloatingActionDock (bottom-right in every language).
   ideasFabWrap: {
     position: "absolute",
-    right: 18,
     bottom: 20,
     alignItems: "flex-end",
     gap: 10,

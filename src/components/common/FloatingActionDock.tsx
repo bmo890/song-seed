@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useIsFocused } from "@react-navigation/native";
-import { Pressable, View, StyleProp, ViewStyle } from "react-native";
+import { I18nManager, Pressable, View, StyleProp, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { styles } from "../../styles";
@@ -28,6 +28,15 @@ type FloatingActionDockProps = {
 /** The record key, riding above the media dock and the import bar. Creation
  *  beyond a take lives in each screen's overflow (2026-10-20: the "+" create
  *  menu had no callers left and is gone). */
+/**
+ * The record key stays bottom-right in Hebrew too (founder, 2026-10-26): it sits
+ * under the right thumb, where people reach for it, rather than mirroring like
+ * the rest of the chrome. Logical edges are the reliable way to say it (the
+ * left/right swap is not applied to absolute insets here): the right edge is
+ * the end in English and the start in Hebrew.
+ */
+const RIGHT_EDGE: ViewStyle = I18nManager.isRTL ? { start: 18 } : { end: 18 };
+
 export function FloatingActionDock({
   onRecord,
   wrapStyle,
@@ -61,7 +70,7 @@ export function FloatingActionDock({
   });
 
   return (
-    <View pointerEvents="box-none" style={[styles.ideasFabWrap, { bottom: bottomOffset }, wrapStyle]}>
+    <View pointerEvents="box-none" style={[styles.ideasFabWrap, RIGHT_EDGE, { bottom: bottomOffset }, wrapStyle]}>
       <View
         style={styles.ideasFabRow}
         onLayout={(event) => {
