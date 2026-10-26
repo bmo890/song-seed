@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { colors, spacing } from "../../../../design/tokens";
+import { colors } from "../../../../design/tokens";
 import { sortedPalette } from "../../../../domain/chords";
 import type { LyricsVersion, SongChordPaletteItem } from "../../../../types";
 import { styles as screenStyles } from "../../styles";
@@ -38,11 +38,12 @@ export function ChordChartEditor({ ideaId, version, palette }: Props) {
 
   return (
     <View style={screenStyles.flexFill}>
-      <View style={chartControls.row}>
-        <HelpButton onPress={() => setHelpVisible(true)} size={18} />
-      </View>
-
-      <ChordPaletteBar palette={sorted} armedId={editing.armed?.id ?? null} onToggleArmed={editing.toggleArmed} />
+      <ChordPaletteBar
+        palette={sorted}
+        armedId={editing.armed?.id ?? null}
+        onToggleArmed={editing.toggleArmed}
+        accessory={<HelpButton onPress={() => setHelpVisible(true)} size={18} />}
+      />
 
       <View style={[screenStyles.lyricsPreviewWrap, screenStyles.lyricsPreviewWrapExpanded, chartStyles.chartCardEdit]}>
         <ChordChart
@@ -76,15 +77,6 @@ export function ChordChartEditor({ ideaId, version, palette }: Props) {
     </View>
   );
 }
-
-const chartControls = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-});
 
 const chartStyles = StyleSheet.create({
   // Edit mode reads as a white, dashed "you're editing" surface — mirrors the

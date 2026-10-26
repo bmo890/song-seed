@@ -4,7 +4,8 @@ import { Press } from "../../common/Press";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
-import { colors } from "../../../design/tokens";
+import { colors, spacing, text } from "../../../design/tokens";
+import { useOriginLabel } from "../../../hooks/useOriginLabel";
 import { styles } from "../styles";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { useLyricsVersionScreenModel } from "../hooks/useLyricsVersionScreenModel";
@@ -25,6 +26,7 @@ export function LyricsVersionScreenContent() {
   const [chordEditMode, setChordEditMode] = useState(false);
   const [exportVisible, setExportVisible] = useState(false);
   const [songbookChooserVisible, setSongbookChooserVisible] = useState(false);
+  const originLabel = useOriginLabel();
 
   // "Back" steps up exactly one level: an edit mode returns to the version view;
   // the version view returns to the song. (cancelEdit confirms if there are
@@ -90,8 +92,11 @@ export function LyricsVersionScreenContent() {
         }
       />
 
-      <Text style={styles.subtitle}>
-        {model.projectIdea.title} · {model.versionMeta}
+      {/* The sketch's name only when back doesn't already say it. */}
+      <Text style={headerStyles.meta} numberOfLines={1}>
+        {sameName(originLabel, model.projectIdea.title)
+          ? model.versionMeta
+          : `${model.projectIdea.title} · ${model.versionMeta}`}
       </Text>
 
       <KeyboardAvoidingView
@@ -189,7 +194,16 @@ export function LyricsVersionScreenContent() {
   );
 }
 
+function sameName(a: string | null, b: string) {
+  return !!a && a.trim().toLocaleLowerCase() === b.trim().toLocaleLowerCase();
+}
+
 const headerStyles = StyleSheet.create({
+  meta: {
+    ...text.supporting,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+  },
   exportBtn: {
     width: 36,
     height: 36,

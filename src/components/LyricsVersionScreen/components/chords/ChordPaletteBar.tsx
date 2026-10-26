@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
@@ -10,23 +11,36 @@ type Props = {
   palette: SongChordPaletteItem[];
   armedId: string | null;
   onToggleArmed: (item: SongChordPaletteItem) => void;
+  /** Sits at the end of the hint line (the editor's help glyph), so the
+   *  editor's chrome is one line, not two. Shown even with no palette. */
+  accessory?: ReactNode;
 };
 
 /** Persistent quick-insert row in chord-edit mode. Tap a chord to "arm" it, then
  * tap a lyric position to drop it (repeatable). Tap again to disarm. Keys match
  * the chord picker's: ink on paper, the armed one in the tonal wash. */
-export function ChordPaletteBar({ palette, armedId, onToggleArmed }: Props) {
+export function ChordPaletteBar({ palette, armedId, onToggleArmed, accessory }: Props) {
   const { t } = useTranslation();
-  if (palette.length === 0) return null;
+  if (palette.length === 0) {
+    return accessory ? (
+      <View style={[styles.wrap, styles.labelRow]}>
+        <View style={styles.spacer} />
+        {accessory}
+      </View>
+    ) : null;
+  }
   const armed = palette.find((item) => item.id === armedId) ?? null;
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.label}>
-        {armed
-          ? t("chordEditor.paletteArmed", { chord: tidyChordName(armed.displayText) })
-          : t("chordEditor.paletteHint")}
-      </Text>
+      <View style={styles.labelRow}>
+        <Text style={styles.label} numberOfLines={1}>
+          {armed
+            ? t("chordEditor.paletteArmed", { chord: tidyChordName(armed.displayText) })
+            : t("chordEditor.paletteHint")}
+        </Text>
+        {accessory}
+      </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
         {palette.map((item) => {
           const active = item.id === armedId;
@@ -58,7 +72,14 @@ const styles = StyleSheet.create({
     gap: 4,
     marginBottom: spacing.sm,
   },
+  spacer: { flex: 1 },
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
   label: {
+    flex: 1,
     ...textTokens.annotation,
     color: colors.textSecondary,
   },
