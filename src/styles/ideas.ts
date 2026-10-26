@@ -1,4 +1,4 @@
-import { StyleSheet } from "react-native";
+import { I18nManager, StyleSheet } from "react-native";
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
 import { colors, radii, shadows } from "../design/tokens";
 
@@ -197,7 +197,7 @@ export const ideasStyles = {
     color: "#84736f",
     letterSpacing: 0.6,
   },
-  // Horizontal edge set by FloatingActionDock (the end edge: left in Hebrew).
+  // Horizontal edge set by FloatingActionDock (bottom-right in every language).
   ideasFabWrap: {
     position: "absolute",
     bottom: 20,
@@ -281,7 +281,9 @@ export const ideasStyles = {
   },
   ideaDenseRowSelected: { backgroundColor: "#EDE9E4" },
   ideaDenseRowNowPlaying: { backgroundColor: "rgba(184,125,107,0.08)" },
-  ideaDenseInner: { flexDirection: "row", alignItems: "center", gap: 10 },
+  // Compact rows are playback rows too: ▶ on the left in every language; the
+  // title and its meta follow the language inside ideaDenseMain.
+  ideaDenseInner: { direction: "ltr", flexDirection: "row", alignItems: "center", gap: 10 },
   // Bare glyph — no circle, no border. The Pressable's hitSlop supplies the
   // ~44pt target; this box just centers the play/pause icon.
   ideaDensePlay: {
@@ -290,7 +292,7 @@ export const ideasStyles = {
     justifyContent: "center",
     flexShrink: 0,
   },
-  ideaDenseMain: { flex: 1, minWidth: 0 },
+  ideaDenseMain: { direction: I18nManager.isRTL ? "rtl" : "ltr", flex: 1, minWidth: 0 },
   ideaDenseTitle: {
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 14,
@@ -314,15 +316,18 @@ export const ideasStyles = {
   },
   // The compact preview extend: elapsed · draggable scrub line · duration · ✕,
   // sitting under the title so it aligns past the play glyph.
+  // The scrub line sits under the title, past the play glyph, which is on the
+  // left in every language: physical padding, left to right.
   ideaDenseScrubRow: {
+    direction: "ltr",
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     marginTop: 6,
-    paddingStart: 30,
+    paddingLeft: 30,
   },
-  // elapsed · scrub line · duration: a timeline, left to right in Hebrew too.
-  // The ✕ beside it follows the row.
+  // elapsed · scrub line · duration: a timeline, left to right in Hebrew too,
+  // with the ✕ at its right end.
   ideaDenseScrubTimeline: {
     flex: 1,
     direction: "ltr",

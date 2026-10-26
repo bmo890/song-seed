@@ -1,4 +1,4 @@
-import { StyleSheet } from "react-native";
+import { I18nManager, StyleSheet } from "react-native";
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
 import { colors, radii, shadows } from "../design/tokens";
 
@@ -85,14 +85,19 @@ export const ideasListStyles = {
     borderColor: "rgba(184,125,107,0.55)",
   },
   ideasListCardRow: {
-    // The card is a list row and mirrors with the language (founder, 2026-10-26:
-    // Apple Music / Spotify in Hebrew): play leads at the start edge. Only the
-    // timeline inside (waveform, scrub bar, elapsed) stays left to right.
+    // A clip card is a playback row: [▶ waveform →] reads left to right in every
+    // language (founder, 2026-10-26: media playback is the industry exception to
+    // mirroring). The frame is pinned; the words inside follow the language
+    // (ideasListCardMain).
+    direction: "ltr",
     flexDirection: "row",
     alignItems: "stretch",
     gap: 10,
   },
   ideasListCardMain: {
+    // Back to the UI's direction inside the pinned frame: in Hebrew the title and
+    // meta rows read from the right (title right, duration left).
+    direction: I18nManager.isRTL ? "rtl" : "ltr",
     flex: 1,
     minWidth: 0,
     gap: 3,
@@ -105,6 +110,8 @@ export const ideasListStyles = {
   // 3 (gap) + 3 (marginTop) + 2 (zone slack) = 8 above the bars,
   // 2 (zone slack) + 2 (marginBottom) + 3 (gap) = 7 below.
   ideaCardStripZone: {
+    // The waveform and the ✕ that stops it ride one axis: left to right.
+    direction: "ltr",
     height: 18,
     marginTop: 3,
     marginBottom: 2,

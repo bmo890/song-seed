@@ -40,7 +40,7 @@ export function PrimaryTakeLine({ clip, onLocate }: PrimaryTakeLineProps) {
         accessibilityRole="button"
         accessibilityLabel={t("songDetail.playPrimaryTake")}
       >
-        <Ionicons name="play" size={16} color={colors.textStrong} style={{ marginStart: 2 }} />
+        <Ionicons name="play" size={16} color={colors.textStrong} style={{ marginLeft: 2 }} />
       </Press>
       <Press
         feel="glyph"

@@ -665,8 +665,9 @@ const local = StyleSheet.create({
   leadActive: {
     backgroundColor: colors.primary,
   },
+  // The play triangle never mirrors, so its optical nudge is physical.
   playGlyph: {
-    marginStart: 2,
+    marginLeft: 2,
   },
   rowMain: {
     flex: 1,

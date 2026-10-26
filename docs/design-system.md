@@ -213,17 +213,22 @@ retain left-to-right"), and what Apple Music's Hebrew player does:
 
 **Mirrors (it is layout):** reading order, headers, lists and their rows (the
 play queue, playlists, compilations: number on the right, drag handle on the
-left), idea cards and the mini player (play and title at the start edge, as
-Apple Music and Spotify do in Hebrew; the waveform, scrub line and
-prev/play/next inside them stay left to right, and the play glyph never flips),
+left), the mini player's frame (queue and title at the start edge, as Apple
+Music does in Hebrew; its prev/play/next and progress line stay left to right),
 menus, tabs and segment order, the side drawer (opens from the right),
+non-media progress (an import or backup bar fills from the right, a process's
+steps run right to left),
 back/forward chevrons, toggles, and value controls: a slider that sets how much
 (size, volume, level, tempo, speed) fills from the right, and a −/+ stepper puts
 − on the right. `Slider` mirrors by default for this reason.
 
 **Never mirrors:**
 1. **Time.** Play/previous/next and every transport bar (the player's, the
-   mini player's, the recorder's Discard · Record · Save), the reel, waveforms,
+   mini player's, the recorder's Discard · Record · Save), every playback row
+   (founder, 2026-10-26): a clip card, a compact clip row and a take in a
+   sketch's history read `[▶ waveform →]` with the play button on the LEFT in
+   Hebrew too; only the words inside follow the language (the title sits at
+   the right, as all text does). The reel, waveforms,
    the minimap, scrub bars, layer lanes, marks and loops on the reel, and the
    controls that move a position on it (the inspector's edge chips, nudge
    carets and position slider: `Slider mirrors={false}`, `Stepper` chevrons).
@@ -237,9 +242,12 @@ back/forward chevrons, toggles, and value controls: a slider that sets how much
    chart takes this per line and anchors each line's chords to the edge that
    line starts at.
 
-**The record key** floats at the end edge: bottom-left in Hebrew, as Material
-puts it. Cards mirror, so their play button is at the start edge and the key
-never covers it (founder, 2026-10-26).
+**The record key** stays bottom-right in every language: playback rows keep
+their play button on the left, so the key never covers one (founder,
+2026-10-26). Material would move it left; the play button is why we don't.
+
+**A play triangle never flips**, and its optical nudge is physical
+(`marginLeft`), never `marginStart`.
 
 **Alignment ≠ reading order (founder ruling 2026-09-11).** These are two decisions
 and RTL forces you to make them separately. ALIGNMENT follows the UI's start edge

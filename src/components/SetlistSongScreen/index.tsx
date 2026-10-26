@@ -299,8 +299,9 @@ const styles = StyleSheet.create({
   playBtnDisabled: {
     opacity: 0.4,
   },
+  // The play triangle never mirrors, so its optical nudge is physical.
   playGlyph: {
-    marginStart: 3,
+    marginLeft: 3,
   },
   sectionLabel: {
     ...textTokens.annotation,

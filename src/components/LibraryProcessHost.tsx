@@ -394,9 +394,11 @@ const styles = StyleSheet.create({
     // Background connector layer, aligned to the node row's top so segments sit at node centers.
     timelineConnectorLayer: { position: "absolute", left: 0, right: 0, top: 0, height: 26, flexDirection: "row" },
     timelineConnectorCell: { flex: 1 },
-    // Anchored to node centers: right edge at this step's center, width one full step, so the
+    // Anchored to node centers: end edge at this step's center, width one full step, so the
     // segment reaches back to the previous step's center. Opaque nodes above cap both ends.
-    timelineConnector: { position: "absolute", top: 12, right: "50%", width: "100%", height: 2 },
+    // Logical `end`: a process's steps are reading order and mirror in Hebrew (step 1 on the
+    // right), and absolute insets are not swapped for RTL.
+    timelineConnector: { position: "absolute", top: 12, end: "50%", width: "100%", height: 2 },
     timelineNode: {
         width: 26,
         height: 26,

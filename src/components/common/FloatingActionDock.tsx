@@ -29,12 +29,12 @@ type FloatingActionDockProps = {
  *  beyond a take lives in each screen's overflow (2026-10-20: the "+" create
  *  menu had no callers left and is gone). */
 /**
- * The record key sits at the END edge: bottom-right in English, bottom-left in
- * Hebrew (Material). Cards mirror, so their play button is at the start edge
- * and the key never covers it (founder, 2026-10-26). Logical `end`, because
- * absolute insets are not swapped in RTL.
+ * The record key stays bottom-right in every language. Clip cards keep their
+ * play button on the left in Hebrew too (playback never mirrors), so a key at
+ * the bottom-left would sit on top of it (founder, 2026-10-26). Physical
+ * `right`: absolute insets are not swapped in RTL.
  */
-const END_EDGE: ViewStyle = { end: 18 };
+const RIGHT_EDGE: ViewStyle = { right: 18 };
 
 export function FloatingActionDock({
   onRecord,
@@ -69,7 +69,7 @@ export function FloatingActionDock({
   });
 
   return (
-    <View pointerEvents="box-none" style={[styles.ideasFabWrap, END_EDGE, { bottom: bottomOffset }, wrapStyle]}>
+    <View pointerEvents="box-none" style={[styles.ideasFabWrap, RIGHT_EDGE, { bottom: bottomOffset }, wrapStyle]}>
       <View
         style={styles.ideasFabRow}
         onLayout={(event) => {

@@ -1,3 +1,4 @@
+import { I18nManager } from "react-native";
 import type { ImageStyle, TextStyle, ViewStyle } from "react-native";
 import { colors, radii } from "../design/tokens";
 
@@ -103,7 +104,9 @@ export const songDetailHistoryStyles = {
     position: "relative",
     marginHorizontal: 6,
     paddingTop: 4,
-    paddingStart: 34,
+    // Physical: the stem and its nodes are drawn at physical left offsets, and a
+    // take row is a playback row ([▶ … ] left to right, like every clip card).
+    paddingLeft: 34,
   },
   // The stem is drawn per row, never as one span: each row carries a segment
   // into its node, and only a row with history below it continues past. That
@@ -130,6 +133,9 @@ export const songDetailHistoryStyles = {
   // not a checkbox no other surface uses.
   songDetailStemRow: {
     position: "relative",
+    // A take is a playback row: ▶ on the left in every language (founder,
+    // 2026-10-26). The words inside follow the language (songDetailStemRowBody).
+    direction: "ltr",
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 9,
@@ -162,7 +168,9 @@ export const songDetailHistoryStyles = {
     justifyContent: "center",
     flexShrink: 0,
   },
+  // elapsed · scrub line · total · ✕: a timeline, left to right in every language.
   songDetailStemScrubRow: {
+    direction: "ltr",
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
@@ -193,6 +201,7 @@ export const songDetailHistoryStyles = {
     borderColor: "#B87D6B",
   },
   songDetailStemRowBody: {
+    direction: I18nManager.isRTL ? "rtl" : "ltr",
     flex: 1,
     minWidth: 0,
   },

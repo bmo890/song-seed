@@ -173,7 +173,10 @@ export const playerScreenStyles = StyleSheet.create({
   // The thread IS the footer's top border (the zone's own hairline stands down
   // via footerDivider={false}): full-bleed, flush with the zone's top edge,
   // unfilled track in the border's grey. The row below it is the touch target.
+  // Time: the fill and the seek point both run left to right in Hebrew too. It
+  // mirrored before, so the fill grew from the right while a tap seeked from the left.
   progressThreadRow: {
+    direction: "ltr",
     marginHorizontal: -16,
     marginTop: -6,
     paddingBottom: 12,
