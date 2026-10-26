@@ -679,14 +679,27 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       lockScreenMetadataRef.current = metadata;
 
       try {
-        const safeResumeAtMs = Math.max(0, Math.min(resumeAtMs, getClipPlaybackDurationMs(clip) ?? resumeAtMs));
-        holdSourcePositionAt(safeResumeAtMs);
+        const clipDurationMs = getClipPlaybackDurationMs(clip) ?? resumeAtMs;
+        // The same clip with new audio under it (a Solo set, a Mute, a re-rendered mix):
+        // carry on from where the audio IS, read from the engine, not from the last
+        // published report. That report trails by up to a report interval, and the swap
+        // itself takes time; resuming from it rewound the song a little on every Solo or
+        // Mute press (founder, 2026-10-26).
+        const swapStartedAt = Date.now();
+        const sameClip = playerTargetRef.current?.clipId === clip.id;
+        const engineMs = sameClip ? (player.currentTime ?? 0) * 1000 : NaN;
+        const fromMs = Number.isFinite(engineMs) && engineMs > 0 ? engineMs : resumeAtMs;
+        const clampMs = (ms: number) => Math.max(0, Math.min(ms, clipDurationMs));
+        holdSourcePositionAt(clampMs(fromMs));
         await player.pause();
         if (!isOperationActive(operationId)) return;
 
         await replacePlaybackSource(player, playbackUri, false);
         if (!isOperationActive(operationId)) return;
 
+        // While playing, the song kept time through the swap: land where it would be now.
+        const safeResumeAtMs = clampMs(sameClip && shouldPlay ? fromMs + (Date.now() - swapStartedAt) : fromMs);
+        holdSourcePositionAt(safeResumeAtMs);
         await player.seekTo(safeResumeAtMs / 1000);
         if (!isOperationActive(operationId)) return;
 

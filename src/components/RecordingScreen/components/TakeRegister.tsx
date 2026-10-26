@@ -1,13 +1,16 @@
 import React from "react";
-import { StyleSheet, View, type LayoutChangeEvent } from "react-native";
+import { StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
+import { useTranslation } from "react-i18next";
 import { Canvas, Group, Path, Rect, Skia } from "@shopify/react-native-skia";
 import { runOnJS, useAnimatedReaction, useDerivedValue, type SharedValue } from "react-native-reanimated";
 import type { DataPoint } from "@siteed/audio-studio";
 import { colors } from "../../../design/tokens";
 import { REEL_SURFACE_COLOR } from "../../common/AudioReel";
+import { styles } from "../../../styles";
 import {
   getActiveRecordingTakeSession,
   RECORDING_TAKE_SHAPE,
+  useTakeHeadTrim,
   useTakeLiveWaveform,
 } from "../../../services/recordingTakeSession";
 
@@ -15,13 +18,15 @@ import {
  * The lower register of the one reel (founder, 2026-10-22: "make it look like we are
  * actually recording on top of the main reel"). The song is the reel above; your take is
  * written here, under it, on the SAME timeline: the reel's own scale and offset place
- * every bar, so the two scroll as one tape and the take's newest bar meets the song at
- * the playhead.
+ * every bar, so the two scroll as one tape.
  *
- * The take is addressed by age: a bar captured `a` ms ago sits `a` ms of song behind the
- * playhead. That holds while recording (both clocks run) and while paused (both hold).
- * The run-up and a count-in never reach here: the live waveform drops them
- * (`hideBeforeMs`, `retainPoints: false`).
+ * Every bar is pinned to the song moment it was played over: capture ms `c` sits at
+ * `startMs + (c − head)`, where `head` is the capture time of the layer's start (the
+ * count-in or run-up before it is trimmed at save, and never drawn). Once written, a bar
+ * never moves against the song. It used to be placed by age behind the playhead, and the
+ * two clocks that took (the mic's 40 ms deliveries, the guide's 250 ms position reports)
+ * shook the whole take a few pixels every report (founder, 2026-10-26: "very jumpy").
+ * The write head is the reel's own smooth playhead.
  *
  * The live tape only holds its last 12 s, while the reel above shows far more once
  * zoomed out; the register folds every window into its own whole-take history
@@ -70,17 +75,16 @@ export function foldIntoTakeHistory(history: TakeHistory, points: DataPoint[], c
 }
 
 /** Bars on the capture clock (so they don't reshuffle as audio arrives), each the
- *  loudest of its segments; only those younger than `maxAgeMs` (the rest is off the
- *  register's left edge). Returns [ageMs of the bar's start, height 0..1]. */
+ *  loudest of its segments; only those that end after `fromCaptureMs` (the rest is off
+ *  the register's left edge). Returns [capture ms of the bar's start, height 0..1]. */
 export function takeBars(
   history: TakeHistory,
-  captureNowMs: number,
   msPerBar: number,
-  maxAgeMs = Infinity
+  fromCaptureMs = -Infinity
 ): [number, number][] {
   const { heights, segmentMs } = history;
   if (!(msPerBar > 0) || heights.length === 0) return [];
-  const first = Math.max(0, Math.floor((captureNowMs - maxAgeMs - msPerBar) / segmentMs));
+  const first = Math.max(0, Math.floor((fromCaptureMs - msPerBar) / segmentMs));
   const buckets = new Map<number, number>();
   for (let segment = first; segment < heights.length; segment += 1) {
     const height = heights[segment];
@@ -90,8 +94,14 @@ export function takeBars(
     if (held == null || height > held) buckets.set(key, height);
   }
   const bars: [number, number][] = [];
-  for (const [key, height] of buckets) bars.push([captureNowMs - key * msPerBar, height]);
+  for (const [key, height] of buckets) bars.push([key * msPerBar, height]);
   return bars;
+}
+
+/** Where capture ms `captureMs` lands on the song: the head (the capture time of the
+ *  layer's start) sits on `startMs`. */
+export function songMsOfCapture(captureMs: number, headMs: number, startMs: number): number {
+  return startMs + captureMs - headMs;
 }
 
 type Props = {
@@ -99,8 +109,9 @@ type Props = {
   pixelsPerMs: number;
   timelineTranslateX: SharedValue<number>;
   timelineScale: SharedValue<number>;
-  /** The song position the reel's playhead stands on. */
-  sharedSongMs: SharedValue<number>;
+  /** The reel's own smooth playhead (0..1 of the song): the take's write head. */
+  sharedProgress: SharedValue<number>;
+  durationMs: number;
   /** Where the layer starts on the song; 0 = the top. */
   startMs: number;
   /** A take exists (recording, paused, or awaiting its name). */
@@ -117,14 +128,18 @@ export function TakeRegister({
   pixelsPerMs,
   timelineTranslateX,
   timelineScale,
-  sharedSongMs,
+  sharedProgress,
+  durationMs,
   startMs,
   active,
   recording,
   pins,
   children,
 }: Props) {
-  const waveform = useTakeLiveWaveform(getActiveRecordingTakeSession());
+  const { t } = useTranslation();
+  const session = getActiveRecordingTakeSession();
+  const waveform = useTakeLiveWaveform(session);
+  const headTrim = useTakeHeadTrim(session);
   const [width, setWidth] = React.useState(0);
   // The reel's zoom is fixed while a layer records; follow it anyway (set from the
   // reaction, never read in render).
@@ -141,6 +156,7 @@ export function TakeRegister({
   const half = Math.max(4, mid - 6);
 
   const captureNowMs = waveform.durationMs ?? 0;
+  const headMs = headTrim.pending ? 0 : headTrim.ms;
   const points = active ? waveform.dataPoints ?? [] : [];
   const historyRef = React.useRef<TakeHistory | null>(null);
   if (!historyRef.current) historyRef.current = createTakeHistory(RECORDING_TAKE_SHAPE.segmentDurationMs);
@@ -150,29 +166,33 @@ export function TakeRegister({
     if (active) foldIntoTakeHistory(history, points, captureNowMs);
     else resetTakeHistory(history);
     const built = Skia.Path.Make();
-    const maxAgeMs = width > 0 && pxPerMs > 0 ? width / pxPerMs : Infinity;
-    for (const [ageMs, scale] of takeBars(history, captureNowMs, msPerBar, maxAgeMs)) {
-      const x = -ageMs * pxPerMs;
+    // The reel follows the playhead, so nothing older than a register's width behind
+    // the newest audio is on screen.
+    const fromCaptureMs = width > 0 && pxPerMs > 0 ? captureNowMs - width / pxPerMs : -Infinity;
+    for (const [captureMs, scale] of takeBars(history, msPerBar, fromCaptureMs)) {
+      const x = songMsOfCapture(captureMs, headMs, startMs) * pxPerMs;
       const h = Math.max(1, scale * half);
       built.addRect(Skia.XYWHRect(x, mid - h, BAR_PX, h * 2));
     }
     return built;
-  }, [active, history, points, captureNowMs, msPerBar, pxPerMs, half, mid, width]);
+  }, [active, history, points, captureNowMs, headMs, startMs, msPerBar, pxPerMs, half, mid, width]);
 
   const pinPath = React.useMemo(() => {
     const built = Skia.Path.Make();
     if (!active) return built;
     for (const pinMs of pins ?? []) {
-      const x = -(captureNowMs - pinMs) * pxPerMs;
+      const x = songMsOfCapture(pinMs, headMs, startMs) * pxPerMs;
       built.addRect(Skia.XYWHRect(x - 0.5, 4, 1, height - 8));
     }
     return built;
-  }, [active, pins, captureNowMs, pxPerMs, height]);
+  }, [active, pins, headMs, startMs, pxPerMs, height]);
 
-  // The playhead's x on the shared timeline: the newest audio sits exactly there.
-  const playheadTransform = useDerivedValue(() => [
-    { translateX: sharedSongMs.value * pixelsPerMs * timelineScale.value + timelineTranslateX.value },
-  ]);
+  // Bars are drawn in song pixels at the current zoom; the reel's offset slides them,
+  // so they ride the tape exactly as the song's own bars do.
+  const tapeTransform = useDerivedValue(() => [{ translateX: timelineTranslateX.value }]);
+  const headX = useDerivedValue(
+    () => sharedProgress.value * durationMs * pixelsPerMs * timelineScale.value + timelineTranslateX.value - 1
+  );
   const flagX = useDerivedValue(() => startMs * pixelsPerMs * timelineScale.value + timelineTranslateX.value - 0.75);
 
   return (
@@ -183,15 +203,25 @@ export function TakeRegister({
     >
       {width > 0 ? (
         <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+          {/* The seam: where the song's register ends and yours begins. */}
+          <Rect x={0} y={0} width={width} height={StyleSheet.hairlineWidth} color={colors.borderMuted} />
           <Rect x={0} y={mid - 0.5} width={width} height={1} color={colors.borderMuted} />
           {startMs > 0 ? <Rect x={flagX} y={0} width={1.5} height={height} color={colors.textStrong} opacity={0.55} /> : null}
-          <Group transform={playheadTransform}>
+          <Group transform={tapeTransform}>
             <Path path={path} color={colors.record} opacity={recording ? 0.95 : 0.7} />
             <Path path={pinPath} color={colors.textStrong} />
-            {active ? <Rect x={-1} y={0} width={2} height={height} color={colors.record} /> : null}
           </Group>
+          {active ? <Rect x={headX} y={0} width={2} height={height} color={colors.record} /> : null}
         </Canvas>
       ) : null}
+      {/* Names the register: the song is above, this strip is the layer you record. */}
+      <Text
+        style={[styles.recordingGuideEyebrow, registerStyles.label, recording ? registerStyles.labelRecording : null]}
+        numberOfLines={1}
+        pointerEvents="none"
+      >
+        {t("recording.layer")}
+      </Text>
       {children}
     </View>
   );
@@ -201,5 +231,14 @@ const registerStyles = StyleSheet.create({
   wrap: {
     backgroundColor: REEL_SURFACE_COLOR,
     overflow: "hidden",
+  },
+  // The GUIDE eyebrow's voice, inside the register's top corner.
+  label: {
+    position: "absolute",
+    top: 6,
+    start: 8,
+  },
+  labelRecording: {
+    color: colors.record,
   },
 });

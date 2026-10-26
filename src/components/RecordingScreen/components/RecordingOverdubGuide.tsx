@@ -193,14 +193,18 @@ export function RecordingOverdubGuide({
           initialZoomMultiple={durationMs > 0 ? durationMs / GUIDE_FOLLOW_WINDOW_MS : undefined}
           sectionBands={sectionBands}
           practiceMarkers={practiceMarkers}
-          renderBelowSurface={({ pixelsPerMs, timelineTranslateX, timelineScale }) => (
+          // The take register and the lanes are the same tape: a drag anywhere on them
+          // moves the start, as one on the song does.
+          belowSurfaceScrubs
+          renderBelowSurface={({ pixelsPerMs, timelineTranslateX, timelineScale, sharedAudioProgress }) => (
             <>
               <TakeRegister
                 height={takeHeight}
                 pixelsPerMs={pixelsPerMs}
                 timelineTranslateX={timelineTranslateX}
                 timelineScale={timelineScale}
-                sharedSongMs={transportClock.sharedCurrentTimeMs}
+                sharedProgress={sharedAudioProgress}
+                durationMs={durationMs}
                 startMs={cue?.startMs ?? 0}
                 active={take.active}
                 recording={take.isRecording && !take.isPaused}

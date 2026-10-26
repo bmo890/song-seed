@@ -85,6 +85,9 @@ type Props = {
     playbackRate?: number;
     sharedPlaybackRate?: SharedValue<number>;
     isScrubbing?: boolean;
+    /** Another part of the same reel is scrubbing it (AudioReel's below-surface strip):
+     *  hold the tape exactly as for this canvas's own drag, and settle after it. */
+    sharedExternalScrub?: SharedValue<boolean>;
     onSeek: (timeMs: number) => void;
     selectedRanges?: { id: string; start: number; end: number; type: "keep" | "remove" }[];
     practiceMarkers?: (Pick<PracticeMarker, "id" | "atMs"> & { label?: string; note?: string })[];
@@ -1028,6 +1031,7 @@ export function PlaybackTapeVisualizer({
     playbackRate = 1,
     sharedPlaybackRate,
     isScrubbing = false,
+    sharedExternalScrub,
     onSeek,
     selectedRanges,
     practiceMarkers,
@@ -1098,6 +1102,7 @@ export function PlaybackTapeVisualizer({
     const localIsPlaying = useSharedValue(isPlaying);
     const isPlayingShared = sharedIsPlaying || localIsPlaying;
     const isScrubbingShared = useSharedValue(isScrubbing);
+    const externalScrubSeen = useSharedValue(false);
     const localPlaybackRate = useSharedValue(playbackRate);
     const playbackRateShared = sharedPlaybackRate || localPlaybackRate;
     const lastSeenTransportUpdate = useSharedValue(0);
@@ -1215,6 +1220,24 @@ export function PlaybackTapeVisualizer({
         const duration = durationMsValue.value;
         if (duration <= 0) return;
 
+        // A drag on the strip below the surface: the same bookkeeping as this canvas's
+        // own pan does at its start and at its settle.
+        const externalScrub = !!sharedExternalScrub?.value;
+        if (externalScrub !== externalScrubSeen.value) {
+            externalScrubSeen.value = externalScrub;
+            progressVelocity.value = 0;
+            if (externalScrub) {
+                awaitingPlayStartClock.value = false;
+                pauseHoldUntil.value = 0;
+                pauseAnchorActive.value = false;
+                scrubSettleUntil.value = 0;
+                adoptNextReport.value = false;
+            } else {
+                scrubSettleUntil.value = frameInfo.timestamp + SCRUB_SETTLE_MS;
+                adoptNextReport.value = true;
+            }
+        }
+
         // First frame after the reel was out of sight (docked, or the app in the
         // background): land on where the engine is. Everything below reasons from the
         // frame before — a pause that happened meanwhile would anchor the tape to the
@@ -1224,7 +1247,7 @@ export function PlaybackTapeVisualizer({
             stageWasHidden.value ||
             (previousFrameAt > 0 && frameInfo.timestamp - previousFrameAt > FRAME_GAP_RESYNC_MS);
         stageWasHidden.value = false;
-        if (resumedAfterGap && !isDragging.value && !isScrubbingShared.value) {
+        if (resumedAfterGap && !isDragging.value && !isScrubbingShared.value && !externalScrub) {
             const landedProgress = Math.max(0, Math.min(1, currentTimeMsValue.value / duration));
             const playingNow = isPlayingShared.value;
             cancelAnimation(audioProgress);
@@ -1265,6 +1288,7 @@ export function PlaybackTapeVisualizer({
         const scrubVisualLockActive =
             isDragging.value ||
             isScrubbingShared.value ||
+            externalScrub ||
             frameInfo.timestamp < scrubSettleUntil.value;
 
         if (

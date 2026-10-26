@@ -250,6 +250,10 @@ type Props = {
     resetKey?: string | number | null;
     renderOverlay?: (args: OverlayArgs) => ReactNode;
     renderBelowSurface?: (args: OverlayArgs) => ReactNode;
+    /** What renders below the surface is more of the same tape (the layer recorder's
+     *  take register): a sideways drag there scrubs the reel exactly as one on the
+     *  surface does (founder, 2026-10-26: a thumb on the lower half did nothing). */
+    belowSurfaceScrubs?: boolean;
     renderBelowOverlay?: (args: OverlayArgs) => ReactNode;
     chrome?: ReelChrome;
     /** @deprecated See `onTogglePlay` — there is no transport to show. */
@@ -323,6 +327,7 @@ export function AudioReel({
     resetKey,
     renderOverlay,
     renderBelowSurface,
+    belowSurfaceScrubs = false,
     renderBelowOverlay,
     chrome = "dark",
     showExpandToggle = true,
@@ -558,6 +563,44 @@ export function AudioReel({
             handleInteractionStateChange(false, { silent: true });
         }
     };
+
+    // The strip below the surface scrubs the same tape. Activates on sideways travel
+    // only, so a vertical swipe still scrolls the page; the visualizer holds the tape
+    // for it (`sharedExternalScrub`) exactly as for its own drag.
+    const belowScrubActive = useSharedValue(false);
+    const belowScrubStart = useSharedValue(0);
+    const belowScrubSecond = useSharedValue(-1);
+    const belowScrub = Gesture.Pan()
+        .enabled(belowSurfaceScrubs && durationMs > 0)
+        .maxPointers(1)
+        .activeOffsetX([-8, 8])
+        .failOffsetY([-12, 12])
+        .onStart(() => {
+            belowScrubActive.value = true;
+            belowScrubStart.value = sharedAudioProgress.value;
+            belowScrubSecond.value = Math.floor((sharedAudioProgress.value * durationMs) / 1000);
+            runOnJS(handleInteractionStateChange)(true);
+        })
+        .onUpdate((event) => {
+            const contentWidth = pixelsPerMs * durationMs * timelineScale.value;
+            if (contentWidth <= 0) return;
+            const progress = Math.max(0, Math.min(1, belowScrubStart.value - event.translationX / contentWidth));
+            sharedAudioProgress.value = progress;
+            // Haptics vocabulary: `tick` — a second crossed under the finger.
+            const second = Math.floor((progress * durationMs) / 1000);
+            if (second !== belowScrubSecond.value) {
+                belowScrubSecond.value = second;
+                runOnJS(haptic.tick)();
+            }
+        })
+        .onEnd(() => {
+            runOnJS(handleSeekCommit)(sharedAudioProgress.value * durationMs);
+        })
+        .onFinalize((_event, success) => {
+            // A cancelled drag commits nothing; it still lets go of the tape.
+            if (belowScrubActive.value && !success) runOnJS(handleInteractionStateChange)(false);
+            belowScrubActive.value = false;
+        });
 
     // Overscale bridges a peaks source that's coarser than the zoom wants: the wave is
     // stretched horizontally until enough resolution exists. HOW it changes matters:
@@ -903,6 +946,7 @@ export function AudioReel({
                             sharedTranslateX={timelineTranslateX}
                             sharedScale={timelineScale}
                             sharedAudioProgress={sharedAudioProgress}
+                            sharedExternalScrub={belowScrubActive}
                             sharedPauseHoldMs={sharedPauseHoldMs}
                             sharedPauseHoldToken={sharedPauseHoldToken}
                             sharedSurfaceHeight={visualizerHeight}
@@ -1001,9 +1045,11 @@ export function AudioReel({
             </View>
 
             {renderBelowSurface ? (
-                <View style={{ marginHorizontal: timelineHorizontalPadding, overflow: "visible" }}>
-                    {renderBelowSurface({ pixelsPerMs, timelineTranslateX, timelineScale, scale: overscaleFactor, sharedAudioProgress })}
-                </View>
+                <GestureDetector gesture={belowScrub}>
+                    <View style={{ marginHorizontal: timelineHorizontalPadding, overflow: "visible" }}>
+                        {renderBelowSurface({ pixelsPerMs, timelineTranslateX, timelineScale, scale: overscaleFactor, sharedAudioProgress })}
+                    </View>
+                </GestureDetector>
             ) : null}
 
             {showMinimap ? (
