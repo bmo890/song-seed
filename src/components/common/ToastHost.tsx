@@ -1,9 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
-import { AccessibilityInfo, Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { AccessibilityInfo, Animated, PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radii, shadows } from "../../design/tokens";
-import { durations } from "../../design/motion";
+import { durations, springs } from "../../design/motion";
 import { toastStore, type ToastConfig } from "./toastStore";
 
 const DEFAULT_DURATION_MS = 2000;
@@ -11,18 +11,56 @@ const DEFAULT_DURATION_MS = 2000;
 const ACTION_DURATION_MS = 4000;
 /** Clearance above the media dock (which floats at the bottom edge). */
 const DOCK_CLEARANCE = 92;
+/** A flick this far sideways or down sends the toast away. */
+const SWIPE_AWAY_PX = 56;
+/** After a drag that let go short of dismissing, the toast lingers this long. */
+const AFTER_DRAG_MS = 1500;
 
 /**
  * Renders the app's single quiet-confirmation toast. Mounted once in App.tsx,
  * above the media dock but below AppDialogHost — a toast must never obscure a
  * decision. Slides up ~8px + fades in, auto-dismisses, announces itself to
- * screen readers.
+ * screen readers. A swipe sideways or down sends it away (2026-10-26).
  */
 export function ToastHost() {
   const insets = useSafeAreaInsets();
   const [active, setActive] = useState<(ToastConfig & { id: number }) | null>(null);
   const anim = useRef(new Animated.Value(0)).current;
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The finger's drag, JS-driven, on its own wrapper: the fade above is native-driven
+  // and the two must not share a view.
+  const drag = useRef(new Animated.ValueXY()).current;
+
+  const swipe = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 6 || g.dy > 6,
+        onPanResponderGrant: () => {
+          if (hideTimer.current) {
+            clearTimeout(hideTimer.current);
+            hideTimer.current = null;
+          }
+        },
+        onPanResponderMove: (_, g) => drag.setValue({ x: g.dx, y: Math.max(0, g.dy) }),
+        onPanResponderRelease: (_, g) => {
+          if (Math.abs(g.dx) > SWIPE_AWAY_PX || g.dy > SWIPE_AWAY_PX / 2 || Math.abs(g.vx) > 0.8) {
+            const sideways = Math.abs(g.dx) >= g.dy;
+            Animated.timing(drag, {
+              toValue: sideways ? { x: Math.sign(g.dx || 1) * 400, y: 0 } : { x: 0, y: 120 },
+              duration: durations.fast,
+              useNativeDriver: false,
+            }).start(() => toastStore.dismiss());
+            return;
+          }
+          Animated.spring(drag, { toValue: { x: 0, y: 0 }, ...springs.settle, useNativeDriver: false }).start();
+          hideTimer.current = setTimeout(() => toastStore.dismiss(), AFTER_DRAG_MS);
+        },
+        onPanResponderTerminate: () => {
+          Animated.spring(drag, { toValue: { x: 0, y: 0 }, ...springs.settle, useNativeDriver: false }).start();
+        },
+      }),
+    [drag]
+  );
 
   useEffect(() => {
     const unsubscribe = toastStore.subscribe((toast) => {
@@ -41,6 +79,7 @@ export function ToastHost() {
         return;
       }
       setActive(toast);
+      drag.setValue({ x: 0, y: 0 });
       AccessibilityInfo.announceForAccessibility?.(toast.message);
       anim.setValue(0);
       Animated.timing(anim, { toValue: 1, duration: durations.base, useNativeDriver: true }).start();
@@ -60,49 +99,51 @@ export function ToastHost() {
       unsubscribe();
       if (hideTimer.current) clearTimeout(hideTimer.current);
     };
-  }, [anim]);
+  }, [anim, drag]);
 
   if (!active) return null;
 
-  // "box-none" (not "none") when an action is present: the pill must be
-  // tappable while the empty space around it stays tap-through.
+  // "box-none": the pill takes touches (its swipe, its action) while the empty
+  // space around it stays tap-through.
   return (
-    <View
-      pointerEvents={active.action ? "box-none" : "none"}
-      style={[s.wrap, { bottom: insets.bottom + DOCK_CLEARANCE }]}
-    >
+    <View pointerEvents="box-none" style={[s.wrap, { bottom: insets.bottom + DOCK_CLEARANCE }]}>
       <Animated.View
-        style={[
-          s.pill,
-          {
-            opacity: anim,
-            transform: [
-              { translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) },
-            ],
-          },
-        ]}
-        accessibilityLiveRegion="polite"
+        style={[s.dragWrap, { transform: drag.getTranslateTransform() }]}
+        {...swipe.panHandlers}
       >
-        {active.icon ? (
-          <Ionicons name={active.icon} size={15} color={colors.primaryDeep} />
-        ) : null}
-        <Text style={s.text} numberOfLines={2}>
-          {active.message}
-        </Text>
-        {active.action ? (
-          <Pressable
-            onPress={() => {
-              const { onPress } = active.action!;
-              toastStore.dismiss();
-              onPress();
-            }}
-            hitSlop={10}
-            accessibilityRole="button"
-            style={({ pressed }) => [s.actionBtn, pressed ? { opacity: 0.6 } : null]}
-          >
-            <Text style={s.actionText}>{active.action.label}</Text>
-          </Pressable>
-        ) : null}
+        <Animated.View
+          style={[
+            s.pill,
+            {
+              opacity: anim,
+              transform: [
+                { translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) },
+              ],
+            },
+          ]}
+          accessibilityLiveRegion="polite"
+        >
+          {active.icon ? (
+            <Ionicons name={active.icon} size={15} color={colors.primaryDeep} />
+          ) : null}
+          <Text style={s.text} numberOfLines={2}>
+            {active.message}
+          </Text>
+          {active.action ? (
+            <Pressable
+              onPress={() => {
+                const { onPress } = active.action!;
+                toastStore.dismiss();
+                onPress();
+              }}
+              hitSlop={10}
+              accessibilityRole="button"
+              style={({ pressed }) => [s.actionBtn, pressed ? { opacity: 0.6 } : null]}
+            >
+              <Text style={s.actionText}>{active.action.label}</Text>
+            </Pressable>
+          ) : null}
+        </Animated.View>
       </Animated.View>
     </View>
   );
@@ -119,11 +160,13 @@ const s = StyleSheet.create({
     // every confirmation raised while the player was open went unseen.
     zIndex: 60,
   },
+  dragWrap: {
+    maxWidth: "82%",
+  },
   pill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    maxWidth: "82%",
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: radii.round,

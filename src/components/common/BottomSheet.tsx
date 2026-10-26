@@ -243,7 +243,18 @@ export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
       : translateY;
 
     return (
-      <Modal visible={visible} transparent animationType="fade" onRequestClose={closeWithSlide}>
+      // Edge to edge on Android (app.json): the sheet's window covers the system bars
+      // from its first frame. Without it the window was laid out, then shrunk by the
+      // bars' insets, and the bottom-anchored card jumped on every open (2026-10-26).
+      // The card already pads itself by the safe-area inset.
+      <Modal
+        visible={visible}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        navigationBarTranslucent
+        onRequestClose={closeWithSlide}
+      >
         <ModalGestureRoot>
           <View style={styles.bottomSheetBackdrop}>
             {/* Dialogs raised while this sheet is open draw here — see AppDialogHost. */}

@@ -481,8 +481,9 @@ export const recordingStyles = {
   recordingInputOptionDisabled: {
     opacity: 0.55,
   },
+  // No flex here: it sits in a column (label over its cost line), where flex
+  // stretched a lone label to the column's height and set it off centre.
   recordingInputOptionText: {
-    flex: 1,
     fontSize: 16,
     fontFamily: "PlusJakartaSans_500Medium",
     color: colors.textPrimary,

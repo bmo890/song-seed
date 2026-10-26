@@ -32,9 +32,11 @@ export const durations = {
 
 /** Spring for surfaces sliding into place (sheets, docks). */
 export const springs = {
-  surface: { damping: 20, stiffness: 220, mass: 0.9 },
+  // Surfaces land without overshoot: underdamped, a sheet sailed past its rest and
+  // bobbed back, read as the sheet jumping on open (founder, 2026-10-26).
+  surface: { damping: 20, stiffness: 220, mass: 0.9, overshootClamping: true },
   /** A surface snapping back to rest after a drag let it go. */
-  settle: { damping: 20, stiffness: 240, mass: 0.85 },
+  settle: { damping: 20, stiffness: 240, mass: 0.85, overshootClamping: true },
   /** Snappier pop for small cards/dialogs scaling in. */
   pop: { damping: 18, stiffness: 320 },
   /** Handles and grabbed elements tracking a gesture. */
