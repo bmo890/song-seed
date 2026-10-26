@@ -139,8 +139,12 @@ const timelineStyles = StyleSheet.create({
     marginTop: -4,
     marginBottom: 0,
   },
+  // Placed from the physical left, like the reel it rides (time runs left to
+  // right in every language); without it the hitbox started at the right edge
+  // in Hebrew and the translate pushed it off the loop.
   loopMoveHitbox: {
     position: "absolute",
+    left: 0,
     top: -2,
     width: LOOP_MOVE_HITBOX_WIDTH,
     height: LOOP_MOVE_HITBOX_HEIGHT,

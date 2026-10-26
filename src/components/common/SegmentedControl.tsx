@@ -5,7 +5,6 @@ import { styles } from "../../styles";
 import { colors, radii } from "../../design/tokens";
 import { durations } from "../../design/motion";
 import { haptic } from "../../design/haptics";
-import { physicalEdge } from "../../i18n";
 
 type SegmentedOption<T extends string> = {
   key: T;
@@ -184,7 +183,8 @@ const segmentedControlStyles = StyleSheet.create({
     position: "absolute",
     bottom: -1,
     height: 2,
-    [physicalEdge("left")]: TRACK_PAD_H,
+    // Segment 0 sits at the start edge (the right, in Hebrew).
+    start: TRACK_PAD_H,
     borderRadius: 1,
     backgroundColor: colors.textPrimary,
   },

@@ -489,8 +489,8 @@ const pageStyles = StyleSheet.create({
     borderLeftWidth: StyleSheet.hairlineWidth * 2,
     borderLeftColor: colors.borderMuted,
     paddingVertical: 4,
-    paddingLeft: 7,
-    paddingRight: 2,
+    paddingStart: 7,
+    paddingEnd: 2,
   },
   barText: {
     fontFamily: "PlusJakartaSans_600SemiBold",

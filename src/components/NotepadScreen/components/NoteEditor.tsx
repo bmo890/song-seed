@@ -420,7 +420,7 @@ const editorStyles = StyleSheet.create({
     alignItems: "center",
     gap: 2,
     paddingVertical: 6,
-    paddingRight: 12,
+    paddingEnd: 12,
   },
   backLabel: {
     ...textTokens.body,

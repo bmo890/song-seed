@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../design/tokens";
 import { haptic } from "../../design/haptics";
 import { Press } from "./Press";
-import { dirIcon } from "../../design/directionalIcons";
+import { ltrRow } from "../../i18n";
 
 /**
  * A pair of detented keys: nudge a mark, step a speed, tick a tempo.
@@ -24,8 +24,9 @@ export type StepperProps = {
   canIncrement?: boolean;
   decrementLabel: string;
   incrementLabel: string;
-  /** Glyph pair. Chevrons for a position on time (never mirrored: the axis
-   *  stays put in RTL); remove/add for a value. */
+  /** Glyph pair. Chevrons for a position on time: the pair is pinned
+   *  left-to-right in Hebrew too (earlier on the left, like the reel).
+   *  remove/add for a value: the pair mirrors with the language. */
   glyphs?: "chevrons" | "plusMinus";
   /** `large` beside a hero value (the metronome's tempo): 24 pt glyph in a
    *  48 pt target. Default is the 17 pt glyph in 36 pt. */
@@ -112,9 +113,9 @@ export function Stepper({
   testID,
 }: StepperProps) {
   const [down, up]: [keyof typeof Ionicons.glyphMap, keyof typeof Ionicons.glyphMap] =
-    glyphs === "chevrons" ? [dirIcon("chevron-back"), dirIcon("chevron-forward")] : ["remove", "add"];
+    glyphs === "chevrons" ? ["chevron-back", "chevron-forward"] : ["remove", "add"];
   return (
-    <View style={[s.row, style]}>
+    <View style={[s.row, glyphs === "chevrons" ? ltrRow : null, style]}>
       <StepKey
         direction={-1}
         enabled={canDecrement}

@@ -73,6 +73,6 @@ export const songClipToolbarStyles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    marginRight: 2,
+    marginEnd: 2,
   },
 });

@@ -615,11 +615,14 @@ const laneStyles = StyleSheet.create({
     borderStyle: "dashed",
     borderColor: colors.borderSubtle,
   },
+  // A layer's sound runs left to right in time like the reel's, so its bars are
+  // pinned LTR (a plain row drew them backwards in Hebrew).
   wave: {
     position: "absolute",
     left: 0,
     top: 0,
     bottom: 0,
+    direction: "ltr",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",

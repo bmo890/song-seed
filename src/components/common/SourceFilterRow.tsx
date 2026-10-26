@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
   },
   // Collections as a quiet indented sub-list under a hairline, not chips.
   collections: {
-    marginLeft: 48,
+    marginStart: 48,
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: "#EBE3D8",
@@ -207,13 +207,13 @@ const styles = StyleSheet.create({
     fontFamily: "PlusJakartaSans_500Medium",
   },
   collectionCount: {
-    marginLeft: "auto",
+    marginStart: "auto",
     fontSize: 12,
     color: colors.textMuted,
     fontVariant: ["tabular-nums"],
   },
   hint: {
-    marginLeft: 48,
+    marginStart: 48,
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: "#EBE3D8",

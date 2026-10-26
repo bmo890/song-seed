@@ -33,17 +33,17 @@ export function resolveContentDirection(
 }
 
 /**
- * React Native swaps `left` and `right` in styles when the app is in RTL —
- * `I18nManager.doLeftAndRightSwapInRTL`, on by default — so that layouts written
- * for LTR mirror for free. It applies to `textAlign` and to absolute `left` /
- * `right` too, and it keys off the GLOBAL direction, so a `style={{direction:
- * "ltr"}}` subtree does NOT opt out.
+ * How Hebrew lays out in this app (measured on the simulator, 2026-10-26, new
+ * architecture): `textAlign: "left" | "right"` IS swapped in RTL, but absolute
+ * insets (`left`/`right`) and padding are NOT (margins follow the same rule).
+ * They stay physical.
+ * Logical `start`/`end` (and `paddingStart`, `marginEnd`…) follow the
+ * language. A `direction: "ltr"` subtree lays its rows out left to right.
  *
- * That's the right default for chrome and the wrong one for anything whose
- * direction is decided by its CONTENT rather than by the app's language: a
- * Hebrew note inside an English UI, an English lyric inside a Hebrew one, or a
- * chord anchored to a monospace column. These two helpers ask for a physical
- * edge and pre-invert it so RN's swap lands on the side we actually meant.
+ * So: for a position that should mirror, use `start`/`end`; for one that must
+ * not (a mark on the timeline), `left`/`right` already mean the physical side.
+ * The helpers below exist for text alignment, which does get swapped, and for
+ * the few places that pick a physical layout edge by name.
  */
 const SWAPS_LEFT_AND_RIGHT = I18nManager.getConstants().doLeftAndRightSwapInRTL;
 
@@ -79,9 +79,11 @@ export function contentTextAlign(direction: UiDirection): { textAlign: "left" | 
   return { textAlign: physicalTextAlign(direction === "rtl" ? "right" : "left") };
 }
 
-/** The style key to use when you mean the physical left/right edge. */
+/** The style key to use when you mean the physical left/right edge for an
+ *  inset, padding or margin. Those are not swapped here, so it is the edge
+ *  itself; kept so call sites say what they mean. */
 export function physicalEdge(edge: "left" | "right"): "left" | "right" {
-  return physical(edge);
+  return edge;
 }
 
 /** The `textAlign` value to use when you mean physically left/right. */

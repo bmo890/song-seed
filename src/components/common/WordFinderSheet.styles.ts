@@ -41,7 +41,7 @@ export const finderStyles = StyleSheet.create({
     alignItems: "center",
     gap: 5,
     paddingVertical: 4,
-    paddingRight: spacing.sm,
+    paddingEnd: spacing.sm,
   },
   themeAddText: {
     fontFamily: "PlusJakartaSans_600SemiBold",

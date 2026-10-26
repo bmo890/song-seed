@@ -103,7 +103,7 @@ export const songDetailHistoryStyles = {
     position: "relative",
     marginHorizontal: 6,
     paddingTop: 4,
-    paddingLeft: 34,
+    paddingStart: 34,
   },
   // The stem is drawn per row, never as one span: each row carries a segment
   // into its node, and only a row with history below it continues past. That

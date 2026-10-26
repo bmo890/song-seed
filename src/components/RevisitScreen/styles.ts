@@ -109,10 +109,10 @@ export const revisitStyles = {
       fontSize: 12,
       lineHeight: 16,
       color: MUTED,
-      paddingLeft: 24,
+      paddingStart: 24,
     },
     sectionGoBtn: {
-      marginLeft: "auto",
+      marginStart: "auto",
     },
     sectionGoText: {
       fontSize: 13,

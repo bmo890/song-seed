@@ -141,8 +141,8 @@ const s = StyleSheet.create({
   actionBtn: {
     borderLeftWidth: 1,
     borderLeftColor: colors.borderSubtle,
-    paddingLeft: 10,
-    marginLeft: 2,
+    paddingStart: 10,
+    marginStart: 2,
   },
   actionText: {
     fontFamily: "PlusJakartaSans_700Bold",

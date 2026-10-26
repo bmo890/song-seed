@@ -100,7 +100,7 @@ const navRowStyles = StyleSheet.create({
     backgroundColor: "#efeeea",
   },
   rowNested: {
-    marginLeft: 10,
+    marginStart: 10,
   },
   rowDisabled: {
     opacity: 0.5,

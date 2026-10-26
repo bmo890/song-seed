@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { I18nManager, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, radii, text } from "../../design/tokens";
 import { fmtDuration } from "../../utils";
@@ -20,8 +20,9 @@ import { Stepper } from "./Stepper";
  * same in both rooms; the editor especially needs it, since its edits are destructive.
  *
  * RTL law: the time axis stays put and language mirrors. Rows that map to the reel's
- * left-to-right timeline are pinned LTR (`ltrRow`); the slider mirrors, because a value
- * track reads with the language.
+ * left-to-right timeline are pinned LTR (`ltrRow`), and so are the carets and the
+ * position slider, which are positions on that timeline (Material: "in Hebrew,
+ * timelines and media controls retain left-to-right").
  */
 
 /** Re-exported for call sites that already reach for it through the inspector. */
@@ -183,7 +184,7 @@ export function MarkInspector({
           <Slider
             style={mi.dragSlider}
             fill={false}
-            inverted={I18nManager.isRTL}
+            mirrors={false}
             minimumValue={bounds.min}
             maximumValue={bounds.max}
             step={50}

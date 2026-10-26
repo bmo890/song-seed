@@ -301,7 +301,7 @@ const s = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
     borderBottomWidth: 0,
-    paddingLeft: spacing.sm,
+    paddingStart: spacing.sm,
     ...shadows.cardActive,
   },
   wordWrap: {

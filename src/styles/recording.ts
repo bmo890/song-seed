@@ -62,8 +62,8 @@ export const recordingStyles = {
   // Expanded: extend the header to the right screen edge so the autoscroll/zoom
   // controls and the collapse chevron line up with the full-bleed lyrics.
   recordingLyricsHeaderExpanded: {
-    marginRight: -28,
-    paddingRight: 8,
+    marginEnd: -28,
+    paddingEnd: 8,
   },
   // Pushes the title + chord toggle to the left and the rest of the controls
   // to the right edge.
@@ -334,7 +334,10 @@ export const recordingStyles = {
   recordingScreenLive: {
     backgroundColor: colors.recordSurface,
   },
+  // Discard · Record · Save is the recorder's transport: it stays left to right in
+  // Hebrew, like the player's controls (founder, 2026-10-26).
   recordingControlsBar: {
+    direction: "ltr",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",

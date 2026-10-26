@@ -666,7 +666,7 @@ const local = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   playGlyph: {
-    marginLeft: 2,
+    marginStart: 2,
   },
   rowMain: {
     flex: 1,

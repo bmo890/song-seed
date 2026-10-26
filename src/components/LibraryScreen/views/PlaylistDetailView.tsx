@@ -401,7 +401,7 @@ const detailStyles = StyleSheet.create({
     opacity: 0.4,
   },
   playIconNudge: {
-    marginLeft: 3,
+    marginStart: 3,
   },
   // Secondary keys are bare ink glyphs (2026-10-18): no fill, no circle.
   // Active (editing, shuffle on) is terracotta ink.

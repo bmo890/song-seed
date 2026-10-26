@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, I18nManager } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import ReAnimated, {
   interpolateColor,
@@ -64,7 +64,9 @@ const HIDE_AFTER_MS = 1400;
 /** A held drag asks the list to scroll at most this often (plus once on release). */
 const DRAG_DISPATCH_MS = 40;
 // Where the wrapper parks once invisible: past the stage's clipped edge.
-const PARKED_OFFSET = 80;
+// Off the end edge: rightwards in English, leftwards in Hebrew (the handle sits
+// at the end, and translateX is physical).
+const PARKED_OFFSET = I18nManager.isRTL ? -80 : 80;
 
 type Props = {
   scrollY: SharedValue<number>;

@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from "react";
-import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { I18nManager, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
@@ -45,8 +45,13 @@ export type SliderProps = {
   /** Draw the filled run from the start to the thumb. Off for position sliders,
    *  where "how much" means nothing. */
   fill?: boolean;
-  /** Mirror the axis (a value track reads with the language; a time track does not). */
+  /** Mirror the axis by hand. Rarely needed: see `mirrors`. */
   inverted?: boolean;
+  /** A value track (size, volume, tempo) reads with the language, so in Hebrew
+   *  its minimum is on the right (Apple HIG, Material). Pass `false` for a track
+   *  that is a position in time (a mark on the reel), which stays left-to-right
+   *  in every language. Default true. */
+  mirrors?: boolean;
   disabled?: boolean;
   /** Draws the track in place of the hairline (e.g. the workspace hue rainbow).
    *  Spans the thumb's travel at CUSTOM_TRACK_HEIGHT; no fill run is drawn over it. */
@@ -81,13 +86,15 @@ export function Slider({
   onSlidingStart,
   onSlidingComplete,
   fill = true,
-  inverted = false,
+  inverted: invertedProp = false,
+  mirrors = true,
   disabled = false,
   track: customTrack,
   style,
   accessibilityLabel,
   testID,
 }: SliderProps) {
+  const inverted = invertedProp !== (mirrors && I18nManager.isRTL);
   const range = Math.max(1e-9, maximumValue - minimumValue);
   const propFraction = Math.max(0, Math.min(1, (value - minimumValue) / range));
 

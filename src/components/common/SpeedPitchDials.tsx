@@ -4,7 +4,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { PITCH_SHIFT_MAX_SEMITONES, PITCH_SHIFT_MIN_SEMITONES } from "../../domain/pitchShift";
 import { colors, text } from "../../design/tokens";
-import { ltrRow } from "../../i18n/direction";
 import { Press } from "./Press";
 import { Slider } from "./Slider";
 import { Stepper } from "./Stepper";
@@ -115,7 +114,9 @@ export function SpeedPitchDials({
 
       {/* Pitch is one row (2026-10-15): label, then − value + at the end. The
           semitone ruler is gone; the value says where it sits. */}
-      <View style={[d.pitchRow, ltrRow]}>
+      {/* Speed and pitch are values, like volume: in Hebrew the whole block reads
+          from the right (slow and − on the right), as Apple Music's volume does. */}
+      <View style={d.pitchRow}>
         <View style={d.dialLabelGroup}>
           <Text style={d.rowLabel}>{t("player.pitch")}</Text>
           {pitchIsChanged ? (

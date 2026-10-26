@@ -39,7 +39,7 @@ export const contentStyles = StyleSheet.create({
     alignItems: "center",
     minHeight: 44,
     marginTop: spacing.sm,
-    paddingLeft: spacing.md,
+    paddingStart: spacing.md,
     borderRadius: radii.xl,
     backgroundColor: colors.surfaceContainer,
   },

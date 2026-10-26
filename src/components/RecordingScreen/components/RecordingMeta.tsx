@@ -384,8 +384,8 @@ const metaStyles = StyleSheet.create({
         gap: 12,
         // Push the metronome chip out to the right screen edge, aligned with the
         // full-bleed reel below (which breaks out of the 28px gutter).
-        marginRight: -28,
-        paddingRight: 8,
+        marginEnd: -28,
+        paddingEnd: 8,
     },
     compactTimer: {
         fontSize: 30,

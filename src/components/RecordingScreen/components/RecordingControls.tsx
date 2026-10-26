@@ -166,7 +166,7 @@ const local = StyleSheet.create({
     // whatever the left one is carrying (discard alone, or discard + redo).
     // Keys are spread evenly through their column — with the dock edge to
     // edge there is room for that, and it stops discard and redo huddling
-    // against the record button. Logical alignment, so it mirrors in RTL.
+    // against the record button. The bar is pinned left to right (styles).
     sideColumn: {
         flex: 1,
         flexDirection: "row",

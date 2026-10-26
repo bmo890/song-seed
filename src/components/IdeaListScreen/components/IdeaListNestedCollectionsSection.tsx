@@ -120,7 +120,7 @@ const nestedCollectionStyles = StyleSheet.create({
   },
   list: {
     gap: 8,
-    paddingLeft: 8,
+    paddingStart: 8,
   },
   itemRow: {
     minHeight: 38,

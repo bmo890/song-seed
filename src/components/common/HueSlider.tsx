@@ -25,7 +25,9 @@ type Props = {
 export function HueSlider({ hue, onChange }: Props) {
   const { t } = useTranslation();
   return (
+    // The rainbow is drawn left to right; the thumb must ride the same way.
     <Slider
+      mirrors={false}
       value={hue}
       minimumValue={0}
       maximumValue={359}

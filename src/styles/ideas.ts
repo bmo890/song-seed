@@ -319,7 +319,7 @@ export const ideasStyles = {
     alignItems: "center",
     gap: 10,
     marginTop: 6,
-    paddingLeft: 30,
+    paddingStart: 30,
   },
   // Compact search-match: a quiet second line under the title (glyph + snippet).
   ideaDenseSnippet: {
@@ -327,7 +327,7 @@ export const ideasStyles = {
     alignItems: "center",
     gap: 7,
     marginTop: 5,
-    paddingLeft: 30,
+    paddingStart: 30,
   },
   ideaDenseSnippetText: {
     flex: 1,
@@ -344,7 +344,7 @@ export const ideasStyles = {
     height: 22,
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 2,
+    marginStart: 2,
   },
   // Compact inline version embedded in the dashed separator row
   // Pill shown near filter bar when any items are hidden

@@ -33,7 +33,7 @@ export const lyricsStyles = {
     borderRadius: 4,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    paddingRight: 18,
+    paddingEnd: 18,
     fontSize: 16,
     lineHeight: 25,
     color: "#1b1c1a",

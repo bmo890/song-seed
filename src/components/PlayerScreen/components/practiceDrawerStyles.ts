@@ -24,8 +24,8 @@ export const pd = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     minHeight: 42,
-    paddingLeft: 2,
-    paddingRight: 10,
+    paddingStart: 2,
+    paddingEnd: 10,
     borderRadius: radii.lg,
   },
   markGlyph: {
@@ -74,9 +74,10 @@ export const pd = StyleSheet.create({
   },
   // The rail that ties a section to its pins: one unbroken line from the
   // section's row to the last pin inside it.
+  // At the start edge, with the rows (the right, in Hebrew).
   markGroupRail: {
     position: "absolute",
-    left: 0,
+    start: 0,
     top: -MARK_ROW_PITCH_GAP,
     bottom: 0,
     width: 2,
@@ -188,7 +189,7 @@ export const pd = StyleSheet.create({
     ...text.supporting,
     fontSize: 12,
     color: colors.textMuted,
-    marginLeft: "auto",
+    marginStart: "auto",
     fontVariant: ["tabular-nums"],
   },
   // Undo/redo sit at the row's end, tighter than the row's 18pt gap — they are
@@ -218,7 +219,7 @@ export const pd = StyleSheet.create({
   },
   rowValue: {
     ...text.supporting,
-    marginLeft: "auto",
+    marginStart: "auto",
     fontVariant: ["tabular-nums"],
   },
   // ---- step up's own progress line, under the row ----
@@ -257,7 +258,7 @@ export const pd = StyleSheet.create({
   },
   stepUpProgressCount: {
     ...text.supporting,
-    marginLeft: "auto",
+    marginStart: "auto",
     color: colors.textSecondary,
     fontVariant: ["tabular-nums"],
   },

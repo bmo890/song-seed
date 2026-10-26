@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   playGlyph: {
-    marginLeft: 3,
+    marginStart: 3,
   },
   sectionLabel: {
     ...textTokens.annotation,

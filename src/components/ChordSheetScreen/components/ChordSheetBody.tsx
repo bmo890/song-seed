@@ -554,7 +554,7 @@ const fullView = StyleSheet.create({
     fontFamily: "Lora_600SemiBold",
     fontSize: 20,
     color: colors.textPrimary,
-    marginRight: spacing.md,
+    marginEnd: spacing.md,
   },
   close: {
     width: 36,

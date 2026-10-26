@@ -204,23 +204,36 @@ what you see can never disagree with what you hear.
   eight pulses the beat row switches to a dense dot tier so 12/8 fits a phone;
   the three accent tiers keep their ratio.
 
-### Direction policy — RTL (locked 2026-07-27)
+### Direction policy — RTL (revised 2026-10-26, industry standard)
 
 Hebrew flips the app with `I18nManager.forceRTL`, so every `flexDirection: row`
-mirrors for free. Three things do NOT follow the app's language:
+mirrors for free. The rule follows Apple (UIKit `.playback`, "timeline
+indicators" don't flip) and Material ("in Hebrew, timelines and media controls
+retain left-to-right"), and what Apple Music's Hebrew player does:
 
-1. **Time.** Transport rows — the pinned primary-take strip, waveforms, scrub
-   bars — always run left → right, because that is where audio time starts.
-   They use `flexDirection: I18nManager.isRTL ? "row-reverse" : "row"`, never
-   `direction: "ltr"` (an explicit direction opts the whole subtree out of RN's
-   left/right swap, which then fights the content alignment inside it).
-2. **Notation.** A chord staff is music, not prose: bars run left → right in
-   every language, and the barlines that open and close them are physical.
+**Mirrors (it is layout):** reading order, headers, lists and their rows (the
+play queue, playlists, compilations: number on the right, drag handle on the
+left), menus, tabs and segment order, the side drawer (opens from the right),
+back/forward chevrons, toggles, and value controls: a slider that sets how much
+(size, volume, level, tempo, speed) fills from the right, and a −/+ stepper puts
+− on the right. `Slider` mirrors by default for this reason.
+
+**Never mirrors:**
+1. **Time.** Play/previous/next and every transport bar (the player's, the
+   mini player's, the recorder's Discard · Record · Save), the reel, waveforms,
+   the minimap, scrub bars, layer lanes, marks and loops on the reel, and the
+   controls that move a position on it (the inspector's edge chips, nudge
+   carets and position slider: `Slider mirrors={false}`, `Stepper` chevrons).
+   Time on tape runs left → right in every language.
+2. **Notation and instruments.** A chord staff, the metronome's beats, the
+   tuner's ♭–♯ gauge.
 3. **Content.** Writing direction comes from the STRING (`UserText`,
-   `UserTextInput`, `resolveContentDirection`), never from the UI — a Hebrew
-   title's runs read correctly inside an English app and vice versa. The chord
-   chart takes this per line — a chart can hold both — and anchors each line's
-   chords to the edge that line starts at.
+   `UserTextInput`, `resolveContentDirection`), never from the UI. The chord
+   chart takes this per line and anchors each line's chords to the edge that
+   line starts at.
+
+**Deliberate exception:** the floating record key stays bottom-right in Hebrew,
+under the right thumb (founder, 2026-10-26). Material would move it left.
 
 **Alignment ≠ reading order (founder ruling 2026-09-11).** These are two decisions
 and RTL forces you to make them separately. ALIGNMENT follows the UI's start edge
@@ -233,13 +246,16 @@ default to it), because a right-to-left paragraph pinned to the left edge is wro
 typography. The string always keeps its own writing direction: forcing an auto
 title like "10:58 AM Jul 28th" to RTL would re-order its Latin runs.
 
-**The RN trap.** `I18nManager.doLeftAndRightSwapInRTL` is on by default, so RN
-rewrites `left`/`right` — including `textAlign` and absolute insets — under RTL.
-Anything whose direction is decided by content rather than by the app must go
-through `physicalEdge()` / `physicalTextAlign()` (`src/i18n/direction.tsx`),
-which pre-invert so the swap lands where you meant. `transform: translateX` is
-NOT swapped: a sliding thumb computes its offset from the physical left, so its
-target index has to be reversed in RTL (`SegmentedControl`, `LyricsChordsToggle`).
+**The layout trap (measured 2026-10-26, new architecture).** `textAlign:
+"left" | "right"` IS swapped in RTL, but absolute insets (`left`/`right`) and
+padding/margins are NOT; they stay physical. So a position that should mirror
+uses logical `start`/`end` (`paddingStart`, `marginEnd`…), and one that must not
+(a mark on the timeline) uses `left`/`right`, which already mean the physical
+side. A row pinned left-to-right uses `direction: "ltr"` or `ltrRow`.
+`physicalTextAlign()` pre-inverts for the swapped `textAlign`; `physicalEdge()`
+names a physical layout edge. `transform: translateX` is physical too: a
+sliding thumb computes from the physical left, so its target index is reversed
+in RTL (`SegmentedControl`, `LyricsChordsToggle`).
 
 **Directional glyphs.** Back, forward, undo, redo and next/previous arrows flip
 with the reading axis — call `dirIcon()` (`src/design/directionalIcons.ts`), which
