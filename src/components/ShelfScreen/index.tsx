@@ -5,6 +5,8 @@ import { ScreenHeader } from "../common/ScreenHeader";
 import { EmptyState } from "../common/EmptyState";
 import { Ledger } from "../common/Ledger";
 import { AppAlert } from "../common/AppAlert";
+import { IconButton } from "../common/IconButton";
+import { HelpSheet } from "../common/HelpSheet";
 import { useBrowseRootBackHandler } from "../../hooks/useBrowseRootBackHandler";
 import { useShelfScreenModel, type ShelfRow } from "./hooks/useShelfScreenModel";
 import { ShelfItemCard } from "./components/ShelfItemCard";
@@ -16,6 +18,9 @@ import { useTranslation } from "react-i18next";
 export function ShelfScreen() {
   const { t } = useTranslation();
   const screen = useShelfScreenModel();
+  // Why the shelf exists and the rules a row can't show (founder, 2026-10-27):
+  // how ideas get here, the 7-day stay, and that leaving never deletes.
+  const [helpOpen, setHelpOpen] = useState(false);
 
   useBrowseRootBackHandler();
 
@@ -48,6 +53,26 @@ export function ShelfScreen() {
         title={t("screens.shelf")}
         variant="place"
         leftIcon="hamburger"
+        rightElement={
+          // IconButton ticks on press — haptics vocabulary: `tap`.
+          <IconButton
+            testID="shelf-help"
+            icon="help-circle-outline"
+            tone="muted"
+            onPress={() => setHelpOpen(true)}
+            accessibilityLabel={t("shelf.helpA11y")}
+          />
+        }
+      />
+      <HelpSheet
+        visible={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        thesis={t("shelf.helpThesis")}
+        items={[
+          { icon: "file-tray-outline", label: t("shelf.helpAddLabel"), description: t("shelf.helpAdd") },
+          { icon: "time-outline", label: t("shelf.helpStayLabel"), description: t("shelf.helpStay") },
+          { icon: "folder-outline", label: t("shelf.helpSafeLabel"), description: t("shelf.helpSafe") },
+        ]}
       />
 
       <ScrollView
