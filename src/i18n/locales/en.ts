@@ -430,6 +430,9 @@ export const en = {
     departedCaption: "Back in their collections. Nothing deleted.",
   },
   settings: {
+    planActive: "Active",
+    planFounding: "Yours for good",
+    planFree: "Free",
     preferences: "Preferences",
     proUnlocked: "Pro unlocked",
     restartTitle: "Restart SongNook?",

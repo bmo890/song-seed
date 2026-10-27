@@ -1,19 +1,19 @@
-import { ScrollView, Text, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { ScrollView, View } from "react-native";
 import { PageIntro } from "../../common/PageIntro";
 import { settingsScreenStyles, styles } from "../styles";
 import { LibraryActionCard, SettingsGroup } from "../components/SettingsShared";
 import type { useLibraryBackupFlow } from "../hooks/useLibraryBackupFlow";
 import { useTranslation } from "react-i18next";
-import { colors } from "../../../design/tokens";
-import { isPaywallLive } from "../../../domain/entitlements";
+import { isPaywallLive, usePlanState, type PlanState } from "../../../domain/entitlements";
+import { openProUpsell } from "../../common/proUpsell";
+import type { TFunction } from "i18next";
 
 type LibraryBackupFlow = ReturnType<typeof useLibraryBackupFlow>;
 
 /**
- * Four doors (founder, 2026-10-21: fewer pages, less text). The plan is a
- * line, not a page: during the beta there is nothing to manage. It becomes a
- * door again when Pro can be bought.
+ * Four doors (founder, 2026-10-21: fewer pages, less text). Once Pro can be
+ * bought, the plan is a fifth: one row saying where you stand, opening the Pro
+ * sheet (2026-10-27).
  */
 export function SettingsOverviewView({
   backupFlow,
@@ -43,16 +43,9 @@ export function SettingsOverviewView({
     >
       <PageIntro title={t("settings.title")} />
 
-      {/* No plan line while everything is free: "Beta" copy in a shipping build is an
-          App Review 2.2 rejection, and there is nothing to manage yet. It returns, with
-          the real plan, once Pro can be bought. */}
-      {isPaywallLive() ? (
-        <View style={settingsScreenStyles.planLine}>
-          <Ionicons name="sparkles-outline" size={18} color={colors.textStrong} />
-          <Text style={settingsScreenStyles.planLineTitle}>{t("settingsAccount.betaPlan")}</Text>
-          <Text style={settingsScreenStyles.planLineState}>{t("settings.proUnlocked")}</Text>
-        </View>
-      ) : null}
+      {/* The plan, once Pro can be bought: where you stand, and the door to the Pro
+          sheet (prices, Restore). Nothing shows while everything is free. */}
+      {isPaywallLive() ? <PlanRow /> : null}
 
       <View style={settingsScreenStyles.overviewSection}>
         <SettingsGroup>
@@ -79,5 +72,36 @@ export function SettingsOverviewView({
         </SettingsGroup>
       </View>
     </ScrollView>
+  );
+}
+
+function planLabel(plan: PlanState, t: TFunction): string {
+  switch (plan.kind) {
+    case "pro":
+      return t("settings.planActive");
+    case "founding":
+      return t("settings.planFounding");
+    case "freeMonth":
+      return t("freeMonth.daysLeft", { count: plan.daysLeft });
+    default:
+      return t("settings.planFree");
+  }
+}
+
+function PlanRow() {
+  const { t } = useTranslation();
+  const plan = usePlanState();
+  return (
+    <View style={settingsScreenStyles.overviewSection}>
+      <SettingsGroup>
+        <LibraryActionCard
+          flat
+          icon="sparkles-outline"
+          title={t("pro.eyebrow")}
+          meta={planLabel(plan, t)}
+          onPress={() => openProUpsell()}
+        />
+      </SettingsGroup>
+    </View>
   );
 }

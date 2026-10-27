@@ -247,27 +247,6 @@ export const settingsScreenStyles = StyleSheet.create({
     lineHeight: 17,
     color: colors.textSecondary,
   },
-  // The plan is a row on paper, not a terracotta-washed box (2026-10-20).
-  // The plan as a line on Settings (no page during the beta).
-  planLine: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.borderMuted,
-  },
-  planLineTitle: {
-    flex: 1,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    fontSize: 14,
-    color: colors.textPrimary,
-  },
-  planLineState: {
-    fontFamily: "PlusJakartaSans_500Medium",
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
   planSummary: {
     flexDirection: "row",
     alignItems: "center",

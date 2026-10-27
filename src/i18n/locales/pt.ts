@@ -491,6 +491,9 @@ export const pt = {
     departedCaption: "De volta às suas coleções. Nada foi excluído.",
   },
   settings: {
+    planActive: "Ativo",
+    planFounding: "Seu para sempre",
+    planFree: "Grátis",
     preferences: "Preferências",
     proUnlocked: "Pro desbloqueado",
     restartTitle: "Reiniciar o SongNook?",

@@ -465,6 +465,9 @@ export const de = {
     departedCaption: "Zurück in ihren Sammlungen. Nichts gelöscht.",
   },
   settings: {
+    planActive: "Aktiv",
+    planFounding: "Für immer deins",
+    planFree: "Kostenlos",
     preferences: "Präferenzen",
     proUnlocked: "Pro freigeschaltet",
     restartTitle: "SongNook neu starten?",

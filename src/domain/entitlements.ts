@@ -148,3 +148,35 @@ export function useIsPro(): boolean {
 export function useHasProAccess(feature?: ProFeature): boolean {
     return useSyncExternalStore(proEntitlement.subscribe, () => hasProAccess(feature));
 }
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Where the user stands, for the Settings plan line: a paying subscriber, a founding
+ * install (Pro for good), inside the free month (with whole days left, counting
+ * today), or free.
+ */
+export type PlanState =
+    | { kind: "pro" }
+    | { kind: "founding" }
+    | { kind: "freeMonth"; daysLeft: number }
+    | { kind: "free" };
+
+/** A string snapshot, so useSyncExternalStore sees a stable value between changes. */
+function planSnapshot(): string {
+    if (isProSubscriber()) return "pro";
+    if (foundingMember) return "founding";
+    if (freeMonthOpen() && freeMonthEndsAt != null) {
+        return `freeMonth:${Math.max(1, Math.ceil((freeMonthEndsAt - getFreeMonthClock()) / DAY_MS))}`;
+    }
+    return "free";
+}
+
+/** Reactive plan state; re-renders on a purchase, a restore or the month running out. */
+export function usePlanState(): PlanState {
+    const snapshot = useSyncExternalStore(proEntitlement.subscribe, planSnapshot);
+    if (snapshot.startsWith("freeMonth:")) {
+        return { kind: "freeMonth", daysLeft: Number(snapshot.slice("freeMonth:".length)) };
+    }
+    return { kind: snapshot as "pro" | "founding" | "free" };
+}

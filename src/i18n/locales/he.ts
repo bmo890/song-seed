@@ -450,6 +450,9 @@ export const he = {
     departedCaption: "חזרו לאוספים שלהם. שום דבר לא נמחק.",
   },
   settings: {
+    planActive: "פעיל",
+    planFounding: "שלכם לתמיד",
+    planFree: "חינם",
     preferences: "העדפות",
     proUnlocked: "Pro פתוח",
     restartTitle: "להפעיל מחדש את SongNook?",
