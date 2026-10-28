@@ -24,8 +24,7 @@ import { isPaywallLive, proEntitlement } from "../domain/entitlements";
  */
 const REVENUECAT_KEYS = {
     ios: "appl_XntYTyjFaBGNrOwwbdcyhseGvdP",
-    /** goog_… once the Play app exists in RevenueCat; until then Android has no billing. */
-    android: null as string | null,
+    android: "goog_nLCIwRtVcBtZDOABCbycfUpsxSG" as string | null,
     test: "test_buUBQqhLdoJVWTwqerBRmFgzTNG",
 };
 
