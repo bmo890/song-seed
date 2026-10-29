@@ -362,10 +362,17 @@ export function BarStrip({
 
 const CUE_KEYS: MetronomeOutputKey[] = ["beep", "visual", "haptic"];
 
+const CUE_GLYPHS: Record<MetronomeOutputKey, keyof typeof Ionicons.glyphMap> = {
+  beep: "volume-medium-outline",
+  visual: "eye-outline",
+  haptic: "phone-portrait-outline",
+};
+
 /**
- * The cues as a list of ink toggles (word + leading dot), each carrying its own
- * settings on its row: Beep has its volume and sound, Haptic its strength. A cue
- * that is off keeps its row and drops its controls, so the list never reflows.
+ * The cues as three ink keys in a row (founder, 2026-10-29: "too much text"):
+ * glyph + word, terracotta ink when on, muted when off. Beneath them sit only
+ * the settings of the cues that are on, each led by its glyph rather than a
+ * label: Beep its volume and sound, Haptic its strength as three rising bars.
  */
 export function CueRows({
   outputs,
@@ -386,7 +393,7 @@ export function CueRows({
   clickVoice?: MetronomeClickVoice;
   /** Voice is structural on the engine, so unlike the levels it locks mid-take. */
   voiceDisabled?: boolean;
-  /** Locks the on/off toggles (structural); the level controls stay live. */
+  /** Locks the on/off keys (structural); the level controls stay live. */
   disabled?: boolean;
   onToggleOutput: (key: MetronomeOutputKey) => void;
   onChangeBeepLevel: (level: number) => void;
@@ -394,76 +401,89 @@ export function CueRows({
   onChangeClickVoice?: (voice: MetronomeClickVoice) => void;
 }) {
   const { t } = useTranslation();
+  const strengthId = nearestHapticStrengthId(hapticLevel);
+  const strengthIndex = HAPTIC_STRENGTH_PRESETS.findIndex((preset) => preset.id === strengthId);
   return (
     <View>
-      {CUE_KEYS.map((key, rowIndex) => {
-        const on = outputs[key];
-        return (
-          <View key={key} style={[ms.cue, rowIndex > 0 ? ms.cueRowRule : null]}>
-            <View style={ms.cueRow}>
-              <Pressable
-                style={({ pressed }) => [ms.cueToggle, pressed ? ms.pressed : null]}
-                onPress={() => onToggleOutput(key)}
-                disabled={disabled}
-                hitSlop={{ top: 8, bottom: 8 }}
-                accessibilityRole="switch"
-                accessibilityState={{ checked: on }}
-                accessibilityLabel={t(`metronome.${key}`)}
-              >
-                <View style={[ms.inkDot, on ? ms.inkDotOn : null]} />
-                <Text style={[ms.cueWord, on ? ms.cueWordOn : null]}>{t(`metronome.${key}`)}</Text>
-              </Pressable>
-              {key === "visual" && on ? <Text style={ms.cueHint}>{t("metronome.visualHint")}</Text> : null}
-            </View>
-            {/* A cue that is on shows its own settings beneath it, indented to
-                its word: Beep its volume and sound, Haptic its strength. One
-                choice of a few is ink tabs (were boxed cycle keys). */}
-            {key === "beep" && on ? (
-              <View style={ms.cueBody}>
-                <Slider
-                  minimumValue={MIN_METRONOME_LEVEL}
-                  maximumValue={MAX_METRONOME_LEVEL}
-                  step={1}
-                  detent={MAX_METRONOME_LEVEL - MIN_METRONOME_LEVEL > 20 ? 10 : 1}
-                  value={beepLevel}
-                  onValueChange={onChangeBeepLevel}
-                  accessibilityLabel={t("metronome.beepVolume")}
-                />
-                {clickVoice && onChangeClickVoice ? (
-                  <View
-                    style={disabled || voiceDisabled ? ms.dimmed : null}
-                    pointerEvents={disabled || voiceDisabled ? "none" : "auto"}
-                  >
-                    <SegmentedControl
-                      options={METRONOME_CLICK_VOICES.map((voice) => ({
-                        key: voice,
-                        label: t(CLICK_VOICE_LABEL_KEYS[voice]),
-                      }))}
-                      value={clickVoice}
-                      onChange={onChangeClickVoice}
-                    />
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
-            {key === "haptic" && on ? (
-              <View style={ms.cueBody}>
-                <SegmentedControl
-                  options={HAPTIC_STRENGTH_PRESETS.map((preset) => ({
-                    key: preset.id,
-                    label: t(`metronome.${preset.id}`),
-                  }))}
-                  value={nearestHapticStrengthId(hapticLevel)}
-                  onChange={(id) => {
-                    const preset = HAPTIC_STRENGTH_PRESETS.find((option) => option.id === id);
-                    if (preset) onChangeHapticLevel(preset.level);
-                  }}
-                />
-              </View>
-            ) : null}
+      <View style={[ms.cueKeys, disabled ? ms.dimmed : null]} pointerEvents={disabled ? "none" : "auto"}>
+        {CUE_KEYS.map((key) => {
+          const tone = outputs[key] ? "active" : "off";
+          return (
+            <InkKey
+              key={key}
+              glyph={<Ionicons name={CUE_GLYPHS[key]} size={20} color={inkKeyColor(tone)} />}
+              label={t(`metronome.${key}`)}
+              tone={tone}
+              role="switch"
+              haptic="light"
+              onPress={() => onToggleOutput(key)}
+            />
+          );
+        })}
+      </View>
+
+      <AnimatedCollapse visible={outputs.beep}>
+        <View style={ms.cueBody}>
+          <View style={ms.cueLine}>
+            <Ionicons name="volume-low-outline" size={16} color={colors.textMuted} />
+            <Slider
+              style={ms.cueSlider}
+              minimumValue={MIN_METRONOME_LEVEL}
+              maximumValue={MAX_METRONOME_LEVEL}
+              step={1}
+              detent={MAX_METRONOME_LEVEL - MIN_METRONOME_LEVEL > 20 ? 10 : 1}
+              value={beepLevel}
+              onValueChange={onChangeBeepLevel}
+              accessibilityLabel={t("metronome.beepVolume")}
+            />
+            <Ionicons name="volume-high-outline" size={16} color={colors.textMuted} />
           </View>
-        );
-      })}
+          {clickVoice && onChangeClickVoice ? (
+            <View
+              style={[ms.cueIndent, disabled || voiceDisabled ? ms.dimmed : null]}
+              pointerEvents={disabled || voiceDisabled ? "none" : "auto"}
+            >
+              <SegmentedControl
+                options={METRONOME_CLICK_VOICES.map((voice) => ({
+                  key: voice,
+                  label: t(CLICK_VOICE_LABEL_KEYS[voice]),
+                }))}
+                value={clickVoice}
+                onChange={onChangeClickVoice}
+              />
+            </View>
+          ) : null}
+        </View>
+      </AnimatedCollapse>
+
+      <AnimatedCollapse visible={outputs.haptic}>
+        <View style={[ms.cueBody, ms.cueLine]}>
+          <Ionicons name={CUE_GLYPHS.haptic} size={16} color={colors.textMuted} />
+          <View style={ms.strengthBars}>
+            {HAPTIC_STRENGTH_PRESETS.map((preset, index) => (
+              <Press
+                key={preset.id}
+                feel="glyph"
+                haptic="tap"
+                style={ms.strengthKey}
+                onPress={() => onChangeHapticLevel(preset.level)}
+                hitSlop={{ top: 10, bottom: 10 }}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: preset.id === strengthId }}
+                accessibilityLabel={t("metronome.hapticStrength", { label: t(`metronome.${preset.id}`) })}
+              >
+                <View
+                  style={[
+                    ms.strengthBar,
+                    { height: 10 + index * 7 },
+                    index <= strengthIndex ? ms.strengthBarOn : null,
+                  ]}
+                />
+              </Press>
+            ))}
+          </View>
+        </View>
+      </AnimatedCollapse>
     </View>
   );
 }
@@ -735,60 +755,49 @@ export const ms = StyleSheet.create({
   sheetFoot: {
     height: 12,
   },
-  // ── Cue rows ──
-  cue: {
-    paddingVertical: 4,
-  },
-  cueRow: {
+  // ── Cues ──
+  cueKeys: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    minHeight: 46,
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.sm,
   },
-  // A cue's settings, indented to its word (dot 10 + gap 10).
+  // A cue's settings beneath the keys, each line led by its glyph.
   cueBody: {
-    paddingStart: 20,
-    paddingBottom: spacing.sm,
-    gap: spacing.xs,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
+    gap: spacing.sm,
   },
-  cueRowRule: {
-    borderTopWidth: 1,
-    borderTopColor: colors.borderSubtle,
-  },
-  cueToggle: {
+  cueLine: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    width: 84,
-    paddingVertical: 8,
   },
-  inkDot: {
-    width: 10,
-    height: 10,
-    borderRadius: radii.round,
-    borderWidth: 1.5,
-    borderColor: colors.textStrong,
-  },
-  inkDotOn: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  cueWord: {
-    fontSize: 14,
-    fontFamily: "PlusJakartaSans_600SemiBold",
-    color: colors.textSecondary,
-  },
-  cueWordOn: {
-    color: colors.textPrimary,
+  // Indented past the lead glyph (16 + gap 10) to sit under the slider.
+  cueIndent: {
+    paddingStart: 26,
   },
   cueSlider: {
     flex: 1,
+    height: 30,
   },
-  cueHint: {
-    flex: 1,
-    fontSize: 13,
-    fontFamily: "PlusJakartaSans_400Regular",
-    color: colors.textMuted,
+  // Rising bars, a signal meter: the strength reads without its word.
+  strengthBars: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 4,
+  },
+  strengthKey: {
+    minHeight: 32,
+    paddingHorizontal: 4,
+    justifyContent: "flex-end",
+  },
+  strengthBar: {
+    width: 8,
+    borderRadius: 2,
+    backgroundColor: colors.surfaceHigh,
+  },
+  strengthBarOn: {
+    backgroundColor: colors.primary,
   },
   pressed: {
     opacity: 0.7,

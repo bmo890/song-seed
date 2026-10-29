@@ -56,7 +56,9 @@ The hard rules below are non-negotiable.
 - Selection controls: single-select = `SegmentedControl`, drawn as ink tabs
   (2026-10-15): words on a hairline, the chosen one in full ink over a sliding
   2 pt rule, no track or thumb;
-  multi-select = editorial ink (word + leading dot, hollow→terracotta), no chips.
+  multi-select = editorial ink (word + leading dot, hollow→terracotta), no chips;
+  a few on/off cues side by side (the metronome's Beep/Visual/Haptic) are `InkKey`
+  switches on one line (2026-10-29).
   A choice in Settings is a `ValueRow` (value + popover, 2026-10-21), not tabs.
   Stage color from shared `STAGE_INK`, never cold literals.
 - Headers (2026-10-15): a PLACE (collection, Shelf, Revisit, Activity,
