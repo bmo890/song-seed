@@ -45,7 +45,7 @@ export const HAPTIC_STRENGTH_PRESETS: { id: HapticStrengthId; level: number }[] 
   { id: "strong", level: 90 },
 ];
 
-const CLICK_VOICE_LABEL_KEYS: Record<MetronomeClickVoice, string> = {
+export const CLICK_VOICE_LABEL_KEYS: Record<MetronomeClickVoice, string> = {
   click: "metronome.voiceClick",
   wood: "metronome.voiceWood",
 };

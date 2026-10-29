@@ -42,6 +42,9 @@ declare class SongNookMetronomeModule extends NativeModule<SongNookMetronomeModu
    *  structural configure() clears it. Absent on older binaries — call with `?.`. */
   configureTempoMap?(segments: NativeTempoMapSegment[]): Promise<NativeMetronomeState>;
   clearTempoMap?(): Promise<NativeMetronomeState>;
+  /** Optional: true on Android binaries whose map runs fill the stream track before it
+   *  starts. Older Android map runs never started (silent); keep them off the map. */
+  supportsPrimedMapStream?(): boolean;
   /** Optional: start the click with the loop already `offsetMs` into the bar, so it
    *  joins moving playback in phase. Absent on older binaries — call with `?.`. */
   startAtPhase?(offsetMs: number): Promise<NativeMetronomeState>;

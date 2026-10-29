@@ -647,6 +647,8 @@ function PlayerScreenInner({
   const setPlaybackClickLevel = useStore((s) => s.setPlaybackClickLevel);
   const playbackClickHaptic = useStore((s) => s.playbackClickHaptic);
   const setPlaybackClickHaptic = useStore((s) => s.setPlaybackClickHaptic);
+  const metronomeClickVoice = useStore((s) => s.metronomeClickVoice);
+  const setMetronomeClickVoice = useStore((s) => s.setMetronomeClickVoice);
   // The reel takes position straight off the engine, with no render in between — a React
   // commit landing mid-animation is what pulled its overlays off the tape. The channel is
   // only allowed to drive when the full player genuinely owns the transport AND the engine
@@ -2105,6 +2107,8 @@ function PlayerScreenInner({
               clickHapticAvailable={playbackClick.supportsHaptic}
               clickHaptic={playbackClickHaptic}
               onSetClickHaptic={setPlaybackClickHaptic}
+              clickVoice={playbackClick.supportsVoice ? metronomeClickVoice : undefined}
+              onSetClickVoice={playbackClick.supportsVoice ? setMetronomeClickVoice : undefined}
               sound={data.overdubRootSettings}
               onCommitSoundLevel={(db) => handleAdjustRootGain(db - (data.overdubRootSettings?.gainDb ?? 0))}
               onToggleSoundTone={handleToggleRootToneFlag}

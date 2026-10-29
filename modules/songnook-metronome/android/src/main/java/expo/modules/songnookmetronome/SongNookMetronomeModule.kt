@@ -79,6 +79,12 @@ class SongNookMetronomeModule : Module() {
       true
     }
 
+    // Map runs fill the stream track past its start threshold (before this, an
+    // Android map run never started: silent click). JS keeps older binaries off it.
+    Function("supportsPrimedMapStream") {
+      true
+    }
+
     Function("supportsSilentBeats") {
       true
     }

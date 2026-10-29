@@ -401,7 +401,12 @@ class SongNookMetronomeEngine(
         track.setVolume(config.clickVolume.toFloat())
         track.play()
         audioTrack = track
-        writeMapChunks()
+        // A stream track holds its head at 0 until its WHOLE buffer is full (the
+        // default start threshold). Topping it up only 150 ms ahead of a head that
+        // never moves left the map run silent forever, with the poll stuck on its
+        // first pulse: no click and one buzz (founder's Android, 2026-10-29). Fill
+        // the buffer exactly once so it starts; the steady writer keeps it fed after.
+        primeMapStream(track)
         handler?.post(mapWriterRunnable)
       }
     } catch (error: Throwable) {
@@ -413,6 +418,22 @@ class SongNookMetronomeEngine(
     val state = getState()
     onStateChange(state)
     return state
+  }
+
+  /** Fill a fresh stream track to exactly its buffer size: full is what starts it, and
+   *  never past full, so no write can block on a track that has not started yet. */
+  private fun primeMapStream(track: AudioTrack) {
+    val bufferFrames = track.bufferSizeInFrames.toLong()
+    while (mapWriteFrame < bufferFrames) {
+      val frames = min(mapChunkFrames.toLong(), bufferFrames - mapWriteFrame).toInt()
+      val chunk = renderMapChunk(mapWriteFrame, frames)
+      try {
+        track.write(chunk, 0, chunk.size)
+      } catch (_: Throwable) {
+        return
+      }
+      mapWriteFrame += frames
+    }
   }
 
   /** Keep the stream ~150ms ahead of the head, placing clicks at their exact frames. */

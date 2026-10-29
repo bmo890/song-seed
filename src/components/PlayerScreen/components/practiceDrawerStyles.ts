@@ -171,6 +171,12 @@ export const pd = StyleSheet.create({
     marginTop: -4,
   },
   clickVolumeSlider: { flex: 1, height: 30 },
+  // The sound, under its volume: indented to the slider's own inset.
+  clickVoiceRow: {
+    paddingHorizontal: 10,
+    paddingTop: 4,
+    paddingBottom: 6,
+  },
   // Leading the list: the divider moves under the row instead of above it.
   // Pinned over the list once it scrolls: opaque, so rows pass beneath.
   addRowSticky: {

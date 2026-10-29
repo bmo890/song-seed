@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Platform } from "react-native";
 import { useEventListener } from "expo";
 import SongNookMetronomeModule from "../../modules/songnook-metronome";
 import { holdBackgroundPosition } from "../services/backgroundPosition";
@@ -38,6 +39,13 @@ import { describeError, persistLog } from "../services/persistLog";
  */
 
 const DRIFT_CHECK_INTERVAL_MS = 10_000;
+/**
+ * Whether a streamed map run sounds on this binary. Android map runs never started
+ * before the stream was primed (silent click, one buzz: founder, 2026-10-29), so those
+ * binaries keep every take on the looped bar and its boundary restarts.
+ */
+const MAP_RUN_SOUNDS =
+  Platform.OS !== "android" || !!SongNookMetronomeModule?.supportsPrimedMapStream?.();
 /** Restart the click when it has drifted this far from the playhead's grid. */
 const DRIFT_RESYNC_THRESHOLD_MS = 35;
 
@@ -68,6 +76,8 @@ export type PlaybackClickApi = {
   notifySeek: (targetMs: number) => void;
   /** The engine can buzz the beat natively (scheduled cues); older binaries can't. */
   supportsHaptic: boolean;
+  /** The engine renders the chosen click voice; older binaries only the stock click. */
+  supportsVoice: boolean;
 };
 
 export function usePlaybackClick(args: UsePlaybackClickArgs): PlaybackClickApi {
@@ -88,6 +98,7 @@ function usePlaybackClickInert(): PlaybackClickApi {
     cancelCountIn: () => {},
     notifySeek: () => {},
     supportsHaptic: false,
+    supportsVoice: false,
   };
 }
 
@@ -105,6 +116,9 @@ function usePlaybackClickNative({
   // which is a feel setting rather than a per-surface one.
   const hapticEnabled = useStore((s) => s.playbackClickHaptic);
   const hapticLevel = useStore((s) => s.metronomeHapticLevel);
+  // The sound is the writer's one click voice, shared with the metronome they
+  // record with: choosing it here or there changes both.
+  const clickVoice = useStore((s) => s.metronomeClickVoice);
   const bluetoothMonitoringCalibrations = useStore((s) => s.bluetoothMonitoringCalibrations);
 
   const [enabled, setEnabledState] = useState(false);
@@ -124,6 +138,8 @@ function usePlaybackClickNative({
   hapticRef.current = hapticEnabled;
   const hapticLevelRef = useRef(hapticLevel);
   hapticLevelRef.current = hapticLevel;
+  const clickVoiceRef = useRef(clickVoice);
+  clickVoiceRef.current = clickVoice;
   const calibrationsRef = useRef(bluetoothMonitoringCalibrations);
   calibrationsRef.current = bluetoothMonitoringCalibrations;
   /** Signed haptic lead for the current route (latency model), refreshed per sync. */
@@ -143,6 +159,7 @@ function usePlaybackClickNative({
   // Haptics only where the engine schedules them itself with the signed lead. No JS
   // event fallback here: a late buzz against a moving take is worse than none.
   const nativeCuesSupported = !!SongNookMetronomeModule?.supportsScheduledCues?.();
+  const supportsClickStyle = !!SongNookMetronomeModule?.supportsClickStyle?.();
 
   const clearTimers = useCallback(() => {
     for (const timer of timersRef.current) {
@@ -206,12 +223,12 @@ function usePlaybackClickNative({
       hapticEnabled: nativeCuesSupported && hapticRef.current,
       hapticStrength: clampMetronomeLevel(hapticLevelRef.current) / MAX_METRONOME_LEVEL,
       hapticOffsetMs: hapticLeadMsRef.current,
-      // The engine MERGES configs: pin the ornaments so a subdivision or wood voice
-      // left by the standalone metronome never leaks into the practice click.
+      // The engine MERGES configs: pin the subdivision so one left by the standalone
+      // metronome never leaks into the practice click. The voice is the writer's own.
       subdivision: 1,
-      clickVoice: "click",
+      clickVoice: supportsClickStyle ? clickVoiceRef.current : "click",
     });
-  }, [nativeCuesSupported, refreshHapticLead]);
+  }, [nativeCuesSupported, refreshHapticLead, supportsClickStyle]);
 
   /** (Re)start the click phase-aligned at the given (or current) position. */
   const syncClick = useCallback(
@@ -243,12 +260,15 @@ function usePlaybackClickNative({
         if (syncTokenRef.current !== token) return;
 
         // Map-capable engines take the WHOLE map and a whole-grid offset: tempo
-        // changes then land natively (no boundary timers, no restarts).
+        // changes then land natively (no boundary timers, no restarts). A take with
+        // one tempo has nothing for a map to do and rides the looped bar.
         const mapSegments =
-          SongNookMetronomeModule!.supportsTempoMap?.() && SongNookMetronomeModule!.configureTempoMap
+          MAP_RUN_SOUNDS &&
+          SongNookMetronomeModule!.supportsTempoMap?.() &&
+          SongNookMetronomeModule!.configureTempoMap
             ? nativeTempoMapSegments(gridRef.current!, rate)
             : null;
-        if (mapSegments && SongNookMetronomeModule!.startAtPhase) {
+        if (mapSegments && mapSegments.length > 1 && SongNookMetronomeModule!.startAtPhase) {
           usedNativeMap = true;
           nativeMapSegmentCount = mapSegments.length;
           await SongNookMetronomeModule!.configureTempoMap!(mapSegments);
@@ -262,6 +282,9 @@ function usePlaybackClickNative({
               `gridOffset=${Math.round(gridWallOffsetMs)}ms segments=${mapSegments.length}`
           );
         } else if (supportsPhaseStart && SongNookMetronomeModule!.startAtPhase) {
+          // A map left installed by an earlier run would turn this into a map run.
+          await SongNookMetronomeModule!.clearTempoMap?.();
+          if (syncTokenRef.current !== token) return;
           await SongNookMetronomeModule!.startAtPhase(params.phaseOffsetWallMs);
           engineOwnedRef.current = true;
           console.log(
@@ -329,10 +352,10 @@ function usePlaybackClickNative({
 
       // Two clocks (engine sample clock vs player clock) — check drift periodically
       // and restart when audible. The logged error is the Phase F shared-clock KPI.
-      // The modular phase math assumes ONE bar length; past a native multi-segment
-      // map's first boundary it stops being meaningful, so those runs skip the check
-      // (their tempo error is bounded by the same int-bpm rounding either way).
-      if (usedNativeMap && nativeMapSegmentCount > 1) {
+      // The modular phase math assumes ONE bar length; past a native map's first
+      // boundary it stops being meaningful, so map runs skip the check (their tempo
+      // error is bounded by the same int-bpm rounding either way).
+      if (usedNativeMap) {
         return;
       }
       driftIntervalRef.current = setInterval(() => {
@@ -376,7 +399,7 @@ function usePlaybackClickNative({
     } else if (!isCountingInRef.current) {
       void stopEngine();
     }
-  }, [enabled, isPlaying, playbackRate, grid, beepLevel, hapticEnabled, hapticLevel, syncClick, stopEngine]);
+  }, [enabled, isPlaying, playbackRate, grid, beepLevel, hapticEnabled, hapticLevel, clickVoice, syncClick, stopEngine]);
 
   // The click re-syncs the beat against the playback position, screen on or off.
   useEffect(() => {
@@ -405,7 +428,7 @@ function usePlaybackClickNative({
     onDownbeat?.();
     if (enabledRef.current) {
       const hasChanges = (gridRef.current?.tempoMap?.segments.length ?? 1) > 1;
-      if (hasChanges && SongNookMetronomeModule!.supportsTempoMap?.()) {
+      if (hasChanges && MAP_RUN_SOUNDS && SongNookMetronomeModule!.supportsTempoMap?.()) {
         // The count-in ran single-tempo; a take with programmed changes re-joins on
         // the map so the boundaries land natively from here.
         void syncClick();
@@ -498,5 +521,6 @@ function usePlaybackClickNative({
     cancelCountIn,
     notifySeek,
     supportsHaptic: nativeCuesSupported,
+    supportsVoice: supportsClickStyle,
   };
 }

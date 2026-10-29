@@ -11,6 +11,8 @@ import { pd } from "./practiceDrawerStyles";
 import type { CountInOption } from "../hooks/usePlayerScreenUi";
 import type { ClipAnalysis, ClipSection, ClipSectionKind, PracticeMarker } from "../../../types";
 import { SegmentedControl } from "../../common/SegmentedControl";
+import { CLICK_VOICE_LABEL_KEYS } from "../../common/metronome/MetronomeBlocks";
+import { METRONOME_CLICK_VOICES, type MetronomeClickVoice } from "../../../domain/metronome";
 import { StickyInScroll } from "../../common/StickyInScroll";
 import { windowedSliderBounds } from "../../../domain/markSliderWindow";
 import { PinDetailModal } from "./PinDetailModal";
@@ -165,6 +167,10 @@ type PlayerPracticeDrawersProps = {
   clickHapticAvailable: boolean;
   clickHaptic: boolean;
   onSetClickHaptic: (enabled: boolean) => void;
+  /** The click's sound — the writer's one voice, shared with the metronome. Omitted on
+   *  binaries that can't render a second voice. */
+  clickVoice?: MetronomeClickVoice;
+  onSetClickVoice?: (voice: MetronomeClickVoice) => void;
 
   // The take's sound (Sound room, 2026-10-14): its root level and tone, saved on
   // the take as they are set. Null while no clip is loaded.
@@ -306,6 +312,8 @@ export function PlayerPracticeDrawers({
   clickHapticAvailable,
   clickHaptic,
   onSetClickHaptic,
+  clickVoice,
+  onSetClickVoice,
   sound,
   onCommitSoundLevel,
   onToggleSoundTone,
@@ -971,6 +979,19 @@ export function PlayerPracticeDrawers({
                 accessibilityLabel={t("player.clickVolume")}
               />
               <Ionicons name="volume-high-outline" size={16} color={colors.textMuted} />
+            </View>
+          ) : null}
+          {/* Its sound, the same choice the recorder offers (founder, 2026-10-29). */}
+          {clickEnabled && clickVoice && onSetClickVoice ? (
+            <View style={pd.clickVoiceRow}>
+              <SegmentedControl
+                options={METRONOME_CLICK_VOICES.map((voice) => ({
+                  key: voice,
+                  label: t(CLICK_VOICE_LABEL_KEYS[voice]),
+                }))}
+                value={clickVoice}
+                onChange={onSetClickVoice}
+              />
             </View>
           ) : null}
           {/* A tap in the hand along with the click — the same quiet row recipe. */}
