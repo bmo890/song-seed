@@ -96,3 +96,55 @@ export function assessWavHeader(header: Uint8Array, fileSize: number): WavHeader
     }
     return { kind: "notWav" };
 }
+
+export type WavLayout = {
+    /** Byte offset of the first sample, just past the `data` chunk header. */
+    dataStart: number;
+    /** Whole frames of audio present, in bytes. */
+    dataBytes: number;
+    sampleRate: number;
+    channels: number;
+    bitsPerSample: number;
+    blockAlign: number;
+    sampleFormat: "int" | "float";
+};
+
+/**
+ * Where a WAV's samples are and how they are packed, for code that rewrites the
+ * audio around them. Only linear PCM (16/24/32-bit int, 32-bit float, plain or
+ * extensible) is described; anything else is null, so callers leave it alone.
+ */
+export function parseWavLayout(header: Uint8Array, fileSize: number): WavLayout | null {
+    if (header.length < 12 || ascii(header, 0) !== "RIFF" || ascii(header, 8) !== "WAVE") return null;
+    let format: Omit<WavLayout, "dataStart" | "dataBytes"> | null = null;
+    let offset = 12;
+    while (offset + 8 <= header.length) {
+        const id = ascii(header, offset);
+        const size = u32(header, offset + 4);
+        if (id === "fmt ") {
+            if (offset + 8 + 16 > header.length) return null;
+            const body = offset + 8;
+            let tag = u16(header, body);
+            // WAVE_FORMAT_EXTENSIBLE: the real tag opens the sub-format GUID.
+            if (tag === 0xfffe && size >= 40 && body + 26 <= header.length) tag = u16(header, body + 24);
+            const channels = u16(header, body + 2);
+            const sampleRate = u32(header, body + 4);
+            const blockAlign = u16(header, body + 12);
+            const bitsPerSample = u16(header, body + 14);
+            const isInt = tag === 1 && [16, 24, 32].includes(bitsPerSample);
+            const isFloat = tag === 3 && bitsPerSample === 32;
+            if ((!isInt && !isFloat) || !channels || !sampleRate || blockAlign !== channels * (bitsPerSample / 8)) {
+                return null;
+            }
+            format = { sampleRate, channels, bitsPerSample, blockAlign, sampleFormat: isFloat ? "float" : "int" };
+        } else if (id === "data") {
+            if (!format) return null;
+            const dataStart = offset + 8;
+            const present = Math.max(0, fileSize - dataStart);
+            const declared = PLACEHOLDER_SIZES.has(size) || size > present ? present : size;
+            return { ...format, dataStart, dataBytes: declared - (declared % format.blockAlign) };
+        }
+        offset += 8 + size + (size % 2);
+    }
+    return null;
+}

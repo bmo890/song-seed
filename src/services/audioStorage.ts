@@ -6,6 +6,8 @@ import { computeWaveformPeaks, computeWaveformWithNativeDuration, getNativeAudio
 import { buildDefaultIdeaTitle, buildStaticWaveform } from "../utils";
 import { SONG_NOOK_AUDIO_DIR, SONG_NOOK_PREVIEW_AUDIO_DIR, SONG_NOOK_SHARE_DIR } from "./storagePaths";
 import { cleanupShareTempFile } from "./managedMedia";
+import { writeBarAlignedCopy } from "./barAlignedExport";
+import type { RecordingGrid } from "../types";
 import { createZipArchive, type ZipArchiveEntry } from "./zipArchive";
 import SongNookPitchShiftModule from "../../modules/songnook-pitch-shift";
 import {
@@ -78,6 +80,8 @@ export type AudioImportFailure = {
 export type ShareableAudioClip = {
     title: string;
     audioUri: string;
+    /** The click the take was recorded to: the shared copy then starts on a bar line. */
+    recordingGrid?: RecordingGrid | null;
 };
 
 const MIN_PLAUSIBLE_EXTERNAL_TIMESTAMP = Date.UTC(1990, 0, 1);
@@ -758,7 +762,39 @@ export async function importRecordedAudioAsset(
     );
 }
 
-export async function shareAudioFile(audioUri: string, title: string) {
+/** Write the copy that leaves the app to `targetUri`: moved onto its first bar line
+ *  when it was recorded to the click, else the file as it is. */
+async function writeShareCopy(audioUri: string, grid: RecordingGrid | null | undefined, targetUri: string) {
+    try {
+        if ((await writeBarAlignedCopy(audioUri, grid, targetUri)) !== "asIs") return;
+    } catch (error) {
+        // The take still goes out, just where it started.
+        console.warn("[export] bar alignment failed, sharing the take as it is", error);
+    }
+    await FileSystem.copyAsync({ from: audioUri, to: targetUri });
+}
+
+/** Copies for clips that move onto a bar line, in the share folder; the rest go as
+ *  they are. Delete `tempUris` once the files have left. */
+export async function prepareShareCopies(clips: ShareableAudioClip[]) {
+    await ensureShareDirectory();
+    const tempUris: string[] = [];
+    const uris: string[] = [];
+    for (const clip of clips) {
+        if (!clip.recordingGrid) {
+            uris.push(clip.audioUri);
+            continue;
+        }
+        const extension = getArchiveFileExtension(clip.audioUri);
+        const copyUri = `${SONG_NOOK_SHARE_DIR}/bar-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}.${extension}`;
+        await writeShareCopy(clip.audioUri, clip.recordingGrid, copyUri);
+        tempUris.push(copyUri);
+        uris.push(copyUri);
+    }
+    return { uris, tempUris };
+}
+
+export async function shareAudioFile(audioUri: string, title: string, recordingGrid?: RecordingGrid | null) {
     const info = await FileSystem.getInfoAsync(audioUri);
     if (!info.exists) {
         throw new Error("File not found.");
@@ -771,7 +807,7 @@ export async function shareAudioFile(audioUri: string, title: string) {
     const shareUri = `${SONG_NOOK_SHARE_DIR}/${baseName} ${buildTimestampSlug()}-${Math.random().toString(36).slice(2, 7)}.${extension}`;
 
     try {
-        await FileSystem.copyAsync({ from: audioUri, to: shareUri });
+        await writeShareCopy(audioUri, recordingGrid, shareUri);
         await shareFileUri(shareUri, title, getAudioShareMimeType(audioUri));
     } finally {
         await cleanupShareTempFile(shareUri);
@@ -785,11 +821,11 @@ export async function shareAudioClips(clips: ShareableAudioClip[], bundleLabel =
 
     if (clips.length === 1) {
         const [clip] = clips;
-        await shareAudioFile(clip.audioUri, clip.title);
+        await shareAudioFile(clip.audioUri, clip.title, clip.recordingGrid);
         return;
     }
 
-    await ensureShareDirectory();
+    const copies = await prepareShareCopies(clips);
 
     const usedNames = new Set<string>();
     const archiveEntries: ZipArchiveEntry[] = clips.map((clip, index) => {
@@ -807,7 +843,7 @@ export async function shareAudioClips(clips: ShareableAudioClip[], bundleLabel =
 
         return {
             archiveName,
-            fileUri: clip.audioUri,
+            fileUri: copies.uris[index],
         };
     });
 
@@ -819,5 +855,6 @@ export async function shareAudioClips(clips: ShareableAudioClip[], bundleLabel =
         await shareFileUri(archiveUri, archiveTitle, "application/zip");
     } finally {
         await cleanupShareTempFile(archiveUri);
+        await Promise.all(copies.tempUris.map(cleanupShareTempFile));
     }
 }

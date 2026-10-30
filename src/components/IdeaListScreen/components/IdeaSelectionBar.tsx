@@ -5,7 +5,7 @@ import { useNavigation } from "@react-navigation/native";
 import { AppAlert } from "../../common/AppAlert";
 import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
-import { shareAudioClips } from "../../../services/audioStorage";
+import { shareAudioClips, type ShareableAudioClip } from "../../../services/audioStorage";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { SelectionDock, type SelectionAction } from "../../common/SelectionDock";
 import { DockAddBadgeIcon } from "../../common/dockIcons";
@@ -152,12 +152,14 @@ export function IdeaSelectionBar({
         .map((idea) => {
           const clip = getPlayableClipForIdea(idea);
           if (!clip?.audioUri) return null;
-          return {
+          const shareable: ShareableAudioClip = {
             title: clip.title || idea.title,
             audioUri: clip.audioUri,
+            recordingGrid: clip.recordingGrid,
           };
+          return shareable;
         })
-        .filter((clip): clip is { title: string; audioUri: string } => !!clip),
+        .filter((clip): clip is ShareableAudioClip => !!clip),
     [interactiveSelectedIdeas]
   );
 

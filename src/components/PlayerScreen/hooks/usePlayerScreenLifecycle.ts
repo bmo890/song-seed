@@ -605,7 +605,7 @@ export function usePlayerScreenLifecycle({
           const clipTitle = playerClip?.title ?? t("player.clip");
           const shareAudio = async () => {
             try {
-              await shareAudioFile(playbackUri, clipTitle);
+              await shareAudioFile(playbackUri, clipTitle, playerClip?.recordingGrid);
             } catch (error) {
               console.warn("Share audio error", error);
               const message = userFacingMessage(error, t("player.shareAudioFailed"));
@@ -631,7 +631,11 @@ export function usePlayerScreenLifecycle({
                   kind: "clips",
                   emptyMessage: t("player.shareAudioFailed"),
                   create: (parcel) =>
-                    createClipsShareLink([{ title: clipTitle, audioUri: playbackUri }], clipTitle, parcel),
+                    createClipsShareLink(
+                      [{ title: clipTitle, audioUri: playbackUri, recordingGrid: playerClip?.recordingGrid }],
+                      clipTitle,
+                      parcel
+                    ),
                 }),
             },
           ], clipTitle);
