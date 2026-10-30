@@ -1,6 +1,10 @@
 import { trimAudio } from "@siteed/audio-studio";
 import SongNookPitchShiftModule, { type NativeTrimRange } from "../../modules/songnook-pitch-shift";
 import { complementSpans } from "../domain/clipEditRemap";
+import { persistLog } from "./persistLog";
+
+/** The edit-list outcome reaches the diagnostic log once per launch, and again on a change. */
+let lastLoggedEditList: string | null = null;
 
 type TrimArgs =
   | { fileUri: string; mode: "single"; startTimeMs: number; endTimeMs: number; outputFileName?: string }
@@ -36,6 +40,13 @@ export async function trimAudioRanges(args: TrimArgs): Promise<{ uri: string }> 
         ranges: keepRanges,
         outputFileName: args.outputFileName,
       });
+      if (result.editList) {
+        const line = `edit list ${result.editList}, priming ${result.primingSamples ?? "?"} samples`;
+        if (line !== lastLoggedEditList) {
+          lastLoggedEditList = line;
+          persistLog("record.timing", line);
+        }
+      }
       return { uri: result.outputUri };
     } catch (error) {
       console.warn("[trim] native renderTrim failed; falling back to @siteed", error);

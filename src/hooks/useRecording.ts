@@ -63,8 +63,23 @@ type OnRecorded = (
      * `domain/onsetEnvelope.ts` for why the waveform sidecar cannot serve.
      */
     onsetEnvelope?: OnsetEnvelope | null;
+    /** Where beat 1 sits in the saved file, in ms, when the cut was placed on the downbeat
+     *  the mic recorded (`planHeadTrim`). 0 up to rounding; absent when nothing measured. */
+    downbeatInFileMs?: number;
   }
 ) => void | boolean | Promise<void | boolean>;
+
+/**
+ * Re-place the head cut on what the take actually recorded. Given the committed cut and
+ * the raw capture (count-in still attached), return the measured downbeat in capture ms,
+ * or null to keep the committed cut. The caller knows the take's grid; this hook doesn't.
+ */
+export type PlanHeadTrim = (take: {
+  committedTrimMs: number;
+  /** The onset envelope on the capture clock: nothing trimmed. */
+  captureEnvelope: OnsetEnvelope | null;
+  rawDurationMs: number;
+}) => { downbeatCaptureMs: number } | null;
 
 // Dev used to throttle the stream to 120ms because each delivery cost a React re-render
 // plus an UNBOUNDED Skia path rebuild, and dev-mode JS couldn't keep up. Both costs are
@@ -162,8 +177,14 @@ function watchDevicesOnce() {
 // waiting on it back would deadlock the recorder.
 let discardCleanup: Promise<void> = Promise.resolve();
 
-export function useRecording(onRecorded: OnRecorded, preferredInputId: string | null) {
+export function useRecording(
+  onRecorded: OnRecorded,
+  preferredInputId: string | null,
+  options?: { planHeadTrim?: PlanHeadTrim }
+) {
   const { t } = useTranslation();
+  const planHeadTrimRef = useRef(options?.planHeadTrim);
+  planHeadTrimRef.current = options?.planHeadTrim;
   const recorder = useSharedAudioRecorder();
   // Every per-take fact (live tape, onset envelope, head trim, capture start, flags)
   // lives in the app-wide take session, not in this instance: the recorder screen can
@@ -985,20 +1006,42 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
       const currentHeadTrim = take.headTrim.get();
       const headTrimMs = currentHeadTrim.pending ? 0 : currentHeadTrim.ms;
       take.headTrim.set({ pending: false, ms: 0 });
+      // The committed cut is a PREDICTION (scheduled click + reported latency). When the
+      // click ran through the take, its recorded clicks say where beat 1 really is: cut
+      // there, so the file's sample 0 is the downbeat for every player and every DAW.
+      let downbeatCaptureMs: number | null = null;
+      if (headTrimMs > 0 && planHeadTrimRef.current) {
+        try {
+          downbeatCaptureMs =
+            planHeadTrimRef.current({
+              committedTrimMs: headTrimMs,
+              captureEnvelope: finishOnsetEnvelope(capturedOnsetState, 0),
+              rawDurationMs,
+            })?.downbeatCaptureMs ?? null;
+        } catch (planError) {
+          console.warn("[timing] downbeat measurement failed; keeping the predicted cut", planError);
+        }
+      }
+      const cutMs = downbeatCaptureMs != null ? Math.round(downbeatCaptureMs) : headTrimMs;
       let sourceAudioUri = recordingData.fileUri;
       let headTrimmedMs = 0;
-      if (headerFinal && headTrimMs >= MIN_HEAD_TRIM_MS && rawDurationMs > headTrimMs + 250) {
+      if (headerFinal && cutMs >= MIN_HEAD_TRIM_MS && rawDurationMs > cutMs + 250) {
         try {
           const trimmed = await trimAudioRanges({
             fileUri: recordingData.fileUri,
             mode: "single",
-            startTimeMs: headTrimMs,
-            endTimeMs: Math.max(rawDurationMs, headTrimMs + 1),
+            startTimeMs: cutMs,
+            endTimeMs: Math.max(rawDurationMs, cutMs + 1),
           });
           sourceAudioUri = trimmed.uri;
           trimTempUriToCleanup = trimmed.uri;
-          headTrimmedMs = headTrimMs;
-          console.log(`[timing] trimmed ${headTrimMs}ms head off the saved take`);
+          headTrimmedMs = cutMs;
+          console.log(
+            downbeatCaptureMs != null
+              ? `[timing] trimmed ${cutMs}ms head off the saved take, at the recorded downbeat ` +
+                  `(predicted ${headTrimMs}ms)`
+              : `[timing] trimmed ${cutMs}ms head off the saved take`
+          );
         } catch (trimError) {
           console.warn("Recording head trim failed; keeping the untrimmed take", trimError);
         }
@@ -1080,6 +1123,8 @@ export function useRecording(onRecorded: OnRecorded, preferredInputId: string | 
         headTrimmedMs,
         headTrimRequestedMs: headTrimMs,
         onsetEnvelope: finishOnsetEnvelope(capturedOnsetState, headTrimmedMs),
+        downbeatInFileMs:
+          downbeatCaptureMs != null ? Math.max(0, downbeatCaptureMs - headTrimmedMs) : undefined,
       }));
 
       if (attached === false) {

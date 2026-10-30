@@ -228,24 +228,33 @@ export type GridAlignmentResult =
     | { kind: "unchanged"; reason: string };
 
 /**
- * Decide what the recorded clicks say about this grid.
+ * What the recorded clicks say about where this grid's downbeat really is, before any
+ * decision about whether to act on it.
  *
- * - A grid WITH a stamped downbeat gets a small phase correction (device latency),
- *   capped well under half a beat so the bar phase can never flip.
- * - A grid with a NULL downbeat (the record-time measurement failed) gets stamped from
- *   the audio: bar lines land on real clicks. Which click is beat 1 is not knowable from
- *   phase alone, so the stamp is beat-aligned — honest lines, possibly renumbered bars —
- *   which beats drawing nothing.
- * - Tempo-mapped takes are left alone: one comb phase cannot describe a tempo change.
+ * `correctionMs` is the signed move from the stamped downbeat onto the measured one, null
+ * when the grid had no stamped downbeat (the measurement then IS the downbeat, beat-aligned).
+ * No noise floor is applied here: a caller that cuts the file at the measured downbeat wants
+ * the measurement itself, however small the move.
  */
-export function alignGridToRecordedClicks(args: {
+export type DownbeatMeasurement =
+    | {
+          kind: "measured";
+          downbeatMs: number;
+          correctionMs: number | null;
+          contrast: number;
+          msPerBin: number;
+          signalKind: ClickPhaseEstimate["signalKind"];
+      }
+    | { kind: "unmeasured"; reason: string };
+
+export function measureRecordedDownbeat(args: {
     grid: RecordingGrid;
     signal: ClickSignal;
     durationMs: number;
-}): GridAlignmentResult {
+}): DownbeatMeasurement {
     const { grid, signal, durationMs } = args;
-    if (!grid.clickThroughTake) return { kind: "unchanged", reason: "no click in take" };
-    if (!(grid.bpm > 0)) return { kind: "unchanged", reason: "no bpm" };
+    if (!grid.clickThroughTake) return { kind: "unmeasured", reason: "no click in take" };
+    if (!(grid.bpm > 0)) return { kind: "unmeasured", reason: "no bpm" };
 
     // A tempo-mapped take used to be refused outright, and that was the wrong call: the
     // MAP is exact by construction (the native engine schedules its changes sample-exactly
@@ -266,9 +275,9 @@ export function alignGridToRecordedClicks(args: {
         beatMs,
         windowMs: [0, analysisEndMs],
     });
-    if (!estimate) return { kind: "unchanged", reason: "no estimate" };
+    if (!estimate) return { kind: "unmeasured", reason: "no estimate" };
     if (estimate.contrast < MIN_CLICK_CONTRAST) {
-        return { kind: "unchanged", reason: `contrast ${estimate.contrast.toFixed(2)}` };
+        return { kind: "unmeasured", reason: `contrast ${estimate.contrast.toFixed(2)}` };
     }
 
     // Phase-lock gate: both halves of the take must hear the click at the same phase.
@@ -288,11 +297,11 @@ export function alignGridToRecordedClicks(args: {
         windowMs: [midpointMs, analysisEndMs],
         minBeats: MIN_HALF_BEATS,
     });
-    if (!firstHalf || !secondHalf) return { kind: "unchanged", reason: "too short to verify" };
+    if (!firstHalf || !secondHalf) return { kind: "unmeasured", reason: "too short to verify" };
     // Less evidence, so a higher bar of it: a short take must be unmistakably a click.
     if (beatsPerHalf < MIN_COMB_BEATS && estimate.contrast < SHORT_TAKE_MIN_CONTRAST) {
         return {
-            kind: "unchanged",
+            kind: "unmeasured",
             reason:
                 `short take, contrast ${estimate.contrast.toFixed(2)} ` +
                 `below ${SHORT_TAKE_MIN_CONTRAST}`,
@@ -301,42 +310,106 @@ export function alignGridToRecordedClicks(args: {
     let halfDelta = Math.abs(firstHalf.phaseMs - secondHalf.phaseMs);
     if (halfDelta > beatMs / 2) halfDelta = beatMs - halfDelta;
     if (halfDelta > MAX_HALF_PHASE_DISAGREEMENT_MS) {
-        return { kind: "unchanged", reason: `not phase-locked (${Math.round(halfDelta)}ms)` };
+        return { kind: "unmeasured", reason: `not phase-locked (${Math.round(halfDelta)}ms)` };
     }
 
+    const provenance = {
+        contrast: estimate.contrast,
+        msPerBin: estimate.msPerBin,
+        signalKind: estimate.signalKind,
+    };
     if (grid.firstDownbeatMs == null) {
-        return {
-            kind: "stamped",
-            grid: { ...grid, firstDownbeatMs: estimate.phaseMs },
-            contrast: estimate.contrast,
-            msPerBin: estimate.msPerBin,
-            signalKind: estimate.signalKind,
-        };
+        return { kind: "measured", downbeatMs: estimate.phaseMs, correctionMs: null, ...provenance };
     }
 
     // Signed distance from the stamped phase to the measured phase, wrapped to ±beat/2.
     const stampedPhase = ((grid.firstDownbeatMs % beatMs) + beatMs) % beatMs;
     const correction = wrapToBeat(estimate.phaseMs - stampedPhase, beatMs);
+    if (Math.abs(correction) > beatMs * MAX_CORRECTION_BEAT_FRACTION) {
+        return { kind: "unmeasured", reason: `ambiguous (${Math.round(correction)}ms)` };
+    }
 
-    const floorMs = minCorrectionMs(estimate.msPerBin);
+    let downbeatMs = grid.firstDownbeatMs + correction;
+    if (downbeatMs < 0) downbeatMs += beatMs;
+    return { kind: "measured", downbeatMs, correctionMs: correction, ...provenance };
+}
+
+/**
+ * Decide what the recorded clicks say about this grid.
+ *
+ * - A grid WITH a stamped downbeat gets a small phase correction (device latency),
+ *   capped well under half a beat so the bar phase can never flip.
+ * - A grid with a NULL downbeat (the record-time measurement failed) gets stamped from
+ *   the audio: bar lines land on real clicks. Which click is beat 1 is not knowable from
+ *   phase alone, so the stamp is beat-aligned — honest lines, possibly renumbered bars —
+ *   which beats drawing nothing.
+ */
+export function alignGridToRecordedClicks(args: {
+    grid: RecordingGrid;
+    signal: ClickSignal;
+    durationMs: number;
+}): GridAlignmentResult {
+    const measurement = measureRecordedDownbeat(args);
+    if (measurement.kind === "unmeasured") {
+        return { kind: "unchanged", reason: measurement.reason };
+    }
+    const { grid } = args;
+    const provenance = {
+        contrast: measurement.contrast,
+        msPerBin: measurement.msPerBin,
+        signalKind: measurement.signalKind,
+    };
+    if (measurement.correctionMs == null) {
+        return {
+            kind: "stamped",
+            grid: { ...grid, firstDownbeatMs: measurement.downbeatMs },
+            ...provenance,
+        };
+    }
+
+    const correction = measurement.correctionMs;
+    const floorMs = minCorrectionMs(measurement.msPerBin);
     if (Math.abs(correction) < floorMs) {
         return {
             kind: "unchanged",
             reason: `within noise (${Math.round(correction)}ms, floor ${Math.round(floorMs)}ms)`,
         };
     }
-    if (Math.abs(correction) > beatMs * MAX_CORRECTION_BEAT_FRACTION) {
-        return { kind: "unchanged", reason: `ambiguous (${Math.round(correction)}ms)` };
-    }
-
-    let corrected = grid.firstDownbeatMs + correction;
-    if (corrected < 0) corrected += beatMs;
     return {
         kind: "corrected",
-        grid: { ...grid, firstDownbeatMs: corrected },
+        grid: { ...grid, firstDownbeatMs: measurement.downbeatMs },
         correctionMs: correction,
-        contrast: estimate.contrast,
-        msPerBin: estimate.msPerBin,
-        signalKind: estimate.signalKind,
+        ...provenance,
     };
+}
+
+/**
+ * Where to cut a count-in take so its file starts ON the downbeat the mic recorded.
+ *
+ * A file whose sample 0 is beat 1 sits tight anywhere: in SongNook's player, and in a DAW
+ * given nothing but the tempo. Correcting only the stored grid (what the self-check after
+ * save does) leaves the file itself starting early or late by the uncompensated latency,
+ * which a DAW cannot know (founder's Android take, 2026-10-30: the first click 47 ms in).
+ *
+ * Measured on the RAW capture (count-in still attached), so a measured downbeat earlier
+ * than the predicted one can still be cut at: the audio before it exists. Returns null
+ * when the clicks can't be measured; the caller then keeps the predicted cut.
+ */
+export function planDownbeatHeadTrim(args: {
+    grid: RecordingGrid;
+    /** Onset envelope on the capture clock (nothing trimmed). */
+    signal: ClickSignal;
+    rawDurationMs: number;
+    /** The predicted downbeat, in capture ms. */
+    predictedDownbeatMs: number;
+}): { downbeatMs: number; measurement: Extract<DownbeatMeasurement, { kind: "measured" }> } | null {
+    const { grid, signal, rawDurationMs, predictedDownbeatMs } = args;
+    if (!(predictedDownbeatMs > 0)) return null;
+    const measurement = measureRecordedDownbeat({
+        grid: { ...grid, firstDownbeatMs: predictedDownbeatMs },
+        signal,
+        durationMs: rawDurationMs,
+    });
+    if (measurement.kind !== "measured" || !(measurement.downbeatMs > 0)) return null;
+    return { downbeatMs: measurement.downbeatMs, measurement };
 }

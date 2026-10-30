@@ -6,6 +6,7 @@ import {
 } from "../domain/clickGridAlignment";
 import type { OnsetEnvelope } from "../domain/onsetEnvelope";
 import type { RecordingGrid } from "../types";
+import { persistLog } from "./persistLog";
 
 /**
  * After a take with the click running saves, align its grid to the clicks the mic
@@ -84,6 +85,7 @@ export async function selfAlignClipGrid(args: {
                 `[timing] click self-align: unchanged (${result.reason}) ` +
                     `[${signal.kind} signal]`
             );
+            persistLog("record.timing", `self-align ${grid.bpm}bpm: unchanged (${result.reason})`);
             return;
         }
 
@@ -97,6 +99,12 @@ export async function selfAlignClipGrid(args: {
                 : `[timing] click self-align: null downbeat stamped at ` +
                       `${Math.round(result.grid.firstDownbeatMs ?? 0)}ms from the recorded clicks ` +
                       `(${provenance})`
+        );
+
+        persistLog(
+            "record.timing",
+            `self-align ${grid.bpm}bpm: downbeat ${Math.round(grid.firstDownbeatMs ?? -1)}→` +
+                `${Math.round(result.grid.firstDownbeatMs ?? -1)}ms (${result.signalKind})`
         );
 
         useStore.getState().updateIdeas(

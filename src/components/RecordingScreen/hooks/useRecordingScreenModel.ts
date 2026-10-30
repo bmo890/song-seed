@@ -57,6 +57,7 @@ import { buildSaveDestinations, resolveSaveDestinationLabel, type SaveDestinatio
 import { writableWorkspaces } from "../../../domain/workspaceVisibility";
 import { authorizeIntentionalEmptyStateWrite } from "../../../services/stateIntegrity";
 import { selfAlignClipGrid } from "../../../services/gridSelfAlignment";
+import { planDownbeatHeadTrim } from "../../../domain/clickGridAlignment";
 import { ensureWaveformSidecar } from "../../../services/waveformSidecar";
 import { maybeRequestReviewAfterSave } from "../../../services/reviewPrompt";
 import {
@@ -353,13 +354,18 @@ export function useRecordingScreenModel() {
       // Stamping 0 threw that margin away and told everything downstream a lie the size of
       // the margin — small, but permanent, in the same direction every take, and inherited
       // by every overdub and every export. The file starts early; say so.
+      //
+      // When the cut was placed on the downbeat the mic recorded, the file starts ON beat 1
+      // (downbeatInFileMs ≈ 0): no margin, and nothing left for the self-check to correct.
       const takeGrid = takeGridRef.current
         ? {
             ...takeGridRef.current,
             firstDownbeatMs:
-              payload.headTrimmedMs != null && payload.headTrimmedMs > 0
-                ? HEAD_TRIM_SAFETY_EARLY_MS
-                : takeGridRef.current.firstDownbeatMs,
+              payload.downbeatInFileMs != null
+                ? payload.downbeatInFileMs
+                : payload.headTrimmedMs != null && payload.headTrimmedMs > 0
+                  ? HEAD_TRIM_SAFETY_EARLY_MS
+                  : takeGridRef.current.firstDownbeatMs,
           }
         : undefined;
 
@@ -491,8 +497,9 @@ export function useRecordingScreenModel() {
       );
 
       // The stamped grid is built from SCHEDULED click epochs; align it to the clicks the
-      // mic actually recorded (device latency, or a failed record-time measurement).
-      if (takeGrid?.clickThroughTake) {
+      // mic actually recorded (device latency, or a failed record-time measurement). A take
+      // already cut at its recorded downbeat was measured before the cut.
+      if (takeGrid?.clickThroughTake && payload.downbeatInFileMs == null) {
         void selfAlignClipGrid({
           ideaId: recordingIdeaId,
           clipId: clip.id,
@@ -503,7 +510,32 @@ export function useRecordingScreenModel() {
         });
       }
     },
-    preferredRecordingInputId
+    preferredRecordingInputId,
+    {
+      // A solo count-in take: the cut was aimed HEAD_TRIM_SAFETY_EARLY_MS before the
+      // predicted downbeat. Re-aim it at the downbeat the recorded clicks show. Layers keep
+      // their own placement (services/layerSelfAlignment.ts): their file t=0 is the punch.
+      planHeadTrim: ({ committedTrimMs, captureEnvelope, rawDurationMs }) => {
+        const grid = takeGridRef.current;
+        if (!grid?.clickThroughTake || pendingOverdubSaveRef.current || !captureEnvelope) return null;
+        const predictedDownbeatMs = committedTrimMs + HEAD_TRIM_SAFETY_EARLY_MS;
+        const plan = planDownbeatHeadTrim({
+          grid,
+          signal: { kind: "onset", bins: captureEnvelope.bins, binMs: captureEnvelope.binMs },
+          rawDurationMs,
+          predictedDownbeatMs,
+        });
+        // Into the shared diagnostic log too: a phone's take is then measurable from a
+        // log the founder can send, not only from a cable and a console.
+        const line = plan
+          ? `downbeat cut ${grid.bpm}bpm ${grid.meterId}: recorded ${plan.downbeatMs.toFixed(1)}ms, ` +
+            `predicted ${predictedDownbeatMs}ms, contrast ${plan.measurement.contrast.toFixed(1)}`
+          : `downbeat cut ${grid.bpm}bpm ${grid.meterId}: not measurable, predicted cut kept`;
+        console.log(`[timing] ${line}`);
+        persistLog("record.timing", line);
+        return plan ? { downbeatCaptureMs: plan.downbeatMs } : null;
+      },
+    }
   );
 
   const addLivePin = useCallback(() => {

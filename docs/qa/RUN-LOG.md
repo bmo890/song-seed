@@ -384,3 +384,56 @@ byte for byte (`importAudioAsset` → `copyAsync`), so the marker is the source 
 ours. iOS strips the 48 ms either way. **Android unchecked:** ExoPlayer may play such a file
 48 ms later than iOS, which would put a layer recorded over it 48 ms off on that phone only.
 Needs one Android listen (a layer over an imported clip, played back on both platforms).
+
+## 2026-10-30 · Founder's Android take in a DAW: the file starts late, and later still on Android
+
+**Question (founder):** a take recorded over the speaker at 91 bpm 4/4 with count-in, so the
+click bleeds into it. On playback the recorded clicks don't sit with the play-along click. And
+dropped into a DAW at 91 bpm, would it sit tight?
+
+**Take:** exported from a Samsung (Android 16) as m4a, 20.8 s, 44.1 kHz mono AAC. No `edts`,
+no `iTunSMPB`; the movie box is the file's last box (Android's muxer).
+
+**Measured** (`grid-truth.py --audio … --bpm 91 --downbeat 0`, 32 clicks):
+
+| Decode | First click after file start | Spread (p90) | Drift |
+|---|---|---|---|
+| Apple (`afconvert`, assumes 2112 priming when told nothing) | 46.8 ms | 0.9 ms | 0 |
+| ffmpeg (skips nothing, as ExoPlayer) | 94.6 ms | 0.8 ms | 0 |
+
+The two decodes differ by exactly 2112 samples (cross-correlation: 47.89 ms).
+
+**Read:**
+- **Tempo is exact.** 91.0 bpm, no drift over the take, every click within 1 ms.
+- **The file doesn't start on beat 1.** The head trim is a prediction (scheduled click plus
+  reported latency; Android reports no input latency), and the cut stopped ~47 ms short of
+  the recorded downbeat. The app's own grid may hide that (self-align moves `firstDownbeatMs`);
+  a DAW only sees the file.
+- **Android files carry no priming marker.** Apple tools assume 2112 samples and skip them;
+  ExoPlayer and ffmpeg-based DAWs play them. So on Android every recorded click sounds ~48 ms
+  behind the grid, on top of the above: very likely the offset the founder hears against the
+  play-along click.
+
+**Fixes (2026-10-30):**
+- *Cut at the recorded downbeat* (JS): `planDownbeatHeadTrim` measures the clicks on the raw
+  capture before the trim, and the cut lands on them, so sample 0 is beat 1
+  (`downbeatInFileMs ≈ 0`). Logged to the diagnostic log as `record.timing downbeat cut …`.
+- *Write the priming as an edit list* (Android native, needs a store build):
+  `Mp4PrimingEditList` adds one `elst` to every file the app encodes. The priming is measured
+  per encoder by a probe (a burst at a known sample, encoded and decoded raw), never assumed.
+  Logged as `record.timing edit list …`.
+- iOS-rendered files already carry `iTunSMPB` (2112 priming): ffmpeg reads them with
+  `start_time 0.0479`, so they start at the same sample everywhere.
+
+**Verified:**
+- *Edit list*, on the founder's own file patched by the shipped Kotlin (JVM unit test with
+  priming 2048): ffmpeg now reads the first click at 48.2 ms, Apple at 46.8 ms: the decoders
+  agree within 1.4 ms (were 47.9 ms apart). Apple's decoder keeps assuming 2112 for AAC; the
+  1.4 ms is that assumption against this encoder.
+- *Downbeat cut*, iOS simulator, 91 bpm 4/4, one bar count-in, speaker bleed: predicted
+  downbeat 3146 ms, recorded 3213.4 ms (contrast 627), cut at 3213 ms, stored
+  `firstDownbeatMs` 0.4. `grid-truth.py`, both decoders: **+0.2 ms, ON THE GRID**.
+
+**Pass bar, on the phone:** export a new count-in take, then `grid-truth.py` with **both**
+decoders reads the first click within ±3 ms of 0, and the two decoders agree within 2 ms.
+Not yet run on Android: the edit list needs the store build.

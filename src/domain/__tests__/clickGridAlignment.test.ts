@@ -2,6 +2,8 @@ import {
   estimateClickPhase,
   alignGridToRecordedClicks,
   firstSegmentEndMs,
+  measureRecordedDownbeat,
+  planDownbeatHeadTrim,
   MIN_CLICK_CONTRAST,
 } from "../clickGridAlignment";
 import type { RecordingGrid } from "../../types";
@@ -206,5 +208,88 @@ describe("alignGridToRecordedClicks", () => {
     expect(firstSegmentEndMs(mapped as never, 40000)).toBeCloseTo(8 * 3 * BEAT_MS, 3);
     // A single-tempo take is measured end to end.
     expect(firstSegmentEndMs(grid(), 40000)).toBe(40000);
+  });
+});
+
+/** A 1 ms onset envelope (capture clock) with a click rising edge at phase + k*beat. */
+function onsetSignal(args: { durationMs: number; phaseMs: number; beatMs?: number }) {
+  const { durationMs, phaseMs, beatMs = BEAT_MS } = args;
+  const bins = new Array(Math.ceil(durationMs)).fill(0).map((_, index) => 0.02 * ((index * 7919) % 13) / 13);
+  for (let t = phaseMs; t < durationMs; t += beatMs) {
+    const bin = Math.round(t);
+    if (bin >= 0 && bin < bins.length) bins[bin] += 1;
+  }
+  return { kind: "onset" as const, bins, binMs: 1 };
+}
+
+describe("measureRecordedDownbeat", () => {
+  it("reports a move smaller than the grid's noise floor instead of dropping it", () => {
+    // 4 ms off: alignGridToRecordedClicks leaves the GRID alone (within noise), but a cut
+    // at the downbeat wants the measurement itself.
+    const durationMs = 20000;
+    const signal = onsetSignal({ durationMs, phaseMs: 404 });
+    const measurement = measureRecordedDownbeat({ grid: grid({ firstDownbeatMs: 400 }), signal, durationMs });
+    expect(measurement.kind).toBe("measured");
+    if (measurement.kind !== "measured") return;
+    expect(measurement.downbeatMs).toBeCloseTo(404, 0);
+    expect(alignGridToRecordedClicks({ grid: grid({ firstDownbeatMs: 400 }), signal, durationMs }).kind).toBe(
+      "unchanged"
+    );
+  });
+});
+
+describe("planDownbeatHeadTrim", () => {
+  // The founder's take (2026-10-30): 91 bpm 4/4, one bar of count-in, and the recorded
+  // clicks 47 ms after where the head trim predicted the downbeat.
+  const bpm = 91;
+  const beatMs = 60000 / bpm;
+  const fourFour = (overrides: Partial<RecordingGrid> = {}) => grid({ bpm, meterId: "4/4", ...overrides });
+
+  it("cuts at the downbeat the mic recorded, not the predicted one", () => {
+    const predicted = 1200 + 4 * beatMs;
+    const signal = onsetSignal({ durationMs: 22000, phaseMs: 1200 + 47, beatMs });
+    const plan = planDownbeatHeadTrim({
+      grid: fourFour(),
+      signal,
+      rawDurationMs: 22000,
+      predictedDownbeatMs: predicted,
+    });
+    expect(plan).not.toBeNull();
+    expect(plan!.downbeatMs).toBeCloseTo(predicted + 47, 0);
+  });
+
+  it("can cut earlier than predicted: the count-in audio is still attached", () => {
+    const predicted = 900 + 4 * beatMs;
+    const signal = onsetSignal({ durationMs: 22000, phaseMs: 900 - 30, beatMs });
+    const plan = planDownbeatHeadTrim({
+      grid: fourFour(),
+      signal,
+      rawDurationMs: 22000,
+      predictedDownbeatMs: predicted,
+    });
+    expect(plan!.downbeatMs).toBeCloseTo(predicted - 30, 0);
+  });
+
+  it("keeps the predicted cut when there is no click to measure", () => {
+    const bins = new Array(22000).fill(0).map((_, index) => ((index * 104729) % 17) / 17);
+    expect(
+      planDownbeatHeadTrim({
+        grid: fourFour(),
+        signal: { kind: "onset", bins, binMs: 1 },
+        rawDurationMs: 22000,
+        predictedDownbeatMs: 3000,
+      })
+    ).toBeNull();
+  });
+
+  it("never plans for a take the click did not run through", () => {
+    expect(
+      planDownbeatHeadTrim({
+        grid: fourFour({ clickThroughTake: false }),
+        signal: onsetSignal({ durationMs: 22000, phaseMs: 1247, beatMs }),
+        rawDurationMs: 22000,
+        predictedDownbeatMs: 1200 + 4 * beatMs,
+      })
+    ).toBeNull();
   });
 });
