@@ -196,14 +196,43 @@ class SongNookPitchShiftRenderer(
       SoundChainAudioProcessor(gainDb = input.gainDb, tonePreset = input.tonePreset, limit = false),
     )
 
+  /**
+   * Render, then — when the audio was ENCODED (not copied) — write the encoder's priming
+   * into the file as an edit list (Mp4PrimingEditList), so the sound starts at the same
+   * sample in every player. `writeEditList` is false only for the priming probe itself.
+   */
   private fun renderComposition(
     composition: Composition,
     outputFile: File,
+    writeEditList: Boolean = true,
   ): Map<String, Any> {
+    val rendered = renderCompositionRaw(composition, outputFile)
+    val encoder = rendered.encoder ?: return rendered.result
+    if (!writeEditList) return rendered.result
+    val priming = primingSamplesFor(encoder)
+      ?: return rendered.result + mapOf("editList" to "skipped: priming unknown")
+    val outcome = Mp4PrimingEditList.write(outputFile, priming)
+    android.util.Log.i(
+      "SongNookPitchShift",
+      "edit list: $outcome (priming $priming samples, ${encoder.name} ${encoder.sampleRate} Hz)"
+    )
+    return rendered.result + mapOf("primingSamples" to priming, "editList" to outcome)
+  }
+
+  /** The audio encoder an export used; null when the audio was copied, not encoded. */
+  private data class EncoderUsed(val name: String, val sampleRate: Int, val channelCount: Int)
+
+  private class RenderOutcome(val result: Map<String, Any>, val encoder: EncoderUsed?)
+
+  private fun renderCompositionRaw(
+    composition: Composition,
+    outputFile: File,
+  ): RenderOutcome {
     val renderThread = HandlerThread("SongNookPitchShiftRender").apply { start() }
     val renderHandler = Handler(renderThread.looper)
     val transformerRef = AtomicReference<Transformer?>()
     val resultRef = AtomicReference<Map<String, Any>?>()
+    val encoderRef = AtomicReference<EncoderUsed?>()
     val errorRef = AtomicReference<Throwable?>()
     val completionLatch = CountDownLatch(1)
 
@@ -231,6 +260,9 @@ class SongNookPitchShiftRenderer(
                     exportResult: ExportResult,
                   ) {
                     resultRef.set(mapOf("outputUri" to Uri.fromFile(outputFile).toString()))
+                    exportResult.audioEncoderName?.let { name ->
+                      encoderRef.set(EncoderUsed(name, exportResult.sampleRate, exportResult.channelCount))
+                    }
                     completionLatch.countDown()
                   }
 
@@ -266,7 +298,8 @@ class SongNookPitchShiftRenderer(
       }
 
       errorRef.get()?.let { throw mapRenderError(it) }
-      return resultRef.get() ?: throw IllegalStateException("Audio rendering completed without an output file.")
+      val result = resultRef.get() ?: throw IllegalStateException("Audio rendering completed without an output file.")
+      return RenderOutcome(result, encoderRef.get())
     } finally {
       renderThread.quitSafely()
       try {
@@ -274,6 +307,184 @@ class SongNookPitchShiftRenderer(
       } catch (_: InterruptedException) {
         Thread.currentThread().interrupt()
       }
+    }
+  }
+
+  // --- Encoder priming: measured once per encoder, never assumed ----------------------
+
+  /**
+   * How many priming samples this device's AAC encoder puts before the sound.
+   *
+   * Encoders differ (FDK, Apple and Samsung's own each prime differently), so it is not
+   * assumed: a one-second test file with a single short burst at a known sample goes
+   * through the same Transformer path, the result is decoded with nothing skipped, and the
+   * burst's new position is the priming. Kept per encoder, sample rate and channel count,
+   * across launches; measured again only when one of those changes. Null when it can't be
+   * measured with confidence: the file then gets no edit list, exactly as before.
+   */
+  private fun primingSamplesFor(encoder: EncoderUsed): Int? {
+    if (encoder.sampleRate <= 0 || encoder.channelCount <= 0) return null
+    val key = "$PRIMING_PROBE_VERSION|${encoder.name}|${encoder.sampleRate}|${encoder.channelCount}"
+    primingCache[key]?.let { return it.takeIf { value -> value >= 0 } }
+    val prefs = appContext.getSharedPreferences(PRIMING_PREFS, Context.MODE_PRIVATE)
+    if (prefs.contains(key)) {
+      val stored = prefs.getInt(key, -1)
+      primingCache[key] = stored
+      return stored.takeIf { it >= 0 }
+    }
+    val measured = try {
+      measurePriming(encoder)
+    } catch (throwable: Throwable) {
+      android.util.Log.w("SongNookPitchShift", "priming probe failed", throwable)
+      null
+    }
+    // A failed probe is remembered for this launch only: try again next time.
+    primingCache[key] = measured ?: -1
+    if (measured != null) prefs.edit().putInt(key, measured).apply()
+    android.util.Log.i("SongNookPitchShift", "priming probe: ${encoder.name} ${encoder.sampleRate} Hz → $measured")
+    return measured
+  }
+
+  private fun measurePriming(encoder: EncoderUsed): Int? {
+    val sampleRate = encoder.sampleRate
+    val channels = encoder.channelCount
+    val burstAt = sampleRate * 3 / 10
+    val burst = FloatArray(PRIMING_BURST_SAMPLES) { n ->
+      val window = 0.5 - 0.5 * Math.cos(2.0 * Math.PI * n / (PRIMING_BURST_SAMPLES - 1))
+      (0.8 * window * Math.sin(2.0 * Math.PI * 3000.0 * n / sampleRate)).toFloat()
+    }
+    val probeDir = File(appContext.cacheDir, "priming-probe").apply { mkdirs() }
+    val wav = File(probeDir, "probe.wav")
+    val encoded = File(probeDir, "probe.m4a")
+    try {
+      writeProbeWav(wav, sampleRate, channels, sampleRate, burstAt, burst)
+      val rendered = renderCompositionRaw(
+        buildTrimComposition(Uri.fromFile(wav).toString(), listOf(TrimRange(0L, 1_000L))),
+        encoded,
+      )
+      // Only a measurement of the SAME encoder at the same format means anything.
+      if (rendered.encoder != encoder) return null
+      val decoded = decodeFirstChannel(encoded, sampleRate) ?: return null
+      val searchEnd = min(decoded.size - burst.size, burstAt + PRIMING_MAX_SAMPLES)
+      var bestLag = -1
+      var bestScore = 0.0
+      var lag = 0
+      while (burstAt + lag < searchEnd) {
+        var score = 0.0
+        for (k in burst.indices) score += burst[k] * decoded[burstAt + lag + k]
+        if (score > bestScore) {
+          bestScore = score
+          bestLag = lag
+        }
+        lag += 1
+      }
+      var energy = 0.0
+      for (value in burst) energy += value * value
+      // The burst must come back clearly, or the lag is noise.
+      if (bestLag < 0 || bestScore < 0.5 * energy) return null
+      return bestLag
+    } finally {
+      wav.delete()
+      encoded.delete()
+    }
+  }
+
+  private fun writeProbeWav(
+    file: File,
+    sampleRate: Int,
+    channels: Int,
+    frames: Int,
+    burstAt: Int,
+    burst: FloatArray,
+  ) {
+    val dataBytes = frames * channels * 2
+    val buffer = java.nio.ByteBuffer.allocate(44 + dataBytes).order(ByteOrder.LITTLE_ENDIAN)
+    buffer.put("RIFF".toByteArray()).putInt(36 + dataBytes).put("WAVE".toByteArray())
+    buffer.put("fmt ".toByteArray()).putInt(16).putShort(1).putShort(channels.toShort())
+    buffer.putInt(sampleRate).putInt(sampleRate * channels * 2).putShort((channels * 2).toShort()).putShort(16)
+    buffer.put("data".toByteArray()).putInt(dataBytes)
+    for (frame in 0 until frames) {
+      val index = frame - burstAt
+      val value = if (index in burst.indices) (burst[index] * 32767f).toInt().toShort() else 0
+      for (channel in 0 until channels) buffer.putShort(value)
+    }
+    file.writeBytes(buffer.array())
+  }
+
+  /** Decode a file's first channel with NOTHING skipped (no edit list is honoured here). */
+  private fun decodeFirstChannel(file: File, maxFrames: Int): FloatArray? {
+    val extractor = MediaExtractor()
+    var codec: MediaCodec? = null
+    try {
+      extractor.setDataSource(file.absolutePath)
+      val trackIndex = (0 until extractor.trackCount).firstOrNull { index ->
+        extractor.getTrackFormat(index).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
+      } ?: return null
+      val format = extractor.getTrackFormat(trackIndex)
+      extractor.selectTrack(trackIndex)
+      val mime = format.getString(MediaFormat.KEY_MIME) ?: return null
+      codec = MediaCodec.createDecoderByType(mime)
+      codec.configure(format, null, null, 0)
+      codec.start()
+      val out = FloatArray(maxFrames + PRIMING_MAX_SAMPLES)
+      var written = 0
+      var channels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+      var floatPcm = false
+      val info = MediaCodec.BufferInfo()
+      var inputDone = false
+      var outputDone = false
+      while (!outputDone && written < out.size) {
+        if (!inputDone) {
+          val inIndex = codec.dequeueInputBuffer(10_000L)
+          if (inIndex >= 0) {
+            val inputBuffer = codec.getInputBuffer(inIndex)
+            val size = if (inputBuffer != null) extractor.readSampleData(inputBuffer, 0) else -1
+            if (size < 0) {
+              codec.queueInputBuffer(inIndex, 0, 0, 0L, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+              inputDone = true
+            } else {
+              codec.queueInputBuffer(inIndex, 0, size, extractor.sampleTime, 0)
+              extractor.advance()
+            }
+          }
+        }
+        val outIndex = codec.dequeueOutputBuffer(info, 10_000L)
+        if (outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+          val outputFormat = codec.outputFormat
+          channels = outputFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+          floatPcm = outputFormat.containsKey(MediaFormat.KEY_PCM_ENCODING) &&
+            outputFormat.getInteger(MediaFormat.KEY_PCM_ENCODING) == android.media.AudioFormat.ENCODING_PCM_FLOAT
+        } else if (outIndex >= 0) {
+          if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) outputDone = true
+          val buffer = codec.getOutputBuffer(outIndex)
+          if (buffer != null && info.size > 0) {
+            buffer.position(info.offset)
+            buffer.limit(info.offset + info.size)
+            buffer.order(ByteOrder.LITTLE_ENDIAN)
+            if (floatPcm) {
+              val floats = buffer.asFloatBuffer()
+              var i = 0
+              while (i + channels <= floats.remaining() && written < out.size) {
+                out[written++] = floats.get(i)
+                i += channels
+              }
+            } else {
+              val shorts = buffer.asShortBuffer()
+              var i = 0
+              while (i + channels <= shorts.remaining() && written < out.size) {
+                out[written++] = shorts.get(i) / 32768f
+                i += channels
+              }
+            }
+          }
+          codec.releaseOutputBuffer(outIndex, false)
+        }
+      }
+      return out.copyOf(written)
+    } finally {
+      try { codec?.stop() } catch (_: Throwable) {}
+      try { codec?.release() } catch (_: Throwable) {}
+      try { extractor.release() } catch (_: Throwable) {}
     }
   }
 
@@ -342,6 +553,13 @@ class SongNookPitchShiftRenderer(
   // --- Tier 2: trim/extract/cut via media3 Transformer ---------------------------
   private companion object {
     const val AAC_BITRATE = 256_000
+    const val PRIMING_PREFS = "songnook.encoderPriming"
+    /** Bump to measure every encoder again (the probe changed). */
+    const val PRIMING_PROBE_VERSION = 1
+    const val PRIMING_BURST_SAMPLES = 48
+    /** ExoPlayer reads an edit as encoder delay only inside the first four frames. */
+    const val PRIMING_MAX_SAMPLES = 4096
+    val primingCache = java.util.concurrent.ConcurrentHashMap<String, Int>()
   }
 
   fun renderTrim(request: Map<String, Any?>): Map<String, Any> {

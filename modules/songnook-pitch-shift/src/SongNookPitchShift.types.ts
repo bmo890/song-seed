@@ -91,6 +91,11 @@ export type NativeTrimRequest = {
 
 export type NativeTrimResult = {
   outputUri: string;
+  /** Android, when the audio was encoded: the encoder's measured priming in samples,
+   *  written into the file as an edit list so every player starts at the same sample. */
+  primingSamples?: number;
+  /** Android: what happened to that edit list ("written", or why not). */
+  editList?: string;
 };
 
 /** Decode `inputUri` to PCM and return `numberOfPoints` peak values in 0..1. */
