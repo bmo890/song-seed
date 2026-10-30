@@ -1,5 +1,6 @@
 import * as FileSystem from "expo-file-system/legacy";
 import Constants from "expo-constants";
+import * as Updates from "expo-updates";
 import { Platform } from "react-native";
 import { getCrashLogUri } from "./crashLog";
 import { flushPersistLog, readPersistLogEntries } from "./persistLog";
@@ -27,6 +28,11 @@ export async function buildDiagnosticsBundle(): Promise<string> {
             version: Constants.expoConfig?.version ?? null,
             platform: Platform.OS,
             platformVersion: String(Platform.Version),
+            // Which code this launch runs: an over-the-air update, or the build's own.
+            updateId: Updates.updateId ?? null,
+            updateCreatedAt: Updates.createdAt?.toISOString() ?? null,
+            isEmbeddedLaunch: Updates.isEmbeddedLaunch,
+            channel: Updates.channel ?? null,
         },
         generatedAt: new Date().toISOString(),
         crashes,

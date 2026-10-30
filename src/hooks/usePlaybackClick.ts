@@ -48,6 +48,9 @@ const MAP_RUN_SOUNDS =
   Platform.OS !== "android" || !!SongNookMetronomeModule?.supportsPrimedMapStream?.();
 /** Restart the click when it has drifted this far from the playhead's grid. */
 const DRIFT_RESYNC_THRESHOLD_MS = 35;
+/** A drift is acted on only when a second reading this much later agrees this closely. */
+const DRIFT_CONFIRM_GAP_MS = 300;
+const DRIFT_CONFIRM_AGREEMENT_MS = 25;
 /** Engine position readings per check, this far apart: together they span a buffer. */
 const ANCHOR_READINGS = 6;
 const ANCHOR_READING_GAP_MS = 8;
@@ -58,6 +61,8 @@ type UsePlaybackClickArgs = {
   playbackRate: number;
   /** Read the CURRENT content position (ms) — called at sync moments only. */
   getPositionMs: () => number;
+  /** Where that position comes from right now, for the diagnostic log. */
+  describePositionSource?: () => string;
 };
 
 export type PlaybackClickApi = {
@@ -110,6 +115,7 @@ function usePlaybackClickNative({
   isPlaying,
   playbackRate,
   getPositionMs,
+  describePositionSource,
 }: UsePlaybackClickArgs): PlaybackClickApi {
   // The click's OWN volume dial — never the standalone metronome's beep level,
   // which a musician may keep muted (haptic-only) without meaning to silence
@@ -149,6 +155,8 @@ function usePlaybackClickNative({
   const hapticLeadMsRef = useRef(0);
   const getPositionRef = useRef(getPositionMs);
   getPositionRef.current = getPositionMs;
+  const describeSourceRef = useRef(describePositionSource);
+  describeSourceRef.current = describePositionSource;
 
   /** Increments on every sync/stop — invalidates in-flight async work and timers. */
   const syncTokenRef = useRef(0);
@@ -332,13 +340,18 @@ function usePlaybackClickNative({
       }
       if (syncTokenRef.current !== token) return;
       // Whether the engine is really running once started: the one fact a silent click
-      // needs (2026-10-26, Android map runs). Off the critical path.
+      // needs (2026-10-26, Android map runs). Off the critical path. The position and its
+      // source say whether the click was phased from a playhead that was current.
+      const startedAt =
+        `pos=${Math.round(positionMs)} phase=${Math.round(params.phaseOffsetWallMs)} ` +
+        `src=${positionOverrideMs != null ? "seek" : describeSourceRef.current?.() ?? "?"}`;
       void SongNookMetronomeModule!
         .getState?.()
         .then((state: { isRunning?: boolean }) =>
           persistLog(
             "click.started",
-            `${usedNativeMap ? `map:${nativeMapSegmentCount}` : "phase"} bpm=${params.bpm} rate=${rate} running=${state?.isRunning ?? "?"}`
+            `${usedNativeMap ? `map:${nativeMapSegmentCount}` : "phase"} bpm=${params.bpm} rate=${rate} ` +
+              `${startedAt} running=${state?.isRunning ?? "?"}`
           )
         )
         .catch((error: unknown) => persistLog("click.failed", `state: ${describeError(error)}`));
@@ -372,8 +385,8 @@ function usePlaybackClickNative({
       if (usedNativeMap) {
         return;
       }
-      const checkDrift = async () => {
-        if (syncTokenRef.current !== token) return;
+      /** The click's error against the playhead's grid, wrapped into ±half a bar. */
+      const measureDrift = async () => {
         // The engine counts frames as of its last audio buffer, which can be tens of ms
         // old, so one reading puts the click behind where it is. Read across a buffer and
         // keep the freshest: the earliest anchor.
@@ -382,29 +395,46 @@ function usePlaybackClickNative({
         for (let reading = 0; reading < ANCHOR_READINGS; reading += 1) {
           if (reading > 0) await new Promise((resolve) => setTimeout(resolve, ANCHOR_READING_GAP_MS));
           const next = (await SongNookMetronomeModule!.getGridAnchor?.().catch(() => null)) ?? null;
-          if (syncTokenRef.current !== token || !next?.isRunning || next.anchorEpochMs == null) return;
+          if (syncTokenRef.current !== token || !next?.isRunning || next.anchorEpochMs == null) return null;
           latestAnchorMs = Math.max(latestAnchorMs, next.anchorEpochMs);
           if (!anchor || next.anchorEpochMs < (anchor.anchorEpochMs as number)) anchor = next;
         }
-        if (!anchor || anchor.anchorEpochMs == null || anchor.msPerPulse == null) return;
+        if (!anchor || anchor.anchorEpochMs == null || anchor.msPerPulse == null) return null;
         const barWall = anchor.msPerPulse * (anchor.pulsesPerBar ?? params.pulsesPerBar);
         const enginePhase = ((Date.now() - anchor.anchorEpochMs) % barWall + barWall) % barWall;
-        const nowParams = clickEngineParamsAt({
-          grid: gridRef.current,
-          positionMs: getPositionRef.current(),
-          rate: rateRef.current,
-        });
-        if (!nowParams) return;
+        const positionMs = getPositionRef.current();
+        const nowParams = clickEngineParamsAt({ grid: gridRef.current, positionMs, rate: rateRef.current });
+        if (!nowParams) return null;
         const rawError = enginePhase - nowParams.phaseOffsetWallMs;
-        const wrapped = ((rawError % barWall) + barWall * 1.5) % barWall - barWall / 2;
+        return {
+          driftMs: ((rawError % barWall) + barWall * 1.5) % barWall - barWall / 2,
+          positionMs,
+          spreadMs: latestAnchorMs - anchor.anchorEpochMs,
+        };
+      };
+      const checkDrift = async () => {
+        if (syncTokenRef.current !== token) return;
+        const first = await measureDrift();
+        if (!first) return;
         console.log(
-          `[timing] click drift: ${Math.round(wrapped)}ms ` +
-            `(engine readings spread ${Math.round(latestAnchorMs - anchor.anchorEpochMs)}ms)`
+          `[timing] click drift: ${Math.round(first.driftMs)}ms (engine readings spread ${Math.round(first.spreadMs)}ms)`
         );
-        if (Math.abs(wrapped) > DRIFT_RESYNC_THRESHOLD_MS) {
-          persistLog("click.resync", `drift ${Math.round(wrapped)}ms`);
-          void syncClick();
-        }
+        if (Math.abs(first.driftMs) <= DRIFT_RESYNC_THRESHOLD_MS) return;
+        // Restarting a click that is on the beat is the worst thing this check can do, so
+        // one reading is not enough: measure again and move only when both agree.
+        await new Promise((resolve) => setTimeout(resolve, DRIFT_CONFIRM_GAP_MS));
+        const second = await measureDrift();
+        if (!second) return;
+        const confirmed =
+          Math.abs(second.driftMs) > DRIFT_RESYNC_THRESHOLD_MS &&
+          Math.abs(second.driftMs - first.driftMs) <= DRIFT_CONFIRM_AGREEMENT_MS;
+        persistLog(
+          "click.resync",
+          `${confirmed ? "drift" : "unconfirmed"} ${Math.round(first.driftMs)}/${Math.round(second.driftMs)}ms ` +
+            `pos=${Math.round(second.positionMs)} src=${describeSourceRef.current?.() ?? "?"} ` +
+            `spread=${Math.round(second.spreadMs)}`
+        );
+        if (confirmed) void syncClick();
       };
       driftIntervalRef.current = setInterval(() => void checkDrift(), DRIFT_CHECK_INTERVAL_MS);
     },

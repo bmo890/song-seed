@@ -628,6 +628,12 @@ function PlayerScreenInner({
     playbackRate: effectivePlaybackRate,
     getPositionMs: () =>
       (liveChannelDrivenRef.current ? livePosition.read(Date.now()) : null) ?? playerPositionMsRef.current,
+    describePositionSource: () =>
+      !liveChannelDrivenRef.current
+        ? "rendered"
+        : livePosition.read(Date.now()) == null
+          ? "rendered(no reports)"
+          : "live",
   });
   // What a take keeps with it (the Keep switches, one per drawer), read when
   // this session meets the clip for the first time. A drawer not kept opens
