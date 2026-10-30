@@ -226,3 +226,67 @@ export function resolveClockPosition({
         recordAsNativePosition: true,
     };
 }
+
+/**
+ * Where the playhead is NOW, for code that must act on the beat (the playback click).
+ *
+ * The rendered position commits about once a second, so a click phased from it starts
+ * anywhere in the bar and "corrects" a good click into a wrong one (founder, 2026-10-30:
+ * half a beat off five bars in, at 91 bpm). The engine's raw reports arrive ~20×/second
+ * but each lands on the JS thread a little late, and never early. So while playing,
+ * every report names a line `position = rate × now + c`; the report that arrived
+ * soonest after its sample has the largest c. Keep the largest c over a short window,
+ * and start a new line on any jump (seek, rate, pause).
+ */
+export type LivePositionEstimator = {
+    report: (report: TransportPositionReport, nowMs: number) => void;
+    /** The playhead at `nowMs`, or null when no report is recent enough to trust. */
+    read: (nowMs: number) => number | null;
+};
+
+/** Reports considered for the line: long enough to catch a prompt one, short enough
+ *  that wall clock and audio clock can't part by a millisecond. */
+const LIVE_POSITION_WINDOW_MS = 2000;
+/** A report this far off the current line starts a new one (seek, stall, resume). */
+const LIVE_POSITION_JUMP_MS = 150;
+/** Carry a playing position forward this long past the last report, no longer. */
+const LIVE_POSITION_STALE_MS = 2000;
+
+export function createLivePositionEstimator(): LivePositionEstimator {
+    let playing = false;
+    let rate = 1;
+    let lastAtMs = Number.NEGATIVE_INFINITY;
+    let pausedMs = 0;
+    /** Candidate offsets `c = position − rate × arrival`, newest last. */
+    let line: { c: number; atMs: number }[] = [];
+    const bestC = () => line.reduce((best, entry) => Math.max(best, entry.c), Number.NEGATIVE_INFINITY);
+
+    return {
+        report(report, nowMs) {
+            lastAtMs = nowMs;
+            if (!report.isPlaying) {
+                playing = false;
+                pausedMs = report.positionMs;
+                line = [];
+                return;
+            }
+            const c = report.positionMs - report.playbackRate * nowMs;
+            const continues =
+                playing &&
+                rate === report.playbackRate &&
+                !report.seekLanded &&
+                line.length > 0 &&
+                Math.abs(c - bestC()) <= LIVE_POSITION_JUMP_MS;
+            playing = true;
+            rate = report.playbackRate;
+            if (!continues) line = [];
+            line.push({ c, atMs: nowMs });
+            while (line.length > 1 && nowMs - line[0].atMs > LIVE_POSITION_WINDOW_MS) line.shift();
+        },
+        read(nowMs) {
+            if (nowMs - lastAtMs > LIVE_POSITION_STALE_MS) return null;
+            if (!playing) return pausedMs;
+            return Math.max(0, bestC() + rate * nowMs);
+        },
+    };
+}

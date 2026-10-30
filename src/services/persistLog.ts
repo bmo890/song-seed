@@ -62,6 +62,7 @@ export type PersistLogEvent =
     // Playback click: the full player's metronome over a recorded take
     | "click.started"
     | "click.failed"
+    | "click.resync"
     // Media safety net
     | "media.untrashed"
     // Reel label faces that failed to load (labels fall back to the system font)

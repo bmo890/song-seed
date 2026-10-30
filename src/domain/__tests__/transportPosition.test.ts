@@ -1,4 +1,5 @@
 import {
+  createLivePositionEstimator,
   resolveSourcePositionHold,
   resolveClockPosition,
   type SourcePositionHold,
@@ -225,5 +226,55 @@ describe("resolveClockPosition", () => {
       expect(result.shouldWrite).toBe(false);
       expect(result.recordAsNativePosition).toBe(false);
     });
+  });
+});
+
+describe("createLivePositionEstimator", () => {
+  const playing = (positionMs: number, extra: { playbackRate?: number; seekLanded?: boolean } = {}) => ({
+    positionMs,
+    isPlaying: true,
+    playbackRate: extra.playbackRate ?? 1,
+    seekLanded: extra.seekLanded,
+  });
+
+  it("reads the playhead between reports, not the last report", () => {
+    const live = createLivePositionEstimator();
+    live.report(playing(10_000), 1_000);
+    expect(live.read(1_330)).toBe(10_330);
+  });
+
+  it("trusts the report that arrived soonest after its sample", () => {
+    // True playhead = 10 000 + (now − 1 000). Reports reach JS 0–60 ms late.
+    const live = createLivePositionEstimator();
+    const delays = [40, 60, 3, 25, 50, 12];
+    delays.forEach((delay, index) => {
+      const sampledAt = 1_000 + index * 50;
+      live.report(playing(10_000 + index * 50), sampledAt + delay);
+    });
+    expect(live.read(2_000)).toBe(11_000 - 3);
+  });
+
+  it("starts a new line on a seek, either direction", () => {
+    const live = createLivePositionEstimator();
+    live.report(playing(10_000), 1_000);
+    live.report(playing(4_000), 1_050);
+    expect(live.read(1_050)).toBe(4_000);
+    live.report(playing(30_000, { seekLanded: true }), 1_100);
+    expect(live.read(1_200)).toBe(30_100);
+  });
+
+  it("follows the practice rate", () => {
+    const live = createLivePositionEstimator();
+    live.report(playing(10_000, { playbackRate: 0.5 }), 1_000);
+    expect(live.read(1_400)).toBe(10_200);
+  });
+
+  it("holds still while paused and says nothing once reports stop", () => {
+    const live = createLivePositionEstimator();
+    expect(live.read(0)).toBeNull();
+    live.report({ positionMs: 7_000, isPlaying: false, playbackRate: 1 }, 1_000);
+    expect(live.read(1_900)).toBe(7_000);
+    live.report(playing(7_000), 2_000);
+    expect(live.read(5_000)).toBeNull();
   });
 });

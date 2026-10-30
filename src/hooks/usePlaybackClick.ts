@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Platform } from "react-native";
 import { useEventListener } from "expo";
-import SongNookMetronomeModule from "../../modules/songnook-metronome";
+import SongNookMetronomeModule, { type NativeGridAnchor } from "../../modules/songnook-metronome";
 import { holdBackgroundPosition } from "../services/backgroundPosition";
 import {
   clickEngineParamsAt,
@@ -48,6 +48,9 @@ const MAP_RUN_SOUNDS =
   Platform.OS !== "android" || !!SongNookMetronomeModule?.supportsPrimedMapStream?.();
 /** Restart the click when it has drifted this far from the playhead's grid. */
 const DRIFT_RESYNC_THRESHOLD_MS = 35;
+/** Engine position readings per check, this far apart: together they span a buffer. */
+const ANCHOR_READINGS = 6;
+const ANCHOR_READING_GAP_MS = 8;
 
 type UsePlaybackClickArgs = {
   grid: PlaybackClickGrid | null | undefined;
@@ -241,10 +244,10 @@ function usePlaybackClickNative({
         return;
       }
 
-      const positionMs = positionOverrideMs ?? getPositionRef.current();
+      let positionMs = positionOverrideMs ?? getPositionRef.current();
       const rate = rateRef.current;
-      const params = clickEngineParamsAt({ grid: gridRef.current, positionMs, rate });
-      if (!params) {
+      const firstParams = clickEngineParamsAt({ grid: gridRef.current, positionMs, rate });
+      if (!firstParams) {
         persistLog(
           "click.failed",
           `no params: grid=${gridRef.current ? "yes" : "none"} pos=${Math.round(positionMs)} rate=${rate}`
@@ -253,11 +256,22 @@ function usePlaybackClickNative({
         return;
       }
 
+      let params = firstParams;
       let usedNativeMap = false;
       let nativeMapSegmentCount = 0;
       try {
         await configureForParams(params);
         if (syncTokenRef.current !== token) return;
+        // The song kept playing through the configure: phase the start from where the
+        // playhead is now, not where it was (a seek target is where it is going).
+        if (positionOverrideMs == null) {
+          const nowPositionMs = getPositionRef.current();
+          const nowParams = clickEngineParamsAt({ grid: gridRef.current, positionMs: nowPositionMs, rate });
+          if (nowParams && nowParams.bpm === params.bpm && nowParams.meterId === params.meterId) {
+            positionMs = nowPositionMs;
+            params = nowParams;
+          }
+        }
 
         // Map-capable engines take the WHOLE map and a whole-grid offset: tempo
         // changes then land natively (no boundary timers, no restarts). A take with
@@ -358,34 +372,41 @@ function usePlaybackClickNative({
       if (usedNativeMap) {
         return;
       }
-      driftIntervalRef.current = setInterval(() => {
-        void (async () => {
-          if (syncTokenRef.current !== token) return;
-          const anchor = await SongNookMetronomeModule!.getGridAnchor?.().catch(() => null);
-          if (
-            syncTokenRef.current !== token ||
-            !anchor?.isRunning ||
-            anchor.anchorEpochMs == null ||
-            anchor.msPerPulse == null
-          ) {
-            return;
-          }
-          const barWall = anchor.msPerPulse * (anchor.pulsesPerBar ?? params.pulsesPerBar);
-          const enginePhase = ((Date.now() - anchor.anchorEpochMs) % barWall + barWall) % barWall;
-          const nowParams = clickEngineParamsAt({
-            grid: gridRef.current,
-            positionMs: getPositionRef.current(),
-            rate: rateRef.current,
-          });
-          if (!nowParams) return;
-          const rawError = enginePhase - nowParams.phaseOffsetWallMs;
-          const wrapped = ((rawError % barWall) + barWall * 1.5) % barWall - barWall / 2;
-          console.log(`[timing] click drift: ${Math.round(wrapped)}ms`);
-          if (Math.abs(wrapped) > DRIFT_RESYNC_THRESHOLD_MS) {
-            void syncClick();
-          }
-        })();
-      }, DRIFT_CHECK_INTERVAL_MS);
+      const checkDrift = async () => {
+        if (syncTokenRef.current !== token) return;
+        // The engine counts frames as of its last audio buffer, which can be tens of ms
+        // old, so one reading puts the click behind where it is. Read across a buffer and
+        // keep the freshest: the earliest anchor.
+        let anchor: NativeGridAnchor | null = null;
+        let latestAnchorMs = Number.NEGATIVE_INFINITY;
+        for (let reading = 0; reading < ANCHOR_READINGS; reading += 1) {
+          if (reading > 0) await new Promise((resolve) => setTimeout(resolve, ANCHOR_READING_GAP_MS));
+          const next = (await SongNookMetronomeModule!.getGridAnchor?.().catch(() => null)) ?? null;
+          if (syncTokenRef.current !== token || !next?.isRunning || next.anchorEpochMs == null) return;
+          latestAnchorMs = Math.max(latestAnchorMs, next.anchorEpochMs);
+          if (!anchor || next.anchorEpochMs < (anchor.anchorEpochMs as number)) anchor = next;
+        }
+        if (!anchor || anchor.anchorEpochMs == null || anchor.msPerPulse == null) return;
+        const barWall = anchor.msPerPulse * (anchor.pulsesPerBar ?? params.pulsesPerBar);
+        const enginePhase = ((Date.now() - anchor.anchorEpochMs) % barWall + barWall) % barWall;
+        const nowParams = clickEngineParamsAt({
+          grid: gridRef.current,
+          positionMs: getPositionRef.current(),
+          rate: rateRef.current,
+        });
+        if (!nowParams) return;
+        const rawError = enginePhase - nowParams.phaseOffsetWallMs;
+        const wrapped = ((rawError % barWall) + barWall * 1.5) % barWall - barWall / 2;
+        console.log(
+          `[timing] click drift: ${Math.round(wrapped)}ms ` +
+            `(engine readings spread ${Math.round(latestAnchorMs - anchor.anchorEpochMs)}ms)`
+        );
+        if (Math.abs(wrapped) > DRIFT_RESYNC_THRESHOLD_MS) {
+          persistLog("click.resync", `drift ${Math.round(wrapped)}ms`);
+          void syncClick();
+        }
+      };
+      driftIntervalRef.current = setInterval(() => void checkDrift(), DRIFT_CHECK_INTERVAL_MS);
     },
     [clearTimers, configureForParams, stopEngine, supportsPhaseStart]
   );

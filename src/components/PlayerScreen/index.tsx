@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createLivePositionEstimator } from "../../domain/transportPosition";
 import { BackHandler, Dimensions, Platform, Pressable, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -615,13 +616,18 @@ function PlayerScreenInner({
   effectivePlayerDurationRef.current = effectivePlayerDuration;
   const effectivePlaybackRate = practicePitchTransport.effectivePlaybackRate;
   const effectiveIsPlaying = practicePitchTransport.effectiveIsPlaying;
+  // The playhead as of now, off the engine's raw reports: the rendered position above
+  // commits about once a second, and a click phased from it lands anywhere in the bar.
+  const livePosition = useMemo(createLivePositionEstimator, []);
+  const liveChannelDrivenRef = useRef(false);
   // The take's own beat grid, clicking along with playback (and counting in). Reads
   // the position lazily at sync moments — never re-renders on the transport clock.
   const playbackClick = usePlaybackClick({
     grid: playerClip?.recordingGrid ?? null,
     isPlaying: effectiveIsPlaying,
     playbackRate: effectivePlaybackRate,
-    getPositionMs: () => playerPositionMsRef.current,
+    getPositionMs: () =>
+      (liveChannelDrivenRef.current ? livePosition.read(Date.now()) : null) ?? playerPositionMsRef.current,
   });
   // What a take keeps with it (the Keep switches, one per drawer), read when
   // this session meets the clip for the first time. A drawer not kept opens
@@ -660,6 +666,11 @@ function PlayerScreenInner({
   const channelDriven =
     nativeClockActive || (engineMatchesScreenClip && !practicePitchTransport.isOwningNativeTransport);
   const clockPositionChannel = nativeClockActive ? practicePitchTransport.positionChannel : positionChannel;
+  liveChannelDrivenRef.current = channelDriven;
+  useEffect(
+    () => clockPositionChannel.subscribe((report) => livePosition.report(report, Date.now())),
+    [clockPositionChannel, livePosition]
+  );
   const transportClock = usePlayerTransportClock({
     positionMs: effectivePlayerPosition,
     durationMs: effectivePlayerDuration,
