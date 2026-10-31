@@ -187,22 +187,28 @@ private fun clickVoice(voice: String, isDownbeat: Boolean): ClickVoice {
 }
 
 /**
- * The mixing core, free of Media3 so it can be tested on the JVM. Frames are counted
- * from the last flush; `playoutFramesFor` maps content ms since the flush to output
- * frames (Sonic's mapping in the player, identity × rate in tests), and `lagFrames` is
- * how far stages after Sonic delay the song (the limiter's look-ahead).
+ * The mixing core, free of Media3 so it can be tested on the JVM. Frames are counted from
+ * the last flush. After each block, `contentFramesAt(outputFrames)` says how many frames
+ * of the SONG the speed stage has consumed to produce that many (Sonic's own exact count
+ * in the player; null when it passes audio through 1:1). A beat is placed once, by
+ * interpolating between the last two such counts, so it never moves and is never skipped.
+ * `lagFrames` is how far stages after Sonic delay the song (the limiter's look-ahead).
  */
 internal class PlayAlongClickMixer(
   private val sampleRate: Int,
   private val channels: Int,
-  private val playoutFramesFor: (contentMs: Double) -> Double,
+  private val contentFramesAt: (outputFrames: Long) -> Long?,
   private val lagFrames: () -> Int,
+  private val onClick: () -> Unit = {},
 ) {
   private class Scheduled(val onsetFrame: Long, val wave: FloatArray, val gain: Float)
 
   private val waves = HashMap<String, FloatArray>()
   private var anchorMs = 0.0
   private var framesSinceFlush = 0L
+  /** The last knot: this many output frames were made from this many song frames. */
+  private var knotOutput = 0L
+  private var knotContent = 0L
   private var plan: PlayAlongClickPlan? = null
   private var cursor: PlayAlongBeatCursor? = null
   private var pending: PlayAlongBeat? = null
@@ -212,22 +218,11 @@ internal class PlayAlongClickMixer(
   fun flush(anchorMs: Double) {
     this.anchorMs = anchorMs
     framesSinceFlush = 0
+    knotOutput = 0
+    knotContent = 0
     scheduled.clear()
     cursor = null
     pending = null
-  }
-
-  /** Content ms the song frame now leaving this stage was recorded at. */
-  private fun contentMsAtFrame(frame: Long): Double {
-    val sinceAnchor = (frame - lagFrames()).toDouble() * 1000.0 / sampleRate
-    return anchorMs + sinceAnchor * (contentMsPerPlayoutMs())
-  }
-
-  /** Content ms per playout ms right now (the speed), from the same mapping. */
-  private fun contentMsPerPlayoutMs(): Double {
-    val probeMs = 1000.0
-    val frames = playoutFramesFor(probeMs)
-    return if (frames > 0.0) probeMs * sampleRate / 1000.0 / frames else 1.0
   }
 
   private fun wave(voice: String, isDownbeat: Boolean): FloatArray =
@@ -240,14 +235,20 @@ internal class PlayAlongClickMixer(
     framesSinceFlush = end
     if (channels <= 0) return
 
+    val previousOutput = knotOutput
+    val previousContent = knotContent
+    val nowContent = contentFramesAt(end) ?: end
+    knotOutput = end
+    knotContent = max(previousContent, nowContent)
+
     if (nextPlan == null) {
       plan = null
       cursor = null
       pending = null
     } else if (!nextPlan.sameTimingAs(plan)) {
-      // A new grid (or the first one): take beats from where the song is now, never
-      // one that has already passed.
-      cursor = PlayAlongBeatCursor(nextPlan, contentMsAtFrame(start))
+      // A new grid (or the first one): beats from where the song is now, never one that
+      // has already passed. At a stream's start that is its anchor exactly.
+      cursor = PlayAlongBeatCursor(nextPlan, anchorMs + previousContent * 1000.0 / sampleRate)
       pending = null
       scheduled.clear()
     }
@@ -255,19 +256,24 @@ internal class PlayAlongClickMixer(
 
     val activePlan = plan
     val activeCursor = cursor
-    if (activePlan != null && activeCursor != null) {
+    if (activePlan != null && activeCursor != null && knotContent > previousContent) {
+      val outputSpan = (end - previousOutput).toDouble()
+      val contentSpan = (knotContent - previousContent).toDouble()
       while (true) {
         val beat = pending ?: activeCursor.next() ?: break
-        val onset = lagFrames() + playoutFramesFor(beat.atMs - anchorMs).roundToLong()
-        if (onset >= end) {
-          pending = beat
+        val beatContent = (beat.atMs - anchorMs) * sampleRate / 1000.0
+        if (beatContent >= knotContent) {
+          pending = beat // the song hasn't reached it yet
           break
         }
         pending = null
-        if (onset < start) continue // passed while it was being scheduled: skip, never late
+        if (beatContent < previousContent) continue // already gone: skip, never late
+        val outputFrame = previousOutput + (beatContent - previousContent) / contentSpan * outputSpan
+        val onset = lagFrames() + outputFrame.roundToLong()
         val voice = clickVoice(activePlan.voice, beat.isDownbeat)
         val gain = (voice.amplitude(beat.accent) * activePlan.volume).toFloat()
         scheduled.addLast(Scheduled(onset, wave(activePlan.voice, beat.isDownbeat), gain))
+        onClick()
       }
     }
 
@@ -301,8 +307,26 @@ class PlayAlongClickAudioProcessor(
   @Volatile internal var plan: PlayAlongClickPlan? = null
   /** The file the engine has loaded; a plan for another file stays silent. */
   @Volatile var loadedSourceUri: String? = null
-  /** Presentation time of the input buffer the sink is handling (set before Sonic sees it). */
+  /** Content time (file µs, stream offset removed) of the input buffer the sink is
+   *  handling, set before Sonic sees it. */
   @Volatile var inputPresentationTimeUs = 0L
+  /** The file's encoder priming (µs), which the sink trims once after each configure. */
+  @Volatile var encoderDelayUs = 0L
+
+  /**
+   * Whether the sink's start trim is still ahead. ExoPlayer stamps buffers on the UNTRIMMED
+   * timeline (an AAC file's 2048-sample priming counts as time) and trims the priming only
+   * from the first data after a configure; after a seek nothing is trimmed. So a stream's
+   * first frame is at `pts − priming`, plus the priming again when this stream is the one
+   * the trim comes off. Both stages see the same configure and flushes.
+   */
+  private var startTrimArmed = false
+
+  /** For the diagnostic log: where the current stream starts, and clicks mixed so far. */
+  @Volatile var lastAnchorMs = 0.0
+    private set
+  @Volatile var clicksMixed = 0L
+    private set
 
   private var mixer: PlayAlongClickMixer? = null
   private var scratch = ShortArray(0)
@@ -311,12 +335,14 @@ class PlayAlongClickAudioProcessor(
     if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT) {
       throw AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
     }
+    startTrimArmed = true
     return inputAudioFormat
   }
 
   override fun queueInput(inputBuffer: ByteBuffer) {
     val bytes = inputBuffer.remaining()
     if (bytes == 0) return
+    startTrimArmed = false
     val format = inputAudioFormat
     val frames = bytes / format.bytesPerFrame
     val samples = frames * format.channelCount
@@ -335,7 +361,10 @@ class PlayAlongClickAudioProcessor(
   }
 
   override fun onFlush() {
-    mixer = newMixer().also { it.flush(inputPresentationTimeUs / 1000.0) }
+    val trimmedUs = if (startTrimArmed) encoderDelayUs else 0L
+    val anchorUs = inputPresentationTimeUs - encoderDelayUs + trimmedUs
+    lastAnchorMs = anchorUs / 1000.0
+    mixer = newMixer().also { it.flush(lastAnchorMs) }
   }
 
   override fun onReset() {
@@ -349,8 +378,10 @@ class PlayAlongClickAudioProcessor(
     return PlayAlongClickMixer(
       sampleRate = sampleRate,
       channels = format.channelCount,
-      playoutFramesFor = { contentMs ->
-        sonic.getPlayoutDuration((contentMs * 1000.0).roundToLong()).toDouble() * sampleRate / 1_000_000.0
+      onClick = { clicksMixed += 1 },
+      contentFramesAt = {
+        // Sonic sits in the pipeline only while it changes speed or pitch.
+        if (sonic.isActive) sonic.processedInputBytes / max(1, format.bytesPerFrame) else null
       },
       lagFrames = { soundChain.latencyFrames },
     )

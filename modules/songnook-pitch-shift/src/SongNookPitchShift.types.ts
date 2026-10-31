@@ -53,6 +53,9 @@ export type NativePitchShiftPlaybackState = {
   soundGainDb?: number;
   soundTonePreset?: string;
   sourceUri: string | null;
+  /** Android, in-stream click builds: where the current stream starts (content ms) and
+   *  how many clicks have been mixed, for the diagnostic log. */
+  playAlongClick?: { planned: boolean; anchorMs: number; clicks: number };
 };
 
 export type NativePitchShiftLoadRequest = {

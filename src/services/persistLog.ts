@@ -63,6 +63,7 @@ export type PersistLogEvent =
     | "click.started"
     | "click.failed"
     | "click.resync"
+    | "click.instream"
     // Media safety net
     | "media.untrashed"
     // Reel label faces that failed to load (labels fall back to the system font)

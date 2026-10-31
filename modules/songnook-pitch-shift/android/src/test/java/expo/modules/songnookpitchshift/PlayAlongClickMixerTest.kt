@@ -32,7 +32,7 @@ class PlayAlongClickMixerTest {
     val mixer = PlayAlongClickMixer(
       sampleRate = sampleRate,
       channels = 2,
-      playoutFramesFor = { contentMs -> contentMs / rate * sampleRate / 1000.0 },
+      contentFramesAt = { outputFrames -> if (rate == 1.0) null else Math.round(outputFrames * rate) },
       lagFrames = { lag },
     )
     mixer.flush(anchorMs)
@@ -74,7 +74,9 @@ class PlayAlongClickMixerTest {
     val rate = 0.73
     val got = onsets(rate = rate, anchorMs = 0.0, totalFrames = sampleRate * 3, plan = plan())
     val want = listOf(1000.0, 1500.0, 2000.0).map { expectedFrame(it, 0.0, rate) }
-    assertEquals(want, got)
+    // The simulated speed stage counts whole frames: within one frame (0.02 ms).
+    assertEquals(want.size, got.size)
+    want.zip(got).forEach { (expected, actual) -> assertTrue("$expected vs $actual", kotlin.math.abs(expected - actual) <= 1) }
   }
 
   @Test

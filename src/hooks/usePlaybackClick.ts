@@ -676,6 +676,24 @@ function usePlaybackClickNative({
     },
     []
   );
+  // On each stop, what the engine did: the evidence a phone test leaves behind.
+  const wasPlayingRef = useRef(false);
+  useEffect(() => {
+    const wasPlaying = wasPlayingRef.current;
+    wasPlayingRef.current = isPlaying;
+    if (!inStreamSupported || !plannedRef.current || isPlaying || !wasPlaying) return;
+    void SongNookPitchShiftModule?.getPlaybackState()
+      .then((state) => {
+        const click = state.playAlongClick;
+        if (!click) return;
+        persistLog(
+          "click.instream",
+          `anchor=${Math.round(click.anchorMs)} clicks=${click.clicks} pos=${Math.round(state.currentTimeMs)} ` +
+            `rate=${state.playbackRate} planned=${click.planned}`
+        );
+      })
+      .catch(() => {});
+  }, [inStreamSupported, isPlaying]);
 
   const isRateSupported = useMemo(() => {
     if (!isAvailable || !grid) return false;

@@ -6,6 +6,7 @@ import android.os.Handler
 import android.os.Looper
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
@@ -111,14 +112,29 @@ class SongNookPitchShiftPracticeEngine(
           .build()
         // The click needs the content time each buffer starts at: the sink flushes its
         // processors only between buffers, so the buffer in hand when a flush comes is
-        // where the new stream begins.
+        // where the new stream begins. Buffer times are RENDERER times: the player adds
+        // a stream offset (10^12 µs for the first item) that must come off to give the
+        // position in the file (founder, 2026-10-31: every click a fixed amount off).
         return object : ForwardingAudioSink(sink) {
+          private var streamOffsetUs = 0L
+
+          override fun configure(inputFormat: Format, specifiedBufferSize: Int, outputChannels: IntArray?) {
+            playAlongClick.encoderDelayUs =
+              if (inputFormat.sampleRate > 0) inputFormat.encoderDelay * 1_000_000L / inputFormat.sampleRate else 0L
+            super.configure(inputFormat, specifiedBufferSize, outputChannels)
+          }
+
+          override fun setOutputStreamOffsetUs(outputStreamOffsetUs: Long) {
+            streamOffsetUs = outputStreamOffsetUs
+            super.setOutputStreamOffsetUs(outputStreamOffsetUs)
+          }
+
           override fun handleBuffer(
             buffer: ByteBuffer,
             presentationTimeUs: Long,
             encodedAccessUnitCount: Int,
           ): Boolean {
-            playAlongClick.inputPresentationTimeUs = presentationTimeUs
+            playAlongClick.inputPresentationTimeUs = presentationTimeUs - streamOffsetUs
             return super.handleBuffer(buffer, presentationTimeUs, encodedAccessUnitCount)
           }
         }
@@ -230,6 +246,11 @@ class SongNookPitchShiftPracticeEngine(
       "soundGainDb" to currentGainDb,
       "soundTonePreset" to currentTonePreset,
       "sourceUri" to currentSourceUri,
+      "playAlongClick" to mapOf(
+        "planned" to (playAlongClick.plan != null),
+        "anchorMs" to playAlongClick.lastAnchorMs,
+        "clicks" to playAlongClick.clicksMixed,
+      ),
       )
   }
 
