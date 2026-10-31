@@ -6,6 +6,7 @@ jest.mock("../../../modules/songnook-metronome", () => ({
 import {
   resolveRouteLatencyProfile,
   sanitizeOsOutputLatencyMs,
+  playbackClickLeadMs,
 } from "../latencyModel";
 import type { BluetoothMonitoringCalibration } from "../../types";
 
@@ -252,5 +253,20 @@ describe("resolveRouteLatencyProfile", () => {
     // Cue pipelines are slower than a 15ms speaker: the cue must fire EARLY.
     expect(speaker.visualLeadMs).toBeLessThan(0);
     expect(speaker.hapticLeadMs).toBeLessThan(0);
+  });
+});
+
+describe("playbackClickLeadMs", () => {
+  const speaker = { outputMs: 84.4, sources: { output: "os" as const, input: "unknown" as const }, onBluetooth: false };
+
+  it("starts the Android click one reported route latency ahead of the song", () => {
+    expect(playbackClickLeadMs(speaker, "android")).toBe(84);
+  });
+
+  it("leads by nothing where the delay is unknown, on Bluetooth, or on iOS", () => {
+    expect(playbackClickLeadMs({ ...speaker, outputMs: 0, sources: { ...speaker.sources, output: "unknown" } }, "android")).toBe(0);
+    expect(playbackClickLeadMs({ ...speaker, onBluetooth: true }, "android")).toBe(0);
+    expect(playbackClickLeadMs({ ...speaker, sources: { ...speaker.sources, output: "calibration" } }, "android")).toBe(0);
+    expect(playbackClickLeadMs(speaker, "ios")).toBe(0);
   });
 });

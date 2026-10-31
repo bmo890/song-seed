@@ -237,7 +237,7 @@ export async function resolveCurrentRouteLatencyProfile(args: {
   calibrations: BluetoothMonitoringCalibration[];
   activeOutputs: Pick<MetronomeOutputs, "beep" | "visual" | "haptic">;
   clickLoopBarMs?: number | null;
-}): Promise<RouteLatencyProfile> {
+}): Promise<RouteLatencyProfile & { onBluetooth: boolean }> {
   const [route, osLatency] = await Promise.all([
     SongNookMetronomeModule?.getCurrentAudioOutputRoute?.().catch(() => null) ??
       Promise.resolve(null),
@@ -245,13 +245,30 @@ export async function resolveCurrentRouteLatencyProfile(args: {
       Promise.resolve(null),
   ]);
 
-  return resolveRouteLatencyProfile({
+  const profile = resolveRouteLatencyProfile({
     route: route ?? null,
     osLatency: osLatency ?? null,
     calibrations: args.calibrations,
     activeOutputs: args.activeOutputs,
     clickLoopBarMs: args.clickLoopBarMs ?? null,
   });
+  return { ...profile, onBluetooth: !!route && isBluetoothLikeAudioDevice(route) };
+}
+
+/**
+ * How far ahead of the song the playback click must start to be HEARD with it. The song
+ * player's position is what the speaker is playing now (Media3 reads the output
+ * timestamp); the Android click engine counts frames as the mixer takes them, and those
+ * reach the speaker one route latency later: an echo. So on Android the click leads by
+ * that latency. Only an OS-reported number, and not on Bluetooth: whether each side
+ * already counts a headset's delay there is unmeasured, and a wrong lead is worse than none.
+ */
+export function playbackClickLeadMs(
+  profile: Pick<RouteLatencyProfile, "outputMs" | "sources"> & { onBluetooth: boolean },
+  platform: string = Platform.OS
+): number {
+  if (platform !== "android" || profile.onBluetooth || profile.sources.output !== "os") return 0;
+  return Math.round(profile.outputMs);
 }
 
 export function formatLatencyProfileLog(profile: RouteLatencyProfile) {

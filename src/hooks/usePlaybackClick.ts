@@ -18,7 +18,7 @@ import {
   clampMetronomeLevel,
   getMetronomeBeepVolume,
 } from "../domain/metronome";
-import { resolveCurrentRouteLatencyProfile } from "../services/latencyModel";
+import { playbackClickLeadMs, resolveCurrentRouteLatencyProfile } from "../services/latencyModel";
 import { useStore } from "../state/useStore";
 import { describeError, persistLog } from "../services/persistLog";
 
@@ -54,6 +54,12 @@ const DRIFT_CONFIRM_AGREEMENT_MS = 25;
 /** Engine position readings per check, this far apart: together they span a buffer. */
 const ANCHOR_READINGS = 6;
 const ANCHOR_READING_GAP_MS = 8;
+/** The first drift check comes this soon after a start: a click phased from a playhead
+ *  that wasn't current yet (just after a scrub) is put right within a bar, not at bar 5. */
+const FIRST_DRIFT_CHECK_MS = 1_500;
+/** After a restart, buzzes stay off for one beat and the haptic lead plus this: a buzz
+ *  the engine queued before the restart would otherwise land off the beat. */
+const HAPTIC_REARM_MARGIN_MS = 30;
 
 type UsePlaybackClickArgs = {
   grid: PlaybackClickGrid | null | undefined;
@@ -153,6 +159,8 @@ function usePlaybackClickNative({
   calibrationsRef.current = bluetoothMonitoringCalibrations;
   /** Signed haptic lead for the current route (latency model), refreshed per sync. */
   const hapticLeadMsRef = useRef(0);
+  /** How far ahead the click starts so it is heard with the song (latency model). */
+  const clickLeadMsRef = useRef(0);
   const getPositionRef = useRef(getPositionMs);
   getPositionRef.current = getPositionMs;
   const describeSourceRef = useRef(describePositionSource);
@@ -199,28 +207,28 @@ function usePlaybackClickNative({
     }
   }, [clearTimers]);
 
-  /** Resolve the route's haptic lead the same way the metronome does at start. */
-  const refreshHapticLead = useCallback(async (params: PlaybackClickEngineParams) => {
-    if (!nativeCuesSupported || !hapticRef.current) {
-      hapticLeadMsRef.current = 0;
-      return;
-    }
+  /** Resolve the route the same way the metronome does at start: the haptic lead, and
+   *  how far ahead the click must start to be heard with the song. */
+  const refreshRouteLatency = useCallback(async (params: PlaybackClickEngineParams) => {
+    const haptics = nativeCuesSupported && hapticRef.current;
     try {
       const profile = await resolveCurrentRouteLatencyProfile({
         calibrations: calibrationsRef.current,
-        activeOutputs: { beep: true, visual: false, haptic: true },
+        activeOutputs: { beep: true, visual: false, haptic: haptics },
         clickLoopBarMs: params.barWallMs,
       });
-      hapticLeadMsRef.current = Math.round(profile.hapticLeadMs);
+      hapticLeadMsRef.current = haptics ? Math.round(profile.hapticLeadMs) : 0;
+      clickLeadMsRef.current = playbackClickLeadMs(profile);
     } catch (error) {
-      console.warn("[timing] playback click haptic lead resolution failed", error);
+      console.warn("[timing] playback click route latency resolution failed", error);
       hapticLeadMsRef.current = 0;
+      clickLeadMsRef.current = 0;
     }
   }, [nativeCuesSupported]);
 
-  const configureForParams = useCallback(async (params: PlaybackClickEngineParams) => {
-    await refreshHapticLead(params);
-    await SongNookMetronomeModule!.configure({
+  /** The engine config for these params; `holdHaptics` keeps buzzes off for now. */
+  const engineConfigFor = useCallback(
+    (params: PlaybackClickEngineParams, holdHaptics: boolean) => ({
       bpm: params.bpm,
       meterId: params.meterId,
       pulsesPerBar: params.pulsesPerBar,
@@ -228,18 +236,27 @@ function usePlaybackClickNative({
       accentPattern: params.accentPattern,
       clickEnabled: true,
       clickVolume: getMetronomeBeepVolume(beepLevelRef.current),
-      // Click and song share the output route — both delayed equally, aligned at the
-      // ear. No cue-lead correction here; playback surfaces have no beat UI yet.
+      // Delays only the engine's beat EVENTS; playback surfaces have no beat UI yet. The
+      // click's own route delay is handled by starting it ahead (clickLeadMsRef).
       outputLatencyMs: 0,
-      hapticEnabled: nativeCuesSupported && hapticRef.current,
+      hapticEnabled: nativeCuesSupported && hapticRef.current && !holdHaptics,
       hapticStrength: clampMetronomeLevel(hapticLevelRef.current) / MAX_METRONOME_LEVEL,
       hapticOffsetMs: hapticLeadMsRef.current,
       // The engine MERGES configs: pin the subdivision so one left by the standalone
       // metronome never leaks into the practice click. The voice is the writer's own.
       subdivision: 1,
       clickVoice: supportsClickStyle ? clickVoiceRef.current : "click",
-    });
-  }, [nativeCuesSupported, refreshHapticLead, supportsClickStyle]);
+    }),
+    [nativeCuesSupported, supportsClickStyle]
+  );
+
+  const configureForParams = useCallback(async (
+    params: PlaybackClickEngineParams,
+    options: { holdHaptics?: boolean } = {}
+  ) => {
+    await refreshRouteLatency(params);
+    await SongNookMetronomeModule!.configure(engineConfigFor(params, !!options.holdHaptics));
+  }, [engineConfigFor, refreshRouteLatency]);
 
   /** (Re)start the click phase-aligned at the given (or current) position. */
   const syncClick = useCallback(
@@ -268,7 +285,9 @@ function usePlaybackClickNative({
       let usedNativeMap = false;
       let nativeMapSegmentCount = 0;
       try {
-        await configureForParams(params);
+        // Buzzes off through the restart: one the engine queued for the old phase still
+        // fires unless haptics are off when it comes due. Re-armed below.
+        await configureForParams(params, { holdHaptics: true });
         if (syncTokenRef.current !== token) return;
         // The song kept playing through the configure: phase the start from where the
         // playhead is now, not where it was (a seek target is where it is going).
@@ -296,7 +315,7 @@ function usePlaybackClickNative({
           await SongNookMetronomeModule!.configureTempoMap!(mapSegments);
           if (syncTokenRef.current !== token) return;
           const offsetMs = Math.max(0, gridRef.current!.firstDownbeatMs ?? 0);
-          const gridWallOffsetMs = Math.max(0, (positionMs - offsetMs) / rate);
+          const gridWallOffsetMs = Math.max(0, (positionMs - offsetMs) / rate + clickLeadMsRef.current);
           await SongNookMetronomeModule!.startAtPhase(gridWallOffsetMs);
           engineOwnedRef.current = true;
           console.log(
@@ -307,11 +326,12 @@ function usePlaybackClickNative({
           // A map left installed by an earlier run would turn this into a map run.
           await SongNookMetronomeModule!.clearTempoMap?.();
           if (syncTokenRef.current !== token) return;
-          await SongNookMetronomeModule!.startAtPhase(params.phaseOffsetWallMs);
+          const startPhaseMs = (params.phaseOffsetWallMs + clickLeadMsRef.current) % params.barWallMs;
+          await SongNookMetronomeModule!.startAtPhase(startPhaseMs);
           engineOwnedRef.current = true;
           console.log(
             `[timing] click sync: pos=${Math.round(positionMs)}ms rate=${rate} ` +
-              `bpm=${params.bpm} phase=${Math.round(params.phaseOffsetWallMs)}ms`
+              `bpm=${params.bpm} phase=${Math.round(params.phaseOffsetWallMs)}ms lead=${clickLeadMsRef.current}ms`
           );
         } else {
           // Old binary: no mid-bar start. Wait for the next bar line, then start clean.
@@ -339,11 +359,22 @@ function usePlaybackClickNative({
         return;
       }
       if (syncTokenRef.current !== token) return;
+      const leadMs = clickLeadMsRef.current;
+      if (nativeCuesSupported && hapticRef.current) {
+        const beatWallMs = params.barWallMs / Math.max(1, params.pulsesPerBar);
+        timersRef.current.push(
+          setTimeout(() => {
+            if (syncTokenRef.current !== token || !hapticRef.current) return;
+            // Same config, buzzes on: a live change, never a restart.
+            void SongNookMetronomeModule!.configure(engineConfigFor(params, false)).catch(() => {});
+          }, beatWallMs + Math.max(0, hapticLeadMsRef.current) + HAPTIC_REARM_MARGIN_MS)
+        );
+      }
       // Whether the engine is really running once started: the one fact a silent click
       // needs (2026-10-26, Android map runs). Off the critical path. The position and its
       // source say whether the click was phased from a playhead that was current.
       const startedAt =
-        `pos=${Math.round(positionMs)} phase=${Math.round(params.phaseOffsetWallMs)} ` +
+        `pos=${Math.round(positionMs)} phase=${Math.round(params.phaseOffsetWallMs)} lead=${leadMs} ` +
         `src=${positionOverrideMs != null ? "seek" : describeSourceRef.current?.() ?? "?"}`;
       void SongNookMetronomeModule!
         .getState?.()
@@ -405,7 +436,8 @@ function usePlaybackClickNative({
         const positionMs = getPositionRef.current();
         const nowParams = clickEngineParamsAt({ grid: gridRef.current, positionMs, rate: rateRef.current });
         if (!nowParams) return null;
-        const rawError = enginePhase - nowParams.phaseOffsetWallMs;
+        // The engine runs `leadMs` ahead of what is heard; compare what is heard.
+        const rawError = enginePhase - leadMs - nowParams.phaseOffsetWallMs;
         return {
           driftMs: ((rawError % barWall) + barWall * 1.5) % barWall - barWall / 2,
           positionMs,
@@ -425,20 +457,25 @@ function usePlaybackClickNative({
         await new Promise((resolve) => setTimeout(resolve, DRIFT_CONFIRM_GAP_MS));
         const second = await measureDrift();
         if (!second) return;
+        // A playhead read off the once-a-second render is stale enough for two readings
+        // to agree on a drift that isn't there: only a live playhead moves the click.
+        const source = describeSourceRef.current?.() ?? "?";
         const confirmed =
           Math.abs(second.driftMs) > DRIFT_RESYNC_THRESHOLD_MS &&
-          Math.abs(second.driftMs - first.driftMs) <= DRIFT_CONFIRM_AGREEMENT_MS;
+          Math.abs(second.driftMs - first.driftMs) <= DRIFT_CONFIRM_AGREEMENT_MS &&
+          (source === "live" || !describeSourceRef.current);
         persistLog(
           "click.resync",
           `${confirmed ? "drift" : "unconfirmed"} ${Math.round(first.driftMs)}/${Math.round(second.driftMs)}ms ` +
-            `pos=${Math.round(second.positionMs)} src=${describeSourceRef.current?.() ?? "?"} ` +
+            `pos=${Math.round(second.positionMs)} src=${source} ` +
             `spread=${Math.round(second.spreadMs)}`
         );
         if (confirmed) void syncClick();
       };
+      timersRef.current.push(setTimeout(() => void checkDrift(), FIRST_DRIFT_CHECK_MS));
       driftIntervalRef.current = setInterval(() => void checkDrift(), DRIFT_CHECK_INTERVAL_MS);
     },
-    [clearTimers, configureForParams, stopEngine, supportsPhaseStart]
+    [clearTimers, configureForParams, engineConfigFor, nativeCuesSupported, stopEngine, supportsPhaseStart]
   );
 
   // Follow the transport: play ↔ pause/stop, rate changes, take changes. The
