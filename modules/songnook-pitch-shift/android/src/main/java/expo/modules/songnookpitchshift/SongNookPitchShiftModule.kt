@@ -95,6 +95,10 @@ class SongNookPitchShiftModule : Module() {
       engine.setSound(request)
     }
 
+    AsyncFunction("setPlayAlongClick") { request: Map<String, Any?>? ->
+      engine.setPlayAlongClick(request)
+    }
+
     AsyncFunction("renderPitchShiftedFile") Coroutine { request: Map<String, Any?> ->
       withContext(renderDispatcher) { renderer.renderFile(request) }
     }

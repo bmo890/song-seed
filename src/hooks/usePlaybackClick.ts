@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Platform } from "react-native";
 import { useEventListener } from "expo";
 import SongNookMetronomeModule, { type NativeGridAnchor } from "../../modules/songnook-metronome";
+import SongNookPitchShiftModule from "../../modules/songnook-pitch-shift";
 import { holdBackgroundPosition } from "../services/backgroundPosition";
 import {
   clickEngineParamsAt,
   isPlaybackClickAvailable,
   nativeTempoMapSegments,
+  playAlongClickSegments,
   wallMsUntil,
   type PlaybackClickEngineParams,
   type PlaybackClickGrid,
@@ -80,6 +82,13 @@ type UsePlaybackClickArgs = {
   getPositionMs: () => number;
   /** Where that position comes from right now, for the diagnostic log. */
   describePositionSource?: () => string;
+  /**
+   * The song's own engine can carry the click (one clock, 2026-10-31). When `supported`,
+   * the click never runs as a second player during playback: the caller routes the song
+   * through the engine while `wantsEngine`, and the grid rides along once it `owns` the
+   * transport with `sourceUri` loaded. The metronome engine is left the count-in only.
+   */
+  inStream?: { supported: boolean; owns: boolean; sourceUri: string | null };
 };
 
 export type PlaybackClickApi = {
@@ -103,6 +112,8 @@ export type PlaybackClickApi = {
   supportsHaptic: boolean;
   /** The engine renders the chosen click voice; older binaries only the stock click. */
   supportsVoice: boolean;
+  /** The click wants the song played through its engine (in-stream click). */
+  wantsEngine: boolean;
 };
 
 export function usePlaybackClick(args: UsePlaybackClickArgs): PlaybackClickApi {
@@ -124,6 +135,7 @@ function usePlaybackClickInert(): PlaybackClickApi {
     notifySeek: () => {},
     supportsHaptic: false,
     supportsVoice: false,
+    wantsEngine: false,
   };
 }
 
@@ -133,6 +145,7 @@ function usePlaybackClickNative({
   playbackRate,
   getPositionMs,
   describePositionSource,
+  inStream,
 }: UsePlaybackClickArgs): PlaybackClickApi {
   // The click's OWN volume dial — never the standalone metronome's beep level,
   // which a musician may keep muted (haptic-only) without meaning to silence
@@ -176,6 +189,9 @@ function usePlaybackClickNative({
   getPositionRef.current = getPositionMs;
   const describeSourceRef = useRef(describePositionSource);
   describeSourceRef.current = describePositionSource;
+  const inStreamSupported = !!inStream?.supported;
+  const inStreamSupportedRef = useRef(inStreamSupported);
+  inStreamSupportedRef.current = inStreamSupported;
 
   /** Increments on every sync/stop — invalidates in-flight async work and timers. */
   const syncTokenRef = useRef(0);
@@ -279,6 +295,11 @@ function usePlaybackClickNative({
       clearTimers();
 
       if (!enabledRef.current || !isPlayingRef.current || isCountingInRef.current) {
+        return;
+      }
+      if (inStreamSupportedRef.current) {
+        // The song's engine sounds the click; a second player would only fight it.
+        if (engineOwnedRef.current) await stopEngine();
         return;
       }
 
@@ -536,7 +557,10 @@ function usePlaybackClickNative({
     const onDownbeat = pendingDownbeatRef.current;
     pendingDownbeatRef.current = null;
     onDownbeat?.();
-    if (enabledRef.current) {
+    if (inStreamSupportedRef.current) {
+      // The count-in hands over to the click in the song's own stream.
+      void stopEngine();
+    } else if (enabledRef.current) {
       const hasChanges = (gridRef.current?.tempoMap?.segments.length ?? 1) > 1;
       if (hasChanges && MAP_RUN_SOUNDS && SongNookMetronomeModule!.supportsTempoMap?.()) {
         // The count-in ran single-tempo; a take with programmed changes re-joins on
@@ -615,11 +639,51 @@ function usePlaybackClickNative({
   );
 
   const isAvailable = isPlaybackClickAvailable(grid);
+  const wantsEngine = inStreamSupported && enabled && isAvailable;
+  const inStreamOwns = !!inStream?.owns;
+  const inStreamSourceUri = inStream?.sourceUri ?? null;
+
+  // The in-stream click's grid: sent while the engine plays this take, cleared otherwise
+  // (the editor borrows the same engine, and must never hear it).
+  const plannedRef = useRef(false);
+  useEffect(() => {
+    if (!inStreamSupported || !SongNookPitchShiftModule?.setPlayAlongClick) return;
+    const planned = wantsEngine && inStreamOwns && inStreamSourceUri ? playAlongClickSegments(grid) : null;
+    if (!planned && !plannedRef.current) return;
+    plannedRef.current = !!planned;
+    const plan = planned
+      ? {
+          sourceUri: inStreamSourceUri!,
+          segments: planned.segments,
+          ...(planned.stopAtMs != null ? { stopAtMs: planned.stopAtMs } : {}),
+          volume: getMetronomeBeepVolume(beepLevel),
+          clickVoice,
+        }
+      : null;
+    void SongNookPitchShiftModule.setPlayAlongClick(plan).catch((error: unknown) =>
+      persistLog("click.failed", `in-stream: ${describeError(error)}`)
+    );
+    if (plan) {
+      persistLog(
+        "click.started",
+        `in-stream segments=${plan.segments.length} bpm=${grid?.bpm} voice=${clickVoice}`
+      );
+    }
+  }, [beepLevel, clickVoice, grid, inStreamOwns, inStreamSourceUri, inStreamSupported, wantsEngine]);
+  useEffect(
+    () => () => {
+      if (plannedRef.current) void SongNookPitchShiftModule?.setPlayAlongClick?.(null).catch(() => {});
+    },
+    []
+  );
+
   const isRateSupported = useMemo(() => {
     if (!isAvailable || !grid) return false;
+    // In the stream the click follows any speed the engine plays.
+    if (inStreamSupported) return true;
     const scaled = Math.round(grid.bpm * playbackRate);
     return scaled >= MIN_METRONOME_BPM && scaled <= MAX_METRONOME_BPM;
-  }, [grid, isAvailable, playbackRate]);
+  }, [grid, inStreamSupported, isAvailable, playbackRate]);
 
   return {
     isAvailable,
@@ -630,7 +694,8 @@ function usePlaybackClickNative({
     playWithCountIn,
     cancelCountIn,
     notifySeek,
-    supportsHaptic: nativeCuesSupported,
-    supportsVoice: supportsClickStyle,
+    supportsHaptic: nativeCuesSupported && !inStreamSupported,
+    supportsVoice: supportsClickStyle || inStreamSupported,
+    wantsEngine,
   };
 }

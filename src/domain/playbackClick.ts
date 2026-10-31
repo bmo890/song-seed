@@ -5,7 +5,7 @@ import {
     getMetronomeBeatIntervalMs,
     getMetronomeMeterPreset,
 } from "./metronome";
-import { beatAtMs, gridTempoMap, segmentAtBar, type TempoMap } from "./tempoMap";
+import { barStartMs, beatAtMs, gridTempoMap, segmentAtBar, type TempoMap } from "./tempoMap";
 import type { RecordingGrid } from "../types";
 
 /**
@@ -195,4 +195,48 @@ export function nativeTempoMapSegments(
         });
     }
     return segments;
+}
+
+/** One constant-tempo stretch of the take's grid, in content ms (in-stream click). */
+export type PlayAlongClickSegment = {
+    startMs: number;
+    pulseMs: number;
+    pulsesPerBar: number;
+    accentPattern: number[];
+};
+
+/**
+ * The take's grid as the in-stream click needs it (2026-10-31): every tempo segment in
+ * FILE milliseconds, starting at the first downbeat, plus where the grid stops being
+ * trusted. Rate never appears: the engine places each beat at its content time and the
+ * song's own speed stage carries it, so a slow practice or a step-up can't drift it.
+ * Null when the take has no trustworthy grid.
+ */
+export function playAlongClickSegments(
+    grid: PlaybackClickGrid | null | undefined
+): { segments: PlayAlongClickSegment[]; stopAtMs: number | null } | null {
+    if (!isPlaybackClickAvailable(grid)) {
+        return null;
+    }
+    const offsetMs = Math.max(0, grid!.firstDownbeatMs as number);
+    const map = gridTempoMap(grid!);
+    const segments = map.segments.map((segment) => {
+        const preset = getMetronomeMeterPreset(segment.meterId);
+        const startGridMs = barStartMs(map, segment.atBar);
+        const barMs = barStartMs(map, segment.atBar + 1) - startGridMs;
+        return {
+            startMs: offsetMs + startGridMs,
+            pulseMs: barMs / preset.pulsesPerBar,
+            pulsesPerBar: preset.pulsesPerBar,
+            accentPattern:
+                segment.meterId === grid!.meterId
+                    ? grid!.accentPattern ?? getMetronomeAccentPattern(segment.meterId, grid!.grouping ?? null)
+                    : getMetronomeAccentPattern(segment.meterId),
+        };
+    });
+    const stopAtMs =
+        typeof grid!.gridValidToMs === "number" && Number.isFinite(grid!.gridValidToMs)
+            ? grid!.gridValidToMs
+            : null;
+    return { segments, stopAtMs };
 }

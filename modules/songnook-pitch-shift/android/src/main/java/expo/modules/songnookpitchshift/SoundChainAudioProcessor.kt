@@ -95,6 +95,11 @@ class SoundChainAudioProcessor(
 
   override fun isActive(): Boolean = true
 
+  /** Frames this stage delays the song by (the limiter's look-ahead): the play-along
+   *  click, mixed after it, lands its beats this much later to stay with the song. */
+  val latencyFrames: Int
+    get() = if (limit) lookaheadFrames else 0
+
   override fun queueInput(inputBuffer: java.nio.ByteBuffer) {
     val bytesRemaining = inputBuffer.remaining()
     if (bytesRemaining == 0) return

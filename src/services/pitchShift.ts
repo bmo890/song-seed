@@ -25,6 +25,7 @@ function normalizeCapabilities(
     supportsOfflineRender: capabilities.supportsOfflineRender,
     minSemitones: capabilities.minSemitones,
     maxSemitones: capabilities.maxSemitones,
+    supportsPlayAlongClick: !!capabilities.supportsPlayAlongClick,
   };
 }
 

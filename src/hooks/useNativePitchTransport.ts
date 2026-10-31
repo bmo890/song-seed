@@ -63,6 +63,7 @@ export function normalizeNativePitchCapabilities(
     supportsOfflineRender: value.supportsOfflineRender,
     minSemitones: value.minSemitones,
     maxSemitones: value.maxSemitones,
+    supportsPlayAlongClick: !!value.supportsPlayAlongClick,
   };
 }
 

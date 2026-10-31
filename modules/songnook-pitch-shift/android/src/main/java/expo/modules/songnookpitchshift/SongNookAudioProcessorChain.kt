@@ -9,7 +9,8 @@ import androidx.media3.common.util.UnstableApi
 
 /**
  * The practice engine's processing order (2026-10-21): 16-bit → pitch/speed
- * (Sonic) → the take's sound chain, limiter last.
+ * (Sonic) → the take's sound chain, limiter → the play-along click (2026-10-31),
+ * which rides on top of the take's sound rather than through it.
  *
  * media3's own chain always runs the caller's processors BEFORE Sonic, so the
  * limiter was limiting the input to the pitch shifter and whatever the shifter
@@ -20,9 +21,10 @@ import androidx.media3.common.util.UnstableApi
 class SongNookAudioProcessorChain(
   private val sonic: SonicAudioProcessor,
   private val soundChain: SoundChainAudioProcessor,
+  private val playAlongClick: PlayAlongClickAudioProcessor,
 ) : AudioProcessorChain {
   private val processors: Array<AudioProcessor> =
-    arrayOf(ToInt16PcmAudioProcessor(), sonic, soundChain)
+    arrayOf(ToInt16PcmAudioProcessor(), sonic, soundChain, playAlongClick)
 
   override fun getAudioProcessors(): Array<AudioProcessor> = processors
 

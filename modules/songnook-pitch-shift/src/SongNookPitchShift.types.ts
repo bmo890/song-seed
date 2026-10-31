@@ -5,6 +5,29 @@ export type NativePitchShiftCapabilities = {
   supportsOfflineRender: boolean;
   minSemitones: number;
   maxSemitones: number;
+  /** The engine mixes the play-along click into the song's own stream (Android builds
+   *  from 2026-10-31). Absent on older builds. */
+  supportsPlayAlongClick?: boolean;
+};
+
+/** One constant-tempo stretch of a take's grid, in content (file) ms. */
+export type NativePlayAlongClickSegment = {
+  startMs: number;
+  pulseMs: number;
+  pulsesPerBar: number;
+  accentPattern: number[];
+};
+
+/** The take's grid for the in-stream play-along click. */
+export type NativePlayAlongClickPlan = {
+  /** The file the grid belongs to: the engine stays silent for any other. */
+  sourceUri: string;
+  segments: NativePlayAlongClickSegment[];
+  /** No click at or past this content ms (the grid is untrusted there). */
+  stopAtMs?: number;
+  /** 0..1 */
+  volume: number;
+  clickVoice: string;
 };
 
 /** How the take sounds (Sound room, 2026-10-14): a level in dB, limited after the

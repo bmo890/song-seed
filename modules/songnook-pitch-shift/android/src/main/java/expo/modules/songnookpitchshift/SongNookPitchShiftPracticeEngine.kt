@@ -16,6 +16,8 @@ import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.audio.ForwardingAudioSink
+import java.nio.ByteBuffer
 import java.util.concurrent.CountDownLatch
 import kotlin.math.max
 import kotlin.math.min
@@ -83,6 +85,9 @@ class SongNookPitchShiftPracticeEngine(
 
   /** The take's sound, live: level and tone change on this without a rebuild. */
   private val soundChain = SoundChainAudioProcessor()
+  private val sonic = SonicAudioProcessor()
+  /** The play-along click, mixed into this stream (see PlayAlongClick.kt). */
+  private val playAlongClick = PlayAlongClickAudioProcessor(sonic, soundChain)
 
   private fun applySound() {
     soundChain.gainDb = currentGainDb
@@ -99,11 +104,24 @@ class SongNookPitchShiftPracticeEngine(
         enableFloatOutput: Boolean,
         enableAudioTrackPlaybackParams: Boolean,
       ): AudioSink {
-        return DefaultAudioSink.Builder(context)
-          .setAudioProcessorChain(SongNookAudioProcessorChain(SonicAudioProcessor(), soundChain))
+        val sink = DefaultAudioSink.Builder(context)
+          .setAudioProcessorChain(SongNookAudioProcessorChain(sonic, soundChain, playAlongClick))
           .setEnableFloatOutput(enableFloatOutput)
           .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
           .build()
+        // The click needs the content time each buffer starts at: the sink flushes its
+        // processors only between buffers, so the buffer in hand when a flush comes is
+        // where the new stream begins.
+        return object : ForwardingAudioSink(sink) {
+          override fun handleBuffer(
+            buffer: ByteBuffer,
+            presentationTimeUs: Long,
+            encodedAccessUnitCount: Int,
+          ): Boolean {
+            playAlongClick.inputPresentationTimeUs = presentationTimeUs
+            return super.handleBuffer(buffer, presentationTimeUs, encodedAccessUnitCount)
+          }
+        }
       }
     }
 
@@ -184,6 +202,7 @@ class SongNookPitchShiftPracticeEngine(
       "supportsOfflineRender" to true,
       "minSemitones" to -12,
       "maxSemitones" to 12,
+      "supportsPlayAlongClick" to true,
     )
   }
 
@@ -231,6 +250,7 @@ class SongNookPitchShiftPracticeEngine(
       applySound()
       didJustFinish = false
       currentSourceUri = sourceUri
+      playAlongClick.loadedSourceUri = sourceUri
 
       val target = ensurePlayer()
       stopTicker()
@@ -290,6 +310,7 @@ class SongNookPitchShiftPracticeEngine(
     player?.release()
     player = null
     currentSourceUri = null
+    playAlongClick.loadedSourceUri = null
     currentPlaybackRate = 1.0
     currentPitchShiftSemitones = 0
     currentGainDb = 0.0
@@ -321,6 +342,13 @@ class SongNookPitchShiftPracticeEngine(
   private fun normalizeTonePreset(value: String?): String {
     val trimmed = value?.trim().orEmpty()
     return if (trimmed.isEmpty()) "neutral" else trimmed
+  }
+
+  /** The take's grid for the play-along click, or null for none. Live: it takes effect
+   *  from the next buffer, with no rebuild or seek. */
+  fun setPlayAlongClick(request: Map<String, Any?>?): Map<String, Any?> = runOnPlayerThreadSync {
+    playAlongClick.plan = request?.let { PlayAlongClickPlan.fromMap(it) }
+    getStateUnsafe()
   }
 
   fun seekTo(positionMs: Double): Map<String, Any?> = runOnPlayerThreadSync {

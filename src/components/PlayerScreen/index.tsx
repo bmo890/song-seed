@@ -551,6 +551,8 @@ function PlayerScreenInner({
     seekTo,
     timelineAudioProgress,
   ]);
+  // Mirrors playbackClick.wantsEngine (declared below, it reads this transport's clock).
+  const [clickWantsEngine, setClickWantsEngine] = useState(false);
   const practicePitchTransport = usePlayerPracticePitchTransport({
     mode: ui.mode,
     isFocused,
@@ -571,6 +573,7 @@ function PlayerScreenInner({
       playerClip && data.playbackAudioUri === (playerClip.audioUri ?? null)
         ? data.overdubRootSettings
         : null,
+    clickWantsEngine,
     playerShouldAutoplay: data.playerShouldAutoplay,
     fullPlayerPosition: playerPosition,
     fullPlayerDuration: resolvedDisplayDuration,
@@ -634,7 +637,16 @@ function PlayerScreenInner({
         : livePosition.read(Date.now()) == null
           ? "rendered(no reports)"
           : "live",
+    inStream: {
+      supported:
+        practicePitchTransport.capabilities.supportsPlayAlongClick && practicePitchTransport.isPitchShiftAvailable,
+      owns: practicePitchTransport.isNativeClockActive,
+      sourceUri: enginePlaybackUri ?? null,
+    },
   });
+  useEffect(() => {
+    setClickWantsEngine(playbackClick.wantsEngine);
+  }, [playbackClick.wantsEngine]);
   // What a take keeps with it (the Keep switches, one per drawer), read when
   // this session meets the clip for the first time. A drawer not kept opens
   // neutral.

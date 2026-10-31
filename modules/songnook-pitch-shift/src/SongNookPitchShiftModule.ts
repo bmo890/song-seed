@@ -9,6 +9,7 @@ import type {
   NativePitchShiftLoadRequest,
   NativeMixedRenderRequest,
   NativeMixedRenderResult,
+  NativePlayAlongClickPlan,
   NativePitchShiftPlaybackState,
   NativePitchShiftRenderRequest,
   NativePitchShiftRenderResult,
@@ -36,6 +37,9 @@ declare class SongNookPitchShiftModule extends NativeModule<SongNookPitchShiftMo
    *  keys). Optional: absent on native builds predating the EQ stage, in which case
    *  the JS side hears the take flat and says nothing. */
   setSound?(settings: NativeSoundSettings): Promise<NativePitchShiftPlaybackState>;
+  /** The play-along click's grid, mixed into the playing stream; null clears it.
+   *  Present when `getCapabilities().supportsPlayAlongClick`. */
+  setPlayAlongClick?(plan: NativePlayAlongClickPlan | null): Promise<NativePitchShiftPlaybackState>;
   renderPitchShiftedFile(
     request: NativePitchShiftRenderRequest
   ): Promise<NativePitchShiftRenderResult>;

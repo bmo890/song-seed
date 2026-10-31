@@ -2,6 +2,7 @@ import {
   clickEngineParamsAt,
   isPlaybackClickAvailable,
   nativeTempoMapSegments,
+  playAlongClickSegments,
   wallMsUntil,
   type PlaybackClickGrid,
 } from "../playbackClick";
@@ -146,5 +147,41 @@ describe("wallMsUntil", () => {
     expect(wallMsUntil(1000, 4000, 1)).toBe(3000);
     expect(wallMsUntil(1000, 4000, 0.5)).toBe(6000);
     expect(wallMsUntil(5000, 4000, 1)).toBe(0);
+  });
+});
+
+describe("playAlongClickSegments", () => {
+  it("places the grid in file time from the first downbeat, at any practice speed", () => {
+    // The founder's take: 91 bpm 4/4, downbeat 1200 ms into the file.
+    const plan = playAlongClickSegments({ ...BASE_GRID, bpm: 91, firstDownbeatMs: 1200 })!;
+    expect(plan.segments).toHaveLength(1);
+    expect(plan.segments[0].startMs).toBe(1200);
+    expect(plan.segments[0].pulseMs).toBeCloseTo(60_000 / 91, 9);
+    expect(plan.segments[0].pulsesPerBar).toBe(4);
+    expect(plan.segments[0].accentPattern).toHaveLength(4);
+    expect(plan.stopAtMs).toBeNull();
+  });
+
+  it("starts each tempo change on its own bar line", () => {
+    const plan = playAlongClickSegments({
+      ...BASE_GRID,
+      firstDownbeatMs: 100,
+      tempoMap: {
+        schemaVersion: 1,
+        segments: [
+          { atBar: 1, bpm: 120, meterId: "4/4" },
+          { atBar: 3, bpm: 60, meterId: "3/4" },
+        ],
+      },
+    })!;
+    expect(plan.segments.map((segment) => segment.startMs)).toEqual([100, 4100]);
+    expect(plan.segments[1].pulseMs).toBeCloseTo(1000, 9);
+    expect(plan.segments[1].pulsesPerBar).toBe(3);
+  });
+
+  it("stops where the grid stops being trusted, and needs a downbeat", () => {
+    expect(playAlongClickSegments({ ...BASE_GRID, gridValidToMs: 9000 })!.stopAtMs).toBe(9000);
+    expect(playAlongClickSegments({ ...BASE_GRID, firstDownbeatMs: null })).toBeNull();
+    expect(playAlongClickSegments(null)).toBeNull();
   });
 });

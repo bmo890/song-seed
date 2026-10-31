@@ -19,6 +19,8 @@ type Args = {
   pitchShiftSemitones: number;
   /** The take's level and tone (its root overdub settings); null when no clip. */
   sound: { gainDb: number; tonePreset: string } | null;
+  /** The play-along click is on and sounds inside this engine's stream. */
+  clickWantsEngine: boolean;
   playerShouldAutoplay: boolean;
   fullPlayerPosition: number;
   fullPlayerDuration: number;
@@ -45,6 +47,7 @@ export function usePlayerPracticePitchTransport({
   clip,
   pitchShiftSemitones,
   sound,
+  clickWantsEngine,
   playerShouldAutoplay,
   fullPlayerPosition,
   fullPlayerDuration,
@@ -115,8 +118,11 @@ export function usePlayerPracticePitchTransport({
   // Engaged, not focused (2026-10-21): docked, or under the drawer or a lyric
   // editor, the clip keeps its pitch and sound; only a screen that takes the
   // audio (recorder, editor) makes the engine hand back.
+  // The play-along click lives in this engine's stream (2026-10-31), so a take clicking
+  // along is heard through it too, and stays there for the clip like a pitch shift.
   const wantsNative =
-    engaged && (!soundIsNeutral || (pitchMode && (stickyRef.current || clamped !== 0)));
+    engaged &&
+    (!soundIsNeutral || clickWantsEngine || (pitchMode && (stickyRef.current || clamped !== 0)));
 
   const core = useNativePitchTransport({
     ownerLabel: "player-screen",
@@ -143,11 +149,11 @@ export function usePlayerPracticePitchTransport({
       if (core.nativeTransportDisabled) core.clearDisabled();
       return;
     }
-    if (clamped !== 0) {
+    if (clamped !== 0 || clickWantsEngine) {
       stickyRef.current = true;
       if (core.nativeTransportDisabled) core.clearDisabled();
     }
-  }, [clamped, clip?.id, core.clearDisabled, core.nativeTransportDisabled, engaged, pitchMode]);
+  }, [clamped, clickWantsEngine, clip?.id, core.clearDisabled, core.nativeTransportDisabled, engaged, pitchMode]);
 
   // Publish native playback position into the store so the rest of the app (dock,
   // lock screen) tracks practice playback while the native engine owns transport.
