@@ -1,4 +1,5 @@
 import AVFoundation
+import UIKit
 
 private let pitchShiftTickInterval: TimeInterval = 0.1
 
@@ -14,6 +15,21 @@ final class SongNookPitchShiftPracticeEngine {
   // tone keys as its bands, and a limiter after the lift so +12 dB never clips.
   private let eqNode = SongNookToneEQ.makeNode()
   private let limiterNode = SongNookToneEQ.makeLimiterNode()
+  // The play-along click (PlayAlongClick.swift): its own player beside the song's, on
+  // one submix ahead of time-pitch, so the two are pulled frame for frame.
+  private let clickPlayer = AVAudioPlayerNode()
+  private let streamMix = AVAudioMixerNode()
+  private let clickLock = NSLock()
+  private var clickPlan: PlayAlongClickPlan?
+  private var clickTrack: PlayAlongClickTrack?
+  private var clickSession = UUID()
+  private var clickFormat: AVAudioFormat?
+  private var lastClickAnchorMs: Double = 0
+  private var clicksQueuedBefore = 0
+  private let hapticPlanner = PlayAlongHapticPlanner()
+  private let hapticQueue = DispatchQueue(label: "app.songnook.pitchshift.haptics", qos: .userInteractive)
+  private var hapticTimer: DispatchSourceTimer?
+  private var hapticsSent = 0
 
   private var audioFile: AVAudioFile?
   private var sourceUri: String?
@@ -37,10 +53,13 @@ final class SongNookPitchShiftPracticeEngine {
     self.onError = onError
 
     engine.attach(playerNode)
+    engine.attach(clickPlayer)
+    engine.attach(streamMix)
     engine.attach(timePitchNode)
     engine.attach(eqNode)
     engine.attach(limiterNode)
-    engine.connect(playerNode, to: timePitchNode, format: nil)
+    engine.connect(playerNode, to: streamMix, fromBus: 0, toBus: 0, format: nil)
+    engine.connect(streamMix, to: timePitchNode, format: nil)
     engine.connect(timePitchNode, to: eqNode, format: nil)
     engine.connect(eqNode, to: limiterNode, format: nil)
     engine.connect(limiterNode, to: engine.mainMixerNode, format: nil)
@@ -51,6 +70,8 @@ final class SongNookPitchShiftPracticeEngine {
 
   deinit {
     tickTimer?.invalidate()
+    hapticTimer?.cancel()
+    clickPlayer.stop()
     playerNode.stop()
     engine.stop()
   }
@@ -62,7 +83,9 @@ final class SongNookPitchShiftPracticeEngine {
       "supportsEditorPreview": true,
       "supportsOfflineRender": true,
       "minSemitones": -12,
-      "maxSemitones": 12
+      "maxSemitones": 12,
+      "supportsPlayAlongClick": true,
+      "supportsPlayAlongHaptic": true
     ]
   }
 
@@ -78,7 +101,8 @@ final class SongNookPitchShiftPracticeEngine {
       "pitchShiftSemitones": currentPitchShiftSemitones,
       "soundGainDb": currentGainDb,
       "soundTonePreset": currentTonePreset,
-      "sourceUri": sourceUri as Any
+      "sourceUri": sourceUri as Any,
+      "playAlongClick": clickState()
     ]
   }
 
@@ -106,7 +130,9 @@ final class SongNookPitchShiftPracticeEngine {
 
     stopTimer()
     playbackSessionId = UUID()
+    stopClick()
     playerNode.stop()
+    connectStreams(for: file)
     audioFile = file
     sourceUri = uriString
     currentPlaybackRate = max(0.5, min(2.0, playbackRate))
@@ -143,6 +169,7 @@ final class SongNookPitchShiftPracticeEngine {
     // Stopping the node also runs the segment's completion handler; a new
     // session id makes it stale, so a pause is never reported as the end.
     playbackSessionId = UUID()
+    stopClick()
     playerNode.stop()
     isPlaying = false
     stopTimer()
@@ -154,6 +181,7 @@ final class SongNookPitchShiftPracticeEngine {
     pausedPositionMs = 0
     didJustFinish = false
     playbackSessionId = UUID()
+    stopClick()
     playerNode.stop()
     isPlaying = false
     stopTimer()
@@ -164,6 +192,7 @@ final class SongNookPitchShiftPracticeEngine {
   func unload() -> [String: Any] {
     stopTimer()
     playbackSessionId = UUID()
+    stopClick()
     playerNode.stop()
     engine.stop()
     audioFile = nil
@@ -223,6 +252,148 @@ final class SongNookPitchShiftPracticeEngine {
     return getState()
   }
 
+  /// The take's grid for the play-along click, or nil for none. A new grid or voice
+  /// while playing restarts the song and click together; a volume or buzz change is live.
+  func setPlayAlongClick(_ request: [String: Any]?) -> [String: Any] {
+    let next = request.flatMap { PlayAlongClickPlan.from($0) }
+    clickLock.lock()
+    let previous = clickPlan
+    clickPlan = next
+    clickLock.unlock()
+    clickPlayer.volume = Float(next?.volume ?? 0)
+    let sameSound = next == nil ? previous == nil : next!.soundsLike(previous)
+    if isPlaying && !sameSound {
+      pausedPositionMs = computedCurrentPositionMs()
+      try? playInternal()
+    }
+    return getState()
+  }
+
+  private func soundingClickPlan() -> PlayAlongClickPlan? {
+    clickLock.lock()
+    defer { clickLock.unlock() }
+    guard let plan = clickPlan, plan.sourceUri == nil || plan.sourceUri == sourceUri else { return nil }
+    return plan
+  }
+
+  private func clickState() -> [String: Any] {
+    clickLock.lock()
+    defer { clickLock.unlock() }
+    return [
+      "planned": clickPlan != nil,
+      "anchorMs": lastClickAnchorMs,
+      "clicks": clicksQueuedBefore + (clickTrack?.clicksQueued ?? 0),
+      "buzzes": hapticsSent
+    ]
+  }
+
+  /// Both players in the file's own frames, so their timelines are one.
+  private func connectStreams(for file: AVAudioFile) {
+    let songFormat = file.processingFormat
+    guard let format = AVAudioFormat(standardFormatWithSampleRate: songFormat.sampleRate, channels: 1) else { return }
+    if clickFormat?.sampleRate == format.sampleRate, playerNode.outputFormat(forBus: 0) == songFormat {
+      return
+    }
+    let wasRunning = engine.isRunning
+    if wasRunning { engine.stop() }
+    engine.disconnectNodeOutput(playerNode)
+    engine.disconnectNodeOutput(clickPlayer)
+    engine.connect(playerNode, to: streamMix, fromBus: 0, toBus: 0, format: songFormat)
+    engine.connect(clickPlayer, to: streamMix, fromBus: 0, toBus: 1, format: format)
+    clickFormat = format
+    if wasRunning { try? engine.start() }
+  }
+
+  /// Queue the click track from `fromMs`; true when there is one to play.
+  private func prepareClick(fromMs: Double) -> Bool {
+    clickPlayer.stop()
+    guard let plan = soundingClickPlan(), let format = clickFormat else {
+      clickLock.lock()
+      clickTrack = nil
+      clickLock.unlock()
+      return false
+    }
+    let session = UUID()
+    clickLock.lock()
+    clicksQueuedBefore += clickTrack?.clicksQueued ?? 0
+    clickSession = session
+    clickTrack = PlayAlongClickTrack(plan: plan, format: format, fromMs: fromMs)
+    lastClickAnchorMs = fromMs
+    clickLock.unlock()
+    for _ in 0..<4 { queueClickBuffer(session: session) }
+    return true
+  }
+
+  /// A quarter second of click track; each one played queues the next.
+  private func queueClickBuffer(session: UUID) {
+    clickLock.lock()
+    guard clickSession == session, let track = clickTrack, let format = clickFormat else {
+      clickLock.unlock()
+      return
+    }
+    let buffer = track.nextBuffer(
+      frames: Int(format.sampleRate / 4),
+      speed: currentPlaybackRate,
+      semitones: currentPitchShiftSemitones,
+      gainDb: currentGainDb
+    )
+    clickLock.unlock()
+    guard let buffer else { return }
+    clickPlayer.scheduleBuffer(buffer, at: nil, options: [], completionCallbackType: .dataConsumed) { [weak self] _ in
+      self?.queueClickBuffer(session: session)
+    }
+  }
+
+  private func stopClick() {
+    clickLock.lock()
+    clickSession = UUID()
+    clickLock.unlock()
+    clickPlayer.stop()
+    stopHaptics()
+  }
+
+  // ---- The play-along tap: sent from the song's own position (PlayAlongHapticPlanner).
+
+  private func startHaptics() {
+    stopHaptics()
+    guard soundingClickPlan()?.hapticStrength != nil else { return }
+    let timer = DispatchSource.makeTimerSource(queue: hapticQueue)
+    timer.schedule(deadline: .now(), repeating: .milliseconds(15), leeway: .milliseconds(2))
+    timer.setEventHandler { [weak self] in self?.planHaptics() }
+    hapticTimer = timer
+    timer.resume()
+  }
+
+  private func stopHaptics() {
+    hapticTimer?.cancel()
+    hapticTimer = nil
+    hapticQueue.async { [hapticPlanner] in hapticPlanner.reset() }
+  }
+
+  private func planHaptics() {
+    guard isPlaying, let plan = soundingClickPlan(), let strength = plan.hapticStrength,
+          let nodeTime = playerNode.lastRenderTime, nodeTime.isHostTimeValid,
+          let playerTime = playerNode.playerTime(forNodeTime: nodeTime), playerTime.sampleRate > 0 else {
+      hapticPlanner.reset()
+      return
+    }
+    let speed = currentPlaybackRate
+    let renderedMs = pausedPositionMs + Double(playerTime.sampleTime) / playerTime.sampleRate * 1000
+    let session = AVAudioSession.sharedInstance()
+    // From the player's last render to the ear: time-pitch, the limiter, the route.
+    let pathSec = timePitchNode.latency + limiterNode.latency + session.outputLatency + session.ioBufferDuration
+    let sinceRenderSec = AVAudioTime.seconds(forHostTime: mach_absolute_time()) - AVAudioTime.seconds(forHostTime: nodeTime.hostTime)
+    let heardMs = renderedMs + (sinceRenderSec - pathSec) * 1000 * speed
+    for inMs in hapticPlanner.due(heardMs: heardMs, speed: speed, plan: plan) {
+      DispatchQueue.main.asyncAfter(deadline: .now() + inMs / 1000) { [weak self] in
+        guard let self, self.isPlaying else { return }
+        let style: UIImpactFeedbackGenerator.FeedbackStyle = strength >= 0.75 ? .heavy : strength >= 0.4 ? .medium : .light
+        UIImpactFeedbackGenerator(style: style).impactOccurred(intensity: CGFloat(0.5 + strength * 0.5))
+        self.hapticsSent += 1
+      }
+    }
+  }
+
   private func applyTimePitchSettings() {
     timePitchNode.rate = Float(currentPlaybackRate)
     timePitchNode.pitch = Float(currentPitchShiftSemitones * 100)
@@ -258,10 +429,39 @@ final class SongNookPitchShiftPracticeEngine {
     try ensureEngineRunning()
     didJustFinish = false
     playbackSessionId = UUID()
+    stopClick()
     scheduleFromCurrentPosition(sessionId: playbackSessionId)
-    playerNode.play()
+    // Song and click start on one frame of the submix's timeline, so it pulls them in
+    // step. Not one host time: upstream of time-pitch that timeline runs at the speed,
+    // and a host time converted at the nominal rate put a slowed click ~3 ms apart.
+    let clicking = prepareClick(fromMs: pausedPositionMs)
+    let startAt: AVAudioTime
+    if let rendered = playerNode.lastRenderTime, rendered.isSampleTimeValid {
+      startAt = AVAudioTime(
+        sampleTime: rendered.sampleTime + AVAudioFramePosition(rendered.sampleRate * 0.03),
+        atRate: rendered.sampleRate
+      )
+    } else {
+      startAt = AVAudioTime(hostTime: mach_absolute_time() + AVAudioTime.hostTime(forSeconds: 0.03))
+    }
+    playerNode.play(at: startAt)
+    if clicking { clickPlayer.play(at: startAt) }
     isPlaying = true
     startTimer()
+    startHaptics()
+    #if DEBUG
+    if clicking {
+      // Evidence for the one-clock claim: half a second in, both players must be on
+      // the same frame of their timelines.
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        guard let self, let nodeTime = self.playerNode.lastRenderTime,
+              let song = self.playerNode.playerTime(forNodeTime: nodeTime),
+              let click = self.clickPlayer.playerTime(forNodeTime: nodeTime) else { return }
+        NSLog("[PlayAlongClick] song=%lld click=%lld rate=%.3f from=%.1fms",
+              song.sampleTime, click.sampleTime, self.currentPlaybackRate, self.lastClickAnchorMs)
+      }
+    }
+    #endif
     onStateChange(getState())
   }
 
@@ -298,6 +498,7 @@ final class SongNookPitchShiftPracticeEngine {
         }
         self.pausedPositionMs = Double(self.durationMs())
         self.isPlaying = false
+        self.stopClick()
         self.didJustFinish = true
         self.stopTimer()
         let state = self.getState()

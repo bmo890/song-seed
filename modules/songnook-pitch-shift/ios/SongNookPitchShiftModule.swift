@@ -77,6 +77,10 @@ public class SongNookPitchShiftModule: Module {
       return self.engine.setSound(request)
     }
 
+    AsyncFunction("setPlayAlongClick") { (request: [String: Any]?) -> [String: Any] in
+      return self.engine.setPlayAlongClick(request)
+    }
+
     AsyncFunction("renderPitchShiftedFile") { (request: [String: Any]) -> [String: Any] in
       return try self.renderer.renderFile(request)
     }.runOnQueue(renderQueue)
