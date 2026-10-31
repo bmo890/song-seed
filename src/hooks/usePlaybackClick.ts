@@ -60,6 +60,17 @@ const FIRST_DRIFT_CHECK_MS = 1_500;
 /** After a restart, buzzes stay off for one beat and the haptic lead plus this: a buzz
  *  the engine queued before the restart would otherwise land off the beat. */
 const HAPTIC_REARM_MARGIN_MS = 30;
+/** A drift restart is followed by no other within this long: when a restart can't cure
+ *  an error (the click track's own start-up lag), restarting every check is worse. */
+const MIN_RESYNC_GAP_MS = DRIFT_CHECK_INTERVAL_MS;
+/**
+ * Android's static AudioTrack starts where it is told (setPlaybackHeadPosition) but
+ * counts its head from 0 at play() (AOSP AudioTrack::start resets mPosition), so on
+ * binaries up to vc 13 the engine's grid anchor and its beat events leave out the start
+ * phase of every mid-bar start. The drift check adds the phase back; the beat-driven
+ * buzzes can't be fixed from here, so play-along haptics wait for a corrected engine.
+ */
+const ENGINE_HEAD_SKIPS_START_PHASE = Platform.OS === "android";
 
 type UsePlaybackClickArgs = {
   grid: PlaybackClickGrid | null | undefined;
@@ -173,11 +184,13 @@ function usePlaybackClickNative({
   const driftIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pendingDownbeatRef = useRef<(() => void) | null>(null);
   const isCountingInRef = useRef(false);
+  const lastResyncAtRef = useRef(0);
 
   const supportsPhaseStart = !!SongNookMetronomeModule?.supportsPhaseStart?.();
   // Haptics only where the engine schedules them itself with the signed lead. No JS
   // event fallback here: a late buzz against a moving take is worse than none.
-  const nativeCuesSupported = !!SongNookMetronomeModule?.supportsScheduledCues?.();
+  const nativeCuesSupported =
+    !!SongNookMetronomeModule?.supportsScheduledCues?.() && !ENGINE_HEAD_SKIPS_START_PHASE;
   const supportsClickStyle = !!SongNookMetronomeModule?.supportsClickStyle?.();
 
   const clearTimers = useCallback(() => {
@@ -284,6 +297,8 @@ function usePlaybackClickNative({
       let params = firstParams;
       let usedNativeMap = false;
       let nativeMapSegmentCount = 0;
+      /** What the engine's anchor leaves out of its phase (see ENGINE_HEAD_SKIPS_START_PHASE). */
+      let anchorPhaseFixMs = 0;
       try {
         // Buzzes off through the restart: one the engine queued for the old phase still
         // fires unless haptics are off when it comes due. Re-armed below.
@@ -328,6 +343,7 @@ function usePlaybackClickNative({
           if (syncTokenRef.current !== token) return;
           const startPhaseMs = (params.phaseOffsetWallMs + clickLeadMsRef.current) % params.barWallMs;
           await SongNookMetronomeModule!.startAtPhase(startPhaseMs);
+          if (ENGINE_HEAD_SKIPS_START_PHASE) anchorPhaseFixMs = startPhaseMs;
           engineOwnedRef.current = true;
           console.log(
             `[timing] click sync: pos=${Math.round(positionMs)}ms rate=${rate} ` +
@@ -375,6 +391,7 @@ function usePlaybackClickNative({
       // source say whether the click was phased from a playhead that was current.
       const startedAt =
         `pos=${Math.round(positionMs)} phase=${Math.round(params.phaseOffsetWallMs)} lead=${leadMs} ` +
+        `headFix=${Math.round(anchorPhaseFixMs)} ` +
         `src=${positionOverrideMs != null ? "seek" : describeSourceRef.current?.() ?? "?"}`;
       void SongNookMetronomeModule!
         .getState?.()
@@ -432,7 +449,8 @@ function usePlaybackClickNative({
         }
         if (!anchor || anchor.anchorEpochMs == null || anchor.msPerPulse == null) return null;
         const barWall = anchor.msPerPulse * (anchor.pulsesPerBar ?? params.pulsesPerBar);
-        const enginePhase = ((Date.now() - anchor.anchorEpochMs) % barWall + barWall) % barWall;
+        const enginePhase =
+          ((Date.now() - anchor.anchorEpochMs + anchorPhaseFixMs) % barWall + barWall) % barWall;
         const positionMs = getPositionRef.current();
         const nowParams = clickEngineParamsAt({ grid: gridRef.current, positionMs, rate: rateRef.current });
         if (!nowParams) return null;
@@ -464,13 +482,17 @@ function usePlaybackClickNative({
           Math.abs(second.driftMs) > DRIFT_RESYNC_THRESHOLD_MS &&
           Math.abs(second.driftMs - first.driftMs) <= DRIFT_CONFIRM_AGREEMENT_MS &&
           (source === "live" || !describeSourceRef.current);
+        const held = confirmed && Date.now() - lastResyncAtRef.current < MIN_RESYNC_GAP_MS;
         persistLog(
           "click.resync",
-          `${confirmed ? "drift" : "unconfirmed"} ${Math.round(first.driftMs)}/${Math.round(second.driftMs)}ms ` +
+          `${held ? "held" : confirmed ? "drift" : "unconfirmed"} ` +
+            `${Math.round(first.driftMs)}/${Math.round(second.driftMs)}ms ` +
             `pos=${Math.round(second.positionMs)} src=${source} ` +
             `spread=${Math.round(second.spreadMs)}`
         );
-        if (confirmed) void syncClick();
+        if (!confirmed || held) return;
+        lastResyncAtRef.current = Date.now();
+        void syncClick();
       };
       timersRef.current.push(setTimeout(() => void checkDrift(), FIRST_DRIFT_CHECK_MS));
       driftIntervalRef.current = setInterval(() => void checkDrift(), DRIFT_CHECK_INTERVAL_MS);
