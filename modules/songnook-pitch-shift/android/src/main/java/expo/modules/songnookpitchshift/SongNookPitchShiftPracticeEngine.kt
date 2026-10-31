@@ -2,8 +2,14 @@ package expo.modules.songnookpitchshift
 
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.os.Handler
+import android.os.HandlerThread
 import android.os.Looper
+import android.os.SystemClock
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.Format
@@ -22,6 +28,8 @@ import java.nio.ByteBuffer
 import java.util.concurrent.CountDownLatch
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
 private const val DEFAULT_TICK_MS = 100L
 private const val SOUND_GAIN_MIN_DB = -24.0
@@ -90,6 +98,63 @@ class SongNookPitchShiftPracticeEngine(
   /** The play-along click, mixed into this stream (see PlayAlongClick.kt). */
   private val playAlongClick = PlayAlongClickAudioProcessor(sonic, soundChain)
 
+  // ---- The play-along buzz (PlayAlongHapticPlanner): touched only from the sink's
+  // callbacks, which all run on the player's playback thread.
+  private val hapticPlanner = PlayAlongHapticPlanner()
+  private val hapticHandler: Handler by lazy {
+    Handler(HandlerThread("PlayAlongHaptics").apply { start() }.looper)
+  }
+  private val hapticToken = Any()
+  @Volatile private var hapticsSent = 0L
+
+  /** One position report from the sink: hand out the buzzes coming due. */
+  private fun planHaptics(contentUs: Long, sampleRate: Int, speed: Float) {
+    val plan = playAlongClick.soundingPlan()
+    val strength = plan?.hapticStrength
+    if (plan == null || strength == null || strength <= 0.0) {
+      stopHaptics()
+      return
+    }
+    // The limiter's look-ahead delays what is heard behind what the sink reports.
+    val lagMs = if (sampleRate > 0) soundChain.latencyFrames * 1000.0 / sampleRate else 0.0
+    val heardMs = contentUs / 1000.0 - lagMs * speed
+    val sends = hapticPlanner.due(heardMs, speed.toDouble(), plan)
+    if (sends.isEmpty()) return
+    val now = SystemClock.uptimeMillis()
+    for (inMs in sends) {
+      hapticHandler.postAtTime({ fireVibrator(strength) }, hapticToken, now + inMs.roundToLong())
+    }
+  }
+
+  private fun stopHaptics() {
+    hapticPlanner.reset()
+    hapticHandler.removeCallbacksAndMessages(hapticToken)
+  }
+
+  /** The metronome module's buzz, same shape and strength curve. */
+  private fun fireVibrator(strength: Double) {
+    try {
+      val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        (appContext.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
+      } else {
+        @Suppress("DEPRECATION")
+        appContext.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+      }
+      if (vibrator?.hasVibrator() != true) return
+      val clamped = strength.coerceIn(0.0, 1.0)
+      val durationMs = (28 + clamped * 42).roundToInt().toLong()
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        vibrator.vibrate(VibrationEffect.createOneShot(durationMs, (60 + clamped * 195).roundToInt().coerceIn(1, 255)))
+      } else {
+        @Suppress("DEPRECATION")
+        vibrator.vibrate(durationMs)
+      }
+      hapticsSent += 1
+    } catch (_: Throwable) {
+      // A failed buzz must never take down the song.
+    }
+  }
+
   private fun applySound() {
     soundChain.gainDb = currentGainDb
     soundChain.tonePreset = currentTonePreset
@@ -115,13 +180,59 @@ class SongNookPitchShiftPracticeEngine(
         // where the new stream begins. Buffer times are RENDERER times: the player adds
         // a stream offset (10^12 µs for the first item) that must come off to give the
         // position in the file (founder, 2026-10-31: every click a fixed amount off).
+        //
+        // The buzz reads the sink's position, which runs from the first buffer's time
+        // after a start or seek: the file's AAC priming counts in it, except on the
+        // stream the start trim comes off (see PlayAlongClickAudioProcessor). The
+        // correction takes it off the same way the click's anchor does.
         return object : ForwardingAudioSink(sink) {
           private var streamOffsetUs = 0L
+          private var sampleRate = 0
+          private var playing = false
+          private var positionCorrectionUs = 0L
+          private var anchorPending = true
+          private var startTrimPending = false
 
           override fun configure(inputFormat: Format, specifiedBufferSize: Int, outputChannels: IntArray?) {
             playAlongClick.encoderDelayUs =
               if (inputFormat.sampleRate > 0) inputFormat.encoderDelay * 1_000_000L / inputFormat.sampleRate else 0L
+            sampleRate = inputFormat.sampleRate
+            startTrimPending = true
+            anchorPending = true
+            stopHaptics()
             super.configure(inputFormat, specifiedBufferSize, outputChannels)
+          }
+
+          override fun play() {
+            playing = true
+            super.play()
+          }
+
+          override fun pause() {
+            playing = false
+            stopHaptics()
+            super.pause()
+          }
+
+          override fun flush() {
+            anchorPending = true
+            stopHaptics()
+            super.flush()
+          }
+
+          override fun reset() {
+            playing = false
+            anchorPending = true
+            stopHaptics()
+            super.reset()
+          }
+
+          override fun getCurrentPositionUs(sourceEnded: Boolean): Long {
+            val positionUs = super.getCurrentPositionUs(sourceEnded)
+            if (playing && positionUs != AudioSink.CURRENT_POSITION_NOT_SET && !anchorPending) {
+              planHaptics(positionUs - streamOffsetUs - positionCorrectionUs, sampleRate, playbackParameters.speed)
+            }
+            return positionUs
           }
 
           override fun setOutputStreamOffsetUs(outputStreamOffsetUs: Long) {
@@ -135,6 +246,11 @@ class SongNookPitchShiftPracticeEngine(
             encodedAccessUnitCount: Int,
           ): Boolean {
             playAlongClick.inputPresentationTimeUs = presentationTimeUs - streamOffsetUs
+            if (anchorPending) {
+              positionCorrectionUs = if (startTrimPending) 0L else playAlongClick.encoderDelayUs
+              startTrimPending = false
+              anchorPending = false
+            }
             return super.handleBuffer(buffer, presentationTimeUs, encodedAccessUnitCount)
           }
         }
@@ -219,6 +335,7 @@ class SongNookPitchShiftPracticeEngine(
       "minSemitones" to -12,
       "maxSemitones" to 12,
       "supportsPlayAlongClick" to true,
+      "supportsPlayAlongHaptic" to true,
     )
   }
 
@@ -250,6 +367,7 @@ class SongNookPitchShiftPracticeEngine(
         "planned" to (playAlongClick.plan != null),
         "anchorMs" to playAlongClick.lastAnchorMs,
         "clicks" to playAlongClick.clicksMixed,
+        "buzzes" to hapticsSent,
       ),
       )
   }

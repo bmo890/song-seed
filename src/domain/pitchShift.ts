@@ -10,6 +10,8 @@ export type PitchShiftCapabilities = {
   maxSemitones: number;
   /** The engine can carry the play-along click in the song's own stream. */
   supportsPlayAlongClick: boolean;
+  /** …and buzzes with it from the same stream. */
+  supportsPlayAlongHaptic: boolean;
 };
 
 export function clampPitchShiftSemitones(value: number) {
@@ -25,5 +27,6 @@ export function buildUnavailablePitchShiftCapabilities(): PitchShiftCapabilities
     minSemitones: PITCH_SHIFT_MIN_SEMITONES,
     maxSemitones: PITCH_SHIFT_MAX_SEMITONES,
     supportsPlayAlongClick: false,
+    supportsPlayAlongHaptic: false,
   };
 }

@@ -64,6 +64,7 @@ export function normalizeNativePitchCapabilities(
     minSemitones: value.minSemitones,
     maxSemitones: value.maxSemitones,
     supportsPlayAlongClick: !!value.supportsPlayAlongClick,
+    supportsPlayAlongHaptic: !!value.supportsPlayAlongHaptic,
   };
 }
 

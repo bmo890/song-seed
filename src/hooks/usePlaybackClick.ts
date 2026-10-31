@@ -88,7 +88,7 @@ type UsePlaybackClickArgs = {
    * through the engine while `wantsEngine`, and the grid rides along once it `owns` the
    * transport with `sourceUri` loaded. The metronome engine is left the count-in only.
    */
-  inStream?: { supported: boolean; owns: boolean; sourceUri: string | null };
+  inStream?: { supported: boolean; owns: boolean; sourceUri: string | null; haptics?: boolean };
 };
 
 export type PlaybackClickApi = {
@@ -642,6 +642,11 @@ function usePlaybackClickNative({
   const wantsEngine = inStreamSupported && enabled && isAvailable;
   const inStreamOwns = !!inStream?.owns;
   const inStreamSourceUri = inStream?.sourceUri ?? null;
+  // The buzz rides the same stream on builds that carry it (2026-10-31); older
+  // in-stream builds have none.
+  const inStreamHaptics = inStreamSupported && !!inStream?.haptics;
+  const inStreamHapticStrength =
+    inStreamHaptics && hapticEnabled ? clampMetronomeLevel(hapticLevel) / MAX_METRONOME_LEVEL : null;
 
   // The in-stream click's grid: sent while the engine plays this take, cleared otherwise
   // (the editor borrows the same engine, and must never hear it).
@@ -658,6 +663,7 @@ function usePlaybackClickNative({
           ...(planned.stopAtMs != null ? { stopAtMs: planned.stopAtMs } : {}),
           volume: getMetronomeBeepVolume(beepLevel),
           clickVoice,
+          ...(inStreamHapticStrength != null ? { hapticStrength: inStreamHapticStrength } : {}),
         }
       : null;
     void SongNookPitchShiftModule.setPlayAlongClick(plan).catch((error: unknown) =>
@@ -666,10 +672,20 @@ function usePlaybackClickNative({
     if (plan) {
       persistLog(
         "click.started",
-        `in-stream segments=${plan.segments.length} bpm=${grid?.bpm} voice=${clickVoice}`
+        `in-stream segments=${plan.segments.length} bpm=${grid?.bpm} voice=${clickVoice} ` +
+          `buzz=${inStreamHapticStrength != null ? inStreamHapticStrength.toFixed(2) : "off"}`
       );
     }
-  }, [beepLevel, clickVoice, grid, inStreamOwns, inStreamSourceUri, inStreamSupported, wantsEngine]);
+  }, [
+    beepLevel,
+    clickVoice,
+    grid,
+    inStreamHapticStrength,
+    inStreamOwns,
+    inStreamSourceUri,
+    inStreamSupported,
+    wantsEngine,
+  ]);
   useEffect(
     () => () => {
       if (plannedRef.current) void SongNookPitchShiftModule?.setPlayAlongClick?.(null).catch(() => {});
@@ -688,7 +704,8 @@ function usePlaybackClickNative({
         if (!click) return;
         persistLog(
           "click.instream",
-          `anchor=${Math.round(click.anchorMs)} clicks=${click.clicks} pos=${Math.round(state.currentTimeMs)} ` +
+          `anchor=${Math.round(click.anchorMs)} clicks=${click.clicks} buzzes=${click.buzzes ?? "-"} ` +
+            `pos=${Math.round(state.currentTimeMs)} ` +
             `rate=${state.playbackRate} planned=${click.planned}`
         );
       })
@@ -712,7 +729,7 @@ function usePlaybackClickNative({
     playWithCountIn,
     cancelCountIn,
     notifySeek,
-    supportsHaptic: nativeCuesSupported && !inStreamSupported,
+    supportsHaptic: inStreamSupported ? inStreamHaptics : nativeCuesSupported,
     supportsVoice: supportsClickStyle || inStreamSupported,
     wantsEngine,
   };

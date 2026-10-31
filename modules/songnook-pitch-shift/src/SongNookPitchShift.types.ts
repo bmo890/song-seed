@@ -8,6 +8,9 @@ export type NativePitchShiftCapabilities = {
   /** The engine mixes the play-along click into the song's own stream (Android builds
    *  from 2026-10-31). Absent on older builds. */
   supportsPlayAlongClick?: boolean;
+  /** The engine buzzes with that click, timed from the same stream. Absent on older
+   *  builds. */
+  supportsPlayAlongHaptic?: boolean;
 };
 
 /** One constant-tempo stretch of a take's grid, in content (file) ms. */
@@ -28,6 +31,10 @@ export type NativePlayAlongClickPlan = {
   /** 0..1 */
   volume: number;
   clickVoice: string;
+  /** Buzz with each click at this strength (0..1); omitted = no buzz. */
+  hapticStrength?: number;
+  /** Vibrator command → felt buzz, ms (default 60). */
+  hapticLatencyMs?: number;
 };
 
 /** How the take sounds (Sound room, 2026-10-14): a level in dB, limited after the
@@ -55,7 +62,7 @@ export type NativePitchShiftPlaybackState = {
   sourceUri: string | null;
   /** Android, in-stream click builds: where the current stream starts (content ms) and
    *  how many clicks have been mixed, for the diagnostic log. */
-  playAlongClick?: { planned: boolean; anchorMs: number; clicks: number };
+  playAlongClick?: { planned: boolean; anchorMs: number; clicks: number; buzzes?: number };
 };
 
 export type NativePitchShiftLoadRequest = {

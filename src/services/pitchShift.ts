@@ -26,6 +26,7 @@ function normalizeCapabilities(
     minSemitones: capabilities.minSemitones,
     maxSemitones: capabilities.maxSemitones,
     supportsPlayAlongClick: !!capabilities.supportsPlayAlongClick,
+    supportsPlayAlongHaptic: !!capabilities.supportsPlayAlongHaptic,
   };
 }
 

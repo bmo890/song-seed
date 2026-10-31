@@ -650,6 +650,7 @@ function PlayerScreenInner({
         practicePitchTransport.capabilities.supportsPlayAlongClick && practicePitchTransport.isPitchShiftAvailable,
       owns: practicePitchTransport.isNativeClockActive,
       sourceUri: enginePlaybackUri ?? null,
+      haptics: practicePitchTransport.capabilities.supportsPlayAlongHaptic,
     },
   });
   useEffect(() => {

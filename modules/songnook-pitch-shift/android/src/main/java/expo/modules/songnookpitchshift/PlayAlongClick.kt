@@ -30,6 +30,9 @@ import kotlin.math.sin
  * change, start), so that buffer's time is exactly where the flushed stream begins.
  */
 
+/** Android vibrator command → motor spin-up (latencyModel.ts HAPTIC_PIPELINE_LATENCY_MS). */
+internal const val DEFAULT_HAPTIC_LATENCY_MS = 60.0
+
 /** One constant-tempo stretch of the take's grid, in content ms. */
 internal class PlayAlongClickSegment(
   val startMs: Double,
@@ -48,6 +51,11 @@ internal class PlayAlongClickPlan(
   val stopAtMs: Double,
   val volume: Double,
   val voice: String,
+  /** Buzz with each click at this strength (0..1); null = no buzz. */
+  val hapticStrength: Double? = null,
+  /** Vibrator command → felt buzz, ms: the buzz is sent this early so it lands with the
+   *  click (the latency model's Android figure). */
+  val hapticLatencyMs: Double = DEFAULT_HAPTIC_LATENCY_MS,
 ) {
   /** Same beats (the cursor survives a volume or voice change). */
   fun sameTimingAs(other: PlayAlongClickPlan?): Boolean {
@@ -99,6 +107,9 @@ internal class PlayAlongClickPlan(
         stopAtMs = stopAtMs,
         volume = ((raw["volume"] as? Number)?.toDouble() ?: 0.5).coerceIn(0.0, 1.0),
         voice = raw["clickVoice"] as? String ?: "click",
+        hapticStrength = (raw["hapticStrength"] as? Number)?.toDouble()?.coerceIn(0.0, 1.0),
+        hapticLatencyMs = ((raw["hapticLatencyMs"] as? Number)?.toDouble() ?: DEFAULT_HAPTIC_LATENCY_MS)
+          .coerceIn(0.0, 200.0),
       )
     }
   }
@@ -350,15 +361,17 @@ class PlayAlongClickAudioProcessor(
     inputBuffer.order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(scratch, 0, samples)
     inputBuffer.position(inputBuffer.limit())
 
-    val current = plan
-    val sounding = current?.takeIf { it.sourceUri == null || it.sourceUri == loadedSourceUri }
-    (mixer ?: newMixer().also { mixer = it }).process(scratch, frames, sounding)
+    (mixer ?: newMixer().also { mixer = it }).process(scratch, frames, soundingPlan())
 
     val output = replaceOutputBuffer(bytes).order(ByteOrder.LITTLE_ENDIAN)
     output.asShortBuffer().put(scratch, 0, samples)
     output.position(bytes)
     output.flip()
   }
+
+  /** The plan, when it belongs to the file the engine has loaded. */
+  internal fun soundingPlan(): PlayAlongClickPlan? =
+    plan?.takeIf { it.sourceUri == null || it.sourceUri == loadedSourceUri }
 
   override fun onFlush() {
     val trimmedUs = if (startTrimArmed) encoderDelayUs else 0L
@@ -385,5 +398,74 @@ class PlayAlongClickAudioProcessor(
       },
       lagFrames = { soundChain.latencyFrames },
     )
+  }
+}
+
+/**
+ * The play-along buzz, on the same clock as the click (2026-10-31). The click is mixed
+ * into the stream; a vibrator can't be, so each buzz is sent at the wall time the
+ * player's own position says its beat will be heard, less the motor's spin-up. The
+ * position comes from the audio output itself (the sink's AudioTrack timestamps), so a
+ * buzz can't drift from the click any more than the click can drift from the song.
+ *
+ * Called with every position the sink reports while playing (about every 10 ms). Each
+ * beat is handed out once, when it comes within `lookaheadMs` of its send time; a
+ * jump in position (a seek, a loop, a stall) starts the walk over from where the
+ * player is now. Pure: the caller owns the clock and the vibrator.
+ */
+internal class PlayAlongHapticPlanner(private val lookaheadMs: Double = 150.0) {
+  private var plan: PlayAlongClickPlan? = null
+  private var cursor: PlayAlongBeatCursor? = null
+  private var pending: PlayAlongBeat? = null
+  private var lastHeardMs = Double.NaN
+
+  fun reset() {
+    plan = null
+    cursor = null
+    pending = null
+    lastHeardMs = Double.NaN
+  }
+
+  /**
+   * The buzzes to send now, as wall ms from now (≥ 0), for a player that is heard at
+   * content `heardMs` and plays `speed` content ms per wall ms.
+   */
+  fun due(heardMs: Double, speed: Double, nextPlan: PlayAlongClickPlan?): List<Double> {
+    if (nextPlan?.hapticStrength == null || !(speed > 0.0) || !heardMs.isFinite()) {
+      reset()
+      return emptyList()
+    }
+    val leadContentMs = nextPlan.hapticLatencyMs * speed
+    val jumped = lastHeardMs.isNaN() ||
+      heardMs < lastHeardMs - BACKWARD_TOLERANCE_MS ||
+      heardMs > lastHeardMs + (lookaheadMs * speed)
+    if (jumped || !nextPlan.sameTimingAs(plan)) {
+      // From the first beat a buzz can still reach on time.
+      cursor = PlayAlongBeatCursor(nextPlan, heardMs + leadContentMs)
+      pending = null
+    }
+    plan = nextPlan
+    lastHeardMs = heardMs
+    val walk = cursor ?: return emptyList()
+    val horizonMs = heardMs + leadContentMs + lookaheadMs * speed
+    val out = ArrayList<Double>(2)
+    while (true) {
+      val beat = pending ?: walk.next() ?: break
+      if (beat.atMs > horizonMs) {
+        pending = beat
+        break
+      }
+      pending = null
+      val sendInMs = (beat.atMs - heardMs) / speed - nextPlan.hapticLatencyMs
+      // A beat already past its send time by more than a frame goes unfelt, not late.
+      if (sendInMs >= -LATE_TOLERANCE_MS) out += max(0.0, sendInMs)
+    }
+    return out
+  }
+
+  private companion object {
+    /** Reports wobble by a millisecond or two; more than this backwards is a seek. */
+    const val BACKWARD_TOLERANCE_MS = 20.0
+    const val LATE_TOLERANCE_MS = 8.0
   }
 }
