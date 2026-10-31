@@ -14,6 +14,7 @@ import { PlaybackKeyRow, ReadingChart, ReadingLyrics, ReadingTransposeBar } from
 import type { ChordSheet, LyricsLine } from "../../../types";
 import { useTranslation } from "react-i18next";
 import { scheduleFrameOrBackgroundTick } from "../../../services/backgroundPosition";
+import { bpmAtRate } from "../../../domain/tempoSpeed";
 
 type Props = {
   /** Which artifact is open — decides the body (lyric text / lyric chart / block chart). */
@@ -201,12 +202,15 @@ export function FollowSpeedControl({
   min,
   max,
   onSelect,
+  bpmBase = null,
 }: {
   speed: number;
   presets: readonly number[];
   min: number;
   max: number;
   onSelect: (speed: number) => void;
+  /** Read the speed in BPM from this tempo (the Sound drawer's unit); null = rate. */
+  bpmBase?: number | null;
 }) {
   const { t } = useTranslation();
   const sorted = useMemo(() => [...presets].sort((a, b) => a - b), [presets]);
@@ -222,7 +226,10 @@ export function FollowSpeedControl({
     if (next != null) onSelect(next);
   };
 
-  const label = `${speed.toFixed(speed % 1 === 0 ? 1 : 2)}×`;
+  const label =
+    bpmBase != null
+      ? t("player.bpmValue", { bpm: bpmAtRate(bpmBase, speed) })
+      : `${speed.toFixed(speed % 1 === 0 ? 1 : 2)}×`;
 
   return (
     <View style={styles.speed}>

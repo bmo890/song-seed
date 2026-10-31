@@ -14,11 +14,14 @@ import {
   type StepUpStage,
 } from "../../../domain/stepUpLoop";
 import { useStepUpPresetsStore } from "../../../state/useStepUpPresetsStore";
+import { bpmAtRate, stepRateByBpm } from "../../../domain/tempoSpeed";
 import { pd } from "./practiceDrawerStyles";
 import { UserTextInput } from "../../../i18n";
 import { useTranslation } from "react-i18next";
 
 const RATE_STEP = 0.05;
+/** One press in BPM: to the next multiple of five, the way a drill is written. */
+const BPM_STEP = 5;
 const MAX_STAGE_LOOPS = 20;
 
 /**
@@ -40,8 +43,10 @@ const SAVED_SEQUENCES_ENABLED = false;
  * Naming is inline rather than a dialog: this sheet is a modal, and iOS silently
  * refuses to present a modal from inside a presented one.
  *
- * No bpm anywhere: these are plain track rates, so the sheet works with or without a
- * recorded grid.
+ * The stages are plain track rates, so the sheet works with or without a recorded
+ * grid. With the speed dial set to BPM (`bpmBase`, the take's tempo) the same rates
+ * read and step in bpm (2026-10-31); the plan stays relative, so on a take at
+ * another tempo it reads at that take's bpms.
  */
 export function StepUpSequenceSheet({
   visible,
@@ -49,12 +54,15 @@ export function StepUpSequenceSheet({
   sequence,
   onChangeSequence,
   rateBounds,
+  bpmBase = null,
 }: {
   visible: boolean;
   onClose: () => void;
   sequence: StepUpStage[];
   onChangeSequence: (stages: StepUpStage[]) => void;
   rateBounds: RateBounds;
+  /** Read and step the speeds in BPM from this tempo; null keeps them rates. */
+  bpmBase?: number | null;
 }) {
   const { t } = useTranslation();
   const userPresets = useStepUpPresetsStore((state) => state.userPresets);
@@ -63,6 +71,14 @@ export function StepUpSequenceSheet({
   const removeUserPreset = useStepUpPresetsStore((state) => state.removeUserPreset);
   const [naming, setNaming] = useState(false);
   const [presetName, setPresetName] = useState("");
+
+  // One step slower or faster, in whichever unit the speeds read in.
+  const steppedRate = (rate: number, direction: -1 | 1) =>
+    bpmBase != null
+      ? stepRateByBpm({ baseBpm: bpmBase, rate, direction, stepBpm: BPM_STEP, ...rateBounds })
+      : direction > 0
+        ? Math.min(rateBounds.maxRate, Math.round((rate + RATE_STEP) * 100) / 100)
+        : Math.max(rateBounds.minRate, Math.round((rate - RATE_STEP) * 100) / 100);
 
   // A preset is "active" when the plan on screen IS that preset (compared after the
   // same normalization the hook applies on write).
@@ -79,7 +95,7 @@ export function StepUpSequenceSheet({
   // build from nothing.
   const starterCustomStages: StepUpStage[] = (() => {
     const firstRate = sequence[0]?.rate ?? rateBounds.minRate;
-    const secondRate = Math.min(rateBounds.maxRate, Math.round((firstRate + RATE_STEP) * 100) / 100);
+    const secondRate = steppedRate(firstRate, 1);
     return [
       { loops: 4, rate: firstRate },
       { loops: 4, rate: secondRate },
@@ -110,7 +126,7 @@ export function StepUpSequenceSheet({
     haptic.tap();
     const last = sequence[sequence.length - 1];
     // A new step keeps drilling upward: same passes, one increment faster (capped).
-    const nextRate = Math.min(rateBounds.maxRate, Math.round((last.rate + RATE_STEP) * 100) / 100);
+    const nextRate = steppedRate(last.rate, 1);
     onChangeSequence([...sequence, { loops: last.loops, rate: nextRate }]);
   };
 
@@ -188,8 +204,9 @@ export function StepUpSequenceSheet({
       </View>
       <ScrollView style={sheetStyles.list} bounces={false}>
         {sequence.map((stage, index) => {
-          const canSlower = stage.rate > rateBounds.minRate + 1e-9;
-          const canFaster = stage.rate < rateBounds.maxRate - 1e-9;
+          // A key that would not move the speed is off (in BPM, the range's whole bpm).
+          const canSlower = steppedRate(stage.rate, -1) < stage.rate - 1e-9;
+          const canFaster = steppedRate(stage.rate, 1) > stage.rate + 1e-9;
           const canFewer = stage.loops > 1;
           const canMore = stage.loops < MAX_STAGE_LOOPS;
           return (
@@ -237,9 +254,7 @@ export function StepUpSequenceSheet({
                   ]}
                   onPress={() =>
                     canSlower &&
-                    updateStage(index, {
-                      rate: Math.max(rateBounds.minRate, Math.round((stage.rate - RATE_STEP) * 100) / 100),
-                    })
+                    updateStage(index, { rate: steppedRate(stage.rate, -1) })
                   }
                   disabled={!canSlower}
                   hitSlop={4}
@@ -248,7 +263,9 @@ export function StepUpSequenceSheet({
                 >
                   <Ionicons name="remove" size={15} color={canSlower ? colors.textStrong : colors.textMuted} />
                 </Pressable>
-                <Text style={[sheetStyles.stepperValue, sheetStyles.rateValue]}>{`${stage.rate}×`}</Text>
+                <Text style={[sheetStyles.stepperValue, sheetStyles.rateValue]}>{bpmBase != null
+                    ? t("player.bpmValue", { bpm: bpmAtRate(bpmBase, stage.rate) })
+                    : `${Math.round(stage.rate * 100) / 100}×`}</Text>
                 <Pressable
                   style={({ pressed }) => [
                     sheetStyles.stepperButton,
@@ -257,9 +274,7 @@ export function StepUpSequenceSheet({
                   ]}
                   onPress={() =>
                     canFaster &&
-                    updateStage(index, {
-                      rate: Math.min(rateBounds.maxRate, Math.round((stage.rate + RATE_STEP) * 100) / 100),
-                    })
+                    updateStage(index, { rate: steppedRate(stage.rate, 1) })
                   }
                   disabled={!canFaster}
                   hitSlop={4}

@@ -43,8 +43,9 @@ export const STEP_UP_DEFAULTS: StepUpParams = {
     targetRate: 1,
 };
 
-/** Rates live on a 0.01 lattice — the finest the speed UI distinguishes. */
-const RATE_RESOLUTION = 0.01;
+/** Rates live on a 0.001 lattice: 0.01 was the finest the × dial shows, but a
+ *  plan read in BPM (domain/tempoSpeed.ts) needs every whole bpm to survive. */
+const RATE_RESOLUTION = 0.001;
 const RATE_EPSILON = 1e-9;
 
 const RATE_LATTICE = 1 / RATE_RESOLUTION;

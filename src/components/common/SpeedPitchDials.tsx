@@ -5,9 +5,11 @@ import { useTranslation } from "react-i18next";
 import { PITCH_SHIFT_MAX_SEMITONES, PITCH_SHIFT_MIN_SEMITONES } from "../../domain/pitchShift";
 import { colors, text } from "../../design/tokens";
 import { Press } from "./Press";
+import { SegmentedControl } from "./SegmentedControl";
 import { Slider } from "./Slider";
 import { Stepper } from "./Stepper";
 import { signedNumberText } from "../../i18n/direction";
+import { bpmAtRate, bpmRange, rateAtBpm, type SpeedUnit } from "../../domain/tempoSpeed";
 
 type SpeedPitchDialsProps = {
   playbackSpeed: number;
@@ -22,6 +24,11 @@ type SpeedPitchDialsProps = {
   pitchShiftSemitones: number;
   supportsPitchShift: boolean;
   onAdjustPitchShift: (value: number) => void;
+  /** The take's own tempo (domain/tempoSpeed.ts). With it, and a unit to
+   *  report to, the speed dial can be read and set in BPM. */
+  tempoBpm?: number | null;
+  speedUnit?: SpeedUnit;
+  onChangeSpeedUnit?: (unit: SpeedUnit) => void;
   testID?: string;
 };
 
@@ -37,6 +44,10 @@ type SpeedPitchDialsProps = {
  *
  * The caller owns the semantics: the player applies live practice values; the editor
  * bakes them into a new clip. This component only knows the numbers.
+ *
+ * On a take with a tempo the speed label becomes Speed · BPM ink tabs (founder,
+ * 2026-10-31). In BPM the dial reads "80 bpm" and moves one bpm per step, but it
+ * still hands the caller a rate: BPM is how the number reads, never what is stored.
  */
 export function SpeedPitchDials({
   playbackSpeed,
@@ -50,13 +61,24 @@ export function SpeedPitchDials({
   pitchShiftSemitones,
   supportsPitchShift,
   onAdjustPitchShift,
+  tempoBpm,
+  speedUnit = "rate",
+  onChangeSpeedUnit,
   testID,
 }: SpeedPitchDialsProps) {
   const { t } = useTranslation();
-  const speedIsPreset = (preset: number) => Math.abs(playbackSpeed - preset) < 0.01;
+  const canCountBpm = tempoBpm != null && !!onChangeSpeedUnit;
+  const baseBpm = canCountBpm && speedUnit === "bpm" ? tempoBpm : null;
+  const heardBpm = baseBpm != null ? bpmAtRate(baseBpm, playbackSpeed) : null;
+  const { minBpm, maxBpm } = baseBpm != null ? bpmRange(baseBpm, speedMin, speedMax) : { minBpm: 0, maxBpm: 0 };
+  // The slider speaks the dial's unit; the caller always hears a rate.
+  const toRate = (value: number) => (baseBpm != null ? rateAtBpm(baseBpm, Math.round(value)) : value);
+  const speedIsPreset = (preset: number) =>
+    baseBpm != null ? heardBpm === bpmAtRate(baseBpm, preset) : Math.abs(playbackSpeed - preset) < 0.01;
   // "Bent away from original" — drives both the reset affordance and the value's
   // colour, so the two can never disagree about whether anything changed.
-  const speedIsChanged = Math.abs(playbackSpeed - 1) > 0.01;
+  const speedIsChanged =
+    baseBpm != null ? heardBpm !== bpmAtRate(baseBpm, 1) : Math.abs(playbackSpeed - 1) > 0.01;
   const pitchIsChanged = supportsPitchShift && pitchShiftSemitones !== 0;
   const canDecreasePitch = supportsPitchShift && pitchShiftSemitones > PITCH_SHIFT_MIN_SEMITONES;
   const canIncreasePitch = supportsPitchShift && pitchShiftSemitones < PITCH_SHIFT_MAX_SEMITONES;
@@ -65,9 +87,22 @@ export function SpeedPitchDials({
     <View style={d.wrap} testID={testID}>
       {/* Each dial resets from its own label — the reset lives with the thing it
           resets, and only appears once there is something to undo. */}
-      <View style={d.dialHead}>
+      <View style={[d.dialHead, canCountBpm ? d.dialHeadTabs : null]}>
         <View style={d.dialLabelGroup}>
-          <Text style={d.rowLabel}>{t("player.speed")}</Text>
+          {canCountBpm ? (
+            <View style={d.unitTabs}>
+              <SegmentedControl<SpeedUnit>
+                options={[
+                  { key: "rate", label: t("player.speed") },
+                  { key: "bpm", label: t("player.speedUnitBpm") },
+                ]}
+                value={speedUnit}
+                onChange={onChangeSpeedUnit}
+              />
+            </View>
+          ) : (
+            <Text style={d.rowLabel}>{t("player.speed")}</Text>
+          )}
           {speedIsChanged ? (
             <Press
               feel="glyph"
@@ -82,21 +117,24 @@ export function SpeedPitchDials({
           ) : null}
         </View>
         <Text style={[d.dialValue, speedIsChanged ? d.dialValueChanged : null]}>
-          {`${Math.round(playbackSpeed * 100) / 100}×`}
+          {heardBpm != null
+            ? t("player.bpmValue", { bpm: heardBpm })
+            : `${Math.round(playbackSpeed * 100) / 100}×`}
         </Text>
       </View>
-      {/* Ticks every tenth: a drag from 0.5× to 1.5× is ten felt stops, a dial. */}
+      {/* Ticks every tenth: a drag from 0.5× to 1.5× is ten felt stops, a dial.
+          In BPM it steps one bpm and ticks every five. */}
       <Slider
         style={d.soundSlider}
-        minimumValue={speedMin}
-        maximumValue={speedMax}
-        step={0.05}
-        detent={0.1}
-        value={playbackSpeed}
-        onValueChange={onSpeedSliding}
+        minimumValue={baseBpm != null ? minBpm : speedMin}
+        maximumValue={baseBpm != null ? maxBpm : speedMax}
+        step={baseBpm != null ? 1 : 0.05}
+        detent={baseBpm != null ? 5 : 0.1}
+        value={heardBpm ?? playbackSpeed}
+        onValueChange={onSpeedSliding ? (value) => onSpeedSliding(toRate(value)) : undefined}
         onSlidingStart={() => onSpeedSlideStart?.(playbackSpeed)}
-        onSlidingComplete={onSpeedSlideEnd}
-        accessibilityLabel={t("player.speed")}
+        onSlidingComplete={(value) => onSpeedSlideEnd(toRate(value))}
+        accessibilityLabel={baseBpm != null ? t("player.speedUnitBpm") : t("player.speed")}
       />
       <View style={d.tickLabelRow}>
         {speedPresets.map((preset) => (
@@ -106,9 +144,11 @@ export function SpeedPitchDials({
             onPress={() => onSpeedTap(preset)}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel={`${preset}×`}
+            accessibilityLabel={baseBpm != null ? t("player.bpmValue", { bpm: bpmAtRate(baseBpm, preset) }) : `${preset}×`}
           >
-            <Text style={[d.tickLabel, speedIsPreset(preset) ? d.tickLabelOn : null]}>{`${preset}`}</Text>
+            <Text style={[d.tickLabel, speedIsPreset(preset) ? d.tickLabelOn : null]}>
+              {baseBpm != null ? `${bpmAtRate(baseBpm, preset)}` : `${preset}`}
+            </Text>
           </Press>
         ))}
       </View>
@@ -163,6 +203,15 @@ const d = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 10,
     paddingTop: 4,
+  },
+  // With the Speed · BPM tabs in the label's place, the row centres on the tabs.
+  dialHeadTabs: {
+    alignItems: "center",
+    paddingTop: 0,
+  },
+  // Two short words: the tabs take their own width, not the drawer's.
+  unitTabs: {
+    width: 128,
   },
   // Label + reset travel together as one group. The group (not the button) is the
   // baseline participant of `dialHead`, so the label still shares the big value's

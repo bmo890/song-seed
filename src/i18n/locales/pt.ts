@@ -1315,7 +1315,7 @@ export const pt = {
     snapNextStart: "Próximo início",
     speed: "Velocidade",
     pitch: "Tom",
-    resetSpeed: "Redefinir velocidade",
+    resetSpeed: "Redefinir velocidade", speedUnitBpm: "BPM", bpmValue: "{{bpm}} bpm",
     resetPitch: "Redefinir tom",
     countIn: "Contagem",
     countInSeconds: "{{count}} segundos",

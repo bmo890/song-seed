@@ -46,6 +46,8 @@ import { PlayerLayersBench, openCombineChooser, type LayerSheetHandle } from "./
 import { MAX_LAYERS_PER_TAKE, buildSoloMixInputs } from "../../domain/overdub";
 import { releaseSoloMixFiles, renderSoloMixFile } from "../../services/soloMix";
 import { useLayerPrefsStore } from "../../state/useLayerPrefsStore";
+import { usePracticePrefsStore } from "../../state/usePracticePrefsStore";
+import { speedBaseBpm } from "../../domain/tempoSpeed";
 import { looksMachineNamed } from "../../domain/titleNaming";
 import { HelpSheet } from "../common/HelpSheet";
 import { HelpButton } from "../common/HelpButton";
@@ -280,6 +282,12 @@ function PlayerScreenInner({
     }
     return `${Math.round(grid.bpm)} bpm · ${grid.meterId}`;
   }, [playerClip?.recordingGrid]);
+  // Speed counted in BPM (2026-10-31): only a take whose grid the click trusts has a
+  // tempo to count from; anywhere else the dial reads as a rate whatever was chosen.
+  const speedTempoBpm = useMemo(() => speedBaseBpm(playerClip?.recordingGrid ?? null), [playerClip?.recordingGrid]);
+  const speedUnit = usePracticePrefsStore((state) => state.speedUnit);
+  const setSpeedUnit = usePracticePrefsStore((state) => state.setSpeedUnit);
+  const speedBpmBase = speedTempoBpm != null && speedUnit === "bpm" ? speedTempoBpm : null;
   // The take's page (settled lyrics-versioning rules): a stamped take reads the
   // version it was sung from; "Show latest" flips forward for this open.
   const [lyricsShowLatest, setLyricsShowLatest] = useState(false);
@@ -1812,6 +1820,7 @@ function PlayerScreenInner({
                         presets={PRACTICE_SPEED_PRESETS}
                         min={PRACTICE_SPEED_MIN}
                         max={PRACTICE_SPEED_MAX}
+                        bpmBase={speedBpmBase}
                         onSelect={(value) => {
                           if (guardPracticeTool("speed")) handleSpeedTap(value);
                         }}
@@ -2126,6 +2135,9 @@ function PlayerScreenInner({
               onAdjustPitchShift={(value) => {
                 if (guardPracticeTool("pitch")) ui.setPitchShiftSemitones(value);
               }}
+              speedTempoBpm={speedTempoBpm}
+              speedUnit={speedUnit}
+              onChangeSpeedUnit={setSpeedUnit}
               countInOption={ui.countInOption}
               clickLevel={playbackClickLevel}
               onSetClickLevel={setPlaybackClickLevel}

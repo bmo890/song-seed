@@ -296,7 +296,7 @@ describe("clickRateBounds", () => {
   it("derives the engine's 40-240 window for a single-tempo grid", () => {
     const bounds = clickRateBounds(GRID)!;
     // 120bpm: 40/120 = 0.334 (snapped up), 240/120 = 2.
-    expect(bounds.minRate).toBeCloseTo(0.34, 10);
+    expect(bounds.minRate).toBeCloseTo(0.334, 10);
     expect(bounds.maxRate).toBe(2);
   });
 
@@ -321,7 +321,7 @@ describe("clickRateBounds", () => {
     };
     const bounds = clickRateBounds(grid)!;
     // Slow segment caps the floor (40/60), fast segment caps the ceiling (240/200).
-    expect(bounds.minRate).toBeCloseTo(0.67, 10);
+    expect(bounds.minRate).toBeCloseTo(0.667, 10);
     expect(bounds.maxRate).toBeCloseTo(1.2, 10);
   });
 });

@@ -1316,7 +1316,7 @@ export const es = {
     snapNextStart: "Inicio siguiente",
     speed: "Velocidad",
     pitch: "Tono",
-    resetSpeed: "Restablecer velocidad",
+    resetSpeed: "Restablecer velocidad", speedUnitBpm: "BPM", bpmValue: "{{bpm}} bpm",
     resetPitch: "Restablecer tono",
     countIn: "Cuenta previa",
     countInSeconds: "{{count}} segundos",

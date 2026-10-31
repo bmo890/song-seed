@@ -1253,7 +1253,7 @@ export const de = {
     snapNextStart: "Nächster Anfang",
     speed: "Geschwindigkeit",
     pitch: "Tonhöhe",
-    resetSpeed: "Geschwindigkeit zurücksetzen",
+    resetSpeed: "Geschwindigkeit zurücksetzen", speedUnitBpm: "BPM", bpmValue: "{{bpm}} bpm",
     resetPitch: "Tonhöhe zurücksetzen",
     countIn: "Einzähler",
     countInSeconds: "{{count}} Sekunden",

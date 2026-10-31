@@ -17,9 +17,11 @@ export function usePlayerSpeedControls({
   const [speedPanelVisible, setSpeedPanelVisible] = useState(false);
   const isSlidingSpeed = useRef(false);
 
+  // The × dial steps 0.05 on its own; a speed set in BPM (80 of 120 = 0.667) must
+  // keep its third decimal, or the dial reads a different bpm than the one chosen.
   const cleanSpeed = useCallback(
     (value: number) =>
-      Math.max(minSpeed, Math.min(maxSpeed, Math.round(value * 20) / 20)),
+      Math.max(minSpeed, Math.min(maxSpeed, Math.round(value * 1000) / 1000)),
     [maxSpeed, minSpeed]
   );
 

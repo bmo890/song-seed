@@ -38,6 +38,7 @@ import { durations } from "../../../design/motion";
 import { markGroupPositions, markRowTimeline, sectionPhase } from "../../../domain/markPhase";
 import { Press } from "../../common/Press";
 import { SpeedPitchDials } from "../../common/SpeedPitchDials";
+import { bpmAtRate, type SpeedUnit } from "../../../domain/tempoSpeed";
 import { LevelToneStrip } from "../../common/LevelToneStrip";
 import { isTonePresetNeutral, type OverdubToneFlag } from "../../../domain/overdub";
 import { UndoRedoButtons } from "../../common/useUndoHistory";
@@ -155,6 +156,11 @@ type PlayerPracticeDrawersProps = {
   pitchShiftSemitones: number;
   supportsPitchShift: boolean;
   onAdjustPitchShift: (value: number) => void;
+  /** The take's tempo the speed can be counted in (domain/tempoSpeed.ts), null
+   *  without a trustworthy grid. */
+  speedTempoBpm: number | null;
+  speedUnit: SpeedUnit;
+  onChangeSpeedUnit: (unit: SpeedUnit) => void;
   countInOption: CountInOption;
   onSelectCountIn: (option: CountInOption) => void;
   /** Playback-click volume (0–100), its own store dial. */
@@ -200,11 +206,14 @@ function StepUpProgressLine({
   totalLoops,
   passNumber,
   rate,
+  bpmBase,
 }: {
   completedLoops: number;
   totalLoops: number;
   passNumber: number;
   rate: number;
+  /** Read the speed in BPM from this tempo; null reads it as a rate. */
+  bpmBase: number | null;
 }) {
   const { t } = useTranslation();
   const dotCount = Math.max(1, Math.min(totalLoops, STEP_UP_MAX_DOTS));
@@ -238,7 +247,9 @@ function StepUpProgressLine({
       <Text style={pd.stepUpProgressCount}>
         {`${passNumber} / ${totalLoops}`}
       </Text>
-      <Text style={pd.stepUpProgressRate}>{`${rate}×`}</Text>
+      <Text style={pd.stepUpProgressRate}>
+        {bpmBase != null ? t("player.bpmValue", { bpm: bpmAtRate(bpmBase, rate) }) : `${Math.round(rate * 100) / 100}×`}
+      </Text>
     </View>
   );
 }
@@ -302,6 +313,9 @@ export function PlayerPracticeDrawers({
   pitchShiftSemitones,
   supportsPitchShift,
   onAdjustPitchShift,
+  speedTempoBpm,
+  speedUnit,
+  onChangeSpeedUnit,
   countInOption,
   onSelectCountIn,
   clickLevel,
@@ -319,6 +333,8 @@ export function PlayerPracticeDrawers({
   onToggleSoundTone,
 }: PlayerPracticeDrawersProps) {
   const { t } = useTranslation();
+  // Step up reads in BPM only when the dial does, on a take that has a tempo.
+  const speedBpmBase = speedTempoBpm != null && speedUnit === "bpm" ? speedTempoBpm : null;
   const [drawer, setDrawer] = useState<Drawer>("marks");
   const [selected, setSelected] = useState<SelectedMark>(null);
   // The mark whose play glyph started the current playback — it wears the accent
@@ -891,6 +907,7 @@ export function PlayerPracticeDrawers({
             totalLoops={stepUpProgress.totalLoops}
             passNumber={stepUpProgress.passNumber}
             rate={stepUpProgress.rate}
+            bpmBase={speedBpmBase}
           />
         ) : null}
       </AnimatedCollapse>
@@ -900,6 +917,7 @@ export function PlayerPracticeDrawers({
         sequence={stepUpSequence}
         onChangeSequence={onChangeStepUpSequence}
         rateBounds={{ minRate: stepUpRateMin, maxRate: stepUpRateMax }}
+        bpmBase={speedBpmBase}
       />
       <HelpSheet
         visible={stepUpHelpOpen}
@@ -1021,6 +1039,9 @@ export function PlayerPracticeDrawers({
         pitchShiftSemitones={pitchShiftSemitones}
         supportsPitchShift={supportsPitchShift}
         onAdjustPitchShift={onAdjustPitchShift}
+        tempoBpm={speedTempoBpm}
+        speedUnit={speedUnit}
+        onChangeSpeedUnit={onChangeSpeedUnit}
       />
 
       {/* Below the hairline: the take's own sound, kept with it. Above it, how you
