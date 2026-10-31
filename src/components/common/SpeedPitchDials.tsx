@@ -73,6 +73,13 @@ export function SpeedPitchDials({
   const { minBpm, maxBpm } = baseBpm != null ? bpmRange(baseBpm, speedMin, speedMax) : { minBpm: 0, maxBpm: 0 };
   // The slider speaks the dial's unit; the caller always hears a rate.
   const toRate = (value: number) => (baseBpm != null ? rateAtBpm(baseBpm, Math.round(value)) : value);
+  // The ± keys: one bpm in BPM, a twentieth on the × dial; a committed value.
+  const steppedSpeed = (direction: -1 | 1) =>
+    baseBpm != null && heardBpm != null
+      ? rateAtBpm(baseBpm, Math.min(maxBpm, Math.max(minBpm, heardBpm + direction)))
+      : Math.min(speedMax, Math.max(speedMin, Math.round((playbackSpeed + direction * 0.05) * 100) / 100));
+  const canSlowSpeed = baseBpm != null && heardBpm != null ? heardBpm > minBpm : playbackSpeed > speedMin + 1e-6;
+  const canRaiseSpeed = baseBpm != null && heardBpm != null ? heardBpm < maxBpm : playbackSpeed < speedMax - 1e-6;
   const speedIsPreset = (preset: number) =>
     baseBpm != null ? heardBpm === bpmAtRate(baseBpm, preset) : Math.abs(playbackSpeed - preset) < 0.01;
   // "Bent away from original" — drives both the reset affordance and the value's
@@ -116,11 +123,21 @@ export function SpeedPitchDials({
             </Press>
           ) : null}
         </View>
-        <Text style={[d.dialValue, speedIsChanged ? d.dialValueChanged : null]}>
-          {heardBpm != null
-            ? t("player.bpmValue", { bpm: heardBpm })
-            : `${Math.round(playbackSpeed * 100) / 100}×`}
-        </Text>
+        {/* Fine steps without the slider (founder, 2026-10-31): the pitch row's keys. */}
+        <Stepper
+          glyphs="plusMinus"
+          onStep={(direction) => onSpeedTap(steppedSpeed(direction))}
+          canDecrement={canSlowSpeed}
+          canIncrement={canRaiseSpeed}
+          decrementLabel={t("player.slower")}
+          incrementLabel={t("player.faster")}
+        >
+          <Text style={[d.dialValue, d.speedValue, speedIsChanged ? d.dialValueChanged : null]}>
+            {heardBpm != null
+              ? t("player.bpmValue", { bpm: heardBpm })
+              : `${Math.round(playbackSpeed * 100) / 100}×`}
+          </Text>
+        </Stepper>
       </View>
       {/* Ticks every tenth: a drag from 0.5× to 1.5× is ten felt stops, a dial.
           In BPM it steps one bpm and ticks every five. */}
@@ -199,7 +216,7 @@ const d = StyleSheet.create({
   },
   dialHead: {
     flexDirection: "row",
-    alignItems: "baseline",
+    alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 10,
     paddingTop: 4,
@@ -285,6 +302,10 @@ const d = StyleSheet.create({
   },
   pitchValue: {
     minWidth: 52,
+    textAlign: "center",
+  },
+  speedValue: {
+    minWidth: 64,
     textAlign: "center",
   },
 });

@@ -163,19 +163,35 @@ export const pd = StyleSheet.create({
     ...text.caption,
     color: colors.primaryDeep,
   },
+  // The click's own settings, under its row: one tonal panel (the search
+  // field's fill) so they read as the click's, not as more tools.
+  clickPanel: {
+    marginHorizontal: 10,
+    marginTop: -2,
+    marginBottom: 4,
+    paddingHorizontal: 12,
+    paddingTop: 4,
+    paddingBottom: 6,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surfaceContainer,
+  },
   clickVolumeRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingHorizontal: 10,
-    marginTop: -4,
   },
-  clickVolumeSlider: { flex: 1, height: 30 },
-  // The sound, under its volume: indented to the slider's own inset.
-  clickVoiceRow: {
-    paddingHorizontal: 10,
-    paddingTop: 4,
-    paddingBottom: 6,
+  clickVolumeSlider: { flex: 1, height: 34 },
+  // Its sound and the tap in the hand, on one line.
+  clickOptionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  clickVoiceTabs: {
+    width: 136,
+  },
+  clickHapticKey: {
+    marginStart: "auto",
   },
   // Leading the list: the divider moves under the row instead of above it.
   // Pinned over the list once it scrolls: opaque, so rows pass beneath.

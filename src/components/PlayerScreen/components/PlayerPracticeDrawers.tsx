@@ -981,46 +981,62 @@ export function PlayerPracticeDrawers({
               accessibilityLabel={t("player.click")}
             />
           </View>
-          {/* The click's own volume — it competes with the song, so it has a dial
-              here rather than borrowing the standalone metronome's beep level. */}
+          {/* The click's own settings sit in one tonal panel under its row
+              (founder, 2026-10-31: expanded, they read as peers of Speed and
+              Pitch). Volume first: it competes with the song, so it has its
+              own dial rather than the standalone metronome's beep level. Then
+              its sound (the recorder's choice, 2026-10-29) and the tap in the
+              hand on one line. */}
           {clickEnabled ? (
-            <View style={pd.clickVolumeRow}>
-              <Ionicons name="volume-low-outline" size={16} color={colors.textMuted} />
-              <Slider
-                style={pd.clickVolumeSlider}
-                minimumValue={0}
-                maximumValue={100}
-                step={5}
-                detent={10}
-                value={clickLevel}
-                onSlidingComplete={(value) => onSetClickLevel(Math.round(value))}
-                accessibilityLabel={t("player.clickVolume")}
-              />
-              <Ionicons name="volume-high-outline" size={16} color={colors.textMuted} />
-            </View>
-          ) : null}
-          {/* Its sound, the same choice the recorder offers (founder, 2026-10-29). */}
-          {clickEnabled && clickVoice && onSetClickVoice ? (
-            <View style={pd.clickVoiceRow}>
-              <SegmentedControl
-                options={METRONOME_CLICK_VOICES.map((voice) => ({
-                  key: voice,
-                  label: t(CLICK_VOICE_LABEL_KEYS[voice]),
-                }))}
-                value={clickVoice}
-                onChange={onSetClickVoice}
-              />
-            </View>
-          ) : null}
-          {/* A tap in the hand along with the click — the same quiet row recipe. */}
-          {clickEnabled && clickHapticAvailable ? (
-            <View style={pd.row}>
-              <Text style={pd.rowLabel}>{t("player.clickHaptic")}</Text>
-              <Switch
-                value={clickHaptic}
-                onValueChange={onSetClickHaptic}
-                accessibilityLabel={t("player.clickHaptic")}
-              />
+            <View style={pd.clickPanel}>
+              <View style={pd.clickVolumeRow}>
+                <Ionicons name="volume-low-outline" size={16} color={colors.textMuted} />
+                <Slider
+                  style={pd.clickVolumeSlider}
+                  minimumValue={0}
+                  maximumValue={100}
+                  step={5}
+                  detent={10}
+                  value={clickLevel}
+                  onSlidingComplete={(value) => onSetClickLevel(Math.round(value))}
+                  accessibilityLabel={t("player.clickVolume")}
+                />
+                <Ionicons name="volume-high-outline" size={16} color={colors.textMuted} />
+              </View>
+              {(clickVoice && onSetClickVoice) || clickHapticAvailable ? (
+                <View style={pd.clickOptionsRow}>
+                  {clickVoice && onSetClickVoice ? (
+                    <View style={pd.clickVoiceTabs}>
+                      <SegmentedControl
+                        options={METRONOME_CLICK_VOICES.map((voice) => ({
+                          key: voice,
+                          label: t(CLICK_VOICE_LABEL_KEYS[voice]),
+                        }))}
+                        value={clickVoice}
+                        onChange={onSetClickVoice}
+                      />
+                    </View>
+                  ) : null}
+                  {clickHapticAvailable ? (
+                    <InkKey
+                      glyph={
+                        <Ionicons
+                          name="phone-portrait-outline"
+                          size={16}
+                          color={inkKeyColor(clickHaptic ? "active" : "off")}
+                        />
+                      }
+                      label={t("player.clickHaptic")}
+                      tone={clickHaptic ? "active" : "off"}
+                      role="switch"
+                      // Haptics (haptics.ts): `light` — a small state flip.
+                      haptic="light"
+                      onPress={() => onSetClickHaptic(!clickHaptic)}
+                      style={pd.clickHapticKey}
+                    />
+                  ) : null}
+                </View>
+              ) : null}
             </View>
           ) : null}
           <View style={pd.soundDivider} />

@@ -175,6 +175,8 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
 
   const playerOptions = useMemo(() => ({ updateInterval: 50 }), []);
   const player = useAudioPlayer(null, playerOptions);
+  /** The rate last asked for: what an idle player's 0 stands for. */
+  const [requestedRate, setRequestedRate] = useState(1);
   const sourcePositionGateRef = useRef<SourcePositionHold | null>(null);
   /**
    * How position reaches the reel: straight off the native status event, no React commit
@@ -258,9 +260,11 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
   // `?? 1` was not enough: a paused/idle player reports rate 0, and 0 is not
   // nullish. That zero reached the practice speed dial, which clamps into its
   // range and so read 0.5× — the floor — as if the musician had chosen it.
-  // Only a positive rate is a real rate; anything else means "normal".
+  // Only a positive rate is a real rate; anything else means "the rate last asked
+  // for", not "normal": a take that plays to its end reports 0, and reading that as
+  // 1× put a slowed take back to full speed every time it finished (2026-10-31).
   const playbackRate =
-    typeof status.playbackRate === "number" && status.playbackRate > 0 ? status.playbackRate : 1;
+    typeof status.playbackRate === "number" && status.playbackRate > 0 ? status.playbackRate : requestedRate;
   // Keep transport callbacks stable. PlayerScreen is always mounted, so function identity churn
   // here can retrigger effect chains and store updates on every render.
   const playerDurationRef = useRef(playerDuration);
@@ -865,6 +869,7 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
 
   const setPlaybackRate = useCallback((rate: number) => {
     const nextRate = Math.max(0.5, Math.min(rate, 2));
+    setRequestedRate(nextRate);
     try {
       player.setPlaybackRate(nextRate);
     } catch (err) {
