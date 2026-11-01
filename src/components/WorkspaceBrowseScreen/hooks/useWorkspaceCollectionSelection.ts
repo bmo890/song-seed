@@ -325,7 +325,7 @@ export function useWorkspaceCollectionSelection({
   const selectionShareActions: SelectionAction[] = [
     {
       key: "export",
-      label: t("collection.shareFile"),
+      label: t("shareExit.fileLabel"),
       icon: "folder-open-outline",
       exit: "export",
       disabled: !singleSelectedCollection || sharingCollection,

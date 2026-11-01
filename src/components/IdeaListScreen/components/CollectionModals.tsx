@@ -30,7 +30,7 @@ export function CollectionModals() {
         actions={[
           {
             key: "export",
-            label: t("collection.shareFile"),
+            label: t("shareExit.fileLabel"),
             icon: "folder-open-outline",
             exit: "export",
             onPress: () => void management.shareCurrentCollectionFile(),

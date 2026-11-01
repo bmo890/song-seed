@@ -10,9 +10,7 @@ import { haptic } from "../../design/haptics";
 import { colors, spacing, text as textTokens } from "../../design/tokens";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../i18n";
-import { HelpButton } from "./HelpButton";
-import { HelpBody } from "./HelpSheet";
-import { shareHelp, type ShareExit } from "./helpContent";
+import { SHARE_EXIT_ORDER, shareExitHint } from "./shareExits";
 
 type SelectionActionSheetProps = {
   visible: boolean;
@@ -54,16 +52,9 @@ export function SelectionActionSheet({
   subtitle,
 }: SelectionActionSheetProps) {
   const { t } = useTranslation();
-  // A Share menu explains its ways out in place: "?" turns this sheet over to
-  // the help for the rows it shows, and back turns it again.
-  const exits = actions.map((action) => action.exit).filter((exit): exit is ShareExit => !!exit);
-  const [helpOpen, setHelpOpen] = useState(false);
-  useEffect(() => {
-    if (!visible) setHelpOpen(false);
-  }, [visible]);
-  const help = helpOpen && exits.length > 0 ? shareHelp(exits) : null;
-  const safe = actions.filter((action) => action.tone !== "danger");
-  const danger = actions.filter((action) => action.tone === "danger");
+  const shown = withShareExits(actions);
+  const safe = shown.filter((action) => action.tone !== "danger");
+  const danger = shown.filter((action) => action.tone === "danger");
   const renderRow = (action: SelectionAction, last: boolean) => {
     const dangerous = action.tone === "danger";
     return (
@@ -119,17 +110,13 @@ export function SelectionActionSheet({
       }}
     >
       <View style={styles.selectionSheetHeader}>
-        {onBack || help ? (
+        {onBack ? (
           <Pressable
             style={({ pressed }) => [styles.selectionSheetBack, pressed ? styles.pressDown : null]}
             onPress={() => {
               haptic.tap();
-              if (help) {
-                setHelpOpen(false);
-                return;
-              }
               onClose();
-              onBack?.();
+              onBack();
             }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityRole="button"
@@ -146,31 +133,33 @@ export function SelectionActionSheet({
             {titleContext}
           </UserText>
         ) : null}
-        {exits.length > 0 && !help ? (
-          <View style={sheetLocal.helpSlot}>
-            <HelpButton compact onPress={() => setHelpOpen(true)} />
-          </View>
-        ) : null}
       </View>
-      {help ? (
-        <View style={sheetLocal.helpBody}>
-          <HelpBody thesis={help.thesis} items={help.items} />
+      {subtitle ? <Text style={sheetLocal.subtitle}>{subtitle}</Text> : null}
+      <View>
+        {safe.map((action, index) => renderRow(action, index === safe.length - 1))}
+      </View>
+      {danger.length > 0 ? (
+        <View style={safe.length > 0 ? sheetLocal.dangerGroup : null}>
+          {danger.map((action, index) => renderRow(action, index === danger.length - 1))}
         </View>
-      ) : (
-        <>
-          {subtitle ? <Text style={sheetLocal.subtitle}>{subtitle}</Text> : null}
-          <View>
-            {safe.map((action, index) => renderRow(action, index === safe.length - 1))}
-          </View>
-          {danger.length > 0 ? (
-            <View style={safe.length > 0 ? sheetLocal.dangerGroup : null}>
-              {danger.map((action, index) => renderRow(action, index === danger.length - 1))}
-            </View>
-          ) : null}
-        </>
-      )}
+      ) : null}
     </BottomSheet>
   );
+}
+
+/** A Share menu's ways out (founder, 2026-11-01): each says under its name
+ *  what it carries and who it is for (a caller's own hint, which says more for
+ *  what is selected, wins), and they keep one order wherever they appear,
+ *  starting where the first of them stands. */
+function withShareExits(actions: SelectionAction[]): SelectionAction[] {
+  const exits = actions
+    .filter((action) => action.exit)
+    .sort((a, b) => SHARE_EXIT_ORDER.indexOf(a.exit!) - SHARE_EXIT_ORDER.indexOf(b.exit!))
+    .map((action) => (action.hint ? action : { ...action, hint: shareExitHint(action.exit!) }));
+  if (exits.length === 0) return actions;
+  const first = actions.findIndex((action) => action.exit);
+  const rest = actions.filter((action) => !action.exit);
+  return [...rest.slice(0, first), ...exits, ...rest.slice(first)];
 }
 
 /** Draws `AppAlert.menu` / `actionMenuStore`: one per app, near the root. A
@@ -196,13 +185,6 @@ export function ActionMenuHost() {
 }
 
 const sheetLocal = StyleSheet.create({
-  helpSlot: {
-    marginStart: "auto",
-    paddingStart: spacing.sm,
-  },
-  helpBody: {
-    paddingTop: spacing.sm,
-  },
   subtitle: {
     ...textTokens.supporting,
     color: colors.textSecondary,

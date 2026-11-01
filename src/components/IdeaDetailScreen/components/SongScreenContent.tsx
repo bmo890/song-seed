@@ -99,7 +99,7 @@ export function SongScreenContent() {
         title={t("songDetail.shareSketchTitle")}
         onClose={() => share.setSheetOpen(false)}
         actions={[
-          { key: "export", label: t("songDetail.exportSketch"), icon: "folder-open-outline", exit: "export" as const, onPress: () => void share.exportSketch() },
+          { key: "export", label: t("shareExit.fileLabel"), icon: "folder-open-outline", exit: "export" as const, onPress: () => void share.exportSketch() },
           ...(SHOW_SEND
             ? [{ key: "songnook-send", label: t("songDetail.getLink"), icon: "paper-plane-outline" as const, exit: "send" as const, onPress: share.sendSketch }]
             : []),

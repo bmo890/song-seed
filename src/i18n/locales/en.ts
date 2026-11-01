@@ -216,7 +216,7 @@ export const en = {
     lastWorkedMonths: "Last worked: {{count}} months ago",
   },
   workspaceList: {
-    shareFile: "Export", getLink: "SongNook Send", share: "Share", shareTitle: "Share workspace", nothingShare: "Nothing to share", nothingShareBody: "Add an idea to this workspace first.", shareFailed: "Share failed", shareFailedBody: "Could not share this workspace.",
+    getLink: "SongNook Send", share: "Share", shareTitle: "Share workspace", nothingShare: "Nothing to share", nothingShareBody: "Add an idea to this workspace first.", shareFailed: "Share failed", shareFailedBody: "Could not share this workspace.",
     title: "Your workspaces",
     order: "Order",
     lastWorked: "Last worked",
@@ -249,7 +249,7 @@ export const en = {
     deletedClipsUndo_one: "Deleted {{count}} clip",
     deletedClipsUndo_other: "Deleted {{count}} clips",
     madeSketchUndo: "Made “{{title}}”",
-    share: "Share", shareTitle: "Share collection", shareFile: "Export", getLink: "SongNook Send", nothingShare: "Nothing to share", nothingShareBody: "Add an idea to this collection first.", shareFailed: "Share failed", shareFailedBody: "Could not share this collection.",
+    share: "Share", shareTitle: "Share collection", getLink: "SongNook Send", nothingShare: "Nothing to share", nothingShareBody: "Add an idea to this collection first.", shareFailed: "Share failed", shareFailedBody: "Could not share this collection.",
     title: "Collection",
     missing: "This collection isn’t here anymore.",
     goToLibrary: "Go to your library",
@@ -730,7 +730,7 @@ export const en = {
     newSetlist: "New setlist", setlistHint: "Setlists hold an ordered set of songs (clips + charts) to share with your band.",
     createPlaylistA11y: "Create a new playlist", newPlaylistShort: "New playlist", playlistEmpty: "Nothing to listen to yet",
     playlist: "Playlist", playPlaylist: "Play playlist", shufflePlaylist: "Shuffle playlist", addTracksA11y: "Add items — browse your library", doneEditing: "Done editing", editPlaylist: "Edit playlist", playlistOptions: "Playlist options", reorderHint: "Drag the handle to reorder · tap − to remove", noTracks: "No items yet", addTracks: "Add items", unavailableTrack: "Unavailable — skipped during playback", renamePlaylistAction: "Rename playlist", deletePlaylist: "Delete playlist",
-    createSongbook: "New chart book", noSongbooks: "No chart books yet", openBook: "Open the book", addBookSongs: "Add songs to this book", editBook: "Edit book", songbookOptions: "Chart book options", bookEmpty: "Nothing in this book yet", addSongs: "Add songs", missing: "No longer in the library", renameBook: "Rename book", shareFile: "Export", getLink: "SongNook Send", share: "Share", shareTitle: "Share", shareText: "Share as text", deleteBook: "Delete book",
+    createSongbook: "New chart book", noSongbooks: "No chart books yet", openBook: "Open the book", addBookSongs: "Add songs to this book", editBook: "Edit book", songbookOptions: "Chart book options", bookEmpty: "Nothing in this book yet", addSongs: "Add songs", missing: "No longer in the library", renameBook: "Rename book", getLink: "SongNook Send", share: "Share", shareTitle: "Share", shareText: "Share as text", deleteBook: "Delete book",
     createSetlist: "New setlist", noSetlists: "No setlists yet", playSet: "Play the whole set", addSetSong: "Add a song to this set", editSet: "Edit set", setlistOptions: "Setlist options", setEmpty: "No songs in this set", addSongShort: "Add song", setDetails: "Set details", shareSet: "Share set", deleteSet: "Delete set", sharePlaylist: "Share playlist", addPlaylistSongFirst: "Add at least one item to the playlist first.", playlistShareFailed: "Couldn’t build the playlist file. Try again.",
     includeEverything: "Include everything from this song", everything: "Everything", takesParts: "Takes & parts", noClips: "No clips recorded for this song.", chartsNotes: "Charts & notes", chordChart: "Chord chart", songNotes: "Song notes", noCharts: "No charts on this song yet.",
     songs_one: "{{count}} song", songs_other: "{{count}} songs", charts_one: "{{count}} chart", charts_other: "{{count}} charts", withChords: "{{count}} with a chart", bookEmptyBody: "Add finished songs — their final lyrics and chords live here, read like a book.", removeBookSong: "Remove {{title}} from the book", playTitle: "Play {{title}}", openBookTitle: "Open {{title}} in the book", unavailableTitle: "{{title}} (unavailable)", reorderTitle: "Reorder {{title}}",
@@ -751,7 +751,6 @@ export const en = {
   player: {
     playLayerA11y: "Play the song from just before this layer", dragToMove: "Drag to move", soloLayer: "Solo {{title}}",
     defaultLayerName: "Layer {{number}}",
-    
     resetAll: "Reset all",
     resetAllA11y: "Reset every tool",
     keep: "Keep",
@@ -1108,7 +1107,7 @@ export const en = {
   },
   songDetail: {
     renameTakesTitle_one: "Rename {{count}} take to match?", renameTakesTitle_other: "Rename {{count}} takes to match?", renameTakesBody_one: "“{{from}}” → “{{to}}”", renameTakesBody_other: "“{{from}}” → “{{to}}”, and {{more}} more", renameTakesConfirm_one: "Update all", renameTakesConfirm_other: "Update all",
-    share: "Share", shareSketchTitle: "Share sketch", exportSketch: "Export", nothingShare: "Nothing to share", nothingShareBody: "Record a take or write a line first.", shareSketchFailedBody: "Could not share this sketch.",
+    share: "Share", shareSketchTitle: "Share sketch", nothingShare: "Nothing to share", nothingShareBody: "Record a take or write a line first.", shareSketchFailedBody: "Could not share this sketch.",
     song: "Sketch",
     clip: "Clip",
     editing: "Editing {{type}}",
@@ -1471,7 +1470,6 @@ export const en = {
     // Share… from a selection: with a sketch among the cards the sender chooses
     // between its lead take as audio and the whole sketch as a package.
     shareSheetTitle: "Share",
-    exportRow: "Export",
     nothingWholeBody: "Record a take or write a line first.",
     // Share… with a sketch among the cards (founder, 2026-10-13): each exit says what it carries; SongNook Send then lists what travels with each card (2026-11-01).
     shareAudioHint_one: "The sketch’s primary take, as audio.", shareAudioHint_other: "Each sketch’s primary take, as audio.",
@@ -1589,14 +1587,15 @@ export const en = {
     packaged: "Packaged",
     processingBackup: "Processing backup",
   },
+  // Each way out of a Share menu, named and said in one line (founder, 2026-11-01).
+  shareExit: {
+    fileLabel: "SongNook file",
+    audioHint: "The raw audio file, nothing else.",
+    dawHint: "A WAV that starts on a bar, tempo in its name.",
+    sendHint: "A link anyone can play. SongNook opens it with everything.",
+    fileHint: "A copy to keep or move yourself. Opens in SongNook.",
+  },
   helpContent: {
-    share: {
-      thesis: "Pick by who’s on the other end.",
-      audioBody: "The raw audio file, nothing else.",
-      dawBody: "Starts on a bar, tempo in its name. Sits on the grid.",
-      sendBody: "Send it easily with its notes, lyrics, charts and marks.",
-      exportBody: "A SongNook file with everything. Opens only in SongNook.",
-    },
     send: {
       thesis: "Anyone with the link can download until it expires.",
       keyLabel: "The link is the key",

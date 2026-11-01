@@ -173,7 +173,7 @@ export function useWorkspaceListScreenModel() {
     const rows: SelectionAction[] = [
       {
         key: "export",
-        label: t("workspaceList.shareFile"),
+        label: t("shareExit.fileLabel"),
         icon: "folder-open-outline",
         exit: "export",
         disabled: sharingWorkspaceId != null,

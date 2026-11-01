@@ -220,7 +220,7 @@ export const he = {
     lastWorkedMonths: "עבודה אחרונה: לפני {{count}} חודשים",
   },
   workspaceList: {
-    shareFile: "ייצוא", getLink: "SongNook Send", share: "שיתוף", shareTitle: "שיתוף מרחב העבודה", nothingShare: "אין מה לשתף", nothingShareBody: "הוסיפו קודם רעיון למרחב העבודה הזה.", shareFailed: "השיתוף נכשל", shareFailedBody: "לא ניתן לשתף את מרחב העבודה הזה.",
+    getLink: "SongNook Send", share: "שיתוף", shareTitle: "שיתוף מרחב העבודה", nothingShare: "אין מה לשתף", nothingShareBody: "הוסיפו קודם רעיון למרחב העבודה הזה.", shareFailed: "השיתוף נכשל", shareFailedBody: "לא ניתן לשתף את מרחב העבודה הזה.",
     title: "מרחבי העבודה שלך",
     order: "סדר",
     lastWorked: "עבודה אחרונה",
@@ -255,7 +255,7 @@ export const he = {
     deletedClipsUndo_two: "שני קטעים נמחקו",
     deletedClipsUndo_other: "{{count}} קטעים נמחקו",
     madeSketchUndo: "נוצרה “{{title}}”",
-    share: "שיתוף", shareTitle: "שיתוף האוסף", shareFile: "ייצוא", getLink: "SongNook Send", nothingShare: "אין מה לשתף", nothingShareBody: "הוסיפו קודם רעיון לאוסף הזה.", shareFailed: "השיתוף נכשל", shareFailedBody: "לא ניתן לשתף את האוסף הזה.",
+    share: "שיתוף", shareTitle: "שיתוף האוסף", getLink: "SongNook Send", nothingShare: "אין מה לשתף", nothingShareBody: "הוסיפו קודם רעיון לאוסף הזה.", shareFailed: "השיתוף נכשל", shareFailedBody: "לא ניתן לשתף את האוסף הזה.",
     title: "אוסף",
     missing: "האוסף הזה כבר לא נמצא כאן.",
     goToLibrary: "מעבר לספרייה",
@@ -761,7 +761,7 @@ export const he = {
     newSetlist: "סטליסט חדש", setlistHint: "סטליסט הוא רשימת שירים מסודרת, עם הקטעים ודפי האקורדים, לשיתוף עם הלהקה.",
     createPlaylistA11y: "יצירת פלייליסט חדש", newPlaylistShort: "פלייליסט חדש", playlistEmpty: "עדיין אין מה לשמוע",
     playlist: "פלייליסט", playPlaylist: "ניגון הפלייליסט", shufflePlaylist: "ניגון אקראי של הפלייליסט", addTracksA11y: "הוספת פריטים — עיון בספרייה", doneEditing: "סיום עריכה", editPlaylist: "עריכת הפלייליסט", playlistOptions: "אפשרויות הפלייליסט", reorderHint: "גררו את הידית לשינוי הסדר · לחצו על − להסרה", noTracks: "עדיין אין פריטים", addTracks: "הוספת פריטים", unavailableTrack: "לא זמין — ידולג בניגון", renamePlaylistAction: "שינוי שם הפלייליסט", deletePlaylist: "מחיקת הפלייליסט",
-    createSongbook: "שירון חדש", noSongbooks: "עדיין אין שירונים", openBook: "פתיחת הספר", addBookSongs: "הוספת שירים לספר", editBook: "עריכת הספר", songbookOptions: "אפשרויות השירון", bookEmpty: "הספר עדיין ריק", addSongs: "הוספת שירים", missing: "כבר לא נמצא בספרייה", renameBook: "שינוי שם הספר", shareFile: "ייצוא", getLink: "SongNook Send", share: "שיתוף", shareTitle: "שיתוף", shareText: "שיתוף כטקסט", deleteBook: "מחיקת הספר",
+    createSongbook: "שירון חדש", noSongbooks: "עדיין אין שירונים", openBook: "פתיחת הספר", addBookSongs: "הוספת שירים לספר", editBook: "עריכת הספר", songbookOptions: "אפשרויות השירון", bookEmpty: "הספר עדיין ריק", addSongs: "הוספת שירים", missing: "כבר לא נמצא בספרייה", renameBook: "שינוי שם הספר", getLink: "SongNook Send", share: "שיתוף", shareTitle: "שיתוף", shareText: "שיתוף כטקסט", deleteBook: "מחיקת הספר",
     createSetlist: "סטליסט חדש", noSetlists: "עדיין אין סטליסטים", playSet: "ניגון כל הסט", addSetSong: "הוספת שיר לסט", editSet: "עריכת הסט", setlistOptions: "אפשרויות הסטליסט", setEmpty: "אין שירים בסט הזה", addSongShort: "הוספת שיר", setDetails: "פרטי הסט", shareSet: "שיתוף הסט", deleteSet: "מחיקת הסט", sharePlaylist: "שיתוף הפלייליסט", addPlaylistSongFirst: "הוסיפו קודם לפחות פריט אחד לפלייליסט.", playlistShareFailed: "לא ניתן ליצור את קובץ הפלייליסט. נסו שוב.",
     includeEverything: "הכללת כל תוכן השיר", everything: "הכול", takesParts: "טייקים וחלקים", noClips: "אין קטעים מוקלטים בשיר.", chartsNotes: "אקורדים והערות", chordChart: "דף אקורדים", songNotes: "הערות לשיר", noCharts: "עדיין אין לשיר דפי אקורדים.",
     songs_one: "שיר אחד", songs_two: "שני שירים", songs_other: "{{count}} שירים", charts_one: "דף אקורדים אחד", charts_two: "שני דפי אקורדים", charts_other: "{{count}} דפי אקורדים", withChords: "{{count}} עם אקורדים", bookEmptyBody: "הוסיפו שירים גמורים — המילים והאקורדים הסופיים שלהם נשמרים כאן, לקריאה כמו ספר.", removeBookSong: "הסרת {{title}} מהספר", playTitle: "ניגון {{title}}", openBookTitle: "פתיחת {{title}} בספר", unavailableTitle: "{{title}} (לא זמין)", reorderTitle: "שינוי המיקום של {{title}}",
@@ -782,7 +782,6 @@ export const he = {
   player: {
     playLayerA11y: "ניגון השיר מעט לפני השכבה הזו", dragToMove: "גררו כדי להזיז", soloLayer: "השמעת {{title}} לבד",
     defaultLayerName: "שכבה {{number}}",
-    
     resetAll: "איפוס הכול",
     resetAllA11y: "איפוס כל הכלים",
     keep: "שמירה",
@@ -1154,7 +1153,7 @@ export const he = {
   },
   songDetail: {
     renameTakesTitle_one: "לשנות את שם הטייק בהתאם?", renameTakesTitle_two: "לשנות את שמות שני הטייקים בהתאם?", renameTakesTitle_other: "לשנות את שמות {{count}} הטייקים בהתאם?", renameTakesBody_one: "„{{from}}” ← „{{to}}”", renameTakesBody_two: "„{{from}}” ← „{{to}}”, ועוד אחד", renameTakesBody_other: "„{{from}}” ← „{{to}}”, ועוד {{more}}", renameTakesConfirm_one: "עדכון הכול", renameTakesConfirm_two: "עדכון הכול", renameTakesConfirm_other: "עדכון הכול",
-    share: "שיתוף", shareSketchTitle: "שיתוף הסקיצה", exportSketch: "ייצוא", nothingShare: "אין מה לשתף", nothingShareBody: "הקליטו טייק או כתבו שורה קודם.", shareSketchFailedBody: "לא ניתן לשתף את הסקיצה הזו.",
+    share: "שיתוף", shareSketchTitle: "שיתוף הסקיצה", nothingShare: "אין מה לשתף", nothingShareBody: "הקליטו טייק או כתבו שורה קודם.", shareSketchFailedBody: "לא ניתן לשתף את הסקיצה הזו.",
     song: "סקיצה",
     clip: "קטע",
     editing: "עריכת {{type}}",
@@ -1520,7 +1519,6 @@ export const he = {
     sketchesLabel: "סקיצות",
     add: "הוספה",
     shareSheetTitle: "שיתוף",
-    exportRow: "ייצוא",
     nothingWholeBody: "הקליטו טייק או כתבו שורה קודם.",
     shareAudioHint_one: "הטייק הראשי של הסקיצה, כשמע.", shareAudioHint_two: "הטייק הראשי של כל סקיצה, כשמע.", shareAudioHint_other: "הטייק הראשי של כל סקיצה, כשמע.",
     exportWholeHint_one: "הסקיצה כולה, כקובץ SongNook.", exportWholeHint_two: "כל מה שנבחר, כקובץ SongNook אחד.", exportWholeHint_other: "כל מה שנבחר, כקובץ SongNook אחד.",
@@ -1644,14 +1642,14 @@ export const he = {
     packaged: "נארז",
     processingBackup: "מעבד את הגיבוי",
   },
+  shareExit: {
+    fileLabel: "קובץ SongNook",
+    audioHint: "קובץ השמע עצמו, בלי שום תוספת.",
+    dawHint: "קובץ WAV שמתחיל בתחילת תיבה, הטמפו בשם.",
+    sendHint: "קישור שכל אחד יכול לנגן. ב־SongNook הוא נפתח עם הכול.",
+    fileHint: "עותק לשמור או להעביר בעצמכם. נפתח ב־SongNook.",
+  },
   helpContent: {
-    share: {
-      thesis: "בחרו לפי מי שמקבל.",
-      audioBody: "קובץ השמע עצמו, בלי שום תוספת.",
-      dawBody: "מתחיל בתחילת תיבה, הטמפו בשם. יושב על הרשת.",
-      sendBody: "שולחים בקלות, עם ההערות, המילים, האקורדים והסימונים.",
-      exportBody: "קובץ SongNook עם הכול. נפתח רק ב־SongNook.",
-    },
     send: {
       thesis: "כל מי שיש לו את הקישור יכול להוריד עד שיפוג.",
       keyLabel: "הקישור הוא המפתח",

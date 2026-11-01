@@ -75,27 +75,3 @@ export const SEND_HELP: HelpContent = {
     ];
   },
 };
-
-/** The ways a thing leaves the phone. A Share menu row names which one it is
- *  (`SelectionAction.exit`), and the menu's "?" explains only the ones it shows. */
-export type ShareExit = "audio" | "daw" | "send" | "export";
-
-const SHARE_EXITS: Record<ShareExit, { icon: HelpItem["icon"]; label: string; body: string }> = {
-  audio: { icon: "share-social-outline", label: "player.shareAudio", body: "audioBody" },
-  daw: { icon: "desktop-outline", label: "player.exportForDaw", body: "dawBody" },
-  send: { icon: "paper-plane-outline", label: "player.songnookSend", body: "sendBody" },
-  export: { icon: "folder-open-outline", label: "collection.shareFile", body: "exportBody" },
-};
-const SHARE_EXIT_ORDER: ShareExit[] = ["audio", "daw", "export", "send"];
-
-export function shareHelp(exits: Iterable<ShareExit>): HelpContent {
-  const shown = new Set(exits);
-  return {
-    thesis: t("share.thesis"),
-    items: SHARE_EXIT_ORDER.filter((exit) => shown.has(exit)).map((exit) => ({
-      icon: SHARE_EXITS[exit].icon,
-      label: i18n.t(SHARE_EXITS[exit].label),
-      description: t(`share.${SHARE_EXITS[exit].body}`),
-    })),
-  };
-}

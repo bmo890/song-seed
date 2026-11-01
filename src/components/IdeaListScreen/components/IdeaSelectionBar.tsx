@@ -413,16 +413,16 @@ export function IdeaSelectionBar({
     linkAvailable
       ? [{ key: "songnook-send", label: t("collection.getLink"), icon: "paper-plane-outline", exit: "send", onPress }]
       : [];
-  // Exits in one fixed order wherever they appear: Share, Export, SongNook Send.
-  // With a sketch among the cards each exit says what it carries, because the
-  // three carry different things.
+  // The sheet orders the exits and says what each carries (shareExits.ts).
+  // With a sketch among the cards, Share audio and the file say which of the
+  // sketch they carry instead.
   const hasSketch = selectedSketchCount > 0;
   const shareExitActions: SelectionAction[] = hasSketch
     ? [
         { ...shareAudioAction, exit: "audio", hint: t("selection.shareAudioHint", { count: selectedSketchCount }) },
         {
           key: "export",
-          label: t("selection.exportRow"),
+          label: t("shareExit.fileLabel"),
           icon: "folder-open-outline",
           exit: "export",
           hint: t("selection.exportWholeHint", { count: selectedSketchCount }),
