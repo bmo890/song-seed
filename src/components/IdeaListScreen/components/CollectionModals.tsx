@@ -32,6 +32,7 @@ export function CollectionModals() {
             key: "export",
             label: t("collection.shareFile"),
             icon: "folder-open-outline",
+            exit: "export",
             onPress: () => void management.shareCurrentCollectionFile(),
           },
           ...(SHOW_GET_LINK
@@ -40,6 +41,7 @@ export function CollectionModals() {
                   key: "songnook-send",
                   label: t("collection.getLink"),
                   icon: "paper-plane-outline" as const,
+                  exit: "send" as const,
                   onPress: management.getLinkForCurrentCollection,
                 },
               ]

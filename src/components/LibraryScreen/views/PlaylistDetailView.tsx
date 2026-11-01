@@ -348,9 +348,9 @@ export function PlaylistDetailView({
         onClose={() => setShareMenuVisible(false)}
         onBack={() => setMenuVisible(true)}
         actions={[
-          { key: "export", label: t("library.shareFile"), icon: "folder-open-outline", onPress: onShare },
+          { key: "export", label: t("library.shareFile"), icon: "folder-open-outline", exit: "export", onPress: onShare },
           ...(onGetLink
-            ? [{ key: "songnook-send", label: t("library.getLink"), icon: "paper-plane-outline" as const, onPress: onGetLink }]
+            ? [{ key: "songnook-send", label: t("library.getLink"), icon: "paper-plane-outline" as const, exit: "send" as const, onPress: onGetLink }]
             : []),
         ]}
       />

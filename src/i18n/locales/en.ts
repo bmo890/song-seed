@@ -1442,7 +1442,7 @@ export const en = {
     branchBody: "Copy out keeps the original; Move out takes it away.",
   },
   // The Send sheet: the desktop sender page, folded into the phone.
-  sendSheet: { title: "SongNook Send", titleLabel: "Title", fromLabel: "From", fromPlaceholder: "Name", noteLabel: "A note", notePlaceholder: "ex: Learn song two first…", seal: "Get link", sealing: "Sealing", sealingDots: "Sealing…", sealingHint: "Swipe down to keep working. The link waits at the bottom.", packing: "Packing", packingOf: "Packing {{index}} of {{count}}", uploading: "Uploading", hide: "Hide", tryAgain: "Try again", readyPill: "Link ready · tap to share", failedPill: "Couldn’t send · tap to retry", oneAtATime: "One parcel at a time", bytesOf: "{{sent}} of {{total}}", timeLeft: "{{eta}} left", openSeal: "Open", expiryHint: "Anyone with the link can download for 7 days.", ready: "Link ready, copied", share: "Share", copied: "Link copied", orderLabel: "In this order", sortAz: "Sort A–Z", moveUp: "Move {{title}} up", moveDown: "Move {{title}} down" },
+  sendSheet: { title: "SongNook Send", titleLabel: "Title", fromLabel: "From", fromPlaceholder: "Name", noteLabel: "A note", notePlaceholder: "ex: Learn song two first…", seal: "Get link", sealing: "Sealing", sealingDots: "Sealing…", sealingHint: "Swipe down to keep working. The link waits at the bottom.", packing: "Packing", packingOf: "Packing {{index}} of {{count}}", uploading: "Uploading", hide: "Hide", tryAgain: "Try again", readyPill: "Link ready · tap to share", failedPill: "Couldn’t send · tap to retry", oneAtATime: "One parcel at a time", bytesOf: "{{sent}} of {{total}}", timeLeft: "{{eta}} left", openSeal: "Open", expiryHint: "Anyone with the link can download for 7 days.", ready: "Link ready, copied", share: "Share", copied: "Link copied", orderLabel: "In this order", sortAz: "Sort A–Z", moveUp: "Move {{title}} up", moveDown: "Move {{title}} down", fromSketch: "With {{title}}", audioOnly: "Audio only", part: { takes: "Takes", lyrics: "Lyrics", chart: "Chart", notes: "Notes", marks: "Marks", layers: "Layers" } },
   shareLink: {
     tooLargeTitle: "Too large to link", tooLargeBody: "Links carry up to {{limit}}. Share as a file instead.",
     copied: "Link copied — expires soon", share: "Share", emptyTitle: "Nothing to share", failureTitle: "Couldn’t create link", retry: "Try again.",
@@ -1473,17 +1473,9 @@ export const en = {
     shareSheetTitle: "Share",
     exportRow: "Export",
     nothingWholeBody: "Record a take or write a line first.",
-    // Share… with a sketch among the cards (founder, 2026-10-13): how first, then — for SongNook Send only — what.
+    // Share… with a sketch among the cards (founder, 2026-10-13): each exit says what it carries; SongNook Send then lists what travels with each card (2026-11-01).
     shareAudioHint_one: "The sketch’s primary take, as audio.", shareAudioHint_other: "Each sketch’s primary take, as audio.",
     exportWholeHint_one: "The whole sketch, as a SongNook file.", exportWholeHint_other: "Everything selected, as one SongNook file.",
-    sendScopeHint: "A link. Choose what goes in next.",
-    sendScopeTitleOne: "Send “{{title}}”", sendScopeTitleMany_one: "Send {{count}} item", sendScopeTitleMany_other: "Send {{count}} items",
-    sendScopeIncludes_one: "Includes {{count}} sketch.", sendScopeIncludes_other: "Includes {{count}} sketches.",
-    sendWhole_one: "Whole sketch", sendWhole_other: "Whole sketches",
-    sendWholeHint: "Every take, lyrics, chords and notes. Opens in SongNook.",
-    sendPrimary_one: "Primary take only", sendPrimary_other: "Primary takes only",
-    sendPrimaryHint: "Audio only. Plays anywhere.",
-    aSketch: "A sketch", takesCount_one: "{{count}} take", takesCount_other: "{{count}} takes", partLyrics: "lyrics", partChords: "chords", partNotes: "notes",
     // Picker chrome (2026-09-11): one eyebrow above the title, one footer.
     addCount: "Add {{count}}", addingTo: "Adding to {{title}}", pickCollection: "Choose a collection to add from", addedCount: "{{count}} added",
     pickFromWorkspace: "Pick from another workspace",
@@ -1598,6 +1590,13 @@ export const en = {
     processingBackup: "Processing backup",
   },
   helpContent: {
+    share: {
+      thesis: "Pick by who’s on the other end.",
+      audioBody: "The raw audio file, nothing else.",
+      dawBody: "Starts on a bar, tempo in its name. Sits on the grid.",
+      sendBody: "Send it easily with its notes, lyrics, charts and marks.",
+      exportBody: "A SongNook file with everything. Opens only in SongNook.",
+    },
     send: {
       thesis: "Anyone with the link can download until it expires.",
       keyLabel: "The link is the key",

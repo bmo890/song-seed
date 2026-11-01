@@ -73,14 +73,19 @@ function songCount(t: TransferPayload): string {
   const songs = t.items.length - packages;
   const parts: string[] = [];
   if (songs > 0) parts.push(`${songs} ${songs === 1 ? "song" : "songs"}`);
-  if (packages > 0) parts.push(`${packages} SongNook ${packages === 1 ? "package" : "packages"}`);
+  // Songs beside a package are its plain copies: the package is how those
+  // same songs open in SongNook, not more to count.
+  if (packages > 0 && songs === 0) parts.push(`${packages} SongNook ${packages === 1 ? "package" : "packages"}`);
   const described = describeKind(t.kind);
   if (described) parts.push(described);
   return parts.join(" · ");
 }
 
+/** The raw files: the audio itself. A package rides here only when it is all
+ *  there is (a setlist, a chart book). */
 function tracklist(t: TransferPayload): string {
-  return t.items
+  const audio = t.items.filter((it) => !isPackageFile(it.fileName));
+  return (audio.length > 0 ? audio : t.items)
     .map(
       (it) => `<li>
         <span class="trk-name">${escapeHtml(displayName(it.fileName))}</span>

@@ -234,7 +234,16 @@ export async function fetchTransfer(transferId: string): Promise<TransferPayload
   } catch {
     throw invalidTransfer("Transfer metadata could not be read.");
   }
-  return validateTransferPayload(raw, transferId);
+  return withoutBrowserCopies(validateTransferPayload(raw, transferId));
+}
+
+/** A parcel holding a SongNook package carries its audio a second time, as
+ *  plain files, only for someone opening the link without the app (the page's
+ *  quiet raw-files list, services/parcelShare). The app takes the package. */
+export function withoutBrowserCopies(transfer: TransferPayload): TransferPayload {
+  const archives = transfer.items.filter(isArchiveItem);
+  if (archives.length === 0 || archives.length === transfer.items.length) return transfer;
+  return { ...transfer, items: archives };
 }
 
 /** A SongNook archive item (vs. a loose audio file). The service registers

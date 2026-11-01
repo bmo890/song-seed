@@ -3,7 +3,15 @@
  * sender page's drag-to-reorder and Sort A→Z. Pure list moves on item keys;
  * the sheet renders them, the creator applies them.
  */
-export type ParcelItem = { key: string; title: string };
+import type { ParcelPart } from "./parcelContents";
+
+export type ParcelItem = {
+  key: string;
+  title: string;
+  /** What travels with it besides its audio, each one in or out on the sheet
+   *  (domain/parcelContents). Absent or empty: the audio alone. */
+  parts?: ParcelPart[];
+};
 
 /** Moves the item at `from` to `to`, clamped; a no-op returns the same array. */
 export function moveParcelItem<T>(items: T[], from: number, to: number): T[] {

@@ -13,13 +13,10 @@ import { createFilesShareLink, type ShareFileInput } from "./shareLink";
 import type { SentLink } from "../domain/sentLinks";
 import type { ShareLinkParcel } from "./setlistShare";
 
-export function createClipsShareLink(
-  clips: ShareableAudioClip[],
-  bundleLabel: string,
-  opts?: ShareLinkParcel
-): Promise<SentLink> {
+/** One file per clip, named after it ("Clip.m4a", then "Clip 2.m4a"). */
+export function clipFiles(clips: ShareableAudioClip[]): ShareFileInput[] {
   const usedNames = new Set<string>();
-  const files: ShareFileInput[] = clips.map((clip) => {
+  return clips.map((clip) => {
     const base = sanitizeArchiveSegment(clip.title) || "Clip";
     const ext = getArchiveFileExtension(clip.audioUri);
     let fileName = `${base}.${ext}`;
@@ -31,7 +28,14 @@ export function createClipsShareLink(
     usedNames.add(fileName);
     return { fileUri: clip.audioUri, fileName, mimeType: getAudioShareMimeType(clip.audioUri) };
   });
+}
 
+export function createClipsShareLink(
+  clips: ShareableAudioClip[],
+  bundleLabel: string,
+  opts?: ShareLinkParcel
+): Promise<SentLink> {
+  const files = clipFiles(clips);
   return createFilesShareLink({
     title: opts?.title || bundleLabel,
     kind: "clips",

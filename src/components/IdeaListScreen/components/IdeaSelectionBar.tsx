@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
 import { useNavigation } from "@react-navigation/native";
 import { AppAlert } from "../../common/AppAlert";
 import { useStore } from "../../../state/useStore";
@@ -10,7 +9,6 @@ import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { SelectionDock, type SelectionAction } from "../../common/SelectionDock";
 import { DockAddBadgeIcon } from "../../common/dockIcons";
 import { getHierarchyIconName } from "../../../domain/hierarchy";
-import type { SongIdea } from "../../../types";
 import { buildPlayableQueueFromIdeas, getPlayableClipForIdea } from "../../../domain/clipPresentation";
 import { haptic } from "../../../design/haptics";
 import { useShelfStore } from "../../../state/useShelfStore";
@@ -20,10 +18,10 @@ import { BottomSheet } from "../../common/BottomSheet";
 import { ClipTagEditorFields, type ClipTagTarget } from "../../IdeaDetailScreen/components/ClipTagPicker";
 import { PlaylistChooserSheet } from "../../common/PlaylistChooserSheet";
 import { openSendSheet } from "../../../state/useSendSheetStore";
-import { createClipsShareLink } from "../../../services/clipShareLink";
+import { createCardsShareLink } from "../../../services/parcelShare";
+import { ideaParts } from "../../../domain/parcelContents";
 import { dawExportTargetForClip, exportClipForDaw } from "../../../services/dawExport";
-import { createIdeasShareLink, ideasShareKind, shareIdeasFile } from "../../../services/ideasShare";
-import { orderByKeys } from "../../../domain/parcelOrder";
+import { ideasShareKind, shareIdeasFile } from "../../../services/ideasShare";
 import { isSendServiceConfigured } from "../../../config/sendService";
 import { styles } from "../../../styles";
 import { View } from "react-native";
@@ -50,19 +48,6 @@ type IdeaSelectionBarProps = {
   selectedClipIdeasCount: number;
   onDockLayout?: (height: number) => void;
 };
-
-/** "A sketch · 3 takes · lyrics · chords · notes" — what the whole-sketch
- *  choice would carry, so the question answers itself. */
-function describeSketchContents(idea: SongIdea, t: TFunction): string {
-  const lines = idea.lyrics?.versions.flatMap((version) => version.document.lines) ?? [];
-  const parts = [t("selection.aSketch"), t("selection.takesCount", { count: idea.clips.length })];
-  if (lines.some((line) => line.text.trim().length > 0)) parts.push(t("selection.partLyrics"));
-  if ((idea.chordSheet?.sections.length ?? 0) > 0 || lines.some((line) => (line.chords?.length ?? 0) > 0)) {
-    parts.push(t("selection.partChords"));
-  }
-  if (idea.notes.trim().length > 0) parts.push(t("selection.partNotes"));
-  return parts.join(" · ");
-}
 
 export function IdeaSelectionBar({
   workspaceId: pageWorkspaceId,
@@ -91,7 +76,7 @@ export function IdeaSelectionBar({
   // the primary takes and Export always the whole sketch, so only SongNook
   // Send — which can carry either — asks, last, saying what the sketch holds.
   //   exits → (SongNook Send, with a sketch) sendScope
-  const [shareSheet, setShareSheet] = useState<null | "exits" | "sendScope">(null);
+  const [shareSheet, setShareSheet] = useState<null | "exits">(null);
   const [tagsVisible, setTagsVisible] = useState(false);
   const [playlistVisible, setPlaylistVisible] = useState(false);
   const globalCustomTags = useStore((s) => s.globalCustomClipTags);
@@ -229,23 +214,20 @@ export function IdeaSelectionBar({
   );
   const selectedSketchCount = interactiveSelectedIdeas.filter((idea) => idea.kind === "project").length;
 
-  /** Loose audio by SongNook Send: each card's lead take, reorderable in the sheet. */
-  function handleSendAudio() {
-    if (shareableClips.length === 0) return;
-    // Keyed by position: two takes may share a title, and a key must never drop one.
-    const clips = shareableClips.map((clip, index) => ({ key: String(index), clip }));
-    const label = clips.length === 1 ? clips[0].clip.title : selectionLabel;
+  /** SongNook Send: every card, in the order the sender sets, each with what
+   *  travels beside its audio (notes, marks, layers, takes, lyrics, chart)
+   *  in or out. Plain memos still go as plain audio (services/parcelShare). */
+  function handleSend() {
+    // Keyed by position: two cards may share a title, and a key must never drop one.
+    const entries = interactiveSelectedIdeas.map((idea, index) => ({ key: String(index), idea }));
+    if (entries.length === 0) return;
+    const label = entries.length === 1 ? entries[0].idea.title : selectionLabel;
     openSendSheet({
       title: label,
-      kind: "clips",
-      emptyMessage: t("songDetail.selectAudioFirst"),
-      items: clips.map(({ key, clip }) => ({ key, title: clip.title })),
-      create: (parcel) =>
-        createClipsShareLink(
-          orderByKeys(clips, parcel.order, (entry) => entry.key).map((entry) => entry.clip),
-          label,
-          parcel
-        ),
+      kind: entries.every((entry) => entry.idea.kind === "clip") ? "clips" : ideasShareKind(interactiveSelectedIdeas),
+      emptyMessage: t("selection.nothingWholeBody"),
+      items: entries.map(({ key, idea }) => ({ key, title: idea.title, parts: ideaParts(idea) })),
+      create: (parcel) => createCardsShareLink(entries, label, parcel),
     });
   }
 
@@ -261,16 +243,6 @@ export function IdeaSelectionBar({
       AppAlert.error(t("selection.shareFailed"), t("selection.shareFailedBody"));
     }
   }
-  function handleSendWhole() {
-    const ideas = interactiveSelectedIdeas;
-    openSendSheet({
-      title: wholeTitle,
-      kind: ideasShareKind(ideas),
-      emptyMessage: t("selection.nothingWholeBody"),
-      create: (parcel) => createIdeasShareLink(ideas, wholeTitle, parcel),
-    });
-  }
-
   async function handleShareSelected() {
     if (shareableClips.length === 0 || isSharing) return;
 
@@ -439,7 +411,7 @@ export function IdeaSelectionBar({
   };
   const sendRow = (onPress: () => void): SelectionAction[] =>
     linkAvailable
-      ? [{ key: "songnook-send", label: t("collection.getLink"), icon: "paper-plane-outline", onPress }]
+      ? [{ key: "songnook-send", label: t("collection.getLink"), icon: "paper-plane-outline", exit: "send", onPress }]
       : [];
   // Exits in one fixed order wherever they appear: Share, Export, SongNook Send.
   // With a sketch among the cards each exit says what it carries, because the
@@ -447,68 +419,32 @@ export function IdeaSelectionBar({
   const hasSketch = selectedSketchCount > 0;
   const shareExitActions: SelectionAction[] = hasSketch
     ? [
-        { ...shareAudioAction, hint: t("selection.shareAudioHint", { count: selectedSketchCount }) },
+        { ...shareAudioAction, exit: "audio", hint: t("selection.shareAudioHint", { count: selectedSketchCount }) },
         {
           key: "export",
           label: t("selection.exportRow"),
           icon: "folder-open-outline",
+          exit: "export",
           hint: t("selection.exportWholeHint", { count: selectedSketchCount }),
           onPress: () => void handleExportWhole(),
         },
-        ...(linkAvailable
-          ? [
-              {
-                key: "songnook-send-scope",
-                label: t("collection.getLink"),
-                icon: "paper-plane-outline" as const,
-                hint: t("selection.sendScopeHint"),
-                opens: true,
-                onPress: () => setShareSheet("sendScope"),
-              },
-            ]
-          : []),
+        ...sendRow(handleSend),
       ]
     : [
-        shareAudioAction,
+        { ...shareAudioAction, exit: "audio" },
         ...(dawTarget
           ? [
               {
                 key: "export-daw",
                 label: t("player.exportForDaw"),
                 icon: "desktop-outline" as const,
+                exit: "daw" as const,
                 onPress: () => void handleExportForDaw(),
               },
             ]
           : []),
-        ...sendRow(handleSendAudio),
+        ...sendRow(handleSend),
       ];
-
-  // The last step, SongNook Send only: the whole sketch, or just its audio.
-  const loneIdea = interactiveSelectedIdeas.length === 1 ? interactiveSelectedIdeas[0] : null;
-  const sendScopeTitle = loneIdea
-    ? t("selection.sendScopeTitleOne", { title: loneIdea.title })
-    : t("selection.sendScopeTitleMany", { count: interactiveSelectedIdeas.length });
-  const sendScopeSubtitle =
-    loneIdea && loneIdea.kind === "project"
-      ? describeSketchContents(loneIdea, t)
-      : t("selection.sendScopeIncludes", { count: selectedSketchCount });
-  const sendScopeActions: SelectionAction[] = [
-    {
-      key: "send-whole",
-      label: t("selection.sendWhole", { count: selectedSketchCount }),
-      icon: getHierarchyIconName("song"),
-      hint: t("selection.sendWholeHint"),
-      onPress: handleSendWhole,
-    },
-    {
-      key: "send-primary",
-      label: t("selection.sendPrimary", { count: selectedSketchCount }),
-      icon: "musical-note-outline",
-      hint: t("selection.sendPrimaryHint"),
-      onPress: handleSendAudio,
-      disabled: shareableClips.length === 0,
-    },
-  ];
 
   const sheetActions: SelectionAction[] = useMemo(() => {
     const actions: SelectionAction[] = [];
@@ -679,21 +615,12 @@ export function IdeaSelectionBar({
         onClose={() => setCopyMoveVisible(false)}
       />
 
-      {/* Share…: the exits → (SongNook Send with a sketch) whole or audio.
-          Each level's back key returns one step, so drilling in is never one-way. */}
+      {/* Share…: the exits. Its back key returns to More, so drilling in is never one-way. */}
       <SelectionActionSheet
         visible={shareSheet === "exits"}
         onBack={() => setMoreVisible(true)}
         title={t("selection.shareSheetTitle")}
         actions={shareExitActions.map(endsSelection)}
-        onClose={() => setShareSheet(null)}
-      />
-      <SelectionActionSheet
-        visible={shareSheet === "sendScope"}
-        onBack={() => setShareSheet("exits")}
-        title={sendScopeTitle}
-        subtitle={sendScopeSubtitle}
-        actions={sendScopeActions.map(endsSelection)}
         onClose={() => setShareSheet(null)}
       />
 

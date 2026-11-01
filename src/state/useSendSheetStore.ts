@@ -15,6 +15,7 @@ import { useSentLinksStore } from "./useSentLinksStore";
 import { i18n } from "../i18n/instance";
 import type { SentLink } from "../domain/sentLinks";
 import type { ParcelItem } from "../domain/parcelOrder";
+import type { ParcelPart } from "../domain/parcelContents";
 import type { SendProgressOptions } from "../domain/sendProgress";
 import type { ShareKind } from "../types";
 
@@ -26,6 +27,9 @@ export type SendParcel = {
   /** The items' keys in the order the sender chose (only when the request
    *  listed items). The creator applies it with orderByKeys. */
   order?: string[];
+  /** What the sender left home, by item key, and from the sketch's own line. */
+  leaveOut?: Record<string, ParcelPart[]>;
+  sharedLeaveOut?: ParcelPart[];
   /** Set by the seal job: live progress and the cancel handle. Creators pass it
    *  straight through to the transfer service. */
   progress?: SendProgressOptions;
@@ -41,6 +45,9 @@ export type SendRequest = {
    *  page's drag-to-reorder and Sort A→Z. A compilation keeps its own order
    *  and a place has none, so those requests list nothing. */
   items?: ParcelItem[];
+  /** Takes chosen inside a sketch: the sketch's own things that travel with
+   *  them (lyrics, chart, its notes), one line above the takes. */
+  shared?: { label: string; parts: ParcelPart[] };
   /** Builds, uploads and finalizes; throws EmptyShareError / TooLargeShareError /
    *  SendTransferError. The transferId is minted inside. */
   create: (parcel: SendParcel) => Promise<SentLink>;

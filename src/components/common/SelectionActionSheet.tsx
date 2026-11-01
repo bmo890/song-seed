@@ -10,6 +10,9 @@ import { haptic } from "../../design/haptics";
 import { colors, spacing, text as textTokens } from "../../design/tokens";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../i18n";
+import { HelpButton } from "./HelpButton";
+import { HelpBody } from "./HelpSheet";
+import { shareHelp, type ShareExit } from "./helpContent";
 
 type SelectionActionSheetProps = {
   visible: boolean;
@@ -51,6 +54,14 @@ export function SelectionActionSheet({
   subtitle,
 }: SelectionActionSheetProps) {
   const { t } = useTranslation();
+  // A Share menu explains its ways out in place: "?" turns this sheet over to
+  // the help for the rows it shows, and back turns it again.
+  const exits = actions.map((action) => action.exit).filter((exit): exit is ShareExit => !!exit);
+  const [helpOpen, setHelpOpen] = useState(false);
+  useEffect(() => {
+    if (!visible) setHelpOpen(false);
+  }, [visible]);
+  const help = helpOpen && exits.length > 0 ? shareHelp(exits) : null;
   const safe = actions.filter((action) => action.tone !== "danger");
   const danger = actions.filter((action) => action.tone === "danger");
   const renderRow = (action: SelectionAction, last: boolean) => {
@@ -108,13 +119,17 @@ export function SelectionActionSheet({
       }}
     >
       <View style={styles.selectionSheetHeader}>
-        {onBack ? (
+        {onBack || help ? (
           <Pressable
             style={({ pressed }) => [styles.selectionSheetBack, pressed ? styles.pressDown : null]}
             onPress={() => {
               haptic.tap();
+              if (help) {
+                setHelpOpen(false);
+                return;
+              }
               onClose();
-              onBack();
+              onBack?.();
             }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityRole="button"
@@ -131,16 +146,29 @@ export function SelectionActionSheet({
             {titleContext}
           </UserText>
         ) : null}
+        {exits.length > 0 && !help ? (
+          <View style={sheetLocal.helpSlot}>
+            <HelpButton compact onPress={() => setHelpOpen(true)} />
+          </View>
+        ) : null}
       </View>
-      {subtitle ? <Text style={sheetLocal.subtitle}>{subtitle}</Text> : null}
-      <View>
-        {safe.map((action, index) => renderRow(action, index === safe.length - 1))}
-      </View>
-      {danger.length > 0 ? (
-        <View style={safe.length > 0 ? sheetLocal.dangerGroup : null}>
-          {danger.map((action, index) => renderRow(action, index === danger.length - 1))}
+      {help ? (
+        <View style={sheetLocal.helpBody}>
+          <HelpBody thesis={help.thesis} items={help.items} />
         </View>
-      ) : null}
+      ) : (
+        <>
+          {subtitle ? <Text style={sheetLocal.subtitle}>{subtitle}</Text> : null}
+          <View>
+            {safe.map((action, index) => renderRow(action, index === safe.length - 1))}
+          </View>
+          {danger.length > 0 ? (
+            <View style={safe.length > 0 ? sheetLocal.dangerGroup : null}>
+              {danger.map((action, index) => renderRow(action, index === danger.length - 1))}
+            </View>
+          ) : null}
+        </>
+      )}
     </BottomSheet>
   );
 }
@@ -168,6 +196,13 @@ export function ActionMenuHost() {
 }
 
 const sheetLocal = StyleSheet.create({
+  helpSlot: {
+    marginStart: "auto",
+    paddingStart: spacing.sm,
+  },
+  helpBody: {
+    paddingTop: spacing.sm,
+  },
   subtitle: {
     ...textTokens.supporting,
     color: colors.textSecondary,

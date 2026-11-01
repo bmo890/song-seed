@@ -175,6 +175,7 @@ export function useWorkspaceListScreenModel() {
         key: "export",
         label: t("workspaceList.shareFile"),
         icon: "folder-open-outline",
+        exit: "export",
         disabled: sharingWorkspaceId != null,
         onPress: () => void shareWorkspaceAsFile(target),
       },
@@ -184,6 +185,7 @@ export function useWorkspaceListScreenModel() {
         key: "songnook-send",
         label: t("workspaceList.getLink"),
         icon: "paper-plane-outline",
+        exit: "send",
         disabled: sharingWorkspaceId != null,
         onPress: () => getLinkForWorkspace(target),
       });

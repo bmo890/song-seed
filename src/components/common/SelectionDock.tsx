@@ -8,6 +8,7 @@ import { styles } from "../../styles";
 import { useStore } from "../../state/useStore";
 import { haptic } from "../../design/haptics";
 import { colors } from "../../design/tokens";
+import type { ShareExit } from "./helpContent";
 
 export type SelectionActionTone = "default" | "danger";
 
@@ -35,6 +36,9 @@ export type SelectionAction = {
    *  this choice actually sends or does, when the label alone can't say it.
    *  Settings-hint budget: ≤ 12 words. */
   hint?: string;
+  /** A Share menu's way out (raw audio, DAW, SongNook Send, a SongNook file).
+   *  Any row carrying one gives the sheet a "?" that explains the ones shown. */
+  exit?: ShareExit;
 };
 
 type SelectionDockProps = {

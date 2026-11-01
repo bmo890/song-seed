@@ -5,10 +5,10 @@ import * as FileSystem from "expo-file-system/legacy";
 import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
 import { shareAudioClips, buildTimestampSlug } from "../../../services/audioStorage";
-import { createClipsShareLink } from "../../../services/clipShareLink";
+import { createTakesShareLink } from "../../../services/parcelShare";
+import { sketchSharedParts, takeParts } from "../../../domain/parcelContents";
 import { dawExportTargetForClip, exportClipForDaw } from "../../../services/dawExport";
 import { openSendSheet } from "../../../state/useSendSheetStore";
-import { orderByKeys } from "../../../domain/parcelOrder";
 import { isSendServiceConfigured } from "../../../config/sendService";
 import { SONG_NOOK_AUDIO_DIR } from "../../../services/storagePaths";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
@@ -125,22 +125,20 @@ export function SelectionBars() {
   }
 
   function handleGetLinkSelected() {
-    if (shareableClips.length === 0 || isSharing) return;
-    const label = selectedIdea ? t("songDetail.clipsLabel", { title: selectedIdea.title }) : t("songDetail.appClipsLabel");
+    if (shareableClips.length === 0 || isSharing || !selectedIdea) return;
+    const sketch = selectedIdea;
+    const label = t("songDetail.clipsLabel", { title: sketch.title });
     // Keyed by position: two takes may share a title, and a key must never drop one.
-    const clips = shareableClips.map((clip, index) => ({ key: String(index), clip }));
-    // The SongNook Send sheet takes it from here: order, title, from, note, seal.
+    const takes = selectedClips.filter((clip) => !!clip.audioUri).map((clip, index) => ({ key: String(index), clip }));
+    // The SongNook Send sheet takes it from here: order, what travels with each
+    // take, the sketch's own lyrics and chart, title, from, note, seal.
     openSendSheet({
       title: label,
       kind: "clips",
       emptyMessage: t("songDetail.selectAudioFirst"),
-      items: clips.map(({ key, clip }) => ({ key, title: clip.title })),
-      create: (parcel) =>
-        createClipsShareLink(
-          orderByKeys(clips, parcel.order, (entry) => entry.key).map((entry) => entry.clip),
-          label,
-          parcel
-        ),
+      items: takes.map(({ key, clip }) => ({ key, title: clip.title, parts: takeParts(clip) })),
+      shared: { label: sketch.title, parts: sketchSharedParts(sketch) },
+      create: (parcel) => createTakesShareLink(sketch, takes, label, parcel),
     });
   }
 
@@ -440,13 +438,14 @@ export function SelectionBars() {
     }
   }
   const shareActions: SelectionAction[] = [
-    shareAction,
+    { ...shareAction, exit: "audio" },
     ...(dawTarget
       ? [
           {
             key: "export-daw",
             label: t("player.exportForDaw"),
             icon: "desktop-outline" as const,
+            exit: "daw" as const,
             onPress: () => void handleExportForDaw(),
           },
         ]
@@ -457,6 +456,7 @@ export function SelectionBars() {
             key: "songnook-send",
             label: t("songDetail.getLink"),
             icon: "paper-plane-outline" as const,
+            exit: "send" as const,
             onPress: handleGetLinkSelected,
             disabled: isSharing || shareableClips.length === 0,
           },

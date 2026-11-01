@@ -1494,7 +1494,7 @@ export const he = {
     branchLabel: "טייק עצמאי",
     branchBody: "העתקה משאירה את המקור; העברה מוציאה אותו.",
   },
-  sendSheet: { title: "SongNook Send", titleLabel: "כותרת", fromLabel: "מאת", fromPlaceholder: "שם", noteLabel: "הערה", notePlaceholder: "לדוגמה: קודם ללמוד את השיר השני…", seal: "קבלת קישור", sealing: "חותמים", sealingDots: "חותמים…", sealingHint: "אפשר להחליק מטה ולהמשיך. הקישור ימתין למטה.", packing: "אורזים", packingOf: "אורזים {{index}} מתוך {{count}}", uploading: "מעלים", hide: "הסתרה", tryAgain: "ניסיון חוזר", readyPill: "הקישור מוכן · הקישו לשיתוף", failedPill: "השליחה נכשלה · הקישו לנסות שוב", oneAtATime: "חבילה אחת בכל פעם", bytesOf: "{{sent}} מתוך {{total}}", timeLeft: "נותרו {{eta}}", openSeal: "פתיחה", expiryHint: "כל מי שיש לו את הקישור יוכל להוריד במשך 7 ימים.", ready: "הקישור מוכן והועתק", share: "שיתוף", copied: "הקישור הועתק", orderLabel: "בסדר הזה", sortAz: "מיון א–ת", moveUp: "הזזת {{title}} למעלה", moveDown: "הזזת {{title}} למטה" },
+  sendSheet: { title: "SongNook Send", titleLabel: "כותרת", fromLabel: "מאת", fromPlaceholder: "שם", noteLabel: "הערה", notePlaceholder: "לדוגמה: קודם ללמוד את השיר השני…", seal: "קבלת קישור", sealing: "חותמים", sealingDots: "חותמים…", sealingHint: "אפשר להחליק מטה ולהמשיך. הקישור ימתין למטה.", packing: "אורזים", packingOf: "אורזים {{index}} מתוך {{count}}", uploading: "מעלים", hide: "הסתרה", tryAgain: "ניסיון חוזר", readyPill: "הקישור מוכן · הקישו לשיתוף", failedPill: "השליחה נכשלה · הקישו לנסות שוב", oneAtATime: "חבילה אחת בכל פעם", bytesOf: "{{sent}} מתוך {{total}}", timeLeft: "נותרו {{eta}}", openSeal: "פתיחה", expiryHint: "כל מי שיש לו את הקישור יוכל להוריד במשך 7 ימים.", ready: "הקישור מוכן והועתק", share: "שיתוף", copied: "הקישור הועתק", orderLabel: "בסדר הזה", sortAz: "מיון א–ת", moveUp: "הזזת {{title}} למעלה", moveDown: "הזזת {{title}} למטה", fromSketch: "עם {{title}}", audioOnly: "שמע בלבד", part: { takes: "טייקים", lyrics: "מילים", chart: "אקורדים", notes: "הערות", marks: "סימונים", layers: "שכבות" } },
   shareLink: {
     tooLargeTitle: "גדול מדי לקישור", tooLargeBody: "בקישור אפשר לשלוח עד {{limit}}. שתפו כקובץ במקום.",
     copied: "הקישור הועתק — הוא יפוג בקרוב", share: "שיתוף", emptyTitle: "אין מה לשתף", failureTitle: "לא הצלחנו ליצור קישור", retry: "נסו שוב.",
@@ -1524,14 +1524,6 @@ export const he = {
     nothingWholeBody: "הקליטו טייק או כתבו שורה קודם.",
     shareAudioHint_one: "הטייק הראשי של הסקיצה, כשמע.", shareAudioHint_two: "הטייק הראשי של כל סקיצה, כשמע.", shareAudioHint_other: "הטייק הראשי של כל סקיצה, כשמע.",
     exportWholeHint_one: "הסקיצה כולה, כקובץ SongNook.", exportWholeHint_two: "כל מה שנבחר, כקובץ SongNook אחד.", exportWholeHint_other: "כל מה שנבחר, כקובץ SongNook אחד.",
-    sendScopeHint: "קישור. בשלב הבא בוחרים מה נכנס.",
-    sendScopeTitleOne: "שליחת „{{title}}”", sendScopeTitleMany_one: "שליחת פריט אחד", sendScopeTitleMany_two: "שליחת שני פריטים", sendScopeTitleMany_other: "שליחת {{count}} פריטים",
-    sendScopeIncludes_one: "כולל סקיצה אחת.", sendScopeIncludes_two: "כולל שתי סקיצות.", sendScopeIncludes_other: "כולל {{count}} סקיצות.",
-    sendWhole_one: "הסקיצה כולה", sendWhole_two: "הסקיצות כולן", sendWhole_other: "הסקיצות כולן",
-    sendWholeHint: "כל הטייקים, המילים, האקורדים וההערות. נפתח ב־SongNook.",
-    sendPrimary_one: "רק הטייק הראשי", sendPrimary_two: "רק הטייקים הראשיים", sendPrimary_other: "רק הטייקים הראשיים",
-    sendPrimaryHint: "שמע בלבד. מתנגן בכל מקום.",
-    aSketch: "סקיצה", takesCount_one: "טייק אחד", takesCount_two: "שני טייקים", takesCount_other: "{{count}} טייקים", partLyrics: "מילים", partChords: "אקורדים", partNotes: "הערות",
     addCount: "הוספת {{count}}", addingTo: "מוסיפים אל {{title}}", pickCollection: "בחרו אוסף להוסיף ממנו", addedCount: "{{count}} נוספו",
     pickFromWorkspace: "בחירה ממרחב עבודה אחר",
     noChartYet: "עדיין אין אקורדים", pickingSongFor: "בחירת סקיצה למילים",
@@ -1653,6 +1645,13 @@ export const he = {
     processingBackup: "מעבד את הגיבוי",
   },
   helpContent: {
+    share: {
+      thesis: "בחרו לפי מי שמקבל.",
+      audioBody: "קובץ השמע עצמו, בלי שום תוספת.",
+      dawBody: "מתחיל בתחילת תיבה, הטמפו בשם. יושב על הרשת.",
+      sendBody: "שולחים בקלות, עם ההערות, המילים, האקורדים והסימונים.",
+      exportBody: "קובץ SongNook עם הכול. נפתח רק ב־SongNook.",
+    },
     send: {
       thesis: "כל מי שיש לו את הקישור יכול להוריד עד שיפוג.",
       keyLabel: "הקישור הוא המפתח",

@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BottomSheet } from "./BottomSheet";
 import { Button } from "./Button";
 import { Press } from "./Press";
+import { InkOption } from "./InkOption";
 import { BackgroundPill, BACKGROUND_PILL_STACK } from "./BackgroundPill";
 import { toast } from "./toastStore";
 import { UserText, UserTextInput } from "../../i18n/direction";
@@ -17,6 +18,7 @@ import { useProcessStore } from "../../state/useProcessStore";
 import { useStore } from "../../state/useStore";
 import type { SentLink } from "../../domain/sentLinks";
 import { moveParcelItem, sortParcelItemsAz, type ParcelItem } from "../../domain/parcelOrder";
+import type { ParcelPart } from "../../domain/parcelContents";
 import { formatEta, sendEtaSeconds, sendOverallFraction } from "../../domain/sendProgress";
 import { formatBytes } from "../../utils";
 import { haptic } from "../../design/haptics";
@@ -60,6 +62,12 @@ function SendLinkSheet({ request }: { request: SendRequest }) {
   const [from, setFrom] = useState(rememberedName);
   const [message, setMessage] = useState("");
   const [items, setItems] = useState<ParcelItem[]>(request.items ?? []);
+  // What stays home; everything starts in (founder, 2026-11-01).
+  const [leaveOut, setLeaveOut] = useState<Record<string, ParcelPart[]>>({});
+  const [sharedLeaveOut, setSharedLeaveOut] = useState<ParcelPart[]>([]);
+  const anyParts = items.some((item) => (item.parts?.length ?? 0) > 0);
+  const ordered = items.length > 1;
+  const showItems = ordered || anyParts;
   const [visible, setVisible] = useState(true);
 
   // The sheet owns its exit: BottomSheet animates out on `visible: false`,
@@ -80,6 +88,8 @@ function SendLinkSheet({ request }: { request: SendRequest }) {
       senderName,
       message: message.trim().slice(0, MESSAGE_MAX) || null,
       order: items.length > 0 ? items.map((item) => item.key) : undefined,
+      leaveOut,
+      sharedLeaveOut,
     });
     // The seal is the pill's now; the form has nothing left to say.
     dismiss();
@@ -89,53 +99,86 @@ function SendLinkSheet({ request }: { request: SendRequest }) {
     <BottomSheet visible={visible} onClose={dismiss} dismissDistance={420} keyboardAvoiding>
       <View style={local.content}>
         <SheetEyebrow />
-        {items.length > 1 ? (
-          // The parcel's running order: the receiver gets the clips in this
-          // order, so it is decided here, not by how they were tapped.
+        {request.shared && request.shared.parts.length > 0 ? (
+          // Takes chosen inside a sketch: the sketch's own things, one line.
           <>
-            <View style={local.orderHead}>
-              <Text style={local.label}>{t("sendSheet.orderLabel")}</Text>
-              {/* Haptics (Press): `light` — the order changed, a small state flip. */}
-              <Press
-                feel="glyph"
-                haptic="light"
-                onPress={() => setItems((prev) => sortParcelItemsAz(prev))}
-                hitSlop={8}
-                accessibilityRole="button"
-              >
-                <Text style={local.sortLink}>{t("sendSheet.sortAz")}</Text>
-              </Press>
-            </View>
+            <UserText value={request.shared.label} style={local.label} numberOfLines={1}>
+              {t("sendSheet.fromSketch", { title: request.shared.label })}
+            </UserText>
+            <PartsLine
+              parts={request.shared.parts}
+              out={sharedLeaveOut}
+              onToggle={(part) => setSharedLeaveOut((prev) => togglePart(prev, part))}
+            />
+          </>
+        ) : null}
+        {showItems ? (
+          // The parcel's running order (the receiver gets the clips in this
+          // order, so it is decided here, not by how they were tapped), and
+          // under each what travels with it.
+          <>
+            {ordered ? (
+              <View style={local.orderHead}>
+                <Text style={local.label}>{t("sendSheet.orderLabel")}</Text>
+                {/* Haptics (Press): `light` — the order changed, a small state flip. */}
+                <Press
+                  feel="glyph"
+                  haptic="light"
+                  onPress={() => setItems((prev) => sortParcelItemsAz(prev))}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                >
+                  <Text style={local.sortLink}>{t("sendSheet.sortAz")}</Text>
+                </Press>
+              </View>
+            ) : null}
             <ScrollView style={local.orderList} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               {items.map((item, index) => (
-                <View key={item.key} style={local.orderRow}>
-                  <Text style={local.orderIndex}>{index + 1}</Text>
-                  <UserText value={item.title} style={local.orderTitle} numberOfLines={1}>
-                    {item.title}
-                  </UserText>
-                  {/* Press dims a disabled key itself: no btnDisabled on top. */}
-                  <Press
-                    haptic="light"
-                    onPress={() => setItems((prev) => moveParcelItem(prev, index, index - 1))}
-                    disabled={index === 0}
-                    hitSlop={6}
-                    accessibilityRole="button"
-                    accessibilityLabel={t("sendSheet.moveUp", { title: item.title })}
-                    style={local.nudge}
-                  >
-                    <Ionicons name="chevron-up" size={15} color={colors.textStrong} />
-                  </Press>
-                  <Press
-                    haptic="light"
-                    onPress={() => setItems((prev) => moveParcelItem(prev, index, index + 1))}
-                    disabled={index === items.length - 1}
-                    hitSlop={6}
-                    accessibilityRole="button"
-                    accessibilityLabel={t("sendSheet.moveDown", { title: item.title })}
-                    style={local.nudge}
-                  >
-                    <Ionicons name="chevron-down" size={15} color={colors.textStrong} />
-                  </Press>
+                <View key={item.key} style={[local.orderRow, index > 0 ? local.orderRule : null]}>
+                  {ordered ? <Text style={local.orderIndex}>{index + 1}</Text> : null}
+                  <View style={local.orderBody}>
+                    <UserText value={item.title} style={local.orderTitle} numberOfLines={1}>
+                      {item.title}
+                    </UserText>
+                    {item.parts && item.parts.length > 0 ? (
+                      <PartsLine
+                        parts={item.parts}
+                        out={leaveOut[item.key] ?? []}
+                        onToggle={(part) =>
+                          setLeaveOut((prev) => ({ ...prev, [item.key]: togglePart(prev[item.key] ?? [], part) }))
+                        }
+                      />
+                    ) : anyParts ? (
+                      <Text style={local.audioOnly}>{t("sendSheet.audioOnly")}</Text>
+                    ) : null}
+                  </View>
+                  {ordered ? (
+                    <>
+                      {/* Press dims a disabled key itself: no btnDisabled on top. */}
+                      <Press
+                        haptic="light"
+                        onPress={() => setItems((prev) => moveParcelItem(prev, index, index - 1))}
+                        disabled={index === 0}
+                        hitSlop={6}
+                        accessibilityRole="button"
+                        accessibilityLabel={t("sendSheet.moveUp", { title: item.title })}
+                        style={local.nudge}
+                      >
+                        <Ionicons name="chevron-up" size={15} color={colors.textStrong} />
+                      </Press>
+                      <Press
+                        haptic="light"
+                        onPress={() => setItems((prev) => moveParcelItem(prev, index, index + 1))}
+                        disabled={index === items.length - 1}
+                        hitSlop={6}
+                        accessibilityRole="button"
+                        accessibilityLabel={t("sendSheet.moveDown", { title: item.title })}
+                        style={local.nudge}
+                      >
+                        <Ionicons name="chevron-down" size={15} color={colors.textStrong} />
+                      </Press>
+                    </>
+                  ) : null}
                 </View>
               ))}
             </ScrollView>
@@ -188,6 +231,35 @@ function SendLinkSheet({ request }: { request: SendRequest }) {
         </View>
       </View>
     </BottomSheet>
+  );
+}
+
+const togglePart = (out: ParcelPart[], part: ParcelPart) =>
+  out.includes(part) ? out.filter((p) => p !== part) : [...out, part];
+
+/** What travels with an item, each word in or out: lit goes, hollow stays home. */
+function PartsLine({
+  parts,
+  out,
+  onToggle,
+}: {
+  parts: ParcelPart[];
+  out: ParcelPart[];
+  onToggle: (part: ParcelPart) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <View style={local.parts}>
+      {parts.map((part) => (
+        <InkOption
+          key={part}
+          compact
+          label={t(`sendSheet.part.${part}`)}
+          selected={!out.includes(part)}
+          onPress={() => onToggle(part)}
+        />
+      ))}
+    </View>
   );
 }
 
@@ -456,7 +528,7 @@ const local = StyleSheet.create({
     color: colors.primaryDeep,
   },
   orderList: {
-    maxHeight: 176,
+    maxHeight: 248,
     marginTop: 2,
   },
   orderRow: {
@@ -464,6 +536,24 @@ const local = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
     paddingVertical: 6,
+  },
+  orderRule: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderMuted,
+  },
+  orderBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  parts: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    columnGap: spacing.md,
+  },
+  audioOnly: {
+    ...textTokens.caption,
+    color: colors.textMuted,
+    marginTop: 2,
   },
   orderIndex: {
     ...textTokens.caption,
@@ -474,8 +564,6 @@ const local = StyleSheet.create({
   },
   orderTitle: {
     ...textTokens.body,
-    flex: 1,
-    minWidth: 0,
   },
   nudge: {
     width: 30,

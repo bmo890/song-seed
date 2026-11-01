@@ -45,7 +45,8 @@ export function ideasShareKind(ideas: SongIdea[]): ShareKind {
 export function buildIdeasExportArgs(
   ideas: SongIdea[],
   title: string,
-  overrides?: ShareArgsOverrides
+  overrides?: ShareArgsOverrides,
+  kind: ShareKind = "collection"
 ): ExportLibraryArgs | null {
   const sendable = ideas.filter(hasSomething);
   if (sendable.length === 0) return null;
@@ -81,7 +82,7 @@ export function buildIdeasExportArgs(
     format: "songnook-archive",
     scope: { workspaceIds: [workspaceId], collectionIds: [collectionId] },
     share: {
-      kind: "collection",
+      kind,
       title: parcelTitle,
       sender: { name: overrides?.senderName ?? null, userId: null },
       transferId: overrides?.transferId ?? null,

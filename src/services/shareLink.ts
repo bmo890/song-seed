@@ -77,6 +77,9 @@ export interface CreateShareLinkInput {
   buildArgs: (transferId: string) => ExportLibraryArgs | null;
   /** Live progress and a cancel handle, for the seal that runs behind a pill. */
   progress?: SendProgressOptions;
+  /** Plain audio riding beside the package for someone without SongNook: the
+   *  link page's quiet "raw files" list. The app imports the package alone. */
+  browserCopies?: ShareFileInput[];
 }
 
 export async function createShareLink(input: CreateShareLinkInput): Promise<SentLink> {
@@ -120,14 +123,27 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
     },
   });
   const fileName = `${prepared.archiveTitle}.${prepared.archiveExtension}`;
+  const copies = input.browserCopies ?? [];
+  const { encoded, tempUris } =
+    copies.length > 0
+      ? await encodeAudioForLink(losslessAudioToEncode(copies.map((file) => file.fileUri)), { signal })
+      : { encoded: new Map<string, string>(), tempUris: [] as string[] };
+  const copyFiles = copies.map((file) => {
+    const next = encoded.get(file.fileUri);
+    return next
+      ? { fileUri: next, fileName: file.fileName.replace(/\.[A-Za-z0-9]+$/, "") + ".m4a", mimeType: "audio/mp4" }
+      : file;
+  });
   try {
     const size = await fileSize(prepared.archiveUri);
+    const copySizes = await Promise.all(copyFiles.map((file) => fileSize(file.fileUri)));
     // Past the cap the draft is simply never finalized (swept at expiry) — no
     // bytes leave the device.
-    assertWithinCaps([size]);
+    assertWithinCaps([size, ...copySizes]);
+    const totalBytes = size + copySizes.reduce((sum, bytes) => sum + bytes, 0);
 
-    // 3. Upload the single .songnook file. Opaque to the server.
-    report?.({ phase: "uploading", completedBytes: 0, totalBytes: size });
+    // 3. Upload the .songnook file (opaque to the server), then any plain copies.
+    report?.({ phase: "uploading", completedBytes: 0, totalBytes });
     await registerAndUploadFile(
       transfer.transferId,
       transfer.uploadToken,
@@ -141,13 +157,27 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
       },
       {
         signal,
-        onProgress: (sent, total) => report?.({ phase: "uploading", completedBytes: sent, totalBytes: total }),
+        onProgress: (sent) => report?.({ phase: "uploading", completedBytes: sent, totalBytes }),
       }
     );
+    let sentBefore = size;
+    for (const [index, file] of copyFiles.entries()) {
+      await registerAndUploadFile(
+        transfer.transferId,
+        transfer.uploadToken,
+        { ...file, size: copySizes[index]! },
+        {
+          signal,
+          onProgress: (sent) => report?.({ phase: "uploading", completedBytes: sentBefore + sent, totalBytes }),
+        }
+      );
+      sentBefore += copySizes[index]!;
+    }
   } finally {
     // The packed archive is a temp file (songnook/share); the share-sheet path deletes
     // its copy the same way. Nothing else reads it once the bytes are up (or failed).
     await cleanupShareTempFile(prepared.archiveUri);
+    if (tempUris.length > 0) await deleteEncodedAudio(tempUris);
   }
 
   // 4. Finalize — only now is the link live.
@@ -164,7 +194,8 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
     entityId: input.entityId,
     createdAt: Date.now(),
     expiresAt: Date.parse(transfer.expiresAt) || Date.now(),
-    itemCount: 1,
+    // What the sender sent: the clips (their plain copies count them), else the one package.
+    itemCount: Math.max(1, copyFiles.length),
   };
   useSentLinksStore.getState().recordLink(record);
   return record;

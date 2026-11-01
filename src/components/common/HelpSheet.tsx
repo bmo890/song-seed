@@ -33,6 +33,16 @@ export function HelpSheet({
 }) {
   return (
     <BottomSheet visible={visible} onClose={onClose}>
+      <HelpBody thesis={thesis} items={items} />
+    </BottomSheet>
+  );
+}
+
+/** The sheet's words alone, for a sheet that shows its help in place (an action
+ *  menu's "?" turns the same sheet over rather than stacking a second one). */
+export function HelpBody({ thesis, items }: { thesis: string; items: HelpItem[] }) {
+  return (
+    <>
       <Text style={helpStyles.thesis}>{thesis}</Text>
       <ScrollView
         style={helpStyles.scroll}
@@ -52,7 +62,7 @@ export function HelpSheet({
           </View>
         ))}
       </ScrollView>
-    </BottomSheet>
+    </>
   );
 }
 
