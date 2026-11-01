@@ -194,6 +194,7 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
     entityId: input.entityId,
     createdAt: Date.now(),
     expiresAt: Date.parse(transfer.expiresAt) || Date.now(),
+    uploadToken: transfer.uploadToken,
     // What the sender sent: the clips (their plain copies count them), else the one package.
     itemCount: Math.max(1, copyFiles.length),
   };
@@ -319,6 +320,7 @@ async function uploadFiles(
     entityId: input.entityId,
     createdAt: Date.now(),
     expiresAt: Date.parse(transfer.expiresAt) || Date.now(),
+    uploadToken: transfer.uploadToken,
     itemCount: input.files.length,
   };
   useSentLinksStore.getState().recordLink(record);

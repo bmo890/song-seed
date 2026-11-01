@@ -8,7 +8,7 @@
  *  - Metadata works with no cookies / no Origin.
  *  - Files are opaque: we store bytes + name + mime, never inspect content.
  */
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import type { Env } from "../env";
 import { loadConfig } from "../env";
 import {
@@ -29,6 +29,7 @@ import { checkUploadAllowed, looksLikeZip, requiresZipMagic } from "../lib/conte
 import { clientIp, underRateLimit, webOriginAllowed } from "../lib/guard";
 import { hashUploadToken, uploadTokenValid } from "../lib/uploadToken";
 import { normalizeShareKind } from "../lib/shareKind";
+import { recordSend, senderAccess, senderFromApp, senderFromBrowser, type SenderRow } from "../lib/senders";
 
 export const api = new Hono<{ Bindings: Env }>();
 
@@ -58,6 +59,38 @@ async function deleteDraftAndObjects(
   await deleteTransfer(env, transferId);
 }
 
+/** Who is sealing this parcel, and may they (lib/senders.ts)? A browser (it
+ *  sends an Origin) must be paired with the app; the app names itself with
+ *  its send key. Returns the sender (null when unknown and allowed) or the
+ *  refusal to send back. */
+async function senderForCreate(
+  c: Context<{ Bindings: Env }>,
+  now: number
+): Promise<{ sender: SenderRow | null } | { refusal: Response }> {
+  const cfg = loadConfig(c.env);
+  const fromBrowser = !!c.req.header("origin");
+  let sender: SenderRow | null = null;
+  if (fromBrowser) {
+    sender = (await senderFromBrowser(c, now))?.sender ?? null;
+    if (!sender && cfg.webSendRequiresPairing) {
+      return { refusal: jsonResponse({ error: "pair this browser first", code: "pair" }, { status: 401 }) };
+    }
+  } else {
+    sender = await senderFromApp(c, now);
+    if (!sender && cfg.appSendEnforced) {
+      return { refusal: jsonResponse({ error: "update SongNook to send", code: "update" }, { status: 401 }) };
+    }
+  }
+  const mustCheck = fromBrowser ? cfg.webSendRequiresPairing : cfg.appSendEnforced;
+  if (sender && mustCheck) {
+    const access = await senderAccess(c.env, cfg, sender, now);
+    if (!access.pro && access.freeLeft <= 0) {
+      return { refusal: jsonResponse({ error: "free links used", code: "limit" }, { status: 402 }) };
+    }
+  }
+  return { sender };
+}
+
 // ── 1. Create ───────────────────────────────────────────────────────────────
 // POST /api/transfers  { title?, senderName?, message?, kind? } → { transferId, expiresAt }
 api.post("/transfers", async (c) => {
@@ -69,6 +102,8 @@ api.post("/transfers", async (c) => {
   // A `null` / primitive JSON body is a valid parse — normalise before `.title`.
   const body = bodyRecord(await c.req.json().catch(() => ({})));
   const now = Date.now();
+  const who = await senderForCreate(c, now);
+  if ("refusal" in who) return who.refusal;
 
   const transferId = newTransferId();
   const uploadToken = newUploadToken();
@@ -86,6 +121,7 @@ api.post("/transfers", async (c) => {
     created_at: now,
     expires_at: expiresAt,
     upload_token_hash: await hashUploadToken(uploadToken),
+    sender_id: who.sender?.sender_id ?? null,
   });
 
   return jsonResponse(
@@ -220,7 +256,25 @@ api.post("/transfers/:id/finalize", async (c) => {
     await setTransferSize(c.env, transferId, actualTotal);
   }
   await finalizeTransfer(c.env, transferId);
+  // A sealed link counts toward its sender's free allowance.
+  if (transfer.sender_id) await recordSend(c.env, transfer.sender_id, Date.now());
   return jsonResponse({ shareUrl: `${cfg.publicOrigin}/t/${transferId}` });
+});
+
+// ── Delete (the sender takes a link back) ───────────────────────────────────
+// DELETE /api/transfers/:id  (upload token in x-upload-token or the body) → 204
+// The files go at once; the link reads as gone from then on. Already gone is
+// success: the sender's wish is met either way.
+api.delete("/transfers/:id", async (c) => {
+  const transferId = c.req.param("id");
+  const transfer = await getTransfer(c.env, transferId);
+  if (!transfer) return new Response(null, { status: 204 });
+  const body = bodyRecord(await c.req.json().catch(() => ({})));
+  if (!(await uploadTokenValid(c, transfer, body))) {
+    return errorResponse(401, "upload token required");
+  }
+  await deleteDraftAndObjects(c.env, transferId, await getItems(c.env, transferId));
+  return new Response(null, { status: 204 });
 });
 
 // ── 4. Metadata (cookie/Origin-free) ────────────────────────────────────────

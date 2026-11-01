@@ -35,6 +35,8 @@ export function useSettingsScreenModel() {
         ? t("settingsLibrary.title")
         : view === "sharing"
           ? t("settings.sentLinks")
+          : view === "computer"
+            ? t("sendComputer.title")
           : view === "about"
             ? t("settings.helpAbout")
             : view === "export"

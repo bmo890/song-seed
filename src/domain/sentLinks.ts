@@ -22,6 +22,9 @@ export type SentLink = {
   createdAt: number;
   expiresAt: number;
   itemCount: number;
+  /** The sender's proof for this link (the server keeps only its hash): what
+   *  lets Delete link take it back. Absent on links sent before 2026-11-01. */
+  uploadToken?: string;
 };
 
 /** The window a free user's Send allowance counts over (domain/proCatalog.ts "send"). */
@@ -82,6 +85,7 @@ export function sanitizeSentLinks(value: unknown): SentLink[] {
       createdAt: c.createdAt as number,
       expiresAt: c.expiresAt as number,
       itemCount: Number.isFinite(c.itemCount) ? (c.itemCount as number) : 1,
+      uploadToken: typeof c.uploadToken === "string" && c.uploadToken ? c.uploadToken : undefined,
     });
   }
   return out;

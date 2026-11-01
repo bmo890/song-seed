@@ -10,6 +10,8 @@ export interface Env {
    *  limiter, one per write bucket. Optional so local dev falls back to KV. */
   RATE_CREATE?: RateLimit;
   RATE_ITEMS?: RateLimit;
+  /** Pairing a browser: asking for a code, and the app claiming one. */
+  RATE_PAIR?: RateLimit;
   /** KV fallback for per-IP rate limiting when the bindings above are absent.
    *  Optional — fail-open when absent (dev). */
   RATE?: KVNamespace;
@@ -31,6 +33,17 @@ export interface Env {
   RATE_CREATE_PER_HOUR?: string;
   RATE_ITEMS_PER_HOUR?: string;
 
+  // Who may send (lib/senders.ts).
+  /** "true" while nothing is for sale: every sender is Pro (the app's ALL_FEATURES_FREE). */
+  PRO_FOR_ALL?: string;
+  /** "true": the web page sends only from a browser paired with the app. */
+  WEB_SEND_REQUIRES_PAIRING?: string;
+  /** "true": the app must send its key, and Pro or the free allowance applies.
+   *  Off until the paywall is live: older app builds send no key. */
+  APP_SEND_ENFORCED?: string;
+  /** The RevenueCat entitlement that means Pro. */
+  PRO_ENTITLEMENT_ID?: string;
+
   // Optional universal-link identity (supplied by the app team; placeholders until then).
   APPLE_TEAM_ID?: string;
   ANDROID_CERT_FINGERPRINTS?: string; // comma-separated SHA-256 fingerprints
@@ -38,6 +51,8 @@ export interface Env {
   // Secrets (Worker secrets / .dev.vars — NEVER committed). Only used to presign uploads.
   R2_ACCESS_KEY_ID: string;
   R2_SECRET_ACCESS_KEY: string;
+  /** RevenueCat secret API key (sk_…), for asking whether a sender has Pro. */
+  REVENUECAT_SECRET_KEY?: string;
 
   // Optional: abuse-report destination.
   ABUSE_CONTACT_EMAIL?: string;
@@ -57,6 +72,11 @@ export interface Config {
   allowedWebOrigins: string[];
   rateCreatePerHour: number;
   rateItemsPerHour: number;
+  proForAll: boolean;
+  webSendRequiresPairing: boolean;
+  appSendEnforced: boolean;
+  proEntitlementId: string;
+  revenueCatSecretKey: string;
 }
 
 export function loadConfig(env: Env): Config {
@@ -84,5 +104,10 @@ export function loadConfig(env: Env): Config {
     allowedWebOrigins,
     rateCreatePerHour: Number(env.RATE_CREATE_PER_HOUR) || 30,
     rateItemsPerHour: Number(env.RATE_ITEMS_PER_HOUR) || 300,
+    proForAll: env.PRO_FOR_ALL === "true",
+    webSendRequiresPairing: env.WEB_SEND_REQUIRES_PAIRING === "true",
+    appSendEnforced: env.APP_SEND_ENFORCED === "true",
+    proEntitlementId: env.PRO_ENTITLEMENT_ID || "songnook_pro",
+    revenueCatSecretKey: env.REVENUECAT_SECRET_KEY || "",
   };
 }

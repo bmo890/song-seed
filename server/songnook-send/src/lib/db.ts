@@ -1,5 +1,6 @@
 /**
- * Thin typed helpers over D1. No ORM — the schema is two tables.
+ * Thin typed helpers over D1 for transfers and items. No ORM. Senders,
+ * pairings and browsers live in lib/senders.ts.
  */
 import type { Env } from "../env";
 import type { ShareKind } from "./shareKind";
@@ -17,6 +18,9 @@ export interface TransferRow {
   upload_token_hash: string | null;
   /** What the sender said the parcel is — see lib/shareKind.ts. */
   share_kind: ShareKind;
+  /** The install (or paired browser's install) that made it — lib/senders.ts.
+   *  Counts toward that sender's free links; never sent to recipients. */
+  sender_id?: string | null;
 }
 
 export interface ItemRow {
@@ -34,8 +38,8 @@ export interface ItemRow {
 export async function insertTransfer(env: Env, t: TransferRow): Promise<void> {
   await env.DB.prepare(
     `INSERT INTO transfers
-      (transfer_id, title, sender_name, sender_user_id, message, status, size_total, created_at, expires_at, upload_token_hash, share_kind)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      (transfer_id, title, sender_name, sender_user_id, message, status, size_total, created_at, expires_at, upload_token_hash, share_kind, sender_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
       t.transfer_id,
@@ -48,7 +52,8 @@ export async function insertTransfer(env: Env, t: TransferRow): Promise<void> {
       t.created_at,
       t.expires_at,
       t.upload_token_hash,
-      t.share_kind
+      t.share_kind,
+      t.sender_id ?? null
     )
     .run();
 }

@@ -12,6 +12,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { SEND_SERVICE_BASE_URL } from "../config/sendService";
 import { i18n } from "../i18n/instance";
+import { sendIdentityHeaders } from "./sendIdentity";
 import type { ShareKind } from "../types";
 
 /** Why a transfer failed, for the alert; the English `message` (often a raw server
@@ -24,7 +25,8 @@ export type SendTransferErrorCode =
   | "invalidTransfer"
   | "unsupportedItem"
   | "tooLarge"
-  | "downloadFailed";
+  | "downloadFailed"
+  | "limit";
 
 export class SendTransferError extends Error {
   constructor(message: string, readonly status?: number, readonly code: SendTransferErrorCode = "rejected") {
@@ -55,14 +57,19 @@ export interface RegisteredItem {
  *  OkHttp read timeout is infinite, so a hung socket would spin forever). */
 const JSON_TIMEOUT_MS = 8000;
 
-async function postJson<T>(path: string, body?: unknown): Promise<T> {
+async function requestJson<T>(
+  method: "GET" | "POST" | "DELETE",
+  path: string,
+  body?: unknown,
+  headers: Record<string, string> = {}
+): Promise<T> {
   let res: Response;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), JSON_TIMEOUT_MS);
   try {
     res = await fetch(`${SEND_SERVICE_BASE_URL}${path}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
+      method,
+      headers: { "content-type": "application/json", ...headers },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: controller.signal,
     });
@@ -77,10 +84,16 @@ async function postJson<T>(path: string, body?: unknown): Promise<T> {
   }
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
-    throw new SendTransferError(detail || `Request failed (${res.status}).`, res.status, "rejected");
+    // The server's free allowance is spent (lib/senders.ts, once it enforces).
+    const code: SendTransferErrorCode = res.status === 402 ? "limit" : "rejected";
+    throw new SendTransferError(detail || `Request failed (${res.status}).`, res.status, code);
   }
+  if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
+
+const postJson = <T,>(path: string, body?: unknown, headers?: Record<string, string>) =>
+  requestJson<T>("POST", path, body, headers);
 
 /** 1. Create a transfer. Returns the transferId BEFORE any upload. */
 export function createTransfer(input: {
@@ -92,12 +105,18 @@ export function createTransfer(input: {
    *  file is opened (the .songnook manifest stays the authority on device). */
   kind?: ShareKind;
 }): Promise<CreatedTransfer> {
-  return postJson<CreatedTransfer>("/api/transfers", {
-    title: input.title,
-    senderName: input.senderName ?? undefined,
-    message: input.message,
-    kind: input.kind,
-  });
+  return sendIdentityHeaders().then((identity) =>
+    postJson<CreatedTransfer>(
+      "/api/transfers",
+      {
+        title: input.title,
+        senderName: input.senderName ?? undefined,
+        message: input.message,
+        kind: input.kind,
+      },
+      identity
+    )
+  );
 }
 
 export class SendCancelledError extends Error {
@@ -191,6 +210,33 @@ export function finalizeTransfer(
   return postJson<{ shareUrl: string }>(`/api/transfers/${transferId}/finalize`, {
     uploadToken,
   });
+}
+
+/** Take a sealed link back: its files are deleted at once. The upload token is
+ *  the sender's proof, kept with the outbox record. Already gone is success. */
+export function deleteTransfer(transferId: string, uploadToken: string): Promise<void> {
+  return requestJson<void>("DELETE", `/api/transfers/${encodeURIComponent(transferId)}`, undefined, {
+    "x-upload-token": uploadToken,
+  });
+}
+
+// ── Sending from a computer: pairing a browser with this install ────────────
+
+export type PairedBrowser = { id: string; label: string; pairedAt: string; lastUsedAt: string };
+
+/** Claim the code a browser shows. Throws a SendTransferError with status 404
+ *  when there is no such live code. */
+export async function claimBrowserPairing(code: string): Promise<void> {
+  await postJson<{ ok: true }>("/api/pairings/claim", { code }, await sendIdentityHeaders());
+}
+
+export async function listPairedBrowsers(): Promise<PairedBrowser[]> {
+  const res = await requestJson<{ browsers: PairedBrowser[] }>("GET", "/api/browsers", undefined, await sendIdentityHeaders());
+  return Array.isArray(res?.browsers) ? res.browsers : [];
+}
+
+export async function removePairedBrowser(id: string): Promise<void> {
+  await requestJson<void>("DELETE", `/api/browsers/${encodeURIComponent(id)}`, undefined, await sendIdentityHeaders());
 }
 
 /** Convenience: size of a local file for item registration. */

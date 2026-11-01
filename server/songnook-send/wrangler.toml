@@ -35,6 +35,14 @@ ALLOWED_WEB_ORIGINS = ""
 # when the ratelimit bindings below are absent (local dev).
 RATE_CREATE_PER_HOUR = "30"
 RATE_ITEMS_PER_HOUR = "300"
+# Who may send (src/lib/senders.ts). PRO_FOR_ALL mirrors the app's
+# ALL_FEATURES_FREE: set "false" in the release that turns the paywall on, and
+# set APP_SEND_ENFORCED "true" then too (older app builds send no key, so not
+# before). The web page needs a paired browser from now on.
+PRO_FOR_ALL = "true"
+WEB_SEND_REQUIRES_PAIRING = "true"
+APP_SEND_ENFORCED = "false"
+PRO_ENTITLEMENT_ID = "songnook_pro"
 # Store links for the mobile-without-app install funnel.
 # BETA (2026-10-11): the App Store listing (apps.apple.com/app/id6810435199) is a
 # 404 until launch, so the iOS button points at the TestFlight public link for
@@ -85,6 +93,14 @@ namespace_id = "1002"
 # file at a time, so one legitimate send of short clips can need ~200 in a minute.
 simple = { limit = 240, period = 60 }
 
+[[unsafe.bindings]]
+name = "RATE_PAIR"
+type = "ratelimit"
+namespace_id = "1003"
+# Asking for a pairing code (browser) and claiming one (app), per IP. A code
+# is 6 of 31 symbols and lives 10 minutes, so this keeps guessing hopeless.
+simple = { limit = 10, period = 60 }
+
 # ── KV binding: rate-limit FALLBACK when the bindings above are absent ───────
 # (local dev). Create with `wrangler kv namespace create RATE`, paste the id.
 # With neither, rate limiting fails open.
@@ -99,4 +115,6 @@ crons = ["0 3 * * *"]
 # ── SECRETS (never committed — set via `wrangler secret put <NAME>`): ─────────
 #   R2_ACCESS_KEY_ID       — R2 S3 API access key (for minting presigned PUT URLs)
 #   R2_SECRET_ACCESS_KEY   — R2 S3 API secret
+#   REVENUECAT_SECRET_KEY  — RevenueCat secret API key (sk_…), to check Pro.
+#                            Needed once PRO_FOR_ALL is "false".
 # Locally these live in `.dev.vars` (gitignored). See .dev.vars.example.

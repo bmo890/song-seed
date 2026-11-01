@@ -16,6 +16,7 @@ import { renderLandingPage, renderLegalPage } from "./pages/legal";
 import { escapeHtml, htmlPage, page } from "./pages/shell";
 import { api } from "./routes/api";
 import { download } from "./routes/download";
+import { pairing } from "./routes/pairing";
 import { wellKnown } from "./routes/wellknown";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -25,7 +26,7 @@ app.options("*", () =>
   new Response(null, {
     headers: {
       "access-control-allow-origin": "*",
-      "access-control-allow-methods": "GET, POST, OPTIONS",
+      "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
       "access-control-allow-headers": "content-type, x-upload-token, authorization",
     },
   })
@@ -33,6 +34,7 @@ app.options("*", () =>
 
 // ── JSON API ────────────────────────────────────────────────────────────────
 app.route("/api", api);
+app.route("/api", pairing);
 
 // ── .well-known association files ────────────────────────────────────────────
 app.route("/.well-known", wellKnown);

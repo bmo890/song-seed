@@ -108,6 +108,18 @@ export function isBillingAvailable(): boolean {
     return configured;
 }
 
+/** RevenueCat's id for this install, so the Send server can ask whether it has Pro
+ *  (lib/senders.ts on the server). Null until billing runs. */
+export async function getBillingAppUserId(): Promise<string | null> {
+    const P = loadPurchases();
+    if (!P || !configured) return null;
+    try {
+        return await P.getAppUserID();
+    } catch {
+        return null;
+    }
+}
+
 /** Once per launch: configure RevenueCat, follow the entitlement live, fetch prices. */
 export async function initBilling(): Promise<void> {
     if (configured) return;

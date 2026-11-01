@@ -21,7 +21,7 @@ function base62(bytes: Uint8Array): string {
   return out || "0";
 }
 
-function randomBase62(byteLength: number): string {
+export function randomBase62(byteLength: number): string {
   const bytes = new Uint8Array(byteLength);
   crypto.getRandomValues(bytes);
   return base62(bytes).padStart(Math.ceil((byteLength * 8) / Math.log2(62)), "0");

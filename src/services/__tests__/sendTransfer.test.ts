@@ -1,3 +1,7 @@
+jest.mock("../sendIdentity", () => ({
+  sendIdentityHeaders: async () => ({ "x-songnook-sender": "sk_testtesttesttesttesttest" }),
+}));
+
 jest.mock("expo-file-system/legacy", () => ({
   createUploadTask: jest.fn(),
   FileSystemUploadType: { BINARY_CONTENT: 1 },
@@ -9,7 +13,13 @@ jest.mock("../../config/sendService", () => ({
 }));
 
 import * as FileSystem from "expo-file-system/legacy";
-import { describeSendTransferError, registerAndUploadFile, SendTransferError } from "../sendTransfer";
+import {
+  createTransfer,
+  deleteTransfer,
+  describeSendTransferError,
+  registerAndUploadFile,
+  SendTransferError,
+} from "../sendTransfer";
 
 const registered = {
   itemId: "i_01234567",
@@ -74,5 +84,37 @@ describe("registerAndUploadFile", () => {
   it("explains a refusal in the app's language, with the status", () => {
     const error = new SendTransferError("file type \".opus\" is not accepted", 415, "rejected");
     expect(describeSendTransferError(error)).toBe("SongNook Send refused the request (415).");
+  });
+});
+
+describe("who is sending", () => {
+  const calls: { url: string; init: RequestInit }[] = [];
+  const answer = (status: number, body: unknown = {}) => {
+    global.fetch = jest.fn(async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      return { ok: status < 400, status, json: async () => body, text: async () => "" };
+    }) as unknown as typeof fetch;
+  };
+  beforeEach(() => {
+    calls.length = 0;
+  });
+
+  it("names this install when it starts a link", async () => {
+    answer(201, { transferId: "t_1", uploadToken: "ut_1", expiresAt: "2026-11-08T00:00:00Z" });
+    await createTransfer({ title: "Blue Hour" });
+    expect((calls[0]!.init.headers as Record<string, string>)["x-songnook-sender"]).toBe("sk_testtesttesttesttesttest");
+  });
+
+  it("a spent free allowance reads as the limit, not a refusal", async () => {
+    answer(402);
+    await expect(createTransfer({ title: "x" })).rejects.toMatchObject({ code: "limit", status: 402 });
+  });
+
+  it("deleting a link sends its upload token, and an empty answer is success", async () => {
+    answer(204);
+    await expect(deleteTransfer("t_1", "ut_secret")).resolves.toBeUndefined();
+    expect(calls[0]!.init.method).toBe("DELETE");
+    expect(calls[0]!.url).toBe("https://send.songnook.app/api/transfers/t_1");
+    expect((calls[0]!.init.headers as Record<string, string>)["x-upload-token"]).toBe("ut_secret");
   });
 });

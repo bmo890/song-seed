@@ -1,3 +1,7 @@
+jest.mock("../sendIdentity", () => ({
+  sendIdentityHeaders: async () => ({ "x-songnook-sender": "sk_testtesttesttesttesttest" }),
+}));
+
 jest.mock("expo-file-system/legacy", () => ({
   cacheDirectory: "file:///cache/",
   makeDirectoryAsync: jest.fn(),

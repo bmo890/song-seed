@@ -71,7 +71,7 @@ export const SEND_HELP: HelpContent = {
     return [
       item("link-outline", "send.key"),
       item("time-outline", "send.expiry"),
-      item("cloud-offline-outline", "send.revoke"),
+      item("trash-outline", "send.revoke"),
     ];
   },
 };

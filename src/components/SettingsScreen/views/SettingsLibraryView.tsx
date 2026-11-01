@@ -20,12 +20,14 @@ export function SettingsLibraryView({
   onBeginExportFlow,
   onBeginImportFlow,
   onOpenSentLinks,
+  onOpenSendFromComputer,
   onOpenStorageDetails,
 }: {
   backupFlow: LibraryBackupFlow;
   onBeginExportFlow: () => void;
   onBeginImportFlow: () => void;
   onOpenSentLinks: () => void;
+  onOpenSendFromComputer: () => void;
   onOpenStorageDetails: () => void;
 }) {
   const { t } = useTranslation();
@@ -111,6 +113,12 @@ export function SettingsLibraryView({
             icon="link-outline"
             title={t("settings.sentLinks")}
             onPress={onOpenSentLinks}
+          />
+          <LibraryActionCard
+            flat
+            icon="desktop-outline"
+            title={t("sendComputer.title")}
+            onPress={onOpenSendFromComputer}
           />
         </SettingsGroup>
       </View>

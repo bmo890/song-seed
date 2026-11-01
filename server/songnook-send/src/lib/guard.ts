@@ -36,12 +36,12 @@ export function webOriginAllowed(c: Context, cfg: Config): boolean {
  */
 export async function underRateLimit(
   env: Env,
-  bucket: "create" | "items",
+  bucket: "create" | "items" | "pair",
   ip: string,
   limit: number,
   windowSec: number
 ): Promise<boolean> {
-  const limiter = bucket === "create" ? env.RATE_CREATE : env.RATE_ITEMS;
+  const limiter = bucket === "create" ? env.RATE_CREATE : bucket === "items" ? env.RATE_ITEMS : env.RATE_PAIR;
   if (limiter) {
     const { success } = await limiter.limit({ key: ip });
     return success;

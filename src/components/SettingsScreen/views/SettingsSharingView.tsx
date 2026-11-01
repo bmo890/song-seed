@@ -11,6 +11,7 @@ import { HelpSheet } from "../../common/HelpSheet";
 import { SEND_HELP } from "../../common/helpContent";
 import { styles } from "../styles";
 import { useSentLinksStore } from "../../../state/useSentLinksStore";
+import { useSendJobStore } from "../../../state/useSendJobStore";
 import { getHierarchyIconName } from "../../../domain/hierarchy";
 import { isSentLinkExpired, type SentLink } from "../../../domain/sentLinks";
 import { toast } from "../../common/toastStore";
@@ -19,6 +20,7 @@ import type { ShareKind } from "../../../types";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { UserText } from "../../../i18n";
+import { deleteTransfer } from "../../../services/sendTransfer";
 
 const KIND_ICONS: Record<ShareKind, React.ComponentProps<typeof Ionicons>["name"]> = {
   setlist: "albums-outline",
@@ -39,9 +41,10 @@ function statusLabel(link: SentLink, now: number, t: TFunction): string {
 
 /**
  * The humble outbox: every Songnook Send link this device created, with its
- * countdown. Copy re-shares; Forget only drops the local record (links expire
- * on their own server-side — revoke arrives with accounts). The list is
- * self-cleaning: expired entries grey out, then prune after a grace window.
+ * countdown. Copy re-shares; the "…" menu removes a link from this list (it
+ * keeps working) or deletes it (its files go at once; 2026-11-01, with the
+ * upload token kept since then). The list is self-cleaning: expired entries
+ * grey out, then prune after a grace window.
  */
 export function SettingsSharingView() {
   const { t } = useTranslation();
@@ -68,6 +71,49 @@ export function SettingsSharingView() {
       t("sharing.forgetBody"),
       () => forgetLink(link.transferId),
       { confirmLabel: t("sharing.forget") }
+    );
+  };
+
+  const confirmDelete = (link: SentLink, token: string) => {
+    AppAlert.destructive(
+      t("sharing.deleteTitle"),
+      t("sharing.deleteBody"),
+      () => {
+        void deleteTransfer(link.transferId, token)
+          .then(() => {
+            forgetLink(link.transferId);
+            // The finished-send pill must not keep offering a link that is gone.
+            const job = useSendJobStore.getState().job;
+            if (job?.link?.transferId === link.transferId) useSendJobStore.getState().dismiss();
+            toast(t("sharing.deleted"), "trash-outline");
+          })
+          .catch(() => AppAlert.error(t("sharing.deleteFailedTitle"), t("sharing.deleteFailedBody")));
+      },
+      { confirmLabel: t("sharing.deleteLink") }
+    );
+  };
+
+  // Organise, then destroy (menu order law): a live link with its token can be
+  // taken back; any link can leave this list.
+  const openMenu = (link: SentLink, expired: boolean) => {
+    const token = link.uploadToken;
+    AppAlert.menu(
+      t("sharing.menuTitle"),
+      [
+        { key: "forget", label: t("sharing.forgetRow"), icon: "remove-circle-outline", onPress: () => confirmForget(link) },
+        ...(token && !expired
+          ? [
+              {
+                key: "delete",
+                label: t("sharing.deleteLink"),
+                icon: "trash-outline" as const,
+                tone: "danger" as const,
+                onPress: () => confirmDelete(link, token),
+              },
+            ]
+          : []),
+      ],
+      link.title
     );
   };
 
@@ -121,13 +167,13 @@ export function SettingsSharingView() {
               ) : null}
               <Press
                 feel="glyph"
-                onPress={() => confirmForget(link)}
+                onPress={() => openMenu(link, expired)}
                 hitSlop={10}
                 style={sharingStyles.actionBtn}
                 accessibilityRole="button"
-                accessibilityLabel={t("sharing.forgetA11y", { title: link.title })}
+                accessibilityLabel={t("sharing.moreA11y", { title: link.title })}
               >
-                <Ionicons name="close" size={17} color={colors.textMuted} />
+                <Ionicons name="ellipsis-horizontal" size={17} color={colors.textMuted} />
               </Press>
             </View>
           );

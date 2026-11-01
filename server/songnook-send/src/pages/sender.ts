@@ -42,6 +42,16 @@ const SENDER_CSS = `
 .kind-hint{display:block;margin-top:8px;font-size:12.5px;color:var(--ink-faint)}
 .inline-notice{margin-top:14px;font-size:13.5px;color:var(--terra-deep)}
 .inline-notice[hidden]{display:none}
+.panel[hidden]{display:none}
+.pair-code{font-size:clamp(34px,8vw,46px);font-weight:600;letter-spacing:.18em;font-variant-numeric:tabular-nums;
+  margin:18px 0 6px;color:var(--ink)}
+.pair-steps{color:var(--ink-soft);font-size:15px;line-height:1.55;margin:8px 0 0}
+.pair-status{display:block;margin-top:10px;font-size:13.5px;color:var(--ink-faint)}
+.pair-again{background:none;border:none;padding:0;margin-top:10px;color:var(--terra);font:inherit;font-size:13.5px;cursor:pointer}
+.pair-again[hidden]{display:none}
+.session-line{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 16px;
+  font-size:12.5px;color:var(--ink-faint)}
+.session-line button{background:none;border:none;padding:0;color:var(--terra);font:inherit;cursor:pointer}
 `;
 
 export function renderSenderPage(): string {
@@ -53,7 +63,18 @@ the order you want heard. You'll get one clean, private link — no account, not
 on the other end.</p>
 <div class="rise d2">${waveformStrip()}</div>
 
-<section class="panel rise d3">
+<section id="pair-panel" class="panel rise d3" aria-live="polite">
+  <strong>Pair this browser</strong>
+  <p class="pair-steps">Sending from a computer works through your SongNook app. On your phone, open
+  SongNook, then Settings, Data &amp; storage, Send from a computer, and type this code.</p>
+  <div id="pair-code" class="pair-code">··· ···</div>
+  <span id="pair-status" class="pair-status">One moment…</span>
+  <button type="button" id="pair-again" class="pair-again" hidden>New code</button>
+</section>
+
+<section id="send-panel" class="panel rise d3" hidden>
+  <p class="session-line"><span id="session-text"></span>
+    <button type="button" id="unpair">Unpair this browser</button></p>
   <div id="drop" class="drop" role="button" tabindex="0" aria-label="Choose files or a folder to send">
     <strong>Drop your music here</strong>
     <span>files or a whole folder — audio &amp; SongNook files, up to 1 GB</span>
@@ -131,6 +152,52 @@ const SENDER_JS = `
       $('kind-hint').textContent = KIND_HINT[kind];
     });
   });
+  // ── Pairing: this browser sends as the person's SongNook app ──────────────
+  var pairPanel=$('pair-panel'), sendPanel=$('send-panel'), pollTimer=null, codeExpiresAt=0;
+  function getSession(){
+    return fetch('/api/session',{cache:'no-store'}).then(function(r){ return r.ok ? r.json() : {paired:false}; })
+      .catch(function(){ return {paired:false}; });
+  }
+  function showSend(s){
+    if(pollTimer){ clearInterval(pollTimer); pollTimer=null; }
+    pairPanel.hidden=true; sendPanel.hidden=false;
+    $('session-text').textContent = s.pro ? 'Paired with your SongNook app'
+      : (s.freeLeft===1 ? '1 of 3 free links left this month' : s.freeLeft+' of 3 free links left this month');
+  }
+  function showCode(code, expiresAt){
+    $('pair-code').textContent = code.slice(0,3)+' '+code.slice(3);
+    codeExpiresAt = Date.parse(expiresAt);
+    $('pair-status').textContent='Waiting for your phone…';
+    $('pair-again').hidden=true;
+    if(pollTimer) clearInterval(pollTimer);
+    pollTimer=setInterval(function(){
+      if(Date.now()>codeExpiresAt){
+        clearInterval(pollTimer); pollTimer=null;
+        $('pair-status').textContent='This code ran out.'; $('pair-again').hidden=false; return;
+      }
+      getSession().then(function(s){ if(s.paired) showSend(s); });
+    }, 2000);
+  }
+  function startPairing(){
+    sendPanel.hidden=true; pairPanel.hidden=false;
+    $('pair-status').textContent='One moment…'; $('pair-again').hidden=true;
+    fetch('/api/pairings',{method:'POST'}).then(function(r){
+      if(!r.ok) throw new Error(r.status===429 ? 'Too many codes. Wait a minute, then try again.' : 'Could not get a code.');
+      return r.json();
+    }).then(function(p){ showCode(p.code, p.expiresAt); }).catch(function(err){
+      $('pair-status').textContent = err.message; $('pair-again').hidden=false;
+    });
+  }
+  $('pair-again').addEventListener('click', startPairing);
+  $('unpair').addEventListener('click', function(){
+    fetch('/api/session',{method:'DELETE'}).finally(function(){ startPairing(); });
+  });
+  getSession().then(function(s){
+    if(s.paired) return showSend(s);
+    if(s.pairing) return showCode(s.pairing.code, s.pairing.expiresAt);
+    startPairing();
+  });
+
   try { senderEl.value = localStorage.getItem('songnook-send-from') || ''; } catch(_){}
   senderEl.addEventListener('change', function(){ try{ localStorage.setItem('songnook-send-from', senderEl.value); }catch(_){} });
 
@@ -286,6 +353,9 @@ const SENDER_JS = `
     try{
       var create = await fetch('/api/transfers',{method:'POST',headers:{'content-type':'application/json'},
         body:JSON.stringify({ senderName:senderEl.value, title:titleEl.value, message:$('message').value, kind:kind })});
+      if(create.status===401){ sealing=false; sendBtn.disabled=false; sendBtn.textContent='Seal & get the link'; startPairing(); return; }
+      if(create.status===402){ sealing=false; sendBtn.disabled=false; sendBtn.textContent='Seal & get the link';
+        say('This month’s 3 free links are used. SongNook Pro sends without limit.'); return; }
       if(!create.ok) throw new Error('could not start the parcel ('+create.status+')');
       var t = await create.json();
 

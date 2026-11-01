@@ -5,6 +5,7 @@
 import type { Env } from "../env";
 import { loadConfig } from "../env";
 import { deleteTransfer, getItems, listExpired } from "./db";
+import { sweepSenders } from "./senders";
 
 const BATCH = 500;
 
@@ -43,6 +44,12 @@ export async function sweepExpired(
     transfers += removed;
     // A full batch with no progress would return the same rows forever.
     if (expired.length < BATCH || removed === 0) break;
+  }
+
+  try {
+    await sweepSenders(env, now);
+  } catch (err) {
+    console.error("sweep: senders failed", err);
   }
 
   return { transfers, objects, failed };

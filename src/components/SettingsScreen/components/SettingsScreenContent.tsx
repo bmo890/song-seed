@@ -15,6 +15,7 @@ import { SettingsLibraryView } from "../views/SettingsLibraryView";
 import { SettingsOverviewView } from "../views/SettingsOverviewView";
 import { SettingsGeneralView } from "../views/SettingsGeneralView";
 import { SettingsSharingView } from "../views/SettingsSharingView";
+import { SettingsComputerView } from "../views/SettingsComputerView";
 import { SettingsStorageView } from "../views/SettingsStorageView";
 
 export function SettingsScreenContent() {
@@ -59,6 +60,7 @@ export function SettingsScreenContent() {
           onBeginExportFlow={() => screen.setView("export")}
           onBeginImportFlow={() => screen.setView("import")}
           onOpenSentLinks={() => screen.setView("sharing")}
+          onOpenSendFromComputer={() => screen.setView("computer")}
           onOpenStorageDetails={() => {
             diagnostics.setShowAdvancedStorageDetails(false);
             screen.setView("storage");
@@ -86,6 +88,8 @@ export function SettingsScreenContent() {
         <SettingsStorageView diagnostics={diagnostics} />
       ) : screen.view === "sharing" ? (
         <SettingsSharingView />
+      ) : screen.view === "computer" ? (
+        <SettingsComputerView />
       ) : screen.view === "about" ? (
         <SettingsAboutView />
       ) : (

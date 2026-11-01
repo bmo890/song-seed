@@ -1,3 +1,7 @@
+jest.mock("../../services/sendIdentity", () => ({
+  sendIdentityHeaders: async () => ({ "x-songnook-sender": "sk_testtesttesttesttesttest" }),
+}));
+
 jest.mock("expo-clipboard", () => ({ setStringAsync: jest.fn(() => Promise.resolve()) }));
 jest.mock("../../design/haptics", () => ({
   haptic: { success: jest.fn(), error: jest.fn(), light: jest.fn(), tap: jest.fn() },

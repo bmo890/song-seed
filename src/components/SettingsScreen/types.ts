@@ -20,6 +20,7 @@ export type SettingsView =
   | "general"
   | "library"
   | "sharing"
+  | "computer"
   | "about"
   | "export"
   | "import"
