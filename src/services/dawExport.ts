@@ -10,7 +10,8 @@
 import * as FileSystem from "expo-file-system/legacy";
 import SongNookPitchShiftModule from "../../modules/songnook-pitch-shift";
 import { barLeadIn, dawExportBaseName } from "../domain/barAlignedExport";
-import type { RecordingGrid } from "../types";
+import { getClipPlaybackUri } from "../domain/clipPresentation";
+import type { ClipVersion, RecordingGrid } from "../types";
 import {
     ensureShareDirectory,
     getArchiveFileExtension,
@@ -27,6 +28,20 @@ const isWav = (uri: string) => /\.wav$/i.test(uri.split("?")[0] ?? "");
 /** Only a take recorded to the click knows where its bar lines are. */
 export function canExportForDaw(grid: RecordingGrid | null | undefined): grid is RecordingGrid {
     return barLeadIn(grid) != null;
+}
+
+export type DawExportTarget = { audioUri: string; title: string; grid: RecordingGrid };
+
+/** What Export for DAW would send for this take (the mix, when it has layers: same
+ *  timeline, same grid), or null when the take wasn't recorded to the click. */
+export function dawExportTargetForClip(
+    clip: ClipVersion | null | undefined,
+    fallbackTitle = ""
+): DawExportTarget | null {
+    const grid = clip?.recordingGrid;
+    const audioUri = clip ? getClipPlaybackUri(clip) : undefined;
+    if (!clip || !audioUri || !canExportForDaw(grid)) return null;
+    return { audioUri, title: clip.title || fallbackTitle, grid };
 }
 
 export async function exportClipForDaw(audioUri: string, title: string, grid: RecordingGrid) {

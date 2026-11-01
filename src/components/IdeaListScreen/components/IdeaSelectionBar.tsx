@@ -21,6 +21,7 @@ import { ClipTagEditorFields, type ClipTagTarget } from "../../IdeaDetailScreen/
 import { PlaylistChooserSheet } from "../../common/PlaylistChooserSheet";
 import { openSendSheet } from "../../../state/useSendSheetStore";
 import { createClipsShareLink } from "../../../services/clipShareLink";
+import { dawExportTargetForClip, exportClipForDaw } from "../../../services/dawExport";
 import { createIdeasShareLink, ideasShareKind, shareIdeasFile } from "../../../services/ideasShare";
 import { orderByKeys } from "../../../domain/parcelOrder";
 import { isSendServiceConfigured } from "../../../config/sendService";
@@ -218,6 +219,14 @@ export function IdeaSelectionBar({
     ? t("selection.workspaceSelection", { title: activeWorkspace.title })
     : t("selection.defaultSelection");
   const linkAvailable = __DEV__ || isSendServiceConfigured();
+  // Export for DAW (2026-11-01): one card whose take was recorded to the click.
+  const dawTarget = useMemo(
+    () =>
+      interactiveSelectedIdeas.length === 1
+        ? dawExportTargetForClip(getPlayableClipForIdea(interactiveSelectedIdeas[0]), interactiveSelectedIdeas[0].title)
+        : null,
+    [interactiveSelectedIdeas]
+  );
   const selectedSketchCount = interactiveSelectedIdeas.filter((idea) => idea.kind === "project").length;
 
   /** Loose audio by SongNook Send: each card's lead take, reorderable in the sheet. */
@@ -276,6 +285,16 @@ export function IdeaSelectionBar({
       AppAlert.error(t("selection.shareFailed"), message);
     } finally {
       setIsSharing(false);
+    }
+  }
+
+  async function handleExportForDaw() {
+    if (!dawTarget) return;
+    try {
+      await exportClipForDaw(dawTarget.audioUri, dawTarget.title, dawTarget.grid);
+    } catch (error) {
+      console.warn("Export for DAW error", error);
+      AppAlert.error(t("player.shareFailed"), userFacingMessage(error, t("player.shareAudioFailed")));
     }
   }
 
@@ -449,7 +468,20 @@ export function IdeaSelectionBar({
             ]
           : []),
       ]
-    : [shareAudioAction, ...sendRow(handleSendAudio)];
+    : [
+        shareAudioAction,
+        ...(dawTarget
+          ? [
+              {
+                key: "export-daw",
+                label: t("player.exportForDaw"),
+                icon: "desktop-outline" as const,
+                onPress: () => void handleExportForDaw(),
+              },
+            ]
+          : []),
+        ...sendRow(handleSendAudio),
+      ];
 
   // The last step, SongNook Send only: the whole sketch, or just its audio.
   const loneIdea = interactiveSelectedIdeas.length === 1 ? interactiveSelectedIdeas[0] : null;
@@ -533,7 +565,7 @@ export function IdeaSelectionBar({
     // link service and no sketch there is nothing to choose between, so the
     // row shares the audio directly instead of opening a one-row sheet.
     if (!selectedHiddenOnly && (shareableClips.length > 0 || selectedSketchCount > 0)) {
-      if (linkAvailable || selectedSketchCount > 0) {
+      if (linkAvailable || selectedSketchCount > 0 || dawTarget) {
         actions.push({
           key: "share-menu",
           label: t("selection.shareMenu"),
@@ -566,6 +598,7 @@ export function IdeaSelectionBar({
     tagTargets.length,
     linkAvailable,
     selectedSketchCount,
+    dawTarget,
   ]);
 
   const copyMoveActions: SelectionAction[] = [

@@ -6,6 +6,7 @@ import { useStore } from "../../../state/useStore";
 import { appActions } from "../../../state/actions";
 import { shareAudioClips, buildTimestampSlug } from "../../../services/audioStorage";
 import { createClipsShareLink } from "../../../services/clipShareLink";
+import { dawExportTargetForClip, exportClipForDaw } from "../../../services/dawExport";
 import { openSendSheet } from "../../../state/useSendSheetStore";
 import { orderByKeys } from "../../../domain/parcelOrder";
 import { isSendServiceConfigured } from "../../../config/sendService";
@@ -427,8 +428,29 @@ export function SelectionBars() {
     disabled: isSharing || shareableClips.length === 0,
   };
   const linkAvailable = __DEV__ || isSendServiceConfigured();
+  // Export for DAW (2026-11-01): one take recorded to the click.
+  const dawTarget = dawExportTargetForClip(singleSelectedClip, selectedIdea?.title);
+  async function handleExportForDaw() {
+    if (!dawTarget) return;
+    try {
+      await exportClipForDaw(dawTarget.audioUri, dawTarget.title, dawTarget.grid);
+    } catch (error) {
+      console.warn("Export for DAW error", error);
+      AppAlert.error(t("player.shareFailed"), userFacingMessage(error, t("player.shareAudioFailed")));
+    }
+  }
   const shareActions: SelectionAction[] = [
     shareAction,
+    ...(dawTarget
+      ? [
+          {
+            key: "export-daw",
+            label: t("player.exportForDaw"),
+            icon: "desktop-outline" as const,
+            onPress: () => void handleExportForDaw(),
+          },
+        ]
+      : []),
     ...(linkAvailable
       ? [
           {
@@ -557,7 +579,7 @@ export function SelectionBars() {
     },
     // Without a link service there is nothing to choose between — keep the
     // direct Share row instead of a one-row second level.
-    linkAvailable
+    linkAvailable || dawTarget
       ? {
           key: "share-menu",
           label: t("selection.shareMenu"),
