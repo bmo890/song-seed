@@ -5,6 +5,7 @@ import {
   freeMonthStart,
   freeMonthStatus,
   isFoundingInstall,
+  lifetimeLaunchEndsAt,
   noticeDue,
 } from "../domain/freeMonth";
 
@@ -73,5 +74,12 @@ describe("the free month", () => {
     // No release date yet: nobody is founding and nothing is stored, so the testers are
     // not locked out before the release build decides.
     expect(decideFounding(null, START, null)).toEqual({ founding: false, store: null });
+  });
+});
+
+describe("lifetime launch price", () => {
+  it("runs 90 days from the release, and has no end before a release date is set", () => {
+    expect(lifetimeLaunchEndsAt(START)).toBe(START + 90 * DAY);
+    expect(lifetimeLaunchEndsAt(null)).toBeNull();
   });
 });

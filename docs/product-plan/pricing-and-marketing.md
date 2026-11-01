@@ -14,14 +14,22 @@ Last reviewed: 2026-11-01.
 |---|---|---|---|
 | Yearly | **$24.99** | "About $2 a month, billed yearly" · tag "Best value" | `songnook_pro_yearly` |
 | Monthly | **$3.99** | "Cancel anytime" | `songnook_pro_monthly` |
-| Lifetime | **$59.99 launch price → $79.99 later** | "Pay once. Launch price, later $79.99." | `songnook_pro_lifetime` (non-consumable) |
+| Lifetime | **$59.99 for 90 days after release → $79.99** | "Pay once. Launch price until {date}, then $79.99." · after: "Pay once." | `songnook_pro_lifetime` (non-consumable) |
 
 - Subscription group "SongNook Pro"; RevenueCat entitlement `songnook_pro`, offering
   `default` (`$rc_annual`, `$rc_monthly`, `$rc_lifetime`). Public SDK keys live in
   `src/services/billing.ts` on purpose (OTA bundles skip EAS env vars).
 - The sheet shows store prices in the buyer's currency once RevenueCat answers; the
-  printed dollar prices are the fallback. "later $79.99" shows only beside the dollar
-  launch price (`ProUpsellSheet.subOf`).
+  printed dollar prices are the fallback. "then $79.99" shows only beside the dollar
+  launch price; other currencies name the end date alone (`ProUpsellSheet.subOf`).
+- **Lifetime launch window (founder, 2026-11-01): a fixed date, 90 days after the App
+  Store release** (`LIFETIME_LAUNCH_DAYS`, `lifetimeLaunchEndsAt` in
+  `src/domain/freeMonth.ts`). Before `APP_STORE_RELEASE_AT` is set the sheet says
+  "Launch price, later $79.99"; once it is set the sheet prints the end date; after the
+  date it says "Pay once." and the printed fallback becomes $79.99. Chosen over a
+  one-month window, which would have ended inside early users' free month (they hit no
+  paywall, so they'd miss it), and over a per-person "during your free month" price
+  (fairer, but the founder preferred one simple date).
 - Monthly is about twice the yearly cost over 12 months on purpose: it steers people to
   yearly, which keeps payers longest.
 
@@ -49,10 +57,11 @@ trust problem, and some are legal ones.
    and may be sold separately. Said in the terms and on the Pro sheet
    (`pro.plans.lifetime.note`) before anyone buys. Never add a hosted, ongoing-cost
    service to lifetime without the founder.
-2. **"Later $79.99" must really happen.** The sheet advertises it. If the plan changes,
-   remove it from `pro.plans.lifetime.sub` (all five languages) first: an advertised
-   "later" price that never comes can count as fake urgency (EU consumer law). Date of
-   the raise: open (§9).
+2. **The $79.99 raise must really happen on the printed date.** The sheet shows the
+   end date; on that day the founder changes the lifetime price in App Store Connect
+   and Play Console by hand (the app cannot). An advertised raise that never comes can
+   count as fake urgency (EU consumer law). If the plan changes, change the sheet
+   (`pro.plans.lifetime.*`, all five languages) first.
 3. **What someone paid never changes.** Raise prices for new buyers only.
 4. **Lifetime is per store account.** Without accounts, a lifetime bought on iPhone does
    not unlock Android. The terms say so.
@@ -150,7 +159,6 @@ The one real cost risk: it is permanent and grows. Not decided; the working shap
 
 ## 9. Open decisions (founder)
 
-- The date lifetime moves from $59.99 to $79.99.
 - Introductory offer: yes or no.
 - Regional prices: which countries.
 - Send link life: keep 7 days and add Delete link (recommended) or shorten.
@@ -159,6 +167,14 @@ The one real cost risk: it is permanent and grows. Not decided; the working shap
 - Post-encryption Send copy (§6).
 - Lifetime product description in App Store Connect and Play Console (founder enters):
   "Every Pro tool, paid once. Cloud storage not included."
+
+## Release-day checklist (pricing)
+
+1. Set `APP_STORE_RELEASE_AT` in `src/domain/freeMonth.ts` in the release commit. The
+   lifetime launch price then ends 90 days later, and the sheet prints that date.
+2. Put that end date in the founder's calendar: change `songnook_pro_lifetime` to
+   $79.99 in App Store Connect and Play Console that day.
+3. Flip `ALL_FEATURES_FREE` to false (`src/domain/entitlements.ts`).
 
 ## 10. Decision log
 
@@ -171,3 +187,6 @@ The one real cost risk: it is permanent and grows. Not decided; the working shap
 - 2026-11-01 — Founder asked whether $1/mo would sell more; prices kept (§1).
   Lifetime scope written into the terms and Pro sheet: app tools and Send included,
   future online storage not. This file created as the single record.
+- 2026-11-01 — Lifetime launch price ends 90 days after the App Store release (fixed
+  date, printed on the sheet), not one month: a month would end inside early users'
+  free month.

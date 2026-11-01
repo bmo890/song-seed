@@ -20,6 +20,19 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 export const APP_STORE_RELEASE_AT: number | null = null;
 
+/**
+ * Lifetime's launch price (founder, 2026-11-01): $59.99 for the first 90 days after
+ * the App Store release, then $79.99. A fixed date, printed on the Pro sheet, so it
+ * is the same for everyone and never quietly lapses inside someone's free month.
+ * The store price itself is changed by hand on that day (pricing-and-marketing.md).
+ */
+export const LIFETIME_LAUNCH_DAYS = 90;
+
+/** When the lifetime launch price ends, or null before the release date is set. */
+export function lifetimeLaunchEndsAt(releaseAt: number | null = APP_STORE_RELEASE_AT): number | null {
+  return releaseAt == null ? null : releaseAt + LIFETIME_LAUNCH_DAYS * DAY_MS;
+}
+
 export type FreeMonthStatus = {
   active: boolean;
   /** Whole days left, counting today; 0 once it has ended. */

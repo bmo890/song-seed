@@ -8,7 +8,8 @@ import { Press } from "./Press";
 import { closeProUpsell, useProUpsellState } from "./proUpsell";
 import { colors, radii, spacing, text as textTokens } from "../../design/tokens";
 import { getFreeMonthClock, getFreeMonthEndsAt, isFoundingMember, isPaywallLive, proEntitlement } from "../../domain/entitlements";
-import { freeMonthStatus, FREE_MONTH_DAYS } from "../../domain/freeMonth";
+import { freeMonthStatus, FREE_MONTH_DAYS, lifetimeLaunchEndsAt } from "../../domain/freeMonth";
+import { currentFormatLocale } from "../../i18n/formatLocale";
 import { PAYWALL_ROWS } from "../../domain/proCatalog";
 import { isDevFreeMonthPreview } from "../../services/freeMonthClock";
 import { purchasePro, restorePurchases, useProPrices, type ProPlan } from "../../services/billing";
@@ -47,16 +48,24 @@ function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
   const maxScroll = Math.round(Dimensions.get("window").height * 0.55);
   const freeMonth = freeMonthLine();
   const storePrices = useProPrices();
-  const priceOf = (plan: ProPlan) => storePrices[plan]?.price ?? t(`pro.plans.${plan}.price`);
+  // Lifetime's printed price follows the launch window: $59.99 until it ends, then
+  // $79.99 (a store price, when RevenueCat has one, always wins).
+  const launchEndsAt = lifetimeLaunchEndsAt();
+  const inLaunch = launchEndsAt == null || Date.now() < launchEndsAt;
+  const printedPrice = (plan: ProPlan) =>
+    plan === "lifetime" && !inLaunch ? t("pro.plans.lifetime.priceLater") : t(`pro.plans.${plan}.price`);
+  const priceOf = (plan: ProPlan) => storePrices[plan]?.price ?? printedPrice(plan);
   const subOf = (plan: ProPlan) => {
     const perMonth = plan === "annual" ? storePrices.annual?.perMonth : null;
     if (perMonth) return t("pro.plans.annual.subPerMonth", { price: perMonth });
-    // The later lifetime price is printed in dollars, so it shows only beside the
-    // dollar launch price; another currency reads "Launch price" alone.
-    if (plan === "lifetime" && priceOf("lifetime") !== t("pro.plans.lifetime.price")) {
-      return t("pro.plans.lifetime.subNow");
-    }
-    return t(`pro.plans.${plan}.sub`);
+    if (plan !== "lifetime") return t(`pro.plans.${plan}.sub`);
+    if (!inLaunch) return t("pro.plans.lifetime.subAfter");
+    // The later price is printed in dollars, so it shows only beside the dollar
+    // launch price; another currency names the end date alone.
+    const inDollars = priceOf("lifetime") === t("pro.plans.lifetime.price");
+    if (launchEndsAt == null) return t(inDollars ? "pro.plans.lifetime.sub" : "pro.plans.lifetime.subNow");
+    const date = new Date(launchEndsAt).toLocaleDateString(currentFormatLocale(), { month: "long", day: "numeric" });
+    return t(inDollars ? "pro.plans.lifetime.subUntil" : "pro.plans.lifetime.subUntilNow", { date });
   };
 
   async function handlePurchase() {
