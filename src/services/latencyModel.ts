@@ -37,7 +37,8 @@ export type RouteLatencyProfile = {
    *  device logs showed ~500ms player vs ~200ms click on Samsung + AirPods. */
   guidePlayerOutputMs: number;
   /** Start the guide this many ms EARLY (relative to the render-domain grid target) so
-   *  its sound reaches the ear together with the click's. max(0, player − click). */
+   *  its sound reaches the ear together with the click's. max(0, player − click);
+   *  negative (start later) on Android off Bluetooth, see `placeGuideOnHeardClock`. */
   guideStartAdvanceMs: number;
   /** Per-connection BT drift applied to the ear calibration (current OS report minus the
    *  calibration-time OS report). 0 when unknown or not on BT. */
@@ -252,7 +253,31 @@ export async function resolveCurrentRouteLatencyProfile(args: {
     activeOutputs: args.activeOutputs,
     clickLoopBarMs: args.clickLoopBarMs ?? null,
   });
-  return { ...profile, onBluetooth: !!route && isBluetoothLikeAudioDevice(route) };
+  const onBluetooth = !!route && isBluetoothLikeAudioDevice(route);
+  return { ...placeGuideOnHeardClock({ ...profile, onBluetooth }), onBluetooth };
+}
+
+/**
+ * The guide's position on Android already says what is HEARD (Media3 reads the output
+ * timestamp), while the click engine's anchor counts frames as the mixer takes them. A
+ * guide lined up on the anchor sounded a route latency AHEAD of the click, and the trim
+ * then added that delay a second time on top of a heard position (founder, 2026-11-01,
+ * wired: the click ~109 ms behind the song under a layer). So off Bluetooth, with an
+ * OS-reported latency, the guide starts that much LATER (a negative advance) and the trim
+ * adds only the mic's delay. The same split as `playbackClickLeadMs`, and the same
+ * Bluetooth caution.
+ */
+export function placeGuideOnHeardClock<P extends RouteLatencyProfile & { onBluetooth: boolean }>(
+  profile: P,
+  platform: string = Platform.OS
+): P {
+  const heardLagMs = playbackClickLeadMs(profile, platform);
+  if (heardLagMs <= 0) return profile;
+  return {
+    ...profile,
+    guideStartAdvanceMs: profile.guideStartAdvanceMs - heardLagMs,
+    guideRecordingCorrectionMs: profile.guideRecordingCorrectionMs - heardLagMs,
+  };
 }
 
 /**

@@ -6,6 +6,7 @@ jest.mock("../../../modules/songnook-metronome", () => ({
 import {
   resolveRouteLatencyProfile,
   sanitizeOsOutputLatencyMs,
+  placeGuideOnHeardClock,
   playbackClickLeadMs,
 } from "../latencyModel";
 import type { BluetoothMonitoringCalibration } from "../../types";
@@ -268,5 +269,34 @@ describe("playbackClickLeadMs", () => {
     expect(playbackClickLeadMs({ ...speaker, onBluetooth: true }, "android")).toBe(0);
     expect(playbackClickLeadMs({ ...speaker, sources: { ...speaker.sources, output: "calibration" } }, "android")).toBe(0);
     expect(playbackClickLeadMs(speaker, "ios")).toBe(0);
+  });
+});
+
+describe("placeGuideOnHeardClock", () => {
+  const wired = {
+    ...resolveRouteLatencyProfile({
+      route: { name: "Wired headphones", type: "wired_headphones" },
+      osLatency: { outputMs: 109 },
+      calibrations: [],
+      activeOutputs: ALL_CUES,
+    }),
+    onBluetooth: false,
+  };
+
+  it("on Android starts the guide a route latency later and trims by the mic only", () => {
+    // Founder's wired log, 2026-11-01: music 109, click 109, input 0. The guide's position
+    // is already heard time; the click anchor is not.
+    const placed = placeGuideOnHeardClock(wired, "android");
+    expect(placed.guideStartAdvanceMs).toBe(-109);
+    expect(placed.guideRecordingCorrectionMs).toBe(0);
+    // The click side is untouched: solo takes and cues keep their numbers.
+    expect(placed.recordingCorrectionMs).toBe(109);
+    expect(placed.outputMs).toBe(109);
+  });
+
+  it("leaves iOS and Bluetooth as they were", () => {
+    expect(placeGuideOnHeardClock(wired, "ios")).toBe(wired);
+    const bt = { ...wired, onBluetooth: true };
+    expect(placeGuideOnHeardClock(bt, "android")).toBe(bt);
   });
 });

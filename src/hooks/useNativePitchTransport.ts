@@ -156,6 +156,10 @@ export function useNativePitchTransport({
 
   const nativeStateRef = useRef(nativeState);
   const loadedKeyRef = useRef<string | null>(null);
+  // The file the engine holds. One source can change files under the same key: a take
+  // whose layers re-render to a new mix (2026-11-01: a fresh layer stayed silent until
+  // the player was reopened, the engine still playing the take without it).
+  const loadedUriRef = useRef<string | null>(null);
   const shouldResumeOnReleaseRef = useRef(true);
   const audioSessionOwnerIdRef = useRef(createAudioSessionOwner(ownerLabel));
   const ownsAudioSessionRef = useRef(false);
@@ -445,6 +449,7 @@ export function useNativePitchTransport({
       });
       const sameSource = loadedKeyRef.current === src.sourceKey;
       loadedKeyRef.current = null;
+      loadedUriRef.current = null;
       const state = await SongNookPitchShiftModule.unload();
       receiveNativeStateRef.current(state, { force: true });
       await releaseAudioSessionOwnership();
@@ -505,7 +510,8 @@ export function useNativePitchTransport({
       await src.pause();
     }
 
-    const shouldReload = loadedKeyRef.current !== d.sourceKey || !nativeStateRef.current.isLoaded;
+    const sameKey = loadedKeyRef.current === d.sourceKey;
+    const shouldReload = !sameKey || loadedUriRef.current !== d.audioUri || !nativeStateRef.current.isLoaded;
     if (shouldReload) {
       // With the twin, the source's own play state is the truth outside
       // controls see (and the queue has just set it for a new clip).
@@ -514,8 +520,13 @@ export function useNativePitchTransport({
         (twinSource
           ? src.isPlaying || (!!loadedKeyRef.current && nativeStateRef.current.isPlaying)
           : loadedKeyRef.current ? nativeStateRef.current.isPlaying : src.isPlaying);
+      // A new file for the same source picks up where the engine is.
       const startPositionMs =
-        loadedKeyRef.current && loadedKeyRef.current !== d.sourceKey ? 0 : src.positionMs;
+        loadedKeyRef.current && !sameKey
+          ? 0
+          : sameKey && nativeStateRef.current.isLoaded
+            ? nativeStateRef.current.currentTimeMs
+            : src.positionMs;
       pitchLog(`[${ownerLabel}] sync → loadForPractice`, {
         startPositionMs,
         autoplay,
@@ -533,6 +544,7 @@ export function useNativePitchTransport({
         tonePreset: d.tonePreset,
       });
       loadedKeyRef.current = d.sourceKey;
+      loadedUriRef.current = d.audioUri;
       receiveNativeStateRef.current(state, { force: true });
       if (twinSource) {
         // The twin sits where the engine is; its play state converges below.
@@ -617,6 +629,7 @@ export function useNativePitchTransport({
       void runExclusive(() => nativeModule.unload()).catch(() => {});
       void releaseAudioSessionOwnership().catch(() => {});
       loadedKeyRef.current = null;
+      loadedUriRef.current = null;
       sourceRef.current.setMuted?.(false);
     };
   }, [releaseAudioSessionOwnership, runExclusive]);
@@ -750,6 +763,7 @@ export function useNativePitchTransport({
               tonePreset: soundTonePreset,
             });
             loadedKeyRef.current = src.sourceKey;
+            loadedUriRef.current = src.audioUri;
             receiveNativeStateRef.current(state, { force: true });
             if (atEnd) await twinSeek(0);
             await twinPlay(true);

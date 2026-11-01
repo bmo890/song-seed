@@ -115,6 +115,7 @@ function logGuidedTiming(path: string, profile: RouteLatencyProfile | null) {
     "record.timing",
     `guided ${path}: music ${Math.round(profile.guidePlayerOutputMs)} click ${Math.round(profile.outputMs)} ` +
       `input ${Math.round(profile.inputMs)} drift ${Math.round(profile.btDriftMs)} ` +
+      `advance ${Math.round(profile.guideStartAdvanceMs)} ` +
       `→ trim +${Math.round(profile.guideRecordingCorrectionMs)}ms (music)`
   );
 }
