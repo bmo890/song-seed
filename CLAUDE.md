@@ -167,6 +167,13 @@ iOS simulator with screenshots when feasible — never "should work".
   trash), unless a clip that remains still uses them. Never drop versions or
   siblings a person didn't choose to drop.
 
+## Pricing & promises
+
+- Prices, the free/Pro line, lifetime scope, hosting costs, what Send may claim, and
+  open pricing decisions live in `docs/product-plan/pricing-and-marketing.md`. Read it
+  before touching the Pro sheet, gates, store/legal copy, or anything we host; update it
+  (and its decision log) whenever the founder decides something there.
+
 ## Repo notes
 
 - App name is SongNook everywhere; the git folder stays `song-seed` — do not

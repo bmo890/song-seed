@@ -1,6 +1,6 @@
 # SongNook Terms of Use
 
-**Effective date:** October 25, 2026
+**Effective date:** November 1, 2026
 
 These are the terms for using SongNook, a songwriting app made by an independent developer, SongNook Pro, and SongNook Send, its built-in sharing service. They are short because the app is simple: your work lives on your device, and we only touch it when you ask us to deliver it to someone.
 
@@ -18,6 +18,7 @@ SongNook is free to download and use. SongNook Pro adds more tools.
 
 - **The free month.** Every Pro tool is open for your first 30 days, with no payment details asked. Once per device. When it ends, nothing you made is lost: work made with Pro tools still opens and plays, and everything free stays free.
 - **Buying Pro.** Pro is sold through the App Store or Google Play as a yearly or monthly subscription, or a one-time lifetime purchase, at the price shown in the app before you buy. The store handles payment, billing and refunds under its own terms.
+- **Lifetime.** A lifetime purchase unlocks every Pro tool in the app, including unlimited SongNook Send links, for as long as we offer SongNook. It works on your devices that use the same App Store or Google Play account. It does not include services that keep your work stored online, such as cloud sync, if we add them later; those may be sold separately. Prices for new buyers can change; what you paid never does.
 - **Renewal and cancelling.** Subscriptions renew automatically at the end of each period unless you cancel at least 24 hours before it ends. Manage or cancel them in your App Store or Google Play account settings; deleting the app does not cancel a subscription.
 - **Restoring.** Use Restore in the Pro sheet to bring back a purchase on a new or reinstalled device signed in to the same store account.
 - **What's free.** Recording, your library, lyrics, backup, export and restore, and receiving through Send are never locked. Free use includes three SongNook Send links a month and three tries of each word game; Pro makes both unlimited.

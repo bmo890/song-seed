@@ -1,5 +1,8 @@
 # Phase 6 — Monetization (SongNook Pro)
 
+> **Current plan: `pricing-and-marketing.md`** (prices, promises, costs, open decisions).
+> This file is the build history; where they disagree, that file wins.
+
 > **2026-10-19 founder decisions (supersede the pricing, trial and timing below).**
 > Research behind them: `reports/SongNook market and pricing.md` (comparable apps, RevenueCat
 > benchmarks, 10k/100k/1M revenue scenarios). Summary: a low price does not raise the share of

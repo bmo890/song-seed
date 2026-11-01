@@ -50,7 +50,13 @@ function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
   const priceOf = (plan: ProPlan) => storePrices[plan]?.price ?? t(`pro.plans.${plan}.price`);
   const subOf = (plan: ProPlan) => {
     const perMonth = plan === "annual" ? storePrices.annual?.perMonth : null;
-    return perMonth ? t("pro.plans.annual.subPerMonth", { price: perMonth }) : t(`pro.plans.${plan}.sub`);
+    if (perMonth) return t("pro.plans.annual.subPerMonth", { price: perMonth });
+    // The later lifetime price is printed in dollars, so it shows only beside the
+    // dollar launch price; another currency reads "Launch price" alone.
+    if (plan === "lifetime" && priceOf("lifetime") !== t("pro.plans.lifetime.price")) {
+      return t("pro.plans.lifetime.subNow");
+    }
+    return t(`pro.plans.${plan}.sub`);
   };
 
   async function handlePurchase() {
@@ -141,6 +147,8 @@ function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
             );
           })}
         </View>
+        {/* Founder, 2026-11-01: lifetime is the app's tools, said before anyone buys. */}
+        <Text style={s.lifetimeNote}>{t("pro.plans.lifetime.note")}</Text>
       </ScrollView>
 
       <View style={s.footer}>
@@ -287,6 +295,11 @@ const s = StyleSheet.create({
   planTag: {
     ...textTokens.annotation,
     color: colors.textSecondary,
+  },
+  lifetimeNote: {
+    ...textTokens.caption,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
   },
   planSub: {
     ...textTokens.caption,

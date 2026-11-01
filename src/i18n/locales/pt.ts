@@ -3517,7 +3517,9 @@ export const pt = {
       lifetime: {
         label: "Vitalício",
         price: "US$ 59,99",
-        sub: "Preço de lançamento, pagamento único",
+        sub: "Pagamento único. Preço de lançamento, depois US$ 79,99.",
+        subNow: "Pagamento único. Preço de lançamento.",
+        note: "O vitalício inclui todas as ferramentas do app. Um futuro armazenamento na nuvem seria vendido à parte.",
       },
     },
   },
