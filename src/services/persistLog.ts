@@ -57,7 +57,7 @@ export type PersistLogEvent =
     | "step.slow"
     | "record.trace"
     | "record.timing"
-    // A take leaving the app, moved onto its first bar line
+    // "Export for DAW": a take written onto the bar lines
     | "export.bar"
     // Playback click: the full player's metronome over a recorded take
     | "click.started"

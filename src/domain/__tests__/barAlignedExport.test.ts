@@ -1,5 +1,12 @@
 import type { RecordingGrid } from "../../types";
-import { barLeadIn, frameLevels, isLeadInQuiet, planBarAlignedExport } from "../barAlignedExport";
+import {
+    barLeadIn,
+    barTailFrames,
+    dawExportBaseName,
+    frameLevels,
+    isLeadInQuiet,
+    planBarAlignedExport,
+} from "../barAlignedExport";
 import { TEMPO_MAP_SCHEMA_VERSION } from "../tempoMap";
 import { parseWavLayout } from "../wavHeader";
 
@@ -176,5 +183,38 @@ describe("parseWavLayout", () => {
         expect(parseWavLayout(header(1, 8), 44 + 960)).toBeNull();
         expect(parseWavLayout(header(2, 16), 44 + 960)).toBeNull();
         expect(parseWavLayout(new Uint8Array(44), 44)).toBeNull();
+    });
+});
+
+describe("barTailFrames", () => {
+    it("ends the file on the bar line after its last sound, placing each bar by its own time", () => {
+        // 97 bpm 4/4 at 48 kHz: a bar is 118 762.886… frames, so bar 3 ends at 356 289.
+        const lead = barLeadIn(grid({ bpm: 97, firstDownbeatMs: 0 }))!;
+        expect(barTailFrames({ frames: 300_000, sampleRate: SR, lead })).toBe(356_289 - 300_000);
+        expect(barTailFrames({ frames: 356_289, sampleRate: SR, lead })).toBe(0);
+        expect(barTailFrames({ frames: 356_290, sampleRate: SR, lead })).toBe(475_052 - 356_290);
+    });
+
+    it("leaves a take that changes tempo unpadded", () => {
+        const lead = barLeadIn(
+            grid({
+                tempoMap: {
+                    schemaVersion: TEMPO_MAP_SCHEMA_VERSION,
+                    segments: [
+                        { atBar: 1, bpm: 91, meterId: "4/4" },
+                        { atBar: 9, bpm: 120, meterId: "4/4" },
+                    ],
+                },
+            })
+        )!;
+        expect(lead.steady).toBe(false);
+        expect(barTailFrames({ frames: 300_000, sampleRate: SR, lead })).toBe(0);
+    });
+});
+
+describe("dawExportBaseName", () => {
+    it("names the tempo, and the meter when it isn't 4/4", () => {
+        expect(dawExportBaseName("Idea 3", grid({ bpm: 100 }))).toBe("Idea 3 · 100 bpm");
+        expect(dawExportBaseName("Waltz", grid({ bpm: 92.5, meterId: "6/8" }))).toBe("Waltz · 92.5 bpm · 6-8");
     });
 });

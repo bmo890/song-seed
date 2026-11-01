@@ -1210,6 +1210,7 @@ export const es = {
     typeTimeHint: "Mantén presionado para escribir un tiempo",
     shareTitle: "Compartir",
     shareAudio: "Compartir audio",
+    exportForDaw: "Exportar para DAW",
     songnookSend: "SongNook Send",
     tools: "Herramientas",
     sketchDoorTitle: "Conviértelo en un boceto",

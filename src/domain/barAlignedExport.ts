@@ -1,5 +1,6 @@
 /**
- * Exports that start on a bar line (founder, 2026-10-30).
+ * Exports that start on a bar line (founder, 2026-10-30), for a DAW. Opt-in since
+ * 2026-11-01: "Export for DAW" beside Share audio, which sends the take as recorded.
  *
  * A take recorded to the click knows where its first downbeat is, so inside SongNook
  * it sits on the grid. A file handed to a DAW knows nothing: the DAW puts its first
@@ -30,6 +31,8 @@ export type BarLeadIn = {
     leadMs: number;
     barMs: number;
     beatMs: number;
+    /** One tempo and meter throughout, so every later bar is `barMs` long too. */
+    steady: boolean;
 };
 
 /** Where the first bar line falls in a take recorded to the click, or null for a take
@@ -45,7 +48,8 @@ export function barLeadIn(grid: RecordingGrid | null | undefined): BarLeadIn | n
     if (!(barMs > 0)) return null;
     const leadMs = downbeatMs % barMs;
     if (grid.gridValidToMs != null && grid.gridValidToMs <= leadMs) return null;
-    return { leadMs, barMs, beatMs };
+    const steady = (grid.tempoMap?.segments.length ?? 1) <= 1;
+    return { leadMs, barMs, beatMs, steady };
 }
 
 /**
@@ -118,4 +122,30 @@ export function frameLevels(
         levels[frame] = loudest;
     }
     return levels;
+}
+
+/**
+ * Silence that carries a file whose first frame sits on a bar line to the end of its
+ * last bar, so the region ends on the grid too. Bar lines rarely fall on whole frames
+ * (97 bpm at 48 kHz: 118 762.9 frames a bar), so each is placed by rounding its own
+ * time, never by adding a rounded bar. A take that changes tempo isn't padded.
+ */
+export function barTailFrames(args: { frames: number; sampleRate: number; lead: BarLeadIn }): number {
+    const { frames, sampleRate, lead } = args;
+    if (!lead.steady || frames <= 0) return 0;
+    const exactBarFrames = (lead.barMs * sampleRate) / 1000;
+    if (!(exactBarFrames > 0)) return 0;
+    let bars = Math.floor(frames / exactBarFrames);
+    while (Math.round(bars * exactBarFrames) < frames) bars += 1;
+    return Math.round(bars * exactBarFrames) - frames;
+}
+
+/** "Idea 3 · 100 bpm", with the meter when it isn't 4/4 ("· 6-8"): the tempo a DAW
+ *  project needs, readable in Finder. Before its first downbeat a take runs at its first
+ *  tempo, so that is the one named. */
+export function dawExportBaseName(title: string, grid: RecordingGrid): string {
+    const first = grid.tempoMap?.segments[0] ?? { bpm: grid.bpm, meterId: grid.meterId };
+    const bpm = Math.round(first.bpm * 100) / 100;
+    const meter = first.meterId === "4/4" ? "" : ` · ${first.meterId.replace("/", "-")}`;
+    return `${title} · ${bpm} bpm${meter}`;
 }

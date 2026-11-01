@@ -88,4 +88,16 @@ class Mp4PrimingEditListTest {
     File(fixture).copyTo(out, overwrite = true)
     assertEquals("written", Mp4PrimingEditList.write(out, (System.getenv("SONGNOOK_PRIMING_SAMPLES") ?: "2048").toInt()))
   }
+
+  @Test
+  fun readsBackTheEditItWrote() {
+    val file = temp(buildFile())
+    assertEquals(null, Mp4PrimingEditList.readAudioEdit(file))
+    Mp4PrimingEditList.write(file, 2048)
+    val edit = Mp4PrimingEditList.readAudioEdit(file)!!
+    assertEquals(2048L, edit.mediaTime)
+    assertEquals(44_100L, edit.timescale)
+    // The movie-timescale length, restated in samples (floored twice: within one sample).
+    assertTrue(kotlin.math.abs(edit.duration - (916_480L - 2048)) <= 5)
+  }
 }

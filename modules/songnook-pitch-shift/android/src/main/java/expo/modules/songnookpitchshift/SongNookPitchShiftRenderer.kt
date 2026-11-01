@@ -39,6 +39,7 @@ const val WAVEFORM_CANCELLED_MESSAGE = "WAVEFORM_CANCELLED"
 const val NO_AUDIO_TRACK_MESSAGE = "NO_AUDIO_TRACK"
 
 private const val RENDER_TIMEOUT_MINUTES = 10L
+private const val WAV_HEADER_BYTES = 44
 private const val MIX_OFFSET_US = 1_000L
 // The domain's clamp (src/domain/overdub.ts); it was −18 … +6 here until 2026-10-14,
 // quietly flattening the bench's louder settings in the bake.
@@ -504,6 +505,156 @@ class SongNookPitchShiftRenderer(
     )
   }
 
+
+  /**
+   * "Export for DAW": decode a take to PCM WAV, untouched otherwise. It starts where the
+   * player starts it: ExoPlayer skips the encoder priming an MP4 edit list names and
+   * stops at the edit's end, so this does the same, by count of decoded frames. The
+   * platform's own encoder-delay hints are cleared first so no decoder trims twice.
+   */
+  fun decodeToWav(request: Map<String, Any?>): Map<String, Any> {
+    val inputUri = request["inputUri"] as? String
+      ?: throw IllegalArgumentException("Decoding requires inputUri.")
+    val uri = parseInputUri(inputUri)
+    val output = buildWavOutputFile(request["outputFileName"] as? String)
+    val edit = uri.path?.takeIf { uri.scheme == "file" }?.let { Mp4PrimingEditList.readAudioEdit(File(it)) }
+
+    val extractor = MediaExtractor()
+    var codec: MediaCodec? = null
+    try {
+      extractor.setDataSource(appContext, uri, null)
+      val trackIndex = (0 until extractor.trackCount).firstOrNull { index ->
+        extractor.getTrackFormat(index).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
+      } ?: throw IllegalStateException("No audio track found.")
+      val format = extractor.getTrackFormat(trackIndex)
+      extractor.selectTrack(trackIndex)
+      format.setInteger("encoder-delay", 0)
+      format.setInteger("encoder-padding", 0)
+      val mime = format.getString(MediaFormat.KEY_MIME) ?: throw IllegalStateException("Unknown audio mime type.")
+      codec = MediaCodec.createDecoderByType(mime)
+      codec.configure(format, null, null, 0)
+      codec.start()
+
+      var sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+      var channels = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+      var floatPcm = false
+      var skipFrames = 0L
+      var keepFrames = Long.MAX_VALUE
+      var written = 0L
+      var decodedFrames = 0L
+      var layoutKnown = false
+
+      val out = java.io.RandomAccessFile(output, "rw")
+      try {
+        out.setLength(0)
+        out.write(ByteArray(WAV_HEADER_BYTES))
+        val info = MediaCodec.BufferInfo()
+        var inputDone = false
+        var outputDone = false
+        var chunk = ByteArray(0)
+        while (!outputDone) {
+          if (!inputDone) {
+            val inIndex = codec.dequeueInputBuffer(10_000L)
+            if (inIndex >= 0) {
+              val inputBuffer = codec.getInputBuffer(inIndex)
+              val size = if (inputBuffer != null) extractor.readSampleData(inputBuffer, 0) else -1
+              if (size < 0) {
+                codec.queueInputBuffer(inIndex, 0, 0, 0L, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                inputDone = true
+              } else {
+                codec.queueInputBuffer(inIndex, 0, size, extractor.sampleTime, 0)
+                extractor.advance()
+              }
+            }
+          }
+          val outIndex = codec.dequeueOutputBuffer(info, 10_000L)
+          if (outIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+            val outFormat = codec.outputFormat
+            sampleRate = outFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+            channels = outFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+            floatPcm = outFormat.containsKey(MediaFormat.KEY_PCM_ENCODING) &&
+              outFormat.getInteger(MediaFormat.KEY_PCM_ENCODING) == android.media.AudioFormat.ENCODING_PCM_FLOAT
+          } else if (outIndex >= 0) {
+            if (!layoutKnown) {
+              layoutKnown = true
+              if (edit != null) {
+                skipFrames = Math.round(edit.mediaTime.toDouble() * sampleRate / edit.timescale)
+                keepFrames = Math.round(edit.duration.toDouble() * sampleRate / edit.timescale)
+              }
+            }
+            if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) outputDone = true
+            val buffer = codec.getOutputBuffer(outIndex)
+            if (buffer != null && info.size > 0) {
+              val frameBytes = channels * (if (floatPcm) 4 else 2)
+              val frames = info.size / frameBytes
+              // This buffer's frames, less what falls in the priming or past the edit.
+              val from = (skipFrames - decodedFrames).coerceIn(0L, frames.toLong()).toInt()
+              val room = (keepFrames - written).coerceAtLeast(0L)
+              val count = min((frames - from).toLong(), room).toInt()
+              if (count > 0) {
+                if (chunk.size < count * frameBytes) chunk = ByteArray(count * frameBytes)
+                buffer.position(info.offset + from * frameBytes)
+                buffer.get(chunk, 0, count * frameBytes)
+                out.write(chunk, 0, count * frameBytes)
+                written += count
+              }
+              decodedFrames += frames
+            }
+            codec.releaseOutputBuffer(outIndex, false)
+          }
+        }
+        writeWavHeader(out, sampleRate, channels, floatPcm, written)
+      } finally {
+        out.close()
+      }
+      android.util.Log.i(
+        "SongNookPitchShift",
+        "decodeToWav: ${written} frames at $sampleRate Hz, priming skipped $skipFrames" +
+          (if (edit == null) " (no edit list)" else "")
+      )
+      return mapOf(
+        "outputUri" to Uri.fromFile(output).toString(),
+        "frames" to written,
+        "sampleRate" to sampleRate,
+        "channels" to channels,
+        "primingFrames" to skipFrames,
+      )
+    } catch (throwable: Throwable) {
+      output.delete()
+      throw throwable
+    } finally {
+      try { codec?.stop() } catch (_: Throwable) {}
+      try { codec?.release() } catch (_: Throwable) {}
+      try { extractor.release() } catch (_: Throwable) {}
+    }
+  }
+
+  private fun buildWavOutputFile(outputFileName: String?): File {
+    val safeName = outputFileName
+      ?.replace(Regex("[^A-Za-z0-9._-]+"), "-")
+      ?.trim('-')
+      ?.takeIf { it.isNotBlank() }
+      ?: "songnook-decode-${UUID.randomUUID()}"
+    val finalName = if (safeName.endsWith(".wav", ignoreCase = true)) safeName else "$safeName.wav"
+    return File(appContext.cacheDir, finalName).apply {
+      parentFile?.mkdirs()
+      if (exists()) delete()
+    }
+  }
+
+  private fun writeWavHeader(out: java.io.RandomAccessFile, sampleRate: Int, channels: Int, floatPcm: Boolean, frames: Long) {
+    val bytesPerSample = if (floatPcm) 4 else 2
+    val dataBytes = frames * channels * bytesPerSample
+    val header = java.nio.ByteBuffer.allocate(WAV_HEADER_BYTES).order(ByteOrder.LITTLE_ENDIAN)
+    header.put("RIFF".toByteArray()).putInt((36 + dataBytes).toInt()).put("WAVE".toByteArray())
+    header.put("fmt ".toByteArray()).putInt(16)
+    header.putShort((if (floatPcm) 3 else 1).toShort()).putShort(channels.toShort())
+    header.putInt(sampleRate).putInt(sampleRate * channels * bytesPerSample)
+    header.putShort((channels * bytesPerSample).toShort()).putShort((bytesPerSample * 8).toShort())
+    header.put("data".toByteArray()).putInt(dataBytes.toInt())
+    out.seek(0)
+    out.write(header.array())
+  }
 
   private fun semitonesToPitchMultiplier(semitones: Int): Float {
     return Math.pow(2.0, semitones / 12.0).toFloat()

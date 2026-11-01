@@ -94,30 +94,50 @@ beforeEach(() => mockDisk.clear());
 
 it("pads a take with a pickup so its first bar line lands one bar in, every sample kept", async () => {
     writeTake("file:///take.wav", traced);
-    await expect(writeBarAlignedCopy("file:///take.wav", grid(), "file:///out.wav")).resolves.toBe("pad");
+    const result = await writeBarAlignedCopy("file:///take.wav", grid(), "file:///out.wav");
+    expect(result?.head.kind).toBe("pad");
     const out = samplesOf("file:///out.wav");
     const pad = BAR_FRAMES - LEAD_FRAMES;
-    expect(out.length).toBe(40_000 + pad);
+    // 52 000 frames of pickup + take, then silence to the end of bar 4.
+    expect(out.length).toBe(4 * BAR_FRAMES);
+    expect(result?.tailFrames).toBe(4 * BAR_FRAMES - (40_000 + pad));
     expect(out.slice(0, pad).every((value) => value === 0)).toBe(true);
-    expect(out.slice(pad)).toEqual(samplesOf("file:///take.wav"));
+    expect(out.slice(pad, pad + 40_000)).toEqual(samplesOf("file:///take.wav"));
+    expect(out.slice(pad + 40_000).every((value) => value === 0)).toBe(true);
     // The take's bar line now sits exactly one bar into the file.
     expect(out[BAR_FRAMES]).toBe(traced(LEAD_FRAMES));
 });
 
 it("cuts a silent lead-in so the file starts on beat 1", async () => {
     writeTake("file:///take.wav", (frame) => (frame < LEAD_FRAMES ? 3 : traced(frame)));
-    await expect(writeBarAlignedCopy("file:///take.wav", grid(), "file:///out.wav")).resolves.toBe("cut");
+    const result = await writeBarAlignedCopy("file:///take.wav", grid(), "file:///out.wav");
+    expect(result?.head.kind).toBe("cut");
     const out = samplesOf("file:///out.wav");
-    expect(out.length).toBe(40_000 - LEAD_FRAMES);
+    // 36 000 frames from beat 1, then silence to the end of bar 3.
+    expect(out.length).toBe(3 * BAR_FRAMES);
     expect(out[0]).toBe(traced(LEAD_FRAMES));
-    expect(out.slice(-1)[0]).toBe(traced(39_999));
+    expect(out[40_000 - LEAD_FRAMES - 1]).toBe(traced(39_999));
+    expect(out.slice(40_000 - LEAD_FRAMES).every((value) => value === 0)).toBe(true);
 });
 
 it("writes nothing for a take that wasn't recorded to the click, or isn't a WAV", async () => {
     writeTake("file:///take.wav", traced);
-    await expect(writeBarAlignedCopy("file:///take.wav", null, "file:///out.wav")).resolves.toBe("asIs");
-    await expect(writeBarAlignedCopy("file:///take.m4a", grid(), "file:///out.m4a")).resolves.toBe("asIs");
+    await expect(writeBarAlignedCopy("file:///take.wav", null, "file:///out.wav")).resolves.toBeNull();
+    await expect(writeBarAlignedCopy("file:///take.m4a", grid(), "file:///out.m4a")).resolves.toBeNull();
     expect(mockDisk.has("file:///out.wav")).toBe(false);
+});
+
+it("still writes a take already on its bar line, padded to the end of its last bar", async () => {
+    writeTake("file:///take.wav", traced, 20_000);
+    const result = await writeBarAlignedCopy(
+        "file:///take.wav",
+        { ...grid(), firstDownbeatMs: 0 },
+        "file:///out.wav"
+    );
+    expect(result).toEqual({ head: { kind: "asIs" }, tailFrames: 2 * BAR_FRAMES - 20_000 });
+    const out = samplesOf("file:///out.wav");
+    expect(out.slice(0, 20_000)).toEqual(samplesOf("file:///take.wav"));
+    expect(out.length).toBe(2 * BAR_FRAMES);
 });
 
 it("never touches the take in the library", async () => {

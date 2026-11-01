@@ -1148,6 +1148,7 @@ export const de = {
     typeTimeHint: "Halten, um eine Zeit einzugeben",
     shareTitle: "Teilen",
     shareAudio: "Audio teilen",
+    exportForDaw: "Für DAW exportieren",
     songnookSend: "SongNook Send",
     tools: "Werkzeuge",
     sketchDoorTitle: "Mach daraus eine Skizze",

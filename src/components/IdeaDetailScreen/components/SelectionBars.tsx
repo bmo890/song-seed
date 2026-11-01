@@ -56,7 +56,6 @@ export function SelectionBars() {
     .map((clip) => ({
       title: clip.title,
       audioUri: clip.audioUri!,
-      recordingGrid: clip.recordingGrid,
     }));
   const selectableClipIds = (selectedIdea?.clips ?? []).map((clip) => clip.id);
   const allSelectableSelected =

@@ -235,6 +235,68 @@ final class SongNookPitchShiftRenderer {
     return ["outputUri": outputURL.absoluteString]
   }
 
+  /// "Export for DAW": decode any take to 24-bit PCM WAV, untouched otherwise. AVAudioFile
+  /// reads compressed audio from its first real sample (encoder priming skipped, by the
+  /// file's edit list or Apple's 2112 default), which is where the take's grid counts from
+  /// and where Logic would start it too. No mixer, EQ or limiter: the samples, re-stated.
+  func decodeToWav(_ request: [String: Any]) throws -> [String: Any] {
+    guard let inputUri = request["inputUri"] as? String, !inputUri.isEmpty else {
+      throw NSError(
+        domain: "SongNookPitchShift",
+        code: 30,
+        userInfo: [NSLocalizedDescriptionKey: "Decoding requires an input."]
+      )
+    }
+    let inputURL = URL(string: inputUri) ?? URL(fileURLWithPath: inputUri)
+    // Caches, not tmp: the app's file API may delete there, so the caller cleans up.
+    let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+    let outputURL = caches.appendingPathComponent(
+      buildOutputURL(fileName: request["outputFileName"] as? String).lastPathComponent
+    )
+    try? FileManager.default.removeItem(at: outputURL)
+
+    let input = try AVAudioFile(forReading: inputURL)
+    let format = input.processingFormat
+    let settings: [String: Any] = [
+      AVFormatIDKey: kAudioFormatLinearPCM,
+      AVSampleRateKey: format.sampleRate,
+      AVNumberOfChannelsKey: format.channelCount,
+      AVLinearPCMBitDepthKey: 24,
+      AVLinearPCMIsFloatKey: false,
+      AVLinearPCMIsBigEndianKey: false,
+      AVLinearPCMIsNonInterleaved: false,
+    ]
+    var frames: AVAudioFramePosition = 0
+    do {
+      let output = try AVAudioFile(
+        forWriting: outputURL,
+        settings: settings,
+        commonFormat: format.commonFormat,
+        interleaved: format.isInterleaved
+      )
+      let chunk: AVAudioFrameCount = 32_768
+      guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: chunk) else {
+        throw NSError(
+          domain: "SongNookPitchShift",
+          code: 31,
+          userInfo: [NSLocalizedDescriptionKey: "Could not allocate a decode buffer."]
+        )
+      }
+      while input.framePosition < input.length {
+        try input.read(into: buffer, frameCount: chunk)
+        if buffer.frameLength == 0 { break }
+        try output.write(from: buffer)
+        frames += AVAudioFramePosition(buffer.frameLength)
+      }
+    }
+    return [
+      "outputUri": outputURL.absoluteString,
+      "frames": frames,
+      "sampleRate": format.sampleRate,
+      "channels": format.channelCount,
+    ]
+  }
+
   private func parseMixedInput(_ rawValue: Any) -> MixedRenderInput? {
     guard let value = rawValue as? [String: Any], let inputUri = value["inputUri"] as? String else {
       return nil

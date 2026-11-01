@@ -155,7 +155,6 @@ export function IdeaSelectionBar({
           const shareable: ShareableAudioClip = {
             title: clip.title || idea.title,
             audioUri: clip.audioUri,
-            recordingGrid: clip.recordingGrid,
           };
           return shareable;
         })

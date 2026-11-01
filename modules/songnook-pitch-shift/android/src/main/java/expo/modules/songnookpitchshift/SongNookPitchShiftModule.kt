@@ -107,6 +107,10 @@ class SongNookPitchShiftModule : Module() {
       withContext(renderDispatcher) { renderer.renderMixedFile(request) }
     }
 
+    AsyncFunction("decodeToWav") Coroutine { request: Map<String, Any?> ->
+      withContext(renderDispatcher) { renderer.decodeToWav(request) }
+    }
+
     AsyncFunction("renderTrim") Coroutine { request: Map<String, Any?> ->
       withContext(renderDispatcher) { renderer.renderTrim(request) }
     }

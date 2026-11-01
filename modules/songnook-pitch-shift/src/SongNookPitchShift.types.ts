@@ -109,6 +109,21 @@ export type NativeMixedRenderResult = {
   outputUri: string;
 };
 
+/** "Export for DAW": the take as PCM WAV, starting where the player starts it. */
+export type NativeDecodeToWavRequest = {
+  inputUri: string;
+  outputFileName?: string;
+};
+
+export type NativeDecodeToWavResult = {
+  outputUri: string;
+  frames: number;
+  sampleRate: number;
+  channels: number;
+  /** Android: the encoder priming skipped, from the file's edit list. */
+  primingFrames?: number;
+};
+
 export type NativeTrimRange = {
   startTimeMs: number;
   endTimeMs: number;

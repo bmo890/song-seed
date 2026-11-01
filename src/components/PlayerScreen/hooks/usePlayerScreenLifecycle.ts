@@ -5,6 +5,7 @@ import { actionIcons } from "../../common/actionIcons";
 import { clipHasOverdubs, getClipPlaybackUri } from "../../../domain/clipPresentation";
 import { MANAGED_WAVEFORM_PEAK_COUNT, loadManagedAudioMetadata, shareAudioFile } from "../../../services/audioStorage";
 import { createClipsShareLink } from "../../../services/clipShareLink";
+import { canExportForDaw, exportClipForDaw } from "../../../services/dawExport";
 import { openSendSheet } from "../../../state/useSendSheetStore";
 import { isSendServiceConfigured } from "../../../config/sendService";
 import { isForegroundAudioBusy, waitForForegroundAudioIdle } from "../../../services/audioForegroundActivity";
@@ -605,39 +606,62 @@ export function usePlayerScreenLifecycle({
           const clipTitle = playerClip?.title ?? t("player.clip");
           const shareAudio = async () => {
             try {
-              await shareAudioFile(playbackUri, clipTitle, playerClip?.recordingGrid);
+              await shareAudioFile(playbackUri, clipTitle);
             } catch (error) {
               console.warn("Share audio error", error);
               const message = userFacingMessage(error, t("player.shareAudioFailed"));
               AppAlert.error(t("player.shareFailed"), message);
             }
           };
-          // Share… holds the same two exits as everywhere else: the audio by the
-          // OS share sheet, or a SongNook Send link. Without the service (fresh
-          // checkout, no env) the audio share is the only exit, so go straight there.
-          if (!(__DEV__ || isSendServiceConfigured())) {
+          // Share… holds the same exits as everywhere else: the audio by the OS
+          // share sheet, or a SongNook Send link. A take recorded to the click adds
+          // Export for DAW (a choice, never the default): a WAV on the bar lines.
+          // With a single exit, go straight there.
+          const recordingGrid = playerClip?.recordingGrid;
+          const dawGrid = canExportForDaw(recordingGrid) ? recordingGrid : null;
+          const sendConfigured = __DEV__ || isSendServiceConfigured();
+          if (!sendConfigured && !dawGrid) {
             void shareAudio();
             return;
           }
+          const exportForDaw = async (grid: NonNullable<typeof dawGrid>) => {
+            try {
+              await exportClipForDaw(playbackUri, clipTitle, grid);
+            } catch (error) {
+              console.warn("Export for DAW error", error);
+              const message = userFacingMessage(error, t("player.shareAudioFailed"));
+              AppAlert.error(t("player.shareFailed"), message);
+            }
+          };
           AppAlert.menu(t("player.shareTitle"), [
             { key: "audio", label: t("player.shareAudio"), icon: "share-outline", onPress: () => void shareAudio() },
-            {
-              key: "player.songnookSend",
-              label: t("player.songnookSend"),
-              icon: "paper-plane-outline",
-              onPress: () =>
-                openSendSheet({
-                  title: clipTitle,
-                  kind: "clips",
-                  emptyMessage: t("player.shareAudioFailed"),
-                  create: (parcel) =>
-                    createClipsShareLink(
-                      [{ title: clipTitle, audioUri: playbackUri, recordingGrid: playerClip?.recordingGrid }],
-                      clipTitle,
-                      parcel
-                    ),
-                }),
-            },
+            ...(dawGrid
+              ? [
+                  {
+                    key: "player.exportForDaw",
+                    label: t("player.exportForDaw"),
+                    icon: "desktop-outline" as const,
+                    onPress: () => void exportForDaw(dawGrid),
+                  },
+                ]
+              : []),
+            ...(sendConfigured
+              ? [
+                  {
+                    key: "player.songnookSend",
+                    label: t("player.songnookSend"),
+                    icon: "paper-plane-outline" as const,
+                    onPress: () =>
+                      openSendSheet({
+                        title: clipTitle,
+                        kind: "clips",
+                        emptyMessage: t("player.shareAudioFailed"),
+                        create: (parcel) =>
+                          createClipsShareLink([{ title: clipTitle, audioUri: playbackUri }], clipTitle, parcel),
+                      }),
+                  },
+                ]
+              : []),
           ], clipTitle);
         },
       },

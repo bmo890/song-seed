@@ -1209,6 +1209,7 @@ export const pt = {
     typeTimeHint: "Segure para digitar a minutagem",
     shareTitle: "Compartilhar",
     shareAudio: "Compartilhar áudio",
+    exportForDaw: "Exportar para DAW",
     songnookSend: "SongNook Send",
     tools: "Ferramentas",
     sketchDoorTitle: "Transformar em esboço",

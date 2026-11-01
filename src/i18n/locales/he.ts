@@ -796,7 +796,7 @@ export const he = {
     offsetAt: "ב־{{time}}",
     offsetMs: "{{ms}} מ״ש",
     setTime: "קביעה", timeRange: "{{from}} עד {{to}}", typeTimeHint: "לחיצה ארוכה להקלדת זמן",
-    shareTitle: "שיתוף", shareAudio: "שיתוף השמע", songnookSend: "SongNook Send",
+    shareTitle: "שיתוף", shareAudio: "שיתוף השמע", songnookSend: "SongNook Send", exportForDaw: "ייצוא ל־DAW",
     tools: "כלים",
     sketchDoorTitle: "להפוך את זה לסקיצה", sketchDoorBody: "טייקים, מילים ואקורדים, שמורים יחד.",
     saveCombinedNew: "איחוד כקטע חדש", combinedSaved: "הקטע המאוחד נשמר", combinedSavedBody: "נוסף כקטע חדש.", combinedSaveFailed: "האיחוד נכשל", combinedSaveBody: "הקטע המאוחד לא נשמר.", saveCombinedEdit: "איחוד ועריכה", combinedOpenFailed: "לא ניתן לפתוח את הקטע המאוחד.", trimAudio: "חיתוך שמע", share: "שיתוף", clip: "קטע", versionOf: "גרסה {{index}} מתוך {{total}}", takesPage: "מילות הטייק · גרסה {{index}} מתוך {{total}}", latestPage: "המילים העדכניות · גרסה {{total}}", showLatest: "הצגת העדכניות", showTakes: "מילות הטייק", stampDeleted: "מילות הטייק נמחקו — מוצגות העדכניות", editedSinceTake: "המילים נערכו אחרי הטייק הזה", shareFailed: "השיתוף נכשל", shareAudioFailed: "לא ניתן לשתף את קובץ השמע.", setAside: "הוספה למדף", onShelf: "על המדף ל־7 ימים", viewShelf: "פתיחת המדף", deleteClip: "מחיקת קטע", deleteClipTitle: "למחוק את הקטע?", deleteSongTitle: "למחוק את הסקיצה?", deleteSong: "מחיקת הסקיצה", deleteOnlySongBody: "זה הטייק היחיד ב־„{{title}}”, ולכן כל הסקיצה תימחק. השמע יעבור לפח.", deleteOnlyClipBody: "למחוק את „{{title}}”? השמע יעבור לפח.", removeClipBody: "להסיר את הטייק הזה מהסקיצה? השמע יעבור לפח.",

@@ -5,6 +5,8 @@ import type {
   NativeAudioDurationResult,
   NativeAudioExtractRequest,
   NativeAudioExtractResult,
+  NativeDecodeToWavRequest,
+  NativeDecodeToWavResult,
   NativePitchShiftCapabilities,
   NativePitchShiftLoadRequest,
   NativeMixedRenderRequest,
@@ -47,6 +49,7 @@ declare class SongNookPitchShiftModule extends NativeModule<SongNookPitchShiftMo
   // Optional: present only once the native module is rebuilt with these. Callers
   // feature-detect (`if (mod.renderTrim)`) and fall back to @siteed otherwise.
   renderTrim?(request: NativeTrimRequest): Promise<NativeTrimResult>;
+  decodeToWav?(request: NativeDecodeToWavRequest): Promise<NativeDecodeToWavResult>;
   computeWaveform?(request: NativeWaveformRequest): Promise<NativeWaveformResult>;
   /** Cheap duration probe: reads container metadata only (no PCM decode). Optional —
    *  feature-detect before calling; absent on builds predating this native method. */

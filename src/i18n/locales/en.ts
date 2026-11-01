@@ -765,7 +765,7 @@ export const en = {
     offsetAt: "at {{time}}",
     offsetMs: "{{ms}} ms",
     setTime: "Set", timeRange: "{{from}} to {{to}}", typeTimeHint: "Hold to type a time",
-    shareTitle: "Share", shareAudio: "Share audio", songnookSend: "SongNook Send",
+    shareTitle: "Share", shareAudio: "Share audio", songnookSend: "SongNook Send", exportForDaw: "Export for DAW",
     tools: "Tools",
     sketchDoorTitle: "Grow this into a sketch", sketchDoorBody: "Takes, lyrics, and chords, kept together.",
     saveCombinedNew: "Combine as new clip", combinedSaved: "Combined clip saved", combinedSavedBody: "Added as a new clip.", combinedSaveFailed: "Couldn’t combine", combinedSaveBody: "The combined clip wasn’t saved.", saveCombinedEdit: "Combine and edit", combinedOpenFailed: "Couldn’t open the combined clip.", trimAudio: "Trim audio", share: "Share", clip: "Clip", versionOf: "v{{index}} of {{total}}", takesPage: "Take’s words · v{{index}} of {{total}}", latestPage: "Latest words · v{{total}}", showLatest: "Show latest", showTakes: "Show take’s", stampDeleted: "Take’s words were deleted — showing latest", editedSinceTake: "Words edited since this take", shareFailed: "Share failed", shareAudioFailed: "Could not share this audio file.", setAside: "Add to Shelf", onShelf: "Shelved for 7 days", viewShelf: "View shelf", deleteClip: "Delete clip", deleteClipTitle: "Delete clip?", deleteSongTitle: "Delete sketch?", deleteSong: "Delete sketch", deleteOnlySongBody: "This is the only take in “{{title}}”, so the whole sketch goes. Its audio moves to Trash.", deleteOnlyClipBody: "Delete “{{title}}”? Its audio moves to Trash.", removeClipBody: "Remove this take from the sketch? Its audio moves to Trash.",

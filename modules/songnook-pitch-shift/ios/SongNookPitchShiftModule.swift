@@ -89,6 +89,10 @@ public class SongNookPitchShiftModule: Module {
       return try self.renderer.renderMixedFile(request)
     }.runOnQueue(renderQueue)
 
+    AsyncFunction("decodeToWav") { (request: [String: Any]) -> [String: Any] in
+      return try self.renderer.decodeToWav(request)
+    }.runOnQueue(renderQueue)
+
     AsyncFunction("renderTrim") { (request: [String: Any]) -> [String: Any] in
       return try self.renderer.renderTrim(request)
     }.runOnQueue(renderQueue)

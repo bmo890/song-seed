@@ -132,6 +132,80 @@ internal object Mp4PrimingEditList {
     return "skipped: no audio track"
   }
 
+  /** Where an audio track's sound starts and how long it runs, in its own timescale. */
+  data class AudioEdit(val mediaTime: Long, val duration: Long, val timescale: Long)
+
+  /**
+   * The sound track's single edit, read the way ExoPlayer reads it (encoder delay and,
+   * by its length, padding). Null for no edit list, several edits, or anything unusual:
+   * then nothing is skipped, as ExoPlayer would skip nothing. Never throws.
+   */
+  fun readAudioEdit(file: File): AudioEdit? =
+    try {
+      RandomAccessFile(file, "r").use { raf -> readFrom(raf) }
+    } catch (_: Throwable) {
+      null
+    }
+
+  private fun readFrom(raf: RandomAccessFile): AudioEdit? {
+    val fileLength = raf.length()
+    var offset = 0L
+    val header = ByteArray(16)
+    while (offset + 8 <= fileLength) {
+      raf.seek(offset)
+      raf.readFully(header, 0, 8)
+      var size = u32(header, 0)
+      val type = String(header, 4, 4, Charsets.ISO_8859_1)
+      var headerSize = 8
+      if (size == 1L) {
+        raf.readFully(header, 8, 8)
+        size = ByteBuffer.wrap(header, 8, 8).long
+        headerSize = 16
+      } else if (size == 0L) {
+        size = fileLength - offset
+      }
+      if (size < headerSize) return null
+      if (type == "moov") {
+        if (size > 16L * 1024 * 1024) return null
+        val moov = ByteArray(size.toInt())
+        raf.seek(offset)
+        raf.readFully(moov)
+        return audioEditIn(moov, Box("moov", 0, moov.size, headerSize))
+      }
+      offset += size
+    }
+    return null
+  }
+
+  private fun audioEditIn(moov: ByteArray, moovBox: Box): AudioEdit? {
+    val moovChildren = children(moov, moovBox)
+    val mvhd = moovChildren.firstOrNull { it.type == "mvhd" } ?: return null
+    val movieTimescale = mvhdTimescale(moov, mvhd)
+    if (movieTimescale <= 0) return null
+    for (trak in moovChildren.filter { it.type == "trak" }) {
+      val trakChildren = children(moov, trak)
+      val mdia = trakChildren.firstOrNull { it.type == "mdia" } ?: continue
+      val mdiaChildren = children(moov, mdia)
+      val hdlr = mdiaChildren.firstOrNull { it.type == "hdlr" } ?: continue
+      if (String(moov, hdlr.bodyStart + 8, 4, Charsets.ISO_8859_1) != "soun") continue
+      val mdhd = mdiaChildren.firstOrNull { it.type == "mdhd" } ?: return null
+      val (mediaTimescale, _) = mdhdTimescaleAndDuration(moov, mdhd)
+      if (mediaTimescale <= 0) return null
+      val edts = trakChildren.firstOrNull { it.type == "edts" } ?: return null
+      val elst = children(moov, edts).firstOrNull { it.type == "elst" } ?: return null
+      val version = moov[elst.bodyStart].toInt()
+      val count = u32(moov, elst.bodyStart + 4)
+      if (count != 1L) return null
+      val entry = elst.bodyStart + 8
+      val segmentDuration = if (version == 1) u64(moov, entry) else u32(moov, entry)
+      val mediaTime = if (version == 1) u64(moov, entry + 8) else u32(moov, entry + 4)
+      // 0xFFFFFFFF (or −1) marks an empty edit: a gap, not a start.
+      if (mediaTime < 0 || (version == 0 && mediaTime == 0xFFFFFFFFL)) return null
+      return AudioEdit(mediaTime, segmentDuration * mediaTimescale / movieTimescale, mediaTimescale)
+    }
+    return null
+  }
+
   private fun children(bytes: ByteArray, parent: Box): List<Box> {
     val result = mutableListOf<Box>()
     var offset = parent.bodyStart
