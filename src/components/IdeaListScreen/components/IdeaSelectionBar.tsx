@@ -402,7 +402,7 @@ export function IdeaSelectionBar({
 
   const shareAudioAction: SelectionAction = {
     key: "share",
-    label: isSharing ? t("selection.sharing") : t("selection.shareCount", { count: shareableClips.length }),
+    label: isSharing ? t("selection.sharing") : t("player.shareAudio"),
     icon: "share-social-outline",
     onPress: () => {
       void handleShareSelected();

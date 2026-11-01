@@ -420,7 +420,7 @@ export function SelectionBars() {
 
   const shareAction: SelectionAction = {
     key: "share",
-    label: isSharing ? t("songDetail.sharing") : t("songDetail.shareCount", { count: shareableClips.length }),
+    label: isSharing ? t("songDetail.sharing") : t("player.shareAudio"),
     icon: "share-social-outline",
     onPress: () => { void handleShareSelected(); },
     disabled: isSharing || shareableClips.length === 0,
