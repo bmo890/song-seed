@@ -41,14 +41,15 @@ import { SendTransferError, describeSendTransferError } from "../../services/sen
 
 /** A sealed parcel's reasons say what to do (ask for the full link, update);
  *  anything else keeps the general line. */
-function openErrorMessage(error: unknown): string {
-  if (
+function isFinalOpenError(error: unknown): boolean {
+  return (
     error instanceof SendTransferError &&
     (error.code === "missingKey" || error.code === "needsUpdate" || error.code === "sealBroken")
-  ) {
-    return describeSendTransferError(error);
-  }
-  return i18n.t("transferReceive.openFailed");
+  );
+}
+
+function openErrorMessage(error: unknown): string {
+  return isFinalOpenError(error) ? describeSendTransferError(error as SendTransferError) : i18n.t("transferReceive.openFailed");
 }
 import { UserText, playRowFrame, playRowRest } from "../../i18n";
 import { UserFacingError, userFacingMessage } from "../../i18n/userFacingError";
@@ -56,7 +57,8 @@ import { UserFacingError, userFacingMessage } from "../../i18n/userFacingError";
 type Phase =
   | { kind: "loading" }
   | { kind: "gone" }
-  | { kind: "error"; message: string }
+  /** `final`: trying again can't help (no key, a key that doesn't fit, an old build). */
+  | { kind: "error"; message: string; final?: boolean }
   | { kind: "already-saved" }
   | { kind: "ready"; transfer: TransferPayload }
   | { kind: "saving"; transfer: TransferPayload; itemIndex: number; itemFraction: number }
@@ -162,7 +164,7 @@ export function TransferReceiveScreen() {
       } catch (error) {
         if (cancelled) return;
         if (error instanceof TransferGoneError) setPhase({ kind: "gone" });
-        else setPhase({ kind: "error", message: openErrorMessage(error) });
+        else setPhase({ kind: "error", message: openErrorMessage(error), final: isFinalOpenError(error) });
       }
     })();
     return () => {
@@ -520,7 +522,7 @@ export function TransferReceiveScreen() {
             <Ionicons name="cloud-offline-outline" size={26} color={colors.textMuted} />
             <Text style={local.centerTitle}>{t("transferReceive.openFailed")}</Text>
             <Text style={local.centerText}>{phase.message}</Text>
-            <Button
+            {phase.final ? null : <Button
               label={t("transferReceive.tryAgain")}
               variant="secondary"
               style={local.centerKey}
@@ -534,12 +536,12 @@ export function TransferReceiveScreen() {
                       setPhase(
                         error instanceof TransferGoneError
                           ? { kind: "gone" }
-                          : { kind: "error", message: openErrorMessage(error) }
+                          : { kind: "error", message: openErrorMessage(error), final: isFinalOpenError(error) }
                       )
                     );
                 }
               }}
-            />
+            />}
           </View>
         );
       case "ready":
