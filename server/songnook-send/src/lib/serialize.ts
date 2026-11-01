@@ -25,6 +25,9 @@ export interface TransferPayload {
   createdAt: string;
   expiresAt: string;
   items: TransferItemPayload[];
+  /** Sealed end to end: open `sealedMeta` and the files with the link's #k= key. */
+  sealed: boolean;
+  sealedMeta: string | null;
 }
 
 export function toTransferPayload(
@@ -47,5 +50,7 @@ export function toTransferPayload(
       mimeType: it.mime_type,
       downloadUrl: `${cfg.publicOrigin}/t/${transfer.transfer_id}/dl/${it.item_id}`,
     })),
+    sealed: transfer.sealed === 1,
+    sealedMeta: transfer.sealed === 1 ? transfer.sealed_meta ?? null : null,
   };
 }

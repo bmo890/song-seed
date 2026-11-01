@@ -47,7 +47,7 @@ app.route("/t", download);
 const isApex = (host: string | undefined) => (host ?? "").replace(/^www\./, "").split(":")[0] === "songnook.app";
 
 // ── Web sender page — or the landing page on the bare domain ─────────────────
-app.get("/", (c) => htmlPage(isApex(c.req.header("host")) ? renderLandingPage() : renderSenderPage()));
+app.get("/", (c) => htmlPage(isApex(c.req.header("host")) ? renderLandingPage() : renderSenderPage({ seal: loadConfig(c.env).sealWebSends })));
 
 // ── Legal pages (the store listings link here; the app's Settings→About does too)
 app.get("/privacy", () => htmlPage(renderLegalPage("privacy")));

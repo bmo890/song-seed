@@ -43,6 +43,9 @@ PRO_FOR_ALL = "true"
 WEB_SEND_REQUIRES_PAIRING = "true"
 APP_SEND_ENFORCED = "false"
 PRO_ENTITLEMENT_ID = "songnook_pro"
+# End-to-end sealed parcels from the web sender (docs/product-plan/send-e2e-encryption.md).
+# Off until the app build that opens sealed parcels is the one people have.
+SEAL_WEB_SENDS = "false"
 # Store links for the mobile-without-app install funnel.
 # BETA (2026-10-11): the App Store listing (apps.apple.com/app/id6810435199) is a
 # 404 until launch, so the iOS button points at the TestFlight public link for

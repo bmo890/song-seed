@@ -21,6 +21,7 @@ import { qrSvgPath } from "../lib/qr";
 import { describeKind } from "../lib/shareKind";
 import { escapeHtml, formatBytes, page } from "./shell";
 import { GALLERY_CSS, GALLERY_HTML, GALLERY_SCRIPT, GALLERY_SPRITE } from "./appPreviewGallery";
+import { SEAL_JS } from "./sealJs";
 
 export interface Platform {
   isMobile: boolean;
@@ -117,6 +118,7 @@ function ctaBlock(cfg: Config, t: TransferPayload, plat: Platform, transferUrl: 
 }
 
 export function renderRecipientPage(cfg: Config, t: TransferPayload, plat: Platform): string {
+  if (t.sealed) return renderSealedRecipientPage(cfg, t, plat);
   const senderName = t.sender.name || "Someone";
   const title = t.title || "some music";
   const transferUrl = `${cfg.publicOrigin}/t/${t.transferId}`;
@@ -168,3 +170,141 @@ export function detectPlatform(userAgent: string): Platform {
   const isMobile = isIOS || isAndroid || /Mobile/i.test(ua);
   return { isMobile, isIOS, isAndroid };
 }
+
+// ── Sealed parcels (docs/product-plan/send-e2e-encryption.md) ────────────────
+// The server can't read a sealed parcel, so it sends the same page with its
+// words left blank; the visitor's browser takes the key from the link's #k=,
+// opens the envelope and fills them in. Files open in the browser the same
+// way when played or saved. Every name goes in as text, never as markup.
+
+const SEALED_CSS = `
+.grab .trk-dl{background:none;border:none;padding:0;font:inherit;color:var(--terra);cursor:pointer}
+.grab .trk-dl[disabled]{color:var(--ink-faint);cursor:default}
+`;
+
+/** Runs after SEAL_JS. Reads #parcel-data, opens the envelope, fills the page. */
+const SEALED_JS = `
+(function(){
+  var Seal = window.SongNookSeal;
+  var $ = function(id){ return document.getElementById(id); };
+  var data = JSON.parse($('parcel-data').textContent);
+  function bytes(n){ if(!(n>0)) return '0 B'; var u=['B','KB','MB','GB'], i=Math.min(3,Math.floor(Math.log(n)/Math.log(1024)));
+    return (n/Math.pow(1024,i)).toFixed(i===0?0:1)+' '+u[i]; }
+  function stem(name){ return String(name).replace(/\.[a-z0-9]{1,8}$/i,'') || name; }
+  function isPackage(name){ return /\.songnook$/i.test(name); }
+  function fail(head, sub){
+    $('hero').textContent = head; $('hero-sub').textContent = sub; $('hero-sub').hidden = false;
+    $('parcel-panel').hidden = true; $('grab').hidden = true; $('note').hidden = true;
+  }
+  var key = Seal.keyFromHash(location.hash);
+  if (!key) return fail('This link is missing its key.', 'Ask the sender for the full link, including everything after the #.');
+
+  var slot = $('qr-slot');
+  if (slot && window.qrcode){
+    var q = window.qrcode(0, 'M'); q.addData(location.href); q.make();
+    var n = q.getModuleCount(), quiet = 2, d = '';
+    for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (q.isDark(r, c)) d += 'M'+(c+quiet)+' '+(r+quiet)+'h1v1h-1z';
+    var NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg'), path = document.createElementNS(NS, 'path');
+    svg.setAttribute('width','132'); svg.setAttribute('height','132'); svg.setAttribute('viewBox','0 0 '+(n+quiet*2)+' '+(n+quiet*2));
+    svg.setAttribute('role','img'); svg.setAttribute('aria-label','QR code to open this parcel in SongNook');
+    path.setAttribute('d', d); path.setAttribute('fill', '#1b1208'); svg.appendChild(path); slot.appendChild(svg);
+  }
+
+  Seal.openJson(key, data.sealedMeta).then(function(env){
+    var items = (env.items || []).map(function(meta, i){ return { meta: meta, file: data.items[i] }; })
+      .filter(function(it){ return it.file; });
+    var sender = env.senderName || 'Someone', title = env.title || 'some music';
+    $('hero-sender').textContent = sender; $('hero-title').textContent = title;
+    document.title = sender + ' sent you music — SongNook Send';
+    if (env.message){ $('note').textContent = '"' + env.message + '"'; $('note').hidden = false; }
+    $('meta-title').textContent = title;
+    var packages = items.filter(function(it){ return isPackage(it.meta.name); }).length, songs = items.length - packages;
+    var count = [];
+    if (songs > 0) count.push(songs + (songs === 1 ? ' song' : ' songs'));
+    if (packages > 0 && songs === 0) count.push(packages + (packages === 1 ? ' SongNook package' : ' SongNook packages'));
+    if (data.kindLabel) count.push(data.kindLabel);
+    $('meta-count').textContent = count.join(' · ');
+
+    var audio = items.filter(function(it){ return !isPackage(it.meta.name); });
+    var list = $('tracklist');
+    (audio.length ? audio : items).forEach(function(it){
+      var li = document.createElement('li');
+      var name = document.createElement('span'); name.className = 'trk-name'; name.textContent = stem(it.meta.name);
+      var size = document.createElement('span'); size.className = 'trk-size'; size.textContent = bytes(it.meta.size);
+      var dl = document.createElement('button'); dl.type = 'button'; dl.className = 'trk-dl'; dl.textContent = 'Download';
+      dl.addEventListener('click', function(){
+        dl.disabled = true; dl.textContent = 'Opening…';
+        fetch(it.file.downloadUrl).then(function(res){ if (!res.ok) throw new Error(res.status); return res.blob(); })
+          .then(function(blob){ return Seal.openBlob(key, blob, it.meta.mime); })
+          .then(function(plain){
+            var url = URL.createObjectURL(plain), a = document.createElement('a');
+            a.href = url; a.download = it.meta.name || 'song'; document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
+            dl.disabled = false; dl.textContent = 'Download';
+          })
+          .catch(function(){ dl.disabled = false; dl.textContent = 'Try again'; });
+      });
+      li.appendChild(name); li.appendChild(size); li.appendChild(dl); list.appendChild(li);
+    });
+  }).catch(function(){
+    fail('This link’s key doesn’t fit.', 'Ask the sender for the full link again.');
+  });
+})();
+`;
+
+function renderSealedRecipientPage(cfg: Config, t: TransferPayload, plat: Platform): string {
+  const mobile = plat.isMobile && (plat.isIOS || plat.isAndroid);
+  const androidStore = `https://play.google.com/store/apps/details?id=${encodeURIComponent(
+    cfg.androidPackage
+  )}&referrer=${encodeURIComponent("transferId=" + t.transferId)}`;
+  const cta = mobile
+    ? `<a id="get" class="btn btn-block" href="${escapeHtml(plat.isAndroid ? androidStore : cfg.iosAppStoreUrl)}">Open in SongNook</a>
+  <p class="cta-fine">Install SongNook, then open this link again.</p>`
+    : `<div class="qr-cta">
+    <div class="qr-card" id="qr-slot"></div>
+    <p class="cta-fine">Scan with your phone to open in SongNook.</p>
+  </div>`;
+  // What the browser needs to open the parcel; `<` escaped so no name can end the script.
+  const parcelData = JSON.stringify({
+    sealedMeta: t.sealedMeta,
+    kindLabel: describeKind(t.kind),
+    items: t.items.map((it) => ({ downloadUrl: it.downloadUrl })),
+  }).replace(/</g, "\\u003c");
+
+  const body = `
+${GALLERY_SPRITE}
+<h1 class="rise d1" id="hero"><span id="hero-sender">Someone</span> sent you <em id="hero-title">some music</em>.</h1>
+<p class="sub" id="hero-sub" hidden></p>
+<p class="note rise d2" id="note" hidden></p>
+
+<section class="panel rise d1" id="parcel-panel">
+  <p class="meta-line"><b id="meta-title">Opening…</b> <span>·</span>
+    <span id="meta-count"></span> <span>·</span> <span>${expiresLabel(t.expiresAt)}</span></p>
+  ${cta}
+</section>
+
+<section class="about rise d2">
+  <p class="eyebrow">What's SongNook?</p>
+  <p class="lede">${SONGNOOK_DESC}</p>
+  <p class="eyebrow">See it in the app · swipe →</p>
+</section>
+
+${GALLERY_HTML}
+
+<details class="grab rise d3" id="grab">
+  <summary>Prefer the raw files? Take them directly.</summary>
+  <ul class="tracklist" id="tracklist"></ul>
+</details>
+<script type="application/json" id="parcel-data">${parcelData}</script>
+${mobile ? "" : `<script src="/vendor/qrcode-generator.js"></script>`}`;
+
+  return page({
+    title: "Music for you — SongNook Send",
+    body,
+    bodyScript: SEAL_JS + GALLERY_SCRIPT + SEALED_JS,
+    extraStyle: GALLERY_CSS + FUNNEL_CSS + SEALED_CSS,
+    noindex: true,
+    reportHref: `/report/${encodeURIComponent(t.transferId)}`,
+  });
+}
+

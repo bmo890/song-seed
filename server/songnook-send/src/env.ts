@@ -41,6 +41,8 @@ export interface Env {
   /** "true": the app must send its key, and Pro or the free allowance applies.
    *  Off until the paywall is live: older app builds send no key. */
   APP_SEND_ENFORCED?: string;
+  /** "true": the web sender seals parcels end to end (docs/product-plan/send-e2e-encryption.md). */
+  SEAL_WEB_SENDS?: string;
   /** The RevenueCat entitlement that means Pro. */
   PRO_ENTITLEMENT_ID?: string;
 
@@ -77,6 +79,7 @@ export interface Config {
   appSendEnforced: boolean;
   proEntitlementId: string;
   revenueCatSecretKey: string;
+  sealWebSends: boolean;
 }
 
 export function loadConfig(env: Env): Config {
@@ -109,5 +112,6 @@ export function loadConfig(env: Env): Config {
     appSendEnforced: env.APP_SEND_ENFORCED === "true",
     proEntitlementId: env.PRO_ENTITLEMENT_ID || "songnook_pro",
     revenueCatSecretKey: env.REVENUECAT_SECRET_KEY || "",
+    sealWebSends: env.SEAL_WEB_SENDS === "true",
   };
 }

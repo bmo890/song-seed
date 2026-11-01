@@ -40,3 +40,17 @@ test("zip magic + requiresZipMagic", () => {
   assert.equal(looksLikeZip(new Uint8Array([0x00, 0x01, 0x02, 0x03])), false);
   assert.equal(looksLikeZip(new Uint8Array([0x50, 0x4b])), false);
 });
+
+test("sealed items are numbered, start SNS1, and their envelope is sealed base64", async () => {
+  const { isSealedItemName, looksSealed, sealedMetaValid } = await import("../contentPolicy.ts");
+  assert.equal(isSealedItemName("1.sealed"), true);
+  assert.equal(isSealedItemName("200.sealed"), true);
+  assert.equal(isSealedItemName("0.sealed"), false);
+  assert.equal(isSealedItemName("song.m4a"), false);
+  assert.equal(isSealedItemName("1.sealed.m4a"), false);
+  assert.equal(looksSealed(new Uint8Array([0x53, 0x4e, 0x53, 0x31, 0])), true);
+  assert.equal(looksSealed(new Uint8Array([0x50, 0x4b, 3, 4])), false);
+  assert.equal(sealedMetaValid("U05TMQAAAAA="), true);
+  assert.equal(sealedMetaValid("hello"), false);
+  assert.equal(sealedMetaValid("U05TMQ" + "A".repeat(70000)), false);
+});

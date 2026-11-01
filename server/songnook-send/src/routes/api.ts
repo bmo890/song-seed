@@ -25,7 +25,14 @@ import { errorResponse, jsonResponse, transferUsable } from "../lib/http";
 import { newItemId, newTransferId, newUploadToken } from "../lib/ids";
 import { presignUpload } from "../lib/r2presign";
 import { toTransferPayload } from "../lib/serialize";
-import { checkUploadAllowed, looksLikeZip, requiresZipMagic } from "../lib/contentPolicy";
+import {
+  checkUploadAllowed,
+  isSealedItemName,
+  looksLikeZip,
+  looksSealed,
+  requiresZipMagic,
+  sealedMetaValid,
+} from "../lib/contentPolicy";
 import { clientIp, underRateLimit, webOriginAllowed } from "../lib/guard";
 import { hashUploadToken, uploadTokenValid } from "../lib/uploadToken";
 import { normalizeShareKind } from "../lib/shareKind";
@@ -104,6 +111,14 @@ api.post("/transfers", async (c) => {
   const now = Date.now();
   const who = await senderForCreate(c, now);
   if ("refusal" in who) return who.refusal;
+  // A sealed parcel is bytes the server can't read: only a known sender (the
+  // app's key or a paired browser) may leave one, and it carries no plain
+  // title, sender or note at all.
+  const sealed = body.sealed === true;
+  if (sealed) {
+    if (!who.sender) return jsonResponse({ error: "update SongNook to send", code: "update" }, { status: 401 });
+    if (!sealedMetaValid(body.sealedMeta)) return errorResponse(400, "sealed envelope missing or malformed");
+  }
 
   const transferId = newTransferId();
   const uploadToken = newUploadToken();
@@ -111,10 +126,10 @@ api.post("/transfers", async (c) => {
 
   await insertTransfer(c.env, {
     transfer_id: transferId,
-    title: clampText(body.title, 200),
-    sender_name: clampText(body.senderName, 80),
+    title: sealed ? "" : clampText(body.title, 200),
+    sender_name: sealed ? "" : clampText(body.senderName, 80),
     sender_user_id: null, // v1: always null (accounts fill this later, no wire change)
-    message: clampText(body.message, 1000),
+    message: sealed ? "" : clampText(body.message, 1000),
     share_kind: normalizeShareKind(body.kind),
     status: "draft",
     size_total: 0,
@@ -122,6 +137,8 @@ api.post("/transfers", async (c) => {
     expires_at: expiresAt,
     upload_token_hash: await hashUploadToken(uploadToken),
     sender_id: who.sender?.sender_id ?? null,
+    sealed: sealed ? 1 : 0,
+    sealed_meta: sealed ? (body.sealedMeta as string) : null,
   });
 
   return jsonResponse(
@@ -148,13 +165,20 @@ api.post("/transfers/:id/items", async (c) => {
     return errorResponse(401, "upload token required");
   }
   const fileName = clampText(body.fileName, MAX_NAME_LEN) || "file";
-  const mimeType = clampText(body.mimeType, 120) || "application/octet-stream";
+  // A sealed item's real type is sealed too: the server stores bytes.
+  const mimeType =
+    transfer.sealed === 1 ? "application/octet-stream" : clampText(body.mimeType, 120) || "application/octet-stream";
   const size = Number(body.size);
   if (!Number.isFinite(size) || size <= 0) return errorResponse(400, "invalid size");
 
   // Content allowlist: audio + .songnook only, checked on extension AND mime.
-  const allowed = checkUploadAllowed(fileName, mimeType);
-  if (!allowed.ok) return errorResponse(415, allowed.reason ?? "file type not accepted");
+  // A sealed parcel's items are numbered `N.sealed` (real names are sealed).
+  if (transfer.sealed === 1) {
+    if (!isSealedItemName(fileName)) return errorResponse(415, "a sealed parcel takes only sealed items");
+  } else {
+    const allowed = checkUploadAllowed(fileName, mimeType);
+    if (!allowed.ok) return errorResponse(415, allowed.reason ?? "file type not accepted");
+  }
 
   // Early, precise answers for the plain cases; the insert below re-checks the
   // item and byte caps atomically, since these reads race parallel registrations.
@@ -234,6 +258,16 @@ api.post("/transfers/:id/finalize", async (c) => {
     actualTotal += head.size;
     if (head.size !== item.size) {
       await setItemSize(c.env, item.item_id, head.size);
+    }
+
+    // A sealed item must at least be SNS1 (the server can see no further).
+    if (transfer.sealed === 1) {
+      const obj = await c.env.BUCKET.get(item.r2_key, { range: { offset: 0, length: 4 } });
+      const head4 = obj ? new Uint8Array(await obj.arrayBuffer()) : new Uint8Array();
+      if (!looksSealed(head4)) {
+        await deleteDraftAndObjects(c.env, transferId, items);
+        return errorResponse(415, `not a sealed file: ${item.file_name}`);
+      }
     }
 
     // A .songnook file must be a real zip (blocks arbitrary bytes renamed to

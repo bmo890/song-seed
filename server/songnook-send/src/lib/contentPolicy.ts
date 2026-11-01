@@ -67,6 +67,22 @@ export function checkUploadAllowed(fileName: string, mimeType: string): UploadCh
 // INSIDE the zip — that's the opaque-file residual.)
 const ZIP_MAGIC = [0x50, 0x4b, 0x03, 0x04];
 
+/** A sealed parcel's items are numbered `N.sealed`; their real names and
+ *  types live in the sealed envelope, out of the server's sight. */
+export function isSealedItemName(fileName: string): boolean {
+  return /^[1-9][0-9]{0,2}\.sealed$/.test(fileName);
+}
+
+/** "SNS1": the first four bytes of every sealed file. */
+export function looksSealed(head: Uint8Array): boolean {
+  return head.length >= 4 && head[0] === 0x53 && head[1] === 0x4e && head[2] === 0x53 && head[3] === 0x31;
+}
+
+/** A sealed envelope: base64 of an SNS1 file ("U05TMQ"), at most 64 KB. */
+export function sealedMetaValid(value: unknown): value is string {
+  return typeof value === "string" && value.length <= 65536 && /^U05TMQ[A-Za-z0-9+/]*={0,2}$/.test(value);
+}
+
 export function looksLikeZip(head: Uint8Array): boolean {
   if (head.length < 4) return false;
   return ZIP_MAGIC.every((b, i) => head[i] === b);

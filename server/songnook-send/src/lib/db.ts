@@ -21,6 +21,10 @@ export interface TransferRow {
   /** The install (or paired browser's install) that made it — lib/senders.ts.
    *  Counts toward that sender's free links; never sent to recipients. */
   sender_id?: string | null;
+  /** 1: files and envelope are SNS1-sealed; the server can't read them. */
+  sealed?: number;
+  /** The sealed envelope (title, sender, note, file names), base64. */
+  sealed_meta?: string | null;
 }
 
 export interface ItemRow {
@@ -38,8 +42,8 @@ export interface ItemRow {
 export async function insertTransfer(env: Env, t: TransferRow): Promise<void> {
   await env.DB.prepare(
     `INSERT INTO transfers
-      (transfer_id, title, sender_name, sender_user_id, message, status, size_total, created_at, expires_at, upload_token_hash, share_kind, sender_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      (transfer_id, title, sender_name, sender_user_id, message, status, size_total, created_at, expires_at, upload_token_hash, share_kind, sender_id, sealed, sealed_meta)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
     .bind(
       t.transfer_id,
@@ -53,7 +57,9 @@ export async function insertTransfer(env: Env, t: TransferRow): Promise<void> {
       t.expires_at,
       t.upload_token_hash,
       t.share_kind,
-      t.sender_id ?? null
+      t.sender_id ?? null,
+      t.sealed ?? 0,
+      t.sealed_meta ?? null
     )
     .run();
 }

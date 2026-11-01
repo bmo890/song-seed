@@ -6,6 +6,7 @@
  * API returns.
  */
 import { page, waveformStrip } from "./shell";
+import { SEAL_JS } from "./sealJs";
 
 const SENDER_CSS = `
 /* The brand classes set display:flex/inline-flex, which beats the UA's [hidden]. */
@@ -54,7 +55,10 @@ const SENDER_CSS = `
 .session-line button{background:none;border:none;padding:0;color:var(--terra);font:inherit;cursor:pointer}
 `;
 
-export function renderSenderPage(): string {
+/** `seal`: seal each file in this browser before it leaves (docs/product-plan/
+ *  send-e2e-encryption.md). Off until the app build that opens sealed parcels
+ *  is the one people have (SEAL_WEB_SENDS). */
+export function renderSenderPage(options: { seal: boolean } = { seal: false }): string {
   const body = `
 <p class="eyebrow rise d1">Send a parcel of sound</p>
 <h1 class="rise d1">Pass a song along, <em>beautifully</em>.</h1>
@@ -121,7 +125,7 @@ on the other end.</p>
   return page({
     title: "SongNook Send — pass a song along",
     body,
-    bodyScript: SENDER_JS,
+    bodyScript: SEAL_JS + `var SEAL_SENDS = ${options.seal ? "true" : "false"};` + SENDER_JS,
     extraStyle: SENDER_CSS,
     noindex: true,
   });
@@ -350,9 +354,15 @@ const SENDER_JS = `
   sendBtn.addEventListener('click', async function(){
     sealing=true; sendBtn.disabled=true; sendBtn.textContent='Sealing…'; say('');
     var total=files.reduce(function(s,f){return s+f.size;},0), doneBytes=0;
+    // Sealed: one key for the parcel, made here and carried only in the link's #k=.
+    var Seal = window.SongNookSeal, key = SEAL_SENDS ? Seal.newKey() : null;
     try{
+      var createBody = key ? { sealed:true, kind:kind, sealedMeta: await Seal.sealJson(key, {
+          v:1, title:titleEl.value, senderName:senderEl.value, message:$('message').value,
+          items: files.map(function(f){ return { name:f.name, mime:f.type||'application/octet-stream', size:f.size }; }) }) }
+        : { senderName:senderEl.value, title:titleEl.value, message:$('message').value, kind:kind };
       var create = await fetch('/api/transfers',{method:'POST',headers:{'content-type':'application/json'},
-        body:JSON.stringify({ senderName:senderEl.value, title:titleEl.value, message:$('message').value, kind:kind })});
+        body:JSON.stringify(createBody)});
       if(create.status===401){ sealing=false; sendBtn.disabled=false; sendBtn.textContent='Seal & get the link'; startPairing(); return; }
       if(create.status===402){ sealing=false; sendBtn.disabled=false; sendBtn.textContent='Seal & get the link';
         say('This month’s 3 free links are used. SongNook Pro sends without limit.'); return; }
@@ -361,14 +371,15 @@ const SENDER_JS = `
 
       for(var i=0;i<files.length;i++){
         var f=files[i];
+        var payload = key ? await Seal.sealBlob(key, f) : f;
         var reg = await fetch('/api/transfers/'+t.transferId+'/items',{method:'POST',
           headers:{'content-type':'application/json'},
-          body:JSON.stringify({ uploadToken:t.uploadToken, fileName:f.name,
-            mimeType:f.type||'application/octet-stream', size:f.size })});
+          body:JSON.stringify({ uploadToken:t.uploadToken, fileName: key ? (i+1)+'.sealed' : f.name,
+            mimeType: key ? 'application/octet-stream' : (f.type||'application/octet-stream'), size:payload.size })});
         if(!reg.ok) throw new Error(await reg.text());
         var slot = await reg.json();
         var cell = list.querySelector('[data-size="'+i+'"]');
-        await putWithProgress(slot.uploadUrl, slot.method, slot.headers, f, function(frac){
+        await putWithProgress(slot.uploadUrl, slot.method, slot.headers, payload, function(frac){
           if(cell){ cell.className='trk-prog'; cell.textContent=Math.round(frac*100)+'%'; }
           setProgress((doneBytes + f.size*frac)/total);
         });
@@ -382,7 +393,7 @@ const SENDER_JS = `
         body:JSON.stringify({uploadToken:t.uploadToken})});
       if(!fin.ok) throw new Error(await fin.text());
       var done = await fin.json();
-      $('url').textContent = done.shareUrl;
+      $('url').textContent = done.shareUrl + (key ? '#k=' + Seal.keyText(key) : '');
       $('result').hidden=false;
       sendBtn.hidden=true;
       $('progress').hidden=true;
