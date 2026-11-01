@@ -3529,7 +3529,6 @@ export const pt = {
         priceLater: "US$ 79,99",
         sub: "Pagamento único. Preço de lançamento, depois US$ 79,99.",
         subNow: "Pagamento único. Preço de lançamento.",
-        note: "O vitalício inclui todas as ferramentas do app. Um futuro armazenamento na nuvem seria vendido à parte.",
         subUntil: "Pagamento único. Preço de lançamento até {{date}}, depois US$ 79,99.",
         subUntilNow: "Pagamento único. Preço de lançamento até {{date}}.",
         subAfter: "Pagamento único.",

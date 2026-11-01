@@ -3526,7 +3526,6 @@ export const es = {
         priceLater: "$79.99",
         sub: "Pago único. Precio de lanzamiento, luego $79.99.",
         subNow: "Pago único. Precio de lanzamiento.",
-        note: "De por vida incluye todas las herramientas de la app. El futuro almacenamiento en la nube se vendería aparte.",
         subUntil: "Pago único. Precio de lanzamiento hasta el {{date}}, luego $79.99.",
         subUntilNow: "Pago único. Precio de lanzamiento hasta el {{date}}.",
         subAfter: "Pago único.",

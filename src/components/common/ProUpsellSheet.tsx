@@ -156,8 +156,6 @@ function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
             );
           })}
         </View>
-        {/* Founder, 2026-11-01: lifetime is the app's tools, said before anyone buys. */}
-        <Text style={s.lifetimeNote}>{t("pro.plans.lifetime.note")}</Text>
       </ScrollView>
 
       <View style={s.footer}>
@@ -304,11 +302,6 @@ const s = StyleSheet.create({
   planTag: {
     ...textTokens.annotation,
     color: colors.textSecondary,
-  },
-  lifetimeNote: {
-    ...textTokens.caption,
-    color: colors.textMuted,
-    marginTop: spacing.sm,
   },
   planSub: {
     ...textTokens.caption,

@@ -54,8 +54,10 @@ trust problem, and some are legal ones.
 1. **Lifetime covers the app's tools, not online storage** (founder, 2026-11-01). Lifetime
    unlocks every Pro tool in the app, including unlimited Send links, for as long as we
    offer SongNook. Services that keep work stored online (cloud sync) are not included
-   and may be sold separately. Said in the terms and on the Pro sheet
-   (`pro.plans.lifetime.note`) before anyone buys. Never add a hosted, ongoing-cost
+   and may be sold separately. Said in the terms only (founder, 2026-11-01): the Pro
+   sheet and store descriptions don't mention cloud storage we don't offer, in an app
+   whose point is that work stays on the phone. If cloud ever launches, be generous to
+   lifetime buyers (e.g. a discount on the add-on). Never add a hosted, ongoing-cost
    service to lifetime without the founder.
 2. **The $79.99 raise must really happen on the printed date.** The sheet shows the
    end date; on that day the founder changes the lifetime price in App Store Connect
@@ -165,8 +167,6 @@ The one real cost risk: it is permanent and grows. Not decided; the working shap
 - Browser access: pairing (recommended, being built) or accounts.
 - Cloud plan shape and price.
 - Post-encryption Send copy (§6).
-- Lifetime product description in App Store Connect and Play Console (founder enters):
-  "Every Pro tool, paid once. Cloud storage not included."
 
 ## Release-day checklist (pricing)
 
@@ -190,3 +190,6 @@ The one real cost risk: it is permanent and grows. Not decided; the working shap
 - 2026-11-01 — Lifetime launch price ends 90 days after the App Store release (fixed
   date, printed on the sheet), not one month: a month would end inside early users'
   free month.
+- 2026-11-01 — Cloud exclusion stays in the terms only; the Pro sheet line about it
+  was removed and the store description stays "Every Pro tool, pay once." (founder:
+  don't raise a question about cloud storage we don't offer).

@@ -3389,7 +3389,6 @@ export const de = {
         priceLater: "79,99 $",
         sub: "Einmal zahlen. Startpreis, später 79,99 $.",
         subNow: "Einmal zahlen. Startpreis.",
-        note: "„Dauerhaft“ umfasst jedes Werkzeug der App. Künftiger Cloud-Speicher würde separat verkauft.",
         subUntil: "Einmal zahlen. Startpreis bis {{date}}, danach 79,99 $.",
         subUntilNow: "Einmal zahlen. Startpreis bis {{date}}.",
         subAfter: "Einmal zahlen.",
