@@ -149,7 +149,6 @@ export function useSearchScreenModel() {
   };
 
   const resultCount = results.length;
-  const filteredResultCount = filteredResults.length;
   const hasQuery = debouncedSearchQuery.trim().length > 0;
 
   return {
@@ -158,7 +157,6 @@ export function useSearchScreenModel() {
     debouncedSearchQuery,
     resultGroups,
     resultCount,
-    filteredResultCount,
     matchFilters,
     activeMatchFilter,
     setActiveMatchFilter,

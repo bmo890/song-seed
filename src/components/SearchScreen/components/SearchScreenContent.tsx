@@ -266,24 +266,11 @@ function SearchLanding() {
 export function SearchScreenContent() {
   const { t } = useTranslation();
   const model = useSearchScreenModel();
-  const shownCount = model.activeMatchFilter ? model.filteredResultCount : model.resultCount;
-  const subtitle = model.hasQuery
-    ? t("search.matches", { count: shownCount })
-    : t("search.intro");
   const showFilterBar = model.hasQuery && model.matchFilters.length > 1;
 
   return (
     <SafeAreaView style={styles.screen}>
-      {/* title intentionally blank: the editorial title below is the single heading */}
-      <ScreenHeader title="" leftIcon="hamburger" />
-
-      <View style={searchScreenStyles.intro}>
-        <Text style={searchScreenStyles.eyebrow}>{t("search.archive")}</Text>
-        <Text style={searchScreenStyles.title}>{t("search.title")}</Text>
-        <Text style={searchScreenStyles.subtitle} numberOfLines={2}>
-          {subtitle}
-        </Text>
-      </View>
+      <ScreenHeader title={t("search.title")} variant="place" leftIcon="hamburger" />
 
       <SearchField
         testID="global-search"
@@ -380,25 +367,6 @@ export function SearchScreenContent() {
 }
 
 const searchScreenStyles = StyleSheet.create({
-  intro: {
-    marginTop: 2,
-    marginBottom: 16,
-    gap: 4,
-  },
-  // Wayfinding in moss, like every eyebrow; terracotta is for the action.
-  eyebrow: {
-    ...textTokens.annotation,
-    color: colors.eyebrow,
-  },
-  title: {
-    ...textTokens.pageTitle,
-  },
-  subtitle: {
-    ...textTokens.supporting,
-    color: colors.textSecondary,
-    lineHeight: 20,
-    maxWidth: 320,
-  },
   searchField: {
     marginBottom: 12,
   },
