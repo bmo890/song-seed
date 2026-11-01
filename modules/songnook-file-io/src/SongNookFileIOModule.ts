@@ -40,6 +40,11 @@ declare class SongNookFileIOModule extends NativeModule<SongNookFileIOEvents> {
     computeSha256: boolean,
     operationId: string
   ): Promise<{ crc32: number; sizeBytes: number; sha256?: string | null }>;
+  // SongNook Send sealed end to end (2026-11-01). Missing on builds made before it.
+  sealFileAsync?(sourceUri: string, destinationUri: string, keyText: string): Promise<{ sizeBytes: number }>;
+  openSealedFileAsync?(sourceUri: string, destinationUri: string, keyText: string): Promise<{ sizeBytes: number }>;
+  sealBase64Async?(base64: string, keyText: string): Promise<string>;
+  openSealedBase64Async?(base64: string, keyText: string): Promise<string>;
 }
 
 export default requireOptionalNativeModule<SongNookFileIOModule>("SongNookFileIO");

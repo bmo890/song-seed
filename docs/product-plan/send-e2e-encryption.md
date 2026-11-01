@@ -97,3 +97,18 @@ file    = header | record 0 | record 1 | … | last record
 3. **Switch on** once the store build is the one people have: web sends seal
    (`SEAL_WEB_SENDS=true`), unsealed sends from the app stop, and the copy may
    say "Only people with the link can open it, not even SongNook".
+
+## Status (2026-11-01)
+
+All three steps are built. The founder said to see them through (no real users yet).
+
+- Step 1, server + web: c94df33f.
+- Step 2, native seal/open (`modules/songnook-file-io`: SongNookSeal.swift,
+  SongNookSeal.kt), app send (`services/sendSeal.ts`, `shareLink.ts`: sealed copies,
+  envelope at finalize), app receive (`receiveTransfer.ts`, key routed by App.tsx
+  linking into TransferReceive `key`, preview downloads and opens before playing).
+- Step 3: `SEAL_WEB_SENDS=true`; the privacy promise shows only where this build
+  seals (`sendSheet.sealedHint`, `send.sealedThesis`); privacy policy updated.
+- Verified on the iOS simulator against the live server: app → web, web → app (Node
+  and the real page), app → app; missing key; byte-identical opens. Android compiled
+  locally (`:songnook-file-io:compileDebugKotlin`); not yet run on a device.

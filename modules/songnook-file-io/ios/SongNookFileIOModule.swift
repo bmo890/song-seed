@@ -191,6 +191,30 @@ public class SongNookFileIOModule: Module {
 
     Events("onCopyProgress")
 
+    // SongNook Send, sealed end to end (SongNookSeal.swift). Files a record at a
+    // time; the envelope (title, sender, note, file names) as base64.
+    AsyncFunction("sealFileAsync") { (sourceUri: String, destinationUri: String, keyText: String) -> [String: Any] in
+      let size = try SongNookSeal.sealFile(
+        from: try localURL(sourceUri), to: try localURL(destinationUri), key: try SongNookSeal.key(keyText))
+      return ["sizeBytes": Double(size)]
+    }
+
+    AsyncFunction("openSealedFileAsync") { (sourceUri: String, destinationUri: String, keyText: String) -> [String: Any] in
+      let size = try SongNookSeal.openFile(
+        from: try localURL(sourceUri), to: try localURL(destinationUri), key: try SongNookSeal.key(keyText))
+      return ["sizeBytes": Double(size)]
+    }
+
+    AsyncFunction("sealBase64Async") { (base64: String, keyText: String) -> String in
+      guard let plain = Data(base64Encoded: base64) else { throw IOError(message: "Expected base64.") }
+      return try SongNookSeal.seal(plain, key: try SongNookSeal.key(keyText)).base64EncodedString()
+    }
+
+    AsyncFunction("openSealedBase64Async") { (base64: String, keyText: String) -> String in
+      guard let sealed = Data(base64Encoded: base64) else { throw IOError(message: "Expected base64.") }
+      return try SongNookSeal.open(sealed, key: try SongNookSeal.key(keyText)).base64EncodedString()
+    }
+
     AsyncFunction("zipCreateAsync") { (writerId: String, destinationUri: String) in
       let created = try ZipWriter(url: try localURL(destinationUri))
       self.lock.lock()

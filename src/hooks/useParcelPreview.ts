@@ -1,21 +1,27 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createAudioPlayer, type AudioPlayer } from "expo-audio";
 import { useStore } from "../state/useStore";
+import { downloadTransferItem, type TransferItemPayload } from "../services/receiveTransfer";
 
 type PreviewState = { itemId: string | null; playing: boolean; loading: boolean };
 const IDLE: PreviewState = { itemId: null, playing: false, loading: false };
 
 /**
  * Listen to a parcel's file before saving it — streamed straight from the
- * link, nothing written. One player at a time; it yields to the dock (pauses
- * it) and never starts while a take is recording. Released on unmount.
+ * link, nothing written. A sealed file can't stream (the server holds only
+ * sealed bytes): it downloads to the receive cache and opens there first.
+ * One player at a time; it yields to the dock (pauses it) and never starts
+ * while a take is recording. Released on unmount.
  */
 export function useParcelPreview() {
   const playerRef = useRef<AudioPlayer | null>(null);
   const subscriptionRef = useRef<{ remove: () => void } | null>(null);
   const [state, setState] = useState<PreviewState>(IDLE);
+  // The preview asked for last: an opened sealed file plays only if it still is.
+  const requestRef = useRef(0);
 
   const stop = useCallback(() => {
+    requestRef.current += 1;
     subscriptionRef.current?.remove();
     subscriptionRef.current = null;
     const player = playerRef.current;
@@ -31,8 +37,30 @@ export function useParcelPreview() {
     setState(IDLE);
   }, []);
 
+  const start = useCallback(
+    (itemId: string, uri: string) => {
+      const player = createAudioPlayer({ uri }, { updateInterval: 500 });
+      playerRef.current = player;
+      setState({ itemId, playing: true, loading: true });
+      subscriptionRef.current = player.addListener("playbackStatusUpdate", (status) => {
+        if (playerRef.current !== player) return;
+        if (status.didJustFinish) {
+          stop();
+          return;
+        }
+        setState((prev) => ({
+          ...prev,
+          loading: !status.isLoaded,
+          playing: status.playing,
+        }));
+      });
+      player.play();
+    },
+    [stop]
+  );
+
   const toggle = useCallback(
-    (item: { itemId: string; downloadUrl: string }) => {
+    (item: TransferItemPayload) => {
       const store = useStore.getState();
       if (store.recordingIdeaId) return; // a recording is never interrupted by a preview
       const current = playerRef.current;
@@ -49,24 +77,21 @@ export function useParcelPreview() {
       stop();
       store.requestInlineStop();
       if (store.playerIsPlaying) store.requestPlayerToggle();
-      const player = createAudioPlayer({ uri: item.downloadUrl }, { updateInterval: 500 });
-      playerRef.current = player;
+      const request = requestRef.current;
       setState({ itemId: item.itemId, playing: true, loading: true });
-      subscriptionRef.current = player.addListener("playbackStatusUpdate", (status) => {
-        if (playerRef.current !== player) return;
-        if (status.didJustFinish) {
-          stop();
-          return;
-        }
-        setState((prev) => ({
-          ...prev,
-          loading: !status.isLoaded,
-          playing: status.playing,
-        }));
-      });
-      player.play();
+      if (item.sealed) {
+        void downloadTransferItem(item)
+          .then((localUri) => {
+            if (requestRef.current === request) start(item.itemId, localUri);
+          })
+          .catch(() => {
+            if (requestRef.current === request) stop();
+          });
+        return;
+      }
+      start(item.itemId, item.downloadUrl);
     },
-    [state.itemId, state.playing, stop]
+    [start, state.itemId, state.playing, stop]
   );
 
   useEffect(() => stop, [stop]);

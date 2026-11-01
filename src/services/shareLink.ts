@@ -31,6 +31,7 @@ import { deleteEncodedAudio, encodeAudioForLink } from "./linkAudioEncoder";
 import type { SendProgressOptions } from "../domain/sendProgress";
 import { useSentLinksStore } from "../state/useSentLinksStore";
 import type { SentLink } from "../domain/sentLinks";
+import { ParcelSealer, canSealParcels } from "./sendSeal";
 
 /** Thrown when there's nothing exportable to link (mirrors the false return of
  *  the share-sheet path, so callers can show the same "nothing to share" copy). */
@@ -86,12 +87,14 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
   const signal = input.progress?.signal;
   const report = input.progress?.onProgress;
   throwIfSendCancelled(signal);
+  const sealer = canSealParcels() ? new ParcelSealer() : null;
   // 1. Reserve identity first so it can be stamped into the archive manifest.
   const transfer = await createTransfer({
     title: input.title,
     senderName: input.senderName ?? undefined,
     message: input.message,
     kind: input.kind,
+    sealed: !!sealer,
   });
 
   // 2. Build the archive with the transferId already in the share block.
@@ -134,6 +137,7 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
       ? { fileUri: next, fileName: file.fileName.replace(/\.[A-Za-z0-9]+$/, "") + ".m4a", mimeType: "audio/mp4" }
       : file;
   });
+  let sealedMeta: string | undefined;
   try {
     const size = await fileSize(prepared.archiveUri);
     const copySizes = await Promise.all(copyFiles.map((file) => fileSize(file.fileUri)));
@@ -143,18 +147,20 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
     const totalBytes = size + copySizes.reduce((sum, bytes) => sum + bytes, 0);
 
     // 3. Upload the .songnook file (opaque to the server), then any plain copies.
+    // Sealed, each leaves as a sealed copy made just before its upload.
     report?.({ phase: "uploading", completedBytes: 0, totalBytes });
+    const outgoing = async (file: ShareFileInput & { size: number }) => (sealer ? sealer.seal(file) : file);
     await registerAndUploadFile(
       transfer.transferId,
       transfer.uploadToken,
-      {
+      await outgoing({
         fileUri: prepared.archiveUri,
         fileName,
         // Octet-stream, not application/zip: keeps the .songnook identity and
         // matches how the archive is saved to disk elsewhere.
         mimeType: "application/octet-stream",
         size,
-      },
+      }),
       {
         signal,
         onProgress: (sent) => report?.({ phase: "uploading", completedBytes: sent, totalBytes }),
@@ -165,7 +171,7 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
       await registerAndUploadFile(
         transfer.transferId,
         transfer.uploadToken,
-        { ...file, size: copySizes[index]! },
+        await outgoing({ ...file, size: copySizes[index]! }),
         {
           signal,
           onProgress: (sent) => report?.({ phase: "uploading", completedBytes: sentBefore + sent, totalBytes }),
@@ -173,22 +179,26 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
       );
       sentBefore += copySizes[index]!;
     }
+    sealedMeta = sealer
+      ? await sealer.envelope({ title: input.title, senderName: input.senderName, message: input.message })
+      : undefined;
   } finally {
     // The packed archive is a temp file (songnook/share); the share-sheet path deletes
     // its copy the same way. Nothing else reads it once the bytes are up (or failed).
     await cleanupShareTempFile(prepared.archiveUri);
     if (tempUris.length > 0) await deleteEncodedAudio(tempUris);
+    await sealer?.cleanup();
   }
 
   // 4. Finalize — only now is the link live.
   throwIfSendCancelled(signal);
   report?.({ phase: "sealing", completedBytes: 0, totalBytes: 0 });
-  const { shareUrl } = await finalizeTransfer(transfer.transferId, transfer.uploadToken);
+  const { shareUrl } = await finalizeTransfer(transfer.transferId, transfer.uploadToken, sealedMeta);
 
-  // 5. Record in the local outbox.
+  // 5. Record in the local outbox. A sealed link keeps its key: the link is the whole key.
   const record: SentLink = {
     transferId: transfer.transferId,
-    shareUrl,
+    shareUrl: shareUrl + (sealer?.fragment ?? ""),
     title: input.title,
     kind: input.kind,
     entityId: input.entityId,
@@ -279,42 +289,43 @@ async function uploadFiles(
   const totalBytes = sizes.reduce((sum, size) => sum + size, 0);
 
   throwIfSendCancelled(signal);
+  const sealer = canSealParcels() ? new ParcelSealer() : null;
   const transfer = await createTransfer({
     title: input.title,
     senderName: input.senderName ?? undefined,
     message: input.message,
     kind: input.kind,
+    sealed: !!sealer,
   });
 
   // One bar for the whole parcel: bytes already sent by earlier files plus the
-  // file in flight.
+  // file in flight. Sealed, each file leaves as a sealed copy made just before.
   let sentBefore = 0;
+  let sealedMeta: string | undefined;
   report?.({ phase: "uploading", completedBytes: 0, totalBytes });
-  for (const [index, file] of input.files.entries()) {
-    await registerAndUploadFile(
-      transfer.transferId,
-      transfer.uploadToken,
-      {
-        fileUri: file.fileUri,
-        fileName: file.fileName,
-        mimeType: file.mimeType,
-        size: sizes[index]!,
-      },
-      {
+  try {
+    for (const [index, file] of input.files.entries()) {
+      const plain = { fileUri: file.fileUri, fileName: file.fileName, mimeType: file.mimeType, size: sizes[index]! };
+      await registerAndUploadFile(transfer.transferId, transfer.uploadToken, sealer ? await sealer.seal(plain) : plain, {
         signal,
         onProgress: (sent) => report?.({ phase: "uploading", completedBytes: sentBefore + sent, totalBytes }),
-      }
-    );
-    sentBefore += sizes[index]!;
+      });
+      sentBefore += sizes[index]!;
+    }
+    sealedMeta = sealer
+      ? await sealer.envelope({ title: input.title, senderName: input.senderName, message: input.message })
+      : undefined;
+  } finally {
+    await sealer?.cleanup();
   }
 
   throwIfSendCancelled(signal);
   report?.({ phase: "sealing", completedBytes: 0, totalBytes: 0 });
-  const { shareUrl } = await finalizeTransfer(transfer.transferId, transfer.uploadToken);
+  const { shareUrl } = await finalizeTransfer(transfer.transferId, transfer.uploadToken, sealedMeta);
 
   const record: SentLink = {
     transferId: transfer.transferId,
-    shareUrl,
+    shareUrl: shareUrl + (sealer?.fragment ?? ""),
     title: input.title,
     kind: input.kind,
     entityId: input.entityId,

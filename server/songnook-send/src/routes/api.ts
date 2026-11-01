@@ -19,6 +19,7 @@ import {
   insertItemWithinCaps,
   insertTransfer,
   setItemSize,
+  setSealedMeta,
   setTransferSize,
 } from "../lib/db";
 import { errorResponse, jsonResponse, transferUsable } from "../lib/http";
@@ -117,7 +118,11 @@ api.post("/transfers", async (c) => {
   const sealed = body.sealed === true;
   if (sealed) {
     if (!who.sender) return jsonResponse({ error: "update SongNook to send", code: "update" }, { status: 401 });
-    if (!sealedMetaValid(body.sealedMeta)) return errorResponse(400, "sealed envelope missing or malformed");
+    // The envelope may come now (the web page knows its files up front) or at
+    // finalize (the app packs its files after the link exists).
+    if (body.sealedMeta !== undefined && !sealedMetaValid(body.sealedMeta)) {
+      return errorResponse(400, "sealed envelope malformed");
+    }
   }
 
   const transferId = newTransferId();
@@ -138,7 +143,7 @@ api.post("/transfers", async (c) => {
     upload_token_hash: await hashUploadToken(uploadToken),
     sender_id: who.sender?.sender_id ?? null,
     sealed: sealed ? 1 : 0,
-    sealed_meta: sealed ? (body.sealedMeta as string) : null,
+    sealed_meta: sealed && sealedMetaValid(body.sealedMeta) ? body.sealedMeta : null,
   });
 
   return jsonResponse(
@@ -236,6 +241,11 @@ api.post("/transfers/:id/finalize", async (c) => {
 
   const items = await getItems(c.env, transferId);
   if (items.length === 0) return errorResponse(400, "no items to finalize");
+  // A sealed parcel can't go live without its envelope.
+  if (transfer.sealed === 1 && !transfer.sealed_meta) {
+    if (!sealedMetaValid(body.sealedMeta)) return errorResponse(400, "sealed envelope missing or malformed");
+    await setSealedMeta(c.env, transferId, body.sealedMeta);
+  }
 
   // Verify what was ACTUALLY uploaded before making anything fetchable —
   // presigned PUT isn't size-bound and the bytes are otherwise untrusted.

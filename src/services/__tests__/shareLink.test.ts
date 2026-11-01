@@ -24,6 +24,24 @@ jest.mock("../libraryExport", () => ({
   __esModule: true,
   prepareLibraryExportArchive: jest.fn(),
 }));
+// Sealing is the native module's; here a stand-in that renames and counts.
+const sealMock = { available: false };
+jest.mock("../sendSeal", () => ({
+  __esModule: true,
+  canSealParcels: () => sealMock.available,
+  ParcelSealer: class {
+    fragment = "#k=KEY";
+    sealed: string[] = [];
+    async seal(file: { fileName: string; size: number }) {
+      this.sealed.push(file.fileName);
+      return { fileUri: `file:///seal/${this.sealed.length}.sealed`, fileName: `${this.sealed.length}.sealed`, mimeType: "application/octet-stream", size: file.size + 31 };
+    }
+    async envelope() {
+      return `U05TMQ-envelope-of-${this.sealed.join("+")}`;
+    }
+    async cleanup() {}
+  },
+}));
 jest.mock("../../state/useSentLinksStore", () => ({
   __esModule: true,
   useSentLinksStore: { getState: jest.fn() },
@@ -79,6 +97,7 @@ describe("createShareLink", () => {
       senderName: "Ben",
       message: undefined,
       kind: "setlist",
+      sealed: false,
     });
     expect(buildArgs).toHaveBeenCalledWith("t_ABC");
 
@@ -110,6 +129,27 @@ describe("createShareLink", () => {
     expect(record.transferId).toBe("t_ABC");
     expect(record.expiresAt).toBe(Date.parse("2026-08-01T00:00:00.000Z"));
     expect(record.entityId).toBe("setlist-9");
+  });
+
+  it("sealed: uploads sealed copies, finalizes with the envelope, and keeps the key in the link", async () => {
+    sealMock.available = true;
+    try {
+      const recordLink = jest.fn();
+      mocked.getState.mockReturnValue({ recordLink });
+      const record = await createShareLink({ title: "Set", kind: "setlist", senderName: "Ben", buildArgs: () => fakeArgs });
+
+      expect(mocked.createTransfer).toHaveBeenCalledWith(expect.objectContaining({ sealed: true }));
+      expect(mocked.registerAndUploadFile).toHaveBeenCalledWith(
+        "t_ABC",
+        "ut_SECRET",
+        { fileUri: "file:///seal/1.sealed", fileName: "1.sealed", mimeType: "application/octet-stream", size: 4242 + 31 },
+        expect.anything()
+      );
+      expect(mocked.finalizeTransfer).toHaveBeenCalledWith("t_ABC", "ut_SECRET", "U05TMQ-envelope-of-Set.songnook");
+      expect(record.shareUrl).toBe("https://send.songnook.app/t/t_ABC#k=KEY");
+    } finally {
+      sealMock.available = false;
+    }
   });
 
   it("throws EmptyShareError and never uploads when there is nothing to build", async () => {

@@ -64,7 +64,8 @@ export function renderSenderPage(options: { seal: boolean } = { seal: false }): 
 <h1 class="rise d1">Pass a song along, <em>beautifully</em>.</h1>
 <p class="sub rise d2">Drop in a folder of bounces, a few sketches, or a SongNook file. Put them in
 the order you want heard. You'll get one clean, private link — no account, nothing to install
-on the other end.</p>
+on the other end.${options.seal ? ` It's sealed in this browser before it leaves: only people with the link can
+open it, not even SongNook.` : ""}</p>
 <div class="rise d2">${waveformStrip()}</div>
 
 <section id="pair-panel" class="panel rise d3" aria-live="polite">

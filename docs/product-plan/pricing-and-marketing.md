@@ -121,19 +121,20 @@ The one real cost risk: it is permanent and grows. Not decided; the working shap
 
 ## 6. SongNook Send: what we may claim
 
-- **Today (true):** "a private link". Links can't be guessed; HTTPS; encrypted on
-  Cloudflare's disks; 7-day life; only audio and SongNook files.
-- **Not yet true, so never say it:** "secure", "not even we can see it", "end-to-end".
-  The developer's Cloudflare account can read parcels until end-to-end encryption ships.
-- **After end-to-end encryption ships** (needs a store build), proposed copy, awaiting
-  the founder: "Send it privately with its notes, lyrics, charts and marks. Only people
-  with the link can open it, not even SongNook."
-- **Never:** "unhackable", "100% secure", or any absolute.
+- **End to end (shipped 2026-11-01, docs/product-plan/send-e2e-encryption.md):** builds
+  with the native seal and the web page encrypt every parcel on the sender's device; the
+  key rides only in the link's #k=. True to say there: "Only people with the link can open
+  it, not even SongNook." The app shows it only where it seals (`sendSheet.sealedHint`,
+  `helpContent.send.sealedThesis`); older builds keep the old lines because they still
+  send unsealed until they update.
+- **Still never say:** "unhackable", "100% secure", that we can't see that a parcel exists
+  or its size, or anything about a link someone has leaked.
+- **Never:** any absolute.
 - Share-menu lines (approved 2026-11-01, `shareExit.*`): Send = "A link anyone can play.
   SongNook opens it with everything." SongNook file = "A copy to keep or move yourself.
   Opens in SongNook."
-- In progress (2026-11-01, another session): browser pairing so paying users can send
-  from a computer, Pro checked on the server, Delete link.
+- Shipped 2026-11-01: browser pairing (paid users send from a computer), Pro and the
+  free 3 links checked on the server (dormant until the paywall), Delete link.
 
 ## 7. Growth levers (planned, none decided)
 

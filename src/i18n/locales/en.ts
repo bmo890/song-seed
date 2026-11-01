@@ -1448,11 +1448,14 @@ export const en = {
     branchBody: "Copy out keeps the original; Move out takes it away.",
   },
   // The Send sheet: the desktop sender page, folded into the phone.
-  sendSheet: { title: "SongNook Send", titleLabel: "Title", fromLabel: "From", fromPlaceholder: "Name", noteLabel: "A note", notePlaceholder: "ex: Learn song two first…", seal: "Get link", sealing: "Sealing", sealingDots: "Sealing…", sealingHint: "Swipe down to keep working. The link waits at the bottom.", packing: "Packing", packingOf: "Packing {{index}} of {{count}}", uploading: "Uploading", hide: "Hide", tryAgain: "Try again", readyPill: "Link ready · tap to share", failedPill: "Couldn’t send · tap to retry", oneAtATime: "One parcel at a time", bytesOf: "{{sent}} of {{total}}", timeLeft: "{{eta}} left", openSeal: "Open", expiryHint: "Anyone with the link can download for 7 days.", ready: "Link ready, copied", share: "Share", copied: "Link copied", orderLabel: "In this order", sortAz: "Sort A–Z", moveUp: "Move {{title}} up", moveDown: "Move {{title}} down", fromSketch: "With {{title}}", audioOnly: "Audio only", part: { takes: "Takes", lyrics: "Lyrics", chart: "Chart", notes: "Notes", marks: "Marks", layers: "Layers" } },
+  sendSheet: { title: "SongNook Send", titleLabel: "Title", fromLabel: "From", fromPlaceholder: "Name", noteLabel: "A note", notePlaceholder: "ex: Learn song two first…", seal: "Get link", sealing: "Sealing", sealingDots: "Sealing…", sealingHint: "Swipe down to keep working. The link waits at the bottom.", packing: "Packing", packingOf: "Packing {{index}} of {{count}}", uploading: "Uploading", hide: "Hide", tryAgain: "Try again", readyPill: "Link ready · tap to share", failedPill: "Couldn’t send · tap to retry", oneAtATime: "One parcel at a time", bytesOf: "{{sent}} of {{total}}", timeLeft: "{{eta}} left", openSeal: "Open", expiryHint: "Anyone with the link can download for 7 days.", sealedHint: "Only people with the link can open it, not even SongNook.", ready: "Link ready, copied", share: "Share", copied: "Link copied", orderLabel: "In this order", sortAz: "Sort A–Z", moveUp: "Move {{title}} up", moveDown: "Move {{title}} down", fromSketch: "With {{title}}", audioOnly: "Audio only", part: { takes: "Takes", lyrics: "Lyrics", chart: "Chart", notes: "Notes", marks: "Marks", layers: "Layers" } },
   shareLink: {
     tooLargeTitle: "Too large to link", tooLargeBody: "Links carry up to {{limit}}. Share as a file instead.",
     copied: "Link copied — expires soon", share: "Share", emptyTitle: "Nothing to share", failureTitle: "Couldn’t create link", retry: "Try again.",
     sendError: {
+      missingKey: "This link is missing its key. Ask the sender for the full link.",
+      needsUpdate: "Update SongNook to open this parcel.",
+      sealBroken: "This link’s key doesn’t fit. Ask the sender for the full link again.",
       limit: "This month’s 3 free links are used. SongNook Pro sends without limit.",
       unreachable: "Couldn’t reach SongNook Send. Check the connection and try again.",
       rejected: "SongNook Send refused the request ({{status}}).",
@@ -1625,6 +1628,7 @@ export const en = {
   helpContent: {
     send: {
       thesis: "Anyone with the link can download until it expires or you delete it.",
+      sealedThesis: "Only people with the link can open what you send. Not even SongNook can.",
       keyLabel: "The link is the key",
       keyBody: "Anyone who has it can download. Share it with care.",
       expiryLabel: "Seven days",

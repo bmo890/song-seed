@@ -1,5 +1,6 @@
 import type { HelpItem } from "./HelpSheet";
 import { i18n } from "../../i18n/instance";
+import { canSealParcels } from "../../services/sendSeal";
 
 /**
  * Help-sheet copy for the audio flows, kept as data so every sheet renders
@@ -64,8 +65,9 @@ export const EDITOR_HELP: HelpContent = {
 };
 
 export const SEND_HELP: HelpContent = {
+  // The privacy promise only where it is true: builds that seal what they send.
   get thesis() {
-    return t("send.thesis");
+    return t(canSealParcels() ? "send.sealedThesis" : "send.thesis");
   },
   get items() {
     return [

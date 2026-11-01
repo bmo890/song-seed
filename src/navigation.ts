@@ -98,7 +98,8 @@ export type RootStackParamList = {
   ChordSheet: { ideaId: string };
   SongbookReader: { songbookId: string; startIdeaId?: string };
   SetlistSong: { setlistId: string; entryId: string };
-  TransferReceive: { transferId: string };
+  /** `key`: a sealed parcel's key, from the link's #k= (App.tsx moves it here). */
+  TransferReceive: { transferId: string; key?: string };
 };
 
 /** Nested params for `Home` that open a screen inside the drawer. */

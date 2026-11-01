@@ -1,6 +1,6 @@
 # SongNook Privacy Policy
 
-**Effective date:** October 25, 2026
+**Effective date:** November 1, 2026
 
 SongNook is a songwriting app built on a simple promise: **your music stays yours, on your phone.** There are no accounts, no ads, no analytics and no tracking.
 
@@ -19,6 +19,7 @@ SongNook makes a few network requests. None of them carry your name, an account,
 - **App updates.** When it opens, the app asks Expo, the service that delivers our updates, whether a newer version of its code is available. This sends the app version, your platform, a random install ID created by the app, and, if the app failed to start last time, the error message.
 - **Purchases.** If you buy SongNook Pro, the App Store or Google Play handles the payment. We use RevenueCat to check and restore your purchase. RevenueCat receives an anonymous ID, your device's app-specific identifier, device model, system version, language, store country and your purchase history. We never see your payment details.
 - **Word tools.** Word Finder lookups send the word you look up, plus any theme words you add, to Datamuse (English and Spanish) or, for Hebrew, to our own server, which asks Anthropic's Claude and Dicta (a non-profit Hebrew language institute) for suggestions. Our Hebrew server keeps a shared cache of results, with nothing that identifies who looked them up. Your lyrics are never sent.
+- **Sending.** When you send with SongNook Send, the app includes a random key it made for this install, so our server can count your free links and, once you buy Pro, ask RevenueCat whether you have it. We keep only a scrambled form of that key, never anything that names you. If you pair a computer's browser with the app (Settings → Data & storage → Send from a computer), we keep that pairing and the browser's name (for example "Chrome on Mac") for 30 days, or until you remove it.
 - **Borrowed Words.** This word game loads pages of public-domain books from Project Gutenberg and, for Hebrew, from the Ben-Yehuda Project through our server.
 
 ## Sharing with SongNook Send
@@ -26,15 +27,18 @@ SongNook makes a few network requests. None of them carry your name, an account,
 Send hands clips or a whole sketch to someone with a link. Nothing uploads until you tap **Get a link**.
 
 - **What uploads:** only what you picked. Clips, or a sketch as one package, which includes its lyrics, notes, chords and marks, with file names and the optional title, name and message you add.
+- **Sealed before it leaves.** Current versions of the app, and the Send web page, encrypt all of that on your device before upload, with a new key for every link. The key travels only in the link itself, in the part after "#", which browsers never send to a server. We store the encrypted files and cannot open them; neither can Cloudflare, or anyone who breaks into our servers. Older app versions that can't encrypt still send as before, protected by HTTPS and Cloudflare's encryption on disk.
+- **What we still see:** that a parcel exists, how many files it has and their sizes, what kind of parcel it is (for example clips or a setlist), when it was made and downloaded, and, briefly, the IP addresses involved (see Abuse prevention).
 - **Where:** a server we operate (send.songnook.app), hosted by Cloudflare. We don't open, listen to or analyze what you send; we deliver it.
-- **Who can see it:** anyone with the link. Links are long and random, and not listed or searchable anywhere. Share a link only with people you want to have the files.
-- **How long:** every parcel is deleted **7 days** after it is made, files and details both. Unfinished uploads are cleaned up within a day. To remove one sooner, email us.
+- **Who can see it:** anyone with the full link. Links are long and random, and not listed or searchable anywhere. Share a link only with people you want to have the files. If you lose the link, nobody, including us, can recover the parcel.
+- **How long:** every parcel is deleted **7 days** after it is made, files and details both, or as soon as you delete it. Unfinished uploads are cleaned up within a day.
 - **What we count:** how many times each file was downloaded, never by whom.
 
 ## Deleting your data
 
 - **Your library:** it lives only on your phone. Delete ideas in the app, or remove everything with **Settings → Erase everything**. Deleting the app removes it too (your phone's own backups are managed in its settings).
-- **A Send link:** it is deleted automatically **7 days** after you made it. To delete one sooner, email **bmostudio.dev@gmail.com** with the link; we remove the files and details within 7 days of your request.
+- **A Send link:** it is deleted automatically **7 days** after you made it. To delete one sooner, open **Settings → Data & storage → Sent links** and choose **Delete link**; the files go at once. For a link made before November 1, 2026, email **bmostudio.dev@gmail.com** with the link; we remove the files and details within 7 days of your request.
+- **Paired browsers:** remove one in **Settings → Data & storage → Send from a computer**, or it lapses after 30 days unused.
 - **Purchase records:** if you bought SongNook Pro, email us and we will ask RevenueCat to delete the purchase history tied to your anonymous ID. The App Store or Google Play keep their own records of the payment under their policies.
 - **Everything else:** word lookups are not tied to you, and the IP counters used against abuse expire on their own within about two hours, so there is nothing to delete.
 

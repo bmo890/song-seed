@@ -36,6 +36,20 @@ import { colors, radii, spacing, text as textTokens } from "../../design/tokens"
 import type { ShareKind } from "../../types";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
+import { i18n } from "../../i18n/instance";
+import { SendTransferError, describeSendTransferError } from "../../services/sendTransfer";
+
+/** A sealed parcel's reasons say what to do (ask for the full link, update);
+ *  anything else keeps the general line. */
+function openErrorMessage(error: unknown): string {
+  if (
+    error instanceof SendTransferError &&
+    (error.code === "missingKey" || error.code === "needsUpdate" || error.code === "sealBroken")
+  ) {
+    return describeSendTransferError(error);
+  }
+  return i18n.t("transferReceive.openFailed");
+}
 import { UserText, playRowFrame, playRowRest } from "../../i18n";
 import { UserFacingError, userFacingMessage } from "../../i18n/userFacingError";
 
@@ -109,6 +123,8 @@ export function TransferReceiveScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const transferId = route.params?.transferId as string | undefined;
+  // A sealed parcel's key, from the link's #k= (App.tsx's linking moves it here).
+  const parcelKey = route.params?.key as string | undefined;
 
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const phaseRef = useRef(phase);
@@ -141,18 +157,18 @@ export function TransferReceiveScreen() {
         return;
       }
       try {
-        const transfer = await fetchTransfer(transferId);
+        const transfer = await fetchTransfer(transferId, parcelKey);
         if (!cancelled) setPhase({ kind: "ready", transfer });
       } catch (error) {
         if (cancelled) return;
         if (error instanceof TransferGoneError) setPhase({ kind: "gone" });
-        else setPhase({ kind: "error", message: t("transferReceive.openFailed") });
+        else setPhase({ kind: "error", message: openErrorMessage(error) });
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [alreadyReceived, transferId, t]);
+  }, [alreadyReceived, transferId, parcelKey, t]);
 
   // Leaving mid-save is a decision, not a slip: back asks, and a yes aborts
   // the download loop so nothing half-saved survives.
@@ -512,13 +528,13 @@ export function TransferReceiveScreen() {
                 startedRef.current = false;
                 setPhase({ kind: "loading" });
                 if (transferId) {
-                  fetchTransfer(transferId)
+                  fetchTransfer(transferId, parcelKey)
                     .then((transfer) => setPhase({ kind: "ready", transfer }))
                     .catch((error) =>
                       setPhase(
                         error instanceof TransferGoneError
                           ? { kind: "gone" }
-                          : { kind: "error", message: t("transferReceive.openFailed") }
+                          : { kind: "error", message: openErrorMessage(error) }
                       )
                     );
                 }

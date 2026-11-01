@@ -3302,7 +3302,7 @@ export const es = {
     bytesOf: "{{sent}} de {{total}}",
     timeLeft: "Faltan {{eta}}",
     openSeal: "Abrir",
-    expiryHint: "Cualquiera con el enlace puede descargarlo durante 7 días.",
+    expiryHint: "Cualquiera con el enlace puede descargarlo durante 7 días.", sealedHint: "Solo quien tenga el enlace puede abrirlo, ni siquiera SongNook.",
     ready: "Enlace listo, copiado",
     share: "Compartir",
     copied: "Enlace copiado",
@@ -3321,6 +3321,9 @@ export const es = {
     failureTitle: "No se pudo crear el enlace",
     retry: "Vuelve a intentarlo.",
     sendError: {
+      missingKey: "A este enlace le falta su clave. Pide el enlace completo a quien lo envió.",
+      needsUpdate: "Actualiza SongNook para abrir este paquete.",
+      sealBroken: "La clave de este enlace no coincide. Pide de nuevo el enlace completo.",
       limit: "Ya usaste los 3 enlaces gratis de este mes. SongNook Pro envía sin límite.",
       unreachable: "No se pudo conectar con SongNook Send. Revisa la conexión y vuelve a intentarlo.",
       rejected: "SongNook Send rechazó la solicitud ({{status}}).",
@@ -3648,6 +3651,7 @@ export const es = {
   helpContent: {
     send: {
       thesis: "Cualquiera con el enlace puede descargar hasta que caduque o lo elimines.",
+      sealedThesis: "Solo quien tenga el enlace puede abrir lo que envías. Ni siquiera SongNook.",
       keyLabel: "El enlace es la llave",
       keyBody: "Quien lo tenga puede descargar. Compártelo con cuidado.",
       expiryLabel: "Siete días",

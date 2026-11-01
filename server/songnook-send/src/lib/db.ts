@@ -148,6 +148,10 @@ export async function setItemSize(env: Env, itemId: string, sizeBytes: number): 
     .run();
 }
 
+export async function setSealedMeta(env: Env, transferId: string, sealedMeta: string): Promise<void> {
+  await env.DB.prepare(`UPDATE transfers SET sealed_meta = ? WHERE transfer_id = ?`).bind(sealedMeta, transferId).run();
+}
+
 export async function finalizeTransfer(env: Env, transferId: string): Promise<void> {
   await env.DB.prepare(`UPDATE transfers SET status = 'finalized' WHERE transfer_id = ?`)
     .bind(transferId)

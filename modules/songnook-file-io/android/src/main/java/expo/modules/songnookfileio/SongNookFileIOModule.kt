@@ -94,6 +94,28 @@ class SongNookFileIOModule : Module() {
 
     Events("onCopyProgress")
 
+    // SongNook Send, sealed end to end (SongNookSeal.kt). Files a record at a
+    // time; the envelope (title, sender, note, file names) as base64.
+    AsyncFunction("sealFileAsync") { sourceUri: String, destinationUri: String, keyText: String ->
+      val size = SongNookSeal.sealFile(File(localPath(sourceUri)), File(localPath(destinationUri)), SongNookSeal.key(keyText))
+      mapOf("sizeBytes" to size.toDouble())
+    }
+
+    AsyncFunction("openSealedFileAsync") { sourceUri: String, destinationUri: String, keyText: String ->
+      val size = SongNookSeal.openFile(File(localPath(sourceUri)), File(localPath(destinationUri)), SongNookSeal.key(keyText))
+      mapOf("sizeBytes" to size.toDouble())
+    }
+
+    AsyncFunction("sealBase64Async") { base64: String, keyText: String ->
+      val plain = Base64.decode(base64, Base64.DEFAULT)
+      Base64.encodeToString(SongNookSeal.seal(plain, SongNookSeal.key(keyText)), Base64.NO_WRAP)
+    }
+
+    AsyncFunction("openSealedBase64Async") { base64: String, keyText: String ->
+      val sealed = Base64.decode(base64, Base64.DEFAULT)
+      Base64.encodeToString(SongNookSeal.open(sealed, SongNookSeal.key(keyText)), Base64.NO_WRAP)
+    }
+
     AsyncFunction("copyFileToContentUriAsync") {
         operationId: String,
         sourceUri: String,

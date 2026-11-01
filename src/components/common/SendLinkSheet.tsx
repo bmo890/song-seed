@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { canSealParcels } from "../../services/sendSeal";
 import { ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import * as Clipboard from "expo-clipboard";
@@ -218,7 +219,8 @@ function SendLinkSheet({ request }: { request: SendRequest }) {
           maxLength={MESSAGE_MAX}
           multiline
         />
-        <Text style={local.hint}>{t("sendSheet.expiryHint")}</Text>
+        {/* The privacy promise only where it is true: builds that seal (services/sendSeal.ts). */}
+        <Text style={local.hint}>{t(canSealParcels() ? "sendSheet.sealedHint" : "sendSheet.expiryHint")}</Text>
         <View style={local.keys}>
           <Button variant="secondary" label={t("common.cancel")} style={local.key} onPress={dismiss} />
           <Button

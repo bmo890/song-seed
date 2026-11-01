@@ -26,7 +26,12 @@ export type SendTransferErrorCode =
   | "unsupportedItem"
   | "tooLarge"
   | "downloadFailed"
-  | "limit";
+  | "limit"
+  // Sealed parcels (services/sendSeal.ts): no key in the link, a build that
+  // can't open them, a key that doesn't fit.
+  | "missingKey"
+  | "needsUpdate"
+  | "sealBroken";
 
 export class SendTransferError extends Error {
   constructor(message: string, readonly status?: number, readonly code: SendTransferErrorCode = "rejected") {
@@ -104,16 +109,21 @@ export function createTransfer(input: {
    *  receive screen, so a collection or a workspace reads as one before any
    *  file is opened (the .songnook manifest stays the authority on device). */
   kind?: ShareKind;
+  /** Sealed end to end (services/sendSeal.ts): the title, sender and note go
+   *  only inside the sealed envelope, at finalize. */
+  sealed?: boolean;
 }): Promise<CreatedTransfer> {
   return sendIdentityHeaders().then((identity) =>
     postJson<CreatedTransfer>(
       "/api/transfers",
-      {
-        title: input.title,
-        senderName: input.senderName ?? undefined,
-        message: input.message,
-        kind: input.kind,
-      },
+      input.sealed
+        ? { sealed: true, kind: input.kind }
+        : {
+            title: input.title,
+            senderName: input.senderName ?? undefined,
+            message: input.message,
+            kind: input.kind,
+          },
       identity
     )
   );
@@ -205,10 +215,13 @@ export async function registerAndUploadFile(
 /** 4. Finalize — nothing is fetchable until this returns. */
 export function finalizeTransfer(
   transferId: string,
-  uploadToken: string
+  uploadToken: string,
+  /** A sealed parcel's envelope (title, sender, note, file names), sealed. */
+  sealedMeta?: string
 ): Promise<{ shareUrl: string }> {
   return postJson<{ shareUrl: string }>(`/api/transfers/${transferId}/finalize`, {
     uploadToken,
+    ...(sealedMeta ? { sealedMeta } : {}),
   });
 }
 

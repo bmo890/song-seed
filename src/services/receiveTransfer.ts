@@ -6,6 +6,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { SEND_MAX_ITEM_BYTES, SEND_MAX_TRANSFER_BYTES, SEND_SERVICE_BASE_URL } from "../config/sendService";
 import { SendCancelledError, SendTransferError } from "./sendTransfer";
+import { canOpenSealedParcels, openParcelEnvelope, openSealedFile, type ParcelEnvelope } from "./sendSeal";
 import type { ShareKind } from "../types";
 
 export type TransferItemPayload = {
@@ -14,6 +15,10 @@ export type TransferItemPayload = {
   size: number;
   mimeType: string;
   downloadUrl: string;
+  /** A sealed item (services/sendSeal.ts): its size on the server and the
+   *  parcel key that opens it. `fileName`, `mimeType` and `size` are then the
+   *  real ones, from the opened envelope. */
+  sealed?: { size: number; key: string };
 };
 
 export type TransferPayload = {
@@ -131,6 +136,9 @@ export function validateTransferPayload(value: unknown, expectedTransferId: stri
     throw invalidTransfer("Transfer metadata has no importable items.");
   }
 
+  // A sealed parcel's items are N.sealed here; their real names are checked
+  // once the envelope is open (fetchTransfer).
+  const sealed = value.sealed === true;
   let total = 0;
   const items: TransferItemPayload[] = itemsIn.map((raw) => {
     if (!isRecord(raw)) throw invalidTransfer("Transfer item metadata is invalid.");
@@ -142,7 +150,7 @@ export function validateTransferPayload(value: unknown, expectedTransferId: stri
     if (!Number.isFinite(size) || size <= 0 || size > MAX_ITEM_BYTES) {
       throw invalidTransfer("Transfer item size is invalid.");
     }
-    if (!isSupportedTransferItem(fileName, mimeType)) {
+    if (sealed ? !/^[1-9][0-9]{0,2}\.sealed$/.test(fileName) : !isSupportedTransferItem(fileName, mimeType)) {
       throw new SendTransferError(`Transfer item "${fileName}" is not supported.`, undefined, "unsupportedItem");
     }
     total += size;
@@ -205,7 +213,41 @@ export function parseTransferUrl(input: string | null | undefined): string | nul
 }
 
 /** GET /api/transfers/:id — no auth, no cookies; the id is the capability. */
-export async function fetchTransfer(transferId: string): Promise<TransferPayload> {
+/** A sealed parcel, opened with the link's key: the envelope's title, sender,
+ *  note and real file names replace the server's blanks. */
+async function openSealedTransfer(transfer: TransferPayload, sealedMeta: unknown, key: string | undefined): Promise<TransferPayload> {
+  if (!key) throw new SendTransferError("This link is missing its key.", undefined, "missingKey");
+  if (!canOpenSealedParcels()) throw new SendTransferError("This build can't open sealed parcels.", undefined, "needsUpdate");
+  if (typeof sealedMeta !== "string") throw invalidTransfer("Sealed transfer has no envelope.");
+  let envelope: ParcelEnvelope;
+  try {
+    envelope = await openParcelEnvelope(sealedMeta, key);
+  } catch {
+    throw new SendTransferError("This link's key doesn't fit.", undefined, "sealBroken");
+  }
+  if (envelope.items.length !== transfer.items.length) throw invalidTransfer("Sealed transfer doesn't match its envelope.");
+  const items = transfer.items.map((item, index) => {
+    const real = envelope.items[index]!;
+    const fileName = String(real.name ?? "").trim().slice(0, MAX_NAME_LEN) || "file";
+    const mimeType = String(real.mime ?? "").toLowerCase().slice(0, 120);
+    const size = Number(real.size);
+    if (!Number.isFinite(size) || size < 0 || size > MAX_ITEM_BYTES) throw invalidTransfer("Transfer item size is invalid.");
+    if (!isSupportedTransferItem(fileName, mimeType)) {
+      throw new SendTransferError(`Transfer item "${fileName}" is not supported.`, undefined, "unsupportedItem");
+    }
+    return { ...item, fileName, mimeType, size, sealed: { size: item.size, key } };
+  });
+  return {
+    ...transfer,
+    title: optionalText(envelope.title, 200),
+    sender: { ...transfer.sender, name: optionalText(envelope.senderName, 80) },
+    message: optionalText(envelope.message, 1000),
+    items,
+  };
+}
+
+/** `key`: a sealed parcel's key from the link's #k= (App.tsx routes it here). */
+export async function fetchTransfer(transferId: string, key?: string): Promise<TransferPayload> {
   if (!TRANSFER_ID_PATTERN.test(transferId)) throw new TransferGoneError();
   let res: Response;
   const controller = new AbortController();
@@ -234,7 +276,9 @@ export async function fetchTransfer(transferId: string): Promise<TransferPayload
   } catch {
     throw invalidTransfer("Transfer metadata could not be read.");
   }
-  return withoutBrowserCopies(validateTransferPayload(raw, transferId));
+  const transfer = validateTransferPayload(raw, transferId);
+  const sealedMeta = isRecord(raw) && raw.sealed === true ? raw.sealedMeta : null;
+  return withoutBrowserCopies(sealedMeta !== null ? await openSealedTransfer(transfer, sealedMeta, key) : transfer);
 }
 
 /** A parcel holding a SongNook package carries its audio a second time, as
@@ -269,6 +313,9 @@ export async function downloadTransferItem(
   // guarantees uniqueness within the cache dir.
   const safeName = item.fileName.replace(/[^\w.\- ]+/g, "_").slice(0, 160) || "file";
   const target = `${RECEIVE_CACHE_DIR}/${item.itemId}-${safeName}`;
+  // A sealed item downloads sealed beside its target, then opens into it.
+  const downloadTarget = item.sealed ? `${target}.sealed` : target;
+  const expectedDownloadSize = item.sealed ? item.sealed.size : item.size;
 
   // A hung socket must not stall the receive flow forever: the progress
   // callback doubles as a liveness signal — no bytes for STALL_MS cancels the
@@ -277,7 +324,7 @@ export async function downloadTransferItem(
   let lastProgressAt = Date.now();
   const download = FileSystem.createDownloadResumable(
     item.downloadUrl,
-    target,
+    downloadTarget,
     {},
     (progress) => {
       lastProgressAt = Date.now();
@@ -311,10 +358,19 @@ export async function downloadTransferItem(
     );
   }
   const info = await FileSystem.getInfoAsync(result.uri);
-  if (!info.exists || info.isDirectory || !Number.isFinite(info.size) || info.size !== item.size) {
+  if (!info.exists || info.isDirectory || !Number.isFinite(info.size) || info.size !== expectedDownloadSize) {
     throw new SendTransferError(`Downloaded file size did not match "${item.fileName}".`, undefined, "downloadFailed");
   }
-  return result.uri;
+  if (!item.sealed) return result.uri;
+  try {
+    const opened = await openSealedFile(result.uri, target, item.sealed.key);
+    if (opened !== item.size) throw new Error("size");
+  } catch {
+    throw new SendTransferError(`"${item.fileName}" didn't open with this link's key.`, undefined, "sealBroken");
+  } finally {
+    await FileSystem.deleteAsync(result.uri, { idempotent: true }).catch(() => {});
+  }
+  return target;
 }
 
 export async function cleanupReceiveCache(): Promise<void> {

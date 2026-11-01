@@ -1500,11 +1500,14 @@ export const he = {
     branchLabel: "טייק עצמאי",
     branchBody: "העתקה משאירה את המקור; העברה מוציאה אותו.",
   },
-  sendSheet: { title: "SongNook Send", titleLabel: "כותרת", fromLabel: "מאת", fromPlaceholder: "שם", noteLabel: "הערה", notePlaceholder: "לדוגמה: קודם ללמוד את השיר השני…", seal: "קבלת קישור", sealing: "חותמים", sealingDots: "חותמים…", sealingHint: "אפשר להחליק מטה ולהמשיך. הקישור ימתין למטה.", packing: "אורזים", packingOf: "אורזים {{index}} מתוך {{count}}", uploading: "מעלים", hide: "הסתרה", tryAgain: "ניסיון חוזר", readyPill: "הקישור מוכן · הקישו לשיתוף", failedPill: "השליחה נכשלה · הקישו לנסות שוב", oneAtATime: "חבילה אחת בכל פעם", bytesOf: "{{sent}} מתוך {{total}}", timeLeft: "נותרו {{eta}}", openSeal: "פתיחה", expiryHint: "כל מי שיש לו את הקישור יוכל להוריד במשך 7 ימים.", ready: "הקישור מוכן והועתק", share: "שיתוף", copied: "הקישור הועתק", orderLabel: "בסדר הזה", sortAz: "מיון א–ת", moveUp: "הזזת {{title}} למעלה", moveDown: "הזזת {{title}} למטה", fromSketch: "עם {{title}}", audioOnly: "שמע בלבד", part: { takes: "טייקים", lyrics: "מילים", chart: "אקורדים", notes: "הערות", marks: "סימונים", layers: "שכבות" } },
+  sendSheet: { title: "SongNook Send", titleLabel: "כותרת", fromLabel: "מאת", fromPlaceholder: "שם", noteLabel: "הערה", notePlaceholder: "לדוגמה: קודם ללמוד את השיר השני…", seal: "קבלת קישור", sealing: "חותמים", sealingDots: "חותמים…", sealingHint: "אפשר להחליק מטה ולהמשיך. הקישור ימתין למטה.", packing: "אורזים", packingOf: "אורזים {{index}} מתוך {{count}}", uploading: "מעלים", hide: "הסתרה", tryAgain: "ניסיון חוזר", readyPill: "הקישור מוכן · הקישו לשיתוף", failedPill: "השליחה נכשלה · הקישו לנסות שוב", oneAtATime: "חבילה אחת בכל פעם", bytesOf: "{{sent}} מתוך {{total}}", timeLeft: "נותרו {{eta}}", openSeal: "פתיחה", expiryHint: "כל מי שיש לו את הקישור יוכל להוריד במשך 7 ימים.", sealedHint: "רק מי שיש לו את הקישור יכול לפתוח, אפילו לא SongNook.", ready: "הקישור מוכן והועתק", share: "שיתוף", copied: "הקישור הועתק", orderLabel: "בסדר הזה", sortAz: "מיון א–ת", moveUp: "הזזת {{title}} למעלה", moveDown: "הזזת {{title}} למטה", fromSketch: "עם {{title}}", audioOnly: "שמע בלבד", part: { takes: "טייקים", lyrics: "מילים", chart: "אקורדים", notes: "הערות", marks: "סימונים", layers: "שכבות" } },
   shareLink: {
     tooLargeTitle: "גדול מדי לקישור", tooLargeBody: "בקישור אפשר לשלוח עד {{limit}}. שתפו כקובץ במקום.",
     copied: "הקישור הועתק — הוא יפוג בקרוב", share: "שיתוף", emptyTitle: "אין מה לשתף", failureTitle: "לא הצלחנו ליצור קישור", retry: "נסו שוב.",
     sendError: {
+      missingKey: "בקישור הזה חסר המפתח. בקשו מהשולח את הקישור המלא.",
+      needsUpdate: "עדכנו את SongNook כדי לפתוח את החבילה הזו.",
+      sealBroken: "המפתח של הקישור הזה לא מתאים. בקשו מהשולח שוב את הקישור המלא.",
       limit: "3 הקישורים החינמיים של החודש נוצלו. SongNook Pro שולח בלי הגבלה.",
       unreachable: "לא ניתן להגיע ל־SongNook Send. בדקו את החיבור ונסו שוב.",
       rejected: "SongNook Send דחה את הבקשה ({{status}}).",
@@ -1678,6 +1681,7 @@ export const he = {
   helpContent: {
     send: {
       thesis: "כל מי שיש לו את הקישור יכול להוריד עד שיפוג או שתמחקו אותו.",
+      sealedThesis: "רק מי שיש לו את הקישור יכול לפתוח את מה ששלחתם. אפילו לא SongNook.",
       keyLabel: "הקישור הוא המפתח",
       keyBody: "כל מי שמחזיק בו יכול להוריד. שתפו בזהירות.",
       expiryLabel: "שבעה ימים",

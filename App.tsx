@@ -987,6 +987,15 @@ function AppContent() {
         },
       },
       getStateFromPath(path, config) {
+        // A sealed Send link carries its key after "#k=" (docs/product-plan/
+        // send-e2e-encryption.md). Paths don't parse fragments, so the key
+        // becomes the receive screen's `key` param.
+        const hashAt = path.indexOf("#");
+        if (hashAt >= 0) {
+          const key = /(?:^|&)k=([A-Za-z0-9_-]{43})(?:&|$)/.exec(path.slice(hashAt + 1))?.[1];
+          const base = path.slice(0, hashAt);
+          path = key ? `${base}${base.includes("?") ? "&" : "?"}key=${key}` : base;
+        }
         if (path.includes(`dataUrl=${shareExtensionKey}`)) {
           return {
             routes: [{ name: "ShareImport" }],

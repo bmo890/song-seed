@@ -173,3 +173,29 @@ export async function extractRangeNative(
   );
   return { crc32: result.crc32 >>> 0, sizeBytes: result.sizeBytes, sha256: result.sha256 ?? null };
 }
+
+// ── SongNook Send, sealed end to end (docs/product-plan/send-e2e-encryption.md) ──
+
+/** True on builds that carry the native SNS1 seal; older builds send and
+ *  receive unsealed parcels only. */
+export function isSealAvailable(): boolean {
+  return typeof SongNookFileIOModule?.sealFileAsync === "function";
+}
+
+/** Seal a local file into `destinationUri`, a record at a time. */
+export async function sealFileNative(sourceUri: string, destinationUri: string, keyText: string): Promise<number> {
+  return (await SongNookFileIOModule!.sealFileAsync!(sourceUri, destinationUri, keyText)).sizeBytes;
+}
+
+/** Open a sealed file into `destinationUri`; throws on a wrong key or any change. */
+export async function openSealedFileNative(sourceUri: string, destinationUri: string, keyText: string): Promise<number> {
+  return (await SongNookFileIOModule!.openSealedFileAsync!(sourceUri, destinationUri, keyText)).sizeBytes;
+}
+
+export function sealBase64Native(base64: string, keyText: string): Promise<string> {
+  return SongNookFileIOModule!.sealBase64Async!(base64, keyText);
+}
+
+export function openSealedBase64Native(base64: string, keyText: string): Promise<string> {
+  return SongNookFileIOModule!.openSealedBase64Async!(base64, keyText);
+}
