@@ -96,8 +96,8 @@ describe("shardedPersistStorage", () => {
 
         const call = (commitShardedWrite as jest.Mock).mock.calls[0];
         const writtenKeys = (call[0] as { key: string }[]).map((r) => r.key);
-        // Meta row + only the edited workspace row (w1 unchanged, not rewritten).
-        expect(writtenKeys).toEqual([STORE, workspaceRowKey(STORE, "w2")]);
+        // Only the edited workspace row (w1 unchanged, not rewritten), then the meta row last (01-M2).
+        expect(writtenKeys).toEqual([workspaceRowKey(STORE, "w2"), STORE]);
     });
 
     it("removeItem drops the meta, workspace rows, and legacy backup", async () => {
@@ -188,7 +188,7 @@ describe("flushNow (the durable flush)", () => {
         const edited = value([w1, ws("w2", "edited")]);
         await storage.flushNow(STORE, edited as any);
         const flushCall = (commitShardedWrite as jest.Mock).mock.calls[0];
-        expect((flushCall[0] as { key: string }[]).map((r) => r.key)).toEqual([STORE, workspaceRowKey(STORE, "w2")]);
+        expect((flushCall[0] as { key: string }[]).map((r) => r.key)).toEqual([workspaceRowKey(STORE, "w2"), STORE]);
         expect(flushCall[2]).toEqual({ strict: true });
         jest.clearAllMocks();
 
@@ -210,6 +210,32 @@ describe("flushNow (the durable flush)", () => {
 
         await storage.setItem(STORE, value([ws("w1", "edited")]) as any);
         const retry = (commitShardedWrite as jest.Mock).mock.calls[0];
-        expect((retry[0] as { key: string }[]).map((r) => r.key)).toEqual([STORE, workspaceRowKey(STORE, "w1")]);
+        expect((retry[0] as { key: string }[]).map((r) => r.key)).toEqual([workspaceRowKey(STORE, "w1"), STORE]);
+    });
+});
+
+describe("write order (audit 2026-11-02, 01-M1)", () => {
+    it("the session's first write, still sweeping, can't land after a newer durable flush", async () => {
+        const storage = createShardedPersistStorage();
+        await storage.setItem(STORE, value([ws("w1")]) as any);
+        // A new session over that disk: it reads, then writes twice.
+        const session = createShardedPersistStorage();
+        await session.getItem(STORE);
+
+        let releaseListing!: () => void;
+        const listing = new Promise<void>((resolve) => (releaseListing = resolve));
+        const { listKvKeysWithPrefix } = jest.requireMock("../db/storage");
+        (listKvKeysWithPrefix as jest.Mock).mockImplementationOnce(async (prefix: string) => {
+            await listing;
+            return Array.from(mockKv.keys()).filter((key) => key.startsWith(prefix));
+        });
+
+        const older = session.setItem(STORE, value([ws("w1", "older")]) as any);
+        const newer = session.flushNow(STORE, value([ws("w1", "newer take")]) as any);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        releaseListing();
+        await Promise.all([older, newer]);
+
+        expect(mockKv.get(workspaceRowKey(STORE, "w1"))).toContain("newer take");
     });
 });
