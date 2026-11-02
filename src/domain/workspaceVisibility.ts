@@ -31,6 +31,32 @@ export function writableWorkspaces(workspaces: Workspace[]): Workspace[] {
   return workspaces.filter((workspace) => !isReceivedWorkspace(workspace) && !workspace.isArchived);
 }
 
+/**
+ * Read-only workspaces (founder decision B, 2026-11-02): a received parcel until the
+ * person chooses Keep, and an archived workspace (its audio is packed away; anything
+ * written into the stub is lost on unarchive). Content there plays, reads, sends and
+ * can be kept; nothing edits, records into, or lands in it. The store refuses such
+ * writes (see `updateIdeas`) and screens ask `useReadOnlyIdea` / `useReadOnlyWorkspace`.
+ */
+export function isReadOnlyWorkspace(workspace: Workspace | null | undefined): boolean {
+  if (!workspace) return false;
+  return isReceivedWorkspace(workspace) || !!workspace.isArchived;
+}
+
+/** Whether new work may land in, or edits may touch, the workspace with this id.
+ *  A missing workspace is not writable either. */
+export function isWritableWorkspaceId(workspaces: Workspace[], workspaceId: string | null | undefined): boolean {
+  if (!workspaceId) return false;
+  const workspace = workspaces.find((candidate) => candidate.id === workspaceId);
+  return !!workspace && !isReadOnlyWorkspace(workspace);
+}
+
+/** The first workspace new work may land in, or null. Fallbacks (after a delete, an
+ *  archive, at hydration) use this, so a received parcel never becomes "home". */
+export function firstWritableWorkspaceId(workspaces: Workspace[], excludeId?: string | null): string | null {
+  return workspaces.find((workspace) => workspace.id !== excludeId && !isReadOnlyWorkspace(workspace))?.id ?? null;
+}
+
 /** Received packages — what the Received page lists, newest first. */
 export function receivedPackages(workspaces: Workspace[]): Workspace[] {
   return workspaces

@@ -13,6 +13,7 @@ import { AudioAnalysis } from "@siteed/audio-studio";
 import { styles } from "../../styles";
 import { RootStackParamList } from "../../navigation";
 import { useStore } from "../../state/useStore";
+import { findIdeaInLibrary } from "../../state/librarySelectors";
 import { appActions } from "../../state/actions";
 import { AudioReel } from "../common/AudioReel";
 import { TransportBar } from "../common/TransportBar";
@@ -117,13 +118,16 @@ export function EditorScreen() {
     const activeWorkspaceId = useStore((s) => s.activeWorkspaceId);
     // Derive workspace/idea objects outside the zustand selector so the editor cannot produce a
     // brand-new object during hydration and accidentally trigger a destructive persist write.
-    const activeWorkspace = useMemo(
-        () => workspaces.find((workspace) => workspace.id === activeWorkspaceId) ?? null,
-        [activeWorkspaceId, workspaces]
-    );
+    // The clip's own workspace, wherever it was opened from (the player, a visit,
+    // Search): an active-only lookup let the editor render a trim and drop it
+    // (data-safety audit 04-H2). The active workspace's copy wins a duplicate id.
     const targetIdea = useMemo(
-        () => activeWorkspace?.ideas.find((idea) => idea.id === ideaId) ?? null,
-        [activeWorkspace, ideaId]
+        () => findIdeaInLibrary(workspaces, ideaId, activeWorkspaceId),
+        [activeWorkspaceId, workspaces, ideaId]
+    );
+    const activeWorkspace = useMemo(
+        () => (targetIdea ? workspaces.find((workspace) => workspace.ideas.includes(targetIdea)) ?? null : null),
+        [targetIdea, workspaces]
     );
     const sourceClip = targetIdea?.clips.find((clip) => clip.id === clipId) ?? null;
     const sourceClipHasOverdubs = !!sourceClip && clipHasOverdubs(sourceClip);

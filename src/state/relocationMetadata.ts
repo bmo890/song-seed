@@ -1,4 +1,5 @@
-import type { ActivityEvent, Playlist } from "../types";
+import type { ActivityEvent, Playlist, Setlist, Songbook, Workspace } from "../types";
+import { getIdeaIndex } from "./librarySelectors";
 
 export type RelocatedIdeaReference = {
     ideaId: string;
@@ -88,4 +89,45 @@ export function relocatePlaylists(
             };
         }),
     }));
+}
+
+/**
+ * Setlist entries and chart-book items name the workspace their song lives in. A
+ * move across workspaces (a collection move, Keep on a parcel, a paste-move, the
+ * recorder's save picker) must carry that along, or a later delete of the old
+ * workspace prunes the entries (data-safety audit 04-H1: Keep emptied a received
+ * setlist). Re-reads each entry's song from the library; lists with nothing to
+ * change keep their identity.
+ */
+export function rehomeCompilations(
+    workspaces: Workspace[],
+    songbooks: Songbook[],
+    setlists: Setlist[]
+): { songbooks: Songbook[]; setlists: Setlist[] } {
+    const homeOf = getIdeaIndex(workspaces).workspaceIdByIdeaId;
+    const rehome = <T extends { ideaId: string; workspaceId: string }>(entries: T[]): T[] => {
+        let changed = false;
+        const next = entries.map((entry) => {
+            const home = homeOf.get(entry.ideaId);
+            if (!home || home === entry.workspaceId) return entry;
+            changed = true;
+            return { ...entry, workspaceId: home };
+        });
+        return changed ? next : entries;
+    };
+    let booksChanged = false;
+    const nextBooks = songbooks.map((book) => {
+        const items = rehome(book.items);
+        if (items === book.items) return book;
+        booksChanged = true;
+        return { ...book, items };
+    });
+    let setsChanged = false;
+    const nextSets = setlists.map((setlist) => {
+        const entries = rehome(setlist.entries);
+        if (entries === setlist.entries) return setlist;
+        setsChanged = true;
+        return { ...setlist, entries };
+    });
+    return { songbooks: booksChanged ? nextBooks : songbooks, setlists: setsChanged ? nextSets : setlists };
 }

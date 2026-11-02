@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigation } from "@react-navigation/native";
 import { AppAlert } from "../../common/AppAlert";
 import { useStore } from "../../../state/useStore";
+import { useIsReadOnlyWorkspace } from "../../../hooks/useReadOnly";
 import { appActions } from "../../../state/actions";
 import { shareAudioClips, type ShareableAudioClip } from "../../../services/audioStorage";
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
@@ -85,6 +86,7 @@ export function IdeaSelectionBar({
   const selectedListIdeaIds = useStore((s) => s.selectedListIdeaIds);
   const storeActiveWorkspaceId = useStore((s) => s.activeWorkspaceId);
   const activeWorkspaceId = pageWorkspaceId ?? storeActiveWorkspaceId;
+  const readOnly = useIsReadOnlyWorkspace(activeWorkspaceId);
   const replaceListSelection = useStore((s) => s.replaceListSelection);
   // A running session turns the dock's primary action from "Play" into
   // "Add to queue" — the way to grow the queue you already have going.
@@ -564,6 +566,20 @@ export function IdeaSelectionBar({
     },
   ];
 
+  // Read-only page (a parcel before Keep, an archive — decision B): the selection
+  // plays, sets aside, copies out, collects into a playlist and sends. Nothing
+  // here edits, hides, moves or deletes.
+  const visibleDockActions: SelectionAction[] = readOnly
+    ? [playOrQueueAction, { key: "more", label: t("common.more"), icon: "ellipsis-horizontal", onPress: () => setMoreVisible(true) }]
+    : dockActions;
+  const READ_ONLY_SHEET_KEYS = new Set(["set-aside", "copy-or-move", "share-menu", "share"]);
+  const visibleSheetActions: SelectionAction[] = readOnly
+    ? sheetActions.filter((action) => READ_ONLY_SHEET_KEYS.has(action.key))
+    : sheetActions;
+  const visibleCopyMoveActions: SelectionAction[] = readOnly
+    ? copyMoveActions.filter((action) => action.key !== "move")
+    : copyMoveActions;
+
   // Choosing an action is terminal: selection mode ends the moment it's tapped,
   // for EVERY action (play, add-to-queue, hide, delete, edit, share, copy, move,
   // make-song…). The exceptions are "More" and "Copy or move…", which only open
@@ -594,7 +610,7 @@ export function IdeaSelectionBar({
   return (
     <>
       <SelectionDock
-        actions={dockActions.map(endsSelection)}
+        actions={visibleDockActions.map(endsSelection)}
         onLayout={onDockLayout}
       />
 
@@ -603,7 +619,7 @@ export function IdeaSelectionBar({
         // Named like every sheet: what it acts on ("1 idea · logic-bounce").
         title={t("common.ideaCount", { count: selectedIdeas.length })}
         titleContext={selectedIdeas.length === 1 ? selectedIdeas[0]!.title : undefined}
-        actions={sheetActions.map(endsSelection)}
+        actions={visibleSheetActions.map(endsSelection)}
         onClose={() => setMoreVisible(false)}
       />
 
@@ -611,7 +627,7 @@ export function IdeaSelectionBar({
         visible={copyMoveVisible}
         onBack={() => setMoreVisible(true)}
         title={t("selection.copyMovePlaylist")}
-        actions={copyMoveActions.map(endsSelection)}
+        actions={visibleCopyMoveActions.map(endsSelection)}
         onClose={() => setCopyMoveVisible(false)}
       />
 

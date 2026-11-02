@@ -113,7 +113,8 @@ function EvolutionGroupHeaderRow({
 }) {
   const { t } = useTranslation();
   // This page's sketch, not the global selection (another sketch page may be in front).
-  const ideaId = useSongScreen().screen.selectedIdea?.id ?? null;
+  const { screen } = useSongScreen();
+  const ideaId = screen.selectedIdea?.id ?? null;
   const setClipGroupCollapsed = useStore((s) => s.setClipGroupCollapsed);
 
   return (
@@ -129,7 +130,8 @@ function EvolutionGroupHeaderRow({
           if (!ideaId) return;
           setClipGroupCollapsed(ideaId, row.groupId, !row.collapsed);
         }}
-        onLongPress={() => onRename(row.groupId, row.name)}
+        // Folding is view state; renaming is an edit (none in a read-only sketch).
+        onLongPress={screen.isReadOnly ? undefined : () => onRename(row.groupId, row.name)}
         delayLongPress={300}
         accessibilityRole="button"
         accessibilityState={{ expanded: !row.collapsed }}

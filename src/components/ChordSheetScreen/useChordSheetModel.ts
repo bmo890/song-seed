@@ -3,6 +3,7 @@ import { Share } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../state/useStore";
 import { selectIdeaById } from "../../state/librarySelectors";
+import { useReadOnlyIdeaReason } from "../../hooks/useReadOnly";
 import { appActions } from "../../state/actions";
 import { AppAlert } from "../common/AppAlert";
 import { formatDate } from "../../utils";
@@ -83,10 +84,17 @@ export function useChordSheetModel(ideaIdOverride?: string, options?: { startEdi
 
   // `startEditing` seeds the first frame (a page opened straight into the
   // editor must not flash the reader first).
-  const [isEditing, setIsEditingState] = useState(options?.startEditing ?? false);
+  // A received parcel's chart (until Keep) or an archived one is read, never
+  // edited (decision B): editing can't start, whatever asks for it.
+  const readOnlyReason = useReadOnlyIdeaReason(projectIdea?.id ?? ideaId);
+  const readOnlyRef = useRef(readOnlyReason);
+  readOnlyRef.current = readOnlyReason;
+  const [isEditingState, setIsEditingState] = useState(options?.startEditing ?? false);
+  const isEditing = isEditingState && !readOnlyReason;
   // Writing a chart is free (founder, 2026-10-23); transpose, capo and the stage
   // reader are the stage tools (domain/proCatalog.ts).
   const setIsEditing = useCallback((next: boolean) => {
+    if (next && readOnlyRef.current) return;
     setIsEditingState(next);
   }, []);
   const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
@@ -434,6 +442,7 @@ export function useChordSheetModel(ideaIdOverride?: string, options?: { startEdi
     sheet,
     palette,
     getLabelSuggestions,
+    readOnlyReason,
     isEditing,
     setIsEditing,
     pickerTarget,

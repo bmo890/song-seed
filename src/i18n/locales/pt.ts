@@ -2955,6 +2955,8 @@ export const pt = {
     openPlayer: "Abrir player completo",
     recordingBadge: "Gravando",
   },
+  // Decision B (2026-11-02): a received parcel (until Keep) or an archive is read-only.
+  readOnly: { keepToEdit: "Guarde para editar", unarchiveToEdit: "Desarquive para editar", noLyrics: "Nenhuma letra ainda" },
   collectionErrors: {
     notFound: "Essa coleção não existe mais.",
     destinationNotFound: "Esse destino não existe mais.",
@@ -2963,6 +2965,7 @@ export const pt = {
     topLevelMove: "Uma coleção com subcoleções só pode ser movida para o nível principal.",
     topLevelCopy: "Uma coleção com subcoleções só pode ser copiada para o nível principal.",
     packageNotFound: "Esse pacote não existe mais.",
+    readOnly: "Espaços de trabalho recebidos ou arquivados não aceitam trabalho novo.",
   },
   sections: {
     intro: "Intro",

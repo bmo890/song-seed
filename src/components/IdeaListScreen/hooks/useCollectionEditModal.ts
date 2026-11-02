@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useStore } from "../../../state/useStore";
+import { ideaWorkspaceId } from "../../../state/dataSlice";
 import type { SongIdea } from "../../../types";
 import { i18n } from "../../../i18n/instance";
 
@@ -48,7 +49,8 @@ export function useCollectionEditModal(ideas: SongIdea[]) {
                   : clip
               ),
             }
-      )
+      ),
+      { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, editTargetIdea.id) }
     );
 
     setEditModalOpen(false);

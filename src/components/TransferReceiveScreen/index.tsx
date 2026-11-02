@@ -25,6 +25,7 @@ import { readSongNookArchive } from "../../services/libraryImport";
 import { describeArchiveWarning } from "../../services/archiveWarnings";
 import { enrichImportedAudioAsset, importAudioAssets } from "../../services/audioStorage";
 import { createClipImportBatcher } from "../../services/clipImportBatcher";
+import { createdByAttempt, idsFromTransfer } from "../../domain/receiveRollback";
 import { enqueueMissingMetadataBackfill } from "../../services/backgroundWaveformHydration";
 import { resolveImportedEntityRoute } from "../../domain/receiveRouting";
 import { titleFromFileName } from "../../domain/fileTitle";
@@ -232,6 +233,15 @@ export function TransferReceiveScreen() {
       shareKind: (transfer.kind === "playlist" || transfer.kind === "setlist" ? transfer.kind : "clips") as ShareKind,
       shareTitle: transfer.title ?? t("transferReceive.receivedFiles"),
     };
+    // What carries this parcel's id BEFORE the attempt: a failure rolls back only
+    // what this attempt made, never a setlist kept from an earlier receive (04-M4).
+    const before = useStore.getState();
+    const preexisting = {
+      workspaces: idsFromTransfer(before.workspaces, transfer.transferId),
+      setlists: idsFromTransfer(before.setlists, transfer.transferId),
+      songbooks: idsFromTransfer(before.songbooks, transfer.transferId),
+      playlists: idsFromTransfer(before.playlists, transfer.transferId),
+    };
 
     try {
       const audioUris: Array<{ uri: string; name: string; mimeType: string }> = [];
@@ -288,7 +298,7 @@ export function TransferReceiveScreen() {
             enrichImportedAudioAsset({ uri: file.uri, name: file.name, mimeType: file.mimeType })
           )
         );
-        const batcher = createClipImportBatcher({ collectionId, workspaceId });
+        const batcher = createClipImportBatcher({ collectionId, workspaceId, intoReceivedParcel: true });
         // Downloads run one after another, but the import batch finishes in
         // any order; the parcel's order is the sender's order (a set, a running
         // order), so clips are added by parcel index after the batch, each
@@ -404,24 +414,21 @@ export function TransferReceiveScreen() {
     } catch (error) {
       startedRef.current = false;
       await cleanupReceiveCache();
-      const partialIds = new Set(
-        useStore
-          .getState()
-          .workspaces.filter((workspace) => workspace.received?.transferId === transfer.transferId)
-          .map((workspace) => workspace.id)
+      const partialIds = createdByAttempt(
+        useStore.getState().workspaces,
+        transfer.transferId,
+        preexisting.workspaces
       );
       for (const workspaceId of partialIds) {
         useStore.getState().deleteWorkspace(workspaceId);
       }
-      // A compilation an earlier .songnook item in this parcel created (a setlist,
+      // A compilation an earlier .songnook item in THIS attempt created (a setlist,
       // a chart book, a playlist) goes too: deleteWorkspace only prunes playlist
       // ITEMS of the removed workspace, never the compilation itself.
       const state = useStore.getState();
-      const fromThisParcel = (entity: { received?: { transferId?: string | null } }) =>
-        entity.received?.transferId === transfer.transferId;
-      state.setlists.filter(fromThisParcel).forEach((setlist) => state.deleteSetlist(setlist.id));
-      state.songbooks.filter(fromThisParcel).forEach((songbook) => state.deleteSongbook(songbook.id));
-      state.playlists.filter(fromThisParcel).forEach((playlist) => state.deletePlaylist(playlist.id));
+      createdByAttempt(state.setlists, transfer.transferId, preexisting.setlists).forEach((id) => state.deleteSetlist(id));
+      createdByAttempt(state.songbooks, transfer.transferId, preexisting.songbooks).forEach((id) => state.deleteSongbook(id));
+      createdByAttempt(state.playlists, transfer.transferId, preexisting.playlists).forEach((id) => state.deletePlaylist(id));
       if (abortRef.current) return; // the user chose to leave; no failure to report
       // The reason goes to the console (and to the diagnostics bundle's log);
       // the page keeps its one calm sentence.

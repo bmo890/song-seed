@@ -14,6 +14,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { RootStackParamList } from "../../../navigation";
 import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
+import { selectIdeaById } from "../../../state/librarySelectors";
+import { useReadOnlyIdeaReason } from "../../../hooks/useReadOnly";
 import { appActions } from "../../../state/actions";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../domain/lyrics";
 import { serializeChordChartText } from "../../../domain/chords";
@@ -53,14 +55,13 @@ export function useLyricsVersionScreenModel() {
   const activeWorkspaceId = useStore((state) => state.activeWorkspaceId);
   const workspaces = useStore((state) => state.workspaces);
 
-  const activeWorkspace = useMemo(
-    () => workspaces.find((workspace) => workspace.id === activeWorkspaceId) ?? null,
-    [activeWorkspaceId, workspaces]
-  );
+  // Wherever the sketch lives, like the sketch page and the chord chart: a parcel's
+  // sketch or another workspace's setlist song said "no longer available"
+  // (data-safety audit 12b B-M1). Saves already target the idea's own workspace.
   const projectIdea = useMemo(() => {
-    const idea = activeWorkspace?.ideas.find((candidate) => candidate.id === ideaId) ?? null;
+    const idea = selectIdeaById(workspaces, ideaId, activeWorkspaceId);
     return idea?.kind === "project" ? idea : null;
-  }, [activeWorkspace, ideaId]);
+  }, [activeWorkspaceId, workspaces, ideaId]);
   const versions = projectIdea?.lyrics?.versions ?? [];
   const latestVersion = useMemo(() => getLatestLyricsVersion(projectIdea), [projectIdea]);
   const sourceVersion = versionId
@@ -88,7 +89,11 @@ export function useLyricsVersionScreenModel() {
   const sourceDirection: ContentDirection = resolvedVersion?.textDirection ?? "auto";
   const [textDirection, setTextDirection] = useState<ContentDirection>(sourceDirection);
   const [baselineDirection, setBaselineDirection] = useState<ContentDirection>(sourceDirection);
-  const [isEditMode, setIsEditMode] = useState(startInEdit || createDraft || !resolvedVersion);
+  // A parcel's lyrics (until Keep) or an archived sketch's are read here, never
+  // written: whatever the route asks for, the page opens as the reader (decision B).
+  const readOnlyReason = useReadOnlyIdeaReason(projectIdea?.id ?? ideaId);
+  const [isEditModeState, setIsEditMode] = useState(startInEdit || createDraft || !resolvedVersion);
+  const isEditMode = isEditModeState && !readOnlyReason;
   const [editSavesAsNew, setEditSavesAsNew] = useState(
     forceNewVersion || createDraft || !isLatestSource
   );
@@ -256,6 +261,7 @@ export function useLyricsVersionScreenModel() {
 
   return {
     projectIdea,
+    readOnlyReason,
     versionLabel,
     versionMeta,
     isEditMode,

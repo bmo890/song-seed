@@ -16,6 +16,8 @@ type PlayerSupportSectionsProps = {
   canAuthor: boolean;
   /** Standalone clip: the Sketch door's tap (grow this clip into a sketch). */
   onGrowSketch?: () => void;
+  /** A parcel's (until Keep) or an archived take: pages read, none are written. */
+  readOnly?: boolean;
   hasLyrics: boolean;
   lyricsPreview: string;
   lyricsChordSummary: string;
@@ -46,6 +48,7 @@ export const PlayerSupportSections = memo(PlayerSupportSectionsInner);
 function PlayerSupportSectionsInner({
   canAuthor,
   onGrowSketch,
+  readOnly = false,
   hasLyrics,
   lyricsPreview,
   lyricsChordSummary,
@@ -102,6 +105,7 @@ function PlayerSupportSectionsInner({
       <PlayerArtifactDoors
         canAuthor={canAuthor}
         onGrowSketch={onGrowSketch}
+        readOnly={readOnly}
         hasLyrics={hasLyrics}
         lyricsPreview={lyricsPreview}
         lyricsChordSummary={lyricsChordSummary}
@@ -126,7 +130,7 @@ function PlayerSupportSectionsInner({
 
       {/* The Notes page opens the note itself, to write in place. */}
       <ClipNotesSheet
-        visible={notesExpanded}
+        visible={notesExpanded && !readOnly}
         heading={notesLabel}
         titleDraft=""
         notesDraft={notesDraft}

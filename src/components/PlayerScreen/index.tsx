@@ -26,6 +26,8 @@ import { clickRateBounds } from "../../domain/stepUpLoop";
 import { haptic } from "../../design/haptics";
 import { toast } from "../common/toastStore";
 import { usePlayerPins } from "./hooks/usePlayerPins";
+import { useIsReadOnlyIdea } from "../../hooks/useReadOnly";
+import { isIdeaReadOnly } from "../../domain/itemLocator";
 import { usePlayerSections } from "./hooks/usePlayerSections";
 import { useUndoHistory } from "../common/useUndoHistory";
 import { useClipAnalysis } from "./hooks/useClipAnalysis";
@@ -266,7 +268,8 @@ function PlayerScreenInner({
     if (playerOpenIntent !== "write") return;
     if (!playerIdea) return;
     useStore.getState().setPlayerOpenIntent(null);
-    if (playerIdea.kind === "project") openWriting();
+    // A parcel's (until Keep) or an archived sketch's words are read, not written.
+    if (playerIdea.kind === "project" && !isIdeaReadOnly(useStore.getState().workspaces, playerIdea.id)) openWriting();
   }, [playerOpenIntent, playerIdea, openWriting]);
   const resolvedDisplayDuration = data.displayDuration;
   const isMixUpdating = data.isOverdubPreviewRendering;
@@ -1269,6 +1272,9 @@ function PlayerScreenInner({
   );
   // Combine is defined further down; the eight-layer limit reaches it through this.
   const handleSaveAsOneClipRef = useRef<(mode: "copy" | "replace") => Promise<void>>(async () => {});
+  // Decision B: a parcel's take (until Keep) or an archived one plays, reads and
+  // sends; the player offers no recording, sketching or writing on it.
+  const playerReadOnly = useIsReadOnlyIdea(playerIdea?.id);
   const handleAddOverdub = useCallback(async () => {
     if (!playerIdea || !playerClip) return;
     // First overdub layer is free; stacking more is Pro. Existing multi-layer clips stay
@@ -1846,7 +1852,7 @@ function PlayerScreenInner({
                         ) : null}
                       </Press>
                     ) : null}
-                    {playerIdea.kind === "project" ? (
+                    {playerIdea.kind === "project" && !playerReadOnly ? (
                       // Read → notice a line → fix it. Lyrics are written here,
                       // against the same tape; a chart is built in the sketch's
                       // chart editor, so its pencil goes there.
@@ -1904,14 +1910,17 @@ function PlayerScreenInner({
                         the tape it records onto. Only while Tools is open. */}
                     {/* Record a layer at the playhead: always beside Tools
                         (2026-10-17), it was hidden behind Tools before. */}
-                    <InkKey
-                      // Haptics (Press default): `tap` — an acknowledged press;
-                      // the recorder it opens fires its own record haptics.
-                      label={t("player.layerKey")}
-                      glyph={<View style={playerScreenStyles.layerKeyDot} />}
-                      onPress={() => void handleAddOverdub()}
-                      accessibilityLabel={t("player.recordLayerAtPlayhead")}
-                    />
+                    {/* Nothing records into a parcel (until Keep) or an archive. */}
+                    {playerReadOnly ? null : (
+                      <InkKey
+                        // Haptics (Press default): `tap` — an acknowledged press;
+                        // the recorder it opens fires its own record haptics.
+                        label={t("player.layerKey")}
+                        glyph={<View style={playerScreenStyles.layerKeyDot} />}
+                        onPress={() => void handleAddOverdub()}
+                        accessibilityLabel={t("player.recordLayerAtPlayhead")}
+                      />
+                    )}
                     <InkKey
                       // Haptics vocabulary: `light` — the drawers open or close.
                       haptic="light"
@@ -2158,9 +2167,10 @@ function PlayerScreenInner({
           ) : (
             <PlayerSupportSections
               canAuthor={playerIdea.kind === "project"}
+              readOnly={playerReadOnly}
               // Only a standalone clip gets the ghost door; takes inside a
-              // sketch already live in one.
-              onGrowSketch={playerIdea.kind === "clip" ? lifecycle.handleMakeSketch : undefined}
+              // sketch already live in one. Never in a parcel or an archive.
+              onGrowSketch={playerIdea.kind === "clip" && !playerReadOnly ? lifecycle.handleMakeSketch : undefined}
               hasLyrics={data.hasProjectLyrics}
               lyricsPreview={lyricsPreview}
               lyricsChordSummary={doorChordSummary}

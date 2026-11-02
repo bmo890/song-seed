@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { buildCollectionPathLabel } from "../../../domain/libraryNavigation";
+import { writableWorkspaces } from "../../../domain/workspaceVisibility";
 import { getCollectionById } from "../../../utils";
 import type { Workspace } from "../../../types";
 import type { CollectionDestination } from "../types";
@@ -10,11 +11,14 @@ type Args = {
   fallbackCollectionId: string | null;
 };
 
-export function useShareImportDestinations({
-  workspaces,
-  activeWorkspaceId,
-  fallbackCollectionId,
-}: Args) {
+/**
+ * Where shared audio may land: collections in the person's OWN live workspaces.
+ * A received parcel (read-only until Keep) and an archived workspace (its stub is
+ * replaced on unarchive) are never offered, not even as "the current collection"
+ * when the last page visited was inside one (data-safety audit 12f F-H1).
+ */
+export function resolveShareImportDestinations({ workspaces: allWorkspaces, activeWorkspaceId, fallbackCollectionId }: Args) {
+  const workspaces = writableWorkspaces(allWorkspaces);
   const activeWorkspace =
     workspaces.find((workspace) => workspace.id === activeWorkspaceId) ?? null;
   const currentCollectionWorkspace = fallbackCollectionId
@@ -36,30 +40,26 @@ export function useShareImportDestinations({
     ? targetWorkspace.collections.filter((collection) => !collection.parentCollectionId).length
     : 0;
 
-  const otherCollectionDestinations = useMemo<CollectionDestination[]>(() => {
-    const currentWorkspace = activeWorkspaceId;
-
-    return workspaces
-      .flatMap((workspace) =>
-        workspace.collections.map((collection) => ({
-          workspaceId: workspace.id,
-          collectionId: collection.id,
-          workspaceTitle: workspace.title,
-          collectionTitle: collection.title,
-          pathLabel: buildCollectionPathLabel(workspace, collection.id),
-        }))
-      )
-      .filter((destination) => destination.collectionId !== currentCollection?.id)
-      .sort((a, b) => {
-        const aCurrent = a.workspaceId === currentWorkspace ? 0 : 1;
-        const bCurrent = b.workspaceId === currentWorkspace ? 0 : 1;
-        return (
-          aCurrent - bCurrent ||
-          a.workspaceTitle.localeCompare(b.workspaceTitle) ||
-          a.pathLabel.localeCompare(b.pathLabel)
-        );
-      });
-  }, [activeWorkspaceId, currentCollection?.id, workspaces]);
+  const otherCollectionDestinations: CollectionDestination[] = workspaces
+    .flatMap((workspace) =>
+      workspace.collections.map((collection) => ({
+        workspaceId: workspace.id,
+        collectionId: collection.id,
+        workspaceTitle: workspace.title,
+        collectionTitle: collection.title,
+        pathLabel: buildCollectionPathLabel(workspace, collection.id),
+      }))
+    )
+    .filter((destination) => destination.collectionId !== currentCollection?.id)
+    .sort((a, b) => {
+      const aCurrent = a.workspaceId === activeWorkspaceId ? 0 : 1;
+      const bCurrent = b.workspaceId === activeWorkspaceId ? 0 : 1;
+      return (
+        aCurrent - bCurrent ||
+        a.workspaceTitle.localeCompare(b.workspaceTitle) ||
+        a.pathLabel.localeCompare(b.pathLabel)
+      );
+    });
 
   return {
     activeWorkspace,
@@ -69,4 +69,15 @@ export function useShareImportDestinations({
     topLevelCollectionCount,
     otherCollectionDestinations,
   };
+}
+
+export function useShareImportDestinations({
+  workspaces,
+  activeWorkspaceId,
+  fallbackCollectionId,
+}: Args) {
+  return useMemo(
+    () => resolveShareImportDestinations({ workspaces, activeWorkspaceId, fallbackCollectionId }),
+    [activeWorkspaceId, fallbackCollectionId, workspaces]
+  );
 }

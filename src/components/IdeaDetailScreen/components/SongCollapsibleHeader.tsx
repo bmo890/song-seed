@@ -2,6 +2,7 @@ import { SegmentedControl } from "../../common/SegmentedControl";
 import { Text, View } from "react-native";
 import { styles } from "../styles";
 import { useSongScreen } from "../provider/SongScreenProvider";
+import { ReadOnlyLine } from "../../common/ReadOnlyLine";
 import { STAGE_INK, StageMark } from "../../common/StageMark";
 import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
@@ -90,6 +91,8 @@ export function SongCollapsibleHeader({ primaryClip, onLocatePrimary }: SongColl
               </Text>
             </View>
           ) : null}
+          {/* A parcel (until Keep) or an archive: says why nothing here edits. */}
+          <ReadOnlyLine reason={screen.readOnlyReason} />
         </View>
       ) : null}
 

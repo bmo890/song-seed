@@ -80,7 +80,8 @@ function PageTile({
   metaEdited?: boolean;
   /** One quiet line printed over the fade (the lyric's chords). */
   footer?: string;
-  onOpen: () => void;
+  /** Absent: a page to read on the tile only (a read-only note). */
+  onOpen?: () => void;
   accessibilityLabel: string;
   testID?: string;
   children: React.ReactNode;
@@ -90,7 +91,7 @@ function PageTile({
       variant="content"
       style={pageStyles.tile}
       onPress={onOpen}
-      accessibilityRole="button"
+      accessibilityRole={onOpen ? "button" : "text"}
       accessibilityLabel={accessibilityLabel}
       testID={testID}
     >
@@ -251,6 +252,9 @@ type Props = {
   canAuthor: boolean;
   /** Set for a standalone clip idea: grow it into a sketch. */
   onGrowSketch?: () => void;
+  /** A parcel's (until Keep) or an archived take: written pages open to read;
+   *  no empty slot invites writing, and the note reads on its tile. */
+  readOnly?: boolean;
   hasLyrics: boolean;
   /** The top of the lyric page, as `buildLyricPreview` cut it. */
   lyricsPreview: string;
@@ -283,6 +287,7 @@ export const PlayerArtifactDoors = memo(PlayerArtifactDoorsInner);
 function PlayerArtifactDoorsInner({
   canAuthor,
   onGrowSketch,
+  readOnly = false,
   hasLyrics,
   lyricsPreview,
   lyricsChordSummary,
@@ -305,13 +310,13 @@ function PlayerArtifactDoorsInner({
 
   const trimmedNotes = notes.trim();
   const notesPage = trimmedNotes ? (
-    <PageTile kind={notesLabel} onOpen={onOpenNotes} accessibilityLabel={t("player.openNotes")} testID="player-notes-door">
+    <PageTile kind={notesLabel} onOpen={readOnly ? undefined : onOpenNotes} accessibilityLabel={t("player.openNotes")} testID="player-notes-door">
       {/* A note is prose, not verse: it wraps (a lyric line never does). */}
       <UserText value={trimmedNotes} align="content" style={pageStyles.lyric} numberOfLines={5}>
         {trimmedNotes}
       </UserText>
     </PageTile>
-  ) : (
+  ) : readOnly ? null : (
     <PageSlot label={notesLabel} onPress={onOpenNotes} accessibilityLabel={t("player.writeNote")} testID="player-write-note" />
   );
 
@@ -370,7 +375,7 @@ function PlayerArtifactDoorsInner({
         >
           <LyricMiniature text={lyricsPreview} />
         </PageTile>
-      ) : (
+      ) : readOnly ? null : (
         <PageSlot
           label={t("common.lyrics")}
           onPress={onWriteLyrics}
@@ -388,7 +393,7 @@ function PlayerArtifactDoorsInner({
         >
           <ChartMiniature rows={chartRows} />
         </PageTile>
-      ) : (
+      ) : readOnly ? null : (
         <PageSlot
           label={t("screens.chart")}
           onPress={onBuildChart}

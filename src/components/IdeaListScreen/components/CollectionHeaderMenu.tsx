@@ -69,7 +69,7 @@ export function CollectionHeaderMenu() {
             void playAllIdeas();
           }}
         />
-        {!screen.isReceivedWorkspace ? (
+        {!screen.isReadOnly ? (
           <>
             {/* Creation rows — moved here from the "+" FAB (single-FAB rule):
                 the record FAB stays THE action. */}
@@ -80,6 +80,7 @@ export function CollectionHeaderMenu() {
               onPress={() => {
                 screen.setHeaderMenuOpen(false);
                 const createdIdeaId = appActions.addIdea(screen.collectionId!);
+                if (!createdIdeaId) return;
                 screen.navigateRoot("IdeaDetail", { ideaId: createdIdeaId });
               }}
             />

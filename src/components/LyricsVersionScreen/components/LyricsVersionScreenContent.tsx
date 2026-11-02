@@ -63,7 +63,7 @@ export function LyricsVersionScreenContent() {
   const lines = model.resolvedVersion?.document.lines ?? [];
   const hasChords = lines.some((line) => line.chords.length > 0);
   const canChart = !!model.resolvedVersion && lines.length > 0;
-  const showChordEditor = chordEditMode && !model.isEditMode && !!model.resolvedVersion;
+  const showChordEditor = chordEditMode && !model.isEditMode && !model.readOnlyReason && !!model.resolvedVersion;
   // Export lives in the header for both reading and charting chords (a version
   // exists in both); only the plain-text lyric editor hides it.
   const canExport = !model.isEditMode;
@@ -141,7 +141,8 @@ export function LyricsVersionScreenContent() {
             hasChords={hasChords}
             canChart={canChart}
             transposeIdeaId={model.projectIdea.id}
-            onEdit={model.beginEdit}
+            onEdit={model.readOnlyReason ? undefined : model.beginEdit}
+            readOnlyReason={model.readOnlyReason}
             onChords={() => setChordEditMode(true)}
             onLayout={model.setPreviewViewportHeight}
             onContentSizeChange={model.setPreviewContentHeight}

@@ -597,6 +597,9 @@ export type SongIdea = {
   /** This draft sketch IS a clip idea mid-conversion ("Make sketch"): discarding
    *  it turns the idea back into that clip, in place. Cleared on save. */
   draftFromClipIdea?: boolean;
+  /** The clip that was primary before "Make sketch" made the first one primary,
+   *  so Discard restores the clip exactly. Cleared on save. */
+  draftClipPrimaryId?: string;
   isBookmarked?: boolean;
 };
 

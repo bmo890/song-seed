@@ -11,6 +11,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
+import { useIsReadOnlyWorkspace } from "../../../hooks/useReadOnly";
 import { WorkspaceThemeProvider, useWorkspaceTheme } from "../../../context/WorkspaceThemeContext";
 import { QuickNameModal } from "../../modals/QuickNameModal";
 import { CollectionMoveModal } from "../../modals/CollectionMoveModal";
@@ -58,11 +59,15 @@ function WorkspaceBrowseInner() {
   const [workspaceSheetOpen, setWorkspaceSheetOpen] = useState(false);
   const pickCount = libraryCollector?.picks.length ?? 0;
   const collectionsModel = useWorkspaceCollectionsModel();
+  // A parcel (until Keep) or an archive: browse it, never add or rearrange
+  // collections in it (decision B).
+  const hubReadOnly = useIsReadOnlyWorkspace(collectionsModel.activeWorkspace?.id);
   const pickFromWorkspace = (workspaceId: string) => {
     // A received package is browsed by route param only — it never becomes
     // the active workspace (that would point the recorder at it).
     const picked = useStore.getState().workspaces.find((workspace) => workspace.id === workspaceId);
-    if (picked?.origin !== "received") useStore.getState().setActiveWorkspaceId(workspaceId);
+    // Same for an archive: setActiveWorkspaceId refuses both (decision B).
+    if (picked?.origin !== "received" && !picked?.isArchived) useStore.getState().setActiveWorkspaceId(workspaceId);
     navigation.setParams({ workspaceId });
   };
   const [searchOpen, setSearchOpen] = useState(false);
@@ -260,7 +265,7 @@ function WorkspaceBrowseInner() {
             }}
             onLongPressCollection={(collectionId) => {
               // A picker has one chrome; collection multi-select waits its turn.
-              if (selectionModel.selectionMode || pickerActive) return;
+              if (selectionModel.selectionMode || pickerActive || hubReadOnly) return;
               selectionModel.setSelectedCollectionIds([collectionId]);
             }}
           />
@@ -378,7 +383,7 @@ function WorkspaceBrowseInner() {
       />
 
       {/* FAB */}
-      {!selectionModel.selectionMode && !pickerActive ? (
+      {!selectionModel.selectionMode && !pickerActive && !hubReadOnly ? (
         <Pressable
           testID="workspace-add-collection"
           accessibilityRole="button"
