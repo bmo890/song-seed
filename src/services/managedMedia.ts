@@ -14,8 +14,11 @@ import {
 } from "./storagePaths";
 
 export const SHARE_TEMP_FILE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-/** How long quarantined (deleted) audio is retained before it is permanently purged. */
-export const TRASH_RETENTION_MS = 14 * 24 * 60 * 60 * 1000;
+/** How long quarantined (deleted) audio is retained before it is permanently purged.
+ *  A day past Recently deleted's 30 (state/recentlyDeleted.ts): a record's files are
+ *  trashed at or after its delete, so they always outlive it, and Delete permanently,
+ *  Empty and the 30-day purge remove them with the record (decision A, 2026-11-02). */
+export const TRASH_RETENTION_MS = 31 * 24 * 60 * 60 * 1000;
 
 /** Every file-backed audio URI a clip references — master take, pre-edit source,
  *  rendered overdub mix, and each overdub layer recording — unfiltered (managed or
@@ -163,19 +166,152 @@ async function trashFileIfManaged(uri: string): Promise<boolean> {
     }
 }
 
+// Every move into the trash, chained: a Restore waits for the moves already under way
+// before it looks for its files there (whenTrashSettled).
+let trashChain: Promise<unknown> = Promise.resolve();
+function trackTrash<T>(work: Promise<T>): Promise<T> {
+    trashChain = Promise.all([trashChain, work]).catch(() => undefined);
+    return work;
+}
+
+/** Resolves once every trash move started so far has finished. */
+export function whenTrashSettled(): Promise<void> {
+    return trashChain.then(() => undefined);
+}
+
 export async function deleteManagedAudioUris(uris: Iterable<string>) {
     const unique = Array.from(new Set(uris));
-    await Promise.all([
-        ...unique.map((uri) => trashFileIfManaged(uri)),
-        // Detail-waveform sidecars are derived data (regenerable from audio), so
-        // hard-delete them with their clip rather than retaining them in the trash.
-        ...unique.map((uri) => hardDeleteFileIfManaged(waveformSidecarUri(uri))),
-    ]);
+    await trackTrash(
+        Promise.all([
+            ...unique.map((uri) => trashFileIfManaged(uri)),
+            // Detail-waveform sidecars are derived data (regenerable from audio), so
+            // hard-delete them with their clip rather than retaining them in the trash.
+            ...unique.map((uri) => hardDeleteFileIfManaged(waveformSidecarUri(uri))),
+        ])
+    );
 }
 
 export async function deleteManagedArchiveUri(uri: string | null | undefined) {
     if (!uri) return;
-    await trashFileIfManaged(uri);
+    await trackTrash(trashFileIfManaged(uri));
+}
+
+function managedFilename(uri: string): string {
+    return uri.split("?")[0].split("/").pop() ?? "";
+}
+
+async function readTrashNames(): Promise<string[]> {
+    const info = await FileSystem.getInfoAsync(SONG_NOOK_TRASH_DIR);
+    if (!info.exists) return [];
+    return FileSystem.readDirectoryAsync(SONG_NOOK_TRASH_DIR);
+}
+
+/**
+ * Recently deleted's Restore: move these files back from the trash to their places.
+ * Waits for trash moves under way first; never overwrites a file that is there.
+ * Returns how many came back.
+ */
+export async function restoreFilesFromTrash(uris: Iterable<string>): Promise<number> {
+    await whenTrashSettled();
+    const missing: string[] = [];
+    for (const uri of new Set(uris)) {
+        const path = toRelativeManagedPath(uri);
+        if (!path) continue;
+        const resolved = resolveManagedUri(path);
+        const info = await FileSystem.getInfoAsync(resolved).catch(() => null);
+        if (info && !info.exists) missing.push(resolved);
+    }
+    if (missing.length === 0) return 0;
+    let restored = 0;
+    try {
+        for (const { trashName, to } of planTrashRestores(missing, await readTrashNames())) {
+            try {
+                const parent = to.slice(0, to.lastIndexOf("/"));
+                await FileSystem.makeDirectoryAsync(parent, { intermediates: true }).catch(() => {});
+                if ((await FileSystem.getInfoAsync(to)).exists) continue;
+                await FileSystem.moveAsync({ from: `${SONG_NOOK_TRASH_DIR}/${trashName}`, to });
+                restored += 1;
+            } catch (error) {
+                console.warn("[ManagedMedia] Failed to restore a file from the trash", to, error);
+            }
+        }
+    } catch (error) {
+        console.warn("[ManagedMedia] Restore from trash failed", error);
+    }
+    if (restored > 0) persistLog("deleted.restored", `${restored} file(s) back from the trash`);
+    return restored;
+}
+
+/** Bytes in the trash: by original filename (its newest copy) and in all. */
+export async function measureTrash(): Promise<{ byFilename: Map<string, number>; totalBytes: number }> {
+    const byFilename = new Map<string, number>();
+    const newest = new Map<string, number>();
+    let totalBytes = 0;
+    try {
+        for (const trashName of await readTrashNames()) {
+            const info = await FileSystem.getInfoAsync(`${SONG_NOOK_TRASH_DIR}/${trashName}`).catch(() => null);
+            const size = info?.exists && typeof (info as { size?: number }).size === "number" ? (info as { size: number }).size : 0;
+            totalBytes += size;
+            const parsed = parseTrashName(trashName);
+            if (!parsed) continue;
+            if ((newest.get(parsed.filename) ?? -1) < parsed.trashedAt) {
+                newest.set(parsed.filename, parsed.trashedAt);
+                byFilename.set(parsed.filename, size);
+            }
+        }
+    } catch (error) {
+        console.warn("[ManagedMedia] Could not measure the trash", error);
+    }
+    return { byFilename, totalBytes };
+}
+
+/**
+ * Delete permanently: these files go for good, wherever they are: in the trash
+ * (every copy of each filename) or still at their place. The caller passes only
+ * files nothing in the library or Recently deleted still uses.
+ */
+export async function hardDeleteManagedFiles(uris: Iterable<string>): Promise<void> {
+    await whenTrashSettled();
+    const filenames = new Set<string>();
+    for (const uri of new Set(uris)) {
+        const path = toRelativeManagedPath(uri);
+        if (!path) continue;
+        const resolved = resolveManagedUri(path);
+        filenames.add(managedFilename(resolved));
+        await hardDeleteFileIfManaged(resolved);
+        await hardDeleteFileIfManaged(waveformSidecarUri(resolved));
+    }
+    if (filenames.size === 0) return;
+    try {
+        for (const trashName of await readTrashNames()) {
+            const parsed = parseTrashName(trashName);
+            if (parsed && filenames.has(parsed.filename)) {
+                await FileSystem.deleteAsync(`${SONG_NOOK_TRASH_DIR}/${trashName}`, { idempotent: true });
+            }
+        }
+    } catch (error) {
+        console.warn("[ManagedMedia] Could not clear files from the trash", error);
+    }
+}
+
+/** Empty: everything in the trash goes, except copies of `keepFilenames` (files a
+ *  remaining Recently deleted record still holds). */
+export async function emptyTrashExcept(keepFilenames: Set<string>): Promise<void> {
+    await whenTrashSettled();
+    try {
+        for (const trashName of await readTrashNames()) {
+            const parsed = parseTrashName(trashName);
+            if (parsed && keepFilenames.has(parsed.filename)) continue;
+            await FileSystem.deleteAsync(`${SONG_NOOK_TRASH_DIR}/${trashName}`, { idempotent: true });
+        }
+    } catch (error) {
+        console.warn("[ManagedMedia] Could not empty the trash", error);
+    }
+}
+
+/** A file's name as the trash keys it. */
+export function trashFilenameOf(uri: string): string {
+    return managedFilename(uri);
 }
 
 export async function quarantineManagedPaths(paths: Iterable<string>) {

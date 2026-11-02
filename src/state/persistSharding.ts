@@ -1,4 +1,4 @@
-import type { ActivityEvent, Workspace } from "../types";
+import type { ActivityEvent, DeletedItem, Workspace } from "../types";
 import type { PersistedAppStore } from "./storeTypes";
 
 /**
@@ -23,6 +23,9 @@ import type { PersistedAppStore } from "./storeTypes";
  *                                    rewritten only when the events array reference changes.
  *                                    A sharded meta WITHOUT the flag still carries the events
  *                                    inline (installs from before the split) and reads as-is.
+ *   key = STORE_NAME::deleted     → Recently deleted (whole deleted ideas, collections,
+ *                                    workspaces, kept 30 days). Its own row for the same
+ *                                    reason: rewritten only when that array changes.
  *
  * A monolithic blob at STORE_NAME (pre-sharding installs, or a disaster-recovery restore,
  * which writes the whole snapshot straight to STORE_NAME) has NO marker and carries its
@@ -45,12 +48,21 @@ type ShardedMeta = {
     workspaceIds: string[];
     /** The activity history lives in its own row (STORE_NAME::activity). */
     activityRow?: true;
+    /** Recently deleted lives in its own row (STORE_NAME::deleted). */
+    deletedRow?: true;
     /** Everything in PersistedAppStore except `workspaces` (and `activityEvents` once split). */
-    state: Omit<PersistedAppStore, "workspaces" | "activityEvents"> & { activityEvents?: ActivityEvent[] };
+    state: Omit<PersistedAppStore, "workspaces" | "activityEvents" | "recentlyDeleted"> & {
+        activityEvents?: ActivityEvent[];
+        recentlyDeleted?: DeletedItem[];
+    };
 };
 
 export function activityRowKey(storeName: string): string {
     return `${storeName}::activity`;
+}
+
+export function deletedRowKey(storeName: string): string {
+    return `${storeName}::deleted`;
 }
 
 export function workspaceRowKey(storeName: string, workspaceId: string): string {
@@ -62,6 +74,8 @@ export type ShardedWritePlan = {
     metaRow: { key: string; value: string };
     /** The activity row — only when the events array reference changed since the last write. */
     activityRow: { key: string; value: string } | null;
+    /** The Recently deleted row — only when that array reference changed. */
+    deletedRow: { key: string; value: string } | null;
     /** Only the workspace rows whose object reference changed since the last write. */
     dirtyWorkspaceRows: { key: string; value: string }[];
     /** Rows for workspaces that no longer exist — deleted in the same transaction. */
@@ -70,6 +84,7 @@ export type ShardedWritePlan = {
     nextWorkspaceRefs: Map<string, Workspace>;
     /** The new "last written" activity-events reference, adopted after a successful commit. */
     nextActivityRef: ActivityEvent[] | null;
+    nextDeletedRef: DeletedItem[] | null;
 };
 
 /**
@@ -82,28 +97,38 @@ export function planShardedWrite(
     value: PersistStorageValue,
     lastWorkspaceRefs: Map<string, Workspace>,
     /** `null` = nothing written yet this session: the activity row is written once regardless. */
-    lastActivityRef: ActivityEvent[] | null = null
+    lastActivityRef: ActivityEvent[] | null = null,
+    /** `null` = nothing written yet this session: the deleted row is written once regardless. */
+    lastDeletedRef: DeletedItem[] | null = null
 ): ShardedWritePlan {
     const workspaces = Array.isArray(value.state.workspaces) ? value.state.workspaces : [];
     const workspaceIds = workspaces.map((workspace) => workspace.id);
     // A snapshot without a history (older shapes, tests) keeps its meta row as-is.
     const activityEvents = Array.isArray(value.state.activityEvents) ? value.state.activityEvents : null;
+    const recentlyDeleted = Array.isArray(value.state.recentlyDeleted) ? value.state.recentlyDeleted : null;
 
     const metaState = { ...value.state } as Partial<PersistedAppStore>;
     delete metaState.workspaces;
     if (activityEvents) delete metaState.activityEvents;
+    if (recentlyDeleted) delete metaState.recentlyDeleted;
 
     const meta: ShardedMeta = {
         [SHARD_MARKER]: true,
         version: value.version,
         workspaceIds,
         ...(activityEvents ? { activityRow: true as const } : null),
+        ...(recentlyDeleted ? { deletedRow: true as const } : null),
         state: metaState as ShardedMeta["state"],
     };
 
     const activityRow =
         activityEvents && lastActivityRef !== activityEvents
             ? { key: activityRowKey(storeName), value: JSON.stringify(activityEvents) }
+            : null;
+
+    const deletedRow =
+        recentlyDeleted && lastDeletedRef !== recentlyDeleted
+            ? { key: deletedRowKey(storeName), value: JSON.stringify(recentlyDeleted) }
             : null;
 
     const dirtyWorkspaceRows: { key: string; value: string }[] = [];
@@ -129,10 +154,12 @@ export function planShardedWrite(
     return {
         metaRow: { key: storeName, value: JSON.stringify(meta) },
         activityRow,
+        deletedRow,
         dirtyWorkspaceRows,
         deleteKeys,
         nextWorkspaceRefs,
         nextActivityRef: activityEvents,
+        nextDeletedRef: recentlyDeleted,
     };
 }
 
@@ -146,6 +173,8 @@ export type ParsedMeta =
           workspaceIds: string[];
           /** True when the activity history lives in STORE_NAME::activity (else inline in metaState). */
           activityRow: boolean;
+          /** True when Recently deleted lives in STORE_NAME::deleted. */
+          deletedRow: boolean;
           metaState: Record<string, unknown>;
       };
 
@@ -169,6 +198,7 @@ export function parseMetaRow(metaValue: string | null | undefined): ParsedMeta {
             version: typeof record.version === "number" ? record.version : undefined,
             workspaceIds: Array.isArray(record.workspaceIds) ? (record.workspaceIds as string[]) : [],
             activityRow: record.activityRow === true,
+            deletedRow: record.deletedRow === true,
             metaState: (record.state as Record<string, unknown>) ?? {},
         };
     }
@@ -196,6 +226,8 @@ export type AssembledShardedSnapshot = {
     corrupt: { id: string; raw: string }[];
     /** The meta referenced an activity row that was missing or unparseable: history starts empty. */
     activityDegraded: boolean;
+    /** The meta referenced a deleted row that was missing or unparseable: the list starts empty. */
+    deletedDegraded: boolean;
 };
 
 /**
@@ -209,7 +241,8 @@ export function assembleShardedSnapshot(
     storeName: string,
     meta: Extract<ParsedMeta, { format: "sharded" }>,
     workspaceRowValues: Map<string, string>,
-    activityRaw: string | null | undefined = undefined
+    activityRaw: string | null | undefined = undefined,
+    deletedRaw: string | null | undefined = undefined
 ): AssembledShardedSnapshot {
     // The activity history: its own row once split, inline in the meta before that.
     let activityEvents: ActivityEvent[] | undefined;
@@ -225,6 +258,21 @@ export function assembleShardedSnapshot(
         if (activityDegraded) {
             console.warn(`[persistSharding] activity row ${activityRaw == null ? "missing" : "corrupt"} — history starts empty`);
             activityEvents = [];
+        }
+    }
+    let recentlyDeleted: DeletedItem[] | undefined;
+    let deletedDegraded = false;
+    if (meta.deletedRow) {
+        try {
+            const parsed = deletedRaw == null ? null : (JSON.parse(deletedRaw) as unknown);
+            if (Array.isArray(parsed)) recentlyDeleted = parsed as DeletedItem[];
+            else deletedDegraded = true;
+        } catch {
+            deletedDegraded = true;
+        }
+        if (deletedDegraded) {
+            console.warn(`[persistSharding] deleted row ${deletedRaw == null ? "missing" : "corrupt"} — Recently deleted starts empty`);
+            recentlyDeleted = [];
         }
     }
     const workspaces: Workspace[] = [];
@@ -250,6 +298,7 @@ export function assembleShardedSnapshot(
             state: {
                 ...(meta.metaState as object),
                 ...(activityEvents ? { activityEvents } : null),
+                ...(recentlyDeleted ? { recentlyDeleted } : null),
                 workspaces,
             } as PersistedAppStore,
             version: meta.version,
@@ -257,5 +306,6 @@ export function assembleShardedSnapshot(
         missingIds,
         corrupt,
         activityDegraded,
+        deletedDegraded,
     };
 }

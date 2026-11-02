@@ -100,6 +100,7 @@ import { openIdeaInCollection, registerRootNavigation } from "./src/navigation";
 import { beginUiActivity, endUiActivity } from "./src/services/interactionGate";
 import { countReceivedPackages, unopenedReceivedCount } from "./src/domain/workspaceVisibility";
 import { cleanupStaleShareTempFiles, purgeExpiredTrash, restoreReferencedFilesFromTrash } from "./src/services/managedMedia";
+import { purgeExpiredRecentlyDeleted } from "./src/state/recentlyDeletedActions";
 import { readManifest } from "./src/services/manifestSync";
 import { appActions } from "./src/state/actions";
 import {
@@ -1319,6 +1320,10 @@ export default function App() {
       // The trash safety net: any file the library still points at that a mistaken
       // delete sent to the trash comes back BEFORE the purge can make it permanent.
       await restoreReferencedFilesFromTrash(useStore.getState().workspaces);
+      // Recently deleted: records past their 30 days go, with their files (decision A).
+      await purgeExpiredRecentlyDeleted().catch((error) =>
+        console.warn("[RecentlyDeleted] Purge skipped", error)
+      );
       // Permanently purge quarantined (deleted) audio past its retention window.
       await purgeExpiredTrash();
       await resumePendingWorkspaceArchiveOperations();

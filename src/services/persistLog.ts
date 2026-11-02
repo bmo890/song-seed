@@ -68,6 +68,9 @@ export type PersistLogEvent =
     | "click.instream"
     // Media safety net
     | "media.untrashed"
+    // Recently deleted: records put back, or gone for good (with their files)
+    | "deleted.restored"
+    | "deleted.purged"
     // Reel label faces that failed to load (labels fall back to the system font)
     | "reel.fontFailed";
 

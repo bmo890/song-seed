@@ -1,4 +1,4 @@
-import type { ClipOverdubState, ClipVersion, SongIdea, Workspace } from "../types";
+import type { ClipOverdubState, ClipVersion, DeletedItem, SongIdea, Workspace } from "../types";
 import { rebaseManagedUri, toRelativeManagedPath } from "../services/storagePaths";
 
 /** Transforms a single managed audio URI. Returning the same string leaves it unchanged. */
@@ -99,4 +99,36 @@ export function rebaseWorkspacesManagedMedia(workspaces: Workspace[]): Workspace
  */
 export function toRelativeWorkspacesManagedMedia(workspaces: Workspace[]): Workspace[] {
     return mapWorkspacesManagedMedia(workspaces, ((uri) => toRelativeManagedPath(uri) ?? uri) as UriMapper);
+}
+
+/** The same mapping over Recently deleted's records (the ideas, takes and workspaces
+ *  they hold), so their audio paths heal and relativize with the library's. */
+function mapDeletedItemsManagedMedia(items: DeletedItem[], mapUri: UriMapper): DeletedItem[] {
+    let changed = false;
+    const next = items.map((item) => {
+        const ideas = item.ideas?.map((idea) => mapIdeaManagedMedia(idea, mapUri));
+        const clips = item.clips?.map((clip) => mapClipManagedMedia(clip, mapUri));
+        const workspace = item.workspace ? mapWorkspacesManagedMedia([item.workspace], mapUri)[0] : undefined;
+        const same =
+            (ideas ?? []).every((idea, index) => idea === item.ideas![index]) &&
+            (clips ?? []).every((clip, index) => clip === item.clips![index]) &&
+            workspace === item.workspace;
+        if (same) return item;
+        changed = true;
+        return {
+            ...item,
+            ...(ideas ? { ideas } : null),
+            ...(clips ? { clips } : null),
+            ...(workspace ? { workspace } : null),
+        };
+    });
+    return changed ? next : items;
+}
+
+export function rebaseDeletedItemsManagedMedia(items: DeletedItem[]): DeletedItem[] {
+    return mapDeletedItemsManagedMedia(items, rebaseManagedUri);
+}
+
+export function toRelativeDeletedItemsManagedMedia(items: DeletedItem[]): DeletedItem[] {
+    return mapDeletedItemsManagedMedia(items, ((uri) => toRelativeManagedPath(uri) ?? uri) as UriMapper);
 }

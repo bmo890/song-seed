@@ -31,7 +31,8 @@ import { validateDisasterRecoveryManifest } from "../../services/disasterRecover
 describe("the library's data version", () => {
     it("is bumped with the persisted shape (update both together)", () => {
         // A persisted-shape change bumps STORE_VERSION (state/storeVersion.ts) and this
-        // pin. Nested reshapes count too (13: hiddenDays as calendar days, automaticBackup).
+        // pin. Nested reshapes count too (13: hiddenDays as calendar days, automaticBackup,
+        // recentlyDeleted — all unshipped).
         expect(STORE_VERSION).toBe(13);
         expect(Object.keys(buildPersistedAppStoreSnapshot(useStore.getState())).sort()).toEqual([
             "activeWorkspaceId", "activityEvents", "automaticBackup", "backupReminderFrequency", "backupReminderLastPromptedAt",
@@ -43,7 +44,7 @@ describe("the library's data version", () => {
             "metronomeGroupingByMeterId", "metronomeHapticLevel", "metronomeMeterId", "metronomeOutputs",
             "metronomeSubdivision", "nameLanguage", "notes", "playbackClickHaptic", "playbackClickLevel",
             "playlists", "preferredRecordingInputId", "primaryCollectionIdByWorkspace", "primaryFilter",
-            "primarySort", "primaryWorkspaceId", "promptForClipName", "reviewPromptShownAt", "seenHints",
+            "primarySort", "primaryWorkspaceId", "promptForClipName", "recentlyDeleted", "reviewPromptShownAt", "seenHints",
             "setlists", "songbooks", "wordLadders", "wordLanguage", "workspaceLastOpenedAt",
             "workspaceListOrder", "workspaceStartupPreference", "workspaces",
         ]);

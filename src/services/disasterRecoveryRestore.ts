@@ -48,7 +48,7 @@ import {
 } from "./disasterRecoveryErrors";
 import { sanitizeSatelliteSnapshot, writeSatelliteSnapshot } from "./satelliteSnapshot";
 import { mergeRestoredLibrary } from "./libraryMergeRestore";
-import { toRelativeWorkspacesManagedMedia } from "../state/rebaseManagedMedia";
+import { toRelativeDeletedItemsManagedMedia, toRelativeWorkspacesManagedMedia } from "../state/rebaseManagedMedia";
 import type { PersistedAppStore } from "../state/storeTypes";
 
 /**
@@ -554,6 +554,7 @@ export async function restoreFromSource(
             ? mergeRestoredLibrary(prepared.snapshot, {
                   ...liveSnapshot,
                   workspaces: toRelativeWorkspacesManagedMedia(liveSnapshot.workspaces),
+                  recentlyDeleted: toRelativeDeletedItemsManagedMedia(liveSnapshot.recentlyDeleted ?? []),
               })
             : prepared.snapshot;
         await persistRawSnapshot(
