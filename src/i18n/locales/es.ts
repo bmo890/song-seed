@@ -3578,6 +3578,12 @@ export const es = {
     body: "SongNook tuvo un error inesperado. Tus clips y tu biblioteca están a salvo en este dispositivo; al reiniciar volverá todo.",
     restart: "Reiniciar SongNook",
     hint: "Si sigue pasando, comparte el registro de diagnóstico desde Ajustes → Ayuda e información.",
+    safeBody: "Tu biblioteca sigue en este dispositivo. Haz una copia o abre Inicio sin la página que se detuvo.",
+    backUp: "Hacer copia",
+    backingUp: "Haciendo copia…",
+    backedUp: "Copia guardada",
+    backupFailed: "La copia no terminó. Inténtalo de nuevo.",
+    openHome: "Abrir Inicio",
   },
   defaults: {
     untitledPlaylist: "Playlist sin título",

@@ -55,6 +55,11 @@ export function eraseTargets(): string[] {
         `${documentDir()}SQLite`,
         `${cacheDir()}songnook-receive`,
         `${cacheDir()}songnook`,
+        // Shared-in copies (Android share intake), sealed copies mid-send, the
+        // crash screen's note (audit 2026-11-02, 06 #3).
+        `${cacheDir()}share-intake`,
+        `${cacheDir()}songnook-seal`,
+        `${documentDir()}crash-set-aside.json`,
     ].filter((uri) => uri.length > 0 && uri !== documentDir() && uri !== cacheDir());
 }
 

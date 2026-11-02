@@ -1553,6 +1553,13 @@ export const en = {
     body: "SongNook hit an unexpected error. Your clips and library are safe on this device — restarting will bring everything back.",
     restart: "Restart SongNook",
     hint: "If this keeps happening, share the diagnostic log from Settings → About.",
+    // The crash screen's way out (audit 2026-11-02, 09 H1): save a copy, or open Home without the page that stopped.
+    safeBody: "Your library is still on this device. Back it up, or open Home without the page that stopped.",
+    backUp: "Back up",
+    backingUp: "Backing up…",
+    backedUp: "Backup saved",
+    backupFailed: "The backup didn’t finish. Try again.",
+    openHome: "Open Home",
   },
   defaults: {
     untitledPlaylist: "Untitled playlist",

@@ -3438,6 +3438,12 @@ export const de = {
     body: "SongNook hatte einen unerwarteten Fehler. Deine Clips und deine Bibliothek sind auf diesem Gerät sicher — ein Neustart bringt alles zurück.",
     restart: "SongNook neu starten",
     hint: "Passiert das öfter, teile das Diagnoseprotokoll unter Einstellungen → Hilfe & Info.",
+    safeBody: "Deine Bibliothek ist noch auf diesem Gerät. Sichere sie oder öffne die Startseite ohne die Seite, die stehen blieb.",
+    backUp: "Sichern",
+    backingUp: "Wird gesichert…",
+    backedUp: "Backup gespeichert",
+    backupFailed: "Das Backup wurde nicht fertig. Versuch es erneut.",
+    openHome: "Startseite öffnen",
   },
   defaults: {
     untitledPlaylist: "Playlist ohne Titel",

@@ -109,6 +109,8 @@ export function useShareImportScreenModel({
   async function importSharedArchive() {
     if (!sharedArchive || isImportingArchive) return;
     setIsImportingArchive(true);
+    // A content:// share is copied into the cache first; the copy goes either way (06 #3).
+    let cachedCopy: string | null = null;
     try {
       if ((await detectPickedArchiveKind(sharedArchive.uri)) === "songnook-backup") {
         AppAlert.info(
@@ -122,6 +124,7 @@ export function useShareImportScreenModel({
       let archiveUri = sharedArchive.uri;
       if (archiveUri.startsWith("content://")) {
         const cached = `${FileSystem.cacheDirectory}shared-archive-${Date.now()}.zip`;
+        cachedCopy = cached;
         await FileSystem.copyAsync({ from: archiveUri, to: cached });
         archiveUri = cached;
       }
@@ -167,6 +170,7 @@ export function useShareImportScreenModel({
     } catch (error) {
       AppAlert.error(t("common.importFailed"), t("common.archiveReadFailed"));
     } finally {
+      if (cachedCopy) void FileSystem.deleteAsync(cachedCopy, { idempotent: true }).catch(() => {});
       setIsImportingArchive(false);
     }
   }
