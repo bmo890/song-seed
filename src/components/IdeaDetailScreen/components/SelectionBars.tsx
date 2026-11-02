@@ -1,3 +1,4 @@
+import { announceDeleted, undoDelete } from "../../common/deleteFeedback";
 import React, { useMemo, useState } from "react";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
@@ -332,7 +333,13 @@ export function SelectionBars() {
     AppAlert.destructive(
       t("songDetail.deleteClipsTitle", { count: selectedClips.length }),
       t("songDetail.deleteClipsBody", { count: selectedClips.length }),
-      appActions.deleteSelectedClips,
+      () => {
+        // The takes wait in Recently deleted; the page's undo bar brings them back.
+        const ids = appActions.deleteSelectedClips();
+        if (ids.length === 0) return;
+        undo.showUndo(t("recentlyDeleted.movedToast"), () => void undoDelete(ids));
+        announceDeleted(ids, { toast: false });
+      },
       { confirmLabel: t("common.delete") }
     );
   }

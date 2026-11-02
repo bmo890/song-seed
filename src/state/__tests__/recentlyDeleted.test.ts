@@ -36,6 +36,7 @@ import {
 import { deletedItemDaysLeft, RECENTLY_DELETED_MS } from "../recentlyDeleted";
 import { planShardedWrite, assembleShardedSnapshot, parseMetaRow } from "../persistSharding";
 import { setHydrationReadOutcome } from "../persistRuntime";
+import { appActions } from "../actions";
 
 /**
  * Decision A (founder, 2026-11-02): a delete keeps the thing whole for 30 days in
@@ -207,6 +208,34 @@ describe("Recently deleted", () => {
         await purgeExpiredRecentlyDeleted();
         expect(useStore.getState().recentlyDeleted.map((item) => item.id)).toEqual([newer!.id]);
         expect(deletedItemDaysLeft(newer!)).toBe(30);
+    });
+
+    it("keeps deleted takes; Restore puts them back in their sketch, or as clips if it is gone", async () => {
+        useStore.setState({ selectedIdeaId: "s1", selectedClipIds: ["s1-t2"], clipSelectionMode: true });
+        const ids = appActions.deleteSelectedClips();
+        expect(idea("s1")!.clips.map((clip) => clip.id)).toEqual(["s1-t1"]);
+        await restoreRecentlyDeleted(ids);
+        expect(idea("s1")!.clips.map((clip) => clip.id)).toEqual(["s1-t1", "s1-t2"]);
+        expect(idea("s1")!.clips.filter((clip) => clip.isPrimary)).toHaveLength(1);
+
+        const again = appActions.deleteClipFromIdea("s1", "s1-t2");
+        useStore.getState().deleteIdea("s1", { recentlyDeleted: false });
+        const outcomes = await restoreRecentlyDeleted(again);
+        expect(outcomes[0]!.status).toBe("moved");
+        const clipIdea = useStore.getState().workspaces[0]!.ideas.find((candidate) => candidate.clips[0]?.id === "s1-t2");
+        expect(clipIdea?.kind).toBe("clip");
+    });
+
+    it("Keep takes keeps the sketch's lyrics, chart and notes, and leaves no ghost set entry (04-M1)", async () => {
+        appActions.dissolveSketch("s1");
+        expect(idea("s1")).toBeUndefined();
+        expect(useStore.getState().setlists[0]!.entries.map((entry) => entry.id)).toEqual(["e0", "e2"]);
+        const record = useStore.getState().recentlyDeleted[0]!;
+        expect(record.ideas![0]!.lyrics!.versions).toHaveLength(1);
+        expect(record.ideas![0]!.notes).toBe("sketch notes");
+        await restoreRecentlyDeleted([record.id]);
+        expect(idea("s1")!.lyrics!.versions).toHaveLength(1);
+        expect(useStore.getState().setlists[0]!.entries.map((entry) => entry.id)).toEqual(["e0", "e1", "e2"]);
     });
 
     it("is part of the library: persisted, sanitized, and in its own row", () => {

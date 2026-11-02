@@ -331,8 +331,8 @@ export function IdeaSelectionBar({
       selectedClipIdeas.length > 0 ? ` ${t("selection.deleteClips", { count: selectedClipIdeas.length })}` : "";
     const message =
       selectedProjects.length > 0
-        ? `${t("selection.deleteSongs", { count: selectedProjects.length })}${alsoClips}${projectList}`
-        : t("selection.deleteSelectedClips", { count: selectedClipIdeas.length });
+        ? `${t("selection.deleteSongs", { count: selectedProjects.length })}${alsoClips} ${t("recentlyDeleted.confirmLine")}${projectList}`
+        : `${t("selection.deleteSelectedClips", { count: selectedClipIdeas.length })} ${t("recentlyDeleted.confirmLine")}`;
 
     AppAlert.destructive(t("selection.deleteSelected"), message, onDeleteSelected, { confirmLabel: t("common.delete") });
   }
