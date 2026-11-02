@@ -267,6 +267,19 @@ export async function runFolderBackup(
         await options?.betweenFiles?.();
     }
 
+    // A recording the library still points at but this phone can no longer read keeps
+    // the copy an earlier run made: the folder is then the only place it survives, so
+    // it must stay listed (and never be pruned) rather than be reported missing.
+    for (let index = missing.length - 1; index >= 0; index -= 1) {
+        const lost = missing[index];
+        const before = previousByPath.get(lost.path);
+        const name = mediaFileName(lost.path);
+        if (!before || !mediaListing.has(name) || keptNames.has(name)) continue;
+        files.push(before);
+        keptNames.add(name);
+        missing.splice(index, 1);
+    }
+
     // Media the library no longer uses: remembered from the first run that saw it
     // unused, deleted 30 days later. A leftover partial copy goes now.
     const retired: Record<string, number> = {};

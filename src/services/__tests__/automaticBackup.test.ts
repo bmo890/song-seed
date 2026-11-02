@@ -262,6 +262,24 @@ it("keeps media the library dropped for 30 days, then prunes it", async () => {
     expect(memory.names(MEDIA)).toEqual([mediaFileName("songnook/audio/clip-1.wav")]);
 });
 
+it("keeps the folder's copy of a recording this phone lost", async () => {
+    const memory = memoryFolder();
+    await runFolderBackup(library(["clip-1", "clip-2"]), "handle", { io: memory.io, now: 1_000 });
+    mockFiles.delete(`${AUDIO}/clip-2.wav`);
+
+    const later = await runFolderBackup(library(["clip-1", "clip-2"]), "handle", {
+        io: memory.io,
+        now: 1_000 + AUTO_BACKUP_PRUNE_AFTER_MS + 1,
+    });
+
+    expect(later.status).toBe("complete");
+    expect(later.manifest.files.map((file) => file.path).sort()).toEqual([
+        "songnook/audio/clip-1.wav",
+        "songnook/audio/clip-2.wav",
+    ]);
+    expect(memory.names(MEDIA)).toContain(mediaFileName("songnook/audio/clip-2.wav"));
+});
+
 it("reports a folder that is gone as unavailable", async () => {
     const memory = memoryFolder();
     await expect(runFolderBackup(library(["clip-1"]), "other", { io: memory.io })).rejects.toMatchObject({
