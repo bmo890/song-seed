@@ -71,7 +71,7 @@ export function setPersistBlocked(value: boolean) {
  *
  * Failing/degraded clear on the next write that lands in SQLite; blocked is sticky.
  */
-export type PersistHealth = "ok" | "degraded" | "failing" | "blocked";
+export type PersistHealth = "ok" | "degraded" | "failing" | "blocked" | "newer";
 
 const PERSIST_FAILURE_THRESHOLD = 3;
 let consecutivePersistWriteFailures = 0;
@@ -83,6 +83,9 @@ const persistHealthListeners = new Set<(health: PersistHealth) => void>();
 let lastNotifiedHealth: PersistHealth = "ok";
 
 export function getPersistHealth(): PersistHealth {
+    // The library on disk was saved by a newer SongNook (11-M1): saving is paused
+    // until this build updates, and the bar says so.
+    if (persistBlockedReason === "newer-data") return "newer";
     if (persistBlockedReason) return "blocked";
     if (persistFailing) return "failing";
     if (persistDegraded) return "degraded";

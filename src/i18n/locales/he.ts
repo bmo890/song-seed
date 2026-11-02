@@ -1580,6 +1580,7 @@ export const he = {
     saveDegradedHint: "כדאי לגבות בקרוב.",
     saveLocked: "השמירה מושהית",
     saveLockedHint: "גבו עכשיו ואז הפעילו את SongNook מחדש.",
+    saveNewerHint: "נשמר בגרסה חדשה יותר של SongNook. עדכנו כדי להמשיך לשמור.",
     newerCopyTitle: "נמצא עותק חדש יותר",
     newerCopyBody: "עותק שנשמר בטלפון חדש יותר ממה שנטען. לשחזר אותו?",
     newerCopyRestore: "שחזור",

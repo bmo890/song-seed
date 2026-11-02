@@ -3416,6 +3416,7 @@ export const de = {
     saveDegradedHint: "Bald ein Backup machen.",
     saveLocked: "Speichern ist pausiert",
     saveLockedHint: "Jetzt Backup machen, dann SongNook neu starten.",
+    saveNewerHint: "Mit einer neueren SongNook-Version gespeichert. Zum Weiterspeichern aktualisieren.",
     newerCopyTitle: "Neuere Kopie gefunden",
     newerCopyBody: "Eine auf diesem Handy gespeicherte Kopie ist neuer als die geladene. Wiederherstellen?",
     newerCopyRestore: "Wiederherstellen",

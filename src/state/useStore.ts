@@ -73,13 +73,14 @@ import {
     STORE_NAME,
     STORE_VERSION,
 } from "./persistedSnapshot";
+import { isNewerStoreVersion } from "./storeVersion";
 import type { AppStore, PersistedAppStore } from "./storeTypes";
 import { setHapticsEnabled } from "../design/haptics";
 import { NAME_IDEA_LANGUAGES, setIdeaNameLanguage, type NameIdeaLanguage } from "../utils";
 import { sanitizeWordLanguagePref } from "../domain/wordLanguage";
 import { i18n } from "../i18n/instance";
 
-export { buildPersistedAppStoreSnapshot, STORE_NAME, STORE_VERSION } from "./persistedSnapshot";
+export { buildPersistedAppStoreSnapshot, MERGE_MIN_STORE_VERSION, STORE_NAME, STORE_VERSION } from "./persistedSnapshot";
 export type { AppStore, PersistedAppStore } from "./storeTypes";
 
 // Corruption guard thresholds: an unauthorized idea-count drop is treated as
@@ -491,8 +492,17 @@ export const useStore = create<AppStore>()(
             name: STORE_NAME,
             version: STORE_VERSION,
             storage: guardedStorage,
-            migrate: (persistedState) =>
-                sanitizePersistedState(persistedState as Partial<PersistedAppStore> | undefined),
+            migrate: (persistedState, version) => {
+                // Data saved by a NEWER SongNook (an OTA rolled back, the embedded bundle
+                // running before an update applies): show it, never write it back —
+                // this build would strip what it doesn't know (11-M1).
+                if (isNewerStoreVersion(version)) {
+                    setPersistBlocked(true);
+                    persistLog("hydrate.newerData", `stored ${version}, app ${STORE_VERSION}`);
+                    reportPersistBlocked("newer-data");
+                }
+                return sanitizePersistedState(persistedState as Partial<PersistedAppStore> | undefined);
+            },
             // The last-persisted idea count is NOT advanced here: zustand calls partialize
             // synchronously inside every set(), before the debounced guard compares the
             // write against that count, so updating it here made the partial-loss gate

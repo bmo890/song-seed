@@ -3555,6 +3555,7 @@ export const es = {
     saveDegradedHint: "Haz una copia pronto.",
     saveLocked: "Guardado en pausa",
     saveLockedHint: "Haz una copia ahora y reinicia SongNook.",
+    saveNewerHint: "Guardado con un SongNook más nuevo. Actualiza para seguir guardando.",
     newerCopyTitle: "Hay una copia más reciente",
     newerCopyBody: "Una copia guardada en este teléfono es más reciente que la cargada. ¿Restaurarla?",
     newerCopyRestore: "Restaurar",

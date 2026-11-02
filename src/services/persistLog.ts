@@ -31,6 +31,7 @@ export type PersistLogEvent =
     | "hydrate.degraded"
     | "hydrate.replayed"
     | "hydrate.overlay"
+    | "hydrate.newerData"
     // Store writes
     | "write.sqlite"
     | "write.fallback"

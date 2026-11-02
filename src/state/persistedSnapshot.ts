@@ -7,8 +7,10 @@ import {
 } from "./persistRuntime";
 import type { AppStore, PersistedAppStore } from "./storeTypes";
 
+import { STORE_VERSION } from "./storeVersion";
+
 export const STORE_NAME = "songnook-store";
-export const STORE_VERSION = 12;
+export { MERGE_MIN_STORE_VERSION, STORE_VERSION, isNewerStoreVersion } from "./storeVersion";
 
 export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppStore {
     return {
