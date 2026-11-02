@@ -95,6 +95,7 @@ jest.mock("../waveformAnalysis", () => ({ computeWaveformPeaks: jest.fn() }));
 jest.mock("../../../modules/songnook-file-io", () => ({
     isSongNookFileIOAvailable: () => false,
     isNativeZipAvailable: () => false,
+    isNativeZip64Available: () => false,
     copyLocalFileToContentUri: jest.fn(),
     deleteContentUri: jest.fn(),
 }));
@@ -181,5 +182,57 @@ describe("createZipArchive single-pass (deferred CRC)", () => {
                 },
             ])
         ).rejects.toThrow("File changed while packaging");
+    });
+});
+
+describe("Zip64 (audit 2026-11-02 G1: no backup over 4 GB)", () => {
+    function findSignature(bytes: Uint8Array, signature: number) {
+        const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        for (let at = bytes.length - 4; at >= 0; at -= 1) {
+            if (view.getUint32(at, true) === signature) return at;
+        }
+        return -1;
+    }
+
+    it("writes Zip64 records the strict reader accepts, entry by entry", async () => {
+        const audio = fixture(70 * 1024 + 3, 19);
+        mockFiles.set("file:///doc/songnook/audio/z.m4a", audio);
+
+        await createZipArchive(
+            ARCHIVE_URI,
+            [
+                { archiveName: "snapshot.json", data: '{"a":1}' },
+                { archiveName: "media/songnook/audio/z.m4a", fileUri: "file:///doc/songnook/audio/z.m4a" },
+            ],
+            { forceZip64: true } as never
+        );
+
+        const bytes = mockFiles.get(ARCHIVE_URI)!;
+        // The Zip64 end record and its locator sit before the classic end record.
+        expect(findSignature(bytes, 0x06064b50)).toBeGreaterThan(0);
+        expect(findSignature(bytes, 0x07064b50)).toBeGreaterThan(findSignature(bytes, 0x06064b50));
+        // Every local header saturates its 32-bit sizes.
+        const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        expect(view.getUint32(18, true)).toBe(0xffffffff);
+
+        const index = await indexStoredZipArchive(ARCHIVE_URI);
+        expect(index.entries.get("media/songnook/audio/z.m4a")!.sizeBytes).toBe(audio.length);
+        expect(await readStoredZipEntryBytes(index, index.entries.get("media/songnook/audio/z.m4a")!)).toEqual(audio);
+        expect(Buffer.from(await readStoredZipEntryBytes(index, index.entries.get("snapshot.json")!)).toString()).toBe(
+            '{"a":1}'
+        );
+    });
+
+    it("projects the archive size past 4 GB instead of refusing it", () => {
+        const { projectStoredZipBytes } = require("../zipArchive");
+        const fiveGb = 5 * 1024 * 1024 * 1024;
+        const projected = projectStoredZipBytes([
+            { nameLength: 10, size: 4.5 * 1024 * 1024 * 1024 },
+            { nameLength: 10, size: 0.5 * 1024 * 1024 * 1024 },
+        ]);
+        // The first entry is itself past 4 GB (Zip64 local + central extras); the second
+        // starts past 4 GB (Zip64 central extra); the tail carries the Zip64 end record
+        // and its locator.
+        expect(projected).toBe(fiveGb + (30 + 10 + 20) + (30 + 10) + (46 + 10 + 28) * 2 + 76 + 22);
     });
 });

@@ -115,6 +115,7 @@ jest.mock("../audioStorage", () => ({
 }));
 
 jest.mock("../zipArchive", () => ({
+    ...jest.requireActual("../zipArchive"),
     createZipArchive: (...args: [string, unknown[], unknown?]) => mockCreateZipArchive(...args),
 }));
 
@@ -125,7 +126,7 @@ jest.mock("../../state/useStore", () => ({
 
 import {
     buildDisasterRecoveryBackup,
-    assertZip32ArchiveSize,
+    projectBackupArchiveBytes,
     estimateStoredZipArchiveBytes,
 } from "../disasterRecoveryBackup";
 
@@ -139,8 +140,8 @@ beforeEach(() => {
 });
 
 describe("buildDisasterRecoveryBackup", () => {
-    it("counts headers and metadata when enforcing the ZIP32 archive limit", () => {
-        const archiveBytes = estimateStoredZipArchiveBytes([
+    it("projects a library past 4 GB as a Zip64 archive instead of refusing it (audit G1)", () => {
+        const entries = [
             {
                 archiveName: "media/songnook/audio/almost-four-gigabytes.m4a",
                 fileUri: AUDIO_URI,
@@ -149,21 +150,11 @@ describe("buildDisasterRecoveryBackup", () => {
             },
             { archiveName: "snapshot.json", data: "{}" },
             { archiveName: "manifest.json", data: "{}" },
-        ]);
+        ];
+        const archiveBytes = estimateStoredZipArchiveBytes(entries);
 
         expect(archiveBytes).toBeGreaterThan(0xffffffff);
-        expect(() =>
-            assertZip32ArchiveSize([
-                {
-                    archiveName: "media/songnook/audio/almost-four-gigabytes.m4a",
-                    fileUri: AUDIO_URI,
-                    sizeBytes: 0xffffffff - 32,
-                    crc32: 0,
-                },
-                { archiveName: "snapshot.json", data: "{}" },
-                { archiveName: "manifest.json", data: "{}" },
-            ])
-        ).toThrow("over 4 GB");
+        expect(projectBackupArchiveBytes(entries)).toBe(archiveBytes);
     });
 
     it("hashes exact audio incrementally and passes precomputed integrity to the ZIP writer", async () => {
@@ -230,6 +221,28 @@ describe("buildDisasterRecoveryBackup", () => {
             ).toBe(false);
         } finally {
             mockSnapshot.workspaces.pop();
+        }
+    });
+
+    it("reports a backup made while a workspace is set aside as incomplete, naming it (audit G10)", async () => {
+        mockFiles.set(AUDIO_URI, Uint8Array.from([1, 2, 3]));
+        const { setHydrationDegradedWorkspaceIds } = require("../../state/persistRuntime");
+        setHydrationDegradedWorkspaceIds(["ws-set-aside"]);
+        try {
+            const result = await buildDisasterRecoveryBackup({} as never, {
+                setAsideWorkspaceRows: { "ws-set-aside": "{corrupt" },
+            });
+            expect(result.manifest.status).toBe("incomplete");
+            expect(result.manifest.missing).toEqual([
+                expect.objectContaining({ critical: true, ref: "set-aside:ws-set-aside" }),
+            ]);
+            // The set-aside bytes leave the phone inside the snapshot.
+            const snapshotEntry = (mockCreateZipArchive.mock.calls[0][1] as Array<{ archiveName: string; data?: string }>).find(
+                (entry) => entry.archiveName === "snapshot.json"
+            )!;
+            expect(JSON.parse(snapshotEntry.data!).setAsideWorkspaceRows).toEqual({ "ws-set-aside": "{corrupt" });
+        } finally {
+            setHydrationDegradedWorkspaceIds([]);
         }
     });
 

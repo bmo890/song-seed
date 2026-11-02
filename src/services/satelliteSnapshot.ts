@@ -2,14 +2,19 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { UI_LANGUAGE_STORAGE_KEY, isAppLanguage, type AppLanguage } from "../i18n";
 import { useActivityStore } from "../state/useActivityStore";
 import { useChartPrefsStore } from "../state/useChartPrefsStore";
+import { useLayerPrefsStore } from "../state/useLayerPrefsStore";
 import { useMagpiePrefsStore } from "../state/useMagpiePrefsStore";
+import { usePracticePrefsStore } from "../state/usePracticePrefsStore";
+import { useReceivedPrefsStore } from "../state/useReceivedPrefsStore";
+import { useSendPrefsStore } from "../state/useSendPrefsStore";
+import { useSparkPrefsStore } from "../state/useSparkPrefsStore";
 import { useRevisitStore } from "../state/useRevisitStore";
 import { useSentLinksStore } from "../state/useSentLinksStore";
 import { useShelfStore } from "../state/useShelfStore";
 import { useStepUpPresetsStore } from "../state/useStepUpPresetsStore";
 
 /**
- * The library store is not the only thing a musician would miss on a new phone. Seven
+ * The library store is not the only thing a musician would miss on a new phone. Twelve
  * small zustand stores persist on their own in AsyncStorage — the Shelf (set-aside ideas
  * and their stays), chart transposition per song, Revisit/Activity source filters, sent
  * share links, Step-Up drill plans, Magpie library prefs — plus the chosen UI language.
@@ -41,6 +46,14 @@ const SATELLITE_STORES = {
     sentLinks: useSentLinksStore,
     stepUpPresets: useStepUpPresetsStore,
     magpiePrefs: useMagpiePrefsStore,
+    // Five small preferences that missed the first list (audit 2026-11-02 G11): the
+    // speed unit, collapsed layer lanes, the Compilations filter and sort, the sender
+    // name on Send, the spark zoom. Not content, but a new phone should feel the same.
+    practicePrefs: usePracticePrefsStore,
+    layerPrefs: useLayerPrefsStore,
+    receivedPrefs: useReceivedPrefsStore,
+    sendPrefs: useSendPrefsStore,
+    sparkPrefs: useSparkPrefsStore,
 } as const satisfies Record<string, SatellitePersistStore>;
 
 export type SatelliteStoreKey = keyof typeof SATELLITE_STORES;
@@ -194,6 +207,12 @@ export function mergeSatelliteState(
                 ),
             };
         case "magpiePrefs":
+        case "practicePrefs":
+        case "layerPrefs":
+        case "receivedPrefs":
+        case "sendPrefs":
+        case "sparkPrefs":
+            // Plain preferences: the phone's own choice wins.
             return { ...current };
     }
 }

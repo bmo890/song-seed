@@ -56,6 +56,7 @@ export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppSto
         lastSuccessfulBackupAt: state.lastSuccessfulBackupAt,
         lastSuccessfulBackupFileName: state.lastSuccessfulBackupFileName,
         backupReminderLastPromptedAt: state.backupReminderLastPromptedAt,
+        automaticBackup: state.automaticBackup,
         notes: state.notes,
         wordLadders: state.wordLadders,
         cutUpSparks: state.cutUpSparks,

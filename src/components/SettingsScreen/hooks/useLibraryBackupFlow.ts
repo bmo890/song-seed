@@ -20,7 +20,19 @@ import {
 import {
     DrRestoreIncompleteError,
     restoreFromDisasterRecoveryBackup,
+    restoreFromSource,
+    type DisasterRecoveryRestoreOptions,
 } from "../../../services/disasterRecoveryRestore";
+import { openFolderRestoreSource } from "../../../services/automaticBackup";
+import { pickBackupFolder } from "../../../services/backupFolderPicker";
+import {
+    cancelAutomaticBackup,
+    runAutomaticBackupNow,
+    useAutomaticBackupRunStore,
+} from "../../../services/automaticBackupRunner";
+import { isBackupFolderAvailable } from "../../../../modules/songnook-file-io";
+import type { AutomaticBackupFrequency, AutomaticBackupPrefs } from "../../../domain/automaticBackupPrefs";
+import { Platform } from "react-native";
 import { detectPickedArchiveKind } from "../../../services/archiveKind";
 import { describeDrRestoreError } from "../../../services/disasterRecoveryErrors";
 import {
@@ -29,6 +41,7 @@ import {
 } from "../../../services/backupOperation";
 import {
     estimateDisasterRecoveryBackup,
+    SET_ASIDE_WORKSPACE_REF_PREFIX,
     type DrBackupMissingRecord,
 } from "../../../services/disasterRecoveryBackup";
 import {
@@ -49,6 +62,31 @@ const REMINDER_OPTIONS: BackupReminderFrequency[] = ["off", "weekly", "monthly",
 
 const MISSING_LIST_MAX = 6;
 
+const AUTO_BACKUP_OPTIONS: AutomaticBackupFrequency[] = ["off", "daily", "weekly"];
+
+/** What a restore reads: a saved .zip, or the automatic-backup folder. */
+type RestoreTarget = { kind: "zip"; uri: string } | { kind: "folder"; handle: string };
+
+/** The status line under the automatic-backup rows (decision C). */
+function automaticBackupStatus(prefs: AutomaticBackupPrefs, running: boolean, t: TFunction): string | null {
+    if (prefs.frequency === "off") return null;
+    if (running) return t("settingsLibrary.autoRunning");
+    switch (prefs.lastError) {
+        case "folderUnavailable":
+            return t("settingsLibrary.autoFolderGone");
+        case "lowSpace":
+            return t("settingsLibrary.autoLowSpace");
+        case "failed":
+            return t("settingsLibrary.autoFailed");
+        case "incomplete":
+            return t("settingsLibrary.autoIncomplete");
+    }
+    if (prefs.lastCompletedAt != null) {
+        return t("settingsLibrary.autoDone", { when: formatBackupTimestamp(prefs.lastCompletedAt) });
+    }
+    return t("settingsLibrary.autoNever");
+}
+
 /**
  * Resolve the manifest's critical missing-file refs (`idea:<id>/clip:<id>[/stem:<id>]`,
  * `workspace:<id>`) to song/clip names so the incomplete-backup alert can say WHICH
@@ -62,6 +100,11 @@ function describeMissingRecordings(
     const lines: string[] = [];
     for (const entry of missing) {
         if (!entry.critical) continue;
+
+        if (entry.ref.startsWith(SET_ASIDE_WORKSPACE_REF_PREFIX)) {
+            lines.push(t("settingsBackup.setAsideWorkspace"));
+            continue;
+        }
 
         const workspaceMatch = entry.ref.match(/^workspace:(.+)$/);
         if (workspaceMatch) {
@@ -104,6 +147,9 @@ export function useLibraryBackupFlow() {
     // Settings and shows in the minimizable process host; this screen just reflects it.
     const activeProcess = useProcessStore((s) => s.process);
 
+    const automaticBackup = useStore((state) => state.automaticBackup);
+    const updateAutomaticBackup = useStore((state) => state.updateAutomaticBackup);
+    const automaticBackupRunning = useAutomaticBackupRunStore((state) => state.running);
     const isBackingUp = activeProcess?.kind === "backup" && activeProcess.status === "running";
     const isRestoring = activeProcess?.kind === "restore" && activeProcess.status === "running";
 
@@ -330,7 +376,7 @@ export function useLibraryBackupFlow() {
     };
 
     const runRestore = async (
-        archiveUri: string,
+        target: RestoreTarget,
         mode: "replace" | "merge",
         allowIncomplete = false
     ) => {
@@ -344,6 +390,8 @@ export function useLibraryBackupFlow() {
         if (useProcessStore.getState().process?.status === "running") {
             return;
         }
+        // A restore owns the library: an automatic run in flight stops first.
+        cancelAutomaticBackup();
         const controller = new AbortController();
         const processId = `restore-${Date.now()}`;
         useProcessStore.getState().start({
@@ -353,7 +401,7 @@ export function useLibraryBackupFlow() {
             onCancel: () => controller.abort(),
         });
         try {
-            const result = await restoreFromDisasterRecoveryBackup(archiveUri, {
+            const restoreOptions: DisasterRecoveryRestoreOptions = {
                 signal: controller.signal,
                 onProgress: (progress) => {
                     // The committing phase can't be cancelled — reflect that in the process.
@@ -367,7 +415,11 @@ export function useLibraryBackupFlow() {
                         ? () => buildPersistedAppStoreSnapshot(useStore.getState())
                         : undefined,
                 allowIncomplete,
-            });
+            };
+            const result =
+                target.kind === "zip"
+                    ? await restoreFromDisasterRecoveryBackup(target.uri, restoreOptions)
+                    : await restoreFromSource(await openFolderRestoreSource(target.handle), restoreOptions);
             useProcessStore.getState().setStatus(
                 "success",
                 result.skipped.length > 0
@@ -395,7 +447,7 @@ export function useLibraryBackupFlow() {
                             icon: "medkit-outline",
                             description: t("settingsBackup.restoreAnywayDesc", { count }),
                             onPress: () => {
-                                void runRestore(archiveUri, mode, true);
+                                void runRestore(target, mode, true);
                             },
                         },
                     ]
@@ -411,7 +463,87 @@ export function useLibraryBackupFlow() {
         }
     };
 
+    /** Merge or replace: the same question for a file and for the folder. */
+    const askRestoreMode = (target: RestoreTarget, sizeLine: string) => {
+        AppAlert.custom(
+            t("settingsBackup.restoreTitle"),
+            t("settingsBackup.restoreBody", { size: sizeLine }),
+            [
+                { label: t("common.cancel"), style: "cancel" },
+                {
+                    label: t("settingsBackup.keepNewer"),
+                    style: "default",
+                    icon: "git-merge-outline",
+                    description: t("settingsBackup.keepNewerDesc"),
+                    onPress: () => {
+                        void runRestore(target, "merge");
+                    },
+                },
+                {
+                    label: t("settingsBackup.replaceEverything"),
+                    style: "destructive",
+                    icon: "swap-horizontal-outline",
+                    description: t("settingsBackup.replaceDesc"),
+                    onPress: () => {
+                        void runRestore(target, "replace");
+                    },
+                },
+            ]
+        );
+    };
+
+    const restoreFromFolder = async () => {
+        let handle = useStore.getState().automaticBackup.folder?.handle ?? null;
+        if (!handle) {
+            try {
+                handle = (await pickBackupFolder())?.handle ?? null;
+            } catch {
+                haptic.error();
+                AppAlert.error(t("settingsBackup.folderFailedTitle"), t("settingsBackup.folderFailed"));
+                return;
+            }
+        }
+        if (!handle) return;
+        askRestoreMode({ kind: "folder", handle }, "");
+    };
+
+    /**
+     * "Restore": from a saved .zip, or (builds with automatic backup) from the backup
+     * folder. Also the welcome screen's door on a fresh install.
+     */
     const handleRestore = async () => {
+        if (useProcessStore.getState().process?.status === "running") {
+            return;
+        }
+        if (!isBackupFolderAvailable()) {
+            await restoreFromFile();
+            return;
+        }
+        const folderName = useStore.getState().automaticBackup.folder?.name;
+        AppAlert.custom(t("settingsBackup.restoreFromTitle"), "", [
+            { label: t("common.cancel"), style: "cancel" },
+            {
+                label: t("settingsBackup.backupFolder"),
+                style: "default",
+                icon: "folder-outline",
+                description: folderName ?? t("settingsBackup.backupFolderDesc"),
+                onPress: () => {
+                    void afterOverlayCloses().then(restoreFromFolder);
+                },
+            },
+            {
+                label: t("settingsBackup.backupFile"),
+                style: "default",
+                icon: "document-outline",
+                description: t("settingsBackup.backupFileDesc"),
+                onPress: () => {
+                    void afterOverlayCloses().then(restoreFromFile);
+                },
+            },
+        ]);
+    };
+
+    const restoreFromFile = async () => {
         // Generic single-slot guard (like backup/export): a running EXPORT must also block
         // a restore, or start() would clobber its process slot mid-operation.
         if (useProcessStore.getState().process?.status === "running") {
@@ -457,34 +589,62 @@ export function useLibraryBackupFlow() {
             typeof asset.size === "number" && asset.size > 0
                 ? t("settingsBackup.restoreSize", { size: formatBytes(asset.size), duration: formatDurationEstimate(estimateLibraryOperationSeconds("restore", asset.size)) })
                 : "";
-        AppAlert.custom(
-            t("settingsBackup.restoreTitle"),
-            t("settingsBackup.restoreBody", { size: sizeLine }),
-            [
-                { label: t("common.cancel"), style: "cancel" },
-                {
-                    label: t("settingsBackup.keepNewer"),
-                    style: "default",
-                    icon: "git-merge-outline",
-                    description: t("settingsBackup.keepNewerDesc"),
-                    onPress: () => {
-                        void runRestore(asset.uri, "merge");
-                    },
-                },
-                {
-                    label: t("settingsBackup.replaceEverything"),
-                    style: "destructive",
-                    icon: "swap-horizontal-outline",
-                    description: t("settingsBackup.replaceDesc"),
-                    onPress: () => {
-                        void runRestore(asset.uri, "replace");
-                    },
-                },
-            ]
-        );
+        askRestoreMode({ kind: "zip", uri: asset.uri }, sizeLine);
     };
 
+    // ── Automatic backup (decision C) ──
+
+    const chooseBackupFolder = async (): Promise<AutomaticBackupPrefs["folder"]> => {
+        try {
+            const picked = await pickBackupFolder();
+            if (picked) updateAutomaticBackup({ folder: picked, lastError: null });
+            return picked;
+        } catch (error) {
+            console.warn("[AutoBackup] folder pick failed", error);
+            haptic.error();
+            AppAlert.error(t("settingsBackup.folderFailedTitle"), t("settingsBackup.folderFailed"));
+            return null;
+        }
+    };
+
+    const setAutomaticBackupFrequency = async (frequency: AutomaticBackupFrequency) => {
+        if (frequency === "off") {
+            cancelAutomaticBackup();
+            updateAutomaticBackup({ frequency });
+            return;
+        }
+        // Turning it on asks for the folder once; backing out leaves it off.
+        const folder = useStore.getState().automaticBackup.folder ?? (await chooseBackupFolder());
+        if (!folder) return;
+        updateAutomaticBackup({ frequency });
+        void runAutomaticBackupNow({ userStarted: true });
+    };
+
+    const changeBackupFolder = async () => {
+        const picked = await chooseBackupFolder();
+        if (picked && useStore.getState().automaticBackup.frequency !== "off") {
+            // A new folder starts empty: fill it now.
+            updateAutomaticBackup({ lastCompletedAt: null });
+            void runAutomaticBackupNow({ userStarted: true });
+        }
+    };
+
+    const automaticBackupOptions = AUTO_BACKUP_OPTIONS.map((value) => ({
+        value,
+        label: t(value === "off" ? "settingsLibrary.autoOff" : value === "daily" ? "settingsLibrary.autoDaily" : "settingsLibrary.autoWeekly"),
+    }));
+
     return {
+        automaticBackupAvailable: isBackupFolderAvailable(),
+        automaticBackup,
+        automaticBackupOptions,
+        automaticBackupStatus: automaticBackupStatus(automaticBackup, automaticBackupRunning, t),
+        automaticBackupHint:
+            automaticBackup.frequency !== "off" && automaticBackup.lastCompletedAt == null && !automaticBackup.lastError
+                ? t(Platform.OS === "ios" ? "settingsLibrary.autoHintIos" : "settingsLibrary.autoHintAndroid")
+                : null,
+        setAutomaticBackupFrequency,
+        changeBackupFolder,
         backupReminderFrequency,
         setBackupReminderFrequency,
         lastSuccessfulBackupAt,

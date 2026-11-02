@@ -1,3 +1,4 @@
+import { sanitizeAutomaticBackupPrefs } from "../domain/automaticBackupPrefs";
 import { AppState } from "react-native";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -289,6 +290,7 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
             Number.isFinite(state.backupReminderLastPromptedAt)
                 ? state.backupReminderLastPromptedAt
                 : null,
+        automaticBackup: sanitizeAutomaticBackupPrefs(state?.automaticBackup),
         ideasFilter: state?.ideasFilter ?? "all",
         ideasTagFilter: Array.isArray(state?.ideasTagFilter)
             ? state.ideasTagFilter.filter((tag: unknown): tag is string => typeof tag === "string")

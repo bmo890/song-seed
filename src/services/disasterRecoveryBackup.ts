@@ -3,8 +3,20 @@ import { i18n } from "../i18n/instance";
 import { UserFacingError } from "../i18n/userFacingError";
 import { File } from "expo-file-system";
 import { buildTimestampSlug } from "./audioStorage";
-import { createZipArchive, rethrowNativeCancel, type ZipArchiveEntry } from "./zipArchive";
-import { NATIVE_IO_CANCELLED, NativeZipWriter, isNativeZipAvailable } from "../../modules/songnook-file-io";
+import {
+    createZipArchive,
+    needsZip64Value,
+    projectStoredZipBytes,
+    rethrowNativeCancel,
+    type ZipArchiveEntry,
+} from "./zipArchive";
+import {
+    NATIVE_IO_CANCELLED,
+    NativeZipWriter,
+    excludeFromDeviceBackup,
+    isNativeZip64Available,
+    isNativeZipAvailable,
+} from "../../modules/songnook-file-io";
 import { SONG_NOOK_ROOT, toRelativeManagedPath, waveformSidecarUri } from "./storagePaths";
 import type { DrSatelliteSnapshot } from "./satelliteSnapshot";
 import {
@@ -18,6 +30,7 @@ import { IncrementalCrc32 } from "./streamingIntegrity";
 import { sha256OfFileBase64, sha256OfString } from "./fileHashing";
 import { recordLibraryOperationThroughput } from "./operationPacing";
 import { toRelativeWorkspacesManagedMedia } from "../state/rebaseManagedMedia";
+import { getHydrationDegradedWorkspaceIds } from "../state/persistRuntime";
 import {
     buildPersistedAppStoreSnapshot,
     STORE_VERSION,
@@ -54,6 +67,16 @@ const BACKUP_STREAM_CHUNK_BYTES = 512 * 1024;
 const BACKUP_UI_YIELD_BYTES = 2 * 1024 * 1024;
 const BACKUP_TEMP_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
+/** The temp folder a .zip backup is built in, kept out of the iPhone's iCloud device
+ *  backup (G12: a stale multi-GB archive used to ride along). */
+async function ensureBackupTempDir() {
+    const dirInfo = await FileSystem.getInfoAsync(DR_TEMP_DIR);
+    if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(DR_TEMP_DIR, { intermediates: true });
+    }
+    await excludeFromDeviceBackup(DR_TEMP_DIR).catch(() => {});
+}
+
 export type DrMediaKind =
     | "clip-audio"
     | "clip-source"
@@ -63,7 +86,30 @@ export type DrMediaKind =
     | "waveform-sidecar";
 
 /** The exact backup's snapshot.json: the persisted library plus the satellite block. */
-export type DrBackupSnapshot = PersistedAppStore & { satellites?: DrSatelliteSnapshot };
+export type DrBackupSnapshot = PersistedAppStore & {
+    satellites?: DrSatelliteSnapshot;
+    /** Raw rows of workspaces set aside at launch (unreadable), by workspace id, so
+     *  their bytes leave the phone with the backup (audit 2026-11-02 G10). */
+    setAsideWorkspaceRows?: Record<string, string>;
+};
+
+/** Missing-record ref of a workspace that was set aside at launch and is NOT in the backup. */
+export const SET_ASIDE_WORKSPACE_REF_PREFIX = "set-aside:";
+
+/**
+ * A workspace the launch could not read lives only as quarantined bytes, never in
+ * memory, so a backup built from memory leaves it out. Saying "complete" would be a lie
+ * (audit G10): each one is recorded as critical missing content, which marks the backup
+ * incomplete and names it. ("workspace-archive" is the closest kind older builds accept.)
+ */
+function setAsideWorkspaceRecords(): DrBackupMissingRecord[] {
+    return getHydrationDegradedWorkspaceIds().map((id) => ({
+        path: `${SET_ASIDE_WORKSPACE_REF_PREFIX}${id}`,
+        kind: "workspace-archive" as const,
+        critical: true,
+        ref: `${SET_ASIDE_WORKSPACE_REF_PREFIX}${id}`,
+    }));
+}
 
 export type DrBackupFileRecord = { path: string; sha256: string; sizeBytes: number };
 export type DrBackupMissingRecord = { path: string; kind: DrMediaKind; critical: boolean; ref: string };
@@ -219,24 +265,27 @@ function countEntities(workspaces: Workspace[]) {
     return { workspaces: workspaces.length, collections, ideas, clips };
 }
 
+/** Whole-archive bytes, Zip64 records included where the library needs them (G1). */
 export function estimateStoredZipArchiveBytes(entries: ZipArchiveEntry[]) {
     const encoder = new TextEncoder();
-    return (
-        entries.reduce((sum, entry) => {
-            const nameLength = encoder.encode(entry.archiveName).length;
-            const dataLength =
+    return projectStoredZipBytes(
+        entries.map((entry) => ({
+            nameLength: encoder.encode(entry.archiveName).length,
+            size:
                 entry.sizeBytes ??
-                (typeof entry.data === "string"
-                    ? encoder.encode(entry.data).length
-                    : entry.data?.length ?? 0);
-            return sum + 30 + nameLength + dataLength + 46 + nameLength;
-        }, 0) + 22
+                (typeof entry.data === "string" ? encoder.encode(entry.data).length : entry.data?.length ?? 0),
+        }))
     );
 }
 
-export function assertZip32ArchiveSize(entries: ZipArchiveEntry[]) {
+/**
+ * Bytes the archive will take. Past 4 GB it is a Zip64 archive (audit 2026-11-02 G1:
+ * a library over 4 GB used to have no backup at all); the only refusal left is a
+ * library too large to count exactly, which no phone holds.
+ */
+export function projectBackupArchiveBytes(entries: ZipArchiveEntry[]) {
     const projectedArchiveBytes = estimateStoredZipArchiveBytes(entries);
-    if (projectedArchiveBytes > 0xffffffff) {
+    if (!Number.isSafeInteger(projectedArchiveBytes)) {
         throw new UserFacingError(i18n.t("backupOperation.tooLarge"));
     }
     return projectedArchiveBytes;
@@ -266,27 +315,30 @@ export async function estimateDisasterRecoveryBackup(state: AppStore): Promise<D
     return { fileCount, totalBytes };
 }
 
+export type ReadableMediaRef = MediaRef & { sizeBytes: number };
+
+export type PreparedBackupContents = {
+    snapshotAbs: ReturnType<typeof buildPersistedAppStoreSnapshot>;
+    snapshotJson: string;
+    snapshotSha256: string;
+    /** Every managed file that exists, deduplicated by relative path, with its size. */
+    readableRefs: ReadableMediaRef[];
+    /** Referenced files that could not be found, plus set-aside workspaces (G10). */
+    missing: DrBackupMissingRecord[];
+};
+
 /**
- * Build an exact backup archive into a temp location. Read-only with respect to the live
- * library — it only reads existing files and writes a new archive. The caller is
- * responsible for persisting the archive offsite (SAF folder / Files / iCloud) and for
- * cleaning up the temp file afterward.
+ * What any exact backup holds, before it is packed anywhere: the snapshot (relative
+ * media paths, satellites, set-aside rows) and the files it references. Shared by the
+ * .zip backup and the automatic backup folder, so both carry exactly the same thing.
  */
-export async function buildDisasterRecoveryBackup(
+export async function prepareBackupContents(
     state: AppStore,
     opts?: BackupOperationOptions & {
-        appVersion?: string;
-        /** Satellite stores + UI language, gathered by the caller (see satelliteSnapshot.ts). */
         satellites?: DrSatelliteSnapshot;
+        setAsideWorkspaceRows?: Record<string, string>;
     }
-): Promise<DrBackupResult> {
-    throwIfBackupCancelled(opts?.signal);
-    reportBackupProgress(opts, {
-        phase: "preparing",
-        completedBytes: 0,
-        totalBytes: 0,
-        message: i18n.t("process.preparingBackup"),
-    });
+): Promise<PreparedBackupContents> {
     const snapshotAbs = buildPersistedAppStoreSnapshot(state);
 
     // Snapshot stores RELATIVE media paths so it restores onto any container/device.
@@ -294,13 +346,14 @@ export async function buildDisasterRecoveryBackup(
         ...snapshotAbs,
         workspaces: toRelativeWorkspacesManagedMedia(snapshotAbs.workspaces),
         ...(opts?.satellites ? { satellites: opts.satellites } : null),
+        ...(opts?.setAsideWorkspaceRows && Object.keys(opts.setAsideWorkspaceRows).length > 0
+            ? { setAsideWorkspaceRows: opts.setAsideWorkspaceRows }
+            : null),
     };
     const snapshotJson = JSON.stringify(snapshot);
     const snapshotSha256 = await sha256OfString(snapshotJson);
 
-    const entries: ZipArchiveEntry[] = [{ archiveName: SNAPSHOT_ENTRY, data: snapshotJson }];
-    const files: DrBackupFileRecord[] = [];
-    const missing: DrBackupMissingRecord[] = [];
+    const missing: DrBackupMissingRecord[] = setAsideWorkspaceRecords();
     const managedRefs = new Map<string, MediaRef>();
 
     for (const ref of collectMediaRefs(snapshotAbs.workspaces)) {
@@ -322,7 +375,7 @@ export async function buildDisasterRecoveryBackup(
         }
     }
 
-    const readableRefs: Array<MediaRef & { sizeBytes: number }> = [];
+    const readableRefs: ReadableMediaRef[] = [];
     for (const ref of managedRefs.values()) {
         throwIfBackupCancelled(opts?.signal);
 
@@ -340,16 +393,58 @@ export async function buildDisasterRecoveryBackup(
         }
         readableRefs.push({ ...ref, sizeBytes });
     }
+    return { snapshotAbs, snapshotJson, snapshotSha256, readableRefs, missing };
+}
+
+/**
+ * Build an exact backup archive into a temp location. Read-only with respect to the live
+ * library — it only reads existing files and writes a new archive. The caller is
+ * responsible for persisting the archive offsite (SAF folder / Files / iCloud) and for
+ * cleaning up the temp file afterward.
+ */
+export async function buildDisasterRecoveryBackup(
+    state: AppStore,
+    opts?: BackupOperationOptions & {
+        appVersion?: string;
+        /** Satellite stores + UI language, gathered by the caller (see satelliteSnapshot.ts). */
+        satellites?: DrSatelliteSnapshot;
+        /** Quarantined rows of set-aside workspaces, gathered by the caller. */
+        setAsideWorkspaceRows?: Record<string, string>;
+    }
+): Promise<DrBackupResult> {
+    throwIfBackupCancelled(opts?.signal);
+    reportBackupProgress(opts, {
+        phase: "preparing",
+        completedBytes: 0,
+        totalBytes: 0,
+        message: i18n.t("process.preparingBackup"),
+    });
+    const { snapshotAbs, snapshotJson, snapshotSha256, readableRefs, missing } = await prepareBackupContents(
+        state,
+        opts
+    );
+    const entries: ZipArchiveEntry[] = [{ archiveName: SNAPSHOT_ENTRY, data: snapshotJson }];
+    const files: DrBackupFileRecord[] = [];
 
     const totalMediaBytes = readableRefs.reduce((sum, ref) => sum + ref.sizeBytes, 0);
-    if (readableRefs.length + 2 >= 0xffff || totalMediaBytes > 0xffffffff) {
-        throw new UserFacingError(i18n.t("backupOperation.tooLarge"));
-    }
     // Fail before an expensive checksum pass when the temporary archive cannot fit.
     await ensureBackupDiskSpace(totalMediaBytes, "backup");
     throwIfBackupCancelled(opts?.signal);
 
-    if (isNativeZipAvailable()) {
+    // A build whose native writer predates Zip64 makes a > 4 GB backup the JS way.
+    const fitsZip32 =
+        readableRefs.length + 2 < 0xffff &&
+        !needsZip64Value(
+            estimateStoredZipArchiveBytes([
+                { archiveName: SNAPSHOT_ENTRY, data: snapshotJson },
+                ...readableRefs.map((ref) => ({
+                    archiveName: `${MEDIA_PREFIX}${ref.relativePath}`,
+                    sizeBytes: ref.sizeBytes,
+                })),
+                { archiveName: MANIFEST_ENTRY, sizeBytes: manifestAllowanceBytes(readableRefs.length) },
+            ])
+        );
+    if (isNativeZipAvailable() && (fitsZip32 || isNativeZip64Available())) {
         const native = await buildBackupArchiveNatively({
             snapshotAbs,
             snapshotJson,
@@ -452,18 +547,13 @@ export async function buildDisasterRecoveryBackup(
     const manifest = composeManifest(snapshotAbs, snapshotSha256, files, missing, opts?.appVersion);
     entries.push({ archiveName: MANIFEST_ENTRY, data: JSON.stringify(manifest) });
 
-    const projectedArchiveBytes = assertZip32ArchiveSize(entries);
-    // Authoritative ZIP32 guard: the *archive* (media + per-entry headers + snapshot +
-    // manifest) must stay under 4 GB, not just the media. A library a few MB under the
-    // limit can otherwise produce an archive whose uint32 offsets overflow and which the
-    // restore reader then rejects as unreadable.
+    const projectedArchiveBytes = projectBackupArchiveBytes(entries);
+    // The whole archive (media + per-entry headers + snapshot + manifest, Zip64 records
+    // where it passes 4 GB) must fit on the device before packaging starts.
     await ensureBackupDiskSpace(projectedArchiveBytes, "backup");
     throwIfBackupCancelled(opts?.signal);
 
-    const dirInfo = await FileSystem.getInfoAsync(DR_TEMP_DIR);
-    if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(DR_TEMP_DIR, { intermediates: true });
-    }
+    await ensureBackupTempDir();
     const archiveTitle = `SongNook Backup ${buildTimestampSlug()}.${DR_BACKUP_FILE_SUFFIX}.zip`;
     const archiveUri = `${DR_TEMP_DIR}/${archiveTitle}`;
     reportBackupProgress(opts, {
@@ -486,7 +576,7 @@ export async function buildDisasterRecoveryBackup(
     return { archiveUri, archiveTitle, manifest };
 }
 
-function composeManifest(
+export function composeManifest(
     snapshotAbs: ReturnType<typeof buildPersistedAppStoreSnapshot>,
     snapshotSha256: string,
     files: DrBackupFileRecord[],
@@ -538,7 +628,7 @@ async function buildBackupArchiveNatively({
     // proven JS route. A disagreement means this build's native code can't be trusted
     // with a backup someone's library depends on.
     const probe = [...readableRefs].sort((a, b) => a.sizeBytes - b.sizeBytes)[0];
-    const projectedArchiveBytes = assertZip32ArchiveSize([
+    const projectedArchiveBytes = projectBackupArchiveBytes([
         { archiveName: SNAPSHOT_ENTRY, data: snapshotJson },
         ...readableRefs.map((ref) => ({
             archiveName: `${MEDIA_PREFIX}${ref.relativePath}`,
@@ -550,10 +640,7 @@ async function buildBackupArchiveNatively({
     await ensureBackupDiskSpace(projectedArchiveBytes, "backup");
     throwIfBackupCancelled(opts?.signal);
 
-    const dirInfo = await FileSystem.getInfoAsync(DR_TEMP_DIR);
-    if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(DR_TEMP_DIR, { intermediates: true });
-    }
+    await ensureBackupTempDir();
     const archiveTitle = `SongNook Backup ${buildTimestampSlug()}.${DR_BACKUP_FILE_SUFFIX}.zip`;
     const archiveUri = `${DR_TEMP_DIR}/${archiveTitle}`;
     const startedAt = Date.now();

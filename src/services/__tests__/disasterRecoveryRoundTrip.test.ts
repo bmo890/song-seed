@@ -105,6 +105,7 @@ jest.mock("expo-crypto", () => ({
 
 // Stored (uncompressed) zip, matching the real writer's format so the streaming reader accepts it.
 jest.mock("../zipArchive", () => ({
+    ...jest.requireActual("../zipArchive"),
     createZipArchive: async (
         archiveUri: string,
         entries: Array<{ archiveName: string; data?: string | Uint8Array; fileUri?: string; directory?: boolean }>
@@ -134,7 +135,7 @@ jest.mock("../../state/useStore", () => ({
     STORE_VERSION: 12,
     buildPersistedAppStoreSnapshot: (state: unknown) => state,
 }));
-jest.mock("../../state/persistRuntime", () => ({ setPersistBlocked: jest.fn() }));
+jest.mock("../../state/persistRuntime", () => ({ setPersistBlocked: jest.fn(), getHydrationDegradedWorkspaceIds: () => [] }));
 jest.mock("../../state/restoreRuntime", () => ({ requireRestoreRestart: jest.fn() }));
 jest.mock("../satelliteSnapshot", () => ({
     sanitizeSatelliteSnapshot: (value: unknown) => value,

@@ -1,3 +1,4 @@
+import { DEFAULT_AUTOMATIC_BACKUP, type AutomaticBackupPrefs } from "../domain/automaticBackupPrefs";
 import { StateCreator } from "zustand";
 import { stringIndexToGraphemeIndex } from "../domain/chords";
 import { WORKSPACE_COLORS } from "../domain/workspaceTheme";
@@ -160,6 +161,8 @@ export type DataSlice = {
     /** Epoch the backup reminder was last shown — it asks at most once per interval,
      *  whichever button was tapped ("Later" included). */
     backupReminderLastPromptedAt: number | null;
+    /** Automatic backup to a folder the person picked (domain/automaticBackupPrefs.ts). */
+    automaticBackup: AutomaticBackupPrefs;
     metronomeBpm: number;
     metronomeMeterId: MetronomeMeterId;
     /** Per-meter pulse grouping override — 5/4 felt as 3+2 instead of 2+3.
@@ -249,6 +252,7 @@ export type DataSlice = {
     setLastSuccessfulBackupAt: (timestamp: number | null) => void;
     setLastSuccessfulBackupFileName: (fileName: string | null) => void;
     setBackupReminderLastPromptedAt: (timestamp: number | null) => void;
+    updateAutomaticBackup: (patch: Partial<AutomaticBackupPrefs>) => void;
     addWorkspace: (title: string, description?: string, avatarKey?: number, color?: string) => void;
     updateWorkspace: (id: string, updates: { title?: string; description?: string; color?: string; avatarKey?: number }) => void;
     deleteWorkspace: (id: string) => void;
@@ -1507,6 +1511,7 @@ export const createDataSlice: StateCreator<
     lastSuccessfulBackupAt: null,
     backupReminderLastPromptedAt: null,
     lastSuccessfulBackupFileName: null,
+    automaticBackup: DEFAULT_AUTOMATIC_BACKUP,
 
     setActiveWorkspaceId: (id) =>
         set((state) => {
@@ -1802,6 +1807,7 @@ export const createDataSlice: StateCreator<
     setLastSuccessfulBackupAt: (timestamp) => set({ lastSuccessfulBackupAt: timestamp }),
     setLastSuccessfulBackupFileName: (fileName) => set({ lastSuccessfulBackupFileName: fileName }),
     setBackupReminderLastPromptedAt: (timestamp) => set({ backupReminderLastPromptedAt: timestamp }),
+    updateAutomaticBackup: (patch) => set((state) => ({ automaticBackup: { ...state.automaticBackup, ...patch } })),
 
     addWorkspace: (title, description, avatarKey, chosenColor) => {
         const workspaceId = `ws-${Date.now()}`;

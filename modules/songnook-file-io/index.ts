@@ -83,6 +83,13 @@ export function isNativeZipAvailable(): boolean {
   );
 }
 
+/** True on builds whose native zip writer emits Zip64 records past 4 GB (2026-11-02).
+ *  Older builds refuse such an archive natively, so callers take the JS writer. */
+export function isNativeZip64Available(): boolean {
+  const m = SongNookFileIOModule;
+  return isNativeZipAvailable() && typeof m?.zipSupportsZip64 === "function" && m.zipSupportsZip64() === true;
+}
+
 type PassOptions = {
   signal?: AbortSignal;
   onProgress?: (progress: SongNookFileCopyProgress) => void;
@@ -198,4 +205,56 @@ export function sealBase64Native(base64: string, keyText: string): Promise<strin
 
 export function openSealedBase64Native(base64: string, keyText: string): Promise<string> {
   return SongNookFileIOModule!.openSealedBase64Async!(base64, keyText);
+}
+
+// ── Backup folder for automatic backup (2026-11-02) ──────────────────────────────────
+
+/** Thrown (as the error message) when the chosen folder no longer exists. */
+export const FOLDER_GONE = "SONGNOOK_FOLDER_GONE";
+/** Thrown when the app lost permission to the chosen folder. */
+export const FOLDER_NO_ACCESS = "SONGNOOK_FOLDER_NO_ACCESS";
+
+/** True on builds that carry the backup-folder functions; older builds hide automatic backup. */
+export function isBackupFolderAvailable(): boolean {
+  const m = SongNookFileIOModule;
+  return (
+    m != null &&
+    typeof m.folderBookmarkAsync === "function" &&
+    typeof m.folderResolveAsync === "function" &&
+    typeof m.folderListAsync === "function" &&
+    typeof m.folderWriteFileAsync === "function" &&
+    typeof m.folderCopyOutAsync === "function"
+  );
+}
+
+export type BackupFolderChild = { name: string; uri: string; size: number; isDirectory: boolean };
+
+/** The native folder calls, in one object so services can take a test double instead. */
+export const nativeBackupFolder = {
+  bookmark: (uri: string) => SongNookFileIOModule!.folderBookmarkAsync!(uri),
+  resolve: (handle: string) => SongNookFileIOModule!.folderResolveAsync!(handle),
+  child: (dirUri: string, name: string, createDirectory: boolean) =>
+    SongNookFileIOModule!.folderChildAsync!(dirUri, name, createDirectory),
+  list: (dirUri: string): Promise<BackupFolderChild[]> => SongNookFileIOModule!.folderListAsync!(dirUri),
+  writeFile: (dirUri: string, name: string, sourceUri: string) =>
+    SongNookFileIOModule!.folderWriteFileAsync!(dirUri, name, sourceUri),
+  writeText: (dirUri: string, name: string, text: string) =>
+    SongNookFileIOModule!.folderWriteTextAsync!(dirUri, name, text),
+  readText: (fileUri: string) => SongNookFileIOModule!.folderReadTextAsync!(fileUri),
+  copyOut: async (
+    fileUri: string,
+    destinationUri: string,
+    options?: PassOptions & { sha256?: boolean }
+  ): Promise<NativeFilePassResult> => {
+    const result = await withOperation("folder-out", options, (operationId) =>
+      SongNookFileIOModule!.folderCopyOutAsync!(fileUri, destinationUri, options?.sha256 ?? false, operationId)
+    );
+    return { crc32: result.crc32 >>> 0, sizeBytes: result.sizeBytes, sha256: result.sha256 ?? null };
+  },
+  remove: (fileUri: string) => SongNookFileIOModule!.folderDeleteAsync!(fileUri),
+};
+
+/** Keep a local temp file out of the iPhone's iCloud device backup (no-op elsewhere). */
+export async function excludeFromDeviceBackup(uri: string) {
+  await SongNookFileIOModule?.setExcludedFromBackupAsync?.(uri);
 }

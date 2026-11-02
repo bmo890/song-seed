@@ -133,7 +133,7 @@ function FeaturePane({
 
 /** The cover: the mark, the name, the promise, and the language (from the phone,
  *  changeable here; a change restarts the app into this same pane). */
-function CoverPane() {
+function CoverPane({ onRestore }: { onRestore?: () => void }) {
   const { t } = useTranslation();
   return (
     <View style={[s.pane, s.coverPane]}>
@@ -143,6 +143,11 @@ function CoverPane() {
       <View style={s.coverLanguage}>
         <LanguageSelect />
       </View>
+      {/* A new phone with a backup somewhere (audit G6): the way home is on the first
+          screen, a quiet ink link under the one primary action's pane. */}
+      {onRestore ? (
+        <Button label={t("welcome.restoreBackup")} variant="quiet" onPress={onRestore} />
+      ) : null}
     </View>
   );
 }
@@ -233,7 +238,7 @@ function ImportControls({
   );
 }
 
-export function WelcomeFlow({ onDone }: { onDone: () => void }) {
+export function WelcomeFlow({ onDone, onRestore }: { onDone: () => void; onRestore?: () => void }) {
   const { t } = useTranslation();
   const [index, setIndex] = useState(0);
   const [importProgress, setImportProgress] = useState<WelcomeImportProgress | null>(null);
@@ -303,7 +308,7 @@ export function WelcomeFlow({ onDone }: { onDone: () => void }) {
       <View style={s.paneArea} {...panResponder.panHandlers}>
         <ReAnimated.View key={index} entering={collapseIn} exiting={collapseOut} style={s.paneFill}>
           {index === 0 ? (
-            <CoverPane />
+            <CoverPane onRestore={onRestore} />
           ) : index === 1 ? (
             <FeaturePane
               scene={<SketchesScene />}

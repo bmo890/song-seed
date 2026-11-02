@@ -112,6 +112,7 @@ import { enqueueMissingMetadataBackfill } from "./src/services/backgroundWavefor
 import { recoverPendingRecordingSession } from "./src/services/recordingRecovery";
 import { useLaunchSequence } from "./src/hooks/useLaunchSequence";
 import { cleanupStaleDisasterRecoveryBackupFiles } from "./src/services/disasterRecoveryBackup";
+import { useAutomaticBackupScheduler } from "./src/hooks/useAutomaticBackupScheduler";
 import { cleanupInterruptedDisasterRecoveryRestores } from "./src/services/disasterRecoveryTemp";
 
 
@@ -141,6 +142,7 @@ import { FreeMonthNotices } from "./src/components/common/FreeMonthNotices";
 import { initBilling } from "./src/services/billing";
 import { loadSparkTries } from "./src/services/sparkTries";
 import { WelcomeFlow } from "./src/components/common/WelcomeFlow";
+import { useLibraryBackupFlow } from "./src/components/SettingsScreen/hooks/useLibraryBackupFlow";
 import { installGlobalCrashHandler } from "./src/services/crashLog";
 import { describeError, persistLog } from "./src/services/persistLog";
 import { detectNewerManifest } from "./src/services/manifestFreshness";
@@ -854,7 +856,22 @@ function WelcomeGate() {
   const hasSeenWelcome = useStore((s) => s.hasSeenWelcome);
   const setHasSeenWelcome = useStore((s) => s.setHasSeenWelcome);
   if (hasSeenWelcome) return null;
-  return <WelcomeFlow onDone={() => setHasSeenWelcome(true)} />;
+  return <WelcomeWithRestore onDone={() => setHasSeenWelcome(true)} />;
+}
+
+/** The intro with its door back for a new phone (audit G6): "Restore backup" leaves the
+ *  intro and opens the same Restore as Settings → Library (a .zip or the backup folder). */
+function WelcomeWithRestore({ onDone }: { onDone: () => void }) {
+  const backupFlow = useLibraryBackupFlow();
+  return (
+    <WelcomeFlow
+      onDone={onDone}
+      onRestore={() => {
+        onDone();
+        void backupFlow.handleRestore();
+      }}
+    />
+  );
 }
 
 function AppContent() {
@@ -1234,6 +1251,8 @@ export default function App() {
   }, []);
   const { t } = useTranslation();
   const [hasHydrated, setHasHydrated] = useState(() => useStore.persist.hasHydrated());
+  // Automatic backup (decision C): runs when due while the app is open and idle.
+  useAutomaticBackupScheduler(hasHydrated);
   // Hydration can FAIL (disk unreadable — transient during dev reloads, rare in
   // production). Retry with backoff; after that, show a retry screen. Never present a
   // writable empty library over an unread disk (2026-07-28 empty-boot incident).
@@ -1289,7 +1308,9 @@ export default function App() {
     // storage usage from artifacts that were never part of persisted user state.
     {
       await cleanupStaleShareTempFiles();
-      await cleanupStaleDisasterRecoveryBackupFiles();
+      // Nothing is mid-backup at launch: any backup zip left in temp goes now, so a
+      // manual backup never keeps a copy on the phone after its share sheet.
+      await cleanupStaleDisasterRecoveryBackupFiles(0);
       const hydratedState = useStore.getState();
       await cleanupInterruptedDisasterRecoveryRestores(hydratedState.workspaces);
       // The trash safety net: any file the library still points at that a mistaken
@@ -1457,6 +1478,7 @@ export default function App() {
           workspaces: state.workspaces,
           backupReminderFrequency: state.backupReminderFrequency,
           lastSuccessfulBackupAt: state.lastSuccessfulBackupAt,
+          automaticBackupLastCompletedAt: state.automaticBackup.lastCompletedAt,
           firstLaunchAt: state.firstLaunchAt,
           backupReminderLastPromptedAt: state.backupReminderLastPromptedAt,
         })

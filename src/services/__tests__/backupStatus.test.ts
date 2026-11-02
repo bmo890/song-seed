@@ -77,4 +77,30 @@ describe("shouldPromptForBackupReminder", () => {
             })
         ).toBe(true);
     });
+
+    it("goes quiet while automatic backup keeps the folder current, and speaks if it stops", () => {
+        const base = {
+            workspaces: oneIdeaLibrary,
+            backupReminderFrequency: "monthly" as const,
+            lastSuccessfulBackupAt: null,
+            firstLaunchAt: INSTALL,
+            backupReminderLastPromptedAt: null,
+        };
+        // Automatic backup finished yesterday: no nag about a manual backup.
+        expect(
+            shouldPromptForBackupReminder({
+                ...base,
+                automaticBackupLastCompletedAt: INSTALL + 30 * DAY,
+                now: INSTALL + 31 * DAY,
+            } as never)
+        ).toBe(false);
+        // It has not finished for a whole reminder interval (folder gone, say): ask.
+        expect(
+            shouldPromptForBackupReminder({
+                ...base,
+                automaticBackupLastCompletedAt: INSTALL + 30 * DAY,
+                now: INSTALL + 61 * DAY,
+            } as never)
+        ).toBe(true);
+    });
 });

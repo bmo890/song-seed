@@ -3,7 +3,8 @@ import { i18n } from "../i18n/instance";
 import { File } from "expo-file-system";
 import { strFromU8 } from "fflate";
 import { resolveManagedUri } from "./storagePaths";
-import { persistRawSnapshot } from "../state/db/storage";
+import { commitShardedWrite, persistRawSnapshot } from "../state/db/storage";
+import { quarantinedWorkspaceRowKey } from "../state/shardedPersistStorage";
 import {
     DR_BACKUP_FORMAT_VERSION,
     type DrBackupManifest,
@@ -137,17 +138,54 @@ async function cleanupWrittenRestoreFiles(uris: Iterable<string>) {
     return remaining.every((exists) => !exists);
 }
 
-export async function restoreFromDisasterRecoveryBackup(
+async function restoreSetAsideWorkspaceRows(value: unknown) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return;
+    const writes = Object.entries(value as Record<string, unknown>)
+        .filter((entry): entry is [string, string] => typeof entry[1] === "string" && /^[\w-]+$/.test(entry[0]))
+        .map(([id, raw]) => ({ key: quarantinedWorkspaceRowKey(STORE_NAME, id), value: raw }));
+    if (writes.length === 0) return;
+    try {
+        await commitShardedWrite(writes, []);
+    } catch (error) {
+        console.warn("[Backup] Failed to keep set-aside workspace rows", error);
+    }
+}
+
+/**
+ * Where a restore reads from: a backup .zip, or the automatic-backup folder (2026-11-02).
+ * Both present the same names: snapshot.json, manifest.json, media/<relativePath>.
+ */
+export type DrRestoreSource = {
+    /** Every entry the source holds; sizeBytes < 0 when the provider can't say yet. */
+    entries: Map<string, { sizeBytes: number }>;
+    /** A zip must hold exactly the manifest's entries; a folder may hold more. */
+    exactEntries: boolean;
+    /** Upper bound for the media sizes the manifest may claim. */
+    totalSizeBytes: number;
+    readEntryText(name: string, options?: BackupOperationOptions): Promise<string>;
+    /**
+     * Write one entry to `targetUri`. Returns the SHA-256 of its base64 form when it was
+     * computed from the same bytes, or null when the caller must verify the file after.
+     */
+    extractEntry(
+        name: string,
+        targetUri: string,
+        options: BackupOperationOptions & { onBytes?: (completedBytes: number) => void }
+    ): Promise<string | null>;
+};
+
+/** The .zip backup as a restore source (unchanged behaviour). */
+export async function openZipRestoreSource(
     archiveUri: string,
-    options?: DisasterRecoveryRestoreOptions
-): Promise<DrRestoreResult> {
+    options?: BackupOperationOptions
+): Promise<DrRestoreSource> {
     throwIfBackupCancelled(options?.signal);
     const info = await FileSystem.getInfoAsync(archiveUri);
     if (!info.exists) {
         throw new DrRestoreError("fileMissing", "Backup file could not be found.");
     }
 
-    let archiveIndex;
+    let archiveIndex: Awaited<ReturnType<typeof indexStoredZipArchive>>;
     try {
         archiveIndex = await indexStoredZipArchive(archiveUri, options);
     } catch (err) {
@@ -157,18 +195,71 @@ export async function restoreFromDisasterRecoveryBackup(
             `Backup archive is corrupt or unreadable: ${err instanceof Error ? err.message : String(err)}`
         );
     }
+    // Builds with the native file module copy and fingerprint each file in one read.
+    const nativeRestore = isNativeZipAvailable();
+    return {
+        entries: archiveIndex.entries,
+        exactEntries: true,
+        totalSizeBytes: archiveIndex.archiveSizeBytes,
+        readEntryText: async (name, readOptions) =>
+            strFromU8(await readStoredZipEntryBytes(archiveIndex, archiveIndex.entries.get(name)!, undefined, readOptions)),
+        extractEntry: async (name, targetUri, extractOptions) => {
+            const entry = archiveIndex.entries.get(name)!;
+            if (nativeRestore) {
+                // One native read per file: copied out and fingerprinted on the way, so it
+                // is checked against the zip's CRC and the manifest's SHA-256 by the caller,
+                // and the separate verify pass has nothing left to read (2026-10-20).
+                let extracted: Awaited<ReturnType<typeof extractRangeNative>>;
+                try {
+                    extracted = await extractRangeNative(archiveIndex.archiveUri, entry.dataOffset, entry.sizeBytes, targetUri, {
+                        sha256: true,
+                        signal: extractOptions.signal,
+                        onProgress: ({ completedBytes }) => extractOptions.onBytes?.(completedBytes),
+                    });
+                } catch (error) {
+                    if (extractOptions.signal?.aborted || (error instanceof Error && error.message === NATIVE_IO_CANCELLED)) {
+                        throw new BackupOperationCancelledError();
+                    }
+                    throw error;
+                }
+                if (extracted.crc32 !== entry.crc32 >>> 0) {
+                    throw new DrRestoreError("integrity", `Backup ZIP checksum failed for ${name}`);
+                }
+                return extracted.sizeBytes === entry.sizeBytes ? extracted.sha256 ?? "" : "";
+            }
+            const targetHandle = new File(targetUri).open();
+            try {
+                await streamStoredZipEntry(archiveIndex, entry, (chunk) => targetHandle.writeBytes(chunk), {
+                    ...extractOptions,
+                    phase: "restoring",
+                });
+            } finally {
+                targetHandle.close();
+            }
+            return null;
+        },
+    };
+}
 
-    const snapshotEntry = archiveIndex.entries.get(SNAPSHOT_ENTRY);
-    const manifestEntry = archiveIndex.entries.get(MANIFEST_ENTRY);
-    if (!snapshotEntry || !manifestEntry) {
+export async function restoreFromDisasterRecoveryBackup(
+    archiveUri: string,
+    options?: DisasterRecoveryRestoreOptions
+): Promise<DrRestoreResult> {
+    return restoreFromSource(await openZipRestoreSource(archiveUri, options), options);
+}
+
+export async function restoreFromSource(
+    source: DrRestoreSource,
+    options?: DisasterRecoveryRestoreOptions
+): Promise<DrRestoreResult> {
+    throwIfBackupCancelled(options?.signal);
+    if (!source.entries.has(SNAPSHOT_ENTRY) || !source.entries.has(MANIFEST_ENTRY)) {
         throw new DrRestoreError("notBackup", "Backup is missing its snapshot or manifest — not a SongNook backup.");
     }
 
     let manifestJson: string;
     try {
-        manifestJson = strFromU8(
-            await readStoredZipEntryBytes(archiveIndex, manifestEntry, undefined, options)
-        );
+        manifestJson = await source.readEntryText(MANIFEST_ENTRY, options);
     } catch (error) {
         if (isBackupOperationCancelled(error)) throw error;
         throw new DrRestoreError(
@@ -224,9 +315,7 @@ export async function restoreFromDisasterRecoveryBackup(
 
     let snapshotJson: string;
     try {
-        snapshotJson = strFromU8(
-            await readStoredZipEntryBytes(archiveIndex, snapshotEntry, undefined, options)
-        );
+        snapshotJson = await source.readEntryText(SNAPSHOT_ENTRY, options);
     } catch (error) {
         if (isBackupOperationCancelled(error)) throw error;
         throw new DrRestoreError(
@@ -251,9 +340,11 @@ export async function restoreFromDisasterRecoveryBackup(
     // snapshot.json but is NOT part of the library store: peel it off before validation
     // so the committed store snapshot stays exactly the persisted shape.
     let rawSatellites: unknown;
+    let rawSetAsideRows: unknown;
     if (snapshotValue && typeof snapshotValue === "object" && !Array.isArray(snapshotValue)) {
-        const { satellites, ...librarySnapshot } = snapshotValue as Record<string, unknown>;
+        const { satellites, setAsideWorkspaceRows, ...librarySnapshot } = snapshotValue as Record<string, unknown>;
         rawSatellites = satellites;
+        rawSetAsideRows = setAsideWorkspaceRows;
         snapshotValue = librarySnapshot;
     }
 
@@ -278,33 +369,33 @@ export async function restoreFromDisasterRecoveryBackup(
         MANIFEST_ENTRY,
         ...manifest.files.map((record) => `${MEDIA_PREFIX}${record.path}`),
     ]);
-    const unexpectedEntry = Array.from(archiveIndex.entries.keys()).find(
-        (entry) => !expectedEntries.has(entry)
-    );
-    if (unexpectedEntry) {
-        throw new DrRestoreError("integrity", `Backup contains an unexpected archive entry: ${unexpectedEntry}`);
-    }
-    if (archiveIndex.entries.size !== expectedEntries.size) {
-        throw new DrRestoreError("integrity", "Backup archive entry count does not match its manifest.");
+    if (source.exactEntries) {
+        const unexpectedEntry = Array.from(source.entries.keys()).find((entry) => !expectedEntries.has(entry));
+        if (unexpectedEntry) {
+            throw new DrRestoreError("integrity", `Backup contains an unexpected archive entry: ${unexpectedEntry}`);
+        }
+        if (source.entries.size !== expectedEntries.size) {
+            throw new DrRestoreError("integrity", "Backup archive entry count does not match its manifest.");
+        }
     }
 
     let totalMediaBytes = 0;
     for (const record of manifest.files) {
-        const entry = archiveIndex.entries.get(`${MEDIA_PREFIX}${record.path}`);
+        const entry = source.entries.get(`${MEDIA_PREFIX}${record.path}`);
         if (!entry) {
             throw new DrRestoreError(
                 "integrity",
                 `Backup is missing audio file listed in its manifest: ${record.path}`
             );
         }
-        if (entry.sizeBytes !== record.sizeBytes) {
+        if (entry.sizeBytes >= 0 && entry.sizeBytes !== record.sizeBytes) {
             throw new DrRestoreError(
                 "integrity",
                 `Audio file size does not match the backup manifest: ${record.path}`
             );
         }
         totalMediaBytes += record.sizeBytes;
-        if (!Number.isSafeInteger(totalMediaBytes) || totalMediaBytes > archiveIndex.archiveSizeBytes) {
+        if (!Number.isSafeInteger(totalMediaBytes) || totalMediaBytes > source.totalSizeBytes) {
             throw new DrRestoreError("integrity", "Backup media sizes are invalid.");
         }
     }
@@ -333,8 +424,8 @@ export async function restoreFromDisasterRecoveryBackup(
                 : collectManagedLibraryFilePathsFromWorkspaces(options?.displacedWorkspaces ?? [])
         );
         journalStarted = true;
-        // Builds with the native file module copy and fingerprint each file in one read.
-        const nativeRestore = isNativeZipAvailable();
+        // Files fingerprinted in the same pass that wrote them need no second read.
+        const verifiedInPass = new Set<string>();
         reportBackupProgress(options, {
             phase: "restoring",
             completedBytes: 0,
@@ -362,78 +453,36 @@ export async function restoreFromDisasterRecoveryBackup(
                 throw new DrRestoreError("destinationConflict", `Restore destination already exists for ${record.path}`);
             }
 
-            const entry = archiveIndex.entries.get(`${MEDIA_PREFIX}${record.path}`);
-            if (!entry) {
-                throw new DrRestoreError("integrity", `Backup is missing audio file listed in its manifest: ${record.path}`);
-            }
             const targetFile = new File(targetUri);
             targetFile.create({ intermediates: true, overwrite: false });
             writtenUris.push(targetUri);
-            if (nativeRestore) {
-                // One native read per file: copied out and fingerprinted on the way, so it
-                // is checked against the zip's CRC and the manifest's SHA-256 here, and the
-                // separate verify pass below has nothing left to read (2026-10-20).
-                const before = restoredBytes;
-                let extracted: Awaited<ReturnType<typeof extractRangeNative>>;
-                try {
-                    extracted = await extractRangeNative(archiveIndex.archiveUri, entry.dataOffset, entry.sizeBytes, targetUri, {
-                        sha256: true,
-                        signal: options?.signal,
-                        onProgress: ({ completedBytes }) =>
-                            reportBackupProgress(options, {
-                                phase: "restoring",
-                                completedBytes: before + completedBytes,
-                                totalBytes: totalMediaBytes,
-                                message: i18n.t("process.restoringClips"),
-                            }),
-                    });
-                } catch (error) {
-                    if (options?.signal?.aborted || (error instanceof Error && error.message === NATIVE_IO_CANCELLED)) {
-                        throw new BackupOperationCancelledError();
-                    }
-                    throw error;
-                }
-                if (extracted.crc32 !== entry.crc32 >>> 0) {
-                    throw new DrRestoreError("integrity", `Backup ZIP checksum failed for ${record.path}`);
-                }
-                if (extracted.sizeBytes !== record.sizeBytes || extracted.sha256 !== record.sha256) {
+            const before = restoredBytes;
+            const sha = await source.extractEntry(`${MEDIA_PREFIX}${record.path}`, targetUri, {
+                signal: options?.signal,
+                onProgress: options?.onProgress,
+                onBytes: (completedBytes) =>
+                    reportBackupProgress(options, {
+                        phase: "restoring",
+                        completedBytes: before + completedBytes,
+                        totalBytes: totalMediaBytes,
+                        message: i18n.t("process.restoringClips"),
+                    }),
+            });
+            if (sha !== null) {
+                if (sha !== record.sha256) {
                     // Before calling the file bad, ask the proven JS route: a native hashing
                     // fault must never refuse a good backup.
+                    const written = new File(targetUri);
                     const proven =
-                        extracted.sizeBytes === record.sizeBytes
+                        written.exists && written.size === record.sizeBytes
                             ? await sha256OfFileBase64(targetUri, record.sizeBytes, options).catch(() => null)
                             : null;
                     if (proven !== record.sha256) {
                         throw new DrRestoreError("verifyFailed", `Audio file failed its integrity check: ${record.path}`);
                     }
                 }
-                restoredBytes += record.sizeBytes;
-                reportBackupProgress(options, {
-                    phase: "restoring",
-                    completedBytes: restoredBytes,
-                    totalBytes: totalMediaBytes,
-                    message: i18n.t("process.restoringClips"),
-                });
-                continue;
-            }
-            const targetHandle = targetFile.open();
-            try {
-                await streamStoredZipEntry(
-                    archiveIndex,
-                    entry,
-                    (chunk) => targetHandle.writeBytes(chunk),
-                    {
-                        ...options,
-                        phase: "restoring",
-                        progressOffsetBytes: restoredBytes,
-                        progressTotalBytes: totalMediaBytes,
-                        progressMessage: i18n.t("process.restoringClips"),
-                    }
-                );
-            } finally {
-                targetHandle.close();
-            }
-            if (!targetFile.exists || targetFile.size !== record.sizeBytes) {
+                verifiedInPass.add(record.path);
+            } else if (!targetFile.exists || targetFile.size !== record.sizeBytes) {
                 throw new DrRestoreError("verifyFailed", `Could not verify restored audio file: ${record.path}`);
             }
             restoredBytes += record.sizeBytes;
@@ -455,7 +504,7 @@ export async function restoreFromDisasterRecoveryBackup(
             totalBytes: totalMediaBytes,
             message: i18n.t("process.verifyingRestoredClips"),
         });
-        for (const record of nativeRestore ? [] : manifest.files) {
+        for (const record of manifest.files.filter((file) => !verifiedInPass.has(file.path))) {
             throwIfBackupCancelled(options?.signal);
             const destinationPath = prepared.destinationPathBySourcePath.get(record.path);
             if (!destinationPath) {
@@ -541,6 +590,10 @@ export async function restoreFromDisasterRecoveryBackup(
             console.warn("[Backup] Failed to restore satellite stores", error);
         }
     }
+
+    // Rows of workspaces the backed-up phone had set aside (G10) are kept the same way
+    // here: under their quarantine key, out of the library, for a later repair.
+    await restoreSetAsideWorkspaceRows(rawSetAsideRows);
 
     const result: DrRestoreResult = {
         status: manifest.status,

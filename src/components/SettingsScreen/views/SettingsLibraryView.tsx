@@ -7,6 +7,7 @@ import { LibraryActionCard, SettingsGroup, ValueRow } from "../components/Settin
 import type { useLibraryBackupFlow } from "../hooks/useLibraryBackupFlow";
 import { useTranslation } from "react-i18next";
 import type { BackupReminderFrequency } from "../../../types";
+import type { AutomaticBackupFrequency } from "../../../domain/automaticBackupPrefs";
 
 type LibraryBackupFlow = ReturnType<typeof useLibraryBackupFlow>;
 
@@ -66,15 +67,47 @@ export function SettingsLibraryView({
             meta={backupFlow.isRestoring ? backupFlow.restoreProgressLabel ?? t("settings.restoring") : undefined}
             onPress={backupFlow.handleRestore}
           />
-          <ValueRow<BackupReminderFrequency>
-            title={t("settingsLibrary.reminder")}
-            value={backupFlow.backupReminderFrequency}
-            options={backupFlow.reminderOptions.map((option) => ({ value: option.value, label: option.title }))}
-            // Backup is never locked (founder): the reminder is free. The future
-            // automatic backup keeps the "auto-backup" key in domain/proCatalog.ts.
-            onChange={(value) => backupFlow.setBackupReminderFrequency(value)}
-          />
+          {/* Automatic backup (decision C, 2026-11-02): one folder kept current in
+              place. Free, like every backup (the "auto-backup" key in proCatalog). */}
+          {backupFlow.automaticBackupAvailable ? (
+            <ValueRow<AutomaticBackupFrequency>
+              title={t("settingsLibrary.autoBackup")}
+              value={backupFlow.automaticBackup.frequency}
+              options={backupFlow.automaticBackupOptions}
+              onChange={(value) => void backupFlow.setAutomaticBackupFrequency(value)}
+            />
+          ) : null}
+          {backupFlow.automaticBackupAvailable && backupFlow.automaticBackup.frequency !== "off" ? (
+            <LibraryActionCard
+              flat
+              icon="folder-outline"
+              title={t("settingsLibrary.backupFolder")}
+              meta={backupFlow.automaticBackup.folder?.name ?? t("settingsLibrary.chooseFolder")}
+              onPress={() => void backupFlow.changeBackupFolder()}
+            />
+          ) : null}
+          {/* The reminder is for people who back up by hand; automatic backup
+              quiets it (backupStatus.ts). */}
+          {backupFlow.automaticBackupAvailable && backupFlow.automaticBackup.frequency !== "off" ? null : (
+            <ValueRow<BackupReminderFrequency>
+              title={t("settingsLibrary.reminder")}
+              value={backupFlow.backupReminderFrequency}
+              options={backupFlow.reminderOptions.map((option) => ({ value: option.value, label: option.title }))}
+              // Backup is never locked (founder): the reminder is free.
+              onChange={(value) => backupFlow.setBackupReminderFrequency(value)}
+            />
+          )}
         </SettingsGroup>
+
+        {backupFlow.automaticBackupStatus ? (
+          <View style={settingsScreenStyles.backupFileNameRow}>
+            <Text style={settingsScreenStyles.backupFileName} numberOfLines={2}>
+              {backupFlow.automaticBackupHint
+                ? `${backupFlow.automaticBackupStatus} · ${backupFlow.automaticBackupHint}`
+                : backupFlow.automaticBackupStatus}
+            </Text>
+          </View>
+        ) : null}
 
         {backupFlow.lastSuccessfulBackupFileName ? (
           <View style={settingsScreenStyles.backupFileNameRow}>
