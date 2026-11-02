@@ -18,8 +18,9 @@ type Options = {
   /** Opaque note of what the editing started from (see EditorDraft.base). */
   base?: string;
   workspaceId?: string | null;
-  /** A kept draft for this item was found as the editor opened: put it back. */
-  onRestore: (draft: EditorDraft) => void;
+  /** A kept draft for this item was found as the editor opened: put it back
+   *  (return false to leave it where it is, untouched). */
+  onRestore: (draft: EditorDraft) => boolean | void;
   idleMs?: number;
 };
 
@@ -83,7 +84,9 @@ export function useEditorDraft({
       const kept = readEditorDraft(key);
       if (!kept) return;
       if (draftDiffers(kept, latestRef.current.fields)) {
-        onRestoreRef.current(kept);
+        // An editor may decline (it opened on something the draft wasn't written
+        // against); the draft then stays for the editor it belongs to.
+        if (onRestoreRef.current(kept) === false) return;
         wroteRef.current = true;
         toast(i18n.t("common.unsavedRestored"), "document-text-outline");
       } else {
