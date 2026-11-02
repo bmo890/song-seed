@@ -57,7 +57,9 @@ export type ParcelEnvelope = {
   title: string;
   senderName: string;
   message: string;
-  items: { name: string; mime: string; size: number }[];
+  /** `copy`: a plain copy of a package's audio, for someone without the app
+   *  (receiveTransfer.withoutBrowserCopies). Absent on parcels before 2026-11-02. */
+  items: { name: string; mime: string; size: number; copy?: true }[];
 };
 
 /** Seals one parcel: each file in upload order, then the envelope naming them. */
@@ -72,13 +74,18 @@ export class ParcelSealer {
   }
 
   /** A sealed copy of `file`, named by its place in the parcel (`3.sealed`). */
-  async seal(file: ShareFileInput & { size: number }): Promise<ShareFileInput & { size: number }> {
+  async seal(file: ShareFileInput & { size: number }, options?: { browserCopy?: boolean }): Promise<ShareFileInput & { size: number }> {
     await FileSystem.makeDirectoryAsync(SEAL_CACHE_DIR, { intermediates: true }).catch(() => {});
     const index = this.items.length + 1;
     const target = `${SEAL_CACHE_DIR}/${Date.now().toString(36)}-${index}.sealed`;
     this.temps.push(target);
     const size = await sealFileNative(file.fileUri, target, this.key);
-    this.items.push({ name: file.fileName, mime: file.mimeType, size: file.size });
+    this.items.push({
+      name: file.fileName,
+      mime: file.mimeType,
+      size: file.size,
+      ...(options?.browserCopy ? { copy: true as const } : null),
+    });
     return { fileUri: target, fileName: `${index}.sealed`, mimeType: "application/octet-stream", size };
   }
 

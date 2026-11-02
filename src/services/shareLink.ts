@@ -15,10 +15,13 @@
 import { prepareLibraryExportArchive, type ExportLibraryArgs } from "./libraryExport";
 import { SEND_MAX_ITEM_BYTES, SEND_MAX_TRANSFER_BYTES } from "../config/sendService";
 import type { ShareKind } from "../types";
+import { SEND_SERVICE_BASE_URL } from "../config/sendService";
+import { isSendableFile } from "../domain/sendFormats";
 import {
   SendCancelledError,
   SendTransferError,
   createTransfer,
+  deleteTransfer,
   finalizeTransfer,
   fileSize,
   registerAndUploadFile,
@@ -51,7 +54,67 @@ export class TooLargeShareError extends Error {
   }
 }
 
+/** Thrown before any upload when a file is of a kind the recipient can't open
+ *  (.opus, .wma, MIDI…) and couldn't be turned into one (12h H-1). */
+export class UnsendableShareError extends Error {
+  constructor(readonly fileNames: string[]) {
+    super(`Can't send: ${fileNames.join(", ")}`);
+    this.name = "UnsendableShareError";
+  }
+}
+
 export { SendCancelledError, SendTransferError };
+
+/** The file as it would be named and typed in the parcel, after any encode. */
+function encodedName(file: ShareFileInput, encoded: ReadonlyMap<string, string>): ShareFileInput {
+  const next = encoded.get(file.fileUri);
+  return next
+    ? { fileUri: next, fileName: file.fileName.replace(/\.[A-Za-z0-9]+$/, "") + ".m4a", mimeType: "audio/mp4" }
+    : file;
+}
+
+/** Files to encode for a link: lossless takes (to save space) and any file no
+ *  recipient could open as it is (to make it openable). */
+function filesToEncode(files: ShareFileInput[]): string[] {
+  const unsendable = files.filter((file) => !isSendableFile(file.fileName, file.mimeType)).map((file) => file.fileUri);
+  return Array.from(new Set([...losslessAudioToEncode(files.map((file) => file.fileUri)), ...unsendable]));
+}
+
+/**
+ * Records the link in the outbox BEFORE finalize, then finalizes (idempotent on
+ * the server, retried on a lost answer). If it still can't say, the draft is
+ * taken back; if even that can't reach the server, the outbox keeps the entry
+ * so Settings → Shared links can delete it. A link is never live and unlisted
+ * (12h M-1).
+ */
+async function finalizeAndRecord(
+  transfer: { transferId: string; uploadToken: string; expiresAt: string },
+  sealedMeta: string | undefined,
+  record: Omit<SentLink, "shareUrl" | "pending">,
+  fragment: string
+): Promise<SentLink> {
+  const sentLinks = useSentLinksStore.getState();
+  sentLinks.recordLink({
+    ...record,
+    shareUrl: `${SEND_SERVICE_BASE_URL}/t/${transfer.transferId}${fragment}`,
+    pending: true,
+  });
+  try {
+    const { shareUrl } = await finalizeTransfer(transfer.transferId, transfer.uploadToken, sealedMeta);
+    const done: SentLink = { ...record, shareUrl: shareUrl + fragment };
+    useSentLinksStore.getState().recordLink(done);
+    return done;
+  } catch (error) {
+    // Whatever the server did, take it back: deleting a draft or a live link
+    // both succeed, and "already gone" is success too.
+    const takenBack = await deleteTransfer(transfer.transferId, transfer.uploadToken).then(
+      () => true,
+      () => false
+    );
+    if (takenBack) useSentLinksStore.getState().forgetLink(transfer.transferId);
+    throw error;
+  }
+}
 export type { SendProgressOptions };
 
 /** A cancelled seal, whichever layer noticed first (zip, upload, or between steps). */
@@ -129,14 +192,15 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
   const copies = input.browserCopies ?? [];
   const { encoded, tempUris } =
     copies.length > 0
-      ? await encodeAudioForLink(losslessAudioToEncode(copies.map((file) => file.fileUri)), { signal })
+      ? await encodeAudioForLink(filesToEncode(copies), { signal })
       : { encoded: new Map<string, string>(), tempUris: [] as string[] };
-  const copyFiles = copies.map((file) => {
-    const next = encoded.get(file.fileUri);
-    return next
-      ? { fileUri: next, fileName: file.fileName.replace(/\.[A-Za-z0-9]+$/, "") + ".m4a", mimeType: "audio/mp4" }
-      : file;
-  });
+  // A plain copy is only for a browser; one no browser or app can open (.wma,
+  // MIDI) is left out. The package carries every take for the app (12h H-1).
+  const copyFiles = copies
+    .map((file) => encodedName(file, encoded))
+    .filter((file) => isSendableFile(file.fileName, file.mimeType));
+  // Takes the package couldn't carry (a file missing on this phone): told, not hidden (12h M-2).
+  const leftOut = prepared.warnings?.length ?? 0;
   let sealedMeta: string | undefined;
   try {
     const size = await fileSize(prepared.archiveUri);
@@ -149,7 +213,8 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
     // 3. Upload the .songnook file (opaque to the server), then any plain copies.
     // Sealed, each leaves as a sealed copy made just before its upload.
     report?.({ phase: "uploading", completedBytes: 0, totalBytes });
-    const outgoing = async (file: ShareFileInput & { size: number }) => (sealer ? sealer.seal(file) : file);
+    const outgoing = async (file: ShareFileInput & { size: number }, browserCopy = false) =>
+      sealer ? sealer.seal(file, { browserCopy }) : file;
     await registerAndUploadFile(
       transfer.transferId,
       transfer.uploadToken,
@@ -171,7 +236,7 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
       await registerAndUploadFile(
         transfer.transferId,
         transfer.uploadToken,
-        await outgoing({ ...file, size: copySizes[index]! }),
+        await outgoing({ ...file, size: copySizes[index]! }, true),
         {
           signal,
           onProgress: (sent) => report?.({ phase: "uploading", completedBytes: sentBefore + sent, totalBytes }),
@@ -193,23 +258,24 @@ export async function createShareLink(input: CreateShareLinkInput): Promise<Sent
   // 4. Finalize — only now is the link live.
   throwIfSendCancelled(signal);
   report?.({ phase: "sealing", completedBytes: 0, totalBytes: 0 });
-  const { shareUrl } = await finalizeTransfer(transfer.transferId, transfer.uploadToken, sealedMeta);
-
-  // 5. Record in the local outbox. A sealed link keeps its key: the link is the whole key.
-  const record: SentLink = {
-    transferId: transfer.transferId,
-    shareUrl: shareUrl + (sealer?.fragment ?? ""),
-    title: input.title,
-    kind: input.kind,
-    entityId: input.entityId,
-    createdAt: Date.now(),
-    expiresAt: Date.parse(transfer.expiresAt) || Date.now(),
-    uploadToken: transfer.uploadToken,
-    // What the sender sent: the clips (their plain copies count them), else the one package.
-    itemCount: Math.max(1, copyFiles.length),
-  };
-  useSentLinksStore.getState().recordLink(record);
-  return record;
+  // 4–5. Finalize and record in the local outbox. A sealed link keeps its key: the link is the whole key.
+  return finalizeAndRecord(
+    transfer,
+    sealedMeta,
+    {
+      transferId: transfer.transferId,
+      title: input.title,
+      kind: input.kind,
+      entityId: input.entityId,
+      createdAt: Date.now(),
+      expiresAt: Date.parse(transfer.expiresAt) || Date.now(),
+      uploadToken: transfer.uploadToken,
+      // What the sender sent: the clips (their plain copies count them), else the one package.
+      itemCount: Math.max(1, copyFiles.length),
+      ...(leftOut > 0 ? { leftOut } : null),
+    },
+    sealer?.fragment ?? ""
+  );
 }
 
 export interface ShareFileInput {
@@ -240,32 +306,20 @@ export async function createFilesShareLink(input: {
   // deleted once the parcel has left). A file the encoder cannot read is
   // sent as it is.
   throwIfSendCancelled(signal);
-  const { encoded, tempUris } = await encodeAudioForLink(
-    losslessAudioToEncode(input.files.map((file) => file.fileUri)),
-    {
-      signal,
-      onProgress: (completedBytes, totalBytes, index, count) =>
-        report?.({ phase: "packing", completedBytes, totalBytes, encoding: { index, count } }),
-    }
-  );
+  // A file no recipient could open as it is (.opus, .wma) is encoded too; one
+  // that still can't be (MIDI, a file the encoder can't read) stops the send
+  // here, before any upload, instead of a "Link ready" nobody can open (12h H-1).
+  const { encoded, tempUris } = await encodeAudioForLink(filesToEncode(input.files), {
+    signal,
+    onProgress: (completedBytes, totalBytes, index, count) =>
+      report?.({ phase: "packing", completedBytes, totalBytes, encoding: { index, count } }),
+  });
   try {
-    return await uploadFiles(
-      {
-        ...input,
-        files: input.files.map((file) => {
-          const next = encoded.get(file.fileUri);
-          if (!next) return file;
-          return {
-            fileUri: next,
-            fileName: file.fileName.replace(/\.[A-Za-z0-9]+$/, "") + ".m4a",
-            // The encoder always writes an .m4a.
-            mimeType: "audio/mp4",
-          };
-        }),
-      },
-      signal,
-      report
-    );
+    // The encoder always writes an .m4a.
+    const files = input.files.map((file) => encodedName(file, encoded));
+    const unsendable = files.filter((file) => !isSendableFile(file.fileName, file.mimeType));
+    if (unsendable.length > 0) throw new UnsendableShareError(unsendable.map((file) => file.fileName));
+    return await uploadFiles({ ...input, files }, signal, report);
   } finally {
     if (tempUris.length > 0) await deleteEncodedAudio(tempUris);
   }
@@ -321,19 +375,19 @@ async function uploadFiles(
 
   throwIfSendCancelled(signal);
   report?.({ phase: "sealing", completedBytes: 0, totalBytes: 0 });
-  const { shareUrl } = await finalizeTransfer(transfer.transferId, transfer.uploadToken, sealedMeta);
-
-  const record: SentLink = {
-    transferId: transfer.transferId,
-    shareUrl: shareUrl + (sealer?.fragment ?? ""),
-    title: input.title,
-    kind: input.kind,
-    entityId: input.entityId,
-    createdAt: Date.now(),
-    expiresAt: Date.parse(transfer.expiresAt) || Date.now(),
-    uploadToken: transfer.uploadToken,
-    itemCount: input.files.length,
-  };
-  useSentLinksStore.getState().recordLink(record);
-  return record;
+  return finalizeAndRecord(
+    transfer,
+    sealedMeta,
+    {
+      transferId: transfer.transferId,
+      title: input.title,
+      kind: input.kind,
+      entityId: input.entityId,
+      createdAt: Date.now(),
+      expiresAt: Date.parse(transfer.expiresAt) || Date.now(),
+      uploadToken: transfer.uploadToken,
+      itemCount: input.files.length,
+    },
+    sealer?.fragment ?? ""
+  );
 }

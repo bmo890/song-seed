@@ -144,6 +144,7 @@ import { loadSparkTries } from "./src/services/sparkTries";
 import { WelcomeFlow } from "./src/components/common/WelcomeFlow";
 import { useLibraryBackupFlow } from "./src/components/SettingsScreen/hooks/useLibraryBackupFlow";
 import { installGlobalCrashHandler } from "./src/services/crashLog";
+import { startupHasSetAside, startupSetAsideWorkspaceId } from "./src/services/crashSetAside";
 import { describeError, persistLog } from "./src/services/persistLog";
 import { detectNewerManifest } from "./src/services/manifestFreshness";
 import { RestoreRestartGate } from "./src/components/common/RestoreRestartGate";
@@ -733,6 +734,7 @@ function DrawerRoutes() {
         primaryWorkspaceId,
         lastUsedWorkspaceId,
         preference: workspaceStartupPreference,
+        setAside: startupHasSetAside() ? { workspaceId: startupSetAsideWorkspaceId() } : null,
       }),
     [lastUsedWorkspaceId, primaryWorkspaceId, workspaceStartupPreference, workspaces]
   );
@@ -968,6 +970,7 @@ function AppContent() {
         primaryWorkspaceId,
         lastUsedWorkspaceId,
         preference: workspaceStartupPreference,
+        setAside: startupHasSetAside() ? { workspaceId: startupSetAsideWorkspaceId() } : null,
       }),
     [lastUsedWorkspaceId, primaryWorkspaceId, workspaceStartupPreference, workspaces]
   );

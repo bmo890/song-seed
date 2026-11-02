@@ -9,24 +9,22 @@
  * limits + expiry contain that; content-typing alone cannot.
  */
 
-// Audio extensions we accept (lowercase, no dot).
-const AUDIO_EXTS = new Set([
-  "m4a",
-  "mp3",
-  "wav",
-  "aac",
-  "flac",
-  "ogg",
-  "oga",
-  "aif",
-  "aiff",
-  "caf",
-]);
+// The ONE list every end of Send reads: the app's sender and receiver, this
+// check and the web sender page (audit 2026-11-02, 12h H-1). Bundled from the
+// app's source so the two can never drift.
+import {
+  SEND_ARCHIVE_EXTENSION,
+  SEND_ARCHIVE_MIMES,
+  SEND_AUDIO_EXTENSIONS,
+} from "../../../../src/domain/sendFormats.ts";
 
-const SONGNOOK_EXT = "songnook";
+// Audio extensions we accept (lowercase, no dot).
+const AUDIO_EXTS = new Set(SEND_AUDIO_EXTENSIONS);
+
+const SONGNOOK_EXT = SEND_ARCHIVE_EXTENSION;
 
 // Mime allowed to accompany a `.songnook` file (its internals are a zip).
-const ARCHIVE_MIMES = new Set(["application/octet-stream", "application/zip"]);
+const ARCHIVE_MIMES = new Set(SEND_ARCHIVE_MIMES);
 
 export function extensionOf(fileName: string): string {
   const dot = fileName.lastIndexOf(".");

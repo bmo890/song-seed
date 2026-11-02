@@ -353,6 +353,10 @@ export function resolveStartupWorkspaceId(args: {
   primaryWorkspaceId: string | null;
   lastUsedWorkspaceId: string | null;
   preference: WorkspaceStartupPreference;
+  /** After a crash (services/crashSetAside): the workspace that was open then.
+   *  Startup opens the primary workspace if it is a different one, else the
+   *  workspace list (null), never the one set aside. */
+  setAside?: { workspaceId: string | null } | null;
 }) {
   const activeWorkspaces = args.workspaces.filter((workspace) => !workspace.isArchived);
   const pool = activeWorkspaces.length > 0 ? activeWorkspaces : args.workspaces;
@@ -361,6 +365,9 @@ export function resolveStartupWorkspaceId(args: {
     id ? pool.find((workspace) => workspace.id === id) ?? null : null;
 
   const primaryWorkspace = findById(args.primaryWorkspaceId);
+  if (args.setAside) {
+    return primaryWorkspace && primaryWorkspace.id !== args.setAside.workspaceId ? primaryWorkspace.id : null;
+  }
   const lastUsedWorkspace = findById(args.lastUsedWorkspaceId);
 
   if (args.preference === "primary") {

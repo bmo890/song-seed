@@ -7,6 +7,7 @@
  */
 import { page, waveformStrip } from "./shell";
 import { SEAL_JS } from "./sealJs";
+import { SEND_AUDIO_EXTENSIONS } from "../../../../src/domain/sendFormats.ts";
 
 const SENDER_CSS = `
 /* The brand classes set display:flex/inline-flex, which beats the UA's [hidden]. */
@@ -85,7 +86,7 @@ open it, not even SongNook.` : ""}</p>
     <span>files or a whole folder — audio &amp; SongNook files, up to 1 GB</span>
     <span class="alt">or <button type="button" id="pick-files">choose files</button> ·
       <button type="button" id="pick-folder">choose a folder</button></span>
-    <input id="picker" type="file" multiple hidden accept=".songnook,audio/*">
+    <input id="picker" type="file" multiple hidden accept=".songnook,${SEND_AUDIO_EXTENSIONS.map((ext) => "." + ext).join(",")}">
     <input id="folder-picker" type="file" webkitdirectory hidden>
   </div>
   <div id="list-tools" class="list-tools" hidden>
@@ -206,15 +207,23 @@ const SENDER_JS = `
   try { senderEl.value = localStorage.getItem('songnook-send-from') || ''; } catch(_){}
   senderEl.addEventListener('change', function(){ try{ localStorage.setItem('songnook-send-from', senderEl.value); }catch(_){} });
 
-  var AUDIO_EXT = ['m4a','mp3','wav','aac','flac','ogg','oga','aif','aiff','caf'];
+  // The one list every end of Send reads (src/domain/sendFormats.ts): a file the
+  // app can't open is refused here, before "Link ready", never on arrival.
+  var AUDIO_EXT = ${JSON.stringify(SEND_AUDIO_EXTENSIONS)};
   function extOf(name){ name=(name||'').toLowerCase(); return name.indexOf('.')>=0?name.split('.').pop():''; }
   function allowed(f){
     if((f.name||'').charAt(0)==='.') return false; // .DS_Store and friends
     var ext=extOf(f.name);
     if(ext==='songnook') return true;
-    if(AUDIO_EXT.indexOf(ext)>=0) return true;
-    return (f.type||'').indexOf('audio/')===0;
+    return AUDIO_EXT.indexOf(ext)>=0;
   }
+  // The type the parcel declares: what the app accepts for that extension.
+  function mimeOf(f){
+    if(extOf(f.name)==='songnook') return 'application/octet-stream';
+    var type=(f.type||'').toLowerCase();
+    return type.indexOf('audio/')===0 ? type : 'application/octet-stream';
+  }
+  function isPackage(f){ return extOf(f.name)==='songnook'; }
   function pretty(name){ return String(name).replace(/\\.[a-z0-9]{1,8}$/i,'') || name; }
   function esc(s){ return String(s).replace(/[<>&"]/g, function(c){ return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]; }); }
   function fmt(n){var u=['B','KB','MB','GB'],i=n?Math.min(3,Math.floor(Math.log(n)/Math.log(1024))):0;
@@ -287,9 +296,17 @@ const SENDER_JS = `
       added.sort(byName);
       if(!titleEl.value.trim()) titleEl.value = folderName;
     }
-    files = files.concat(added);
+    // A SongNook file travels on its own, or audio files travel together: the app
+    // takes a package and leaves loose audio beside it, so a mix would lose half.
+    var next = files.concat(added);
+    var packages = next.filter(isPackage).length;
+    if(packages > 0 && packages < next.length){
+      say('Send a SongNook file on its own, or audio files together.');
+      return;
+    }
+    files = next;
     render();
-    say(rejected.length ? 'Only audio and SongNook files can be sent. Skipped: '+rejected.join(', ') : '');
+    say(rejected.length ? 'Only audio (' + AUDIO_EXT.join(', ') + ') and SongNook files can be sent. Skipped: '+rejected.join(', ') : '');
   }
   // Walk a dropped directory tree (webkitGetAsEntry) and resolve its files.
   function readEntry(entry){
@@ -360,7 +377,7 @@ const SENDER_JS = `
     try{
       var createBody = key ? { sealed:true, kind:kind, sealedMeta: await Seal.sealJson(key, {
           v:1, title:titleEl.value, senderName:senderEl.value, message:$('message').value,
-          items: files.map(function(f){ return { name:f.name, mime:f.type||'application/octet-stream', size:f.size }; }) }) }
+          items: files.map(function(f){ return { name:f.name, mime:mimeOf(f), size:f.size }; }) }) }
         : { senderName:senderEl.value, title:titleEl.value, message:$('message').value, kind:kind };
       var create = await fetch('/api/transfers',{method:'POST',headers:{'content-type':'application/json'},
         body:JSON.stringify(createBody)});
@@ -376,7 +393,7 @@ const SENDER_JS = `
         var reg = await fetch('/api/transfers/'+t.transferId+'/items',{method:'POST',
           headers:{'content-type':'application/json'},
           body:JSON.stringify({ uploadToken:t.uploadToken, fileName: key ? (i+1)+'.sealed' : f.name,
-            mimeType: key ? 'application/octet-stream' : (f.type||'application/octet-stream'), size:payload.size })});
+            mimeType: key ? 'application/octet-stream' : mimeOf(f), size:payload.size })});
         if(!reg.ok) throw new Error(await reg.text());
         var slot = await reg.json();
         var cell = list.querySelector('[data-size="'+i+'"]');
@@ -389,11 +406,25 @@ const SENDER_JS = `
         setProgress(doneBytes/total);
       }
 
-      var fin = await fetch('/api/transfers/'+t.transferId+'/finalize',{method:'POST',
-        headers:{'content-type':'application/json'},
-        body:JSON.stringify({uploadToken:t.uploadToken})});
-      if(!fin.ok) throw new Error(await fin.text());
-      var done = await fin.json();
+      // Finalize is idempotent: a lost answer (network, 5xx) is asked again with
+      // the same token before anything says "Nothing was sent" (12h M-1).
+      var done = null, lastErr = null;
+      for(var attempt=1; attempt<=3 && !done; attempt++){
+        try{
+          var fin = await fetch('/api/transfers/'+t.transferId+'/finalize',{method:'POST',
+            headers:{'content-type':'application/json'},
+            body:JSON.stringify({uploadToken:t.uploadToken})});
+          if(fin.ok){ done = await fin.json(); break; }
+          lastErr = new Error(await fin.text());
+          if(fin.status < 500) break;
+        }catch(e){ lastErr = e; }
+        await new Promise(function(r){ setTimeout(r, 1500*attempt); });
+      }
+      if(!done){
+        // Take the draft back so nothing is left live and unlisted.
+        fetch('/api/transfers/'+encodeURIComponent(t.transferId),{method:'DELETE',headers:{'x-upload-token':t.uploadToken}}).catch(function(){});
+        throw lastErr || new Error('finalize failed');
+      }
       $('url').textContent = done.shareUrl + (key ? '#k=' + Seal.keyText(key) : '');
       $('result').hidden=false;
       sendBtn.hidden=true;

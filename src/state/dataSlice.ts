@@ -61,6 +61,7 @@ import { normalizeKeptPractice } from "../domain/keptPractice";
 import { normalizeTempoMap, sanitizeTempoMap, tempoMapEquals, type TempoMap } from "../domain/tempoMap";
 import { genChildClipTitle, genId, genRootClipTitle, NAME_IDEA_LANGUAGES, type NameIdeaLanguage } from "../utils";
 import { buildClipGraph } from "../domain/clipGraph";
+import { breakParentCycles } from "../domain/parentLinks";
 import type { SelectionSlice } from "./selectionSlice";
 import type { RecordingSlice } from "./recordingSlice";
 import type { PlayerSlice } from "./playerSlice";
@@ -1009,7 +1010,63 @@ function normalizeClipGroupAssignments(
     return Object.keys(nextAssignments).length > 0 ? nextAssignments : undefined;
 }
 
-function normalizeIdea(idea: SongIdea): SongIdea {
+function isRealDate(value: unknown): value is number {
+    return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+function textOr(value: unknown, fallback: string): string {
+    if (typeof value === "string") return value;
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+    return fallback;
+}
+
+/**
+ * The fields every screen reads without a guard: a title and notes that are text,
+ * a creation date that is a date, a list of takes. Stored data that broke these
+ * (an older import, a hand-edited backup) threw in render on every launch, or put
+ * an idea on every Activity day and in 1970 (audit 2026-11-02: 09 H1, 07 M2). A
+ * missing date takes the idea's other dates, else its import date, else now.
+ * Returns the same object when nothing needed healing.
+ */
+export function healIdeaBasics(idea: SongIdea, now = Date.now()): SongIdea {
+    const rawClips: unknown[] = Array.isArray(idea.clips) ? idea.clips : [];
+    const clipDates = rawClips
+        .map((clip) => (clip as ClipVersion | null)?.createdAt)
+        .filter(isRealDate);
+    const createdAt = isRealDate(idea.createdAt)
+        ? idea.createdAt
+        : clipDates.length > 0
+            ? Math.min(...clipDates)
+            : isRealDate(idea.importedAt)
+                ? idea.importedAt
+                : isRealDate(idea.lastActivityAt)
+                    ? idea.lastActivityAt
+                    : now;
+    let clipsChanged = rawClips !== idea.clips;
+    const clips = rawClips
+        .filter((clip): clip is ClipVersion => !!clip && typeof clip === "object")
+        .map((clip) => {
+            // A take with no id can't be opened or deleted; it gets one rather than vanish.
+            if (typeof clip.id !== "string" || clip.id.length === 0) {
+                clip = { ...clip, id: genId("clip") };
+                clipsChanged = true;
+            }
+            const title = textOr(clip.title, "");
+            const notes = clip.notes == null ? clip.notes : textOr(clip.notes, "");
+            const clipCreatedAt = isRealDate(clip.createdAt) ? clip.createdAt : createdAt;
+            if (title === clip.title && notes === clip.notes && clipCreatedAt === clip.createdAt) return clip;
+            clipsChanged = true;
+            return { ...clip, title, notes, createdAt: clipCreatedAt };
+        });
+    if (clips.length !== rawClips.length) clipsChanged = true;
+    const title = textOr(idea.title, i18n.t("common.untitled"));
+    const notes = idea.notes == null ? idea.notes : textOr(idea.notes, "");
+    if (!clipsChanged && title === idea.title && notes === idea.notes && createdAt === idea.createdAt) return idea;
+    return { ...idea, title, notes, createdAt, clips };
+}
+
+function normalizeIdea(rawIdea: SongIdea): SongIdea {
+    const idea = healIdeaBasics(rawIdea);
     const legacyFavorite = (idea as SongIdea & { isFavorite?: boolean }).isFavorite;
     if (idea.kind !== "project") {
         const normalizedClips = idea.clips.map(normalizeClip);
@@ -1364,25 +1421,44 @@ export function normalizeSetlists(setlists: Setlist[] | undefined) {
 }
 
 export function normalizeWorkspaces(workspaces: Workspace[]) {
-    return workspaces.map((workspace, index) => {
+    // An idea id is one idea, library-wide: deleting one must never delete another
+    // that shares its id (audit 2026-11-02, 08 R2). A later duplicate gets a new id.
+    const seenIdeaIds = new Set<string>();
+    return workspaces.map((rawWorkspace, index) => {
+        const workspace = { ...rawWorkspace, ideas: Array.isArray(rawWorkspace.ideas) ? rawWorkspace.ideas : [] };
         const normalizedArchiveState = normalizeWorkspaceArchiveState(workspace.archiveState);
         const existingCollections = Array.isArray(workspace.collections) ? workspace.collections : [];
         const migratedDefaultCollection =
             existingCollections.length === 0 && workspace.ideas.length > 0
                 ? createCollection(workspace.id, DEFAULT_COLLECTION_TITLE, null)
                 : null;
-        const collections = (migratedDefaultCollection ? [migratedDefaultCollection] : existingCollections).map(
+        const sourceCollections = migratedDefaultCollection ? [migratedDefaultCollection] : existingCollections;
+        // A parent this workspace doesn't hold, or a loop, makes the collection top
+        // level: nothing in it is lost, and every walk over parents ends (08 R3).
+        const parentOf = new Map<string, string | null | undefined>(
+            sourceCollections.map((collection) => [
+                collection.id,
+                typeof collection.parentCollectionId === "string" ? collection.parentCollectionId : null,
+            ])
+        );
+        breakParentCycles(parentOf);
+        const collections = sourceCollections.map(
             (collection) => ({
                 ...collection,
+                title: textOr(collection.title, i18n.t("common.untitled")),
                 workspaceId: workspace.id,
-                parentCollectionId:
-                    typeof collection.parentCollectionId === "string" ? collection.parentCollectionId : null,
+                parentCollectionId: parentOf.get(collection.id) ?? null,
                 ideasListState: collection.ideasListState,
             })
         );
         const fallbackCollectionId = collections[0]?.id ?? "";
         const normalizedIdeas = normalizeIdeas(
-            workspace.ideas.map((idea) => ({
+            workspace.ideas.map((idea) => {
+                const duplicate = typeof idea.id !== "string" || seenIdeaIds.has(idea.id);
+                const id = duplicate ? genId("idea") : idea.id;
+                seenIdeaIds.add(id);
+                return duplicate ? { ...idea, id } : idea;
+            }).map((idea) => ({
                 ...idea,
                 collectionId:
                     typeof idea.collectionId === "string" && idea.collectionId.length > 0

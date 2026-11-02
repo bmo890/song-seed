@@ -132,13 +132,17 @@ describe("Keep takes (dissolveSketch, 2026-10-12)", () => {
 
         const released = appActions.dissolveSketch("porch");
 
-        expect(released.sort()).toEqual(["porch-take", "porch-take-2"]);
+        // Each released take is its own idea with its own id (never the take's id:
+        // audit 2026-11-02, 08 R2), holding that take.
+        expect(released).toHaveLength(2);
         const ideas = useStore.getState().workspaces[0]!.ideas;
         expect(ideas.map((idea) => idea.kind)).toEqual(["clip", "clip"]);
         expect(ideas.find((idea) => idea.id === "porch")).toBeUndefined();
         expect(ideas.every((idea) => idea.clips.length === 1 && idea.clips[0]!.isPrimary)).toBe(true);
+        expect(ideas.map((idea) => idea.clips[0]!.id).sort()).toEqual(["porch-take", "porch-take-2"]);
+        const holder = ideas.find((idea) => idea.clips[0]!.id === "porch-take-2")!;
         const events = useStore.getState().activityEvents;
         expect(events.map((event) => event.id)).toEqual(["e1"]);
-        expect(events[0]!.ideaId).toBe("porch-take-2");
+        expect(events[0]!.ideaId).toBe(holder.id);
     });
 });

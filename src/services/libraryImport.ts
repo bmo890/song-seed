@@ -32,8 +32,6 @@ import { SONG_NOOK_AUDIO_DIR } from "./storagePaths";
 import { MANAGED_WAVEFORM_PEAK_COUNT } from "./audioStorage";
 import { buildStaticWaveform, ensureUniqueCountedTitle } from "../utils";
 import {
-    LEGACY_SONG_NOOK_ARCHIVE_FORMAT,
-    SONG_NOOK_ARCHIVE_FORMAT,
     type ArchiveClipManifest,
     type ArchiveClipOverdubManifest,
     type ArchiveManifest,
@@ -41,6 +39,8 @@ import {
 import { normalizeBluetoothMonitoringCalibrations } from "../domain/bluetoothMonitoring";
 import { sanitizeTempoMap } from "../domain/tempoMap";
 import { normalizeKeptPractice } from "../domain/keptPractice";
+import { checkIncomingArchiveManifest, collectLibraryIds, createUniqueIdMinter } from "../domain/incomingArchive";
+import { i18n } from "../i18n/instance";
 
 /** Pre-edit source files already extracted, by archive path → managed uri (shared sources). */
 type SourceAudioDestinations = Map<string, string>;
@@ -106,8 +106,12 @@ export type MaterializedSongNookArchiveMerge = {
     warnings: ArchiveWarning[];
 };
 
+/** Every id this module mints is checked against the library (reserved when an
+ *  import starts) and against every id minted before it: never a shared identity. */
+const mintImportId = createUniqueIdMinter();
+
 function buildEntityId(prefix: string) {
-    return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    return mintImportId(prefix);
 }
 
 function buildWorkspaceId() {
@@ -412,18 +416,6 @@ async function materializeArchiveClipOverdub(
     };
 }
 
-function isSongNookArchiveManifest(value: unknown): value is ArchiveManifest {
-    if (!value || typeof value !== "object") return false;
-    const candidate = value as Partial<ArchiveManifest>;
-    // Accept the pre-rename format id too — archives exported before the SongNook
-    // rename carry "song-nook-archive" and must keep importing forever.
-    const format = candidate.format as string | undefined;
-    return (
-        (format === SONG_NOOK_ARCHIVE_FORMAT || format === LEGACY_SONG_NOOK_ARCHIVE_FORMAT) &&
-        Array.isArray(candidate.workspaces)
-    );
-}
-
 export async function pickSongNookArchiveFile(): Promise<PickedLibraryArchiveFile | null> {
     const result = await DocumentPicker.getDocumentAsync({
         type: ["application/zip", "application/x-zip-compressed", "*/*"],
@@ -455,17 +447,20 @@ export async function readSongNookArchive(
     }
 
     // A received file is untrusted: a giant manifest.json must not be parsed at all.
-    const manifestJson = JSON.parse(
+    const manifestJson: unknown = JSON.parse(
         strFromU8(await readStoredZipEntryBytes(archiveIndex, manifestEntry, MAX_ARCHIVE_MANIFEST_ENTRY_BYTES))
     );
-    if (!isSongNookArchiveManifest(manifestJson)) {
-        throw new Error("This file is not a valid SongNook Archive.");
+    // The one check every incoming archive passes (Send, a shared file, Settings
+    // import): typed, repaired or refused here, before a preview or a save.
+    const checked = checkIncomingArchiveManifest(manifestJson, { now: Date.now(), untitled: i18n.t("common.untitled") });
+    if (checked.repairs > 0) {
+        console.warn(`[import] ${checked.repairs} field(s) in "${sourceName}" were repaired on arrival`);
     }
 
     return {
         sourceUri,
         sourceName,
-        manifest: manifestJson,
+        manifest: checked.manifest,
         archiveIndex,
     };
 }
@@ -499,6 +494,7 @@ export async function materializeSongNookArchiveMerge(
     localPrimaryWorkspaceId: string | null
 ): Promise<MaterializedSongNookArchiveMerge> {
     await ensureBackupDiskSpace(sumReferencedArchiveAudioBytes(parsed), "restore");
+    mintImportId.reserve(collectLibraryIds(existingWorkspaces));
     const written: ImportWriteLog = [];
     try {
         return await materializeSongNookArchiveMergeUnguarded(parsed, existingWorkspaces, localPrimaryWorkspaceId, written);

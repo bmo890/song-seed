@@ -830,3 +830,69 @@ describe("SongNook Archive warnings carry codes (sweep 2026-10-22 #8)", () => {
         expect(merge.warnings[0]).toEqual({ code: "text", params: { message: "Something an older app wrote." } });
     });
 });
+
+describe("a hostile incoming archive is checked before anything is saved (audit 2026-11-02, root cause 5)", () => {
+    async function tamperedArchive(tamper: (manifest: any) => void) {
+        const { workspaces } = buildLibrary();
+        const prepared = await prepareLibraryExportArchive({
+            workspaces,
+            notes: [],
+            format: "songnook-archive",
+            scope: { workspaceIds: ["ws-1"], collectionIds: [] },
+            options: {
+                includeFullSongHistory: true,
+                includeNotes: true,
+                includeLyrics: true,
+                includeHiddenItems: true,
+                preserveAllMetadata: true,
+            },
+            libraryPreferences: { primaryWorkspaceId: "ws-1", primaryCollectionIdByWorkspace: { "ws-1": "col-1" } },
+        });
+        const entries = unzipSync(mockFiles.get(prepared.archiveUri)!);
+        const manifest = JSON.parse(strFromU8(entries["manifest.json"]));
+        tamper(manifest);
+        entries["manifest.json"] = strToU8(JSON.stringify(manifest));
+        const uri = "file:///doc/hostile.songnook";
+        mockFiles.set(uri, zipSync(entries, { level: 0 }));
+        return readSongNookArchive(uri, "hostile.songnook");
+    }
+
+    it("a null title, a missing date and a collection loop arrive repaired", async () => {
+        const parsed = await tamperedArchive((manifest) => {
+            const collections = manifest.workspaces[0].collections;
+            const song = collections[0].songs[0];
+            song.title = null;
+            delete song.createdAt;
+            delete song.lastActivityAt;
+            for (const clip of song.clips) delete clip.createdAt;
+            collections.push({ id: "loop-a", title: "A", parentCollectionId: "loop-b", folderPath: "A", songs: [], standaloneClips: [] });
+            collections.push({ id: "loop-b", title: "B", parentCollectionId: "loop-a", folderPath: "B", songs: [], standaloneClips: [] });
+        });
+        const merge = await materializeSongNookArchiveMerge(parsed, [], null);
+        const [workspace] = normalizeWorkspaces(merge.importedWorkspaces);
+        const song = workspace!.ideas.find((idea) => idea.kind === "project")!;
+        expect(typeof song.title).toBe("string");
+        expect(Number.isFinite(song.createdAt)).toBe(true);
+        expect(Number.isFinite(song.lastActivityAt)).toBe(true);
+        const parentOf = new Map(workspace!.collections.map((c) => [c.id, c.parentCollectionId]));
+        const loops = workspace!.collections.filter((c) => {
+            const seen = new Set<string>();
+            let current: string | null | undefined = c.id;
+            while (current) {
+                if (seen.has(current)) return true;
+                seen.add(current);
+                current = parentOf.get(current);
+            }
+            return false;
+        });
+        expect(loops).toEqual([]);
+    });
+
+    it("a file that isn't an archive is refused before a preview", async () => {
+        await expect(
+            tamperedArchive((manifest) => {
+                manifest.workspaces = "nope";
+            })
+        ).rejects.toThrow("This file is not a valid SongNook Archive.");
+    });
+});

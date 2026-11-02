@@ -2,7 +2,7 @@
  * How a failed SongNook Send attempt is explained — one place, so every entry
  * point (the Send sheet today) says the same thing for the same failure.
  */
-import { EmptyShareError, SendTransferError, TooLargeShareError } from "./shareLink";
+import { EmptyShareError, SendTransferError, TooLargeShareError, UnsendableShareError } from "./shareLink";
 import { describeSendTransferError } from "./sendTransfer";
 import { i18n } from "../i18n/instance";
 
@@ -22,6 +22,12 @@ export function describeShareLinkError(
     return {
       title: i18n.t("shareLink.tooLargeTitle"),
       body: i18n.t("shareLink.tooLargeBody", { limit: formatByteLimit(err.limitBytes) }),
+    };
+  }
+  if (err instanceof UnsendableShareError) {
+    return {
+      title: i18n.t("shareLink.unsendableTitle", { count: err.fileNames.length }),
+      body: i18n.t("shareLink.unsendableBody", { names: err.fileNames.slice(0, 3).join(", ") }),
     };
   }
   if (err instanceof SendTransferError) {
