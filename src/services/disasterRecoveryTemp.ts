@@ -4,6 +4,7 @@ import {
     SONG_NOOK_ROOT,
     resolveManagedUri,
     toRelativeManagedPath,
+    waveformSidecarUri,
 } from "./storagePaths";
 import {
     collectManagedLibraryFilePathsFromWorkspaces,
@@ -134,10 +135,22 @@ async function cleanupRestoreTokenDirectories(restoreToken: string, preserveAny:
         [
             `songnook/audio/restored-${restoreToken}`,
             `songnook/workspace-archives/restored-${restoreToken}`,
+            `songnook/preview-audio/restored-${restoreToken}`,
         ].map((path) =>
             FileSystem.deleteAsync(resolveManagedUri(path), { idempotent: true }).catch(() => {})
         )
     );
+}
+
+/**
+ * A restored file is kept when the library uses it, and so is the detail-waveform
+ * sidecar beside it (audit 2026-11-02 G7): the backup carries sidecars precisely so a
+ * new phone need not re-analyse every recording, and the library never lists them.
+ */
+function isKeptRestoreDestination(path: string, referencedPaths: Set<string>) {
+    if (referencedPaths.has(path)) return true;
+    const sidecarOf = path.endsWith(waveformSidecarUri("")) ? path.slice(0, -waveformSidecarUri("").length) : null;
+    return sidecarOf != null && referencedPaths.has(sidecarOf);
 }
 
 async function removeUnreferencedRestoreDestinations(
@@ -146,7 +159,7 @@ async function removeUnreferencedRestoreDestinations(
 ) {
     await Promise.all(
         Array.from(destinationPaths)
-            .filter((path) => !referencedPaths.has(path))
+            .filter((path) => !isKeptRestoreDestination(path, referencedPaths))
             .map((path) =>
                 FileSystem.deleteAsync(resolveManagedUri(path), { idempotent: true }).catch(
                     () => {}
@@ -196,7 +209,8 @@ export async function cleanupInterruptedDisasterRecoveryRestores(workspaces: Wor
             const tokenIsReferenced = Array.from(referencedPaths).some(
                 (path) =>
                     path.startsWith(`songnook/audio/restored-${restoreToken}/`) ||
-                    path.startsWith(`songnook/workspace-archives/restored-${restoreToken}/`)
+                    path.startsWith(`songnook/workspace-archives/restored-${restoreToken}/`) ||
+                    path.startsWith(`songnook/preview-audio/restored-${restoreToken}/`)
             );
             const committed = journal?.phase === "committed" || tokenIsReferenced;
 
