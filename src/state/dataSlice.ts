@@ -271,7 +271,8 @@ export type DataSlice = {
         received: ReceivedMeta
     ) => { workspaceId: string; collectionId: string };
     archiveWorkspace: (id: string, isArchived: boolean) => void;
-    addCollection: (workspaceId: string, title: string, parentCollectionId?: string | null, description?: string) => string;
+    /** Null when the workspace is gone or read-only (a parcel, an archive). */
+    addCollection: (workspaceId: string, title: string, parentCollectionId?: string | null, description?: string) => string | null;
     updateCollection: (workspaceId: string, collectionId: string, updates: { title?: string }) => void;
     moveCollection: (
         collectionId: string,
@@ -464,7 +465,9 @@ function countTotalIdeas(workspaces: Workspace[]) {
 }
 
 function ensureAtLeastOneActiveWorkspace(workspaces: Workspace[]) {
-    if (workspaces.some((workspace) => !workspace.isArchived)) {
+    // A received parcel doesn't count: it is never where you work (12c C-M1). The
+    // delete confirm promises "a fresh empty workspace takes their place".
+    if (workspaces.some((workspace) => !isReadOnlyWorkspace(workspace))) {
         return workspaces;
     }
 
@@ -477,7 +480,9 @@ export function resolvePrimaryWorkspaceId(
     workspaces: Workspace[],
     preferredWorkspaceId: string | null | undefined
 ) {
-    const activeWorkspaces = workspaces.filter((workspace) => !workspace.isArchived);
+    // Your own live workspaces only: a parcel as "primary" opened the app inside
+    // someone else's package (12c C-M1).
+    const activeWorkspaces = workspaces.filter((workspace) => !isReadOnlyWorkspace(workspace));
     if (activeWorkspaces.length === 0) {
         return null;
     }
@@ -1556,7 +1561,10 @@ export const createDataSlice: StateCreator<
 
     setActiveWorkspaceId: (id) =>
         set((state) => {
-            if (!state.workspaces.some((workspace) => workspace.id === id)) return state;
+            // Read-only workspaces are visited, never made active: everything that
+            // writes "to the active workspace" would land in a parcel or an archive
+            // stub (12c C-M2, 12e E-M3).
+            if (!isWritableWorkspaceId(state.workspaces, id)) return state;
             const now = Date.now();
             return {
                 activeWorkspaceId: id,
@@ -1876,6 +1884,10 @@ export const createDataSlice: StateCreator<
     },
 
     addCollection: (workspaceId, title, parentCollectionId = null, description) => {
+        if (!isWritableWorkspaceId(get().workspaces, workspaceId)) {
+            warnReadOnlyWrite("new collection", workspaceId);
+            return null;
+        }
         const collection = createCollection(workspaceId, title, parentCollectionId, description);
         set((state) => {
             const nextWorkspaces = state.workspaces.map((workspace) =>
@@ -1922,6 +1934,11 @@ export const createDataSlice: StateCreator<
 
         if (!sourceWorkspace || !targetWorkspace) {
             return { ok: false, error: i18n.t("collectionErrors.notFound") };
+        }
+        // Never INTO a parcel or an archive; never OUT of an archive (its stub has no
+        // audio). Out of a parcel is how Keep works.
+        if (isReadOnlyWorkspace(targetWorkspace) || sourceWorkspace.isArchived) {
+            return { ok: false, error: i18n.t("collectionErrors.readOnly") };
         }
 
         const movingCollection = sourceWorkspace.collections.find((collection) => collection.id === collectionId) ?? null;
@@ -2830,12 +2847,12 @@ export const createDataSlice: StateCreator<
     archiveWorkspace: (id, isArchived) => {
         set((state) => {
             const spaces = state.workspaces.map((ws) => (ws.id === id ? { ...ws, isArchived } : ws));
-            // if we archive the active one, pick the first active one
+            // if we archive the active one, pick the first workspace of your own
             let activeId = state.activeWorkspaceId;
             if (id === activeId && isArchived) {
-                activeId = spaces.find((w) => !w.isArchived)?.id ?? null;
+                activeId = firstWritableWorkspaceId(spaces);
             }
-            const fallbackWorkspaceId = spaces.find((workspace) => !workspace.isArchived)?.id ?? null;
+            const fallbackWorkspaceId = firstWritableWorkspaceId(spaces);
             return {
                 workspaces: spaces,
                 activeWorkspaceId: activeId,
@@ -3426,6 +3443,13 @@ export const createDataSlice: StateCreator<
     },
 
     deleteIdea: (ideaId) => {
+        // Nothing inside a parcel or an archive is deleted item by item: a parcel goes
+        // whole (Delete) or is kept (Keep). A stray id must never delete there.
+        const owner = locateIdea(get().workspaces, ideaId);
+        if (owner && isReadOnlyWorkspace(owner.workspace)) {
+            warnReadOnlyWrite("delete", owner.workspace.id);
+            return;
+        }
         let audioUrisToDelete: string[] = [];
         set((state) => {
             let removedIdea: SongIdea | undefined;

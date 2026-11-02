@@ -44,7 +44,7 @@ export function useWorkspaceCollectionImportFlow({
   navigation: any;
   activeWorkspaceId: string | null;
   topLevelCollectionCount: number;
-  addCollection: (workspaceId: string, title: string, parentCollectionId?: string | null, description?: string) => string;
+  addCollection: (workspaceId: string, title: string, parentCollectionId?: string | null, description?: string) => string | null;
   deleteCollection: (collectionId: string) => void;
 }) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -94,6 +94,8 @@ export function useWorkspaceCollectionImportFlow({
     const description = draftDescription.trim() || undefined;
     const collectionId = addCollection(workspaceIdSnapshot, title, null, description);
     setModalOpen(false);
+    // Refused only for a read-only workspace, whose hub offers no New collection.
+    if (!collectionId) return;
     setDraftTitle("");
     setDraftDescription("");
     openCollectionInBrowse(navigation, { collectionId, workspaceId: workspaceIdSnapshot });
@@ -116,6 +118,7 @@ export function useWorkspaceCollectionImportFlow({
 
       const collectionId = addCollection(workspaceIdSnapshot, label, null);
       resetImportCollectionModal();
+      if (!collectionId) return;
       openCollectionInBrowse(navigation, { collectionId, workspaceId: workspaceIdSnapshot });
 
       const jobId = `import-${Date.now()}`;

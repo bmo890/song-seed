@@ -67,7 +67,7 @@ import { authorizeIntentionalEmptyStateWrite } from "../services/stateIntegrity"
 import { i18n } from "../i18n";
 import { relocateActivityEvents, relocatePlaylists } from "./relocationMetadata";
 import { locateCollection, locateIdea } from "../domain/itemLocator";
-import { isReadOnlyWorkspace } from "../domain/workspaceVisibility";
+import { firstWritableWorkspaceId, isReadOnlyWorkspace, isWritableWorkspaceId } from "../domain/workspaceVisibility";
 import { SONG_NOOK_PREVIEW_AUDIO_DIR } from "../services/storagePaths";
 
 const buildIdeaId = () => genId("idea");
@@ -718,10 +718,32 @@ function buildClipRelocation(
     };
 }
 
+/** The fallback home: your own live workspace, never a parcel or an archive. */
 function getFirstActiveWorkspaceId(workspaces: Workspace[], excludedWorkspaceId?: string) {
-    return (
-        workspaces.find((workspace) => !workspace.isArchived && workspace.id !== excludedWorkspaceId)?.id ?? null
+    return firstWritableWorkspaceId(workspaces, excludedWorkspaceId);
+}
+
+/**
+ * Where an import may land: a collection in your own live workspace. A received
+ * parcel takes imports only from the receive flow filling it (`intoReceivedParcel`);
+ * an archive never does (its stub is replaced on unarchive — 12f F-H1).
+ */
+function findImportTargetWorkspace(
+    workspaces: Workspace[],
+    collectionId: string,
+    options?: { intoReceivedParcel?: boolean }
+): Workspace {
+    const targetWorkspace = workspaces.find((workspace) =>
+        workspace.collections.some((collection) => collection.id === collectionId)
     );
+    if (!targetWorkspace) {
+        throw new Error("Target collection not found.");
+    }
+    const parcelFill = !!options?.intoReceivedParcel && targetWorkspace.origin === "received";
+    if (isReadOnlyWorkspace(targetWorkspace) && !parcelFill) {
+        throw new Error("Target collection is read-only.");
+    }
+    return targetWorkspace;
 }
 
 function getCollectionDescendantIds(collections: Collection[], collectionId: string) {
@@ -825,6 +847,16 @@ function buildWorkspaceArchivalState(
     };
 }
 
+/** A paste never lands in a parcel or an archive, never moves anything out of one
+ *  (Keep is how a parcel's songs become yours), and never copies an archive stub's
+ *  audio-less clips. Copying out of a parcel is fine. */
+function pasteAllowed(source: Workspace, target: Workspace, mode: "copy" | "move") {
+    if (isReadOnlyWorkspace(target)) return false;
+    if (source.isArchived) return false;
+    if (mode === "move" && isReadOnlyWorkspace(source)) return false;
+    return true;
+}
+
 export const appActions = {
     addIdea: (collectionId: string) => {
         const state = useStore.getState();
@@ -890,6 +922,8 @@ export const appActions = {
         targetWorkspaceId: string,
         targetCollectionId: string
     ) => {
+        // The save picker offers only writable places; this is the backstop.
+        if (!isWritableWorkspaceId(useStore.getState().workspaces, targetWorkspaceId)) return;
         if (sourceWorkspaceId === targetWorkspaceId) {
             useStore.getState().updateIdeas((ideas) =>
                 ideas.map((idea) =>
@@ -930,15 +964,11 @@ export const appActions = {
             createdAt?: number;
             importedAt?: number;
             sourceCreatedAt?: number;
-        }
+        },
+        options?: { intoReceivedParcel?: boolean }
     ) => {
         const state = useStore.getState();
-        const targetWorkspace = state.workspaces.find((workspace) =>
-            workspace.collections.some((collection) => collection.id === collectionId)
-        );
-        if (!targetWorkspace) {
-            throw new Error("Target collection not found.");
-        }
+        const targetWorkspace = findImportTargetWorkspace(state.workspaces, collectionId, options);
         const ideaId = buildIdeaId();
         const clipId = buildClipId();
         const importedAt = payload.importedAt ?? Date.now();
@@ -1019,16 +1049,12 @@ export const appActions = {
             createdAt?: number;
             importedAt?: number;
             sourceCreatedAt?: number;
-        }>
+        }>,
+        options?: { intoReceivedParcel?: boolean }
     ): Array<{ ideaId: string; clipId: string }> => {
         if (payloads.length === 0) return [];
         const state = useStore.getState();
-        const targetWorkspace = state.workspaces.find((workspace) =>
-            workspace.collections.some((collection) => collection.id === collectionId)
-        );
-        if (!targetWorkspace) {
-            throw new Error("Target collection not found.");
-        }
+        const targetWorkspace = findImportTargetWorkspace(state.workspaces, collectionId, options);
 
         const created = payloads.map((payload) => {
             const ideaId = buildIdeaId();
@@ -1108,15 +1134,11 @@ export const appActions = {
                 importedAt?: number;
                 sourceCreatedAt?: number;
             }>;
-        }
+        },
+        options?: { intoReceivedParcel?: boolean }
     ) => {
         const state = useStore.getState();
-        const targetWorkspace = state.workspaces.find((workspace) =>
-            workspace.collections.some((collection) => collection.id === collectionId)
-        );
-        if (!targetWorkspace) {
-            throw new Error("Target collection not found.");
-        }
+        const targetWorkspace = findImportTargetWorkspace(state.workspaces, collectionId, options);
         if (payload.clips.length === 0) {
             throw new Error("No imported audio available for this song.");
         }
@@ -1204,7 +1226,7 @@ export const appActions = {
         const importedAt = payload.importedAt ?? Date.now();
         const createdAt = payload.createdAt ?? importedAt;
 
-        state.updateIdeas((prev) =>
+        const written = state.updateIdeas((prev) =>
             prev.map((idea) => {
                 if (idea.id !== projectId) return idea;
 
@@ -1232,6 +1254,7 @@ export const appActions = {
             }),
             { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, projectId) }
         );
+        if (!written) throw new Error("This sketch can't take new takes.");
         state.logIdeaActivity(projectId, "updated", "import", clipId);
         state.markRecentlyAdded([clipId]);
         return clipId;
@@ -2275,6 +2298,9 @@ export const appActions = {
     // is NOT the idea's last clip — deleting the last clip empties the idea, so
     // route that through deleteIdea instead.
     deleteClipFromIdea: (ideaId: string, clipId: string) => {
+        // Never item by item inside a parcel or an archive (decision B).
+        const owner = locateIdea(useStore.getState().workspaces, ideaId);
+        if (owner && isReadOnlyWorkspace(owner.workspace)) return;
         const removedClipIdSet = new Set([clipId]);
         let audioUrisToDelete: string[] = [];
 
@@ -2547,6 +2573,10 @@ export const appActions = {
         if (!sourceWorkspace || !targetWorkspace) {
             return { ok: false, error: i18n.t("collectionErrors.notFound") };
         }
+        // Never into a parcel or an archive; never out of an archive stub (no audio).
+        if (isReadOnlyWorkspace(targetWorkspace) || sourceWorkspace.isArchived) {
+            return { ok: false, error: i18n.t("collectionErrors.readOnly") };
+        }
 
         const sourceCollection =
             sourceWorkspace.collections.find((collection) => collection.id === collectionId) ?? null;
@@ -2646,6 +2676,7 @@ export const appActions = {
             workspace.collections.some((collection) => collection.id === collectionId)
         );
         if (!targetWorkspace) return [];
+        if (!pasteAllowed(sourceWs, targetWorkspace, clipboard.mode)) return [];
 
         if (clipboard.from === "list") {
             const sourceIdeas = sourceWs.ideas.filter((idea) => clipboard.clipIds.includes(idea.id));
@@ -2836,6 +2867,7 @@ export const appActions = {
         if (!targetWorkspace || !targetIdeaSnapshot || targetIdeaSnapshot.kind !== "project") {
             return [];
         }
+        if (!pasteAllowed(sourceWs, targetWorkspace, clipboard.mode)) return [];
 
         let clipSources: ClipTransferSource[] = [];
         const movedProjectPrimaryClipIds = new Map<string, string>();

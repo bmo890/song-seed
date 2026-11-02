@@ -269,7 +269,7 @@ export function TransferReceiveScreen() {
             enrichImportedAudioAsset({ uri: file.uri, name: file.name, mimeType: file.mimeType })
           )
         );
-        const batcher = createClipImportBatcher({ collectionId, workspaceId });
+        const batcher = createClipImportBatcher({ collectionId, workspaceId, intoReceivedParcel: true });
         // Downloads run one after another, but the import batch finishes in
         // any order; the parcel's order is the sender's order (a set, a running
         // order), so clips are added by parcel index after the batch, each

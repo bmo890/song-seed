@@ -17,6 +17,7 @@ import {
 } from "./dataSlice";
 import type { ActivityEvent } from "../types";
 import { isIdeaSort } from "../domain/ideaSort";
+import { firstWritableWorkspaceId, isReadOnlyWorkspace } from "../domain/workspaceVisibility";
 import {
     DEFAULT_BACKUP_REMINDER_FREQUENCY,
     isBackupReminderFrequency,
@@ -105,7 +106,9 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
     const normalizedWorkspaces = Array.isArray(state?.workspaces) && state.workspaces.length > 0
         ? normalizeWorkspaces(state.workspaces)
         : [fallbackWorkspace];
-    const baseWorkspaces = normalizedWorkspaces.some((workspace) => !workspace.isArchived)
+    // A received parcel or an archive is never "where you work" (decision B, 12c C-M1):
+    // with no workspace of your own, a fresh empty one is seeded.
+    const baseWorkspaces = normalizedWorkspaces.some((workspace) => !isReadOnlyWorkspace(workspace))
         ? normalizedWorkspaces
         : [fallbackWorkspace, ...normalizedWorkspaces];
     // Heal managed audio URIs against the live document directory so absolute paths
@@ -114,7 +117,7 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
     const workspaces = rebaseWorkspacesManagedMedia(baseWorkspaces);
     const workspaceIds = new Set(workspaces.map((workspace) => workspace.id));
     const activeWorkspaceIds = new Set(
-        workspaces.filter((workspace) => !workspace.isArchived).map((workspace) => workspace.id)
+        workspaces.filter((workspace) => !isReadOnlyWorkspace(workspace)).map((workspace) => workspace.id)
     );
     const collectionIds = new Set(
         workspaces.flatMap((workspace) => workspace.collections.map((collection) => collection.id))
@@ -131,10 +134,9 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
     );
 
     const activeWorkspaceId =
-        state?.activeWorkspaceId &&
-        workspaces.some((workspace) => workspace.id === state.activeWorkspaceId && !workspace.isArchived)
+        state?.activeWorkspaceId && activeWorkspaceIds.has(state.activeWorkspaceId)
             ? state.activeWorkspaceId
-            : workspaces.find((workspace) => !workspace.isArchived)?.id ?? null;
+            : firstWritableWorkspaceId(workspaces);
 
     return {
         workspaces,

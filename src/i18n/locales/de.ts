@@ -2820,6 +2820,7 @@ export const de = {
     topLevelMove: "Eine Sammlung mit Untersammlungen kann nur auf die oberste Ebene verschoben werden.",
     topLevelCopy: "Eine Sammlung mit Untersammlungen kann nur auf die oberste Ebene kopiert werden.",
     packageNotFound: "Dieses Paket gibt es nicht mehr.",
+    readOnly: "Empfangene und archivierte Arbeitsbereiche nehmen nichts Neues auf.",
   },
   sections: {
     intro: "Intro",

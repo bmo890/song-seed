@@ -487,6 +487,8 @@ export function useShareImportScreenModel({
       const collectionId = addCollection(workspaceSnapshot.id, label, null);
       setNewCollectionModalOpen(false);
       setNewCollectionDraft("");
+      // Refused only for a read-only workspace, which is never offered here.
+      if (!collectionId) return;
       finishToCollection(workspaceSnapshot.id, collectionId);
 
       const jobId = `import-${Date.now()}`;

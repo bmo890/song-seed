@@ -9,6 +9,7 @@ import type {
     Songbook,
     Workspace,
 } from "../types";
+import { firstWritableWorkspaceId } from "../domain/workspaceVisibility";
 
 type RuntimeStoreState = {
     workspaces: Workspace[];
@@ -59,8 +60,10 @@ type CleanupTargets = {
     removedClipIds?: Iterable<string>;
 };
 
+/** The fallback home after a delete: your own, live workspace, never a received
+ *  parcel or an archive (12c C-M1). */
 function getFirstActiveWorkspaceId(workspaces: Workspace[]) {
-    return workspaces.find((workspace) => !workspace.isArchived)?.id ?? null;
+    return firstWritableWorkspaceId(workspaces);
 }
 
 function clipboardTouchesRemovedEntity(

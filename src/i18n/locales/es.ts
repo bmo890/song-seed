@@ -2932,6 +2932,7 @@ export const es = {
     topLevelMove: "Una colección con subcolecciones solo puede moverse al nivel superior.",
     topLevelCopy: "Una colección con subcolecciones solo puede copiarse al nivel superior.",
     packageNotFound: "Ese paquete ya no existe.",
+    readOnly: "Los espacios de trabajo recibidos o archivados no admiten trabajo nuevo.",
   },
   sections: {
     intro: "Intro",

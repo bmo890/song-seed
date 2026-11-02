@@ -87,6 +87,11 @@ export async function runWelcomeImport(
     const collectionId =
         existingCollection?.id ??
         state.addCollection(workspace.id, welcomeImportCollectionTitle());
+    if (!collectionId) {
+        // Refused: the workspace is read-only (never the case for a starter library).
+        onProgress({ phase: "error" });
+        return { outcome: "error", imported: 0, failed: 0, skippedDuplicates: 0 };
+    }
 
     const duplicateResult = checkImportDuplicates(assets, getAllClips());
     const toImport = duplicateResult.hasDuplicates ? duplicateResult.uniqueAssets : duplicateResult.allAssets;

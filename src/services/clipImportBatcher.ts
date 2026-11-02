@@ -39,6 +39,8 @@ export function createClipImportBatcher(args: {
     /** Workspace the collection belongs to, for hydration enqueue. Null skips hydration. */
     workspaceId: string | null;
     chunkSize?: number;
+    /** The receive flow filling its own received parcel (otherwise read-only). */
+    intoReceivedParcel?: boolean;
 }): ClipImportBatcher {
     const chunkSize = args.chunkSize ?? CLIP_IMPORT_CHUNK_SIZE;
     let buffer: ClipImportPayload[] = [];
@@ -47,7 +49,9 @@ export function createClipImportBatcher(args: {
         if (buffer.length === 0) return;
         const chunk = buffer;
         buffer = [];
-        const created = appActions.importClipsToCollection(args.collectionId, chunk);
+        const created = appActions.importClipsToCollection(args.collectionId, chunk, {
+            intoReceivedParcel: args.intoReceivedParcel,
+        });
         if (!args.workspaceId) return;
         created.forEach((result, index) => {
             const payload = chunk[index];

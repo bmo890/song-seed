@@ -240,7 +240,7 @@ export function useCollectionImportFlow({
     const { workspaceId, collectionId: packageCollectionId } = useStore
       .getState()
       .addReceivedFilesPackage(received.shareTitle, received);
-    const batcher = createClipImportBatcher({ collectionId: packageCollectionId, workspaceId });
+    const batcher = createClipImportBatcher({ collectionId: packageCollectionId, workspaceId, intoReceivedParcel: true });
     await importAudioAssets(
       assets,
       (_asset, index) => `audio-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 9)}`,
