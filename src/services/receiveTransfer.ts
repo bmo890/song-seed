@@ -8,6 +8,7 @@ import { SEND_MAX_ITEM_BYTES, SEND_MAX_TRANSFER_BYTES, SEND_SERVICE_BASE_URL } f
 import { SendCancelledError, SendTransferError } from "./sendTransfer";
 import { canOpenSealedParcels, openParcelEnvelope, openSealedFile, type ParcelEnvelope } from "./sendSeal";
 import type { ShareKind } from "../types";
+import { isSendableFile } from "../domain/sendFormats";
 
 export type TransferItemPayload = {
   itemId: string;
@@ -19,6 +20,9 @@ export type TransferItemPayload = {
    *  parcel key that opens it. `fileName`, `mimeType` and `size` are then the
    *  real ones, from the opened envelope. */
   sealed?: { size: number; key: string };
+  /** A plain copy of a package's audio for someone without the app (the sealed
+   *  envelope says so). The app takes the package and leaves these. */
+  browserCopy?: boolean;
 };
 
 export type TransferPayload = {
@@ -34,6 +38,9 @@ export type TransferPayload = {
   createdAt: string;
   expiresAt: string;
   items: TransferItemPayload[];
+  /** Files in the parcel that no SongNook can open (left out, never the whole
+   *  parcel refused for them; audit 2026-11-02, 12h H-1). */
+  skippedItems?: number;
 };
 
 /** Thrown when the transfer is gone (expired or never existed) — the friendly
@@ -53,7 +60,6 @@ const MAX_ITEM_BYTES = SEND_MAX_ITEM_BYTES;
 const MAX_NAME_LEN = 260;
 const TRANSFER_ID_PATTERN = /^t_[A-Za-z0-9]{16,80}$/;
 const ITEM_ID_PATTERN = /^i_[A-Za-z0-9]{8,80}$/;
-const AUDIO_EXTS = new Set(["m4a", "mp3", "wav", "aac", "flac", "ogg", "oga", "aif", "aiff", "caf"]);
 const SHARE_KINDS: ReadonlySet<string> = new Set<ShareKind>([
   "setlist",
   "playlist",
@@ -92,17 +98,24 @@ function requiredText(value: unknown, max: number): string {
   return value.slice(0, max);
 }
 
-function extensionOf(fileName: string): string {
-  const dot = fileName.lastIndexOf(".");
-  return dot >= 0 ? fileName.slice(dot + 1).toLowerCase() : "";
+/** The one list every end of Send reads (domain/sendFormats). */
+function isSupportedTransferItem(fileName: string, mimeType: string): boolean {
+  return isSendableFile(fileName, mimeType);
 }
 
-function isSupportedTransferItem(fileName: string, mimeType: string): boolean {
-  const ext = extensionOf(fileName);
-  const mime = mimeType.toLowerCase();
-  if (ext === "songnook") return mime === "application/octet-stream" || mime === "application/zip";
-  if (AUDIO_EXTS.has(ext)) return mime.startsWith("audio/") || mime === "application/octet-stream";
-  return false;
+/**
+ * The files this app can open, with a count of the rest. A file no SongNook
+ * opens is left out with a count; only a parcel with nothing left is refused
+ * (and that refusal is final: trying again can't help).
+ */
+export function keepOpenableItems(transfer: TransferPayload): TransferPayload {
+  const items = transfer.items.filter((item) => isSupportedTransferItem(item.fileName, item.mimeType));
+  if (items.length === 0) {
+    const names = transfer.items.map((item) => item.fileName).join(", ");
+    throw new SendTransferError(`Transfer items "${names}" are not supported.`, undefined, "unsupportedItem");
+  }
+  const skipped = transfer.items.length - items.length;
+  return skipped === 0 ? transfer : { ...transfer, items, skippedItems: (transfer.skippedItems ?? 0) + skipped };
 }
 
 function validateDownloadUrl(value: unknown, transferId: string, itemId: string): string {
@@ -232,10 +245,16 @@ async function openSealedTransfer(transfer: TransferPayload, sealedMeta: unknown
     const mimeType = String(real.mime ?? "").toLowerCase().slice(0, 120);
     const size = Number(real.size);
     if (!Number.isFinite(size) || size < 0 || size > MAX_ITEM_BYTES) throw invalidTransfer("Transfer item size is invalid.");
-    if (!isSupportedTransferItem(fileName, mimeType)) {
-      throw new SendTransferError(`Transfer item "${fileName}" is not supported.`, undefined, "unsupportedItem");
-    }
-    return { ...item, fileName, mimeType, size, sealed: { size: item.size, key } };
+    // Openability is judged after browser copies are set aside (keepOpenableItems):
+    // an odd copy the app would discard must not refuse the package beside it.
+    return {
+      ...item,
+      fileName,
+      mimeType,
+      size,
+      sealed: { size: item.size, key },
+      ...(real.copy === true ? { browserCopy: true } : null),
+    };
   });
   return {
     ...transfer,
@@ -278,13 +297,22 @@ export async function fetchTransfer(transferId: string, key?: string): Promise<T
   }
   const transfer = validateTransferPayload(raw, transferId);
   const sealedMeta = isRecord(raw) && raw.sealed === true ? raw.sealedMeta : null;
-  return withoutBrowserCopies(sealedMeta !== null ? await openSealedTransfer(transfer, sealedMeta, key) : transfer);
+  return keepOpenableItems(
+    withoutBrowserCopies(sealedMeta !== null ? await openSealedTransfer(transfer, sealedMeta, key) : transfer)
+  );
 }
 
 /** A parcel holding a SongNook package carries its audio a second time, as
  *  plain files, only for someone opening the link without the app (the page's
- *  quiet raw-files list, services/parcelShare). The app takes the package. */
+ *  quiet raw-files list, services/parcelShare). The app takes the package.
+ *  Since 2026-11-02 the app marks those copies in the sealed envelope, so only
+ *  marked files are set aside and a web parcel's own bounces beside a package
+ *  stay (12h M-3). Unmarked parcels (sent before) keep the older rule. */
 export function withoutBrowserCopies(transfer: TransferPayload): TransferPayload {
+  if (transfer.items.some((item) => item.browserCopy)) {
+    const kept = transfer.items.filter((item) => !item.browserCopy);
+    return kept.length > 0 ? { ...transfer, items: kept } : transfer;
+  }
   const archives = transfer.items.filter(isArchiveItem);
   if (archives.length === 0 || archives.length === transfer.items.length) return transfer;
   return { ...transfer, items: archives };

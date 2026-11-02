@@ -355,6 +355,9 @@ function SendJobSheet({ job }: { job: SendJob }) {
             <Text style={local.doneMeta}>
               {t("sendSheet.ready")} · {t("sharing.daysLeft", { count: daysUntil(job.link.expiresAt) })}
             </Text>
+            {job.link.leftOut ? (
+              <Text style={local.doneMeta}>{t("sendSheet.leftOut", { count: job.link.leftOut })}</Text>
+            ) : null}
             <View style={local.linkBox}>
               <Text style={local.linkText} numberOfLines={1} selectable>
                 {job.link.shareUrl}

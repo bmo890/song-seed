@@ -22,6 +22,7 @@ import {
   type TransferPayload,
 } from "../../services/receiveTransfer";
 import { readSongNookArchive } from "../../services/libraryImport";
+import { describeArchiveWarning } from "../../services/archiveWarnings";
 import { enrichImportedAudioAsset, importAudioAssets } from "../../services/audioStorage";
 import { createClipImportBatcher } from "../../services/clipImportBatcher";
 import { enqueueMissingMetadataBackfill } from "../../services/backgroundWaveformHydration";
@@ -44,7 +45,11 @@ import { SendTransferError, describeSendTransferError } from "../../services/sen
 function isFinalOpenError(error: unknown): boolean {
   return (
     error instanceof SendTransferError &&
-    (error.code === "missingKey" || error.code === "needsUpdate" || error.code === "sealBroken")
+    (error.code === "missingKey" ||
+      error.code === "needsUpdate" ||
+      error.code === "sealBroken" ||
+      // Nothing in it opens: the same files fail again on every try (12h H-1).
+      error.code === "unsupportedItem")
   );
 }
 
@@ -137,9 +142,14 @@ export function TransferReceiveScreen() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const preview = useParcelPreview();
 
+  // An EMPTY package with this link's id is what a kill mid-save leaves (the
+  // package is made before its clips attach): it isn't "already saved", and it
+  // goes when the parcel is saved again (12h M-5).
   const alreadyReceived = useCallback(
     (id: string) =>
-      useStore.getState().workspaces.some((workspace) => workspace.received?.transferId === id),
+      useStore
+        .getState()
+        .workspaces.some((workspace) => workspace.received?.transferId === id && workspace.ideas.length > 0),
     []
   );
 
@@ -205,6 +215,12 @@ export function TransferReceiveScreen() {
     abortControllerRef.current = abortController;
     preview.stop();
     haptic.tap();
+    // The empty shell an interrupted save left (nothing in it to lose).
+    for (const workspace of useStore.getState().workspaces) {
+      if (workspace.received?.transferId === transfer.transferId && workspace.ideas.length === 0) {
+        useStore.getState().deleteWorkspace(workspace.id);
+      }
+    }
 
     const receivedMeta = {
       senderName: transfer.sender.name,
@@ -223,6 +239,8 @@ export function TransferReceiveScreen() {
       let entityRoute: { kind: "songbook" | "setlist" | "playlist"; id: string } | null = null;
       let importedAnything = false;
       let packageId: string | null = null;
+      // What didn't arrive whole: told before "Saved", as Settings import does (12h M-2).
+      const gaps: string[] = [];
 
       for (let index = 0; index < transfer.items.length; index++) {
         const item = transfer.items[index]!;
@@ -244,6 +262,7 @@ export function TransferReceiveScreen() {
             },
           });
           importedAnything = true;
+          gaps.push(...result.warnings.map(describeArchiveWarning));
           // A collection or a workspace lands as a package: Save opens it, not the list.
           packageId = packageId ?? result.importedWorkspaceIds[0] ?? null;
           entityRoute =
@@ -344,8 +363,15 @@ export function TransferReceiveScreen() {
 
       enqueueMissingMetadataBackfill(useStore.getState().workspaces);
       await cleanupReceiveCache();
-      // haptics vocabulary: `success` — a meaningful completion, paired with a toast.
-      haptic.success();
+      if (transfer.skippedItems) gaps.unshift(t("transferReceive.skippedFiles", { count: transfer.skippedItems }));
+      if (gaps.length > 0) {
+        // haptics vocabulary: `warning`: saved, but not all of it arrived.
+        haptic.warning();
+        AppAlert.info(t("transferReceive.gapsTitle"), gaps.slice(0, 6).join("\n"));
+      } else {
+        // haptics vocabulary: `success` — a meaningful completion, paired with a toast.
+        haptic.success();
+      }
       const donePhase: Phase = { kind: "done", transfer };
       setPhase(donePhase);
       // The leave below runs before React re-renders; the back guard reads the

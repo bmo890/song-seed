@@ -62,39 +62,61 @@ export interface RegisteredItem {
  *  OkHttp read timeout is infinite, so a hung socket would spin forever). */
 const JSON_TIMEOUT_MS = 8000;
 
+/** Finalize does server work per item (a HEAD and a ranged read each), so a big
+ *  parcel needs longer than a tiny JSON call (audit 2026-11-02, 12h M-1). */
+const FINALIZE_TIMEOUT_MS = 60_000;
+/** Finalize is idempotent on the server: a lost answer is asked again, same token. */
+const FINALIZE_ATTEMPTS = 3;
+
 async function requestJson<T>(
   method: "GET" | "POST" | "DELETE",
   path: string,
   body?: unknown,
-  headers: Record<string, string> = {}
+  headers: Record<string, string> = {},
+  timeoutMs = JSON_TIMEOUT_MS
 ): Promise<T> {
   let res: Response;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), JSON_TIMEOUT_MS);
+  // The timer covers the body too: a stalled body used to be unbounded.
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    res = await fetch(`${SEND_SERVICE_BASE_URL}${path}`, {
-      method,
-      headers: { "content-type": "application/json", ...headers },
-      body: body === undefined ? undefined : JSON.stringify(body),
-      signal: controller.signal,
-    });
-  } catch (err) {
-    throw new SendTransferError(
-      `Couldn't reach the transfer service (${(err as Error).message}).`,
-      undefined,
-      "unreachable"
-    );
+    try {
+      res = await fetch(`${SEND_SERVICE_BASE_URL}${path}`, {
+        method,
+        headers: { "content-type": "application/json", ...headers },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      throw new SendTransferError(
+        `Couldn't reach the transfer service (${(err as Error).message}).`,
+        undefined,
+        "unreachable"
+      );
+    }
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      // The server's free allowance is spent (lib/senders.ts, once it enforces).
+      const code: SendTransferErrorCode = res.status === 402 ? "limit" : "rejected";
+      throw new SendTransferError(detail || `Request failed (${res.status}).`, res.status, code);
+    }
+    if (res.status === 204) return undefined as T;
+    try {
+      return (await res.json()) as T;
+    } catch (err) {
+      throw new SendTransferError(`The answer didn't arrive (${(err as Error).message}).`, res.status, "unreachable");
+    }
   } finally {
     clearTimeout(timeout);
   }
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    // The server's free allowance is spent (lib/senders.ts, once it enforces).
-    const code: SendTransferErrorCode = res.status === 402 ? "limit" : "rejected";
-    throw new SendTransferError(detail || `Request failed (${res.status}).`, res.status, code);
-  }
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+}
+
+/** An answer that may not have reached us: the server may have done the work. */
+export function isAmbiguousSendFailure(error: unknown): boolean {
+  return (
+    error instanceof SendTransferError &&
+    (error.code === "unreachable" || (error.code === "rejected" && (error.status ?? 0) >= 500))
+  );
 }
 
 const postJson = <T,>(path: string, body?: unknown, headers?: Record<string, string>) =>
@@ -142,6 +164,14 @@ export function throwIfSendCancelled(signal?: AbortSignal): void {
 
 export type UploadProgress = (sentBytes: number, totalBytes: number) => void;
 
+/** No bytes leaving for this long means the socket is gone. */
+export const UPLOAD_STALL_MS = 60_000;
+
+/** The far backstop for one file: 15 minutes, or the file at 100 kB/s if that is longer. */
+export function uploadCeilingMs(sizeBytes: number): number {
+  return Math.max(15 * 60 * 1000, Math.ceil((Math.max(0, sizeBytes) / 100_000) * 1000));
+}
+
 /** 2+3. Register a file and stream it straight to the presigned URL. */
 export async function registerAndUploadFile(
   transferId: string,
@@ -159,6 +189,7 @@ export async function registerAndUploadFile(
 
   throwIfSendCancelled(options?.signal);
 
+  let lastProgressAt = Date.now();
   // An upload TASK, not uploadAsync (2026-10-14): it reports bytes as they
   // leave and can be cancelled, which is what lets the seal run behind a pill
   // with a live bar and a Cancel that works. A background session on iOS
@@ -172,27 +203,42 @@ export async function registerAndUploadFile(
       headers: item.headers ?? {},
       sessionType: FileSystem.FileSystemSessionType.BACKGROUND,
     },
-    (data) => options?.onProgress?.(data.totalBytesSent, data.totalBytesExpectedToSend || file.size)
+    (data) => {
+      lastProgressAt = Date.now();
+      options?.onProgress?.(data.totalBytesSent, data.totalBytesExpectedToSend || file.size);
+    }
   );
   const onAbort = () => void task.cancelAsync().catch(() => {});
   options?.signal?.addEventListener("abort", onAbort);
 
   let uploadStatus: number;
-  // A truly hung socket is still bounded by an absolute ceiling — generous
-  // enough for a large file on a slow uplink, finite enough that a seal
-  // never runs forever. An abandoned draft is swept server-side within 24h.
-  // The task is cancelled on timeout (the bytes would otherwise keep flowing
-  // behind a failure) and the timer cleared on every exit (sweep #17).
-  const UPLOAD_CEILING_MS = 15 * 60 * 1000;
+  // A hung socket is caught by a STALL watch: no bytes for UPLOAD_STALL_MS
+  // cancels. The old absolute 15-minute ceiling failed every parcel over
+  // ~270 MB on a 2.5 Mbps uplink, and Try again failed the same way (12h M-4).
+  // A far backstop, sized from the file at 100 kB/s, still bounds a socket
+  // that trickles. The task is cancelled on timeout (the bytes would otherwise
+  // keep flowing behind a failure) and every timer cleared on exit (sweep #17).
+  const ceilingMs = uploadCeilingMs(file.size);
   let ceiling: ReturnType<typeof setTimeout> | undefined;
+  let stallWatch: ReturnType<typeof setInterval> | undefined;
   try {
     const res = await Promise.race([
       task.uploadAsync(),
       new Promise<never>((_, reject) => {
-        ceiling = setTimeout(() => {
+        const fail = (reason: string) => {
           void task.cancelAsync().catch(() => {});
-          reject(new Error("upload timed out"));
-        }, UPLOAD_CEILING_MS);
+          reject(new Error(reason));
+        };
+        ceiling = setTimeout(() => fail("upload timed out"), ceilingMs);
+        let lastTick = Date.now();
+        stallWatch = setInterval(() => {
+          const now = Date.now();
+          // A gap between ticks means the app was suspended (the background
+          // session kept sending, unseen): the watch starts over, never fails it.
+          if (now - lastTick > 15_000) lastProgressAt = now;
+          lastTick = now;
+          if (now - lastProgressAt > UPLOAD_STALL_MS) fail("upload stalled");
+        }, 5_000);
       }),
     ]);
     throwIfSendCancelled(options?.signal);
@@ -203,6 +249,7 @@ export async function registerAndUploadFile(
     throw new SendTransferError(`Upload failed (${(err as Error).message}).`, undefined, "uploadFailed");
   } finally {
     if (ceiling !== undefined) clearTimeout(ceiling);
+    if (stallWatch !== undefined) clearInterval(stallWatch);
     options?.signal?.removeEventListener("abort", onAbort);
   }
   options?.onProgress?.(file.size, file.size);
@@ -213,16 +260,32 @@ export async function registerAndUploadFile(
 }
 
 /** 4. Finalize — nothing is fetchable until this returns. */
-export function finalizeTransfer(
+export async function finalizeTransfer(
   transferId: string,
   uploadToken: string,
   /** A sealed parcel's envelope (title, sender, note, file names), sealed. */
-  sealedMeta?: string
+  sealedMeta?: string,
+  options?: { attempts?: number; retryDelayMs?: number }
 ): Promise<{ shareUrl: string }> {
-  return postJson<{ shareUrl: string }>(`/api/transfers/${transferId}/finalize`, {
-    uploadToken,
-    ...(sealedMeta ? { sealedMeta } : {}),
-  });
+  const attempts = Math.max(1, options?.attempts ?? FINALIZE_ATTEMPTS);
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await requestJson<{ shareUrl: string }>(
+        "POST",
+        `/api/transfers/${transferId}/finalize`,
+        { uploadToken, ...(sealedMeta ? { sealedMeta } : {}) },
+        {},
+        FINALIZE_TIMEOUT_MS
+      );
+    } catch (error) {
+      lastError = error;
+      // A refusal is an answer; only a lost or failed answer is asked again.
+      if (!isAmbiguousSendFailure(error) || attempt === attempts) throw error;
+      await new Promise((resolve) => setTimeout(resolve, (options?.retryDelayMs ?? 1500) * attempt));
+    }
+  }
+  throw lastError;
 }
 
 /** Take a sealed link back: its files are deleted at once. The upload token is

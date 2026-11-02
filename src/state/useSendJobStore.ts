@@ -92,8 +92,10 @@ export const useSendJobStore = create<SendJobStore>((set, get) => {
         if (get().job?.id !== job.id) return;
         // The link is the point: it is on the clipboard before the pill says so.
         await Clipboard.setStringAsync(link.shareUrl).catch(() => {});
-        // Haptics: `success` — a meaningful completion, the parcel is sealed.
-        haptic.success();
+        // Haptics: `success` — a meaningful completion, the parcel is sealed;
+        // `warning` when takes were left out (their files are missing; 12h M-2).
+        if (link.leftOut) haptic.warning();
+        else haptic.success();
         toast(i18n.t("sendSheet.copied"), "checkmark-outline");
         set((state) =>
           state.job?.id === job.id ? { job: { ...state.job, status: "ready", link } } : state

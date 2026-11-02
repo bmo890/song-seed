@@ -2745,6 +2745,9 @@ export const de = {
     bigParcelTitle: "{{size}} speichern?",
     bigParcelBody: "Am besten im WLAN. Der Download läuft, solange diese Seite offen ist.",
     stopSavingTitle: "Speichern stoppen?",
+    gapsTitle: "Gespeichert, mit Lücken",
+    skippedFiles_one: "1 Datei ließ sich nicht öffnen und fehlt.",
+    skippedFiles_other: "{{count}} Dateien ließen sich nicht öffnen und fehlen.",
     stopSavingBody: "Bisher Geladenes wird verworfen.",
     stop: "Stoppen",
     play: "{{name}} abspielen",
@@ -3173,6 +3176,8 @@ export const de = {
     hide: "Ausblenden",
     tryAgain: "Erneut versuchen",
     readyPill: "Link bereit · tippen zum Teilen",
+    leftOut_one: "1 Take fehlt: seine Datei ist nicht da",
+    leftOut_other: "{{count}} Takes fehlen: Dateien sind nicht da",
     failedPill: "Senden fehlgeschlagen · tippen zum Wiederholen",
     oneAtATime: "Ein Paket nach dem anderen",
     bytesOf: "{{sent}} von {{total}}",
@@ -3189,6 +3194,9 @@ export const de = {
     fromSketch: "Mit {{title}}", audioOnly: "Nur Audio", part: { takes: "Takes", lyrics: "Text", chart: "Akkordblatt", notes: "Notizen", marks: "Markierungen", layers: "Spuren" }
   },
   shareLink: {
+    unsendableTitle_one: "Diese Datei lässt sich nicht senden",
+    unsendableTitle_other: "Diese Dateien lassen sich nicht senden",
+    unsendableBody: "{{names}} kann nicht per Link reisen. Teile es stattdessen als Datei.",
     tooLargeTitle: "Zu groß für einen Link",
     tooLargeBody: "Links fassen bis zu {{limit}}. Teile es stattdessen als Datei.",
     copied: "Link kopiert — läuft bald ab",

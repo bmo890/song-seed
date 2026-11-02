@@ -25,6 +25,11 @@ export type SentLink = {
   /** The sender's proof for this link (the server keeps only its hash): what
    *  lets Delete link take it back. Absent on links sent before 2026-11-01. */
   uploadToken?: string;
+  /** Recorded before finalize and not yet confirmed: the link may or may not
+   *  be live, so it stays listed (with Delete link) until it is (12h M-1). */
+  pending?: boolean;
+  /** Takes the package couldn't carry (their file was missing on this phone). */
+  leftOut?: number;
 };
 
 /** The window a free user's Send allowance counts over (domain/proCatalog.ts "send"). */
@@ -86,6 +91,8 @@ export function sanitizeSentLinks(value: unknown): SentLink[] {
       expiresAt: c.expiresAt as number,
       itemCount: Number.isFinite(c.itemCount) ? (c.itemCount as number) : 1,
       uploadToken: typeof c.uploadToken === "string" && c.uploadToken ? c.uploadToken : undefined,
+      ...(c.pending === true ? { pending: true } : null),
+      ...(Number.isFinite(c.leftOut) && (c.leftOut as number) > 0 ? { leftOut: c.leftOut } : null),
     });
   }
   return out;
