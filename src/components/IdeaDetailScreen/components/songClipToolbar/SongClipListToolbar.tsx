@@ -1,4 +1,5 @@
 import { buildClipLineages } from "../../../../domain/clipGraph";
+import { readVisibleTakeIds } from "../../../../domain/visibleTakes";
 import { Pressable, Text, View } from "react-native";
 import ReAnimated, { useAnimatedStyle } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
@@ -19,7 +20,10 @@ function SelectionControlsRow() {
   const { t } = useTranslation();
   const { screen } = useSongScreen();
   const selectedClipIds = useStore((s) => s.selectedClipIds);
-  const selectableClipIds = (screen.selectedIdea?.clips ?? []).map((c) => c.id);
+  // All = the takes on screen, never ones a filter, a folded group or a folded
+  // "N older" hides (12b B-M3).
+  const ideaClipIds = new Set((screen.selectedIdea?.clips ?? []).map((c) => c.id));
+  const selectableClipIds = (readVisibleTakeIds() ?? [...ideaClipIds]).filter((id) => ideaClipIds.has(id));
   const allSelected =
     selectableClipIds.length > 0 &&
     selectableClipIds.every((id) => selectedClipIds.includes(id));

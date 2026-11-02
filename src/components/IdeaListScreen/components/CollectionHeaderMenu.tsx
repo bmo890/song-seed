@@ -1,3 +1,4 @@
+import { deleteWithUndo } from "../../common/deleteFeedback";
 import { Pressable, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { styles } from "../../../styles";
@@ -149,7 +150,7 @@ export function CollectionHeaderMenu() {
                   t("received.deleteTitle"),
                   t("received.deleteBody", { title: pkg.title, items: t("received.items", { count: pkg.ideas.length }) }),
                   () => {
-                    useStore.getState().deleteWorkspace(pkg.id);
+                    deleteWithUndo(() => useStore.getState().deleteWorkspace(pkg.id));
                     haptic.success();
                     screen.onBack?.();
                   },

@@ -6,7 +6,8 @@
  * of stripping it on its next write (useStore migrate).
  *
  *   12  2026-07-10 … 2026-11-01 (frozen while ~13 additive changes shipped)
- *   13  2026-11-02 folded date groups as calendar days (hiddenDays fromDay/toDay)
+ *   13  2026-11-02 folded date groups as calendar days (hiddenDays fromDay/toDay),
+ *       Recently deleted (recentlyDeleted, its own persisted row)
  */
 export const STORE_VERSION = 13;
 

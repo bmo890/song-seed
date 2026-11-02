@@ -273,7 +273,7 @@ export function useWorkspaceListScreenModel() {
 
     actions.push({
       key: "delete",
-      label: t("workspaceList.deletePermanently"),
+      label: t("common.delete"),
       icon: "trash-outline",
       tone: "danger",
       onPress: () => {

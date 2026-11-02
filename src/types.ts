@@ -893,3 +893,60 @@ export type ClipClipboard = {
   clipIds: string[];
   from: "list" | "project";
 };
+
+/** What a Recently deleted record holds (decision A, 2026-11-02). */
+export type DeletedItemKind =
+  | "idea"
+  | "takes"
+  | "collection"
+  | "workspace"
+  | "setlist"
+  | "songbook"
+  | "playlist"
+  | "note"
+  | "spark";
+
+/** One entry a delete took out of a compilation, with where it stood. */
+export type DeletedListEntry<T> = { listId: string; index: number; entry: T };
+
+export type DeletedSpark =
+  | { tool: "wordLadder"; record: WordLadderExercise }
+  | { tool: "cutUp"; record: CutUpSpark }
+  | { tool: "magpie"; record: MagpieSpark };
+
+/**
+ * A deleted thing kept whole for 30 days: the record with every id intact, and
+ * what pointed at it (activity, playlist, chart book and setlist entries, its
+ * hidden state), so Restore puts it back as it was. Its audio waits in the media
+ * trash at least as long (services/managedMedia TRASH_RETENTION_MS).
+ */
+export type DeletedItem = {
+  id: string;
+  kind: DeletedItemKind;
+  title: string;
+  deletedAt: number;
+  /** The workspace it lived in (idea, takes, collection, workspace). */
+  workspaceId?: string;
+  /** idea: its collection. collection: its parent (null = top level). */
+  collectionId?: string | null;
+  /** takes: the sketch they came from. */
+  ideaId?: string;
+  ideas?: SongIdea[];
+  collections?: Collection[];
+  workspace?: Workspace;
+  clips?: ClipVersion[];
+  /** Ideas that were hidden in their collection's list. */
+  hiddenIdeaIds?: string[];
+  activityEvents?: ActivityEvent[];
+  playlistItems?: DeletedListEntry<PlaylistItem>[];
+  songbookItems?: DeletedListEntry<SongbookItem>[];
+  setlistEntries?: DeletedListEntry<SetlistEntry>[];
+  /** workspace: its place in the list and its primary collection. */
+  index?: number;
+  primaryCollectionId?: string | null;
+  setlist?: Setlist;
+  songbook?: Songbook;
+  playlist?: Playlist;
+  note?: Note;
+  spark?: DeletedSpark;
+};

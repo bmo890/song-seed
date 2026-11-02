@@ -1,3 +1,4 @@
+import { deleteWithUndo } from "../../common/deleteFeedback";
 import { openIdeaInCollection } from "../../../navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -151,11 +152,11 @@ export function useLibraryScreenModel() {
 
   const confirmDeletePlaylist = () => {
     if (!activePlaylist) return;
-    AppAlert.confirm(
+    AppAlert.destructive(
       t("library.deletePlaylistTitle"),
       t("library.deletePlaylistBody", { title: activePlaylist.title }),
       () => {
-        deletePlaylistAction(activePlaylist.id);
+        deleteWithUndo(() => deletePlaylistAction(activePlaylist.id));
         setSelectedPlaylistId(null);
       },
       { confirmLabel: t("common.delete") }

@@ -38,6 +38,8 @@ import { buildPersistedAppStoreSnapshot, flushPersistedSnapshot } from "./useSto
 import { persistRestoredAppStoreSnapshot } from "./persistedSnapshot";
 import { buildRuntimeCleanupPatch } from "./runtimeCleanup";
 import { trashFilesOfDroppedClips } from "./mediaCleanup";
+import { captureDeletedIdeas, captureDeletedTakes } from "./recentlyDeleted";
+import type { DeletedItem } from "../types";
 import {
     collectManagedIdeaAudioUris,
     deleteManagedArchiveUri,
@@ -205,14 +207,19 @@ type OverdubRenderQueueEntry = {
 
 const overdubRenderQueue = new Map<string, OverdubRenderQueueEntry>();
 
-function deleteManagedAudioUrisAfterGrace(uris: Array<string | null | undefined>) {
+/** A replaced or cleared mix goes to the trash after a grace, unless a clip still
+ *  uses it when the grace ends: a branch shares its source's mix, and the cleared
+ *  branch used to trash it with no reference check (03-12). */
+export function deleteManagedAudioUrisAfterGrace(uris: Array<string | null | undefined>) {
     const audioUris = uris.filter((uri): uri is string => Boolean(uri));
     if (audioUris.length === 0) {
         return;
     }
 
     setTimeout(() => {
-        void deleteManagedAudioUris(audioUris).catch((error) => {
+        const unused = filterUnreferencedManagedAudioUris(audioUris, useStore.getState().workspaces);
+        if (unused.length === 0) return;
+        void deleteManagedAudioUris(unused).catch((error) => {
             console.warn("Deferred managed audio cleanup failed", error);
         });
     }, STALE_OVERDUB_MIX_DELETE_GRACE_MS);
@@ -2426,17 +2433,20 @@ export const appActions = {
         state.setSelectedIdeaId(null);
     },
 
-    deleteSelectedClips: () => {
+    /** Deletes the selected takes into Recently deleted; returns its record ids (for Undo). */
+    deleteSelectedClips: (): string[] => {
         const state = useStore.getState();
-        if (!state.selectedIdeaId || state.selectedClipIds.length === 0) return;
+        if (!state.selectedIdeaId || state.selectedClipIds.length === 0) return [];
         const selectedClipIds = new Set(state.selectedClipIds);
         let audioUrisToDelete: string[] = [];
+        let kept: DeletedItem | null = null;
 
         const owner = locateIdea(state.workspaces, state.selectedIdeaId);
-        if (!owner || isReadOnlyWorkspace(owner.workspace)) return;
+        if (!owner || isReadOnlyWorkspace(owner.workspace)) return [];
         const ownerWorkspaceId = owner.workspace.id;
         useStore.setState((store) => {
             let removedIdeaClips: ClipVersion[] = [];
+            const sourceIdea = locateIdea(store.workspaces, store.selectedIdeaId ?? "")?.idea;
             const nextWorkspaces = store.workspaces.map((workspace) => {
                 if (workspace.id !== ownerWorkspaceId) return workspace;
                 return {
@@ -2480,6 +2490,7 @@ export const appActions = {
                 nextWorkspaces
             );
 
+            kept = sourceIdea ? captureDeletedTakes(store, ownerWorkspaceId, sourceIdea, removedIdeaClips) : null;
             return {
                 ...buildRuntimeCleanupPatch(store, {
                     nextWorkspaces,
@@ -2495,14 +2506,22 @@ export const appActions = {
                         (item) => !item.clipId || !selectedClipIds.has(item.clipId)
                     ),
                 })),
+                ...(kept ? { recentlyDeleted: [kept, ...store.recentlyDeleted] } : null),
             };
         });
         // Durably commit the metadata change before trashing files (see flushPersistedSnapshot).
+        // The takes wait in Recently deleted; their files in the trash as long.
         void flushPersistedSnapshot()
-            .then(() => deleteManagedAudioUris(audioUrisToDelete))
+            .then(() =>
+                deleteManagedAudioUris(
+                    filterUnreferencedManagedAudioUris(audioUrisToDelete, useStore.getState().workspaces)
+                )
+            )
             .catch((error) => {
                 console.warn("[DataSafety] Media deletion skipped because metadata was not durable.", error);
             });
+        const keptItem = kept as DeletedItem | null;
+        return keptItem ? [keptItem.id] : [];
     },
 
     // Remove one clip from an idea by id, anywhere (not tied to the active
@@ -2511,12 +2530,13 @@ export const appActions = {
     // audio only after the metadata change is durable. Callers must ensure this
     // is NOT the idea's last clip — deleting the last clip empties the idea, so
     // route that through deleteIdea instead.
-    deleteClipFromIdea: (ideaId: string, clipId: string) => {
+    deleteClipFromIdea: (ideaId: string, clipId: string): string[] => {
         // Never item by item inside a parcel or an archive (decision B).
         const owner = locateIdea(useStore.getState().workspaces, ideaId);
-        if (owner && isReadOnlyWorkspace(owner.workspace)) return;
+        if (owner && isReadOnlyWorkspace(owner.workspace)) return [];
         const removedClipIdSet = new Set([clipId]);
         let audioUrisToDelete: string[] = [];
+        let kept: DeletedItem | null = null;
 
         useStore.setState((store) => {
             let removedClips: ClipVersion[] = [];
@@ -2563,6 +2583,8 @@ export const appActions = {
                 nextWorkspaces
             );
 
+            const source = locateIdea(store.workspaces, ideaId);
+            kept = source ? captureDeletedTakes(store, source.workspace.id, source.idea, removedClips) : null;
             return {
                 ...buildRuntimeCleanupPatch(store, {
                     nextWorkspaces,
@@ -2576,14 +2598,21 @@ export const appActions = {
                     ...playlist,
                     items: playlist.items.filter((item) => !item.clipId || item.clipId !== clipId),
                 })),
+                ...(kept ? { recentlyDeleted: [kept, ...store.recentlyDeleted] } : null),
             };
         });
 
         void flushPersistedSnapshot()
-            .then(() => deleteManagedAudioUris(audioUrisToDelete))
+            .then(() =>
+                deleteManagedAudioUris(
+                    filterUnreferencedManagedAudioUris(audioUrisToDelete, useStore.getState().workspaces)
+                )
+            )
             .catch((error) => {
                 console.warn("[DataSafety] Media deletion skipped because metadata was not durable.", error);
             });
+        const keptItem = kept as DeletedItem | null;
+        return keptItem ? [keptItem.id] : [];
     },
 
     /**
@@ -2614,22 +2643,34 @@ export const appActions = {
             buildClipRelocation(idea.clips[0]!, idea, workspace.id)
         );
 
-        useStore.setState((store) => ({
-            workspaces: store.workspaces.map((ws) =>
+        useStore.setState((store) => {
+            // The frame itself (lyrics, chart, notes, its place in sets and chart books)
+            // waits in Recently deleted: "Keep takes" never drops words silently (04-M1).
+            // A draft never saved has nothing to keep.
+            const kept = sketch.isDraft ? [] : captureDeletedIdeas(store, workspace.id, [{ ...sketch, clips: [] }]);
+            const nextWorkspaces = store.workspaces.map((ws) =>
                 ws.id !== workspace.id
                     ? ws
                     : normalizeWorkspaceCollectionVisibility({
                           ...ws,
                           ideas: [...released, ...ws.ideas.filter((idea) => idea.id !== ideaId)],
                       })
-            ),
-            // The sketch's own events (created / stage) go with it; take events follow the takes.
-            activityEvents: relocateActivityEvents(
-                store.activityEvents.filter((event) => !(event.ideaId === ideaId && !event.clipId)),
-                { clips: clipRelocations }
-            ),
-            playlists: relocatePlaylists(store.playlists, { clips: clipRelocations }),
-        }));
+            );
+            const cleanup = buildRuntimeCleanupPatch(store, { nextWorkspaces, removedIdeaIds: [ideaId] });
+            return {
+                workspaces: nextWorkspaces,
+                // No ghost rows: a set or chart book entry for the sketch leaves with it.
+                songbooks: cleanup.songbooks,
+                setlists: cleanup.setlists,
+                // The sketch's own events (created / stage) go with it; take events follow the takes.
+                activityEvents: relocateActivityEvents(
+                    store.activityEvents.filter((event) => !(event.ideaId === ideaId && !event.clipId)),
+                    { clips: clipRelocations }
+                ),
+                playlists: relocatePlaylists(store.playlists, { clips: clipRelocations }),
+                ...(kept.length > 0 ? { recentlyDeleted: [...kept, ...store.recentlyDeleted] } : null),
+            };
+        });
 
         if (state.selectedIdeaId === ideaId) {
             state.cancelClipSelection();

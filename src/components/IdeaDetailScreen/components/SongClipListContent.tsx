@@ -15,6 +15,7 @@ import { CollapsingHeaderOverlay } from "../../common/CollapsingHeaderOverlay";
 import { SongCollapsibleHeader } from "./SongCollapsibleHeader";
 import { colors, spacing } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
+import { publishVisibleTakeIds, visibleTakeIds } from "../../../domain/visibleTakes";
 
 type SongClipListContentProps = {
   filteredLineages: ClipLineage[];
@@ -45,6 +46,22 @@ export function SongClipListContent({
   const [locateTarget, setLocateTarget] = useState<{ clipId: string; nonce: number } | null>(null);
   const [headerHeight, setHeaderHeight] = useState(DEFAULT_HEADER_HEIGHT);
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // What "All" may select: the takes this page lists right now (12b B-M3).
+  const visibleIds = useMemo(
+    () =>
+      visibleTakeIds(filteredLineages, {
+        mode: screen.clipViewMode === "timeline" ? "timeline" : "evolution",
+        expandedLineageIds,
+        groups: screen.selectedIdea?.clipGroups,
+        groupAssignments: screen.selectedIdea?.clipGroupAssignments,
+      }),
+    [filteredLineages, screen.clipViewMode, expandedLineageIds, screen.selectedIdea?.clipGroups, screen.selectedIdea?.clipGroupAssignments]
+  );
+  useEffect(() => {
+    publishVisibleTakeIds(visibleIds);
+    return () => publishVisibleTakeIds(null);
+  }, [visibleIds]);
 
   const summaryContent = <SongClipListSummary />;
   // "Collapse all" only when a thread with history is open: finding a lone

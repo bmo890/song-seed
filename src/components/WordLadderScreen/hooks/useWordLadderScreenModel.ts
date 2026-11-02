@@ -1,3 +1,5 @@
+import { sparkStartedThisVisit } from "../../../domain/sparkLeave";
+import { deleteWithUndo } from "../../common/deleteFeedback";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BackHandler } from "react-native";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
@@ -325,7 +327,7 @@ export function useWordLadderScreenModel() {
       t("wordLadder.deleteTitle"),
       t("wordLadder.deleteBody"),
       () => {
-        deleteWordLadder(exerciseId);
+        deleteWithUndo(() => deleteWordLadder(exerciseId));
         navigation.navigate("SparkHome");
       },
       { confirmLabel: t("wordSparks.delete") }
@@ -376,6 +378,7 @@ export function useWordLadderScreenModel() {
       draftText.trim().length > 0 ||
       revisionText.trim().length > 0);
 
+  const openedAtRef = useRef(Date.now());
   const goBack = useCallback(() => {
     // Already saved to the Lyrics Pad → just leave (the exercise stays for resuming).
     if (exercise?.savedLyricId || exercise?.finishedAt) {
@@ -386,7 +389,13 @@ export function useWordLadderScreenModel() {
     // A freshly-opened spark with nothing in it should not linger in the pad —
     // discard the auto-created record rather than silently keeping it.
     if (!hasContent) {
-      if (exerciseId) deleteWordLadder(exerciseId);
+      if (exerciseId) deleteWordLadder(exerciseId, { recentlyDeleted: false });
+      navigation.navigate("SparkHome");
+      return;
+    }
+    // Everything autosaves: a spark you came back to just leaves; only one
+    // started on this visit asks (12f F-H3).
+    if (!sparkStartedThisVisit(exercise?.createdAt, openedAtRef.current)) {
       navigation.navigate("SparkHome");
       return;
     }
@@ -397,7 +406,8 @@ export function useWordLadderScreenModel() {
         style: "destructive",
         icon: actionIcons.discard,
         onPress: () => {
-          if (exerciseId) deleteWordLadder(exerciseId);
+          // Discard keeps it in Recently deleted, with Undo.
+          if (exerciseId) deleteWithUndo(() => deleteWordLadder(exerciseId));
           navigation.navigate("SparkHome");
         },
       },
@@ -409,7 +419,7 @@ export function useWordLadderScreenModel() {
       },
       { label: t("wordSparks.keepWorking"), style: "cancel" },
     ]);
-  }, [exercise?.savedLyricId, exercise?.finishedAt, hasContent, exerciseId, deleteWordLadder, navigation, t]);
+  }, [exercise?.savedLyricId, exercise?.finishedAt, exercise?.createdAt, hasContent, exerciseId, deleteWordLadder, navigation, t]);
 
   // Catch every other way of leaving. Hardware back runs the same prompt as the
   // in-app Back button. A drawer switch can't be intercepted before it happens, so
@@ -431,7 +441,7 @@ export function useWordLadderScreenModel() {
         sub.remove();
         const snapshot = abandonRef.current;
         if (snapshot.exerciseId && !snapshot.savedLyricId && !snapshot.hasContent) {
-          deleteWordLadder(snapshot.exerciseId);
+          deleteWordLadder(snapshot.exerciseId, { recentlyDeleted: false });
         }
       };
     }, [deleteWordLadder])

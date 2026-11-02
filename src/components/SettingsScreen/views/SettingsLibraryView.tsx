@@ -6,6 +6,8 @@ import { settingsScreenStyles, styles } from "../styles";
 import { LibraryActionCard, SettingsGroup, ValueRow } from "../components/SettingsShared";
 import type { useLibraryBackupFlow } from "../hooks/useLibraryBackupFlow";
 import { useTranslation } from "react-i18next";
+import { useNavigation } from "@react-navigation/native";
+import { useStore } from "../../../state/useStore";
 import type { BackupReminderFrequency } from "../../../types";
 import type { AutomaticBackupFrequency } from "../../../domain/automaticBackupPrefs";
 
@@ -32,6 +34,8 @@ export function SettingsLibraryView({
   onOpenStorageDetails: () => void;
 }) {
   const { t } = useTranslation();
+  const navigation = useNavigation();
+  const deletedCount = useStore((s) => s.recentlyDeleted.length);
   return (
     <ScrollView
       style={styles.flexFill}
@@ -164,6 +168,14 @@ export function SettingsLibraryView({
             icon="server-outline"
             title={t("settingsLibrary.storageRepair")}
             onPress={onOpenStorageDetails}
+          />
+          {/* Recently deleted (decision A): findable, quiet; its count is the only meta. */}
+          <LibraryActionCard
+            flat
+            icon="trash-outline"
+            title={t("recentlyDeleted.title")}
+            meta={deletedCount > 0 ? t("recentlyDeleted.count", { count: deletedCount }) : undefined}
+            onPress={() => navigation.navigate("RecentlyDeleted" as never)}
           />
         </SettingsGroup>
       </View>

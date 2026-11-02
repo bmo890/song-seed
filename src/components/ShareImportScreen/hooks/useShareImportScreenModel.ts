@@ -1,3 +1,4 @@
+import { collectionHoldsIdeas } from "../../../state/recentlyDeletedActions";
 import { useState } from "react";
 import { tellIfLibraryBusy } from "../../../services/libraryOperationGate";
 import { AppAlert } from "../../common/AppAlert";
@@ -549,7 +550,7 @@ export function useShareImportScreenModel({
           reportUnsupportedImports(failed);
 
           if (imported.length === 0) {
-            deleteCollection(collectionId);
+            deleteCollection(collectionId, { recentlyDeleted: collectionHoldsIdeas(collectionId) });
             useImportStore.getState().updateJob(jobId, { status: "error" });
             return;
           }

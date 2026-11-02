@@ -113,10 +113,28 @@ import {
     normalizeBluetoothMonitoringCalibration,
     normalizeBluetoothMonitoringCalibrations,
 } from "../domain/bluetoothMonitoring";
+import type { DeletedItem } from "../types";
+import {
+    captureDeletedCollection,
+    captureDeletedIdeas,
+    captureDeletedNote,
+    captureDeletedPlaylist,
+    captureDeletedSetlist,
+    captureDeletedSongbook,
+    captureDeletedSpark,
+    captureDeletedWorkspace,
+} from "./recentlyDeleted";
+
+/** A delete keeps what it removes in Recently deleted (decision A, 2026-11-02);
+ *  only internal clean-ups (a failed import, a kept parcel's empty shell) pass
+ *  `recentlyDeleted: false`. Deletes return the records they made, for Undo. */
+export type DeleteOptions = { recentlyDeleted?: boolean };
 
 export type DataSlice = {
     workspaces: Workspace[];
     activityEvents: ActivityEvent[];
+    /** Deleted things kept 30 days with their audio (state/recentlyDeleted.ts). */
+    recentlyDeleted: DeletedItem[];
     activeWorkspaceId: string | null;
     primaryWorkspaceId: string | null;
     primaryCollectionIdByWorkspace: Record<string, string | null>;
@@ -229,19 +247,19 @@ export type DataSlice = {
     notes: Note[];
     addNote: () => string;
     updateNote: (id: string, updates: { title?: string; body?: string; isPinned?: boolean; textDirection?: ContentDirection }) => void;
-    deleteNote: (id: string) => void;
+    deleteNote: (id: string, opts?: DeleteOptions) => string[];
     wordLadders: WordLadderExercise[];
     addWordLadder: (roleSeed?: string, placeSeed?: string) => string;
     updateWordLadder: (id: string, updates: Partial<Omit<WordLadderExercise, "id" | "createdAt">>) => void;
-    deleteWordLadder: (id: string) => void;
+    deleteWordLadder: (id: string, opts?: DeleteOptions) => string[];
     cutUpSparks: CutUpSpark[];
     addCutUpSpark: (sourceText?: string) => string;
     updateCutUpSpark: (id: string, updates: Partial<Omit<CutUpSpark, "id" | "type" | "createdAt">>) => void;
-    deleteCutUpSpark: (id: string) => void;
+    deleteCutUpSpark: (id: string, opts?: DeleteOptions) => string[];
     magpieSparks: MagpieSpark[];
     addMagpieSpark: () => string;
     updateMagpieSpark: (id: string, updates: Partial<Omit<MagpieSpark, "id" | "type" | "createdAt">>) => void;
-    deleteMagpieSpark: (id: string) => void;
+    deleteMagpieSpark: (id: string, opts?: DeleteOptions) => string[];
     setBackupReminderFrequency: (value: BackupReminderFrequency) => void;
     setHapticsEnabled: (value: boolean) => void;
     setClassicReel: (value: boolean) => void;
@@ -258,7 +276,7 @@ export type DataSlice = {
     updateAutomaticBackup: (patch: Partial<AutomaticBackupPrefs>) => void;
     addWorkspace: (title: string, description?: string, avatarKey?: number, color?: string) => void;
     updateWorkspace: (id: string, updates: { title?: string; description?: string; color?: string; avatarKey?: number }) => void;
-    deleteWorkspace: (id: string) => void;
+    deleteWorkspace: (id: string, opts?: DeleteOptions) => string[];
     /** Flip a received package into a personal workspace ("Move to my workspaces"). */
     adoptReceivedWorkspace: (id: string) => void;
     /** Move a received package's collections into a workspace (top level or under a
@@ -289,7 +307,7 @@ export type DataSlice = {
         targetWorkspaceId: string,
         targetParentCollectionId?: string | null
     ) => { ok: boolean; error?: string };
-    deleteCollection: (collectionId: string) => void;
+    deleteCollection: (collectionId: string, opts?: DeleteOptions) => string[];
     /** Title-only rename; naming counts as work, so it stamps the idea. */
     /** Renames the idea wherever it lives. False when refused (missing or read-only). */
     renameIdea: (ideaId: string, nextTitle: string) => boolean;
@@ -398,13 +416,13 @@ export type DataSlice = {
     reorderPlaylistItems: (playlistId: string, orderedItemIds: string[]) => void;
     removePlaylistItem: (playlistId: string, playlistItemId: string) => void;
     renamePlaylist: (playlistId: string, title: string) => void;
-    deletePlaylist: (playlistId: string) => void;
+    deletePlaylist: (playlistId: string, opts?: DeleteOptions) => string[];
     addSongbook: (title: string) => string;
     addItemsToSongbook: (songbookId: string, items: Array<Omit<SongbookItem, "id" | "addedAt">>) => void;
     reorderSongbookItems: (songbookId: string, orderedItemIds: string[]) => void;
     removeSongbookItem: (songbookId: string, songbookItemId: string) => void;
     renameSongbook: (songbookId: string, title: string) => void;
-    deleteSongbook: (songbookId: string) => void;
+    deleteSongbook: (songbookId: string, opts?: DeleteOptions) => string[];
     addSetlist: (title: string) => string;
     addSetlistEntry: (setlistId: string, entry: Omit<SetlistEntry, "id" | "addedAt">) => void;
     updateSetlistEntry: (
@@ -417,8 +435,8 @@ export type DataSlice = {
     removeSetlistEntry: (setlistId: string, entryId: string) => void;
     reorderSetlistEntries: (setlistId: string, orderedEntryIds: string[]) => void;
     renameSetlist: (setlistId: string, title: string, description?: string) => void;
-    deleteSetlist: (setlistId: string) => void;
-    deleteIdea: (ideaId: string) => void;
+    deleteSetlist: (setlistId: string, opts?: DeleteOptions) => string[];
+    deleteIdea: (ideaId: string, opts?: DeleteOptions) => string[];
 };
 
 const DEFAULT_COLLECTION_TITLE = "Inbox";
@@ -1592,6 +1610,7 @@ export const createDataSlice: StateCreator<
     return {
     workspaces: [initialWorkspace],
     activityEvents: [],
+    recentlyDeleted: [],
     activeWorkspaceId: null,
     primaryWorkspaceId: initialWorkspace.id,
     primaryCollectionIdByWorkspace: {},
@@ -1866,8 +1885,16 @@ export const createDataSlice: StateCreator<
                 };
             }),
         })),
-    deleteNote: (id) =>
-        set((state) => ({ notes: state.notes.filter((note) => note.id !== id) })),
+    deleteNote: (id, opts) => {
+        const note = get().notes.find((candidate) => candidate.id === id);
+        if (!note) return [];
+        const kept = opts?.recentlyDeleted === false ? null : captureDeletedNote(note);
+        set((state) => ({
+            notes: state.notes.filter((candidate) => candidate.id !== id),
+            ...(kept ? { recentlyDeleted: [kept, ...state.recentlyDeleted] } : null),
+        }));
+        return kept ? [kept.id] : [];
+    },
     addWordLadder: (roleSeed = "", placeSeed = "") => {
         const exercise = createWordLadderExercise(roleSeed, placeSeed);
         set((state) => ({ wordLadders: [exercise, ...state.wordLadders] }));
@@ -1879,8 +1906,17 @@ export const createDataSlice: StateCreator<
                 exercise.id === id ? { ...exercise, ...updates, updatedAt: Date.now() } : exercise
             ),
         })),
-    deleteWordLadder: (id) =>
-        set((state) => ({ wordLadders: state.wordLadders.filter((exercise) => exercise.id !== id) })),
+    deleteWordLadder: (id, opts) => {
+        const record = get().wordLadders.find((candidate) => candidate.id === id);
+        if (!record) return [];
+        const kept =
+            opts?.recentlyDeleted === false ? null : captureDeletedSpark({ tool: "wordLadder", record }, record.title);
+        set((state) => ({
+            wordLadders: state.wordLadders.filter((exercise) => exercise.id !== id),
+            ...(kept ? { recentlyDeleted: [kept, ...state.recentlyDeleted] } : null),
+        }));
+        return kept ? [kept.id] : [];
+    },
     addCutUpSpark: (sourceText = "") => {
         const spark = createCutUpSpark(sourceText);
         set((state) => ({ cutUpSparks: [spark, ...state.cutUpSparks] }));
@@ -1892,8 +1928,16 @@ export const createDataSlice: StateCreator<
                 spark.id === id ? { ...spark, ...updates, updatedAt: Date.now() } : spark
             ),
         })),
-    deleteCutUpSpark: (id) =>
-        set((state) => ({ cutUpSparks: state.cutUpSparks.filter((spark) => spark.id !== id) })),
+    deleteCutUpSpark: (id, opts) => {
+        const record = get().cutUpSparks.find((candidate) => candidate.id === id);
+        if (!record) return [];
+        const kept = opts?.recentlyDeleted === false ? null : captureDeletedSpark({ tool: "cutUp", record }, record.title);
+        set((state) => ({
+            cutUpSparks: state.cutUpSparks.filter((spark) => spark.id !== id),
+            ...(kept ? { recentlyDeleted: [kept, ...state.recentlyDeleted] } : null),
+        }));
+        return kept ? [kept.id] : [];
+    },
     addMagpieSpark: () => {
         // A new spark draws from the word-tools language's library (Hebrew only
         // while its source is live).
@@ -1914,8 +1958,16 @@ export const createDataSlice: StateCreator<
                 spark.id === id ? { ...spark, ...updates, updatedAt: Date.now() } : spark
             ),
         })),
-    deleteMagpieSpark: (id) =>
-        set((state) => ({ magpieSparks: state.magpieSparks.filter((spark) => spark.id !== id) })),
+    deleteMagpieSpark: (id, opts) => {
+        const record = get().magpieSparks.find((candidate) => candidate.id === id);
+        if (!record) return [];
+        const kept = opts?.recentlyDeleted === false ? null : captureDeletedSpark({ tool: "magpie", record }, record.title);
+        set((state) => ({
+            magpieSparks: state.magpieSparks.filter((spark) => spark.id !== id),
+            ...(kept ? { recentlyDeleted: [kept, ...state.recentlyDeleted] } : null),
+        }));
+        return kept ? [kept.id] : [];
+    },
     setBackupReminderFrequency: (value) => set({ backupReminderFrequency: value }),
     setHapticsEnabled: (value) => set({ hapticsEnabled: value }),
     setClassicReel: (value) => set({ classicReel: value }),
@@ -2144,11 +2196,16 @@ export const createDataSlice: StateCreator<
         return { ok: true };
     },
 
-    deleteCollection: (collectionId) => {
+    deleteCollection: (collectionId, opts) => {
         let audioUrisToDelete: string[] = [];
+        let kept: DeletedItem | null = null;
         set((state) => {
             const sourceWorkspace = findWorkspaceWithCollection(state.workspaces, collectionId);
             if (!sourceWorkspace) return state;
+            kept =
+                opts?.recentlyDeleted === false
+                    ? null
+                    : captureDeletedCollection(state, sourceWorkspace.id, collectionId);
 
             const descendantIds = getCollectionDescendantIds(sourceWorkspace.collections, collectionId);
             const deleteScopeIds = new Set<string>([collectionId, ...descendantIds]);
@@ -2207,15 +2264,20 @@ export const createDataSlice: StateCreator<
                     ...playlist,
                     items: playlist.items.filter((item) => !deleteScopeIds.has(item.collectionId)),
                 })),
+                ...(kept ? { recentlyDeleted: [kept, ...state.recentlyDeleted] } : null),
             };
         });
         // Durably commit the metadata change (audio refs removed) before trashing files, so a
-        // crash can never leave persisted metadata pointing at moved/removed audio.
+        // crash can never leave persisted metadata pointing at moved/removed audio. The files
+        // wait in the trash as long as the record (Recently deleted); a Restore that landed
+        // meanwhile keeps them (re-checked at trash time).
         void persistAppStoreSnapshot(get())
-            .then(() => deleteManagedAudioUris(audioUrisToDelete))
+            .then(() => deleteManagedAudioUris(filterUnreferencedManagedAudioUris(audioUrisToDelete, get().workspaces)))
             .catch((error) => {
                 console.warn("[DataSafety] Media deletion skipped because metadata was not durable.", error);
             });
+        const keptItem = kept as DeletedItem | null;
+        return keptItem ? [keptItem.id] : [];
     },
 
     toggleIdeaBookmark: (ideaId) => {
@@ -2843,7 +2905,9 @@ export const createDataSlice: StateCreator<
             if (!result.ok) return { ok: false, error: result.error, collectionIds };
             collectionIds.push(collection.id);
         }
-        get().deleteWorkspace(packageId);
+        // The emptied shell is no one's deletion; anything still inside it is kept.
+        const shell = get().workspaces.find((workspace) => workspace.id === packageId);
+        get().deleteWorkspace(packageId, { recentlyDeleted: (shell?.ideas.length ?? 0) > 0 });
         return { ok: true, collectionIds };
     },
 
@@ -2876,12 +2940,14 @@ export const createDataSlice: StateCreator<
         });
     },
 
-    deleteWorkspace: (id) => {
+    deleteWorkspace: (id, opts) => {
         let audioUrisToDelete: string[] = [];
         let archiveUriToDelete: string | undefined;
+        let kept: DeletedItem | null = null;
         set((state) => {
             const removedWorkspace = state.workspaces.find((ws) => ws.id === id);
             if (!removedWorkspace) return state;
+            kept = opts?.recentlyDeleted === false ? null : captureDeletedWorkspace(state, id);
             const nextWorkspaces = ensureAtLeastOneActiveWorkspace(
                 state.workspaces.filter((ws) => ws.id !== id)
             );
@@ -2930,20 +2996,26 @@ export const createDataSlice: StateCreator<
                     ...playlist,
                     items: playlist.items.filter((item) => item.workspaceId !== id),
                 })),
+                ...(kept ? { recentlyDeleted: [kept, ...state.recentlyDeleted] } : null),
             };
         });
         // Durably commit the metadata change before trashing files, so a crash can never
-        // leave persisted metadata pointing at moved/removed audio.
+        // leave persisted metadata pointing at moved/removed audio. A Restore that landed
+        // meanwhile keeps its files (re-checked at trash time).
         void persistAppStoreSnapshot(get())
-            .then(() =>
-                Promise.all([
-                    deleteManagedAudioUris(audioUrisToDelete),
-                    deleteManagedArchiveUri(archiveUriToDelete),
-                ])
-            )
+            .then(() => {
+                const live = get().workspaces;
+                const restored = live.some((workspace) => workspace.id === id);
+                return Promise.all([
+                    deleteManagedAudioUris(filterUnreferencedManagedAudioUris(audioUrisToDelete, live)),
+                    restored ? undefined : deleteManagedArchiveUri(archiveUriToDelete),
+                ]);
+            })
             .catch((error) => {
                 console.warn("[DataSafety] Workspace media deletion skipped because metadata was not durable.", error);
             });
+        const keptItem = kept as DeletedItem | null;
+        return keptItem ? [keptItem.id] : [];
     },
 
     archiveWorkspace: (id, isArchived) => {
@@ -3369,10 +3441,15 @@ export const createDataSlice: StateCreator<
         }));
     },
 
-    deletePlaylist: (playlistId) => {
+    deletePlaylist: (playlistId, opts) => {
+        const playlist = get().playlists.find((candidate) => candidate.id === playlistId);
+        if (!playlist) return [];
+        const kept = opts?.recentlyDeleted === false ? null : captureDeletedPlaylist(playlist);
         set((state) => ({
-            playlists: state.playlists.filter((playlist) => playlist.id !== playlistId),
+            playlists: state.playlists.filter((candidate) => candidate.id !== playlistId),
+            ...(kept ? { recentlyDeleted: [kept, ...state.recentlyDeleted] } : null),
         }));
+        return kept ? [kept.id] : [];
     },
 
     addSongbook: (title) => {
@@ -3453,8 +3530,15 @@ export const createDataSlice: StateCreator<
         }));
     },
 
-    deleteSongbook: (songbookId) => {
-        set((state) => ({ songbooks: state.songbooks.filter((songbook) => songbook.id !== songbookId) }));
+    deleteSongbook: (songbookId, opts) => {
+        const songbook = get().songbooks.find((candidate) => candidate.id === songbookId);
+        if (!songbook) return [];
+        const kept = opts?.recentlyDeleted === false ? null : captureDeletedSongbook(songbook);
+        set((state) => ({
+            songbooks: state.songbooks.filter((candidate) => candidate.id !== songbookId),
+            ...(kept ? { recentlyDeleted: [kept, ...state.recentlyDeleted] } : null),
+        }));
+        return kept ? [kept.id] : [];
     },
 
     addSetlist: (title) => {
@@ -3524,19 +3608,30 @@ export const createDataSlice: StateCreator<
         }));
     },
 
-    deleteSetlist: (setlistId) => {
-        set((state) => ({ setlists: state.setlists.filter((setlist) => setlist.id !== setlistId) }));
+    deleteSetlist: (setlistId, opts) => {
+        const setlist = get().setlists.find((candidate) => candidate.id === setlistId);
+        if (!setlist) return [];
+        const kept = opts?.recentlyDeleted === false ? null : captureDeletedSetlist(setlist);
+        set((state) => ({
+            setlists: state.setlists.filter((candidate) => candidate.id !== setlistId),
+            ...(kept ? { recentlyDeleted: [kept, ...state.recentlyDeleted] } : null),
+        }));
+        return kept ? [kept.id] : [];
     },
 
-    deleteIdea: (ideaId) => {
+    deleteIdea: (ideaId, opts) => {
         // Nothing inside a parcel or an archive is deleted item by item: a parcel goes
         // whole (Delete) or is kept (Keep). A stray id must never delete there.
         const owner = locateIdea(get().workspaces, ideaId);
         if (owner && isReadOnlyWorkspace(owner.workspace)) {
             warnReadOnlyWrite("delete", owner.workspace.id);
-            return;
+            return [];
         }
         let audioUrisToDelete: string[] = [];
+        const keptItems =
+            owner && opts?.recentlyDeleted !== false
+                ? captureDeletedIdeas(get(), owner.workspace.id, [owner.idea])
+                : [];
         set((state) => {
             let removedIdea: SongIdea | undefined;
             const nextWorkspaces = state.workspaces.map((workspace) => {
@@ -3586,15 +3681,18 @@ export const createDataSlice: StateCreator<
                     ...playlist,
                     items: playlist.items.filter((item) => item.ideaId !== ideaId),
                 })),
+                ...(keptItems.length > 0 ? { recentlyDeleted: [...keptItems, ...state.recentlyDeleted] } : null),
             };
         });
         // Durably commit the metadata change before trashing files, so a crash cannot erase
-        // media before the persisted model has forgotten the idea.
+        // media before the persisted model has forgotten the idea. The files wait in the
+        // trash as long as the record; a Restore that landed meanwhile keeps them.
         void persistAppStoreSnapshot(get())
-            .then(() => deleteManagedAudioUris(audioUrisToDelete))
+            .then(() => deleteManagedAudioUris(filterUnreferencedManagedAudioUris(audioUrisToDelete, get().workspaces)))
             .catch((error) => {
                 console.warn("[DataSafety] Media deletion skipped because metadata was not durable.", error);
             });
+        return get().recentlyDeleted.some((item) => item.id === keptItems[0]?.id) ? keptItems.map((item) => item.id) : [];
     },
     };
 };

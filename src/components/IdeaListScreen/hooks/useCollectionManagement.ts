@@ -1,3 +1,4 @@
+import { deleteWithUndo } from "../../common/deleteFeedback";
 import { useEffect, useMemo, useState } from "react";
 import { AppAlert } from "../../common/AppAlert";
 import { appActions } from "../../../state/actions";
@@ -125,7 +126,8 @@ export function useCollectionManagement({
         items: t("collection.itemScope", { count: itemCount }),
       }),
       () => {
-        deleteCollection(managedCollection.id);
+        // Into Recently deleted, with Undo (04-M3).
+        deleteWithUndo(() => deleteCollection(managedCollection.id));
         setManagedCollectionId(null);
       },
       { confirmLabel: t("common.delete") }

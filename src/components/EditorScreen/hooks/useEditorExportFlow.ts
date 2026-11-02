@@ -306,6 +306,12 @@ export function useEditorExportFlow({
         sourceCreatedAt: targetIdea.sourceCreatedAt ?? clip.sourceCreatedAt,
         lastActivityAt: now + index,
       }));
+      // Replace on a lone clip is the same idea, trimmed: it keeps its id and its
+      // idea-level fields (bookmark, title, date, Shelf, sets and playlists point at
+      // the id), never a new idea in its place (04-M5).
+      if (removeOriginalAfterExport && !keepStack && createdIdeas.length === 1) {
+        createdIdeas[0] = { ...targetIdea, clips: createdIdeas[0]!.clips, lastActivityAt: now };
+      }
 
       const written = updateIdeas((prev) => {
         if (keepStack) {

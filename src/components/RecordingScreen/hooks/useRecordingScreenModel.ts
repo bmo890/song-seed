@@ -1,3 +1,5 @@
+import { keepDiscardedTake, type DiscardedTakeContext } from "../../../state/discardedTake";
+import { announceDeleted } from "../../common/deleteFeedback";
 import { returnHome } from "../../../navigation";
 import { useNavigation } from "@react-navigation/native";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
@@ -1375,6 +1377,24 @@ export function useRecordingScreenModel() {
     await recording.cancelPreparedRecording();
   }
 
+  /** Discard and Redo keep a take longer than a false start in Recently deleted,
+   *  headed where it was going (03-9). Read now: the screen moves on before the
+   *  file is handed over. */
+  function keepTakeOnDiscard(): (fileUri: string) => Promise<boolean> {
+    const context: DiscardedTakeContext = {
+      workspaceId: recordingWorkspaceId ?? null,
+      collectionId: recordingIdea?.collectionId ?? null,
+      ideaId: recordingIdea?.id ?? null,
+      ideaTitle: recordingIdea?.title ?? "",
+      durationMs: recording.readElapsedMs(),
+    };
+    return async (fileUri) => {
+      const ids = await keepDiscardedTake(fileUri, context);
+      if (ids.length > 0) announceDeleted(ids);
+      return ids.length > 0;
+    };
+  }
+
   async function cancelRecording() {
     // Never return before the recorder is stopped: with no resolvable target the
     // old early return left the mic capturing behind a closed screen (12d D-H1).
@@ -1386,7 +1406,7 @@ export function useRecordingScreenModel() {
       clearMonitoringDelayTimer();
       await stopGuideMix();
       await stopRecordingMetronome();
-      await recording.discardRecording();
+      await recording.discardRecording(keepTakeOnDiscard());
       clearLivePins();
     }
     if (!appActions.discardEmptyRecordingIdea()) {
@@ -1418,7 +1438,7 @@ export function useRecordingScreenModel() {
       at = Date.now();
       await stopRecordingMetronome();
       noteRecordTrace(`metro ${Date.now() - at}`);
-      await recording.discardRecording();
+      await recording.discardRecording(keepTakeOnDiscard());
       clearLivePins();
     }
     if (takeCountInBars > 0) {
@@ -1630,7 +1650,7 @@ export function useRecordingScreenModel() {
     setOverdubReviewLocked(false);
     await stopGuideMix();
     await stopRecordingMetronome();
-    await recording.discardRecording();
+    await recording.discardRecording(keepTakeOnDiscard());
     clearLivePins();
     if (takeCountInBars > 0) {
       metronome.setCountInBarsValue(takeCountInBars);

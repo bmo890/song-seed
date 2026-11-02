@@ -1,3 +1,4 @@
+import { deleteWithUndo } from "../../common/deleteFeedback";
 import { useEffect, useMemo, useState } from "react";
 import { Share } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -231,8 +232,17 @@ export function useSongbookModel() {
     },
     deleteActiveSongbook: () => {
       if (!activeSongbook) return;
-      deleteSongbook(activeSongbook.id);
-      setSelectedSongbookId(null);
+      const book = activeSongbook;
+      // A named confirm, then Recently deleted with Undo (12e E-H2).
+      AppAlert.destructive(
+        t("library.deleteBookTitle"),
+        t("library.deleteBookBody", { title: book.title }),
+        () => {
+          deleteWithUndo(() => deleteSongbook(book.id));
+          setSelectedSongbookId(null);
+        },
+        { confirmLabel: t("common.delete") }
+      );
     },
   };
 }

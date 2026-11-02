@@ -17,7 +17,7 @@ jest.mock("../../../services/waveformAnalysis", () => ({}));
 jest.mock("../../../services/audioStorage", () => ({}));
 
 import { useStore } from "../../../state/useStore";
-import { sendSparkToPad } from "../sparkSend";
+import { replacePadPageKeepingOld, sendSparkToPad } from "../sparkSend";
 import { dialogStore, type DialogConfig } from "../dialogStore";
 
 /**
@@ -81,5 +81,49 @@ describe("sending a spark to the Lyric Pad again", () => {
       navigation,
     });
     expect(shown!.buttons.find((b) => b.label === "Update page")?.style).toBe("default");
+  });
+});
+
+/**
+ * Recently deleted (decision A) on top: what Replace page writes over is recoverable.
+ * The page as it was waits in Recently deleted, and the toast's Undo puts it back.
+ */
+describe("the words Replace page writes over", () => {
+  beforeEach(() => useStore.setState({ notes: [], recentlyDeleted: [] } as never));
+  afterEach(() => dialogStore.dismiss());
+
+  it("wait in Recently deleted as a copy of the page", () => {
+    const id = padPage("ladder words\nand a verse written in the Pad");
+    let shown: DialogConfig | null = null;
+    const unsubscribe = dialogStore.subscribe((config) => (shown = config));
+    sendSparkToPad({
+      text: "ladder words, revised",
+      title: "Ladder",
+      methodName: "Word Ladder",
+      savedLyricId: id,
+      savedLyricBody: "ladder words",
+      link: () => {},
+      navigation,
+    });
+    unsubscribe();
+    (shown as DialogConfig | null)!.buttons.find((b) => b.label === "Replace page")!.onPress!();
+    const kept = useStore.getState().recentlyDeleted[0]!;
+    expect(kept.kind).toBe("note");
+    expect(kept.note!.body).toBe("ladder words\nand a verse written in the Pad");
+    expect(kept.note!.id).not.toBe(id);
+  });
+
+  it("come back with Undo, and the record goes", () => {
+    const id = padPage("my own verse");
+    replacePadPageKeepingOld(id, "new words")!.undo();
+    expect(bodyOf(id)).toBe("my own verse");
+    expect(useStore.getState().recentlyDeleted).toHaveLength(0);
+  });
+
+  it("nothing is kept when nothing written is lost", () => {
+    const id = padPage("ladder words");
+    expect(replacePadPageKeepingOld(id, "ladder words")).toBeNull();
+    expect(replacePadPageKeepingOld(id, "ladder words, revised", { keepOld: false })).toBeNull();
+    expect(useStore.getState().recentlyDeleted).toHaveLength(0);
   });
 });

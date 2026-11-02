@@ -29,7 +29,7 @@ import {
 import { IncrementalCrc32 } from "./streamingIntegrity";
 import { sha256OfFileBase64, sha256OfString } from "./fileHashing";
 import { recordLibraryOperationThroughput } from "./operationPacing";
-import { toRelativeWorkspacesManagedMedia } from "../state/rebaseManagedMedia";
+import { toRelativeDeletedItemsManagedMedia, toRelativeWorkspacesManagedMedia } from "../state/rebaseManagedMedia";
 import { getHydrationDegradedWorkspaceIds } from "../state/persistRuntime";
 import {
     buildPersistedAppStoreSnapshot,
@@ -345,6 +345,9 @@ export async function prepareBackupContents(
     const snapshot: DrBackupSnapshot = {
         ...snapshotAbs,
         workspaces: toRelativeWorkspacesManagedMedia(snapshotAbs.workspaces),
+        ...(snapshotAbs.recentlyDeleted
+            ? { recentlyDeleted: toRelativeDeletedItemsManagedMedia(snapshotAbs.recentlyDeleted) }
+            : null),
         ...(opts?.satellites ? { satellites: opts.satellites } : null),
         ...(opts?.setAsideWorkspaceRows && Object.keys(opts.setAsideWorkspaceRows).length > 0
             ? { setAsideWorkspaceRows: opts.setAsideWorkspaceRows }

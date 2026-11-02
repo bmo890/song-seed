@@ -219,7 +219,7 @@ export function TransferReceiveScreen() {
     // The empty shell an interrupted save left (nothing in it to lose).
     for (const workspace of useStore.getState().workspaces) {
       if (workspace.received?.transferId === transfer.transferId && workspace.ideas.length === 0) {
-        useStore.getState().deleteWorkspace(workspace.id);
+        useStore.getState().deleteWorkspace(workspace.id, { recentlyDeleted: false });
       }
     }
 
@@ -419,16 +419,19 @@ export function TransferReceiveScreen() {
         transfer.transferId,
         preexisting.workspaces
       );
+      // A failed save's partial copy is not anyone's deletion: the parcel is still at
+      // its link, and Try again saves it whole. Nothing here goes to Recently deleted.
       for (const workspaceId of partialIds) {
-        useStore.getState().deleteWorkspace(workspaceId);
+        useStore.getState().deleteWorkspace(workspaceId, { recentlyDeleted: false });
       }
       // A compilation an earlier .songnook item in THIS attempt created (a setlist,
       // a chart book, a playlist) goes too: deleteWorkspace only prunes playlist
       // ITEMS of the removed workspace, never the compilation itself.
       const state = useStore.getState();
-      createdByAttempt(state.setlists, transfer.transferId, preexisting.setlists).forEach((id) => state.deleteSetlist(id));
-      createdByAttempt(state.songbooks, transfer.transferId, preexisting.songbooks).forEach((id) => state.deleteSongbook(id));
-      createdByAttempt(state.playlists, transfer.transferId, preexisting.playlists).forEach((id) => state.deletePlaylist(id));
+      const internal = { recentlyDeleted: false };
+      createdByAttempt(state.setlists, transfer.transferId, preexisting.setlists).forEach((id) => state.deleteSetlist(id, internal));
+      createdByAttempt(state.songbooks, transfer.transferId, preexisting.songbooks).forEach((id) => state.deleteSongbook(id, internal));
+      createdByAttempt(state.playlists, transfer.transferId, preexisting.playlists).forEach((id) => state.deletePlaylist(id, internal));
       if (abortRef.current) return; // the user chose to leave; no failure to report
       // The reason goes to the console (and to the diagnostics bundle's log);
       // the page keeps its one calm sentence.

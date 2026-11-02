@@ -16,6 +16,7 @@ export function buildPersistedAppStoreSnapshot(state: AppStore): PersistedAppSto
     return {
         workspaces: state.workspaces,
         activityEvents: state.activityEvents,
+        recentlyDeleted: state.recentlyDeleted,
         activeWorkspaceId: state.activeWorkspaceId,
         primaryWorkspaceId: state.primaryWorkspaceId,
         primaryCollectionIdByWorkspace: state.primaryCollectionIdByWorkspace,

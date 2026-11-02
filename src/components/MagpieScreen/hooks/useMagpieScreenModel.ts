@@ -1,3 +1,5 @@
+import { sparkStartedThisVisit } from "../../../domain/sparkLeave";
+import { deleteWithUndo } from "../../common/deleteFeedback";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BackHandler } from "react-native";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
@@ -367,7 +369,7 @@ export function useMagpieScreenModel() {
       t("magpie.deleteTitle"),
       t("magpie.deleteBody"),
       () => {
-        deleteMagpieSpark(sparkId);
+        deleteWithUndo(() => deleteMagpieSpark(sparkId));
         navigation.navigate("SparkHome");
       },
       { confirmLabel: t("wordSparks.delete") }
@@ -377,13 +379,20 @@ export function useMagpieScreenModel() {
   const hasContent =
     !!spark && (spark.fragments.length > 0 || draftText.trim().length > 0);
 
+  const openedAtRef = useRef(Date.now());
   const goBack = useCallback(() => {
     if (spark?.savedLyricId || spark?.finishedAt) {
       navigation.navigate("SparkHome");
       return;
     }
     if (!hasContent) {
-      if (sparkId) deleteMagpieSpark(sparkId);
+      if (sparkId) deleteMagpieSpark(sparkId, { recentlyDeleted: false });
+      navigation.navigate("SparkHome");
+      return;
+    }
+    // Everything autosaves: a spark you came back to just leaves; only one
+    // started on this visit asks (12f F-H3).
+    if (!sparkStartedThisVisit(spark?.createdAt, openedAtRef.current)) {
       navigation.navigate("SparkHome");
       return;
     }
@@ -393,7 +402,8 @@ export function useMagpieScreenModel() {
         style: "destructive",
         icon: actionIcons.discard,
         onPress: () => {
-          if (sparkId) deleteMagpieSpark(sparkId);
+          // Discard keeps it in Recently deleted, with Undo.
+          if (sparkId) deleteWithUndo(() => deleteMagpieSpark(sparkId));
           navigation.navigate("SparkHome");
         },
       },
@@ -405,7 +415,7 @@ export function useMagpieScreenModel() {
       },
       { label: t("wordSparks.keepWorking"), style: "cancel" },
     ]);
-  }, [spark?.savedLyricId, spark?.finishedAt, hasContent, sparkId, deleteMagpieSpark, navigation, t]);
+  }, [spark?.savedLyricId, spark?.finishedAt, spark?.createdAt, hasContent, sparkId, deleteMagpieSpark, navigation, t]);
 
   // Intercept hardware back + drawer-switch blur, mirroring the Cut-Up spark: an
   // empty, unsaved spark is silently discarded so it doesn't litter the notebook.
@@ -424,7 +434,7 @@ export function useMagpieScreenModel() {
         sub.remove();
         const snapshot = abandonRef.current;
         if (snapshot.sparkId && !snapshot.savedLyricId && !snapshot.hasContent) {
-          deleteMagpieSpark(snapshot.sparkId);
+          deleteMagpieSpark(snapshot.sparkId, { recentlyDeleted: false });
         }
       };
     }, [deleteMagpieSpark])

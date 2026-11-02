@@ -1,3 +1,4 @@
+import { deleteWithUndo } from "../../common/deleteFeedback";
 import { Pressable, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -163,7 +164,7 @@ export function SongHeaderMenu() {
                       style: "default",
                       icon: getHierarchyIconName("clip"),
                       onPress: () => {
-                        appActions.dissolveSketch(selectedIdea.id);
+                        deleteWithUndo(() => appActions.dissolveSketch(selectedIdea.id));
                         screen.navigation.goBack();
                       },
                     },
@@ -172,7 +173,7 @@ export function SongHeaderMenu() {
                       style: "destructive",
                       icon: "trash-outline",
                       onPress: () => {
-                        appActions.deleteSelectedIdea();
+                        deleteWithUndo(() => appActions.deleteSelectedIdea());
                         screen.navigation.goBack();
                       },
                     },
@@ -185,7 +186,7 @@ export function SongHeaderMenu() {
                     ? t("songDetail.deleteSongBody", { title: selectedIdea.title })
                     : t("songDetail.deleteClipBody", { title: selectedIdea.title }),
                   () => {
-                    appActions.deleteSelectedIdea();
+                    deleteWithUndo(() => appActions.deleteSelectedIdea());
                     screen.navigation.goBack();
                   },
                   { confirmLabel: t("common.delete") }

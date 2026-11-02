@@ -9,6 +9,7 @@ export type PersistedAppStore = Pick<
     AppStore,
     | "workspaces"
     | "activityEvents"
+    | "recentlyDeleted"
     | "activeWorkspaceId"
     | "primaryWorkspaceId"
     | "primaryCollectionIdByWorkspace"

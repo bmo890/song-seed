@@ -1,3 +1,4 @@
+import { deleteWithUndo } from "../../common/deleteFeedback";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AppAlert } from "../../common/AppAlert";
@@ -208,9 +209,12 @@ export function useWorkspaceCollectionSelection({
         }
       ),
       () => {
-        for (const collectionId of collapsedSelectedCollectionIds) {
-          deleteCollection(collectionId);
-        }
+        // Into Recently deleted, with Undo (04-M3).
+        deleteWithUndo(() => {
+          for (const collectionId of collapsedSelectedCollectionIds) {
+            deleteCollection(collectionId);
+          }
+        });
         setSelectedCollectionIds([]);
         setSelectionMoreVisible(false);
       },

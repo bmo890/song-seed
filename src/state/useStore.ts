@@ -30,7 +30,8 @@ import {
     isWorkspaceStartupPreference,
 } from "../domain/libraryNavigation";
 import { startManifestSync } from "../services/manifestSync";
-import { rebaseWorkspacesManagedMedia } from "./rebaseManagedMedia";
+import { rebaseDeletedItemsManagedMedia, rebaseWorkspacesManagedMedia } from "./rebaseManagedMedia";
+import { sanitizeDeletedItems } from "./recentlyDeleted";
 import { createShardedPersistStorage } from "./shardedPersistStorage";
 import { consumeIntentionalEmptyStateWrite } from "../services/stateIntegrity";
 import {
@@ -247,6 +248,8 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
         playbackClickHaptic: state?.playbackClickHaptic === true,
         globalCustomClipTags: Array.isArray(state?.globalCustomClipTags) ? state.globalCustomClipTags : [],
         notes: Array.isArray(state?.notes) ? state.notes : [],
+        // Recently deleted, its audio paths healed like the library's (decision A).
+        recentlyDeleted: rebaseDeletedItemsManagedMedia(sanitizeDeletedItems(state?.recentlyDeleted)),
         wordLadders: sanitizeWordLadders(state?.wordLadders),
         cutUpSparks: sanitizeCutUpSparks(state?.cutUpSparks),
         magpieSparks: sanitizeMagpieSparks(state?.magpieSparks),

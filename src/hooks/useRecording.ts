@@ -1368,9 +1368,10 @@ export function useRecording(
    * Throw the take away. Only the native stop is awaited (the screen's state
    * follows it); deleting the file, clearing the recovery marker and releasing
    * the session continue in the background, so Discard and Redo answer at once
-   * (2026-10-17).
+   * (2026-10-17). `keep` may hold on to the file (a take longer than a false
+   * start waits in Recently deleted, 03-9); it answers true when it took the file.
    */
-  async function discardRecording() {
+  async function discardRecording(keep?: (fileUri: string) => Promise<boolean>) {
     let fileUri: string | undefined;
     try {
       take.facts.expectedStop = true;
@@ -1397,9 +1398,10 @@ export function useRecording(
     resetOnsetEnvelope();
     discardCleanup = discardCleanup.then(async () => {
       if (discardedFileUri) {
-        // Discard should clean up the recorder output because the app never imports it into
-        // managed storage or stores metadata for later recovery.
-        await FileSystem.deleteAsync(discardedFileUri, { idempotent: true }).catch(() => {});
+        // A take worth keeping goes to Recently deleted; anything else is cleaned up,
+        // because the app never imported it into managed storage.
+        const kept = keep ? await keep(discardedFileUri).catch(() => false) : false;
+        if (!kept) await FileSystem.deleteAsync(discardedFileUri, { idempotent: true }).catch(() => {});
         // A discarded take must not come back as "recovered" on the next launch. Only its
         // own marker: another take's may still be waiting to be recovered (03-2c).
         await clearPendingRecordingSession(discardedFileUri).catch(() => {});

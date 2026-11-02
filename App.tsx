@@ -64,6 +64,7 @@ import { LyricsVersionScreen } from "./src/components/LyricsVersionScreen";
 import { ChordSheetScreen } from "./src/components/ChordSheetScreen";
 import { SongbookReaderScreen } from "./src/components/SongbookReaderScreen";
 import { SetlistSongScreen } from "./src/components/SetlistSongScreen";
+import { RecentlyDeletedScreen } from "./src/components/RecentlyDeletedScreen";
 import { ReceivedScreen } from "./src/components/ReceivedScreen";
 import { TransferReceiveScreen } from "./src/components/TransferReceiveScreen";
 import { ActivityScreen } from "./src/components/ActivityScreen";
@@ -100,6 +101,7 @@ import { openIdeaInCollection, registerRootNavigation } from "./src/navigation";
 import { beginUiActivity, endUiActivity } from "./src/services/interactionGate";
 import { countReceivedPackages, unopenedReceivedCount } from "./src/domain/workspaceVisibility";
 import { cleanupStaleShareTempFiles, purgeExpiredTrash, restoreReferencedFilesFromTrash } from "./src/services/managedMedia";
+import { purgeExpiredRecentlyDeleted } from "./src/state/recentlyDeletedActions";
 import {
   holdSafetyCopy,
   readSafetyCopy,
@@ -267,6 +269,7 @@ const ROOT_STACK_ROUTE_NAMES: Array<keyof RootStackParamList> = [
   "CollectionVisit",
   "Recording",
   "BluetoothCalibration",
+  "RecentlyDeleted",
   "ShareImport",
   "Editor",
   "LyricsVersion",
@@ -386,6 +389,7 @@ function isValidRestorableRootRoute(route: any) {
     case "Activity":
     case "Recording":
     case "BluetoothCalibration":
+    case "RecentlyDeleted":
       return true;
     case "IdeaDetail":
       return typeof route.params?.ideaId === "string" && route.params.ideaId.length > 0;
@@ -1204,6 +1208,7 @@ function AppContent() {
           <Stack.Screen name="CollectionVisit" component={IdeaListScreen} />
           <Stack.Screen name="Recording" component={RecordingScreen} />
           <Stack.Screen name="BluetoothCalibration" component={BluetoothCalibrationScreen} />
+          <Stack.Screen name="RecentlyDeleted" component={RecentlyDeletedScreen} />
           {/* The full player is NOT a route — it's the PlayerSheet overlay below,
               a sibling of the media dock (per docs/audio-architecture-plan.md). */}
           <Stack.Screen name="ShareImport">
@@ -1384,6 +1389,10 @@ export default function App() {
       // The trash safety net: any file the library still points at that a mistaken
       // delete sent to the trash comes back BEFORE the purge can make it permanent.
       await restoreReferencedFilesFromTrash(useStore.getState().workspaces);
+      // Recently deleted: records past their 30 days go, with their files (decision A).
+      await purgeExpiredRecentlyDeleted().catch((error) =>
+        console.warn("[RecentlyDeleted] Purge skipped", error)
+      );
       // Permanently purge quarantined (deleted) audio past its retention window.
       if (libraryReadWhole) await purgeExpiredTrash();
       await resumePendingWorkspaceArchiveOperations();
