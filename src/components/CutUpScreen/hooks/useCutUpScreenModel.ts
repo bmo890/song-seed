@@ -1,3 +1,5 @@
+import { sparkStartedThisVisit } from "../../../domain/sparkLeave";
+import { deleteWithUndo } from "../../common/deleteFeedback";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { BackHandler, Dimensions } from "react-native";
 import { useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
@@ -506,7 +508,7 @@ export function useCutUpScreenModel() {
       t("cutUp.deleteTitle"),
       t("cutUp.deleteBody"),
       () => {
-        deleteCutUpSpark(sparkId);
+        deleteWithUndo(() => deleteCutUpSpark(sparkId));
         navigation.navigate("SparkHome");
       },
       { confirmLabel: t("wordSparks.delete") }
@@ -519,6 +521,7 @@ export function useCutUpScreenModel() {
       spark.chunks.length > 0 ||
       draftText.trim().length > 0);
 
+  const openedAtRef = useRef(Date.now());
   const goBack = useCallback(() => {
     // Already saved to the Lyrics Pad → just leave (the spark stays for resuming).
     if (spark?.savedLyricId || spark?.finishedAt) {
@@ -529,7 +532,13 @@ export function useCutUpScreenModel() {
     // A freshly-opened spark with nothing in it should not linger in the pad —
     // discard the auto-created record rather than silently keeping it.
     if (!hasContent) {
-      if (sparkId) deleteCutUpSpark(sparkId);
+      if (sparkId) deleteCutUpSpark(sparkId, { recentlyDeleted: false });
+      navigation.navigate("SparkHome");
+      return;
+    }
+    // Everything autosaves: a spark you came back to just leaves; only one
+    // started on this visit asks (12f F-H3).
+    if (!sparkStartedThisVisit(spark?.createdAt, openedAtRef.current)) {
       navigation.navigate("SparkHome");
       return;
     }
@@ -540,7 +549,8 @@ export function useCutUpScreenModel() {
         style: "destructive",
         icon: actionIcons.discard,
         onPress: () => {
-          if (sparkId) deleteCutUpSpark(sparkId);
+          // Discard keeps it in Recently deleted, with Undo.
+          if (sparkId) deleteWithUndo(() => deleteCutUpSpark(sparkId));
           navigation.navigate("SparkHome");
         },
       },
@@ -552,7 +562,7 @@ export function useCutUpScreenModel() {
       },
       { label: t("wordSparks.keepWorking"), style: "cancel" },
     ]);
-  }, [spark?.savedLyricId, spark?.finishedAt, hasContent, sparkId, deleteCutUpSpark, navigation, t]);
+  }, [spark?.savedLyricId, spark?.finishedAt, spark?.createdAt, hasContent, sparkId, deleteCutUpSpark, navigation, t]);
 
   // Catch every other way of leaving. Hardware back runs the same prompt as the
   // in-app Back button. A drawer switch can't be intercepted before it happens, so
@@ -574,7 +584,7 @@ export function useCutUpScreenModel() {
         sub.remove();
         const snapshot = abandonRef.current;
         if (snapshot.sparkId && !snapshot.savedLyricId && !snapshot.hasContent) {
-          deleteCutUpSpark(snapshot.sparkId);
+          deleteCutUpSpark(snapshot.sparkId, { recentlyDeleted: false });
         }
       };
     }, [deleteCutUpSpark])

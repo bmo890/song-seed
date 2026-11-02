@@ -50,6 +50,27 @@ function libraryFilenames(workspaces: Workspace[], keptItems: DeletedItem[]): Se
     return names;
 }
 
+/** Whether a collection (or one inside it) holds any idea: an empty one a failed
+ *  import made is nobody's deletion. */
+export function collectionHoldsIdeas(collectionId: string): boolean {
+    const workspace = useStore
+        .getState()
+        .workspaces.find((candidate) => candidate.collections.some((collection) => collection.id === collectionId));
+    if (!workspace) return false;
+    const scope = new Set([collectionId]);
+    let grew = true;
+    while (grew) {
+        grew = false;
+        for (const collection of workspace.collections) {
+            if (collection.parentCollectionId && scope.has(collection.parentCollectionId) && !scope.has(collection.id)) {
+                scope.add(collection.id);
+                grew = true;
+            }
+        }
+    }
+    return workspace.ideas.some((idea) => scope.has(idea.collectionId));
+}
+
 /** Put records back where they came from (ids intact). Resolves once their audio is
  *  back out of the trash. */
 export async function restoreRecentlyDeleted(ids: Iterable<string>): Promise<RestoreOutcome[]> {

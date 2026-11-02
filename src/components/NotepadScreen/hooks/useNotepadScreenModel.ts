@@ -1,3 +1,4 @@
+import { deleteWithUndo } from "../../common/deleteFeedback";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Share } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -294,7 +295,8 @@ export function useNotepadScreenModel() {
       // would be deleted on the way out.
       const note = useStore.getState().notes.find((n) => n.id === activeNoteId);
       if (note && !note.title.trim() && !note.body.trim()) {
-        deleteNote(activeNoteId);
+        // A blank page left behind is nothing to keep.
+        deleteNote(activeNoteId, { recentlyDeleted: false });
       }
     }
     setActiveNoteId(null);
@@ -319,7 +321,7 @@ export function useNotepadScreenModel() {
 
   const handleDeleteNote = useCallback(
     (noteId: string) => {
-      deleteNote(noteId);
+      deleteWithUndo(() => deleteNote(noteId));
       if (activeNoteId === noteId) setActiveNoteId(null);
     },
     [activeNoteId, deleteNote]
@@ -435,10 +437,12 @@ export function useNotepadScreenModel() {
   const allSelectedPinned = selectedNotes.length > 0 && selectedNotes.every((note) => note.isPinned);
 
   const handleDeleteSelected = useCallback(() => {
-    selectedNoteIds.forEach((id) => deleteNote(id));
-    selectedLadderIds.forEach((id) => deleteWordLadder(id));
-    selectedCutUpIds.forEach((id) => deleteCutUpSpark(id));
-    selectedMagpieIds.forEach((id) => deleteMagpieSpark(id));
+    deleteWithUndo(() => {
+      selectedNoteIds.forEach((id) => deleteNote(id));
+      selectedLadderIds.forEach((id) => deleteWordLadder(id));
+      selectedCutUpIds.forEach((id) => deleteCutUpSpark(id));
+      selectedMagpieIds.forEach((id) => deleteMagpieSpark(id));
+    });
     cancelSelection();
   }, [selectedNoteIds, selectedLadderIds, selectedCutUpIds, selectedMagpieIds, deleteNote, deleteWordLadder, deleteCutUpSpark, deleteMagpieSpark, cancelSelection]);
 

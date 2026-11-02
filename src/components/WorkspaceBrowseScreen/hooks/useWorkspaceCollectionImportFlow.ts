@@ -1,3 +1,4 @@
+import { collectionHoldsIdeas } from "../../../state/recentlyDeletedActions";
 import { useState } from "react";
 import { appActions } from "../../../state/actions";
 import { reportUnsupportedImports } from "../../common/importFeedback";
@@ -45,7 +46,7 @@ export function useWorkspaceCollectionImportFlow({
   activeWorkspaceId: string | null;
   topLevelCollectionCount: number;
   addCollection: (workspaceId: string, title: string, parentCollectionId?: string | null, description?: string) => string | null;
-  deleteCollection: (collectionId: string) => void;
+  deleteCollection: (collectionId: string, opts?: { recentlyDeleted?: boolean }) => unknown;
 }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
@@ -161,7 +162,7 @@ export function useWorkspaceCollectionImportFlow({
           reportUnsupportedImports(failed);
 
           if (imported.length === 0) {
-            deleteCollection(collectionId);
+            deleteCollection(collectionId, { recentlyDeleted: collectionHoldsIdeas(collectionId) });
             useImportStore.getState().updateJob(jobId, { status: "error" });
             return;
           }
