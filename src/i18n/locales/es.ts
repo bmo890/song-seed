@@ -2365,6 +2365,8 @@ export const es = {
     updatePage: "Actualizar página",
     sendAgainTitle: "Ya está en tu Libreta de letras",
     sendAgainBody: "¿Actualizar esa página o añadir una nueva?",
+    sendAgainChangedBody: "Has escrito en esa página desde entonces. ¿Reemplazar su texto o añadir una página nueva?",
+    replacePage: "Reemplazar página",
     nothingToSend: "Escribe unos versos primero.",
     sparkFinished: "Chispa terminada",
     toPad: "Libreta de letras",

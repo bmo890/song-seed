@@ -1300,6 +1300,8 @@ export const en = {
     updatePage: "Update page",
     sendAgainTitle: "Already in your Lyric Pad",
     sendAgainBody: "Update that page, or add a new one?",
+    sendAgainChangedBody: "You’ve written on that page since. Replace its words, or add a new page?",
+    replacePage: "Replace page",
     nothingToSend: "Write a few lines first.",
     sparkFinished: "Spark finished",
     toPad: "Lyric Pad",

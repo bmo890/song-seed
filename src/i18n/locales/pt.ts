@@ -2364,6 +2364,8 @@ export const pt = {
     updatePage: "Atualizar página",
     sendAgainTitle: "Já está no seu Bloco de letras",
     sendAgainBody: "Atualizar aquela página ou criar uma nova?",
+    sendAgainChangedBody: "Você escreveu naquela página desde então. Substituir o texto ou criar uma página nova?",
+    replacePage: "Substituir página",
     nothingToSend: "Escreva algumas linhas primeiro.",
     sparkFinished: "Faísca concluída",
     toPad: "Bloco de letras",

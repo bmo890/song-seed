@@ -1350,6 +1350,8 @@ export const he = {
     updatePage: "עדכון העמוד",
     sendAgainTitle: "כבר בפנקס המילים",
     sendAgainBody: "לעדכן את העמוד, או להוסיף עמוד חדש?",
+    sendAgainChangedBody: "כתבתם בעמוד הזה מאז. להחליף את המילים שבו, או להוסיף עמוד חדש?",
+    replacePage: "החלפת העמוד",
     nothingToSend: "כתבו כמה שורות קודם.",
     sparkFinished: "הניצוץ הסתיים",
     toPad: "פנקס המילים",

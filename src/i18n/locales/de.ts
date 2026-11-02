@@ -2267,6 +2267,8 @@ export const de = {
     updatePage: "Seite aktualisieren",
     sendAgainTitle: "Schon in deinem Textblock",
     sendAgainBody: "Diese Seite aktualisieren oder eine neue anlegen?",
+    sendAgainChangedBody: "Du hast seitdem auf dieser Seite geschrieben. Ihren Text ersetzen oder eine neue Seite anlegen?",
+    replacePage: "Seite ersetzen",
     nothingToSend: "Schreib zuerst ein paar Zeilen.",
     sparkFinished: "Funke abgeschlossen",
     toPad: "Textblock",

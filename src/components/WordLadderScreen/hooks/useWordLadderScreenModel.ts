@@ -335,7 +335,8 @@ export function useWordLadderScreenModel() {
       title: fresh.spark.title,
       methodName: t("wordSparks.wordLadder"),
       savedLyricId: fresh.spark.savedLyricId,
-      link: (noteId) => apply({ savedLyricId: noteId }),
+      savedLyricBody: fresh.spark.savedLyricBody,
+      link: (noteId, sentBody) => apply({ savedLyricId: noteId, savedLyricBody: sentBody }),
       navigation,
     });
   }, [flushDrafts, apply, navigation, t]); // eslint-disable-line react-hooks/exhaustive-deps
