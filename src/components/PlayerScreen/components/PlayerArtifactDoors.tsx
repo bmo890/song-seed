@@ -310,7 +310,8 @@ function PlayerArtifactDoorsInner({
 
   const trimmedNotes = notes.trim();
   const notesPage = trimmedNotes ? (
-    <PageTile kind={notesLabel} onOpen={readOnly ? undefined : onOpenNotes} accessibilityLabel={t("player.openNotes")} testID="player-notes-door">
+    // Read-only, the tile still opens: the whole note, to read (decision B).
+    <PageTile kind={notesLabel} onOpen={onOpenNotes} accessibilityLabel={t("player.openNotes")} testID="player-notes-door">
       {/* A note is prose, not verse: it wraps (a lyric line never does). */}
       <UserText value={trimmedNotes} align="content" style={pageStyles.lyric} numberOfLines={5}>
         {trimmedNotes}

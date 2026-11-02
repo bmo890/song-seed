@@ -36,14 +36,15 @@ import { usePlayerScreenLifecycle } from "./hooks/usePlayerScreenLifecycle";
 import { usePlayerPracticePitchTransport } from "./hooks/usePlayerPracticePitchTransport";
 import { usePlayerScreenUi } from "./hooks/usePlayerScreenUi";
 import { appActions } from "../../state/actions";
-import { ideaWorkspaceId } from "../../state/dataSlice";
+import { saveClipTextEdits } from "../../state/clipTextEdits";
+import { layerAffordances } from "../../domain/layerAffordances";
 import { useStore } from "../../state/useStore";
 import { isPlaybackNearEnd } from "../../services/transportPlayback";
 import { PlayerTimeline } from "./components/PlayerTimeline";
 import { PlayerHeaderSection } from "./components/PlayerHeaderSection";
 import { PlayerFooterSection } from "./components/PlayerFooterSection";
 import { PlayerPracticeDrawers } from "./components/PlayerPracticeDrawers";
-import { PlayerSupportSections } from "./components/PlayerSupportSections";
+import { PlayerSupportSections, type NotesTarget } from "./components/PlayerSupportSections";
 import { PlayerLayersBench, openCombineChooser, type LayerSheetHandle } from "./components/PlayerLayersBench";
 import { MAX_LAYERS_PER_TAKE, buildSoloMixInputs } from "../../domain/overdub";
 import { releaseSoloMixFiles, renderSoloMixFile } from "../../services/soloMix";
@@ -369,24 +370,13 @@ function PlayerScreenInner({
   // exactly the room that is left (domain/reelLanes).
   // The recording's own note, written from the Notes page. It lives on the clip (a
   // take keeps it when the clip grows into a sketch), in the idea's own workspace.
-  const notesIdeaId = playerIdea?.id;
-  const notesClipId = playerClip?.id;
-  const saveClipNotes = useCallback(
-    (notes: string) => {
-      if (!notesIdeaId || !notesClipId) return;
-      const state = useStore.getState();
-      state.updateIdeas(
-        (ideas) =>
-          ideas.map((idea) =>
-            idea.id !== notesIdeaId
-              ? idea
-              : { ...idea, clips: idea.clips.map((clip) => (clip.id === notesClipId ? { ...clip, notes } : clip)) }
-          ),
-        { workspaceId: ideaWorkspaceId(state.workspaces, notesIdeaId) }
-      );
-    },
-    [notesIdeaId, notesClipId]
-  );
+  // The page saves to the take it was OPENED on (it holds the ids), not the one
+  // playing at Save (12a A-H2); a clip idea's own notes move with it (12c C-H1).
+  const notesIdeaId = playerIdea?.id ?? null;
+  const notesClipId = playerClip?.id ?? null;
+  const saveClipNotes = useCallback((target: NotesTarget, notes: string) => {
+    saveClipTextEdits(target.ideaId, target.clipId, { notes });
+  }, []);
   // The page body between title and transport, as laid out: the listening reel
   // takes its top half (domain/reelLanes listeningReelHeightForBody).
   const [bodyHeight, setBodyHeight] = useState(0);
@@ -1275,6 +1265,8 @@ function PlayerScreenInner({
   // Decision B: a parcel's take (until Keep) or an archived one plays, reads and
   // sends; the player offers no recording, sketching or writing on it.
   const playerReadOnly = useIsReadOnlyIdea(playerIdea?.id);
+  // Layers there: Solo (listening) only; nothing that saves onto the layer.
+  const layerKit = useMemo(() => layerAffordances(playerReadOnly), [playerReadOnly]);
   const handleAddOverdub = useCallback(async () => {
     if (!playerIdea || !playerClip) return;
     // First overdub layer is free; stacking more is Pro. Existing multi-layer clips stay
@@ -1656,14 +1648,14 @@ function PlayerScreenInner({
                   overdubLayerLanes={overdubLayerLanes}
                   // A lane is its layer's door to its sheet, with Tools open too.
                   onOpenLayerLane={
-                    data.hasClipOverdubs ? openLayerSheet : undefined
+                    data.hasClipOverdubs && layerKit.openSheet ? openLayerSheet : undefined
                   }
                   layerLanesCollapsed={layerLanesCollapsed}
                   onToggleLayerLanes={toggleLayerLanes}
                   soloedLayerIds={soloedLayerIds}
                   onSoloLayer={toggleSoloLayer}
-                  onToggleLayerMute={handleToggleStemMute}
-                  layerLanesFooter={layerLanesFooter}
+                  onToggleLayerMute={layerKit.mute ? handleToggleStemMute : undefined}
+                  layerLanesFooter={layerKit.mergeAndCombine ? layerLanesFooter : undefined}
                   draggingMarkerId={draggingMarkerId}
                   draggingMarkerX={draggingMarkerX}
                   onLoopRangeChange={handleLoopRangeChange}
@@ -1983,8 +1975,9 @@ function PlayerScreenInner({
             <PlayerLyricsWriter
               // Keyed on the SESSION, not the version id: a sealed version
               // forking silently mid-autosave must never remount the editor
-              // (keyboard drop mid-thought). Deliberate reseeds bump the token.
-              key={`write-${ui.writingSession}`}
+              // (keyboard drop mid-thought). Deliberate reseeds bump the token. A
+              // different sketch is a different writer (04-M2).
+              key={`write-${ui.writingSession}-${playerIdea.id}`}
               ideaId={playerIdea.id}
               initialText={data.latestLyricsText}
               textDirection={data.latestLyricsVersion?.textDirection ?? "auto"}
@@ -2184,6 +2177,8 @@ function PlayerScreenInner({
               onWriteLyrics={ui.openWriting}
               onBuildChart={openChartBuilder}
               clipNotes={data.clipNotes}
+              notesIdeaId={notesIdeaId}
+              notesClipId={notesClipId}
               notesLabel={playerIdea.kind === "project" ? t("player.takeNotesPage") : t("player.notesPage")}
               onSaveNotes={saveClipNotes}
               notesExpanded={ui.notesExpanded}
@@ -2220,7 +2215,7 @@ function PlayerScreenInner({
         }}
       />
 
-      {data.hasClipOverdubs ? (
+      {data.hasClipOverdubs && layerKit.openSheet ? (
         <PlayerLayersBench
           ref={layerSheetRef}
           stems={data.overdubStemEntries}
