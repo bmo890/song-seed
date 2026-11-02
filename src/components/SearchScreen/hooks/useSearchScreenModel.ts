@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
-import { personalWorkspaces } from "../../../domain/workspaceVisibility";
+import { isWritableWorkspaceId, personalWorkspaces } from "../../../domain/workspaceVisibility";
 import { openSketchPage, visitCollection } from "../../../navigation";
 import {
   buildGlobalSearchResults,
@@ -107,13 +107,21 @@ export function useSearchScreenModel() {
   );
 
   const openResult = (result: GlobalSearchResult) => {
-    if (result.workspaceId) {
+    // An archived workspace opens read-only and never becomes active (12c C-M2):
+    // the store refuses it, and its hub is opened by route param instead.
+    const archived = !!result.workspaceId && !isWritableWorkspaceId(useStore.getState().workspaces, result.workspaceId);
+    if (result.workspaceId && !archived) {
       setActiveWorkspaceId(result.workspaceId);
     }
 
     switch (result.kind) {
       case "workspace":
-        navigation.navigate("WorkspaceStack", { screen: "Browse", pop: true });
+        navigation.navigate(
+          "WorkspaceStack",
+          archived
+            ? { screen: "Browse", params: { workspaceId: result.workspaceId }, pop: true }
+            : { screen: "Browse", pop: true }
+        );
         return;
       case "collection":
         navigation.navigate("WorkspaceStack", {

@@ -207,7 +207,8 @@ export function useWorkspaceListScreenModel() {
       },
     ];
 
-    if (!actionSheetWorkspace.isArchived) {
+    // A received package is never "where you work": no Set as primary (12c C-M1).
+    if (!actionSheetWorkspace.isArchived && actionSheetWorkspace.origin !== "received") {
       actions.push({
         key: "primary",
         label: t(primaryWorkspaceId === actionSheetWorkspace.id ? "workspaceList.primaryWorkspace" : "workspaceList.setPrimary"),
