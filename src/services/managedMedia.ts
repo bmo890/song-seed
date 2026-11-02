@@ -4,6 +4,7 @@ import { parseTrashName, planTrashRestores } from "../domain/trashRestore";
 import { persistLog } from "./persistLog";
 import {
     isManagedPreviewAudioUri,
+    SONG_NOOK_AUDIO_DIR,
     SONG_NOOK_SHARE_DIR,
     SONG_NOOK_TRASH_DIR,
     isManagedAudioUri,
@@ -306,6 +307,34 @@ export async function emptyTrashExcept(keepFilenames: Set<string>): Promise<void
         }
     } catch (error) {
         console.warn("[ManagedMedia] Could not empty the trash", error);
+    }
+}
+
+/**
+ * A discarded take (03-9): the recorder's own file, which lives outside the library,
+ * moves into the trash under a library name. Returns where it lives once restored
+ * (`songnook/audio/<name>`), or null when there was nothing to keep.
+ */
+export async function trashRecorderTake(fileUri: string): Promise<string | null> {
+    try {
+        const info = await FileSystem.getInfoAsync(fileUri);
+        if (!info.exists) return null;
+        await ensureTrashDir();
+        const extension = (fileUri.split("?")[0].split(".").pop() || "m4a").toLowerCase();
+        const stamp = Date.now();
+        const random = Math.random().toString(36).slice(2, 8);
+        const basename = `discarded-${stamp}-${random}.${extension}`;
+        const trashUri = `${SONG_NOOK_TRASH_DIR}/${stamp}-${random}-${basename}`;
+        try {
+            await FileSystem.moveAsync({ from: fileUri, to: trashUri });
+        } catch {
+            await FileSystem.copyAsync({ from: fileUri, to: trashUri });
+            await FileSystem.deleteAsync(fileUri, { idempotent: true }).catch(() => {});
+        }
+        return `${SONG_NOOK_AUDIO_DIR}/${basename}`;
+    } catch (error) {
+        console.warn("[ManagedMedia] Could not keep a discarded take", error);
+        return null;
     }
 }
 
