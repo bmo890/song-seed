@@ -31,8 +31,15 @@ export function IdeaNotes({
     const { t } = useTranslation();
     const [isEditingNotes, setIsEditingNotes] = useState(false);
     // The notes belong to the selected idea; read-only there means read, not write.
-    const readOnlyReason = useReadOnlyIdeaReason(useStore((s) => s.selectedIdeaId));
+    const selectedIdeaId = useStore((s) => s.selectedIdeaId);
+    const readOnlyReason = useReadOnlyIdeaReason(selectedIdeaId);
     const readOnly = readOnlyReason !== null;
+    // The editor saves to the idea it opened on, whatever is selected by then.
+    const [editingIdeaId, setEditingIdeaId] = useState<string | null>(null);
+    const openEditor = () => {
+        setEditingIdeaId(selectedIdeaId);
+        setIsEditingNotes(true);
+    };
 
     // Editing isn't available while the song itself is being edited.
     useEffect(() => {
@@ -43,9 +50,10 @@ export function IdeaNotes({
     const editor = (
         <SongNotesEditor
             visible={isEditingNotes}
+            ideaId={editingIdeaId}
             initialNotes={notes}
             onSave={(text) => {
-                appActions.setIdeaNotes(text);
+                appActions.setIdeaNotes(text, editingIdeaId ?? undefined);
                 setIsEditingNotes(false);
             }}
             onClose={() => setIsEditingNotes(false)}
@@ -63,7 +71,7 @@ export function IdeaNotes({
                 <Pressable
                     style={({ pressed }) => [styles.songNotesTabPage, cardStyle, pressed && !readOnly ? styles.pressDown : null]}
                     disabled={readOnly}
-                    onPress={() => setIsEditingNotes(true)}
+                    onPress={openEditor}
                     accessibilityRole="button"
                     accessibilityLabel={t("songDetail.notes")}
                     accessibilityHint={t("songDetail.notesEmptyPlaceholder")}
@@ -97,7 +105,7 @@ export function IdeaNotes({
                         pressed && !isEditMode ? styles.pressDown : null,
                     ]}
                     disabled={isEditMode}
-                    onPress={() => setIsEditingNotes(true)}
+                    onPress={openEditor}
                 >
                     <View style={styles.songDetailSummaryLinkHeader}>
                         <View style={styles.songDetailSummaryLinkLead}>
@@ -131,7 +139,7 @@ export function IdeaNotes({
                     pressed && !isEditMode && !readOnly ? styles.pressDown : null,
                 ]}
                 disabled={isEditMode || readOnly}
-                onPress={() => setIsEditingNotes(true)}
+                onPress={openEditor}
             >
                 <View style={styles.songDetailMiniCardHeader}>
                     <View style={styles.songDetailMiniCardTitleWrap}>

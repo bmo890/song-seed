@@ -336,7 +336,8 @@ export function useMagpieScreenModel() {
       title: fresh.spark.title,
       methodName: t("wordSparks.magpie"),
       savedLyricId: fresh.spark.savedLyricId,
-      link: (noteId) => apply({ savedLyricId: noteId }),
+      savedLyricBody: fresh.spark.savedLyricBody,
+      link: (noteId, sentBody) => apply({ savedLyricId: noteId, savedLyricBody: sentBody }),
       navigation,
     });
   }, [flushDraft, apply, navigation, t]); // eslint-disable-line react-hooks/exhaustive-deps

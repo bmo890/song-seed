@@ -34,6 +34,7 @@ jest.mock("../../state/db/storage", () => ({ waitForWriteQueueIdle: (...args: un
 jest.mock("../../state/persistedSnapshot", () => ({ STORE_NAME: "songnook-store" }));
 jest.mock("../../state/useActivityStore", () => ({ useActivityStore: fakeStore() }));
 jest.mock("../../state/useChartPrefsStore", () => ({ useChartPrefsStore: fakeStore() }));
+jest.mock("../../state/useEditorDraftStore", () => ({ useEditorDraftStore: fakeStore() }));
 jest.mock("../../state/useMagpiePrefsStore", () => ({ useMagpiePrefsStore: fakeStore() }));
 jest.mock("../../state/useRevisitStore", () => ({ useRevisitStore: fakeStore() }));
 jest.mock("../../state/useSentLinksStore", () => ({ useSentLinksStore: fakeStore() }));
@@ -63,7 +64,7 @@ describe("eraseAllAppData", () => {
         expect(mockStopManifestSync).toHaveBeenCalled();
         expect(mockSetPersistBlocked).toHaveBeenCalledWith(true);
         expect(mockRemoveItem).toHaveBeenCalledWith("songnook-store");
-        expect(mockClearStorage).toHaveBeenCalledTimes(7);
+        expect(mockClearStorage).toHaveBeenCalledTimes(8);
         // The row sweep and the write queue must settle BEFORE the database is closed.
         expect(mockWaitIdle.mock.invocationCallOrder[0]).toBeLessThan(
             mockDeleteDatabaseFiles.mock.invocationCallOrder[0]

@@ -67,6 +67,9 @@ export type WordLadderExercise = {
   /** The Lyric Pad page this spark was last sent to (a copy; the spark stays).
    *  Was set by the old Save, which also deleted the spark (until 2026-10-17). */
   savedLyricId?: string;
+  /** The words that send put on that page: a later send can tell whether the page
+   *  was written on since, and never replaces those words without asking. */
+  savedLyricBody?: string;
   /** When the writer finished the spark. A finished spark stays in Lyric Spark
    *  and can be reopened; sending to the Lyric Pad is a separate step. */
   finishedAt?: number;
@@ -138,6 +141,9 @@ export type CutUpSpark = {
   /** The Lyric Pad page this spark was last sent to (a copy; the spark stays).
    *  Was set by the old Save, which also deleted the spark (until 2026-10-17). */
   savedLyricId?: string;
+  /** The words that send put on that page: a later send can tell whether the page
+   *  was written on since, and never replaces those words without asking. */
+  savedLyricBody?: string;
   /** When the writer finished the spark. A finished spark stays in Lyric Spark
    *  and can be reopened; sending to the Lyric Pad is a separate step. */
   finishedAt?: number;
@@ -219,6 +225,9 @@ export type MagpieSpark = {
   /** The Lyric Pad page this spark was last sent to (a copy; the spark stays).
    *  Was set by the old Save, which also deleted the spark (until 2026-10-17). */
   savedLyricId?: string;
+  /** The words that send put on that page: a later send can tell whether the page
+   *  was written on since, and never replaces those words without asking. */
+  savedLyricBody?: string;
   /** When the writer finished the spark. A finished spark stays in Lyric Spark
    *  and can be reopened; sending to the Lyric Pad is a separate step. */
   finishedAt?: number;

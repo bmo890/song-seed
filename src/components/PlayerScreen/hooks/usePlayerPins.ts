@@ -2,6 +2,16 @@ import { useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { PracticeMarker } from "../../../types";
 import { useStore } from "../../../state/useStore";
+import { locateIdea } from "../../../domain/itemLocator";
+
+/** The take a pin editor was opened on (the queue may move on while it is open). */
+export type PinOwner = { ideaId: string; clipId: string };
+
+function storedMarkers(owner: PinOwner): PracticeMarker[] | null {
+  const idea = locateIdea(useStore.getState().workspaces, owner.ideaId)?.idea;
+  const clip = idea?.clips.find((candidate) => candidate.id === owner.clipId);
+  return clip ? clip.practiceMarkers ?? [] : null;
+}
 import { haptic } from "../../../design/haptics";
 import { toast } from "../../common/toastStore";
 import { clampPinLabel } from "../../../domain/practicePinLayout";
@@ -29,6 +39,9 @@ export function usePlayerPins({
 }: UsePlayerPinsArgs) {
   const { t } = useTranslation();
   const [pinActionsTarget, setPinActionsTarget] = useState<PracticeMarker | null>(null);
+  // Whose pin the reel's pin editor holds (12a A-L2): a save after the queue moved on
+  // edits that take's pin, never the next take's list.
+  const [pinActionsOwner, setPinActionsOwner] = useState<PinOwner | null>(null);
   const [pinActionsVisible, setPinActionsVisible] = useState(false);
   const [expandedPinId, setExpandedPinId] = useState<string | null>(null);
   const [pinNoteDraft, setPinNoteDraft] = useState("");
@@ -76,10 +89,14 @@ export function usePlayerPins({
     [displayDuration, onBeforeChange, playerClipId, playerIdeaId, practiceMarkers]
   );
 
-  const handlePinActions = useCallback((marker: PracticeMarker) => {
-    setPinActionsTarget(marker);
-    setPinActionsVisible(true);
-  }, []);
+  const handlePinActions = useCallback(
+    (marker: PracticeMarker) => {
+      setPinActionsTarget(marker);
+      setPinActionsOwner(playerIdeaId && playerClipId ? { ideaId: playerIdeaId, clipId: playerClipId } : null);
+      setPinActionsVisible(true);
+    },
+    [playerClipId, playerIdeaId]
+  );
 
   const commitPinNote = useCallback(
     (markerId: string, note: string) => {
@@ -104,10 +121,23 @@ export function usePlayerPins({
   }, []);
 
   const handleEditPin = useCallback(
-    (markerId: string, edits: { label: string; note: string }) => {
-      if (!playerIdeaId || !playerClipId) return;
+    (markerId: string, edits: { label: string; note: string }, owner?: PinOwner | null) => {
       const label = clampPinLabel(edits.label);
       const note = edits.note.trim() || undefined;
+      if (owner && (owner.ideaId !== playerIdeaId || owner.clipId !== playerClipId)) {
+        // Another take than the one on screen: its own stored pins, read now.
+        const markers = storedMarkers(owner);
+        const current = markers?.find((marker) => marker.id === markerId);
+        if (!markers || !current) return;
+        if (current.label === label && (current.note ?? undefined) === note) return;
+        useStore.getState().setClipPracticeMarkers(
+          owner.ideaId,
+          owner.clipId,
+          markers.map((marker) => (marker.id === markerId ? { ...marker, label, note } : marker))
+        );
+        return;
+      }
+      if (!playerIdeaId || !playerClipId) return;
       // A no-op save (dialog confirmed without changes) writes nothing — it
       // would otherwise pollute the undo history with an invisible step.
       const current = practiceMarkers.find((marker) => marker.id === markerId);
@@ -122,7 +152,11 @@ export function usePlayerPins({
   );
 
   const handleDeletePinId = useCallback(
-    (markerId: string) => {
+    (markerId: string, owner?: PinOwner | null) => {
+      if (owner && (owner.ideaId !== playerIdeaId || owner.clipId !== playerClipId)) {
+        useStore.getState().removeClipPracticeMarker(owner.ideaId, owner.clipId, markerId);
+        return;
+      }
       if (!playerIdeaId || !playerClipId) return;
       onBeforeChange?.();
       useStore.getState().removeClipPracticeMarker(playerIdeaId, playerClipId, markerId);
@@ -133,6 +167,7 @@ export function usePlayerPins({
 
   return {
     pinActionsTarget,
+    pinActionsOwner,
     pinActionsVisible,
     expandedPinId,
     pinNoteDraft,

@@ -54,6 +54,7 @@ export function sendSparkToPad({
   title,
   methodName,
   savedLyricId,
+  savedLyricBody,
   link,
   navigation,
 }: {
@@ -61,7 +62,10 @@ export function sendSparkToPad({
   title: string;
   methodName: string;
   savedLyricId?: string;
-  link: (noteId: string) => void;
+  /** What the last send put on that page (absent on sparks sent before 2026-11-02). */
+  savedLyricBody?: string;
+  /** Records the page on the spark, with the words this send put there. */
+  link: (noteId: string, sentBody: string) => void;
   navigation: Navigation;
 }) {
   const t = i18n.t.bind(i18n);
@@ -74,7 +78,7 @@ export function sendSparkToPad({
   const sendNew = () => {
     const noteId = addNote();
     updateNote(noteId, { title: sparkSaveTitle(title, methodName, notes), body: text });
-    link(noteId);
+    link(noteId, text);
     // Haptics vocabulary: success, a meaningful completion (the lyric landed).
     haptic.success();
     toast(t("wordSparks.sentToPad"), "checkmark-outline", {
@@ -87,7 +91,13 @@ export function sendSparkToPad({
     sendNew();
     return;
   }
-  AppAlert.custom(t("wordSparks.sendAgainTitle"), t("wordSparks.sendAgainBody"), [
+  // The page is the person's to keep writing on. If its words are no longer what
+  // the last send put there (or that is unknown), updating would REPLACE what was
+  // written in the Pad since: say so, as a destructive choice (12g G-H1, 12f F-M1).
+  const writtenOnSince =
+    existing.body.trim() !== text.trim() &&
+    (savedLyricBody === undefined || existing.body.trim() !== savedLyricBody.trim());
+  AppAlert.custom(t("wordSparks.sendAgainTitle"), t(writtenOnSince ? "wordSparks.sendAgainChangedBody" : "wordSparks.sendAgainBody"), [
     {
       label: t("wordSparks.newPage"),
       style: "default",
@@ -95,11 +105,12 @@ export function sendSparkToPad({
       onPress: sendNew,
     },
     {
-      label: t("wordSparks.updatePage"),
-      style: "default",
+      label: t(writtenOnSince ? "wordSparks.replacePage" : "wordSparks.updatePage"),
+      style: writtenOnSince ? "destructive" : "default",
       icon: "refresh",
       onPress: () => {
         updateNote(existing.id, { body: text });
+        link(existing.id, text);
         // Haptics vocabulary: success, a meaningful completion.
         haptic.success();
         toast(t("wordSparks.pageUpdated"), "checkmark-outline", {

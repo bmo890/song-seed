@@ -279,7 +279,11 @@ export type DataSlice = {
     archiveWorkspace: (id: string, isArchived: boolean) => void;
     /** Null when the workspace is gone or read-only (a parcel, an archive). */
     addCollection: (workspaceId: string, title: string, parentCollectionId?: string | null, description?: string) => string | null;
-    updateCollection: (workspaceId: string, collectionId: string, updates: { title?: string }) => void;
+    updateCollection: (
+        workspaceId: string,
+        collectionId: string,
+        updates: { title?: string; description?: string | null }
+    ) => void;
     moveCollection: (
         collectionId: string,
         targetWorkspaceId: string,
@@ -1987,16 +1991,27 @@ export const createDataSlice: StateCreator<
     updateCollection: (workspaceId, collectionId, updates) => {
         const nextTitle = updates.title?.trim();
         if (!nextTitle) return;
+        // The description travels with the title ("Edit collection" dropped it, 12c
+        // C-H2); a key passed as undefined or blank clears it, an absent key keeps it.
+        const touchesDescription = Object.prototype.hasOwnProperty.call(updates, "description");
+        const nextDescription = updates.description?.trim() || undefined;
+        // Where the collection lives, whatever the screen thought was active.
+        const ownerId = collectionOwnerWorkspaceId(get().workspaces, collectionId) ?? workspaceId;
 
         set((state) => ({
             workspaces: state.workspaces.map((workspace) =>
-                workspace.id !== workspaceId
+                workspace.id !== ownerId
                     ? workspace
                     : {
                         ...workspace,
                         collections: workspace.collections.map((collection) =>
                             collection.id === collectionId
-                                ? { ...collection, title: nextTitle, updatedAt: Date.now() }
+                                ? {
+                                    ...collection,
+                                    title: nextTitle,
+                                    ...(touchesDescription ? { description: nextDescription } : null),
+                                    updatedAt: Date.now(),
+                                }
                                 : collection
                         ),
                     }

@@ -16,7 +16,10 @@ import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
 import { selectIdeaById } from "../../../state/librarySelectors";
 import { useReadOnlyIdeaReason } from "../../../hooks/useReadOnly";
-import { appActions } from "../../../state/actions";
+import { ideaWorkspaceId } from "../../../state/dataSlice";
+import { saveLyricsFromEditor, type LyricsEditBase } from "../../../state/lyricsEditorSave";
+import { useEditorDraft } from "../../../hooks/useEditorDraft";
+import { editorDraftKey } from "../../../domain/editorDrafts";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../domain/lyrics";
 import { serializeChordChartText } from "../../../domain/chords";
 import { haptic } from "../../../design/haptics";
@@ -115,7 +118,28 @@ export function useLyricsVersionScreenModel() {
     pushDraftHistory();
   };
 
+  // The version this edit started from, as it was then: an in-place save checks it
+  // at the moment of saving (state/lyricsEditorSave).
+  const editBaseRef = useRef<LyricsEditBase>({
+    versionId: resolvedVersion?.id ?? null,
+    updatedAt: resolvedVersion?.updatedAt ?? null,
+  });
+  const hasUnsavedChanges = isEditMode && (draftText !== baselineText || textDirection !== baselineDirection);
+  const hasUnsavedRef = useRef(hasUnsavedChanges);
+  hasUnsavedRef.current = hasUnsavedChanges;
+  const seededVersionRef = useRef<string | null | undefined>(undefined);
+  // A save re-seeds from what was saved (the page lands on the saved version).
+  const reseedAfterSaveRef = useRef(false);
+
   useEffect(() => {
+    // The same version changing underneath unsaved typing (a merge restore, a
+    // hydration replay, the player's writer) never replaces what is being typed
+    // (audit 04-H3 LOW); the save then goes to a new version instead of over it.
+    const sameVersion = seededVersionRef.current === (resolvedVersion?.id ?? null);
+    if (sameVersion && hasUnsavedRef.current && !reseedAfterSaveRef.current) return;
+    reseedAfterSaveRef.current = false;
+    seededVersionRef.current = resolvedVersion?.id ?? null;
+    editBaseRef.current = { versionId: resolvedVersion?.id ?? null, updatedAt: resolvedVersion?.updatedAt ?? null };
     setDraftText(sourceText);
     setBaselineText(sourceText);
     setTextDirection(sourceDirection);
@@ -123,9 +147,35 @@ export function useLyricsVersionScreenModel() {
     setIsEditMode(startInEdit || createDraft || !resolvedVersion);
     setEditSavesAsNew(forceNewVersion || createDraft || !isLatestSource);
     resetDraftHistory(sourceText);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [createDraft, forceNewVersion, isLatestSource, resetDraftHistory, resolvedVersion?.id, sourceDirection, sourceText, startInEdit]);
 
-  const hasUnsavedChanges = isEditMode && (draftText !== baselineText || textDirection !== baselineDirection);
+  // Unsaved words survive a kill or a reload (04-H3): kept per sketch and version,
+  // and put back — in the editor, as they were — the next time this page opens.
+  const draftKey =
+    projectIdea && !readOnlyReason ? editorDraftKey("lyrics", projectIdea.id, resolvedVersion?.id ?? "new") : null;
+  const keptDraft = useEditorDraft({
+    key: draftKey,
+    fields: { text: draftText, direction: textDirection },
+    dirty: hasUnsavedChanges,
+    base: JSON.stringify({ ...editBaseRef.current, asNew: editSavesAsNew }),
+    workspaceId: ideaWorkspaceId(workspaces, projectIdea?.id),
+    onRestore: (kept) => {
+      let stored: (LyricsEditBase & { asNew?: boolean }) | null = null;
+      try {
+        stored = kept.base ? JSON.parse(kept.base) : null;
+      } catch {
+        stored = null;
+      }
+      if (stored) editBaseRef.current = { versionId: stored.versionId ?? null, updatedAt: stored.updatedAt ?? null };
+      setDraftText(kept.fields.text ?? "");
+      const direction = kept.fields.direction;
+      if (direction === "auto" || direction === "ltr" || direction === "rtl") setTextDirection(direction);
+      setIsEditMode(true);
+      setEditSavesAsNew(stored?.asNew ?? editSavesAsNew);
+    },
+  });
+  const clearKeptDraft = keptDraft.clear;
   const canSave = hasUnsavedChanges && (draftText.trim().length > 0 || versions.length > 0);
   // Reading a version names it by its own number; only an edit that will
   // save as a new version previews the number it is about to take (opening
@@ -143,11 +193,12 @@ export function useLyricsVersionScreenModel() {
       event.preventDefault();
       AppAlert.destructive(t("lyrics.discardTitle"), t("lyrics.discardBody"), () => {
         bypassUnsavedGuardRef.current = true;
+        clearKeptDraft();
         navigation.dispatch(event.data.action);
-      }, { confirmLabel: t("lyrics.discard"), icon: actionIcons.discard });
+      }, { confirmLabel: t("lyrics.discard"), cancelLabel: t("lyrics.keepEditing"), icon: actionIcons.discard });
     });
     return unsubscribe;
-  }, [hasUnsavedChanges, navigation, t]);
+  }, [clearKeptDraft, hasUnsavedChanges, navigation, t]);
 
   useEffect(() => {
     const showSub = Keyboard.addListener("keyboardDidShow", () => setIsKeyboardVisible(true));
@@ -162,12 +213,16 @@ export function useLyricsVersionScreenModel() {
     if (!projectIdea || !canSave) return;
     const shouldSaveAsNew = asNewOverride ?? editSavesAsNew;
     haptic.tap();
-    if (shouldSaveAsNew) {
-      // Base the new version on the version being edited so its chords copy forward.
-      appActions.saveProjectLyricsAsNewVersion(projectIdea.id, draftText, resolvedVersion?.document, textDirection);
-    } else {
-      appActions.saveProjectLyrics(projectIdea.id, draftText, textDirection);
-    }
+    // A new version is based on the version being edited so its chords copy forward;
+    // in place goes only over the words this edit started from (else a new version).
+    const { forked } = saveLyricsFromEditor(projectIdea.id, draftText, textDirection, {
+      asNew: shouldSaveAsNew,
+      baseDocument: resolvedVersion?.document,
+      editBase: editBaseRef.current,
+    });
+    if (forked) toast(t("lyrics.savedAsNewVersion"), "git-branch-outline");
+    keptDraft.clear();
+    reseedAfterSaveRef.current = true;
     // Land on the saved version's full view (not back at the song). Either path
     // makes the saved version the latest, so clear the params that force edit mode
     // and point at the latest — the effect above then drops us into read mode. No
@@ -194,6 +249,9 @@ export function useLyricsVersionScreenModel() {
   };
 
   const revertDraft = () => {
+    // An explicit Discard: the kept words go too.
+    keptDraft.clear();
+    editBaseRef.current = { versionId: resolvedVersion?.id ?? null, updatedAt: resolvedVersion?.updatedAt ?? null };
     setDraftText(sourceText);
     setBaselineText(sourceText);
     setTextDirection(sourceDirection);
