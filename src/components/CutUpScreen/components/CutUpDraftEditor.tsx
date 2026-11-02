@@ -43,15 +43,22 @@ export function CutUpDraftEditor({
   // True once the writer has hand-edited since the last generated draft — so
   // re-rolling a fresh style is friction-free until there's real work to lose.
   const editedRef = useRef(false);
+  // Whether the draft on screen is one this editor generated. A fresh mount (Back to
+  // Arrange and Draft again, a reopened spark) can't know that, so a draft it finds
+  // counts as written until a remix here replaces it (12f F-H4: a written draft was
+  // replaced without asking after a remount).
+  const generatedHereRef = useRef(false);
 
   const runRemix = (option: RemixOption) => {
     editedRef.current = false;
+    generatedHereRef.current = true;
     if (option.key === "board") model.rebuildDraftFromBoard();
     else model.composeDraft(option.key);
   };
 
   const pickRemix = (option: RemixOption) => {
-    const dirty = model.draftField.draft.trim().length > 0 && editedRef.current;
+    const dirty =
+      model.draftField.draft.trim().length > 0 && (editedRef.current || !generatedHereRef.current);
     if (dirty) {
       AppAlert.destructive(t("cutUp.rebuildTitle"), t("cutUp.rebuildBody"), () => runRemix(option), {
         confirmLabel: t("cutUp.rebuild"),
