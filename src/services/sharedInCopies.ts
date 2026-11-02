@@ -64,10 +64,15 @@ function sharedInFolders(): string[] {
     return [...appGroupFolders(), ...(intake ? [intake] : [])];
 }
 
+/** The root of an App Group container, which only this app's own groups can be: the
+ *  sandbox lets it see no one else's. For a build whose entitlements list is empty. */
+const APP_GROUP_ROOT_CHILD = /^\/var\/mobile\/Containers\/Shared\/AppGroup\/[0-9a-f-]{36}\/[^/]+$/i;
+
 /** True only for a copy the share intake made: a direct child of its folder. */
 export function isSharedInCopy(uri: string | null | undefined): boolean {
     if (!uri || /(^|\/)\.\.?(\/|$)/.test(uri)) return false;
     const path = plainPath(uri);
+    if (APP_GROUP_ROOT_CHILD.test(path)) return true;
     return sharedInFolders().some((folder) => {
         const root = plainPath(folder);
         if (!path.startsWith(root)) return false;

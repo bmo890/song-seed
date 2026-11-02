@@ -51,6 +51,10 @@ describe("isSharedInCopy", () => {
         // iOS hands paths both with and without the /private prefix.
         expect(isSharedInCopy(`file:///var/mobile/Containers/Shared/AppGroup/G1/${UUID}.m4a`)).toBe(true);
         expect(isSharedInCopy(`${INTAKE}${UUID}.ogg`)).toBe(true);
+        // A build whose entitlements list came up empty still knows an App Group root.
+        const otherGroup = `file:///private/var/mobile/Containers/Shared/AppGroup/${UUID}/`;
+        expect(isSharedInCopy(`${otherGroup}${UUID}.opus`)).toBe(true);
+        expect(isSharedInCopy(`${otherGroup}Library/Caches/x.db`)).toBe(false);
     });
 
     it("never claims anything else", () => {
