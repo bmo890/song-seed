@@ -70,3 +70,80 @@ Fixes: 03-1, 03-2, 03-3, 10-H1, 09-H2, 10-M1, 12d D-H2, D-M1, D-M3, decision E.
 2. Expect: the screen dims and locks; the take keeps recording (the orange mic indicator
    stays on). Unlock, Save: full length, no gap at the lock.
 3. Android unchanged: the screen behaves as before.
+
+## Editors
+
+Fixes: 04-H3, 04-H4, 04-M2, 12a A-H2, A-H3, A-L2, A-L5, 12c C-H1, C-H2, 12f F-H4, F-M2,
+12g G-H1, and two round-1 leftovers (a parcel's layers, a parcel's take notes). All OTA.
+
+### Type lyrics, then kill the app (04-H3) — OTA
+
+1. A sketch › Lyrics › open the latest version › edit. Type a verse; do not Save.
+2. Force-quit SongNook from the app switcher. Reopen, go back to the same version.
+3. Expect: the page opens in the editor with the verse, and the toast "Unsaved changes
+   restored". Save: it lands. Reopen once more: no toast (the draft is gone).
+4. Repeat, but tap Cancel › Discard instead of Save: reopening shows the saved words, no
+   toast.
+5. Same check for the sketch's Notes tab editor, and for a clip's notes sheet (collection
+   list › long-press › Edit, and the player's Notes page).
+
+### Edit lyrics in two places (12a A-H3, 04-H3) — OTA
+
+1. Sketch › Lyrics › write with the tape. Type a line, then collapse the player to the dock.
+2. In the sketch's lyric editor, fix a line and add a chorus; Save.
+3. Expand the player from the dock. Expect: the writer shows the fixed line and the
+   chorus. Type a character: nothing is lost (the latest version holds both).
+4. Reverse it: open the lyric editor, start typing, and before saving add a line from
+   the player's writer (open it from the dock). Save in the editor. Expect: the toast
+   "Saved as a new version"; one version holds the player's line, the newest holds the
+   editor's words.
+
+### Type a player note, then let the queue advance (12a A-H2, 04-M2) — OTA
+
+1. Play a playlist of short clips in the full player. Open the Notes page on clip 1 and
+   write until the clip ends and clip 2 plays under the sheet.
+2. Save (or swipe the sheet down). Expect: the note is on clip 1; clip 2's note is unchanged.
+3. Writer variant: in a queue of two sketches, write in the lyric writer and tap Next
+   within a second of the last key. Expect: sketch 1 has the words, sketch 2's lyrics are
+   untouched.
+4. Pin variant: hold a pin on the reel to edit it, let the queue advance, rename, Save.
+   Expect: the pin on clip 1 is renamed; clip 2 gains no pins.
+
+### Edit clip after notes changed elsewhere (12c C-H1) — OTA
+
+1. Collection list › long-press a clip › Edit. Type note "A", Save.
+2. Open the clip in the full player; on the Notes page add a second line, Save.
+3. Back on the list, long-press › Edit. Expect: the sheet shows both lines.
+4. Change only the title, Save. Expect: the title changes and both lines stay.
+5. In the sheet, type something, then tap Cancel. Expect "Discard changes?" with Keep
+   editing / Discard; Keep editing keeps the words.
+
+### Edit collection keeps the description (12c C-H2) — OTA
+
+1. Workspace hub › long-press a collection › Edit. Change the title and type a
+   description. Save.
+2. Expect: the header shows the new description; Edit again pre-fills it.
+3. Clear the description, Save: it is gone. A title-only rename elsewhere keeps it.
+
+### Spark sent to the Lyric Pad again (12g G-H1) — OTA
+
+1. Word Ladder › … › Send to Lyric Pad. Open that Pad page and write a verse on it.
+2. Revise the ladder and send again. Expect: "You’ve written on that page since…" with
+   New page and a red Replace page. New page keeps the Pad verse.
+3. Send a third time without touching the Pad page: the plain "Update page" is offered.
+
+### Cut-Up asks before replacing written words (12f F-H4, F-M2) — OTA
+
+1. Cut-Up: write a draft by hand, tap Back to the table, then Draft again. Remix › Mixed.
+   Expect the replace question. A second Remix right after one (no typing) does not ask.
+2. New Cut-Up: paste a verse as the source, tap From Lyric Pad. Expect "Replace the
+   source?" before the picker opens.
+
+### A received parcel's take reads, never edits (decision B) — OTA
+
+1. Received › a parcel's sketch with layers and take notes › play a take.
+2. Expect: the lanes show Solo only (no Mute), a lane tap opens nothing, no Merge/Combine
+   foot. Solo still solos.
+3. The take's note: on the sketch page tap the note line, and on the player tap the notes
+   tile. Expect the whole note in a sheet with Done only (no fields, no Save).
+4. Keep the parcel: all layer controls and note editing come back.
