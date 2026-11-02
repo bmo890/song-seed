@@ -110,6 +110,7 @@ import { hasPendingWorkspaceArchiveOperations, resumePendingWorkspaceArchiveOper
 import { sweepPickerCache } from "./src/services/pickedCopies";
 import { enqueueMissingMetadataBackfill } from "./src/services/backgroundWaveformHydration";
 import { recoverPendingRecordingSession } from "./src/services/recordingRecovery";
+import { useLaunchSequence } from "./src/hooks/useLaunchSequence";
 import { cleanupStaleDisasterRecoveryBackupFiles } from "./src/services/disasterRecoveryBackup";
 import { cleanupInterruptedDisasterRecoveryRestores } from "./src/services/disasterRecoveryTemp";
 
@@ -1277,11 +1278,16 @@ export default function App() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!hasHydrated) return;
+  // The launch sequence runs ONCE PER JS PROCESS, the first time the store is hydrated.
+  // An Android activity rebuild (fold, font or display size, language) remounts App in
+  // the live process with the store already hydrated; keyed on the mount, this reran
+  // take recovery and the temp sweeps mid-take and deleted the file the recorder was
+  // writing (audit 2026-11-02, 10-H1). "again" lets a later hydration retry only when
+  // the disk read was not yet authoritative.
+  useLaunchSequence(hasHydrated, "app.launch", async () => {
     // Sweep stale share/export temp files after hydration so the app does not keep growing
     // storage usage from artifacts that were never part of persisted user state.
-    void (async () => {
+    {
       await cleanupStaleShareTempFiles();
       await cleanupStaleDisasterRecoveryBackupFiles();
       const hydratedState = useStore.getState();
@@ -1321,7 +1327,7 @@ export default function App() {
         // hydration read may claim that. An unsettled or failed read means disk state
         // is unknown; the retry screen owns that boot, and this effect re-runs if a
         // later hydration completes.
-        if (!isHydrationReadAuthoritative()) return;
+        if (!isHydrationReadAuthoritative()) return "again";
         const manifest = await readManifest();
         const manifestIdeaCount = manifest
           ? manifest.workspaces.reduce((sum, ws) => sum + (ws.ideas?.length ?? 0), 0)
@@ -1374,7 +1380,7 @@ export default function App() {
             // still on — every edit for the rest of the session then stayed in memory.
             { onDismiss: continueWithEmptyLibrary }
           );
-          return;
+          return "done";
         }
         // Fresh install with no recoverable backup: the starter "My Songs"/"Ideas"
         // library is already in place (createInitialWorkspace is the store's initial
@@ -1391,7 +1397,7 @@ export default function App() {
           i18n.t("recovery.degradedBody", { count: degradedWorkspaceIds.length })
         );
         useStore.getState().markFirstLaunch();
-        return;
+        return "done";
       }
 
       // Anchor the store-review timing rule on the very first launch. Runs after the
@@ -1426,7 +1432,7 @@ export default function App() {
               },
             ]
           );
-          return;
+          return "done";
         }
       }
 
@@ -1436,13 +1442,13 @@ export default function App() {
           i18n.t("recovery.clipRecoveredTitle"),
           i18n.t("recovery.clipRecoveredBody", { title: recordingRecovery.title })
         );
-        return;
+        return "done";
       } else if (recordingRecovery.status === "empty") {
         AppAlert.info(i18n.t("recovery.clipEmptyTitle"), i18n.t("recovery.clipEmptyBody"));
-        return;
+        return "done";
       } else if (recordingRecovery.status === "failed") {
         AppAlert.info(i18n.t("recovery.clipRecoveryFailedTitle"), i18n.t("recovery.clipRecoveryFailedBody"));
-        return;
+        return "done";
       }
 
       const state = useStore.getState();
@@ -1455,7 +1461,7 @@ export default function App() {
           backupReminderLastPromptedAt: state.backupReminderLastPromptedAt,
         })
       ) {
-        return;
+        return "done";
       }
 
       // Showing it IS the event that starts the next interval — whichever button is
@@ -1505,8 +1511,9 @@ export default function App() {
           { label: i18n.t("backupReminder.later"), style: "cancel" },
         ]
       );
-    })();
-  }, [hasHydrated]);
+      return "done";
+    }
+  });
 
   if (!locale.language) {
     return (
