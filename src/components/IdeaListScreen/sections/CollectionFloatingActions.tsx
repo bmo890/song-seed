@@ -10,7 +10,10 @@ import { useCollectionScreen } from "../provider/CollectionScreenProvider";
 import { appActions } from "../../../state/actions";
 import { createEmptyProjectLyrics } from "../../../state/dataSlice";
 import { relocateActivityEvents, relocatePlaylists } from "../../../state/relocationMetadata";
-import { buildRuntimeCleanupPatch, restorePrunedEntries } from "../../../state/runtimeCleanup";
+import { buildRuntimeCleanupPatch } from "../../../state/runtimeCleanup";
+import { captureDeletedIdeas } from "../../../state/recentlyDeleted";
+import { restoreRecentlyDeleted } from "../../../state/recentlyDeletedActions";
+import { announceDeleted } from "../../common/deleteFeedback";
 import { collectManagedIdeaAudioUris } from "../../../services/managedMedia";
 import { trashFilesNoLongerUsed } from "../../../state/mediaCleanup";
 import { authorizeIntentionalEmptyStateWrite } from "../../../services/stateIntegrity";
@@ -88,63 +91,6 @@ function restoreCollectionUndoSnapshot(snapshot: CollectionUndoSnapshot) {
     activityEvents: snapshot.activityEvents,
     playlists: snapshot.playlists,
   }));
-}
-
-/** Undo for a multi-delete: put back only the ideas (and their activity and playlist
- *  entries) that the delete removed. Anything saved during the undo window stays. */
-function restoreDeletedIdeas(snapshot: CollectionUndoSnapshot, removedIdeaIds: Set<string>) {
-  useStore.setState((store) => {
-    const removedIdeas = snapshot.ideas.filter((idea) => removedIdeaIds.has(idea.id));
-    const nextWorkspaces = store.workspaces.map((workspace) => {
-      if (workspace.id !== snapshot.workspaceId) return workspace;
-      const present = new Set(workspace.ideas.map((idea) => idea.id));
-      const hiddenBefore = new Map(snapshot.collections.map((collection) => [collection.id, collection.ideasListState]));
-      return normalizeCollectionVisibility({
-        ...workspace,
-        ideas: [...workspace.ideas, ...removedIdeas.filter((idea) => !present.has(idea.id))],
-        // Bring back the deleted ideas' hidden state with them.
-        collections: workspace.collections.map((collection) => {
-          const before = hiddenBefore.get(collection.id);
-          if (!before) return collection;
-          const hidden = new Set(collection.ideasListState?.hiddenIdeaIds ?? []);
-          for (const id of before.hiddenIdeaIds ?? []) if (removedIdeaIds.has(id)) hidden.add(id);
-          return {
-            ...collection,
-            ideasListState: { hiddenDays: collection.ideasListState?.hiddenDays ?? [], hiddenIdeaIds: [...hidden] },
-          };
-        }),
-      });
-    });
-    const presentEvents = new Set(store.activityEvents.map((event) => event.id));
-    return {
-      workspaces: nextWorkspaces,
-      activityEvents: [
-        ...store.activityEvents,
-        ...snapshot.activityEvents.filter((event) => removedIdeaIds.has(event.ideaId) && !presentEvents.has(event.id)),
-      ].sort((a, b) => b.at - a.at),
-      playlists: store.playlists.map((playlist) => {
-        const before = snapshot.playlists.find((candidate) => candidate.id === playlist.id);
-        if (!before) return playlist;
-        const kept = new Set(playlist.items.map((item) => item.id));
-        // The playlist's order from before the delete, minus anything removed since.
-        return {
-          ...playlist,
-          items: [
-            ...before.items.filter((item) => kept.has(item.id) || removedIdeaIds.has(item.ideaId)),
-            ...playlist.items.filter((item) => !before.items.some((old) => old.id === item.id)),
-          ],
-        };
-      }),
-      songbooks: store.songbooks.map((book) => {
-        const before = snapshot.songbooks.find((candidate) => candidate.id === book.id);
-        return before ? { ...book, items: restorePrunedEntries(book.items, before.items, removedIdeaIds) } : book;
-      }),
-      setlists: store.setlists.map((set) => {
-        const before = snapshot.setlists.find((candidate) => candidate.id === set.id);
-        return before ? { ...set, entries: restorePrunedEntries(set.entries, before.entries, removedIdeaIds) } : set;
-      }),
-    };
-  });
 }
 
 /** The picker's one chrome on a collection page: ✕ + "Add N" while a
@@ -280,12 +226,13 @@ export function CollectionFloatingActions() {
       useStore.getState().clearPlayerQueue();
     }
 
-    const previousSnapshot = buildCollectionUndoSnapshot(activeWorkspace);
     const removedClipIds = removedIdeas.flatMap((idea) => idea.clips.map((clip) => clip.id));
     const candidateAudioUris = removedIdeas.flatMap((idea) =>
       Array.from(collectManagedIdeaAudioUris(idea))
     );
     const deletedCount = screen.selectedListIdeaIds.length;
+    // Each idea waits in Recently deleted, whole, with what pointed at it (decision A).
+    const kept = captureDeletedIdeas(state, activeWorkspace.id, removedIdeas);
     useStore.setState((storeState) => {
       const nextWorkspaces = storeState.workspaces.map((workspace) =>
         workspace.id !== activeWorkspace.id
@@ -312,13 +259,16 @@ export function CollectionFloatingActions() {
           ...playlist,
           items: playlist.items.filter((item) => !selectedIdeaIds.has(item.ideaId)),
         })),
+        recentlyDeleted: [...kept, ...storeState.recentlyDeleted],
       };
     });
     // Same word as the confirm dialog: clips when every one was a clip.
     const allClips = removedIdeas.every((idea) => idea.kind === "clip");
+    const keptIds = kept.map((item) => item.id);
     selection.showUndo(t(allClips ? "collection.deletedClipsUndo" : "collection.deletedUndo", { count: deletedCount }), () => {
-      restoreDeletedIdeas(previousSnapshot, selectedIdeaIds);
+      void restoreRecentlyDeleted(keptIds);
     }, () => trashFilesNoLongerUsed(candidateAudioUris, "multi-delete"));
+    announceDeleted(keptIds, { toast: false });
   };
 
   const hideIdeasFromList = async (ideaIds: string[]) => {

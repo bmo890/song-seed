@@ -1,3 +1,4 @@
+import { deleteWithUndo } from "../common/deleteFeedback";
 import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -132,7 +133,10 @@ export function ReceivedScreen() {
         ? t("received.deleteBody", { title: one.title, items: t("received.items", { count: one.ideas.length }) })
         : t("received.deleteManyBody"),
       () => {
-        for (const pkg of targets) deleteWorkspace(pkg.id);
+        // A parcel's own Remove goes through Recently deleted too.
+        deleteWithUndo(() => {
+          for (const pkg of targets) deleteWorkspace(pkg.id);
+        });
         haptic.success();
         clearSelection();
       },

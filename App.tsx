@@ -64,6 +64,7 @@ import { LyricsVersionScreen } from "./src/components/LyricsVersionScreen";
 import { ChordSheetScreen } from "./src/components/ChordSheetScreen";
 import { SongbookReaderScreen } from "./src/components/SongbookReaderScreen";
 import { SetlistSongScreen } from "./src/components/SetlistSongScreen";
+import { RecentlyDeletedScreen } from "./src/components/RecentlyDeletedScreen";
 import { ReceivedScreen } from "./src/components/ReceivedScreen";
 import { TransferReceiveScreen } from "./src/components/TransferReceiveScreen";
 import { ActivityScreen } from "./src/components/ActivityScreen";
@@ -258,6 +259,7 @@ const ROOT_STACK_ROUTE_NAMES: Array<keyof RootStackParamList> = [
   "CollectionVisit",
   "Recording",
   "BluetoothCalibration",
+  "RecentlyDeleted",
   "ShareImport",
   "Editor",
   "LyricsVersion",
@@ -377,6 +379,7 @@ function isValidRestorableRootRoute(route: any) {
     case "Activity":
     case "Recording":
     case "BluetoothCalibration":
+    case "RecentlyDeleted":
       return true;
     case "IdeaDetail":
       return typeof route.params?.ideaId === "string" && route.params.ideaId.length > 0;
@@ -1195,6 +1198,7 @@ function AppContent() {
           <Stack.Screen name="CollectionVisit" component={IdeaListScreen} />
           <Stack.Screen name="Recording" component={RecordingScreen} />
           <Stack.Screen name="BluetoothCalibration" component={BluetoothCalibrationScreen} />
+          <Stack.Screen name="RecentlyDeleted" component={RecentlyDeletedScreen} />
           {/* The full player is NOT a route — it's the PlayerSheet overlay below,
               a sibling of the media dock (per docs/audio-architecture-plan.md). */}
           <Stack.Screen name="ShareImport">

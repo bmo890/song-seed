@@ -92,6 +92,8 @@ export type RootStackParamList = {
   Activity: { workspaceId?: string; collectionId?: string } | undefined;
   Recording: undefined;
   BluetoothCalibration: undefined;
+  /** Recently deleted (decision A, 2026-11-02), pushed from Settings › Data & storage. */
+  RecentlyDeleted: undefined;
   ShareImport: undefined;
   Editor: { ideaId: string; clipId: string; audioUri?: string; durationMs?: number };
   LyricsVersion: { ideaId: string; versionId?: string; startInEdit?: boolean; forceNewVersion?: boolean; createDraft?: boolean };

@@ -1,3 +1,4 @@
+import { deleteWithUndo } from "../../common/deleteFeedback";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
@@ -272,8 +273,17 @@ export function useSetlistModel() {
       activeSetlist && reorderSetlistEntries(activeSetlist.id, orderedEntryIds),
     deleteActiveSetlist: () => {
       if (!activeSetlist) return;
-      deleteSetlist(activeSetlist.id);
-      setSelectedSetlistId(null);
+      const setlist = activeSetlist;
+      // A named confirm, then Recently deleted with Undo (12e E-H2).
+      AppAlert.destructive(
+        t("library.deleteSetTitle"),
+        t("library.deleteSetBody", { title: setlist.title }),
+        () => {
+          deleteWithUndo(() => deleteSetlist(setlist.id));
+          setSelectedSetlistId(null);
+        },
+        { confirmLabel: t("common.delete") }
+      );
     },
     shareActiveSetlist: async () => {
       if (!activeSetlist) return;

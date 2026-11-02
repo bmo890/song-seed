@@ -81,7 +81,8 @@ export function PlaylistChooserSheet({ visible, onClose, items, label }: Playlis
     const added = addTo(id, naming.items);
     setNaming(null);
     if (added === 0) {
-      store.deletePlaylist(id);
+      // The empty list this sheet just made is nobody's deletion.
+      store.deletePlaylist(id, { recentlyDeleted: false });
       haptic.error();
       toast(t("playlistChooser.nothingToAdd"), "alert-circle-outline");
       return;

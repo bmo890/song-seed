@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Press } from "./Press";
+import { Press, type PressHaptic } from "./Press";
 import { colors, spacing, text as textTokens } from "../../design/tokens";
 import { dirIcon } from "../../design/directionalIcons";
 import { UserText } from "../../i18n";
@@ -26,6 +26,9 @@ export function ListRow({
   userTitle = true,
   testID,
   accessibilityLabel,
+  selected,
+  chevron = true,
+  haptic = "navigate",
 }: {
   icon: ComponentProps<typeof Ionicons>["name"];
   title: string;
@@ -41,21 +44,32 @@ export function ListRow({
   userTitle?: boolean;
   testID?: string;
   accessibilityLabel?: string;
+  /** In a selection: the glyph becomes a check on a quiet terracotta wash. */
+  selected?: boolean;
+  /** The chevron says the row takes you somewhere; a row that only toggles drops it. */
+  chevron?: boolean;
+  /** Navigation is silent (the default); a row that opens a menu or toggles taps. */
+  haptic?: PressHaptic;
 }) {
   const titleStyle = serifTitle ? rowStyles.titleSerif : rowStyles.title;
   return (
     <Press
       // Haptics vocabulary: a row only takes you somewhere; navigation is silent.
-      haptic="navigate"
+      haptic={haptic}
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? title}
-      style={rowStyles.row}
+      accessibilityState={selected === undefined ? undefined : { selected }}
+      style={[rowStyles.row, selected ? rowStyles.rowSelected : null]}
       onPress={onPress}
       onLongPress={onLongPress}
     >
       <View style={rowStyles.icon}>
-        <Ionicons name={icon} size={19} color={colors.textStrong} />
+        <Ionicons
+          name={selected ? "checkmark" : icon}
+          size={19}
+          color={selected ? colors.primaryDeep : colors.textStrong}
+        />
       </View>
       <View style={rowStyles.copy}>
         {userTitle ? (
@@ -78,7 +92,7 @@ export function ListRow({
         ) : null}
       </View>
       {accessory ?? null}
-      <Ionicons name={dirIcon("chevron-forward")} size={14} color={colors.textMuted} />
+      {chevron ? <Ionicons name={dirIcon("chevron-forward")} size={14} color={colors.textMuted} /> : null}
     </Press>
   );
 }
@@ -110,6 +124,9 @@ const rowStyles = StyleSheet.create({
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.borderMuted,
+  },
+  rowSelected: {
+    backgroundColor: colors.primarySurface,
   },
   icon: {
     width: 22,

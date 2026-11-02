@@ -1,3 +1,4 @@
+import { deleteWithUndo } from "../../common/deleteFeedback";
 import { useMemo, useState } from "react";
 import * as DocumentPicker from "expo-document-picker";
 import { AppAlert } from "../../common/AppAlert";
@@ -287,11 +288,12 @@ export function useWorkspaceArchiveActions({
         ? t("workspaceArchive.deleteAllBody", { count: selectedWorkspaces.length })
         : t("workspaceArchive.deleteBody", { count: selectedWorkspaces.length }),
       () => {
-        selectedWorkspaces.forEach((workspace) => deleteWorkspace(workspace.id));
+        // Into Recently deleted, with Undo (04-M3).
+        deleteWithUndo(() => selectedWorkspaces.forEach((workspace) => deleteWorkspace(workspace.id)));
         onClearSelection();
         onCloseSelectionMore();
       },
-      { confirmLabel: t("workspaceArchive.deletePermanently") }
+      { confirmLabel: t("common.delete") }
     );
   }
 
@@ -346,10 +348,10 @@ export function useWorkspaceArchiveActions({
         ? t("workspaceArchive.deleteFinalBody", { count: workspace.ideas.length })
         : t("workspaceArchive.deleteWorkspaceBody", { count: workspace.ideas.length }),
       () => {
-        deleteWorkspace(workspace.id);
+        deleteWithUndo(() => deleteWorkspace(workspace.id));
         closeModal();
       },
-      { confirmLabel: t("workspaceArchive.deletePermanently") }
+      { confirmLabel: t("common.delete") }
     );
   }
 

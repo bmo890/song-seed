@@ -1,3 +1,4 @@
+import { deleteWithUndo } from "../../common/deleteFeedback";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 import { AppAlert } from "../../common/AppAlert";
@@ -749,11 +750,14 @@ export function usePlayerScreenLifecycle({
                   if (isPlayerPlaying) {
                     await pausePlayer();
                   }
-                  if (emptiesIdea) {
-                    useStore.getState().deleteIdea(playerIdea.id);
-                  } else {
-                    appActions.deleteClipFromIdea(playerIdea.id, clipId);
-                  }
+                  // Either way it waits in Recently deleted; the toast says so (04-H5).
+                  deleteWithUndo(() => {
+                    if (emptiesIdea) {
+                      useStore.getState().deleteIdea(playerIdea.id);
+                    } else {
+                      appActions.deleteClipFromIdea(playerIdea.id, clipId);
+                    }
+                  });
                   // Close the player — it was pointed at the now-deleted clip.
                   // Exits no longer stop audio implicitly, so clean up explicitly.
                   stopSessionAndClose();
