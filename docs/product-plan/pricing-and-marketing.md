@@ -73,7 +73,11 @@ trust problem, and some are legal ones.
 6. **The free month:** every Pro tool for 30 days, no card, once per device. When it ends
    nothing is lost; gates only stop creating new Pro things.
 7. **TestFlight testers keep Pro** (installs that predate `APP_STORE_RELEASE_AT`, plus
-   RevenueCat promotional entitlements for anyone missed).
+   RevenueCat promotional entitlements for anyone missed). Decided from the free month's
+   first-launch record in the Keychain (`services/freeMonthClock.ts`), never from a
+   backup; "1" is stored once, "0" never. On iPhone it survives reinstalls, Erase
+   everything and TestFlight → App Store. An Android reinstall or a new phone of either
+   kind starts a new record: those testers need the promotional entitlement.
 
 ## 3. Free and Pro
 
@@ -82,7 +86,8 @@ The split lives in code: `src/domain/proCatalog.ts` (numbers and switches) and
 
 - **Pro:** workspaces beyond 3; layers beyond 1 per take; pitch, pins, analysis and
   Step up (plain loop and speed are free); editor parts beyond 1 and its Speed & pitch
-  tab; transpose, capo, chart books, setlists, stage reader (writing charts is free);
+  tab; transpose, capo, making chart books and setlists (writing charts is free; a book
+  that exists always opens in the stage reader, 2026-11-02 audit 11-M3);
   PDF export; the whole Word Finder (its APIs cost money); Lyric Spark beyond 3 tries per
   game; Send beyond 3 links per 30 days; archive offload.
 - `ALL_FEATURES_FREE = true` in `src/domain/entitlements.ts` until the paywall goes live
@@ -204,3 +209,8 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
   It costs pennies per buyer (everything is on the phone), cloud is already outside it
   in the terms, rivals all offer one, and subscription-averse musicians buy nothing
   without it. Revisit at the 90-day launch-price date with real numbers.
+- 2026-11-02 — Data-safety audit fixes (founder: "start fixing"): a chart book that
+  exists always opens in the stage reader (making books stays Pro; 11-M3). Founding is
+  decided from the Keychain first-launch record and never stored as "0" (11-H1). The free
+  month's clock ignores a single forward jump of more than 2 days until a later launch
+  confirms it (07-M4).

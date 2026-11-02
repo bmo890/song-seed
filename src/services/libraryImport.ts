@@ -13,6 +13,7 @@ import {
 import { ensureBackupDiskSpace } from "./backupOperation";
 import { describeArchiveWarning, readArchiveWarnings, type ArchiveWarning } from "./archiveWarnings";
 import { createLyricsVersion, lyricsTextToDocument } from "../domain/lyrics";
+import { normalizeHiddenDays } from "../domain/hiddenDayGroups";
 import { createEmptyProjectLyrics, createEmptyWorkspaceIdeasListState } from "../state/dataSlice";
 import type {
     BluetoothMonitoringCalibration,
@@ -56,7 +57,8 @@ function remapIdeasListState(
     const hiddenIdeaIds = (state?.hiddenIdeaIds ?? [])
         .map((sourceId) => ideaIdMap.get(sourceId))
         .filter((id): id is string => !!id);
-    const hiddenDays = Array.isArray(state?.hiddenDays) ? state.hiddenDays : [];
+    // Older archives carry the moving-start shape; fold it into calendar days now (07-H1).
+    const hiddenDays = normalizeHiddenDays(state?.hiddenDays);
     return { hiddenIdeaIds, hiddenDays };
 }
 

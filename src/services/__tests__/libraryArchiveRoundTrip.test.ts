@@ -358,7 +358,7 @@ function buildLibrary(): { workspaces: Workspace[]; idea: SongIdea } {
                     updatedAt: 20,
                     ideasListState: {
                         hiddenIdeaIds: ["idea-2"],
-                        hiddenDays: [{ metric: "created", dayStartTs: 86400000 }],
+                        hiddenDays: [{ metric: "created", fromDay: "2026-10-01", toDay: "2026-10-31" }],
                     },
                 },
             ],
@@ -476,7 +476,7 @@ describe("SongNook Archive round-trip — full fidelity", () => {
         const standalone = workspace.ideas.find((idea) => idea.kind === "clip")!;
         expect(workspace.collections[0].ideasListState).toEqual({
             hiddenIdeaIds: [standalone.id],
-            hiddenDays: [{ metric: "created", dayStartTs: 86400000 }],
+            hiddenDays: [{ metric: "created", fromDay: "2026-10-01", toDay: "2026-10-31" }],
         });
         expect(workspace.ideasListState?.hiddenIdeaIds).toEqual([song.id]);
     });

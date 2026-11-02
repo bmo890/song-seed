@@ -1,5 +1,6 @@
-import { ContentDirection, LyricsDocument, LyricsLine, LyricsVersion, SongIdea } from "../types";
+import { ChordPlacement, ContentDirection, LyricsDocument, LyricsLine, LyricsVersion, SongIdea } from "../types";
 import { chordGraphemeAnchor, graphemeCount, graphemeIndexToStringIndex } from "./chords";
+import { alignLyricLines, remapChordAnchor } from "./lyricsAlign";
 
 function buildLyricsLineId() {
   return `lyrics-line-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -22,25 +23,66 @@ export function lyricsTextToDocument(text: string, previousDocument?: LyricsDocu
 
   const rawLines = normalizedText.split("\n");
   const previousLines = previousDocument?.lines ?? [];
+  // Chords follow their words, not the line number (12b B-H2): match old lines
+  // to new by content, then carry each line's chart to where its words went.
+  const sources = alignLyricLines(
+    previousLines.map((line) => line.text),
+    rawLines
+  );
+  const place = (chord: ChordPlacement, lineText: string, graphemeAt: number): ChordPlacement => ({
+    ...chord,
+    graphemeAt,
+    at: graphemeIndexToStringIndex(lineText, graphemeAt),
+  });
 
   const lines: LyricsLine[] = rawLines.map((lineText, index) => {
-    const previousLine = previousLines[index];
-    // Keep chords anchored to the same line index across edits. When the text is
-    // unchanged the anchors are exact; when it changed we clamp each anchor into
-    // the new length rather than dropping the chart the writer built.
-    const previousChords = previousLine?.chords ?? [];
-    const preserveChords =
-      previousLine?.text === lineText
-        ? previousChords
-        : previousChords.map((chord) => {
-            const graphemeAt = Math.min(chordGraphemeAnchor(chord, previousLine?.text ?? ""), graphemeCount(lineText));
-            return { ...chord, graphemeAt, at: graphemeIndexToStringIndex(lineText, graphemeAt) };
-          });
-
+    const source = sources[index];
+    if (!source) {
+      return { id: buildLyricsLineId(), text: lineText, chords: [] };
+    }
+    if (source.kind === "same") {
+      const previousLine = previousLines[source.old];
+      return { id: previousLine.id, text: lineText, chords: previousLine.chords ?? [] };
+    }
+    if (source.kind === "edited") {
+      const previousLine = previousLines[source.old];
+      return {
+        id: previousLine.id,
+        text: lineText,
+        chords: (previousLine.chords ?? []).map((chord) =>
+          place(
+            chord,
+            lineText,
+            remapChordAnchor(chordGraphemeAnchor(chord, previousLine.text), previousLine.text, lineText)
+          )
+        ),
+      };
+    }
+    if (source.kind === "split") {
+      const previousLine = previousLines[source.old];
+      const shift = source.part === 0 ? 0 : source.offset;
+      return {
+        id: source.part === 0 ? previousLine.id : buildLyricsLineId(),
+        text: lineText,
+        chords: (previousLine.chords ?? [])
+          .filter((chord) => {
+            const anchor = chordGraphemeAnchor(chord, previousLine.text);
+            return source.part === 0 ? anchor < source.offset : anchor >= source.offset;
+          })
+          .map((chord) => place(chord, lineText, chordGraphemeAnchor(chord, previousLine.text) - shift)),
+      };
+    }
+    const [first, second] = source.olds.map((old) => previousLines[old]);
+    const offset = graphemeCount(first.text);
     return {
-      id: previousLine?.id ?? buildLyricsLineId(),
+      id: first.id,
       text: lineText,
-      chords: preserveChords,
+      chords: [
+        ...(first.chords ?? []).map((chord) => place(chord, lineText, chordGraphemeAnchor(chord, first.text))),
+        ...(second.chords ?? []).map((chord) =>
+          place(chord, lineText, offset + chordGraphemeAnchor(chord, second.text))
+        ),
+      ],
     };
   });
 

@@ -21,7 +21,8 @@ export function FreeMonthNotices() {
     let cancelled = false;
     const run = async () => {
       const status = await syncFreeMonth(useStore.getState().firstLaunchAt);
-      if (cancelled) return;
+      // null: the secure store couldn't be read (phone locked); try on the next return.
+      if (cancelled || !status) return;
       if (!isPaywallLive() && !isDevFreeMonthPreview()) return;
       if (proEntitlement.get() || isFoundingMember()) return;
       const due = noticeDue(status, await readShownNotices());

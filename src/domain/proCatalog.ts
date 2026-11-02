@@ -76,7 +76,7 @@ export const PRO_CATALOG: Record<ProFeature, ProCatalogRow> = {
     // ── Charts and the stage ─────────────────────────────────────────────────────────
     "stage-tools": {
         pro: true,
-        what: "Transpose, capo, creating a chart book or a setlist, opening the stage reader. Writing chord charts and reading existing charts, books and sets stay free; a received parcel's charts and books use these tools free.",
+        what: "Transpose, capo, creating a chart book or a setlist. Writing chord charts and reading existing charts, books (in the stage reader too, 11-M3) and sets stay free; a received parcel's charts and books use these tools free.",
     },
     "pdf-export": {
         pro: true,

@@ -67,24 +67,83 @@ export function freeMonthNow(now: number, lastSeenAt: number | null | undefined)
 }
 
 /**
- * Founding membership, decided ONCE and stored (sweep P1-2): `firstLaunchAt` rides the
- * restorable snapshot, so a restored backup could carry it; the stored flag ("1"/"0",
- * in the Keychain beside the free month's start) is what counts from then on. The
- * decision waits until the release date is known: with none set nobody is founding
- * yet, and storing "0" then would lock the testers out.
+ * How far the clock may move forward between two launches and still be believed at
+ * once (07-M4, 2026-11-02). A bigger jump is believed for this launch only; it becomes
+ * the stored high-water mark when a launch at least `CLOCK_JUMP_CONFIRM_MS` later
+ * still agrees. One launch with the date set ahead (a game, a phone that booted with
+ * a bad clock before network time) used to end the month for good: the mark only
+ * rises and lives in the Keychain.
  */
-export type FoundingDecision = { founding: boolean; store: "1" | "0" | null };
+export const CLOCK_JUMP_LIMIT_MS = 2 * DAY_MS;
+export const CLOCK_JUMP_CONFIRM_MS = 60 * 60 * 1000;
+
+export type FreeMonthClockMarks = {
+  /** The trusted high-water mark: the latest moment the app has believed. */
+  lastSeenAt: number | null;
+  /** A big forward jump waiting for a later launch to confirm it. */
+  pendingAt: number | null;
+};
+
+/**
+ * The clock this launch is judged by, and the marks to store. Turning the date back
+ * never reopens the month (the trusted mark holds); a big jump forward ends nothing
+ * for good until a later launch confirms it; ordinary time just advances the mark.
+ */
+export function advanceFreeMonthClock(
+  now: number,
+  marks: FreeMonthClockMarks
+): { judgeAt: number; next: FreeMonthClockMarks } {
+  const { lastSeenAt, pendingAt } = marks;
+  if (lastSeenAt == null) return { judgeAt: now, next: { lastSeenAt: now, pendingAt: null } };
+  // Set back (or not moved): the trusted mark holds, and an unconfirmed jump was the
+  // odd one out.
+  if (now <= lastSeenAt) return { judgeAt: lastSeenAt, next: { lastSeenAt, pendingAt: null } };
+  if (now - lastSeenAt <= CLOCK_JUMP_LIMIT_MS) return { judgeAt: now, next: { lastSeenAt: now, pendingAt: null } };
+  // A big jump: this launch is judged by the device's clock, but nothing is kept
+  // until a launch an hour or more later still agrees.
+  if (pendingAt != null && now >= pendingAt + CLOCK_JUMP_CONFIRM_MS) {
+    return { judgeAt: now, next: { lastSeenAt: now, pendingAt: null } };
+  }
+  if (pendingAt != null && now >= pendingAt) return { judgeAt: now, next: { lastSeenAt, pendingAt } };
+  return { judgeAt: now, next: { lastSeenAt, pendingAt: now } };
+}
+
+/**
+ * Founding membership (11-H1, 2026-11-02). A "1" is stored once and is final. It is
+ * decided from records that never ride a backup, so a restored backup cannot make
+ * anyone founding (sweep P1-2):
+ *
+ *  - `startedAt`: the free month's start in the durable store, written at an
+ *    install's first launch of a build with the free month (2026-10-19). On iPhone
+ *    it is in the Keychain, which outlives deleting the app, "Erase everything",
+ *    swapping the TestFlight app for the App Store one, and an empty boot.
+ *  - `firstLaunchAtAtBirth`: the library's own first launch as it stood when that
+ *    record was born (`undefined` for records born before this field). It covers a
+ *    tester whose first launch since 2026-10-19 comes after the release. A fresh
+ *    install's first sync runs before the library stamps its first launch, so it
+ *    records none, and a later restore of someone's backup can't count.
+ *
+ * Nothing ever stores "0": a wrong "0" in the Keychain was permanent, and an empty
+ * boot or a reinstall wrote one for testers. A stored "0" from an older build is
+ * simply decided again. With no release date set nobody is founding yet.
+ */
+export type FoundingDecision = { founding: boolean; store: "1" | null };
+
+export type FoundingEvidence = {
+  startedAt: number | null | undefined;
+  firstLaunchAtAtBirth?: number | null;
+};
 
 export function decideFounding(
   storedFlag: string | null | undefined,
-  firstLaunchAt: number | null | undefined,
+  evidence: FoundingEvidence,
   releaseAt: number | null = APP_STORE_RELEASE_AT
 ): FoundingDecision {
   if (storedFlag === "1") return { founding: true, store: null };
-  if (storedFlag === "0") return { founding: false, store: null };
   if (releaseAt == null) return { founding: false, store: null };
-  const founding = isFoundingInstall(firstLaunchAt, releaseAt);
-  return { founding, store: founding ? "1" : "0" };
+  const founding =
+    isFoundingInstall(evidence.startedAt, releaseAt) || isFoundingInstall(evidence.firstLaunchAtAtBirth, releaseAt);
+  return { founding, store: founding ? "1" : null };
 }
 
 /** The quiet notes the free month gives, each shown once: a few days ahead, the last day, after. */

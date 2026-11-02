@@ -8,7 +8,8 @@ import {
     DR_BACKUP_FORMAT_VERSION,
     type DrBackupManifest,
 } from "./disasterRecoveryBackup";
-import { STORE_NAME, STORE_VERSION } from "../state/useStore";
+import { MERGE_MIN_STORE_VERSION, STORE_NAME, STORE_VERSION } from "../state/useStore";
+import { canMergeStoreVersion } from "../state/storeVersion";
 import { setPersistBlocked } from "../state/persistRuntime";
 import { requireRestoreRestart } from "../state/restoreRuntime";
 import type { Workspace } from "../types";
@@ -211,7 +212,9 @@ export async function restoreFromDisasterRecoveryBackup(
         // A merged snapshot mixes current-shape data with the backup's, so it is committed
         // at the CURRENT store version — which is only safe when the backup's data shape
         // already matches. Older backups must migrate first via a full replace.
-        if (manifest.storeVersion !== STORE_VERSION) {
+        // Data versions from MERGE_MIN_STORE_VERSION up to this build's merge: every
+        // hydrate sanitizes, which covers those shapes (11-M1: the version now moves).
+        if (!canMergeStoreVersion(manifest.storeVersion, STORE_VERSION, MERGE_MIN_STORE_VERSION ?? STORE_VERSION)) {
             throw new DrRestoreError(
                 "mergeNeedsReplace",
                 "This backup was made by an older app version and can't be merged. Use Replace Everything to restore it."

@@ -3558,6 +3558,7 @@ export const pt = {
     saveDegradedHint: "Faça um backup em breve.",
     saveLocked: "O salvamento está pausado",
     saveLockedHint: "Faça um backup agora e reinicie o SongNook.",
+    saveNewerHint: "Salvo por um SongNook mais novo. Atualize para continuar salvando.",
     newerCopyTitle: "Cópia mais recente encontrada",
     newerCopyBody: "Uma cópia salva neste celular é mais recente do que a carregada. Restaurar?",
     newerCopyRestore: "Restaurar",

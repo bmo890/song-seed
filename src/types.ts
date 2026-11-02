@@ -642,9 +642,14 @@ export type ActivityEvent = {
   source: ActivitySource;
 };
 
+/** A folded date group, stored as the local calendar days it covered when it
+ *  was folded ("YYYY-MM-DD", inclusive), never as a relative label: "Today"
+ *  hidden on 7 Oct stays 7 Oct. Older builds stored `dayStartTs` (the group's
+ *  moving start); `domain/hiddenDayGroups.ts` migrates it on load (07-H1). */
 export type IdeasHiddenDay = {
   metric: IdeasTimelineMetric;
-  dayStartTs: number;
+  fromDay: string;
+  toDay: string;
 };
 
 export type IdeasListState = {

@@ -28,6 +28,7 @@ import {
 } from "../helpers";
 import { useTranslation } from "react-i18next";
 import { trashFilesOfDroppedClips } from "../../../state/mediaCleanup";
+import { editResultCreatedAt } from "../../../domain/editResultDates";
 import { deleteManagedAudioUris } from "../../../services/managedMedia";
 import { userFacingMessage } from "../../../i18n/userFacingError";
 
@@ -255,10 +256,20 @@ export function useEditorExportFlow({
     if (!targetIdea || !sourceClip || clipsToInsert.length === 0) return [];
 
     const now = Date.now();
+    // A Replace is the same recording trimmed: it keeps when it was recorded and
+    // the lyrics it was sung from (07-M3). Save-as-new is made now.
     const createdClips = clipsToInsert.map((clip, index) => ({
       ...clip,
+      ...(removeOriginalAfterExport && sourceClip.lyricsVersionId
+        ? { lyricsVersionId: sourceClip.lyricsVersionId }
+        : null),
       id: buildClipId(),
-      createdAt: now + index,
+      createdAt: editResultCreatedAt({
+        replace: removeOriginalAfterExport,
+        sourceCreatedAt: sourceClip.createdAt,
+        now,
+        index,
+      }),
       isPrimary: false,
     }));
 
@@ -280,7 +291,9 @@ export function useEditorExportFlow({
         kind: "clip",
         collectionId: targetIdea.collectionId,
         clips: [{ ...clip, isPrimary: true, parentClipId: undefined }],
-        createdAt: now + index,
+        createdAt: removeOriginalAfterExport
+          ? editResultCreatedAt({ replace: true, sourceCreatedAt: targetIdea.createdAt, now, index })
+          : now + index,
         importedAt: targetIdea.importedAt ?? clip.importedAt,
         sourceCreatedAt: targetIdea.sourceCreatedAt ?? clip.sourceCreatedAt,
         lastActivityAt: now + index,

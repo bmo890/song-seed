@@ -16,6 +16,8 @@ const COPY: Record<Exclude<PersistHealth, "ok">, { title: string; hint: string }
     degraded: { title: "recovery.saveDegraded", hint: "recovery.saveDegradedHint" },
     // A safety gate refuses every write for the rest of the session.
     blocked: { title: "recovery.saveLocked", hint: "recovery.saveLockedHint" },
+    // The library was saved by a newer SongNook; this build would strip it (11-M1).
+    newer: { title: "recovery.saveLocked", hint: "recovery.saveNewerHint" },
 };
 
 /**

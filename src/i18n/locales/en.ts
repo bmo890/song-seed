@@ -1528,6 +1528,7 @@ export const en = {
     saveDegradedHint: "Back up soon.",
     saveLocked: "Saving is paused",
     saveLockedHint: "Back up now, then restart SongNook.",
+    saveNewerHint: "Saved by a newer SongNook. Update to keep saving.",
     newerCopyTitle: "Newer copy found",
     newerCopyBody: "A copy saved on this phone is newer than what loaded. Restore it?",
     newerCopyRestore: "Restore",
