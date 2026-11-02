@@ -42,7 +42,10 @@ export function CutUpDraftEditor({
   const { size, lineHeight } = useSparkTextScale();
   // True once the writer has hand-edited since the last generated draft — so
   // re-rolling a fresh style is friction-free until there's real work to lose.
-  const editedRef = useRef(false);
+  // A draft already there when the editor mounts (back from Arrange, a reopened
+  // spark) may be hand-written: it counts as edited until a remix here replaces
+  // it, so Remix asks before writing over it (12f F-H4).
+  const editedRef = useRef(model.draftField.draft.trim().length > 0);
 
   const runRemix = (option: RemixOption) => {
     editedRef.current = false;

@@ -1,3 +1,5 @@
+import { captureDeletedNote } from "../../state/recentlyDeleted";
+import { genId } from "../../utils";
 import { useStore } from "../../state/useStore";
 import { AppAlert } from "./AppAlert";
 import { toast } from "./toastStore";
@@ -99,11 +101,16 @@ export function sendSparkToPad({
       style: "default",
       icon: "refresh",
       onPress: () => {
-        updateNote(existing.id, { body: text });
+        // The page may hold words written in the Pad since the first send: they are
+        // never just overwritten. A copy of the page as it was waits in Recently
+        // deleted, and Undo puts the words back (12f F-M1, 12g G-H1).
+        const replaced = replacePadPageKeepingOld(existing.id, text);
         // Haptics vocabulary: success, a meaningful completion.
         haptic.success();
         toast(t("wordSparks.pageUpdated"), "checkmark-outline", {
-          action: { label: t("wordSparks.open"), onPress: () => openPadPage(navigation, existing.id) },
+          action: replaced
+            ? { label: t("recentlyDeleted.undo"), onPress: replaced.undo }
+            : { label: t("wordSparks.open"), onPress: () => openPadPage(navigation, existing.id) },
         });
       },
     },
@@ -126,4 +133,31 @@ export function sparkDoneLabel(
   if (spark.savedLyricId && hasPage(spark.savedLyricId)) return t("wordSparks.inPad");
   if (spark.finishedAt) return t("wordSparks.finished");
   return null;
+}
+
+/**
+ * Replace a Lyric Pad page's words with a spark's, keeping the old words: when they
+ * differ, a copy of the page as it was goes to Recently deleted (its own id, so a
+ * Restore adds it back beside the page). Returns an Undo that puts the old words back,
+ * or null when nothing was lost.
+ */
+export function replacePadPageKeepingOld(noteId: string, text: string): { undo: () => void } | null {
+  const store = useStore.getState();
+  const page = store.notes.find((note) => note.id === noteId);
+  if (!page) return null;
+  const before = page.body;
+  const loses = before.trim().length > 0 && before !== text;
+  const kept = loses ? captureDeletedNote({ ...page, id: genId("note"), isPinned: false }) : null;
+  useStore.setState((state) => ({
+    notes: state.notes.map((note) => (note.id === noteId ? { ...note, body: text, updatedAt: Date.now() } : note)),
+    ...(kept ? { recentlyDeleted: [kept, ...state.recentlyDeleted] } : null),
+  }));
+  if (!kept) return null;
+  return {
+    undo: () =>
+      useStore.setState((state) => ({
+        notes: state.notes.map((note) => (note.id === noteId ? { ...note, body: before, updatedAt: Date.now() } : note)),
+        recentlyDeleted: state.recentlyDeleted.filter((item) => item.id !== kept.id),
+      })),
+  };
 }
