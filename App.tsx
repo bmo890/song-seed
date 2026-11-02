@@ -141,6 +141,7 @@ import { FreeMonthNotices } from "./src/components/common/FreeMonthNotices";
 import { initBilling } from "./src/services/billing";
 import { loadSparkTries } from "./src/services/sparkTries";
 import { WelcomeFlow } from "./src/components/common/WelcomeFlow";
+import { useLibraryBackupFlow } from "./src/components/SettingsScreen/hooks/useLibraryBackupFlow";
 import { installGlobalCrashHandler } from "./src/services/crashLog";
 import { describeError, persistLog } from "./src/services/persistLog";
 import { detectNewerManifest } from "./src/services/manifestFreshness";
@@ -854,7 +855,22 @@ function WelcomeGate() {
   const hasSeenWelcome = useStore((s) => s.hasSeenWelcome);
   const setHasSeenWelcome = useStore((s) => s.setHasSeenWelcome);
   if (hasSeenWelcome) return null;
-  return <WelcomeFlow onDone={() => setHasSeenWelcome(true)} />;
+  return <WelcomeWithRestore onDone={() => setHasSeenWelcome(true)} />;
+}
+
+/** The intro with its door back for a new phone (audit G6): "Restore backup" leaves the
+ *  intro and opens the same Restore as Settings → Library (a .zip or the backup folder). */
+function WelcomeWithRestore({ onDone }: { onDone: () => void }) {
+  const backupFlow = useLibraryBackupFlow();
+  return (
+    <WelcomeFlow
+      onDone={onDone}
+      onRestore={() => {
+        onDone();
+        void backupFlow.handleRestore();
+      }}
+    />
+  );
 }
 
 function AppContent() {
