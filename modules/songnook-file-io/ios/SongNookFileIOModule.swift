@@ -96,18 +96,36 @@ private func le32(_ value: UInt64) -> Data {
   Data([UInt8(value & 0xFF), UInt8((value >> 8) & 0xFF), UInt8((value >> 16) & 0xFF), UInt8((value >> 24) & 0xFF)])
 }
 
-private func localHeader(_ name: Data, _ size: UInt64, _ crc: UInt32) -> Data {
+private func le64(_ value: UInt64) -> Data {
   var d = Data()
-  d += le32(0x0403_4B50); d += le16(20); d += le16(0x0800); d += le16(0); d += le16(0); d += le16(0)
-  d += le32(UInt64(crc)); d += le32(size); d += le32(size); d += le16(name.count); d += le16(0); d += name
+  for shift in stride(from: 0, to: 64, by: 8) { d.append(UInt8((value >> UInt64(shift)) & 0xFF)) }
+  return d
+}
+
+/*
+ * Zip64 (2026-11-02, audit G1): an entry of 4 GB or more, an entry starting past 4 GB, or
+ * a directory past either ZIP32 ceiling carries the standard Zip64 records, exactly as
+ * src/services/zipArchive.ts writes them. Under 4 GB the bytes are unchanged.
+ */
+private func localHeader(_ name: Data, _ size: UInt64, _ crc: UInt32) -> Data {
+  let zip64 = size >= zip32Max
+  var d = Data()
+  d += le32(0x0403_4B50); d += le16(zip64 ? 45 : 20); d += le16(0x0800); d += le16(0); d += le16(0); d += le16(0)
+  d += le32(UInt64(crc)); d += le32(zip64 ? zip32Max : size); d += le32(zip64 ? zip32Max : size)
+  d += le16(name.count); d += le16(zip64 ? 20 : 0); d += name
+  if zip64 { d += le16(0x0001); d += le16(16); d += le64(size); d += le64(size) }
   return d
 }
 
 private func centralHeader(_ name: Data, _ size: UInt64, _ crc: UInt32, _ offset: UInt64) -> Data {
+  let zip64 = size >= zip32Max || offset >= zip32Max
   var d = Data()
-  d += le32(0x0201_4B50); d += le16(20); d += le16(20); d += le16(0x0800); d += le16(0); d += le16(0); d += le16(0)
-  d += le32(UInt64(crc)); d += le32(size); d += le32(size); d += le16(name.count); d += le16(0); d += le16(0)
-  d += le16(0); d += le16(0); d += le32(0); d += le32(offset); d += name
+  d += le32(0x0201_4B50); d += le16(zip64 ? 45 : 20); d += le16(zip64 ? 45 : 20); d += le16(0x0800)
+  d += le16(0); d += le16(0); d += le16(0)
+  d += le32(UInt64(crc)); d += le32(zip64 ? zip32Max : size); d += le32(zip64 ? zip32Max : size)
+  d += le16(name.count); d += le16(zip64 ? 28 : 0); d += le16(0)
+  d += le16(0); d += le16(0); d += le32(0); d += le32(zip64 ? zip32Max : offset); d += name
+  if zip64 { d += le16(0x0001); d += le16(24); d += le64(size); d += le64(size); d += le64(offset) }
   return d
 }
 
@@ -241,7 +259,6 @@ public class SongNookFileIOModule: Module {
         if expectedSize >= 0 && UInt64(expectedSize) != totalBytes {
           throw IOError(message: "File changed while it was being backed up.")
         }
-        if totalBytes > zip32Max { throw IOError(message: "File too large for the archive: \(archiveName)") }
         let name = Data(archiveName.utf8)
         try writer.handle.write(contentsOf: localHeader(name, totalBytes, 0))
         let crc = Crc32()
@@ -302,13 +319,19 @@ public class SongNookFileIOModule: Module {
           try writer.handle.write(contentsOf: header)
           centralSize += UInt64(header.count)
         }
-        if writer.entryCount >= 0xFFFF || centralOffset + centralSize + 22 > zip32Max {
-          throw IOError(message: "Archive exceeds the 4 GB limit of the supported ZIP format.")
-        }
+        let zip64 = writer.entryCount >= 0xFFFF || centralOffset >= zip32Max || centralSize >= zip32Max
         var end = Data()
+        if zip64 {
+          let zip64EndOffset = centralOffset + centralSize
+          end += le32(0x0606_4B50); end += le64(44); end += le16(45); end += le16(45); end += le32(0); end += le32(0)
+          end += le64(UInt64(writer.entryCount)); end += le64(UInt64(writer.entryCount))
+          end += le64(centralSize); end += le64(centralOffset)
+          end += le32(0x0706_4B50); end += le32(0); end += le64(zip64EndOffset); end += le32(1)
+        }
+        let count16 = zip64 ? 0xFFFF : writer.entryCount
         end += le32(0x0605_4B50); end += le16(0); end += le16(0)
-        end += le16(writer.entryCount); end += le16(writer.entryCount)
-        end += le32(centralSize); end += le32(centralOffset); end += le16(0)
+        end += le16(count16); end += le16(count16)
+        end += le32(zip64 ? zip32Max : centralSize); end += le32(zip64 ? zip32Max : centralOffset); end += le16(0)
         try writer.handle.write(contentsOf: end)
         try writer.handle.synchronize()
         let size = try writer.handle.offset()
@@ -376,6 +399,10 @@ public class SongNookFileIOModule: Module {
         throw error
       }
     }
+
+    // Zip64 past 4 GB (2026-11-02). Builds without it report nothing and the JS writer
+    // makes a > 4 GB archive instead.
+    Function("zipSupportsZip64") { () -> Bool in true }
 
     Function("cancelCopy") { (operationId: String) in
       self.lock.lock()

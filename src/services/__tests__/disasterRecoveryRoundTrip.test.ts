@@ -105,6 +105,7 @@ jest.mock("expo-crypto", () => ({
 
 // Stored (uncompressed) zip, matching the real writer's format so the streaming reader accepts it.
 jest.mock("../zipArchive", () => ({
+    ...jest.requireActual("../zipArchive"),
     createZipArchive: async (
         archiveUri: string,
         entries: Array<{ archiveName: string; data?: string | Uint8Array; fileUri?: string; directory?: boolean }>

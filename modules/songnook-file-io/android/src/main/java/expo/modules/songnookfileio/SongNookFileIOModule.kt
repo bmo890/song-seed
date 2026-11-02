@@ -70,14 +70,30 @@ private fun le32(value: Long) = byteArrayOf(
   ((value shr 16) and 0xFF).toByte(), ((value shr 24) and 0xFF).toByte()
 )
 
-private fun localHeader(name: ByteArray, size: Long, crc: Long): ByteArray =
-  le32(0x04034b50) + le16(20) + le16(0x0800) + le16(0) + le16(0) + le16(0) +
-    le32(crc) + le32(size) + le32(size) + le16(name.size) + le16(0) + name
+private fun le64(value: Long) = ByteArray(8) { ((value ushr (it * 8)) and 0xFF).toByte() }
 
-private fun centralHeader(name: ByteArray, size: Long, crc: Long, offset: Long): ByteArray =
-  le32(0x02014b50) + le16(20) + le16(20) + le16(0x0800) + le16(0) + le16(0) + le16(0) +
-    le32(crc) + le32(size) + le32(size) + le16(name.size) + le16(0) + le16(0) + le16(0) +
-    le16(0) + le32(0) + le32(offset) + name
+/*
+ * Zip64 (2026-11-02, audit G1): an entry of 4 GB or more, an entry starting past 4 GB, or
+ * a directory past either ZIP32 ceiling carries the standard Zip64 records, exactly as
+ * src/services/zipArchive.ts writes them. Under 4 GB the bytes are unchanged.
+ */
+private fun localHeader(name: ByteArray, size: Long, crc: Long): ByteArray {
+  val zip64 = size >= ZIP32_MAX
+  val head = le32(0x04034b50) + le16(if (zip64) 45 else 20) + le16(0x0800) + le16(0) + le16(0) + le16(0) +
+    le32(crc) + le32(if (zip64) ZIP32_MAX else size) + le32(if (zip64) ZIP32_MAX else size) +
+    le16(name.size) + le16(if (zip64) 20 else 0) + name
+  return if (zip64) head + le16(0x0001) + le16(16) + le64(size) + le64(size) else head
+}
+
+private fun centralHeader(name: ByteArray, size: Long, crc: Long, offset: Long): ByteArray {
+  val zip64 = size >= ZIP32_MAX || offset >= ZIP32_MAX
+  val head = le32(0x02014b50) + le16(if (zip64) 45 else 20) + le16(if (zip64) 45 else 20) + le16(0x0800) +
+    le16(0) + le16(0) + le16(0) +
+    le32(crc) + le32(if (zip64) ZIP32_MAX else size) + le32(if (zip64) ZIP32_MAX else size) +
+    le16(name.size) + le16(if (zip64) 28 else 0) + le16(0) + le16(0) +
+    le16(0) + le32(0) + le32(if (zip64) ZIP32_MAX else offset) + name
+  return if (zip64) head + le16(0x0001) + le16(24) + le64(size) + le64(size) + le64(offset) else head
+}
 
 private fun localPath(uri: String): String {
   val parsed = Uri.parse(uri)
@@ -225,7 +241,6 @@ class SongNookFileIOModule : Module() {
         if (expectedSize >= 0 && expectedSize.toLong() != totalBytes) {
           throw IOException("File changed while it was being backed up.")
         }
-        if (totalBytes > ZIP32_MAX) throw IOException("File too large for the archive: $archiveName")
         writer.raf.write(localHeader(name, totalBytes, 0))
         val crc = CRC32()
         val sha = if (computeSha256) Base64Sha256() else null
@@ -287,12 +302,20 @@ class SongNookFileIOModule : Module() {
           writer.raf.write(header)
           centralSize += header.size
         }
-        if (writer.entryCount >= 0xFFFF || centralOffset + centralSize + 22 > ZIP32_MAX) {
-          throw IOException("Archive exceeds the 4 GB limit of the supported ZIP format.")
+        val zip64 = writer.entryCount >= 0xFFFF || centralOffset >= ZIP32_MAX || centralSize >= ZIP32_MAX
+        if (zip64) {
+          val zip64EndOffset = centralOffset + centralSize
+          writer.raf.write(
+            le32(0x06064b50) + le64(44) + le16(45) + le16(45) + le32(0) + le32(0) +
+              le64(writer.entryCount.toLong()) + le64(writer.entryCount.toLong()) +
+              le64(centralSize) + le64(centralOffset) +
+              le32(0x07064b50) + le32(0) + le64(zip64EndOffset) + le32(1)
+          )
         }
+        val count16 = if (zip64) 0xFFFF else writer.entryCount
         writer.raf.write(
-          le32(0x06054b50) + le16(0) + le16(0) + le16(writer.entryCount) + le16(writer.entryCount) +
-            le32(centralSize) + le32(centralOffset) + le16(0)
+          le32(0x06054b50) + le16(0) + le16(0) + le16(count16) + le16(count16) +
+            le32(if (zip64) ZIP32_MAX else centralSize) + le32(if (zip64) ZIP32_MAX else centralOffset) + le16(0)
         )
         writer.raf.fd.sync()
         mapOf("sizeBytes" to writer.raf.length().toDouble())
@@ -360,6 +383,10 @@ class SongNookFileIOModule : Module() {
         cancellations.remove(operationId)
       }
     }
+
+    // Zip64 past 4 GB (2026-11-02). Builds without it report nothing and the JS writer
+    // makes a > 4 GB archive instead.
+    Function("zipSupportsZip64") { true }
 
     Function("cancelCopy") { operationId: String ->
       cancellations[operationId]?.set(true)

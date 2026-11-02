@@ -83,6 +83,13 @@ export function isNativeZipAvailable(): boolean {
   );
 }
 
+/** True on builds whose native zip writer emits Zip64 records past 4 GB (2026-11-02).
+ *  Older builds refuse such an archive natively, so callers take the JS writer. */
+export function isNativeZip64Available(): boolean {
+  const m = SongNookFileIOModule;
+  return isNativeZipAvailable() && typeof m?.zipSupportsZip64 === "function" && m.zipSupportsZip64() === true;
+}
+
 type PassOptions = {
   signal?: AbortSignal;
   onProgress?: (progress: SongNookFileCopyProgress) => void;

@@ -3,8 +3,19 @@ import { i18n } from "../i18n/instance";
 import { UserFacingError } from "../i18n/userFacingError";
 import { File } from "expo-file-system";
 import { buildTimestampSlug } from "./audioStorage";
-import { createZipArchive, rethrowNativeCancel, type ZipArchiveEntry } from "./zipArchive";
-import { NATIVE_IO_CANCELLED, NativeZipWriter, isNativeZipAvailable } from "../../modules/songnook-file-io";
+import {
+    createZipArchive,
+    needsZip64Value,
+    projectStoredZipBytes,
+    rethrowNativeCancel,
+    type ZipArchiveEntry,
+} from "./zipArchive";
+import {
+    NATIVE_IO_CANCELLED,
+    NativeZipWriter,
+    isNativeZip64Available,
+    isNativeZipAvailable,
+} from "../../modules/songnook-file-io";
 import { SONG_NOOK_ROOT, toRelativeManagedPath, waveformSidecarUri } from "./storagePaths";
 import type { DrSatelliteSnapshot } from "./satelliteSnapshot";
 import {
@@ -243,24 +254,27 @@ function countEntities(workspaces: Workspace[]) {
     return { workspaces: workspaces.length, collections, ideas, clips };
 }
 
+/** Whole-archive bytes, Zip64 records included where the library needs them (G1). */
 export function estimateStoredZipArchiveBytes(entries: ZipArchiveEntry[]) {
     const encoder = new TextEncoder();
-    return (
-        entries.reduce((sum, entry) => {
-            const nameLength = encoder.encode(entry.archiveName).length;
-            const dataLength =
+    return projectStoredZipBytes(
+        entries.map((entry) => ({
+            nameLength: encoder.encode(entry.archiveName).length,
+            size:
                 entry.sizeBytes ??
-                (typeof entry.data === "string"
-                    ? encoder.encode(entry.data).length
-                    : entry.data?.length ?? 0);
-            return sum + 30 + nameLength + dataLength + 46 + nameLength;
-        }, 0) + 22
+                (typeof entry.data === "string" ? encoder.encode(entry.data).length : entry.data?.length ?? 0),
+        }))
     );
 }
 
-export function assertZip32ArchiveSize(entries: ZipArchiveEntry[]) {
+/**
+ * Bytes the archive will take. Past 4 GB it is a Zip64 archive (audit 2026-11-02 G1:
+ * a library over 4 GB used to have no backup at all); the only refusal left is a
+ * library too large to count exactly, which no phone holds.
+ */
+export function projectBackupArchiveBytes(entries: ZipArchiveEntry[]) {
     const projectedArchiveBytes = estimateStoredZipArchiveBytes(entries);
-    if (projectedArchiveBytes > 0xffffffff) {
+    if (!Number.isSafeInteger(projectedArchiveBytes)) {
         throw new UserFacingError(i18n.t("backupOperation.tooLarge"));
     }
     return projectedArchiveBytes;
@@ -371,14 +385,24 @@ export async function buildDisasterRecoveryBackup(
     }
 
     const totalMediaBytes = readableRefs.reduce((sum, ref) => sum + ref.sizeBytes, 0);
-    if (readableRefs.length + 2 >= 0xffff || totalMediaBytes > 0xffffffff) {
-        throw new UserFacingError(i18n.t("backupOperation.tooLarge"));
-    }
     // Fail before an expensive checksum pass when the temporary archive cannot fit.
     await ensureBackupDiskSpace(totalMediaBytes, "backup");
     throwIfBackupCancelled(opts?.signal);
 
-    if (isNativeZipAvailable()) {
+    // A build whose native writer predates Zip64 makes a > 4 GB backup the JS way.
+    const fitsZip32 =
+        readableRefs.length + 2 < 0xffff &&
+        !needsZip64Value(
+            estimateStoredZipArchiveBytes([
+                { archiveName: SNAPSHOT_ENTRY, data: snapshotJson },
+                ...readableRefs.map((ref) => ({
+                    archiveName: `${MEDIA_PREFIX}${ref.relativePath}`,
+                    sizeBytes: ref.sizeBytes,
+                })),
+                { archiveName: MANIFEST_ENTRY, sizeBytes: manifestAllowanceBytes(readableRefs.length) },
+            ])
+        );
+    if (isNativeZipAvailable() && (fitsZip32 || isNativeZip64Available())) {
         const native = await buildBackupArchiveNatively({
             snapshotAbs,
             snapshotJson,
@@ -481,11 +505,9 @@ export async function buildDisasterRecoveryBackup(
     const manifest = composeManifest(snapshotAbs, snapshotSha256, files, missing, opts?.appVersion);
     entries.push({ archiveName: MANIFEST_ENTRY, data: JSON.stringify(manifest) });
 
-    const projectedArchiveBytes = assertZip32ArchiveSize(entries);
-    // Authoritative ZIP32 guard: the *archive* (media + per-entry headers + snapshot +
-    // manifest) must stay under 4 GB, not just the media. A library a few MB under the
-    // limit can otherwise produce an archive whose uint32 offsets overflow and which the
-    // restore reader then rejects as unreadable.
+    const projectedArchiveBytes = projectBackupArchiveBytes(entries);
+    // The whole archive (media + per-entry headers + snapshot + manifest, Zip64 records
+    // where it passes 4 GB) must fit on the device before packaging starts.
     await ensureBackupDiskSpace(projectedArchiveBytes, "backup");
     throwIfBackupCancelled(opts?.signal);
 
@@ -567,7 +589,7 @@ async function buildBackupArchiveNatively({
     // proven JS route. A disagreement means this build's native code can't be trusted
     // with a backup someone's library depends on.
     const probe = [...readableRefs].sort((a, b) => a.sizeBytes - b.sizeBytes)[0];
-    const projectedArchiveBytes = assertZip32ArchiveSize([
+    const projectedArchiveBytes = projectBackupArchiveBytes([
         { archiveName: SNAPSHOT_ENTRY, data: snapshotJson },
         ...readableRefs.map((ref) => ({
             archiveName: `${MEDIA_PREFIX}${ref.relativePath}`,

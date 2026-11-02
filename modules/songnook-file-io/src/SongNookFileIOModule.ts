@@ -32,6 +32,8 @@ declare class SongNookFileIOModule extends NativeModule<SongNookFileIOEvents> {
   zipAddDataAsync?(writerId: string, archiveName: string, base64Data: string): Promise<{ crc32: number; sizeBytes: number }>;
   zipFinishAsync?(writerId: string): Promise<{ sizeBytes: number }>;
   zipAbortAsync?(writerId: string): Promise<void>;
+  // Zip64 past 4 GB (2026-11-02). Missing on builds made before it.
+  zipSupportsZip64?(): boolean;
   extractRangeAsync?(
     sourceUri: string,
     offset: number,
