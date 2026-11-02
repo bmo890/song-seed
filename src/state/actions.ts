@@ -1936,13 +1936,15 @@ export const appActions = {
         state.updateIdeas((prev) => prev.map((i) => (i.id === selectedIdea.id ? { ...i, completionPct: stepped, status } : i)), { preserveActivity: true, workspaceId: ideaWorkspaceId(useStore.getState().workspaces, selectedIdea.id) });
     },
 
-    setIdeaNotes: (notes: string) => {
+    /** `ideaId`: the idea the notes editor opened on (it may no longer be selected). */
+    setIdeaNotes: (notes: string, ideaId?: string) => {
         const state = useStore.getState();
-        if (!state.selectedIdeaId) return;
-        const selectedIdea = locateIdea(state.workspaces, state.selectedIdeaId)?.idea;
+        const targetId = ideaId ?? state.selectedIdeaId;
+        if (!targetId) return;
+        const selectedIdea = locateIdea(state.workspaces, targetId)?.idea;
         if (!selectedIdea || selectedIdea.notes === notes) return;
 
-        state.updateIdeas((prev) => prev.map((i) => (i.id === state.selectedIdeaId ? { ...i, notes } : i)), { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, state.selectedIdeaId) });
+        state.updateIdeas((prev) => prev.map((i) => (i.id === targetId ? { ...i, notes } : i)), { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, targetId) });
 
         if (selectedIdea.kind === "project") {
             state.logIdeaActivity(selectedIdea.id, "updated", "song-save");
