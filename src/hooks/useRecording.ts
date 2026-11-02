@@ -953,6 +953,13 @@ export function useRecording(
   async function startPreparedRecording(): Promise<boolean> {
     if (recorder.isRecording || recorder.isPaused || startInFlightRef.current) return false;
     if (takeHoldsRecorder()) return false;
+    // The recorder screen starts here directly (prewarmed takes): the same question as
+    // startRecording — a heavy library operation refuses the take (root cause 3).
+    const blockingOperation = recordingBlockedBy();
+    if (blockingOperation || getRestoreRestartState()) {
+      tellRecordingWaits(blockingOperation ?? "restore");
+      return false;
+    }
     startInFlightRef.current = true;
     let fromPrewarm = false;
     let nativeStartAttempted = false;
