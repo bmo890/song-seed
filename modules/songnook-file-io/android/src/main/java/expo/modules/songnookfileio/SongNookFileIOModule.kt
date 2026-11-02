@@ -1,6 +1,9 @@
 package expo.modules.songnookfileio
 
+import android.content.ContentResolver
+import android.content.Intent
 import android.net.Uri
+import android.provider.DocumentsContract
 import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -100,6 +103,56 @@ private fun localPath(uri: String): String {
   if (parsed.scheme != null && parsed.scheme != "file") throw IOException("Expected a local file: $uri")
   return parsed.path ?: throw IOException("Invalid file path: $uri")
 }
+
+// ── Backup folder (2026-11-02, automatic backup) ─────────────────────────────────────
+// One folder picked once through the Storage Access Framework; the persisted tree grant
+// survives launches. Writes land under a temporary name and are renamed into place, so a
+// reader never sees a half-written file under the real name.
+
+private const val FOLDER_GONE = "SONGNOOK_FOLDER_GONE"
+private const val FOLDER_NO_ACCESS = "SONGNOOK_FOLDER_NO_ACCESS"
+private const val OCTET = "application/octet-stream"
+
+private data class FolderChild(val name: String, val uri: Uri, val size: Long, val isDirectory: Boolean)
+
+private fun documentUriOf(treeOrDocument: Uri): Uri {
+  // content://<authority>/tree/<treeId>[/document/<documentId>]
+  val segments = treeOrDocument.pathSegments
+  val documentId = if (segments.size >= 4 && segments[2] == "document") {
+    DocumentsContract.getDocumentId(treeOrDocument)
+  } else {
+    DocumentsContract.getTreeDocumentId(treeOrDocument)
+  }
+  return DocumentsContract.buildDocumentUriUsingTree(treeOrDocument, documentId)
+}
+
+private fun listChildren(resolver: ContentResolver, dir: Uri): List<FolderChild> {
+  val parentId = DocumentsContract.getDocumentId(dir)
+  val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(dir, parentId)
+  val out = ArrayList<FolderChild>()
+  resolver.query(
+    childrenUri,
+    arrayOf(
+      DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+      DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+      DocumentsContract.Document.COLUMN_SIZE,
+      DocumentsContract.Document.COLUMN_MIME_TYPE
+    ),
+    null, null, null
+  )?.use { cursor ->
+    while (cursor.moveToNext()) {
+      val id = cursor.getString(0) ?: continue
+      val name = cursor.getString(1) ?: continue
+      val size = if (cursor.isNull(2)) -1L else cursor.getLong(2)
+      val isDirectory = cursor.getString(3) == DocumentsContract.Document.MIME_TYPE_DIR
+      out.add(FolderChild(name, DocumentsContract.buildDocumentUriUsingTree(dir, id), size, isDirectory))
+    }
+  } ?: throw IOException(FOLDER_GONE)
+  return out
+}
+
+private fun documentSize(resolver: ContentResolver, uri: Uri): Long =
+  runCatching { resolver.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L }.getOrDefault(-1L)
 
 class SongNookFileIOModule : Module() {
   private val cancellations = ConcurrentHashMap<String, AtomicBoolean>()
@@ -388,6 +441,138 @@ class SongNookFileIOModule : Module() {
     // makes a > 4 GB archive instead.
     Function("zipSupportsZip64") { true }
 
+    // ── Backup folder (2026-11-02). Missing on builds made before automatic backup. ──
+
+    AsyncFunction("folderBookmarkAsync") { uri: String ->
+      val context = appContext.reactContext ?: throw Exceptions.ReactContextLost()
+      val tree = Uri.parse(uri)
+      runCatching {
+        context.contentResolver.takePersistableUriPermission(
+          tree, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+        )
+      }
+      uri
+    }
+
+    AsyncFunction("folderResolveAsync") { handle: String ->
+      val context = appContext.reactContext ?: throw Exceptions.ReactContextLost()
+      val tree = Uri.parse(handle)
+      val granted = context.contentResolver.persistedUriPermissions.any {
+        it.uri == tree && it.isReadPermission && it.isWritePermission
+      }
+      if (!granted) throw IOException(FOLDER_NO_ACCESS)
+      val root = documentUriOf(tree)
+      var name: String? = null
+      context.contentResolver.query(
+        root, arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME, DocumentsContract.Document.COLUMN_MIME_TYPE),
+        null, null, null
+      )?.use { cursor ->
+        if (cursor.moveToFirst() && cursor.getString(1) == DocumentsContract.Document.MIME_TYPE_DIR) {
+          name = cursor.getString(0)
+        }
+      }
+      val folderName = name ?: throw IOException(FOLDER_GONE)
+      mapOf("uri" to root.toString(), "name" to folderName, "handle" to handle)
+    }
+
+    AsyncFunction("folderChildAsync") { dirUri: String, name: String, createDirectory: Boolean ->
+      val context = appContext.reactContext ?: throw Exceptions.ReactContextLost()
+      val dir = Uri.parse(dirUri)
+      val existing = listChildren(context.contentResolver, dir).firstOrNull { it.name == name }
+      when {
+        existing != null -> existing.uri.toString()
+        createDirectory -> DocumentsContract.createDocument(
+          context.contentResolver, dir, DocumentsContract.Document.MIME_TYPE_DIR, name
+        )?.toString() ?: throw IOException("Could not create a folder in the backup location.")
+        else -> null
+      }
+    }
+
+    AsyncFunction("folderListAsync") { dirUri: String ->
+      val context = appContext.reactContext ?: throw Exceptions.ReactContextLost()
+      listChildren(context.contentResolver, Uri.parse(dirUri)).map {
+        mapOf("name" to it.name, "uri" to it.uri.toString(), "size" to it.size.toDouble(), "isDirectory" to it.isDirectory)
+      }
+    }
+
+    AsyncFunction("folderWriteFileAsync") { dirUri: String, name: String, sourceUri: String ->
+      val source = File(localPath(sourceUri))
+      if (!source.isFile) throw IOException("Missing file: $name")
+      folderPlace(Uri.parse(dirUri), name, source.length()) { output ->
+        FileInputStream(source).use { input -> input.copyTo(output, IO_CHUNK) }
+      }
+    }
+
+    AsyncFunction("folderWriteTextAsync") { dirUri: String, name: String, text: String ->
+      val bytes = text.toByteArray(Charsets.UTF_8)
+      folderPlace(Uri.parse(dirUri), name, bytes.size.toLong()) { output -> output.write(bytes) }
+    }
+
+    AsyncFunction("folderReadTextAsync") { fileUri: String ->
+      val context = appContext.reactContext ?: throw Exceptions.ReactContextLost()
+      context.contentResolver.openInputStream(Uri.parse(fileUri))?.use { it.readBytes().toString(Charsets.UTF_8) }
+        ?: throw IOException("Missing file in the backup folder.")
+    }
+
+    AsyncFunction("folderCopyOutAsync") {
+        fileUri: String,
+        destinationUri: String,
+        computeSha256: Boolean,
+        operationId: String ->
+      val context = appContext.reactContext ?: throw Exceptions.ReactContextLost()
+      val cancelled = AtomicBoolean(false)
+      cancellations[operationId] = cancelled
+      val source = Uri.parse(fileUri)
+      val destination = File(localPath(destinationUri))
+      try {
+        destination.parentFile?.mkdirs()
+        val total = documentSize(context.contentResolver, source)
+        val crc = CRC32()
+        val sha = if (computeSha256) Base64Sha256() else null
+        val buffer = ByteArray(IO_CHUNK)
+        var written = 0L
+        var sinceProgress = 0L
+        val input = context.contentResolver.openInputStream(source) ?: throw IOException("Missing file in the backup folder.")
+        input.use {
+          FileOutputStream(destination).use { output ->
+            while (true) {
+              if (cancelled.get()) throw IOException("SONGNOOK_IO_CANCELLED")
+              val count = input.read(buffer)
+              if (count < 0) break
+              output.write(buffer, 0, count)
+              crc.update(buffer, 0, count)
+              sha?.update(buffer, count)
+              written += count
+              sinceProgress += count
+              if (sinceProgress >= PROGRESS_EVERY) {
+                sendEvent("onCopyProgress", mapOf("operationId" to operationId, "completedBytes" to written.toDouble(), "totalBytes" to total.toDouble()))
+                sinceProgress = 0
+              }
+            }
+            output.flush()
+            output.fd.sync()
+          }
+        }
+        if (total >= 0 && total != written) throw IOException("The backup folder returned an incomplete file.")
+        mapOf("crc32" to crc.value.toDouble(), "sizeBytes" to written.toDouble(), "sha256" to sha?.hex())
+      } catch (error: Throwable) {
+        destination.delete()
+        throw error
+      } finally {
+        cancellations.remove(operationId)
+      }
+    }
+
+    AsyncFunction("folderDeleteAsync") { fileUri: String ->
+      val context = appContext.reactContext ?: throw Exceptions.ReactContextLost()
+      runCatching { DocumentsContract.deleteDocument(context.contentResolver, Uri.parse(fileUri)) }
+      Unit
+    }
+
+    // iOS keeps a temp file out of the iCloud device backup; Android's rules live in the
+    // manifest (plugins/withSongNookBackupRules.js), so there is nothing to do here.
+    AsyncFunction("setExcludedFromBackupAsync") { _: String -> Unit }
+
     Function("cancelCopy") { operationId: String ->
       cancellations[operationId]?.set(true)
     }
@@ -398,6 +583,37 @@ class SongNookFileIOModule : Module() {
       if (target.scheme == "content") {
         context.contentResolver.delete(target, null, null)
       }
+    }
+  }
+
+  /** Write `name` into `dir` under a temporary name, check its size, then rename it in. */
+  private fun folderPlace(
+    dir: Uri,
+    name: String,
+    expectedSize: Long,
+    write: (java.io.OutputStream) -> Unit
+  ): Map<String, Any> {
+    val context = appContext.reactContext ?: throw Exceptions.ReactContextLost()
+    val resolver = context.contentResolver
+    val children = listChildren(resolver, dir)
+    val tempName = ".partial-$name"
+    children.filter { it.name == tempName }.forEach { runCatching { DocumentsContract.deleteDocument(resolver, it.uri) } }
+    val temp = DocumentsContract.createDocument(resolver, dir, OCTET, tempName)
+      ?: throw IOException("Could not write to the backup folder.")
+    try {
+      (resolver.openOutputStream(temp, "wt") ?: throw IOException("Could not write to the backup folder.")).use { output ->
+        write(output)
+        output.flush()
+      }
+      val size = documentSize(resolver, temp)
+      if (size >= 0 && size != expectedSize) throw IOException("The backup folder received an incomplete file.")
+      children.filter { it.name == name }.forEach { DocumentsContract.deleteDocument(resolver, it.uri) }
+      val placed = DocumentsContract.renameDocument(resolver, temp, name)
+        ?: throw IOException("Could not finish a file in the backup folder.")
+      return mapOf("uri" to placed.toString(), "sizeBytes" to expectedSize.toDouble())
+    } catch (error: Throwable) {
+      runCatching { DocumentsContract.deleteDocument(resolver, temp) }
+      throw error
     }
   }
 

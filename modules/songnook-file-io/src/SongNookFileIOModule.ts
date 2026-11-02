@@ -42,6 +42,22 @@ declare class SongNookFileIOModule extends NativeModule<SongNookFileIOEvents> {
     computeSha256: boolean,
     operationId: string
   ): Promise<{ crc32: number; sizeBytes: number; sha256?: string | null }>;
+  // Backup folder for automatic backup (2026-11-02). Missing on builds made before it.
+  folderBookmarkAsync?(uri: string): Promise<string>;
+  folderResolveAsync?(handle: string): Promise<{ uri: string; name: string; handle: string }>;
+  folderChildAsync?(dirUri: string, name: string, createDirectory: boolean): Promise<string | null>;
+  folderListAsync?(dirUri: string): Promise<Array<{ name: string; uri: string; size: number; isDirectory: boolean }>>;
+  folderWriteFileAsync?(dirUri: string, name: string, sourceUri: string): Promise<{ uri: string; sizeBytes: number }>;
+  folderWriteTextAsync?(dirUri: string, name: string, text: string): Promise<{ uri: string; sizeBytes: number }>;
+  folderReadTextAsync?(fileUri: string): Promise<string>;
+  folderCopyOutAsync?(
+    fileUri: string,
+    destinationUri: string,
+    computeSha256: boolean,
+    operationId: string
+  ): Promise<{ crc32: number; sizeBytes: number; sha256?: string | null }>;
+  folderDeleteAsync?(fileUri: string): Promise<void>;
+  setExcludedFromBackupAsync?(uri: string): Promise<void>;
   // SongNook Send sealed end to end (2026-11-01). Missing on builds made before it.
   sealFileAsync?(sourceUri: string, destinationUri: string, keyText: string): Promise<{ sizeBytes: number }>;
   openSealedFileAsync?(sourceUri: string, destinationUri: string, keyText: string): Promise<{ sizeBytes: number }>;
