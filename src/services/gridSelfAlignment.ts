@@ -1,4 +1,5 @@
 import { useStore } from "../state/useStore";
+import { ideaWorkspaceId } from "../state/dataSlice";
 import { ensureWaveformSidecar } from "./waveformSidecar";
 import {
     alignGridToRecordedClicks,
@@ -118,7 +119,7 @@ export async function selfAlignClipGrid(args: {
                         ),
                     };
                 }),
-            { preserveActivity: true }
+            { preserveActivity: true, workspaceId: ideaWorkspaceId(useStore.getState().workspaces, ideaId) }
         );
     } catch (error) {
         console.warn("[timing] click self-align failed", error);

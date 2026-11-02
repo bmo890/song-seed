@@ -8,6 +8,7 @@ import { ensureWaveformSidecar } from "../../../services/waveformSidecar";
 import { importAudioAsset } from "../../../services/audioStorage";
 import { renderPitchShiftedFile } from "../../../services/pitchShift";
 import { useStore } from "../../../state/useStore";
+import { ideaWorkspaceId } from "../../../state/dataSlice";
 import type { ClipVersion, EditRegion, SongIdea } from "../../../types";
 import { genClipTitle } from "../../../utils";
 import { haptic } from "../../../design/haptics";
@@ -82,7 +83,10 @@ type UseEditorExportFlowArgs = {
   playheadTimeMs: number;
   player: MinimalPlayer;
   navigation: any;
-  updateIdeas: (updater: (ideas: SongIdea[]) => SongIdea[]) => void;
+  updateIdeas: (
+    updater: (ideas: SongIdea[]) => SongIdea[],
+    options?: { workspaceId?: string | null }
+  ) => boolean;
   setSelectedIdeaId: (ideaId: string | null) => void;
   markRecentlyAdded: (ids: string[]) => void;
   safePause: () => Promise<void> | void;
@@ -253,6 +257,10 @@ export function useEditorExportFlow({
 
   const commitExportedClips = (clipsToInsert: Omit<ClipVersion, "id" | "createdAt" | "isPrimary">[]) => {
     if (!targetIdea || !sourceClip || clipsToInsert.length === 0) return [];
+    // The clip's OWN workspace: the editor opens clips from anywhere, and an
+    // active-only write rendered the edit and then dropped it (audit 04-H2).
+    const workspaceId = ideaWorkspaceId(useStore.getState().workspaces, ideaId);
+    const refused = () => new Error("The edit could not be saved to this clip's workspace.");
 
     const now = Date.now();
     const createdClips = clipsToInsert.map((clip, index) => ({
@@ -286,7 +294,7 @@ export function useEditorExportFlow({
         lastActivityAt: now + index,
       }));
 
-      updateIdeas((prev) => {
+      const written = updateIdeas((prev) => {
         if (keepStack) {
           // The parts go out as new ideas; the source leaves its stack, and the
           // versions that pointed at it now point at its parent.
@@ -304,7 +312,10 @@ export function useEditorExportFlow({
         }
         const remainingIdeas = removeOriginalAfterExport ? prev.filter((idea) => idea.id !== ideaId) : [...prev];
         return [...createdIdeas, ...remainingIdeas];
-      });
+      }, { workspaceId });
+      // Refused: nothing was attached, so nothing is trashed; the caller drops the
+      // rendered files and says the save failed.
+      if (!written) throw refused();
       if (removeOriginalAfterExport) trashFilesOfDroppedClips([sourceClip], "Editor replace");
       useStore
         .getState()
@@ -312,7 +323,7 @@ export function useEditorExportFlow({
           createdIdeas
             .map((idea, index) => ({
               at: now + index,
-              workspaceId: useStore.getState().activeWorkspaceId ?? "",
+              workspaceId: workspaceId ?? "",
               collectionId: idea.collectionId,
               ideaId: idea.id,
               ideaKind: "clip" as const,
@@ -327,7 +338,7 @@ export function useEditorExportFlow({
       return createdIdeas.map((idea) => idea.id);
     }
 
-    updateIdeas((prev) =>
+    const written = updateIdeas((prev) =>
       prev.map((idea) => {
         if (idea.id !== ideaId) return idea;
 
@@ -362,8 +373,10 @@ export function useEditorExportFlow({
         }
 
         return nextIdea;
-      })
+      }),
+      { workspaceId }
     );
+    if (!written) throw refused();
     useStore.getState().logIdeaActivity(ideaId, "updated", "audio-edit", createdClips[0]?.id ?? null);
     if (removeOriginalAfterExport) trashFilesOfDroppedClips([sourceClip], "Editor replace");
 

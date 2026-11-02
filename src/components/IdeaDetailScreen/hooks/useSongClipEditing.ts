@@ -5,13 +5,14 @@ import {
   type LineageRenamePromptInfo,
 } from "../../../domain/clipLineageRenamePrompt";
 import { useStore } from "../../../state/useStore";
+import { locateIdea } from "../../../domain/itemLocator";
+import { ideaWorkspaceId } from "../../../state/dataSlice";
 import { type ClipVersion, type SongIdea } from "../../../types";
 
+/** The idea wherever it lives: the sketch page shows ideas from any workspace,
+ *  and an active-only lookup dropped typed clip notes (data-safety audit 04-H2). */
 function getCurrentStoreIdea(ideaId: string | null): SongIdea | null {
-  if (!ideaId) return null;
-  const { activeWorkspaceId, workspaces } = useStore.getState();
-  const workspace = workspaces.find((w) => w.id === activeWorkspaceId);
-  return workspace?.ideas.find((idea) => idea.id === ideaId) ?? null;
+  return locateIdea(useStore.getState().workspaces, ideaId)?.idea ?? null;
 }
 
 // ── hook ───────────────────────────────────────────────────────────────────
@@ -69,7 +70,8 @@ export function useSongClipEditing(selectedIdea: SongIdea | null) {
                   : c
               ),
             }
-      )
+      ),
+      { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, currentIdeaId) }
     );
 
     if (!plan.lineage || lineageSize <= 1 || plan.targetIndex < 0) {

@@ -2,6 +2,8 @@ import { useCallback, useEffect , useRef } from "react";
 import { AppAlert } from "../../common/AppAlert";
 import { actionIcons } from "../../common/actionIcons";
 import { useStore } from "../../../state/useStore";
+import { locateIdea } from "../../../domain/itemLocator";
+import { ideaWorkspaceId } from "../../../state/dataSlice";
 import { appActions } from "../../../state/actions";
 import { buildDefaultIdeaTitle, ensureUniqueIdeaTitle } from "../../../utils";
 import type { IdeaStatus, SongIdea, Workspace } from "../../../types";
@@ -47,7 +49,10 @@ export function useSongEditFlow({
     const state = useStore.getState();
     // Read at save time: subscribing the page to the whole library for this one
     // title-uniqueness check re-rendered it on every write anywhere.
-    const activeWorkspace = state.workspaces.find((workspace) => workspace.id === activeWorkspaceId);
+    // The sketch's own workspace: names are unique where it lives.
+    const activeWorkspace =
+      locateIdea(state.workspaces, selectedIdeaId)?.workspace ??
+      state.workspaces.find((workspace) => workspace.id === activeWorkspaceId);
     const fallbackTitle = ensureUniqueIdeaTitle(
       buildDefaultIdeaTitle(),
       activeWorkspace?.ideas.filter((idea) => idea.id !== selectedIdeaId).map((idea) => idea.title) ?? []
@@ -82,7 +87,8 @@ export function useSongEditFlow({
                 lastActivityAt: selectedIdea.isDraft ? Date.now() : idea.lastActivityAt,
               }
             : idea
-        )
+        ),
+        { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, selectedIdeaId) }
       );
     }
 

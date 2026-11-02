@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { threadClipsOldestToNewest } from "../../../domain/clipLineageTitles";
 import { AppAlert } from "../../common/AppAlert";
 import { useStore } from "../../../state/useStore";
+import { ideaWorkspaceId } from "../../../state/dataSlice";
 import type { ClipVersion, SongIdea } from "../../../types";
 import { useTranslation } from "react-i18next";
 
@@ -84,7 +85,8 @@ export function useSongParentPicking(selectedIdea: SongIdea | null | undefined, 
                   : clip
               ),
             }
-      )
+      ),
+      { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, targetIdeaId) }
     );
   }
 

@@ -13,6 +13,7 @@ import { isSendServiceConfigured } from "../../../config/sendService";
 import { isForegroundAudioBusy, waitForForegroundAudioIdle } from "../../../services/audioForegroundActivity";
 import { buildClipLockScreenMetadata } from "../../../services/lockScreenMetadata";
 import { appActions } from "../../../state/actions";
+import { ideaWorkspaceId } from "../../../state/dataSlice";
 import { useStore } from "../../../state/useStore";
 import { useShelfStore } from "../../../state/useShelfStore";
 import { openShelf, openSketchPage, returnHome } from "../../../navigation";
@@ -74,6 +75,13 @@ type UsePlayerScreenLifecycleArgs = {
   setSpeedPanelVisible: (visible: boolean) => void;
   prepareTransportForClose: () => void;
 };
+
+/** Waveforms and durations are cached on the clip where it lives: the player holds
+ *  clips from every workspace, and writing only the active one re-decoded the rest on
+ *  every open (data-safety audit 12a A-L6). */
+function clipHomeWorkspaceId(ideaId: string, fallback: string): string {
+  return ideaWorkspaceId(useStore.getState().workspaces, ideaId) ?? fallback;
+}
 
 export function usePlayerScreenLifecycle({
   navigation,
@@ -239,7 +247,7 @@ export function usePlayerScreenLifecycle({
   useEffect(() => {
     if (!activeWorkspaceId || !playerIdea || !playerClip || !playerDuration) return;
     if (playerClip.durationMs && playerClip.durationMs > 0) return;
-    appActions.hydrateClipAudioMetadata(activeWorkspaceId, playerIdea.id, playerClip.id, {
+    appActions.hydrateClipAudioMetadata(clipHomeWorkspaceId(playerIdea.id, activeWorkspaceId), playerIdea.id, playerClip.id, {
       durationMs: playerDuration,
     });
   }, [activeWorkspaceId, playerDuration, playerClip?.durationMs, playerClip?.id, playerIdea?.id]);
@@ -302,13 +310,13 @@ export function usePlayerScreenLifecycle({
         if (!metadata.usedDetailedAnalysis) {
           hydratedWaveformClipIdsRef.current.delete(clipId);
           if (metadata.durationMs && metadata.durationMs > 0) {
-            appActions.hydrateClipAudioMetadata(activeWorkspaceId, playerIdea.id, clipId, {
+            appActions.hydrateClipAudioMetadata(clipHomeWorkspaceId(playerIdea.id, activeWorkspaceId), playerIdea.id, clipId, {
               durationMs: metadata.durationMs,
             });
           }
           return;
         }
-        appActions.hydrateClipAudioMetadata(activeWorkspaceId, playerIdea.id, clipId, {
+        appActions.hydrateClipAudioMetadata(clipHomeWorkspaceId(playerIdea.id, activeWorkspaceId), playerIdea.id, clipId, {
           durationMs: metadata.durationMs,
           waveformPeaks: metadata.waveformPeaks,
         });

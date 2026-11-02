@@ -29,6 +29,7 @@ import { settleWithin } from "../../../services/settleWithin";
 import SongNookMetronomeModule from "../../../../modules/songnook-metronome";
 import { appActions } from "../../../state/actions";
 import { useStore } from "../../../state/useStore";
+import { ideaWorkspaceId } from "../../../state/dataSlice";
 import type { ClipVersion, PracticeMarker, RecordingGrid } from "../../../types";
 import { clampPinLabel } from "../../../domain/practicePinLayout";
 import { placeLivePins } from "../../../domain/livePins";
@@ -158,9 +159,17 @@ export function useRecordingScreenModel() {
   const updateIdeas = useStore((s) => s.updateIdeas);
   const clearRecordingContext = useStore((s) => s.clearRecordingContext);
 
+  // The take goes where its idea lives: a sketch opened from a visited collection,
+  // the player's Layer key or the dock may target an idea outside the active
+  // workspace. An active-only lookup made Save do nothing and Discard leave the mic
+  // running (data-safety audit 12d D-H1, 12a A-M1).
+  const recordingWorkspaceId = useMemo(
+    () => ideaWorkspaceId(workspaces, recordingIdeaId) ?? activeWorkspaceId,
+    [workspaces, recordingIdeaId, activeWorkspaceId]
+  );
   const recordingIdea = useMemo(
-    () => workspaces.find((w) => w.id === activeWorkspaceId)?.ideas.find((i) => i.id === recordingIdeaId),
-    [workspaces, activeWorkspaceId, recordingIdeaId]
+    () => workspaces.find((w) => w.id === recordingWorkspaceId)?.ideas.find((i) => i.id === recordingIdeaId),
+    [workspaces, recordingWorkspaceId, recordingIdeaId]
   );
   const recordingOverdubClip = useMemo(
     () =>
@@ -238,11 +247,11 @@ export function useRecordingScreenModel() {
   const saveDestinations = useMemo(
     // Creation surface: recordings may only target the user's OWN workspaces —
     // a received package must never be offered as a save destination.
-    () => (canPickSaveDestination ? buildSaveDestinations(writableWorkspaces(workspaces), activeWorkspaceId) : []),
-    [canPickSaveDestination, workspaces, activeWorkspaceId]
+    () => (canPickSaveDestination ? buildSaveDestinations(writableWorkspaces(workspaces), recordingWorkspaceId) : []),
+    [canPickSaveDestination, workspaces, recordingWorkspaceId]
   );
   const defaultDestinationLabel = recordingIdea
-    ? resolveSaveDestinationLabel(workspaces, activeWorkspaceId, recordingIdea.collectionId)
+    ? resolveSaveDestinationLabel(workspaces, recordingWorkspaceId, recordingIdea.collectionId)
     : null;
   const guideMixSource = useMemo(
     () => (recordingGuideMixUri ? { uri: recordingGuideMixUri } : null),
@@ -434,7 +443,7 @@ export function useRecordingScreenModel() {
       }
 
       const state = useStore.getState();
-      const currentWorkspaceId = state.activeWorkspaceId;
+      const currentWorkspaceId = ideaWorkspaceId(state.workspaces, recordingIdeaId);
       const targetIdea =
         recordingIdeaId && currentWorkspaceId
           ? state.workspaces
@@ -485,7 +494,7 @@ export function useRecordingScreenModel() {
             : undefined,
       };
 
-      updateIdeas((ideas) =>
+      const attached = updateIdeas((ideas) =>
         ideas.map((idea) => {
           if (idea.id !== recordingIdeaId) return idea;
 
@@ -494,8 +503,11 @@ export function useRecordingScreenModel() {
           );
 
           return { ...idea, clips: [clip, ...nextClips] };
-        })
+        }),
+        { workspaceId: currentWorkspaceId }
       );
+      // Refused (a read-only target): keep the take for recovery, never drop it.
+      if (!attached) return false;
 
       // The stamped grid is built from SCHEDULED click epochs; align it to the clicks the
       // mic actually recorded (device latency, or a failed record-time measurement). A take
@@ -852,13 +864,13 @@ export function useRecordingScreenModel() {
     }
     return ensureUniqueCountedTitle(
       recordingIdea.title || fallbackClipTitle(),
-      (workspaces.find((w) => w.id === activeWorkspaceId)?.ideas ?? [])
+      (workspaces.find((w) => w.id === recordingWorkspaceId)?.ideas ?? [])
         .filter((idea) => idea.kind === "clip" && idea.id !== recordingIdea.id)
         .map((idea) => idea.title)
     );
     // fallbackClipTitle is a stable local; a timestamp title only needs to be fresh per take.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recordingOverdubClip, recordingIdea, recordingParentClipId, workspaces, activeWorkspaceId]);
+  }, [recordingOverdubClip, recordingIdea, recordingParentClipId, workspaces, recordingWorkspaceId]);
 
   function clearMonitoringDelayTimer() {
     if (monitoringDelayTimeoutRef.current) {
@@ -1305,7 +1317,8 @@ export function useRecordingScreenModel() {
   }
 
   async function cancelRecording() {
-    if (!recordingIdea) return;
+    // Never return before the recorder is stopped: with no resolvable target the
+    // old early return left the mic capturing behind a closed screen (12d D-H1).
     if (isArmingRecording) {
       await cancelPendingRecordingStart();
     } else {
@@ -1642,7 +1655,7 @@ export function useRecordingScreenModel() {
           })()
         : ensureUniqueCountedTitle(
             recordingIdea?.title || fallbackClipTitle(),
-            (workspaces.find((w) => w.id === activeWorkspaceId)?.ideas ?? [])
+            (workspaces.find((w) => w.id === recordingWorkspaceId)?.ideas ?? [])
               .filter((idea) => idea.kind === "clip" && idea.id !== recordingIdea?.id)
               .map((idea) => idea.title)
           );
@@ -1686,30 +1699,34 @@ export function useRecordingScreenModel() {
             clip.id === firstClipId ? { ...clip, title: nextTitle, isTitleAutoGenerated } : clip
           ),
         };
-      })
+      }),
+      { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, quickNamingIdeaId) }
     );
 
+    // Where the take was saved: the collection it was recorded from, which need not
+    // be in the active workspace (08-R1).
+    const savedWorkspaceId = ideaWorkspaceId(useStore.getState().workspaces, quickNamingIdeaId);
     const savedIdeaBeforeRelocation = useStore
       .getState()
-      .workspaces.find((workspace) => workspace.id === activeWorkspaceId)
+      .workspaces.find((workspace) => workspace.id === savedWorkspaceId)
       ?.ideas.find((idea) => idea.id === quickNamingIdeaId);
 
     if (
       isStandaloneClipRecording &&
       saveDestinationOverride &&
-      activeWorkspaceId &&
-      (saveDestinationOverride.workspaceId !== activeWorkspaceId ||
+      savedWorkspaceId &&
+      (saveDestinationOverride.workspaceId !== savedWorkspaceId ||
         saveDestinationOverride.collectionId !== savedIdeaBeforeRelocation?.collectionId)
     ) {
       appActions.relocateIdeaToCollection(
         quickNamingIdeaId,
-        activeWorkspaceId,
+        savedWorkspaceId,
         saveDestinationOverride.workspaceId,
         saveDestinationOverride.collectionId
       );
     }
 
-    const finalWorkspaceId = saveDestinationOverride?.workspaceId ?? activeWorkspaceId;
+    const finalWorkspaceId = saveDestinationOverride?.workspaceId ?? savedWorkspaceId;
     const savedIdea = useStore
       .getState()
       .workspaces.find((workspace) => workspace.id === finalWorkspaceId)
@@ -2735,7 +2752,7 @@ export function useRecordingScreenModel() {
       // first quick-record, abandoned before anything was captured) — authorize it so the
       // persist guard doesn't mistake it for unannounced data loss.
       authorizeIntentionalEmptyStateWrite(6);
-      updateIdeas((prevIdeas) => prevIdeas.filter((idea) => idea.id !== recordingIdea.id));
+      updateIdeas((prevIdeas) => prevIdeas.filter((idea) => idea.id !== recordingIdea.id), { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, recordingIdea.id) });
       clearRecordingContext();
     };
   });
