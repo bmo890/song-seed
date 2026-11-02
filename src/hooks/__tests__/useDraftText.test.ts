@@ -62,4 +62,18 @@ describe("draft committer (behind useDraftText)", () => {
     expect(first).toHaveBeenCalledWith("for the first note");
     expect(second).not.toHaveBeenCalled();
   });
+
+  it("Undo while typing is pending takes the typing back; nothing lands over it later (12b B-M2)", () => {
+    const t = withTimers();
+    const commit = jest.fn();
+    const c = createDraftCommitter("verse one", t.schedule);
+    c.change("verse one and a line", commit);
+    expect(c.discard()).toBe("verse one");
+    t.fire();
+    c.flush();
+    expect(commit).not.toHaveBeenCalled();
+    expect(c.isPending()).toBe(false);
+    // Outside values (what Undo put back) show again.
+    expect(c.seed("the page before")).toBe(true);
+  });
 });

@@ -107,6 +107,25 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
     onBack();
   }, [flushDrafts, onBack]);
 
+  // Undo within half a second of typing: the typing hasn't landed yet, so it is what
+  // Undo takes back. Stepping the history instead let that draft land afterwards over
+  // the page Undo put back (audit 2026-11-02, 12b B-M2 / 12g G-M1). Redo lands it first.
+  const undoPage = useCallback(() => {
+    if (titleDraft.isPending() || bodyDraft.isPending()) {
+      titleDraft.discard();
+      bodyDraft.discard();
+      return;
+    }
+    handleUndo();
+  }, [titleDraft, bodyDraft, handleUndo]);
+  const redoPage = useCallback(() => {
+    if (titleDraft.isPending() || bodyDraft.isPending()) {
+      flushDrafts();
+      return;
+    }
+    handleRedo();
+  }, [titleDraft, bodyDraft, flushDrafts, handleRedo]);
+
   // ── Delete confirmation ───────────────────────────────────────────────────
   const handleDeletePress = useCallback(() => {
     AppAlert.destructive(
@@ -251,7 +270,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
             {/* Undo — always visible; dimmed when nothing to step back to */}
             <Pressable
               style={({ pressed }) => [editorStyles.iconBtn, pressed && canUndo ? styles.pressDown : null]}
-              onPress={handleUndo}
+              onPress={undoPage}
               disabled={!canUndo}
             >
               <Ionicons
@@ -264,7 +283,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
             {/* Redo — always visible; dimmed when nothing to step forward to */}
             <Pressable
               style={({ pressed }) => [editorStyles.iconBtn, pressed && canRedo ? styles.pressDown : null]}
-              onPress={handleRedo}
+              onPress={redoPage}
               disabled={!canRedo}
             >
               <Ionicons

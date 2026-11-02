@@ -10,6 +10,9 @@ export type DraftCommitter = {
   flush: () => void;
   /** Adopt an outside value (undo, a different record). Ignored mid-edit. */
   seed: (value: string) => boolean;
+  /** Drop the typing that hasn't landed yet and return the last committed value
+   *  (Undo while a draft is pending: it would otherwise land over what Undo put back). */
+  discard: () => string;
   current: () => string;
   isPending: () => boolean;
 };
@@ -53,6 +56,16 @@ export function createDraftCommitter(
       draft = value;
       committed = value;
       return true;
+    },
+    discard: () => {
+      if (cancel) {
+        cancel();
+        cancel = null;
+      }
+      pending = false;
+      commit = null;
+      draft = committed;
+      return committed;
     },
     current: () => draft,
     isPending: () => pending,
