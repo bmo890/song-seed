@@ -345,7 +345,9 @@ export async function prepareBackupContents(
     const snapshot: DrBackupSnapshot = {
         ...snapshotAbs,
         workspaces: toRelativeWorkspacesManagedMedia(snapshotAbs.workspaces),
-        recentlyDeleted: toRelativeDeletedItemsManagedMedia(snapshotAbs.recentlyDeleted ?? []),
+        ...(snapshotAbs.recentlyDeleted
+            ? { recentlyDeleted: toRelativeDeletedItemsManagedMedia(snapshotAbs.recentlyDeleted) }
+            : null),
         ...(opts?.satellites ? { satellites: opts.satellites } : null),
         ...(opts?.setAsideWorkspaceRows && Object.keys(opts.setAsideWorkspaceRows).length > 0
             ? { setAsideWorkspaceRows: opts.setAsideWorkspaceRows }

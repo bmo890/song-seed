@@ -54,7 +54,7 @@ const TestRenderer = require("react-test-renderer") as {
 };
 const { act } = TestRenderer;
 
-let dialog: DialogConfig | null = null;
+let dialog = null as DialogConfig | null;
 beforeAll(() => dialogStore.subscribe((config) => (dialog = config)));
 
 const record = {
@@ -94,8 +94,8 @@ it("Delete permanently asks first, with the founder's words", async () => {
     await act(async () => app.root.findAllByProps({ testID: "recently-deleted-d1" })[0]!.props.onPress());
     unsubscribe();
     await act(async () => menu!.actions[1]!.onPress());
-    expect(dialog?.title).toBe(i18n.t("recentlyDeleted.confirmTitle"));
-    expect(dialog?.message).toBe(i18n.t("recentlyDeleted.confirmBody"));
+    expect((dialog as DialogConfig | null)?.title).toBe(i18n.t("recentlyDeleted.confirmTitle"));
+    expect((dialog as DialogConfig | null)?.message).toBe(i18n.t("recentlyDeleted.confirmBody"));
     expect(useStore.getState().recentlyDeleted).toHaveLength(1);
     await act(async () => app.unmount());
 });
@@ -104,9 +104,9 @@ it("the first delete ever explains Recently deleted once", () => {
     useStore.setState({ seenHints: [] });
     dialog = null;
     announceDeleted(["x"]);
-    expect(dialog?.title).toBe(i18n.t("recentlyDeleted.introTitle"));
+    expect((dialog as DialogConfig | null)?.title).toBe(i18n.t("recentlyDeleted.introTitle"));
     expect(useStore.getState().seenHints).toContain(RECENTLY_DELETED_INTRO_HINT);
     dialogStore.dismiss();
     announceDeleted(["y"]);
-    expect(dialog).toBeNull();
+    expect(dialog as DialogConfig | null).toBeNull();
 });

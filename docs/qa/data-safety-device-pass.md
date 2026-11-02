@@ -70,3 +70,72 @@ Fixes: 03-1, 03-2, 03-3, 10-H1, 09-H2, 10-M1, 12d D-H2, D-M1, D-M3, decision E.
 2. Expect: the screen dims and locks; the take keeps recording (the orange mic indicator
    stays on). Unlock, Save: full length, no gap at the lock.
 3. Android unchanged: the screen behaves as before.
+
+## Recently deleted
+
+Decision A (2026-11-02). Everything here ships OTA (no native change). Do it on a phone
+with a fresh install first (for the one-time note), then on the founder's library.
+
+### First delete, then Undo — OTA
+
+1. Fresh install. Record a 10 s clip, then delete it from the collection (long-press, Delete).
+   Expect: the confirm says "Moves to Recently deleted for 30 days."; after it, a one-time
+   note "Kept for 30 days" names Settings › Data & storage. OK closes it.
+2. Delete a second clip. Expect: no note now; the undo bar reads "1 clip in Recently deleted".
+   Tap Undo: the clip is back in place, plays, keeps its title, bookmark and hidden state.
+3. Settings › Data & storage: a "Recently deleted" row with "1 item" under it.
+
+### The page — OTA
+
+1. Delete one of each: a clip, a sketch with lyrics and a chord chart, a collection with a
+   child collection, a setlist ("…" › Delete set now asks), a chart book, a playlist, a
+   Lyric Pad page, a spark, a received parcel (Received › Delete).
+2. Open Settings › Data & storage › Recently deleted. Expect: a large "Recently deleted"
+   title, newest first, each row "kind · 30 days left · size" (size only where there is audio),
+   a line "N items · size" with Empty beside it.
+3. Tap a row: a menu with Restore and Delete permanently (last). Restore each kind and
+   check it is back where it was: same collection, same place in its setlist and chart book,
+   the sketch's lyrics versions, chart and notes, its Shelf entry, its activity.
+4. Long-press a row: selection with All / Cancel; the dock restores or deletes many.
+5. Delete permanently: "Delete permanently?" / "This can't be undone." (warning buzz),
+   then "Deleted for good" (success). The row is gone and does not come back on relaunch.
+6. Empty: "Empty Recently deleted?" with the count and size. After it, the page shows
+   "Nothing deleted"; Settings › Storage shows the space back.
+
+### Where things go back to — OTA
+
+1. Delete a clip, then delete its whole workspace. Restore the clip (not the workspace).
+   Expect: toast "Restored to <primary workspace>", the clip in its primary collection.
+2. Restore the workspace: it returns in its old place in the list, with its collections.
+3. In a sketch, delete one take; then delete the sketch. Restore the take: it comes back as
+   its own clip, toast says where. Restore the sketch: its other takes are there.
+
+### Deletes that used to be silent — OTA
+
+1. Player › … › Delete clip on a sketch's only take: the confirm says the whole sketch,
+   lyrics included, moves to Recently deleted (04-H5). It is on the page afterwards.
+2. Sketch › … › Delete sketch › Keep takes: the takes become clips, and the sketch (lyrics,
+   chart, notes) is on the page (04-M1); its setlist row is gone from the set until restored.
+3. Collection and workspace deletes show a toast with Undo (04-M3).
+4. Sketch takes: filter to one tag, long-press, All. Expect only the shown takes selected;
+   folded "N older" and a folded group are not (12b B-M3). The confirm reads "Delete 3 takes?".
+5. Spark: reopen a spark saved earlier, change a word, Back. Expect: it just leaves (12f F-H3).
+   A spark started now, Back › Discard: it is on the page.
+6. Cut-Up: write a draft, Back to Arrange, Draft again, Remix › Mixed. Expect it asks first
+   (12f F-H4).
+7. Send a Word Ladder to the Pad, write more on that page, send again › Replace page. Expect
+   the toast's Undo puts your Pad words back; without Undo, the old page is on the page
+   (12f F-M1, 12g G-H1).
+8. Recorder: record 10 s, Discard (and separately, Redo). Expect the toast; the take is on the
+   page and restores as a clip (03-9). A 2 s false start is not kept.
+
+### The 30 days and the files — OTA
+
+1. Delete a clip with a long take; note Settings › Storage. Its size moves from library to
+   the page's total. Empty: the space is freed.
+2. Set the phone's date 31 days ahead and relaunch: the record and its file are gone.
+   Set it back.
+3. Back up, then Replace-restore that backup on the same phone: the Recently deleted list is
+   as it was in the backup and Restore finds its audio. On another phone the records come
+   back but their audio does not travel (backups carry the records, not the trash).
+4. Settings › Erase everything: Recently deleted is empty afterwards.

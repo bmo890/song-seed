@@ -554,7 +554,9 @@ export async function restoreFromSource(
             ? mergeRestoredLibrary(prepared.snapshot, {
                   ...liveSnapshot,
                   workspaces: toRelativeWorkspacesManagedMedia(liveSnapshot.workspaces),
-                  recentlyDeleted: toRelativeDeletedItemsManagedMedia(liveSnapshot.recentlyDeleted ?? []),
+                  ...(liveSnapshot.recentlyDeleted
+                      ? { recentlyDeleted: toRelativeDeletedItemsManagedMedia(liveSnapshot.recentlyDeleted) }
+                      : null),
               })
             : prepared.snapshot;
         await persistRawSnapshot(

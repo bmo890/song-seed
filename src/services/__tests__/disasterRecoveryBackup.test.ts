@@ -126,6 +126,7 @@ jest.mock("../../state/useStore", () => ({
 
 import {
     buildDisasterRecoveryBackup,
+    prepareBackupContents,
     projectBackupArchiveBytes,
     estimateStoredZipArchiveBytes,
 } from "../disasterRecoveryBackup";
@@ -184,6 +185,28 @@ describe("buildDisasterRecoveryBackup", () => {
                 }),
             ])
         );
+    });
+
+    it("carries Recently deleted, its audio paths portable like the library's (decision A)", async () => {
+        mockFiles.set(AUDIO_URI, new Uint8Array([1, 2, 3]));
+        const snapshot = mockSnapshot as Record<string, unknown>;
+        snapshot.recentlyDeleted = [
+            {
+                id: "d1",
+                kind: "takes",
+                title: "Old take",
+                deletedAt: 1,
+                clips: [{ id: "c9", title: "Old take", notes: "", createdAt: 0, isPrimary: false, audioUri: "file:///doc/songnook/audio/old.m4a" }],
+            },
+        ];
+        try {
+            const prepared = await prepareBackupContents({} as never);
+            const carried = JSON.parse(prepared.snapshotJson).recentlyDeleted;
+            expect(carried).toHaveLength(1);
+            expect(carried[0].clips[0].audioUri).toBe("songnook/audio/old.m4a");
+        } finally {
+            delete snapshot.recentlyDeleted;
+        }
     });
 
     it("keeps a backup complete when an archived workspace's package is offloaded", async () => {
