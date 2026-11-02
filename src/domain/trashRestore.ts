@@ -1,5 +1,5 @@
 /**
- * The trash safety net (overnight check, 2026-10-20). Deleted audio waits 14 days in
+ * The trash safety net (overnight check, 2026-10-20). Deleted audio waits 31 days in
  * the trash, but nothing ever brought it back: a file trashed by mistake while the
  * library still pointed at it was silently lost on day 14. On every launch the library's
  * references are checked; any file that is missing from its place but sits in the trash

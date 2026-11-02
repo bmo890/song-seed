@@ -906,7 +906,7 @@ export const es = {
     keepNewer: "Combinar",
     keepNewerDesc: "Recupera la copia y conserva todo lo más reciente.",
     replaceEverything: "Reemplazar todo",
-    replaceDesc: "Tu biblioteca pasa a ser la copia. Los clips quitados esperan 14 días en la papelera.",
+    replaceDesc: "Tu biblioteca pasa a ser la copia. Lo que hay ahora se reemplaza.",
     copied: "Nombre de la copia copiado",
     archivedWorkspace: "Espacio de trabajo archivado «{{title}}»",
     overdubLayer: " (capa de overdub)",

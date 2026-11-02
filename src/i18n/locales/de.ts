@@ -858,7 +858,7 @@ export const de = {
     keepNewer: "Zusammenführen",
     keepNewerDesc: "Holt das Backup zurück, Neueres bleibt erhalten.",
     replaceEverything: "Alles ersetzen",
-    replaceDesc: "Deine Bibliothek wird zum Backup. Entfernte Clips bleiben 14 Tage im Papierkorb.",
+    replaceDesc: "Deine Bibliothek wird zum Backup. Was jetzt hier ist, wird ersetzt.",
     copied: "Dateiname kopiert",
     archivedWorkspace: "Archivierter Arbeitsbereich „{{title}}“",
     overdubLayer: " (Overdub-Spur)",

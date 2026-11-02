@@ -37,6 +37,7 @@ import { deletedItemDaysLeft, RECENTLY_DELETED_MS } from "../recentlyDeleted";
 import { planShardedWrite, assembleShardedSnapshot, parseMetaRow } from "../persistSharding";
 import { setHydrationReadOutcome } from "../persistRuntime";
 import { appActions } from "../actions";
+import { TRASH_RETENTION_MS } from "../../services/managedMedia";
 
 /**
  * Decision A (founder, 2026-11-02): a delete keeps the thing whole for 30 days in
@@ -236,6 +237,10 @@ describe("Recently deleted", () => {
         await restoreRecentlyDeleted([record.id]);
         expect(idea("s1")!.lyrics!.versions).toHaveLength(1);
         expect(useStore.getState().setlists[0]!.entries.map((entry) => entry.id)).toEqual(["e0", "e1", "e2"]);
+    });
+
+    it("audio outlives its record in the trash (Recently deleted 30 days, trash longer)", () => {
+        expect(TRASH_RETENTION_MS).toBeGreaterThan(RECENTLY_DELETED_MS);
     });
 
     it("is part of the library: persisted, sanitized, and in its own row", () => {

@@ -905,7 +905,7 @@ export const pt = {
     keepNewer: "Mesclar",
     keepNewerDesc: "Traz o backup de volta, mantendo o que for mais recente.",
     replaceEverything: "Substituir tudo",
-    replaceDesc: "Sua biblioteca vira o backup. Clipes removidos ficam 14 dias na lixeira.",
+    replaceDesc: "Sua biblioteca vira o backup. O que está aqui agora é substituído.",
     copied: "Nome do backup copiado",
     archivedWorkspace: "Espaço de trabalho arquivado “{{title}}”",
     overdubLayer: " (camada de overdub)",
