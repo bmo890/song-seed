@@ -1553,7 +1553,7 @@ export const he = {
     sourceTitle: "ייבוא", sourceFiles: "קבצים", sourceFilesHint: "קובצי שמע או וידאו", sourceVideos: "סרטונים", sourceVideosHint: "מספריית התמונות",
     noAudioTitle: "בסרטון הזה אין קול", noAudioBody: "בחרו סרטון עם קול, ואז ייבאו שוב.",
     videoUnreadableTitle: "לא הצלחנו לקרוא את הסרטון", videoUnreadableBody: "נסו קובץ MP4 או MOV, ואז ייבאו שוב.",
-    chooseCollection: "בחירת אוסף", chooseCollectionBody: "פתחו אוסף לפני ייבוא שמע.", unsupportedFormatTitle: "AIFF לא נתמך באנדרואיד", unsupportedFormatBody: "ייצאו אותו כ־WAV או M4A מה־DAW, ואז ייבאו שוב.", title: "ייבוא שמע", chooseBody: "איך להוסיף {{count}} קבצים אל {{title}}?",
+    chooseCollection: "בחירת אוסף", chooseCollectionBody: "פתחו אוסף לפני ייבוא שמע.", unsupportedFormatTitle: "AIFF לא נתמך באנדרואיד", unsupportedFormatBody: "ייצאו אותו כ־WAV או M4A מה־DAW, ואז ייבאו שוב.", formatWontPlayTitle: "{{format}} לא מתנגן בטלפון הזה", formatWontPlayBody: "שמרו אותו כ־M4A או WAV, ואז ייבאו שוב.", title: "ייבוא שמע", chooseBody: "איך להוסיף {{count}} קבצים אל {{title}}?",
   },
   selection: {
     copyMovePlaylist: "העתקה, העברה, פלייליסט",

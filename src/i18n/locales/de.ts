@@ -3262,6 +3262,8 @@ export const de = {
     chooseCollectionBody: "Öffne eine Sammlung, bevor du Audio importierst.",
     unsupportedFormatTitle: "AIFF wird auf Android nicht unterstützt",
     unsupportedFormatBody: "Exportiere es aus deiner DAW als WAV oder M4A und importiere erneut.",
+    formatWontPlayTitle: "{{format}} spielt auf diesem Handy nicht",
+    formatWontPlayBody: "Speichere es als M4A oder WAV und importiere erneut.",
     title: "Audio importieren",
     chooseBody: "Wähle, wie {{count}} Dateien in {{title}} landen sollen.",
   },

@@ -14,6 +14,8 @@ import {
     VIDEO_FORMAT,
     VIDEO_IMPORT_MIME_TYPES,
     isAiffExtension,
+    isOnePlatformAudioExtension,
+    playsOnThisPlatform,
     isNoAudioTrackError,
     isVideoImport,
 } from "./audioImportFormat";
@@ -575,19 +577,38 @@ export async function listDevSampleAudioAssets(): Promise<ImportedAudioAsset[]> 
  * the alternative is a clip that imports and then never plays.
  */
 async function convertAiffToM4a(sourceUri: string, targetId: string): Promise<string> {
+    const outputUri = await renderImportToM4a(sourceUri, targetId).catch((error) => {
+        throw new UnsupportedAudioFormatError("aiff", error instanceof Error ? error.message : undefined);
+    });
+    if (!outputUri) throw new UnsupportedAudioFormatError("aiff");
+    return outputUri;
+}
+
+/** A render may come up this much short of the original (encoder framing) and still count. */
+const IMPORT_RENDER_TOLERANCE_MS = 250;
+
+/**
+ * The whole file, re-encoded as M4A (AAC) by the phone's own encoder: a full-range pass
+ * through the native trim renderer (AVAssetExportSession on iOS, media3 Transformer on
+ * Android). Null when this phone can't read the file, the build has no renderer, or the
+ * render came out shorter than the original (never keep a truncated import). Throws
+ * when the render itself fails.
+ */
+async function renderImportToM4a(sourceUri: string, targetId: string): Promise<string | null> {
     const native = SongNookPitchShiftModule;
     const durationMs = await getNativeAudioDurationMs(sourceUri).catch(() => undefined);
-    if (!native?.renderTrim || !durationMs) throw new UnsupportedAudioFormatError("aiff");
-    try {
-        const result = await native.renderTrim({
-            inputUri: sourceUri,
-            ranges: [{ startTimeMs: 0, endTimeMs: durationMs }],
-            outputFileName: `${targetId}-import.m4a`,
-        });
-        return result.outputUri;
-    } catch (error) {
-        throw new UnsupportedAudioFormatError("aiff", error instanceof Error ? error.message : undefined);
+    if (!native?.renderTrim || !durationMs) return null;
+    const result = await native.renderTrim({
+        inputUri: sourceUri,
+        ranges: [{ startTimeMs: 0, endTimeMs: durationMs }],
+        outputFileName: `${targetId}-import.m4a`,
+    });
+    const renderedMs = await getNativeAudioDurationMs(result.outputUri).catch(() => undefined);
+    if (!renderedMs || renderedMs < durationMs - IMPORT_RENDER_TOLERANCE_MS) {
+        await FileSystem.deleteAsync(result.outputUri, { idempotent: true }).catch(() => {});
+        return null;
     }
+    return result.outputUri;
 }
 
 /**
@@ -647,6 +668,20 @@ async function importAudioAssetFromSource(
         convertedTempUri = await convertAiffToM4a(asset.uri, targetId);
         sourceUri = convertedTempUri;
         extension = "m4a";
+    } else if (isOnePlatformAudioExtension(extension)) {
+        // CAF, Ogg, Opus: M4A, so the clip plays on either phone (audit 11-M2). If the
+        // render fails, the original stays only where this phone plays it.
+        const rendered = await renderImportToM4a(asset.uri, targetId).catch((error) => {
+            console.warn(`[import] ${extension} → m4a failed`, error);
+            return null;
+        });
+        if (rendered) {
+            convertedTempUri = rendered;
+            sourceUri = rendered;
+            extension = "m4a";
+        } else if (!playsOnThisPlatform(extension, Platform.OS)) {
+            throw new UnsupportedAudioFormatError(extension);
+        }
     }
     const destinationUri = `${SONG_NOOK_AUDIO_DIR}/${targetId}.${extension}`;
     const copiedToManagedStorage = sourceUri !== destinationUri;

@@ -29,6 +29,29 @@ export function isAiffExtension(extension: string | undefined | null): boolean {
   return lower === "aif" || lower === "aiff" || lower === "aifc";
 }
 
+/**
+ * One-phone formats (audit 11-M2, 2026-11-02). CAF is iOS's own container (Android has
+ * no extractor for it); Ogg and Opus (WhatsApp voice notes, Android recorders) don't open
+ * on iPhone. Kept as-is they travel in backups and Send to the other phone and never
+ * play there. They become M4A on import with the phone's own encoder, as AIFF does on
+ * iOS; when that fails, the original is kept only on the phone that plays it.
+ */
+const ONE_PLATFORM_AUDIO: Record<string, "ios" | "android"> = {
+  caf: "ios",
+  ogg: "android",
+  oga: "android",
+  opus: "android",
+};
+
+export function isOnePlatformAudioExtension(extension: string | undefined | null): boolean {
+  return (extension ?? "").toLowerCase() in ONE_PLATFORM_AUDIO;
+}
+
+/** Does this phone play a one-phone format as it is? */
+export function playsOnThisPlatform(extension: string | undefined | null, os: string): boolean {
+  return ONE_PLATFORM_AUDIO[(extension ?? "").toLowerCase()] === os;
+}
+
 export function isUnsupportedAudioFormatError(error: unknown): error is UnsupportedAudioFormatError {
   return (
     !!error &&
