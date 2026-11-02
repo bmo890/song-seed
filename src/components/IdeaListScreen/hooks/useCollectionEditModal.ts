@@ -1,74 +1,85 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useStore } from "../../../state/useStore";
-import { ideaWorkspaceId } from "../../../state/dataSlice";
+import { locateIdea } from "../../../domain/itemLocator";
+import { changedFields, editorDraftKey } from "../../../domain/editorDrafts";
+import { saveClipTextEdits } from "../../../state/clipTextEdits";
 import type { SongIdea } from "../../../types";
 import { i18n } from "../../../i18n/instance";
 
-export function useCollectionEditModal(ideas: SongIdea[]) {
+type EditTarget = { ideaId: string; clipId: string };
+
+/**
+ * The collection list's clip Edit sheet (name + notes). Tied to the clip it opened
+ * on, wherever that clip lives now; pre-filled from the clip's own notes (the
+ * player writes those); saves only what was changed here (12c C-H1).
+ */
+export function useCollectionEditModal(_ideas: SongIdea[]) {
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [editClipId, setEditClipId] = useState<string | null>(null);
+  const [target, setTarget] = useState<EditTarget | null>(null);
   const [editClipDraft, setEditClipDraft] = useState("");
   const [editClipNotesDraft, setEditClipNotesDraft] = useState("");
+  // What the sheet showed as it opened: the save writes only what moved from this.
+  const openedRef = useRef<{ title: string; notes: string }>({ title: "", notes: "" });
 
-  const editTargetIdea = editClipId ? ideas.find((idea) => idea.id === editClipId) ?? null : null;
-  const editTargetClip = editTargetIdea?.kind === "clip" ? editTargetIdea.clips[0] ?? null : null;
+  // Found wherever it lives now (a move or a visit must not make the sheet vanish
+  // mid-edit with the words in it, 12c C-L9).
+  const editTargetIdea = useStore((state) =>
+    target ? locateIdea(state.workspaces, target.ideaId)?.idea ?? null : null
+  );
+  const editTargetClip =
+    editTargetIdea?.kind === "clip" && target
+      ? editTargetIdea.clips.find((clip) => clip.id === target.clipId) ?? null
+      : null;
 
   const quickEditIdea = (idea: SongIdea) => {
     if (idea.kind === "project") {
       return false;
     }
+    const clip = idea.clips[0];
+    if (!clip) return false;
 
-    setEditClipId(idea.id);
+    // The clip's notes are the living copy; the idea's are an older mirror.
+    const notes = clip.notes || idea.notes || "";
+    openedRef.current = { title: idea.title, notes };
+    setTarget({ ideaId: idea.id, clipId: clip.id });
     setEditClipDraft(idea.title);
-    setEditClipNotesDraft(idea.notes || idea.clips[0]?.notes || "");
+    setEditClipNotesDraft(notes);
     setEditModalOpen(true);
     return true;
   };
 
   const saveStandaloneClipEdit = () => {
-    if (!editTargetIdea || editTargetIdea.kind !== "clip" || !editTargetClip) return;
-
-    const nextTitle = editClipDraft.trim() || i18n.t("defaults.untitledClip");
-    const nextNotes = editClipNotesDraft.trim();
-
-    useStore.getState().updateIdeas((nextIdeas) =>
-      nextIdeas.map((idea) =>
-        idea.id !== editTargetIdea.id
-          ? idea
-          : {
-              ...idea,
-              title: nextTitle,
-              notes: nextNotes,
-              clips: idea.clips.map((clip) =>
-                clip.id === editTargetClip.id
-                  ? {
-                      ...clip,
-                      title: nextTitle,
-                      notes: nextNotes,
-                    }
-                  : clip
-              ),
-            }
-      ),
-      { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, editTargetIdea.id) }
+    if (!target) return;
+    const opened = openedRef.current;
+    const patch = changedFields(
+      { title: opened.title.trim() || i18n.t("defaults.untitledClip"), notes: opened.notes.trim() },
+      { title: editClipDraft.trim() || i18n.t("defaults.untitledClip"), notes: editClipNotesDraft.trim() }
+    );
+    saveClipTextEdits(
+      target.ideaId,
+      target.clipId,
+      patch,
+      patch.title !== undefined ? { title: patch.title } : undefined
     );
 
     setEditModalOpen(false);
-    setEditClipId(null);
+    setTarget(null);
   };
 
   const closeEditModal = () => {
     setEditModalOpen(false);
-    setEditClipId(null);
+    setTarget(null);
   };
 
   return {
     editModalOpen,
-    editClipId,
+    editClipId: target?.ideaId ?? null,
     editClipDraft,
     editClipNotesDraft,
     editTargetIdea,
     editTargetClip,
+    /** The sheet's unsaved words survive a kill under this key. */
+    editDraftKey: target ? editorDraftKey("clipText", target.ideaId, target.clipId) : null,
     setEditClipDraft,
     setEditClipNotesDraft,
     quickEditIdea,

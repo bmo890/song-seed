@@ -187,6 +187,7 @@ export function ClipList() {
         setEditingClipNotesDraft={editing.setEditingClipNotesDraft}
         saveNotesSheet={editing.saveNotesSheet}
         closeNotesSheet={editing.closeNotesSheet}
+        notesSheetDraftKey={editing.notesSheetDraftKey}
         closeTagPicker={() => setTagPickerClipId(null)}
       />
     </>
