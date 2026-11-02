@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { AppState, StyleSheet, View } from "react-native";
 import { colors, spacing } from "../../../design/tokens";
-import { appActions } from "../../../state/actions";
 import type { ContentDirection } from "../../../types";
 import { UserTextInput } from "../../../i18n";
 import { useKeyboardOverlap } from "../../../hooks/useKeyboardOverlap";
 import { useTranslation } from "react-i18next";
+import { toast } from "../../common/toastStore";
+import { readWriterBase, sameBase, saveWriterLyrics, type WriterBase } from "../writerLyricsSave";
 
 const AUTOSAVE_DEBOUNCE_MS = 700;
 
@@ -14,9 +15,13 @@ const AUTOSAVE_DEBOUNCE_MS = 700;
  * reel. Words flow into the sketch's CURRENT lyric version through the same
  * save path as the lyric sheet's editor (chord anchors survive text edits the
  * same way there), autosaving on every pause in typing — flow writing never
- * meets a save button. One-way binding: the editor seeds from the store once
- * per version (key on the version id) and pushes; it never pulls mid-session,
- * so a background hydration can't clobber words being typed.
+ * meets a save button.
+ *
+ * It is tied to the sketch it opened on (the queue moving on never carries its
+ * words to the next sketch, 04-M2) and to the version it started from: words
+ * changed elsewhere while it sat docked show up here when nothing is pending,
+ * and a pending save never goes in place over them — it becomes a new version
+ * (12a A-H3). It also saves as the app leaves the foreground (A-L5).
  */
 export function PlayerLyricsWriter({
   ideaId,
@@ -31,8 +36,16 @@ export function PlayerLyricsWriter({
   const [text, setText] = useState(initialText);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirtyRef = useRef(false);
-  const latestRef = useRef({ ideaId, text: initialText, textDirection });
-  latestRef.current = { ideaId, text, textDirection };
+  // The sketch this writer belongs to, fixed for its life.
+  const ideaIdRef = useRef(ideaId);
+  // The version (and its last edit) the words on screen stand on.
+  const baseRef = useRef<WriterBase | null>(null);
+  if (baseRef.current === null) {
+    const now = readWriterBase(ideaIdRef.current);
+    baseRef.current = { versionId: now.versionId, updatedAt: now.updatedAt };
+  }
+  const latestRef = useRef({ text: initialText, textDirection });
+  latestRef.current = { text, textDirection };
 
   const flush = useCallback(() => {
     if (debounceRef.current) {
@@ -42,8 +55,10 @@ export function PlayerLyricsWriter({
     if (!dirtyRef.current) return;
     dirtyRef.current = false;
     const latest = latestRef.current;
-    appActions.saveProjectLyrics(latest.ideaId, latest.text, latest.textDirection);
-  }, []);
+    const result = saveWriterLyrics(ideaIdRef.current, latest.text, latest.textDirection, baseRef.current!);
+    baseRef.current = result.base;
+    if (result.forked) toast(t("lyrics.savedAsNewVersion"), "git-branch-outline");
+  }, [t]);
 
   const handleChangeText = useCallback(
     (next: string) => {
@@ -55,8 +70,27 @@ export function PlayerLyricsWriter({
     [flush]
   );
 
-  // Leaving the writer (close, switch clip, unmount) commits whatever's pending.
-  useEffect(() => flush, [flush]);
+  // Words changed somewhere else (the lyric editor while this sat docked): with
+  // nothing pending here, show them, so the next key builds on them. Its own saves
+  // leave the base matching, so they never re-seed under the cursor.
+  useEffect(() => {
+    if (dirtyRef.current) return;
+    const now = readWriterBase(ideaIdRef.current);
+    if (baseRef.current && sameBase(now, baseRef.current)) return;
+    baseRef.current = { versionId: now.versionId, updatedAt: now.updatedAt };
+    setText(now.text);
+  }, [initialText]);
+
+  // Leaving the writer (close, switch clip, unmount) or the app commits whatever's pending.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state !== "active") flush();
+    });
+    return () => {
+      sub.remove();
+      flush();
+    };
+  }, [flush]);
 
   // The page ends at the keys: the line being typed stays in sight on both platforms.
   const frameRef = useRef<View>(null);

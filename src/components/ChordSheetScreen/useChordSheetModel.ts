@@ -74,6 +74,15 @@ export function useChordSheetModel(ideaIdOverride?: string, options?: { startEdi
   });
 
   const sheet = projectIdea?.chordSheet ?? createChordSheet();
+  // The chart as the store holds it NOW. Every write builds on this, never on the
+  // `sheet` of some earlier render: a note or text-block draft commits half a second
+  // after its last keystroke, through the closure of that keystroke's render, and
+  // built on that render's chart it reverted a bar added, a chord changed or an Undo
+  // made in between (audit 2026-11-02, 12b B-M2 / 12g G-M1).
+  const liveSheet = (): ChordSheet => {
+    const idea = ideaId ? selectIdeaById(useStore.getState().workspaces, ideaId) : null;
+    return (idea?.kind === "project" ? idea.chordSheet : undefined) ?? sheet;
+  };
   const palette = useMemo(() => sortedPalette(projectIdea?.chordPalette), [projectIdea?.chordPalette]);
 
   // Autocomplete corpus for renaming sections: the presets plus every section
@@ -112,7 +121,7 @@ export function useChordSheetModel(ideaIdOverride?: string, options?: { startEdi
 
   const commit = (next: ChordSheet) => {
     if (!projectIdea) return;
-    pastRef.current = [...pastRef.current.slice(-49), sheet];
+    pastRef.current = [...pastRef.current.slice(-49), liveSheet()];
     futureRef.current = [];
     bumpHistory((v) => v + 1);
     applySheet(next);
@@ -122,7 +131,7 @@ export function useChordSheetModel(ideaIdOverride?: string, options?: { startEdi
     const past = pastRef.current;
     if (!past.length || !projectIdea) return;
     pastRef.current = past.slice(0, -1);
-    futureRef.current = [...futureRef.current, sheet];
+    futureRef.current = [...futureRef.current, liveSheet()];
     bumpHistory((v) => v + 1);
     applySheet(past[past.length - 1]);
   };
@@ -131,7 +140,7 @@ export function useChordSheetModel(ideaIdOverride?: string, options?: { startEdi
     const future = futureRef.current;
     if (!future.length || !projectIdea) return;
     futureRef.current = future.slice(0, -1);
-    pastRef.current = [...pastRef.current, sheet];
+    pastRef.current = [...pastRef.current, liveSheet()];
     bumpHistory((v) => v + 1);
     applySheet(future[future.length - 1]);
   };
@@ -140,21 +149,30 @@ export function useChordSheetModel(ideaIdOverride?: string, options?: { startEdi
   const canRedo = futureRef.current.length > 0;
 
   const mutateSection = (sectionId: string, updater: (section: ChordSheet["sections"][number]) => ChordSheet["sections"][number]) => {
+    const current = liveSheet();
     commit({
-      ...sheet,
-      sections: sheet.sections.map((section) => (section.id === sectionId ? updater(section) : section)),
+      ...current,
+      sections: current.sections.map((section) => (section.id === sectionId ? updater(section) : section)),
     });
   };
 
-  const addSection = (label: string) => commit({ ...sheet, sections: [...sheet.sections, createSection(label)] });
+  const addSection = (label: string) => {
+    const current = liveSheet();
+    commit({ ...current, sections: [...current.sections, createSection(label)] });
+  };
 
-  const addTextBlock = () => commit({ ...sheet, sections: [...sheet.sections, createTextBlock()] });
+  const addTextBlock = () => {
+    const current = liveSheet();
+    commit({ ...current, sections: [...current.sections, createTextBlock()] });
+  };
 
   const setBlockText = (sectionId: string, text: string) =>
     mutateSection(sectionId, (s) => ({ ...s, text }));
 
-  const removeSection = (sectionId: string) =>
-    commit({ ...sheet, sections: sheet.sections.filter((section) => section.id !== sectionId) });
+  const removeSection = (sectionId: string) => {
+    const current = liveSheet();
+    commit({ ...current, sections: current.sections.filter((section) => section.id !== sectionId) });
+  };
 
   const renameSection = (sectionId: string, label: string) => mutateSection(sectionId, (s) => ({ ...s, label }));
 
@@ -162,12 +180,13 @@ export function useChordSheetModel(ideaIdOverride?: string, options?: { startEdi
     mutateSection(sectionId, (s) => ({ ...s, notes }));
 
   const moveSection = (sectionId: string, dir: -1 | 1) => {
-    const index = sheet.sections.findIndex((s) => s.id === sectionId);
+    const current = liveSheet();
+    const index = current.sections.findIndex((s) => s.id === sectionId);
     const target = index + dir;
-    if (index < 0 || target < 0 || target >= sheet.sections.length) return;
-    const next = [...sheet.sections];
+    if (index < 0 || target < 0 || target >= current.sections.length) return;
+    const next = [...current.sections];
     [next[index], next[target]] = [next[target], next[index]];
-    commit({ ...sheet, sections: next });
+    commit({ ...current, sections: next });
   };
 
   const addMeasure = (sectionId: string) =>

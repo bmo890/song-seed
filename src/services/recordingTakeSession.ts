@@ -263,6 +263,22 @@ export const RECORDING_TAKE_SHAPE: LiveWaveformShape = {
   windowDurationMs: 12000,
 };
 
+/**
+ * What a take's FILE is: 16-bit PCM WAV at the shape above (decision F, 2026-11-02:
+ * the space-saving choice that stays sample-exact; AAC waits on a device timing pass,
+ * see docs/qa/data-safety-device-pass.md). Both recorders defaulted to 16-bit already;
+ * this names it, so a library default can't silently double every take. Android reads
+ * `encoding`; iOS reads `bitDepth`, and its live stream converts the buffer as Int16,
+ * so iOS must never be handed 32 here.
+ */
+export const RECORDING_FILE_FORMAT = { encoding: "pcm_16bit", bitDepth: 16 } as const;
+
+/** Bytes one minute of take costs on disk (5.29 MB). */
+export function recordedBytesPerMinute(): number {
+  const { sampleRate, channels } = RECORDING_TAKE_SHAPE;
+  return sampleRate * channels * (RECORDING_FILE_FORMAT.bitDepth / 8) * 60;
+}
+
 /** The app-wide take session, for leaves that draw it (the live tape) without going
  *  through the recorder hook. */
 export function getActiveRecordingTakeSession(): RecordingTakeSession {

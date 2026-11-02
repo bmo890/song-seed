@@ -420,8 +420,10 @@ export const ClipCard = React.memo(function ClipCard({
           clip.notes ? (
             <ClipNoteLine
               notes={clip.notes ?? ""}
-              disabled={!!displayOnly || readOnly}
-              onOpen={!displayOnly && !readOnly ? () => onOpenNotesSheet?.(clip) : undefined}
+              disabled={!!displayOnly}
+              // Read-only (a parcel's take, an archived one): the sheet opens to read
+              // the whole note, never to edit it (decision B).
+              onOpen={!displayOnly ? () => onOpenNotesSheet?.(clip) : undefined}
               onLongPress={handleLongPress}
             />
           ) : undefined

@@ -23,6 +23,7 @@ import { useStore } from "../../../state/useStore";
 import { normalizeHiddenDays } from "../../../domain/hiddenDayGroups";
 import { buildPlayableQueueFromIdeas } from "../../../domain/clipPresentation";
 import { haptic } from "../../../design/haptics";
+import { undoMadeSketch, type MadeSketch } from "../../../domain/undoPatch";
 
 type CollectionUndoSnapshot = {
   workspaceId: string;
@@ -75,22 +76,6 @@ function buildCollectionUndoSnapshot(workspace: Workspace): CollectionUndoSnapsh
     songbooks: state.songbooks,
     setlists: state.setlists,
   };
-}
-
-function restoreCollectionUndoSnapshot(snapshot: CollectionUndoSnapshot) {
-  useStore.setState((store) => ({
-    workspaces: store.workspaces.map((workspace) =>
-      workspace.id === snapshot.workspaceId
-        ? {
-            ...workspace,
-            collections: snapshot.collections,
-            ideas: snapshot.ideas,
-          }
-        : workspace
-    ),
-    activityEvents: snapshot.activityEvents,
-    playlists: snapshot.playlists,
-  }));
 }
 
 /** The picker's one chrome on a collection page: ✕ + "Add N" while a
@@ -392,8 +377,18 @@ export function CollectionFloatingActions() {
       }),
     }));
     useStore.getState().cancelListSelection();
+    // Undo takes back the gather only: whatever reached the workspace in the window (an
+    // import's clips, a take recorded into the new sketch) stays (audit 04-M6).
+    const made: MadeSketch = {
+      workspaceId: activeWorkspace.id,
+      sketch: mergedProject,
+      gatheredIdeas: previousSnapshot.ideas.filter((idea) => convertingIds.has(idea.id)),
+      collections: previousSnapshot.collections,
+      activityEvents: previousSnapshot.activityEvents,
+      playlists: previousSnapshot.playlists,
+    };
     selection.showUndo(t("collection.madeSketchUndo", { title: generatedTitle }), () => {
-      restoreCollectionUndoSnapshot(previousSnapshot);
+      useStore.setState((live) => undoMadeSketch(live, made));
     });
     store.setSelectedIdeaId(projectId);
     screen.navigateRoot("IdeaDetail", { ideaId: projectId });

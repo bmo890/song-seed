@@ -11,6 +11,7 @@ import { haptic } from "../../../design/haptics";
 import type { Workspace } from "../../../types";
 import { useTranslation } from "react-i18next";
 import { afterOverlayCloses } from "../../common/afterOverlayCloses";
+import { tellIfLibraryBusy } from "../../../services/libraryOperationGate";
 
 type Args = {
   activeWorkspaceCount: number;
@@ -66,6 +67,7 @@ export function useWorkspaceArchiveActions({
       }
       AppAlert.info(t("workspaceArchive.archivedTitle"), summary.join(" "));
     } catch (error) {
+      if (tellIfLibraryBusy(error)) return;
       AppAlert.error(
         t("workspaceArchive.archiveFailed"),
         t("workspaceArchive.archiveFailedBody")
@@ -89,6 +91,7 @@ export function useWorkspaceArchiveActions({
       }
       AppAlert.info(t("workspaceArchive.restoredTitle"), summary.join(" "));
     } catch (error) {
+      if (tellIfLibraryBusy(error)) return;
       AppAlert.error(
         t("workspaceArchive.restoreFailed"),
         t("workspaceArchive.restoreFailedBody")
@@ -217,6 +220,8 @@ export function useWorkspaceArchiveActions({
           }
           successes.push(workspace.title);
         } catch (error) {
+          // Another heavy operation or a take holds the library: say so once and stop.
+          if (tellIfLibraryBusy(error)) break;
           failures.push(
             t("workspaceArchive.workspaceActionFailed", { workspace: workspace.title, action: t(action === "archive" ? "workspaceArchive.archive" : "workspaceArchive.unarchive") })
           );

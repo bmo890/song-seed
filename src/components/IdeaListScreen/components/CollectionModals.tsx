@@ -86,6 +86,7 @@ export function CollectionModals() {
         onChangeNotes={editModal.setEditClipNotesDraft}
         onCancel={editModal.closeEditModal}
         onSave={editModal.saveStandaloneClipEdit}
+        draftKey={editModal.editDraftKey}
       />
 
       <QuickNameModal

@@ -26,12 +26,14 @@ import { applyClipMetadataBatch, type ClipMetadataEntry } from "./clipMetadataBa
 import { buildLyricsTextFromNote } from "../domain/notepad";
 import { removeEmptyRecordingPlaceholder } from "../domain/recordingPlaceholder";
 import { buildDefaultIdeaTitle, ensureUniqueCountedTitle, ensureUniqueIdeaTitle, genId } from "../utils";
-import { archiveWorkspaceToDevice, restoreWorkspaceFromDevice } from "../services/workspaceArchive";
+import { archiveWorkspaceToDevice, mergeRestoredWorkspace, restoreWorkspaceFromDevice } from "../services/workspaceArchive";
 import { saveArchiveToUserLocation } from "../services/archiveSave";
 import type { ParsedSongNookArchive } from "../services/libraryImport";
 import { materializeSongNookArchiveMerge } from "../services/libraryImport";
 import { findOrphanedAudioFiles, enrichOrphanedClips, buildRecoveredIdeas, findWorkspaceArchives, restoreWorkspaceFromArchive, restoreFromManifest, matchOrphansToEmptyIdeas } from "../services/audioRecovery";
-import { forceManifestWrite } from "../services/manifestSync";
+import { forceManifestWrite, readSafetyCopy, releaseHeldSafetyCopy } from "../services/manifestSync";
+import { mergeRestoredLibrary } from "../services/libraryMergeRestore";
+import { persistLog } from "../services/persistLog";
 import { buildPersistedAppStoreSnapshot, flushPersistedSnapshot } from "./useStore";
 import { persistRestoredAppStoreSnapshot } from "./persistedSnapshot";
 import { buildRuntimeCleanupPatch } from "./runtimeCleanup";
@@ -72,6 +74,8 @@ import { locateCollection, locateIdea } from "../domain/itemLocator";
 import { firstWritableWorkspaceId, isReadOnlyWorkspace, isWritableWorkspaceId } from "../domain/workspaceVisibility";
 import { SONG_NOOK_PREVIEW_AUDIO_DIR } from "../services/storagePaths";
 import { takeHoldsRecorder } from "../services/recordingTakeSession";
+import { claimLibraryOperation } from "../services/libraryOperationGate";
+import { clearPersistBlockedSignalFor } from "./persistRuntime";
 
 const buildIdeaId = () => genId("idea");
 const buildClipId = () => genId("clip");
@@ -866,6 +870,201 @@ function pasteAllowed(source: Workspace, target: Workspace, mode: "copy" | "move
     if (source.isArchived) return false;
     if (mode === "move" && isReadOnlyWorkspace(source)) return false;
     return true;
+}
+
+/**
+ * "Recover audio files": packages of workspaces that are gone, then audio files nothing
+ * points at. It never replaces the library from the safety copy: that is its own,
+ * asked-for restore (restoreLibraryFromSafetyCopy; audit 2026-11-02, 12e E-M1).
+ */
+async function recoverOrphanedAudioHoldingSlot(
+    onProgress?: (phase: string, done: number, total: number) => void
+): Promise<{ recoveredCount: number; restoredFromManifest: boolean; archivedWorkspacesRestored: number; orphanedClipsRecovered: number; warnings: string[] }> {
+    const state = useStore.getState();
+    const warnings: string[] = [];
+    let archivedWorkspacesRestored = 0;
+    let orphanedClipsRecovered = 0;
+
+    // Phase 1: Restore any workspace archives found on disk
+    onProgress?.("Scanning for workspace archives...", 0, 1);
+    try {
+        const archives = await findWorkspaceArchives();
+
+        // Only packages whose workspace is gone (or is an empty live stand-in). An
+        // archived workspace stays archived: its package is where the person put it,
+        // and re-extracting it unasked doubled its storage (audit 12e E-M2).
+        const existingWorkspaceIds = new Set(
+            state.workspaces
+                .filter((ws) => ws.ideas.length > 0 || (ws.isArchived && ws.archiveState))
+                .map((ws) => ws.id)
+        );
+
+        const archivesToRestore = archives.filter(
+            (a) => !existingWorkspaceIds.has(a.workspaceId)
+        );
+
+        for (let i = 0; i < archivesToRestore.length; i++) {
+            const archive = archivesToRestore[i];
+            onProgress?.(
+                `Restoring workspace "${archive.workspaceTitle}"...`,
+                i,
+                archivesToRestore.length
+            );
+
+            try {
+                const result = await restoreWorkspaceFromArchive(
+                    archive.archiveUri,
+                    (done, total) => {
+                        onProgress?.(
+                            `Restoring "${archive.workspaceTitle}" (${done}/${total} files)...`,
+                            i,
+                            archivesToRestore.length
+                        );
+                    }
+                );
+
+                // Add or replace the workspace in the store
+                useStore.setState((store) => {
+                    const existingIdx = store.workspaces.findIndex(
+                        (ws) => ws.id === result.workspace.id
+                    );
+
+                    let updatedWorkspaces: Workspace[];
+                    if (existingIdx >= 0) {
+                        // Replace the empty/archived version with the full restored one
+                        updatedWorkspaces = [...store.workspaces];
+                        updatedWorkspaces[existingIdx] = result.workspace;
+                    } else {
+                        // Add as new workspace
+                        updatedWorkspaces = [...store.workspaces, result.workspace];
+                    }
+
+                    return {
+                        workspaces: updatedWorkspaces,
+                        activeWorkspaceId: store.activeWorkspaceId ?? result.workspace.id,
+                    };
+                });
+
+                archivedWorkspacesRestored++;
+                warnings.push(...result.warnings);
+            } catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                warnings.push(`Failed to restore archive "${archive.workspaceTitle}": ${msg}`);
+            }
+        }
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        warnings.push(`Archive scan failed: ${msg}`);
+    }
+
+    // Phase 2: Recover orphaned audio files not covered by any workspace
+    const freshState = useStore.getState();
+    onProgress?.("Scanning for orphaned audio files...", 0, 1);
+    const orphans = await findOrphanedAudioFiles(freshState.workspaces);
+
+    if (orphans.length > 0) {
+        const enrichedAll = await enrichOrphanedClips(orphans, (done, total) => {
+            onProgress?.("Recovering orphaned audio...", done, total);
+        });
+
+        // A take whose placeholder idea survived goes back on that idea (the 0:00 card
+        // the user already sees), not into a "Recovered —" copy.
+        const { attachments, remaining: enriched } = matchOrphansToEmptyIdeas(
+            enrichedAll,
+            freshState.workspaces
+        );
+        if (attachments.length > 0) {
+            useStore.setState((store) => ({
+                workspaces: store.workspaces.map((ws) => {
+                    const mine = attachments.filter((a) => a.workspaceId === ws.id);
+                    if (mine.length === 0) return ws;
+                    return {
+                        ...ws,
+                        ideas: ws.ideas.map((idea) => {
+                            const attachment = mine.find((a) => a.ideaId === idea.id);
+                            if (!attachment) return idea;
+                            const clip: ClipVersion = {
+                                id: attachment.clip.clipId,
+                                title: idea.title,
+                                isTitleAutoGenerated: true,
+                                notes: "",
+                                createdAt: attachment.clip.fileModifiedAt ?? idea.createdAt,
+                                isPrimary: true,
+                                audioUri: attachment.clip.audioUri,
+                                durationMs: attachment.clip.durationMs,
+                                waveformPeaks: attachment.clip.waveformPeaks,
+                            };
+                            return { ...idea, clips: [clip], lastActivityAt: Math.max(idea.lastActivityAt, clip.createdAt) };
+                        }),
+                    };
+                }),
+            }));
+            orphanedClipsRecovered += attachments.length;
+            warnings.push(`Re-attached ${attachments.length} take(s) to their ideas.`);
+        }
+
+        // Ensure we have a workspace and a "Recovered" collection
+        const activeWs = freshState.workspaces.find((w) => w.id === freshState.activeWorkspaceId)
+            ?? freshState.workspaces[0];
+
+        if (activeWs && enriched.length > 0) {
+            const recoveredTitle = i18n.t("defaults.recoveredCollection");
+            // Match either language's name so recovery never splits across two collections.
+            let recoveredCollection = activeWs.collections.find(
+                (c) => c.title === recoveredTitle || c.title === "Recovered"
+            );
+            if (!recoveredCollection) {
+                const collectionId = genId("collection");
+                const now = Date.now();
+                recoveredCollection = {
+                    id: collectionId,
+                    title: recoveredTitle,
+                    workspaceId: activeWs.id,
+                    parentCollectionId: null,
+                    createdAt: now,
+                    updatedAt: now,
+                    ideasListState: { hiddenIdeaIds: [], hiddenDays: [] },
+                };
+                useStore.setState((store) => ({
+                    workspaces: store.workspaces.map((ws) =>
+                        ws.id === activeWs.id
+                            ? { ...ws, collections: [...ws.collections, recoveredCollection!] }
+                            : ws
+                    ),
+                }));
+            }
+
+            const recoveredIdeas = buildRecoveredIdeas(enriched, recoveredCollection.id);
+
+            useStore.setState((store) => ({
+                workspaces: store.workspaces.map((ws) =>
+                    ws.id === activeWs.id
+                        ? { ...ws, ideas: [...recoveredIdeas, ...ws.ideas] }
+                        : ws
+                ),
+            }));
+
+            orphanedClipsRecovered += recoveredIdeas.length;
+        }
+    }
+
+    const recoveredCount = archivedWorkspacesRestored > 0
+        ? useStore.getState().workspaces.reduce((sum, ws) => sum + ws.ideas.length, 0)
+        : orphanedClipsRecovered;
+
+    // Commit the recovered library durably. The raw restore write also re-arms the
+    // write-authority gate when this session booted from a failed/damaged read.
+    try {
+        await persistRestoredAppStoreSnapshot(useStore.getState());
+    } catch { /* the debounced persist still follows; the gate re-arms on its disk check */ }
+
+    // Force manifest write after recovery to capture any newly restored data
+    try {
+        const freshState = useStore.getState();
+        await forceManifestWrite(buildPersistedAppStoreSnapshot(freshState));
+    } catch { /* non-critical */ }
+
+    return { recoveredCount, restoredFromManifest: false, archivedWorkspacesRestored, orphanedClipsRecovered, warnings };
 }
 
 export const appActions = {
@@ -1943,13 +2142,15 @@ export const appActions = {
         state.updateIdeas((prev) => prev.map((i) => (i.id === selectedIdea.id ? { ...i, completionPct: stepped, status } : i)), { preserveActivity: true, workspaceId: ideaWorkspaceId(useStore.getState().workspaces, selectedIdea.id) });
     },
 
-    setIdeaNotes: (notes: string) => {
+    /** `ideaId`: the idea the notes editor opened on (it may no longer be selected). */
+    setIdeaNotes: (notes: string, ideaId?: string) => {
         const state = useStore.getState();
-        if (!state.selectedIdeaId) return;
-        const selectedIdea = locateIdea(state.workspaces, state.selectedIdeaId)?.idea;
+        const targetId = ideaId ?? state.selectedIdeaId;
+        if (!targetId) return;
+        const selectedIdea = locateIdea(state.workspaces, targetId)?.idea;
         if (!selectedIdea || selectedIdea.notes === notes) return;
 
-        state.updateIdeas((prev) => prev.map((i) => (i.id === state.selectedIdeaId ? { ...i, notes } : i)), { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, state.selectedIdeaId) });
+        state.updateIdeas((prev) => prev.map((i) => (i.id === targetId ? { ...i, notes } : i)), { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, targetId) });
 
         if (selectedIdea.kind === "project") {
             state.logIdeaActivity(selectedIdea.id, "updated", "song-save");
@@ -3148,120 +3349,132 @@ export const appActions = {
     },
 
     archiveWorkspace: async (workspaceId: string) => {
-        const state = useStore.getState();
-        const workspace = state.workspaces.find((item) => item.id === workspaceId) ?? null;
-        if (!workspace) {
-            throw new Error("Workspace not found.");
-        }
-        if (workspace.isArchived) {
-            throw new Error("This workspace is already archived.");
-        }
-        if (state.workspaces.filter((item) => !item.isArchived).length <= 1) {
-            throw new Error("You must keep at least one active workspace.");
-        }
-
-        // Packing takes a while. If the workspace changed meanwhile (an import landed, an
-        // idea moved in), the package would miss it and the stub would erase it: pack again.
-        let packed = workspace;
-        let result = await archiveWorkspaceToDevice(packed);
-        for (let attempt = 1; ; attempt += 1) {
-            const live = useStore.getState().workspaces.find((item) => item.id === workspaceId) ?? null;
-            if (live && archiveContentKey(live) === archiveContentKey(packed)) break;
-            await deleteManagedArchiveUri(result.archiveState.archiveUri).catch(() => {});
-            if (!live || live.isArchived || attempt >= ARCHIVE_PACK_ATTEMPTS) {
-                throw new Error("The workspace changed while it was being archived.");
+        const release = claimLibraryOperation("archive");
+        try {
+            const state = useStore.getState();
+            const workspace = state.workspaces.find((item) => item.id === workspaceId) ?? null;
+            if (!workspace) {
+                throw new Error("Workspace not found.");
             }
-            packed = live;
-            result = await archiveWorkspaceToDevice(packed);
+            if (workspace.isArchived) {
+                throw new Error("This workspace is already archived.");
+            }
+            if (state.workspaces.filter((item) => !item.isArchived).length <= 1) {
+                throw new Error("You must keep at least one active workspace.");
+            }
+
+            // Packing takes a while. If the workspace changed meanwhile (an import landed, an
+            // idea moved in), the package would miss it and the stub would erase it: pack again.
+            let packed = workspace;
+            let result = await archiveWorkspaceToDevice(packed);
+            for (let attempt = 1; ; attempt += 1) {
+                const live = useStore.getState().workspaces.find((item) => item.id === workspaceId) ?? null;
+                if (live && archiveContentKey(live) === archiveContentKey(packed)) break;
+                await deleteManagedArchiveUri(result.archiveState.archiveUri).catch(() => {});
+                if (!live || live.isArchived || attempt >= ARCHIVE_PACK_ATTEMPTS) {
+                    throw new Error("The workspace changed while it was being archived.");
+                }
+                packed = live;
+                result = await archiveWorkspaceToDevice(packed);
+            }
+            useStore.setState((store) => buildWorkspaceArchivalState(store, result.archivedWorkspace));
+            await persistBeforeFileMoves();
+            await upsertPendingWorkspaceArchiveOperation({
+                kind: "archive-cleanup",
+                workspaceId,
+                archiveUri: result.archiveState.archiveUri,
+                originalAudioUris: result.originalAudioUris,
+                createdAt: Date.now(),
+            });
+            // Only what nothing else uses: a copied idea elsewhere shares its audio files.
+            await deleteManagedAudioUris(
+                filterUnreferencedManagedAudioUris(result.originalAudioUris, useStore.getState().workspaces)
+            );
+            await clearPendingWorkspaceArchiveOperation(workspaceId);
+            return result;
+        } finally {
+            release();
         }
-        useStore.setState((store) => buildWorkspaceArchivalState(store, result.archivedWorkspace));
-        await persistBeforeFileMoves();
-        await upsertPendingWorkspaceArchiveOperation({
-            kind: "archive-cleanup",
-            workspaceId,
-            archiveUri: result.archiveState.archiveUri,
-            originalAudioUris: result.originalAudioUris,
-            createdAt: Date.now(),
-        });
-        // Only what nothing else uses: a copied idea elsewhere shares its audio files.
-        await deleteManagedAudioUris(
-            filterUnreferencedManagedAudioUris(result.originalAudioUris, useStore.getState().workspaces)
-        );
-        await clearPendingWorkspaceArchiveOperation(workspaceId);
-        return result;
     },
 
     unarchiveWorkspace: async (workspaceId: string, pickedArchiveUri?: string) => {
-        const state = useStore.getState();
-        const workspace = state.workspaces.find((item) => item.id === workspaceId) ?? null;
-        if (!workspace) {
-            throw new Error("Workspace not found.");
-        }
-        if (!workspace.isArchived) {
-            throw new Error("This workspace is already active.");
-        }
+        const release = claimLibraryOperation("unarchive");
+        try {
+            const state = useStore.getState();
+            const workspace = state.workspaces.find((item) => item.id === workspaceId) ?? null;
+            if (!workspace) {
+                throw new Error("Workspace not found.");
+            }
+            if (!workspace.isArchived) {
+                throw new Error("This workspace is already active.");
+            }
 
-        if (!workspace.archiveState) {
+            if (!workspace.archiveState) {
+                useStore.setState((store) => ({
+                    workspaces: store.workspaces.map((item) =>
+                        item.id === workspaceId
+                            ? { ...item, isArchived: false, archiveState: undefined }
+                            : item
+                    ),
+                    activeWorkspaceId: store.activeWorkspaceId ?? workspaceId,
+                }));
+                return {
+                    restoredWorkspace: { ...workspace, isArchived: false, archiveState: undefined },
+                    warnings: [
+                        "This workspace used the older hidden-only archive flag, so there was no compressed package to restore.",
+                    ],
+                };
+            }
+
+            const offloaded = Boolean(workspace.archiveState.offloadedAt);
+            if (offloaded && !pickedArchiveUri) {
+                throw new Error(
+                    `The package for this workspace was moved to your storage${
+                        workspace.archiveState.offloadedFileName
+                            ? ` as "${workspace.archiveState.offloadedFileName}"`
+                            : ""
+                    }. Pick that file to restore it.`
+                );
+            }
+
+            if (!offloaded) {
+                // Journal only for the local-package path: resume re-restores from the local
+                // file. An offloaded restore reads a user-picked cache file that won't exist
+                // on relaunch — the user simply retries; audio writes are idempotent.
+                await upsertPendingWorkspaceArchiveOperation({
+                    kind: "unarchive-restore",
+                    workspaceId,
+                    archiveUri: workspace.archiveState.archiveUri,
+                    createdAt: Date.now(),
+                });
+            }
+            const result = await restoreWorkspaceFromDevice(
+                workspace,
+                offloaded ? pickedArchiveUri : undefined
+            );
+            // Against the stub as it is NOW: whatever reached it while the audio was being
+            // extracted stays (root cause 3: an operation applies its change at the end).
             useStore.setState((store) => ({
                 workspaces: store.workspaces.map((item) =>
-                    item.id === workspaceId
-                        ? { ...item, isArchived: false, archiveState: undefined }
-                        : item
+                    item.id === workspaceId ? mergeRestoredWorkspace(item, result.restoredWorkspace) : item
                 ),
                 activeWorkspaceId: store.activeWorkspaceId ?? workspaceId,
             }));
-            return {
-                restoredWorkspace: { ...workspace, isArchived: false, archiveState: undefined },
-                warnings: [
-                    "This workspace used the older hidden-only archive flag, so there was no compressed package to restore.",
-                ],
-            };
+            await persistBeforeFileMoves();
+            if (!offloaded) {
+                await upsertPendingWorkspaceArchiveOperation({
+                    kind: "unarchive-cleanup",
+                    workspaceId,
+                    archiveUri: workspace.archiveState.archiveUri,
+                    createdAt: Date.now(),
+                });
+                await deleteManagedArchiveUri(workspace.archiveState.archiveUri);
+            }
+            await clearPendingWorkspaceArchiveOperation(workspaceId);
+            return result;
+        } finally {
+            release();
         }
-
-        const offloaded = Boolean(workspace.archiveState.offloadedAt);
-        if (offloaded && !pickedArchiveUri) {
-            throw new Error(
-                `The package for this workspace was moved to your storage${
-                    workspace.archiveState.offloadedFileName
-                        ? ` as "${workspace.archiveState.offloadedFileName}"`
-                        : ""
-                }. Pick that file to restore it.`
-            );
-        }
-
-        if (!offloaded) {
-            // Journal only for the local-package path: resume re-restores from the local
-            // file. An offloaded restore reads a user-picked cache file that won't exist
-            // on relaunch — the user simply retries; audio writes are idempotent.
-            await upsertPendingWorkspaceArchiveOperation({
-                kind: "unarchive-restore",
-                workspaceId,
-                archiveUri: workspace.archiveState.archiveUri,
-                createdAt: Date.now(),
-            });
-        }
-        const result = await restoreWorkspaceFromDevice(
-            workspace,
-            offloaded ? pickedArchiveUri : undefined
-        );
-        useStore.setState((store) => ({
-            workspaces: store.workspaces.map((item) =>
-                item.id === workspaceId ? result.restoredWorkspace : item
-            ),
-            activeWorkspaceId: store.activeWorkspaceId ?? workspaceId,
-        }));
-        await persistBeforeFileMoves();
-        if (!offloaded) {
-            await upsertPendingWorkspaceArchiveOperation({
-                kind: "unarchive-cleanup",
-                workspaceId,
-                archiveUri: workspace.archiveState.archiveUri,
-                createdAt: Date.now(),
-            });
-            await deleteManagedArchiveUri(workspace.archiveState.archiveUri);
-        }
-        await clearPendingWorkspaceArchiveOperation(workspaceId);
-        return result;
     },
 
     /**
@@ -3336,228 +3549,60 @@ export const appActions = {
         return restoredState.workspaces.reduce((sum, ws) => sum + ws.ideas.length, 0);
     },
 
+    /**
+     * Bring back the library from the copy on this phone (the held copy, or the best
+     * manifest generation): MERGED into the library as it is when the copy has been read,
+     * so nothing made since is replaced (audit 2026-11-02, 12e E-M1, root cause 7). A
+     * library that holds no idea at all drops its empty starter workspaces for the copy's.
+     * The held copy goes only once the restored library is durable. Returns the ideas the
+     * copy held, 0 when there was nothing to restore.
+     */
+    restoreLibraryFromSafetyCopy: async (): Promise<number> => {
+        const release = claimLibraryOperation("recover");
+        try {
+            const copy = await readSafetyCopy();
+            if (!copy) return 0;
+            const result = await restoreFromManifest(copy.manifest);
+            if (!result) return 0;
+            const restored = result.restoredState;
+            useStore.setState((live) => {
+                const current = buildPersistedAppStoreSnapshot(live);
+                const liveIsEmpty = current.workspaces.every((ws) => ws.ideas.length === 0);
+                const merged = mergeRestoredLibrary(
+                    restored,
+                    liveIsEmpty ? { ...current, workspaces: [] } : current
+                );
+                return liveIsEmpty
+                    ? {
+                          ...merged,
+                          activeWorkspaceId: restored.activeWorkspaceId,
+                          primaryWorkspaceId: restored.primaryWorkspaceId,
+                      }
+                    : merged;
+            });
+            // The raw commit lands the library and re-arms the write-authority gate (a
+            // damaged boot never read the disk).
+            await persistRestoredAppStoreSnapshot(useStore.getState());
+            // Saving works again; the "Saving is paused" bar a damaged read raised goes.
+            clearPersistBlockedSignalFor("authority");
+            await persistCurrentStoreSnapshot();
+            await releaseHeldSafetyCopy().catch(() => {});
+            persistLog("manifest.restored", `${copy.ideaCount} ideas`);
+            return copy.ideaCount;
+        } finally {
+            release();
+        }
+    },
+
     recoverOrphanedAudio: async (
         onProgress?: (phase: string, done: number, total: number) => void
     ): Promise<{ recoveredCount: number; restoredFromManifest: boolean; archivedWorkspacesRestored: number; orphanedClipsRecovered: number; warnings: string[] }> => {
-        const state = useStore.getState();
-        const warnings: string[] = [];
-        let archivedWorkspacesRestored = 0;
-        let orphanedClipsRecovered = 0;
-
-        // Phase 0: Check shadow manifest first (full state restore)
-        const currentIdeaCount = state.workspaces.reduce(
-            (sum, ws) => sum + ws.ideas.length, 0
-        );
-
-        if (currentIdeaCount === 0) {
-            onProgress?.("Checking manifest backup...", 0, 1);
-            try {
-                const manifestResult = await restoreFromManifest();
-                if (manifestResult) {
-                    const restoredState = manifestResult.restoredState;
-                    const restoredIdeaCount = restoredState.workspaces.reduce(
-                        (sum, ws) => sum + ws.ideas.length, 0
-                    );
-
-                    // Restore the full state from manifest. The raw commit both durably
-                    // lands the restored library and re-arms the write-authority gate
-                    // (hydration may have failed or read a damaged store this session).
-                    useStore.setState(restoredState);
-                    await persistRestoredAppStoreSnapshot(useStore.getState());
-                    await persistCurrentStoreSnapshot();
-
-                    return {
-                        recoveredCount: restoredIdeaCount,
-                        restoredFromManifest: true,
-                        archivedWorkspacesRestored: 0,
-                        orphanedClipsRecovered: 0,
-                        warnings: [`Restored ${restoredIdeaCount} ideas from manifest backup (saved ${manifestResult.manifestTimestamp}).`],
-                    };
-                }
-            } catch (err) {
-                const msg = err instanceof Error ? err.message : String(err);
-                warnings.push(`Manifest recovery failed: ${msg}`);
-            }
-        }
-
-        // Phase 1: Restore any workspace archives found on disk
-        onProgress?.("Scanning for workspace archives...", 0, 1);
+        const release = claimLibraryOperation("recover");
         try {
-            const archives = await findWorkspaceArchives();
-
-            // Only restore archives for workspaces not already present with data
-            const existingWorkspaceIds = new Set(
-                state.workspaces
-                    .filter((ws) => !ws.isArchived && ws.ideas.length > 0)
-                    .map((ws) => ws.id)
-            );
-
-            const archivesToRestore = archives.filter(
-                (a) => !existingWorkspaceIds.has(a.workspaceId)
-            );
-
-            for (let i = 0; i < archivesToRestore.length; i++) {
-                const archive = archivesToRestore[i];
-                onProgress?.(
-                    `Restoring workspace "${archive.workspaceTitle}"...`,
-                    i,
-                    archivesToRestore.length
-                );
-
-                try {
-                    const result = await restoreWorkspaceFromArchive(
-                        archive.archiveUri,
-                        (done, total) => {
-                            onProgress?.(
-                                `Restoring "${archive.workspaceTitle}" (${done}/${total} files)...`,
-                                i,
-                                archivesToRestore.length
-                            );
-                        }
-                    );
-
-                    // Add or replace the workspace in the store
-                    useStore.setState((store) => {
-                        const existingIdx = store.workspaces.findIndex(
-                            (ws) => ws.id === result.workspace.id
-                        );
-
-                        let updatedWorkspaces: Workspace[];
-                        if (existingIdx >= 0) {
-                            // Replace the empty/archived version with the full restored one
-                            updatedWorkspaces = [...store.workspaces];
-                            updatedWorkspaces[existingIdx] = result.workspace;
-                        } else {
-                            // Add as new workspace
-                            updatedWorkspaces = [...store.workspaces, result.workspace];
-                        }
-
-                        return {
-                            workspaces: updatedWorkspaces,
-                            activeWorkspaceId: store.activeWorkspaceId ?? result.workspace.id,
-                        };
-                    });
-
-                    archivedWorkspacesRestored++;
-                    warnings.push(...result.warnings);
-                } catch (err) {
-                    const msg = err instanceof Error ? err.message : String(err);
-                    warnings.push(`Failed to restore archive "${archive.workspaceTitle}": ${msg}`);
-                }
-            }
-        } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            warnings.push(`Archive scan failed: ${msg}`);
+            return await recoverOrphanedAudioHoldingSlot(onProgress);
+        } finally {
+            release();
         }
-
-        // Phase 2: Recover orphaned audio files not covered by any workspace
-        const freshState = useStore.getState();
-        onProgress?.("Scanning for orphaned audio files...", 0, 1);
-        const orphans = await findOrphanedAudioFiles(freshState.workspaces);
-
-        if (orphans.length > 0) {
-            const enrichedAll = await enrichOrphanedClips(orphans, (done, total) => {
-                onProgress?.("Recovering orphaned audio...", done, total);
-            });
-
-            // A take whose placeholder idea survived goes back on that idea (the 0:00 card
-            // the user already sees), not into a "Recovered —" copy.
-            const { attachments, remaining: enriched } = matchOrphansToEmptyIdeas(
-                enrichedAll,
-                freshState.workspaces
-            );
-            if (attachments.length > 0) {
-                useStore.setState((store) => ({
-                    workspaces: store.workspaces.map((ws) => {
-                        const mine = attachments.filter((a) => a.workspaceId === ws.id);
-                        if (mine.length === 0) return ws;
-                        return {
-                            ...ws,
-                            ideas: ws.ideas.map((idea) => {
-                                const attachment = mine.find((a) => a.ideaId === idea.id);
-                                if (!attachment) return idea;
-                                const clip: ClipVersion = {
-                                    id: attachment.clip.clipId,
-                                    title: idea.title,
-                                    isTitleAutoGenerated: true,
-                                    notes: "",
-                                    createdAt: attachment.clip.fileModifiedAt ?? idea.createdAt,
-                                    isPrimary: true,
-                                    audioUri: attachment.clip.audioUri,
-                                    durationMs: attachment.clip.durationMs,
-                                    waveformPeaks: attachment.clip.waveformPeaks,
-                                };
-                                return { ...idea, clips: [clip], lastActivityAt: Math.max(idea.lastActivityAt, clip.createdAt) };
-                            }),
-                        };
-                    }),
-                }));
-                orphanedClipsRecovered += attachments.length;
-                warnings.push(`Re-attached ${attachments.length} take(s) to their ideas.`);
-            }
-
-            // Ensure we have a workspace and a "Recovered" collection
-            const activeWs = freshState.workspaces.find((w) => w.id === freshState.activeWorkspaceId)
-                ?? freshState.workspaces[0];
-
-            if (activeWs && enriched.length > 0) {
-                const recoveredTitle = i18n.t("defaults.recoveredCollection");
-                // Match either language's name so recovery never splits across two collections.
-                let recoveredCollection = activeWs.collections.find(
-                    (c) => c.title === recoveredTitle || c.title === "Recovered"
-                );
-                if (!recoveredCollection) {
-                    const collectionId = genId("collection");
-                    const now = Date.now();
-                    recoveredCollection = {
-                        id: collectionId,
-                        title: recoveredTitle,
-                        workspaceId: activeWs.id,
-                        parentCollectionId: null,
-                        createdAt: now,
-                        updatedAt: now,
-                        ideasListState: { hiddenIdeaIds: [], hiddenDays: [] },
-                    };
-                    useStore.setState((store) => ({
-                        workspaces: store.workspaces.map((ws) =>
-                            ws.id === activeWs.id
-                                ? { ...ws, collections: [...ws.collections, recoveredCollection!] }
-                                : ws
-                        ),
-                    }));
-                }
-
-                const recoveredIdeas = buildRecoveredIdeas(enriched, recoveredCollection.id);
-
-                useStore.setState((store) => ({
-                    workspaces: store.workspaces.map((ws) =>
-                        ws.id === activeWs.id
-                            ? { ...ws, ideas: [...recoveredIdeas, ...ws.ideas] }
-                            : ws
-                    ),
-                }));
-
-                orphanedClipsRecovered += recoveredIdeas.length;
-            }
-        }
-
-        const recoveredCount = archivedWorkspacesRestored > 0
-            ? useStore.getState().workspaces.reduce((sum, ws) => sum + ws.ideas.length, 0)
-            : orphanedClipsRecovered;
-
-        // Commit the recovered library durably. The raw restore write also re-arms the
-        // write-authority gate when this session booted from a failed/damaged read.
-        try {
-            await persistRestoredAppStoreSnapshot(useStore.getState());
-        } catch { /* the debounced persist still follows; the gate re-arms on its disk check */ }
-
-        // Force manifest write after recovery to capture any newly restored data
-        try {
-            const freshState = useStore.getState();
-            await forceManifestWrite(buildPersistedAppStoreSnapshot(freshState));
-        } catch { /* non-critical */ }
-
-        return { recoveredCount, restoredFromManifest: false, archivedWorkspacesRestored, orphanedClipsRecovered, warnings };
     },
 
     importLibraryArchiveIntoLibrary: async (
@@ -3574,105 +3619,108 @@ export const appActions = {
             receivedOverrides?: { transferId?: string | null; senderName?: string | null };
         }
     ) => {
-        const store = useStore.getState();
-        const merge = await materializeSongNookArchiveMerge(
-            parsedArchive,
-            store.workspaces,
-            store.primaryWorkspaceId
-        );
-
-        const share = parsedArchive.manifest.share;
-        const receivedAt = Date.now();
-        const provenance = (title: string): ReceivedMeta => ({
-            senderName: opts?.receivedOverrides?.senderName ?? share?.sender?.name ?? null,
-            senderUserId: share?.sender?.userId ?? null,
-            transferId: opts?.receivedOverrides?.transferId ?? share?.transferId ?? null,
-            receivedAt,
-            shareKind: share?.kind ?? "library",
-            shareTitle: share?.title ?? title,
-        });
-        const importedWorkspaces =
-            opts?.origin === "received"
-                ? merge.importedWorkspaces.map((workspace) => ({
-                      ...workspace,
-                      origin: "received" as const,
-                      received: provenance(workspace.title),
-                  }))
-                : merge.importedWorkspaces;
-        // Compilations carry the same provenance so Compilations can tag them
-        // "from <sender>" and fold them away; a personal import stays untagged.
-        const importedSongbooks =
-            opts?.origin === "received"
-                ? merge.importedSongbooks.map((songbook) => ({ ...songbook, received: provenance(songbook.title) }))
-                : merge.importedSongbooks;
-        const importedSetlists =
-            opts?.origin === "received"
-                ? merge.importedSetlists.map((setlist) => ({ ...setlist, received: provenance(setlist.title) }))
-                : merge.importedSetlists;
-        const importedPlaylists =
-            opts?.origin === "received"
-                ? merge.importedPlaylists.map((playlist) => ({ ...playlist, received: provenance(playlist.title) }))
-                : merge.importedPlaylists;
-
-        const nextWorkspaces = normalizeWorkspaces([...store.workspaces, ...importedWorkspaces]);
-        const nextPrimaryCollectionIdByWorkspace = {
-            ...store.primaryCollectionIdByWorkspace,
-            ...merge.suggestedPrimaryCollectionIdByWorkspace,
-        };
-        // A received package must never become the user's primary workspace
-        // (a first-run user receiving a link would otherwise "live" in it).
-        const nextPrimaryWorkspaceId =
-            store.primaryWorkspaceId ??
-            (opts?.origin === "received" ? null : merge.suggestedPrimaryWorkspaceId);
-        // Something received never writes into the person's own spaces: no pages
-        // added to their Lyric Pad, no calibrations for their headphones (audit 06 #6).
-        const received = opts?.origin === "received";
-        const nextNotes = received ? store.notes : [...merge.importedNotes, ...store.notes];
-        const nextBluetoothMonitoringCalibrations = normalizeBluetoothMonitoringCalibrations([
-            ...store.bluetoothMonitoringCalibrations,
-            ...(received ? [] : merge.bluetoothMonitoringCalibrations).filter(
-                (incoming) =>
-                    !store.bluetoothMonitoringCalibrations.some(
-                        (existing) => existing.routeKey === incoming.routeKey
-                    )
-            ),
-        ]);
-
-        useStore.setState({
-            workspaces: nextWorkspaces,
-            notes: nextNotes,
-            songbooks: [...importedSongbooks, ...store.songbooks],
-            setlists: [...importedSetlists, ...store.setlists],
-            playlists: [...importedPlaylists, ...store.playlists],
-            primaryWorkspaceId: nextPrimaryWorkspaceId,
-            primaryCollectionIdByWorkspace: nextPrimaryCollectionIdByWorkspace,
-            bluetoothMonitoringCalibrations: nextBluetoothMonitoringCalibrations,
-        });
-
-        useStore.getState().markRecentlyAdded(merge.importedWorkspaceIds);
-
-        // Durably commit the imported library to the authoritative store BEFORE reporting
-        // success, so a crash in the window between the in-memory merge and zustand's async
-        // persist can't silently drop the import. The shadow manifest is best-effort after.
-        await flushPersistedSnapshot();
+        // One heavy operation at a time, and never under a take (root cause 3).
+        const release = claimLibraryOperation("import");
         try {
-            await forceManifestWrite(buildPersistedAppStoreSnapshot(useStore.getState()));
-        } catch {
-            // Import should not fail because the shadow manifest write failed.
-        }
+            const startedWith = useStore.getState();
+            const merge = await materializeSongNookArchiveMerge(
+                parsedArchive,
+                startedWith.workspaces,
+                startedWith.primaryWorkspaceId
+            );
 
-        return {
-            importedWorkspaces: merge.importedWorkspaces.length,
-            importedIdeas: merge.importedIdeaIds.length,
-            importedNotes: merge.importedNotes.length,
-            warnings: merge.warnings,
-            importedWorkspaceTitles: merge.importedWorkspaces.map((workspace) => workspace.title),
-            // Deep-link targets for "Open" after an import that carried library
-            // collections (a shared songbook/setlist archive).
-            importedSongbookIds: merge.importedSongbooks.map((songbook) => songbook.id),
-            importedSetlistIds: merge.importedSetlists.map((setlist) => setlist.id),
-            importedPlaylistIds: merge.importedPlaylists.map((playlist) => playlist.id),
-            importedWorkspaceIds: merge.importedWorkspaceIds,
-        };
+            const share = parsedArchive.manifest.share;
+            const receivedAt = Date.now();
+            const provenance = (title: string): ReceivedMeta => ({
+                senderName: opts?.receivedOverrides?.senderName ?? share?.sender?.name ?? null,
+                senderUserId: share?.sender?.userId ?? null,
+                transferId: opts?.receivedOverrides?.transferId ?? share?.transferId ?? null,
+                receivedAt,
+                shareKind: share?.kind ?? "library",
+                shareTitle: share?.title ?? title,
+            });
+            const importedWorkspaces =
+                opts?.origin === "received"
+                    ? merge.importedWorkspaces.map((workspace) => ({
+                          ...workspace,
+                          origin: "received" as const,
+                          received: provenance(workspace.title),
+                      }))
+                    : merge.importedWorkspaces;
+            // Compilations carry the same provenance so Compilations can tag them
+            // "from <sender>" and fold them away; a personal import stays untagged.
+            const importedSongbooks =
+                opts?.origin === "received"
+                    ? merge.importedSongbooks.map((songbook) => ({ ...songbook, received: provenance(songbook.title) }))
+                    : merge.importedSongbooks;
+            const importedSetlists =
+                opts?.origin === "received"
+                    ? merge.importedSetlists.map((setlist) => ({ ...setlist, received: provenance(setlist.title) }))
+                    : merge.importedSetlists;
+            const importedPlaylists =
+                opts?.origin === "received"
+                    ? merge.importedPlaylists.map((playlist) => ({ ...playlist, received: provenance(playlist.title) }))
+                    : merge.importedPlaylists;
+
+            // Something received never writes into the person's own spaces: no pages
+            // added to their Lyric Pad, no calibrations for their headphones (audit 06 #6).
+            const received = opts?.origin === "received";
+            // The parcel is ADDED to the library as it is now, not to the copy read before
+            // the files were extracted: a take recorded, a page written or an idea deleted
+            // while the import ran stays exactly as the person left it (audit 2026-11-02,
+            // 12e E-H1 / 12f F-H2).
+            useStore.setState((live) => ({
+                workspaces: normalizeWorkspaces([...live.workspaces, ...importedWorkspaces]),
+                notes: received ? live.notes : [...merge.importedNotes, ...live.notes],
+                songbooks: [...importedSongbooks, ...live.songbooks],
+                setlists: [...importedSetlists, ...live.setlists],
+                playlists: [...importedPlaylists, ...live.playlists],
+                // A received package must never become the user's primary workspace
+                // (a first-run user receiving a link would otherwise "live" in it).
+                primaryWorkspaceId:
+                    live.primaryWorkspaceId ?? (received ? null : merge.suggestedPrimaryWorkspaceId),
+                primaryCollectionIdByWorkspace: {
+                    ...live.primaryCollectionIdByWorkspace,
+                    ...merge.suggestedPrimaryCollectionIdByWorkspace,
+                },
+                bluetoothMonitoringCalibrations: normalizeBluetoothMonitoringCalibrations([
+                    ...live.bluetoothMonitoringCalibrations,
+                    ...(received ? [] : merge.bluetoothMonitoringCalibrations).filter(
+                        (incoming) =>
+                            !live.bluetoothMonitoringCalibrations.some(
+                                (existing) => existing.routeKey === incoming.routeKey
+                            )
+                    ),
+                ]),
+            }));
+
+            useStore.getState().markRecentlyAdded(merge.importedWorkspaceIds);
+
+            // Durably commit the imported library to the authoritative store BEFORE reporting
+            // success, so a crash in the window between the in-memory merge and zustand's async
+            // persist can't silently drop the import. The shadow manifest is best-effort after.
+            await flushPersistedSnapshot();
+            try {
+                await forceManifestWrite(buildPersistedAppStoreSnapshot(useStore.getState()));
+            } catch {
+                // Import should not fail because the shadow manifest write failed.
+            }
+
+            return {
+                importedWorkspaces: merge.importedWorkspaces.length,
+                importedIdeas: merge.importedIdeaIds.length,
+                importedNotes: merge.importedNotes.length,
+                warnings: merge.warnings,
+                importedWorkspaceTitles: merge.importedWorkspaces.map((workspace) => workspace.title),
+                // Deep-link targets for "Open" after an import that carried library
+                // collections (a shared songbook/setlist archive).
+                importedSongbookIds: merge.importedSongbooks.map((songbook) => songbook.id),
+                importedSetlistIds: merge.importedSetlists.map((setlist) => setlist.id),
+                importedPlaylistIds: merge.importedPlaylists.map((playlist) => playlist.id),
+                importedWorkspaceIds: merge.importedWorkspaceIds,
+            };
+        } finally {
+            release();
+        }
     },
 };

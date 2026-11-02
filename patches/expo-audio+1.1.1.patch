@@ -750,13 +750,13 @@ index f1759cd..3034363 100644
  
  enum BitRateStrategy: String, Enumerable {
 diff --git a/node_modules/expo-audio/ios/MediaController.swift b/node_modules/expo-audio/ios/MediaController.swift
-index 2dd3fb2..6a81140 100644
+index 2dd3fb2..d03d202 100644
 --- a/node_modules/expo-audio/ios/MediaController.swift
 +++ b/node_modules/expo-audio/ios/MediaController.swift
-@@ -12,6 +12,16 @@ class MediaController {
+@@ -12,6 +12,24 @@ class MediaController {
    private var currentArtworkUrl: URL?
    private var cachedArtwork: MPMediaItemArtwork?
- 
+   
 +  // What the card was last told. The system advances the elapsed time itself from
 +  // the rate, so a status tick that changes nothing has nothing to push — and every
 +  // push re-encodes the artwork (SongNook, 2026-10-02: 20 pushes a second while
@@ -766,11 +766,19 @@ index 2dd3fb2..6a81140 100644
 +  private var lastPushedDuration: Double = 0
 +  private var lastPushedElapsed: Double = 0
 +  private var lastPushedAt: CFTimeInterval = 0
++
++  // SongNook (audit 05-E13): the command handlers, registered ONCE. Every activation
++  // used to add eight more closures and `removeTarget(self)` removed none (a closure
++  // target is known only by the token addTarget returns), so after a few player opens
++  // one headset press ran every stacked handler: play/pause toggled N times (an even N
++  // did nothing) and Next emitted N lockScreenCommand events. The handlers read
++  // `activePlayer` when they run, so one set serves every player.
++  private var commandTargets: [(command: MPRemoteCommand, token: Any)] = []
 +  
    func setActivePlayer(_ player: AudioPlayer?, options: LockScreenOptions? = nil) {
      if let previous = activePlayer, previous.id != player?.id {
        previous.isActiveForLockScreen = false
-@@ -31,10 +41,37 @@ class MediaController {
+@@ -31,10 +49,37 @@ class MediaController {
      }
    }
  
@@ -808,7 +816,7 @@ index 2dd3fb2..6a81140 100644
      var nowPlayingInfo = nowPlayingInfoCenter.nowPlayingInfo ?? [String: Any]()
  
      nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = player.duration
-@@ -53,19 +90,21 @@ class MediaController {
+@@ -53,19 +98,21 @@ class MediaController {
          nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = album
        }
        if let artworkUrl = userMetadata.artworkUrl {
@@ -842,7 +850,7 @@ index 2dd3fb2..6a81140 100644
            }
          }
        }
-@@ -105,6 +144,7 @@ class MediaController {
+@@ -105,6 +152,7 @@ class MediaController {
    }
  
    func clearNowPlayingInfo() {
@@ -850,11 +858,71 @@ index 2dd3fb2..6a81140 100644
      nowPlayingInfoCenter.nowPlayingInfo = nil
      activePlayer = nil
    }
-@@ -173,6 +213,24 @@ class MediaController {
+@@ -130,7 +178,31 @@ class MediaController {
+   }
+ 
+   private func enableRemoteCommands(options: LockScreenOptions?) {
+-    remoteCommandCenter.playCommand.addTarget { [weak self] _ in
++    if commandTargets.isEmpty {
++      registerRemoteCommandTargets()
++    }
++
++    remoteCommandCenter.playCommand.isEnabled = true
++    remoteCommandCenter.pauseCommand.isEnabled = true
++    remoteCommandCenter.togglePlayPauseCommand.isEnabled = true
++    remoteCommandCenter.changePlaybackPositionCommand.isEnabled = true
++    remoteCommandCenter.skipForwardCommand.isEnabled = options?.showSeekForward ?? false
++    remoteCommandCenter.skipBackwardCommand.isEnabled = options?.showSeekBackward ?? false
++    remoteCommandCenter.nextTrackCommand.isEnabled =
++      (options?.showNextTrack ?? false) && (options?.nextTrackEnabled ?? true)
++    remoteCommandCenter.previousTrackCommand.isEnabled =
++      (options?.showPreviousTrack ?? false) && (options?.previousTrackEnabled ?? true)
++  }
++
++  private func addCommandTarget(
++    _ command: MPRemoteCommand,
++    _ handler: @escaping (MPRemoteCommandEvent) -> MPRemoteCommandHandlerStatus
++  ) {
++    commandTargets.append((command: command, token: command.addTarget(handler: handler)))
++  }
++
++  private func registerRemoteCommandTargets() {
++    addCommandTarget(remoteCommandCenter.playCommand) { [weak self] _ in
+       guard let player = self?.activePlayer else {
+         return .commandFailed
+       }
+@@ -139,7 +211,7 @@ class MediaController {
        return .success
      }
  
-+    remoteCommandCenter.nextTrackCommand.addTarget { [weak self] _ in
+-    remoteCommandCenter.pauseCommand.addTarget { [weak self] _ in
++    addCommandTarget(remoteCommandCenter.pauseCommand) { [weak self] _ in
+       guard let player = self?.activePlayer else {
+         return .commandFailed
+       }
+@@ -148,7 +220,7 @@ class MediaController {
+       return .success
+     }
+ 
+-    remoteCommandCenter.togglePlayPauseCommand.addTarget { [weak self] _ in
++    addCommandTarget(remoteCommandCenter.togglePlayPauseCommand) { [weak self] _ in
+       guard let player = self?.activePlayer else {
+         return .commandFailed
+       }
+@@ -161,7 +233,7 @@ class MediaController {
+       return .success
+     }
+ 
+-    remoteCommandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
++    addCommandTarget(remoteCommandCenter.changePlaybackPositionCommand) { [weak self] event in
+       guard let player = self?.activePlayer,
+       let event = event as? MPChangePlaybackPositionCommandEvent else {
+         return .commandFailed
+@@ -173,8 +245,26 @@ class MediaController {
+       return .success
+     }
+ 
++    addCommandTarget(remoteCommandCenter.nextTrackCommand) { [weak self] _ in
 +      guard let player = self?.activePlayer else {
 +        return .commandFailed
 +      }
@@ -863,7 +931,7 @@ index 2dd3fb2..6a81140 100644
 +      return .success
 +    }
 +
-+    remoteCommandCenter.previousTrackCommand.addTarget { [weak self] _ in
++    addCommandTarget(remoteCommandCenter.previousTrackCommand) { [weak self] _ in
 +      guard let player = self?.activePlayer else {
 +        return .commandFailed
 +      }
@@ -873,23 +941,37 @@ index 2dd3fb2..6a81140 100644
 +    }
 +
      remoteCommandCenter.skipForwardCommand.preferredIntervals = [10.0]
-     remoteCommandCenter.skipForwardCommand.addTarget { [weak self] event in
+-    remoteCommandCenter.skipForwardCommand.addTarget { [weak self] event in
++    addCommandTarget(remoteCommandCenter.skipForwardCommand) { [weak self] event in
        guard let player = self?.activePlayer,
-@@ -207,6 +265,25 @@ class MediaController {
-     remoteCommandCenter.changePlaybackPositionCommand.isEnabled = true
-     remoteCommandCenter.skipForwardCommand.isEnabled = options?.showSeekForward ?? false
-     remoteCommandCenter.skipBackwardCommand.isEnabled = options?.showSeekBackward ?? false
-+    remoteCommandCenter.nextTrackCommand.isEnabled =
-+      (options?.showNextTrack ?? false) && (options?.nextTrackEnabled ?? true)
-+    remoteCommandCenter.previousTrackCommand.isEnabled =
-+      (options?.showPreviousTrack ?? false) && (options?.previousTrackEnabled ?? true)
+       let event = event as? MPSkipIntervalCommandEvent else {
+         return .commandFailed
+@@ -188,7 +278,7 @@ class MediaController {
+     }
+ 
+     remoteCommandCenter.skipBackwardCommand.preferredIntervals = [10.0]
+-    remoteCommandCenter.skipBackwardCommand.addTarget { [weak self] event in
++    addCommandTarget(remoteCommandCenter.skipBackwardCommand) { [weak self] event in
+       guard let player = self?.activePlayer,
+       let event = event as? MPSkipIntervalCommandEvent else {
+         return .commandFailed
+@@ -200,13 +290,21 @@ class MediaController {
+ 
+       return .success
+     }
 +  }
 +
 +  func updateLockScreenOptions(for player: AudioPlayer, options: LockScreenOptions?) {
 +    guard player.id == activePlayer?.id else {
 +      return
 +    }
-+
+ 
+-    remoteCommandCenter.playCommand.isEnabled = true
+-    remoteCommandCenter.pauseCommand.isEnabled = true
+-    remoteCommandCenter.togglePlayPauseCommand.isEnabled = true
+-    remoteCommandCenter.changePlaybackPositionCommand.isEnabled = true
+-    remoteCommandCenter.skipForwardCommand.isEnabled = options?.showSeekForward ?? false
+-    remoteCommandCenter.skipBackwardCommand.isEnabled = options?.showSeekBackward ?? false
 +    DispatchQueue.main.async {
 +      self.remoteCommandCenter.skipForwardCommand.isEnabled = options?.showSeekForward ?? false
 +      self.remoteCommandCenter.skipBackwardCommand.isEnabled = options?.showSeekBackward ?? false
@@ -901,21 +983,26 @@ index 2dd3fb2..6a81140 100644
    }
  
    private func disableRemoteCommands() {
-@@ -216,6 +293,8 @@ class MediaController {
+@@ -216,13 +314,14 @@ class MediaController {
      remoteCommandCenter.changePlaybackPositionCommand.isEnabled = false
      remoteCommandCenter.skipForwardCommand.isEnabled = false
      remoteCommandCenter.skipBackwardCommand.isEnabled = false
 +    remoteCommandCenter.nextTrackCommand.isEnabled = false
 +    remoteCommandCenter.previousTrackCommand.isEnabled = false
      
-     // Remove event targets
-     remoteCommandCenter.playCommand.removeTarget(self);
-@@ -224,5 +303,7 @@ class MediaController {
-     remoteCommandCenter.changePlaybackPositionCommand.removeTarget(self);
-     remoteCommandCenter.skipForwardCommand.removeTarget(self);
-     remoteCommandCenter.skipBackwardCommand.removeTarget(self);
-+    remoteCommandCenter.nextTrackCommand.removeTarget(self);
-+    remoteCommandCenter.previousTrackCommand.removeTarget(self);
+-    // Remove event targets
+-    remoteCommandCenter.playCommand.removeTarget(self);
+-    remoteCommandCenter.pauseCommand.removeTarget(self);
+-    remoteCommandCenter.togglePlayPauseCommand.removeTarget(self);
+-    remoteCommandCenter.changePlaybackPositionCommand.removeTarget(self);
+-    remoteCommandCenter.skipForwardCommand.removeTarget(self);
+-    remoteCommandCenter.skipBackwardCommand.removeTarget(self);
++    // Remove event targets, by the tokens addTarget returned (removeTarget(self)
++    // matched none of them).
++    for target in commandTargets {
++      target.command.removeTarget(target.token)
++    }
++    commandTargets.removeAll()
    }
  }
 diff --git a/node_modules/expo-audio/src/AudioConstants.ts b/node_modules/expo-audio/src/AudioConstants.ts

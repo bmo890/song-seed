@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useState } from "react";
+import React, { memo, useCallback, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import type { ChordSheet } from "../../../types";
 import { PlayerArtifactDoors } from "./PlayerArtifactDoors";
@@ -7,6 +7,10 @@ import { QUEUE_SHEET_COLLAPSED_HEIGHT, QueuePanel } from "../../QueuePanel";
 import { BottomSheet } from "../../common/BottomSheet";
 import { spacing } from "../../../design/tokens";
 import { playerScreenStyles } from "../styles";
+import { editorDraftKey } from "../../../domain/editorDrafts";
+
+/** The take a note is written about: the one on screen when the Notes page opened. */
+export type NotesTarget = { ideaId: string; clipId: string };
 
 /** Total sheet height at rest: handle + queue header + eight rows + bottom
  *  inset on a standard phone. The sheet caps this at 72% of the window. */
@@ -30,10 +34,13 @@ type PlayerSupportSectionsProps = {
   onWriteLyrics: () => void;
   onBuildChart: () => void;
   clipNotes: string;
+  /** The idea and take on screen now; the Notes page holds on to them as it opens. */
+  notesIdeaId: string | null;
+  notesClipId: string | null;
   /** "Notes" on a clip, "Take notes" on a sketch's take. */
   notesLabel: string;
   /** Write the recording's note (the Notes page edits it in place, no sketch needed). */
-  onSaveNotes: (notes: string) => void;
+  onSaveNotes: (target: NotesTarget, notes: string) => void;
   notesExpanded: boolean;
   /** A queue exists (even one item): the footer's queue button is never a dead tap. */
   hasQueue: boolean;
@@ -61,6 +68,8 @@ function PlayerSupportSectionsInner({
   onWriteLyrics,
   onBuildChart,
   clipNotes,
+  notesIdeaId,
+  notesClipId,
   notesLabel,
   onSaveNotes,
   notesExpanded,
@@ -72,14 +81,22 @@ function PlayerSupportSectionsInner({
 }: PlayerSupportSectionsProps) {
 
   const [notesDraft, setNotesDraft] = useState(clipNotes);
+  // The Notes page belongs to the take it was opened on. The queue moves on under
+  // the sheet (a clip ends, the next one plays); the note still lands on the take it
+  // was written about, never on whatever is playing at Save (12a A-H2).
+  const [notesTarget, setNotesTarget] = useState<NotesTarget | null>(null);
+  const openedNotesRef = useRef("");
   const openNotes = useCallback(() => {
+    if (!notesIdeaId || !notesClipId) return;
+    setNotesTarget({ ideaId: notesIdeaId, clipId: notesClipId });
+    openedNotesRef.current = clipNotes;
     setNotesDraft(clipNotes);
     onToggleNotesExpanded(true);
-  }, [clipNotes, onToggleNotesExpanded]);
+  }, [clipNotes, notesClipId, notesIdeaId, onToggleNotesExpanded]);
   const saveNotes = useCallback(() => {
-    if (notesDraft !== clipNotes) onSaveNotes(notesDraft);
+    if (notesTarget && notesDraft !== openedNotesRef.current) onSaveNotes(notesTarget, notesDraft);
     onToggleNotesExpanded(false);
-  }, [clipNotes, notesDraft, onSaveNotes, onToggleNotesExpanded]);
+  }, [notesDraft, notesTarget, onSaveNotes, onToggleNotesExpanded]);
 
   // Stable identities so the memoized QueuePanel isn't re-rendered by this
   // section's own playback-tick renders while the queue sheet is open.
@@ -130,13 +147,16 @@ function PlayerSupportSectionsInner({
 
       {/* The Notes page opens the note itself, to write in place. */}
       <ClipNotesSheet
-        visible={notesExpanded && !readOnly}
+        visible={notesExpanded && !!notesTarget}
         heading={notesLabel}
         titleDraft=""
         notesDraft={notesDraft}
         onChangeNotes={setNotesDraft}
         onSave={saveNotes}
         onCancel={() => onToggleNotesExpanded(false)}
+        draftKey={notesTarget ? editorDraftKey("clipText", notesTarget.ideaId, notesTarget.clipId) : null}
+        // A parcel's or an archived take's note opens to be read in full.
+        readOnly={readOnly}
       />
 
       {/* Queue — the SAME surface as the dock's queue panel (jump on tap,

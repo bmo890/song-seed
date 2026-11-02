@@ -3,11 +3,9 @@ import { i18n } from "../i18n";
 import {
     collectManagedAudioUrisFromWorkspaces,
     collectManagedClipAudioUris,
-    emptyTrashExcept,
     hardDeleteManagedFiles,
     measureTrash,
     restoreFilesFromTrash,
-    restoreReferencedFilesFromTrash,
     trashFilenameOf,
 } from "../services/managedMedia";
 import { resolveManagedUri, toRelativeManagedPath } from "../services/storagePaths";
@@ -111,14 +109,13 @@ export function deleteRecentlyDeletedPermanently(ids: Iterable<string>): Promise
     return forget(new Set(ids), "delete permanently");
 }
 
-/** Empty: every record goes, and the whole media trash with them (people empty it to
- *  free space). A file the library still points at is first moved back, never lost. */
+/** Empty: every record goes, with its audio (people empty it to free space). Only
+ *  the records' own files: the rest of the trash is other safety nets (a replaced
+ *  take, the library a Replace-restore set aside, an archive's originals) and keeps
+ *  its own clock. */
 export async function emptyRecentlyDeleted(): Promise<void> {
     const ids = new Set(useStore.getState().recentlyDeleted.map((item) => item.id));
     await forget(ids, "empty");
-    const state = useStore.getState();
-    await restoreReferencedFilesFromTrash(state.workspaces);
-    await emptyTrashExcept(libraryFilenames(state.workspaces, state.recentlyDeleted));
 }
 
 /** Launch: records past their 30 days go, with their files. */
@@ -130,13 +127,23 @@ export function purgeExpiredRecentlyDeleted(now: number = Date.now()): Promise<v
     return forget(new Set(expired), "30 days");
 }
 
-/** What each record's audio takes on the phone, and what Empty would free in all. */
+/** What each record's audio takes on the phone, and what Empty frees in all. */
 export async function measureRecentlyDeleted(): Promise<{ byId: Map<string, number>; totalBytes: number }> {
-    const { byFilename, totalBytes } = await measureTrash();
+    const { byFilename } = await measureTrash();
     const byId = new Map<string, number>();
+    const counted = new Set<string>();
+    let totalBytes = 0;
     for (const item of useStore.getState().recentlyDeleted) {
         let bytes = 0;
-        for (const uri of new Set(deletedItemMediaUris(item).map(trashFilenameOf))) bytes += byFilename.get(uri) ?? 0;
+        for (const name of new Set(deletedItemMediaUris(item).map(trashFilenameOf))) {
+            const size = byFilename.get(name) ?? 0;
+            bytes += size;
+            // A file two records share frees its space once.
+            if (!counted.has(name)) {
+                counted.add(name);
+                totalBytes += size;
+            }
+        }
         byId.set(item.id, bytes);
     }
     return { byId, totalBytes };

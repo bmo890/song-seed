@@ -24,7 +24,13 @@ export function useDraftText(
   value: string,
   commit: (next: string) => void,
   options?: { idleMs?: number }
-): { draft: string; onChangeText: (next: string) => void; flush: () => void } {
+): {
+  draft: string;
+  onChangeText: (next: string) => void;
+  flush: () => void;
+  isPending: () => boolean;
+  discard: () => void;
+} {
   const idleMs = options?.idleMs ?? DEFAULT_IDLE_MS;
   const [draft, setDraft] = useState(value);
   const committerRef = useRef(
@@ -37,6 +43,13 @@ export function useDraftText(
   commitRef.current = commit;
 
   const flush = useCallback(() => committerRef.current.flush(), []);
+  const isPending = useCallback(() => committerRef.current.isPending(), []);
+  // Undo while a draft waits: the typing that hasn't landed is what Undo takes back.
+  // Left pending, the keystroke's commit landed after Undo and overwrote it
+  // (audit 2026-11-02, 12b B-M2 / 12g G-M1).
+  const discard = useCallback(() => {
+    setDraft(committerRef.current.discard());
+  }, []);
 
   const onChangeText = useCallback((next: string) => {
     committerRef.current.change(next, commitRef.current);
@@ -57,5 +70,5 @@ export function useDraftText(
     };
   }, [flush]);
 
-  return { draft, onChangeText, flush };
+  return { draft, onChangeText, flush, isPending, discard };
 }

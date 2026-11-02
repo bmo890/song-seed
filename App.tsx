@@ -102,7 +102,14 @@ import { beginUiActivity, endUiActivity } from "./src/services/interactionGate";
 import { countReceivedPackages, unopenedReceivedCount } from "./src/domain/workspaceVisibility";
 import { cleanupStaleShareTempFiles, purgeExpiredTrash, restoreReferencedFilesFromTrash } from "./src/services/managedMedia";
 import { purgeExpiredRecentlyDeleted } from "./src/state/recentlyDeletedActions";
-import { readManifest } from "./src/services/manifestSync";
+import {
+  holdSafetyCopy,
+  readSafetyCopy,
+  releaseHeldSafetyCopy,
+  type SafetyCopy,
+} from "./src/services/manifestSync";
+import { tellIfLibraryBusy } from "./src/services/libraryOperationGate";
+import { currentFormatLocale } from "./src/i18n/formatLocale";
 import { appActions } from "./src/state/actions";
 import {
   buildBackupReminderPromptMessage,
@@ -110,6 +117,7 @@ import {
 } from "./src/services/backupStatus";
 import { hasPendingWorkspaceArchiveOperations, resumePendingWorkspaceArchiveOperations } from "./src/services/workspaceArchiveRecovery";
 import { sweepPickerCache } from "./src/services/pickedCopies";
+import { sweepSharedInCopies } from "./src/services/sharedInCopies";
 import { enqueueMissingMetadataBackfill } from "./src/services/backgroundWaveformHydration";
 import { recoverPendingRecordingSession } from "./src/services/recordingRecovery";
 import { useLaunchSequence } from "./src/hooks/useLaunchSequence";
@@ -125,14 +133,16 @@ registerRootNavigation(navigationRef);
 import { onHydrationResult, useStore } from "./src/state/useStore";
 import {
   getHydrationDegradedWorkspaceIds,
+  getHydrationReadOutcome,
   isHydrationReadAuthoritative,
   isPersistBlocked,
-  setPersistBlocked,
 } from "./src/state/persistRuntime";
 import { authorizeIntentionalEmptyStateWrite } from "./src/services/stateIntegrity";
 import { EmptyState } from "./src/components/common/EmptyState";
 import { useTranslation } from "react-i18next";
 import { AppAlert } from "./src/components/common/AppAlert";
+import { toast } from "./src/components/common/toastStore";
+import { haptic } from "./src/design/haptics";
 import { AppDialogHost } from "./src/components/common/AppDialog";
 import { ActionMenuHost } from "./src/components/common/SelectionActionSheet";
 import { AppErrorBoundary } from "./src/components/common/AppErrorBoundary";
@@ -1249,6 +1259,56 @@ function AppContent() {
   );
 }
 
+/**
+ * The question asked over a held safety copy (audit 2026-11-02, root cause 7). It waits
+ * for its answer: a later dialog queues behind it instead of dropping it (12g G-M3).
+ * Not now, Android back and a scrim tap all keep the copy held for the next launch.
+ */
+function askAboutSafetyCopy(copy: SafetyCopy, title: string, countLiveIdeas: () => number) {
+  const date = new Date(copy.savedAt).toLocaleDateString(currentFormatLocale(), {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  const restore = () => {
+    void appActions.restoreLibraryFromSafetyCopy().then(
+      (count) => {
+        if (count === 0) return;
+        // haptics vocabulary `success`: the library came back.
+        haptic.success();
+        toast(i18n.t("safetyCopy.restored"), "checkmark-outline");
+      },
+      (error) => {
+        if (tellIfLibraryBusy(error)) return;
+        persistLog("flush.failed", `safety copy restore: ${describeError(error)}`);
+        AppAlert.error(i18n.t("safetyCopy.restoreFailedTitle"), i18n.t("safetyCopy.restoreFailedBody"));
+      }
+    );
+  };
+  const startFresh = () => {
+    AppAlert.destructive(
+      i18n.t("safetyCopy.startFreshTitle"),
+      i18n.t("safetyCopy.startFreshBody", { date }),
+      () => {
+        // The one door that lets the copy go. An empty library may now reach the mirror.
+        if (countLiveIdeas() === 0) authorizeIntentionalEmptyStateWrite();
+        void releaseHeldSafetyCopy().catch(() => {});
+      },
+      { confirmLabel: i18n.t("safetyCopy.startFresh") }
+    );
+  };
+  AppAlert.custom(
+    title,
+    i18n.t("safetyCopy.body", { count: copy.ideaCount, date }),
+    [
+      { label: i18n.t("recovery.restoreLibraryNotNow"), style: "cancel" },
+      { label: i18n.t("recovery.restoreLibraryRestore"), style: "default", icon: "refresh-outline", onPress: restore },
+      { label: i18n.t("safetyCopy.startFresh"), style: "default", onPress: startFresh },
+    ],
+    { waitsForAnswer: true }
+  );
+}
+
 export default function App() {
   const locale = useLocaleBootstrap();
   // RevenueCat: once per launch. Inert on builds without its native side.
@@ -1320,7 +1380,12 @@ export default function App() {
       // manual backup never keeps a copy on the phone after its share sheet.
       await cleanupStaleDisasterRecoveryBackupFiles(0);
       const hydratedState = useStore.getState();
-      await cleanupInterruptedDisasterRecoveryRestores(hydratedState.workspaces);
+      // Whatever decides "nothing points at this file" needs the whole library. A boot
+      // that couldn't read it (a damaged meta row) or set a workspace aside would call
+      // that workspace's restored or trashed audio garbage (audit 2026-11-02, 03 #8).
+      const libraryReadWhole =
+        isHydrationReadAuthoritative() && getHydrationDegradedWorkspaceIds().length === 0;
+      if (libraryReadWhole) await cleanupInterruptedDisasterRecoveryRestores(hydratedState.workspaces);
       // The trash safety net: any file the library still points at that a mistaken
       // delete sent to the trash comes back BEFORE the purge can make it permanent.
       await restoreReferencedFilesFromTrash(useStore.getState().workspaces);
@@ -1329,13 +1394,16 @@ export default function App() {
         console.warn("[RecentlyDeleted] Purge skipped", error)
       );
       // Permanently purge quarantined (deleted) audio past its retention window.
-      await purgeExpiredTrash();
+      if (libraryReadWhole) await purgeExpiredTrash();
       await resumePendingWorkspaceArchiveOperations();
       // Picker copies left by an import (or a backup file picked for a restore) that a
       // kill interrupted: nothing is mid-import at launch, so they go. Never the
       // originals, which live outside the app; held back while an unarchive may still
       // need a package it picked.
       if (!(await hasPendingWorkspaceArchiveOperations())) await sweepPickerCache();
+      // Share-intake copies a day old (App Group on iOS, share-intake on Android): a
+      // share cancelled, killed or skipped (06-3). A fresh one may be this launch's share.
+      await sweepSharedInCopies();
 
       // Backfill clip durations the import-time hydration queue never finished (it's
       // in-memory and single-shot: app restarts, probe timeouts, and archive restores
@@ -1345,85 +1413,47 @@ export default function App() {
       // A draft sketch left behind by a kill mid-edit would stay hidden forever.
       appActions.recoverStrandedDrafts();
 
-      // Recovery mode: if the library hydrated empty but the shadow manifest still holds
-      // data, surface a restore prompt instead of silently presenting an empty, writable
-      // library (the catastrophic-loss scenario). The persist + manifest guards keep the
-      // manifest intact until the user recovers.
+      // Recovery (audit 2026-11-02, root cause 7). The copy of the library on this phone
+      // is offered whenever this boot came up short: empty, a damaged meta row (nothing
+      // read), or a workspace set aside. Offering it HOLDS it first, out of reach of any
+      // write this session makes; "Not now" leaves it held and the question comes back
+      // next launch. Restore merges it in (nothing here is replaced); only a confirmed
+      // "Start fresh" lets it go. Nothing is frozen while the question is up.
       const liveIdeaCount = hydratedState.workspaces.reduce(
         (sum, ws) => sum + ws.ideas.length,
         0
       );
       const countLiveIdeas = () =>
         useStore.getState().workspaces.reduce((sum, ws) => sum + ws.ideas.length, 0);
-      if (liveIdeaCount === 0) {
-        // The prompt's premise is "the disk held no library" — only an authoritative
-        // hydration read may claim that. An unsettled or failed read means disk state
-        // is unknown; the retry screen owns that boot, and this effect re-runs if a
-        // later hydration completes.
-        if (!isHydrationReadAuthoritative()) return "again";
-        const manifest = await readManifest();
-        const manifestIdeaCount = manifest
-          ? manifest.workspaces.reduce((sum, ws) => sum + (ws.ideas?.length ?? 0), 0)
-          : 0;
-        // Re-check the live library at the last moment: the awaits above leave room
-        // for a late hydration to land the real library. A "Restore?" prompt over a
-        // healthy library invites the user to overwrite it with an older backup.
-        if (manifestIdeaCount > 0 && countLiveIdeas() === 0) {
-          // Freeze persistence while the prompt is pending: nothing derived from the
-          // empty in-memory library may reach disk (store or manifest) until the user
-          // decides. Both handlers below lift the freeze on their own terms.
-          setPersistBlocked(true);
-          // A device holding a recoverable library is not a first launch: suppress the
-          // first-run intro so WelcomeFlow never renders over the data-loss recovery
-          // prompt (recoverOrphanedAudio doesn't touch hasSeenWelcome, so this sticks).
-          useStore.getState().setHasSeenWelcome(true);
-          // The user chose to continue with the empty library — that explicit
-          // decision (not the empty hydration itself) authorizes the store and
-          // manifest to catch up to empty. Re-verify emptiness at press time:
-          // if a late hydration landed the real library behind this dialog,
-          // an empty-write authorization would let the manifest guard clobber
-          // the recovery copy over a healthy store.
-          const continueWithEmptyLibrary = () => {
-            if (countLiveIdeas() === 0) {
-              authorizeIntentionalEmptyStateWrite();
-            }
-            setPersistBlocked(false);
-            useStore.getState().markFirstLaunch();
-          };
-          AppAlert.custom(
-            i18n.t("recovery.restoreLibraryTitle"),
-            i18n.t("recovery.restoreLibraryBody", { count: manifestIdeaCount }),
-            [
-              {
-                label: i18n.t("recovery.restoreLibraryNotNow"),
-                style: "cancel",
-                onPress: continueWithEmptyLibrary,
-              },
-              {
-                label: i18n.t("recovery.restoreLibraryRestore"),
-                style: "default",
-                icon: "refresh-outline",
-                onPress: () => {
-                  setPersistBlocked(false);
-                  void appActions.recoverOrphanedAudio();
-                },
-              },
-            ],
-            // Android back / scrim tap used to close this dialog with the persist freeze
-            // still on — every edit for the rest of the session then stayed in memory.
-            { onDismiss: continueWithEmptyLibrary }
-          );
-          return "done";
-        }
-        // Fresh install with no recoverable backup: the starter "My Songs"/"Ideas"
-        // library is already in place (createInitialWorkspace is the store's initial
-        // state + the sanitize fallback), so there's nothing to seed here.
+      const damagedRead = getHydrationReadOutcome() === "failed";
+      const degradedWorkspaceIds = getHydrationDegradedWorkspaceIds();
+      // "The disk held no library" needs an authoritative read; an unsettled one belongs
+      // to the retry screen, and this sequence runs again if a later hydration lands.
+      if (liveIdeaCount === 0 && !damagedRead && !isHydrationReadAuthoritative()) return "again";
+      const bootCameUpShort = damagedRead || degradedWorkspaceIds.length > 0 || liveIdeaCount === 0;
+      const copy = await readSafetyCopy().catch(() => null);
+      // Re-check an empty library at the last moment: a late hydration may have landed
+      // the real one, and a prompt over a healthy library is noise.
+      const stillShort =
+        damagedRead || degradedWorkspaceIds.length > 0 || countLiveIdeas() === 0;
+      if (copy && (copy.held || (bootCameUpShort && stillShort))) {
+        // A phone holding a library is not a first launch: no welcome over this question.
+        useStore.getState().setHasSeenWelcome(true);
+        const held = (await holdSafetyCopy().catch(() => null)) ?? copy;
+        askAboutSafetyCopy(
+          held,
+          degradedWorkspaceIds.length > 0 && !damagedRead
+            ? i18n.t("recovery.degradedTitle")
+            : i18n.t("recovery.restoreLibraryTitle"),
+          countLiveIdeas
+        );
+        useStore.getState().markFirstLaunch();
+        return "done";
       }
 
       // A hydrate that had to set a workspace aside (corrupt/missing shard row —
       // bytes quarantined by the storage adapter) is a partial data incident the
       // user must hear about; silence here is how libraries shrink unnoticed.
-      const degradedWorkspaceIds = getHydrationDegradedWorkspaceIds();
       if (degradedWorkspaceIds.length > 0) {
         AppAlert.info(
           i18n.t("recovery.degradedTitle"),
@@ -1432,6 +1462,8 @@ export default function App() {
         useStore.getState().markFirstLaunch();
         return "done";
       }
+      // Fresh install with no recoverable copy: the starter "My Songs"/"Ideas" library is
+      // already in place (createInitialWorkspace), so there's nothing to seed here.
 
       // Anchor the store-review timing rule on the very first launch. Runs after the
       // recovery check so a pending restore prompt never races a persist write.

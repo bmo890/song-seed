@@ -32,14 +32,16 @@ describe("persistRawSnapshot", () => {
         expect(mockAsyncStorageSetItem).not.toHaveBeenCalled();
     });
 
-    it("surfaces SQLite failure even when an emergency fallback copy succeeds", async () => {
+    it("surfaces SQLite failure and parks nothing for the next launch to replay (02 G4)", async () => {
+        // A refused restore commit is reported as failed and its files are deleted; a
+        // parked copy used to be replayed over the live library at the next boot.
         mockRunAsync.mockRejectedValueOnce(new Error("SQLite unavailable"));
-        mockAsyncStorageSetItem.mockResolvedValueOnce(undefined);
+        mockAsyncStorageSetItem.mockResolvedValue(undefined);
 
         await expect(persistRawSnapshot("store-failure", "snapshot")).rejects.toThrow(
             "SQLite unavailable"
         );
-        expect(mockAsyncStorageSetItem).toHaveBeenCalledWith("store-failure", "snapshot");
+        expect(mockAsyncStorageSetItem).not.toHaveBeenCalled();
     });
 
     it("serializes ordinary writes before an authoritative raw snapshot", async () => {

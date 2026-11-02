@@ -425,6 +425,27 @@ export async function extractStoredZipEntryToFile(
     }
 }
 
+/**
+ * Read one entry back from disk and check its bytes against the CRC recorded when it
+ * was written. Throws `StoredZipError` on a mismatch. A package is read back like this
+ * before anything is deleted on the strength of it (audit 2026-11-02, 03 #7).
+ */
+export async function verifyStoredZipEntryReadable(index: StoredZipIndex, entry: StoredZipEntry) {
+    if (isNativeZipAvailable() && FileSystem.cacheDirectory) {
+        // One native read; the copy it leaves is scratch and goes at once.
+        const scratchUri = `${FileSystem.cacheDirectory}songnook-verify-${Date.now()}-${Math.random()
+            .toString(36)
+            .slice(2, 8)}`;
+        try {
+            await extractStoredZipEntryToFile(index, entry, scratchUri);
+        } finally {
+            await FileSystem.deleteAsync(scratchUri, { idempotent: true }).catch(() => {});
+        }
+        return;
+    }
+    await streamStoredZipEntry(index, entry, () => {});
+}
+
 export async function readStoredZipEntryBytes(
     index: StoredZipIndex,
     entry: StoredZipEntry,

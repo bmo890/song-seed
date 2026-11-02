@@ -21,6 +21,7 @@ import {
     restoreRecentlyDeleted,
 } from "../../state/recentlyDeletedActions";
 import { haptic } from "../../design/haptics";
+import { LibraryBusyError, runningLibraryOperation, tellIfLibraryBusy } from "../../services/libraryOperationGate";
 import { durations } from "../../design/motion";
 import { colors, spacing, text as textTokens } from "../../design/tokens";
 import { formatBytes } from "../../utils";
@@ -64,6 +65,13 @@ export function RecentlyDeletedScreen() {
     };
 
     const run = async (work: () => Promise<void>, doneToast: string) => {
+        // Nothing goes for good while an operation holds the library (a Replace-restore
+        // swaps this list; an archive leans on the trash): it waits, said calmly.
+        const running = runningLibraryOperation();
+        if (running) {
+            tellIfLibraryBusy(new LibraryBusyError(running));
+            return;
+        }
         setBusy(true);
         try {
             await work();

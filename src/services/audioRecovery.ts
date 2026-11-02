@@ -64,8 +64,8 @@ function normalizeRestoredWorkspace(workspace: Workspace): Workspace {
  * Returns the full persisted state if the manifest exists and has data,
  * or null if no usable manifest is found.
  */
-export async function restoreFromManifest(): Promise<ManifestRecoveryResult | null> {
-    const manifest = await readManifest();
+export async function restoreFromManifest(given?: ManifestData): Promise<ManifestRecoveryResult | null> {
+    const manifest = given ?? (await readManifest());
     if (!manifest) return null;
 
     const ideaCount = manifest.workspaces.reduce(

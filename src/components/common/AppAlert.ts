@@ -56,6 +56,26 @@ export const AppAlert = {
     });
   },
 
+  /** Leaving an editor with unsaved typing: a question, never a silent loss
+   *  (data-safety audit 2026-11-02, root cause 4). Discard is the danger tier;
+   *  Keep editing (and the scrim, and back) keeps the words. */
+  discardChanges(onDiscard: () => void, onKeepEditing?: () => void): void {
+    dialogStore.show({
+      title: i18n.t("common.discardChangesTitle"),
+      message: i18n.t("common.discardChangesBody"),
+      buttons: [
+        { label: i18n.t("common.keepEditing"), style: "cancel", onPress: onKeepEditing },
+        {
+          label: i18n.t("common.discard"),
+          style: "destructive",
+          icon: actionIcons.discard,
+          onPress: onDiscard,
+        },
+      ],
+      onDismiss: onKeepEditing,
+    });
+  },
+
   /** Something failed: the `error` haptic (haptics.ts: "error → something failed",
    *  failures must fire it) and the same single-button dialog as `info`. */
   error(title: string, message?: string): void {
@@ -78,8 +98,8 @@ export const AppAlert = {
     title: string,
     message: string | undefined,
     buttons: DialogButton[],
-    opts?: { onDismiss?: () => void }
+    opts?: { onDismiss?: () => void; waitsForAnswer?: boolean }
   ): void {
-    dialogStore.show({ title, message, buttons, onDismiss: opts?.onDismiss });
+    dialogStore.show({ title, message, buttons, onDismiss: opts?.onDismiss, waitsForAnswer: opts?.waitsForAnswer });
   },
 };

@@ -23,6 +23,7 @@ import { importRecordedAudioAsset, MANAGED_WAVEFORM_PEAK_COUNT } from "../servic
 import { writeWaveformSidecar, WAVEFORM_DETAIL_BINS } from "../services/waveformSidecar";
 import {
   clearPendingRecordingSession,
+  importTakeIntoLibrary,
   persistAttachedRecordingJournal,
   persistPendingRecordingSession,
   recoverPendingRecordingSession,
@@ -34,6 +35,7 @@ import { useRecordingDisplayElapsed } from "./useRecordingDisplayElapsed";
 import {
   getActiveRecordingTakeSession,
   getRecordingTakeSession,
+  RECORDING_FILE_FORMAT,
   RECORDING_TAKE_SHAPE,
   takeHoldsRecorder,
   useTakeHeadTrim,
@@ -43,7 +45,7 @@ import {
 import { finishOnsetEnvelope, type OnsetEnvelope } from "../domain/onsetEnvelope";
 import { effectiveRecordingInputId } from "../domain/recordingInput";
 import { flushPersistedSnapshot, useStore } from "../state/useStore";
-import { useProcessStore } from "../state/useProcessStore";
+import { recordingBlockedBy, tellRecordingWaits } from "../services/libraryOperationGate";
 import { getRestoreRestartState } from "../state/restoreRuntime";
 import { deleteManagedAudioUris } from "../services/managedMedia";
 import { describeError, persistLog } from "../services/persistLog";
@@ -618,6 +620,8 @@ export function useRecording(
       deviceId: inputIdToRecordFrom() ?? undefined,
       sampleRate: CAPTURE_SAMPLE_RATE as SampleRate,
       channels: CAPTURE_CHANNELS as 1,
+      // 16-bit PCM WAV, named (decision F): see RECORDING_FILE_FORMAT.
+      ...RECORDING_FILE_FORMAT,
       interval: LIVE_STREAM_INTERVAL_MS,
       intervalAnalysis: 75,
       segmentDurationMs: 75,
@@ -872,13 +876,14 @@ export function useRecording(
     // this instance's recorder state reads idle). Starting here used to stop that take
     // and clear its marker on the native "already recording" refusal (audit 10-H1).
     if (takeHoldsRecorder()) return false;
-    // A restore restarts the app the moment it lands, so a take begun under it would
-    // be cut off mid-phrase (overnight check 2026-10-19). Haptics vocabulary `error`:
-    // "Something failed" — the take can't start.
-    const process = useProcessStore.getState().process;
-    if ((process?.kind === "restore" && process.status === "running") || getRestoreRestartState()) {
-      haptic.error();
-      AppAlert.info(t("recording.restoreRunningTitle"), t("recording.restoreRunningBody"));
+    // A heavy library operation (import, restore, archive, unarchive, recover, backup)
+    // owns the library until it lands: a take begun under it could be overwritten by
+    // its result, or cut off by a restore's restart (audit 2026-11-02, root cause 3).
+    // The automatic backup yields instead. Haptics vocabulary `error`: the take can't
+    // start; the toast says what it waits for.
+    const blockingOperation = recordingBlockedBy();
+    if (blockingOperation || getRestoreRestartState()) {
+      tellRecordingWaits(blockingOperation ?? "restore");
       return false;
     }
     // Prepared ahead (prewarm) or mid-prepare: start the ready recorder.
@@ -952,6 +957,13 @@ export function useRecording(
   async function startPreparedRecording(): Promise<boolean> {
     if (recorder.isRecording || recorder.isPaused || startInFlightRef.current) return false;
     if (takeHoldsRecorder()) return false;
+    // The recorder screen starts here directly (prewarmed takes): the same question as
+    // startRecording — a heavy library operation refuses the take (root cause 3).
+    const blockingOperation = recordingBlockedBy();
+    if (blockingOperation || getRestoreRestartState()) {
+      tellRecordingWaits(blockingOperation ?? "restore");
+      return false;
+    }
     startInFlightRef.current = true;
     let fromPrewarm = false;
     let nativeStartAttempted = false;
@@ -1090,6 +1102,9 @@ export function useRecording(
 
   async function saveRecordingNow() {
     let managedAudioUriToCleanup: string | null = null;
+    // The take's own file became the library's (moved, audit 03-6): it is never deleted
+    // as a "partial copy"; its marker names where it is.
+    let takeMovedIntoLibrary = false;
     let trimTempUriToCleanup: string | null = null;
     try {
       take.facts.expectedStop = true;
@@ -1193,20 +1208,29 @@ export function useRecording(
       // waveform job and then threw the result away (2026-09-21). With no capture
       // analysis, decode now — the user is waiting, so it must not idle-gate.
       const clipId = `clip-${Date.now()}`;
+      const importOptions = capturePeaks ? { lightweight: true } : { decodeMode: "interactive" as const };
+      // MOVED into the library, never copied (audit 03-6 / E12): a copy needed the take's
+      // size free twice. The trimmed render is our own scratch file; the untrimmed take
+      // moves only once its marker names the destination (else it is copied).
       const managedAudio = await timedStep(
         "save.importAsset",
-        importRecordedAudioAsset(
-          sourceAudioUri,
-          clipId,
-          capturePeaks ? { lightweight: true } : { decodeMode: "interactive" }
-        ),
+        sourceAudioUri !== recordingData.fileUri
+          ? importRecordedAudioAsset(sourceAudioUri, clipId, importOptions, "scratch").then((managed) => ({
+              ...managed,
+              moved: false,
+            }))
+          : importTakeIntoLibrary(sourceAudioUri, clipId, importOptions),
         {
           timeoutMs: 30_000,
           // Nobody is waiting for this copy any more — the take recovers from the
-          // recorder temp file, so a late managed copy would only be an orphan.
-          onLateResult: (late) => void deleteManagedAudioUris([late.audioUri]).catch(() => {}),
+          // recorder temp file, so a late managed copy would only be an orphan. A moved
+          // take is the take itself: its marker leads recovery to it.
+          onLateResult: (late) => {
+            if (!late.moved) void deleteManagedAudioUris([late.audioUri]).catch(() => {});
+          },
         }
       );
+      takeMovedIntoLibrary = managedAudio.moved;
       managedAudioUriToCleanup = managedAudio.audioUri;
 
       const waveformPeaks = capturePeaks ?? managedAudio.waveformPeaks;
@@ -1243,8 +1267,9 @@ export function useRecording(
         // The take could not be attached (e.g. its project was removed mid-recording).
         // Preserve the recording rather than silently orphaning it: keep the recorder temp
         // file AND the pending-session marker so the next launch salvages it into the Inbox.
-        // Drop only the redundant managed copy.
-        if (managedAudioUriToCleanup) {
+        // Drop only the redundant managed copy (a moved take is the take: it stays, and
+        // its marker leads there).
+        if (managedAudioUriToCleanup && !takeMovedIntoLibrary) {
           await deleteManagedAudioUris([managedAudioUriToCleanup]).catch(() => {});
           managedAudioUriToCleanup = null;
         }
@@ -1319,8 +1344,9 @@ export function useRecording(
       // launch. Deleting the recorder temp here (as this used to) turned the marker into a
       // dangling pointer and lost the take whenever a step AFTER the managed import failed
       // (sidecar/attach) or on a disk-full save. clearPendingRecordingSession is NOT called,
-      // so the marker survives.
-      if (managedAudioUriToCleanup) {
+      // so the marker survives. A take MOVED into the library is no partial copy: it
+      // stays where its marker says.
+      if (managedAudioUriToCleanup && !takeMovedIntoLibrary) {
         await deleteManagedAudioUris([managedAudioUriToCleanup]).catch(() => {});
       }
       if (trimTempUriToCleanup) {

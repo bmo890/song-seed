@@ -1,5 +1,6 @@
 import { type CustomTagDefinition, type SongIdea } from "../../../types";
 import { ClipNotesSheet } from "../../modals/ClipNotesSheet";
+import { useIsReadOnlyIdea } from "../../../hooks/useReadOnly";
 import { ClipTagPicker } from "./ClipTagPicker";
 
 type SongClipListModalsProps = {
@@ -14,6 +15,8 @@ type SongClipListModalsProps = {
   saveNotesSheet: () => void;
   closeNotesSheet: () => void;
   closeTagPicker: () => void;
+  /** The open sheet's key in the unsaved-words store. */
+  notesSheetDraftKey?: string | null;
 };
 
 export function SongClipListModals({
@@ -28,7 +31,10 @@ export function SongClipListModals({
   saveNotesSheet,
   closeNotesSheet,
   closeTagPicker,
+  notesSheetDraftKey,
 }: SongClipListModalsProps) {
+  // A parcel's take (until Keep) or an archived one: its note opens to be read in full.
+  const readOnly = useIsReadOnlyIdea(selectedIdea.id);
   return (
     <>
       <ClipNotesSheet
@@ -41,6 +47,8 @@ export function SongClipListModals({
         onChangeNotes={setEditingClipNotesDraft}
         onSave={saveNotesSheet}
         onCancel={closeNotesSheet}
+        draftKey={notesSheetDraftKey}
+        readOnly={readOnly}
       />
       <ClipTagPicker
         visible={!!tagPickerClip}

@@ -169,6 +169,14 @@ export const clipsStyles = {
     textAlignVertical: "top",
     color: colors.textPrimary,
   },
+  // A note read, not edited (a received parcel's take, decision B): the whole of it,
+  // on the paper, in the field's own voice.
+  clipNotesSheetReadBody: {
+    ...text.body,
+    fontSize: 15,
+    lineHeight: 22,
+    paddingHorizontal: 2,
+  },
   clipNotesSheetButtons: {
     flexDirection: "row",
     justifyContent: "flex-end",

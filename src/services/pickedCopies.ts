@@ -1,4 +1,5 @@
 import * as FileSystem from "expo-file-system/legacy";
+import { isSharedInCopy } from "./sharedInCopies";
 
 /**
  * Picked files are COPIES the system pickers made inside the app's own cache: the Files
@@ -18,14 +19,20 @@ export function isInAppCache(uri: string | undefined | null): boolean {
     return !!uri && !!cache && uri.startsWith(cache);
 }
 
-/** The pickers' copies, tagged when picked (`discardSourceAfterImport`), are deleted. */
+/** A copy made for this import alone: a picker's (in our cache) or the share intake's. */
+export function isImportOnlyCopy(uri: string | undefined | null): boolean {
+    return isInAppCache(uri) || isSharedInCopy(uri);
+}
+
+/** The pickers' and the share intake's copies, tagged when picked or shared
+ *  (`discardSourceAfterImport`), are deleted. */
 export async function discardPickedCopies(
     assets: ReadonlyArray<{ uri: string; discardSourceAfterImport?: boolean }> | null | undefined
 ): Promise<void> {
     if (!assets?.length) return;
     await Promise.all(
         assets
-            .filter((asset) => asset.discardSourceAfterImport && isInAppCache(asset.uri))
+            .filter((asset) => asset.discardSourceAfterImport && isImportOnlyCopy(asset.uri))
             .map((asset) => FileSystem.deleteAsync(asset.uri, { idempotent: true }).catch(() => {}))
     );
 }

@@ -36,11 +36,14 @@ export function CutUpSourceStep({ model, spark }: { model: Model; spark: CutUpSp
   const locked = hasCut && !unlocked;
 
   const openPicker = () => {
-    if (!hasCut) {
+    // Typed or pasted lines are work too: a page from the Pad replaces them only
+    // when asked (12f F-M2).
+    const hasTyped = model.sourceField.draft.trim().length > 0;
+    if (!hasCut && !hasTyped) {
       setPickerVisible(true);
       return;
     }
-    AppAlert.confirm(t("cutUp.replaceSourceTitle"), t("cutUp.editSourceBody"), () => setPickerVisible(true), {
+    AppAlert.confirm(t("cutUp.replaceSourceTitle"), t(hasCut ? "cutUp.editSourceBody" : "cutUp.replaceTypedBody"), () => setPickerVisible(true), {
       confirmLabel: t("cutUp.replace"),
       icon: "document-text-outline",
     });

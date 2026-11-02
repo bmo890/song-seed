@@ -8,9 +8,9 @@ SongNook is a songwriting app built on a simple promise: **your music stays your
 
 Everything you make in SongNook (recordings, ideas, lyrics, chords, notes, marks and settings) is stored on your device. There is no library sync: we cannot see, open or recover your work, because it never reaches us unless you send something with SongNook Send.
 
-Your phone's own backup (iCloud on iPhone, Google backup on Android) includes SongNook's data unless you turn that off. Those backups are held by Apple or Google under their policies; we never see them.
+On iPhone, your iCloud backup includes SongNook's data unless you turn that off. On Android, Google's cloud backup doesn't carry your library (it is too large for it), but moving to a new phone with Android's own transfer does. Those backups and transfers are handled by Apple or Google under their policies; we never see them.
 
-When you back up, export or share through your phone's share sheet, the files go only where you choose (Files, iCloud Drive, Google Drive, another app).
+When you back up, export or share through your phone's share sheet, the files go only where you choose (Files, iCloud Drive, Google Drive, another app). If you turn on automatic backup, SongNook keeps one backup in the folder you pick and updates it there; it goes nowhere else.
 
 ## What SongNook sends, and why
 
@@ -27,7 +27,7 @@ SongNook makes a few network requests. None of them carry your name, an account,
 Send hands clips or a whole sketch to someone with a link. Nothing uploads until you tap **Get a link**.
 
 - **What uploads:** only what you picked. Clips, or a sketch as one package, which includes its lyrics, notes, chords and marks, with file names and the optional title, name and message you add.
-- **Sealed before it leaves.** Current versions of the app, and the Send web page, encrypt all of that on your device before upload, with a new key for every link. The key travels only in the link itself, in the part after "#", which browsers never send to a server. We store the encrypted files and cannot open them; neither can Cloudflare, or anyone who breaks into our servers. Older app versions that can't encrypt still send as before, protected by HTTPS and Cloudflare's encryption on disk.
+- **Sealed before it leaves.** Current versions of the app, and the Send web page, encrypt all of that on your device before upload, with a new key for every link. The key travels only in the link itself, in the part after "#", which browsers never send to a server. We store the encrypted files and cannot open them, and neither can Cloudflare. A link opened in the app is opened by the app itself. A link opened in a browser relies on the page our server sends, so for the strongest protection open links in the app. Older app versions that can't encrypt still send as before, protected by HTTPS and Cloudflare's encryption on disk.
 - **What we still see:** that a parcel exists, how many files it has and their sizes, what kind of parcel it is (for example clips or a setlist), when it was made and downloaded, and, briefly, the IP addresses involved (see Abuse prevention).
 - **Where:** a server we operate (send.songnook.app), hosted by Cloudflare. We don't open, listen to or analyze what you send; we deliver it.
 - **Who can see it:** anyone with the full link. Links are long and random, and not listed or searchable anywhere. Share a link only with people you want to have the files. If you lose the link, nobody, including us, can recover the parcel.

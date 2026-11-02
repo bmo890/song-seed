@@ -295,21 +295,6 @@ export async function hardDeleteManagedFiles(uris: Iterable<string>): Promise<vo
     }
 }
 
-/** Empty: everything in the trash goes, except copies of `keepFilenames` (files a
- *  remaining Recently deleted record still holds). */
-export async function emptyTrashExcept(keepFilenames: Set<string>): Promise<void> {
-    await whenTrashSettled();
-    try {
-        for (const trashName of await readTrashNames()) {
-            const parsed = parseTrashName(trashName);
-            if (parsed && keepFilenames.has(parsed.filename)) continue;
-            await FileSystem.deleteAsync(`${SONG_NOOK_TRASH_DIR}/${trashName}`, { idempotent: true });
-        }
-    } catch (error) {
-        console.warn("[ManagedMedia] Could not empty the trash", error);
-    }
-}
-
 /**
  * A discarded take (03-9): the recorder's own file, which lives outside the library,
  * moves into the trash under a library name. Returns where it lives once restored

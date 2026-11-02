@@ -56,6 +56,7 @@ export function sendSparkToPad({
   title,
   methodName,
   savedLyricId,
+  savedLyricBody,
   link,
   navigation,
 }: {
@@ -63,7 +64,10 @@ export function sendSparkToPad({
   title: string;
   methodName: string;
   savedLyricId?: string;
-  link: (noteId: string) => void;
+  /** What the last send put on that page (absent on sparks sent before 2026-11-02). */
+  savedLyricBody?: string;
+  /** Records the page on the spark, with the words this send put there. */
+  link: (noteId: string, sentBody: string) => void;
   navigation: Navigation;
 }) {
   const t = i18n.t.bind(i18n);
@@ -76,7 +80,7 @@ export function sendSparkToPad({
   const sendNew = () => {
     const noteId = addNote();
     updateNote(noteId, { title: sparkSaveTitle(title, methodName, notes), body: text });
-    link(noteId);
+    link(noteId, text);
     // Haptics vocabulary: success, a meaningful completion (the lyric landed).
     haptic.success();
     toast(t("wordSparks.sentToPad"), "checkmark-outline", {
@@ -89,7 +93,13 @@ export function sendSparkToPad({
     sendNew();
     return;
   }
-  AppAlert.custom(t("wordSparks.sendAgainTitle"), t("wordSparks.sendAgainBody"), [
+  // The page is the person's to keep writing on. If its words are no longer what
+  // the last send put there (or that is unknown), updating would REPLACE what was
+  // written in the Pad since: say so, as a destructive choice (12g G-H1, 12f F-M1).
+  const writtenOnSince =
+    existing.body.trim() !== text.trim() &&
+    (savedLyricBody === undefined || existing.body.trim() !== savedLyricBody.trim());
+  AppAlert.custom(t("wordSparks.sendAgainTitle"), t(writtenOnSince ? "wordSparks.sendAgainChangedBody" : "wordSparks.sendAgainBody"), [
     {
       label: t("wordSparks.newPage"),
       style: "default",
@@ -97,14 +107,15 @@ export function sendSparkToPad({
       onPress: sendNew,
     },
     {
-      label: t("wordSparks.updatePage"),
-      style: "default",
+      label: t(writtenOnSince ? "wordSparks.replacePage" : "wordSparks.updatePage"),
+      style: writtenOnSince ? "destructive" : "default",
       icon: "refresh",
       onPress: () => {
-        // The page may hold words written in the Pad since the first send: they are
-        // never just overwritten. A copy of the page as it was waits in Recently
-        // deleted, and Undo puts the words back (12f F-M1, 12g G-H1).
-        const replaced = replacePadPageKeepingOld(existing.id, text);
+        // Words written in the Pad since the last send are never just overwritten:
+        // the page as it was waits in Recently deleted, and the toast's Undo puts
+        // them back (12f F-M1, 12g G-H1).
+        const replaced = replacePadPageKeepingOld(existing.id, text, { keepOld: writtenOnSince });
+        link(existing.id, text);
         // Haptics vocabulary: success, a meaningful completion.
         haptic.success();
         toast(t("wordSparks.pageUpdated"), "checkmark-outline", {
@@ -141,12 +152,16 @@ export function sparkDoneLabel(
  * Restore adds it back beside the page). Returns an Undo that puts the old words back,
  * or null when nothing was lost.
  */
-export function replacePadPageKeepingOld(noteId: string, text: string): { undo: () => void } | null {
+export function replacePadPageKeepingOld(
+  noteId: string,
+  text: string,
+  opts: { keepOld?: boolean } = {}
+): { undo: () => void } | null {
   const store = useStore.getState();
   const page = store.notes.find((note) => note.id === noteId);
   if (!page) return null;
   const before = page.body;
-  const loses = before.trim().length > 0 && before !== text;
+  const loses = opts.keepOld !== false && before.trim().length > 0 && before !== text;
   const kept = loses ? captureDeletedNote({ ...page, id: genId("note"), isPinned: false }) : null;
   useStore.setState((state) => ({
     notes: state.notes.map((note) => (note.id === noteId ? { ...note, body: text, updatedAt: Date.now() } : note)),
