@@ -75,7 +75,7 @@ import { DEFAULT_LANGUAGE, deviceLanguage, i18n, isAppLanguage } from "../i18n";
 import { resolveWordLanguage, sanitizeWordLanguagePref, type WordLanguagePref } from "../domain/wordLanguage";
 import { MAGPIE_HE_ENABLED } from "../config/magpieService";
 import { persistAppStoreSnapshot } from "./persistedSnapshot";
-import { relocateActivityEvents, relocatePlaylists } from "./relocationMetadata";
+import { rehomeCompilations, relocateActivityEvents, relocatePlaylists } from "./relocationMetadata";
 import { collectionOwnerWorkspaceId, ideaOwnerWorkspaceId, locateIdea } from "../domain/itemLocator";
 import { firstWritableWorkspaceId, isReadOnlyWorkspace, isWritableWorkspaceId } from "../domain/workspaceVisibility";
 import {
@@ -2040,6 +2040,8 @@ export const createDataSlice: StateCreator<
                 playlists: relocatePlaylists(currentState.playlists, {
                     ideas: movedIdeaRelocations,
                 }),
+                // Sets and chart books follow the songs too (04-H1).
+                ...rehomeCompilations(nextWorkspaces, currentState.songbooks, currentState.setlists),
                 primaryCollectionIdByWorkspace: resolvePrimaryCollectionIdByWorkspace(
                     nextWorkspaces,
                     currentState.primaryCollectionIdByWorkspace

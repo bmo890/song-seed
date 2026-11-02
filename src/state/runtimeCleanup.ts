@@ -10,6 +10,7 @@ import type {
     Workspace,
 } from "../types";
 import { firstWritableWorkspaceId } from "../domain/workspaceVisibility";
+import { getIdeaIndex } from "./librarySelectors";
 
 type RuntimeStoreState = {
     workspaces: Workspace[];
@@ -121,14 +122,20 @@ function pruneCompilationEntries<T extends { ideaId: string; workspaceId: string
     compilations: C[],
     key: "items" | "entries",
     removedWorkspaceIds: Set<string>,
-    removedIdeaIds: Set<string>
+    removedIdeaIds: Set<string>,
+    nextWorkspaces: Workspace[]
 ): C[] {
     if (removedWorkspaceIds.size === 0 && removedIdeaIds.size === 0) return compilations;
+    // A song that moved out of the removed workspace (Keep on a parcel, a collection
+    // move) still lives: its entry stays, whatever workspace it last named (04-H1).
+    const livingIdeaIds = getIdeaIndex(nextWorkspaces).all;
     let changed = false;
     const next = compilations.map((compilation) => {
         const entries = (compilation[key] ?? []) as T[];
         const kept = entries.filter(
-            (entry) => !removedIdeaIds.has(entry.ideaId) && !removedWorkspaceIds.has(entry.workspaceId)
+            (entry) =>
+                !removedIdeaIds.has(entry.ideaId) &&
+                (!removedWorkspaceIds.has(entry.workspaceId) || livingIdeaIds.has(entry.ideaId))
         );
         if (kept.length === entries.length) return compilation;
         changed = true;
@@ -278,7 +285,7 @@ export function buildRuntimeCleanupPatch(
         quickNameDraft: quickNamingIdeaRemoved ? "" : store.quickNameDraft,
         // A deleted song must not linger as a ghost row in a book or a set
         // (the sweep of 2026-10-22: only playlists were pruned before).
-        songbooks: pruneCompilationEntries(store.songbooks, "items", removedWorkspaceIdSet, removedIdeaIdSet),
-        setlists: pruneCompilationEntries(store.setlists, "entries", removedWorkspaceIdSet, removedIdeaIdSet),
+        songbooks: pruneCompilationEntries(store.songbooks, "items", removedWorkspaceIdSet, removedIdeaIdSet, nextWorkspaces),
+        setlists: pruneCompilationEntries(store.setlists, "entries", removedWorkspaceIdSet, removedIdeaIdSet, nextWorkspaces),
     };
 }

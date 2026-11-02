@@ -65,7 +65,7 @@ import {
 } from "../services/workspaceArchiveRecovery";
 import { authorizeIntentionalEmptyStateWrite } from "../services/stateIntegrity";
 import { i18n } from "../i18n";
-import { relocateActivityEvents, relocatePlaylists } from "./relocationMetadata";
+import { rehomeCompilations, relocateActivityEvents, relocatePlaylists } from "./relocationMetadata";
 import { locateCollection, locateIdea } from "../domain/itemLocator";
 import { firstWritableWorkspaceId, isReadOnlyWorkspace, isWritableWorkspaceId } from "../domain/workspaceVisibility";
 import { SONG_NOOK_PREVIEW_AUDIO_DIR } from "../services/storagePaths";
@@ -940,17 +940,16 @@ export const appActions = {
             if (!movingIdea) return store;
 
             const relocatedIdea = { ...movingIdea, collectionId: targetCollectionId };
-            return {
-                workspaces: store.workspaces.map((workspace) => {
-                    if (workspace.id === sourceWorkspaceId) {
-                        return { ...workspace, ideas: workspace.ideas.filter((idea) => idea.id !== ideaId) };
-                    }
-                    if (workspace.id === targetWorkspaceId) {
-                        return { ...workspace, ideas: [relocatedIdea, ...workspace.ideas] };
-                    }
-                    return workspace;
-                }),
-            };
+            const workspaces = store.workspaces.map((workspace) => {
+                if (workspace.id === sourceWorkspaceId) {
+                    return { ...workspace, ideas: workspace.ideas.filter((idea) => idea.id !== ideaId) };
+                }
+                if (workspace.id === targetWorkspaceId) {
+                    return { ...workspace, ideas: [relocatedIdea, ...workspace.ideas] };
+                }
+                return workspace;
+            });
+            return { workspaces, ...rehomeCompilations(workspaces, store.songbooks, store.setlists) };
         });
     },
 
@@ -2746,6 +2745,8 @@ export const appActions = {
                     ideas: ideaRelocations,
                 }),
             }));
+            // Sets and chart books follow the moved songs (04-H1).
+            useStore.setState((store) => rehomeCompilations(store.workspaces, store.songbooks, store.setlists));
 
             state.setClipClipboard(null);
             return movedIdeas.map((idea) => idea.id);
