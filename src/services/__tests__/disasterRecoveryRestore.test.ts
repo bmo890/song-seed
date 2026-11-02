@@ -151,6 +151,9 @@ jest.mock("../../state/useStore", () => ({
 
 jest.mock("../../state/persistRuntime", () => ({
     setPersistBlocked: (...args: unknown[]) => mockSetPersistBlocked(...args),
+    // A boot that read the whole library (the cleanup waits for one, audit 03 #8).
+    isHydrationReadAuthoritative: () => true,
+    getHydrationDegradedWorkspaceIds: () => [],
 }));
 
 jest.mock("../../state/restoreRuntime", () => ({
