@@ -73,6 +73,7 @@ import { firstWritableWorkspaceId, isReadOnlyWorkspace, isWritableWorkspaceId } 
 import { SONG_NOOK_PREVIEW_AUDIO_DIR } from "../services/storagePaths";
 import { takeHoldsRecorder } from "../services/recordingTakeSession";
 import { claimLibraryOperation } from "../services/libraryOperationGate";
+import { clearPersistBlockedSignalFor } from "./persistRuntime";
 
 const buildIdeaId = () => genId("idea");
 const buildClipId = () => genId("clip");
@@ -3539,6 +3540,8 @@ export const appActions = {
             // The raw commit lands the library and re-arms the write-authority gate (a
             // damaged boot never read the disk).
             await persistRestoredAppStoreSnapshot(useStore.getState());
+            // Saving works again; the "Saving is paused" bar a damaged read raised goes.
+            clearPersistBlockedSignalFor("authority");
             await persistCurrentStoreSnapshot();
             await releaseHeldSafetyCopy().catch(() => {});
             persistLog("manifest.restored", `${copy.ideaCount} ideas`);

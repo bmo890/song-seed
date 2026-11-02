@@ -140,6 +140,13 @@ export function clearPersistBlockedSignal() {
     notifyPersistHealth();
 }
 
+/** Clear the signal only when `reason` raised it (a restored library re-arms the
+ *  write-authority gate; a guard lock is not this restore's to lift). */
+export function clearPersistBlockedSignalFor(reason: string) {
+    if (persistBlockedReason !== reason) return;
+    clearPersistBlockedSignal();
+}
+
 export function isPersistFailing() {
     return persistFailing;
 }

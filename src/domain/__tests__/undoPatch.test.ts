@@ -33,17 +33,17 @@ describe("undo Make sketch", () => {
         const imported = idea("new", [clip("cn")]);
         const patch = undoMadeSketch(afterGather([imported, sketch]), made);
         const ws = patch.workspaces![0]!;
-        expect(ws.ideas.map((item) => item.id).sort()).toEqual(["a", "b", "new"]);
+        expect(ws.ideas.map((item: { id: string }) => item.id).sort()).toEqual(["a", "b", "new"]);
         expect(ws.collections[0]!.ideasListState.hiddenIdeaIds).toEqual(["b"]);
-        expect(patch.activityEvents!.map((event) => event.ideaId)).toEqual(["a", "new"]);
+        expect(patch.activityEvents!.map((event: { ideaId: string }) => event.ideaId)).toEqual(["a", "new"]);
         expect(patch.playlists![0]!.items[0]!.ideaId).toBe("b");
     });
 
     it("a sketch the person made their own keeps what it gained", () => {
         const recordedInto = { ...sketch, clips: [clip("fresh", { isPrimary: false }), ...sketch.clips] };
         const patch = undoMadeSketch(afterGather([recordedInto]), made);
-        const kept = patch.workspaces![0]!.ideas.find((item) => item.id === "sketch")!;
-        expect(kept.clips.map((c) => c.id)).toEqual(["fresh"]);
+        const kept = patch.workspaces![0]!.ideas.find((item: { id: string }) => item.id === "sketch")!;
+        expect(kept.clips.map((c: { id: string }) => c.id)).toEqual(["fresh"]);
         expect(kept.clips[0]!.isPrimary).toBe(true);
     });
 });
