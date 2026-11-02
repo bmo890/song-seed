@@ -163,6 +163,7 @@
         }
       ],
       "./plugins/withSongNookAndroidVariants",
+      "./plugins/withSongNookBackupRules",
       "expo-font",
       "expo-sqlite",
       [
