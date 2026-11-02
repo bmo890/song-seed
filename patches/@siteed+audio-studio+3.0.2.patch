@@ -506,10 +506,10 @@ index 6f93aa4..9f8a4ef 100644
 +            }
 +        }
 +
-         // Let the loop leave on its own first, outside the lock it reads under.
-         if (_isRecording.get()) {
-             stopRequested.set(true)
-@@ -1263,6 +1321,43 @@
+         synchronized(audioRecordLock) {
+             if (!_isRecording.get()) {
+                 LogUtils.e(CLASS_NAME, "Recording is not active")
+@@ -1255,6 +1313,43 @@
              LogUtils.e(CLASS_NAME, "⏺️ Failed to resume recording: ${e.message}", e)
              releaseWakeLock()
              promise.reject("RESUME_FAILED", "Failed to resume recording: ${e.message}", e)
@@ -553,7 +553,7 @@ index 6f93aa4..9f8a4ef 100644
          }
      }
  
-@@ -1492,7 +1587,7 @@
+@@ -1484,7 +1579,7 @@
  
                  // Recording loop
                  var loopCount = 0
@@ -562,7 +562,7 @@ index 6f93aa4..9f8a4ef 100644
                      loopCount++
                      if (loopCount % 100 == 0) {
                          LogUtils.d(CLASS_NAME, "Recording loop iteration $loopCount, isRecording: ${_isRecording.get()}, accumulatedAudioSize: ${accumulatedAudioData?.size() ?: 0}, accumulatedAnalysisSize: ${accumulatedAnalysisData.size()}")
-@@ -1525,8 +1620,18 @@
+@@ -1517,8 +1612,18 @@
                      if (bytesRead > 0) {
                          // Only write to file if primary output is enabled
                          if (fos != null) {
@@ -583,7 +583,7 @@ index 6f93aa4..9f8a4ef 100644
                          }
                          totalDataSize += bytesRead
                          
-@@ -1627,7 +1732,49 @@
+@@ -1619,7 +1724,49 @@
                  releaseWakeLock()
              }
              LogUtils.e(CLASS_NAME, "Error in recording process", e)
@@ -633,7 +633,7 @@ index 6f93aa4..9f8a4ef 100644
      }
  
      private fun emitAudioData(audioData: ByteArray, length: Int) {
-@@ -1719,6 +1866,12 @@
+@@ -1711,6 +1858,12 @@
              )
          }
  
@@ -646,7 +646,7 @@ index 6f93aa4..9f8a4ef 100644
          mainHandler.post {
              try {
                  eventSender.sendExpoEvent(Constants.AUDIO_EVENT_NAME, baseBundle)
-@@ -1776,6 +1929,9 @@
+@@ -1768,6 +1921,9 @@
                  lastEmittedSize = 0
                  streamPosition = 0
                  recordingStartTime = 0
