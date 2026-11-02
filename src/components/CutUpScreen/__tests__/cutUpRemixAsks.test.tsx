@@ -39,7 +39,7 @@ function fakeModel(draft: string) {
 it("Remix asks before replacing a draft found on a fresh mount", () => {
   let menu: any = null;
   const showMenu = jest.spyOn(actionMenuStore, "show").mockImplementation((config: any) => (menu = config));
-  let dialog: DialogConfig | null = null;
+  let dialog = null as DialogConfig | null;
   const unsubscribe = dialogStore.subscribe((config) => (dialog = config));
   const model = fakeModel("the final draft, written by hand");
 

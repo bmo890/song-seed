@@ -912,6 +912,7 @@ function PlayerScreenInner({
 
   const {
     pinActionsTarget,
+    pinActionsOwner,
     pinActionsVisible,
     setPinActionsTarget,
     setPinActionsVisible,
@@ -2200,12 +2201,12 @@ function PlayerScreenInner({
         initialName={pinActionsTarget?.label ?? ""}
         initialNote={pinActionsTarget?.note ?? ""}
         onConfirm={(edits) => {
-          if (pinActionsTarget) handleEditPin(pinActionsTarget.id, edits);
+          if (pinActionsTarget) handleEditPin(pinActionsTarget.id, edits, pinActionsOwner);
           setPinActionsVisible(false);
           setPinActionsTarget(null);
         }}
         onDelete={() => {
-          if (pinActionsTarget) handleDeletePinId(pinActionsTarget.id);
+          if (pinActionsTarget) handleDeletePinId(pinActionsTarget.id, pinActionsOwner);
           setPinActionsVisible(false);
           setPinActionsTarget(null);
         }}

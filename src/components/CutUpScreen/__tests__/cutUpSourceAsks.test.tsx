@@ -30,7 +30,7 @@ const { act } = TestRenderer;
  * replaced typed or pasted source lines without asking.
  */
 it("From Lyric Pad asks before replacing typed source lines", () => {
-  let dialog: DialogConfig | null = null;
+  let dialog = null as DialogConfig | null;
   const unsubscribe = dialogStore.subscribe((config) => (dialog = config));
   const model = {
     sourceField: { draft: "a verse I pasted", onChangeText: jest.fn(), flush: jest.fn() },
