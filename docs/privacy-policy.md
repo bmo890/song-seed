@@ -1,6 +1,6 @@
 # SongNook Privacy Policy
 
-**Effective date:** November 1, 2026
+**Effective date:** November 2, 2026
 
 SongNook is a songwriting app built on a simple promise: **your music stays yours, on your phone.** There are no accounts, no ads, no analytics and no tracking.
 
@@ -8,9 +8,9 @@ SongNook is a songwriting app built on a simple promise: **your music stays your
 
 Everything you make in SongNook (recordings, ideas, lyrics, chords, notes, marks and settings) is stored on your device. There is no library sync: we cannot see, open or recover your work, because it never reaches us unless you send something with SongNook Send.
 
-On iPhone, your iCloud backup includes SongNook's data unless you turn that off. On Android, Google's cloud backup doesn't carry your library (it is too large for it), but moving to a new phone with Android's own transfer does. Those backups and transfers are handled by Apple or Google under their policies; we never see them.
+On iPhone, your iCloud backup includes SongNook's data unless you turn that off. On Android, Google's backup can include SongNook's data, but it stops at 25 MB, so it usually can't hold a whole library; use SongNook's own backup for that. Those backups are held by Apple or Google under their policies; we never see them.
 
-When you back up, export or share through your phone's share sheet, the files go only where you choose (Files, iCloud Drive, Google Drive, another app). If you turn on automatic backup, SongNook keeps one backup in the folder you pick and updates it there; it goes nowhere else.
+When you back up, export or share through your phone's share sheet, the files go only where you choose (Files, iCloud Drive, Google Drive, another app).
 
 ## What SongNook sends, and why
 
