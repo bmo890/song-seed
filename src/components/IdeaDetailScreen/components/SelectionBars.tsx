@@ -189,7 +189,6 @@ export function SelectionBars() {
           description: t("songDetail.branchDesc"),
           icon: actionIcons.branch,
           onPress: async () => {
-            const previousClips = selectedIdea.clips;
             const newClipId = `clip-${Date.now()}`;
             let newAudioUri: string | undefined = undefined;
 
@@ -232,9 +231,11 @@ export function SelectionBars() {
               return;
             }
             undo.showUndo(t("songDetail.branched", { title: clip.title }), () => {
+              // Only the branch goes: a take recorded or renamed in the window stays
+              // (it used to put back the whole take list from before; audit root cause 3).
               useStore.getState().updateIdeas((ideas) =>
                 ideas.map((idea) =>
-                  idea.id !== ideaId ? idea : { ...idea, clips: previousClips }
+                  idea.id !== ideaId ? idea : { ...idea, clips: idea.clips.filter((c) => c.id !== newClipId) }
                 ),
                 { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, ideaId) }
               );

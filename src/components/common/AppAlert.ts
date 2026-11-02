@@ -98,8 +98,8 @@ export const AppAlert = {
     title: string,
     message: string | undefined,
     buttons: DialogButton[],
-    opts?: { onDismiss?: () => void }
+    opts?: { onDismiss?: () => void; waitsForAnswer?: boolean }
   ): void {
-    dialogStore.show({ title, message, buttons, onDismiss: opts?.onDismiss });
+    dialogStore.show({ title, message, buttons, onDismiss: opts?.onDismiss, waitsForAnswer: opts?.waitsForAnswer });
   },
 };

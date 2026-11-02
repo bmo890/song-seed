@@ -9,6 +9,7 @@ import { isPersistBlocked } from "../state/persistRuntime";
 import { getRestoreRestartState } from "../state/restoreRuntime";
 import { isBackupOperationCancelled } from "./backupOperation";
 import { waitForIdleInteractions } from "./interactionGate";
+import { claimLibraryOperation, runningLibraryOperation } from "./libraryOperationGate";
 import { AutoBackupError, runFolderBackup } from "./automaticBackup";
 import { isBackupFolderAvailable } from "../../modules/songnook-file-io";
 
@@ -24,11 +25,13 @@ function isRecordingContextOpen() {
 
 /**
  * Anything heavy already running, or the library mid-restore: an automatic run waits.
- * (Backup, restore and export share the process slot; imports and Send have their own.)
+ * The library operation gate answers for import, restore, archive, unarchive, recover
+ * and backup; export shares the process slot; clip imports and Send have their own.
  */
 export function automaticBackupBlockedReason(): string | null {
     if (!isBackupFolderAvailable()) return "unavailable";
     if (isRecordingContextOpen()) return "recording";
+    if (runningLibraryOperation()) return "process";
     if (useProcessStore.getState().process?.status === "running") return "process";
     if (useImportStore.getState().jobs.some((job) => job.status === "running")) return "import";
     if (useSendJobStore.getState().job?.status === "running") return "send";
@@ -54,6 +57,14 @@ export async function runAutomaticBackupNow({ userStarted = false }: { userStart
     if (automaticBackupBlockedReason()) return;
 
     const own = new AbortController();
+    // The run holds the one heavy-operation slot, but steps aside: a take, or an
+    // operation the person starts, stops it instead of being refused.
+    let release: () => void;
+    try {
+        release = claimLibraryOperation("backup", { stepAside: () => own.abort() });
+    } catch {
+        return;
+    }
     controller = own;
     useAutomaticBackupRunStore.setState({ running: true });
     const startedAt = Date.now();
@@ -82,6 +93,7 @@ export async function runAutomaticBackupNow({ userStarted = false }: { userStart
         useStore.getState().updateAutomaticBackup({ lastAttemptAt: startedAt, lastError: errorCode(error) });
         if (userStarted) haptic.error();
     } finally {
+        release();
         if (controller === own) controller = null;
         useAutomaticBackupRunStore.setState({ running: false });
     }

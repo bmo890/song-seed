@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { tellIfLibraryBusy } from "../../../services/libraryOperationGate";
 import { AppAlert } from "../../common/AppAlert";
 import { reportUnsupportedImports } from "../../common/importFeedback";
 import { useNavigation } from "@react-navigation/native";
@@ -171,7 +172,7 @@ export function useShareImportScreenModel({
         returnHome(navigation, { screen: "ReceivedHome" });
       }
     } catch (error) {
-      AppAlert.error(t("common.importFailed"), t("common.archiveReadFailed"));
+      if (!tellIfLibraryBusy(error)) AppAlert.error(t("common.importFailed"), t("common.archiveReadFailed"));
     } finally {
       if (cachedCopy) void FileSystem.deleteAsync(cachedCopy, { idempotent: true }).catch(() => {});
       setIsImportingArchive(false);

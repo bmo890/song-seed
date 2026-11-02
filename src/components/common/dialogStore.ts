@@ -29,6 +29,10 @@ export type DialogConfig = {
    *  A dialog whose cancel button carries state ("Not now" lifting a persist freeze)
    *  must pass the same handler here, or a back-press leaves that state stuck. */
   onDismiss?: () => void;
+  /** A question whose answer something waits on (the boot "Restore your library?").
+   *  While it is up, a later dialog waits its turn instead of replacing it: a replaced
+   *  dialog's handlers never run (audit 2026-11-02, 12g G-M3). */
+  waitsForAnswer?: boolean;
 };
 
 type Listener = (config: DialogConfig | null) => void;
@@ -43,15 +47,22 @@ const _listeners = new Set<Listener>();
 let _sheetHosts = 0;
 const _hostListeners = new Set<HostListener>();
 
+// Dialogs raised while a `waitsForAnswer` dialog is up, shown in order once it closes.
+let _waiting: DialogConfig[] = [];
+
 export const dialogStore = {
   show(config: DialogConfig) {
+    if (_config?.waitsForAnswer && _config !== config) {
+      _waiting.push(config);
+      return;
+    }
     _config = config;
     _listeners.forEach((fn) => fn(_config));
   },
 
   dismiss() {
-    _config = null;
-    _listeners.forEach((fn) => fn(null));
+    _config = _waiting.shift() ?? null;
+    _listeners.forEach((fn) => fn(_config));
   },
 
   subscribe(fn: Listener): () => void {

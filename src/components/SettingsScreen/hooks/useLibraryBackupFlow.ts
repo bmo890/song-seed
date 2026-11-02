@@ -50,6 +50,8 @@ import {
 } from "../../../services/operationPacing";
 import { formatBytes } from "../../../utils";
 import { buildPersistedAppStoreSnapshot, useStore } from "../../../state/useStore";
+import { claimLibraryOperation, tellIfLibraryBusy } from "../../../services/libraryOperationGate";
+import { currentFormatLocale } from "../../../i18n/formatLocale";
 import { formatProcessProgress, useProcessStore } from "../../../state/useProcessStore";
 import type { BackupReminderFrequency, Workspace } from "../../../types";
 import { haptic } from "../../../design/haptics";
@@ -209,7 +211,22 @@ export function useLibraryBackupFlow() {
         if (useProcessStore.getState().process?.status === "running") {
             return false;
         }
+        // One heavy library operation at a time, never under a take (root cause 3).
+        let release: () => void;
+        try {
+            release = claimLibraryOperation("backup");
+        } catch (error) {
+            tellIfLibraryBusy(error);
+            return false;
+        }
+        try {
+            return await runBackupHoldingSlot();
+        } finally {
+            release();
+        }
+    };
 
+    const runBackupHoldingSlot = async () => {
         const controller = new AbortController();
         const processId = `backup-${Date.now()}`;
         const store = useProcessStore.getState();
@@ -390,8 +407,28 @@ export function useLibraryBackupFlow() {
         if (useProcessStore.getState().process?.status === "running") {
             return;
         }
-        // A restore owns the library: an automatic run in flight stops first.
+        // A restore owns the library: an automatic run in flight stops first (it steps
+        // aside in the gate), and nothing else heavy may run beside it (root cause 3).
         cancelAutomaticBackup();
+        let release: () => void;
+        try {
+            release = claimLibraryOperation("restore");
+        } catch (error) {
+            tellIfLibraryBusy(error);
+            return;
+        }
+        try {
+            await runRestoreHoldingSlot(target, mode, allowIncomplete);
+        } finally {
+            release();
+        }
+    };
+
+    const runRestoreHoldingSlot = async (
+        target: RestoreTarget,
+        mode: "replace" | "merge",
+        allowIncomplete: boolean
+    ) => {
         const controller = new AbortController();
         const processId = `restore-${Date.now()}`;
         useProcessStore.getState().start({
@@ -399,6 +436,7 @@ export function useLibraryBackupFlow() {
             kind: "restore",
             title: mode === "merge" ? t("settingsBackup.merging") : t("settingsBackup.fromBackup"),
             onCancel: () => controller.abort(),
+            replacesLibrary: mode === "replace",
         });
         try {
             const restoreOptions: DisasterRecoveryRestoreOptions = {
@@ -415,6 +453,7 @@ export function useLibraryBackupFlow() {
                         ? () => buildPersistedAppStoreSnapshot(useStore.getState())
                         : undefined,
                 allowIncomplete,
+                confirmReplace: mode === "replace" ? confirmReplaceWithBackup : undefined,
             };
             const result =
                 target.kind === "zip"
@@ -462,6 +501,36 @@ export function useLibraryBackupFlow() {
             AppAlert.error(t("settingsBackup.restoreFailed"), message);
         }
     };
+
+    /**
+     * Replace, once the backup has been read: which backup this is (its date and size)
+     * against what the library holds now, before anything is written (audit 02 G3).
+     */
+    const confirmReplaceWithBackup = (backup: { createdAt: number; ideaCount: number }) =>
+        new Promise<boolean>((resolve) => {
+            const date = Number.isFinite(backup.createdAt)
+                ? new Date(backup.createdAt).toLocaleDateString(currentFormatLocale(), {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                  })
+                : "—";
+            const current = useStore.getState().workspaces.reduce((sum, ws) => sum + ws.ideas.length, 0);
+            AppAlert.custom(
+                t("replaceRestore.title"),
+                t("replaceRestore.body", { date, count: backup.ideaCount, current }),
+                [
+                    { label: t("common.cancel"), style: "cancel", onPress: () => resolve(false) },
+                    {
+                        label: t("settingsBackup.replaceEverything"),
+                        style: "destructive",
+                        icon: "swap-horizontal-outline",
+                        onPress: () => resolve(true),
+                    },
+                ],
+                { onDismiss: () => resolve(false) }
+            );
+        });
 
     /** Merge or replace: the same question for a file and for the folder. */
     const askRestoreMode = (target: RestoreTarget, sizeLine: string) => {

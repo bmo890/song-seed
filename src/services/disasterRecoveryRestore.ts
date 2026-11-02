@@ -103,6 +103,11 @@ export type DisasterRecoveryRestoreOptions = BackupOperationOptions & {
      * everything else. Only set after the user explicitly confirms.
      */
     allowIncomplete?: boolean;
+    /**
+     * Replace only: asked once the backup's manifest has been read and checked, before
+     * anything is written, with the backup's date and size. False cancels the restore.
+     */
+    confirmReplace?: (backup: { createdAt: number; ideaCount: number }) => Promise<boolean>;
 };
 
 // Error classes live in disasterRecoveryErrors.ts (shared with the validator); re-exported
@@ -296,6 +301,16 @@ export async function restoreFromSource(
     }
 
     const mergeMode = options?.mode === "merge";
+    // Replace drops everything the backup lacks. The person sees which backup that is
+    // (its date and size) before anything is written, and may still back out
+    // (audit 2026-11-02, 02 G3).
+    if (!mergeMode && options?.confirmReplace) {
+        const go = await options.confirmReplace({
+            createdAt: Date.parse(manifest.createdAt),
+            ideaCount: manifest.counts.ideas,
+        });
+        if (!go) throw new BackupOperationCancelledError();
+    }
     if (mergeMode) {
         if (!options?.currentSnapshot) {
             throw new DrRestoreError("internal", "Merge restore requires the current library snapshot.");

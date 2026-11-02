@@ -25,6 +25,7 @@ import {
 import type { MagpieFragment, MagpieLanguage, MagpieStep } from "../../../types";
 import type { MagpieHeGenre } from "../../../config/magpieService";
 import { useMagpiePrefsStore } from "../../../state/useMagpiePrefsStore";
+import { restoreRemovedItem } from "../../../domain/undoPatch";
 import { useTranslation } from "react-i18next";
 
 type LoadStatus = { loading: boolean; error: MagpieFetchErrorKind | null };
@@ -200,8 +201,22 @@ export function useMagpieScreenModel() {
       });
       // Removing is immediate; Undo in the toast puts the word back (the Page
       // step has no undo glyphs of its own).
+      // Undo puts back this one word where it stood, into the spark as it is then:
+      // words collected or split in the meantime stay (audit 12g G-L3).
+      const wasUsed = before.usedFragmentIds.includes(id);
       toast(t("magpie.removedWord", { text: word }), undefined, {
-        action: { label: t("wordSparks.undo"), onPress: () => apply(before) },
+        action: {
+          label: t("wordSparks.undo"),
+          onPress: () => {
+            const live = useStore.getState().magpieSparks.find((item) => item.id === spark.id);
+            if (!live) return;
+            apply({
+              fragments: restoreRemovedItem(live.fragments, before.fragments, id),
+              usedFragmentIds:
+                wasUsed && !live.usedFragmentIds.includes(id) ? [...live.usedFragmentIds, id] : live.usedFragmentIds,
+            });
+          },
+        },
       });
     },
     [spark, apply, fragmentHistory, t]

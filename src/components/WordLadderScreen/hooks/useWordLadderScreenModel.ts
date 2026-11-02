@@ -28,6 +28,7 @@ import {
 import type { WordLadderExercise, WordLadderStep, WordLadderWord } from "../../../types";
 import { useTranslation } from "react-i18next";
 import { useWordLanguage } from "../../../hooks/useWordLanguage";
+import { restoreRemovedItem } from "../../../domain/undoPatch";
 
 export function useWordLadderScreenModel() {
   const { t } = useTranslation();
@@ -230,8 +231,29 @@ export function useWordLadderScreenModel() {
       setArmedWord((prev) => (prev && prev.wordId === wordId ? null : prev));
       // Removing is immediate; Undo in the toast puts the word back where it
       // was, with any pairs it was part of.
+      // Undo puts back this word and the pairs it was in, into the exercise as it is
+      // then: words added or paired in the meantime stay (audit 12g G-L3).
       toast(t("wordLadder.removed", { word: removed?.text ?? "" }), undefined, {
-        action: { label: t("wordSparks.undo"), onPress: () => apply(before) },
+        action: {
+          label: t("wordSparks.undo"),
+          onPress: () => {
+            const live = useStore.getState().wordLadders.find((item) => item.id === exercise.id);
+            if (!live) return;
+            const nextA = column === "a" ? restoreRemovedItem(live.columnA, before.columnA, wordId) : live.columnA;
+            const nextB = column === "b" ? restoreRemovedItem(live.columnB, before.columnB, wordId) : live.columnB;
+            const livePairIds = new Set(live.pairings.map((pairing) => pairing.id));
+            const lostPairs = before.pairings.filter(
+              (pairing) =>
+                !livePairIds.has(pairing.id) &&
+                (pairing.columnAWordId === wordId || pairing.columnBWordId === wordId)
+            );
+            apply({
+              columnA: nextA,
+              columnB: nextB,
+              pairings: dropPairingsForRemovedWords([...live.pairings, ...lostPairs], nextA, nextB),
+            });
+          },
+        },
       });
     },
     [apply, exercise, pairingHistory, t]

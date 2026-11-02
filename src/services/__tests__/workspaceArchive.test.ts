@@ -13,6 +13,8 @@ jest.mock("@react-native-async-storage/async-storage", () =>
 
 const mockFiles = new Map<string, Uint8Array>();
 const mockDirectories = new Set<string>(["file:///doc/", "file:///doc/songnook"]);
+/** Set to a byte value to flip the first such byte of the next package written (a bad write). */
+let mockCorruptNextPackageFill: number | null = null;
 
 jest.mock("expo-file-system/legacy", () => ({
     documentDirectory: "file:///doc/",
@@ -36,6 +38,12 @@ jest.mock("expo-file-system/legacy", () => ({
     }),
     deleteAsync: jest.fn(async (uri: string) => {
         mockFiles.delete(uri);
+    }),
+    moveAsync: jest.fn(async ({ from, to }: { from: string; to: string }) => {
+        const bytes = mockFiles.get(from);
+        if (!bytes) throw new Error(`Missing mock file: ${from}`);
+        mockFiles.set(to, bytes);
+        mockFiles.delete(from);
     }),
 }));
 
@@ -131,7 +139,14 @@ jest.mock("../zipArchive", () => ({
         }
         // Stored (uncompressed), matching the real createZipArchive — the streaming
         // restore reader only accepts stored entries.
-        mockFiles.set(archiveUri, zip(zipInput, { level: 0 }));
+        const packed: Uint8Array = zip(zipInput, { level: 0 });
+        if (mockCorruptNextPackageFill != null) {
+            // The payload run of that fill value, past any header byte that might match.
+            const at = packed.indexOf(mockCorruptNextPackageFill, packed.length / 4);
+            packed[at] = packed[at] ^ 0xff;
+            mockCorruptNextPackageFill = null;
+        }
+        mockFiles.set(archiveUri, packed);
     },
 }));
 
@@ -453,5 +468,43 @@ describe("v1 package compatibility", () => {
         expect(restoredClip.overdub?.stems.map((stem) => stem.audioUri)).toEqual([STEM_A_URI, STEM_B_URI]);
         expect(mockFiles.has(STEM_A_URI)).toBe(true);
         expect(mockFiles.has(STEM_B_URI)).toBe(true);
+    });
+});
+
+/** Flip one payload byte of the file filled with `fill` inside a written package. */
+function corruptPackage(archiveUri: string, fill: number) {
+    const packed = mockFiles.get(archiveUri)!;
+    const at = packed.indexOf(fill, packed.length / 4);
+    packed[at] = packed[at] ^ 0xff;
+}
+
+describe("audit 2026-11-02: never trust or overwrite what isn't proven", () => {
+    it("reads the package back before archiving relies on it (03 #7)", async () => {
+        mockCorruptNextPackageFill = 5; // the rendered mix's bytes, damaged on the way to disk
+        await expect(archiveWorkspaceToDevice(buildWorkspace())).rejects.toThrow();
+        // Nothing half-made is left to be mistaken for a good package.
+        expect([...mockFiles.keys()].some((uri) => uri.endsWith(".zip"))).toBe(false);
+    });
+
+    it("a failed unarchive never truncates or deletes a file that was already there (03 #5)", async () => {
+        const masterBytes = Buffer.from(mockFiles.get(MASTER_URI)!);
+        const result = await archiveWorkspaceToDevice(buildWorkspace());
+        // The master is shared with a copy in another workspace, so it stayed on disk;
+        // the rest went to the trash.
+        [SOURCE_URI, STEM_A_URI, STEM_B_URI, MIX_URI].forEach((uri) => mockFiles.delete(uri));
+        corruptPackage(result.archiveState.archiveUri, 5); // a later entry is damaged
+
+        await expect(restoreWorkspaceFromDevice(result.archivedWorkspace)).rejects.toThrow();
+        expect(mockFiles.has(MASTER_URI)).toBe(true);
+        expect(Buffer.from(mockFiles.get(MASTER_URI)!)).toEqual(masterBytes);
+    });
+
+    it("unarchive keeps an idea that reached the stub after it was packed (10-M2)", async () => {
+        const result = await archiveWorkspaceToDevice(buildWorkspace());
+        const later = { ...result.archivedWorkspace.ideas[0], id: "idea-later", title: "Came later", clips: [] };
+        const stub = { ...result.archivedWorkspace, ideas: [later, ...result.archivedWorkspace.ideas] };
+
+        const restore = await restoreWorkspaceFromDevice(stub as Workspace);
+        expect(restore.restoredWorkspace.ideas.map((idea) => idea.id)).toEqual(["idea-later", "idea-1"]);
     });
 });

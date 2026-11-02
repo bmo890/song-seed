@@ -5,6 +5,7 @@ import {
     extractStoredZipEntryToFile,
     indexStoredZipArchive,
     readStoredZipEntryBytes,
+    verifyStoredZipEntryReadable,
     type StoredZipIndex,
 } from "./storedZipArchive";
 import { normalizeWorkspaces } from "../state/dataSlice";
@@ -184,9 +185,31 @@ function stripWorkspaceMedia(workspace: Workspace, archiveState: WorkspaceArchiv
     };
 }
 
-function mergeRestoredWorkspace(currentWorkspace: Workspace, snapshotWorkspace: Workspace): Workspace {
+/**
+ * The package's snapshot comes back, with the stub's name. Anything the stub holds that
+ * the package lacks (an idea or a take that reached the workspace after it was packed,
+ * by any path) stays: unarchive never drops what the person can see
+ * (audit 2026-11-02, 10-M2). Its audio was never stripped, so it plays as it did.
+ */
+export function mergeRestoredWorkspace(currentWorkspace: Workspace, snapshotWorkspace: Workspace): Workspace {
+    const packedIdeaIds = new Set(snapshotWorkspace.ideas.map((idea) => idea.id));
+    const packedCollectionIds = new Set(snapshotWorkspace.collections.map((collection) => collection.id));
+    const stubIdeasById = new Map(currentWorkspace.ideas.map((idea) => [idea.id, idea]));
+    const ideas = snapshotWorkspace.ideas.map((idea) => {
+        const stub = stubIdeasById.get(idea.id);
+        if (!stub) return idea;
+        const packedClipIds = new Set(idea.clips.map((clip) => clip.id));
+        const laterClips = stub.clips.filter((clip) => !packedClipIds.has(clip.id));
+        return laterClips.length > 0 ? { ...idea, clips: [...idea.clips, ...laterClips] } : idea;
+    });
+    const laterIdeas = currentWorkspace.ideas.filter((idea) => !packedIdeaIds.has(idea.id));
+    const laterCollections = currentWorkspace.collections.filter(
+        (collection) => !packedCollectionIds.has(collection.id)
+    );
     return {
         ...snapshotWorkspace,
+        collections: [...snapshotWorkspace.collections, ...laterCollections],
+        ideas: [...laterIdeas, ...ideas],
         title: currentWorkspace.title,
         description: currentWorkspace.description,
         isArchived: false,
@@ -282,6 +305,21 @@ export async function archiveWorkspaceToDevice(workspace: Workspace): Promise<Wo
     // partway through packaging (mirrors the disaster-recovery backup guard).
     await ensureBackupDiskSpace(originalAudioBytes, "archive");
     await createZipArchive(archiveUri, archiveEntries);
+    // The live audio is trashed on the strength of this package, and after 14 days the
+    // package is the only copy: read every entry back before anyone relies on it
+    // (audit 2026-11-02, 03 #7). A package that fails is removed, nothing is stripped.
+    try {
+        const verification = await verifyArchiveFile(archiveUri, workspaceSnapshot.id, mediaFiles);
+        for (const file of mediaFiles) {
+            await verifyStoredZipEntryReadable(
+                verification.archiveIndex,
+                verification.archiveIndex.entries.get(file.archivePath)!
+            );
+        }
+    } catch (error) {
+        await FileSystem.deleteAsync(archiveUri, { idempotent: true }).catch(() => {});
+        throw error;
+    }
     const archiveInfo = await FileSystem.getInfoAsync(archiveUri);
     const packageSizeBytes =
         "size" in archiveInfo && typeof archiveInfo.size === "number" ? archiveInfo.size : 0;
@@ -347,7 +385,11 @@ export async function restoreWorkspaceFromDevice(
         overrideArchiveUri ?? workspace.archiveState.archiveUri,
         workspace.id
     );
+    // Files this restore created. Only these are rolled back on a failure: a file that
+    // was already there belongs to someone (an idea copied into another workspace shares
+    // its audio) and must never be truncated or deleted here (audit 2026-11-02, 03 #5).
     const writtenFiles: ArchiveableMediaFile[] = [];
+    const restoredUris: string[] = [];
 
     try {
         for (const file of verification.manifest.audioFiles) {
@@ -358,16 +400,34 @@ export async function restoreWorkspaceFromDevice(
             const targetUri = rebaseManagedUri(file.liveUri);
             assertManagedRestoreUri(targetUri);
 
-            // Streams in bounded chunks and verifies the entry's CRC in-flight.
-            await extractStoredZipEntryToFile(verification.archiveIndex, entry, targetUri);
-            const restoredInfo = await FileSystem.getInfoAsync(targetUri);
-            if (!restoredInfo.exists) {
-                throw new Error(`Could not restore ${targetUri}.`);
+            const existing = await FileSystem.getInfoAsync(targetUri);
+            if (existing.exists && typeof existing.size === "number" && existing.size === file.originalSizeBytes) {
+                // Still on disk (shared with a copy elsewhere): nothing to write.
+                restoredUris.push(targetUri);
+                continue;
             }
-            if (typeof restoredInfo.size === "number" && restoredInfo.size !== file.originalSizeBytes) {
-                throw new Error(`Restored file size mismatch for ${targetUri}.`);
+
+            // Extract beside the target, then move into place: the extractor truncates
+            // its destination and deletes it on any error, which must never happen to a
+            // file that is already there.
+            const stagingUri = `${targetUri}.restoring`;
+            try {
+                // Streams in bounded chunks and verifies the entry's CRC in-flight.
+                await extractStoredZipEntryToFile(verification.archiveIndex, entry, stagingUri);
+                const restoredInfo = await FileSystem.getInfoAsync(stagingUri);
+                if (!restoredInfo.exists) {
+                    throw new Error(`Could not restore ${targetUri}.`);
+                }
+                if (typeof restoredInfo.size === "number" && restoredInfo.size !== file.originalSizeBytes) {
+                    throw new Error(`Restored file size mismatch for ${targetUri}.`);
+                }
+                if (existing.exists) await FileSystem.deleteAsync(targetUri, { idempotent: true });
+                await FileSystem.moveAsync({ from: stagingUri, to: targetUri });
+            } finally {
+                await FileSystem.deleteAsync(stagingUri, { idempotent: true }).catch(() => {});
             }
-            writtenFiles.push({ ...file, liveUri: targetUri });
+            if (!existing.exists) writtenFiles.push({ ...file, liveUri: targetUri });
+            restoredUris.push(targetUri);
         }
     } catch (error) {
         await Promise.all(
@@ -395,7 +455,7 @@ export async function restoreWorkspaceFromDevice(
         restoredWorkspace: normalizeRestoredWorkspace(
             mergeRestoredWorkspace(workspace, verification.workspaceSnapshot)
         ),
-        restoredAudioUris: writtenFiles.map((file) => file.liveUri),
+        restoredAudioUris: restoredUris,
         warnings,
     };
 }

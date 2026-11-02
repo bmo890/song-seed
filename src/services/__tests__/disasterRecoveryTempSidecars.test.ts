@@ -52,6 +52,7 @@ import {
     cleanupInterruptedDisasterRecoveryRestores,
     markDisasterRecoveryRestoreCommitted,
 } from "../disasterRecoveryTemp";
+import { setHydrationDegradedWorkspaceIds, setHydrationReadOutcome } from "../../state/persistRuntime";
 
 const TOKEN = "1700000000000-abc123";
 const AUDIO = `songnook/audio/restored-${TOKEN}/clip-1.m4a`;
@@ -75,7 +76,11 @@ function workspacesUsing(audioPath: string) {
     ] as never;
 }
 
-beforeEach(() => mockFiles.clear());
+beforeEach(() => {
+    mockFiles.clear();
+    setHydrationReadOutcome("data");
+    setHydrationDegradedWorkspaceIds([]);
+});
 
 it("keeps the restored waveform sidecar of audio the library still uses", async () => {
     mockFiles.set(`file:///doc/${AUDIO}`, "audio");
@@ -92,4 +97,22 @@ it("keeps the restored waveform sidecar of audio the library still uses", async 
     // Files no clip uses still go, sidecars included.
     expect(mockFiles.has(`file:///doc/${DROPPED}`)).toBe(false);
     expect(mockFiles.has(`file:///doc/${DROPPED}.waveform`)).toBe(false);
+});
+
+it("waits for a boot that read the whole library before deleting restored files (03 #8)", async () => {
+    mockFiles.set(`file:///doc/${AUDIO}`, "audio");
+    mockFiles.set(`file:///doc/${DROPPED}`, "audio of a workspace set aside at this launch");
+    await beginDisasterRecoveryRestoreJournal(TOKEN, [AUDIO, DROPPED], []);
+    await markDisasterRecoveryRestoreCommitted(TOKEN);
+
+    // The first launch after the restore set a workspace aside: its clips aren't in view.
+    setHydrationDegradedWorkspaceIds(["ws-set-aside"]);
+    await cleanupInterruptedDisasterRecoveryRestores(workspacesUsing(AUDIO));
+    expect(mockFiles.has(`file:///doc/${DROPPED}`)).toBe(true);
+
+    // Nor over a read that never happened (a damaged meta row).
+    setHydrationDegradedWorkspaceIds([]);
+    setHydrationReadOutcome("failed");
+    await cleanupInterruptedDisasterRecoveryRestores(workspacesUsing(AUDIO));
+    expect(mockFiles.has(`file:///doc/${DROPPED}`)).toBe(true);
 });

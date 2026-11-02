@@ -27,6 +27,7 @@ import {
 } from "./persistRuntime";
 import { describeError, persistLog } from "../services/persistLog";
 import { PersistSkippedError } from "./persistedSnapshot";
+import { runInPersistOrder } from "./persistOrder";
 
 /**
  * zustand persist storage that shards the library across per-workspace SQLite rows so an
@@ -310,8 +311,14 @@ export function createShardedPersistStorage(): ShardedPersistStorage {
     };
 
     /** The one write path: the passive debounced write (lenient) and the durable
-     *  flush (strict) differ only in what happens when the write cannot land. */
-    async function writeSnapshot(name: string, value: PersistStorageValue, strict: boolean): Promise<void> {
+     *  flush (strict) differ only in what happens when the write cannot land. Each runs
+     *  plan → commit whole, in the order asked for (persistOrder.ts, audit 01-M1): a
+     *  first write still awaiting its disk checks can no longer commit after a newer one. */
+    function writeSnapshot(name: string, value: PersistStorageValue, strict: boolean): Promise<void> {
+        return runInPersistOrder(() => writeSnapshotInOrder(name, value, strict));
+    }
+
+    async function writeSnapshotInOrder(name: string, value: PersistStorageValue, strict: boolean): Promise<void> {
         {
             // Write-authority gate: a session that never successfully read the on-disk
             // library must not overwrite it. The meta rewrite + first-write orphan sweep
@@ -362,8 +369,11 @@ export function createShardedPersistStorage(): ShardedPersistStorage {
                 if (orphans.length > 0) extraDeletes = [...plan.deleteKeys, ...orphans];
             }
 
+            // The meta row goes LAST: if SQLite refuses and the rows go to the fallback one
+            // by one, a meta that names a workspace row which never landed must not land
+            // either (audit 01-M2). The fallback stops at the first row it loses.
             const outcome = await commitShardedWrite(
-                [plan.metaRow, ...(plan.activityRow ? [plan.activityRow] : []), ...plan.dirtyWorkspaceRows],
+                [...plan.dirtyWorkspaceRows, ...(plan.activityRow ? [plan.activityRow] : []), plan.metaRow],
                 extraDeletes,
                 { strict }
             );

@@ -6,6 +6,7 @@ import {
     reportPersistWriteSuccess,
 } from "../persistRuntime";
 import { describeError, persistLog } from "../../services/persistLog";
+import { runInPersistOrder } from "../persistOrder";
 
 /**
  * The SQLite key/value layer under zustand's persisted store: the sharded adapter
@@ -454,17 +455,26 @@ export async function commitShardedWrite(
         strict?: boolean;
     }
 ): Promise<ShardedWriteOutcome> {
-    const pendingWrites = writes.filter((row) => lastWritten.get(row.key) !== row.value);
     // DELETE is idempotent, so no need to dedupe deletes against the cache.
     const pendingDeletes = deletes;
-    if (pendingWrites.length === 0 && pendingDeletes.length === 0) return "sqlite";
+    // Deduped when the write RUNS, not when it is queued: a row equal to what SQLite held
+    // at queue time can differ from what an earlier queued write is about to put there
+    // (an Undo back to v0 queued behind the delete that wrote v1), and dropping it then
+    // left the deletion on disk (audit 2026-11-02, 01-M1).
+    let pendingWrites: { key: string; value: string }[] = [];
 
     let outcome: ShardedWriteOutcome = "lost";
 
     let landedInSqlite = false;
+    let nothingToWrite = false;
     let sqliteError: unknown = null;
     try {
         await enqueueWrite(async () => {
+        pendingWrites = writes.filter((row) => lastWritten.get(row.key) !== row.value);
+        if (pendingWrites.length === 0 && pendingDeletes.length === 0) {
+            nothingToWrite = true;
+            return;
+        }
         const startedAt = Date.now();
         try {
             const db = getDb();
@@ -509,11 +519,16 @@ export async function commitShardedWrite(
                     landed.push(row.key);
                 } catch {
                     // Both stores failed for this row — the in-memory store is still intact.
+                    // Stop here: callers put the rows that name others (the meta row) last,
+                    // so a meta pointing at a row that never landed is never parked for
+                    // replay (audit 2026-11-02, 01-M2).
                     anyRowLost = true;
+                    break;
                 }
             }
             const removed: string[] = [];
-            for (const key of pendingDeletes) {
+            // Deletes belong to the meta that stops naming those rows; without it they wait.
+            for (const key of anyRowLost ? [] : pendingDeletes) {
                 try {
                     await AsyncStorage.removeItem(key);
                     removed.push(key);
@@ -542,6 +557,7 @@ export async function commitShardedWrite(
         if (options?.strict) throw err;
         return "lost";
     }
+    if (nothingToWrite) return "sqlite";
     if (options?.strict && !landedInSqlite) {
         throw sqliteError instanceof Error ? sqliteError : new Error("commitShardedWrite: SQLite write failed");
     }
@@ -604,6 +620,12 @@ export async function deleteKv(key: string): Promise<void> {
  * exact location hydration reads from on next launch.
  */
 export async function persistRawSnapshot(name: string, value: string): Promise<void> {
+    // In the same ordered line as the sharded writes (persistOrder.ts): a write asked for
+    // before this commit can't plan late and land over it (audit 01-M1).
+    await runInPersistOrder(() => persistRawSnapshotNow(name, value));
+}
+
+async function persistRawSnapshotNow(name: string, value: string): Promise<void> {
     await enqueueWrite(async () => {
         const startedAt = Date.now();
         try {
@@ -620,16 +642,12 @@ export async function persistRawSnapshot(name: string, value: string): Promise<v
             persistLog("flush.ok", { ms: Date.now() - startedAt });
             reportPersistWriteSuccess();
         } catch (error) {
-            // A fallback copy is still useful for manual recovery, but it is not authoritative
-            // while a readable SQLite row exists. Surface the failure so callers never delete
-            // media or report a restore as successful without committing SQLite first.
+            // Nothing is parked for replay. The caller treats a refused raw commit as "this
+            // restore did not happen" and deletes the files it restored; a parked copy was
+            // replayed over the live library at the next launch, bringing back the restored
+            // snapshot with every take missing (audit 2026-11-02, 02 G4). Surface the
+            // failure so callers never delete media or report success without SQLite.
             persistLog("flush.failed", describeError(error));
-            try {
-                await AsyncStorage.setItem(name, value);
-                await recordFallbackWrite([name], []);
-            } catch {
-                // Preserve the authoritative SQLite error below.
-            }
             throw error;
         }
     });

@@ -51,6 +51,9 @@ export type PersistLogEvent =
     | "manifest.blocked"
     | "manifest.failed"
     | "manifest.newer"
+    | "manifest.rotated"
+    | "manifest.held"
+    | "manifest.restored"
     // Recording
     | "recording.attached"
     | "recording.flushFailed"

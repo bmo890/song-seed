@@ -1,5 +1,6 @@
 import * as FileSystem from "expo-file-system/legacy";
 import type { Workspace } from "../types";
+import { getHydrationDegradedWorkspaceIds, isHydrationReadAuthoritative } from "../state/persistRuntime";
 import {
     SONG_NOOK_ROOT,
     resolveManagedUri,
@@ -185,6 +186,11 @@ async function allPathsExist(paths: Iterable<string>) {
  * displaced files only after every currently referenced restored destination is present.
  */
 export async function cleanupInterruptedDisasterRecoveryRestores(workspaces: Workspace[]) {
+    // "Nothing points at this restored file" needs the whole library. A boot that
+    // couldn't read it, or set a workspace aside, would call that workspace's restored
+    // audio garbage and delete it outright; the journal waits for a whole read
+    // (audit 2026-11-02, 03 #8).
+    if (!isHydrationReadAuthoritative() || getHydrationDegradedWorkspaceIds().length > 0) return;
     try {
         const info = await FileSystem.getInfoAsync(RESTORE_JOURNAL_DIR);
         if (!info.exists) return;

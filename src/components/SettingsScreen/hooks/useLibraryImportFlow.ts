@@ -13,6 +13,7 @@ import { haptic } from "../../../design/haptics";
 import { enqueueMissingMetadataBackfill } from "../../../services/backgroundWaveformHydration";
 import { useStore } from "../../../state/useStore";
 import { useTranslation } from "react-i18next";
+import { tellIfLibraryBusy } from "../../../services/libraryOperationGate";
 import { userFacingMessage } from "../../../i18n/userFacingError";
 import { describeArchiveWarning } from "../../../services/archiveWarnings";
 
@@ -89,6 +90,7 @@ export function useLibraryImportFlow() {
             setPreview(null);
             return true;
         } catch (error) {
+            if (tellIfLibraryBusy(error)) return false;
             const message =
                 userFacingMessage(error, t("settingsImport.archiveFailed"));
             AppAlert.error(t("settingsImport.importFailed"), message);
