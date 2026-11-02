@@ -44,6 +44,9 @@ import type {
     ShareKind,
     Songbook,
 } from "../types";
+import { breakParentCycles } from "./parentLinks";
+
+export { breakParentCycles, hasParentCycle } from "./parentLinks";
 
 /** The two format ids an archive may carry (the pre-rename one is still accepted). */
 const ARCHIVE_FORMATS = new Set(["songnook-archive", "song-nook-archive"]);
@@ -95,50 +98,6 @@ function isRecord(value: unknown): value is Rec {
 
 function records(value: unknown): Rec[] {
     return Array.isArray(value) ? value.filter(isRecord) : [];
-}
-
-/** Bounded walk up a parent map: the chain of `id`'s ancestors, stopping at a repeat. */
-export function hasParentCycle(id: string, parentOf: ReadonlyMap<string, string | null | undefined>): boolean {
-    const seen = new Set<string>([id]);
-    let current = parentOf.get(id);
-    while (current) {
-        if (seen.has(current)) return true;
-        seen.add(current);
-        current = parentOf.get(current);
-    }
-    return false;
-}
-
-/**
- * Cut every cycle in a parent map, in place: each node in a cycle whose parent
- * closes the loop loses that parent (becomes a root). Dangling parents (not in the
- * map) are cut too. Returns how many links were cut.
- */
-export function breakParentCycles(parentOf: Map<string, string | null | undefined>): number {
-    let cut = 0;
-    for (const [id, parent] of parentOf) {
-        if (parent && (parent === id || !parentOf.has(parent))) {
-            parentOf.set(id, null);
-            cut += 1;
-        }
-    }
-    for (const id of parentOf.keys()) {
-        // Walk up; when the walk meets a node it has already visited, the link INTO
-        // that node from the last one walked closes the loop: cut it.
-        const path: string[] = [];
-        const onPath = new Set<string>();
-        let current: string | null | undefined = id;
-        while (current && !onPath.has(current)) {
-            onPath.add(current);
-            path.push(current);
-            current = parentOf.get(current);
-        }
-        if (current) {
-            parentOf.set(path[path.length - 1]!, null);
-            cut += 1;
-        }
-    }
-    return cut;
 }
 
 class Checker {

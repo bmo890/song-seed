@@ -590,7 +590,10 @@ function createStandaloneClipIdeaFromMove(source: ClipTransferSource, collection
     const standaloneIdea = source.sourceIdea?.kind === "clip" ? source.sourceIdea : null;
 
     return {
-        id: clip.id,
+        // Its own id, never the take's: a sketch made from this clip keeps the idea
+        // id, so a take moved out of it again would make a second idea with the
+        // same id, and deleting one deleted both (audit 2026-11-02, 08 R2).
+        id: buildIdeaId(),
         title: standaloneIdea?.title || clip.title,
         notes: standaloneIdea?.notes || clip.notes || "",
         status: "clip",

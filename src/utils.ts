@@ -491,10 +491,15 @@ export function getCollectionChildren(workspace: Workspace, collectionId: string
 export function getCollectionAncestors(workspace: Workspace, collectionId: string) {
   const ancestors: Collection[] = [];
   let current = getCollectionById(workspace, collectionId) ?? null;
+  // Bounded: a parent loop (from an archive or a backup) used to spin Revisit,
+  // Activity and Search forever, growing this list until the app was killed
+  // (audit 2026-11-02, 08 R3). The walk stops at the first repeat.
+  const seen = new Set<string>(current ? [current.id] : []);
 
   while (current?.parentCollectionId) {
     const parent = getCollectionById(workspace, current.parentCollectionId);
-    if (!parent) break;
+    if (!parent || seen.has(parent.id)) break;
+    seen.add(parent.id);
     ancestors.unshift(parent);
     current = parent;
   }

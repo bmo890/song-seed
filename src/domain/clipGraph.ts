@@ -1,5 +1,6 @@
 import { ClipGroup, ClipVersion } from "../types";
 import { getDateBucket } from "./dateBuckets";
+import { breakParentCycles } from "./parentLinks";
 
 export type SongTimelineSortMetric = "created" | "title" | "length";
 export type SongTimelineSortDirection = "asc" | "desc";
@@ -98,9 +99,19 @@ export function buildClipGraph(clips: ClipVersion[]): ClipGraph {
     clipsById.set(clip.id, clip);
   });
 
+  // A take's parent is honoured only while the chain reaches a root: a dangling
+  // parent or a loop (x ↔ y, from an archive or a backup) would otherwise hang
+  // takes under each other and hide them all (audit 2026-11-02, 08 R3).
+  const parentOf = new Map<string, string | null | undefined>();
+  let anyParent = false;
   clips.forEach((clip) => {
-    const rawParentId = clip.parentClipId ?? null;
-    const parentId = rawParentId && clipsById.has(rawParentId) ? rawParentId : null;
+    parentOf.set(clip.id, clip.parentClipId ?? null);
+    anyParent = anyParent || !!clip.parentClipId;
+  });
+  if (anyParent) breakParentCycles(parentOf);
+
+  clips.forEach((clip) => {
+    const parentId = parentOf.get(clip.id) ?? null;
     const current = childrenByParentId.get(parentId) ?? [];
     current.push(clip);
     childrenByParentId.set(parentId, current);
