@@ -31,10 +31,10 @@ import { validateDisasterRecoveryManifest } from "../../services/disasterRecover
 describe("the library's data version", () => {
     it("is bumped with the persisted shape (update both together)", () => {
         // A persisted-shape change bumps STORE_VERSION (state/storeVersion.ts) and this
-        // pin. Nested reshapes count too (13: hiddenDays as calendar days).
+        // pin. Nested reshapes count too (13: hiddenDays as calendar days, automaticBackup).
         expect(STORE_VERSION).toBe(13);
         expect(Object.keys(buildPersistedAppStoreSnapshot(useStore.getState())).sort()).toEqual([
-            "activeWorkspaceId", "activityEvents", "backupReminderFrequency", "backupReminderLastPromptedAt",
+            "activeWorkspaceId", "activityEvents", "automaticBackup", "backupReminderFrequency", "backupReminderLastPromptedAt",
             "bluetoothMonitoringCalibrations", "classicReel", "collectionLastOpenedAt", "cutUpSparks",
             "firstLaunchAt", "globalCustomClipTags", "hapticsEnabled", "hasSeenWelcome", "ideasFilter",
             "ideasSort", "ideasTagFilter", "lastSuccessfulBackupAt", "lastSuccessfulBackupFileName",
