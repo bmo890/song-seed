@@ -50,6 +50,41 @@ describe("collectSatelliteSnapshot", () => {
     });
 });
 
+describe("small preference stores (audit G11)", () => {
+    it("carries practice, layer, Compilations, sender-name and spark-zoom prefs through a backup", async () => {
+        const { usePracticePrefsStore } = require("../../state/usePracticePrefsStore");
+        const { useLayerPrefsStore } = require("../../state/useLayerPrefsStore");
+        const { useReceivedPrefsStore } = require("../../state/useReceivedPrefsStore");
+        const { useSendPrefsStore } = require("../../state/useSendPrefsStore");
+        const { useSparkPrefsStore } = require("../../state/useSparkPrefsStore");
+        useLayerPrefsStore.setState({ lanesCollapsed: true, collapsedLayerIds: ["l1"] });
+        useSendPrefsStore.setState({ senderName: "Ben" });
+        useReceivedPrefsStore.setState({ compilationFilter: "mine", compilationSort: "updated" });
+
+        const snapshot = await collectSatelliteSnapshot();
+
+        expect(snapshot.stores).toHaveProperty("practicePrefs.name", usePracticePrefsStore.persist.getOptions().name);
+        expect(snapshot.stores).toHaveProperty("layerPrefs.state", { lanesCollapsed: true, collapsedLayerIds: ["l1"] });
+        expect(snapshot.stores).toHaveProperty("receivedPrefs.state.compilationFilter", "mine");
+        expect(snapshot.stores).toHaveProperty("sendPrefs.state", { senderName: "Ben" });
+        expect(snapshot.stores).toHaveProperty("sparkPrefs.name", useSparkPrefsStore.persist.getOptions().name);
+
+        // And they come back under their own keys on a restore.
+        const roundTrip = sanitizeSatelliteSnapshot(JSON.parse(JSON.stringify(snapshot)))!;
+        const result = await writeSatelliteSnapshot(roundTrip, "replace");
+        expect(result.written).toEqual(
+            expect.arrayContaining(["practicePrefs", "layerPrefs", "receivedPrefs", "sendPrefs", "sparkPrefs"])
+        );
+        expect(JSON.parse((await AsyncStorage.getItem("songnook-send-prefs"))!).state).toEqual({ senderName: "Ben" });
+    });
+
+    it("merge keeps the phone's own preference", () => {
+        expect(mergeSatelliteState("sendPrefs" as never, { senderName: "Old" }, { senderName: "New" })).toEqual({
+            senderName: "New",
+        });
+    });
+});
+
 describe("sanitizeSatelliteSnapshot", () => {
     it("accepts the block it wrote and rejects anything else", () => {
         expect(sanitizeSatelliteSnapshot(undefined)).toBeUndefined();
