@@ -112,3 +112,13 @@ All three steps are built. The founder said to see them through (no real users y
 - Verified on the iOS simulator against the live server: app → web, web → app (Node
   and the real page), app → app; missing key; byte-identical opens. Android compiled
   locally (`:songnook-file-io:compileDebugKotlin`); not yet run on a device.
+
+## Export compliance (decided 2026-11-02)
+
+Founder decision: keep `ITSAppUsesNonExemptEncryption = false` in app.json. The
+sealing uses only the platform's own encryption (CryptoKit on iOS, javax.crypto
+on Android), standard AES-256-GCM, nothing proprietary. If App Store Connect asks
+the questions directly: "Yes, it uses encryption", then "None of the algorithms
+mentioned above" (only encryption within Apple's operating system). No export
+documents, no French declaration. Revisit if we ever ship our own crypto code or
+a non-OS library.
