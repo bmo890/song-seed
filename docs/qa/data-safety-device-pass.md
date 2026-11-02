@@ -70,3 +70,97 @@ Fixes: 03-1, 03-2, 03-3, 10-H1, 09-H2, 10-M1, 12d D-H2, D-M1, D-M3, decision E.
 2. Expect: the screen dims and locks; the take keeps recording (the orange mic indicator
    stays on). Unlock, Save: full length, no gap at the lock.
 3. Android unchanged: the screen behaves as before.
+
+## Recording format and media
+
+Fixes: decision F, 03-6 / 05-E12, 11-M2, 05-E11, 05-E13, 06-3 (remainder).
+
+**Format, measured from the code (decision F).** A take is 16-bit PCM WAV, 44.1 kHz mono:
+**5.29 MB a minute** (318 MB an hour), before and after this pass. The audit's "32-bit
+float, 10.6 MB a minute" read a placeholder analysis object; both recorders already
+defaulted to 16-bit, and the config now asks for it by name. Count-in takes and every
+edited clip were already AAC (the trim render): Android 256 kbps (1.92 MB a minute), iOS
+Apple's M4A preset. AAC for every take is **not** turned on: its timing is unproven on
+Android (see the AAC follow-up below).
+
+### Layer and grid timing after the format change — OTA
+
+The format did not change, so this is a regression check that naming it changed nothing.
+
+1. Each phone. Metronome 91 bpm 4/4, one bar count-in, speaker on; record 30 s of clicks
+   with the click bleeding in. Save. Then record a layer over it, also with bleed.
+2. Export both (Share › file) and run `python3 scripts/grid-truth.py --audio take.m4a
+   --bpm 91 --downbeat <stored>` and `python3 scripts/layer-truth.py --base take.m4a
+   --layer layer.m4a --offset <stored>`.
+3. Pass: first click within ±3 ms of the stored downbeat, both decoders within 2 ms;
+   layer `residual` ≤ 3 ms with both halves agreeing.
+4. A take recorded with no count-in: exported it is a `.wav`; `afinfo` (Mac) reads
+   16-bit, 44100 Hz, 1 channel, and its size is ~5.3 MB per minute.
+
+### A long take on a nearly full phone (03-6) — OTA
+
+1. Fill the phone until free space is about 1.2x what a 20-minute take needs
+   (20 min ≈ 106 MB; leave ~130 MB free).
+2. Record 20 minutes with no count-in (no head trim). Save.
+3. Expect: it saves (it used to need the size free twice), plays whole, 20:00 long. In
+   Settings › Storage the library grew by ~106 MB, not 212.
+4. Kill test: start Save on a long take and force-quit the instant the sheet closes.
+   Reopen: "Clip recovered" or the clip already in place, never both, never missing.
+5. With a count-in: same, expect the clip saved as `.m4a` and the recorder's WAV gone
+   afterwards (Files › On My iPhone is not reachable for this; check Storage only grows
+   by the m4a's size).
+
+### A .caf on Android, an Opus voice note on iPhone (11-M2) — OTA
+
+1. iPhone: share a Voice Memos `.m4a` and a `.caf` (AirDrop one from a Mac) into SongNook.
+   Expect: both import; the `.caf` lands as an `.m4a` clip (Share › file shows `.m4a`), plays,
+   same length as the original.
+2. iPhone: share a WhatsApp voice note (`.opus`) into SongNook. Expect one of two honest
+   outcomes: it imports as an `.m4a` that plays (iOS could decode it), or the dialog
+   "OPUS won't play on this phone / Save it as M4A or WAV, then import again." Never a
+   clip that imports and won't play.
+3. Android: share the same WhatsApp `.opus` and an `.ogg`. Expect `.m4a` clips that play,
+   full length. Back up, restore on the iPhone: they play there.
+4. Android: import the `.caf`. Expect it converted, or the dialog "CAF won't play on this
+   phone …"; never a silent unplayable clip.
+
+### Shared-in copies are cleaned (06-3) — OTA
+
+1. iPhone: share three audio files into SongNook, import them. Then share one more and
+   tap Not now.
+2. Settings › Storage (or iPhone Settings › General › iPhone Storage › SongNook): the
+   space used grows by the three clips once, not twice; the cancelled file is gone.
+3. Next day (or set the clock forward a day and relaunch): a share abandoned by
+   force-quitting mid-import is gone too.
+4. Erase everything: iPhone Storage › SongNook shows only the app itself afterwards.
+
+### Memory while sealing and backing up on iPhone (05-E11) — store build
+
+1. iPhone, a clip of 60+ minutes. Send it (sealed link). Xcode › Debug Navigator ›
+   Memory, or watch for a kill: memory stays flat (tens of MB), the Send finishes.
+2. Back up the library to Files with that clip in it, then restore. Same: no kill, the
+   restore completes and the clip plays.
+
+### Lock-screen buttons after many player opens (05-E13) — store build
+
+1. iPhone. Open and close the full player five times (and record a short take between two
+   of them). Play a clip, lock the phone.
+2. Lock screen play/pause: one press pauses, the next plays (it used to toggle N times).
+   AirPods double-tap or squeeze: same. Next on the lock screen moves one clip, not N.
+
+### AAC for every take: follow-up, not built
+
+Would cut a take from 5.29 to ~0.96 MB a minute (128 kbps mono) and needs one device pass
+before it may ship. The plan: after a durable save, re-encode a take through the trim
+render (the path count-in takes already take), keep the WAV until the AAC is verified,
+then move the AAC in and trash the WAV. Measure first, on both phones:
+- Android store build (has `Mp4PrimingEditList`): a count-in take exported; `grid-truth.py`
+  with both decoders reads the first click within ±3 ms of 0 and the decoders agree
+  within 2 ms (RUN-LOG 2026-10-30 pass bar, not yet run on Android).
+- ExoPlayer (in app) vs the WAV of the same take: a layer recorded over each sits at the
+  same `residual` (`layer-truth.py`) to within 1 ms.
+- `onsetEnvelope`, marks, sections and the beat grid are stored in file ms from the WAV:
+  re-measure `firstDownbeatMs` on the AAC (`gridSelfAlignment`) and expect ≤ 1 ms change.
+- Waveform sidecar, solo mix (`soloMix.ts`), DAW export (`decodeToWav`, priming skipped)
+  and Send all read the AAC; DAW export's WAV starts at the same sample as the WAV take.
+If any of these misses, the take stays WAV.
