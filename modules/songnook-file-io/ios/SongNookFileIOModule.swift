@@ -62,23 +62,36 @@ private final class Crc32 {
   var value: UInt32 { crc ^ 0xFFFF_FFFF }
 }
 
-/** Streaming SHA-256 over the base64 text of a byte stream (padding only at the end). */
+/**
+ * Streaming SHA-256 over the base64 text of a byte stream (padding only at the end).
+ * Base64 of a byte run that is a multiple of three is a prefix of the whole text, so
+ * each chunk is hashed in place: the 0-2 bytes carried from the last chunk are topped
+ * up to three and hashed on their own. The chunk itself is never copied (it used to be,
+ * on two calls in three, since 1 MiB is not a multiple of three; audit 05-E11).
+ */
 private final class Base64Sha256 {
   private var hasher = SHA256()
   private var carry = Data()
 
   func update(_ data: Data) {
-    var buffer = data
-    if !carry.isEmpty {
-      buffer = carry + data
-      carry = Data()
-    }
-    let whole = buffer.count - buffer.count % 3
-    if whole > 0 {
-      hasher.update(data: buffer.prefix(whole).base64EncodedData())
-    }
-    if whole < buffer.count {
-      carry = Data(buffer.suffix(from: buffer.startIndex + whole))
+    autoreleasepool {
+      var start = data.startIndex
+      if !carry.isEmpty {
+        let topUp = min(3 - carry.count, data.count)
+        carry.append(data[start..<(start + topUp)])
+        start += topUp
+        if carry.count < 3 { return }
+        hasher.update(data: carry.base64EncodedData())
+        carry = Data()
+      }
+      let rest = data.endIndex - start
+      let whole = rest - rest % 3
+      if whole > 0 {
+        hasher.update(data: data[start..<(start + whole)].base64EncodedData())
+      }
+      if whole < rest {
+        carry = Data(data[(start + whole)...])
+      }
     }
   }
 
@@ -237,14 +250,17 @@ public class SongNookFileIOModule: Module {
       while remaining > 0 {
         if isCancelled(operationId) { throw IOError(message: "SONGNOOK_IO_CANCELLED") }
         let want = Int(min(UInt64(ioChunk), remaining))
-        let chunk = try autoreleasepool { try input.read(upToCount: want) } ?? Data()
-        if chunk.isEmpty { throw IOError(message: "The file ended early.") }
-        try output.write(contentsOf: chunk)
-        crc.update(chunk)
-        sha?.update(chunk)
-        remaining -= UInt64(chunk.count)
-        written += UInt64(chunk.count)
-        sinceProgress += UInt64(chunk.count)
+        // The whole step in one pool (05-E11): the write and the hash allocate too.
+        try autoreleasepool {
+          let chunk = try input.read(upToCount: want) ?? Data()
+          if chunk.isEmpty { throw IOError(message: "The file ended early.") }
+          try output.write(contentsOf: chunk)
+          crc.update(chunk)
+          sha?.update(chunk)
+          remaining -= UInt64(chunk.count)
+          written += UInt64(chunk.count)
+          sinceProgress += UInt64(chunk.count)
+        }
         if sinceProgress >= progressEvery {
           progress(operationId, written, length)
           sinceProgress = 0
@@ -389,13 +405,18 @@ public class SongNookFileIOModule: Module {
         var sinceProgress: UInt64 = 0
         while true {
           if self.isCancelled(operationId) { throw IOError(message: "SONGNOOK_IO_CANCELLED") }
-          let chunk = try autoreleasepool { try input.read(upToCount: ioChunk) } ?? Data()
-          if chunk.isEmpty { break }
-          try writer.handle.write(contentsOf: chunk)
-          crc.update(chunk)
-          sha?.update(chunk)
-          written += UInt64(chunk.count)
-          sinceProgress += UInt64(chunk.count)
+          // The whole step in one pool (05-E11): the write and the hash allocate too.
+          let ended = try autoreleasepool { () -> Bool in
+            let chunk = try input.read(upToCount: ioChunk) ?? Data()
+            if chunk.isEmpty { return true }
+            try writer.handle.write(contentsOf: chunk)
+            crc.update(chunk)
+            sha?.update(chunk)
+            written += UInt64(chunk.count)
+            sinceProgress += UInt64(chunk.count)
+            return false
+          }
+          if ended { break }
           if sinceProgress >= progressEvery {
             self.progress(operationId, written, totalBytes)
             sinceProgress = 0
@@ -497,14 +518,17 @@ public class SongNookFileIOModule: Module {
         while remaining > 0 {
           if self.isCancelled(operationId) { throw IOError(message: "SONGNOOK_IO_CANCELLED") }
           let want = Int(min(UInt64(ioChunk), remaining))
-          let chunk = try autoreleasepool { try input.read(upToCount: want) } ?? Data()
-          if chunk.isEmpty { throw IOError(message: "The archive ended early.") }
-          try output.write(contentsOf: chunk)
-          crc.update(chunk)
-          sha?.update(chunk)
-          remaining -= UInt64(chunk.count)
-          written += UInt64(chunk.count)
-          sinceProgress += UInt64(chunk.count)
+          // The whole step in one pool (05-E11): the write and the hash allocate too.
+          try autoreleasepool {
+            let chunk = try input.read(upToCount: want) ?? Data()
+            if chunk.isEmpty { throw IOError(message: "The archive ended early.") }
+            try output.write(contentsOf: chunk)
+            crc.update(chunk)
+            sha?.update(chunk)
+            remaining -= UInt64(chunk.count)
+            written += UInt64(chunk.count)
+            sinceProgress += UInt64(chunk.count)
+          }
           if sinceProgress >= progressEvery {
             self.progress(operationId, written, total)
             sinceProgress = 0
