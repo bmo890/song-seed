@@ -56,11 +56,10 @@ function isMissingFileError(error: unknown): boolean {
 export async function readManifest(): Promise<ManifestData | null> {
     // Try the primary manifest first, then fall back to the backup
     // (backup exists if the app crashed mid-write)
-    const candidates = [
-        SONG_NOOK_MANIFEST_PATH,
-        `${SONG_NOOK_ROOT}/manifest.backup.json`,
-    ];
+    return readFirstManifest([SONG_NOOK_MANIFEST_PATH, `${SONG_NOOK_ROOT}/manifest.backup.json`]);
+}
 
+async function readFirstManifest(candidates: string[]): Promise<ManifestData | null> {
     for (const path of candidates) {
         try {
             const info = await FileSystem.getInfoAsync(path);
@@ -113,6 +112,13 @@ async function writeManifestToDisk(state: PersistedAppStore): Promise<void> {
             persistLog("manifest.blocked", "persist locked");
             return;
         }
+        // A session that never read the library (a damaged meta row, audit 01-H1) holds
+        // a starter library in memory: it may not overwrite the copy either. The store's
+        // write-authority gate refuses its writes; the mirror follows the same rule.
+        if (!isHydrationReadAuthoritative()) {
+            persistLog("manifest.blocked", "read not authoritative");
+            return;
+        }
 
         // Ensure root directory exists
         const rootInfo = await FileSystem.getInfoAsync(SONG_NOOK_ROOT);
@@ -132,8 +138,9 @@ async function writeManifestToDisk(state: PersistedAppStore): Promise<void> {
                 const existingIdeaCount = countTotalIdeas(existing.workspaces);
                 if (existingIdeaCount > 0) {
                     // Only an explicit user decision may empty a data-bearing manifest: a
-                    // deliberate last-item delete, or "Not now" on the boot restore prompt
-                    // (both call authorizeIntentionalEmptyStateWrite). "Hydration came up
+                    // deliberate last-item delete, or a confirmed "Start fresh" on the boot
+                    // restore prompt (both call authorizeIntentionalEmptyStateWrite). "Not
+                    // now" never does (audit 01-H2). "Hydration came up
                     // empty" is NOT sufficient on its own — an empty boot over a stale disk
                     // must never destroy the recovery copy (2026-07-28 incident), and even
                     // an authorized empty write still requires an authoritative disk read.
@@ -177,6 +184,11 @@ async function writeManifestToDisk(state: PersistedAppStore): Promise<void> {
         };
 
         const json = JSON.stringify(manifest);
+
+        // Keep the previous generation: the first write of each session sets the copy
+        // the last session left aside before replacing it, so one bad session can't
+        // take the only good copy with it (audit 2026-11-02, root cause 7).
+        await rotatePreviousGenerationOnce();
 
         // Write strategy: write to tmp, then swap.
         // We keep a backup (manifest.backup.json) to survive crashes.
@@ -362,4 +374,88 @@ export async function forceManifestWrite(state: PersistedAppStore): Promise<void
     pendingState = null;
     pendingFirstScheduledAt = null;
     await writeManifestToDisk(state);
+}
+
+/* ── The safety copy: previous generation + a held copy ───────────────────── */
+
+/** The copy the last session left, set aside by this session's first manifest write. */
+export const SONG_NOOK_MANIFEST_PREVIOUS_PATH = `${SONG_NOOK_ROOT}/manifest.previous.json`;
+/** A copy a recovery decision set aside ("Not now" on a restore prompt, a damaged or
+ *  partial boot). Only Restore (once it lands) or a confirmed Start fresh removes it. */
+export const SONG_NOOK_MANIFEST_HELD_PATH = `${SONG_NOOK_ROOT}/manifest.held.json`;
+
+let previousRotated = false;
+
+async function rotatePreviousGenerationOnce(): Promise<void> {
+    if (previousRotated) return;
+    previousRotated = true;
+    try {
+        const current = await readFirstManifest([SONG_NOOK_MANIFEST_PATH]);
+        // An empty copy never pushes out a previous one that holds ideas.
+        if (!current || countTotalIdeas(current.workspaces) === 0) return;
+        await FileSystem.copyAsync({ from: SONG_NOOK_MANIFEST_PATH, to: SONG_NOOK_MANIFEST_PREVIOUS_PATH });
+        persistLog("manifest.rotated", `${countTotalIdeas(current.workspaces)} ideas`);
+    } catch (err) {
+        // The previous copy is a second net; failing to refresh it never blocks the mirror.
+        persistLog("manifest.failed", `rotate: ${describeError(err)}`);
+    }
+}
+
+export type SafetyCopy = {
+    manifest: ManifestData;
+    savedAt: number;
+    ideaCount: number;
+    held: boolean;
+};
+
+function toSafetyCopy(manifest: ManifestData | null, held: boolean): SafetyCopy | null {
+    if (!manifest) return null;
+    const ideaCount = countTotalIdeas(manifest.workspaces);
+    if (ideaCount === 0) return null;
+    const savedAt = Date.parse(manifest.lastWrittenAt);
+    return { manifest, savedAt: Number.isFinite(savedAt) ? savedAt : 0, ideaCount, held };
+}
+
+/**
+ * The best copy of the library on this phone outside the store: the held copy when one
+ * was set aside, else whichever of the current and previous generation holds more ideas.
+ * Null when none holds an idea.
+ */
+export async function readSafetyCopy(): Promise<SafetyCopy | null> {
+    const held = toSafetyCopy(await readFirstManifest([SONG_NOOK_MANIFEST_HELD_PATH]), true);
+    if (held) return held;
+    const current = toSafetyCopy(await readManifest(), false);
+    const previous = toSafetyCopy(await readFirstManifest([SONG_NOOK_MANIFEST_PREVIOUS_PATH]), false);
+    if (current && previous) return previous.ideaCount > current.ideaCount ? previous : current;
+    return current ?? previous;
+}
+
+/** Whether a recovery decision is still waiting on a held copy. */
+export async function hasHeldSafetyCopy(): Promise<boolean> {
+    return (await readSafetyCopy())?.held === true;
+}
+
+/**
+ * Set the best copy aside so nothing this session writes can reach it. Idempotent: an
+ * existing held copy is kept (it is the one the person hasn't answered for yet).
+ */
+export async function holdSafetyCopy(): Promise<SafetyCopy | null> {
+    const copy = await readSafetyCopy();
+    if (!copy || copy.held) return copy;
+    const json = JSON.stringify(copy.manifest);
+    const tmp = `${SONG_NOOK_MANIFEST_HELD_PATH}.tmp`;
+    await FileSystem.writeAsStringAsync(tmp, json);
+    await FileSystem.moveAsync({ from: tmp, to: SONG_NOOK_MANIFEST_HELD_PATH });
+    persistLog("manifest.held", `${copy.ideaCount} ideas`);
+    return { ...copy, held: true };
+}
+
+/** The held copy has been restored, or the person confirmed Start fresh. */
+export async function releaseHeldSafetyCopy(): Promise<void> {
+    await FileSystem.deleteAsync(SONG_NOOK_MANIFEST_HELD_PATH, { idempotent: true });
+}
+
+/** Test hook. */
+export function resetManifestSessionForTests() {
+    previousRotated = false;
 }
