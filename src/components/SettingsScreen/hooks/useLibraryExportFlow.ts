@@ -24,6 +24,7 @@ import {
 } from "../helpers";
 import type { ArchiveExportOptions, ExportSectionKey, StandardExportOptions } from "../types";
 import { haptic } from "../../../design/haptics";
+import { libraryCompilationsForArchive } from "../../../domain/archiveCompilations";
 import { useTranslation } from "react-i18next";
 import { userFacingMessage } from "../../../i18n/userFacingError";
 
@@ -49,6 +50,7 @@ export function useLibraryExportFlow() {
   const notes = useStore((state) => state.notes);
   const songbooks = useStore((state) => state.songbooks);
   const setlists = useStore((state) => state.setlists);
+  const playlists = useStore((state) => state.playlists);
   const primaryWorkspaceId = useStore((state) => state.primaryWorkspaceId);
   const primaryCollectionIdByWorkspace = useStore((state) => state.primaryCollectionIdByWorkspace);
   const bluetoothMonitoringCalibrations = useStore((state) => state.bluetoothMonitoringCalibrations);
@@ -310,8 +312,7 @@ export function useLibraryExportFlow() {
           ? await exportLibrary({
               workspaces,
               notes,
-              songbooks,
-              setlists,
+              ...libraryCompilationsForArchive({ songbooks, setlists, playlists }),
               format,
               scope,
               options: archiveOptions,
