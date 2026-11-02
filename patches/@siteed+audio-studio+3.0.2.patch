@@ -399,7 +399,7 @@ diff --git a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/
 index 6f93aa4..9f8a4ef 100644
 --- a/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
 +++ b/node_modules/@siteed/audio-studio/android/src/main/java/net/siteed/audiostudio/AudioRecorderManager.kt
-@@ -7,6 +7,7 @@ import android.content.Context
+@@ -7,6 +7,7 @@
  import android.media.AudioDeviceInfo
  import android.media.AudioFormat
  import android.media.AudioRecord
@@ -407,7 +407,7 @@ index 6f93aa4..9f8a4ef 100644
  import android.media.MediaRecorder
  import android.os.Build
  import android.os.Bundle
-@@ -82,11 +83,23 @@ class AudioRecorderManager(
+@@ -82,11 +83,23 @@
      private var audioRecord: AudioRecord? = null
      private var bufferSizeInBytes = 0
      private val _isRecording = AtomicBoolean(false)
@@ -431,7 +431,7 @@ index 6f93aa4..9f8a4ef 100644
      private var totalRecordedTime: Long = 0
      private var totalDataSize = 0
      private var lastEmitTime = SystemClock.elapsedRealtime()
-@@ -854,6 +867,8 @@ class AudioRecorderManager(
+@@ -854,6 +867,8 @@
                      )
                      return false
                  }
@@ -440,7 +440,7 @@ index 6f93aa4..9f8a4ef 100644
              }
              return true
  
-@@ -876,6 +891,37 @@ class AudioRecorderManager(
+@@ -876,6 +891,37 @@
          }
      }
  
@@ -478,7 +478,7 @@ index 6f93aa4..9f8a4ef 100644
      private fun initializeRecordingResources(fileExtension: String, promise: Promise): Boolean {
          try {
              streamUuid = java.util.UUID.randomUUID().toString()
-@@ -956,11 +1002,15 @@ class AudioRecorderManager(
+@@ -956,11 +1002,15 @@
              isPaused.set(false)
              _isRecording.set(true)
              isFirstChunk = true
@@ -494,10 +494,10 @@ index 6f93aa4..9f8a4ef 100644
              recordingThread = Thread { recordingProcess() }.apply { start() }
              
              // Start service if keepAwake is true, but only if background audio is enabled (#288)
-@@ -981,6 +1031,14 @@ class AudioRecorderManager(
+@@ -981,6 +1031,14 @@
      fun stopRecording(promise: Promise) {
          val stopStartTime = System.currentTimeMillis()
- 
+         
 +        // Let the loop leave on its own first, outside the lock it reads under.
 +        if (_isRecording.get()) {
 +            stopRequested.set(true)
@@ -506,10 +506,54 @@ index 6f93aa4..9f8a4ef 100644
 +            }
 +        }
 +
-         synchronized(audioRecordLock) {
-             if (!_isRecording.get()) {
-                 LogUtils.e(CLASS_NAME, "Recording is not active")
-@@ -1484,7 +1542,7 @@ class AudioRecorderManager(
+         // Let the loop leave on its own first, outside the lock it reads under.
+         if (_isRecording.get()) {
+             stopRequested.set(true)
+@@ -1263,6 +1321,43 @@
+             LogUtils.e(CLASS_NAME, "⏺️ Failed to resume recording: ${e.message}", e)
+             releaseWakeLock()
+             promise.reject("RESUME_FAILED", "Failed to resume recording: ${e.message}", e)
++        }
++    }
++
++    /**
++     * SongNook: a write failed (a full disk). Called on the recording thread. Pauses exactly
++     * like pauseRecording, so a resume after space is freed carries on, and a stop finalizes
++     * the file with everything written before the failure. JS hears reason "storageFull".
++     */
++    private fun pauseAfterWriteFailure() {
++        if (!_isRecording.get() || isPaused.get()) return
++        try {
++            synchronized(audioRecordLock) {
++                audioRecord?.stop()
++            }
++        } catch (e: Exception) {
++            LogUtils.e(CLASS_NAME, "Stopping capture after a write failure failed", e)
++        }
++        try {
++            compressedRecorder?.pause()
++        } catch (e: Exception) {
++            LogUtils.e(CLASS_NAME, "Pausing the compressed output after a write failure failed", e)
++        }
++        lastPauseTime = System.currentTimeMillis()
++        isPaused.set(true)
++        if (recordingConfig.showNotification) {
++            notificationManager.pauseUpdates()
++        }
++        releaseWakeLock()
++        mainHandler.post {
++            try {
++                eventSender.sendExpoEvent(Constants.RECORDING_INTERRUPTED_EVENT_NAME, bundleOf(
++                    "reason" to "storageFull",
++                    "isPaused" to true
++                ))
++            } catch (e: Exception) {
++                LogUtils.e(CLASS_NAME, "Failed to send the storage-full event", e)
++            }
+         }
+     }
+ 
+@@ -1492,7 +1587,7 @@
  
                  // Recording loop
                  var loopCount = 0
@@ -518,10 +562,34 @@ index 6f93aa4..9f8a4ef 100644
                      loopCount++
                      if (loopCount % 100 == 0) {
                          LogUtils.d(CLASS_NAME, "Recording loop iteration $loopCount, isRecording: ${_isRecording.get()}, accumulatedAudioSize: ${accumulatedAudioData?.size() ?: 0}, accumulatedAnalysisSize: ${accumulatedAnalysisData.size()}")
-@@ -1622,6 +1680,48 @@ class AudioRecorderManager(
-         }
-     }
- 
+@@ -1525,8 +1620,18 @@
+                     if (bytesRead > 0) {
+                         // Only write to file if primary output is enabled
+                         if (fos != null) {
+-                            fos.write(audioData, 0, bytesRead)
+-                            cachedPrimaryFileSize += bytesRead  // Update cached file size
++                            try {
++                                fos.write(audioData, 0, bytesRead)
++                                cachedPrimaryFileSize += bytesRead  // Update cached file size
++                            } catch (e: java.io.IOException) {
++                                // SongNook: a full disk used to end this thread with a log line
++                                // while JS still showed "recording", and Save kept a silently
++                                // truncated take. Pause where we are (everything written so far
++                                // stays; stop finalizes the header as usual) and tell JS.
++                                LogUtils.e(CLASS_NAME, "Write failed mid-take (storage full?); pausing", e)
++                                pauseAfterWriteFailure()
++                                continue
++                            }
+                         }
+                         totalDataSize += bytesRead
+                         
+@@ -1627,7 +1732,49 @@
+                 releaseWakeLock()
+             }
+             LogUtils.e(CLASS_NAME, "Error in recording process", e)
++        }
++    }
++
 +    /**
 +     * Epoch ms of the recording's first captured frame. AudioRecord.getTimestamp reports a
 +     * (framePosition, monotonic nanoTime) pair for the capture head; projecting back to
@@ -532,7 +600,7 @@ index 6f93aa4..9f8a4ef 100644
 +    private fun resolveCaptureStartEpochMs(): Long {
 +        if (captureStartEpochMs > 0L) {
 +            return captureStartEpochMs
-+        }
+         }
 +        val record = audioRecord
 +        val canQueryTimestamp = record != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
 +        if (canQueryTimestamp && captureTimestampAttempts < MAX_CAPTURE_TIMESTAMP_ATTEMPTS) {
@@ -562,12 +630,10 @@ index 6f93aa4..9f8a4ef 100644
 +            captureStartSource = "start-call"
 +        }
 +        return captureStartEpochMs
-+    }
-+
-     private fun emitAudioData(audioData: ByteArray, length: Int) {
-         val isFloat32Stream = recordingConfig.streamFormat == "float32"
+     }
  
-@@ -1711,6 +1811,12 @@ class AudioRecorderManager(
+     private fun emitAudioData(audioData: ByteArray, length: Int) {
+@@ -1719,6 +1866,12 @@
              )
          }
  
@@ -580,7 +646,7 @@ index 6f93aa4..9f8a4ef 100644
          mainHandler.post {
              try {
                  eventSender.sendExpoEvent(Constants.AUDIO_EVENT_NAME, baseBundle)
-@@ -1768,6 +1874,9 @@ class AudioRecorderManager(
+@@ -1776,6 +1929,9 @@
                  lastEmittedSize = 0
                  streamPosition = 0
                  recordingStartTime = 0
@@ -770,7 +836,18 @@ diff --git a/node_modules/@siteed/audio-studio/ios/AudioStreamManager.swift b/no
 index deec895..b7f0113 100644
 --- a/node_modules/@siteed/audio-studio/ios/AudioStreamManager.swift
 +++ b/node_modules/@siteed/audio-studio/ios/AudioStreamManager.swift
-@@ -65,6 +65,10 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+@@ -44,6 +44,10 @@
+     internal var recordingFileURL: URL?
+     private var audioProcessor: AudioProcessor?
+     private var fileHandle: FileHandle?
++    // SongNook: file writes run in order on one serial queue; a failed write (full disk)
++    // stops further appends and pauses the take until it is resumed.
++    private let songNookFileWriteQueue = DispatchQueue(label: "net.siteed.audiostudio.filewrite", qos: .utility)
++    private var songNookWriteFailed = false
+     private var startTime: Date?
+     private var totalPausedDuration: TimeInterval = 0  // Track total paused time
+     private var currentPauseStart: Date?              // Track current pause start
+@@ -65,6 +69,10 @@
      internal var lastEmittedCompressedSize: Int64 = 0
      private var totalDataSize: Int64 = 0
      private var lastBufferTime: AVAudioTime?
@@ -781,7 +858,7 @@ index deec895..b7f0113 100644
      private var accumulatedData = Data()
  
      // Data emission for onAudioAnalysis
-@@ -310,7 +314,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+@@ -310,7 +318,7 @@
          
          // Set media title and artist
          nowPlayingInfo[MPMediaItemPropertyTitle] = recordingSettings?.notification?.title ?? "Recording in Progress"
@@ -790,7 +867,7 @@ index deec895..b7f0113 100644
          
          // Set playback state
          nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = isPaused ? 0.0 : 1.0
-@@ -731,6 +735,23 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+@@ -731,6 +739,23 @@
      ///   - customTapBlock: Optional custom tap block for specialized processing (like in fallback)
      ///   - prepareEngine: Whether to call prepare() on the engine after installing the tap (default: true)
      /// - Returns: The hardware input format that was used for the tap
@@ -814,7 +891,7 @@ index deec895..b7f0113 100644
      private func installTapWithHardwareFormat(
          customTapBlock: ((AVAudioPCMBuffer, AVAudioTime) -> Void)? = nil,
          prepareEngine: Bool = true
-@@ -755,6 +776,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+@@ -755,6 +780,7 @@
              }
              // Process audio buffer for streaming, analysis, and optional file writing
              // Note: Audio streaming works regardless of primary output settings (consistent with Web/Android)
@@ -822,7 +899,7 @@ index deec895..b7f0113 100644
              self.processAudioBuffer(buffer)
              self.lastBufferTime = time
          }
-@@ -859,6 +881,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+@@ -859,6 +885,8 @@
          lastEmittedCompressedSize = 0
          lastEmittedCompressedSizeAnalysis = 0
          isPaused = false
@@ -831,7 +908,63 @@ index deec895..b7f0113 100644
  
          // Create recording file first (unless primary output is disabled)
          if settings.output.primary.enabled {
-@@ -1908,6 +1932,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+@@ -1027,6 +1055,7 @@
+     ///   - settings: The recording settings to use.
+     /// - Returns: A StartRecordingResult object if recording starts successfully, or nil otherwise.
+     func startRecording(settings: RecordingSettings) -> StartRecordingResult? {
++        songNookFileWriteQueue.async { [weak self] in self?.songNookWriteFailed = false }
+         // If already prepared, use the prepared state
+         if isPrepared {
+             Logger.debug("Using prepared recording state")
+@@ -1225,9 +1254,11 @@
+     /// Resumes a paused recording.
+     func resumeRecording() {
+         guard isRecording, isPaused else { return }
+-        
++
+         Logger.debug("Resuming recording...")
+-        
++        // SongNook: a resume after a full disk tries writing again (a later failure pauses again).
++        songNookFileWriteQueue.async { [weak self] in self?.songNookWriteFailed = false }
++
+         // Calculate and add the pause duration if we have a pause start time
+         if let pauseStart = currentPauseStart {
+             let pauseDuration = Date().timeIntervalSince(pauseStart)
+@@ -1520,11 +1551,16 @@
+         // Only write to file if primary output is enabled
+         if settings.output.primary.enabled {
+             // Use the persistent fileHandle opened during preparation.
+-            DispatchQueue.global(qos: .utility).async { [weak self] in
++            // SongNook: one SERIAL queue, so buffers land in order and the size counter
++            // never loses an update (the global queue is concurrent).
++            songNookFileWriteQueue.async { [weak self] in
+                 guard let self = self, let handle = self.fileHandle else {
+                     Logger.debug("BG Write Error: File handle is nil.")
+                     return
+                 }
++                // After a failed write nothing more is appended until the take resumes:
++                // a later buffer landing once space frees would splice the take silently.
++                if self.songNookWriteFailed { return }
+                 do {
+                     try handle.seekToEnd()
+                     try handle.write(contentsOf: dataToWrite)
+@@ -1533,7 +1569,14 @@
+                     // Cache WAV file size for performance
+                     self.cachedWavFileSize = self.totalDataSize
+                 } catch {
+-                     Logger.debug("BG Write Error: Failed to seek/write: \(error.localizedDescription)")
++                    Logger.debug("BG Write Error: Failed to seek/write: \(error.localizedDescription)")
++                    // SongNook: a full disk used to drop every later buffer with a debug log
++                    // while the clock kept counting, and Save kept a silently truncated take.
++                    // Pause where we are (what was written stays) and tell JS.
++                    self.songNookWriteFailed = true
++                    DispatchQueue.main.async { [weak self] in
++                        self?.performPauseAction(reason: .storageFull)
++                    }
+                 }
+             }
+         } else {
+@@ -1908,6 +1951,8 @@
              accumulatedAnalysisData.removeAll()
              recordingUUID = nil
              totalDataSize = 0
@@ -840,7 +973,25 @@ index deec895..b7f0113 100644
              
              stopping = false
              return result
-@@ -1974,6 +2000,8 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+@@ -1950,11 +1995,14 @@
+         )
+         
+         // Perform file operations asynchronously after returning result
+-        DispatchQueue.global(qos: .utility).async { [weak self] in
++        // SongNook: on the write queue, so every buffer still queued lands BEFORE the header
++        // is finalized and the handle dropped (they used to be dropped as "File handle is
++        // nil", and the header could state less than the file holds).
++        songNookFileWriteQueue.async { [weak self] in
+             guard let self = self else { return }
+-            
++
+             // Update WAV header in background
+-            let finalDataChunkSize = capturedTotalDataSize - Int64(WAV_HEADER_SIZE)
++            let finalDataChunkSize = max(capturedTotalDataSize, self.totalDataSize) - Int64(WAV_HEADER_SIZE)
+             if finalDataChunkSize > 0 {
+                 self.updateWavHeader(fileURL: fileURL, totalDataSize: finalDataChunkSize)
+                 Logger.debug("Background: WAV header updated. Data chunk size: \(finalDataChunkSize)")
+@@ -1974,6 +2022,8 @@
              self.accumulatedAnalysisData.removeAll()
              self.recordingUUID = nil
              self.totalDataSize = 0
@@ -849,7 +1000,16 @@ index deec895..b7f0113 100644
              self.cachedWavFileSize = 0
              self.cachedCompressedFileSize = 0
              self.recordingFileURL = nil
-@@ -2136,6 +2164,7 @@ class AudioStreamManager: NSObject, AudioDeviceManagerDelegate {
+@@ -2009,6 +2059,8 @@
+         case phoneCall = "phoneCall"
+         case phoneCallEnded = "phoneCallEnded"
+         case recordingStopped = "recordingStopped"
++        // SongNook: a write to the take's file failed (a full disk); the take is paused.
++        case storageFull = "storageFull"
+         case deviceConnected = "deviceConnected"
+     }
+ 
+@@ -2136,6 +2188,7 @@
                  guard let self = self, self.isRecording else { return }
                  
                  // Process the buffer normally - processAudioBuffer handles all emission logic

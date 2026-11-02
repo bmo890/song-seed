@@ -32,6 +32,7 @@ import { beginRecordTrace, endRecordTrace } from "../services/recordTrace";
 import { colors } from "../design/tokens";
 import { useRecordingDisplayElapsed } from "./useRecordingDisplayElapsed";
 import {
+  getActiveRecordingTakeSession,
   getRecordingTakeSession,
   RECORDING_TAKE_SHAPE,
   takeHoldsRecorder,
@@ -47,6 +48,12 @@ import { getRestoreRestartState } from "../state/restoreRuntime";
 import { deleteManagedAudioUris } from "../services/managedMedia";
 import { describeError, persistLog } from "../services/persistLog";
 import { useTranslation } from "react-i18next";
+import { i18n } from "../i18n/instance";
+import {
+  createStorageFullAnnouncer,
+  createTakeStorageWatch,
+  STORAGE_FULL_REASON,
+} from "../services/takeStorageWatch";
 
 type OnRecorded = (
   payload: {
@@ -153,6 +160,66 @@ async function recoverKeptTakeBeforeNewOne() {
   }
 }
 
+// ── A full disk mid-take (audit 2026-11-02, 09-H2 / 10-M1) ─────────────────────────
+// The take stops where it is (paused: nothing captured is lost, Save is right there),
+// the person hears `error` and reads why. Module-level: the take outlives the recorder
+// screen, and on Android outlives the React tree itself.
+/** The shared recorder as the last recorder screen saw it: how the watch pauses a take. */
+let latestRecorderPause: (() => Promise<unknown>) | null = null;
+let latestRecorderState = { isRecording: false, isPaused: false };
+
+function nativeTakeIsRolling(): boolean {
+  try {
+    const status = ExpoAudioStreamModule.status?.() as { isRecording?: boolean; isPaused?: boolean } | undefined;
+    if (status && typeof status.isRecording === "boolean") return status.isRecording && !status.isPaused;
+  } catch {
+    // Fall back to what the screen last saw.
+  }
+  return latestRecorderState.isRecording && !latestRecorderState.isPaused;
+}
+
+const storageFullAnnouncer = createStorageFullAnnouncer(() => {
+  // haptics.ts vocabulary: `error` — a failure the person has to deal with (AppAlert.error).
+  AppAlert.error(i18n.t("recording.storageFullTitle"), i18n.t("recording.storageFullBody"));
+});
+
+async function stopTakeForFullStorage(source: "poll" | "native") {
+  if (!takeHoldsRecorder()) return;
+  persistLog("recording.storageFull", source);
+  // The native recorder pauses itself on a failed write; the poll pauses it here.
+  if (nativeTakeIsRolling()) await latestRecorderPause?.().catch(() => {});
+  if (storageFullAnnouncer.announce()) {
+    // The recorder screen stops its click and guide on an interruption.
+    getActiveRecordingTakeSession().noteInterruption(STORAGE_FULL_REASON);
+  }
+}
+
+const takeStorageWatch = createTakeStorageWatch({
+  readFreeBytes: () => FileSystem.getFreeDiskStorageAsync(),
+  isCapturing: nativeTakeIsRolling,
+  isHeld: takeHoldsRecorder,
+  onLow: () => void stopTakeForFullStorage("poll"),
+});
+
+let storageFullListenerInstalled = false;
+/** Hears the patched recorders' "storageFull" even after the recorder's provider was
+ *  rebuilt (its per-take callback is gone then). Older binaries never send it. */
+function listenForStorageFullOnce() {
+  if (storageFullListenerInstalled) return;
+  storageFullListenerInstalled = true;
+  try {
+    const nativeModule = ExpoAudioStreamModule as unknown as {
+      addListener?: (event: string, listener: (payload: { reason?: string }) => void) => unknown;
+    };
+    if (typeof nativeModule.addListener !== "function") return;
+    nativeModule.addListener("onRecordingInterrupted", (event) => {
+      if (event?.reason === STORAGE_FULL_REASON) void stopTakeForFullStorage("native");
+    });
+  } catch {
+    storageFullListenerInstalled = false;
+  }
+}
+
 /** The recording context the store holds right now: where a take started now lands. */
 function readRecordingDestination(): RecordingDestination {
   const state = useStore.getState();
@@ -207,6 +274,9 @@ export function useRecording(
   const planHeadTrimRef = useRef(options?.planHeadTrim);
   planHeadTrimRef.current = options?.planHeadTrim;
   const recorder = useSharedAudioRecorder();
+  latestRecorderPause = recorder.pauseRecording;
+  latestRecorderState = { isRecording: recorder.isRecording, isPaused: recorder.isPaused };
+  listenForStorageFullOnce();
   // Every per-take fact (live tape, onset envelope, head trim, capture start, flags)
   // lives in the app-wide take session, not in this instance: the recorder screen can
   // be minimized and reopened mid-take, and the dock reads the same take.
@@ -501,6 +571,8 @@ export function useRecording(
   async function holdTakeFile(fileUri: string, recordingStartedAt: number) {
     take.facts.sessionPersisted = true;
     take.facts.fileUri = fileUri;
+    storageFullAnnouncer.reset();
+    takeStorageWatch.start();
     await persistPendingRecordingSession(fileUri, recordingStartedAt, take.facts.destination?.ideaId ?? null);
   }
 

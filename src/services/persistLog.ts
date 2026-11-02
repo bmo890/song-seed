@@ -54,6 +54,7 @@ export type PersistLogEvent =
     | "recording.attached"
     | "recording.flushFailed"
     | "recording.recovered"
+    | "recording.storageFull"
     | "step.slow"
     | "record.trace"
     | "record.timing"

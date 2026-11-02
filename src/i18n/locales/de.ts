@@ -1536,6 +1536,8 @@ export const de = {
     originalTake: "Original-Take: {{bpm}} BPM · {{meter}}",
     noSpaceTitle: "Nicht genug Speicher",
     noSpaceBody: "Dieses Gerät ist fast voll. Schaffe Platz, dann nimm auf.",
+    storageFullTitle: "Speicher voll",
+    storageFullBody: "Aufnahme gestoppt. Das Aufgenommene bleibt erhalten.",
     keptForRecoveryTitle: "Take für Wiederherstellung aufbewahrt",
     keptAttachBody: "Der Take ließ sich nicht an seine Skizze hängen, ist aber sicher gespeichert. Öffne SongNook erneut, um ihn wiederherzustellen.",
     keptSaveBody: "Der Take konnte nicht fertig gespeichert werden — evtl. ist der Speicher knapp. Er ist sicher; öffne SongNook erneut, um ihn wiederherzustellen.",
