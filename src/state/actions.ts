@@ -2414,6 +2414,7 @@ export const appActions = {
             lyrics: createEmptyProjectLyrics(),
             isDraft: true,
             draftFromClipIdea: true,
+            draftClipPrimaryId: clipIdea.clips.find((clip) => clip.isPrimary)?.id,
         };
 
         const swapIn = (prev: SongIdea[]) => prev.map((idea) => (idea.id === clipIdea.id ? converted : idea));

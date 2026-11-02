@@ -103,6 +103,35 @@ describe("Make sketch is a draft (2026-10-12)", () => {
     });
 });
 
+describe("Make sketch → Discard keeps every version (data-safety audit 03-#4)", () => {
+    beforeEach(seed);
+
+    it("a clip with older versions comes back with all of them, its own primary and its lineage", () => {
+        const base = clipIdea("porch");
+        const v1 = { ...base.clips[0]!, id: "v1", isPrimary: false, createdAt: OLD };
+        const v2 = { ...base.clips[0]!, id: "v2", isPrimary: true, parentClipId: "v1", createdAt: OLD + 1 };
+        const v3 = { ...base.clips[0]!, id: "v3", isPrimary: false, parentClipId: "v2", createdAt: OLD + 2 };
+        useStore.getState().updateIdeas((ideas) =>
+            ideas.map((idea) => (idea.id === "porch" ? { ...idea, clips: [v3, v2, v1] } : idea))
+        );
+
+        appActions.convertClipIdeaToProject("porch");
+        // Recorded into the open draft before Discard: kept too.
+        useStore.getState().addClipVersion("porch", { audioUri: "file:///late.m4a", durationMs: 5 });
+        useStore.getState().setSelectedIdeaId("porch");
+        appActions.deleteSelectedIdea(true);
+
+        const clip = ideaOf("porch")!;
+        expect(clip.kind).toBe("clip");
+        const byId = new Map(clip.clips.map((c) => [c.id, c]));
+        expect([...byId.keys()].filter((id) => id.startsWith("v")).sort()).toEqual(["v1", "v2", "v3"]);
+        expect(clip.clips).toHaveLength(4);
+        expect(clip.clips.filter((c) => c.isPrimary).map((c) => c.id)).toEqual(["v2"]);
+        expect(byId.get("v3")!.parentClipId).toBe("v2");
+        expect(byId.get("v2")!.parentClipId).toBe("v1");
+    });
+});
+
 describe("Keep takes (dissolveSketch, 2026-10-12)", () => {
     beforeEach(seed);
 
