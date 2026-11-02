@@ -233,6 +233,28 @@ describe("buildDisasterRecoveryBackup", () => {
         }
     });
 
+    it("reports a backup made while a workspace is set aside as incomplete, naming it (audit G10)", async () => {
+        mockFiles.set(AUDIO_URI, Uint8Array.from([1, 2, 3]));
+        const { setHydrationDegradedWorkspaceIds } = require("../../state/persistRuntime");
+        setHydrationDegradedWorkspaceIds(["ws-set-aside"]);
+        try {
+            const result = await buildDisasterRecoveryBackup({} as never, {
+                setAsideWorkspaceRows: { "ws-set-aside": "{corrupt" },
+            });
+            expect(result.manifest.status).toBe("incomplete");
+            expect(result.manifest.missing).toEqual([
+                expect.objectContaining({ critical: true, ref: "set-aside:ws-set-aside" }),
+            ]);
+            // The set-aside bytes leave the phone inside the snapshot.
+            const snapshotEntry = (mockCreateZipArchive.mock.calls[0][1] as Array<{ archiveName: string; data?: string }>).find(
+                (entry) => entry.archiveName === "snapshot.json"
+            )!;
+            expect(JSON.parse(snapshotEntry.data!).setAsideWorkspaceRows).toEqual({ "ws-set-aside": "{corrupt" });
+        } finally {
+            setHydrationDegradedWorkspaceIds([]);
+        }
+    });
+
     it("rejects low storage before creating a ZIP", async () => {
         mockFiles.set(AUDIO_URI, Uint8Array.from([1, 2, 3]));
         mockGetFreeDiskStorageAsync.mockResolvedValueOnce(1);

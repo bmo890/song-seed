@@ -742,6 +742,7 @@ export const de = {
     moreWarnings_other: "+ {{count}} weitere Warnungen.",
   },
   settingsBackup: {
+    setAsideWorkspace: "Ein beim Start beiseitegelegter Arbeitsbereich",
     estimate_one: "1 Clip · {{size}} · {{duration}}",
     estimate_other: "{{count}} Clips · {{size}} · {{duration}}",
     confirmTitle: "Bibliothek sichern?",

@@ -18,6 +18,7 @@ import { IncrementalCrc32 } from "./streamingIntegrity";
 import { sha256OfFileBase64, sha256OfString } from "./fileHashing";
 import { recordLibraryOperationThroughput } from "./operationPacing";
 import { toRelativeWorkspacesManagedMedia } from "../state/rebaseManagedMedia";
+import { getHydrationDegradedWorkspaceIds } from "../state/persistRuntime";
 import {
     buildPersistedAppStoreSnapshot,
     STORE_VERSION,
@@ -63,7 +64,30 @@ export type DrMediaKind =
     | "waveform-sidecar";
 
 /** The exact backup's snapshot.json: the persisted library plus the satellite block. */
-export type DrBackupSnapshot = PersistedAppStore & { satellites?: DrSatelliteSnapshot };
+export type DrBackupSnapshot = PersistedAppStore & {
+    satellites?: DrSatelliteSnapshot;
+    /** Raw rows of workspaces set aside at launch (unreadable), by workspace id, so
+     *  their bytes leave the phone with the backup (audit 2026-11-02 G10). */
+    setAsideWorkspaceRows?: Record<string, string>;
+};
+
+/** Missing-record ref of a workspace that was set aside at launch and is NOT in the backup. */
+export const SET_ASIDE_WORKSPACE_REF_PREFIX = "set-aside:";
+
+/**
+ * A workspace the launch could not read lives only as quarantined bytes, never in
+ * memory, so a backup built from memory leaves it out. Saying "complete" would be a lie
+ * (audit G10): each one is recorded as critical missing content, which marks the backup
+ * incomplete and names it. ("workspace-archive" is the closest kind older builds accept.)
+ */
+function setAsideWorkspaceRecords(): DrBackupMissingRecord[] {
+    return getHydrationDegradedWorkspaceIds().map((id) => ({
+        path: `${SET_ASIDE_WORKSPACE_REF_PREFIX}${id}`,
+        kind: "workspace-archive" as const,
+        critical: true,
+        ref: `${SET_ASIDE_WORKSPACE_REF_PREFIX}${id}`,
+    }));
+}
 
 export type DrBackupFileRecord = { path: string; sha256: string; sizeBytes: number };
 export type DrBackupMissingRecord = { path: string; kind: DrMediaKind; critical: boolean; ref: string };
@@ -278,6 +302,8 @@ export async function buildDisasterRecoveryBackup(
         appVersion?: string;
         /** Satellite stores + UI language, gathered by the caller (see satelliteSnapshot.ts). */
         satellites?: DrSatelliteSnapshot;
+        /** Quarantined rows of set-aside workspaces, gathered by the caller. */
+        setAsideWorkspaceRows?: Record<string, string>;
     }
 ): Promise<DrBackupResult> {
     throwIfBackupCancelled(opts?.signal);
@@ -294,13 +320,16 @@ export async function buildDisasterRecoveryBackup(
         ...snapshotAbs,
         workspaces: toRelativeWorkspacesManagedMedia(snapshotAbs.workspaces),
         ...(opts?.satellites ? { satellites: opts.satellites } : null),
+        ...(opts?.setAsideWorkspaceRows && Object.keys(opts.setAsideWorkspaceRows).length > 0
+            ? { setAsideWorkspaceRows: opts.setAsideWorkspaceRows }
+            : null),
     };
     const snapshotJson = JSON.stringify(snapshot);
     const snapshotSha256 = await sha256OfString(snapshotJson);
 
     const entries: ZipArchiveEntry[] = [{ archiveName: SNAPSHOT_ENTRY, data: snapshotJson }];
     const files: DrBackupFileRecord[] = [];
-    const missing: DrBackupMissingRecord[] = [];
+    const missing: DrBackupMissingRecord[] = setAsideWorkspaceRecords();
     const managedRefs = new Map<string, MediaRef>();
 
     for (const ref of collectMediaRefs(snapshotAbs.workspaces)) {

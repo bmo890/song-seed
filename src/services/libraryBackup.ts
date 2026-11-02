@@ -5,7 +5,10 @@ import {
     buildDisasterRecoveryBackup,
     type DrBackupManifest,
 } from "./disasterRecoveryBackup";
-import type { AppStore } from "../state/useStore";
+import { STORE_NAME, type AppStore } from "../state/useStore";
+import { getHydrationDegradedWorkspaceIds } from "../state/persistRuntime";
+import { listKvKeysWithPrefix, readManyKv } from "../state/db/storage";
+import { quarantinedWorkspaceRowKey } from "../state/shardedPersistStorage";
 import {
     isBackupOperationCancelled,
     type BackupOperationOptions,
@@ -46,6 +49,7 @@ export async function buildExactLibraryBackup(
         ...options,
         appVersion: Constants.expoConfig?.version ?? undefined,
         satellites,
+        setAsideWorkspaceRows: await collectSetAsideWorkspaceRows(),
     });
     return {
         archiveUri: result.archiveUri,
@@ -83,4 +87,28 @@ export async function saveBuiltLibraryBackup(
 /** Delete a built-but-unsaved archive (the user chose to discard it). */
 export async function discardBuiltLibraryBackup(archiveUri: string) {
     await cleanupShareTempFile(archiveUri);
+}
+
+/**
+ * The raw bytes of every workspace this launch had to set aside (unreadable rows kept
+ * under their quarantine key), so they leave the phone inside the backup (audit G10).
+ * Best-effort: a backup never fails over them.
+ */
+export async function collectSetAsideWorkspaceRows(): Promise<Record<string, string> | undefined> {
+    const ids = getHydrationDegradedWorkspaceIds();
+    if (ids.length === 0) return undefined;
+    try {
+        const present = new Set(await listKvKeysWithPrefix(quarantinedWorkspaceRowKey(STORE_NAME, "")));
+        const keys = ids.map((id) => quarantinedWorkspaceRowKey(STORE_NAME, id)).filter((key) => present.has(key));
+        const rows = await readManyKv(keys);
+        const out: Record<string, string> = {};
+        for (const id of ids) {
+            const raw = rows.get(quarantinedWorkspaceRowKey(STORE_NAME, id));
+            if (raw != null) out[id] = raw;
+        }
+        return Object.keys(out).length > 0 ? out : undefined;
+    } catch (error) {
+        console.warn("[Backup] Could not read set-aside workspace rows", error);
+        return undefined;
+    }
 }

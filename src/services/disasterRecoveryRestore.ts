@@ -3,7 +3,8 @@ import { i18n } from "../i18n/instance";
 import { File } from "expo-file-system";
 import { strFromU8 } from "fflate";
 import { resolveManagedUri } from "./storagePaths";
-import { persistRawSnapshot } from "../state/db/storage";
+import { commitShardedWrite, persistRawSnapshot } from "../state/db/storage";
+import { quarantinedWorkspaceRowKey } from "../state/shardedPersistStorage";
 import {
     DR_BACKUP_FORMAT_VERSION,
     type DrBackupManifest,
@@ -136,6 +137,19 @@ async function cleanupWrittenRestoreFiles(uris: Iterable<string>) {
     return remaining.every((exists) => !exists);
 }
 
+async function restoreSetAsideWorkspaceRows(value: unknown) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return;
+    const writes = Object.entries(value as Record<string, unknown>)
+        .filter((entry): entry is [string, string] => typeof entry[1] === "string" && /^[\w-]+$/.test(entry[0]))
+        .map(([id, raw]) => ({ key: quarantinedWorkspaceRowKey(STORE_NAME, id), value: raw }));
+    if (writes.length === 0) return;
+    try {
+        await commitShardedWrite(writes, []);
+    } catch (error) {
+        console.warn("[Backup] Failed to keep set-aside workspace rows", error);
+    }
+}
+
 export async function restoreFromDisasterRecoveryBackup(
     archiveUri: string,
     options?: DisasterRecoveryRestoreOptions
@@ -248,9 +262,11 @@ export async function restoreFromDisasterRecoveryBackup(
     // snapshot.json but is NOT part of the library store: peel it off before validation
     // so the committed store snapshot stays exactly the persisted shape.
     let rawSatellites: unknown;
+    let rawSetAsideRows: unknown;
     if (snapshotValue && typeof snapshotValue === "object" && !Array.isArray(snapshotValue)) {
-        const { satellites, ...librarySnapshot } = snapshotValue as Record<string, unknown>;
+        const { satellites, setAsideWorkspaceRows, ...librarySnapshot } = snapshotValue as Record<string, unknown>;
         rawSatellites = satellites;
+        rawSetAsideRows = setAsideWorkspaceRows;
         snapshotValue = librarySnapshot;
     }
 
@@ -538,6 +554,10 @@ export async function restoreFromDisasterRecoveryBackup(
             console.warn("[Backup] Failed to restore satellite stores", error);
         }
     }
+
+    // Rows of workspaces the backed-up phone had set aside (G10) are kept the same way
+    // here: under their quarantine key, out of the library, for a later repair.
+    await restoreSetAsideWorkspaceRows(rawSetAsideRows);
 
     const result: DrRestoreResult = {
         status: manifest.status,

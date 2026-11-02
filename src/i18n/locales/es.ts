@@ -783,6 +783,7 @@ export const es = {
     moreWarnings_many: "+ {{count}} advertencias más.",
   },
   settingsBackup: {
+    setAsideWorkspace: "Un espacio de trabajo apartado al abrir",
     estimate_one: "1 clip · {{size}} · {{duration}}",
     estimate_other: "{{count}} clips · {{size}} · {{duration}}",
     estimate_many: "{{count}} clips · {{size}} · {{duration}}",

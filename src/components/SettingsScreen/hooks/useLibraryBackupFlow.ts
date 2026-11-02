@@ -29,6 +29,7 @@ import {
 } from "../../../services/backupOperation";
 import {
     estimateDisasterRecoveryBackup,
+    SET_ASIDE_WORKSPACE_REF_PREFIX,
     type DrBackupMissingRecord,
 } from "../../../services/disasterRecoveryBackup";
 import {
@@ -62,6 +63,11 @@ function describeMissingRecordings(
     const lines: string[] = [];
     for (const entry of missing) {
         if (!entry.critical) continue;
+
+        if (entry.ref.startsWith(SET_ASIDE_WORKSPACE_REF_PREFIX)) {
+            lines.push(t("settingsBackup.setAsideWorkspace"));
+            continue;
+        }
 
         const workspaceMatch = entry.ref.match(/^workspace:(.+)$/);
         if (workspaceMatch) {
