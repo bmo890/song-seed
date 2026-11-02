@@ -103,12 +103,47 @@ function configureBuildGradle(contents) {
   return next;
 }
 
+/**
+ * Configuration changes the app handles itself instead of letting Android rebuild the
+ * activity. The Expo template lists only keyboard/orientation/screen size/uiMode, so a
+ * fold or unfold, a font or display size change, a language change or some split-screen
+ * resizes destroyed and recreated MainActivity inside the live JS session: the React tree
+ * remounted mid-take and the recorder lost its UI (audit 2026-11-02, 10-H1). React Native
+ * re-renders on every one of these by itself.
+ */
+const HANDLED_CONFIG_CHANGES = [
+  "keyboard",
+  "keyboardHidden",
+  "orientation",
+  "screenSize",
+  "screenLayout",
+  "smallestScreenSize",
+  "uiMode",
+  "density",
+  "fontScale",
+  "locale",
+  "layoutDirection",
+];
+
+function withHandledConfigChanges(existing) {
+  const present = (existing ?? "").split("|").map((value) => value.trim()).filter(Boolean);
+  const merged = [...present];
+  for (const change of HANDLED_CONFIG_CHANGES) {
+    if (!merged.includes(change)) merged.push(change);
+  }
+  return merged.join("|");
+}
+
 function configureManifest(manifest) {
   const application = manifest.manifest.application?.[0];
   const mainActivity = application?.activity?.find(
     (activity) => activity.$?.["android:name"] === ".MainActivity"
   );
   if (!mainActivity) return manifest;
+
+  mainActivity.$["android:configChanges"] = withHandledConfigChanges(
+    mainActivity.$["android:configChanges"]
+  );
 
   const filters = mainActivity["intent-filter"] ?? [];
   let schemeConfigured = false;
@@ -160,3 +195,4 @@ module.exports = function withSongNookAndroidVariants(config) {
 
 module.exports.configureBuildGradle = configureBuildGradle;
 module.exports.configureManifest = configureManifest;
+module.exports.HANDLED_CONFIG_CHANGES = HANDLED_CONFIG_CHANGES;

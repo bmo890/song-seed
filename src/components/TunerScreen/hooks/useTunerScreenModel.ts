@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { ExpoAudioStreamModule } from "@siteed/audio-studio";
 import { AppState, type EmitterSubscription } from "react-native";
 import { haptic } from "../../../design/haptics";
+import { takeHoldsRecorder } from "../../../services/recordingTakeSession";
 import { signedNumberText } from "../../../i18n/direction";
 import {
   TRACKER_CONFIG,
@@ -249,6 +250,13 @@ export function useTunerScreenModel() {
 
   async function startListening() {
     if (!isFocusedRef.current || isStartingRef.current || isListeningRef.current) {
+      return;
+    }
+
+    // A minimised take holds the mic: a second capture here re-set the shared session and
+    // could cut the take's input (audit 2026-11-02, 12d D-M3).
+    if (takeHoldsRecorder()) {
+      setErrorMessage(t("recording.finishTakeFirst"));
       return;
     }
 

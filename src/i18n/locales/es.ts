@@ -1607,6 +1607,8 @@ export const es = {
     originalTake: "Toma original: {{bpm}} BPM · {{meter}}",
     noSpaceTitle: "No hay espacio suficiente",
     noSpaceBody: "El dispositivo está casi lleno. Libera espacio y graba.",
+    storageFullTitle: "Almacenamiento lleno",
+    storageFullBody: "La grabación se detuvo. Lo grabado se conserva.",
     keptForRecoveryTitle: "Toma guardada para recuperar",
     keptAttachBody: "No pudimos agregar esta toma a su boceto, así que se guardó a salvo. Vuelve a abrir SongNook para restaurarla.",
     keptSaveBody: "Esta toma no terminó de guardarse; puede faltar espacio. Está a salvo: vuelve a abrir SongNook para restaurarla.",

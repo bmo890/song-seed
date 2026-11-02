@@ -1606,6 +1606,8 @@ export const pt = {
     originalTake: "Take original: {{bpm}} BPM · {{meter}}",
     noSpaceTitle: "Sem espaço suficiente",
     noSpaceBody: "Este aparelho está quase cheio. Libere espaço e grave.",
+    storageFullTitle: "Armazenamento cheio",
+    storageFullBody: "A gravação parou. O que foi gravado está guardado.",
     keptForRecoveryTitle: "Take guardado para recuperação",
     keptAttachBody: "Não conseguimos anexar este take ao esboço, então ele foi guardado em segurança. Reabra o SongNook para restaurá-lo.",
     keptSaveBody: "Este take não terminou de salvar — talvez falte espaço. Ele está guardado; reabra o SongNook para restaurá-lo.",

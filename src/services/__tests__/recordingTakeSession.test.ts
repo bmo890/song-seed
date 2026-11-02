@@ -82,4 +82,35 @@ describe("recording take session", () => {
     take.noteInterruption("recordingStopped");
     expect(take.interruption.get()).toEqual({ token: 2, reason: "recordingStopped" });
   });
+
+  // Audit 2026-11-02, 12d D-M1: minimise-and-reopen lost the take's pins and its grid,
+  // which lived in the recorder screen.
+  it("keeps the pins, the grid and the punch for whichever screen saves the take", () => {
+    const take = createRecordingTakeSession(SHAPE);
+    const seen: number[] = [];
+    take.livePins.subscribe(() => seen.push(take.livePins.get().length));
+    take.livePins.set([{ id: "pin-1", label: "", atMs: 1200 }]);
+    take.facts.takeGrid = { bpm: 92, meterId: "4/4", countInBars: 1, clickThroughTake: true, firstDownbeatMs: null, source: "metronome" } as never;
+    take.facts.punchInMs = 8000;
+    take.liveTakeGrid.set({ firstBeatCaptureMs: 650, beatMs: 652, pulsesPerBar: 4 });
+
+    // The screen unmounts (Minimize) and a new one reads the same session.
+    expect(take.livePins.get()).toEqual([{ id: "pin-1", label: "", atMs: 1200 }]);
+    expect(take.facts.takeGrid).toMatchObject({ bpm: 92, clickThroughTake: true });
+    expect(take.facts.punchInMs).toBe(8000);
+    expect(take.liveTakeGrid.get()).toMatchObject({ beatMs: 652 });
+    expect(seen).toEqual([1]);
+  });
+
+  it("holds its file and destination until the take is settled", () => {
+    const take = createRecordingTakeSession(SHAPE);
+    take.facts.fileUri = "file:///doc/take.wav";
+    take.facts.destination = { ideaId: "a", parentClipId: null, overdubClipId: null, guideMixUri: null, punchInMs: null };
+    // A new take's preparation does not let go of a take still being saved.
+    take.beginTake();
+    expect(take.facts.fileUri).toBe("file:///doc/take.wav");
+    take.releaseTake();
+    expect(take.facts.fileUri).toBeNull();
+    expect(take.facts.destination).toBeNull();
+  });
 });

@@ -150,8 +150,8 @@ export function SongScreenProvider({ children }: { children: ReactNode }) {
       if (!screen.selectedIdea) return;
       useStore.getState().requestInlineStop();
       useStore.getState().requestPlayerClose();
-      setRecordingParentClipId(parentClipId);
-      setRecordingIdeaId(screen.selectedIdea.id);
+      // A take that already holds the recorder is brought back, never re-aimed (D-H2).
+      useStore.getState().armRecording({ ideaId: screen.selectedIdea.id, parentClipId });
       screen.navigation.navigate("Recording" as never);
     }
 

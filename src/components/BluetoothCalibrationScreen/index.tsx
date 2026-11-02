@@ -16,6 +16,7 @@ import { InkLink } from "../common/InkLink";
 import { ListRow, ListRows } from "../common/ListRow";
 import { Stepper } from "../common/Stepper";
 import { toast } from "../common/toastStore";
+import { takeHoldsRecorder } from "../../services/recordingTakeSession";
 import { styles as globalStyles } from "../../styles";
 import { haptic } from "../../design/haptics";
 import { useStore } from "../../state/useStore";
@@ -174,6 +175,14 @@ export function BluetoothCalibrationScreen() {
   // with normal listening. The EXCLUSIVE playback claim outranks that owner for as long
   // as this screen is open, so the route renegotiates to the profile takes monitor on.
   useEffect(() => {
+    // That exclusive claim would cut a minimised take's input (audit 2026-11-02, 12d
+    // D-M3). Settings has no other guard, so the screen refuses itself, as the recorder's
+    // own Calibrate key does.
+    if (takeHoldsRecorder()) {
+      toast(t("recording.finishTakeFirst"), "timer-outline");
+      navigation.goBack();
+      return;
+    }
     void activatePlaybackAudioSession({
       ownerId: "bluetooth-calibration",
       force: true,

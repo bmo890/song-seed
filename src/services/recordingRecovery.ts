@@ -10,8 +10,19 @@ import { persistLog } from "./persistLog";
 import { repairUnfinalizedWav, type WavRepairOutcome } from "./wavHeaderRepair";
 import { isEmptyRecordingPlaceholder, removeEmptyRecordingPlaceholder } from "../domain/recordingPlaceholder";
 import { enqueueMissingMetadataBackfill } from "./backgroundWaveformHydration";
+import { toRelativeManagedPath } from "./storagePaths";
+import { getActiveRecordingTakeSession } from "./recordingTakeSession";
 
-const PENDING_RECORDING_KEY = "songnook-pending-recording";
+/**
+ * One marker per take, kept as a list (audit 2026-11-02, 03-2). The single slot this
+ * replaced was overwritten by the next take, or cleared by a path that didn't own it,
+ * while it still guarded a take nobody had recovered: that audio sat on disk where no
+ * scan looks. A marker is added when a take's file exists and removed only by the take
+ * it belongs to, once that take is in the library or thrown away.
+ */
+const PENDING_RECORDINGS_KEY = "songnook-pending-recordings";
+/** The single marker builds before 2026-11-02 wrote. Read once and folded into the list. */
+const LEGACY_PENDING_RECORDING_KEY = "songnook-pending-recording";
 
 /**
  * A take that was attached in memory but whose metadata write did not durably land
@@ -33,6 +44,12 @@ export type AttachedRecordingJournal = {
 };
 
 type PendingRecordingSession = {
+    /** Where the take's file is, relative to the app's document directory whenever it lives
+     *  there (the recorder writes to its root; the library's copies sit under songnook/).
+     *  iOS moves the whole container on an update, so an absolute path written before an
+     *  update points nowhere after it: a take killed mid-capture and reopened after an
+     *  update read as "missing" and was lost (audit 2026-11-02, 03-1, the critical one).
+     *  Absolute only for a file outside the document directory. */
     fileUri: string;
     startedAt: number;
     updatedAt: number;
@@ -58,52 +75,149 @@ function buildRecoveredRecordingTitle(startedAt: number) {
     return i18n.t("defaults.recoveredClipTitle", { name: buildDefaultIdeaTitle(startedAt) });
 }
 
-async function readPendingRecordingSession(): Promise<PendingRecordingSession | null> {
-    try {
-        const raw = await AsyncStorage.getItem(PENDING_RECORDING_KEY);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw) as PendingRecordingSession;
-        if (typeof parsed.fileUri !== "string" || !Number.isFinite(parsed.startedAt)) {
-            return null;
-        }
-        return parsed;
-    } catch {
-        return null;
-    }
-}
-
-export async function persistPendingRecordingSession(fileUri: string, startedAt: number) {
-    await AsyncStorage.setItem(
-        PENDING_RECORDING_KEY,
-        JSON.stringify({
-            fileUri,
-            startedAt,
-            updatedAt: Date.now(),
-            ideaId: useStore.getState().recordingIdeaId ?? null,
-        } satisfies PendingRecordingSession)
-    );
+function documentDirectory(): string {
+    return FileSystem.documentDirectory ?? "";
 }
 
 /**
- * Replace the in-flight marker with an "attached but not durable" journal. The marker
- * now points at the MANAGED file (the recorder temp is redundant and gets cleaned up as
- * usual), so the next launch can re-attach instead of re-importing a duplicate.
+ * The container-independent form of a take's location: relative to the document
+ * directory when it lives there. A path that carries an OLD iOS container (an older
+ * marker, read after an update) is re-anchored on its managed `songnook/` root or on the
+ * container's `/Documents/` folder. Anything else stays as it is.
  */
-export async function persistAttachedRecordingJournal(entry: AttachedRecordingJournal) {
-    const session = await readPendingRecordingSession();
-    await AsyncStorage.setItem(
-        PENDING_RECORDING_KEY,
-        JSON.stringify({
-            fileUri: entry.audioUri,
-            startedAt: session?.startedAt ?? entry.createdAt,
-            updatedAt: Date.now(),
-            attached: entry,
-        } satisfies PendingRecordingSession)
+export function toTakeLocation(uri: string): string {
+    if (!uri) return uri;
+    if (!uri.includes("://") && !uri.startsWith("/")) return uri.replace(/^\/+/, "");
+    const base = documentDirectory();
+    if (base && uri.startsWith(base)) return uri.slice(base.length).replace(/^\/+/, "");
+    const managed = toRelativeManagedPath(uri);
+    if (managed) return managed;
+    const iosDocuments = /\/Containers\/Data\/Application\/[^/]+\/Documents\/(.+)$/.exec(uri);
+    if (iosDocuments) return iosDocuments[1];
+    return uri;
+}
+
+/** The take's file on THIS container. */
+export function resolveTakeLocation(stored: string): string {
+    const location = toTakeLocation(stored);
+    if (location.includes("://") || location.startsWith("/")) return location;
+    return `${documentDirectory()}${location}`;
+}
+
+function sameTake(a: string, b: string): boolean {
+    return toTakeLocation(a) === toTakeLocation(b);
+}
+
+function isValidSession(value: unknown): value is PendingRecordingSession {
+    const candidate = value as PendingRecordingSession | null;
+    return !!candidate && typeof candidate.fileUri === "string" && Number.isFinite(candidate.startedAt);
+}
+
+async function readPendingRecordingSessions(): Promise<PendingRecordingSession[]> {
+    const sessions: PendingRecordingSession[] = [];
+    try {
+        const raw = await AsyncStorage.getItem(PENDING_RECORDINGS_KEY);
+        const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+        if (Array.isArray(parsed)) sessions.push(...parsed.filter(isValidSession));
+    } catch {
+        // An unreadable list is treated as empty; the legacy marker below may still hold a take.
+    }
+    try {
+        const legacyRaw = await AsyncStorage.getItem(LEGACY_PENDING_RECORDING_KEY);
+        const legacy = legacyRaw ? (JSON.parse(legacyRaw) as unknown) : null;
+        if (isValidSession(legacy) && !sessions.some((entry) => sameTake(entry.fileUri, legacy.fileUri))) {
+            sessions.push({ ...legacy, fileUri: toTakeLocation(legacy.fileUri) });
+        }
+    } catch {
+        // Nothing usable in the old slot.
+    }
+    return sessions;
+}
+
+// Every read-modify-write of the list runs in turn: a take's marker landing while
+// recovery rewrites the list must never be lost between the read and the write.
+let markerQueue: Promise<unknown> = Promise.resolve();
+function updatePendingRecordingSessions(
+    change: (sessions: PendingRecordingSession[]) => PendingRecordingSession[]
+): Promise<void> {
+    const run = markerQueue.then(async () => {
+        const next = change(await readPendingRecordingSessions());
+        if (next.length > 0) {
+            await AsyncStorage.setItem(PENDING_RECORDINGS_KEY, JSON.stringify(next));
+        } else {
+            await AsyncStorage.removeItem(PENDING_RECORDINGS_KEY);
+        }
+        // The list now holds whatever the old slot had.
+        await AsyncStorage.removeItem(LEGACY_PENDING_RECORDING_KEY);
+    });
+    markerQueue = run.catch(() => {});
+    return run;
+}
+
+export async function persistPendingRecordingSession(
+    fileUri: string,
+    startedAt: number,
+    ideaId: string | null = useStore.getState().recordingIdeaId ?? null
+) {
+    const entry: PendingRecordingSession = {
+        fileUri: toTakeLocation(fileUri),
+        startedAt,
+        updatedAt: Date.now(),
+        ideaId,
+    };
+    await updatePendingRecordingSessions((sessions) => [
+        ...sessions.filter((session) => !sameTake(session.fileUri, fileUri)),
+        entry,
+    ]);
+}
+
+/**
+ * Replace a take's in-flight marker with an "attached but not durable" journal. The
+ * marker now points at the MANAGED file (the recorder temp is redundant and gets cleaned
+ * up as usual), so the next launch can re-attach instead of re-importing a duplicate.
+ * `takeFileUri` names the take whose marker this replaces; every other marker stays.
+ */
+export async function persistAttachedRecordingJournal(entry: AttachedRecordingJournal, takeFileUri?: string | null) {
+    await updatePendingRecordingSessions((sessions) => {
+        const previous = takeFileUri ? sessions.find((session) => sameTake(session.fileUri, takeFileUri)) : undefined;
+        return [
+            ...sessions.filter(
+                (session) =>
+                    !sameTake(session.fileUri, entry.audioUri) &&
+                    !(takeFileUri && sameTake(session.fileUri, takeFileUri))
+            ),
+            {
+                fileUri: toTakeLocation(entry.audioUri),
+                startedAt: previous?.startedAt ?? entry.createdAt,
+                updatedAt: Date.now(),
+                ideaId: previous?.ideaId ?? null,
+                attached: entry,
+            },
+        ];
+    });
+}
+
+/** Drop ONE take's marker: the take at `fileUri`, never anyone else's. */
+export async function clearPendingRecordingSession(fileUri: string) {
+    await updatePendingRecordingSessions((sessions) =>
+        sessions.filter((session) => !sameTake(session.fileUri, fileUri))
     );
 }
 
-export async function clearPendingRecordingSession() {
-    await AsyncStorage.removeItem(PENDING_RECORDING_KEY);
+/** The take the recorder holds right now (being written, or being saved). */
+function isHeldByRecorder(fileUri: string): boolean {
+    const held = getActiveRecordingTakeSession().facts.fileUri;
+    return !!held && sameTake(held, fileUri);
+}
+
+/** A file is "in the library" only once it is on disk with something in it. */
+async function isOnDisk(uri: string): Promise<boolean> {
+    try {
+        const info = await FileSystem.getInfoAsync(uri);
+        return info.exists && !(typeof info.size === "number" && info.size <= 0);
+    } catch {
+        return false;
+    }
 }
 
 /**
@@ -112,19 +226,44 @@ export async function clearPendingRecordingSession() {
  * lost the take). When the save is refused, the marker becomes an attached journal for
  * the managed copy: the next launch finds the clip, or attaches it again, never twice.
  */
-async function settleRecoveredTake(journal: AttachedRecordingJournal, tempUri: string | null): Promise<void> {
+async function settleRecoveredTake(
+    journal: AttachedRecordingJournal,
+    session: PendingRecordingSession,
+    tempUri: string | null
+): Promise<void> {
+    // If in doubt, keep the file and the marker (audit 2026-11-02): the take's own file
+    // and its marker go only once the library's copy is on disk. A copy that isn't there
+    // leaves both, and the next launch tries again.
     let durable = true;
+    let flushError: unknown = null;
     try {
         await flushPersistedSnapshot();
     } catch (error) {
         durable = false;
-        persistLog("recording.recovered", `not durable yet, journaled: ${error instanceof Error ? error.message : String(error)}`);
-        await persistAttachedRecordingJournal(journal).catch(() => {});
+        flushError = error;
     }
-    if (tempUri && tempUri !== journal.audioUri) {
+    // Checked after the save, right before anything is let go.
+    if (!(await isOnDisk(journal.audioUri))) {
+        persistLog("recording.recovered", "the library's copy is not on disk; the take and its marker stay");
+        return;
+    }
+    let journaled = false;
+    if (!durable) {
+        persistLog(
+            "recording.recovered",
+            `not durable yet, journaled: ${flushError instanceof Error ? flushError.message : String(flushError)}`
+        );
+        journaled = await persistAttachedRecordingJournal(journal, session.fileUri).then(
+            () => true,
+            () => false
+        );
+    }
+    // Something on disk must still lead to the take before its own file can go: the saved
+    // library, or the journal that points at the library's copy.
+    if (tempUri && tempUri !== journal.audioUri && (durable || journaled)) {
         await FileSystem.deleteAsync(tempUri, { idempotent: true }).catch(() => {});
     }
-    if (durable) await clearPendingRecordingSession();
+    if (durable) await clearPendingRecordingSession(session.fileUri);
 }
 
 function libraryHasClip(workspaces: Workspace[], clipId: string): boolean {
@@ -259,32 +398,54 @@ export async function recoverPendingRecordingSession(options?: {
      *  hydration draw its waveform later, rather than decoding while the user waits. */
     lightweight?: boolean;
 }): Promise<RecordingRecoveryResult> {
-    const result = await recoverTake(options);
+    const result = await recoverTakes(options);
     if (!options?.lightweight) removeAllLeftoverPlaceholders();
     return result;
 }
 
-async function recoverTake(options?: { lightweight?: boolean }): Promise<RecordingRecoveryResult> {
-    const session = await readPendingRecordingSession();
-    if (!session) {
-        return { status: "none" };
-    }
+/** One answer for every take waiting: any landed take is news; then a failure (the
+ *  marker stays for the next try); then a take with nothing in it; then a missing file. */
+const RESULT_RANK: Record<RecordingRecoveryResult["status"], number> = {
+    recovered: 4,
+    failed: 3,
+    empty: 2,
+    missing: 1,
+    none: 0,
+};
 
+async function recoverTakes(options?: { lightweight?: boolean }): Promise<RecordingRecoveryResult> {
+    const sessions = await readPendingRecordingSessions();
+    let answer: RecordingRecoveryResult = { status: "none" };
+    // Oldest first, so the takes land in the order they were played.
+    for (const session of [...sessions].sort((a, b) => a.startedAt - b.startedAt)) {
+        // The take being recorded (or saved) right now is not a take to recover: its file
+        // is still being written, and its own save will settle it.
+        if (isHeldByRecorder(resolveTakeLocation(session.fileUri))) continue;
+        const result = await recoverTake(session, options);
+        if (RESULT_RANK[result.status] > RESULT_RANK[answer.status]) answer = result;
+    }
+    return answer;
+}
+
+async function recoverTake(
+    session: PendingRecordingSession,
+    options?: { lightweight?: boolean }
+): Promise<RecordingRecoveryResult> {
+    const takeUri = resolveTakeLocation(session.fileUri);
     try {
         // Attached-but-not-durable journal: the store may have caught up, or may not.
         if (session.attached) {
-            const journal = session.attached;
+            const journal = { ...session.attached, audioUri: resolveTakeLocation(session.attached.audioUri) };
             if (libraryHasClip(useStore.getState().workspaces, journal.clipId)) {
-                await clearPendingRecordingSession();
+                await clearPendingRecordingSession(session.fileUri);
                 return { status: "none" };
             }
-            const info = await FileSystem.getInfoAsync(journal.audioUri);
-            if (!info.exists || (typeof info.size === "number" && info.size <= 0)) {
-                await clearPendingRecordingSession();
+            if (!(await isOnDisk(journal.audioUri))) {
+                await clearPendingRecordingSession(session.fileUri);
                 return { status: "missing" };
             }
             if (reattachJournaledClip(journal)) {
-                await settleRecoveredTake(journal, null);
+                await settleRecoveredTake(journal, session, null);
                 persistLog("recording.recovered", `re-attached ${journal.clipId} to ${journal.ideaId}`);
                 queueRecoveredWaveform();
                 return { status: "recovered", title: journal.ideaTitle };
@@ -296,10 +457,9 @@ async function recoverTake(options?: { lightweight?: boolean }): Promise<Recordi
         // the recorder may still hold that shell for its next take.
         const shellIdeaId = options?.lightweight ? null : session.ideaId;
 
-        const info = await FileSystem.getInfoAsync(session.fileUri);
-        if (!info.exists || (typeof info.size === "number" && info.size <= 0)) {
+        if (!(await isOnDisk(takeUri))) {
             removeLeftoverPlaceholder(shellIdeaId);
-            await clearPendingRecordingSession();
+            await clearPendingRecordingSession(session.fileUri);
             return { status: "missing" };
         }
 
@@ -307,10 +467,10 @@ async function recoverTake(options?: { lightweight?: boolean }): Promise<Recordi
         // header (sizes 0): finalize it from the bytes on disk, or every reader sees
         // 0 s and the clip lands as a flat 0:00 card. A header with nothing after it
         // was never a take, so say so instead of listing an unplayable clip.
-        if (finalizeRecordedFile(session.fileUri) === "empty") {
-            await FileSystem.deleteAsync(session.fileUri, { idempotent: true }).catch(() => {});
+        if (finalizeRecordedFile(takeUri) === "empty") {
+            await FileSystem.deleteAsync(takeUri, { idempotent: true }).catch(() => {});
             removeLeftoverPlaceholder(shellIdeaId);
-            await clearPendingRecordingSession();
+            await clearPendingRecordingSession(session.fileUri);
             persistLog("recording.recovered", "pending take was empty");
             return { status: "empty" };
         }
@@ -320,7 +480,7 @@ async function recoverTake(options?: { lightweight?: boolean }): Promise<Recordi
 
         // The take's own idea, still the empty shell the recorder opened: fill it.
         if (findEmptyPlaceholder(shellIdeaId)) {
-            const managedAudio = await importRecordedAudioAsset(session.fileUri, clipId, importOptions);
+            const managedAudio = await importRecordedAudioAsset(takeUri, clipId, importOptions);
             // Re-read after the import: the shell may have changed while it ran.
             const placeholder = findEmptyPlaceholder(shellIdeaId);
             if (placeholder) {
@@ -348,7 +508,8 @@ async function recoverTake(options?: { lightweight?: boolean }): Promise<Recordi
                         waveformPeaks: managedAudio.waveformPeaks,
                         createdAt: session.startedAt,
                     },
-                    session.fileUri
+                    session,
+                    takeUri
                 );
                 persistLog("recording.recovered", `filled ${placeholder.idea.id}`);
                 queueRecoveredWaveform();
@@ -371,7 +532,7 @@ async function recoverTake(options?: { lightweight?: boolean }): Promise<Recordi
         const collectionId =
             workspace?.collections[0]?.id ?? store.addCollection(workspaceId, "Inbox", null);
 
-        const managedAudio = await importRecordedAudioAsset(session.fileUri, clipId, importOptions);
+        const managedAudio = await importRecordedAudioAsset(takeUri, clipId, importOptions);
         const title = session.attached && !session.attached.ideaTitleAutoGenerated
             ? session.attached.ideaTitle
             : buildRecoveredRecordingTitle(session.startedAt);
@@ -398,12 +559,14 @@ async function recoverTake(options?: { lightweight?: boolean }): Promise<Recordi
                 waveformPeaks: managedAudio.waveformPeaks,
                 createdAt: session.startedAt,
             },
-            session.fileUri
+            session,
+            takeUri
         );
         persistLog("recording.recovered", "imported to inbox");
         queueRecoveredWaveform();
         return { status: "recovered", title };
     } catch (error) {
+        // The marker and the take's file both stay: the next launch tries again.
         const message = error instanceof Error ? error.message : "Unknown recovery failure.";
         console.warn("[RecordingRecovery] Failed to recover pending recording", error);
         return { status: "failed", message };

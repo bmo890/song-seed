@@ -32,10 +32,13 @@ import { beginRecordTrace, endRecordTrace } from "../services/recordTrace";
 import { colors } from "../design/tokens";
 import { useRecordingDisplayElapsed } from "./useRecordingDisplayElapsed";
 import {
+  getActiveRecordingTakeSession,
   getRecordingTakeSession,
   RECORDING_TAKE_SHAPE,
+  takeHoldsRecorder,
   useTakeHeadTrim,
   useTakeInterruption,
+  type RecordingDestination,
 } from "../services/recordingTakeSession";
 import { finishOnsetEnvelope, type OnsetEnvelope } from "../domain/onsetEnvelope";
 import { effectiveRecordingInputId } from "../domain/recordingInput";
@@ -45,6 +48,12 @@ import { getRestoreRestartState } from "../state/restoreRuntime";
 import { deleteManagedAudioUris } from "../services/managedMedia";
 import { describeError, persistLog } from "../services/persistLog";
 import { useTranslation } from "react-i18next";
+import { i18n } from "../i18n/instance";
+import {
+  createStorageFullAnnouncer,
+  createTakeStorageWatch,
+  STORAGE_FULL_REASON,
+} from "../services/takeStorageWatch";
 
 type OnRecorded = (
   payload: {
@@ -127,21 +136,100 @@ function isNotificationPermissionError(error: unknown) {
   return message.includes("notification permission") || message.includes("post_notifications");
 }
 
-// There is ONE pending-take marker. After a save that ended in "kept for recovery" the
-// take lives only as the recorder's temp file plus that marker — and starting another
-// take would overwrite the marker, orphaning the first one for good. Recover it into
-// the library before a new take can claim the slot.
+// After a save that ended in "kept for recovery" the take lives only as the recorder's
+// temp file plus its marker. Each take keeps its own marker (services/recordingRecovery),
+// so a new take can never orphan it; landing it in the library before the next take is
+// a courtesy, and a failed attempt leaves it for the next try or the next launch.
 let unrecoveredTakeThisSession = false;
 
 async function recoverKeptTakeBeforeNewOne() {
   if (!unrecoveredTakeThisSession) return;
+  // A take thrown away a moment ago must be gone before recovery looks: its file and its
+  // marker are dropped in the background.
+  await discardCleanup;
   unrecoveredTakeThisSession = false;
   try {
     const result = await recoverPendingRecordingSession({ lightweight: true });
-    if (result.status === "failed") persistLog("recording.flushFailed", `in-session recovery: ${result.message}`);
+    if (result.status === "failed") {
+      unrecoveredTakeThisSession = true;
+      persistLog("recording.flushFailed", `in-session recovery: ${result.message}`);
+    }
   } catch (error) {
+    unrecoveredTakeThisSession = true;
     persistLog("recording.flushFailed", `in-session recovery: ${describeError(error)}`);
   }
+}
+
+// ── A full disk mid-take (audit 2026-11-02, 09-H2 / 10-M1) ─────────────────────────
+// The take stops where it is (paused: nothing captured is lost, Save is right there),
+// the person hears `error` and reads why. Module-level: the take outlives the recorder
+// screen, and on Android outlives the React tree itself.
+/** The shared recorder as the last recorder screen saw it: how the watch pauses a take. */
+let latestRecorderPause: (() => Promise<unknown>) | null = null;
+let latestRecorderState = { isRecording: false, isPaused: false };
+
+function nativeTakeIsRolling(): boolean {
+  try {
+    const status = ExpoAudioStreamModule.status?.() as { isRecording?: boolean; isPaused?: boolean } | undefined;
+    if (status && typeof status.isRecording === "boolean") return status.isRecording && !status.isPaused;
+  } catch {
+    // Fall back to what the screen last saw.
+  }
+  return latestRecorderState.isRecording && !latestRecorderState.isPaused;
+}
+
+const storageFullAnnouncer = createStorageFullAnnouncer(() => {
+  // haptics.ts vocabulary: `error` — a failure the person has to deal with (AppAlert.error).
+  AppAlert.error(i18n.t("recording.storageFullTitle"), i18n.t("recording.storageFullBody"));
+});
+
+async function stopTakeForFullStorage(source: "poll" | "native") {
+  if (!takeHoldsRecorder()) return;
+  persistLog("recording.storageFull", source);
+  // The native recorder pauses itself on a failed write; the poll pauses it here.
+  if (nativeTakeIsRolling()) await latestRecorderPause?.().catch(() => {});
+  if (storageFullAnnouncer.announce()) {
+    // The recorder screen stops its click and guide on an interruption.
+    getActiveRecordingTakeSession().noteInterruption(STORAGE_FULL_REASON);
+  }
+}
+
+const takeStorageWatch = createTakeStorageWatch({
+  readFreeBytes: () => FileSystem.getFreeDiskStorageAsync(),
+  isCapturing: nativeTakeIsRolling,
+  isHeld: takeHoldsRecorder,
+  onLow: () => void stopTakeForFullStorage("poll"),
+});
+
+let storageFullListenerInstalled = false;
+/** Hears the patched recorders' "storageFull" even after the recorder's provider was
+ *  rebuilt (its per-take callback is gone then). Older binaries never send it. */
+function listenForStorageFullOnce() {
+  if (storageFullListenerInstalled) return;
+  storageFullListenerInstalled = true;
+  try {
+    const nativeModule = ExpoAudioStreamModule as unknown as {
+      addListener?: (event: string, listener: (payload: { reason?: string }) => void) => unknown;
+    };
+    if (typeof nativeModule.addListener !== "function") return;
+    nativeModule.addListener("onRecordingInterrupted", (event) => {
+      if (event?.reason === STORAGE_FULL_REASON) void stopTakeForFullStorage("native");
+    });
+  } catch {
+    storageFullListenerInstalled = false;
+  }
+}
+
+/** The recording context the store holds right now: where a take started now lands. */
+function readRecordingDestination(): RecordingDestination {
+  const state = useStore.getState();
+  return {
+    ideaId: state.recordingIdeaId ?? null,
+    parentClipId: state.recordingParentClipId ?? null,
+    overdubClipId: state.recordingOverdubClipId ?? null,
+    guideMixUri: state.recordingGuideMixUri ?? null,
+    punchInMs: state.recordingPunchInMs ?? null,
+  };
 }
 
 // One owner for the recording role app-wide: the take outlives the screen that
@@ -186,6 +274,9 @@ export function useRecording(
   const planHeadTrimRef = useRef(options?.planHeadTrim);
   planHeadTrimRef.current = options?.planHeadTrim;
   const recorder = useSharedAudioRecorder();
+  latestRecorderPause = recorder.pauseRecording;
+  latestRecorderState = { isRecording: recorder.isRecording, isPaused: recorder.isPaused };
+  listenForStorageFullOnce();
   // Every per-take fact (live tape, onset envelope, head trim, capture start, flags)
   // lives in the app-wide take session, not in this instance: the recorder screen can
   // be minimized and reopened mid-take, and the dock reads the same take.
@@ -476,13 +567,26 @@ export function useRecording(
     AppAlert.error(t("recordingErrors.failed"), fallback);
   }
 
+  /** The recorder named this take's file: hold it, and write its recovery marker. */
+  async function holdTakeFile(fileUri: string, recordingStartedAt: number) {
+    take.facts.sessionPersisted = true;
+    take.facts.fileUri = fileUri;
+    storageFullAnnouncer.reset();
+    takeStorageWatch.start();
+    await persistPendingRecordingSession(fileUri, recordingStartedAt, take.facts.destination?.ideaId ?? null);
+  }
+
   async function rollbackFailedRecordingStart(
     nativeStartAttempted: boolean,
     audioSessionClaimed: boolean
   ) {
+    // Only the marker THIS take wrote may go: another take's marker may still be the
+    // only way back to a take kept for recovery (audit 2026-11-02, 03-2c).
+    const heldFileUri = take.facts.fileUri;
     take.facts.prepared = false;
     take.facts.recordingStartedAt = null;
     take.facts.sessionPersisted = false;
+    take.releaseTake();
 
     if (nativeStartAttempted || recorder.isRecording || recorder.isPaused) {
       try {
@@ -494,8 +598,8 @@ export function useRecording(
       }
     }
 
-    if (nativeStartAttempted) {
-      await clearPendingRecordingSession().catch((error) => {
+    if (nativeStartAttempted && heldFileUri) {
+      await clearPendingRecordingSession(heldFileUri).catch((error) => {
         console.warn("Recording rollback recovery cleanup failed", error);
       });
     }
@@ -522,6 +626,11 @@ export function useRecording(
       features: { energy: true, rms: true },
       autoResumeAfterInterruption: true,
       bufferDurationSeconds: 0.15,
+      // Must stay true. In this recorder it is what keeps capture running in the
+      // background (iOS: false pauses the engine when the app leaves the foreground, the
+      // screen locking included; Android: the wake lock). Decision E (the iPhone screen may
+      // lock mid-take, like Voice Memos) is done natively: the patched iOS recorder no
+      // longer holds the idle timer.
       keepAwake: true,
       showNotification: true,
       // Deliberately no waveform: the recording card stays a quiet two-line
@@ -597,9 +706,8 @@ export function useRecording(
           );
         }
         if (!event.fileUri || take.facts.sessionPersisted) return;
-        take.facts.sessionPersisted = true;
         const recordingStartedAt = take.facts.recordingStartedAt ?? Date.now();
-        void persistPendingRecordingSession(event.fileUri, recordingStartedAt);
+        void holdTakeFile(event.fileUri, recordingStartedAt);
       },
       onRecordingInterrupted: (event) => {
         const isExpectedStoppedEvent =
@@ -760,6 +868,10 @@ export function useRecording(
 
   async function startRecording() {
     if (recorder.isRecording || recorder.isPaused || startInFlightRef.current) return false;
+    // A take still holds the recorder (minimised, or the screen was rebuilt under it and
+    // this instance's recorder state reads idle). Starting here used to stop that take
+    // and clear its marker on the native "already recording" refusal (audit 10-H1).
+    if (takeHoldsRecorder()) return false;
     // A restore restarts the app the moment it lands, so a take begun under it would
     // be cut off mid-phrase (overnight check 2026-10-19). Haptics vocabulary `error`:
     // "Something failed" — the take can't start.
@@ -810,12 +922,10 @@ export function useRecording(
 
       const recordingStartedAt = Date.now();
       take.facts.recordingStartedAt = recordingStartedAt;
+      take.facts.destination = readRecordingDestination();
       nativeStartAttempted = true;
       const startResult = await timedStep("record.start", recorder.startRecording(buildRecordingConfig()));
-      if (startResult?.fileUri) {
-        take.facts.sessionPersisted = true;
-        await persistPendingRecordingSession(startResult.fileUri, recordingStartedAt);
-      }
+      if (startResult?.fileUri) await holdTakeFile(startResult.fileUri, recordingStartedAt);
       return true;
     } catch (err) {
       await rollbackFailedRecordingStart(nativeStartAttempted, audioSessionClaimed);
@@ -841,6 +951,7 @@ export function useRecording(
 
   async function startPreparedRecording(): Promise<boolean> {
     if (recorder.isRecording || recorder.isPaused || startInFlightRef.current) return false;
+    if (takeHoldsRecorder()) return false;
     startInFlightRef.current = true;
     let fromPrewarm = false;
     let nativeStartAttempted = false;
@@ -877,15 +988,13 @@ export function useRecording(
 
       const recordingStartedAt = Date.now();
       take.facts.recordingStartedAt = recordingStartedAt;
+      take.facts.destination = readRecordingDestination();
       resetCaptureStartEstimate();
       take.headTrim.set({ pending: false, ms: 0 });
       nativeStartAttempted = true;
       const startResult = await timedStep("record.start", recorder.startRecording(buildRecordingConfig()));
       take.facts.prepared = false;
-      if (startResult?.fileUri) {
-        take.facts.sessionPersisted = true;
-        await persistPendingRecordingSession(startResult.fileUri, recordingStartedAt);
-      }
+      if (startResult?.fileUri) await holdTakeFile(startResult.fileUri, recordingStartedAt);
       return true;
     } catch (err) {
       await rollbackFailedRecordingStart(nativeStartAttempted, audioSessionClaimed);
@@ -909,6 +1018,7 @@ export function useRecording(
     // to a take kept for recovery after a failed save (recovery runs only once the next
     // take actually starts) — clearing it unconditionally orphaned that take.
     const wroteSessionMarker = take.facts.sessionPersisted;
+    const heldFileUri = take.facts.fileUri;
     take.facts.prepared = false;
     prewarmedRef.current = false;
     take.facts.recordingStartedAt = null;
@@ -930,7 +1040,9 @@ export function useRecording(
       // count-in has a file nobody will ever reach (Data law) — drop it like discard does.
       await FileSystem.deleteAsync(fileUri, { idempotent: true }).catch(() => {});
     }
-    if (wroteSessionMarker) await clearPendingRecordingSession();
+    const markerUri = heldFileUri ?? fileUri;
+    if (wroteSessionMarker && markerUri) await clearPendingRecordingSession(markerUri).catch(() => {});
+    take.releaseTake();
     await releaseRecordingAudioSession().catch((error) => {
       console.warn("Recording audio session release after prepare cancel failed", error);
     });
@@ -1149,6 +1261,7 @@ export function useRecording(
       // or fails, journal the attachment so the next launch re-attaches it instead of
       // showing a dead 0:00 idea.
       let durable = false;
+      let journaled = false;
       try {
         await timedStep("save.flush", flushPersistedSnapshot());
         durable = true;
@@ -1157,18 +1270,31 @@ export function useRecording(
         persistLog("recording.flushFailed", describeError(flushError));
         const located = findClipByAudioUri(managedAudio.audioUri);
         if (located) {
-          await persistAttachedRecordingJournal({
-            ideaId: located.ideaId,
-            clipId: located.clip.id,
-            audioUri: managedAudio.audioUri,
-            ideaTitle: located.ideaTitle,
-            ideaTitleAutoGenerated: located.ideaTitleAutoGenerated,
-            clipTitle: located.clip.title,
-            durationMs: located.clip.durationMs,
-            waveformPeaks: located.clip.waveformPeaks,
-            createdAt: located.clip.createdAt,
-          }).catch(() => {});
+          journaled = await persistAttachedRecordingJournal(
+            {
+              ideaId: located.ideaId,
+              clipId: located.clip.id,
+              audioUri: managedAudio.audioUri,
+              ideaTitle: located.ideaTitle,
+              ideaTitleAutoGenerated: located.ideaTitleAutoGenerated,
+              clipTitle: located.clip.title,
+              durationMs: located.clip.durationMs,
+              waveformPeaks: located.clip.waveformPeaks,
+              createdAt: located.clip.createdAt,
+            },
+            recordingData.fileUri
+          ).then(
+            () => true,
+            () => false
+          );
         }
+      }
+
+      // Neither the saved library nor a journal leads to the take: keep the recorder's
+      // file and its marker, and the next launch lands it (if in doubt, keep the file).
+      if (!durable && !journaled) {
+        unrecoveredTakeThisSession = true;
+        return true;
       }
 
       if (recordingData.fileUri && recordingData.fileUri !== managedAudio.audioUri) {
@@ -1182,7 +1308,7 @@ export function useRecording(
         trimTempUriToCleanup = null;
       }
       // The marker now either is gone (durable) or points at the managed file (journal).
-      if (durable) await clearPendingRecordingSession();
+      if (durable) await clearPendingRecordingSession(recordingData.fileUri);
       return true;
     } catch (error) {
       take.facts.expectedStop = false;
@@ -1204,6 +1330,8 @@ export function useRecording(
       AppAlert.info(t("recording.keptForRecoveryTitle"), t("recording.keptSaveBody"));
       return false;
     } finally {
+      // Settled either way: in the library, or kept with its marker for recovery.
+      take.releaseTake();
       await releaseRecordingAudioSession().catch((error) => {
         console.warn("Recording audio session release after save failed", error);
       });
@@ -1232,20 +1360,24 @@ export function useRecording(
       take.facts.expectedStop = false;
       if (error instanceof StepTimeoutError) stopLateRecorder();
     }
+    // The take's own file: what the recorder said at stop, else what it named at start.
+    const discardedFileUri = fileUri ?? take.facts.fileUri ?? undefined;
     take.facts.prepared = false;
     prewarmedRef.current = false;
     take.facts.recordingStartedAt = null;
+    take.releaseTake();
     abortHeadTrim();
     resetLiveWaveform();
     resetOnsetEnvelope();
     discardCleanup = discardCleanup.then(async () => {
-      if (fileUri) {
+      if (discardedFileUri) {
         // Discard should clean up the recorder output because the app never imports it into
         // managed storage or stores metadata for later recovery.
-        await FileSystem.deleteAsync(fileUri, { idempotent: true }).catch(() => {});
+        await FileSystem.deleteAsync(discardedFileUri, { idempotent: true }).catch(() => {});
+        // A discarded take must not come back as "recovered" on the next launch. Only its
+        // own marker: another take's may still be waiting to be recovered (03-2c).
+        await clearPendingRecordingSession(discardedFileUri).catch(() => {});
       }
-      // A discarded take must not come back as "recovered" on the next launch.
-      await clearPendingRecordingSession().catch(() => {});
       await releaseRecordingAudioSession().catch((error) => {
         console.warn("Recording audio session release after discard failed", error);
       });

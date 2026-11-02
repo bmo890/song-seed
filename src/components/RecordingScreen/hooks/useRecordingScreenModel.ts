@@ -35,7 +35,13 @@ import { placeLivePins } from "../../../domain/livePins";
 import { looksMachineNamed } from "../../../domain/titleNaming";
 import { findIdeaInLibrary } from "../../../state/librarySelectors";
 import { haptic } from "../../../design/haptics";
-import { getActiveRecordingTakeSession } from "../../../services/recordingTakeSession";
+import {
+  getActiveRecordingTakeSession,
+  takeHoldsRecorder,
+  useTakeLiveGrid,
+  useTakeLivePins,
+  type LiveTakeGrid,
+} from "../../../services/recordingTakeSession";
 import { selfAlignRecordedLayer } from "../../../services/layerSelfAlignment";
 import { clampPunchInMs, getDefaultOverdubStemTitle, getRecordingGridBarMs, punchPhaseInBarMs } from "../../../domain/overdub";
 import {
@@ -141,16 +147,45 @@ export function useRecordingScreenModel() {
   // Pins dropped while the tape rolls (founder, 2026-10-12): one tap marks the
   // moment, no typing until the name sheet. Kept in a ref as well so the save
   // callback (built once) reads the pins of THIS take, not a stale render's.
-  const [livePins, setLivePins] = useState<PracticeMarker[]>([]);
-  const livePinsRef = useRef<PracticeMarker[]>([]);
-  livePinsRef.current = livePins;
+  // The pins, the take's grid, its punch and its metronome live in the app-wide take
+  // session: minimise-and-reopen used to drop them without a word (audit 2026-11-02,
+  // 12d D-M1). The refs below read and write the session.
+  const takeSession = getActiveRecordingTakeSession();
+  const livePins = useTakeLivePins(takeSession);
+  const livePinsRef = useMemo(
+    () => ({
+      get current() {
+        return takeSession.livePins.get();
+      },
+      set current(next: PracticeMarker[]) {
+        takeSession.livePins.set(next);
+      },
+    }),
+    [takeSession]
+  );
+  const setLivePins = useCallback(
+    (update: (prev: PracticeMarker[]) => PracticeMarker[]) => takeSession.livePins.set(update(takeSession.livePins.get())),
+    [takeSession]
+  );
   const clearLivePins = useCallback(() => {
-    livePinsRef.current = [];
-    setLivePins([]);
-  }, []);
+    takeSession.livePins.set([]);
+  }, [takeSession]);
   const setLivePinLabel = useCallback((pinId: string, label: string) => {
     setLivePins((prev) => prev.map((pin) => (pin.id === pinId ? { ...pin, label: clampPinLabel(label) } : pin)));
-  }, []);
+  }, [setLivePins]);
+  // Reopened on a take that holds the recorder: the store's recording context follows
+  // that take, whatever a record button did meanwhile (D-H2).
+  useEffect(() => {
+    if (takeHoldsRecorder()) {
+      useStore.getState().adoptHeldTakeContext();
+      return;
+    }
+    // A fresh recorder starts clean: nothing of an earlier take rides into this one.
+    takeSession.livePins.set([]);
+    takeSession.liveTakeGrid.set(null);
+    takeSession.facts.takeGrid = null;
+    takeSession.facts.punchInMs = null;
+  }, [takeSession]);
   const setQuickNamingIdeaId = useStore((s) => s.setQuickNamingIdeaId);
   const preferredRecordingInputId = useStore((s) => s.preferredRecordingInputId);
   const bluetoothMonitoringCalibrations = useStore((s) => s.bluetoothMonitoringCalibrations);
@@ -254,7 +289,11 @@ export function useRecordingScreenModel() {
   const [isPrimaryDraft, setIsPrimaryDraft] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [metronomeSheetVisible, setMetronomeSheetVisible] = useState(false);
-  const [recordingMetronomeEnabled, setRecordingMetronomeEnabled] = useState(false);
+  // Reopened mid-take, the toggle shows what the take is using (it is locked while it rolls).
+  const [recordingMetronomeEnabled, setRecordingMetronomeEnabled] = useState(() =>
+    takeHoldsRecorder() ? takeSession.facts.metronomeEnabled : false
+  );
+  takeSession.facts.metronomeEnabled = recordingMetronomeEnabled;
   const [isArmingRecording, setIsArmingRecording] = useState(false);
   const [currentRecordingInput, setCurrentRecordingInput] = useState<AudioDevice | null>(null);
   const [currentMonitoringOutput, setCurrentMonitoringOutput] = useState<{
@@ -295,27 +334,37 @@ export function useRecordingScreenModel() {
   // Beat grid the in-flight take is being recorded against, snapshotted when the take
   // starts (the global metronome settings can change afterwards). Attached to the saved
   // clip/stem as `recordingGrid`; null when the take doesn't use the metronome at all.
-  const takeGridRef = useRef<RecordingGrid | null>(null);
+  // Lives in the take session (D-M1), so a reopened recorder saves it with the take.
+  const takeGridRef = useMemo(
+    () => ({
+      get current(): RecordingGrid | null {
+        return takeSession.facts.takeGrid;
+      },
+      set current(next: RecordingGrid | null) {
+        takeSession.facts.takeGrid = next;
+      },
+    }),
+    [takeSession]
+  );
   /** The measured beat grid of the RUNNING take, in capture-file ms — drives the live
    *  tape's beat ruler so the lines the performer records against are the same lines
    *  playback will draw. Null when no metronome is in the take or nothing is measured. */
-  const [liveTakeGrid, setLiveTakeGrid] = useState<{
-    firstBeatCaptureMs: number;
-    beatMs: number;
-    pulsesPerBar: number;
-    /** Programmed tempo/meter changes. Without it the live ruler drew the FIRST segment's
-     *  spacing for the whole take, so from the first change onward it was measuring the
-     *  performance against a beat length the click had stopped playing. */
-    tempoMap?: TempoMap | null;
-    /** The correction the grid was stamped with in the CLICK's domain (click output delay
-     *  + mic delay): how far the engine's render grid runs ahead of the capture. Resume
-     *  needs it to pick the click back up where it left off. */
-    clickLeadMs?: number;
-  } | null>(null);
+  const liveTakeGrid = useTakeLiveGrid(takeSession);
+  const setLiveTakeGrid = useCallback(
+    (next: LiveTakeGrid | null) => takeSession.liveTakeGrid.set(next),
+    [takeSession]
+  );
   /** Mirror for imperative readers (the resume handler) — a press handler must not depend
    *  on having re-rendered since the grid was measured. */
-  const liveTakeGridRef = useRef(liveTakeGrid);
-  liveTakeGridRef.current = liveTakeGrid;  const takeGridChangeTimersRef = useRef<
+  const liveTakeGridRef = useMemo(
+    () => ({
+      get current() {
+        return takeSession.liveTakeGrid.get();
+      },
+    }),
+    [takeSession]
+  );
+  const takeGridChangeTimersRef = useRef<
     { handle: ReturnType<typeof setTimeout>; gridMs: number }[]
   >([]);
   /** True while the running take's changes are scheduled by the native map engine. */
@@ -331,7 +380,17 @@ export function useRecordingScreenModel() {
   const pendingOverdubSaveRef = useRef<{ ideaId: string; clipId: string; title: string } | null>(null);
   const autoStoppingOverdubRef = useRef(false);
   /** The start a punched take was armed with (see the save). */
-  const takePunchInMsRef = useRef<number | null>(null);
+  const takePunchInMsRef = useMemo(
+    () => ({
+      get current() {
+        return takeSession.facts.punchInMs;
+      },
+      set current(next: number | null) {
+        takeSession.facts.punchInMs = next;
+      },
+    }),
+    [takeSession]
+  );
   const abandonedPlaceholderCleanupRef = useRef<() => void>(() => {});
   // The recorder's beat bar and breath draw from `beatCount` (the onBeat stream);
   // the pulse token was a second render per pulse it never read.
@@ -2132,6 +2191,7 @@ export function useRecordingScreenModel() {
     setSettingsVisible(false);
     setMetronomeSheetVisible(false);
     clearLivePins();
+    setLiveTakeGrid(null);
 
     // Count-in is independent of whether the metronome clicks through the take: a count-in
     // can run (using the metronome's bpm/meter/cues) even when the metronome itself is "off",
