@@ -531,7 +531,7 @@ export function CollectionFloatingActions() {
           if (!appActions.quickRecordIdea(screen.collectionId!)) return;
           screen.navigateRoot("Recording");
         }}
-        hideRecord={screen.isReceivedWorkspace}
+        hideRecord={screen.isReadOnly}
         onFloatingDockLayout={(height) => {
           screen.setFloatingDockHeight((prev) => (Math.abs(prev - height) < 1 ? prev : height));
         }}

@@ -14,6 +14,7 @@ import { SideMenuButton } from "../../common/SideMenuButton";
 import { PickerEyebrow } from "../../common/PickerEyebrow";
 import { getLibraryCollectorIcon } from "../../../domain/libraryCollectorPresentation";
 import { InkLink } from "../../common/InkLink";
+import { ReadOnlyLine } from "../../common/ReadOnlyLine";
 import { ReceivedPackageMoveModal } from "../../common/ReceivedPackageMoveModal";
 import { SentLinkChip } from "../../common/SentLinkChip";
 import { visitCollection } from "../../../navigation";
@@ -259,6 +260,8 @@ export function CollectionCollapsibleIdentity() {
         {collection.title}
       </UserText>
       <Text style={collStyles.meta}>{metaLine}</Text>
+      {/* An archive reads only; a parcel says the same through its Keep link below. */}
+      {screen.readOnlyReason === "archived" ? <ReadOnlyLine reason="archived" style={collStyles.meta} /> : null}
       {collection.description ? (
         <UserText value={collection.description} style={collStyles.description} numberOfLines={2}>
           {collection.description}
@@ -307,7 +310,8 @@ export function CollectionSearchSection() {
       hasActivityRangeFilter={screen.hasActivityRangeFilter}
       activityLabel={screen.activityLabel}
       collectionId={screen.collectionId!}
-      clipClipboard={screen.clipClipboard}
+      // Nothing is pasted into a parcel or an archive: no Paste banner there.
+      clipClipboard={screen.isReadOnly ? null : screen.clipClipboard}
       duplicateWarningText={screen.duplicateWarningText}
       onClearActivityRange={() => {
         (screen.navigation as any).setParams({

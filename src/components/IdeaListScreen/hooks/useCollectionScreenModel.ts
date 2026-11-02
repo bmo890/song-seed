@@ -5,6 +5,7 @@ import { useIsFocused, useNavigation, useRoute } from "@react-navigation/native"
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSharedValue } from "react-native-reanimated";
 import { useStore } from "../../../state/useStore";
+import { useReadOnlyWorkspaceReason } from "../../../hooks/useReadOnly";
 import { getCollectionAncestors } from "../../../utils";
 import { getDateBucket, getDateBucketLabel } from "../../../domain/dateBuckets";
 import { compareIdeas, getIdeaCreatedAt, getIdeaSortState, getIdeaSortTimestamp, getIdeaUpdatedAt, usesIdeaTimelineDividers } from "../../../domain/ideaSort";
@@ -430,6 +431,10 @@ export function useCollectionScreenModel() {
   // A received package's collection sits under Received, not under a workspace
   // hub: a package is looked at, kept or discarded, never "where you work".
   const isReceivedWorkspace = activeWorkspace?.origin === "received";
+  // Decision B: a parcel (until Keep) or an archive is looked at, never worked in:
+  // no record, new sketch, import or paste here (the store refuses them too).
+  const readOnlyReason = useReadOnlyWorkspaceReason(activeWorkspace?.id);
+  const isReadOnly = readOnlyReason !== null;
   const upLink =
     parentCollection
       ? {
@@ -573,6 +578,8 @@ export function useCollectionScreenModel() {
     activityMetricFilter,
     isVisit,
     isReceivedWorkspace,
+    readOnlyReason,
+    isReadOnly,
     // Where back lands from a visit — the nav row's label. Null on a plain
     // collection page (the hamburger row has no back).
     originLabel,

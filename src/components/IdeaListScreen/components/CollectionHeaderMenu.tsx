@@ -69,7 +69,7 @@ export function CollectionHeaderMenu() {
             void playAllIdeas();
           }}
         />
-        {!screen.isReceivedWorkspace ? (
+        {!screen.isReadOnly ? (
           <>
             {/* Creation rows — moved here from the "+" FAB (single-FAB rule):
                 the record FAB stays THE action. */}
