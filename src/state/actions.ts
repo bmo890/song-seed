@@ -67,6 +67,7 @@ import { authorizeIntentionalEmptyStateWrite } from "../services/stateIntegrity"
 import { i18n } from "../i18n";
 import { relocateActivityEvents, relocatePlaylists } from "./relocationMetadata";
 import { SONG_NOOK_PREVIEW_AUDIO_DIR } from "../services/storagePaths";
+import { takeHoldsRecorder } from "../services/recordingTakeSession";
 
 const buildIdeaId = () => genId("idea");
 const buildClipId = () => genId("clip");
@@ -842,6 +843,9 @@ export const appActions = {
     },
 
     quickRecordIdea: (collectionId: string) => {
+        // A take already holds the recorder: Record brings that take back (the caller
+        // opens the recorder), it never makes a second shell or re-aims the take.
+        if (takeHoldsRecorder()) return;
         const state = useStore.getState();
         const activeWs = state.workspaces.find((workspace) => workspace.id === state.activeWorkspaceId);
         const fallbackTitle = ensureUniqueIdeaTitle(
@@ -850,8 +854,7 @@ export const appActions = {
         );
         const createdId = state.quickRecordIdea(fallbackTitle, collectionId);
         // A fresh quick take: no parent, and no layer set-up left from before.
-        state.setRecordingParentClipId(null);
-        state.setRecordingIdeaId(createdId);
+        state.armRecording({ ideaId: createdId });
     },
 
     /** The recorder was left without a take: drop the empty clip-kind idea that
@@ -1333,6 +1336,7 @@ export const appActions = {
             punchInMs?: number;
         }
     ) => {
+        if (takeHoldsRecorder()) return null;
         await scheduleClipOverdubRerender(ideaId, clipId, { immediate: true });
         const state = useStore.getState();
         const match = findWorkspaceIdeaClip(state.workspaces, ideaId, clipId);
@@ -1351,11 +1355,18 @@ export const appActions = {
             getClipPlaybackDurationMs(match.clip) ?? match.clip.durationMs
         );
 
-        state.setRecordingIdeaId(ideaId);
-        state.setRecordingParentClipId(null);
-        state.setRecordingOverdubClipId(clipId);
-        state.setRecordingGuideMixUri(guideMixUri);
-        state.setRecordingPunchInMs(punchInMs > 0 ? punchInMs : null);
+        // A take that already holds the recorder keeps its own destination; the caller
+        // opens the recorder on it (audit 2026-11-02, 12d D-H2).
+        if (
+            !state.armRecording({
+                ideaId,
+                overdubClipId: clipId,
+                guideMixUri,
+                punchInMs: punchInMs > 0 ? punchInMs : null,
+            })
+        ) {
+            return null;
+        }
 
         return {
             ideaId,

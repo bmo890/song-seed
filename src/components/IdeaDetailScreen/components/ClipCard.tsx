@@ -145,8 +145,6 @@ export const ClipCard = React.memo(function ClipCard({
   const startClipSelection = useStore((s) => s.startClipSelection);
   const toggleClipSelection = useStore((s) => s.toggleClipSelection);
   const setPendingPrimaryClipId = useStore((s) => s.setPendingPrimaryClipId);
-  const setRecordingParentClipId = useStore((s) => s.setRecordingParentClipId);
-  const setRecordingIdeaId = useStore((s) => s.setRecordingIdeaId);
   const setPlayerQueueForScreen = useStore((s) => s.setPlayerQueueForScreen);
   const inlineActive = useStore(
     (s) => s.inlineTarget?.ideaId === idea.id && s.inlineTarget.clipId === clip.id
@@ -274,8 +272,8 @@ export const ClipCard = React.memo(function ClipCard({
   const handleReply = async () => {
     await inlinePlayer.resetInlinePlayer();
     useStore.getState().requestPlayerClose();
-    setRecordingParentClipId(clip.id);
-    setRecordingIdeaId(idea.id);
+    // A take that already holds the recorder is brought back, never re-aimed (D-H2).
+    useStore.getState().armRecording({ ideaId: idea.id, parentClipId: clip.id });
     navigation.navigate("Recording" as never);
   };
   const handleLongPress = () => {
