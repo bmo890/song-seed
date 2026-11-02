@@ -6,7 +6,7 @@ founder decides something here, update this file in the same change and add a li
 the decision log (§10). Older plans (`phase-6-monetization.md`, the 2026-10-19 founding
 price) are history; where they disagree with this file, this file wins.
 
-Last reviewed: 2026-11-01.
+Last reviewed: 2026-11-02.
 
 ## 1. Prices
 
@@ -164,10 +164,10 @@ The one real cost risk: it is permanent and grows. Not decided; the working shap
 
 - Introductory offer: yes or no.
 - Regional prices: which countries.
-- Send link life: keep 7 days and add Delete link (recommended) or shorten.
-- Browser access: pairing (recommended, being built) or accounts.
 - Cloud plan shape and price.
-- Post-encryption Send copy (§6).
+
+Settled since: Send links last 7 days with a Delete link; browsers pair with a typed
+code (accounts wait for cloud); post-encryption Send copy is in §6.
 
 ## Release-day checklist (pricing)
 
@@ -176,6 +176,10 @@ The one real cost risk: it is permanent and grows. Not decided; the working shap
 2. Put that end date in the founder's calendar: change `songnook_pro_lifetime` to
    $79.99 in App Store Connect and Play Console that day.
 3. Flip `ALL_FEATURES_FREE` to false (`src/domain/entitlements.ts`).
+4. Send server (`server/songnook-send`, deploy with `--config ./wrangler.toml`): set
+   `PRO_FOR_ALL=false` and `APP_SEND_ENFORCED=true`, and
+   `wrangler secret put REVENUECAT_SECRET_KEY`. Without this the browser and the free
+   3 links stay open to everyone.
 
 ## 10. Decision log
 
@@ -194,3 +198,9 @@ The one real cost risk: it is permanent and grows. Not decided; the working shap
 - 2026-11-01 — Cloud exclusion stays in the terms only; the Pro sheet line about it
   was removed and the store description stays "Every Pro tool, pay once." (founder:
   don't raise a question about cloud storage we don't offer).
+- 2026-11-01 — Send: links stay 7 days, Delete link added, browsers pair with a typed
+  code; parcels sealed end to end from iOS build 16 / Android vc 14.
+- 2026-11-02 — Founder asked whether to drop lifetime while cloud is unsettled; kept.
+  It costs pennies per buyer (everything is on the phone), cloud is already outside it
+  in the terms, rivals all offer one, and subscription-averse musicians buy nothing
+  without it. Revisit at the 90-day launch-price date with real numbers.
