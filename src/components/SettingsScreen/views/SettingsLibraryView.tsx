@@ -58,7 +58,7 @@ export function SettingsLibraryView({
                 ? backupFlow.backupProgressLabel ?? t("settings.backingUp")
                 : backupFlow.lastSuccessfulBackupFileName
                   ? t("settingsLibrary.lastBackupVerified", { when: backupFlow.lastSuccessfulBackupLabel })
-                  : t("settingsLibrary.noBackupShort")
+                  : t("settingsLibrary.backUpHint")
             }
             onPress={backupFlow.handleBackupNow}
           />
@@ -68,7 +68,7 @@ export function SettingsLibraryView({
             title={t("settingsLibrary.restore")}
             busy={backupFlow.isRestoring}
             disabled={backupFlow.isBackingUp || backupFlow.isRestoring}
-            meta={backupFlow.isRestoring ? backupFlow.restoreProgressLabel ?? t("settings.restoring") : undefined}
+            meta={backupFlow.isRestoring ? backupFlow.restoreProgressLabel ?? t("settings.restoring") : t("settingsLibrary.restoreHint")}
             onPress={backupFlow.handleRestore}
           />
           {/* Automatic backup (decision C, 2026-11-02): one folder kept current in
@@ -137,12 +137,14 @@ export function SettingsLibraryView({
             flat
             icon="share-outline"
             title={t("settingsLibrary.exportArchive")}
+            meta={t("settingsLibrary.exportHint")}
             onPress={onBeginExportFlow}
           />
           <LibraryActionCard
             flat
             icon="download-outline"
             title={t("settingsLibrary.importArchive")}
+            meta={t("settingsLibrary.importHint")}
             onPress={onBeginImportFlow}
           />
           <LibraryActionCard
