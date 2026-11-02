@@ -37,7 +37,7 @@ import {
     isVideoImport,
 } from "../audioImportFormat";
 import { importAudioAsset } from "../audioStorage";
-import { isSharedAudioFile } from "../shareImport";
+import { extractSharedAudioAssets, isSharedAudioFile } from "../shareImport";
 
 const nativeMock = SongNookPitchShiftModule as unknown as { extractAudioTrack?: jest.Mock };
 const fs = FileSystem as unknown as { copyAsync: jest.Mock; moveAsync: jest.Mock; deleteAsync: jest.Mock };
@@ -230,5 +230,33 @@ describe("importAudioAsset — video", () => {
             from: "file:///picked/take.m4a",
             to: "file:///docs/songnook/audio/clip-8.m4a",
         });
+    });
+});
+
+// Audit 06-3: the share intake's copy is ours, made for this import alone. It moves
+// into the library (no second copy) and is never left behind.
+describe("a file shared into SongNook", () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    it("is marked as the share intake's own copy, and an original never is", async () => {
+        const { assets } = await extractSharedAudioAssets([
+            { path: "file:///cache/share-intake/6F1C2A4E-9B1D-4C3E-8A2F-1D2C3B4A5E6F.opus", fileName: "PTT.opus", mimeType: "audio/ogg" },
+            { path: "content://com.whatsapp.provider/media/1", fileName: "PTT2.opus", mimeType: "audio/ogg" },
+        ] as never);
+        expect(assets.map((asset) => asset.discardSourceAfterImport === true)).toEqual([true, false]);
+    });
+
+    it("moves the share intake's copy into the library instead of copying it", async () => {
+        nativeMock.extractAudioTrack = jest.fn();
+        await importAudioAsset(
+            { uri: "file:///cache/share-intake/AB.m4a", name: "voice.m4a", discardSourceAfterImport: true },
+            "clip-11",
+            { lightweight: true }
+        );
+        expect(fs.moveAsync).toHaveBeenCalledWith({
+            from: "file:///cache/share-intake/AB.m4a",
+            to: "file:///docs/songnook/audio/clip-11.m4a",
+        });
+        expect(fs.copyAsync).not.toHaveBeenCalled();
     });
 });

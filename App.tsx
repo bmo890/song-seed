@@ -108,6 +108,7 @@ import {
 } from "./src/services/backupStatus";
 import { hasPendingWorkspaceArchiveOperations, resumePendingWorkspaceArchiveOperations } from "./src/services/workspaceArchiveRecovery";
 import { sweepPickerCache } from "./src/services/pickedCopies";
+import { sweepSharedInCopies } from "./src/services/sharedInCopies";
 import { enqueueMissingMetadataBackfill } from "./src/services/backgroundWaveformHydration";
 import { recoverPendingRecordingSession } from "./src/services/recordingRecovery";
 import { useLaunchSequence } from "./src/hooks/useLaunchSequence";
@@ -1327,6 +1328,9 @@ export default function App() {
       // originals, which live outside the app; held back while an unarchive may still
       // need a package it picked.
       if (!(await hasPendingWorkspaceArchiveOperations())) await sweepPickerCache();
+      // Share-intake copies a day old (App Group on iOS, share-intake on Android): a
+      // share cancelled, killed or skipped (06-3). A fresh one may be this launch's share.
+      await sweepSharedInCopies();
 
       // Backfill clip durations the import-time hydration queue never finished (it's
       // in-memory and single-shot: app restarts, probe timeouts, and archive restores

@@ -1,6 +1,7 @@
 import type { ShareIntentFile } from "expo-share-intent";
 import { enrichImportedAudioAsset, type ImportedAudioAsset } from "./audioStorage";
 import { isVideoImport } from "./audioImportFormat";
+import { isSharedInCopy } from "./sharedInCopies";
 
 const AUDIO_FILE_EXTENSIONS = new Set([
   "aac",
@@ -83,11 +84,15 @@ export async function extractSharedAudioAssets(files: ShareIntentFile[] | null |
       continue;
     }
 
+    const uri = normalizeSharedFileUri(file.path);
     importedAssets.push(
       await enrichImportedAudioAsset({
-        uri: normalizeSharedFileUri(file.path),
+        uri,
         name: file.fileName ?? undefined,
         mimeType: file.mimeType ?? undefined,
+        // The share intake's own copy (App Group / share-intake): it moves into the
+        // library and never outlives the import (audit 06-3). Never an original.
+        discardSourceAfterImport: isSharedInCopy(uri),
       })
     );
   }

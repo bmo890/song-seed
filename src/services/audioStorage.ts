@@ -19,7 +19,7 @@ import {
     isNoAudioTrackError,
     isVideoImport,
 } from "./audioImportFormat";
-import { discardPickedCopies, isInAppCache } from "./pickedCopies";
+import { discardPickedCopies, isImportOnlyCopy, isInAppCache } from "./pickedCopies";
 import { readVideoCreationTimeMs } from "./videoCreationTime";
 
 export const MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS = 30 * 60 * 1000;
@@ -688,13 +688,14 @@ async function importAudioAssetFromSource(
 
     try {
         if (copiedToManagedStorage) {
-            // Our own temp file (the extracted sound) or the picker's cache copy moves into
-            // the library instead of being copied: a phone short of space never holds the
-            // recording twice. Anything else (a file we don't own) is copied.
+            // Our own temp file (the extracted sound), the picker's cache copy or the share
+            // intake's copy moves into the library instead of being copied: a phone short
+            // of space never holds the recording twice. Anything else (a file we don't
+            // own) is copied.
             const ownsSource =
                 sourceUri === convertedTempUri ||
                 asset.moveIntoLibrary != null ||
-                (asset.discardSourceAfterImport === true && isInAppCache(sourceUri));
+                (asset.discardSourceAfterImport === true && isImportOnlyCopy(sourceUri));
             if (ownsSource) {
                 await FileSystem.moveAsync({ from: sourceUri, to: destinationUri });
             } else {
