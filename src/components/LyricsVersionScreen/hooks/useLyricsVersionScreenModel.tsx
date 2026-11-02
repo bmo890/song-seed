@@ -15,6 +15,7 @@ import type { RootStackParamList } from "../../../navigation";
 import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
 import { selectIdeaById } from "../../../state/librarySelectors";
+import { useReadOnlyIdeaReason } from "../../../hooks/useReadOnly";
 import { appActions } from "../../../state/actions";
 import { getLatestLyricsVersion, lyricsDocumentToText } from "../../../domain/lyrics";
 import { serializeChordChartText } from "../../../domain/chords";
@@ -88,7 +89,11 @@ export function useLyricsVersionScreenModel() {
   const sourceDirection: ContentDirection = resolvedVersion?.textDirection ?? "auto";
   const [textDirection, setTextDirection] = useState<ContentDirection>(sourceDirection);
   const [baselineDirection, setBaselineDirection] = useState<ContentDirection>(sourceDirection);
-  const [isEditMode, setIsEditMode] = useState(startInEdit || createDraft || !resolvedVersion);
+  // A parcel's lyrics (until Keep) or an archived sketch's are read here, never
+  // written: whatever the route asks for, the page opens as the reader (decision B).
+  const readOnlyReason = useReadOnlyIdeaReason(projectIdea?.id ?? ideaId);
+  const [isEditModeState, setIsEditMode] = useState(startInEdit || createDraft || !resolvedVersion);
+  const isEditMode = isEditModeState && !readOnlyReason;
   const [editSavesAsNew, setEditSavesAsNew] = useState(
     forceNewVersion || createDraft || !isLatestSource
   );
@@ -256,6 +261,7 @@ export function useLyricsVersionScreenModel() {
 
   return {
     projectIdea,
+    readOnlyReason,
     versionLabel,
     versionMeta,
     isEditMode,

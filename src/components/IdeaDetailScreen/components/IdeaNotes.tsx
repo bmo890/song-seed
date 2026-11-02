@@ -8,6 +8,8 @@ import { SongNotesEditor } from "./SongNotesEditor";
 import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../../i18n";
+import { useStore } from "../../../state/useStore";
+import { readOnlyLabelKey, useReadOnlyIdeaReason } from "../../../hooks/useReadOnly";
 
 type IdeaNotesProps = {
     isEditMode: boolean;
@@ -28,6 +30,9 @@ export function IdeaNotes({
 }: IdeaNotesProps) {
     const { t } = useTranslation();
     const [isEditingNotes, setIsEditingNotes] = useState(false);
+    // The notes belong to the selected idea; read-only there means read, not write.
+    const readOnlyReason = useReadOnlyIdeaReason(useStore((s) => s.selectedIdeaId));
+    const readOnly = readOnlyReason !== null;
 
     // Editing isn't available while the song itself is being edited.
     useEffect(() => {
@@ -56,7 +61,8 @@ export function IdeaNotes({
         return (
             <>
                 <Pressable
-                    style={({ pressed }) => [styles.songNotesTabPage, cardStyle, pressed ? styles.pressDown : null]}
+                    style={({ pressed }) => [styles.songNotesTabPage, cardStyle, pressed && !readOnly ? styles.pressDown : null]}
+                    disabled={readOnly}
                     onPress={() => setIsEditingNotes(true)}
                     accessibilityRole="button"
                     accessibilityLabel={t("songDetail.notes")}
@@ -66,6 +72,8 @@ export function IdeaNotes({
                         <UserText align="content" value={text} style={styles.songNotesTabText}>
                             {text}
                         </UserText>
+                    ) : readOnlyReason ? (
+                        <Text style={styles.songNotesTabPlaceholder}>{t(readOnlyLabelKey(readOnlyReason))}</Text>
                     ) : (
                         <Text style={styles.songNotesTabPlaceholder}>{t("songDetail.notesEmptyPlaceholder")}</Text>
                     )}
@@ -120,9 +128,9 @@ export function IdeaNotes({
                     styles.songDetailMiniCard,
                     cardStyle,
                     isEditMode ? styles.btnDisabled : null,
-                    pressed && !isEditMode ? styles.pressDown : null,
+                    pressed && !isEditMode && !readOnly ? styles.pressDown : null,
                 ]}
-                disabled={isEditMode}
+                disabled={isEditMode || readOnly}
                 onPress={() => setIsEditingNotes(true)}
             >
                 <View style={styles.songDetailMiniCardHeader}>

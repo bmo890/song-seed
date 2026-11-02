@@ -121,7 +121,7 @@ export function ChordSheetScreenContent() {
                 <Ionicons name="share-outline" size={18} color={colors.textSecondary} />
               </Pressable>
             ) : null}
-            {!isEmpty ? (
+            {!isEmpty && !model.readOnlyReason ? (
               isEditing ? (
                 <Pressable
                   style={({ pressed }) => [styles.editPill, pressed ? appStyles.pressDown : null]}

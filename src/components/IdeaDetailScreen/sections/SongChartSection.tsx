@@ -197,13 +197,15 @@ export function SongChartSection() {
               onPress={() => setExportVisible(true)}
               accessibilityLabel={t("chordChart.export")}
             />
-            <IconButton
-              icon="pencil"
-              tone="muted"
-              size={18}
-              onPress={() => setIsEditing(true)}
-              accessibilityLabel={t("chordChart.edit")}
-            />
+            {model.readOnlyReason ? null : (
+              <IconButton
+                icon="pencil"
+                tone="muted"
+                size={18}
+                onPress={() => setIsEditing(true)}
+                accessibilityLabel={t("chordChart.edit")}
+              />
+            )}
           </View>
         ) : null}
 

@@ -22,6 +22,7 @@ import { useScrollIntoViewOnFocus } from "./chartScroll";
 import type { useChordSheetModel } from "../useChordSheetModel";
 import { useTranslation } from "react-i18next";
 import { EmptyState } from "../../common/EmptyState";
+import { readOnlyLabelKey } from "../../../hooks/useReadOnly";
 import { UserText, UserTextInput } from "../../../i18n";
 import { ModalDialogLayer } from "../../common/AppDialog";
 import { ModalGestureRoot } from "../../common/ModalGestureRoot";
@@ -151,15 +152,24 @@ export function ChordSheetBody({
       <View style={isEditing ? styles.editSurface : undefined}>
       {isEmpty ? (
         isEditing ? null : (
-          <EmptyState
-            icon="grid-outline"
-            title={t("chordChart.blankTitle")}
-            body={t("chordChart.blankBody")}
-            actionLabel={t("chordChart.addSection")}
-            onAction={() => setAddSheetOpen(true)}
-            linkLabel={t("chordChart.buildFromLyrics")}
-            onLink={() => model.buildFromLyrics()}
-          />
+          model.readOnlyReason ? (
+            // Read-only: nothing to start here, so say how it opens up.
+            <EmptyState
+              icon="grid-outline"
+              title={t("chordChart.blankTitle")}
+              body={t(readOnlyLabelKey(model.readOnlyReason))}
+            />
+          ) : (
+            <EmptyState
+              icon="grid-outline"
+              title={t("chordChart.blankTitle")}
+              body={t("chordChart.blankBody")}
+              actionLabel={t("chordChart.addSection")}
+              onAction={() => setAddSheetOpen(true)}
+              linkLabel={t("chordChart.buildFromLyrics")}
+              onLink={() => model.buildFromLyrics()}
+            />
+          )
         )
       ) : (
         sheet.sections.map((section, index) =>

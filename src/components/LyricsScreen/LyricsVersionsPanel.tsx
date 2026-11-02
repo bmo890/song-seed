@@ -6,6 +6,7 @@ import { useNavigation } from "@react-navigation/native";
 import { styles } from "../../styles";
 import { SongIdea, type LyricsVersion } from "../../types";
 import { useStore } from "../../state/useStore";
+import { readOnlyLabelKey, useReadOnlyIdeaReason } from "../../hooks/useReadOnly";
 import { appActions } from "../../state/actions";
 import { countLyricsVersionReferences, getLatestLyricsVersion, lyricsDocumentToText } from "../../domain/lyrics";
 import { buildLyricsTextFromNote } from "../../domain/notepad";
@@ -79,6 +80,9 @@ export function LyricsVersionsPanel({ projectIdea, toolbarLeading }: LyricsVersi
   const { language } = useLocale();
   const navigation = useNavigation<any>();
   const notes = useStore((s) => s.notes);
+  // A parcel's lyrics (until Keep) or an archived sketch's: read every version,
+  // write none (decision B). Selection only offers edits, so it stays off too.
+  const readOnlyReason = useReadOnlyIdeaReason(projectIdea.id);
   const versions = projectIdea.kind === "project" ? projectIdea.lyrics?.versions ?? [] : [];
   const latestVersion = useMemo(() => getLatestLyricsVersion(projectIdea), [projectIdea]);
   const versionsNewestFirst = [...versions].reverse();
@@ -115,6 +119,7 @@ export function LyricsVersionsPanel({ projectIdea, toolbarLeading }: LyricsVersi
   }
 
   function startSelection(versionId: string) {
+    if (readOnlyReason) return;
     haptic.grab();
     setSelectedVersionIds([versionId]);
   }
@@ -354,7 +359,7 @@ export function LyricsVersionsPanel({ projectIdea, toolbarLeading }: LyricsVersi
         // forward action ("+ Version") sits on the trailing edge.
         <View style={panelStyles.controlRow}>
           {toolbarLeading ?? <View />}
-          {versions.length > 0 ? (
+          {versions.length > 0 && !readOnlyReason ? (
             <InkKey
               glyph={<Ionicons name="add" size={17} color={inkKeyColor("idle")} />}
               label={t("clipLineage.versionKey")}
@@ -365,7 +370,9 @@ export function LyricsVersionsPanel({ projectIdea, toolbarLeading }: LyricsVersi
         </View>
       ) : null}
 
-      {versions.length === 0 ? (
+      {versions.length === 0 && readOnlyReason ? (
+        <EmptyState icon="document-text-outline" title={t("readOnly.noLyrics")} body={t(readOnlyLabelKey(readOnlyReason))} />
+      ) : versions.length === 0 ? (
         // The canon empty state: one tonal primary, one quiet ink link.
         <EmptyState
           icon="document-text-outline"

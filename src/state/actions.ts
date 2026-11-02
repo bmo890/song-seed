@@ -2388,6 +2388,9 @@ export const appActions = {
         const workspace = state.workspaces.find((w) => w.ideas.some((i) => i.id === ideaId));
         const sketch = workspace?.ideas.find((i) => i.id === ideaId);
         if (!workspace || !sketch || sketch.kind !== "project") return [];
+        // A read-only sketch keeps its frame: nothing in a parcel or an archive
+        // is reshaped item by item (decision B).
+        if (isReadOnlyWorkspace(workspace)) return [];
 
         const released = sketch.clips.map((clip) =>
             createStandaloneClipIdeaFromMove({ clip, sourceIdea: sketch }, sketch.collectionId)

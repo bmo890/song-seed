@@ -6,6 +6,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useTranslation } from "react-i18next";
 import { styles } from "../styles";
 import { useStore } from "../../../state/useStore";
+import { useIsReadOnlyIdea } from "../../../hooks/useReadOnly";
 import { getIdSet } from "../../../state/librarySelectors";
 import { useFullPlayerControls } from "../../../hooks/FullPlayerProvider";
 import {
@@ -200,8 +201,11 @@ export const ClipCard = React.memo(function ClipCard({
       }),
     [clip.tags, globalCustomTags, idea.customTags]
   );
+  // A parcel's take (until Keep) or an archived one reads and plays; it takes no
+  // tags, notes or new versions (decision B).
+  const readOnly = useIsReadOnlyIdea(idea.id);
   const canEditTags =
-    !displayOnly && !isEditMode && !isDraftProject && !isParentPicking && !clipSelectionMode;
+    !displayOnly && !readOnly && !isEditMode && !isDraftProject && !isParentPicking && !clipSelectionMode;
   const visibleTagBadges = tagBadges;
   // The add affordance is always offered while editable (labeled "Tag" when the
   // clip has none yet), so tagging is discoverable whether or not tags exist.
@@ -251,7 +255,7 @@ export const ClipCard = React.memo(function ClipCard({
   // and a thread's head alike (2026-10-15); an indented child is part of a
   // thread, which carries it on its head.
   const showVersionKey =
-    canShowTrailingAction && entry.kind === "evolution" && !entry.indented;
+    canShowTrailingAction && !readOnly && entry.kind === "evolution" && !entry.indented;
   // Timeline cards swap reply for a "jump to Evolution" locate action.
   const showLocateButton =
     canShowTrailingAction && entry.kind === "timeline" && !!onLocateClip;
@@ -418,8 +422,8 @@ export const ClipCard = React.memo(function ClipCard({
           clip.notes ? (
             <ClipNoteLine
               notes={clip.notes ?? ""}
-              disabled={!!displayOnly}
-              onOpen={!displayOnly ? () => onOpenNotesSheet?.(clip) : undefined}
+              disabled={!!displayOnly || readOnly}
+              onOpen={!displayOnly && !readOnly ? () => onOpenNotesSheet?.(clip) : undefined}
               onLongPress={handleLongPress}
             />
           ) : undefined
@@ -444,9 +448,9 @@ export const ClipCard = React.memo(function ClipCard({
           ) : null}
           <ClipTagBadges
             tags={visibleTagBadges}
-            disabled={!!displayOnly}
+            disabled={!!displayOnly || readOnly}
             showAddButton={showAddTagButton}
-            onPress={displayOnly ? undefined : handleTagsPress}
+            onPress={displayOnly || readOnly ? undefined : handleTagsPress}
             suggestions={tagSuggestions}
             onApplySuggestion={applyTag}
             containerStyle={styles.clipCardTagsRowFooter}

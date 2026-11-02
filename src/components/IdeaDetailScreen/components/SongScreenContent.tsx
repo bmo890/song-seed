@@ -67,6 +67,7 @@ export function SongScreenContent() {
       <SongNotesSection />
       <SongTakesSection />
       {screen.isProject &&
+      !screen.isReadOnly &&
       !screen.isEditMode &&
       !store.clipSelectionMode &&
       !parentPicking.parentPickState &&
@@ -81,7 +82,7 @@ export function SongScreenContent() {
       <SongImportModal />
       {screen.isProject ? (
         <SongEditSheet
-          visible={screen.isEditMode}
+          visible={screen.isEditMode && !screen.isReadOnly}
           isDraft={!!screen.selectedIdea.isDraft}
           title={screen.draftTitle}
           onChangeTitle={screen.setDraftTitle}

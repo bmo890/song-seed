@@ -76,15 +76,18 @@ export function SongHeaderMenu() {
             }}
           />
         ) : null}
-        <PopoverMenuRow
-          icon="create-outline"
-          label={isProject ? t("songDetail.editSong") : t("songDetail.editClip")}
-          onPress={() => {
-            close();
-            screen.setIsEditMode(true);
-          }}
-        />
-        {!isProject ? (
+        {/* Read-only (a parcel before Keep, an archive): play, view, share only. */}
+        {!screen.isReadOnly ? (
+          <PopoverMenuRow
+            icon="create-outline"
+            label={isProject ? t("songDetail.editSong") : t("songDetail.editClip")}
+            onPress={() => {
+              close();
+              screen.setIsEditMode(true);
+            }}
+          />
+        ) : null}
+        {!isProject && !screen.isReadOnly ? (
           <PopoverMenuRow
             // The sketch disc with the "+" badge — the one glyph for "make a
             // sketch", shared with the collection's selection dock.
@@ -101,7 +104,7 @@ export function SongHeaderMenu() {
             }}
           />
         ) : null}
-        {isProject ? (
+        {isProject && !screen.isReadOnly ? (
           // Import moved here from the "+" FAB — record stands alone.
           <PopoverMenuRow
             icon="download-outline"
@@ -140,7 +143,7 @@ export function SongHeaderMenu() {
             }}
           />
         ) : null}
-        {!isNewProjectDraft ? (
+        {!isNewProjectDraft && !screen.isReadOnly ? (
           <>
             <PopoverMenuRule />
             <PopoverMenuRow

@@ -2924,6 +2924,8 @@ export const es = {
     openPlayer: "Abrir el reproductor completo",
     recordingBadge: "Grabando",
   },
+  // Decision B (2026-11-02): a received parcel (until Keep) or an archive is read-only.
+  readOnly: { keepToEdit: "Consérvalo para editar", unarchiveToEdit: "Desarchiva para editar", noLyrics: "Aún no hay letras" },
   collectionErrors: {
     notFound: "Esa colección ya no existe.",
     destinationNotFound: "Ese destino ya no existe.",

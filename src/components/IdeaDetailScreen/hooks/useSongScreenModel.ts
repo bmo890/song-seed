@@ -3,6 +3,7 @@ import { useIsFocused, useNavigation, useRoute } from "@react-navigation/native"
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useSharedValue } from "react-native-reanimated";
 import { useStore } from "../../../state/useStore";
+import { useReadOnlyIdeaReason } from "../../../hooks/useReadOnly";
 import { selectIdeaById } from "../../../state/librarySelectors";
 import { getFloatingActionDockBottomOffset, getFloatingActionDockContentClearance } from "../../common/FloatingActionDock";
 import type { IdeaStatus } from "../../../types";
@@ -40,6 +41,10 @@ export function useSongScreenModel() {
     return selectedIdeaId ? selectIdeaById(s.workspaces, selectedIdeaId, activeWorkspaceId) ?? undefined : undefined;
   });
   const pageIdeaId = selectedIdea?.id ?? selectedIdeaId;
+  // Decision B: a parcel's sketch (until Keep) or an archived one is read, played
+  // and sent, never edited. The page's editing keys all ask this.
+  const readOnlyReason = useReadOnlyIdeaReason(selectedIdea?.id);
+  const isReadOnly = readOnlyReason !== null;
   const navigation = useNavigation();
   const rootNavigation = (navigation as any).getParent?.();
   const navigateRoot = (routeName: string, params?: object) =>
@@ -102,12 +107,12 @@ export function useSongScreenModel() {
   }, [isFocused, shownIdeaId, selectedIdeaId, setSelectedIdeaId]);
 
   useEffect(() => {
-    if (selectedIdea?.isDraft || startInEdit) {
+    if ((selectedIdea?.isDraft || startInEdit) && !isReadOnly) {
       setIsEditMode(true);
     } else {
       setIsEditMode(false);
     }
-  }, [selectedIdea?.id, selectedIdea?.isDraft, startInEdit]);
+  }, [selectedIdea?.id, selectedIdea?.isDraft, startInEdit, isReadOnly]);
 
   // Seed the edit sheet when it OPENS (or the idea changes underneath it), not on
   // every write to the idea: a background write while typing used to overwrite
@@ -162,6 +167,8 @@ export function useSongScreenModel() {
     selectedIdeaId: pageIdeaId,
     activeWorkspaceId,
     selectedIdea,
+    readOnlyReason,
+    isReadOnly,
     songClips,
     songClipTitles,
     isProject,

@@ -600,6 +600,33 @@ export function SelectionBars() {
       : shareAction,
   ];
 
+  // Read-only (a parcel before Keep, an archive — decision B): the selection only
+  // plays, collects, copies out and sends. Nothing on the dock edits or deletes.
+  const readOnly = screen.isReadOnly;
+  const readOnlyShareAction: SelectionAction =
+    linkAvailable || dawTarget
+      ? {
+          key: "share-menu",
+          label: t("selection.shareMenu"),
+          icon: "share-social-outline",
+          onPress: () => setSubSheet("share"),
+          opens: true,
+        }
+      : shareAction;
+  const visibleDockActions: SelectionAction[] = readOnly
+    ? [
+        dockActions[0]!,
+        readOnlyShareAction,
+        { key: "more", label: t("common.more"), icon: "ellipsis-horizontal", onPress: () => setMoreVisible(true) },
+      ]
+    : dockActions;
+  const visibleSheetActions: SelectionAction[] = readOnly
+    ? sheetActions.filter((action) => action.key === "playlist" || action.key === "copy-or-move")
+    : sheetActions;
+  const visibleCopyMoveActions: SelectionAction[] = readOnly
+    ? copyMoveActions.filter((action) => action.key === "copy")
+    : copyMoveActions;
+
   // The sheets name what they act on: "1 take · Idea 8", "3 takes".
   const sheetTitle = t("brand.takeCount", { count: selectedClips.length });
   const sheetContext = selectedClips.length === 1 ? selectedClips[0]?.title : undefined;
@@ -611,7 +638,7 @@ export function SelectionBars() {
   return (
     <>
       <SelectionDock
-        actions={dockActions}
+        actions={visibleDockActions}
         onLayout={(height) => {
           screen.setSelectionDockHeight((prev) => (Math.abs(prev - height) < 1 ? prev : height));
         }}
@@ -621,7 +648,7 @@ export function SelectionBars() {
         visible={moreVisible}
         title={sheetTitle}
         titleContext={sheetContext}
-        actions={sheetActions}
+        actions={visibleSheetActions}
         onClose={() => setMoreVisible(false)}
       />
 
@@ -630,7 +657,7 @@ export function SelectionBars() {
         onBack={() => setMoreVisible(true)}
         title={t("selection.copyOrMoveTitle")}
         titleContext={sheetContext}
-        actions={copyMoveActions}
+        actions={visibleCopyMoveActions}
         onClose={() => setSubSheet(null)}
       />
 

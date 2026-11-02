@@ -7,6 +7,8 @@ import { styles } from "../styles";
 import type { LyricsLine } from "../../../types";
 import { ChordChart } from "./chords/ChordChart";
 import { IconButton } from "../../common/IconButton";
+import { ReadOnlyLine } from "../../common/ReadOnlyLine";
+import type { ReadOnlyReason } from "../../../hooks/useReadOnly";
 import { ChordZoomBar } from "./chords/ChordZoomBar";
 import { LyricsChordsToggle } from "../../common/LyricsChordsToggle";
 import { TransposeChip } from "../../common/TransposeChip";
@@ -23,7 +25,9 @@ type LyricsVersionPreviewProps = {
   canChart: boolean;
   /** Enables the per-song display transpose on the chord view. */
   transposeIdeaId?: string;
-  onEdit: () => void;
+  /** Absent in a read-only sketch: the pencil gives way to the quiet line. */
+  onEdit?: () => void;
+  readOnlyReason?: ReadOnlyReason;
   onChords: () => void;
   onLayout: (height: number) => void;
   onContentSizeChange: (height: number) => void;
@@ -39,6 +43,7 @@ export function LyricsVersionPreview({
   canChart,
   transposeIdeaId,
   onEdit,
+  readOnlyReason = null,
   onChords,
   onLayout,
   onContentSizeChange,
@@ -65,13 +70,17 @@ export function LyricsVersionPreview({
         {canChart ? <LyricsChordsToggle value={viewMode} onChange={setViewMode} /> : <View />}
         {/* Bare glyph, matching the Chart tab: a solid terracotta circle is the
             record FAB's identity and shouldn't be lent to an edit action. */}
-        <IconButton
-          icon="pencil"
-          tone="muted"
-          size={18}
-          onPress={chordView ? onChords : onEdit}
-          accessibilityLabel={chordView ? t("lyrics.editChords") : t("lyrics.editLyrics")}
-        />
+        {readOnlyReason ? (
+          <ReadOnlyLine reason={readOnlyReason} />
+        ) : (
+          <IconButton
+            icon="pencil"
+            tone="muted"
+            size={18}
+            onPress={chordView ? onChords : () => onEdit?.()}
+            accessibilityLabel={chordView ? t("lyrics.editChords") : t("lyrics.editLyrics")}
+          />
+        )}
       </View>
 
       <View style={[styles.lyricsVersionDocumentFill, chordView ? styles.lyricsVersionBodyFlush : null]}>
