@@ -32,6 +32,7 @@ import {
 import { useResolvedShareAssets } from "./useResolvedShareAssets";
 import * as FileSystem from "expo-file-system/legacy";
 import { findSharedArchiveFile } from "../../../services/shareImport";
+import { discardSharedInCopies } from "../../../services/sharedInCopies";
 import { detectPickedArchiveKind } from "../../../services/archiveKind";
 import { readSongNookArchive } from "../../../services/libraryImport";
 import { useTranslation } from "react-i18next";
@@ -147,6 +148,8 @@ export function useShareImportScreenModel({
       const openId = route?.id ?? null;
 
       resetShareIntent();
+      // Imported: the share intake's copy of the archive has done its job (06-3).
+      void discardSharedInCopies([sharedArchive.uri]);
       if (openKind && openId) {
         toast(
           t(
@@ -176,6 +179,9 @@ export function useShareImportScreenModel({
   }
 
   function closeScreen() {
+    // Nothing imported: the share intake's copies go with the share (06-3). An import
+    // leaves through finishToCollection instead, and its files go as each one lands.
+    void discardSharedInCopies((shareIntent.files ?? []).map((file) => file.path));
     resetShareIntent();
     if (navigation.canGoBack()) {
       navigation.goBack();

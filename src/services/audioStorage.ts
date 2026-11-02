@@ -14,10 +14,12 @@ import {
     VIDEO_FORMAT,
     VIDEO_IMPORT_MIME_TYPES,
     isAiffExtension,
+    isOnePlatformAudioExtension,
+    playsOnThisPlatform,
     isNoAudioTrackError,
     isVideoImport,
 } from "./audioImportFormat";
-import { discardPickedCopies, isInAppCache } from "./pickedCopies";
+import { discardPickedCopies, isImportOnlyCopy, isInAppCache } from "./pickedCopies";
 import { readVideoCreationTimeMs } from "./videoCreationTime";
 
 export const MAX_DETAILED_AUDIO_ANALYSIS_DURATION_MS = 30 * 60 * 1000;
@@ -45,6 +47,13 @@ export type ImportedAudioAsset = {
      *  photo picker) — delete it once the import has its own file, so a long video
      *  never lingers in the cache. */
     discardSourceAfterImport?: boolean;
+    /** SongNook's own file, MOVED into the library instead of copied (audit 03-6 / E12: a
+     *  copy needs the take's size free twice, so a long take on a full phone could never
+     *  save). "scratch": a render only this import uses; a failed import deletes the
+     *  library's copy. "take": a recorded take whose recovery marker already names the
+     *  destination (`noteTakeMovingIntoLibrary`), so a failed import never deletes it:
+     *  recovery finds it there. */
+    moveIntoLibrary?: "scratch" | "take";
     /** Picked as a video (the photo-library picker): lift its sound out whatever the
      *  container, since the phone's own gallery only holds videos it can play. */
     isVideo?: boolean;
@@ -568,19 +577,38 @@ export async function listDevSampleAudioAssets(): Promise<ImportedAudioAsset[]> 
  * the alternative is a clip that imports and then never plays.
  */
 async function convertAiffToM4a(sourceUri: string, targetId: string): Promise<string> {
+    const outputUri = await renderImportToM4a(sourceUri, targetId).catch((error) => {
+        throw new UnsupportedAudioFormatError("aiff", error instanceof Error ? error.message : undefined);
+    });
+    if (!outputUri) throw new UnsupportedAudioFormatError("aiff");
+    return outputUri;
+}
+
+/** A render may come up this much short of the original (encoder framing) and still count. */
+const IMPORT_RENDER_TOLERANCE_MS = 250;
+
+/**
+ * The whole file, re-encoded as M4A (AAC) by the phone's own encoder: a full-range pass
+ * through the native trim renderer (AVAssetExportSession on iOS, media3 Transformer on
+ * Android). Null when this phone can't read the file, the build has no renderer, or the
+ * render came out shorter than the original (never keep a truncated import). Throws
+ * when the render itself fails.
+ */
+async function renderImportToM4a(sourceUri: string, targetId: string): Promise<string | null> {
     const native = SongNookPitchShiftModule;
     const durationMs = await getNativeAudioDurationMs(sourceUri).catch(() => undefined);
-    if (!native?.renderTrim || !durationMs) throw new UnsupportedAudioFormatError("aiff");
-    try {
-        const result = await native.renderTrim({
-            inputUri: sourceUri,
-            ranges: [{ startTimeMs: 0, endTimeMs: durationMs }],
-            outputFileName: `${targetId}-import.m4a`,
-        });
-        return result.outputUri;
-    } catch (error) {
-        throw new UnsupportedAudioFormatError("aiff", error instanceof Error ? error.message : undefined);
+    if (!native?.renderTrim || !durationMs) return null;
+    const result = await native.renderTrim({
+        inputUri: sourceUri,
+        ranges: [{ startTimeMs: 0, endTimeMs: durationMs }],
+        outputFileName: `${targetId}-import.m4a`,
+    });
+    const renderedMs = await getNativeAudioDurationMs(result.outputUri).catch(() => undefined);
+    if (!renderedMs || renderedMs < durationMs - IMPORT_RENDER_TOLERANCE_MS) {
+        await FileSystem.deleteAsync(result.outputUri, { idempotent: true }).catch(() => {});
+        return null;
     }
+    return result.outputUri;
 }
 
 /**
@@ -640,17 +668,34 @@ async function importAudioAssetFromSource(
         convertedTempUri = await convertAiffToM4a(asset.uri, targetId);
         sourceUri = convertedTempUri;
         extension = "m4a";
+    } else if (isOnePlatformAudioExtension(extension)) {
+        // CAF, Ogg, Opus: M4A, so the clip plays on either phone (audit 11-M2). If the
+        // render fails, the original stays only where this phone plays it.
+        const rendered = await renderImportToM4a(asset.uri, targetId).catch((error) => {
+            console.warn(`[import] ${extension} → m4a failed`, error);
+            return null;
+        });
+        if (rendered) {
+            convertedTempUri = rendered;
+            sourceUri = rendered;
+            extension = "m4a";
+        } else if (!playsOnThisPlatform(extension, Platform.OS)) {
+            throw new UnsupportedAudioFormatError(extension);
+        }
     }
     const destinationUri = `${SONG_NOOK_AUDIO_DIR}/${targetId}.${extension}`;
     const copiedToManagedStorage = sourceUri !== destinationUri;
 
     try {
         if (copiedToManagedStorage) {
-            // Our own temp file (the extracted sound) or the picker's cache copy moves into
-            // the library instead of being copied: a phone short of space never holds the
-            // recording twice. Anything else (a file we don't own) is copied.
+            // Our own temp file (the extracted sound), the picker's cache copy or the share
+            // intake's copy moves into the library instead of being copied: a phone short
+            // of space never holds the recording twice. Anything else (a file we don't
+            // own) is copied.
             const ownsSource =
-                sourceUri === convertedTempUri || (asset.discardSourceAfterImport === true && isInAppCache(sourceUri));
+                sourceUri === convertedTempUri ||
+                asset.moveIntoLibrary != null ||
+                (asset.discardSourceAfterImport === true && isImportOnlyCopy(sourceUri));
             if (ownsSource) {
                 await FileSystem.moveAsync({ from: sourceUri, to: destinationUri });
             } else {
@@ -675,8 +720,9 @@ async function importAudioAssetFromSource(
         };
     } catch (error) {
         // Remove partially imported managed files so failed imports do not silently accumulate
-        // orphaned audio that the store never referenced.
-        if (copiedToManagedStorage) {
+        // orphaned audio that the store never referenced. A moved take stays where its
+        // marker says it is: it is the only copy.
+        if (copiedToManagedStorage && !(asset.moveIntoLibrary === "take" && sourceUri === asset.uri)) {
             await FileSystem.deleteAsync(destinationUri, { idempotent: true }).catch(() => {});
         }
         if (convertedTempUri) {
@@ -741,21 +787,46 @@ export async function importAudioAssets(
     return { imported, failed };
 }
 
+function recordedAssetName(recordingUri: string, targetId: string) {
+    return recordingUri.split("/").pop() || `${targetId}.m4a`;
+}
+
+/** Where `importRecordedAudioAsset` puts a take in the library. */
+export function recordedTakeDestination(recordingUri: string, targetId: string): string {
+    return `${SONG_NOOK_AUDIO_DIR}/${targetId}.${getFileExtension(recordedAssetName(recordingUri, targetId), "audio/mp4")}`;
+}
+
 export async function importRecordedAudioAsset(
     recordingUri: string,
     targetId: string,
-    options?: AudioMetadataLoadOptions
+    options?: AudioMetadataLoadOptions,
+    moveIntoLibrary?: ImportedAudioAsset["moveIntoLibrary"]
 ): Promise<ManagedAudioResult> {
-    const filename = recordingUri.split("/").pop() || `${targetId}.m4a`;
     return importAudioAsset(
         {
             uri: recordingUri,
-            name: filename,
+            name: recordedAssetName(recordingUri, targetId),
             mimeType: "audio/mp4",
+            moveIntoLibrary,
         },
         targetId,
         options
     );
+}
+
+/** A take that already sits in the library's audio folder (moved there by a save that
+ *  didn't finish): read what it is, leave it where it is. */
+export async function adoptRecordedTake(
+    audioUri: string,
+    options?: AudioMetadataLoadOptions
+): Promise<ManagedAudioResult> {
+    const metadata = await loadManagedAudioMetadata(
+        audioUri,
+        audioUri.split("/").pop() ?? "recovered",
+        undefined,
+        options
+    );
+    return { audioUri, durationMs: metadata.durationMs, waveformPeaks: metadata.waveformPeaks };
 }
 
 export async function shareAudioFile(audioUri: string, title: string) {

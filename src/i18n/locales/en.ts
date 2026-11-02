@@ -1511,7 +1511,7 @@ export const en = {
     sourceTitle: "Import", sourceFiles: "Files", sourceFilesHint: "Audio or video files", sourceVideos: "Videos", sourceVideosHint: "From your photo library",
     noAudioTitle: "This video has no sound", noAudioBody: "Pick a video with audio, then import again.",
     videoUnreadableTitle: "Couldn’t read this video", videoUnreadableBody: "Try an MP4 or MOV, then import again.",
-    chooseCollection: "Choose a collection", chooseCollectionBody: "Open a collection before importing audio.", unsupportedFormatTitle: "AIFF isn’t supported on Android", unsupportedFormatBody: "Export it as WAV or M4A from your DAW, then import again.", title: "Import audio", chooseBody: "Choose how to add {{count}} files into {{title}}.",
+    chooseCollection: "Choose a collection", chooseCollectionBody: "Open a collection before importing audio.", unsupportedFormatTitle: "AIFF isn’t supported on Android", unsupportedFormatBody: "Export it as WAV or M4A from your DAW, then import again.", formatWontPlayTitle: "{{format}} won’t play on this phone", formatWontPlayBody: "Save it as M4A or WAV, then import again.", title: "Import audio", chooseBody: "Choose how to add {{count}} files into {{title}}.",
   },
   selection: {
     copyMovePlaylist: "Copy, move, playlist",

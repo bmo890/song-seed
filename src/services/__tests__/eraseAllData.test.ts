@@ -49,6 +49,8 @@ jest.mock("../../state/db/database", () => ({
 }));
 jest.mock("../manifestSync", () => ({ stopManifestSync: (...args: unknown[]) => mockStopManifestSync(...args) }));
 jest.mock("../storagePaths", () => ({ SONG_NOOK_ROOT: "file:///doc/songnook" }));
+const mockSweepShared = jest.fn(async (..._args: unknown[]) => undefined);
+jest.mock("../sharedInCopies", () => ({ sweepSharedInCopies: (...args: unknown[]) => mockSweepShared(...args) }));
 
 import { eraseAllAppData, eraseTargets } from "../eraseAllData";
 
@@ -82,6 +84,8 @@ describe("eraseAllAppData", () => {
                 "file:///cache/songnook",
             ])
         );
+        // The App Group's share copies live outside every target (06-3): all of them go.
+        expect(mockSweepShared).toHaveBeenCalledWith({ olderThanMs: 0 });
         expect(mockReload).toHaveBeenCalledWith("erase-all-data");
     });
 

@@ -16,6 +16,7 @@ import { waitForWriteQueueIdle } from "../state/db/storage";
 import { STORE_NAME } from "../state/persistedSnapshot";
 import { stopManifestSync } from "./manifestSync";
 import { SONG_NOOK_ROOT } from "./storagePaths";
+import { sweepSharedInCopies } from "./sharedInCopies";
 
 /**
  * Fresh slate: remove every byte SongNook has written to this device, then reload into
@@ -126,6 +127,9 @@ export async function eraseAllAppData(options?: { reload?: boolean }): Promise<E
         for (const uri of eraseTargets()) {
             await FileSystem.deleteAsync(uri, { idempotent: true });
         }
+        // The share extension's copies in the iOS App Group container sit outside every
+        // folder above (06-3): whatever is there goes, fresh or not.
+        await sweepSharedInCopies({ olderThanMs: 0 });
     });
 
     if (options?.reload !== false) {

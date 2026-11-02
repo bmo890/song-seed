@@ -142,12 +142,17 @@ enum SongNookSeal {
     var written = UInt64(h.count)
     let count = recordCount(plainSize)
     for i in 0..<count {
-      let want = min(record, plainSize - i * record)
-      let plain = want > 0 ? (try input.read(upToCount: want) ?? Data()) : Data()
-      guard plain.count == want else { throw SealError(message: "The file changed while it was being sealed.") }
-      let sealed = try sealRecord(plain, key: key, prefix: prefix, index: i, last: i == count - 1, header: h)
-      try output.write(contentsOf: sealed)
-      written += UInt64(sealed.count)
+      // One pool per record (audit 05-E11): the read, the sealed copy and the write are
+      // autoreleased, and without a pool they pile up until the whole file is done, so
+      // sealing a long take for Send could hold its size in memory and get killed.
+      try autoreleasepool {
+        let want = min(record, plainSize - i * record)
+        let plain = want > 0 ? (try input.read(upToCount: want) ?? Data()) : Data()
+        guard plain.count == want else { throw SealError(message: "The file changed while it was being sealed.") }
+        let sealed = try sealRecord(plain, key: key, prefix: prefix, index: i, last: i == count - 1, header: h)
+        try output.write(contentsOf: sealed)
+        written += UInt64(sealed.count)
+      }
     }
     return written
   }
@@ -172,12 +177,15 @@ enum SongNookSeal {
     try output.truncate(atOffset: 0)
     var written: UInt64 = 0
     for i in 0..<count {
-      let want = i == count - 1 ? lastLength : recordSize + tagSize
-      let sealed = try input.read(upToCount: want) ?? Data()
-      guard sealed.count == want else { throw SealError(message: "Sealed file is cut short.") }
-      let plain = try openRecord(sealed, key: key, prefix: prefix, index: i, last: i == count - 1, header: h)
-      try output.write(contentsOf: plain)
-      written += UInt64(plain.count)
+      // One pool per record, as in sealFile (05-E11).
+      try autoreleasepool {
+        let want = i == count - 1 ? lastLength : recordSize + tagSize
+        let sealed = try input.read(upToCount: want) ?? Data()
+        guard sealed.count == want else { throw SealError(message: "Sealed file is cut short.") }
+        let plain = try openRecord(sealed, key: key, prefix: prefix, index: i, last: i == count - 1, header: h)
+        try output.write(contentsOf: plain)
+        written += UInt64(plain.count)
+      }
     }
     finished = true
     return written
