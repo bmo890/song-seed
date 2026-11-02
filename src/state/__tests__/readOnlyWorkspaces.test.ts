@@ -110,15 +110,19 @@ describe("the store refuses edits in read-only workspaces", () => {
         ).toBe(true);
     });
 
-    it("rename, bookmark and marks are refused; how you keep the speed is not", () => {
+    it("rename and bookmark are refused; practice (kept speed, marks) is not", () => {
         expect(useStore.getState().renameIdea("theirs", "Mine now")).toBe(false);
         useStore.getState().toggleIdeaBookmark("theirs");
-        useStore.getState().addClipPracticeMarker("theirs", "theirs-take", { id: "m", atMs: 10, label: "" } as never);
         expect(idea("pkg", "theirs")!.title).toBe("theirs");
         expect(idea("pkg", "theirs")!.isBookmarked).toBeFalsy();
-        expect(idea("pkg", "theirs")!.clips[0]!.practiceMarkers ?? []).toHaveLength(0);
         useStore.getState().setClipKeptPractice("theirs", "theirs-take", { rate: 0.8 } as never);
         expect(idea("pkg", "theirs")!.clips[0]!.keptPractice).toEqual({ rate: 0.8 });
+        // Practice marks: a parcel uses Pro practice tools free (founder to confirm).
+        useStore.getState().addClipPracticeMarker("theirs", "theirs-take", { id: "m", atMs: 10, label: "" } as never);
+        expect(idea("pkg", "theirs")!.clips[0]!.practiceMarkers).toHaveLength(1);
+        // An archive stays sealed.
+        useStore.getState().addClipPracticeMarker("archived", "archived-take", { id: "m", atMs: 10, label: "" } as never);
+        expect(idea("old", "archived")!.clips[0]!.practiceMarkers ?? []).toHaveLength(0);
     });
 
     it("nothing new lands in a parcel or an archive", () => {

@@ -14,6 +14,7 @@ import { isForegroundAudioBusy, waitForForegroundAudioIdle } from "../../../serv
 import { buildClipLockScreenMetadata } from "../../../services/lockScreenMetadata";
 import { appActions } from "../../../state/actions";
 import { ideaWorkspaceId } from "../../../state/dataSlice";
+import { isIdeaReadOnly } from "../../../domain/itemLocator";
 import { useStore } from "../../../state/useStore";
 import { useShelfStore } from "../../../state/useShelfStore";
 import { openShelf, openSketchPage, returnHome } from "../../../navigation";
@@ -477,6 +478,9 @@ export function usePlayerScreenLifecycle({
 
   const handleOverflowMenu = useCallback(() => {
     const hasOverdubs = !!playerClip && clipHasOverdubs(playerClip);
+    // A parcel's take (until Keep) or an archived one: set it aside or send it;
+    // no trims, combines, sketches or deletes (decision B).
+    const readOnly = isIdeaReadOnly(useStore.getState().workspaces, playerIdea?.id);
     const isStandaloneClip =
       !!playerIdea &&
       useStore
@@ -513,7 +517,9 @@ export function usePlayerScreenLifecycle({
     // The menu is clip MANAGEMENT only. Recording verbs live on the recording
     // surfaces (the toolbar's Layer key) — no "Add overdub" here.
     AppAlert.menu(playerClip?.title ?? t("player.options"), [
-      ...(hasOverdubs
+      ...(readOnly
+        ? []
+        : hasOverdubs
         ? [
             {
               key: "player.saveCombinedNew",
@@ -573,7 +579,7 @@ export function usePlayerScreenLifecycle({
               },
             },
           ]),
-      ...(isStandaloneClip
+      ...(isStandaloneClip && !readOnly
         ? [
             {
               key: "songDetail.makeSong",
@@ -707,52 +713,56 @@ export function usePlayerScreenLifecycle({
           ], clipTitle);
         },
       },
-      {
-        key: "player.deleteClip",
-              label: t("player.deleteClip"),
-        tone: "danger" as const,
-        icon: "trash-outline",
-        onPress: () => {
-          if (!playerIdea || !playerClip) return;
-          const clipId = playerClip.id;
-          const fullIdea = useStore
-            .getState()
-            .workspaces.flatMap((workspace) => workspace.ideas)
-            .find((idea) => idea.id === playerIdea.id);
-          const isProject = fullIdea?.kind === "project";
-          // Deleting the idea's only clip would leave it empty — for a song we
-          // delete the whole project (with clear wording); for a standalone clip
-          // that just is the delete.
-          const emptiesIdea = (fullIdea?.clips.length ?? 0) <= 1;
-
-          const title = emptiesIdea && isProject ? t("player.deleteSongTitle") : t("player.deleteClipTitle");
-          const message =
-            emptiesIdea && isProject
-              ? t("player.deleteOnlySongBody", { title: playerIdea.title })
-              : emptiesIdea
-                ? t("player.deleteOnlyClipBody", { title: playerClip.title ?? playerIdea.title })
-                : t("player.removeClipBody");
-
-          AppAlert.destructive(
-            title,
-            message,
-            async () => {
-              if (isPlayerPlaying) {
-                await pausePlayer();
-              }
-              if (emptiesIdea) {
-                useStore.getState().deleteIdea(playerIdea.id);
-              } else {
-                appActions.deleteClipFromIdea(playerIdea.id, clipId);
-              }
-              // Close the player — it was pointed at the now-deleted clip.
-              // Exits no longer stop audio implicitly, so clean up explicitly.
-              stopSessionAndClose();
+      ...(readOnly
+        ? []
+        : [
+          {
+            key: "player.deleteClip",
+            label: t("player.deleteClip"),
+            tone: "danger" as const,
+            icon: "trash-outline" as const,
+            onPress: () => {
+              if (!playerIdea || !playerClip) return;
+              const clipId = playerClip.id;
+              const fullIdea = useStore
+                .getState()
+                .workspaces.flatMap((workspace) => workspace.ideas)
+                .find((idea) => idea.id === playerIdea.id);
+              const isProject = fullIdea?.kind === "project";
+              // Deleting the idea's only clip would leave it empty — for a song we
+              // delete the whole project (with clear wording); for a standalone clip
+              // that just is the delete.
+              const emptiesIdea = (fullIdea?.clips.length ?? 0) <= 1;
+    
+              const title = emptiesIdea && isProject ? t("player.deleteSongTitle") : t("player.deleteClipTitle");
+              const message =
+                emptiesIdea && isProject
+                  ? t("player.deleteOnlySongBody", { title: playerIdea.title })
+                  : emptiesIdea
+                    ? t("player.deleteOnlyClipBody", { title: playerClip.title ?? playerIdea.title })
+                    : t("player.removeClipBody");
+    
+              AppAlert.destructive(
+                title,
+                message,
+                async () => {
+                  if (isPlayerPlaying) {
+                    await pausePlayer();
+                  }
+                  if (emptiesIdea) {
+                    useStore.getState().deleteIdea(playerIdea.id);
+                  } else {
+                    appActions.deleteClipFromIdea(playerIdea.id, clipId);
+                  }
+                  // Close the player — it was pointed at the now-deleted clip.
+                  // Exits no longer stop audio implicitly, so clean up explicitly.
+                  stopSessionAndClose();
+                },
+                { confirmLabel: emptiesIdea && isProject ? t("player.deleteSong") : t("common.delete"), icon: "trash-outline" }
+              );
             },
-            { confirmLabel: emptiesIdea && isProject ? t("player.deleteSong") : t("common.delete"), icon: "trash-outline" }
-          );
-        },
-      },
+          },
+          ]),
     ]);
   }, [displayDuration, handleMakeSketch, isPlayerPlaying, navigation, pausePlayer, playerClip, playerIdea, stopSessionAndClose, t]);
 

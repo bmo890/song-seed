@@ -1121,7 +1121,10 @@ function updateIdeaInState<S extends { workspaces: Workspace[] }>(
     state: S,
     ideaId: string,
     update: (idea: SongIdea) => SongIdea,
-    options?: { allowReadOnly?: boolean }
+    /** true: any read-only workspace (view state, derived caches). "received": a
+     *  received parcel only — practice marks and sections, which the Pro split lets a
+     *  parcel use (pending founder confirmation, data-safety track 2026-11-02). */
+    options?: { allowReadOnly?: boolean | "received" }
 ): S | { workspaces: Workspace[] } {
     let changed = false;
     const workspaces = state.workspaces.map((workspace) => {
@@ -1129,7 +1132,10 @@ function updateIdeaInState<S extends { workspaces: Workspace[] }>(
         if (index === -1) return workspace;
         // Read-only (a received parcel before Keep, an archive): content never
         // changes there. View state and derived caches opt in.
-        if (!options?.allowReadOnly && isReadOnlyWorkspace(workspace)) {
+        const allowed =
+            options?.allowReadOnly === true ||
+            (options?.allowReadOnly === "received" && workspace.origin === "received" && !workspace.isArchived);
+        if (!allowed && isReadOnlyWorkspace(workspace)) {
             warnReadOnlyWrite("idea edit", workspace.id);
             return workspace;
         }
@@ -2350,7 +2356,9 @@ export const createDataSlice: StateCreator<
                                       : clip
                               ),
                           }
-                        : idea
+                        : idea,
+                // Practice marks on a parcel's take (Pro tools are free there).
+                { allowReadOnly: "received" }
             )
         );
     },
@@ -2371,7 +2379,9 @@ export const createDataSlice: StateCreator<
                                       : clip
                               ),
                           }
-                        : idea
+                        : idea,
+                // Practice marks on a parcel's take (Pro tools are free there).
+                { allowReadOnly: "received" }
             )
         );
     },
@@ -2387,7 +2397,9 @@ export const createDataSlice: StateCreator<
                                   clip.id === clipId ? { ...clip, practiceMarkers: markers } : clip
                               ),
                           }
-                        : idea
+                        : idea,
+                // Practice marks on a parcel's take (Pro tools are free there).
+                { allowReadOnly: "received" }
             )
         );
     },
@@ -2421,7 +2433,9 @@ export const createDataSlice: StateCreator<
                                   clip.id === clipId ? { ...clip, sections } : clip
                               ),
                           }
-                        : idea
+                        : idea,
+                // Practice marks on a parcel's take (Pro tools are free there).
+                { allowReadOnly: "received" }
             )
         );
     },
