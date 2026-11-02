@@ -304,6 +304,87 @@ export async function estimateDisasterRecoveryBackup(state: AppStore): Promise<D
     return { fileCount, totalBytes };
 }
 
+export type ReadableMediaRef = MediaRef & { sizeBytes: number };
+
+export type PreparedBackupContents = {
+    snapshotAbs: ReturnType<typeof buildPersistedAppStoreSnapshot>;
+    snapshotJson: string;
+    snapshotSha256: string;
+    /** Every managed file that exists, deduplicated by relative path, with its size. */
+    readableRefs: ReadableMediaRef[];
+    /** Referenced files that could not be found, plus set-aside workspaces (G10). */
+    missing: DrBackupMissingRecord[];
+};
+
+/**
+ * What any exact backup holds, before it is packed anywhere: the snapshot (relative
+ * media paths, satellites, set-aside rows) and the files it references. Shared by the
+ * .zip backup and the automatic backup folder, so both carry exactly the same thing.
+ */
+export async function prepareBackupContents(
+    state: AppStore,
+    opts?: BackupOperationOptions & {
+        satellites?: DrSatelliteSnapshot;
+        setAsideWorkspaceRows?: Record<string, string>;
+    }
+): Promise<PreparedBackupContents> {
+    const snapshotAbs = buildPersistedAppStoreSnapshot(state);
+
+    // Snapshot stores RELATIVE media paths so it restores onto any container/device.
+    const snapshot: DrBackupSnapshot = {
+        ...snapshotAbs,
+        workspaces: toRelativeWorkspacesManagedMedia(snapshotAbs.workspaces),
+        ...(opts?.satellites ? { satellites: opts.satellites } : null),
+        ...(opts?.setAsideWorkspaceRows && Object.keys(opts.setAsideWorkspaceRows).length > 0
+            ? { setAsideWorkspaceRows: opts.setAsideWorkspaceRows }
+            : null),
+    };
+    const snapshotJson = JSON.stringify(snapshot);
+    const snapshotSha256 = await sha256OfString(snapshotJson);
+
+    const missing: DrBackupMissingRecord[] = setAsideWorkspaceRecords();
+    const managedRefs = new Map<string, MediaRef>();
+
+    for (const ref of collectMediaRefs(snapshotAbs.workspaces)) {
+        if (!ref.relativePath) {
+            // A sidecar of a non-managed file has no stable identity either — skip it.
+            if (ref.optional) continue;
+            // A referenced file outside managed storage cannot be reliably backed up.
+            missing.push({
+                path: ref.absUri,
+                kind: ref.kind,
+                critical: ref.critical,
+                ref: ref.ref,
+            });
+            continue;
+        }
+        const previous = managedRefs.get(ref.relativePath);
+        if (!previous || (!previous.critical && ref.critical)) {
+            managedRefs.set(ref.relativePath, ref);
+        }
+    }
+
+    const readableRefs: ReadableMediaRef[] = [];
+    for (const ref of managedRefs.values()) {
+        throwIfBackupCancelled(opts?.signal);
+
+        const info = await FileSystem.getInfoAsync(ref.absUri);
+        if (!info.exists) {
+            if (!ref.optional) {
+                missing.push({ path: ref.relativePath!, kind: ref.kind, critical: ref.critical, ref: ref.ref });
+            }
+            continue;
+        }
+        const sizeBytes = typeof info.size === "number" ? info.size : new File(ref.absUri).size;
+        if (!Number.isSafeInteger(sizeBytes) || sizeBytes < 0) {
+            missing.push({ path: ref.relativePath!, kind: ref.kind, critical: ref.critical, ref: ref.ref });
+            continue;
+        }
+        readableRefs.push({ ...ref, sizeBytes });
+    }
+    return { snapshotAbs, snapshotJson, snapshotSha256, readableRefs, missing };
+}
+
 /**
  * Build an exact backup archive into a temp location. Read-only with respect to the live
  * library — it only reads existing files and writes a new archive. The caller is
@@ -327,62 +408,12 @@ export async function buildDisasterRecoveryBackup(
         totalBytes: 0,
         message: i18n.t("process.preparingBackup"),
     });
-    const snapshotAbs = buildPersistedAppStoreSnapshot(state);
-
-    // Snapshot stores RELATIVE media paths so it restores onto any container/device.
-    const snapshot: DrBackupSnapshot = {
-        ...snapshotAbs,
-        workspaces: toRelativeWorkspacesManagedMedia(snapshotAbs.workspaces),
-        ...(opts?.satellites ? { satellites: opts.satellites } : null),
-        ...(opts?.setAsideWorkspaceRows && Object.keys(opts.setAsideWorkspaceRows).length > 0
-            ? { setAsideWorkspaceRows: opts.setAsideWorkspaceRows }
-            : null),
-    };
-    const snapshotJson = JSON.stringify(snapshot);
-    const snapshotSha256 = await sha256OfString(snapshotJson);
-
+    const { snapshotAbs, snapshotJson, snapshotSha256, readableRefs, missing } = await prepareBackupContents(
+        state,
+        opts
+    );
     const entries: ZipArchiveEntry[] = [{ archiveName: SNAPSHOT_ENTRY, data: snapshotJson }];
     const files: DrBackupFileRecord[] = [];
-    const missing: DrBackupMissingRecord[] = setAsideWorkspaceRecords();
-    const managedRefs = new Map<string, MediaRef>();
-
-    for (const ref of collectMediaRefs(snapshotAbs.workspaces)) {
-        if (!ref.relativePath) {
-            // A sidecar of a non-managed file has no stable identity either — skip it.
-            if (ref.optional) continue;
-            // A referenced file outside managed storage cannot be reliably backed up.
-            missing.push({
-                path: ref.absUri,
-                kind: ref.kind,
-                critical: ref.critical,
-                ref: ref.ref,
-            });
-            continue;
-        }
-        const previous = managedRefs.get(ref.relativePath);
-        if (!previous || (!previous.critical && ref.critical)) {
-            managedRefs.set(ref.relativePath, ref);
-        }
-    }
-
-    const readableRefs: Array<MediaRef & { sizeBytes: number }> = [];
-    for (const ref of managedRefs.values()) {
-        throwIfBackupCancelled(opts?.signal);
-
-        const info = await FileSystem.getInfoAsync(ref.absUri);
-        if (!info.exists) {
-            if (!ref.optional) {
-                missing.push({ path: ref.relativePath!, kind: ref.kind, critical: ref.critical, ref: ref.ref });
-            }
-            continue;
-        }
-        const sizeBytes = typeof info.size === "number" ? info.size : new File(ref.absUri).size;
-        if (!Number.isSafeInteger(sizeBytes) || sizeBytes < 0) {
-            missing.push({ path: ref.relativePath!, kind: ref.kind, critical: ref.critical, ref: ref.ref });
-            continue;
-        }
-        readableRefs.push({ ...ref, sizeBytes });
-    }
 
     const totalMediaBytes = readableRefs.reduce((sum, ref) => sum + ref.sizeBytes, 0);
     // Fail before an expensive checksum pass when the temporary archive cannot fit.
@@ -537,7 +568,7 @@ export async function buildDisasterRecoveryBackup(
     return { archiveUri, archiveTitle, manifest };
 }
 
-function composeManifest(
+export function composeManifest(
     snapshotAbs: ReturnType<typeof buildPersistedAppStoreSnapshot>,
     snapshotSha256: string,
     files: DrBackupFileRecord[],
