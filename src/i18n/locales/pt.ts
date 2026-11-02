@@ -2471,7 +2471,7 @@ export const pt = {
     tableHintShort: "Solto está bom. Pedaços na mesma pauta formam uma linha.",
     editSource: "Editar fonte",
     editSourceTitle: "Editar a fonte?",
-    editSourceBody: "Seus cortes e a mesa recomeçam do zero.",
+    editSourceBody: "Seus cortes e a mesa recomeçam do zero.", replaceTypedBody: "As linhas escritas aqui serão substituídas.",
     replaceSourceTitle: "Substituir a fonte?",
     edit: "Editar",
     replace: "Substituir",

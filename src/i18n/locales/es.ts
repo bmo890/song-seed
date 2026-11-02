@@ -2472,7 +2472,7 @@ export const es = {
     tableHintShort: "Sin prisa. Los recortes en un renglón forman un verso.",
     editSource: "Editar fuente",
     editSourceTitle: "¿Editar la fuente?",
-    editSourceBody: "Tus cortes y la mesa empiezan de cero.",
+    editSourceBody: "Tus cortes y la mesa empiezan de cero.", replaceTypedBody: "Se reemplazan las líneas escritas aquí.",
     replaceSourceTitle: "¿Reemplazar la fuente?",
     edit: "Editar",
     replace: "Reemplazar",

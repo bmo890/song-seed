@@ -2371,7 +2371,7 @@ export const de = {
     tableHintShort: "Locker ist gut. Fetzen auf einer Linie bilden eine Zeile.",
     editSource: "Quelle bearbeiten",
     editSourceTitle: "Quelle bearbeiten?",
-    editSourceBody: "Deine Schnitte und der Tisch beginnen von vorn.",
+    editSourceBody: "Deine Schnitte und der Tisch beginnen von vorn.", replaceTypedBody: "Die hier geschriebenen Zeilen werden ersetzt.",
     replaceSourceTitle: "Quelle ersetzen?",
     edit: "Bearbeiten",
     replace: "Ersetzen",
