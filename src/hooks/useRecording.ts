@@ -34,6 +34,7 @@ import { useRecordingDisplayElapsed } from "./useRecordingDisplayElapsed";
 import {
   getActiveRecordingTakeSession,
   getRecordingTakeSession,
+  RECORDING_FILE_FORMAT,
   RECORDING_TAKE_SHAPE,
   takeHoldsRecorder,
   useTakeHeadTrim,
@@ -618,6 +619,8 @@ export function useRecording(
       deviceId: inputIdToRecordFrom() ?? undefined,
       sampleRate: CAPTURE_SAMPLE_RATE as SampleRate,
       channels: CAPTURE_CHANNELS as 1,
+      // 16-bit PCM WAV, named (decision F): see RECORDING_FILE_FORMAT.
+      ...RECORDING_FILE_FORMAT,
       interval: LIVE_STREAM_INTERVAL_MS,
       intervalAnalysis: 75,
       segmentDurationMs: 75,
