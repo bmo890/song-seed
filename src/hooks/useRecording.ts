@@ -626,6 +626,11 @@ export function useRecording(
       features: { energy: true, rms: true },
       autoResumeAfterInterruption: true,
       bufferDurationSeconds: 0.15,
+      // Must stay true. In this recorder it is what keeps capture running in the
+      // background (iOS: false pauses the engine when the app leaves the foreground, the
+      // screen locking included; Android: the wake lock). Decision E (the iPhone screen may
+      // lock mid-take, like Voice Memos) is done natively: the patched iOS recorder no
+      // longer holds the idle timer.
       keepAwake: true,
       showNotification: true,
       // Deliberately no waveform: the recording card stays a quiet two-line
