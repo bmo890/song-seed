@@ -76,6 +76,8 @@ import { resolveWordLanguage, sanitizeWordLanguagePref, type WordLanguagePref } 
 import { MAGPIE_HE_ENABLED } from "../config/magpieService";
 import { persistAppStoreSnapshot } from "./persistedSnapshot";
 import { relocateActivityEvents, relocatePlaylists } from "./relocationMetadata";
+import { collectionOwnerWorkspaceId, ideaOwnerWorkspaceId, locateIdea } from "../domain/itemLocator";
+import { firstWritableWorkspaceId, isReadOnlyWorkspace, isWritableWorkspaceId } from "../domain/workspaceVisibility";
 import {
     DEFAULT_METRONOME_BEEP_LEVEL,
     DEFAULT_METRONOME_BPM,
@@ -278,7 +280,8 @@ export type DataSlice = {
     ) => { ok: boolean; error?: string };
     deleteCollection: (collectionId: string) => void;
     /** Title-only rename; naming counts as work, so it stamps the idea. */
-    renameIdea: (ideaId: string, nextTitle: string) => void;
+    /** Renames the idea wherever it lives. False when refused (missing or read-only). */
+    renameIdea: (ideaId: string, nextTitle: string) => boolean;
     toggleIdeaBookmark: (ideaId: string) => void;
     toggleClipBookmark: (ideaId: string, clipId: string) => void;
     setClipTags: (ideaId: string, clipId: string, tags: string[]) => void;
@@ -352,18 +355,25 @@ export type DataSlice = {
      *  expand all collapsed days. Backs the "Show all" affordance. */
     showAllHidden: (collectionId: string) => void;
 
-    addIdea: (title: string, collectionId: string) => string;
-    quickRecordIdea: (title: string, collectionId: string) => string;
+    /** A new draft sketch in the collection's OWN workspace (wherever the page that
+     *  asked lives). Null when the collection is gone or read-only. */
+    addIdea: (title: string, collectionId: string) => string | null;
+    quickRecordIdea: (title: string, collectionId: string) => string | null;
     /**
      * Rewrite one workspace's ideas: the ACTIVE workspace unless `workspaceId` names
      * another. An edit to an idea that may live outside the active workspace (the player
-     * opens clips from anywhere) must name its workspace, or the write silently does
-     * nothing (overnight check 2026-10-20; see ideaWorkspaceId).
+     * opens clips from anywhere) must name its workspace — `ideaWorkspaceId(...)` — or
+     * the write lands nowhere (overnight check 2026-10-20; data-safety audit 2026-11-02).
+     *
+     * Returns false when the write was REFUSED: the workspace is missing, or read-only
+     * (a received parcel before Keep, an archived workspace — decision B). Callers that
+     * told the person something was saved check it. `allowReadOnly` is for derived
+     * caches only (waveforms, durations, rendered mixes), never for content.
      */
     updateIdeas: (
         updater: (prev: SongIdea[]) => SongIdea[],
-        options?: { preserveActivity?: boolean; workspaceId?: string | null }
-    ) => void;
+        options?: { preserveActivity?: boolean; workspaceId?: string | null; allowReadOnly?: boolean }
+    ) => boolean;
     setClipManualSortOrder: (ideaId: string, orderedClipIds: string[]) => void;
     addClipVersion: (
         targetIdeaId: string,
@@ -1080,19 +1090,44 @@ function normalizeIdea(idea: SongIdea): SongIdea {
  */
 /** The workspace that holds an idea, or null. Edits keyed by idea id pass it to
  *  updateIdeas so they land wherever the idea lives, not just in the active workspace. */
-export function ideaWorkspaceId(workspaces: Workspace[], ideaId: string): string | null {
-    return workspaces.find((workspace) => workspace.ideas.some((idea) => idea.id === ideaId))?.id ?? null;
+export function ideaWorkspaceId(workspaces: Workspace[], ideaId: string | null | undefined): string | null {
+    return ideaOwnerWorkspaceId(workspaces, ideaId);
+}
+
+/** A refused write is a bug in the caller (the screen should not have offered it),
+ *  so it is loud in development and quiet in production. */
+function warnReadOnlyWrite(what: string, workspaceId: string) {
+    console.warn(`[DataSafety] Refused ${what} in read-only workspace ${workspaceId}.`);
+}
+
+/** The id of the workspace that owns the collection, when it may be written; null
+ *  (and a warning when it is read-only) otherwise. */
+function writableCollectionOwner(workspaces: Workspace[], collectionId: string, what: string): string | null {
+    const ownerId = collectionOwnerWorkspaceId(workspaces, collectionId);
+    if (!ownerId) return null;
+    if (!isWritableWorkspaceId(workspaces, ownerId)) {
+        warnReadOnlyWrite(what, ownerId);
+        return null;
+    }
+    return ownerId;
 }
 
 function updateIdeaInState<S extends { workspaces: Workspace[] }>(
     state: S,
     ideaId: string,
-    update: (idea: SongIdea) => SongIdea
+    update: (idea: SongIdea) => SongIdea,
+    options?: { allowReadOnly?: boolean }
 ): S | { workspaces: Workspace[] } {
     let changed = false;
     const workspaces = state.workspaces.map((workspace) => {
         const index = workspace.ideas.findIndex((idea) => idea.id === ideaId);
         if (index === -1) return workspace;
+        // Read-only (a received parcel before Keep, an archive): content never
+        // changes there. View state and derived caches opt in.
+        if (!options?.allowReadOnly && isReadOnlyWorkspace(workspace)) {
+            warnReadOnlyWrite("idea edit", workspace.id);
+            return workspace;
+        }
         const idea = workspace.ideas[index]!;
         const next = update(idea);
         if (next === idea) return workspace;
@@ -2203,7 +2238,9 @@ export const createDataSlice: StateCreator<
                                       : group
                               ),
                           }
-                        : idea
+                        : idea,
+                // A fold is view state, not content: it may change in a parcel.
+                { allowReadOnly: true }
             )
         );
     },
@@ -2346,7 +2383,9 @@ export const createDataSlice: StateCreator<
                               clip.id === clipId ? { ...clip, keptPractice: kept } : clip
                           ),
                       }
-                    : idea
+                    : idea,
+                // How this listener keeps the speed and pitch: a playback preference.
+                { allowReadOnly: true }
             )
         );
     },
@@ -2378,7 +2417,9 @@ export const createDataSlice: StateCreator<
                                   clip.id === clipId ? { ...clip, analysis } : clip
                               ),
                           }
-                        : idea
+                        : idea,
+                // Derived from the audio, not authored.
+                { allowReadOnly: true }
             )
         );
     },
@@ -2503,7 +2544,8 @@ export const createDataSlice: StateCreator<
                           ),
                       }
             ),
-            { workspaceId: ideaWorkspaceId(get().workspaces, ideaId) }
+            // A rendered mix is a cache of the layers, not content.
+            { workspaceId: ideaWorkspaceId(get().workspaces, ideaId), allowReadOnly: true }
         );
     },
 
@@ -2529,21 +2571,28 @@ export const createDataSlice: StateCreator<
                           ),
                       }
             ),
-            { workspaceId: ideaWorkspaceId(get().workspaces, ideaId) }
+            { workspaceId: ideaWorkspaceId(get().workspaces, ideaId), allowReadOnly: true }
         );
     },
 
     renameIdea: (ideaId, nextTitle) => {
         const trimmedTitle = nextTitle.trim();
-        if (!trimmedTitle) return;
+        if (!trimmedTitle) return false;
         const now = Date.now();
 
-        set((state) => {
-            if (!state.activeWorkspaceId) return state;
+        // The idea's OWN workspace: a sketch opened from a visited collection, the
+        // player or Search used to keep its old name (data-safety audit 04-H2).
+        const owner = locateIdea(get().workspaces, ideaId);
+        if (!owner) return false;
+        if (isReadOnlyWorkspace(owner.workspace)) {
+            warnReadOnlyWrite("rename", owner.workspace.id);
+            return false;
+        }
 
+        set((state) => {
             return {
                 workspaces: state.workspaces.map((workspace) => {
-                    if (workspace.id !== state.activeWorkspaceId) return workspace;
+                    if (workspace.id !== owner.workspace.id) return workspace;
                     return {
                         ...workspace,
                         ideas: workspace.ideas.map((idea) => {
@@ -2571,13 +2620,13 @@ export const createDataSlice: StateCreator<
                 }),
             };
         });
+        return true;
     },
 
     logIdeaActivity: (ideaId, metric, source, clipId = null) => {
-        const state = get();
-        const workspace = state.workspaces.find((item) => item.id === state.activeWorkspaceId);
-        const idea = workspace?.ideas.find((item) => item.id === ideaId);
-        if (!workspace || !idea) return;
+        const owner = locateIdea(get().workspaces, ideaId);
+        if (!owner) return;
+        const { workspace, idea } = owner;
 
         get().logActivityEvents([
             {
@@ -2819,12 +2868,13 @@ export const createDataSlice: StateCreator<
         if (nextIdeaIds.length === 0) return;
 
         set((state) => {
-            if (!state.activeWorkspaceId) return state;
+            const ownerId = writableCollectionOwner(state.workspaces, collectionId, "hide");
+            if (!ownerId) return state;
             const hideIdSet = new Set(nextIdeaIds);
 
             return {
                 workspaces: state.workspaces.map((workspace) => {
-                    if (workspace.id !== state.activeWorkspaceId) return workspace;
+                    if (workspace.id !== ownerId) return workspace;
                     const collectionIdeas = workspace.ideas.filter((idea) => idea.collectionId === collectionId);
 
                     return {
@@ -2858,12 +2908,13 @@ export const createDataSlice: StateCreator<
         if (nextDays.length === 0) return;
 
         set((state) => {
-            if (!state.activeWorkspaceId) return state;
+            const ownerId = writableCollectionOwner(state.workspaces, collectionId, "hide days");
+            if (!ownerId) return state;
             const dayKeySet = new Set(nextDays.map((day) => `${day.metric}:${day.dayStartTs}`));
 
             return {
                 workspaces: state.workspaces.map((workspace) => {
-                    if (workspace.id !== state.activeWorkspaceId) return workspace;
+                    if (workspace.id !== ownerId) return workspace;
                     const collectionIdeas = workspace.ideas.filter((idea) => idea.collectionId === collectionId);
 
                     return {
@@ -2900,10 +2951,11 @@ export const createDataSlice: StateCreator<
     },
     showAllHidden: (collectionId) => {
         set((state) => {
-            if (!state.activeWorkspaceId) return state;
+            const ownerId = writableCollectionOwner(state.workspaces, collectionId, "show all");
+            if (!ownerId) return state;
             return {
                 workspaces: state.workspaces.map((workspace) => {
-                    if (workspace.id !== state.activeWorkspaceId) return workspace;
+                    if (workspace.id !== ownerId) return workspace;
                     return {
                         ...workspace,
                         collections: workspace.collections.map((collection) => {
@@ -2925,12 +2977,17 @@ export const createDataSlice: StateCreator<
 
     setClipManualSortOrder: (ideaId, orderedClipIds) => {
         set((state) => {
-            const { activeWorkspaceId, workspaces } = state;
-            if (!activeWorkspaceId) return state;
+            const { workspaces } = state;
+            const ownerId = ideaOwnerWorkspaceId(workspaces, ideaId);
+            if (!ownerId) return state;
+            if (!isWritableWorkspaceId(workspaces, ownerId)) {
+                warnReadOnlyWrite("clip order", ownerId);
+                return state;
+            }
             const orderMap = new Map(orderedClipIds.map((id, index) => [id, index]));
             return {
                 workspaces: workspaces.map((ws) =>
-                    ws.id !== activeWorkspaceId
+                    ws.id !== ownerId
                         ? ws
                         : {
                               ...ws,
@@ -2953,10 +3010,20 @@ export const createDataSlice: StateCreator<
     },
 
     updateIdeas: (updater, options) => {
+        let written = true;
         set((state) => {
             const { activeWorkspaceId, workspaces } = state;
             const targetWorkspaceId = options?.workspaceId ?? activeWorkspaceId;
-            if (!targetWorkspaceId) return state;
+            const target = targetWorkspaceId ? workspaces.find((ws) => ws.id === targetWorkspaceId) : undefined;
+            if (!target) {
+                written = false;
+                return state;
+            }
+            if (!options?.allowReadOnly && isReadOnlyWorkspace(target)) {
+                warnReadOnlyWrite("updateIdeas", target.id);
+                written = false;
+                return state;
+            }
 
             const now = Date.now();
             const nextWorkspaces = workspaces.map((ws) =>
@@ -3033,9 +3100,15 @@ export const createDataSlice: StateCreator<
                 ? state
                 : { workspaces: nextWorkspaces };
         });
+        return written;
     },
 
     addIdea: (title, collectionId) => {
+        // The collection's own workspace, not the active one: a collection page shows
+        // the route's workspace, and a sketch started there used to land in another
+        // workspace where no collection showed it (data-safety audit 08-R1).
+        const workspaceId = writableCollectionOwner(get().workspaces, collectionId, "new sketch");
+        if (!workspaceId) return null;
         const id = `idea-${Date.now()}`;
         const now = Date.now();
         const newProject: SongIdea = {
@@ -3052,15 +3125,18 @@ export const createDataSlice: StateCreator<
             lastActivityAt: now,
             isDraft: true,
         };
-        get().updateIdeas((p) => [newProject, ...p]);
+        if (!get().updateIdeas((p) => [newProject, ...p], { workspaceId })) return null;
         get().markRecentlyAdded([id]);
         return id; // Return ID so caller can select it
     },
 
     quickRecordIdea: (title, collectionId) => {
+        // Same rule as addIdea: the take lands in the collection it was recorded from.
+        const workspaceId = writableCollectionOwner(get().workspaces, collectionId, "record");
+        if (!workspaceId) return null;
         const id = `idea-${Date.now()}`;
         const now = Date.now();
-        get().updateIdeas((p) => [
+        const written = get().updateIdeas((p) => [
             {
                 id,
                 title,
@@ -3074,18 +3150,16 @@ export const createDataSlice: StateCreator<
                 lastActivityAt: now,
             },
             ...p,
-        ]);
+        ], { workspaceId });
+        if (!written) return null;
         get().markRecentlyAdded([id]);
         return id;
     },
 
     addClipVersion: (targetIdeaId, override) => {
-        const state = get();
-        const activeWs = state.workspaces.find((w) => w.id === state.activeWorkspaceId);
-        if (!activeWs) return;
-
-        const targetIdea = activeWs.ideas.find((x) => x.id === targetIdeaId);
-        if (!targetIdea) return;
+        const owner = locateIdea(get().workspaces, targetIdeaId);
+        if (!owner) return;
+        const targetIdea = owner.idea;
         const parentClip = override?.parentClipId
             ? targetIdea.clips.find((clip) => clip.id === override.parentClipId) ?? null
             : null;
@@ -3108,12 +3182,15 @@ export const createDataSlice: StateCreator<
             tags: parentClip?.tags?.length ? [...parentClip.tags] : undefined,
         };
 
-        get().updateIdeas((p) =>
-            p.map((i) => {
-                if (i.id !== targetIdeaId) return i;
-                return { ...i, clips: [clip, ...i.clips] };
-            })
+        const written = get().updateIdeas(
+            (p) =>
+                p.map((i) => {
+                    if (i.id !== targetIdeaId) return i;
+                    return { ...i, clips: [clip, ...i.clips] };
+                }),
+            { workspaceId: owner.workspace.id }
         );
+        if (!written) return;
         get().markRecentlyAdded([clip.id]);
     },
 

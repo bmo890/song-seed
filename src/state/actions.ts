@@ -66,6 +66,8 @@ import {
 import { authorizeIntentionalEmptyStateWrite } from "../services/stateIntegrity";
 import { i18n } from "../i18n";
 import { relocateActivityEvents, relocatePlaylists } from "./relocationMetadata";
+import { locateCollection, locateIdea } from "../domain/itemLocator";
+import { isReadOnlyWorkspace } from "../domain/workspaceVisibility";
 import { SONG_NOOK_PREVIEW_AUDIO_DIR } from "../services/storagePaths";
 
 const buildIdeaId = () => genId("idea");
@@ -826,14 +828,15 @@ function buildWorkspaceArchivalState(
 export const appActions = {
     addIdea: (collectionId: string) => {
         const state = useStore.getState();
-        const activeWs = state.workspaces.find((workspace) => workspace.id === state.activeWorkspaceId);
+        // The page's collection decides the workspace (08-R1), not the active one.
+        const owner = locateCollection(state.workspaces, collectionId)?.workspace;
         const fallbackTitle = ensureUniqueIdeaTitle(
             buildDefaultIdeaTitle(),
-            activeWs?.ideas.map((idea) => idea.title) ?? []
+            owner?.ideas.map((idea) => idea.title) ?? []
         );
         const createdId = state.addIdea(fallbackTitle, collectionId);
 
-        if (!activeWs) return;
+        if (!createdId) return;
 
         state.setSelectedIdeaId(createdId);
         state.setEditingIdeaId(createdId);
@@ -841,17 +844,21 @@ export const appActions = {
         return createdId;
     },
 
-    quickRecordIdea: (collectionId: string) => {
+    /** False when the collection can't take new work (gone, or read-only): the
+     *  caller must not open the recorder. */
+    quickRecordIdea: (collectionId: string): boolean => {
         const state = useStore.getState();
-        const activeWs = state.workspaces.find((workspace) => workspace.id === state.activeWorkspaceId);
+        const owner = locateCollection(state.workspaces, collectionId)?.workspace;
         const fallbackTitle = ensureUniqueIdeaTitle(
             buildDefaultIdeaTitle(),
-            activeWs?.ideas.map((idea) => idea.title) ?? []
+            owner?.ideas.map((idea) => idea.title) ?? []
         );
         const createdId = state.quickRecordIdea(fallbackTitle, collectionId);
+        if (!createdId) return false;
         // A fresh quick take: no parent, and no layer set-up left from before.
         state.setRecordingParentClipId(null);
         state.setRecordingIdeaId(createdId);
+        return true;
     },
 
     /** The recorder was left without a take: drop the empty clip-kind idea that
@@ -862,11 +869,13 @@ export const appActions = {
         const state = useStore.getState();
         const recordingIdeaId = state.recordingIdeaId;
         if (!recordingIdeaId) return false;
-        const activeWs = state.workspaces.find((workspace) => workspace.id === state.activeWorkspaceId);
-        const before = activeWs?.ideas ?? [];
+        const owner = locateIdea(state.workspaces, recordingIdeaId)?.workspace;
+        const before = owner?.ideas ?? [];
         const after = removeEmptyRecordingPlaceholder(before, recordingIdeaId);
         if (after === before) return false;
-        state.updateIdeas((ideas) => removeEmptyRecordingPlaceholder(ideas, recordingIdeaId));
+        state.updateIdeas((ideas) => removeEmptyRecordingPlaceholder(ideas, recordingIdeaId), {
+            workspaceId: owner?.id,
+        });
         state.clearRecordingContext();
         return true;
     },
@@ -1866,7 +1875,7 @@ export const appActions = {
 
     setIdeaStatus: (status: IdeaStatus) => {
         const state = useStore.getState();
-        const selectedIdea = state.workspaces.find(w => w.id === state.activeWorkspaceId)?.ideas.find(i => i.id === state.selectedIdeaId);
+        const selectedIdea = locateIdea(state.workspaces, state.selectedIdeaId)?.idea;
         if (!selectedIdea || selectedIdea.kind !== "project") return;
 
         let completionPct = 0;
@@ -1879,7 +1888,7 @@ export const appActions = {
 
     setIdeaCompletion: (completionPct: number) => {
         const state = useStore.getState();
-        const selectedIdea = state.workspaces.find(w => w.id === state.activeWorkspaceId)?.ideas.find(i => i.id === state.selectedIdeaId);
+        const selectedIdea = locateIdea(state.workspaces, state.selectedIdeaId)?.idea;
         if (!selectedIdea || selectedIdea.kind !== "project") return;
 
         const stepped = Math.max(0, Math.min(100, Math.round(completionPct / 5) * 5));
@@ -1894,9 +1903,7 @@ export const appActions = {
     setIdeaNotes: (notes: string) => {
         const state = useStore.getState();
         if (!state.selectedIdeaId) return;
-        const selectedIdea = state.workspaces
-            .find((w) => w.id === state.activeWorkspaceId)
-            ?.ideas.find((i) => i.id === state.selectedIdeaId);
+        const selectedIdea = locateIdea(state.workspaces, state.selectedIdeaId)?.idea;
         if (!selectedIdea || selectedIdea.notes === notes) return;
 
         state.updateIdeas((prev) => prev.map((i) => (i.id === state.selectedIdeaId ? { ...i, notes } : i)), { workspaceId: ideaWorkspaceId(useStore.getState().workspaces, state.selectedIdeaId) });
@@ -2150,10 +2157,15 @@ export const appActions = {
     deleteSelectedIdea: (preserveSelection: boolean = false) => {
         const state = useStore.getState();
         if (!state.selectedIdeaId) return;
-        const activeWs = state.workspaces.find(w => w.id === state.activeWorkspaceId);
-        const selectedIdea = activeWs?.ideas.find(i => i.id === state.selectedIdeaId);
-
-        if (selectedIdea?.isDraft && selectedIdea.draftFromClipIdea) {
+        // Wherever the idea lives: a draft grown from a clip in a visited collection,
+        // the player's queue or a parcel is not in the active workspace, and the old
+        // active-only lookup fell through to deleteIdea, deleting the clip and every
+        // version (data-safety audit 12a A-H1, 12b B-H1).
+        const owner = locateIdea(state.workspaces, state.selectedIdeaId);
+        const selectedIdea = owner?.idea;
+        if (owner && isReadOnlyWorkspace(owner.workspace)) {
+            console.warn("[DataSafety] Refused delete in a read-only workspace.");
+        } else if (selectedIdea?.isDraft && selectedIdea.draftFromClipIdea) {
             // "Make sketch" discarded: the idea goes back to being the clip it
             // was, in place — same id, same activity, nothing was saved.
             state.updateIdeas(
@@ -2164,8 +2176,10 @@ export const appActions = {
             // Discarding a draft gathered from clips: the clips go back to the
             // collection as their own ideas so nothing is lost.
             appActions.dissolveSketch(selectedIdea.id);
-        } else {
-            state.deleteIdea(state.selectedIdeaId);
+        } else if (selectedIdea) {
+            // An empty draft or a real idea. Never an id we couldn't find: that
+            // would delete whatever happens to match it elsewhere.
+            state.deleteIdea(selectedIdea.id);
         }
 
         if (!preserveSelection) {
@@ -2181,10 +2195,13 @@ export const appActions = {
         const selectedClipIds = new Set(state.selectedClipIds);
         let audioUrisToDelete: string[] = [];
 
+        const owner = locateIdea(state.workspaces, state.selectedIdeaId);
+        if (!owner || isReadOnlyWorkspace(owner.workspace)) return;
+        const ownerWorkspaceId = owner.workspace.id;
         useStore.setState((store) => {
             let removedIdeaClips: ClipVersion[] = [];
             const nextWorkspaces = store.workspaces.map((workspace) => {
-                if (workspace.id !== store.activeWorkspaceId) return workspace;
+                if (workspace.id !== ownerWorkspaceId) return workspace;
                 return {
                     ...workspace,
                     ideas: workspace.ideas.map((idea) => {
@@ -2400,20 +2417,10 @@ export const appActions = {
         };
 
         const swapIn = (prev: SongIdea[]) => prev.map((idea) => (idea.id === clipIdea.id ? converted : idea));
-        if (workspace.id === state.activeWorkspaceId) {
-            state.updateIdeas(swapIn, { preserveActivity: true, workspaceId: ideaWorkspaceId(useStore.getState().workspaces, ideaId) });
-        } else {
-            // The player resolves clips across workspaces (queues, Received
-            // packages), so the door may grow an idea that isn't in the active
-            // one — patch its home workspace directly.
-            useStore.setState((store) => ({
-                workspaces: normalizeWorkspaces(
-                    store.workspaces.map((ws) =>
-                        ws.id === workspace.id ? { ...ws, ideas: swapIn(ws.ideas) } : ws
-                    )
-                ),
-            }));
-        }
+        // The player resolves clips across workspaces (queues, Search, visits), so
+        // the door may grow an idea that isn't in the active one: write its home
+        // workspace. A read-only one (a parcel, an archive) refuses.
+        if (!state.updateIdeas(swapIn, { preserveActivity: true, workspaceId: workspace.id })) return false;
         state.setEditingIdeaId(clipIdea.id);
         state.setPendingPrimaryClipId(converted.clips[0]?.id ?? null);
         return true;
@@ -2454,10 +2461,12 @@ export const appActions = {
 
     moveClipToProject: (targetProjectId: string) => {
         const state = useStore.getState();
-        const activeWorkspace = state.workspaces.find((workspace) => workspace.id === state.activeWorkspaceId) ?? null;
-        const selectedIdea = activeWorkspace?.ideas.find(i => i.id === state.selectedIdeaId);
+        // The sketch's own workspace; the target sketch must live there too.
+        const owner = locateIdea(state.workspaces, state.selectedIdeaId);
+        const activeWorkspace = owner?.workspace ?? null;
+        const selectedIdea = owner?.idea;
         const movingClipId = state.movingClipId;
-        if (!selectedIdea || !movingClipId) return;
+        if (!selectedIdea || !movingClipId || isReadOnlyWorkspace(activeWorkspace)) return;
 
         const clipToMove = selectedIdea.clips.find((c) => c.id === movingClipId);
         if (!clipToMove) return;
@@ -2469,13 +2478,13 @@ export const appActions = {
                 parentClipId: undefined,
             },
             targetIdea,
-            activeWorkspace?.id ?? state.activeWorkspaceId ?? "",
+            activeWorkspace!.id,
             targetIdea.collectionId
         );
 
         useStore.setState((store) => ({
             workspaces: store.workspaces.map((workspace) => {
-                if (workspace.id !== store.activeWorkspaceId) return workspace;
+                if (workspace.id !== activeWorkspace!.id) return workspace;
 
                 const nextIdeas = workspace.ideas.map((idea) => {
                     if (idea.id === selectedIdea.id) {
@@ -3029,11 +3038,13 @@ export const appActions = {
 
     startClipboardFromProject: (mode: "copy" | "move") => {
         const state = useStore.getState();
-        if (!state.activeWorkspaceId || !state.selectedIdeaId || state.selectedClipIds.length === 0) return;
-        const activeWorkspace = state.workspaces.find((workspace) => workspace.id === state.activeWorkspaceId);
-        const selectedIdea = activeWorkspace?.ideas.find((idea) => idea.id === state.selectedIdeaId);
+        if (!state.selectedIdeaId || state.selectedClipIds.length === 0) return;
+        // The sketch's own workspace is the source, wherever it was opened from.
+        const owner = locateIdea(state.workspaces, state.selectedIdeaId);
+        if (!owner) return;
+        const selectedIdea = owner.idea;
         state.setClipClipboard({
-            sourceWorkspaceId: state.activeWorkspaceId,
+            sourceWorkspaceId: owner.workspace.id,
             sourceCollectionId: selectedIdea?.collectionId,
             sourceIdeaId: state.selectedIdeaId,
             clipIds: [...state.selectedClipIds],

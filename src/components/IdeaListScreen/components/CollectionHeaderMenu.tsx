@@ -80,6 +80,7 @@ export function CollectionHeaderMenu() {
               onPress={() => {
                 screen.setHeaderMenuOpen(false);
                 const createdIdeaId = appActions.addIdea(screen.collectionId!);
+                if (!createdIdeaId) return;
                 screen.navigateRoot("IdeaDetail", { ideaId: createdIdeaId });
               }}
             />

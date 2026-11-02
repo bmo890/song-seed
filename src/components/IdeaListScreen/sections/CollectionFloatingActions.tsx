@@ -527,7 +527,8 @@ export function CollectionFloatingActions() {
         onQuickRecord={() => {
           useStore.getState().requestInlineStop();
           useStore.getState().requestPlayerClose();
-          appActions.quickRecordIdea(screen.collectionId!);
+          // Refused only for a read-only collection, where the key is hidden anyway.
+          if (!appActions.quickRecordIdea(screen.collectionId!)) return;
           screen.navigateRoot("Recording");
         }}
         hideRecord={screen.isReceivedWorkspace}
