@@ -4,6 +4,7 @@ import { reloadAppAsync } from "expo";
 import { useStore } from "../state/useStore";
 import { useActivityStore } from "../state/useActivityStore";
 import { useChartPrefsStore } from "../state/useChartPrefsStore";
+import { useEditorDraftStore } from "../state/useEditorDraftStore";
 import { useMagpiePrefsStore } from "../state/useMagpiePrefsStore";
 import { useRevisitStore } from "../state/useRevisitStore";
 import { useSentLinksStore } from "../state/useSentLinksStore";
@@ -67,6 +68,7 @@ export function eraseTargets(): string[] {
 const SATELLITE_STORES = () => [
     useActivityStore,
     useChartPrefsStore,
+    useEditorDraftStore,
     useMagpiePrefsStore,
     useRevisitStore,
     useSentLinksStore,
