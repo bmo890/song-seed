@@ -3521,10 +3521,13 @@ export const appActions = {
         const nextPrimaryWorkspaceId =
             store.primaryWorkspaceId ??
             (opts?.origin === "received" ? null : merge.suggestedPrimaryWorkspaceId);
-        const nextNotes = [...merge.importedNotes, ...store.notes];
+        // Something received never writes into the person's own spaces: no pages
+        // added to their Lyric Pad, no calibrations for their headphones (audit 06 #6).
+        const received = opts?.origin === "received";
+        const nextNotes = received ? store.notes : [...merge.importedNotes, ...store.notes];
         const nextBluetoothMonitoringCalibrations = normalizeBluetoothMonitoringCalibrations([
             ...store.bluetoothMonitoringCalibrations,
-            ...merge.bluetoothMonitoringCalibrations.filter(
+            ...(received ? [] : merge.bluetoothMonitoringCalibrations).filter(
                 (incoming) =>
                     !store.bluetoothMonitoringCalibrations.some(
                         (existing) => existing.routeKey === incoming.routeKey
