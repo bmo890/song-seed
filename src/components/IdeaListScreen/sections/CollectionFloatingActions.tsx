@@ -15,10 +15,9 @@ import { collectManagedIdeaAudioUris } from "../../../services/managedMedia";
 import { trashFilesNoLongerUsed } from "../../../state/mediaCleanup";
 import { authorizeIntentionalEmptyStateWrite } from "../../../services/stateIntegrity";
 import { buildDefaultIdeaTitle, ensureUniqueIdeaTitle, getBaseClipTitle } from "../../../utils";
-import type { ActivityEvent, IdeasHiddenDay, IdeasListState, Playlist, Setlist, SongIdea, Songbook, Workspace } from "../../../types";
+import type { ActivityEvent, IdeasListState, Playlist, Setlist, SongIdea, Songbook, Workspace } from "../../../types";
 import { useStore } from "../../../state/useStore";
-import { getDateBucket } from "../../../domain/dateBuckets";
-import { getIdeaSortTimestamp } from "../../../domain/ideaSort";
+import { normalizeHiddenDays } from "../../../domain/hiddenDayGroups";
 import { buildPlayableQueueFromIdeas } from "../../../domain/clipPresentation";
 import { haptic } from "../../../design/haptics";
 
@@ -43,21 +42,9 @@ function normalizeIdeasListState(
   const hiddenIdeaIds = Array.isArray(ideasListState?.hiddenIdeaIds)
     ? Array.from(new Set(ideasListState.hiddenIdeaIds.filter((id) => ideaIdSet.has(id))))
     : [];
-  const hiddenDayMap = new Map<string, IdeasHiddenDay>();
-  for (const hiddenDay of ideasListState?.hiddenDays ?? []) {
-    if (
-      (hiddenDay?.metric === "created" || hiddenDay?.metric === "updated") &&
-      Number.isFinite(hiddenDay?.dayStartTs)
-    ) {
-      hiddenDayMap.set(`${hiddenDay.metric}:${hiddenDay.dayStartTs}`, {
-        metric: hiddenDay.metric,
-        dayStartTs: hiddenDay.dayStartTs,
-      });
-    }
-  }
   return {
     hiddenIdeaIds,
-    hiddenDays: Array.from(hiddenDayMap.values()),
+    hiddenDays: normalizeHiddenDays(ideasListState?.hiddenDays),
   };
 }
 
@@ -210,12 +197,7 @@ export function CollectionFloatingActions() {
     selectableIdeaIds,
   } = useMemo(() => {
     const selectedSet = new Set(screen.selectedListIdeaIds);
-    const isIdeaHiddenByDay = (idea: SongIdea) =>
-      screen.activeTimelineMetric
-        ? screen.hiddenDayKeySet.has(
-            `${screen.activeTimelineMetric}:${getDateBucket(getIdeaSortTimestamp(idea, store.ideasSort)).startTs}`
-          )
-        : false;
+    const isIdeaHiddenByDay = screen.isIdeaHiddenByDay;
     const isIdeaEffectivelyHidden = (idea: SongIdea) =>
       screen.hiddenIdeaIdsSet.has(idea.id) || isIdeaHiddenByDay(idea);
     const selectableIdeaIds = screen.listEntries
@@ -259,7 +241,7 @@ export function CollectionFloatingActions() {
     };
   }, [
     screen.activeTimelineMetric,
-    screen.hiddenDayKeySet,
+    screen.isIdeaHiddenByDay,
     screen.hiddenIdeaIdsSet,
     screen.ideas,
     screen.listEntries,

@@ -7,6 +7,7 @@ import { useSharedValue } from "react-native-reanimated";
 import { useStore } from "../../../state/useStore";
 import { getCollectionAncestors } from "../../../utils";
 import { getDateBucket, getDateBucketLabel } from "../../../domain/dateBuckets";
+import { createHiddenDayMatcher } from "../../../domain/hiddenDayGroups";
 import { compareIdeas, getIdeaCreatedAt, getIdeaSortState, getIdeaSortTimestamp, getIdeaUpdatedAt, usesIdeaTimelineDividers } from "../../../domain/ideaSort";
 import { collectClipIdeaTagsInUse, ideaMatchesTagFilter } from "../../../domain/ideaTags";
 import { computeIdeaSearchMeta } from "../ideaSearchMeta";
@@ -138,11 +139,19 @@ export function useCollectionScreenModel() {
   const hiddenIdeaIds = currentCollection?.ideasListState.hiddenIdeaIds ?? [];
   const hiddenDays = currentCollection?.ideasListState.hiddenDays ?? [];
   const hiddenIdeaIdsSet = useMemo(() => new Set(hiddenIdeaIds), [hiddenIdeaIds]);
-  const hiddenDayKeySet = useMemo(() => new Set(hiddenDays.map((day) => `${day.metric}:${day.dayStartTs}`)), [hiddenDays]);
   const activeTimelineMetric = useMemo(() => {
     const metric = getIdeaSortState(ideasSort).metric;
     return metric === "created" || metric === "updated" ? metric : null;
   }, [ideasSort]);
+  // Folded date groups are calendar days (07-H1); this one predicate answers
+  // "is this idea folded" for the list, its selection and focus (Revisit asks
+  // the same matcher).
+  const hiddenDayMatcher = useMemo(() => createHiddenDayMatcher(hiddenDays), [hiddenDays]);
+  const isIdeaHiddenByDay = useCallback(
+    (idea: SongIdea) =>
+      !!activeTimelineMetric && hiddenDayMatcher(activeTimelineMetric, getIdeaSortTimestamp(idea, ideasSort)),
+    [activeTimelineMetric, hiddenDayMatcher, ideasSort]
+  );
   const activeSortMetric = useMemo(() => getIdeaSortState(ideasSort).metric, [ideasSort]);
 
   useEffect(() => {
@@ -222,13 +231,8 @@ export function useCollectionScreenModel() {
   // Both persist; "Show all" (showAllHidden) is the single bulk reset.
   const effectivelyHiddenCount = useMemo(
     () =>
-      listIdeas.filter((idea) => {
-        if (hiddenIdeaIdsSet.has(idea.id)) return true;
-        if (!activeTimelineMetric) return false;
-        const dayTs = getDateBucket(getIdeaSortTimestamp(idea, ideasSort)).startTs;
-        return hiddenDayKeySet.has(`${activeTimelineMetric}:${dayTs}`);
-      }).length,
-    [activeTimelineMetric, hiddenDayKeySet, hiddenIdeaIdsSet, ideasSort, listIdeas]
+      listIdeas.filter((idea) => hiddenIdeaIdsSet.has(idea.id) || isIdeaHiddenByDay(idea)).length,
+    [hiddenIdeaIdsSet, isIdeaHiddenByDay, listIdeas]
   );
 
   const showDateDividers = usesIdeaTimelineDividers(ideasSort);
@@ -270,25 +274,31 @@ export function useCollectionScreenModel() {
       const bucketStartTs = firstBucket.startTs;
       index = nextIndex;
 
-      // A collapsed day folds to a single labelled marker (atomic — expand the
-      // whole day to get its items back). The marker always carries its label,
-      // even as the topmost group.
-      if (hiddenDayKeySet.has(`${activeTimelineMetric}:${bucketStartTs}`)) {
-        entries.push({
-          key: `collapsedDay:${activeTimelineMetric}:${bucketStartTs}`,
-          type: "collapsedDay",
-          label: dayLabel,
-          dayStartTs: bucketStartTs,
-          count: groupIdeas.length,
-        });
-        continue;
-      }
-
-      // Visible day: drop one-off hidden items; the label rides the first
-      // remaining item (suppressed on the very first group — the sticky chip
-      // covers the top).
+      // Folded days collapse to one labelled marker (tap to expand the whole
+      // group). A group is wholly folded when every idea in it is; a group the
+      // calendar has since widened (Yesterday folded, now inside Last week)
+      // shows its other ideas and keeps the folded ones behind the marker, in
+      // their place. The marker always carries its label, even topmost.
+      const foldedInGroup = groupIdeas.filter((idea) => isIdeaHiddenByDay(idea));
       let pushedInGroup = false;
+      let markerPushed = false;
       groupIdeas.forEach((idea) => {
+        if (foldedInGroup.length > 0 && isIdeaHiddenByDay(idea)) {
+          if (markerPushed) return;
+          markerPushed = true;
+          entries.push({
+            key: `collapsedDay:${activeTimelineMetric}:${bucketStartTs}`,
+            type: "collapsedDay",
+            label: dayLabel,
+            dayStartTs: bucketStartTs,
+            count: foldedInGroup.length,
+          });
+          pushedInGroup = true;
+          return;
+        }
+        // Visible: drop one-off hidden items; the label rides the first
+        // remaining item (suppressed on the very first group — the sticky chip
+        // covers the top).
         if (hiddenIdeaIdsSet.has(idea.id)) return;
         const label = !pushedInGroup && entries.length > 0 ? dayLabel : null;
         entries.push(buildIdeaEntry(idea, label, bucketStartTs));
@@ -296,7 +306,7 @@ export function useCollectionScreenModel() {
       });
     }
     return entries;
-  }, [activeTimelineMetric, hiddenDayKeySet, hiddenIdeaIdsSet, ideasSort, listIdeas, showDateDividers]);
+  }, [activeTimelineMetric, hiddenIdeaIdsSet, ideasSort, isIdeaHiddenByDay, listIdeas, showDateDividers]);
   // The entries array keeps its identity while the list SHOWS the same thing: same
   // rows, same order, same labels. An edit to one idea (a pin, a tag, a bookmark)
   // rebuilds the ideas array above but changes none of that — so the FlatList gets
@@ -546,7 +556,7 @@ export function useCollectionScreenModel() {
     hiddenIdeaIds,
     hiddenIdeaIdsSet,
     hiddenDays,
-    hiddenDayKeySet,
+    isIdeaHiddenByDay,
     effectivelyHiddenCount,
     showDateDividers,
     activeTimelineMetric,

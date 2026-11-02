@@ -2,6 +2,7 @@ import { StateCreator } from "zustand";
 import { stringIndexToGraphemeIndex } from "../domain/chords";
 import { WORKSPACE_COLORS } from "../domain/workspaceTheme";
 import { ideaWorkChanged } from "../domain/ideaActivity";
+import { addHiddenDays, normalizeHiddenDays, removeHiddenDays } from "../domain/hiddenDayGroups";
 import {
     Workspace,
     Collection,
@@ -1113,22 +1114,10 @@ function normalizeWorkspaceIdeasListState(
         ? Array.from(new Set(ideasListState.hiddenIdeaIds.filter((id) => ideaIdSet.has(id))))
         : [];
 
-    const hiddenDayMap = new Map<string, IdeasHiddenDay>();
-    for (const hiddenDay of ideasListState?.hiddenDays ?? []) {
-        if (
-            (hiddenDay?.metric === "created" || hiddenDay?.metric === "updated") &&
-            Number.isFinite(hiddenDay?.dayStartTs)
-        ) {
-            hiddenDayMap.set(`${hiddenDay.metric}:${hiddenDay.dayStartTs}`, {
-                metric: hiddenDay.metric,
-                dayStartTs: hiddenDay.dayStartTs,
-            });
-        }
-    }
-
     return {
         hiddenIdeaIds,
-        hiddenDays: Array.from(hiddenDayMap.values()),
+        // Calendar-day folds; the old moving-start shape migrates here (07-H1).
+        hiddenDays: normalizeHiddenDays(ideasListState?.hiddenDays),
     };
 }
 
@@ -2849,17 +2838,11 @@ export const createDataSlice: StateCreator<
         });
     },
     setTimelineDaysHidden: (collectionId, days, hidden) => {
-        const nextDays = days.filter(
-            (day): day is IdeasHiddenDay =>
-                !!day &&
-                (day.metric === "created" || day.metric === "updated") &&
-                Number.isFinite(day.dayStartTs)
-        );
+        const nextDays = normalizeHiddenDays(days);
         if (nextDays.length === 0) return;
 
         set((state) => {
             if (!state.activeWorkspaceId) return state;
-            const dayKeySet = new Set(nextDays.map((day) => `${day.metric}:${day.dayStartTs}`));
 
             return {
                 workspaces: state.workspaces.map((workspace) => {
@@ -2871,25 +2854,15 @@ export const createDataSlice: StateCreator<
                         collections: workspace.collections.map((collection) => {
                             if (collection.id !== collectionId) return collection;
                             const prevState = normalizeWorkspaceIdeasListState(collection.ideasListState, collectionIdeas);
-                            const hiddenDayMap = new Map<string, IdeasHiddenDay>(
-                                prevState.hiddenDays.map((day) => [`${day.metric}:${day.dayStartTs}`, day] as const)
-                            );
-
-                            if (hidden) {
-                                for (const day of nextDays) {
-                                    hiddenDayMap.set(`${day.metric}:${day.dayStartTs}`, day);
-                                }
-                            } else {
-                                for (const key of dayKeySet) {
-                                    hiddenDayMap.delete(key);
-                                }
-                            }
-
+                            // Folding adds the days; unfolding removes exactly those
+                            // days, so a wider fold around them shrinks, never vanishes.
                             return {
                                 ...collection,
                                 ideasListState: {
                                     ...prevState,
-                                    hiddenDays: Array.from(hiddenDayMap.values()),
+                                    hiddenDays: hidden
+                                        ? addHiddenDays(prevState.hiddenDays, nextDays)
+                                        : removeHiddenDays(prevState.hiddenDays, nextDays),
                                 },
                             };
                         }),

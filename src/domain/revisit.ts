@@ -1,4 +1,5 @@
 import { getActivityEventsWithHistory, startOfActivityDay } from "./activity";
+import { createHiddenDayMatcher, isIdeaInHiddenDays, type HiddenDayMatcher } from "./hiddenDayGroups";
 import { i18n } from "../i18n/instance";
 import { currentFormatLocale } from "../i18n/formatLocale";
 import { getIdeaCreatedAt, getIdeaUpdatedAt } from "./ideaSort";
@@ -316,26 +317,23 @@ function buildEventsByIdea(
 
 type WorkspaceHiddenIndex = {
   hiddenIdeaIds: Set<string>;
-  hiddenDayKeys: Set<string>;
-  byCollection: Map<string, { hiddenIdeaIds: Set<string>; hiddenDayKeys: Set<string> }>;
+  hiddenDays: HiddenDayMatcher;
+  byCollection: Map<string, { hiddenIdeaIds: Set<string>; hiddenDays: HiddenDayMatcher }>;
 };
 
-function toHiddenDayKeys(hiddenDays: { metric: string; dayStartTs: number }[] | undefined) {
-  return new Set((hiddenDays ?? []).map((hiddenDay) => `${hiddenDay.metric}:${hiddenDay.dayStartTs}`));
-}
-
-/** Precompute a workspace's hidden ideas/days once, so per-idea checks don't rebuild Sets. */
+/** Precompute a workspace's hidden ideas/days once, so per-idea checks don't rebuild Sets.
+ *  Folded date groups are matched by the same predicate the list uses (07-H2). */
 function buildWorkspaceHiddenIndex(workspace: Workspace): WorkspaceHiddenIndex {
-  const byCollection = new Map<string, { hiddenIdeaIds: Set<string>; hiddenDayKeys: Set<string> }>();
+  const byCollection = new Map<string, { hiddenIdeaIds: Set<string>; hiddenDays: HiddenDayMatcher }>();
   for (const collection of workspace.collections) {
     byCollection.set(collection.id, {
       hiddenIdeaIds: new Set(collection.ideasListState.hiddenIdeaIds ?? []),
-      hiddenDayKeys: toHiddenDayKeys(collection.ideasListState.hiddenDays),
+      hiddenDays: createHiddenDayMatcher(collection.ideasListState.hiddenDays),
     });
   }
   return {
     hiddenIdeaIds: new Set(workspace.ideasListState?.hiddenIdeaIds ?? []),
-    hiddenDayKeys: toHiddenDayKeys(workspace.ideasListState?.hiddenDays),
+    hiddenDays: createHiddenDayMatcher(workspace.ideasListState?.hiddenDays),
     byCollection,
   };
 }
@@ -343,14 +341,9 @@ function buildWorkspaceHiddenIndex(workspace: Workspace): WorkspaceHiddenIndex {
 function isIdeaHiddenByIndex(index: WorkspaceHiddenIndex, idea: SongIdea) {
   const collection = index.byCollection.get(idea.collectionId);
   if (index.hiddenIdeaIds.has(idea.id) || collection?.hiddenIdeaIds.has(idea.id)) return true;
-
-  const createdKey = `created:${startOfActivityDay(getIdeaCreatedAt(idea))}`;
-  const updatedKey = `updated:${startOfActivityDay(getIdeaUpdatedAt(idea))}`;
   return (
-    index.hiddenDayKeys.has(createdKey) ||
-    index.hiddenDayKeys.has(updatedKey) ||
-    !!collection?.hiddenDayKeys.has(createdKey) ||
-    !!collection?.hiddenDayKeys.has(updatedKey)
+    isIdeaInHiddenDays(index.hiddenDays, idea) ||
+    (!!collection && isIdeaInHiddenDays(collection.hiddenDays, idea))
   );
 }
 

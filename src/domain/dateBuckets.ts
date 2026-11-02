@@ -10,7 +10,6 @@ import { getMonthName } from "./dateNames";
  *   → [Month name] (same year) → [Month name Year] (older)
  */
 
-const DAY_MS = 86_400_000;
 
 function startOfDay(ts: number): number {
   const d = new Date(ts);
@@ -52,7 +51,16 @@ type BucketBoundaries = {
 
 let cachedBoundaries: BucketBoundaries | null = null;
 
-function getBoundaries(now: number): BucketBoundaries {
+/** Local midnight `days` calendar days before `dayStart` (DST-safe: a calendar
+ *  step, not 24 h blocks — 07-L1). */
+function daysBefore(dayStart: number, days: number): number {
+  const d = new Date(dayStart);
+  d.setDate(d.getDate() - days);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+export function getBucketBoundaries(now: number): BucketBoundaries {
   const todayStart = startOfDay(now);
   if (cachedBoundaries && cachedBoundaries.todayStart === todayStart) return cachedBoundaries;
 
@@ -62,13 +70,62 @@ function getBoundaries(now: number): BucketBoundaries {
 
   cachedBoundaries = {
     todayStart,
-    yesterdayStart: todayStart - DAY_MS,
-    weekAgoStart: todayStart - 6 * DAY_MS,
+    yesterdayStart: daysBefore(todayStart, 1),
+    weekAgoStart: daysBefore(todayStart, 6),
     thisMonthStart,
     lastMonthStart: lastMonthDate.getTime(),
     currentYear: new Date(now).getFullYear(),
   };
   return cachedBoundaries;
+}
+
+const getBoundaries = getBucketBoundaries;
+
+const pad2 = (value: number) => (value < 10 ? `0${value}` : `${value}`);
+
+/** The local calendar day of a timestamp, "YYYY-MM-DD". Sorts as text. */
+export function localDayKey(ts: number): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+export type RelativeBucketKey = "today" | "yesterday" | "last-week" | "this-month" | "last-month";
+
+/** The relative groups' spans today, newest first, as [start, end) local
+ *  midnights. A span can be empty (no "This month" in the first week). */
+export function getRelativeBucketSpans(now: number): { key: RelativeBucketKey; startMs: number; endMs: number }[] {
+  const { todayStart, yesterdayStart, weekAgoStart, thisMonthStart, lastMonthStart } = getBoundaries(now);
+  return [
+    { key: "today", startMs: todayStart, endMs: daysBefore(todayStart, -1) },
+    { key: "yesterday", startMs: yesterdayStart, endMs: todayStart },
+    { key: "last-week", startMs: weekAgoStart, endMs: yesterdayStart },
+    { key: "this-month", startMs: thisMonthStart, endMs: weekAgoStart },
+    { key: "last-month", startMs: lastMonthStart, endMs: Math.min(thisMonthStart, weekAgoStart) },
+  ];
+}
+
+/** A [start, end) span as inclusive local days; null when the span is empty. */
+export function spanToDayRange(startMs: number, endMs: number): { fromDay: string; toDay: string } | null {
+  if (endMs <= startMs) return null;
+  return { fromDay: localDayKey(startMs), toDay: localDayKey(endMs - 1) };
+}
+
+/** The local calendar days (inclusive) the date group holding `ts` covers today. */
+export function getDateBucketDayRange(ts: number, now: number = Date.now()): { fromDay: string; toDay: string } {
+  const spans = getRelativeBucketSpans(now);
+  // Today has no upper bound (a future-dated idea files there too).
+  if (ts >= spans[0].startMs) return spanToDayRange(spans[0].startMs, spans[0].endMs)!;
+  for (const span of spans.slice(1)) {
+    if (ts >= span.startMs && ts < span.endMs) return spanToDayRange(span.startMs, span.endMs)!;
+  }
+  const { lastMonthStart } = getBoundaries(now);
+  const monthStart = startOfMonth(ts);
+  const nextMonth = new Date(monthStart);
+  nextMonth.setMonth(nextMonth.getMonth() + 1);
+  return spanToDayRange(monthStart, Math.min(nextMonth.getTime(), lastMonthStart)) ?? {
+    fromDay: localDayKey(ts),
+    toDay: localDayKey(ts),
+  };
 }
 
 /**

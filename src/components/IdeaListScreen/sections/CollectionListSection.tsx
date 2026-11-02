@@ -5,6 +5,7 @@ import type { ClipVersion } from "../../../types";
 import type { IdeaListEntry } from "../types";
 import type { ReactNode } from "react";
 import { getDateBucket } from "../../../domain/dateBuckets";
+import { hiddenDayForGroup } from "../../../domain/hiddenDayGroups";
 import { getIdeaSortTimestamp } from "../../../domain/ideaSort";
 import { useStore } from "../../../state/useStore";
 import { stickyDayStore } from "../stickyDayStore";
@@ -98,16 +99,13 @@ export function CollectionListSection({
         if (focusIdea && screen.hiddenIdeaIdsSet.has(focusIdea.id)) {
           store.setIdeasHidden(screen.collectionId, [focusIdea.id], false);
           changed = true;
-        } else if (focusIdea && screen.activeTimelineMetric) {
-          const dayTs = getDateBucket(getIdeaSortTimestamp(focusIdea, ideasSort)).startTs;
-          if (screen.hiddenDayKeySet.has(`${screen.activeTimelineMetric}:${dayTs}`)) {
-            setTimelineDaysHidden(
-              screen.collectionId,
-              [{ metric: screen.activeTimelineMetric, dayStartTs: dayTs }],
-              false
-            );
-            changed = true;
-          }
+        } else if (focusIdea && screen.activeTimelineMetric && screen.isIdeaHiddenByDay(focusIdea)) {
+          setTimelineDaysHidden(
+            screen.collectionId,
+            [hiddenDayForGroup(screen.activeTimelineMetric, getIdeaSortTimestamp(focusIdea, ideasSort))],
+            false
+          );
+          changed = true;
         }
       }
       if (!changed) {
@@ -162,7 +160,7 @@ export function CollectionListSection({
     screen.focusToken,
     screen.focusScrollTimerRef,
     screen.handledFocusTokenRef,
-    screen.hiddenDayKeySet,
+    screen.isIdeaHiddenByDay,
     screen.hiddenIdeaIdsSet,
     screen.ideas,
     screen.listEntries,
@@ -207,19 +205,21 @@ export function CollectionListSection({
     await inlinePlayer.resetInlinePlayer();
   }, [inlinePlayer]);
 
-  // Expand a collapsed day group back into the list (atomic — the whole day).
+  // Expand a collapsed day group back into the list (atomic — the whole group).
+  // `dayStartTs` names the group (its start); the fold itself is calendar days.
   const expandTimelineDay = useCallback((metric: "created" | "updated", dayStartTs: number) => {
     if (!collectionIdRef.current) return;
-    setTimelineDaysHidden(collectionIdRef.current, [{ metric, dayStartTs }], false);
+    setTimelineDaysHidden(collectionIdRef.current, [hiddenDayForGroup(metric, dayStartTs)], false);
   }, [setTimelineDaysHidden]);
 
   const hideTimelineDay = useCallback(async (metric: "created" | "updated", dayStartTs: number) => {
     if (!collectionIdRef.current) return;
+    const groupKey = getDateBucket(dayStartTs).key;
     const ideaIdsInDay = listIdeasRef.current
-      .filter((idea) => getDateBucket(getIdeaSortTimestamp(idea, ideasSortRef.current)).startTs === dayStartTs)
+      .filter((idea) => getDateBucket(getIdeaSortTimestamp(idea, ideasSortRef.current)).key === groupKey)
       .map((idea) => idea.id);
     await maybeResetInlineForIdeaIds(ideaIdsInDay);
-    setTimelineDaysHidden(collectionIdRef.current, [{ metric, dayStartTs }], true);
+    setTimelineDaysHidden(collectionIdRef.current, [hiddenDayForGroup(metric, dayStartTs)], true);
   }, [maybeResetInlineForIdeaIds, setTimelineDaysHidden]);
 
   // The floating day chip and the scrubber readout follow the first row that is
