@@ -1,4 +1,5 @@
 import { getIdeaUpdatedAt } from "./ideaSort";
+import { isReadOnlyWorkspace } from "./workspaceVisibility";
 import { i18n } from "../i18n/instance";
 import {
   Collection,
@@ -358,7 +359,8 @@ export function resolveStartupWorkspaceId(args: {
    *  workspace list (null), never the one set aside. */
   setAside?: { workspaceId: string | null } | null;
 }) {
-  const activeWorkspaces = args.workspaces.filter((workspace) => !workspace.isArchived);
+  // Received parcels and archives are visited, never opened as home (decision B).
+  const activeWorkspaces = args.workspaces.filter((workspace) => !isReadOnlyWorkspace(workspace));
   const pool = activeWorkspaces.length > 0 ? activeWorkspaces : args.workspaces;
 
   const findById = (id: string | null) =>
