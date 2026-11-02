@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
-import { importRecordedAudioAsset } from "./audioStorage";
+import { adoptRecordedTake, importRecordedAudioAsset, recordedTakeDestination } from "./audioStorage";
+import { collectManagedAudioUrisFromWorkspaces } from "./managedMedia";
 import { flushPersistedSnapshot, useStore } from "../state/useStore";
 import { appActions } from "../state/actions";
 import { firstWritableWorkspaceId, isWritableWorkspaceId } from "../domain/workspaceVisibility";
@@ -58,6 +59,10 @@ type PendingRecordingSession = {
      *  take starts, so a killed take leaves it behind as a 0:00 shell: recovery lands
      *  the take there instead of in a second "Recovered" idea (2026-10-18). */
     ideaId?: string | null;
+    /** Where the take is being MOVED into the library (audit 03-6): written before the
+     *  move, so whichever side of the rename a kill lands on, the marker leads to the
+     *  take. Same location form as `fileUri`. */
+    movedTo?: string;
     attached?: AttachedRecordingJournal;
 };
 
@@ -198,6 +203,44 @@ export async function persistAttachedRecordingJournal(entry: AttachedRecordingJo
     });
 }
 
+/**
+ * Name, in the take's marker, where its file is about to be moved. True only when the
+ * marker now says so; with no marker for the take (or a write that failed) the caller
+ * copies instead, because nothing would lead to a moved file.
+ */
+export async function noteTakeMovingIntoLibrary(takeFileUri: string, destinationUri: string): Promise<boolean> {
+    let noted = false;
+    try {
+        await updatePendingRecordingSessions((sessions) =>
+            sessions.map((session) => {
+                if (session.attached || !sameTake(session.fileUri, takeFileUri)) return session;
+                noted = true;
+                return { ...session, movedTo: toTakeLocation(destinationUri), updatedAt: Date.now() };
+            })
+        );
+    } catch {
+        return false;
+    }
+    return noted;
+}
+
+/**
+ * Bring a recorded take into the library by MOVING its file (one rename on the same
+ * volume) instead of copying it, so a take never needs its size free twice (audit
+ * 03-6 / E12). The marker names the destination first: a kill before the rename finds
+ * the take where it was, a kill after finds it at the destination. A take with no
+ * marker is copied, as before.
+ */
+export async function importTakeIntoLibrary(
+    takeFileUri: string,
+    clipId: string,
+    options?: Parameters<typeof importRecordedAudioAsset>[2]
+): Promise<{ audioUri: string; durationMs?: number; waveformPeaks?: number[]; moved: boolean }> {
+    const moved = await noteTakeMovingIntoLibrary(takeFileUri, recordedTakeDestination(takeFileUri, clipId));
+    const managed = await importRecordedAudioAsset(takeFileUri, clipId, options, moved ? "take" : undefined);
+    return { ...managed, moved };
+}
+
 /** Drop ONE take's marker: the take at `fileUri`, never anyone else's. */
 export async function clearPendingRecordingSession(fileUri: string) {
     await updatePendingRecordingSessions((sessions) =>
@@ -265,6 +308,15 @@ async function settleRecoveredTake(
         await FileSystem.deleteAsync(tempUri, { idempotent: true }).catch(() => {});
     }
     if (durable) await clearPendingRecordingSession(session.fileUri);
+}
+
+/** Some clip in the library already plays this file (a save that landed before the kill). */
+function libraryReferencesFile(workspaces: Workspace[], uri: string): boolean {
+    const location = toTakeLocation(uri);
+    for (const referenced of collectManagedAudioUrisFromWorkspaces(workspaces)) {
+        if (toTakeLocation(referenced) === location) return true;
+    }
+    return false;
 }
 
 function libraryHasClip(workspaces: Workspace[], clipId: string): boolean {
@@ -458,6 +510,30 @@ async function recoverTake(
         // the recorder may still hold that shell for its next take.
         const shellIdeaId = options?.lightweight ? null : session.ideaId;
 
+        // A save was moving the take into the library (audit 03-6). Where it was still
+        // wins while it is there; past the rename the take sits at its destination.
+        const movedUri = session.movedTo ? resolveTakeLocation(session.movedTo) : null;
+        if (movedUri && !(await isOnDisk(takeUri)) && (await isOnDisk(movedUri))) {
+            if (libraryReferencesFile(useStore.getState().workspaces, movedUri)) {
+                // The save landed; only its marker was left. Let go of it once that is on
+                // disk (in session the clip may still be in memory only).
+                const saved = await flushPersistedSnapshot().then(
+                    () => true,
+                    () => false
+                );
+                if (saved) await clearPendingRecordingSession(session.fileUri);
+                return { status: "none" };
+            }
+            // Never got its final header (a kill as the save began): finalize it in place.
+            if (finalizeRecordedFile(movedUri) === "empty") {
+                await FileSystem.deleteAsync(movedUri, { idempotent: true }).catch(() => {});
+                removeLeftoverPlaceholder(shellIdeaId);
+                await clearPendingRecordingSession(session.fileUri);
+                return { status: "empty" };
+            }
+            return await landTake(session, movedUri, shellIdeaId, options, true);
+        }
+
         if (!(await isOnDisk(takeUri))) {
             removeLeftoverPlaceholder(shellIdeaId);
             await clearPendingRecordingSession(session.fileUri);
@@ -476,104 +552,134 @@ async function recoverTake(
             return { status: "empty" };
         }
 
-        const clipId = `recovered-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-        const importOptions = options?.lightweight ? { lightweight: true } : undefined;
-
-        // The take's own idea, still the empty shell the recorder opened: fill it.
-        if (findEmptyPlaceholder(shellIdeaId)) {
-            const managedAudio = await importRecordedAudioAsset(takeUri, clipId, importOptions);
-            // Re-read after the import: the shell may have changed while it ran.
-            const placeholder = findEmptyPlaceholder(shellIdeaId);
-            if (placeholder) {
-                const clipTitle = genRootClipTitle(placeholder.idea.clips);
-                prependClipToIdea(placeholder.workspace.id, placeholder.idea.id, {
-                    id: clipId,
-                    title: clipTitle,
-                    isTitleAutoGenerated: true,
-                    notes: "",
-                    createdAt: session.startedAt,
-                    isPrimary: true,
-                    audioUri: managedAudio.audioUri,
-                    durationMs: managedAudio.durationMs,
-                    waveformPeaks: managedAudio.waveformPeaks,
-                });
-                await settleRecoveredTake(
-                    {
-                        ideaId: placeholder.idea.id,
-                        clipId,
-                        audioUri: managedAudio.audioUri,
-                        ideaTitle: placeholder.idea.title,
-                        ideaTitleAutoGenerated: placeholder.idea.isTitleAutoGenerated ?? true,
-                        clipTitle,
-                        durationMs: managedAudio.durationMs,
-                        waveformPeaks: managedAudio.waveformPeaks,
-                        createdAt: session.startedAt,
-                    },
-                    session,
-                    takeUri
-                );
-                persistLog("recording.recovered", `filled ${placeholder.idea.id}`);
-                queueRecoveredWaveform();
-                return { status: "recovered", title: placeholder.idea.title };
-            }
-            await FileSystem.deleteAsync(managedAudio.audioUri, { idempotent: true }).catch(() => {});
-        }
-
-        const store = useStore.getState();
-        // Your own live workspace: a recovered take must never land in a parcel
-        // or an archive stub (lost there on Keep-less delete or unarchive).
-        const workspaceId = isWritableWorkspaceId(store.workspaces, store.activeWorkspaceId)
-            ? store.activeWorkspaceId
-            : firstWritableWorkspaceId(store.workspaces);
-
-        if (!workspaceId) {
-            return { status: "failed", message: "No active workspace available for recovery." };
-        }
-
-        const workspace = store.workspaces.find((candidate) => candidate.id === workspaceId) ?? null;
-        const collectionId =
-            workspace?.collections[0]?.id ?? store.addCollection(workspaceId, "Inbox", null);
-        if (!collectionId) {
-            return { status: "failed", message: "No workspace of your own available for recovery." };
-        }
-
-        const managedAudio = await importRecordedAudioAsset(takeUri, clipId, importOptions);
-        const title = session.attached && !session.attached.ideaTitleAutoGenerated
-            ? session.attached.ideaTitle
-            : buildRecoveredRecordingTitle(session.startedAt);
-
-        const imported = appActions.importClipToCollection(collectionId, {
-            title,
-            audioUri: managedAudio.audioUri,
-            durationMs: managedAudio.durationMs,
-            waveformPeaks: managedAudio.waveformPeaks,
-            createdAt: session.startedAt,
-            importedAt: Date.now(),
-            sourceCreatedAt: session.startedAt,
-        });
-
-        await settleRecoveredTake(
-            {
-                ideaId: imported.ideaId,
-                clipId: imported.clipId,
-                audioUri: managedAudio.audioUri,
-                ideaTitle: title,
-                ideaTitleAutoGenerated: false,
-                clipTitle: title,
-                durationMs: managedAudio.durationMs,
-                waveformPeaks: managedAudio.waveformPeaks,
-                createdAt: session.startedAt,
-            },
-            session,
-            takeUri
-        );
-        persistLog("recording.recovered", "imported to inbox");
-        queueRecoveredWaveform();
-        return { status: "recovered", title };
+        return await landTake(session, takeUri, shellIdeaId, options, false);
     } catch (error) {
         // The marker and the take's file both stay: the next launch tries again.
         const message = error instanceof Error ? error.message : "Unknown recovery failure.";
         console.warn("[RecordingRecovery] Failed to recover pending recording", error);
         return { status: "failed", message };
     }
+}
+
+/**
+ * Put a recovered take in the library: the empty shell it was opened into while that is
+ * still waiting, else the Inbox of a workspace of your own. `inLibraryFolder` is a take
+ * an unfinished save already moved into the library's audio folder: it stays where it
+ * is. Any other take is moved in (copied when it has no marker).
+ */
+async function landTake(
+    session: PendingRecordingSession,
+    takeUri: string,
+    shellIdeaId: string | null | undefined,
+    options: { lightweight?: boolean } | undefined,
+    inLibraryFolder: boolean
+): Promise<RecordingRecoveryResult> {
+    const clipId = `recovered-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const importOptions = options?.lightweight ? { lightweight: true } : undefined;
+
+    const workspaceIdNow = () => {
+        const store = useStore.getState();
+        // Your own live workspace: a recovered take must never land in a parcel
+        // or an archive stub (lost there on Keep-less delete or unarchive).
+        return isWritableWorkspaceId(store.workspaces, store.activeWorkspaceId)
+            ? store.activeWorkspaceId
+            : firstWritableWorkspaceId(store.workspaces);
+    };
+    if (!findEmptyPlaceholder(shellIdeaId) && !workspaceIdNow()) {
+        return { status: "failed", message: "No active workspace available for recovery." };
+    }
+
+    let managedAudio: { audioUri: string; durationMs?: number; waveformPeaks?: number[] };
+    // The take's own file once the library holds a separate copy of it; null when the
+    // file itself became the library's (moved, or adopted where it was).
+    let leftover: string | null = null;
+    if (inLibraryFolder) {
+        managedAudio = await adoptRecordedTake(takeUri, importOptions);
+    } else {
+        const imported = await importTakeIntoLibrary(takeUri, clipId, importOptions);
+        managedAudio = imported;
+        leftover = imported.moved ? null : takeUri;
+    }
+
+    // The take's own idea, still the empty shell the recorder opened: fill it.
+    // Re-read after the import: the shell may have changed while it ran.
+    const placeholder = findEmptyPlaceholder(shellIdeaId);
+    if (placeholder) {
+        const clipTitle = genRootClipTitle(placeholder.idea.clips);
+        prependClipToIdea(placeholder.workspace.id, placeholder.idea.id, {
+            id: clipId,
+            title: clipTitle,
+            isTitleAutoGenerated: true,
+            notes: "",
+            createdAt: session.startedAt,
+            isPrimary: true,
+            audioUri: managedAudio.audioUri,
+            durationMs: managedAudio.durationMs,
+            waveformPeaks: managedAudio.waveformPeaks,
+        });
+        await settleRecoveredTake(
+            {
+                ideaId: placeholder.idea.id,
+                clipId,
+                audioUri: managedAudio.audioUri,
+                ideaTitle: placeholder.idea.title,
+                ideaTitleAutoGenerated: placeholder.idea.isTitleAutoGenerated ?? true,
+                clipTitle,
+                durationMs: managedAudio.durationMs,
+                waveformPeaks: managedAudio.waveformPeaks,
+                createdAt: session.startedAt,
+            },
+            session,
+            leftover
+        );
+        persistLog("recording.recovered", `filled ${placeholder.idea.id}`);
+        queueRecoveredWaveform();
+        return { status: "recovered", title: placeholder.idea.title };
+    }
+
+    // The Inbox. If the take can't land there, its file stays where the import put it
+    // and the marker leads there: the next launch tries again.
+    const workspaceId = workspaceIdNow();
+    if (!workspaceId) {
+        return { status: "failed", message: "No active workspace available for recovery." };
+    }
+    const store = useStore.getState();
+    const workspace = store.workspaces.find((candidate) => candidate.id === workspaceId) ?? null;
+    const collectionId = workspace?.collections[0]?.id ?? store.addCollection(workspaceId, "Inbox", null);
+    if (!collectionId) {
+        return { status: "failed", message: "No workspace of your own available for recovery." };
+    }
+
+    const title = session.attached && !session.attached.ideaTitleAutoGenerated
+        ? session.attached.ideaTitle
+        : buildRecoveredRecordingTitle(session.startedAt);
+
+    const imported = appActions.importClipToCollection(collectionId, {
+        title,
+        audioUri: managedAudio.audioUri,
+        durationMs: managedAudio.durationMs,
+        waveformPeaks: managedAudio.waveformPeaks,
+        createdAt: session.startedAt,
+        importedAt: Date.now(),
+        sourceCreatedAt: session.startedAt,
+    });
+
+    await settleRecoveredTake(
+        {
+            ideaId: imported.ideaId,
+            clipId: imported.clipId,
+            audioUri: managedAudio.audioUri,
+            ideaTitle: title,
+            ideaTitleAutoGenerated: false,
+            clipTitle: title,
+            durationMs: managedAudio.durationMs,
+            waveformPeaks: managedAudio.waveformPeaks,
+            createdAt: session.startedAt,
+        },
+        session,
+        leftover
+    );
+    persistLog("recording.recovered", "imported to inbox");
+    queueRecoveredWaveform();
+    return { status: "recovered", title };
 }

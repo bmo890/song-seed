@@ -68,15 +68,30 @@ jest.mock("expo-file-system", () => ({
 
 // The import probes the file the way the native duration probe does: it believes the
 // header. A header still at its placeholder therefore reads 0 s.
+const mockHeaderDurationMs = (bytes: Uint8Array) => {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    return Math.round((view.getUint32(40, true) / view.getUint32(28, true)) * 1000);
+};
+/** What the marker list said at the moment each import ran. */
+const mockMarkersAtImport: string[] = [];
+const mockImportModes: Array<string | undefined> = [];
 jest.mock("../audioStorage", () => ({
-    importRecordedAudioAsset: jest.fn(async (uri: string, clipId: string) => {
+    recordedTakeDestination: (_uri: string, clipId: string) => `file:///doc/songnook/audio/${clipId}.wav`,
+    // A "take" import MOVES the file (audit 03-6); anything else copies it.
+    importRecordedAudioAsset: jest.fn(async (uri: string, clipId: string, _options?: unknown, mode?: string) => {
+        mockMarkersAtImport.push(mockStorage.get("songnook-pending-recordings") ?? "");
+        mockImportModes.push(mode);
         const bytes = mockFiles.get(uri)!;
-        const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-        const durationMs = Math.round((view.getUint32(40, true) / view.getUint32(28, true)) * 1000);
         const audioUri = `file:///doc/songnook/audio/${clipId}.wav`;
         mockFiles.set(audioUri, bytes);
-        return { audioUri, durationMs, waveformPeaks: [] };
+        if (mode === "take") mockFiles.delete(uri);
+        return { audioUri, durationMs: mockHeaderDurationMs(bytes), waveformPeaks: [] };
     }),
+    adoptRecordedTake: jest.fn(async (uri: string) => ({
+        audioUri: uri,
+        durationMs: mockHeaderDurationMs(mockFiles.get(uri)!),
+        waveformPeaks: [],
+    })),
 }));
 
 const mockImportClip = jest.fn((..._args: any[]) => ({ ideaId: "idea-recovered", clipId: "clip-recovered" }));
@@ -117,6 +132,7 @@ jest.mock("../backgroundWaveformHydration", () => ({
 
 import {
     clearPendingRecordingSession,
+    importTakeIntoLibrary,
     persistPendingRecordingSession,
     recoverPendingRecordingSession,
 } from "../recordingRecovery";
@@ -164,6 +180,8 @@ beforeEach(() => {
     mockFlush.mockReset();
     mockFlush.mockResolvedValue(undefined);
     mockBackfill.mockClear();
+    mockMarkersAtImport.length = 0;
+    mockImportModes.length = 0;
     mockState = {
         activeWorkspaceId: "ws-1",
         recordingIdeaId: null,
@@ -385,17 +403,111 @@ describe("recoverPendingRecordingSession", () => {
         expect(mockStorage.size).toBe(1);
     });
 
-    it("keeps the take's own file when the library's copy is not on disk", async () => {
+    it("keeps the take's marker when the library's file is not on disk", async () => {
+        // The take is MOVED into the library now (03-6), so the library's file is the
+        // take itself. If it is not on disk when the save lands, nothing is let go: the
+        // marker still names where the take went.
         mockFiles.set(TAKE_URI, unfinalizedTake(88_200));
         await persistPendingRecordingSession(TAKE_URI, 1_792_353_379_373);
         mockFlush.mockImplementation(async () => {
-            // The copy vanished (a full disk, a failed write) before the save landed.
             for (const uri of [...mockFiles.keys()]) if (uri.includes("/songnook/audio/")) mockFiles.delete(uri);
             throw new Error("persist blocked");
         });
 
         await recoverPendingRecordingSession();
-        expect(mockFiles.has(TAKE_URI)).toBe(true);
-        expect(mockStorage.size).toBe(1);
+        const [marker] = JSON.parse(mockStorage.get("songnook-pending-recordings")!);
+        expect(marker.movedTo).toMatch(/^songnook\/audio\//);
+        expect(marker.attached).toBeUndefined();
+    });
+});
+
+// Audit 03-6 / 05-E12: a take was COPIED into the library, so a long take on a nearly
+// full phone needed its size free twice and could never be saved or recovered.
+describe("moving a take into the library", () => {
+    it("moves a recovered take instead of copying it, after its marker names the destination", async () => {
+        mockFiles.set(TAKE_URI, unfinalizedTake(88_200 * 10));
+        await persistPendingRecordingSession(TAKE_URI, 1_792_353_379_373);
+
+        await expect(recoverPendingRecordingSession()).resolves.toMatchObject({ status: "recovered" });
+
+        expect(mockImportModes).toEqual(["take"]);
+        const [markerAtImport] = JSON.parse(mockMarkersAtImport[0]);
+        expect(markerAtImport.movedTo).toMatch(/^songnook\/audio\/recovered-.+\.wav$/);
+        expect(mockImportClip.mock.calls[0][1].audioUri).toBe(`file:///doc/${markerAtImport.movedTo}`);
+        expect(mockStorage.size).toBe(0);
+    });
+
+    it("a save that marks the take moves it; one without a marker copies", async () => {
+        mockFiles.set(TAKE_URI, unfinalizedTake(88_200));
+        await persistPendingRecordingSession(TAKE_URI, 1_792_353_379_373);
+        const moved = await importTakeIntoLibrary(TAKE_URI, "clip-1");
+        expect(moved).toMatchObject({ moved: true, audioUri: "file:///doc/songnook/audio/clip-1.wav" });
+        expect(JSON.parse(mockMarkersAtImport[0])[0].movedTo).toBe("songnook/audio/clip-1.wav");
+        expect(mockFiles.has(TAKE_URI)).toBe(false);
+
+        mockFiles.set("file:///doc/other.wav", unfinalizedTake(88_200));
+        const copied = await importTakeIntoLibrary("file:///doc/other.wav", "clip-2");
+        expect(copied.moved).toBe(false);
+        expect(mockImportModes[1]).toBeUndefined();
+        expect(mockFiles.has("file:///doc/other.wav")).toBe(true);
+    });
+
+    it("finds a take killed after the rename at its destination, and leaves it there", async () => {
+        const take = unfinalizedTake(88_200 * 6);
+        await persistPendingRecordingSession(TAKE_URI, 1_792_353_379_373);
+        mockStorage.set(
+            "songnook-pending-recordings",
+            JSON.stringify([
+                { ...JSON.parse(mockStorage.get("songnook-pending-recordings")!)[0], movedTo: "songnook/audio/clip-9.wav" },
+            ])
+        );
+        mockFiles.set("file:///doc/songnook/audio/clip-9.wav", take);
+
+        await expect(recoverPendingRecordingSession()).resolves.toMatchObject({ status: "recovered" });
+
+        expect(mockImportModes).toEqual([]);
+        const [, clip] = mockImportClip.mock.calls[0];
+        expect(clip.audioUri).toBe("file:///doc/songnook/audio/clip-9.wav");
+        expect(clip.durationMs).toBe(6_000);
+        // Same audio, now with its real length in the header.
+        const landed = mockFiles.get("file:///doc/songnook/audio/clip-9.wav")!;
+        expect(Buffer.from(landed.subarray(44))).toEqual(Buffer.from(take.subarray(44)));
+        expect(mockStorage.size).toBe(0);
+    });
+
+    it("only lets go of the marker when the save had already landed the moved take", async () => {
+        const take = unfinalizedTake(88_200);
+        await persistPendingRecordingSession(TAKE_URI, 1_792_353_379_373);
+        mockStorage.set(
+            "songnook-pending-recordings",
+            JSON.stringify([
+                { ...JSON.parse(mockStorage.get("songnook-pending-recordings")!)[0], movedTo: "songnook/audio/clip-9.wav" },
+            ])
+        );
+        mockFiles.set("file:///doc/songnook/audio/clip-9.wav", take);
+        mockState.workspaces[0].ideas = [
+            { ...shell, id: "idea-saved", clips: [{ id: "clip-9", audioUri: "songnook/audio/clip-9.wav" }] },
+        ];
+
+        await expect(recoverPendingRecordingSession()).resolves.toEqual({ status: "none" });
+
+        expect(mockImportClip).not.toHaveBeenCalled();
+        expect(mockFiles.get("file:///doc/songnook/audio/clip-9.wav")).toBe(take);
+        expect(mockStorage.size).toBe(0);
+    });
+
+    it("prefers the take where it was while it is still there (a kill before the rename)", async () => {
+        mockFiles.set(TAKE_URI, unfinalizedTake(88_200 * 2));
+        await persistPendingRecordingSession(TAKE_URI, 1_792_353_379_373);
+        mockStorage.set(
+            "songnook-pending-recordings",
+            JSON.stringify([
+                { ...JSON.parse(mockStorage.get("songnook-pending-recordings")!)[0], movedTo: "songnook/audio/clip-9.wav" },
+            ])
+        );
+
+        await expect(recoverPendingRecordingSession()).resolves.toMatchObject({ status: "recovered" });
+        expect(mockImportClip.mock.calls[0][1].durationMs).toBe(2_000);
+        expect(mockFiles.has(TAKE_URI)).toBe(false);
     });
 });

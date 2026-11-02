@@ -23,6 +23,7 @@ import { importRecordedAudioAsset, MANAGED_WAVEFORM_PEAK_COUNT } from "../servic
 import { writeWaveformSidecar, WAVEFORM_DETAIL_BINS } from "../services/waveformSidecar";
 import {
   clearPendingRecordingSession,
+  importTakeIntoLibrary,
   persistAttachedRecordingJournal,
   persistPendingRecordingSession,
   recoverPendingRecordingSession,
@@ -1093,6 +1094,9 @@ export function useRecording(
 
   async function saveRecordingNow() {
     let managedAudioUriToCleanup: string | null = null;
+    // The take's own file became the library's (moved, audit 03-6): it is never deleted
+    // as a "partial copy"; its marker names where it is.
+    let takeMovedIntoLibrary = false;
     let trimTempUriToCleanup: string | null = null;
     try {
       take.facts.expectedStop = true;
@@ -1196,20 +1200,29 @@ export function useRecording(
       // waveform job and then threw the result away (2026-09-21). With no capture
       // analysis, decode now — the user is waiting, so it must not idle-gate.
       const clipId = `clip-${Date.now()}`;
+      const importOptions = capturePeaks ? { lightweight: true } : { decodeMode: "interactive" as const };
+      // MOVED into the library, never copied (audit 03-6 / E12): a copy needed the take's
+      // size free twice. The trimmed render is our own scratch file; the untrimmed take
+      // moves only once its marker names the destination (else it is copied).
       const managedAudio = await timedStep(
         "save.importAsset",
-        importRecordedAudioAsset(
-          sourceAudioUri,
-          clipId,
-          capturePeaks ? { lightweight: true } : { decodeMode: "interactive" }
-        ),
+        sourceAudioUri !== recordingData.fileUri
+          ? importRecordedAudioAsset(sourceAudioUri, clipId, importOptions, "scratch").then((managed) => ({
+              ...managed,
+              moved: false,
+            }))
+          : importTakeIntoLibrary(sourceAudioUri, clipId, importOptions),
         {
           timeoutMs: 30_000,
           // Nobody is waiting for this copy any more — the take recovers from the
-          // recorder temp file, so a late managed copy would only be an orphan.
-          onLateResult: (late) => void deleteManagedAudioUris([late.audioUri]).catch(() => {}),
+          // recorder temp file, so a late managed copy would only be an orphan. A moved
+          // take is the take itself: its marker leads recovery to it.
+          onLateResult: (late) => {
+            if (!late.moved) void deleteManagedAudioUris([late.audioUri]).catch(() => {});
+          },
         }
       );
+      takeMovedIntoLibrary = managedAudio.moved;
       managedAudioUriToCleanup = managedAudio.audioUri;
 
       const waveformPeaks = capturePeaks ?? managedAudio.waveformPeaks;
@@ -1246,8 +1259,9 @@ export function useRecording(
         // The take could not be attached (e.g. its project was removed mid-recording).
         // Preserve the recording rather than silently orphaning it: keep the recorder temp
         // file AND the pending-session marker so the next launch salvages it into the Inbox.
-        // Drop only the redundant managed copy.
-        if (managedAudioUriToCleanup) {
+        // Drop only the redundant managed copy (a moved take is the take: it stays, and
+        // its marker leads there).
+        if (managedAudioUriToCleanup && !takeMovedIntoLibrary) {
           await deleteManagedAudioUris([managedAudioUriToCleanup]).catch(() => {});
           managedAudioUriToCleanup = null;
         }
@@ -1322,8 +1336,9 @@ export function useRecording(
       // launch. Deleting the recorder temp here (as this used to) turned the marker into a
       // dangling pointer and lost the take whenever a step AFTER the managed import failed
       // (sidecar/attach) or on a disk-full save. clearPendingRecordingSession is NOT called,
-      // so the marker survives.
-      if (managedAudioUriToCleanup) {
+      // so the marker survives. A take MOVED into the library is no partial copy: it
+      // stays where its marker says.
+      if (managedAudioUriToCleanup && !takeMovedIntoLibrary) {
         await deleteManagedAudioUris([managedAudioUriToCleanup]).catch(() => {});
       }
       if (trimTempUriToCleanup) {

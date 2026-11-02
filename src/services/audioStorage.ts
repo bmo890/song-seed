@@ -45,6 +45,13 @@ export type ImportedAudioAsset = {
      *  photo picker) — delete it once the import has its own file, so a long video
      *  never lingers in the cache. */
     discardSourceAfterImport?: boolean;
+    /** SongNook's own file, MOVED into the library instead of copied (audit 03-6 / E12: a
+     *  copy needs the take's size free twice, so a long take on a full phone could never
+     *  save). "scratch": a render only this import uses; a failed import deletes the
+     *  library's copy. "take": a recorded take whose recovery marker already names the
+     *  destination (`noteTakeMovingIntoLibrary`), so a failed import never deletes it:
+     *  recovery finds it there. */
+    moveIntoLibrary?: "scratch" | "take";
     /** Picked as a video (the photo-library picker): lift its sound out whatever the
      *  container, since the phone's own gallery only holds videos it can play. */
     isVideo?: boolean;
@@ -650,7 +657,9 @@ async function importAudioAssetFromSource(
             // the library instead of being copied: a phone short of space never holds the
             // recording twice. Anything else (a file we don't own) is copied.
             const ownsSource =
-                sourceUri === convertedTempUri || (asset.discardSourceAfterImport === true && isInAppCache(sourceUri));
+                sourceUri === convertedTempUri ||
+                asset.moveIntoLibrary != null ||
+                (asset.discardSourceAfterImport === true && isInAppCache(sourceUri));
             if (ownsSource) {
                 await FileSystem.moveAsync({ from: sourceUri, to: destinationUri });
             } else {
@@ -675,8 +684,9 @@ async function importAudioAssetFromSource(
         };
     } catch (error) {
         // Remove partially imported managed files so failed imports do not silently accumulate
-        // orphaned audio that the store never referenced.
-        if (copiedToManagedStorage) {
+        // orphaned audio that the store never referenced. A moved take stays where its
+        // marker says it is: it is the only copy.
+        if (copiedToManagedStorage && !(asset.moveIntoLibrary === "take" && sourceUri === asset.uri)) {
             await FileSystem.deleteAsync(destinationUri, { idempotent: true }).catch(() => {});
         }
         if (convertedTempUri) {
@@ -741,21 +751,46 @@ export async function importAudioAssets(
     return { imported, failed };
 }
 
+function recordedAssetName(recordingUri: string, targetId: string) {
+    return recordingUri.split("/").pop() || `${targetId}.m4a`;
+}
+
+/** Where `importRecordedAudioAsset` puts a take in the library. */
+export function recordedTakeDestination(recordingUri: string, targetId: string): string {
+    return `${SONG_NOOK_AUDIO_DIR}/${targetId}.${getFileExtension(recordedAssetName(recordingUri, targetId), "audio/mp4")}`;
+}
+
 export async function importRecordedAudioAsset(
     recordingUri: string,
     targetId: string,
-    options?: AudioMetadataLoadOptions
+    options?: AudioMetadataLoadOptions,
+    moveIntoLibrary?: ImportedAudioAsset["moveIntoLibrary"]
 ): Promise<ManagedAudioResult> {
-    const filename = recordingUri.split("/").pop() || `${targetId}.m4a`;
     return importAudioAsset(
         {
             uri: recordingUri,
-            name: filename,
+            name: recordedAssetName(recordingUri, targetId),
             mimeType: "audio/mp4",
+            moveIntoLibrary,
         },
         targetId,
         options
     );
+}
+
+/** A take that already sits in the library's audio folder (moved there by a save that
+ *  didn't finish): read what it is, leave it where it is. */
+export async function adoptRecordedTake(
+    audioUri: string,
+    options?: AudioMetadataLoadOptions
+): Promise<ManagedAudioResult> {
+    const metadata = await loadManagedAudioMetadata(
+        audioUri,
+        audioUri.split("/").pop() ?? "recovered",
+        undefined,
+        options
+    );
+    return { audioUri, durationMs: metadata.durationMs, waveformPeaks: metadata.waveformPeaks };
 }
 
 export async function shareAudioFile(audioUri: string, title: string) {
