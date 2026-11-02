@@ -111,6 +111,7 @@ import { sweepPickerCache } from "./src/services/pickedCopies";
 import { enqueueMissingMetadataBackfill } from "./src/services/backgroundWaveformHydration";
 import { recoverPendingRecordingSession } from "./src/services/recordingRecovery";
 import { cleanupStaleDisasterRecoveryBackupFiles } from "./src/services/disasterRecoveryBackup";
+import { useAutomaticBackupScheduler } from "./src/hooks/useAutomaticBackupScheduler";
 import { cleanupInterruptedDisasterRecoveryRestores } from "./src/services/disasterRecoveryTemp";
 
 
@@ -1233,6 +1234,8 @@ export default function App() {
   }, []);
   const { t } = useTranslation();
   const [hasHydrated, setHasHydrated] = useState(() => useStore.persist.hasHydrated());
+  // Automatic backup (decision C): runs when due while the app is open and idle.
+  useAutomaticBackupScheduler(hasHydrated);
   // Hydration can FAIL (disk unreadable — transient during dev reloads, rare in
   // production). Retry with backoff; after that, show a retry screen. Never present a
   // writable empty library over an unread disk (2026-07-28 empty-boot incident).
@@ -1283,7 +1286,9 @@ export default function App() {
     // storage usage from artifacts that were never part of persisted user state.
     void (async () => {
       await cleanupStaleShareTempFiles();
-      await cleanupStaleDisasterRecoveryBackupFiles();
+      // Nothing is mid-backup at launch: any backup zip left in temp goes now, so a
+      // manual backup never keeps a copy on the phone after its share sheet.
+      await cleanupStaleDisasterRecoveryBackupFiles(0);
       const hydratedState = useStore.getState();
       await cleanupInterruptedDisasterRecoveryRestores(hydratedState.workspaces);
       // The trash safety net: any file the library still points at that a mistaken
@@ -1451,6 +1456,7 @@ export default function App() {
           workspaces: state.workspaces,
           backupReminderFrequency: state.backupReminderFrequency,
           lastSuccessfulBackupAt: state.lastSuccessfulBackupAt,
+          automaticBackupLastCompletedAt: state.automaticBackup.lastCompletedAt,
           firstLaunchAt: state.firstLaunchAt,
           backupReminderLastPromptedAt: state.backupReminderLastPromptedAt,
         })

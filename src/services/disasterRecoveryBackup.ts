@@ -13,6 +13,7 @@ import {
 import {
     NATIVE_IO_CANCELLED,
     NativeZipWriter,
+    excludeFromDeviceBackup,
     isNativeZip64Available,
     isNativeZipAvailable,
 } from "../../modules/songnook-file-io";
@@ -65,6 +66,16 @@ const MEDIA_PREFIX = "media/";
 const BACKUP_STREAM_CHUNK_BYTES = 512 * 1024;
 const BACKUP_UI_YIELD_BYTES = 2 * 1024 * 1024;
 const BACKUP_TEMP_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+/** The temp folder a .zip backup is built in, kept out of the iPhone's iCloud device
+ *  backup (G12: a stale multi-GB archive used to ride along). */
+async function ensureBackupTempDir() {
+    const dirInfo = await FileSystem.getInfoAsync(DR_TEMP_DIR);
+    if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(DR_TEMP_DIR, { intermediates: true });
+    }
+    await excludeFromDeviceBackup(DR_TEMP_DIR).catch(() => {});
+}
 
 export type DrMediaKind =
     | "clip-audio"
@@ -542,10 +553,7 @@ export async function buildDisasterRecoveryBackup(
     await ensureBackupDiskSpace(projectedArchiveBytes, "backup");
     throwIfBackupCancelled(opts?.signal);
 
-    const dirInfo = await FileSystem.getInfoAsync(DR_TEMP_DIR);
-    if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(DR_TEMP_DIR, { intermediates: true });
-    }
+    await ensureBackupTempDir();
     const archiveTitle = `SongNook Backup ${buildTimestampSlug()}.${DR_BACKUP_FILE_SUFFIX}.zip`;
     const archiveUri = `${DR_TEMP_DIR}/${archiveTitle}`;
     reportBackupProgress(opts, {
@@ -632,10 +640,7 @@ async function buildBackupArchiveNatively({
     await ensureBackupDiskSpace(projectedArchiveBytes, "backup");
     throwIfBackupCancelled(opts?.signal);
 
-    const dirInfo = await FileSystem.getInfoAsync(DR_TEMP_DIR);
-    if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(DR_TEMP_DIR, { intermediates: true });
-    }
+    await ensureBackupTempDir();
     const archiveTitle = `SongNook Backup ${buildTimestampSlug()}.${DR_BACKUP_FILE_SUFFIX}.zip`;
     const archiveUri = `${DR_TEMP_DIR}/${archiveTitle}`;
     const startedAt = Date.now();
