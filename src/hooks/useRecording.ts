@@ -43,7 +43,7 @@ import {
 import { finishOnsetEnvelope, type OnsetEnvelope } from "../domain/onsetEnvelope";
 import { effectiveRecordingInputId } from "../domain/recordingInput";
 import { flushPersistedSnapshot, useStore } from "../state/useStore";
-import { useProcessStore } from "../state/useProcessStore";
+import { recordingBlockedBy, tellRecordingWaits } from "../services/libraryOperationGate";
 import { getRestoreRestartState } from "../state/restoreRuntime";
 import { deleteManagedAudioUris } from "../services/managedMedia";
 import { describeError, persistLog } from "../services/persistLog";
@@ -872,13 +872,14 @@ export function useRecording(
     // this instance's recorder state reads idle). Starting here used to stop that take
     // and clear its marker on the native "already recording" refusal (audit 10-H1).
     if (takeHoldsRecorder()) return false;
-    // A restore restarts the app the moment it lands, so a take begun under it would
-    // be cut off mid-phrase (overnight check 2026-10-19). Haptics vocabulary `error`:
-    // "Something failed" — the take can't start.
-    const process = useProcessStore.getState().process;
-    if ((process?.kind === "restore" && process.status === "running") || getRestoreRestartState()) {
-      haptic.error();
-      AppAlert.info(t("recording.restoreRunningTitle"), t("recording.restoreRunningBody"));
+    // A heavy library operation (import, restore, archive, unarchive, recover, backup)
+    // owns the library until it lands: a take begun under it could be overwritten by
+    // its result, or cut off by a restore's restart (audit 2026-11-02, root cause 3).
+    // The automatic backup yields instead. Haptics vocabulary `error`: the take can't
+    // start; the toast says what it waits for.
+    const blockingOperation = recordingBlockedBy();
+    if (blockingOperation || getRestoreRestartState()) {
+      tellRecordingWaits(blockingOperation ?? "restore");
       return false;
     }
     // Prepared ahead (prewarm) or mid-prepare: start the ready recorder.

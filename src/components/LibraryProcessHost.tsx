@@ -275,9 +275,11 @@ function ProcessTakeover({
                         </View>
 
                         <Text style={styles.takeoverHint}>
-                            {process.canCancel
-                                ? t("libraryProcess.canMinimize")
-                                : t("libraryProcess.finishing")}
+                            {!process.canCancel
+                                ? t("libraryProcess.finishing")
+                                : process.replacesLibrary
+                                  ? t("replaceRestore.hint")
+                                  : t("libraryProcess.canMinimize")}
                         </Text>
                     </ScrollView>
                 )}

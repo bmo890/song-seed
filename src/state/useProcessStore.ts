@@ -24,6 +24,9 @@ export type LibraryProcess = {
     /** Collapsed to the monitor pill (still running) vs. shown as the full sheet. */
     minimized: boolean;
     canCancel: boolean;
+    /** A Replace restore: what is changed while it runs is replaced when it lands, and
+     *  the takeover says so instead of inviting work (audit 2026-11-02, 10-H2). */
+    replacesLibrary?: boolean;
     /** Terminal message shown on success/error. */
     resultMessage?: string;
     onCancel?: () => void;
@@ -120,6 +123,7 @@ type StartArgs = {
     title: string;
     canCancel?: boolean;
     onCancel?: () => void;
+    replacesLibrary?: boolean;
 };
 
 type ProcessStore = {
@@ -152,7 +156,7 @@ let lastProgressCommitAt = 0;
 
 export const useProcessStore = create<ProcessStore>((set, get) => ({
     process: null,
-    start: ({ id, kind, title, canCancel = true, onCancel }) =>
+    start: ({ id, kind, title, canCancel = true, onCancel, replacesLibrary }) =>
         set({
             process: {
                 id,
@@ -164,6 +168,7 @@ export const useProcessStore = create<ProcessStore>((set, get) => ({
                 minimized: false,
                 canCancel,
                 onCancel,
+                replacesLibrary,
             },
         }),
     update: (progress) => {
