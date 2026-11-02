@@ -45,6 +45,7 @@ import type {
     Songbook,
 } from "../types";
 import { breakParentCycles } from "./parentLinks";
+import { normalizeHiddenDays } from "./hiddenDayGroups";
 
 export { breakParentCycles, hasParentCycle } from "./parentLinks";
 
@@ -296,14 +297,7 @@ class Checker {
         if (!isRecord(value)) return this.repaired(undefined);
         return {
             hiddenIdeaIds: this.stringList(value.hiddenIdeaIds, ID_MAX) ?? [],
-            hiddenDays: this.list(value.hiddenDays)
-                .filter(
-                    (day) =>
-                        (day.metric === "created" || day.metric === "updated") &&
-                        typeof day.dayStartTs === "number" &&
-                        Number.isFinite(day.dayStartTs)
-                )
-                .map((day) => ({ metric: day.metric as "created" | "updated", dayStartTs: day.dayStartTs as number })),
+            hiddenDays: normalizeHiddenDays(value.hiddenDays),
         };
     }
 
