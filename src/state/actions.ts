@@ -203,14 +203,19 @@ type OverdubRenderQueueEntry = {
 
 const overdubRenderQueue = new Map<string, OverdubRenderQueueEntry>();
 
-function deleteManagedAudioUrisAfterGrace(uris: Array<string | null | undefined>) {
+/** A replaced or cleared mix goes to the trash after a grace, unless a clip still
+ *  uses it when the grace ends: a branch shares its source's mix, and the cleared
+ *  branch used to trash it with no reference check (03-12). */
+export function deleteManagedAudioUrisAfterGrace(uris: Array<string | null | undefined>) {
     const audioUris = uris.filter((uri): uri is string => Boolean(uri));
     if (audioUris.length === 0) {
         return;
     }
 
     setTimeout(() => {
-        void deleteManagedAudioUris(audioUris).catch((error) => {
+        const unused = filterUnreferencedManagedAudioUris(audioUris, useStore.getState().workspaces);
+        if (unused.length === 0) return;
+        void deleteManagedAudioUris(unused).catch((error) => {
             console.warn("Deferred managed audio cleanup failed", error);
         });
     }, STALE_OVERDUB_MIX_DELETE_GRACE_MS);
