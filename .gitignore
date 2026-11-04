@@ -59,3 +59,6 @@ modules/*/android/.cxx/
 
 # Agent worktrees (local checkouts used by parallel fixers)
 .claude/worktrees/
+
+# QA screenshots: working evidence, kept local (unreferenced, ~14 MB)
+docs/qa/screens/
