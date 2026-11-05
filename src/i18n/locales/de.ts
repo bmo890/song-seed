@@ -3654,8 +3654,8 @@ export const de = {
     send: {
       thesis: "Wer den Link hat, kann herunterladen, bis er abläuft oder du ihn löschst.",
       sealedThesis: "Nur wer den Link hat, kann öffnen, was du sendest. Nicht einmal SongNook.",
-      keyLabel: "Der Link ist der Schlüssel",
-      keyBody: "Wer ihn hat, kann herunterladen. Teile ihn mit Bedacht.",
+      keyLabel: "Mit Bedacht teilen",
+      keyBody: "Jeder, den der Link erreicht, kann ihn öffnen.",
       expiryLabel: "Sieben Tage",
       expiryBody: "Links laufen von selbst ab, dann werden die Dateien gelöscht.",
       revokeLabel: "Jederzeit löschen",

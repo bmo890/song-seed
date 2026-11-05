@@ -19,7 +19,6 @@ import { SettingsComputerView } from "../views/SettingsComputerView";
 import { SettingsStorageView } from "../views/SettingsStorageView";
 
 export function SettingsScreenContent() {
-  useBrowseRootBackHandler();
   const { t } = useTranslation();
 
   const screen = useSettingsScreenModel();
@@ -40,6 +39,9 @@ export function SettingsScreenContent() {
       ? () => {}
       : () => screen.setView(screen.backView)
     : undefined;
+  // Settings' subpages are views inside one screen, not routes, so Android's back
+  // must step through them (subpage → Data & storage → overview) before it leaves.
+  useBrowseRootBackHandler({ onBack: handleBackPress });
 
   return (
     <SafeAreaView style={styles.screen}>

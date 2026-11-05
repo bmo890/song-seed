@@ -3802,8 +3802,8 @@ export const es = {
     send: {
       thesis: "Cualquiera con el enlace puede descargar hasta que caduque o lo elimines.",
       sealedThesis: "Solo quien tenga el enlace puede abrir lo que envías. Ni siquiera SongNook.",
-      keyLabel: "El enlace es la llave",
-      keyBody: "Quien lo tenga puede descargar. Compártelo con cuidado.",
+      keyLabel: "Comparte con cuidado",
+      keyBody: "Cualquiera a quien le llegue el enlace puede abrirlo.",
       expiryLabel: "Siete días",
       expiryBody: "Los enlaces caducan solos y luego se eliminan los archivos.",
       revokeLabel: "Elimínalo cuando quieras",

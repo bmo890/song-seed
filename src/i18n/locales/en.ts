@@ -1765,8 +1765,8 @@ export const en = {
     send: {
       thesis: "Anyone with the link can download until it expires or you delete it.",
       sealedThesis: "Only people with the link can open what you send. Not even SongNook can.",
-      keyLabel: "The link is the key",
-      keyBody: "Anyone who has it can download. Share it with care.",
+      keyLabel: "Share with care",
+      keyBody: "Anyone the link reaches can open it.",
       expiryLabel: "Seven days",
       expiryBody: "Links expire on their own, then the files are deleted.",
       revokeLabel: "Delete anytime",
