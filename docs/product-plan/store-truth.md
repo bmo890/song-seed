@@ -166,7 +166,7 @@ controls going in the background").
 
 ## 6. Store description (one voice, both stores)
 
-This is the founder-approved copy, live in both consoles since 2026-10-25. The two stores
+This is the founder-approved copy, live in both consoles since 2026-10-25. Three SHARE lines (sealed Send, Export for your DAW, Send from a computer) approved 2026-11-09. The two stores
 differ only where marked.
 
 - **Name:** SongNook
@@ -218,10 +218,13 @@ WRITE
 
 SHARE
 • SongNook Send - share clips or a whole sketch, with its lyrics, chords, notes and pins, by private link
+• Sealed - only people with the link can open what you send, not even SongNook
 • Open what co-writers and bandmates send you, notes and all
 • Recording a band rehearsal? Drop pins as it happens to mark the moments worth coming back to
 • Playlists, setlists, and chart books with transpose, capo and an autoscrolling stage reader
 • Back up and export to Files, iCloud Drive or Google Drive
+• Export for DAW - a WAV that starts on a bar, tempo in its name
+• Send from a computer - pair a browser with a code and send from there
 
 PRO
 Your first month includes every tool, free, no card needed. After that, recording, writing and organizing your songs stay free, and SongNook Pro unlocks the extended tools.
