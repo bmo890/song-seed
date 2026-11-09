@@ -198,7 +198,13 @@ export type MagpieFragment = {
   bookAuthor: string;
   order: number;
   createdAt: number;
+  /** Where it sits on the page it was taken from, so that page keeps its words
+   *  marked. Dropped once the fragment is reshaped on the build step. */
+  source?: MagpieFragmentSource;
 };
+
+/** A page (`page` = magpiePageKey of its text) and the word indices taken from it. */
+export type MagpieFragmentSource = { page: string; words: number[] };
 
 export type MagpieSpark = {
   id: string;

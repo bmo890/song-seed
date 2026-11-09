@@ -1,4 +1,12 @@
-import type { MagpieBook, MagpieFragment, MagpieLanguage, MagpieSource, MagpieSpark, MagpieStep } from "../types";
+import type {
+  MagpieBook,
+  MagpieFragment,
+  MagpieFragmentSource,
+  MagpieLanguage,
+  MagpieSource,
+  MagpieSpark,
+  MagpieStep,
+} from "../types";
 import { i18n } from "../i18n/instance";
 import type { MagpieHeGenre } from "../config/magpieService";
 import { gutenbergCoverUrl, gutenbergSourceUrl, randomCuratedBook } from "./magpieBooks";
@@ -369,62 +377,10 @@ export function selectedRuns(selectedWords: number[]): number[][] {
   return runs;
 }
 
-/** Turns a set of selected word indices into phrases: each maximal run of
- * consecutive words becomes one phrase. */
-export function selectionToPhrases(tokens: MagpieToken[], selectedWords: number[]): string[] {
-  const sorted = [...new Set(selectedWords)].sort((a, b) => a - b);
-  const phrases: string[] = [];
-  let runStart: number | null = null;
-  let prev: number | null = null;
-  const flush = () => {
-    if (runStart !== null && prev !== null) {
-      const phrase = phraseForWordRun(tokens, runStart, prev);
-      if (phrase) phrases.push(phrase);
-    }
-  };
-  for (const word of sorted) {
-    if (runStart === null) {
-      runStart = word;
-      prev = word;
-    } else if (word === (prev as number) + 1) {
-      prev = word;
-    } else {
-      flush();
-      runStart = word;
-      prev = word;
-    }
-  }
-  flush();
-  return phrases;
-}
-
 // ── The collected pile (fragments) ───────────────────────────────────────────
 
 function nextOrder(fragments: MagpieFragment[]): number {
   return fragments.reduce((max, f) => Math.max(max, f.order), -1) + 1;
-}
-
-/** Appends pocketed phrases as fragments, tagged with the book they came from. */
-export function addFragments(
-  fragments: MagpieFragment[],
-  texts: string[],
-  book: MagpieBook | null
-): MagpieFragment[] {
-  const now = Date.now();
-  let order = nextOrder(fragments);
-  const added = texts
-    .map((raw) => raw.trim())
-    .filter((text) => text.length > 0)
-    .map((text) => ({
-      id: randomId("frag"),
-      text,
-      originalText: text,
-      bookTitle: book?.title ?? "",
-      bookAuthor: book?.author ?? "",
-      order: order++,
-      createdAt: now,
-    }));
-  return [...fragments, ...added];
 }
 
 export function removeFragment(fragments: MagpieFragment[], id: string): MagpieFragment[] {
@@ -440,7 +396,7 @@ export function editFragmentText(
   id: string,
   text: string
 ): MagpieFragment[] {
-  return fragments.map((f) => (f.id === id ? { ...f, text } : f));
+  return fragments.map((f) => (f.id === id ? { ...withoutSource(f), text } : f));
 }
 
 /** Splits a multi-word fragment into one fragment per word, in place. Single-word
@@ -452,13 +408,140 @@ export function splitFragment(fragments: MagpieFragment[], id: string): MagpieFr
   const words = fragment.text.split(/\s+/).filter(Boolean);
   if (words.length < 2) return fragments;
   const pieces: MagpieFragment[] = words.map((word) => ({
-    ...fragment,
+    ...withoutSource(fragment),
     id: randomId("frag"),
     text: word,
     originalText: word,
   }));
   const next = [...fragments.slice(0, index), ...pieces, ...fragments.slice(index + 1)];
   return next.map((f, i) => ({ ...f, order: i }));
+}
+
+// ── Marking words on the page (collect on tap) ───────────────────────────────
+// A tap collects at once: the page's marks ARE the collection, read back from
+// each fragment's `source`. A word beside a marked phrase joins it; a tap on a
+// marked word lets it go (the phrase shrinks, or splits around it).
+
+/** A short stable key for a page's text, so a fragment knows which page it is on. */
+export function magpiePageKey(text: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return `${text.length}:${(hash >>> 0).toString(36)}`;
+}
+
+function withoutSource(fragment: MagpieFragment): MagpieFragment {
+  if (!fragment.source) return fragment;
+  const { source: _source, ...rest } = fragment;
+  return rest;
+}
+
+/** Each marked word on this page → the id of the fragment that holds it. */
+export function pageMarks(fragments: MagpieFragment[], page: string): Map<number, string> {
+  const marks = new Map<number, string>();
+  for (const fragment of fragments) {
+    if (fragment.source?.page !== page) continue;
+    for (const word of fragment.source.words) marks.set(word, fragment.id);
+  }
+  return marks;
+}
+
+function anchored(
+  base: MagpieFragment,
+  tokens: MagpieToken[],
+  page: string,
+  words: number[]
+): MagpieFragment {
+  const sorted = [...words].sort((a, b) => a - b);
+  const text = phraseForWordRun(tokens, sorted[0], sorted[sorted.length - 1]);
+  return { ...base, text, originalText: text, source: { page, words: sorted } };
+}
+
+/** Replaces one fragment with `pieces` in its place in the order. */
+function replaceInOrder(
+  fragments: MagpieFragment[],
+  id: string,
+  pieces: MagpieFragment[]
+): MagpieFragment[] {
+  const sorted = [...fragments].sort((a, b) => a.order - b.order);
+  const index = sorted.findIndex((f) => f.id === id);
+  if (index < 0) return fragments;
+  return [...sorted.slice(0, index), ...pieces, ...sorted.slice(index + 1)].map((f, i) => ({ ...f, order: i }));
+}
+
+/** Tap a word on the page: collect it (joining a marked neighbour) or let it go. */
+export function toggleWordOnPage(
+  fragments: MagpieFragment[],
+  opts: { tokens: MagpieToken[]; page: string; word: number; book: MagpieBook | null }
+): MagpieFragment[] {
+  const { tokens, page, word, book } = opts;
+  if (!tokens.some((token) => token.wordIndex === word)) return fragments;
+  const marks = pageMarks(fragments, page);
+  const byId = new Map(fragments.map((f) => [f.id, f]));
+  const ownerId = marks.get(word);
+
+  if (ownerId) {
+    const owner = byId.get(ownerId)!;
+    const rest = owner.source!.words.filter((w) => w !== word);
+    if (rest.length === 0) return removeFragment(fragments, ownerId);
+    const [first, second] = selectedRuns(rest);
+    const pieces = [anchored(owner, tokens, page, first)];
+    if (second) pieces.push(anchored({ ...owner, id: randomId("frag"), createdAt: Date.now() }, tokens, page, second));
+    return replaceInOrder(fragments, ownerId, pieces);
+  }
+
+  const left = byId.get(marks.get(word - 1) ?? "");
+  const right = byId.get(marks.get(word + 1) ?? "");
+  if (left && right && left.id !== right.id) {
+    const joined = anchored(left, tokens, page, [...left.source!.words, word, ...right.source!.words]);
+    return replaceInOrder(
+      fragments.filter((f) => f.id !== right.id),
+      left.id,
+      [joined]
+    );
+  }
+  const neighbour = left ?? right;
+  if (neighbour) {
+    return replaceInOrder(fragments, neighbour.id, [anchored(neighbour, tokens, page, [...neighbour.source!.words, word])]);
+  }
+  const fresh: MagpieFragment = {
+    id: randomId("frag"),
+    text: "",
+    originalText: "",
+    bookTitle: book?.title ?? "",
+    bookAuthor: book?.author ?? "",
+    order: nextOrder(fragments),
+    createdAt: Date.now(),
+  };
+  return [...fragments, anchored(fresh, tokens, page, [word])];
+}
+
+/** The long-press "pull apart": cuts one marked phrase at the chosen seams; the
+ *  first piece keeps the fragment's id, the rest follow it in the order. */
+export function pullApartOnPage(
+  fragments: MagpieFragment[],
+  opts: { tokens: MagpieToken[]; id: string; cutAfter: Set<number> }
+): MagpieFragment[] {
+  const owner = fragments.find((f) => f.id === opts.id);
+  if (!owner?.source) return fragments;
+  const { page, words } = owner.source;
+  const groups: number[][] = [];
+  let current: number[] = [];
+  for (const word of words) {
+    current.push(word);
+    if (opts.cutAfter.has(word)) {
+      groups.push(current);
+      current = [];
+    }
+  }
+  if (current.length) groups.push(current);
+  if (groups.length < 2) return fragments;
+  const pieces = groups.map((group, i) =>
+    anchored(i === 0 ? owner : { ...owner, id: randomId("frag"), createdAt: Date.now() }, opts.tokens, page, group)
+  );
+  return replaceInOrder(fragments, owner.id, pieces);
 }
 
 /** Merges a fragment with the one after it (in order) into a single fragment,
@@ -471,7 +554,7 @@ export function mergeFragmentWithNext(fragments: MagpieFragment[], id: string): 
   const a = sorted[index];
   const b = sorted[index + 1];
   const merged: MagpieFragment = {
-    ...a,
+    ...withoutSource(a),
     text: `${a.text.trim()} ${b.text.trim()}`.trim(),
     originalText: `${a.originalText.trim()} ${b.originalText.trim()}`.trim(),
   };
@@ -588,6 +671,14 @@ function sanitizeBook(raw: unknown): MagpieBook | null {
   };
 }
 
+function sanitizeFragmentSource(raw: unknown): MagpieFragmentSource | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const obj = raw as Record<string, unknown>;
+  if (!isString(obj.page) || !Array.isArray(obj.words)) return undefined;
+  const words = obj.words.filter((w): w is number => Number.isInteger(w) && (w as number) >= 0);
+  return words.length > 0 ? { page: obj.page, words } : undefined;
+}
+
 function sanitizeFragments(raw: unknown): MagpieFragment[] {
   if (!Array.isArray(raw)) return [];
   const out: MagpieFragment[] = [];
@@ -597,6 +688,7 @@ function sanitizeFragments(raw: unknown): MagpieFragment[] {
     const obj = item as Record<string, unknown>;
     if (!isString(obj.id) || seen.has(obj.id) || !isString(obj.text)) continue;
     seen.add(obj.id);
+    const source = sanitizeFragmentSource(obj.source);
     out.push({
       id: obj.id,
       text: obj.text,
@@ -605,6 +697,7 @@ function sanitizeFragments(raw: unknown): MagpieFragment[] {
       bookAuthor: isString(obj.bookAuthor) ? obj.bookAuthor : "",
       order: typeof obj.order === "number" ? obj.order : out.length,
       createdAt: typeof obj.createdAt === "number" ? obj.createdAt : Date.now(),
+      ...(source ? { source } : {}),
     });
   }
   return out;

@@ -10,9 +10,9 @@ import { BottomSheet } from "../../common/BottomSheet";
 import {
   type MagpieParagraph,
   type MagpieToken,
+  magpiePageKey,
+  pageMarks,
   runToPhrases,
-  selectedRuns,
-  selectionToPhrases,
   tokenizePageIntoParagraphs,
 } from "../../../domain/magpie";
 import { MAGPIE_HE_ENABLED, MAGPIE_HE_GENRES, type MagpieHeGenre } from "../../../config/magpieService";
@@ -36,23 +36,25 @@ const BASE_FONT = 17;
 const BASE_LINE = 29;
 
 // ── Token rendering (memoised so a tap re-renders only the changed spans) ─────
-function computeHighlight(tokens: MagpieToken[], selectedSet: Set<number>): Set<number> {
+/** Token indices to mark: every collected word, plus the spaces and punctuation
+ *  inside one collected phrase (two phrases side by side keep their seam). */
+function computeHighlight(tokens: MagpieToken[], marks: Map<number, string>): Set<number> {
   const set = new Set<number>();
   let prevWordIndex: number | null = null;
-  let prevSelected = false;
+  let prevOwner: string | undefined;
   let sinceWord: number[] = [];
   for (const token of tokens) {
     if (token.wordIndex < 0) {
       sinceWord.push(token.index);
       continue;
     }
-    const isSel = selectedSet.has(token.wordIndex);
-    if (isSel) set.add(token.index);
-    if (prevWordIndex !== null && prevSelected && isSel && token.wordIndex === prevWordIndex + 1) {
+    const owner = marks.get(token.wordIndex);
+    if (owner) set.add(token.index);
+    if (prevWordIndex !== null && owner && owner === prevOwner && token.wordIndex === prevWordIndex + 1) {
       for (const idx of sinceWord) set.add(idx);
     }
     prevWordIndex = token.wordIndex;
-    prevSelected = isSel;
+    prevOwner = owner;
     sinceWord = [];
   }
   return set;
@@ -88,8 +90,8 @@ const Tok = memo(function Tok({
 
 type ParagraphProps = {
   paragraph: MagpieParagraph;
-  selectedSet: Set<number>;
-  selKey: string;
+  marks: Map<number, string>;
+  marksKey: string;
   fontSize: number;
   lineHeight: number;
   onToggle: (wordIndex: number) => void;
@@ -97,8 +99,8 @@ type ParagraphProps = {
 };
 
 const Paragraph = memo(
-  function Paragraph({ paragraph, selectedSet, fontSize, lineHeight, onToggle, onLongPress }: ParagraphProps) {
-    const highlighted = computeHighlight(paragraph.tokens, selectedSet);
+  function Paragraph({ paragraph, marks, fontSize, lineHeight, onToggle, onLongPress }: ParagraphProps) {
+    const highlighted = computeHighlight(paragraph.tokens, marks);
     return (
       <UserText align="content" value={paragraph.text} style={[styles.pageText, { fontSize, lineHeight }]}>
         {paragraph.tokens.map((token) => (
@@ -115,7 +117,7 @@ const Paragraph = memo(
     );
   },
   (prev, next) =>
-    prev.selKey === next.selKey &&
+    prev.marksKey === next.marksKey &&
     prev.fontSize === next.fontSize &&
     prev.lineHeight === next.lineHeight &&
     prev.paragraph === next.paragraph &&
@@ -133,64 +135,47 @@ export function MagpiePageStep({
 }) {
   const { t } = useTranslation();
   const { zoom } = useSparkTextScale();
-  const [selected, setSelected] = useState<number[]>([]);
   const [sourceOpen, setSourceOpen] = useState(false);
-  const [splitRun, setSplitRun] = useState<number[] | null>(null);
+  const [splitId, setSplitId] = useState<string | null>(null);
 
   const { tokens, paragraphs } = useMemo(
     () => tokenizePageIntoParagraphs(spark.pageText),
     [spark.pageText]
   );
-  const selectedSet = useMemo(() => new Set(selected), [selected]);
+  // The marks on the page are the collection itself: every fragment taken from
+  // this page keeps its words marked, through Build and back.
+  const pageKey = useMemo(() => magpiePageKey(spark.pageText), [spark.pageText]);
+  const marks = useMemo(() => pageMarks(spark.fragments, pageKey), [spark.fragments, pageKey]);
 
-  useEffect(() => {
-    setSelected([]);
-  }, [spark.pageText]);
-
-  const onToggle = useCallback((wordIndex: number) => {
-    // Haptics vocabulary: light, a small state flip (a word marked or let go).
-    haptic.light();
-    setSelected((prev) =>
-      prev.includes(wordIndex) ? prev.filter((w) => w !== wordIndex) : [...prev, wordIndex]
-    );
-  }, []);
-
-  // Long-press a word: if it's part of a multi-word selected run, open the
-  // "pull apart" editor for that run.
-  const onLongPress = useCallback(
+  const { toggleWord } = model;
+  const onToggle = useCallback(
     (wordIndex: number) => {
-      const runs = selectedRuns(selected);
-      const run = runs.find((r) => r.includes(wordIndex));
-      if (run && run.length > 1) {
-        haptic.grab();
-        setSplitRun(run);
-      }
+      // Haptics vocabulary: light, a small state flip (a word collected or let go).
+      haptic.light();
+      toggleWord(wordIndex, tokens);
     },
-    [selected]
+    [toggleWord, tokens]
   );
 
-  const pocket = () => {
-    const phrases = selectionToPhrases(tokens, selected);
-    if (phrases.length === 0) return;
-    model.pocketPhrases(phrases);
-    setSelected([]);
-  };
+  // Long-press a word in a collected phrase to pull the phrase apart.
+  const onLongPress = useCallback(
+    (wordIndex: number) => {
+      const id = marks.get(wordIndex);
+      const fragment = id ? spark.fragments.find((f) => f.id === id) : undefined;
+      if (fragment?.source && fragment.source.words.length > 1) {
+        haptic.grab();
+        setSplitId(fragment.id);
+      }
+    },
+    [marks, spark.fragments]
+  );
 
-  const pocketPieces = (pieces: string[], run: number[]) => {
-    if (pieces.length === 0) return;
-    model.pocketPhrases(pieces);
-    setSelected((prev) => prev.filter((w) => !run.includes(w)));
-    setSplitRun(null);
-  };
+  const splitFragment = splitId ? spark.fragments.find((f) => f.id === splitId) : undefined;
 
   const busy = model.status.loading;
   const fontSize = BASE_FONT * zoom;
   const lineHeight = BASE_LINE * zoom;
   const collected = spark.fragments;
-  const pendingPhrases = useMemo(
-    () => (selected.length > 0 ? selectionToPhrases(tokens, selected).length : 0),
-    [tokens, selected]
-  );
 
   return (
     <View style={styles.body}>
@@ -211,13 +196,16 @@ export function MagpiePageStep({
               showsVerticalScrollIndicator={false}
             >
               {paragraphs.map((paragraph) => {
-                const selKey = paragraph.wordIndices.filter((w) => selectedSet.has(w)).join(",");
+                const marksKey = paragraph.wordIndices
+                  .filter((w) => marks.has(w))
+                  .map((w) => `${w}:${marks.get(w)}`)
+                  .join(",");
                 return (
                   <View key={paragraph.key} style={styles.para}>
                     <Paragraph
                       paragraph={paragraph}
-                      selectedSet={selectedSet}
-                      selKey={selKey}
+                      marks={marks}
+                      marksKey={marksKey}
                       fontSize={fontSize}
                       lineHeight={lineHeight}
                       onToggle={onToggle}
@@ -238,24 +226,14 @@ export function MagpiePageStep({
 
       <CollectedStrip collected={collected} onRemove={model.removeFragment} />
 
-      {/* One footer: Collect while words are marked, Build once there's a pile. */}
+      {/* A tap collects, so the footer only ever moves on to Build. */}
       <SparkFooter
-        hint={
-          pendingPhrases > 0
-            ? t("magpie.picked", { count: pendingPhrases })
-            : collected.length === 0 && !model.status.error
-              ? t("magpie.tapToPocket")
-              : null
-        }
-        next={
-          pendingPhrases > 0
-            ? { label: t("magpie.pocketThis"), onPress: pocket }
-            : {
-                label: t("wordSparks.build"),
-                onPress: () => model.goToStep("build"),
-                disabled: collected.length === 0,
-              }
-        }
+        hint={collected.length === 0 && !model.status.error ? t("magpie.tapToPocket") : null}
+        next={{
+          label: t("wordSparks.build"),
+          onPress: () => model.goToStep("build"),
+          disabled: collected.length === 0,
+        }}
       />
 
       <SourceSheet
@@ -266,10 +244,13 @@ export function MagpiePageStep({
         busy={busy}
       />
       <SplitSheet
-        run={splitRun}
+        run={splitFragment?.source?.words ?? null}
         tokens={tokens}
-        onClose={() => setSplitRun(null)}
-        onPocket={pocketPieces}
+        onClose={() => setSplitId(null)}
+        onSplit={(cuts) => {
+          if (splitId && cuts.size > 0) model.pullApart(splitId, cuts, tokens);
+          setSplitId(null);
+        }}
       />
     </View>
   );
@@ -523,12 +504,12 @@ function SplitSheet({
   run,
   tokens,
   onClose,
-  onPocket,
+  onSplit,
 }: {
   run: number[] | null;
   tokens: MagpieToken[];
   onClose: () => void;
-  onPocket: (pieces: string[], run: number[]) => void;
+  onSplit: (cutAfter: Set<number>) => void;
 }) {
   const { t } = useTranslation();
   const [cuts, setCuts] = useState<Set<number>>(new Set());
@@ -583,7 +564,7 @@ function SplitSheet({
         ))}
       </View>
       <Text style={styles.splitHint}>{t("magpie.splitHint")}</Text>
-      <Button label={t("magpie.pocketThis")} onPress={() => run && onPocket(pieces, run)} />
+      <Button label={t("common.done")} onPress={() => onSplit(cuts)} />
     </BottomSheet>
   );
 }

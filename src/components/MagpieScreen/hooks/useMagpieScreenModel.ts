@@ -12,17 +12,20 @@ import { sparkSaveTitle } from "../../../domain/notepad";
 import { useUndoHistory } from "../../common/useUndoHistory";
 import { actionIcons } from "../../common/actionIcons";
 import {
-  addFragments,
   assembleDraft,
   deriveMagpieTitle,
   drawPage,
   editFragmentText,
   MagpieFetchError,
   type MagpieFetchErrorKind,
+  type MagpieToken,
+  magpiePageKey,
   mergeFragmentWithNext,
+  pullApartOnPage,
   removeFragment as removeFragmentOp,
   reorderFragments,
   splitFragment as splitFragmentOp,
+  toggleWordOnPage,
 } from "../../../domain/magpie";
 import type { MagpieFragment, MagpieLanguage, MagpieStep } from "../../../types";
 import type { MagpieHeGenre } from "../../../config/magpieService";
@@ -181,14 +184,39 @@ export function useMagpieScreenModel() {
   }, [sparkId, clearFragmentHistory]);
 
   // ── Collecting words ────────────────────────────────────────────────────────
-  const pocketPhrases = useCallback(
-    (phrases: string[]) => {
-      if (!spark || phrases.length === 0) return;
-      fragmentHistory.record(spark.fragments);
-      const fragments = addFragments(spark.fragments, phrases, spark.book);
+  // A tap on the page collects at once (or lets a marked word go); the marks on
+  // the page are read back from the fragments, so they survive a trip to Build.
+  const toggleWord = useCallback(
+    (word: number, tokens: MagpieToken[]) => {
+      // Read the live spark, not the render's: two quick taps must both land.
+      const live = useStore.getState().magpieSparks.find((item) => item.id === sparkId);
+      if (!live || !live.pageText) return;
+      fragmentHistory.record(live.fragments);
+      const fragments = toggleWordOnPage(live.fragments, {
+        tokens,
+        page: magpiePageKey(live.pageText),
+        word,
+        book: live.book,
+      });
+      const kept = new Set(fragments.map((fragment) => fragment.id));
+      apply({
+        fragments,
+        usedFragmentIds: live.usedFragmentIds.filter((id) => kept.has(id)),
+        title: deriveMagpieTitle({ draft: draftText, fragments }),
+      });
+    },
+    [sparkId, apply, fragmentHistory, draftText]
+  );
+
+  const pullApart = useCallback(
+    (id: string, cutAfter: Set<number>, tokens: MagpieToken[]) => {
+      const live = useStore.getState().magpieSparks.find((item) => item.id === sparkId);
+      if (!live) return;
+      fragmentHistory.record(live.fragments);
+      const fragments = pullApartOnPage(live.fragments, { tokens, id, cutAfter });
       apply({ fragments, title: deriveMagpieTitle({ draft: draftText, fragments }) });
     },
-    [spark, apply, fragmentHistory, draftText]
+    [sparkId, apply, fragmentHistory, draftText]
   );
 
   const removeFragment = useCallback(
@@ -451,7 +479,8 @@ export function useMagpieScreenModel() {
     setLanguage,
     heGenres,
     toggleHeGenre,
-    pocketPhrases,
+    toggleWord,
+    pullApart,
     removeFragment,
     splitFragment,
     mergeFragment,
