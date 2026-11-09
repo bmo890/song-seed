@@ -94,29 +94,6 @@ export const shelfStyles = {
       gap: 8,
       marginTop: 10,
     },
-    decisionKeepBtn: {
-      backgroundColor: colors.primary,
-      borderRadius: radii.round,
-      paddingVertical: 8,
-      paddingHorizontal: 16,
-    },
-    decisionKeepText: {
-      fontSize: 12,
-      fontFamily: "PlusJakartaSans_600SemiBold",
-      color: colors.onPrimary,
-    },
-    decisionLeaveBtn: {
-      borderWidth: 1,
-      borderColor: colors.borderMuted,
-      borderRadius: radii.round,
-      paddingVertical: 8,
-      paddingHorizontal: 14,
-    },
-    decisionLeaveText: {
-      fontSize: 12,
-      fontFamily: "PlusJakartaSans_600SemiBold",
-      color: colors.textStrong,
-    },
 
     // ── "Recently left the shelf" rows ───────────────────────────────────
     // Rows on paper (2026-10-15): a departed idea is a record, not a box.

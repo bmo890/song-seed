@@ -568,6 +568,7 @@ export const es = {
     leavingDays: "Sale del estante en {{count}} días",
     today: "hoy",
     daysAgo: "hace {{count}} d",
+    keep: "Conservar",
     keepSeven: "Conservar 7 días más",
     leave: "Quitar",
     reshelve: "Devolver",

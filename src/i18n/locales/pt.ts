@@ -567,6 +567,7 @@ export const pt = {
     leavingDays: "Sai da prateleira em {{count}} dias",
     today: "hoje",
     daysAgo: "há {{count}} d",
+    keep: "Manter",
     keepSeven: "Manter mais 7 dias",
     leave: "Remover",
     reshelve: "Devolver",

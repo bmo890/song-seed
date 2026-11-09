@@ -533,6 +533,7 @@ export const de = {
     leavingDays: "Verlässt das Regal in {{count}} Tagen",
     today: "heute",
     daysAgo: "vor {{count}} T.",
+    keep: "Behalten",
     keepSeven: "7 Tage verlängern",
     leave: "Entfernen",
     reshelve: "Zurückstellen",

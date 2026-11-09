@@ -3616,7 +3616,7 @@ export const appActions = {
              *  whatever the archive's own manifest didn't carry — e.g. an
              *  archive uploaded by a web sender was never stamped with the
              *  transferId, but the link's id must still dedupe. */
-            receivedOverrides?: { transferId?: string | null; senderName?: string | null };
+            receivedOverrides?: { transferId?: string | null; senderName?: string | null; message?: string | null };
         }
     ) => {
         // One heavy operation at a time, and never under a take (root cause 3).
@@ -3638,6 +3638,7 @@ export const appActions = {
                 receivedAt,
                 shareKind: share?.kind ?? "library",
                 shareTitle: share?.title ?? title,
+                ...(opts?.receivedOverrides?.message ? { message: opts.receivedOverrides.message } : null),
             });
             const importedWorkspaces =
                 opts?.origin === "received"
@@ -3655,7 +3656,12 @@ export const appActions = {
                     : merge.importedSongbooks;
             const importedSetlists =
                 opts?.origin === "received"
-                    ? merge.importedSetlists.map((setlist) => ({ ...setlist, received: provenance(setlist.title) }))
+                    ? merge.importedSetlists.map((setlist) => ({
+                          ...setlist,
+                          // A set already has a place for a note: the sender's lands there.
+                          description: setlist.description || opts?.receivedOverrides?.message || undefined,
+                          received: provenance(setlist.title),
+                      }))
                     : merge.importedSetlists;
             const importedPlaylists =
                 opts?.origin === "received"

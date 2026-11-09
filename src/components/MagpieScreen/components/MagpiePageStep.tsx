@@ -1,5 +1,14 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { Image, Linking, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Image,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type NativeSyntheticEvent,
+  type TextLayoutEventData,
+} from "react-native";
 import { Spinner } from "../../common/Spinner";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
@@ -100,9 +109,40 @@ type ParagraphProps = {
 
 const Paragraph = memo(
   function Paragraph({ paragraph, marks, fontSize, lineHeight, onToggle, onLongPress }: ParagraphProps) {
+    // Where the lines wrap. A highlighted space at the end of a line paints out to
+    // the margin (iOS hangs trailing whitespace to the line's edge), so a phrase
+    // that wraps leaves the space at the break bare.
+    const [breaks, setBreaks] = useState<string>("");
+    const onTextLayout = useCallback(
+      (event: NativeSyntheticEvent<TextLayoutEventData>) => {
+        let offset = 0;
+        const ends: number[] = [];
+        for (const line of event.nativeEvent.lines) {
+          offset += line.text.length;
+          ends.push(offset);
+        }
+        // Trust the lines only when they add up to this paragraph's text.
+        setBreaks(offset === paragraph.text.length ? ends.slice(0, -1).join(",") : "");
+      },
+      [paragraph.text]
+    );
     const highlighted = computeHighlight(paragraph.tokens, marks);
+    if (breaks) {
+      const ends = breaks.split(",").map(Number);
+      let start = 0;
+      for (const token of paragraph.tokens) {
+        const end = start + token.text.length;
+        if (token.wordIndex < 0 && ends.some((at) => at > start && at <= end)) highlighted.delete(token.index);
+        start = end;
+      }
+    }
     return (
-      <UserText align="content" value={paragraph.text} style={[styles.pageText, { fontSize, lineHeight }]}>
+      <UserText
+        align="content"
+        value={paragraph.text}
+        onTextLayout={onTextLayout}
+        style={[styles.pageText, { fontSize, lineHeight }]}
+      >
         {paragraph.tokens.map((token) => (
           <Tok
             key={token.index}

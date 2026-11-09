@@ -500,6 +500,7 @@ export const en = {
     leavingDays: "Leaving shelf in {{count}} days",
     today: "today",
     daysAgo: "{{count}}d ago",
+    keep: "Keep",
     keepSeven: "Keep 7 more days",
     leave: "Remove",
     reshelve: "Re-shelve",

@@ -1,4 +1,4 @@
-import { defaultKeepPlan, keepLabelKey, parcelRows } from "../receivedParcel";
+import { defaultKeepPlan, keepLabelKey, parcelRows, withSenderNote } from "../receivedParcel";
 import type { Workspace } from "../../types";
 
 const copy = {
@@ -37,7 +37,7 @@ describe("parcelRows", () => {
             ideas: [
                 idea("s", "a", {
                     kind: "project",
-                    clips: [{}, {}],
+                    clips: [{ id: "c1", createdAt: 1 }, { id: "c2", createdAt: 2 }],
                     lyrics: { versions: [{ document: { lines: [{ text: "la" }] } }] },
                     chordSheet: { sections: [{ measures: [{ chords: ["C"] }] }] },
                 }),
@@ -48,6 +48,24 @@ describe("parcelRows", () => {
             { key: "c-a1", icon: "folder", title: "Old", meta: "1 items" },
             { key: "i-s", icon: "sketch", title: "s", meta: "2 takes · Lyrics · Chart" },
         ]);
+    });
+    it("counts a sketch's takes as the sketch page does: older versions fold into their take", () => {
+        const pkg = ws({
+            received: received("sketch"),
+            collections: [{ id: "a", title: "Harbor Lights" }] as Workspace["collections"],
+            ideas: [
+                idea("s", "a", {
+                    kind: "project",
+                    clips: [
+                        { id: "v1", createdAt: 1 },
+                        { id: "v2", createdAt: 2, parentClipId: "v1" },
+                        { id: "v3", createdAt: 3, parentClipId: "v2" },
+                        { id: "live", createdAt: 4 },
+                    ],
+                }),
+            ],
+        });
+        expect(parcelRows(pkg, copy)[0]?.meta).toBe("2 takes");
     });
     it("lists clips one per row", () => {
         const pkg = ws({
@@ -80,5 +98,41 @@ describe("keepLabelKey", () => {
         expect(keepLabelKey("workspace")).toBe("received.keepWorkspace");
         expect(keepLabelKey("sketch")).toBe("received.keepSketch");
         expect(keepLabelKey("setlist")).toBe("received.keepParcel");
+    });
+});
+
+describe("withSenderNote", () => {
+    const withNote = (over: Partial<Workspace>) =>
+        ws({ received: { ...received("sketch")!, senderName: "Sam", message: "Learn the bridge" }, ...over });
+
+    it("files a sketch's note in the sketch notes, above what was there", () => {
+        const kept = withSenderNote(withNote({ ideas: [idea("s", "a", { kind: "project", notes: "Capo 2" })] }));
+        expect(kept.ideas[0]!.notes).toBe("Sam: Learn the bridge\n\nCapo 2");
+        expect(kept.received?.message).toBeUndefined();
+    });
+    it("files a clip's note on its primary take", () => {
+        const kept = withSenderNote(
+            withNote({ ideas: [idea("c", "a", { clips: [{ id: "x", notes: "" }, { id: "y", notes: "", isPrimary: true }] })] })
+        );
+        expect(kept.ideas[0]!.clips.map((clip) => clip.notes)).toEqual(["", "Sam: Learn the bridge"]);
+    });
+    it("files a collection's note in its description; more than one goes to the workspace", () => {
+        const one = withSenderNote(
+            withNote({ collections: [{ id: "a", title: "Set" }] as Workspace["collections"], ideas: [idea("1", "a"), idea("2", "a")] })
+        );
+        expect(one.collections[0]!.description).toBe("Sam: Learn the bridge");
+        const two = withSenderNote(
+            withNote({
+                collections: [{ id: "a", title: "A" }, { id: "b", title: "B" }] as Workspace["collections"],
+                ideas: [idea("1", "a"), idea("2", "b")],
+            })
+        );
+        expect(two.description).toBe("Sam: Learn the bridge");
+    });
+    it("never files the same note twice, and leaves a parcel without one alone", () => {
+        const pkg = withNote({ ideas: [idea("s", "a", { kind: "project", notes: "Sam: Learn the bridge" })] });
+        expect(withSenderNote(pkg).ideas[0]!.notes).toBe("Sam: Learn the bridge");
+        const plain = ws({ received: received("sketch"), ideas: [idea("s", "a", { kind: "project", notes: "" })] });
+        expect(withSenderNote(plain)).toBe(plain);
     });
 });

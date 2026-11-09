@@ -234,6 +234,13 @@ function ReceivedParcelSheet({ pkg }: { pkg: Workspace }) {
             </View>
           </View>
 
+          {/* The sender's note, as the link page showed it; Keep files it with the song. */}
+          {pkg.received?.message ? (
+            <UserText value={pkg.received.message} align="content" style={local.note} numberOfLines={4}>
+              {pkg.received.message}
+            </UserText>
+          ) : null}
+
           <View style={local.rows}>
             {shownRows.map((row) => (
               <View key={row.key} style={local.row}>
@@ -312,6 +319,13 @@ const local = StyleSheet.create({
   reportLabel: {
     ...textTokens.caption,
     color: colors.textMuted,
+  },
+  // One note treatment app-wide: earned serif in true italic.
+  note: {
+    fontFamily: "Lora_500Medium_Italic",
+    fontSize: 14.5,
+    lineHeight: 21,
+    color: colors.textStrong,
   },
   titleRow: {
     flexDirection: "row",

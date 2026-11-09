@@ -305,6 +305,7 @@ class Checker {
         if (value == null) return undefined;
         if (!isRecord(value)) return this.repaired(undefined);
         const openedAt = this.optionalDate(value.openedAt);
+        const message = typeof value.message === "string" ? value.message.trim().slice(0, 1000) : "";
         return {
             senderName: this.nullableText(value.senderName),
             senderUserId: this.nullableText(value.senderUserId),
@@ -315,6 +316,7 @@ class Checker {
                 : this.repaired("library"),
             shareTitle: this.title(value.shareTitle),
             ...(openedAt !== undefined ? { openedAt } : null),
+            ...(message ? { message } : null),
         };
     }
 

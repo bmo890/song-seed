@@ -153,7 +153,12 @@ export function SegmentedControl<T extends string>({
                   {option.glyph}
                 </Text>
               ) : null}
+              {/* One line always: a long word in a tight row ("Portuguese" among five
+                  languages) shrinks a little rather than breaking mid-word. */}
               <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
                 style={[
                   segmentedControlStyles.segmentLabel,
                   option.glyph ? segmentedControlStyles.segmentLabelSmall : null,
@@ -199,6 +204,8 @@ const segmentedControlStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
+    maxWidth: "100%",
+    paddingHorizontal: 2,
   },
   segmentInnerStacked: {
     flexDirection: "column",
@@ -225,6 +232,7 @@ const segmentedControlStyles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   segmentLabel: {
+    flexShrink: 1,
     fontFamily: "PlusJakartaSans_500Medium",
     fontSize: 15,
     color: colors.textSecondary,

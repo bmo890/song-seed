@@ -733,6 +733,9 @@ export type ReceivedMeta = {
   /** When the recipient first opened the package. Absent = still "new" (the
    *  drawer's Received badge counts these). */
   openedAt?: number;
+  /** The note the sender typed on the Send sheet. Shown at the door; on Keep it
+   *  moves to where notes live on the kept thing (domain/receivedParcel). */
+  message?: string;
 };
 
 export type Workspace = {

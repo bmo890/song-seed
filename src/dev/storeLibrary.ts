@@ -129,7 +129,6 @@ function sketch(
  *  plus his note on the take, waiting in Received. */
 function stageReceivedParcel(harbor: SongIdea) {
   const pkg = "ws-store-parcel";
-  if (useStore.getState().workspaces.some((w) => w.id === pkg)) return;
   const now = Date.now();
   const col = "col-store-parcel";
   const copy: SongIdea = {
@@ -154,11 +153,13 @@ function stageReceivedParcel(harbor: SongIdea) {
       receivedAt: now - 20 * 60 * 1000,
       shareKind: "sketch",
       shareTitle: "Harbor Lights",
+      message: "New chorus. Learn the bridge before Friday.",
     },
     collections: [collection(col, pkg, "Harbor Lights", now)],
     ideas: [copy],
   };
-  useStore.setState((state) => ({ workspaces: [...state.workspaces, parcel] }));
+  // Restaging replaces the staged parcel (it shares the library's audio, owns none).
+  useStore.setState((state) => ({ workspaces: [...state.workspaces.filter((w) => w.id !== pkg), parcel] }));
 }
 
 export async function stageStoreLibrary(): Promise<string> {

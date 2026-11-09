@@ -1,7 +1,8 @@
 import React from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ShelfItemCard } from "./ShelfItemCard";
+import { Button } from "../../common/Button";
 import { shelfStyles } from "../styles";
 import { colors } from "../../../design/tokens";
 import { leavingLabel } from "../../../domain/shelf";
@@ -72,22 +73,19 @@ export function ShelfDecisionCard({
       />
 
       <View style={shelfStyles.decisionActions}>
-        <Pressable
-          style={({ pressed }) => [shelfStyles.decisionKeepBtn, pressed ? { opacity: 0.85 } : null]}
+        <Button
+          label={t("shelf.keep")}
           onPress={onKeep}
-          accessibilityRole="button"
+          hapticFeedback={false}
           accessibilityLabel={t("shelf.keepA11y", { title: row.idea.title })}
-        >
-          <Text style={shelfStyles.decisionKeepText}>{t("shelf.keepSeven")}</Text>
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [shelfStyles.decisionLeaveBtn, pressed ? { opacity: 0.7 } : null]}
+        />
+        <Button
+          variant="quiet"
+          label={t("shelf.leave")}
           onPress={onLeave}
-          accessibilityRole="button"
+          hapticFeedback={false}
           accessibilityLabel={t("shelf.leaveA11y", { title: row.idea.title })}
-        >
-          <Text style={shelfStyles.decisionLeaveText}>{t("shelf.leave")}</Text>
-        </Pressable>
+        />
       </View>
     </View>
   );

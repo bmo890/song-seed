@@ -232,6 +232,7 @@ export function TransferReceiveScreen() {
       // .songnook item carries its own manifest, which the importer trusts instead.
       shareKind: (transfer.kind === "playlist" || transfer.kind === "setlist" ? transfer.kind : "clips") as ShareKind,
       shareTitle: transfer.title ?? t("transferReceive.receivedFiles"),
+      ...(transfer.message ? { message: transfer.message } : null),
     };
     // What carries this parcel's id BEFORE the attempt: a failure rolls back only
     // what this attempt made, never a setlist kept from an earlier receive (04-M4).
@@ -269,6 +270,7 @@ export function TransferReceiveScreen() {
             receivedOverrides: {
               transferId: transfer.transferId,
               senderName: transfer.sender.name,
+              message: transfer.message ?? null,
             },
           });
           importedAnything = true;
@@ -353,6 +355,8 @@ export function TransferReceiveScreen() {
             entityRoute = { kind: "playlist", id: playlistId };
           } else {
             const setlistId = state.addSetlist(receivedMeta.shareTitle);
+            // A set already has a place for a note: the sender's lands there.
+            if (transfer.message) state.renameSetlist(setlistId, receivedMeta.shareTitle, transfer.message);
             for (const idea of ideas) {
               const clip = getPlayableClipForIdea(idea);
               state.addSetlistEntry(setlistId, {

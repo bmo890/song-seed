@@ -1,4 +1,5 @@
 import type { ShareKind, SongIdea, Workspace } from "../types";
+import { buildClipLineages } from "./clipGraph";
 
 /**
  * The parcel's front door (2026-10-14, founder: a new user "doesn't know to
@@ -26,7 +27,10 @@ export type ParcelCopy = {
 export const PARCEL_ROWS_MAX = 6;
 
 function ideaMeta(idea: SongIdea, copy: ParcelCopy): string {
-    const parts: string[] = [copy.takes(idea.clips.length)];
+    // A sketch's takes count as the sketch page counts them: a take and its older
+    // versions are one take.
+    const takes = idea.kind === "project" ? buildClipLineages(idea.clips).length : idea.clips.length;
+    const parts: string[] = [copy.takes(takes)];
     if (idea.kind === "project") {
         const hasLyrics = (idea.lyrics?.versions ?? []).some((version) =>
             version.document.lines.some((line) => line.text.trim().length > 0)
@@ -119,4 +123,47 @@ export function keepLabelKey(kind: ShareKind): string {
         default:
             return "received.keepParcel";
     }
+}
+
+/**
+ * On Keep, the sender's note moves to where notes already live on what was kept,
+ * so it stays with the thing after the parcel is gone: one sketch → its notes,
+ * one clip → its take's note, one collection → its description, more → the
+ * workspace's description. Signed with the sender's name; never duplicated.
+ */
+export function withSenderNote(pkg: Workspace): Workspace {
+    const message = pkg.received?.message?.trim();
+    if (!message) return pkg;
+    const note = pkg.received?.senderName ? `${pkg.received.senderName}: ${message}` : message;
+    const join = (existing: string | undefined) =>
+        existing?.includes(message) ? existing : existing?.trim() ? `${note}\n\n${existing}` : note;
+    const received = { ...pkg.received!, message: undefined };
+
+    if (pkg.ideas.length === 1) {
+        const idea = pkg.ideas[0]!;
+        if (idea.kind === "project") return { ...pkg, received, ideas: [{ ...idea, notes: join(idea.notes) }] };
+        const primaryId = (idea.clips.find((clip) => clip.isPrimary) ?? idea.clips[0])?.id;
+        return {
+            ...pkg,
+            received,
+            ideas: [
+                {
+                    ...idea,
+                    clips: idea.clips.map((clip) => (clip.id === primaryId ? { ...clip, notes: join(clip.notes) } : clip)),
+                },
+            ],
+        };
+    }
+    const topLevel = pkg.collections.filter((collection) => !collection.parentCollectionId);
+    if (topLevel.length === 1) {
+        const only = topLevel[0]!;
+        return {
+            ...pkg,
+            received,
+            collections: pkg.collections.map((collection) =>
+                collection.id === only.id ? { ...collection, description: join(collection.description) } : collection
+            ),
+        };
+    }
+    return { ...pkg, received, description: join(pkg.description) };
 }

@@ -528,6 +528,7 @@ export const he = {
     leavingDays: "יורד מהמדף בעוד {{count}} ימים", leavingDays_two: "יורד מהמדף בעוד יומיים",
     today: "היום",
     daysAgo: "לפני {{count}} ימים", daysAgo_two: "לפני יומיים",
+    keep: "השארה",
     keepSeven: "להשאיר לעוד 7 ימים",
     leave: "הסרה",
     reshelve: "החזרה למדף",

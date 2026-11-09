@@ -1,5 +1,6 @@
 import { fmtCardDuration } from "../../utils";
 import { getPlayableClipForIdea } from "../../domain/clipPresentation";
+import { buildClipLineages } from "../../domain/clipGraph";
 import type { SongIdea } from "../../types";
 import type { IdeaListItemMeta } from "./types";
 
@@ -22,7 +23,8 @@ export const buildIdeaListItemMeta = (idea: SongIdea): IdeaListItemMeta => {
     playClip,
     clipDurationLabel: playClip?.durationMs ? fmtCardDuration(playClip.durationMs) : "0:00",
     projectPrimaryDurationLabel: primaryClip?.durationMs ? fmtCardDuration(primaryClip.durationMs) : "0:00",
-    projectClipCount: idea.kind === "project" ? idea.clips.length : 0,
+    // Takes as the sketch page counts them: a take and its older versions are one.
+    projectClipCount: idea.kind === "project" ? buildClipLineages(idea.clips).length : 0,
     hasProjectLyrics,
     hasProjectClipCount,
     hasExpandedProjectIndicators: idea.kind === "project" && (hasProjectLyrics || hasProjectClipCount),

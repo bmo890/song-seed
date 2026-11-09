@@ -81,6 +81,7 @@ import { persistAppStoreSnapshot } from "./persistedSnapshot";
 import { rehomeCompilations, relocateActivityEvents, relocatePlaylists } from "./relocationMetadata";
 import { collectionOwnerWorkspaceId, ideaOwnerWorkspaceId, locateIdea } from "../domain/itemLocator";
 import { firstWritableWorkspaceId, isReadOnlyWorkspace, isWritableWorkspaceId } from "../domain/workspaceVisibility";
+import { withSenderNote } from "../domain/receivedParcel";
 import {
     DEFAULT_METRONOME_BEEP_LEVEL,
     DEFAULT_METRONOME_BPM,
@@ -2899,6 +2900,10 @@ export const createDataSlice: StateCreator<
                 collectionIds: [],
             };
         }
+        // The sender's note goes where notes live on what is kept, before it moves.
+        set((current) => ({
+            workspaces: current.workspaces.map((ws) => (ws.id === packageId ? withSenderNote(ws) : ws)),
+        }));
         const collectionIds: string[] = [];
         for (const collection of topLevel) {
             const result = get().moveCollection(collection.id, targetWorkspaceId, targetParentCollectionId);
@@ -2917,7 +2922,7 @@ export const createDataSlice: StateCreator<
         set((state) => ({
             workspaces: state.workspaces.map((ws) =>
                 ws.id === id && ws.origin === "received"
-                    ? { ...ws, origin: undefined, received: undefined }
+                    ? { ...withSenderNote(ws), origin: undefined, received: undefined }
                     : ws
             ),
         }));
