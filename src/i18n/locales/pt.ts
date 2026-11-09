@@ -419,6 +419,7 @@ export const pt = {
     importSamplesDev: "Importar amostras (dev)",
     receiveSamplesDev: "Receber amostras (dev)",
     proPreviewDev: "Tela Pro (dev)",
+    storeLibraryDev: "Biblioteca da loja (dev)",
     importSongDev: "Importar como esboço (dev)",
     options: "Opções da coleção",
     addToSongTitle: "Adicionar a este esboço?",

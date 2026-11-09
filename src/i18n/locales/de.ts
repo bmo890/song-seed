@@ -398,6 +398,7 @@ export const de = {
     importSamplesDev: "Samples importieren (dev)",
     receiveSamplesDev: "Samples empfangen (dev)",
     proPreviewDev: "Pro-Sheet (dev)",
+    storeLibraryDev: "Store-Bibliothek (dev)",
     importSongDev: "Als Skizze importieren (dev)",
     options: "Sammlungsoptionen",
     addToSongTitle: "Zu dieser Skizze hinzufügen?",

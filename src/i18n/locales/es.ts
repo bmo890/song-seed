@@ -420,6 +420,7 @@ export const es = {
     importSamplesDev: "Importar muestras (dev)",
     receiveSamplesDev: "Recibir muestras (dev)",
     proPreviewDev: "Hoja Pro (dev)",
+    storeLibraryDev: "Biblioteca de tienda (dev)",
     importSongDev: "Importar como boceto (dev)",
     options: "Opciones de la colección",
     addToSongTitle: "¿Añadir a este boceto?",

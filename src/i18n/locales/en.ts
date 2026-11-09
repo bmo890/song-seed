@@ -369,6 +369,7 @@ export const en = {
     importSamplesDev: "Import samples (dev)",
     receiveSamplesDev: "Receive samples (dev)",
     proPreviewDev: "Pro sheet (dev)",
+    storeLibraryDev: "Store library (dev)",
     importSongDev: "Import as sketch (dev)",
     options: "Collection options",
     addToSongTitle: "Add to this sketch?",

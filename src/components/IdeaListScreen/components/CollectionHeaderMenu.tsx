@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { setDevFreeMonthStart, syncFreeMonth } from "../../../services/freeMonthClock";
 import { openProUpsell } from "../../common/proUpsell";
+import { stageStoreLibrary } from "../../../dev/storeLibrary";
 
 // Nav-row height below the safe-area inset — drops the menu just under the ⋯.
 const HEADER_ROW_HEIGHT = 46;
@@ -188,6 +189,15 @@ export function CollectionHeaderMenu() {
               onPress={() => {
                 screen.setHeaderMenuOpen(false);
                 void importFlow.openDevSampleReceive();
+              }}
+            />
+            <PopoverMenuRow
+              testID="collection-menu-dev-store"
+              icon="flask-outline"
+              label={t("collection.storeLibraryDev")}
+              onPress={() => {
+                screen.setHeaderMenuOpen(false);
+                void stageStoreLibrary().then((result) => AppAlert.info(result, ""));
               }}
             />
             <PopoverMenuRow

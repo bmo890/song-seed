@@ -384,6 +384,7 @@ export const he = {
     importSamplesDev: "ייבוא דוגמאות (פיתוח)",
     receiveSamplesDev: "קבלת דוגמאות (פיתוח)",
     proPreviewDev: "חלון Pro (פיתוח)",
+    storeLibraryDev: "ספריית חנות (פיתוח)",
     importSongDev: "ייבוא כסקיצה (פיתוח)",
     options: "אפשרויות האוסף",
     addToSongTitle: "להוסיף לסקיצה הזו?",
