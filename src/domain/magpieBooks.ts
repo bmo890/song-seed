@@ -44,7 +44,7 @@ export function toMagpieBook(entry: CuratedBook): MagpieBook {
 }
 
 /** All ids verified present on Gutendex with a text/plain format. */
-export const CURATED_BOOKS: CuratedBook[] = [
+const ENGLISH_SHELF: CuratedBook[] = [
   { id: 1342, title: "Pride and Prejudice", author: "Jane Austen" },
   { id: 158, title: "Emma", author: "Jane Austen" },
   { id: 161, title: "Sense and Sensibility", author: "Jane Austen" },
@@ -131,8 +131,75 @@ export const CURATED_BOOKS: CuratedBook[] = [
   { id: 64317, title: "The Great Gatsby", author: "F. Scott Fitzgerald" },
 ];
 
-/** A random curated book, as the runtime shape. */
-export function randomCuratedBook(): MagpieBook {
-  const entry = CURATED_BOOKS[Math.floor(Math.random() * CURATED_BOOKS.length)];
-  return toMagpieBook(entry);
+/** Works written in the language (no translations, so no translator's rights),
+ *  authors dead before 1955. Each id checked 2026-11-09: the cache .txt answers a
+ *  Range request with 206 and its header says the right language. These replace
+ *  the whole-library draw, whose catalogue (gutendex.com) timed out for minutes. */
+const SPANISH_SHELF: CuratedBook[] = [
+  { id: 2000, title: "Don Quijote", author: "Miguel de Cervantes" },
+  { id: 49836, title: "Niebla", author: "Miguel de Unamuno" },
+  { id: 55514, title: "Cuentos de amor", author: "Emilia Pardo Bazán" },
+  { id: 18005, title: "Los pazos de Ulloa", author: "Emilia Pardo Bazán" },
+  { id: 25640, title: "Los argonautas", author: "Vicente Blasco Ibáñez" },
+  { id: 24536, title: "Los cuatro jinetes del apocalipsis", author: "Vicente Blasco Ibáñez" },
+  { id: 17013, title: "Fortunata y Jacinta", author: "Benito Pérez Galdós" },
+  { id: 17340, title: "Marianela", author: "Benito Pérez Galdós" },
+  { id: 52392, title: "Miau", author: "Benito Pérez Galdós" },
+  { id: 17073, title: "La Regenta", author: "Leopoldo Alas, Clarín" },
+  { id: 17223, title: "Pepita Jiménez", author: "Juan Valera" },
+  { id: 29506, title: "El sombrero de tres picos", author: "Pedro Antonio de Alarcón" },
+  { id: 23600, title: "La gaviota", author: "Fernán Caballero" },
+  { id: 25777, title: "El idilio de un enfermo", author: "Armando Palacio Valdés" },
+  { id: 21282, title: "Tradiciones peruanas", author: "Ricardo Palma" },
+  { id: 47584, title: "Noli me tángere", author: "José Rizal" },
+];
+
+const GERMAN_SHELF: CuratedBook[] = [
+  { id: 22367, title: "Die Verwandlung", author: "Franz Kafka" },
+  { id: 21593, title: "Das Urteil", author: "Franz Kafka" },
+  { id: 69327, title: "Der Prozess", author: "Franz Kafka" },
+  { id: 2407, title: "Die Leiden des jungen Werther", author: "Johann Wolfgang von Goethe" },
+  { id: 35312, title: "Aus dem Leben eines Taugenichts", author: "Joseph von Eichendorff" },
+  { id: 5323, title: "Effi Briest", author: "Theodor Fontane" },
+  { id: 29376, title: "Bahnwärter Thiel", author: "Gerhart Hauptmann" },
+  { id: 34717, title: "Die Verwirrungen des Zöglings Törleß", author: "Robert Musil" },
+  { id: 38686, title: "Die Liebe der Erika Ewald", author: "Stefan Zweig" },
+  { id: 38126, title: "Der Untertan", author: "Heinrich Mann" },
+  { id: 25721, title: "Caspar Hauser", author: "Jakob Wassermann" },
+  { id: 7205, title: "Also sprach Zarathustra", author: "Friedrich Nietzsche" },
+  { id: 47406, title: "Aphorismen zur Lebensweisheit", author: "Arthur Schopenhauer" },
+  { id: 24782, title: "Der Dunkelgraf", author: "Ludwig Bechstein" },
+  { id: 50277, title: "Kleinstadtkinder", author: "Josephine Siebe" },
+];
+
+const PORTUGUESE_SHELF: CuratedBook[] = [
+  { id: 55752, title: "Dom Casmurro", author: "Machado de Assis" },
+  { id: 54829, title: "Memórias Póstumas de Brás Cubas", author: "Machado de Assis" },
+  { id: 55682, title: "Quincas Borba", author: "Machado de Assis" },
+  { id: 55797, title: "Memorial de Aires", author: "Machado de Assis" },
+  { id: 33056, title: "Histórias sem Data", author: "Machado de Assis" },
+  { id: 40409, title: "Os Maias", author: "Eça de Queirós" },
+  { id: 18220, title: "A Cidade e as Serras", author: "Eça de Queirós" },
+  { id: 16384, title: "O Mandarim", author: "Eça de Queirós" },
+  { id: 17515, title: "A Relíquia", author: "Eça de Queirós" },
+  { id: 31347, title: "Contos", author: "Eça de Queirós" },
+  { id: 16425, title: "Amor de Perdição", author: "Camilo Castelo Branco" },
+  { id: 67740, title: "Iracema", author: "José de Alencar" },
+  { id: 69187, title: "O Cortiço", author: "Aluísio Azevedo" },
+  { id: 24401, title: "Viagens na Minha Terra", author: "Almeida Garrett" },
+  { id: 67535, title: "Triste Fim de Policarpo Quaresma", author: "Lima Barreto" },
+];
+
+/** Every Gutenberg language's hand-picked shelf (Hebrew draws from Ben-Yehuda). */
+export const CURATED_SHELVES: Record<"en" | "es" | "de" | "pt", CuratedBook[]> = {
+  en: ENGLISH_SHELF,
+  es: SPANISH_SHELF,
+  de: GERMAN_SHELF,
+  pt: PORTUGUESE_SHELF,
+};
+
+/** A random book from a language's shelf, as the runtime shape. */
+export function randomCuratedBook(language: "en" | "es" | "de" | "pt" = "en"): MagpieBook {
+  const shelf = CURATED_SHELVES[language];
+  return toMagpieBook(shelf[Math.floor(Math.random() * shelf.length)]!);
 }

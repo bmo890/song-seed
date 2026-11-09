@@ -9,7 +9,7 @@ import type {
 } from "../types";
 import { i18n } from "../i18n/instance";
 import type { MagpieHeGenre } from "../config/magpieService";
-import { gutenbergCoverUrl, gutenbergSourceUrl, randomCuratedBook } from "./magpieBooks";
+import { randomCuratedBook } from "./magpieBooks";
 import { fetchBenYehudaPage } from "./magpieBenYehuda";
 
 function randomId(prefix: string) {
@@ -28,14 +28,6 @@ const PAGE_BYTES = 3000;
  * window from the middle band of the file. */
 const WINDOW_START_FRACTION = 0.1;
 const WINDOW_END_FRACTION = 0.82;
-
-// Whole-library draws pick a random Gutendex page per language.
-const GUTENDEX_PAGES: Record<"en" | "es" | "de" | "pt", number> = {
-  en: 1900, // ~62k English books / 32 per page
-  es: 28, // 922 Spanish books (2026-10-25) / 32 per page
-  de: 77, // 2,479 German books (2026-10-25) / 32 per page
-  pt: 21, // 656 Portuguese books (2026-10-25), mostly 19th-century Portugal
-};
 
 import { MagpieFetchError } from "./magpieFetchError";
 export { MagpieFetchError, type MagpieFetchErrorKind } from "./magpieFetchError";
@@ -143,134 +135,97 @@ export async function fetchPassage(book: MagpieBook): Promise<string> {
   return page;
 }
 
-// ── Picking a book ───────────────────────────────────────────────────────────
-
-/** "Last, First" → "First Last"; leaves single-token names alone. */
-function formatAuthor(name: string): string {
-  const parts = name.split(",");
-  if (parts.length === 2 && parts[0].trim() && parts[1].trim()) {
-    return `${parts[1].trim()} ${parts[0].trim()}`;
-  }
-  return name.trim();
-}
-
-/** Cleans a Gutendex title: first line only, MARC "$a/$b" subfield markers out. */
-function cleanTitle(title: string): string {
-  return title
-    .split("\n")[0]
-    .replace(/\s*\$[a-z]\s*/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function textPlainUrl(formats: Record<string, string>): string | null {
-  for (const [mime, url] of Object.entries(formats)) {
-    if (mime.startsWith("text/plain") && !url.endsWith(".zip")) return url;
-  }
-  return null;
-}
-
-type GutendexPerson = { birth_year?: number | null; death_year?: number | null };
-
-/**
- * Gutenberg follows US copyright; Europe and Brazil protect a work until 70
- * years after its author (and translator) died, and Borrowed Words shows pages
- * everywhere (2026-10-25: 67 Spanish, 256 German, 16 Portuguese titles fail
- * this). A person with no death year is let through only when nothing suggests
- * they lived recently: a dateless translator is usually a living volunteer, a
- * dateless author born in the last 170 years may still be in copyright.
- */
-export function isPublicDomainEverywhere(
-  book: { authors?: GutendexPerson[]; translators?: GutendexPerson[] },
-  now: Date = new Date()
-): boolean {
-  // Protection runs to the end of the 70th year after death.
-  const lastProtectedDeath = now.getFullYear() - 71;
-  const clear = (person: GutendexPerson, isTranslator: boolean) => {
-    if (typeof person.death_year === "number") return person.death_year <= lastProtectedDeath;
-    if (isTranslator) return false;
-    return typeof person.birth_year !== "number" || person.birth_year <= lastProtectedDeath - 100;
-  };
-  return (
-    (book.authors ?? []).every((person) => clear(person, false)) &&
-    (book.translators ?? []).every((person) => clear(person, true))
-  );
-}
-
-/** Draws a random book in a language from anywhere in the Gutenberg library via
- * a random Gutendex page. Retries a few pages if a page has no plain-text books. */
-async function fetchRandomLibraryBook(language: "en" | "es" | "de" | "pt" = "en", attempts = 3): Promise<MagpieBook> {
-  for (let i = 0; i < attempts; i++) {
-    const page = 1 + Math.floor(Math.random() * GUTENDEX_PAGES[language]);
-    const res = await safeFetch(`https://gutendex.com/books?languages=${language}&page=${page}`, undefined, async (r) => ({
-      ok: r.ok,
-      text: r.ok ? await r.text() : "",
-    }));
-    if (!res.ok) continue;
-    const data = JSON.parse(res.text) as { results?: Array<Record<string, any>> };
-    const candidates = (data.results ?? [])
-      .filter((book) => isPublicDomainEverywhere(book))
-      .map((book) => {
-        const url = textPlainUrl(book.formats ?? {});
-        if (!url) return null;
-        const author = Array.isArray(book.authors) && book.authors[0]?.name ? book.authors[0].name : i18n.t("magpie.unknownAuthor");
-        return {
-          id: String(book.id),
-          title: cleanTitle(String(book.title ?? i18n.t("magpie.untitledWork"))),
-          author: formatAuthor(String(author)),
-          textUrl: url,
-          source: "gutenberg",
-          thumbnailUrl: gutenbergCoverUrl(book.id),
-          sourceUrl: gutenbergSourceUrl(book.id),
-        } as MagpieBook;
-      })
-      .filter((book): book is MagpieBook => book !== null);
-    if (candidates.length) {
-      return candidates[Math.floor(Math.random() * candidates.length)];
-    }
-  }
-  throw new MagpieFetchError("unavailable", "Couldn't find a book on that shelf.");
-}
-
-/** Picks an English book to pull from: the curated pool, or the whole library. */
-export async function pickBook(wholeLibrary: boolean): Promise<MagpieBook> {
-  if (wholeLibrary) return fetchRandomLibraryBook();
-  return randomCuratedBook();
-}
-
 export type MagpiePage = { book: MagpieBook; pageText: string };
 
-/** Draws the next page for a spark, dispatching by language. Returns the book and
- * its passage together (the two-call English flow is folded in here so the Hebrew
- * source, which returns both at once, fits the same shape).
+/** Draws the next page for a spark, dispatching by language, trimmed to one
+ * page (`toOnePage`).
  *
- * - English: mode "book" (or no/foreign current book) picks a fresh book, then
- *   Range-fetches a window; mode "page" re-windows the current book.
+ * - English, Spanish, German, Portuguese: mode "book" (or no/foreign current
+ *   book) picks a fresh book from that language's hand-picked shelf
+ *   (magpieBooks.ts), then Range-fetches a window; mode "page" re-windows the
+ *   current book.
  * - Hebrew: every draw is a fresh Ben-Yehuda work (each work is one short page),
  *   so mode is irrelevant. */
 export async function drawPage(
-  spark: Pick<MagpieSpark, "language" | "wholeLibrary" | "book"> & { heGenres?: MagpieHeGenre[] },
+  spark: Pick<MagpieSpark, "language" | "book"> & { heGenres?: MagpieHeGenre[] },
   mode: "book" | "page"
 ): Promise<MagpiePage> {
   if (spark.language === "he") {
-    return fetchBenYehudaPage(spark.heGenres);
-  }
-  if (spark.language === "es" || spark.language === "de" || spark.language === "pt") {
-    // Spanish and German have no curated shelf: every book comes from
-    // Gutenberg's whole library in that language (reachable from Germany,
-    // checked 2026-10-25).
-    let book = spark.book;
-    if (mode === "book" || !book || book.source === "benyehuda") book = await fetchRandomLibraryBook(spark.language);
-    return { book, pageText: await fetchPassage(book) };
+    const page = await fetchBenYehudaPage(spark.heGenres);
+    return { book: page.book, pageText: toOnePage(page.pageText, { fromStart: true }) };
   }
   let book = spark.book;
-  // Force a fresh English book on an explicit reshuffle, when none exists yet, or
-  // when the current book came from a different (Hebrew) source.
-  if (mode === "book" || !book || book.source === "benyehuda") {
-    book = await pickBook(spark.wholeLibrary);
+  // A fresh book on an explicit reshuffle, when none exists yet, or when the
+  // current book came from a different (Hebrew) source.
+  if (mode === "book" || !book || book.source === "benyehuda") book = randomCuratedBook(spark.language);
+  return { book, pageText: toOnePage(await fetchPassage(book)) };
+}
+
+// ── One page ─────────────────────────────────────────────────────────────────
+
+/** About one phone screen of prose at the default size: the founder found ~500
+ *  words read as a wall (2026-11-09). A page ends on a sentence between the two. */
+const PAGE_WORDS_MIN = 110;
+const PAGE_WORDS_MAX = 170;
+const SENTENCE_END = /[.!?…»"”'’)\]]*[.!?…][»"”'’)\]]*$/;
+
+/**
+ * Trims a passage to one page. A window cut from the middle of a book opens at
+ * its first paragraph (or, failing that, its first full sentence) so the page
+ * doesn't begin mid-thought; `fromStart` keeps the opening (a whole short work).
+ * It closes on the last sentence end between PAGE_WORDS_MIN and PAGE_WORDS_MAX
+ * words, or at PAGE_WORDS_MAX when the prose runs on without one.
+ */
+export function toOnePage(text: string, opts: { fromStart?: boolean } = {}): string {
+  let paragraphs = text
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (!opts.fromStart && paragraphs.length > 1) {
+    // Drop the opening fragment when a real paragraph starts soon after it.
+    const firstWords = paragraphs[0]!.split(/\s+/).length;
+    if (firstWords < PAGE_WORDS_MAX * 0.6) paragraphs = paragraphs.slice(1);
+  } else if (!opts.fromStart && paragraphs.length === 1) {
+    const sentenceStart = paragraphs[0]!.search(/[.!?…]["”»’)]?\s+(?=[\p{Lu}"“«¿¡—])/u);
+    if (sentenceStart > -1 && sentenceStart < paragraphs[0]!.length / 3) {
+      paragraphs[0] = paragraphs[0]!.slice(sentenceStart + 1).replace(/^["”»’)]?\s+/, "");
+    }
   }
-  const pageText = await fetchPassage(book);
-  return { book, pageText };
+  const out: string[] = [];
+  let count = 0;
+  for (const paragraph of paragraphs) {
+    const lines = paragraph.split("\n");
+    const kept: string[] = [];
+    for (const line of lines) {
+      const words = line.split(/\s+/).filter(Boolean);
+      if (count + words.length <= PAGE_WORDS_MAX) {
+        kept.push(line);
+        count += words.length;
+        continue;
+      }
+      // This line would run past the page: end on its last sentence in range,
+      // or on a sentence already kept, or cut at the limit.
+      const room = words.slice(0, PAGE_WORDS_MAX - count);
+      let end = -1;
+      for (let i = room.length - 1; i >= 0; i--) {
+        if (count + i + 1 >= PAGE_WORDS_MIN && SENTENCE_END.test(room[i]!)) {
+          end = i;
+          break;
+        }
+      }
+      if (end >= 0) kept.push(room.slice(0, end + 1).join(" "));
+      else if (count < PAGE_WORDS_MIN || !endsSentence(out, kept)) kept.push(`${room.join(" ")}…`);
+      if (kept.length) out.push(kept.join("\n"));
+      return out.join("\n\n").trim();
+    }
+    out.push(kept.join("\n"));
+  }
+  return out.join("\n\n").trim();
+}
+
+function endsSentence(done: string[], current: string[]): boolean {
+  const last = current.length ? current[current.length - 1]! : done[done.length - 1] ?? "";
+  return SENTENCE_END.test(last.trim());
 }
 
 // ── Tokenising a page for tap-to-pocket ──────────────────────────────────────

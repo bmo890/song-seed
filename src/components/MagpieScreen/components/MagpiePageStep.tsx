@@ -24,8 +24,8 @@ import {
   runToPhrases,
   tokenizePageIntoParagraphs,
 } from "../../../domain/magpie";
-import { MAGPIE_HE_ENABLED, MAGPIE_HE_GENRES, type MagpieHeGenre } from "../../../config/magpieService";
-import type { MagpieBook, MagpieLanguage, MagpieSpark } from "../../../types";
+import { MAGPIE_HE_GENRES, type MagpieHeGenre } from "../../../config/magpieService";
+import type { MagpieBook, MagpieSpark } from "../../../types";
 import type { useMagpieScreenModel } from "../hooks/useMagpieScreenModel";
 import { useTranslation } from "react-i18next";
 import { useSparkTextScale } from "../../common/sparkTextScale";
@@ -33,7 +33,6 @@ import { Press } from "../../common/Press";
 import { Button } from "../../common/Button";
 import { InkKey, inkKeyColor } from "../../common/InkKey";
 import { InkLink } from "../../common/InkLink";
-import { SegmentedControl } from "../../common/SegmentedControl";
 import { SparkFooter } from "../../common/SparkFrame";
 import { UserText } from "../../../i18n";
 
@@ -446,38 +445,9 @@ function SourceSheet({
 
       <View style={styles.sheetDivider} />
 
-      <View style={styles.field}>
-        <Text style={styles.fieldLabel}>{t("magpie.language")}</Text>
-        <SegmentedControl<MagpieLanguage>
-          options={[
-            { key: "en", label: t("magpie.langEnglish") },
-            { key: "es", label: t("magpie.langSpanish") },
-            { key: "de", label: t("magpie.langGerman") },
-            { key: "pt", label: t("magpie.langPortuguese") },
-            ...(MAGPIE_HE_ENABLED ? [{ key: "he" as const, label: t("magpie.langHebrew") }] : []),
-          ]}
-          value={spark.language}
-          onChange={(v) => {
-            if (!busy) model.setLanguage(v);
-          }}
-        />
-      </View>
-
-      {spark.language === "en" ? (
-        <View style={styles.field}>
-          <Text style={styles.fieldLabel}>{t("magpie.scope")}</Text>
-          <SegmentedControl<"curated" | "library">
-            options={[
-              { key: "curated", label: t("magpie.curated") },
-              { key: "library", label: t("magpie.library") },
-            ]}
-            value={spark.wholeLibrary ? "library" : "curated"}
-            onChange={(v) => {
-              if (!busy) model.setWholeLibrary(v === "library");
-            }}
-          />
-        </View>
-      ) : spark.language === "he" ? (
+      {/* The language follows Settings → word tools; nothing to switch here.
+          Hebrew keeps its genres (Ben-Yehuda is a different shelf). */}
+      {spark.language === "he" ? (
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>{t("magpie.genreHint")}</Text>
           <View style={styles.chips}>

@@ -27,7 +27,7 @@ import {
   splitFragment as splitFragmentOp,
   toggleWordOnPage,
 } from "../../../domain/magpie";
-import type { MagpieFragment, MagpieLanguage, MagpieStep } from "../../../types";
+import type { MagpieFragment, MagpieStep } from "../../../types";
 import type { MagpieHeGenre } from "../../../config/magpieService";
 import { useMagpiePrefsStore } from "../../../state/useMagpiePrefsStore";
 import { restoreRemovedItem } from "../../../domain/undoPatch";
@@ -90,13 +90,13 @@ export function useMagpieScreenModel() {
   const load = useCallback(
     async (
       mode: "book" | "page",
-      overrides?: { language?: MagpieLanguage; heGenres?: MagpieHeGenre[] }
+      overrides?: { heGenres?: MagpieHeGenre[] }
     ) => {
       if (!spark) return;
       const seq = ++requestSeq.current;
       setStatus({ loading: true, error: null });
       try {
-        // Overrides let a just-changed setting (language, genres) take effect on
+        // Overrides let a just-changed setting (the Hebrew genres) take effect on
         // this draw without waiting for the store round-trip / re-render.
         const effective = {
           ...spark,
@@ -137,24 +137,6 @@ export function useMagpieScreenModel() {
       autoLoadedRef.current = true;
     }
   }, [spark, load]);
-
-  const setWholeLibrary = useCallback(
-    (wholeLibrary: boolean) => {
-      apply({ wholeLibrary });
-    },
-    [apply]
-  );
-
-  // Switching source language clears the current page and immediately draws a
-  // fresh one from the new library (the passage on screen is in the old language).
-  const setLanguage = useCallback(
-    (language: MagpieLanguage) => {
-      if (!spark || spark.language === language) return;
-      apply({ language, book: null, pageText: "" });
-      void load("book", { language });
-    },
-    [spark, apply, load]
-  );
 
   // Changing the Hebrew genre selection is an app-wide preference; in Hebrew mode
   // it also redraws the current page from the new genre set.
@@ -475,8 +457,6 @@ export function useMagpieScreenModel() {
     newBook,
     newPage,
     retry,
-    setWholeLibrary,
-    setLanguage,
     heGenres,
     toggleHeGenre,
     toggleWord,

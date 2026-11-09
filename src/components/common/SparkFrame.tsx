@@ -44,16 +44,9 @@ export function SparkHeader({
   menuTitle?: string;
 }) {
   const { t } = useTranslation();
-  const [sizeOpen, setSizeOpen] = useState(false);
   const openMenu = () => {
     // Order: act on it, send it out, then destroy (the menu law).
     AppAlert.menu(menuTitle || title, [
-      {
-        key: "size",
-        label: t("wordSparks.textSize"),
-        icon: "text-outline",
-        onPress: () => setSizeOpen(true),
-      },
       {
         key: "help",
         label: t("wordSparks.howThisWorks"),
@@ -106,7 +99,6 @@ export function SparkHeader({
       >
         <Ionicons name="ellipsis-horizontal" size={22} color={colors.textStrong} />
       </Press>
-      <SparkTextSizeSheet visible={sizeOpen} onClose={() => setSizeOpen(false)} />
     </View>
   );
 }
@@ -208,8 +200,9 @@ export function SparkHint({ text, onExample }: { text: string; onExample: () => 
 }
 
 /**
- * The one footer: an optional short hint, a quiet "‹ Step" back, and the soft
- * key. Next taps; the last step's Save is a completion (`success`).
+ * The one footer: an optional short hint, a quiet "‹ Step" back, the text size
+ * ("Aa", by the thumb rather than inside the "…", founder 2026-11-09) and the
+ * soft key. Next taps; the last step's Save is a completion (`success`).
  */
 export function SparkFooter({
   back,
@@ -224,6 +217,8 @@ export function SparkFooter({
    *  Lyric Pad", or "In Lyric Pad" once sent). */
   link?: { label: string; onPress: () => void; icon?: keyof typeof Ionicons.glyphMap };
 }) {
+  const { t } = useTranslation();
+  const [sizeOpen, setSizeOpen] = useState(false);
   return (
     <View style={s.footer}>
       {hint ? (
@@ -249,18 +244,32 @@ export function SparkFooter({
         ) : (
           <View />
         )}
-        <Button
-          label={next.label}
-          disabled={next.disabled}
-          hapticFeedback={!next.final}
-          onPress={() => {
-            // Haptics vocabulary: success, a meaningful completion.
-            if (next.final) haptic.success();
-            next.onPress();
-          }}
-          style={s.nextKey}
-        />
+        <View style={s.footerEnd}>
+          <Press
+            // Haptics vocabulary: tap, an acknowledged press (it opens the size sheet).
+            feel="glyph"
+            style={s.sizeKey}
+            onPress={() => setSizeOpen(true)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t("wordSparks.textSize")}
+          >
+            <Text style={s.sizeKeyText}>Aa</Text>
+          </Press>
+          <Button
+            label={next.label}
+            disabled={next.disabled}
+            hapticFeedback={!next.final}
+            onPress={() => {
+              // Haptics vocabulary: success, a meaningful completion.
+              if (next.final) haptic.success();
+              next.onPress();
+            }}
+            style={s.nextKey}
+          />
+        </View>
       </View>
+      <SparkTextSizeSheet visible={sizeOpen} onClose={() => setSizeOpen(false)} />
     </View>
   );
 }
@@ -428,6 +437,21 @@ const s = StyleSheet.create({
   },
   nextKey: {
     minWidth: 104,
+  },
+  footerEnd: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  sizeKey: {
+    minHeight: 40,
+    paddingHorizontal: spacing.xs,
+    justifyContent: "center",
+  },
+  sizeKeyText: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    fontSize: 16,
+    color: colors.textStrong,
   },
   missingPage: {
     flex: 1,

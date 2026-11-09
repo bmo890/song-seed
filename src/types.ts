@@ -222,11 +222,12 @@ export type MagpieSpark = {
   fragments: MagpieFragment[];
   /** The compiled + edited draft, preserved alongside the fragments. */
   draft: string;
-  /** Which language's library to draw from. Defaults to "en" (legacy sparks have
-   * no field). "he" draws from Project Ben-Yehuda; `wholeLibrary` is ignored then. */
+  /** Which language's shelf to draw from, set from the word-tools language when
+   * the spark is made. Defaults to "en" (legacy sparks have no field). "he"
+   * draws from Project Ben-Yehuda. */
   language: MagpieLanguage;
-  /** Whether to draw from the whole Gutenberg library (true) or the curated pool
-   * (false). Applies to the English source only. */
+  /** Retired 2026-11-09 (founder: curated shelves only); kept so old sparks and
+   *  backups still read. Nothing draws from the whole library any more. */
   wholeLibrary: boolean;
   /** The Lyric Pad page this spark was last sent to (a copy; the spark stays).
    *  Was set by the old Save, which also deleted the spark (until 2026-10-17). */
