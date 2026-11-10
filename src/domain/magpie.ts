@@ -100,7 +100,9 @@ const GUTENBERG_BOILERPLATE = /project gutenberg|gutenberg\.org|gutenberg-tm|\*\
 
 /** Tidies a raw Range slice into a readable page: normalises newlines, drops the
  * partial first/last lines (the window starts and ends mid-line), removes any
- * stray Gutenberg boilerplate lines, and collapses blank runs. */
+ * stray Gutenberg boilerplate lines, collapses blank runs, and turns the
+ * plain-text markup into print: "_word_" italics lose their underscores and a
+ * typed "--" becomes the dash it stands for. */
 export function cleanPassage(raw: string): string {
   const normalised = raw.replace(/\r\n?/g, "\n");
   let lines = normalised.split("\n");
@@ -110,6 +112,8 @@ export function cleanPassage(raw: string): string {
   return lines
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
+    .replace(/_/g, "")
+    .replace(/-{2,3}/g, "—")
     .trim();
 }
 

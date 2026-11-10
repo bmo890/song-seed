@@ -24,8 +24,8 @@ import {
   runToPhrases,
   tokenizePageIntoParagraphs,
 } from "../../../domain/magpie";
-import { MAGPIE_HE_GENRES, type MagpieHeGenre } from "../../../config/magpieService";
-import type { MagpieBook, MagpieSpark } from "../../../types";
+import { MAGPIE_HE_ENABLED, MAGPIE_HE_GENRES, type MagpieHeGenre } from "../../../config/magpieService";
+import type { MagpieBook, MagpieLanguage, MagpieSpark } from "../../../types";
 import type { useMagpieScreenModel } from "../hooks/useMagpieScreenModel";
 import { useTranslation } from "react-i18next";
 import { useSparkTextScale } from "../../common/sparkTextScale";
@@ -34,7 +34,8 @@ import { Button } from "../../common/Button";
 import { InkKey, inkKeyColor } from "../../common/InkKey";
 import { InkLink } from "../../common/InkLink";
 import { SparkFooter } from "../../common/SparkFrame";
-import { UserText } from "../../../i18n";
+import { languageLabel, UserText } from "../../../i18n";
+import { PopoverRadioRow } from "../../common/PopoverMenu";
 
 type Model = ReturnType<typeof useMagpieScreenModel>;
 
@@ -445,8 +446,7 @@ function SourceSheet({
 
       <View style={styles.sheetDivider} />
 
-      {/* The language follows Settings → word tools; nothing to switch here.
-          Hebrew keeps its genres (Ben-Yehuda is a different shelf). */}
+      {/* Hebrew keeps its genres (Ben-Yehuda is a different shelf). */}
       {spark.language === "he" ? (
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>{t("magpie.genreHint")}</Text>
@@ -485,8 +485,71 @@ function SourceSheet({
         }}
       />
 
+      <BookLanguageRow
+        language={spark.language}
+        disabled={busy}
+        onChange={(language) => {
+          model.setBookLanguage(language);
+          onClose();
+        }}
+      />
+
       </ScrollView>
     </BottomSheet>
+  );
+}
+
+/** Which shelf the books come from (founder, 2026-11-10): rarely changed, so one
+ *  quiet line at the foot of the sheet, the Settings ValueRow shape, whose
+ *  choices open in place beneath it. Starts from Settings → word tools. */
+function BookLanguageRow({
+  language,
+  disabled,
+  onChange,
+}: {
+  language: MagpieLanguage;
+  disabled: boolean;
+  onChange: (language: MagpieLanguage) => void;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const options: MagpieLanguage[] = MAGPIE_HE_ENABLED ? ["en", "es", "de", "pt", "he"] : ["en", "es", "de", "pt"];
+  const value = languageLabel(language);
+  return (
+    <View style={styles.langWrap}>
+      <View style={styles.langRule} />
+      <Press
+        // Haptics vocabulary: `light` — a small panel opens.
+        haptic="light"
+        style={styles.langRow}
+        onPress={() => setOpen((wasOpen) => !wasOpen)}
+        disabled={disabled}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open, disabled }}
+        accessibilityLabel={`${t("magpie.bookLanguage")}: ${value}`}
+      >
+        <Text style={styles.langTitle}>{t("magpie.bookLanguage")}</Text>
+        <View style={styles.langValue}>
+          <Text style={styles.langValueText} numberOfLines={1}>{value}</Text>
+          <Ionicons name={open ? "chevron-up" : "chevron-down"} size={14} color={colors.textMuted} />
+        </View>
+      </Press>
+      {open ? (
+        <Animated.View entering={FadeIn.duration(durations.fast)} style={styles.langMenu}>
+          {options.map((code) => (
+            <PopoverRadioRow
+              key={code}
+              label={languageLabel(code)}
+              selected={code === language}
+              onPress={() => {
+                setOpen(false);
+                if (code !== language) onChange(code);
+              }}
+            />
+          ))}
+        </Animated.View>
+      ) : null}
+    </View>
   );
 }
 
@@ -698,6 +761,15 @@ const styles = StyleSheet.create({
   genreDotOn: { backgroundColor: colors.primary, borderColor: colors.primary },
   genreText: { fontFamily: "PlusJakartaSans_500Medium", fontSize: 14, color: colors.textSecondary },
   genreTextOn: { color: colors.textPrimary },
+
+  // book language, the sheet's quiet last line
+  langWrap: { marginTop: spacing.md },
+  langRule: { height: StyleSheet.hairlineWidth, backgroundColor: colors.borderMuted },
+  langRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, minHeight: 48 },
+  langTitle: { fontFamily: "PlusJakartaSans_500Medium", fontSize: 14, color: colors.textSecondary },
+  langValue: { flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 1 },
+  langValueText: { flexShrink: 1, fontFamily: "PlusJakartaSans_500Medium", fontSize: 14, color: colors.textSecondary },
+  langMenu: { marginHorizontal: -spacing.lg, paddingBottom: spacing.xs },
 
   // split sheet
   splitPhrase: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "center", paddingVertical: spacing.sm },

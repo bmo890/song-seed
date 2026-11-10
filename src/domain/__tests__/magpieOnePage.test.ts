@@ -1,4 +1,4 @@
-import { toOnePage } from "../magpie";
+import { cleanPassage, toOnePage } from "../magpie";
 
 const words = (n: number, word = "word") => Array.from({ length: n }, () => word).join(" ");
 const count = (text: string) => text.split(/\s+/).filter(Boolean).length;
@@ -30,5 +30,12 @@ describe("toOnePage", () => {
     const page = toOnePage(Array.from({ length: 40 }, () => sentence).join(" "), { fromStart: true });
     expect(count(page)).toBeLessThanOrEqual(170);
     expect(page.endsWith("סוף.")).toBe(true);
+  });
+});
+
+describe("cleanPassage", () => {
+  it("prints Gutenberg's plain-text italics and dashes", () => {
+    const raw = "partial line\n--Y además, en nuestro cementerio _municipal_--y subrayó.\npartial";
+    expect(cleanPassage(raw)).toBe("—Y además, en nuestro cementerio municipal—y subrayó.");
   });
 });

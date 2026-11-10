@@ -118,7 +118,7 @@ const ENGLISH_SHELF: CuratedBook[] = [
   { id: 2383, title: "The Canterbury Tales", author: "Geoffrey Chaucer" },
   { id: 2680, title: "Meditations", author: "Marcus Aurelius" },
   { id: 1497, title: "The Republic", author: "Plato" },
-  { id: 23, title: "Narrative of the Life of Frederick Douglass", author: "Frederick Douglass" },
+  { id: 308, title: "Three Men in a Boat", author: "Jerome K. Jerome" },
   { id: 203, title: "Uncle Tom's Cabin", author: "Harriet Beecher Stowe" },
   { id: 160, title: "The Awakening", author: "Kate Chopin" },
   { id: 4517, title: "Ethan Frome", author: "Edith Wharton" },

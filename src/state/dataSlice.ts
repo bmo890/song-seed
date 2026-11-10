@@ -114,7 +114,7 @@ import {
     normalizeBluetoothMonitoringCalibration,
     normalizeBluetoothMonitoringCalibrations,
 } from "../domain/bluetoothMonitoring";
-import type { DeletedItem } from "../types";
+import type { DeletedItem, MagpieLanguage } from "../types";
 import {
     captureDeletedCollection,
     captureDeletedIdeas,
@@ -258,7 +258,7 @@ export type DataSlice = {
     updateCutUpSpark: (id: string, updates: Partial<Omit<CutUpSpark, "id" | "type" | "createdAt">>) => void;
     deleteCutUpSpark: (id: string, opts?: DeleteOptions) => string[];
     magpieSparks: MagpieSpark[];
-    addMagpieSpark: () => string;
+    addMagpieSpark: (bookLanguage?: MagpieLanguage | null) => string;
     updateMagpieSpark: (id: string, updates: Partial<Omit<MagpieSpark, "id" | "type" | "createdAt">>) => void;
     deleteMagpieSpark: (id: string, opts?: DeleteOptions) => string[];
     setBackupReminderFrequency: (value: BackupReminderFrequency) => void;
@@ -1939,14 +1939,14 @@ export const createDataSlice: StateCreator<
         }));
         return kept ? [kept.id] : [];
     },
-    addMagpieSpark: () => {
-        // A new spark draws from the word-tools language's library (Hebrew only
-        // while its source is live).
-        const wordLanguage = resolveWordLanguage(get().wordLanguage, i18n.language);
+    addMagpieSpark: (bookLanguage) => {
+        // A new spark draws from the book language chosen in Borrowed Words, else
+        // the word-tools language's shelf (Hebrew only while its source is live).
+        const wanted = bookLanguage ?? resolveWordLanguage(get().wordLanguage, i18n.language);
         const spark = createMagpieSpark(
-            wordLanguage === "es" || wordLanguage === "de" || wordLanguage === "pt"
-                ? wordLanguage
-                : wordLanguage === "he" && MAGPIE_HE_ENABLED
+            wanted === "es" || wanted === "de" || wanted === "pt"
+                ? wanted
+                : wanted === "he" && MAGPIE_HE_ENABLED
                     ? "he"
                     : "en"
         );

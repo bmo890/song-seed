@@ -6,21 +6,24 @@ import {
   MAGPIE_HE_GENRES,
   type MagpieHeGenre,
 } from "../config/magpieService";
+import type { MagpieLanguage } from "../types";
 
 /**
- * App-wide Magpie preferences. Currently just which Hebrew (Ben-Yehuda) genres to
- * draw from — remembered across Magpies so the writer sets it once (via the page's
- * settings sheet) and every new Magpie inherits it. Satellite store, mirroring the
- * chart-prefs pattern. At least one genre is always selected.
+ * App-wide Magpie preferences, set once in the book sheet and inherited by every
+ * new Borrowed Words: which Hebrew (Ben-Yehuda) genres to draw from (at least one
+ * always selected), and the language of the books (null = follow Settings → word
+ * tools). Satellite store, mirroring the chart-prefs pattern.
  */
 
 type PersistedMagpiePrefsState = {
   heGenres: MagpieHeGenre[];
+  bookLanguage: MagpieLanguage | null;
 };
 
 export type MagpiePrefsStore = PersistedMagpiePrefsState & {
   setHeGenres: (genres: MagpieHeGenre[]) => void;
   toggleHeGenre: (genre: MagpieHeGenre) => void;
+  setBookLanguage: (language: MagpieLanguage) => void;
 };
 
 const STORE_NAME = "songnook-magpie-prefs";
@@ -34,10 +37,19 @@ function sanitizeGenres(value: unknown): MagpieHeGenre[] {
   return kept.length ? kept : [...MAGPIE_HE_DEFAULT_GENRES];
 }
 
+const BOOK_LANGUAGES: readonly MagpieLanguage[] = ["en", "es", "de", "pt", "he"];
+
+function sanitizeBookLanguage(value: unknown): MagpieLanguage | null {
+  return BOOK_LANGUAGES.includes(value as MagpieLanguage) ? (value as MagpieLanguage) : null;
+}
+
 export const useMagpiePrefsStore = create<MagpiePrefsStore>()(
   persist(
     (set) => ({
       heGenres: [...MAGPIE_HE_DEFAULT_GENRES],
+      bookLanguage: null,
+
+      setBookLanguage: (language) => set({ bookLanguage: sanitizeBookLanguage(language) }),
 
       setHeGenres: (genres) => set({ heGenres: sanitizeGenres(genres) }),
 
@@ -57,13 +69,15 @@ export const useMagpiePrefsStore = create<MagpiePrefsStore>()(
       name: STORE_NAME,
       version: STORE_VERSION,
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ heGenres: state.heGenres }),
-      merge: (persistedState, currentState) => ({
-        ...currentState,
-        heGenres: sanitizeGenres(
-          (persistedState as Partial<PersistedMagpiePrefsState> | undefined)?.heGenres
-        ),
-      }),
+      partialize: (state) => ({ heGenres: state.heGenres, bookLanguage: state.bookLanguage }),
+      merge: (persistedState, currentState) => {
+        const persisted = persistedState as Partial<PersistedMagpiePrefsState> | undefined;
+        return {
+          ...currentState,
+          heGenres: sanitizeGenres(persisted?.heGenres),
+          bookLanguage: sanitizeBookLanguage(persisted?.bookLanguage),
+        };
+      },
     }
   )
 );

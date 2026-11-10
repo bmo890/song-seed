@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Share } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
+import { useMagpiePrefsStore } from "../../../state/useMagpiePrefsStore";
 import { buildShareTextFromNotes } from "../../../domain/notepad";
 import { canStartSpark } from "../../../domain/proGating";
 import { spendSparkTry, sparkTriesUsed, type SparkGame } from "../../../services/sparkTries";
@@ -238,7 +239,7 @@ export function useNotepadScreenModel() {
 
   const handleNewMagpie = useCallback(() => {
     startSpark("magpie", () => {
-      const id = addMagpieSpark();
+      const id = addMagpieSpark(useMagpiePrefsStore.getState().bookLanguage);
       navigation.navigate("MagpieHome", { sparkId: id });
     });
   }, [addMagpieSpark, navigation, startSpark]);
