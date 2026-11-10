@@ -2643,7 +2643,7 @@ export const pt = {
     sourceBenYehuda: "Project Ben-Yehuda",
     genreSettings: "Gêneros de origem",
     genreHint: "Tirar palavras de:",
-    bookLanguage: "Idioma dos livros",
+    bookLanguage: "Buscar livros em",
     genre: {
       prose: "Prosa",
       memoir: "Memórias",

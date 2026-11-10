@@ -4,6 +4,7 @@ import { Share } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useStore } from "../../../state/useStore";
 import { useMagpiePrefsStore } from "../../../state/useMagpiePrefsStore";
+import { useSparkPrefsStore } from "../../../state/useSparkPrefsStore";
 import { buildShareTextFromNotes } from "../../../domain/notepad";
 import { canStartSpark } from "../../../domain/proGating";
 import { spendSparkTry, sparkTriesUsed, type SparkGame } from "../../../services/sparkTries";
@@ -37,6 +38,10 @@ export function useNotepadScreenModel() {
   const addMagpieSpark = useStore((s) => s.addMagpieSpark);
   const deleteMagpieSpark = useStore((s) => s.deleteMagpieSpark);
 
+  // The spark page's filter (kinds; none lit = all) and order, remembered.
+  const sparkKinds = useSparkPrefsStore((s) => s.kinds);
+  const sparkOrder = useSparkPrefsStore((s) => s.order);
+
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectionMode, setSelectionMode] = useState(false);
@@ -63,6 +68,7 @@ export function useNotepadScreenModel() {
   }, [notes, searchQuery]);
 
   const filteredLadders = useMemo(() => {
+    if (sparkKinds.length > 0 && !sparkKinds.includes("ladder")) return [];
     const needle = searchQuery.trim().toLowerCase();
     if (!needle) return wordLadders;
     return wordLadders.filter((exercise) => {
@@ -74,9 +80,10 @@ export function useNotepadScreenModel() {
         exercise.revision.toLowerCase().includes(needle)
       );
     });
-  }, [wordLadders, searchQuery]);
+  }, [wordLadders, searchQuery, sparkKinds]);
 
   const filteredCutUps = useMemo(() => {
+    if (sparkKinds.length > 0 && !sparkKinds.includes("cutup")) return [];
     const needle = searchQuery.trim().toLowerCase();
     if (!needle) return cutUpSparks;
     return cutUpSparks.filter((spark) => {
@@ -86,9 +93,10 @@ export function useNotepadScreenModel() {
         spark.assembledDraftText.toLowerCase().includes(needle)
       );
     });
-  }, [cutUpSparks, searchQuery]);
+  }, [cutUpSparks, searchQuery, sparkKinds]);
 
   const filteredMagpies = useMemo(() => {
+    if (sparkKinds.length > 0 && !sparkKinds.includes("magpie")) return [];
     const needle = searchQuery.trim().toLowerCase();
     if (!needle) return magpieSparks;
     return magpieSparks.filter((spark) => {
@@ -100,7 +108,7 @@ export function useNotepadScreenModel() {
         (spark.book?.author.toLowerCase().includes(needle) ?? false)
       );
     });
-  }, [magpieSparks, searchQuery]);
+  }, [magpieSparks, searchQuery, sparkKinds]);
 
   // Lyrics (notes) and Sparks each get their own tab, so their entries are built
   // as separate lists; the active tab decides which set the list renders.
@@ -168,22 +176,31 @@ export function useNotepadScreenModel() {
       }
     }
 
-    const sortDesc = (a: NotebookEntry, b: NotebookEntry) => b.updatedAt - a.updatedAt;
-    const buckets: Array<{ key: string; label: string; entries: NotebookEntry[] }> = [
-      { key: "pinned", label: t("notepad.pinned"), entries: pinned.sort(sortDesc) },
-      { key: "today", label: t("notepad.today"), entries: today.sort(sortDesc) },
-      { key: "yesterday", label: t("notepad.yesterday"), entries: yesterday.sort(sortDesc) },
-      { key: "thisWeek", label: t("notepad.earlierWeek"), entries: thisWeek.sort(sortDesc) },
-      { key: "earlier", label: t("notepad.earlier"), entries: earlier.sort(sortDesc) },
+    // Oldest first (the spark page's order) turns the whole timeline over:
+    // the earliest bucket leads and each bucket reads oldest to newest.
+    const ascending = activeTab === "sparks" && sparkOrder === "asc";
+    const byTime = ascending
+      ? (a: NotebookEntry, b: NotebookEntry) => a.updatedAt - b.updatedAt
+      : (a: NotebookEntry, b: NotebookEntry) => b.updatedAt - a.updatedAt;
+    const timeline: Array<{ key: string; label: string; entries: NotebookEntry[] }> = [
+      { key: "today", label: t("notepad.today"), entries: today.sort(byTime) },
+      { key: "yesterday", label: t("notepad.yesterday"), entries: yesterday.sort(byTime) },
+      { key: "thisWeek", label: t("notepad.earlierWeek"), entries: thisWeek.sort(byTime) },
+      { key: "earlier", label: t("notepad.earlier"), entries: earlier.sort(byTime) },
+    ];
+    const buckets = [
+      { key: "pinned", label: t("notepad.pinned"), entries: pinned.sort(byTime) },
+      ...(ascending ? timeline.reverse() : timeline),
     ];
 
     return buckets.filter((bucket) => bucket.entries.length > 0);
-  }, [activeEntries, t]);
+  }, [activeEntries, activeTab, sparkOrder, t]);
 
   const totalNoteCount = notes.length;
   const totalEntryCount =
     notes.length + wordLadders.length + cutUpSparks.length + magpieSparks.length;
   const isSearching = searchQuery.trim().length > 0;
+  const isFilteringSparks = activeTab === "sparks" && sparkKinds.length > 0;
 
   const activeNote = useMemo(
     () => (activeNoteId ? notes.find((n) => n.id === activeNoteId) ?? null : null),
@@ -493,6 +510,7 @@ export function useNotepadScreenModel() {
     sparkCount,
     activeTab,
     isSearching,
+    isFilteringSparks,
     searchQuery,
     setSearchQuery,
     activeNote,

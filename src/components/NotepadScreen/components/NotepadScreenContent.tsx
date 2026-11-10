@@ -6,6 +6,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { dirIcon } from "../../../design/directionalIcons";
 import { ScreenHeader } from "../../common/ScreenHeader";
 import { SearchField } from "../../common/SearchField";
+import { FilterSortControls } from "../../common/FilterSortControls";
+import { InkOption } from "../../common/InkOption";
+import { SegmentedControl } from "../../common/SegmentedControl";
+import {
+  PopoverMenuFootLink,
+  PopoverMenuLabel,
+  PopoverMenuSection,
+} from "../../common/PopoverMenu";
+import { getSortOrderOptions } from "../../../domain/ideaSort";
+import { SPARK_KINDS, useSparkPrefsStore, type SparkKind } from "../../../state/useSparkPrefsStore";
 import { EmptyState } from "../../common/EmptyState";
 import { SelectionTopBar } from "../../common/SelectionTopBar";
 import { SelectionDock, type SelectionAction } from "../../common/SelectionDock";
@@ -319,6 +329,7 @@ export function NotepadScreenContent() {
     sparkCount,
     activeTab,
     isSearching,
+    isFilteringSparks,
     searchQuery,
     setSearchQuery,
     activeNote,
@@ -550,13 +561,17 @@ export function NotepadScreenContent() {
 
           {/* Selection overlays the search row in place — the list below never
               gets pushed down on entering selection. */}
-          <View>
-            <SearchField
-              value={searchQuery}
-              placeholder={t(isSparkPage ? "notepad.searchSparks" : "notepad.searchLyrics")}
-              onChangeText={setSearchQuery}
-              containerStyle={listStyles.searchField}
-            />
+          <View style={listStyles.searchRow}>
+            {isSparkPage ? (
+              <SparkListControls searchQuery={searchQuery} onSearchQueryChange={setSearchQuery} />
+            ) : (
+              <SearchField
+                value={searchQuery}
+                placeholder={t("notepad.searchLyrics")}
+                onChangeText={setSearchQuery}
+                containerStyle={listStyles.searchField}
+              />
+            )}
             {selectionMode ? (
               <SelectionTopBar
                 overlay
@@ -574,6 +589,14 @@ export function NotepadScreenContent() {
               icon="search-outline"
               title={t("notepad.noMatches")}
               body={t("notepad.searchHint")}
+            />
+          ) : sections.length === 0 && isFilteringSparks ? (
+            <EmptyState
+              compact
+              icon="funnel-outline"
+              title={t("notepad.noMatches")}
+              actionLabel={t("filters.clearAll")}
+              onAction={useSparkPrefsStore.getState().clearKinds}
             />
           ) : sections.length === 0 ? (
             <EmptyState
@@ -696,6 +719,14 @@ const listStyles = StyleSheet.create({
   },
   searchField: {
     marginBottom: spacing.lg,
+  },
+  // Holds the search (and on Sparks the filter row, whose popovers must hang
+  // over the list below).
+  searchRow: {
+    zIndex: 30,
+  },
+  sparkControls: {
+    marginBottom: spacing.sm,
   },
   scroll: {
     flex: 1,
@@ -834,3 +865,90 @@ const noteStyles = StyleSheet.create({
     color: colors.textStrong,
   },
 });
+
+const SPARK_KIND_LABEL: Record<SparkKind, string> = {
+  ladder: "wordSparks.wordLadder",
+  cutup: "wordSparks.cutUp",
+  magpie: "wordSparks.magpie",
+};
+
+/**
+ * The spark page's search row (2026-11-10): the SAME filter + sort a
+ * collection carries (`FilterSortControls`). Filter = which games, in
+ * editorial ink (none lit = every game); sort = newest or oldest first, the
+ * Ideas list's Order tabs.
+ */
+function SparkListControls({
+  searchQuery,
+  onSearchQueryChange,
+}: {
+  searchQuery: string;
+  onSearchQueryChange: (value: string) => void;
+}) {
+  const { t } = useTranslation();
+  const kinds = useSparkPrefsStore((s) => s.kinds);
+  const order = useSparkPrefsStore((s) => s.order);
+  const toggleKind = useSparkPrefsStore((s) => s.toggleKind);
+  const clearKinds = useSparkPrefsStore((s) => s.clearKinds);
+  const setOrder = useSparkPrefsStore((s) => s.setOrder);
+  const orderOptions = getSortOrderOptions("updated");
+  return (
+    <View style={listStyles.sparkControls}>
+      <FilterSortControls
+        leadingSlot={
+          <SearchField
+            value={searchQuery}
+            placeholder={t("notepad.searchSparks")}
+            onChangeText={onSearchQueryChange}
+          />
+        }
+        filter={{
+          active: kinds.length > 0,
+          valueIcon: "funnel-outline",
+          onClear: clearKinds,
+          renderMenu: ({ close }) => (
+            <>
+              <PopoverMenuLabel>{t("filters.show")}</PopoverMenuLabel>
+              <PopoverMenuSection>
+                {SPARK_KINDS.map((kind) => (
+                  <InkOption
+                    key={kind}
+                    label={t(SPARK_KIND_LABEL[kind])}
+                    selected={kinds.includes(kind)}
+                    onPress={() => toggleKind(kind)}
+                  />
+                ))}
+              </PopoverMenuSection>
+              {kinds.length > 0 ? (
+                <PopoverMenuFootLink
+                  label={t("filters.clearAll")}
+                  onPress={() => {
+                    clearKinds();
+                    close();
+                  }}
+                />
+              ) : null}
+            </>
+          ),
+        }}
+        sort={{
+          active: order !== "desc",
+          valueIcon: "time-outline",
+          direction: order,
+          renderMenu: () => (
+            <>
+              <PopoverMenuLabel>{t("filters.order")}</PopoverMenuLabel>
+              <PopoverMenuSection>
+                <SegmentedControl
+                  options={orderOptions.map((option) => ({ key: option.direction, label: t(option.labelKey) }))}
+                  value={order}
+                  onChange={setOrder}
+                />
+              </PopoverMenuSection>
+            </>
+          ),
+        }}
+      />
+    </View>
+  );
+}

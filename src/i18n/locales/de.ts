@@ -2534,7 +2534,7 @@ export const de = {
     sourceBenYehuda: "Project Ben-Yehuda",
     genreSettings: "Quellgenres",
     genreHint: "Wörter holen aus:",
-    bookLanguage: "Sprache der Bücher",
+    bookLanguage: "Bücher suchen auf",
     genre: {
       prose: "Prosa",
       memoir: "Memoiren",
