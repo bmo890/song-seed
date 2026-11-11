@@ -90,8 +90,11 @@ The split lives in code: `src/domain/proCatalog.ts` (numbers and switches) and
   that exists always opens in the stage reader, 2026-11-02 audit 11-M3);
   PDF export; the whole Word Finder (its APIs cost money); Lyric Spark beyond 3 tries per
   game; Send beyond 3 links per 30 days; archive offload.
-- `ALL_FEATURES_FREE = true` in `src/domain/entitlements.ts` until the paywall goes live
-  (set `APP_STORE_RELEASE_AT` in the release commit).
+- The paywall is on in code since the release commit of 2026-11-11:
+  `ALL_FEATURES_FREE = false` (`src/domain/entitlements.ts`) and
+  `APP_STORE_RELEASE_AT = 2026-11-11` (`src/domain/freeMonth.ts`). It reaches people
+  only through a new build or an update, and an update from main turns it on for
+  every 1.0.0 build already installed. The lifetime launch price ends 2027-02-09.
 
 ## 4. Costs and margin
 
@@ -176,16 +179,21 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
 
 ## Release-day checklist (pricing)
 
-1. Set `APP_STORE_RELEASE_AT` in `src/domain/freeMonth.ts` in the release commit. The
-   lifetime launch price then ends 90 days later, and the sheet prints that date.
-2. Put that end date in the founder's calendar: change `songnook_pro_lifetime` to
+1. DONE 2026-11-11 (code only): `APP_STORE_RELEASE_AT` is 2026-11-11 in
+   `src/domain/freeMonth.ts`. The lifetime launch price ends 90 days later,
+   2027-02-09, and the sheet prints that date. If the app goes on sale much later,
+   move the date in that one line before the build.
+2. Put 2027-02-09 in the founder's calendar: change `songnook_pro_lifetime` to
    $79.99 in App Store Connect and Play Console that day.
-3. Flip `ALL_FEATURES_FREE` to false (`src/domain/entitlements.ts`).
+3. DONE 2026-11-11 (code only): `ALL_FEATURES_FREE` is false
+   (`src/domain/entitlements.ts`). No build or update has carried it yet.
 4. Send server (`server/songnook-send`, deploy with `--config ./wrangler.toml`): set
    `PRO_FOR_ALL=false` and `APP_SEND_ENFORCED=true`, and
    `wrangler secret put REVENUECAT_SECRET_KEY`. Without this the browser and the free
    3 links stay open to everyone. Then open `https://send.songnook.app/healthz/billing`:
    it must say the key is accepted, or every subscriber is treated as free on Send.
+   Deploy only once the App Store listing is live: the Send page's iOS button now
+   points at it.
 
 ## 10. Decision log
 
@@ -225,3 +233,8 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
   refused, and `/healthz/billing` reports a missing or refused key. The unused
   `processing` background mode is gone from app.json. Founder waived A2 (founding
   members are not Pro on the Send server): there were no real testers.
+- 2026-11-11 — Release commit (audit A6): paywall on in code, release date 2026-11-11,
+  so the $59.99 lifetime price ends 2027-02-09 (change it to $79.99 in both stores that
+  day). The Send page's iOS button points at the App Store listing in `wrangler.toml`;
+  not deployed, and the server flags (`PRO_FOR_ALL`, `APP_SEND_ENFORCED`) are untouched,
+  until the founder says so.

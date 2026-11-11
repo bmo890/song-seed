@@ -4,11 +4,10 @@ import { isProFeature, type ProFeature } from "./proCatalog";
 /**
  * Pro-entitlement gate.
  *
- * Everything is free today, so `ALL_FEATURES_FREE` short-circuits every access check and
- * nothing is actually withheld. The seam is fully built so that when real billing lands
- * (RevenueCat — see docs/product-plan/phase-6-monetization.md), flipping this ONE flag to
- * false and driving `proEntitlement` from the purchase/entitlement state turns on the split
- * without touching any gated call site.
+ * The paywall is live (release commit, 2026-11-11): `ALL_FEATURES_FREE` is false, so
+ * access comes from a purchase (`proEntitlement`, driven by RevenueCat in
+ * services/billing.ts), the free month, or founding membership. Setting this ONE flag
+ * back to true opens everything again without touching any gated call site.
  *
  * WHICH features are Pro is decided in ONE table, domain/proCatalog.ts: a key whose row
  * says `pro: false` is free for everyone whatever this flag says.
@@ -17,7 +16,7 @@ import { isProFeature, type ProFeature } from "./proCatalog";
  * only to creating NEW Pro-tier content. (House principle from the 2026-07 audit.)
  */
 
-const ALL_FEATURES_FREE = true;
+const ALL_FEATURES_FREE = false;
 
 /** Pro feature keys: the catalog's rows (domain/proCatalog.ts). */
 export type { ProFeature } from "./proCatalog";

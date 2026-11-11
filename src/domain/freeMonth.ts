@@ -15,10 +15,10 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * When the App Store version shipped. Installs that first launched before this are
- * founding members. `null` until release: nobody is founding yet (everything is still
- * free behind ALL_FEATURES_FREE anyway). Set it in the release commit.
+ * founding members. `null` means not released: nobody is founding. Set in the release
+ * commit (2026-11-11); the lifetime launch price below is counted from it.
  */
-export const APP_STORE_RELEASE_AT: number | null = null;
+export const APP_STORE_RELEASE_AT: number | null = Date.UTC(2026, 10, 11);
 
 /**
  * Lifetime's launch price (founder, 2026-11-01): $59.99 for the first 90 days after
