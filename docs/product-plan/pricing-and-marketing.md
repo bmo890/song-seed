@@ -184,7 +184,8 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
 4. Send server (`server/songnook-send`, deploy with `--config ./wrangler.toml`): set
    `PRO_FOR_ALL=false` and `APP_SEND_ENFORCED=true`, and
    `wrangler secret put REVENUECAT_SECRET_KEY`. Without this the browser and the free
-   3 links stay open to everyone.
+   3 links stay open to everyone. Then open `https://send.songnook.app/healthz/billing`:
+   it must say the key is accepted, or every subscriber is treated as free on Send.
 
 ## 10. Decision log
 
@@ -214,3 +215,13 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
   decided from the Keychain first-launch record and never stored as "0" (11-H1). The free
   month's clock ignores a single forward jump of more than 2 days until a later launch
   confirms it (07-M4).
+- 2026-11-11 — Launch audit, A fixes (founder: "everything else from the A's"). The Pro
+  sheet carries a renewal line under Get Pro (`pro.renewNoteIos` / `renewNoteAndroid`:
+  "Yearly and monthly renew until cancelled. Cancel in your App Store account.", Apple
+  3.1.2). Someone who already has Pro sees "You have Pro", their renewal date or
+  "Lifetime. Paid once." or "Founding member. Yours for good.", and Manage subscription;
+  plans stay behind "See plans". The Send server re-asks RevenueCat after 60 seconds
+  for a "not Pro" answer (a "Pro" answer still holds 6 hours), so a new buyer is not
+  refused, and `/healthz/billing` reports a missing or refused key. The unused
+  `processing` background mode is gone from app.json. Founder waived A2 (founding
+  members are not Pro on the Send server): there were no real testers.

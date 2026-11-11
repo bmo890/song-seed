@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { Dimensions, Linking, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useRef, useState } from "react";
+import { Dimensions, Linking, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import ReAnimated from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { BottomSheet } from "./BottomSheet";
@@ -7,13 +8,28 @@ import { Button } from "./Button";
 import { Press } from "./Press";
 import { closeProUpsell, useProUpsellState } from "./proUpsell";
 import { colors, radii, spacing, text as textTokens } from "../../design/tokens";
-import { getFreeMonthClock, getFreeMonthEndsAt, isFoundingMember, isPaywallLive, proEntitlement } from "../../domain/entitlements";
+import {
+  getFreeMonthClock,
+  getFreeMonthEndsAt,
+  isFoundingMember,
+  isPaywallLive,
+  proEntitlement,
+  usePlanState,
+} from "../../domain/entitlements";
 import { freeMonthStatus, FREE_MONTH_DAYS, lifetimeLaunchEndsAt } from "../../domain/freeMonth";
 import { currentFormatLocale } from "../../i18n/formatLocale";
 import { PAYWALL_ROWS } from "../../domain/proCatalog";
 import { isDevFreeMonthPreview } from "../../services/freeMonthClock";
-import { purchasePro, restorePurchases, useProPrices, type ProPlan } from "../../services/billing";
+import {
+  manageSubscriptionUrl,
+  purchasePro,
+  restorePurchases,
+  useOwnedPro,
+  useProPrices,
+  type ProPlan,
+} from "../../services/billing";
 import { haptic } from "../../design/haptics";
+import { collapseIn } from "../../design/motion";
 // Apple requires working Terms and Privacy links on a paywall; the one source of
 // those URLs is config/legalLinks, shared with Settings → About.
 import { PRIVACY_POLICY_URL as PRIVACY_URL, TERMS_OF_USE_URL as TERMS_URL } from "../../config/legalLinks";
@@ -39,6 +55,11 @@ function freeMonthLine(): { daysLeft: number } | "ended" | null {
  * founding prices as rows on paper with an ink tick, one primary key, and the quiet
  * Restore / Terms / Privacy line Apple requires. Prices come from the store, in the
  * person's currency, once RevenueCat answers; the printed ones are the fallback.
+ *
+ * Someone who already has Pro (a purchase, or a founding install) sees what they
+ * have instead: their plan's line, the store's own page for a subscription, and no
+ * buy key. "See plans" unfolds the prices on purpose, so nobody buys twice by
+ * accident and a subscriber can still move to another plan.
  */
 function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
@@ -48,6 +69,28 @@ function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
   const maxScroll = Math.round(Dimensions.get("window").height * 0.55);
   const freeMonth = freeMonthLine();
   const storePrices = useProPrices();
+  const standing = usePlanState();
+  const purchase = useOwnedPro();
+  const hasPro = standing.kind === "pro" || standing.kind === "founding";
+  const [plansOpen, setPlansOpen] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const showPlans = !hasPro || plansOpen;
+  const canManage = purchase != null && !purchase.lifetime;
+  // Lifetime is the last plan: nothing left to sell, and a subscription on top would bill twice.
+  const canSeePlans = !purchase?.lifetime;
+  const ownedLine = () => {
+    if (purchase?.lifetime) return t("pro.ownedLifetime");
+    if (purchase?.until != null) {
+      const date = new Date(purchase.until).toLocaleDateString(currentFormatLocale(), {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      return t(purchase.renews ? "pro.ownedRenews" : "pro.ownedEnds", { date });
+    }
+    return standing.kind === "founding" ? t("pro.ownedFounding") : null;
+  };
+  const owned = hasPro ? ownedLine() : null;
   // Lifetime's printed price follows the launch window: $59.99 until it ends, then
   // $79.99 (a store price, when RevenueCat has one, always wins).
   const launchEndsAt = lifetimeLaunchEndsAt();
@@ -107,11 +150,12 @@ function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
 
   return (
     <View>
-      <ScrollView style={{ maxHeight: maxScroll }} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} style={{ maxHeight: maxScroll }} showsVerticalScrollIndicator={false}>
         <Text style={s.eyebrow}>{t("pro.eyebrow")}</Text>
-        <Text style={s.headline}>{t("pro.headline")}</Text>
+        <Text style={s.headline}>{t(hasPro ? "pro.ownedHeadline" : "pro.headline")}</Text>
+        {owned ? <Text style={s.statusLine}>{owned}</Text> : null}
         {freeMonth ? (
-          <Text style={s.freeMonth}>
+          <Text style={s.statusLine}>
             {freeMonth === "ended" ? t("pro.freeMonthEnded") : t("pro.freeMonthLeft", { count: freeMonth.daysLeft })}
           </Text>
         ) : null}
@@ -129,43 +173,69 @@ function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
           ))}
         </View>
 
-        <View style={s.plans}>
-          {PLAN_IDS.map((plan) => {
-            const isSelected = plan === selected;
-            return (
-              <Press
-                key={plan}
-                // haptics.ts: light → a small state flip (a choice in a set).
-                haptic="light"
-                style={s.planRow}
-                onPress={() => setSelected(plan)}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: isSelected }}
-                accessibilityLabel={`${t(`pro.plans.${plan}.label`)}, ${priceOf(plan)}`}
-              >
-                <View style={[s.dot, isSelected ? s.dotOn : null]} />
-                <View style={s.planText}>
-                  <View style={s.planHeader}>
-                    <Text style={[s.planLabel, isSelected ? s.planLabelOn : null]}>{t(`pro.plans.${plan}.label`)}</Text>
-                    {plan === "annual" ? <Text style={s.planTag}>{t("pro.plans.annual.tag")}</Text> : null}
+        {showPlans ? (
+          <ReAnimated.View
+            entering={hasPro ? collapseIn : undefined}
+            // Unfolded below the list of what Pro adds: bring the prices into view.
+            onLayout={hasPro ? () => scrollRef.current?.scrollToEnd({ animated: true }) : undefined}
+            style={s.plans}
+          >
+            {PLAN_IDS.map((plan) => {
+              const isSelected = plan === selected;
+              return (
+                <Press
+                  key={plan}
+                  // haptics.ts: light → a small state flip (a choice in a set).
+                  haptic="light"
+                  style={s.planRow}
+                  onPress={() => setSelected(plan)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: isSelected }}
+                  accessibilityLabel={`${t(`pro.plans.${plan}.label`)}, ${priceOf(plan)}`}
+                >
+                  <View style={[s.dot, isSelected ? s.dotOn : null]} />
+                  <View style={s.planText}>
+                    <View style={s.planHeader}>
+                      <Text style={[s.planLabel, isSelected ? s.planLabelOn : null]}>{t(`pro.plans.${plan}.label`)}</Text>
+                      {plan === "annual" ? <Text style={s.planTag}>{t("pro.plans.annual.tag")}</Text> : null}
+                    </View>
+                    <Text style={s.planSub}>{subOf(plan)}</Text>
                   </View>
-                  <Text style={s.planSub}>{subOf(plan)}</Text>
-                </View>
-                <Text style={s.planPrice}>{priceOf(plan)}</Text>
-              </Press>
-            );
-          })}
-        </View>
+                  <Text style={s.planPrice}>{priceOf(plan)}</Text>
+                </Press>
+              );
+            })}
+          </ReAnimated.View>
+        ) : null}
       </ScrollView>
 
       <View style={s.footer}>
         {notice ? <Text style={s.notice}>{notice}</Text> : null}
-        <Button label={t("pro.getPro")} onPress={() => void handlePurchase()} style={s.cta} />
+        {showPlans ? (
+          <>
+            <Button label={t("pro.getPro")} onPress={() => void handlePurchase()} style={s.cta} />
+            <Text style={s.renewNote}>{t(Platform.OS === "ios" ? "pro.renewNoteIos" : "pro.renewNoteAndroid")}</Text>
+          </>
+        ) : canManage ? (
+          <Button
+            variant="secondary"
+            label={t("pro.manage")}
+            onPress={() => void Linking.openURL(manageSubscriptionUrl(purchase)).catch(() => {})}
+            style={s.cta}
+          />
+        ) : null}
         <View style={s.footerLinks}>
-          <Press feel="glyph" onPress={() => void handleRestore()} hitSlop={8} accessibilityRole="button">
-            <Text style={s.link}>{t("pro.restore")}</Text>
-          </Press>
-          <Text style={s.linkDot}>·</Text>
+          {showPlans ? (
+            <Press feel="glyph" onPress={() => void handleRestore()} hitSlop={8} accessibilityRole="button">
+              <Text style={s.link}>{t("pro.restore")}</Text>
+            </Press>
+          ) : canSeePlans ? (
+            // haptics.ts: light → a small state flip (the prices unfold).
+            <Press feel="glyph" haptic="light" onPress={() => setPlansOpen(true)} hitSlop={8} accessibilityRole="button">
+              <Text style={s.link}>{t("pro.seePlans")}</Text>
+            </Press>
+          ) : null}
+          {showPlans || canSeePlans ? <Text style={s.linkDot}>·</Text> : null}
           <Press
             feel="glyph"
             haptic="navigate"
@@ -187,7 +257,7 @@ function ProUpsellSheetBody({ onClose }: { onClose: () => void }) {
           </Press>
           <Text style={s.linkDot}>·</Text>
           <Press feel="glyph" haptic="navigate" onPress={onClose} hitSlop={8} accessibilityRole="button">
-            <Text style={s.link}>{t("pro.notNow")}</Text>
+            <Text style={s.link}>{t(hasPro ? "common.done" : "pro.notNow")}</Text>
           </Press>
         </View>
       </View>
@@ -217,7 +287,7 @@ const s = StyleSheet.create({
     lineHeight: 34,
     marginTop: 4,
   },
-  freeMonth: {
+  statusLine: {
     ...textTokens.supporting,
     color: colors.primaryDeep,
     marginTop: spacing.xs,
@@ -324,6 +394,12 @@ const s = StyleSheet.create({
   },
   cta: {
     alignSelf: "stretch",
+  },
+  // The renewal terms sit by the key that starts them, always in view.
+  renewNote: {
+    ...textTokens.caption,
+    color: colors.textSecondary,
+    textAlign: "center",
   },
   footerLinks: {
     flexDirection: "row",

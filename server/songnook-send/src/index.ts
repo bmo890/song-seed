@@ -6,7 +6,9 @@
 import { Hono } from "hono";
 import type { Env } from "./env";
 import { loadConfig } from "./env";
+import { billingKeyProblem, checkBilling } from "./lib/access";
 import { getItems, getTransfer } from "./lib/db";
+import { clientIp, underRateLimit } from "./lib/guard";
 import { errorResponse, transferUsable } from "./lib/http";
 import { toTransferPayload } from "./lib/serialize";
 import { sweepExpired } from "./lib/sweep";
@@ -100,7 +102,23 @@ app.get("/robots.txt", (c) =>
   )
 );
 
-app.get("/healthz", (c) => c.json({ ok: true }));
+// Health. Once Pro is for sale the server must be able to ask RevenueCat who
+// has it; without the key every subscriber reads as free, so that is a failure
+// here, not a quiet default. `/healthz/billing` asks RevenueCat itself.
+app.get("/healthz", (c) => {
+  const cfg = loadConfig(c.env);
+  const problem = billingKeyProblem(cfg);
+  const selling = !cfg.proForAll;
+  if (selling && problem) return c.json({ ok: false, selling, billing: problem }, 503);
+  return c.json({ ok: true, selling, billing: problem ?? "key set" });
+});
+
+app.get("/healthz/billing", async (c) => {
+  const cfg = loadConfig(c.env);
+  if (!(await underRateLimit(c.env, "pair", clientIp(c), 30, 3600))) return errorResponse(429, "too many requests");
+  const health = await checkBilling(cfg);
+  return c.json(health, health.ok ? 200 : 503);
+});
 
 app.notFound(() => errorResponse(404, "not found"));
 

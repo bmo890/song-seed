@@ -3616,6 +3616,15 @@ export const pt = {
     restore: "Restaurar",
     terms: "Termos",
     privacy: "Privacidade",
+    ownedHeadline: "Você tem o Pro",
+    ownedFounding: "Membro fundador. Seu para sempre.",
+    ownedLifetime: "Vitalício. Pago uma vez.",
+    ownedRenews: "Renova em {{date}}",
+    ownedEnds: "Termina em {{date}}",
+    manage: "Gerenciar assinatura",
+    seePlans: "Ver planos",
+    renewNoteIos: "Anual e mensal renovam até você cancelar. Cancele na sua conta da App Store.",
+    renewNoteAndroid: "Anual e mensal renovam até você cancelar. Cancele na sua conta do Google Play.",
     features: {
       "0": {
         title: "Setlists e o palco",

@@ -76,23 +76,50 @@ Verified facts these answers rest on (audit 2026-08-26):
 
 ## Apple — "Notes for the reviewer" (ready to paste)
 
-> SongNook is a local-first songwriting sketchbook: no accounts, no analytics,
-> and the user's library never leaves the device. The only sharing feature is
-> "SongNook Send", a point-to-point file transfer the user must explicitly
-> invoke: they select their own audio clips, tap "Get a link", and hand that
-> link to a recipient themselves (share sheet / QR). Links are long random
-> unguessable tokens, marked noindex, and every transfer is automatically
-> deleted after 7 days. There is no in-app browsing, feed, search, or
-> discovery of other users' content — a recipient can only open a link a
-> sender gave them, so users are never exposed to unsolicited third-party
-> content. Regarding guideline 1.2: uploads are restricted to audio files and
-> SongNook's own package format (server-enforced allowlist); an abuse-report
-> funnel exists at send.songnook.app/report/{id} (mailto) and the contact is
-> published in the privacy policy, and we can delete any reported transfer
-> and rate-limit/block the uploading source. No data is linked to user
-> identity; the App Privacy
-> declaration (User Content, not linked, no tracking) reflects the Send
-> feature only.
+Rewritten 2026-11-11 for the first build with SongNook Pro on sale (build 18). Paste
+all five paragraphs into App Review Information → Notes.
+
+> SongNook is a local-first songwriting sketchbook. There is no account and no
+> sign-in: the app opens straight into the library, so no demo login is needed.
+> No ads, no analytics, and the user's library stays on the device.
+>
+> IN-APP PURCHASES (SongNook Pro). To reach the purchase screen: open the side
+> menu (the ☰ at the top left), tap Settings, then tap "SongNook Pro". The same
+> sheet opens when a Pro tool is tapped after the free month. It offers three
+> products: Yearly (songnook_pro_yearly) and Monthly (songnook_pro_monthly),
+> auto-renewing subscriptions in the group "SongNook Pro", and Lifetime
+> (songnook_pro_lifetime), a non-consumable. The sheet lists each plan with its
+> price, says that Yearly and Monthly renew until cancelled and where to cancel,
+> and carries Restore, Terms and Privacy. A subscriber who opens it sees their
+> renewal date and "Manage subscription".
+>
+> THE FREE MONTH. A new install can use every Pro tool for 30 days. This is the
+> app's own allowance, not an App Store free trial or introductory offer: it
+> needs no payment method and no sign-up, no subscription starts, and nothing is
+> charged when it ends. After it ends the Pro tools ask for Pro. Recording, the
+> library, lyrics, backup and export, and opening what someone sent are never
+> locked, and nothing a person made is lost. A review device will be inside its
+> free month, so the Pro tools open without a purchase; the purchase screen is
+> at Settings → SongNook Pro as above.
+>
+> SHARING (SongNook Send, guideline 1.2). The only sharing feature is a
+> point-to-point file transfer the user must explicitly invoke: they select
+> their own clips, tap "Get a link", and hand that link to a recipient
+> themselves (share sheet / QR). Links are long random unguessable tokens,
+> marked noindex, and every transfer is automatically deleted after 7 days.
+> There is no in-app browsing, feed, search, or discovery of other users'
+> content: a recipient can only open a link a sender gave them, so users are
+> never exposed to unsolicited third-party content. Uploads are restricted to
+> audio files and SongNook's own package format (server-enforced file-type
+> allowlist); an abuse-report funnel exists at send.songnook.app/report/{id}
+> (mailto) and the contact is published in the privacy policy, and we can
+> delete any reported transfer and rate-limit/block the uploading source.
+>
+> BACKGROUND AUDIO AND PRIVACY. The app declares the audio background mode so
+> recording and playback continue with the screen locked. No data is linked to
+> user identity. The App Privacy declaration covers Send (User Content, not
+> linked, no tracking) and Pro (Purchase History, kept by RevenueCat under an
+> anonymous ID, not linked, no tracking).
 
 ## Google Play — Data safety
 

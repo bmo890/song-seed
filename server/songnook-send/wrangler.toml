@@ -119,5 +119,8 @@ crons = ["0 3 * * *"]
 #   R2_ACCESS_KEY_ID       — R2 S3 API access key (for minting presigned PUT URLs)
 #   R2_SECRET_ACCESS_KEY   — R2 S3 API secret
 #   REVENUECAT_SECRET_KEY  — RevenueCat secret API key (sk_…), to check Pro.
-#                            Needed once PRO_FOR_ALL is "false".
+#                            Needed once PRO_FOR_ALL is "false". After setting it,
+#                            open /healthz/billing: it says whether RevenueCat
+#                            accepts the key (a missing or refused key would
+#                            otherwise make every subscriber look free).
 # Locally these live in `.dev.vars` (gitignored). See .dev.vars.example.

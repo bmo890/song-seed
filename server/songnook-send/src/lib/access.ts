@@ -7,8 +7,11 @@ import type { Config, Env } from "../env";
 
 export const FREE_LINKS = 3;
 export const FREE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
-/** How long a RevenueCat answer is trusted before asking again. */
+/** How long a RevenueCat "has Pro" answer is trusted before asking again. */
 const PRO_CACHE_MS = 6 * 60 * 60 * 1000;
+/** A "no Pro" answer (never bought, or the paid time has run out) is trusted only
+ *  this long: someone who just bought or renewed sends right away. */
+const PRO_RECHECK_MS = 60 * 1000;
 
 /** No I, L, O, 0 or 1: a code is read off one screen and typed on another. */
 export const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -41,12 +44,42 @@ export function proUntilFromSubscriber(body: unknown, entitlementId: string): nu
   return Math.max(expires, grace);
 }
 
+/** RevenueCat turned the key away: every subscriber reads as free until it is fixed. */
+export class BillingKeyRefused extends Error {}
+
 async function revenueCatProUntil(cfg: Config, appUserId: string, fetchImpl: typeof fetch): Promise<number> {
   const res = await fetchImpl(`https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(appUserId)}`, {
     headers: { authorization: `Bearer ${cfg.revenueCatSecretKey}`, accept: "application/json" },
   });
+  if (res.status === 401 || res.status === 403) throw new BillingKeyRefused(`RevenueCat ${res.status}`);
   if (!res.ok) throw new Error(`RevenueCat ${res.status}`);
   return proUntilFromSubscriber(await res.json(), cfg.proEntitlementId);
+}
+
+/** The customer the health check asks about: never a real install. */
+const HEALTH_CHECK_USER = "songnook-send-health-check";
+
+export type BillingHealth = { ok: true } | { ok: false; problem: string };
+
+/** Can the server tell who has Pro? Without the key, or with one that isn't a
+ *  RevenueCat secret key, every subscriber would silently read as free. */
+export function billingKeyProblem(cfg: Config): string | null {
+  if (!cfg.revenueCatSecretKey) return "REVENUECAT_SECRET_KEY is not set";
+  if (!cfg.revenueCatSecretKey.startsWith("sk_")) return "REVENUECAT_SECRET_KEY is not a secret key (sk_...)";
+  return null;
+}
+
+/** The same question, asked of RevenueCat itself: is the key accepted? */
+export async function checkBilling(cfg: Config, fetchImpl: typeof fetch = fetch): Promise<BillingHealth> {
+  const problem = billingKeyProblem(cfg);
+  if (problem) return { ok: false, problem };
+  try {
+    await revenueCatProUntil(cfg, HEALTH_CHECK_USER, fetchImpl);
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof BillingKeyRefused) return { ok: false, problem: "RevenueCat refused REVENUECAT_SECRET_KEY" };
+    return { ok: false, problem: "RevenueCat could not be reached" };
+  }
 }
 
 async function linksInWindow(env: Env, senderId: string, now: number): Promise<number> {
@@ -70,9 +103,13 @@ export async function senderAccess(
   if (cfg.proForAll) return { pro: true, freeLeft: FREE_LINKS };
   if ((sender.trial_ends_at ?? 0) > now) return { pro: true, freeLeft: await freeLeft() };
 
+  // Selling with no key: nobody can be found to have Pro. Say so in the logs.
+  if (!cfg.revenueCatSecretKey) console.error("billing: REVENUECAT_SECRET_KEY is not set, every sender reads as free");
+
   if (cfg.revenueCatSecretKey && sender.rc_app_user_id) {
     let until = sender.pro_until ?? 0;
-    const fresh = sender.pro_checked_at != null && now - sender.pro_checked_at < PRO_CACHE_MS;
+    const trustedFor = until > now ? PRO_CACHE_MS : PRO_RECHECK_MS;
+    const fresh = sender.pro_checked_at != null && now - sender.pro_checked_at < trustedFor;
     if (!fresh) {
       try {
         until = await revenueCatProUntil(cfg, sender.rc_app_user_id, fetchImpl);
@@ -83,7 +120,12 @@ export async function senderAccess(
       } catch (err) {
         // RevenueCat unreachable: the last answer stands (a payer is never
         // locked out by an outage; a stranger never had one).
-        console.error("revenuecat check failed", err);
+        console.error(
+          err instanceof BillingKeyRefused
+            ? "billing: RevenueCat refused REVENUECAT_SECRET_KEY, every sender reads as free"
+            : "revenuecat check failed",
+          err
+        );
       }
     }
     if (until > now) return { pro: true, freeLeft: await freeLeft() };

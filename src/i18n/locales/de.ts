@@ -3472,6 +3472,15 @@ export const de = {
     restore: "Wiederherstellen",
     terms: "AGB",
     privacy: "Datenschutz",
+    ownedHeadline: "Du hast Pro",
+    ownedFounding: "Gründungsmitglied. Für immer deins.",
+    ownedLifetime: "Dauerhaft. Einmal bezahlt.",
+    ownedRenews: "Verlängert sich am {{date}}",
+    ownedEnds: "Endet am {{date}}",
+    manage: "Abo verwalten",
+    seePlans: "Pläne ansehen",
+    renewNoteIos: "Jährlich und monatlich verlängern sich bis zur Kündigung. Kündigen im App-Store-Konto.",
+    renewNoteAndroid: "Jährlich und monatlich verlängern sich bis zur Kündigung. Kündigen im Google-Play-Konto.",
     features: {
       "0": {
         title: "Setlists und die Bühne",

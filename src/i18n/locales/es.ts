@@ -3615,6 +3615,15 @@ export const es = {
     restore: "Restaurar",
     terms: "Términos",
     privacy: "Privacidad",
+    ownedHeadline: "Tienes Pro",
+    ownedFounding: "Miembro fundador. Tuyo para siempre.",
+    ownedLifetime: "De por vida. Un solo pago.",
+    ownedRenews: "Se renueva el {{date}}",
+    ownedEnds: "Termina el {{date}}",
+    manage: "Gestionar suscripción",
+    seePlans: "Ver planes",
+    renewNoteIos: "Anual y mensual se renuevan hasta que canceles. Cancela en tu cuenta de App Store.",
+    renewNoteAndroid: "Anual y mensual se renuevan hasta que canceles. Cancela en tu cuenta de Google Play.",
     features: {
       "0": {
         title: "Setlists y escenario",

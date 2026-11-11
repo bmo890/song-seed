@@ -145,7 +145,7 @@
           "enableDeviceDetection": true,
           "iosBackgroundModes": {
             "useAudio": true,
-            "useProcessing": true
+            "useProcessing": false
           },
           "iosConfig": {
             "microphoneUsageDescription": "SongNook needs microphone access so you can record song ideas and voice memos.",

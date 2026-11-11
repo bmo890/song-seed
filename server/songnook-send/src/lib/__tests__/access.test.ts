@@ -4,7 +4,9 @@ import {
   CODE_ALPHABET,
   CODE_LENGTH,
   FREE_LINKS,
+  billingKeyProblem,
   browserLabel,
+  checkBilling,
   newPairingCode,
   normalizeCode,
   proUntilFromSubscriber,
@@ -171,4 +173,49 @@ test("a lapsed subscription is not Pro", async () => {
     rcAnswer({ songnook_pro: { expires_date: new Date(NOW - DAY).toISOString() } })
   );
   assert.deepEqual(access, { pro: false, freeLeft: 3 });
+});
+
+// ── A purchase reaches the server quickly ───────────────────────────────────
+
+test("someone who just bought is Pro within a minute of being told no", async () => {
+  const bought = rcAnswer({ songnook_pro: { expires_date: new Date(NOW + 30 * DAY).toISOString() } });
+  // Told "no Pro" five minutes ago, then bought: the old answer is asked again.
+  const { env, writes } = fakeEnv(3);
+  const buyer = sender({ rc_app_user_id: "x", pro_until: 0, pro_checked_at: NOW - 5 * 60_000 });
+  assert.deepEqual(await senderAccess(env, config(), buyer, NOW, bought), { pro: true, freeLeft: 0 });
+  assert.equal(writes.length, 1);
+});
+
+test("a no answer under a minute old is not asked again", async () => {
+  let asked = false;
+  const spy = (async () => {
+    asked = true;
+    return new Response("{}");
+  }) as unknown as typeof fetch;
+  const free = sender({ rc_app_user_id: "x", pro_until: 0, pro_checked_at: NOW - 30_000 });
+  assert.equal((await senderAccess(fakeEnv(0).env, config(), free, NOW, spy)).pro, false);
+  assert.equal(asked, false);
+});
+
+test("a subscription that renewed is asked about once its paid time passes", async () => {
+  const renewed = rcAnswer({ songnook_pro: { expires_date: new Date(NOW + 30 * DAY).toISOString() } });
+  // Checked three hours ago, expired an hour ago, renewed since.
+  const subscriber = sender({ rc_app_user_id: "x", pro_until: NOW - 60 * 60_000, pro_checked_at: NOW - 3 * 60 * 60_000 });
+  assert.equal((await senderAccess(fakeEnv(3).env, config(), subscriber, NOW, renewed)).pro, true);
+});
+
+// ── The server can tell who has Pro ─────────────────────────────────────────
+
+test("a missing or mistaken billing key is named", () => {
+  assert.match(billingKeyProblem(config({ revenueCatSecretKey: "" })) ?? "", /not set/);
+  assert.match(billingKeyProblem(config({ revenueCatSecretKey: "appl_public" })) ?? "", /not a secret key/);
+  assert.equal(billingKeyProblem(config()), null);
+});
+
+test("the billing check asks RevenueCat whether the key is accepted", async () => {
+  const refused = (async () => new Response("{}", { status: 401 })) as unknown as typeof fetch;
+  assert.deepEqual(await checkBilling(config(), rcAnswer({})), { ok: true });
+  assert.deepEqual(await checkBilling(config(), refused), { ok: false, problem: "RevenueCat refused REVENUECAT_SECRET_KEY" });
+  assert.deepEqual(await checkBilling(config(), rcDown), { ok: false, problem: "RevenueCat could not be reached" });
+  assert.equal((await checkBilling(config({ revenueCatSecretKey: "" }), rcAnswer({}))).ok, false);
 });

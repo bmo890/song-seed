@@ -39,6 +39,18 @@ export type BillingResult =
 
 export type ProPrices = Partial<Record<ProPlan, { price: string; perMonth: string | null }>>;
 
+/**
+ * What this person bought, for the Pro sheet's "You have Pro" state: a lifetime
+ * purchase (no end date), or a subscription with its next date and whether it renews.
+ * `manageUrl` is the store's own subscription page, when the store gave one.
+ */
+export type OwnedPro = {
+    lifetime: boolean;
+    until: number | null;
+    renews: boolean;
+    manageUrl: string | null;
+};
+
 type PurchasesModule = typeof import("react-native-purchases").default;
 
 let purchases: PurchasesModule | null = null;
@@ -46,6 +58,8 @@ let configured = false;
 let packages: Partial<Record<ProPlan, PurchasesPackage>> = {};
 let prices: ProPrices = {};
 const priceListeners = new Set<() => void>();
+let owned: OwnedPro | null = null;
+const ownedListeners = new Set<() => void>();
 
 function apiKey(): string | null {
     if (__DEV__) return REVENUECAT_KEYS.test;
@@ -66,7 +80,37 @@ function loadPurchases(): PurchasesModule | null {
 }
 
 function applyCustomerInfo(info: CustomerInfo) {
-    proEntitlement.set(info.entitlements.active[PRO_ENTITLEMENT_ID] != null);
+    const active = info.entitlements.active[PRO_ENTITLEMENT_ID];
+    const until = active?.expirationDate ? Date.parse(active.expirationDate) || null : null;
+    const next: OwnedPro | null = active
+        ? { lifetime: active.expirationDate == null, until, renews: active.willRenew, manageUrl: info.managementURL ?? null }
+        : null;
+    // The same answer keeps the same object: useOwnedPro reads it as a snapshot.
+    if (JSON.stringify(next) !== JSON.stringify(owned)) {
+        owned = next;
+        ownedListeners.forEach((listener) => listener());
+    }
+    proEntitlement.set(active != null);
+}
+
+/** The purchase behind this person's Pro, or null when they haven't bought (free,
+ *  the free month, a founding install). */
+export function useOwnedPro(): OwnedPro | null {
+    return useSyncExternalStore(
+        (listener) => {
+            ownedListeners.add(listener);
+            return () => ownedListeners.delete(listener);
+        },
+        () => owned
+    );
+}
+
+/** Where a subscription is managed and cancelled: the store's own page for it. */
+export function manageSubscriptionUrl(purchase: OwnedPro | null): string {
+    if (purchase?.manageUrl) return purchase.manageUrl;
+    return Platform.OS === "ios"
+        ? "https://apps.apple.com/account/subscriptions"
+        : "https://play.google.com/store/account/subscriptions";
 }
 
 /** The current offering's three packages and their store prices, in the person's currency. */
