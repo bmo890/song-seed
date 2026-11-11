@@ -186,3 +186,22 @@ declared (unchanged from store-listing.md reasoning).
    Play's "Other user-generated content" are the closest buckets; consoles
    occasionally rename these — map to whatever the live form calls free-text
    user content.
+
+---
+
+## 2026-11-11 — in-app feedback notes (NOT yet declared in either console)
+
+The feedback sheet (Settings → Feedback and feature requests) posts the typed
+note to our server with app version, installed update id, system version and
+app language. No name, no account, no install key, no device id. Kept up to
+365 days (`FEEDBACK_KEEP_MS`), then swept. IP is used only for the rate limit.
+
+Before a build or update that carries the sheet reaches the public:
+
+- **Apple:** add **User Content → Customer Support** — Collected: Yes ·
+  Purpose: App Functionality · Linked: No · Tracking: No.
+- **Google Play:** the note falls under **Other user-generated content**, which
+  is already declared (collected, optional, app functionality). Only the
+  "processed ephemerally: No" answer matters, and it already says No.
+
+Both are console changes: the founder's yes first.

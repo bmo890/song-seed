@@ -561,6 +561,7 @@ export const he = {
     general: "כללי",
     dataStorage: "נתונים ואחסון",
     helpAbout: "עזרה ואודות",
+    rate: "דרגו את SongNook",
     language: "שפה",
     appLanguage: "שפת האפליקציה",
     automatic: "אוטומטי",
@@ -599,6 +600,15 @@ export const he = {
     bars_one: "תיבה אחת",
     bars_two: "שתי תיבות",
     bars_other: "{{count}} תיבות",
+  },
+  feedbackSheet: {
+    placeholder: "בעיה, רעיון, פיצ׳ר שחסר לכם",
+    hint: "נשלח עם גרסת האפליקציה, בלי השם שלכם. אין לנו דרך לענות.",
+    emailInstead: "לשלוח במייל",
+    send: "שליחה",
+    sent: "המשוב נשלח",
+    failed: "השליחה נכשלה. נסו שוב, או כתבו במייל.",
+    noMail: "אין אפליקציית מייל. כתבו אל {{email}}.",
   },
   settingsAbout: {
     openData: "מידע פתוח",

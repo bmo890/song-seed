@@ -12,6 +12,8 @@ export interface Env {
   RATE_ITEMS?: RateLimit;
   /** Pairing a browser: asking for a code, and the app claiming one. */
   RATE_PAIR?: RateLimit;
+  /** Notes from the app's feedback sheet. */
+  RATE_FEEDBACK?: RateLimit;
   /** KV fallback for per-IP rate limiting when the bindings above are absent.
    *  Optional — fail-open when absent (dev). */
   RATE?: KVNamespace;

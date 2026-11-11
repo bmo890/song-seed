@@ -150,6 +150,7 @@ import { ToastHost } from "./src/components/common/ToastHost";
 import { SendJobHost, SendLinkHost } from "./src/components/common/SendLinkSheet";
 import { ReceivedParcelHost } from "./src/components/common/ReceivedParcelSheet";
 import { ProUpsellHost } from "./src/components/common/ProUpsellSheet";
+import { FeedbackHost } from "./src/components/common/FeedbackSheet";
 import { FreeMonthNotices } from "./src/components/common/FreeMonthNotices";
 import { initBilling } from "./src/services/billing";
 import { loadSparkTries } from "./src/services/sparkTries";
@@ -1603,6 +1604,7 @@ export default function App() {
           <ActionMenuHost />
           <AppDialogHost />
           <ProUpsellHost />
+          <FeedbackHost />
           {hasHydrated ? <FreeMonthNotices /> : null}
           {!hasHydrated ? (
             // Hold the app shell until persist rehydrates so no screen can mount against the

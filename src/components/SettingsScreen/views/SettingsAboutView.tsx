@@ -14,7 +14,8 @@ import { useStore } from "../../../state/useStore";
 import { haptic } from "../../../design/haptics";
 import { useTranslation } from "react-i18next";
 import { toast } from "../../common/toastStore";
-import { PRIVACY_POLICY_URL, SONGNOOK_EMAIL, TERMS_OF_USE_URL } from "../../../config/legalLinks";
+import { PRIVACY_POLICY_URL, TERMS_OF_USE_URL } from "../../../config/legalLinks";
+import { openFeedbackSheet } from "../../common/feedbackSheetStore";
 import { OPEN_DATA_SOURCES } from "../../../config/openData";
 
 /**
@@ -34,13 +35,6 @@ export function SettingsAboutView() {
   const openLegal = (url: string) => {
     haptic.tap();
     void Linking.openURL(url).catch(() => toast(t("settingsAbout.linkFailed"), "alert-circle-outline"));
-  };
-
-  const sendFeedback = () => {
-    const subject = encodeURIComponent(`SongNook feedback (v${version}${installedUpdate ? ` · ${installedUpdate}` : ""})`);
-    void Linking.openURL(`mailto:${SONGNOOK_EMAIL}?subject=${subject}`).catch(() => {
-      // No mail client configured — nothing to open; leave the user where they are.
-    });
   };
 
   const sendDiagnosticLog = async () => {
@@ -118,7 +112,8 @@ export function SettingsAboutView() {
           <Text style={styles.settingsSectionLabel}>{t("settings.feedback")}</Text>
         </View>
         <SettingsGroup>
-          <AboutLinkRow label={t("settingsAbout.sendFeedback")} icon="mail-outline" onPress={sendFeedback} />
+          {/* The same sheet as the Settings row; it keeps mail one tap away. */}
+          <AboutLinkRow label={t("settingsAbout.sendFeedback")} icon="chatbubble-outline" onPress={openFeedbackSheet} />
           <AboutLinkRow
             label={t("settingsAbout.shareDiagnostics")}
             icon="pulse-outline"

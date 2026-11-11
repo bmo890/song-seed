@@ -566,6 +566,7 @@ export const de = {
     general: "Allgemein",
     dataStorage: "Daten & Speicher",
     helpAbout: "Hilfe & Info",
+    rate: "SongNook bewerten",
     language: "Sprache",
     appLanguage: "App-Sprache",
     automatic: "Auto",
@@ -603,6 +604,15 @@ export const de = {
     off: "Aus",
     bars_one: "{{count}} Takt",
     bars_other: "{{count}} Takte",
+  },
+  feedbackSheet: {
+    placeholder: "Ein Problem, eine Idee, eine Funktion, die fehlt",
+    hint: "Gesendet mit deiner App-Version, ohne deinen Namen. Wir können nicht antworten.",
+    emailInstead: "Lieber per E-Mail",
+    send: "Senden",
+    sent: "Feedback gesendet",
+    failed: "Senden fehlgeschlagen. Versuch es noch einmal oder schreib per E-Mail.",
+    noMail: "Keine Mail-App. Schreib an {{email}}.",
   },
   settingsAbout: {
     openData: "Offene Daten",

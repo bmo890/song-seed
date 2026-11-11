@@ -5,6 +5,7 @@
 import type { Env } from "../env";
 import { loadConfig } from "../env";
 import { deleteTransfer, getItems, listExpired } from "./db";
+import { sweepFeedback } from "./feedback";
 import { sweepSenders } from "./senders";
 
 const BATCH = 500;
@@ -50,6 +51,12 @@ export async function sweepExpired(
     await sweepSenders(env, now);
   } catch (err) {
     console.error("sweep: senders failed", err);
+  }
+
+  try {
+    await sweepFeedback(env, now);
+  } catch (err) {
+    console.error("sweep: feedback failed", err);
   }
 
   return { transfers, objects, failed };

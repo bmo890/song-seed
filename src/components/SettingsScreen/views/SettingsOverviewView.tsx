@@ -1,4 +1,4 @@
-import { ScrollView, View } from "react-native";
+import { Linking, Platform, ScrollView, View } from "react-native";
 import { PageIntro } from "../../common/PageIntro";
 import { settingsScreenStyles, styles } from "../styles";
 import { LibraryActionCard, SettingsGroup } from "../components/SettingsShared";
@@ -7,13 +7,18 @@ import { useTranslation } from "react-i18next";
 import { isPaywallLive, usePlanState, type PlanState } from "../../../domain/entitlements";
 import { openProUpsell } from "../../common/proUpsell";
 import type { TFunction } from "i18next";
+import { openFeedbackSheet } from "../../common/feedbackSheetStore";
+import { toast } from "../../common/toastStore";
+import { haptic } from "../../../design/haptics";
+import { ANDROID_REVIEW_URL, ANDROID_REVIEW_WEB_URL, IOS_REVIEW_URL } from "../../../config/legalLinks";
 
 type LibraryBackupFlow = ReturnType<typeof useLibraryBackupFlow>;
 
 /**
  * Four doors (founder, 2026-10-21: fewer pages, less text). Once Pro can be
  * bought, the plan is a fifth: one row saying where you stand, opening the Pro
- * sheet (2026-10-27).
+ * sheet (2026-10-27). Beneath them, two ways to talk back: a note to us and the
+ * store's review page (founder, 2026-11-11).
  */
 export function SettingsOverviewView({
   backupFlow,
@@ -34,6 +39,22 @@ export function SettingsOverviewView({
       : backupFlow.lastSuccessfulBackupFileName
         ? t("settings.lastBackup", { date: backupFlow.lastSuccessfulBackupLabel })
         : t("settings.noBackup");
+
+  // The store's own write-a-review page. The automatic prompt (services/reviewPrompt)
+  // asks rarely and on the system's terms; this row is there whenever someone wants it.
+  const rateApp = () => {
+    const failed = () => {
+      haptic.error();
+      toast(t("settingsAbout.linkFailed"), "alert-circle-outline");
+    };
+    if (Platform.OS === "android") {
+      void Linking.openURL(ANDROID_REVIEW_URL)
+        .catch(() => Linking.openURL(ANDROID_REVIEW_WEB_URL))
+        .catch(failed);
+      return;
+    }
+    void Linking.openURL(IOS_REVIEW_URL).catch(failed);
+  };
 
   return (
     <ScrollView
@@ -69,6 +90,18 @@ export function SettingsOverviewView({
             title={t("settings.helpAbout")}
             onPress={onOpenAbout}
           />
+        </SettingsGroup>
+      </View>
+
+      <View style={settingsScreenStyles.overviewSection}>
+        <SettingsGroup>
+          <LibraryActionCard
+            flat
+            icon="chatbubble-outline"
+            title={t("settingsAbout.sendFeedback")}
+            onPress={openFeedbackSheet}
+          />
+          <LibraryActionCard flat icon="star-outline" title={t("settings.rate")} onPress={rateApp} />
         </SettingsGroup>
       </View>
     </ScrollView>

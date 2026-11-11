@@ -104,6 +104,13 @@ namespace_id = "1003"
 # is 6 of 31 symbols and lives 10 minutes, so this keeps guessing hopeless.
 simple = { limit = 10, period = 60 }
 
+[[unsafe.bindings]]
+name = "RATE_FEEDBACK"
+type = "ratelimit"
+namespace_id = "1004"
+# Notes from the app's feedback sheet, per IP. A person writes one or two.
+simple = { limit = 3, period = 60 }
+
 # ── KV binding: rate-limit FALLBACK when the bindings above are absent ───────
 # (local dev). Create with `wrangler kv namespace create RATE`, paste the id.
 # With neither, rate limiting fails open.

@@ -600,6 +600,7 @@ export const pt = {
     general: "Geral",
     dataStorage: "Dados e armazenamento",
     helpAbout: "Ajuda e sobre",
+    rate: "Avaliar o SongNook",
     language: "Idioma",
     appLanguage: "Idioma do app",
     automatic: "Automático",
@@ -639,6 +640,15 @@ export const pt = {
     bars_one: "{{count}} compasso",
     bars_other: "{{count}} compassos",
     bars_many: "{{count}} compassos",
+  },
+  feedbackSheet: {
+    placeholder: "Um problema, uma ideia, um recurso que faz falta",
+    hint: "Enviado com a versão do app, sem seu nome. Não podemos responder.",
+    emailInstead: "Prefiro e-mail",
+    send: "Enviar",
+    sent: "Feedback enviado",
+    failed: "Não foi possível enviar. Tente de novo ou escreva por e-mail.",
+    noMail: "Sem app de e-mail. Escreva para {{email}}.",
   },
   settingsAbout: {
     openData: "Dados abertos",

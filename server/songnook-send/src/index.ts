@@ -14,10 +14,11 @@ import { toTransferPayload } from "./lib/serialize";
 import { sweepExpired } from "./lib/sweep";
 import { detectPlatform, renderRecipientPage } from "./pages/recipient";
 import { renderSenderPage } from "./pages/sender";
-import { renderLandingPage, renderLegalPage } from "./pages/legal";
+import { renderLandingPage, renderLegalPage, renderSupportPage } from "./pages/legal";
 import { escapeHtml, htmlPage, page } from "./pages/shell";
 import { api } from "./routes/api";
 import { download } from "./routes/download";
+import { feedback } from "./routes/feedback";
 import { pairing } from "./routes/pairing";
 import { wellKnown } from "./routes/wellknown";
 
@@ -37,6 +38,7 @@ app.options("*", () =>
 // ── JSON API ────────────────────────────────────────────────────────────────
 app.route("/api", api);
 app.route("/api", pairing);
+app.route("/api", feedback);
 
 // ── .well-known association files ────────────────────────────────────────────
 app.route("/.well-known", wellKnown);
@@ -54,6 +56,7 @@ app.get("/", (c) => htmlPage(isApex(c.req.header("host")) ? renderLandingPage() 
 // ── Legal pages (the store listings link here; the app's Settings→About does too)
 app.get("/privacy", () => htmlPage(renderLegalPage("privacy")));
 app.get("/terms", () => htmlPage(renderLegalPage("terms")));
+app.get("/support", (c) => htmlPage(renderSupportPage(loadConfig(c.env).abuseEmail)));
 
 // ── Recipient page (/t/:id) — content-negotiated ─────────────────────────────
 app.get("/t/:id", async (c) => {
