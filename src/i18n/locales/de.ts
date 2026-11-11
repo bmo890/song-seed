@@ -621,7 +621,7 @@ export const de = {
     linkFailed: "Seite ließ sich nicht öffnen",
     version: "Version",
     update: "Aktualisieren",
-    sendFeedback: "Feedback senden",
+    sendFeedback: "Feedback und Wünsche",
     shareDiagnostics: "Diagnoseprotokoll teilen",
     replayIntro: "Intro wiederholen",
     privacy: "Datenschutz",

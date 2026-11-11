@@ -587,7 +587,7 @@ export const en = {
     linkFailed: "Couldn’t open the page",
     version: "Version",
     update: "Update",
-    sendFeedback: "Send feedback",
+    sendFeedback: "Feedback and feature requests",
     shareDiagnostics: "Share diagnostic log",
     replayIntro: "Replay intro",
     privacy: "Privacy",

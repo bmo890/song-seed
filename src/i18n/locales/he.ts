@@ -616,7 +616,7 @@ export const he = {
     privacyLine: "הספרייה שלך נשמרת בטלפון הזה.",
     linkFailed: "לא ניתן לפתוח את הדף",
     version: "גרסה", update: "עדכון",
-    sendFeedback: "שליחת משוב",
+    sendFeedback: "משוב ובקשות",
     shareDiagnostics: "שיתוף יומן אבחון",
     replayIntro: "הצגת ההיכרות מחדש",
     privacy: "פרטיות",

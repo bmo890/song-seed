@@ -657,7 +657,7 @@ export const pt = {
     linkFailed: "Não foi possível abrir a página",
     version: "Versão",
     update: "Atualizar",
-    sendFeedback: "Enviar feedback",
+    sendFeedback: "Feedback e sugestões",
     shareDiagnostics: "Compartilhar log de diagnóstico",
     replayIntro: "Rever introdução",
     privacy: "Privacidade",
