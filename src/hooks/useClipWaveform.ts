@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { fillWaveformBinGaps } from "../domain/waveformGaps";
 import { cancelActiveWaveformDecode } from "../services/waveformAnalysis";
 import { runAfterInteractionsWithDeadline } from "../services/interactionGate";
 import {
@@ -180,8 +181,12 @@ export function useClipWaveform({
     };
   }, [audioUri, durationMs, enabled, deferGeneration, detailPeaks]);
 
+  // The decoders leave holes in short clips' waves (domain/waveformGaps): draw the
+  // repaired wave. Derived in render, and the same array back when nothing was wrong.
+  const peaks = useMemo(() => fillWaveformBinGaps(source.peaks), [source.peaks]);
+
   return {
-    peaks: source.peaks,
+    peaks,
     isDetail: source.isDetail,
     isGenerating,
     isResolvingDetail,

@@ -13,6 +13,8 @@
  * drone), which would otherwise expand into full-height noise.
  */
 
+import { fillWaveformBinGaps } from "./waveformGaps";
+
 /** Floor = this percentile of bars, so pauses read as pauses. */
 export const STRIP_STRETCH_FLOOR_PERCENTILE = 0.1;
 /** Below this floor→ceiling span the clip is flat — draw it as-is. */
@@ -29,10 +31,12 @@ export const STRIP_STRETCH_GAMMA = 1.2;
  * into a solid band), then contrast-stretch real peaks per clip. Returns 0..1 values.
  */
 export function computeStripBarAmps(
-  peaks: readonly number[],
+  storedPeaks: readonly number[],
   barCount: number,
   synthetic: boolean
 ): number[] {
+  // A short clip's stored thumbnail carries the decoder's holes (waveformGaps.ts).
+  const peaks = synthetic ? storedPeaks : fillWaveformBinGaps(storedPeaks as number[]);
   const numBars = Math.min(barCount, peaks.length);
   if (numBars <= 0) return [];
   const peaksPerBar = peaks.length / numBars;

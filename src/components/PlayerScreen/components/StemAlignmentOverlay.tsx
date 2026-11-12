@@ -10,6 +10,7 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated";
 import { ensureWaveformSidecar } from "../../../services/waveformSidecar";
+import { fillWaveformBinGaps } from "../../../domain/waveformGaps";
 import { getMetronomeMeterPreset } from "../../../domain/metronome";
 import type { RecordingGrid } from "../../../types";
 import { colors } from "../../../design/tokens";
@@ -149,7 +150,9 @@ function useDetailPeaks(audioUri: string | null, fallbackPeaks?: number[]) {
     };
   }, [audioUri]);
 
-  return detailPeaks ?? fallbackPeaks ?? [];
+  const peaks = detailPeaks ?? fallbackPeaks;
+  // Short clips' waves come back from the decoder with holes (domain/waveformGaps).
+  return useMemo(() => (peaks ? fillWaveformBinGaps(peaks) : []), [peaks]);
 }
 
 export function StemAlignmentOverlay({
