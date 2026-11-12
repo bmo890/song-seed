@@ -82,8 +82,10 @@ Pasted into App Review Information → Notes and saved on version 1.0 on
 
 Reworded 2026-11-12: the purchase screen became a full-screen page, so the notes
 say "screen" where they said "sheet". The wording is true of both the sheet built
-into build 19 and the page an update brings. **This rewording is in the repo only;
-App Store Connect still holds the earlier text until the founder says to paste it.**
+into build 19 and the page an update brings. Pasted into App Store Connect and
+saved on version 1.0 on 2026-11-13 (founder: "update the reviewer notes"): 2,672
+characters, checked against this text after a reload. Build 19 still attached,
+still "Prepare for Submission", not added for review.
 
 > SongNook is a local-first songwriting sketchbook. There is no account and no
 > sign-in: the app opens straight into the library, so no demo login is needed.
