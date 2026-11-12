@@ -80,16 +80,21 @@ Rewritten 2026-11-11 for the first build with SongNook Pro on sale (build 19).
 Pasted into App Review Information → Notes and saved on version 1.0 on
 2026-11-12, with build 19 attached. Not yet added for review.
 
+Reworded 2026-11-12: the purchase screen became a full-screen page, so the notes
+say "screen" where they said "sheet". The wording is true of both the sheet built
+into build 19 and the page an update brings. **This rewording is in the repo only;
+App Store Connect still holds the earlier text until the founder says to paste it.**
+
 > SongNook is a local-first songwriting sketchbook. There is no account and no
 > sign-in: the app opens straight into the library, so no demo login is needed.
 > No ads, no analytics, and the user's library stays on the device.
 >
 > IN-APP PURCHASES (SongNook Pro). To reach the purchase screen: open the side
 > menu (the ☰ at the top left), tap Settings, then tap "SongNook Pro". The same
-> sheet opens when a Pro tool is tapped after the free month. It offers three
+> screen opens when a Pro tool is tapped after the free month. It offers three
 > products: Yearly (songnook_pro_yearly) and Monthly (songnook_pro_monthly),
 > auto-renewing subscriptions in the group "SongNook Pro", and Lifetime
-> (songnook_pro_lifetime), a non-consumable. The sheet lists each plan with its
+> (songnook_pro_lifetime), a non-consumable. The screen lists each plan with its
 > price, says that Yearly and Monthly renew until cancelled and where to cancel,
 > and carries Restore, Terms and Privacy. A subscriber who opens it sees their
 > renewal date and "Manage subscription".

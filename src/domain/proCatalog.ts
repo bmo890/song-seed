@@ -18,8 +18,8 @@
  * next to the rows they would change. Never gate capture, backup, or opening existing
  * work: a gate stops CREATING new Pro-tier content, never reading what is there.
  *
- * After editing: `npx jest src/__tests__/proCatalog.test.ts` checks that the Pro sheet's
- * rows (PAYWALL_ROWS, below) still promise only what is gated.
+ * After editing: `npx jest src/__tests__/proCatalog.test.ts` checks that the Pro page's
+ * lines (PAYWALL_ROWS, below) still promise only what is gated.
  */
 
 /** Every gate key in the app. Add a key here AND a row in PRO_CATALOG (tsc enforces it). */
@@ -157,16 +157,16 @@ export function withinFreeLimit(key: ProFeature, existingCount: number, isPro: b
 }
 
 /**
- * The Pro sheet's feature rows, in order: each row's copy lives at
- * `pro.features.<index>` in i18n/translations.ts and promises the keys listed here.
- * The test (proCatalog.test.ts) fails when a row promises a key that is no longer
- * gated, so flipping a row above means editing the sheet's copy too.
+ * The Pro page's feature lines, in order: each line's copy lives at
+ * `pro.features.<index>` in the locale files and promises the keys listed here.
+ * The test (proCatalog.test.ts) fails when a line promises a key that is no longer
+ * gated, so flipping a row above means editing the page's copy too. Five lines, one
+ * each (founder, 2026-11-12: bullet points, less to read).
  */
 export const PAYWALL_ROWS: ReadonlyArray<{ icon: string; features: ProFeature[] }> = [
     { icon: "musical-notes-outline", features: ["stage-tools"] },
     { icon: "layers-outline", features: ["overdub-layers"] },
-    { icon: "repeat-outline", features: ["practice-suite"] },
-    { icon: "cut-outline", features: ["full-editor"] },
+    { icon: "repeat-outline", features: ["practice-suite", "full-editor"] },
     { icon: "sparkles-outline", features: ["word-finder-full", "lyric-spark"] },
     { icon: "paper-plane-outline", features: ["send", "workspaces"] },
 ];

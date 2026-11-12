@@ -3617,7 +3617,6 @@ export const es = {
     freeMonthLeft_many: "Mes gratis · Quedan {{count}} días",
     freeMonthEnded: "Tu mes gratis terminó. Todo lo que hiciste sigue siendo tuyo.",
     getPro: "Obtener Pro",
-    notNow: "Ahora no",
     purchaseUnavailable: "Las compras aún no están disponibles.",
     purchaseFailed: "La compra no se completó.",
     restoreFailed: "No se pudo conectar con la tienda.",
@@ -3635,38 +3634,18 @@ export const es = {
     renewNoteIos: "Anual y mensual se renuevan hasta que canceles. Cancela en tu cuenta de App Store.",
     renewNoteAndroid: "Anual y mensual se renuevan hasta que canceles. Cancela en tu cuenta de Google Play.",
     features: {
-      "0": {
-        title: "Setlists y escenario",
-        blurb: "Transposición, capo, cancioneros y el lector de escenario.",
-      },
-      "1": {
-        title: "Capas",
-        blurb: "Graba sobre una toma, todas las veces que necesites.",
-      },
-      "2": {
-        title: "Herramientas de práctica",
-        blurb: "Cambia la tonalidad, marca las partes, sube el tempo.",
-      },
-      "3": {
-        title: "El editor completo",
-        blurb: "Corta en partes, cambia la velocidad y el tono.",
-      },
-      "4": {
-        title: "Herramientas de palabras",
-        blurb: "El buscador de palabras y todos los juegos, sin límite.",
-      },
-      "5": {
-        title: "Send y más espacios",
-        blurb: "Enlaces de SongNook Send ilimitados, más espacios de trabajo.",
-      },
+      "0": "Setlists, transposición y capo",
+      "1": "Hasta 8 capas por toma",
+      "2": "Herramientas de práctica y el editor completo",
+      "3": "El buscador de palabras y todos los juegos",
+      "4": "Enlaces de Send y espacios de trabajo ilimitados",
     },
     plans: {
       annual: {
         label: "Anual",
         price: "$24.99 / año",
-        sub: "Unos $2 al mes, con pago anual",
-        subPerMonth: "Unos {{price}} al mes, con pago anual",
-        tag: "Mejor precio",
+        sub: "Un pago al año",
+        save: "Ahorra {{percent}} %",
       },
       monthly: {
         label: "Mensual",

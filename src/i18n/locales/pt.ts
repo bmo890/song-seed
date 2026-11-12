@@ -3618,7 +3618,6 @@ export const pt = {
     freeMonthLeft_many: "Mês grátis · faltam {{count}} dias",
     freeMonthEnded: "Seu mês grátis terminou. Tudo o que você fez continua seu.",
     getPro: "Obter Pro",
-    notNow: "Agora não",
     purchaseUnavailable: "As compras ainda não estão disponíveis.",
     purchaseFailed: "A compra não foi concluída.",
     restoreFailed: "Não foi possível acessar a loja.",
@@ -3636,38 +3635,18 @@ export const pt = {
     renewNoteIos: "Anual e mensal renovam até você cancelar. Cancele na sua conta da App Store.",
     renewNoteAndroid: "Anual e mensal renovam até você cancelar. Cancele na sua conta do Google Play.",
     features: {
-      "0": {
-        title: "Setlists e o palco",
-        blurb: "Transposição, capotraste, cancioneiros e o leitor de palco.",
-      },
-      "1": {
-        title: "Camadas",
-        blurb: "Grave sobre um take quantas vezes precisar.",
-      },
-      "2": {
-        title: "Ferramentas de prática",
-        blurb: "Mude a tonalidade, marque as partes, suba o andamento aos poucos.",
-      },
-      "3": {
-        title: "O editor completo",
-        blurb: "Corte em partes, mude a velocidade e o tom.",
-      },
-      "4": {
-        title: "Ferramentas de palavras",
-        blurb: "O Buscador de palavras e todos os jogos de palavras, quantas vezes quiser.",
-      },
-      "5": {
-        title: "Send e mais espaços",
-        blurb: "Links ilimitados do SongNook Send, mais espaços de trabalho.",
-      },
+      "0": "Setlists, transposição e capotraste",
+      "1": "Até 8 camadas por take",
+      "2": "Ferramentas de prática e o editor completo",
+      "3": "O Buscador de palavras e todos os jogos",
+      "4": "Links do Send e espaços de trabalho ilimitados",
     },
     plans: {
       annual: {
         label: "Anual",
         price: "US$ 24,99 / ano",
-        sub: "Cerca de US$ 2 por mês, cobrado anualmente",
-        subPerMonth: "Cerca de {{price}} por mês, cobrado anualmente",
-        tag: "Melhor preço",
+        sub: "Cobrado uma vez por ano",
+        save: "Economize {{percent}}%",
       },
       monthly: {
         label: "Mensal",

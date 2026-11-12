@@ -3474,7 +3474,6 @@ export const de = {
     freeMonthLeft_other: "Gratismonat · noch {{count}} Tage",
     freeMonthEnded: "Dein Gratismonat ist vorbei. Alles, was du gemacht hast, bleibt deins.",
     getPro: "Pro holen",
-    notNow: "Nicht jetzt",
     purchaseUnavailable: "Käufe sind noch nicht möglich.",
     purchaseFailed: "Der Kauf hat nicht geklappt.",
     restoreFailed: "Store nicht erreichbar.",
@@ -3492,38 +3491,18 @@ export const de = {
     renewNoteIos: "Jährlich und monatlich verlängern sich bis zur Kündigung. Kündigen im App-Store-Konto.",
     renewNoteAndroid: "Jährlich und monatlich verlängern sich bis zur Kündigung. Kündigen im Google-Play-Konto.",
     features: {
-      "0": {
-        title: "Setlists und die Bühne",
-        blurb: "Transposition, Kapo, Songbooks und die Bühnenansicht.",
-      },
-      "1": {
-        title: "Spuren",
-        blurb: "Über einen Take aufnehmen, so oft du willst.",
-      },
-      "2": {
-        title: "Übungswerkzeuge",
-        blurb: "Tonart ändern, Teile markieren, Tempo steigern.",
-      },
-      "3": {
-        title: "Der volle Editor",
-        blurb: "In Teile schneiden, Geschwindigkeit und Tonhöhe ändern.",
-      },
-      "4": {
-        title: "Wortwerkzeuge",
-        blurb: "Der Wortfinder und jedes Wortspiel, so oft du willst.",
-      },
-      "5": {
-        title: "Send und mehr Arbeitsbereiche",
-        blurb: "Unbegrenzte SongNook Send-Links, mehr Arbeitsbereiche.",
-      },
+      "0": "Setlists, Transposition und Kapo",
+      "1": "Bis zu 8 Spuren pro Take",
+      "2": "Übungswerkzeuge und der volle Editor",
+      "3": "Der Wortfinder und jedes Wortspiel",
+      "4": "Unbegrenzte Send-Links und Arbeitsbereiche",
     },
     plans: {
       annual: {
         label: "Jährlich",
         price: "24,99 $ / Jahr",
-        sub: "Etwa 2 $ im Monat, jährlich abgerechnet",
-        subPerMonth: "Etwa {{price}} im Monat, jährlich abgerechnet",
-        tag: "Bester Preis",
+        sub: "Einmal im Jahr abgerechnet",
+        save: "{{percent}} % sparen",
       },
       monthly: {
         label: "Monatlich",

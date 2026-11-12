@@ -10,16 +10,16 @@ Last reviewed: 2026-11-02.
 
 ## 1. Prices
 
-| Plan | Price | Pro sheet line | Store product |
+| Plan | Price | Pro page line | Store product |
 |---|---|---|---|
-| Yearly | **$24.99** | "About $2 a month, billed yearly" · tag "Best value" | `songnook_pro_yearly` |
+| Yearly | **$24.99** | "Billed once a year" · tag "Save 48%" (worked out from store prices) | `songnook_pro_yearly` |
 | Monthly | **$3.99** | "Cancel anytime" | `songnook_pro_monthly` |
 | Lifetime | **$59.99 for 90 days after release → $79.99** | "Pay once. Launch price until {date}, then $79.99." · after: "Pay once." | `songnook_pro_lifetime` (non-consumable) |
 
 - Subscription group "SongNook Pro"; RevenueCat entitlement `songnook_pro`, offering
   `default` (`$rc_annual`, `$rc_monthly`, `$rc_lifetime`). Public SDK keys live in
   `src/services/billing.ts` on purpose (OTA bundles skip EAS env vars).
-- The sheet shows store prices in the buyer's currency once RevenueCat answers; the
+- The page shows store prices in the buyer's currency once RevenueCat answers; the
   printed dollar prices are the fallback. "then $79.99" shows only beside the dollar
   launch price; other currencies name the end date alone (`ProUpsellSheet.subOf`).
 - **Lifetime launch window (founder, 2026-11-01): a fixed date, 90 days after the App
@@ -238,3 +238,14 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
   day). The Send page's iOS button points at the App Store listing in `wrangler.toml`;
   not deployed, and the server flags (`PRO_FOR_ALL`, `APP_SEND_ENFORCED`) are untouched,
   until the founder says so.
+- 2026-11-12 — The Pro surface is a full-screen page (founder: "the get pro deserves a
+  full screen", then "Yes" to the proposal). It closes by a ✕ alone: no "Not now" or
+  "Done" link. What Pro adds is five one-line bullets (`PAYWALL_ROWS`, five rows), the
+  privacy line stays, and plans, Get Pro, the renewal line and Restore · Terms ·
+  Privacy sit on the same page. The per-month figure under Yearly is gone ("About
+  $2.08 a month"); Yearly says "Billed once a year" and carries "Save N%", worked out
+  from the store's own yearly and monthly prices (48% at US prices, the printed
+  fallback). No price changed: Yearly stays $24.99. The layers line says "Up to 8
+  layers on a take", because a take holds eight (`MAX_LAYERS_PER_TAKE`). JS only, so
+  it can ship by update; not published until the founder says so. A "SongNook Pro" row
+  in the side menu was offered and is not decided.

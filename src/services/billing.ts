@@ -37,7 +37,9 @@ export type BillingResult =
     | { ok: true }
     | { ok: false; reason: "unavailable" | "cancelled" | "nothing" | "error" };
 
-export type ProPrices = Partial<Record<ProPlan, { price: string; perMonth: string | null }>>;
+/** `price` is the store's own string, in the person's currency; `amount` is the same
+ *  price as a number, for the yearly plan's "Save N%". */
+export type ProPrices = Partial<Record<ProPlan, { price: string; amount: number }>>;
 
 /**
  * What this person bought, for the Pro sheet's "You have Pro" state: a lifetime
@@ -128,7 +130,7 @@ async function loadOfferings(): Promise<void> {
         const next: ProPrices = {};
         for (const plan of ["annual", "monthly", "lifetime"] as ProPlan[]) {
             const product = packages[plan]?.product;
-            if (product) next[plan] = { price: product.priceString, perMonth: product.pricePerMonthString ?? null };
+            if (product) next[plan] = { price: product.priceString, amount: product.price };
         }
         prices = next;
         priceListeners.forEach((listener) => listener());

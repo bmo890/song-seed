@@ -87,16 +87,16 @@ describe("the Pro catalog", () => {
     });
 });
 
-describe("the Pro sheet's rows", () => {
+describe("the Pro page's lines", () => {
     const rowCount = (lang: "en" | "he") =>
         Object.keys((resources[lang].translation as { pro: { features: Record<string, unknown> } }).pro.features).length;
 
-    it("match the translated feature rows one to one", () => {
+    it("match the translated feature lines one to one", () => {
         expect(rowCount("en")).toBe(PAYWALL_ROWS.length);
         expect(rowCount("he")).toBe(PAYWALL_ROWS.length);
     });
 
-    it("promise only what is actually gated (flip a row's gate → edit the sheet's copy)", () => {
+    it("promise only what is actually gated (flip a row's gate → edit the page's copy)", () => {
         for (const row of PAYWALL_ROWS) {
             expect(row.features.length).toBeGreaterThan(0);
             for (const feature of row.features) {
@@ -107,7 +107,7 @@ describe("the Pro sheet's rows", () => {
 
     it("advertise every gated feature with a call site, apart from the quiet storage ones", () => {
         const advertised = new Set(PAYWALL_ROWS.flatMap((row) => row.features));
-        // Storage and the keys reserved for future features are Pro without a sheet row.
+        // Storage and the keys reserved for future features are Pro without a line on the page.
         const quiet: ProFeature[] = ["archive-offload", "cloud-backup", "pdf-export"];
         for (const key of EVERY_KEY) {
             if (!isProFeature(key) || quiet.includes(key)) continue;

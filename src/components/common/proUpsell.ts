@@ -3,8 +3,8 @@ import { hasProAccess, type ProFeature } from "../../domain/entitlements";
 import { useStore } from "../../state/useStore";
 
 /**
- * Global visibility store for the single ProUpsellSheet. Any gated call site calls
- * openProUpsell(feature) and the app-root <ProUpsellHost> renders the sheet — one paywall,
+ * Global visibility store for the single Pro page (ProUpsellSheet.tsx). Any gated call site calls
+ * openProUpsell(feature) and the app-root <ProUpsellHost> renders the page — one paywall,
  * no bespoke per-feature screens. Mirrors the app's other external stores (proEntitlement,
  * toast/dialog) rather than adding a provider.
  */
@@ -18,7 +18,7 @@ function notify() {
     listeners.forEach((listener) => listener());
 }
 
-/** Open the upsell sheet, optionally remembering which feature triggered it (for analytics/copy). */
+/** Open the Pro page, optionally remembering which feature triggered it (for analytics/copy). */
 export function openProUpsell(feature?: ProFeature) {
     state = { visible: true, feature };
     notify();
@@ -41,7 +41,7 @@ export function useProUpsellState(): ProUpsellState {
 
 /**
  * Gate helper for imperative call sites. Returns true if the user may proceed; otherwise
- * opens the upsell sheet and returns false. Pass a precomputed `allowed` for count-based
+ * opens the Pro page and returns false. Pass a precomputed `allowed` for count-based
  * gates (e.g. canAddOverdubLayer(count, hasProAccess(feature))); omit it for a plain
  * feature gate. Use at the top of the "do the Pro thing" handler: `if (!ensurePro(...)) return;`.
  */
