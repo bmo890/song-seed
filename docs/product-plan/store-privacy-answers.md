@@ -76,8 +76,9 @@ Verified facts these answers rest on (audit 2026-08-26):
 
 ## Apple — "Notes for the reviewer" (ready to paste)
 
-Rewritten 2026-11-11 for the first build with SongNook Pro on sale (build 18). Paste
-all five paragraphs into App Review Information → Notes.
+Rewritten 2026-11-11 for the first build with SongNook Pro on sale (build 19).
+Pasted into App Review Information → Notes and saved on version 1.0 on
+2026-11-12, with build 19 attached. Not yet added for review.
 
 > SongNook is a local-first songwriting sketchbook. There is no account and no
 > sign-in: the app opens straight into the library, so no demo login is needed.
@@ -189,7 +190,7 @@ declared (unchanged from store-listing.md reasoning).
 
 ---
 
-## 2026-11-11 — in-app feedback notes (NOT yet declared in either console)
+## 2026-11-11 — in-app feedback notes (Apple declared 2026-11-12; Play already covered)
 
 The feedback sheet (Settings → Feedback and feature requests) posts the typed
 note to our server with app version, installed update id, system version and
@@ -205,3 +206,7 @@ Before a build or update that carries the sheet reaches the public:
   "processed ephemerally: No" answer matters, and it already says No.
 
 Both are console changes: the founder's yes first.
+
+**Done 2026-11-12 (founder's yes):** Apple's App Privacy now lists
+**Customer Support** (App Functionality · not linked · no tracking) and is
+published. The live label has seven data types. Play needed no change.
