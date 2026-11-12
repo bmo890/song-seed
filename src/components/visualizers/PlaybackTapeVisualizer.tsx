@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { View, StyleSheet, LayoutChangeEvent } from "react-native";
+import { PixelRatio, View, StyleSheet, LayoutChangeEvent } from "react-native";
 import {
     Canvas,
     Path,
@@ -1906,9 +1906,15 @@ export function PlaybackTapeVisualizer({
         return cap;
     }, []);
 
+    // The tape moves in whole screen pixels. Left to float between them, every bar edge
+    // is anti-aliased at the same sub-pixel phase, so on a slow tape (a long clip creeps
+    // about 5 px a second) all the bars soften and sharpen in step: measured 2026-11-12
+    // as the dark played side pulsing at 5.6 Hz on a 26-minute clip. On the pixel grid a
+    // bar is drawn the same way in every frame.
+    const pixelRatio = PixelRatio.get();
     const translateTransform = useDerivedValue(() => {
-        return [{ translateX: translateX.value }];
-    });
+        return [{ translateX: Math.round(translateX.value * pixelRatio) / pixelRatio }];
+    }, [pixelRatio]);
 
     const scaleTransform = useDerivedValue(() => {
         return [{ scaleX: scale.value }];
