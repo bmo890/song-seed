@@ -123,7 +123,7 @@ export function IdeaHeader() {
           </View>
         ) : (
           <View style={styles.songDetailNavTrail}>
-            {/* The side menu's door on a pushed page: the workspace mark. */}
+            {/* The side menu's door on a pushed page: the menu glyph. */}
             <SideMenuButton />
             <IconButton
               icon="ellipsis-horizontal"

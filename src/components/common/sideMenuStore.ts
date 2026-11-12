@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 /**
  * Open/closed state of the APP-LEVEL side menu — the layer pushed pages (sketch,
- * visited collection, scoped Activity) open through the workspace mark.
+ * visited collection, scoped Activity) open through the menu glyph (SideMenuButton).
  *
  * Top-level pages keep Home's own drawer (hamburger + edge swipe). A pushed page
  * sits above Home on the root stack and cannot reach that drawer, so the same

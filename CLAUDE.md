@@ -137,8 +137,9 @@ The hard rules below are non-negotiable.
 - Side menu (2026-09-17): places get the menu, tasks don't. Top-level pages use
   Home's drawer (hamburger + edge swipe). Pushed places (sketch, visited
   collection, pushed Activity) keep the honest back chevron and open the
-  app-level menu layer through the workspace mark beside the overflow
-  (`SideMenuButton`). Recorder, editor, full player, lyric/chart editors and
+  app-level menu layer through the menu glyph beside the overflow
+  (`SideMenuButton`; 2026-11-13: the same hamburger the top-level pages wear,
+  because the workspace mark was not read as a button). Recorder, editor, full player, lyric/chart editors and
   readers never carry it. `open-outline` means "view in collection" only
   (`ViewInCollectionButton`): the card opens the thing, the glyph opens where it lives.
 

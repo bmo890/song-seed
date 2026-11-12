@@ -14,7 +14,7 @@ export const songDetailStyles = {
     alignItems: "center",
     gap: 10,
   },
-  // Trailing cluster on the nav row: workspace mark (side menu) + overflow.
+  // Trailing cluster on the nav row: menu glyph (side menu) + overflow.
   songDetailNavTrail: {
     flexDirection: "row",
     alignItems: "center",
