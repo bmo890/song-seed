@@ -1,4 +1,4 @@
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { GestureHandlerRootView, type PanGesture } from "react-native-gesture-handler";
 import type { Workspace } from "./src/types";
 import Constants from "expo-constants";
 import * as SplashScreen from "expo-splash-screen";
@@ -97,7 +97,7 @@ import type {
   RootStackParamList,
   WorkspaceStackParamList,
 } from "./src/navigation";
-import { openIdeaInCollection, registerRootNavigation } from "./src/navigation";
+import { homeEdgeSwipe, openIdeaInCollection, registerRootNavigation } from "./src/navigation";
 import { beginUiActivity, endUiActivity } from "./src/services/interactionGate";
 import { countReceivedPackages, unopenedReceivedCount } from "./src/domain/workspaceVisibility";
 import { cleanupStaleShareTempFiles, purgeExpiredTrash, restoreReferencedFilesFromTrash } from "./src/services/managedMedia";
@@ -202,10 +202,27 @@ const ROOT_STACK_SCREEN_OPTIONS = { headerShown: false } as const;
 // their library-sized derivations) on every store write; a page catches up with
 // one render when it is shown again. Effects that must run on blur still get one
 // render after the blur (react-native-screens delays the freeze by a frame).
-const DRAWER_SCREEN_OPTIONS = { headerShown: false, freezeOnBlur: true } as const;
+//
+// The menu's edge swipe forgives a tilted thumb (iOS, 2026-11-13). The drawer
+// gives up once a finger has drifted 5 pt up or down, and a quick swipe drifts
+// further than that in its first frame; iOS's own swipe-back forgives it, which
+// is how the two traded places on a collection. The swipe may now drift as far
+// as the strip it starts in is wide. Android's drawer is left as it was.
+const MENU_SWIPE_DRIFT = 32;
+const forgiveMenuSwipeDrift = (pan: PanGesture) => pan.failOffsetY([-MENU_SWIPE_DRIFT, MENU_SWIPE_DRIFT]);
+const DRAWER_SCREEN_OPTIONS = {
+  headerShown: false,
+  freezeOnBlur: true,
+  ...(Platform.OS === "ios" ? { configureGestureHandler: forgiveMenuSwipeDrift } : null),
+} as const;
 // While a compilation is collecting, the drawer's edge swipe is off too: a
 // picker carries no menu, and leaving mid-pick would end the session unseen.
 const DRAWER_SCREEN_OPTIONS_PICKING = { ...DRAWER_SCREEN_OPTIONS, swipeEnabled: false } as const;
+// One edge, one owner (`homeEdgeSwipe`): a collection leads with the hamburger,
+// so its edge swipe is the menu's and iOS's swipe-back is off. Only a picking
+// collection, which leads with a back chevron, swipes back.
+const COLLECTION_SCREEN_OPTIONS = { gestureEnabled: false } as const;
+const COLLECTION_SCREEN_OPTIONS_PICKING = { gestureEnabled: true } as const;
 /** The only pages a compilation's picking session may rest on. */
 const LIBRARY_COLLECTOR_ROUTES = new Set(["Browse", "CollectionDetail"]);
 const renderDrawerContent = (props: DrawerContentComponentProps) => <DrawerContent {...props} />;
@@ -741,7 +758,9 @@ function DrawerRoutes() {
   const lastUsedWorkspaceId = useStore((s) => (startupApplied ? null : s.lastUsedWorkspaceId));
   const workspaceStartupPreference = useStore((s) => s.workspaceStartupPreference);
   const setActiveWorkspaceId = useStore((s) => s.setActiveWorkspaceId);
-  const collecting = useStore((s) => s.libraryCollector != null);
+  const menuSwipe = useStore(
+    (s) => homeEdgeSwipe({ collecting: s.libraryCollector != null, pickingSong: s.songTargetPicker != null }).menu
+  );
   const startupWorkspaceId = useMemo(
     () =>
       resolveStartupWorkspaceId({
@@ -772,7 +791,7 @@ function DrawerRoutes() {
 
   return (
     <Drawer.Navigator
-      screenOptions={collecting ? DRAWER_SCREEN_OPTIONS_PICKING : DRAWER_SCREEN_OPTIONS}
+      screenOptions={menuSwipe ? DRAWER_SCREEN_OPTIONS : DRAWER_SCREEN_OPTIONS_PICKING}
       drawerContent={renderDrawerContent}
       initialRouteName={startupWorkspaceIdRef.current ? "WorkspaceStack" : "Workspaces"}
       // Hub-and-spoke: drawer pages are DESTINATIONS you teleport between, not a
@@ -804,10 +823,17 @@ function DrawerRoutes() {
 }
 
 function WorkspaceRoutes() {
+  const collectionBack = useStore(
+    (s) => homeEdgeSwipe({ collecting: s.libraryCollector != null, pickingSong: s.songTargetPicker != null }).collectionBack
+  );
   return (
     <WorkspaceStack.Navigator screenOptions={ROOT_STACK_SCREEN_OPTIONS} screenListeners={TRANSITION_LISTENERS} initialRouteName="Browse">
       <WorkspaceStack.Screen name="Browse" component={WorkspaceBrowseScreen} />
-      <WorkspaceStack.Screen name="CollectionDetail" component={IdeaListScreen} />
+      <WorkspaceStack.Screen
+        name="CollectionDetail"
+        component={IdeaListScreen}
+        options={collectionBack ? COLLECTION_SCREEN_OPTIONS_PICKING : COLLECTION_SCREEN_OPTIONS}
+      />
     </WorkspaceStack.Navigator>
   );
 }

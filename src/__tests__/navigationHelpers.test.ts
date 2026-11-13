@@ -1,5 +1,6 @@
 import { CommonActions, StackRouter } from "@react-navigation/native";
 import {
+  homeEdgeSwipe,
   openCollectionInBrowse,
   openSketchPage,
   openParentCollection,
@@ -188,5 +189,23 @@ describe("origin labels: the back button names where back lands", () => {
     const origin = { name: "Home", deepestName: "CollectionDetail", params: { collectionId: "c1", workspaceId: "w1" } };
     expect(decodeOriginRoute(encodeOriginRoute(origin))).toEqual(origin);
     expect(encodeOriginRoute(null)).toBeNull();
+  });
+});
+
+// One edge, one owner (2026-11-13): inside Home's drawer the menu's swipe and a
+// collection's swipe-back start at the same edge, and with both on a tilted
+// swipe went back where a level one opened the menu.
+describe("homeEdgeSwipe", () => {
+  it("gives a collection's edge to the menu: it leads with the hamburger", () => {
+    expect(homeEdgeSwipe({ collecting: false, pickingSong: false })).toEqual({ menu: true, collectionBack: false });
+  });
+
+  it("gives it to back while a compilation is collecting: the lead is a chevron and a picker has no menu", () => {
+    expect(homeEdgeSwipe({ collecting: true, pickingSong: false })).toEqual({ menu: false, collectionBack: true });
+    expect(homeEdgeSwipe({ collecting: true, pickingSong: true })).toEqual({ menu: false, collectionBack: true });
+  });
+
+  it("leaves both on a collection while a lyric page picks its song (the swipe is its only door to the menu)", () => {
+    expect(homeEdgeSwipe({ collecting: false, pickingSong: true })).toEqual({ menu: true, collectionBack: true });
   });
 });

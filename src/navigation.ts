@@ -167,6 +167,33 @@ export function returnHome(navigation: any, nested?: HomeNestedParams) {
   root.dispatch(StackActions.popTo("Home", nested));
 }
 
+/**
+ * One edge, one owner (2026-11-13). Inside Home's drawer two gestures start at
+ * the same leading edge: the drawer's swipe-to-open and, on a collection (pushed
+ * on the workspace stack so "up" can pop to the hub), iOS's swipe-back. With both
+ * on, a level swipe opened the menu and one that drifted a few points up or down
+ * went back. The page's lead glyph decides, here and nowhere else:
+ *
+ * - a hamburger (every place in the drawer, a collection included): the menu;
+ * - a back chevron (a collection while a compilation is collecting): back.
+ *
+ * Pages on the root stack (sketch, visit, ...) sit above Home and never meet its
+ * drawer: their edge is back and their menu is the glyph (`SideMenuButton`).
+ *
+ * Still both, on purpose: a collection while a lyric page is choosing its song.
+ * It leads with a chevron and wears no menu glyph, so the swipe is its only door
+ * to the menu; closing that door is the founder's call.
+ */
+export function homeEdgeSwipe(picker: { collecting: boolean; pickingSong: boolean }) {
+  return {
+    /** Home's drawer answers the edge swipe. */
+    menu: !picker.collecting,
+    /** A collection in the workspace stack answers it with swipe-back (iOS only;
+     *  Android has no edge swipe-back in a native stack). */
+    collectionBack: picker.collecting || picker.pickingSong,
+  };
+}
+
 export function openCollectionInBrowse(navigation: any, params: CollectionDetailRouteParams) {
   // Inside the workspace stack this is a real forward PUSH (a child collection
   // sits above its parent, so back returns to the parent — RN7's `navigate`
