@@ -1,0 +1,366 @@
+<title>SongNook Feature Ledger</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one column of rows on paper, like the app's own lists. Colour marks only what is paid. */
+:root {
+  --page: #FDFBF7; --surface: #FFFFFF; --tone: #F4F1ED; --tone-high: #EDE9E4;
+  --ink: #1b1c1a; --ink-strong: #524440; --ink-2: #6E5F5A;
+  --line: rgba(82, 68, 64, 0.16);
+  --accent: #B87D6B; --accent-deep: #824F3F; --wash: #F2E4DF;
+  --serif: "Lora", Georgia, "Times New Roman", serif;
+  --sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #1b1c1a; --surface: #242523; --tone: #2A2B28; --tone-high: #343532;
+    --ink: #F1ECE4; --ink-strong: #DDD3CB; --ink-2: #AFA29B;
+    --line: rgba(241, 236, 228, 0.16);
+    --accent: #C99482; --accent-deep: #E3B8A9; --wash: #3B2B26;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --page: #1b1c1a; --surface: #242523; --tone: #2A2B28; --tone-high: #343532;
+  --ink: #F1ECE4; --ink-strong: #DDD3CB; --ink-2: #AFA29B;
+  --line: rgba(241, 236, 228, 0.16);
+  --accent: #C99482; --accent-deep: #E3B8A9; --wash: #3B2B26;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--page); color: var(--ink);
+  font-family: var(--sans); font-size: 15px; line-height: 1.5;
+  padding-block: 28px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--page); }
+.wrap { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 44px; }
+.eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-2); }
+h1 { font-family: var(--serif); font-weight: 600; font-size: clamp(30px, 6vw, 42px); line-height: 1.12; margin: 6px 0 12px; text-wrap: balance; }
+h2 { font-family: var(--serif); font-weight: 600; font-size: 24px; line-height: 1.2; margin: 0 0 6px; text-wrap: balance; }
+h3 { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-2); margin: 26px 0 0; }
+p { margin: 0; max-width: 66ch; }
+.lede { color: var(--ink-strong); font-size: 16px; }
+.sub { color: var(--ink-2); margin-top: 4px; }
+section { display: flex; flex-direction: column; gap: 14px; }
+
+.tally { display: flex; flex-wrap: wrap; gap: 8px 28px; padding: 14px 0; border-block: 1px solid var(--line); }
+.tally div { display: flex; align-items: baseline; gap: 8px; }
+.tally b { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tally span { color: var(--ink-2); font-size: 13px; }
+.tally .paid b { color: var(--accent-deep); }
+
+.pill { flex: none; font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 6px; white-space: nowrap; color: var(--ink-2); }
+.pill.pro { background: var(--wash); color: var(--accent-deep); }
+.pill.limit { box-shadow: inset 0 0 0 1px var(--accent); color: var(--accent-deep); }
+.pill.plan { box-shadow: inset 0 0 0 1px var(--line); }
+
+/* What is paid today */
+.gates { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.2fr) minmax(0, 1.2fr); border-top: 1px solid var(--line); }
+.gates > div { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.gates .hd { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2); }
+.gates .what { font-weight: 600; }
+.gates .pro { color: var(--accent-deep); }
+.gates .free { color: var(--ink-strong); }
+@media (max-width: 560px) {
+  .gates { grid-template-columns: 1fr; }
+  .gates .hd { display: none; }
+  .gates .what { border-bottom: 0; padding-bottom: 0; padding-top: 12px; }
+  .gates .free { border-bottom: 0; padding-block: 2px; }
+  .gates .free::before { content: "Free: "; color: var(--ink-2); }
+  .gates .pro::before { content: "Pro: "; }
+  .gates .pro { padding-top: 0; padding-bottom: 12px; }
+}
+
+/* Decisions */
+ol.decide { list-style: none; margin: 0; padding: 0; counter-reset: d var(--start, 0); border-top: 1px solid var(--line); }
+ol.decide > li { counter-increment: d; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 0 6px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+ol.decide > li::before { content: counter(d); font-family: var(--serif); font-size: 20px; font-weight: 600; color: var(--accent-deep); line-height: 1.25; font-variant-numeric: tabular-nums; }
+ol.decide .body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+ol.decide .t { font-weight: 600; font-size: 16px; }
+ol.decide .now { color: var(--ink-strong); }
+ol.decide .rec { background: var(--tone); border-radius: 8px; padding: 8px 12px; }
+ol.decide .rec b { color: var(--accent-deep); font-weight: 600; }
+.twice { font-size: 11px; font-weight: 600; color: var(--ink-2); letter-spacing: 0.04em; margin-left: 8px; white-space: nowrap; }
+
+ul.plain { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+ul.plain li { padding: 10px 0; border-bottom: 1px solid var(--line); max-width: none; }
+ul.plain li b { font-weight: 600; }
+ul.plain li span { color: var(--ink-2); }
+
+/* The full list */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--page); padding: 10px 0; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border-bottom: 1px solid var(--line); }
+.tabs { display: flex; gap: 18px; }
+.tabs button { font: inherit; font-weight: 600; color: var(--ink-2); background: none; border: 0; padding: 6px 0; border-bottom: 2px solid transparent; cursor: pointer; }
+.tabs button[aria-pressed="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.tabs button:focus-visible, summary:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+.bar input { flex: 1 1 200px; min-width: 0; font: inherit; color: var(--ink); background: var(--tone); border: 0; border-radius: 8px; padding: 9px 12px; }
+.bar input::placeholder { color: var(--ink-2); }
+.count { color: var(--ink-2); font-size: 13px; font-variant-numeric: tabular-nums; }
+.area { margin-top: 30px; }
+.area > h2 { font-size: 21px; }
+.area > .sub { font-size: 13px; }
+details { border-bottom: 1px solid var(--line); }
+summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: 10px; padding: 12px 0; }
+summary::-webkit-details-marker { display: none; }
+summary .n { font-weight: 600; flex: 1 1 auto; min-width: 0; }
+summary .c { color: var(--ink-2); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+summary .c i { font-style: normal; color: var(--accent-deep); font-weight: 600; }
+summary::after { content: "+"; color: var(--ink-2); width: 12px; text-align: center; font-weight: 500; }
+details[open] > summary::after { content: "–"; }
+.grp { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2); padding: 14px 0 4px; }
+.row { display: flex; align-items: flex-start; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); }
+.grp + .row { border-top: 0; }
+.row .x { flex: 1 1 auto; min-width: 0; }
+.row .f { font-weight: 600; }
+.row .w { color: var(--ink-strong); }
+.row .s { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex: none; max-width: 42%; }
+.row .note { font-size: 11.5px; color: var(--ink-2); text-align: right; }
+.inner { padding-bottom: 14px; }
+.none { color: var(--ink-2); padding: 24px 0; }
+@media (prefers-reduced-motion: no-preference) { .tabs button { transition: color 0.16s, border-color 0.16s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">SongNook · read from the code on 13 November 2026</div>
+    <h1>Every feature, and whether it is free or paid</h1>
+    <p class="lede">Six readers went through the whole app, screen by screen, and wrote down everything a person can do or that the app does for them. This page is that list, with the paid lines and the open questions first.</p>
+    <div class="tally" style="margin-top:18px">
+      <div><b id="t-all">0</b><span>features</span></div>
+      <div><b id="t-free">0</b><span>free</span></div>
+      <div class="paid"><b id="t-pro">0</b><span>Pro</span></div>
+      <div class="paid"><b id="t-limit">0</b><span>free up to a limit</span></div>
+    </div>
+    <p class="sub" style="margin-top:10px">Some things are counted more than once because they show up in more than one place, for example a Send row in each Share menu. Nothing here was run on a phone. It is what the code says.</p>
+  </header>
+
+  <section>
+    <h2>What is paid today</h2>
+    <p class="sub">The whole paywall, in fourteen lines. A person also has Pro during the 30-day free month (no card), or for good if they opened SongNook before 11 November. Anything a friend sent you through Send can use the practice tools, transpose and capo for free.</p>
+    <div class="gates">
+      <div class="hd">What</div><div class="hd">Free gets</div><div class="hd">Pro adds</div>
+      <div class="what">Workspaces</div><div class="free">3. Archived and received ones do not count.</div><div class="pro">As many as you like</div>
+      <div class="what">Layers on a take</div><div class="free">1</div><div class="pro">Up to 8</div>
+      <div class="what">Pins in the player</div><div class="free">Drop pins while recording. See, rename, move and delete any pin.</div><div class="pro">Add a pin while listening</div>
+      <div class="what">Pitch in the player</div><div class="free">Nothing</div><div class="pro">Change key, 12 semitones up or down</div>
+      <div class="what">Step up drills</div><div class="free">Build the plan</div><div class="pro">Run it</div>
+      <div class="what">Editor: Speed &amp; pitch</div><div class="free">Trim, and cut into any number of parts</div><div class="pro">Save a copy at a new speed or key</div>
+      <div class="what">Transpose and capo</div><div class="free">Write and read charts</div><div class="pro">Change the key, set a capo</div>
+      <div class="what">Chart books and setlists</div><div class="free">Open, add to and reorder the ones you have</div><div class="pro">Make a new one</div>
+      <div class="what">Chart as PDF</div><div class="free">Text, ChordPro and SongNook file</div><div class="pro">Print-ready PDF</div>
+      <div class="what">Word Finder</div><div class="free">Nothing</div><div class="pro">All twelve tools, in five languages</div>
+      <div class="what">Word games</div><div class="free">3 tries of each game, counted for good</div><div class="pro">No limit</div>
+      <div class="what">SongNook Send</div><div class="free">3 links every 30 days</div><div class="pro">No limit</div>
+      <div class="what">Move an archived workspace to Files</div><div class="free">Nothing</div><div class="pro">Paid, but there is no way to reach it today</div>
+      <div class="what">Tempo detection</div><div class="free">Nothing</div><div class="pro">Paid, but hidden for everyone today</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Decide these first</h2>
+    <p class="sub">Nineteen places where the split is leaky, uneven or unconfirmed. Answer by number. "Checked twice" means I confirmed it in the code myself after the reader reported it.</p>
+
+    <h3>Holes in the paywall</h3>
+    <ol class="decide">
+      <li><div class="body"><div class="t">Pins are paid in one place and free in three<span class="twice">Checked twice</span></div>
+        <div class="now">Adding a pin while listening is Pro. Dropping one while recording is free, and anyone can rename, move or delete pins. Sections, the richer tool, are free.</div>
+        <div class="rec"><b>I suggest:</b> make pins free everywhere. The gate does not hold, and marking your own take is tidying, like trimming.</div></div></li>
+      <li><div class="body"><div class="t">The one free layer can be repeated</div>
+        <div class="now">A free person can record a layer, combine it into the take, and record another, again and again.</div>
+        <div class="rec"><b>I suggest:</b> leave it. Combining is permanent, so it is a slow workaround, not real multitrack.</div></div></li>
+      <li><div class="body"><div class="t">The three-workspace limit has side doors<span class="twice">Checked twice</span></div>
+        <div class="now">Only the + button checks. Keeping something a friend sent as its own workspace, importing an archive, and restoring a backup can all add more.</div>
+        <div class="rec"><b>I suggest:</b> leave it. Receiving and restoring must never be blocked.</div></div></li>
+      <li><div class="body"><div class="t">A word game try is used the moment the game opens</div>
+        <div class="now">Open Word Ladder, back out with nothing written, and one of the three tries is gone for good.</div>
+        <div class="rec"><b>I suggest:</b> count the try only once something is written.</div></div></li>
+      <li><div class="body"><div class="t">Only the phone counts the 3 Send links<span class="twice">Checked twice</span></div>
+        <div class="now">The server is not checking yet. A free person who pairs a browser can send from a computer without limit. After the switch, the server would also stop founding members at 3 links.</div>
+        <div class="rec"><b>I suggest:</b> flip the two server switches on launch day, as planned, and decide then whether founding members get unlimited links.</div></div></li>
+    </ol>
+
+    <h3>Paid today. Should it be?</h3>
+    <ol class="decide" style="--start:5">
+      <li><div class="body"><div class="t">Undoing asks for Pro</div>
+        <div class="now">"Reset pitch" opens the Pro page. So does stepping a capo or a transpose back down, though taking it off entirely is free.</div>
+        <div class="rec"><b>I suggest:</b> going back toward the original is always free.</div></div></li>
+      <li><div class="body"><div class="t">The whole Word Finder is Pro</div>
+        <div class="now">All twelve tools, in every language. Only Hebrew meaning lookups cost us money, about a fifth of a cent per new word. German and Portuguese run on the phone.</div>
+        <div class="rec"><b>I suggest:</b> make Rhymes free and keep the other eleven tools Pro. A writer meets it every session, and the paid tools sit one tab away.</div></div></li>
+      <li><div class="body"><div class="t">PDF is Pro even for plain lyrics</div>
+        <div class="now">It is the only print-ready sheet in the app. Our terms say "export is never locked".</div>
+        <div class="rec"><b>I suggest:</b> keep PDF Pro and correct the terms: your work always leaves as text, audio and SongNook files.</div></div></li>
+      <li><div class="body"><div class="t">Capo can show the Pro page on the recording screen</div>
+        <div class="now">The lyrics panel in the recorder has the same Aa sheet as everywhere else, capo included.</div>
+        <div class="rec"><b>I suggest:</b> leave it. It is one rule everywhere, and nothing about recording itself is blocked.</div></div></li>
+      <li><div class="body"><div class="t">A friend's song loses free transpose once you keep it</div>
+        <div class="now">Transpose and capo are free while a song sits in Received. Moving it into your own workspace makes them Pro.</div>
+        <div class="rec"><b>I suggest:</b> leave it for now. It is rare, and fixing it means marking songs for good.</div></div></li>
+    </ol>
+
+    <h3>Free today. Should it be?</h3>
+    <ol class="decide" style="--start:10">
+      <li><div class="body"><div class="t">Export for DAW</div>
+        <div class="now">A bar-aligned WAV with the tempo in its name, ready for Logic. Free, from any clip's Share menu.</div>
+        <div class="rec"><b>I suggest:</b> move it to Pro. It is a finishing tool, and sharing the plain audio stays free.</div></div></li>
+      <li><div class="body"><div class="t">The layer mixer</div>
+        <div class="now">Level, tone, solo, mute, timing nudge and merge are all free on any layer.</div>
+        <div class="rec"><b>I suggest:</b> keep it free. It is what makes the one free layer sound right.</div></div></li>
+      <li><div class="body"><div class="t">Tempo changes inside a song</div>
+        <div class="now">Planning tempo or meter changes at chosen bars, which the click follows. The most advanced control in the recorder, and free.</div>
+        <div class="rec"><b>I suggest:</b> keep it free. We said we never charge for capture.</div></div></li>
+      <li><div class="body"><div class="t">The daily companions</div>
+        <div class="now">Tuner, the full metronome, Bluetooth calibration, sound from videos, automatic backup, playlists, Shelf, Revisit, Activity, and the stage reader with its click. All free, no limits.</div>
+        <div class="rec"><b>I suggest:</b> keep all of it free. These are why someone opens SongNook every day.</div></div></li>
+      <li><div class="body"><div class="t">Send from a computer</div>
+        <div class="now">Free people can use it inside their 3 links. Our pricing record says it is for paid users.</div>
+        <div class="rec"><b>I suggest:</b> keep it as built and correct the record.</div></div></li>
+    </ol>
+
+    <h3>Sold, but not there</h3>
+    <ol class="decide" style="--start:15">
+      <li><div class="body"><div class="t">Tempo detection<span class="twice">Checked twice</span></div>
+        <div class="now">Our records list it as a Pro tool. Its button has been hidden since October because the result was not reliable.</div>
+        <div class="rec"><b>I suggest:</b> take it out of every list of Pro tools until it comes back.</div></div></li>
+      <li><div class="body"><div class="t">Move an archived workspace to Files<span class="twice">Checked twice</span></div>
+        <div class="now">Pro, but archiving was shelved in August, so nobody new can reach it.</div>
+        <div class="rec"><b>I suggest:</b> take it off the Pro list until archiving returns.</div></div></li>
+      <li><div class="body"><div class="t">Step up lets you build a drill, then asks for Pro</div>
+        <div class="now">The plan sheet opens for everyone. The Pro page appears at the switch.</div>
+        <div class="rec"><b>I suggest:</b> keep it. Seeing the drill is a fair taste.</div></div></li>
+      <li><div class="body"><div class="t">Speed is free to hear and Pro to keep</div>
+        <div class="now">Playing at 0.75× is free. Saving a 0.75× copy in the editor is Pro.</div>
+        <div class="rec"><b>I suggest:</b> keep it. It is a clean line.</div></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>The full list</h2>
+    <p class="sub">Grouped by type. Open a group to read every line in it, or show only the paid lines.</p>
+    <div class="bar">
+      <div class="tabs" role="group" aria-label="Show">
+        <button type="button" id="m-all" aria-pressed="true">Everything</button>
+        <button type="button" id="m-paid" aria-pressed="false">Paid or limited</button>
+      </div>
+      <input id="q" type="search" placeholder="Search features" aria-label="Search features" autocomplete="off">
+      <span class="count" id="shown"></span>
+    </div>
+    <div id="list"></div>
+  </section>
+
+  <section>
+    <h2>Built, but nobody can reach it</h2>
+    <p class="sub">The code exists and no button leads to it. None of these are counted above.</p>
+    <ul class="plain">
+      <li><b>Tempo detection.</b> <span>Hidden since 13 October until it can be trusted.</span></li>
+      <li><b>Archiving a workspace.</b> <span>Shelved on 4 August. Unarchive and "Move package to Files" only appear on a workspace that was already archived.</span></li>
+      <li><b>Named Step up plans.</b> <span>Saving a drill under a name is switched off. One custom plan is remembered.</span></li>
+      <li><b>"New collection from import" on the workspace page.</b> <span>It works from the share sheet only.</span></li>
+      <li><b>Lyrics with or without, as a collection filter.</b> <span>The filter works, but the menu has no control for it.</span></li>
+      <li><b>Sorting collections on the workspace page.</b> <span>The words exist; the control does not.</span></li>
+      <li><b>Activity: created only or updated only.</b> <span>Fixed to both.</span></li>
+      <li><b>Cut-Up by line, phrase or word.</b> <span>Replaced by tapping where to cut.</span></li>
+      <li><b>Borrowed Words: "Rebuild from words" and dragging words into order.</b> <span>Never wired to a button.</span></li>
+      <li><b>Folding a single layer lane.</b> <span>Only "Collapse all" is on screen.</span></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Wording that is already out of date</h2>
+    <p class="sub">Found by the sixth reader, who listed 121 places where we tell people what the app does or costs. I will draft a fix for each and show you before anything is published.</p>
+    <ul class="plain">
+      <li><b>Pro page, third line.</b> <span>"Practice tools and the full editor". Cutting is free since today, so "the full editor" now means only Speed &amp; pitch.</span></li>
+      <li><b>Terms of use.</b> <span>"Export is never locked", while chart PDF is Pro. It also says "the Pro sheet", which is a full page now.</span></li>
+      <li><b>The Share menu hint for Send.</b> <span>"A link anyone can play". The web page offers downloads, not playback.</span></li>
+      <li><b>Welcome tour, last page.</b> <span>Says importing is one tap from the + button. Import is in the collection's "…" menu.</span></li>
+      <li><b>Website.</b> <span>"Coming to the App Store and Google Play". Wrong from the day we release.</span></li>
+      <li><b>The screenshot Apple reviews for the purchases.</b> <span>Shows the old Pro sheet with six lines and "Not now". Only Apple's reviewer sees it.</span></li>
+      <li><b>The lifetime launch date.</b> <span>The Pro page prints 9 February in Europe and Israel and 8 February in the Americas.</span></li>
+      <li><b>Our own working agreement.</b> <span>Says deleted things wait 14 days. The app keeps them 30.</span></li>
+      <li><b>The limits "3 links" and "3 tries".</b> <span>Typed out separately in the terms, the Send page and the server. Changing a limit means changing each one by hand.</span></li>
+    </ul>
+  </section>
+</div>
+
+<script>
+var DATA = /*DATA*/[];
+(function () {
+  var mode = "all", q = "";
+  var list = document.getElementById("list");
+  var tot = { free: 0, pro: 0, limit: 0, plan: 0 };
+  DATA.forEach(function (a) { a.c.forEach(function (c) { c.g.forEach(function (g) { g.r.forEach(function (r) { tot[r[2]]++; }); }); }); });
+  var all = tot.free + tot.pro + tot.limit + tot.plan;
+  function fmt(n) { return n.toLocaleString("en-US"); }
+  document.getElementById("t-all").textContent = fmt(all);
+  document.getElementById("t-free").textContent = fmt(tot.free);
+  document.getElementById("t-pro").textContent = fmt(tot.pro);
+  document.getElementById("t-limit").textContent = fmt(tot.limit);
+
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function match(r) {
+    if (mode === "paid" && r[2] === "free") return false;
+    if (!q) return true;
+    return (r[0] + " " + r[1] + " " + r[3] + " " + r[4]).toLowerCase().indexOf(q) !== -1;
+  }
+  var LABEL = { free: "Free", pro: "Pro", limit: "Free, then Pro", plan: "The purchase" };
+  function row(r) {
+    var d = el("div", "row"), x = el("div", "x"), s = el("div", "s");
+    x.appendChild(el("div", "f", r[0])); x.appendChild(el("div", "w", r[1]));
+    s.appendChild(el("span", "pill " + r[2], LABEL[r[2]]));
+    var note = r[2] === "limit" ? "up to " + r[3] + (r[4] ? " · " + r[4] : "") : r[4];
+    if (note) s.appendChild(el("span", "note", note));
+    d.appendChild(x); d.appendChild(s); return d;
+  }
+  function render() {
+    list.textContent = "";
+    var filtering = mode !== "all" || !!q, shown = 0;
+    DATA.forEach(function (a) {
+      var sec = el("div", "area"), aTotal = 0, aPaid = 0, cats = [];
+      a.c.forEach(function (c) {
+        var total = 0, paid = 0, body = el("div", "inner"), hit = 0;
+        c.g.forEach(function (g) {
+          var rows = g.r.filter(match);
+          g.r.forEach(function (r) { total++; if (r[2] !== "free") paid++; });
+          if (!rows.length) return;
+          if (g.n) body.appendChild(el("div", "grp", g.n));
+          rows.forEach(function (r) { body.appendChild(row(r)); hit++; });
+        });
+        aTotal += total; aPaid += paid;
+        if (!hit) return;
+        shown += hit;
+        var d = document.createElement("details"), s = document.createElement("summary");
+        s.appendChild(el("span", "n", c.n));
+        var cnt = el("span", "c", filtering ? hit + " of " + total : String(total));
+        if (paid && !filtering) { cnt.appendChild(document.createTextNode(" · ")); cnt.appendChild(el("i", "", paid + " paid")); }
+        s.appendChild(cnt); d.appendChild(s); d.appendChild(body);
+        if (filtering) d.open = true;
+        cats.push(d);
+      });
+      if (!cats.length) return;
+      sec.appendChild(el("h2", "", a.n));
+      sec.appendChild(el("p", "sub", fmt(aTotal) + " features" + (aPaid ? ", " + aPaid + " paid or limited" : ", all free")));
+      cats.forEach(function (d) { sec.appendChild(d); });
+      list.appendChild(sec);
+    });
+    if (!shown) list.appendChild(el("p", "none", "Nothing matches. Try a different word."));
+    document.getElementById("shown").textContent = filtering ? fmt(shown) + " shown" : "";
+  }
+  function setMode(m) {
+    mode = m;
+    document.getElementById("m-all").setAttribute("aria-pressed", String(m === "all"));
+    document.getElementById("m-paid").setAttribute("aria-pressed", String(m === "paid"));
+    render();
+  }
+  document.getElementById("m-all").addEventListener("click", function () { setMode("all"); });
+  document.getElementById("m-paid").addEventListener("click", function () { setMode("paid"); });
+  var t;
+  document.getElementById("q").addEventListener("input", function (e) {
+    clearTimeout(t); var v = e.target.value.trim().toLowerCase();
+    t = setTimeout(function () { q = v; render(); }, 120);
+  });
+  render();
+})();
+</script>
