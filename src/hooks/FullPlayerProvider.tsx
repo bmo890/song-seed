@@ -101,9 +101,19 @@ export function FullPlayerProvider({ children }: { children: React.ReactNode }) 
   // NOT re-run on every ~50ms playback tick. Live STATE still flows because the
   // `dock` object below is rebuilt each render from rawDock.
   const openPlayer = useCallback<FullPlayerValue["openPlayer"]>(
-    async (...args) => {
+    async (ideaId, clip, metadata, autoPlay, startAtMs) => {
       await stopMiniFirst();
-      return rawDockRef.current!.openPlayer(...args);
+      // The two engines stay separate; only the place is handed over. A card's
+      // preview of this clip, stopped to make way for the player, says where to
+      // open and whether to carry on playing (founder, 2026-11-13).
+      const handoff = miniRef.current?.takePreviewHandoff(clip.id) ?? null;
+      return rawDockRef.current!.openPlayer(
+        ideaId,
+        clip,
+        metadata,
+        !!autoPlay || !!handoff?.wasPlaying,
+        startAtMs ?? handoff?.positionMs ?? 0
+      );
     },
     [stopMiniFirst]
   );

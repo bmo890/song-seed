@@ -573,7 +573,10 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     ideaId: string,
     clip: ClipVersion,
     metadata?: LockScreenMetadata,
-    autoPlay = false
+    autoPlay = false,
+    /** Open at this position instead of the start: where a card's preview of
+     *  this clip stood when the player took over. Ignored near the end. */
+    startAtMs = 0
   ) => {
     // Already loading THIS clip: coalesce onto the in-flight load rather than aborting
     // and restarting it (that's the mash-play-during-load livelock). Only ever upgrade
@@ -588,15 +591,18 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
     // in user-intent order (claiming after the async URI resolution let a slow early tap
     // cancel a fast later one mid-flight).
     const operationId = ++operationIdRef.current;
+    const clipDurationMs = getClipPlaybackDurationMs(clip) ?? 0;
+    const startMs =
+      startAtMs > 0 && (clipDurationMs <= 0 || startAtMs < clipDurationMs - 1000) ? startAtMs : 0;
     // Zero the visible position BEFORE the first await. The old clip's position lives on
     // in the native player and the throttled status cache (a paused player emits no new
     // ticks), so every render between now and the source swap would otherwise show the
     // PREVIOUS clip's playhead on the new clip. Gate + refs + store all go to 0 up front.
     if (playerTargetRef.current?.clipId !== clip.id) {
-      holdSourcePositionAt(0);
+      holdSourcePositionAt(startMs);
       const zeroed = {
-        positionMs: 0,
-        durationMs: getClipPlaybackDurationMs(clip) ?? 0,
+        positionMs: startMs,
+        durationMs: clipDurationMs,
         isPlaying: false,
       };
       setPlayerPlaybackState(zeroed);
@@ -623,14 +629,28 @@ export function useFullPlayer({ onBeforePlayNew }: Args = {}) {
       if (!isOperationActive(operationId)) return;
 
       try {
-        holdSourcePositionAt(0);
+        holdSourcePositionAt(startMs);
         await player.pause();
         if (!isOperationActive(operationId)) return;
 
-        // Read the autoplay intent as late as possible so a play-press that arrived
-        // during the (slow) load window is honored on this same load.
-        await replacePlaybackSource(player, playbackUri, autoplayWhenLoadedRef.current);
-        if (!isOperationActive(operationId)) return;
+        if (startMs > 0) {
+          // Load paused, land on the position, then play: the same order a
+          // source swap uses (syncPlayerSource), so nothing is heard from 0:00.
+          await replacePlaybackSource(player, playbackUri, false, { seekToStart: false });
+          if (!isOperationActive(operationId)) return;
+          holdSourcePositionAt(startMs);
+          await player.seekTo(startMs / 1000);
+          if (!isOperationActive(operationId)) return;
+          if (autoplayWhenLoadedRef.current) {
+            await player.play();
+            if (!isOperationActive(operationId)) return;
+          }
+        } else {
+          // Read the autoplay intent as late as possible so a play-press that arrived
+          // during the (slow) load window is honored on this same load.
+          await replacePlaybackSource(player, playbackUri, autoplayWhenLoadedRef.current);
+          if (!isOperationActive(operationId)) return;
+        }
         currentSourceUriRef.current = playbackUri;
         // Publish the active target only after the source has loaded. That keeps the UI and
         // persisted player state from pointing at a clip that never actually became playable.

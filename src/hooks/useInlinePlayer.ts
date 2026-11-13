@@ -33,6 +33,22 @@ type PendingPlayTarget = {
   clipId: string;
 };
 
+/** Where a preview stood when it was stopped, for the full player that opens
+ *  the same clip next (founder, 2026-11-13: it must not start from 0:00). */
+type PreviewHandoff = {
+  clipId: string;
+  positionMs: number;
+  wasPlaying: boolean;
+  at: number;
+};
+
+/** The full player opens right after the preview stops; past this the stop was
+ *  its own decision and the clip opens from the start. */
+const PREVIEW_HANDOFF_WINDOW_MS = 10_000;
+/** A second press this soon after pressing play is the same press again, not a
+ *  pause: it used to leave the card live and silent at 0:00. */
+const DOUBLE_PRESS_GUARD_MS = 500;
+
 const SOURCE_SWITCH_READY_POSITION_MS = 500;
 const SOURCE_SWITCH_LOAD_TIMEOUT_MS = 2500;
 
@@ -49,6 +65,8 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
   const playRequestIdRef = useRef(0);
   const sourceSwitchHoldRef = useRef<SourceSwitchHold | null>(null);
   const pendingPlayTargetRef = useRef<PendingPlayTarget | null>(null);
+  const previewHandoffRef = useRef<PreviewHandoff | null>(null);
+  const lastPlayPressRef = useRef<{ clipId: string; at: number } | null>(null);
   const stopRequestToken = useStore((s) => s.inlineStopRequestToken);
   const setStoreInlineTarget = useStore((s) => s.setInlineTarget);
   const setInlinePlaybackState = useStore((s) => s.setInlinePlaybackState);
@@ -319,7 +337,34 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
     await pausePromise;
   }
 
+  /** Note where the preview stands before it is cleared. A source that is still
+   *  loading has no position of its own yet (the engine reports the last clip's). */
+  function rememberPreviewForHandoff() {
+    if (!inlineTarget || sourceSwitchHoldRef.current !== null) return;
+    let positionMs = inlinePosition;
+    try {
+      const engineMs = (player.currentTime ?? 0) * 1000;
+      if (Number.isFinite(engineMs) && engineMs > 0) positionMs = Math.round(engineMs);
+    } catch {}
+    previewHandoffRef.current = {
+      clipId: inlineTarget.clipId,
+      positionMs,
+      wasPlaying: isInlinePlaying,
+      at: Date.now(),
+    };
+  }
+
+  /** The stopped preview's position, once, for the full player opening `clipId`. */
+  function takePreviewHandoff(clipId: string) {
+    const handoff = previewHandoffRef.current;
+    previewHandoffRef.current = null;
+    if (!handoff || handoff.clipId !== clipId) return null;
+    if (Date.now() - handoff.at > PREVIEW_HANDOFF_WINDOW_MS) return null;
+    return { positionMs: handoff.positionMs, wasPlaying: handoff.wasPlaying };
+  }
+
   async function resetInlinePlayer(options?: ResetInlinePlayerOptions) {
+    rememberPreviewForHandoff();
     playRequestIdRef.current += 1;
     pendingPlayTargetRef.current = null;
     clearInlineUiState();
@@ -333,6 +378,7 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
         void pauseNativePlayer({ awaitPause: false });
         return;
       }
+      if (inlineTarget) lastPlayPressRef.current = { clipId: inlineTarget.clipId, at: Date.now() };
       setInlinePlayingOverride(true);
       await activateAndPlay(player, status, inlineDuration, inlinePosition);
     } catch (err) {
@@ -368,6 +414,14 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
           return;
         }
       } else {
+        const lastPlayPress = lastPlayPressRef.current;
+        if (
+          isInlinePlaying &&
+          lastPlayPress?.clipId === clip.id &&
+          Date.now() - lastPlayPress.at < DOUBLE_PRESS_GUARD_MS
+        ) {
+          return;
+        }
         await toggleActiveInlinePlayback();
         return;
       }
@@ -378,6 +432,9 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
       requestId = playRequestIdRef.current + 1;
       playRequestIdRef.current = requestId;
       pendingPlayTargetRef.current = { requestId, ideaId, clipId: clip.id };
+      lastPlayPressRef.current = { clipId: clip.id, at: Date.now() };
+      // A new preview ends any claim the last one had on the full player.
+      previewHandoffRef.current = null;
 
       // Optimistic UI FIRST: the card flips to "playing" on the same tick as the tap.
       // Waiting for the other transport to pause before flipping (the old order) added a
@@ -481,5 +538,6 @@ export function useInlinePlayer({ onBeforePlayNew }: Args = {}) {
     cancelInlineScrub,
     seekInline,
     resetInlinePlayer,
+    takePreviewHandoff,
   };
 }

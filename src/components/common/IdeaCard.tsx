@@ -369,7 +369,8 @@ export function IdeaCard({
                         }}
                         onLongPress={onLongPressLead}
                         delayLongPress={delayLongPress}
-                        hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
+                        // The row's full height: its vertical padding is 10.
+                        hitSlop={{ top: 10, bottom: 10, left: 12, right: 8 }}
                         accessibilityRole="button"
                         accessibilityLabel={leadA11yLabel}
                         disabled={!canPlay}
@@ -522,8 +523,9 @@ export function IdeaCard({
                         }}
                         onLongPress={onLongPressLead}
                         delayLongPress={delayLongPress}
-                        // 32pt glyph box + 6pt slop = 44pt effective target.
-                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        // The column itself, plus the card's padding around it
+                        // and half the gap to the text.
+                        hitSlop={{ top: 10, bottom: 8, left: 9, right: 5 }}
                         accessibilityRole="button"
                         accessibilityLabel={leadA11yLabel}
                         disabled={!canPlay}

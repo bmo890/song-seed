@@ -318,6 +318,21 @@ compact row's scrub line belong to scrubbing; every other part of that card
 still selects. The preview ends at the end of the clip or on ✕, and the wave
 goes back to rest.
 
+### The card's play glyph and the hand-over (founder, 2026-11-13)
+
+The play glyph's target is the whole lead column, not a box around the glyph:
+nothing else lives there, and a thumb that landed above or below it used to
+press nothing. A second press within half a second of pressing play is the
+same press again and is ignored, so an impatient double tap cannot leave the
+card live and silent at 0:00.
+
+The card's preview and the full player stay two engines. Only the place is
+handed over: opening the full player on the clip a card was previewing opens
+at the preview's position, and carries on playing if the preview was playing
+(`takePreviewHandoff` in `useInlinePlayer`, read by `FullPlayerProvider`'s
+`openPlayer`). A preview that ran to its end, or was stopped more than ten
+seconds earlier, hands nothing over: the clip opens from the start.
+
 ### The stage dial + title-row law (locked 2026-07-27)
 
 Stage is a **dial**, not a dot: a hollow ring filled clockwise a quarter per

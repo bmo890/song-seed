@@ -429,11 +429,14 @@ export const ideasStyles = {
     flexShrink: 0,
     alignSelf: "stretch",
   },
-  // Bare glyph (locked 2026-07-23): no circle, no border — the card's IdeaCard
-  // Pressable adds hitSlop so the effective target stays ≥44pt.
+  // Bare glyph (locked 2026-07-23): no circle, no border. The glyph is the only
+  // thing in the lead column, so the whole column is its target (2026-11-13):
+  // it was a 44 pt box in a column twice as tall, and a thumb that landed above
+  // or below it pressed nothing.
   ideasInlinePlayBtn: {
-    width: 32,
-    height: 32,
+    alignSelf: "stretch",
+    flex: 1,
+    minHeight: 32,
     alignItems: "center",
     justifyContent: "center",
   },
