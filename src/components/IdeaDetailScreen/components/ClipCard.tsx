@@ -27,7 +27,7 @@ import { ClipCardFoldKey, ClipCardVersionKey } from "./clipCard/ClipCardVersionK
 import { EvolutionGlyph } from "../../common/EvolutionGlyph";
 import { ClipNoteLine } from "../../common/clip/ClipNoteLine";
 import { ClipTagBadges } from "../../common/clip/ClipTagBadges";
-import { IdeaCard } from "../../common/IdeaCard";
+import { CARD_HOLD_MS, IdeaCard } from "../../common/IdeaCard";
 import type { GestureResponderEvent } from "react-native";
 import { haptic } from "../../../design/haptics";
 import { colors } from "../../../design/tokens";
@@ -292,6 +292,9 @@ export const ClipCard = React.memo(function ClipCard({
     }
     beginSelection();
   };
+  // The keys on the card forward the same hold (the card owns the gesture); a
+  // read-only card has none, so its keys keep their plain press.
+  const keyLongPress = displayOnly ? undefined : handleLongPress;
   const handlePress = async () => {
     if (displayOnly) {
       await openPlayer();
@@ -395,6 +398,7 @@ export const ClipCard = React.memo(function ClipCard({
               isPrimaryCandidate={isPrimaryCandidate}
               isPrimary={clip.isPrimary}
               onSetPrimary={handleSetPrimary}
+              onLongPress={keyLongPress}
             />
             {showLocateButton ? (
               <Press
@@ -404,6 +408,8 @@ export const ClipCard = React.memo(function ClipCard({
                   e.stopPropagation();
                   onLocateClip?.(clip.id);
                 }}
+                onLongPress={keyLongPress}
+                delayLongPress={CARD_HOLD_MS}
                 accessibilityRole="button"
                 accessibilityLabel={t("clipLineage.findEvolution")}
               >
@@ -412,7 +418,7 @@ export const ClipCard = React.memo(function ClipCard({
             ) : null}
             {/* "+ Version" stays farthest right: the forward action. */}
             {showVersionKey ? (
-              <ClipCardVersionKey title={clip.title} onPress={handleReply} />
+              <ClipCardVersionKey title={clip.title} onPress={handleReply} onLongPress={keyLongPress} />
             ) : null}
           </>
         }
@@ -444,13 +450,19 @@ export const ClipCard = React.memo(function ClipCard({
         footerRightContent={
           <>
           {fold ? (
-            <ClipCardFoldKey count={fold.count} expanded={fold.expanded} onToggle={fold.onToggle} />
+            <ClipCardFoldKey
+              count={fold.count}
+              expanded={fold.expanded}
+              onToggle={fold.onToggle}
+              onLongPress={keyLongPress}
+            />
           ) : null}
           <ClipTagBadges
             tags={visibleTagBadges}
             disabled={!!displayOnly || readOnly}
             showAddButton={showAddTagButton}
             onPress={displayOnly || readOnly ? undefined : handleTagsPress}
+            onLongPress={keyLongPress}
             suggestions={tagSuggestions}
             onApplySuggestion={applyTag}
             containerStyle={styles.clipCardTagsRowFooter}

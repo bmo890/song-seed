@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Press } from "../../../common/Press";
 import { styles } from "../../styles";
 import { colors } from "../../../../design/tokens";
+import { CARD_HOLD_MS } from "../../../common/IdeaCard";
 
 /**
  * The card's two small ink keys (2026-10-15), on the footer's trailing edge:
@@ -14,9 +15,12 @@ import { colors } from "../../../../design/tokens";
 export function ClipCardVersionKey({
   title,
   onPress,
+  onLongPress,
 }: {
   title: string;
   onPress: () => void | Promise<void>;
+  /** The card's hold: a key inside a card must not swallow it. */
+  onLongPress?: () => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -29,6 +33,8 @@ export function ClipCardVersionKey({
         event.stopPropagation();
         void onPress();
       }}
+      onLongPress={onLongPress}
+      delayLongPress={CARD_HOLD_MS}
       hitSlop={{ top: 8, bottom: 8, left: 4, right: 6 }}
       accessibilityRole="button"
       accessibilityLabel={t("clipLineage.newVersionA11y", { title })}
@@ -43,10 +49,12 @@ export function ClipCardFoldKey({
   count,
   expanded,
   onToggle,
+  onLongPress,
 }: {
   count: number;
   expanded: boolean;
   onToggle: () => void;
+  onLongPress?: () => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -59,6 +67,8 @@ export function ClipCardFoldKey({
         event.stopPropagation();
         onToggle();
       }}
+      onLongPress={onLongPress}
+      delayLongPress={CARD_HOLD_MS}
       hitSlop={{ top: 8, bottom: 8, left: 6, right: 4 }}
       accessibilityRole="button"
       accessibilityState={{ expanded }}

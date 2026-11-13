@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 import { styles } from "../../styles";
 import { useTranslation } from "react-i18next";
+import { CARD_HOLD_MS } from "../../../common/IdeaCard";
 
 /** Primary as editorial ink — dot + word, one terracotta with the card's crown
  *  rule so the two read as a single signal rather than two decorations. */
@@ -20,6 +21,7 @@ type ClipCardPrimaryIndicatorProps = {
   isPrimaryCandidate: boolean;
   isPrimary: boolean;
   onSetPrimary: () => void;
+  onLongPress?: () => void;
 };
 
 export function ClipCardPrimaryIndicator({
@@ -29,6 +31,7 @@ export function ClipCardPrimaryIndicator({
   isPrimaryCandidate,
   isPrimary,
   onSetPrimary,
+  onLongPress,
 }: ClipCardPrimaryIndicatorProps) {
   const { t } = useTranslation();
   if (displayOnly) return null;
@@ -41,7 +44,12 @@ export function ClipCardPrimaryIndicator({
   // titleAccessory) — the trailing slot only carries the edit-mode ACTION.
   if (isEditMode && !isPrimaryCandidate) {
     return (
-      <Pressable style={styles.songDetailVersionSetPrimaryBtn} onPress={onSetPrimary}>
+      <Pressable
+        style={styles.songDetailVersionSetPrimaryBtn}
+        onPress={onSetPrimary}
+        onLongPress={onLongPress}
+        delayLongPress={CARD_HOLD_MS}
+      >
         <Text style={styles.songDetailVersionSetPrimaryText}>{t("common.primary")}</Text>
       </Pressable>
     );

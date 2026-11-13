@@ -11,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "react-i18next";
 import { styles } from "../../../styles";
 import { colors } from "../../../design/tokens";
+import { CARD_HOLD_MS } from "../IdeaCard";
 
 type ClipTagPresentation = {
   key: string;
@@ -30,6 +31,8 @@ type ClipTagBadgesProps = {
   disabled?: boolean;
   showAddButton?: boolean;
   onPress?: (event: GestureResponderEvent) => void;
+  /** The card's hold, when the tags sit on one: a hold here must not read as a tap. */
+  onLongPress?: () => void;
   /** One-tap "we noticed this might be a Chorus" chips. Each applies its tag. */
   suggestions?: ClipTagSuggestion[];
   onApplySuggestion?: (key: string) => void;
@@ -41,6 +44,7 @@ export function ClipTagBadges({
   disabled,
   showAddButton,
   onPress,
+  onLongPress,
   suggestions,
   onApplySuggestion,
   containerStyle,
@@ -58,6 +62,8 @@ export function ClipTagBadges({
         <Pressable
           style={localStyles.tapZone}
           onPress={disabled ? undefined : onPress}
+          onLongPress={disabled ? undefined : onLongPress}
+          delayLongPress={CARD_HOLD_MS}
           hitSlop={disabled ? undefined : { top: 2, bottom: 2 }}
           disabled={disabled}
         >
@@ -92,6 +98,8 @@ export function ClipTagBadges({
                 pressed ? styles.pressDown : null,
               ]}
               onPress={() => onApplySuggestion?.(suggestion.key)}
+              onLongPress={onLongPress}
+              delayLongPress={CARD_HOLD_MS}
               hitSlop={{ top: 2, bottom: 2 }}
               accessibilityRole="button"
               accessibilityLabel={t("clipTags.addTagA11y", {

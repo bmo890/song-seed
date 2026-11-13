@@ -301,6 +301,23 @@ to the card's handler because a nested Pressable would otherwise swallow the
 gesture. Long-press must never mean "edit" on a clip surface: holding anything
 in a list enters selection everywhere else in the app.
 
+### The card's hold (founder, 2026-11-13)
+
+The whole card is the hold target, not its title line. `IdeaCard`'s shell
+answers a long-press on its padding, the lead column around the play glyph and
+the gaps between its parts; every key a caller puts on a card (tags, the tag
+suggestion, `+ Version`, `N older`, find-evolution, Primary) forwards the
+card's handler, so a hold never fires the key's own tap. One hold time
+everywhere on the card: `CARD_HOLD_MS` (450). The shell answers holds only;
+taps stay with the parts inside it.
+
+The one exception is a wave that is the player. At rest the strip is
+pass-through, so a hold over it selects. Once the play glyph has made the card
+the inline preview (playing or paused, the ✕ showing), the strip and the
+compact row's scrub line belong to scrubbing; every other part of that card
+still selects. The preview ends at the end of the clip or on ✕, and the wave
+goes back to rest.
+
 ### The stage dial + title-row law (locked 2026-07-27)
 
 Stage is a **dial**, not a dot: a hollow ring filled clockwise a quarter per

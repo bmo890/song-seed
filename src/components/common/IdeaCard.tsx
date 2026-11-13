@@ -136,6 +136,8 @@ export type IdeaCardProps = {
 
     // Main content interaction
     onPress: () => void | Promise<void>;
+    /** A hold anywhere on the card, the controls inside it included (callers
+     *  forward it to the keys they pass in), so one gesture has one meaning. */
     onLongPress: () => void;
     delayLongPress?: number;
 
@@ -212,6 +214,10 @@ export type IdeaCardProps = {
     inlinePlayerContent?: ReactNode;
 };
 
+/** How long a still finger rests on a card before it counts as a hold. Between
+ *  the two platforms' own defaults (iOS 500, Android 400). */
+export const CARD_HOLD_MS = 450;
+
 /**
  * Shared card shell used by both IdeaListItem (collection page) and ClipCard
  * (song detail page). Provides a consistent warm-palette look: same outer
@@ -244,7 +250,7 @@ export function IdeaCard({
     leadAccessory,
     onPress,
     onLongPress,
-    delayLongPress = 450,
+    delayLongPress = CARD_HOLD_MS,
     title,
     titleSemiBold,
     titleIsAuto,
@@ -290,6 +296,16 @@ export function IdeaCard({
     const pickDisabled = pick === "disabled";
     // The ring is a checkbox named by the card; `checked` carries the pick.
     const pickA11yLabel = pickDisabled && pickNote ? `${title} — ${pickNote}` : title;
+    // The whole card is the hold target (founder, 2026-11-13): its padding, the
+    // lead column around the play glyph and the gaps between its parts used to
+    // be dead, which left a compact row holdable on its title line alone. The
+    // shell answers a hold only; taps stay with the parts inside it. It is not
+    // an accessibility element, so the controls inside keep their own names.
+    const holdShell = {
+        onLongPress: pickDisabled ? undefined : onLongPress,
+        delayLongPress,
+        accessible: false,
+    } as const;
     // The ring sits in a trailing column of its own, so the play glyph stays in
     // the lead slot: you can still audition a clip while picking it (founder
     // ruling 2026-09-11 — preview is the point of selecting from cards).
@@ -323,7 +339,8 @@ export function IdeaCard({
             ? Math.max(0, Math.min(1, inlineProgress))
             : 0;
         return (
-            <View
+            <Pressable
+                {...holdShell}
                 style={[
                     styles.ideaDenseRow,
                     (selected || isActive) ? styles.ideaDenseRowSelected : null,
@@ -351,6 +368,7 @@ export function IdeaCard({
                             onPressLead();
                         }}
                         onLongPress={onLongPressLead}
+                        delayLongPress={delayLongPress}
                         hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
                         accessibilityRole="button"
                         accessibilityLabel={leadA11yLabel}
@@ -452,12 +470,13 @@ export function IdeaCard({
                     // Appears only while searching, only on matching rows.
                     <MatchSnippetLine snippet={matchSnippet} field={matchField} needle={searchNeedle} dense />
                 ) : null}
-            </View>
+            </Pressable>
         );
     }
 
     const card = (
-        <View
+        <Pressable
+            {...holdShell}
             style={[
                 styles.ideasListCard,
                 compact ? styles.ideasListCardCompact : null,
@@ -502,6 +521,7 @@ export function IdeaCard({
                             onPressLead();
                         }}
                         onLongPress={onLongPressLead}
+                        delayLongPress={delayLongPress}
                         // 32pt glyph box + 6pt slop = 44pt effective target.
                         hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                         accessibilityRole="button"
@@ -660,7 +680,7 @@ export function IdeaCard({
                         </View>
                     ) : null}
             </View>
-        </View>
+        </Pressable>
     );
     if (!stacked) return card;
     // A sketch is a few pages held together (2026-10-15): two paper edges peek
