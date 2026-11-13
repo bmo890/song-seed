@@ -82,11 +82,12 @@ trust problem, and some are legal ones.
 ## 3. Free and Pro
 
 The split lives in code: `src/domain/proCatalog.ts` (numbers and switches) and
-`src/domain/proGating.ts`. Do not restate limits elsewhere. Summary as of 2026-11-01:
+`src/domain/proGating.ts`. Do not restate limits elsewhere. Summary as of 2026-11-13:
 
 - **Pro:** workspaces beyond 3; layers beyond 1 per take; pitch, pins, analysis and
-  Step up (plain loop and speed are free); editor parts beyond 1 and its Speed & pitch
-  tab; transpose, capo, making chart books and setlists (writing charts is free; a book
+  Step up (plain loop and speed are free); the editor's Speed & pitch tab (trimming and
+  cutting a take into any number of parts are free, 2026-11-13); transpose, capo,
+  making chart books and setlists (writing charts is free; a book
   that exists always opens in the stage reader, 2026-11-02 audit 11-M3);
   PDF export; the whole Word Finder (its APIs cost money); Lyric Spark beyond 3 tries per
   game; Send beyond 3 links per 30 days; archive offload.
@@ -249,3 +250,11 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
   layers on a take", because a take holds eight (`MAX_LAYERS_PER_TAKE`). JS only, so
   it can ship by update; not published until the founder says so. A "SongNook Pro" row
   in the side menu was offered and is not decided.
+- 2026-11-13 — Cutting in the editor is free (founder: "Trimming to edit should not be
+  pay walled", then "Agreed"). A free user marks any number of parts in one edit,
+  Split included; only the Speed & pitch tab stays Pro (`full-editor` keeps `pro: true`
+  and loses its `freeLimit`). Built, not published: build 19 is in App Store review,
+  so it ships by update after approval and before the founder presses Release. The
+  Pro page's line "Practice tools and the full editor" is still true (Speed & pitch)
+  and gets reworded with the page's new order, which the founder has not picked yet
+  (proposed: layers, words, practice with speed and pitch, charts, no limits).

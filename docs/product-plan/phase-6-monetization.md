@@ -102,7 +102,7 @@ everything must have a graceful gated state before the flag flips. The `__DEV__`
 | `workspaces` | New-workspace FAB (`WorkspaceListScreenContent`), beyond `freeLimit` (3) | Opening, renaming, archiving any workspace |
 | `overdub-layers` | Add-layer action (`PlayerScreen`), beyond `freeLimit` | Existing layered takes play and open |
 | `practice-suite` | Using pins, pitch, analysis, Step up (`PlayerScreen guardPracticeTool`, per-tool switches) | A plain loop and speed; opening practice mode, viewing marks; a received parcel's clips |
-| `full-editor` | The editor's Speed & pitch tab; adding a part beyond `freeLimit` (`useEditorSelectionState`) | A plain trim |
+| `full-editor` | The editor's Speed & pitch tab. No `freeLimit` since 2026-11-13, so the parts gate in `useEditorSelectionState` never bites | Trimming, and cutting a take into any number of parts |
 | `stage-tools` | `TransposeChip`, capo (`ReadingSheet`), new chart book / setlist (`useSongbookModel`, `useSetlistModel`, `SongbookChooserSheet`), the stage reader (`openReader`) | Writing chord charts; reading charts, books, sets; all of it on a received parcel (`ensureProFor`) |
 | `lyric-spark` | Starting a spark beyond 3 tries per game, counted for good (`useNotepadScreenModel startSpark`, `services/sparkTries.ts`; founder, 2026-10-25: deleting gives no try back; sparks made with Pro or in the free month don't count) | Existing sparks open and edit |
 | `word-sparks-unlimited` | Retired 2026-10-25 (`pro: false`): replaced by the tries above | — |

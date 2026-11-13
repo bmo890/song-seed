@@ -74,8 +74,11 @@ describe("the Pro catalog", () => {
         expect(canAddWorkspace(FREE_WORKSPACES - 1, false)).toBe(true);
         expect(canAddWorkspace(FREE_WORKSPACES, false)).toBe(false);
         expect(canAddWorkspace(FREE_WORKSPACES, true)).toBe(true);
-        expect(canAddEditorPart(0, false)).toBe(true); // a plain trim
-        expect(canAddEditorPart(PRO_CATALOG["full-editor"].freeLimit!, false)).toBe(false);
+        // Cutting into parts is free (founder, 2026-11-13); Speed & pitch stays gated.
+        expect(freeLimitOf("full-editor")).toBeNull();
+        expect(isProFeature("full-editor")).toBe(true);
+        expect(canAddEditorPart(0, false)).toBe(true);
+        expect(canAddEditorPart(12, false)).toBe(true);
         expect(canAddEditorPart(5, true)).toBe(true);
         expect(FREE_SEND_LINKS).toBe(PRO_CATALOG.send.freeLimit);
         expect(canSendLink(FREE_SEND_LINKS - 1, false)).toBe(true);

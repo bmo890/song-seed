@@ -28,7 +28,8 @@ export const FREE_WORKSPACES = freeLimitOf("workspaces") ?? Infinity;
 /** SongNook Send links a free user may make per 30 days (proCatalog "send".freeLimit). */
 export const FREE_SEND_LINKS = freeLimitOf("send") ?? Infinity;
 
-/** Parts a free user may cut a take into in one edit (proCatalog "full-editor".freeLimit). */
+/** Parts a free user may cut a take into in one edit (proCatalog "full-editor".freeLimit;
+ *  none since 2026-11-13, so Infinity: cutting into parts is free). */
 export const FREE_EDITOR_PARTS = freeLimitOf("full-editor") ?? Infinity;
 
 /**
@@ -58,7 +59,8 @@ export function canAddWorkspace(existingCount: number, isPro: boolean): boolean 
 
 /**
  * Whether the user may add another part in the editor. `existingPartCount` is how many
- * parts the edit already has. A plain trim (one part) is free.
+ * parts the edit already has. Always true while "full-editor" carries no freeLimit
+ * (2026-11-13: any number of parts is free).
  */
 export function canAddEditorPart(existingPartCount: number, isPro: boolean): boolean {
     return withinFreeLimit("full-editor", existingPartCount, isPro);

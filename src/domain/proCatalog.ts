@@ -69,8 +69,10 @@ export const PRO_CATALOG: Record<ProFeature, ProCatalogRow> = {
     // ── The editor ───────────────────────────────────────────────────────────────────
     "full-editor": {
         pro: true,
-        freeLimit: 1, // One part (a plain trim) is free; a second part needs Pro.
-        what: "The editor's Speed & pitch tab, and cutting a take into more than the free number of parts.",
+        // No freeLimit (founder, 2026-11-13: "Trimming to edit should not be pay walled"):
+        // cutting a take into any number of parts is free. Put `freeLimit: n` back to
+        // gate parts beyond n; the call site (useEditorSelectionState) is still in place.
+        what: "The editor's Speed & pitch tab. Trimming, and cutting a take into any number of parts, stays free.",
     },
 
     // ── Charts and the stage ─────────────────────────────────────────────────────────

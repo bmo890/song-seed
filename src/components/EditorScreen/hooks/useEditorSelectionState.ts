@@ -31,7 +31,8 @@ export function useEditorSelectionState({
 
   const addRange = () => {
     if (!analysisDurationMs) return;
-    // A plain trim (one part) is free; more parts are the full editor (domain/proCatalog.ts).
+    // Parts are free (2026-11-13); the gate only bites if "full-editor" gets a freeLimit
+    // again (domain/proCatalog.ts).
     if (!ensurePro("full-editor", canAddEditorPart(selectedRanges.length, hasProAccess("full-editor")))) return;
     const durationMs = analysisDurationMs;
     let newStart = playheadTimeMs;
