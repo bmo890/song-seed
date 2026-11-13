@@ -40,30 +40,36 @@ export const ideasListStyles = {
     paddingHorizontal: 9,
     minHeight: 0,
   },
-  // A sketch's stack of pages: two tonal edges under its card (2026-10-15).
+  // A sketch's stack of pages: two paper edges under its card (2026-10-15).
   // The wrapper's bottom padding is the stack's whole extra height.
+  // Drawn, not shadowed (2026-11-13): each page is a tone darker than the one
+  // above it and carries its own edge line. As near-white slivers lit only by
+  // a whisper shadow they vanished on iOS and came out heavier under Android's
+  // elevation, so a sketch did not read as one at scroll speed on either.
   ideasListStack: {
-    paddingBottom: 10,
+    paddingBottom: 12,
   },
   ideasListStackBack: {
     position: "absolute",
-    left: 20,
-    right: 20,
+    left: 18,
+    right: 18,
     bottom: 0,
     height: 24,
     borderRadius: 10,
-    backgroundColor: colors.surfaceContainer,
-    ...shadows.card,
+    backgroundColor: colors.surfaceHigh,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
   ideasListStackMiddle: {
     position: "absolute",
-    left: 10,
-    right: 10,
-    bottom: 5,
+    left: 9,
+    right: 9,
+    bottom: 6,
     height: 24,
     borderRadius: 11,
-    backgroundColor: colors.surface,
-    ...shadows.card,
+    backgroundColor: colors.surfaceContainer,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
   },
   ideasListCardSounding: {
     // The card that is sounding — dock session or inline preview, one look

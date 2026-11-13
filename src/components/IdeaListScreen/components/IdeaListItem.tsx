@@ -8,7 +8,6 @@ import { fmtCardDuration, formatClipCardTime, formatClipDate, isIdeaTitleAutoNam
 import { getDateBucket, getDateBucketLabel } from "../../../domain/dateBuckets";
 import { useNavigation } from "@react-navigation/native";
 import { getIdeaCreatedAt, getIdeaUpdatedAt, type IdeaSortMetric } from "../../../domain/ideaSort";
-import { getHierarchyIconName } from "../../../domain/hierarchy";
 import { isClipWaveformSynthetic } from "../../../domain/clipPresentation";
 import { buildDefaultSongbookItemsForIdea } from "../../../domain/songbookGrouping";
 import { getIdeaListItemMeta } from "../ideaListItemMeta";
@@ -267,16 +266,16 @@ function IdeaListItemInner({
                     </View>
                 </View>
             ) : null}
-            {hasProjectClipCount ? (
-                <View style={styles.ideasListMetaToken}>
-                    <View style={styles.ideasListMetaIconWrap}>
-                        <Ionicons name={getHierarchyIconName("clip")} size={12} color="#84736f" />
-                    </View>
-                    <Text style={styles.ideasListMetaText}>{projectClipCount}</Text>
-                </View>
-            ) : null}
         </View>
     );
+    // A sketch says how many takes it holds in words, at the start of the meta
+    // line the eye runs down (2026-11-13): "4 takes · Mon" beside a clip's bare
+    // "Mon" tells the two apart at scroll speed. It was a 12 pt glyph and a
+    // digit on the far edge.
+    const footerLabel =
+        item.kind === "project" && hasProjectClipCount
+            ? `${t("brand.takeCount", { count: projectClipCount })} · ${dateLabel}`
+            : dateLabel;
 
     // (Compact intentionally shows no take/lyrics meta — only the bookmark + duration.)
     // Search matches now surface the matched LINE (see matchSnippet → IdeaCard),
@@ -447,7 +446,7 @@ function IdeaListItemInner({
                             matchField={matchField}
                             // Compact has no date grouping, so a time-created is contextless —
                             // dropped entirely there; comfortable keeps its relative date.
-                            footerDate={compact ? undefined : dateLabel}
+                            footerDate={compact ? undefined : footerLabel}
                             footerRightContent={
                                 // Compact keeps only the bookmark (in `trailing`) — the
                                 // take-count and other metadata are dropped for density.
