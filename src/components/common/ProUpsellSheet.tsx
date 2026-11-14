@@ -33,7 +33,7 @@ import {
   type ProPlan,
 } from "../../services/billing";
 import { haptic } from "../../design/haptics";
-import { collapseIn } from "../../design/motion";
+import { collapseIn, riseIn } from "../../design/motion";
 // Apple requires working Terms and Privacy links on a paywall; the one source of
 // those URLs is config/legalLinks, shared with Settings → About.
 import { PRIVACY_POLICY_URL as PRIVACY_URL, TERMS_OF_USE_URL as TERMS_URL } from "../../config/legalLinks";
@@ -82,8 +82,11 @@ function ProUpsellPage({ onClose }: { onClose: () => void }) {
   const purchase = useOwnedPro();
   const hasPro = standing.kind === "pro" || standing.kind === "founding";
   const [plansOpen, setPlansOpen] = useState(false);
+  // After a purchase or a restore the page says so before it closes (founder,
+  // 2026-11-14: "make sure they know it works"), instead of vanishing.
+  const [welcome, setWelcome] = useState<"bought" | "restored" | null>(null);
   const scrollRef = useRef<ScrollView>(null);
-  const showPlans = !hasPro || plansOpen;
+  const showPlans = !welcome && (!hasPro || plansOpen);
   const canManage = purchase != null && !purchase.lifetime;
   // Lifetime is the last plan: nothing left to sell, and a subscription on top would bill twice.
   const canSeePlans = !purchase?.lifetime;
@@ -140,7 +143,7 @@ function ProUpsellPage({ onClose }: { onClose: () => void }) {
     if (result.ok) {
       // haptics.ts: success → a commit that landed.
       haptic.success();
-      onClose();
+      setWelcome("bought");
       return;
     }
     if (result.reason === "cancelled") return;
@@ -162,7 +165,7 @@ function ProUpsellPage({ onClose }: { onClose: () => void }) {
     if (result.ok) {
       // haptics.ts: success → a commit that landed.
       haptic.success();
-      onClose();
+      setWelcome("restored");
       return;
     }
     if (result.reason === "error") {
@@ -189,17 +192,30 @@ function ProUpsellPage({ onClose }: { onClose: () => void }) {
       >
         <View>
           <Text style={s.eyebrow}>{t("pro.eyebrow")}</Text>
-          <Text style={s.headline}>{t(hasPro ? "pro.ownedHeadline" : "pro.headline")}</Text>
-          {owned ? <Text style={s.statusLine}>{owned}</Text> : null}
-          {freeMonth ? (
+          {welcome ? (
+            // The thanks rises in where the headline was: the same page, one swap.
+            <ReAnimated.View entering={riseIn} accessibilityLiveRegion="polite">
+              <Text style={s.headline} accessibilityRole="header">
+                {t(welcome === "bought" ? "pro.welcomeHeadline" : "pro.restoredHeadline")}
+              </Text>
+              {owned ? <Text style={s.statusLine}>{owned}</Text> : null}
+              <Text style={s.welcomeBody}>{t("pro.welcomeBody")}</Text>
+            </ReAnimated.View>
+          ) : (
+            <>
+              <Text style={s.headline}>{t(hasPro ? "pro.ownedHeadline" : "pro.headline")}</Text>
+              {owned ? <Text style={s.statusLine}>{owned}</Text> : null}
+            </>
+          )}
+          {freeMonth && !welcome ? (
             <Text style={s.statusLine}>
               {freeMonth === "ended" ? t("pro.freeMonthEnded") : t("pro.freeMonthLeft", { count: freeMonth.daysLeft })}
             </Text>
           ) : null}
-          <Text style={s.subhead}>{t("pro.subhead")}</Text>
+          {welcome ? null : <Text style={s.subhead}>{t("pro.subhead")}</Text>}
           {/* What this person used in their free month, most used first: a reminder,
               counted and kept on the phone (services/proUse.ts). */}
-          {used.length > 0 ? (
+          {used.length > 0 && !welcome ? (
             <View style={s.used} accessible accessibilityLabel={usedLabel}>
               <Text style={s.usedTitle}>{t("pro.usedTitle")}</Text>
               <Text style={s.usedLine}>
@@ -265,10 +281,12 @@ function ProUpsellPage({ onClose }: { onClose: () => void }) {
         ) : null}
         {/* Under the prices: the doors without a line of their own, then what paying
             never touches. */}
-        <View style={s.footnotes}>
-          <Text style={s.alsoLine}>{t("pro.also")}</Text>
-          <Text style={s.freeLine}>{t("pro.freeForGood")}</Text>
-        </View>
+        {welcome ? null : (
+          <View style={s.footnotes}>
+            <Text style={s.alsoLine}>{t("pro.also")}</Text>
+            <Text style={s.freeLine}>{t("pro.freeForGood")}</Text>
+          </View>
+        )}
       </ScrollView>
 
       <View style={s.footer}>
@@ -277,7 +295,9 @@ function ProUpsellPage({ onClose }: { onClose: () => void }) {
             {notice}
           </Text>
         ) : null}
-        {showPlans ? (
+        {welcome ? (
+          <Button variant="primary" label={t("pro.welcomeDone")} onPress={onClose} style={s.cta} testID="pro-welcome-done" />
+        ) : showPlans ? (
           <>
             <Button
               variant="primary-emphasis"
@@ -298,7 +318,7 @@ function ProUpsellPage({ onClose }: { onClose: () => void }) {
           />
         ) : null}
         <View style={s.footerLinks}>
-          {showPlans ? (
+          {welcome ? null : showPlans ? (
             <Press feel="glyph" disabled={busy} onPress={() => void handleRestore()} hitSlop={8} accessibilityRole="button">
               <Text style={s.link}>{t("pro.restore")}</Text>
             </Press>
@@ -308,7 +328,7 @@ function ProUpsellPage({ onClose }: { onClose: () => void }) {
               <Text style={s.link}>{t("pro.seePlans")}</Text>
             </Press>
           ) : null}
-          {showPlans || canSeePlans ? <Text style={s.linkDot}>·</Text> : null}
+          {!welcome && (showPlans || canSeePlans) ? <Text style={s.linkDot}>·</Text> : null}
           <Press
             feel="glyph"
             haptic="navigate"
@@ -406,6 +426,11 @@ const s = StyleSheet.create({
     fontFamily: "PlusJakartaSans_600SemiBold",
     color: colors.primaryDeep,
     fontVariant: ["tabular-nums"],
+  },
+  welcomeBody: {
+    ...textTokens.body,
+    color: colors.textStrong,
+    marginTop: spacing.md,
   },
   subhead: {
     ...textTokens.supporting,
