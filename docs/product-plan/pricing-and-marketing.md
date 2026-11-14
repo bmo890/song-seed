@@ -335,3 +335,11 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
   and each album stay apart." Sixth line, between sharing and layers; the sharing line
   ends "Unlimited Send links." again. Six lines push the prices just below the first
   screen when the "used in your free month" line shows. Five languages.
+- 2026-11-14 — Apple approved SongNook 1.0 (build 19). Release stays manual. With the
+  founder's "Yes", the launch split was published by update from 55f5d155 (runtime 1.0.0)
+  to all four channels: production iOS 617864d2, production Android 90ed0dd5, preview iOS
+  26e3956c, preview Android b99229f0. It carries the new free/Pro split, the Pro marks,
+  the new Pro page, free cutting, and the side-swipe fix. Not yet done: the Send worker
+  deploy (server limits on, FREE_LINKS = 1, the new terms, the website's App Store link),
+  which needs REVENUECAT_SECRET_KEY set by the founder and their yes; the purchase test;
+  pressing Release.
