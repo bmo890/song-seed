@@ -2,9 +2,9 @@
  * Worker runtime bindings + config. Secrets and non-secret vars are surfaced here
  * so the rest of the code never reaches into raw `env` and never hardcodes a key.
  */
-/** The slice of the Email Service binding this worker uses (Workers binding `send`). */
+/** The Email Routing send_email binding: sends an EmailMessage to its verified address. */
 export interface FeedbackMailer {
-  send(message: { to: string; from: { email: string; name?: string }; subject: string; text: string }): Promise<unknown>;
+  send(message: unknown): Promise<unknown>;
 }
 
 export interface Env {
@@ -19,8 +19,8 @@ export interface Env {
   RATE_PAIR?: RateLimit;
   /** Notes from the app's feedback sheet. */
   RATE_FEEDBACK?: RateLimit;
-  /** Cloudflare Email Service: emails each feedback note to the founder. Optional:
-   *  without it (local dev, or before songnook.app is set up to send) nothing is mailed. */
+  /** Cloudflare Email Routing: emails each feedback note to the founder's verified
+   *  address. Optional: without it (local dev) nothing is mailed. */
   EMAIL?: FeedbackMailer;
   /** KV fallback for per-IP rate limiting when the bindings above are absent.
    *  Optional — fail-open when absent (dev). */

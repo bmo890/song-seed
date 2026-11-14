@@ -61,8 +61,9 @@ ANDROID_CERT_FINGERPRINTS = "9D:9F:2E:57:BE:EB:B8:EB:62:4E:D8:70:6A:49:E8:FC:0A:
 # Abuse-report mailbox the /report/:id funnel points at (not a secret).
 ABUSE_CONTACT_EMAIL = "bmostudio.dev@gmail.com"
 # Each feedback note is emailed here (founder, 2026-11-14), from a songnook.app
-# address. Needs Email Sending set up for songnook.app in Cloudflare, and the
-# [[send_email]] binding below. Deploy with wrangler 4 (the binding's send() API).
+# address, through Email Routing (free; enabled for songnook.app 2026-11-14, and
+# this address is a verified destination). The [[send_email]] binding below is
+# locked to it.
 FEEDBACK_NOTIFY_TO = "bmostudio.dev@gmail.com"
 FEEDBACK_NOTIFY_FROM = "feedback@songnook.app"
 # R2 account + bucket used to mint presigned URLs (bucket name is not a secret).
@@ -137,6 +138,8 @@ crons = ["0 3 * * *"]
 #                            otherwise make every subscriber look free).
 # Locally these live in `.dev.vars` (gitignored). See .dev.vars.example.
 
-# Cloudflare Email Service: emails each feedback note (src/lib/feedback.ts).
+# Cloudflare Email Routing: emails each feedback note (src/lib/feedback.ts) to the
+# founder's verified address, and nowhere else.
 [[send_email]]
 name = "EMAIL"
+destination_address = "bmostudio.dev@gmail.com"

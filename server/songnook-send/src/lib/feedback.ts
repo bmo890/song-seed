@@ -73,14 +73,49 @@ export function feedbackEmail(value: FeedbackNote, now: number): { subject: stri
   return { subject: `SongNook feedback: ${firstLine}${value.note.length > 60 ? "…" : ""}`, text: lines.join("\n") };
 }
 
-/** Email a note to the founder. Never throws: the note is already saved. */
-export async function notifyFeedback(env: Env, value: FeedbackNote, now: number): Promise<void> {
+/** UTF-8 text as base64, in 76-character lines (a note may be in Hebrew). */
+function base64Utf8(text: string, wrap = 0): string {
+  let binary = "";
+  for (const byte of new TextEncoder().encode(text)) binary += String.fromCharCode(byte);
+  const encoded = btoa(binary);
+  return wrap ? (encoded.match(new RegExp(`.{1,${wrap}}`, "g")) ?? [""]).join("\r\n") : encoded;
+}
+
+/**
+ * The whole message, as Email Routing's send() wants it: plain text, UTF-8, base64.
+ * Pure, so it is tested without the Workers runtime.
+ */
+export function feedbackMime(value: FeedbackNote, now: number, from: string, to: string, messageId: string): string {
+  const { subject, text } = feedbackEmail(value, now);
+  return [
+    `From: "SongNook feedback" <${from}>`,
+    `To: <${to}>`,
+    `Subject: =?UTF-8?B?${base64Utf8(subject)}?=`,
+    `Date: ${new Date(now).toUTCString()}`,
+    `Message-ID: <${messageId}>`,
+    "MIME-Version: 1.0",
+    "Content-Type: text/plain; charset=UTF-8",
+    "Content-Transfer-Encoding: base64",
+    "",
+    base64Utf8(text, 76),
+  ].join("\r\n");
+}
+
+/** Builds the runtime's EmailMessage; injected so this file stays free of `cloudflare:email`. */
+export type MakeEmail = (from: string, to: string, raw: string) => unknown;
+
+/**
+ * Email a note to the founder through Cloudflare Email Routing: free, and only to the
+ * verified address the binding names (founder, 2026-11-14: no paid plan). Never throws:
+ * the note is already saved.
+ */
+export async function notifyFeedback(env: Env, value: FeedbackNote, now: number, makeEmail: MakeEmail): Promise<void> {
   const to = env.FEEDBACK_NOTIFY_TO;
   const from = env.FEEDBACK_NOTIFY_FROM;
   if (!env.EMAIL || !to || !from) return;
-  const { subject, text } = feedbackEmail(value, now);
   try {
-    await env.EMAIL.send({ to, from: { email: from, name: "SongNook feedback" }, subject, text });
+    const raw = feedbackMime(value, now, from, to, `${crypto.randomUUID()}@songnook.app`);
+    await env.EMAIL.send(makeEmail(from, to, raw));
   } catch (error) {
     console.warn("feedback email failed", error);
   }

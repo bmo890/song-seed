@@ -8,6 +8,7 @@
  * limiting and a small body cap keep it from being a place to dump text.
  */
 import { Hono } from "hono";
+import { EmailMessage } from "cloudflare:email";
 import type { Env } from "../env";
 import { loadConfig } from "../env";
 import { errorResponse, jsonResponse } from "../lib/http";
@@ -40,7 +41,7 @@ feedback.post("/feedback", async (c) => {
   const now = Date.now();
   await insertFeedback(c.env, parsed.value, now);
   // The founder's copy goes out after the answer: a slow mail never holds the app.
-  const mail = notifyFeedback(c.env, parsed.value, now);
+  const mail = notifyFeedback(c.env, parsed.value, now, (from, to, raw) => new EmailMessage(from, to, raw));
   try {
     c.executionCtx.waitUntil(mail);
   } catch {
