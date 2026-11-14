@@ -363,3 +363,9 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
   Portuguese (Brazil) and Hebrew listings with their own subtitles. Send links: the
   Android link file now lists Play App Signing's key too (worker 94080144), so a Play
   install opens Send links in the app.
+- 2026-11-14 — songnook.app is a real landing page (founder's yes; worker 612d36b5): tagline,
+  App Store button, the eight store screens, six feature blocks in the store description's
+  words, the privacy promise, free vs Pro with prices ($24.99 / $3.99 / $59.99, lifetime
+  launch price until February 9, 2027), share card og.png. Change it with the store copy
+  and on 2027-02-09 (lifetime price), and add the Google Play button when Android is live
+  (`server/songnook-send/src/pages/legal.ts`).
