@@ -350,3 +350,10 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
   allowances (store-truth.md §6). The promotional text and Play take it now; Apple's
   description waits for the next iOS version (an approved version is locked). Spanish,
   German, Portuguese and Hebrew listings written (store-listing-translations.md).
+- 2026-11-14 — iOS 1.0 released (founder pressed Release). Send worker deployed (version
+  3eecab2e) with the founder's yes: PRO_FOR_ALL "false", APP_SEND_ENFORCED "true", one free
+  link a month (access.ts FREE_LINKS), the App Store link replaces TestFlight on the Send
+  page, the website links the App Store ("Coming to Google Play"), terms and privacy
+  effective November 14 (privacy now says feedback notes are emailed to our inbox and those
+  copies go after a year too), feedback emails on. /healthz selling + key set,
+  /healthz/billing ok.

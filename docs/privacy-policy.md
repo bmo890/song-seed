@@ -1,6 +1,6 @@
 # SongNook Privacy Policy
 
-**Effective date:** November 11, 2026
+**Effective date:** November 14, 2026
 
 SongNook is a songwriting app built on a simple promise: **your music stays yours, on your phone.** There are no accounts, no ads, no analytics and no tracking.
 
@@ -21,7 +21,7 @@ SongNook makes a few network requests. None of them carry your name, an account,
 - **Word tools.** Word Finder lookups send the word you look up, plus any theme words you add, to Datamuse (English and Spanish) or, for Hebrew, to our own server, which asks Anthropic's Claude and Dicta (a non-profit Hebrew language institute) for suggestions. Our Hebrew server keeps a shared cache of results, with nothing that identifies who looked them up. Your lyrics are never sent.
 - **Sending.** When you send with SongNook Send, the app includes a random key it made for this install, so our server can count your free links and, once you buy Pro, ask RevenueCat whether you have it. We keep only a scrambled form of that key, never anything that names you. If you pair a computer's browser with the app (Settings → Data & storage → Send from a computer), we keep that pairing and the browser's name (for example "Chrome on Mac") for 30 days, or until you remove it.
 - **Borrowed Words.** This word game loads pages of public-domain books from Project Gutenberg and, for Hebrew, from the Ben-Yehuda Project through our server.
-- **Feedback.** If you write to us from Settings → Feedback and feature requests, the app sends your note to our server with the app version, the installed update, your phone's system version and the app's language, so we can understand a problem. It sends no name, no account and no install key, so we can't tell who wrote a note and can't reply to it. We keep notes for up to a year.
+- **Feedback.** If you write to us from Settings → Feedback and feature requests, the app sends your note to our server with the app version, the installed update, your phone's system version and the app's language, so we can understand a problem. It sends no name, no account and no install key, so we can't tell who wrote a note and can't reply to it. Each note is also emailed to our own inbox so we read it. We keep notes, and those emailed copies, for up to a year.
 
 ## Sharing with SongNook Send
 
@@ -40,7 +40,7 @@ Send hands clips or a whole sketch to someone with a link. Nothing uploads until
 - **Your library:** it lives only on your phone. Delete ideas in the app, or remove everything with **Settings → Erase everything**. Deleting the app removes it too (your phone's own backups are managed in its settings).
 - **A Send link:** it is deleted automatically **7 days** after you made it. To delete one sooner, open **Settings → Data & storage → Sent links** and choose **Delete link**; the files go at once. For a link made before November 1, 2026, email **bmostudio.dev@gmail.com** with the link; we remove the files and details within 7 days of your request.
 - **Paired browsers:** remove one in **Settings → Data & storage → Send from a computer**, or it lapses after 30 days unused.
-- **Feedback notes:** they are not tied to you and are deleted after a year. To have one removed sooner, email us its wording.
+- **Feedback notes:** they are not tied to you and are deleted, with their emailed copies, after a year. To have one removed sooner, email us its wording.
 - **Purchase records:** if you bought SongNook Pro, email us and we will ask RevenueCat to delete the purchase history tied to your anonymous ID. The App Store or Google Play keep their own records of the payment under their policies.
 - **Everything else:** word lookups are not tied to you, and the IP counters used against abuse expire on their own within about two hours, so there is nothing to delete.
 

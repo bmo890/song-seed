@@ -1,6 +1,6 @@
 # SongNook Terms of Use
 
-**Effective date:** November 1, 2026
+**Effective date:** November 14, 2026
 
 These are the terms for using SongNook, a songwriting app made by an independent developer, SongNook Pro, and SongNook Send, its built-in sharing service. They are short because the app is simple: your work lives on your device, and we only touch it when you ask us to deliver it to someone.
 

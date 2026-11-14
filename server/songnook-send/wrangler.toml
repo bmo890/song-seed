@@ -39,17 +39,16 @@ RATE_ITEMS_PER_HOUR = "300"
 # ALL_FEATURES_FREE: set "false" in the release that turns the paywall on, and
 # set APP_SEND_ENFORCED "true" then too (older app builds send no key, so not
 # before). The web page needs a paired browser from now on.
-PRO_FOR_ALL = "true"
+PRO_FOR_ALL = "false"
 WEB_SEND_REQUIRES_PAIRING = "true"
-APP_SEND_ENFORCED = "false"
+APP_SEND_ENFORCED = "true"
 PRO_ENTITLEMENT_ID = "songnook_pro"
 # End-to-end sealed parcels from the web sender (docs/product-plan/send-e2e-encryption.md).
 # On since 2026-11-01 (no real users yet; app builds without the native seal say "Update SongNook").
 SEAL_WEB_SENDS = "true"
 # Store links for the mobile-without-app install funnel.
-# The App Store listing (release commit, 2026-11-11). It is a 404 until Apple
-# puts the app on sale: deploy this only once the listing is live. Until then the
-# deployed worker keeps the TestFlight link (testflight.apple.com/join/wY6azj3Z).
+# The App Store listing (release commit, 2026-11-11). Live since the founder pressed
+# Release on 2026-11-14 (it replaced the TestFlight link).
 IOS_APP_STORE_URL = "https://apps.apple.com/app/id6810435199"
 ANDROID_PACKAGE = "com.bmostudio.songnook"
 # Universal / App Link association (.well-known). Apple Team ID is public by

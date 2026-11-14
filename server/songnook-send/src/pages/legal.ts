@@ -29,6 +29,7 @@ const LEGAL_CSS = `
 .land nav{margin-top:34px;font-size:14px}
 .land nav a{margin:0 10px;color:var(--terra-deep);text-decoration:none;border-bottom:1px solid var(--rule)}
 .land nav a:hover{border-color:var(--terra-deep)}
+.land .quiet a{color:var(--terra-deep);text-decoration:none;border-bottom:1px solid var(--rule)}
 `;
 
 type LegalKind = keyof typeof LEGAL;
@@ -78,8 +79,8 @@ export function renderSupportPage(email: string): string {
   });
 }
 
-/** The bare-domain landing: what SongNook is, that it's coming, and where the rules live. */
-export function renderLandingPage(): string {
+/** The bare-domain landing: what SongNook is, where to get it, and where the rules live. */
+export function renderLandingPage(appStoreUrl: string): string {
   return page({
     title: "SongNook",
     variant: "site",
@@ -87,7 +88,7 @@ export function renderLandingPage(): string {
     body: `<section class="land rise">
   <h1>A quiet place to finish creative work.</h1>
   <p>SongNook is a musician's sketchbook — record the idea, keep the takes, write the words, and hand it to the band with a link.</p>
-  <p class="quiet">Coming to the App Store and Google Play.</p>
+  <p class="quiet"><a href="${escapeHtml(appStoreUrl)}">Get it on the App Store</a>. Coming to Google Play.</p>
   <nav><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/support">Support</a></nav>
 </section>`,
   });
