@@ -169,11 +169,19 @@ controls going in the background").
 This is the founder-approved copy, live in both consoles since 2026-10-25. Three SHARE lines (sealed Send, Export for your DAW, Send from a computer) approved 2026-11-09. The two stores
 differ only where marked.
 
+**2026-11-14 (founder, before pressing Release):** new opening line ("A quiet corner for
+songwriting and practice…", no feature names in it), and the PRO paragraph now names what
+Pro adds, since the split changed that day (Apple 2.3.2: say which features need a
+purchase). Lyric Spark reads "writing exercises", as on the Pro page. Apple locks the
+description of an approved version, so v1.0.0 shipped with the old text; the new one goes
+in with the next iOS version. The promotional text (no review) and Play took it the same
+day. Translations: `store-listing-translations.md`.
+
 - **Name:** SongNook
 - **Tagline (both stores, the intro screen and the feature graphic):** A quiet corner to finish songs.
 - **Apple subtitle (30):** `A quiet corner to finish songs`
 - **Play short description (80):** `A quiet corner to finish songs. Record, organize, rehearse, never lose a gem.`
-- **Apple promotional text (170):** `A quiet corner to finish songs. Catch ideas the moment they hit, find them again, rehearse them until they're done. No account, and your songs stay on your phone.`
+- **Apple promotional text (170):** `A quiet corner for songwriting and practice. Catch ideas the moment they hit, find them again, and finish them. No account, and your songs stay on your phone.` (158; 2026-11-14, was "A quiet corner to finish songs. … rehearse them until they're done. …")
 - **Apple keywords (100):** `songwriting,songwriter,lyrics,chords,voice memo,recorder,song ideas,setlist,tuner,metronome,demo`
 - **Categories:** Apple: Music, then Productivity.
 - **Links:** support https://songnook.app/privacy#contact · marketing https://songnook.app
@@ -183,7 +191,7 @@ differ only where marked.
 other platforms. Apple also appends the subscription paragraph below.
 
 ```
-SongNook records your song ideas, keeps them organized, and helps you finish them. No account, no ads.
+A quiet corner for songwriting and practice. SongNook records your song ideas, keeps them organized, helps you finish them, and brings back the ones you forgot, so a good idea never gets lost. No account, no ads.
 
 Your songs stay on your phone. We never see them, and they are never used to train AI.
 
@@ -213,7 +221,7 @@ REHEARSE
 
 WRITE
 • Word Finder - rhymes, near rhymes, synonyms
-• Lyric Spark - games for writer's block
+• Lyric Spark - writing exercises for when you're stuck
 • Lyric Pad - a home for loose lines
 
 SHARE
@@ -227,7 +235,14 @@ SHARE
 • Send from a computer - pair a browser with a code and send from there
 
 PRO
-Your first month includes every tool, free, no card needed. After that, recording, writing and organizing your songs stay free, and SongNook Pro unlocks the extended tools.
+Your first month includes every tool, free, no card needed. After that, recording, writing, organizing and sharing your songs stay free. SongNook Pro adds:
+• Word Finder, and unlimited Lyric Spark (one free try of each game)
+• Speed, pitch and Step up
+• Transpose, capo, setlists, chart books and PDF charts
+• Unlimited Send links (one a month free)
+• Unlimited workspaces (two free)
+• Up to 8 layers on a take (one free)
+• Export for DAW
 ```
 
 **Apple only, appended (required for auto-renewing Pro):**

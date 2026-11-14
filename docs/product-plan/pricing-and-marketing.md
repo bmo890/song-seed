@@ -343,3 +343,10 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
   deploy (server limits on, FREE_LINKS = 1, the new terms, the website's App Store link),
   which needs REVENUECAT_SECRET_KEY set by the founder and their yes; the purchase test;
   pressing Release.
+- 2026-11-14 — REVENUECAT_SECRET_KEY set on the Send worker by the founder;
+  `/healthz/billing` answers ok (RevenueCat accepts it). Flags not flipped yet.
+- 2026-11-14 — Store description (founder, before Release): opens "A quiet corner for
+  songwriting and practice…" and the PRO paragraph names what Pro adds, with the free
+  allowances (store-truth.md §6). The promotional text and Play take it now; Apple's
+  description waits for the next iOS version (an approved version is locked). Spanish,
+  German, Portuguese and Hebrew listings written (store-listing-translations.md).
