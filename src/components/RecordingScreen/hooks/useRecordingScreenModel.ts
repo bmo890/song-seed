@@ -1979,7 +1979,8 @@ export function useRecordingScreenModel() {
     restoredGridClipIdRef.current = takeGridSourceClip.id;
     metronome.setBpmValue(grid.bpm);
     metronome.setMeterIdValue(grid.meterId);
-    metronome.setCountInBarsValue(grid.countInBars);
+    // Not the master's count-in (founder, 2026-11-14): a count-in runs only when it is
+    // set for this take. Tempo, meter, feel and click still come from the master.
     // The take's FEEL travels too: a 5/4 master recorded 3+2 must click 3+2 under
     // the overdub. No stored grouping = restore the meter's default feel.
     metronome.setGrouping(grid.meterId, grid.grouping ?? null);

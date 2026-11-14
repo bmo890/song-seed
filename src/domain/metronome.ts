@@ -34,7 +34,9 @@ export const MAX_TAP_HISTORY = 8;
 export const METRONOME_LOOP_BEAT_COUNT = 4;
 export const DEFAULT_METRONOME_METER_ID: MetronomeMeterId = "4/4";
 export const METRONOME_COUNT_IN_BAR_OPTIONS = [0, 1, 2, 4] as const;
-export const DEFAULT_METRONOME_COUNT_IN_BARS = 1;
+/** No count-in until someone asks for one (founder, 2026-11-14: a take counted in with no
+ *  count-in set). It stays one-shot: a take that used it sets it back to 0. */
+export const DEFAULT_METRONOME_COUNT_IN_BARS = 0;
 export const DEFAULT_METRONOME_SUBDIVISION: MetronomeSubdivision = 1;
 /** Weight of every sub-click (weak voice). Quiet and present, well under a weak beat. */
 export const SUBDIVISION_CLICK_ACCENT = 0.18;
