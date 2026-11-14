@@ -258,3 +258,23 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
   Pro page's line "Practice tools and the full editor" is still true (Speed & pitch)
   and gets reworded with the page's new order, which the founder has not picked yet
   (proposed: layers, words, practice with speed and pitch, charts, no limits).
+- 2026-11-14 — The split after the feature audit (`feature-audit-2026-11-13/`, founder's
+  answers in `founder-answers-2026-11-14.md`). Founder agreed to all nineteen decisions on
+  the ledger and then to the revised package ("i agree with your revised suggestions
+  regarding pro"). **Agreed, NOT built yet, and nothing ships before Apple approves:**
+  pins free everywhere · Speed in the player becomes Pro (loop stays free; Keep then holds
+  only a loop for a free person) · going back toward the original pitch, capo or key is
+  always free · Step up stays as built (nobody free runs a drill) · the whole Word Finder
+  stays Pro (the "Rhymes free" idea was dropped) · word games: 1 try of each game for
+  good, counted only once something is written, deleting gives none back · Send: 1 link
+  per 30 days (was 3; the server's `FREE_LINKS`, the terms, the Send error text and the
+  web sender page all state the number) · workspaces: 2 free (was 3), collections
+  unlimited, the export-and-import workaround is left alone · Export for DAW becomes Pro ·
+  chart PDF stays Pro and the terms' "export is never locked" gets corrected · tempo
+  detection and archive offload come off every list of Pro tools · the layer mixer, tempo
+  changes, tuner, metronome, calibration, video import, automatic backup, playlists, Shelf,
+  Revisit, Activity and the stage reader stay free. Rule behind it: free is capture,
+  organise, write, play back and back up, for good; Pro is the tools that change or finish
+  the song, and in each Pro group the most-used tool is Pro. Founder then asked a third
+  time about $1 a month and about gating Revisit and Activity; advice given was to keep
+  both as they are (see "Why not $1 a month" in §1); their answer is pending.
