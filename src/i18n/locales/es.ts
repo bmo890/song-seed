@@ -3637,13 +3637,13 @@ export const es = {
     renewNoteAndroid: "Anual y mensual se renuevan hasta que canceles. Cancela en tu cuenta de Google Play.",
     usedTitle: "Usado en tu mes gratis",
     used: { wordFinder: "Buscador de palabras", lyricSpark: "Chispa de letras", practice: "Herramientas de práctica", stage: "Herramientas de escenario", send: "Enlaces de Send", layers: "Capas" },
-    also: "También con Pro: espacios de trabajo ilimitados y Exportar para DAW.",
+    also: "También con Pro: Exportar para DAW.",
     freeForGood: "Gratis para siempre: grabar, tu biblioteca, letras, acordes, copias de seguridad.",
     features: {
       "0": { title: "Escribe hasta salir del bloqueo", body: "Chispa de letras te da ejercicios de escritura para trabajar cuando te atascas. El Buscador de palabras encuentra rimas, sinónimos y más." },
       "1": { title: "Herramientas de práctica", body: "Baja la velocidad, cambia el tono y repite la parte difícil hasta llegar al tempo." },
       "2": { title: "Llévalo al escenario", body: "Transposición, capo, cancioneros, setlists y PDF." },
-      "3": { title: "Compártelo tal como lo marcaste", body: "Tus partes, marcas y notas llegan a su SongNook tal como las marcaste, para que la banda vea lo que quieres decir. Enlaces de Send ilimitados." },
+      "3": { title: "Compártelo tal como lo marcaste", body: "Tus partes, marcas y notas llegan a su SongNook tal como las marcaste, para que la banda vea lo que quieres decir. Enlaces de Send y espacios de trabajo ilimitados." },
       "4": { title: "Suma otra parte", body: "Una armonía, otra guitarra, una línea de bajo. Hasta 8 capas en una toma." },
     },
     plans: {

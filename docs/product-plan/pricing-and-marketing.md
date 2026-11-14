@@ -327,3 +327,6 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
 - 2026-11-14 — Layers line reworded so it is not only for singers (founder: "make it
   clear that it can be another instrument as well"): "Add another part. A harmony, a
   second guitar, a bass line. Up to 8 layers on one take." Five languages.
+- 2026-11-14 — Unlimited workspaces moved from the small line into the sharing line
+  ("Unlimited Send links and workspaces."); the small line is now "Also with Pro: Export
+  for DAW." Founder asked where workspaces had gone, then "Yes". Five languages.

@@ -176,9 +176,9 @@ export const PAYWALL_ROWS: ReadonlyArray<{ icon: string; features: ProFeature[] 
     { icon: "sparkles-outline", features: ["lyric-spark", "word-finder-full"] },
     { icon: "repeat-outline", features: ["practice-suite", "full-editor"] },
     { icon: "musical-notes-outline", features: ["stage-tools", "pdf-export"] },
-    { icon: "paper-plane-outline", features: ["send"] },
+    { icon: "paper-plane-outline", features: ["send", "workspaces"] },
     { icon: "layers-outline", features: ["overdub-layers"] },
 ];
 
 /** The page's one quiet closing line (`pro.also`): Pro doors that are not a line of their own. */
-export const PAYWALL_ALSO: ReadonlyArray<ProFeature> = ["workspaces", "daw-export"];
+export const PAYWALL_ALSO: ReadonlyArray<ProFeature> = ["daw-export"];

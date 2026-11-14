@@ -3494,13 +3494,13 @@ export const de = {
     renewNoteAndroid: "Jährlich und monatlich verlängern sich bis zur Kündigung. Kündigen im Google-Play-Konto.",
     usedTitle: "In deinem Gratismonat genutzt",
     used: { wordFinder: "Wortfinder", lyricSpark: "Textfunke", practice: "Übungswerkzeuge", stage: "Bühnenwerkzeuge", send: "Send-Links", layers: "Spuren" },
-    also: "Auch mit Pro: unbegrenzte Arbeitsbereiche und Für DAW exportieren.",
+    also: "Auch mit Pro: Für DAW exportieren.",
     freeForGood: "Für immer kostenlos: Aufnehmen, deine Bibliothek, Texte, Akkorde, Backup.",
     features: {
       "0": { title: "Schreib dich aus der Blockade", body: "Textfunke gibt dir Schreibübungen zum Durcharbeiten, wenn du feststeckst. Der Wortfinder findet Reime, Synonyme und mehr." },
       "1": { title: "Übungswerkzeuge", body: "Langsamer, andere Tonart, und die schwere Stelle Schritt für Schritt auf Tempo." },
       "2": { title: "Ab auf die Bühne", body: "Transposition, Kapo, Songbooks, Setlists und PDF." },
-      "3": { title: "Teile es so, wie du es markiert hast", body: "Deine Teile, Marker und Notizen kommen in ihrem SongNook genau so an, damit die Band sieht, was du meinst. Unbegrenzte Send-Links." },
+      "3": { title: "Teile es so, wie du es markiert hast", body: "Deine Teile, Marker und Notizen kommen in ihrem SongNook genau so an, damit die Band sieht, was du meinst. Unbegrenzte Send-Links und Arbeitsbereiche." },
       "4": { title: "Spiel eine Spur dazu", body: "Eine zweite Stimme, eine zweite Gitarre, eine Basslinie. Bis zu 8 Spuren auf einem Take." },
     },
     plans: {

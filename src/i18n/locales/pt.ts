@@ -3638,13 +3638,13 @@ export const pt = {
     renewNoteAndroid: "Anual e mensal renovam até você cancelar. Cancele na sua conta do Google Play.",
     usedTitle: "Usado no seu mês grátis",
     used: { wordFinder: "Buscador de palavras", lyricSpark: "Faísca de letras", practice: "Ferramentas de prática", stage: "Ferramentas de palco", send: "Links do Send", layers: "Camadas" },
-    also: "Também com o Pro: espaços de trabalho ilimitados e Exportar para DAW.",
+    also: "Também com o Pro: Exportar para DAW.",
     freeForGood: "Grátis para sempre: gravar, sua biblioteca, letras, cifras, backup.",
     features: {
       "0": { title: "Escreva até sair do bloqueio", body: "A Faísca de letras traz exercícios de escrita para trabalhar quando você trava. O Buscador de palavras encontra rimas, sinônimos e mais." },
       "1": { title: "Ferramentas de prática", body: "Desacelere, mude o tom e repita a parte difícil até chegar no andamento." },
       "2": { title: "Leve para o palco", body: "Transposição, capotraste, cancioneiros, setlists e PDF." },
-      "3": { title: "Compartilhe do jeito que você marcou", body: "Suas partes, marcadores e notas chegam no SongNook deles do jeito que você marcou, para a banda ver o que você quer dizer. Links do Send ilimitados." },
+      "3": { title: "Compartilhe do jeito que você marcou", body: "Suas partes, marcadores e notas chegam no SongNook deles do jeito que você marcou, para a banda ver o que você quer dizer. Links do Send e espaços de trabalho ilimitados." },
       "4": { title: "Some outra parte", body: "Uma harmonia, outro violão, uma linha de baixo. Até 8 camadas em um take." },
     },
     plans: {
