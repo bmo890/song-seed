@@ -174,8 +174,9 @@ songwriting and practice…", no feature names in it), and the PRO paragraph now
 Pro adds, since the split changed that day (Apple 2.3.2: say which features need a
 purchase). Lyric Spark reads "writing exercises", as on the Pro page. Apple locks the
 description of an approved version, so v1.0.0 shipped with the old text; the new one goes
-in with the next iOS version. The promotional text (no review) and Play took it the same
-day. Translations: `store-listing-translations.md`. Same day: REHEARSE became PRACTICE and opens
+in with the next iOS version. Play took it the same day: English plus
+es-419, es-ES, de-DE, pt-BR and iw-IL sent for review 2026-11-14. Apple also locks the
+promotional text until Release; change it right after. Translations: `store-listing-translations.md`. Same day: REHEARSE became PRACTICE and opens
 with learning other people's songs (founder: "part of it is learning other peoples music").
 
 - **Name:** SongNook
