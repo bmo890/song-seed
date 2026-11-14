@@ -3495,11 +3495,11 @@ export const de = {
     also: "Auch mit Pro: unbegrenzte Arbeitsbereiche und Für DAW exportieren.",
     freeForGood: "Für immer kostenlos: Aufnehmen, deine Bibliothek, Texte, Akkorde, Backup.",
     features: {
-      "0": { title: "Eine zweite Stimme dazu", body: "Bis zu 8 Spuren auf einem Take." },
-      "1": { title: "Schreib dich aus der Blockade", body: "Textfunke bringt Zeilen, auf die du nicht gekommen wärst. Der Wortfinder hat den Reim." },
-      "2": { title: "Übungswerkzeuge", body: "Langsamer, andere Tonart, und die schwere Stelle Schritt für Schritt auf Tempo." },
+      "0": { title: "Schreib dich aus der Blockade", body: "Textfunke bringt Zeilen, auf die du nicht gekommen wärst. Der Wortfinder hat den Reim." },
+      "1": { title: "Übungswerkzeuge", body: "Langsamer, andere Tonart, und die schwere Stelle Schritt für Schritt auf Tempo." },
+      "2": { title: "Ab auf die Bühne", body: "Transposition, Kapo, Songbooks, Setlists und PDF." },
       "3": { title: "Teile es so, wie du es markiert hast", body: "Deine Teile, Marker und Notizen kommen in ihrem SongNook genau so an, damit die Band sieht, was du meinst. Unbegrenzte Send-Links." },
-      "4": { title: "Ab auf die Bühne", body: "Transposition, Kapo, Songbooks, Setlists und PDF." },
+      "4": { title: "Eine zweite Stimme dazu", body: "Bis zu 8 Spuren auf einem Take." },
     },
     plans: {
       annual: {

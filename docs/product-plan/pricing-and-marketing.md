@@ -289,3 +289,15 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
   tools a person used, and the two changed sentences in the terms (allowances; export).
   The terms and the Send server (`FREE_LINKS = 1`) are changed in the repo only, not
   deployed. Ship order: after Apple approves, with the founder's yes, before Release.
+- 2026-11-14 — The Pro page's wording and order, approved by the founder ("Yes"). Each
+  line is the result, then the tool, most useful first: Write your way out of a block
+  (Lyric Spark, Word Finder) · Practice tools · Take it to the stage · Share it the way
+  you marked it · Add a harmony. Then "Also with Pro: unlimited workspaces and Export for
+  DAW." and "Free for good: recording, your library, lyrics, charts, backup." The order is
+  judgement (how often a songwriter reaches for each), not data. Founder's asks behind
+  it: name "Practice tools"; sell Lyric Spark as the way out of a block, not "word
+  games"; say that marks travel with a share so the band sees what you mean (true in
+  their SongNook, not in a browser, so the line says "in their SongNook"). Five languages,
+  written by Claude; Hebrew wants the founder's read. Built 6b62d83f + the reorder, not
+  published. Still open: the end-of-free-month note naming the tools a person used
+  (needs local use counts), and the two terms sentences.
