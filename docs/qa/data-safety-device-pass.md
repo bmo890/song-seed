@@ -126,8 +126,10 @@ with a fresh install first (for the one-time note), then on the founder's librar
 7. Send a Word Ladder to the Pad, write more on that page, send again › Replace page. Expect
    the toast's Undo puts your Pad words back; without Undo, the old page is on the page
    (12f F-M1, 12g G-H1).
-8. Recorder: record 10 s, Discard (and separately, Redo). Expect the toast; the take is on the
-   page and restores as a clip (03-9). A 2 s false start is not kept.
+8. Recorder: record 10 s, Discard (and separately, Redo). Expect no toast and nothing in
+   Recently deleted: the take is gone (founder, 2026-11-14, reversing 03-9; Recently deleted
+   is for clips, sketches, collections and lyrics, not a take that never joined the library).
+   The "Discard take?" question still comes first.
 
 ### The 30 days and the files — OTA
 

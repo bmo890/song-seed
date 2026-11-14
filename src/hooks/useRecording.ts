@@ -1371,7 +1371,7 @@ export function useRecording(
    * (2026-10-17). `keep` may hold on to the file (a take longer than a false
    * start waits in Recently deleted, 03-9); it answers true when it took the file.
    */
-  async function discardRecording(keep?: (fileUri: string) => Promise<boolean>) {
+  async function discardRecording() {
     let fileUri: string | undefined;
     try {
       take.facts.expectedStop = true;
@@ -1398,10 +1398,9 @@ export function useRecording(
     resetOnsetEnvelope();
     discardCleanup = discardCleanup.then(async () => {
       if (discardedFileUri) {
-        // A take worth keeping goes to Recently deleted; anything else is cleaned up,
-        // because the app never imported it into managed storage.
-        const kept = keep ? await keep(discardedFileUri).catch(() => false) : false;
-        if (!kept) await FileSystem.deleteAsync(discardedFileUri, { idempotent: true }).catch(() => {});
+        // Discard and Redo delete the take outright (founder, 2026-11-14): Recently
+        // deleted is for things in the library, not a take that never joined it.
+        await FileSystem.deleteAsync(discardedFileUri, { idempotent: true }).catch(() => {});
         // A discarded take must not come back as "recovered" on the next launch. Only its
         // own marker: another take's may still be waiting to be recovered (03-2c).
         await clearPendingRecordingSession(discardedFileUri).catch(() => {});
