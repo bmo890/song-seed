@@ -1,4 +1,19 @@
-import re, json, sys, glob, os
+import re, json, sys, glob, os, hashlib
+SUGGEST = {
+ "Add a pin": "Make it free (decision 1)",
+ "Reset pitch": "Make it free (decision 6)",
+ "Rhymes": "Make it free (decision 7)",
+ "Export for DAW": "Make it Pro (decision 11)",
+ "Move package to Files": "Take it off the Pro list until archiving returns (decision 17)",
+ "Start a Word Ladder": "Count a try only once something is written (decision 4)",
+ "Start a Cut-Up": "Count a try only once something is written (decision 4)",
+ "Start a Borrowed Words": "Count a try only once something is written (decision 4)",
+}
+SEEN = {}
+def rid(*parts):
+    h = "f" + hashlib.md5("|".join(parts).encode()).hexdigest()[:10]
+    n = SEEN.get(h, 0); SEEN[h] = n + 1
+    return h if n == 0 else h + "-" + str(n)
 SRC = "/Users/benmogerman/Projects/song-seed/docs/product-plan/feature-audit-2026-11-13"
 AREAS = [
  ("Capture", ["Recording", "Recording with a click", "Recording a layer", "Bluetooth timing and calibration", "Importing audio and video"]),
@@ -60,7 +75,7 @@ for f in sorted(glob.glob(SRC + "/0[1-5]-*.md")):
         key = cat
         if key not in out[a]: out[a][key] = {}; order[a].append(key)
         sub = re.sub(r"\s*\(.*\)$", "", h3) if h3 else ""
-        out[a][key].setdefault(sub, []).append([feat, what, kind, lim, note])
+        out[a][key].setdefault(sub, []).append([feat, what, kind, lim, note, rid(a, cat, sub, feat), SUGGEST.get(feat, "")])
 data = []
 tot = {"free": 0, "pro": 0, "limit": 0, "plan": 0}
 for a, _ in AREAS:

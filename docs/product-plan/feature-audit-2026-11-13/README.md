@@ -23,3 +23,13 @@ free); only the + button checks the workspace limit; `PRO_FOR_ALL="true"` and
 `APP_SEND_ENFORCED="false"` in the Send worker's `wrangler.toml`; tempo detection's row is
 hidden (`PlayerPracticeDrawers.tsx`, note of 2026-10-13); archiving is shelved
 (`useWorkspaceListScreenModel.ts`, 2026-08-04); Recently deleted is 30 days, file trash 31.
+
+## The page is a form (2026-11-14)
+
+The founder asked to answer in one pass. The same artifact now carries, on every line, what it
+is now, what I suggest, a choice and a note. Answers are saved in the artifact's own store,
+collection `answers`, one document per answered line: ids `d01`–`d19` (decisions), `g01`–`g14`
+(paid lines), `f<hash>` (a feature row; the hash comes from `page/parse.py`), `general`. Each
+document carries `label`, `now`, `suggest`, `call` (`agree` / `different` / `skip`, or `free` /
+`pro` / `limit` for a feature) and `note`, so it reads on its own. Read them with the
+ArtifactData tool when the founder says they are done.

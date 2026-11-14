@@ -2,7 +2,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
 <style>
-/* Layout: one column of rows on paper, like the app's own lists. Colour marks only what is paid. */
+/* Layout: one column of rows on paper, like the app's own lists. Each row carries what it is now, what I suggest, and the founder's call. Colour marks only what is paid or changed. */
 :root {
   --page: #FDFBF7; --surface: #FFFFFF; --tone: #F4F1ED; --tone-high: #EDE9E4;
   --ink: #1b1c1a; --ink-strong: #524440; --ink-2: #6E5F5A;
@@ -31,7 +31,7 @@
 body {
   background: var(--page); color: var(--ink);
   font-family: var(--sans); font-size: 15px; line-height: 1.5;
-  padding-block: 28px 72px;
+  padding-block: 28px 120px;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
 }
@@ -45,6 +45,8 @@ p { margin: 0; max-width: 66ch; }
 .lede { color: var(--ink-strong); font-size: 16px; }
 .sub { color: var(--ink-2); margin-top: 4px; }
 section { display: flex; flex-direction: column; gap: 14px; }
+button { font: inherit; color: inherit; }
+button:focus-visible, summary:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
 
 .tally { display: flex; flex-wrap: wrap; gap: 8px 28px; padding: 14px 0; border-block: 1px solid var(--line); }
 .tally div { display: flex; align-items: baseline; gap: 8px; }
@@ -52,51 +54,47 @@ section { display: flex; flex-direction: column; gap: 14px; }
 .tally span { color: var(--ink-2); font-size: 13px; }
 .tally .paid b { color: var(--accent-deep); }
 
+ol.how { margin: 0; padding: 0 0 0 20px; color: var(--ink-strong); display: flex; flex-direction: column; gap: 4px; max-width: 66ch; }
+
 .pill { flex: none; font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 6px; white-space: nowrap; color: var(--ink-2); }
 .pill.pro { background: var(--wash); color: var(--accent-deep); }
 .pill.limit { box-shadow: inset 0 0 0 1px var(--accent); color: var(--accent-deep); }
 .pill.plan { box-shadow: inset 0 0 0 1px var(--line); }
 
-/* What is paid today */
-.gates { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.2fr) minmax(0, 1.2fr); border-top: 1px solid var(--line); }
-.gates > div { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--line); min-width: 0; }
-.gates .hd { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2); }
-.gates .what { font-weight: 600; }
-.gates .pro { color: var(--accent-deep); }
-.gates .free { color: var(--ink-strong); }
-@media (max-width: 560px) {
-  .gates { grid-template-columns: 1fr; }
-  .gates .hd { display: none; }
-  .gates .what { border-bottom: 0; padding-bottom: 0; padding-top: 12px; }
-  .gates .free { border-bottom: 0; padding-block: 2px; }
-  .gates .free::before { content: "Free: "; color: var(--ink-2); }
-  .gates .pro::before { content: "Pro: "; }
-  .gates .pro { padding-top: 0; padding-bottom: 12px; }
-}
-
-/* Decisions */
-ol.decide { list-style: none; margin: 0; padding: 0; counter-reset: d var(--start, 0); border-top: 1px solid var(--line); }
-ol.decide > li { counter-increment: d; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 0 6px; padding: 14px 0; border-bottom: 1px solid var(--line); }
-ol.decide > li::before { content: counter(d); font-family: var(--serif); font-size: 20px; font-weight: 600; color: var(--accent-deep); line-height: 1.25; font-variant-numeric: tabular-nums; }
-ol.decide .body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-ol.decide .t { font-weight: 600; font-size: 16px; }
-ol.decide .now { color: var(--ink-strong); }
-ol.decide .rec { background: var(--tone); border-radius: 8px; padding: 8px 12px; }
-ol.decide .rec b { color: var(--accent-deep); font-weight: 600; }
+/* An item the founder answers: a decision or a paid line */
+.items { border-top: 1px solid var(--line); }
+.item { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 0 6px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.item .num { font-family: var(--serif); font-size: 20px; font-weight: 600; color: var(--accent-deep); line-height: 1.25; font-variant-numeric: tabular-nums; }
+.item .body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.item .t { font-weight: 600; font-size: 16px; }
 .twice { font-size: 11px; font-weight: 600; color: var(--ink-2); letter-spacing: 0.04em; margin-left: 8px; white-space: nowrap; }
+.kv { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 2px 10px; }
+.kv dt { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); padding-top: 3px; }
+.kv dd { margin: 0; color: var(--ink-strong); }
+.kv dd.rec { color: var(--ink); }
+dl { margin: 0; }
+@media (max-width: 480px) { .kv { grid-template-columns: 1fr; } .kv dt { padding-top: 6px; } }
+
+/* The founder's call: ink words with a leading dot, like the app's own choices */
+.opts { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.opt { background: none; border: 0; padding: 8px 0; min-height: 36px; display: inline-flex; align-items: center; gap: 8px; color: var(--ink-2); font-weight: 600; cursor: pointer; }
+.opt::before { content: ""; width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--ink-2); flex: none; }
+.opt[aria-pressed="true"] { color: var(--ink); }
+.opt[aria-pressed="true"]::before { background: var(--accent); box-shadow: none; }
+textarea { width: 100%; font: inherit; font-size: 16px; color: var(--ink); background: var(--tone); border: 0; border-radius: 8px; padding: 9px 12px; resize: vertical; min-height: 42px; line-height: 1.4; }
+textarea::placeholder { color: var(--ink-2); }
 
 ul.plain { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
-ul.plain li { padding: 10px 0; border-bottom: 1px solid var(--line); max-width: none; }
+ul.plain li { padding: 10px 0; border-bottom: 1px solid var(--line); }
 ul.plain li b { font-weight: 600; }
 ul.plain li span { color: var(--ink-2); }
 
 /* The full list */
-.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--page); padding: 10px 0; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border-bottom: 1px solid var(--line); }
-.tabs { display: flex; gap: 18px; }
-.tabs button { font: inherit; font-weight: 600; color: var(--ink-2); background: none; border: 0; padding: 6px 0; border-bottom: 2px solid transparent; cursor: pointer; }
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--page); padding: 10px 0; display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; border-bottom: 1px solid var(--line); }
+.tabs { display: flex; gap: 18px; flex-wrap: wrap; }
+.tabs button { font-weight: 600; color: var(--ink-2); background: none; border: 0; padding: 6px 0; border-bottom: 2px solid transparent; cursor: pointer; }
 .tabs button[aria-pressed="true"] { color: var(--ink); border-bottom-color: var(--ink); }
-.tabs button:focus-visible, summary:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
-.bar input { flex: 1 1 200px; min-width: 0; font: inherit; color: var(--ink); background: var(--tone); border: 0; border-radius: 8px; padding: 9px 12px; }
+.bar input { flex: 1 1 200px; min-width: 0; font: inherit; font-size: 16px; color: var(--ink); background: var(--tone); border: 0; border-radius: 8px; padding: 9px 12px; }
 .bar input::placeholder { color: var(--ink-2); }
 .count { color: var(--ink-2); font-size: 13px; font-variant-numeric: tabular-nums; }
 .area { margin-top: 30px; }
@@ -111,139 +109,73 @@ summary .c i { font-style: normal; color: var(--accent-deep); font-weight: 600; 
 summary::after { content: "+"; color: var(--ink-2); width: 12px; text-align: center; font-weight: 500; }
 details[open] > summary::after { content: "–"; }
 .grp { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2); padding: 14px 0 4px; }
-.row { display: flex; align-items: flex-start; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); }
+.row { border-top: 1px solid var(--line); }
 .grp + .row { border-top: 0; }
+.rowbtn { width: 100%; text-align: left; background: none; border: 0; display: flex; align-items: flex-start; gap: 12px; padding: 9px 0; cursor: pointer; }
 .row .x { flex: 1 1 auto; min-width: 0; }
-.row .f { font-weight: 600; }
-.row .w { color: var(--ink-strong); }
+.row .f { font-weight: 600; display: block; }
+.row .w { color: var(--ink-strong); display: block; }
 .row .s { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex: none; max-width: 42%; }
 .row .note { font-size: 11.5px; color: var(--ink-2); text-align: right; }
+.row .mark { font-size: 11.5px; font-weight: 700; color: var(--accent-deep); text-align: right; }
+.panel { padding: 2px 0 14px; display: flex; flex-direction: column; gap: 6px; }
+.panel .sg { color: var(--ink-strong); }
+.panel .sg b { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); margin-right: 8px; }
 .inner { padding-bottom: 14px; }
 .none { color: var(--ink-2); padding: 24px 0; }
-@media (prefers-reduced-motion: no-preference) { .tabs button { transition: color 0.16s, border-color 0.16s; } }
+
+/* Fixed status line: what is saved, and a copy fallback */
+.foot { position: fixed; inset: auto 0 0 0; z-index: 8; background: var(--surface); border-top: 1px solid var(--line);
+  padding-top: 10px; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.foot .in { max-width: 860px; margin: 0 auto; display: flex; align-items: center; gap: 12px; }
+.foot .st { flex: 1 1 auto; min-width: 0; font-size: 13px; color: var(--ink-strong); }
+.foot .st b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.foot .st span { color: var(--ink-2); display: block; }
+.key { flex: none; background: var(--wash); color: var(--accent-deep); font-weight: 600; border: 0; border-radius: 8px; padding: 9px 14px; min-height: 38px; cursor: pointer; }
+#copybox { margin-top: 10px; }
+#copybox textarea { min-height: 140px; font-size: 13px; }
+@media (prefers-reduced-motion: no-preference) { .tabs button, .opt { transition: color 0.16s, border-color 0.16s; } }
 </style>
 
 <div class="wrap">
   <header>
     <div class="eyebrow">SongNook · read from the code on 13 November 2026</div>
     <h1>Every feature, and whether it is free or paid</h1>
-    <p class="lede">Six readers went through the whole app, screen by screen, and wrote down everything a person can do or that the app does for them. This page is that list, with the paid lines and the open questions first.</p>
+    <p class="lede">Each line shows what it is now and what I suggest. Mark your call and add a note where you want one. I read your answers from this page when you say you are done.</p>
     <div class="tally" style="margin-top:18px">
       <div><b id="t-all">0</b><span>features</span></div>
       <div><b id="t-free">0</b><span>free</span></div>
       <div class="paid"><b id="t-pro">0</b><span>Pro</span></div>
       <div class="paid"><b id="t-limit">0</b><span>free up to a limit</span></div>
     </div>
-    <p class="sub" style="margin-top:10px">Some things are counted more than once because they show up in more than one place, for example a Send row in each Share menu. Nothing here was run on a phone. It is what the code says.</p>
+    <ol class="how" style="margin-top:14px">
+      <li>Answer the 19 decisions and the 14 paid lines. One tap each, a note only if you want.</li>
+      <li>In the full list, tap any feature to change it or leave a note. Anything you do not touch stays as it is.</li>
+      <li>Your answers save as you go. When you are finished, tell me "done" in the chat.</li>
+    </ol>
   </header>
 
   <section>
-    <h2>What is paid today</h2>
-    <p class="sub">The whole paywall, in fourteen lines. A person also has Pro during the 30-day free month (no card), or for good if they opened SongNook before 11 November. Anything a friend sent you through Send can use the practice tools, transpose and capo for free.</p>
-    <div class="gates">
-      <div class="hd">What</div><div class="hd">Free gets</div><div class="hd">Pro adds</div>
-      <div class="what">Workspaces</div><div class="free">3. Archived and received ones do not count.</div><div class="pro">As many as you like</div>
-      <div class="what">Layers on a take</div><div class="free">1</div><div class="pro">Up to 8</div>
-      <div class="what">Pins in the player</div><div class="free">Drop pins while recording. See, rename, move and delete any pin.</div><div class="pro">Add a pin while listening</div>
-      <div class="what">Pitch in the player</div><div class="free">Nothing</div><div class="pro">Change key, 12 semitones up or down</div>
-      <div class="what">Step up drills</div><div class="free">Build the plan</div><div class="pro">Run it</div>
-      <div class="what">Editor: Speed &amp; pitch</div><div class="free">Trim, and cut into any number of parts</div><div class="pro">Save a copy at a new speed or key</div>
-      <div class="what">Transpose and capo</div><div class="free">Write and read charts</div><div class="pro">Change the key, set a capo</div>
-      <div class="what">Chart books and setlists</div><div class="free">Open, add to and reorder the ones you have</div><div class="pro">Make a new one</div>
-      <div class="what">Chart as PDF</div><div class="free">Text, ChordPro and SongNook file</div><div class="pro">Print-ready PDF</div>
-      <div class="what">Word Finder</div><div class="free">Nothing</div><div class="pro">All twelve tools, in five languages</div>
-      <div class="what">Word games</div><div class="free">3 tries of each game, counted for good</div><div class="pro">No limit</div>
-      <div class="what">SongNook Send</div><div class="free">3 links every 30 days</div><div class="pro">No limit</div>
-      <div class="what">Move an archived workspace to Files</div><div class="free">Nothing</div><div class="pro">Paid, but there is no way to reach it today</div>
-      <div class="what">Tempo detection</div><div class="free">Nothing</div><div class="pro">Paid, but hidden for everyone today</div>
-    </div>
+    <h2>Decide these first</h2>
+    <p class="sub">Nineteen places where the split is leaky, uneven or unconfirmed. "Checked twice" means I confirmed it in the code myself after the reader reported it.</p>
+    <div id="decisions"></div>
   </section>
 
   <section>
-    <h2>Decide these first</h2>
-    <p class="sub">Nineteen places where the split is leaky, uneven or unconfirmed. Answer by number. "Checked twice" means I confirmed it in the code myself after the reader reported it.</p>
-
-    <h3>Holes in the paywall</h3>
-    <ol class="decide">
-      <li><div class="body"><div class="t">Pins are paid in one place and free in three<span class="twice">Checked twice</span></div>
-        <div class="now">Adding a pin while listening is Pro. Dropping one while recording is free, and anyone can rename, move or delete pins. Sections, the richer tool, are free.</div>
-        <div class="rec"><b>I suggest:</b> make pins free everywhere. The gate does not hold, and marking your own take is tidying, like trimming.</div></div></li>
-      <li><div class="body"><div class="t">The one free layer can be repeated</div>
-        <div class="now">A free person can record a layer, combine it into the take, and record another, again and again.</div>
-        <div class="rec"><b>I suggest:</b> leave it. Combining is permanent, so it is a slow workaround, not real multitrack.</div></div></li>
-      <li><div class="body"><div class="t">The three-workspace limit has side doors<span class="twice">Checked twice</span></div>
-        <div class="now">Only the + button checks. Keeping something a friend sent as its own workspace, importing an archive, and restoring a backup can all add more.</div>
-        <div class="rec"><b>I suggest:</b> leave it. Receiving and restoring must never be blocked.</div></div></li>
-      <li><div class="body"><div class="t">A word game try is used the moment the game opens</div>
-        <div class="now">Open Word Ladder, back out with nothing written, and one of the three tries is gone for good.</div>
-        <div class="rec"><b>I suggest:</b> count the try only once something is written.</div></div></li>
-      <li><div class="body"><div class="t">Only the phone counts the 3 Send links<span class="twice">Checked twice</span></div>
-        <div class="now">The server is not checking yet. A free person who pairs a browser can send from a computer without limit. After the switch, the server would also stop founding members at 3 links.</div>
-        <div class="rec"><b>I suggest:</b> flip the two server switches on launch day, as planned, and decide then whether founding members get unlimited links.</div></div></li>
-    </ol>
-
-    <h3>Paid today. Should it be?</h3>
-    <ol class="decide" style="--start:5">
-      <li><div class="body"><div class="t">Undoing asks for Pro</div>
-        <div class="now">"Reset pitch" opens the Pro page. So does stepping a capo or a transpose back down, though taking it off entirely is free.</div>
-        <div class="rec"><b>I suggest:</b> going back toward the original is always free.</div></div></li>
-      <li><div class="body"><div class="t">The whole Word Finder is Pro</div>
-        <div class="now">All twelve tools, in every language. Only Hebrew meaning lookups cost us money, about a fifth of a cent per new word. German and Portuguese run on the phone.</div>
-        <div class="rec"><b>I suggest:</b> make Rhymes free and keep the other eleven tools Pro. A writer meets it every session, and the paid tools sit one tab away.</div></div></li>
-      <li><div class="body"><div class="t">PDF is Pro even for plain lyrics</div>
-        <div class="now">It is the only print-ready sheet in the app. Our terms say "export is never locked".</div>
-        <div class="rec"><b>I suggest:</b> keep PDF Pro and correct the terms: your work always leaves as text, audio and SongNook files.</div></div></li>
-      <li><div class="body"><div class="t">Capo can show the Pro page on the recording screen</div>
-        <div class="now">The lyrics panel in the recorder has the same Aa sheet as everywhere else, capo included.</div>
-        <div class="rec"><b>I suggest:</b> leave it. It is one rule everywhere, and nothing about recording itself is blocked.</div></div></li>
-      <li><div class="body"><div class="t">A friend's song loses free transpose once you keep it</div>
-        <div class="now">Transpose and capo are free while a song sits in Received. Moving it into your own workspace makes them Pro.</div>
-        <div class="rec"><b>I suggest:</b> leave it for now. It is rare, and fixing it means marking songs for good.</div></div></li>
-    </ol>
-
-    <h3>Free today. Should it be?</h3>
-    <ol class="decide" style="--start:10">
-      <li><div class="body"><div class="t">Export for DAW</div>
-        <div class="now">A bar-aligned WAV with the tempo in its name, ready for Logic. Free, from any clip's Share menu.</div>
-        <div class="rec"><b>I suggest:</b> move it to Pro. It is a finishing tool, and sharing the plain audio stays free.</div></div></li>
-      <li><div class="body"><div class="t">The layer mixer</div>
-        <div class="now">Level, tone, solo, mute, timing nudge and merge are all free on any layer.</div>
-        <div class="rec"><b>I suggest:</b> keep it free. It is what makes the one free layer sound right.</div></div></li>
-      <li><div class="body"><div class="t">Tempo changes inside a song</div>
-        <div class="now">Planning tempo or meter changes at chosen bars, which the click follows. The most advanced control in the recorder, and free.</div>
-        <div class="rec"><b>I suggest:</b> keep it free. We said we never charge for capture.</div></div></li>
-      <li><div class="body"><div class="t">The daily companions</div>
-        <div class="now">Tuner, the full metronome, Bluetooth calibration, sound from videos, automatic backup, playlists, Shelf, Revisit, Activity, and the stage reader with its click. All free, no limits.</div>
-        <div class="rec"><b>I suggest:</b> keep all of it free. These are why someone opens SongNook every day.</div></div></li>
-      <li><div class="body"><div class="t">Send from a computer</div>
-        <div class="now">Free people can use it inside their 3 links. Our pricing record says it is for paid users.</div>
-        <div class="rec"><b>I suggest:</b> keep it as built and correct the record.</div></div></li>
-    </ol>
-
-    <h3>Sold, but not there</h3>
-    <ol class="decide" style="--start:15">
-      <li><div class="body"><div class="t">Tempo detection<span class="twice">Checked twice</span></div>
-        <div class="now">Our records list it as a Pro tool. Its button has been hidden since October because the result was not reliable.</div>
-        <div class="rec"><b>I suggest:</b> take it out of every list of Pro tools until it comes back.</div></div></li>
-      <li><div class="body"><div class="t">Move an archived workspace to Files<span class="twice">Checked twice</span></div>
-        <div class="now">Pro, but archiving was shelved in August, so nobody new can reach it.</div>
-        <div class="rec"><b>I suggest:</b> take it off the Pro list until archiving returns.</div></div></li>
-      <li><div class="body"><div class="t">Step up lets you build a drill, then asks for Pro</div>
-        <div class="now">The plan sheet opens for everyone. The Pro page appears at the switch.</div>
-        <div class="rec"><b>I suggest:</b> keep it. Seeing the drill is a fair taste.</div></div></li>
-      <li><div class="body"><div class="t">Speed is free to hear and Pro to keep</div>
-        <div class="now">Playing at 0.75× is free. Saving a 0.75× copy in the editor is Pro.</div>
-        <div class="rec"><b>I suggest:</b> keep it. It is a clean line.</div></div></li>
-    </ol>
+    <h2>What is paid today</h2>
+    <p class="sub">The whole paywall in fourteen lines. A person also has Pro during the 30-day free month, or for good if they opened SongNook before 11 November. Anything a friend sent through Send can use the practice tools, transpose and capo for free.</p>
+    <div class="items" id="gates"></div>
   </section>
 
   <section>
     <h2>The full list</h2>
-    <p class="sub">Grouped by type. Open a group to read every line in it, or show only the paid lines.</p>
+    <p class="sub">Grouped by type. Tap a feature to change it or leave a note. Some things appear more than once because they show up in more than one place, like the Send row in each Share menu.</p>
     <div class="bar">
       <div class="tabs" role="group" aria-label="Show">
         <button type="button" id="m-all" aria-pressed="true">Everything</button>
         <button type="button" id="m-paid" aria-pressed="false">Paid or limited</button>
+        <button type="button" id="m-mine" aria-pressed="false">My changes</button>
       </div>
       <input id="q" type="search" placeholder="Search features" aria-label="Search features" autocomplete="off">
       <span class="count" id="shown"></span>
@@ -252,8 +184,14 @@ details[open] > summary::after { content: "–"; }
   </section>
 
   <section>
+    <h2>Anything else</h2>
+    <p class="sub">A rule you want across the board, something missing from the list, or how you want the Pro page to read.</p>
+    <textarea id="n-general" rows="3" placeholder="Write anything here"></textarea>
+  </section>
+
+  <section>
     <h2>Built, but nobody can reach it</h2>
-    <p class="sub">The code exists and no button leads to it. None of these are counted above.</p>
+    <p class="sub">The code exists and no button leads to it. For reference; nothing to answer.</p>
     <ul class="plain">
       <li><b>Tempo detection.</b> <span>Hidden since 13 October until it can be trusted.</span></li>
       <li><b>Archiving a workspace.</b> <span>Shelved on 4 August. Unarchive and "Move package to Files" only appear on a workspace that was already archived.</span></li>
@@ -270,9 +208,9 @@ details[open] > summary::after { content: "–"; }
 
   <section>
     <h2>Wording that is already out of date</h2>
-    <p class="sub">Found by the sixth reader, who listed 121 places where we tell people what the app does or costs. I will draft a fix for each and show you before anything is published.</p>
+    <p class="sub">From a list of 121 places where we tell people what the app does or costs. I will draft a fix for each and show you before anything is published.</p>
     <ul class="plain">
-      <li><b>Pro page, third line.</b> <span>"Practice tools and the full editor". Cutting is free since today, so "the full editor" now means only Speed &amp; pitch.</span></li>
+      <li><b>Pro page, third line.</b> <span>"Practice tools and the full editor". Cutting has been free since 13 November, so "the full editor" now means only Speed &amp; pitch.</span></li>
       <li><b>Terms of use.</b> <span>"Export is never locked", while chart PDF is Pro. It also says "the Pro sheet", which is a full page now.</span></li>
       <li><b>The Share menu hint for Send.</b> <span>"A link anyone can play". The web page offers downloads, not playback.</span></li>
       <li><b>Welcome tour, last page.</b> <span>Says importing is one tap from the + button. Import is in the collection's "…" menu.</span></li>
@@ -285,48 +223,269 @@ details[open] > summary::after { content: "–"; }
   </section>
 </div>
 
+<div class="foot">
+  <div class="in">
+    <div class="st"><b id="st-counts">0 of 19 decisions · 0 of 14 paid lines · 0 feature changes</b><span id="st-save">Loading your answers</span></div>
+    <button type="button" class="key" id="copy">Copy my answers</button>
+  </div>
+  <div class="in" id="copybox" hidden>
+    <textarea id="copytext" readonly aria-label="Your answers as text"></textarea>
+  </div>
+</div>
+
 <script>
 var DATA = /*DATA*/[];
+var DECISIONS = [
+  { h: "Holes in the paywall" },
+  { id: "d01", t: "Pins are paid in one place and free in three", twice: 1,
+    now: "Adding a pin while listening is Pro. Dropping one while recording is free, and anyone can rename, move or delete pins. Sections, the richer tool, are free.",
+    rec: "Make pins free everywhere. The gate does not hold, and marking your own take is tidying, like trimming." },
+  { id: "d02", t: "The one free layer can be repeated",
+    now: "A free person can record a layer, combine it into the take, and record another, again and again.",
+    rec: "Leave it. Combining is permanent, so it is a slow workaround, not real multitrack." },
+  { id: "d03", t: "The three-workspace limit has side doors", twice: 1,
+    now: "Only the + button checks. Keeping something a friend sent as its own workspace, importing an archive, and restoring a backup can all add more.",
+    rec: "Leave it. Receiving and restoring must never be blocked." },
+  { id: "d04", t: "A word game try is used the moment the game opens",
+    now: "Open Word Ladder, back out with nothing written, and one of the three tries is gone for good.",
+    rec: "Count the try only once something is written." },
+  { id: "d05", t: "Only the phone counts the 3 Send links", twice: 1,
+    now: "The server is not checking yet. A free person who pairs a browser can send from a computer without limit. After the switch, the server would also stop founding members at 3 links.",
+    rec: "Flip the two server switches on launch day, as planned, and decide then whether founding members get unlimited links." },
+  { h: "Paid today. Should it be?" },
+  { id: "d06", t: "Undoing asks for Pro",
+    now: "\"Reset pitch\" opens the Pro page. So does stepping a capo or a transpose back down, though taking it off entirely is free.",
+    rec: "Going back toward the original is always free." },
+  { id: "d07", t: "The whole Word Finder is Pro",
+    now: "All twelve tools, in every language. Only Hebrew meaning lookups cost us money, about a fifth of a cent per new word. German and Portuguese run on the phone.",
+    rec: "Make Rhymes free and keep the other eleven tools Pro. A writer meets it every session, and the paid tools sit one tab away." },
+  { id: "d08", t: "PDF is Pro even for plain lyrics",
+    now: "It is the only print-ready sheet in the app. Our terms say \"export is never locked\".",
+    rec: "Keep PDF Pro and correct the terms: your work always leaves as text, audio and SongNook files." },
+  { id: "d09", t: "Capo can show the Pro page on the recording screen",
+    now: "The lyrics panel in the recorder has the same Aa sheet as everywhere else, capo included.",
+    rec: "Leave it. It is one rule everywhere, and nothing about recording itself is blocked." },
+  { id: "d10", t: "A friend's song loses free transpose once you keep it",
+    now: "Transpose and capo are free while a song sits in Received. Moving it into your own workspace makes them Pro.",
+    rec: "Leave it for now. It is rare, and fixing it means marking songs for good." },
+  { h: "Free today. Should it be?" },
+  { id: "d11", t: "Export for DAW",
+    now: "A bar-aligned WAV with the tempo in its name, ready for Logic. Free, from any clip's Share menu.",
+    rec: "Move it to Pro. It is a finishing tool, and sharing the plain audio stays free." },
+  { id: "d12", t: "The layer mixer",
+    now: "Level, tone, solo, mute, timing nudge and merge are all free on any layer.",
+    rec: "Keep it free. It is what makes the one free layer sound right." },
+  { id: "d13", t: "Tempo changes inside a song",
+    now: "Planning tempo or meter changes at chosen bars, which the click follows. The most advanced control in the recorder, and free.",
+    rec: "Keep it free. We said we never charge for capture." },
+  { id: "d14", t: "The daily companions",
+    now: "Tuner, the full metronome, Bluetooth calibration, sound from videos, automatic backup, playlists, Shelf, Revisit, Activity, and the stage reader with its click. All free, no limits.",
+    rec: "Keep all of it free. These are why someone opens SongNook every day." },
+  { id: "d15", t: "Send from a computer",
+    now: "Free people can use it inside their 3 links. Our pricing record says it is for paid users.",
+    rec: "Keep it as built and correct the record." },
+  { h: "Sold, but not there" },
+  { id: "d16", t: "Tempo detection", twice: 1,
+    now: "Our records list it as a Pro tool. Its button has been hidden since October because the result was not reliable.",
+    rec: "Take it out of every list of Pro tools until it comes back." },
+  { id: "d17", t: "Move an archived workspace to Files", twice: 1,
+    now: "Pro, but archiving was shelved in August, so nobody new can reach it.",
+    rec: "Take it off the Pro list until archiving returns." },
+  { id: "d18", t: "Step up lets you build a drill, then asks for Pro",
+    now: "The plan sheet opens for everyone. The Pro page appears at the switch.",
+    rec: "Keep it. Seeing the drill is a fair taste." },
+  { id: "d19", t: "Speed is free to hear and Pro to keep",
+    now: "Playing at 0.75× is free. Saving a 0.75× copy in the editor is Pro.",
+    rec: "Keep it. It is a clean line." }
+];
+var GATES = [
+  { id: "g01", t: "Workspaces", free: "3. Archived and received ones do not count.", pro: "As many as you like", rec: "Keep." },
+  { id: "g02", t: "Layers on a take", free: "1", pro: "Up to 8", rec: "Keep." },
+  { id: "g03", t: "Pins in the player", free: "Drop pins while recording. See, rename, move and delete any pin.", pro: "Add a pin while listening", rec: "Make it free (decision 1)." },
+  { id: "g04", t: "Pitch in the player", free: "Nothing", pro: "Change key, 12 semitones up or down", rec: "Keep it Pro. Make \"Reset pitch\" free (decision 6)." },
+  { id: "g05", t: "Step up drills", free: "Build the plan", pro: "Run it", rec: "Keep (decision 18)." },
+  { id: "g06", t: "Editor: Speed & pitch", free: "Trim, and cut into any number of parts", pro: "Save a copy at a new speed or key", rec: "Keep (decision 19)." },
+  { id: "g07", t: "Transpose and capo", free: "Write and read charts", pro: "Change the key, set a capo", rec: "Keep it Pro. Stepping back down is free (decision 6)." },
+  { id: "g08", t: "Chart books and setlists", free: "Open, add to and reorder the ones you have", pro: "Make a new one", rec: "Keep." },
+  { id: "g09", t: "Chart as PDF", free: "Text, ChordPro and SongNook file", pro: "Print-ready PDF", rec: "Keep it Pro (decision 8)." },
+  { id: "g10", t: "Word Finder", free: "Nothing", pro: "All twelve tools, in five languages", rec: "Rhymes free, the other eleven Pro (decision 7)." },
+  { id: "g11", t: "Word games", free: "3 tries of each game, counted for good", pro: "No limit", rec: "Keep 3 tries. Count one only once something is written (decision 4)." },
+  { id: "g12", t: "SongNook Send", free: "3 links every 30 days", pro: "No limit", rec: "Keep 3 links. Switch the server on at launch (decision 5)." },
+  { id: "g13", t: "Move an archived workspace to Files", free: "Nothing", pro: "Paid, but there is no way to reach it today", rec: "Take it off the Pro list (decision 17)." },
+  { id: "g14", t: "Tempo detection", free: "Nothing", pro: "Paid, but hidden for everyone today", rec: "Take it off the Pro list (decision 16)." }
+];
+
 (function () {
-  var mode = "all", q = "";
-  var list = document.getElementById("list");
-  var tot = { free: 0, pro: 0, limit: 0, plan: 0 };
-  DATA.forEach(function (a) { a.c.forEach(function (c) { c.g.forEach(function (g) { g.r.forEach(function (r) { tot[r[2]]++; }); }); }); });
-  var all = tot.free + tot.pro + tot.limit + tot.plan;
-  function fmt(n) { return n.toLocaleString("en-US"); }
-  document.getElementById("t-all").textContent = fmt(all);
-  document.getElementById("t-free").textContent = fmt(tot.free);
-  document.getElementById("t-pro").textContent = fmt(tot.pro);
-  document.getElementById("t-limit").textContent = fmt(tot.limit);
+  var answers = {}, touched = {}, META = {}, db = null, dbState = "loading", pending = 0, failed = false;
+  var chains = {}, timers = {}, mode = "all", q = "", openRows = {}, rowRefs = {};
+  var LS = "songnook-ledger-answers-v1";
+  var NOW_LABEL = { free: "Free", pro: "Pro", limit: "Free, then Pro", plan: "The purchase" };
+  var CALL_LABEL = { agree: "Agree", different: "Do it differently", skip: "Skip for now", free: "Make it free", pro: "Make it Pro", limit: "Free up to a limit" };
+  var ANSWER_OPTS = [{ v: "agree", l: "Agree" }, { v: "different", l: "Do it differently" }, { v: "skip", l: "Skip for now" }];
+  var FEATURE_OPTS = [{ v: "free", l: "Free" }, { v: "pro", l: "Pro" }, { v: "limit", l: "Free up to a limit" }];
 
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function fmt(n) { return n.toLocaleString("en-US"); }
+  function $(id) { return document.getElementById(id); }
+
+  // ----- what each id is, so a saved answer explains itself
+  var dn = 0;
+  DECISIONS.forEach(function (d) { if (!d.id) return; dn++; d.n = dn; META[d.id] = { kind: "decision", label: dn + ". " + d.t, now: d.now, suggest: d.rec }; });
+  GATES.forEach(function (g) { META[g.id] = { kind: "paid line", label: g.t, now: "Free gets: " + g.free + " Pro adds: " + g.pro, suggest: g.rec }; });
+  var tot = { free: 0, pro: 0, limit: 0, plan: 0 };
+  DATA.forEach(function (a) { a.c.forEach(function (c) { c.g.forEach(function (g) { g.r.forEach(function (r) {
+    tot[r[2]]++;
+    META[r[5]] = { kind: "feature", label: a.n + " › " + c.n + " › " + r[0], nowKind: r[2],
+      now: r[2] === "limit" ? "Free up to " + r[3] + ", then Pro" : NOW_LABEL[r[2]], suggest: r[6] || "Keep as it is" };
+  }); }); }); });
+  META.general = { kind: "general", label: "Anything else", now: "", suggest: "" };
+  $("t-all").textContent = fmt(tot.free + tot.pro + tot.limit + tot.plan);
+  $("t-free").textContent = fmt(tot.free); $("t-pro").textContent = fmt(tot.pro); $("t-limit").textContent = fmt(tot.limit);
+
+  // ----- keeping answers
+  function has(id) { var a = answers[id]; return !!(a && (a.call || a.note)); }
+  function loadLocal() { try { var s = JSON.parse(localStorage.getItem(LS) || "{}"); Object.keys(s).forEach(function (id) { if (META[id]) answers[id] = { call: String(s[id].call || ""), note: String(s[id].note || "") }; }); } catch (e) {} }
+  function saveLocal() { try { var out = {}; Object.keys(answers).forEach(function (id) { if (has(id)) out[id] = answers[id]; }); localStorage.setItem(LS, JSON.stringify(out)); } catch (e) {} }
+  function body(id) { var m = META[id], a = answers[id]; return { kind: m.kind, label: m.label, now: m.now, suggest: m.suggest, call: a.call, note: a.note, at: new Date().toISOString() }; }
+  function writeDoc(id) { var ref = db.collection("answers").doc(id); return has(id) ? ref.set(body(id)) : ref.delete(); }
+  function queueSave(id) {
+    if (!db) return;
+    pending++; status();
+    chains[id] = (chains[id] || Promise.resolve()).then(function () { return writeDoc(id); })
+      .then(function () { pending--; status(); }, function () { pending--; failed = true; status(); });
+  }
+  function change(id, patch, later) {
+    var a = answers[id] || { call: "", note: "" };
+    if (patch.call != null) a.call = patch.call;
+    if (patch.note != null) a.note = patch.note;
+    answers[id] = a; touched[id] = 1; saveLocal(); counts(); mark(id);
+    clearTimeout(timers[id]);
+    if (later) timers[id] = setTimeout(function () { queueSave(id); }, 900); else queueSave(id);
+  }
+  function counts() {
+    var d = 0, g = 0, f = 0;
+    Object.keys(answers).forEach(function (id) { if (!has(id) || !META[id]) return; var k = META[id].kind;
+      if (k === "decision") { if (answers[id].call) d++; } else if (k === "paid line") { if (answers[id].call) g++; } else if (k === "feature") f++; });
+    $("st-counts").textContent = d + " of 19 decisions · " + g + " of 14 paid lines · " + f + " feature " + (f === 1 ? "change" : "changes");
+  }
+  function status() {
+    var t;
+    if (dbState === "loading") t = "Loading your answers";
+    else if (dbState === "none") t = "Kept on this device only. Use Copy my answers to send them.";
+    else if (dbState === "error" || failed) t = "Could not reach the saved copy. Kept on this device; use Copy my answers.";
+    else if (pending > 0) t = "Saving";
+    else t = "Saved. Claude can read these.";
+    $("st-save").textContent = t;
+  }
+
+  // ----- controls
+  function optRow(id, opts, current, onPick) {
+    var w = el("div", "opts"); w.setAttribute("role", "group");
+    opts.forEach(function (o) {
+      var b = el("button", "opt", o.l); b.type = "button"; b.setAttribute("aria-pressed", String(o.v === current));
+      b.addEventListener("click", function () {
+        var v = onPick(o.v);
+        Array.prototype.forEach.call(w.children, function (c, i) { c.setAttribute("aria-pressed", String(opts[i].v === v)); });
+      });
+      w.appendChild(b);
+    });
+    return w;
+  }
+  function grow(t) { t.style.height = "auto"; t.style.height = Math.max(42, t.scrollHeight + 2) + "px"; }
+  function noteBox(id, placeholder) {
+    var t = document.createElement("textarea"); t.id = "n-" + id; t.rows = 1; t.placeholder = placeholder;
+    t.setAttribute("aria-label", "Your note: " + META[id].label);
+    t.value = (answers[id] && answers[id].note) || "";
+    t.addEventListener("input", function () { grow(t); change(id, { note: t.value }, true); });
+    t.addEventListener("blur", function () { if (timers[id]) { clearTimeout(timers[id]); timers[id] = 0; queueSave(id); } });
+    setTimeout(function () { if (t.value) grow(t); }, 0);
+    return t;
+  }
+  function kv(pairs) {
+    var dl = el("dl", "kv");
+    pairs.forEach(function (p) { dl.appendChild(el("dt", "", p[0])); dl.appendChild(el("dd", p[2] || "", p[1])); });
+    return dl;
+  }
+  function answerItem(num, id, title, pairs, twice) {
+    var it = el("div", "item"), b = el("div", "body"), t = el("div", "t", title);
+    if (twice) t.appendChild(el("span", "twice", "Checked twice"));
+    b.appendChild(t); b.appendChild(kv(pairs));
+    b.appendChild(optRow(id, ANSWER_OPTS, (answers[id] && answers[id].call) || "", function (v) {
+      var next = answers[id] && answers[id].call === v ? "" : v; change(id, { call: next }); return next;
+    }));
+    b.appendChild(noteBox(id, "Note for Claude (optional)"));
+    it.appendChild(el("div", "num", String(num))); it.appendChild(b);
+    return it;
+  }
+  function renderAnswers() {
+    var D = $("decisions"), G = $("gates"), box = null;
+    D.textContent = ""; G.textContent = "";
+    DECISIONS.forEach(function (d) {
+      if (d.h) { D.appendChild(el("h3", "", d.h)); box = el("div", "items"); box.style.marginTop = "10px"; D.appendChild(box); return; }
+      box.appendChild(answerItem(d.n, d.id, d.t, [["Now", d.now], ["I suggest", d.rec, "rec"]], d.twice));
+    });
+    GATES.forEach(function (g, i) {
+      G.appendChild(answerItem(i + 1, g.id, g.t, [["Free gets", g.free], ["Pro adds", g.pro], ["I suggest", g.rec, "rec"]]));
+    });
+    var gen = $("n-general"); gen.value = (answers.general && answers.general.note) || "";
+  }
+
+  // ----- the full list
   function match(r) {
     if (mode === "paid" && r[2] === "free") return false;
+    if (mode === "mine" && !has(r[5])) return false;
     if (!q) return true;
     return (r[0] + " " + r[1] + " " + r[3] + " " + r[4]).toLowerCase().indexOf(q) !== -1;
   }
-  var LABEL = { free: "Free", pro: "Pro", limit: "Free, then Pro", plan: "The purchase" };
+  function markText(id) {
+    var a = answers[id]; if (!a || (!a.call && !a.note)) return "";
+    if (a.call === "free") return "→ Free"; if (a.call === "pro") return "→ Pro"; if (a.call === "limit") return "→ Limit";
+    return "Note";
+  }
+  function mark(id) { var m = rowRefs[id]; if (m) { var t = markText(id); m.textContent = t; m.hidden = !t; } }
+  function panel(r) {
+    var id = r[5], p = el("div", "panel"), sg = el("div", "sg");
+    sg.appendChild(el("b", "", "I suggest")); sg.appendChild(document.createTextNode(r[6] || "Keep as it is"));
+    p.appendChild(sg);
+    if (r[2] !== "plan") {
+      p.appendChild(optRow(id, FEATURE_OPTS, (answers[id] && answers[id].call) || r[2], function (v) {
+        change(id, { call: v === r[2] ? "" : v }); return v;
+      }));
+    }
+    p.appendChild(noteBox(id, "Note for Claude (optional). For a limit, say how many."));
+    return p;
+  }
   function row(r) {
-    var d = el("div", "row"), x = el("div", "x"), s = el("div", "s");
-    x.appendChild(el("div", "f", r[0])); x.appendChild(el("div", "w", r[1]));
-    s.appendChild(el("span", "pill " + r[2], LABEL[r[2]]));
+    var id = r[5], d = el("div", "row"), b = el("button", "rowbtn"), x = el("span", "x"), s = el("span", "s");
+    b.type = "button"; b.setAttribute("aria-expanded", String(!!openRows[id]));
+    x.appendChild(el("span", "f", r[0])); x.appendChild(el("span", "w", r[1]));
+    s.appendChild(el("span", "pill " + r[2], NOW_LABEL[r[2]]));
     var note = r[2] === "limit" ? "up to " + r[3] + (r[4] ? " · " + r[4] : "") : r[4];
     if (note) s.appendChild(el("span", "note", note));
-    d.appendChild(x); d.appendChild(s); return d;
+    var m = el("span", "mark", markText(id)); m.hidden = !m.textContent; s.appendChild(m); rowRefs[id] = m;
+    b.appendChild(x); b.appendChild(s); d.appendChild(b);
+    var p = null;
+    function show() { if (!p) { p = panel(r); d.appendChild(p); } p.hidden = false; }
+    if (openRows[id]) show();
+    b.addEventListener("click", function () {
+      if (openRows[id]) { delete openRows[id]; if (p) p.hidden = true; } else { openRows[id] = 1; show(); }
+      b.setAttribute("aria-expanded", String(!!openRows[id]));
+    });
+    return d;
   }
-  function render() {
-    list.textContent = "";
+  function renderList() {
+    var list = $("list"); list.textContent = ""; rowRefs = {};
     var filtering = mode !== "all" || !!q, shown = 0;
     DATA.forEach(function (a) {
       var sec = el("div", "area"), aTotal = 0, aPaid = 0, cats = [];
       a.c.forEach(function (c) {
-        var total = 0, paid = 0, body = el("div", "inner"), hit = 0;
+        var total = 0, paid = 0, bodyEl = el("div", "inner"), hit = 0;
         c.g.forEach(function (g) {
           var rows = g.r.filter(match);
           g.r.forEach(function (r) { total++; if (r[2] !== "free") paid++; });
           if (!rows.length) return;
-          if (g.n) body.appendChild(el("div", "grp", g.n));
-          rows.forEach(function (r) { body.appendChild(row(r)); hit++; });
+          if (g.n) bodyEl.appendChild(el("div", "grp", g.n));
+          rows.forEach(function (r) { bodyEl.appendChild(row(r)); hit++; });
         });
         aTotal += total; aPaid += paid;
         if (!hit) return;
@@ -335,7 +494,7 @@ var DATA = /*DATA*/[];
         s.appendChild(el("span", "n", c.n));
         var cnt = el("span", "c", filtering ? hit + " of " + total : String(total));
         if (paid && !filtering) { cnt.appendChild(document.createTextNode(" · ")); cnt.appendChild(el("i", "", paid + " paid")); }
-        s.appendChild(cnt); d.appendChild(s); d.appendChild(body);
+        s.appendChild(cnt); d.appendChild(s); d.appendChild(bodyEl);
         if (filtering) d.open = true;
         cats.push(d);
       });
@@ -345,22 +504,59 @@ var DATA = /*DATA*/[];
       cats.forEach(function (d) { sec.appendChild(d); });
       list.appendChild(sec);
     });
-    if (!shown) list.appendChild(el("p", "none", "Nothing matches. Try a different word."));
-    document.getElementById("shown").textContent = filtering ? fmt(shown) + " shown" : "";
+    if (!shown) list.appendChild(el("p", "none", mode === "mine" ? "You have not changed any feature yet. Tap one in the list to change it or leave a note." : "Nothing matches. Try a different word."));
+    $("shown").textContent = filtering ? fmt(shown) + " shown" : "";
   }
   function setMode(m) {
     mode = m;
-    document.getElementById("m-all").setAttribute("aria-pressed", String(m === "all"));
-    document.getElementById("m-paid").setAttribute("aria-pressed", String(m === "paid"));
-    render();
+    ["all", "paid", "mine"].forEach(function (k) { $("m-" + k).setAttribute("aria-pressed", String(k === m)); });
+    renderList();
   }
-  document.getElementById("m-all").addEventListener("click", function () { setMode("all"); });
-  document.getElementById("m-paid").addEventListener("click", function () { setMode("paid"); });
-  var t;
-  document.getElementById("q").addEventListener("input", function (e) {
-    clearTimeout(t); var v = e.target.value.trim().toLowerCase();
-    t = setTimeout(function () { q = v; render(); }, 120);
+  ["all", "paid", "mine"].forEach(function (k) { $("m-" + k).addEventListener("click", function () { setMode(k); }); });
+  var qt;
+  $("q").addEventListener("input", function (e) { clearTimeout(qt); var v = e.target.value.trim().toLowerCase(); qt = setTimeout(function () { q = v; renderList(); }, 140); });
+
+  var gen = $("n-general");
+  gen.addEventListener("input", function () { change("general", { note: gen.value }, true); });
+  gen.addEventListener("blur", function () { if (timers.general) { clearTimeout(timers.general); timers.general = 0; queueSave("general"); } });
+
+  // ----- copy fallback
+  function asText() {
+    var out = ["SongNook feature ledger: my answers", ""];
+    function line(id) { var a = answers[id], m = META[id]; return m.label + " | now: " + m.now + " | my call: " + (CALL_LABEL[a.call] || "no change") + (a.note ? " | note: " + a.note : ""); }
+    [["decision", "DECISIONS"], ["paid line", "PAID LINES"], ["feature", "FEATURES"], ["general", "ANYTHING ELSE"]].forEach(function (k) {
+      var ids = Object.keys(answers).filter(function (id) { return has(id) && META[id] && META[id].kind === k[0]; }).sort();
+      if (!ids.length) return;
+      out.push(k[1]); ids.forEach(function (id) { out.push(k[0] === "general" ? answers[id].note : "- " + line(id)); }); out.push("");
+    });
+    return out.join("\n");
+  }
+  $("copy").addEventListener("click", function () {
+    var text = asText(), btn = $("copy");
+    function fallback() { var box = $("copybox"), t = $("copytext"); box.hidden = false; t.value = text; t.focus(); t.select(); btn.textContent = "Select and copy"; }
+    try { navigator.clipboard.writeText(text).then(function () { btn.textContent = "Copied"; setTimeout(function () { btn.textContent = "Copy my answers"; }, 1600); }, fallback); } catch (e) { fallback(); }
   });
-  render();
+
+  // ----- start: show what this device remembers, then the saved copy
+  loadLocal(); renderAnswers(); renderList(); counts(); status();
+  function noStore() { dbState = "none"; status(); }
+  if (!window.claude || !window.claude.use) { noStore(); return; }
+  window.claude.use("db").then(function (d) {
+    if (!d) { noStore(); return; }
+    db = d;
+    var slow = setTimeout(function () { if (dbState === "loading") { dbState = "error"; status(); } }, 10000);
+    d.collection("answers").limit(1000).get().then(function (snap) {
+      clearTimeout(slow);
+      var seen = {};
+      snap.docs.forEach(function (doc) {
+        var b = doc.data(); if (!b || !META[doc.id]) return;
+        seen[doc.id] = 1;
+        if (!touched[doc.id]) answers[doc.id] = { call: String(b.call || ""), note: String(b.note || "") };
+      });
+      dbState = "ready"; failed = false;
+      Object.keys(answers).forEach(function (id) { if (has(id) && (!seen[id] || touched[id])) queueSave(id); });
+      saveLocal(); renderAnswers(); renderList(); counts(); status();
+    }, function () { clearTimeout(slow); dbState = "error"; status(); });
+  }, noStore);
 })();
 </script>
