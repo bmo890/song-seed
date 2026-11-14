@@ -1,4 +1,5 @@
 import { sparkStartedThisVisit } from "../../../domain/sparkLeave";
+import { refundSparkTry } from "../../../services/sparkTries";
 import { deleteWithUndo } from "../../common/deleteFeedback";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BackHandler } from "react-native";
@@ -410,7 +411,11 @@ export function useMagpieScreenModel() {
       return;
     }
     if (!hasContent) {
-      if (sparkId) deleteMagpieSpark(sparkId, { recentlyDeleted: false });
+      if (sparkId) {
+        // Nothing was written: the free try comes back (services/sparkTries.ts).
+        refundSparkTry(sparkId);
+        deleteMagpieSpark(sparkId, { recentlyDeleted: false });
+      }
       navigation.navigate("SparkHome");
       return;
     }
@@ -458,6 +463,7 @@ export function useMagpieScreenModel() {
         sub.remove();
         const snapshot = abandonRef.current;
         if (snapshot.sparkId && !snapshot.savedLyricId && !snapshot.hasContent) {
+          refundSparkTry(snapshot.sparkId);
           deleteMagpieSpark(snapshot.sparkId, { recentlyDeleted: false });
         }
       };

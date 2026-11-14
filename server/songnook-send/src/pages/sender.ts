@@ -7,6 +7,7 @@
  */
 import { page, waveformStrip } from "./shell";
 import { SEAL_JS } from "./sealJs";
+import { FREE_LINKS } from "../lib/access";
 import { SEND_AUDIO_EXTENSIONS } from "../../../../src/domain/sendFormats.ts";
 
 const SENDER_CSS = `
@@ -168,7 +169,7 @@ const SENDER_JS = `
     if(pollTimer){ clearInterval(pollTimer); pollTimer=null; }
     pairPanel.hidden=true; sendPanel.hidden=false;
     $('session-text').textContent = s.pro ? 'Paired with your SongNook app'
-      : (s.freeLeft===1 ? '1 of 3 free links left this month' : s.freeLeft+' of 3 free links left this month');
+      : (s.freeLeft===1 ? '1 free link left this month' : s.freeLeft+' free links left this month');
   }
   function showCode(code, expiresAt){
     $('pair-code').textContent = code.slice(0,3)+' '+code.slice(3);
@@ -383,7 +384,7 @@ const SENDER_JS = `
         body:JSON.stringify(createBody)});
       if(create.status===401){ sealing=false; sendBtn.disabled=false; sendBtn.textContent='Seal & get the link'; startPairing(); return; }
       if(create.status===402){ sealing=false; sendBtn.disabled=false; sendBtn.textContent='Seal & get the link';
-        say('This month’s 3 free links are used. SongNook Pro sends without limit.'); return; }
+        say('${FREE_LINKS === 1 ? "This month’s free link is used." : `This month’s ${FREE_LINKS} free links are used.`} SongNook Pro sends without limit.'); return; }
       if(!create.ok) throw new Error('could not start the parcel ('+create.status+')');
       var t = await create.json();
 

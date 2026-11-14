@@ -1,4 +1,5 @@
 import { sparkStartedThisVisit } from "../../../domain/sparkLeave";
+import { refundSparkTry } from "../../../services/sparkTries";
 import { deleteWithUndo } from "../../common/deleteFeedback";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BackHandler } from "react-native";
@@ -389,7 +390,11 @@ export function useWordLadderScreenModel() {
     // A freshly-opened spark with nothing in it should not linger in the pad —
     // discard the auto-created record rather than silently keeping it.
     if (!hasContent) {
-      if (exerciseId) deleteWordLadder(exerciseId, { recentlyDeleted: false });
+      if (exerciseId) {
+        // Nothing was written: the free try comes back (services/sparkTries.ts).
+        refundSparkTry(exerciseId);
+        deleteWordLadder(exerciseId, { recentlyDeleted: false });
+      }
       navigation.navigate("SparkHome");
       return;
     }
@@ -441,6 +446,7 @@ export function useWordLadderScreenModel() {
         sub.remove();
         const snapshot = abandonRef.current;
         if (snapshot.exerciseId && !snapshot.savedLyricId && !snapshot.hasContent) {
+          refundSparkTry(snapshot.exerciseId);
           deleteWordLadder(snapshot.exerciseId, { recentlyDeleted: false });
         }
       };

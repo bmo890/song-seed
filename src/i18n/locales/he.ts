@@ -1654,7 +1654,7 @@ export const he = {
       missingKey: "בקישור הזה חסר המפתח. בקשו מהשולח את הקישור המלא.",
       needsUpdate: "עדכנו את SongNook כדי לפתוח את החבילה הזו.",
       sealBroken: "המפתח של הקישור הזה לא מתאים. בקשו מהשולח שוב את הקישור המלא.",
-      limit: "3 הקישורים החינמיים של החודש נוצלו. SongNook Pro שולח בלי הגבלה.",
+      limit_one: "הקישור החינמי של החודש נוצל. SongNook Pro שולח בלי הגבלה.", limit_two: "שני הקישורים החינמיים של החודש נוצלו. SongNook Pro שולח בלי הגבלה.", limit_other: "{{count}} הקישורים החינמיים של החודש נוצלו. SongNook Pro שולח בלי הגבלה.",
       unreachable: "לא ניתן להגיע ל־SongNook Send. בדקו את החיבור ונסו שוב.",
       rejected: "SongNook Send דחה את הבקשה ({{status}}).",
       uploadFailed: "ההעלאה לא הושלמה. נסו שוב.",

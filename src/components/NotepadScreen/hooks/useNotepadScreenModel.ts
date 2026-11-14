@@ -227,23 +227,24 @@ export function useNotepadScreenModel() {
     setActiveNoteId(id);
   }, [addNote]);
 
-  // Each word game gives a free user three tries, for good (services/sparkTries.ts):
-  // starting is what counts, so deleting a spark gives no try back. Sparks already made
-  // stay open and editable.
-  const startSpark = useCallback((game: SparkGame, start: () => void) => {
+  // Each word game gives a free user one try, for good (services/sparkTries.ts):
+  // starting is what counts, so deleting a spark gives no try back; only a spark left
+  // with nothing written returns it. Sparks already made stay open and editable.
+  const startSpark = useCallback((game: SparkGame, start: () => string) => {
     const isPro = hasProAccess("lyric-spark");
     if (!canStartSpark(sparkTriesUsed(game), isPro)) {
       openProUpsell("lyric-spark");
       return;
     }
-    if (!isPro) spendSparkTry(game);
-    start();
+    const sparkId = start();
+    if (!isPro) spendSparkTry(game, sparkId);
   }, []);
 
   const handleNewWordLadder = useCallback(() => {
     startSpark("wordLadder", () => {
       const id = addWordLadder("", "");
       navigation.navigate("WordLadderHome", { exerciseId: id });
+      return id;
     });
   }, [addWordLadder, navigation, startSpark]);
 
@@ -251,6 +252,7 @@ export function useNotepadScreenModel() {
     startSpark("cutUp", () => {
       const id = addCutUpSpark("");
       navigation.navigate("CutUpHome", { sparkId: id });
+      return id;
     });
   }, [addCutUpSpark, navigation, startSpark]);
 
@@ -258,6 +260,7 @@ export function useNotepadScreenModel() {
     startSpark("magpie", () => {
       const id = addMagpieSpark(useMagpiePrefsStore.getState().bookLanguage);
       navigation.navigate("MagpieHome", { sparkId: id });
+      return id;
     });
   }, [addMagpieSpark, navigation, startSpark]);
 

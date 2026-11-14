@@ -69,9 +69,9 @@ export function ReadingSheet({
             <Stepper
               glyphs="plusMinus"
               onStep={(direction) => {
-                // Capo is a stage tool (domain/proCatalog.ts); taking it off stays free,
-                // and so does a received parcel's song.
-                if (!ensureProFor("stage-tools", ideaId)) return;
+                // Capo is a stage tool (domain/proCatalog.ts); stepping it down or taking it
+                // off stays free, and so does a received parcel's song.
+                if (direction > 0 && !ensureProFor("stage-tools", ideaId)) return;
                 prefs().nudgeCapo(ideaId!, direction);
               }}
               canDecrement={capo > 0}

@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Stepper } from "./Stepper";
 import { Press } from "./Press";
 import { ensureProFor } from "./proUpsell";
+import { isTowardOriginal } from "../../domain/proGating";
 import { signedNumberText } from "../../i18n/direction";
 
 type TransposeChipProps = {
@@ -31,7 +32,8 @@ export function TransposeChip({ ideaId, offset, onNudge, onReset }: TransposeChi
         onStep={(direction) => {
           // Transpose is a stage tool (domain/proCatalog.ts); the written key always shows,
           // and a received parcel's chart transposes for everyone.
-          if (!ensureProFor("stage-tools", ideaId)) return;
+          // A step back toward the written key is never gated (proGating isTowardOriginal).
+          if (!isTowardOriginal(offset, offset + direction) && !ensureProFor("stage-tools", ideaId)) return;
           onNudge(direction);
         }}
         decrementLabel={t("common.transposeDown")}

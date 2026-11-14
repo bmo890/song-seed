@@ -75,7 +75,7 @@ import { getVisibleTimelineRange } from "./helpers";
 import { openIdeaInCollection, openSketchPage } from "../../navigation";
 import { AppAlert } from "../common/AppAlert";
 import { getClipOverdubStemCount, getClipPlaybackDurationMs } from "../../domain/clipPresentation";
-import { canAddOverdubLayer, isPracticeToolPro, type PracticeTool } from "../../domain/proGating";
+import { canAddOverdubLayer, isPracticeToolPro, isTowardOriginal, type PracticeTool } from "../../domain/proGating";
 import { hasProAccess } from "../../domain/entitlements";
 import { ensureProFor, openProUpsell } from "../common/proUpsell";
 import { useTranslation } from "react-i18next";
@@ -1321,6 +1321,15 @@ function PlayerScreenInner({
     if (isPracticeToolPro(tool) && !ensureProFor("practice-suite", playerIdeaIdRef.current)) return false;
     return true;
   }, []);
+  // Speed is Pro, but a step back toward 1× never is: a speed kept from a Pro month
+  // can always be walked back (proGating isTowardOriginal).
+  const playbackSpeedRef = useRef(1);
+  playbackSpeedRef.current = playbackSpeed;
+  const speedDragAllowedRef = useRef(false);
+  const guardSpeedStep = useCallback(
+    (next: number): boolean => isTowardOriginal(playbackSpeedRef.current, next, 1) || guardPracticeTool("speed"),
+    [guardPracticeTool]
+  );
   // Writing bar: quick loop scopes without opening Tools — the sections the take
   // already has, or the whole take. Fine-tuning stays on the reel's own handles.
   const handleLoopScopePick = useCallback(() => {
@@ -1822,7 +1831,7 @@ function PlayerScreenInner({
                         max={PRACTICE_SPEED_MAX}
                         bpmBase={speedBpmBase}
                         onSelect={(value) => {
-                          if (guardPracticeTool("speed")) handleSpeedTap(value);
+                          if (guardSpeedStep(value)) handleSpeedTap(value);
                         }}
                       />
                     ) : ui.readingArtifact === "lyrics" || hasChart ? (
@@ -2116,20 +2125,23 @@ function PlayerScreenInner({
               speedMin={PRACTICE_SPEED_MIN}
               speedMax={PRACTICE_SPEED_MAX}
               onSpeedTap={(value) => {
-                if (guardPracticeTool("speed")) {
+                if (guardSpeedStep(value)) {
                   // A manual speed change means the player took the wheel back.
                   stepUp.cancelStepUp();
                   handleSpeedTap(value);
                 }
               }}
               onSpeedSlideStart={() => {
-                if (guardPracticeTool("speed")) handleSpeedSlideStart();
+                // One ask per drag: the Pro page opens as the drag begins, and the
+                // rest of that drag is ignored instead of asking on every step.
+                speedDragAllowedRef.current = guardPracticeTool("speed");
+                if (speedDragAllowedRef.current) handleSpeedSlideStart();
               }}
               onSpeedSliding={(value) => {
-                if (guardPracticeTool("speed")) handleSpeedSliding(value);
+                if (speedDragAllowedRef.current) handleSpeedSliding(value);
               }}
               onSpeedSlideEnd={(value) => {
-                if (guardPracticeTool("speed")) {
+                if (speedDragAllowedRef.current) {
                   stepUp.cancelStepUp();
                   handleSpeedSlideEnd(value);
                 }
@@ -2137,7 +2149,10 @@ function PlayerScreenInner({
               pitchShiftSemitones={ui.pitchShiftSemitones}
               supportsPitchShift={practicePitchTransport.isPitchShiftAvailable}
               onAdjustPitchShift={(value) => {
-                if (guardPracticeTool("pitch")) ui.setPitchShiftSemitones(value);
+                // Back toward the original key is never gated (proGating isTowardOriginal).
+                if (isTowardOriginal(ui.pitchShiftSemitones, value) || guardPracticeTool("pitch")) {
+                  ui.setPitchShiftSemitones(value);
+                }
               }}
               speedTempoBpm={speedTempoBpm}
               speedUnit={speedUnit}

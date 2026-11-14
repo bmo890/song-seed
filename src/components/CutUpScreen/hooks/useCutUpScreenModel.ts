@@ -1,4 +1,5 @@
 import { sparkStartedThisVisit } from "../../../domain/sparkLeave";
+import { refundSparkTry } from "../../../services/sparkTries";
 import { deleteWithUndo } from "../../common/deleteFeedback";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { BackHandler, Dimensions } from "react-native";
@@ -533,7 +534,11 @@ export function useCutUpScreenModel() {
     // A freshly-opened spark with nothing in it should not linger in the pad —
     // discard the auto-created record rather than silently keeping it.
     if (!hasContent) {
-      if (sparkId) deleteCutUpSpark(sparkId, { recentlyDeleted: false });
+      if (sparkId) {
+        // Nothing was written: the free try comes back (services/sparkTries.ts).
+        refundSparkTry(sparkId);
+        deleteCutUpSpark(sparkId, { recentlyDeleted: false });
+      }
       navigation.navigate("SparkHome");
       return;
     }
@@ -585,6 +590,7 @@ export function useCutUpScreenModel() {
         sub.remove();
         const snapshot = abandonRef.current;
         if (snapshot.sparkId && !snapshot.savedLyricId && !snapshot.hasContent) {
+          refundSparkTry(snapshot.sparkId);
           deleteCutUpSpark(snapshot.sparkId, { recentlyDeleted: false });
         }
       };

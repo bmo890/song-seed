@@ -27,6 +27,7 @@ import { isSendServiceConfigured } from "../../../config/sendService";
 import { styles } from "../../../styles";
 import { View } from "react-native";
 import { userFacingMessage } from "../../../i18n/userFacingError";
+import { ensurePro } from "../../common/proUpsell";
 
 type IdeaSelectionBarProps = {
   /** The page's workspace; falls back to the active one. A visited received
@@ -264,6 +265,8 @@ export function IdeaSelectionBar({
 
   async function handleExportForDaw() {
     if (!dawTarget) return;
+    // Export for DAW is a Pro tool (domain/proCatalog.ts); sharing the take's own audio stays free.
+    if (!ensurePro("daw-export")) return;
     try {
       await exportClipForDaw(dawTarget.audioUri, dawTarget.title, dawTarget.grid);
     } catch (error) {

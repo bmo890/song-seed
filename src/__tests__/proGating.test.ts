@@ -21,8 +21,8 @@ describe("canAddOverdubLayer", () => {
 describe("canStartSpark", () => {
     it("gives a free user three tries of a game, then gates", () => {
         expect(canStartSpark(0, false)).toBe(true);
-        expect(canStartSpark(FREE_SPARK_TRIES_PER_GAME - 1, false)).toBe(true); // the third try
-        expect(canStartSpark(FREE_SPARK_TRIES_PER_GAME, false)).toBe(false); // a fourth → Pro
+        expect(canStartSpark(FREE_SPARK_TRIES_PER_GAME - 1, false)).toBe(true); // the last free try
+        expect(canStartSpark(FREE_SPARK_TRIES_PER_GAME, false)).toBe(false); // one more → Pro
     });
 
     it("never gates Pro (or the free month)", () => {

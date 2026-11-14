@@ -5,7 +5,9 @@
  */
 import type { Config, Env } from "../env";
 
-export const FREE_LINKS = 3;
+// The app's own count is domain/proCatalog.ts "send".freeLimit: keep the two the same
+// (founder, 2026-11-14: one link per 30 days, was three).
+export const FREE_LINKS = 1;
 export const FREE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 /** How long a RevenueCat "has Pro" answer is trusted before asking again. */
 const PRO_CACHE_MS = 6 * 60 * 60 * 1000;

@@ -18,6 +18,7 @@ import {
     canSendLink,
     FREE_SEND_LINKS,
     isPracticeToolPro,
+    isTowardOriginal,
 } from "../domain/proGating";
 
 /** Every key the app gates with. Adding a key to the union without a row fails tsc; this
@@ -33,6 +34,7 @@ const EVERY_KEY: ProFeature[] = [
     "word-finder-full",
     "send",
     "pdf-export",
+    "daw-export",
     "archive-offload",
     "auto-backup",
     "cloud-backup",
@@ -119,14 +121,30 @@ describe("the Pro page's lines", () => {
     });
 });
 
-describe("the founder's split (2026-10-23)", () => {
-    it("keeps capture-adjacent basics free and the word lookups Pro", () => {
+describe("the founder's split (2026-11-14, after the feature audit)", () => {
+    it("keeps capture, marking and looping free; the most-used tool of each Pro group is Pro", () => {
         expect(isPracticeToolPro("loop")).toBe(false);
-        expect(isPracticeToolPro("speed")).toBe(false);
+        expect(isPracticeToolPro("pins")).toBe(false);
+        expect(isPracticeToolPro("speed")).toBe(true);
+        expect(isPracticeToolPro("pitch")).toBe(true);
         expect(isPracticeToolPro("stepUp")).toBe(true);
         expect(isProFeature("lyric-spark")).toBe(true);
         expect(isProFeature("word-finder-full")).toBe(true);
-        expect(FREE_WORKSPACES).toBe(3);
-        expect(FREE_SPARK_TRIES_PER_GAME).toBe(3);
+        expect(isProFeature("daw-export")).toBe(true);
+        expect(FREE_WORKSPACES).toBe(2);
+        expect(FREE_SPARK_TRIES_PER_GAME).toBe(1);
+        expect(FREE_SEND_LINKS).toBe(1);
+    });
+
+    it("never gates a step back toward the original", () => {
+        expect(isTowardOriginal(3, 2)).toBe(true); // capo 3 → 2
+        expect(isTowardOriginal(-2, -1)).toBe(true); // transposed down, stepping up
+        expect(isTowardOriginal(2, 0)).toBe(true);
+        expect(isTowardOriginal(0, 1)).toBe(false);
+        expect(isTowardOriginal(2, 3)).toBe(false);
+        expect(isTowardOriginal(2, -2)).toBe(false); // through the original and out the far side
+        expect(isTowardOriginal(0.75, 1, 1)).toBe(true); // speed back to 1×
+        expect(isTowardOriginal(0.75, 0.5, 1)).toBe(false);
+        expect(isTowardOriginal(1, 1, 1)).toBe(false);
     });
 });

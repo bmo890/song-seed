@@ -29,6 +29,7 @@ import { showLineageRenamePrompt } from "../../../domain/clipLineageRenamePrompt
 import { useSongScreen } from "../provider/SongScreenProvider";
 import { useTranslation } from "react-i18next";
 import { userFacingMessage } from "../../../i18n/userFacingError";
+import { ensurePro } from "../../common/proUpsell";
 
 export function SelectionBars() {
   const { t } = useTranslation();
@@ -451,6 +452,8 @@ export function SelectionBars() {
   const dawTarget = dawExportTargetForClip(singleSelectedClip, selectedIdea?.title);
   async function handleExportForDaw() {
     if (!dawTarget) return;
+    // Export for DAW is a Pro tool (domain/proCatalog.ts); sharing the take's own audio stays free.
+    if (!ensurePro("daw-export")) return;
     try {
       await exportClipForDaw(dawTarget.audioUri, dawTarget.title, dawTarget.grid);
     } catch (error) {

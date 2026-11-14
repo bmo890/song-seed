@@ -27,6 +27,7 @@ import type { ClipVersion } from "../../../types";
 import { useTranslation } from "react-i18next";
 import { isSoloMixUri } from "../../../services/soloMix";
 import { UserFacingError, userFacingMessage } from "../../../i18n/userFacingError";
+import { ensurePro } from "../../common/proUpsell";
 
 type UsePlayerScreenLifecycleArgs = {
   navigation: any;
@@ -679,6 +680,8 @@ export function usePlayerScreenLifecycle({
             return;
           }
           const exportForDaw = async (grid: NonNullable<typeof dawGrid>) => {
+            // Export for DAW is a Pro tool (domain/proCatalog.ts); sharing the audio stays free.
+            if (!ensurePro("daw-export")) return;
             try {
               await exportClipForDaw(playbackUri, clipTitle, grid);
             } catch (error) {

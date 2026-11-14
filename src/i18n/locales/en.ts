@@ -1595,7 +1595,7 @@ export const en = {
       missingKey: "This link is missing its key. Ask the sender for the full link.",
       needsUpdate: "Update SongNook to open this parcel.",
       sealBroken: "This link’s key doesn’t fit. Ask the sender for the full link again.",
-      limit: "This month’s 3 free links are used. SongNook Pro sends without limit.",
+      limit_one: "This month’s free link is used. SongNook Pro sends without limit.", limit_other: "This month’s {{count}} free links are used. SongNook Pro sends without limit.",
       unreachable: "Couldn’t reach SongNook Send. Check the connection and try again.",
       rejected: "SongNook Send refused the request ({{status}}).",
       uploadFailed: "The upload didn’t finish. Try again.",

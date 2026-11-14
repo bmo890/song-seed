@@ -3333,7 +3333,7 @@ export const de = {
       missingKey: "Diesem Link fehlt sein Schlüssel. Bitte den Absender um den vollständigen Link.",
       needsUpdate: "Aktualisiere SongNook, um dieses Paket zu öffnen.",
       sealBroken: "Der Schlüssel dieses Links passt nicht. Bitte den Absender noch einmal um den vollständigen Link.",
-      limit: "Die 3 kostenlosen Links dieses Monats sind aufgebraucht. SongNook Pro sendet ohne Limit.",
+      limit_one: "Der kostenlose Link dieses Monats ist aufgebraucht. SongNook Pro sendet ohne Limit.", limit_other: "Die {{count}} kostenlosen Links dieses Monats sind aufgebraucht. SongNook Pro sendet ohne Limit.",
       unreachable: "SongNook Send ist nicht erreichbar. Prüf die Verbindung und versuch es noch mal.",
       rejected: "SongNook Send hat die Anfrage abgelehnt ({{status}}).",
       uploadFailed: "Der Upload wurde nicht abgeschlossen. Versuch es noch mal.",

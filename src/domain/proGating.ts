@@ -67,6 +67,16 @@ export function canAddEditorPart(existingPartCount: number, isPro: boolean): boo
 }
 
 /**
+ * Undoing is never gated (founder, 2026-11-14): a step that lands nearer the original
+ * (speed 1, pitch 0, capo 0, the written key) than where the value stands now is free,
+ * so someone whose Pro ended can always walk a kept setting back. `origin` is the
+ * untouched value.
+ */
+export function isTowardOriginal(current: number, next: number, origin = 0): boolean {
+    return Math.abs(next - origin) < Math.abs(current - origin);
+}
+
+/**
  * Which practice tools are Pro: the "practice-suite" row AND the tool's own switch in
  * proCatalog PRACTICE_TOOLS_PRO. Every practice gate reads this, so no call site changes.
  */

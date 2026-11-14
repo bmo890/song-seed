@@ -14,6 +14,7 @@ import { SEND_SERVICE_BASE_URL } from "../config/sendService";
 import { i18n } from "../i18n/instance";
 import { sendIdentityHeaders } from "./sendIdentity";
 import type { ShareKind } from "../types";
+import { FREE_SEND_LINKS } from "../domain/proGating";
 
 /** Why a transfer failed, for the alert; the English `message` (often a raw server
  *  body) stays for logs. Mirrors `DrRestoreErrorCode` (sweep 2026-10-22, #8). */
@@ -42,7 +43,8 @@ export class SendTransferError extends Error {
 
 /** Translated, user-facing sentence for a transfer failure. */
 export function describeSendTransferError(error: SendTransferError): string {
-  return i18n.t(`shareLink.sendError.${error.code}`, { status: error.status ?? "" });
+  // `count` words the "limit" sentence: how many links a free sender gets (domain/proCatalog.ts).
+  return i18n.t(`shareLink.sendError.${error.code}`, { status: error.status ?? "", count: FREE_SEND_LINKS });
 }
 
 export interface CreatedTransfer {

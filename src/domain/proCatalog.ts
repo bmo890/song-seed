@@ -34,6 +34,7 @@ export type ProFeature =
     | "word-finder-full"
     | "send"
     | "pdf-export"
+    | "daw-export"
     | "archive-offload"
     | "auto-backup"
     | "cloud-backup";
@@ -51,7 +52,7 @@ export const PRO_CATALOG: Record<ProFeature, ProCatalogRow> = {
     // ── The library ──────────────────────────────────────────────────────────────────
     workspaces: {
         pro: true,
-        freeLimit: 3, // Founder, 2026-10-23: "My Songs" plus two.
+        freeLimit: 2, // Founder, 2026-11-14: solo work plus one band (was 3, "My Songs" plus two).
         what: "Creating a workspace beyond the free ones. Opening, renaming, archiving any workspace stays free.",
     },
 
@@ -63,7 +64,7 @@ export const PRO_CATALOG: Record<ProFeature, ProCatalogRow> = {
     },
     "practice-suite": {
         pro: true,
-        what: "USING a practice tool: pins, pitch, analysis, Step up (per-tool switches in PRACTICE_TOOLS_PRO; a plain loop and speed are free). Opening practice mode and viewing existing marks stays free. A received parcel's clips practise free.",
+        what: "USING a practice tool: speed, pitch, Step up (per-tool switches in PRACTICE_TOOLS_PRO; a plain loop and pins are free, and going back toward the original speed or key always is: domain/proGating.ts `isTowardOriginal`). Tempo detection sits under the same key but its door is hidden for everyone, so it is not named on any list of Pro tools. Opening practice mode and viewing existing marks stays free. A received parcel's clips practise free.",
     },
 
     // ── The editor ───────────────────────────────────────────────────────────────────
@@ -82,14 +83,18 @@ export const PRO_CATALOG: Record<ProFeature, ProCatalogRow> = {
     },
     "pdf-export": {
         pro: true,
-        what: "Exporting a chart as PDF. Text and archive exports stay free (export is never locked).",
+        what: "Exporting a chart as PDF. Text, ChordPro and SongNook-file exports stay free: your work always leaves the app.",
+    },
+    "daw-export": {
+        pro: true, // Founder, 2026-11-14: a finishing tool; sharing the audio as recorded stays free.
+        what: "Export for DAW: a bar-aligned WAV named with its tempo. Sharing the take's own audio stays free.",
     },
 
     // ── Lyrics ───────────────────────────────────────────────────────────────────────
     "lyric-spark": {
         pro: true,
-        freeLimit: 3, // Founder, 2026-10-25: three tries of each game, then Pro.
-        what: "Starting a spark (Word Ladder, Cut-Up, Magpie) beyond the free tries of that game. Tries are counted for good (services/sparkTries.ts): deleting a spark gives none back, and sparks started with Pro or in the free month don't count. Sparks already made stay open and editable.",
+        freeLimit: 1, // Founder, 2026-11-14: one try of each game, three in all (was three of each).
+        what: "Starting a spark (Word Ladder, Cut-Up, Magpie) beyond the free try of that game. Tries are counted for good (services/sparkTries.ts): deleting a spark gives none back; a spark left with nothing written gives its try back; sparks started with Pro or in the free month don't count. Sparks already made stay open and editable.",
     },
     "word-sparks-unlimited": {
         pro: false, // Retired 2026-10-25: the limit is on starting a spark (lyric-spark), not on keeping one.
@@ -103,14 +108,14 @@ export const PRO_CATALOG: Record<ProFeature, ProCatalogRow> = {
     // ── Sharing ──────────────────────────────────────────────────────────────────────
     send: {
         pro: true,
-        freeLimit: 3, // Links a free user may make per 30 days (founder, 2026-10-23).
+        freeLimit: 1, // Links a free user may make per 30 days (founder, 2026-11-14; was 3). The Send server holds the same number (server/songnook-send/src/lib/access.ts FREE_LINKS).
         what: "Getting a SongNook Send link beyond the free ones a month. Receiving through Send, and everything in a received parcel, is always free.",
     },
 
     // ── Storage ──────────────────────────────────────────────────────────────────────
     "archive-offload": {
         pro: true,
-        what: "Offloading a workspace's archive to Files. A power-user storage feature, not backup.",
+        what: "Offloading a workspace's archive to Files. A power-user storage feature, not backup. Archiving is shelved (2026-08-04), so nobody new can reach this; it is on no list of Pro tools until archiving returns (founder, 2026-11-14).",
     },
     "auto-backup": {
         pro: false, // Backup is NEVER locked (founder). Key kept for the future automatic-backup feature.
@@ -130,9 +135,9 @@ export type PracticeTool = "loop" | "pins" | "speed" | "pitch" | "analysis" | "s
  * while the rest stay Pro. The whole row's `pro: false` frees them all.
  */
 export const PRACTICE_TOOLS_PRO: Record<PracticeTool, boolean> = {
-    loop: false, // A plain loop and the speed control are free (founder, 2026-10-23).
-    pins: true,
-    speed: false,
+    loop: false, // A plain loop is free: looping a part while you write is writing (founder, 2026-10-23).
+    pins: false, // Founder, 2026-11-14: marking your own take is tidying; the recorder's pins were always free.
+    speed: true, // Founder, 2026-11-14: the practice tool people use most (was free).
     pitch: true,
     analysis: true,
     stepUp: true,
@@ -170,5 +175,5 @@ export const PAYWALL_ROWS: ReadonlyArray<{ icon: string; features: ProFeature[] 
     { icon: "layers-outline", features: ["overdub-layers"] },
     { icon: "repeat-outline", features: ["practice-suite", "full-editor"] },
     { icon: "sparkles-outline", features: ["word-finder-full", "lyric-spark"] },
-    { icon: "paper-plane-outline", features: ["send", "workspaces"] },
+    { icon: "paper-plane-outline", features: ["send", "workspaces", "daw-export"] },
 ];
