@@ -82,15 +82,19 @@ trust problem, and some are legal ones.
 ## 3. Free and Pro
 
 The split lives in code: `src/domain/proCatalog.ts` (numbers and switches) and
-`src/domain/proGating.ts`. Do not restate limits elsewhere. Summary as of 2026-11-13:
+`src/domain/proGating.ts`. Do not restate limits elsewhere. Summary as of 2026-11-14:
 
-- **Pro:** workspaces beyond 3; layers beyond 1 per take; pitch, pins, analysis and
-  Step up (plain loop and speed are free); the editor's Speed & pitch tab (trimming and
-  cutting a take into any number of parts are free, 2026-11-13); transpose, capo,
-  making chart books and setlists (writing charts is free; a book
-  that exists always opens in the stage reader, 2026-11-02 audit 11-M3);
-  PDF export; the whole Word Finder (its APIs cost money); Lyric Spark beyond 3 tries per
-  game; Send beyond 3 links per 30 days; archive offload.
+- **Pro (as built 2026-11-14, commits 485d8626 and 743c72a5):** workspaces beyond 2;
+  layers beyond 1 per take (8 at most); speed, pitch and Step up in the player (a plain
+  loop and pins are free, and a step back toward the original speed, key or capo always
+  is); the editor's Speed & pitch tab (trimming and cutting into any number of parts are
+  free); transpose, capo, making chart books and setlists (writing charts is free; a book
+  that exists always opens in the stage reader); chart PDF; Export for DAW; the whole
+  Word Finder; a word game beyond 1 try of each game (a spark left with nothing written
+  gives its try back); Send beyond 1 link per 30 days. Tempo detection (hidden) and
+  archive offload (unreachable) are gated in code but named on no list of Pro tools.
+- **Marked in the app:** every one of those doors wears the Pro mark for someone it
+  would stop (`common/ProMark`, rule in CLAUDE.md).
 - The paywall is on in code since the release commit of 2026-11-11:
   `ALL_FEATURES_FREE = false` (`src/domain/entitlements.ts`) and
   `APP_STORE_RELEASE_AT = 2026-11-11` (`src/domain/freeMonth.ts`). It reaches people
@@ -278,3 +282,10 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
   the song, and in each Pro group the most-used tool is Pro. Founder then asked a third
   time about $1 a month and about gating Revisit and Activity; advice given was to keep
   both as they are (see "Why not $1 a month" in §1); their answer is pending.
+- 2026-11-14 — Built the same day (485d8626 the split, 743c72a5 the Pro marks), not
+  published. The founder also asked that Pro doors be marked in the app itself; they now
+  are. Prices and free Revisit / Activity confirmed ("okay. yes."). Still to approve: the
+  reworded Pro page (outcomes, what stays free), the end-of-free-month note that names the
+  tools a person used, and the two changed sentences in the terms (allowances; export).
+  The terms and the Send server (`FREE_LINKS = 1`) are changed in the repo only, not
+  deployed. Ship order: after Apple approves, with the founder's yes, before Release.
