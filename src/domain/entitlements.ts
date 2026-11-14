@@ -57,6 +57,15 @@ function freeMonthOpen(): boolean {
 }
 
 /**
+ * Whether this person's Pro access is the free month and nothing else: no purchase, not
+ * a founding install, the paywall live. What they use now is what the Pro page reminds
+ * them of when the month ends (services/proUse.ts).
+ */
+export function isOnFreeMonth(): boolean {
+    return !ALL_FEATURES_FREE && !isProState && !foundingMember && freeMonthOpen();
+}
+
+/**
  * Access without a purchase: the free month's end and founding membership. Re-renders
  * gates when the month runs out while the app is open.
  */

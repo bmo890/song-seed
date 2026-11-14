@@ -78,7 +78,7 @@ import { getClipOverdubStemCount, getClipPlaybackDurationMs } from "../../domain
 import { canAddOverdubLayer, FREE_OVERDUB_LAYERS, isPracticeToolPro, isTowardOriginal, type PracticeTool } from "../../domain/proGating";
 import { useProLocked } from "../common/ProMark";
 import { hasProAccess } from "../../domain/entitlements";
-import { ensureProFor, openProUpsell } from "../common/proUpsell";
+import { ensureProFor, openProUpsell, countProUse } from "../common/proUpsell";
 import { useTranslation } from "react-i18next";
 import { resolveSectionEdit, sectionDisplayLabel } from "../../domain/playerSections";
 import { durations } from "../../design/motion";
@@ -1298,6 +1298,7 @@ function PlayerScreenInner({
       openProUpsell("overdub-layers");
       return;
     }
+    countProUse("overdub-layers");
     try {
       // The song stops where it is, and the layer starts there (founder,
       // 2026-10-22). It used to keep playing under the recorder while the punch

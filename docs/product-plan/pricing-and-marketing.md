@@ -309,3 +309,13 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
   handed all translations to Claude ("ill rely on you for all the translations"): the
   Pro page, the Pro mark and the Send limit sentence are in all five languages, and the
   Hebrew Pro page was checked in the simulator (right-to-left, mixed Latin names).
+- 2026-11-14 — "Used in your free month" (founder: "Yes"). The Pro page names up to three
+  Pro tools a person used during the free month, most used first, as one line under the
+  privacy promise ("Word Finder 14 · Layers 6 · Practice tools 3"). A list, not the
+  sentence first drafted: a sentence needs different grammar for every count in every
+  language. A use is a sitting (one group counts once per 30 minutes), counted only
+  during the free month, never for a Pro or founding member. Counted and kept on the
+  phone (`services/proUse.ts`): never sent, not in the library, in no backup, parcel or
+  export, so the privacy label does not change. To keep the prices in view the page's
+  two quiet lines ("Also with Pro", "Free for good") now sit under the prices, not above
+  them. Built, in five languages, not published.

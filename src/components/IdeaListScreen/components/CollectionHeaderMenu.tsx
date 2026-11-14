@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { setDevFreeMonthStart, syncFreeMonth } from "../../../services/freeMonthClock";
 import { getDevProOverride, setDevProOverride } from "../../../domain/entitlements";
+import { setDevProUse } from "../../../services/proUse";
 import { openProUpsell } from "../../common/proUpsell";
 import { stageStoreLibrary } from "../../../dev/storeLibrary";
 
@@ -217,7 +218,9 @@ export function CollectionHeaderMenu() {
               label={t("collection.proPreviewDev")}
               onPress={() => {
                 screen.setHeaderMenuOpen(false);
-                // Preview the Pro sheet as on day 26 of the free month (4 days left).
+                // Preview the Pro sheet as on day 26 of the free month (4 days left),
+                // with sample "used in your free month" counts.
+                setDevProUse({ wordFinder: 14, layers: 6, practice: 3 });
                 setDevFreeMonthStart(Date.now() - 26 * 24 * 60 * 60 * 1000);
                 void syncFreeMonth(useStore.getState().firstLaunchAt).then(() => openProUpsell());
               }}

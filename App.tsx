@@ -154,6 +154,7 @@ import { FeedbackHost } from "./src/components/common/FeedbackSheet";
 import { FreeMonthNotices } from "./src/components/common/FreeMonthNotices";
 import { initBilling } from "./src/services/billing";
 import { loadSparkTries } from "./src/services/sparkTries";
+import { loadProUse } from "./src/services/proUse";
 import { WelcomeFlow } from "./src/components/common/WelcomeFlow";
 import { useLibraryBackupFlow } from "./src/components/SettingsScreen/hooks/useLibraryBackupFlow";
 import { installGlobalCrashHandler } from "./src/services/crashLog";
@@ -1343,6 +1344,7 @@ export default function App() {
     void initBilling();
     // The word games' free tries live beside the free month (services/sparkTries.ts).
     void loadSparkTries();
+    void loadProUse();
   }, []);
   const { t } = useTranslation();
   const [hasHydrated, setHasHydrated] = useState(() => useStore.persist.hasHydrated());

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { Linking, Modal, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import ReAnimated from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,6 +23,7 @@ import { freeMonthStatus, FREE_MONTH_DAYS, lifetimeLaunchEndsAt } from "../../do
 import { currentFormatLocale } from "../../i18n/formatLocale";
 import { PAYWALL_ROWS } from "../../domain/proCatalog";
 import { isDevFreeMonthPreview } from "../../services/freeMonthClock";
+import { proUse, proUseRanking } from "../../services/proUse";
 import {
   manageSubscriptionUrl,
   purchasePro,
@@ -99,6 +100,10 @@ function ProUpsellPage({ onClose }: { onClose: () => void }) {
     return standing.kind === "founding" ? t("pro.ownedFounding") : null;
   };
   const owned = hasPro ? ownedLine() : null;
+  // Re-read when a count changes; the ranking itself comes from the service.
+  useSyncExternalStore(proUse.subscribe, proUse.get);
+  const used = hasPro ? [] : proUseRanking();
+  const usedLabel = [t("pro.usedTitle"), ...used.map((entry) => `${t(`pro.used.${entry.group}`)} ${entry.count}`)].join(", ");
   // Lifetime's printed price follows the launch window: $59.99 until it ends, then
   // $79.99 (a store price, when RevenueCat has one, always wins).
   const launchEndsAt = lifetimeLaunchEndsAt();
@@ -192,6 +197,21 @@ function ProUpsellPage({ onClose }: { onClose: () => void }) {
             </Text>
           ) : null}
           <Text style={s.subhead}>{t("pro.subhead")}</Text>
+          {/* What this person used in their free month, most used first: a reminder,
+              counted and kept on the phone (services/proUse.ts). */}
+          {used.length > 0 ? (
+            <View style={s.used} accessible accessibilityLabel={usedLabel}>
+              <Text style={s.usedTitle}>{t("pro.usedTitle")}</Text>
+              <Text style={s.usedLine}>
+                {used.map((entry, index) => (
+                  <Text key={entry.group}>
+                    {index > 0 ? "  ·  " : ""}
+                    {t(`pro.used.${entry.group}`)} <Text style={s.usedCount}>{entry.count}</Text>
+                  </Text>
+                ))}
+              </Text>
+            </View>
+          ) : null}
 
           <View style={s.features}>
             {FEATURE_ICONS.map((icon, index) => (
@@ -204,9 +224,6 @@ function ProUpsellPage({ onClose }: { onClose: () => void }) {
               </View>
             ))}
           </View>
-          {/* The doors without a line of their own, then what paying never touches. */}
-          <Text style={s.alsoLine}>{t("pro.also")}</Text>
-          <Text style={s.freeLine}>{t("pro.freeForGood")}</Text>
         </View>
 
         {showPlans ? (
@@ -246,6 +263,12 @@ function ProUpsellPage({ onClose }: { onClose: () => void }) {
             })}
           </ReAnimated.View>
         ) : null}
+        {/* Under the prices: the doors without a line of their own, then what paying
+            never touches. */}
+        <View style={s.footnotes}>
+          <Text style={s.alsoLine}>{t("pro.also")}</Text>
+          <Text style={s.freeLine}>{t("pro.freeForGood")}</Text>
+        </View>
       </ScrollView>
 
       <View style={s.footer}>
@@ -365,14 +388,33 @@ const s = StyleSheet.create({
     color: colors.primaryDeep,
     marginTop: spacing.sm,
   },
+  // Used in the free month: an eyebrow and up to three rows, name and tabular count.
+  used: {
+    marginTop: spacing.lg,
+    gap: spacing.xs,
+  },
+  usedTitle: {
+    ...textTokens.annotation,
+    color: colors.textSecondary,
+  },
+  usedLine: {
+    ...textTokens.body,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  usedCount: {
+    fontFamily: "PlusJakartaSans_600SemiBold",
+    color: colors.primaryDeep,
+    fontVariant: ["tabular-nums"],
+  },
   subhead: {
     ...textTokens.supporting,
     color: colors.textSecondary,
     marginTop: spacing.sm,
   },
   features: {
-    marginTop: spacing.xxl,
-    gap: spacing.xl,
+    marginTop: spacing.xl,
+    gap: spacing.lg,
   },
   featureRow: {
     flexDirection: "row",
@@ -399,9 +441,11 @@ const s = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  footnotes: {
+    paddingVertical: spacing.lg,
+  },
   alsoLine: {
     ...textTokens.supporting,
-    marginTop: spacing.xl,
   },
   freeLine: {
     ...textTokens.supporting,

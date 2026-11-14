@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
-import { hasProAccess, type ProFeature } from "../../domain/entitlements";
+import { hasProAccess, isOnFreeMonth, type ProFeature } from "../../domain/entitlements";
+import { noteProUse } from "../../services/proUse";
 import { useStore } from "../../state/useStore";
 
 /**
@@ -48,7 +49,17 @@ export function useProUpsellState(): ProUpsellState {
 export function ensurePro(feature: ProFeature, allowed?: boolean): boolean {
     const ok = allowed ?? hasProAccess(feature);
     if (!ok) openProUpsell(feature);
+    else countProUse(feature);
     return ok;
+}
+
+/**
+ * A Pro tool was used. Counted only during the free month, on the phone, so the Pro
+ * page can name what this person used when the month ends (services/proUse.ts). Every
+ * gate through `ensurePro` counts by itself; a gate with its own check calls this.
+ */
+export function countProUse(feature: ProFeature): void {
+    if (isOnFreeMonth()) noteProUse(feature);
 }
 
 /**

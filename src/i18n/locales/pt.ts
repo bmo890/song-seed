@@ -3636,6 +3636,8 @@ export const pt = {
     seePlans: "Ver planos",
     renewNoteIos: "Anual e mensal renovam até você cancelar. Cancele na sua conta da App Store.",
     renewNoteAndroid: "Anual e mensal renovam até você cancelar. Cancele na sua conta do Google Play.",
+    usedTitle: "Usado no seu mês grátis",
+    used: { wordFinder: "Buscador de palavras", lyricSpark: "Faísca de letras", practice: "Ferramentas de prática", stage: "Ferramentas de palco", send: "Links do Send", layers: "Camadas" },
     also: "Também com o Pro: espaços de trabalho ilimitados e Exportar para DAW.",
     freeForGood: "Grátis para sempre: gravar, sua biblioteca, letras, cifras, backup.",
     features: {

@@ -9,7 +9,7 @@ import { buildShareTextFromNotes } from "../../../domain/notepad";
 import { canStartSpark } from "../../../domain/proGating";
 import { spendSparkTry, sparkTriesUsed, type SparkGame } from "../../../services/sparkTries";
 import { hasProAccess } from "../../../domain/entitlements";
-import { openProUpsell } from "../../common/proUpsell";
+import { openProUpsell, countProUse } from "../../common/proUpsell";
 import type { ContentDirection, Note, WordLadderExercise, CutUpSpark, MagpieSpark } from "../../../types";
 import { useTranslation } from "react-i18next";
 
@@ -238,6 +238,7 @@ export function useNotepadScreenModel() {
     }
     const sparkId = start();
     if (!isPro) spendSparkTry(game, sparkId);
+    else countProUse("lyric-spark");
   }, []);
 
   const handleNewWordLadder = useCallback(() => {

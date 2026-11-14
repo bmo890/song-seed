@@ -3492,6 +3492,8 @@ export const de = {
     seePlans: "Pläne ansehen",
     renewNoteIos: "Jährlich und monatlich verlängern sich bis zur Kündigung. Kündigen im App-Store-Konto.",
     renewNoteAndroid: "Jährlich und monatlich verlängern sich bis zur Kündigung. Kündigen im Google-Play-Konto.",
+    usedTitle: "In deinem Gratismonat genutzt",
+    used: { wordFinder: "Wortfinder", lyricSpark: "Textfunke", practice: "Übungswerkzeuge", stage: "Bühnenwerkzeuge", send: "Send-Links", layers: "Spuren" },
     also: "Auch mit Pro: unbegrenzte Arbeitsbereiche und Für DAW exportieren.",
     freeForGood: "Für immer kostenlos: Aufnehmen, deine Bibliothek, Texte, Akkorde, Backup.",
     features: {
