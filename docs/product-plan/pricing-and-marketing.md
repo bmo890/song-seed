@@ -301,3 +301,11 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
   written by Claude; Hebrew wants the founder's read. Built 6b62d83f + the reorder, not
   published. Still open: the end-of-free-month note naming the tools a person used
   (needs local use counts), and the two terms sentences.
+- 2026-11-14 — Terms: the founder approved the two changed sentences ("Yes"): what is
+  never locked, with "your work can always leave the app as audio, text and SongNook
+  files" in place of "export ... never locked"; and "one SongNook Send link a month and
+  one try of each word game". In `docs/terms-of-use.md` and the built legal page; NOT
+  deployed, and the terms' date line changes on the day they go live. The founder also
+  handed all translations to Claude ("ill rely on you for all the translations"): the
+  Pro page, the Pro mark and the Send limit sentence are in all five languages, and the
+  Hebrew Pro page was checked in the simulator (right-to-left, mixed Latin names).
