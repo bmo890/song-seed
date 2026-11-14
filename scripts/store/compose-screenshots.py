@@ -1,4 +1,8 @@
-"""Store screenshots: a caption on paper above a real screen that bleeds off the bottom.
+"""Store screenshots: a caption on paper above a real screen.
+
+Apple's screen bleeds off the bottom. Play's canvas is shorter (at most 2:1), so a bleed
+there cut the main controls in half (the recorder's Pause, the record button); Play shows
+the whole screen instead, slightly smaller, with all four corners (founder, 2026-11-14).
 
 Raw captures come from the iPhone 17 Pro Max simulator (1320x2868) with the demo
 library staged by the dev-only "Store library (dev)" collection menu row
@@ -28,7 +32,9 @@ SECONDARY = (0x84, 0x73, 0x6F)  # textSecondary
 
 # Play's frame is drawn at Apple's width, then scaled to 1080x2160.
 W, H = (1320, 2640) if TARGET == "play" else (1320, 2868)
-SCREEN_W, SCREEN_TOP = (980, 650) if TARGET == "play" else (1080, 690)
+SCREEN_W, SCREEN_TOP = (900, 600) if TARGET == "play" else (1080, 690)
+# Play shows the whole screen; Apple's runs off the bottom edge.
+BLEED = TARGET != "play"
 FRAMES = [
     ("01-capture", "recorder", "Catch it before it's gone", "Tap once and you're recording."),
     ("02-sketch", "sketch-b", "Every idea grows into a song", "Takes, versions and side ideas in one sketch."),
@@ -94,19 +100,22 @@ def frame(name, raw, title, sub):
     left = (W - sw) // 2
     radius = 72
 
+    # A bleeding screen rounds only its top corners (the bottom is off the canvas).
+    bottom = sh + radius if BLEED else sh - 1
     mask = Image.new("L", (sw, sh), 0)
-    ImageDraw.Draw(mask).rounded_rectangle((0, 0, sw - 1, sh + radius), radius=radius, fill=255)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, sw - 1, bottom), radius=radius, fill=255)
 
     # Whisper shadow (≤ 0.08) so the paper screen lifts off the paper ground.
     shadow = Image.new("L", (W, H), 0)
-    ImageDraw.Draw(shadow).rounded_rectangle((left, top + 18, left + sw, top + sh + 200), radius=radius, fill=int(255 * 0.08))
+    shadow_bottom = top + sh + 200 if BLEED else top + sh + 18
+    ImageDraw.Draw(shadow).rounded_rectangle((left, top + 18, left + sw, shadow_bottom), radius=radius, fill=int(255 * 0.08))
     shadow = shadow.filter(ImageFilter.GaussianBlur(40))
     canvas = Image.composite(Image.new("RGB", (W, H), (60, 40, 30)), canvas, shadow)
 
     canvas.paste(screen, (left, top), mask)
     # Hairline edge, so the screen's own paper doesn't melt into the ground.
     ImageDraw.Draw(canvas).rounded_rectangle(
-        (left, top, left + sw - 1, top + sh + radius), radius=radius, outline=(0xE4, 0xDF, 0xD8), width=2
+        (left, top, left + sw - 1, top + bottom), radius=radius, outline=(0xE4, 0xDF, 0xD8), width=2
     )
     if TARGET == "play":
         canvas.resize((1080, 2160), Image.LANCZOS).save(f"{OUT}/{name}.png")
