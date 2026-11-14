@@ -165,15 +165,19 @@ export function withinFreeLimit(key: ProFeature, existingCount: number, isPro: b
 
 /**
  * The Pro page's feature lines, in order: each line's copy lives at
- * `pro.features.<index>` in the locale files and promises the keys listed here.
- * The test (proCatalog.test.ts) fails when a line promises a key that is no longer
- * gated, so flipping a row above means editing the page's copy too. Five lines, one
- * each (founder, 2026-11-12: bullet points, less to read).
+ * `pro.features.<index>` in the locale files (a `title`, the result, and a `body`, the
+ * tool) and promises the keys listed here. The test (proCatalog.test.ts) fails when a
+ * line promises a key that is no longer gated, so flipping a row above means editing
+ * the page's copy too. Five lines, most telling first (founder, 2026-11-14): the
+ * harmony you can hear, then writing, practice, sharing, the stage.
  */
 export const PAYWALL_ROWS: ReadonlyArray<{ icon: string; features: ProFeature[] }> = [
-    { icon: "musical-notes-outline", features: ["stage-tools"] },
     { icon: "layers-outline", features: ["overdub-layers"] },
+    { icon: "sparkles-outline", features: ["lyric-spark", "word-finder-full"] },
     { icon: "repeat-outline", features: ["practice-suite", "full-editor"] },
-    { icon: "sparkles-outline", features: ["word-finder-full", "lyric-spark"] },
-    { icon: "paper-plane-outline", features: ["send", "workspaces", "daw-export"] },
+    { icon: "paper-plane-outline", features: ["send"] },
+    { icon: "musical-notes-outline", features: ["stage-tools", "pdf-export"] },
 ];
+
+/** The page's one quiet closing line (`pro.also`): Pro doors that are not a line of their own. */
+export const PAYWALL_ALSO: ReadonlyArray<ProFeature> = ["workspaces", "daw-export"];

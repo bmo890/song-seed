@@ -3492,12 +3492,14 @@ export const de = {
     seePlans: "Pläne ansehen",
     renewNoteIos: "Jährlich und monatlich verlängern sich bis zur Kündigung. Kündigen im App-Store-Konto.",
     renewNoteAndroid: "Jährlich und monatlich verlängern sich bis zur Kündigung. Kündigen im Google-Play-Konto.",
+    also: "Auch mit Pro: unbegrenzte Arbeitsbereiche und Für DAW exportieren.",
+    freeForGood: "Für immer kostenlos: Aufnehmen, deine Bibliothek, Texte, Akkorde, Backup.",
     features: {
-      "0": "Setlists, Transposition und Kapo",
-      "1": "Bis zu 8 Spuren pro Take",
-      "2": "Übungswerkzeuge und der volle Editor",
-      "3": "Der Wortfinder und jedes Wortspiel",
-      "4": "Unbegrenzte Send-Links und Arbeitsbereiche",
+      "0": { title: "Eine zweite Stimme dazu", body: "Bis zu 8 Spuren auf einem Take." },
+      "1": { title: "Schreib dich aus der Blockade", body: "Textfunke bringt Zeilen, auf die du nicht gekommen wärst. Der Wortfinder hat den Reim." },
+      "2": { title: "Übungswerkzeuge", body: "Langsamer, andere Tonart, und die schwere Stelle Schritt für Schritt auf Tempo." },
+      "3": { title: "Teile es so, wie du es markiert hast", body: "Deine Teile, Marker und Notizen kommen in ihrem SongNook genau so an, damit die Band sieht, was du meinst. Unbegrenzte Send-Links." },
+      "4": { title: "Ab auf die Bühne", body: "Transposition, Kapo, Songbooks, Setlists und PDF." },
     },
     plans: {
       annual: {

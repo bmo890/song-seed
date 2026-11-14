@@ -164,6 +164,8 @@ export type PlanState =
 /** A string snapshot, so useSyncExternalStore sees a stable value between changes. */
 function planSnapshot(): string {
     if (isProSubscriber()) return "pro";
+    // Dev: the "free user" override shows the Pro page as someone without Pro sees it.
+    if (__DEV__ && devProOverride === false) return "free";
     if (foundingMember) return "founding";
     if (freeMonthOpen() && freeMonthEndsAt != null) {
         return `freeMonth:${Math.max(1, Math.ceil((freeMonthEndsAt - getFreeMonthClock()) / DAY_MS))}`;

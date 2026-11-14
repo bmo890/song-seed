@@ -1,5 +1,6 @@
 import { resources } from "../i18n/translations";
 import {
+    PAYWALL_ALSO,
     PAYWALL_ROWS,
     PRACTICE_TOOLS_PRO,
     PRO_CATALOG,
@@ -108,12 +109,15 @@ describe("the Pro page's lines", () => {
                 expect({ feature, pro: isProFeature(feature) }).toEqual({ feature, pro: true });
             }
         }
+        for (const feature of PAYWALL_ALSO) {
+            expect({ feature, pro: isProFeature(feature) }).toEqual({ feature, pro: true });
+        }
     });
 
     it("advertise every gated feature with a call site, apart from the quiet storage ones", () => {
-        const advertised = new Set(PAYWALL_ROWS.flatMap((row) => row.features));
-        // Storage and the keys reserved for future features are Pro without a line on the page.
-        const quiet: ProFeature[] = ["archive-offload", "cloud-backup", "pdf-export"];
+        const advertised = new Set([...PAYWALL_ROWS.flatMap((row) => row.features), ...PAYWALL_ALSO]);
+        // Unreachable storage and the key reserved for a future feature are Pro without a line on the page.
+        const quiet: ProFeature[] = ["archive-offload", "cloud-backup"];
         for (const key of EVERY_KEY) {
             if (!isProFeature(key) || quiet.includes(key)) continue;
             expect({ key, advertised: advertised.has(key) }).toEqual({ key, advertised: true });

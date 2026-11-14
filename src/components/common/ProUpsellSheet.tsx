@@ -37,8 +37,8 @@ import { collapseIn } from "../../design/motion";
 // those URLs is config/legalLinks, shared with Settings → About.
 import { PRIVACY_POLICY_URL as PRIVACY_URL, TERMS_OF_USE_URL as TERMS_URL } from "../../config/legalLinks";
 
-/** What Pro adds: the catalog's PAYWALL_ROWS (domain/proCatalog.ts), each row's one line
- *  at `pro.features.<index>`. Bare ink glyphs, no tiles. */
+/** What Pro adds: the catalog's PAYWALL_ROWS (domain/proCatalog.ts), each row's result and
+ *  tool at `pro.features.<index>` (`title`, `body`). Bare ink glyphs, no tiles. */
 const FEATURE_ICONS = PAYWALL_ROWS.map((row) => row.icon as keyof typeof Ionicons.glyphMap);
 const PLAN_IDS: ProPlan[] = ["annual", "monthly", "lifetime"];
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -197,10 +197,16 @@ function ProUpsellPage({ onClose }: { onClose: () => void }) {
             {FEATURE_ICONS.map((icon, index) => (
               <View key={icon} style={s.featureRow}>
                 <Ionicons name={icon} size={20} color={colors.textStrong} style={s.featureGlyph} />
-                <Text style={s.featureLine}>{t(`pro.features.${index}`)}</Text>
+                <View style={s.featureText}>
+                  <Text style={s.featureTitle}>{t(`pro.features.${index}.title`)}</Text>
+                  <Text style={s.featureBody}>{t(`pro.features.${index}.body`)}</Text>
+                </View>
               </View>
             ))}
           </View>
+          {/* The doors without a line of their own, then what paying never touches. */}
+          <Text style={s.alsoLine}>{t("pro.also")}</Text>
+          <Text style={s.freeLine}>{t("pro.freeForGood")}</Text>
         </View>
 
         {showPlans ? (
@@ -370,17 +376,37 @@ const s = StyleSheet.create({
   },
   featureRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: spacing.md,
   },
   featureGlyph: {
     width: 22,
     textAlign: "center",
+    marginTop: 1,
   },
-  featureLine: {
-    ...textTokens.body,
+  featureText: {
     flex: 1,
+    gap: 2,
+  },
+  // The result first, in full ink; the tool beneath it, quieter.
+  featureTitle: {
+    ...textTokens.body,
+    fontFamily: "PlusJakartaSans_600SemiBold",
     fontSize: 16,
+  },
+  featureBody: {
+    ...textTokens.supporting,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  alsoLine: {
+    ...textTokens.supporting,
+    marginTop: spacing.xl,
+  },
+  freeLine: {
+    ...textTokens.supporting,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   // Prices are rows on paper with an ink tick, not boxed cards.
   plans: {

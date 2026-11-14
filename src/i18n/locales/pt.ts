@@ -3636,12 +3636,14 @@ export const pt = {
     seePlans: "Ver planos",
     renewNoteIos: "Anual e mensal renovam até você cancelar. Cancele na sua conta da App Store.",
     renewNoteAndroid: "Anual e mensal renovam até você cancelar. Cancele na sua conta do Google Play.",
+    also: "Também com o Pro: espaços de trabalho ilimitados e Exportar para DAW.",
+    freeForGood: "Grátis para sempre: gravar, sua biblioteca, letras, cifras, backup.",
     features: {
-      "0": "Setlists, transposição e capotraste",
-      "1": "Até 8 camadas por take",
-      "2": "Ferramentas de prática e o editor completo",
-      "3": "O Buscador de palavras e todos os jogos",
-      "4": "Links do Send e espaços de trabalho ilimitados",
+      "0": { title: "Some uma harmonia", body: "Empilhe até 8 camadas em um take." },
+      "1": { title: "Escreva até sair do bloqueio", body: "A Faísca de letras traz versos que você não teria achado. O Buscador de palavras tem a rima." },
+      "2": { title: "Ferramentas de prática", body: "Desacelere, mude o tom e repita a parte difícil até chegar no andamento." },
+      "3": { title: "Compartilhe do jeito que você marcou", body: "Suas partes, marcadores e notas chegam no SongNook deles do jeito que você marcou, para a banda ver o que você quer dizer. Links do Send ilimitados." },
+      "4": { title: "Leve para o palco", body: "Transposição, capotraste, cancioneiros, setlists e PDF." },
     },
     plans: {
       annual: {
