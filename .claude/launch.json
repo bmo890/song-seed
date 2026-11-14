@@ -4,20 +4,41 @@
     {
       "name": "expo-dev-client",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "start:dev"],
+      "runtimeArgs": [
+        "run",
+        "start:dev"
+      ],
       "port": 8081
     },
     {
       "name": "expo-web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "web"],
+      "runtimeArgs": [
+        "run",
+        "web"
+      ],
       "port": 8081
     },
     {
       "name": "songnook-send",
       "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "cd server/songnook-send && npx wrangler dev --config wrangler.toml"],
+      "runtimeArgs": [
+        "-c",
+        "cd server/songnook-send && npx wrangler dev --config wrangler.toml"
+      ],
       "port": 8787
+    },
+    {
+      "name": "site-preview",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8799",
+        "--directory",
+        "server/songnook-send/public"
+      ],
+      "port": 8799
     }
   ]
 }

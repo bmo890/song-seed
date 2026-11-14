@@ -86,6 +86,7 @@ body::before{ /* paper grain — plain opacity; blend modes are too expensive to
 }
 @media (prefers-color-scheme:dark){ body::before{opacity:.3} }
 .wrap{max-width:660px;margin:0 auto;padding:clamp(28px,6vw,64px) 22px 90px;position:relative;z-index:1}
+.wrap.wide{max-width:1060px}
 
 /* ── masthead ── */
 .masthead{display:flex;align-items:baseline;justify-content:space-between;gap:16px;
@@ -217,6 +218,10 @@ export function page(opts: {
   /** "send" (default) wears the Send masthead and transfer footer; "site" is the
    *  bare domain — SongNook itself, with the legal links in the footer. */
   variant?: "send" | "site";
+  /** Extra tags for <head>: the landing's description and share card. */
+  head?: string;
+  /** A wider column, for the landing's screenshots. */
+  wide?: boolean;
 }): string {
   const site = opts.variant === "site";
   return `<!doctype html>
@@ -226,6 +231,8 @@ export function page(opts: {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 ${opts.noindex ? '<meta name="robots" content="noindex,nofollow">' : ""}
 <title>${escapeHtml(opts.title)}</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+${opts.head ?? ""}
 <meta name="theme-color" content="#f3ecdf" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1d1712" media="(prefers-color-scheme: dark)">
 <link rel="preload" href="/fonts/lora-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
@@ -233,14 +240,14 @@ ${opts.noindex ? '<meta name="robots" content="noindex,nofollow">' : ""}
 <style>${FONT_FACES}${BRAND_CSS}${opts.extraStyle ?? ""}</style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap${opts.wide ? " wide" : ""}">
 <header class="masthead rise">
   <a class="brand" href="/">Song<b>Nook</b>${site ? "" : " · Send"}</a>
   <span class="tag">${site ? "A quiet place to finish creative work" : "Music, passed along"}</span>
 </header>
 ${opts.body}
 <footer class="foot">
-  <span>${site ? '<a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>' : "Files are held for a limited time, then quietly let go."}</span>
+  <span>${site ? '<a href="/support">Support</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>' : "Files are held for a limited time, then quietly let go."}</span>
   <span>SongNook — a home for song ideas${
     opts.reportHref ? ` · <a href="${escapeHtml(opts.reportHref)}">Report</a>` : ""
   }</span>
