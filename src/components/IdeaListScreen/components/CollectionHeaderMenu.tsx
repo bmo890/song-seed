@@ -14,6 +14,7 @@ import { PopoverMenuRow, PopoverMenuRule } from "../../common/PopoverMenu";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "react-i18next";
 import { setDevFreeMonthStart, syncFreeMonth } from "../../../services/freeMonthClock";
+import { getDevProOverride, setDevProOverride } from "../../../domain/entitlements";
 import { openProUpsell } from "../../common/proUpsell";
 import { stageStoreLibrary } from "../../../dev/storeLibrary";
 
@@ -198,6 +199,16 @@ export function CollectionHeaderMenu() {
               onPress={() => {
                 screen.setHeaderMenuOpen(false);
                 void stageStoreLibrary().then((result) => AppAlert.info(result, ""));
+              }}
+            />
+            <PopoverMenuRow
+              testID="collection-menu-dev-free"
+              icon="flask-outline"
+              label={t("collection.proFreeDev")}
+              onPress={() => {
+                screen.setHeaderMenuOpen(false);
+                // See the app as someone without Pro (the Pro marks, the gates), and back.
+                setDevProOverride(getDevProOverride() === false ? null : false);
               }}
             />
             <PopoverMenuRow

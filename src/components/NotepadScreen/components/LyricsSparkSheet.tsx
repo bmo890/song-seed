@@ -1,5 +1,7 @@
 import { SelectionActionSheet } from "../../common/SelectionActionSheet";
 import { useTranslation } from "react-i18next";
+import { canStartSpark } from "../../../domain/proGating";
+import { sparkTriesUsed } from "../../../services/sparkTries";
 
 type Props = {
   visible: boolean;
@@ -28,6 +30,8 @@ export function LyricsSparkSheet({ visible, onClose, onNewWordLadder, onNewCutUp
           icon: "shuffle-outline",
           hint: t("wordSparks.wordLadderDesc"),
           opens: true,
+          pro: "lyric-spark",
+          proAtLimit: !canStartSpark(sparkTriesUsed("wordLadder"), false),
           onPress: onNewWordLadder,
         },
         {
@@ -36,6 +40,8 @@ export function LyricsSparkSheet({ visible, onClose, onNewWordLadder, onNewCutUp
           icon: "cut-outline",
           hint: t("wordSparks.cutUpDesc"),
           opens: true,
+          pro: "lyric-spark",
+          proAtLimit: !canStartSpark(sparkTriesUsed("cutUp"), false),
           onPress: onNewCutUp,
         },
         {
@@ -44,6 +50,8 @@ export function LyricsSparkSheet({ visible, onClose, onNewWordLadder, onNewCutUp
           icon: "book-outline",
           hint: t("wordSparks.magpieDesc"),
           opens: true,
+          pro: "lyric-spark",
+          proAtLimit: !canStartSpark(sparkTriesUsed("magpie"), false),
           onPress: onNewMagpie,
         },
       ]}

@@ -5,6 +5,7 @@ import { styles } from "../../styles";
 import { colors, radii } from "../../design/tokens";
 import { durations } from "../../design/motion";
 import { haptic } from "../../design/haptics";
+import { ProMarkText } from "./ProMark";
 
 type SegmentedOption<T extends string> = {
   key: T;
@@ -16,6 +17,9 @@ type SegmentedOption<T extends string> = {
   /** A glyph set above the word (the metronome's note values). Every option in a
    *  control should carry one or none, so the segments stay the same height. */
   glyph?: string;
+  /** The tab opens the Pro page for this person: the Pro mark follows its word
+   *  (the caller asks `useProLocked`, so mark and gate agree). */
+  pro?: boolean;
 };
 
 /**
@@ -167,6 +171,7 @@ export function SegmentedControl<T extends string>({
               >
                 {option.label}
               </Text>
+              {option.pro ? <ProMarkText /> : null}
               {option.dot ? <View style={segmentedControlStyles.segmentDot} /> : null}
             </View>
           </Press>

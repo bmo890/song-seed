@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { Press, type PressHaptic } from "./Press";
 import { colors } from "../../design/tokens";
+import { ProMarkText } from "./ProMark";
 
 /**
  * A key in ink (2026-10-15, founder picked "Ink"): a glyph and a word, no fill,
@@ -34,6 +35,7 @@ export function InkKey({
   haptic = "tap",
   role = "button",
   opens = false,
+  pro = false,
   style,
   accessibilityLabel,
   testID,
@@ -46,6 +48,9 @@ export function InkKey({
   /** A toggle reports itself as a switch, checked while active. */
   role?: "button" | "switch";
   opens?: boolean;
+  /** The key opens the Pro page for this person: the Pro mark follows its word
+   *  (the caller asks `useProLocked`, so mark and gate agree). */
+  pro?: boolean;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
   testID?: string;
@@ -66,6 +71,7 @@ export function InkKey({
       <Text style={[s.label, tone === "active" ? s.labelActive : null, { color: inkKeyColor(tone) }]}>
         {label}
       </Text>
+      {pro ? <ProMarkText /> : null}
       {opens && tone === "active" ? <View style={s.openRule} /> : null}
     </Press>
   );

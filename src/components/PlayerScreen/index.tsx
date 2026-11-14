@@ -75,7 +75,8 @@ import { getVisibleTimelineRange } from "./helpers";
 import { openIdeaInCollection, openSketchPage } from "../../navigation";
 import { AppAlert } from "../common/AppAlert";
 import { getClipOverdubStemCount, getClipPlaybackDurationMs } from "../../domain/clipPresentation";
-import { canAddOverdubLayer, isPracticeToolPro, isTowardOriginal, type PracticeTool } from "../../domain/proGating";
+import { canAddOverdubLayer, FREE_OVERDUB_LAYERS, isPracticeToolPro, isTowardOriginal, type PracticeTool } from "../../domain/proGating";
+import { useProLocked } from "../common/ProMark";
 import { hasProAccess } from "../../domain/entitlements";
 import { ensureProFor, openProUpsell } from "../common/proUpsell";
 import { useTranslation } from "react-i18next";
@@ -1225,6 +1226,10 @@ function PlayerScreenInner({
   const startLayerMerge = useCallback(() => layerSheetRef.current?.startMerge(), []);
   const openLayerCombine = useCallback(() => layerSheetRef.current?.openCombine(), []);
   const layerCount = data.overdubStemEntries.length;
+  // The Pro mark shows where the gate would stop this person (common/ProMark): on
+  // Layer once the take holds its free layer, and on speed, pitch and Step up.
+  const layerPro = useProLocked("overdub-layers", { atLimit: layerCount >= FREE_OVERDUB_LAYERS });
+  const practicePro = useProLocked("practice-suite", { ideaId: playerIdea?.id });
   const layerLanesFooter = useMemo(
     () => <LayerLanesFoot layerCount={layerCount} onMerge={startLayerMerge} onCombine={openLayerCombine} />,
     [layerCount, openLayerCombine, startLayerMerge]
@@ -1918,6 +1923,7 @@ function PlayerScreenInner({
                         // Haptics (Press default): `tap` — an acknowledged press;
                         // the recorder it opens fires its own record haptics.
                         label={t("player.layerKey")}
+                        pro={layerPro}
                         glyph={<View style={playerScreenStyles.layerKeyDot} />}
                         onPress={() => void handleAddOverdub()}
                         accessibilityLabel={t("player.recordLayerAtPlayhead")}
@@ -2064,6 +2070,7 @@ function PlayerScreenInner({
               clickDetail={clickDetail}
               isAnalyzing={clipAnalysis.isAnalyzing}
               analysisError={clipAnalysis.error}
+              practicePro={practicePro}
               onDetectAnalysis={() => {
                 if (guardPracticeTool("analysis")) clipAnalysis.runAnalysis();
               }}

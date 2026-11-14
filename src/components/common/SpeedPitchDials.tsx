@@ -10,6 +10,7 @@ import { Slider } from "./Slider";
 import { Stepper } from "./Stepper";
 import { signedNumberText } from "../../i18n/direction";
 import { bpmAtRate, bpmRange, rateAtBpm, type SpeedUnit } from "../../domain/tempoSpeed";
+import { ProMarkText } from "./ProMark";
 
 type SpeedPitchDialsProps = {
   playbackSpeed: number;
@@ -29,6 +30,11 @@ type SpeedPitchDialsProps = {
   tempoBpm?: number | null;
   speedUnit?: SpeedUnit;
   onChangeSpeedUnit?: (unit: SpeedUnit) => void;
+  /** The dial opens the Pro page for this person (the player's practice tools):
+   *  its label wears the Pro mark. The editor's tab is itself the door, so it
+   *  leaves these unset. */
+  speedPro?: boolean;
+  pitchPro?: boolean;
   testID?: string;
 };
 
@@ -64,6 +70,8 @@ export function SpeedPitchDials({
   tempoBpm,
   speedUnit = "rate",
   onChangeSpeedUnit,
+  speedPro = false,
+  pitchPro = false,
   testID,
 }: SpeedPitchDialsProps) {
   const { t } = useTranslation();
@@ -110,6 +118,7 @@ export function SpeedPitchDials({
           ) : (
             <Text style={d.rowLabel}>{t("player.speed")}</Text>
           )}
+          {speedPro ? <ProMarkText /> : null}
           {speedIsChanged ? (
             <Press
               feel="glyph"
@@ -177,6 +186,7 @@ export function SpeedPitchDials({
       <View style={d.pitchRow}>
         <View style={d.dialLabelGroup}>
           <Text style={d.rowLabel}>{t("player.pitch")}</Text>
+          {pitchPro ? <ProMarkText /> : null}
           {pitchIsChanged ? (
             <Press
               feel="glyph"

@@ -56,6 +56,13 @@ The hard rules below are non-negotiable.
   (record FAB, close ✕). Toolbar keys and toggles beside other controls
   (the player's Marks, Layer, Tools) are `InkKey`s (2026-10-15): glyph + word,
   no fill; active = terracotta ink, off = muted. Empty states: one primary + a quiet ink link, never two pills.
+- Pro mark (2026-11-14, founder: "make sure the relevant items are properly marked as
+  pro"): a door that opens the Pro page says so before it is tapped. `common/ProMark`:
+  the word "Pro" in the eyebrow's small capitals, `primaryDeep` ink, no fill, no lock
+  glyph, after the control's own word (above a round + key). It shows only to someone
+  the gate would stop (`useProLocked`), so mark and gate always agree; canon parts take
+  it as a prop (`InkKey pro`, a tab's `pro`, a menu row's `pro`; Share rows get it from
+  `shareExitGate`). Never draw it by hand, and never gate a door without it.
 - Selection controls: single-select = `SegmentedControl`, drawn as ink tabs
   (2026-10-15): words on a hairline, the chosen one in full ink over a sliding
   2 pt rule, no track or thumb;

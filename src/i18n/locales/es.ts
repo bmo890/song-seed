@@ -419,7 +419,7 @@ export const es = {
     import: "Importar",
     importSamplesDev: "Importar muestras (dev)",
     receiveSamplesDev: "Recibir muestras (dev)",
-    proPreviewDev: "Hoja Pro (dev)",
+    proPreviewDev: "Hoja Pro (dev)", proFreeDev: "Free user on/off (dev)",
     storeLibraryDev: "Biblioteca de tienda (dev)",
     importSongDev: "Importar como boceto (dev)",
     options: "Opciones de la colección",
@@ -3610,6 +3610,8 @@ export const es = {
   },
   pro: {
     eyebrow: "SongNook Pro",
+    mark: "Pro",
+    markA11y: "Requiere Pro",
     headline: "Termina más canciones",
     subhead: "Tus clips se quedan en tu teléfono. Sin anuncios, sin entrenar IA.",
     freeMonthLeft_one: "Mes gratis · Queda 1 día",

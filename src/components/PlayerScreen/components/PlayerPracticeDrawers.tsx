@@ -38,6 +38,7 @@ import { durations } from "../../../design/motion";
 import { markGroupPositions, markRowTimeline, sectionPhase } from "../../../domain/markPhase";
 import { Press } from "../../common/Press";
 import { SpeedPitchDials } from "../../common/SpeedPitchDials";
+import { ProMarkText } from "../../common/ProMark";
 import { bpmAtRate, type SpeedUnit } from "../../../domain/tempoSpeed";
 import { LevelToneStrip } from "../../common/LevelToneStrip";
 import { isTonePresetNeutral, type OverdubToneFlag } from "../../../domain/overdub";
@@ -82,6 +83,9 @@ type PlayerPracticeDrawersProps = {
   isAnalyzing: boolean;
   analysisError: string | null;
   onDetectAnalysis: () => void;
+  /** Speed, pitch and Step up open the Pro page for this person on this clip
+   *  (`useProLocked("practice-suite")`): their labels wear the Pro mark. */
+  practicePro?: boolean;
 
   // Shared
   durationMs: number;
@@ -261,6 +265,7 @@ export function PlayerPracticeDrawers({
   isAnalyzing,
   analysisError,
   onDetectAnalysis,
+  practicePro = false,
   durationMs,
   playheadMs,
   onSeek,
@@ -861,6 +866,7 @@ export function PlayerPracticeDrawers({
       <View style={[pd.row, pd.rowDivider]}>
         <View style={pd.stepUpLabelRow}>
           <Text style={pd.rowLabel}>{t("player.stepUp")}</Text>
+          {practicePro ? <ProMarkText /> : null}
           <View style={pd.labelHelp}>
             <HelpButton compact onPress={() => setStepUpHelpOpen(true)} />
           </View>
@@ -1058,6 +1064,8 @@ export function PlayerPracticeDrawers({
         tempoBpm={speedTempoBpm}
         speedUnit={speedUnit}
         onChangeSpeedUnit={onChangeSpeedUnit}
+        speedPro={practicePro}
+        pitchPro={practicePro}
       />
 
       {/* Below the hairline: the take's own sound, kept with it. Above it, how you

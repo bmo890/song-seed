@@ -20,7 +20,7 @@ export function ChordExportSheet({ visible, onClose, onExportPdf, onExportText, 
     ...(onAddToSongbook
       ? [{ key: "songbook", label: t("chordEditor.addSongbook"), hint: t("chordEditor.addSongbookDesc"), icon: "book-outline" as const, onPress: onAddToSongbook }]
       : []),
-    { key: "pdf", label: "PDF", hint: t("chordEditor.pdfDesc"), icon: "document-outline", onPress: onExportPdf },
+    { key: "pdf", label: "PDF", hint: t("chordEditor.pdfDesc"), icon: "document-outline", pro: "pdf-export", onPress: onExportPdf },
     { key: "text", label: t("chordEditor.text"), hint: t("chordEditor.textDesc"), icon: "text-outline", onPress: onExportText },
     ...(onCopy
       ? [{ key: "copy", label: t("chordEditor.copyClipboard"), hint: t("chordEditor.copyClipboardDesc"), icon: "copy-outline" as const, onPress: onCopy }]

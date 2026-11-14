@@ -73,6 +73,7 @@ export function SongbookChooserSheet({
           key: "new-songbook",
           label: t("songbookChooser.newSongbook"),
           icon: "add-circle-outline" as const,
+          pro: "stage-tools" as const,
           onPress: () => {
             // A new chart book is a stage tool (domain/proCatalog.ts); adding to one is not.
             if (!ensurePro("stage-tools")) return;

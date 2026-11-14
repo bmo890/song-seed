@@ -13,6 +13,7 @@ import { colors, radii, spacing } from "../../../design/tokens";
 import { styles } from "../styles";
 import { WordFinderSheet } from "../../common/WordFinderSheet";
 import { ensurePro } from "../../common/proUpsell";
+import { ProMarkText, useProLocked } from "../../common/ProMark";
 import { applyPickedWord, extractWordRange } from "../../../domain/wordTools";
 import { UserTextInput, type ContentDirection } from "../../../i18n";
 import { useTranslation } from "react-i18next";
@@ -68,6 +69,7 @@ export function LyricsVersionEditor({
     selectionRef.current = event.nativeEvent.selection;
   };
 
+  const wordFinderPro = useProLocked("word-finder-full");
   const openWordFinder = () => {
     // The Word Finder is Pro (domain/proCatalog.ts "word-finder-full").
     if (!ensurePro("word-finder-full")) return;
@@ -131,12 +133,17 @@ export function LyricsVersionEditor({
             </Pressable>
           ) : null}
           <Pressable
-            style={({ pressed }) => [editorControls.iconBtn, pressed ? appStyles.pressDown : null]}
+            style={({ pressed }) => [
+              editorControls.iconBtn,
+              wordFinderPro ? editorControls.iconBtnMarked : null,
+              pressed ? appStyles.pressDown : null,
+            ]}
             onPress={openWordFinder}
             hitSlop={6}
             accessibilityLabel={t("lyrics.wordFinder")}
           >
             <Ionicons name="book-outline" size={18} color={colors.textStrong} />
+            {wordFinderPro ? <ProMarkText /> : null}
           </Pressable>
           <Pressable
             style={({ pressed }) => [editorControls.iconBtn, pressed ? appStyles.pressDown : null]}
@@ -218,6 +225,13 @@ const editorControls = StyleSheet.create({
     height: 34,
     alignItems: "center",
     justifyContent: "center",
+  },
+  // A glyph key that is a Pro door carries the Pro mark beside its glyph.
+  iconBtnMarked: {
+    width: undefined,
+    flexDirection: "row",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.xs,
   },
   iconBtnDisabled: {
     opacity: 0.5,

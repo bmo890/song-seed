@@ -150,4 +150,10 @@ export const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 6,
   },
+  // The Pro mark above the + once the free workspaces are used (common/ProMark).
+  fabProMark: {
+    position: "absolute",
+    top: -spacing.lg,
+    alignSelf: "center",
+  },
 });

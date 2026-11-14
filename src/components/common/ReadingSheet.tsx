@@ -7,6 +7,7 @@ import { Stepper } from "./Stepper";
 import { Press } from "./Press";
 import { InkOption } from "./InkOption";
 import { ensureProFor } from "./proUpsell";
+import { ProMark } from "./ProMark";
 import { colors } from "../../design/tokens";
 import { READING_ZOOM_MAX, READING_ZOOM_MIN, useChartPrefsStore } from "../../state/useChartPrefsStore";
 
@@ -66,6 +67,7 @@ export function ReadingSheet({
         {showCapo ? (
           <View style={styles.row}>
             <Text style={styles.label}>{t("reading.capo")}</Text>
+            <ProMark feature="stage-tools" ideaId={ideaId} />
             <Stepper
               glyphs="plusMinus"
               onStep={(direction) => {

@@ -18,6 +18,7 @@ import { AppAlert } from "../../common/AppAlert";
 import { ensurePro } from "../../common/proUpsell";
 import { hasProAccess } from "../../../domain/entitlements";
 import { canAddWorkspace } from "../../../domain/proGating";
+import { ProMark } from "../../common/ProMark";
 import { colors } from "../../../design/tokens";
 import { useTranslation } from "react-i18next";
 import { PopoverMenuLabel, PopoverRadioRow } from "../../common/PopoverMenu";
@@ -204,6 +205,11 @@ export function WorkspaceListScreenContent() {
         }}
       >
         <Ionicons name="add" size={26} color={colors.surface} />
+        <ProMark
+          feature="workspaces"
+          atLimit={!canAddWorkspace(model.data.activeWorkspaceCount, false)}
+          style={styles.fabProMark}
+        />
       </Pressable>
       )}
 

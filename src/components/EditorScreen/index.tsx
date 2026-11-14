@@ -19,6 +19,7 @@ import { AudioReel } from "../common/AudioReel";
 import { TransportBar } from "../common/TransportBar";
 import { EmptyState } from "../common/EmptyState";
 import { ensurePro } from "../common/proUpsell";
+import { useProLocked } from "../common/ProMark";
 import { useClipWaveform } from "../../hooks/useClipWaveform";
 import { loadAudioDurationMs } from "../../services/audioStorage";
 import { activatePlaybackAudioSession } from "../../services/audioSession";
@@ -88,11 +89,13 @@ export function EditorScreen() {
     const { t } = useTranslation();
     // One row of tabs (2026-10-16, founder picked A): keep and remove are the
     // trim's two tools, speed & pitch the third, all said in one place.
+    // The Speed & pitch tab is the editor's one Pro door (domain/proCatalog.ts).
+    const transformLocked = useProLocked("full-editor");
     const editorTabs = useMemo(() => [
         { key: "keep" as const, label: t("editor.keepTab") },
         { key: "remove" as const, label: t("editor.removeTab") },
-        { key: "transform" as const, label: t("editor.transform") },
-    ], [t]);
+        { key: "transform" as const, label: t("editor.transform"), pro: transformLocked },
+    ], [t, transformLocked]);
     const navigation = useNavigation();
     const route = useRoute<Props["route"]>();
     const isFocused = useIsFocused();

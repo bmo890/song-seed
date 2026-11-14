@@ -9,6 +9,7 @@ import { useStore } from "../../state/useStore";
 import { haptic } from "../../design/haptics";
 import { colors } from "../../design/tokens";
 import type { ShareExit } from "./shareExits";
+import type { ProFeature } from "../../domain/entitlements";
 
 export type SelectionActionTone = "default" | "danger";
 
@@ -39,6 +40,14 @@ export type SelectionAction = {
   /** A Share menu's way out (raw audio, DAW, SongNook Send, a SongNook file).
    *  The sheet gives it its line (unless `hint` says more) and its place. */
   exit?: ShareExit;
+  /** The row opens the Pro page for someone without Pro: an action SHEET then sets
+   *  the Pro mark after its word (`ProMark`). Share rows need not pass it: the sheet
+   *  knows which exits are Pro (`shareExitGate`). `proIdeaId` is the song it acts
+   *  on (a received parcel's song uses the Pro tools free). */
+  pro?: ProFeature;
+  proIdeaId?: string | null;
+  /** Count-based doors: false while the free allowance still has room. */
+  proAtLimit?: boolean;
 };
 
 type SelectionDockProps = {

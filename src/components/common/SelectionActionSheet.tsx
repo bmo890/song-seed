@@ -10,7 +10,8 @@ import { haptic } from "../../design/haptics";
 import { colors, spacing, text as textTokens } from "../../design/tokens";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../../i18n";
-import { SHARE_EXIT_ORDER, shareExitHint } from "./shareExits";
+import { SHARE_EXIT_ORDER, shareExitGate, shareExitHint } from "./shareExits";
+import { ProMark } from "./ProMark";
 
 type SelectionActionSheetProps = {
   visible: boolean;
@@ -57,6 +58,7 @@ export function SelectionActionSheet({
   const danger = shown.filter((action) => action.tone === "danger");
   const renderRow = (action: SelectionAction, last: boolean) => {
     const dangerous = action.tone === "danger";
+    const proGate = action.pro ? { feature: action.pro, atLimit: action.proAtLimit } : shareExitGate(action.exit);
     return (
       <Pressable
         key={action.key}
@@ -93,6 +95,8 @@ export function SelectionActionSheet({
             </Text>
             {action.hint ? <Text style={sheetLocal.hint}>{action.hint}</Text> : null}
           </View>
+          {/* A Pro door says so before it is tapped (common/ProMark). */}
+          {proGate ? <ProMark feature={proGate.feature} ideaId={action.proIdeaId} atLimit={proGate.atLimit} /> : null}
           {/* Only a row that opens somewhere else points onward. */}
           {action.opens ? (
             <Ionicons name={dirIcon("chevron-forward")} size={16} color={colors.textMuted} />

@@ -289,7 +289,7 @@ function SongbookSection({ tabs, scroll, headerRight, searchQuery }: { tabs: Rea
       )}
 
       {!songbook.showBack ? (
-        <CreateFab testID="library-new-songbook" onPress={songbook.openCreate} accessibilityLabel={t("library.createSongbook")} />
+        <CreateFab testID="library-new-songbook" pro="stage-tools" onPress={songbook.openCreate} accessibilityLabel={t("library.createSongbook")} />
       ) : null}
 
       <QuickNameModal
@@ -401,7 +401,7 @@ function SetlistsSection({ tabs, scroll, headerRight, searchQuery }: { tabs: Rea
       )}
 
       {!setlist.showBack ? (
-        <CreateFab testID="library-new-setlist" onPress={setlist.openCreate} accessibilityLabel={t("library.createSetlist")} />
+        <CreateFab testID="library-new-setlist" pro="stage-tools" onPress={setlist.openCreate} accessibilityLabel={t("library.createSetlist")} />
       ) : null}
 
       <QuickNameModal

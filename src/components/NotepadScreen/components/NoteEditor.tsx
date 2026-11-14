@@ -25,6 +25,7 @@ import { AppAlert } from "../../common/AppAlert";
 import { PopoverMenuLabel, PopoverRadioRow } from "../../common/PopoverMenu";
 import { WordFinderSheet } from "../../common/WordFinderSheet";
 import { ensurePro } from "../../common/proUpsell";
+import { ProMarkText, useProLocked } from "../../common/ProMark";
 import { applyPickedWord, extractWordRange } from "../../../domain/wordTools";
 import { useEditHistory } from "../../../hooks/useEditHistory";
 import { useDraftText } from "../../../hooks/useDraftText";
@@ -216,6 +217,7 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
     return () => anim.stop();
   }, [flash?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const wordFinderPro = useProLocked("word-finder-full");
   const openWordFinder = useCallback(() => {
     // The Word Finder is Pro (domain/proCatalog.ts "word-finder-full").
     if (!ensurePro("word-finder-full")) return;
@@ -297,11 +299,16 @@ export function NoteEditor({ note, onBack, onUpdate, onTogglePin, onDelete }: Pr
 
             {/* Word finder — rhymes and similar words for the word at the cursor */}
             <Pressable
-              style={({ pressed }) => [editorStyles.iconBtn, pressed ? styles.pressDown : null]}
+              style={({ pressed }) => [
+                editorStyles.iconBtn,
+                wordFinderPro ? editorStyles.iconBtnMarked : null,
+                pressed ? styles.pressDown : null,
+              ]}
               onPress={openWordFinder}
               accessibilityLabel={t("lyrics.wordFinder")}
             >
               <Ionicons name="book-outline" size={20} color={colors.textSecondary} />
+              {wordFinderPro ? <ProMarkText /> : null}
             </Pressable>
 
             {/* The page's "…" (2026-10-20): direction, pin, then delete behind
@@ -463,6 +470,13 @@ const editorStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radii.round,
+  },
+  // A glyph key that is a Pro door carries the Pro mark beside its glyph.
+  iconBtnMarked: {
+    width: undefined,
+    flexDirection: "row",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
   },
   scroll: {
     flex: 1,

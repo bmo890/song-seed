@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Stepper } from "./Stepper";
 import { Press } from "./Press";
 import { ensureProFor } from "./proUpsell";
+import { ProMark } from "./ProMark";
 import { isTowardOriginal } from "../../domain/proGating";
 import { signedNumberText } from "../../i18n/direction";
 
@@ -27,6 +28,7 @@ export function TransposeChip({ ideaId, offset, onNudge, onReset }: TransposeChi
   return (
     <View style={chipStyles.row}>
       <Text style={chipStyles.label}>{t("common.transpose")}</Text>
+      <ProMark feature="stage-tools" ideaId={ideaId} />
       <Stepper
         glyphs="plusMinus"
         onStep={(direction) => {

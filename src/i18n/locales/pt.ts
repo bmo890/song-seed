@@ -418,7 +418,7 @@ export const pt = {
     import: "Importar",
     importSamplesDev: "Importar amostras (dev)",
     receiveSamplesDev: "Receber amostras (dev)",
-    proPreviewDev: "Tela Pro (dev)",
+    proPreviewDev: "Tela Pro (dev)", proFreeDev: "Free user on/off (dev)",
     storeLibraryDev: "Biblioteca da loja (dev)",
     importSongDev: "Importar como esboço (dev)",
     options: "Opções da coleção",
@@ -3611,6 +3611,8 @@ export const pt = {
   },
   pro: {
     eyebrow: "SongNook Pro",
+    mark: "Pro",
+    markA11y: "Requer Pro",
     headline: "Termine mais músicas",
     subhead: "Seus clipes ficam no seu celular. Sem anúncios, sem treino de IA.",
     freeMonthLeft_one: "Mês grátis · falta 1 dia",
