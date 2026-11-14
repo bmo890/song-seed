@@ -319,3 +319,8 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
   export, so the privacy label does not change. To keep the prices in view the page's
   two quiet lines ("Also with Pro", "Free for good") now sit under the prices, not above
   them. Built, in five languages, not published.
+- 2026-11-14 — First Pro line reworded (founder: "be more straight", and Lyric Spark is
+  exercises you work through, not a tool that writes lines for you): "Lyric Spark gives
+  you writing exercises to work through when you're stuck. The Word Finder finds rhymes,
+  synonyms and more." Five languages. Rule for any copy about Lyric Spark: exercises
+  the person does, never lines the app produces.

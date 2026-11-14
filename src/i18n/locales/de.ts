@@ -3497,7 +3497,7 @@ export const de = {
     also: "Auch mit Pro: unbegrenzte Arbeitsbereiche und Für DAW exportieren.",
     freeForGood: "Für immer kostenlos: Aufnehmen, deine Bibliothek, Texte, Akkorde, Backup.",
     features: {
-      "0": { title: "Schreib dich aus der Blockade", body: "Textfunke bringt Zeilen, auf die du nicht gekommen wärst. Der Wortfinder hat den Reim." },
+      "0": { title: "Schreib dich aus der Blockade", body: "Textfunke gibt dir Schreibübungen zum Durcharbeiten, wenn du feststeckst. Der Wortfinder findet Reime, Synonyme und mehr." },
       "1": { title: "Übungswerkzeuge", body: "Langsamer, andere Tonart, und die schwere Stelle Schritt für Schritt auf Tempo." },
       "2": { title: "Ab auf die Bühne", body: "Transposition, Kapo, Songbooks, Setlists und PDF." },
       "3": { title: "Teile es so, wie du es markiert hast", body: "Deine Teile, Marker und Notizen kommen in ihrem SongNook genau so an, damit die Band sieht, was du meinst. Unbegrenzte Send-Links." },

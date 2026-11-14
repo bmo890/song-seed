@@ -3641,7 +3641,7 @@ export const pt = {
     also: "Também com o Pro: espaços de trabalho ilimitados e Exportar para DAW.",
     freeForGood: "Grátis para sempre: gravar, sua biblioteca, letras, cifras, backup.",
     features: {
-      "0": { title: "Escreva até sair do bloqueio", body: "A Faísca de letras traz versos que você não teria achado. O Buscador de palavras tem a rima." },
+      "0": { title: "Escreva até sair do bloqueio", body: "A Faísca de letras traz exercícios de escrita para trabalhar quando você trava. O Buscador de palavras encontra rimas, sinônimos e mais." },
       "1": { title: "Ferramentas de prática", body: "Desacelere, mude o tom e repita a parte difícil até chegar no andamento." },
       "2": { title: "Leve para o palco", body: "Transposição, capotraste, cancioneiros, setlists e PDF." },
       "3": { title: "Compartilhe do jeito que você marcou", body: "Suas partes, marcadores e notas chegam no SongNook deles do jeito que você marcou, para a banda ver o que você quer dizer. Links do Send ilimitados." },
