@@ -15,6 +15,8 @@ import { useStore } from "../state/useStore";
 import { isEntryInDecisionWindow, isEntryExpired } from "../domain/shelf";
 import { useTranslation } from "react-i18next";
 import { UserText } from "../i18n";
+import { usePlanState } from "../domain/entitlements";
+import { openProUpsell } from "./common/proUpsell";
 
 type IoniconName = ComponentProps<typeof Ionicons>["name"];
 
@@ -138,6 +140,9 @@ export function SideNav({
     ).length;
   }, [shelfEntries, existingShelfIdsKey]);
 
+  const plan = usePlanState();
+  const hasPro = plan.kind === "pro" || plan.kind === "founding";
+
   return (
     <SafeAreaView style={sideNavStyles.shell}>
 
@@ -149,6 +154,21 @@ export function SideNav({
       <View style={sideNavStyles.header}>
         <View style={sideNavStyles.brand}>
           <Text style={sideNavStyles.brandName}>SongNook</Text>
+          {/* Someone with Pro sees it beside the name (founder, 2026-11-14); a tap
+              opens their Pro page. Not in the free month: that is a trial. */}
+          {hasPro ? (
+            <Press
+              feel="glyph"
+              haptic="navigate"
+              onPress={() => openProUpsell()}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t("pro.ownedBadgeA11y")}
+              testID="side-nav-pro"
+            >
+              <Text style={sideNavStyles.brandPro}>{t("pro.mark")}</Text>
+            </Press>
+          ) : null}
         </View>
         <Press
           haptic="navigate"
@@ -422,6 +442,13 @@ const sideNavStyles = StyleSheet.create({
     fontFamily: "Lora_600SemiBold",
     fontSize: 18,
     color: colors.textPrimary,
+  },
+  // The Pro mark's small capitals in terracotta ink: owned, not offered.
+  brandPro: {
+    ...textTokens.annotation,
+    fontSize: 11,
+    color: colors.primaryDeep,
+    marginTop: 2,
   },
   // A bare glyph, untinted: its plainness is what tells you search is global.
   searchBtn: {

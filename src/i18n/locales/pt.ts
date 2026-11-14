@@ -3631,6 +3631,7 @@ export const pt = {
     restoredHeadline: "O Pro voltou",
     welcomeBody: "Tudo abaixo já está liberado. Obrigado por apoiar o SongNook.",
     welcomeDone: "Pronto",
+    ownedBadgeA11y: "Você tem o SongNook Pro",
     ownedHeadline: "Você tem o Pro",
     ownedFounding: "Membro fundador. Seu para sempre.",
     ownedLifetime: "Vitalício. Pago uma vez.",

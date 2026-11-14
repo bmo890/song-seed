@@ -3630,6 +3630,7 @@ export const es = {
     restoredHeadline: "Pro restaurado",
     welcomeBody: "Todo lo de abajo ya está disponible. Gracias por apoyar SongNook.",
     welcomeDone: "Listo",
+    ownedBadgeA11y: "Tienes SongNook Pro",
     ownedHeadline: "Tienes Pro",
     ownedFounding: "Miembro fundador. Tuyo para siempre.",
     ownedLifetime: "De por vida. Un solo pago.",
