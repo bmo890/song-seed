@@ -266,7 +266,9 @@ Privacy Policy: https://songnook.app/privacy
 
 **Screenshots (founder approved 2026-11-09):** eight real screens from a demo library, each with
 a caption on paper above it. Apple: `apple/screenshots`, 1320×2868 (6.9"). Play: `play/screenshots`,
-1080×2160 (Play allows at most 2:1). Re-cut with `scripts/store/compose-screenshots.py` from
+1080×2160 (Play allows at most 2:1). Both stores show the whole screen (Play first, Apple on 2026-11-14 after the founder saw
+the live page cut the record button in half); Apple's new set goes up with the next iOS
+version. Re-cut with `scripts/store/compose-screenshots.py` from
 `raw/`; restage the library with the dev-only "Store library (dev)" collection menu row.
 In the consoles 2026-11-10: App Store Connect has the eight saved on the version page (its slot now
 takes 6.1"/6.3", so they went up resized to 1206×2622) with the three SHARE lines; Play has them

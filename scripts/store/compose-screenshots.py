@@ -1,8 +1,8 @@
 """Store screenshots: a caption on paper above a real screen.
 
-Apple's screen bleeds off the bottom. Play's canvas is shorter (at most 2:1), so a bleed
-there cut the main controls in half (the recorder's Pause, the record button); Play shows
-the whole screen instead, slightly smaller, with all four corners (founder, 2026-11-14).
+Both stores show the whole screen, with all four corners. A screen that bled off the
+bottom edge cut the main controls in half (the recorder's Pause, the record button): Play
+first, then Apple (founder, 2026-11-14, both times).
 
 Raw captures come from the iPhone 17 Pro Max simulator (1320x2868) with the demo
 library staged by the dev-only "Store library (dev)" collection menu row
@@ -32,9 +32,9 @@ SECONDARY = (0x84, 0x73, 0x6F)  # textSecondary
 
 # Play's frame is drawn at Apple's width, then scaled to 1080x2160.
 W, H = (1320, 2640) if TARGET == "play" else (1320, 2868)
-SCREEN_W, SCREEN_TOP = (900, 600) if TARGET == "play" else (1080, 690)
-# Play shows the whole screen; Apple's runs off the bottom edge.
-BLEED = TARGET != "play"
+SCREEN_W, SCREEN_TOP = (900, 600) if TARGET == "play" else (1000, 600)
+# Neither store bleeds: the whole screen shows (BLEED kept for a future frame that wants it).
+BLEED = False
 FRAMES = [
     ("01-capture", "recorder", "Catch it before it's gone", "Tap once and you're recording."),
     ("02-sketch", "sketch-b", "Every idea grows into a song", "Takes, versions and side ideas in one sketch."),
