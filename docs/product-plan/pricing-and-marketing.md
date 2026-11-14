@@ -357,3 +357,9 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
   effective November 14 (privacy now says feedback notes are emailed to our inbox and those
   copies go after a year too), feedback emails on. /healthz selling + key set,
   /healthz/billing ok.
+- 2026-11-14 — iOS 1.0.1 (build 20, 504c0f8a, runtime pinned to 1.0.0 so updates reach 1.0 and
+  1.0.1 alike) for the App Store page only: whole-screen screenshots, the new description
+  with what Pro adds, "2026 bmostudio" copyright, and Spanish (Mexico, Spain), German,
+  Portuguese (Brazil) and Hebrew listings with their own subtitles. Send links: the
+  Android link file now lists Play App Signing's key too (worker 94080144), so a Play
+  install opens Send links in the app.
