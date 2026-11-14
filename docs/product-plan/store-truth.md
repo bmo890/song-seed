@@ -259,8 +259,8 @@ plus the lines saved as a DRAFT on the default listing, not yet sent for review.
 | 1 | Recorder, mid-take | Catch it before it's gone / Tap once and you're recording. |
 | 2 | Harbor Lights sketch, versions unfolded | Every idea grows into a song / Takes, versions and side ideas in one sketch. |
 | 3 | Lyrics with chords | Lyrics and chords, every draft kept / Write, chart and transpose in one place. |
-| 4 | Player: sections, pin, layer, chorus loop, 0.75×, +2 st | Learn it, then layer it / Loop the hard part, slow it down, add a harmony. |
-| 5 | Borrowed Words page with phrases marked | Stuck on a line? / Lyric Spark: word games to get past writer's block. |
+| 4 | Player: sections, pin, layer, chorus loop, 0.75×, +2 st | Learn it, then layer it / Loop the hard part, slow it down, add another part. (2026-11-14) |
+| 5 | Borrowed Words page with phrases marked | Stuck on a line? / Lyric Spark: writing exercises to get past the block. (2026-11-14) |
 | 6 | Album demos collection | Get organized / Workspaces and collections for every project. |
 | 7 | Revisit | Never lose a gem / Revisit brings back the ones you forgot. |
 | 8 | A received sketch in the player: marks, layer, lyrics, chart, the sender's note | Send the song, not just the audio / Lyrics, chords, notes and marks go with it. |
