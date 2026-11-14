@@ -168,15 +168,16 @@ export function withinFreeLimit(key: ProFeature, existingCount: number, isPro: b
  * `pro.features.<index>` in the locale files (a `title`, the result, and a `body`, the
  * tool) and promises the keys listed here. The test (proCatalog.test.ts) fails when a
  * line promises a key that is no longer gated, so flipping a row above means editing
- * the page's copy too. Five lines, most useful first (founder, 2026-11-14: "harmony
+ * the page's copy too. Six lines (workspaces their own line, founder 2026-11-14), most useful first (founder, 2026-11-14: "harmony
  * layers are not the most useful in my book"): writing, practice, the stage, sharing,
- * then layers. Ranked by how often a songwriter reaches for each, by judgement.
+ * workspaces, then layers. Ranked by how often a songwriter reaches for each, by judgement.
  */
 export const PAYWALL_ROWS: ReadonlyArray<{ icon: string; features: ProFeature[] }> = [
     { icon: "sparkles-outline", features: ["lyric-spark", "word-finder-full"] },
     { icon: "repeat-outline", features: ["practice-suite", "full-editor"] },
     { icon: "musical-notes-outline", features: ["stage-tools", "pdf-export"] },
-    { icon: "paper-plane-outline", features: ["send", "workspaces"] },
+    { icon: "paper-plane-outline", features: ["send"] },
+    { icon: "albums-outline", features: ["workspaces"] },
     { icon: "layers-outline", features: ["overdub-layers"] },
 ];
 

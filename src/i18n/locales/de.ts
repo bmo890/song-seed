@@ -3500,8 +3500,9 @@ export const de = {
       "0": { title: "Schreib dich aus der Blockade", body: "Textfunke gibt dir Schreibübungen zum Durcharbeiten, wenn du feststeckst. Der Wortfinder findet Reime, Synonyme und mehr." },
       "1": { title: "Übungswerkzeuge", body: "Langsamer, andere Tonart, und die schwere Stelle Schritt für Schritt auf Tempo." },
       "2": { title: "Ab auf die Bühne", body: "Transposition, Kapo, Songbooks, Setlists und PDF." },
-      "3": { title: "Teile es so, wie du es markiert hast", body: "Deine Teile, Marker und Notizen kommen in ihrem SongNook genau so an, damit die Band sieht, was du meinst. Unbegrenzte Send-Links und Arbeitsbereiche." },
-      "4": { title: "Spiel eine Spur dazu", body: "Eine zweite Stimme, eine zweite Gitarre, eine Basslinie. Bis zu 8 Spuren auf einem Take." },
+      "3": { title: "Teile es so, wie du es markiert hast", body: "Deine Teile, Marker und Notizen kommen in ihrem SongNook genau so an, damit die Band sieht, was du meinst. Unbegrenzte Send-Links." },
+      "4": { title: "Platz für jedes Projekt", body: "Unbegrenzte Arbeitsbereiche: deine eigenen Songs, jede Band und jedes Album, sauber getrennt." },
+      "5": { title: "Spiel eine Spur dazu", body: "Eine zweite Stimme, eine zweite Gitarre, eine Basslinie. Bis zu 8 Spuren auf einem Take." },
     },
     plans: {
       annual: {

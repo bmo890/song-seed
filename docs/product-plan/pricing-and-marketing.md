@@ -330,3 +330,8 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
 - 2026-11-14 — Unlimited workspaces moved from the small line into the sharing line
   ("Unlimited Send links and workspaces."); the small line is now "Also with Pro: Export
   for DAW." Founder asked where workspaces had gone, then "Yes". Five languages.
+- 2026-11-14 — Workspaces get their own line (founder: "it should be separate from the
+  others"): "Room for every project. Unlimited workspaces, so your own songs, each band
+  and each album stay apart." Sixth line, between sharing and layers; the sharing line
+  ends "Unlimited Send links." again. Six lines push the prices just below the first
+  screen when the "used in your free month" line shows. Five languages.

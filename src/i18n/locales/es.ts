@@ -3643,8 +3643,9 @@ export const es = {
       "0": { title: "Escribe hasta salir del bloqueo", body: "Chispa de letras te da ejercicios de escritura para trabajar cuando te atascas. El Buscador de palabras encuentra rimas, sinónimos y más." },
       "1": { title: "Herramientas de práctica", body: "Baja la velocidad, cambia el tono y repite la parte difícil hasta llegar al tempo." },
       "2": { title: "Llévalo al escenario", body: "Transposición, capo, cancioneros, setlists y PDF." },
-      "3": { title: "Compártelo tal como lo marcaste", body: "Tus partes, marcas y notas llegan a su SongNook tal como las marcaste, para que la banda vea lo que quieres decir. Enlaces de Send y espacios de trabajo ilimitados." },
-      "4": { title: "Suma otra parte", body: "Una armonía, otra guitarra, una línea de bajo. Hasta 8 capas en una toma." },
+      "3": { title: "Compártelo tal como lo marcaste", body: "Tus partes, marcas y notas llegan a su SongNook tal como las marcaste, para que la banda vea lo que quieres decir. Enlaces de Send ilimitados." },
+      "4": { title: "Un espacio para cada proyecto", body: "Espacios de trabajo ilimitados: tus canciones, cada banda y cada disco, cada uno por separado." },
+      "5": { title: "Suma otra parte", body: "Una armonía, otra guitarra, una línea de bajo. Hasta 8 capas en una toma." },
     },
     plans: {
       annual: {

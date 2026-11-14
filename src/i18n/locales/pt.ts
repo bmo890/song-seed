@@ -3644,8 +3644,9 @@ export const pt = {
       "0": { title: "Escreva até sair do bloqueio", body: "A Faísca de letras traz exercícios de escrita para trabalhar quando você trava. O Buscador de palavras encontra rimas, sinônimos e mais." },
       "1": { title: "Ferramentas de prática", body: "Desacelere, mude o tom e repita a parte difícil até chegar no andamento." },
       "2": { title: "Leve para o palco", body: "Transposição, capotraste, cancioneiros, setlists e PDF." },
-      "3": { title: "Compartilhe do jeito que você marcou", body: "Suas partes, marcadores e notas chegam no SongNook deles do jeito que você marcou, para a banda ver o que você quer dizer. Links do Send e espaços de trabalho ilimitados." },
-      "4": { title: "Some outra parte", body: "Uma harmonia, outro violão, uma linha de baixo. Até 8 camadas em um take." },
+      "3": { title: "Compartilhe do jeito que você marcou", body: "Suas partes, marcadores e notas chegam no SongNook deles do jeito que você marcou, para a banda ver o que você quer dizer. Links do Send ilimitados." },
+      "4": { title: "Espaço para cada projeto", body: "Espaços de trabalho ilimitados: suas músicas, cada banda e cada disco, cada um no seu lugar." },
+      "5": { title: "Some outra parte", body: "Uma harmonia, outro violão, uma linha de baixo. Até 8 camadas em um take." },
     },
     plans: {
       annual: {
