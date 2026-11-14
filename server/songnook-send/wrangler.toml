@@ -53,10 +53,10 @@ IOS_APP_STORE_URL = "https://apps.apple.com/app/id6810435199"
 ANDROID_PACKAGE = "com.bmostudio.songnook"
 # Universal / App Link association (.well-known). Apple Team ID is public by
 # nature (it is in every AASA on the internet); the Android value is the SHA-256
-# of the EAS upload key that signs the preview/production APKs. Once Play App
-# Signing re-signs store installs, append Play's fingerprint here, comma-separated.
+# of the EAS upload key that signs the preview APKs, then Play App Signing's key
+# (Play Console → App signing, added 2026-11-14), which signs every store install.
 APPLE_TEAM_ID = "PMJJ7Q9UXD"
-ANDROID_CERT_FINGERPRINTS = "9D:9F:2E:57:BE:EB:B8:EB:62:4E:D8:70:6A:49:E8:FC:0A:9F:A2:F6:E4:15:DE:59:9C:1E:CC:70:1D:B1:C8:D8"
+ANDROID_CERT_FINGERPRINTS = "9D:9F:2E:57:BE:EB:B8:EB:62:4E:D8:70:6A:49:E8:FC:0A:9F:A2:F6:E4:15:DE:59:9C:1E:CC:70:1D:B1:C8:D8,4D:E8:1F:29:61:9E:88:2C:A1:9C:FA:61:0C:D9:7D:6B:66:35:92:50:17:EF:8B:02:16:59:DF:F7:F8:EF:B4:17"
 # Abuse-report mailbox the /report/:id funnel points at (not a secret).
 ABUSE_CONTACT_EMAIL = "bmostudio.dev@gmail.com"
 # Each feedback note is emailed here (founder, 2026-11-14), from a songnook.app
