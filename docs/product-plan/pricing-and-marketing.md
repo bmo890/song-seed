@@ -324,3 +324,6 @@ code (accounts wait for cloud); post-encryption Send copy is in §6.
   you writing exercises to work through when you're stuck. The Word Finder finds rhymes,
   synonyms and more." Five languages. Rule for any copy about Lyric Spark: exercises
   the person does, never lines the app produces.
+- 2026-11-14 — Layers line reworded so it is not only for singers (founder: "make it
+  clear that it can be another instrument as well"): "Add another part. A harmony, a
+  second guitar, a bass line. Up to 8 layers on one take." Five languages.

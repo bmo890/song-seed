@@ -3645,7 +3645,7 @@ export const pt = {
       "1": { title: "Ferramentas de prática", body: "Desacelere, mude o tom e repita a parte difícil até chegar no andamento." },
       "2": { title: "Leve para o palco", body: "Transposição, capotraste, cancioneiros, setlists e PDF." },
       "3": { title: "Compartilhe do jeito que você marcou", body: "Suas partes, marcadores e notas chegam no SongNook deles do jeito que você marcou, para a banda ver o que você quer dizer. Links do Send ilimitados." },
-      "4": { title: "Some uma harmonia", body: "Empilhe até 8 camadas em um take." },
+      "4": { title: "Some outra parte", body: "Uma harmonia, outro violão, uma linha de baixo. Até 8 camadas em um take." },
     },
     plans: {
       annual: {

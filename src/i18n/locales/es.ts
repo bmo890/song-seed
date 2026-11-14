@@ -3644,7 +3644,7 @@ export const es = {
       "1": { title: "Herramientas de práctica", body: "Baja la velocidad, cambia el tono y repite la parte difícil hasta llegar al tempo." },
       "2": { title: "Llévalo al escenario", body: "Transposición, capo, cancioneros, setlists y PDF." },
       "3": { title: "Compártelo tal como lo marcaste", body: "Tus partes, marcas y notas llegan a su SongNook tal como las marcaste, para que la banda vea lo que quieres decir. Enlaces de Send ilimitados." },
-      "4": { title: "Suma una armonía", body: "Apila hasta 8 capas en una toma." },
+      "4": { title: "Suma otra parte", body: "Una armonía, otra guitarra, una línea de bajo. Hasta 8 capas en una toma." },
     },
     plans: {
       annual: {
