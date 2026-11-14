@@ -49,7 +49,8 @@ TERMINAR LA CANCIÓN
 • Graba capas sobre una toma y escucha cualquiera en solo
 • Colecciones y espacios de trabajo para tenerlo todo en orden
 
-ENSAYAR
+PRACTICAR
+• Aprende canciones de otros: importa el audio, bájale la velocidad, haz loop de la parte difícil, cambia el tono
 • Marca partes, agrega marcas y notas en la línea de tiempo
 • Cambia la velocidad sin cambiar el tono, y el tono sin cambiar la velocidad
 • Haz loop de cualquier parte
@@ -122,7 +123,8 @@ DEN SONG FERTIGSTELLEN
 • Spuren über einen Take aufnehmen und jede davon solo hören
 • Sammlungen und Arbeitsbereiche, damit alles in Ordnung bleibt
 
-PROBEN
+ÜBEN
+• Lerne Songs von anderen: importiere das Audio, mach es langsamer, loope die schwere Stelle, ändere die Tonart
 • Teile markieren, Marker setzen und Notizen auf der Zeitleiste hinzufügen
 • Geschwindigkeit ändern, ohne die Tonhöhe zu ändern, und die Tonhöhe, ohne die Geschwindigkeit zu ändern
 • Jeden Teil loopen
@@ -195,7 +197,8 @@ TERMINAR A MÚSICA
 • Grave camadas sobre um take e ouça qualquer uma em solo
 • Coleções e espaços de trabalho para manter tudo em ordem
 
-ENSAIAR
+PRATICAR
+• Aprenda músicas de outras pessoas: importe o áudio, desacelere, faça loop da parte difícil, mude o tom
 • Marque partes, coloque marcadores e adicione notas na linha do tempo
 • Mude a velocidade sem mudar o tom, e o tom sem mudar a velocidade
 • Faça loop de qualquer parte
@@ -271,6 +274,7 @@ Plural address (אתם), as the app speaks.
 • אוספים ומרחבי עבודה כדי לשמור על סדר
 
 לתרגל
+• ללמוד שירים של אחרים: לייבא את השמע, להאט, לעשות לופ על החלק הקשה, לשנות סולם
 • סימון חלקים, הוספת סמנים והערות על ציר הזמן
 • שינוי מהירות בלי לשנות סולם, ושינוי סולם בלי לשנות מהירות
 • לופ על כל חלק

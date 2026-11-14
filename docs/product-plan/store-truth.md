@@ -175,7 +175,8 @@ Pro adds, since the split changed that day (Apple 2.3.2: say which features need
 purchase). Lyric Spark reads "writing exercises", as on the Pro page. Apple locks the
 description of an approved version, so v1.0.0 shipped with the old text; the new one goes
 in with the next iOS version. The promotional text (no review) and Play took it the same
-day. Translations: `store-listing-translations.md`.
+day. Translations: `store-listing-translations.md`. Same day: REHEARSE became PRACTICE and opens
+with learning other people's songs (founder: "part of it is learning other peoples music").
 
 - **Name:** SongNook
 - **Tagline (both stores, the intro screen and the feature graphic):** A quiet corner to finish songs.
@@ -212,7 +213,8 @@ FINISH THE SONG
 • Record layers over a take and solo any of them
 • Collections and workspaces to keep it all in order
 
-REHEARSE
+PRACTICE
+• Learn other people's songs: import the audio, slow it down, loop the hard part, change the key
 • Mark sections, drop pins and add notes on the timeline
 • Change speed without changing pitch, and pitch without changing speed
 • Loop any part
