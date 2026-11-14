@@ -116,8 +116,10 @@ test("while nothing is for sale every sender is Pro", async () => {
   });
 });
 
-test("a free sender has three links per thirty days, then none", async () => {
-  assert.deepEqual(await senderAccess(fakeEnv(1).env, config(), sender(), NOW), { pro: false, freeLeft: 2 });
+test("a free sender has FREE_LINKS links per thirty days, then none", async () => {
+  assert.equal(FREE_LINKS, 1); // founder, 2026-11-14 (was 3); the app's catalog holds the same number
+  assert.deepEqual(await senderAccess(fakeEnv(0).env, config(), sender(), NOW), { pro: false, freeLeft: 1 });
+  assert.deepEqual(await senderAccess(fakeEnv(1).env, config(), sender(), NOW), { pro: false, freeLeft: 0 });
   assert.deepEqual(await senderAccess(fakeEnv(3).env, config(), sender(), NOW), { pro: false, freeLeft: 0 });
 });
 
@@ -172,7 +174,7 @@ test("a lapsed subscription is not Pro", async () => {
     NOW,
     rcAnswer({ songnook_pro: { expires_date: new Date(NOW - DAY).toISOString() } })
   );
-  assert.deepEqual(access, { pro: false, freeLeft: 3 });
+  assert.deepEqual(access, { pro: false, freeLeft: FREE_LINKS });
 });
 
 // ── A purchase reaches the server quickly ───────────────────────────────────

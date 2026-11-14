@@ -54,6 +54,38 @@ export async function insertFeedback(env: Env, value: FeedbackNote, now: number)
     .run();
 }
 
+/**
+ * The email the founder gets for each note (2026-11-14: "receive an email whenever one
+ * is sent"). The same fields the row holds, nothing more: it can't say who wrote it.
+ */
+export function feedbackEmail(value: FeedbackNote, now: number): { subject: string; text: string } {
+  const firstLine = value.note.split("\n")[0].slice(0, 60);
+  const lines = [
+    value.note,
+    "",
+    "—",
+    `App ${value.appVersion || "?"}${value.appUpdate ? ` (update ${value.appUpdate})` : ""}`,
+    `Phone ${value.platform || "?"} · language ${value.locale || "?"}`,
+    `Sent ${new Date(now).toISOString().replace("T", " ").slice(0, 16)} UTC`,
+    "",
+    "Anonymous: there is no address to reply to.",
+  ];
+  return { subject: `SongNook feedback: ${firstLine}${value.note.length > 60 ? "…" : ""}`, text: lines.join("\n") };
+}
+
+/** Email a note to the founder. Never throws: the note is already saved. */
+export async function notifyFeedback(env: Env, value: FeedbackNote, now: number): Promise<void> {
+  const to = env.FEEDBACK_NOTIFY_TO;
+  const from = env.FEEDBACK_NOTIFY_FROM;
+  if (!env.EMAIL || !to || !from) return;
+  const { subject, text } = feedbackEmail(value, now);
+  try {
+    await env.EMAIL.send({ to, from: { email: from, name: "SongNook feedback" }, subject, text });
+  } catch (error) {
+    console.warn("feedback email failed", error);
+  }
+}
+
 export async function sweepFeedback(env: Env, now: number): Promise<void> {
   await env.DB.prepare(`DELETE FROM feedback WHERE created_at < ?`).bind(now - FEEDBACK_KEEP_MS).run();
 }

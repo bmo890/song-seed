@@ -3,7 +3,8 @@
  *
  *   app  POST /api/feedback  { note, version, update, platform, locale }  → { ok: true }
  *
- * No send key and no cookie: a note is anonymous on purpose. Per-IP rate
+ * No send key and no cookie: a note is anonymous on purpose. Each note is also
+ * emailed to the founder when the EMAIL binding is set (lib/feedback.ts). Per-IP rate
  * limiting and a small body cap keep it from being a place to dump text.
  */
 import { Hono } from "hono";
@@ -11,7 +12,7 @@ import type { Env } from "../env";
 import { loadConfig } from "../env";
 import { errorResponse, jsonResponse } from "../lib/http";
 import { clientIp, underRateLimit, webOriginAllowed } from "../lib/guard";
-import { insertFeedback, parseFeedback } from "../lib/feedback";
+import { insertFeedback, notifyFeedback, parseFeedback } from "../lib/feedback";
 
 /** Four bytes a character at the note's cap, plus the labels, is well under this. */
 const MAX_BODY_BYTES = 16 * 1024;
@@ -36,6 +37,14 @@ feedback.post("/feedback", async (c) => {
   const record = body && typeof body === "object" && !Array.isArray(body) ? (body as Record<string, unknown>) : {};
   const parsed = parseFeedback(record);
   if (!parsed.ok) return errorResponse(400, parsed.error);
-  await insertFeedback(c.env, parsed.value, Date.now());
+  const now = Date.now();
+  await insertFeedback(c.env, parsed.value, now);
+  // The founder's copy goes out after the answer: a slow mail never holds the app.
+  const mail = notifyFeedback(c.env, parsed.value, now);
+  try {
+    c.executionCtx.waitUntil(mail);
+  } catch {
+    await mail; // no execution context (tests): finish here
+  }
   return jsonResponse({ ok: true });
 });
