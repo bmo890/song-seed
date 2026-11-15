@@ -25,7 +25,7 @@ const TOUR_SCREENS = ["recorder", "lyrics", "sketch", "revisit"];
 
 /** Languages whose screens have been captured from the app in that language
  *  (public/screens/<lang>/); the rest show the English screens. */
-const LOCALIZED_SCREENS: readonly Lang[] = [];
+const LOCALIZED_SCREENS: readonly Lang[] = ["es", "de", "pt", "he"];
 const screen = (lang: Lang, name: string) =>
   LOCALIZED_SCREENS.includes(lang) ? `/screens/${lang}/${name}.webp` : `/screens/${name}.webp`;
 
