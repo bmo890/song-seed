@@ -18,50 +18,19 @@ import { escapeHtml, page } from "./shell";
 /** The brand mark (assets/brand/songnook-mark.svg), inline so the hero needs no request. */
 const MARK = `<svg class="mark" viewBox="0 0 120 120" aria-hidden="true"><rect x="57.5" y="42" width="5" height="44" rx="2.5" fill="#B87D6B"/><rect x="41" y="84" width="38" height="5" rx="2.5" fill="#B87D6B"/><path d="M60 32 A25 25 0 0 0 23 59 A25 25 0 0 0 60 32 Z" fill="#C9978A" stroke="#C9978A" stroke-width="3" stroke-linejoin="round"/><path d="M60 32 A25 25 0 0 1 97 59 A25 25 0 0 1 60 32 Z" fill="#B87D6B" stroke="#B87D6B" stroke-width="3" stroke-linejoin="round"/></svg>`;
 
-/** The tour: one moment each, in the order a song lives them, with its real screen. */
-const TOUR: { title: string; line: string; more: string; screen: string; alt: string }[] = [
-  {
-    title: "Capture",
-    line: "One tap and you're recording. It keeps going when the screen locks.",
-    more: "Bring in voice memos, audio files, or the sound from a video.",
-    screen: "recorder",
-    alt: "The recorder, one minute into a new clip",
-  },
-  {
-    title: "Find it again",
-    line: "One page brings back the unfinished songs and ideas you'd forgotten.",
-    more: "Set one aside to come back to, or look back at what you made any week, any year.",
-    screen: "revisit",
-    alt: "A page of unfinished songs and forgotten ideas",
-  },
-  {
-    title: "Finish the song",
-    line: "Every take of a song kept together, with the older versions of each.",
-    more: "Record a harmony or another part on top, then play any part on its own.",
-    screen: "sketch",
-    alt: "A song with its takes and their older versions",
-  },
-  {
-    title: "Write",
-    line: "Write lyrics and chord charts, or put the chords right above the words.",
-    more: "Look up rhymes, near rhymes and synonyms without leaving the page.",
-    screen: "lyrics",
-    alt: "A chord chart with lyrics, ready to transpose",
-  },
-  {
-    title: "Get unstuck",
-    line: "Short writing games for when the words won't come.",
-    more: "Stray lines get a notebook of their own until a song needs them.",
-    screen: "words",
-    alt: "Borrowed Words, collecting phrases from a classic novel",
-  },
-  {
-    title: "Share",
-    line: "Send a recording or a whole song in progress to anyone, by private link.",
-    more: "The lyrics, chords and notes go with it. For the stage: setlists, and charts that scroll as you play.",
-    screen: "received-player",
-    alt: "A received take playing, with its lyrics, chart and notes",
-  },
+/** The tour: the four moments of writing a song, one line each, with the real screen. */
+const TOUR: { title: string; line: string; screen: string; alt: string }[] = [
+  { title: "Catch it", line: "One tap and you're recording, even with the screen locked.", screen: "recorder", alt: "Recording a new idea" },
+  { title: "Never lose it", line: "Every idea organized, and the forgotten ones brought back to you.", screen: "revisit", alt: "Unfinished songs and forgotten ideas, brought back" },
+  { title: "Finish it", line: "Every take, version and part of a song, together in one place.", screen: "sketch", alt: "A song with its takes and older versions" },
+  { title: "Write it", line: "Lyrics and chord charts side by side, and help when the words won't come.", screen: "lyrics", alt: "A chord chart with lyrics" },
+];
+
+/** Sharing, told as what a band gets out of it. */
+const BAND: { title: string; line: string }[] = [
+  { title: "Send the whole song.", line: "Lyrics, chords and notes go with the recording." },
+  { title: "Open it ready to learn.", line: "What your band sends opens with every practice tool, even on the free plan." },
+  { title: "Bring it to the gig.", line: "Setlists and chord charts, ready for the stage." },
 ];
 
 const YOURS: { title: string; line: string; icon: string }[] = [
@@ -72,33 +41,25 @@ const YOURS: { title: string; line: string; icon: string }[] = [
   },
   {
     title: "No account, no ads",
-    line: "Open it and start. Back up wherever you keep things.",
+    line: "Open it and start.",
     icon: `<circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c1.2-3.6 3.8-5.5 7-5.5s5.8 1.9 7 5.5"/><path d="M4 4l16 16"/>`,
   },
   {
     title: "Never trains AI",
-    line: "Your songs are never used to train AI.",
+    line: "Your music stays yours.",
     icon: `<path d="M12 3l7 3v5.5c0 4.4-3 8-7 9.5-4-1.5-7-5.1-7-9.5V6z"/><path d="M9 12l2.2 2.2L15.5 10"/>`,
   },
 ];
 
-const FREE = [
-  "Record as much as you like, and keep all of it",
-  "Write lyrics and chord charts",
-  "Loop any part, and mark the verse and chorus",
-  "Back up and export your songs",
-  "Share one private link a month",
-];
+const FREE = ["Record and organize without limits", "Lyrics and chord charts", "Backup, and one shared song a month"];
 
-const PRO_ADDS = [
-  "Rhyme and synonym search, and unlimited writing games",
-  "Slow a song down or change its key",
-  "Loops that get a little faster each time through",
-  "Change a chart's key or set a capo",
-  "Setlists, and chord charts as books and PDFs",
-  "Unlimited private links, and a separate library for every band or project",
-  "Record up to 8 parts on top of one take",
-  "Export lined up to the beat for Logic, Ableton and other recording apps",
+/** What Pro adds, packaged as benefits (the itemized split lives in pricing-and-marketing.md). */
+const PRO_ADDS: { title: string; line: string }[] = [
+  { title: "Practice tools", line: "Slow it down, change the key, drill the hard parts." },
+  { title: "Gig-ready charts", line: "Setlists and chord charts in any key." },
+  { title: "Writing help", line: "Rhymes, synonyms and games for when you're stuck." },
+  { title: "No limits", line: "Share as often as you like, with a space for every band." },
+  { title: "Studio export", line: "Take your ideas into Logic, Ableton and more." },
 ];
 
 const PLANS: { key: string; label: string; price: string; per: string; note: string }[] = [
@@ -188,15 +149,15 @@ h2{font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(30px,4.6vw,46p
 .tour-grid{display:grid;grid-template-columns:1fr auto;gap:clamp(32px,7vw,110px);align-items:center}
 .chapters{list-style:none;margin:0;padding:0;border-top:1px solid var(--rule);position:relative}
 .chapters li{border-bottom:1px solid var(--rule)}
-.chapter{display:block;width:100%;text-align:start;background:none;border:0;padding:18px 2px 18px;
+.chapter{display:block;width:100%;text-align:start;background:none;border:0;padding:22px 2px;
   font:inherit;color:inherit;cursor:pointer;position:relative}
 .chapter:focus-visible{outline:2px solid var(--terra);outline-offset:2px;border-radius:2px}
-.ch-title{display:block;font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(22px,2.6vw,28px);
-  line-height:1.15;color:var(--ink-faint);transition:color .3s ease}
+.ch-title{display:block;font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(26px,3.4vw,40px);
+  line-height:1.1;color:var(--ink-faint);transition:color .3s ease}
 .chapter:hover .ch-title{color:var(--ink-soft)}
 .ch-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s cubic-bezier(.2,.7,.2,1)}
 .ch-in{overflow:hidden;display:block}
-.ch-p{display:block;color:var(--ink-soft);font-size:16px;line-height:1.55;max-width:46ch}
+.ch-p{display:block;color:var(--ink-soft);font-size:17px;line-height:1.55;max-width:46ch}
 .ch-p:first-child{padding-top:8px;color:var(--ink)}
 .ch-p + .ch-p{padding-top:4px}
 .ch-bar{position:absolute;left:0;right:0;bottom:-1px;height:2px;overflow:hidden}
@@ -208,17 +169,21 @@ h2{font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(30px,4.6vw,46p
 .tour.paused .on .ch-bar b{animation-play-state:paused}
 @keyframes fill{to{transform:none}}
 .tour-stage .phone{--pw:clamp(260px,25vw,300px)}
-.tour-caption{display:none;margin:0;min-height:5.4em}
+.tour-caption{display:none;margin:0;min-height:3.2em}
 .tour-stage .screen img{opacity:0;transform:scale(1.03);transition:opacity .55s ease,transform .8s cubic-bezier(.2,.7,.2,1)}
 .tour-stage .screen img.on{opacity:1;transform:none}
 
 /* ── practice: the Send page's living cards ── */
 .learn .gallery{margin:0 -22px}
-.learn .tools{display:flex;justify-content:center;flex-wrap:wrap;gap:8px 28px;margin-top:26px;
-  font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-soft);font-weight:600}
-.learn .tools span::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
-  background:var(--terra);margin-inline-end:10px;vertical-align:2px}
 @media (min-width:1080px){.learn .gallery{justify-content:center;overflow:visible;margin:0}.learn .dots{display:none}}
+
+/* ── band ── */
+.band-grid{display:grid;grid-template-columns:auto 1fr;gap:clamp(36px,7vw,110px);align-items:center}
+.band-stage .phone{--pw:clamp(250px,24vw,290px);transform:rotate(-2deg)}
+.points{list-style:none;margin:0;padding:0;border-top:1px solid var(--rule)}
+.points li{padding:20px 0;border-bottom:1px solid var(--rule)}
+.points b{display:block;font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(21px,2.4vw,26px);color:var(--ink);margin-bottom:4px}
+.points span{color:var(--ink-soft);font-size:16px}
 
 /* ── yours ── */
 .yours{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(22px,4vw,48px);
@@ -242,6 +207,8 @@ h2{font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(30px,4.6vw,46p
 .plan li::before{content:"";position:absolute;left:3px;top:17px;width:9px;height:5px;
   border-left:2px solid var(--terra);border-bottom:2px solid var(--terra);transform:rotate(-45deg)}
 .plan li:last-child{border-bottom:none}
+.adds b{display:block;font-weight:700;color:var(--ink)}
+.adds span{color:var(--ink-soft)}
 .tabs{display:flex;gap:22px;border-bottom:1px solid var(--rule);margin:0 0 20px;position:relative}
 .tab{background:none;border:0;padding:0 0 10px;font:inherit;font-size:14px;font-weight:600;color:var(--ink-faint);
   cursor:pointer;position:relative}
@@ -286,6 +253,9 @@ h2{font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(30px,4.6vw,46p
   .ch-bar{bottom:0}
   .tour-caption{display:block}
   .plans{grid-template-columns:1fr}
+  .band-grid{grid-template-columns:1fr}
+  .band-stage{order:1;justify-self:center}
+  .band-stage .phone{--pw:228px}
 }
 @media (max-width:640px){
   .yours{grid-template-columns:1fr;gap:26px}
@@ -374,7 +344,7 @@ export function renderLandingPage(appStoreUrl: string, playStoreUrl: string | nu
 <link rel="preload" href="/screens/collection.webp" as="image">`;
   const bars = miniBars(48);
   const chapters = TOUR.map(
-    (c, i) => `<li${i === 0 ? ' class="on"' : ""}><button class="chapter" type="button" role="tab" aria-selected="${i === 0}" aria-controls="tour-screen"><span class="ch-title">${escapeHtml(c.title)}</span><span class="ch-body"><span class="ch-in"><span class="ch-p">${escapeHtml(c.line)}</span><span class="ch-p">${escapeHtml(c.more)}</span></span></span><span class="ch-bar"><b></b></span></button></li>`
+    (c, i) => `<li${i === 0 ? ' class="on"' : ""}><button class="chapter" type="button" role="tab" aria-selected="${i === 0}" aria-controls="tour-screen"><span class="ch-title">${escapeHtml(c.title)}</span><span class="ch-body"><span class="ch-in"><span class="ch-p">${escapeHtml(c.line)}</span></span></span><span class="ch-bar"><b></b></span></button></li>`
   ).join("");
   const shots = TOUR.map(
     (c, i) => `<img${i === 0 ? ' class="on"' : ""} src="/screens/${c.screen}.webp" width="640" height="1391" alt="${escapeHtml(c.alt)}"${i === 0 ? "" : ' loading="lazy"'}>`
@@ -386,6 +356,9 @@ export function renderLandingPage(appStoreUrl: string, playStoreUrl: string | nu
     (p, i) => `<button class="tab" type="button" role="tab" aria-selected="${i === 0}" data-price="${p.price}" data-per="${escapeHtml(p.per)}" data-note="${escapeHtml(p.note)}">${p.label}</button>`
   ).join("");
   const li = (xs: string[]) => xs.map((x) => `<li>${escapeHtml(x)}</li>`).join("");
+  const pair = (xs: { title: string; line: string }[]) =>
+    xs.map((x) => `<li><b>${escapeHtml(x.title)}</b> <span>${escapeHtml(x.line)}</span></li>`).join("");
+  const band = BAND.map((b, i) => `<li class="reveal${i ? ` d${i + 1}` : ""}"><b>${escapeHtml(b.title)}</b> <span>${escapeHtml(b.line)}</span></li>`).join("");
 
   return page({
     title: "SongNook: a quiet corner for songwriting and practice",
@@ -399,7 +372,7 @@ export function renderLandingPage(appStoreUrl: string, playStoreUrl: string | nu
   <div class="rise d1">
     ${MARK}
     <h1>A quiet corner for songwriting <em>and practice.</em></h1>
-    <p class="sub">Record your song ideas, keep them organized, finish them, and get back the ones you forgot.</p>
+    <p class="sub">For songwriters and working musicians. Catch every idea, finish your songs, and learn the set.</p>
     ${storeBadges(appStoreUrl, playStoreUrl, "hero")}
     <p class="fine">Free · No account · No ads</p>
   </div>
@@ -419,16 +392,25 @@ export function renderLandingPage(appStoreUrl: string, playStoreUrl: string | nu
   <div class="sec-head reveal"><p class="eyebrow">How it works</p><h2>From a hum to a finished song</h2></div>
   <div class="tour-grid">
     <ol class="chapters reveal" role="tablist" aria-label="From a hum to a finished song">${chapters}</ol>
-    <p class="tour-caption reveal" id="tour-caption"><span class="ch-p">${escapeHtml(TOUR[0].line)}</span><span class="ch-p">${escapeHtml(TOUR[0].more)}</span></p>
+    <p class="tour-caption reveal" id="tour-caption"><span class="ch-p">${escapeHtml(TOUR[0].line)}</span></p>
     <div class="tour-stage reveal d2"><div class="phone"><div class="screen" id="tour-screen" role="tabpanel">${shots}</div></div></div>
   </div>
 </section>
 
+<section class="band">
+  <div class="band-grid">
+    <div class="band-stage reveal"><div class="phone"><div class="screen"><img src="/screens/received-player.webp" width="640" height="1391" loading="lazy" alt="A song from a bandmate, with its lyrics, chart and notes"></div></div></div>
+    <div class="band-copy">
+      <div class="sec-head reveal"><p class="eyebrow">For the band</p><h2>Share songs with your band</h2></div>
+      <ul class="points">${band}</ul>
+    </div>
+  </div>
+</section>
+
 <section class="learn">
-  <div class="sec-head center reveal"><p class="eyebrow">Practice</p><h2>Learn other people's songs</h2>
-    <p class="lead">Import the audio, slow it down, change the key, and loop the hard part until it's yours.</p></div>
+  <div class="sec-head center reveal"><p class="eyebrow">Practice</p><h2>Learn the set before the gig</h2>
+    <p class="lead">Slow down the tricky parts, change the key, and loop a passage until it's in your hands.</p></div>
   <div class="reveal d2">${GALLERY_HTML}</div>
-  <div class="tools reveal"><span>Tuner</span><span>Metronome</span><span>Count-in</span><span>Loops that speed up</span></div>
 </section>
 
 <section>
@@ -438,12 +420,12 @@ export function renderLandingPage(appStoreUrl: string, playStoreUrl: string | nu
 
 <section>
   <div class="sec-head center reveal"><p class="eyebrow">Plans</p><h2>Free, with a free month of Pro</h2>
-    <p class="lead">Every tool for your first month, no card needed. Recording, writing and organizing stay free after that.</p></div>
+    <p class="lead">Every tool free for your first month, no card needed. Writing and keeping your songs stay free after that.</p></div>
   <div class="plans">
     <div class="plan reveal">
       <h3>Free for good</h3>
       <p class="price"><b>$0</b><span>forever</span></p>
-      <p class="pnote">Everything you need to keep your songs.</p>
+      <p class="pnote">Everything you need to write and keep your songs.</p>
       <ul>${li(FREE)}</ul>
     </div>
     <div class="plan pro reveal d2">
@@ -451,7 +433,7 @@ export function renderLandingPage(appStoreUrl: string, playStoreUrl: string | nu
       <div class="tabs" role="tablist" aria-label="Pro plans">${tabs}</div>
       <p class="price" aria-live="polite"><b id="pp">${PLANS[0].price}</b><span id="pper">${PLANS[0].per}</span></p>
       <p class="pnote" id="pnote">${escapeHtml(PLANS[0].note)}</p>
-      <ul>${li(PRO_ADDS)}</ul>
+      <ul class="adds">${pair(PRO_ADDS)}</ul>
     </div>
   </div>
   <p class="plans-fine">Prices in US dollars; your store shows yours.</p>
