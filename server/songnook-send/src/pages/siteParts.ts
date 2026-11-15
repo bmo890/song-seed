@@ -42,7 +42,11 @@ export function storeBadges(opts: {
 }): string {
   const t = STRINGS[opts.lang];
   const sfx = opts.lang === "en" ? "" : `-${opts.lang}`;
-  const apple = `<a class="store" href="${escapeHtml(opts.appStoreUrl)}"><picture><source srcset="/badges/app-store-white${sfx}.svg" media="(prefers-color-scheme: dark)"><img src="/badges/app-store-black${sfx}.svg" width="150" height="50" alt="${escapeHtml(t.appStoreAlt)}"></picture></a>`;
+  // Apple's Hebrew badge is drawn right to left (apple after the words); the founder
+  // wants the apple leading (2026-11-15), and Apple's art may not be altered, so a
+  // Hebrew page wears the English badge.
+  const appleSfx = opts.lang === "he" ? "" : sfx;
+  const apple = `<a class="store" href="${escapeHtml(opts.appStoreUrl)}"><picture><source srcset="/badges/app-store-white${appleSfx}.svg" media="(prefers-color-scheme: dark)"><img src="/badges/app-store-black${appleSfx}.svg" width="150" height="50" alt="${escapeHtml(t.appStoreAlt)}"></picture></a>`;
   const play = opts.playHref
     ? `<a class="store" id="play-badge" href="${escapeHtml(opts.playHref)}"><img src="/badges/google-play${sfx}.png" width="168" height="50" alt="${escapeHtml(t.playAlt)}"></a>`
     : opts.instead ?? "";
