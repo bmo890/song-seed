@@ -1,9 +1,10 @@
 # Store listing — translations
 
-The English source is `store-truth.md` §6 (2026-11-14 copy). These follow it line for
-line and use the app's own names for every feature (the locale files and
-`docs/i18n/glossary-*.md`), so a listing never names a tool the app calls something
-else. Written 2026-11-14; no native reader has checked them yet.
+The English source is `store-truth.md` §6 (2026-11-15 copy). These follow it line for
+line; features are described rather than named, as in English, and the words that remain
+(setlist, take, workspace) follow the app's locale files and `docs/i18n/glossary-*.md`.
+Rewritten 2026-11-15; no native reader has checked them yet. The Apple subtitle,
+promotional text and keywords below are still the 2026-11-14 ones.
 
 Where they go:
 - **Play:** "Manage translations → Add your own translations" on the default listing.
@@ -23,64 +24,56 @@ keywords ≤ 100, description ≤ 4000.
 ## Spanish (es-419, es-ES; Apple: Mexico, Spain)
 
 - **Apple subtitle:** `Un rincón para tus canciones`
-- **Play short description:** `Un rincón tranquilo para tus canciones. Graba, ordena, ensaya, no pierdas nada.`
+- **Play short description:** `Un rincón tranquilo para componer y practicar. Escribe, termina, prepara el set.`
 - **Apple promotional text:** `Un rincón tranquilo para componer y practicar. Atrapa ideas en cuanto llegan, vuelve a encontrarlas y termínalas. Sin cuenta, y tus canciones se quedan en tu teléfono.`
 - **Apple keywords:** `componer,compositor,letras,acordes,nota de voz,grabadora,ideas,setlist,afinador,metrónomo,demo`
 
 ```
-Un rincón tranquilo para componer y practicar. SongNook graba tus ideas de canciones, las mantiene en orden, te ayuda a terminarlas y te devuelve las que olvidaste, para que ninguna buena idea se pierda. Sin cuenta, sin anuncios.
+Un rincón tranquilo para componer y practicar. Para compositores y músicos en activo: atrapa cada idea, termina tus canciones y apréndete el set antes del concierto. Sin cuenta, sin anuncios.
 
 Tus canciones se quedan en tu teléfono. Nunca las vemos y nunca se usan para entrenar IA.
 
-CAPTURAR
-• Graba con un toque
-• ¿Sin título? Recibe una sugerencia de nombre, para que tus ideas no terminen como una lista de fechas
-• Importa notas de voz, archivos de audio o el sonido de un video
+ATRÁPALA
+• Graba en cuanto llega la inspiración, con un toque
+• Trae notas de voz, archivos de audio o el sonido de un video
+• Ordénalo a tu manera, con colecciones, etiquetas y búsqueda
 
-VOLVER A ENCONTRARLO
-• Revisitar - te devuelve bocetos sin terminar, ideas que no tocaste y lo que escribiste esta misma semana en años anteriores
-• Estante - ¿encontraste algo que vale la pena retomar? Déjalo a un lado para después, así no se vuelve a perder
-• Actividad - muestra en qué trabajaste en cualquier rango de fechas
-• Etiquetas, y búsqueda en títulos, notas y letras
+ESCRÍBELA
+• Letra y acordes lado a lado, con cada borrador guardado
+• Rimas y sinónimos mientras escribes
+• Juegos de escritura para romper el bloqueo. Cada palabra es tuya.
 
-TERMINAR LA CANCIÓN
-• Bocetos - todas las tomas de una canción en un solo lugar, con historial de versiones para que nada de lo que probaste se pierda
-• Versiones de la letra, cifrados y letras con acordes
-• Graba capas sobre una toma y escucha cualquiera en solo
-• Colecciones y espacios de trabajo para tenerlo todo en orden
+TERMÍNALA
+• Todas las tomas de una canción juntas, con historial de versiones de grabaciones y letras
+• Graba una armonía u otra parte encima, y escucha cualquier parte por separado
 
-PRACTICAR
-• Aprende canciones de otros: importa el audio, bájale la velocidad, haz loop de la parte difícil, cambia el tono
-• Marca partes, agrega marcas y notas en la línea de tiempo
-• Cambia la velocidad sin cambiar el tono, y el tono sin cambiar la velocidad
-• Haz loop de cualquier parte
-• Subida gradual - lleva una parte difícil a tempo: el loop se acelera un poco en cada vuelta
-• Cuenta previa, clic, afinador y metrónomo
+NO LA PIERDAS
+• Las joyas olvidadas vuelven a ti: canciones sin terminar e ideas que olvidaste
+• Deja una a un lado para retomarla, o mira lo que hiciste cualquier semana, cualquier año
 
-ESCRIBIR
-• Buscador de palabras - rimas, rimas cercanas, sinónimos
-• Chispa de letras - ejercicios de escritura para cuando te atascas
-• Libreta de letras - un lugar para versos sueltos
+PARA LA BANDA
+• SongNook Send le da a tu banda la canción entera, no un simple archivo de audio: la grabación con su letra, acordes, partes, momentos marcados y notas, por enlace privado
+• Recibe el setlist listo para aprender
+• Solo quien tiene el enlace puede abrirlo, ni siquiera SongNook
+• Setlists y cifrados para el escenario, con un lector que avanza mientras tocas
 
-COMPARTIR
-• SongNook Send - comparte clips o un boceto entero, con su letra, acordes, notas y marcas, por enlace privado
-• Sellado - solo quien tiene el enlace puede abrir lo que envías, ni siquiera SongNook
-• Abre lo que te envían tus coautores y tu banda, con notas y todo
-• ¿Grabas un ensayo de la banda? Pon marcas mientras sucede para señalar los momentos a los que vale la pena volver
-• Playlists, setlists y cancioneros con transposición, capo y un lector de escenario con desplazamiento automático
+PRACTICA
+• Baja la velocidad de las partes difíciles, cambia el tono y repite un pasaje en loop hasta dominarlo
+• Marca el verso y el coro, y señala los momentos importantes
+• Afinador y metrónomo incluidos
+
+COPIA DE SEGURIDAD Y EXPORTACIÓN
 • Copia de seguridad y exportación a Archivos, iCloud Drive o Google Drive
-• Exportar para DAW - un WAV que empieza en un compás, con el tempo en el nombre
-• Enviar desde el navegador - vincula un navegador con un código y envía desde ahí
+• Lleva tus ideas a Logic, Ableton y otras apps de grabación
 
 PRO
 Tu primer mes incluye todas las herramientas, gratis, sin tarjeta. Después, grabar, escribir, organizar y compartir tus canciones sigue siendo gratis. SongNook Pro agrega:
-• Buscador de palabras, y Chispa de letras sin límite (un intento gratis de cada juego)
-• Velocidad, tono y Subida gradual
-• Transposición, capo, setlists, cancioneros y cifrados en PDF
-• Enlaces de Send sin límite (uno gratis al mes)
-• Espacios de trabajo sin límite (dos gratis)
-• Hasta 8 capas en una toma (una gratis)
-• Exportar para DAW
+• Herramientas de práctica: velocidad, tono y loops que aceleran poco a poco
+• Cifrados listos para el escenario: transposición, capo, setlists, cancioneros y PDF
+• Ayuda para escribir: rimas y sinónimos, y juegos de escritura sin límite (un intento gratis de cada uno)
+• Compartir sin límite: enlaces de SongNook Send (uno gratis al mes) y espacios de trabajo (dos gratis)
+• Hasta 8 partes sobre una toma (una gratis)
+• Exportación para estudio, alineada al compás
 ```
 
 Apple backup line: `• Copia de seguridad y exportación a Archivos, iCloud Drive o donde guardes tus cosas`
@@ -97,64 +90,56 @@ Política de privacidad: https://songnook.app/privacy
 ## German (de-DE)
 
 - **Apple subtitle:** `Ein stiller Winkel für Songs`
-- **Play short description:** `Ein stiller Winkel für deine Songs. Aufnehmen, ordnen, proben, nichts verlieren.`
+- **Play short description:** `Ein stiller Winkel zum Songschreiben und Üben. Schreib, vollende, lern das Set.`
 - **Apple promotional text:** `Ein stiller Winkel zum Songschreiben und Üben. Halte Ideen fest, wenn sie kommen, finde sie wieder und mach sie fertig. Kein Konto, deine Songs bleiben auf dem Handy.`
 - **Apple keywords:** `songwriting,songwriter,songtext,akkorde,sprachmemo,rekorder,songideen,setlist,stimmgerät,metronom`
 
 ```
-Ein stiller Winkel zum Songschreiben und Üben. SongNook nimmt deine Songideen auf, hält sie in Ordnung, hilft dir, sie fertigzustellen, und bringt die zurück, die du vergessen hast, damit keine gute Idee verloren geht. Kein Konto, keine Werbung.
+Ein stiller Winkel zum Songschreiben und Üben. Für Songwriter und aktive Musiker: Halte jede Idee fest, mach deine Songs fertig und lern das Set vor dem Gig. Kein Konto, keine Werbung.
 
 Deine Songs bleiben auf deinem Handy. Wir sehen sie nie, und sie werden nie zum Trainieren von KI verwendet.
 
 FESTHALTEN
-• Aufnehmen mit einem Tipp
-• Kein Titel? Hol dir einen Namensvorschlag, damit deine Ideen nicht als Liste von Datumsangaben enden
-• Sprachmemos, Audiodateien oder den Ton aus einem Video importieren
-
-WIEDERFINDEN
-• Wiederentdecken - bringt unfertige Skizzen zurück, Ideen, die du nicht mehr angefasst hast, und was du in dieser Woche in früheren Jahren geschrieben hast
-• Regal - etwas gefunden, zu dem du zurückkehren willst? Leg es für später beiseite, damit es nicht wieder verloren geht
-• Aktivität - zeigt, woran du in einem beliebigen Zeitraum gearbeitet hast
-• Tags und Suche in Titeln, Notizen und Texten
-
-DEN SONG FERTIGSTELLEN
-• Skizzen - jeder Take eines Songs an einem Ort, mit Versionsverlauf, damit nichts verloren geht, was du ausprobiert hast
-• Textversionen, Akkordblätter und Texte mit Akkorden
-• Spuren über einen Take aufnehmen und jede davon solo hören
-• Sammlungen und Arbeitsbereiche, damit alles in Ordnung bleibt
-
-ÜBEN
-• Lerne Songs von anderen: importiere das Audio, mach es langsamer, loope die schwere Stelle, ändere die Tonart
-• Teile markieren, Marker setzen und Notizen auf der Zeitleiste hinzufügen
-• Geschwindigkeit ändern, ohne die Tonhöhe zu ändern, und die Tonhöhe, ohne die Geschwindigkeit zu ändern
-• Jeden Teil loopen
-• Steigern - bring eine schwere Stelle auf Tempo: der Loop wird mit jedem Durchgang etwas schneller
-• Einzähler, Klick, Stimmgerät und Metronom
+• Nimm auf, sobald die Inspiration kommt, mit einem Tipp
+• Hol Sprachmemos, Audiodateien oder den Ton aus einem Video dazu
+• Ordne alles, wie du willst, mit Sammlungen, Tags und Suche
 
 SCHREIBEN
-• Wortfinder - Reime, unreine Reime, Synonyme
-• Textfunke - Schreibübungen für Momente, in denen du feststeckst
-• Textblock - ein Zuhause für lose Zeilen
+• Text und Akkorde nebeneinander, jeder Entwurf bleibt erhalten
+• Reime und Synonyme beim Schreiben
+• Schreibspiele gegen die Schreibblockade. Jedes Wort ist deins.
 
-TEILEN
-• SongNook Send - teile Clips oder eine ganze Skizze, mit Text, Akkorden, Notizen und Markern, per privatem Link
-• Versiegelt - nur wer den Link hat, kann öffnen, was du sendest, nicht einmal SongNook
-• Öffne, was dir Co-Autoren und Bandmitglieder schicken, mit allen Notizen
-• Du nimmst eine Bandprobe auf? Setz währenddessen Marker an die Stellen, zu denen ihr zurückkehren wollt
-• Playlists, Setlists und Songbooks mit Transposition, Kapo und einem automatisch scrollenden Bühnenleser
+FERTIGSTELLEN
+• Alle Takes eines Songs beisammen, mit Versionsverlauf für Aufnahmen und Texte
+• Nimm eine zweite Stimme oder einen weiteren Part darüber auf und hör jeden Part einzeln
+
+NICHTS VERLIEREN
+• Alte Perlen kommen zu dir zurück: unfertige Songs und vergessene Ideen
+• Leg einen Song für später beiseite oder schau, woran du in jeder Woche, jedem Jahr gearbeitet hast
+
+FÜR DIE BAND
+• SongNook Send gibt deiner Band den ganzen Song statt einer nackten Audiodatei: die Aufnahme mit Text, Akkorden, Teilen, markierten Stellen und Notizen, per privatem Link
+• Bekomm die Setlist fertig zum Lernen
+• Nur wer den Link hat, kann es öffnen, nicht einmal SongNook
+• Setlists und Akkordblätter für die Bühne, mit einem Leser, der beim Spielen mitscrollt
+
+ÜBEN
+• Mach schwere Stellen langsamer, ändere die Tonart und loope eine Passage, bis sie sitzt
+• Markiere Strophe und Refrain und die Stellen, auf die es ankommt
+• Stimmgerät und Metronom inklusive
+
+BACKUP UND EXPORT
 • Backup und Export nach Dateien, iCloud Drive oder Google Drive
-• Für DAW exportieren - ein WAV, das auf einem Takt beginnt, mit dem Tempo im Namen
-• Vom Computer senden - koppel einen Browser mit einem Code und sende von dort
+• Bring deine Ideen in Logic, Ableton und andere Aufnahme-Apps
 
 PRO
 Dein erster Monat enthält jedes Werkzeug, gratis, ohne Karte. Danach bleiben Aufnehmen, Schreiben, Ordnen und Teilen deiner Songs kostenlos. SongNook Pro bringt dazu:
-• Wortfinder und unbegrenzt Textfunke (ein Gratisversuch pro Spiel)
-• Geschwindigkeit, Tonhöhe und Steigern
-• Transposition, Kapo, Setlists, Songbooks und Akkordblätter als PDF
-• Unbegrenzt Send-Links (einer pro Monat gratis)
-• Unbegrenzt Arbeitsbereiche (zwei gratis)
-• Bis zu 8 Spuren auf einem Take (eine gratis)
-• Für DAW exportieren
+• Übungswerkzeuge: Geschwindigkeit, Tonhöhe und Loops, die Schritt für Schritt schneller werden
+• Bühnenfertige Akkordblätter: Transposition, Kapo, Setlists, Songbooks und PDFs
+• Schreibhilfe: Reime und Synonyme, und unbegrenzt Schreibspiele (ein Gratisversuch pro Spiel)
+• Unbegrenzt teilen: SongNook-Send-Links (einer pro Monat gratis) und Arbeitsbereiche (zwei gratis)
+• Bis zu 8 Parts auf einem Take (einer gratis)
+• Studio-Export, auf den Takt ausgerichtet
 ```
 
 Apple backup line: `• Backup und Export nach Dateien, iCloud Drive oder wohin du deine Sachen legst`
@@ -171,64 +156,56 @@ Datenschutzerklärung: https://songnook.app/privacy
 ## Portuguese (pt-BR)
 
 - **Apple subtitle:** `Um canto para suas músicas`
-- **Play short description:** `Um canto tranquilo para suas músicas. Grave, organize, ensaie, não perca nada.`
+- **Play short description:** `Um canto tranquilo para compor e praticar. Escreva, termine, aprenda o set.`
 - **Apple promotional text:** `Um canto tranquilo para compor e praticar. Capture as ideias na hora em que surgem, encontre-as de novo e termine. Sem conta, e suas músicas ficam no seu celular.`
 - **Apple keywords:** `compor,compositor,letra,acordes,memo de voz,gravador,ideias,setlist,afinador,metrônomo,demo,cifra`
 
 ```
-Um canto tranquilo para compor e praticar. O SongNook grava suas ideias de música, mantém tudo organizado, ajuda você a terminá-las e traz de volta as que você esqueceu, para que nenhuma boa ideia se perca. Sem conta, sem anúncios.
+Um canto tranquilo para compor e praticar. Para compositores e músicos em atividade: capture cada ideia, termine suas músicas e aprenda o repertório antes do show. Sem conta, sem anúncios.
 
 Suas músicas ficam no seu celular. Nós nunca as vemos, e elas nunca são usadas para treinar IA.
 
-CAPTURAR
-• Grave com um toque
-• Sem título? Receba uma sugestão de nome, para suas ideias não virarem uma lista de datas
-• Importe memos de voz, arquivos de áudio ou o som de um vídeo
+CAPTURE
+• Grave na hora em que a inspiração chega, com um toque
+• Traga memos de voz, arquivos de áudio ou o som de um vídeo
+• Organize do seu jeito, com coleções, tags e busca
 
-ENCONTRAR DE NOVO
-• Revisitar - traz de volta esboços inacabados, ideias esquecidas e o que você escreveu nesta mesma semana em anos anteriores
-• Prateleira - achou algo que vale retomar? Deixe separado para depois, para não se perder de novo
-• Atividade - mostra no que você trabalhou em qualquer período
-• Tags, e busca em títulos, notas e letras
+ESCREVA
+• Letra e acordes lado a lado, com cada rascunho guardado
+• Rimas e sinônimos enquanto você escreve
+• Jogos de escrita para sair do bloqueio criativo. Cada palavra é sua.
 
-TERMINAR A MÚSICA
-• Esboços - todos os takes de uma música em um só lugar, com histórico de versões, para nada do que você tentou se perder
-• Versões da letra, cifras e letras com acordes
-• Grave camadas sobre um take e ouça qualquer uma em solo
-• Coleções e espaços de trabalho para manter tudo em ordem
+TERMINE
+• Todos os takes de uma música juntos, com histórico de versões das gravações e das letras
+• Grave uma harmonia ou outra parte por cima, e ouça qualquer parte sozinha
 
-PRATICAR
-• Aprenda músicas de outras pessoas: importe o áudio, desacelere, faça loop da parte difícil, mude o tom
-• Marque partes, coloque marcadores e adicione notas na linha do tempo
-• Mude a velocidade sem mudar o tom, e o tom sem mudar a velocidade
-• Faça loop de qualquer parte
-• Subida gradual - leve uma parte difícil até o andamento: o loop fica um pouco mais rápido a cada volta
-• Contagem, clique, afinador e metrônomo
+NÃO PERCA NADA
+• Pérolas antigas voltam para você: músicas inacabadas e ideias esquecidas
+• Deixe uma separada para retomar, ou veja o que você fez em qualquer semana, qualquer ano
 
-ESCREVER
-• Buscador de palavras - rimas, rimas toantes, sinônimos
-• Faísca de letras - exercícios de escrita para quando você trava
-• Bloco de letras - um lugar para versos soltos
+PARA A BANDA
+• O SongNook Send entrega à sua banda a música inteira, não só um arquivo de áudio: a gravação com letra, acordes, partes, momentos marcados e notas, por link privado
+• Receba o setlist pronto para aprender
+• Só quem tem o link pode abrir, nem mesmo o SongNook
+• Setlists e cifras para o palco, com um leitor que rola enquanto você toca
 
-COMPARTILHAR
-• SongNook Send - compartilhe clipes ou um esboço inteiro, com letra, acordes, notas e marcadores, por link privado
-• Selado - só quem tem o link pode abrir o que você envia, nem mesmo o SongNook
-• Abra o que parceiros de composição e colegas de banda enviam, com notas e tudo
-• Gravando um ensaio da banda? Coloque marcadores na hora, nos momentos que valem a pena revisitar
-• Playlists, setlists e cancioneiros com transposição, capotraste e um leitor de palco com rolagem automática
+PRATIQUE
+• Desacelere as partes difíceis, mude o tom e faça loop de um trecho até ele estar nas suas mãos
+• Marque o verso e o refrão, e os momentos que importam
+• Afinador e metrônomo incluídos
+
+BACKUP E EXPORTAÇÃO
 • Backup e exportação para Arquivos, iCloud Drive ou Google Drive
-• Exportar para DAW - um WAV que começa no compasso, com o andamento no nome
-• Enviar do computador - pareie um navegador com um código e envie de lá
+• Leve suas ideias para o Logic, o Ableton e outros apps de gravação
 
 PRO
 Seu primeiro mês inclui todas as ferramentas, grátis, sem cartão. Depois disso, gravar, escrever, organizar e compartilhar suas músicas continua grátis. O SongNook Pro adiciona:
-• Buscador de palavras, e Faísca de letras sem limite (uma tentativa grátis de cada jogo)
-• Velocidade, tom e Subida gradual
-• Transposição, capotraste, setlists, cancioneiros e cifras em PDF
-• Links do Send sem limite (um grátis por mês)
-• Espaços de trabalho sem limite (dois grátis)
-• Até 8 camadas em um take (uma grátis)
-• Exportar para DAW
+• Ferramentas de prática: velocidade, tom e loops que aceleram aos poucos
+• Cifras prontas para o palco: transposição, capotraste, setlists, cancioneiros e PDFs
+• Ajuda para escrever: rimas e sinônimos, e jogos de escrita sem limite (uma tentativa grátis de cada)
+• Compartilhamento sem limite: links do SongNook Send (um grátis por mês) e espaços de trabalho (dois grátis)
+• Até 8 partes em um take (uma grátis)
+• Exportação para estúdio, alinhada ao compasso
 ```
 
 Apple backup line: `• Backup e exportação para Arquivos, iCloud Drive ou onde você guarda suas coisas`
@@ -247,64 +224,56 @@ Política de Privacidade: https://songnook.app/privacy
 Plural address (אתם), as the app speaks.
 
 - **Apple subtitle:** `פינה שקטה לסיים בה שירים`
-- **Play short description:** `פינה שקטה לסיים בה שירים. להקליט, לסדר, לתרגל, ולא לאבד אף רעיון טוב.`
+- **Play short description:** `פינה שקטה לכתיבת שירים ולתרגול. לכתוב, לסיים, ללמוד את הסט.`
 - **Apple promotional text:** `פינה שקטה לכתיבת שירים ולתרגול. לתפוס רעיונות ברגע שהם מגיעים, למצוא אותם שוב ולסיים אותם. בלי חשבון, והשירים נשארים בטלפון שלכם.`
 - **Apple keywords:** `כתיבת שירים,מילים,אקורדים,הקלטה,תזכיר קולי,רעיונות,סטליסט,טיונר,מטרונום,דמו,שיר`
 
 ```
-פינה שקטה לכתיבת שירים ולתרגול. SongNook מקליט את רעיונות השירים שלכם, שומר עליהם מסודרים, עוזר לכם לסיים אותם ומחזיר את אלה ששכחתם, כדי שאף רעיון טוב לא ילך לאיבוד. בלי חשבון, בלי פרסומות.
+פינה שקטה לכתיבת שירים ולתרגול. לכותבי שירים ולמוזיקאים פעילים: לתפוס כל רעיון, לסיים את השירים וללמוד את הסט לפני ההופעה. בלי חשבון, בלי פרסומות.
 
 השירים שלכם נשארים בטלפון. אנחנו אף פעם לא רואים אותם, והם אף פעם לא משמשים לאימון בינה מלאכותית.
 
 לתפוס
-• הקלטה בנגיעה אחת
-• אין שם? קבלו הצעה לשם, כדי שהרעיונות לא יהפכו לרשימת תאריכים
-• ייבוא תזכירים קוליים, קובצי שמע או הסאונד מתוך סרטון
-
-למצוא שוב
-• לחזור לזה - מחזיר סקיצות שלא נגמרו, רעיונות שלא נגעתם בהם, ומה שכתבתם בשבוע הזה בשנים קודמות
-• מדף - מצאתם משהו ששווה לחזור אליו? שימו אותו בצד להמשך, כדי שלא ילך שוב לאיבוד
-• פעילות - מראה על מה עבדתם בכל טווח תאריכים
-• תגיות, וחיפוש בכותרות, בהערות ובמילים
-
-לסיים את השיר
-• סקיצות - כל הטייקים של שיר במקום אחד, עם היסטוריית גרסאות, כך ששום דבר שניסיתם לא הולך לאיבוד
-• גרסאות מילים, דפי אקורדים ומילים עם אקורדים
-• הקלטת שכבות מעל טייק והאזנה לכל אחת בסולו
-• אוספים ומרחבי עבודה כדי לשמור על סדר
-
-לתרגל
-• ללמוד שירים של אחרים: לייבא את השמע, להאט, לעשות לופ על החלק הקשה, לשנות סולם
-• סימון חלקים, הוספת סמנים והערות על ציר הזמן
-• שינוי מהירות בלי לשנות סולם, ושינוי סולם בלי לשנות מהירות
-• לופ על כל חלק
-• האצה הדרגתית - להביא חלק קשה לקצב המלא: הלופ מואץ קצת בכל סיבוב
-• ספירה מקדימה, קליק, טיונר ומטרונום
+• להקליט ברגע שההשראה מגיעה, בנגיעה אחת
+• להביא תזכירים קוליים, קובצי שמע או הסאונד מתוך סרטון
+• לסדר הכול בדרך שלכם, עם אוספים, תגיות וחיפוש
 
 לכתוב
-• מציאת מילים - חרוזים, חרוזים קרובים, מילים נרדפות
-• ניצוץ למילים - תרגילי כתיבה לרגעים שנתקעים
-• פנקס מילים - בית לשורות בודדות
+• מילים ואקורדים זה לצד זה, וכל טיוטה נשמרת
+• חרוזים ומילים נרדפות תוך כדי כתיבה
+• משחקי כתיבה לשבירת מחסום הכתיבה. כל מילה היא שלכם.
 
-לשתף
-• SongNook Send - שיתוף קטעים או סקיצה שלמה, עם המילים, האקורדים, ההערות והסמנים, בקישור פרטי
-• חתום - רק מי שיש לו את הקישור יכול לפתוח את מה ששלחתם, אפילו לא SongNook
-• לפתוח את מה ששותפים לכתיבה וחברי להקה שולחים, כולל ההערות
-• מקליטים חזרה של הלהקה? הוסיפו סמנים תוך כדי, ברגעים ששווה לחזור אליהם
-• פלייליסטים, סטליסטים ושירונים עם טרנספוזיציה, קאפו וקורא במה שנגלל לבד
+לסיים
+• כל הטייקים של שיר יחד, עם היסטוריית גרסאות להקלטות ולמילים
+• להקליט הרמוניה או חלק נוסף מעל, ולשמוע כל חלק לבד
+
+לא לאבד
+• פנינים ישנות חוזרות אליכם: שירים שלא נגמרו ורעיונות ששכחתם
+• לשים שיר בצד כדי לחזור אליו, או לראות על מה עבדתם בכל שבוע, בכל שנה
+
+ללהקה
+• SongNook Send נותן ללהקה את השיר כולו, לא רק קובץ שמע: ההקלטה עם המילים, האקורדים, החלקים, הרגעים המסומנים וההערות, בקישור פרטי
+• לקבל את הסט מוכן ללמידה
+• רק מי שיש לו את הקישור יכול לפתוח, אפילו לא SongNook
+• סטליסטים ודפי אקורדים לבמה, עם קורא שנגלל בזמן שאתם מנגנים
+
+לתרגל
+• להאט את הקטעים הקשים, לשנות סולם ולעשות לופ על קטע עד שהוא יושב בידיים
+• לסמן בית ופזמון, ואת הרגעים שחשובים
+• טיונר ומטרונום מובנים
+
+גיבוי וייצוא
 • גיבוי וייצוא לקבצים, ל־iCloud Drive או ל־Google Drive
-• ייצוא ל־DAW - קובץ WAV שמתחיל בתחילת תיבה, עם הטמפו בשם
-• שליחה מהמחשב - מחברים דפדפן עם קוד ושולחים משם
+• להעביר רעיונות ל־Logic, ל־Ableton ולאפליקציות הקלטה אחרות
 
 PRO
 החודש הראשון כולל את כל הכלים, בחינם, בלי כרטיס אשראי. אחר כך, הקלטה, כתיבה, סידור ושיתוף השירים נשארים בחינם. SongNook Pro מוסיף:
-• מציאת מילים, וניצוץ למילים בלי הגבלה (ניסיון חינם אחד בכל משחק)
-• מהירות, סולם והאצה הדרגתית
-• טרנספוזיציה, קאפו, סטליסטים, שירונים ודפי אקורדים ב־PDF
-• קישורי Send בלי הגבלה (אחד בחינם בחודש)
-• מרחבי עבודה בלי הגבלה (שניים בחינם)
-• עד 8 שכבות על טייק (אחת בחינם)
-• ייצוא ל־DAW
+• כלי תרגול: מהירות, סולם ולופים שמואצים בהדרגה
+• דפי אקורדים מוכנים לבמה: טרנספוזיציה, קאפו, סטליסטים, שירונים ו־PDF
+• עזרה בכתיבה: חרוזים ומילים נרדפות, ומשחקי כתיבה בלי הגבלה (ניסיון חינם אחד בכל משחק)
+• שיתוף בלי הגבלה: קישורי SongNook Send (אחד בחינם בחודש) ומרחבי עבודה (שניים בחינם)
+• עד 8 חלקים על טייק (אחד בחינם)
+• ייצוא לאולפן, מיושר לתיבה
 ```
 
 Apple backup line: `• גיבוי וייצוא לקבצים, ל־iCloud Drive או לכל מקום שבו אתם שומרים דברים`

@@ -176,13 +176,21 @@ purchase). Lyric Spark reads "writing exercises", as on the Pro page. Apple lock
 description of an approved version, so v1.0.0 shipped with the old text; the new one goes
 in with the next iOS version. Play took it the same day: English plus
 es-419, es-ES, de-DE, pt-BR and iw-IL sent for review 2026-11-14. Apple also locks the
-promotional text until Release; change it right after. Translations: `store-listing-translations.md`. Same day: REHEARSE became PRACTICE and opens
+promotional text until Release; change it right after. Translations: `store-listing-translations.md`.
+
+**2026-11-15 (founder):** rewritten to match songnook.app: the same four steps (catch it,
+write it, finish it, never lose it), then the band, practice, backup, and Pro as five
+benefit groups (each still naming its features, for Apple 2.3.2). Features are described,
+not named (founder: "no one knows what we are talking about"); SongNook Send is introduced
+by what it does against a bare audio file. Play: all six listings sent for review
+2026-11-15. Apple: rides along with the next version after 1.0.1 (1.0.1 went to review
+with the 2026-11-14 text). Same day: REHEARSE became PRACTICE and opens
 with learning other people's songs (founder: "part of it is learning other peoples music").
 
 - **Name:** SongNook
 - **Tagline (both stores, the intro screen and the feature graphic):** A quiet corner to finish songs.
 - **Apple subtitle (30):** `A quiet corner to finish songs`
-- **Play short description (80):** `A quiet corner to finish songs. Record, organize, rehearse, never lose a gem.`
+- **Play short description (80):** `A quiet corner for songwriting and practice. Write, finish, learn the set.` (2026-11-15; was `A quiet corner to finish songs. Record, organize, rehearse, never lose a gem.`)
 - **Apple promotional text (170):** `A quiet corner for songwriting and practice. Catch ideas the moment they hit, find them again, and finish them. No account, and your songs stay on your phone.` (158; 2026-11-14, was "A quiet corner to finish songs. … rehearse them until they're done. …")
 - **Apple keywords (100):** `songwriting,songwriter,lyrics,chords,voice memo,recorder,song ideas,setlist,tuner,metronome,demo`
 - **Categories:** Apple: Music, then Productivity.
@@ -193,59 +201,51 @@ with learning other people's songs (founder: "part of it is learning other peopl
 other platforms. Apple also appends the subscription paragraph below.
 
 ```
-A quiet corner for songwriting and practice. SongNook records your song ideas, keeps them organized, helps you finish them, and brings back the ones you forgot, so a good idea never gets lost. No account, no ads.
+A quiet corner for songwriting and practice. For songwriters and working musicians: catch every idea, finish your songs, and learn the set before the gig. No account, no ads.
 
 Your songs stay on your phone. We never see them, and they are never used to train AI.
 
-CAPTURE
-• Record in one tap
-• Stuck for a title? Get a name suggestion, so ideas don't end up as a list of dates
-• Import voice memos, audio files, or the sound from a video
+CATCH IT
+• Record the moment inspiration hits, in one tap
+• Bring in voice memos, audio files, or the sound from a video
+• Keep it organized your way, with collections, tags and search
 
-FIND IT AGAIN
-• Revisit - brings back unfinished sketches, untouched ideas, and what you wrote this week in past years
-• Shelf - found something worth coming back to? Set it aside for later so it doesn't get lost again
-• Activity - shows what you worked on in any date range
-• Tags, and search across titles, notes and lyrics
+WRITE IT
+• Lyrics and chords side by side, every draft kept
+• Rhymes and synonyms as you write
+• Writing games to break writer's block. Every word is yours.
 
-FINISH THE SONG
-• Sketches - every take of a song in one place, with version history so nothing you tried is lost
-• Lyric versions, chord charts, and lyrics with chords
-• Record layers over a take and solo any of them
-• Collections and workspaces to keep it all in order
+FINISH IT
+• Every take of a song together, with version history for recordings and lyrics
+• Record a harmony or another part on top, and play any part on its own
+
+NEVER LOSE IT
+• Old gems come back to you: unfinished songs and ideas you forgot
+• Set one aside to come back to, or look back at what you made any week, any year
+
+FOR THE BAND
+• SongNook Send gives your band the whole song, not a bare audio file: the recording with its lyrics, chords, sections, marked moments and notes, by private link
+• Receive the setlist ready to learn
+• Only people with the link can open it, not even SongNook
+• Setlists and chord charts for the stage, with a reader that scrolls as you play
 
 PRACTICE
-• Learn other people's songs: import the audio, slow it down, loop the hard part, change the key
-• Mark sections, drop pins and add notes on the timeline
-• Change speed without changing pitch, and pitch without changing speed
-• Loop any part
-• Step up - work a hard part up to speed: the loop gets a little faster each pass
-• Count-in, click, tuner and metronome
+• Slow down the tricky parts, change the key, and loop a passage until it's in your hands
+• Mark the verse and chorus, and pin the moments that matter
+• Tuner and metronome built in
 
-WRITE
-• Word Finder - rhymes, near rhymes, synonyms
-• Lyric Spark - writing exercises for when you're stuck
-• Lyric Pad - a home for loose lines
-
-SHARE
-• SongNook Send - share clips or a whole sketch, with its lyrics, chords, notes and pins, by private link
-• Sealed - only people with the link can open what you send, not even SongNook
-• Open what co-writers and bandmates send you, notes and all
-• Recording a band rehearsal? Drop pins as it happens to mark the moments worth coming back to
-• Playlists, setlists, and chart books with transpose, capo and an autoscrolling stage reader
+BACKUP AND EXPORT
 • Back up and export to Files, iCloud Drive or Google Drive
-• Export for DAW - a WAV that starts on a bar, tempo in its name
-• Send from a computer - pair a browser with a code and send from there
+• Take your ideas into Logic, Ableton and other recording apps
 
 PRO
 Your first month includes every tool, free, no card needed. After that, recording, writing, organizing and sharing your songs stay free. SongNook Pro adds:
-• Word Finder, and unlimited Lyric Spark (one free try of each game)
-• Speed, pitch and Step up
-• Transpose, capo, setlists, chart books and PDF charts
-• Unlimited Send links (one a month free)
-• Unlimited workspaces (two free)
-• Up to 8 layers on a take (one free)
-• Export for DAW
+• Practice tools: speed, pitch, and loops that build up speed
+• Gig-ready charts: transpose, capo, setlists, chart books and PDFs
+• Writing help: rhymes and synonyms, and unlimited writing games (one free try of each)
+• Unlimited sharing: SongNook Send links (one a month free) and workspaces (two free)
+• Up to 8 parts on one take (one free)
+• Studio export, lined up to the beat
 ```
 
 **Apple only, appended (required for auto-renewing Pro):**
@@ -258,7 +258,9 @@ Privacy Policy: https://songnook.app/privacy
 
 **Writing rules the founder set:**
 - Describe only what users do. Leave out crash safety, settings and other non-features.
-- When a feature has a proper name, write "Name - what it does".
+- Describe a feature by what it does; our own names mean nothing to someone who hasn't
+  used SongNook (2026-11-15). SongNook Send is the one name kept, introduced by what it does.
+- Package similar features as a benefit ("Practice tools"), not a list of every control.
 - Don't list languages.
 - No marketing flourishes.
 
