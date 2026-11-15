@@ -434,7 +434,7 @@ export const SEND_STRINGS: Record<Lang, SendStrings> = {
     holdNote: "הקבצים נשמרים לזמן מוגבל, ואז נמחקים בשקט.",
     tagline: "SongNook: פינה שקטה לכתיבת שירים ולתרגול",
     report: "דיווח",
-    sentYou: "קיבלת את {title} מ־{sender}",
+    sentYou: "{sender} שלח/ה לך את {title}",
     someone: "מישהו",
     someMusic: "מוזיקה",
     songs: { one: "שיר אחד", other: "{n} שירים" },
