@@ -31,26 +31,43 @@ describe("layoutPinLane", () => {
         expect(second.row).toBe(1);
     });
 
-    it("hides a third colliding name rather than opening a third row", () => {
+    it("stacks three close names on three rows, and only a fourth gives way", () => {
         const placed = lay([
             { atMs: 100, label: "a" },
             { atMs: 120, label: "b" },
             { atMs: 140, label: "c" },
+            { atMs: 160, label: "d" },
         ]);
-        expect(placed.map((p) => p.row)).toEqual([0, 1, -1]);
-        expect(pinLaneRowCount(placed)).toBe(2);
+        expect(placed.map((p) => p.row)).toEqual([0, 1, 2, -1]);
+        expect(pinLaneRowCount(placed)).toBe(3);
+    });
+
+    it("keeps both of two close names on the short reel (founder, 2026-11-15)", () => {
+        const placed = layoutPinLane(
+            [
+                { atMs: 100, label: "Low walkdown" },
+                { atMs: 130, label: "Bridge" },
+            ],
+            1,
+            1,
+            10_000,
+            "compact",
+            () => 70
+        );
+        expect(placed.map((p) => p.row)).toEqual([0, 1]);
     });
 
     it("keeps a top-row stem out of a name on the row beneath", () => {
         // First takes the top row to x≈167. Second collides and drops to row 1,
         // reaching x≈217. Third (x=200) is clear of the top row but its stem would
-        // cut through the second's name, and row 1 is taken there too: it yields.
+        // cut through the second's name, and row 1 is taken there too: it drops to
+        // row 2, below them both.
         const placed = lay([
             { atMs: 100, label: "a" },
             { atMs: 150, label: "b" },
             { atMs: 200, label: "c" },
         ]);
-        expect(placed.map((p) => p.row)).toEqual([0, 1, -1]);
+        expect(placed.map((p) => p.row)).toEqual([0, 1, 2]);
     });
 
     it("returns to the top row once both rows are clear", () => {

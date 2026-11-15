@@ -11,8 +11,11 @@ import type { PracticeMarker } from "../types";
 
 /** Height of one row of pin names. */
 export const PIN_LANE_ROW_HEIGHT = 14;
-/** Names stagger onto a second row, never a third: past that the name gives way. */
-export const PIN_LANE_MAX_ROWS = 2;
+/** Rows of names the full reel may open. Every name should be readable, close pins
+ *  too (founder, 2026-11-15: "you should be able to see all pin labels even when
+ *  they're close"): crowded names stagger down a row instead of giving way. Rows
+ *  open only when names collide, so a take with spread-out pins keeps its one row. */
+export const PIN_LANE_MAX_ROWS = 3;
 /** Clear of the clock ticks that ride the reel's top edge. Kept tight: the wave
  *  stays centred, so every point of lane costs it height on BOTH sides. */
 export const PIN_LANE_TOP_PAD = 8;
@@ -36,13 +39,15 @@ export const SECTION_RULE_HEIGHT = 2;
 export const SECTION_NAME_FONT_SIZE = 10.5;
 export const SECTION_NAME_ROW_HEIGHT = 14;
 
-/** `full`: two name rows. `compact`: one — the short reel that makes room for the
- *  Tools drawers. `slim`: none, heads and rules only (the reading-height reel). */
+/** `full`: three name rows. `compact`: two — the short reel (Tools drawers, a page
+ *  of tiles or layers below). `slim`: none, heads and rules only (the reading-height
+ *  reel). Was two and one until 2026-11-15, which hid the second of two close names
+ *  on the short reel. */
 export type ReelLaneDensity = "full" | "compact" | "slim";
 
 /** Name rows a density allows. */
 export function pinLaneMaxRows(density: ReelLaneDensity): number {
-    return density === "full" ? PIN_LANE_MAX_ROWS : density === "compact" ? 1 : 0;
+    return density === "full" ? PIN_LANE_MAX_ROWS : density === "compact" ? 2 : 0;
 }
 
 /** Reels shorter than this drop pin names entirely. */
@@ -72,8 +77,8 @@ export function estimatePinNameWidth(label: string | undefined): number {
 /**
  * Place every pin's name. In time order, each name takes the TOP row if it is
  * clear there and its stem would not cut through a name on the row beneath;
- * otherwise the second row; otherwise the name gives way and only the head and
- * stem are drawn. Staggering DOWNWARD is what keeps stems out of names: a pin
+ * otherwise the next row down; only past the density's last row does the name give
+ * way, leaving the head and stem. Staggering DOWNWARD is what keeps stems out of names: a pin
  * on the lower row starts below its neighbour's name instead of piercing it.
  */
 export function layoutPinLane<M extends Pick<PracticeMarker, "atMs"> & { label?: string }>(
