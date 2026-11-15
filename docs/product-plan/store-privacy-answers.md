@@ -217,3 +217,23 @@ Both are console changes: the founder's yes first.
 **Done 2026-11-12 (founder's yes):** Apple's App Privacy now lists
 **Customer Support** (App Functionality · not linked · no tracking) and is
 published. The live label has seven data types. Play needed no change.
+
+## 2026-11-15 — optional reply email on feedback notes
+
+Founder: "I can't see who it's from and can't write them back." The feedback
+sheet now has an optional line, "Your email, if you'd like a reply". Empty, the
+note stays anonymous as before. Filled, the address travels with the note,
+is stored in the `feedback` row (`reply_to`, migration 0007, swept with the
+note after 365 days) and set as Reply-To on the founder's copy. Used only to
+answer that note.
+
+Console changes, founder's yes first, before the update that carries the line
+reaches the public:
+
+- **Apple (App Privacy):** add **Contact Info → Email Address** — Collected: Yes ·
+  Purpose: App Functionality (support replies) · Linked to the user: **Yes** (an
+  address names a person) · Tracking: No. The label gains a "Data Linked to You:
+  Contact Info" line.
+- **Google Play (Data safety):** add **Personal info → Email address** —
+  Collected, optional, not shared, not processed ephemerally, purpose App
+  functionality.

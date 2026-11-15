@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { FEEDBACK_KEEP_MS, FEEDBACK_NOTE_MAX, feedbackEmail, feedbackMime, insertFeedback, notifyFeedback, parseFeedback, sweepFeedback } from "../feedback.ts";
+import { FEEDBACK_KEEP_MS, FEEDBACK_NOTE_MAX, feedbackEmail, feedbackMime, insertFeedback, notifyFeedback, parseFeedback, parseReplyTo, sweepFeedback } from "../feedback.ts";
 
 test("a note is trimmed and keeps its line breaks", () => {
   const parsed = parseFeedback({ note: "  The loop skips.\n\nSecond line\u0007  ", version: "1.0.0" });
@@ -60,14 +60,14 @@ test("a stored note carries no key and no address: only the note and its build",
   const db = fakeDb();
   await insertFeedback(
     db.env,
-    { note: "Hello", appVersion: "1.0.0", appUpdate: "abc", platform: "ios 18.5", locale: "en" },
+    { note: "Hello", appVersion: "1.0.0", appUpdate: "abc", platform: "ios 18.5", locale: "en", replyTo: "" },
     1000
   );
   assert.equal(db.calls.length, 1);
   const [id, createdAt, ...rest] = db.calls[0].args;
   assert.match(String(id), /^f_[0-9a-f-]{36}$/);
   assert.equal(createdAt, 1000);
-  assert.deepEqual(rest, ["Hello", "1.0.0", "abc", "ios 18.5", "en"]);
+  assert.deepEqual(rest, ["Hello", "1.0.0", "abc", "ios 18.5", "en", ""]);
 });
 
 test("the sweep drops notes older than a year", async () => {
@@ -79,18 +79,19 @@ test("the sweep drops notes older than a year", async () => {
 });
 
 test("the founder's email carries the note and its build, and nothing about the writer", () => {
-  const value = { note: "The loop skips\nafter a pause", appVersion: "1.0.0", appUpdate: "01a1d3", platform: "ios 26.6", locale: "en" };
+  const value = { note: "The loop skips\nafter a pause", appVersion: "1.0.0", appUpdate: "01a1d3", platform: "ios 26.6", locale: "en", replyTo: "" };
   const mail = feedbackEmail(value, Date.UTC(2026, 10, 14, 17, 0));
   assert.equal(mail.subject, "SongNook feedback: The loop skips");
   assert.match(mail.text, /^The loop skips\nafter a pause\n/);
   assert.match(mail.text, /App 1\.0\.0 \(update 01a1d3\)/);
   assert.match(mail.text, /Phone ios 26\.6 · language en/);
   assert.match(mail.text, /Sent 2026-11-14 17:00 UTC/);
+  assert.match(mail.text, /Anonymous: there is no address to reply to\./);
   assert.equal(feedbackEmail({ ...value, note: "x".repeat(80) }, 0).subject.endsWith("…"), true);
 });
 
 test("the message is plain UTF-8 text a mail client can read, Hebrew included", () => {
-  const value = { note: "שלום, the loop skips", appVersion: "1.0.0", appUpdate: "", platform: "ios 26", locale: "he" };
+  const value = { note: "שלום, the loop skips", appVersion: "1.0.0", appUpdate: "", platform: "ios 26", locale: "he", replyTo: "" };
   const raw = feedbackMime(value, Date.UTC(2026, 10, 14), "feedback@songnook.app", "founder@example.com", "abc@songnook.app");
   const [head, body] = raw.split("\r\n\r\n");
   assert.match(head, /^From: "SongNook feedback" <feedback@songnook\.app>\r\nTo: <founder@example\.com>\r\n/);
@@ -105,7 +106,7 @@ test("the message is plain UTF-8 text a mail client can read, Hebrew included", 
 test("a note is mailed when the binding is set, skipped when not, and a failed mail never throws", async () => {
   const sent: { from: string; to: string; raw: string }[] = [];
   const make = (from: string, to: string, raw: string) => ({ from, to, raw });
-  const value = { note: "Hello there", appVersion: "1.0.0", appUpdate: "", platform: "android 37", locale: "en" };
+  const value = { note: "Hello there", appVersion: "1.0.0", appUpdate: "", platform: "android 37", locale: "en", replyTo: "" };
   const env = {
     EMAIL: { send: async (m: { from: string; to: string; raw: string }) => { sent.push(m); return {}; } },
     FEEDBACK_NOTIFY_TO: "founder@example.com",
@@ -121,4 +122,25 @@ test("a note is mailed when the binding is set, skipped when not, and a failed m
 
   const failing = { ...(env as object), EMAIL: { send: async () => { throw new Error("not verified"); } } } as never;
   await notifyFeedback(failing, value, 0, make);
+});
+
+test("an email to be answered at is optional, trimmed, and refused when it can't be an address", () => {
+  assert.equal(parseReplyTo(undefined), "");
+  assert.equal(parseReplyTo("   "), "");
+  assert.equal(parseReplyTo(" maya@example.com "), "maya@example.com");
+  for (const bad of ["maya", "maya@example", "a b@example.com", "x@y.com\r\nBcc: z@w.com", "<x@y.com>", 42, "a".repeat(250) + "@x.com"]) {
+    assert.equal(parseReplyTo(bad), null, String(bad));
+  }
+  assert.deepEqual(parseFeedback({ note: "Hello", email: "not an address" }), { ok: false, error: "invalid email" });
+  const parsed = parseFeedback({ note: "Hello", email: "maya@example.com" });
+  assert.equal(parsed.ok && parsed.value.replyTo, "maya@example.com");
+});
+
+test("with an address, Reply in the inbox answers the writer", () => {
+  const value = { note: "Can I export stems?", appVersion: "1.0.1", appUpdate: "", platform: "ios 26", locale: "en", replyTo: "maya@example.com" };
+  const raw = feedbackMime(value, 0, "feedback@songnook.app", "founder@example.com", "m@songnook.app");
+  const [head] = raw.split("\r\n\r\n");
+  assert.match(head, /\r\nReply-To: <maya@example\.com>\r\n/);
+  assert.match(feedbackEmail(value, 0).text, /From maya@example\.com: press Reply to answer\./);
+  assert.doesNotMatch(feedbackMime({ ...value, replyTo: "" }, 0, "a@b.c", "d@e.f", "m@x").split("\r\n\r\n")[0], /Reply-To/);
 });

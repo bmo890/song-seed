@@ -1,8 +1,9 @@
 /**
  * Notes from the app's feedback sheet (founder, 2026-11-11): a person types a
  * note and it lands here, with no mail app and no account. The row holds the
- * note and which build it came from — never a name, a send key or an IP — so
- * nobody can be answered and nobody can be followed.
+ * note and which build it came from — never a name, a send key or an IP. An
+ * email address comes only when the person types one to be answered (founder,
+ * 2026-11-15: "I can't write them back"); without it the note stays anonymous.
  */
 import type { Env } from "../env";
 
@@ -17,6 +18,8 @@ export type FeedbackNote = {
   appUpdate: string;
   platform: string;
   locale: string;
+  /** The address the person asked to be answered at, or "". */
+  replyTo: string;
 };
 
 export type FeedbackParse = { ok: true; value: FeedbackNote } | { ok: false; error: string };
@@ -27,12 +30,27 @@ function label(value: unknown, max: number): string {
   return value.replace(/[\u0000-\u001f\u007f]+/g, " ").trim().slice(0, max);
 }
 
+/** Plain address: one @, a dot in the domain, no spaces or header characters. */
+const EMAIL = /^[^\s@<>()",;:\\]+@[^\s@<>()",;:\\]+\.[^\s@<>()",;:\\]+$/;
+export const FEEDBACK_EMAIL_MAX = 254;
+
+/** "" when none was given; null when one was given but can't be an address. */
+export function parseReplyTo(value: unknown): string | null {
+  if (value == null || value === "") return "";
+  if (typeof value !== "string") return null;
+  const email = value.trim();
+  if (!email) return "";
+  return email.length <= FEEDBACK_EMAIL_MAX && EMAIL.test(email) ? email : null;
+}
+
 export function parseFeedback(body: Record<string, unknown>): FeedbackParse {
   if (typeof body.note !== "string") return { ok: false, error: "note required" };
   // Keep line breaks; drop the other control characters.
   const note = body.note.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "").trim();
   if (note.length < FEEDBACK_NOTE_MIN) return { ok: false, error: "note too short" };
   if (note.length > FEEDBACK_NOTE_MAX) return { ok: false, error: "note too long" };
+  const replyTo = parseReplyTo(body.email);
+  if (replyTo === null) return { ok: false, error: "invalid email" };
   return {
     ok: true,
     value: {
@@ -41,22 +59,24 @@ export function parseFeedback(body: Record<string, unknown>): FeedbackParse {
       appUpdate: label(body.update, 40),
       platform: label(body.platform, 40),
       locale: label(body.locale, 16),
+      replyTo,
     },
   };
 }
 
 export async function insertFeedback(env: Env, value: FeedbackNote, now: number): Promise<void> {
   await env.DB.prepare(
-    `INSERT INTO feedback (feedback_id, created_at, note, app_version, app_update, platform, locale)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO feedback (feedback_id, created_at, note, app_version, app_update, platform, locale, reply_to)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   )
-    .bind(`f_${crypto.randomUUID()}`, now, value.note, value.appVersion, value.appUpdate, value.platform, value.locale)
+    .bind(`f_${crypto.randomUUID()}`, now, value.note, value.appVersion, value.appUpdate, value.platform, value.locale, value.replyTo)
     .run();
 }
 
 /**
  * The email the founder gets for each note (2026-11-14: "receive an email whenever one
- * is sent"). The same fields the row holds, nothing more: it can't say who wrote it.
+ * is sent"). The same fields the row holds, nothing more. With an address, Reply in
+ * the inbox answers the person (Reply-To); without one it can't say who wrote it.
  */
 export function feedbackEmail(value: FeedbackNote, now: number): { subject: string; text: string } {
   const firstLine = value.note.split("\n")[0].slice(0, 60);
@@ -68,7 +88,7 @@ export function feedbackEmail(value: FeedbackNote, now: number): { subject: stri
     `Phone ${value.platform || "?"} · language ${value.locale || "?"}`,
     `Sent ${new Date(now).toISOString().replace("T", " ").slice(0, 16)} UTC`,
     "",
-    "Anonymous: there is no address to reply to.",
+    value.replyTo ? `From ${value.replyTo}: press Reply to answer.` : "Anonymous: there is no address to reply to.",
   ];
   return { subject: `SongNook feedback: ${firstLine}${value.note.length > 60 ? "…" : ""}`, text: lines.join("\n") };
 }
@@ -90,6 +110,7 @@ export function feedbackMime(value: FeedbackNote, now: number, from: string, to:
   return [
     `From: "SongNook feedback" <${from}>`,
     `To: <${to}>`,
+    ...(value.replyTo ? [`Reply-To: <${value.replyTo}>`] : []),
     `Subject: =?UTF-8?B?${base64Utf8(subject)}?=`,
     `Date: ${new Date(now).toUTCString()}`,
     `Message-ID: <${messageId}>`,

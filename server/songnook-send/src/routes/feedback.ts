@@ -1,9 +1,10 @@
 /**
  * The app's feedback sheet posts here (founder, 2026-11-11):
  *
- *   app  POST /api/feedback  { note, version, update, platform, locale }  → { ok: true }
+ *   app  POST /api/feedback  { note, version, update, platform, locale, email? }  → { ok: true }
  *
- * No send key and no cookie: a note is anonymous on purpose. Each note is also
+ * No send key and no cookie: a note is anonymous unless the person types an email to
+ * be answered at. Each note is also
  * emailed to the founder when the EMAIL binding is set (lib/feedback.ts). Per-IP rate
  * limiting and a small body cap keep it from being a place to dump text.
  */

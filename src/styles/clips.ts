@@ -169,6 +169,19 @@ export const clipsStyles = {
     textAlignVertical: "top",
     color: colors.textPrimary,
   },
+  // The same shell, one line: an address beneath the note (the feedback sheet's reply email).
+  clipNotesSheetLineInput: {
+    width: "100%",
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontFamily: "PlusJakartaSans_400Regular",
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
   // A note read, not edited (a received parcel's take, decision B): the whole of it,
   // on the paper, in the field's own voice.
   clipNotesSheetReadBody: {

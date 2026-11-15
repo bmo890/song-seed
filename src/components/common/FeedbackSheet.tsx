@@ -8,7 +8,7 @@ import { BottomSheet, type BottomSheetRef } from "./BottomSheet";
 import { Button } from "./Button";
 import { InkLink } from "./InkLink";
 import { toast } from "./toastStore";
-import { closeFeedbackSheet, setFeedbackDraft, useFeedbackSheetState } from "./feedbackSheetStore";
+import { closeFeedbackSheet, setFeedbackDraft, setFeedbackEmail, useFeedbackSheetState } from "./feedbackSheetStore";
 import { UserTextInput } from "../../i18n/direction";
 import { colors, spacing, text as textTokens } from "../../design/tokens";
 import { haptic } from "../../design/haptics";
@@ -17,27 +17,33 @@ import { styles } from "../../styles";
 import { SONGNOOK_EMAIL } from "../../config/legalLinks";
 import { describeInstalledUpdate } from "../../domain/installedUpdate";
 import { formatClipDate } from "../../utils";
-import { FEEDBACK_NOTE_MAX, FEEDBACK_NOTE_MIN, sendFeedbackNote } from "../../services/feedback";
+import { FEEDBACK_EMAIL_MAX, FEEDBACK_NOTE_MAX, FEEDBACK_NOTE_MIN, feedbackEmailOk, sendFeedbackNote } from "../../services/feedback";
 
 /**
  * A note to the people who make SongNook, sent without leaving it (founder,
- * 2026-11-11: feedback must not depend on a mail app). No name travels with it,
- * so nobody can answer: mail stays one tap away for a question that wants a reply.
- * Words typed are kept if the sheet is swiped away, and cleared once sent.
+ * 2026-11-11: feedback must not depend on a mail app). No name travels with it; an
+ * email goes only when typed in the optional line beneath, so the founder can answer
+ * (2026-11-15: "I can't write them back"). Words typed are kept if the sheet is
+ * swiped away; the note clears once sent, the email stays for the next one.
  */
-function FeedbackSheetBody({ draft, onDone }: { draft: string; onDone: () => void }) {
+function FeedbackSheetBody({ draft, email, onDone }: { draft: string; email: string; onDone: () => void }) {
   const { t } = useTranslation();
   const [sending, setSending] = useState(false);
   // A toast would draw beneath this sheet's Modal, so a failure is said in the sheet.
-  const [problem, setProblem] = useState<"send" | "mail" | null>(null);
+  const [problem, setProblem] = useState<"send" | "mail" | "email" | null>(null);
   const ready = draft.trim().length >= FEEDBACK_NOTE_MIN && !sending;
 
   const send = async () => {
     if (!ready) return;
+    if (!feedbackEmailOk(email)) {
+      haptic.error();
+      setProblem("email");
+      return;
+    }
     setSending(true);
     setProblem(null);
     try {
-      await sendFeedbackNote(draft);
+      await sendFeedbackNote(draft, email);
       setFeedbackDraft("");
       haptic.success();
       toast(t("feedbackSheet.sent"), "checkmark-circle-outline");
@@ -87,10 +93,34 @@ function FeedbackSheetBody({ draft, onDone }: { draft: string; onDone: () => voi
         }}
         autoFocus
       />
+      <UserTextInput
+        testID="feedback-email-input"
+        style={styles.clipNotesSheetLineInput}
+        value={email}
+        onChangeText={(next) => {
+          setFeedbackEmail(next);
+          if (problem === "email") setProblem(null);
+        }}
+        placeholder={t("feedbackSheet.emailPlaceholder")}
+        placeholderTextColor={colors.textMuted}
+        accessibilityLabel={t("feedbackSheet.emailPlaceholder")}
+        maxLength={FEEDBACK_EMAIL_MAX}
+        keyboardType="email-address"
+        textContentType="emailAddress"
+        autoComplete="email"
+        autoCapitalize="none"
+        autoCorrect={false}
+        returnKeyType="send"
+        onSubmitEditing={() => void send()}
+      />
       <Text style={s.hint}>{t("feedbackSheet.hint")}</Text>
       {problem ? (
         <ReAnimated.Text entering={collapseIn} style={s.problem} accessibilityRole="alert">
-          {problem === "send" ? t("feedbackSheet.failed") : t("feedbackSheet.noMail", { email: SONGNOOK_EMAIL })}
+          {problem === "send"
+            ? t("feedbackSheet.failed")
+            : problem === "email"
+              ? t("feedbackSheet.badEmail")
+              : t("feedbackSheet.noMail", { email: SONGNOOK_EMAIL })}
         </ReAnimated.Text>
       ) : null}
       <View style={s.actions}>
@@ -102,11 +132,11 @@ function FeedbackSheetBody({ draft, onDone }: { draft: string; onDone: () => voi
 }
 
 export function FeedbackHost() {
-  const { visible, draft } = useFeedbackSheetState();
+  const { visible, draft, email } = useFeedbackSheetState();
   const sheetRef = useRef<BottomSheetRef>(null);
   return (
     <BottomSheet ref={sheetRef} visible={visible} onClose={closeFeedbackSheet} dismissDistance={420} keyboardAvoiding>
-      {visible ? <FeedbackSheetBody draft={draft} onDone={() => sheetRef.current?.close()} /> : null}
+      {visible ? <FeedbackSheetBody draft={draft} email={email} onDone={() => sheetRef.current?.close()} /> : null}
     </BottomSheet>
   );
 }

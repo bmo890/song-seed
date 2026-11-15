@@ -644,7 +644,9 @@ export const es = {
   },
   feedbackSheet: {
     placeholder: "Un problema, una idea, algo que echas de menos",
-    hint: "Se envía con la versión de la app, sin tu nombre. No podemos responder.",
+    hint: "Se envía con la versión de la app. Sin correo, es anónimo.",
+    emailPlaceholder: "Tu correo, si quieres respuesta",
+    badEmail: "Ese correo no parece correcto.",
     emailInstead: "Mejor por correo",
     send: "Enviar",
     sent: "Comentarios enviados",
