@@ -86,7 +86,13 @@ const RECIPIENT_CSS = `
   background:none;border:0;border-radius:8px;padding:0;color:var(--ink-soft);cursor:pointer;text-decoration:none}
 .dl:hover{color:var(--ink);background:var(--paper-deep)}
 .dl:focus-visible{outline:2px solid var(--terra);outline-offset:2px}
-.dl[disabled]{opacity:.4;cursor:default;background:none}
+.dl[disabled]{cursor:default;background:none}
+/* working: the glyph turns into a small turning ring, full ink, never dimmed */
+.dl.busy svg{display:none}
+.dl.busy::after{content:"";width:14px;height:14px;border:1.7px solid currentColor;border-right-color:transparent;
+  border-radius:50%;animation:dl-turn .8s linear infinite}
+@keyframes dl-turn{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.dl.busy::after{animation-duration:2.4s}}
 .dl.retry{color:var(--terra)}
 .grab .tracklist{margin-top:8px}
 `;
@@ -223,12 +229,14 @@ const GRAB_ONE_JS = `
   }
   function zipName(title){ return (String(title || '').replace(/[\\\\/:*?"<>|\\u0000-\\u001f]+/g, ' ').trim() || 'SongNook') + '.zip'; }
   window.SongNookGrab = function(dl, get, fileName, zipTitle, T){
-    dl.disabled = true; dl.classList.remove('retry'); dl.setAttribute('aria-label', T.opening);
+    dl.disabled = true; dl.classList.remove('retry'); dl.classList.add('busy'); dl.setAttribute('aria-label', T.opening);
+    dl.setAttribute('aria-busy', 'true');
+    function done(){ dl.disabled = false; dl.classList.remove('busy'); dl.removeAttribute('aria-busy'); }
     get().then(function(plain){
       if (zipTitle == null || !window.SongNookRepack) return save(plain, fileName);
       return window.SongNookRepack(plain).then(function(r){ r ? save(r.blob, zipName(zipTitle)) : save(plain, fileName); });
-    }).then(function(){ dl.disabled = false; dl.setAttribute('aria-label', T.download); })
-      .catch(function(){ dl.disabled = false; dl.classList.add('retry'); dl.setAttribute('aria-label', T.tryAgain); });
+    }).then(function(){ done(); dl.setAttribute('aria-label', T.download); })
+      .catch(function(){ done(); dl.classList.add('retry'); dl.setAttribute('aria-label', T.tryAgain); });
   };
   var T = JSON.parse((document.getElementById('grab-words') || {}).textContent || 'null');
   if (!T) return;
