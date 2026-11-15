@@ -46,17 +46,21 @@ export function detectPlatform(userAgent: string): Platform {
 }
 
 const RECIPIENT_CSS = `
-/* a title keeps itself together when the headline wraps around it */
-#hero-title{display:inline-block}
-.parcel .meta-line{margin-bottom:6px}
+.parcel{margin-top:28px}
+.parcel .meta-line{margin-bottom:8px}
+.parcel-title{font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(24px,5.4vw,30px);line-height:1.15;
+  color:var(--ink);margin:0;overflow-wrap:anywhere}
+.parcel .note{font-size:17px;margin:10px 0 0}
+.parcel .note[hidden]{display:none}
+/* a name in Latin letters still sits on the reading edge of a Hebrew card */
+[dir="rtl"] .parcel-title,[dir="rtl"] .parcel .note{text-align:right}
 .parcel .meta-line:empty{display:none}
 .items{list-style:none;margin:6px 0 0;padding:0;border-top:1px solid var(--rule)}
 .items li{padding:11px 0;border-bottom:1px solid var(--rule);font-family:Lora,Georgia,serif;font-size:18px;
   color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .items li.more{font-family:inherit;font-size:13.5px;color:var(--ink-faint)}
 .items:empty{display:none}
-.cta{margin-top:18px}
-.items:empty + .cta{margin-top:4px}
+.cta{margin-top:22px}
 .open{font-size:16px;padding:15px 26px}
 [dir="rtl"] .open svg{transform:scaleX(-1)}
 .new-here{font-size:14px;color:var(--ink-soft);line-height:1.5;margin:22px 0 12px;max-width:40ch}
@@ -117,17 +121,12 @@ function itemsList(S: SendStrings, names: string[]): string {
   return head + (shown.length > 3 ? `<li class="more">${escapeHtml(fill(S.moreItems, { n: shown.length - 3 }))}</li>` : "");
 }
 
-/** "{sender} sent you {title}." with the names as spans the sealed script can fill. */
-function heroHtml(S: SendStrings, sender: string, title: string): string {
+/** "{sender} sent you a parcel", the name as a span the sealed script can fill. What's
+ *  in it is the card's to say, right above the way in (founder 2026-11-15). */
+function heroHtml(S: SendStrings, sender: string): string {
   return S.sentYou
-    .split(/(\{sender\}|\{title\})/)
-    .map((part) =>
-      part === "{sender}"
-        ? `<span id="hero-sender" dir="auto">${escapeHtml(sender)}</span>`
-        : part === "{title}"
-          ? `<em id="hero-title" dir="auto">${escapeHtml(title)}</em>`
-          : escapeHtml(part)
-    )
+    .split(/(\{sender\})/)
+    .map((part) => (part === "{sender}" ? `<span id="hero-sender" dir="auto">${escapeHtml(sender)}</span>` : escapeHtml(part)))
     .join("");
 }
 
@@ -264,7 +263,7 @@ export function renderRecipientPage(cfg: Config, t: TransferPayload, plat: Platf
   const title = t.title || S.someMusic;
   const transferUrl = `${cfg.publicOrigin}/t/${t.transferId}`;
   const names = t.items.map((it) => it.fileName);
-  const noteHtml = t.message ? `<p class="note rise d2" dir="auto">“${escapeHtml(t.message)}”</p>` : "";
+  const noteHtml = t.message ? `<p class="note" dir="auto">“${escapeHtml(t.message)}”</p>` : "";
   const files = names.some((n) => !isPackageFile(n)) ? t.items.filter((it) => !isPackageFile(it.fileName)) : t.items;
   const rows = files
     .map(
@@ -274,11 +273,12 @@ export function renderRecipientPage(cfg: Config, t: TransferPayload, plat: Platf
 
   const body = `
 ${GALLERY_SPRITE}
-<h1 class="rise d1">${heroHtml(S, sender, title)}</h1>
-${noteHtml}
+<h1 class="rise d1">${heroHtml(S, sender)}</h1>
 
 <section class="panel parcel rise d2">
   <p class="meta-line">${escapeHtml(metaLine(S, names, t.expiresAt))}</p>
+  <h2 class="parcel-title" dir="auto">${escapeHtml(title)}</h2>
+  ${noteHtml}
   <ul class="items">${itemsList(S, names)}</ul>
   <div class="cta">${ctaBlock(cfg, S, lang, t, plat, transferUrl)}</div>
 </section>
@@ -288,7 +288,7 @@ ${aboutBlock(S, lang)}
 ${grabBlock(S, rows)}`;
 
   return pageFor(lang, {
-    title: `${fill(S.sentYou, { sender, title }).replace(/\.$/, "")} · ${S.sendTitle}`,
+    title: `${title} · ${fill(S.sentYou, { sender })}`,
     body,
     script: GALLERY_SCRIPT + KEY_DOOR_JS + OPEN_JS + GRAB_JS,
     style: GALLERY_CSS + RECIPIENT_CSS,
@@ -350,8 +350,8 @@ const SEALED_JS = `
     var items = (env.items || []).map(function(meta, i){ return { meta: meta, file: data.items[i] }; })
       .filter(function(it){ return it.file; });
     var sender = env.senderName || T.someone, title = env.title || T.someMusic;
-    $('hero-sender').textContent = sender; $('hero-title').textContent = title;
-    document.title = T.sentYou.replace('{sender}', sender).replace('{title}', title).replace(/\\.$/, '') + ' · ' + T.sendTitle;
+    $('hero-sender').textContent = sender; $('meta-title').textContent = title;
+    document.title = title + ' · ' + T.sentYou.replace('{sender}', sender);
     if (env.message){ $('note').textContent = '“' + env.message + '”'; $('note').hidden = false; }
     var audio = items.filter(function(it){ return !isPackage(it.meta.name); }), shown = audio.length ? audio : items;
     if (audio.length > 1) $('meta-count').textContent = plural(T.songs, audio.length) + ' · ';
@@ -402,12 +402,13 @@ function renderSealedRecipientPage(cfg: Config, t: TransferPayload, plat: Platfo
 
   const body = `
 ${GALLERY_SPRITE}
-<h1 class="rise d1" id="hero">${heroHtml(S, S.someone, S.someMusic)}</h1>
+<h1 class="rise d1" id="hero">${heroHtml(S, S.someone)}</h1>
 <p class="sub" id="hero-sub" hidden></p>
-<p class="note rise d2" id="note" dir="auto" hidden></p>
 
 <section class="panel parcel rise d2" id="parcel-panel">
   <p class="meta-line"><span id="meta-count"></span>${escapeHtml(expiresLabel(S, t.expiresAt))}</p>
+  <h2 class="parcel-title" id="meta-title" dir="auto">${escapeHtml(S.opening)}</h2>
+  <p class="note" id="note" dir="auto" hidden></p>
   <ul class="items" id="items"></ul>
   <div class="cta">${ctaBlock(cfg, S, lang, t, plat, transferUrl)}</div>
 </section>
