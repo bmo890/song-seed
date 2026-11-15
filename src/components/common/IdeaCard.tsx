@@ -655,7 +655,7 @@ export function IdeaCard({
                             ) : (pickNote || footerDate != null || footerRightContent != null || trailing != null) ? (
                                 <View style={styles.ideasListMetaRow}>
                                     {pickNote || footerDate != null ? (
-                                        <Text style={styles.ideasListCreatedAtText} numberOfLines={1}>
+                                        <Text style={[styles.ideasListCreatedAtText, styles.ideasListFooterDate]} numberOfLines={1}>
                                             {pickNote || footerDate}
                                         </Text>
                                     ) : (

@@ -242,6 +242,13 @@ export const ideasListStyles = {
     color: "#84736f",
     fontVariant: ["tabular-nums"],
   },
+  // The footer's date gives way first: in a longer language ("2 anteriores",
+  // "+ Versión") the keys on the right outgrow the row, and the date ellipsizes
+  // instead of pushing the last key off the card (2026-11-15).
+  ideasListFooterDate: {
+    flexShrink: 1,
+    minWidth: 0,
+  },
   // Fixed-height bottom zone (set to the tallest occupant, the 26px soft key):
   // every state of every card bottoms out identically, so the play glyph —
   // centred on the whole card — always lines up with the waveform.
