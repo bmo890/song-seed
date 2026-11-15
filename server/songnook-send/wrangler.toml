@@ -51,6 +51,10 @@ SEAL_WEB_SENDS = "true"
 # Release on 2026-11-14 (it replaced the TestFlight link).
 IOS_APP_STORE_URL = "https://apps.apple.com/app/id6810435199"
 ANDROID_PACKAGE = "com.bmostudio.songnook"
+# SongNook is on Google Play (production access approved 2026-11-15): Google's badge
+# replaces "Android coming soon" on songnook.app and on the parcel page, and an
+# Android parcel page's keys fall back to the Play listing.
+ANDROID_LIVE = "true"
 # Universal / App Link association (.well-known). Apple Team ID is public by
 # nature (it is in every AASA on the internet); the Android value is the SHA-256
 # of the EAS upload key that signs the preview APKs, then Play App Signing's key
