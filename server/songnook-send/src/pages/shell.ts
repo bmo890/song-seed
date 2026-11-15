@@ -47,6 +47,28 @@ const GRAIN =
  * Plus Jakarta Sans, OFL), so a visitor's browser talks to no one but us
  * (store-truth.md D4; Google Fonts was loaded here before 2026-10-25).
  */
+/**
+ * Hebrew, the way the app does it: Frank Ruhl Libre stands in for Lora and Heebo for
+ * Plus Jakarta Sans. Declared under the same family names with a Hebrew unicode-range,
+ * so a Hebrew letter in any heading or line picks its face by itself and Latin text
+ * keeps its own. Subsets of the app's fonts (OFL), Hebrew block only.
+ */
+const HE_RANGE = "U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F";
+const heFace = (family: string, file: string, weight: number, style = "normal") =>
+  `@font-face{font-family:"${family}";src:url(/fonts/${file}.woff2) format("woff2");font-weight:${weight};font-style:${style};font-display:swap;unicode-range:${HE_RANGE}}`;
+const HEBREW_FACES = [
+  heFace("Lora", "frank-ruhl-libre-hebrew-400", 400),
+  heFace("Lora", "frank-ruhl-libre-hebrew-500", 500),
+  heFace("Lora", "frank-ruhl-libre-hebrew-500", 600),
+  // Hebrew has no italic: an italic Lora line shows its Hebrew upright.
+  heFace("Lora", "frank-ruhl-libre-hebrew-400", 400, "italic"),
+  heFace("Lora", "frank-ruhl-libre-hebrew-500", 500, "italic"),
+  heFace("Plus Jakarta Sans", "heebo-hebrew-400", 400),
+  heFace("Plus Jakarta Sans", "heebo-hebrew-500", 500),
+  heFace("Plus Jakarta Sans", "heebo-hebrew-600", 600),
+  heFace("Plus Jakarta Sans", "heebo-hebrew-700", 700),
+].join("\n");
+
 const FONT_FACES = `
 @font-face{font-family:"Lora";src:url(/fonts/lora-latin-400-normal.woff2) format("woff2");font-weight:400;font-style:normal;font-display:swap}
 @font-face{font-family:"Lora";src:url(/fonts/lora-latin-500-normal.woff2) format("woff2");font-weight:500;font-style:normal;font-display:swap}
@@ -57,7 +79,7 @@ const FONT_FACES = `
 @font-face{font-family:"Plus Jakarta Sans";src:url(/fonts/plus-jakarta-sans-latin-500-normal.woff2) format("woff2");font-weight:500;font-style:normal;font-display:swap}
 @font-face{font-family:"Plus Jakarta Sans";src:url(/fonts/plus-jakarta-sans-latin-600-normal.woff2) format("woff2");font-weight:600;font-style:normal;font-display:swap}
 @font-face{font-family:"Plus Jakarta Sans";src:url(/fonts/plus-jakarta-sans-latin-700-normal.woff2) format("woff2");font-weight:700;font-style:normal;font-display:swap}
-`;
+${HEBREW_FACES}`;
 
 const BRAND_CSS = `
 :root{
@@ -224,10 +246,19 @@ export function page(opts: {
   head?: string;
   /** A wider column, for the landing's screenshots. */
   wide?: boolean;
+  /** The page's language and direction (the landing speaks five; everything else English). */
+  lang?: string;
+  dir?: "ltr" | "rtl";
+  /** The site masthead's right side, when the page brings its own (the landing's
+   *  language menu and download link); otherwise a plain "Get the app". */
+  mastRight?: string;
+  /** The site footer's link words in the page's language. */
+  footLabels?: { support: string; privacy: string; terms: string };
 }): string {
   const site = opts.variant === "site";
+  const foot = opts.footLabels ?? { support: "Support", privacy: "Privacy", terms: "Terms" };
   return `<!doctype html>
-<html lang="en">
+<html lang="${escapeHtml(opts.lang ?? "en")}" dir="${opts.dir ?? "ltr"}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -245,11 +276,11 @@ ${opts.head ?? ""}
 <div class="wrap${opts.wide ? " wide" : ""}">
 <header class="masthead rise">
   <a class="brand" href="/">Song<b>Nook</b>${site ? "" : " · Send"}</a>
-  ${site ? '<a class="tag tag-link" href="/#get">Get the app</a>' : '<span class="tag">Music, passed along</span>'}
+  ${site ? opts.mastRight ?? '<a class="tag tag-link" href="/#get">Get the app</a>' : '<span class="tag">Music, passed along</span>'}
 </header>
 ${opts.body}
 <footer class="foot">
-  <span>${site ? '<a href="/support">Support</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>' : "Files are held for a limited time, then quietly let go."}</span>
+  <span>${site ? `<a href="/support">${escapeHtml(foot.support)}</a> · <a href="/privacy">${escapeHtml(foot.privacy)}</a> · <a href="/terms">${escapeHtml(foot.terms)}</a>` : "Files are held for a limited time, then quietly let go."}</span>
   <span>${site ? "© 2026 bmostudio" : "SongNook — a quiet corner for songwriting and practice"}${
     opts.reportHref ? ` · <a href="${escapeHtml(opts.reportHref)}">Report</a>` : ""
   }</span>

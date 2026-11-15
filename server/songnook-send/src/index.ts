@@ -15,6 +15,7 @@ import { sweepExpired } from "./lib/sweep";
 import { detectPlatform, renderRecipientPage } from "./pages/recipient";
 import { renderSenderPage } from "./pages/sender";
 import { renderLandingPage } from "./pages/landing";
+import { isLang, negotiateLang, type Lang } from "./pages/landingI18n";
 import { renderLegalPage, renderSupportPage } from "./pages/legal";
 import { escapeHtml, htmlPage, page } from "./pages/shell";
 import { api } from "./routes/api";
@@ -52,7 +53,29 @@ app.route("/t", download);
 const isApex = (host: string | undefined) => (host ?? "").replace(/^www\./, "").split(":")[0] === "songnook.app";
 
 // ── Web sender page — or the landing page on the bare domain ─────────────────
-app.get("/", (c) => htmlPage(isApex(c.req.header("host")) ? renderLandingPage(loadConfig(c.env).iosAppStoreUrl, loadConfig(c.env).playStoreUrl) : renderSenderPage({ seal: loadConfig(c.env).sealWebSends })));
+app.get("/", (c) => {
+  if (!isApex(c.req.header("host"))) return htmlPage(renderSenderPage({ seal: loadConfig(c.env).sealWebSends }));
+  // The language someone picked (the cookie /es, /he… set), else their browser's, else their country's.
+  const picked = /(?:^|;\s*)lang=([a-z]{2})/.exec(c.req.header("cookie") ?? "")?.[1];
+  const country = (c.req.raw as { cf?: { country?: string } }).cf?.country;
+  const lang = isLang(picked) ? picked : negotiateLang(c.req.header("accept-language"), country);
+  const cfg = loadConfig(c.env);
+  const res = htmlPage(renderLandingPage(lang, cfg.iosAppStoreUrl, cfg.playStoreUrl));
+  res.headers.set("vary", "Accept-Language, Cookie");
+  res.headers.set("content-language", lang);
+  return res;
+});
+
+// ── The landing in one language (/en /es /de /pt /he), remembered for the next visit ──
+app.get("/:lang{(?:en|es|de|pt|he)}", (c) => {
+  if (!isApex(c.req.header("host"))) return c.notFound();
+  const lang = c.req.param("lang") as Lang;
+  const cfg = loadConfig(c.env);
+  const res = htmlPage(renderLandingPage(lang, cfg.iosAppStoreUrl, cfg.playStoreUrl));
+  res.headers.set("content-language", lang);
+  res.headers.append("set-cookie", `lang=${lang}; Path=/; Max-Age=31536000; SameSite=Lax; Secure`);
+  return res;
+});
 
 // ── Legal pages (the store listings link here; the app's Settings→About does too)
 app.get("/privacy", () => htmlPage(renderLegalPage("privacy")));

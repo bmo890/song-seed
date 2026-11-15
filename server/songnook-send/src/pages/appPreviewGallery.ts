@@ -10,6 +10,9 @@
  * terracotta) · playhead record-red #C0453B · section ink per role · pins in #524440.
  */
 
+import { CARDS_EN, type CardStrings } from "./landingI18n";
+import { escapeHtml } from "./shell";
+
 const SECTION = { verse: "#856E20", chorus: "#A25853", bridge: "#576DA9", outro: "#0D7C99" };
 
 /** Deterministic bar heights (0..1) with a song-like swell. */
@@ -75,67 +78,69 @@ const DOUBLE = (() => {
   const one = heights(P / 5, 7, swell);
   return [...one, ...one];
 })();
-const SECTIONS_1: Span[] = [
-  { name: "Verse", ink: SECTION.verse, from: 0, to: 188 },
-  { name: "Chorus", ink: SECTION.chorus, from: 190, to: 420 },
-  { name: "Bridge", ink: SECTION.bridge, from: 422, to: 560 },
-  { name: "Outro", ink: SECTION.outro, from: 562, to: 666 },
-];
-
-function overlays1(offset: number): string {
+function overlays1(c: CardStrings, offset: number): string {
+  const sections: Span[] = [
+    { name: c.verse, ink: SECTION.verse, from: 0, to: 188 },
+    { name: c.chorus, ink: SECTION.chorus, from: 190, to: 420 },
+    { name: c.bridge, ink: SECTION.bridge, from: 422, to: 560 },
+    { name: c.outro, ink: SECTION.outro, from: 562, to: 666 },
+  ];
   const ticks = Array.from({ length: P / 74 }, (_, i) => `<i class="ap-tick" style="left:${offset + i * 74 + 30}px"></i>`).join("");
-  const pin = `<span class="ap-pin" style="left:${offset + 318}px"><i></i><b>Harmony here</b></span>`;
-  return ticks + sectionStrip(SECTIONS_1, offset, "px") + pin;
+  const pin = `<span class="ap-pin" style="left:${offset + 318}px"><i></i><b>${escapeHtml(c.harmonyHere)}</b></span>`;
+  return ticks + sectionStrip(sections, offset, "px") + pin;
 }
 
 const rolling = (h: number) =>
   `<div class="ap-half played"><div class="ap-strip ap-roll">${wave(P * 2, h, DOUBLE, "ap-wave")}</div></div>
     <div class="ap-half ahead"><div class="ap-strip ap-roll">${wave(P * 2, h, DOUBLE, "ap-wave")}</div></div>`;
 
-const CARD_1 = `<div class="ap-card">
-  ${head("Chorus lift", "Harbor Lights <i>•</i> 2h ago <i>•</i> 1 layer", "ap1t", "00:42 / 01:41")}
+/** "A • b • c" with the app's quiet bullets. */
+const meta = (s: string) => escapeHtml(s).replace(/ • /g, " <i>•</i> ");
+
+const card1 = (c: CardStrings) => `<div class="ap-card">
+  ${head("Chorus lift", meta(c.meta1), "ap1t", "00:42 / 01:41")}
   <div class="ap-reel" style="height:${REEL_H}px">
     ${rolling(REEL_H)}
-    <div class="ap-strip ap-roll ap-over">${overlays1(0)}${overlays1(P)}</div>
+    <div class="ap-strip ap-roll ap-over">${overlays1(c, 0)}${overlays1(c, P)}</div>
     <div class="ap-ph" style="left:50%"></div>
     <span class="ap-zoom"><svg width="15" height="15" viewBox="0 0 24 24"><use href="#ap-search"/></svg></span>
   </div>
   <div class="ap-chips">
-    <span class="ap-chip"><svg width="18" height="18" viewBox="0 0 24 24"><use href="#ap-loop"/></svg><b>A–B</b><small>Loop</small></span>
-    <span class="ap-chip"><svg width="18" height="18" viewBox="0 0 24 24"><use href="#ap-speed"/></svg><b>1.0×</b><small>Speed</small></span>
-    <span class="ap-chip"><svg width="18" height="18" viewBox="0 0 24 24"><use href="#ap-note"/></svg><b>±0</b><small>Pitch</small></span>
+    <span class="ap-chip"><svg width="18" height="18" viewBox="0 0 24 24"><use href="#ap-loop"/></svg><b>A–B</b><small>${escapeHtml(c.loop)}</small></span>
+    <span class="ap-chip"><svg width="18" height="18" viewBox="0 0 24 24"><use href="#ap-speed"/></svg><b>1.0×</b><small>${escapeHtml(c.speed)}</small></span>
+    <span class="ap-chip"><svg width="18" height="18" viewBox="0 0 24 24"><use href="#ap-note"/></svg><b>±0</b><small>${escapeHtml(c.pitch)}</small></span>
   </div>
   ${transport("ap-q")}
 </div>`;
 
 // ── card 2: chords over the words, scrolling with the song
 const COMPACT_H = 96;
-const LYRICS: { sec?: string; segs?: [string, string][] }[] = [
-  { sec: "Verse" },
+const LYRICS: { sec?: "verse" | "chorus"; segs?: [string, string][] }[] = [
+  { sec: "verse" },
   { segs: [["G", "Harbor lights are "], ["Em", "burning low"]] },
   { segs: [["C", "tell me where the "], ["D", "night boats go"]] },
   { segs: [["G", "Kept your letter "], ["Em", "folded twice"]] },
   { segs: [["C", "like a map to "], ["D", "paradise"]] },
-  { sec: "Chorus" },
+  { sec: "chorus" },
   { segs: [["Em", "Hold on to the "], ["C", "turning tide"]] },
   { segs: [["G", "every light we "], ["D", "leave behind"]] },
   { segs: [["Em", "burns a little "], ["C", "longer"]] },
   { segs: [["G", "on the "], ["D", "other side"]] },
 ];
 
-const LYRICS_HTML = LYRICS.map((l) =>
+const lyricsHtml = (c: CardStrings) => LYRICS.map((l) =>
   l.sec
-    ? `<div class="ap-lsec">${l.sec}</div>`
+    ? `<div class="ap-lsec">${escapeHtml(c[l.sec])}</div>`
     : `<div class="ap-line">${l.segs!.map(([c, w]) => `<span class="ap-seg"><b>${c}</b>${w}</span>`).join("")}</div>`
 ).join("");
 
-const CARD_2 = `<div class="ap-card">
-  ${head("Harbor Lights", "Album demos <i>•</i> Version 2", "ap2t", "00:31 / 01:41")}
+const card2 = (c: CardStrings) => `<div class="ap-card">
+  ${head("Harbor Lights", meta(c.meta2), "ap2t", "00:31 / 01:41")}
   <div class="ap-reel" style="height:${COMPACT_H}px">
     ${rolling(COMPACT_H)}
     <div class="ap-ph" style="left:50%"></div>
   </div>
-  <div class="ap-lyr"><div class="ap-lyrroll">${LYRICS_HTML}${LYRICS_HTML}</div></div>
+  <div class="ap-lyr"><div class="ap-lyrroll">${lyricsHtml(c)}${lyricsHtml(c)}</div></div>
   ${transport("ap-q")}
 </div>`;
 
@@ -147,17 +152,17 @@ const LOOP_B = 66;
 const STEPS = 6;
 const LOOP_WAVE = heights(Math.floor(LOOP_W / 5), 23, swell);
 
-const CARD_3 = `<div class="ap-card">
-  ${head("Chorus lift", "Harbor Lights <i>•</i> Chorus on repeat", "ap3t", "00:49 / 01:41")}
+const card3 = (c: CardStrings) => `<div class="ap-card">
+  ${head("Chorus lift", meta(c.meta3), "ap3t", "00:49 / 01:41")}
   <div class="ap-reel ap-loopreel" id="ap3" style="height:${LOOP_H}px;--p:${LOOP_A}%">
     <div class="ap-band" style="left:${LOOP_A}%;width:${LOOP_B - LOOP_A}%"></div>
     <div class="ap-fixed ahead-all">${wave(LOOP_W, LOOP_H, LOOP_WAVE, "ap-wave")}</div>
     <div class="ap-fixed played-to">${wave(LOOP_W, LOOP_H, LOOP_WAVE, "ap-wave")}</div>
     ${sectionStrip(
       [
-        { name: "Verse", ink: SECTION.verse, from: 0, to: 33.6 },
-        { name: "Chorus", ink: SECTION.chorus, from: LOOP_A, to: LOOP_B },
-        { name: "Bridge", ink: SECTION.bridge, from: 66.4, to: 100 },
+        { name: c.verse, ink: SECTION.verse, from: 0, to: 33.6 },
+        { name: c.chorus, ink: SECTION.chorus, from: LOOP_A, to: LOOP_B },
+        { name: c.bridge, ink: SECTION.bridge, from: 66.4, to: 100 },
       ],
       0,
       "%"
@@ -166,8 +171,8 @@ const CARD_3 = `<div class="ap-card">
     <div class="ap-ph" id="ap3ph" style="left:${LOOP_A}%"></div>
   </div>
   <div class="ap-drawer">
-    <div class="ap-row"><span class="ap-label">Loop</span><span class="ap-switch on"></span></div>
-    <div class="ap-row ap-divider"><span class="ap-label">Step up</span>
+    <div class="ap-row"><span class="ap-label">${escapeHtml(c.loop)}</span><span class="ap-switch on"></span></div>
+    <div class="ap-row ap-divider"><span class="ap-label">${escapeHtml(c.stepUp)}</span>
       <svg class="ap-glyph" width="16" height="16" viewBox="0 0 24 24"><use href="#ap-refresh"/></svg>
       <svg class="ap-glyph" width="16" height="16" viewBox="0 0 24 24"><use href="#ap-options"/></svg>
       <span class="ap-switch on"></span></div>
@@ -187,6 +192,9 @@ export const GALLERY_CSS = `
   .ap-meta-l{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .ap-meta i{font-style:normal;color:#a89994;padding:0 2px}
   .ap-time{flex:none;color:#524440;font-weight:500;font-variant-numeric:tabular-nums}
+  .ap-reel,.ap-foot,.ap-lyr,.ap-time{direction:ltr}
+  /* numbers with a sign or a unit (×, ±, 3 / 6) keep their order inside a right-to-left line */
+  .ap-chip b,.ap-count,.ap-rate{direction:ltr;unicode-bidi:isolate}
   .ap-reel{position:relative;flex:none;background:#F0EBE4;overflow:hidden;margin:0 10px;border-radius:6px}
   .ap-strip{position:absolute;top:0;bottom:0;left:0;width:${P * 2}px}
   .ap-roll{animation:aproll 24s linear infinite}
@@ -287,12 +295,19 @@ export const GALLERY_SPRITE = `<svg width="0" height="0" style="position:absolut
   <g id="ap-options" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2.4" fill="#FDFBF7"/><circle cx="15" cy="17" r="2.4" fill="#FDFBF7"/></g>
 </defs></svg>`;
 
-export const GALLERY_HTML = `<div class="gallery" id="gallery">
-    <div class="slide"><div class="inner">${CARD_1}</div><div class="cap"><b>Play it</b> — loop it, slow it, mark the verse and chorus</div></div>
-    <div class="slide"><div class="inner">${CARD_2}</div><div class="cap"><b>Sing along</b> — lyrics and chords scroll with the song</div></div>
-    <div class="slide"><div class="inner">${CARD_3}</div><div class="cap"><b>Drill it</b> — loop the hard part, a little faster each time</div></div>
+const cap = ([lead, rest]: [string, string]) => `<div class="cap"><b>${escapeHtml(lead)}</b> — ${escapeHtml(rest)}</div>`;
+
+/** The three cards in the page's language (the app's own labels; the song stays in English). */
+export function galleryHtml(c: CardStrings = CARDS_EN): string {
+  return `<div class="gallery" id="gallery">
+    <div class="slide"><div class="inner">${card1(c)}</div>${cap(c.cap1)}</div>
+    <div class="slide"><div class="inner">${card2(c)}</div>${cap(c.cap2)}</div>
+    <div class="slide"><div class="inner">${card3(c)}</div>${cap(c.cap3)}</div>
   </div>
   <div class="dots" id="dots"><span class="dot on"></span><span class="dot"></span><span class="dot"></span></div>`;
+}
+
+export const GALLERY_HTML = galleryHtml();
 
 export const GALLERY_SCRIPT = `(function(){
   var still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;

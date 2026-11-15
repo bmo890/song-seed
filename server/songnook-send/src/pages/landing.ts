@@ -10,63 +10,32 @@
  * Google's shows only once Play is live (its rules: the badge links to a live listing).
  *
  * Its claims follow the store description (store-truth.md §6) and
- * pricing-and-marketing.md; a change there is a change here.
+ * pricing-and-marketing.md; a change there is a change here. Every word lives in
+ * landingI18n.ts, in all five of the app's languages; Hebrew lays out right to left.
  */
-import { GALLERY_CSS, GALLERY_HTML, GALLERY_SCRIPT, GALLERY_SPRITE } from "./appPreviewGallery";
+import { GALLERY_CSS, GALLERY_SCRIPT, GALLERY_SPRITE, galleryHtml } from "./appPreviewGallery";
+import { LANGS, STRINGS, type Lang, type LandingStrings } from "./landingI18n";
 import { escapeHtml, page } from "./shell";
 
 /** The brand mark (assets/brand/songnook-mark.svg), inline so the hero needs no request. */
 const MARK = `<svg class="mark" viewBox="0 0 120 120" aria-hidden="true"><rect x="57.5" y="42" width="5" height="44" rx="2.5" fill="#B87D6B"/><rect x="41" y="84" width="38" height="5" rx="2.5" fill="#B87D6B"/><path d="M60 32 A25 25 0 0 0 23 59 A25 25 0 0 0 60 32 Z" fill="#C9978A" stroke="#C9978A" stroke-width="3" stroke-linejoin="round"/><path d="M60 32 A25 25 0 0 1 97 59 A25 25 0 0 1 60 32 Z" fill="#B87D6B" stroke="#B87D6B" stroke-width="3" stroke-linejoin="round"/></svg>`;
 
-/** The tour: the four moments of writing a song, one line each, with the real screen. */
-const TOUR: { title: string; line: string; screen: string; alt: string }[] = [
-  { title: "Catch it", line: "Record the moment inspiration hits, and keep it organized your way.", screen: "recorder", alt: "Recording a new idea" },
-  { title: "Write it", line: "Lyrics and chords side by side, and writing games to break writer's block. Every word is yours.", screen: "lyrics", alt: "A chord chart with lyrics" },
-  { title: "Finish it", line: "Every take and every lyric draft is kept, so you can always go back.", screen: "sketch", alt: "A song with its takes and older versions" },
-  { title: "Never lose it", line: "Old gems come back to you, so a good idea never gets lost.", screen: "revisit", alt: "Unfinished songs and forgotten ideas, brought back" },
+/** The real screen beside each tour step, in the strings' order. */
+const TOUR_SCREENS = ["recorder", "lyrics", "sketch", "revisit"];
+
+/** Languages whose screens have been captured from the app in that language
+ *  (public/screens/<lang>/); the rest show the English screens. */
+const LOCALIZED_SCREENS: readonly Lang[] = [];
+const screen = (lang: Lang, name: string) =>
+  LOCALIZED_SCREENS.includes(lang) ? `/screens/${lang}/${name}.webp` : `/screens/${name}.webp`;
+
+const YOURS_ICONS = [
+  `<rect x="7" y="2.5" width="10" height="19" rx="2.4"/><path d="M10.5 18.5h3"/>`,
+  `<circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c1.2-3.6 3.8-5.5 7-5.5s5.8 1.9 7 5.5"/><path d="M4 4l16 16"/>`,
+  `<path d="M12 3l7 3v5.5c0 4.4-3 8-7 9.5-4-1.5-7-5.1-7-9.5V6z"/><path d="M9 12l2.2 2.2L15.5 10"/>`,
 ];
 
-/** Sharing, told as what a band gets out of it. */
-const BAND: { title: string; line: string }[] = [
-  { title: "Send it.", line: "One private link carries the recording and everything attached to it." },
-  { title: "Collaborate.", line: "Receive the setlist ready to learn: sections, notes, lyrics and all." },
-  { title: "Play it.", line: "Setlists and chord charts, ready for the stage." },
-];
-
-const YOURS: { title: string; line: string; icon: string }[] = [
-  {
-    title: "Stays on your phone",
-    line: "We never see your songs.",
-    icon: `<rect x="7" y="2.5" width="10" height="19" rx="2.4"/><path d="M10.5 18.5h3"/>`,
-  },
-  {
-    title: "No account, no ads",
-    line: "Open it and start.",
-    icon: `<circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c1.2-3.6 3.8-5.5 7-5.5s5.8 1.9 7 5.5"/><path d="M4 4l16 16"/>`,
-  },
-  {
-    title: "Never trains AI",
-    line: "Your music stays yours.",
-    icon: `<path d="M12 3l7 3v5.5c0 4.4-3 8-7 9.5-4-1.5-7-5.1-7-9.5V6z"/><path d="M9 12l2.2 2.2L15.5 10"/>`,
-  },
-];
-
-const FREE = ["Record and organize without limits", "Lyrics and chord charts", "Backup and export", "One SongNook Send link a month"];
-
-/** What Pro adds, packaged as benefits (the itemized split lives in pricing-and-marketing.md). */
-const PRO_ADDS: { title: string; line: string }[] = [
-  { title: "Practice tools", line: "Slow it down, change the key, drill the hard parts." },
-  { title: "Gig-ready charts", line: "Setlists and chord charts in any key." },
-  { title: "Writing help", line: "Rhymes, synonyms and games for when you're stuck." },
-  { title: "Unlimited sharing", line: "As many SongNook Send links as you like, and a space for every band." },
-  { title: "Studio export", line: "Take your ideas into Logic, Ableton and more." },
-];
-
-const PLANS: { key: string; label: string; price: string; per: string; note: string }[] = [
-  { key: "year", label: "Yearly", price: "$24.99", per: "a year", note: "About $2 a month." },
-  { key: "month", label: "Monthly", price: "$3.99", per: "a month", note: "Cancel anytime." },
-  { key: "life", label: "Lifetime", price: "$59.99", per: "once", note: "Pay once. Early-adopter launch price." },
-];
+const PRICES = { year: "$24.99", month: "$3.99", life: "$59.99" } as const;
 
 /** Deterministic bar heights (percent) for the hero's mini player. */
 function miniBars(count: number): string {
@@ -80,12 +49,24 @@ function miniBars(count: number): string {
   return out.join("");
 }
 
-function storeBadges(appStoreUrl: string, playStoreUrl: string | null, id: string): string {
-  const apple = `<a class="store" href="${escapeHtml(appStoreUrl)}"><picture><source srcset="/badges/app-store-white.svg" media="(prefers-color-scheme: dark)"><img src="/badges/app-store-black.svg" width="150" height="50" alt="Download on the App Store"></picture></a>`;
+/** Apple's and Google's own badge artwork, in the page's language. */
+function storeBadges(t: LandingStrings, lang: Lang, appStoreUrl: string, playStoreUrl: string | null): string {
+  const sfx = lang === "en" ? "" : `-${lang}`;
+  const apple = `<a class="store" href="${escapeHtml(appStoreUrl)}"><picture><source srcset="/badges/app-store-white${sfx}.svg" media="(prefers-color-scheme: dark)"><img src="/badges/app-store-black${sfx}.svg" width="150" height="50" alt="${escapeHtml(t.appStoreAlt)}"></picture></a>`;
   const play = playStoreUrl
-    ? `<a class="store" href="${escapeHtml(playStoreUrl)}"><img src="/badges/google-play.png" width="168" height="50" alt="Get it on Google Play"></a>`
-    : `<span class="store-soon" id="${id}-soon">Android<br>coming soon</span>`;
+    ? `<a class="store" href="${escapeHtml(playStoreUrl)}"><img src="/badges/google-play${sfx}.png" width="168" height="50" alt="${escapeHtml(t.playAlt)}"></a>`
+    : `<span class="store-soon">${escapeHtml(t.androidSoon[0])}<br>${escapeHtml(t.androidSoon[1])}</span>`;
   return `<div class="stores">${apple}${play}</div>`;
+}
+
+const GLOBE = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg>`;
+
+/** The masthead's right side: the language menu, then the way to the download. */
+function mastRight(t: LandingStrings, lang: Lang): string {
+  const items = LANGS.map(
+    (l) => `<li><a href="/${l}" hreflang="${l}" lang="${l}"${l === lang ? ' aria-current="true"' : ""}>${escapeHtml(STRINGS[l].name)}</a></li>`
+  ).join("");
+  return `<div class="mast-right"><details class="langs"><summary aria-label="${escapeHtml(t.language)}">${GLOBE}<span>${escapeHtml(t.name)}</span></summary><ul>${items}</ul></details><a class="tag tag-link" href="#get">${escapeHtml(t.getApp)}</a></div>`;
 }
 
 const LAND_CSS = `
@@ -100,6 +81,20 @@ h2{font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(30px,4.6vw,46p
 .sec-head{margin-bottom:clamp(30px,5vw,52px)}
 .sec-head.center{text-align:center}
 .sec-head.center .lead{margin:0 auto}
+
+/* ── language menu ── */
+.mast-right{display:flex;align-items:center;gap:22px}
+.langs{position:relative}
+.langs summary{list-style:none;display:flex;align-items:center;gap:7px;cursor:pointer;color:var(--ink-soft);
+  font-size:13px;font-weight:600}
+.langs summary::-webkit-details-marker{display:none}
+.langs summary:hover{color:var(--ink)}
+.langs summary:focus-visible{outline:2px solid var(--terra);outline-offset:4px;border-radius:3px}
+.langs ul{position:absolute;top:calc(100% + 10px);inset-inline-end:-10px;z-index:20;list-style:none;margin:0;padding:6px 0;
+  min-width:150px;background:var(--card);border:1px solid var(--rule);border-radius:10px;box-shadow:0 18px 36px -20px rgba(60,40,30,.45)}
+.langs a{display:block;padding:8px 16px;color:var(--ink);text-decoration:none;font-size:14px}
+.langs a:hover{background:var(--paper-deep)}
+.langs a[aria-current]{color:var(--terra);font-weight:700}
 
 /* ── store badges ── */
 .stores{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
@@ -119,14 +114,14 @@ h2{font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(30px,4.6vw,46p
 
 /* ── hero ── */
 .hero{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(28px,5vw,72px);align-items:center}
-.hero .mark{width:58px;height:58px;display:block;margin:0 0 18px -6px}
+.hero .mark{width:58px;height:58px;display:block;margin:0 0 18px;margin-inline-start:-6px}
 .hero h1{font-size:clamp(42px,6.6vw,74px);line-height:1.02;margin:0 0 20px}
 .hero h1 em{display:block}
 .hero .sub{font-size:18px;max-width:40ch;margin:0 0 30px}
 .hero .fine{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;margin:20px 0 0}
-.stage{position:relative;justify-self:center;padding:0 0 26px 40px}
+.stage{position:relative;justify-self:center;padding:0 0 26px;padding-inline-start:40px}
 .stage .phone{--pw:clamp(250px,26vw,300px);transform:rotate(2deg)}
-.mini{position:absolute;left:-8px;bottom:56px;width:272px;display:flex;gap:12px;align-items:center;
+.mini{position:absolute;inset-inline-start:-8px;bottom:56px;width:272px;display:flex;gap:12px;align-items:center;
   background:var(--card);border-radius:14px;padding:12px 14px 12px 12px;
   box-shadow:0 22px 44px -22px rgba(60,40,30,.5),0 0 0 1px var(--rule);transform:rotate(-2deg)}
 .mini-play{flex:none;width:40px;height:40px;border-radius:50%;background:var(--terra);display:flex;
@@ -137,7 +132,8 @@ h2{font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(30px,4.6vw,46p
 .mini-title{font-family:Lora,Georgia,serif;font-weight:500;font-size:16px;color:var(--ink);
   min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mini-time{font-size:11.5px;color:var(--ink-faint);font-variant-numeric:tabular-nums;white-space:nowrap}
-.mini-wave{position:relative;height:30px;margin-top:6px}
+.mini-wave{position:relative;height:30px;margin-top:6px;direction:ltr}
+.mini-time{direction:ltr}
 .mini-wave .bars{position:absolute;inset:0;display:flex;align-items:center;gap:2px}
 .mini-wave .bars i{display:block;flex:1;border-radius:1px;background:var(--ahead)}
 .mini-wave .played{clip-path:inset(0 calc(100% - var(--p,42%)) 0 0)}
@@ -162,6 +158,7 @@ h2{font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(30px,4.6vw,46p
 .ch-p + .ch-p{padding-top:4px}
 .ch-bar{position:absolute;left:0;right:0;bottom:-1px;height:2px;overflow:hidden}
 .ch-bar b{display:block;height:100%;width:100%;background:var(--terra);transform:scaleX(0);transform-origin:left}
+[dir="rtl"] .ch-bar b{transform-origin:right}
 .on .ch-title{color:var(--ink)}
 .on .ch-body{grid-template-rows:1fr}
 .on .ch-bar b{animation:fill var(--dur,6.5s) linear forwards}
@@ -203,8 +200,8 @@ h2{font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(30px,4.6vw,46p
 .price span{color:var(--ink-soft);font-size:16px}
 .plan .pnote{color:var(--ink-faint);font-size:13.5px;margin:0 0 22px;min-height:1.4em}
 .plan ul{list-style:none;margin:0;padding:0;border-top:1px solid var(--rule)}
-.plan li{padding:11px 0 11px 26px;border-bottom:1px solid var(--rule);font-size:15px;position:relative}
-.plan li::before{content:"";position:absolute;left:3px;top:17px;width:9px;height:5px;
+.plan li{padding:11px 0;padding-inline-start:26px;border-bottom:1px solid var(--rule);font-size:15px;position:relative}
+.plan li::before{content:"";position:absolute;inset-inline-start:3px;top:17px;width:9px;height:5px;
   border-left:2px solid var(--terra);border-bottom:2px solid var(--terra);transform:rotate(-45deg)}
 .plan li:last-child{border-bottom:none}
 .adds b{display:block;font-weight:700;color:var(--ink)}
@@ -225,6 +222,10 @@ h2{font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(30px,4.6vw,46p
 .closing .lead{margin:0 auto 30px}
 .closing .stores{justify-content:center}
 
+/* ── Hebrew: no italic in the script, and wide tracking breaks its letterforms ── */
+:lang(he) em{font-style:normal}
+:lang(he) .eyebrow,:lang(he) .masthead .tag,:lang(he) .plan h3,:lang(he) .store-soon{letter-spacing:.02em}
+
 /* ── scroll reveal (only when the script runs; resting state is visible) ── */
 @media (prefers-reduced-motion:no-preference){
   .js .reveal{opacity:0;transform:translateY(18px);transition:opacity .8s ease,transform .8s cubic-bezier(.2,.7,.2,1)}
@@ -237,7 +238,7 @@ h2{font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(30px,4.6vw,46p
 }
 
 @media (max-width:900px){
-  .hero{grid-template-columns:1fr;text-align:left}
+  .hero{grid-template-columns:1fr;text-align:start}
   .stage{justify-self:center;margin-top:8px}
   /* the tour becomes ink tabs over one caption and the phone, so all three fit one screen */
   .tour-grid{grid-template-columns:1fr;gap:16px}
@@ -259,8 +260,10 @@ h2{font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(30px,4.6vw,46p
 }
 @media (max-width:640px){
   .yours{grid-template-columns:1fr;gap:26px}
-  .stage{padding-left:24px}
-  .mini{width:258px;left:-16px;bottom:40px}
+  .stage{padding-inline-start:24px}
+  .mini{width:258px;inset-inline-start:-16px;bottom:40px}
+  .mast-right{gap:14px}
+  .langs summary span{display:none}
   .mini-title{font-size:15px}
   .hero .sub{font-size:17px}
   .tabs{gap:16px}
@@ -302,7 +305,7 @@ const LAND_JS = `
       items.forEach(function(li, k){ li.classList.toggle('on', k===i); li.querySelector('button').setAttribute('aria-selected', k===i ? 'true' : 'false'); });
       shots.forEach(function(im, k){ im.classList.toggle('on', k===i); });
       cap.innerHTML = items[i].querySelector('.ch-in').innerHTML;
-      if (list.scrollWidth > list.clientWidth) list.scrollTo({left: items[i].offsetLeft - 22, behavior: still ? 'auto' : 'smooth'});
+      if (list.scrollWidth > list.clientWidth) { var lr = list.getBoundingClientRect(), ir = items[i].getBoundingClientRect(); list.scrollBy({left: (document.dir === 'rtl' ? ir.right - lr.right + 22 : ir.left - lr.left - 22), behavior: still ? 'auto' : 'smooth'}); }
     };
     if (still) tour.classList.add('still');
     items.forEach(function(li, k){
@@ -314,6 +317,10 @@ const LAND_JS = `
       new IntersectionObserver(function(es){ tour.classList.toggle('paused', !es[0].isIntersecting); }, {threshold:.35}).observe(tour);
     }
   }
+
+  /* the language menu closes when you click away */
+  var langs = document.querySelector('.langs');
+  if (langs) document.addEventListener('click', function(e){ if (langs.open && !langs.contains(e.target)) langs.open = false; });
 
   /* plan picker */
   var tabs = document.querySelectorAll('.tab');
@@ -328,55 +335,73 @@ const LAND_JS = `
 })();
 `;
 
-export function renderLandingPage(appStoreUrl: string, playStoreUrl: string | null = null): string {
-  const description =
-    "A quiet corner for songwriting and practice. SongNook records your song ideas, keeps them organized, helps you finish them, and brings back the ones you forgot.";
-  const head = `<meta name="description" content="${escapeHtml(description)}">
+export function renderLandingPage(lang: Lang, appStoreUrl: string, playStoreUrl: string | null = null): string {
+  const t = STRINGS[lang];
+  const alternates = LANGS.map((l) => `<link rel="alternate" hreflang="${l}" href="https://songnook.app/${l}">`).join("\n");
+  const head = `<meta name="description" content="${escapeHtml(t.description)}">
+<link rel="canonical" href="https://songnook.app/${lang}">
+${alternates}
+<link rel="alternate" hreflang="x-default" href="https://songnook.app/">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://songnook.app/">
+<meta property="og:url" content="https://songnook.app/${lang}">
 <meta property="og:title" content="SongNook">
-<meta property="og:description" content="${escapeHtml(description)}">
+<meta property="og:description" content="${escapeHtml(t.description)}">
 <meta property="og:image" content="https://songnook.app/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="apple-itunes-app" content="app-id=6810435199">
-<link rel="preload" href="/screens/collection.webp" as="image">`;
+<link rel="preload" href="${screen(lang, "collection")}" as="image">`;
   const bars = miniBars(48);
-  const chapters = TOUR.map(
-    (c, i) => `<li${i === 0 ? ' class="on"' : ""}><button class="chapter" type="button" role="tab" aria-selected="${i === 0}" aria-controls="tour-screen"><span class="ch-title">${escapeHtml(c.title)}</span><span class="ch-body"><span class="ch-in"><span class="ch-p">${escapeHtml(c.line)}</span></span></span><span class="ch-bar"><b></b></span></button></li>`
-  ).join("");
-  const shots = TOUR.map(
-    (c, i) => `<img${i === 0 ? ' class="on"' : ""} src="/screens/${c.screen}.webp" width="640" height="1391" alt="${escapeHtml(c.alt)}"${i === 0 ? "" : ' loading="lazy"'}>`
-  ).join("");
-  const yours = YOURS.map(
-    (y, i) => `<div class="reveal${i ? ` d${i + 1}` : ""}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${y.icon}</svg><h3>${escapeHtml(y.title)}</h3><p>${escapeHtml(y.line)}</p></div>`
-  ).join("");
-  const tabs = PLANS.map(
-    (p, i) => `<button class="tab" type="button" role="tab" aria-selected="${i === 0}" data-price="${p.price}" data-per="${escapeHtml(p.per)}" data-note="${escapeHtml(p.note)}">${p.label}</button>`
-  ).join("");
+  const chapters = t.tour
+    .map(
+      (c, i) => `<li${i === 0 ? ' class="on"' : ""}><button class="chapter" type="button" role="tab" aria-selected="${i === 0}" aria-controls="tour-screen"><span class="ch-title">${escapeHtml(c.title)}</span><span class="ch-body"><span class="ch-in"><span class="ch-p">${escapeHtml(c.line)}</span></span></span><span class="ch-bar"><b></b></span></button></li>`
+    )
+    .join("");
+  const shots = t.tour
+    .map(
+      (c, i) => `<img${i === 0 ? ' class="on"' : ""} src="${screen(lang, TOUR_SCREENS[i])}" width="640" height="1391" alt="${escapeHtml(c.alt)}"${i === 0 ? "" : ' loading="lazy"'}>`
+    )
+    .join("");
+  const yours = t.yours
+    .map(
+      (y, i) => `<div class="reveal${i ? ` d${i + 1}` : ""}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${YOURS_ICONS[i]}</svg><h3>${escapeHtml(y.title)}</h3><p>${escapeHtml(y.line)}</p></div>`
+    )
+    .join("");
+  const plans = (["year", "month", "life"] as const).map((k) => ({ ...t.plans[k], price: PRICES[k] }));
+  const tabs = plans
+    .map(
+      (p, i) => `<button class="tab" type="button" role="tab" aria-selected="${i === 0}" data-price="${p.price}" data-per="${escapeHtml(p.per)}" data-note="${escapeHtml(p.note)}">${escapeHtml(p.label)}</button>`
+    )
+    .join("");
   const li = (xs: string[]) => xs.map((x) => `<li>${escapeHtml(x)}</li>`).join("");
   const pair = (xs: { title: string; line: string }[]) =>
     xs.map((x) => `<li><b>${escapeHtml(x.title)}</b> <span>${escapeHtml(x.line)}</span></li>`).join("");
-  const band = BAND.map((b, i) => `<li class="reveal${i ? ` d${i + 1}` : ""}"><b>${escapeHtml(b.title)}</b> <span>${escapeHtml(b.line)}</span></li>`).join("");
+  const band = t.band
+    .map((b, i) => `<li class="reveal${i ? ` d${i + 1}` : ""}"><b>${escapeHtml(b.title)}</b> <span>${escapeHtml(b.line)}</span></li>`)
+    .join("");
 
   return page({
-    title: "SongNook: a quiet corner for songwriting and practice",
+    title: t.title,
     variant: "site",
     wide: true,
+    lang,
+    dir: t.dir,
     head,
+    mastRight: mastRight(t, lang),
+    footLabels: { support: t.support, privacy: t.privacy, terms: t.terms },
     extraStyle: GALLERY_CSS + LAND_CSS,
     bodyScript: GALLERY_SCRIPT + LAND_JS,
     body: `${GALLERY_SPRITE}<main>
 <section class="hero">
   <div class="rise d1">
     ${MARK}
-    <h1>A quiet corner for songwriting <em>and practice.</em></h1>
-    <p class="sub">For songwriters and working musicians. Catch every idea, finish your songs, and learn the set.</p>
-    ${storeBadges(appStoreUrl, playStoreUrl, "hero")}
+    <h1>${escapeHtml(t.heroH1)} <em>${escapeHtml(t.heroEm)}</em></h1>
+    <p class="sub">${escapeHtml(t.heroSub)}</p>
+    ${storeBadges(t, lang, appStoreUrl, playStoreUrl)}
   </div>
   <div class="stage rise d2">
-    <div class="phone"><div class="screen"><img src="/screens/collection.webp" width="640" height="1391" alt="A collection of song ideas, newest first, each with its waveform and stage"></div></div>
+    <div class="phone"><div class="screen"><img src="${screen(lang, "collection")}" width="640" height="1391" alt="${escapeHtml(t.heroAlt)}"></div></div>
     <div class="mini" aria-hidden="true">
       <span class="mini-play"><i></i><i></i></span>
       <div class="mini-body">
@@ -388,61 +413,61 @@ export function renderLandingPage(appStoreUrl: string, playStoreUrl: string | nu
 </section>
 
 <section class="tour" id="tour">
-  <div class="sec-head reveal"><p class="eyebrow">How it works</p><h2>From a hum to a finished song</h2></div>
+  <div class="sec-head reveal"><p class="eyebrow">${escapeHtml(t.tourEyebrow)}</p><h2>${escapeHtml(t.tourH2)}</h2></div>
   <div class="tour-grid">
-    <ol class="chapters reveal" role="tablist" aria-label="From a hum to a finished song">${chapters}</ol>
-    <p class="tour-caption reveal" id="tour-caption"><span class="ch-p">${escapeHtml(TOUR[0].line)}</span></p>
+    <ol class="chapters reveal" role="tablist" aria-label="${escapeHtml(t.tourH2)}">${chapters}</ol>
+    <p class="tour-caption reveal" id="tour-caption"><span class="ch-p">${escapeHtml(t.tour[0].line)}</span></p>
     <div class="tour-stage reveal d2"><div class="phone"><div class="screen" id="tour-screen" role="tabpanel">${shots}</div></div></div>
   </div>
 </section>
 
 <section class="band">
   <div class="band-grid">
-    <div class="band-stage reveal"><div class="phone"><div class="screen"><img src="/screens/received-player.webp" width="640" height="1391" loading="lazy" alt="A song from a bandmate, with its lyrics, chart and notes"></div></div></div>
+    <div class="band-stage reveal"><div class="phone"><div class="screen"><img src="${screen(lang, "received-player")}" width="640" height="1391" loading="lazy" alt="${escapeHtml(t.bandAlt)}"></div></div></div>
     <div class="band-copy">
-      <div class="sec-head reveal"><p class="eyebrow">For the band</p><h2>Send the whole song, not just the audio</h2>
-        <p class="lead">Exporting gives your band a bare audio file. SongNook Send gives them the song: the recording with its lyrics, chords, sections, marked moments and notes.</p></div>
+      <div class="sec-head reveal"><p class="eyebrow">${escapeHtml(t.bandEyebrow)}</p><h2>${escapeHtml(t.bandH2)}</h2>
+        <p class="lead">${escapeHtml(t.bandLead)}</p></div>
       <ul class="points">${band}</ul>
     </div>
   </div>
 </section>
 
 <section class="learn">
-  <div class="sec-head center reveal"><p class="eyebrow">Practice</p><h2>Learn the set before the gig</h2>
-    <p class="lead">Slow down the tricky parts, change the key, and loop a passage until it's in your hands.</p></div>
-  <div class="reveal d2">${GALLERY_HTML}</div>
+  <div class="sec-head center reveal"><p class="eyebrow">${escapeHtml(t.learnEyebrow)}</p><h2>${escapeHtml(t.learnH2)}</h2>
+    <p class="lead">${escapeHtml(t.learnLead)}</p></div>
+  <div class="reveal d2">${galleryHtml(t.cards)}</div>
 </section>
 
 <section>
-  <div class="sec-head reveal"><p class="eyebrow">Private by design</p><h2>Yours, and only yours</h2></div>
+  <div class="sec-head reveal"><p class="eyebrow">${escapeHtml(t.yoursEyebrow)}</p><h2>${escapeHtml(t.yoursH2)}</h2></div>
   <div class="yours">${yours}</div>
 </section>
 
 <section>
-  <div class="sec-head center reveal"><p class="eyebrow">Plans</p><h2>Free, with a free month of Pro</h2>
-    <p class="lead">Every tool free for your first month, no card needed. Writing and keeping your songs stay free after that.</p></div>
+  <div class="sec-head center reveal"><p class="eyebrow">${escapeHtml(t.plansEyebrow)}</p><h2>${escapeHtml(t.plansH2)}</h2>
+    <p class="lead">${escapeHtml(t.plansLead)}</p></div>
   <div class="plans">
     <div class="plan reveal">
-      <h3>Free for good</h3>
-      <p class="price"><b>$0</b><span>forever</span></p>
-      <p class="pnote">Everything you need to write and keep your songs.</p>
-      <ul>${li(FREE)}</ul>
+      <h3>${escapeHtml(t.freeH3)}</h3>
+      <p class="price"><b><bdi>$0</bdi></b><span>${escapeHtml(t.forever)}</span></p>
+      <p class="pnote">${escapeHtml(t.freeNote)}</p>
+      <ul>${li(t.free)}</ul>
     </div>
     <div class="plan pro reveal d2">
       <h3>SongNook Pro</h3>
-      <div class="tabs" role="tablist" aria-label="Pro plans">${tabs}</div>
-      <p class="price" aria-live="polite"><b id="pp">${PLANS[0].price}</b><span id="pper">${PLANS[0].per}</span></p>
-      <p class="pnote" id="pnote">${escapeHtml(PLANS[0].note)}</p>
-      <ul class="adds">${pair(PRO_ADDS)}</ul>
+      <div class="tabs" role="tablist" aria-label="SongNook Pro">${tabs}</div>
+      <p class="price" aria-live="polite"><b><bdi id="pp">${plans[0].price}</bdi></b><span id="pper">${escapeHtml(plans[0].per)}</span></p>
+      <p class="pnote" id="pnote">${escapeHtml(plans[0].note)}</p>
+      <ul class="adds">${pair(t.proAdds)}</ul>
     </div>
   </div>
-  <p class="plans-fine">Prices in US dollars; your store shows yours.</p>
+  <p class="plans-fine">${escapeHtml(t.plansFine)}</p>
 </section>
 
 <section class="closing reveal" id="get">
-  <h2>Catch the <em>next one.</em></h2>
-  <p class="lead">Free to download. Your first month of Pro is on us.</p>
-  ${storeBadges(appStoreUrl, playStoreUrl, "close")}
+  <h2>${escapeHtml(t.closingH2)} <em>${escapeHtml(t.closingEm)}</em></h2>
+  <p class="lead">${escapeHtml(t.closingLead)}</p>
+  ${storeBadges(t, lang, appStoreUrl, playStoreUrl)}
 </section>
 </main>`,
   });
