@@ -103,10 +103,10 @@ function countLine(S: SendStrings, names: string[], kind: ShareKind): string {
   return parts.join(" · ");
 }
 
-/** The songs, by name, as the card's list: five, then "and 3 more". */
+/** The songs, by name, as the card's list: five, then "and 3 more". A package alone
+ *  isn't listed: its file name is a stamp, and the title already says what it is. */
 function itemsList(S: SendStrings, names: string[]): string {
-  const audio = names.filter((n) => !isPackageFile(n));
-  const shown = (audio.length ? audio : names).map(displayName);
+  const shown = names.filter((n) => !isPackageFile(n)).map(displayName);
   // People's names for things keep their own direction inside a Hebrew page (bdi).
   const head = shown.slice(0, 5).map((n) => `<li><bdi>${escapeHtml(n)}</bdi></li>`).join("");
   return head + (shown.length > 5 ? `<li class="more">${escapeHtml(fill(S.moreItems, { n: shown.length - 5 }))}</li>` : "");
@@ -317,8 +317,8 @@ const SEALED_JS = `
 
     var audio = items.filter(function(it){ return !isPackage(it.meta.name); }), shown = audio.length ? audio : items;
     var list = $('items');
-    shown.slice(0, 5).forEach(function(it){ var li = document.createElement('li'), b = document.createElement('bdi'); b.textContent = stem(it.meta.name); li.appendChild(b); list.appendChild(li); });
-    if (shown.length > 5){ var more = document.createElement('li'); more.className = 'more'; more.textContent = T.moreItems.replace('{n}', shown.length - 5); list.appendChild(more); }
+    audio.slice(0, 5).forEach(function(it){ var li = document.createElement('li'), b = document.createElement('bdi'); b.textContent = stem(it.meta.name); li.appendChild(b); list.appendChild(li); });
+    if (audio.length > 5){ var more = document.createElement('li'); more.className = 'more'; more.textContent = T.moreItems.replace('{n}', audio.length - 5); list.appendChild(more); }
 
     var tl = $('tracklist');
     shown.forEach(function(it){
