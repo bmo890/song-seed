@@ -9,7 +9,7 @@ import { writableWorkspaces } from "../../../domain/workspaceVisibility";
 import type { SelectionAction } from "../../common/SelectionDock";
 import { useStore } from "../../../state/useStore";
 import { openSendSheet } from "../../../state/useSendSheetStore";
-import { createCollectionShareLink, shareCollectionFile } from "../../../services/placeShare";
+import { createCollectionsShareLink, shareCollectionsFile } from "../../../services/placeShare";
 import { isSendServiceConfigured } from "../../../config/sendService";
 
 function collapseSelectedCollectionIds(
@@ -258,18 +258,21 @@ export function useWorkspaceCollectionSelection({
     },
   ];
 
-  // Export / SongNook Send for ONE selected collection — the same two exits the
-  // collection's own page offers, reachable from the hub without opening it.
+  // Export / SongNook Send for the selected collections: one goes as that collection,
+  // the same two exits its own page offers; several go together as a workspace
+  // named after this one (founder 2026-11-15), so a band gets just the rehearsals
+  // that matter, still as one workspace.
   const libraryNow = () => {
     const state = useStore.getState();
     return { setlists: state.setlists, songbooks: state.songbooks, playlists: state.playlists };
   };
+  const canShareSelection = selectedCollections.length > 0 && !sharingCollection;
   const exportSelectedCollection = async () => {
-    if (!singleSelectedCollection || !activeWorkspace || sharingCollection) return;
+    if (!canShareSelection || !activeWorkspace) return;
     setSelectionMoreVisible(false);
     setSharingCollection(true);
     try {
-      const ok = await shareCollectionFile(singleSelectedCollection, activeWorkspace, libraryNow());
+      const ok = await shareCollectionsFile(selectedCollections, activeWorkspace, libraryNow());
       if (!ok) AppAlert.info(t("collection.nothingShare"), t("collection.nothingShareBody"));
       else setSelectedCollectionIds([]);
     } catch {
@@ -279,16 +282,17 @@ export function useWorkspaceCollectionSelection({
     }
   };
   const sendSelectedCollection = () => {
-    if (!singleSelectedCollection || !activeWorkspace || sharingCollection) return;
-    const collection = singleSelectedCollection;
+    if (!canShareSelection || !activeWorkspace) return;
+    const collections = selectedCollections;
     const workspace = activeWorkspace;
+    const one = collections.length === 1 ? collections[0]! : null;
     setSelectionMoreVisible(false);
     setSelectedCollectionIds([]);
     openSendSheet({
-      title: collection.title,
-      kind: "collection",
+      title: one ? one.title : workspace.title,
+      kind: one ? "collection" : "workspace",
       emptyMessage: t("collection.nothingShareBody"),
-      create: (parcel) => createCollectionShareLink(collection, workspace, libraryNow(), parcel),
+      create: (parcel) => createCollectionsShareLink(collections, workspace, libraryNow(), parcel),
     });
   };
 
@@ -317,7 +321,7 @@ export function useWorkspaceCollectionSelection({
       key: "share-menu",
       label: t("selection.shareMenu"),
       icon: "share-social-outline",
-      disabled: !singleSelectedCollection || sharingCollection,
+      disabled: !canShareSelection,
       onPress: () => {
         setSelectionMoreVisible(false);
         setSelectionShareVisible(true);
@@ -332,7 +336,7 @@ export function useWorkspaceCollectionSelection({
       label: t("shareExit.fileLabel"),
       icon: "folder-open-outline",
       exit: "export",
-      disabled: !singleSelectedCollection || sharingCollection,
+      disabled: !canShareSelection,
       onPress: () => void exportSelectedCollection(),
     },
     ...(SHOW_SEND
@@ -342,7 +346,7 @@ export function useWorkspaceCollectionSelection({
             label: t("collection.getLink"),
             icon: "paper-plane-outline" as const,
             exit: "send" as const,
-            disabled: !singleSelectedCollection || sharingCollection,
+            disabled: !canShareSelection,
             onPress: sendSelectedCollection,
           },
         ]
@@ -374,6 +378,8 @@ export function useWorkspaceCollectionSelection({
     selectionShareVisible,
     setSelectionShareVisible,
     selectionShareActions,
+    /** Several collections leave together as a workspace: the share sheet says so. */
+    shareSelectionAsWorkspace: selectedCollections.length > 1,
     collectionRenameModalOpen,
     setCollectionRenameModalOpen,
     collectionDraft,

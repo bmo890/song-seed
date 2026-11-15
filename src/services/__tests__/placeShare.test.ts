@@ -14,6 +14,7 @@ import * as libraryExport from "../libraryExport";
 import * as shareLink from "../shareLink";
 import {
   buildCollectionExportArgs,
+  buildCollectionsExportArgs,
   buildWorkspaceExportArgs,
   createCollectionShareLink,
   createWorkspaceShareLink,
@@ -75,6 +76,39 @@ const library = {
 };
 
 beforeEach(() => jest.clearAllMocks());
+
+describe("buildCollectionsExportArgs", () => {
+  it("several collections go together as a workspace with just those collections", () => {
+    const args = buildCollectionsExportArgs([workspace.collections[0]!, workspace.collections[2]!], workspace, library)!;
+    if (args.format !== "songnook-archive") throw new Error("unreachable");
+    expect(args.scope).toEqual({ workspaceIds: [], collectionIds: ["songs", "loose"] });
+    expect(args.share?.kind).toBe("workspace");
+    expect(args.share?.title).toBe("Band");
+    expect(args.archiveLabel).toBe("Band");
+    // Both setlists now sit entirely inside what's sent.
+    expect(args.setlists?.map((s) => s.id)).toEqual(["songs-set", "whole-band"]);
+  });
+
+  it("a setlist reaching outside the chosen collections stays home", () => {
+    const args = buildCollectionsExportArgs([workspace.collections[1]!, workspace.collections[2]!], workspace, library)!;
+    if (args.format !== "songnook-archive") throw new Error("unreachable");
+    expect(args.setlists?.map((s) => s.id)).toEqual([]);
+  });
+
+  it("one collection is a plain collection share; empty choices share nothing", () => {
+    const args = buildCollectionsExportArgs([workspace.collections[0]!], workspace, library)!;
+    expect(args.format === "songnook-archive" && args.share?.kind).toBe("collection");
+    expect(buildCollectionsExportArgs([], workspace, library)).toBeNull();
+    expect(buildCollectionsExportArgs([workspace.collections[3]!, collection("foreign")], workspace, library)).toBeNull();
+  });
+
+  it("the Send sheet's title names the parcel", () => {
+    const args = buildCollectionsExportArgs([workspace.collections[0]!, workspace.collections[2]!], workspace, library, {
+      title: "Rehearsals 12 and 13",
+    })!;
+    expect(args.format === "songnook-archive" && args.share?.title).toBe("Rehearsals 12 and 13");
+  });
+});
 
 describe("buildCollectionExportArgs", () => {
   it("scopes to the collection and its nested collections, full fidelity, declared as a collection", () => {

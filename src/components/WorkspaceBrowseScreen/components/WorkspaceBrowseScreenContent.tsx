@@ -474,11 +474,12 @@ function WorkspaceBrowseInner() {
         actions={selectionModel.selectionSheetActions}
         onClose={() => selectionModel.setSelectionMoreVisible(false)}
       />
-      {/* Share… on one selected collection: Export · SongNook Send. */}
+      {/* Share… on the selected collections: Export · SongNook Send. One goes as a
+          collection; several go together as a workspace, and the title says so. */}
       <SelectionActionSheet
         visible={selectionModel.selectionShareVisible}
         onBack={() => selectionModel.setSelectionMoreVisible(true)}
-        title={t("collection.shareTitle")}
+        title={selectionModel.shareSelectionAsWorkspace ? t("workspaceList.shareTitle") : t("collection.shareTitle")}
         actions={selectionModel.selectionShareActions}
         onClose={() => selectionModel.setSelectionShareVisible(false)}
       />

@@ -79,6 +79,44 @@ export function buildCollectionExportArgs(
   };
 }
 
+/**
+ * Builds the library-export args for several collections of one workspace, sent
+ * together AS a workspace (founder 2026-11-15: "the two most recent rehearsals,
+ * together, as a workspace for my band"). It carries the workspace's name and
+ * lands as one workspace holding just these collections (each with its nested
+ * ones). One collection is a collection share, as from its own page.
+ */
+export function buildCollectionsExportArgs(
+  collections: Collection[],
+  workspace: Workspace,
+  library: ShareLibrary,
+  overrides?: ShareArgsOverrides
+): ExportLibraryArgs | null {
+  const chosen = collections.filter((collection) => collection.workspaceId === workspace.id);
+  if (chosen.length === 0) return null;
+  if (chosen.length === 1) return buildCollectionExportArgs(chosen[0]!, workspace, library, overrides);
+  const scopeIds = new Set(chosen.flatMap((collection) => [...getCollectionScopeIds(workspace, collection.id)]));
+  const ideaIds = new Set(
+    workspace.ideas.filter((idea) => scopeIds.has(idea.collectionId)).map((idea) => idea.id)
+  );
+  if (ideaIds.size === 0) return null;
+
+  const compilations = compilationsWithinScope(library, ideaIds);
+  return {
+    workspaces: [workspace],
+    notes: [],
+    format: "songnook-archive",
+    scope: { workspaceIds: [], collectionIds: chosen.map((collection) => collection.id) },
+    setlists: compilations.setlists,
+    songbooks: compilations.songbooks,
+    playlists: compilations.playlists,
+    share: shareBlock("workspace", workspace.title, overrides),
+    archiveExtension: "songnook",
+    options: PLACE_SHARE_OPTIONS,
+    archiveLabel: workspace.title,
+  };
+}
+
 /** Builds the library-export args for a whole workspace. Returns null when the
  *  workspace holds no ideas, or when its audio is packed away (archived). */
 export function buildWorkspaceExportArgs(
@@ -117,6 +155,19 @@ export async function shareCollectionFile(
   return true;
 }
 
+/** Exports the chosen collections (one: as a collection; more: as a workspace) as a
+ *  SongNook file and hands it to the OS share sheet. False when nothing to share. */
+export async function shareCollectionsFile(
+  collections: Collection[],
+  workspace: Workspace,
+  library: ShareLibrary
+): Promise<boolean> {
+  const args = buildCollectionsExportArgs(collections, workspace, library);
+  if (!args) return false;
+  await exportLibrary(args);
+  return true;
+}
+
 /** Exports a workspace as a SongNook file and hands it to the OS share sheet. */
 export async function shareWorkspaceFile(workspace: Workspace, library: ShareLibrary): Promise<boolean> {
   const args = buildWorkspaceExportArgs(workspace, library);
@@ -143,6 +194,30 @@ export function createCollectionShareLink(
     progress: opts?.progress,
     buildArgs: (transferId) =>
       buildCollectionExportArgs(collection, workspace, library, {
+        transferId,
+        senderName: opts?.senderName,
+        title: opts?.title,
+      }),
+  });
+}
+
+/** Uploads several collections of one workspace to SongNook Send, as a workspace. */
+export function createCollectionsShareLink(
+  collections: Collection[],
+  workspace: Workspace,
+  library: ShareLibrary,
+  opts?: ShareLinkParcel
+) {
+  if (collections.length === 1) return createCollectionShareLink(collections[0]!, workspace, library, opts);
+  return createShareLink({
+    title: opts?.title || workspace.title,
+    kind: "workspace",
+    entityId: workspace.id,
+    senderName: opts?.senderName,
+    message: opts?.message ?? undefined,
+    progress: opts?.progress,
+    buildArgs: (transferId) =>
+      buildCollectionsExportArgs(collections, workspace, library, {
         transferId,
         senderName: opts?.senderName,
         title: opts?.title,
