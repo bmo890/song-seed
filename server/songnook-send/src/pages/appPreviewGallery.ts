@@ -171,7 +171,7 @@ export const GALLERY_HTML = `<div class="gallery" id="gallery">
           <span class="lp2-q"><svg width="18" height="18" viewBox="0 0 24 24"><use href="#lp2-list"/></svg></span>
         </div>
       </div>
-    </div></div><div class="cap"><b>Play it</b> — loop, speed, sections &amp; pins</div></div>
+    </div></div><div class="cap"><b>Play it</b> — loop it, slow it, mark the verse and chorus</div></div>
     <div class="slide"><div class="inner"><div class="lp2-fit">
       <div class="lp2-screen" style="margin-top:1px">
         <div class="lp2-head">
@@ -198,7 +198,7 @@ export const GALLERY_HTML = `<div class="gallery" id="gallery">
           <span class="lp2-q"><svg width="18" height="18" viewBox="0 0 24 24" style="color:#6b5a55"><use href="#lp2-repeat"/></svg></span>
         </div>
       </div>
-    </div></div><div class="cap"><b>Sing along</b> — lyrics &amp; chords, timed to the take</div></div>
+    </div></div><div class="cap"><b>Sing along</b> — lyrics and chords scroll with the song</div></div>
     <div class="slide"><div class="inner"><div class="lp2-fit">
       <div class="lp2-screen" style="margin-top:58px">
         <div class="lp2-head">

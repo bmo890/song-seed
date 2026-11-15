@@ -23,42 +23,42 @@ const TOUR: { title: string; line: string; more: string; screen: string; alt: st
   {
     title: "Capture",
     line: "One tap and you're recording. It keeps going when the screen locks.",
-    more: "Import voice memos, audio files, or the sound from a video.",
+    more: "Bring in voice memos, audio files, or the sound from a video.",
     screen: "recorder",
     alt: "The recorder, one minute into a new clip",
   },
   {
     title: "Find it again",
-    line: "Revisit brings back the unfinished ideas you forgot.",
-    more: "Shelf sets one aside. Activity shows any week, any year.",
+    line: "One page brings back the unfinished songs and ideas you'd forgotten.",
+    more: "Set one aside to come back to, or look back at what you made any week, any year.",
     screen: "revisit",
-    alt: "Revisit, with unfinished sketches and old raw ideas",
+    alt: "A page of unfinished songs and forgotten ideas",
   },
   {
     title: "Finish the song",
-    line: "Every take of a song in one sketch, with its versions.",
-    more: "Record another part over a take and solo any of them.",
+    line: "Every take of a song kept together, with the older versions of each.",
+    more: "Record a harmony or another part on top, then play any part on its own.",
     screen: "sketch",
-    alt: "A sketch with its takes and their older versions",
+    alt: "A song with its takes and their older versions",
   },
   {
     title: "Write",
-    line: "Lyrics, chord charts, and the two together.",
-    more: "Word Finder for rhymes, near rhymes and synonyms.",
+    line: "Write lyrics and chord charts, or put the chords right above the words.",
+    more: "Look up rhymes, near rhymes and synonyms without leaving the page.",
     screen: "lyrics",
     alt: "A chord chart with lyrics, ready to transpose",
   },
   {
     title: "Get unstuck",
-    line: "Lyric Spark: writing exercises for when the words won't come.",
-    more: "Lyric Pad keeps the loose lines until a song needs them.",
+    line: "Short writing games for when the words won't come.",
+    more: "Stray lines get a notebook of their own until a song needs them.",
     screen: "words",
     alt: "Borrowed Words, collecting phrases from a classic novel",
   },
   {
     title: "Share",
-    line: "Send a clip or a whole sketch by private link.",
-    more: "Lyrics, chords, notes and marks go with it. Setlists and chart books for the stage.",
+    line: "Send a recording or a whole song in progress to anyone, by private link.",
+    more: "The lyrics, chords and notes go with it. For the stage: setlists, and charts that scroll as you play.",
     screen: "received-player",
     alt: "A received take playing, with its lyrics, chart and notes",
   },
@@ -83,20 +83,22 @@ const YOURS: { title: string; line: string; icon: string }[] = [
 ];
 
 const FREE = [
-  "Recording and your whole library",
-  "Lyrics and chord charts",
-  "Looping, pins and sections",
-  "Backup and export",
-  "One Send link a month",
+  "Record as much as you like, and keep all of it",
+  "Write lyrics and chord charts",
+  "Loop any part, and mark the verse and chorus",
+  "Back up and export your songs",
+  "Share one private link a month",
 ];
 
 const PRO_ADDS = [
-  "Word Finder, and unlimited Lyric Spark",
-  "Speed, pitch and Step up",
-  "Transpose, capo, setlists, chart books and PDF charts",
-  "Unlimited Send links and workspaces",
-  "Up to 8 layers on a take",
-  "Export for DAW",
+  "Rhyme and synonym search, and unlimited writing games",
+  "Slow a song down or change its key",
+  "Loops that get a little faster each time through",
+  "Change a chart's key or set a capo",
+  "Setlists, and chord charts as books and PDFs",
+  "Unlimited private links, and a separate library for every band or project",
+  "Record up to 8 parts on top of one take",
+  "Export lined up to the beat for Logic, Ableton and other recording apps",
 ];
 
 const PLANS: { key: string; label: string; price: string; per: string; note: string }[] = [
@@ -426,7 +428,7 @@ export function renderLandingPage(appStoreUrl: string, playStoreUrl: string | nu
   <div class="sec-head center reveal"><p class="eyebrow">Practice</p><h2>Learn other people's songs</h2>
     <p class="lead">Import the audio, slow it down, change the key, and loop the hard part until it's yours.</p></div>
   <div class="reveal d2">${GALLERY_HTML}</div>
-  <div class="tools reveal"><span>Tuner</span><span>Metronome</span><span>Count-in</span><span>Step up</span></div>
+  <div class="tools reveal"><span>Tuner</span><span>Metronome</span><span>Count-in</span><span>Loops that speed up</span></div>
 </section>
 
 <section>
