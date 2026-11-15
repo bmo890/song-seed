@@ -237,6 +237,7 @@ export function FeelControl({
   onSelectFeel,
   onChangeCustomPattern,
   hideLabel = false,
+  presetsOnly = false,
 }: {
   meterId: MetronomeMeterId;
   feelId: string;
@@ -250,10 +251,13 @@ export function FeelControl({
   onSelectFeel: (feelId: string) => void;
   onChangeCustomPattern: (pattern: number[]) => void;
   hideLabel?: boolean;
+  /** The metronome page edits its own pattern below the transport, so its sheet offers
+   *  the feels as presets only: no Custom, no editable strip. */
+  presetsOnly?: boolean;
 }) {
   const { t } = useTranslation();
   const feels = getMetronomeFeels(meterId, supportsRests).filter(
-    (feel) => supportsSubdivision || feel.subdivision === 1
+    (feel) => (supportsSubdivision || feel.subdivision === 1) && !(presetsOnly && feel.id === METRONOME_FEEL_CUSTOM)
   );
   const editing = feelId === METRONOME_FEEL_CUSTOM;
   const options = feels.map((feel) => ({ key: feel.id, label: feelLabel(feel, t), glyph: feel.glyph }));
@@ -261,17 +265,19 @@ export function FeelControl({
     <View style={disabled ? ms.dimmed : null} pointerEvents={disabled ? "none" : "auto"}>
       {hideLabel ? null : <Text style={ms.label}>{t("metronome.clickOn")}</Text>}
       <SegmentedControl options={options} value={feelId} onChange={onSelectFeel} />
-      <BarStrip
-        meterId={meterId}
-        accentPattern={accentPattern}
-        subdivision={subdivision}
-        editing={editing}
-        onTapPulse={(index) => {
-          const next = [...accentPattern];
-          next[index] = cyclePulseWeight(next[index] ?? 0, supportsRests);
-          onChangeCustomPattern(next);
-        }}
-      />
+      {presetsOnly ? null : (
+        <BarStrip
+          meterId={meterId}
+          accentPattern={accentPattern}
+          subdivision={subdivision}
+          editing={editing}
+          onTapPulse={(index) => {
+            const next = [...accentPattern];
+            next[index] = cyclePulseWeight(next[index] ?? 0, supportsRests);
+            onChangeCustomPattern(next);
+          }}
+        />
+      )}
     </View>
   );
 }

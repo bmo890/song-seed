@@ -17,6 +17,7 @@ import {
 } from "../../../domain/metronome";
 import { CueRows, FeelControl, MeterRow, meterSummary, ms, soundSummary } from "../../common/metronome/MetronomeBlocks";
 import { MetronomeBeatBar } from "../../common/metronome/MetronomeBeatBar";
+import { PracticePattern } from "../../common/metronome/PracticePattern";
 import { styles as s } from "../styles";
 import { useMetronomeScreenModel } from "../hooks/useMetronomeScreenModel";
 import { useTranslation } from "react-i18next";
@@ -26,9 +27,11 @@ type SheetKey = "meter" | "sound" | null;
 /**
  * Standalone metronome (2026-10-15, founder picked A, "the instrument"): one
  * screen. The tempo said once, in Lora, between bare − / +; the beat dots ARE
- * the pulse; the slider and Tap beneath; one round play key, the player's
- * transport. Meter and Sound are two rows that open sheets holding the same
- * shared blocks the recorder's metronome sheet uses, so the two never drift.
+ * the pulse; the slider beneath; one round play key, the player's transport,
+ * with Tap and Meter as ink keys either side of it. Under it the practice
+ * pattern (2026-11-16): up to four bars whose every beat and sub-beat is a
+ * switch. Meter and Sound open sheets holding the same shared blocks the
+ * recorder's metronome sheet uses, so the two never drift.
  */
 export function MetronomeScreenContent() {
   const { t } = useTranslation();
@@ -55,7 +58,7 @@ export function MetronomeScreenContent() {
           {/* The beat dots are the pulse: one place for where the beat is. */}
           <MetronomeBeatBar
             beatsPerBar={model.meterPreset.pulsesPerBar}
-            accentPattern={model.accentPattern}
+            accentPattern={model.heroAccentPattern}
             grouping={model.grouping}
             currentBeat={model.currentBeatInBar}
             pulseToken={model.pulseToken}
@@ -91,7 +94,7 @@ export function MetronomeScreenContent() {
           accessibilityLabel={t("metronome.bpm")}
         />
 
-        <View style={s.tapRow}>
+        <View style={s.transportRow}>
           <InkKey
             glyph={<Ionicons name="hand-left-outline" size={18} color={inkKeyColor(tapping ? "active" : "idle")} />}
             label={t("metronome.tap")}
@@ -99,43 +102,48 @@ export function MetronomeScreenContent() {
             onPress={() => model.tapTempo()}
             accessibilityLabel={t("metronome.tapTempo")}
           />
-        </View>
-
-        {/* THE action: one round transport key, the full player's. */}
-        <Press
-          feel="surface"
-          // haptics.ts: tap → any acknowledged press.
-          haptic="tap"
-          style={[s.transport, model.isPreparing || !model.isNativeAvailable ? s.transportDisabled : null]}
-          disabled={model.isPreparing || !model.isNativeAvailable}
-          onPress={model.toggleRunning}
-          accessibilityRole="button"
-          accessibilityLabel={isRunning ? t("metronome.stopA11y") : t("metronome.startA11y")}
-        >
-          <Ionicons
-            name={isRunning ? "stop" : "play"}
-            size={30}
-            color={colors.onPrimary}
-            style={isRunning ? null : s.playGlyph}
+          {/* THE action: one round transport key, the full player's. */}
+          <Press
+            feel="surface"
+            // haptics.ts: tap → any acknowledged press.
+            haptic="tap"
+            style={[s.transport, model.isPreparing || !model.isNativeAvailable ? s.transportDisabled : null]}
+            disabled={model.isPreparing || !model.isNativeAvailable}
+            onPress={model.toggleRunning}
+            accessibilityRole="button"
+            accessibilityLabel={isRunning ? t("metronome.stopA11y") : t("metronome.startA11y")}
+          >
+            <Ionicons
+              name={isRunning ? "stop" : "play"}
+              size={30}
+              color={colors.onPrimary}
+              style={isRunning ? null : s.playGlyph}
+            />
+          </Press>
+          <InkKey
+            glyph={<Ionicons name="grid-outline" size={17} color={inkKeyColor("idle")} />}
+            label={model.meterPreset.label}
+            onPress={() => setSheet("meter")}
+            accessibilityLabel={`${t("metronome.meter")}: ${meterLine}`}
           />
-        </Press>
+        </View>
         {statusLabel ? <Text style={s.statusLabel}>{statusLabel}</Text> : null}
+
+        {model.supportsStepPattern ? (
+          <View style={s.pattern}>
+            <PracticePattern
+              practice={model.practice}
+              baseBeats={model.accentPattern}
+              currentBar={model.practiceBar}
+              currentBeat={model.practiceBeat}
+              onChange={model.setPractice}
+            />
+          </View>
+        ) : null}
 
         <View style={s.spacer} />
 
         <ListRows>
-          <ListRow
-            icon="grid-outline"
-            title={t("metronome.meter")}
-            serifTitle={false}
-            userTitle={false}
-            accessory={
-              <Text style={s.rowValue} numberOfLines={1}>
-                {meterLine}
-              </Text>
-            }
-            onPress={() => setSheet("meter")}
-          />
           <ListRow
             icon="volume-medium-outline"
             title={t("metronome.sound")}
@@ -161,8 +169,11 @@ export function MetronomeScreenContent() {
           subdivision={model.subdivision}
           supportsRests={model.supportsRests}
           supportsSubdivision={model.supportsClickStyle}
-          onSelectFeel={(feelId) => model.setFeel(model.meterId, feelId)}
+          onSelectFeel={(feelId) =>
+            model.supportsStepPattern ? model.setFeelPreset(feelId) : model.setFeel(model.meterId, feelId)
+          }
           onChangeCustomPattern={(pattern) => model.setCustomPattern(model.meterId, pattern)}
+          presetsOnly={model.supportsStepPattern}
         />
         <View style={ms.sheetFoot} />
       </BottomSheet>

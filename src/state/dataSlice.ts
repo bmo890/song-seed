@@ -1,4 +1,5 @@
 import { DEFAULT_AUTOMATIC_BACKUP, type AutomaticBackupPrefs } from "../domain/automaticBackupPrefs";
+import { sanitizePractice, type MetronomePractice } from "../domain/metronomePractice";
 import { StateCreator } from "zustand";
 import { stringIndexToGraphemeIndex } from "../domain/chords";
 import { WORKSPACE_COLORS } from "../domain/workspaceTheme";
@@ -204,6 +205,10 @@ export type DataSlice = {
     /** The Custom feel's per-pulse weights, per meter (accent 1 · click 0.44 · rest 0). */
     metronomeCustomPatternByMeterId: Partial<Record<MetronomeMeterId, number[]>>;
     metronomeClickVoice: MetronomeClickVoice;
+    /** The standalone metronome page's practice pattern (domain/metronomePractice): up to
+     *  four bars of beats and sub-beats. null = the page opens on the current feel. Never
+     *  heard outside that page. */
+    metronomePractice: MetronomePractice | null;
     /** Volume of the PLAYBACK click (a take's own grid, in the player) — its own
      *  dial, deliberately not the standalone metronome's beep level: a muted
      *  metronome must never silently mute the playback click. */
@@ -244,6 +249,7 @@ export type DataSlice = {
     setMetronomeFeel: (meterId: MetronomeMeterId, feelId: string) => void;
     setMetronomeCustomPattern: (meterId: MetronomeMeterId, pattern: number[]) => void;
     setMetronomeClickVoice: (value: MetronomeClickVoice) => void;
+    setMetronomePractice: (value: MetronomePractice | null) => void;
     setPlaybackClickHaptic: (value: boolean) => void;
     notes: Note[];
     addNote: () => string;
@@ -1638,6 +1644,7 @@ export const createDataSlice: StateCreator<
     metronomeFeelByMeterId: {},
     metronomeCustomPatternByMeterId: {},
     metronomeClickVoice: DEFAULT_METRONOME_CLICK_VOICE,
+    metronomePractice: null,
     playbackClickHaptic: false,
     globalCustomClipTags: [],
     notes: [],
@@ -1865,6 +1872,7 @@ export const createDataSlice: StateCreator<
         }),
     setMetronomeClickVoice: (value) =>
         set({ metronomeClickVoice: isMetronomeClickVoice(value) ? value : DEFAULT_METRONOME_CLICK_VOICE }),
+    setMetronomePractice: (value) => set({ metronomePractice: value === null ? null : sanitizePractice(value) }),
     setPlaybackClickHaptic: (value) => set({ playbackClickHaptic: Boolean(value) }),
     addNote: () => {
         const id = `note-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;

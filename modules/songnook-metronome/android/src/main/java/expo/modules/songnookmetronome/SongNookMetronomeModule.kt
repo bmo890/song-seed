@@ -93,6 +93,10 @@ class SongNookMetronomeModule : Module() {
       true
     }
 
+    Function("supportsStepPattern") {
+      true
+    }
+
     AsyncFunction("configureTempoMap") { segments: List<Map<String, Any?>> ->
       engine.serially { engine.configureTempoMap(segments) }
     }

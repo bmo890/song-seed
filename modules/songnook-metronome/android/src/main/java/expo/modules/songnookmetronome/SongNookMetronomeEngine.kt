@@ -36,8 +36,28 @@ private data class MetronomeConfig(
    *  math and haptics never see them — they are pure PCM. */
   val subdivision: Int = 1,
   /** Click timbre: "click" (bright stock voice) or "wood" (softer wood-block voice). */
-  val clickVoice: String = "click"
-)
+  val clickVoice: String = "click",
+  /** The practice pattern (standalone metronome page): one weight per step, `subdivision`
+   *  steps per pulse, 1–4 whole bars. A beat step carries its accent, a sub-beat step its
+   *  own weight; 0 is a rest either way. Empty = the plain accentPattern bar. Structural. */
+  val stepPattern: List<Double> = emptyList()
+) {
+  /** Bars in the loop: the practice pattern's length, else one. */
+  val patternBars: Int
+    get() = if (stepPattern.isEmpty()) 1 else max(1, stepPattern.size / (max(pulsesPerBar, 1) * max(subdivision, 1)))
+
+  /** The accent a pulse sounds with: its beat step in the practice pattern, else the
+   *  bar's accentPattern. 0 = a rest. */
+  fun pulseAccent(pulseOrdinal: Int): Double {
+    val ppb = max(pulsesPerBar, 1)
+    if (stepPattern.isNotEmpty()) {
+      val pulsesInLoop = ppb * patternBars
+      val pulse = ((pulseOrdinal % pulsesInLoop) + pulsesInLoop) % pulsesInLoop
+      return stepPattern[(pulse * max(subdivision, 1)).coerceAtMost(stepPattern.lastIndex)]
+    }
+    return accentPattern[(pulseOrdinal % ppb).coerceAtLeast(0).coerceAtMost(accentPattern.lastIndex)]
+  }
+}
 
 /** One click timbre. The same table lives in the iOS engine and the JS WAV fallback —
  *  keep the three verbatim so every surface sounds identical. */
@@ -231,7 +251,8 @@ class SongNookMetronomeEngine(
         previous.accentPattern != config.accentPattern ||
         previous.clickEnabled != config.clickEnabled ||
         previous.subdivision != config.subdivision ||
-        previous.clickVoice != config.clickVoice
+        previous.clickVoice != config.clickVoice ||
+        previous.stepPattern != config.stepPattern
 
     if (!structuralChange) {
       try {
@@ -249,7 +270,7 @@ class SongNookMetronomeEngine(
 
     exactFramesPerPulse = exactFramesPerPulseForBpm(config.bpm)
     framesPerPulse = framesPerPulseForBpm(config.bpm)
-    totalFrames = max(1, (exactFramesPerPulse * config.pulsesPerBar).roundToInt())
+    totalFrames = max(1, (exactFramesPerPulse * config.pulsesPerBar * config.patternBars).roundToInt())
 
     if (wasRunning) {
       return start(pendingCountInBars)
@@ -564,7 +585,7 @@ class SongNookMetronomeEngine(
     absolutePulse = initialPulse
     lastEmittedPulse = if (phaseFrames > 0) initialPulse else -1
     beatInBar = (initialPulse % config.pulsesPerBar) + 1
-    barNumber = 1
+    barNumber = initialPulse / config.pulsesPerBar + 1
     loopCount = 0
     // The static track reports the REAL head (which starts at phaseFrames), so the
     // audio-clock path needs no extra offset; back-date only the silent-run clock.
@@ -614,7 +635,7 @@ class SongNookMetronomeEngine(
     // Pulse 0's haptic can't be scheduled from a previous beat — aim it at "now + offset"
     // (audio starts near-immediately from the pre-written static buffer); pulses 1+
     // self-correct off the audio clock via emitBeat. Mid-bar phase starts skip it.
-    if (config.hapticEnabled && phaseFrames == 0) {
+    if (config.hapticEnabled && phaseFrames == 0 && config.pulseAccent(0) > 0.0) {
       scheduleHaptic(max(1L, config.hapticOffsetMs.toLong()))
     }
 
@@ -717,6 +738,7 @@ class SongNookMetronomeEngine(
       "clickVolume" to config.clickVolume,
       "subdivision" to config.subdivision,
       "clickVoice" to config.clickVoice,
+      "patternBars" to config.patternBars,
       "beatIntervalMs" to beatIntervalMsForBpm(config.bpm),
       "beatInBar" to beatInBar,
       "barNumber" to barNumber,
@@ -844,11 +866,10 @@ class SongNookMetronomeEngine(
     beatInBar = (pulseOrdinal % config.pulsesPerBar) + 1
     barNumber = (pulseOrdinal / config.pulsesPerBar) + 1
 
-    val accent = config.accentPattern[(beatInBar - 1).coerceAtMost(config.accentPattern.lastIndex)]
-    finishBeatEmission(accent, beatIntervalMsForBpm(config.bpm))
+    finishBeatEmission(config.pulseAccent(pulseOrdinal), beatIntervalMsForBpm(config.bpm), config.pulseAccent(pulseOrdinal + 1))
   }
 
-  private fun finishBeatEmission(accent: Double, beatIntervalMsForCues: Double) {
+  private fun finishBeatEmission(accent: Double, beatIntervalMsForCues: Double, nextAccent: Double = 1.0) {
     val barsRemainingBeforeBeat = countInBarsRemaining()
 
     val beatPayload = mapOf(
@@ -873,7 +894,8 @@ class SongNookMetronomeEngine(
     // Schedule the NEXT beat's haptic natively: one beat of lead means the signed offset
     // (route latency − motor spin-up) can land the buzz exactly on the audible click, even
     // when it must fire BEFORE the beat event — something a bridge-event chain can never do.
-    if (config.hapticEnabled) {
+    // A practice pattern's silent beat is silent in the hand too.
+    if (config.hapticEnabled && (config.stepPattern.isEmpty() || nextAccent > 0.0)) {
       scheduleHaptic(max(1L, (beatIntervalMsForCues + config.hapticOffsetMs).toLong()))
     }
 
@@ -945,6 +967,16 @@ class SongNookMetronomeEngine(
     // A present-but-unknown voice falls back to the stock click; absent keeps running.
     val clickVoice = (rawConfig["clickVoice"] as? String)?.let { if (it == "wood") "wood" else "click" }
       ?: config.clickVoice
+    // Present = replace (an empty or ill-fitting list clears it); absent keeps running.
+    // It must hold whole bars of this meter and subdivision, at most four.
+    val stepPattern = if (rawConfig.containsKey("stepPattern")) {
+      val steps = (rawConfig["stepPattern"] as? List<*>)?.mapNotNull { (it as? Number)?.toDouble()?.coerceIn(0.0, 1.0) }
+        ?: emptyList()
+      val stepsPerBar = max(pulsesPerBar, 1) * max(subdivision, 1)
+      if (steps.isNotEmpty() && steps.size % stepsPerBar == 0 && steps.size / stepsPerBar <= 4) steps else emptyList()
+    } else {
+      config.stepPattern
+    }
 
     return MetronomeConfig(
       bpm = bpm,
@@ -959,7 +991,8 @@ class SongNookMetronomeEngine(
       hapticStrength = hapticStrength,
       hapticOffsetMs = hapticOffsetMs,
       subdivision = subdivision,
-      clickVoice = clickVoice
+      clickVoice = clickVoice,
+      stepPattern = stepPattern
     )
   }
 
@@ -1044,7 +1077,18 @@ private fun buildLoopPcm16(
   val weakSpec = clickVoiceSpec(config.clickVoice, isDownbeat = false)
   val subdivision = max(1, config.subdivision)
 
-  for (pulseIndex in 0 until config.pulsesPerBar) {
+  if (config.stepPattern.isNotEmpty()) {
+    // The practice pattern: every step at its own weight, bar after bar. Bresenham onsets
+    // over the whole loop, so no bar drifts from the next.
+    val ppb = max(config.pulsesPerBar, 1)
+    config.stepPattern.forEachIndexed { stepIndex, weight ->
+      if (weight <= 0.0) return@forEachIndexed
+      val onset = (stepIndex.toDouble() / subdivision * exactFramesPerPulse).roundToInt()
+      val isBeat = stepIndex % subdivision == 0
+      val spec = if (isBeat) clickVoiceSpec(config.clickVoice, isDownbeat = (stepIndex / subdivision) % ppb == 0) else weakSpec
+      mixClick(pcm, onset, spec, spec.amplitude(weight), totalFrames, sampleRate)
+    }
+  } else for (pulseIndex in 0 until config.pulsesPerBar) {
     val accent = config.accentPattern[pulseIndex.coerceAtMost(config.accentPattern.lastIndex)]
     // Accent 0 is a rest, not a quiet click (see the map scheduler above).
     if (accent <= 0.0) {

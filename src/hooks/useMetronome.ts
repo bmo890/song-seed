@@ -56,6 +56,10 @@ type UseMetronomeArgs = {
   /** Publish `pulseToken` on every pulse. Off for a consumer that draws its beats
    *  from `beatCount` (the recorder), so each pulse costs it one render, not two. */
   visualPulse?: boolean;
+  /** The standalone page's practice pattern (domain/metronomePractice) as engine steps.
+   *  Only that page passes it; every other click sends none, so a pattern can never
+   *  follow anyone into a take or the player. */
+  practice?: { subdivision: MetronomeSubdivision; steps: number[] } | null;
 };
 
 type MetronomeStartOptions = {
@@ -80,15 +84,15 @@ type MetronomeStartOptions = {
 
 const METRONOME_AUDIO_SESSION_OWNER_ID = "metronome";
 
-export function useMetronome({ initialBpm = DEFAULT_METRONOME_BPM, initialOutputs, visualPulse = true }: UseMetronomeArgs = {}) {
+export function useMetronome({ initialBpm = DEFAULT_METRONOME_BPM, initialOutputs, visualPulse = true, practice = null }: UseMetronomeArgs = {}) {
   if (SongNookMetronomeModule) {
-    return useNativeMetronomeImpl({ initialBpm, initialOutputs, visualPulse });
+    return useNativeMetronomeImpl({ initialBpm, initialOutputs, visualPulse, practice });
   }
 
   return useLegacyMetronomeImpl({ initialBpm, initialOutputs, visualPulse });
 }
 
-function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOutputs, visualPulse = true }: UseMetronomeArgs = {}) {
+function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOutputs, visualPulse = true, practice = null }: UseMetronomeArgs = {}) {
   const { t } = useTranslation();
   const visualPulseRef = useRef(visualPulse);
   visualPulseRef.current = visualPulse;
@@ -148,6 +152,12 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   // Binaries whose engines keep a zero-weight pulse silent — what the rest-based
   // feels ("in two") and custom rests need. Older ones would click every pulse.
   const supportsRests = !!SongNookMetronomeModule?.supportsSilentBeats?.();
+  // Binaries whose engines loop a practice pattern of up to four bars of steps.
+  const supportsStepPattern = !!SongNookMetronomeModule?.supportsStepPattern?.();
+  const activePractice = supportsStepPattern ? practice : null;
+  const practiceStepsKey = activePractice ? activePractice.steps.join(",") : "";
+  const practiceActiveRef = useRef(false);
+  practiceActiveRef.current = !!activePractice;
 
   // Live-route cue timing (latency model output), refreshed at every start. outputMs
   // delays visual/haptic beat EVENTS on the engine (matters on Bluetooth); the signed
@@ -439,13 +449,18 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
         // Audio-only ornaments (structural on the engine). Sent unconditionally: older
         // binaries ignore unknown keys, and pinning them here means a stale value can
         // never survive from another client's run.
-        subdivision,
+        subdivision: activePractice ? activePractice.subdivision : subdivision,
         clickVoice,
+        // Always sent: an empty list clears a pattern another run left on the engine.
+        stepPattern: activePractice ? activePractice.steps : [],
       });
     } finally {
       setIsPreparing(false);
     }
-  }, [accentPattern, bpm, beepLevel, clickVoice, hapticLevel, meterId, meterPreset, nativeCuesSupported, outputs.beep, outputs.haptic, subdivision]);
+    // practiceStepsKey stands in for the steps array, so a re-render with the same
+    // pattern never re-configures (and so never restarts) a running click.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accentPattern, bpm, beepLevel, clickVoice, hapticLevel, meterId, meterPreset, nativeCuesSupported, outputs.beep, outputs.haptic, subdivision, activePractice?.subdivision, practiceStepsKey]);
 
   // Volume applies instantly and live: the native engines treat volume as a live param
   // (no restart, no phase reset), so a mid-take level tweak never breaks the grid. On
@@ -534,6 +549,10 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
       return;
     }
     setBeatCount(event.absolutePulse + 1);
+    // A practice pattern's silent beat stays silent everywhere: no flash, no buzz.
+    if (practiceActiveRef.current && event.accent <= 0) {
+      return;
+    }
     triggerBeatCue();
   });
 
@@ -728,6 +747,7 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     clickVoice,
     supportsClickStyle,
     supportsRests,
+    supportsStepPattern,
     // Beat position derives from the SAME onBeat event stream that pulses the UI ring
     // (beatCount), not the separate onStateChange snapshot — the two streams desync
     // under load (recording), which pinned the "big" downbeat accent to random pulses.
@@ -1172,6 +1192,7 @@ function useLegacyMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     feelId: "beats",
     customPattern: getMetronomeAccentPattern(DEFAULT_METRONOME_METER_ID),
     supportsRests: false,
+    supportsStepPattern: false,
     clickVoice: DEFAULT_METRONOME_CLICK_VOICE as MetronomeClickVoice,
     // The WAV fallback renders one stock click per beat; the controls stay hidden here.
     supportsClickStyle: false,

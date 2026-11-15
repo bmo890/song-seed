@@ -275,6 +275,8 @@ function usePlaybackClickNative({
       // metronome never leaks into the practice click. The voice is the writer's own.
       subdivision: 1,
       clickVoice: supportsClickStyle ? clickVoiceRef.current : "click",
+      // Nor may the metronome page's practice pattern play under a take.
+      stepPattern: [],
     }),
     [nativeCuesSupported, supportsClickStyle]
   );

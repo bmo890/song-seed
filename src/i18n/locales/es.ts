@@ -1800,7 +1800,7 @@ export const es = {
       beatCount_many: "{{count}} pulsos",
       edit: "Toca un pulso para cambiarlo",
       a11y: "Pulso {{number}}: {{state}}",
-    },
+    }, practice: { title: "Patrón", bars_one: "{{count}} compás", bars_other: "{{count}} compases", addBar: "Añadir un compás", removeBar: "Quitar un compás", soundAll: "Sonar todo", silenceAll: "Silenciar todo", barPlays: "Compás {{number}}: suena", barRests: "Compás {{number}}: en silencio", beat: "Compás {{bar}}, pulso {{number}}: {{state}}", sub: "Pulso {{beat}}, subdivisión {{number}}: {{state}}", subOn: "suena", subAccent: "acento", subOff: "en silencio" },
     sound: "Sonido",
     voiceClick: "Clic",
     voiceWood: "Madera",

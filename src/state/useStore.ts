@@ -1,4 +1,5 @@
 import { sanitizeAutomaticBackupPrefs } from "../domain/automaticBackupPrefs";
+import { sanitizePractice } from "../domain/metronomePractice";
 import { AppState } from "react-native";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -245,6 +246,7 @@ export function sanitizePersistedState(state?: Partial<PersistedAppStore>): Pers
         metronomeClickVoice: isMetronomeClickVoice(state?.metronomeClickVoice)
             ? state.metronomeClickVoice
             : DEFAULT_METRONOME_CLICK_VOICE,
+        metronomePractice: sanitizePractice(state?.metronomePractice),
         playbackClickHaptic: state?.playbackClickHaptic === true,
         globalCustomClipTags: Array.isArray(state?.globalCustomClipTags) ? state.globalCustomClipTags : [],
         notes: Array.isArray(state?.notes) ? state.notes : [],

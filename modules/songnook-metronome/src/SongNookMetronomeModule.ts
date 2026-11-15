@@ -37,6 +37,9 @@ declare class SongNookMetronomeModule extends NativeModule<SongNookMetronomeModu
    *  rest (no click at all) instead of a quiet click — the calibration gap pattern
    *  depends on this. Absent on older binaries — call with `?.`. */
   supportsSilentBeats?(): boolean;
+  /** Optional: true on binaries whose engines loop `stepPattern` (up to four bars of
+   *  per-step weights). Absent on older binaries — call with `?.`; hide the editor then. */
+  supportsStepPattern?(): boolean;
   /** Optional: install a tempo map. While installed, start/startCountIn/startAtPhase
    *  run in map mode (startAtPhase's offset becomes a whole-grid position). A
    *  structural configure() clears it. Absent on older binaries — call with `?.`. */

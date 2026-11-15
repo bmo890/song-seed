@@ -438,6 +438,8 @@ export function BluetoothCalibrationScreen() {
             // corrupts the very tap timing this pass measures. Calibration is ears-only.
             hapticEnabled: false,
             hapticStrength: 0,
+            // Likewise the metronome page's practice pattern: this pass plays its own.
+            stepPattern: [],
             hapticOffsetMs: 0,
             // Same merge hazard for the click itself: the onset analysis expects the
             // stock click, one per beat — never a sub-click or the wood voice.

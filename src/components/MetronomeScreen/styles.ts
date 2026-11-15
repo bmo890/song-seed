@@ -46,8 +46,12 @@ export const styles = StyleSheet.create({
     letterSpacing: 1,
     color: colors.textSecondary,
   },
-  tapRow: {
+  // Tap · play · Meter: the transport between its two ink keys.
+  transportRow: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xl,
   },
   // The full player's transport: a round key, solid because it is THE action.
   transport: {
@@ -58,7 +62,6 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.primaryDeep,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: spacing.sm,
   },
   transportDisabled: {
     opacity: 0.45,
@@ -73,7 +76,12 @@ export const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: "center",
   },
-  // Pushes the two rows to the foot of the screen.
+  pattern: {
+    paddingTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderSubtle,
+  },
+  // Pushes the Sound row to the foot of the screen.
   spacer: {
     flexGrow: 1,
     minHeight: spacing.xl,

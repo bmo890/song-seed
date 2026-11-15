@@ -1720,7 +1720,7 @@ export const de = {
       beatCount_other: "{{count}} Schläge",
       edit: "Tippe auf einen Schlag, um ihn zu ändern",
       a11y: "Schlag {{number}}: {{state}}",
-    },
+    }, practice: { title: "Muster", bars_one: "{{count}} Takt", bars_other: "{{count}} Takte", addBar: "Takt hinzufügen", removeBar: "Takt entfernen", soundAll: "Alle an", silenceAll: "Alle stumm", barPlays: "Takt {{number}}: spielt", barRests: "Takt {{number}}: Pause", beat: "Takt {{bar}}, Schlag {{number}}: {{state}}", sub: "Schlag {{beat}}, Unterteilung {{number}}: {{state}}", subOn: "klingt", subAccent: "Akzent", subOff: "stumm" },
     sound: "Sound",
     voiceClick: "Klick",
     voiceWood: "Holz",

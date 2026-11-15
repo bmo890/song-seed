@@ -27,6 +27,10 @@ export type NativeMetronomeConfig = {
   subdivision?: number;
   /** Click timbre. Structural. Default "click". Only honored with supportsClickStyle. */
   clickVoice?: NativeClickVoice;
+  /** A practice pattern (supportsStepPattern binaries): one weight per step, `subdivision`
+   *  steps per pulse, 1–4 whole bars, 0 = a rest. Present replaces (an empty or ill-fitting
+   *  list clears it); absent keeps the running one. Structural. */
+  stepPattern?: number[];
 };
 
 /** One bar-anchored constant-tempo stretch handed to the map-mode engines. */

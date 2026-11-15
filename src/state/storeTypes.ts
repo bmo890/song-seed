@@ -35,6 +35,7 @@ export type PersistedAppStore = Pick<
     | "metronomeFeelByMeterId"
     | "metronomeCustomPatternByMeterId"
     | "metronomeClickVoice"
+    | "metronomePractice"
     | "playbackClickHaptic"
     | "globalCustomClipTags"
     | "backupReminderFrequency"

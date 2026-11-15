@@ -5,6 +5,12 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useMetronome } from "../../../hooks/useMetronome";
 import { useBrowseRootBackHandler } from "../../../hooks/useBrowseRootBackHandler";
 import { durations } from "../../../design/motion";
+import { useStore } from "../../../state/useStore";
+import {
+  defaultPractice,
+  practiceSteps,
+  type MetronomePractice,
+} from "../../../domain/metronomePractice";
 
 const KEEP_AWAKE_TAG = "metronome";
 
@@ -19,7 +25,39 @@ function releaseKeepAwake() {
 export function useMetronomeScreenModel() {
   useBrowseRootBackHandler();
   const pulseAnim = useRef(new Animated.Value(0)).current;
-  const metronome = useMetronome();
+  // The practice pattern: stored once someone edits it, and only while it fits the meter
+  // (a new meter opens on its feel again). Before any edit the engine plays the feel.
+  const storedPractice = useStore((s) => s.metronomePractice);
+  const setStoredPractice = useStore((s) => s.setMetronomePractice);
+  const storeMeterId = useStore((s) => s.metronomeMeterId);
+  const fittingPractice = storedPractice && storedPractice.meterId === storeMeterId ? storedPractice : null;
+  const metronome = useMetronome({
+    practice: fittingPractice
+      ? { subdivision: fittingPractice.subdivision, steps: practiceSteps(fittingPractice) }
+      : null,
+  });
+  const practice: MetronomePractice = useMemo(
+    () =>
+      fittingPractice ??
+      defaultPractice(metronome.meterId, metronome.accentPattern, metronome.subdivision),
+    [fittingPractice, metronome.meterId, metronome.accentPattern, metronome.subdivision]
+  );
+  const setPractice = useCallback((next: MetronomePractice) => setStoredPractice(next), [setStoredPractice]);
+  /** A feel picked in the Meter sheet is a preset: the pattern starts over from it. */
+  const setFeelPreset = useCallback(
+    (feelId: string) => {
+      metronome.setFeel(metronome.meterId, feelId);
+      setStoredPractice(null);
+    },
+    [metronome, setStoredPractice]
+  );
+  const practiceBarCount = practice.bars.length;
+  const isPlaying = metronome.isRunning && !metronome.isCountIn;
+  const practiceBar = isPlaying ? (Math.max(1, metronome.currentBar) - 1) % practiceBarCount : null;
+  const practiceBeat = isPlaying ? Math.max(1, metronome.currentBeatInBar) - 1 : null;
+  // The hero's dots mirror the bar being heard (the first one while stopped).
+  const heroBar = practice.bars[practiceBar ?? 0];
+  const heroAccentPattern = heroBar.rest ? heroBar.beats.map(() => 0) : heroBar.beats;
 
   // Leaving the page ends the session. The native metronome engine runs on its
   // own thread and keeps ticking after this screen unmounts, so nothing stops
@@ -100,5 +138,11 @@ export function useMetronomeScreenModel() {
     activeOutputCount,
     pulseScale,
     pulseOpacity,
+    practice,
+    setPractice,
+    setFeelPreset,
+    practiceBar,
+    practiceBeat,
+    heroAccentPattern: metronome.supportsStepPattern ? heroAccentPattern : metronome.accentPattern,
   };
 }

@@ -8,10 +8,11 @@
  *   12  2026-07-10 … 2026-11-01 (frozen while ~13 additive changes shipped)
  *   13  2026-11-02 folded date groups as calendar days (hiddenDays fromDay/toDay),
  *       Recently deleted (recentlyDeleted, its own persisted row)
+ *   14  2026-11-16 the metronome page's practice pattern (metronomePractice)
  */
-export const STORE_VERSION = 13;
+export const STORE_VERSION = 14;
 
-/** The oldest backup data version Merge accepts: sanitizing on hydrate covers 12 → 13. */
+/** The oldest backup data version Merge accepts: sanitizing on hydrate covers 12 → 14. */
 export const MERGE_MIN_STORE_VERSION = 12;
 
 /** Stored data written by a newer build than this one. */

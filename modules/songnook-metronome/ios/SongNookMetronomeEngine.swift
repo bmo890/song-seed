@@ -24,6 +24,10 @@ private struct MetronomeConfig {
   var subdivision: Int = 1
   /// Click timbre: "click" (bright stock voice) or "wood" (softer wood-block voice).
   var clickVoice: String = "click"
+  /// The practice pattern (standalone metronome page): one weight per step, `subdivision`
+  /// steps per pulse, 1–4 whole bars. A beat step carries its accent, a sub-beat step its
+  /// own weight; 0 is a rest either way. Empty = the plain accentPattern bar. Structural.
+  var stepPattern: [Double] = []
 }
 
 /// One click timbre. The same table lives in the Android engine and the JS WAV fallback —
@@ -168,7 +172,8 @@ final class SongNookMetronomeEngine {
       previous.accentPattern != config.accentPattern ||
       previous.clickEnabled != config.clickEnabled ||
       previous.subdivision != config.subdivision ||
-      previous.clickVoice != config.clickVoice
+      previous.clickVoice != config.clickVoice ||
+      previous.stepPattern != config.stepPattern
 
     if previous.clickVoice != config.clickVoice {
       clickCache.removeAll()
@@ -234,7 +239,7 @@ final class SongNookMetronomeEngine {
     // Pulse 0's haptic can't be scheduled from a previous beat — aim it at "now + offset"
     // (audio starts near-immediately from the pre-built buffer); pulses 1+ self-correct
     // off the audio clock via emitBeat.
-    if config.hapticEnabled {
+    if config.hapticEnabled && pulseAccent(0) > 0 {
       scheduleHaptic(afterMs: Double(max(0, config.hapticOffsetMs)))
     }
 
@@ -270,7 +275,7 @@ final class SongNookMetronomeEngine {
     // The pulse we start inside has already sounded its click-onset — never re-emit it.
     lastEmittedPulse = initialPulse
     beatInBar = (initialPulse % max(config.pulsesPerBar, 1)) + 1
-    barNumber = 1
+    barNumber = initialPulse / max(config.pulsesPerBar, 1) + 1
     lastFrameWithinLoop = phaseOffsetFrames
     // Silent-run clock: back-date the start so elapsed time includes the phase.
     startUptimeMs = ProcessInfo.processInfo.systemUptime * 1000 - Double(phaseOffsetFrames) / sampleRate * 1000
@@ -544,6 +549,7 @@ final class SongNookMetronomeEngine {
       "clickVolume": config.clickVolume,
       "subdivision": config.subdivision,
       "clickVoice": config.clickVoice,
+      "patternBars": patternBars(),
       "beatIntervalMs": beatIntervalMs(for: config.bpm),
       "beatInBar": beatInBar,
       "barNumber": barNumber,
@@ -650,7 +656,7 @@ final class SongNookMetronomeEngine {
     // an external metronome or DAW set to the same BPM.
     exactFramesPerPulse = max(1.0, sampleRate * beatIntervalMs(for: config.bpm) / 1000)
     framesPerPulse = max(1, Int(round(exactFramesPerPulse)))
-    totalFrames = max(1, Int(round(exactFramesPerPulse * Double(max(config.pulsesPerBar, 1)))))
+    totalFrames = max(1, Int(round(exactFramesPerPulse * Double(max(config.pulsesPerBar, 1) * patternBars()))))
     loopBuffer = buildLoopBuffer()
   }
 
@@ -774,8 +780,30 @@ final class SongNookMetronomeEngine {
     beatInBar = (pulseOrdinal % max(config.pulsesPerBar, 1)) + 1
     barNumber = (pulseOrdinal / max(config.pulsesPerBar, 1)) + 1
 
-    let accentIndex = min(max(beatInBar - 1, 0), max(config.accentPattern.count - 1, 0))
-    finishBeatEmission(accent: config.accentPattern[accentIndex], beatIntervalMsForCues: beatIntervalMs(for: config.bpm))
+    finishBeatEmission(
+      accent: pulseAccent(pulseOrdinal),
+      beatIntervalMsForCues: beatIntervalMs(for: config.bpm),
+      nextAccent: pulseAccent(pulseOrdinal + 1)
+    )
+  }
+
+  /// Bars in the loop: the practice pattern's length, else one.
+  private func patternBars() -> Int {
+    let stepsPerBar = max(config.pulsesPerBar, 1) * max(config.subdivision, 1)
+    return config.stepPattern.isEmpty ? 1 : max(1, config.stepPattern.count / stepsPerBar)
+  }
+
+  /// The accent a pulse sounds with: its beat step in the practice pattern, else the bar's
+  /// accentPattern. 0 = a rest.
+  private func pulseAccent(_ pulseOrdinal: Int) -> Double {
+    let ppb = max(config.pulsesPerBar, 1)
+    if !config.stepPattern.isEmpty {
+      let pulsesInLoop = ppb * patternBars()
+      let pulse = ((pulseOrdinal % pulsesInLoop) + pulsesInLoop) % pulsesInLoop
+      return config.stepPattern[min(pulse * max(config.subdivision, 1), config.stepPattern.count - 1)]
+    }
+    let accentIndex = min(max(pulseOrdinal % ppb, 0), max(config.accentPattern.count - 1, 0))
+    return config.accentPattern[accentIndex]
   }
 
   /// Map-mode twin of emitBeat: meta comes from the segment table, cues use the
@@ -791,7 +819,7 @@ final class SongNookMetronomeEngine {
     finishBeatEmission(accent: accent, beatIntervalMsForCues: segment.exactFramesPerPulse / sampleRate * 1000)
   }
 
-  private func finishBeatEmission(accent: Double, beatIntervalMsForCues: Double) {
+  private func finishBeatEmission(accent: Double, beatIntervalMsForCues: Double, nextAccent: Double = 1) {
     let barsRemainingBeforeBeat = countInBarsRemaining()
 
     let beatPayload: [String: Any] = [
@@ -819,7 +847,8 @@ final class SongNookMetronomeEngine {
     // Schedule the NEXT beat's haptic natively: one beat of lead means the signed offset
     // (route latency − motor spin-up) can land the tap exactly on the audible click, even
     // when it must fire BEFORE the beat event — something a bridge-event chain can never do.
-    if config.hapticEnabled {
+    // A practice pattern's silent beat is silent in the hand too.
+    if config.hapticEnabled && (config.stepPattern.isEmpty || nextAccent > 0) {
       scheduleHaptic(afterMs: max(1, beatIntervalMsForCues + Double(config.hapticOffsetMs)))
     }
 
@@ -943,6 +972,16 @@ final class SongNookMetronomeEngine {
       next.clickVoice = clickVoice == "wood" ? "wood" : "click"
     }
 
+    // Present = replace (an empty or ill-fitting list clears it); absent keeps running.
+    // It must hold whole bars of this meter and subdivision, at most four.
+    let rawSteps = (rawConfig["stepPattern"] as? [Double]) ?? (rawConfig["stepPattern"] as? [NSNumber])?.map { $0.doubleValue }
+    if let raw = rawSteps {
+      let steps = raw.map { min(1, max(0, $0)) }
+      let stepsPerBar = max(next.pulsesPerBar, 1) * max(next.subdivision, 1)
+      let fits = !steps.isEmpty && steps.count % stepsPerBar == 0 && steps.count / stepsPerBar <= 4
+      next.stepPattern = fits ? steps : []
+    }
+
     return next
   }
 
@@ -960,6 +999,21 @@ final class SongNookMetronomeEngine {
     buffer.frameLength = AVAudioFrameCount(totalFrames)
     let weakSpec = ClickVoiceSpec.resolve(voice: config.clickVoice, isDownbeat: false)
     let subdivision = max(1, config.subdivision)
+
+    if !config.stepPattern.isEmpty {
+      // The practice pattern: every step at its own weight, bar after bar. Bresenham
+      // onsets over the whole loop, so no bar drifts from the next.
+      let ppb = max(config.pulsesPerBar, 1)
+      for (stepIndex, weight) in config.stepPattern.enumerated() where weight > 0 {
+        let onset = Int(round(Double(stepIndex) / Double(subdivision) * exactFramesPerPulse))
+        let isBeat = stepIndex % subdivision == 0
+        let spec = isBeat
+          ? ClickVoiceSpec.resolve(voice: config.clickVoice, isDownbeat: (stepIndex / subdivision) % ppb == 0)
+          : weakSpec
+        renderClick(into: channel, at: onset, spec: spec, amplitude: spec.amplitude(forAccent: weight), totalFrames: totalFrames)
+      }
+      return buffer
+    }
 
     for pulseIndex in 0..<config.pulsesPerBar {
       let accent = config.accentPattern[min(pulseIndex, max(config.accentPattern.count - 1, 0))]
