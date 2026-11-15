@@ -11,6 +11,7 @@ import { formatLastEdited } from "../../../utils";
 import { buildClipLineages } from "../../../domain/clipGraph";
 import { type ClipVersion } from "../../../types";
 import { PrimaryTakeLine } from "./PrimaryTakeLine";
+import { sketchContents } from "../../../domain/sketchContents";
 
 const SONG_TABS = [
   { key: "takes", labelKey: "screens.takes" },
@@ -38,6 +39,7 @@ export function SongCollapsibleHeader({ primaryClip, onLocatePrimary }: SongColl
   const { t } = useTranslation();
   const { screen } = useSongScreen();
   const selectedIdea = screen.selectedIdea;
+  const contents = sketchContents(selectedIdea);
   if (!selectedIdea) return null;
 
   const isProject = selectedIdea.kind === "project";
@@ -105,7 +107,13 @@ export function SongCollapsibleHeader({ primaryClip, onLocatePrimary }: SongColl
         // segmented track; now the same ink tabs as every other choice.
         <View style={styles.songDetailSongTabs}>
           <SegmentedControl
-            options={SONG_TABS.map((tab) => ({ key: tab.key, label: t(tab.labelKey) }))}
+            // A quiet dot on Lyrics, Chart and Notes when there is something there,
+            // so a bandmate opening a sent sketch sees there are notes to read.
+            options={SONG_TABS.map((tab) => ({
+              key: tab.key,
+              label: t(tab.labelKey),
+              mark: tab.key !== "takes" && contents[tab.key],
+            }))}
             selectedKey={screen.songTab}
             onSelect={(key) => screen.setSongTab(key)}
           />

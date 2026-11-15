@@ -50,6 +50,9 @@ export type IdeaListItemMeta = {
   projectPrimaryDurationLabel: string;
   projectClipCount: number;
   hasProjectLyrics: boolean;
+  /** A sketch's chord chart and notes, beside its lyrics: the card's quiet glyphs. */
+  hasProjectChart: boolean;
+  hasProjectNotes: boolean;
   hasProjectClipCount: boolean;
   hasExpandedProjectIndicators: boolean;
 };

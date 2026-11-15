@@ -93,6 +93,7 @@ function ReceivedParcelSheet({ pkg }: { pkg: Workspace }) {
         items: (count) => t("received.items", { count }),
         lyrics: t("common.lyrics"),
         chart: t("screens.chart"),
+        notes: t("screens.notes"),
       }),
     [pkg, t]
   );

@@ -3,12 +3,9 @@ import { getPlayableClipForIdea } from "../../domain/clipPresentation";
 import { buildClipLineages } from "../../domain/clipGraph";
 import type { SongIdea } from "../../types";
 import type { IdeaListItemMeta } from "./types";
+import { sketchContents, sketchHasLyrics } from "../../domain/sketchContents";
 
-export const projectHasLyrics = (idea: SongIdea) =>
-  idea.kind === "project" &&
-  (idea.lyrics?.versions ?? []).some((version) =>
-    version.document.lines.some((line) => line.text.trim().length > 0 || line.chords.length > 0)
-  );
+export const projectHasLyrics = (idea: SongIdea) => idea.kind === "project" && sketchHasLyrics(idea);
 
 /** The precomputed row model for an idea-list entry. Rows read it through
  *  getIdeaListItemMeta, which caches by idea identity: an untouched idea keeps its
@@ -16,7 +13,8 @@ export const projectHasLyrics = (idea: SongIdea) =>
 export const buildIdeaListItemMeta = (idea: SongIdea): IdeaListItemMeta => {
   const primaryClip = idea.clips.find((clip) => clip.isPrimary) ?? null;
   const playClip = getPlayableClipForIdea(idea) ?? null;
-  const hasProjectLyrics = projectHasLyrics(idea);
+  const contents = sketchContents(idea);
+  const hasProjectLyrics = contents.lyrics;
   const hasProjectClipCount = idea.kind === "project" && idea.clips.length > 0;
 
   return {
@@ -26,8 +24,11 @@ export const buildIdeaListItemMeta = (idea: SongIdea): IdeaListItemMeta => {
     // Takes as the sketch page counts them: a take and its older versions are one.
     projectClipCount: idea.kind === "project" ? buildClipLineages(idea.clips).length : 0,
     hasProjectLyrics,
+    hasProjectChart: contents.chart,
+    hasProjectNotes: contents.notes,
     hasProjectClipCount,
-    hasExpandedProjectIndicators: idea.kind === "project" && (hasProjectLyrics || hasProjectClipCount),
+    hasExpandedProjectIndicators:
+      idea.kind === "project" && (hasProjectLyrics || contents.chart || contents.notes || hasProjectClipCount),
   };
 };
 

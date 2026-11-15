@@ -14,6 +14,10 @@ type SegmentedOption<T extends string> = {
    *  ON". For tab-like controls whose panes hide state (the player's practice
    *  drawers); plain selectors leave it unset. */
   dot?: boolean;
+  /** Small INK dot after the label — "there is something in here" (a sketch's
+   *  Lyrics, Chart, Notes tabs, 2026-11-15). Quiet ink, not terracotta: terracotta
+   *  stays "on". */
+  mark?: boolean;
   /** A glyph set above the word (the metronome's note values). Every option in a
    *  control should carry one or none, so the segments stay the same height. */
   glyph?: string;
@@ -173,6 +177,7 @@ export function SegmentedControl<T extends string>({
               </Text>
               {option.pro ? <ProMarkText /> : null}
               {option.dot ? <View style={segmentedControlStyles.segmentDot} /> : null}
+              {option.mark && !option.dot ? <View style={segmentedControlStyles.segmentMark} /> : null}
             </View>
           </Press>
         );
@@ -235,6 +240,12 @@ const segmentedControlStyles = StyleSheet.create({
     height: 5,
     borderRadius: radii.round,
     backgroundColor: colors.primary,
+  },
+  segmentMark: {
+    width: 5,
+    height: 5,
+    borderRadius: radii.round,
+    backgroundColor: colors.textSecondary,
   },
   segmentLabel: {
     flexShrink: 1,

@@ -6,6 +6,7 @@ const copy = {
     items: (n: number) => `${n} items`,
     lyrics: "Lyrics",
     chart: "Chart",
+    notes: "Notes",
 };
 const received = (shareKind: string) =>
     ({ senderName: "Ben", senderUserId: null, transferId: "t", receivedAt: 0, shareKind, shareTitle: "x" }) as Workspace["received"];
@@ -40,13 +41,14 @@ describe("parcelRows", () => {
                     clips: [{ id: "c1", createdAt: 1 }, { id: "c2", createdAt: 2 }],
                     lyrics: { versions: [{ document: { lines: [{ text: "la" }] } }] },
                     chordSheet: { sections: [{ measures: [{ chords: ["C"] }] }] },
+                    notes: "Capo 2",
                 }),
                 idea("x", "a1"),
             ],
         });
         expect(parcelRows(pkg, copy)).toEqual([
             { key: "c-a1", icon: "folder", title: "Old", meta: "1 items" },
-            { key: "i-s", icon: "sketch", title: "s", meta: "2 takes · Lyrics · Chart" },
+            { key: "i-s", icon: "sketch", title: "s", meta: "2 takes · Lyrics · Chart · Notes" },
         ]);
     });
     it("counts a sketch's takes as the sketch page does: older versions fold into their take", () => {

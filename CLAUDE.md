@@ -31,8 +31,8 @@ The hard rules below are non-negotiable.
   A sketch's card wears a stack of two paper edges (`IdeaCard stacked`); the
   terracotta rail is retired. The edges are drawn, not shadowed (2026-11-13):
   each a tone darker with its own edge line, so both platforms show the same
-  stack; in a list a sketch's meta line opens with its take count in words
-  ("4 takes · Mon"). Inside a sketch, a take with older versions
+  stack; in a list a sketch's meta line is the date, then its take count in
+  words ("Mon · 4 takes"; the date always leads, 2026-11-15). Inside a sketch, a take with older versions
   wears the same stack ("N older ⌄" unfolds it); `EvolutionGlyph` draws it. One search field: the tonal fill.
   The radius-4 `card` in `styles/base.ts` is deprecated. Never invent a card.
 - No pure black. Shadows are whispers (opacity ≤ 0.08); depth via tonal layering.

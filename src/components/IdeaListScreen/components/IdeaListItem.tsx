@@ -21,6 +21,8 @@ const EMPTY_ITEM_META: IdeaListItemMeta = {
     projectPrimaryDurationLabel: "0:00",
     projectClipCount: 0,
     hasProjectLyrics: false,
+    hasProjectChart: false,
+    hasProjectNotes: false,
     hasProjectClipCount: false,
     hasExpandedProjectIndicators: false,
 };
@@ -111,6 +113,8 @@ function IdeaListItemInner({
         projectPrimaryDurationLabel,
         projectClipCount,
         hasProjectLyrics,
+        hasProjectChart,
+        hasProjectNotes,
         hasProjectClipCount,
         hasExpandedProjectIndicators,
     } = item ? getIdeaListItemMeta(item) : EMPTY_ITEM_META;
@@ -256,25 +260,33 @@ function IdeaListItemInner({
     };
 
     // Full-card meta cluster: bare caption-scale glyphs on a consistent 10pt
-    // rhythm — no separators, no pills.
+    // rhythm — no separators, no pills. What the sketch holds besides its takes, in
+    // the order of its tabs (2026-11-15): lyrics, chart, notes.
+    const contentGlyphs: { name: keyof typeof Ionicons.glyphMap; on: boolean }[] = [
+        { name: "document-text-outline", on: hasProjectLyrics },
+        { name: "grid-outline", on: hasProjectChart },
+        { name: "create-outline", on: hasProjectNotes },
+    ];
     const renderProjectRightMeta = () => (
         <View style={styles.ideasListMetaRightCluster}>
-            {hasProjectLyrics ? (
-                <View style={styles.ideasListMetaToken}>
-                    <View style={styles.ideasListMetaIconWrap}>
-                        <Ionicons name="document-text-outline" size={12} color="#84736f" />
+            {contentGlyphs.map((glyph) =>
+                glyph.on ? (
+                    <View key={glyph.name} style={styles.ideasListMetaToken}>
+                        <View style={styles.ideasListMetaIconWrap}>
+                            <Ionicons name={glyph.name} size={12} color={colors.textSecondary} />
+                        </View>
                     </View>
-                </View>
-            ) : null}
+                ) : null
+            )}
         </View>
     );
-    // A sketch says how many takes it holds in words, at the start of the meta
-    // line the eye runs down (2026-11-13): "4 takes · Mon" beside a clip's bare
-    // "Mon" tells the two apart at scroll speed. It was a 12 pt glyph and a
-    // digit on the far edge.
+    // A sketch says how many takes it holds in words (2026-11-13), after the date
+    // (founder, 2026-11-15): the date always leads, so "Mon" sits in one column
+    // down a list of clips and sketches alike, and "Mon · 4 takes" still tells
+    // a sketch from a clip's bare "Mon".
     const footerLabel =
         item.kind === "project" && hasProjectClipCount
-            ? `${t("brand.takeCount", { count: projectClipCount })} · ${dateLabel}`
+            ? `${dateLabel} · ${t("brand.takeCount", { count: projectClipCount })}`
             : dateLabel;
 
     // (Compact intentionally shows no take/lyrics meta — only the bookmark + duration.)

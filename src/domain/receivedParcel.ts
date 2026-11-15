@@ -1,5 +1,6 @@
 import type { ShareKind, SongIdea, Workspace } from "../types";
 import { buildClipLineages } from "./clipGraph";
+import { sketchContents } from "./sketchContents";
 
 /**
  * The parcel's front door (2026-10-14, founder: a new user "doesn't know to
@@ -12,7 +13,7 @@ export type ParcelRow = {
     key: string;
     icon: "folder" | "sketch" | "clip";
     title: string;
-    /** "3 takes · Lyrics · Chart", "5 items", … */
+    /** "3 takes · Lyrics · Chart · Notes", "5 items", … */
     meta: string;
 };
 
@@ -21,6 +22,7 @@ export type ParcelCopy = {
     items: (count: number) => string;
     lyrics: string;
     chart: string;
+    notes: string;
 };
 
 /** How many rows the sheet prints before "+N more". */
@@ -31,16 +33,12 @@ function ideaMeta(idea: SongIdea, copy: ParcelCopy): string {
     // versions are one take.
     const takes = idea.kind === "project" ? buildClipLineages(idea.clips).length : idea.clips.length;
     const parts: string[] = [copy.takes(takes)];
-    if (idea.kind === "project") {
-        const hasLyrics = (idea.lyrics?.versions ?? []).some((version) =>
-            version.document.lines.some((line) => line.text.trim().length > 0)
-        );
-        const hasChart = !!idea.chordSheet?.sections.some((section) =>
-            section.kind === "text" ? !!section.text?.trim() : section.measures.length > 0
-        );
-        if (hasLyrics) parts.push(copy.lyrics);
-        if (hasChart) parts.push(copy.chart);
-    }
+    // What else it holds, from the same answer the sketch's tabs and card read: a
+    // bandmate sees there are notes for them before Keep (2026-11-15).
+    const contents = sketchContents(idea);
+    if (contents.lyrics) parts.push(copy.lyrics);
+    if (contents.chart) parts.push(copy.chart);
+    if (contents.notes) parts.push(copy.notes);
     return parts.join(" · ");
 }
 
