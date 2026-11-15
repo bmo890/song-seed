@@ -195,17 +195,15 @@ const OPEN_JS = `
 })();
 `;
 
-/** The raw files: one quiet line and a small download glyph. One file downloads
- *  straight away; several open a quiet list, each with its own glyph. Landing on
- *  #files (Android's way back when the app isn't there) opens the list. */
+/** The raw files: one quiet line and a small download glyph that opens a quiet list,
+ *  each row with its own glyph. Only a row's glyph downloads, even when there is one
+ *  row (founder 2026-11-15: nothing starts on its own). Landing on #files (Android's
+ *  way back when the app isn't there) opens the list. */
 const GRAB_JS = `
 (function(){
   var b = document.getElementById('grab-btn'), list = document.getElementById('tracklist');
   if (!b || !list) return;
-  function rows(){ return list.querySelectorAll('.trk-dl'); }
   b.addEventListener('click', function(){
-    var r = rows();
-    if (r.length === 1){ list.hidden = false; r[0].click(); return; }
     list.hidden = !list.hidden; b.setAttribute('aria-expanded', String(!list.hidden));
   });
   if (location.hash === '#files') list.hidden = false;
