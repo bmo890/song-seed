@@ -29,7 +29,7 @@ const TOUR: { title: string; line: string; screen: string; alt: string }[] = [
 /** Sharing, told as what a band gets out of it. */
 const BAND: { title: string; line: string }[] = [
   { title: "Send it.", line: "One private link carries the recording and everything attached to it." },
-  { title: "Receive it.", line: "What your band sends opens ready to learn, sections and all." },
+  { title: "Collaborate.", line: "Receive the setlist ready to learn: sections, notes, lyrics and all." },
   { title: "Play it.", line: "Setlists and chord charts, ready for the stage." },
 ];
 
