@@ -1767,7 +1767,6 @@ export const es = {
     slow: "Bajar el tempo un BPM",
     raise: "Subir el tempo un BPM",
     tap: "Marcar",
-    tapCount: "Marcar ({{count}})",
     tapTempo: "Marcar tempo",
     meterTime: "Compás de {{label}}",
     beepVolume: "Volumen del pitido",

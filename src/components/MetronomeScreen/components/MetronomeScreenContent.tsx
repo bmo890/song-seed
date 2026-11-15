@@ -94,7 +94,7 @@ export function MetronomeScreenContent() {
         <View style={s.tapRow}>
           <InkKey
             glyph={<Ionicons name="hand-left-outline" size={18} color={inkKeyColor(tapping ? "active" : "idle")} />}
-            label={tapping ? t("metronome.tapCount", { count: model.tapCount }) : t("metronome.tap")}
+            label={t("metronome.tap")}
             tone={tapping ? "active" : "idle"}
             onPress={() => model.tapTempo()}
             accessibilityLabel={t("metronome.tapTempo")}

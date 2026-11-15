@@ -1688,7 +1688,6 @@ export const de = {
     slow: "Tempo um ein BPM senken",
     raise: "Tempo um ein BPM erhöhen",
     tap: "Tippen",
-    tapCount: "Tippen ({{count}})",
     tapTempo: "Tap-Tempo",
     meterTime: "{{label}}-Takt",
     beepVolume: "Lautstärke Piepton",

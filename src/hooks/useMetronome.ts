@@ -21,6 +21,7 @@ import {
   DEFAULT_METRONOME_SUBDIVISION,
   MAX_METRONOME_LEVEL,
   MAX_TAP_HISTORY,
+  TAP_TEMPO_RESET_MS,
   METRONOME_LOOP_BEAT_COUNT,
   clampMetronomeBpm,
   clampMetronomeLevel,
@@ -124,6 +125,12 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
 
   const tapTimesRef = useRef<number[]>([]);
   const lastTapAtRef = useRef<number | null>(null);
+  // The tap key reads as active while someone is tapping and lets go once they stop
+  // (founder 2026-11-15: no running count, the tempo itself is the answer).
+  const tapIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (tapIdleTimerRef.current) clearTimeout(tapIdleTimerRef.current);
+  }, []);
   const hapticLevelRef = useRef(hapticLevel);
   const outputsRef = useRef(outputs);
   const bpmRef = useRef(bpm);
@@ -682,6 +689,8 @@ function useNativeMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     tapTimesRef.current = nextTapTimes;
     lastTapAtRef.current = tapAt;
     setTapCount(nextTapTimes.length);
+    if (tapIdleTimerRef.current) clearTimeout(tapIdleTimerRef.current);
+    tapIdleTimerRef.current = setTimeout(() => setTapCount(0), TAP_TEMPO_RESET_MS);
 
     const nextBpm = deriveTapTempoBpm(nextTapTimes);
     if (nextBpm === null) {
@@ -779,6 +788,12 @@ function useLegacyMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
   const hapticLevelRef = useRef(hapticLevel);
   const tapTimesRef = useRef<number[]>([]);
   const lastTapAtRef = useRef<number | null>(null);
+  // The tap key reads as active while someone is tapping and lets go once they stop
+  // (founder 2026-11-15: no running count, the tempo itself is the answer).
+  const tapIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (tapIdleTimerRef.current) clearTimeout(tapIdleTimerRef.current);
+  }, []);
   const activeLoopUriRef = useRef<string | null>(null);
   const sourceRequestIdRef = useRef(0);
   const cycleCountRef = useRef(0);
@@ -1049,6 +1064,8 @@ function useLegacyMetronomeImpl({ initialBpm = DEFAULT_METRONOME_BPM, initialOut
     tapTimesRef.current = nextTapTimes;
     lastTapAtRef.current = tapAt;
     setTapCount(nextTapTimes.length);
+    if (tapIdleTimerRef.current) clearTimeout(tapIdleTimerRef.current);
+    tapIdleTimerRef.current = setTimeout(() => setTapCount(0), TAP_TEMPO_RESET_MS);
 
     const nextBpm = deriveTapTempoBpm(nextTapTimes);
     if (nextBpm === null) {

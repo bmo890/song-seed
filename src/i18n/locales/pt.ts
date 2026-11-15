@@ -1766,7 +1766,6 @@ export const pt = {
     slow: "Diminuir o andamento em um BPM",
     raise: "Aumentar o andamento em um BPM",
     tap: "Toque",
-    tapCount: "Toque ({{count}})",
     tapTempo: "Tap tempo",
     meterTime: "Compasso {{label}}",
     beepVolume: "Volume do bipe",

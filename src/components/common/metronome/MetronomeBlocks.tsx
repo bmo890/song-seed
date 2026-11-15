@@ -177,7 +177,7 @@ export function TempoBlock({
         </Stepper>
         <InkKey
           glyph={<Ionicons name="hand-left-outline" size={17} color={inkKeyColor(tapping ? "active" : "idle")} />}
-          label={tapping ? t("metronome.tapCount", { count: tapCount }) : t("metronome.tap")}
+          label={t("metronome.tap")}
           tone={tapping ? "active" : "idle"}
           onPress={() => onTapTempo()}
           accessibilityLabel={t("metronome.tapTempo")}
