@@ -13,7 +13,8 @@
  *    SongNook?". Google's only once SongNook is on Play (ANDROID_LIVE); until then
  *    Android is told it's coming.
  * The raw files are one quiet line at the foot with a small download glyph (founder,
- * 2026-11-15): there for whoever needs them, never louder than SongNook.
+ * 2026-11-15): there for whoever needs them, never louder than SongNook. A package
+ * parcel leaves as a plain zip of its audio in folders, not the .songnook (repackJs.ts).
  *  - A computer: a QR code back to this same link, for the phone.
  * After installing, the person opens the link again and the app takes it: no deferred
  * deep link in v1 (the iOS clipboard handoff was removed, founder 2026-10-23). The Play
@@ -27,6 +28,7 @@ import { qrSvgPath } from "../lib/qr";
 import { escapeHtml, formatBytes, page } from "./shell";
 import { GALLERY_CSS, GALLERY_SCRIPT, GALLERY_SPRITE, galleryHtml } from "./appPreviewGallery";
 import { SEAL_JS } from "./sealJs";
+import { REPACK_JS } from "./repackJs";
 import { STRINGS, type Lang } from "./landingI18n";
 import { SEND_STRINGS, fill, plural, type SendStrings } from "./sendI18n";
 import { SITE_PARTS_CSS, SITE_PARTS_JS, androidSoon, langMenu, storeBadges } from "./siteParts";
@@ -210,6 +212,39 @@ const GRAB_JS = `
 })();
 `;
 
+/** One download, sealed or not: `get` resolves the file's plain bytes. A package
+ *  (`zipTitle` set) leaves as "<title>.zip" holding only its audio (repackJs.ts),
+ *  or as itself when it can't be read that way. The glyph shows it's working, and
+ *  turns to "try again" on a failure. Unsealed package rows (data-pack) wire here too. */
+const GRAB_ONE_JS = `
+(function(){
+  function save(blob, name){
+    var url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
+  }
+  function zipName(title){ return (String(title || '').replace(/[\\\\/:*?"<>|\\u0000-\\u001f]+/g, ' ').trim() || 'SongNook') + '.zip'; }
+  window.SongNookGrab = function(dl, get, fileName, zipTitle, T){
+    dl.disabled = true; dl.classList.remove('retry'); dl.setAttribute('aria-label', T.opening);
+    get().then(function(plain){
+      if (zipTitle == null || !window.SongNookRepack) return save(plain, fileName);
+      return window.SongNookRepack(plain).then(function(r){ r ? save(r.blob, zipName(zipTitle)) : save(plain, fileName); });
+    }).then(function(){ dl.disabled = false; dl.setAttribute('aria-label', T.download); })
+      .catch(function(){ dl.disabled = false; dl.classList.add('retry'); dl.setAttribute('aria-label', T.tryAgain); });
+  };
+  var T = JSON.parse((document.getElementById('grab-words') || {}).textContent || 'null');
+  if (!T) return;
+  Array.prototype.forEach.call(document.querySelectorAll('.trk-dl[data-pack]'), function(dl){
+    dl.addEventListener('click', function(){
+      var url = dl.getAttribute('data-pack');
+      window.SongNookGrab(dl, function(){
+        return fetch(url).then(function(res){ if (!res.ok) throw new Error(res.status); return res.blob(); });
+      }, dl.getAttribute('data-name') || 'song', dl.getAttribute('data-title') || '', T);
+    });
+  });
+})();
+`;
+
 function grabBlock(S: SendStrings, rowsHtml: string): string {
   return `<div class="grab" id="files">
   <p class="grab-line"><span>${escapeHtml(S.rawFiles)}</span><button type="button" class="dl" id="grab-btn" aria-controls="tracklist" aria-expanded="false" aria-label="${escapeHtml(S.download)}">${DL_ICON}</button></p>
@@ -267,12 +302,18 @@ export function renderRecipientPage(cfg: Config, t: TransferPayload, plat: Platf
   const transferUrl = `${cfg.publicOrigin}/t/${t.transferId}`;
   const names = t.items.map((it) => it.fileName);
   const noteHtml = t.message ? `<p class="note" dir="auto">“${escapeHtml(t.message)}”</p>` : "";
-  const files = names.some((n) => !isPackageFile(n)) ? t.items.filter((it) => !isPackageFile(it.fileName)) : t.items;
-  const rows = files
-    .map(
-      (it) => `<li><span class="trk-name" dir="auto">${escapeHtml(displayName(it.fileName))}</span><span class="trk-size">${formatBytes(it.size)}</span><a class="dl trk-dl" href="${escapeHtml(it.downloadUrl)}" aria-label="${escapeHtml(S.download)}">${DL_ICON}</a></li>`
-    )
+  const pkgOnly = !names.some((n) => !isPackageFile(n));
+  // A package alone leaves as "<title>.zip" of its audio (GRAB_ONE_JS); loose songs as they are.
+  const rows = t.items
+    .filter((it) => pkgOnly || !isPackageFile(it.fileName))
+    .map((it) => {
+      const key = pkgOnly
+        ? `<button type="button" class="dl trk-dl" data-pack="${escapeHtml(it.downloadUrl)}" data-name="${escapeHtml(it.fileName)}" data-title="${escapeHtml(title)}" aria-label="${escapeHtml(S.download)}">${DL_ICON}</button>`
+        : `<a class="dl trk-dl" href="${escapeHtml(it.downloadUrl)}" aria-label="${escapeHtml(S.download)}">${DL_ICON}</a>`;
+      return `<li><span class="trk-name" dir="auto">${escapeHtml(pkgOnly ? title : displayName(it.fileName))}</span><span class="trk-size">${formatBytes(it.size)}</span>${key}</li>`;
+    })
     .join("");
+  const grabWords = JSON.stringify({ download: S.download, opening: S.opening, tryAgain: S.tryAgain }).replace(/</g, "\\u003c");
 
   const body = `
 ${GALLERY_SPRITE}
@@ -288,12 +329,13 @@ ${GALLERY_SPRITE}
 
 ${aboutBlock(S, lang)}
 
-${grabBlock(S, rows)}`;
+${grabBlock(S, rows)}
+<script type="application/json" id="grab-words">${grabWords}</script>`;
 
   return pageFor(lang, {
     title: `${title} · ${fill(S.sentYou, { sender })}`,
     body,
-    script: GALLERY_SCRIPT + KEY_DOOR_JS + OPEN_JS + GRAB_JS,
+    script: GALLERY_SCRIPT + KEY_DOOR_JS + OPEN_JS + REPACK_JS + GRAB_ONE_JS + GRAB_JS,
     style: GALLERY_CSS + RECIPIENT_CSS,
     reportHref: `/report/${encodeURIComponent(t.transferId)}`,
   });
@@ -362,24 +404,19 @@ const SEALED_JS = `
     if (audio.length > 1) audio.slice(0, 3).forEach(function(it){ var li = document.createElement('li'), b = document.createElement('bdi'); b.textContent = stem(it.meta.name); li.appendChild(b); list.appendChild(li); });
     if (audio.length > 3){ var more = document.createElement('li'); more.className = 'more'; more.textContent = T.moreItems.replace('{n}', audio.length - 3); list.appendChild(more); }
 
-    var tl = $('tracklist');
+    // A package alone (a sketch, a collection…) hands over a plain zip of its audio.
+    var pkgOnly = !audio.length, tl = $('tracklist');
     shown.forEach(function(it){
       var li = document.createElement('li');
-      var name = document.createElement('span'); name.className = 'trk-name'; name.dir = 'auto'; name.textContent = stem(it.meta.name);
+      var name = document.createElement('span'); name.className = 'trk-name'; name.dir = 'auto'; name.textContent = pkgOnly ? title : stem(it.meta.name);
       var size = document.createElement('span'); size.className = 'trk-size'; size.textContent = bytes(it.meta.size);
       var dl = document.createElement('button'); dl.type = 'button'; dl.className = 'dl trk-dl'; dl.innerHTML = data.icon;
       dl.setAttribute('aria-label', T.download);
       dl.addEventListener('click', function(){
-        dl.disabled = true; dl.classList.remove('retry'); dl.setAttribute('aria-label', T.opening);
-        fetch(it.file.downloadUrl).then(function(res){ if (!res.ok) throw new Error(res.status); return res.blob(); })
-          .then(function(blob){ return Seal.openBlob(key, blob, it.meta.mime); })
-          .then(function(plain){
-            var url = URL.createObjectURL(plain), a = document.createElement('a');
-            a.href = url; a.download = it.meta.name || 'song'; document.body.appendChild(a); a.click(); a.remove();
-            setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
-            dl.disabled = false; dl.setAttribute('aria-label', T.download);
-          })
-          .catch(function(){ dl.disabled = false; dl.classList.add('retry'); dl.setAttribute('aria-label', T.tryAgain); });
+        window.SongNookGrab(dl, function(){
+          return fetch(it.file.downloadUrl).then(function(res){ if (!res.ok) throw new Error(res.status); return res.blob(); })
+            .then(function(blob){ return Seal.openBlob(key, blob, it.meta.mime); });
+        }, it.meta.name || 'song', pkgOnly ? title : null, T);
       });
       li.appendChild(name); li.appendChild(size); li.appendChild(dl); tl.appendChild(li);
     });
@@ -425,7 +462,7 @@ ${mobile ? "" : `<script src="/vendor/qrcode-generator.js"></script>`}`;
   return pageFor(lang, {
     title: S.sendTitle,
     body,
-    script: SEAL_JS + GALLERY_SCRIPT + KEY_DOOR_JS + OPEN_JS + SEALED_JS + GRAB_JS,
+    script: SEAL_JS + REPACK_JS + GRAB_ONE_JS + GALLERY_SCRIPT + KEY_DOOR_JS + OPEN_JS + SEALED_JS + GRAB_JS,
     style: GALLERY_CSS + RECIPIENT_CSS,
     reportHref: `/report/${encodeURIComponent(t.transferId)}`,
   });
