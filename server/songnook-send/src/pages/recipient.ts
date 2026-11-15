@@ -29,7 +29,7 @@ import { GALLERY_CSS, GALLERY_SCRIPT, GALLERY_SPRITE, galleryHtml } from "./appP
 import { SEAL_JS } from "./sealJs";
 import { STRINGS, type Lang } from "./landingI18n";
 import { SEND_STRINGS, fill, plural, type SendStrings } from "./sendI18n";
-import { SITE_PARTS_CSS, SITE_PARTS_JS, langMenu, storeBadges } from "./siteParts";
+import { SITE_PARTS_CSS, SITE_PARTS_JS, androidSoon, langMenu, storeBadges } from "./siteParts";
 
 export interface Platform {
   isMobile: boolean;
@@ -47,7 +47,8 @@ export function detectPlatform(userAgent: string): Platform {
 
 const RECIPIENT_CSS = `
 .parcel{margin-top:28px}
-.parcel .meta-line{margin-bottom:8px}
+/* one line of text (a sealed parcel fills its count in front): no flex gap to indent it */
+.parcel .meta-line{display:block;margin-bottom:8px}
 .parcel-title{font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(24px,5.4vw,30px);line-height:1.15;
   color:var(--ink);margin:0;overflow-wrap:anywhere}
 .parcel .note{font-size:17px;margin:10px 0 0}
@@ -65,11 +66,11 @@ const RECIPIENT_CSS = `
 [dir="rtl"] .open svg{transform:scaleX(-1)}
 .new-here{font-size:14px;color:var(--ink-soft);line-height:1.5;margin:22px 0 12px;max-width:40ch}
 .cta-fine{font-size:12.5px;color:var(--ink-faint);margin:12px 0 0}
-.soon{color:var(--ink-soft);font-size:14px;line-height:1.55;margin:16px 0 0}
+.soon-row{margin-top:18px}
 .qr-cta{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
 .qr-card{background:#fff;padding:12px;border-radius:10px;line-height:0;border:1px solid var(--rule)}
 .qr-cta .cta-fine{margin:0;max-width:24ch;font-size:14px;color:var(--ink-soft)}
-.qr-cta + .stores{margin-top:20px}
+.qr-cta + .new-here{margin-top:20px}
 .about{margin-top:clamp(52px,9vw,80px)}
 .about h2{font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(27px,4.4vw,36px);line-height:1.12;margin:0 0 10px;text-wrap:balance}
 .about .sub{margin:0 0 30px}
@@ -157,16 +158,18 @@ function ctaBlock(cfg: Config, S: SendStrings, lang: Lang, t: TransferPayload, p
   ${newHere}
   <div class="stores"><a class="store" id="play-badge" data-path="${escapeHtml(appPath)}" href="${escapeHtml(androidIntent(playStore))}"><img src="/badges/google-play${lang === "en" ? "" : "-" + lang}.png" width="168" height="50" alt="${escapeHtml(STRINGS[lang].playAlt)}"></a></div>`;
     }
-    // Not on Play yet: the key still opens the app for the testers who have it.
+    // Not on Play yet: the key still opens the app for the testers who have it, and
+    // the store's slot says Android is coming, as on songnook.app.
     return `${open(androidIntent(transferUrl + "#files"))}
-  <p class="soon">${escapeHtml(S.androidSoon)}</p>`;
+  <div class="stores soon-row">${androidSoon(lang)}</div>`;
   }
   const { d, modules } = qrSvgPath(transferUrl);
   return `<div class="qr-cta">
     <div class="qr-card" id="qr-slot"><svg class="qr" width="120" height="120" viewBox="0 0 ${modules} ${modules}" role="img" aria-label="${escapeHtml(S.qrLabel)}"><path d="${d}" fill="#1b1208"/></svg></div>
     <p class="cta-fine">${escapeHtml(S.scan)}</p>
   </div>
-  ${storeBadges({ lang, appStoreUrl: cfg.iosAppStoreUrl, playHref: cfg.playStoreUrl })}`;
+  ${newHere}
+  ${storeBadges({ lang, appStoreUrl: cfg.iosAppStoreUrl, playHref: cfg.playStoreUrl, instead: androidSoon(lang) })}`;
 }
 
 /** iPhone: the app's scheme, and the App Store when nothing answers. Safari holds the

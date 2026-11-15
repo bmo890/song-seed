@@ -26,7 +26,6 @@ export type SendStrings = {
   moreItems: string;
   openInApp: string;
   newHere: string;
-  androidSoon: string;
   scan: string;
   qrLabel: string;
   aboutEyebrow: string;
@@ -111,7 +110,6 @@ export const SEND_STRINGS: Record<Lang, SendStrings> = {
     moreItems: "and {n} more",
     openInApp: "Open in SongNook",
     newHere: "New to SongNook? Get it, then open this link again.",
-    androidSoon: "SongNook for Android is coming soon.",
     scan: "Scan with your phone to open it in SongNook.",
     qrLabel: "QR code to open this in SongNook",
     aboutEyebrow: "What's SongNook?",
@@ -194,7 +192,6 @@ export const SEND_STRINGS: Record<Lang, SendStrings> = {
     moreItems: "y {n} más",
     openInApp: "Abrir en SongNook",
     newHere: "¿Nuevo en SongNook? Descárgala y vuelve a abrir este enlace.",
-    androidSoon: "SongNook para Android llega muy pronto.",
     scan: "Escanéalo con tu teléfono para abrirlo en SongNook.",
     qrLabel: "Código QR para abrir esto en SongNook",
     aboutEyebrow: "¿Qué es SongNook?",
@@ -277,7 +274,6 @@ export const SEND_STRINGS: Record<Lang, SendStrings> = {
     moreItems: "und {n} weitere",
     openInApp: "In SongNook öffnen",
     newHere: "Neu bei SongNook? Hol dir die App und öffne diesen Link noch einmal.",
-    androidSoon: "SongNook für Android kommt bald.",
     scan: "Scanne den Code mit dem Handy, um es in SongNook zu öffnen.",
     qrLabel: "QR-Code, um dies in SongNook zu öffnen",
     aboutEyebrow: "Was ist SongNook?",
@@ -360,7 +356,6 @@ export const SEND_STRINGS: Record<Lang, SendStrings> = {
     moreItems: "e mais {n}",
     openInApp: "Abrir no SongNook",
     newHere: "Novo no SongNook? Baixe o app e abra este link de novo.",
-    androidSoon: "O SongNook para Android chega em breve.",
     scan: "Escaneie com o celular para abrir no SongNook.",
     qrLabel: "Código QR para abrir isto no SongNook",
     aboutEyebrow: "O que é o SongNook?",
@@ -443,7 +438,6 @@ export const SEND_STRINGS: Record<Lang, SendStrings> = {
     moreItems: "ועוד {n}",
     openInApp: "פתיחה ב־SongNook",
     newHere: "חדשים ב־SongNook? הורידו את האפליקציה ופתחו שוב את הקישור.",
-    androidSoon: "SongNook לאנדרואיד יגיע בקרוב.",
     scan: "סרקו עם הטלפון כדי לפתוח ב־SongNook.",
     qrLabel: "קוד QR לפתיחה ב־SongNook",
     aboutEyebrow: "מה זה SongNook?",
