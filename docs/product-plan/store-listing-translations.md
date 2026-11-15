@@ -4,7 +4,7 @@ The English source is `store-truth.md` §6 (2026-11-15 copy). These follow it li
 line; features are described rather than named, as in English, and the words that remain
 (setlist, take, workspace) follow the app's locale files and `docs/i18n/glossary-*.md`.
 Rewritten 2026-11-15; no native reader has checked them yet. The Apple subtitle,
-promotional text and keywords below are still the 2026-11-14 ones.
+keywords below are still the 2026-11-14 ones; promotional text is the 2026-11-15 one (live in App Store Connect).
 
 Where they go:
 - **Play:** "Manage translations → Add your own translations" on the default listing.
@@ -25,7 +25,7 @@ keywords ≤ 100, description ≤ 4000.
 
 - **Apple subtitle:** `Un rincón para tus canciones`
 - **Play short description:** `Un rincón tranquilo para componer y practicar. Escribe, termina, prepara el set.`
-- **Apple promotional text:** `Un rincón tranquilo para componer y practicar. Atrapa ideas en cuanto llegan, vuelve a encontrarlas y termínalas. Sin cuenta, y tus canciones se quedan en tu teléfono.`
+- **Apple promotional text:** `Cientos de notas de voz, por fin en orden. Ordena ideas en colecciones, encuentra cualquiera en segundos y hazla canción. Luego envíala a tu banda, lista para tocar.`
 - **Apple keywords:** `componer,compositor,letras,acordes,nota de voz,grabadora,ideas,setlist,afinador,metrónomo,demo`
 
 ```
@@ -91,7 +91,7 @@ Política de privacidad: https://songnook.app/privacy
 
 - **Apple subtitle:** `Ein stiller Winkel für Songs`
 - **Play short description:** `Ein stiller Winkel zum Songschreiben und Üben. Schreib, vollende, lern das Set.`
-- **Apple promotional text:** `Ein stiller Winkel zum Songschreiben und Üben. Halte Ideen fest, wenn sie kommen, finde sie wieder und mach sie fertig. Kein Konto, deine Songs bleiben auf dem Handy.`
+- **Apple promotional text:** `Hunderte Sprachmemos, endlich in Ordnung. Sortiere Ideen in Sammlungen, finde jede in Sekunden und mach einen Song daraus. Dann schick ihn spielbereit an deine Band.`
 - **Apple keywords:** `songwriting,songwriter,songtext,akkorde,sprachmemo,rekorder,songideen,setlist,stimmgerät,metronom`
 
 ```
@@ -157,7 +157,7 @@ Datenschutzerklärung: https://songnook.app/privacy
 
 - **Apple subtitle:** `Um canto para suas músicas`
 - **Play short description:** `Um canto tranquilo para compor e praticar. Escreva, termine, aprenda o set.`
-- **Apple promotional text:** `Um canto tranquilo para compor e praticar. Capture as ideias na hora em que surgem, encontre-as de novo e termine. Sem conta, e suas músicas ficam no seu celular.`
+- **Apple promotional text:** `Centenas de memos de voz, enfim em ordem. Organize ideias em coleções, ache qualquer uma em segundos e faça dela uma música. Depois, envie à banda, pronta para tocar.`
 - **Apple keywords:** `compor,compositor,letra,acordes,memo de voz,gravador,ideias,setlist,afinador,metrônomo,demo,cifra`
 
 ```
@@ -225,7 +225,7 @@ Plural address (אתם), as the app speaks.
 
 - **Apple subtitle:** `פינה שקטה לסיים בה שירים`
 - **Play short description:** `פינה שקטה לכתיבת שירים ולתרגול. לכתוב, לסיים, ללמוד את הסט.`
-- **Apple promotional text:** `פינה שקטה לכתיבת שירים ולתרגול. לתפוס רעיונות ברגע שהם מגיעים, למצוא אותם שוב ולסיים אותם. בלי חשבון, והשירים נשארים בטלפון שלכם.`
+- **Apple promotional text:** `מאות הקלטות קוליות, סוף סוף מסודרות. למיין רעיונות לאוספים, למצוא כל אחד בשניות ולהפוך אותו לשיר. ואז לשלוח אותו ללהקה, מוכן לנגינה.`
 - **Apple keywords:** `כתיבת שירים,מילים,אקורדים,הקלטה,תזכיר קולי,רעיונות,סטליסט,טיונר,מטרונום,דמו,שיר`
 
 ```

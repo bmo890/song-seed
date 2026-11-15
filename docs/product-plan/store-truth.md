@@ -191,7 +191,7 @@ with learning other people's songs (founder: "part of it is learning other peopl
 - **Tagline (both stores, the intro screen and the feature graphic):** A quiet corner to finish songs.
 - **Apple subtitle (30):** `A quiet corner to finish songs`
 - **Play short description (80):** `A quiet corner for songwriting and practice. Write, finish, learn the set.` (2026-11-15; was `A quiet corner to finish songs. Record, organize, rehearse, never lose a gem.`)
-- **Apple promotional text (170):** `A quiet corner for songwriting and practice. Catch ideas the moment they hit, find them again, and finish them. No account, and your songs stay on your phone.` (158; 2026-11-14, was "A quiet corner to finish songs. … rehearse them until they're done. …")
+- **Apple promotional text (170):** `Hundreds of voice memos, finally in order. Sort ideas into collections, find any one in seconds, and turn it into a song. Then send it to your band, ready to play.` (163; 2026-11-15, founder picked: organization first, then the band. Replaced the 2026-11-14 line, which repeated the description's opening right above it. Promotional text changes any time, no new version.)
 - **Apple keywords (100):** `songwriting,songwriter,lyrics,chords,voice memo,recorder,song ideas,setlist,tuner,metronome,demo`
 - **Categories:** Apple: Music, then Productivity.
 - **Links:** support https://songnook.app/privacy#contact · marketing https://songnook.app
