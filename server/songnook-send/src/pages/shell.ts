@@ -95,6 +95,8 @@ body::before{ /* paper grain — plain opacity; blend modes are too expensive to
   font-size:21px;color:var(--ink);letter-spacing:.01em;text-decoration:none}
 .brand b{color:var(--terra);font-style:normal;font-weight:600}
 .masthead .tag{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-faint)}
+.masthead .tag-link{color:var(--terra);font-weight:700;text-decoration:none;border-bottom:1px solid transparent}
+.masthead .tag-link:hover{border-bottom-color:var(--terra)}
 
 /* ── type ── */
 .eyebrow{font-size:12px;letter-spacing:.26em;text-transform:uppercase;color:var(--terra);
@@ -243,12 +245,12 @@ ${opts.head ?? ""}
 <div class="wrap${opts.wide ? " wide" : ""}">
 <header class="masthead rise">
   <a class="brand" href="/">Song<b>Nook</b>${site ? "" : " · Send"}</a>
-  <span class="tag">${site ? "A quiet place to finish creative work" : "Music, passed along"}</span>
+  ${site ? '<a class="tag tag-link" href="/#get">Get the app</a>' : '<span class="tag">Music, passed along</span>'}
 </header>
 ${opts.body}
 <footer class="foot">
   <span>${site ? '<a href="/support">Support</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>' : "Files are held for a limited time, then quietly let go."}</span>
-  <span>SongNook — a home for song ideas${
+  <span>${site ? "© 2026 bmostudio" : "SongNook — a quiet corner for songwriting and practice"}${
     opts.reportHref ? ` · <a href="${escapeHtml(opts.reportHref)}">Report</a>` : ""
   }</span>
 </footer>

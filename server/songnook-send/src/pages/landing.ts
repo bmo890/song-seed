@@ -20,10 +20,10 @@ const MARK = `<svg class="mark" viewBox="0 0 120 120" aria-hidden="true"><rect x
 
 /** The tour: the four moments of writing a song, one line each, with the real screen. */
 const TOUR: { title: string; line: string; screen: string; alt: string }[] = [
-  { title: "Catch it", line: "One tap, and the idea is saved.", screen: "recorder", alt: "Recording a new idea" },
-  { title: "Never lose it", line: "Old gems come back to you, so a good idea never gets lost.", screen: "revisit", alt: "Unfinished songs and forgotten ideas, brought back" },
-  { title: "Finish it", line: "Every take and every lyric draft is kept, so you can always go back.", screen: "sketch", alt: "A song with its takes and older versions" },
+  { title: "Catch it", line: "Record the moment inspiration hits, and keep it organized your way.", screen: "recorder", alt: "Recording a new idea" },
   { title: "Write it", line: "Lyrics and chords side by side, and writing games to break writer's block. Every word is yours.", screen: "lyrics", alt: "A chord chart with lyrics" },
+  { title: "Finish it", line: "Every take and every lyric draft is kept, so you can always go back.", screen: "sketch", alt: "A song with its takes and older versions" },
+  { title: "Never lose it", line: "Old gems come back to you, so a good idea never gets lost.", screen: "revisit", alt: "Unfinished songs and forgotten ideas, brought back" },
 ];
 
 /** Sharing, told as what a band gets out of it. */
@@ -63,9 +63,9 @@ const PRO_ADDS: { title: string; line: string }[] = [
 ];
 
 const PLANS: { key: string; label: string; price: string; per: string; note: string }[] = [
-  { key: "year", label: "Yearly", price: "$24.99", per: "a year", note: "About $2.08 a month." },
-  { key: "month", label: "Monthly", price: "$3.99", per: "a month", note: "Cancel anytime in your store." },
-  { key: "life", label: "Lifetime", price: "$59.99", per: "once", note: "Launch price until February 9, 2027." },
+  { key: "year", label: "Yearly", price: "$24.99", per: "a year", note: "About $2 a month." },
+  { key: "month", label: "Monthly", price: "$3.99", per: "a month", note: "Cancel anytime." },
+  { key: "life", label: "Lifetime", price: "$59.99", per: "once", note: "Pay once. Early-adopter launch price." },
 ];
 
 /** Deterministic bar heights (percent) for the hero's mini player. */
@@ -374,7 +374,6 @@ export function renderLandingPage(appStoreUrl: string, playStoreUrl: string | nu
     <h1>A quiet corner for songwriting <em>and practice.</em></h1>
     <p class="sub">For songwriters and working musicians. Catch every idea, finish your songs, and learn the set.</p>
     ${storeBadges(appStoreUrl, playStoreUrl, "hero")}
-    <p class="fine">Free · No account · No ads</p>
   </div>
   <div class="stage rise d2">
     <div class="phone"><div class="screen"><img src="/screens/collection.webp" width="640" height="1391" alt="A collection of song ideas, newest first, each with its waveform and stage"></div></div>
@@ -440,7 +439,7 @@ export function renderLandingPage(appStoreUrl: string, playStoreUrl: string | nu
   <p class="plans-fine">Prices in US dollars; your store shows yours.</p>
 </section>
 
-<section class="closing reveal">
+<section class="closing reveal" id="get">
   <h2>Catch the <em>next one.</em></h2>
   <p class="lead">Free to download. Your first month of Pro is on us.</p>
   ${storeBadges(appStoreUrl, playStoreUrl, "close")}
