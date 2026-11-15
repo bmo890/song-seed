@@ -175,7 +175,7 @@ h2{font-family:Lora,Georgia,serif;font-weight:500;font-size:clamp(30px,4.6vw,46p
 
 /* ── practice: the Send page's living cards ── */
 .learn .gallery{margin:0 -22px}
-@media (min-width:1080px){.learn .gallery{justify-content:center;overflow:visible;margin:0}.learn .dots{display:none}}
+@media (min-width:1080px){.learn .gallery{justify-content:center;overflow:visible;margin:0;padding:2px 0 6px}.learn .dots{display:none}}
 
 /* ── band ── */
 .band-grid{display:grid;grid-template-columns:auto 1fr;gap:clamp(36px,7vw,110px);align-items:center}

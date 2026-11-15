@@ -258,9 +258,16 @@ export const GALLERY_CSS = `
 
   @media (prefers-reduced-motion:reduce){.ap-roll{animation:none;transform:translateX(-200px)}.ap-lyrroll{animation:none}}
 
-  .gallery{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -22px;padding:2px 22px 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  /* the side padding lets the first and last card snap to the centre too (a padding %
+     reads the parent's width; the gallery is that plus its two 22 px bleeds) */
+  .gallery{--sw:335px;display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -22px;
+    padding:2px max(22px,calc(50% + 22px - var(--sw) / 2)) 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   .gallery::-webkit-scrollbar{display:none}
-  .slide{flex:0 0 auto;scroll-snap-align:center;width:335px;max-width:86vw}
+  .slide{flex:0 0 auto;scroll-snap-align:center;width:var(--sw)}
+  /* the cards are drawn at the app's own size; on a narrow phone they shrink whole
+     rather than clip */
+  @media (max-width:380px){.gallery{--sw:302px}.slide .inner{zoom:.9}}
+  @media (max-width:340px){.gallery{--sw:268px}.slide .inner{zoom:.8}}
   .slide .inner{border:1px solid var(--rule);border-radius:16px;overflow:hidden;background:#FDFBF7}
   .slide .cap{text-align:center;font-size:12.5px;color:var(--ink-soft);margin-top:10px;line-height:1.4}
   .slide .cap b{color:var(--ink);font-weight:600}
