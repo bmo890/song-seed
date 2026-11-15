@@ -20,17 +20,17 @@ const MARK = `<svg class="mark" viewBox="0 0 120 120" aria-hidden="true"><rect x
 
 /** The tour: the four moments of writing a song, one line each, with the real screen. */
 const TOUR: { title: string; line: string; screen: string; alt: string }[] = [
-  { title: "Catch it", line: "One tap and you're recording, even with the screen locked.", screen: "recorder", alt: "Recording a new idea" },
-  { title: "Never lose it", line: "Every idea organized, and the forgotten ones brought back to you.", screen: "revisit", alt: "Unfinished songs and forgotten ideas, brought back" },
-  { title: "Finish it", line: "Every take, version and part of a song, together in one place.", screen: "sketch", alt: "A song with its takes and older versions" },
-  { title: "Write it", line: "Lyrics and chord charts side by side, and help when the words won't come.", screen: "lyrics", alt: "A chord chart with lyrics" },
+  { title: "Catch it", line: "One tap, and the idea is saved.", screen: "recorder", alt: "Recording a new idea" },
+  { title: "Never lose it", line: "Old gems come back to you, so a good idea never gets lost.", screen: "revisit", alt: "Unfinished songs and forgotten ideas, brought back" },
+  { title: "Finish it", line: "Every take and every lyric draft is kept, so you can always go back.", screen: "sketch", alt: "A song with its takes and older versions" },
+  { title: "Write it", line: "Lyrics and chords side by side, and writing games to break writer's block. Every word is yours.", screen: "lyrics", alt: "A chord chart with lyrics" },
 ];
 
 /** Sharing, told as what a band gets out of it. */
 const BAND: { title: string; line: string }[] = [
-  { title: "Send the whole song.", line: "Lyrics, chords and notes go with the recording." },
-  { title: "Open it ready to learn.", line: "What your band sends opens with every practice tool, even on the free plan." },
-  { title: "Bring it to the gig.", line: "Setlists and chord charts, ready for the stage." },
+  { title: "Send it.", line: "One private link carries the recording and everything attached to it." },
+  { title: "Receive it.", line: "What your band sends opens ready to learn, sections and all." },
+  { title: "Play it.", line: "Setlists and chord charts, ready for the stage." },
 ];
 
 const YOURS: { title: string; line: string; icon: string }[] = [
@@ -401,7 +401,8 @@ export function renderLandingPage(appStoreUrl: string, playStoreUrl: string | nu
   <div class="band-grid">
     <div class="band-stage reveal"><div class="phone"><div class="screen"><img src="/screens/received-player.webp" width="640" height="1391" loading="lazy" alt="A song from a bandmate, with its lyrics, chart and notes"></div></div></div>
     <div class="band-copy">
-      <div class="sec-head reveal"><p class="eyebrow">For the band</p><h2>Share songs with your band</h2></div>
+      <div class="sec-head reveal"><p class="eyebrow">For the band</p><h2>Send the whole song, not just the audio</h2>
+        <p class="lead">SongNook Send packages a recording with its lyrics, chords, sections, marked moments and notes.</p></div>
       <ul class="points">${band}</ul>
     </div>
   </div>
