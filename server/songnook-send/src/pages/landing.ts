@@ -51,14 +51,14 @@ const YOURS: { title: string; line: string; icon: string }[] = [
   },
 ];
 
-const FREE = ["Record and organize without limits", "Lyrics and chord charts", "Backup, and one shared song a month"];
+const FREE = ["Record and organize without limits", "Lyrics and chord charts", "Backup and export", "One SongNook Send link a month"];
 
 /** What Pro adds, packaged as benefits (the itemized split lives in pricing-and-marketing.md). */
 const PRO_ADDS: { title: string; line: string }[] = [
   { title: "Practice tools", line: "Slow it down, change the key, drill the hard parts." },
   { title: "Gig-ready charts", line: "Setlists and chord charts in any key." },
   { title: "Writing help", line: "Rhymes, synonyms and games for when you're stuck." },
-  { title: "No limits", line: "Share as often as you like, with a space for every band." },
+  { title: "Unlimited sharing", line: "As many SongNook Send links as you like, and a space for every band." },
   { title: "Studio export", line: "Take your ideas into Logic, Ableton and more." },
 ];
 
@@ -401,7 +401,7 @@ export function renderLandingPage(appStoreUrl: string, playStoreUrl: string | nu
     <div class="band-stage reveal"><div class="phone"><div class="screen"><img src="/screens/received-player.webp" width="640" height="1391" loading="lazy" alt="A song from a bandmate, with its lyrics, chart and notes"></div></div></div>
     <div class="band-copy">
       <div class="sec-head reveal"><p class="eyebrow">For the band</p><h2>Send the whole song, not just the audio</h2>
-        <p class="lead">SongNook Send packages a recording with its lyrics, chords, sections, marked moments and notes.</p></div>
+        <p class="lead">Exporting gives your band a bare audio file. SongNook Send gives them the song: the recording with its lyrics, chords, sections, marked moments and notes.</p></div>
       <ul class="points">${band}</ul>
     </div>
   </div>
